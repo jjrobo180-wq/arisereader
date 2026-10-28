@@ -1566,7 +1566,7 @@ export async function registerRoutes(
   const podcastPlayer = createPodcastPlayer({ library: createAdLibrary(supabaseKV(getAdminSupabase)) });
   startPlayDiagnostics(supabaseKV(getAdminSupabase), podcastPlayer, podcasts);
   // New episodes of followed and top shows checked for ads before anyone plays them, with the AI allowance left over at night.
-  startPodcastPrechecks({ kv: supabaseKV(getAdminSupabase), player: podcastPlayer, dir: podcasts,
+  if (process.env.EARSHOT_PRECHECK === "1") startPodcastPrechecks({ kv: supabaseKV(getAdminSupabase), player: podcastPlayer, dir: podcasts,
     topShows: async () => { const lists = await Promise.all(PODCAST_GENRES.slice(0, 12).map((g) => podcasts.loadGenreShows(g.id).catch(() => []))); const out: string[] = []; for (let i = 0; i < 4; i++) for (const l of lists) if (l[i]) out.push(l[i].id); return out; } });
   registerEarshotRoutes(app, authMiddleware, { store: supabaseEarshotStore(getAdminSupabase), directory: podcasts, adStore: podcastAds, player: podcastPlayer, socialDb: getAdminSupabase });
   registerPodscrollRoutes(app, supabaseEarshotStore(getAdminSupabase, "podscroll"), undefined, podcasts, podcastAds, podcastPlayer, getAdminSupabase, { sendEmail: (to, subject, html) => sendEmail(to, subject, html) });

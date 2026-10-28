@@ -361,7 +361,8 @@ export function BookPage({ api, id, current, playing, onPlay, onToggle, onBack, 
       })}
     </ol>
     <p className="mt-8 text-xs text-[#767676]">A <a href="https://librivox.org" target="_blank" rel="noreferrer" className="underline">LibriVox</a> recording, public domain. <a href={book.link} target="_blank" rel="noreferrer" className="underline">See it at the Internet Archive</a>.</p>
-    {readers && <ReadersSheet api={api} book={book} onClose={() => setReaders(false)} onPick={(otherId) => void switchTo(otherId)} />}
+    {readers && <ReadersSheet api={api} book={book} onClose={() => setReaders(false)} onPick={(otherId) => void switchTo(otherId)}
+      onNarrate={(voice) => { setReaders(false); if (!here) play({ book, ch: startCh, at: spot && !here ? spot.t : 0 }); setTimeout(() => window.dispatchEvent(new CustomEvent("podplus:narrate", { detail: { bookId: book.id, voice } })), here ? 0 : 600); }} />}
   </div>;
 }
 
@@ -387,7 +388,7 @@ function Bookmarks({ book, onJump }: { book: BookDetail; onJump: (m: Mark) => vo
 }
 
 /** Every reading of this book, to hear a little of each and pick the voice you like. */
-function ReadersSheet({ api, book, onClose, onPick }: { api: Api; book: BookDetail; onClose: () => void; onPick: (id: string) => void }) {
+function ReadersSheet({ api, book, onClose, onPick, onNarrate }: { api: Api; book: BookDetail; onClose: () => void; onPick: (id: string) => void; onNarrate: (voice: string) => void }) {
   const [list, setList] = useState<Book[] | null>(null);
   const [err, setErr] = useState("");
   const preview = usePreview(api);
@@ -398,6 +399,15 @@ function ReadersSheet({ api, book, onClose, onPick }: { api: Api; book: BookDeta
   }, [api, book.id]); // eslint-disable-line react-hooks/exhaustive-deps
   return <Sheet title="Choose a reader" onClose={onClose}>
     <p className="px-5 pt-3 text-sm text-[#606060]">Tap the headphones to hear a little of each reading. Switching keeps your place in the book.</p>
+    <p className="px-5 pt-4 text-xs font-semibold uppercase tracking-wide text-[#606060]">AI narrator</p>
+    <ul className="px-3 pt-1">
+      {NARRATORS.map((v) => <li key={v.id} className="flex items-center gap-3 rounded-xl px-2 py-2">
+        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white" style={{ background: ACCENT }}><Sparkles size={16} /></span>
+        <span className="flex min-w-0 flex-1 flex-col"><span className="truncate text-sm font-semibold">{v.label} <span className="ml-1 rounded bg-[#f2f2f2] px-1.5 py-0.5 text-[10px] font-bold uppercase text-[#606060]">AI voice</span></span><span className="truncate text-xs text-[#606060]">{v.about} · reads the book's own text</span></span>
+        <button onClick={() => { preview.stop(); onNarrate(v.id); }} className="h-8 shrink-0 rounded-full bg-[#0f0f0f] px-3 text-xs font-semibold text-white">Use this one</button>
+      </li>)}
+    </ul>
+    <p className="px-5 pt-3 text-xs font-semibold uppercase tracking-wide text-[#606060]">Human readers</p>
     {err ? <p className="px-5 py-10 text-center text-[#606060]">{err}</p>
       : !list ? <div className="flex justify-center py-12"><Loader2 className="animate-spin text-[#606060]" size={24} /></div>
       : <ul className="px-3 py-2">
@@ -496,7 +506,7 @@ function deviceVoice(): SpeechSynthesisVoice | null {
 }
 const paragraphsOf = (text: string) => text.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
 
-function ReadAlong({ api, pro, onJoin, reading, time, onSeek, onClose, onPauseMain }: { api: Api; pro: boolean; onJoin: () => void; reading: Reading; time: number; onSeek: (t: number) => void; onClose: () => void; onPauseMain: () => void }) {
+function ReadAlong({ api, pro, onJoin, reading, time, onSeek, onClose, onPauseMain, autoVoice = null, onAutoVoiceUsed }: { autoVoice?: string | null; onAutoVoiceUsed?: () => void; api: Api; pro: boolean; onJoin: () => void; reading: Reading; time: number; onSeek: (t: number) => void; onClose: () => void; onPauseMain: () => void }) {
   const { book, ch } = reading;
   const [tab, setTab] = useState<"text" | "transcript">("text");
   const [text, setText] = useState<{ sections: TextSection[]; source: string } | null | "none">(null);
@@ -609,6 +619,13 @@ function ReadAlong({ api, pro, onJoin, reading, time, onSeek, onClose, onPauseMa
       playPart(start);
     } catch (e: any) { if (run === narrRun.current) setNarr(null); if (e?.needSignIn) onJoin(); }
   };
+  // Opened to narrate with a voice picked from the reader list: start once the text is here.
+  useEffect(() => {
+    if (!autoVoice || !text) return;
+    onAutoVoiceUsed?.();
+    if (text === "none") return;
+    startNarr(autoVoice);
+  }, [autoVoice, text]); // eslint-disable-line react-hooks/exhaustive-deps
   const startNarr = (voice: string) => {
     setPicking(false);
     if (voice !== "device" && !pro) { onJoin(); return; }
@@ -810,6 +827,13 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
   const pausedAt = useRef(0);
   const [sleepAt, setSleepAt] = useState<number | "end" | null>(null);
   const [sheet, setSheet] = useState<"settings" | "read" | "mark" | "ask" | null>(null);
+  // "Use this one" on an AI voice (the book's reader list): Read along opens and that voice reads.
+  const [narrateWith, setNarrateWith] = useState<string | null>(null);
+  useEffect(() => {
+    const f = (e: Event) => { const d = (e as CustomEvent).detail || {}; if (d.bookId === reading.book.id) { setNarrateWith(String(d.voice)); setSheet("read"); } };
+    window.addEventListener("podplus:narrate", f);
+    return () => window.removeEventListener("podplus:narrate", f);
+  }, [reading.book.id]);
   const { book, ch } = reading;
   const chapter = book.chapters[ch];
   const lastSave = useRef(0);
@@ -1072,6 +1096,6 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
     </Sheet>}
     {sheet === "ask" && <AskSheet api={api} pro={pro} onJoin={() => { setSheet(null); onJoin(); }} book={book} ch={ch} t={time} onClose={() => setSheet(null)} />}
     {sheet === "mark" && <MarkSheet book={book} ch={ch} t={time} onClose={() => setSheet(null)} onSaved={() => { setSheet(null); say("Bookmark added. Find it on the book's page."); }} />}
-    {sheet === "read" && <ReadAlong onPauseMain={() => audio.current?.pause()} api={api} pro={pro} onJoin={() => { setSheet(null); onJoin(); }} reading={reading} time={time} onSeek={(t) => { const a = audio.current; if (a) { a.currentTime = t; if (a.paused) a.play().catch(() => {}); } }} onClose={() => setSheet(null)} />}
+    {sheet === "read" && <ReadAlong autoVoice={narrateWith} onAutoVoiceUsed={() => setNarrateWith(null)} onPauseMain={() => audio.current?.pause()} api={api} pro={pro} onJoin={() => { setSheet(null); onJoin(); }} reading={reading} time={time} onSeek={(t) => { const a = audio.current; if (a) { a.currentTime = t; if (a.paused) a.play().catch(() => {}); } }} onClose={() => setSheet(null)} />}
   </div>;
 }

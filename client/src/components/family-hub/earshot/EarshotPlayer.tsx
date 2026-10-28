@@ -1211,7 +1211,9 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     }).catch(() => {});
   }, [start, loadEpisodes]);
 
-  // Podscroll fills exactly the visible screen (100dvh). It used to size itself to the whole screen on
+  // Pod+ fills the whole screen, top to bottom edge, like its home page (fixed to all four sides:
+  // 100dvh came out 62 px short on the iPhone home screen, leaving a gap under the bottom bars).
+  // Podscroll used to fill exactly the visible screen (100dvh). It used to size itself to the whole screen on
   // the iPhone home screen, which ran past what iOS shows and hid the bottom of every tab there.
   // iPhone home screen: iOS only paints the page in the top part of the screen and fills the strip
   // below it (about the clock bar's height) with the page's color. So that color follows the cover:
@@ -1266,7 +1268,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
 
   // ---------------- layout ----------------
-  const shell = standalone ? "fixed inset-x-0 top-0 h-[100dvh] supports-[not(height:100dvh)]:h-full" : full ? "fixed inset-0 z-[60]" : "relative h-[min(84dvh,880px)] min-h-[560px] rounded-3xl";
+  const shell = standalone ? "fixed inset-0" : full ? "fixed inset-0 z-[60]" : "relative h-[min(84dvh,880px)] min-h-[560px] rounded-3xl";
   const TAB_NAMES: Record<Tab, string> = { foryou: "For You", following: "Following", openmic: "Open Mic", social: "Social", explore: "Explore", library: "Library" };
   const allTabs: [Tab, string][] = student ? [["foryou", "For You"], ["following", "Following"], ["explore", "Explore"], ["library", "Library"]] : [["foryou", "For You"], ["following", "Following"], ["openmic", "Open Mic"], ["social", "Social"], ["explore", "Explore"], ["library", "Library"]];
   const tabs: [Tab, string][] = !onHome ? allTabs : tab === "foryou" || tab === "following" ? [["foryou", "For You"], ["following", "Following"]] : [[tab, TAB_NAMES[tab]]];
@@ -1282,7 +1284,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   // What's playing stays reachable from the other tabs: a mini player along the bottom.
   const nowItem = items[active];
   const mini = page && !previews && !!nowItem?.ep && cur.current?.dataset.ep === nowItem.ep.id && (playing || time > 0);
-  const miniPad = mini ? (standalone ? "pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))]" : "pb-14") : "";
+  const miniPad = mini ? (standalone ? "pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))]" : "pb-14") : standalone ? "pb-[env(safe-area-inset-bottom,0px)]" : "";
   // Pod+: Open Mic, Social and Library opened from the site's home page wear the site's look
   // (its top bar, type and white or near-black page) instead of the player's own.
   const site = !!onHome && page;
