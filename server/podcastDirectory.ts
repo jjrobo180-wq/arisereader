@@ -17,6 +17,7 @@ import {
   type AdRange, type Chapter, type PodEpisode, type PodShow, type PoolShow, type TranscriptChunk, type TxSegment,
 } from "../shared/earshot";
 import { perplexityChat } from "./aiProvider";
+import { deepgramTranscribe, hasDeepgram } from "./deepgram";
 import {
   AD_PROMPT_V2, INTRO_PROMPT, adPromptMessage, adSpotChunks, adsFromAiV2, combineAds, introFromAi, introPromptMessage, emptyProfile, learnFromMark, learnProfile, learnedPreroll, mp3Info, phraseAds, phraseBlocks, profileHints, sponsorsFromNotes,
   type ServerAd, type ShowProfile, type Word,
@@ -295,7 +296,16 @@ const openAiJsonOnly: AskJson = async (system, user) => {
   return String(body?.choices?.[0]?.message?.content || "");
 };
 /** Speech to text: Groq's Whisper when GROQ_API_KEY is set (about 9x cheaper and faster), else OpenAI's. */
-export const openAiTranscribe: Transcriber = (audio, name, prompt) => (process.env.GROQ_API_KEY ? onGroq(GROQ_STT(), (model) => transcribeWith(audio, name, prompt, model)) : transcribeWith(audio, name, prompt, ""));
+/** Speech to text: Groq's Whisper (free, about 2 hours of audio an hour); when that's used up for the
+ *  hour, Deepgram (DEEPGRAM_API_KEY) takes over; OpenAI only when neither is set up. */
+export const openAiTranscribe: Transcriber = async (audio, name, prompt) => {
+  if (!process.env.GROQ_API_KEY) return hasDeepgram() ? deepgramTranscribe(audio, prompt) : transcribeWith(audio, name, prompt, "");
+  try { return await onGroq(GROQ_STT(), (model) => transcribeWith(audio, name, prompt, model)); }
+  catch (e: any) {
+    if ((e?.message === "busy" || e?.message === "dry") && hasDeepgram()) return deepgramTranscribe(audio, prompt);
+    throw e;
+  }
+};
 async function transcribeWith(audio: Blob, name: string, prompt: string | undefined, groqModel: string) {
   const groq = !!groqModel;
   const form = new FormData();

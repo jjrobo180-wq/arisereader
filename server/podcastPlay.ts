@@ -22,6 +22,7 @@ import { chapterAdsIn, id3Chapters, seamTimes, spliceAds } from "../shared/earsh
 import { fetchCopy } from "./podcastCopies";
 import type { AdLibrary } from "./podcastAdLibrary";
 import type { AnchorPiece, ContentChunk, Directory } from "./podcastDirectory";
+import { hasDeepgram } from "./deepgram";
 
 // ---------------------------------------------------------------------------
 // Copies being downloaded
@@ -704,7 +705,7 @@ export function startOpenings(player: Player, dir: Pick<Directory, "contentTrans
           // Then whatever in this copy the pieces don't have (its own ads at the start, mostly).
           if (!dir.contentChunks || !dir.copyPieceAds || !player.sessions.has(s.id)) return;
           // Busy hour for speech-to-text: leave it for the parts listeners are playing.
-          if ((dir as any).minutesLastHour && (dir as any).minutesLastHour() > 40) return;
+          if (!hasDeepgram() && (dir as any).minutesLastHour && (dir as any).minutesLastHour() > 40) return;
           const reader = dir.copyPieceAds;
           await player.readGaps(s, await dir.contentChunks(s.episodeId), (fp, audio, secs) => reader(s.showId, s.episodeId, fp, audio, secs));
           await checkLikelyAds(player, dir, s);
@@ -726,7 +727,7 @@ export async function checkLikelyAds(player: Player, dir: Pick<Directory, "conte
     if (!player.sessions.has(s.id)) return;
     if (dir.budgetLeft && dir.perDay && dir.budgetLeft() < dir.perDay * reserve) return;
     // Groq's free speech-to-text takes 2 hours of audio an hour: what listeners are playing comes first.
-    if ((dir as any).minutesLastHour && (dir as any).minutesLastHour() > 40) return;
+    if (!hasDeepgram() && (dir as any).minutesLastHour && (dir as any).minutesLastHour() > 40) return;
     await dir.contentTranscript(s.showId, s.episodeId, chunk, { secs: total, extract: (from, to) => player.extract(s, from, to) }).catch(() => null);
   }
 }
