@@ -6,7 +6,7 @@
 // from each podcast's own host.
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { applySignal, cleanEarshot, emptyEarshot, type Earshot, type Signal } from "@shared/earshot";
+import { applySignal, cleanEarshot, emptyEarshot, type Earshot, type PodEpisode, type Signal } from "@shared/earshot";
 import { Check, Loader2, Mail, X } from "lucide-react";
 import { LIGHT_SHEETS_CSS, Player, Setup, useTheme, type NowPlaying, type PlayerControl } from "../client/src/components/family-hub/earshot/EarshotPlayer";
 import { LIGHT_CSS } from "../client/src/components/family-hub/earshot/EarshotSocial";
@@ -119,7 +119,7 @@ function App() {
   // The home page (browse) comes first and opens episodes in the swipe feed. A shared swipe
   // link (?s=&e=) still opens straight into the feed.
   const [mode, setMode] = useState<"home" | "feed">(() => (start ? "feed" : "home"));
-  const [feedStart, setFeedStart] = useState(start);
+  const [feedStart, setFeedStart] = useState<{ showId: string; episodeId: string; ep?: PodEpisode } | null>(start);
   const [feedKey, setFeedKey] = useState(0);
   // The scroll is For You and Following; Open Mic, Social and Library open from the home page as
   // their own pages (the same player, opened on that tab), each with a back button home.
@@ -127,7 +127,7 @@ function App() {
   const [feedMode, setFeedMode] = useState<{ id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" } | null>(null);
   // Picking an episode on the home page opens the swipe feed on it. Someone who never chose interests
   // gets a broad starting mix instead of the picker, so the episode they tapped plays right away.
-  const openFeed = useCallback((at?: { showId: string; episodeId: string }, page?: PageTab, podMode?: { id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" }) => {
+  const openFeed = useCallback((at?: { showId: string; episodeId: string; ep?: PodEpisode }, page?: PageTab, podMode?: { id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" }) => {
     if ((at || page || podMode) && !esRef.current.setupDone) setEs((e) => e.setupDone ? e : ({ ...e, setupDone: true, genres: STARTER_GENRES, taste: Object.fromEntries(STARTER_GENRES.map((g) => [g, 3])) }));
     // Just a page (Social, Open Mic, Library, the scroll) and the player is already running: switch
     // its page, so what's playing keeps playing. A new episode or Pod Mode starts it fresh.

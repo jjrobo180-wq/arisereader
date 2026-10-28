@@ -4,6 +4,7 @@
 // server when Voice boost shapes it). Like the radio, a book keeps playing in the bar at the bottom
 // while you browse, and each book remembers its chapter and spot on this device.
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ClickEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { BookOpen, BookOpenText, Bookmark, ChevronLeft, ChevronRight, Headphones, Loader2, Pause, Play, RotateCcw, RotateCw, Search, SkipBack, SkipForward, SlidersHorizontal, Sparkles, Star, X } from "lucide-react";
 import { onOtherSound, soundStarted } from "../client/src/components/family-hub/earshot/soundBus";
 import { bookAudioSupported, isRouted, levelOf, primeBookAudio, routeBook, setBookSound, setFade, setGate } from "./bookAudio";
@@ -155,16 +156,19 @@ function Cover({ src, title, className = "" }: { src: string; title: string; cla
 
 function Sheet({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [onClose]);
-  return <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={title}>
+  // Drawn at the top of the page: inside the player bar (which blurs what's behind it) a "fixed"
+  // panel is pinned to the bar instead of the screen, and ran off the bottom on desktop. Inside the
+  // app's own page so it keeps the dark theme.
+  return createPortal(<div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={title}>
     <div className="absolute inset-0 bg-black/45" onClick={onClose} />
     <div className={`relative flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom,0px)] shadow-2xl sm:rounded-2xl ${wide ? "sm:max-w-[720px]" : "sm:max-w-[460px]"}`}>
       <div className="flex h-14 shrink-0 items-center justify-between border-b border-[#ececec] pl-5 pr-2">
         <h2 className="truncate text-base font-semibold">{title}</h2>
         <button onClick={onClose} aria-label="Close" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><X size={20} /></button>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
     </div>
-  </div>;
+  </div>, document.querySelector("[data-ps-root]") ?? document.body);
 }
 
 // ---------------- the shelf ----------------
@@ -506,7 +510,85 @@ function deviceVoice(): SpeechSynthesisVoice | null {
 }
 const paragraphsOf = (text: string) => text.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
 
-function ReadAlong({ api, pro, onJoin, reading, time, onSeek, onClose, onPauseMain, autoVoice = null, onAutoVoiceUsed }: { autoVoice?: string | null; onAutoVoiceUsed?: () => void; api: Api; pro: boolean; onJoin: () => void; reading: Reading; time: number; onSeek: (t: number) => void; onClose: () => void; onPauseMain: () => void }) {
+type NarrState = { bookId: string; voice: string; playing: boolean; from: number; to: number; loading: boolean; sec: number };
+type Narrator = { narr: NarrState | null; start: (voice: string, sections: TextSection[], secAt: number) => void; toggle: () => void; stop: () => void; pause: () => void };
+/** The narrator: reads the book's text section after section, by an AI voice (members) or the
+ *  device's own. Kept by the player bar, so closing Read along doesn't stop it. */
+function useNarrator(api: Api, bookId: string, onJoin: () => void): Narrator {
+  const [narr, setNarr] = useState<NarrState | null>(null);
+  const run = useRef(0);
+  const el = useRef<HTMLAudioElement | null>(null);
+  const secs = useRef<TextSection[]>([]);
+  const live = useRef({ api, bookId, onJoin }); live.current = { api, bookId, onJoin };
+  const stop = useCallback(() => {
+    run.current++;
+    el.current?.pause();
+    try { window.speechSynthesis?.cancel(); } catch { /* none */ }
+    setNarr(null);
+  }, []);
+  const narrate = useCallback(async (voice: string, secAt: number, start: number, r: number): Promise<void> => {
+    const { api, bookId } = live.current;
+    const s2 = secs.current[secAt];
+    if (!s2 || r !== run.current) { if (r === run.current) setNarr(null); return; }
+    if (voice === "device") {
+      const ps = paragraphsOf(s2.text);
+      const speakFrom = (i: number) => {
+        if (r !== run.current) return;
+        if (i >= ps.length) { void narrate(voice, secAt + 1, 0, r); return; }
+        setNarr({ bookId, voice, playing: true, from: i, to: i, loading: false, sec: secAt });
+        const u = new SpeechSynthesisUtterance(ps[i]);
+        const v = deviceVoice(); if (v) { u.voice = v; u.lang = v.lang; }
+        u.rate = 1; u.onend = () => speakFrom(i + 1); u.onerror = () => { if (r === run.current) setNarr(null); };
+        window.speechSynthesis.speak(u);
+      };
+      speakFrom(start);
+      return;
+    }
+    setNarr((n) => ({ bookId, voice, playing: true, from: n?.from ?? 0, to: n?.to ?? 0, loading: true, sec: secAt }));
+    try {
+      const [{ parts }, { pass }] = await Promise.all([
+        api(`/api/earshot/books/${encodeURIComponent(bookId)}/narration?sec=${secAt}`),
+        api("/api/earshot/books/relay-pass"),
+      ]);
+      const playPart = (p: number) => {
+        if (r !== run.current) return;
+        if (p >= parts.length) { void narrate(voice, secAt + 1, 0, r); return; }
+        setNarr({ bookId, voice, playing: true, from: parts[p].from, to: parts[p].to, loading: true, sec: secAt });
+        const a = (el.current ??= new Audio());
+        a.src = `${API}/api/podscroll/books/${encodeURIComponent(bookId)}/narrate?sec=${secAt}&part=${p}&voice=${voice}&k=${encodeURIComponent(pass)}`;
+        a.onplaying = () => { if (r === run.current) { setNarr((n) => (n ? { ...n, loading: false, playing: true } : n)); soundStarted("book"); } };
+        a.onended = () => playPart(p + 1);
+        a.onerror = () => { if (r === run.current) setNarr(null); };
+        a.play().catch(() => setNarr((n) => (n ? { ...n, playing: false, loading: false } : n)));
+      };
+      playPart(start);
+    } catch (e: any) { if (r === run.current) setNarr(null); if (e?.needSignIn) live.current.onJoin(); }
+  }, []);
+  const start = useCallback((voice: string, sections: TextSection[], secAt: number) => {
+    secs.current = sections;
+    const r = ++run.current;
+    el.current?.pause();
+    try { window.speechSynthesis?.cancel(); } catch { /* none */ }
+    void narrate(voice, secAt, 0, r);
+  }, [narrate]);
+  const cur = useRef<NarrState | null>(null); cur.current = narr;
+  const toggle = useCallback(() => {
+    const n = cur.current; if (!n) return;
+    if (n.voice === "device") { if (n.playing) window.speechSynthesis.pause(); else window.speechSynthesis.resume(); setNarr({ ...n, playing: !n.playing }); return; }
+    const a = el.current; if (!a) return;
+    if (a.paused) { a.play().catch(() => {}); setNarr({ ...n, playing: true }); } else { a.pause(); setNarr({ ...n, playing: false }); }
+  }, []);
+  const pause = useCallback(() => {
+    const n = cur.current; if (!n || !n.playing) return;
+    if (n.voice === "device") window.speechSynthesis.pause(); else el.current?.pause();
+    setNarr({ ...n, playing: false });
+  }, []);
+  // A different book: the narrator stops.
+  useEffect(() => stop, [bookId, stop]);
+  return { narr, start, toggle, stop, pause };
+}
+
+function ReadAlong({ api, pro, onJoin, reading, time, onSeek, onClose, onPauseMain, narrator, autoVoice = null, onAutoVoiceUsed }: { narrator: Narrator; autoVoice?: string | null; onAutoVoiceUsed?: () => void; api: Api; pro: boolean; onJoin: () => void; reading: Reading; time: number; onSeek: (t: number) => void; onClose: () => void; onPauseMain: () => void }) {
   const { book, ch } = reading;
   const [tab, setTab] = useState<"text" | "transcript">("text");
   const [text, setText] = useState<{ sections: TextSection[]; source: string } | null | "none">(null);
@@ -563,62 +645,12 @@ function ReadAlong({ api, pro, onJoin, reading, time, onSeek, onClose, onPauseMa
   const sec = text && text !== "none" ? text.sections[at] : null;
   const paras = useMemo(() => (sec ? paragraphsOf(sec.text) : []), [sec]);
 
-  // ---- the narrator ----
-  const [narr, setNarr] = useState<{ voice: string; playing: boolean; from: number; to: number; loading: boolean } | null>(null);
+  // ---- the narrator (it lives in the player bar, so it keeps reading when this panel closes) ----
+  const narr = narrator.narr && narrator.narr.bookId === book.id ? narrator.narr : null;
   const [picking, setPicking] = useState(false);
-  const narrRun = useRef(0);
-  const narrAudio = useRef<HTMLAudioElement | null>(null);
-  const narrPos = useRef<{ sec: number; part: number; para: number }>({ sec: 0, part: 0, para: 0 });
-  const stopNarr = useCallback(() => {
-    narrRun.current++;
-    narrAudio.current?.pause();
-    try { window.speechSynthesis?.cancel(); } catch { /* none */ }
-    setNarr(null);
-  }, []);
-  useEffect(() => stopNarr, [stopNarr]);
   const sections = text && text !== "none" ? text.sections : [];
-  // Plays from a part of a section on; at the end of a section, on to the next.
-  const narrate = async (voice: string, secAt: number, start: number, run: number) => {
-    const s2 = sections[secAt];
-    if (!s2 || run !== narrRun.current) { if (run === narrRun.current) setNarr(null); return; }
-    if (secAt !== at) setAt(secAt);
-    narrPos.current = { sec: secAt, part: start, para: start };
-    if (voice === "device") {
-      const ps = paragraphsOf(s2.text);
-      const speakFrom = (i: number) => {
-        if (run !== narrRun.current) return;
-        if (i >= ps.length) { void narrate(voice, secAt + 1, 0, run); return; }
-        narrPos.current = { sec: secAt, part: i, para: i };
-        setNarr({ voice, playing: true, from: i, to: i, loading: false });
-        const u = new SpeechSynthesisUtterance(ps[i]);
-        const v = deviceVoice(); if (v) { u.voice = v; u.lang = v.lang; }
-        u.rate = 1; u.onend = () => speakFrom(i + 1); u.onerror = () => { if (run === narrRun.current) setNarr(null); };
-        window.speechSynthesis.speak(u);
-      };
-      speakFrom(start);
-      return;
-    }
-    setNarr((n) => ({ voice, playing: true, from: n?.from ?? 0, to: n?.to ?? 0, loading: true }));
-    try {
-      const [{ parts }, { pass }] = await Promise.all([
-        api(`/api/earshot/books/${encodeURIComponent(book.id)}/narration?sec=${secAt}`),
-        api("/api/earshot/books/relay-pass"),
-      ]);
-      const playPart = (p: number) => {
-        if (run !== narrRun.current) return;
-        if (p >= parts.length) { void narrate(voice, secAt + 1, 0, run); return; }
-        narrPos.current = { sec: secAt, part: p, para: parts[p].from };
-        setNarr({ voice, playing: true, from: parts[p].from, to: parts[p].to, loading: true });
-        const el = (narrAudio.current ??= new Audio());
-        el.src = `${API}/api/podscroll/books/${encodeURIComponent(book.id)}/narrate?sec=${secAt}&part=${p}&voice=${voice}&k=${encodeURIComponent(pass)}`;
-        el.onplaying = () => setNarr((n) => (n ? { ...n, loading: false, playing: true } : n));
-        el.onended = () => playPart(p + 1);
-        el.onerror = () => { if (run === narrRun.current) { setNarr(null); setTxErr(""); } };
-        el.play().catch(() => setNarr((n) => (n ? { ...n, playing: false, loading: false } : n)));
-      };
-      playPart(start);
-    } catch (e: any) { if (run === narrRun.current) setNarr(null); if (e?.needSignIn) onJoin(); }
-  };
+  // The section being read is the one shown.
+  useEffect(() => { if (narr && narr.sec !== at) setAt(narr.sec); }, [narr?.sec]); // eslint-disable-line react-hooks/exhaustive-deps
   // Opened to narrate with a voice picked from the reader list: start once the text is here.
   useEffect(() => {
     if (!autoVoice || !text) return;
@@ -631,20 +663,9 @@ function ReadAlong({ api, pro, onJoin, reading, time, onSeek, onClose, onPauseMa
     if (voice !== "device" && !pro) { onJoin(); return; }
     if (voice === "device" && !window.speechSynthesis) return;
     onPauseMain();
-    const run = ++narrRun.current;
-    void narrate(voice, at, 0, run);
+    narrator.start(voice, sections, at);
   };
-  const toggleNarr = () => {
-    if (!narr) return;
-    if (narr.voice === "device") {
-      if (narr.playing) window.speechSynthesis.pause(); else window.speechSynthesis.resume();
-      setNarr({ ...narr, playing: !narr.playing });
-    } else {
-      const el = narrAudio.current; if (!el) return;
-      if (el.paused) el.play().catch(() => {}); else el.pause();
-      setNarr({ ...narr, playing: el.paused ? false : true });
-    }
-  };
+  const toggleNarr = narrator.toggle, stopNarr = narrator.stop;
   // What's being read stays in view.
   useEffect(() => { if (narr) box.current?.querySelector(`[data-para="${narr.from}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }); }, [narr?.from]); // eslint-disable-line react-hooks/exhaustive-deps
   const { main: name } = chapterName(book.chapters[ch]);
@@ -836,6 +857,8 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
   }, [reading.book.id]);
   const { book, ch } = reading;
   const chapter = book.chapters[ch];
+  const narrator = useNarrator(api, book.id, onJoin);
+  const narr = narrator.narr;
   const lastSave = useRef(0);
   // Once a player's sound is routed through the boost, it must keep coming through the server.
   const routed = useRef(false);
@@ -904,7 +927,9 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
   useEffect(() => () => { const a = audio.current; if (a) { a.pause(); a.removeAttribute("src"); a.load(); } }, []);
   useEffect(() => { onPlaying(playing); if (playing) soundStarted("book"); }, [playing, onPlaying]);
   // A podcast or the radio started: the book pauses (its spot is saved).
-  useEffect(() => onOtherSound("book", () => audio.current?.pause()), []);
+  useEffect(() => onOtherSound("book", () => { audio.current?.pause(); narrator.pause(); }), []); // eslint-disable-line react-hooks/exhaustive-deps
+  // The recording starts again: the narrator stops (one voice at a time).
+  useEffect(() => { if (playing) narrator.stop(); }, [playing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sound settings on: this chapter comes through the server from where it is, and is shaped.
   const setSound = async (patch: Partial<Listen>) => {
@@ -984,7 +1009,8 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
     warmed.current = next.audio;
     try { const w = new Audio(); w.preload = "auto"; w.muted = true; w.src = next.audio; w.load(); setTimeout(() => { w.removeAttribute("src"); w.load(); }, 150_000); } catch { /* fine */ }
   };
-  const toggle = () => { const a = audio.current; if (!a) return; if (a.paused) { if (shaped) primeBookAudio(); a.play().catch(() => say("This chapter won't play right now. Try again.")); } else a.pause(); };
+  // While the narrator is reading, Play/Pause controls the narrator.
+  const toggle = () => { if (narr) { narrator.toggle(); return; } const a = audio.current; if (!a) return; if (a.paused) { if (shaped) primeBookAudio(); a.play().catch(() => say("This chapter won't play right now. Try again.")); } else a.pause(); };
   const firstTap = useRef(tap);
   useEffect(() => { if (tap !== firstTap.current) toggle(); }, [tap]); // eslint-disable-line react-hooks/exhaustive-deps
   const skip = (d: number) => { const a = audio.current; if (a) a.currentTime = Math.max(0, Math.min((a.duration || dur || 0) - 1, a.currentTime + d)); };
@@ -1006,7 +1032,8 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
         <Cover src={book.cover} title={book.title} className="h-11 w-11 shrink-0 rounded-lg" />
         <span className="flex min-w-0 flex-col">
           <span className="truncate text-sm font-semibold">{book.title}</span>
-          <span className="truncate text-xs text-[#606060]">{chName} · {clock(time)}{dur ? ` / ${clock(dur)}` : ""}{sleepWords ? ` · Sleep ${sleepWords}` : ""}</span>
+          {narr ? <span className="truncate text-xs" style={{ color: ACCENT }}>{narr.voice === "device" ? "Your device's voice" : NARRATORS.find((v) => v.id === narr.voice)?.label} is reading{narr.playing ? "" : " · paused"}</span>
+          : <span className="truncate text-xs text-[#606060]">{chName} · {clock(time)}{dur ? ` / ${clock(dur)}` : ""}{sleepWords ? ` · Sleep ${sleepWords}` : ""}</span>}
         </span>
       </button>
       <button onClick={() => setSheet("ask")} aria-label="Catch me up or ask the book" title="Catch me up · Ask the book" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] sm:inline-flex"><Sparkles size={18} /></button>
@@ -1014,7 +1041,7 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
       <button onClick={() => setSheet("read")} aria-label="Read along" title="Read along" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><BookOpenText size={19} /></button>
       <button onClick={() => go(ch - 1)} disabled={ch === 0} aria-label="Previous chapter" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] disabled:opacity-30 md:inline-flex"><SkipBack size={18} /></button>
       <button onClick={() => skip(-15)} aria-label="Back 15 seconds" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] sm:inline-flex"><RotateCcw size={19} /></button>
-      <button onClick={toggle} aria-label={playing ? "Pause" : "Play"} className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#0f0f0f] text-white">{loading && !playing ? <Loader2 className="animate-spin" size={20} /> : playing ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-0.5" />}</button>
+      <button onClick={toggle} aria-label={(narr ? narr.playing : playing) ? "Pause" : "Play"} className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#0f0f0f] text-white">{narr ? (narr.loading ? <Loader2 className="animate-spin" size={20} /> : narr.playing ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-0.5" />) : loading && !playing ? <Loader2 className="animate-spin" size={20} /> : playing ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-0.5" />}</button>
       <button onClick={() => skip(30)} aria-label="Forward 30 seconds" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><RotateCw size={19} /></button>
       <button onClick={() => go(ch + 1)} disabled={ch >= book.chapters.length - 1} aria-label="Next chapter" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] disabled:opacity-30 md:inline-flex"><SkipForward size={18} /></button>
       <button onClick={() => setSheet("settings")} aria-label="Listening settings" title="Speed, sleep timer, sound" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><SlidersHorizontal size={18} /></button>
@@ -1100,6 +1127,6 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
     </Sheet>}
     {sheet === "ask" && <AskSheet api={api} pro={pro} onJoin={() => { setSheet(null); onJoin(); }} book={book} ch={ch} t={time} onClose={() => setSheet(null)} />}
     {sheet === "mark" && <MarkSheet book={book} ch={ch} t={time} onClose={() => setSheet(null)} onSaved={() => { setSheet(null); say("Bookmark added. Find it on the book's page."); }} />}
-    {sheet === "read" && <ReadAlong autoVoice={narrateWith} onAutoVoiceUsed={() => setNarrateWith(null)} onPauseMain={() => audio.current?.pause()} api={api} pro={pro} onJoin={() => { setSheet(null); onJoin(); }} reading={reading} time={time} onSeek={(t) => { const a = audio.current; if (a) { a.currentTime = t; if (a.paused) a.play().catch(() => {}); } }} onClose={() => setSheet(null)} />}
+    {sheet === "read" && <ReadAlong narrator={narrator} autoVoice={narrateWith} onAutoVoiceUsed={() => setNarrateWith(null)} onPauseMain={() => audio.current?.pause()} api={api} pro={pro} onJoin={() => { setSheet(null); onJoin(); }} reading={reading} time={time} onSeek={(t) => { const a = audio.current; if (a) { a.currentTime = t; if (a.paused) a.play().catch(() => {}); } }} onClose={() => setSheet(null)} />}
   </div>;
 }

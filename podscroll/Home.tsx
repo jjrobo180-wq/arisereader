@@ -112,7 +112,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   update: (fn: (e: Earshot) => Earshot) => void;
   api: Api;
   say: (m: string) => void;
-  onOpenFeed: (start?: { showId: string; episodeId: string }, page?: "openmic" | "social" | "library", mode?: { id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" }) => void;
+  onOpenFeed: (start?: { showId: string; episodeId: string; ep?: PodEpisode }, page?: "openmic" | "social" | "library", mode?: { id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" }) => void;
   onEditInterests: () => void;
   pro: boolean;
   onJoin: () => void;
@@ -426,7 +426,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     // A tap teaches the feed too (a small nudge toward that show's genre).
     const g = (e as { genre?: string }).genre || showGenre.current.get(e.showId);
     if (g && GENRE[g]) signal(g, "open");
-    onOpenFeed({ showId: e.showId, episodeId: e.id });
+    onOpenFeed({ showId: e.showId, episodeId: e.id, ep: e });
   }, [onOpenFeed, signal]);
   // An older #/watch/... link opens that episode in the swipe feed.
   useEffect(() => {
@@ -626,7 +626,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     </div>;
   }
 
-  return <MoreCtx.Provider value={setAddTo}><HiddenCtx.Provider value={hidden}><div className={`min-h-full bg-white text-[#0f0f0f] [&_input]:text-[#0f0f0f] [&_input::placeholder]:text-[#767676] ${dark ? "ps-dark [color-scheme:dark]" : "[color-scheme:light]"} [font-family:Roboto,Inter,ui-sans-serif,system-ui,-apple-system,'Segoe_UI',sans-serif]`}>
+  return <MoreCtx.Provider value={setAddTo}><HiddenCtx.Provider value={hidden}><div data-ps-root="" className={`min-h-full bg-white text-[#0f0f0f] [&_input]:text-[#0f0f0f] [&_input::placeholder]:text-[#767676] ${dark ? "ps-dark [color-scheme:dark]" : "[color-scheme:light]"} [font-family:Roboto,Inter,ui-sans-serif,system-ui,-apple-system,'Segoe_UI',sans-serif]`}>
     <style>{MENU_CSS}</style>
     {dark && <style>{DARK_CSS}</style>}
     {header}

@@ -132,7 +132,8 @@ export type PlayerProps = {
   /** The name comments are posted under, when the app has no accounts (Podscroll). */
   nickname?: string; setNickname?: (name: string) => void;
   /** An episode to open first, from a shared link. */
-  start?: { showId: string; episodeId: string } | null;
+  /** The episode to open on; `ep` (when the page that was tapped has it) lets it start at once. */
+  start?: { showId: string; episodeId: string; ep?: PodEpisode } | null;
   /** The full address of a server path, for audio played through the server (smart ad skip). */
   mediaUrl?: (path: string) => string;
   /** Where LivePod connects (wss://…), when the server is on another address (Podscroll). */
@@ -1253,11 +1254,20 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   useEffect(() => {
     if (!start || started.current) return;
     started.current = true;
-    loadEpisodes(start.showId).then(({ show, episodes }) => {
-      const ep = episodes.find((e) => e.id === start.episodeId) ?? episodes[0];
-      if (!show || !ep) return;
-      setItems((list) => [{ key: `start-${ep.id}`, show, why: "Shared with you", ep, state: "ready" }, ...list.filter((x) => x.ep?.id !== ep.id)]);
+    const put = (show: PodShow, ep: PodEpisode, why: string) => {
+      setItems((list) => [{ key: `start-${ep.id}`, show, why, ep, state: "ready" }, ...list.filter((x) => x.ep?.id !== ep.id && x.key !== `start-${ep.id}`)]);
       if (feedRef.current) feedRef.current.scrollTop = 0;
+    };
+    // The episode that was tapped goes first straight away, before the feed's own first pick can
+    // start playing (a brand-new news episode may not be in the show's saved list yet either).
+    const given = start.ep && start.ep.id === start.episodeId && start.ep.audio ? start.ep : null;
+    const why = given ? "You picked this" : "Shared with you";
+    if (given) put({ id: given.showId, name: given.show, author: given.author || "", art: given.art, genre: "", appleGenre: "", link: "", episodes: 0, explicit: given.explicit, latest: given.date }, given, why);
+    loadEpisodes(start.showId).then(({ show, episodes }) => {
+      const ep = episodes.find((e) => e.id === start.episodeId) ?? (given ? null : episodes[0]);
+      // The show's full details once they're here (the same episode stays put).
+      if (show && ep) put(show, given ? { ...ep, ...given } : ep, why);
+      else if (show && given) setItems((list) => list.map((x) => (x.key === `start-${given.id}` ? { ...x, show } : x)));
     }).catch(() => {});
   }, [start, loadEpisodes]);
 
