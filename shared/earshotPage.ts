@@ -65,6 +65,8 @@ export const PATTERNS: Pattern[] = ["dots", "grid", "stripes", "checks", "waves"
 
 /** Ready-made looks: one tap sets the whole theme (widgets stay as they are). */
 export const PRESETS: { id: string; name: string; look: Partial<ProfilePageData> }[] = [
+  // The default: Pod+'s own calm, grown-up look (near-black, a quiet charcoal banner, the orange accent).
+  { id: "podplus", name: "Pod+", look: { bg: { kind: "color", color: "#0b0b0d" }, banner: { kind: "color", color: "#1d1d22", color2: "#2c2c33" }, accent: "#ff8a3d", text: "light", font: "sans", card: "none", cardColor: "#141418", radius: 14 } },
   { id: "midnight", name: "Midnight", look: { bg: { kind: "gradient", color: "#0f172a", color2: "#312e81", angle: 160 }, banner: { kind: "color", color: "#6366f1", color2: "#ec4899" }, accent: "#a5b4fc", text: "light", font: "sans", card: "glass", cardColor: "#111827", radius: 18 } },
   { id: "paper", name: "Paper", look: { bg: { kind: "color", color: "#f6f3ee" }, banner: { kind: "color", color: "#e7dfd2" }, accent: "#c2410c", text: "dark", font: "serif", card: "solid", cardColor: "#ffffff", radius: 6 } },
   { id: "sunset", name: "Sunset", look: { bg: { kind: "gradient", color: "#ff7e5f", color2: "#7b2ff7", angle: 135 }, banner: { kind: "none" }, accent: "#fff3b0", text: "light", font: "rounded", card: "glass", cardColor: "#000000", radius: 24 } },

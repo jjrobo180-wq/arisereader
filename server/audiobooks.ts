@@ -469,6 +469,11 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
     // A miss (nothing found, or a site that didn't answer) is tried again after 15 minutes.
     cache.set(key, { at: now(), ttl: value === null ? Math.min(ttl, 15 * 60_000) : ttl, value });
     if (cache.size > 800) { const oldest = [...cache.entries()].sort((a, b) => a[1].at - b[1].at).slice(0, 150); for (const [k] of oldest) cache.delete(k); }
+    // Whole book texts are big (up to a few MB each): only the dozen most recent stay in memory.
+    if (key.startsWith("text:")) {
+      const texts = [...cache.entries()].filter(([k]) => k.startsWith("text:")).sort((a, b) => a[1].at - b[1].at);
+      for (const [k] of texts.slice(0, Math.max(0, texts.length - 12))) cache.delete(k);
+    }
     return value;
   };
   const DAY = 24 * 3600_000;

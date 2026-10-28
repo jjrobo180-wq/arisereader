@@ -247,6 +247,8 @@ export async function onGroq<T>(models: string[], run: (model: string) => Promis
     if ((groqDry.get(m) ?? 0) > Date.now()) continue;
     try { return await run(m); }
     catch (e: any) {
+      // A model Groq has retired: skip it for a day and try the next one (it used to stop here).
+      if (/ 404\b|model_not_found|decommissioned/.test(String(e?.message || ""))) { groqDry.set(m, Date.now() + 24 * 3600_000); continue; }
       if (e?.message !== "dry" && e?.message !== "busy") throw e;
       lastStrain = Date.now();
       groqDry.set(m, Date.now() + (e?.message === "dry" ? e.retryMs ?? 10 * 60_000 : 60_000));
@@ -255,13 +257,13 @@ export async function onGroq<T>(models: string[], run: (model: string) => Promis
   lastStrain = Date.now();
   throw new Error("busy");
 }
-const GROQ_AI = () => uniq([process.env.EARSHOT_GROQ_AD_MODEL, "openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.3-70b-versatile"]);
+const GROQ_AI = () => uniq([process.env.EARSHOT_GROQ_AD_MODEL, "openai/gpt-oss-120b", "openai/gpt-oss-20b", "meta-llama/llama-4-maverick-17b-128e-instruct", "qwen/qwen3-32b"]);
 const GROQ_STT = () => uniq([process.env.EARSHOT_GROQ_MODEL, "whisper-large-v3-turbo", "whisper-large-v3"]);
 /** Groq's hosted models (OpenAI-compatible), used when OpenAI is out of credit. */
 /** Groq first (free); when every Groq model is out for now, Perplexity reads it, so ads are still
  *  found within seconds instead of waiting for Groq's allowance to come back. */
 const groqJson: AskJson = (system, user) => groqOnly(system, user).catch(async (e: any) => {
-  if (e?.message !== "busy" && e?.message !== "dry") throw e;
+  // Any Groq failure (out for now, a model refusing the request, down): Perplexity reads it.
   try { return await perplexityChat(system, user); } catch { throw e; }
 });
 const groqOnly: AskJson = (system, user) => onGroq(GROQ_AI(), async (model) => {
@@ -341,14 +343,17 @@ export function createDirectory(options: DirectoryOptions = {}) {
   const aiOn = options.aiOn ?? (() => !!(process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY));
   const perDay = options.minutesPerDay ?? (Number(process.env.EARSHOT_AI_MINUTES_PER_DAY) || 900);
 
+  // Memory caches in front of the database (the server has 512 MB): every entry is also kept in the
+  // database, so a smaller memory cache only means an occasional extra database read. Transcript
+  // pieces (with word timings) are the biggest, then shows with their 25 newest episodes.
   const genreShows = layeredCache<PodShow[]>(kv, "g2:", 12 * 3600_000, 100);
   const genreEpisodes = layeredCache<PoolShow[]>(kv, "ge:", 12 * 3600_000, 100);
-  const shows = layeredCache<ShowLookup>(kv, "s2:", 6 * 3600_000, 3000);
+  const shows = layeredCache<ShowLookup>(kv, "s2:", 6 * 3600_000, 1200);
   const searches = layeredCache<{ shows: PodShow[]; episodes: PodEpisode[] }>(kv, "q:", 3600_000, 500);
   const extras = layeredCache<{ transcript: { url: string; type: string } | null; chapters: string }>(kv, "x:", 24 * 3600_000, 2000);
-  const tx = layeredCache<TranscriptChunk>(kv, "t:", 365 * 24 * 3600_000, 1500);
+  const tx = layeredCache<TranscriptChunk>(kv, "t:", 365 * 24 * 3600_000, 300);
   const profiles = layeredCache<ShowProfile>(kv, "sp:", 365 * 24 * 3600_000, 2000);
-  const ctx = layeredCache<ContentChunk>(kv, "t3:", 365 * 24 * 3600_000, 1500);
+  const ctx = layeredCache<ContentChunk>(kv, "t3:", 365 * 24 * 3600_000, 400);
 
   // ---- Apple ----
   const loadGenreShows = (gid: string) => genreShows.get(gid, async () => {
@@ -798,7 +803,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
   }
 
   // ---- Explore previews: each episode's best ~45 seconds ----
-  const moments = layeredCache<Moment>(kv, "m1:", 365 * 24 * 3600_000, 3000);
+  const moments = layeredCache<Moment>(kv, "m1:", 365 * 24 * 3600_000, 1500);
   const MOMENT_WINDOW = 180, MOMENTS_PER_DAY = Number(process.env.EARSHOT_MOMENTS_PER_DAY) || 150;
   let momentDay = ""; let momentsToday = 0;
   /** Where an MP3 episode's audio starts and how many bytes a second takes (from the host's copy, as a bot). */

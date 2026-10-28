@@ -412,11 +412,15 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   // random order. Paused while the box is in use. Short enough to fit a phone's search box.
   const [hint, setHint] = useState(0);
   const [searching, setSearching] = useState(false);
+  // A phone's search box only fits about ten letters, so the slogans (cut off mid-word) stay on wider
+  // screens and phones just say "Search".
+  const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.matchMedia?.("(max-width: 639px)").matches);
+  useEffect(() => { const m = window.matchMedia?.("(max-width: 639px)"); if (!m) return; const f = () => setNarrow(m.matches); m.addEventListener?.("change", f); return () => m.removeEventListener?.("change", f); }, []);
   useEffect(() => {
-    if (searching) return;
+    if (searching || narrow) return;
     const t = setInterval(() => setHint((h) => { let n = h; while (n === h) n = 1 + Math.floor(Math.random() * (HINTS.length - 1)); return n; }), 4000);
     return () => clearInterval(t);
-  }, [searching]);
+  }, [searching, narrow]);
   // Browse here; listen in the swipe feed, starting on the episode you picked.
   const openEp = useCallback((e: PodEpisode) => {
     // A tap teaches the feed too (a small nudge toward that show's genre).
@@ -443,7 +447,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       </div>
       <form role="search" className="flex min-w-0 max-w-[640px] flex-1 items-center" onSubmit={(e) => { e.preventDefault(); const t = q.trim(); if (t.length >= 2) go({ kind: "search", q: t }); }}>
         <label htmlFor="ps-q" className="sr-only">Search podcasts</label>
-        <input id="ps-q" type="search" value={q} onChange={(e) => setQ(e.target.value)} onFocus={() => { setSearching(true); setHint(0); }} onBlur={() => setSearching(false)} placeholder={HINTS[hint]} aria-label="Search podcasts" className="h-10 min-w-0 flex-1 rounded-l-full border border-r-0 border-[#d3d3d3] px-4 text-base text-[#0f0f0f] outline-none placeholder:text-[#888] focus:border-[#1c62b9]" />
+        <input id="ps-q" type="search" value={q} onChange={(e) => setQ(e.target.value)} onFocus={() => { setSearching(true); setHint(0); }} onBlur={() => setSearching(false)} placeholder={narrow ? "Search" : HINTS[hint]} aria-label="Search podcasts" className="h-10 min-w-0 flex-1 rounded-l-full border border-r-0 border-[#d3d3d3] px-4 text-base text-[#0f0f0f] outline-none placeholder:text-[#888] focus:border-[#1c62b9]" />
         <button type="submit" aria-label="Search" className="inline-flex h-10 w-14 shrink-0 items-center justify-center rounded-r-full border border-[#d3d3d3] bg-[#f8f8f8] hover:bg-[#f0f0f0] sm:w-16"><Search size={20} strokeWidth={1.8} /></button>
       </form>
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">

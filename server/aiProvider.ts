@@ -159,7 +159,8 @@ export function grokFetch(base: Fetch, env: AiProviderEnv): Fetch {
         }
         if (!res.ok) console.error(`[ai] ${env.BACKUP_NAME || "Grok"} failed:`, res.status, (await res.clone().text().catch(() => "")).slice(0, 200));
         // Out of allowance, too big for its per-minute limit, or down: Perplexity answers instead.
-        if (!res.ok && (res.status === 429 || res.status === 413 || res.status >= 500 || res.status === 401 || res.status === 403)) {
+        // (400 too: Groq's models sometimes fail to write valid JSON and answer "json_validate_failed".)
+        if (!res.ok && (res.status === 429 || res.status === 413 || res.status >= 500 || res.status === 401 || res.status === 403 || res.status === 400)) {
           const other = await askPerplexity(base, init);
           if (other) return other;
         }

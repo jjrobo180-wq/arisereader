@@ -651,10 +651,15 @@ export function createPlayer(o: PlayOptions = {}) {
 export type Player = ReturnType<typeof createPlayer>;
 
 /** Waits until a response can take more (or the listener left). */
+/** Waits until the response can take more, or is gone. A listener who already left (the response
+ *  closed before this was called) never sends "close" again: waiting for it hung the read loop, and
+ *  its open file was only closed by garbage collection ("Closing file descriptor on GC"). */
 function drained(res: any) {
+  if (res.destroyed || res.writableEnded || res.closed || res.socket?.destroyed) return Promise.resolve();
   return new Promise<void>((resolve) => {
-    const done = () => { res.off("drain", done); res.off("close", done); resolve(); };
-    res.on("drain", done); res.on("close", done);
+    const done = () => { clearTimeout(t); res.off("drain", done); res.off("close", done); res.off("error", done); resolve(); };
+    const t = setTimeout(done, 60_000);
+    res.on("drain", done); res.on("close", done); res.on("error", done);
   });
 }
 

@@ -535,6 +535,22 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
 
   // ---------------- audio: three players, so the next episode is loaded before you swipe ----------------
   const handlers = useRef({ time: (_a: HTMLAudioElement) => {}, ended: (_a: HTMLAudioElement) => {}, error: (_a: HTMLAudioElement) => {} });
+  /** The lock screen and headphone buttons control this player again (an audiobook or the radio may
+   *  have taken them while they played). */
+  const claimLockScreen = (a: HTMLAudioElement) => {
+    if (!("mediaSession" in navigator)) return;
+    try {
+      const it = itemsRef.current[activeRef.current]; const ep = it?.ep;
+      if (ep) navigator.mediaSession.metadata = new MediaMetadata({ title: ep.title, artist: ep.show, album: standalone ? "Pod+" : "Earshot", artwork: ep.art ? [{ src: ep.art, sizes: "600x600" }] : [] });
+      navigator.mediaSession.setActionHandler("play", () => { cur.current?.play().catch(() => {}); });
+      navigator.mediaSession.setActionHandler("pause", () => cur.current?.pause());
+      navigator.mediaSession.setActionHandler("nexttrack", () => goTo(activeRef.current + 1));
+      navigator.mediaSession.setActionHandler("previoustrack", () => goTo(activeRef.current - 1));
+      navigator.mediaSession.setActionHandler("seekbackward", () => seekBy(-15));
+      navigator.mediaSession.setActionHandler("seekforward", () => seekBy(30));
+      void a;
+    } catch { /* not supported */ }
+  };
   const pool = useCallback(() => {
     if (!players.current.length) for (let k = 0; k < 3; k++) players.current.push(makeAudio());
     return players.current;
@@ -543,7 +559,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const a = new Audio(); a.preload = "auto";
     a.addEventListener("timeupdate", () => { if (a === cur.current) handlers.current.time(a); });
     a.addEventListener("ended", () => { if (a === cur.current) handlers.current.ended(a); });
-    a.addEventListener("play", () => { if (isBoosted(a)) resumeVoiceBoost(); if (a === cur.current) { setPlaying(true); soundStarted("pod"); } });
+    a.addEventListener("play", () => { if (isBoosted(a)) resumeVoiceBoost(); if (a === cur.current) { setPlaying(true); soundStarted("pod"); claimLockScreen(a); } });
     a.addEventListener("pause", () => { if (a === cur.current) setPlaying(false); });
     a.addEventListener("error", () => { if (a === cur.current && a.dataset.ep) handlers.current.error(a); });
     return a;
@@ -727,7 +743,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     // the server knows the ads at the start of this copy (a few seconds, 8 at most), then jumps past
     // them and the sound comes on. Muted, not paused: iPhones only start sound inside the tap.
     const p0 = plays.current.get(ep.id);
-    const hold = play && !!p0 && !p0.ads?.ready && (a.currentTime || 0) < 2 && esRef.current.settings.adMode === "auto" && !esRef.current.adFree.includes(ep.showId);
+    const resuming = (readSpots()[ep.id]?.t ?? 0) > 5;
+    const hold = play && !resuming && !!p0 && !p0.ads?.ready && (a.currentTime || 0) < 2 && esRef.current.settings.adMode === "auto" && !esRef.current.adFree.includes(ep.showId);
     if (hold) {
       a.muted = true; setHolding(ep.id);
       const t0 = Date.now();
@@ -737,7 +754,9 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
         if (q?.ads?.ready || Date.now() - t0 > 8000) {
           const st = q?.ads?.startAt ?? 0;
           const back = (q?.ads?.ads ?? []).find((x) => x.sure && x.s <= 1)?.e ?? st;
-          try { a.currentTime = Math.max(st, back, 0); } catch { /* not seekable yet */ }
+          const to = Math.max(st, back, 0);
+          // Past the pre-roll; with none, back to the start (the muted seconds weren't heard).
+          try { if (to > a.currentTime) a.currentTime = to; else if (!to && a.currentTime <= 9) a.currentTime = 0; } catch { /* not seekable yet */ }
           a.muted = false; setHolding(null);
           return;
         }
@@ -981,6 +1000,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       if (wasPlaying) a.play().catch(() => setPlaying(false));
       return;
     }
+    // An episode loaded ahead (not the one playing) that fails is loaded again when you get to it.
+    if (a !== cur.current) return;
     if (unlockedRef.current) say("This episode won't play here. Swipe for the next one, or open it in Apple Podcasts.");
   };
 
@@ -1275,7 +1296,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   // What's playing, for the mini bar on Pod+'s other pages, and a way to pause it from there.
   const nowEp = items[active]?.ep, nowShow = items[active]?.show;
   useEffect(() => {
-    onNowPlaying?.(nowEp && nowShow ? { title: nowEp.title, show: nowShow.name, art: nowEp.art || nowShow.art, playing } : null);
+    const started = playing || (!!cur.current && cur.current.dataset.ep === nowEp?.id && cur.current.currentTime > 0);
+    onNowPlaying?.(nowEp && nowShow && started ? { title: nowEp.title, show: nowShow.name, art: nowEp.art || nowShow.art, playing } : null);
   }, [nowEp?.id, playing]); // eslint-disable-line react-hooks/exhaustive-deps
   if (control) control.current = { toggle: () => toggle(), pause: () => cur.current?.pause() };
   // Once per visit from the home screen: the screen's real measurements, to the server log.
@@ -1393,10 +1415,10 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
 
     {holding && activeEp?.id === holding && <div className={`pointer-events-none absolute inset-x-3 ${below} z-[26] flex justify-center`}><div role="status" className="flex items-center gap-2 rounded-full bg-black/55 px-3.5 py-1.5 text-[13px] font-medium text-white ring-1 ring-white/10 backdrop-blur-xl"><Loader2 size={13} className="animate-spin" />Skipping the ads at the start…</div></div>}
     {tapAd && activeEp && tapAd.ep.id === activeEp.id && <div className={`pointer-events-none absolute inset-x-3 ${below} z-[26] flex justify-center`}>
-      <div key={tapAd.n} role="status" className="pointer-events-auto relative flex max-w-full flex-wrap items-center justify-center gap-1.5 overflow-hidden rounded-2xl bg-[#ffd23f] py-2 pl-3.5 pr-2 text-[13px] font-semibold text-[#120e14] shadow-xl" data-testid="tap-ad-toast">
+      <div key={tapAd.n} role="status" className="pointer-events-auto relative flex max-w-full items-center gap-1.5 overflow-hidden rounded-full bg-[#ffd23f] py-1.5 pl-3.5 pr-1.5 text-[13px] font-semibold text-[#120e14] shadow-xl" data-testid="tap-ad-toast">
         <SkipForward size={14} className="flex-none" />
-        <span className="min-w-0 truncate">Skipped the ad · {clock(tapAd.s)}–{clock(tapAd.e)}</span>
-        <button type="button" onClick={thatsAnAd} className="flex-none rounded-full bg-black/10 px-2.5 py-1 text-xs font-bold hover:bg-black/20">Still an ad +30s</button>
+        <span className="min-w-0 truncate">Ad skipped · {clock(tapAd.s)}–{clock(tapAd.e)}</span>
+        <button type="button" onClick={thatsAnAd} aria-label="Still an ad: skip 30 more seconds" className="flex-none rounded-full bg-black/10 px-2.5 py-1 text-xs font-bold hover:bg-black/20">+30s</button>
         <button type="button" onClick={editTap} className="flex-none rounded-full bg-black/10 px-2.5 py-1 text-xs font-bold hover:bg-black/20">Edit</button>
         <button type="button" onClick={undoTap} className="flex-none rounded-full bg-[#120e14] px-2.5 py-1 text-xs font-bold text-white">Undo</button>
         <span aria-hidden className="absolute inset-x-0 bottom-0 h-[2px] origin-left bg-black/30" style={{ animation: "esDrain 8s linear forwards" }} />

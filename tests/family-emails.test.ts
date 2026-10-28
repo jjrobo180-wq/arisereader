@@ -252,3 +252,9 @@ test("the pieces are connected: routes, the timer, and the admin's Settings tab"
   for (const part of ['testId="family-emails-main"', "Weekly progress update", '"Time to read" reminder', "Email it to me", 'sandbox=""', "Students don't have email addresses on the site"]) assert.ok(box.includes(part), part);
   assert.ok(read("server/familyEmails.ts").includes("if (options.startTimer !== false) startFamilyEmailTimer(deps);"));
 });
+
+test("only real email addresses are sent family emails (a username or typo was refused on every pass)", async () => {
+  const { isEmailAddress } = await import("../server/familyEmails");
+  for (const ok of ["mom@example.com", "Dad.Smith+kids@mail.co.uk"]) assert.equal(isEmailAddress(ok), true, ok);
+  for (const bad of ["parent123", "mom@", "mom@example", "two words@example.com", "", null, "a@b.c"]) assert.equal(isEmailAddress(bad as any), false, String(bad));
+});

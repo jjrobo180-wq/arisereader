@@ -7,7 +7,7 @@ import type { AskJson } from "./podcastDirectory";
 
 const URL = "https://api.perplexity.ai/chat/completions";
 
-export function perplexityJson(getKey: () => Promise<string>, fallback: AskJson, fetchImpl: typeof fetch = (...a) => fetch(...a)): AskJson {
+export function perplexityJson(getKey: () => Promise<string>, fallback: AskJson, fetchImpl: typeof fetch = (input, init) => fetch(input, init)): AskJson {
   return async (system, user) => {
     const key = await getKey().catch(() => "");
     if (!key) return fallback(system, user);

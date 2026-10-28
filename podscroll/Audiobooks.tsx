@@ -761,7 +761,7 @@ function AskSheet({ api, pro, onJoin, book, ch, t, onClose }: { api: Api; pro: b
     </div> : <div className="flex min-h-[50dvh] flex-col">
       <div className="flex-1 space-y-4 px-5 py-4">
         {!talk.length && <div className="text-center">
-          <p className="text-sm text-[#606060]">Up to {chapterName(book.chapters[ch]).main}, {clock(t)} in. Nothing past here is given away.</p>
+          <p className="text-sm text-[#606060]">Up to {(() => { const c = book.chapters[ch]; return c ? (c.sub ? `${c.title}: ${c.sub}` : c.title || `Part ${c.n}`) : "here"; })()}, {clock(t)} in. Nothing past here is given away.</p>
           <button onClick={() => void run("recap", "")} className="mt-4 inline-flex h-11 items-center gap-2 rounded-full px-5 text-sm font-semibold text-white" style={{ background: ACCENT }}><Sparkles size={16} />Catch me up</button>
         </div>}
         {talk.map((x, i) => <div key={i} className="space-y-2">
@@ -774,7 +774,7 @@ function AskSheet({ api, pro, onJoin, book, ch, t, onClose }: { api: Api; pro: b
       </div>
       <form onSubmit={(e) => { e.preventDefault(); const v = q.trim(); if (v.length >= 3) { setQ(""); void run("ask", v); } }} className="sticky bottom-0 flex items-center gap-2 border-t border-[#ececec] bg-white px-4 py-3">
         <label htmlFor="ps-ask-book" className="sr-only">Ask about the book</label>
-        <input id="ps-ask-book" value={q} onChange={(e) => setQ(e.target.value)} maxLength={300} placeholder="Who is Mr. Darcy again?" className="h-11 min-w-0 flex-1 rounded-full border border-[#d3d3d3] px-4 text-sm outline-none focus:border-[#1c62b9]" />
+        <input id="ps-ask-book" value={q} onChange={(e) => setQ(e.target.value)} maxLength={300} placeholder="Ask about the story so far…" className="h-11 min-w-0 flex-1 rounded-full border border-[#d3d3d3] px-4 text-sm outline-none focus:border-[#1c62b9]" />
         {talk.length > 0 && <button type="button" onClick={() => void run("recap", "")} disabled={busy} className="hidden h-11 shrink-0 rounded-full bg-[#f2f2f2] px-3 text-sm font-semibold disabled:opacity-50 sm:block">Catch me up</button>}
         <button type="submit" disabled={busy || q.trim().length < 3} className="h-11 shrink-0 rounded-full px-4 text-sm font-semibold text-white disabled:opacity-50" style={{ background: ACCENT }}>Ask</button>
       </form>
@@ -840,6 +840,22 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
   // Once a player's sound is routed through the boost, it must keep coming through the server.
   const routed = useRef(false);
 
+  // The lock screen and headphone buttons control the book (claimed again each time it plays, since a
+  // podcast or the radio may have taken them in between).
+  const claimLockScreen = () => {
+    try {
+      if (!("mediaSession" in navigator) || !chapter) return;
+      const { main } = chapterName(chapter);
+      navigator.mediaSession.metadata = new MediaMetadata({ title: main, artist: book.author || "LibriVox", album: book.title, artwork: [{ src: book.cover, sizes: "300x300" }] });
+      const ms = navigator.mediaSession;
+      ms.setActionHandler("play", () => { audio.current?.play().catch(() => {}); });
+      ms.setActionHandler("pause", () => audio.current?.pause());
+      ms.setActionHandler("previoustrack", ch > 0 ? () => go(ch - 1) : null);
+      ms.setActionHandler("nexttrack", ch < book.chapters.length - 1 ? () => go(ch + 1) : null);
+      ms.setActionHandler("seekbackward", () => { const x = audio.current; if (x) x.currentTime = Math.max(0, x.currentTime - 15); });
+      ms.setActionHandler("seekforward", () => { const x = audio.current; if (x) x.currentTime = x.currentTime + 30; });
+    } catch { /* older browsers */ }
+  };
   const go = useCallback((n: number) => {
     if (n < 0 || n >= book.chapters.length) return;
     onChange({ book, ch: n, at: 0 });
@@ -875,19 +891,7 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
         a.removeAttribute("crossorigin"); start(chapter.audio);
       });
     } else { a.removeAttribute("crossorigin"); start(chapter.audio); }
-    try {
-      if ("mediaSession" in navigator) {
-        const { main } = chapterName(chapter);
-        navigator.mediaSession.metadata = new MediaMetadata({ title: main, artist: book.author || "LibriVox", album: book.title, artwork: [{ src: book.cover, sizes: "300x300" }] });
-        const ms = navigator.mediaSession;
-        ms.setActionHandler("play", () => { audio.current?.play().catch(() => {}); });
-        ms.setActionHandler("pause", () => audio.current?.pause());
-        ms.setActionHandler("previoustrack", ch > 0 ? () => go(ch - 1) : null);
-        ms.setActionHandler("nexttrack", ch < book.chapters.length - 1 ? () => go(ch + 1) : null);
-        ms.setActionHandler("seekbackward", () => { const x = audio.current; if (x) x.currentTime = Math.max(0, x.currentTime - 15); });
-        ms.setActionHandler("seekforward", () => { const x = audio.current; if (x) x.currentTime = x.currentTime + 30; });
-      }
-    } catch { /* older browsers */ }
+    claimLockScreen();
     // Skip the LibriVox notice: start where the reading itself starts.
     if (reading.at === 0 && listen.notice && pro) {
       api(`/api/earshot/books/${encodeURIComponent(book.id)}/notice?ch=${ch}`).then((b) => {
@@ -1016,7 +1020,7 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
       <button onClick={() => setSheet("settings")} aria-label="Listening settings" title="Speed, sleep timer, sound" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><SlidersHorizontal size={18} /></button>
       <button onClick={onStop} aria-label="Close audiobook" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] sm:inline-flex"><X size={18} /></button>
       <audio ref={audio} preload="auto"
-        onPlaying={() => { setPlaying(true); setLoading(false); const a = audio.current; if (a && shaped && !routed.current && a.crossOrigin === "anonymous") { primeBookAudio(); if (routeBook(a)) { routed.current = true; setBookSound(a, { boost, even, clean }); } } }}
+        onPlaying={() => { setPlaying(true); setLoading(false); claimLockScreen(); const a = audio.current; if (a && shaped && !routed.current && a.crossOrigin === "anonymous") { primeBookAudio(); if (routeBook(a)) { routed.current = true; setBookSound(a, { boost, even, clean }); } } }}
         onPlay={() => {
           // Smart rewind: back up a little after a pause, more the longer it was.
           const a = audio.current; if (!a || !pausedAt.current || !listen.rewind) return;

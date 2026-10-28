@@ -17,7 +17,7 @@ test("a saved page keeps only safe, known things", () => {
     ],
     song: { id: "1", showId: "2", title: "T", show: "S", art: "https://x/a.jpg", audio: "http://insecure/a.mp3", secs: 10 },
   });
-  assert.equal(p.bg.kind, "gradient", "a bad photo link falls back to the default background");
+  assert.equal(p.bg.kind, defaultPage().bg.kind, "a bad photo link falls back to the default background");
   assert.equal(p.banner.kind, "image");
   assert.equal(p.accent, defaultPage().accent);
   assert.equal(p.font, defaultPage().font);
