@@ -229,7 +229,7 @@ export function ModePage({ es, id, update, say, onPlay, onBack, api, ex }: { es:
       </div>
       <div className="flex items-center gap-2">
         {mode.fresh && <button onClick={() => update((e) => ({ ...e, modes: e.modes.map((m) => (m.id === mode.id ? { ...m, freshDay: undefined } : m)) }))} className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium hover:bg-[#f2f2f2]"><RefreshCw size={15} />Refresh now</button>}
-        <button role="switch" aria-checked={!!mode.fresh} aria-label="Fresh" onClick={() => update((e) => ({ ...e, modes: e.modes.map((m) => (m.id === mode.id ? { ...m, fresh: !m.fresh, freshDay: undefined } : m)) }))} className={`relative h-7 w-12 rounded-full transition ${mode.fresh ? "bg-[#0f0f0f]" : "bg-[#d3d3d3]"}`}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-all ${mode.fresh ? "left-6" : "left-1"}`} /></button>
+        <button role="switch" aria-checked={!!mode.fresh} aria-label="Fresh" onClick={() => update((e) => ({ ...e, modes: e.modes.map((m) => (m.id === mode.id ? { ...m, fresh: !m.fresh, freshDay: undefined } : m)) }))} className={`relative h-7 w-12 rounded-full transition ${mode.fresh ? "bg-[#ff6a1f]" : "bg-[#d3d3d3]"}`}><span className={`absolute top-1 h-5 w-5 rounded-full bg-[#ffffff] shadow transition-all ${mode.fresh ? "left-6" : "left-1"}`} /></button>
       </div>
     </div>
 

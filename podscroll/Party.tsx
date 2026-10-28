@@ -266,7 +266,7 @@ export function PartyRoom({ room: wanted, api, wsBase, device, nickname, setNick
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={() => send({ t: "seek", pos: pos - 15 })} aria-label="Back 15 seconds" className="inline-flex h-11 w-11 items-center justify-center rounded-full hover:bg-white/15"><RotateCcw size={20} /></button>
-                <button onClick={() => send({ t: state.playing ? "pause" : "play" })} aria-label={state.playing ? "Pause for everyone" : "Play for everyone"} className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-white text-[#0f0f0f]">{state.playing ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-1" />}</button>
+                <button onClick={() => send({ t: state.playing ? "pause" : "play" })} aria-label={state.playing ? "Pause for everyone" : "Play for everyone"} className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#ffffff] text-[#111111]">{state.playing ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-1" />}</button>
                 <button onClick={() => send({ t: "seek", pos: pos + 30 })} aria-label="Forward 30 seconds" className="inline-flex h-11 w-11 items-center justify-center rounded-full hover:bg-white/15"><RotateCw size={20} /></button>
                 <span className="flex-1" />
                 <button onClick={() => setPicking(true)} className="h-9 rounded-full bg-white/15 px-4 text-sm font-semibold hover:bg-white/25">Change episode</button>
@@ -275,7 +275,7 @@ export function PartyRoom({ room: wanted, api, wsBase, device, nickname, setNick
             </> : <div>
               <p className="text-lg font-bold">Nothing playing yet</p>
               <p className="mt-1 text-sm text-white/75">Pick an episode and it starts for everyone in the group.</p>
-              <button onClick={() => setPicking(true)} className="mt-4 h-10 rounded-full bg-white px-5 text-sm font-semibold text-[#0f0f0f]">Pick an episode</button>
+              <button onClick={() => setPicking(true)} className="mt-4 h-10 rounded-full bg-[#ffffff] px-5 text-sm font-semibold text-[#111111]">Pick an episode</button>
             </div>}
           </div>
         </div>

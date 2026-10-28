@@ -152,16 +152,16 @@ export function NewsNow({ api, ex, onOpen, onBack, grid }: { api: Api; ex: strin
   const since = now - hours * 3600_000;
   const list = (data?.episodes || []).filter((e) => Date.parse(e.date) >= since);
   return <section aria-label="Up to the Minute News" className="pt-3">
-    <div className="relative overflow-hidden rounded-2xl p-5 text-white sm:p-6" style={{ background: "linear-gradient(135deg,#1e3a8a,#0f172a)" }}>
-      <button onClick={onBack} className="mb-3 text-sm font-medium text-white/70 hover:text-white">← Home</button>
+    <div className="ps-keep relative overflow-hidden rounded-2xl p-5 text-[#ffffff] sm:p-6" style={{ background: "linear-gradient(135deg,#1e3a8a,#0f172a)" }}>
+      <button onClick={onBack} className="mb-3 text-sm font-medium text-[#c9d3e8] hover:text-[#ffffff]">← Home</button>
       <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.18em] text-[#ffb37a]"><span className="h-2 w-2 rounded-full bg-[#ff3b30] motion-safe:animate-pulse" />Live news hub</p>
       <h1 className="mt-2 flex items-center gap-2 text-[26px] font-bold leading-tight tracking-tight sm:text-[30px]"><Zap size={26} className="text-[#ffb37a]" />Up to the Minute News</h1>
-      <p className="mt-2 max-w-xl text-[14px] text-white/80">Only news published in the last {hours} hours, newest first. Older episodes drop off on their own, and new ones show up every few minutes.</p>
+      <p className="mt-2 max-w-xl text-[14px] text-[#e6ebf5]">Only news published in the last {hours} hours, newest first. Older episodes drop off on their own, and new ones show up every few minutes.</p>
       <div className="mt-4 flex flex-wrap items-center gap-2" role="group" aria-label="How far back">
-        {[2, 4, 6, 12].map((h) => <button key={h} onClick={() => pick(h)} aria-pressed={hours === h} className={`h-9 rounded-full px-4 text-sm font-semibold ${hours === h ? "bg-white text-[#0f172a]" : "bg-white/10 text-white hover:bg-white/20"}`}>Last {h} hours</button>)}
-        <button onClick={pull} className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-white/80 hover:bg-white/10"><RefreshCw size={15} />Refresh</button>
+        {[2, 4, 6, 12].map((h) => <button key={h} onClick={() => pick(h)} aria-pressed={hours === h} className={`h-9 rounded-full px-4 text-sm font-semibold ${hours === h ? "bg-[#ffb37a] text-[#1a1206]" : "bg-[#ffffff]/10 text-[#ffffff] hover:bg-[#ffffff]/20"}`}>Last {h} hours</button>)}
+        <button onClick={pull} className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-[#e6ebf5] hover:bg-[#ffffff]/10"><RefreshCw size={15} />Refresh</button>
       </div>
-      {data?.updatedAt && <p className="mt-3 text-xs text-white/55">Checked {minutesAgo(data.updatedAt, now).toLowerCase()}</p>}
+      {data?.updatedAt && <p className="mt-3 text-xs text-[#aab6cf]">Checked {minutesAgo(data.updatedAt, now).toLowerCase()}</p>}
     </div>
     {err ? <p className="py-16 text-center text-[#606060]">{err}</p>
       : !data ? <div className="flex justify-center py-20"><Loader2 className="animate-spin text-[#606060]" size={24} /></div>
