@@ -74,7 +74,7 @@ export function ProfileSpace({ data, page, ctx, onBack, onFollow, onEditProfile,
     if (navigator.share) void navigator.share({ title: `${data.profile.name} on Pod+`, url }).catch(() => {});
     else void navigator.clipboard?.writeText(url).then(() => ctx.say("Link copied.")).catch(() => ctx.say(url));
   };
-  const btn = "inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-4 text-[15px] font-bold sm:flex-none";
+  const btn = "inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full px-4 text-[14px] font-semibold sm:flex-none";
   const ghost: CSSProperties = { boxShadow: `inset 0 0 0 1px ${alpha(look.cInk, 0.25)}`, color: look.cInk };
   const sideAbout = page.layout === "two" && about.length > 0;
 
@@ -84,16 +84,16 @@ export function ProfileSpace({ data, page, ctx, onBack, onFollow, onEditProfile,
       <div className={sideAbout ? "md:grid md:grid-cols-[minmax(0,1fr)_300px] md:gap-4" : ""}>
         <main className="min-w-0 overflow-hidden sm:shadow-[0_10px_40px_-12px_rgba(0,0,0,.45)]" style={{ borderRadius: r }}>
           {/* Cover and picture */}
-          <div className="relative aspect-[3/1] max-h-[240px] min-h-[132px] w-full" style={coverStyle}>
+          <div className="relative aspect-[4/1] max-h-[180px] min-h-[96px] w-full" style={coverStyle}>
             <button type="button" onClick={onBack} aria-label="Back" className="absolute left-3 top-[max(.75rem,env(safe-area-inset-top))] grid h-9 w-9 place-items-center rounded-full bg-black/50 text-white backdrop-blur"><ChevronLeft size={20} /></button>
             <button type="button" onClick={share} aria-label="Share profile" className="absolute right-3 top-[max(.75rem,env(safe-area-inset-top))] grid h-9 w-9 place-items-center rounded-full bg-black/50 text-white backdrop-blur"><Share size={17} /></button>
           </div>
           <section className="relative px-4 pb-4 sm:px-5" style={surface}>
             <div className="flex items-end justify-between gap-3">
-              <span className="-mt-11 block rounded-full p-[3px] sm:-mt-14" style={{ background: page.card === "solid" ? page.cardColor : lightSurface ? "#ffffff" : "#0b0b0f" }}><Avatar p={data.profile} size={84} /></span>
+              <span className="-mt-9 block rounded-full p-[3px] sm:-mt-11" style={{ background: page.card === "solid" ? page.cardColor : lightSurface ? "#ffffff" : "#0b0b0f" }}><Avatar p={data.profile} size={68} /></span>
               <div className="hidden gap-2 pt-3 sm:flex">{actions()}</div>
             </div>
-            <h1 className="mt-2 text-[22px] leading-tight sm:text-[26px]" style={{ fontWeight: Math.max(700, look.font.weight) }}>{data.profile.name}</h1>
+            <h1 className="mt-2 text-[19px] leading-tight sm:text-[22px]" style={{ fontWeight: Math.max(700, look.font.weight) }}>{data.profile.name}</h1>
             <p className="text-[15px]" style={{ color: look.sub }}>@{data.profile.handle}</p>
             {(widget("about")?.text || data.profile.bio) && <p className="mt-2.5 whitespace-pre-wrap text-[15px] leading-relaxed">{widget("about")?.text || data.profile.bio}</p>}
             {(page.mood.text || page.song) && <div className="mt-3 flex flex-wrap gap-2">
@@ -101,7 +101,7 @@ export function ProfileSpace({ data, page, ctx, onBack, onFollow, onEditProfile,
               {page.song && <SongPill song={page.song} look={look} accent={page.accent} ctx={ctx} />}
             </div>}
             {(widget("links")?.links?.length ?? 0) > 0 && <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1">{widget("links")!.links!.map((l) => <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer nofollow ugc" className="inline-flex items-center gap-1 text-[14px] font-semibold" style={{ color: page.accent }}><LinkIcon size={14} />{l.label || hostOf(l.url)}</a>)}</div>}
-            <p className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[15px]">
+            <p className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-[13px]">
               {([[posts.length, "posts"], [data.followers, data.followers === 1 ? "follower" : "followers"], [data.following, "following"]] as const).map(([n, l]) => <span key={l}><b style={{ color: look.cInk }}>{compact(n)}</b> <span style={{ color: look.sub }}>{l}</span></span>)}
             </p>
             <div className="mt-4 flex gap-2 sm:hidden">{actions()}</div>
@@ -114,8 +114,8 @@ export function ProfileSpace({ data, page, ctx, onBack, onFollow, onEditProfile,
           </section>
           {/* Tabs */}
           <nav className="sticky top-0 z-10 flex overflow-x-auto [scrollbar-width:none]" style={{ ...surface, borderBottom: `1px solid ${look.line}`, borderTop: `1px solid ${look.line}` }} aria-label="Profile sections">
-            {tabs.map(([v, l]) => <button key={v} type="button" aria-pressed={tab === v} onClick={() => setTab(v)} className={`relative min-h-12 flex-1 whitespace-nowrap px-4 text-[15px] ${tab === v ? "font-bold" : "font-medium"}`} style={{ color: tab === v ? look.cInk : look.sub }}>
-              {l}{tab === v && <span className="absolute bottom-0 left-1/2 h-[3px] w-10 -translate-x-1/2 rounded-full" style={{ background: page.accent }} />}
+            {tabs.map(([v, l]) => <button key={v} type="button" aria-pressed={tab === v} onClick={() => setTab(v)} className={`relative min-h-11 flex-1 whitespace-nowrap px-4 text-[14px] ${tab === v ? "font-semibold" : "font-medium"}`} style={{ color: tab === v ? look.cInk : look.sub }}>
+              {l}{tab === v && <span className="absolute bottom-0 left-1/2 h-[2px] w-8 -translate-x-1/2 rounded-full" style={{ background: page.accent }} />}
             </button>)}
           </nav>
           <section className={`min-h-[40vh] ${tab === "posts" && row ? (lightSurface ? "ps-light" : "ps-dark") : ""}`} style={surface}>
@@ -552,17 +552,17 @@ export function PersonSpace({ handle, ctx, onEdit, onClose, row }: { handle: str
 export function PagesStrip({ ctx, onCreate }: { ctx: Ctx; onCreate: () => void }) {
   const [people, setPeople] = useState<Profile[] | null>(null);
   useEffect(() => { ctx.api("/api/earshot/social/people").then((b) => setPeople((b.people || []).filter((p: Profile) => p.handle !== ctx.me?.handle).slice(0, 16))).catch(() => setPeople([])); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  return <section aria-label="Pages" className="border-b border-white/[.09] px-4 py-3">
+  return <section aria-label="Pages" className="border-b border-white/[.09] px-4 py-2.5">
     <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none]">
-      <button type="button" onClick={() => (ctx.me ? ctx.person(ctx.me.handle) : onCreate())} className="flex w-[68px] flex-none flex-col items-center gap-1.5 text-center">
-        <span className="relative grid h-[60px] w-[60px] place-items-center rounded-full p-[3px]" style={{ background: "conic-gradient(#ff8a3d, #ec4899, #6366f1, #ff8a3d)" }}>
-          {ctx.me ? <Avatar p={ctx.me} size={54} /> : <span className="grid h-[54px] w-[54px] place-items-center rounded-full bg-black"><Plus size={22} /></span>}
-          <span className="absolute -bottom-0.5 -right-0.5 grid h-6 w-6 place-items-center rounded-full bg-[#ff8a3d] text-[#111] ring-2 ring-black"><Paintbrush size={12} /></span>
+      <button type="button" onClick={() => (ctx.me ? ctx.person(ctx.me.handle) : onCreate())} className="flex w-[56px] flex-none flex-col items-center gap-1 text-center">
+        <span className="relative grid h-12 w-12 place-items-center rounded-full p-[2px]" style={{ background: "#ff8a3d" }}>
+          {ctx.me ? <Avatar p={ctx.me} size={44} /> : <span className="grid h-11 w-11 place-items-center rounded-full bg-black"><Plus size={18} /></span>}
+          <span className="absolute -bottom-0.5 -right-0.5 grid h-[18px] w-[18px] place-items-center rounded-full bg-[#ff8a3d] text-[#111] ring-2 ring-black"><Paintbrush size={9} /></span>
         </span>
-        <span className="w-full truncate text-[12px] font-semibold">{ctx.me ? "Your page" : "Make yours"}</span>
+        <span className="w-full truncate text-[11px] font-medium">{ctx.me ? "Your page" : "Make yours"}</span>
       </button>
-      {(people ?? []).map((p) => <button key={p.handle} type="button" onClick={() => ctx.person(p.handle)} className="flex w-[68px] flex-none flex-col items-center gap-1.5 text-center">
-        <Avatar p={p} size={60} /><span className="w-full truncate text-[12px] text-white/80">{p.name}</span>
+      {(people ?? []).map((p) => <button key={p.handle} type="button" onClick={() => ctx.person(p.handle)} className="flex w-[56px] flex-none flex-col items-center gap-1 text-center">
+        <Avatar p={p} size={48} /><span className="w-full truncate text-[11px] text-white/70">{p.name}</span>
       </button>)}
       {people === null && <Loader2 className="my-6 animate-spin text-white/50" />}
     </div>
