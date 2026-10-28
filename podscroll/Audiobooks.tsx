@@ -4,7 +4,7 @@
 // server when Voice boost shapes it). Like the radio, a book keeps playing in the bar at the bottom
 // while you browse, and each book remembers its chapter and spot on this device.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { BookOpen, BookOpenText, ChevronLeft, ChevronRight, Headphones, Loader2, Pause, Play, RotateCcw, RotateCw, Search, SkipBack, SkipForward, SlidersHorizontal, Sparkles, Star, X } from "lucide-react";
+import { BookOpen, BookOpenText, Bookmark, ChevronLeft, ChevronRight, Headphones, Loader2, Pause, Play, RotateCcw, RotateCw, Search, SkipBack, SkipForward, SlidersHorizontal, Sparkles, Star, X } from "lucide-react";
 import { bookAudioSupported, isRouted, levelOf, primeBookAudio, routeBook, setBookSound, setFade } from "./bookAudio";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
@@ -61,6 +61,25 @@ function saveSpot(b: BookDetail, ch: number, t: number, finished = false) {
   else all[b.id] = { ch, t: Math.floor(t), at: Date.now(), title: b.title, author: b.author, cover: b.cover, chapters: b.chapters.length };
   const keep = Object.entries(all).sort((a, z) => z[1].at - a[1].at).slice(0, 50);
   ls.set(SPOTS, JSON.stringify(Object.fromEntries(keep)));
+}
+
+// ---- bookmarks: moments saved with a note, on this device ----
+export type Mark = { id: string; ch: number; t: number; note: string; at: number };
+const MARKS = "podscroll.bookmarks";
+export function marksOf(bookId: string): Mark[] {
+  try { const v = JSON.parse(ls.get(MARKS) || "{}"); return Array.isArray(v?.[bookId]) ? v[bookId] : []; } catch { return []; }
+}
+function setMarks(bookId: string, list: Mark[]) {
+  let all: Record<string, Mark[]> = {};
+  try { const v = JSON.parse(ls.get(MARKS) || "{}"); if (v && typeof v === "object") all = v; } catch { /* start over */ }
+  if (list.length) all[bookId] = list.slice(0, 200); else delete all[bookId];
+  ls.set(MARKS, JSON.stringify(all));
+  window.dispatchEvent(new Event("ps-book-marks"));
+}
+function useMarks(bookId: string): Mark[] {
+  const [list, setList] = useState(() => marksOf(bookId));
+  useEffect(() => { setList(marksOf(bookId)); const f = () => setList(marksOf(bookId)); window.addEventListener("ps-book-marks", f); return () => window.removeEventListener("ps-book-marks", f); }, [bookId]);
+  return list;
 }
 
 // ---- books, fetched once per visit ----
@@ -317,6 +336,8 @@ export function BookPage({ api, id, current, playing, onPlay, onToggle, onBack, 
       {book.about.length > 200 && <button onClick={() => setMore((v) => !v)} className="mt-1 text-sm font-semibold">{more ? "Less" : "More"}</button>}
     </div>}
 
+    <Bookmarks book={book} onJump={(m) => play({ book, ch: Math.min(m.ch, book.chapters.length - 1), at: m.t })} />
+
     <h2 className="mt-7 text-base font-semibold">Chapters</h2>
     <ol className="mt-2 divide-y divide-[#ececec]">
       {book.chapters.map((c, i) => {
@@ -339,6 +360,27 @@ export function BookPage({ api, id, current, playing, onPlay, onToggle, onBack, 
     <p className="mt-8 text-xs text-[#767676]">A <a href="https://librivox.org" target="_blank" rel="noreferrer" className="underline">LibriVox</a> recording, public domain. <a href={book.link} target="_blank" rel="noreferrer" className="underline">See it at the Internet Archive</a>.</p>
     {readers && <ReadersSheet api={api} book={book} onClose={() => setReaders(false)} onPick={(otherId) => void switchTo(otherId)} />}
   </div>;
+}
+
+/** The book's bookmarks: tap one to play from there. */
+function Bookmarks({ book, onJump }: { book: BookDetail; onJump: (m: Mark) => void }) {
+  const marks = useMarks(book.id);
+  if (!marks.length) return null;
+  return <section aria-label="Bookmarks" className="mt-7">
+    <h2 className="flex items-center gap-2 text-base font-semibold"><Bookmark size={17} />Bookmarks</h2>
+    <ul className="mt-2 divide-y divide-[#ececec]">
+      {[...marks].sort((a, z) => a.ch - z.ch || a.t - z.t).map((m) => {
+        const c = book.chapters[m.ch];
+        return <li key={m.id} className="flex items-center gap-2">
+          <button onClick={() => onJump(m)} className="flex min-h-12 min-w-0 flex-1 flex-col justify-center py-2 text-left">
+            <span className="truncate text-[15px]">{m.note || (c ? chapterName(c).main : `Chapter ${m.ch + 1}`)}</span>
+            <span className="truncate text-xs text-[#767676]">{c ? chapterName(c).main : `Chapter ${m.ch + 1}`} · {clock(m.t)}</span>
+          </button>
+          <button onClick={() => setMarks(book.id, marksOf(book.id).filter((x) => x.id !== m.id))} aria-label="Delete bookmark" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#767676] hover:bg-[#f2f2f2]"><X size={16} /></button>
+        </li>;
+      })}
+    </ul>
+  </section>;
 }
 
 /** Every reading of this book, to hear a little of each and pick the voice you like. */
@@ -479,6 +521,28 @@ function ReadAlong({ api, pro, onJoin, reading, time, onSeek, onClose }: { api: 
   </Sheet>;
 }
 
+/** Saves this moment, with a note if you like. */
+function MarkSheet({ book, ch, t, onClose, onSaved }: { book: BookDetail; ch: number; t: number; onClose: () => void; onSaved: () => void }) {
+  const [note, setNote] = useState("");
+  const at = useRef(Math.max(0, Math.floor(t))).current;
+  const c = book.chapters[ch];
+  const save = () => {
+    const m: Mark = { id: Math.random().toString(36).slice(2, 10), ch, t: at, note: note.replace(/\s+/g, " ").trim().slice(0, 140), at: Date.now() };
+    setMarks(book.id, [...marksOf(book.id), m]);
+    onSaved();
+  };
+  return <Sheet title="Add a bookmark" onClose={onClose}>
+    <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4 px-5 py-5">
+      <p className="text-sm text-[#606060]">{c ? chapterName(c).main : `Chapter ${ch + 1}`} · {clock(at)}</p>
+      <label className="block">
+        <span className="text-sm font-semibold">Note (optional)</span>
+        <input autoFocus value={note} onChange={(e) => setNote(e.target.value)} maxLength={140} placeholder="A line I liked, where Darcy proposes…" className="mt-1.5 h-11 w-full rounded-xl border border-[#d3d3d3] px-3 text-sm outline-none focus:border-[#1c62b9]" />
+      </label>
+      <button type="submit" className="h-11 w-full rounded-full text-sm font-semibold text-white" style={{ background: ACCENT }}>Save bookmark</button>
+    </form>
+  </Sheet>;
+}
+
 // ---------------- the bar ----------------
 
 const SLEEPS: [string, number | "end" | null][] = [["Off", null], ["15 min", 15], ["30 min", 30], ["45 min", 45], ["1 hour", 60], ["End of chapter", "end"]];
@@ -498,7 +562,7 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
   const shaped = boost || even || silence;
   const pausedAt = useRef(0);
   const [sleepAt, setSleepAt] = useState<number | "end" | null>(null);
-  const [sheet, setSheet] = useState<"settings" | "read" | null>(null);
+  const [sheet, setSheet] = useState<"settings" | "read" | "mark" | null>(null);
   const { book, ch } = reading;
   const chapter = book.chapters[ch];
   const lastSave = useRef(0);
@@ -630,6 +694,7 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
           <span className="truncate text-xs text-[#606060]">{chName} · {clock(time)}{dur ? ` / ${clock(dur)}` : ""}{sleepWords ? ` · Sleep ${sleepWords}` : ""}</span>
         </span>
       </button>
+      <button onClick={() => setSheet("mark")} aria-label="Add a bookmark" title="Add a bookmark" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] sm:inline-flex"><Bookmark size={18} /></button>
       <button onClick={() => setSheet("read")} aria-label="Read along" title="Read along" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><BookOpenText size={19} /></button>
       <button onClick={() => go(ch - 1)} disabled={ch === 0} aria-label="Previous chapter" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] disabled:opacity-30 md:inline-flex"><SkipBack size={18} /></button>
       <button onClick={() => skip(-15)} aria-label="Back 15 seconds" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] sm:inline-flex"><RotateCcw size={19} /></button>
@@ -659,6 +724,7 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
 
     {sheet === "settings" && <Sheet title="Listening" onClose={() => setSheet(null)}>
       <div className="space-y-6 px-5 py-5">
+        <button onClick={() => setSheet("mark")} className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-[#f2f2f2] text-sm font-semibold sm:hidden"><Bookmark size={17} />Add a bookmark here</button>
         <div>
           <p className="flex items-baseline justify-between text-sm font-semibold"><span>Speed</span><span className="tabular-nums">{speed.toFixed(2).replace(/0$/, "")}×</span></p>
           <div className="mt-2 flex items-center gap-2">
@@ -689,6 +755,7 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
         <button onClick={() => { setSheet(null); onStop(); }} className="h-10 w-full rounded-full border border-[#d3d3d3] text-sm font-semibold sm:hidden">Close the book</button>
       </div>
     </Sheet>}
+    {sheet === "mark" && <MarkSheet book={book} ch={ch} t={time} onClose={() => setSheet(null)} onSaved={() => { setSheet(null); say("Bookmark added. Find it on the book's page."); }} />}
     {sheet === "read" && <ReadAlong api={api} pro={pro} onJoin={() => { setSheet(null); onJoin(); }} reading={reading} time={time} onSeek={(t) => { const a = audio.current; if (a) { a.currentTime = t; if (a.paused) a.play().catch(() => {}); } }} onClose={() => setSheet(null)} />}
   </div>;
 }
