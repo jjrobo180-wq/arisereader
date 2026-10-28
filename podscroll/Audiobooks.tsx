@@ -20,10 +20,10 @@ const ACCENT = "#ff6a1f";
 const SPEEDS = [0.75, 1, 1.25, 1.5, 1.75, 2] as const;
 /** Listening choices, kept on this device. boost, even and silence are for members (they need the
  *  sound to come through the server); rewind is for everyone. */
-type Listen = { boost: boolean; even: boolean; silence: boolean; rewind: boolean };
+type Listen = { boost: boolean; even: boolean; silence: boolean; rewind: boolean; notice: boolean };
 const readListen = (): Listen => {
-  try { const v = JSON.parse(ls.get("podscroll.bookListen") || "null"); if (v && typeof v === "object") return { boost: !!v.boost, even: !!v.even, silence: !!v.silence, rewind: v.rewind !== false }; } catch { /* default */ }
-  return { boost: ls.get("podscroll.bookBoost") === "1", even: false, silence: false, rewind: true };
+  try { const v = JSON.parse(ls.get("podscroll.bookListen") || "null"); if (v && typeof v === "object") return { boost: !!v.boost, even: !!v.even, silence: !!v.silence, rewind: v.rewind !== false, notice: !!v.notice }; } catch { /* default */ }
+  return { boost: ls.get("podscroll.bookBoost") === "1", even: false, silence: false, rewind: true, notice: false };
 };
 /** Smart rewind: after a pause, back up a little, more the longer it was. */
 export const rewindFor = (pausedSecs: number) => (pausedSecs < 10 ? 0 : pausedSecs < 60 ? 3 : pausedSecs < 600 ? 8 : pausedSecs < 3600 ? 15 : 30);
@@ -601,6 +601,54 @@ function ReadAlong({ api, pro, onJoin, reading, time, onSeek, onClose }: { api: 
   </Sheet>;
 }
 
+/** Catch me up and Ask the book: answers that stay inside what you've heard so far. */
+function AskSheet({ api, pro, onJoin, book, ch, t, onClose }: { api: Api; pro: boolean; onJoin: () => void; book: BookDetail; ch: number; t: number; onClose: () => void }) {
+  const [talk, setTalk] = useState<{ q: string; a?: string; err?: string }[]>([]);
+  const [q, setQ] = useState("");
+  const [busy, setBusy] = useState(false);
+  const end = useRef<HTMLDivElement>(null);
+  useEffect(() => { end.current?.scrollIntoView({ block: "end", behavior: "smooth" }); }, [talk]);
+  const run = async (kind: "recap" | "ask", question: string) => {
+    if (busy) return;
+    setBusy(true);
+    const i = talk.length;
+    setTalk((cur) => [...cur, { q: kind === "recap" ? "Catch me up" : question }]);
+    try {
+      const b = await api(`/api/earshot/books/${encodeURIComponent(book.id)}/${kind}`, { method: "POST", body: { ch, t: Math.floor(t), q: question } });
+      setTalk((cur) => cur.map((x, k) => (k === i ? { ...x, a: String(b?.answer || "") } : x)));
+    } catch (e: any) { setTalk((cur) => cur.map((x, k) => (k === i ? { ...x, err: e?.message || "That didn't work. Try again." } : x))); }
+    setBusy(false);
+  };
+  return <Sheet title="Catch me up · Ask the book" onClose={onClose}>
+    {!pro ? <div className="px-6 py-10 text-center">
+      <Sparkles className="mx-auto" size={26} style={{ color: ACCENT }} />
+      <p className="mt-3 text-base font-semibold">For Pod+ members</p>
+      <p className="mt-1 text-sm text-[#606060]">Lost the thread? Get a quick recap of the story so far, or ask about anyone or anything in the book, with no spoilers past where you are.</p>
+      <button onClick={onJoin} className="mt-4 h-10 rounded-full px-5 text-sm font-semibold text-white" style={{ background: ACCENT }}>Become a member</button>
+    </div> : <div className="flex min-h-[50dvh] flex-col">
+      <div className="flex-1 space-y-4 px-5 py-4">
+        {!talk.length && <div className="text-center">
+          <p className="text-sm text-[#606060]">Up to {chapterName(book.chapters[ch]).main}, {clock(t)} in. Nothing past here is given away.</p>
+          <button onClick={() => void run("recap", "")} className="mt-4 inline-flex h-11 items-center gap-2 rounded-full px-5 text-sm font-semibold text-white" style={{ background: ACCENT }}><Sparkles size={16} />Catch me up</button>
+        </div>}
+        {talk.map((x, i) => <div key={i} className="space-y-2">
+          <p className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md bg-[#0f0f0f] px-3.5 py-2 text-sm text-white">{x.q}</p>
+          {x.a ? <p className="max-w-[92%] whitespace-pre-line rounded-2xl rounded-bl-md bg-[#f2f2f2] px-3.5 py-2.5 text-[15px] leading-relaxed">{x.a}</p>
+            : x.err ? <p className="text-sm text-[#b42318]">{x.err}</p>
+            : <Loader2 className="animate-spin text-[#606060]" size={18} />}
+        </div>)}
+        <div ref={end} />
+      </div>
+      <form onSubmit={(e) => { e.preventDefault(); const v = q.trim(); if (v.length >= 3) { setQ(""); void run("ask", v); } }} className="sticky bottom-0 flex items-center gap-2 border-t border-[#ececec] bg-white px-4 py-3">
+        <label htmlFor="ps-ask-book" className="sr-only">Ask about the book</label>
+        <input id="ps-ask-book" value={q} onChange={(e) => setQ(e.target.value)} maxLength={300} placeholder="Who is Mr. Darcy again?" className="h-11 min-w-0 flex-1 rounded-full border border-[#d3d3d3] px-4 text-sm outline-none focus:border-[#1c62b9]" />
+        {talk.length > 0 && <button type="button" onClick={() => void run("recap", "")} disabled={busy} className="hidden h-11 shrink-0 rounded-full bg-[#f2f2f2] px-3 text-sm font-semibold disabled:opacity-50 sm:block">Catch me up</button>}
+        <button type="submit" disabled={busy || q.trim().length < 3} className="h-11 shrink-0 rounded-full px-4 text-sm font-semibold text-white disabled:opacity-50" style={{ background: ACCENT }}>Ask</button>
+      </form>
+    </div>}
+  </Sheet>;
+}
+
 /** Saves this moment, with a note if you like. */
 function MarkSheet({ book, ch, t, onClose, onSaved }: { book: BookDetail; ch: number; t: number; onClose: () => void; onSaved: () => void }) {
   const [note, setNote] = useState("");
@@ -642,7 +690,7 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
   const shaped = boost || even || silence;
   const pausedAt = useRef(0);
   const [sleepAt, setSleepAt] = useState<number | "end" | null>(null);
-  const [sheet, setSheet] = useState<"settings" | "read" | "mark" | null>(null);
+  const [sheet, setSheet] = useState<"settings" | "read" | "mark" | "ask" | null>(null);
   const { book, ch } = reading;
   const chapter = book.chapters[ch];
   const lastSave = useRef(0);
@@ -697,6 +745,13 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
         ms.setActionHandler("seekforward", () => { const x = audio.current; if (x) x.currentTime = x.currentTime + 30; });
       }
     } catch { /* older browsers */ }
+    // Skip the LibriVox notice: start where the reading itself starts.
+    if (reading.at === 0 && listen.notice && pro) {
+      api(`/api/earshot/books/${encodeURIComponent(book.id)}/notice?ch=${ch}`).then((b) => {
+        const end = Number(b?.end) || 0;
+        if (alive && end > 0 && a.currentTime < end) a.currentTime = end;
+      }).catch(() => {});
+    }
     return () => { alive = false; a.removeEventListener("loadedmetadata", seek); if (a.currentTime > 0) saveSpot(book, ch, a.currentTime); a.pause(); };
   }, [book, ch]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { const a = audio.current; if (a) { a.pause(); a.removeAttribute("src"); a.load(); } }, []);
@@ -705,6 +760,7 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
   // Sound settings on: this chapter comes through the server from where it is, and is shaped.
   const setSound = async (patch: Partial<Listen>) => {
     const wantsShape = patch.boost || patch.even || patch.silence;
+    if (patch.notice && !pro) { setSheet(null); say("Skipping the LibriVox notice is part of Pod+ Membership."); onJoin(); return; }
     if (wantsShape && !pro) { setSheet(null); say("Sound settings are part of Pod+ Membership."); onJoin(); return; }
     const next = { ...listen, ...patch };
     setListen(next); ls.set("podscroll.bookListen", JSON.stringify(next));
@@ -774,6 +830,7 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
           <span className="truncate text-xs text-[#606060]">{chName} · {clock(time)}{dur ? ` / ${clock(dur)}` : ""}{sleepWords ? ` · Sleep ${sleepWords}` : ""}</span>
         </span>
       </button>
+      <button onClick={() => setSheet("ask")} aria-label="Catch me up or ask the book" title="Catch me up · Ask the book" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] sm:inline-flex"><Sparkles size={18} /></button>
       <button onClick={() => setSheet("mark")} aria-label="Add a bookmark" title="Add a bookmark" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] sm:inline-flex"><Bookmark size={18} /></button>
       <button onClick={() => setSheet("read")} aria-label="Read along" title="Read along" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><BookOpenText size={19} /></button>
       <button onClick={() => go(ch - 1)} disabled={ch === 0} aria-label="Previous chapter" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] disabled:opacity-30 md:inline-flex"><SkipBack size={18} /></button>
@@ -804,7 +861,10 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
 
     {sheet === "settings" && <Sheet title="Listening" onClose={() => setSheet(null)}>
       <div className="space-y-6 px-5 py-5">
-        <button onClick={() => setSheet("mark")} className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-[#f2f2f2] text-sm font-semibold sm:hidden"><Bookmark size={17} />Add a bookmark here</button>
+        <div className="grid grid-cols-2 gap-2 sm:hidden">
+          <button onClick={() => setSheet("ask")} className="flex h-11 items-center justify-center gap-2 rounded-full bg-[#f2f2f2] text-sm font-semibold"><Sparkles size={16} />Catch me up</button>
+          <button onClick={() => setSheet("mark")} className="flex h-11 items-center justify-center gap-2 rounded-full bg-[#f2f2f2] text-sm font-semibold"><Bookmark size={16} />Bookmark</button>
+        </div>
         <div>
           <p className="flex items-baseline justify-between text-sm font-semibold"><span>Speed</span><span className="tabular-nums">{speed.toFixed(2).replace(/0$/, "")}×</span></p>
           <div className="mt-2 flex items-center gap-2">
@@ -826,6 +886,7 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
         {bookAudioSupported() && <>
           <Toggle on={boost} members={!pro} onClick={() => void setSound({ boost: !boost })} title="Voice boost" line="Clearer voices and steadier volume. Great for quiet readers and the car." />
           <Toggle on={even} members={!pro} onClick={() => void setSound({ even: !even })} title="Even volume" line="Quiet readers and loud ones come out at about the same level, chapter to chapter." />
+          <Toggle on={listen.notice && pro} members={!pro} onClick={() => void setSound({ notice: !(listen.notice && pro) })} title="Skip the LibriVox notice" line="Each chapter starts where the reading starts, past “This is a LibriVox recording…”." />
           <Toggle on={silence} members={!pro} onClick={() => void setSound({ silence: !silence })} title="Skip silences" line="Long pauses between sentences go by quickly. Slow readers get easier to follow, at the same voice speed." />
         </>}
         <div className="flex gap-2 md:hidden">
@@ -835,6 +896,7 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
         <button onClick={() => { setSheet(null); onStop(); }} className="h-10 w-full rounded-full border border-[#d3d3d3] text-sm font-semibold sm:hidden">Close the book</button>
       </div>
     </Sheet>}
+    {sheet === "ask" && <AskSheet api={api} pro={pro} onJoin={() => { setSheet(null); onJoin(); }} book={book} ch={ch} t={time} onClose={() => setSheet(null)} />}
     {sheet === "mark" && <MarkSheet book={book} ch={ch} t={time} onClose={() => setSheet(null)} onSaved={() => { setSheet(null); say("Bookmark added. Find it on the book's page."); }} />}
     {sheet === "read" && <ReadAlong api={api} pro={pro} onJoin={() => { setSheet(null); onJoin(); }} reading={reading} time={time} onSeek={(t) => { const a = audio.current; if (a) { a.currentTime = t; if (a.paused) a.play().catch(() => {}); } }} onClose={() => setSheet(null)} />}
   </div>;
