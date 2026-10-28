@@ -18,7 +18,7 @@ export type AiProviderEnv = { XAI_API_KEY?: string; XAI_MODEL?: string; AI_PROVI
 /** Backup AIs that take OpenAI-style chat requests: Grok (xAI) and Groq. */
 export const BACKUPS = {
   grok: { name: "Grok", url: "https://api.x.ai/v1/chat/completions", model: "grok-latest", keys: ["XAI_API_KEY", "GROK_API_KEY", "XAI_KEY", "GROK_KEY", "X_AI_API_KEY", "GROK_API", "XAI_TOKEN"], prefix: /^xai-/ },
-  groq: { name: "Groq", url: "https://api.groq.com/openai/v1/chat/completions", model: "llama-3.3-70b-versatile", keys: ["GROQ_API_KEY", "GROQ_KEY", "GROQ_API", "GROQ_TOKEN"], prefix: /^gsk_/ },
+  groq: { name: "Groq", url: "https://api.groq.com/openai/v1/chat/completions", model: "openai/gpt-oss-120b", keys: ["GROQ_API_KEY", "GROQ_KEY", "GROQ_API", "GROQ_TOKEN"], prefix: /^gsk_/ },
 } as const;
 
 const urlOf = (input: Parameters<Fetch>[0]) => (typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url);
