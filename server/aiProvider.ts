@@ -53,6 +53,54 @@ export function pickModel(ids: string[]): string | null {
   return usable[0] || null;
 }
 const busyUntil = new Map<string, number>();
+
+// ---- Last resort: Perplexity ----
+// When Groq can't answer (its free per-minute or per-day allowance is used up, or it's down), the
+// same chat goes to Perplexity's "sonar" model with the site's Perplexity key, so people don't see
+// "try again in a minute". Its answer is handed back in the same shape the features expect.
+const PPLX_URL = "https://api.perplexity.ai/chat/completions";
+let pplxKey: () => Promise<string> = async () => process.env.PERPLEXITY_API_KEY || "";
+/** Where the Perplexity key comes from (the admin settings, then PERPLEXITY_API_KEY). */
+export function setPerplexityKey(get: () => Promise<string>) { pplxKey = get; }
+export function toPerplexity(init: RequestInit | undefined, model = process.env.PERPLEXITY_BACKUP_MODEL || "sonar"): string | null {
+  let j: any;
+  try { j = JSON.parse(String(init?.body ?? "")); } catch { return null; }
+  if (!Array.isArray(j?.messages) || j.stream) return null;
+  const wantsJson = j.response_format?.type === "json_object" || j.response_format?.type === "json_schema";
+  // Plain text messages only, and Perplexity wants user/assistant turns to alternate after the system ones.
+  const msgs: { role: string; content: string }[] = [];
+  for (const m of j.messages) {
+    const content = typeof m?.content === "string" ? m.content : Array.isArray(m?.content) ? m.content.filter((p: any) => p?.type === "text").map((p: any) => p.text).join("\n") : "";
+    if (!content) continue;
+    const role = m.role === "system" || m.role === "developer" ? "system" : m.role === "assistant" ? "assistant" : "user";
+    const last = msgs[msgs.length - 1];
+    if (last && last.role === role) last.content += `\n\n${content}`;
+    else if (role === "system" && msgs.some((x) => x.role !== "system")) msgs.push({ role: "user", content });
+    else msgs.push({ role, content });
+  }
+  if (!msgs.some((m) => m.role === "user")) return null;
+  const note = wantsJson ? " Reply with the JSON object only: no markdown, no citation numbers like [1]." : " Don't add citation numbers like [1].";
+  const sys = msgs.find((m) => m.role === "system");
+  if (sys) sys.content += note; else msgs.unshift({ role: "system", content: note.trim() });
+  return JSON.stringify({ model, messages: msgs, temperature: typeof j.temperature === "number" ? Math.min(1, j.temperature) : 0.2, max_tokens: Math.min(4000, Number(j.max_tokens || j.max_completion_tokens) || 2000) });
+}
+/** Perplexity's text cleaned up (citation numbers, code fences) and put back in an OpenAI-style reply. */
+export function fromPerplexity(body: any): any {
+  const text = String(body?.choices?.[0]?.message?.content ?? "").replace(/\[\d+\](?:\[\d+\])*/g, "").replace(/^\s*```(?:json)?\s*|\s*```\s*$/g, "").trim();
+  return { id: body?.id ?? "pplx", object: "chat.completion", model: body?.model ?? "sonar", choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: text } }], usage: body?.usage };
+}
+async function askPerplexity(base: Fetch, init: RequestInit | undefined): Promise<Response | null> {
+  const key = await pplxKey().catch(() => "");
+  const body = key ? toPerplexity(init) : null;
+  if (!key || !body) return null;
+  try {
+    const res = await base(PPLX_URL, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body, signal: AbortSignal.timeout(45_000) });
+    if (!res.ok) { console.error("[ai] backup failed:", res.status, (await res.text().catch(() => "")).slice(0, 200)); return null; }
+    const out = fromPerplexity(await res.json());
+    if (!out.choices[0].message.content) return null;
+    return new Response(JSON.stringify(out), { status: 200, headers: { "Content-Type": "application/json" } });
+  } catch (e: any) { console.error("[ai] backup failed:", e?.message); return null; }
+}
 let modelList: { at: number; ids: string[] } | null = null;
 async function bestModel(base: Fetch, env: AiProviderEnv, skip: (id: string) => boolean = () => false): Promise<string | null> {
   if (modelList && Date.now() - modelList.at < 30 * 60_000) return pickModel(modelList.ids.filter((id) => !skip(id)));
@@ -98,6 +146,11 @@ export function grokFetch(base: Fetch, env: AiProviderEnv): Fetch {
           if (other) res = await base(env.BACKUP_URL || XAI_CHAT, toGrok(init, { ...env, XAI_MODEL: other }));
         }
         if (!res.ok) console.error(`[ai] ${env.BACKUP_NAME || "Grok"} failed:`, res.status, (await res.clone().text().catch(() => "")).slice(0, 200));
+        // Out of allowance, too big for its per-minute limit, or down: Perplexity answers instead.
+        if (!res.ok && (res.status === 429 || res.status === 413 || res.status >= 500 || res.status === 401 || res.status === 403)) {
+          const other = await askPerplexity(base, init);
+          if (other) return other;
+        }
       }
       return res;
     };

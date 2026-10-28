@@ -68,6 +68,18 @@ export const BOOK_SORTS: Record<string, { label: string; sort: string; also?: st
 };
 
 const ENT: Record<string, string> = { nbsp: " ", amp: "&", quot: "\"", "#39": "'", apos: "'", lt: "<", gt: ">", rsquo: "’", lsquo: "‘", ldquo: "“", rdquo: "”", mdash: "—", ndash: "–", hellip: "…" };
+/** The AI's reply as an object. The site's AI helpers hand back the raw text (JSON, sometimes inside
+ *  a code block or with a sentence around it); tests hand back objects. Plain text becomes { answer }. */
+export function asObject(r: unknown): any {
+  if (r && typeof r === "object") return r;
+  const t = String(r ?? "").trim();
+  if (!t) return null;
+  const body = t.replace(/^```(?:json)?\s*|\s*```$/g, "");
+  for (const cand of [body, body.slice(body.indexOf("{"), body.lastIndexOf("}") + 1)]) {
+    try { const v = JSON.parse(cand); if (v && typeof v === "object") return v; } catch { /* next */ }
+  }
+  return { answer: t.replace(/\[\d+\]/g, "") };
+}
 const plain = (s: unknown, max: number) => String(Array.isArray(s) ? s.join(" ") : s ?? "")
   .replace(/<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&([a-z#0-9]+);/gi, (m, e) => ENT[e.toLowerCase()] ?? m)
   .replace(/\s+/g, " ").trim().slice(0, max);
@@ -647,7 +659,7 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
       const user = kind === "recap"
         ? `Catch me up: what has happened so far, up to where I am. 5 to 8 short sentences: the main people, where things stand, and what just happened in the latest part. Parts so far: ${chapters}.${recent ? `\n\nThe text just before where I am:\n${recent}` : ""}`
         : `My question: ${q}\nParts so far: ${chapters}.${recent ? `\n\nThe text just before where I am:\n${recent}` : ""}`;
-      const out = await opts.ask(system, user);
+      const out = asObject(await opts.ask(system, user));
       const answer = plain(out?.answer, 2000);
       if (!answer) throw new Error("empty answer");
       res.json({ answer });
@@ -726,10 +738,10 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
     aiLimit.fail(who);
     try {
       const books = await cached(`ai:${q.toLowerCase()}`, DAY, async () => {
-        const answer = await opts.ask!(
+        const answer = asObject(await opts.ask!(
           "You recommend audiobooks from LibriVox, which only has public domain books (mostly published before 1930). Reply with JSON: {\"books\":[{\"title\":string,\"author\":string,\"why\":string}]}, 8 books, best match first. Only real books that LibriVox is likely to have. \"why\" is one short sentence (under 20 words) saying why it fits the request, written to the listener.",
           `What the listener wants: ${q}`,
-        );
+        ));
         const picks: Array<{ title: string; author: string; why: string }> = (Array.isArray(answer?.books) ? answer.books : [])
           .map((b: any) => ({ title: plain(b?.title, 120), author: plain(b?.author, 80), why: plain(b?.why, 160) }))
           .filter((b: { title: string }) => b.title).slice(0, 8);

@@ -105,3 +105,27 @@ test("Pod+ questions go to Perplexity, and to the backup if Perplexity fails", a
   const noKey = perplexityJson(async () => "", async () => "backup");
   assert.equal(await noKey("s", "u"), "backup");
 });
+
+test("when Groq can't answer, the same chat goes to Perplexity and comes back in the usual shape", async () => {
+  const { grokFetch, setPerplexityKey, toPerplexity } = await import("../server/aiProvider");
+  setPerplexityKey(async () => "pplx-test");
+  const calls: string[] = [];
+  const base = (async (url: any, init: any) => {
+    calls.push(String(url));
+    if (String(url).includes("groq")) return new Response(JSON.stringify({ error: { message: "Rate limit reached ... tokens per day" } }), { status: 429 });
+    const sent = JSON.parse(init.body);
+    assert.equal(sent.model, "sonar");
+    assert.ok(!("response_format" in sent));
+    return new Response(JSON.stringify({ choices: [{ message: { content: "```json\n{\"answer\":\"Alice fell [1].\"}\n```" } }] }), { status: 200 });
+  }) as any;
+  const f = grokFetch(base, { XAI_API_KEY: "gsk_x", XAI_MODEL: "openai/gpt-oss-120b", AI_PROVIDER: "grok", BACKUP_URL: "https://api.groq.com/openai/v1/chat/completions", BACKUP_NAME: "Groq" });
+  const res = await f("https://api.openai.com/v1/chat/completions", { method: "POST", body: JSON.stringify({ model: "gpt-4.1", response_format: { type: "json_object" }, messages: [{ role: "system", content: "Be brief." }, { role: "user", content: "Recap" }] }) });
+  assert.equal(res.status, 200);
+  const body: any = await res.json();
+  assert.equal(JSON.parse(body.choices[0].message.content).answer, "Alice fell .");
+  assert.ok(calls.some((c) => c.includes("perplexity")));
+  // Turns that repeat a role are joined (Perplexity wants them to alternate).
+  const j = JSON.parse(toPerplexity({ body: JSON.stringify({ messages: [{ role: "user", content: "a" }, { role: "user", content: "b" }] }) })!);
+  assert.equal(j.messages.filter((m: any) => m.role === "user").length, 1);
+  setPerplexityKey(async () => "");
+});

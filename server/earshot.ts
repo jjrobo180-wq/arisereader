@@ -26,6 +26,7 @@ import { accountSessions, registerPodscrollAccountRoutes, SESSION } from "./podc
 import { cleanMoment } from "../shared/earshotListen";
 import { registerListenRoutes } from "./podcastListen";
 import { perplexityJson } from "./perplexityAsk";
+import { setPerplexityKey } from "./aiProvider";
 import { noteShows } from "./podcastPrecheck";
 
 /** The site's Perplexity key: admin settings first (where book quizzes keep it), then the environment. */
@@ -33,6 +34,8 @@ async function perplexityKey(): Promise<string> {
   try { const { storage } = await import("./storage"); const k = await storage.getSetting("perplexity_api_key"); if (k) return k; } catch { /* no database (tests) */ }
   return process.env.PERPLEXITY_API_KEY || process.env.CUSTOM_CRED_API_PERPLEXITY_AI_TOKEN || "";
 }
+// The whole site's AI chat falls back to Perplexity when Groq can't answer (server/aiProvider.ts).
+setPerplexityKey(perplexityKey);
 
 export type EarshotComment = { id: string; episodeId: string; author: string; body: string; at: string; mine: boolean;
   /** The moment in the episode it is about, in seconds (null or missing: the whole episode). */
