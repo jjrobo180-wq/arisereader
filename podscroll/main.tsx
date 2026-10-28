@@ -141,7 +141,9 @@ function App() {
   const [tabNonce, setTabNonce] = useState(0);
   const [nowPod, setNowPod] = useState<NowPlaying | null>(null);
   const podCtl = useRef<PlayerControl | null>(null);
-  const backToFeed = useCallback(() => { setFeedSeen(true); setMode("feed"); }, []);
+  // The now-playing bar on the home page opens the player itself, on what's playing (not the last
+  // page that was open in it, like Social).
+  const backToFeed = useCallback(() => { setFeedSeen(true); setFeedTab(undefined); setTabNonce((n) => n + 1); setMode("feed"); }, []);
   const goHome = useCallback(() => { setEditing(false); setMode("home"); if (location.search) history.replaceState(null, "", location.pathname + location.hash); }, []);
 
   const body = editing || (mode === "feed" && !es.setupDone)
