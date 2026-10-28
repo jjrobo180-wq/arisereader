@@ -370,6 +370,8 @@ export function registerQuizIntegrityRoutes(app: Express, authMiddleware: Reques
       res.set("Cache-Control", "no-store");
       res.json({
         canVoid: scope.canVoid,
+        // Teachers, the admin and the student's linked parents can all delete the pictures once they've looked.
+        canDeletePictures: true,
         session: { ...listItem(s, names), answerTimes: s.answer_times || null, voidedAt: s.voided_at || null },
         timeline: events.filter((e: any) => e.session_id === s.id && e.type !== "snapshot").map((e: any) => ({ at: e.at, type: e.type, detail: e.detail || null })),
         snapshots: pictures(s.id),
@@ -415,12 +417,12 @@ export function registerQuizIntegrityRoutes(app: Express, authMiddleware: Reques
     await db().from(SESSIONS).update({ snapshots_purged: true }).eq("id", sessionId);
   };
 
-  // A teacher, LT or the admin has looked at a camera quiz and deletes its pictures now rather than
-  // waiting 30 days (earlier unfinished tries of the same quiz too). The timeline and points stay.
+  // A teacher, LT, the admin or the student's linked parent has looked at a camera quiz and deletes its
+  // pictures now rather than waiting 30 days (earlier unfinished tries of the same quiz too). The timeline and points stay.
   app.post("/api/integrity/review/:id/delete-pictures", authMiddleware, async (req: any, res) => {
     try {
       const scope = await scopeFor(req);
-      if (!scope?.canVoid) return res.status(403).json({ message: "Only teachers and the admin can delete quiz pictures." });
+      if (!scope) return res.status(403).json({ message: "Only the student's teacher, their parent and the admin can delete quiz pictures." });
       const id = String(req.params.id);
       if (!isUuid(id)) return res.status(404).json({ message: "Quiz record not found." });
       const { data: s, error } = await db().from(SESSIONS).select("*").eq("id", id).maybeSingle();
