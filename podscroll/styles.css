@@ -6,6 +6,10 @@ html, body, #root { height: 100%; }
 /* The page's own color sits on html, under a see-through body, so the player can put the cover art
    there (EarshotPlayer) and any part of the screen iOS leaves uncovered shows the art. */
 html { background: #120e14; }
+/* iPhone zooms the page in when you tap a text box with small type, and on a quick double tap of a
+   button. Typing boxes use 16px on phones (iPhone's no-zoom size), and taps don't zoom. */
+html, body, button, a, input, select, textarea, [role="button"] { touch-action: manipulation; }
+@media (max-width: 1024px) { input, textarea, select, [contenteditable="true"] { font-size: 16px !important; } }
 body { margin: 0; background: transparent; color: #fff; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
 /* Cover art: eases in from a slight zoom as it loads (Pod+ home, search, modes). */
 @keyframes pz-art-in { from { opacity: 0; transform: scale(1.14); } to { opacity: 1; transform: scale(1); } }
