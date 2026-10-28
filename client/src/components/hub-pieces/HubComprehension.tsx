@@ -5,6 +5,7 @@ import { BookOpen, Check, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { COMPREHENSION } from "@shared/comprehension";
+import AiGradeSuggestion from "@/components/AiGradeSuggestion";
 import { Pill, Segments, fmtWhen, kit, type Which } from "./kit";
 
 type Item = {
@@ -84,6 +85,7 @@ function Answer({ which, item, headers, onGraded }: { which: Which; item: Item; 
     </div>
     <ol className="space-y-2">{item.answers.map((a) => <li key={a.id} className={k.soft}><p className={k.small}><b className="text-slate-700">{a.label}.</b> {a.question}</p><p className="mt-1 whitespace-pre-wrap text-sm text-slate-800">{a.answer}</p></li>)}</ol>
     {editing ? <div className="space-y-2">
+      <AiGradeSuggestion itemId={item.id} headers={headers} onUse={(p, n) => { setPoints(String(p)); if (n !== undefined) setNote(n); }} />
       <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Extra points">
         <span className={k.label + " !mb-0"}>Extra points</span>
         {QUICK.map((q) => <button key={q} type="button" aria-pressed={points === String(q)} onClick={() => setPoints(String(q))} className={`${k.segBtn} min-h-10 min-w-11 border ${points === String(q) ? on : "border-slate-200 bg-white text-slate-600"}`}>{q}</button>)}

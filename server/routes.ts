@@ -1484,7 +1484,7 @@ export async function registerRoutes(
     if (error) throw error;
     return data ? data.workspace : null;
   };
-  app.post(["/api/teacher-hub/import", "/api/teacher-hub/import/minutes", "/api/hub-chat", "/api/arise-todo/food/estimate", "/api/life-plan/build", "/api/sleep-finder/ask"], authMiddleware, plans.aiMeter);
+  app.post(["/api/teacher-hub/import", "/api/teacher-hub/import/minutes", "/api/hub-chat", "/api/arise-todo/food/estimate", "/api/life-plan/build", "/api/sleep-finder/ask", "/api/comprehension/review/:id/suggest"], authMiddleware, plans.aiMeter);
   app.put(["/api/teacher-hub/workspace", "/api/arise-todo/workspace"], authMiddleware, async (req: any, res, next) => {
     try {
       const user = req.adminPreview && req.realUser ? req.realUser : req.user;
