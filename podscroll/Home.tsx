@@ -10,7 +10,6 @@ import { PartyRoom } from "./Party";
 import { artIn } from "./art";
 import { SearchPage } from "./Search";
 import { AddToMenu, ModePage, ModesRow, NewModeDialog, makeMode, toSaved } from "./Hubs";
-import { hubTheme } from "@shared/earshot";
 import { GoLiveSheet, LiveRoom, type LiveSummary } from "../client/src/components/family-hub/earshot/EarshotCreators";
 import { setTheme, useTheme } from "../client/src/components/family-hub/earshot/EarshotPlayer";
 
@@ -456,10 +455,6 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       {navItem("Library", <Library size={22} strokeWidth={1.8} />, false, () => onOpenFeed(undefined, "library"))}
       {navItem("Liked episodes", <ThumbsUp size={22} strokeWidth={1.8} />, view.kind === "liked", () => go({ kind: "liked" }))}
       {navItem("Listen later", <Clock size={22} strokeWidth={1.8} />, view.kind === "later", () => go({ kind: "later" }))}
-      <div className="my-3 h-px bg-[#e5e5e5]" />
-      <p className="mx-3 mb-1.5 mt-1 text-base font-semibold">Pod Modes</p>
-      {es.modes.map((m) => { const th = hubTheme(m); return navItem(m.name, <span className="h-[22px] w-[22px] shrink-0 rounded-full" style={{ background: th.bg, boxShadow: `inset 0 0 0 5px ${th.bg}, inset 0 0 0 11px ${th.accent}` }} />, view.kind === "mode" && view.id === m.id, () => go({ kind: "mode", id: m.id })); })}
-      {navItem("New mode", <span className="grid h-[22px] w-[22px] place-items-center rounded-full ring-1 ring-[#c4c4c4] text-[#606060]">+</span>, false, () => setNewMode(true))}
       <div className="my-3 h-px bg-[#e5e5e5]" />
       <p className="mx-3 mb-1.5 mt-1 text-base font-semibold">Topics</p>
       {navItem("All", <Sparkles size={22} strokeWidth={1.8} />, view.kind === "home" && chip === "all", () => { setChip("all"); go({ kind: "home" }); })}
