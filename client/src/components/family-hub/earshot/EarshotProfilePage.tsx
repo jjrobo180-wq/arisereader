@@ -4,13 +4,13 @@
 // friends, guestbook, quote, links, photo, text, interests, latest posts, clips and your podcast.
 // The page format and its safety rules live in shared/earshotPage.ts (the server cleans every save).
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, Check, ChevronLeft, Columns2, ExternalLink, Image as ImageIcon, Loader2, Music2, Paintbrush, Pause, Pencil, Play, Plus, Quote, Search, Send, Trash2, Upload, UserPlus, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, ChevronLeft, Columns2, Image as ImageIcon, Link as LinkIcon, Loader2, MessageSquare, Music2, Paintbrush, Pause, Pencil, Play, Plus, Search, Share, Trash2, Upload, UserPlus, X } from "lucide-react";
 import { hiRes } from "@shared/earshot";
 import {
   FONTS, MOODS, PATTERNS, PHOTO_BGS, PRESETS, WIDGETS, bgCss, cardInk, cleanPage, defaultPage, newWidgetId, pageInk, safeUrl,
   type GuestEntry, type PageBg, type PageEpisode, type PageShow, type ProfilePageData, type Widget, type WidgetType,
 } from "@shared/earshotPage";
-import { Avatar, ago, artOf, toEpisode, toShow, type Ctx, type Post, type Profile } from "./EarshotSocial";
+import { Avatar, LIGHT_CSS, ago, artOf, toEpisode, toShow, type Ctx, type Post, type Profile } from "./EarshotSocial";
 
 export type PageData = { profile: Profile; me: boolean; followers: number; following: number; followed: boolean; posts: Post[]; page?: ProfilePageData | null; guestbook?: GuestEntry[]; friends?: Profile[] };
 
@@ -32,97 +32,190 @@ function useLook(page: ProfilePageData) {
 }
 
 // ===========================================================================
-// The page
+// The page: laid out like a real social profile (cover, picture, name, bio, stats, Follow, Top 8
+// circles, then tabs). Their customizing is the wallpaper, colors, font and surface around it.
 // ===========================================================================
-export function ProfileSpace({ data, page, ctx, onBack, onFollow, onEditProfile, onCustomize, onGuestbook, editing }: {
+type PTab = "posts" | "clips" | "podcast" | "friends" | "guestbook" | "about";
+/** Widgets that live in the About tab (and the sidebar on wide screens). */
+const ABOUT_TYPES: WidgetType[] = ["interests", "quote", "text", "photo"];
+
+export function ProfileSpace({ data, page, ctx, onBack, onFollow, onEditProfile, onCustomize, onGuestbook, editing, row }: {
   data: PageData; page: ProfilePageData; ctx: Ctx; onBack: () => void; onFollow: () => void; onEditProfile: () => void; onCustomize: () => void;
   onGuestbook: (list: GuestEntry[]) => void; editing?: boolean;
+  /** How a post looks in the main feed (so posts here look exactly the same). */
+  row?: (p: Post) => ReactNode;
 }) {
   const look = useLook(page);
-  const side = page.widgets.filter((w) => w.col === "side"), main = page.widgets.filter((w) => w.col === "main");
+  const has = (t: WidgetType) => page.widgets.some((w) => w.type === t);
+  const widget = (t: WidgetType) => page.widgets.find((w) => w.type === t);
+  const posts = data.posts.filter((p) => p.kind !== "bookmark");
+  const clips = posts.filter((p) => p.kind === "clip"), own = posts.filter((p) => p.kind === "own");
+  const feed = posts.filter((p) => p.kind !== "clip" && p.kind !== "own");
+  const about = page.widgets.filter((w) => ABOUT_TYPES.includes(w.type) && hasContent(w, page, data));
+  const top8 = widget("top8")?.shows ?? [];
+  const tabs = ([
+    ["posts", "Posts", true],
+    ["clips", "Clips", has("clips") && clips.length > 0],
+    ["podcast", "Podcast", has("podcast") && own.length > 0],
+    ["friends", "Friends", has("friends") && !!data.friends?.length],
+    ["guestbook", "Guestbook", has("guestbook")],
+    ["about", "About", about.length > 0],
+  ] as [PTab, string, boolean][]).filter(([, , on]) => on);
+  const [tab, setTab] = useState<PTab>("posts");
+  const lightSurface = look.cInk !== "#ffffff";
+  const surface: CSSProperties = page.card === "none" ? { color: look.cInk } : { ...look.card, borderRadius: 0, border: undefined };
+  const r = Math.min(page.radius, 24);
   const banner = page.banner;
-  const bannerStyle: CSSProperties = banner.kind === "image" ? { backgroundImage: `url("${banner.image.replace(/"/g, "%22")}")`, backgroundSize: "cover", backgroundPosition: "center" }
-    : banner.kind === "color" ? { background: banner.color2 ? `linear-gradient(120deg, ${banner.color}, ${banner.color2})` : banner.color } : {};
-  const render = (w: Widget) => <WidgetCard key={w.id} w={w} page={page} look={look} data={data} ctx={ctx} onGuestbook={onGuestbook} />;
-  return <div className={`ps-dark absolute inset-0 z-40 overflow-y-auto [scrollbar-width:none] ${editing ? "pb-[64vh] md:pb-24 md:pr-[400px]" : "pb-24"}`} role="dialog" aria-label={`${data.profile.name}'s page`}
+  const coverStyle: CSSProperties = banner.kind === "image" ? { backgroundImage: `url("${banner.image.replace(/"/g, "%22")}")`, backgroundSize: "cover", backgroundPosition: "center" }
+    : banner.kind === "color" ? { background: banner.color2 ? `linear-gradient(120deg, ${banner.color}, ${banner.color2})` : banner.color }
+    : { background: `linear-gradient(120deg, ${page.accent}, ${alpha(page.accent, 0.35)})` };
+  const share = () => {
+    const url = `${location.origin}${location.pathname}#/u/${data.profile.handle}`;
+    if (navigator.share) void navigator.share({ title: `${data.profile.name} on Pod+`, url }).catch(() => {});
+    else void navigator.clipboard?.writeText(url).then(() => ctx.say("Link copied.")).catch(() => ctx.say(url));
+  };
+  const btn = "inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-4 text-[15px] font-bold sm:flex-none";
+  const ghost: CSSProperties = { boxShadow: `inset 0 0 0 1px ${alpha(look.cInk, 0.25)}`, color: look.cInk };
+  const sideAbout = page.layout === "two" && about.length > 0;
+
+  return <div className={`absolute inset-0 z-40 overflow-y-auto [scrollbar-width:none] ${editing ? "pb-[64vh] md:pb-24 md:pr-[400px]" : "pb-24"}`} role="dialog" aria-label={`${data.profile.name}'s page`}
     style={{ ...bgCss(page.bg), color: look.ink, fontFamily: look.font.stack }}>
-    <div className="mx-auto w-full max-w-5xl">
-      <div className={`relative ${banner.kind === "none" ? "h-16" : "h-36 sm:h-48"}`} style={bannerStyle}>
-        <button type="button" onClick={onBack} aria-label="Back" className="absolute left-3 top-[max(.75rem,env(safe-area-inset-top))] grid h-10 w-10 place-items-center rounded-full bg-black/45 text-white backdrop-blur"><ChevronLeft size={22} /></button>
-      </div>
-      <header className="px-4 sm:px-6">
-        <div className={`flex flex-wrap items-end justify-between gap-3 ${banner.kind === "none" ? "" : "-mt-12"}`}>
-          <span className="rounded-full p-1" style={{ background: page.accent }}><Avatar p={data.profile} size={96} /></span>
-          <div className="flex flex-wrap gap-2 pb-1">
-            {data.me ? <>
-              <button type="button" onClick={onEditProfile} className="inline-flex min-h-10 items-center gap-1.5 rounded-full px-4 text-sm font-bold" style={{ ...look.card, borderRadius: 999 }}><Pencil size={15} />Name & bio</button>
-              <button type="button" onClick={onCustomize} aria-pressed={editing} className="inline-flex min-h-10 items-center gap-1.5 rounded-full px-4 text-sm font-bold" style={{ background: page.accent, color: pageInkOn(page.accent) }}><Paintbrush size={15} />Customize page</button>
-            </> : <button type="button" onClick={onFollow} className="inline-flex min-h-10 items-center gap-1.5 rounded-full px-5 text-sm font-bold" style={data.followed ? { ...look.card, borderRadius: 999 } : { background: page.accent, color: pageInkOn(page.accent) }}>{data.followed ? <><Check size={15} />Following</> : <><UserPlus size={15} />Follow</>}</button>}
+    <div className={`mx-auto w-full ${sideAbout ? "max-w-[1040px]" : "max-w-[680px]"} sm:px-4 sm:pt-4`}>
+      <div className={sideAbout ? "md:grid md:grid-cols-[minmax(0,1fr)_300px] md:gap-4" : ""}>
+        <main className="min-w-0 overflow-hidden sm:shadow-[0_10px_40px_-12px_rgba(0,0,0,.45)]" style={{ borderRadius: r }}>
+          {/* Cover and picture */}
+          <div className="relative aspect-[3/1] max-h-[240px] min-h-[132px] w-full" style={coverStyle}>
+            <button type="button" onClick={onBack} aria-label="Back" className="absolute left-3 top-[max(.75rem,env(safe-area-inset-top))] grid h-9 w-9 place-items-center rounded-full bg-black/50 text-white backdrop-blur"><ChevronLeft size={20} /></button>
+            <button type="button" onClick={share} aria-label="Share profile" className="absolute right-3 top-[max(.75rem,env(safe-area-inset-top))] grid h-9 w-9 place-items-center rounded-full bg-black/50 text-white backdrop-blur"><Share size={17} /></button>
           </div>
-        </div>
-        <h1 className="mt-3 text-[28px] leading-tight sm:text-[34px]" style={{ fontWeight: look.font.weight }}>{data.profile.name}</h1>
-        <p className="text-[15px]" style={{ color: alpha(look.ink, 0.7) }}>@{data.profile.handle}{page.mood.text || page.mood.emoji ? <> · <span aria-label="Mood">{page.mood.emoji} {page.mood.text}</span></> : null}</p>
-      </header>
-      <div className={`mt-5 grid gap-4 px-4 sm:px-6 ${page.layout === "two" ? "md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]" : ""}`}>
-        {page.layout === "two" ? <>
-          <div className="flex min-w-0 flex-col gap-4">{side.map(render)}</div>
-          <div className="flex min-w-0 flex-col gap-4">{main.map(render)}</div>
-        </> : <div className="mx-auto flex w-full max-w-2xl min-w-0 flex-col gap-4">{page.widgets.map(render)}</div>}
+          <section className="relative px-4 pb-4 sm:px-5" style={surface}>
+            <div className="flex items-end justify-between gap-3">
+              <span className="-mt-11 block rounded-full p-[3px] sm:-mt-14" style={{ background: page.card === "solid" ? page.cardColor : lightSurface ? "#ffffff" : "#0b0b0f" }}><Avatar p={data.profile} size={84} /></span>
+              <div className="hidden gap-2 pt-3 sm:flex">{actions()}</div>
+            </div>
+            <h1 className="mt-2 text-[22px] leading-tight sm:text-[26px]" style={{ fontWeight: Math.max(700, look.font.weight) }}>{data.profile.name}</h1>
+            <p className="text-[15px]" style={{ color: look.sub }}>@{data.profile.handle}</p>
+            {(widget("about")?.text || data.profile.bio) && <p className="mt-2.5 whitespace-pre-wrap text-[15px] leading-relaxed">{widget("about")?.text || data.profile.bio}</p>}
+            {(page.mood.text || page.song) && <div className="mt-3 flex flex-wrap gap-2">
+              {page.mood.text && <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold" style={{ background: look.soft }}><span aria-hidden="true">{page.mood.emoji}</span>{page.mood.text}</span>}
+              {page.song && <SongPill song={page.song} look={look} accent={page.accent} ctx={ctx} />}
+            </div>}
+            {(widget("links")?.links?.length ?? 0) > 0 && <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1">{widget("links")!.links!.map((l) => <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer nofollow ugc" className="inline-flex items-center gap-1 text-[14px] font-semibold" style={{ color: page.accent }}><LinkIcon size={14} />{l.label || hostOf(l.url)}</a>)}</div>}
+            <p className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[15px]">
+              {([[posts.length, "posts"], [data.followers, data.followers === 1 ? "follower" : "followers"], [data.following, "following"]] as const).map(([n, l]) => <span key={l}><b style={{ color: look.cInk }}>{compact(n)}</b> <span style={{ color: look.sub }}>{l}</span></span>)}
+            </p>
+            <div className="mt-4 flex gap-2 sm:hidden">{actions()}</div>
+            {top8.length > 0 && <div className="-mx-4 mt-5 flex gap-3.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:-mx-5 sm:px-5" aria-label="Top 8 shows">
+              {top8.map((s) => <button key={s.id} type="button" onClick={() => playShow(ctx, s)} className="flex w-[70px] flex-none flex-col items-center gap-1.5" aria-label={`Play ${s.name}`}>
+                <span className="rounded-full p-[2.5px]" style={{ background: `conic-gradient(${page.accent}, ${alpha(page.accent, 0.35)}, ${page.accent})` }}><img src={hiRes(s.art, 160)} alt="" referrerPolicy="no-referrer" loading="lazy" className="h-[62px] w-[62px] rounded-full object-cover" style={{ boxShadow: `0 0 0 2.5px ${page.card === "solid" ? page.cardColor : lightSurface ? "#fff" : "#0b0b0f"}` }} /></span>
+                <span className="w-full truncate text-center text-[12px]" style={{ color: look.sub }}>{s.name}</span>
+              </button>)}
+            </div>}
+          </section>
+          {/* Tabs */}
+          <nav className="sticky top-0 z-10 flex overflow-x-auto [scrollbar-width:none]" style={{ ...surface, borderBottom: `1px solid ${look.line}`, borderTop: `1px solid ${look.line}` }} aria-label="Profile sections">
+            {tabs.map(([v, l]) => <button key={v} type="button" aria-pressed={tab === v} onClick={() => setTab(v)} className={`relative min-h-12 flex-1 whitespace-nowrap px-4 text-[15px] ${tab === v ? "font-bold" : "font-medium"}`} style={{ color: tab === v ? look.cInk : look.sub }}>
+              {l}{tab === v && <span className="absolute bottom-0 left-1/2 h-[3px] w-10 -translate-x-1/2 rounded-full" style={{ background: page.accent }} />}
+            </button>)}
+          </nav>
+          <section className={`min-h-[40vh] ${tab === "posts" && row ? (lightSurface ? "ps-light" : "ps-dark") : ""}`} style={surface}>
+            {lightSurface && tab === "posts" && row && <style>{LIGHT_CSS}</style>}
+            {tab === "posts" && (feed.length
+              ? (row ? feed.map((p) => <div key={p.id}>{row(p)}</div>) : <SimplePosts list={feed} look={look} ctx={ctx} />)
+              : <Empty look={look} text={data.me ? "Your posts show up here. Tap the feather on the Social tab to post." : "No posts yet."} />)}
+            {tab === "clips" && <EpisodeList list={clips} look={look} accent={page.accent} ctx={ctx} name={data.profile.name} clip />}
+            {tab === "podcast" && <EpisodeList list={own} look={look} accent={page.accent} ctx={ctx} name={data.profile.name} />}
+            {tab === "friends" && <FriendGrid friends={data.friends ?? []} look={look} ctx={ctx} />}
+            {tab === "guestbook" && <div className="p-4 sm:p-5"><Guestbook data={data} look={look} accent={page.accent} ctx={ctx} onChange={onGuestbook} /></div>}
+            {tab === "about" && <AboutList list={about} look={look} page={page} data={data} />}
+          </section>
+        </main>
+        {sideAbout && <aside className="hidden min-w-0 flex-col gap-4 md:flex">
+          <div className="overflow-hidden" style={{ ...surface, borderRadius: r }}><AboutList list={about} look={look} page={page} data={data} /></div>
+          {!!data.friends?.length && <div className="overflow-hidden p-4" style={{ ...surface, borderRadius: r }}><p className="mb-3 text-[15px] font-bold">Top 8 friends</p><FriendGrid friends={data.friends} look={look} ctx={ctx} small /></div>}
+        </aside>}
       </div>
-      {!page.widgets.length && <p className="px-6 py-16 text-center" style={{ color: alpha(look.ink, 0.7) }}>{data.me ? "Your page is empty. Tap Customize page to add widgets." : "Nothing here yet."}</p>}
     </div>
   </div>;
-}
-const pageInkOn = (hex: string) => { const n = parseInt(hex.slice(1), 16); const l = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255; return l > 0.6 ? "#111111" : "#ffffff"; };
 
-type Look = ReturnType<typeof useLook>;
-function WidgetCard({ w, page, look, data, ctx, onGuestbook }: { w: Widget; page: ProfilePageData; look: Look; data: PageData; ctx: Ctx; onGuestbook: (l: GuestEntry[]) => void }) {
-  const title = w.title || (w.type === "about" ? `About ${data.profile.name.split(" ")[0]}` : w.type === "friends" ? `${data.profile.name.split(" ")[0]}'s Top 8` : widgetName(w.type));
-  const body = <WidgetBody w={w} page={page} look={look} data={data} ctx={ctx} onGuestbook={onGuestbook} />;
-  return <section className="min-w-0 overflow-hidden p-4 sm:p-5" style={look.card} aria-label={title}>
-    <h2 className="mb-3 flex items-center gap-2 text-[13px] uppercase tracking-[.14em]" style={{ color: page.accent, fontWeight: 800 }}><span className="h-3 w-1 rounded-full" style={{ background: page.accent }} />{title}</h2>
-    {body}
-  </section>;
-}
-
-function WidgetBody({ w, page, look, data, ctx, onGuestbook }: { w: Widget; page: ProfilePageData; look: Look; data: PageData; ctx: Ctx; onGuestbook: (l: GuestEntry[]) => void }) {
-  const posts = data.posts.filter((p) => p.kind !== "bookmark");
-  const empty = (t: string) => <p className="text-sm" style={{ color: look.sub }}>{t}</p>;
-  const playShow = (s: PageShow) => ctx.api(`/api/earshot/show/${s.id}?x=1`).then((b) => { const e = (b.episodes || [])[0]; if (e) ctx.onPlay({ id: s.id, name: s.name, author: s.author || "", art: s.art, genre: "culture", appleGenre: "", link: "", episodes: 0, explicit: false, latest: "" }, { ...e, art: e.art || s.art }); else ctx.say("No episodes to play yet."); }).catch((e) => ctx.say(e.message));
-  switch (w.type) {
-    case "about": return data.profile.bio || w.text ? <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{w.text || data.profile.bio}</p> : empty(data.me ? "Add a bio with Name & bio." : "No bio yet.");
-    case "mood": return <div className="flex items-center gap-3"><span className="text-4xl" aria-hidden="true">{page.mood.emoji}</span><span><span className="block text-xs uppercase tracking-widest" style={{ color: look.sub }}>Mood</span><b className="text-[15px]">{page.mood.text || "Listening"}</b></span></div>;
-    case "song": return page.song ? <SongPlayer song={page.song} look={look} accent={page.accent} ctx={ctx} /> : empty(data.me ? "Pick a profile song in Customize page → Profile." : "No profile song.");
-    case "stats": return <dl className="grid grid-cols-3 gap-2 text-center">{([["Followers", data.followers], ["Following", data.following], ["Posts", posts.length]] as const).map(([l, n]) => <div key={l} className="rounded-xl py-2" style={{ background: look.soft }}><dt className="text-[11px] uppercase tracking-wider" style={{ color: look.sub }}>{l}</dt><dd className="text-xl font-bold">{compact(n)}</dd></div>)}</dl>;
-    case "top8": return w.shows?.length ? <div className="grid grid-cols-4 gap-2.5">{w.shows.map((s, i) => <button key={s.id} type="button" onClick={() => playShow(s)} className="group min-w-0 text-left" aria-label={`Play ${s.name}`}>
-      <span className="relative block"><img src={hiRes(s.art, 300)} alt="" referrerPolicy="no-referrer" loading="lazy" className="aspect-square w-full object-cover transition group-hover:opacity-85" style={{ borderRadius: Math.max(4, page.radius - 6) }} /><span className="absolute left-1 top-1 grid h-5 min-w-5 place-items-center rounded-full px-1 text-[10px] font-bold" style={{ background: page.accent, color: pageInkOn(page.accent) }}>{i + 1}</span></span>
-      <span className="mt-1 line-clamp-2 block text-[12px] leading-tight">{s.name}</span></button>)}</div> : empty(data.me ? "Pick your 8 favorite shows in Customize page → Widgets." : "No favorites picked yet.");
-    case "friends": return data.friends?.length ? <div className="grid grid-cols-4 gap-3">{data.friends.map((f) => <button key={f.handle} type="button" onClick={() => ctx.person(f.handle)} className="flex min-w-0 flex-col items-center gap-1.5 text-center"><Avatar p={f} size={56} /><span className="w-full truncate text-[12px] font-semibold">{f.name}</span></button>)}</div> : empty(data.me ? "Pick your Top 8 people in Customize page → Widgets." : "No Top 8 yet.");
-    case "interests": return w.tags?.length ? <div className="flex flex-wrap gap-1.5">{w.tags.map((t) => <span key={t} className="rounded-full px-3 py-1 text-[13px] font-semibold" style={{ background: alpha(page.accent, 0.18), color: look.cInk, boxShadow: `inset 0 0 0 1px ${alpha(page.accent, 0.45)}` }}>{t}</span>)}</div> : empty("No interests added yet.");
-    case "quote": return w.text ? <figure><Quote size={22} style={{ color: page.accent }} /><blockquote className="mt-1 text-[19px] leading-snug" style={{ fontWeight: 600 }}>{w.text}</blockquote>{w.by && <figcaption className="mt-2 text-sm" style={{ color: look.sub }}>— {w.by}</figcaption>}</figure> : empty("No quote yet.");
-    case "links": return w.links?.length ? <ul className="flex flex-col gap-1.5">{w.links.map((l) => <li key={l.url}><a href={l.url} target="_blank" rel="noopener noreferrer nofollow ugc" className="flex min-h-11 items-center justify-between gap-2 rounded-xl px-3 text-[15px] font-semibold" style={{ background: look.soft }}>{l.label || new URL(l.url).hostname}<ExternalLink size={15} style={{ color: look.sub }} /></a></li>)}</ul> : empty("No links yet.");
-    case "text": return w.text ? <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{w.text}</p> : empty("Empty text box.");
-    case "photo": return w.image ? <figure><img src={w.image} alt={w.text || ""} referrerPolicy="no-referrer" loading="lazy" className="w-full object-cover" style={{ borderRadius: Math.max(4, page.radius - 6) }} />{w.text && <figcaption className="mt-2 text-sm" style={{ color: look.sub }}>{w.text}</figcaption>}</figure> : empty("No photo yet.");
-    case "posts": {
-      const list = posts.filter((p) => p.kind !== "clip" && p.kind !== "own").slice(0, w.count ?? 5);
-      return list.length ? <ul className="flex flex-col divide-y" style={{ borderColor: look.line }}>{list.map((p) => <li key={p.id} style={{ borderColor: look.line }}><button type="button" onClick={() => ctx.comments(p)} className="flex w-full gap-3 py-2.5 text-left">
-        {(p.episode || p.repost?.episode) && <img src={hiRes(artOf(p.episode || p.repost!.episode!), 120)} alt="" referrerPolicy="no-referrer" className="h-12 w-12 flex-none rounded-lg object-cover" />}
-        <span className="min-w-0 flex-1"><span className="line-clamp-2 block text-[15px]">{p.caption || p.repost?.caption || p.episode?.title || p.repost?.episode?.title || "Shared an episode"}</span><span className="text-xs" style={{ color: look.sub }}>{ago(p.at)} · {p.likes} likes · {p.comments} replies</span></span>
-      </button></li>)}</ul> : empty("No posts yet.");
-    }
-    case "clips": case "podcast": {
-      const list = posts.filter((p) => p.kind === (w.type === "clips" ? "clip" : "own") && p.episode).slice(0, w.count ?? 5);
-      return list.length ? <ul className="flex flex-col gap-2">{list.map((p) => <li key={p.id}><button type="button" onClick={() => ctx.onPlay(toShow(p.episode!, data.profile.name), toEpisode(p.episode!, data.profile.name), p.clip?.s)} className="grid w-full grid-cols-[52px_1fr_auto] items-center gap-3 rounded-xl p-2 text-left" style={{ background: look.soft }}>
-        <img src={hiRes(artOf(p.episode!), 120)} alt="" referrerPolicy="no-referrer" className="h-[52px] w-[52px] rounded-lg object-cover" />
-        <span className="min-w-0"><b className="line-clamp-1 block text-[14px]">{w.type === "clips" && p.clip?.quote ? `“${p.clip.quote}”` : p.episode!.title}</b><span className="line-clamp-1 block text-xs" style={{ color: look.sub }}>{p.episode!.show}</span></span>
-        <Play size={18} style={{ color: page.accent }} />
-      </button></li>)}</ul> : empty(w.type === "clips" ? "No clips yet." : "No episodes yet.");
-    }
-    case "guestbook": return <Guestbook data={data} look={look} accent={page.accent} ctx={ctx} onChange={onGuestbook} />;
+  function actions() {
+    return data.me ? <>
+      <button type="button" onClick={onEditProfile} className={btn} style={ghost}><Pencil size={15} />Edit profile</button>
+      <button type="button" onClick={onCustomize} aria-pressed={editing} className={btn} style={{ background: page.accent, color: pageInkOn(page.accent) }}><Paintbrush size={15} />Customize</button>
+    </> : <>
+      <button type="button" onClick={onFollow} className={btn} style={data.followed ? ghost : { background: page.accent, color: pageInkOn(page.accent) }}>{data.followed ? <><Check size={15} />Following</> : <><UserPlus size={15} />Follow</>}</button>
+      {has("guestbook") && <button type="button" onClick={() => setTab("guestbook")} className={btn} style={ghost}><MessageSquare size={15} />Sign guestbook</button>}
+    </>;
   }
 }
 
-function SongPlayer({ song, look, accent, ctx }: { song: PageEpisode; look: Look; accent: string; ctx: Ctx }) {
+const hostOf = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
+const playShow = (ctx: Ctx, s: PageShow) => ctx.api(`/api/earshot/show/${s.id}?x=1`).then((b) => { const e = (b.episodes || [])[0]; if (e) ctx.onPlay({ id: s.id, name: s.name, author: s.author || "", art: s.art, genre: "culture", appleGenre: "", link: "", episodes: 0, explicit: false, latest: "" }, { ...e, art: e.art || s.art }); else ctx.say("No episodes to play yet."); }).catch((e) => ctx.say(e.message));
+const Empty = ({ look, text }: { look: Look; text: string }) => <p className="px-6 py-14 text-center text-[15px]" style={{ color: look.sub }}>{text}</p>;
+
+/** Is there anything to show in this widget yet? */
+function hasContent(w: Widget, page: ProfilePageData, data: PageData): boolean {
+  const posts = data.posts.filter((p) => p.kind !== "bookmark");
+  switch (w.type) {
+    case "about": return !!(w.text || data.profile.bio);
+    case "mood": return !!page.mood.text;
+    case "song": return !!page.song;
+    case "stats": return true;
+    case "top8": return !!w.shows?.length;
+    case "friends": return !!data.friends?.length || !!w.handles?.length;
+    case "interests": return !!w.tags?.length;
+    case "quote": case "text": return !!w.text;
+    case "links": return !!w.links?.length;
+    case "photo": return !!w.image;
+    case "posts": return posts.some((p) => p.kind !== "clip" && p.kind !== "own");
+    case "clips": return posts.some((p) => p.kind === "clip");
+    case "podcast": return posts.some((p) => p.kind === "own");
+    case "guestbook": return true;
+  }
+}
+const pageInkOn = (hex: string) => { const n = parseInt(hex.slice(1), 16); const l = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255; return l > 0.6 ? "#111111" : "#ffffff"; };
+type Look = ReturnType<typeof useLook>;
+
+/** The About tab: interests, quotes, text and photos, one after another (no boxes in boxes). */
+function AboutList({ list, look, page, data }: { list: Widget[]; look: Look; page: ProfilePageData; data: PageData }) {
+  return <div className="divide-y" style={{ borderColor: look.line }}>{list.map((w) => <div key={w.id} className="px-4 py-4 sm:px-5" style={{ borderColor: look.line }}>
+    {w.title && <p className="mb-1.5 text-[15px] font-bold">{w.title}</p>}
+    {w.type === "about" && <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{w.text || data.profile.bio}</p>}
+    {w.type === "interests" && <>{!w.title && <p className="mb-2 text-[15px] font-bold">Into</p>}<div className="flex flex-wrap gap-1.5">{w.tags!.map((t) => <span key={t} className="rounded-full px-3 py-1 text-[13px] font-semibold" style={{ background: alpha(page.accent, 0.16), boxShadow: `inset 0 0 0 1px ${alpha(page.accent, 0.4)}` }}>{t}</span>)}</div></>}
+    {w.type === "quote" && <figure className="border-l-[3px] pl-3" style={{ borderColor: page.accent }}><blockquote className="text-[17px] leading-snug" style={{ fontWeight: 600 }}>“{w.text}”</blockquote>{w.by && <figcaption className="mt-1 text-[13px]" style={{ color: look.sub }}>— {w.by}</figcaption>}</figure>}
+    {w.type === "text" && <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{w.text}</p>}
+    {w.type === "photo" && <figure><img src={w.image} alt={w.text || ""} referrerPolicy="no-referrer" loading="lazy" className="w-full object-cover" style={{ borderRadius: Math.max(6, page.radius - 8) }} />{w.text && <figcaption className="mt-1.5 text-[13px]" style={{ color: look.sub }}>{w.text}</figcaption>}</figure>}
+    {w.type === "links" && <ul className="flex flex-col gap-1">{w.links!.map((l) => <li key={l.url}><a href={l.url} target="_blank" rel="noopener noreferrer nofollow ugc" className="inline-flex min-h-9 items-center gap-1.5 text-[15px] font-semibold" style={{ color: page.accent }}><LinkIcon size={15} />{l.label || hostOf(l.url)}</a></li>)}</ul>}
+  </div>)}</div>;
+}
+
+function SimplePosts({ list, look, ctx }: { list: Post[]; look: Look; ctx: Ctx }) {
+  return <ul className="divide-y" style={{ borderColor: look.line }}>{list.map((p) => <li key={p.id} style={{ borderColor: look.line }}><button type="button" onClick={() => ctx.comments(p)} className="flex w-full gap-3 px-4 py-3 text-left">
+    <Avatar p={p.author} size={40} />
+    <span className="min-w-0 flex-1"><span className="text-[14px]"><b>{p.author.name}</b> <span style={{ color: look.sub }}>@{p.author.handle} · {ago(p.at)}</span></span>
+      <span className="mt-0.5 block whitespace-pre-wrap text-[15px]">{p.caption || p.repost?.caption || p.episode?.title || ""}</span>
+      {(p.episode || p.repost?.episode) && <img src={hiRes(artOf(p.episode || p.repost!.episode!), 300)} alt="" referrerPolicy="no-referrer" className="mt-2 aspect-video w-full rounded-2xl object-cover" />}
+      <span className="mt-2 flex gap-5 text-[13px]" style={{ color: look.sub }}><span>{p.comments} replies</span><span>{p.likes} likes</span></span></span>
+  </button></li>)}</ul>;
+}
+
+function EpisodeList({ list, look, accent, ctx, name, clip }: { list: Post[]; look: Look; accent: string; ctx: Ctx; name: string; clip?: boolean }) {
+  return <ul className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 sm:p-5">{list.filter((p) => p.episode).map((p) => <li key={p.id}><button type="button" onClick={() => ctx.onPlay(toShow(p.episode!, name), toEpisode(p.episode!, name), p.clip?.s)} className="group w-full text-left">
+    <span className="relative block overflow-hidden rounded-2xl"><img src={hiRes(artOf(p.episode!), 300)} alt="" referrerPolicy="no-referrer" loading="lazy" className="aspect-square w-full object-cover transition group-hover:scale-[1.03]" />
+      <span className="absolute bottom-2 right-2 grid h-9 w-9 place-items-center rounded-full shadow-lg" style={{ background: accent, color: pageInkOn(accent) }}><Play size={16} className="ml-0.5" /></span></span>
+    <b className="mt-1.5 line-clamp-2 block text-[14px] leading-tight">{clip && p.clip?.quote ? `“${p.clip.quote}”` : p.episode!.title}</b>
+    <span className="line-clamp-1 block text-[12px]" style={{ color: look.sub }}>{p.episode!.show}</span>
+  </button></li>)}</ul>;
+}
+
+function FriendGrid({ friends, look, ctx, small }: { friends: Profile[]; look: Look; ctx: Ctx; small?: boolean }) {
+  return <div className={`grid grid-cols-4 gap-x-2 gap-y-4 ${small ? "" : "p-4 sm:p-5"}`}>{friends.map((f) => <button key={f.handle} type="button" onClick={() => ctx.person(f.handle)} className="flex min-w-0 flex-col items-center gap-1.5 text-center">
+    <Avatar p={f} size={small ? 52 : 64} /><span className="w-full truncate text-[13px] font-semibold">{f.name}</span><span className="-mt-1.5 w-full truncate text-[11px]" style={{ color: look.sub }}>@{f.handle}</span>
+  </button>)}</div>;
+}
+
+/** The profile song: a small "now playing" pill under the bio. */
+function SongPill({ song, look, accent, ctx }: { song: PageEpisode; look: Look; accent: string; ctx: Ctx }) {
   const [on, setOn] = useState(false);
   const el = useRef<HTMLAudioElement | null>(null);
   useEffect(() => () => { el.current?.pause(); }, []);
@@ -130,12 +223,10 @@ function SongPlayer({ song, look, accent, ctx }: { song: PageEpisode; look: Look
     if (!el.current) { el.current = new Audio(song.audio); el.current.onended = () => setOn(false); }
     if (on) { el.current.pause(); setOn(false); } else { void el.current.play().then(() => setOn(true)).catch(() => ctx.say("That episode can't play right now.")); }
   };
-  return <div className="flex items-center gap-3">
-    <img src={hiRes(song.art, 160)} alt="" referrerPolicy="no-referrer" className="h-16 w-16 flex-none rounded-xl object-cover" />
-    <span className="min-w-0 flex-1"><b className="line-clamp-2 block text-[14px] leading-tight">{song.title}</b><span className="line-clamp-1 block text-xs" style={{ color: look.sub }}>{song.show}</span>
-      <button type="button" onClick={() => { el.current?.pause(); setOn(false); ctx.onPlay(toShow(song as any), toEpisode(song as any)); }} className="mt-1 text-xs font-semibold underline" style={{ color: look.sub }}>Open full episode</button></span>
-    <button type="button" onClick={toggle} aria-label={on ? "Pause profile song" : "Play profile song"} className="grid h-12 w-12 flex-none place-items-center rounded-full" style={{ background: accent, color: pageInkOn(accent) }}>{on ? <Pause size={20} /> : <Play size={20} className="ml-0.5" />}</button>
-  </div>;
+  return <button type="button" onClick={toggle} aria-label={on ? `Pause ${song.title}` : `Play profile song: ${song.title}`} className="inline-flex min-h-8 max-w-full items-center gap-2 rounded-full py-1 pl-1 pr-3 text-[13px] font-semibold" style={{ background: look.soft }}>
+    <span className="grid h-6 w-6 flex-none place-items-center rounded-full" style={{ background: accent, color: pageInkOn(accent) }}>{on ? <Pause size={12} /> : <Play size={12} className="ml-px" />}</span>
+    <Music2 size={13} className="flex-none" style={{ color: look.sub }} /><span className="truncate">{song.title}</span>
+  </button>;
 }
 
 function Guestbook({ data, look, accent, ctx, onChange }: { data: PageData; look: Look; accent: string; ctx: Ctx; onChange: (l: GuestEntry[]) => void }) {
@@ -150,15 +241,16 @@ function Guestbook({ data, look, accent, ctx, onChange }: { data: PageData; look
   };
   const remove = (g: GuestEntry) => ctx.api(`/api/earshot/social/u/${data.profile.handle}/guestbook/${g.id}`, { method: "DELETE" }).then((b) => onChange(b.guestbook || [])).catch((e) => ctx.say(e.message));
   return <div>
-    {!data.me && <form onSubmit={(e) => { e.preventDefault(); sign(); }} className="mb-3 flex gap-2">
+    {!data.me && <form onSubmit={(e) => { e.preventDefault(); sign(); }} className="mb-4 flex items-start gap-3">
+      {ctx.me && <Avatar p={ctx.me} size={40} />}
       <label htmlFor={`gb-${data.profile.handle}`} className="sr-only">Leave a note</label>
-      <input id={`gb-${data.profile.handle}`} value={text} onChange={(e) => setText(e.target.value.slice(0, 280))} placeholder={`Leave ${data.profile.name.split(" ")[0]} a note`} className="min-h-11 min-w-0 flex-1 rounded-xl px-3 text-[15px] outline-none" style={{ background: look.soft, color: look.cInk, boxShadow: `inset 0 0 0 1px ${look.line}` }} />
-      <button type="submit" disabled={busy || !text.trim()} aria-label="Sign guestbook" className="grid h-11 w-11 flex-none place-items-center rounded-xl disabled:opacity-40" style={{ background: accent, color: pageInkOn(accent) }}>{busy ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}</button>
+      <textarea id={`gb-${data.profile.handle}`} value={text} onChange={(e) => setText(e.target.value.slice(0, 280))} rows={2} placeholder={`Write something nice for ${data.profile.name.split(" ")[0]}…`} className="min-h-[72px] min-w-0 flex-1 resize-none rounded-2xl px-3.5 py-2.5 text-[15px] outline-none" style={{ background: look.soft, color: look.cInk }} />
+      <button type="submit" disabled={busy || !text.trim()} className="min-h-10 flex-none self-end rounded-full px-4 text-sm font-bold disabled:opacity-40" style={{ background: accent, color: pageInkOn(accent) }}>{busy ? <Loader2 size={16} className="animate-spin" /> : "Sign"}</button>
     </form>}
-    {!list.length ? <p className="text-sm" style={{ color: look.sub }}>{data.me ? "When people sign your guestbook, their notes show up here." : "Be the first to sign."}</p>
-      : <ul className="flex flex-col gap-3">{list.map((g) => <li key={g.id} className="flex gap-3">
-        <button type="button" onClick={() => ctx.person(g.handle)} aria-label={`@${g.handle}`}><Avatar p={{ handle: g.handle, name: g.name, bio: "", avatar: g.avatar }} size={38} /></button>
-        <div className="min-w-0 flex-1"><p className="text-sm"><b>{g.name}</b> <span style={{ color: look.sub }}>· {ago(g.at)}</span></p><p className="whitespace-pre-wrap break-words text-[15px]">{g.body}</p></div>
+    {!list.length ? <p className="py-8 text-center text-[15px]" style={{ color: look.sub }}>{data.me ? "Notes people leave on your page show up here." : "No notes yet. Be the first to sign."}</p>
+      : <ul className="flex flex-col gap-4">{list.map((g) => <li key={g.id} className="flex gap-3">
+        <button type="button" onClick={() => ctx.person(g.handle)} aria-label={`@${g.handle}`}><Avatar p={{ handle: g.handle, name: g.name, bio: "", avatar: g.avatar }} size={40} /></button>
+        <div className="min-w-0 flex-1"><p className="text-[14px]"><b>{g.name}</b> <span style={{ color: look.sub }}>@{g.handle} · {ago(g.at)}</span></p><p className="mt-0.5 whitespace-pre-wrap break-words text-[15px]">{g.body}</p></div>
         {(data.me || ctx.me?.handle === g.handle) && <button type="button" onClick={() => remove(g)} aria-label="Remove note" className="grid h-9 w-9 flex-none place-items-center rounded-full" style={{ color: look.sub }}><Trash2 size={15} /></button>}
       </li>)}</ul>}
   </div>;
@@ -416,7 +508,7 @@ function ProfileTab({ page, set, ctx, onEditProfile }: { page: ProfilePageData; 
 }
 
 /** Someone's page with live editing for the owner (wraps ProfileSpace and PageEditor). */
-export function ProfileWithEditor({ data, ctx, onBack, onFollow, onEditProfile, setData }: { data: PageData; ctx: Ctx; onBack: () => void; onFollow: () => void; onEditProfile: () => void; setData: (f: (d: PageData) => PageData) => void }) {
+export function ProfileWithEditor({ data, ctx, onBack, onFollow, onEditProfile, setData, row }: { data: PageData; ctx: Ctx; onBack: () => void; onFollow: () => void; onEditProfile: () => void; setData: (f: (d: PageData) => PageData) => void; row?: (p: Post) => ReactNode }) {
   const saved = useMemo(() => cleanPage(data.page ?? defaultPage()), [data.page]);
   const [draft, setDraft] = useState<ProfilePageData | null>(null);
   const [saving, setSaving] = useState(false);
@@ -435,14 +527,14 @@ export function ProfileWithEditor({ data, ctx, onBack, onFollow, onEditProfile, 
   };
   // Friends picked in the editor show right away in the preview (their names load when saved).
   return <>
-    <ProfileSpace data={data} page={page} ctx={ctx} onBack={onBack} onFollow={onFollow} onEditProfile={onEditProfile} editing={!!draft}
+    <ProfileSpace data={data} page={page} ctx={ctx} onBack={onBack} onFollow={onFollow} onEditProfile={onEditProfile} editing={!!draft} row={row}
       onCustomize={() => setDraft((d) => d ?? saved)} onGuestbook={(list) => setData((d) => ({ ...d, guestbook: list }))} />
     {draft && data.me && <PageEditor page={draft} setPage={setDraft} ctx={ctx} saving={saving} onSave={save} onCancel={() => setDraft(null)} onEditProfile={onEditProfile} />}
   </>;
 }
 
 /** Opens someone's page by username: loads it, then shows it (with Customize for the owner). */
-export function PersonSpace({ handle, ctx, onEdit, onClose }: { handle: string; ctx: Ctx; onEdit: () => void; onClose: () => void }) {
+export function PersonSpace({ handle, ctx, onEdit, onClose, row }: { handle: string; ctx: Ctx; onEdit: () => void; onClose: () => void; row?: (p: Post, patch: (id: string, f: (p: Post) => Post) => void, gone: () => void) => ReactNode }) {
   const [data, setData] = useState<PageData | null>(null);
   const [err, setErr] = useState("");
   useEffect(() => { setData(null); setErr(""); ctx.api(`/api/earshot/social/u/${handle}`).then(setData).catch((e) => setErr(e?.message || "That profile didn't load.")); }, [handle]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -451,7 +543,9 @@ export function PersonSpace({ handle, ctx, onEdit, onClose }: { handle: string; 
     <button type="button" onClick={onClose} aria-label="Back" className="absolute left-3 top-[max(.75rem,env(safe-area-inset-top))] grid h-10 w-10 place-items-center rounded-full bg-white/10"><ChevronLeft size={22} /></button>
     {err ? <p className="px-6 text-center text-sm text-white/70">{err}</p> : <Loader2 className="animate-spin" />}
   </div>;
-  return <ProfileWithEditor data={data} ctx={ctx} onBack={onClose} onFollow={follow} onEditProfile={onEdit} setData={(f) => setData((d) => (d ? f(d) : d))} />;
+  const patch = (pid: string, f: (p: Post) => Post) => setData((d) => (d ? { ...d, posts: d.posts.map((p) => (p.id === pid ? f(p) : p.repost?.id === pid ? { ...p, repost: f(p.repost) } : p)) } : d));
+  return <ProfileWithEditor data={data} ctx={ctx} onBack={onClose} onFollow={follow} onEditProfile={onEdit} setData={(f) => setData((d) => (d ? f(d) : d))}
+    row={row ? (p) => row(p, patch, () => setData((d) => (d ? { ...d, posts: d.posts.filter((x) => x.id !== p.id) } : d))) : undefined} />;
 }
 
 /** Top of the Social tab: your page, and pages worth a visit. */
@@ -460,15 +554,15 @@ export function PagesStrip({ ctx, onCreate }: { ctx: Ctx; onCreate: () => void }
   useEffect(() => { ctx.api("/api/earshot/social/people").then((b) => setPeople((b.people || []).filter((p: Profile) => p.handle !== ctx.me?.handle).slice(0, 16))).catch(() => setPeople([])); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return <section aria-label="Pages" className="border-b border-white/[.09] px-4 py-3">
     <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none]">
-      <button type="button" onClick={() => (ctx.me ? ctx.person(ctx.me.handle) : onCreate())} className="flex w-[74px] flex-none flex-col items-center gap-1.5 text-center">
-        <span className="relative grid h-[66px] w-[66px] place-items-center rounded-full p-[3px]" style={{ background: "conic-gradient(#ff8a3d, #ec4899, #6366f1, #ff8a3d)" }}>
-          {ctx.me ? <Avatar p={ctx.me} size={60} /> : <span className="grid h-[60px] w-[60px] place-items-center rounded-full bg-black"><Plus size={22} /></span>}
+      <button type="button" onClick={() => (ctx.me ? ctx.person(ctx.me.handle) : onCreate())} className="flex w-[68px] flex-none flex-col items-center gap-1.5 text-center">
+        <span className="relative grid h-[60px] w-[60px] place-items-center rounded-full p-[3px]" style={{ background: "conic-gradient(#ff8a3d, #ec4899, #6366f1, #ff8a3d)" }}>
+          {ctx.me ? <Avatar p={ctx.me} size={54} /> : <span className="grid h-[54px] w-[54px] place-items-center rounded-full bg-black"><Plus size={22} /></span>}
           <span className="absolute -bottom-0.5 -right-0.5 grid h-6 w-6 place-items-center rounded-full bg-[#ff8a3d] text-[#111] ring-2 ring-black"><Paintbrush size={12} /></span>
         </span>
         <span className="w-full truncate text-[12px] font-semibold">{ctx.me ? "Your page" : "Make yours"}</span>
       </button>
-      {(people ?? []).map((p) => <button key={p.handle} type="button" onClick={() => ctx.person(p.handle)} className="flex w-[74px] flex-none flex-col items-center gap-1.5 text-center">
-        <Avatar p={p} size={66} /><span className="w-full truncate text-[12px] text-white/80">{p.name}</span>
+      {(people ?? []).map((p) => <button key={p.handle} type="button" onClick={() => ctx.person(p.handle)} className="flex w-[68px] flex-none flex-col items-center gap-1.5 text-center">
+        <Avatar p={p} size={60} /><span className="w-full truncate text-[12px] text-white/80">{p.name}</span>
       </button>)}
       {people === null && <Loader2 className="my-6 animate-spin text-white/50" />}
     </div>

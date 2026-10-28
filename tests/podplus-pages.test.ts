@@ -49,3 +49,4 @@ test("pages, guestbook and the Social tab are wired up", () => {
   assert.match(x, /<PersonSpace /);
   assert.match(x, /<PagesStrip /);
 });
+
