@@ -16,6 +16,7 @@
 //  - AI search: "something like Sherlock Holmes but spookier" → real LibriVox books.
 import type { Express, RequestHandler } from "express";
 import { Readable } from "node:stream";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 
 export type BookKind = "solo" | "group" | "dramatic";
@@ -275,7 +276,26 @@ export function pieceRange(c: Pick<BookChapter, "secs" | "bytes">, piece: number
   return { from, to: c.bytes ? Math.min(to, c.bytes - 1) : to, at };
 }
 
-export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts: { fetchJson?: JsonFetcher; fetchText?: TextFetcher; ask?: AskJson; transcribe?: Transcriber; minutesPerDay?: number; prefix?: string; now?: () => number } = {}) {
+/** Pod+ Membership: AI transcripts, Ask AI and Voice boost are for members (signed in with their
+ *  email; the gate marks req.creator). Everything else in Audiobooks is free. */
+const isMember = (req: any) => !!req.creator;
+const membersOnly = (res: any, what: string) => res.status(402).json({ message: `${what} is part of Pod+ Membership.`, needSignIn: true, members: true });
+
+/** Voice boost's audio relay can't be sent a session (an audio player sends no headers), so a member
+ *  gets a signed pass for it, good for 12 hours. */
+export function relayPass(key: Buffer, at: number): string {
+  const exp = Math.floor(at / 1000) + 12 * 3600;
+  return `${exp}.${createHmac("sha256", key).update(String(exp)).digest("base64url").slice(0, 32)}`;
+}
+export function relayPassOk(key: Buffer, pass: string, at: number): boolean {
+  const [exp, sig] = String(pass || "").split(".");
+  if (!/^\d{9,11}$/.test(exp || "") || !sig || Number(exp) * 1000 < at) return false;
+  const want = Buffer.from(createHmac("sha256", key).update(exp).digest("base64url").slice(0, 32));
+  const got = Buffer.from(sig);
+  return got.length === want.length && timingSafeEqual(got, want);
+}
+
+export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts: { fetchJson?: JsonFetcher; fetchText?: TextFetcher; ask?: AskJson; transcribe?: Transcriber; minutesPerDay?: number; prefix?: string; now?: () => number; relayKey?: Buffer } = {}) {
   const prefix = opts.prefix ?? "/api/podscroll";
   const get = opts.fetchJson ?? defaultFetch;
   const getText = opts.fetchText ?? defaultText;
@@ -290,6 +310,7 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
     return value;
   };
   const DAY = 24 * 3600_000;
+  const relayKey = opts.relayKey ?? (process.env.SESSION_SECRET ? createHmac("sha256", process.env.SESSION_SECRET).update("pod+ book relay").digest() : randomBytes(32));
   const bookOf = (id: string) => cached(`book:${id}`, 7 * DAY, async () => bookFromMetadata(id, await get(`${ARCHIVE}/metadata/${encodeURIComponent(id)}`)));
   const down = (res: any, where: string, e: any, message: string) => { console.error(`[audiobooks] ${where}:`, e?.message || e); res.status(502).json({ message }); };
 
@@ -299,6 +320,7 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
   app.get(`${prefix}/books/audio`, async (req: any, res) => {
     const u = String(req.query.u || "");
     if (!isBookAudio(u)) return res.status(400).end();
+    if (!relayPassOk(relayKey, String(req.query.k || ""), now())) return res.status(403).end();
     const ip = clientIp(req);
     if (audioIp.retryAfter(ip) > 0) return res.status(429).end();
     audioIp.fail(ip);
@@ -314,6 +336,11 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
       stream.on("error", () => res.end());
       stream.pipe(res);
     } catch { if (!res.headersSent) res.status(502).end(); else res.end(); }
+  });
+
+  app.get(`${prefix}/books/relay-pass`, gate, (req: any, res) => {
+    if (!isMember(req)) return membersOnly(res, "Voice boost");
+    res.set("Cache-Control", "no-store").json({ pass: relayPass(relayKey, now()) });
   });
 
   app.get(`${prefix}/books`, gate, async (req: any, res) => {
@@ -390,6 +417,7 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
     const id = String(req.params.id || "");
     const ch = Math.floor(Number(req.query.ch)), piece = Math.floor(Number(req.query.piece)) || 0;
     if (!BOOK_ID.test(id) || !(ch >= 0)) return res.status(404).json({ message: "That chapter doesn't exist." });
+    if (!isMember(req)) return membersOnly(res, "The AI transcript");
     if (!opts.transcribe) return res.status(503).json({ message: "Transcripts aren't available right now." });
     try {
       const book = await bookOf(id);
@@ -430,6 +458,7 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
   const aiLimit = createAttemptLimiter({ max: 20, windowMs: 10 * 60_000 });
   app.post(`${prefix}/books/ai`, gate, async (req: any, res) => {
     const q = String(req.body?.q || "").replace(/\s+/g, " ").trim().slice(0, 300);
+    if (!isMember(req)) return membersOnly(res, "Ask AI");
     if (q.length < 3) return res.status(400).json({ message: "Describe the kind of book you'd like." });
     if (!opts.ask) return res.status(503).json({ message: "AI search isn't available right now. Try the search box." });
     const who = String(req.user?.id || clientIp(req));
