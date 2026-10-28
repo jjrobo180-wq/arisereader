@@ -1270,20 +1270,6 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   if (control) control.current = { toggle: () => toggle(), pause: () => cur.current?.pause() };
   // Once per visit from the home screen: the screen's real measurements, to the server log.
   const shellRef = useRef<HTMLDivElement | null>(null);
-  // On the iPhone home screen the page's own height comes out short of the screen (by the clock
-  // bar's height), which left a strip at the bottom. The shell is sized to the real screen there.
-  useEffect(() => {
-    if (!standalone) return;
-    const fit = () => {
-      const el = shellRef.current; if (!el) return;
-      const home = (navigator as Navigator & { standalone?: boolean }).standalone === true;
-      const tall = home ? Math.max(window.innerHeight, window.screen?.height && window.innerWidth < window.innerHeight ? window.screen.height : 0) : 0;
-      el.style.height = tall ? `${tall}px` : "";
-    };
-    fit();
-    window.addEventListener("resize", fit); window.addEventListener("orientationchange", fit);
-    return () => { window.removeEventListener("resize", fit); window.removeEventListener("orientationchange", fit); };
-  }, [standalone]);
   useEffect(() => {
     if (!standalone || (navigator as Navigator & { standalone?: boolean }).standalone !== true) return;
     const t = setTimeout(() => {
@@ -1312,7 +1298,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
 
   // ---------------- layout ----------------
-  const shell = standalone ? "fixed inset-x-0 top-0 h-[100lvh] min-h-full" : full ? "fixed inset-0 z-[60]" : "relative h-[min(84dvh,880px)] min-h-[560px] rounded-3xl";
+  const shell = standalone ? "fixed inset-0" : full ? "fixed inset-0 z-[60]" : "relative h-[min(84dvh,880px)] min-h-[560px] rounded-3xl";
   const TAB_NAMES: Record<Tab, string> = { foryou: "For You", following: "Following", openmic: "Open Mic", social: "Social", explore: "Explore", library: "Library" };
   const allTabs: [Tab, string][] = student ? [["foryou", "For You"], ["following", "Following"], ["explore", "Explore"], ["library", "Library"]] : [["foryou", "For You"], ["following", "Following"], ["openmic", "Open Mic"], ["social", "Social"], ["explore", "Explore"], ["library", "Library"]];
   const tabs: [Tab, string][] = !onHome ? allTabs : tab === "foryou" || tab === "following" ? [["foryou", "For You"], ["following", "Following"]] : [[tab, TAB_NAMES[tab]]];
@@ -1330,6 +1316,15 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   // What's playing stays reachable from the other tabs: a mini player along the bottom.
   const nowItem = items[active];
   const mini = page && !previews && !!nowItem?.ep && cur.current?.dataset.ep === nowItem.ep.id && (playing || time > 0);
+  // On the iPhone home screen the app is drawn a clock-bar short of the bottom edge and iOS fills
+  // the strip below with the page's own color: so that color is whatever the bottom of the screen
+  // shows (the now-playing bar's color while it's there), and the strip looks like part of it.
+  useEffect(() => {
+    if (!standalone || !visible || !page) return;
+    const c = mini ? (day ? "#ffffff" : "#141015") : day ? "#ffffff" : tab === "social" ? "#000000" : site ? "#0f0f0f" : "#120e14";
+    document.documentElement.style.background = c;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", c);
+  });
   const miniPad = mini ? (standalone ? "pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))]" : "pb-14") : "";
   // Pod+: Open Mic, Social and Library opened from the site's home page wear the site's look
   // (its top bar, type and white or near-black page) instead of the player's own.
