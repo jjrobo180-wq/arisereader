@@ -26,6 +26,8 @@ const readListen = (): Listen => {
   try { const v = JSON.parse(ls.get("podscroll.bookListen") || "null"); if (v && typeof v === "object") return { boost: !!v.boost, even: !!v.even, silence: !!v.silence, rewind: v.rewind !== false, notice: !!v.notice, clean: !!v.clean }; } catch { /* default */ }
   return { boost: ls.get("podscroll.bookBoost") === "1", even: false, silence: false, rewind: true, notice: false, clean: false };
 };
+/** Faster or slower without the voice going high or low (and without the browser re-tuning each time). */
+function keepPitch(a: HTMLAudioElement) { try { (a as any).preservesPitch = true; (a as any).webkitPreservesPitch = true; (a as any).mozPreservesPitch = true; } catch { /* fine */ } }
 /** Smart rewind: after a pause, back up a little, more the longer it was. */
 export const rewindFor = (pausedSecs: number) => (pausedSecs < 10 ? 0 : pausedSecs < 60 ? 3 : pausedSecs < 600 ? 8 : pausedSecs < 3600 ? 15 : 30);
 const KIND_LABEL: Record<BookKind, string> = { solo: "One reader", group: "Group of readers", dramatic: "Full cast" };
@@ -798,6 +800,9 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
   const [dur, setDur] = useState(0);
   const [speed, setSpeed] = useState<number>(() => { const n = Number(ls.get("podscroll.bookSpeed")); return n >= 0.5 && n <= 3 ? n : 1; });
   const [listen, setListen] = useState<Listen>(readListen);
+  const [rate, setRate] = useState(speed);
+  useEffect(() => { const t = setTimeout(() => setRate(speed), 220); return () => clearTimeout(t); }, [speed]);
+  useEffect(() => { const a = audio.current; if (!a) return; keepPitch(a); if (Math.abs(a.playbackRate - rate) > 0.001) a.playbackRate = rate; }, [rate]);
   // The sound features need membership (and a browser that can shape sound).
   const can = pro && bookAudioSupported();
   const boost = listen.boost && can, even = listen.even && can, silence = listen.silence && can, clean = listen.clean && can;
@@ -832,7 +837,7 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
     const seek = () => { if (reading.at > 0) { try { a.currentTime = reading.at; } catch { /* not seekable yet */ } } };
     const start = (src: string) => {
       if (!alive) return;
-      a.src = src; a.playbackRate = speed;
+      a.src = src; keepPitch(a); a.playbackRate = rate;
       a.addEventListener("loadedmetadata", seek, { once: true });
       a.play().catch(() => { setLoading(false); say("Tap play to start the book."); });
     };
@@ -922,10 +927,10 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
       if (lvl < 0) return;
       quiet = lvl < 0.012 ? quiet + 100 : 0;
       const want = quiet >= 450;
-      if (want !== fast) { fast = want; a.playbackRate = want ? Math.min(4, speed * 2.5) : speed; }
+      if (want !== fast) { fast = want; a.playbackRate = want ? Math.min(4, rate * 2.5) : rate; }
     }, 100);
-    return () => { clearInterval(id); a.playbackRate = speed; };
-  }, [silence, playing, speed]);
+    return () => { clearInterval(id); if (fast) a.playbackRate = rate; };
+  }, [silence, playing, rate]);
 
   // Sleep timer.
   useEffect(() => {
@@ -953,7 +958,9 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
   const firstTap = useRef(tap);
   useEffect(() => { if (tap !== firstTap.current) toggle(); }, [tap]); // eslint-disable-line react-hooks/exhaustive-deps
   const skip = (d: number) => { const a = audio.current; if (a) a.currentTime = Math.max(0, Math.min((a.duration || dur || 0) - 1, a.currentTime + d)); };
-  const pickSpeed = (next: number) => { next = Math.round(Math.min(3, Math.max(0.5, next)) * 20) / 20; setSpeed(next); if (audio.current) audio.current.playbackRate = next; ls.set("podscroll.bookSpeed", String(next)); };
+  // The speed shows at once while you drag or tap, but reaches the player only once you stop for a
+  // moment: changing it many times a second made the sound stutter and glitch.
+  const pickSpeed = (next: number) => { next = Math.round(Math.min(3, Math.max(0.5, next)) * 20) / 20; setSpeed(next); ls.set("podscroll.bookSpeed", String(next)); };
   const pct = dur ? Math.min(100, (time / dur) * 100) : 0;
   const { main: chName } = chapterName(chapter || { n: ch + 1, title: "", sub: "", secs: 0, audio: "", bytes: 0 });
   const sleepWords = sleepAt === null ? "" : sleepAt === "end" ? "End of chapter" : `${Math.max(1, Math.ceil((sleepAt - Date.now()) / 60000))} min`;
@@ -1003,7 +1010,7 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
             a.play().catch(() => {});
           }, 12_000);
         }} onCanPlay={() => { clearTimeout(stuck.current); setLoading(false); }}
-        onLoadedMetadata={() => { const a = audio.current; if (a && Number.isFinite(a.duration)) setDur(a.duration); if (a) a.playbackRate = speed; }}
+        onLoadedMetadata={() => { const a = audio.current; if (a && Number.isFinite(a.duration)) setDur(a.duration); if (a) { keepPitch(a); a.playbackRate = rate; } }}
         onTimeUpdate={() => { const a = audio.current; if (!a) return; setTime(a.currentTime); if (sleepAt === "end" && a.duration) { const left = a.duration - a.currentTime; if (left < 30) setFade(a, left / 30); } if (Date.now() - lastSave.current > 5000) { lastSave.current = Date.now(); saveSpot(book, ch, a.currentTime); } warmNext(a); }}
         onEnded={() => {
           if (sleepAt === "end") { setSleepAt(null); if (audio.current) setFade(audio.current, 1); setPlaying(false); saveSpot(book, Math.min(ch + 1, book.chapters.length - 1), 0); say("Sleep timer: stopped at the end of the chapter."); return; }
