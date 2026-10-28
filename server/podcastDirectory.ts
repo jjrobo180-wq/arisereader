@@ -16,6 +16,7 @@ import {
   lightEpisode, mergeGenreShows, parseChaptersJson, parseCues, parseEpisode, parseShow, parseTranscriptJson, poolFromEpisodeSearch, rssExtrasFor,
   type AdRange, type Chapter, type PodEpisode, type PodShow, type PoolShow, type TranscriptChunk, type TxSegment,
 } from "../shared/earshot";
+import { perplexityChat } from "./aiProvider";
 import {
   AD_PROMPT_V2, INTRO_PROMPT, adPromptMessage, adSpotChunks, adsFromAiV2, combineAds, introFromAi, introPromptMessage, emptyProfile, learnFromMark, learnProfile, learnedPreroll, mp3Info, phraseAds, phraseBlocks, profileHints, sponsorsFromNotes,
   type ServerAd, type ShowProfile, type Word,
@@ -214,6 +215,8 @@ async function openAiCall(send: () => Promise<Response>, what: string): Promise<
     // Groq answers 413 when one request is bigger than the model's per-minute allowance: the next
     // model (with its own allowance) may take it, so it counts as "busy", not as a hard failure.
     if (res.status === 413) throw new Error("busy");
+    // A per-minute allowance: the next model (or the backup) answers now instead of waiting.
+    if (res.status === 429 && /per minute|\((TPM|RPM|ASPM)\)/i.test(said)) throw new Error("busy");
     if ((res.status === 429 || res.status >= 500) && tryNo < 2) {
       const wait = Math.min(8, Number(res.headers.get("retry-after")) || 1.5 * (tryNo + 1));
       await new Promise((r) => setTimeout(r, wait * 1000));
@@ -254,7 +257,13 @@ export async function onGroq<T>(models: string[], run: (model: string) => Promis
 const GROQ_AI = () => uniq([process.env.EARSHOT_GROQ_AD_MODEL, "openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.3-70b-versatile"]);
 const GROQ_STT = () => uniq([process.env.EARSHOT_GROQ_MODEL, "whisper-large-v3-turbo", "whisper-large-v3"]);
 /** Groq's hosted models (OpenAI-compatible), used when OpenAI is out of credit. */
-const groqJson: AskJson = (system, user) => onGroq(GROQ_AI(), async (model) => {
+/** Groq first (free); when every Groq model is out for now, Perplexity reads it, so ads are still
+ *  found within seconds instead of waiting for Groq's allowance to come back. */
+const groqJson: AskJson = (system, user) => groqOnly(system, user).catch(async (e: any) => {
+  if (e?.message !== "busy" && e?.message !== "dry") throw e;
+  try { return await perplexityChat(system, user); } catch { throw e; }
+});
+const groqOnly: AskJson = (system, user) => onGroq(GROQ_AI(), async (model) => {
   const res = await openAiCall(() => fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, "Content-Type": "application/json" },
@@ -399,6 +408,11 @@ export function createDirectory(options: DirectoryOptions = {}) {
 
   // ---- read along ----
   let dayKey = ""; let minutesToday = 0;
+  // Groq's speech-to-text also has an hourly allowance (2 hours of audio an hour): pre-checks only
+  // run when listeners have left plenty of it.
+  const hourLog: { at: number; min: number }[] = [];
+  const spend = (min: number) => { minutesToday += min; hourLog.push({ at: Date.now(), min }); while (hourLog.length && Date.now() - hourLog[0].at > 3600_000) hourLog.shift(); };
+  const minutesLastHour = () => hourLog.filter((x) => Date.now() - x.at <= 3600_000).reduce((t, x) => t + x.min, 0);
   const budgetLeft = () => { const d = new Date().toISOString().slice(0, 10); if (d !== dayKey) { dayKey = d; minutesToday = 0; } return perDay - minutesToday; };
 
   async function findEpisode(showId: string, episodeId: string) {
@@ -537,7 +551,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       if (!res.ok && res.status !== 206) throw new Error(`audio ${res.status}`);
       const blob = await res.blob();
       if (blob.size > 25_000_000) throw Object.assign(new Error("size"), { soft: true });
-      minutesToday += plan.chunkSecs / 60;
+      spend(plan.chunkSecs / 60);
       const out = await transcribe(blob, `piece-${chunk}.mp3`);
       const start = chunk * plan.chunkSecs;
       const segments = out.segments.map((s) => ({ s: start + s.start, e: start + s.end, t: s.text.trim() })).filter((s) => s.t);
@@ -614,7 +628,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       const part = await src.extract(from, to);
       if (part.audio.size > 25_000_000) throw Object.assign(new Error("size"), { soft: true });
       if (!part.audio.size) throw new Error("no audio");
-      minutesToday += (to - from) / 60;
+      spend((to - from) / 60);
       const out = await transcribe(part.audio, `piece-${chunk}.mp3`, await transcribePrompt(showId, showName));
       const segments = out.segments.map((x) => ({ s: from + x.start, e: from + x.end, t: x.text.trim() })).filter((x) => x.t);
       const words: Word[] = (out.words ?? []).map((w) => ({ s: from + w.start, e: from + w.end, w: w.word.trim() })).filter((w) => w.w);
@@ -662,7 +676,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       }
       if (budgetLeft() < secs / 60) throw new Error("budget");
       if (!audio.size || audio.size > 25_000_000) throw new Error("size");
-      minutesToday += secs / 60;
+      spend(secs / 60);
       const out = await transcribe(audio, `gap-${fp}.mp3`, await transcribePrompt(showId, showName));
       const segments = out.segments.map((x) => ({ s: x.start, e: x.end, t: x.text.trim() })).filter((x) => x.t);
       const words: Word[] = (out.words ?? []).map((w) => ({ s: w.start, e: w.end, w: w.word.trim() })).filter((w) => w.w);
@@ -818,7 +832,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       if (!aiOn() || momentsToday >= MOMENTS_PER_DAY || budgetLeft() < MOMENT_WINDOW / 60) return plain;
       momentsToday++;
       const audio = await cutRange(showId, episodeId, w0, w0 + MOMENT_WINDOW);
-      minutesToday += MOMENT_WINDOW / 60;
+      spend(MOMENT_WINDOW / 60);
       const out = await transcribe(audio, `moment-${episodeId}.mp3`);
       const segs = out.segments.map((x) => ({ s: w0 + x.start, e: w0 + x.end, t: x.text.trim() })).filter((x) => x.t);
       if (segs.length < 3) return plain;
@@ -844,6 +858,6 @@ export function createDirectory(options: DirectoryOptions = {}) {
     return adSpotChunks((await profiles.peek(showId))?.value ?? null, secs, TX_CHUNK_SECS, max);
   }
 
-  return { aiFind, pool, loadShow, loadGenreShows, searches, apple, warm, addEpisodes, transcript, contentTranscript, contentChunks, copyPieceAds, foundAds, learnMark, profiles, idle, budgetLeft, perDay, cutRange, moment, keepMomentAudio, likelyAdChunks };
+  return { aiFind, pool, loadShow, loadGenreShows, searches, apple, warm, addEpisodes, transcript, contentTranscript, contentChunks, copyPieceAds, foundAds, learnMark, profiles, idle, budgetLeft, minutesLastHour, perDay, cutRange, moment, keepMomentAudio, likelyAdChunks };
 }
 export type Directory = ReturnType<typeof createDirectory>;

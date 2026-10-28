@@ -157,7 +157,10 @@ export function phraseAds(segs: TxSegment[], hints: AdHints = {}, minScore = 6):
   const { blocks } = phraseBlocks(segs, hints);
   return blocks
     .filter((b) => b.score >= minScore || b.strong >= 2)
-    .map((b) => ({ s: segs[b.from].s, e: segs[b.to].e, label: "Ad break", conf: Math.min(0.7, 0.35 + b.score * 0.04), kind: "phrase" }))
+    .map((b) => ({ s: segs[b.from].s, e: segs[b.to].e, label: "Ad break",
+      // Three or more ad lines together ("brought to you by", "use code", "dot com slash"...) is an ad
+      // for sure: skipped by itself, without waiting for the AI.
+      conf: b.strong >= 3 || b.score >= 12 ? 0.8 : Math.min(0.7, 0.35 + b.score * 0.04), kind: "phrase" }))
     .filter((a) => a.e - a.s >= 10 && a.e - a.s <= 300);
 }
 

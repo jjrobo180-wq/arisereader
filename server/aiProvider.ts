@@ -89,6 +89,18 @@ export function fromPerplexity(body: any): any {
   const text = String(body?.choices?.[0]?.message?.content ?? "").replace(/\[\d+\](?:\[\d+\])*/g, "").replace(/^\s*```(?:json)?\s*|\s*```\s*$/g, "").trim();
   return { id: body?.id ?? "pplx", object: "chat.completion", model: body?.model ?? "sonar", choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: text } }], usage: body?.usage };
 }
+/** One JSON answer straight from Perplexity (used when Groq is out for Pod+'s ad reading). Throws
+ *  "busy" when there's no key or it fails, so callers handle it like Groq being busy. */
+export async function perplexityChat(system: string, user: string, timeoutMs = 45_000): Promise<string> {
+  const key = await pplxKey().catch(() => "");
+  if (!key) throw new Error("busy");
+  const body = toPerplexity({ body: JSON.stringify({ messages: [{ role: "system", content: system }, { role: "user", content: user }], response_format: { type: "json_object" }, temperature: 0, max_tokens: 4000 }) });
+  const res = await fetch(PPLX_URL, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: body!, signal: AbortSignal.timeout(timeoutMs) }).catch(() => null);
+  if (!res || !res.ok) { if (res) console.error("[ai] backup failed:", res.status, (await res.text().catch(() => "")).slice(0, 200)); throw new Error("busy"); }
+  const text = fromPerplexity(await res.json().catch(() => null)).choices[0].message.content;
+  if (!text) throw new Error("busy");
+  return text;
+}
 async function askPerplexity(base: Fetch, init: RequestInit | undefined): Promise<Response | null> {
   const key = await pplxKey().catch(() => "");
   const body = key ? toPerplexity(init) : null;

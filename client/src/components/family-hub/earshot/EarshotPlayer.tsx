@@ -883,7 +883,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const chunkSecs = x?.chunkSecs || 600;
     const c = Math.floor(t / chunkSecs);
     loadTx(ep, c);
-    if (t % chunkSecs > chunkSecs - 120) loadTx(ep, c + 1);
+    // The next piece is read for ads well before it plays (it takes up to half a minute).
+    if (t % chunkSecs > chunkSecs - 300) loadTx(ep, c + 1);
   };
 
   handlers.current.time = (a) => {
@@ -906,7 +907,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       if (h.secs >= 15) { const secs = Math.round(h.secs); h.secs = 0; void api("/api/earshot/creators/listen", { method: "POST", body: { episode: ep.id, secs, source: sourceOf.current.get(ep.id) ?? "other" } }).catch(() => {}); }
     }
     const mode = esRef.current.settings.adMode;
-    if (ep && (listened.current > 5 || sheetRef.current?.kind === "read") && (mode !== "off" || sheetRef.current?.kind === "read")) wantTx(ep, t);
+    if (ep && (listened.current > 1.5 || sheetRef.current?.kind === "read") && (mode !== "off" || sheetRef.current?.kind === "read")) wantTx(ep, t);
     if (ep && it && mode === "auto" && !esRef.current.adFree.includes(it.show.id) && !markingRef.current) {
       const ad = playAdAt(adsRef.current, t);
       if (ad && ad.sure && !undone.current.has(ad.key)) smoothSkip(a, ad, ep.id, false);

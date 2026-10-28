@@ -39,7 +39,7 @@ export function noteShows(ids: string[], weight = 1) { noteImpl?.(ids, weight); 
 
 export function startPrechecks(o: {
   kv: KV; player: Player;
-  dir: Pick<Directory, "loadShow" | "contentTranscript" | "budgetLeft" | "perDay" | "likelyAdChunks" | "idle">;
+  dir: Pick<Directory, "loadShow" | "contentTranscript" | "budgetLeft" | "perDay" | "likelyAdChunks" | "idle"> & Partial<Pick<Directory, "minutesLastHour">>;
   topShows: () => Promise<string[]>;
   listenerUa?: string; everyMs?: number; perRun?: number; now?: () => Date;
 }) {
@@ -75,7 +75,7 @@ export function startPrechecks(o: {
       if (!(await o.dir.likelyAdChunks(showId, total)).length) {
         const chunks = Math.min(8, Math.max(1, Math.ceil(total / TX_CHUNK_SECS - 0.01)));
         for (let c = 1; c < chunks; c++) {
-          if (!o.player.sessions.has(sid) || aiStrained() || spareMinutes(now(), o.dir.perDay, o.dir.budgetLeft()) < TX_CHUNK_SECS / 60) break;
+          if (!o.player.sessions.has(sid) || aiStrained() || (o.dir.minutesLastHour?.() ?? 0) > 45 || spareMinutes(now(), o.dir.perDay, o.dir.budgetLeft()) < TX_CHUNK_SECS / 60) break;
           s.touched = Date.now();
           await o.dir.contentTranscript(showId, ep.id, c, { secs: total, extract: (from, to) => o.player.extract(s, from, to) }).catch(() => null);
         }
@@ -92,7 +92,8 @@ export function startPrechecks(o: {
       const perRun = o.perRun ?? 3;
       for (let n = 0; n < perRun; n++) {
         // Room for one episode's opening and a couple of its ad spots, and the AI isn't straining.
-        if (spareMinutes(now(), o.dir.perDay, o.dir.budgetLeft()) < 25 || aiStrained() || !o.dir.idle()) return;
+        // Listeners come first: not while they've used much of this hour's speech-to-text.
+        if (spareMinutes(now(), o.dir.perDay, o.dir.budgetLeft()) < 25 || aiStrained() || !o.dir.idle() || (o.dir.minutesLastHour?.() ?? 0) > 45) return;
         const shows = pickShows(await load(), await o.topShows().catch(() => []));
         if (!shows.length) return;
         let did = false;
