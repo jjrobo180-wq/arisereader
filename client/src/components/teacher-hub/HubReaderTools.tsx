@@ -256,6 +256,15 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
 
   /* ---- parents and game time, loaded when their tab opens ---- */
   const [parents, setParents] = useState<ParentLink[] | null>(null);
+  const [parentsError, setParentsError] = useState("");
+  const [parentPick, setParentPick] = useState<number | "">("");
+  const [parentFind, setParentFind] = useState("");
+  const loadParents = useCallback(() => {
+    setParents(null); setParentsError("");
+    request("/api/teacher/parent-connections")
+      .then((d) => setParents(Array.isArray(d?.students) ? d.students : []))
+      .catch((e: any) => { setParents([]); setParentsError(e?.message || "Parent links could not be loaded."); });
+  }, [request]);
   const [controls, setControls] = useState<any[] | null>(null);
   const [closing, setClosing] = useState<Closing | null>(null);
   const [closingBusy, setClosingBusy] = useState(false);
@@ -263,7 +272,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
   useEffect(() => {
     if (!approved) return;
     if ((tab === "reader" || tab === "readerStudents" || tab === "readerApprovals" || tab === "readerAdvisory") && !school && !schoolBusy) void loadSchool();
-    if (tab === "readerParents" && !parents) request("/api/teacher/parent-connections").then((d) => setParents(Array.isArray(d?.students) ? d.students : [])).catch((e) => { setParents([]); failed(e, "Parent links could not be loaded."); });
+    if (tab === "readerParents" && !parents) loadParents();
     if (tab === "readerGames") {
       if (!controls) request("/api/teacher/club-arise/controls").then((d) => setControls(Array.isArray(d) ? d : [])).catch((e) => { setControls([]); failed(e, "Game controls could not be loaded."); });
       if (isTeacher && !closing) request("/api/teacher/club-closing-hours").then(setClosing).catch(() => {});
@@ -475,9 +484,31 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
       <Card title="Parent codes and letters" right={<PrimaryButton onClick={() => printLetters()}><Printer className="h-4 w-4" /> Print letters for my class</PrimaryButton>}>
         <p className="text-sm text-slate-600">Give each family their private code or sign-up link, print letters, and see which parent and guardian accounts are already connected to your students.</p>
       </Card>
+      <Card title="Email a parent their child's code">
+        <p className="mb-3 text-sm text-slate-600">Pick the student first, so the email carries that student's own parent code. Then type the parent's email. The email explains how to sign up with the code and how to log in after that.</p>
+        {!parents ? <Empty>Loading your students…</Empty> : parentsError ? <ParentsLoadError message={parentsError} onRetry={loadParents} /> : !parents.length ? <Empty>No students are assigned to you yet.</Empty> : (() => {
+          const q = parentFind.trim().toLowerCase();
+          const shown = q ? parents.filter((s) => `${s.displayName} ${s.username}`.toLowerCase().includes(q)) : parents;
+          const picked = parents.find((s) => s.id === parentPick);
+          return <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+              {parents.length > 8 && <Labeled label="Find a student"><Field type="search" value={parentFind} onChange={(e) => setParentFind(e.target.value)} placeholder="Name or username" aria-label="Find a student" /></Labeled>}
+              <Labeled label="Student"><Select value={parentPick === "" ? "" : String(parentPick)} onChange={(e) => setParentPick(e.target.value ? Number(e.target.value) : "")} aria-label="Student whose parent you're emailing">
+                <option value="">Choose a student…</option>
+                {picked && !shown.includes(picked) && <option value={picked.id}>{picked.displayName} (@{picked.username})</option>}
+                {shown.map((s) => <option key={s.id} value={s.id}>{s.displayName} (@{s.username}){s.parents.length ? " · parent linked" : ""}</option>)}
+              </Select></Labeled>
+            </div>
+            {picked && <>
+              <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600"><span>Code for {picked.displayName}:</span><code className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 font-mono font-semibold tracking-wider text-slate-900">{picked.code}</code><button type="button" className={smallBtn} onClick={() => void copy(picked.code, "Parent code")}><Copy className="h-4 w-4" /> Copy</button></div>
+              <HubParentInvite key={picked.id} which="work" studentId={picked.id} studentName={picked.displayName} startOpen />
+            </>}
+          </div>;
+        })()}
+      </Card>
       <Card title="Invite a family that isn't signed up yet" collapseKey="reader-family-email"><HubFamilyInvite which="work" /></Card>
       <Card title="Your students' families">
-        {!parents ? <Empty>Loading…</Empty> : parents.length ? <ul className="space-y-3">{parents.map((s) =>
+        {!parents ? <Empty>Loading…</Empty> : parentsError ? <ParentsLoadError message={parentsError} onRetry={loadParents} /> : parents.length ? <ul className="space-y-3">{parents.map((s) =>
           <Row key={s.id} title={s.displayName} sub={`@${s.username}`} right={<Pill tone={s.parents.length ? "green" : "amber"}>{s.parents.length ? `${s.parents.length} linked` : "Not linked"}</Pill>}>
             <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center">
               <div className="flex items-center gap-2"><code className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-base font-semibold tracking-wider text-slate-900">{s.code}</code><button type="button" className={smallBtn} onClick={() => void copy(s.code, "Parent code")}><Copy className="h-4 w-4" /> Copy</button></div>
@@ -711,4 +742,12 @@ function StudentAction({ action, request, teachers, onClose, onDone }: {
       {error && <div className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</div>}
     </div>
   </HubModal>;
+}
+
+/** The Parents tab couldn't load: say why, and let the teacher try again. */
+function ParentsLoadError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+    <AlertTriangle className="h-4 w-4 shrink-0" /><span className="min-w-0 flex-1">Your students' parent codes didn't load. {message}</span>
+    <GhostButton onClick={onRetry}>Try again</GhostButton>
+  </div>;
 }

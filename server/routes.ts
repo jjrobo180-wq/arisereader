@@ -10910,9 +10910,33 @@ Important:
       const parentMap = new Map(allUsers.filter((u: any) => u.role === 'parent').map((u: any) => [u.id, u]));
       const forwardedProtocol = String(req.get("x-forwarded-proto") || req.protocol || "https").split(",")[0].trim();
       const origin = `${forwardedProtocol}://${req.get("host")}`;
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: 'Parent codes are not configured.' });
+      // Every student's code at once (one call per 200 students), making codes only for students with none yet.
+      // Looking them up one student at a time timed out on big rosters, so the Parents tab never loaded.
+      const adminDb = getAdminSupabase();
+      const codes = new Map<number, string>();
+      const ids = roster.map((student: any) => Number(student.id));
+      const readCodes = async (list: number[]) => {
+        for (let i = 0; i < list.length; i += 200) {
+          const { data, error } = await adminDb.from('parent_invite_codes').select('student_id, code').in('student_id', list.slice(i, i + 200));
+          if (error) throw error;
+          for (const row of data || []) codes.set(Number(row.student_id), String(row.code));
+        }
+      };
+      await readCodes(ids);
+      const missing = ids.filter((id) => !codes.has(id));
+      for (let i = 0; i < missing.length; i += 200) {
+        const chunk = missing.slice(i, i + 200);
+        const inserted = await adminDb.from('parent_invite_codes')
+          .upsert(chunk.map((id) => ({ student_id: id, code: randomBytes(10).toString('hex').toUpperCase() })), { onConflict: 'student_id', ignoreDuplicates: true });
+        if (inserted.error) throw inserted.error;
+        await readCodes(chunk);
+      }
       const students = [];
       for (const student of roster) {
-        const invite = await getOrCreateParentInvite(student.id);
+        const rawCode = codes.get(Number(student.id));
+        if (!rawCode) continue;
+        const invite = { formattedCode: rawCode.match(/.{1,4}/g)?.join('-') || rawCode };
         const parentIds: number[] = [];
         for (const [parentId, linkedValue] of Object.entries(links)) {
           if (normalizeLinkedIds(linkedValue).includes(student.id)) {
@@ -10929,14 +10953,14 @@ Important:
         }));
         students.push({
           id: student.id,
-          displayName: student.displayName,
+          displayName: student.displayName || student.username || 'Student',
           username: student.username,
           code: invite.formattedCode,
           signupUrl: `${origin}/#/parent-signup?code=${encodeURIComponent(invite.formattedCode)}`,
           parents,
         });
       }
-      students.sort((a: any, b: any) => a.displayName.localeCompare(b.displayName));
+      students.sort((a: any, b: any) => String(a.displayName).localeCompare(String(b.displayName)));
       res.set('Cache-Control', 'no-store');
       res.json({ students });
     } catch (error: any) {

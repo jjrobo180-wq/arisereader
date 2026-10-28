@@ -140,7 +140,9 @@ ${prizesHtml(info.prizes, h2, li)}
   <p style="margin:22px 0;"><a href="${url}" style="display:inline-block;background-color:#7c3aed;background-image:linear-gradient(90deg,#7c3aed,#c026d3,#06b6d4);color:#ffffff;text-decoration:none;font-weight:800;padding:13px 20px;border-radius:12px;">Create your free parent account</a></p>
   <p style="margin:0 0 8px;color:#94a3b8;font-size:14px;">${first}'s parent code: <strong style="color:#ffffff;letter-spacing:.08em;">${esc(info.code)}</strong></p>
   <p style="margin:0 0 8px;color:#94a3b8;font-size:14px;">If the button does not work, go to ${site}/#/parent-signup and type the code.</p>
-  <p style="margin:0;color:#94a3b8;font-size:14px;">Already have a parent account? Log in and enter the code on your dashboard to add ${first}.</p>
+  <p style="margin:0 0 8px;color:#94a3b8;font-size:14px;">Already have a parent account? Log in and enter the code on your dashboard to add ${first}.</p>
+  <h2 style="${h2}">Logging in after that</h2>
+  <p style="${p}">Go to ${site}/#/signin and log in with the username and password you chose. You won't need the code again.</p>
   <p style="color:#94a3b8;font-size:13px;margin-top:24px;">${sender} sent this through A.R.I.S.E. Reader. If you don't know ${student}, you can ignore this email.</p>
 </div>`;
 }
@@ -253,6 +255,9 @@ export function parentProgramText(info: { studentName: string; senderName: strin
     `${first}'s parent code: ${oneLine(info.code)}`,
     `If the link does not work, go to ${site}/#/parent-signup and type the code.`,
     `Already have a parent account? Log in and enter the code on your dashboard to add ${first}.`,
+    "",
+    "LOGGING IN AFTER THAT",
+    `Go to ${site}/#/signin and log in with the username and password you chose. You won't need the code again.`,
     "",
     "Thank you,",
     oneLine(info.senderName) || "Your child's teacher",

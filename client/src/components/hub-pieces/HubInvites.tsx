@@ -61,7 +61,7 @@ export function HubFamilyInvite({ which }: { which: Which }) {
 }
 
 /** Email one student's parent their invitation and code. */
-export function HubParentInvite({ which, studentId, studentName }: { which: Which; studentId: number; studentName: string }) {
+export function HubParentInvite({ which, studentId, studentName, startOpen = false }: { which: Which; studentId: number; studentName: string; startOpen?: boolean }) {
   const k = kit(which);
   const first = studentName.trim().split(/\s+/)[0] || "this student";
   const [email, setEmail] = useState("");
@@ -71,7 +71,7 @@ export function HubParentInvite({ which, studentId, studentName }: { which: Whic
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(startOpen);
   useEffect(() => { let on = true; setInvites([]); loadParentInviteEmails(studentId).then((d) => { if (on) { setInvites(d.invites); setReady(d.emailReady); } }).catch(() => {}); return () => { on = false; }; }, [studentId]);
   const send = async (to: string, e?: FormEvent) => {
     e?.preventDefault();
@@ -97,7 +97,7 @@ export function HubParentInvite({ which, studentId, studentName }: { which: Whic
     {notice && <p role="status" className={k.ok} data-testid="parent-email-notice">{notice}</p>}
     {error && <p role="alert" className={k.bad} data-testid="parent-email-error">{error}</p>}
     <SentList which={which} invites={invites} busy={busy} onAgain={(s) => void send(s.email)} />
-    <button type="button" className={k.link + " min-h-9 text-sm"} onClick={() => setOpen(false)}>Close</button>
+    {!startOpen && <button type="button" className={k.link + " min-h-9 text-sm"} onClick={() => setOpen(false)}>Close</button>}
   </div>;
 }
 
