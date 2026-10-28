@@ -101,6 +101,11 @@ function PreviewButton({ playing, pct, onClick, label, small }: { playing: boole
   </button>;
 }
 
+/** A small "Members" tag on what's part of Pod+ Membership. */
+function MembersTag() {
+  return <span className="ps-keep rounded-full px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-white" style={{ background: ACCENT }}>Members</span>;
+}
+
 function Cover({ src, title, className = "" }: { src: string; title: string; className?: string }) {
   const [bad, setBad] = useState(false);
   return <span className={`relative block overflow-hidden bg-[#f2f2f2] ${className}`}>
@@ -125,7 +130,7 @@ function Sheet({ title, onClose, children, wide }: { title: string; onClose: () 
 
 // ---------------- the shelf ----------------
 
-export function AudiobooksView({ api, current, onOpen }: { api: Api; current: Reading | null; onOpen: (id: string) => void }) {
+export function AudiobooksView({ api, pro, onJoin, current, onOpen }: { api: Api; /** A Pod+ member: Ask AI is theirs. */ pro: boolean; onJoin: () => void; current: Reading | null; onOpen: (id: string) => void }) {
   const [shelf, setShelf] = useState(() => ls.get("podscroll.bookShelf") || "all");
   const [sort, setSort] = useState(() => ls.get("podscroll.bookSort") || "popular");
   const [shelves, setShelves] = useState<{ id: string; label: string }[]>([{ id: "all", label: "All" }]);
@@ -163,10 +168,10 @@ export function AudiobooksView({ api, current, onOpen }: { api: Api; current: Re
         <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight"><BookOpen size={24} strokeWidth={2} />Audiobooks</h1>
         <p className="mt-1 text-sm text-[#606060]">Thousands of classic books, read aloud. Free, with no ads.</p>
       </div>
-      <form role="search" onSubmit={(e) => { e.preventDefault(); const t = q.trim(); setTerm(t ? { kind: mode, q: t } : null); }} className="flex w-full max-w-[440px] flex-col gap-2">
+      <form role="search" onSubmit={(e) => { e.preventDefault(); const t = q.trim(); if (t && mode === "ai" && !pro) { onJoin(); return; } setTerm(t ? { kind: mode, q: t } : null); }} className="flex w-full max-w-[440px] flex-col gap-2">
         <div role="group" aria-label="How to search" className="flex gap-1 self-start rounded-full bg-[#f2f2f2] p-0.5 text-xs font-semibold">
           <button type="button" aria-pressed={!ai} onClick={() => setMode("search")} className={`h-7 rounded-full px-3 ${!ai ? "bg-white shadow-sm" : "text-[#606060]"}`}>Search</button>
-          <button type="button" aria-pressed={ai} onClick={() => setMode("ai")} className={`inline-flex h-7 items-center gap-1 rounded-full px-3 ${ai ? "bg-white shadow-sm" : "text-[#606060]"}`}><Sparkles size={13} />Ask AI</button>
+          <button type="button" aria-pressed={ai} onClick={() => setMode("ai")} className={`inline-flex h-7 items-center gap-1 rounded-full px-3 ${ai ? "bg-white shadow-sm" : "text-[#606060]"}`}><Sparkles size={13} />Ask AI{!pro && <MembersTag />}</button>
         </div>
         <div className="flex items-center">
           <label htmlFor="ps-book-q" className="sr-only">{ai ? "Describe a book you'd like" : "Find a book or author"}</label>
@@ -377,7 +382,7 @@ function sectionFor(sections: TextSection[], book: BookDetail, ch: number): numb
   return Math.min(sections.length - 1, Math.round((ch / Math.max(1, book.chapters.length)) * sections.length));
 }
 
-function ReadAlong({ api, reading, time, onSeek, onClose }: { api: Api; reading: Reading; time: number; onSeek: (t: number) => void; onClose: () => void }) {
+function ReadAlong({ api, pro, onJoin, reading, time, onSeek, onClose }: { api: Api; pro: boolean; onJoin: () => void; reading: Reading; time: number; onSeek: (t: number) => void; onClose: () => void }) {
   const { book, ch } = reading;
   const [tab, setTab] = useState<"text" | "transcript">("text");
   const [text, setText] = useState<{ sections: TextSection[]; source: string } | null | "none">(null);
@@ -400,7 +405,7 @@ function ReadAlong({ api, reading, time, onSeek, onClose }: { api: Api; reading:
   // The transcript, 10 minutes at a time, a little before the listener gets there.
   const piece = Math.floor(time / 600);
   useEffect(() => {
-    if (tab !== "transcript") return;
+    if (tab !== "transcript" || !pro) return;
     for (const k of [piece, piece + (time % 600 > 480 ? 1 : 0)]) {
       if (asked.current.has(k) || (k > piece && !txMore)) continue;
       asked.current.add(k);
@@ -422,7 +427,7 @@ function ReadAlong({ api, reading, time, onSeek, onClose }: { api: Api; reading:
     <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-[#ececec] bg-white px-4 py-2">
       <div role="group" aria-label="Read along" className="flex gap-1 rounded-full bg-[#f2f2f2] p-0.5 text-xs font-semibold">
         <button aria-pressed={tab === "text"} onClick={() => setTab("text")} className={`h-7 rounded-full px-3 ${tab === "text" ? "bg-white shadow-sm" : "text-[#606060]"}`}>Book text</button>
-        <button aria-pressed={tab === "transcript"} onClick={() => setTab("transcript")} className={`inline-flex h-7 items-center gap-1 rounded-full px-3 ${tab === "transcript" ? "bg-white shadow-sm" : "text-[#606060]"}`}><Sparkles size={12} />Transcript</button>
+        <button aria-pressed={tab === "transcript"} onClick={() => setTab("transcript")} className={`inline-flex h-7 items-center gap-1 rounded-full px-3 ${tab === "transcript" ? "bg-white shadow-sm" : "text-[#606060]"}`}><Sparkles size={12} />Transcript{!pro && <MembersTag />}</button>
       </div>
       {tab === "text" && sec && <span className="ml-auto flex items-center gap-1">
         <button onClick={() => setAt((n) => Math.max(0, n - 1))} disabled={at === 0} aria-label="Previous part" className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-[#f2f2f2] disabled:opacity-30"><ChevronLeft size={18} /></button>
@@ -439,7 +444,13 @@ function ReadAlong({ api, reading, time, onSeek, onClose }: { api: Api; reading:
             <p className="mt-8 text-xs text-[#767676]">The book's original text, from <a href={text.source} target="_blank" rel="noreferrer" className="underline">Project Gutenberg</a> (public domain). The reading may differ a little.</p>
           </article>
       ) : (
-        <div className="mx-auto max-w-[620px]">
+        !pro ? <div className="mx-auto max-w-[420px] py-10 text-center">
+          <Sparkles className="mx-auto" size={26} style={{ color: ACCENT }} />
+          <p className="mt-3 text-base font-semibold">AI transcripts are for Pod+ members</p>
+          <p className="mt-1 text-sm text-[#606060]">Follow every word as it's read, and tap any line to jump there. The book's own text is free in the Book text tab.</p>
+          <button onClick={onJoin} className="mt-4 h-10 rounded-full px-5 text-sm font-semibold text-white" style={{ background: ACCENT }}>Become a member</button>
+        </div>
+        : <div className="mx-auto max-w-[620px]">
           {!lines.length && !txErr && <div className="flex flex-col items-center gap-2 py-12 text-sm text-[#606060]"><Loader2 className="animate-spin" size={24} />Writing out this part with AI…</div>}
           {txErr && <div className="py-6 text-center text-sm text-[#606060]"><p>{txErr}</p><button onClick={() => { asked.current.clear(); setTxErr(""); setLines([]); }} className="mt-3 h-9 rounded-full bg-[#0f0f0f] px-4 font-semibold text-white">Try again</button></div>}
           {lines.map((l, i) => <button key={`${l.s}-${i}`} data-line={i} onClick={() => onSeek(l.s)}
@@ -456,14 +467,15 @@ function ReadAlong({ api, reading, time, onSeek, onClose }: { api: Api; reading:
 const SLEEPS: [string, number | "end" | null][] = [["Off", null], ["15 min", 15], ["30 min", 30], ["45 min", 45], ["1 hour", 60], ["End of chapter", "end"]];
 
 /** The bar at the bottom while a book plays: plays chapter after chapter, and remembers the spot. */
-export function AudiobookBar({ api, reading, tap, onChange, onStop, onOpen, onPlaying, say }: { api: Api; reading: Reading; /** Goes up each time the book page's Play/Pause is tapped. */ tap: number; onChange: (r: Reading) => void; onStop: () => void; onOpen: () => void; onPlaying: (on: boolean) => void; say: (m: string) => void }) {
+export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop, onOpen, onPlaying, say }: { api: Api; /** A Pod+ member: AI transcripts and Voice boost are theirs. */ pro: boolean; onJoin: () => void; reading: Reading; /** Goes up each time the book page's Play/Pause is tapped. */ tap: number; onChange: (r: Reading) => void; onStop: () => void; onOpen: () => void; onPlaying: (on: boolean) => void; say: (m: string) => void }) {
   const audio = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(true);
   const [time, setTime] = useState(0);
   const [dur, setDur] = useState(0);
   const [speed, setSpeed] = useState<number>(() => { const n = Number(ls.get("podscroll.bookSpeed")); return (SPEEDS as readonly number[]).includes(n) ? n : 1; });
-  const [boost, setBoost] = useState(() => ls.get("podscroll.bookBoost") === "1" && voiceBoostSupported());
+  const [boostPick, setBoost] = useState(() => ls.get("podscroll.bookBoost") === "1" && voiceBoostSupported());
+  const boost = boostPick && pro;
   const [sleepAt, setSleepAt] = useState<number | "end" | null>(null);
   const [sheet, setSheet] = useState<"settings" | "read" | null>(null);
   const { book, ch } = reading;
@@ -476,17 +488,35 @@ export function AudiobookBar({ api, reading, tap, onChange, onStop, onOpen, onPl
     if (n < 0 || n >= book.chapters.length) return;
     onChange({ book, ch: n, at: 0 });
   }, [book, onChange]);
-  const srcOf = (c: BookChapter) => (boost || routed.current ? `${API}/api/podscroll/books/audio?u=${encodeURIComponent(c.audio)}` : c.audio);
+  // Voice boost's audio comes through the server with a member's pass (good for 12 hours).
+  const pass = useRef<{ k: string; exp: number } | null>(null);
+  const getPass = async () => {
+    if (pass.current && pass.current.exp > Date.now() + 60_000) return pass.current.k;
+    const b = await api("/api/earshot/books/relay-pass");
+    pass.current = { k: String(b.pass), exp: Number(String(b.pass).split(".")[0]) * 1000 };
+    return pass.current.k;
+  };
+  const relayUrl = (c: BookChapter, k: string) => `${API}/api/podscroll/books/audio?u=${encodeURIComponent(c.audio)}&k=${encodeURIComponent(k)}`;
 
   useEffect(() => {
     const a = audio.current; if (!a || !chapter) return;
     setLoading(true); setTime(reading.at); setDur(chapter.secs);
-    if (boost || routed.current) a.crossOrigin = "anonymous"; else a.removeAttribute("crossorigin");
-    a.src = srcOf(chapter);
-    a.playbackRate = speed;
+    let alive = true;
     const seek = () => { if (reading.at > 0) { try { a.currentTime = reading.at; } catch { /* not seekable yet */ } } };
-    a.addEventListener("loadedmetadata", seek, { once: true });
-    a.play().catch(() => { setLoading(false); say("Tap play to start the book."); });
+    const start = (src: string) => {
+      if (!alive) return;
+      a.src = src; a.playbackRate = speed;
+      a.addEventListener("loadedmetadata", seek, { once: true });
+      a.play().catch(() => { setLoading(false); say("Tap play to start the book."); });
+    };
+    if (boost || routed.current) {
+      a.crossOrigin = "anonymous";
+      getPass().then((k) => start(relayUrl(chapter, k))).catch(() => {
+        // Not a member any more: play it as it is (a player already routed through the boost can't).
+        if (routed.current) say("Sign in again to keep Voice boost on.");
+        a.removeAttribute("crossorigin"); start(chapter.audio);
+      });
+    } else { a.removeAttribute("crossorigin"); start(chapter.audio); }
     try {
       if ("mediaSession" in navigator) {
         const { main } = chapterName(chapter);
@@ -500,20 +530,23 @@ export function AudiobookBar({ api, reading, tap, onChange, onStop, onOpen, onPl
         ms.setActionHandler("seekforward", () => { const x = audio.current; if (x) x.currentTime = x.currentTime + 30; });
       }
     } catch { /* older browsers */ }
-    return () => { a.removeEventListener("loadedmetadata", seek); if (a.currentTime > 0) saveSpot(book, ch, a.currentTime); a.pause(); };
+    return () => { alive = false; a.removeEventListener("loadedmetadata", seek); if (a.currentTime > 0) saveSpot(book, ch, a.currentTime); a.pause(); };
   }, [book, ch]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { const a = audio.current; if (a) { a.pause(); a.removeAttribute("src"); a.load(); } }, []);
   useEffect(() => { onPlaying(playing); }, [playing, onPlaying]);
 
   // Voice boost on: this chapter comes through the server from where it is, and its sound is shaped.
-  const applyBoost = (on: boolean) => {
+  const applyBoost = async (on: boolean) => {
+    if (on && !pro) { setSheet(null); say("Voice boost is part of Pod+ Membership."); onJoin(); return; }
     const a = audio.current;
     setBoost(on); ls.set("podscroll.bookBoost", on ? "1" : "0");
     if (!a) return;
     if (on) primeVoiceBoost();
     if (on && !routed.current) {
+      let k = "";
+      try { k = await getPass(); } catch (e: any) { setBoost(false); say(e?.message || "Voice boost isn't available right now."); return; }
       const t = a.currentTime, was = !a.paused;
-      a.crossOrigin = "anonymous"; a.src = `${API}/api/podscroll/books/audio?u=${encodeURIComponent(chapter.audio)}`;
+      a.crossOrigin = "anonymous"; a.src = relayUrl(chapter, k);
       a.addEventListener("loadedmetadata", () => { try { a.currentTime = t; } catch { /* ignore */ } }, { once: true });
       if (was) a.play().catch(() => {});
     }
@@ -585,8 +618,8 @@ export function AudiobookBar({ api, reading, tap, onChange, onStop, onOpen, onPl
           })}</div>
         </div>
         {voiceBoostSupported() && <div className="flex items-start justify-between gap-4">
-          <div><p className="text-sm font-semibold">Voice boost</p><p className="text-xs text-[#606060]">Clearer voices and steadier volume. Great for quiet readers and the car.</p></div>
-          <button role="switch" aria-checked={boost} aria-label="Voice boost" onClick={() => applyBoost(!boost)} className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition ${boost ? "bg-[#ff6a1f]" : "bg-[#d3d3d3]"}`}><span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition ${boost ? "translate-x-6" : "translate-x-1"}`} /></button>
+          <div><p className="flex items-center gap-2 text-sm font-semibold">Voice boost{!pro && <MembersTag />}</p><p className="text-xs text-[#606060]">Clearer voices and steadier volume. Great for quiet readers and the car.</p></div>
+          <button role="switch" aria-checked={boost} aria-label="Voice boost" onClick={() => void applyBoost(!boost)} className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition ${boost ? "bg-[#ff6a1f]" : "bg-[#d3d3d3]"}`}><span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition ${boost ? "translate-x-6" : "translate-x-1"}`} /></button>
         </div>}
         <div className="flex gap-2 md:hidden">
           <button onClick={() => go(ch - 1)} disabled={ch === 0} className="h-10 flex-1 rounded-full bg-[#f2f2f2] text-sm font-semibold disabled:opacity-40">Previous chapter</button>
@@ -595,6 +628,6 @@ export function AudiobookBar({ api, reading, tap, onChange, onStop, onOpen, onPl
         <button onClick={() => { setSheet(null); onStop(); }} className="h-10 w-full rounded-full border border-[#d3d3d3] text-sm font-semibold sm:hidden">Close the book</button>
       </div>
     </Sheet>}
-    {sheet === "read" && <ReadAlong api={api} reading={reading} time={time} onSeek={(t) => { const a = audio.current; if (a) { a.currentTime = t; if (a.paused) a.play().catch(() => {}); } }} onClose={() => setSheet(null)} />}
+    {sheet === "read" && <ReadAlong api={api} pro={pro} onJoin={() => { setSheet(null); onJoin(); }} reading={reading} time={time} onSeek={(t) => { const a = audio.current; if (a) { a.currentTime = t; if (a.paused) a.play().catch(() => {}); } }} onClose={() => setSheet(null)} />}
   </div>;
 }

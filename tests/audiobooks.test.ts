@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { baseTitle, bookFromMetadata, booksFromSearch, gutenbergIdOf, isBookAudio, lengthSecs, pieceRange, readerOf, registerAudiobookRoutes, searchUrl, sectionsOf, tidyChapter, versionsUrl } from "../server/audiobooks";
+import { relayPass, relayPassOk, baseTitle, bookFromMetadata, booksFromSearch, gutenbergIdOf, isBookAudio, lengthSecs, pieceRange, readerOf, registerAudiobookRoutes, searchUrl, sectionsOf, tidyChapter, versionsUrl } from "../server/audiobooks";
 
 const read = (u: string) => decodeURIComponent(u.replace(/\+/g, " "));
 
@@ -98,10 +98,31 @@ test("routes: list, book, other readings, AI search (answers matched to real boo
   assert.deepEqual(v.out.versions.map((b: any) => [b.id, b.kind]), [["emma_librivox", "group"], ["emma_2_librivox", "dramatic"]]);
   // The other route ids don't get caught by /books/:id.
   assert.ok(Object.keys(routes).indexOf("GET /api/podscroll/books/audio") < Object.keys(routes).indexOf("GET /api/podscroll/books/:id"));
-  const ai = await call("POST /api/podscroll/books/ai", { body: { q: "a funny love story" } });
+  // Ask AI, AI transcripts and Voice boost are for Pod+ members (signed in: req.creator).
+  const free = await call("POST /api/podscroll/books/ai", { body: { q: "a funny love story" } });
+  assert.equal(free.status, 402);
+  assert.equal(free.out.needSignIn, true);
+  assert.equal((await call("GET /api/podscroll/books/:id/transcript", { params: { id: "emma_librivox" }, query: { ch: "0" } })).status, 402);
+  assert.equal((await call("GET /api/podscroll/books/relay-pass", {})).status, 402);
+  const member = { creator: { email: "a@b.c", id: 1 } };
+  assert.match((await call("GET /api/podscroll/books/relay-pass", member)).out.pass, /^\d+\.[\w-]{32}$/);
+  const ai = await call("POST /api/podscroll/books/ai", { ...member, body: { q: "a funny love story" } });
   assert.equal(ai.status, 200);
   assert.equal(ai.out.books[0].why, "A witty matchmaker.");
-  assert.equal((await call("POST /api/podscroll/books/ai", { body: { q: "x" } })).status, 400);
+  assert.equal((await call("POST /api/podscroll/books/ai", { ...member, body: { q: "x" } })).status, 400);
+  // The voice boost relay needs a member's pass.
+  const relay = async (k: string) => { let status = 200; const res: any = { status: (x: number) => { status = x; return res; }, end: () => res }; await routes["GET /api/podscroll/books/audio"]({ query: { u: "https://archive.org/download/emma_librivox/emma_01_64kb.mp3", k }, headers: {}, socket: {}, on: () => {} }, res); return status; };
+  assert.equal(await relay(""), 403);
+  assert.equal(await relay("9999999999.forged-signature-forged-signature12"), 403);
+});
+
+test("relay passes: signed, and only good for 12 hours", () => {
+  const key = Buffer.alloc(32, 7), t = Date.UTC(2026, 9, 28);
+  const p = relayPass(key, t);
+  assert.ok(relayPassOk(key, p, t + 3600_000));
+  assert.ok(!relayPassOk(key, p, t + 13 * 3600_000), "expired");
+  assert.ok(!relayPassOk(Buffer.alloc(32, 8), p, t), "another key");
+  assert.ok(!relayPassOk(key, p.replace(/^\d+/, (n) => String(Number(n) + 99999)), t), "a longer time can't be written in");
 });
 
 test("Audiobooks stays inside its own pages: no row on the home page", () => {
