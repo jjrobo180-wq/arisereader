@@ -56,7 +56,11 @@ const STRONG: RegExp[] = [
   // Political ads and the fine print read at the end of ads
   /\bpaid for by\b/, /\bi approve this message\b/, /\bnot authorized by any candidate\b/,
   /\b(see|visit) [a-z0-9. ]{2,30} for (details|full terms|terms)\b/, /\brestrictions apply\b/, /\bvoid where prohibited\b/, /\bsubject to credit approval\b/,
-  /\bequal housing (lender|opportunity)\b/, /\b(investing|investment) involves risk\b/, /\bpast performance (is not|does not)\b/, /\bmessage and data rates may apply\b/,
+  /\bequal housing (lender|opportunity)\b/, /\b(investing|investment) involves risk\b/, /\bpast performance (is not|does not)\b/, /\bmessage and data rates may apply\b/,  // More sponsor-read wording (found without AI, so ads are still caught when the AI is busy)
+  /\bat checkout\b/, /\b(get|save|take) (an extra )?(\d{1,2}|ten|fifteen|twenty|twenty five|thirty|forty|fifty) ?(%|percent)\b/, /\bfree (gift|bonus|month|week|box|sample)s? (with|when|for)\b/,
+  /\b(this|today's) (episode|show) is (also )?(brought to you|made possible)\b/, /\b(a )?word from (our|today's|this week's) sponsors?\b/, /\bour (friends|partners) (at|over at)\b.*\b(dot ?com|\.com|code|offer|off)\b/,
+  /\b(link|code|offer) (is )?in (the |our )?(show notes|description|episode notes)\b/, /\btext [a-z0-9]+ to \d{3,6}\b/, /\bfor a limited time\b/, /\b(use|enter) (my|our) (code|link)\b/,
+  /\bpaid (promotion|partnership|advertisement)\b/, /\b(and )?now back to (the|our) (show|episode|conversation)\b/, /\bthis (ad|advertisement) (was|is)\b/,
 ];
 /** Wording that's common in ads and around ad breaks, but also in shows. */
 const MEDIUM: RegExp[] = [
@@ -66,7 +70,8 @@ const MEDIUM: RegExp[] = [
   /\bsave (up to )?\d+\b/, /\bget \d+ ?(%|percent)\b/, /\boffer ends\b/, /\bright now\b.*\b(get|save)\b/,
   // Donation asks and network promos
   /\b(make a|your) (donation|gift)\b/, /\b(donate|give) (at|today|now)\b/, /\bbecome a (member|sustainer|supporter)\b/, /\bpledge\b/,
-  /\b(new|next) episodes? (every|drop|out)\b.*\b(listen|subscribe|follow)\b/, /\b(listen|binge) (to )?(the )?(whole|full|entire) (series|season)\b/,
+  /\b(new|next) episodes? (every|drop|out)\b.*\b(listen|subscribe|follow)\b/, /\b(listen|binge) (to )?(the )?(whole|full|entire) (series|season)\b/,  /\b(let's|lets) take a (quick |short )?break\b/, /\b(we'll|we will) be back (after|in)\b/, /\band we're back\b/, /\bwelcome back\b/, /\bspecial (offer|deal)\b/,
+  /\bsign up (today|now)\b/, /\bdownload (it )?(today|now|for free)\b/, /\bavailable (now )?(at|on) (amazon|target|walmart|costco)\b/, /\bgo to [a-z0-9]+\b.*\b(today|now)\b/,
 ];
 /** Brands that sponsor podcasts all the time (only counted with ad wording nearby, so talking about them isn't an ad). */
 export const SPONSOR_BRANDS = [
@@ -170,17 +175,23 @@ export type ShowProfile = {
   /** Pre-roll lengths, newest last. */
   prerolls: number[];
   episodes: string[];
+  /** Where this show's ad breaks have been heard (show time, seconds) with the episode's length,
+   *  newest last: used to check those parts of new episodes first. Older profiles don't have it. */
+  spots?: [number, number][];
 };
-export const emptyProfile = (): ShowProfile => ({ sponsors: {}, leadins: {}, intros: {}, prerolls: [], episodes: [] });
+export const emptyProfile = (): ShowProfile => ({ sponsors: {}, leadins: {}, intros: {}, prerolls: [], episodes: [], spots: [] });
 const top = (r: Record<string, number>, n: number) => Object.fromEntries(Object.entries(r).sort((a, b) => b[1] - a[1]).slice(0, n));
 const median = (xs: number[]) => { if (!xs.length) return null; const v = xs.slice().sort((a, b) => a - b); return v[Math.floor(v.length / 2)]; };
 
 /** Learn from one analysed piece of an episode. `opening` (its first piece) also teaches pre-roll
  *  length and how episodes start; later pieces teach sponsors and how ad breaks start. */
-export function learnProfile(p: ShowProfile, episodeId: string, segs: TxSegment[], ads: AdRange[], opening = true): ShowProfile {
+export function learnProfile(p: ShowProfile, episodeId: string, segs: TxSegment[], ads: AdRange[], opening = true, duration = 0): ShowProfile {
   if (p.episodes.includes(episodeId) || !segs.length) return p;
-  const next: ShowProfile = { sponsors: { ...p.sponsors }, leadins: { ...p.leadins }, intros: { ...p.intros }, prerolls: p.prerolls.slice(), episodes: [...p.episodes, episodeId].slice(-60) };
+  const next: ShowProfile = { sponsors: { ...p.sponsors }, leadins: { ...p.leadins }, intros: { ...p.intros }, prerolls: p.prerolls.slice(), episodes: [...p.episodes, episodeId].slice(-60), spots: (p.spots ?? []).slice() };
   const sure = ads.filter((a) => (a.conf ?? 0.8) >= 0.75);
+  // Mid-roll and end ad breaks: where they sit (only from show-time pieces, which pass the length).
+  if (duration > 0) for (const a of sure) if (a.s >= 30 && a.kind !== "intro" && a.kind !== "user") next.spots!.push([Math.round(a.s), Math.round(duration)]);
+  next.spots = next.spots!.slice(-80);
   const seen = new Set<string>();
   for (const a of sure) {
     const label = norm(a.label || "");
@@ -217,6 +228,46 @@ export function learnedPreroll(segs: TxSegment[], ads: AdRange[], hints: AdHints
   const before = segs.slice(0, i).reduce((n, s) => n + lineAdScore(s.t, hints), 0);
   if ((hints.preroll ?? 0) < 15 && before < 3) return null;
   return { s: 0, e: end, label: "Pre-roll", conf: before >= 3 ? 0.9 : 0.8, kind: "learned" };
+}
+
+/** The pieces of a new episode (of `duration` seconds, cut every `chunkSecs`) where this show's ad
+ *  breaks usually are, most likely first. Breaks near the end are matched from the end (episodes
+ *  differ in length), the rest by time. A piece counts once seen twice, or once when the show has
+ *  only a few episodes on record. The first piece is left out (the opening check covers it). */
+export function adSpotChunks(p: ShowProfile | null | undefined, duration: number, chunkSecs: number, max = 3): number[] {
+  const spots = p?.spots ?? [];
+  if (!spots.length || duration <= 0 || chunkSecs <= 0) return [];
+  const last = Math.max(0, Math.ceil(duration / chunkSecs - 0.01) - 1);
+  const tally = new Map<number, number>();
+  for (const [s, d] of spots) {
+    const fromEnd = d - s;
+    const t = fromEnd >= 0 && fromEnd <= 300 ? duration - fromEnd : s;
+    const c = Math.min(last, Math.max(0, Math.floor(t / chunkSecs)));
+    if (c > 0) tally.set(c, (tally.get(c) ?? 0) + 1);
+  }
+  const need = (p?.episodes.length ?? 0) >= 4 ? 2 : 1;
+  return [...tally.entries()].filter(([, n]) => n >= need).sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, max).map(([c]) => c);
+}
+
+/** One tap on "That's an ad": the ad around `t`, from the transcript when there is one. It starts
+ *  at the first ad-sounding line just before `t` and runs until the show is back (two plain lines
+ *  in a row). With no transcript there, it's the next 30 seconds (each further tap adds 30). */
+export function guessAdAround(segs: TxSegment[], t: number, hints: AdHints = {}): { s: number; e: number; sure: boolean } {
+  const near = segs.filter((x) => x.e >= t - 150 && x.s <= t + 240);
+  const at = near.findIndex((x) => x.e >= t);
+  if (at < 0 || near[at].s > t + 20) return { s: Math.max(0, Math.floor(t) - 3), e: Math.floor(t) + 30, sure: false };
+  const score = near.map((x) => lineAdScore(x.t, hints));
+  let a = at;
+  while (a > 0 && score[a - 1] >= 1 && t - near[a - 1].s <= 120) a--;
+  let b = at, plain = 0, sawAd = score[at] >= 1;
+  for (let i = at + 1; i < near.length && near[i].s - t <= 180; i++) {
+    if (score[i] >= 1) { sawAd = true; plain = 0; b = i; }
+    else if (++plain >= 2 && (sawAd || near[i].s - t >= 30)) break;
+    else if (!sawAd) b = i;
+  }
+  const s = Math.min(Math.floor(t) - 1, Math.floor(near[a].s));
+  const e = Math.max(Math.ceil(near[b].e), Math.floor(t) + 10);
+  return { s: Math.max(0, s), e: Math.min(e, Math.floor(t) + 180), sure: sawAd };
 }
 
 // ---------------------------------------------------------------------------

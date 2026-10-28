@@ -7,7 +7,7 @@ import {
   EARSHOT_LIMITS, GENRES, GENRE, SPEEDS, chooseEpisode, chooseFreshEpisode, clock, compact, durationWords, mergeAds, pickNext, shareText, startAt, tasteOf, type AdMode,
   type AdRange, type Candidate, type Chapter, type Earshot as EarshotData, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal, type TranscriptChunk, type TxSegment,
 } from "@shared/earshot";
-import { alignAds, playAdAt, type PlayAd, type ServerAd } from "@shared/earshotAds";
+import { alignAds, guessAdAround, playAdAt, type PlayAd, type ServerAd } from "@shared/earshotAds";
 import { AddToSheet, AiFinder, ModeView, ModesHub, ShowPage } from "./EarshotExtras";
 import { InfoSheet } from "./EarshotInfo";
 import { ClipMaker, LIGHT_CSS, ProfileEditor, ShareSheet, UploadSheet, postEpisodeOf, toEpisode as micEpisode, toShow as micShow } from "./EarshotSocial";
@@ -993,8 +993,9 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     setDraft({ ep: it.ep, showId: it.show.id, s: m.s, e, label: "" });
   };
   const markFromLines = (s: number, e: number) => { const it = items[active]; if (!it?.ep) return; setSheet(null); setDraft({ ep: it.ep, showId: it.show.id, s: Math.floor(s), e: Math.ceil(e), label: "" }); };
-  const saveDraft = async () => {
-    const d = draft; const D = cur.current?.duration; if (!d) return;
+  const saveDraft = () => { if (draft) void saveMark(draft); };
+  const saveMark = async (d: NonNullable<typeof draft>, quiet = false) => {
+    const D = cur.current?.duration;
     const dur = D && Number.isFinite(D) ? D : d.ep.secs;
     const local: PlayAd = { key: `l:${d.ep.id}:${d.s}:${d.e}`, s: d.s, e: d.e, label: d.label || "Ad break", kind: "user", sure: true };
     setDraft(null);
@@ -1005,13 +1006,53 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       if (Array.isArray(b?.ads)) serverAds.current.set(d.ep.id, b.ads);
       if (play) { localAds.current.set(d.ep.id, [...(localAds.current.get(d.ep.id) ?? []), local]); pollPlay(d.ep.id, true); }
       setAdsTick((x) => x + 1);
-      say(play ? "Thanks! This ad will be skipped for everyone who plays this episode." : "Thanks! This ad will be skipped for everyone with this version of the episode.");
+      if (!quiet) say(play ? "Thanks! This ad will be skipped for everyone who plays this episode." : "Thanks! This ad will be skipped for everyone with this version of the episode.");
     } catch (e: any) {
       localAds.current.set(d.ep.id, [...(localAds.current.get(d.ep.id) ?? []), local]);
       setAdsTick((x) => x + 1);
       say(e?.status === 503 ? "Saved for you. Sharing marks with everyone isn't switched on yet." : e?.message || "That didn't save. Try again.");
     }
   };
+
+  // ---------------- "That's an ad": one tap skips it, and it's saved for everyone ----------------
+  // The ad's start and end come from the transcript around now when there is one (the first
+  // ad-sounding line just before, until the show is back); otherwise it's the next 30 seconds.
+  // Each further tap means "still an ad": 30 seconds more. Saved 8 seconds after the last tap,
+  // unless Undo; Edit opens the usual mark sheet to fix the times or name the sponsor.
+  const [tapAd, setTapAd] = useState<{ ep: PodEpisode; showId: string; s: number; e: number; n: number; saved: number } | null>(null);
+  const tapRef = useRef(tapAd); tapRef.current = tapAd;
+  const thatsAnAd = () => {
+    const a = cur.current, it = items[active], ep = activeEp;
+    if (!a || !ep || !it || a.dataset.ep !== ep.id) { say("Play the episode first, then tap Ad when an ad starts."); return; }
+    const t = a.currentTime, prev = tapRef.current;
+    if (prev && prev.ep.id === ep.id) {
+      const e = Math.min(Math.max(prev.e, Math.floor(t)) + 30, Math.floor((a.duration && Number.isFinite(a.duration) ? a.duration : ep.secs) || prev.e + 30));
+      const more = Math.max(0, e - Math.max(prev.e, t));
+      setTapAd({ ...prev, e, n: prev.n + 1, saved: prev.saved + more }); seekTo(e); addSaved(more, false);
+      return;
+    }
+    const g = guessAdAround(txs.current.get(ep.id)?.segments ?? [], t);
+    const saved = Math.max(0, g.e - t);
+    setTapAd({ ep, showId: it.show.id, s: g.s, e: g.e, n: 1, saved });
+    seekTo(g.e); addSaved(saved, false);
+    if (a.paused) toggle();
+  };
+  useEffect(() => {
+    if (!tapAd) return;
+    const d = tapAd;
+    const timer = setTimeout(() => { setTapAd(null); void saveMark({ ep: d.ep, showId: d.showId, s: d.s, e: d.e, label: "" }, true); }, 8000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tapAd]);
+  const undoTap = () => { const d = tapRef.current; if (!d) return; setTapAd(null); addSaved(-d.saved, false); seekTo(Math.max(d.s, d.e - d.saved - 1)); };
+  const editTap = () => { const d = tapRef.current; if (!d) return; setTapAd(null); setDraft({ ep: d.ep, showId: d.showId, s: d.s, e: d.e, label: "" }); };
+  // The shows someone follows, so their new episodes are checked for ads before they play (once a day is plenty).
+  const followIds = es.follows.map((f) => f.id).slice(0, 60).join(",");
+  useEffect(() => {
+    if (!followIds) return;
+    const t = setTimeout(() => { api("/api/earshot/precheck/follows", { method: "POST", body: { ids: followIds.split(",") } }).catch(() => {}); }, 20_000);
+    return () => clearTimeout(t);
+  }, [followIds, api]);
 
   // ---------------- actions ----------------
   const isFollowing = (id: string) => es.follows.some((f) => f.id === id);
@@ -1266,7 +1307,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
         counts={it.ep ? counts[it.ep.id] : undefined} commentsOn={commentsOn} following={it.mic ? it.mic.followed : isFollowing(it.show.id)} saved={!!it.ep && (es.saved.some((x) => x.id === it.ep!.id) || es.modes.some((m) => m.episodes.some((x) => x.id === it.ep!.id)))} notes={es.settings.notes} full={es.settings.fullCover} unlocked={unlocked}
         apple={!!standalone} chapters={(i === active && txFor(it.ep)?.chapters) || NONE_CHAPTERS} lines={(i === active && txFor(it.ep)?.segments) || NONE_LINES} speed={es.settings.speed} onSpeed={cycleSpeed} sleepOn={sleepAt !== null} onSleep={() => setSheet({ kind: "sleep" })}
         ad={i === active ? adOffer : null} onSkipAd={takeOffer} onNotAd={refuseOffer} onTapStart={unlock}
-        adMarks={i === active && adsOn ? activeAds : []} marking={i === active && !!marking} onMark={startMark}
+        adMarks={i === active && adsOn ? activeAds : []} marking={i === active && !!marking} onMark={thatsAnAd}
         onToggle={toggle} onSeek={(t) => seekTo(t, true)} onBack={() => seekBy(-15)} onFwd={() => seekBy(30)} onRead={openRead}
         onAsk={() => it.ep && openAsk(it.ep)} onCatchUp={i === active && it.ep && catchUpWorthIt(time, lastHeardAt.current.get(it.ep.id)) ? () => it.ep && void openCatchUp(it.ep) : undefined}
         onLike={() => it.ep && toggleLike(it.ep, it.show.genre)} onDoubleLike={() => it.ep && !counts[it.ep.id]?.liked && toggleLike(it.ep, it.show.genre)}
@@ -1276,6 +1317,16 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
         onInfo={() => { setSheet({ kind: "info", show: it.show }); signal(it.show.genre, "open"); }} onNext={() => goTo(i + 1)} />)}
     </div>}
 
+    {tapAd && activeEp && tapAd.ep.id === activeEp.id && <div className={`pointer-events-none absolute inset-x-3 ${below} z-[26] flex justify-center`}>
+      <div key={tapAd.n} role="status" className="pointer-events-auto relative flex max-w-full flex-wrap items-center justify-center gap-1.5 overflow-hidden rounded-2xl bg-[#ffd23f] py-2 pl-3.5 pr-2 text-[13px] font-semibold text-[#120e14] shadow-xl" data-testid="tap-ad-toast">
+        <SkipForward size={14} className="flex-none" />
+        <span className="min-w-0 truncate">Skipped the ad · {clock(tapAd.s)}–{clock(tapAd.e)}</span>
+        <button type="button" onClick={thatsAnAd} className="flex-none rounded-full bg-black/10 px-2.5 py-1 text-xs font-bold hover:bg-black/20">Still an ad +30s</button>
+        <button type="button" onClick={editTap} className="flex-none rounded-full bg-black/10 px-2.5 py-1 text-xs font-bold hover:bg-black/20">Edit</button>
+        <button type="button" onClick={undoTap} className="flex-none rounded-full bg-[#120e14] px-2.5 py-1 text-xs font-bold text-white">Undo</button>
+        <span aria-hidden className="absolute inset-x-0 bottom-0 h-[2px] origin-left bg-black/30" style={{ animation: "esDrain 8s linear forwards" }} />
+      </div>
+    </div>}
     {skipped && <div className={`pointer-events-none absolute inset-x-3 ${below} z-[25] flex justify-center`}>
       <style>{"@keyframes esPill{from{opacity:0;transform:translateY(-8px) scale(.96)}to{opacity:1;transform:none}}@keyframes esDrain{from{transform:scaleX(1)}to{transform:scaleX(0)}}"}</style>
       <div key={skipped.ad.key} role="status" className="pointer-events-auto relative flex max-w-full items-center gap-2.5 overflow-hidden rounded-full bg-black/45 py-1.5 pl-3.5 pr-1.5 text-[13px] font-medium text-white shadow-lg ring-1 ring-white/10 backdrop-blur-xl" style={{ animation: "esPill .35s cubic-bezier(.2,.8,.2,1)" }}>
@@ -1485,7 +1536,7 @@ function Card(p: CardProps) {
 
         {ep && <div className="pointer-events-auto mt-4 flex flex-col">
           <Scrubber time={p.time} dur={p.dur} active={p.active} ads={p.adMarks} chapters={p.chapters} lines={p.lines} onSeek={p.onSeek} onScrubbing={setScrubbing}
-            middle={p.unlocked && p.active && !p.marking ? <button type="button" onClick={p.onMark} aria-label="Mark an ad" title="Mark an ad" className="grid h-8 w-8 place-items-center rounded-full text-white/40 hover:text-white/80"><Megaphone size={15} strokeWidth={1.7} /></button> : null} />
+            middle={p.unlocked && p.active && !p.marking ? <button type="button" onClick={p.onMark} aria-label="That's an ad: skip it" title="That's an ad: skip it" data-testid="thats-an-ad" className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[#ffd23f] px-3 text-xs font-bold text-[#120e14] shadow active:scale-95"><Megaphone size={14} strokeWidth={2} />Ad? Skip</button> : null} />
           <div className="mt-3 flex items-center justify-between">
             <button type="button" onClick={p.onSpeed} aria-label={`Playback speed ${p.speed}×. Tap to change.`} className="grid h-12 w-12 place-items-center rounded-full text-[17px] font-semibold text-white/80">{p.speed}×</button>
             <button type="button" onClick={p.onBack} aria-label="Back 15 seconds" className="relative grid h-14 w-14 place-items-center rounded-full text-white"><RotateCcw size={36} strokeWidth={1.7} /><span className="absolute pt-0.5 text-[11px] font-bold">15</span></button>
@@ -1560,7 +1611,7 @@ function Card(p: CardProps) {
           </div>
           <div className="flex items-center justify-between text-[11px] tabular-nums text-white/40"><span>{clock(p.time)}</span><span>-{clock(Math.max(0, p.dur - p.time))}</span></div>
           <div className="mt-2 flex items-center justify-between">
-            {p.unlocked && p.active && !p.marking ? <button type="button" onClick={p.onMark} aria-label="Mark an ad" title="Mark an ad" className="grid h-10 w-10 place-items-center rounded-full text-white/40 hover:text-white/80"><Megaphone size={18} strokeWidth={1.7} /></button> : <span className="w-10" />}
+            {p.unlocked && p.active && !p.marking ? <button type="button" onClick={p.onMark} aria-label="That's an ad: skip it" title="That's an ad: skip it" data-testid="thats-an-ad" className="inline-flex h-10 items-center gap-1.5 rounded-full bg-[#ffd23f] px-3 text-xs font-bold text-[#120e14] shadow active:scale-95"><Megaphone size={15} strokeWidth={2} />Ad? Skip</button> : <span className="w-10" />}
             <div className="flex items-center gap-6">
               <button type="button" onClick={p.onBack} aria-label="Back 15 seconds" className="grid h-11 w-11 place-items-center rounded-full text-white/85"><RotateCcw size={24} strokeWidth={1.6} /></button>
               <button type="button" onClick={(e) => { e.stopPropagation(); p.onTapStart(); p.onToggle(); }} aria-label={p.playing ? "Pause" : "Play"} className="grid h-16 w-16 place-items-center rounded-full bg-white text-[#0e0d10] transition active:scale-95">{p.playing ? <Pause size={26} fill="currentColor" strokeWidth={0} /> : <Play size={26} fill="currentColor" strokeWidth={0} className="ml-1" />}</button>

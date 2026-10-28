@@ -26,6 +26,7 @@ import { accountSessions, registerPodscrollAccountRoutes, SESSION } from "./podc
 import { cleanMoment } from "../shared/earshotListen";
 import { registerListenRoutes } from "./podcastListen";
 import { perplexityJson } from "./perplexityAsk";
+import { noteShows } from "./podcastPrecheck";
 
 /** The site's Perplexity key: admin settings first (where book quizzes keep it), then the environment. */
 async function perplexityKey(): Promise<string> {
@@ -397,11 +398,26 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
   });
 
   /** Read along: one piece of an episode's transcript, with its ads and chapters. */
+  /** The shows a listener follows (ids only), so their new episodes are checked for ads before they play. */
+  const followsSeen = new Map<string, number>();
+  app.post(`${P}/precheck/follows`, authMiddleware, (req: any, res) => {
+    const ids = (Array.isArray(req.body?.ids) ? req.body.ids : []).slice(0, 60).map(cleanPodId).filter(Boolean);
+    const who = String(uid(req));
+    // Counted once a day per listener.
+    if (ids.length && Date.now() - (followsSeen.get(who) ?? 0) > 24 * 3600_000) {
+      followsSeen.set(who, Date.now());
+      if (followsSeen.size > 20_000) followsSeen.clear();
+      noteShows(ids, 3);
+    }
+    res.json({ ok: true });
+  });
   app.get(`${P}/transcript/:episodeId`, authMiddleware, async (req: any, res) => {
     const id = cleanPodId(req.params.episodeId), show = cleanPodId(req.query?.show);
     const chunk = Math.max(0, Math.min(40, Math.floor(Number(req.query?.chunk) || 0)));
     if (!id || !show) return res.status(400).json({ message: "That isn't an episode." });
     if (limited(reading, req, res, "transcript requests")) return;
+    // Someone is listening to this show: its new episodes get checked for ads ahead of time.
+    if (chunk === 0) noteShows([show], 1);
     try {
       // Playing through the server: made from (and placed in) this listener's own copy.
       const play = typeof req.query?.play === "string" ? req.query.play : "";

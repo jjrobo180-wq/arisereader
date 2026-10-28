@@ -68,6 +68,8 @@ import { podscrollAllowed, registerEarshotRoutes, registerPodscrollRoutes, supab
 import { attachLivePods } from "./podcastLive";
 import { attachListenParties } from "./podcastParty";
 import { createDirectory as createPodcastDirectory, supabaseKV } from "./podcastDirectory";
+import { startPrechecks as startPodcastPrechecks } from "./podcastPrecheck";
+import { GENRES as PODCAST_GENRES } from "../shared/earshot";
 import { supabaseAdStore } from "./podcastAds";
 import { startCopyDiagnostics } from "./podcastCopies";
 import { createPlayer as createPodcastPlayer, startPlayDiagnostics } from "./podcastPlay";
@@ -1563,6 +1565,9 @@ export async function registerRoutes(
   // Playback through the server (one for both apps): stitched-in ads found in each listener's own copy.
   const podcastPlayer = createPodcastPlayer({ library: createAdLibrary(supabaseKV(getAdminSupabase)) });
   startPlayDiagnostics(supabaseKV(getAdminSupabase), podcastPlayer, podcasts);
+  // New episodes of followed and top shows checked for ads before anyone plays them, with the AI allowance left over at night.
+  startPodcastPrechecks({ kv: supabaseKV(getAdminSupabase), player: podcastPlayer, dir: podcasts,
+    topShows: async () => { const lists = await Promise.all(PODCAST_GENRES.slice(0, 12).map((g) => podcasts.loadGenreShows(g.id).catch(() => []))); const out: string[] = []; for (let i = 0; i < 4; i++) for (const l of lists) if (l[i]) out.push(l[i].id); return out; } });
   registerEarshotRoutes(app, authMiddleware, { store: supabaseEarshotStore(getAdminSupabase), directory: podcasts, adStore: podcastAds, player: podcastPlayer, socialDb: getAdminSupabase });
   registerPodscrollRoutes(app, supabaseEarshotStore(getAdminSupabase, "podscroll"), undefined, podcasts, podcastAds, podcastPlayer, getAdminSupabase, { sendEmail: (to, subject, html) => sendEmail(to, subject, html) });
   attachLivePods(httpServer, getAdminSupabase);

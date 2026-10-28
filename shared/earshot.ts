@@ -634,11 +634,15 @@ export function parseChaptersJson(v: unknown): Chapter[] {
     .map((c: any) => ({ s: Number(c.startTime), title: plainText(c.title, 120) })).filter((c: Chapter) => c.title).sort((a: Chapter, b: Chapter) => a.s - b.s).slice(0, 200);
 }
 
+/** Chapter titles publishers give ad breaks ("Sponsor", "Ad break", "Midroll", "A word from our sponsors"...). */
+export const AD_CHAPTER = /\b(ads?|sponsors?|sponsored|sponsor(ship)? (break|message|read)|advert(isement)?s?|promos?|promotions?|commercials?|ad break|commercial break|mid-?rolls?|pre-?rolls?|post-?rolls?|word from (our|today's|the) (sponsors?|partners?)|our (sponsors?|partners?)|paid (promotion|partnership)|brought to you by|supported by|thanks to our sponsors?|message from our sponsors?)\b/i;
+/** ...but not a chapter about advertising ("How ads work", "Ad tech", "Promoted to manager"). */
+const NOT_AD_CHAPTER = /\b(about|how|why|history of|future of|the business of) (ads?|advertising|sponsors?)\b|\bad ?tech\b|\bpromoted\b/i;
 /** Chapters the publisher titled as ads or sponsors become ad ranges. */
 export function adsFromChapters(chapters: Chapter[], duration: number): AdRange[] {
   const out: AdRange[] = [];
   chapters.forEach((c, i) => {
-    if (!/\b(ads?|sponsors?|sponsored|advert(isement)?s?|promos?|commercials?|ad break)\b/i.test(c.title)) return;
+    if (!AD_CHAPTER.test(c.title) || NOT_AD_CHAPTER.test(c.title)) return;
     const e = chapters[i + 1]?.s ?? duration;
     if (e - c.s >= 5 && e - c.s <= 420) out.push({ s: c.s, e, label: c.title });
   });

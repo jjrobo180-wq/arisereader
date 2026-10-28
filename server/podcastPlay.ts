@@ -690,7 +690,7 @@ export function parseRange(header: string | undefined, total: number): { start: 
 /** Right after a copy is compared, its opening (first 2.5 minutes) is transcribed and read for ads
  *  (host-read sponsors, the show's own pitches) so they're skipped before they play. Two at a time;
  *  made once per episode for everyone. */
-export function startOpenings(player: Player, dir: Pick<Directory, "contentTranscript"> & Partial<Pick<Directory, "contentChunks" | "copyPieceAds">>) {
+export function startOpenings(player: Player, dir: Pick<Directory, "contentTranscript"> & Partial<Pick<Directory, "contentChunks" | "copyPieceAds" | "likelyAdChunks" | "budgetLeft" | "perDay">>) {
   const queue: any[] = [];
   let running = 0;
   const pump = () => {
@@ -705,12 +705,26 @@ export function startOpenings(player: Player, dir: Pick<Directory, "contentTrans
           if (!dir.contentChunks || !dir.copyPieceAds || !player.sessions.has(s.id)) return;
           const reader = dir.copyPieceAds;
           await player.readGaps(s, await dir.contentChunks(s.episodeId), (fp, audio, secs) => reader(s.showId, s.episodeId, fp, audio, secs));
+          await checkLikelyAds(player, dir, s);
         })
         .catch((e: any) => console.warn("[earshot] opening:", e?.message || e))
         .finally(() => { s.opening = "done"; running--; pump(); });
     }
   };
   player.setOnFinal((s) => { queue.push(s); pump(); });
+}
+
+/** Then the parts of the episode where this show's ad breaks usually are (learned from its earlier
+ *  episodes), so they're known before the listener gets there. Only while there's plenty of the
+ *  day's allowance left (a quarter is kept for listeners), and only for a listener still here. */
+export async function checkLikelyAds(player: Player, dir: Pick<Directory, "contentTranscript"> & Partial<Pick<Directory, "likelyAdChunks" | "budgetLeft" | "perDay">>, s: any, reserve = 0.25) {
+  if (!dir.likelyAdChunks || !player.sessions.has(s.id)) return;
+  const { total } = player.contentOf(s);
+  for (const chunk of await dir.likelyAdChunks(s.showId, total)) {
+    if (!player.sessions.has(s.id)) return;
+    if (dir.budgetLeft && dir.perDay && dir.budgetLeft() < dir.perDay * reserve) return;
+    await dir.contentTranscript(s.showId, s.episodeId, chunk, { secs: total, extract: (from, to) => player.extract(s, from, to) }).catch(() => null);
+  }
 }
 
 export async function copyTranscript(player: Player, dir: Pick<Directory, "contentTranscript">, sid: string, showId: string, episodeId: string, chunk: number): Promise<TranscriptChunk | null> {
