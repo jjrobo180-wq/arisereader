@@ -3,7 +3,7 @@
 // AI transcripts (server/audiobooks.ts); the audio plays straight from the Archive (or through the
 // server when Voice boost shapes it). Like the radio, a book keeps playing in the bar at the bottom
 // while you browse, and each book remembers its chapter and spot on this device.
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ClickEvent, type ReactNode } from "react";
 import { BookOpen, BookOpenText, Bookmark, ChevronLeft, ChevronRight, Headphones, Loader2, Pause, Play, RotateCcw, RotateCw, Search, SkipBack, SkipForward, SlidersHorizontal, Sparkles, Star, X } from "lucide-react";
 import { bookAudioSupported, isRouted, levelOf, primeBookAudio, routeBook, setBookSound, setFade } from "./bookAudio";
 
@@ -417,7 +417,44 @@ function ReadersSheet({ api, book, onClose, onPick }: { api: Api; book: BookDeta
 // ---------------- read along ----------------
 
 type TextSection = { heading: string; text: string };
-type TxLine = { s: number; e: number; t: string };
+type TxLine = { s: number; e: number; t: string; w?: { s: number; t: string }[] };
+
+// Reading comfort, kept on this device: text size, typeface, page color.
+type ReadPrefs = { size: number; font: "serif" | "sans" | "easy"; theme: "page" | "sepia" | "night" };
+const SIZES = [15, 17, 20, 24];
+const FONTS: Record<ReadPrefs["font"], { label: string; css: string }> = {
+  serif: { label: "Book", css: "Georgia, 'Iowan Old Style', 'Times New Roman', serif" },
+  sans: { label: "Clean", css: "Roboto, Inter, system-ui, -apple-system, sans-serif" },
+  easy: { label: "Easy read", css: "Lexend, 'Atkinson Hyperlegible', Verdana, system-ui, sans-serif" },
+};
+const THEMES: Record<ReadPrefs["theme"], { label: string; bg?: string; fg?: string; dim?: string }> = {
+  page: { label: "Page" }, sepia: { label: "Sepia", bg: "#f5ecd9", fg: "#3a2e20", dim: "#7a6a55" }, night: { label: "Night", bg: "#121212", fg: "#e6e3de", dim: "#9a958d" },
+};
+const readPrefs = (): ReadPrefs => {
+  try { const v = JSON.parse(ls.get("podscroll.readPrefs") || "null"); if (v) return { size: SIZES[v.size] ? v.size : 1, font: FONTS[v.font as ReadPrefs["font"]] ? v.font : "serif", theme: THEMES[v.theme as ReadPrefs["theme"]] ? v.theme : "page" }; } catch { /* default */ }
+  return { size: 1, font: "serif", theme: "page" };
+};
+/** Lexend (made for easier reading, and for people with dyslexia), loaded only when chosen. */
+function loadEasyFont() {
+  if (document.getElementById("ps-lexend")) return;
+  const l = document.createElement("link");
+  l.id = "ps-lexend"; l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Lexend:wght@400;600&display=swap";
+  document.head.appendChild(l);
+}
+/** The word under a tap in the book's text. */
+function wordAt(x: number, y: number): string {
+  const d = document as any;
+  let node: Node | null = null, off = 0;
+  if (d.caretPositionFromPoint) { const p = d.caretPositionFromPoint(x, y); node = p?.offsetNode ?? null; off = p?.offset ?? 0; }
+  else if (d.caretRangeFromPoint) { const r = d.caretRangeFromPoint(x, y); node = r?.startContainer ?? null; off = r?.startOffset ?? 0; }
+  if (!node || node.nodeType !== 3) return "";
+  const t = node.textContent || "";
+  let a = off, b = off;
+  while (a > 0 && /[A-Za-z'’-]/.test(t[a - 1])) a--;
+  while (b < t.length && /[A-Za-z'’-]/.test(t[b])) b++;
+  return t.slice(a, b).replace(/^['’-]+|['’-]+$/g, "").replace(/’/g, "'");
+}
+type Definition = { word: string; phonetic: string; meanings: { partOfSpeech: string; definitions: { definition: string; example: string }[] }[] };
 /** The number in "Chapter 12" or "CHAPTER XII." (12). */
 const numIn = (s: string): number => {
   const m = /^\S+\s+(\d{1,3}|[IVXLCDM]{1,8})\b/.exec(s.trim());
@@ -451,6 +488,21 @@ function ReadAlong({ api, pro, onJoin, reading, time, onSeek, onClose }: { api: 
   const [txMore, setTxMore] = useState(true);
   const asked = useRef(new Set<number>());
   const box = useRef<HTMLDivElement>(null);
+  const [prefs, setPrefsState] = useState(readPrefs);
+  const [comfort, setComfort] = useState(false);
+  const [def, setDef] = useState<{ word: string; d?: Definition; err?: string } | null>(null);
+  const setPrefs = (p: Partial<ReadPrefs>) => { const n = { ...prefs, ...p }; setPrefsState(n); ls.set("podscroll.readPrefs", JSON.stringify(n)); if (n.font === "easy") loadEasyFont(); };
+  useEffect(() => { if (prefs.font === "easy") loadEasyFont(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const theme = THEMES[prefs.theme];
+  const look = { fontFamily: FONTS[prefs.font].css, fontSize: SIZES[prefs.size], ...(theme.bg ? { background: theme.bg, color: theme.fg } : {}) };
+  // Tap a word: its meaning, from a free dictionary.
+  const define = (e: ClickEvent) => {
+    if ((e.target as HTMLElement).closest("a,button")) return;
+    const w = wordAt(e.clientX, e.clientY);
+    if (!w || w.length < 2) return;
+    setDef({ word: w });
+    api(`/api/earshot/books/define?word=${encodeURIComponent(w.toLowerCase())}`).then((d) => setDef((cur) => (cur?.word === w ? { word: w, d } : cur))).catch((err) => setDef((cur) => (cur?.word === w ? { word: w, err: err.message } : cur)));
+  };
 
   useEffect(() => {
     let live = true;
@@ -488,19 +540,29 @@ function ReadAlong({ api, pro, onJoin, reading, time, onSeek, onClose }: { api: 
         <button aria-pressed={tab === "text"} onClick={() => setTab("text")} className={`h-7 rounded-full px-3 ${tab === "text" ? "bg-white shadow-sm" : "text-[#606060]"}`}>Book text</button>
         <button aria-pressed={tab === "transcript"} onClick={() => setTab("transcript")} className={`inline-flex h-7 items-center gap-1 rounded-full px-3 ${tab === "transcript" ? "bg-white shadow-sm" : "text-[#606060]"}`}><Sparkles size={12} />Transcript{!pro && <MembersTag />}</button>
       </div>
-      {tab === "text" && sec && <span className="ml-auto flex items-center gap-1">
+      <button onClick={() => setComfort((v) => !v)} aria-expanded={comfort} aria-label="Text size, typeface and page color" title="Text size, typeface and page color" className={`ml-auto inline-flex h-8 min-w-8 items-center justify-center rounded-full px-2 font-serif text-sm font-semibold ${comfort ? "bg-[#0f0f0f] text-white" : "hover:bg-[#f2f2f2]"}`}>Aa</button>
+      {tab === "text" && sec && <span className="flex items-center gap-1">
         <button onClick={() => setAt((n) => Math.max(0, n - 1))} disabled={at === 0} aria-label="Previous part" className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-[#f2f2f2] disabled:opacity-30"><ChevronLeft size={18} /></button>
         <button onClick={() => setAt((n) => Math.min((text as any).sections.length - 1, n + 1))} disabled={at >= (text as any).sections.length - 1} aria-label="Next part" className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-[#f2f2f2] disabled:opacity-30"><ChevronRight size={18} /></button>
       </span>}
     </div>
-    <div ref={box} className="px-5 pb-10 pt-4 sm:px-8">
+    {comfort && <div className="sticky top-[49px] z-10 space-y-3 border-b border-[#ececec] bg-white px-4 py-3 text-sm">
+      <div className="flex items-center gap-3"><span className="w-16 shrink-0 text-xs font-semibold text-[#606060]">Size</span>
+        <div className="flex gap-1.5">{SIZES.map((px, i) => <button key={px} onClick={() => setPrefs({ size: i })} aria-pressed={prefs.size === i} aria-label={`Text size ${i + 1}`} className={`inline-flex h-9 w-10 items-center justify-center rounded-lg font-serif ${prefs.size === i ? "bg-[#0f0f0f] text-white" : "bg-[#f2f2f2]"}`} style={{ fontSize: 11 + i * 3 }}>A</button>)}</div></div>
+      <div className="flex items-center gap-3"><span className="w-16 shrink-0 text-xs font-semibold text-[#606060]">Typeface</span>
+        <div className="flex flex-wrap gap-1.5">{(Object.keys(FONTS) as ReadPrefs["font"][]).map((f) => <button key={f} onClick={() => setPrefs({ font: f })} aria-pressed={prefs.font === f} className={`h-9 rounded-lg px-3 ${prefs.font === f ? "bg-[#0f0f0f] text-white" : "bg-[#f2f2f2]"}`} style={{ fontFamily: FONTS[f].css }}>{FONTS[f].label}</button>)}</div></div>
+      <div className="flex items-center gap-3"><span className="w-16 shrink-0 text-xs font-semibold text-[#606060]">Page</span>
+        <div className="flex gap-1.5">{(Object.keys(THEMES) as ReadPrefs["theme"][]).map((t) => <button key={t} onClick={() => setPrefs({ theme: t })} aria-pressed={prefs.theme === t} className={`h-9 rounded-lg px-3 ring-1 ring-black/10 ${prefs.theme === t ? "ring-2 ring-[#ff6a1f]" : ""}`} style={{ background: THEMES[t].bg ?? "#fff", color: THEMES[t].fg ?? "#0f0f0f" }}>{THEMES[t].label}</button>)}</div></div>
+    </div>}
+    <div ref={box} className="min-h-full px-5 pb-10 pt-4 sm:px-8" style={look}>
       {tab === "text" ? (
         text === null ? <div className="flex justify-center py-12"><Loader2 className="animate-spin text-[#606060]" size={24} /></div>
           : text === "none" ? <div className="py-10 text-center text-sm text-[#606060]"><p>This book's text isn't available.</p><button onClick={() => setTab("transcript")} className="mt-3 h-9 rounded-full bg-[#0f0f0f] px-4 font-semibold text-white">Use the transcript</button></div>
-          : <article className="mx-auto max-w-[620px]">
-            <h3 className="mb-4 font-serif text-xl font-semibold">{sec!.heading}</h3>
-            {sec!.text.split(/\n{2,}/).map((p, i) => <p key={i} className="mb-4 whitespace-pre-line font-serif text-[17px] leading-[1.75] text-[#0f0f0f]">{p}</p>)}
-            <p className="mt-8 text-xs text-[#767676]">The book's original text, from <a href={text.source} target="_blank" rel="noreferrer" className="underline">Project Gutenberg</a> (public domain). The reading may differ a little.</p>
+          : <article className="mx-auto max-w-[620px]" onClick={define}>
+            <h3 className="mb-4 text-[1.2em] font-semibold">{sec!.heading}</h3>
+            {sec!.text.split(/\n{2,}/).map((p, i) => <p key={i} className={`mb-[1em] whitespace-pre-line leading-[1.75] ${theme.fg ? "" : "text-[#0f0f0f]"}`}>{p}</p>)}
+            <p className="mt-2 text-xs" style={{ color: theme.dim ?? "#767676" }}>Tap any word for its meaning.</p>
+            <p className="mt-8 text-xs" style={{ color: theme.dim ?? "#767676" }}>The book's original text, from <a href={text.source} target="_blank" rel="noreferrer" className="underline">Project Gutenberg</a> (public domain). The reading may differ a little.</p>
           </article>
       ) : (
         !pro ? <div className="mx-auto max-w-[420px] py-10 text-center">
@@ -512,12 +574,30 @@ function ReadAlong({ api, pro, onJoin, reading, time, onSeek, onClose }: { api: 
         : <div className="mx-auto max-w-[620px]">
           {!lines.length && !txErr && <div className="flex flex-col items-center gap-2 py-12 text-sm text-[#606060]"><Loader2 className="animate-spin" size={24} />Writing out this part with AI…</div>}
           {txErr && <div className="py-6 text-center text-sm text-[#606060]"><p>{txErr}</p><button onClick={() => { asked.current.clear(); setTxErr(""); setLines([]); }} className="mt-3 h-9 rounded-full bg-[#0f0f0f] px-4 font-semibold text-white">Try again</button></div>}
-          {lines.map((l, i) => <button key={`${l.s}-${i}`} data-line={i} onClick={() => onSeek(l.s)}
-            className={`block w-full rounded-lg px-2 py-1.5 text-left text-[17px] leading-relaxed transition-colors ${i === activeLine ? "bg-[#fff1e8] font-medium text-[#0f0f0f]" : "text-[#606060] hover:bg-[#f7f7f5]"}`}>{l.t}</button>)}
+          {lines.map((l, i) => {
+            const on = i === activeLine;
+            // The word being read right now, lit up as it goes.
+            let wi = -1;
+            if (on && l.w) for (let k = 0; k < l.w.length; k++) if (l.w[k].s <= time) wi = k;
+            return <button key={`${l.s}-${i}`} data-line={i} onClick={() => onSeek(l.s)}
+              className={`block w-full rounded-lg px-2 py-1.5 text-left leading-relaxed transition-colors ${on ? "font-medium" : "opacity-60 hover:opacity-90"}`}
+              style={on ? { background: theme.bg ? "rgba(255,106,31,.16)" : "#fff1e8", color: theme.fg ?? "#0f0f0f" } : { color: theme.fg ?? "#606060" }}>
+              {on && l.w?.length ? l.w.map((w, k) => <span key={k} className="rounded-[4px] transition-colors" style={k === wi ? { background: ACCENT, color: "#fff", padding: "0 2px" } : undefined}>{w.t}{" "}</span>) : l.t}
+            </button>;
+          })}
           {lines.length > 0 && <p className="mt-6 text-xs text-[#767676]">Written out by AI from the recording, so a few words may be off. Tap a line to jump there.</p>}
         </div>
       )}
     </div>
+    {def && <div className="sticky bottom-0 z-10 border-t border-[#ececec] bg-white px-5 py-4 shadow-[0_-8px_24px_rgba(0,0,0,.08)]" role="status">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-lg font-semibold">{def.d?.word || def.word}{def.d?.phonetic && <span className="ml-2 text-sm font-normal text-[#606060]">{def.d.phonetic}</span>}</p>
+        <button onClick={() => setDef(null)} aria-label="Close meaning" className="-mr-2 -mt-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><X size={18} /></button>
+      </div>
+      {def.err ? <p className="mt-1 text-sm text-[#606060]">{def.err}</p>
+        : !def.d ? <Loader2 className="mt-2 animate-spin text-[#606060]" size={18} />
+        : <ul className="mt-1 max-h-40 space-y-1.5 overflow-y-auto text-sm">{def.d.meanings.slice(0, 3).map((m, i) => <li key={i}><span className="mr-1.5 italic text-[#606060]">{m.partOfSpeech}</span>{m.definitions[0]?.definition}</li>)}</ul>}
+    </div>}
   </Sheet>;
 }
 
