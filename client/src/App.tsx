@@ -45,6 +45,7 @@ import SignIn from "./pages/SignIn";
 import Register from "./pages/Register";
 import TeacherSignup from "./pages/TeacherSignup";
 import ParentSignup from "./pages/ParentSignup";
+import QuizPermission from "./pages/QuizPermission";
 import ResetPassword from "./pages/ResetPassword";
 import EyeGazeAccessGate from "./components/EyeGazeAccessGate";
 import ParentConnectionBanner from "./components/ParentConnectionBanner";
@@ -556,6 +557,10 @@ function AppRoutes() {
       </Route>
       <Route path="/parent-signup">
         <ParentSignup />
+      </Route>
+      {/* A parent answering a student's request for camera quizzes (from an email; no account needed). */}
+      <Route path="/quiz-permission">
+        <QuizPermission />
       </Route>
       {/* The parent portal and the teacher dashboard now live inside the hubs (Arise LifeHub and Arise WorkHub). */}
       <Route path="/parent-dashboard">

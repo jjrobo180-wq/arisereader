@@ -52,6 +52,7 @@ import { registerReadsRoutes } from "./readsSync";
 import { registerBuildWorldRoutes } from "./buildWorld";
 import { registerChessArenaRoutes } from "./chessArena";
 import { registerQuizIntegrityRoutes } from "./quizIntegrity";
+import { registerParentQuizPermissionRoutes } from "./parentQuizPermission";
 import { registerComprehensionRoutes } from "./comprehension";
 import { recordLogin, registerStudentActivityRoutes } from "./studentActivity";
 import { countHubStudents, createHubGate, registerTeacherHubRoutes } from "./teacherHub";
@@ -2148,9 +2149,25 @@ export async function registerRoutes(
 
   // No-proctor quizzes: the student picks this instead of a proctor code; the camera
   // takes snapshots and teachers, parents and the admin review the record later.
+  // A parent's permission for book quizzes: a yes for camera quizzes, and one-time proctor codes.
+  const quizPermission = registerParentQuizPermissionRoutes(app, authMiddleware, {
+    // storage.getSetting turns a database error into "", which a save would then write back as an empty list
+    getSetting: async (key) => {
+      const { data, error } = await supabase.from("settings").select("value").eq("key", key).maybeSingle();
+      if (error) throw new Error(error.message);
+      return data?.value ?? null;
+    },
+    upsertSetting: (key, value) => storage.upsertSetting(key, value),
+    sendEmail: (to, subject, html) => sendEmail(to, subject, html),
+    getUser: (id) => storage.getUser(id),
+    isDemoStudent,
+    getStudentParentIds,
+    parentSignupUrl: async (studentId, origin) => `${origin}/#/parent-signup?code=${encodeURIComponent((await getOrCreateParentInvite(studentId)).formattedCode)}`,
+  });
   const noProctor = registerQuizIntegrityRoutes(app, authMiddleware, {
     db: getAdminSupabase,
     isDemoStudent,
+    cameraAllowed: (studentId) => quizPermission.cameraAllowed(studentId),
     hasAttempt: async (userId, _quizKind, quizId) => !!(await storage.getAttempt(userId, quizId)),
     getTeacherStudentIds: async (teacherId) => (await storage.getTeacherStudents(teacherId)).map((student: any) => Number(student.id)),
     getParentStudentIds,
@@ -7322,10 +7339,18 @@ export async function registerRoutes(
 
       let identity: ProctorIdentity | null = null;
 
+      // A one-time code a parent got by email (the student typed the parent's address on the quiz screen).
+      // It works once, before the parent has an account and their own Parent Proctor Code.
+      if (await quizPermission.redeemCode(req.user.id, password)) {
+        identity = { type: "parent", userId: null, name: "Parent / Guardian (one-time code)" };
+      }
+
       // School staff proctoring must work even when a student's parent account is
       // not linked yet. Check the shared school proctor password first.
       const schoolPassword = String((await storage.getProctorPassword()) || "").trim();
-      if (schoolPassword && password.toLowerCase() === schoolPassword.toLowerCase()) {
+      if (identity) {
+        // already unlocked with a one-time code
+      } else if (schoolPassword && password.toLowerCase() === schoolPassword.toLowerCase()) {
         identity = { type: "teacher", userId: null, name: "Teacher / School Staff" };
       } else {
         // Parent/guardian proctoring still requires the parent to be linked to
@@ -7335,7 +7360,7 @@ export async function registerRoutes(
           // it wasn't the school password either, so it counts as a miss
           proctorFails.fail(proctorKey);
           return res.status(403).json({
-            message: "A parent or guardian must connect an A.R.I.S.E. Parent account before using a parent proctor code. School staff may use the school proctor password.",
+            message: "That code didn't work. Your parent can get a one-time code by email: tap \"Email my parent a code\" below. School staff can use the school proctor password.",
             parentRequired: true,
           });
         }

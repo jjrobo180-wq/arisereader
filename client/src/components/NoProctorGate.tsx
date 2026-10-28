@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Camera, Clock3, KeyRound, ClipboardX, ShieldCheck, Users, RotateCcw, PenLine } from "lucide-react";
+import { ArrowLeft, Camera, Clock3, KeyRound, ClipboardX, ShieldCheck, Users, RotateCcw, PenLine, Mail, RefreshCw } from "lucide-react";
 import { COMPREHENSION } from "@shared/comprehension";
 import { API_BASE } from "@/lib/queryClient";
 import { CAMERA_CONSTRAINTS, cameraErrorMessage, canUseCamera } from "@/lib/noProctorMonitor";
@@ -30,7 +30,10 @@ type Props = {
   onBack: () => void;
 };
 
-type View = "choose" | "code" | "camera";
+type View = "choose" | "code" | "camera" | "askCamera";
+
+/** What a parent has allowed (GET /api/student/quiz-permission). */
+type Permission = { camera: "none" | "pending" | "approved" | "declined"; cameraEmail: string; codesWaiting: number; parentLinked: boolean };
 
 /**
  * The screen before a book quiz: take it with a proctor code, or on your own with the camera on.
@@ -44,6 +47,59 @@ export default function NoProctorGate({ book, questionCount, quizId, authToken, 
   const [error, setError] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
   const handedOff = useRef(false);
+  const [perm, setPerm] = useState<Permission | null>(null);
+  const [parentEmail, setParentEmail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [askError, setAskError] = useState("");
+  const [askNote, setAskNote] = useState("");
+  const [showCodeAsk, setShowCodeAsk] = useState(false);
+
+  const loadPermission = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/student/quiz-permission`, { headers: { Authorization: `Bearer ${authToken}` } });
+      if (res.ok) setPerm(await res.json());
+    } catch {}
+  };
+  useEffect(() => { if (authToken) void loadPermission(); }, [authToken]);
+
+  // "On my own" needs a parent's yes first (a try that's already going can carry on).
+  const chooseCamera = () => {
+    setAskError(""); setAskNote("");
+    setView(resume || !perm || perm.camera === "approved" ? "camera" : "askCamera");
+  };
+  const chooseCode = () => { setAskError(""); setAskNote(""); setShowCodeAsk(false); setView("code"); };
+
+  const emailParent = async (kind: "camera" | "code") => {
+    setSending(true); setAskError(""); setAskNote("");
+    try {
+      const res = await fetch(`${API_BASE}/api/student/quiz-permission/${kind}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: parentEmail.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Could not send the email. Try again.");
+      if (kind === "camera") {
+        if (data.camera === "approved") { await loadPermission(); setView("camera"); return; }
+        setPerm((p) => ({ ...(p || { codesWaiting: 0, parentLinked: false }), camera: "pending", cameraEmail: data.cameraEmail || "" }));
+      } else {
+        setAskNote(`Sent to ${data.sentTo || "your parent"}. Have your parent sit with you and type the code from the email here. It works for one quiz.`);
+        setShowCodeAsk(false);
+      }
+      setParentEmail("");
+    } catch (e: any) {
+      setAskError(e?.message || "Could not send the email. Try again.");
+    } finally { setSending(false); }
+  };
+
+  const checkAgain = async () => {
+    setSending(true); setAskError("");
+    await loadPermission();
+    setSending(false);
+  };
+  useEffect(() => {
+    if (view === "askCamera" && perm?.camera === "approved") setView("camera");
+  }, [view, perm]);
 
   useEffect(() => {
     if (videoRef.current && stream) {
@@ -80,6 +136,7 @@ export default function NoProctorGate({ book, questionCount, quizId, authToken, 
         body: JSON.stringify({ quizKind: "book", quizId }),
       });
       const data = await res.json().catch(() => ({}));
+      if (data.needsParentPermission) { setBusy(false); await loadPermission(); setView("askCamera"); return; }
       if (!res.ok) throw new Error(data.message || "Could not start the quiz. Try again.");
       handedOff.current = true;
       onCameraReady({
@@ -95,7 +152,7 @@ export default function NoProctorGate({ book, questionCount, quizId, authToken, 
   };
 
   // Where the Back button goes; null means back to the library.
-  const backTo: View | null = view === "code" ? (resume ? "camera" : "choose") : view === "camera" && !resume ? "choose" : null;
+  const backTo: View | null = view === "code" ? (resume ? "camera" : "choose") : (view === "camera" || view === "askCamera") && !resume ? "choose" : null;
 
   const header = (
     <div className="np-book">
@@ -118,15 +175,15 @@ export default function NoProctorGate({ book, questionCount, quizId, authToken, 
             <h1>How do you want to take this quiz?</h1>
             <p className="np-bonus"><b>NEW!</b> Either way, you can write about the book at the end for up to {COMPREHENSION.bonusPoints} extra points.</p>
             <div className="np-options">
-              <button type="button" className="np-option" onClick={() => setView("code")}>
+              <button type="button" className="np-option" onClick={chooseCode}>
                 <span className="np-option-icon"><KeyRound /></span>
                 <b>With a proctor</b>
-                <span>A parent or teacher types their proctor code.</span>
+                <span>{perm && !perm.parentLinked ? "A teacher types their code, or your parent gets a one-time code by email." : "A parent or teacher types their proctor code."}</span>
               </button>
-              <button type="button" className="np-option np-option-camera" onClick={() => setView("camera")}>
+              <button type="button" className="np-option np-option-camera" onClick={chooseCamera}>
                 <span className="np-option-icon"><Camera /></span>
                 <b>On my own</b>
-                <span>Your camera stays on and takes pictures at random times.</span>
+                <span>{perm && perm.camera !== "approved" ? "A parent says yes by email first. Then your camera stays on and takes pictures." : "Your camera stays on and takes pictures at random times."}</span>
               </button>
             </div>
           </>
@@ -150,7 +207,52 @@ export default function NoProctorGate({ book, questionCount, quizId, authToken, 
             <button type="button" className="np-btn np-btn-primary" disabled={!code || proctorLoading} onClick={() => onVerifyCode(code)} data-testid="button-verify-proctor">
               {proctorLoading ? "Checking…" : "Unlock quiz"}
             </button>
-            <button type="button" className="np-link" onClick={() => setView("camera")}><Camera /> No proctor? Take it on your own with the camera</button>
+            {askNote && <p className="np-ok-line" role="status">{askNote}</p>}
+            {perm && (showCodeAsk || (!perm.parentLinked && !askNote)) ? (
+              <div className="np-ask">
+                <h2>Your parent doesn't have a code yet?</h2>
+                <p>Type their email. We'll send them a one-time code for this quiz, and a link to create a free parent account so they get their own code for next time.</p>
+                {askError && <p className="np-error" role="alert">{askError}</p>}
+                <input type="email" className="np-input" placeholder="Parent or guardian's email" value={parentEmail} autoComplete="off"
+                  onChange={(e) => setParentEmail(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && parentEmail) void emailParent("code"); }}
+                  data-testid="input-parent-email-code" />
+                <button type="button" className="np-btn" disabled={!parentEmail.trim() || sending} onClick={() => void emailParent("code")} data-testid="button-email-parent-code">
+                  <Mail /> {sending ? "Sending…" : "Email my parent a code"}
+                </button>
+              </div>
+            ) : perm && (
+              <button type="button" className="np-link" onClick={() => { setAskNote(""); setShowCodeAsk(true); }}><Mail /> Email my parent a one-time code</button>
+            )}
+            <button type="button" className="np-link" onClick={chooseCamera}><Camera /> No proctor? Take it on your own with the camera</button>
+          </>
+        )}
+
+        {view === "askCamera" && perm && (
+          <>
+            <h1>Ask a parent first</h1>
+            <p className="np-lead">To take quizzes on your own with the camera, a parent or guardian has to say yes. Type their email and we'll send them a request. They can approve it and create a free parent account.</p>
+            {perm.camera === "pending" && (
+              <p className="np-warn-line" role="status">Waiting for {perm.cameraEmail || "your parent"} to say yes. Once they approve, tap "Check again".</p>
+            )}
+            {perm.camera === "declined" && (
+              <p className="np-error" role="status">Your parent said no to camera quizzes. You can still take the quiz with a proctor.</p>
+            )}
+            {perm.camera === "pending" && (
+              <button type="button" className="np-btn np-btn-primary" disabled={sending} onClick={() => void checkAgain()} data-testid="button-check-permission">
+                <RefreshCw /> {sending ? "Checking…" : "Check again"}
+              </button>
+            )}
+            <div className="np-ask">
+              <h2>{perm.camera === "none" ? "Your parent's email" : "Send it again, or to someone else"}</h2>
+              {askError && <p className="np-error" role="alert">{askError}</p>}
+              <input type="email" className="np-input" placeholder="Parent or guardian's email" value={parentEmail} autoComplete="off" autoFocus={perm.camera === "none"}
+                onChange={(e) => setParentEmail(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && parentEmail) void emailParent("camera"); }}
+                data-testid="input-parent-email-camera" />
+              <button type="button" className={"np-btn" + (perm.camera === "none" ? " np-btn-primary" : "")} disabled={!parentEmail.trim() || sending} onClick={() => void emailParent("camera")} data-testid="button-ask-parent-camera">
+                <Mail /> {sending ? "Sending…" : "Ask my parent"}
+              </button>
+            </div>
+            <button type="button" className="np-link" onClick={chooseCode}><KeyRound /> Use a proctor code instead</button>
           </>
         )}
 
@@ -195,7 +297,7 @@ export default function NoProctorGate({ book, questionCount, quizId, authToken, 
                 </button>
               </>
             )}
-            <button type="button" className="np-link" onClick={() => setView("code")}><KeyRound /> Use a proctor code instead</button>
+            <button type="button" className="np-link" onClick={chooseCode}><KeyRound /> Use a proctor code instead</button>
           </>
         )}
 
