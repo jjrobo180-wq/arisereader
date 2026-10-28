@@ -126,6 +126,8 @@ type Deps = {
   getParentStudentIds: (parentId: number) => Promise<number[]>;
   /** Sets an attempt's points (and the student's total) to `points`. */
   setAttemptPoints: (attemptId: number, points: number) => Promise<unknown>;
+  /** Whether a parent has said yes to camera quizzes for this student (see server/parentQuizPermission.ts). */
+  cameraAllowed?: (studentId: number) => Promise<boolean>;
 };
 
 export type IntegritySession = { id: string; student_id: number; quiz_kind: string; quiz_id: number; created_at: string; restarts: number };
@@ -229,6 +231,9 @@ export function registerQuizIntegrityRoutes(app: Express, authMiddleware: Reques
       const quizId = Number(req.body?.quizId);
       if (quizKind !== "book" || !Number.isSafeInteger(quizId) || quizId <= 0) return res.status(400).json({ message: "Pick a quiz first." });
       if (await deps.hasAttempt(u.id, "book", quizId)) return res.status(409).json({ message: "You have already taken this quiz." });
+      if (deps.cameraAllowed && !(await deps.cameraAllowed(u.id))) {
+        return res.status(403).json({ message: "A parent or guardian needs to say yes before you take quizzes with the camera.", needsParentPermission: true });
+      }
       // Earlier tries that were never turned in count as restarts.
       const { data: earlier, error: earlierError } = await db().from(SESSIONS).select("id,status")
         .eq("student_id", u.id).eq("quiz_kind", quizKind).eq("quiz_id", quizId).in("status", ["active", "expired"]);
