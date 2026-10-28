@@ -6,7 +6,8 @@
 //   otherwise                  → OpenAI first; if OpenAI says the account is out of credit, the key
 //                                is wrong, or it is overloaded, the same request is sent to Grok.
 //
-// Needs XAI_API_KEY (from console.x.ai). XAI_MODEL picks the Grok model (default "grok-latest").
+// Uses the site's Grok key (XAI_API_KEY, GROK_API_KEY or similar; see GROK_KEY_NAMES). XAI_MODEL or
+// GROK_MODEL picks the Grok model (default "grok-latest").
 // Only chat moves: voice (audio/speech), transcription and image generation stay on OpenAI.
 const OPENAI_CHAT = "https://api.openai.com/v1/chat/completions";
 const XAI_CHAT = "https://api.x.ai/v1/chat/completions";
@@ -59,8 +60,18 @@ export function grokFetch(base: Fetch, env: AiProviderEnv): Fetch {
 }
 
 /** Called once when the server starts. */
-export function installGrok(env: AiProviderEnv = process.env) {
-  if (!env.XAI_API_KEY) return false;
+/** The Grok key, under whichever name it was saved in the host's settings. */
+export const GROK_KEY_NAMES = ["XAI_API_KEY", "GROK_API_KEY", "XAI_KEY", "GROK_KEY", "X_AI_API_KEY", "GROK_API", "XAI_TOKEN"];
+export function findGrokKey(env: Record<string, string | undefined>): string | undefined {
+  for (const name of GROK_KEY_NAMES) if (env[name]?.trim()) return env[name]!.trim();
+  // Anything else that looks like an xAI key (they start with "xai-").
+  return Object.entries(env).find(([k, v]) => /grok|xai/i.test(k) && /^xai-/.test(v || ""))?.[1];
+}
+
+export function installGrok(source: Record<string, string | undefined> = process.env) {
+  const key = findGrokKey(source);
+  if (!key) { console.log("[ai] No Grok key found (looked for " + GROK_KEY_NAMES.join(", ") + ")"); return false; }
+  const env: AiProviderEnv = { XAI_API_KEY: key, XAI_MODEL: source.XAI_MODEL || source.GROK_MODEL, AI_PROVIDER: source.AI_PROVIDER, OPENAI_API_KEY: source.OPENAI_API_KEY };
   const onlyGrok = !env.OPENAI_API_KEY;
   globalThis.fetch = grokFetch(globalThis.fetch.bind(globalThis), { ...env });
   // Features check for an OpenAI key before offering AI; with only a Grok key they should still work.

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { grokFetch, shouldFallBack } from "../server/aiProvider";
+import { findGrokKey, grokFetch, shouldFallBack } from "../server/aiProvider";
 
 const OPENAI = "https://api.openai.com/v1/chat/completions";
 function fakeBase(openai: { status: number; body: string }) {
@@ -46,4 +46,11 @@ test("OpenAI working: Grok isn't used; AI_PROVIDER=grok sends everything to Grok
   await grokFetch(r.base, { OPENAI_API_KEY: "sk" } as any)(OPENAI, req);
   assert.equal(r.calls.length, 1, "no Grok key: nothing changes");
   assert.equal(shouldFallBack(503, ""), true);
+});
+
+test("finds the Grok key under the names sites use", () => {
+  assert.equal(findGrokKey({ GROK_API_KEY: "xai-1" }), "xai-1");
+  assert.equal(findGrokKey({ XAI_API_KEY: "xai-2", GROK_API_KEY: "xai-1" }), "xai-2");
+  assert.equal(findGrokKey({ MY_GROK_SECRET: "xai-abc" }), "xai-abc");
+  assert.equal(findGrokKey({ OPENAI_API_KEY: "sk-x" }), undefined);
 });
