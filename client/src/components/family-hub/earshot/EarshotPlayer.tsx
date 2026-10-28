@@ -249,6 +249,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const [retry, setRetry] = useState(0);
   const [txTick, setTxTick] = useState(0);
   const [skipped, setSkipped] = useState<{ ad: PlayAd; epId: string } | null>(null);
+  /** The episode playing muted while the ads at its start are found. */
+  const [holding, setHolding] = useState<string | null>(null);
   // Smart ad skip: what the server knows per episode, this listener's marks in progress, and quick forward jumps.
   const serverAds = useRef<Map<string, ServerAd[]>>(new Map());
   // Playback through the server: a play token for audio addresses, and each episode's session.
@@ -721,7 +723,29 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     setTime(a.currentTime || 0); setDur(Number.isFinite(a.duration) ? a.duration : ep.secs || 0);
     a.playbackRate = esRef.current.settings.speed;
     if (esRef.current.settings.voiceBoost && a.dataset.sid) attachVoiceBoost(a);
-    if (play) a.play().catch(() => setPlaying(false));
+    // Starting from the top through the server with ads skipped automatically: it plays muted until
+    // the server knows the ads at the start of this copy (a few seconds, 8 at most), then jumps past
+    // them and the sound comes on. Muted, not paused: iPhones only start sound inside the tap.
+    const p0 = plays.current.get(ep.id);
+    const hold = play && !!p0 && !p0.ads?.ready && (a.currentTime || 0) < 2 && esRef.current.settings.adMode === "auto" && !esRef.current.adFree.includes(ep.showId);
+    if (hold) {
+      a.muted = true; setHolding(ep.id);
+      const t0 = Date.now();
+      const tick = () => {
+        const q = plays.current.get(ep.id);
+        if (cur.current !== a || a.dataset.ep !== ep.id) { a.muted = false; setHolding(null); return; }
+        if (q?.ads?.ready || Date.now() - t0 > 8000) {
+          const st = q?.ads?.startAt ?? 0;
+          const back = (q?.ads?.ads ?? []).find((x) => x.sure && x.s <= 1)?.e ?? st;
+          try { a.currentTime = Math.max(st, back, 0); } catch { /* not seekable yet */ }
+          a.muted = false; setHolding(null);
+          return;
+        }
+        setTimeout(tick, 200);
+      };
+      setTimeout(tick, 200);
+    }
+    if (play) a.play().catch(() => { a.muted = false; setHolding(null); setPlaying(false); });
     if (next) playerFor(next, [a]);
     // Covers for the next few are fetched now, so they're there the moment you swipe.
     itemsRef.current.slice(i + 1, i + 4).forEach((x) => { const img = new Image(); img.src = x.ep?.art || x.show.art; });
@@ -1347,6 +1371,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
         onInfo={() => { setSheet({ kind: "info", show: it.show }); signal(it.show.genre, "open"); }} onNext={() => goTo(i + 1)} />)}
     </div>}
 
+    {holding && activeEp?.id === holding && <div className={`pointer-events-none absolute inset-x-3 ${below} z-[26] flex justify-center`}><div role="status" className="flex items-center gap-2 rounded-full bg-black/55 px-3.5 py-1.5 text-[13px] font-medium text-white ring-1 ring-white/10 backdrop-blur-xl"><Loader2 size={13} className="animate-spin" />Skipping the ads at the start…</div></div>}
     {tapAd && activeEp && tapAd.ep.id === activeEp.id && <div className={`pointer-events-none absolute inset-x-3 ${below} z-[26] flex justify-center`}>
       <div key={tapAd.n} role="status" className="pointer-events-auto relative flex max-w-full flex-wrap items-center justify-center gap-1.5 overflow-hidden rounded-2xl bg-[#ffd23f] py-2 pl-3.5 pr-2 text-[13px] font-semibold text-[#120e14] shadow-xl" data-testid="tap-ad-toast">
         <SkipForward size={14} className="flex-none" />
