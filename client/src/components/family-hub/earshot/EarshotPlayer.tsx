@@ -1253,7 +1253,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const root = document.documentElement.style;
     const meta = document.querySelector('meta[name="theme-color"]');
     const paint = (c: string) => { root.background = c; meta?.setAttribute("content", c); };
-    if (!(tab === "foryou" || tab === "following") || !toneArt) { paint(!(tab === "foryou" || tab === "following") && day ? "#ffffff" : "#120e14"); return; }
+    const pageTab = !(tab === "foryou" || tab === "following");
+    if (pageTab || !toneArt) { paint(pageTab && day ? "#ffffff" : pageTab && onHome ? (tab === "social" ? "#000000" : "#0f0f0f") : "#120e14"); return; }
     let live = true;
     void artTone(mediaUrl(`/api/earshot/art?u=${encodeURIComponent(toneArt)}`)).then((c) => { if (live && c) paint(c); });
     return () => { live = false; };
@@ -1269,6 +1270,20 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   if (control) control.current = { toggle: () => toggle(), pause: () => cur.current?.pause() };
   // Once per visit from the home screen: the screen's real measurements, to the server log.
   const shellRef = useRef<HTMLDivElement | null>(null);
+  // On the iPhone home screen the page's own height comes out short of the screen (by the clock
+  // bar's height), which left a strip at the bottom. The shell is sized to the real screen there.
+  useEffect(() => {
+    if (!standalone) return;
+    const fit = () => {
+      const el = shellRef.current; if (!el) return;
+      const home = (navigator as Navigator & { standalone?: boolean }).standalone === true;
+      const tall = home ? Math.max(window.innerHeight, window.screen?.height && window.innerWidth < window.innerHeight ? window.screen.height : 0) : 0;
+      el.style.height = tall ? `${tall}px` : "";
+    };
+    fit();
+    window.addEventListener("resize", fit); window.addEventListener("orientationchange", fit);
+    return () => { window.removeEventListener("resize", fit); window.removeEventListener("orientationchange", fit); };
+  }, [standalone]);
   useEffect(() => {
     if (!standalone || (navigator as Navigator & { standalone?: boolean }).standalone !== true) return;
     const t = setTimeout(() => {
@@ -1297,7 +1312,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
 
   // ---------------- layout ----------------
-  const shell = standalone ? "fixed inset-0" : full ? "fixed inset-0 z-[60]" : "relative h-[min(84dvh,880px)] min-h-[560px] rounded-3xl";
+  const shell = standalone ? "fixed inset-x-0 top-0 h-[100lvh] min-h-full" : full ? "fixed inset-0 z-[60]" : "relative h-[min(84dvh,880px)] min-h-[560px] rounded-3xl";
   const TAB_NAMES: Record<Tab, string> = { foryou: "For You", following: "Following", openmic: "Open Mic", social: "Social", explore: "Explore", library: "Library" };
   const allTabs: [Tab, string][] = student ? [["foryou", "For You"], ["following", "Following"], ["explore", "Explore"], ["library", "Library"]] : [["foryou", "For You"], ["following", "Following"], ["openmic", "Open Mic"], ["social", "Social"], ["explore", "Explore"], ["library", "Library"]];
   const tabs: [Tab, string][] = !onHome ? allTabs : tab === "foryou" || tab === "following" ? [["foryou", "For You"], ["following", "Following"]] : [[tab, TAB_NAMES[tab]]];
@@ -1308,7 +1323,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   // other tabs (pad), the notices and the sheets.
   // Room for the iPhone's notch and home bar. With the mini player showing, the mini player takes the
   // home bar's room itself (counting it twice left a gap between the page's bottom bar and it).
-  const pad = (n: ReactNode) => standalone ? <div className={`box-border h-full pt-[env(safe-area-inset-top,0px)] ${mini ? "" : "pb-[env(safe-area-inset-bottom,0px)]"}`}>{n}</div> : n;
+  const pad = (n: ReactNode) => standalone ? <div className={`box-border h-full pt-[env(safe-area-inset-top,0px)] ${mini || tab === "social" ? "" : "pb-[env(safe-area-inset-bottom,0px)]"}`} style={{ ["--ps-safe-b" as string]: mini ? "0px" : "env(safe-area-inset-bottom, 0px)" }}>{n}</div> : n;
   // Social, Explore and Library are white pages; the player and its sheets stay dark.
   const page = tab === "openmic" || tab === "social" || tab === "explore" || tab === "library";
   const light = page && day;

@@ -72,7 +72,7 @@ export function XSocial({ api, say, onPlay, onHush, onCreate, openPerson, onPers
         </div>
       </div>
     {tab === "clips" ? <div className="ps-dark flex min-h-0 flex-1 flex-col bg-[#000] pb-12"><ClipsFeed posts={posts} ctx={ctx} setup={me.v2 === false} onRefresh={load} /></div>
-    : <div ref={list} className="min-h-0 flex-1 overflow-y-auto pb-24 [scrollbar-width:none] mx-auto w-full max-w-2xl">
+    : <div ref={list} className="min-h-0 flex-1 overflow-y-auto pb-[calc(6rem+var(--ps-safe-b,0px))] [scrollbar-width:none] mx-auto w-full max-w-2xl">
 
       <PagesStrip ctx={ctx} onCreate={() => setOpen({ kind: "edit" })} />
       {!me.profile && <div className={`border-b ${LINE} px-4 py-5`}>
@@ -91,10 +91,10 @@ export function XSocial({ api, say, onPlay, onHush, onCreate, openPerson, onPers
 
     {/* Post */}
     {!open && !people.length && tab !== "clips" && <button type="button" onClick={() => (me.profile ? setOpen({ kind: "compose" }) : setOpen({ kind: "edit" }))} aria-label="Post"
-      className="absolute bottom-[3.75rem] right-4 z-20 grid h-12 w-12 place-items-center rounded-full text-black shadow-[0_4px_16px_rgba(0,0,0,.5)] active:scale-95" style={{ background: ACCENT }}><Feather size={19} strokeWidth={2.2} /></button>}
+      className="absolute bottom-[calc(3.75rem+var(--ps-safe-b,0px))] right-4 z-20 grid h-12 w-12 place-items-center rounded-full text-black shadow-[0_4px_16px_rgba(0,0,0,.5)] active:scale-95" style={{ background: ACCENT }}><Feather size={19} strokeWidth={2.2} /></button>}
 
     {/* Bottom bar */}
-    <nav className={`absolute inset-x-0 bottom-0 z-[45] flex h-12 border-t ${LINE} bg-black/90 backdrop-blur-xl`} aria-label="Social">
+    <nav className={`absolute inset-x-0 bottom-0 z-[45] box-content flex h-12 border-t ${LINE} bg-black pb-[var(--ps-safe-b,0px)]`} aria-label="Social">
       <NavBtn label="Home" on={!open && !people.length} onClick={home}><Home size={21} strokeWidth={!open && !people.length ? 2.4 : 1.7} /></NavBtn>
       <NavBtn label="Find people" on={open?.kind === "search"} onClick={() => { setPeople([]); setOpen({ kind: "search" }); }}><Search size={21} strokeWidth={open?.kind === "search" ? 2.4 : 1.7} /></NavBtn>
       <NavBtn label="Create" on={open?.kind === "upload"} onClick={() => (!me.profile ? setOpen({ kind: "edit" }) : onCreate ? onCreate() : setOpen({ kind: "upload" }))}><Mic size={21} strokeWidth={1.7} /></NavBtn>
