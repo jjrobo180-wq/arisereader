@@ -65,7 +65,7 @@ export default function QuizPermission() {
               <li><Camera /><span>The camera stays on and takes pictures at random times, and whenever {name} leaves the quiz.</span></li>
               <li><ShieldCheck /><span>Leaving the quiz once gets a warning. Leaving again turns the quiz in.</span></li>
               <li><ClipboardX /><span>Copy and paste are turned off.</span></li>
-              <li><Users /><span>{name}'s teacher, their parent and the site admin can see the pictures. Once they've been reviewed they can be deleted right away, and any that aren't are deleted after 30 days.</span></li>
+              <li><Users /><span>{name}'s teacher, their parent and the site admin can see the pictures. Once you've looked at them, you (with a parent account) or the teacher can delete them right away, and any that aren't are deleted after 30 days.</span></li>
             </ul>
             <p className="np-lead"><b>Rather not use the camera?</b> You can say no. {name} can still take quizzes with you as the proctor: you sit with them and type a proctor password. {name} can email you a one-time password from the quiz screen, or you can create a parent account to get your own Parent Proctor Code.</p>
             {error && <p className="np-error" role="alert">{error}</p>}

@@ -36,7 +36,7 @@ const button = (href: string, label: string, color = "#7c3aed") =>
 
 export function cameraPermissionEmail(student: string, approveUrl: string, signupUrl: string): string {
   return shell(`${student} is asking to take quizzes with the camera`, [
-    p(`${student} wants to take A.R.I.S.E. Reader book quizzes on their own, without a proctor. On these quizzes the camera stays on and takes pictures at random times, and whenever ${student} leaves the quiz screen. ${student}'s teacher, their parent and the site admin can see the pictures. Once the pictures have been reviewed, they can be deleted right away. Any that aren't are deleted automatically after 30 days.`),
+    p(`${student} wants to take A.R.I.S.E. Reader book quizzes on their own, without a proctor. On these quizzes the camera stays on and takes pictures at random times, and whenever ${student} leaves the quiz screen. ${student}'s teacher, their parent and the site admin can see the pictures. Once you've looked at the pictures, you (with a parent account) or the teacher can delete them right away. Any that aren't are deleted automatically after 30 days.`),
     p(`${student} can't take camera quizzes until you say yes.`),
     p(`<strong>Rather not use the camera?</strong> You can say no. ${student} can still take quizzes with you as the proctor: you sit with ${student} and type a proctor password. ${student} can email you a one-time password from the quiz screen, or you can create a free parent account below to get your own Parent Proctor Code that works every time.`),
     `<p style="margin:24px 0;">${button(approveUrl, "Review and approve")}</p>`,
