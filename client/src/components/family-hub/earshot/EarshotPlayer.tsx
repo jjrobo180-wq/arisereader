@@ -2,7 +2,7 @@
 // Used by LifeHub's Earshot app (./Earshot.tsx) and by the separate Podscroll website (podscroll/),
 // so it imports nothing from the Arise app itself: the caller passes data, saving and the API.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { Bookmark, Check, ChevronDown, ChevronLeft, ExternalLink, Mic, Flag, Heart, Info, ListVideo, Loader2, Maximize2, Megaphone, MessageCircle, Minimize2, Minus, Moon, Pause, Play, Plus, RotateCcw, RotateCw, Search, Settings2, Share2, SkipForward, ThumbsDown, Trash2, X } from "lucide-react";
+import { Bookmark, Car, Check, ChevronDown, ChevronLeft, Clock3, ExternalLink, Mic, Sparkles, Flag, Heart, Info, ListVideo, Loader2, Maximize2, Megaphone, MessageCircle, Minimize2, Minus, Moon, Pause, Play, Plus, RotateCcw, RotateCw, Search, Settings2, Share2, SkipForward, ThumbsDown, Trash2, X } from "lucide-react";
 import {
   EARSHOT_LIMITS, GENRES, GENRE, SPEEDS, chooseEpisode, chooseFreshEpisode, clock, compact, durationWords, mergeAds, pickNext, shareText, startAt, tasteOf, type AdMode,
   type AdRange, type Candidate, type Chapter, type Earshot as EarshotData, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal, type TranscriptChunk, type TxSegment,
@@ -18,9 +18,12 @@ import { PreviewCard, Previews, previewPicks, type PreviewPick } from "./Earshot
 import { SubjectGrid, SubjectView } from "./EarshotTopics";
 import type { Topic } from "@shared/earshotTopics";
 import { hiRes, type PodMode } from "@shared/earshot";
+import { momentsBetween, hoursWords, sumKinds } from "@shared/earshotListen";
+import { AskSheet, CatchUpSheet, DriveSheet, HoursBackCard, MomentBubble, catchUpWorthIt, useTimedComments, type TimedComment } from "./EarshotListen";
+import { attachVoiceBoost, countHoursBack, isBoosted, primeVoiceBoost, readHoursBack, resumeVoiceBoost, setVoiceBoost } from "./listenExtras";
 
 type Counts = { likes: number; comments: number; shares: number; liked: boolean };
-type Comment = { id: string; author: string; body: string; at: string; mine: boolean };
+type Comment = { id: string; author: string; body: string; at: string; mine: boolean; t?: number | null };
 /** want: a particular episode to load (from a Pod Mode or a saved one without its audio). */
 type Item = { key: string; show: PodShow; why: string; ep: PodEpisode | null; state: "loading" | "ready" | "none"; want?: string;
   /** A show coming back around once the feed has been through every show it has: play an episode this feed hasn't. */
@@ -171,10 +174,10 @@ function fadeVolume(a: HTMLAudioElement, to: number, ms: number): Promise<void> 
     fading.set(a, id);
   });
 }
-const SAVED_KEY = "earshot.adSaved";
 /** Seconds of ads skipped on this device, all time. */
-export function adSavedSecs(): number { try { return Math.max(0, Number(localStorage.getItem(SAVED_KEY)) || 0); } catch { return 0; } }
-function addSaved(secs: number) { if (!Number.isFinite(secs)) return; try { localStorage.setItem(SAVED_KEY, String(Math.max(0, Math.round(adSavedSecs() + secs)))); } catch { /* not kept */ } }
+export function adSavedSecs(): number { const h = readHoursBack(); return h.total.ads + h.total.intros; }
+/** Ads and intros skipped count toward Hours back (shared/earshotListen.ts). */
+function addSaved(secs: number, intro = false) { countHoursBack(intro ? "intros" : "ads", secs); }
 const savedWords = (s: number) => { const m = Math.round(s / 60); return m < 1 ? "" : m < 60 ? `${m} min` : `${Math.floor(m / 60)}h ${m % 60}m`; };
 
 const SPOTS_KEY = "earshot.spots";
@@ -225,7 +228,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const [counts, setCounts] = useState<Record<string, Counts>>({});
   const [commentsOn, setCommentsOn] = useState(!student);
   const [previews, setPreviews] = useState<PreviewPick[] | null>(null);
-  const [sheet, setSheet] = useState<null | { kind: "comments"; ep: PodEpisode } | { kind: "show"; show: PodShow } | { kind: "info"; show: PodShow } | { kind: "settings" } | { kind: "sleep" } | { kind: "read" } | { kind: "addto"; ep: PodEpisode; genre: string } | { kind: "mode"; id: string } | { kind: "share"; ep: PodEpisode; genre: string; show: PodShow } | { kind: "clip"; ep: PodEpisode; time: number }>(null);
+  const [sheet, setSheet] = useState<null | { kind: "comments"; ep: PodEpisode } | { kind: "show"; show: PodShow } | { kind: "info"; show: PodShow } | { kind: "settings" } | { kind: "sleep" } | { kind: "read" } | { kind: "addto"; ep: PodEpisode; genre: string } | { kind: "mode"; id: string } | { kind: "share"; ep: PodEpisode; genre: string; show: PodShow } | { kind: "clip"; ep: PodEpisode; time: number } | { kind: "ask"; ep: PodEpisode } | { kind: "catchup"; ep: PodEpisode; upTo: number; earlier: string[] } | { kind: "drive" }>(null);
   const sheetRef = useRef(sheet); sheetRef.current = sheet;
   const [poolTick, setPoolTick] = useState(0);
   const [loadError, setLoadError] = useState("");
@@ -267,6 +270,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const lastTime = useRef(0);
   const lastSpot = useRef(0);
   const counted = useRef<Set<string>>(new Set());
+  /** When each episode was last listened to, as of opening it this time (for Catch me up after a break). */
+  const lastHeardAt = useRef<Map<string, number>>(new Map());
   // Which feed the cards come from: the feed tab open, or the last one open while on another tab
   // (Open Mic, Social, Explore, Library), so visiting those never swaps the feed underneath.
   const feedTab = tab === "foryou" || tab === "following" ? tab : lastFeed.current;
@@ -516,19 +521,45 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   // ---------------- audio: three players, so the next episode is loaded before you swipe ----------------
   const handlers = useRef({ time: (_a: HTMLAudioElement) => {}, ended: (_a: HTMLAudioElement) => {}, error: (_a: HTMLAudioElement) => {} });
   const pool = useCallback(() => {
-    if (!players.current.length) {
-      for (let k = 0; k < 3; k++) {
-        const a = new Audio(); a.preload = "auto";
-        a.addEventListener("timeupdate", () => { if (a === cur.current) handlers.current.time(a); });
-        a.addEventListener("ended", () => { if (a === cur.current) handlers.current.ended(a); });
-        a.addEventListener("play", () => { if (a === cur.current) setPlaying(true); });
-        a.addEventListener("pause", () => { if (a === cur.current) setPlaying(false); });
-        a.addEventListener("error", () => { if (a === cur.current && a.dataset.ep) handlers.current.error(a); });
-        players.current.push(a);
-      }
-    }
+    if (!players.current.length) for (let k = 0; k < 3; k++) players.current.push(makeAudio());
     return players.current;
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  function makeAudio() {
+    const a = new Audio(); a.preload = "auto";
+    a.addEventListener("timeupdate", () => { if (a === cur.current) handlers.current.time(a); });
+    a.addEventListener("ended", () => { if (a === cur.current) handlers.current.ended(a); });
+    a.addEventListener("play", () => { if (isBoosted(a)) resumeVoiceBoost(); if (a === cur.current) setPlaying(true); });
+    a.addEventListener("pause", () => { if (a === cur.current) setPlaying(false); });
+    a.addEventListener("error", () => { if (a === cur.current && a.dataset.ep) handlers.current.error(a); });
+    return a;
+  }
+  /** Points a player at an episode. Through the server with Voice boost on, the audio is fetched so the
+   *  page may shape its sound (crossOrigin). A player whose sound already goes through the boost can't
+   *  play audio from other sites (it would be silent), so it is swapped for a fresh one first. */
+  const setAudioSrc = (a: HTMLAudioElement, ep: PodEpisode, via: string | null): HTMLAudioElement => {
+    if (!via && isBoosted(a)) {
+      const fresh = makeAudio();
+      const i = players.current.indexOf(a); if (i >= 0) players.current[i] = fresh;
+      a.pause(); a.removeAttribute("src"); a.load();
+      if (cur.current === a) cur.current = fresh;
+      fresh.dataset.ep = ep.id; a = fresh;
+    }
+    if (via) { if (esRef.current.settings.voiceBoost || isBoosted(a)) a.crossOrigin = "anonymous"; else a.removeAttribute("crossorigin"); a.dataset.sid = via; a.src = sessionSrc(ep, via); }
+    else { a.removeAttribute("crossorigin"); delete a.dataset.sid; a.src = ep.audio; }
+    return a;
+  };
+  /** Voice boost on: route the playing episode through it (it must come through the server). */
+  const boostCurrent = () => {
+    const a = cur.current;
+    if (!a || !esRef.current.settings.voiceBoost || !a.dataset.sid) return;
+    if (a.crossOrigin === "anonymous") { attachVoiceBoost(a); return; }
+    // Loaded before Voice boost was on: load it again the shaping way, from the same moment.
+    const ep = itemsRef.current.find((x) => x.ep?.id === a.dataset.ep)?.ep; if (!ep) return;
+    const t = a.currentTime || 0, was = !a.paused;
+    a.crossOrigin = "anonymous"; a.src = sessionSrc(ep, a.dataset.sid); a.load();
+    a.addEventListener("loadedmetadata", () => { try { a.currentTime = t; } catch { /* not seekable */ } attachVoiceBoost(a); }, { once: true });
+    if (was) a.play().catch(() => setPlaying(false));
+  };
   useEffect(() => () => { players.current.forEach((a) => { a.pause(); a.removeAttribute("src"); a.load(); }); }, []);
 
   /** Must run inside a tap: lets every player start later without another tap (iPhone rule). */
@@ -558,7 +589,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
         const ep = itemsRef.current.find((x) => x.ep?.id === a.dataset.ep)?.ep;
         if (!ep || a.dataset.sid || !a.paused || a.currentTime > 0.5) continue;
         const via = viaServer(ep); if (!via) continue;
-        a.dataset.sid = via; a.src = sessionSrc(ep, via); a.load();
+        setAudioSrc(a, ep, via); a.load();
       }
       t = setTimeout(get, Math.max(60_000, playTok.current.exp - Date.now() - 30 * 60_000));
     }).catch(() => { if (!stop) t = setTimeout(get, 60_000); });
@@ -587,7 +618,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       let back = false;
       const up = () => { if (back) return; back = true; a.removeEventListener("seeked", up); skipping.current = false; void fadeVolume(a, 1, 500); };
       a.addEventListener("seeked", up); setTimeout(up, 1500);
-      setSkipped({ ad, epId }); addSaved(ad.e - ad.s);
+      setSkipped({ ad, epId }); addSaved(ad.e - ad.s, ad.kind === "intro");
     };
     if (fadeOut && canFade() && !a.paused) void fadeVolume(a, 0, 220).then(land);
     else { if (canFade()) { const f = fading.get(a); if (f) clearInterval(f); a.volume = 0; } land(); }
@@ -630,8 +661,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     a.pause();
     a.dataset.ep = ep.id;
     const via = viaServer(ep);
-    if (via) a.dataset.sid = via; else delete a.dataset.sid;
-    a.src = via ? sessionSrc(ep, via) : ep.audio;
+    a = setAudioSrc(a, ep, via);
     a.preload = "auto";
     // Through the server the intro is found and skipped exactly; otherwise long episodes start 90 s in.
     const at = startAt(ep.secs, readSpots()[ep.id]?.t, via ? false : esRef.current.settings.skipIntro);
@@ -668,10 +698,12 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     // It failed while loading ahead (through the server): load it again now that it's playing.
     if (a.error && a.dataset.sid) handlers.current.error(a);
     listened.current = 0; lastTime.current = a.currentTime; lastSpot.current = 0; setSkipped(null);
+    if (!lastHeardAt.current.has(ep.id)) lastHeardAt.current.set(ep.id, readSpots()[ep.id]?.at ?? 0);
     if (markingRef.current && markingRef.current.epId !== ep.id) setMarking(null);
     loadAds(ep);
     setTime(a.currentTime || 0); setDur(Number.isFinite(a.duration) ? a.duration : ep.secs || 0);
     a.playbackRate = esRef.current.settings.speed;
+    if (esRef.current.settings.voiceBoost && a.dataset.sid) attachVoiceBoost(a);
     if (play) a.play().catch(() => setPlaying(false));
     if (next) playerFor(next, [a]);
     // Covers for the next few are fetched now, so they're there the moment you swipe.
@@ -712,6 +744,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const toggle = () => {
     if (locked) return;
     unlock();
+    if (esRef.current.settings.voiceBoost) { primeVoiceBoost(); setTimeout(boostCurrent, 150); }
     const it = items[active]; if (!it?.ep) return;
     const a = cur.current;
     if (!a || a.dataset.ep !== it.ep.id) { activate(active, true); return; }
@@ -758,6 +791,37 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
 
   // ---------------- read along and ad skip ----------------
   const activeEp = items[active]?.ep ?? null;
+  // ---------------- timestamped comments, popping up as their moment plays ----------------
+  const timed = useTimedComments(api, activeEp?.id, commentsOn && es.settings.liveComments && !student);
+  const timedRef = useRef<TimedComment[]>([]); timedRef.current = timed.list;
+  const [moment, setMoment] = useState<TimedComment | null>(null);
+  const momentT = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hiddenMoments = useRef<Set<string>>(new Set());
+  function showMoment(c: TimedComment) {
+    if (hiddenMoments.current.has(c.id)) return;
+    setMoment(c);
+    if (momentT.current) clearTimeout(momentT.current);
+    momentT.current = setTimeout(() => setMoment(null), 7000);
+  }
+  useEffect(() => { setMoment(null); }, [activeEp?.id]);
+  // Voice boost switched on or off: every routed player follows, and the playing one is routed now.
+  useEffect(() => {
+    setVoiceBoost(es.settings.voiceBoost, players.current);
+    if (es.settings.voiceBoost && unlockedRef.current) { primeVoiceBoost(); setTimeout(boostCurrent, 150); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [es.settings.voiceBoost]);
+  /** The play session of the episode playing now, so answers line up with this listener's own copy. */
+  const playSid = (ep: PodEpisode) => (cur.current?.dataset.ep === ep.id ? cur.current.dataset.sid || undefined : undefined);
+  const openAsk = (ep: PodEpisode) => { setSheet({ kind: "ask", ep }); };
+  /** Earlier episodes of the same show they heard, newest first, for the recap's "previously". */
+  const openCatchUp = async (ep: PodEpisode) => {
+    const upTo = cur.current?.dataset.ep === ep.id ? cur.current.currentTime : readSpots()[ep.id]?.t ?? 0;
+    let earlier: string[] = [];
+    try { const { episodes } = await loadEpisodes(ep.showId); const heardSet = new Set(esRef.current.heard); earlier = episodes.filter((e) => e.id !== ep.id && heardSet.has(e.id) && (!ep.date || !e.date || e.date <= ep.date)).slice(0, 3).map((e) => e.id); } catch { /* none */ }
+    if (upTo < 60 && !earlier.length) { say("Listen a little first, then Catch me up recaps what you heard."); return; }
+    cur.current?.pause();
+    setSheet({ kind: "catchup", ep, upTo, earlier });
+  };
   const txFor = (ep: PodEpisode | null) => (ep ? txs.current.get(ep.id) : undefined);
   const loadTx = useCallback((ep: PodEpisode, chunk: number) => {
     let t = txs.current.get(ep.id);
@@ -811,8 +875,14 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
 
   handlers.current.time = (a) => {
-    const t = a.currentTime; const delta = t - lastTime.current; lastTime.current = t;
+    const t = a.currentTime; const prev = lastTime.current; const delta = t - prev; lastTime.current = t;
     if (delta > 0 && delta < 2) listened.current += delta;
+    // Hours back: listening faster gives back the difference.
+    const rate = a.playbackRate || 1;
+    if (delta > 0 && delta < 2 && rate > 1) countHoursBack("speed", delta - delta / rate);
+    // Listeners' comments pinned to this moment pop up as it plays.
+    const due = momentsBetween(timedRef.current, prev, t);
+    if (due.length && !sheetRef.current) showMoment(due[due.length - 1]);
     setTime(t); if (a.duration && Number.isFinite(a.duration)) setDur(a.duration);
     const it = itemsRef.current[activeRef.current]; const ep = it?.ep;
     if (ep && Math.abs(t - lastSpot.current) > 5) { lastSpot.current = t; saveSpot(ep, t); }
@@ -864,8 +934,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       if (!p?.retried) plays.current.set(ep.id, { sid: "", showId: ep.showId, ads: { ready: true, final: true, ads: [], how: "failed", compared: 0, gone: true }, polls: 0, timer: null, used: 0, retried: true });
       else direct.current.add(ep.id);
       const via = viaServer(ep);
-      if (via) a.dataset.sid = via; else delete a.dataset.sid;
-      a.src = via ? sessionSrc(ep, via) : ep.audio; a.load();
+      a = setAudioSrc(a, ep, via); a.load();
       if (t > 1) a.addEventListener("loadedmetadata", () => { try { a.currentTime = t; } catch { /* not seekable */ } }, { once: true });
       if (wasPlaying) a.play().catch(() => setPlaying(false));
       return;
@@ -898,7 +967,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const adOffer = adNow && !(adNow.sure && adMode === "auto") ? adNow : null;
   const undoSkip = () => {
     if (!skipped) return;
-    undone.current.add(skipped.ad.key); addSaved(-(skipped.ad.e - skipped.ad.s)); seekTo(skipped.ad.s); voteAd(skipped.epId, skipped.ad.key, -1); setSkipped(null); setAdsTick((x) => x + 1);
+    undone.current.add(skipped.ad.key); addSaved(-(skipped.ad.e - skipped.ad.s), skipped.ad.kind === "intro"); seekTo(skipped.ad.s); voteAd(skipped.epId, skipped.ad.key, -1); setSkipped(null); setAdsTick((x) => x + 1);
     say("Got it, that wasn't an ad. It won't be skipped for you, and your vote counts for everyone.");
   };
   const takeOffer = () => {
@@ -1060,6 +1129,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   useEffect(() => {
     if (!playMode || modeStarted.current) return;
     modeStarted.current = true;
+    if (playMode.id === "__drive") { setSheet({ kind: "drive" }); return; }
     const m = esRef.current.modes.find((x) => x.id === playMode.id);
     if (!m?.episodes.length) return;
     const mix = <T,>(l: T[]) => { const x = l.slice(); for (let i = x.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [x[i], x[j]] = [x[j], x[i]]; } return x; };
@@ -1166,6 +1236,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
         <div className="flex h-14 w-full items-center gap-2">
           <button type="button" onClick={onHome} className={`inline-flex h-10 flex-none items-center gap-1 rounded-full pl-2 pr-4 text-sm font-medium ${light ? "hover:bg-[#f2f2f2]" : "hover:bg-[#272727]"}`}><ChevronLeft size={20} />Home</button>
           <h1 className="min-w-0 flex-1 truncate text-lg font-semibold">{TAB_NAMES[tab]}</h1>
+          <button type="button" aria-label="Fit my drive" title="Fit my drive" onClick={() => setSheet({ kind: "drive" })} className={`grid h-10 w-10 flex-none place-items-center rounded-full ${light ? "hover:bg-[#f2f2f2]" : "hover:bg-[#272727]"}`}><Car size={19} /></button>
           <button type="button" aria-label="Settings" onClick={() => setSheet({ kind: "settings" })} className={`grid h-10 w-10 flex-none place-items-center rounded-full ${light ? "hover:bg-[#f2f2f2]" : "hover:bg-[#272727]"}`}><Settings2 size={19} /></button>
         </div>
       </header>
@@ -1181,6 +1252,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       <div className="flex flex-none gap-1.5">
         {!student && <LiveChip live={live} light={light} onClick={() => setTab("openmic")} />}
         {sleepAt !== null && <span className={`flex items-center gap-1 rounded-full ${chip} px-2.5 text-xs font-bold backdrop-blur`}><Moon size={14} />{sleepAt === "end" ? "End" : `${Math.max(1, Math.ceil(((sleepAt as number) - Date.now()) / 60000))}m`}</span>}
+        <button type="button" aria-label="Fit my drive" title="Fit my drive" onClick={() => setSheet({ kind: "drive" })} className={`grid h-9 w-9 place-items-center rounded-full ${chip} backdrop-blur`}><Car size={18} /></button>
         <button type="button" aria-label="Settings" onClick={() => setSheet({ kind: "settings" })} className={`grid h-9 w-9 place-items-center rounded-full ${chip} backdrop-blur`}><Settings2 size={18} /></button>
         {!standalone && <button type="button" aria-label={full ? "Exit full screen" : "Full screen"} onClick={() => setFull((f) => !f)} className={`grid h-9 w-9 place-items-center rounded-full ${chip} backdrop-blur`}>{full ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button>}
       </div>
@@ -1196,6 +1268,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
         ad={i === active ? adOffer : null} onSkipAd={takeOffer} onNotAd={refuseOffer} onTapStart={unlock}
         adMarks={i === active && adsOn ? activeAds : []} marking={i === active && !!marking} onMark={startMark}
         onToggle={toggle} onSeek={(t) => seekTo(t, true)} onBack={() => seekBy(-15)} onFwd={() => seekBy(30)} onRead={openRead}
+        onAsk={() => it.ep && openAsk(it.ep)} onCatchUp={i === active && it.ep && catchUpWorthIt(time, lastHeardAt.current.get(it.ep.id)) ? () => it.ep && void openCatchUp(it.ep) : undefined}
         onLike={() => it.ep && toggleLike(it.ep, it.show.genre)} onDoubleLike={() => it.ep && !counts[it.ep.id]?.liked && toggleLike(it.ep, it.show.genre)}
         onSave={() => it.ep && setSheet({ kind: "addto", ep: it.ep, genre: it.show.genre })} onShare={() => it.ep && setSheet({ kind: "share", ep: it.ep, genre: it.show.genre, show: it.show })} onFollow={() => (it.mic ? followCreator(it) : toggleFollow(it.show))}
         onComments={() => it.ep && setSheet({ kind: "comments", ep: it.ep })} onShow={() => { if (it.mic) return openCreator(it.mic.handle); setSheet({ kind: "show", show: it.show }); signal(it.show.genre, "open"); }}
@@ -1234,7 +1307,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       onOpen={() => setTab(lastFeed.current)} onToggle={toggle} />}
 
     <div className={day ? "ps-light contents" : "contents"}>{day && <style>{LIGHT_CSS + LIGHT_SHEETS_CSS}</style>}
-    {sheet?.kind === "comments" && <Comments ep={sheet.ep} api={api} say={say} nickname={nickname} setNickname={setNickname} onClose={() => setSheet(null)} onPosted={() => { setCounts((c) => ({ ...c, [sheet.ep.id]: { ...(c[sheet.ep.id] ?? { likes: 0, comments: 0, shares: 0, liked: false }), comments: (c[sheet.ep.id]?.comments ?? 0) + 1 } })); const it = items.find((x) => x.ep?.id === sheet.ep.id); if (it) signal(it.show.genre, "comment"); }} />}
+    {sheet?.kind === "comments" && <Comments ep={sheet.ep} now={cur.current?.dataset.ep === sheet.ep.id ? cur.current.currentTime : null} onJump={(t) => { setSheet(null); unlock(); seekTo(t); if (cur.current?.paused) toggle(); }} api={api} say={say} nickname={nickname} setNickname={setNickname} onClose={() => setSheet(null)} onPosted={() => { timed.reload(); setCounts((c) => ({ ...c, [sheet.ep.id]: { ...(c[sheet.ep.id] ?? { likes: 0, comments: 0, shares: 0, liked: false }), comments: (c[sheet.ep.id]?.comments ?? 0) + 1 } })); const it = items.find((x) => x.ep?.id === sheet.ep.id); if (it) signal(it.show.genre, "comment"); }} />}
     {sheet?.kind === "show" && <ShowPage show={sheet.show} load={loadEpisodes} hideTeasers={es.settings.hideTeasers} following={isFollowing(sheet.show.id)} adFree={es.adFree.includes(sheet.show.id)} onAdFree={(on) => update((e) => ({ ...e, adFree: on ? [sheet.show.id, ...e.adFree.filter((x) => x !== sheet.show.id)].slice(0, 300) : e.adFree.filter((x) => x !== sheet.show.id) }))} onFollow={toggleFollow} onPlayFrom={playFrom} onClose={() => setSheet(null)} onGenre={(g) => { setSheet(null); setGenreMode(g); setTab("foryou"); }} spots={readSpots()} onAddTo={(ep) => setSheet({ kind: "addto", ep, genre: sheet.show.genre })} />}
     {sheet?.kind === "info" && <InfoSheet show={sheet.show} api={api} ex={ex} onClose={() => setSheet(null)} onShow={(show) => setSheet({ kind: "show", show })} onEpisodes={() => setSheet({ kind: "show", show: sheet.show })} />}
     {sheet?.kind === "share" && <ShareSheet api={api} say={say} ep={sheet.ep} social={!student} onLink={() => share(sheet.ep, sheet.genre, sheet.show)} onClose={() => setSheet(null)}
@@ -1246,6 +1319,13 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     {sheet?.kind === "settings" && <SettingsSheet es={es} student={student} update={update} onClose={() => setSheet(null)} sleepAt={sleepAt} setSleep={chooseSleep} apple={!!standalone} theme={theme}
       account={standalone && creator?.signIn ? { email: creator.email, onSignIn: () => { setSheet(null); setMaker("signin"); },
         onSignOut: () => { void api("/api/earshot/account/signout", { method: "POST" }).catch(() => {}); onSession?.(null); setSheet(null); setTimeout(reloadCreator, 300); say("Signed out."); } } : undefined} />}
+    {sheet?.kind === "ask" && <AskSheet ep={sheet.ep} api={api} play={playSid(sheet.ep)} onJump={(t) => { unlock(); seekTo(t); if (cur.current?.paused) toggle(); }} onClose={() => setSheet(null)} />}
+    {sheet?.kind === "catchup" && <CatchUpSheet ep={sheet.ep} api={api} upTo={sheet.upTo} play={playSid(sheet.ep)} earlier={sheet.earlier} onClose={() => setSheet(null)}
+      onResume={() => { setSheet(null); unlock(); if (cur.current?.dataset.ep === sheet.ep.id) { if (cur.current.paused) toggle(); } else { const show: PodShow = { id: sheet.ep.showId, name: sheet.ep.show, author: sheet.ep.author, art: sheet.ep.art, genre: "culture", appleGenre: "", link: sheet.ep.link, episodes: 0, explicit: sheet.ep.explicit, latest: sheet.ep.date }; playNow(show, sheet.ep, sheet.upTo); } }} />}
+    {sheet?.kind === "drive" && <DriveSheet es={es} speed={es.settings.speed} onClose={() => setSheet(null)} onPlay={(list, title) => { playSaved(list, 0, title); say(`${title}: ${list.length} episode${list.length === 1 ? "" : "s"}, back to back.`); }} />}
+    {moment && sheet === null && <div className={`pointer-events-none absolute inset-x-3 ${standalone ? "bottom-[calc(13rem+env(safe-area-inset-bottom,0px))]" : "bottom-44"} z-[24] flex justify-center`}>
+      <MomentBubble c={moment} onOpen={() => { const ep = items[active]?.ep; setMoment(null); if (ep) setSheet({ kind: "comments", ep }); }} onClose={() => { hiddenMoments.current.add(moment.id); setMoment(null); }} />
+    </div>}
     {sheet?.kind === "sleep" && <SleepSheet sleepAt={sleepAt} onPick={(v) => { chooseSleep(v); setSheet(null); }} onClose={() => setSheet(null)} />}
     {draft && <MarkSheet draft={draft} shared={adsShared} onChange={setDraft} onPreview={(t) => { unlock(); seekTo(t); if (cur.current?.paused) toggle(); }} onSave={saveDraft} onClose={() => setDraft(null)} />}
     </div>
@@ -1287,6 +1367,8 @@ type CardProps = {
   onProfile: () => void;
   i: number; item: Item; active: boolean; playing: boolean; time: number; dur: number; counts?: Counts; commentsOn: boolean; following: boolean; saved: boolean; notes: boolean; full: boolean; unlocked: boolean;
   ad: PlayAd | null; onSkipAd: () => void; onNotAd: () => void; onTapStart: () => void; onRead: () => void;
+  /** Ask the episode, and (when worth it) Catch me up. */
+  onAsk: () => void; onCatchUp?: () => void;
   adMarks: PlayAd[]; marking: boolean; onMark: () => void;
   /** Podscroll's Apple Podcasts-style card: edge-to-edge art, speed and sleep in the controls row. */
   apple: boolean; speed: number; onSpeed: () => void; sleepOn: boolean; onSleep: () => void;
@@ -1411,8 +1493,10 @@ function Card(p: CardProps) {
             <button type="button" onClick={p.onFwd} aria-label="Forward 30 seconds" className="relative grid h-14 w-14 place-items-center rounded-full text-white"><RotateCw size={36} strokeWidth={1.7} /><span className="absolute pt-0.5 text-[11px] font-bold">30</span></button>
             <button type="button" onClick={p.onSleep} aria-label={p.sleepOn ? "Sleep timer on. Change it." : "Sleep timer"} aria-pressed={p.sleepOn} className={`grid h-12 w-12 place-items-center rounded-full ${p.sleepOn ? "text-white" : "text-white/80"}`}><Moon size={24} strokeWidth={1.7} className={p.sleepOn ? "fill-current" : ""} /></button>
           </div>
-          <div className="mt-1 flex justify-center">
-            <button type="button" onClick={p.onRead} disabled={!p.active} aria-label="Read along" className="flex min-h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold text-white/75 transition hover:bg-white/10 hover:text-white disabled:opacity-30"><ReadIcon size={17} />Read along</button>
+          <div className="mt-1 flex flex-wrap justify-center gap-0.5">
+            <button type="button" onClick={p.onRead} disabled={!p.active} aria-label="Read along" className="flex min-h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold text-white/75 transition hover:bg-white/10 hover:text-white disabled:opacity-30"><ReadIcon size={17} />Read along</button>
+            <button type="button" onClick={p.onAsk} disabled={!p.active} aria-label="Ask this episode" className="flex min-h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold text-white/75 transition hover:bg-white/10 hover:text-white disabled:opacity-30"><Sparkles size={16} />Ask</button>
+            {p.onCatchUp && <button type="button" onClick={p.onCatchUp} disabled={!p.active} aria-label="Catch me up" className="flex min-h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold text-white/75 transition hover:bg-white/10 hover:text-white disabled:opacity-30"><Clock3 size={16} />Catch me up</button>}
           </div>
         </div>}
       </div>
@@ -1492,6 +1576,8 @@ function Card(p: CardProps) {
       <Avatar item={item} following={p.following} onProfile={p.onProfile} onFollow={p.onFollow} className="mb-1.5" />
       <Act label="Like" n={c?.likes} on={!!c?.liked} onClick={p.onLike} disabled={!ep}><Heart size={26} strokeWidth={1.5} className={c?.liked ? "fill-rose-500 text-rose-500" : ""} /></Act>
       {p.commentsOn && <Act label="Comments" n={c?.comments} onClick={p.onComments} disabled={!ep}><MessageCircle size={25} strokeWidth={1.5} /></Act>}
+      <Act label="Ask this episode" onClick={p.onAsk} disabled={!ep || !p.active}><Sparkles size={24} strokeWidth={1.5} /></Act>
+      {p.onCatchUp && <Act label="Catch me up" onClick={p.onCatchUp} disabled={!p.active}><Clock3 size={24} strokeWidth={1.5} /></Act>}
       <Act label="Episodes" onClick={p.onShow}><ListVideo size={25} strokeWidth={1.5} /></Act>
       <Act label={p.saved ? "Saved" : "Save"} on={p.saved} onClick={p.onSave} disabled={!ep}><Bookmark size={25} strokeWidth={1.5} className={p.saved ? "fill-current" : ""} /></Act>
       <Act label="Share" n={c?.shares} onClick={p.onShare} disabled={!ep}><Share2 size={24} strokeWidth={1.5} /></Act>
@@ -1825,8 +1911,14 @@ function Sheet({ title, onClose, children, tall }: { title: string; onClose: () 
   </div>;
 }
 
-function Comments({ ep, api, say, onClose, onPosted, nickname, setNickname }: { ep: PodEpisode; api: PlayerProps["api"]; say: (m: string) => void; onClose: () => void; onPosted: () => void; nickname?: string; setNickname?: (n: string) => void }) {
+function Comments({ ep, api, say, onClose, onPosted, nickname, setNickname, now, onJump }: { ep: PodEpisode; api: PlayerProps["api"]; say: (m: string) => void; onClose: () => void; onPosted: () => void; nickname?: string; setNickname?: (n: string) => void;
+  /** Where this episode is playing (null: not playing), so a comment can be pinned to that moment. */
+  now: number | null; onJump: (t: number) => void }) {
   const [list, setList] = useState<Comment[] | null>(null);
+  // Pinned to the moment by default while it's playing; the moment is the one when the sheet opened.
+  const [pinAt] = useState(() => (now !== null && now >= 1 ? Math.floor(now) : null));
+  const [pin, setPin] = useState(pinAt !== null);
+  const [order, setOrder] = useState<"new" | "time">("new");
   const [admin, setAdmin] = useState(false);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -1837,20 +1929,22 @@ function Comments({ ep, api, say, onClose, onPosted, nickname, setNickname }: { 
   const post = async (e: FormEvent) => {
     e.preventDefault(); const body = text.trim(); if (!body || busy) return;
     setBusy(true);
-    try { const b = await api("/api/earshot/comments", { method: "POST", body: { episodeId: ep.id, showId: ep.showId, body, ...(setNickname ? { name: nickname || "" } : {}) } }); setList((l) => [b.comment, ...(l || [])]); setText(""); onPosted(); }
+    try { const b = await api("/api/earshot/comments", { method: "POST", body: { episodeId: ep.id, showId: ep.showId, body, ...(pin && pinAt !== null ? { t: pinAt } : {}), ...(setNickname ? { name: nickname || "" } : {}) } }); setList((l) => [b.comment, ...(l || [])]); setText(""); onPosted(); }
     catch (e: any) { say(e.message); } finally { setBusy(false); }
   };
   const remove = async (id: string) => { if (confirm !== id) { setConfirm(id); setTimeout(() => setConfirm((c) => (c === id ? null : c)), 3000); return; } try { await api(`/api/earshot/comments/${id}`, { method: "DELETE" }); setList((l) => (l || []).filter((c) => c.id !== id)); } catch (e: any) { say(e.message); } };
   const report = async (id: string) => { try { await api(`/api/earshot/comments/${id}/report`, { method: "POST", body: {} }); setList((l) => (l || []).filter((c) => c.id !== id)); say("Reported. Thanks for keeping it kind."); } catch (e: any) { say(e.message); } };
   return <Sheet title={list ? `${list.length} comment${list.length === 1 ? "" : "s"}` : "Comments"} onClose={onClose} tall>
     <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-      <p className="mb-3 line-clamp-1 text-xs text-white/50">On “{ep.title}”</p>
+      <div className="mb-3 flex items-center justify-between gap-2"><p className="line-clamp-1 min-w-0 text-xs text-white/50">On “{ep.title}”</p>
+        {!!list?.some((c) => typeof c.t === "number") && <div className="flex flex-none rounded-full bg-white/10 p-0.5">{([["new", "Newest"], ["time", "By moment"]] as const).map(([v, l]) => <button key={v} type="button" aria-pressed={order === v} onClick={() => setOrder(v)} className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${order === v ? "bg-white text-[#120e14]" : "text-white/70"}`}>{l}</button>)}</div>}
+      </div>
       {!list && <div className="grid place-items-center py-10"><Loader2 className="animate-spin" /></div>}
       {err && <p className="py-6 text-center text-sm text-white/65">{err}</p>}
       {list && !err && !list.length && <p className="py-10 text-center text-sm text-white/60"><b className="text-white">No comments yet.</b><br />Say what you thought of this one.</p>}
-      <ul className="flex flex-col gap-4">{(list || []).map((c) => <li key={c.id} className="grid grid-cols-[36px_1fr_auto] items-start gap-3">
+      <ul className="flex flex-col gap-4">{(order === "time" ? (list || []).slice().sort((a, b) => (a.t ?? 1e9) - (b.t ?? 1e9)) : list || []).map((c) => <li key={c.id} className="grid grid-cols-[36px_1fr_auto] items-start gap-3">
         <span className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-sm font-semibold text-white/70">{(c.mine ? "Y" : c.author[0] || "A").toUpperCase()}</span>
-        <div className="min-w-0"><p className="text-xs font-bold text-white/60">{c.mine ? "You" : c.author} <span className="font-medium text-white/40">· {agoWords(c.at)}</span></p><p className="mt-0.5 whitespace-pre-wrap break-words text-sm leading-relaxed">{c.body}</p></div>
+        <div className="min-w-0"><p className="text-xs font-bold text-white/60">{c.mine ? "You" : c.author} <span className="font-medium text-white/40">· {agoWords(c.at)}</span></p><p className="mt-0.5 whitespace-pre-wrap break-words text-sm leading-relaxed">{typeof c.t === "number" && <button type="button" onClick={() => onJump(c.t!)} aria-label={`Play from ${clock(c.t)}`} className="mr-1.5 inline-flex items-center gap-1 rounded-md bg-[#ff8a3d]/20 px-1.5 py-px align-[1px] text-xs font-bold tabular-nums text-[#ffb27d]"><Play size={9} fill="currentColor" strokeWidth={0} />{clock(c.t)}</button>}{c.body}</p></div>
         {c.mine || admin
           ? <button type="button" onClick={() => remove(c.id)} aria-label="Delete comment" className={`flex items-center gap-1 p-1 text-xs font-bold ${confirm === c.id ? "text-rose-400" : "text-white/40"}`}><Trash2 size={14} />{confirm === c.id ? "Delete?" : ""}</button>
           : <button type="button" onClick={() => report(c.id)} aria-label="Report comment" className="p-1 text-white/35 hover:text-white/70"><Flag size={14} /></button>}
@@ -1858,7 +1952,8 @@ function Comments({ ep, api, say, onClose, onPosted, nickname, setNickname }: { 
     </div>
     {setNickname && <label className="flex items-center gap-2 border-t border-white/10 px-4 pt-2.5 text-xs text-white/55">Posting as<input value={nickname || ""} onChange={(e) => setNickname(e.target.value.slice(0, 24))} maxLength={24} placeholder="Your first name" aria-label="Your name for comments" className="min-w-0 flex-1 border-b border-dashed border-white/20 bg-transparent py-1 text-sm text-white outline-none placeholder:text-white/30" /></label>}
     <form onSubmit={post} className="flex items-center gap-2 border-t border-white/10 p-3">
-      <input value={text} onChange={(e) => setText(e.target.value)} maxLength={280} placeholder="Add a comment" aria-label="Write a comment" className="min-h-11 min-w-0 flex-1 rounded-full border border-white/10 bg-white/5 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-[#ff8a3d]" />
+      {pinAt !== null && <button type="button" onClick={() => setPin((v) => !v)} aria-pressed={pin} title={pin ? "Pinned to this moment. Tap to make it about the whole episode." : "About the whole episode. Tap to pin it to this moment."} className={`min-h-11 flex-none rounded-full px-3 text-xs font-bold tabular-nums ${pin ? "bg-[#ff8a3d] text-[#111013]" : "bg-white/10 text-white/55 line-through"}`}>{clock(pinAt)}</button>}
+      <input value={text} onChange={(e) => setText(e.target.value)} maxLength={280} placeholder={pin && pinAt !== null ? "Say something about this moment" : "Add a comment"} aria-label="Write a comment" className="min-h-11 min-w-0 flex-1 rounded-full border border-white/10 bg-white/5 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-[#ff8a3d]" />
       <button type="submit" disabled={!text.trim() || busy} className="min-h-11 rounded-full px-4 text-sm font-semibold bg-white text-[#111013] disabled:opacity-40">{busy ? <Loader2 size={16} className="animate-spin" /> : "Post"}</button>
     </form>
   </Sheet>;
@@ -1901,6 +1996,9 @@ function SettingsSheet({ es, student, update, onClose, sleepAt, setSleep, apple,
         <div className="flex flex-none flex-wrap justify-end gap-1">{([[15, "15m"], [30, "30m"], [60, "1h"], ["end", "End"], [null, "Off"]] as [number | "end" | null, string][]).map(([v, l]) =>
           <button key={l} type="button" onClick={() => setSleep(typeof v === "number" ? Date.now() + v * 60000 : v)} aria-pressed={v === null ? sleepAt === null : v === "end" ? sleepAt === "end" : false} className={`rounded-full px-2.5 py-1.5 text-xs font-semibold ${(v === null && sleepAt === null) || (v === "end" && sleepAt === "end") ? "bg-white text-[#120e14]" : "bg-white/10 text-white/75"}`}>{l}</button>)}</div>
       </Row>
+      <Row title="Voice boost" sub={es.settings.voiceBoost ? "Clearer voices, quieter loud parts. Works on most episodes; a few play as they are" : "Clearer voices and quieter loud parts, great in the car"}><Switch on={es.settings.voiceBoost} label="Voice boost" onClick={() => set({ voiceBoost: !es.settings.voiceBoost })} /></Row>
+      <Row title="Hours back counter" sub={(() => { const t = sumKinds(readHoursBack().total); return `Shows the time skipped ads, intros and a faster speed gave back${t >= 60 ? ` · ${hoursWords(t)} so far` : ""}`; })()}><Switch on={es.settings.hoursBack} label="Hours back counter" onClick={() => set({ hoursBack: !es.settings.hoursBack })} /></Row>
+      {!student && <Row title="Comments as you listen" sub="Pop up listeners' comments at the moment they're about"><Switch on={es.settings.liveComments} label="Comments as you listen" onClick={() => set({ liveComments: !es.settings.liveComments })} /></Row>}
       <Row title="Speed"><Seg value={es.settings.speed} options={SPEEDS.map((s) => [s, `${s}×`] as [number, string])} onPick={(v) => set({ speed: v })} /></Row>
       <Row title="Skip the intro" sub="Jump past theme music, recaps, teasers and the standard welcome to where the episode starts"><Switch on={es.settings.skipIntro} label="Skip the intro" onClick={() => set({ skipIntro: !es.settings.skipIntro })} /></Row>
       <Row title="Swipe for me after" sub="Move to the next podcast by itself"><Seg value={es.settings.advance} options={[[60, "1 min"], [180, "3 min"], [0, "The end"]]} onPick={(v) => set({ advance: v as 0 | 60 | 180 })} /></Row>
@@ -1975,6 +2073,7 @@ function Library({ es, update, onEditInterests, onOpen, onMode }: { es: EarshotD
   return <div className="h-full overflow-y-auto px-4 pb-8 pt-16">
     <div className="flex items-center justify-between gap-3"><h3 className="text-2xl font-semibold">Library</h3><button type="button" onClick={onEditInterests} className="min-h-9 rounded-full bg-white/10 px-4 text-sm font-bold">Edit interests</button></div>
     <ModesHub es={es} onOpen={onMode} />
+    {es.settings.hoursBack && <div className="mt-6"><HoursBackCard onHide={() => update((e) => ({ ...e, settings: { ...e.settings, hoursBack: false } }))} /></div>}
     <div className="mt-6 grid grid-cols-3 gap-2">{([["Heard", es.heard.length], ["Liked", es.liked.length], ["Following", es.follows.length]] as const).map(([l, n]) => <div key={l} className="rounded-xl bg-white/[.03] p-3 ring-1 ring-white/[.06]"><b className="block text-xl font-semibold tabular-nums">{n}</b><span className="text-[11px] text-white/40">{l}</span></div>)}</div>
     <h4 className="mt-6 text-sm font-semibold">What your feed has learned</h4>
     <div className="mt-2 flex flex-col gap-2">{ranked.map(([g, v]) => <div key={g.id} className="grid grid-cols-[120px_1fr_32px] items-center gap-2 text-xs"><span className="truncate">{g.name}</span><span className="h-2 overflow-hidden rounded-full bg-white/10"><span className="block h-full rounded-full" style={{ width: `${Math.max(3, (Math.max(0, v) / max) * 100)}%`, background: g.color }} /></span><span className="text-right tabular-nums text-white/45">{Math.round((Math.max(0, v) / max) * 100)}</span></div>)}</div>
