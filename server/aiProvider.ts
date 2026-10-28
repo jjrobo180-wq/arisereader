@@ -44,6 +44,22 @@ export function toGrok(init: RequestInit | undefined, env: AiProviderEnv): Reque
   return { ...init, headers, body };
 }
 
+/** Strongest general chat models first; speech, safety and embedding models are never picked. */
+const MODEL_PREFERENCE = [/grok-4/, /grok/, /gpt-oss-120b/, /llama-4-maverick/, /kimi-k2/, /llama-4/, /qwen3?-.*32b/, /70b/, /gpt-oss/, /llama/, /qwen/, /mixtral|gemma/];
+export function pickModel(ids: string[]): string | null {
+  const usable = ids.filter((id) => !/whisper|tts|guard|embed|speech|audio|vision-preview|playai|orpheus|distil/i.test(id));
+  for (const re of MODEL_PREFERENCE) { const hit = usable.find((id) => re.test(id.toLowerCase())); if (hit) return hit; }
+  return usable[0] || null;
+}
+async function bestModel(base: Fetch, env: AiProviderEnv): Promise<string | null> {
+  const url = (env.BACKUP_URL || XAI_CHAT).replace(/\/chat\/completions$/, "/models");
+  const res = await base(url, { headers: { Authorization: `Bearer ${env.XAI_API_KEY}` } });
+  if (!res.ok) return null;
+  const data: any = await res.json().catch(() => null);
+  const ids: string[] = (Array.isArray(data?.data) ? data.data : []).filter((m: any) => m?.active !== false).map((m: any) => String(m.id || "")).filter(Boolean);
+  return pickModel(ids);
+}
+
 /** A fetch that routes OpenAI chat requests to Grok as described above; everything else is untouched. */
 export function grokFetch(base: Fetch, env: AiProviderEnv): Fetch {
   // Grok first when asked, or when there is no OpenAI key at all.
@@ -51,8 +67,26 @@ export function grokFetch(base: Fetch, env: AiProviderEnv): Fetch {
   return (async (input: Parameters<Fetch>[0], init?: RequestInit) => {
     if (!env.XAI_API_KEY || !urlOf(input).startsWith(OPENAI_CHAT)) return base(input, init);
     const askGrok = async () => {
-      const res = await base(env.BACKUP_URL || XAI_CHAT, toGrok(init, env));
-      if (!res.ok) console.error(`[ai] ${env.BACKUP_NAME || "Grok"} failed:`, res.status, (await res.clone().text().catch(() => "")).slice(0, 200));
+      let res = await base(env.BACKUP_URL || XAI_CHAT, toGrok(init, env));
+      if (!res.ok) {
+        const why = await res.clone().text().catch(() => "");
+        // Models get retired. Ask the service which ones this key can use, pick the best, and try once more.
+        if (/model_not_found|does not exist|decommissioned|deprecated/i.test(why)) {
+          const better = await bestModel(base, env).catch(() => null);
+          if (better && better !== env.XAI_MODEL) {
+            console.warn(`[ai] ${env.BACKUP_NAME || "Grok"} model ${env.XAI_MODEL} is gone; switching to ${better}`);
+            env.XAI_MODEL = better;
+            res = await base(env.BACKUP_URL || XAI_CHAT, toGrok(init, env));
+          }
+        }
+        // Some models don't take JSON mode; the prompts already ask for JSON, so try without it.
+        if (!res.ok && res.status === 400 && /response_format|json/i.test(await res.clone().text().catch(() => ""))) {
+          const plain = toGrok(init, env);
+          try { const j = JSON.parse(String(plain.body)); delete j.response_format; plain.body = JSON.stringify(j); } catch { /* keep */ }
+          res = await base(env.BACKUP_URL || XAI_CHAT, plain);
+        }
+        if (!res.ok) console.error(`[ai] ${env.BACKUP_NAME || "Grok"} failed:`, res.status, (await res.clone().text().catch(() => "")).slice(0, 200));
+      }
       return res;
     };
     if (grokFirst) return askGrok();

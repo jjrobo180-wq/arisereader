@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { findBackup, findGrokKey, grokFetch, shouldFallBack } from "../server/aiProvider";
+import { findBackup, findGrokKey, grokFetch, pickModel, shouldFallBack } from "../server/aiProvider";
 
 const OPENAI = "https://api.openai.com/v1/chat/completions";
 function fakeBase(openai: { status: number; body: string }) {
@@ -63,4 +63,27 @@ test("a Groq key (groq.com) works as the backup too, with Groq's address and mod
   await f(OPENAI, req);
   assert.equal(calls[1].url, "https://api.groq.com/openai/v1/chat/completions");
   assert.equal(JSON.parse(String(calls[1].init!.body)).model, "llama-3.3-70b-versatile");
+});
+
+test("a retired model: ask the service for its models, switch to the best one, and try again", async () => {
+  assert.equal(pickModel(["whisper-large-v3", "llama-guard-4", "llama-3.1-8b-instant", "openai/gpt-oss-120b", "meta-llama/llama-4-maverick-17b"]), "openai/gpt-oss-120b");
+  assert.equal(pickModel(["whisper-large-v3"]), null);
+  const calls: string[] = [];
+  let model = "";
+  const base = (async (url: any, init?: RequestInit) => {
+    calls.push(String(url));
+    if (String(url) === OPENAI) return new Response("credit_balance_exhausted", { status: 429 });
+    if (String(url).endsWith("/models")) return new Response(JSON.stringify({ data: [{ id: "whisper-large-v3" }, { id: "llama-3.1-8b-instant" }, { id: "openai/gpt-oss-120b" }] }), { status: 200 });
+    model = JSON.parse(String(init!.body)).model;
+    return model === "old-model" ? new Response('{"error":{"code":"model_not_found"}}', { status: 404 }) : new Response("{}", { status: 200 });
+  }) as typeof fetch;
+  const f = grokFetch(base, { XAI_API_KEY: "gsk_1", XAI_MODEL: "old-model", OPENAI_API_KEY: "sk", BACKUP_URL: "https://api.groq.com/openai/v1/chat/completions", BACKUP_NAME: "Groq" });
+  const res = await f(OPENAI, req);
+  assert.equal(res.status, 200);
+  assert.equal(model, "openai/gpt-oss-120b");
+  assert.ok(calls.includes("https://api.groq.com/openai/v1/models"));
+  // The next request goes straight to the new model.
+  calls.length = 0;
+  await f(OPENAI, req);
+  assert.ok(!calls.some((c) => c.endsWith("/models")));
 });
