@@ -1281,7 +1281,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   // What's playing stays reachable from the other tabs: a mini player along the bottom.
   const nowItem = items[active];
   const mini = page && !previews && !!nowItem?.ep && cur.current?.dataset.ep === nowItem.ep.id && (playing || time > 0);
-  const miniPad = mini ? "pb-[3.75rem]" : "";
+  const miniPad = mini ? (standalone ? "pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))]" : "pb-14") : "";
   // Pod+: Open Mic, Social and Library opened from the site's home page wear the site's look
   // (its top bar, type and white or near-black page) instead of the player's own.
   const site = !!onHome && page;
@@ -1792,14 +1792,15 @@ function Scrubber({ time, dur, active, ads, chapters, lines, onSeek, onScrubbing
 /** One side action: a thin icon over a small quiet label (or its count). */
 /** What's playing, along the bottom of Explore, Library, Social and Open Mic. Tap it to go back to the player. */
 function MiniPlayer({ ep, art, playing, pct, light, standalone, onOpen, onToggle }: { ep: PodEpisode; art: string; playing: boolean; pct: number; light: boolean; standalone: boolean; onOpen: () => void; onToggle: () => void }) {
-  return <div className={`absolute inset-x-0 bottom-0 z-[24] px-2 ${standalone ? "pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)]" : "pb-2"}`}>
-    <div className={`relative mx-auto flex max-w-xl items-center gap-2.5 overflow-hidden rounded-xl p-1.5 pr-1 shadow-[0_6px_20px_rgba(0,0,0,.25)] ring-1 backdrop-blur-xl ${light ? "bg-white/90 text-[#0f1419] ring-black/[.06]" : "bg-[#241d29]/90 text-white ring-white/10"}`}>
+  // A flat bar across the bottom, down to the screen's edge (the same as the home page's).
+  return <div className={`absolute inset-x-0 bottom-0 z-[24] border-t backdrop-blur-xl ${light ? "border-black/[.08] bg-white/95 text-[#0f1419]" : "border-white/[.08] bg-[#141015]/95 text-white"} ${standalone ? "pb-[env(safe-area-inset-bottom,0px)]" : ""}`}>
+    <span aria-hidden className={`absolute inset-x-0 top-0 h-[2px] ${light ? "bg-black/[.06]" : "bg-white/10"}`}><span className="block h-full" style={{ width: `${Math.min(100, pct)}%`, background: ACCENT }} /></span>
+    <div className="mx-auto flex h-14 max-w-2xl items-center gap-3 px-3">
       <button type="button" onClick={onOpen} aria-label={`Now playing: ${ep.title}. Open the player.`} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-        <img src={hiRes(art, 120)} alt="" referrerPolicy="no-referrer" className="h-9 w-9 flex-none rounded-md object-cover" />
-        <span className="min-w-0"><b className="block truncate text-[13px] font-semibold leading-tight">{ep.title}</b><span className={`block truncate text-[11px] ${light ? "text-[#536471]" : "text-white/60"}`}>{ep.show}</span></span>
+        <img src={hiRes(art, 120)} alt="" referrerPolicy="no-referrer" className="h-10 w-10 flex-none rounded-md object-cover" />
+        <span className="min-w-0"><b className="block truncate text-[14px] font-semibold leading-tight">{ep.title}</b><span className={`block truncate text-[12px] ${light ? "text-[#536471]" : "text-white/60"}`}>{ep.show}</span></span>
       </button>
-      <button type="button" onClick={onToggle} aria-label={playing ? "Pause" : "Play"} className="grid h-9 w-9 flex-none place-items-center rounded-full">{playing ? <Pause size={19} fill="currentColor" strokeWidth={0} /> : <Play size={19} fill="currentColor" strokeWidth={0} className="ml-0.5" />}</button>
-      <span aria-hidden className={`absolute inset-x-3 bottom-0 h-[2px] rounded-full ${light ? "bg-black/[.06]" : "bg-white/10"}`}><span className="block h-full rounded-full" style={{ width: `${Math.min(100, pct)}%`, background: ACCENT }} /></span>
+      <button type="button" onClick={onToggle} aria-label={playing ? "Pause" : "Play"} className="grid h-10 w-10 flex-none place-items-center rounded-full">{playing ? <Pause size={22} fill="currentColor" strokeWidth={0} /> : <Play size={22} fill="currentColor" strokeWidth={0} className="ml-0.5" />}</button>
     </div>
   </div>;
 }
