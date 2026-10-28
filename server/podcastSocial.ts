@@ -8,6 +8,7 @@
 import type { Express, RequestHandler } from "express";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { cleanPodId, cleanUrl } from "../shared/earshot";
+import { cleanPage, type GuestEntry } from "../shared/earshotPage";
 
 export class SocialUnavailable extends Error {}
 export type Profile = { handle: string; name: string; bio: string; avatar: string };
@@ -23,7 +24,7 @@ export type Post = {
   author: Profile; likes: number; liked: boolean; comments: number; reposts: number; reposted: boolean; mine: boolean;
 };
 export type Comment = { id: string; postId: string; parentId: string | null; body: string; at: string; author: Profile; likes: number; liked: boolean; mine: boolean };
-export type NoteKind = "like" | "comment" | "reply" | "follow" | "repost" | "comment_like" | "episode";
+export type NoteKind = "like" | "comment" | "reply" | "follow" | "repost" | "comment_like" | "episode" | "guestbook";
 export type Note = { id: string; kind: NoteKind; at: string; read: boolean; actor: Profile; post: { id: string; kind: PostKind; text: string; art: string } | null; comment: string };
 
 const BUCKET = "podcast-uploads";
@@ -112,6 +113,12 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
     check(error);
     return data ? profileOf(data) : null;
   }
+  /** A profile's own page design and guestbook (null/[] when the columns aren't there yet). */
+  async function pageOf(voter: string): Promise<{ page: any; guestbook: GuestEntry[] }> {
+    const { data, error } = await db().from("podcast_profiles").select("page,guestbook").eq("voter", voter).maybeSingle();
+    if (error) return { page: null, guestbook: [] };
+    return { page: data?.page ? cleanPage(data.page) : null, guestbook: Array.isArray(data?.guestbook) ? data.guestbook : [] };
+  }
   async function peopleById(voters: string[]) {
     if (!voters.length) return new Map<string, any>();
     const { data, error } = await db().from("podcast_profiles").select("voter,handle,name,bio,avatar,hidden").in("voter", voters);
@@ -182,7 +189,8 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
         v2on ? db().from("podcast_notifications").select("id", { count: "exact", head: true }).eq("voter", voter).eq("read", false) : Promise.resolve({ count: 0 }),
       ]);
       res.set("Cache-Control", "no-store");
-      res.json({ profile: me, followers: followers ?? 0, following: following ?? 0, unread: (unread as any).count ?? 0, avatars: AVATARS, v2: v2on });
+      const { page } = await pageOf(voter);
+      res.json({ profile: me, page, followers: followers ?? 0, following: following ?? 0, unread: (unread as any).count ?? 0, avatars: AVATARS, v2: v2on });
     } catch (e) { fail(res, e); }
   });
 
@@ -201,6 +209,65 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
       const { error } = await db().from("podcast_profiles").upsert({ voter, handle, name, bio, avatar, updated_at: new Date().toISOString() }, { onConflict: "voter" });
       check(error);
       res.json({ profile: { handle, name, bio, avatar } });
+    } catch (e) { fail(res, e); }
+  });
+
+  /** Save your page design (background, colors, font, widgets...). Cleaned so nothing unsafe is kept. */
+  app.post(`${P}/me/page`, auth, gate, async (req: any, res) => {
+    if (limited(writes, req, res)) return;
+    try {
+      const voter = o.voterOf(req);
+      if (!(await myProfile(voter))) return res.status(400).json({ message: "Make your profile first.", needProfile: true });
+      const page = cleanPage(req.body?.page);
+      if (JSON.stringify(page).length > 40_000) return res.status(400).json({ message: "Your page is too big. Remove a few widgets." });
+      const { error } = await db().from("podcast_profiles").update({ page, updated_at: new Date().toISOString() }).eq("voter", voter);
+      if (error && /column|page/i.test(String(error.message))) return res.status(503).json({ message: "Page designs are still being set up. Try again soon.", setup: true });
+      check(error);
+      res.json({ page });
+    } catch (e) { fail(res, e); }
+  });
+
+  /** Sign someone's guestbook (newest first, up to 60 kept). */
+  app.post(`${P}/u/:handle/guestbook`, auth, gate, async (req: any, res) => {
+    const handle = cleanHandle(req.params.handle), body = text(req.body?.body, 280);
+    if (!handle) return res.status(404).json({ message: "That profile doesn't exist." });
+    if (!body) return res.status(400).json({ message: "Write something first." });
+    if (limited(writes, req, res)) return;
+    try {
+      const voter = o.voterOf(req);
+      const me = await myProfile(voter);
+      if (!me) return res.status(400).json({ message: "Make your profile first.", needProfile: true });
+      const { data: p, error } = await db().from("podcast_profiles").select("voter,hidden,guestbook").eq("handle", handle).maybeSingle();
+      check(error);
+      if (!p || p.hidden) return res.status(404).json({ message: "That profile doesn't exist." });
+      const entry: GuestEntry = { id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, handle: me.handle, name: me.name, avatar: me.avatar, body, at: new Date().toISOString() };
+      const list = [entry, ...(Array.isArray(p.guestbook) ? p.guestbook : [])].slice(0, 60);
+      const { error: e2 } = await db().from("podcast_profiles").update({ guestbook: list }).eq("voter", p.voter);
+      check(e2);
+      if (p.voter !== voter) void notify(p.voter, voter, "guestbook");
+      res.json({ entry, guestbook: list });
+    } catch (e) { fail(res, e); }
+  });
+
+  /** Remove a guestbook note: the page's owner can remove any, a visitor their own. */
+  app.delete(`${P}/u/:handle/guestbook/:id`, auth, gate, async (req: any, res) => {
+    const handle = cleanHandle(req.params.handle), id = String(req.params.id || "").replace(/[^a-z0-9]/g, "").slice(0, 20);
+    if (!handle || !id) return res.status(404).json({ message: "That note is gone." });
+    if (limited(writes, req, res)) return;
+    try {
+      const voter = o.voterOf(req);
+      const me = await myProfile(voter);
+      const { data: p, error } = await db().from("podcast_profiles").select("voter,guestbook").eq("handle", handle).maybeSingle();
+      check(error);
+      if (!p) return res.status(404).json({ message: "That profile doesn't exist." });
+      const list: GuestEntry[] = Array.isArray(p.guestbook) ? p.guestbook : [];
+      const hit = list.find((g) => g.id === id);
+      if (!hit) return res.json({ guestbook: list });
+      if (p.voter !== voter && hit.handle !== me?.handle) return res.status(403).json({ message: "Only the page's owner or the note's writer can remove it." });
+      const next = list.filter((g) => g.id !== id);
+      const { error: e2 } = await db().from("podcast_profiles").update({ guestbook: next }).eq("voter", p.voter);
+      check(e2);
+      res.json({ guestbook: next });
     } catch (e) { fail(res, e); }
   });
 
@@ -263,7 +330,16 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
       ]);
       check(e2);
       res.set("Cache-Control", "no-store");
-      res.json({ profile: profileOf(p), me: p.voter === voter, followers: followers ?? 0, following: following ?? 0, followed: !!mine, posts: await shape(posts || [], voter) });
+      const { page, guestbook } = await pageOf(p.voter);
+      // Top 8 friends: the people they picked, in their order (hidden or deleted profiles left out).
+      const handles = (page?.widgets || []).find((w: any) => w.type === "friends")?.handles || [];
+      let friends: Profile[] = [];
+      if (handles.length) {
+        const { data: fr } = await db().from("podcast_profiles").select("handle,name,bio,avatar,hidden").in("handle", handles);
+        const by = new Map((fr || []).filter((x: any) => !x.hidden).map((x: any) => [x.handle, profileOf(x)] as [string, Profile]));
+        friends = handles.map((h: string) => by.get(h)).filter(Boolean) as Profile[];
+      }
+      res.json({ profile: profileOf(p), page, guestbook: guestbook.slice(0, 60), friends, me: p.voter === voter, followers: followers ?? 0, following: following ?? 0, followed: !!mine, posts: await shape(posts || [], voter) });
     } catch (e) { fail(res, e); }
   });
 
