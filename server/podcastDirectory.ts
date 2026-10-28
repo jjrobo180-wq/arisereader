@@ -805,6 +805,16 @@ export function createDirectory(options: DirectoryOptions = {}) {
   /** Keeps where a moment's audio is stored, once it's been cut and saved. */
   const keepMomentAudio = (episodeId: string, m: Moment, audio: string) => moments.refresh(episodeId, async () => ({ ...m, audio }));
 
-  return { aiFind, pool, loadShow, loadGenreShows, searches, apple, warm, transcript, contentTranscript, contentChunks, copyPieceAds, foundAds, learnMark, profiles, idle, budgetLeft, cutRange, moment, keepMomentAudio };
+  /** New episodes found elsewhere (the Up to the Minute News rounds) go into the show's cache, newest
+   *  first, so opening one finds it without waiting for the show to be looked up again. */
+  async function addEpisodes(show: PodShow | null, eps: PodEpisode[]) {
+    const id = show?.id || eps[0]?.showId; if (!id || !eps.length) return;
+    const known = (await shows.peek(id))?.value;
+    const byId = new Map((known?.episodes ?? []).map((e) => [e.id, e] as [string, PodEpisode]));
+    for (const e of eps) byId.set(e.id, e);
+    const episodes = [...byId.values()].sort((a, b) => Date.parse(b.date || "0") - Date.parse(a.date || "0")).slice(0, 60);
+    await shows.refresh(id, async () => ({ ...(known ?? {}), show: known?.show ?? show, episodes } as any)).catch(() => {});
+  }
+  return { aiFind, pool, loadShow, loadGenreShows, searches, apple, warm, addEpisodes, transcript, contentTranscript, contentChunks, copyPieceAds, foundAds, learnMark, profiles, idle, budgetLeft, cutRange, moment, keepMomentAudio };
 }
 export type Directory = ReturnType<typeof createDirectory>;

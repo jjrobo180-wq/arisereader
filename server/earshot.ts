@@ -19,6 +19,7 @@ import { copyTranscript, registerPlayRoutes, startOpenings, type Player } from "
 import { registerSocialRoutes } from "./podcastSocial";
 import { registerCreatorRoutes } from "./podcastCreators";
 import { topShowsService } from "./podcastTop";
+import { nowNewsService, NOW_HOURS_DEFAULT } from "./podcastNow";
 import { showInfoService } from "./podcastInfo";
 import { accountSessions, registerPodscrollAccountRoutes, SESSION } from "./podcastAccounts";
 import { cleanMoment } from "../shared/earshotListen";
@@ -155,6 +156,7 @@ export interface EarshotOptions {
   socialDb?: () => any;
 }
 let sharedAdStore: AdStore | null = null;
+const nowServices = new WeakMap<object, ReturnType<typeof nowNewsService>>();
 const openingsStarted = new WeakSet<object>();
 
 export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandler, options: EarshotOptions) {
@@ -270,6 +272,21 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
       res.set("Cache-Control", "private, max-age=1800");
       res.json({ shows: isStudent(req) ? shows.filter((s) => GENRE[s.genre]?.kidSafe) : shows });
     } catch (e) { appleDown(res, e); }
+  });
+
+  /** Up to the Minute News (a Pod+ hub): news episodes from the last few hours, newest first
+   *  (server/podcastNow.ts). One service per directory, shared by both apps. */
+  let nowNews = nowServices.get(dir);
+  if (!nowNews) {
+    nowNews = nowNewsService({ apple: (url) => dir.apple(url), idle: () => dir.idle(), newsPool: () => dir.pool("news", true), remember: (show, eps) => { void dir.addEpisodes(show, eps); } });
+    nowServices.set(dir, nowNews);
+    if (!options.fetcher && process.env.NODE_ENV !== "test") setTimeout(() => nowNews!.start(), 20_000).unref?.();
+  }
+  app.get(`${P}/now`, authMiddleware, async (req: any, res) => {
+    if (limited(reads, req, res)) return;
+    const hours = Number(req.query?.hours) || NOW_HOURS_DEFAULT;
+    res.set("Cache-Control", "no-store");
+    res.json(nowNews!.list(hours, explicitFor(req)));
   });
 
   /** About a show (the info button on the swipe screen): description, hosts, their other shows,
