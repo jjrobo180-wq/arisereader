@@ -1260,6 +1260,16 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [standalone, toneArt, tab, day, visible]);
+  // Hidden behind the home page: the episodes loaded ahead stop downloading, so the home page's
+  // covers and lists get the phone's connection (only what's playing keeps loading).
+  useEffect(() => {
+    if (visible) { players.current.forEach((a) => { if (a.getAttribute("src")) a.preload = "auto"; }); return; }
+    players.current.forEach((a) => {
+      if (a === cur.current && !a.paused) return;
+      a.preload = "none";
+      if (a !== cur.current && a.getAttribute("src") && a.readyState < 3) { try { a.pause(); a.removeAttribute("src"); a.load(); delete a.dataset.ep; delete a.dataset.sid; } catch { /* fine */ } }
+    });
+  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
   // Another Pod+ player started (an audiobook, the radio): this one pauses.
   useEffect(() => onOtherSound("pod", () => cur.current?.pause()), []);
   // What's playing, for the mini bar on Pod+'s other pages, and a way to pause it from there.
