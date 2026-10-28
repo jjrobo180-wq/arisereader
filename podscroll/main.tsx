@@ -129,11 +129,16 @@ function App() {
   // gets a broad starting mix instead of the picker, so the episode they tapped plays right away.
   const openFeed = useCallback((at?: { showId: string; episodeId: string }, page?: PageTab, podMode?: { id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" }) => {
     if ((at || page || podMode) && !esRef.current.setupDone) setEs((e) => e.setupDone ? e : ({ ...e, setupDone: true, genres: STARTER_GENRES, taste: Object.fromEntries(STARTER_GENRES.map((g) => [g, 3])) }));
+    // Just a page (Social, Open Mic, Library, the scroll) and the player is already running: switch
+    // its page, so what's playing keeps playing. A new episode or Pod Mode starts it fresh.
+    if (!at && !podMode && feedSeenRef.current) { setFeedTab(page); setTabNonce((n) => n + 1); setMode("feed"); return; }
     setFeedStart(at ?? null); setFeedTab(page); setFeedMode(podMode ?? null); setFeedKey((k) => k + 1); setMode("feed"); setFeedSeen(true);
   }, []);
   // The swipe player stays running (hidden) on the home page and the audiobook page stays running
   // (hidden) in the player, so what's playing keeps playing when you move between them.
   const [feedSeen, setFeedSeen] = useState(() => mode === "feed");
+  const feedSeenRef = useRef(feedSeen); feedSeenRef.current = feedSeen;
+  const [tabNonce, setTabNonce] = useState(0);
   const [nowPod, setNowPod] = useState<NowPlaying | null>(null);
   const podCtl = useRef<PlayerControl | null>(null);
   const backToFeed = useCallback(() => { setFeedSeen(true); setMode("feed"); }, []);
@@ -155,7 +160,7 @@ function App() {
     </div>
     : <>
       <div style={{ display: mode === "home" ? "contents" : "none" }}>{<Home visible={mode === "home"} nowPod={nowPod} onPodToggle={() => podCtl.current?.toggle()} onPodOpen={backToFeed} es={es} update={update} api={api} say={say} onOpenFeed={openFeed} onEditInterests={() => setEditing(true)} pro={pro} onJoin={() => setAuthMode("signup")} onSignIn={() => setAuthMode("signin")} email={email} onSignOut={signOut} device={device} nickname={nickname} setNickname={setNickname} liveBase={API.replace(/^http/, "ws")} signal={signal} />}</div>
-      {feedSeen && <div style={{ display: mode === "feed" ? "contents" : "none" }}>{<Player visible={mode === "feed"} onNowPlaying={setNowPod} control={podCtl} key={feedKey} es={shown} esRef={esRef} update={update} api={api} signal={signal} say={say} student={false} explicit={es.settings.explicit}
+      {feedSeen && <div style={{ display: mode === "feed" ? "contents" : "none" }}>{<Player visible={mode === "feed"} onNowPlaying={setNowPod} control={podCtl} tabNonce={tabNonce} key={feedKey} es={shown} esRef={esRef} update={update} api={api} signal={signal} say={say} student={false} explicit={es.settings.explicit}
         onEditInterests={() => setEditing(true)} standalone shareLink={shareLink} nickname={nickname} setNickname={setNickname} start={feedStart} mediaUrl={mediaUrl}
         liveBase={API.replace(/^http/, "ws")} onSession={(token) => setSession(token)} locked={false} onHome={goHome} initialTab={feedTab} playMode={feedMode} />}</div>}
     </>;

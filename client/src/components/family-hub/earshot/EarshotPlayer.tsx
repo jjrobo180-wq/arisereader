@@ -146,6 +146,8 @@ export type PlayerProps = {
    *  button returns to it. */
   onHome?: () => void;
   initialTab?: Tab;
+  /** Goes up each time the site opens a page (Social, Open Mic…) in the running player. */
+  tabNonce?: number;
   /** Pod+: play a Pod Mode back to back from this episode (opened from the home page). */
   playMode?: { id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" } | null;
 };
@@ -216,9 +218,12 @@ type Tx = { source: TranscriptChunk["source"]; reason: string; segments: TxSegme
   wait: Map<number, { at: number; tries: number }> };
 const emptyTx = (): Tx => ({ source: "none", reason: "", segments: [], ads: [], chapters: [], chunks: new Set(), loading: new Set(), more: true, chunkSecs: 600, wait: new Map() });
 
-export function Player({ es, esRef, update, api, signal, say, student, explicit, onEditInterests, standalone, shareLink, nickname, setNickname, start, mediaUrl, liveBase, onSession, locked, onHome, initialTab, playMode, visible = true, onNowPlaying, control }: PlayerProps) {
+export function Player({ es, esRef, update, api, signal, say, student, explicit, onEditInterests, standalone, shareLink, nickname, setNickname, start, mediaUrl, liveBase, onSession, locked, onHome, initialTab, playMode, visible = true, onNowPlaying, control, tabNonce = 0 }: PlayerProps) {
   const { theme, day } = useTheme();
   const [tab, setTab] = useState<Tab>(initialTab ?? "foryou");
+  // The site opened another page in the player that's already running (what's playing keeps playing).
+  const firstNonce = useRef(tabNonce);
+  useEffect(() => { if (tabNonce !== firstNonce.current) setTab(initialTab ?? "foryou"); }, [tabNonce]); // eslint-disable-line react-hooks/exhaustive-deps
   // The feed tab last open (For You or Following), where the mini player goes back to.
   const lastFeed = useRef<Tab>("foryou");
   if (tab === "foryou" || tab === "following") lastFeed.current = tab;
@@ -1277,14 +1282,16 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   // On Podscroll the frame covers the whole screen, under the status bar and home indicator, so the
   // cover art fills it edge to edge. What sits on top steps clear of those itself: the tab bar, the
   // other tabs (pad), the notices and the sheets.
-  const pad = (n: ReactNode) => standalone ? <div className="box-border h-full pb-[env(safe-area-inset-bottom,0px)] pt-[env(safe-area-inset-top,0px)]">{n}</div> : n;
+  // Room for the iPhone's notch and home bar. With the mini player showing, the mini player takes the
+  // home bar's room itself (counting it twice left a gap between the page's bottom bar and it).
+  const pad = (n: ReactNode) => standalone ? <div className={`box-border h-full pt-[env(safe-area-inset-top,0px)] ${mini ? "" : "pb-[env(safe-area-inset-bottom,0px)]"}`}>{n}</div> : n;
   // Social, Explore and Library are white pages; the player and its sheets stay dark.
   const page = tab === "openmic" || tab === "social" || tab === "explore" || tab === "library";
   const light = page && day;
   // What's playing stays reachable from the other tabs: a mini player along the bottom.
   const nowItem = items[active];
   const mini = page && !previews && !!nowItem?.ep && cur.current?.dataset.ep === nowItem.ep.id && (playing || time > 0);
-  const miniPad = mini ? (standalone ? "pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))]" : "pb-14") : standalone ? "pb-[env(safe-area-inset-bottom,0px)]" : "";
+  const miniPad = mini ? (standalone ? "pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))]" : "pb-14") : "";
   // Pod+: Open Mic, Social and Library opened from the site's home page wear the site's look
   // (its top bar, type and white or near-black page) instead of the player's own.
   const site = !!onHome && page;
