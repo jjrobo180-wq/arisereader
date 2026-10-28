@@ -4,8 +4,9 @@
 // through the Arise server). Follows, likes and Listen later come from the swipe feed's saved state.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { GENRE, GENRES, chooseEpisode, hiRes, isTeaser, pickNext, tasteOf, type Candidate, type PodMode, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal } from "@shared/earshot";
-import { Bell, Check, LogOut, Zap, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Search, Sparkles, ThumbsUp, Users, X } from "lucide-react";
+import { Bell, BookOpen, Check, LogOut, Zap, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Search, Sparkles, ThumbsUp, Users, X } from "lucide-react";
 import { RadioBar, RadioView, type Station } from "./Radio";
+import { AudiobookBar, AudiobooksView, BookPage, BooksRow, type Reading } from "./Audiobooks";
 import { PartyRoom } from "./Party";
 import { artIn } from "./art";
 import { SearchPage } from "./Search";
@@ -16,7 +17,7 @@ import { setTheme, useTheme } from "../client/src/components/family-hub/earshot/
 import { HoursBackCard } from "../client/src/components/family-hub/earshot/EarshotListen";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
-type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "live" } | { kind: "now" } | { kind: "watch"; showId: string; episodeId: string };
+type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "books" } | { kind: "book"; id: string } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "live" } | { kind: "now" } | { kind: "watch"; showId: string; episodeId: string };
 
 const DEFAULT_GENRES = ["comedy", "news", "science", "tech", "truecrime", "history", "business", "culture"];
 const ACCENT = "#ff6a1f";
@@ -44,13 +45,14 @@ function parseHash(): View {
   if (a === "liked") return { kind: "liked" };
   if (a === "later") return { kind: "later" };
   if (a === "radio") return { kind: "radio" };
+  if (a === "books") return /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(b || "") ? { kind: "book", id: b } : { kind: "books" };
   if (a === "live") return { kind: "live" };
   if (a === "now" || a === "news") return { kind: "now" };
   if (a === "party" && /^(new|[A-Za-z0-9_-]{6,20})$/.test(b || "")) return { kind: "party", id: b };
   if (a === "mode" && /^[a-z0-9-]{1,30}$/.test(b || "")) return { kind: "mode", id: b };
   return { kind: "home" };
 }
-const hashOf = (v: View) => v.kind === "party" ? `#/party/${v.id}` : v.kind === "mode" ? `#/mode/${v.id}` : v.kind === "watch" ? `#/watch/${v.showId}/${v.episodeId}` : v.kind === "search" ? `#/search/${encodeURIComponent(v.q)}` : v.kind === "home" ? "#/" : `#/${v.kind}`;
+const hashOf = (v: View) => v.kind === "book" ? `#/books/${v.id}` : v.kind === "party" ? `#/party/${v.id}` : v.kind === "mode" ? `#/mode/${v.id}` : v.kind === "watch" ? `#/watch/${v.showId}/${v.episodeId}` : v.kind === "search" ? `#/search/${encodeURIComponent(v.q)}` : v.kind === "home" ? "#/" : `#/${v.kind}`;
 
 const fromSaved = (s: SavedEpisode): PodEpisode => ({ id: s.id, showId: s.showId, show: s.show, author: "", title: s.title, about: "", audio: s.audio || "", date: s.date || s.at, secs: s.secs, art: s.art, link: "", explicit: false });
 
@@ -238,8 +240,16 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   // Live radio keeps playing while you browse the rest of the home page.
   const [station, setStation] = useState<Station | null>(null);
   const stopRadio = useCallback(() => setStation(null), []);
+  // An audiobook keeps playing in its own bar the same way; only one of the two plays at a time.
+  const [reading, setReading] = useState<Reading | null>(null);
+  const [bookPlaying, setBookPlaying] = useState(false);
+  const stopBook = useCallback(() => { setReading(null); setBookPlaying(false); }, []);
+  const playBook = useCallback((r: Reading) => { setStation(null); setReading(r); }, []);
+  const playStation = useCallback((st: Station | null) => { if (st) { setReading(null); setBookPlaying(false); } setStation(st); }, []);
+  const [bookTap, setBookTap] = useState(0);
+  const toggleBook = useCallback(() => setBookTap((n) => n + 1), []);
   // Listening together and the radio don't mix: the radio stops when a group opens.
-  useEffect(() => { if (view.kind === "party") setStation(null); }, [view.kind]);
+  useEffect(() => { if (view.kind === "party") { setStation(null); setReading(null); } }, [view.kind]);
   const onPartyRoom = useCallback((id: string) => { if (location.hash !== `#/party/${id}`) history.replaceState(null, "", `${location.pathname}${location.search}#/party/${id}`); }, []);
 
   // LivePod (audio-only live): who's live now, on the home page too.
@@ -250,7 +260,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     const pull = () => { if (document.visibilityState === "visible") api("/api/earshot/creators/live").then((b) => setLive(b.live || [])).catch(() => {}); };
     pull(); const t = setInterval(pull, 30_000); return () => clearInterval(t);
   }, [api]);
-  const openLive = (id: string) => { setStation(null); setLiveRoom({ id }); };
+  const openLive = (id: string) => { setStation(null); setReading(null); setLiveRoom({ id }); };
   // Pod Modes: "Add to" from any episode card, and making a new mode.
   const [addTo, setAddTo] = useState<PodEpisode | null>(null);
   // ⋮ → Not interested / Don't show this podcast: the card goes at once, the feed learns from it,
@@ -460,6 +470,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       {navItem("Social", <MessageCircle size={22} strokeWidth={1.8} />, false, () => onOpenFeed(undefined, "social"))}
       {navItem("Radio", <RadioIcon size={22} strokeWidth={1.8} />, view.kind === "radio", () => go({ kind: "radio" }))}
       {navItem("Up to the minute news", <Zap size={22} strokeWidth={1.8} />, view.kind === "now", () => go({ kind: "now" }))}
+      {navItem("Audiobooks", <BookOpen size={22} strokeWidth={1.8} />, view.kind === "books" || view.kind === "book", () => go({ kind: "books" }))}
       {navItem("Listen together", <Users size={22} strokeWidth={1.8} />, view.kind === "party", () => go({ kind: "party", id: "new" }))}
       {navItem(live.length ? `Live · ${live.length}` : "Live", <span className="grid h-[22px] w-[22px] place-items-center"><span className={`h-2.5 w-2.5 rounded-full bg-[#ff3b30] ${live.length ? "motion-safe:animate-pulse" : "opacity-50"}`} /></span>, view.kind === "live", () => go({ kind: "live" }))}
       {navItem("Go live", <Mic size={22} strokeWidth={1.8} />, false, () => setGoLive(true))}
@@ -534,7 +545,11 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   } else if (view.kind === "now") {
     content = <div className="min-w-0 flex-1 px-4 pb-16 sm:px-6"><NewsNow api={api} ex={ex} onOpen={openEp} onBack={() => go({ kind: "home" })} grid={(list) => <Grid list={list} onOpen={openEp} />} /></div>;
   } else if (view.kind === "radio") {
-    content = <RadioView onPlay={setStation} current={station} />;
+    content = <RadioView onPlay={playStation} current={station} />;
+  } else if (view.kind === "books") {
+    content = <AudiobooksView api={api} current={reading} onOpen={(id) => go({ kind: "book", id })} />;
+  } else if (view.kind === "book") {
+    content = <BookPage key={view.id} api={api} id={view.id} current={reading} playing={bookPlaying} onPlay={playBook} onToggle={toggleBook} onBack={() => go({ kind: "books" })} />;
   } else if (view.kind === "liked" || view.kind === "later") {
     const list = (view.kind === "liked" ? es.liked : es.saved).map(fromSaved);
     content = <div className="px-4 pb-16 pt-4 sm:px-6">
@@ -589,6 +604,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       {!topic && chip !== "all" && <TopShows shows={topShows} onShow={openShowLatest} label={`Top in ${GENRE[chip]?.name ?? ""}`} note="Everything below stays unranked." />}
 
       {chip === "all" && es.settings.hoursBack && <div className="mb-5"><HoursBackCard light onHide={() => { update((e) => ({ ...e, settings: { ...e.settings, hoursBack: false } })); say("Hours back is hidden. Turn it on again in Settings."); }} /></div>}
+      {chip === "all" && <BooksRow api={api} onOpen={(id) => go({ kind: "book", id })} onAll={() => go({ kind: "books" })} />}
       {chip === "all" && <ModesRow es={es} update={update} onOpen={(m) => go({ kind: "mode", id: m.id })} onNew={() => setNewMode(true)} onDrive={() => onOpenFeed(undefined, undefined, { id: "__drive", index: 0 })} onNews={() => go({ kind: "now" })} />}
 
 
@@ -621,8 +637,9 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
           : <button onClick={() => { setDrawer(false); onSignIn(); }} className="flex h-10 w-full items-center gap-6 rounded-[10px] px-3 text-left text-sm font-medium text-[#065fd4] hover:bg-[#def1ff]"><UserCircle size={22} strokeWidth={1.8} />Sign in</button>}
       </nav>
     </div>}
-    <div className={`flex items-start ${station ? "pb-20" : ""}`}>{sidebar}<main className="min-w-0 flex-1">{content}</main></div>
+    <div className={`flex items-start ${station || reading ? "pb-20" : ""}`}>{sidebar}<main className="min-w-0 flex-1">{content}</main></div>
     {station && <RadioBar station={station} onStop={stopRadio} say={say} />}
+    {reading && <AudiobookBar reading={reading} tap={bookTap} onChange={setReading} onStop={stopBook} onPlaying={setBookPlaying} say={say} onOpen={() => go({ kind: "book", id: reading.book.id })} />}
     {askTopics && view.kind === "home" && <TopicsPrompt onDone={doneAsking} />}
     {addTo && <AddToMenu es={es} ep={addTo} update={update} say={say} onClose={() => setAddTo(null)} onDislike={dislike} onBlock={block} />}
     {undo && <div role="status" className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom,0px))] left-1/2 z-[85] flex w-[min(92vw,440px)] -translate-x-1/2 items-center justify-between gap-3 rounded-xl bg-[#0f0f0f] py-2.5 pl-4 pr-2 text-sm text-white shadow-2xl ps-keep" style={{ animation: "ps-fade .2s ease-out both" }}>
@@ -630,7 +647,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       <button onClick={() => { undo.undo(); setUndo(null); }} className="h-9 shrink-0 rounded-lg px-3 font-semibold text-[#3ea6ff] hover:bg-white/10">Undo</button>
     </div>}
     {newMode && <NewModeDialog onClose={() => setNewMode(false)} onMake={(name) => { const id = makeMode(update, name); setNewMode(false); go({ kind: "mode", id }); }} />}
-    {goLive && <GoLiveSheet api={api} say={(m) => { say(m); if (/sign in|profile|account/i.test(m)) { setGoLive(false); onJoin(); } }} onClose={() => setGoLive(false)} onStarted={(id, ticket) => { setGoLive(false); setStation(null); setLiveRoom({ id, ticket }); }} />}
+    {goLive && <GoLiveSheet api={api} say={(m) => { say(m); if (/sign in|profile|account/i.test(m)) { setGoLive(false); onJoin(); } }} onClose={() => setGoLive(false)} onStarted={(id, ticket) => { setGoLive(false); setStation(null); setReading(null); setLiveRoom({ id, ticket }); }} />}
     {liveRoom && <LiveRoom key={liveRoom.id} api={api} say={say} roomId={liveRoom.id} ticket={liveRoom.ticket} wsBase={liveBase}
       onClose={() => { setLiveRoom(null); api("/api/earshot/creators/live").then((b) => setLive(b.live || [])).catch(() => {}); }} />}
   </div></HiddenCtx.Provider></MoreCtx.Provider>;
