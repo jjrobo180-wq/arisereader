@@ -84,7 +84,7 @@ const comprehension = registerComprehensionRoutes(app, (() => {}) as any, {
   clearPointCaches: () => { cacheClears++; },
   messageStudent: async (id, text) => { messages.push([id, text]); },
   adminIds: async () => [99],
-  askGrader: async (system, user) => { aiCalls.push({ system, user }); return aiReply; },
+  askGrader: async (system, user) => { aiCalls.push({ system, user }); if (aiReply === "__credit__") throw new Error("credit"); return aiReply; },
 });
 
 async function call(method: "GET" | "POST", path: string, userId: number, body: any = {}, query: any = {}) {
@@ -271,6 +271,11 @@ test("a teacher gets an AI suggested score for their student, but it saves and s
   // A reply that makes no sense is refused; the teacher just grades it.
   aiReply = "nope";
   assert.equal((await call("POST", `/api/comprehension/review/${row.id}/suggest`, 99, { again: true })).status, 502);
+  // Out of AI credit says so plainly, instead of "busy".
+  aiReply = "__credit__";
+  const broke = await call("POST", `/api/comprehension/review/${row.id}/suggest`, 99, { again: true });
+  assert.equal(broke.status, 503);
+  assert.match(broke.data.message, /out of credit/);
   // The teacher can use it or give their own score.
   const saved = await call("POST", `/api/comprehension/review/${row.id}/grade`, 10, { points: 6, note: "Nice work" });
   assert.equal(saved.data.points, 6);

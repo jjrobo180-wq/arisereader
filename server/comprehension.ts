@@ -23,7 +23,12 @@ export const openAiGrader: AskGrader = async (system, user) => {
     }),
     signal: AbortSignal.timeout(45_000),
   });
-  if (!res.ok) { console.error("[comprehension] AI failed:", res.status); throw new Error(res.status === 429 ? "busy" : "failed"); }
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    console.error("[comprehension] AI failed:", res.status, body.slice(0, 200));
+    // A 429 is either "slow down" or "the account has no credit left"; they need different messages.
+    throw new Error(/credit_balance_exhausted|insufficient_quota|billing/i.test(body) ? "credit" : res.status === 429 ? "busy" : "failed");
+  }
   const payload: any = await res.json().catch(() => null);
   return String(payload?.choices?.[0]?.message?.content || "").trim();
 };
@@ -263,7 +268,7 @@ export function registerComprehensionRoutes(app: Express, authMiddleware: Reques
       try { reply = await askGrader(AI_GRADE_PROMPT, message); }
       catch (e: any) {
         const why = String(e?.message || "");
-        return res.status(503).json({ message: why === "off" ? "AI suggestions aren't turned on for this site." : why === "busy" ? "The AI is busy. Try again in a minute." : "The AI couldn't make a suggestion. Try again, or grade it yourself." });
+        return res.status(503).json({ message: why === "off" ? "AI suggestions aren't turned on for this site." : why === "credit" ? (scope.role === "admin" ? "The site's OpenAI account is out of credit, so AI suggestions are off. Add credit at platform.openai.com (Settings › Billing), or grade it yourself." : "AI suggestions are off right now (the site's AI account needs more credit). You can still grade it yourself, and the site admin has been told.") : why === "busy" ? "The AI is busy. Try again in a minute." : "The AI couldn't make a suggestion. Try again, or grade it yourself." });
       }
       const suggestion = cleanAiSuggestion(reply);
       if (!suggestion) return res.status(502).json({ message: "The AI's answer didn't make sense. Try again, or grade it yourself." });
