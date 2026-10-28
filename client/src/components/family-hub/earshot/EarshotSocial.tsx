@@ -42,7 +42,7 @@ export type Post = {
   author: Profile; likes: number; liked: boolean; comments: number; reposts: number; reposted: boolean; mine: boolean;
 };
 export type Comment = { id: string; postId: string; parentId: string | null; body: string; at: string; author: Profile; likes: number; liked: boolean; mine: boolean };
-export type Note = { id: string; kind: "like" | "comment" | "reply" | "follow" | "repost" | "comment_like" | "episode"; at: string; read: boolean; actor: Profile; post: { id: string; kind: Post["kind"]; text: string; art: string } | null; comment: string };
+export type Note = { id: string; kind: "like" | "comment" | "reply" | "follow" | "repost" | "comment_like" | "episode" | "guestbook"; at: string; read: boolean; actor: Profile; post: { id: string; kind: Post["kind"]; text: string; art: string } | null; comment: string };
 export type Person = Profile & { followed: boolean };
 /** Plays an episode in the main feed; with at, from that moment. */
 export type PlayFn = (show: PodShow, ep: PodEpisode, at?: number) => void;
@@ -269,7 +269,7 @@ export function RepostSheet({ post, ctx, onClose, onDone }: { post: Post; ctx: C
     </div>
   </Sheet>;
 }
-const NOTE_WORDS: Record<Note["kind"], string> = { like: "liked your post", comment: "commented", reply: "replied to you", follow: "started following you", repost: "reposted your post", comment_like: "liked your comment", episode: "posted a new episode" };
+const NOTE_WORDS: Record<Note["kind"], string> = { like: "liked your post", comment: "commented", reply: "replied to you", follow: "started following you", repost: "reposted your post", comment_like: "liked your comment", episode: "posted a new episode", guestbook: "signed your guestbook" };
 export function NotesSheet({ api, onClose, onPost, onPerson }: { api: Api; onClose: () => void; onPost: (id: string) => void; onPerson: (h: string) => void }) {
   const [notes, setNotes] = useState<Note[] | null>(null);
   const [setup, setSetup] = useState(false);
@@ -279,7 +279,7 @@ export function NotesSheet({ api, onClose, onPost, onPerson }: { api: Api; onClo
     <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-6">
       {!notes && <div className="grid place-items-center py-10"><Loader2 className="animate-spin" /></div>}
       {notes && !notes.length && <p className="py-14 text-center text-sm text-white/50">{setup ? "Notifications are being set up. Check back soon." : "Nothing yet. When people like, comment on, repost or follow you, it shows up here."}</p>}
-      {notes?.map((n) => <button key={n.id} type="button" onClick={() => (n.kind === "follow" || !n.post ? onPerson(n.actor.handle) : onPost(n.post.id))} className={`flex w-full items-start gap-3 rounded-2xl p-2.5 text-left hover:bg-white/[.04] ${n.read ? "" : "bg-white/[.04]"}`}>
+      {notes?.map((n) => <button key={n.id} type="button" onClick={() => (n.kind === "follow" || n.kind === "guestbook" || !n.post ? onPerson(n.actor.handle) : onPost(n.post.id))} className={`flex w-full items-start gap-3 rounded-2xl p-2.5 text-left hover:bg-white/[.04] ${n.read ? "" : "bg-white/[.04]"}`}>
         <span className="relative"><Avatar p={n.actor} size={40} /><span className="absolute -bottom-0.5 -right-0.5 grid h-5 w-5 place-items-center rounded-full bg-black ring-2 ring-black">{icon(n.kind)}</span></span>
         <span className="min-w-0 flex-1">
           <span className="block text-sm leading-snug"><b>{n.actor.name}</b> <span className="text-white/70">{NOTE_WORDS[n.kind]}</span> <span className="text-white/35">· {ago(n.at)}</span></span>

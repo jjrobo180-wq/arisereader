@@ -6,9 +6,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { ArrowLeft, Bell, Feather, Flag, Heart, Home, Loader2, MessageCircle, Mic, MoreHorizontal, Play, Repeat2, Search, Share2, Trash2, User } from "lucide-react";
 import { durationWords, hiRes } from "@shared/earshot";
 import {
-  ACCENT, Avatar, ClipInline, ClipsFeed, NotesSheet, PersonPage, ProfileEditor, RepostSheet, SearchSheet, UploadSheet, ago, artOf, compact, shareLink, shown, toEpisode, toShow, useClipAudio,
+  ACCENT, Avatar, ClipInline, ClipsFeed, NotesSheet, ProfileEditor, RepostSheet, SearchSheet, UploadSheet, ago, artOf, compact, shareLink, shown, toEpisode, toShow, useClipAudio,
   type Api, type Comment, type Ctx, type PlayFn, type Post, type Profile,
 } from "./EarshotSocial";
+import { PagesStrip, PersonSpace } from "./EarshotProfilePage";
 
 /** Each action's color: on, on hover, and its hover halo. */
 const HUES = {
@@ -74,6 +75,7 @@ export function XSocial({ api, say, onPlay, onHush, onCreate, openPerson, onPers
     {tab === "clips" ? <div className="ps-dark flex min-h-0 flex-1 flex-col bg-[#000] pb-14"><ClipsFeed posts={posts} ctx={ctx} setup={me.v2 === false} onRefresh={load} /></div>
     : <div ref={list} className="min-h-0 flex-1 overflow-y-auto pb-24 [scrollbar-width:none] mx-auto w-full max-w-2xl">
 
+      <PagesStrip ctx={ctx} onCreate={() => setOpen({ kind: "edit" })} />
       {!me.profile && <div className={`border-b ${LINE} px-4 py-5`}>
         <p className="text-[22px] font-extrabold leading-tight">See what listeners are saying.</p>
         <p className={`mt-1 text-[15px] ${GREY}`}>Make a profile to post, reply, repost and follow.</p>
@@ -103,8 +105,7 @@ export function XSocial({ api, say, onPlay, onHush, onCreate, openPerson, onPers
       <NavBtn label="You" on={!!me.profile && people[people.length - 1] === me.profile.handle} onClick={() => { setOpen(null); me.profile ? setPeople([me.profile.handle]) : setOpen({ kind: "edit" }); }}><User size={24} strokeWidth={1.8} /></NavBtn>
     </nav>
 
-    {people.length > 0 && <PersonPage key={people[people.length - 1]} handle={people[people.length - 1]} ctx={ctx} patch={patch} onEdit={() => setOpen({ kind: "edit" })} onClose={() => setPeople((s) => s.slice(0, -1))}
-      row={(p, pt, gone) => <XPost post={p} ctx={ctx} patch={pt} onOpen={(x) => setOpen({ kind: "thread", post: x })} onGone={gone} />} />}
+    {people.length > 0 && <PersonSpace key={people[people.length - 1]} handle={people[people.length - 1]} ctx={ctx} onEdit={() => setOpen({ kind: "edit" })} onClose={() => setPeople((s) => s.slice(0, -1))} />}
     {open?.kind === "thread" && <Thread post={open.post} ctx={ctx} patch={patch} onClose={() => setOpen(null)} onOpen={(x) => setOpen({ kind: "thread", post: x })} />}
     {open?.kind === "compose" && <Compose api={api} say={say} me={me.profile} quote={open.quote} onClose={() => setOpen(null)} onPosted={(p) => { setOpen(null); if (p) setPosts((l) => [p, ...(l || [])]); if (open.quote) patch(open.quote.id, (x) => ({ ...x, reposts: x.reposts + 1 })); }} />}
     {open?.kind === "repost" && <RepostSheet post={open.post} ctx={ctx} onClose={() => setOpen(null)} onDone={(on, quote) => { patch(open.post.id, (p) => ({ ...p, reposted: on, reposts: Math.max(0, p.reposts + (on ? 1 : -1)) })); setOpen(null); if (quote) setPosts((l) => [quote, ...(l || [])]); }} />}
