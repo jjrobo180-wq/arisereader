@@ -619,6 +619,6 @@ export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetch
     res.status(204).end();
   });
   // Audiobooks (server/audiobooks.ts): LibriVox's public domain audiobooks.
-  registerAudiobookRoutes(app, gate, { ask: openAiJson, transcribe: openAiTranscribe });
+  registerAudiobookRoutes(app, gate, { ask: perplexityJson(perplexityKey, openAiJson), transcribe: openAiTranscribe });
   registerEarshotRoutes(app, gate, { store, fetcher, directory, adStore, player, socialDb, prefix: "/api/podscroll" });
 }
