@@ -39,20 +39,24 @@ export function ProfileSpace({ data, page, ctx, onBack, onFollow, onEditProfile,
   onGuestbook: (list: GuestEntry[]) => void; editing?: boolean;
 }) {
   const look = useLook(page);
-  const side = page.widgets.filter((w) => w.col === "side"), main = page.widgets.filter((w) => w.col === "main");
+  // Visitors only see widgets with something in them. The owner sees empty ones as a small "add" hint.
+  const shown = page.widgets.filter((w) => data.me || hasContent(w, page, data));
+  const side = shown.filter((w) => w.col === "side"), main = shown.filter((w) => w.col === "main");
   const banner = page.banner;
   const bannerStyle: CSSProperties = banner.kind === "image" ? { backgroundImage: `url("${banner.image.replace(/"/g, "%22")}")`, backgroundSize: "cover", backgroundPosition: "center" }
     : banner.kind === "color" ? { background: banner.color2 ? `linear-gradient(120deg, ${banner.color}, ${banner.color2})` : banner.color } : {};
-  const render = (w: Widget) => <WidgetCard key={w.id} w={w} page={page} look={look} data={data} ctx={ctx} onGuestbook={onGuestbook} />;
+  const render = (w: Widget) => data.me && !hasContent(w, page, data)
+    ? <button key={w.id} type="button" onClick={onCustomize} className="flex min-h-12 items-center gap-2 px-4 text-left text-sm font-semibold" style={{ borderRadius: page.radius, border: `1.5px dashed ${alpha(look.ink, 0.3)}`, color: alpha(look.ink, 0.75) }}><Plus size={16} style={{ color: page.accent }} />{EMPTY_HINT[w.type] ?? `Fill in ${widgetName(w.type)}`}</button>
+    : <WidgetCard key={w.id} w={w} page={page} look={look} data={data} ctx={ctx} onGuestbook={onGuestbook} />;
   return <div className={`ps-dark absolute inset-0 z-40 overflow-y-auto [scrollbar-width:none] ${editing ? "pb-[64vh] md:pb-24 md:pr-[400px]" : "pb-24"}`} role="dialog" aria-label={`${data.profile.name}'s page`}
     style={{ ...bgCss(page.bg), color: look.ink, fontFamily: look.font.stack }}>
     <div className="mx-auto w-full max-w-5xl">
       <div className={`relative ${banner.kind === "none" ? "h-16" : "h-36 sm:h-48"}`} style={bannerStyle}>
         <button type="button" onClick={onBack} aria-label="Back" className="absolute left-3 top-[max(.75rem,env(safe-area-inset-top))] grid h-10 w-10 place-items-center rounded-full bg-black/45 text-white backdrop-blur"><ChevronLeft size={22} /></button>
       </div>
-      <header className="px-4 sm:px-6">
+      <header className="relative z-10 px-4 sm:px-6">
         <div className={`flex flex-wrap items-end justify-between gap-3 ${banner.kind === "none" ? "" : "-mt-12"}`}>
-          <span className="rounded-full p-1" style={{ background: page.accent }}><Avatar p={data.profile} size={96} /></span>
+          <span className="rounded-full p-1" style={{ background: page.accent }}><Avatar p={data.profile} size={84} /></span>
           <div className="flex flex-wrap gap-2 pb-1">
             {data.me ? <>
               <button type="button" onClick={onEditProfile} className="inline-flex min-h-10 items-center gap-1.5 rounded-full px-4 text-sm font-bold" style={{ ...look.card, borderRadius: 999 }}><Pencil size={15} />Name & bio</button>
@@ -61,18 +65,43 @@ export function ProfileSpace({ data, page, ctx, onBack, onFollow, onEditProfile,
           </div>
         </div>
         <h1 className="mt-3 text-[28px] leading-tight sm:text-[34px]" style={{ fontWeight: look.font.weight }}>{data.profile.name}</h1>
-        <p className="text-[15px]" style={{ color: alpha(look.ink, 0.7) }}>@{data.profile.handle}{page.mood.text || page.mood.emoji ? <> · <span aria-label="Mood">{page.mood.emoji} {page.mood.text}</span></> : null}</p>
+        <p className="text-[15px]" style={{ color: alpha(look.ink, 0.7) }}>@{data.profile.handle}{page.mood.text ? <> · <span aria-label="Mood">{page.mood.emoji} {page.mood.text}</span></> : null}</p>
       </header>
       <div className={`mt-5 grid gap-4 px-4 sm:px-6 ${page.layout === "two" ? "md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]" : ""}`}>
         {page.layout === "two" ? <>
           <div className="flex min-w-0 flex-col gap-4">{side.map(render)}</div>
           <div className="flex min-w-0 flex-col gap-4">{main.map(render)}</div>
-        </> : <div className="mx-auto flex w-full max-w-2xl min-w-0 flex-col gap-4">{page.widgets.map(render)}</div>}
+        </> : <div className="mx-auto flex w-full max-w-2xl min-w-0 flex-col gap-4">{shown.map(render)}</div>}
       </div>
-      {!page.widgets.length && <p className="px-6 py-16 text-center" style={{ color: alpha(look.ink, 0.7) }}>{data.me ? "Your page is empty. Tap Customize page to add widgets." : "Nothing here yet."}</p>}
+      {!shown.length && <p className="px-6 py-16 text-center" style={{ color: alpha(look.ink, 0.7) }}>{data.me ? "Your page is empty. Tap Customize page to add widgets." : `${data.profile.name} hasn't set up their page yet.`}</p>}
     </div>
   </div>;
 }
+/** Is there anything to show in this widget yet? */
+function hasContent(w: Widget, page: ProfilePageData, data: PageData): boolean {
+  const posts = data.posts.filter((p) => p.kind !== "bookmark");
+  switch (w.type) {
+    case "about": return !!(w.text || data.profile.bio);
+    case "mood": return !!page.mood.text;
+    case "song": return !!page.song;
+    case "stats": return true;
+    case "top8": return !!w.shows?.length;
+    case "friends": return !!data.friends?.length || !!w.handles?.length;
+    case "interests": return !!w.tags?.length;
+    case "quote": case "text": return !!w.text;
+    case "links": return !!w.links?.length;
+    case "photo": return !!w.image;
+    case "posts": return posts.some((p) => p.kind !== "clip" && p.kind !== "own");
+    case "clips": return posts.some((p) => p.kind === "clip");
+    case "podcast": return posts.some((p) => p.kind === "own");
+    case "guestbook": return true;
+  }
+}
+const EMPTY_HINT: Partial<Record<WidgetType, string>> = {
+  about: "Add a bio", mood: "Set your mood", song: "Pick a profile song", top8: "Pick your Top 8 shows", friends: "Pick your Top 8 friends",
+  interests: "Add your interests", quote: "Add a quote", text: "Write in your text box", links: "Add your links", photo: "Add a photo",
+  posts: "Your posts will show here", clips: "Your clips will show here", podcast: "Episodes you make will show here",
+};
 const pageInkOn = (hex: string) => { const n = parseInt(hex.slice(1), 16); const l = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255; return l > 0.6 ? "#111111" : "#ffffff"; };
 
 type Look = ReturnType<typeof useLook>;
@@ -80,7 +109,7 @@ function WidgetCard({ w, page, look, data, ctx, onGuestbook }: { w: Widget; page
   const title = w.title || (w.type === "about" ? `About ${data.profile.name.split(" ")[0]}` : w.type === "friends" ? `${data.profile.name.split(" ")[0]}'s Top 8` : widgetName(w.type));
   const body = <WidgetBody w={w} page={page} look={look} data={data} ctx={ctx} onGuestbook={onGuestbook} />;
   return <section className="min-w-0 overflow-hidden p-4 sm:p-5" style={look.card} aria-label={title}>
-    <h2 className="mb-3 flex items-center gap-2 text-[13px] uppercase tracking-[.14em]" style={{ color: page.accent, fontWeight: 800 }}><span className="h-3 w-1 rounded-full" style={{ background: page.accent }} />{title}</h2>
+    <h2 className="mb-3 flex items-center gap-2 text-[12px] uppercase tracking-[.08em]" style={{ color: page.accent, fontWeight: 800 }}><span className="h-3 w-1 rounded-full" style={{ background: page.accent }} />{title}</h2>
     {body}
   </section>;
 }
@@ -91,9 +120,9 @@ function WidgetBody({ w, page, look, data, ctx, onGuestbook }: { w: Widget; page
   const playShow = (s: PageShow) => ctx.api(`/api/earshot/show/${s.id}?x=1`).then((b) => { const e = (b.episodes || [])[0]; if (e) ctx.onPlay({ id: s.id, name: s.name, author: s.author || "", art: s.art, genre: "culture", appleGenre: "", link: "", episodes: 0, explicit: false, latest: "" }, { ...e, art: e.art || s.art }); else ctx.say("No episodes to play yet."); }).catch((e) => ctx.say(e.message));
   switch (w.type) {
     case "about": return data.profile.bio || w.text ? <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{w.text || data.profile.bio}</p> : empty(data.me ? "Add a bio with Name & bio." : "No bio yet.");
-    case "mood": return <div className="flex items-center gap-3"><span className="text-4xl" aria-hidden="true">{page.mood.emoji}</span><span><span className="block text-xs uppercase tracking-widest" style={{ color: look.sub }}>Mood</span><b className="text-[15px]">{page.mood.text || "Listening"}</b></span></div>;
+    case "mood": return <div className="flex items-center gap-3"><span className="text-4xl" aria-hidden="true">{page.mood.emoji}</span><b className="text-[17px] leading-snug">{page.mood.text || "Listening"}</b></div>;
     case "song": return page.song ? <SongPlayer song={page.song} look={look} accent={page.accent} ctx={ctx} /> : empty(data.me ? "Pick a profile song in Customize page → Profile." : "No profile song.");
-    case "stats": return <dl className="grid grid-cols-3 gap-2 text-center">{([["Followers", data.followers], ["Following", data.following], ["Posts", posts.length]] as const).map(([l, n]) => <div key={l} className="rounded-xl py-2" style={{ background: look.soft }}><dt className="text-[11px] uppercase tracking-wider" style={{ color: look.sub }}>{l}</dt><dd className="text-xl font-bold">{compact(n)}</dd></div>)}</dl>;
+    case "stats": return <dl className="grid grid-cols-3 gap-2 text-center">{([["followers", data.followers], ["following", data.following], ["posts", posts.length]] as const).map(([l, n]) => <div key={l} className="min-w-0 rounded-xl px-1 py-2.5" style={{ background: look.soft }}><dd className="text-[22px] font-bold leading-none">{compact(n)}</dd><dt className="mt-1 truncate text-[12px]" style={{ color: look.sub }}>{l}</dt></div>)}</dl>;
     case "top8": return w.shows?.length ? <div className="grid grid-cols-4 gap-2.5">{w.shows.map((s, i) => <button key={s.id} type="button" onClick={() => playShow(s)} className="group min-w-0 text-left" aria-label={`Play ${s.name}`}>
       <span className="relative block"><img src={hiRes(s.art, 300)} alt="" referrerPolicy="no-referrer" loading="lazy" className="aspect-square w-full object-cover transition group-hover:opacity-85" style={{ borderRadius: Math.max(4, page.radius - 6) }} /><span className="absolute left-1 top-1 grid h-5 min-w-5 place-items-center rounded-full px-1 text-[10px] font-bold" style={{ background: page.accent, color: pageInkOn(page.accent) }}>{i + 1}</span></span>
       <span className="mt-1 line-clamp-2 block text-[12px] leading-tight">{s.name}</span></button>)}</div> : empty(data.me ? "Pick your 8 favorite shows in Customize page → Widgets." : "No favorites picked yet.");
@@ -460,15 +489,15 @@ export function PagesStrip({ ctx, onCreate }: { ctx: Ctx; onCreate: () => void }
   useEffect(() => { ctx.api("/api/earshot/social/people").then((b) => setPeople((b.people || []).filter((p: Profile) => p.handle !== ctx.me?.handle).slice(0, 16))).catch(() => setPeople([])); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return <section aria-label="Pages" className="border-b border-white/[.09] px-4 py-3">
     <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none]">
-      <button type="button" onClick={() => (ctx.me ? ctx.person(ctx.me.handle) : onCreate())} className="flex w-[74px] flex-none flex-col items-center gap-1.5 text-center">
-        <span className="relative grid h-[66px] w-[66px] place-items-center rounded-full p-[3px]" style={{ background: "conic-gradient(#ff8a3d, #ec4899, #6366f1, #ff8a3d)" }}>
-          {ctx.me ? <Avatar p={ctx.me} size={60} /> : <span className="grid h-[60px] w-[60px] place-items-center rounded-full bg-black"><Plus size={22} /></span>}
+      <button type="button" onClick={() => (ctx.me ? ctx.person(ctx.me.handle) : onCreate())} className="flex w-[68px] flex-none flex-col items-center gap-1.5 text-center">
+        <span className="relative grid h-[60px] w-[60px] place-items-center rounded-full p-[3px]" style={{ background: "conic-gradient(#ff8a3d, #ec4899, #6366f1, #ff8a3d)" }}>
+          {ctx.me ? <Avatar p={ctx.me} size={54} /> : <span className="grid h-[54px] w-[54px] place-items-center rounded-full bg-black"><Plus size={22} /></span>}
           <span className="absolute -bottom-0.5 -right-0.5 grid h-6 w-6 place-items-center rounded-full bg-[#ff8a3d] text-[#111] ring-2 ring-black"><Paintbrush size={12} /></span>
         </span>
         <span className="w-full truncate text-[12px] font-semibold">{ctx.me ? "Your page" : "Make yours"}</span>
       </button>
-      {(people ?? []).map((p) => <button key={p.handle} type="button" onClick={() => ctx.person(p.handle)} className="flex w-[74px] flex-none flex-col items-center gap-1.5 text-center">
-        <Avatar p={p} size={66} /><span className="w-full truncate text-[12px] text-white/80">{p.name}</span>
+      {(people ?? []).map((p) => <button key={p.handle} type="button" onClick={() => ctx.person(p.handle)} className="flex w-[68px] flex-none flex-col items-center gap-1.5 text-center">
+        <Avatar p={p} size={60} /><span className="w-full truncate text-[12px] text-white/80">{p.name}</span>
       </button>)}
       {people === null && <Loader2 className="my-6 animate-spin text-white/50" />}
     </div>
