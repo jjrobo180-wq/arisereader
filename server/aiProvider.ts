@@ -2,9 +2,10 @@
 // (https://api.openai.com/v1/chat/completions). xAI's API takes the same requests, so instead of
 // changing each feature, this wraps fetch once at startup:
 //
-//   AI_PROVIDER=grok (or xai)  → every chat request goes to Grok.
-//   otherwise                  → OpenAI first; if OpenAI says the account is out of credit, the key
-//                                is wrong, or it is overloaded, the same request is sent to Grok.
+//   default                    → OpenAI is off for this site: every chat request goes to the backup
+//                                (Groq on this site; Grok if that key is set instead).
+//   USE_OPENAI=1               → OpenAI first; if it is out of credit, the key is wrong, or it is
+//                                overloaded, the same request goes to the backup.
 //
 // Uses the site's Grok key (XAI_API_KEY, GROK_API_KEY or similar; see GROK_KEY_NAMES). XAI_MODEL or
 // GROK_MODEL picks the Grok model (default "grok-latest").
@@ -51,19 +52,24 @@ export function pickModel(ids: string[]): string | null {
   for (const re of MODEL_PREFERENCE) { const hit = usable.find((id) => re.test(id.toLowerCase())); if (hit) return hit; }
   return usable[0] || null;
 }
-async function bestModel(base: Fetch, env: AiProviderEnv): Promise<string | null> {
+const busyUntil = new Map<string, number>();
+let modelList: { at: number; ids: string[] } | null = null;
+async function bestModel(base: Fetch, env: AiProviderEnv, skip: (id: string) => boolean = () => false): Promise<string | null> {
+  if (modelList && Date.now() - modelList.at < 30 * 60_000) return pickModel(modelList.ids.filter((id) => !skip(id)));
   const url = (env.BACKUP_URL || XAI_CHAT).replace(/\/chat\/completions$/, "/models");
   const res = await base(url, { headers: { Authorization: `Bearer ${env.XAI_API_KEY}` } });
   if (!res.ok) return null;
   const data: any = await res.json().catch(() => null);
   const ids: string[] = (Array.isArray(data?.data) ? data.data : []).filter((m: any) => m?.active !== false).map((m: any) => String(m.id || "")).filter(Boolean);
-  return pickModel(ids);
+  modelList = { at: Date.now(), ids };
+  return pickModel(ids.filter((id) => !skip(id)));
 }
 
 /** A fetch that routes OpenAI chat requests to Grok as described above; everything else is untouched. */
 export function grokFetch(base: Fetch, env: AiProviderEnv): Fetch {
   // Grok first when asked, or when there is no OpenAI key at all.
-  const grokFirst = /^(grok|xai)$/i.test(env.AI_PROVIDER || "") || !env.OPENAI_API_KEY || env.OPENAI_API_KEY === "routed-to-grok";
+  // OpenAI is off for this site (no more credit): the backup answers everything unless USE_OPENAI=1.
+  const grokFirst = env.AI_PROVIDER !== "openai";
   return (async (input: Parameters<Fetch>[0], init?: RequestInit) => {
     if (!env.XAI_API_KEY || !urlOf(input).startsWith(OPENAI_CHAT)) return base(input, init);
     const askGrok = async () => {
@@ -84,6 +90,12 @@ export function grokFetch(base: Fetch, env: AiProviderEnv): Fetch {
           const plain = toGrok(init, env);
           try { const j = JSON.parse(String(plain.body)); delete j.response_format; plain.body = JSON.stringify(j); } catch { /* keep */ }
           res = await base(env.BACKUP_URL || XAI_CHAT, plain);
+        }
+        // A model's free per-minute allowance is used up: try the next good model (each has its own).
+        if (!res.ok && res.status === 429 && /rate limit|tokens per minute|requests per/i.test(await res.clone().text().catch(() => ""))) {
+          busyUntil.set(String(env.XAI_MODEL), Date.now() + 60_000);
+          const other = await bestModel(base, env, (id) => (busyUntil.get(id) ?? 0) > Date.now()).catch(() => null);
+          if (other) res = await base(env.BACKUP_URL || XAI_CHAT, toGrok(init, { ...env, XAI_MODEL: other }));
         }
         if (!res.ok) console.error(`[ai] ${env.BACKUP_NAME || "Grok"} failed:`, res.status, (await res.clone().text().catch(() => "")).slice(0, 200));
       }
@@ -122,10 +134,11 @@ export function installGrok(source: Record<string, string | undefined> = process
   const b = BACKUPS[found.kind];
   const model = found.kind === "grok" ? source.XAI_MODEL || source.GROK_MODEL || b.model : source.GROQ_MODEL || b.model;
   const env: AiProviderEnv = { XAI_API_KEY: found.key, XAI_MODEL: model, AI_PROVIDER: /^(groq)$/i.test(source.AI_PROVIDER || "") ? "grok" : source.AI_PROVIDER, OPENAI_API_KEY: source.OPENAI_API_KEY, BACKUP_URL: b.url, BACKUP_NAME: b.name };
-  const onlyBackup = !env.OPENAI_API_KEY;
+  const onlyBackup = source.USE_OPENAI !== "1";
+  if (onlyBackup) env.AI_PROVIDER = "grok";
   globalThis.fetch = grokFetch(globalThis.fetch.bind(globalThis), { ...env });
   // Features check for an OpenAI key before offering AI; with only a backup key they should still work.
-  if (onlyBackup) process.env.OPENAI_API_KEY = "routed-to-grok";
-  console.log(`[ai] ${b.name} ${/^(grok|xai)$/i.test(env.AI_PROVIDER || "") || onlyBackup ? "handles all AI chat" : "is the backup when OpenAI fails"} (model ${model})`);
+  if (onlyBackup) { process.env.USE_OPENAI_FOR_CHAT = "0"; process.env.OPENAI_API_KEY = "routed-to-grok"; }
+  console.log(`[ai] ${b.name} ${onlyBackup ? "handles all AI chat (OpenAI is off)" : "is the backup when OpenAI fails"} (model ${model})`);
   return true;
 }

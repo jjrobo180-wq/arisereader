@@ -17,7 +17,7 @@ const req = { method: "POST", headers: { Authorization: "Bearer sk-openai", "Con
 
 test("OpenAI out of credit: the same request goes to Grok with Grok's model and key", async () => {
   const { base, calls } = fakeBase({ status: 429, body: '{"error":{"code":"credit_balance_exhausted"}}' });
-  const f = grokFetch(base, { XAI_API_KEY: "xai-key", OPENAI_API_KEY: "sk-openai" });
+  const f = grokFetch(base, { XAI_API_KEY: "xai-key", OPENAI_API_KEY: "sk-openai", AI_PROVIDER: "openai" });
   const res = await f(OPENAI, req);
   assert.equal(res.status, 200);
   assert.equal(calls.length, 2);
@@ -30,7 +30,7 @@ test("OpenAI out of credit: the same request goes to Grok with Grok's model and 
 
 test("OpenAI working: Grok isn't used; AI_PROVIDER=grok sends everything to Grok; other endpoints untouched", async () => {
   let r = fakeBase({ status: 200, body: "{}" });
-  await grokFetch(r.base, { XAI_API_KEY: "k", OPENAI_API_KEY: "sk" })(OPENAI, req);
+  await grokFetch(r.base, { XAI_API_KEY: "k", OPENAI_API_KEY: "sk", AI_PROVIDER: "openai" })(OPENAI, req);
   assert.deepEqual(r.calls.map((c) => c.url), [OPENAI]);
   r = fakeBase({ status: 200, body: "{}" });
   await grokFetch(r.base, { XAI_API_KEY: "k", OPENAI_API_KEY: "sk", AI_PROVIDER: "grok", XAI_MODEL: "grok-4.3" })(OPENAI, req);
@@ -40,7 +40,7 @@ test("OpenAI working: Grok isn't used; AI_PROVIDER=grok sends everything to Grok
   await grokFetch(r.base, { XAI_API_KEY: "k", OPENAI_API_KEY: "sk" })("https://api.openai.com/v1/audio/speech", req);
   assert.equal(r.calls.length, 1, "voice stays on OpenAI");
   r = fakeBase({ status: 400, body: "bad request" });
-  await grokFetch(r.base, { XAI_API_KEY: "k", OPENAI_API_KEY: "sk" })(OPENAI, req);
+  await grokFetch(r.base, { XAI_API_KEY: "k", OPENAI_API_KEY: "sk", AI_PROVIDER: "openai" })(OPENAI, req);
   assert.equal(r.calls.length, 1, "a real mistake in the request isn't retried");
   r = fakeBase({ status: 429, body: "x" });
   await grokFetch(r.base, { OPENAI_API_KEY: "sk" } as any)(OPENAI, req);
@@ -59,7 +59,7 @@ test("a Groq key (groq.com) works as the backup too, with Groq's address and mod
   assert.deepEqual(findBackup({ GROQ_API_KEY: "gsk_1" }), { kind: "groq", key: "gsk_1" });
   assert.deepEqual(findBackup({ MY_GROQ: "gsk_2" }), { kind: "groq", key: "gsk_2" });
   const { base, calls } = fakeBase({ status: 429, body: "credit_balance_exhausted" });
-  const f = grokFetch(base, { XAI_API_KEY: "gsk_1", XAI_MODEL: "llama-3.3-70b-versatile", OPENAI_API_KEY: "sk", BACKUP_URL: "https://api.groq.com/openai/v1/chat/completions", BACKUP_NAME: "Groq" });
+  const f = grokFetch(base, { XAI_API_KEY: "gsk_1", XAI_MODEL: "llama-3.3-70b-versatile", OPENAI_API_KEY: "sk", AI_PROVIDER: "openai", BACKUP_URL: "https://api.groq.com/openai/v1/chat/completions", BACKUP_NAME: "Groq" });
   await f(OPENAI, req);
   assert.equal(calls[1].url, "https://api.groq.com/openai/v1/chat/completions");
   assert.equal(JSON.parse(String(calls[1].init!.body)).model, "llama-3.3-70b-versatile");
@@ -77,7 +77,7 @@ test("a retired model: ask the service for its models, switch to the best one, a
     model = JSON.parse(String(init!.body)).model;
     return model === "old-model" ? new Response('{"error":{"code":"model_not_found"}}', { status: 404 }) : new Response("{}", { status: 200 });
   }) as typeof fetch;
-  const f = grokFetch(base, { XAI_API_KEY: "gsk_1", XAI_MODEL: "old-model", OPENAI_API_KEY: "sk", BACKUP_URL: "https://api.groq.com/openai/v1/chat/completions", BACKUP_NAME: "Groq" });
+  const f = grokFetch(base, { XAI_API_KEY: "gsk_1", XAI_MODEL: "old-model", OPENAI_API_KEY: "sk", AI_PROVIDER: "openai", BACKUP_URL: "https://api.groq.com/openai/v1/chat/completions", BACKUP_NAME: "Groq" });
   const res = await f(OPENAI, req);
   assert.equal(res.status, 200);
   assert.equal(model, "openai/gpt-oss-120b");
@@ -86,4 +86,22 @@ test("a retired model: ask the service for its models, switch to the best one, a
   calls.length = 0;
   await f(OPENAI, req);
   assert.ok(!calls.some((c) => c.endsWith("/models")));
+});
+
+test("OpenAI is off by default: chat goes straight to the backup without calling OpenAI", async () => {
+  const r = fakeBase({ status: 200, body: "{}" });
+  await grokFetch(r.base, { XAI_API_KEY: "gsk_1", OPENAI_API_KEY: "sk", BACKUP_URL: "https://api.groq.com/openai/v1/chat/completions", BACKUP_NAME: "Groq" })(OPENAI, req);
+  assert.deepEqual(r.calls.map((c) => c.url), ["https://api.groq.com/openai/v1/chat/completions"]);
+});
+
+test("Pod+ questions go to Perplexity, and to the backup if Perplexity fails", async () => {
+  const { perplexityJson } = await import("../server/perplexityAsk");
+  let sent: any = null;
+  const ok = perplexityJson(async () => "pplx-1", async () => "backup", (async (_u: any, init: any) => { sent = JSON.parse(init.body); return new Response(JSON.stringify({ choices: [{ message: { content: '{"answer":"Yes [1][2]."}' } }] }), { status: 200 }); }) as any);
+  assert.equal(await ok("sys", "user"), '{"answer":"Yes ."}');
+  assert.equal(sent.model, "sonar");
+  const broken = perplexityJson(async () => "pplx-1", async () => "backup", (async () => new Response("no", { status: 500 })) as any);
+  assert.equal(await broken("s", "u"), "backup");
+  const noKey = perplexityJson(async () => "", async () => "backup");
+  assert.equal(await noKey("s", "u"), "backup");
 });

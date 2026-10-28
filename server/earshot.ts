@@ -12,7 +12,7 @@ import {
   GENRE, EARSHOT_LIMITS, appleLookupUrl, appleSearchUrl, canComment, cleanComment, cleanPodId, commentAuthor, parseEpisode, parseShow, poolFromEpisodeSearch,
   type PodEpisode, type PodShow, type PoolShow, type TranscriptChunk,
 } from "../shared/earshot";
-import { createDirectory, type Directory, type Fetcher } from "./podcastDirectory";
+import { createDirectory, openAiJson, type Directory, type Fetcher } from "./podcastDirectory";
 import { TOPICS, genreSearchTerms, topicPlaylist } from "../shared/earshotTopics";
 import { crowdFor, memoryAdStore, registerAdRoutes, type AdStore } from "./podcastAds";
 import { copyTranscript, registerPlayRoutes, startOpenings, type Player } from "./podcastPlay";
@@ -23,6 +23,13 @@ import { showInfoService } from "./podcastInfo";
 import { accountSessions, registerPodscrollAccountRoutes, SESSION } from "./podcastAccounts";
 import { cleanMoment } from "../shared/earshotListen";
 import { registerListenRoutes } from "./podcastListen";
+import { perplexityJson } from "./perplexityAsk";
+
+/** The site's Perplexity key: admin settings first (where book quizzes keep it), then the environment. */
+async function perplexityKey(): Promise<string> {
+  try { const { storage } = await import("./storage"); const k = await storage.getSetting("perplexity_api_key"); if (k) return k; } catch { /* no database (tests) */ }
+  return process.env.PERPLEXITY_API_KEY || process.env.CUSTOM_CRED_API_PERPLEXITY_AI_TOKEN || "";
+}
 
 export type EarshotComment = { id: string; episodeId: string; author: string; body: string; at: string; mine: boolean;
   /** The moment in the episode it is about, in seconds (null or missing: the whole episode). */
@@ -445,7 +452,11 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
   }
 
   // ---------------- Ask the episode and Catch me up (server/podcastListen.ts) ----------------
-  registerListenRoutes(app, authMiddleware, { prefix: P, dir, player, limited, voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}` });
+  // Answered by Perplexity (fast, takes the whole transcript, can look the show up); Groq if it fails.
+  registerListenRoutes(app, authMiddleware, {
+    prefix: P, dir, player, limited, voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`,
+    ask: perplexityJson(perplexityKey, openAiJson),
+  });
 
   // ---------------- likes, shares, comments ----------------
 

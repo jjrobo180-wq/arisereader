@@ -267,7 +267,8 @@ const groqJson: AskJson = (system, user) => onGroq(GROQ_AI(), async (model) => {
 let openAiDryUntil = 0;
 export const openAiJson: AskJson = async (system, user) => {
   // Out of OpenAI credit: Groq answers instead (checking OpenAI again every 10 minutes).
-  if (process.env.GROQ_API_KEY && (!process.env.OPENAI_API_KEY || Date.now() < openAiDryUntil)) return groqJson(system, user);
+  // OpenAI is off for this site (see server/aiProvider.ts): straight to Groq.
+  if (process.env.GROQ_API_KEY && (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === "routed-to-grok" || Date.now() < openAiDryUntil)) return groqJson(system, user);
   try { return await openAiJsonOnly(system, user); }
   catch (e: any) {
     if (process.env.GROQ_API_KEY && (e?.message === "quota" || e?.message === "busy")) { if (e?.message === "quota") openAiDryUntil = Date.now() + 10 * 60_000; return groqJson(system, user); }
