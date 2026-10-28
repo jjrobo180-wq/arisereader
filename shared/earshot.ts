@@ -142,7 +142,13 @@ export const hiRes = (url: string, size = 1200) => String(url || "").replace(/\/
 /** Smart ad skip: auto skips ads it's sure about (and asks about the rest), ask always shows a Skip button, off does nothing. */
 export type AdMode = "auto" | "ask" | "off";
 export const AD_MODES: readonly AdMode[] = ["auto", "ask", "off"];
-export type EarshotSettings = { speed: number; skipIntro: boolean; advance: Advance; notes: boolean; explicit: boolean; adMode: AdMode; fullCover: boolean; hideTeasers: boolean };
+export type EarshotSettings = { speed: number; skipIntro: boolean; advance: Advance; notes: boolean; explicit: boolean; adMode: AdMode; fullCover: boolean; hideTeasers: boolean;
+  /** Clearer voices and quieter loud parts (Web Audio, on audio played through the server). */
+  voiceBoost: boolean;
+  /** Show the Hours back counter (time skipped ads, intros and speed gave back). */
+  hoursBack: boolean;
+  /** Pop up listeners' timestamped comments as their moment plays. */
+  liveComments: boolean };
 export type Earshot = {
   setupDone: boolean;
   genres: string[];
@@ -170,7 +176,7 @@ export const EARSHOT_LIMITS = { follows: 200, liked: 300, saved: 300, heard: 200
 export const FRESH_BY_DEFAULT = ["briefing"];
 export const defaultModes = (): PodMode[] => DEFAULT_MODES.map((m) => ({ id: m.id, name: m.name, icon: m.icon, episodes: [], ...(FRESH_BY_DEFAULT.includes(m.id) ? { fresh: true } : {}) }));
 export const SPEEDS = [1, 1.25, 1.5, 2] as const;
-export const defaultSettings = (): EarshotSettings => ({ speed: 1, skipIntro: true, advance: 0, notes: true, explicit: false, adMode: "auto", fullCover: false, hideTeasers: true });
+export const defaultSettings = (): EarshotSettings => ({ speed: 1, skipIntro: true, advance: 0, notes: true, explicit: false, adMode: "auto", fullCover: false, hideTeasers: true, voiceBoost: false, hoursBack: true, liveComments: true });
 export const emptyEarshot = (): Earshot => ({ setupDone: false, genres: [], pace: "mix", taste: {}, follows: [], liked: [], saved: [], heard: [], skipped: [], adFree: [], blocked: [], modes: defaultModes(), settings: defaultSettings() });
 
 // ---------------------------------------------------------------------------
@@ -516,6 +522,9 @@ export function cleanEarshot(v: unknown): Earshot {
       fullCover: s.fullCover === true,
       hideTeasers: typeof s.hideTeasers === "boolean" ? s.hideTeasers : d.hideTeasers,
       adMode: AD_MODES.includes(s.adMode) ? s.adMode : s.adSkip === false ? "off" : d.adMode,
+      voiceBoost: s.voiceBoost === true,
+      hoursBack: typeof s.hoursBack === "boolean" ? s.hoursBack : d.hoursBack,
+      liveComments: typeof s.liveComments === "boolean" ? s.liveComments : d.liveComments,
     },
   };
 }

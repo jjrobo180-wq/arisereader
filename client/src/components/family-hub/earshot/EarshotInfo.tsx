@@ -1,7 +1,7 @@
 // "About this podcast": the ⓘ button on the swipe screen. What the show is, who makes it, their
 // other shows, and where it ranks on Apple Podcasts and Spotify (server/podcastInfo.ts).
 import { useEffect, useState } from "react";
-import { ExternalLink, ListVideo, Loader2, X } from "lucide-react";
+import { ListVideo, Loader2, X } from "lucide-react";
 import { hiRes, type PodShow } from "@shared/earshot";
 
 type Rank = { rank: number; chart: string };
@@ -81,11 +81,6 @@ export function InfoSheet({ show, api, ex, onClose, onShow, onEpisodes }: {
               </button>)}
             </div>
           </>}
-
-          <h4 className="mt-6 text-[15px] font-bold">Listen elsewhere</h4>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {info.links.map((l) => <a key={l.name} href={l.url} target="_blank" rel="noopener noreferrer" className="flex min-h-9 items-center gap-1.5 rounded-full bg-white/10 px-3.5 text-sm font-medium hover:bg-white/15">{l.name}<ExternalLink size={13} className="opacity-60" /></a>)}
-          </div>
         </>}
 
         <button type="button" onClick={onEpisodes} className="mt-6 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-white font-semibold text-[#0e0d10]"><ListVideo size={18} />All episodes</button>

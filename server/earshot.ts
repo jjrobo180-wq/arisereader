@@ -21,8 +21,12 @@ import { registerCreatorRoutes } from "./podcastCreators";
 import { topShowsService } from "./podcastTop";
 import { showInfoService } from "./podcastInfo";
 import { accountSessions, registerPodscrollAccountRoutes, SESSION } from "./podcastAccounts";
+import { cleanMoment } from "../shared/earshotListen";
+import { registerListenRoutes } from "./podcastListen";
 
-export type EarshotComment = { id: string; episodeId: string; author: string; body: string; at: string; mine: boolean };
+export type EarshotComment = { id: string; episodeId: string; author: string; body: string; at: string; mine: boolean;
+  /** The moment in the episode it is about, in seconds (null or missing: the whole episode). */
+  t?: number | null };
 export type EpisodeCounts = { likes: number; comments: number; shares: number; liked: boolean };
 
 export interface EarshotStore {
@@ -30,7 +34,7 @@ export interface EarshotStore {
   setLike(userId: string, episodeId: string, on: boolean): Promise<void>;
   addShare(episodeId: string): Promise<void>;
   comments(episodeId: string, userId: string): Promise<EarshotComment[]>;
-  addComment(c: { episodeId: string; showId: string; userId: string; author: string; body: string }): Promise<EarshotComment>;
+  addComment(c: { episodeId: string; showId: string; userId: string; author: string; body: string; t?: number | null }): Promise<EarshotComment>;
   deleteComment(id: string, userId: string, admin: boolean): Promise<boolean>;
   reportComment(id: string, userId: string): Promise<void>;
 }
@@ -54,7 +58,7 @@ export function memoryEarshotStore(): EarshotStore {
     async setLike(userId, id, on) { const k = `${userId}:${id}`; if (on) likes.add(k); else likes.delete(k); },
     async addShare(id) { shares.set(id, (shares.get(id) ?? 0) + 1); },
     async comments(id, userId) { return comments.filter((c) => c.episodeId === id && !c.hidden).slice().reverse().slice(0, 100).map(({ userId: u, hidden, reports, ...c }) => ({ ...c, mine: u === userId })); },
-    async addComment(c) { const row = { id: String(next++), episodeId: c.episodeId, author: c.author, body: c.body, at: new Date().toISOString(), mine: true, userId: c.userId, hidden: false, reports: new Set<string>() }; comments.push(row); const { userId, hidden, reports, ...shown } = row; return shown; },
+    async addComment(c) { const row = { id: String(next++), episodeId: c.episodeId, author: c.author, body: c.body, at: new Date().toISOString(), mine: true, t: c.t ?? null, userId: c.userId, hidden: false, reports: new Set<string>() }; comments.push(row); const { userId, hidden, reports, ...shown } = row; return shown; },
     async deleteComment(id, userId, admin) { const i = comments.findIndex((c) => c.id === id && (admin || c.userId === userId)); if (i < 0) return false; comments.splice(i, 1); return true; },
     async reportComment(id, userId) { const c = comments.find((x) => x.id === id); if (!c) return; c.reports.add(userId); if (c.reports.size >= 3) c.hidden = true; },
   };
@@ -68,6 +72,10 @@ export function supabaseEarshotStore(getDb: () => any, kind: "earshot" | "podscr
   const missing = (e: any) => e && (e.code === "42P01" || e.code === "PGRST205" || e.code === "PGRST202" || (/(earshot|podscroll)_/.test(String(e.message || "")) && /not find|does not exist/i.test(String(e.message || ""))));
   const check = (error: any) => { if (error) { if (missing(error)) throw new EarshotUnavailable("earshot tables missing"); throw error; } };
   const uid = (id: string): string | number => (kind === "earshot" ? Number(id) : id);
+  // Comment moments (at_sec) come from migrations/podcast_comment_moments.sql. Until that has run, comments
+  // still work, just without a moment.
+  const noMoment = (e: any) => !!e && (e.code === "42703" || e.code === "PGRST204" || /at_sec/.test(String(e.message || "")));
+  let moments = true;
   return {
     async counts(ids, userId) {
       const out: Record<string, EpisodeCounts> = {};
@@ -92,14 +100,19 @@ export function supabaseEarshotStore(getDb: () => any, kind: "earshot" | "podscr
     },
     async addShare(id) { const { error } = await getDb().rpc(T.share, { p_episode: id }); check(error); },
     async comments(id, userId) {
-      const { data, error } = await getDb().from(T.comments).select("id,episode_id,user_id,author,body,created_at").eq("episode_id", id).eq("hidden", false).order("created_at", { ascending: false }).limit(100);
+      const read = (cols: string) => getDb().from(T.comments).select(cols).eq("episode_id", id).eq("hidden", false).order("created_at", { ascending: false }).limit(150);
+      let { data, error } = moments ? await read("id,episode_id,user_id,author,body,created_at,at_sec") : { data: null, error: { code: "42703" } as any };
+      if (noMoment(error)) { moments = false; ({ data, error } = await read("id,episode_id,user_id,author,body,created_at")); }
       check(error);
-      return (data || []).map((r: any) => ({ id: String(r.id), episodeId: String(r.episode_id), author: String(r.author), body: String(r.body), at: String(r.created_at), mine: String(r.user_id) === userId }));
+      return (data || []).map((r: any) => ({ id: String(r.id), episodeId: String(r.episode_id), author: String(r.author), body: String(r.body), at: String(r.created_at), mine: String(r.user_id) === userId, t: typeof r.at_sec === "number" ? r.at_sec : null }));
     },
     async addComment(c) {
-      const { data, error } = await getDb().from(T.comments).insert({ episode_id: c.episodeId, show_id: c.showId, user_id: uid(c.userId), author: c.author, body: c.body }).select("id,created_at").single();
+      const row: Record<string, unknown> = { episode_id: c.episodeId, show_id: c.showId, user_id: uid(c.userId), author: c.author, body: c.body };
+      const withMoment = moments && typeof c.t === "number";
+      let { data, error } = await getDb().from(T.comments).insert(withMoment ? { ...row, at_sec: c.t } : row).select("id,created_at").single();
+      if (withMoment && noMoment(error)) { moments = false; ({ data, error } = await getDb().from(T.comments).insert(row).select("id,created_at").single()); }
       check(error);
-      return { id: String(data.id), episodeId: c.episodeId, author: c.author, body: c.body, at: String(data.created_at), mine: true };
+      return { id: String(data.id), episodeId: c.episodeId, author: c.author, body: c.body, at: String(data.created_at), mine: true, t: withMoment && moments ? c.t ?? null : null };
     },
     async deleteComment(id, userId, admin) {
       let q = getDb().from(T.comments).delete().eq("id", Number(id));
@@ -431,6 +444,9 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     });
   }
 
+  // ---------------- Ask the episode and Catch me up (server/podcastListen.ts) ----------------
+  registerListenRoutes(app, authMiddleware, { prefix: P, dir, player, limited, voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}` });
+
   // ---------------- likes, shares, comments ----------------
 
   const episodeId = (v: unknown) => cleanPodId(v);
@@ -474,7 +490,7 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     if (!body) return res.status(400).json({ message: "Write something first." });
     if (limited(posts, req, res, "comments")) return;
     try {
-      const comment = await store.addComment({ episodeId: id, showId: cleanPodId(req.body?.showId), userId: uid(req), author: commentAuthor(req.user?.displayName ?? req.user?.display_name), body });
+      const comment = await store.addComment({ episodeId: id, showId: cleanPodId(req.body?.showId), userId: uid(req), author: commentAuthor(req.user?.displayName ?? req.user?.display_name), body, t: cleanMoment(req.body?.t) });
       res.json({ comment });
     } catch (e) { storeDown(res, e); }
   });
