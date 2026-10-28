@@ -478,7 +478,22 @@ function sectionFor(sections: TextSection[], book: BookDetail, ch: number): numb
   return Math.min(sections.length - 1, Math.round((ch / Math.max(1, book.chapters.length)) * sections.length));
 }
 
-function ReadAlong({ api, pro, onJoin, reading, time, onSeek, onClose }: { api: Api; pro: boolean; onJoin: () => void; reading: Reading; time: number; onSeek: (t: number) => void; onClose: () => void }) {
+// ---- the narrator: the book's text read aloud, by an AI voice (members) or the device's own (free) ----
+const NARRATORS = [
+  { id: "autumn", label: "Autumn", about: "Warm, female" }, { id: "diana", label: "Diana", about: "Clear, female" }, { id: "hannah", label: "Hannah", about: "Bright, female" },
+  { id: "austin", label: "Austin", about: "Easygoing, male" }, { id: "daniel", label: "Daniel", about: "Calm, male" }, { id: "troy", label: "Troy", about: "Deep, male" },
+];
+/** The device's best English voice (the "enhanced" and "natural" ones sound far better). */
+function deviceVoice(): SpeechSynthesisVoice | null {
+  try {
+    const all = window.speechSynthesis?.getVoices() || [];
+    const en = all.filter((v) => /^en(-|_|$)/i.test(v.lang));
+    return en.find((v) => /natural|premium|enhanced|neural/i.test(v.name)) || en.find((v) => /samantha|google us english|aria|jenny|daniel/i.test(v.name)) || en.find((v) => v.localService) || en[0] || null;
+  } catch { return null; }
+}
+const paragraphsOf = (text: string) => text.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+
+function ReadAlong({ api, pro, onJoin, reading, time, onSeek, onClose, onPauseMain }: { api: Api; pro: boolean; onJoin: () => void; reading: Reading; time: number; onSeek: (t: number) => void; onClose: () => void; onPauseMain: () => void }) {
   const { book, ch } = reading;
   const [tab, setTab] = useState<"text" | "transcript">("text");
   const [text, setText] = useState<{ sections: TextSection[]; source: string } | null | "none">(null);
@@ -533,6 +548,85 @@ function ReadAlong({ api, pro, onJoin, reading, time, onSeek, onClose }: { api: 
   }, [activeLine, tab]);
 
   const sec = text && text !== "none" ? text.sections[at] : null;
+  const paras = useMemo(() => (sec ? paragraphsOf(sec.text) : []), [sec]);
+
+  // ---- the narrator ----
+  const [narr, setNarr] = useState<{ voice: string; playing: boolean; from: number; to: number; loading: boolean } | null>(null);
+  const [picking, setPicking] = useState(false);
+  const narrRun = useRef(0);
+  const narrAudio = useRef<HTMLAudioElement | null>(null);
+  const narrPos = useRef<{ sec: number; part: number; para: number }>({ sec: 0, part: 0, para: 0 });
+  const stopNarr = useCallback(() => {
+    narrRun.current++;
+    narrAudio.current?.pause();
+    try { window.speechSynthesis?.cancel(); } catch { /* none */ }
+    setNarr(null);
+  }, []);
+  useEffect(() => stopNarr, [stopNarr]);
+  const sections = text && text !== "none" ? text.sections : [];
+  // Plays from a part of a section on; at the end of a section, on to the next.
+  const narrate = async (voice: string, secAt: number, start: number, run: number) => {
+    const s2 = sections[secAt];
+    if (!s2 || run !== narrRun.current) { if (run === narrRun.current) setNarr(null); return; }
+    if (secAt !== at) setAt(secAt);
+    narrPos.current = { sec: secAt, part: start, para: start };
+    if (voice === "device") {
+      const ps = paragraphsOf(s2.text);
+      const speakFrom = (i: number) => {
+        if (run !== narrRun.current) return;
+        if (i >= ps.length) { void narrate(voice, secAt + 1, 0, run); return; }
+        narrPos.current = { sec: secAt, part: i, para: i };
+        setNarr({ voice, playing: true, from: i, to: i, loading: false });
+        const u = new SpeechSynthesisUtterance(ps[i]);
+        const v = deviceVoice(); if (v) { u.voice = v; u.lang = v.lang; }
+        u.rate = 1; u.onend = () => speakFrom(i + 1); u.onerror = () => { if (run === narrRun.current) setNarr(null); };
+        window.speechSynthesis.speak(u);
+      };
+      speakFrom(start);
+      return;
+    }
+    setNarr((n) => ({ voice, playing: true, from: n?.from ?? 0, to: n?.to ?? 0, loading: true }));
+    try {
+      const [{ parts }, { pass }] = await Promise.all([
+        api(`/api/earshot/books/${encodeURIComponent(book.id)}/narration?sec=${secAt}`),
+        api("/api/earshot/books/relay-pass"),
+      ]);
+      const playPart = (p: number) => {
+        if (run !== narrRun.current) return;
+        if (p >= parts.length) { void narrate(voice, secAt + 1, 0, run); return; }
+        narrPos.current = { sec: secAt, part: p, para: parts[p].from };
+        setNarr({ voice, playing: true, from: parts[p].from, to: parts[p].to, loading: true });
+        const el = (narrAudio.current ??= new Audio());
+        el.src = `${API}/api/podscroll/books/${encodeURIComponent(book.id)}/narrate?sec=${secAt}&part=${p}&voice=${voice}&k=${encodeURIComponent(pass)}`;
+        el.onplaying = () => setNarr((n) => (n ? { ...n, loading: false, playing: true } : n));
+        el.onended = () => playPart(p + 1);
+        el.onerror = () => { if (run === narrRun.current) { setNarr(null); setTxErr(""); } };
+        el.play().catch(() => setNarr((n) => (n ? { ...n, playing: false, loading: false } : n)));
+      };
+      playPart(start);
+    } catch (e: any) { if (run === narrRun.current) setNarr(null); if (e?.needSignIn) onJoin(); }
+  };
+  const startNarr = (voice: string) => {
+    setPicking(false);
+    if (voice !== "device" && !pro) { onJoin(); return; }
+    if (voice === "device" && !window.speechSynthesis) return;
+    onPauseMain();
+    const run = ++narrRun.current;
+    void narrate(voice, at, 0, run);
+  };
+  const toggleNarr = () => {
+    if (!narr) return;
+    if (narr.voice === "device") {
+      if (narr.playing) window.speechSynthesis.pause(); else window.speechSynthesis.resume();
+      setNarr({ ...narr, playing: !narr.playing });
+    } else {
+      const el = narrAudio.current; if (!el) return;
+      if (el.paused) el.play().catch(() => {}); else el.pause();
+      setNarr({ ...narr, playing: el.paused ? false : true });
+    }
+  };
+  // What's being read stays in view.
+  useEffect(() => { if (narr) box.current?.querySelector(`[data-para="${narr.from}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }); }, [narr?.from]); // eslint-disable-line react-hooks/exhaustive-deps
   const { main: name } = chapterName(book.chapters[ch]);
   return <Sheet title={`${book.title} · ${name}`} onClose={onClose} wide>
     <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-[#ececec] bg-white px-4 py-2">
@@ -542,8 +636,8 @@ function ReadAlong({ api, pro, onJoin, reading, time, onSeek, onClose }: { api: 
       </div>
       <button onClick={() => setComfort((v) => !v)} aria-expanded={comfort} aria-label="Text size, typeface and page color" title="Text size, typeface and page color" className={`ml-auto inline-flex h-8 min-w-8 items-center justify-center rounded-full px-2 font-serif text-sm font-semibold ${comfort ? "bg-[#0f0f0f] text-white" : "hover:bg-[#f2f2f2]"}`}>Aa</button>
       {tab === "text" && sec && <span className="flex items-center gap-1">
-        <button onClick={() => setAt((n) => Math.max(0, n - 1))} disabled={at === 0} aria-label="Previous part" className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-[#f2f2f2] disabled:opacity-30"><ChevronLeft size={18} /></button>
-        <button onClick={() => setAt((n) => Math.min((text as any).sections.length - 1, n + 1))} disabled={at >= (text as any).sections.length - 1} aria-label="Next part" className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-[#f2f2f2] disabled:opacity-30"><ChevronRight size={18} /></button>
+        <button onClick={() => { stopNarr(); setAt((n) => Math.max(0, n - 1)); }} disabled={at === 0} aria-label="Previous part" className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-[#f2f2f2] disabled:opacity-30"><ChevronLeft size={18} /></button>
+        <button onClick={() => { stopNarr(); setAt((n) => Math.min((text as any).sections.length - 1, n + 1)); }} disabled={at >= (text as any).sections.length - 1} aria-label="Next part" className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-[#f2f2f2] disabled:opacity-30"><ChevronRight size={18} /></button>
       </span>}
     </div>
     {comfort && <div className="sticky top-[49px] z-10 space-y-3 border-b border-[#ececec] bg-white px-4 py-3 text-sm">
@@ -559,8 +653,22 @@ function ReadAlong({ api, pro, onJoin, reading, time, onSeek, onClose }: { api: 
         text === null ? <div className="flex justify-center py-12"><Loader2 className="animate-spin text-[#606060]" size={24} /></div>
           : text === "none" ? <div className="py-10 text-center text-sm text-[#606060]"><p>This book's text isn't available.</p><button onClick={() => setTab("transcript")} className="mt-3 h-9 rounded-full bg-[#0f0f0f] px-4 font-semibold text-white">Use the transcript</button></div>
           : <article className="mx-auto max-w-[620px]" onClick={define}>
+            {!narr && <div className="relative mb-5">
+              <button onClick={() => setPicking((v) => !v)} className="inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-semibold text-white" style={{ background: ACCENT }}><Headphones size={16} />Listen with a narrator</button>
+              {picking && <div className="absolute left-0 top-12 z-20 w-[min(92vw,320px)] rounded-2xl border border-[#e5e5e5] bg-white p-2 text-[#0f0f0f] shadow-2xl" style={{ fontFamily: FONTS.sans.css, fontSize: 14 }}>
+                <p className="px-2 pb-1 pt-1 text-xs font-semibold text-[#606060]">AI voices</p>
+                {NARRATORS.map((v) => <button key={v.id} onClick={() => startNarr(v.id)} className="flex w-full items-center justify-between gap-2 rounded-xl px-2 py-2 text-left hover:bg-[#f2f2f2]">
+                  <span><span className="font-semibold">{v.label}</span><span className="ml-2 text-xs text-[#606060]">{v.about}</span></span>{!pro && <MembersTag />}
+                </button>)}
+                <div className="my-1 h-px bg-[#ececec]" />
+                <button onClick={() => startNarr("device")} className="flex w-full items-center justify-between gap-2 rounded-xl px-2 py-2 text-left hover:bg-[#f2f2f2]"><span><span className="font-semibold">Your device's voice</span><span className="ml-2 text-xs text-[#606060]">Free</span></span></button>
+              </div>}
+            </div>}
             <h3 className="mb-4 text-[1.2em] font-semibold">{sec!.heading}</h3>
-            {sec!.text.split(/\n{2,}/).map((p, i) => <p key={i} className={`mb-[1em] whitespace-pre-line leading-[1.75] ${theme.fg ? "" : "text-[#0f0f0f]"}`}>{p}</p>)}
+            {paras.map((p, i) => {
+              const on = !!narr && narr.from <= i && i <= narr.to;
+              return <p key={i} data-para={i} className={`mb-[1em] whitespace-pre-line rounded-lg leading-[1.75] transition-colors ${theme.fg ? "" : "text-[#0f0f0f]"}`} style={on ? { background: theme.bg ? "rgba(255,106,31,.16)" : "#fff1e8", boxShadow: "0 0 0 6px " + (theme.bg ? "rgba(255,106,31,.16)" : "#fff1e8") } : undefined}>{p}</p>;
+            })}
             <p className="mt-2 text-xs" style={{ color: theme.dim ?? "#767676" }}>Tap any word for its meaning.</p>
             <p className="mt-8 text-xs" style={{ color: theme.dim ?? "#767676" }}>The book's original text, from <a href={text.source} target="_blank" rel="noreferrer" className="underline">Project Gutenberg</a> (public domain). The reading may differ a little.</p>
           </article>
@@ -589,6 +697,11 @@ function ReadAlong({ api, pro, onJoin, reading, time, onSeek, onClose }: { api: 
         </div>
       )}
     </div>
+    {narr && <div className="sticky bottom-0 z-10 flex items-center gap-3 border-t border-[#ececec] bg-white px-4 py-3" role="region" aria-label="Narrator">
+      <button onClick={toggleNarr} aria-label={narr.playing ? "Pause narrator" : "Play narrator"} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white" style={{ background: ACCENT }}>{narr.loading ? <Loader2 className="animate-spin" size={18} /> : narr.playing ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}</button>
+      <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{narr.voice === "device" ? "Your device's voice" : NARRATORS.find((v) => v.id === narr.voice)?.label} is reading</span><span className="block truncate text-xs text-[#606060]">{sec?.heading}</span></span>
+      <button onClick={stopNarr} className="h-9 shrink-0 rounded-full bg-[#f2f2f2] px-3 text-sm font-semibold">Stop</button>
+    </div>}
     {def && <div className="sticky bottom-0 z-10 border-t border-[#ececec] bg-white px-5 py-4 shadow-[0_-8px_24px_rgba(0,0,0,.08)]" role="status">
       <div className="flex items-start justify-between gap-3">
         <p className="text-lg font-semibold">{def.d?.word || def.word}{def.d?.phonetic && <span className="ml-2 text-sm font-normal text-[#606060]">{def.d.phonetic}</span>}</p>
@@ -898,6 +1011,6 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
     </Sheet>}
     {sheet === "ask" && <AskSheet api={api} pro={pro} onJoin={() => { setSheet(null); onJoin(); }} book={book} ch={ch} t={time} onClose={() => setSheet(null)} />}
     {sheet === "mark" && <MarkSheet book={book} ch={ch} t={time} onClose={() => setSheet(null)} onSaved={() => { setSheet(null); say("Bookmark added. Find it on the book's page."); }} />}
-    {sheet === "read" && <ReadAlong api={api} pro={pro} onJoin={() => { setSheet(null); onJoin(); }} reading={reading} time={time} onSeek={(t) => { const a = audio.current; if (a) { a.currentTime = t; if (a.paused) a.play().catch(() => {}); } }} onClose={() => setSheet(null)} />}
+    {sheet === "read" && <ReadAlong onPauseMain={() => audio.current?.pause()} api={api} pro={pro} onJoin={() => { setSheet(null); onJoin(); }} reading={reading} time={time} onSeek={(t) => { const a = audio.current; if (a) { a.currentTime = t; if (a.paused) a.play().catch(() => {}); } }} onClose={() => setSheet(null)} />}
   </div>;
 }
