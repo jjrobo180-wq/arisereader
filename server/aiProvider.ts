@@ -13,7 +13,13 @@ const OPENAI_CHAT = "https://api.openai.com/v1/chat/completions";
 const XAI_CHAT = "https://api.x.ai/v1/chat/completions";
 
 type Fetch = typeof fetch;
-export type AiProviderEnv = { XAI_API_KEY?: string; XAI_MODEL?: string; AI_PROVIDER?: string; OPENAI_API_KEY?: string };
+export type AiProviderEnv = { XAI_API_KEY?: string; XAI_MODEL?: string; AI_PROVIDER?: string; OPENAI_API_KEY?: string; BACKUP_URL?: string; BACKUP_NAME?: string };
+
+/** Backup AIs that take OpenAI-style chat requests: Grok (xAI) and Groq. */
+export const BACKUPS = {
+  grok: { name: "Grok", url: "https://api.x.ai/v1/chat/completions", model: "grok-latest", keys: ["XAI_API_KEY", "GROK_API_KEY", "XAI_KEY", "GROK_KEY", "X_AI_API_KEY", "GROK_API", "XAI_TOKEN"], prefix: /^xai-/ },
+  groq: { name: "Groq", url: "https://api.groq.com/openai/v1/chat/completions", model: "llama-3.3-70b-versatile", keys: ["GROQ_API_KEY", "GROQ_KEY", "GROQ_API", "GROQ_TOKEN"], prefix: /^gsk_/ },
+} as const;
 
 const urlOf = (input: Parameters<Fetch>[0]) => (typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url);
 
@@ -45,8 +51,8 @@ export function grokFetch(base: Fetch, env: AiProviderEnv): Fetch {
   return (async (input: Parameters<Fetch>[0], init?: RequestInit) => {
     if (!env.XAI_API_KEY || !urlOf(input).startsWith(OPENAI_CHAT)) return base(input, init);
     const askGrok = async () => {
-      const res = await base(XAI_CHAT, toGrok(init, env));
-      if (!res.ok) console.error("[ai] Grok failed:", res.status, (await res.clone().text().catch(() => "")).slice(0, 200));
+      const res = await base(env.BACKUP_URL || XAI_CHAT, toGrok(init, env));
+      if (!res.ok) console.error(`[ai] ${env.BACKUP_NAME || "Grok"} failed:`, res.status, (await res.clone().text().catch(() => "")).slice(0, 200));
       return res;
     };
     if (grokFirst) return askGrok();
@@ -54,28 +60,38 @@ export function grokFetch(base: Fetch, env: AiProviderEnv): Fetch {
     if (res.ok) return res;
     const text = await res.clone().text().catch(() => "");
     if (!shouldFallBack(res.status, text)) return res;
-    console.warn("[ai] OpenAI", res.status, "— using Grok for this request");
+    console.warn("[ai] OpenAI", res.status, `— using ${env.BACKUP_NAME || "Grok"} for this request`);
     return askGrok();
   }) as Fetch;
 }
 
-/** Called once when the server starts. */
-/** The Grok key, under whichever name it was saved in the host's settings. */
-export const GROK_KEY_NAMES = ["XAI_API_KEY", "GROK_API_KEY", "XAI_KEY", "GROK_KEY", "X_AI_API_KEY", "GROK_API", "XAI_TOKEN"];
-export function findGrokKey(env: Record<string, string | undefined>): string | undefined {
-  for (const name of GROK_KEY_NAMES) if (env[name]?.trim()) return env[name]!.trim();
-  // Anything else that looks like an xAI key (they start with "xai-").
-  return Object.entries(env).find(([k, v]) => /grok|xai/i.test(k) && /^xai-/.test(v || ""))?.[1];
+/** The backup AI's key, under whichever name it was saved in the host's settings: Grok first, then Groq. */
+export const GROK_KEY_NAMES = [...BACKUPS.grok.keys, ...BACKUPS.groq.keys];
+export function findBackup(env: Record<string, string | undefined>): { kind: keyof typeof BACKUPS; key: string } | undefined {
+  for (const kind of ["grok", "groq"] as const) {
+    const b = BACKUPS[kind];
+    for (const name of b.keys) if (env[name]?.trim()) return { kind, key: env[name]!.trim() };
+  }
+  // Anything else that looks like one of their keys.
+  for (const kind of ["grok", "groq"] as const) {
+    const hit = Object.entries(env).find(([k, v]) => /grok|xai|groq/i.test(k) && BACKUPS[kind].prefix.test(v || ""));
+    if (hit) return { kind, key: hit[1]! };
+  }
+  return undefined;
 }
+export const findGrokKey = (env: Record<string, string | undefined>) => findBackup(env)?.key;
 
+/** Called once when the server starts. */
 export function installGrok(source: Record<string, string | undefined> = process.env) {
-  const key = findGrokKey(source);
-  if (!key) { console.log("[ai] No Grok key found (looked for " + GROK_KEY_NAMES.join(", ") + ")"); return false; }
-  const env: AiProviderEnv = { XAI_API_KEY: key, XAI_MODEL: source.XAI_MODEL || source.GROK_MODEL, AI_PROVIDER: source.AI_PROVIDER, OPENAI_API_KEY: source.OPENAI_API_KEY };
-  const onlyGrok = !env.OPENAI_API_KEY;
+  const found = findBackup(source);
+  if (!found) { console.log("[ai] No backup AI key found (looked for " + GROK_KEY_NAMES.join(", ") + ")"); return false; }
+  const b = BACKUPS[found.kind];
+  const model = found.kind === "grok" ? source.XAI_MODEL || source.GROK_MODEL || b.model : source.GROQ_MODEL || b.model;
+  const env: AiProviderEnv = { XAI_API_KEY: found.key, XAI_MODEL: model, AI_PROVIDER: /^(groq)$/i.test(source.AI_PROVIDER || "") ? "grok" : source.AI_PROVIDER, OPENAI_API_KEY: source.OPENAI_API_KEY, BACKUP_URL: b.url, BACKUP_NAME: b.name };
+  const onlyBackup = !env.OPENAI_API_KEY;
   globalThis.fetch = grokFetch(globalThis.fetch.bind(globalThis), { ...env });
-  // Features check for an OpenAI key before offering AI; with only a Grok key they should still work.
-  if (onlyGrok) process.env.OPENAI_API_KEY = "routed-to-grok";
-  console.log(`[ai] Grok ${/^(grok|xai)$/i.test(env.AI_PROVIDER || "") || env.OPENAI_API_KEY === "routed-to-grok" ? "handles all AI chat" : "is the backup when OpenAI fails"} (model ${env.XAI_MODEL || "grok-latest"})`);
+  // Features check for an OpenAI key before offering AI; with only a backup key they should still work.
+  if (onlyBackup) process.env.OPENAI_API_KEY = "routed-to-grok";
+  console.log(`[ai] ${b.name} ${/^(grok|xai)$/i.test(env.AI_PROVIDER || "") || onlyBackup ? "handles all AI chat" : "is the backup when OpenAI fails"} (model ${model})`);
   return true;
 }

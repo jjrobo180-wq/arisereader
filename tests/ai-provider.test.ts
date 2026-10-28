@@ -1,13 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { findGrokKey, grokFetch, shouldFallBack } from "../server/aiProvider";
+import { findBackup, findGrokKey, grokFetch, shouldFallBack } from "../server/aiProvider";
 
 const OPENAI = "https://api.openai.com/v1/chat/completions";
 function fakeBase(openai: { status: number; body: string }) {
   const calls: { url: string; init?: RequestInit }[] = [];
   const base = (async (url: any, init?: RequestInit) => {
     calls.push({ url: String(url), init });
-    if (String(url).startsWith("https://api.x.ai")) return new Response(JSON.stringify({ choices: [{ message: { content: "{\"from\":\"grok\"}" } }] }), { status: 200 });
+    if (String(url).startsWith("https://api.x.ai") || String(url).startsWith("https://api.groq.com")) return new Response(JSON.stringify({ choices: [{ message: { content: "{\"from\":\"grok\"}" } }] }), { status: 200 });
     if (String(url) === OPENAI) return new Response(openai.body, { status: openai.status });
     return new Response("other", { status: 200 });
   }) as typeof fetch;
@@ -53,4 +53,14 @@ test("finds the Grok key under the names sites use", () => {
   assert.equal(findGrokKey({ XAI_API_KEY: "xai-2", GROK_API_KEY: "xai-1" }), "xai-2");
   assert.equal(findGrokKey({ MY_GROK_SECRET: "xai-abc" }), "xai-abc");
   assert.equal(findGrokKey({ OPENAI_API_KEY: "sk-x" }), undefined);
+});
+
+test("a Groq key (groq.com) works as the backup too, with Groq's address and model", async () => {
+  assert.deepEqual(findBackup({ GROQ_API_KEY: "gsk_1" }), { kind: "groq", key: "gsk_1" });
+  assert.deepEqual(findBackup({ MY_GROQ: "gsk_2" }), { kind: "groq", key: "gsk_2" });
+  const { base, calls } = fakeBase({ status: 429, body: "credit_balance_exhausted" });
+  const f = grokFetch(base, { XAI_API_KEY: "gsk_1", XAI_MODEL: "llama-3.3-70b-versatile", OPENAI_API_KEY: "sk", BACKUP_URL: "https://api.groq.com/openai/v1/chat/completions", BACKUP_NAME: "Groq" });
+  await f(OPENAI, req);
+  assert.equal(calls[1].url, "https://api.groq.com/openai/v1/chat/completions");
+  assert.equal(JSON.parse(String(calls[1].init!.body)).model, "llama-3.3-70b-versatile");
 });
