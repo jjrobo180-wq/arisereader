@@ -140,7 +140,12 @@ export const SX_CSS = `
 .sx-side-badge{position:static;margin-left:auto}
 .sx-side-create{margin:24px 5px 0;min-height:49px;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:10px;background:var(--accent);color:#fff;font-size:14px;font-weight:760;transition:filter .15s ease}
 .sx-side-create:hover{filter:brightness(1.12)}
-.sx-side-bottom{margin-top:auto;padding-top:20px;border-top:1px solid var(--line)}
+.sx-side-appearance{margin-top:auto;padding:22px 3px 17px}
+.sx-side-theme-options{display:flex;gap:3px;margin-top:10px;padding:4px;border:1px solid var(--line);border-radius:11px;background:var(--surface)}
+.sx-side-theme-options button{min-width:0;min-height:35px;flex:1;display:flex;align-items:center;justify-content:center;gap:4px;border-radius:8px;font-size:11px;font-weight:720;color:var(--muted);transition:background .15s ease,color .15s ease}
+.sx-side-theme-options button:hover{background:var(--hover);color:var(--fg)}
+.sx-side-theme-options button.sx-side-theme-active{background:var(--accent);color:#fff}
+.sx-side-bottom{padding-top:18px;border-top:1px solid var(--line)}
 .sx-side-bottom-label{font-size:10px;letter-spacing:.17em;color:var(--muted);font-weight:800;padding-left:9px}
 .sx-account-row{display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:14px 6px;border-radius:10px}
 .sx-account-row:hover{background:var(--hover)}
@@ -171,7 +176,7 @@ export const SX_CSS = `
 .sx-right-footer{font-size:11px;color:var(--muted);line-height:1.6;padding-top:25px;border-top:1px solid var(--line)}
 .sx-story-tray{background:var(--surface)}
 @container (min-width:900px){
-  .sx-left-sidebar{display:flex;flex:none;box-sizing:border-box;flex-direction:column;width:235px;padding:28px 17px 24px;background:var(--bg)}
+  .sx-left-sidebar{display:flex;flex:none;box-sizing:border-box;flex-direction:column;width:235px;min-height:0;overflow-y:auto;scrollbar-width:none;padding:28px 17px 24px;background:var(--bg)}
   .sx-main-column{border-left:1px solid var(--line);border-right:1px solid var(--line)}
   .sx-mobile-nav,.sx-mobile-fab,.sx-mobile-avatar,.sx-mobile-brand{display:none}
   .sx-content-layer{padding-bottom:42px;max-width:760px}
