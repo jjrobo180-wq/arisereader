@@ -1,0 +1,38 @@
+name: App Store screens
+# Phone-size screenshots of Arise To Duo and Pod+ to check layouts, buttons and colors before a release.
+# Run it from the Actions tab (Run workflow); the pictures are in the run's "app-store-screens" artifact.
+on:
+  workflow_dispatch:
+  push:
+    branches: [fix/app-store-readiness]
+    paths:
+      - '.github/workflows/app-store-screens.yml'
+      - 'script/appStoreScreens.mjs'
+      - 'client/src/**'
+      - 'podscroll/**'
+jobs:
+  screens:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build Arise and Pod+
+        run: |
+          npx vite build
+          npx vite build --config podscroll/vite.config.ts
+      - name: Install a browser
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Take the screenshots
+        run: node script/appStoreScreens.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-store-screens
+          path: screens/
+          retention-days: 7
