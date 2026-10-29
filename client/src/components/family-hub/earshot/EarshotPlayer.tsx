@@ -1386,8 +1386,10 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
         <div className="flex h-14 w-full items-center gap-2">
           <button type="button" onClick={onHome} className={`inline-flex h-10 flex-none items-center gap-1 rounded-full pl-2 pr-4 text-sm font-medium ${light ? "hover:bg-[#f2f2f2]" : "hover:bg-[#272727]"}`}><ChevronLeft size={20} />Home</button>
           <h1 className="min-w-0 flex-1 truncate text-lg font-semibold">{TAB_NAMES[tab]}</h1>
-          <button type="button" aria-label="Fit my drive" title="Fit my drive" onClick={() => setSheet({ kind: "drive" })} className={`grid h-10 w-10 flex-none place-items-center rounded-full ${light ? "hover:bg-[#f2f2f2]" : "hover:bg-[#272727]"}`}><Car size={19} /></button>
-          <button type="button" aria-label="Settings" onClick={() => setSheet({ kind: "settings" })} className={`grid h-10 w-10 flex-none place-items-center rounded-full ${light ? "hover:bg-[#f2f2f2]" : "hover:bg-[#272727]"}`}><Settings2 size={19} /></button>
+          {tab !== "social" && <>
+            <button type="button" aria-label="Fit my drive" title="Fit my drive" onClick={() => setSheet({ kind: "drive" })} className={`grid h-10 w-10 flex-none place-items-center rounded-full ${light ? "hover:bg-[#f2f2f2]" : "hover:bg-[#272727]"}`}><Car size={19} /></button>
+            <button type="button" aria-label="Settings" onClick={() => setSheet({ kind: "settings" })} className={`grid h-10 w-10 flex-none place-items-center rounded-full ${light ? "hover:bg-[#f2f2f2]" : "hover:bg-[#272727]"}`}><Settings2 size={19} /></button>
+          </>}
         </div>
       </header>
       : <header className={`absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-2 px-3 ${standalone ? "pt-[calc(env(safe-area-inset-top,0px)+0.75rem)]" : "pt-3"}`}>
@@ -1402,8 +1404,10 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       <div className="flex flex-none gap-1.5">
         {!student && <LiveChip live={live} light={light} onClick={() => setTab("openmic")} />}
         {sleepAt !== null && <span className={`flex items-center gap-1 rounded-full ${chip} px-2.5 text-xs font-bold backdrop-blur`}><Moon size={14} />{sleepAt === "end" ? "End" : `${Math.max(1, Math.ceil(((sleepAt as number) - Date.now()) / 60000))}m`}</span>}
-        <button type="button" aria-label="Fit my drive" title="Fit my drive" onClick={() => setSheet({ kind: "drive" })} className={`grid h-9 w-9 place-items-center rounded-full ${chip} backdrop-blur`}><Car size={18} /></button>
-        <button type="button" aria-label="Settings" onClick={() => setSheet({ kind: "settings" })} className={`grid h-9 w-9 place-items-center rounded-full ${chip} backdrop-blur`}><Settings2 size={18} /></button>
+        {tab !== "social" && <>
+          <button type="button" aria-label="Fit my drive" title="Fit my drive" onClick={() => setSheet({ kind: "drive" })} className={`grid h-9 w-9 place-items-center rounded-full ${chip} backdrop-blur`}><Car size={18} /></button>
+          <button type="button" aria-label="Settings" onClick={() => setSheet({ kind: "settings" })} className={`grid h-9 w-9 place-items-center rounded-full ${chip} backdrop-blur`}><Settings2 size={18} /></button>
+        </>}
         {!standalone && <button type="button" aria-label={full ? "Exit full screen" : "Full screen"} onClick={() => setFull((f) => !f)} className={`grid h-9 w-9 place-items-center rounded-full ${chip} backdrop-blur`}>{full ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button>}
       </div>
     </header>}
