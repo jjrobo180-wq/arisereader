@@ -2,13 +2,14 @@
 // Used by LifeHub's Earshot app (./Earshot.tsx) and by the separate Podscroll website (podscroll/),
 // so it imports nothing from the Arise app itself: the caller passes data, saving and the API.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { Bookmark, Check, ChevronDown, ExternalLink, Mic, Flag, Heart, ListVideo, Loader2, Maximize2, Megaphone, MessageCircle, Minimize2, Minus, Moon, Pause, Play, Plus, RotateCcw, RotateCw, Search, Settings2, Share2, SkipForward, ThumbsDown, Trash2, X } from "lucide-react";
+import { Bookmark, Car, Check, ChevronDown, ChevronLeft, Clock3, ExternalLink, Mic, Sparkles, Flag, Heart, Info, ListVideo, Loader2, Maximize2, Megaphone, MessageCircle, Minimize2, Minus, Moon, Pause, Play, Plus, RotateCcw, RotateCw, Search, Settings2, Share2, SkipForward, ThumbsDown, Trash2, X } from "lucide-react";
 import {
   EARSHOT_LIMITS, GENRES, GENRE, SPEEDS, chooseEpisode, chooseFreshEpisode, clock, compact, durationWords, mergeAds, pickNext, shareText, startAt, tasteOf, type AdMode,
   type AdRange, type Candidate, type Chapter, type Earshot as EarshotData, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal, type TranscriptChunk, type TxSegment,
 } from "@shared/earshot";
-import { alignAds, playAdAt, type PlayAd, type ServerAd } from "@shared/earshotAds";
+import { alignAds, guessAdAround, playAdAt, type PlayAd, type ServerAd } from "@shared/earshotAds";
 import { AddToSheet, AiFinder, ModeView, ModesHub, ShowPage } from "./EarshotExtras";
+import { InfoSheet } from "./EarshotInfo";
 import { ClipMaker, LIGHT_CSS, ProfileEditor, ShareSheet, UploadSheet, postEpisodeOf, toEpisode as micEpisode, toShow as micShow } from "./EarshotSocial";
 import { CreateSheet, GoLiveSheet, LiveChip, LiveRoom, OpenMic, SignInSheet, Studio, useCreator, type LiveSummary, type MicEpisode } from "./EarshotCreators";
 import { OWN_EPISODE, isMicSlot, type ListenSource } from "@shared/earshotCreators";
@@ -17,9 +18,13 @@ import { PreviewCard, Previews, previewPicks, type PreviewPick } from "./Earshot
 import { SubjectGrid, SubjectView } from "./EarshotTopics";
 import type { Topic } from "@shared/earshotTopics";
 import { hiRes, type PodMode } from "@shared/earshot";
+import { momentsBetween, hoursWords, sumKinds } from "@shared/earshotListen";
+import { AskSheet, CatchUpSheet, DriveSheet, HoursBackCard, MomentBubble, catchUpWorthIt, useTimedComments, type TimedComment } from "./EarshotListen";
+import { onOtherSound, soundStarted } from "./soundBus";
+import { attachVoiceBoost, countHoursBack, isBoosted, primeVoiceBoost, readHoursBack, resumeVoiceBoost, setVoiceBoost } from "./listenExtras";
 
 type Counts = { likes: number; comments: number; shares: number; liked: boolean };
-type Comment = { id: string; author: string; body: string; at: string; mine: boolean };
+type Comment = { id: string; author: string; body: string; at: string; mine: boolean; t?: number | null };
 /** want: a particular episode to load (from a Pod Mode or a saved one without its audio). */
 type Item = { key: string; show: PodShow; why: string; ep: PodEpisode | null; state: "loading" | "ready" | "none"; want?: string;
   /** A show coming back around once the feed has been through every show it has: play an episode this feed hasn't. */
@@ -109,7 +114,14 @@ export function Setup({ initial, student, onDone, onCancel, brand = "Earshot" }:
 // ===========================================================================
 // The player: feed, explore, library
 // ===========================================================================
+/** What's playing in the swipe player, for a mini bar on other pages (Pod+ keeps the player running). */
+export type NowPlaying = { title: string; show: string; art: string; playing: boolean };
+export type PlayerControl = { toggle: () => void; pause: () => void };
 export type PlayerProps = {
+  /** Shown on screen right now (Pod+ keeps it running, hidden, on other pages so the sound goes on). */
+  visible?: boolean;
+  onNowPlaying?: (n: NowPlaying | null) => void;
+  control?: { current: PlayerControl | null };
   es: EarshotData; esRef: { current: EarshotData }; update: (fn: (e: EarshotData) => EarshotData) => void;
   api: (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
   signal: (genre: string, s: Signal) => void; say: (m: string) => void; student: boolean; explicit: boolean; onEditInterests: () => void;
@@ -120,7 +132,8 @@ export type PlayerProps = {
   /** The name comments are posted under, when the app has no accounts (Podscroll). */
   nickname?: string; setNickname?: (name: string) => void;
   /** An episode to open first, from a shared link. */
-  start?: { showId: string; episodeId: string } | null;
+  /** The episode to open on; `ep` (when the page that was tapped has it) lets it start at once. */
+  start?: { showId: string; episodeId: string; ep?: PodEpisode } | null;
   /** The full address of a server path, for audio played through the server (smart ad skip). */
   mediaUrl?: (path: string) => string;
   /** Where LivePod connects (wss://…), when the server is on another address (Podscroll). */
@@ -129,6 +142,15 @@ export type PlayerProps = {
   onSession?: (token: string | null, email?: string) => void;
   /** Nothing plays while this is on (Pod+: the free minute is up and there's no account yet). */
   locked?: boolean;
+  /** Pod+: the site has its own home page. The scroll shows only For You and Following; Open Mic,
+   *  Social, Library and Explore open on their own from that home page (initialTab), and a back
+   *  button returns to it. */
+  onHome?: () => void;
+  initialTab?: Tab;
+  /** Goes up each time the site opens a page (Social, Open Mic…) in the running player. */
+  tabNonce?: number;
+  /** Pod+: play a Pod Mode back to back from this episode (opened from the home page). */
+  playMode?: { id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" } | null;
 };
 
 /** What the server found in this listener's own copy of an episode (server/podcastPlay.ts). */
@@ -140,6 +162,35 @@ const throughServer = (url: string) => !/\.(m4a|mp4|aac|m4b|ogg|opus|wav|flac|we
 
 // ---- where each episode was left off, kept on this device ----
 type Spot = { t: number; secs: number; title: string; show: string; showId: string; art: string; at: number };
+// Blended ad skips: the sound eases out just before an ad, the jump lands, and it eases back in once
+// the audio there is ready, so a skip never cuts mid-word or clicks. Phones that don't let a page set
+// volume (iPhones) just jump at the exact moment instead.
+let fadeOk: boolean | null = null;
+function canFade(): boolean {
+  if (fadeOk === null) { try { const t = new Audio(); t.volume = 0.5; fadeOk = Math.abs(t.volume - 0.5) < 0.01; } catch { fadeOk = false; } }
+  return fadeOk;
+}
+const fading = new WeakMap<HTMLAudioElement, ReturnType<typeof setInterval>>();
+/** Eases the volume to `to` over `ms`. Timer-based, so it still finishes with the screen off. */
+function fadeVolume(a: HTMLAudioElement, to: number, ms: number): Promise<void> {
+  if (!canFade()) return Promise.resolve();
+  const old = fading.get(a); if (old) clearInterval(old);
+  const from = a.volume, start = Date.now();
+  return new Promise((done) => {
+    const id = setInterval(() => {
+      const k = Math.min(1, (Date.now() - start) / ms), e = k * k * (3 - 2 * k);
+      try { a.volume = Math.max(0, Math.min(1, from + (to - from) * e)); } catch { /* ignore */ }
+      if (k >= 1) { clearInterval(id); fading.delete(a); done(); }
+    }, 16);
+    fading.set(a, id);
+  });
+}
+/** Seconds of ads skipped on this device, all time. */
+export function adSavedSecs(): number { const h = readHoursBack(); return h.total.ads + h.total.intros; }
+/** Ads and intros skipped count toward Hours back (shared/earshotListen.ts). */
+function addSaved(secs: number, intro = false) { countHoursBack(intro ? "intros" : "ads", secs); }
+const savedWords = (s: number) => { const m = Math.round(s / 60); return m < 1 ? "" : m < 60 ? `${m} min` : `${Math.floor(m / 60)}h ${m % 60}m`; };
+
 const SPOTS_KEY = "earshot.spots";
 const readSpots = (): Record<string, Spot> => { try { const v = JSON.parse(localStorage.getItem(SPOTS_KEY) || "{}"); return v && typeof v === "object" ? v : {}; } catch { return {}; } };
 function saveSpot(ep: PodEpisode, t: number) {
@@ -168,9 +219,12 @@ type Tx = { source: TranscriptChunk["source"]; reason: string; segments: TxSegme
   wait: Map<number, { at: number; tries: number }> };
 const emptyTx = (): Tx => ({ source: "none", reason: "", segments: [], ads: [], chapters: [], chunks: new Set(), loading: new Set(), more: true, chunkSecs: 600, wait: new Map() });
 
-export function Player({ es, esRef, update, api, signal, say, student, explicit, onEditInterests, standalone, shareLink, nickname, setNickname, start, mediaUrl, liveBase, onSession, locked }: PlayerProps) {
+export function Player({ es, esRef, update, api, signal, say, student, explicit, onEditInterests, standalone, shareLink, nickname, setNickname, start, mediaUrl, liveBase, onSession, locked, onHome, initialTab, playMode, visible = true, onNowPlaying, control, tabNonce = 0 }: PlayerProps) {
   const { theme, day } = useTheme();
-  const [tab, setTab] = useState<Tab>("foryou");
+  const [tab, setTab] = useState<Tab>(initialTab ?? "foryou");
+  // The site opened another page in the player that's already running (what's playing keeps playing).
+  const firstNonce = useRef(tabNonce);
+  useEffect(() => { if (tabNonce !== firstNonce.current) setTab(initialTab ?? "foryou"); }, [tabNonce]); // eslint-disable-line react-hooks/exhaustive-deps
   // The feed tab last open (For You or Following), where the mini player goes back to.
   const lastFeed = useRef<Tab>("foryou");
   if (tab === "foryou" || tab === "following") lastFeed.current = tab;
@@ -188,7 +242,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const [counts, setCounts] = useState<Record<string, Counts>>({});
   const [commentsOn, setCommentsOn] = useState(!student);
   const [previews, setPreviews] = useState<PreviewPick[] | null>(null);
-  const [sheet, setSheet] = useState<null | { kind: "comments"; ep: PodEpisode } | { kind: "show"; show: PodShow } | { kind: "settings" } | { kind: "sleep" } | { kind: "read" } | { kind: "addto"; ep: PodEpisode; genre: string } | { kind: "mode"; id: string } | { kind: "share"; ep: PodEpisode; genre: string; show: PodShow } | { kind: "clip"; ep: PodEpisode; time: number }>(null);
+  const [sheet, setSheet] = useState<null | { kind: "comments"; ep: PodEpisode } | { kind: "show"; show: PodShow } | { kind: "info"; show: PodShow } | { kind: "settings" } | { kind: "sleep" } | { kind: "read" } | { kind: "addto"; ep: PodEpisode; genre: string } | { kind: "mode"; id: string } | { kind: "share"; ep: PodEpisode; genre: string; show: PodShow } | { kind: "clip"; ep: PodEpisode; time: number } | { kind: "ask"; ep: PodEpisode } | { kind: "catchup"; ep: PodEpisode; upTo: number; earlier: string[] } | { kind: "drive" }>(null);
   const sheetRef = useRef(sheet); sheetRef.current = sheet;
   const [poolTick, setPoolTick] = useState(0);
   const [loadError, setLoadError] = useState("");
@@ -196,6 +250,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const [retry, setRetry] = useState(0);
   const [txTick, setTxTick] = useState(0);
   const [skipped, setSkipped] = useState<{ ad: PlayAd; epId: string } | null>(null);
+  /** The episode playing muted while the ads at its start are found. */
+  const [holding, setHolding] = useState<string | null>(null);
   // Smart ad skip: what the server knows per episode, this listener's marks in progress, and quick forward jumps.
   const serverAds = useRef<Map<string, ServerAd[]>>(new Map());
   // Playback through the server: a play token for audio addresses, and each episode's session.
@@ -230,6 +286,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const lastTime = useRef(0);
   const lastSpot = useRef(0);
   const counted = useRef<Set<string>>(new Set());
+  /** When each episode was last listened to, as of opening it this time (for Catch me up after a break). */
+  const lastHeardAt = useRef<Map<string, number>>(new Map());
   // Which feed the cards come from: the feed tab open, or the last one open while on another tab
   // (Open Mic, Social, Explore, Library), so visiting those never swaps the feed underneath.
   const feedTab = tab === "foryou" || tab === "following" ? tab : lastFeed.current;
@@ -298,7 +356,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     // The first three genres come back first, so the feed can start while the rest load.
     const first = picked.slice(0, 3), rest = [...picked.slice(3), ...warmed];
     loadPools(first).then(() => { setLoadError(""); setLoadState("ready"); if (rest.length) void loadPools(rest).catch(() => {}); })
-      .catch((e: any) => { setLoadError(e?.message || "Apple Podcasts can't be reached right now."); setLoadState("ready"); })
+      .catch((e: any) => { setLoadError(e?.message || "Podcasts can't be reached right now."); setLoadState("ready"); })
       .finally(() => clearTimeout(slow));
     return () => clearTimeout(slow);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -352,6 +410,20 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     return mine.length > 2 ? [mine[0], mine[1 + Math.floor(Math.random() * (mine.length - 1))]] : mine;
   }, [mode, student, esRef]);
 
+  /** For You never runs dry: when every loaded genre is used up, load one more genre (the one they
+   *  like most of those not loaded yet, with some chance of a fresh one) and carry on. */
+  const extendRef = useRef<(n: number) => void>(() => {});
+  const widen = useCallback((short: number) => {
+    const open = GENRES.map((g) => g.id).filter((g) => !pools.current.has(g) && (!student || !!GENRE[g]?.kidSafe));
+    if (!open.length) return false;
+    const byTaste = open.sort((a, b) => tasteOf(esRef.current, b) - tasteOf(esRef.current, a));
+    const g = Math.random() < 0.7 ? byTaste[0] : byTaste[Math.floor(Math.random() * byTaste.length)];
+    growing.current = true;
+    const feed = mode;
+    void loadPools([g]).then(() => { growing.current = false; if (feed === modeRef.current) extendRef.current(Math.max(1, short)); }).catch(() => { growing.current = false; });
+    return true;
+  }, [student, esRef, mode, loadPools]);
+
   const extend = useCallback((n: number) => {
     const list = itemsRef.current;
     const pool = candidates();
@@ -372,6 +444,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
           if (feed !== modeRef.current || failed) return;
           extend(short);
         });
+      } else if (!targets.length && mode === "foryou" && !growing.current && widen(n - picks.length)) {
+        // Every genre so far has run out: For You opens a new one (closest to their taste first), so it never ends.
       } else if (!targets.length && againMisses.current < 8) {
         // Every show has had its turn: bring shows back (not the last 15), each with an episode this feed hasn't played.
         const recent = list.slice(-15).map((x) => x.show.id);
@@ -405,7 +479,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     }
     setItems((c) => [...c, ...woven]);
     added.filter((x) => x.state === "loading").forEach(fill);
-  }, [candidates, fill, mode, esRef, student, growTargets, loadMore]);
+  }, [candidates, fill, mode, esRef, student, growTargets, loadMore, widen]);
+  extendRef.current = extend;
 
   // Reset the feed when the mode changes; start it once there's something to pick from.
   useEffect(() => {
@@ -421,7 +496,10 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     else extend(6);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
-  useEffect(() => { if (!itemsRef.current.length && (tab === "foryou" || tab === "following")) extend(6); }, [poolTick, extend, tab]);
+  // Fill the feed once there's something to pick from, and keep it filled: an episode opened first
+  // (a shared link, or a pick from the Pod+ home page) can land before For You has loaded, and the
+  // feed still has to carry on after it.
+  useEffect(() => { if (itemsRef.current.length - activeRef.current < 3 && (tab === "foryou" || tab === "following")) extend(6); }, [poolTick, extend, tab, items.length]);
 
   // Drop shows with nothing playable once they're ahead of the listener.
   useEffect(() => {
@@ -458,20 +536,62 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
 
   // ---------------- audio: three players, so the next episode is loaded before you swipe ----------------
   const handlers = useRef({ time: (_a: HTMLAudioElement) => {}, ended: (_a: HTMLAudioElement) => {}, error: (_a: HTMLAudioElement) => {} });
+  /** The lock screen and headphone buttons control this player again (an audiobook or the radio may
+   *  have taken them while they played). */
+  const claimLockScreen = (a: HTMLAudioElement) => {
+    if (!("mediaSession" in navigator)) return;
+    try {
+      const it = itemsRef.current[activeRef.current]; const ep = it?.ep;
+      if (ep) navigator.mediaSession.metadata = new MediaMetadata({ title: ep.title, artist: ep.show, album: standalone ? "Pod+" : "Earshot", artwork: ep.art ? [{ src: ep.art, sizes: "600x600" }] : [] });
+      navigator.mediaSession.setActionHandler("play", () => { cur.current?.play().catch(() => {}); });
+      navigator.mediaSession.setActionHandler("pause", () => cur.current?.pause());
+      navigator.mediaSession.setActionHandler("nexttrack", () => goTo(activeRef.current + 1));
+      navigator.mediaSession.setActionHandler("previoustrack", () => goTo(activeRef.current - 1));
+      navigator.mediaSession.setActionHandler("seekbackward", () => seekBy(-15));
+      navigator.mediaSession.setActionHandler("seekforward", () => seekBy(30));
+      void a;
+    } catch { /* not supported */ }
+  };
   const pool = useCallback(() => {
-    if (!players.current.length) {
-      for (let k = 0; k < 3; k++) {
-        const a = new Audio(); a.preload = "auto";
-        a.addEventListener("timeupdate", () => { if (a === cur.current) handlers.current.time(a); });
-        a.addEventListener("ended", () => { if (a === cur.current) handlers.current.ended(a); });
-        a.addEventListener("play", () => { if (a === cur.current) setPlaying(true); });
-        a.addEventListener("pause", () => { if (a === cur.current) setPlaying(false); });
-        a.addEventListener("error", () => { if (a === cur.current && a.dataset.ep) handlers.current.error(a); });
-        players.current.push(a);
-      }
-    }
+    if (!players.current.length) for (let k = 0; k < 3; k++) players.current.push(makeAudio());
     return players.current;
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  function makeAudio() {
+    const a = new Audio(); a.preload = "auto";
+    a.addEventListener("timeupdate", () => { if (a === cur.current) handlers.current.time(a); });
+    a.addEventListener("ended", () => { if (a === cur.current) handlers.current.ended(a); });
+    a.addEventListener("play", () => { if (isBoosted(a)) resumeVoiceBoost(); if (a === cur.current) { setPlaying(true); soundStarted("pod"); claimLockScreen(a); } });
+    a.addEventListener("pause", () => { if (a === cur.current) setPlaying(false); });
+    a.addEventListener("error", () => { if (a === cur.current && a.dataset.ep) handlers.current.error(a); });
+    return a;
+  }
+  /** Points a player at an episode. Through the server with Voice boost on, the audio is fetched so the
+   *  page may shape its sound (crossOrigin). A player whose sound already goes through the boost can't
+   *  play audio from other sites (it would be silent), so it is swapped for a fresh one first. */
+  const setAudioSrc = (a: HTMLAudioElement, ep: PodEpisode, via: string | null): HTMLAudioElement => {
+    if (!via && isBoosted(a)) {
+      const fresh = makeAudio();
+      const i = players.current.indexOf(a); if (i >= 0) players.current[i] = fresh;
+      a.pause(); a.removeAttribute("src"); a.load();
+      if (cur.current === a) cur.current = fresh;
+      fresh.dataset.ep = ep.id; a = fresh;
+    }
+    if (via) { if (esRef.current.settings.voiceBoost || isBoosted(a)) a.crossOrigin = "anonymous"; else a.removeAttribute("crossorigin"); a.dataset.sid = via; a.src = sessionSrc(ep, via); }
+    else { a.removeAttribute("crossorigin"); delete a.dataset.sid; a.src = ep.audio; }
+    return a;
+  };
+  /** Voice boost on: route the playing episode through it (it must come through the server). */
+  const boostCurrent = () => {
+    const a = cur.current;
+    if (!a || !esRef.current.settings.voiceBoost || !a.dataset.sid) return;
+    if (a.crossOrigin === "anonymous") { attachVoiceBoost(a); return; }
+    // Loaded before Voice boost was on: load it again the shaping way, from the same moment.
+    const ep = itemsRef.current.find((x) => x.ep?.id === a.dataset.ep)?.ep; if (!ep) return;
+    const t = a.currentTime || 0, was = !a.paused;
+    a.crossOrigin = "anonymous"; a.src = sessionSrc(ep, a.dataset.sid); a.load();
+    a.addEventListener("loadedmetadata", () => { try { a.currentTime = t; } catch { /* not seekable */ } attachVoiceBoost(a); }, { once: true });
+    if (was) a.play().catch(() => setPlaying(false));
+  };
   useEffect(() => () => { players.current.forEach((a) => { a.pause(); a.removeAttribute("src"); a.load(); }); }, []);
 
   /** Must run inside a tap: lets every player start later without another tap (iPhone rule). */
@@ -501,7 +621,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
         const ep = itemsRef.current.find((x) => x.ep?.id === a.dataset.ep)?.ep;
         if (!ep || a.dataset.sid || !a.paused || a.currentTime > 0.5) continue;
         const via = viaServer(ep); if (!via) continue;
-        a.dataset.sid = via; a.src = sessionSrc(ep, via); a.load();
+        setAudioSrc(a, ep, via); a.load();
       }
       t = setTimeout(get, Math.max(60_000, playTok.current.exp - Date.now() - 30 * 60_000));
     }).catch(() => { if (!stop) t = setTimeout(get, 60_000); });
@@ -520,13 +640,27 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     return p.sid;
   };
   const sessionSrc = (ep: PodEpisode, sid: string) => mediaUrl!(`${playTok.current!.audio}${sid}?e=${ep.id}&s=${ep.showId}&k=${encodeURIComponent(playTok.current!.token)}`);
+  const skipping = useRef(false);
+  const skipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Past an ad, blended: ease out (when fadeOut), jump, ease back in once the audio there is ready. */
+  const smoothSkip = (a: HTMLAudioElement, ad: PlayAd, epId: string, fadeOut = true) => {
+    if (skipping.current) return; skipping.current = true;
+    const land = () => {
+      try { a.currentTime = ad.e; } catch { skipping.current = false; void fadeVolume(a, 1, 150); return; }
+      let back = false;
+      const up = () => { if (back) return; back = true; a.removeEventListener("seeked", up); skipping.current = false; void fadeVolume(a, 1, 500); };
+      a.addEventListener("seeked", up); setTimeout(up, 1500);
+      setSkipped({ ad, epId }); addSaved(ad.e - ad.s, ad.kind === "intro");
+    };
+    if (fadeOut && canFade() && !a.paused) void fadeVolume(a, 0, 220).then(land);
+    else { if (canFade()) { const f = fading.get(a); if (f) clearInterval(f); a.volume = 0; } land(); }
+  };
   /** Jumps past a sure ad the player is in right now (and says so). */
   const skipIfInAd = (a: HTMLAudioElement, ads: PlayAd[]) => {
     const t = a.currentTime || 0;
     const ad = ads.find((x) => x.sure && (x.kind !== "intro" || esRef.current.settings.skipIntro) && t >= x.s - 0.5 && t < x.e - 1 && !undone.current.has(x.key));
     if (!ad) return;
-    try { a.currentTime = ad.e; } catch { return; }
-    const epId = a.dataset.ep; if (epId) setSkipped({ ad, epId });
+    const epId = a.dataset.ep; if (epId) smoothSkip(a, ad, epId, false);
   };
   /** Asks what the server found in this session's copy: soon after it starts, then less often, until it's final. */
   const pollPlay = (epId: string, again = false) => {
@@ -559,8 +693,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     a.pause();
     a.dataset.ep = ep.id;
     const via = viaServer(ep);
-    if (via) a.dataset.sid = via; else delete a.dataset.sid;
-    a.src = via ? sessionSrc(ep, via) : ep.audio;
+    a = setAudioSrc(a, ep, via);
     a.preload = "auto";
     // Through the server the intro is found and skipped exactly; otherwise long episodes start 90 s in.
     const at = startAt(ep.secs, readSpots()[ep.id]?.t, via ? false : esRef.current.settings.skipIntro);
@@ -571,7 +704,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       try { if (to && a!.dataset.ep === ep.id && a!.currentTime < 1) a!.currentTime = to; } catch { /* the host doesn't allow seeking */ }
     }, { once: true });
     // iPhones ignore a jump made before the audio is ready; check again once it plays.
-    a.addEventListener("playing", () => { const p = plays.current.get(ep.id); if (a!.dataset.sid && p && a!.dataset.sid === p.sid && esRef.current.settings.adMode === "auto" && !esRef.current.adFree.includes(ep.showId)) skipIfInAd(a!, p.ads?.ads ?? []); }, { once: true });
+    a.addEventListener("playing", () => { if (a === cur.current) setAdsTick((x) => x + 1); const p = plays.current.get(ep.id); if (a!.dataset.sid && p && a!.dataset.sid === p.sid && esRef.current.settings.adMode === "auto" && !esRef.current.adFree.includes(ep.showId)) skipIfInAd(a!, p.ads?.ads ?? []); }, { once: true });
     a.load();
     return a;
   };
@@ -583,7 +716,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     if (cur.current?.dataset.ep === it.ep.id) saveSpot(it.ep, cur.current.currentTime);
     const secs = listened.current;
     if (secs < 3) { signal(it.show.genre, "skip"); update((e) => ({ ...e, skipped: [it.show.id, ...e.skipped].slice(0, 80) })); }
-    else if (secs >= 30) { signal(it.show.genre, "listen"); const id = it.ep.id; update((e) => (e.heard.includes(id) ? e : { ...e, heard: [id, ...e.heard].slice(0, 200) })); }
+    else if (secs < 15) signal(it.show.genre, "pass");
+    else if (secs >= 30) { signal(it.show.genre, secs >= 300 ? "deep" : "listen"); const id = it.ep.id; update((e) => (e.heard.includes(id) ? e : { ...e, heard: [id, ...e.heard].slice(0, 200) })); }
   }, [signal, update]);
 
   const activate = useCallback((i: number, play: boolean) => {
@@ -596,11 +730,42 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     // It failed while loading ahead (through the server): load it again now that it's playing.
     if (a.error && a.dataset.sid) handlers.current.error(a);
     listened.current = 0; lastTime.current = a.currentTime; lastSpot.current = 0; setSkipped(null);
+    if (!lastHeardAt.current.has(ep.id)) lastHeardAt.current.set(ep.id, readSpots()[ep.id]?.at ?? 0);
     if (markingRef.current && markingRef.current.epId !== ep.id) setMarking(null);
+    // The ads list depends on which player is current (this copy's own ads only count for its own
+    // player); it was worked out before this ran, so work it out again now. Without this, ads found
+    // while the episode loaded ahead didn't show until you left the episode and came back.
+    setAdsTick((x) => x + 1);
     loadAds(ep);
     setTime(a.currentTime || 0); setDur(Number.isFinite(a.duration) ? a.duration : ep.secs || 0);
     a.playbackRate = esRef.current.settings.speed;
-    if (play) a.play().catch(() => setPlaying(false));
+    if (esRef.current.settings.voiceBoost && a.dataset.sid) attachVoiceBoost(a);
+    // Starting from the top through the server with ads skipped automatically: it plays muted until
+    // the server knows the ads at the start of this copy (a few seconds, 8 at most), then jumps past
+    // them and the sound comes on. Muted, not paused: iPhones only start sound inside the tap.
+    const p0 = plays.current.get(ep.id);
+    const resuming = (readSpots()[ep.id]?.t ?? 0) > 5;
+    const hold = play && !resuming && !!p0 && !p0.ads?.ready && (a.currentTime || 0) < 2 && esRef.current.settings.adMode === "auto" && !esRef.current.adFree.includes(ep.showId);
+    if (hold) {
+      a.muted = true; setHolding(ep.id);
+      const t0 = Date.now();
+      const tick = () => {
+        const q = plays.current.get(ep.id);
+        if (cur.current !== a || a.dataset.ep !== ep.id) { a.muted = false; setHolding(null); return; }
+        if (q?.ads?.ready || Date.now() - t0 > 8000) {
+          const st = q?.ads?.startAt ?? 0;
+          const back = (q?.ads?.ads ?? []).find((x) => x.sure && x.s <= 1)?.e ?? st;
+          const to = Math.max(st, back, 0);
+          // Past the pre-roll; with none, back to the start (the muted seconds weren't heard).
+          try { if (to > a.currentTime) a.currentTime = to; else if (!to && a.currentTime <= 9) a.currentTime = 0; } catch { /* not seekable yet */ }
+          a.muted = false; setHolding(null);
+          return;
+        }
+        setTimeout(tick, 200);
+      };
+      setTimeout(tick, 200);
+    }
+    if (play) a.play().catch(() => { a.muted = false; setHolding(null); setPlaying(false); });
     if (next) playerFor(next, [a]);
     // Covers for the next few are fetched now, so they're there the moment you swipe.
     itemsRef.current.slice(i + 1, i + 4).forEach((x) => { const img = new Image(); img.src = x.ep?.art || x.show.art; });
@@ -640,6 +805,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const toggle = () => {
     if (locked) return;
     unlock();
+    if (esRef.current.settings.voiceBoost) { primeVoiceBoost(); setTimeout(boostCurrent, 150); }
     const it = items[active]; if (!it?.ep) return;
     const a = cur.current;
     if (!a || a.dataset.ep !== it.ep.id) { activate(active, true); return; }
@@ -686,6 +852,37 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
 
   // ---------------- read along and ad skip ----------------
   const activeEp = items[active]?.ep ?? null;
+  // ---------------- timestamped comments, popping up as their moment plays ----------------
+  const timed = useTimedComments(api, activeEp?.id, commentsOn && es.settings.liveComments && !student);
+  const timedRef = useRef<TimedComment[]>([]); timedRef.current = timed.list;
+  const [moment, setMoment] = useState<TimedComment | null>(null);
+  const momentT = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hiddenMoments = useRef<Set<string>>(new Set());
+  function showMoment(c: TimedComment) {
+    if (hiddenMoments.current.has(c.id)) return;
+    setMoment(c);
+    if (momentT.current) clearTimeout(momentT.current);
+    momentT.current = setTimeout(() => setMoment(null), 7000);
+  }
+  useEffect(() => { setMoment(null); }, [activeEp?.id]);
+  // Voice boost switched on or off: every routed player follows, and the playing one is routed now.
+  useEffect(() => {
+    setVoiceBoost(es.settings.voiceBoost, players.current);
+    if (es.settings.voiceBoost && unlockedRef.current) { primeVoiceBoost(); setTimeout(boostCurrent, 150); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [es.settings.voiceBoost]);
+  /** The play session of the episode playing now, so answers line up with this listener's own copy. */
+  const playSid = (ep: PodEpisode) => (cur.current?.dataset.ep === ep.id ? cur.current.dataset.sid || undefined : undefined);
+  const openAsk = (ep: PodEpisode) => { setSheet({ kind: "ask", ep }); };
+  /** Earlier episodes of the same show they heard, newest first, for the recap's "previously". */
+  const openCatchUp = async (ep: PodEpisode) => {
+    const upTo = cur.current?.dataset.ep === ep.id ? cur.current.currentTime : readSpots()[ep.id]?.t ?? 0;
+    let earlier: string[] = [];
+    try { const { episodes } = await loadEpisodes(ep.showId); const heardSet = new Set(esRef.current.heard); earlier = episodes.filter((e) => e.id !== ep.id && heardSet.has(e.id) && (!ep.date || !e.date || e.date <= ep.date)).slice(0, 3).map((e) => e.id); } catch { /* none */ }
+    if (upTo < 60 && !earlier.length) { say("Listen a little first, then Catch me up recaps what you heard."); return; }
+    cur.current?.pause();
+    setSheet({ kind: "catchup", ep, upTo, earlier });
+  };
   const txFor = (ep: PodEpisode | null) => (ep ? txs.current.get(ep.id) : undefined);
   const loadTx = useCallback((ep: PodEpisode, chunk: number) => {
     let t = txs.current.get(ep.id);
@@ -735,12 +932,19 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const chunkSecs = x?.chunkSecs || 600;
     const c = Math.floor(t / chunkSecs);
     loadTx(ep, c);
-    if (t % chunkSecs > chunkSecs - 120) loadTx(ep, c + 1);
+    // The next piece is read for ads well before it plays (it takes up to half a minute).
+    if (t % chunkSecs > chunkSecs - 300) loadTx(ep, c + 1);
   };
 
   handlers.current.time = (a) => {
-    const t = a.currentTime; const delta = t - lastTime.current; lastTime.current = t;
+    const t = a.currentTime; const prev = lastTime.current; const delta = t - prev; lastTime.current = t;
     if (delta > 0 && delta < 2) listened.current += delta;
+    // Hours back: listening faster gives back the difference.
+    const rate = a.playbackRate || 1;
+    if (delta > 0 && delta < 2 && rate > 1) countHoursBack("speed", delta - delta / rate);
+    // Listeners' comments pinned to this moment pop up as it plays.
+    const due = momentsBetween(timedRef.current, prev, t);
+    if (due.length && !sheetRef.current) showMoment(due[due.length - 1]);
     setTime(t); if (a.duration && Number.isFinite(a.duration)) setDur(a.duration);
     const it = itemsRef.current[activeRef.current]; const ep = it?.ep;
     if (ep && Math.abs(t - lastSpot.current) > 5) { lastSpot.current = t; saveSpot(ep, t); }
@@ -752,10 +956,24 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       if (h.secs >= 15) { const secs = Math.round(h.secs); h.secs = 0; void api("/api/earshot/creators/listen", { method: "POST", body: { episode: ep.id, secs, source: sourceOf.current.get(ep.id) ?? "other" } }).catch(() => {}); }
     }
     const mode = esRef.current.settings.adMode;
-    if (ep && (listened.current > 5 || sheetRef.current?.kind === "read") && (mode !== "off" || sheetRef.current?.kind === "read")) wantTx(ep, t);
+    if (ep && (listened.current > 1.5 || sheetRef.current?.kind === "read") && (mode !== "off" || sheetRef.current?.kind === "read")) wantTx(ep, t);
     if (ep && it && mode === "auto" && !esRef.current.adFree.includes(it.show.id) && !markingRef.current) {
       const ad = playAdAt(adsRef.current, t);
-      if (ad && ad.sure && !undone.current.has(ad.key)) { a.currentTime = ad.e; setSkipped({ ad, epId: ep.id }); }
+      if (ad && ad.sure && !undone.current.has(ad.key)) smoothSkip(a, ad, ep.id, false);
+      else if (!skipTimer.current && !a.paused && !skipping.current) {
+        // One coming up within 2 s: time the skip to the exact moment, easing out just before it,
+        // so the ad never gets a word in (timeupdate alone is a quarter second late).
+        const next = adsRef.current.find((x) => x.sure && !undone.current.has(x.key) && x.s > t && x.s - t < 2);
+        if (next) {
+          const epId = ep.id, wait = Math.max(0, ((next.s - t) / (a.playbackRate || 1)) * 1000 - 230);
+          skipTimer.current = setTimeout(() => {
+            skipTimer.current = null;
+            if (a.dataset.ep !== epId || a.paused || markingRef.current || undone.current.has(next.key) || esRef.current.settings.adMode !== "auto") return;
+            const now = a.currentTime;
+            if (now >= next.s - 1 && now < next.e - 1) smoothSkip(a, next, epId);
+          }, wait);
+        }
+      }
     }
     const sl = sleepRef.current;
     if (typeof sl === "number" && Date.now() >= sl) { a.pause(); setSleepAt(null); say("Sleep timer: paused. Sleep well."); }
@@ -778,12 +996,13 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       if (!p?.retried) plays.current.set(ep.id, { sid: "", showId: ep.showId, ads: { ready: true, final: true, ads: [], how: "failed", compared: 0, gone: true }, polls: 0, timer: null, used: 0, retried: true });
       else direct.current.add(ep.id);
       const via = viaServer(ep);
-      if (via) a.dataset.sid = via; else delete a.dataset.sid;
-      a.src = via ? sessionSrc(ep, via) : ep.audio; a.load();
+      a = setAudioSrc(a, ep, via); a.load();
       if (t > 1) a.addEventListener("loadedmetadata", () => { try { a.currentTime = t; } catch { /* not seekable */ } }, { once: true });
       if (wasPlaying) a.play().catch(() => setPlaying(false));
       return;
     }
+    // An episode loaded ahead (not the one playing) that fails is loaded again when you get to it.
+    if (a !== cur.current) return;
     if (unlockedRef.current) say("This episode won't play here. Swipe for the next one, or open it in Apple Podcasts.");
   };
 
@@ -812,10 +1031,15 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const adOffer = adNow && !(adNow.sure && adMode === "auto") ? adNow : null;
   const undoSkip = () => {
     if (!skipped) return;
-    undone.current.add(skipped.ad.key); seekTo(skipped.ad.s); voteAd(skipped.epId, skipped.ad.key, -1); setSkipped(null); setAdsTick((x) => x + 1);
+    undone.current.add(skipped.ad.key); addSaved(-(skipped.ad.e - skipped.ad.s), skipped.ad.kind === "intro"); seekTo(skipped.ad.s); voteAd(skipped.epId, skipped.ad.key, -1); setSkipped(null); setAdsTick((x) => x + 1);
     say("Got it, that wasn't an ad. It won't be skipped for you, and your vote counts for everyone.");
   };
-  const takeOffer = () => { if (!adOffer || !activeEp) return; seekTo(adOffer.e); if (!adOffer.sure) voteAd(activeEp.id, adOffer.key, 1); };
+  const takeOffer = () => {
+    if (!adOffer || !activeEp) return;
+    const a = cur.current;
+    if (a && a.dataset.ep === activeEp.id) smoothSkip(a, adOffer, activeEp.id); else seekTo(adOffer.e);
+    if (!adOffer.sure) voteAd(activeEp.id, adOffer.key, 1);
+  };
   const refuseOffer = () => { if (!adOffer || !activeEp) return; undone.current.add(adOffer.key); voteAd(activeEp.id, adOffer.key, -1); setAdsTick((x) => x + 1); say("Thanks. Marked as not an ad."); };
   useEffect(() => { if (!skipped) return; const t = setTimeout(() => setSkipped(null), 6000); return () => clearTimeout(t); }, [skipped]);
   void txTick;
@@ -833,8 +1057,9 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     setDraft({ ep: it.ep, showId: it.show.id, s: m.s, e, label: "" });
   };
   const markFromLines = (s: number, e: number) => { const it = items[active]; if (!it?.ep) return; setSheet(null); setDraft({ ep: it.ep, showId: it.show.id, s: Math.floor(s), e: Math.ceil(e), label: "" }); };
-  const saveDraft = async () => {
-    const d = draft; const D = cur.current?.duration; if (!d) return;
+  const saveDraft = () => { if (draft) void saveMark(draft); };
+  const saveMark = async (d: NonNullable<typeof draft>, quiet = false) => {
+    const D = cur.current?.duration;
     const dur = D && Number.isFinite(D) ? D : d.ep.secs;
     const local: PlayAd = { key: `l:${d.ep.id}:${d.s}:${d.e}`, s: d.s, e: d.e, label: d.label || "Ad break", kind: "user", sure: true };
     setDraft(null);
@@ -845,13 +1070,53 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       if (Array.isArray(b?.ads)) serverAds.current.set(d.ep.id, b.ads);
       if (play) { localAds.current.set(d.ep.id, [...(localAds.current.get(d.ep.id) ?? []), local]); pollPlay(d.ep.id, true); }
       setAdsTick((x) => x + 1);
-      say(play ? "Thanks! This ad will be skipped for everyone who plays this episode." : "Thanks! This ad will be skipped for everyone with this version of the episode.");
+      if (!quiet) say(play ? "Thanks! This ad will be skipped for everyone who plays this episode." : "Thanks! This ad will be skipped for everyone with this version of the episode.");
     } catch (e: any) {
       localAds.current.set(d.ep.id, [...(localAds.current.get(d.ep.id) ?? []), local]);
       setAdsTick((x) => x + 1);
       say(e?.status === 503 ? "Saved for you. Sharing marks with everyone isn't switched on yet." : e?.message || "That didn't save. Try again.");
     }
   };
+
+  // ---------------- "That's an ad": one tap skips it, and it's saved for everyone ----------------
+  // The ad's start and end come from the transcript around now when there is one (the first
+  // ad-sounding line just before, until the show is back); otherwise it's the next 30 seconds.
+  // Each further tap means "still an ad": 30 seconds more. Saved 8 seconds after the last tap,
+  // unless Undo; Edit opens the usual mark sheet to fix the times or name the sponsor.
+  const [tapAd, setTapAd] = useState<{ ep: PodEpisode; showId: string; s: number; e: number; n: number; saved: number } | null>(null);
+  const tapRef = useRef(tapAd); tapRef.current = tapAd;
+  const thatsAnAd = () => {
+    const a = cur.current, it = items[active], ep = activeEp;
+    if (!a || !ep || !it || a.dataset.ep !== ep.id) { say("Play the episode first, then tap Ad when an ad starts."); return; }
+    const t = a.currentTime, prev = tapRef.current;
+    if (prev && prev.ep.id === ep.id) {
+      const e = Math.min(Math.max(prev.e, Math.floor(t)) + 30, Math.floor((a.duration && Number.isFinite(a.duration) ? a.duration : ep.secs) || prev.e + 30));
+      const more = Math.max(0, e - Math.max(prev.e, t));
+      setTapAd({ ...prev, e, n: prev.n + 1, saved: prev.saved + more }); seekTo(e); addSaved(more, false);
+      return;
+    }
+    const g = guessAdAround(txs.current.get(ep.id)?.segments ?? [], t);
+    const saved = Math.max(0, g.e - t);
+    setTapAd({ ep, showId: it.show.id, s: g.s, e: g.e, n: 1, saved });
+    seekTo(g.e); addSaved(saved, false);
+    if (a.paused) toggle();
+  };
+  useEffect(() => {
+    if (!tapAd) return;
+    const d = tapAd;
+    const timer = setTimeout(() => { setTapAd(null); void saveMark({ ep: d.ep, showId: d.showId, s: d.s, e: d.e, label: "" }, true); }, 8000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tapAd]);
+  const undoTap = () => { const d = tapRef.current; if (!d) return; setTapAd(null); addSaved(-d.saved, false); seekTo(Math.max(d.s, d.e - d.saved - 1)); };
+  const editTap = () => { const d = tapRef.current; if (!d) return; setTapAd(null); setDraft({ ep: d.ep, showId: d.showId, s: d.s, e: d.e, label: "" }); };
+  // The shows someone follows, so their new episodes are checked for ads before they play (once a day is plenty).
+  const followIds = es.follows.map((f) => f.id).slice(0, 60).join(",");
+  useEffect(() => {
+    if (!followIds) return;
+    const t = setTimeout(() => { api("/api/earshot/precheck/follows", { method: "POST", body: { ids: followIds.split(",") } }).catch(() => {}); }, 20_000);
+    return () => clearTimeout(t);
+  }, [followIds, api]);
 
   // ---------------- actions ----------------
   const isFollowing = (id: string) => es.follows.some((f) => f.id === id);
@@ -964,36 +1229,87 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
   const openRead = () => { const ep = items[active]?.ep; if (!ep) return; setSheet({ kind: "read" }); wantTx(ep, cur.current?.dataset.ep === ep.id ? cur.current.currentTime : 0); };
 
+  // A Pod Mode opened from the Pod+ home page plays back to back.
+  const modeStarted = useRef(false);
+  useEffect(() => {
+    if (!playMode || modeStarted.current) return;
+    modeStarted.current = true;
+    if (playMode.id === "__drive") { setSheet({ kind: "drive" }); return; }
+    const m = esRef.current.modes.find((x) => x.id === playMode.id);
+    if (!m?.episodes.length) return;
+    const mix = <T,>(l: T[]) => { const x = l.slice(); for (let i = x.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [x[i], x[j]] = [x[j], x[i]]; } return x; };
+    const order = playMode.order ?? (playMode.shuffle ? "shuffle" : "in");
+    if (order === "shuffle") playSaved(mix(m.episodes), 0, m.name);
+    else if (order === "shows") {
+      // Shuffle the shows, but each show's episodes play in the order they're listed.
+      const groups = new Map<string, SavedEpisode[]>();
+      for (const ep of m.episodes) groups.set(ep.showId, [...(groups.get(ep.showId) ?? []), ep]);
+      playSaved(mix(Array.from(groups.values())).flat(), 0, m.name);
+    } else playSaved(m.episodes, Math.min(playMode.index, m.episodes.length - 1), m.name);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playMode]);
+
   // A shared link opens its episode first (it plays on the first tap, as browsers require).
   const started = useRef(false);
   useEffect(() => {
     if (!start || started.current) return;
     started.current = true;
-    loadEpisodes(start.showId).then(({ show, episodes }) => {
-      const ep = episodes.find((e) => e.id === start.episodeId) ?? episodes[0];
-      if (!show || !ep) return;
-      setItems((list) => [{ key: `start-${ep.id}`, show, why: "Shared with you", ep, state: "ready" }, ...list.filter((x) => x.ep?.id !== ep.id)]);
+    const put = (show: PodShow, ep: PodEpisode, why: string) => {
+      setItems((list) => [{ key: `start-${ep.id}`, show, why, ep, state: "ready" }, ...list.filter((x) => x.ep?.id !== ep.id && x.key !== `start-${ep.id}`)]);
       if (feedRef.current) feedRef.current.scrollTop = 0;
+    };
+    // The episode that was tapped goes first straight away, before the feed's own first pick can
+    // start playing (a brand-new news episode may not be in the show's saved list yet either).
+    const given = start.ep && start.ep.id === start.episodeId && start.ep.audio ? start.ep : null;
+    const why = given ? "You picked this" : "Shared with you";
+    if (given) put({ id: given.showId, name: given.show, author: given.author || "", art: given.art, genre: "", appleGenre: "", link: "", episodes: 0, explicit: given.explicit, latest: given.date }, given, why);
+    loadEpisodes(start.showId).then(({ show, episodes }) => {
+      const ep = episodes.find((e) => e.id === start.episodeId) ?? (given ? null : episodes[0]);
+      // The show's full details once they're here (the same episode stays put).
+      if (show && ep) put(show, given ? { ...ep, ...given } : ep, why);
+      else if (show && given) setItems((list) => list.map((x) => (x.key === `start-${given.id}` ? { ...x, show } : x)));
     }).catch(() => {});
   }, [start, loadEpisodes]);
 
-  // Podscroll fills exactly the visible screen (100dvh). It used to size itself to the whole screen on
+  // Pod+ fills the whole screen, top to bottom edge, like its home page (fixed to all four sides:
+  // 100dvh came out 62 px short on the iPhone home screen, leaving a gap under the bottom bars).
+  // Podscroll used to fill exactly the visible screen (100dvh). It used to size itself to the whole screen on
   // the iPhone home screen, which ran past what iOS shows and hid the bottom of every tab there.
   // iPhone home screen: iOS only paints the page in the top part of the screen and fills the strip
   // below it (about the clock bar's height) with the page's color. So that color follows the cover:
   // its average, darkened like the bottom of the card, from a tiny copy the server hands over.
   const toneArt = [items[active]?.ep?.art, items[active]?.show.art].find((a) => a && /mzstatic\.com/.test(a)) || "";
   useEffect(() => {
-    if (!standalone || !mediaUrl) return;
+    if (!standalone || !mediaUrl || !visible) return;
     const root = document.documentElement.style;
     const meta = document.querySelector('meta[name="theme-color"]');
     const paint = (c: string) => { root.background = c; meta?.setAttribute("content", c); };
-    if (!(tab === "foryou" || tab === "following") || !toneArt) { paint(!(tab === "foryou" || tab === "following") && day ? "#ffffff" : "#120e14"); return; }
+    const pageTab = !(tab === "foryou" || tab === "following");
+    if (pageTab || !toneArt) { paint(pageTab && day ? "#ffffff" : pageTab && onHome ? (tab === "social" ? "#000000" : "#0f0f0f") : "#120e14"); return; }
     let live = true;
     void artTone(mediaUrl(`/api/earshot/art?u=${encodeURIComponent(toneArt)}`)).then((c) => { if (live && c) paint(c); });
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [standalone, toneArt, tab, day]);
+  }, [standalone, toneArt, tab, day, visible]);
+  // Hidden behind the home page: the episodes loaded ahead stop downloading, so the home page's
+  // covers and lists get the phone's connection (only what's playing keeps loading).
+  useEffect(() => {
+    if (visible) { players.current.forEach((a) => { if (a.getAttribute("src")) a.preload = "auto"; }); return; }
+    players.current.forEach((a) => {
+      if (a === cur.current && !a.paused) return;
+      a.preload = "none";
+      if (a !== cur.current && a.getAttribute("src") && a.readyState < 3) { try { a.pause(); a.removeAttribute("src"); a.load(); delete a.dataset.ep; delete a.dataset.sid; } catch { /* fine */ } }
+    });
+  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Another Pod+ player started (an audiobook, the radio): this one pauses.
+  useEffect(() => onOtherSound("pod", () => cur.current?.pause()), []);
+  // What's playing, for the mini bar on Pod+'s other pages, and a way to pause it from there.
+  const nowEp = items[active]?.ep, nowShow = items[active]?.show;
+  useEffect(() => {
+    const started = playing || (!!cur.current && cur.current.dataset.ep === nowEp?.id && cur.current.currentTime > 0);
+    onNowPlaying?.(nowEp && nowShow && started ? { title: nowEp.title, show: nowShow.name, art: nowEp.art || nowShow.art, playing } : null);
+  }, [nowEp?.id, playing]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (control) control.current = { toggle: () => toggle(), pause: () => cur.current?.pause() };
   // Once per visit from the home screen: the screen's real measurements, to the server log.
   const shellRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -1024,60 +1340,108 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
 
   // ---------------- layout ----------------
-  const shell = standalone ? "fixed inset-x-0 top-0 h-[100dvh] supports-[not(height:100dvh)]:h-full" : full ? "fixed inset-0 z-[60]" : "relative h-[min(84dvh,880px)] min-h-[560px] rounded-3xl";
-  const tabs: [Tab, string][] = student ? [["foryou", "For You"], ["following", "Following"], ["explore", "Explore"], ["library", "Library"]] : [["foryou", "For You"], ["following", "Following"], ["openmic", "Open Mic"], ["social", "Social"], ["explore", "Explore"], ["library", "Library"]];
+  const shell = standalone ? "fixed inset-0" : full ? "fixed inset-0 z-[60]" : "relative h-[min(84dvh,880px)] min-h-[560px] rounded-3xl";
+  const TAB_NAMES: Record<Tab, string> = { foryou: "For You", following: "Following", openmic: "Open Mic", social: "Social", explore: "Explore", library: "Library" };
+  const allTabs: [Tab, string][] = student ? [["foryou", "For You"], ["following", "Following"], ["explore", "Explore"], ["library", "Library"]] : [["foryou", "For You"], ["following", "Following"], ["openmic", "Open Mic"], ["social", "Social"], ["explore", "Explore"], ["library", "Library"]];
+  const tabs: [Tab, string][] = !onHome ? allTabs : tab === "foryou" || tab === "following" ? [["foryou", "For You"], ["following", "Following"]] : [[tab, TAB_NAMES[tab]]];
   const spots = tab === "library" || tab === "explore" ? readSpots() : {};
 
   // On Podscroll the frame covers the whole screen, under the status bar and home indicator, so the
   // cover art fills it edge to edge. What sits on top steps clear of those itself: the tab bar, the
   // other tabs (pad), the notices and the sheets.
-  const pad = (n: ReactNode) => standalone ? <div className="box-border h-full pb-[env(safe-area-inset-bottom,0px)] pt-[env(safe-area-inset-top,0px)]">{n}</div> : n;
+  // Room for the iPhone's notch and home bar. With the mini player showing, the mini player takes the
+  // home bar's room itself (counting it twice left a gap between the page's bottom bar and it).
+  const pad = (n: ReactNode) => standalone ? <div className={`box-border h-full pt-[env(safe-area-inset-top,0px)] ${mini || tab === "social" ? "" : "pb-[env(safe-area-inset-bottom,0px)]"}`} style={{ ["--ps-safe-b" as string]: mini ? "0px" : "env(safe-area-inset-bottom, 0px)" }}>{n}</div> : n;
   // Social, Explore and Library are white pages; the player and its sheets stay dark.
   const page = tab === "openmic" || tab === "social" || tab === "explore" || tab === "library";
   const light = page && day;
   // What's playing stays reachable from the other tabs: a mini player along the bottom.
   const nowItem = items[active];
   const mini = page && !previews && !!nowItem?.ep && cur.current?.dataset.ep === nowItem.ep.id && (playing || time > 0);
-  const miniPad = mini ? "pb-[4.75rem]" : "";
+  // On the iPhone home screen the app is drawn a clock-bar short of the bottom edge and iOS fills
+  // the strip below with the page's own color: so that color is whatever the bottom of the screen
+  // shows (the now-playing bar's color while it's there), and the strip looks like part of it.
+  useEffect(() => {
+    if (!standalone || !visible || !page) return;
+    const c = mini ? (day ? "#ffffff" : "#141015") : day ? "#ffffff" : tab === "social" ? "#000000" : site ? "#0f0f0f" : "#120e14";
+    document.documentElement.style.background = c;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", c);
+  });
+  const miniPad = mini ? (standalone ? "pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))]" : "pb-14") : "";
+  // Pod+: Open Mic, Social and Library opened from the site's home page wear the site's look
+  // (its top bar, type and white or near-black page) instead of the player's own.
+  const site = !!onHome && page;
+  const siteFont = site ? { fontFamily: "Roboto, Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" } : undefined;
   const lit = (n: ReactNode) => day
-    ? <div className={`ps-light h-full ${miniPad}`}><style>{LIGHT_CSS}</style>{pad(n)}</div>
-    : <div className={`h-full bg-[#120e14] ${miniPad}`}>{pad(n)}</div>;
+    ? <div className={`ps-light h-full ${miniPad}`} style={siteFont}><style>{LIGHT_CSS}</style>{pad(n)}</div>
+    : <div className={`h-full ${site ? "bg-[#0f0f0f]" : "bg-[#120e14]"} ${miniPad}`} style={siteFont}>{pad(n)}</div>;
   const chip = light ? "bg-black/[.05] text-[#0f1419]" : "bg-black/45";
   const below = standalone ? "top-[calc(4rem+env(safe-area-inset-top,0px))]" : "top-16";
-  return <div ref={shellRef} className={`${shell} flex flex-col overflow-hidden ${light ? "bg-white" : standalone && !page ? "bg-transparent" : "bg-[#120e14]"} text-white shadow-2xl`}>
-    <header className={`absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-2 px-3 ${standalone ? "pt-[calc(env(safe-area-inset-top,0px)+0.75rem)]" : "pt-3"}`}>
+  return <div ref={shellRef} className={`${shell} flex flex-col overflow-hidden ${light ? "bg-white" : standalone && !page ? "bg-transparent" : site ? "bg-[#0f0f0f]" : "bg-[#120e14]"} text-white shadow-2xl`}>
+    {site
+      ? <header className={`absolute inset-x-0 top-0 z-20 flex items-center gap-2 px-3 ${standalone ? "pt-[env(safe-area-inset-top,0px)]" : ""} ${light ? "bg-white text-[#0f0f0f]" : "bg-[#0f0f0f] text-[#f1f1f1]"}`} style={siteFont}>
+        <div className="flex h-14 w-full items-center gap-2">
+          <button type="button" onClick={onHome} className={`inline-flex h-10 flex-none items-center gap-1 rounded-full pl-2 pr-4 text-sm font-medium ${light ? "hover:bg-[#f2f2f2]" : "hover:bg-[#272727]"}`}><ChevronLeft size={20} />Home</button>
+          <h1 className="min-w-0 flex-1 truncate text-lg font-semibold">{TAB_NAMES[tab]}</h1>
+          <button type="button" aria-label="Fit my drive" title="Fit my drive" onClick={() => setSheet({ kind: "drive" })} className={`grid h-10 w-10 flex-none place-items-center rounded-full ${light ? "hover:bg-[#f2f2f2]" : "hover:bg-[#272727]"}`}><Car size={19} /></button>
+          <button type="button" aria-label="Settings" onClick={() => setSheet({ kind: "settings" })} className={`grid h-10 w-10 flex-none place-items-center rounded-full ${light ? "hover:bg-[#f2f2f2]" : "hover:bg-[#272727]"}`}><Settings2 size={19} /></button>
+        </div>
+      </header>
+      : <header className={`absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-2 px-3 ${standalone ? "pt-[calc(env(safe-area-inset-top,0px)+0.75rem)]" : "pt-3"}`}>
+      <div className="flex min-w-0 items-center gap-2">
+      {onHome && <button type="button" aria-label="Back to home" onClick={onHome} className={`grid h-9 w-9 flex-none place-items-center rounded-full ${chip} backdrop-blur ${light ? "" : "text-white"}`}><ChevronLeft size={20} /></button>}
       {genreMode && tab === "foryou"
         ? <span className="flex items-center gap-2 rounded-full bg-black/55 py-1.5 pl-3 pr-1.5 text-sm font-bold backdrop-blur">{GENRE[genreMode]?.name}<button type="button" aria-label="Back to For You" onClick={() => setGenreMode(null)} className="grid h-7 w-7 place-items-center rounded-full bg-white/15"><X size={14} /></button></span>
         : <nav className={`flex min-w-0 gap-1 overflow-x-auto rounded-full ${chip} p-1 backdrop-blur [scrollbar-width:none]`} aria-label="Sections">
           {tabs.map(([t, label]) => <button key={t} type="button" onClick={() => setTab(t)} aria-pressed={tab === t} className={`flex-none rounded-full px-3 py-1.5 text-xs font-semibold sm:text-sm ${tab === t ? (light ? "bg-[#0f1419] text-white" : "bg-white text-[#120e14]") : light ? "text-[#536471]" : "text-white/75"}`}>{label}</button>)}
         </nav>}
+      </div>
       <div className="flex flex-none gap-1.5">
         {!student && <LiveChip live={live} light={light} onClick={() => setTab("openmic")} />}
         {sleepAt !== null && <span className={`flex items-center gap-1 rounded-full ${chip} px-2.5 text-xs font-bold backdrop-blur`}><Moon size={14} />{sleepAt === "end" ? "End" : `${Math.max(1, Math.ceil(((sleepAt as number) - Date.now()) / 60000))}m`}</span>}
+        <button type="button" aria-label="Fit my drive" title="Fit my drive" onClick={() => setSheet({ kind: "drive" })} className={`grid h-9 w-9 place-items-center rounded-full ${chip} backdrop-blur`}><Car size={18} /></button>
         <button type="button" aria-label="Settings" onClick={() => setSheet({ kind: "settings" })} className={`grid h-9 w-9 place-items-center rounded-full ${chip} backdrop-blur`}><Settings2 size={18} /></button>
         {!standalone && <button type="button" aria-label={full ? "Exit full screen" : "Full screen"} onClick={() => setFull((f) => !f)} className={`grid h-9 w-9 place-items-center rounded-full ${chip} backdrop-blur`}>{full ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button>}
       </div>
-    </header>
+    </header>}
 
     {(tab === "foryou" || tab === "following") && <div ref={feedRef} tabIndex={-1}
       onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); goTo(active + 1); } else if (e.key === "ArrowUp") { e.preventDefault(); goTo(active - 1); } else if (e.key === " ") { e.preventDefault(); toggle(); } }}
       className={`h-full snap-y snap-mandatory overflow-y-scroll overscroll-contain [scrollbar-width:none] focus:outline-none`}>
-      {!items.length && <FeedEmpty tab={tab} error={loadError} state={loadState} hasFollows={es.follows.length > 0} onExplore={() => setTab("explore")} onRetry={() => { episodesCache.current.clear(); setRetry((r) => r + 1); }} />}
+      {!items.length && <FeedEmpty tab={tab} error={loadError} state={loadState} hasFollows={es.follows.length > 0} onExplore={() => (onHome ? onHome() : setTab("explore"))} onRetry={() => { episodesCache.current.clear(); setRetry((r) => r + 1); }} />}
       {items.map((it, i) => <Card key={it.key} i={i} item={it} active={i === active} playing={playing && i === active} time={i === active ? time : 0} dur={i === active ? dur : it.ep?.secs ?? 0}
         counts={it.ep ? counts[it.ep.id] : undefined} commentsOn={commentsOn} following={it.mic ? it.mic.followed : isFollowing(it.show.id)} saved={!!it.ep && (es.saved.some((x) => x.id === it.ep!.id) || es.modes.some((m) => m.episodes.some((x) => x.id === it.ep!.id)))} notes={es.settings.notes} full={es.settings.fullCover} unlocked={unlocked}
         apple={!!standalone} chapters={(i === active && txFor(it.ep)?.chapters) || NONE_CHAPTERS} lines={(i === active && txFor(it.ep)?.segments) || NONE_LINES} speed={es.settings.speed} onSpeed={cycleSpeed} sleepOn={sleepAt !== null} onSleep={() => setSheet({ kind: "sleep" })}
         ad={i === active ? adOffer : null} onSkipAd={takeOffer} onNotAd={refuseOffer} onTapStart={unlock}
-        adMarks={i === active && adsOn ? activeAds : []} marking={i === active && !!marking} onMark={startMark}
+        adMarks={i === active && adsOn ? activeAds : []} marking={i === active && !!marking} onMark={thatsAnAd}
         onToggle={toggle} onSeek={(t) => seekTo(t, true)} onBack={() => seekBy(-15)} onFwd={() => seekBy(30)} onRead={openRead}
+        onAsk={() => it.ep && openAsk(it.ep)} onCatchUp={i === active && it.ep && catchUpWorthIt(time, lastHeardAt.current.get(it.ep.id)) ? () => it.ep && void openCatchUp(it.ep) : undefined}
         onLike={() => it.ep && toggleLike(it.ep, it.show.genre)} onDoubleLike={() => it.ep && !counts[it.ep.id]?.liked && toggleLike(it.ep, it.show.genre)}
         onSave={() => it.ep && setSheet({ kind: "addto", ep: it.ep, genre: it.show.genre })} onShare={() => it.ep && setSheet({ kind: "share", ep: it.ep, genre: it.show.genre, show: it.show })} onFollow={() => (it.mic ? followCreator(it) : toggleFollow(it.show))}
         onComments={() => it.ep && setSheet({ kind: "comments", ep: it.ep })} onShow={() => { if (it.mic) return openCreator(it.mic.handle); setSheet({ kind: "show", show: it.show }); signal(it.show.genre, "open"); }}
-        onProfile={() => { if (it.mic) return openCreator(it.mic.handle); setSheet({ kind: "show", show: it.show }); signal(it.show.genre, "open"); }} onNext={() => goTo(i + 1)} />)}
+        onProfile={() => { if (it.mic) return openCreator(it.mic.handle); setSheet({ kind: "show", show: it.show }); signal(it.show.genre, "open"); }}
+        onInfo={() => { setSheet({ kind: "info", show: it.show }); signal(it.show.genre, "open"); }} onNext={() => goTo(i + 1)} />)}
     </div>}
 
-    {skipped && <div role="status" className={`absolute inset-x-3 ${below} z-[25] mx-auto flex max-w-sm items-center justify-between gap-3 rounded-2xl bg-white px-4 py-2.5 text-sm font-bold text-[#120e14] shadow-xl`}>
-      <span className="min-w-0 truncate">Skipped {skipped.ad.kind === "user" ? "a listener-marked ad" : "an ad"}{skipped.ad.label && !/^(ad break|pre-roll)$/i.test(skipped.ad.label) ? ` · ${skipped.ad.label}` : ""} ({clock(skipped.ad.e - skipped.ad.s)})</span>
-      <button type="button" onClick={undoSkip} className="flex-none rounded-full bg-[#120e14] px-3 py-1 text-xs font-semibold text-white">Undo</button>
+    {holding && activeEp?.id === holding && <div className={`pointer-events-none absolute inset-x-3 ${below} z-[26] flex justify-center`}><div role="status" className="flex items-center gap-2 rounded-full bg-black/55 px-3.5 py-1.5 text-[13px] font-medium text-white ring-1 ring-white/10 backdrop-blur-xl"><Loader2 size={13} className="animate-spin" />Skipping the ads at the start…</div></div>}
+    {tapAd && activeEp && tapAd.ep.id === activeEp.id && <div className={`pointer-events-none absolute inset-x-3 ${below} z-[26] flex justify-center`}>
+      <div key={tapAd.n} role="status" className="pointer-events-auto relative flex max-w-full items-center gap-1.5 overflow-hidden rounded-full bg-[#ffd23f] py-1.5 pl-3.5 pr-1.5 text-[13px] font-semibold text-[#120e14] shadow-xl" data-testid="tap-ad-toast">
+        <SkipForward size={14} className="flex-none" />
+        <span className="min-w-0 truncate">Ad skipped · {clock(tapAd.s)}–{clock(tapAd.e)}</span>
+        <button type="button" onClick={thatsAnAd} aria-label="Still an ad: skip 30 more seconds" className="flex-none rounded-full bg-black/10 px-2.5 py-1 text-xs font-bold hover:bg-black/20">+30s</button>
+        <button type="button" onClick={editTap} className="flex-none rounded-full bg-black/10 px-2.5 py-1 text-xs font-bold hover:bg-black/20">Edit</button>
+        <button type="button" onClick={undoTap} className="flex-none rounded-full bg-[#120e14] px-2.5 py-1 text-xs font-bold text-white">Undo</button>
+        <span aria-hidden className="absolute inset-x-0 bottom-0 h-[2px] origin-left bg-black/30" style={{ animation: "esDrain 8s linear forwards" }} />
+      </div>
+    </div>}
+    {skipped && <div className={`pointer-events-none absolute inset-x-3 ${below} z-[25] flex justify-center`}>
+      <style>{"@keyframes esPill{from{opacity:0;transform:translateY(-8px) scale(.96)}to{opacity:1;transform:none}}@keyframes esDrain{from{transform:scaleX(1)}to{transform:scaleX(0)}}"}</style>
+      <div key={skipped.ad.key} role="status" className="pointer-events-auto relative flex max-w-full items-center gap-2.5 overflow-hidden rounded-full bg-black/45 py-1.5 pl-3.5 pr-1.5 text-[13px] font-medium text-white shadow-lg ring-1 ring-white/10 backdrop-blur-xl" style={{ animation: "esPill .35s cubic-bezier(.2,.8,.2,1)" }}>
+        <SkipForward size={13} className="flex-none opacity-70" />
+        <span className="min-w-0 truncate">Ad skipped{skipped.ad.label && !/^(ad break|pre-roll)$/i.test(skipped.ad.label) ? ` · ${skipped.ad.label}` : ""}<span className="text-white/55"> · {clock(skipped.ad.e - skipped.ad.s)} back</span></span>
+        <button type="button" onClick={undoSkip} className="flex-none rounded-full bg-white/15 px-3 py-1 text-xs font-semibold hover:bg-white/25">Undo</button>
+        <span aria-hidden className="absolute inset-x-0 bottom-0 h-[2px] origin-left bg-white/40" style={{ animation: "esDrain 6s linear forwards" }} />
+      </div>
     </div>}
 
     {marking && activeEp && marking.epId === activeEp.id && <div role="status" className={`absolute inset-x-3 ${below} z-[26] mx-auto flex max-w-md flex-col gap-2 rounded-2xl bg-[#ffd23f] p-3 text-[#120e14] shadow-xl`}>
@@ -1101,17 +1465,25 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       onOpen={() => setTab(lastFeed.current)} onToggle={toggle} />}
 
     <div className={day ? "ps-light contents" : "contents"}>{day && <style>{LIGHT_CSS + LIGHT_SHEETS_CSS}</style>}
-    {sheet?.kind === "comments" && <Comments ep={sheet.ep} api={api} say={say} nickname={nickname} setNickname={setNickname} onClose={() => setSheet(null)} onPosted={() => { setCounts((c) => ({ ...c, [sheet.ep.id]: { ...(c[sheet.ep.id] ?? { likes: 0, comments: 0, shares: 0, liked: false }), comments: (c[sheet.ep.id]?.comments ?? 0) + 1 } })); const it = items.find((x) => x.ep?.id === sheet.ep.id); if (it) signal(it.show.genre, "comment"); }} />}
+    {sheet?.kind === "comments" && <Comments ep={sheet.ep} now={cur.current?.dataset.ep === sheet.ep.id ? cur.current.currentTime : null} onJump={(t) => { setSheet(null); unlock(); seekTo(t); if (cur.current?.paused) toggle(); }} api={api} say={say} nickname={nickname} setNickname={setNickname} onClose={() => setSheet(null)} onPosted={() => { timed.reload(); setCounts((c) => ({ ...c, [sheet.ep.id]: { ...(c[sheet.ep.id] ?? { likes: 0, comments: 0, shares: 0, liked: false }), comments: (c[sheet.ep.id]?.comments ?? 0) + 1 } })); const it = items.find((x) => x.ep?.id === sheet.ep.id); if (it) signal(it.show.genre, "comment"); }} />}
     {sheet?.kind === "show" && <ShowPage show={sheet.show} load={loadEpisodes} hideTeasers={es.settings.hideTeasers} following={isFollowing(sheet.show.id)} adFree={es.adFree.includes(sheet.show.id)} onAdFree={(on) => update((e) => ({ ...e, adFree: on ? [sheet.show.id, ...e.adFree.filter((x) => x !== sheet.show.id)].slice(0, 300) : e.adFree.filter((x) => x !== sheet.show.id) }))} onFollow={toggleFollow} onPlayFrom={playFrom} onClose={() => setSheet(null)} onGenre={(g) => { setSheet(null); setGenreMode(g); setTab("foryou"); }} spots={readSpots()} onAddTo={(ep) => setSheet({ kind: "addto", ep, genre: sheet.show.genre })} />}
+    {sheet?.kind === "info" && <InfoSheet show={sheet.show} api={api} ex={ex} onClose={() => setSheet(null)} onShow={(show) => setSheet({ kind: "show", show })} onEpisodes={() => setSheet({ kind: "show", show: sheet.show })} />}
     {sheet?.kind === "share" && <ShareSheet api={api} say={say} ep={sheet.ep} social={!student} onLink={() => share(sheet.ep, sheet.genre, sheet.show)} onClose={() => setSheet(null)}
       onClip={cur.current?.dataset.ep === sheet.ep.id ? () => setSheet({ kind: "clip", ep: sheet.ep, time: cur.current?.currentTime ?? 0 }) : undefined} />}
     {sheet?.kind === "clip" && <ClipMaker api={api} say={say} ep={sheet.ep} time={sheet.time} lines={txFor(sheet.ep)?.segments ?? []} sid={cur.current?.dataset.ep === sheet.ep.id ? cur.current?.dataset.sid : undefined}
       onPreview={(s, e) => previewClip(s, e)} onClose={() => setSheet(null)} />}
     {sheet?.kind === "addto" && <AddToSheet es={es} ep={sheet.ep} saved={es.saved.some((x) => x.id === sheet.ep.id)} onSave={() => toggleSave(sheet.ep, sheet.genre)} update={update} say={say} onClose={() => setSheet(null)} toSaved={savedOf} />}
-    {sheet?.kind === "mode" && (() => { const m = es.modes.find((x) => x.id === sheet.id); return m ? <ModeView mode={m} update={update} onPlay={(list, i) => playSaved(list, i, `${m.icon} ${m.name}`)} onClose={() => setSheet(null)} /> : null; })()}
+    {sheet?.kind === "mode" && (() => { const m = es.modes.find((x) => x.id === sheet.id); return m ? <ModeView mode={m} update={update} onPlay={(list, i) => playSaved(list, i, m.name)} onClose={() => setSheet(null)} /> : null; })()}
     {sheet?.kind === "settings" && <SettingsSheet es={es} student={student} update={update} onClose={() => setSheet(null)} sleepAt={sleepAt} setSleep={chooseSleep} apple={!!standalone} theme={theme}
       account={standalone && creator?.signIn ? { email: creator.email, onSignIn: () => { setSheet(null); setMaker("signin"); },
         onSignOut: () => { void api("/api/earshot/account/signout", { method: "POST" }).catch(() => {}); onSession?.(null); setSheet(null); setTimeout(reloadCreator, 300); say("Signed out."); } } : undefined} />}
+    {sheet?.kind === "ask" && <AskSheet ep={sheet.ep} api={api} play={playSid(sheet.ep)} onJump={(t) => { unlock(); seekTo(t); if (cur.current?.paused) toggle(); }} onClose={() => setSheet(null)} />}
+    {sheet?.kind === "catchup" && <CatchUpSheet ep={sheet.ep} api={api} upTo={sheet.upTo} play={playSid(sheet.ep)} earlier={sheet.earlier} onClose={() => setSheet(null)}
+      onResume={() => { setSheet(null); unlock(); if (cur.current?.dataset.ep === sheet.ep.id) { if (cur.current.paused) toggle(); } else { const show: PodShow = { id: sheet.ep.showId, name: sheet.ep.show, author: sheet.ep.author, art: sheet.ep.art, genre: "culture", appleGenre: "", link: sheet.ep.link, episodes: 0, explicit: sheet.ep.explicit, latest: sheet.ep.date }; playNow(show, sheet.ep, sheet.upTo); } }} />}
+    {sheet?.kind === "drive" && <DriveSheet es={es} speed={es.settings.speed} onClose={() => setSheet(null)} onPlay={(list, title) => { playSaved(list, 0, title); say(`${title}: ${list.length} episode${list.length === 1 ? "" : "s"}, back to back.`); }} />}
+    {moment && sheet === null && <div className={`pointer-events-none absolute inset-x-3 ${standalone ? "bottom-[calc(13rem+env(safe-area-inset-bottom,0px))]" : "bottom-44"} z-[24] flex justify-center`}>
+      <MomentBubble c={moment} onOpen={() => { const ep = items[active]?.ep; setMoment(null); if (ep) setSheet({ kind: "comments", ep }); }} onClose={() => { hiddenMoments.current.add(moment.id); setMoment(null); }} />
+    </div>}
     {sheet?.kind === "sleep" && <SleepSheet sleepAt={sleepAt} onPick={(v) => { chooseSleep(v); setSheet(null); }} onClose={() => setSheet(null)} />}
     {draft && <MarkSheet draft={draft} shared={adsShared} onChange={setDraft} onPreview={(t) => { unlock(); seekTo(t); if (cur.current?.paused) toggle(); }} onSave={saveDraft} onClose={() => setDraft(null)} />}
     </div>
@@ -1153,12 +1525,14 @@ type CardProps = {
   onProfile: () => void;
   i: number; item: Item; active: boolean; playing: boolean; time: number; dur: number; counts?: Counts; commentsOn: boolean; following: boolean; saved: boolean; notes: boolean; full: boolean; unlocked: boolean;
   ad: PlayAd | null; onSkipAd: () => void; onNotAd: () => void; onTapStart: () => void; onRead: () => void;
+  /** Ask the episode, and (when worth it) Catch me up. */
+  onAsk: () => void; onCatchUp?: () => void;
   adMarks: PlayAd[]; marking: boolean; onMark: () => void;
   /** Podscroll's Apple Podcasts-style card: edge-to-edge art, speed and sleep in the controls row. */
   apple: boolean; speed: number; onSpeed: () => void; sleepOn: boolean; onSleep: () => void;
   /** What the scrubber can show about a moment: chapter names and the transcript lines loaded so far. */
   chapters: Chapter[]; lines: TxSegment[];
-  onToggle: () => void; onSeek: (t: number) => void; onBack: () => void; onFwd: () => void; onLike: () => void; onDoubleLike: () => void; onSave: () => void; onShare: () => void; onFollow: () => void; onComments: () => void; onShow: () => void; onNext: () => void;
+  onToggle: () => void; onSeek: (t: number) => void; onBack: () => void; onFwd: () => void; onLike: () => void; onDoubleLike: () => void; onSave: () => void; onShare: () => void; onFollow: () => void; onComments: () => void; onShow: () => void; onInfo: () => void; onNext: () => void;
 };
 /** The cover's motion while playing: a slow pan and zoom across the art, a gentle breath, a light
  *  sweep now and then, and a glow that swells. All still for reduced motion and when paused. */
@@ -1223,6 +1597,7 @@ function Card(p: CardProps) {
     <Act label="Episodes" onClick={p.onShow}><ListVideo size={25} strokeWidth={1.5} /></Act>
     <Act label={p.saved ? "Saved" : "Save"} on={p.saved} onClick={p.onSave} disabled={!ep}><Bookmark size={25} strokeWidth={1.5} className={p.saved ? "fill-current" : ""} /></Act>
     <Act label="Share" n={c?.shares} onClick={p.onShare} disabled={!ep}><Share2 size={24} strokeWidth={1.5} /></Act>
+    {!item.mic && <Act label="About this podcast" onClick={p.onInfo}><Info size={25} strokeWidth={1.5} /></Act>}
   </>;
 
   if (p.apple) {
@@ -1257,9 +1632,9 @@ function Card(p: CardProps) {
             <h2 className="mt-0.5 line-clamp-2 text-[21px] font-bold leading-tight tracking-tight">{ep?.title ?? "Loading the newest episode…"}</h2>
             <button type="button" onClick={p.onShow} className="pointer-events-auto mt-0.5 block max-w-full truncate text-left text-[17px] text-white/60 hover:text-white/85">{item.show.name}</button>
             {ep && p.active && p.ad && <div className="pointer-events-auto mt-2.5 flex">
-              <span className="flex items-center overflow-hidden rounded-full bg-white text-xs font-semibold text-[#0e0d10]">
+              <span className="flex items-center overflow-hidden rounded-full bg-white/15 text-xs font-semibold text-white ring-1 ring-white/15 backdrop-blur-md">
                 <button type="button" onClick={p.onSkipAd} className="flex items-center gap-1.5 py-1.5 pl-3 pr-2"><SkipForward size={13} />{p.ad.kind === "intro" ? "Skip intro" : p.ad.kind === "crowd" ? "Listeners skip this · Skip" : p.ad.sure ? `Skip ad${p.ad.label && !/^(ad break|pre-roll)$/i.test(p.ad.label) ? ` · ${p.ad.label}` : ""}` : "Possible ad · Skip"}</button>
-                <button type="button" onClick={p.onNotAd} aria-label="Not an ad" title="Not an ad" className="border-l border-black/10 px-2 py-1.5"><ThumbsDown size={12} /></button>
+                <button type="button" onClick={p.onNotAd} aria-label="Not an ad" title="Not an ad" className="border-l border-white/15 px-2 py-1.5 text-white/70 hover:text-white"><ThumbsDown size={12} /></button>
               </span>
             </div>}
           </div>
@@ -1268,7 +1643,7 @@ function Card(p: CardProps) {
 
         {ep && <div className="pointer-events-auto mt-4 flex flex-col">
           <Scrubber time={p.time} dur={p.dur} active={p.active} ads={p.adMarks} chapters={p.chapters} lines={p.lines} onSeek={p.onSeek} onScrubbing={setScrubbing}
-            middle={p.unlocked && p.active && !p.marking ? <button type="button" onClick={p.onMark} aria-label="Mark an ad" title="Mark an ad" className="grid h-8 w-8 place-items-center rounded-full text-white/40 hover:text-white/80"><Megaphone size={15} strokeWidth={1.7} /></button> : null} />
+            middle={p.unlocked && p.active && !p.marking ? <button type="button" onClick={p.onMark} aria-label="That's an ad: skip it" title="That's an ad: skip it" data-testid="thats-an-ad" className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[#ffd23f] px-3 text-xs font-bold text-[#120e14] shadow active:scale-95"><Megaphone size={14} strokeWidth={2} />Ad? Skip</button> : null} />
           <div className="mt-3 flex items-center justify-between">
             <button type="button" onClick={p.onSpeed} aria-label={`Playback speed ${p.speed}×. Tap to change.`} className="grid h-12 w-12 place-items-center rounded-full text-[17px] font-semibold text-white/80">{p.speed}×</button>
             <button type="button" onClick={p.onBack} aria-label="Back 15 seconds" className="relative grid h-14 w-14 place-items-center rounded-full text-white"><RotateCcw size={36} strokeWidth={1.7} /><span className="absolute pt-0.5 text-[11px] font-bold">15</span></button>
@@ -1276,8 +1651,10 @@ function Card(p: CardProps) {
             <button type="button" onClick={p.onFwd} aria-label="Forward 30 seconds" className="relative grid h-14 w-14 place-items-center rounded-full text-white"><RotateCw size={36} strokeWidth={1.7} /><span className="absolute pt-0.5 text-[11px] font-bold">30</span></button>
             <button type="button" onClick={p.onSleep} aria-label={p.sleepOn ? "Sleep timer on. Change it." : "Sleep timer"} aria-pressed={p.sleepOn} className={`grid h-12 w-12 place-items-center rounded-full ${p.sleepOn ? "text-white" : "text-white/80"}`}><Moon size={24} strokeWidth={1.7} className={p.sleepOn ? "fill-current" : ""} /></button>
           </div>
-          <div className="mt-1 flex justify-center">
-            <button type="button" onClick={p.onRead} disabled={!p.active} aria-label="Read along" className="flex min-h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold text-white/75 transition hover:bg-white/10 hover:text-white disabled:opacity-30"><ReadIcon size={17} />Read along</button>
+          <div className="mt-1 flex flex-wrap justify-center gap-0.5">
+            <button type="button" onClick={p.onRead} disabled={!p.active} aria-label="Read along" className="flex min-h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold text-white/75 transition hover:bg-white/10 hover:text-white disabled:opacity-30"><ReadIcon size={17} />Read along</button>
+            <button type="button" onClick={p.onAsk} disabled={!p.active} aria-label="Ask this episode" className="flex min-h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold text-white/75 transition hover:bg-white/10 hover:text-white disabled:opacity-30"><Sparkles size={16} />Ask</button>
+            {p.onCatchUp && <button type="button" onClick={p.onCatchUp} disabled={!p.active} aria-label="Catch me up" className="flex min-h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold text-white/75 transition hover:bg-white/10 hover:text-white disabled:opacity-30"><Clock3 size={16} />Catch me up</button>}
           </div>
         </div>}
       </div>
@@ -1326,9 +1703,9 @@ function Card(p: CardProps) {
         <button type="button" onClick={p.onShow} className="pointer-events-auto w-fit max-w-full truncate text-left text-[13px] text-white/50 hover:text-white/80">{item.show.name}</button>
         <h2 className="mt-1 line-clamp-2 text-[19px] font-semibold leading-snug tracking-tight">{ep?.title ?? "Loading the newest episode…"}</h2>
         {ep && p.active && p.ad && <div className="pointer-events-auto mt-2.5 flex">
-          <span className="flex items-center overflow-hidden rounded-full bg-white text-xs font-semibold text-[#0e0d10]">
+          <span className="flex items-center overflow-hidden rounded-full bg-white/15 text-xs font-semibold text-white ring-1 ring-white/15 backdrop-blur-md">
             <button type="button" onClick={p.onSkipAd} className="flex items-center gap-1.5 py-1.5 pl-3 pr-2"><SkipForward size={13} />{p.ad.kind === "intro" ? "Skip intro" : p.ad.kind === "crowd" ? "Listeners skip this · Skip" : p.ad.sure ? `Skip ad${p.ad.label && !/^(ad break|pre-roll)$/i.test(p.ad.label) ? ` · ${p.ad.label}` : ""}` : "Possible ad · Skip"}</button>
-            <button type="button" onClick={p.onNotAd} aria-label="Not an ad" title="Not an ad" className="border-l border-black/10 px-2 py-1.5"><ThumbsDown size={12} /></button>
+            <button type="button" onClick={p.onNotAd} aria-label="Not an ad" title="Not an ad" className="border-l border-white/15 px-2 py-1.5 text-white/70 hover:text-white"><ThumbsDown size={12} /></button>
           </span>
         </div>}
         {ep && <div className="pointer-events-auto mt-4 flex flex-col">
@@ -1341,7 +1718,7 @@ function Card(p: CardProps) {
           </div>
           <div className="flex items-center justify-between text-[11px] tabular-nums text-white/40"><span>{clock(p.time)}</span><span>-{clock(Math.max(0, p.dur - p.time))}</span></div>
           <div className="mt-2 flex items-center justify-between">
-            {p.unlocked && p.active && !p.marking ? <button type="button" onClick={p.onMark} aria-label="Mark an ad" title="Mark an ad" className="grid h-10 w-10 place-items-center rounded-full text-white/40 hover:text-white/80"><Megaphone size={18} strokeWidth={1.7} /></button> : <span className="w-10" />}
+            {p.unlocked && p.active && !p.marking ? <button type="button" onClick={p.onMark} aria-label="That's an ad: skip it" title="That's an ad: skip it" data-testid="thats-an-ad" className="inline-flex h-10 items-center gap-1.5 rounded-full bg-[#ffd23f] px-3 text-xs font-bold text-[#120e14] shadow active:scale-95"><Megaphone size={15} strokeWidth={2} />Ad? Skip</button> : <span className="w-10" />}
             <div className="flex items-center gap-6">
               <button type="button" onClick={p.onBack} aria-label="Back 15 seconds" className="grid h-11 w-11 place-items-center rounded-full text-white/85"><RotateCcw size={24} strokeWidth={1.6} /></button>
               <button type="button" onClick={(e) => { e.stopPropagation(); p.onTapStart(); p.onToggle(); }} aria-label={p.playing ? "Pause" : "Play"} className="grid h-16 w-16 place-items-center rounded-full bg-white text-[#0e0d10] transition active:scale-95">{p.playing ? <Pause size={26} fill="currentColor" strokeWidth={0} /> : <Play size={26} fill="currentColor" strokeWidth={0} className="ml-1" />}</button>
@@ -1357,9 +1734,12 @@ function Card(p: CardProps) {
       <Avatar item={item} following={p.following} onProfile={p.onProfile} onFollow={p.onFollow} className="mb-1.5" />
       <Act label="Like" n={c?.likes} on={!!c?.liked} onClick={p.onLike} disabled={!ep}><Heart size={26} strokeWidth={1.5} className={c?.liked ? "fill-rose-500 text-rose-500" : ""} /></Act>
       {p.commentsOn && <Act label="Comments" n={c?.comments} onClick={p.onComments} disabled={!ep}><MessageCircle size={25} strokeWidth={1.5} /></Act>}
+      <Act label="Ask this episode" onClick={p.onAsk} disabled={!ep || !p.active}><Sparkles size={24} strokeWidth={1.5} /></Act>
+      {p.onCatchUp && <Act label="Catch me up" onClick={p.onCatchUp} disabled={!p.active}><Clock3 size={24} strokeWidth={1.5} /></Act>}
       <Act label="Episodes" onClick={p.onShow}><ListVideo size={25} strokeWidth={1.5} /></Act>
       <Act label={p.saved ? "Saved" : "Save"} on={p.saved} onClick={p.onSave} disabled={!ep}><Bookmark size={25} strokeWidth={1.5} className={p.saved ? "fill-current" : ""} /></Act>
       <Act label="Share" n={c?.shares} onClick={p.onShare} disabled={!ep}><Share2 size={24} strokeWidth={1.5} /></Act>
+    {!item.mic && <Act label="About this podcast" onClick={p.onInfo}><Info size={25} strokeWidth={1.5} /></Act>}
     </div>
   </article>;
 }
@@ -1499,14 +1879,15 @@ function Scrubber({ time, dur, active, ads, chapters, lines, onSeek, onScrubbing
 /** One side action: a thin icon over a small quiet label (or its count). */
 /** What's playing, along the bottom of Explore, Library, Social and Open Mic. Tap it to go back to the player. */
 function MiniPlayer({ ep, art, playing, pct, light, standalone, onOpen, onToggle }: { ep: PodEpisode; art: string; playing: boolean; pct: number; light: boolean; standalone: boolean; onOpen: () => void; onToggle: () => void }) {
-  return <div className={`absolute inset-x-0 bottom-0 z-[24] px-2 ${standalone ? "pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)]" : "pb-2"}`}>
-    <div className={`relative mx-auto flex max-w-xl items-center gap-3 overflow-hidden rounded-2xl p-2 pr-1.5 shadow-[0_10px_30px_rgba(0,0,0,.25)] ring-1 backdrop-blur-xl ${light ? "bg-white/90 text-[#0f1419] ring-black/[.06]" : "bg-[#241d29]/90 text-white ring-white/10"}`}>
+  // A flat bar across the bottom, down to the screen's edge (the same as the home page's).
+  return <div className={`absolute inset-x-0 bottom-0 z-[24] border-t backdrop-blur-xl ${light ? "border-black/[.08] bg-white/95 text-[#0f1419]" : "border-white/[.08] bg-[#141015]/95 text-white"} ${standalone ? "pb-[env(safe-area-inset-bottom,0px)]" : ""}`}>
+    <span aria-hidden className={`absolute inset-x-0 top-0 h-[2px] ${light ? "bg-black/[.06]" : "bg-white/10"}`}><span className="block h-full" style={{ width: `${Math.min(100, pct)}%`, background: ACCENT }} /></span>
+    <div className="mx-auto flex h-14 max-w-2xl items-center gap-3 px-3">
       <button type="button" onClick={onOpen} aria-label={`Now playing: ${ep.title}. Open the player.`} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-        <img src={hiRes(art, 120)} alt="" referrerPolicy="no-referrer" className="h-11 w-11 flex-none rounded-lg object-cover" />
+        <img src={hiRes(art, 120)} alt="" referrerPolicy="no-referrer" className="h-10 w-10 flex-none rounded-md object-cover" />
         <span className="min-w-0"><b className="block truncate text-[14px] font-semibold leading-tight">{ep.title}</b><span className={`block truncate text-[12px] ${light ? "text-[#536471]" : "text-white/60"}`}>{ep.show}</span></span>
       </button>
-      <button type="button" onClick={onToggle} aria-label={playing ? "Pause" : "Play"} className="grid h-11 w-11 flex-none place-items-center rounded-full">{playing ? <Pause size={24} fill="currentColor" strokeWidth={0} /> : <Play size={24} fill="currentColor" strokeWidth={0} className="ml-0.5" />}</button>
-      <span aria-hidden className={`absolute inset-x-3 bottom-0 h-[2px] rounded-full ${light ? "bg-black/[.06]" : "bg-white/10"}`}><span className="block h-full rounded-full" style={{ width: `${Math.min(100, pct)}%`, background: ACCENT }} /></span>
+      <button type="button" onClick={onToggle} aria-label={playing ? "Pause" : "Play"} className="grid h-10 w-10 flex-none place-items-center rounded-full">{playing ? <Pause size={22} fill="currentColor" strokeWidth={0} /> : <Play size={22} fill="currentColor" strokeWidth={0} className="ml-0.5" />}</button>
     </div>
   </div>;
 }
@@ -1689,8 +2070,14 @@ function Sheet({ title, onClose, children, tall }: { title: string; onClose: () 
   </div>;
 }
 
-function Comments({ ep, api, say, onClose, onPosted, nickname, setNickname }: { ep: PodEpisode; api: PlayerProps["api"]; say: (m: string) => void; onClose: () => void; onPosted: () => void; nickname?: string; setNickname?: (n: string) => void }) {
+function Comments({ ep, api, say, onClose, onPosted, nickname, setNickname, now, onJump }: { ep: PodEpisode; api: PlayerProps["api"]; say: (m: string) => void; onClose: () => void; onPosted: () => void; nickname?: string; setNickname?: (n: string) => void;
+  /** Where this episode is playing (null: not playing), so a comment can be pinned to that moment. */
+  now: number | null; onJump: (t: number) => void }) {
   const [list, setList] = useState<Comment[] | null>(null);
+  // Pinned to the moment by default while it's playing; the moment is the one when the sheet opened.
+  const [pinAt] = useState(() => (now !== null && now >= 1 ? Math.floor(now) : null));
+  const [pin, setPin] = useState(pinAt !== null);
+  const [order, setOrder] = useState<"new" | "time">("new");
   const [admin, setAdmin] = useState(false);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -1701,20 +2088,22 @@ function Comments({ ep, api, say, onClose, onPosted, nickname, setNickname }: { 
   const post = async (e: FormEvent) => {
     e.preventDefault(); const body = text.trim(); if (!body || busy) return;
     setBusy(true);
-    try { const b = await api("/api/earshot/comments", { method: "POST", body: { episodeId: ep.id, showId: ep.showId, body, ...(setNickname ? { name: nickname || "" } : {}) } }); setList((l) => [b.comment, ...(l || [])]); setText(""); onPosted(); }
+    try { const b = await api("/api/earshot/comments", { method: "POST", body: { episodeId: ep.id, showId: ep.showId, body, ...(pin && pinAt !== null ? { t: pinAt } : {}), ...(setNickname ? { name: nickname || "" } : {}) } }); setList((l) => [b.comment, ...(l || [])]); setText(""); onPosted(); }
     catch (e: any) { say(e.message); } finally { setBusy(false); }
   };
   const remove = async (id: string) => { if (confirm !== id) { setConfirm(id); setTimeout(() => setConfirm((c) => (c === id ? null : c)), 3000); return; } try { await api(`/api/earshot/comments/${id}`, { method: "DELETE" }); setList((l) => (l || []).filter((c) => c.id !== id)); } catch (e: any) { say(e.message); } };
   const report = async (id: string) => { try { await api(`/api/earshot/comments/${id}/report`, { method: "POST", body: {} }); setList((l) => (l || []).filter((c) => c.id !== id)); say("Reported. Thanks for keeping it kind."); } catch (e: any) { say(e.message); } };
   return <Sheet title={list ? `${list.length} comment${list.length === 1 ? "" : "s"}` : "Comments"} onClose={onClose} tall>
     <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-      <p className="mb-3 line-clamp-1 text-xs text-white/50">On “{ep.title}”</p>
+      <div className="mb-3 flex items-center justify-between gap-2"><p className="line-clamp-1 min-w-0 text-xs text-white/50">On “{ep.title}”</p>
+        {!!list?.some((c) => typeof c.t === "number") && <div className="flex flex-none rounded-full bg-white/10 p-0.5">{([["new", "Newest"], ["time", "By moment"]] as const).map(([v, l]) => <button key={v} type="button" aria-pressed={order === v} onClick={() => setOrder(v)} className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${order === v ? "bg-white text-[#120e14]" : "text-white/70"}`}>{l}</button>)}</div>}
+      </div>
       {!list && <div className="grid place-items-center py-10"><Loader2 className="animate-spin" /></div>}
       {err && <p className="py-6 text-center text-sm text-white/65">{err}</p>}
       {list && !err && !list.length && <p className="py-10 text-center text-sm text-white/60"><b className="text-white">No comments yet.</b><br />Say what you thought of this one.</p>}
-      <ul className="flex flex-col gap-4">{(list || []).map((c) => <li key={c.id} className="grid grid-cols-[36px_1fr_auto] items-start gap-3">
+      <ul className="flex flex-col gap-4">{(order === "time" ? (list || []).slice().sort((a, b) => (a.t ?? 1e9) - (b.t ?? 1e9)) : list || []).map((c) => <li key={c.id} className="grid grid-cols-[36px_1fr_auto] items-start gap-3">
         <span className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-sm font-semibold text-white/70">{(c.mine ? "Y" : c.author[0] || "A").toUpperCase()}</span>
-        <div className="min-w-0"><p className="text-xs font-bold text-white/60">{c.mine ? "You" : c.author} <span className="font-medium text-white/40">· {agoWords(c.at)}</span></p><p className="mt-0.5 whitespace-pre-wrap break-words text-sm leading-relaxed">{c.body}</p></div>
+        <div className="min-w-0"><p className="text-xs font-bold text-white/60">{c.mine ? "You" : c.author} <span className="font-medium text-white/40">· {agoWords(c.at)}</span></p><p className="mt-0.5 whitespace-pre-wrap break-words text-sm leading-relaxed">{typeof c.t === "number" && <button type="button" onClick={() => onJump(c.t!)} aria-label={`Play from ${clock(c.t)}`} className="mr-1.5 inline-flex items-center gap-1 rounded-md bg-[#ff8a3d]/20 px-1.5 py-px align-[1px] text-xs font-bold tabular-nums text-[#ffb27d]"><Play size={9} fill="currentColor" strokeWidth={0} />{clock(c.t)}</button>}{c.body}</p></div>
         {c.mine || admin
           ? <button type="button" onClick={() => remove(c.id)} aria-label="Delete comment" className={`flex items-center gap-1 p-1 text-xs font-bold ${confirm === c.id ? "text-rose-400" : "text-white/40"}`}><Trash2 size={14} />{confirm === c.id ? "Delete?" : ""}</button>
           : <button type="button" onClick={() => report(c.id)} aria-label="Report comment" className="p-1 text-white/35 hover:text-white/70"><Flag size={14} /></button>}
@@ -1722,7 +2111,8 @@ function Comments({ ep, api, say, onClose, onPosted, nickname, setNickname }: { 
     </div>
     {setNickname && <label className="flex items-center gap-2 border-t border-white/10 px-4 pt-2.5 text-xs text-white/55">Posting as<input value={nickname || ""} onChange={(e) => setNickname(e.target.value.slice(0, 24))} maxLength={24} placeholder="Your first name" aria-label="Your name for comments" className="min-w-0 flex-1 border-b border-dashed border-white/20 bg-transparent py-1 text-sm text-white outline-none placeholder:text-white/30" /></label>}
     <form onSubmit={post} className="flex items-center gap-2 border-t border-white/10 p-3">
-      <input value={text} onChange={(e) => setText(e.target.value)} maxLength={280} placeholder="Add a comment" aria-label="Write a comment" className="min-h-11 min-w-0 flex-1 rounded-full border border-white/10 bg-white/5 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-[#ff8a3d]" />
+      {pinAt !== null && <button type="button" onClick={() => setPin((v) => !v)} aria-pressed={pin} title={pin ? "Pinned to this moment. Tap to make it about the whole episode." : "About the whole episode. Tap to pin it to this moment."} className={`min-h-11 flex-none rounded-full px-3 text-xs font-bold tabular-nums ${pin ? "bg-[#ff8a3d] text-[#111013]" : "bg-white/10 text-white/55 line-through"}`}>{clock(pinAt)}</button>}
+      <input value={text} onChange={(e) => setText(e.target.value)} maxLength={280} placeholder={pin && pinAt !== null ? "Say something about this moment" : "Add a comment"} aria-label="Write a comment" className="min-h-11 min-w-0 flex-1 rounded-full border border-white/10 bg-white/5 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-[#ff8a3d]" />
       <button type="submit" disabled={!text.trim() || busy} className="min-h-11 rounded-full px-4 text-sm font-semibold bg-white text-[#111013] disabled:opacity-40">{busy ? <Loader2 size={16} className="animate-spin" /> : "Post"}</button>
     </form>
   </Sheet>;
@@ -1758,13 +2148,16 @@ function SettingsSheet({ es, student, update, onClose, sleepAt, setSleep, apple,
       <Row title="Appearance" sub={theme === "system" ? "Follows your phone or computer" : theme === "light" ? "Day: light pages" : "Night: dark pages"}>
         <div className="flex flex-none rounded-full bg-white/10 p-0.5">{([["light", "Day"], ["dark", "Night"], ["system", "Auto"]] as [Theme, string][]).map(([v, l]) => <button key={v} type="button" aria-pressed={theme === v} onClick={() => setTheme(v)} className={`rounded-full px-2.5 py-1.5 text-xs font-semibold ${theme === v ? "bg-white text-[#120e14]" : "text-white/70"}`}>{l}</button>)}</div>
       </Row>
-      <Row title="Smart ad skip" sub={es.settings.adMode === "auto" ? "Skips ads it's sure about, and asks about the rest. Undo any skip" : es.settings.adMode === "ask" ? "Shows a Skip button during ads; you decide" : "Ads play normally"}>
+      <Row title="Smart ad skip" sub={es.settings.adMode === "auto" ? `Skips ads it's sure about, and asks about the rest. Undo any skip${savedWords(adSavedSecs()) ? ` · ${savedWords(adSavedSecs())} of ads skipped so far` : ""}` : es.settings.adMode === "ask" ? "Shows a Skip button during ads; you decide" : "Ads play normally"}>
         <div className="flex flex-none rounded-full bg-white/10 p-0.5">{([["auto", "Auto"], ["ask", "Ask"], ["off", "Off"]] as [AdMode, string][]).map(([v, l]) => <button key={v} type="button" aria-pressed={es.settings.adMode === v} onClick={() => set({ adMode: v })} className={`rounded-full px-2.5 py-1.5 text-xs font-semibold ${es.settings.adMode === v ? "bg-white text-[#120e14]" : "text-white/70"}`}>{l}</button>)}</div>
       </Row>
       <Row title="Sleep timer" sub={sleepAt === null ? "Off" : sleepAt === "end" ? "Stops at the end of this episode" : `Stops in ${Math.max(1, Math.ceil((sleepAt - Date.now()) / 60000))} min`}>
         <div className="flex flex-none flex-wrap justify-end gap-1">{([[15, "15m"], [30, "30m"], [60, "1h"], ["end", "End"], [null, "Off"]] as [number | "end" | null, string][]).map(([v, l]) =>
           <button key={l} type="button" onClick={() => setSleep(typeof v === "number" ? Date.now() + v * 60000 : v)} aria-pressed={v === null ? sleepAt === null : v === "end" ? sleepAt === "end" : false} className={`rounded-full px-2.5 py-1.5 text-xs font-semibold ${(v === null && sleepAt === null) || (v === "end" && sleepAt === "end") ? "bg-white text-[#120e14]" : "bg-white/10 text-white/75"}`}>{l}</button>)}</div>
       </Row>
+      <Row title="Voice boost" sub={es.settings.voiceBoost ? "Clearer voices, quieter loud parts. Works on most episodes; a few play as they are" : "Clearer voices and quieter loud parts, great in the car"}><Switch on={es.settings.voiceBoost} label="Voice boost" onClick={() => set({ voiceBoost: !es.settings.voiceBoost })} /></Row>
+      <Row title="Hours back counter" sub={(() => { const t = sumKinds(readHoursBack().total); return `Shows the time skipped ads, intros and a faster speed gave back${t >= 60 ? ` · ${hoursWords(t)} so far` : ""}`; })()}><Switch on={es.settings.hoursBack} label="Hours back counter" onClick={() => set({ hoursBack: !es.settings.hoursBack })} /></Row>
+      {!student && <Row title="Comments as you listen" sub="Pop up listeners' comments at the moment they're about"><Switch on={es.settings.liveComments} label="Comments as you listen" onClick={() => set({ liveComments: !es.settings.liveComments })} /></Row>}
       <Row title="Speed"><Seg value={es.settings.speed} options={SPEEDS.map((s) => [s, `${s}×`] as [number, string])} onPick={(v) => set({ speed: v })} /></Row>
       <Row title="Skip the intro" sub="Jump past theme music, recaps, teasers and the standard welcome to where the episode starts"><Switch on={es.settings.skipIntro} label="Skip the intro" onClick={() => set({ skipIntro: !es.settings.skipIntro })} /></Row>
       <Row title="Swipe for me after" sub="Move to the next podcast by itself"><Seg value={es.settings.advance} options={[[60, "1 min"], [180, "3 min"], [0, "The end"]]} onPick={(v) => set({ advance: v as 0 | 60 | 180 })} /></Row>
@@ -1839,6 +2232,7 @@ function Library({ es, update, onEditInterests, onOpen, onMode }: { es: EarshotD
   return <div className="h-full overflow-y-auto px-4 pb-8 pt-16">
     <div className="flex items-center justify-between gap-3"><h3 className="text-2xl font-semibold">Library</h3><button type="button" onClick={onEditInterests} className="min-h-9 rounded-full bg-white/10 px-4 text-sm font-bold">Edit interests</button></div>
     <ModesHub es={es} onOpen={onMode} />
+    {es.settings.hoursBack && <div className="mt-6"><HoursBackCard onHide={() => update((e) => ({ ...e, settings: { ...e.settings, hoursBack: false } }))} /></div>}
     <div className="mt-6 grid grid-cols-3 gap-2">{([["Heard", es.heard.length], ["Liked", es.liked.length], ["Following", es.follows.length]] as const).map(([l, n]) => <div key={l} className="rounded-xl bg-white/[.03] p-3 ring-1 ring-white/[.06]"><b className="block text-xl font-semibold tabular-nums">{n}</b><span className="text-[11px] text-white/40">{l}</span></div>)}</div>
     <h4 className="mt-6 text-sm font-semibold">What your feed has learned</h4>
     <div className="mt-2 flex flex-col gap-2">{ranked.map(([g, v]) => <div key={g.id} className="grid grid-cols-[120px_1fr_32px] items-center gap-2 text-xs"><span className="truncate">{g.name}</span><span className="h-2 overflow-hidden rounded-full bg-white/10"><span className="block h-full rounded-full" style={{ width: `${Math.max(3, (Math.max(0, v) / max) * 100)}%`, background: g.color }} /></span><span className="text-right tabular-nums text-white/45">{Math.round((Math.max(0, v) / max) * 100)}</span></div>)}</div>

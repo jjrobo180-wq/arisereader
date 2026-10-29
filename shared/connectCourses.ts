@@ -4,9 +4,9 @@
 // hands-on activity and a quick check. Answers are checked again on the server before a lesson counts.
 
 import { COURSE_STARS, LESSON_VIDEOS, type ConnectVideo } from "./connectVideos";
-import { STAR_COURSES, STAR_COURSE_SKILLS, STAR_PATHS } from "./starCourses";
+import { CAREER_PATHS, CAREER_STAR_COURSES, STAR_COURSES, STAR_COURSE_SKILLS, STAR_PATHS } from "./starCourses";
 
-export type CourseField = "trades" | "eng" | "film" | "music" | "health" | "tech" | "biz" | "food" | "sports" | "air" | "games";
+export type CourseField = "trades" | "eng" | "film" | "music" | "health" | "tech" | "biz" | "food" | "sports" | "air" | "games" | "law";
 export type CoursePath = "trade" | "cert" | "college";
 export type CourseQuestion = { q: string; o: string[]; a: number; why: string };
 export type CourseLesson = {
@@ -30,7 +30,7 @@ export type Course = {
 export const COURSE_FIELDS: Record<CourseField, string> = {
   trades: "Trades", eng: "Engineering", film: "Film & Media", music: "Music Production",
   health: "Healthcare", tech: "Tech & Coding", biz: "Business",
-  food: "Culinary", sports: "Sports", air: "Aviation & Space", games: "Games & Esports",
+  food: "Culinary", sports: "Sports", air: "Aviation & Space", games: "Games & Esports", law: "Law & Justice",
 };
 export const COURSE_PATH_LABELS: Record<CoursePath, string> = { trade: "Apprenticeship", cert: "Certificate program", college: "College degree" };
 
@@ -372,19 +372,21 @@ export const COURSES: Course[] = [
         {q:"Who besides players works in esports?",o:["Nobody","Coaches, analysts, shoutcasters and event crews","Only the players' parents","Only the game's programmers"],a:1,why:"Like pro sports, esports needs many jobs around the players."}]}
  ]},
 ];
-// "Learn with a Star": 20 celebrity-led courses, 5 lessons each (shared/starCourses).
-COURSES.push(...STAR_COURSES);
+// "Learn with a Star": 20 celebrity-led courses, 5 lessons each (shared/starCourses), then 20 more:
+// the Law, Auto Mechanic, Doctor and Fast Food career paths and more stars for the other paths.
+COURSES.push(...STAR_COURSES, ...CAREER_STAR_COURSES);
 
 /** Groups of courses shown together as a career path. */
 export const LEARNING_PATHS: { id: string; title: string; blurb: string; field: CourseField; courses: string[] }[] = [
-  { id: "trades", title: "Skilled Trades Starter", blurb: "Wire, weld and build your way into the trades.", field: "trades", courses: ["elec", "weld", "engr"] },
-  { id: "create", title: "Create & Perform", blurb: "Direct a scene and produce your first beat.", field: "film", courses: ["film", "musc"] },
-  { id: "future", title: "Build the Future", blurb: "Think like an engineer and code your first game.", field: "eng", courses: ["engr", "tech"] },
-  { id: "care", title: "Help & Lead", blurb: "Healthcare skills plus how to run a business.", field: "health", courses: ["hlth", "biz"] },
-  { id: "games", title: "Games & Tech", blurb: "Design a level like Miyamoto and code your first game.", field: "games", courses: ["game", "tech"] },
-  { id: "action", title: "Fly, Play & Cook", blurb: "Earn your wings, work in pro sports and run a kitchen.", field: "air", courses: ["avia", "sprt", "culn"] },
+  { id: "trades", title: "Skilled Trades Starter", blurb: "Wire, weld and build your way into the trades.", field: "trades", courses: ["elec", "weld", "engr", "s-savage"] },
+  { id: "create", title: "Create & Perform", blurb: "Direct a scene and produce your first beat.", field: "film", courses: ["film", "musc", "s-duvernay"] },
+  { id: "future", title: "Build the Future", blurb: "Think like an engineer and code your first game.", field: "eng", courses: ["engr", "tech", "s-rober", "s-gates"] },
+  { id: "care", title: "Help & Lead", blurb: "Healthcare skills plus how to run a business.", field: "health", courses: ["hlth", "biz", "s-daymond"] },
+  { id: "games", title: "Games & Tech", blurb: "Design a level like Miyamoto and code your first game.", field: "games", courses: ["game", "tech", "s-ninja", "s-gates"] },
+  { id: "action", title: "Fly, Play & Cook", blurb: "Earn your wings, work in pro sports and run a kitchen.", field: "air", courses: ["avia", "sprt", "culn", "s-biles", "s-tyson"] },
 ];
-LEARNING_PATHS.unshift(...STAR_PATHS);
+// Star paths first (music first), then the four job paths (lawyer, mechanic, doctor, fast food).
+LEARNING_PATHS.unshift(...STAR_PATHS, ...CAREER_PATHS);
 
 /** Skills a finished course adds to the student's profile. */
 export const COURSE_SKILLS: Record<string, string[]> = {

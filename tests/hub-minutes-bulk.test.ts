@@ -544,7 +544,7 @@ test("the Minutes screen adds several students to a block, takes minutes with on
     'data-testid="minutes-pick"', 'placeholder="Other"', 'aria-label="Other minutes"', "QUICK_MINUTES.map((m) =>", "Their usual block", "Their usual kind", "already {already} min this day",
     'joinsPlan(now, fields) ? "Added to" : "Takes the place of"',
   ]) assert.ok(bulk.includes(part), part);
-  assert.ok(bulk.includes("sent to an AI service (OpenAI) to be read"), "the teacher is told where a screenshot goes");
+  assert.ok(bulk.includes("sent to an AI service to be read"), "the teacher is told where a screenshot goes");
   assert.ok(!bulk.includes('type="time"'), "a block takes the place of a clock time here too");
   for (const part of ['data-testid="minutes-not-met"', "Didn't meet", 'data-testid="minutes-other-amount"', "onAdd({ ...start, notMet: true, others })", '"not met": "Did not meet"', "canSkip(x.state)", "they stay every week",
     'data-testid="minutes-change"', "onPlan(item.planId!)", '"Add if you met"', "d.optional ? (d.done ? `Optional · ${d.done} min extra` : \"Optional · extra only\")", 'data-testid="minutes-optional-note"', 'data-testid="blocks-meeting-days"', "onSave(ready, SCHOOL_DAYS.filter((d) => free.includes(d)))"]) assert.ok(week.includes(part), part);

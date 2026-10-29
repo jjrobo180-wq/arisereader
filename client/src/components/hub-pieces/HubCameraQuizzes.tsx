@@ -15,7 +15,7 @@ type Row = {
 };
 type Picture = { at: string; reason: string; url: string };
 type Event = { at: string; type: string; detail: Record<string, any> | null };
-type Detail = { canVoid: boolean; session: Row & { answerTimes: Record<string, { first: number; changes: number }> | null; voidedAt: string | null }; timeline: Event[]; snapshots: Picture[]; earlierTries: { startedAt: string; leaves: number; snapshots: Picture[] }[] };
+type Detail = { canVoid: boolean; canDeletePictures?: boolean; session: Row & { answerTimes: Record<string, { first: number; changes: number }> | null; voidedAt: string | null }; timeline: Event[]; snapshots: Picture[]; earlierTries: { startedAt: string; leaves: number; snapshots: Picture[] }[] };
 
 const FLAG: Record<Flag, { label: string; tone: "red" | "amber" | "green" }> = { high: { label: "High concern", tone: "red" }, review: { label: "Check this", tone: "amber" }, clear: { label: "Looks fine", tone: "green" } };
 const LEAVE: Record<string, string> = { hidden: "switched to another tab or app", window: "clicked outside the quiz window", closed: "closed or reloaded the page", page: "went to another page in the app" };
@@ -177,7 +177,7 @@ function Review({ which, id, headers, onClose, onChanged }: { which: Which; id: 
         {s.voided && <p className={k.bad}>Points removed{s.voidedAt ? ` on ${fmtWhen(s.voidedAt)}` : ""}{s.voidReason ? `: "${s.voidReason}"` : "."}</p>}
 
         <section><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><h3 className={k.h}>Pictures</h3>
-            {detail.canVoid && !s.snapshotsPurged && (pics.length > 0 || detail.earlierTries.some((t) => t.snapshots.length)) && (deleting
+            {(detail.canDeletePictures ?? detail.canVoid) && !s.snapshotsPurged && (pics.length > 0 || detail.earlierTries.some((t) => t.snapshots.length)) && (deleting
               ? <span className="flex flex-wrap items-center gap-2"><span className={k.small}>Delete every picture from this quiz? This can't be undone.</span>
                   <button type="button" className={k.danger} disabled={busy} onClick={() => void deletePictures()} data-testid="np-review-delete-pictures-confirm">{busy ? "Deleting…" : "Delete pictures"}</button>
                   <button type="button" className={k.ghost} onClick={() => setDeleting(false)}>Cancel</button></span>

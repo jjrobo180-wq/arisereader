@@ -4058,8 +4058,8 @@ Generate exactly 10 questions.`;
         <AdminSection id="ai-settings" icon={Brain} tone="violet" title="AI quizzes" description="The key that powers Instant AI Quiz, and the rules every AI quiz follows.">
           <div className={sectionGroup}>
             <div className="space-y-3">
-              <Label className="text-sm font-medium">Instant AI Quiz — Perplexity API Key</Label>
-              <p className="text-xs text-muted-foreground">Students can generate 10-question quizzes for any book. Get a key from docs.perplexity.ai → API Keys.</p>
+              <Label className="text-sm font-medium">Instant AI Quiz — AI key</Label>
+              <p className="text-xs text-muted-foreground">Students can generate 10-question quizzes for any book. Paste the AI key for quizzes here.</p>
               {aiKeyConfigured ? (
                 <div className="flex items-center gap-2 text-sm text-green-400">
                   <span className="w-2 h-2 rounded-full bg-green-400" />
@@ -4077,7 +4077,7 @@ Generate exactly 10 questions.`;
                   type="password"
                   value={aiApiKey}
                   onChange={(e) => setAiApiKey(e.target.value)}
-                  placeholder="Paste your Perplexity API key (pplx-...)"
+                  placeholder="Paste the AI key"
                   className="bg-muted/30 border-border text-foreground"
                 />
                 <Button size="sm" variant="outline" onClick={handleSaveAiKey} disabled={!aiApiKey.trim()}>

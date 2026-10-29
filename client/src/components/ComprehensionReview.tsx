@@ -6,6 +6,7 @@ import { Check, Loader2, PenLine } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { COMPREHENSION } from "@shared/comprehension";
+import AiGradeSuggestion from "@/components/AiGradeSuggestion";
 import "./comprehension-review.css";
 
 type Item = {
@@ -77,7 +78,7 @@ export default function ComprehensionReview({ title = "Reading comprehension", o
       <div className="cr-head">
         <div>
           <h2 id="cr-title"><PenLine /> {title}</h2>
-          <p>Written answers students sent at the end of a book quiz. Give 0 to {COMPREHENSION.bonusPoints} extra points. The student gets a message with the points and your note.</p>
+          <p>Written answers students sent at the end of a book quiz. Give 0 to {COMPREHENSION.bonusPoints} extra points, or ask the AI for a suggested score with reasons and use it, change it, or grade it your way. The student gets a message with the points and your note.</p>
         </div>
         <div className="cr-tabs" role="tablist" aria-label="Which answers to show">
           <button type="button" role="tab" aria-selected={view === "pending"} className={view === "pending" ? "on" : ""} onClick={() => { setNotice(""); setView("pending"); }}>
@@ -160,6 +161,7 @@ function ResponseCard({ item, headers, onGraded }: { item: Item; headers: () => 
 
       {editing ? (
         <div className="cr-grade">
+      <AiGradeSuggestion itemId={item.id} headers={headers} onUse={(p, n) => { setPoints(String(p)); if (n !== undefined) setNote(n); }} />
           <div className="cr-grade-row">
             <span className="cr-grade-label" id={`cr-points-${item.id}`}>Extra points</span>
             <div className="cr-quick" role="group" aria-labelledby={`cr-points-${item.id}`}>

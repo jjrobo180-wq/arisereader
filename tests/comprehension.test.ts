@@ -8,6 +8,7 @@ import {
   comprehensionState, earnedOn, gradedMessage, proctorLabel, shortAnswers,
 } from "../shared/comprehension";
 import { registerComprehensionRoutes } from "../server/comprehension";
+import { AI_AREAS, AI_GRADE_PROMPT, cleanAiSuggestion } from "../shared/comprehension";
 import { fakeSupabase } from "./helpers/fakeSupabase";
 
 const full = { retell: "First Stanley went to camp. Then he dug holes.", problem: "The problem was the curse. It ended when he carried Zero.", lesson: "I learned that friends help you keep going." };
@@ -74,6 +75,8 @@ const users: Record<number, any> = {
 let db = fakeSupabase();
 const messages: [number, string][] = [];
 let cacheClears = 0;
+const aiCalls: { system: string; user: string }[] = [];
+let aiReply = "";
 const comprehension = registerComprehensionRoutes(app, (() => {}) as any, {
   // The routes keep the client they are given, so hand them one that reads this test's tables.
   db: () => ({ from: (table: string) => db.from(table) }),
@@ -81,6 +84,7 @@ const comprehension = registerComprehensionRoutes(app, (() => {}) as any, {
   clearPointCaches: () => { cacheClears++; },
   messageStudent: async (id, text) => { messages.push([id, text]); },
   adminIds: async () => [99],
+  askGrader: async (system, user) => { aiCalls.push({ system, user }); if (aiReply === "__credit__") throw new Error("credit"); return aiReply; },
 });
 
 async function call(method: "GET" | "POST", path: string, userId: number, body: any = {}, query: any = {}) {
@@ -221,4 +225,59 @@ test("the admin grades a student who has no teacher", async () => {
   assert.equal(r.status, 200);
   assert.equal(db.tables.manual_point_awards[0].points, 10);
   assert.equal(db.tables.manual_point_awards[0].awarded_by, 99);
+});
+
+const aiJson = (points: number, scores: number[]) => JSON.stringify({ points, areas: AI_AREAS.map((a, i) => ({ id: a.id, score: scores[i], why: `${a.label} reason` })), summary: "Clear retell with good details.", note: "Great retell! Next time add one more detail.", flags: [] });
+
+test("the AI suggestion rates every area 0–10 with a reason, and bad replies are refused", () => {
+  assert.deepEqual(AI_AREAS.map((a) => a.id), ["accuracy", "comprehension", "evidence", "organization", "spelling", "effort"]);
+  assert.match(AI_GRADE_PROMPT, /0 to 10/);
+  const s = cleanAiSuggestion(aiJson(8, [9, 8, 7, 8, 6, 9]))!;
+  assert.equal(s.points, 8);
+  assert.deepEqual(s.areas.map((a) => a.score), [9, 8, 7, 8, 6, 9]);
+  assert.equal(s.areas[4].label, "Spelling & grammar");
+  assert.equal(cleanAiSuggestion(aiJson(42, [12, -3, 7, 8, 6, 9]))!.points, 10, "clamped to 0–10");
+  assert.deepEqual(cleanAiSuggestion(aiJson(42, [12, -3, 7, 8, 6, 9]))!.areas.slice(0, 2).map((a) => a.score), [10, 0]);
+  assert.equal(cleanAiSuggestion("not json"), null);
+  assert.equal(cleanAiSuggestion(JSON.stringify({ points: 5, areas: [{ id: "accuracy", score: 5 }] })), null, "every area is needed");
+  const noPoints = JSON.parse(aiJson(0, [6, 6, 6, 6, 6, 6])); delete noPoints.points;
+  assert.equal(cleanAiSuggestion(noPoints)!.points, 6, "falls back to the average");
+});
+
+test("a teacher gets an AI suggested score for their student, but it saves and sends nothing", async () => {
+  await send(1, 5, { type: "parent", name: "Mom" });
+  const [row] = (await call("GET", "/api/comprehension/review", 10)).data.items;
+  aiReply = aiJson(7, [8, 7, 6, 7, 5, 8]);
+  aiCalls.length = 0; messages.length = 0;
+  const got = await call("POST", `/api/comprehension/review/${row.id}/suggest`, 10);
+  assert.equal(got.status, 200);
+  assert.equal(got.data.suggestion.points, 7);
+  assert.equal(got.data.suggestion.areas.length, 6);
+  assert.match(aiCalls[0].user, /Book: Holes/);
+  assert.match(aiCalls[0].user, /First Stanley went to camp/);
+  assert.match(aiCalls[0].user, /Book quiz score: 8\/10/);
+  // Nothing changed for the student until the teacher saves.
+  assert.equal((await call("GET", "/api/comprehension/review", 10)).data.items[0].status, "pending");
+  assert.equal(messages.length, 0);
+  // Asking again for the same answers doesn't call the AI again, unless the teacher asks for a fresh one.
+  await call("POST", `/api/comprehension/review/${row.id}/suggest`, 10);
+  assert.equal(aiCalls.length, 1);
+  await call("POST", `/api/comprehension/review/${row.id}/suggest`, 10, { again: true });
+  assert.equal(aiCalls.length, 2);
+  // Other teachers, parents and students can't.
+  assert.equal((await call("POST", `/api/comprehension/review/${row.id}/suggest`, 11)).status, 404);
+  assert.equal((await call("POST", `/api/comprehension/review/${row.id}/suggest`, 20)).status, 403);
+  assert.equal((await call("POST", `/api/comprehension/review/${row.id}/suggest`, 1)).status, 403);
+  // A reply that makes no sense is refused; the teacher just grades it.
+  aiReply = "nope";
+  assert.equal((await call("POST", `/api/comprehension/review/${row.id}/suggest`, 99, { again: true })).status, 502);
+  // Out of AI credit says so plainly, instead of "busy".
+  aiReply = "__credit__";
+  const broke = await call("POST", `/api/comprehension/review/${row.id}/suggest`, 99, { again: true });
+  assert.equal(broke.status, 503);
+  assert.match(broke.data.message, /aren.t available right now/);
+  assert.doesNotMatch(broke.data.message, /OpenAI|Groq|Perplexity|credit/);
+  // The teacher can use it or give their own score.
+  const saved = await call("POST", `/api/comprehension/review/${row.id}/grade`, 10, { points: 6, note: "Nice work" });
+  assert.equal(saved.data.points, 6);
 });

@@ -103,3 +103,79 @@ export function earnedOn(submittedAt: string | null | undefined, now = new Date(
   const t = Date.parse(String(submittedAt || ""));
   return new Date(Number.isFinite(t) ? t : now.getTime()).toISOString().slice(0, 10);
 }
+
+// ─── AI grading help ────────────────────────────────────────────────────────────────────────────
+// A teacher can ask the AI for a suggested score. The AI rates the answers in each area below from
+// 0 to 10 and says why, then suggests overall points (0–10) and a short note to the student. It is
+// only a suggestion: the teacher uses it, changes it, or gives their own grade. Nothing is saved or
+// sent to the student until the teacher presses Save.
+
+export const AI_AREAS = [
+  { id: "accuracy", label: "Accuracy", what: "Facts, characters and events match the book; nothing made up." },
+  { id: "comprehension", label: "Comprehension", what: "Shows they understood the main idea, the problem and the lesson, not just the surface." },
+  { id: "evidence", label: "Details & evidence", what: "Uses specific details or examples from the book to back up what they say." },
+  { id: "organization", label: "Organization", what: "The retell is in order and ideas connect clearly." },
+  { id: "spelling", label: "Spelling & grammar", what: "Spelling, capitals, punctuation and complete sentences, judged for the student's grade." },
+  { id: "effort", label: "Completeness & effort", what: "All three questions answered fully, in their own words, with real thought." },
+] as const;
+export type AiAreaId = (typeof AI_AREAS)[number]["id"];
+export type AiArea = { id: AiAreaId; label: string; score: number; why: string };
+export type AiSuggestion = {
+  /** Suggested extra points, 0–10. */
+  points: number;
+  areas: AiArea[];
+  /** Two or three sentences: why this score. */
+  summary: string;
+  /** A kind, specific note the teacher can send as is or change. */
+  note: string;
+  /** Anything the teacher should double-check (copied text, off-topic, a fact the AI isn't sure of). */
+  flags: string[];
+};
+
+export const AI_GRADE_PROMPT = `You help a K-12 teacher grade a student's written reading comprehension for a book. The student answered three questions: Retell, Problem and solution, Big idea.
+Rate the answers in each area from 0 to 10 (whole numbers), fairly for the student's grade level (a 2nd grader is not held to a 10th grader's spelling or depth):
+${AI_AREAS.map((a) => `- ${a.id} (${a.label}): ${a.what}`).join("\n")}
+Then suggest overall extra points from 0 to 10 (whole number) that reflects the areas together, weighting accuracy and comprehension most.
+If you do not know the book well, judge accuracy only from what the student wrote being consistent and plausible, and say so in flags.
+Flag answers that look copied, off-topic, unsafe, or that don't match the book.
+Be specific and quote the student's words briefly when you explain. Be kind and encouraging in the note to the student, written to them, one or two sentences, with one thing they did well and one thing to improve.
+Reply with JSON only: {"points": 0-10, "areas": [{"id": "accuracy", "score": 0-10, "why": "one or two sentences"}, ... all six areas ...], "summary": "2-3 sentences for the teacher", "note": "note to the student", "flags": ["..."]}`;
+
+export function aiGradeMessage(input: { bookTitle: string; author?: string; about?: string; grade?: string | null; quiz?: { score: number; total: number } | null; answers: Record<string, string> }): string {
+  const lines = [
+    `Book: ${input.bookTitle}${input.author ? ` by ${input.author}` : ""}`,
+    input.about ? `About the book: ${input.about.slice(0, 1500)}` : "",
+    `Student's grade: ${input.grade ? input.grade : "not given (assume elementary or middle school)"}`,
+    input.quiz ? `Book quiz score: ${input.quiz.score}/${input.quiz.total}` : "",
+    "",
+    ...COMPREHENSION_PROMPTS.map((p) => `${p.label} — ${p.text}\nStudent: ${String(input.answers[p.id] || "").slice(0, COMPREHENSION.maxChars)}`),
+  ];
+  return lines.filter((l, i) => l !== "" || i > 2).join("\n");
+}
+
+const whole = (v: unknown) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.max(0, Math.min(COMPREHENSION.bonusPoints, n)) : null; };
+const line = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "");
+
+/** What the AI sent back, made safe; null if it is unusable. Every area is present, in order. */
+export function cleanAiSuggestion(raw: unknown): AiSuggestion | null {
+  let data: any = raw;
+  if (typeof raw === "string") { try { data = JSON.parse(raw.replace(/^```(?:json)?\s*|\s*```$/g, "")); } catch { return null; } }
+  if (!data || typeof data !== "object") return null;
+  const given = new Map<string, any>((Array.isArray(data.areas) ? data.areas : []).filter((a: any) => a && typeof a === "object").map((a: any) => [String(a.id), a]));
+  const areas: AiArea[] = [];
+  for (const a of AI_AREAS) {
+    const g = given.get(a.id);
+    const score = whole(g?.score);
+    if (score === null) return null;
+    areas.push({ id: a.id, label: a.label, score, why: line(g?.why, 400) || "No reason given." });
+  }
+  const average = Math.round(areas.reduce((t, a) => t + a.score, 0) / areas.length);
+  const points = whole(data.points) ?? average;
+  return {
+    points,
+    areas,
+    summary: line(data.summary, 600),
+    note: line(data.note, COMPREHENSION.noteMax),
+    flags: (Array.isArray(data.flags) ? data.flags : []).map((f: unknown) => line(f, 200)).filter(Boolean).slice(0, 5),
+  };
+}

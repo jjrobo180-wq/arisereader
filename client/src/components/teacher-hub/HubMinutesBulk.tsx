@@ -308,7 +308,7 @@ export function BulkMinutesModal({ workspace, today, token, start, onSave, onClo
             <label className="block min-w-0 flex-1"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Someone not on the list</span><Field value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addName(); } }} maxLength={80} autoCapitalize="words" placeholder="Type a name" aria-label="Type a name that is not on the list" /></label>
             <button type="button" onClick={addName} disabled={!cleanName(newName)} className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 sm:min-h-10" data-testid="bulk-add-name"><Plus className="h-4 w-4" /> Add name</button>
           </div>
-          <p className="mt-2 text-xs leading-5 text-slate-500">A screenshot is sent to an AI service (OpenAI) to be read, along with your students' names so they can be matched. A.R.I.S.E. does not keep it. Leave out anything you are not allowed to share. You can also copy a screenshot and paste it here.</p>
+          <p className="mt-2 text-xs leading-5 text-slate-500">A screenshot is sent to an AI service to be read, along with your students' names so they can be matched. A.R.I.S.E. does not keep it. Leave out anything you are not allowed to share. You can also copy a screenshot and paste it here.</p>
         </div>
       </div>
     </HubModal>

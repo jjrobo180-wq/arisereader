@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { installGrok } from "./aiProvider";
+installGrok();
 import express, { Response, NextFunction } from 'express';
 import type { Request } from 'express';
 import { authMiddleware, registerRoutes } from "./routes";

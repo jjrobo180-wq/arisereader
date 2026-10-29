@@ -143,6 +143,7 @@ test("Sleep Finder is in the App Store and wired into LifeHub", () => {
   const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
   assert.match(read("client/src/components/family-hub/lifeApps.tsx"), /sleepfinder: \(p\) => <SleepFinder/);
   assert.match(read("client/src/components/family-hub/Members.tsx"), /sleepfinder: \{ label: "Sleep Finder"/);
-  assert.match(read("server/routes.ts"), /"\/api\/sleep-finder\/ask"\], authMiddleware, plans\.aiMeter/);
+  // Sleep Finder's AI is metered: it's in the list of routes that pass through plans.aiMeter (other routes may follow it).
+  assert.match(read("server/routes.ts"), /app\.post\(\[[^\]]*"\/api\/sleep-finder\/ask"[^\]]*\], authMiddleware, plans\.aiMeter\)/);
   assert.match(read("server/routes.ts"), /registerSleepFinderRoutes\(app, authMiddleware\)/);
 });

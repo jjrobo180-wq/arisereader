@@ -295,3 +295,7 @@ html[data-duo-pane] [data-testid="hub-chat-open"] { display: none !important; }
 html[data-duo-pane] [data-testid="hub-name"],
 html[data-duo-pane] [data-testid="support-button"],
 html[data-duo-pane] [data-testid="hub-todo-switch"] { display: none !important; }
+
+/* iPhone zooms the page in when you tap a text box with small type, and on a quick double tap. */
+html, body, button, a, input, select, textarea, [role="button"] { touch-action: manipulation; }
+@media (max-width: 1024px) and (hover: none) { input, textarea, select { font-size: max(16px, 1em) !important; } }

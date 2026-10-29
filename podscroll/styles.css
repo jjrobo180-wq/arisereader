@@ -6,5 +6,25 @@ html, body, #root { height: 100%; }
 /* The page's own color sits on html, under a see-through body, so the player can put the cover art
    there (EarshotPlayer) and any part of the screen iOS leaves uncovered shows the art. */
 html { background: #120e14; }
+/* iPhone zooms the page in when you tap a text box with small type, and on a quick double tap of a
+   button. Typing boxes use 16px on phones (iPhone's no-zoom size), and taps don't zoom. */
+html, body, button, a, input, select, textarea, [role="button"] { touch-action: manipulation; }
+@media (max-width: 1024px) { input, textarea, select, [contenteditable="true"] { font-size: 16px !important; } }
 body { margin: 0; background: transparent; color: #fff; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+/* Cover art: eases in from a slight zoom as it loads (Pod+ home, search, modes). */
+@keyframes pz-art-in { from { opacity: 0; transform: scale(1.14); } to { opacity: 1; transform: scale(1); } }
+.pz-art { opacity: 0; }
+.pz-art.pz-in { animation: pz-art-in .75s cubic-bezier(.2,.8,.2,1) both; }
+/* Episode thumbnails come alive: a slow drift on hover, and while a preview plays a livelier
+   zoom-and-pan, moving sound bars and a progress line. */
+@keyframes pz-drift { 0% { transform: scale(1.04) translate(0, 0); } 50% { transform: scale(1.12) translate(-3%, -2%); } 100% { transform: scale(1.08) translate(2.5%, 1.5%); } }
+@keyframes pz-live { 0% { transform: scale(1.06); } 100% { transform: scale(1.22) translate(-3%, -3%); } }
+@keyframes pz-eq { 0%, 100% { height: 30%; } 50% { height: 100%; } }
+@keyframes pz-fill { from { width: 0; } to { width: 100%; } }
+.pz-hover { transition: transform .6s cubic-bezier(.2,.8,.2,1); }
+@media (hover: hover) { .group:hover .pz-hover { animation: pz-drift 9s ease-in-out infinite alternate; } }
+.group:active .pz-hover { transform: scale(.98); }
+.pz-live { animation: pz-live 30s ease-out both; }
+.pz-eq { height: 30%; animation: pz-eq .9s ease-in-out infinite; }
+.pz-fill { width: 0; animation: pz-fill linear both; }
+@media (prefers-reduced-motion: reduce) { .pz-art { opacity: 1; } *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }

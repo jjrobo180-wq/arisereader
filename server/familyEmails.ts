@@ -57,6 +57,9 @@ function prune(state: FamilyEmailState, nowMs: number, today: string): FamilyEma
   return { ...state, weekly, nudge };
 }
 
+/** A sendable email address (name@domain.tld, no spaces). */
+export const isEmailAddress = (v: unknown) => typeof v === "string" && /^[^\s@<>(),;:"]+@[^\s@<>(),;:"]+\.[a-z]{2,}$/i.test(v.trim());
+
 /**
  * Sends what is due right now: the weekly updates on their day and hour, and nudges for children who
  * haven't passed a quiz in a while. Each email is noted as sent before it goes out, so a restart can't
@@ -73,7 +76,9 @@ export async function runFamilyEmails(deps: FamilyEmailDeps): Promise<PassResult
   const today = schoolClock(now).day;
   let state = readFamilyEmailState(await deps.getSetting(FAMILY_EMAIL_STATE_KEY));
   const optedOut = new Set(readOptOuts(await deps.getSetting(FAMILY_EMAIL_OPTOUT_KEY)));
-  const families = (await deps.families()).filter((f) => !optedOut.has(f.parentId) && f.email && f.children.length);
+  // Only real addresses: an account whose "email" is a username or a typo was refused by the email
+  // service on every pass (and tried again after each one, forever).
+  const families = (await deps.families()).filter((f) => !optedOut.has(f.parentId) && isEmailAddress(f.email) && f.children.length);
   const pairs = families.flatMap((f) => f.children.map((c) => ({ f, c, key: pairKey(f.parentId, c.id) })));
   // Only what is due is looked up and sent.
   const weeklyPairs = doWeekly ? pairs.filter((p) => state.weekly[p.key] !== today) : [];

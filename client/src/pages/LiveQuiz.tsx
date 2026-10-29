@@ -266,7 +266,8 @@ export default function LiveQuiz() {
   }
 
   async function answer(choice: string) {
-    if (!id || !room || room.myAnswer || timeLeft <= 0 || hiddenChoices.includes(choice)) return;
+    // Players can change their answer until time runs out or the teacher reveals it.
+    if (!id || !room || room.status !== "question" || room.myAnswer?.choice === choice || timeLeft <= 0 || hiddenChoices.includes(choice)) return;
     await run("answer", async () => {
       await api(`/api/live-sessions/${id}/answer`, { method: "POST", body: JSON.stringify({ questionIndex: room.currentQuestion, choice }) });
       await loadRoom(id);
@@ -549,7 +550,7 @@ export default function LiveQuiz() {
             const right = room.status === "results" && room.question?.correct === letter;
             const hidden = hiddenChoices.includes(letter);
             if (hidden) return <div key={letter} className="min-h-28 rounded-[1.5rem] border border-white/5 bg-white/[.02] opacity-20" />;
-            return <button key={letter} onClick={() => answer(letter)} disabled={!!busy || isTeacher || room.status !== "question" || !!room.myAnswer || timeLeft <= 0}
+            return <button key={letter} onClick={() => answer(letter)} disabled={!!busy || isTeacher || room.status !== "question" || timeLeft <= 0}
               className={"relative min-h-28 overflow-hidden rounded-[1.5rem] border bg-gradient-to-br p-5 text-left text-lg font-black shadow-xl transition enabled:hover:-translate-y-1 enabled:hover:scale-[1.01] " + answerStyles[n] + (chosen ? " ring-4 ring-white" : "") + (right ? " ring-4 ring-emerald-200" : "") + (room.status === "results" && !right ? " opacity-55" : "")}>
               <span className="mr-3 inline-grid h-10 w-10 place-items-center rounded-xl bg-black/20 text-xl">{letter}</span>{option}
               {right && <Check className="absolute right-4 top-1/2 -translate-y-1/2" size={28} />}
@@ -557,7 +558,7 @@ export default function LiveQuiz() {
             </button>;
           })}</div>
 
-          {!isTeacher && room.status === "question" && room.myAnswer && <div className="mt-4 rounded-2xl border border-cyan-300/20 bg-cyan-500/10 p-4 text-center font-black">Locked in! Watch the class screen for the reveal.</div>}
+          {!isTeacher && room.status === "question" && room.myAnswer && <div className="mt-4 rounded-2xl border border-cyan-300/20 bg-cyan-500/10 p-4 text-center font-black">{timeLeft > 0 ? <>You picked {room.myAnswer.choice}. Tap another answer to change it before time runs out.</> : <>Locked in: {room.myAnswer.choice}. Watch the class screen for the reveal.</>}</div>}
           {!isTeacher && room.status === "question" && timeLeft === 0 && !room.myAnswer && <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-center font-black">Time is up. Get ready for the answer.</div>}
           {!isTeacher && room.status === "results" && <div className={"mt-4 overflow-hidden rounded-2xl border p-5 text-center text-xl font-black " + (room.myAnswer?.correct ? "border-emerald-300/30 bg-emerald-500/15 text-emerald-100" : "border-white/10 bg-white/5")}>
             {room.myAnswer?.correct ? <><div className="mb-1 text-4xl">🎉</div>Correct! +{room.myAnswer.points} points</> : room.myAnswer ? "Good try — next round!" : "No answer this round."}

@@ -2,9 +2,9 @@
 // (Sleep, Commute... playlists), "Add to", and the AI podcast finder. Shared by both apps, so it
 // imports nothing from the Arise app itself.
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowUp, BookOpen, Car, Check, ChevronLeft, ChevronRight, Dumbbell, Headphones, ListPlus, Loader2, Moon, Play, Plus, Shirt, Sparkles, Trash2, X, type LucideIcon } from "lucide-react";
+import { ArrowUp, BookOpen, Bookmark, Car, Check, ChevronLeft, ChevronRight, Dumbbell, Headphones, ListPlus, Loader2, Moon, Newspaper, Play, Plus, Shirt, Sparkles, Trash2, X, type LucideIcon } from "lucide-react";
 import {
-  DEFAULT_MODES, GENRE, MODE_ICONS, clock, durationWords, hiRes, realEpisodes,
+  DEFAULT_MODES, GENRE, HUB_FONTS, MODE_ICONS, clock, durationWords, hiRes, hubTheme, inkOn, realEpisodes,
   type Earshot as EarshotData, type PodEpisode, type PodMode, type PodShow, type SavedEpisode,
 } from "@shared/earshot";
 
@@ -91,7 +91,6 @@ export function AddToSheet({ es, ep, saved, onSave, update, say, onClose, toSave
 }) {
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState("");
-  const [icon, setIcon] = useState(MODE_ICONS[0]);
   const inMode = (m: PodMode) => m.episodes.some((x) => x.id === ep.id);
   const toggle = (id: string) => update((e) => ({ ...e, modes: e.modes.map((m) => (m.id !== id ? m : inMode(m) ? { ...m, episodes: m.episodes.filter((x) => x.id !== ep.id) } : { ...m, episodes: [toSaved(ep), ...m.episodes].slice(0, 150) })) }));
   const allIn = es.modes.every(inMode);
@@ -99,39 +98,42 @@ export function AddToSheet({ es, ep, saved, onSave, update, say, onClose, toSave
   const create = () => {
     const n = name.replace(/\s+/g, " ").trim().slice(0, 30); if (!n) return;
     const id = `${n.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 16) || "mode"}-${Math.random().toString(36).slice(2, 6)}`;
-    update((e) => ({ ...e, modes: [...e.modes, { id, name: n, icon, episodes: [toSaved(ep)] }].slice(0, 24) }));
+    update((e) => ({ ...e, modes: [...e.modes, { id, name: n, icon: MODE_ICONS[0], episodes: [toSaved(ep)] }].slice(0, 24) }));
     setNaming(false); setName(""); say(`Made “${n}” and added this episode.`);
   };
   return <Sheet title="Add to" onClose={onClose}>
     <div className="overflow-y-auto px-4 pb-5">
-      <div className="flex items-center gap-3 rounded-2xl bg-white/5 p-2.5"><img src={hiRes(ep.art, 200)} alt="" referrerPolicy="no-referrer" className="h-12 w-12 rounded-lg object-cover" /><span className="min-w-0"><b className="line-clamp-1 text-sm">{ep.title}</b><span className="line-clamp-1 text-xs text-white/55">{ep.show}</span></span></div>
-      <Toggle on={saved} onClick={onSave} icon="🔖" title="Saved" sub="Your Library" />
-      <div className="mt-4 flex items-center justify-between"><h4 className="text-sm font-semibold">Pod Modes</h4><button type="button" onClick={all} className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold">{allIn ? "Remove from all" : "Add to all"}</button></div>
-      {es.modes.map((m) => <Toggle key={m.id} on={inMode(m)} onClick={() => toggle(m.id)} icon={m.icon} title={m.name} sub={`${m.episodes.length} episode${m.episodes.length === 1 ? "" : "s"}`} />)}
-      {naming ? <div className="mt-3 rounded-2xl bg-white/5 p-3">
-        <input autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") create(); }} maxLength={30} placeholder="Name it: Road trip, Bedtime, Cooking…" aria-label="Mode name" className="min-h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-base outline-none focus:border-[#ff8a3d]" />
-        <div className="mt-2 flex flex-wrap gap-1">{MODE_ICONS.map((ic) => <button key={ic} type="button" aria-pressed={icon === ic} onClick={() => setIcon(ic)} className={`grid h-9 w-9 place-items-center rounded-lg text-lg ${icon === ic ? "bg-white/25" : "bg-white/5"}`}>{ic}</button>)}</div>
-        <div className="mt-3 flex gap-2"><button type="button" onClick={create} disabled={!name.trim()} className="min-h-10 flex-1 rounded-full font-semibold bg-white text-[#111013] disabled:opacity-40">Create & add</button><button type="button" onClick={() => setNaming(false)} className="min-h-10 rounded-full bg-white/10 px-4 font-bold">Cancel</button></div>
-      </div> : <button type="button" onClick={() => setNaming(true)} className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-white/20 text-sm font-bold"><Plus size={16} />New mode</button>}
+      <div className="flex items-center gap-3 border-b border-white/[.07] pb-3"><img src={hiRes(ep.art, 200)} alt="" referrerPolicy="no-referrer" className="h-11 w-11 rounded-md object-cover" /><span className="min-w-0"><span className="line-clamp-1 text-sm font-semibold">{ep.title}</span><span className="line-clamp-1 text-xs text-white/50">{ep.show}</span></span></div>
+      <div className="mt-1 divide-y divide-white/[.06]">
+        <Toggle on={saved} onClick={onSave} icon={<Bookmark size={16} strokeWidth={1.8} />} title="Listen later" sub="In your Library" />
+      </div>
+      <div className="mt-5 flex items-baseline justify-between"><h4 className="text-[12px] font-semibold uppercase tracking-[.14em] text-white/45">Pod Modes</h4><button type="button" onClick={all} className="text-xs font-medium text-white/60 hover:text-white">{allIn ? "Remove from all" : "Add to all"}</button></div>
+      <div className="mt-1 divide-y divide-white/[.06]">
+        {es.modes.map((m) => { const th = hubTheme(m); return <Toggle key={m.id} on={inMode(m)} onClick={() => toggle(m.id)} icon={<span className="grid h-full w-full place-items-center rounded-full" style={{ background: th.bg, color: inkOn(th.bg) }}><ModeIcon m={m} size={15} /></span>} title={m.name} sub={`${m.episodes.length} episode${m.episodes.length === 1 ? "" : "s"}`} />; })}
+      </div>
+      {naming ? <div className="mt-3 flex gap-2">
+        <input autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") create(); if (e.key === "Escape") setNaming(false); }} maxLength={30} placeholder="Name it: Road trip, Bedtime…" aria-label="New mode name" className="min-h-11 min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-3 text-base outline-none focus:border-white/40" />
+        <button type="button" onClick={create} disabled={!name.trim()} className="min-h-11 rounded-xl bg-white px-4 text-sm font-semibold text-[#111013] disabled:opacity-40">Add</button>
+      </div> : <button type="button" onClick={() => setNaming(true)} className="mt-2 flex min-h-11 w-full items-center gap-3 rounded-xl px-1 text-sm font-medium text-white/70 hover:text-white"><span className="grid h-9 w-9 place-items-center rounded-full ring-1 ring-white/15"><Plus size={16} /></span>New mode</button>}
     </div>
   </Sheet>;
 }
-function Toggle({ on, onClick, icon, title, sub }: { on: boolean; onClick: () => void; icon: string; title: string; sub: string }) {
-  return <button type="button" role="checkbox" aria-checked={on} onClick={onClick} className="mt-2 flex w-full items-center gap-3 rounded-2xl bg-white/5 p-3 text-left">
-    <span className="grid h-10 w-10 flex-none place-items-center rounded-xl bg-white/10 text-xl">{icon}</span>
-    <span className="min-w-0 flex-1"><b className="block text-sm">{title}</b><span className="block text-xs text-white/55">{sub}</span></span>
-    <span className={`grid h-7 w-7 flex-none place-items-center rounded-full ${on ? "text-[#24160a]" : "bg-white/10"}`} style={on ? { background: ACCENT } : undefined}>{on ? <Check size={16} /> : <Plus size={16} />}</span>
+function Toggle({ on, onClick, icon, title, sub }: { on: boolean; onClick: () => void; icon: ReactNode; title: string; sub: string }) {
+  return <button type="button" role="checkbox" aria-checked={on} onClick={onClick} className="flex min-h-[56px] w-full items-center gap-3 py-2 text-left">
+    <span className="grid h-9 w-9 flex-none place-items-center overflow-hidden rounded-full bg-white/[.07] text-white/80">{icon}</span>
+    <span className="min-w-0 flex-1"><span className="block text-[15px] font-medium">{title}</span><span className="block text-xs text-white/45">{sub}</span></span>
+    <span className={`grid h-6 w-6 flex-none place-items-center rounded-full transition ${on ? "bg-white text-[#111013]" : "ring-1 ring-white/25"}`}>{on && <Check size={14} strokeWidth={2.5} />}</span>
   </button>;
 }
 
 // ===========================================================================
 // Pod Modes in the Library: a card per mode; open one to play it back to back
 // ===========================================================================
-/** The built-in modes get fine line icons; ones people make keep the emoji they picked. */
-const MODE_LINE: Record<string, LucideIcon> = { sleep: Moon, commute: Car, workout: Dumbbell, focus: Headphones, learn: BookOpen, chores: Shirt };
-function ModeIcon({ m, size = 18 }: { m: PodMode; size?: number }) {
+/** The built-in modes get fine line icons; ones people make get their first letter (no emoji). */
+const MODE_LINE: Record<string, LucideIcon> = { briefing: Newspaper, sleep: Moon, commute: Car, workout: Dumbbell, focus: Headphones, learn: BookOpen, chores: Shirt };
+export function ModeIcon({ m, size = 18 }: { m: { id: string; name: string }; size?: number }) {
   const I = MODE_LINE[m.id];
-  return I ? <I size={size} strokeWidth={1.6} /> : <span style={{ fontSize: size }} className="leading-none grayscale-[.3]">{m.icon}</span>;
+  return I ? <I size={size} strokeWidth={1.7} /> : <span style={{ fontSize: Math.round(size * 0.9) }} className="font-semibold leading-none">{(m.name.trim()[0] || "•").toUpperCase()}</span>;
 }
 
 export function ModesHub({ es, onOpen }: { es: EarshotData; onOpen: (m: PodMode) => void }) {
@@ -145,7 +147,7 @@ export function ModesHub({ es, onOpen }: { es: EarshotData; onOpen: (m: PodMode)
         const arts = m.episodes.slice(0, 3).map((e) => e.art);
         const blurb = DEFAULT_MODES.find((d) => d.id === m.id)?.blurb ?? "Your mode";
         return <button key={m.id} type="button" onClick={() => onOpen(m)} className={`flex min-h-[64px] w-full items-center gap-3.5 px-4 py-3 text-left transition active:bg-white/[.04] ${i ? "border-t border-white/[.06]" : ""}`}>
-          <span className="grid h-9 w-9 flex-none place-items-center rounded-full bg-white/[.06] text-white/80">{<ModeIcon m={m} />}</span>
+          {(() => { const th = hubTheme(m); return <span className="grid h-9 w-9 flex-none place-items-center rounded-full" style={{ background: th.bg, color: inkOn(th.bg), boxShadow: "inset 0 0 0 1px rgba(255,255,255,.08)" }}><ModeIcon m={m} /></span>; })()}
           <span className="min-w-0 flex-1">
             <span className="block text-[15px] font-semibold tracking-tight text-white/90">{m.name}</span>
             <span className="block truncate text-xs text-white/40">{m.episodes.length ? `${m.episodes.length} episode${m.episodes.length === 1 ? "" : "s"}` : blurb}</span>
@@ -164,19 +166,20 @@ export function ModeView({ mode, update, onPlay, onClose }: { mode: PodMode; upd
   const remove = (id: string) => update((e) => ({ ...e, modes: e.modes.map((m) => (m.id === mode.id ? { ...m, episodes: m.episodes.filter((x) => x.id !== id) } : m)) }));
   const move = (i: number, d: number) => update((e) => ({ ...e, modes: e.modes.map((m) => { if (m.id !== mode.id) return m; const list = m.episodes.slice(); const j = i + d; if (j < 0 || j >= list.length) return m; [list[i], list[j]] = [list[j], list[i]]; return { ...m, episodes: list }; }) }));
   const del = () => { update((e) => ({ ...e, modes: e.modes.filter((m) => m.id !== mode.id) })); onClose(); };
+  const th = hubTheme(mode); const ink = inkOn(th.bg); const font = HUB_FONTS[th.font];
   return <div className="absolute inset-0 z-40 overflow-y-auto bg-[#0e0d10] [scrollbar-width:none]" role="dialog" aria-label={mode.name}>
-    <div className="relative border-b border-white/[.06] px-5 pb-6 pt-[calc(env(safe-area-inset-top,0px)+4rem)]">
-      <button type="button" onClick={onClose} aria-label="Back" className="absolute left-3 top-[calc(env(safe-area-inset-top,0px)+0.75rem)] grid h-10 w-10 place-items-center rounded-full text-white/70 hover:bg-white/[.06]"><ChevronLeft size={22} /></button>
-      <span className="grid h-12 w-12 place-items-center rounded-full bg-white/[.06] text-white/85"><ModeIcon m={mode} size={22} /></span>
-      <h2 className="mt-4 text-[28px] font-semibold tracking-tight">{mode.name}</h2>
-      <p className="mt-1 text-sm text-white/45">{mode.episodes.length} episode{mode.episodes.length === 1 ? "" : "s"}{total ? ` · ${durationWords(total)}` : ""}</p>
+    <div className="relative px-5 pb-6 pt-[calc(env(safe-area-inset-top,0px)+4rem)]" style={{ background: th.bg, color: ink }}>
+      <button type="button" onClick={onClose} aria-label="Back" className="absolute left-3 top-[calc(env(safe-area-inset-top,0px)+0.75rem)] grid h-10 w-10 place-items-center rounded-full opacity-80 hover:opacity-100"><ChevronLeft size={22} /></button>
+      <span className="grid h-12 w-12 place-items-center rounded-full" style={{ background: th.accent, color: inkOn(th.accent) }}><ModeIcon m={mode} size={22} /></span>
+      <h2 className="mt-4 text-[32px] leading-tight" style={{ fontFamily: font.stack, fontWeight: font.weight, letterSpacing: font.tracking }}>{mode.name}</h2>
+      <p className="mt-1 text-sm opacity-60">{mode.episodes.length} episode{mode.episodes.length === 1 ? "" : "s"}{total ? ` · ${durationWords(total)}` : ""}</p>
       <div className="mt-4 flex gap-2">
-        <button type="button" disabled={!mode.episodes.length} onClick={() => onPlay(mode.episodes, 0)} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-white text-[15px] font-semibold text-[#111013] disabled:opacity-40"><Play size={16} fill="currentColor" />Play all</button>
-        <button type="button" disabled={mode.episodes.length < 2} onClick={() => { const i = Math.floor(Math.random() * mode.episodes.length); onPlay([...mode.episodes.slice(i), ...mode.episodes.slice(0, i)], 0); }} className="min-h-12 rounded-full px-5 text-sm font-semibold text-white/80 ring-1 ring-white/15 disabled:opacity-40">Shuffle</button>
+        <button type="button" disabled={!mode.episodes.length} onClick={() => onPlay(mode.episodes, 0)} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full text-[15px] font-semibold disabled:opacity-40" style={{ background: th.accent, color: inkOn(th.accent) }}><Play size={16} fill="currentColor" />Play all</button>
+        <button type="button" disabled={mode.episodes.length < 2} onClick={() => { const i = Math.floor(Math.random() * mode.episodes.length); onPlay([...mode.episodes.slice(i), ...mode.episodes.slice(0, i)], 0); }} className="min-h-12 rounded-full px-5 text-sm font-semibold disabled:opacity-40" style={{ boxShadow: `inset 0 0 0 1px ${ink}33` }}>Shuffle</button>
       </div>
     </div>
     <div className="px-4 pb-[calc(env(safe-area-inset-bottom,0px)+2.5rem)] pt-3">
-      {!mode.episodes.length && <p className="py-10 text-center text-sm text-white/55">Nothing here yet. Tap Save (or the + on a show's episodes) and pick “{mode.name}”.</p>}
+      {!mode.episodes.length && <p className="py-10 text-center text-sm text-white/55">Nothing here yet. Tap Save on any episode and pick “{mode.name}”.</p>}
       <ol className="flex flex-col gap-1">{mode.episodes.map((e, i) => <li key={e.id} className="grid grid-cols-[52px_1fr_auto] items-center gap-3 rounded-xl p-2 hover:bg-white/5">
         <button type="button" onClick={() => onPlay(mode.episodes, i)} aria-label={`Play ${e.title}`}><img src={hiRes(e.art, 200)} alt="" referrerPolicy="no-referrer" className="h-[52px] w-[52px] rounded-lg object-cover" /></button>
         <button type="button" onClick={() => onPlay(mode.episodes, i)} className="min-w-0 text-left"><b className="line-clamp-1 text-sm">{e.title}</b><span className="line-clamp-1 text-xs text-white/55">{e.show}{e.secs ? ` · ${durationWords(e.secs)}` : ""}</span></button>

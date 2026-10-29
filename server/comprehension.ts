@@ -3,9 +3,35 @@
 // Rules shared with the pages are in shared/comprehension.ts.
 import type { Express, RequestHandler } from "express";
 import {
-  COMPREHENSION_PROMPTS, allowsComprehension, awardReason, cleanComprehension, cleanNote, cleanPoints,
-  comprehensionState, earnedOn, gradedMessage, proctorLabel, submittedNotice,
+  AI_GRADE_PROMPT, COMPREHENSION_PROMPTS, aiGradeMessage, allowsComprehension, awardReason, cleanAiSuggestion, cleanComprehension, cleanNote, cleanPoints,
+  comprehensionState, earnedOn, gradedMessage, proctorLabel, submittedNotice, type AiSuggestion,
 } from "../shared/comprehension";
+import { createAttemptLimiter, waitWords } from "./attemptLimiter";
+
+/** Asks the AI for JSON (system prompt, user message) and returns its raw reply. */
+export type AskGrader = (system: string, user: string) => Promise<string>;
+
+/** The site's AI (OpenAI), asked for a JSON object. Low temperature so the same answers get the same score. */
+export const openAiGrader: AskGrader = async (system, user) => {
+  if (!process.env.OPENAI_API_KEY) throw new Error("off");
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "gpt-4.1", temperature: 0.2, max_tokens: 1500, response_format: { type: "json_object" },
+      messages: [{ role: "system", content: system }, { role: "user", content: user }],
+    }),
+    signal: AbortSignal.timeout(45_000),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    console.error("[comprehension] AI failed:", res.status, body.slice(0, 200));
+    // A 429 is either "slow down" or "the account has no credit left"; they need different messages.
+    throw new Error(/credit_balance_exhausted|insufficient_quota|billing/i.test(body) ? "credit" : res.status === 429 ? "busy" : "failed");
+  }
+  const payload: any = await res.json().catch(() => null);
+  return String(payload?.choices?.[0]?.message?.content || "").trim();
+};
 
 const TABLE = "comprehension_responses";
 
@@ -18,6 +44,8 @@ type Deps = {
   /** A message in the student's bell, from their teacher. */
   messageStudent: (studentId: number, text: string) => Promise<unknown>;
   adminIds: () => Promise<number[]>;
+  /** The AI used for suggested scores; left out, OpenAI. */
+  askGrader?: AskGrader;
 };
 
 export type QuizComprehension = {
@@ -35,6 +63,10 @@ export type SaveResult = null | "sent" | "not allowed" | "incomplete" | "already
 export function registerComprehensionRoutes(app: Express, authMiddleware: RequestHandler, deps: Deps) {
   let client: any = null;
   const db = () => (client ??= deps.db());
+  const askGrader = deps.askGrader ?? openAiGrader;
+  /** Suggestions already made, by response id and the exact answers (so changed answers get a fresh one). */
+  const suggestions = new Map<string, AiSuggestion>();
+  const suggestLimit = createAttemptLimiter({ max: 60, windowMs: 60 * 60_000 });
 
   /** Who grades: the admin sees everyone, a teacher sees their own students. Parents don't grade. */
   const scopeFor = async (req: any): Promise<{ role: "admin" | "teacher"; studentIds: number[] | null } | null> => {
@@ -195,6 +227,57 @@ export function registerComprehensionRoutes(app: Express, authMiddleware: Reques
     } catch (error: any) {
       console.error("[comprehension] grade", error?.message);
       res.status(500).json({ message: "Could not save the grade. Try again." });
+    }
+  });
+
+  // An AI-suggested score (0–10) with a reason for each area. Only a suggestion: nothing is saved
+  // or sent to the student; the teacher uses it, changes it, or grades on their own.
+  app.post("/api/comprehension/review/:id/suggest", authMiddleware, async (req: any, res) => {
+    try {
+      const scope = await scopeFor(req);
+      if (!scope) return res.status(403).json({ message: "Only teachers and the admin grade reading comprehension." });
+      const id = Number(req.params.id);
+      if (!Number.isSafeInteger(id) || id < 1) return res.status(404).json({ message: "Answers not found." });
+      const { data: r, error } = await db().from(TABLE).select("*").eq("id", id).maybeSingle();
+      if (error) throw error;
+      if (!r || !inScope(scope, r.student_id)) return res.status(404).json({ message: "Answers not found." });
+      const answers: Record<string, string> = Object.fromEntries(COMPREHENSION_PROMPTS.map((p) => [p.id, String(r.answers?.[p.id] || "")]));
+      const key = `${id}:${JSON.stringify(answers)}`;
+      const cached = suggestions.get(key);
+      if (cached && !req.body?.again) return res.json({ suggestion: cached });
+      const who = String(req.user.id);
+      const wait = suggestLimit.retryAfter(who);
+      if (wait > 0) return res.status(429).json({ message: `That's a lot of AI suggestions. Try again in ${waitWords(wait)}.` });
+      suggestLimit.fail(who);
+
+      const [{ data: book }, { data: student }, { data: attempt }] = await Promise.all([
+        db().from("books").select("*").eq("id", r.book_id).maybeSingle(),
+        db().from("users").select("*").eq("id", r.student_id).maybeSingle(),
+        r.attempt_id ? db().from("attempts").select("score,total").eq("id", r.attempt_id).maybeSingle() : Promise.resolve({ data: null }),
+      ]);
+      const text = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+      const message = aiGradeMessage({
+        bookTitle: text(book?.title) || "Book",
+        author: text(book?.author) || undefined,
+        about: text(book?.description) || text(book?.summary) || undefined,
+        grade: text(student?.grade) || (student?.grade != null ? String(student.grade) : null),
+        quiz: attempt ? { score: Number(attempt.score || 0), total: Number(attempt.total || 0) } : null,
+        answers,
+      });
+      let reply: string;
+      try { reply = await askGrader(AI_GRADE_PROMPT, message); }
+      catch (e: any) {
+        const why = String(e?.message || "");
+        return res.status(503).json({ message: why === "off" ? "AI suggestions aren't turned on for this site." : why === "credit" ? "AI suggestions aren't available right now. You can still grade it yourself." : why === "busy" ? "The AI is busy. Try again in a minute." : "The AI couldn't make a suggestion. Try again, or grade it yourself." });
+      }
+      const suggestion = cleanAiSuggestion(reply);
+      if (!suggestion) return res.status(502).json({ message: "The AI's answer didn't make sense. Try again, or grade it yourself." });
+      suggestions.set(key, suggestion);
+      if (suggestions.size > 500) suggestions.delete(suggestions.keys().next().value as string);
+      res.json({ suggestion });
+    } catch (error: any) {
+      console.error("[comprehension] suggest", error?.message);
+      res.status(500).json({ message: "Could not get an AI suggestion. Try again." });
     }
   });
 

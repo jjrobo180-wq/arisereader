@@ -78,8 +78,56 @@ export type SavedEpisode = { id: string; showId: string; title: string; show: st
 
 /** Pod Modes: listening hubs for a time of day or activity (Sleep, Commute...), each a playlist that
  *  plays back to back. The built-in ones always exist; people add their own. */
-export type PodMode = { id: string; name: string; icon: string; episodes: SavedEpisode[] };
+/** fresh: rebuilt every day with the newest matching episodes (freshDay: the day it last was, YYYY-MM-DD). */
+export type PodMode = { id: string; name: string; icon: string; episodes: SavedEpisode[]; theme?: HubTheme; fresh?: boolean; freshDay?: string };
+
+/** A Pod Mode's own look, set by the listener: page color, accent (buttons), and typeface. */
+export type HubFont = "sans" | "serif" | "mono" | "rounded" | "condensed";
+export type HubTheme = { bg: string; accent: string; font: HubFont };
+export const HUB_FONTS: Record<HubFont, { name: string; stack: string; weight: number; tracking: string }> = {
+  sans: { name: "Sans", stack: "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif", weight: 650, tracking: "-0.02em" },
+  serif: { name: "Serif", stack: "ui-serif, 'Iowan Old Style', 'Palatino Linotype', Georgia, serif", weight: 600, tracking: "-0.01em" },
+  mono: { name: "Mono", stack: "ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace", weight: 600, tracking: "-0.03em" },
+  rounded: { name: "Rounded", stack: "ui-rounded, 'SF Pro Rounded', 'Nunito', 'Varela Round', system-ui, sans-serif", weight: 700, tracking: "-0.01em" },
+  condensed: { name: "Condensed", stack: "'Avenir Next Condensed', 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', sans-serif", weight: 700, tracking: "0" },
+};
+/** Ready-made colors for the theme editor (a custom color is allowed too). */
+export const HUB_BACKGROUNDS = ["#111013", "#1F2A44", "#0F3D3E", "#2B2118", "#3B1F2B", "#E8E1D3", "#F4F1EA", "#DCE6F0", "#E9F0E3", "#FFFFFF"] as const;
+export const HUB_ACCENTS = ["#FF6A1F", "#F2C94C", "#6EE7B7", "#93C5FD", "#C4B5FD", "#F9A8D4", "#FFFFFF", "#111013"] as const;
+const BUILT_IN_THEMES: Record<string, HubTheme> = {
+  briefing: { bg: "#FFFFFF", accent: "#111013", font: "serif" },
+  sleep: { bg: "#1F2A44", accent: "#C4B5FD", font: "serif" },
+  commute: { bg: "#111013", accent: "#F2C94C", font: "sans" },
+  workout: { bg: "#2B2118", accent: "#FF6A1F", font: "condensed" },
+  focus: { bg: "#0F3D3E", accent: "#6EE7B7", font: "mono" },
+  learn: { bg: "#F4F1EA", accent: "#111013", font: "serif" },
+  chores: { bg: "#DCE6F0", accent: "#111013", font: "rounded" },
+};
+const HEX = /^#[0-9a-f]{6}$/i;
+/** A mode's theme: its own if set, else a built-in one, else a steady pick from the name. */
+export function hubTheme(m: Pick<PodMode, "id" | "theme">): HubTheme {
+  if (m.theme) return m.theme;
+  if (BUILT_IN_THEMES[m.id]) return BUILT_IN_THEMES[m.id];
+  let h = 0; for (const ch of m.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const bgs = ["#111013", "#1F2A44", "#0F3D3E", "#2B2118", "#3B1F2B"];
+  return { bg: bgs[h % bgs.length], accent: HUB_ACCENTS[h % 6], font: "sans" };
+}
+export function cleanHubTheme(v: unknown): HubTheme | undefined {
+  const r = v && typeof v === "object" ? (v as Record<string, unknown>) : null;
+  if (!r || typeof r.bg !== "string" || typeof r.accent !== "string" || !HEX.test(r.bg) || !HEX.test(r.accent)) return undefined;
+  const font = typeof r.font === "string" && r.font in HUB_FONTS ? (r.font as HubFont) : "sans";
+  return { bg: r.bg.toUpperCase(), accent: r.accent.toUpperCase(), font };
+}
+/** Relative lightness (0 dark – 1 light), for picking readable text on a color. */
+export function lightness(hex: string): number {
+  const n = parseInt(hex.replace("#", ""), 16); if (!Number.isFinite(n)) return 0;
+  const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((x) => { const v = x / 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+/** Text that reads on this color: near-black on light colors, white on dark ones. */
+export const inkOn = (hex: string) => (lightness(hex) > 0.35 ? "#111013" : "#FFFFFF");
 export const DEFAULT_MODES: readonly { id: string; name: string; icon: string; blurb: string }[] = [
+  { id: "briefing", name: "Morning Briefing", icon: "📰", blurb: "Today's newest top stories, new every day" },
   { id: "sleep", name: "Sleep", icon: "🌙", blurb: "Calm voices to drift off to" },
   { id: "commute", name: "Commute", icon: "🚗", blurb: "Right-sized for the drive" },
   { id: "workout", name: "Workout", icon: "💪", blurb: "Energy for the gym or a run" },
@@ -94,7 +142,13 @@ export const hiRes = (url: string, size = 1200) => String(url || "").replace(/\/
 /** Smart ad skip: auto skips ads it's sure about (and asks about the rest), ask always shows a Skip button, off does nothing. */
 export type AdMode = "auto" | "ask" | "off";
 export const AD_MODES: readonly AdMode[] = ["auto", "ask", "off"];
-export type EarshotSettings = { speed: number; skipIntro: boolean; advance: Advance; notes: boolean; explicit: boolean; adMode: AdMode; fullCover: boolean; hideTeasers: boolean };
+export type EarshotSettings = { speed: number; skipIntro: boolean; advance: Advance; notes: boolean; explicit: boolean; adMode: AdMode; fullCover: boolean; hideTeasers: boolean;
+  /** Clearer voices and quieter loud parts (Web Audio, on audio played through the server). */
+  voiceBoost: boolean;
+  /** Show the Hours back counter (time skipped ads, intros and speed gave back). */
+  hoursBack: boolean;
+  /** Pop up listeners' timestamped comments as their moment plays. */
+  liveComments: boolean };
 export type Earshot = {
   setupDone: boolean;
   genres: string[];
@@ -110,16 +164,20 @@ export type Earshot = {
   skipped: string[];
   /** Shows they support: ads on these are never skipped. */
   adFree: string[];
+  /** Shows they never want to see again ("Don't show this podcast"). */
+  blocked: string[];
   /** Pod Modes (the built-in ones first). */
   modes: PodMode[];
   settings: EarshotSettings;
 };
 
 export const EARSHOT_LIMITS = { follows: 200, liked: 300, saved: 300, heard: 200, skipped: 80, comment: 280, search: 80, modes: 24, modeEpisodes: 150 } as const;
-export const defaultModes = (): PodMode[] => DEFAULT_MODES.map((m) => ({ id: m.id, name: m.name, icon: m.icon, episodes: [] }));
+/** Modes that start out Fresh (rebuilt daily). */
+export const FRESH_BY_DEFAULT = ["briefing"];
+export const defaultModes = (): PodMode[] => DEFAULT_MODES.map((m) => ({ id: m.id, name: m.name, icon: m.icon, episodes: [], ...(FRESH_BY_DEFAULT.includes(m.id) ? { fresh: true } : {}) }));
 export const SPEEDS = [1, 1.25, 1.5, 2] as const;
-export const defaultSettings = (): EarshotSettings => ({ speed: 1, skipIntro: true, advance: 0, notes: true, explicit: false, adMode: "auto", fullCover: false, hideTeasers: true });
-export const emptyEarshot = (): Earshot => ({ setupDone: false, genres: [], pace: "mix", taste: {}, follows: [], liked: [], saved: [], heard: [], skipped: [], adFree: [], modes: defaultModes(), settings: defaultSettings() });
+export const defaultSettings = (): EarshotSettings => ({ speed: 1, skipIntro: true, advance: 0, notes: true, explicit: false, adMode: "auto", fullCover: false, hideTeasers: true, voiceBoost: false, hoursBack: true, liveComments: true });
+export const emptyEarshot = (): Earshot => ({ setupDone: false, genres: [], pace: "mix", taste: {}, follows: [], liked: [], saved: [], heard: [], skipped: [], adFree: [], blocked: [], modes: defaultModes(), settings: defaultSettings() });
 
 // ---------------------------------------------------------------------------
 // Reading Apple's answers
@@ -219,7 +277,9 @@ export const appleLookupUrl = (showId: string, limit: number) => `https://itunes
 // ---------------------------------------------------------------------------
 
 /** How each thing someone does moves their taste for that show's genre. */
-export const SIGNALS = { like: 3, unlike: -2.5, save: 2, share: 3, comment: 2, follow: 4, unfollow: -3, listen: 1, finish: 1.5, skip: -0.6, open: 0.5 } as const;
+/** How much each thing someone does moves a genre. Listening time is graded, like a short-video feed:
+ *  a skip in the first seconds counts against, a short pass slightly against, 30 s for, 5 min more so. */
+export const SIGNALS = { like: 3, unlike: -2.5, save: 2, share: 3, comment: 2, follow: 4, unfollow: -3, listen: 1, deep: 1.6, finish: 1.5, skip: -0.6, pass: -0.25, open: 0.5, dislike: -2, block: -3 } as const;
 export type Signal = keyof typeof SIGNALS;
 export const tasteOf = (e: Earshot, genre: string) => e.taste[genre] ?? (e.genres.includes(genre) ? 3 : 0.3);
 
@@ -247,6 +307,10 @@ export function scoreShow(e: Earshot, c: Candidate, ctx: FeedContext): number {
   if (ctx.recentShows.includes(c.show.id)) s -= 2;
   const skips = e.skipped.slice(0, 30).filter((x) => x === c.show.id).length;
   s -= 1.2 * skips;
+  // The show itself, not only its genre: shows they liked, saved or put in a Pod Mode come back more.
+  if (e.liked.some((x) => x.showId === c.show.id)) s += 1.2;
+  if (e.saved.some((x) => x.showId === c.show.id)) s += 0.6;
+  if (e.modes.some((m) => m.episodes.some((x) => x.showId === c.show.id))) s += 0.8;
   const days = c.show.latest ? (Date.now() - Date.parse(c.show.latest)) / 86_400_000 : 365;
   if (Number.isFinite(days) && days < 10) s += 0.5;                  // still making new episodes
   else if (!Number.isFinite(days) || days > 400) s -= 0.6;
@@ -262,7 +326,8 @@ export function pickNext(e: Earshot, pool: Candidate[], ctx: FeedContext, n: num
   const shown = new Set(ctx.shownShows instanceof Set ? Array.from(ctx.shownShows) : ctx.shownShows);
   const follows = new Set(ctx.follows instanceof Set ? Array.from(ctx.follows) : ctx.follows);
   for (let k = 0; k < n; k++) {
-    const left = pool.filter((c) => !shown.has(c.show.id));
+    const blocked = new Set(e.blocked ?? []);
+    const left = pool.filter((c) => !shown.has(c.show.id) && !blocked.has(c.show.id));
     if (!left.length) break;
     let pick: Candidate | null = null; let explore = false;
     if (random() < 0.15) {
@@ -399,18 +464,31 @@ const idList = (v: unknown, max: number, unique = true) => {
 };
 
 function cleanModes(v: unknown): PodMode[] {
-  const out = defaultModes();
+  const defs = defaultModes();
+  const out: PodMode[] = [];
+  let custom = 0;
   for (const x of Array.isArray(v) ? v : []) {
     const r = obj(x); if (!r) continue;
     const id = str(r.id, 24).replace(/[^a-z0-9-]/gi, "").toLowerCase();
-    if (!id) continue;
+    if (!id || out.some((m) => m.id === id)) continue;
     const episodes = list(r.episodes, EARSHOT_LIMITS.modeEpisodes, cleanSavedEpisode);
-    const known = out.find((m) => m.id === id);
-    if (known) { known.episodes = episodes; continue; }
+    const theme = cleanHubTheme(r.theme);
+    const freshDay = /^\d{4}-\d{2}-\d{2}$/.test(String(r.freshDay ?? "")) ? String(r.freshDay) : "";
+    const extra = { ...(theme ? { theme } : {}), ...(freshDay ? { freshDay } : {}) };
+    const known = defs.find((m) => m.id === id);
+    if (known) {
+      const fresh = typeof r.fresh === "boolean" ? r.fresh : known.fresh;
+      const { fresh: _f, ...base } = known;
+      out.push({ ...base, episodes, ...extra, ...(fresh ? { fresh: true } : {}) });
+      continue;
+    }
     const name = str(r.name, 30).replace(/\s+/g, " ").trim();
-    if (!name || out.length >= EARSHOT_LIMITS.modes) continue;
-    out.push({ id, name, icon: MODE_ICONS.includes(r.icon) ? r.icon : "🎙️", episodes });
+    if (!name || custom >= EARSHOT_LIMITS.modes - defs.length) continue;
+    custom++;
+    out.push({ id, name, icon: MODE_ICONS.includes(r.icon) ? r.icon : "🎙️", episodes, ...extra, ...(r.fresh === true ? { fresh: true } : {}) });
   }
+  // Built-in modes are always there; one that's missing (a new one) goes in at its usual place.
+  defs.forEach((d, i) => { if (!out.some((m) => m.id === d.id)) out.splice(Math.min(i, out.length), 0, d); });
   return out;
 }
 
@@ -433,6 +511,7 @@ export function cleanEarshot(v: unknown): Earshot {
     heard: idList(r.heard, EARSHOT_LIMITS.heard),
     skipped: idList(r.skipped, EARSHOT_LIMITS.skipped, false),
     adFree: idList(r.adFree, 300),
+    blocked: idList(r.blocked, 300),
     modes: cleanModes(r.modes),
     settings: {
       speed: (SPEEDS as readonly number[]).includes(s.speed) ? s.speed : d.speed,
@@ -443,6 +522,9 @@ export function cleanEarshot(v: unknown): Earshot {
       fullCover: s.fullCover === true,
       hideTeasers: typeof s.hideTeasers === "boolean" ? s.hideTeasers : d.hideTeasers,
       adMode: AD_MODES.includes(s.adMode) ? s.adMode : s.adSkip === false ? "off" : d.adMode,
+      voiceBoost: s.voiceBoost === true,
+      hoursBack: typeof s.hoursBack === "boolean" ? s.hoursBack : d.hoursBack,
+      liveComments: typeof s.liveComments === "boolean" ? s.liveComments : d.liveComments,
     },
   };
 }
@@ -552,11 +634,15 @@ export function parseChaptersJson(v: unknown): Chapter[] {
     .map((c: any) => ({ s: Number(c.startTime), title: plainText(c.title, 120) })).filter((c: Chapter) => c.title).sort((a: Chapter, b: Chapter) => a.s - b.s).slice(0, 200);
 }
 
+/** Chapter titles publishers give ad breaks ("Sponsor", "Ad break", "Midroll", "A word from our sponsors"...). */
+export const AD_CHAPTER = /\b(ads?|sponsors?|sponsored|sponsor(ship)? (break|message|read)|advert(isement)?s?|promos?|promotions?|commercials?|ad break|commercial break|mid-?rolls?|pre-?rolls?|post-?rolls?|word from (our|today's|the) (sponsors?|partners?)|our (sponsors?|partners?)|paid (promotion|partnership)|brought to you by|supported by|thanks to our sponsors?|message from our sponsors?)\b/i;
+/** ...but not a chapter about advertising ("How ads work", "Ad tech", "Promoted to manager"). */
+const NOT_AD_CHAPTER = /\b(about|how|why|history of|future of|the business of) (ads?|advertising|sponsors?)\b|\bad ?tech\b|\bpromoted\b/i;
 /** Chapters the publisher titled as ads or sponsors become ad ranges. */
 export function adsFromChapters(chapters: Chapter[], duration: number): AdRange[] {
   const out: AdRange[] = [];
   chapters.forEach((c, i) => {
-    if (!/\b(ads?|sponsors?|sponsored|advert(isement)?s?|promos?|commercials?|ad break)\b/i.test(c.title)) return;
+    if (!AD_CHAPTER.test(c.title) || NOT_AD_CHAPTER.test(c.title)) return;
     const e = chapters[i + 1]?.s ?? duration;
     if (e - c.s >= 5 && e - c.s <= 420) out.push({ s: c.s, e, label: c.title });
   });

@@ -26,7 +26,7 @@ img{max-width:100%}
   --grad:linear-gradient(115deg,#10B9AF 0%,#5279ED 53%,#9363E7 100%);
   --grad-reader:linear-gradient(135deg,#7C3AED 0%,#C026D3 52%,#06B6D4 100%);
   --paper:#FFFFFF; --paper-ink:#1C2238; --paper-line:#D6DDF0; --seal:#5169ED; --seal-dot:#11B9AF;
-  --f-trades:#F0703A; --f-eng:#4F72E8; --f-film:#E5484D; --f-music:#D946A8; --f-health:#12A27A; --f-tech:#0EA5C6; --f-biz:#65A30D; --f-food:#D97706; --f-sports:#9333EA; --f-air:#0369A1; --f-games:#7C3AED;
+  --f-trades:#F0703A; --f-eng:#4F72E8; --f-film:#E5484D; --f-music:#D946A8; --f-health:#12A27A; --f-tech:#0EA5C6; --f-biz:#65A30D; --f-food:#D97706; --f-sports:#9333EA; --f-air:#0369A1; --f-games:#7C3AED; --f-law:#B45309;
   --font-display:Manrope,"DM Sans",system-ui,sans-serif;
   --font-body:"DM Sans",system-ui,sans-serif;
   --font-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
@@ -369,6 +369,22 @@ main{padding-block:40px 90px}
 .invite .who{flex:1;min-width:180px;display:grid}
 .invite-actions{display:flex;gap:8px}
 .empty-in{padding:18px 20px;color:var(--ink-3)}
+/* admin: add students to Connect */
+.adm-bar{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) auto;gap:10px;align-items:end;padding:16px 20px;border-bottom:1px solid var(--line)}
+@media (max-width:760px){.adm-bar{grid-template-columns:1fr}}
+.adm-bar label{display:grid;gap:6px;font-size:.8rem;font-weight:800;color:var(--ink-3)}
+.adm-bar input{border:1px solid var(--line-2);background:#fff;border-radius:12px;padding:9px 12px;font-weight:600;font-size:.9rem;width:100%;color:var(--ink)}
+.adm-row{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 20px;border-bottom:1px solid var(--line)}
+.adm-row:last-child{border-bottom:0}
+.adm-row input[type=checkbox]{width:20px;height:20px;accent-color:var(--blue)}
+.adm-row .who{display:grid;min-width:0}
+.adm-row .who b{overflow-wrap:anywhere}
+.adm-row .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+@media (max-width:620px){.adm-row{grid-template-columns:auto auto minmax(0,1fr)}.adm-row .acts{grid-column:1/-1;justify-content:flex-start}}
+.added-pill{font-size:.74rem;font-weight:800;padding:3px 9px;border-radius:999px;background:color-mix(in srgb,var(--green,#12A27A) 14%,#fff);color:#0d7a5c}
+.my-path{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:16px 20px;margin-bottom:18px;border-radius:18px;background:linear-gradient(120deg,#EEF1FF,#F4EEFF);border:1px solid #DCE2FB}
+.my-path .who{flex:1;min-width:200px;display:grid;gap:2px}
+.my-path .who b{font-size:1.1rem}
 .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
 .pcard{overflow:hidden;display:grid;justify-items:center;text-align:center;padding-bottom:14px;gap:8px;box-shadow:none}
 .pcard-banner{height:56px;width:100%;background:linear-gradient(120deg,color-mix(in srgb,var(--pc) 70%,#fff),color-mix(in srgb,var(--pc) 25%,#fff))}
@@ -735,7 +751,8 @@ const I = {
   pulse:'<path d="M2 12h4l2.5-6 5 12 2.5-6h6"/>',
   code:'<path d="M8 6 2 12l6 6M16 6l6 6-6 6M14 4l-4 16"/>',
   flame:'<path d="M12 2c3 4 6.5 7 6.5 11.5a6.5 6.5 0 0 1-13 0C5.5 10 8 8 9 5.5c1 2.2 2.2 3.4 3.5 3.6C12.8 6.5 11.5 4.5 12 2z"/>',
-  chart:'<path d="M3 3v18h18M7 15l4-4 3 3 6-7"/>'
+  chart:'<path d="M3 3v18h18M7 15l4-4 3 3 6-7"/>',
+  scale:'<path d="M12 3v18M7 21h10M4 7h16M7 7l-3 7a3 3 0 0 0 6 0zM17 7l-3 7a3 3 0 0 0 6 0z"/>'
 };
 const svg = (k, extra='') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${I[k]||''}</svg>`;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -788,7 +805,7 @@ function goSignIn(path){ try { sessionStorage.setItem('arise_return_to', '/socia
 let CAT = null;                 // catalog: careers, quests, roadmap...
 let ME = null;                  // /me response
 let PLAN = null;                // /api/addons: the Learning Bundle, its trial and prices
-const S = { tab:'stars', sfield:'all', starf:'all', interests:new Set(), lfield:'all', lpath:null, course:null, lesson:null, answers:{}, filterC:'all', filterP:'all', q:'', composeOpen:false, feed:null, approvals:null, accessRequests:null, events:null, children:null, childId:null, classInfo:null, menu:false, confirmDelete:null };
+const S = { tab:'stars', sfield:'all', starf:'all', interests:new Set(), lfield:'all', lpath:null, course:null, lesson:null, answers:{}, filterC:'all', filterP:'all', q:'', composeOpen:false, feed:null, approvals:null, accessRequests:null, events:null, children:null, childId:null, classInfo:null, menu:false, confirmDelete:null, adm:null, admPick:new Set(), admPath:'', admQ:'', admShow:'all' };
 const C = id => CAT.careers.find(c => c.id === id);
 const role = () => ME?.user.role || 'guest';
 const P = () => ME?.profile;
@@ -828,7 +845,7 @@ function tabs(){
   if (r==='teacher' && !ME.access) return [['approvals','Approvals','inbox']];
   if (r==='student') return [['stars','Stars','tv'],['feed','Home','feed'],['explore','Explore','explore'],['quests','Quests','quest'],['events','Events','event']].concat(young(ME.user.band)?[]:[['paths','Paths','paths']]);
   if (r==='teacher') return [['stars','Stars','tv'],['feed','Home','feed'],['approvals','Approvals','inbox'],['class','My Class','class'],['events','Events','event'],['explore','Explore','explore']];
-  if (r==='admin') return [['stars','Stars','tv'],['feed','Home','feed'],['approvals','Approvals','inbox'],['explore','Explore','explore']];
+  if (r==='admin') return [['stars','Stars','tv'],['feed','Home','feed'],['students','Add students','class'],['approvals','Approvals','inbox'],['explore','Explore','explore']];
   if (r==='parent') return [['stars','Stars','tv'],['family','Home','feed'],['explore','Explore','explore'],['paths','Paths','paths']];
   return [];
 }
@@ -1166,6 +1183,54 @@ function viewApprovals(){
     <div class="row"><button class="btn small" data-act="review" data-id="${p.id}" data-v="approve">${svg('check')}Approve</button><button class="btn ghost small" data-act="review" data-id="${p.id}" data-v="reject">Send back</button></div></div>`).join('')
   : '<p class="empty-in">You’re all caught up on posts.</p>'}</div></section><aside class="rail-r">${railHTML()}</aside></div>`;
 }
+/* ================= ADMIN: ADD STUDENTS ================= */
+function pathTitle(id){ return (CAT.learningPaths.find(p=>p.id===id)||{}).title || ''; }
+function pathOptions(sel, none){ return `<option value="">${esc(none)}</option>${CAT.learningPaths.map(p=>`<option value="${esc(p.id)}" ${p.id===sel?'selected':''}>${esc(p.title)}</option>`).join('')}`; }
+function viewAdminStudents(){
+  const d = S.adm;
+  const head = `<div class="box pad"><div class="eyebrow">Admin</div><h1 class="page-h" style="margin-top:6px">Add students to A.R.I.S.E. Connect</h1>
+    <p class="sub" style="margin-top:8px">Pick students, choose a career path for them if you like, and add them. Each student gets a notification in their A.R.I.S.E. Reader bell. When they tap it, Connect opens already signed in, on the career path you picked. Added students don’t need a teacher’s Connect approval or a paid plan. Their posts still go to their own teacher first.</p></div>`;
+  if (!d) return `<div class="page">${head}<div class="skeleton"></div></div>`;
+  const q = S.admQ.trim().toLowerCase();
+  const list = d.students.filter(s => (S.admShow==='all' || (S.admShow==='added') === s.added) && (!q || [s.name, s.username, s.teacherName||'', s.grade||''].join(' ').toLowerCase().includes(q)));
+  const picked = [...S.admPick].filter(id => d.students.some(s=>s.id===id));
+  const allOn = list.length && list.every(s=>S.admPick.has(s.id));
+  const nAdded = d.students.filter(s=>s.added).length;
+  return `<div class="page">${head}
+  <div class="box">
+    <div class="adm-bar">
+      <label>Find students<input type="search" id="admQ" value="${esc(S.admQ)}" placeholder="Name, username, teacher or grade" autocomplete="off"></label>
+      <label>Career path for the students you pick<select class="select" id="admPath">${pathOptions(S.admPath,'Let them choose')}</select></label>
+      <button class="btn" data-act="adm-add" ${picked.length?'':'disabled'}>${svg('plus')}Add ${picked.length||''} & notify</button>
+    </div>
+    <div class="box-head"><div class="seg" role="group" aria-label="Show"><button data-act="adm-show" data-v="all" aria-pressed="${S.admShow==='all'}">All students</button><button data-act="adm-show" data-v="added" aria-pressed="${S.admShow==='added'}">In Connect · ${nAdded}</button><button data-act="adm-show" data-v="not" aria-pressed="${S.admShow==='not'}">Not added</button></div>
+      <button class="linkbtn" data-act="adm-all">${allOn?'Clear selection':`Select all ${list.length}`}</button></div>
+    ${list.length ? list.map(s=>`<div class="adm-row">
+      <input type="checkbox" data-act="adm-pick" data-id="${s.id}" ${S.admPick.has(s.id)?'checked':''} aria-label="Pick ${esc(s.name)}">
+      ${av(s.name,'s')}
+      <div class="who"><b>${esc(s.name)}</b><span class="sub small">${[s.username&&'@'+s.username, s.grade&&('Grade '+s.grade), s.teacherName?('Class: '+s.teacherName):'No class yet'].filter(Boolean).map(esc).join(' · ')}</span>
+        ${s.added?`<span class="row" style="gap:6px;margin-top:4px"><span class="added-pill">In Connect</span><span class="sub small">${s.pathId?esc(pathTitle(s.pathId)):'Choosing their own path'}</span></span>`:''}</div>
+      <div class="acts">${s.added?`<select class="select" style="width:auto" data-act="adm-setpath" data-id="${s.id}" aria-label="Career path for ${esc(s.name)}">${pathOptions(s.pathId,'Let them choose')}</select><button class="btn ghost small" data-act="adm-remove" data-id="${s.id}">Remove</button>`:`<button class="btn ghost small" data-act="adm-one" data-id="${s.id}">Add & notify</button>`}</div>
+    </div>`).join('') : `<p class="empty-in">${d.students.length?'No students match.':'No student accounts yet.'}</p>`}
+  </div></div>`;
+}
+async function loadAdminStudents(){ try { S.adm = await api('/admin/students'); } catch (e) { if (e.code===401) return signedOut(); fail(e); S.adm = { students: [], paths: [] }; } if (S.tab==='students') renderMain(); }
+async function adminAdd(ids, pathId){
+  const r = await api('/admin/invite',{method:'POST',body:{studentIds:ids, pathId: pathId||null}});
+  toast(r.added ? `Added ${r.added} student${r.added===1?'':'s'} and sent ${r.added===1?'a notification':'notifications'}` : 'Nobody was added');
+  S.admPick = new Set(); await loadAdminStudents();
+}
+/** A student's career path, picked by an admin: shown at the top of Stars. */
+function myPathHTML(){
+  if (role()!=='student' || !ME.assignedPath) return '';
+  const p = CAT.learningPaths.find(x=>x.id===ME.assignedPath.id); if (!p) return '';
+  const next = p.courses.map(course).filter(Boolean).find(c=>!certOf(c.id));
+  const n = p.courses.filter(id=>certOf(id)).length;
+  return `<div class="my-path"><span class="path-icons">${p.courses.slice(0,4).map(id=>{const c=course(id);return c?tile(c.icon,fieldColor(c.field),'sm'):''}).join('')}</span>
+    <div class="who"><span class="eyebrow">Your career path</span><b>${esc(p.title)}</b><span class="sub">${esc(p.blurb)} · ${n} of ${p.courses.length} certificates</span></div>
+    ${next?`<button class="btn" data-act="course" data-id="${next.id}">${lessonsDone(next)?'Keep going':'Start'}: ${esc(next.title)}</button>`:`<span class="added-pill">Path complete!</span>`}
+    <button class="btn ghost small" data-act="mypath" data-v="${p.id}">See all ${p.courses.length} courses</button></div>`;
+}
 function viewClass(){
   const ci = S.classInfo;
   if (!ci) return '<div class="page"><div class="skeleton"></div></div>';
@@ -1193,7 +1258,7 @@ function connectLockHTML(){
 }
 
 /* ================= LEARNING: career courses + certificates ================= */
-const FIELD_VAR = { trades:'--f-trades', eng:'--f-eng', film:'--f-film', music:'--f-music', health:'--f-health', tech:'--f-tech', biz:'--f-biz', food:'--f-food', sports:'--f-sports', air:'--f-air', games:'--f-games' };
+const FIELD_VAR = { trades:'--f-trades', eng:'--f-eng', film:'--f-film', music:'--f-music', health:'--f-health', tech:'--f-tech', biz:'--f-biz', food:'--f-food', sports:'--f-sports', air:'--f-air', games:'--f-games', law:'--f-law' };
 const fieldColor = f => `var(${FIELD_VAR[f]||'--blue'})`;
 const course = id => (CAT.courses||[]).find(c => c.id === id);
 const myCourse = id => (P()?.courses||{})[id] || null;
@@ -1279,7 +1344,7 @@ function viewStars(){
   const student = role()==='student';
   const watched = student ? (P()?.watched||[]).length : 0;
   const inprog = student ? CAT.courses.filter(c => lessonsDone(c)>0 && !certOf(c.id)) : [];
-  return `<section class="learn-hero">
+  return `${myPathHTML()}<section class="learn-hero">
     <div><div class="eyebrow">A.R.I.S.E. Connect Stars</div>
       <h1>Learn from <em>the stars.</em></h1>
       <p class="lede">Pick a star and learn from them: Taylor Swift on songwriting, Quincy Jones and Pharrell on producing, Hans Zimmer on movie music, Gordon Ramsay in the kitchen, Shigeru Miyamoto designing Mario, Steph Curry, Spielberg, Chris Hadfield in space and more. Each lesson has a star video, a short reading, key words and a quick check. ${student?'Finish a course to earn a certificate for your profile.':'Students pass each lesson’s quick check to earn a certificate.'}</p>
@@ -1352,7 +1417,7 @@ function viewLearn(bare){
   const first = esc((ME.user.name||'').split(' ')[0] || 'there');
   const sections = `<section class="section"><div class="cat-head"><h2>Career paths</h2><span class="muted">Groups of courses that go together</span></div>
     <div class="paths">${CAT.learningPaths.map(p=>{const n=student?p.courses.filter(id=>certOf(id)).length:0;return `<button class="box path${S.lpath===p.id?' on':''}" data-act="lpath" data-v="${p.id}" aria-pressed="${S.lpath===p.id}">
-      <span class="path-icons">${p.courses.map(id=>{const c=course(id);return tile(c.icon,fieldColor(c.field),'sm')}).join('')}</span>
+      <span class="path-icons">${p.courses.slice(0,5).map(id=>{const c=course(id);return tile(c.icon,fieldColor(c.field),'sm')}).join('')}</span>
       <b>${esc(p.title)}</b><span class="sub">${esc(p.blurb)}</span>
       ${student?`<span class="sub small">${n} of ${p.courses.length} certificates</span><span class="bar"><i style="width:${n/p.courses.length*100}%"></i></span>`:`<span class="sub small">${p.courses.length} courses</span>`}</button>`}).join('')}</div></section>
   <section class="section"><div class="cat-head"><h2>${lp?esc(lp.title):'More career courses'}</h2><span class="muted">${list.length} course${list.length===1?'':'s'}${lp?` · <button class="linkbtn" data-act="lpath" data-v="">Show all courses</button>`:''}</span></div>
@@ -1373,7 +1438,7 @@ function viewLearn(bare){
     <div class="stars-grid">${allStars().slice(0,6).map(({v,c})=>`<div class="star-card">${videoHTML(v,'home')}<button class="btn ghost" data-act="course" data-id="${c.id}">${tile(c.icon,fieldColor(c.field),'sm')}Take ${esc(c.title)}</button></div>`).join('')}</div></section>`:''}
   <section class="section"><div class="cat-head"><h2>Career paths</h2><span class="muted">Groups of courses that go together</span></div>
     <div class="paths">${CAT.learningPaths.map(p=>{const n=student?p.courses.filter(id=>certOf(id)).length:0;return `<button class="box path${S.lpath===p.id?' on':''}" data-act="lpath" data-v="${p.id}" aria-pressed="${S.lpath===p.id}">
-      <span class="path-icons">${p.courses.map(id=>{const c=course(id);return tile(c.icon,fieldColor(c.field),'sm')}).join('')}</span>
+      <span class="path-icons">${p.courses.slice(0,5).map(id=>{const c=course(id);return tile(c.icon,fieldColor(c.field),'sm')}).join('')}</span>
       <b>${esc(p.title)}</b><span class="sub">${esc(p.blurb)}</span>
       ${student?`<span class="sub small">${n} of ${p.courses.length} certificates</span><span class="bar"><i style="width:${n/p.courses.length*100}%"></i></span>`:`<span class="sub small">${p.courses.length} courses</span>`}</button>`}).join('')}</div></section>
   <section class="section"><div class="cat-head"><h2>${lp?esc(lp.title):'Star lessons'}</h2><span class="muted">${list.length} course${list.length===1?'':'s'}${lp?` · <button class="linkbtn" data-act="lpath" data-v="">Show all courses</button>`:''}</span></div>
@@ -1488,7 +1553,7 @@ function credentialModal(id, fresh){
 }
 
 /* ================= RENDER ================= */
-const VIEWS = { stars:viewStars, learn:viewStars, feed:viewFeed, explore:viewExplore, quests:viewQuests, events:viewEvents, profile:viewProfile, paths:viewPaths, family:viewFamily, approvals:viewApprovals, class:viewClass };
+const VIEWS = { students:viewAdminStudents, stars:viewStars, learn:viewStars, feed:viewFeed, explore:viewExplore, quests:viewQuests, events:viewEvents, profile:viewProfile, paths:viewPaths, family:viewFamily, approvals:viewApprovals, class:viewClass };
 function render(){
   renderChrome();
   const root = document.getElementById('root');
@@ -1535,6 +1600,14 @@ function signedOut(){ ME = null; render(); }
 function setProfile(p){ if (ME && p) ME.profile = p; }
 
 /* ================= ACTIONS ================= */
+document.addEventListener('input', e=>{ if (e.target.id==='admQ'){ S.admQ=e.target.value; const pos=e.target.selectionStart; renderMain(); const box=document.getElementById('admQ'); if(box){ box.focus(); try{ box.setSelectionRange(pos,pos); }catch{} } } });
+document.addEventListener('change', async e=>{
+  if (e.target.id==='admPath') { S.admPath = e.target.value; return; }
+  if (e.target.dataset && e.target.dataset.act==='adm-setpath') {
+    // Changing an added student's path sends them a "your path changed" note.
+    try { await api('/admin/invite',{method:'POST',body:{studentIds:[Number(e.target.dataset.id)], pathId:e.target.value||null}}); toast('Career path updated · student notified'); await loadAdminStudents(); } catch (err) { fail(err); }
+  }
+});
 document.getElementById('q').addEventListener('input', e=>{ S.q = e.target.value; if (S.tab==='stars') return renderMain(); if (S.tab!=='explore'){ S.tab='explore'; render(); const q=document.getElementById('q'); q.focus(); } else renderMain(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ if(modalId||htmlModal) closeModal(); if(S.menu){ S.menu=false; renderChrome(); } } });
 
@@ -1554,15 +1627,22 @@ document.addEventListener('click', async e=>{
       case 'menu': S.menu = !S.menu; renderChrome(); break;
       case 'buy': el.disabled = true; await buySocial(id ? Number(id) : null).finally(()=>{ el.disabled = false; }); break;
       case 'manage': await manageSocial(id ? Number(id) : null); break;
-      case 'tab': if (v==='stars' && S.tab!=='stars') { S.course=null; S.lesson=null; } S.tab=v; S.menu=false; closeModal(); render(); window.scrollTo(0,0); if (v==='class') load('class'); if (v==='approvals') { if (role()==='teacher') load('accessRequests'); if (ME.access) load('approvals'); } break;
+      case 'tab': if (v==='stars' && S.tab!=='stars') { S.course=null; S.lesson=null; } S.tab=v; S.menu=false; closeModal(); render(); window.scrollTo(0,0); if (v==='class') load('class'); if (v==='students') loadAdminStudents(); if (v==='approvals') { if (role()==='teacher') load('accessRequests'); if (ME.access) load('approvals'); } break;
        case 'request-access': { el.disabled = true; const r = await api('/access/request',{method:'POST'}).finally(()=>{el.disabled=false;}); ME.approvalStatus = r.approvalStatus; toast('Request sent to your teacher'); render(); break; }
        case 'review-access': { el.disabled = true; await api(`/access/requests/${encodeURIComponent(id)}/review`,{method:'POST',body:{decision:v}}); S.accessRequests = (S.accessRequests||[]).filter(p=>String(p.id)!==String(id)); toast(v==='approve'?'Student approved for Connect':'Request denied'); render(); break; }
       case 'fc': S.filterC=v; renderMain(); break;
+      case 'adm-pick': { const n=Number(id); S.admPick.has(n)?S.admPick.delete(n):S.admPick.add(n); const y=window.scrollY; renderMain(); window.scrollTo(0,y); break; }
+      case 'adm-all': { const d=S.adm; if(!d) break; const q=S.admQ.trim().toLowerCase(); const list=d.students.filter(s => (S.admShow==='all' || (S.admShow==='added') === s.added) && (!q || [s.name, s.username, s.teacherName||'', s.grade||''].join(' ').toLowerCase().includes(q))); const allOn=list.length && list.every(s=>S.admPick.has(s.id)); list.forEach(s=>allOn?S.admPick.delete(s.id):S.admPick.add(s.id)); renderMain(); break; }
+      case 'adm-show': S.admShow=v; renderMain(); break;
+      case 'adm-add': el.disabled=true; await adminAdd([...S.admPick], S.admPath).finally(()=>{ el.disabled=false; }); break;
+      case 'adm-one': el.disabled=true; await adminAdd([Number(id)], S.admPath).finally(()=>{ el.disabled=false; }); break;
+      case 'adm-remove': { el.disabled=true; await api(`/admin/invite/${encodeURIComponent(id)}`,{method:'DELETE'}).finally(()=>{ el.disabled=false; }); toast('Removed from Connect'); await loadAdminStudents(); break; }
       case 'learnhome': S.course=null; S.lesson=null; renderMain(); window.scrollTo(0,0); break;
       case 'lfield': S.lfield=v; renderMain(); break;
       case 'starf': S.starf=v; renderMain(); break;
       case 'interest': S.interests.has(v)?S.interests.delete(v):S.interests.add(v); { const y=window.scrollY; renderMain(); window.scrollTo(0,y); } break;
       case 'lpath': S.lpath=v||null; renderMain(); break;
+      case 'mypath': { S.lpath=v; S.lfield='all'; renderMain(); const h=[...document.querySelectorAll('.cat-head h2')].find(x=>x.textContent===pathTitle(v)); h?.scrollIntoView({behavior:'smooth',block:'start'}); break; }
       case 'course': closeModal(); S.tab='stars'; S.course=id; S.lesson=null; render(); window.scrollTo(0,0); break;
       case 'lesson': S.lesson=Number(v); S.answers={}; renderMain(); window.scrollTo(0,0); break;
       case 'answer': { const c=course(S.course), q=c.lessons[S.lesson].quiz[Number(el.dataset.q)], qi=Number(el.dataset.q), oi=Number(el.dataset.o); const a=S.answers[qi]||{tried:[],right:false}; a.tried.push(oi); if(oi===q.a) a.right=true; S.answers[qi]=a; const y=window.scrollY; renderMain(); window.scrollTo(0,y); break; }
@@ -1697,7 +1777,13 @@ function burst(){
   }
   await loadPlan();
   S.tab = 'stars';
+  if (role()==='student' && ME.assignedPath) S.lpath = ME.assignedPath.id;
   render();
+  // Opened from the "You're in A.R.I.S.E. Connect!" notification in A.R.I.S.E. Reader.
+  if (/[?&]welcome=1/.test(location.search)) {
+    try { history.replaceState(null, '', location.pathname); } catch {}
+    if (role()==='student' && ME.approvalStatus==='approved') toast(ME.assignedPath ? `Welcome! Your career path: ${ME.assignedPath.title}` : 'Welcome to A.R.I.S.E. Connect!');
+  }
   if (ME.access || role()==='teacher') loadForRole();
 })();
 </script>

@@ -16,8 +16,10 @@ import {
   lightEpisode, mergeGenreShows, parseChaptersJson, parseCues, parseEpisode, parseShow, parseTranscriptJson, poolFromEpisodeSearch, rssExtrasFor,
   type AdRange, type Chapter, type PodEpisode, type PodShow, type PoolShow, type TranscriptChunk, type TxSegment,
 } from "../shared/earshot";
+import { perplexityChat } from "./aiProvider";
+import { deepgramTranscribe, hasDeepgram } from "./deepgram";
 import {
-  AD_PROMPT_V2, INTRO_PROMPT, adPromptMessage, adsFromAiV2, combineAds, introFromAi, introPromptMessage, emptyProfile, learnFromMark, learnProfile, learnedPreroll, mp3Info, phraseAds, phraseBlocks, profileHints, sponsorsFromNotes,
+  AD_PROMPT_V2, INTRO_PROMPT, adPromptMessage, adSpotChunks, adsFromAiV2, combineAds, introFromAi, introPromptMessage, emptyProfile, learnFromMark, learnProfile, learnedPreroll, mp3Info, phraseAds, phraseBlocks, profileHints, sponsorsFromNotes,
   type ServerAd, type ShowProfile, type Word,
 } from "../shared/earshotAds";
 
@@ -214,6 +216,8 @@ async function openAiCall(send: () => Promise<Response>, what: string): Promise<
     // Groq answers 413 when one request is bigger than the model's per-minute allowance: the next
     // model (with its own allowance) may take it, so it counts as "busy", not as a hard failure.
     if (res.status === 413) throw new Error("busy");
+    // A per-minute allowance: the next model (or the backup) answers now instead of waiting.
+    if (res.status === 429 && /per minute|\((TPM|RPM|ASPM)\)/i.test(said)) throw new Error("busy");
     if ((res.status === 429 || res.status >= 500) && tryNo < 2) {
       const wait = Math.min(8, Number(res.headers.get("retry-after")) || 1.5 * (tryNo + 1));
       await new Promise((r) => setTimeout(r, wait * 1000));
@@ -243,6 +247,8 @@ export async function onGroq<T>(models: string[], run: (model: string) => Promis
     if ((groqDry.get(m) ?? 0) > Date.now()) continue;
     try { return await run(m); }
     catch (e: any) {
+      // A model Groq has retired: skip it for a day and try the next one (it used to stop here).
+      if (/ 404\b|model_not_found|decommissioned/.test(String(e?.message || ""))) { groqDry.set(m, Date.now() + 24 * 3600_000); continue; }
       if (e?.message !== "dry" && e?.message !== "busy") throw e;
       lastStrain = Date.now();
       groqDry.set(m, Date.now() + (e?.message === "dry" ? e.retryMs ?? 10 * 60_000 : 60_000));
@@ -251,10 +257,16 @@ export async function onGroq<T>(models: string[], run: (model: string) => Promis
   lastStrain = Date.now();
   throw new Error("busy");
 }
-const GROQ_AI = () => uniq([process.env.EARSHOT_GROQ_AD_MODEL, "openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.3-70b-versatile"]);
+const GROQ_AI = () => uniq([process.env.EARSHOT_GROQ_AD_MODEL, "openai/gpt-oss-120b", "openai/gpt-oss-20b", "meta-llama/llama-4-maverick-17b-128e-instruct", "qwen/qwen3-32b"]);
 const GROQ_STT = () => uniq([process.env.EARSHOT_GROQ_MODEL, "whisper-large-v3-turbo", "whisper-large-v3"]);
 /** Groq's hosted models (OpenAI-compatible), used when OpenAI is out of credit. */
-const groqJson: AskJson = (system, user) => onGroq(GROQ_AI(), async (model) => {
+/** Groq first (free); when every Groq model is out for now, Perplexity reads it, so ads are still
+ *  found within seconds instead of waiting for Groq's allowance to come back. */
+const groqJson: AskJson = (system, user) => groqOnly(system, user).catch(async (e: any) => {
+  // Any Groq failure (out for now, a model refusing the request, down): Perplexity reads it.
+  try { return await perplexityChat(system, user); } catch { throw e; }
+});
+const groqOnly: AskJson = (system, user) => onGroq(GROQ_AI(), async (model) => {
   const res = await openAiCall(() => fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, "Content-Type": "application/json" },
@@ -267,7 +279,8 @@ const groqJson: AskJson = (system, user) => onGroq(GROQ_AI(), async (model) => {
 let openAiDryUntil = 0;
 export const openAiJson: AskJson = async (system, user) => {
   // Out of OpenAI credit: Groq answers instead (checking OpenAI again every 10 minutes).
-  if (process.env.GROQ_API_KEY && (!process.env.OPENAI_API_KEY || Date.now() < openAiDryUntil)) return groqJson(system, user);
+  // OpenAI is off for this site (see server/aiProvider.ts): straight to Groq.
+  if (process.env.GROQ_API_KEY && (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === "routed-to-grok" || Date.now() < openAiDryUntil)) return groqJson(system, user);
   try { return await openAiJsonOnly(system, user); }
   catch (e: any) {
     if (process.env.GROQ_API_KEY && (e?.message === "quota" || e?.message === "busy")) { if (e?.message === "quota") openAiDryUntil = Date.now() + 10 * 60_000; return groqJson(system, user); }
@@ -285,7 +298,16 @@ const openAiJsonOnly: AskJson = async (system, user) => {
   return String(body?.choices?.[0]?.message?.content || "");
 };
 /** Speech to text: Groq's Whisper when GROQ_API_KEY is set (about 9x cheaper and faster), else OpenAI's. */
-export const openAiTranscribe: Transcriber = (audio, name, prompt) => (process.env.GROQ_API_KEY ? onGroq(GROQ_STT(), (model) => transcribeWith(audio, name, prompt, model)) : transcribeWith(audio, name, prompt, ""));
+/** Speech to text: Groq's Whisper (free, about 2 hours of audio an hour); when that's used up for the
+ *  hour, Deepgram (DEEPGRAM_API_KEY) takes over; OpenAI only when neither is set up. */
+export const openAiTranscribe: Transcriber = async (audio, name, prompt) => {
+  if (!process.env.GROQ_API_KEY) return hasDeepgram() ? deepgramTranscribe(audio, prompt) : transcribeWith(audio, name, prompt, "");
+  try { return await onGroq(GROQ_STT(), (model) => transcribeWith(audio, name, prompt, model)); }
+  catch (e: any) {
+    if ((e?.message === "busy" || e?.message === "dry") && hasDeepgram()) return deepgramTranscribe(audio, prompt);
+    throw e;
+  }
+};
 async function transcribeWith(audio: Blob, name: string, prompt: string | undefined, groqModel: string) {
   const groq = !!groqModel;
   const form = new FormData();
@@ -321,14 +343,17 @@ export function createDirectory(options: DirectoryOptions = {}) {
   const aiOn = options.aiOn ?? (() => !!(process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY));
   const perDay = options.minutesPerDay ?? (Number(process.env.EARSHOT_AI_MINUTES_PER_DAY) || 900);
 
+  // Memory caches in front of the database (the server has 512 MB): every entry is also kept in the
+  // database, so a smaller memory cache only means an occasional extra database read. Transcript
+  // pieces (with word timings) are the biggest, then shows with their 25 newest episodes.
   const genreShows = layeredCache<PodShow[]>(kv, "g2:", 12 * 3600_000, 100);
   const genreEpisodes = layeredCache<PoolShow[]>(kv, "ge:", 12 * 3600_000, 100);
-  const shows = layeredCache<ShowLookup>(kv, "s2:", 6 * 3600_000, 3000);
+  const shows = layeredCache<ShowLookup>(kv, "s2:", 6 * 3600_000, 500);
   const searches = layeredCache<{ shows: PodShow[]; episodes: PodEpisode[] }>(kv, "q:", 3600_000, 500);
-  const extras = layeredCache<{ transcript: { url: string; type: string } | null; chapters: string }>(kv, "x:", 24 * 3600_000, 2000);
-  const tx = layeredCache<TranscriptChunk>(kv, "t:", 365 * 24 * 3600_000, 1500);
-  const profiles = layeredCache<ShowProfile>(kv, "sp:", 365 * 24 * 3600_000, 2000);
-  const ctx = layeredCache<ContentChunk>(kv, "t3:", 365 * 24 * 3600_000, 1500);
+  const extras = layeredCache<{ transcript: { url: string; type: string } | null; chapters: string }>(kv, "x:", 24 * 3600_000, 800);
+  const tx = layeredCache<TranscriptChunk>(kv, "t:", 365 * 24 * 3600_000, 120);
+  const profiles = layeredCache<ShowProfile>(kv, "sp:", 365 * 24 * 3600_000, 800);
+  const ctx = layeredCache<ContentChunk>(kv, "t3:", 365 * 24 * 3600_000, 150);
 
   // ---- Apple ----
   const loadGenreShows = (gid: string) => genreShows.get(gid, async () => {
@@ -398,6 +423,11 @@ export function createDirectory(options: DirectoryOptions = {}) {
 
   // ---- read along ----
   let dayKey = ""; let minutesToday = 0;
+  // Groq's speech-to-text also has an hourly allowance (2 hours of audio an hour): pre-checks only
+  // run when listeners have left plenty of it.
+  const hourLog: { at: number; min: number }[] = [];
+  const spend = (min: number) => { minutesToday += min; hourLog.push({ at: Date.now(), min }); while (hourLog.length && Date.now() - hourLog[0].at > 3600_000) hourLog.shift(); };
+  const minutesLastHour = () => hourLog.filter((x) => Date.now() - x.at <= 3600_000).reduce((t, x) => t + x.min, 0);
   const budgetLeft = () => { const d = new Date().toISOString().slice(0, 10); if (d !== dayKey) { dayKey = d; minutesToday = 0; } return perDay - minutesToday; };
 
   async function findEpisode(showId: string, episodeId: string) {
@@ -419,6 +449,17 @@ export function createDirectory(options: DirectoryOptions = {}) {
       const found = rssExtrasFor(xml, ep);
       return { transcript: bestTranscript(found.transcripts), chapters: found.chapters };
     }).catch(() => ({ transcript: null, chapters: "" }));
+  }
+  /** The publisher's chapters (every piece needs them: an ad chapter can be anywhere in the episode). */
+  const chapterMemo = new Map<string, { at: number; value: Chapter[] }>();
+  async function chaptersOf(episodeId: string, url: string): Promise<Chapter[]> {
+    const m = chapterMemo.get(episodeId);
+    if (m && Date.now() - m.at < 6 * 3600_000) return m.value;
+    let value: Chapter[] = [];
+    try { value = parseChaptersJson(JSON.parse(await getText(url, 2_000_000))); } catch { /* none */ }
+    if (chapterMemo.size > 500) chapterMemo.delete(chapterMemo.keys().next().value!);
+    chapterMemo.set(episodeId, { at: Date.now(), value });
+    return value;
   }
   /** Ads in a stretch of transcript: phrases, the show's memory, AI cut at the exact word, chapters. */
   async function analyzeAds(o: { showId: string; showName: string; title?: string; about?: string; pieceId: string; segs: TxSegment[]; words: Word[]; chapters: Chapter[]; duration: number; from: number; to: number; opening: boolean; status?: { aiFailed?: boolean }; inserted?: boolean }): Promise<AdRange[]> {
@@ -448,7 +489,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       try { const intro = introFromAi(await ask(INTRO_PROMPT, introPromptMessage(head, ads, hints)), head, ads, o.words); if (intro) ads.push(intro); }
       catch { /* no intro this time */ }
     }
-    void profiles.refresh(o.showId, async () => learnProfile((await profiles.peek(o.showId))?.value ?? emptyProfile(), o.pieceId, o.segs, ads.filter((x) => x.kind !== "intro"), o.opening)).catch(() => {});
+    void profiles.refresh(o.showId, async () => learnProfile((await profiles.peek(o.showId))?.value ?? emptyProfile(), o.pieceId, o.segs, ads.filter((x) => x.kind !== "intro"), o.opening, /#c-?\d/.test(o.pieceId) ? o.duration : 0)).catch(() => {});
     return ads;
   }
 
@@ -485,7 +526,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
     if (done && (done.value as any).v === 2) return done.value;
     const ex = await publisherExtras(show, ep);
     let chapters: Chapter[] = [];
-    if (ex.chapters && chunk === 0) { try { chapters = parseChaptersJson(JSON.parse(await getText(ex.chapters, 2_000_000))); } catch { /* none */ } }
+    if (ex.chapters) chapters = await chaptersOf(ep.id, ex.chapters);
     // A piece made before the smarter ad finder: find its ads again (text only, no new transcription).
     if (done && done.value.segments.length) {
       return tx.refresh(key, async () => {
@@ -525,7 +566,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       if (!res.ok && res.status !== 206) throw new Error(`audio ${res.status}`);
       const blob = await res.blob();
       if (blob.size > 25_000_000) throw Object.assign(new Error("size"), { soft: true });
-      minutesToday += plan.chunkSecs / 60;
+      spend(plan.chunkSecs / 60);
       const out = await transcribe(blob, `piece-${chunk}.mp3`);
       const start = chunk * plan.chunkSecs;
       const segments = out.segments.map((s) => ({ s: start + s.start, e: start + s.end, t: s.text.trim() })).filter((s) => s.t);
@@ -560,12 +601,24 @@ export function createDirectory(options: DirectoryOptions = {}) {
     const opening = chunk === -1;
     const key = opening ? `${ep.id}:o` : `${ep.id}:${chunk}`;
     const done = await ctx.peek(key);
-    if (done) return done.value;
+    if (done) {
+      // The AI couldn't read it then (phrases and chapters still found what they could): read the
+      // text again in the background once it's free. Nothing is transcribed again.
+      const d = done.value as ContentChunk & { aiFailed?: boolean; at?: number };
+      if (d.aiFailed && d.segments.length && aiOn() && !aiStrained() && Date.now() - (d.at ?? 0) > 10 * 60_000) {
+        void ctx.refresh(key, async () => {
+          const status: { aiFailed?: boolean } = {};
+          const ads = await analyzeAds({ showId, showName: show?.name ?? ep.show, title: ep.title, about: ep.about, pieceId: `${ep.id}#c${opening ? -1 : chunk}`, segs: d.segments, words: (d as any).words ?? [], chapters: d.chapters ?? [], duration: src.secs, from: d.segments[0].s, to: d.segments[d.segments.length - 1].e, opening: chunk <= 0, status });
+          return { ...d, ads, aiFailed: status.aiFailed || undefined, at: Date.now() } as ContentChunk;
+        }).catch(() => {});
+      }
+      return done.value;
+    }
     if (opening) { const c0 = await ctx.peek(`${ep.id}:0`); if (c0) return c0.value; }
     const showName = show?.name ?? ep.show;
     const ex = await publisherExtras(show, ep);
     let chapters: Chapter[] = [];
-    if (ex.chapters && chunk === 0) { try { chapters = parseChaptersJson(JSON.parse(await getText(ex.chapters, 2_000_000))); } catch { /* none */ } }
+    if (ex.chapters) chapters = await chaptersOf(ep.id, ex.chapters);
     if (ex.transcript) {
       const pub = await ctx.refresh(`${ep.id}:pub`, async () => {
         const raw = await getText(ex.transcript!.url, 6_000_000);
@@ -590,12 +643,13 @@ export function createDirectory(options: DirectoryOptions = {}) {
       const part = await src.extract(from, to);
       if (part.audio.size > 25_000_000) throw Object.assign(new Error("size"), { soft: true });
       if (!part.audio.size) throw new Error("no audio");
-      minutesToday += (to - from) / 60;
+      spend((to - from) / 60);
       const out = await transcribe(part.audio, `piece-${chunk}.mp3`, await transcribePrompt(showId, showName));
       const segments = out.segments.map((x) => ({ s: from + x.start, e: from + x.end, t: x.text.trim() })).filter((x) => x.t);
       const words: Word[] = (out.words ?? []).map((w) => ({ s: from + w.start, e: from + w.end, w: w.word.trim() })).filter((w) => w.w);
-      const ads = await analyzeAds({ showId, showName, title: ep.title, about: ep.about, pieceId: `${ep.id}#c${chunk}`, segs: segments, words, chapters, duration: src.secs, from, to, opening: chunk <= 0 });
-      return { v: 3, source: "ai", segments, words, ads, chapters, chunk, chunkSecs: opening ? OPENING : TX_CHUNK_SECS, more: !opening && chunk + 1 < chunks, pieces: part.pieces } as ContentChunk;
+      const status: { aiFailed?: boolean } = {};
+      const ads = await analyzeAds({ showId, showName, title: ep.title, about: ep.about, pieceId: `${ep.id}#c${chunk}`, segs: segments, words, chapters, duration: src.secs, from, to, opening: chunk <= 0, status });
+      return { v: 3, source: "ai", segments, words, ads, chapters, chunk, chunkSecs: opening ? OPENING : TX_CHUNK_SECS, more: !opening && chunk + 1 < chunks, pieces: part.pieces, aiFailed: status.aiFailed || undefined, at: Date.now() } as ContentChunk;
     }).catch((e: any) => {
       if (e?.message === "budget") return { ...none("Read along has hit today's limit. Try again tomorrow."), chapters };
       if (e?.message === "size") return { ...none("This episode's audio is too large to read along."), chapters };
@@ -637,7 +691,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       }
       if (budgetLeft() < secs / 60) throw new Error("budget");
       if (!audio.size || audio.size > 25_000_000) throw new Error("size");
-      minutesToday += secs / 60;
+      spend(secs / 60);
       const out = await transcribe(audio, `gap-${fp}.mp3`, await transcribePrompt(showId, showName));
       const segments = out.segments.map((x) => ({ s: x.start, e: x.end, t: x.text.trim() })).filter((x) => x.t);
       const words: Word[] = (out.words ?? []).map((w) => ({ s: w.start, e: w.end, w: w.word.trim() })).filter((w) => w.w);
@@ -749,7 +803,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
   }
 
   // ---- Explore previews: each episode's best ~45 seconds ----
-  const moments = layeredCache<Moment>(kv, "m1:", 365 * 24 * 3600_000, 3000);
+  const moments = layeredCache<Moment>(kv, "m1:", 365 * 24 * 3600_000, 600);
   const MOMENT_WINDOW = 180, MOMENTS_PER_DAY = Number(process.env.EARSHOT_MOMENTS_PER_DAY) || 150;
   let momentDay = ""; let momentsToday = 0;
   /** Where an MP3 episode's audio starts and how many bytes a second takes (from the host's copy, as a bot). */
@@ -793,7 +847,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       if (!aiOn() || momentsToday >= MOMENTS_PER_DAY || budgetLeft() < MOMENT_WINDOW / 60) return plain;
       momentsToday++;
       const audio = await cutRange(showId, episodeId, w0, w0 + MOMENT_WINDOW);
-      minutesToday += MOMENT_WINDOW / 60;
+      spend(MOMENT_WINDOW / 60);
       const out = await transcribe(audio, `moment-${episodeId}.mp3`);
       const segs = out.segments.map((x) => ({ s: w0 + x.start, e: w0 + x.end, t: x.text.trim() })).filter((x) => x.t);
       if (segs.length < 3) return plain;
@@ -804,6 +858,21 @@ export function createDirectory(options: DirectoryOptions = {}) {
   /** Keeps where a moment's audio is stored, once it's been cut and saved. */
   const keepMomentAudio = (episodeId: string, m: Moment, audio: string) => moments.refresh(episodeId, async () => ({ ...m, audio }));
 
-  return { aiFind, pool, loadShow, loadGenreShows, searches, apple, warm, transcript, contentTranscript, contentChunks, copyPieceAds, foundAds, learnMark, profiles, idle, budgetLeft, cutRange, moment, keepMomentAudio };
+  /** New episodes found elsewhere (the Up to the Minute News rounds) go into the show's cache, newest
+   *  first, so opening one finds it without waiting for the show to be looked up again. */
+  async function addEpisodes(show: PodShow | null, eps: PodEpisode[]) {
+    const id = show?.id || eps[0]?.showId; if (!id || !eps.length) return;
+    const known = (await shows.peek(id))?.value;
+    const byId = new Map((known?.episodes ?? []).map((e) => [e.id, e] as [string, PodEpisode]));
+    for (const e of eps) byId.set(e.id, e);
+    const episodes = [...byId.values()].sort((a, b) => Date.parse(b.date || "0") - Date.parse(a.date || "0")).slice(0, 60);
+    await shows.refresh(id, async () => ({ ...(known ?? {}), show: known?.show ?? show, episodes } as any)).catch(() => {});
+  }
+  /** The pieces of a new episode where this show's ad breaks usually are (shared/earshotAds.ts adSpotChunks). */
+  async function likelyAdChunks(showId: string, secs: number, max = 3): Promise<number[]> {
+    return adSpotChunks((await profiles.peek(showId))?.value ?? null, secs, TX_CHUNK_SECS, max);
+  }
+
+  return { aiFind, pool, loadShow, loadGenreShows, searches, apple, warm, addEpisodes, transcript, contentTranscript, contentChunks, copyPieceAds, foundAds, learnMark, profiles, idle, budgetLeft, minutesLastHour, perDay, cutRange, moment, keepMomentAudio, likelyAdChunks };
 }
 export type Directory = ReturnType<typeof createDirectory>;

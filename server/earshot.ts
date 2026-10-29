@@ -9,18 +9,38 @@
 import type { Express, RequestHandler } from "express";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import {
-  GENRE, EARSHOT_LIMITS, appleSearchUrl, canComment, cleanComment, cleanPodId, commentAuthor, parseEpisode, parseShow, poolFromEpisodeSearch,
+  GENRE, EARSHOT_LIMITS, appleLookupUrl, appleSearchUrl, canComment, cleanComment, cleanPodId, commentAuthor, parseEpisode, parseShow, poolFromEpisodeSearch,
   type PodEpisode, type PodShow, type PoolShow, type TranscriptChunk,
 } from "../shared/earshot";
-import { createDirectory, type Directory, type Fetcher } from "./podcastDirectory";
+import { createDirectory, openAiJson, openAiTranscribe, supabaseKV, type Directory, type Fetcher } from "./podcastDirectory";
+import { supabaseBlobs } from "./blobStore";
+import { registerAudiobookRoutes } from "./audiobooks";
 import { TOPICS, genreSearchTerms, topicPlaylist } from "../shared/earshotTopics";
 import { crowdFor, memoryAdStore, registerAdRoutes, type AdStore } from "./podcastAds";
 import { copyTranscript, registerPlayRoutes, startOpenings, type Player } from "./podcastPlay";
 import { registerSocialRoutes } from "./podcastSocial";
 import { registerCreatorRoutes } from "./podcastCreators";
+import { topShowsService } from "./podcastTop";
+import { nowNewsService, NOW_HOURS_DEFAULT } from "./podcastNow";
+import { showInfoService } from "./podcastInfo";
 import { accountSessions, registerPodscrollAccountRoutes, SESSION } from "./podcastAccounts";
+import { cleanMoment } from "../shared/earshotListen";
+import { registerListenRoutes } from "./podcastListen";
+import { perplexityJson } from "./perplexityAsk";
+import { setPerplexityKey } from "./aiProvider";
+import { noteShows } from "./podcastPrecheck";
 
-export type EarshotComment = { id: string; episodeId: string; author: string; body: string; at: string; mine: boolean };
+/** The site's Perplexity key: admin settings first (where book quizzes keep it), then the environment. */
+async function perplexityKey(): Promise<string> {
+  try { const { storage } = await import("./storage"); const k = await storage.getSetting("perplexity_api_key"); if (k) return k; } catch { /* no database (tests) */ }
+  return process.env.PERPLEXITY_API_KEY || process.env.CUSTOM_CRED_API_PERPLEXITY_AI_TOKEN || "";
+}
+// The whole site's AI chat falls back to Perplexity when Groq can't answer (server/aiProvider.ts).
+setPerplexityKey(perplexityKey);
+
+export type EarshotComment = { id: string; episodeId: string; author: string; body: string; at: string; mine: boolean;
+  /** The moment in the episode it is about, in seconds (null or missing: the whole episode). */
+  t?: number | null };
 export type EpisodeCounts = { likes: number; comments: number; shares: number; liked: boolean };
 
 export interface EarshotStore {
@@ -28,7 +48,7 @@ export interface EarshotStore {
   setLike(userId: string, episodeId: string, on: boolean): Promise<void>;
   addShare(episodeId: string): Promise<void>;
   comments(episodeId: string, userId: string): Promise<EarshotComment[]>;
-  addComment(c: { episodeId: string; showId: string; userId: string; author: string; body: string }): Promise<EarshotComment>;
+  addComment(c: { episodeId: string; showId: string; userId: string; author: string; body: string; t?: number | null }): Promise<EarshotComment>;
   deleteComment(id: string, userId: string, admin: boolean): Promise<boolean>;
   reportComment(id: string, userId: string): Promise<void>;
 }
@@ -52,7 +72,7 @@ export function memoryEarshotStore(): EarshotStore {
     async setLike(userId, id, on) { const k = `${userId}:${id}`; if (on) likes.add(k); else likes.delete(k); },
     async addShare(id) { shares.set(id, (shares.get(id) ?? 0) + 1); },
     async comments(id, userId) { return comments.filter((c) => c.episodeId === id && !c.hidden).slice().reverse().slice(0, 100).map(({ userId: u, hidden, reports, ...c }) => ({ ...c, mine: u === userId })); },
-    async addComment(c) { const row = { id: String(next++), episodeId: c.episodeId, author: c.author, body: c.body, at: new Date().toISOString(), mine: true, userId: c.userId, hidden: false, reports: new Set<string>() }; comments.push(row); const { userId, hidden, reports, ...shown } = row; return shown; },
+    async addComment(c) { const row = { id: String(next++), episodeId: c.episodeId, author: c.author, body: c.body, at: new Date().toISOString(), mine: true, t: c.t ?? null, userId: c.userId, hidden: false, reports: new Set<string>() }; comments.push(row); const { userId, hidden, reports, ...shown } = row; return shown; },
     async deleteComment(id, userId, admin) { const i = comments.findIndex((c) => c.id === id && (admin || c.userId === userId)); if (i < 0) return false; comments.splice(i, 1); return true; },
     async reportComment(id, userId) { const c = comments.find((x) => x.id === id); if (!c) return; c.reports.add(userId); if (c.reports.size >= 3) c.hidden = true; },
   };
@@ -66,6 +86,10 @@ export function supabaseEarshotStore(getDb: () => any, kind: "earshot" | "podscr
   const missing = (e: any) => e && (e.code === "42P01" || e.code === "PGRST205" || e.code === "PGRST202" || (/(earshot|podscroll)_/.test(String(e.message || "")) && /not find|does not exist/i.test(String(e.message || ""))));
   const check = (error: any) => { if (error) { if (missing(error)) throw new EarshotUnavailable("earshot tables missing"); throw error; } };
   const uid = (id: string): string | number => (kind === "earshot" ? Number(id) : id);
+  // Comment moments (at_sec) come from migrations/podcast_comment_moments.sql. Until that has run, comments
+  // still work, just without a moment.
+  const noMoment = (e: any) => !!e && (e.code === "42703" || e.code === "PGRST204" || /at_sec/.test(String(e.message || "")));
+  let moments = true;
   return {
     async counts(ids, userId) {
       const out: Record<string, EpisodeCounts> = {};
@@ -90,14 +114,19 @@ export function supabaseEarshotStore(getDb: () => any, kind: "earshot" | "podscr
     },
     async addShare(id) { const { error } = await getDb().rpc(T.share, { p_episode: id }); check(error); },
     async comments(id, userId) {
-      const { data, error } = await getDb().from(T.comments).select("id,episode_id,user_id,author,body,created_at").eq("episode_id", id).eq("hidden", false).order("created_at", { ascending: false }).limit(100);
+      const read = (cols: string) => getDb().from(T.comments).select(cols).eq("episode_id", id).eq("hidden", false).order("created_at", { ascending: false }).limit(150);
+      let { data, error } = moments ? await read("id,episode_id,user_id,author,body,created_at,at_sec") : { data: null, error: { code: "42703" } as any };
+      if (noMoment(error)) { moments = false; ({ data, error } = await read("id,episode_id,user_id,author,body,created_at")); }
       check(error);
-      return (data || []).map((r: any) => ({ id: String(r.id), episodeId: String(r.episode_id), author: String(r.author), body: String(r.body), at: String(r.created_at), mine: String(r.user_id) === userId }));
+      return (data || []).map((r: any) => ({ id: String(r.id), episodeId: String(r.episode_id), author: String(r.author), body: String(r.body), at: String(r.created_at), mine: String(r.user_id) === userId, t: typeof r.at_sec === "number" ? r.at_sec : null }));
     },
     async addComment(c) {
-      const { data, error } = await getDb().from(T.comments).insert({ episode_id: c.episodeId, show_id: c.showId, user_id: uid(c.userId), author: c.author, body: c.body }).select("id,created_at").single();
+      const row: Record<string, unknown> = { episode_id: c.episodeId, show_id: c.showId, user_id: uid(c.userId), author: c.author, body: c.body };
+      const withMoment = moments && typeof c.t === "number";
+      let { data, error } = await getDb().from(T.comments).insert(withMoment ? { ...row, at_sec: c.t } : row).select("id,created_at").single();
+      if (withMoment && noMoment(error)) { moments = false; ({ data, error } = await getDb().from(T.comments).insert(row).select("id,created_at").single()); }
       check(error);
-      return { id: String(data.id), episodeId: c.episodeId, author: c.author, body: c.body, at: String(data.created_at), mine: true };
+      return { id: String(data.id), episodeId: c.episodeId, author: c.author, body: c.body, at: String(data.created_at), mine: true, t: withMoment && moments ? c.t ?? null : null };
     },
     async deleteComment(id, userId, admin) {
       let q = getDb().from(T.comments).delete().eq("id", Number(id));
@@ -133,6 +162,7 @@ export interface EarshotOptions {
   socialDb?: () => any;
 }
 let sharedAdStore: AdStore | null = null;
+const nowServices = new WeakMap<object, ReturnType<typeof nowNewsService>>();
 const openingsStarted = new WeakSet<object>();
 
 export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandler, options: EarshotOptions) {
@@ -156,7 +186,7 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
   };
   const appleDown = (res: any, e: any) => {
     if (e?.message !== "busy") console.error("[earshot] Apple directory:", e?.message);
-    res.status(503).json({ message: e?.message === "busy" ? "Lots of people are browsing right now. Try again in a few seconds." : "Apple Podcasts can't be reached right now. Try again in a minute." });
+    res.status(503).json({ busy: e?.message === "busy", message: e?.message === "busy" ? "Still loading. Try again in a moment." : "Podcasts can't be reached right now. Try again in a minute." });
   };
   const storeDown = (res: any, e: any) => {
     if (e instanceof EarshotUnavailable) return res.status(503).json({ message: "Likes and comments aren't set up yet.", storage: "unavailable" });
@@ -229,17 +259,71 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     } catch (e) { appleDown(res, e); }
   });
 
+  /** Top shows (the round row on Pod+): Apple's charts for All and each genre; for a topic, the
+   *  biggest charting/established shows whose episodes cover it (server/podcastTop.ts). */
+  const top = topShowsService((url) => dir.apple(url), (term, entity, limit) => appleSearchUrl(term, entity, limit, false), () => dir.idle());
+  // Charts load in the background, one at a time, only while nobody is waiting on Apple.
+  const warmTop = setInterval(() => { void top.warmOne().catch(() => {}); }, 15_000);
+  warmTop.unref?.();
+  app.get(`${P}/top`, authMiddleware, async (req: any, res) => {
+    const q = typeof req.query?.q === "string" ? req.query.q.replace(/\s+/g, " ").trim().slice(0, EARSHOT_LIMITS.search) : "";
+    const gid = typeof req.query?.genre === "string" ? req.query.genre : "";
+    if (gid && !GENRE[gid]) return res.status(404).json({ message: "That genre doesn't exist." });
+    if (gid && !genreOk(req, gid)) return res.json({ shows: [] });
+    if (q && q.length < 2) return res.json({ shows: [] });
+    if (limited(reads, req, res)) return;
+    try {
+      const shows = q ? await top.topic(q) : await top.genre(gid || undefined);
+      if (!shows) { res.set("Cache-Control", "no-store"); return res.json({ shows: [], pending: true }); }
+      res.set("Cache-Control", "private, max-age=1800");
+      res.json({ shows: isStudent(req) ? shows.filter((s) => GENRE[s.genre]?.kidSafe) : shows });
+    } catch (e) { appleDown(res, e); }
+  });
+
+  /** Up to the Minute News (a Pod+ hub): news episodes from the last few hours, newest first
+   *  (server/podcastNow.ts). One service per directory, shared by both apps. */
+  let nowNews = nowServices.get(dir);
+  if (!nowNews) {
+    nowNews = nowNewsService({ apple: (url) => dir.apple(url), idle: () => dir.idle(), newsPool: () => dir.pool("news", true), remember: (show, eps) => { void dir.addEpisodes(show, eps); } });
+    nowServices.set(dir, nowNews);
+    if (!options.fetcher && process.env.NODE_ENV !== "test") setTimeout(() => nowNews!.start(), 20_000).unref?.();
+  }
+  app.get(`${P}/now`, authMiddleware, async (req: any, res) => {
+    if (limited(reads, req, res)) return;
+    const hours = Number(req.query?.hours) || NOW_HOURS_DEFAULT;
+    res.set("Cache-Control", "no-store");
+    res.json(nowNews!.list(hours, explicitFor(req)));
+  });
+
+  /** About a show (the info button on the swipe screen): description, hosts, their other shows,
+   *  and where it ranks on Apple Podcasts and Spotify. */
+  const infos = showInfoService({ apple: (url) => dir.apple(url), loadShow: (id) => dir.loadShow(id), appleRanks: (s) => top.ranksOf(s) });
+  app.get(`${P}/show/:id/info`, authMiddleware, async (req: any, res) => {
+    const id = cleanPodId(req.params.id);
+    if (!id) return res.status(400).json({ message: "That isn't a podcast." });
+    if (limited(reads, req, res)) return;
+    try {
+      const info = await infos.info(id);
+      if (!info) return res.status(404).json({ message: "That podcast isn't available." });
+      const explicit = explicitFor(req);
+      res.set("Cache-Control", "private, max-age=1800");
+      res.json({ ...info, others: clean(info.others, explicit).filter((s) => !isStudent(req) || GENRE[s.genre]?.kidSafe) });
+    } catch (e) { appleDown(res, e); }
+  });
+
   /** Search shows and episodes by any words. */
   app.get(`${P}/search`, authMiddleware, async (req: any, res) => {
     const q = typeof req.query?.q === "string" ? req.query.q.replace(/\s+/g, " ").trim().slice(0, EARSHOT_LIMITS.search) : "";
     if (q.length < 2) return res.json({ shows: [], episodes: [] });
     if (limited(reads, req, res, "searches")) return;
     const explicit = explicitFor(req);
+    // deep=1 (Pod+ search page): up to 200 episodes and 50 shows, so exact matches further down are found.
+    const deep = req.query?.deep === "1";
     try {
-      const out = await dir.searches.get(q.toLowerCase(), async () => {
-        const shows = await dir.apple(appleSearchUrl(q, "podcast", 25, true));
+      const out = await dir.searches.get(`${deep ? "deep:" : ""}${q.toLowerCase()}`, async () => {
+        const shows = await dir.apple(appleSearchUrl(q, "podcast", deep ? 50 : 25, true));
         let episodes: any = { results: [] };
-        try { episodes = await dir.apple(appleSearchUrl(q, "podcastEpisode", 20, true)); } catch { /* shows alone are fine */ }
+        try { episodes = await dir.apple(appleSearchUrl(q, "podcastEpisode", deep ? 200 : 20, true)); } catch { /* shows alone are fine */ }
         return {
           shows: (Array.isArray(shows?.results) ? shows.results : []).map((r: unknown) => parseShow(r)).filter(Boolean) as PodShow[],
           episodes: (Array.isArray(episodes?.results) ? episodes.results : []).map((r: unknown) => parseEpisode(r)).filter(Boolean) as PodEpisode[],
@@ -248,6 +332,30 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
       const kidOk = (genre: string) => !isStudent(req) || !!GENRE[genre]?.kidSafe;
       res.set("Cache-Control", "private, max-age=900");
       res.json({ shows: clean(out.shows, explicit).filter((s) => kidOk(s.genre)), episodes: clean(out.episodes, explicit) });
+    } catch (e) { appleDown(res, e); }
+  });
+
+  /** Search inside one show: up to its 200 newest episodes as Apple lists them (most apps show 25).
+   *  Words match titles and descriptions; no words lists the archive newest first. */
+  app.get(`${P}/show/:id/search`, authMiddleware, async (req: any, res) => {
+    const id = cleanPodId(req.params.id);
+    if (!id) return res.status(400).json({ message: "That isn't a podcast." });
+    const q = typeof req.query?.q === "string" ? req.query.q.replace(/\s+/g, " ").trim().slice(0, EARSHOT_LIMITS.search).toLowerCase() : "";
+    if (limited(reads, req, res, "searches")) return;
+    try {
+      const out = await dir.searches.get(`archive:${id}`, async () => {
+        const body = await dir.apple(appleLookupUrl(id, 200));
+        const results: unknown[] = Array.isArray(body?.results) ? body.results : [];
+        const show = results.map((r) => parseShow(r)).find((s) => s && s.id === id) ?? null;
+        const episodes = results.map((r) => parseEpisode(r, show)).filter(Boolean) as PodEpisode[];
+        return { shows: show ? [show] : [], episodes };
+      });
+      const words = q.split(" ").filter((w) => w.length > 1);
+      const list = (clean(out.episodes, explicitFor(req)))
+        .filter((e) => !words.length || words.every((w) => `${e.title} ${e.about}`.toLowerCase().includes(w)))
+        .sort((a, b) => Date.parse(b.date || "0") - Date.parse(a.date || "0"));
+      res.set("Cache-Control", "private, max-age=900");
+      res.json({ show: out.shows[0] ?? null, episodes: list, total: out.episodes.length });
     } catch (e) { appleDown(res, e); }
   });
 
@@ -294,11 +402,26 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
   });
 
   /** Read along: one piece of an episode's transcript, with its ads and chapters. */
+  /** The shows a listener follows (ids only), so their new episodes are checked for ads before they play. */
+  const followsSeen = new Map<string, number>();
+  app.post(`${P}/precheck/follows`, authMiddleware, (req: any, res) => {
+    const ids = (Array.isArray(req.body?.ids) ? req.body.ids : []).slice(0, 60).map(cleanPodId).filter(Boolean);
+    const who = String(uid(req));
+    // Counted once a day per listener.
+    if (ids.length && Date.now() - (followsSeen.get(who) ?? 0) > 24 * 3600_000) {
+      followsSeen.set(who, Date.now());
+      if (followsSeen.size > 20_000) followsSeen.clear();
+      noteShows(ids, 3);
+    }
+    res.json({ ok: true });
+  });
   app.get(`${P}/transcript/:episodeId`, authMiddleware, async (req: any, res) => {
     const id = cleanPodId(req.params.episodeId), show = cleanPodId(req.query?.show);
     const chunk = Math.max(0, Math.min(40, Math.floor(Number(req.query?.chunk) || 0)));
     if (!id || !show) return res.status(400).json({ message: "That isn't an episode." });
     if (limited(reading, req, res, "transcript requests")) return;
+    // Someone is listening to this show: its new episodes get checked for ads ahead of time.
+    if (chunk === 0) noteShows([show], 1);
     try {
       // Playing through the server: made from (and placed in) this listener's own copy.
       const play = typeof req.query?.play === "string" ? req.query.play : "";
@@ -366,6 +489,13 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     });
   }
 
+  // ---------------- Ask the episode and Catch me up (server/podcastListen.ts) ----------------
+  // Answered by Perplexity (fast, takes the whole transcript, can look the show up); Groq if it fails.
+  registerListenRoutes(app, authMiddleware, {
+    prefix: P, dir, player, limited, voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`,
+    ask: perplexityJson(perplexityKey, openAiJson),
+  });
+
   // ---------------- likes, shares, comments ----------------
 
   const episodeId = (v: unknown) => cleanPodId(v);
@@ -409,7 +539,7 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     if (!body) return res.status(400).json({ message: "Write something first." });
     if (limited(posts, req, res, "comments")) return;
     try {
-      const comment = await store.addComment({ episodeId: id, showId: cleanPodId(req.body?.showId), userId: uid(req), author: commentAuthor(req.user?.displayName ?? req.user?.display_name), body });
+      const comment = await store.addComment({ episodeId: id, showId: cleanPodId(req.body?.showId), userId: uid(req), author: commentAuthor(req.user?.displayName ?? req.user?.display_name), body, t: cleanMoment(req.body?.t) });
       res.json({ comment });
     } catch (e) { storeDown(res, e); }
   });
@@ -508,5 +638,7 @@ export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetch
     try { const s = JSON.stringify(req.body ?? {}); if (s.length < 4000) console.log("[podscroll] screen", s); } catch { /* unreadable */ }
     res.status(204).end();
   });
+  // Audiobooks (server/audiobooks.ts): LibriVox's public domain audiobooks.
+  registerAudiobookRoutes(app, gate, { ask: perplexityJson(perplexityKey, openAiJson), transcribe: openAiTranscribe, ...(socialDb ? { kv: supabaseKV(socialDb), blobs: supabaseBlobs(socialDb) } : {}) });
   registerEarshotRoutes(app, gate, { store, fetcher, directory, adStore, player, socialDb, prefix: "/api/podscroll" });
 }

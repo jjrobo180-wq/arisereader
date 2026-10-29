@@ -22,6 +22,7 @@ import { chapterAdsIn, id3Chapters, seamTimes, spliceAds } from "../shared/earsh
 import { fetchCopy } from "./podcastCopies";
 import type { AdLibrary } from "./podcastAdLibrary";
 import type { AnchorPiece, ContentChunk, Directory } from "./podcastDirectory";
+import { hasDeepgram } from "./deepgram";
 
 // ---------------------------------------------------------------------------
 // Copies being downloaded
@@ -650,10 +651,15 @@ export function createPlayer(o: PlayOptions = {}) {
 export type Player = ReturnType<typeof createPlayer>;
 
 /** Waits until a response can take more (or the listener left). */
+/** Waits until the response can take more, or is gone. A listener who already left (the response
+ *  closed before this was called) never sends "close" again: waiting for it hung the read loop, and
+ *  its open file was only closed by garbage collection ("Closing file descriptor on GC"). */
 function drained(res: any) {
+  if (res.destroyed || res.writableEnded || res.closed || res.socket?.destroyed) return Promise.resolve();
   return new Promise<void>((resolve) => {
-    const done = () => { res.off("drain", done); res.off("close", done); resolve(); };
-    res.on("drain", done); res.on("close", done);
+    const done = () => { clearTimeout(t); res.off("drain", done); res.off("close", done); res.off("error", done); resolve(); };
+    const t = setTimeout(done, 60_000);
+    res.on("drain", done); res.on("close", done); res.on("error", done);
   });
 }
 
@@ -690,7 +696,7 @@ export function parseRange(header: string | undefined, total: number): { start: 
 /** Right after a copy is compared, its opening (first 2.5 minutes) is transcribed and read for ads
  *  (host-read sponsors, the show's own pitches) so they're skipped before they play. Two at a time;
  *  made once per episode for everyone. */
-export function startOpenings(player: Player, dir: Pick<Directory, "contentTranscript"> & Partial<Pick<Directory, "contentChunks" | "copyPieceAds">>) {
+export function startOpenings(player: Player, dir: Pick<Directory, "contentTranscript"> & Partial<Pick<Directory, "contentChunks" | "copyPieceAds" | "likelyAdChunks" | "budgetLeft" | "perDay">>) {
   const queue: any[] = [];
   let running = 0;
   const pump = () => {
@@ -703,14 +709,32 @@ export function startOpenings(player: Player, dir: Pick<Directory, "contentTrans
         .then(async () => {
           // Then whatever in this copy the pieces don't have (its own ads at the start, mostly).
           if (!dir.contentChunks || !dir.copyPieceAds || !player.sessions.has(s.id)) return;
+          // Busy hour for speech-to-text: leave it for the parts listeners are playing.
+          if (!hasDeepgram() && (dir as any).minutesLastHour && (dir as any).minutesLastHour() > 40) return;
           const reader = dir.copyPieceAds;
           await player.readGaps(s, await dir.contentChunks(s.episodeId), (fp, audio, secs) => reader(s.showId, s.episodeId, fp, audio, secs));
+          await checkLikelyAds(player, dir, s);
         })
         .catch((e: any) => console.warn("[earshot] opening:", e?.message || e))
         .finally(() => { s.opening = "done"; running--; pump(); });
     }
   };
   player.setOnFinal((s) => { queue.push(s); pump(); });
+}
+
+/** Then the parts of the episode where this show's ad breaks usually are (learned from its earlier
+ *  episodes), so they're known before the listener gets there. Only while there's plenty of the
+ *  day's allowance left (a quarter is kept for listeners), and only for a listener still here. */
+export async function checkLikelyAds(player: Player, dir: Pick<Directory, "contentTranscript"> & Partial<Pick<Directory, "likelyAdChunks" | "budgetLeft" | "perDay">>, s: any, reserve = 0.25) {
+  if (!dir.likelyAdChunks || !player.sessions.has(s.id)) return;
+  const { total } = player.contentOf(s);
+  for (const chunk of await dir.likelyAdChunks(s.showId, total)) {
+    if (!player.sessions.has(s.id)) return;
+    if (dir.budgetLeft && dir.perDay && dir.budgetLeft() < dir.perDay * reserve) return;
+    // Groq's free speech-to-text takes 2 hours of audio an hour: what listeners are playing comes first.
+    if (!hasDeepgram() && (dir as any).minutesLastHour && (dir as any).minutesLastHour() > 40) return;
+    await dir.contentTranscript(s.showId, s.episodeId, chunk, { secs: total, extract: (from, to) => player.extract(s, from, to) }).catch(() => null);
+  }
 }
 
 export async function copyTranscript(player: Player, dir: Pick<Directory, "contentTranscript">, sid: string, showId: string, episodeId: string, chunk: number): Promise<TranscriptChunk | null> {

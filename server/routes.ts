@@ -52,6 +52,7 @@ import { registerReadsRoutes } from "./readsSync";
 import { registerBuildWorldRoutes } from "./buildWorld";
 import { registerChessArenaRoutes } from "./chessArena";
 import { registerQuizIntegrityRoutes } from "./quizIntegrity";
+import { registerParentQuizPermissionRoutes } from "./parentQuizPermission";
 import { registerComprehensionRoutes } from "./comprehension";
 import { recordLogin, registerStudentActivityRoutes } from "./studentActivity";
 import { countHubStudents, createHubGate, registerTeacherHubRoutes } from "./teacherHub";
@@ -64,9 +65,14 @@ import { registerFoodLookupRoutes } from "./foodLookup";
 import { registerBrowserRoutes } from "./browserCheck";
 import { registerLifePlanRoutes } from "./lifePlan";
 import { registerSleepFinderRoutes } from "./sleepFinder";
-import { registerEarshotRoutes, registerPodscrollRoutes, supabaseEarshotStore } from "./earshot";
+import { podscrollAllowed, registerEarshotRoutes, registerPodscrollRoutes, supabaseEarshotStore } from "./earshot";
 import { attachLivePods } from "./podcastLive";
+import { attachListenParties } from "./podcastParty";
 import { createDirectory as createPodcastDirectory, supabaseKV } from "./podcastDirectory";
+import { startPrechecks as startPodcastPrechecks } from "./podcastPrecheck";
+import { groqSpeech, hasGroqVoice, voiceFor } from "./groqVoice";
+import { supabaseBlobs } from "./blobStore";
+import { GENRES as PODCAST_GENRES } from "../shared/earshot";
 import { supabaseAdStore } from "./podcastAds";
 import { startCopyDiagnostics } from "./podcastCopies";
 import { createPlayer as createPodcastPlayer, startPlayDiagnostics } from "./podcastPlay";
@@ -87,7 +93,7 @@ import { legacyApprovedTitle, readyQuizNotificationType } from "../shared/readyQ
 import { bookKey, sameBook } from "../shared/bookIdentity";
 import { POTTY_TIMERS_KEY, registerPottyTimerRoutes } from "./pottyTimers";
 import { registerMeetingPollRoutes } from "./meetingPoll";
-import { registerAriseSocialRoutes, type SocialUser } from "./ariseSocial";
+import { registerAriseSocialRoutes, type ConnectInvite, type SocialUser } from "./ariseSocial";
 import { registerAriseMathRoutes } from "./ariseMath";
 import { registerMathPhotoRoutes } from "./ariseMathPhoto";
 import { registerClassBehaviorRoutes } from "./classBehavior";
@@ -193,7 +199,7 @@ async function getPerplexityApiKey(): Promise<string> {
 async function generateQuizWithAI(bookTitle: string, author: string, ageGroup?: string, studentGrade?: string): Promise<{ questions: Array<{ question: string; options: string[]; correct: string; evidence?: string; source?: string }>; bookGradeLevel: string; pointsValue: number; sources: string[]; aiUnsure: boolean; audience?: string; contentWarning?: string } | { error: string }> {
   const apiKey = await getPerplexityApiKey();
   if (!apiKey) {
-    return { error: "AI quiz generation is not configured. An admin needs to set the Perplexity API key in the admin panel." };
+    return { error: "AI quizzes aren't available right now. Please try again later." };
   }
   try {
     // Load admin-configured quiz guidelines
@@ -693,7 +699,7 @@ async function qualityCheckQuiz(validQuestions: any[], allPics: boolean): Promis
 async function generateEyeGazeQuizWithAI(topic: string, description?: string, sourceLink?: string, level: number = 1, questionCount: number = 5, exactMode: boolean = false, allPics: boolean = true, customQuestions?: string): Promise<{ questions: Array<{ prompt: string; question_image: string | null; option_a_text: string; option_a_image: string | null; option_b_text: string; option_b_image: string | null; option_c_text: string; option_c_image: string | null; option_d_text: string; option_d_image: string | null; correct_answer: string }> } | { error: string }> {
   const apiKey = await getPerplexityApiKey();
   if (!apiKey) {
-    return { error: "AI quiz generation is not configured. An admin needs to set the Perplexity API key in the admin panel." };
+    return { error: "AI quizzes aren't available right now. Please try again later." };
   }
   try {
     let guidelines = "";
@@ -1484,7 +1490,7 @@ export async function registerRoutes(
     if (error) throw error;
     return data ? data.workspace : null;
   };
-  app.post(["/api/teacher-hub/import", "/api/teacher-hub/import/minutes", "/api/hub-chat", "/api/arise-todo/food/estimate", "/api/life-plan/build", "/api/sleep-finder/ask"], authMiddleware, plans.aiMeter);
+  app.post(["/api/teacher-hub/import", "/api/teacher-hub/import/minutes", "/api/hub-chat", "/api/arise-todo/food/estimate", "/api/life-plan/build", "/api/sleep-finder/ask", "/api/comprehension/review/:id/suggest"], authMiddleware, plans.aiMeter);
   app.put(["/api/teacher-hub/workspace", "/api/arise-todo/workspace"], authMiddleware, async (req: any, res, next) => {
     try {
       const user = req.adminPreview && req.realUser ? req.realUser : req.user;
@@ -1563,9 +1569,13 @@ export async function registerRoutes(
   // Playback through the server (one for both apps): stitched-in ads found in each listener's own copy.
   const podcastPlayer = createPodcastPlayer({ library: createAdLibrary(supabaseKV(getAdminSupabase)) });
   startPlayDiagnostics(supabaseKV(getAdminSupabase), podcastPlayer, podcasts);
+  // New episodes of followed and top shows checked for ads before anyone plays them, with the AI allowance left over at night.
+  if (process.env.EARSHOT_PRECHECK === "1") startPodcastPrechecks({ kv: supabaseKV(getAdminSupabase), player: podcastPlayer, dir: podcasts,
+    topShows: async () => { const lists = await Promise.all(PODCAST_GENRES.slice(0, 12).map((g) => podcasts.loadGenreShows(g.id).catch(() => []))); const out: string[] = []; for (let i = 0; i < 4; i++) for (const l of lists) if (l[i]) out.push(l[i].id); return out; } });
   registerEarshotRoutes(app, authMiddleware, { store: supabaseEarshotStore(getAdminSupabase), directory: podcasts, adStore: podcastAds, player: podcastPlayer, socialDb: getAdminSupabase });
   registerPodscrollRoutes(app, supabaseEarshotStore(getAdminSupabase, "podscroll"), undefined, podcasts, podcastAds, podcastPlayer, getAdminSupabase, { sendEmail: (to, subject, html) => sendEmail(to, subject, html) });
   attachLivePods(httpServer, getAdminSupabase);
+  { const extra = String(process.env.PODSCROLL_ORIGINS || "").split(",").map((x) => x.trim()).filter(Boolean); attachListenParties(httpServer, (origin) => podscrollAllowed(origin, extra)); }
   registerPassLockRoutes(app, authMiddleware, { passwordHash: async (id) => (await storage.getUser(id))?.password });
   registerHubChatRoutes(app, authMiddleware, undefined, undefined, {
     getSetting: (key) => storage.getSetting(key),
@@ -1845,6 +1855,28 @@ export async function registerRoutes(
       self: async (req: any) => !!(req.adminPreview || req.realUser?.isAdmin) || plans.socialAccess(req.user),
       user: async (id) => plans.socialAccess(await storage.getUser(id)),
     },
+    // Students an admin added to Connect (and the career path picked for them), in one setting.
+    // Read straight from the database: storage.getSetting is cached and turns an error into "",
+    // which would then be saved over the real list.
+    invites: (() => {
+      const KEY = "arise_connect_invites";
+      const read = async (): Promise<Record<string, ConnectInvite>> => {
+        const { data, error } = await supabase.from("settings").select("value").eq("key", KEY).maybeSingle();
+        if (error) throw new Error(error.message);
+        try { const v = data?.value ? JSON.parse(data.value) : {}; return v && typeof v === "object" ? v : {}; } catch { return {}; }
+      };
+      const clean = (v: any): ConnectInvite | null => v && typeof v === "object"
+        ? { pathId: typeof v.pathId === "string" ? v.pathId : null, by: Number(v.by) || 0, at: String(v.at || "") } : null;
+      return {
+        get: async (id: number) => clean((await read())[String(id)]),
+        all: async () => new Map(Object.entries(await read()).map(([k, v]) => [Number(k), clean(v)!] as [number, ConnectInvite]).filter(([k, v]) => k > 0 && v)),
+        save: async (id: number, invite: ConnectInvite | null) => {
+          const all = await read();
+          if (invite) all[String(id)] = invite; else delete all[String(id)];
+          await storage.upsertSetting(KEY, JSON.stringify(all));
+        },
+      };
+    })(),
     directory: {
       user: async (id) => toSocialUser(await storage.getUser(id)),
       gradeOf: async (id) => (await studentGrades())[String(id)] || null,
@@ -1852,6 +1884,17 @@ export async function registerRoutes(
       childrenOf: (parentId) => getParentStudentIds(parentId),
       parentsOf: (studentId) => getStudentParentIds(studentId),
       notify: (id, message) => notifyUser(id, message),
+      allStudents: async () => {
+        const users = await storage.getAllUsers();
+        const teacherNames = new Map(users.filter((u: any) => u.role === "teacher").map((u: any) => [Number(u.id), String(u.displayName || u.username || "")]));
+        return users
+          .filter((u: any) => (u.role || "student") === "student" && !u.isAdmin && !u.archivedAt && !isDemoStudent(u))
+          .map((u: any) => ({ ...toSocialUser(u)!, username: String(u.username || ""), teacherName: u.teacherId ? teacherNames.get(Number(u.teacherId)) || null : null }));
+      },
+      bell: async (id, n) => {
+        const { error } = await supabase.from("notifications").insert({ user_id: id, type: n.type, title: n.title, message: n.message });
+        if (error) throw new Error(error.message);
+      },
     },
   });
   // Arise Math (/math/): math practice with points, a class leaderboard, assignments and live review.
@@ -2128,9 +2171,25 @@ export async function registerRoutes(
 
   // No-proctor quizzes: the student picks this instead of a proctor code; the camera
   // takes snapshots and teachers, parents and the admin review the record later.
+  // A parent's permission for book quizzes: a yes for camera quizzes, and one-time proctor codes.
+  const quizPermission = registerParentQuizPermissionRoutes(app, authMiddleware, {
+    // storage.getSetting turns a database error into "", which a save would then write back as an empty list
+    getSetting: async (key) => {
+      const { data, error } = await supabase.from("settings").select("value").eq("key", key).maybeSingle();
+      if (error) throw new Error(error.message);
+      return data?.value ?? null;
+    },
+    upsertSetting: (key, value) => storage.upsertSetting(key, value),
+    sendEmail: (to, subject, html) => sendEmail(to, subject, html),
+    getUser: (id) => storage.getUser(id),
+    isDemoStudent,
+    getStudentParentIds,
+    parentSignupUrl: async (studentId, origin) => `${origin}/#/parent-signup?code=${encodeURIComponent((await getOrCreateParentInvite(studentId)).formattedCode)}`,
+  });
   const noProctor = registerQuizIntegrityRoutes(app, authMiddleware, {
     db: getAdminSupabase,
     isDemoStudent,
+    cameraAllowed: (studentId) => quizPermission.cameraAllowed(studentId),
     hasAttempt: async (userId, _quizKind, quizId) => !!(await storage.getAttempt(userId, quizId)),
     getTeacherStudentIds: async (teacherId) => (await storage.getTeacherStudents(teacherId)).map((student: any) => Number(student.id)),
     getParentStudentIds,
@@ -7302,10 +7361,18 @@ export async function registerRoutes(
 
       let identity: ProctorIdentity | null = null;
 
+      // A one-time code a parent got by email (the student typed the parent's address on the quiz screen).
+      // It works once, before the parent has an account and their own Parent Proctor Code.
+      if (await quizPermission.redeemCode(req.user.id, password)) {
+        identity = { type: "parent", userId: null, name: "Parent / Guardian (one-time code)" };
+      }
+
       // School staff proctoring must work even when a student's parent account is
       // not linked yet. Check the shared school proctor password first.
       const schoolPassword = String((await storage.getProctorPassword()) || "").trim();
-      if (schoolPassword && password.toLowerCase() === schoolPassword.toLowerCase()) {
+      if (identity) {
+        // already unlocked with a one-time code
+      } else if (schoolPassword && password.toLowerCase() === schoolPassword.toLowerCase()) {
         identity = { type: "teacher", userId: null, name: "Teacher / School Staff" };
       } else {
         // Parent/guardian proctoring still requires the parent to be linked to
@@ -7315,7 +7382,7 @@ export async function registerRoutes(
           // it wasn't the school password either, so it counts as a miss
           proctorFails.fail(proctorKey);
           return res.status(403).json({
-            message: "A parent or guardian must connect an A.R.I.S.E. Parent account before using a parent proctor code. School staff may use the school proctor password.",
+            message: "That code didn't work. Your parent can get a one-time code by email: tap \"Email my parent a code\" below. School staff can use the school proctor password.",
             parentRequired: true,
           });
         }
@@ -9223,13 +9290,16 @@ Important:
     }
   });
 
-  console.log("[eye-gaze-tts] natural voice configured:", !!process.env.OPENAI_API_KEY);
+  const openAiVoiceOn = () => !!process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== "routed-to-grok";
+  const isWav = (b: Buffer) => b.length > 4 && b.subarray(0, 4).toString("latin1") === "RIFF";
+  console.log("[eye-gaze-tts] natural voice configured:", openAiVoiceOn() || hasGroqVoice());
 
   app.get("/api/eye-gaze/tts/status", (_req, res) => {
+    const groq = !openAiVoiceOn() && hasGroqVoice();
     res.json({
-      configured: !!process.env.OPENAI_API_KEY,
-      provider: process.env.OPENAI_API_KEY ? "openai" : null,
-      model: process.env.OPENAI_API_KEY ? "gpt-4o-mini-tts" : null,
+      configured: openAiVoiceOn() || hasGroqVoice(),
+      provider: openAiVoiceOn() ? "openai" : groq ? "groq" : null,
+      model: openAiVoiceOn() ? "gpt-4o-mini-tts" : groq ? (process.env.BOOK_TTS_MODEL || "canopylabs/orpheus-v1-english") : null,
     });
   });
 
@@ -9237,13 +9307,17 @@ Important:
   // One generated phrase can be reused across students until the service restarts.
   const ttsAudioCache = new Map<string, { audio: Buffer; lastUsed: number }>();
   const ttsAudioInFlight = new Map<string, Promise<Buffer>>();
-  const TTS_AUDIO_CACHE_LIMIT = 250;
+  const TTS_AUDIO_CACHE_LIMIT = 120;
+  // Every phrase made is also kept in storage (voice-cache), so it is made once, ever.
+  const ttsBlobs = supabaseBlobs(getAdminSupabase);
 
   function rememberTtsAudio(key: string, audio: Buffer) {
     if (ttsAudioCache.has(key)) ttsAudioCache.delete(key);
     ttsAudioCache.set(key, { audio, lastUsed: Date.now() });
 
-    while (ttsAudioCache.size > TTS_AUDIO_CACHE_LIMIT) {
+    // By size too: Groq's voice can come back as WAV (about ten times bigger than MP3).
+    const bytes = () => { let n = 0; for (const e of ttsAudioCache.values()) n += e.audio.length; return n; };
+    while (ttsAudioCache.size > TTS_AUDIO_CACHE_LIMIT || (ttsAudioCache.size > 1 && bytes() > 15 * 1024 * 1024)) {
       let oldestKey: string | null = null;
       let oldestTime = Infinity;
       for (const [candidateKey, entry] of ttsAudioCache.entries()) {
@@ -9304,17 +9378,25 @@ Important:
       if (!text) return res.status(400).json({ message: "Text is required." });
       if (text.length > 500) return res.status(400).json({ message: "Text is too long." });
 
+      // OpenAI's voice when it's really on (USE_OPENAI=1 with credit); otherwise, or if it fails,
+      // Groq's Orpheus voices (server/groqVoice.ts).
       const apiKey = process.env.OPENAI_API_KEY;
-      if (!apiKey) {
+      const openAiOn = !!apiKey && apiKey !== "routed-to-grok";
+      if (!openAiOn && !hasGroqVoice()) {
         return res.status(503).json({ message: "AI voice is not configured." });
       }
+      const groqVoice = () => groqSpeech(text, voiceFor(style, calmMode, sleepVoice)).then((s) => s.audio);
 
       const cacheKey = `${style}|${style === "sleep" ? sleepVoice : calmMode ? "calm" : "normal"}|${text}`;
-      const cached = ttsAudioCache.get(cacheKey);
+      let cached = ttsAudioCache.get(cacheKey);
+      if (!cached) {
+        const stored = await ttsBlobs.get(`tts:${cacheKey}`);
+        if (stored) { rememberTtsAudio(cacheKey, stored.data); cached = ttsAudioCache.get(cacheKey); }
+      }
 
       if (cached) {
         cached.lastUsed = Date.now();
-        res.setHeader("Content-Type", "audio/mpeg");
+        res.setHeader("Content-Type", isWav(cached.audio) ? "audio/wav" : "audio/mpeg");
         res.setHeader("Cache-Control", "private, max-age=3600");
         res.setHeader("X-ARISE-TTS-Cache", "HIT");
         return res.send(cached.audio);
@@ -9322,7 +9404,9 @@ Important:
 
       let pending = ttsAudioInFlight.get(cacheKey);
       if (!pending) {
-        pending = generateTtsAudio(text, calmMode, apiKey, style, sleepVoice);
+        pending = openAiOn
+          ? generateTtsAudio(text, calmMode, apiKey!, style, sleepVoice).catch((e) => (hasGroqVoice() ? groqVoice() : Promise.reject(e)))
+          : groqVoice();
         ttsAudioInFlight.set(cacheKey, pending);
       }
 
@@ -9330,7 +9414,7 @@ Important:
       try {
         audio = await pending;
       } catch (error: any) {
-        console.error("[eye-gaze-tts] OpenAI speech failed:", error?.status || "", error?.detail || error?.message);
+        console.error("[eye-gaze-tts] speech failed:", error?.status || "", error?.detail || error?.message);
         return res.status(502).json({ message: "AI voice is temporarily unavailable." });
       } finally {
         if (ttsAudioInFlight.get(cacheKey) === pending) {
@@ -9338,8 +9422,9 @@ Important:
         }
       }
 
+      if (!ttsAudioCache.has(cacheKey)) void ttsBlobs.put(`tts:${cacheKey}`, audio, isWav(audio) ? "audio/wav" : "audio/mpeg");
       rememberTtsAudio(cacheKey, audio);
-      res.setHeader("Content-Type", "audio/mpeg");
+      res.setHeader("Content-Type", isWav(audio) ? "audio/wav" : "audio/mpeg");
       res.setHeader("Cache-Control", "private, max-age=3600");
       res.setHeader("X-ARISE-TTS-Cache", "MISS");
       res.send(audio);
@@ -10897,9 +10982,33 @@ Important:
       const parentMap = new Map(allUsers.filter((u: any) => u.role === 'parent').map((u: any) => [u.id, u]));
       const forwardedProtocol = String(req.get("x-forwarded-proto") || req.protocol || "https").split(",")[0].trim();
       const origin = `${forwardedProtocol}://${req.get("host")}`;
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: 'Parent codes are not configured.' });
+      // Every student's code at once (one call per 200 students), making codes only for students with none yet.
+      // Looking them up one student at a time timed out on big rosters, so the Parents tab never loaded.
+      const adminDb = getAdminSupabase();
+      const codes = new Map<number, string>();
+      const ids = roster.map((student: any) => Number(student.id));
+      const readCodes = async (list: number[]) => {
+        for (let i = 0; i < list.length; i += 200) {
+          const { data, error } = await adminDb.from('parent_invite_codes').select('student_id, code').in('student_id', list.slice(i, i + 200));
+          if (error) throw error;
+          for (const row of data || []) codes.set(Number(row.student_id), String(row.code));
+        }
+      };
+      await readCodes(ids);
+      const missing = ids.filter((id) => !codes.has(id));
+      for (let i = 0; i < missing.length; i += 200) {
+        const chunk = missing.slice(i, i + 200);
+        const inserted = await adminDb.from('parent_invite_codes')
+          .upsert(chunk.map((id) => ({ student_id: id, code: randomBytes(10).toString('hex').toUpperCase() })), { onConflict: 'student_id', ignoreDuplicates: true });
+        if (inserted.error) throw inserted.error;
+        await readCodes(chunk);
+      }
       const students = [];
       for (const student of roster) {
-        const invite = await getOrCreateParentInvite(student.id);
+        const rawCode = codes.get(Number(student.id));
+        if (!rawCode) continue;
+        const invite = { formattedCode: rawCode.match(/.{1,4}/g)?.join('-') || rawCode };
         const parentIds: number[] = [];
         for (const [parentId, linkedValue] of Object.entries(links)) {
           if (normalizeLinkedIds(linkedValue).includes(student.id)) {
@@ -10916,14 +11025,14 @@ Important:
         }));
         students.push({
           id: student.id,
-          displayName: student.displayName,
+          displayName: student.displayName || student.username || 'Student',
           username: student.username,
           code: invite.formattedCode,
           signupUrl: `${origin}/#/parent-signup?code=${encodeURIComponent(invite.formattedCode)}`,
           parents,
         });
       }
-      students.sort((a: any, b: any) => a.displayName.localeCompare(b.displayName));
+      students.sort((a: any, b: any) => String(a.displayName).localeCompare(String(b.displayName)));
       res.set('Cache-Control', 'no-store');
       res.json({ students });
     } catch (error: any) {
