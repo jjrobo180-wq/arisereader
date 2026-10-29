@@ -477,13 +477,18 @@ function AppRoutes() {
   // An adult in one hub is a tap away from the other (and from the split screen): fetch both hubs'
   // code while the page is idle, so switching between Arise WorkHub and Arise LifeHub is instant.
   const hubAdult = isHubAccount(user);
+  // Not until the page being opened has finished loading (and its data has had time to arrive), and
+  // not at all on a slow or data-saving connection: the other hub then loads when it's opened.
   useEffect(() => {
     if (!hubAdult) return;
+    const conn = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+    if (conn?.saveData || /(^|-)(2g|3g)$/.test(conn?.effectiveType || "")) return;
     const run = () => { TeacherHub.preload(); AriseTodo.preload(); DuoSplit.preload(); };
     const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
-    if (w.requestIdleCallback) { const id = w.requestIdleCallback(run, { timeout: 2500 }); return () => w.cancelIdleCallback?.(id); }
-    const t = window.setTimeout(run, 1200);
-    return () => window.clearTimeout(t);
+    let idle = 0, t = 0;
+    const later = () => { t = window.setTimeout(() => { if (w.requestIdleCallback) idle = w.requestIdleCallback(run, { timeout: 4000 }); else run(); }, 4000); };
+    if (document.readyState === "complete") later(); else window.addEventListener("load", later, { once: true });
+    return () => { window.removeEventListener("load", later); window.clearTimeout(t); if (idle) w.cancelIdleCallback?.(idle); };
   }, [hubAdult]);
   if (isLoading) {
     return (

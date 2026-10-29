@@ -15,16 +15,13 @@
 // both count with these functions, so they always agree.
 import { ADD_ON_SECTIONS, cleanFamily, isOn, type Family } from "./familyHub";
 import { WORK_ADD_ON_TABS, isTabOn, type HubTab } from "./teacherHub";
-import { kitDef } from "./pluginKit";
+import { kitHub } from "./kitIndex";
 import { notesAppPlugin, officeAppPlugin, sheetsAppPlugin, type Plugin } from "./pluginStore";
 
 export const FREE_APPS = 3;
 /** Unlimited's AI is for everyday use; this ceiling only stops runaway use (see FAIR_USE). */
 export const UNLIMITED_AI_PER_MONTH = 300;
-export const UNLIMITED_MONTHLY_CENTS = 500;
-/** The yearly price, sold as a limited-time offer. Set UNLIMITED_YEARLY_OFFER to false to stop selling it (anyone on it keeps it). */
-export const UNLIMITED_YEARLY_CENTS = 5000;
-export const UNLIMITED_YEARLY_OFFER = true;
+export { UNLIMITED_MONTHLY_CENTS, UNLIMITED_YEARLY_CENTS, UNLIMITED_YEARLY_OFFER } from "./todoPrices";
 
 export const UNLIMITED_NAME = "Arise To Duo Unlimited (every app, and AI)";
 export const FAIR_USE =
@@ -53,7 +50,7 @@ export function lifeApps(workspace: unknown): string[] {
     ...uniq(family.sheetsInstalled).filter((id) => !!sheetsAppPlugin("life", id) || !!officeAppPlugin("life", id)).map((id) => `sheets:${id}`),
     ...(family.driveInstalled ? ["drive"] : []),
     ...(family.dropInstalled ? ["drop"] : []),
-    ...uniq(family.kitInstalled).filter((id) => !!kitDef(id)).map((id) => `kit:${id}`),
+    ...uniq(family.kitInstalled).filter((id) => !!kitHub(id)).map((id) => `kit:${id}`),
   ];
 }
 
@@ -70,7 +67,7 @@ export function workApps(workspace: unknown): string[] {
     ...uniq(w.sheetsInstalled).filter((id) => !!sheetsAppPlugin("work", id) || !!officeAppPlugin("work", id)).map((id) => `sheets:${id}`),
     ...(w.driveInstalled ? ["drive"] : []),
     ...(w.dropInstalled ? ["drop"] : []),
-    ...uniq(w.kitInstalled).filter((id) => kitDef(id)?.hub === "work").map((id) => `kit:${id}`),
+    ...uniq(w.kitInstalled).filter((id) => kitHub(id) === "work").map((id) => `kit:${id}`),
   ];
 }
 

@@ -16,6 +16,13 @@ export function serveStatic(app: Express, distPath = path.resolve(__dirname, "pu
     res.type("application/javascript").sendFile(path.resolve(distPath, "sw.js"));
   });
 
+  // Built code and styles have their content's fingerprint in the name (index-DrqAwfwl.js), so a
+  // copy never changes: browsers and Cloudflare keep them for a year instead of asking the server
+  // again on every visit. Everything else (the page itself, icons, images without a fingerprint)
+  // keeps the short default, so an update shows up right away.
+  app.use("/assets", express.static(path.resolve(distPath, "assets"), {
+    immutable: true, maxAge: "365d", fallthrough: true, index: false,
+  }));
   app.use(express.static(distPath));
 
   // An API address that doesn't exist answers in JSON, not with the app's page.

@@ -1,4 +1,4 @@
-import { HALLOREAD_ACTIVE } from "@/lib/halloread";
+import { HALLOREAD_ACTIVE } from "@/lib/halloreadInfo";
 
 export default function HalloreadAtmosphere({compact=false}:{compact?:boolean}){
   if(!HALLOREAD_ACTIVE)return null;

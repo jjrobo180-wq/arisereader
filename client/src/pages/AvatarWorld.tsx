@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import ARISEAvatar3D from "@/components/ARISEAvatar3D";
 import WorldModelPreview from "@/components/WorldModelPreview";
-import { PET_PERSONALITIES } from "@/lib/pets";
+import { PET_PERSONALITIES } from "@/lib/petInfo";
 import { AVATAR_CHARACTERS, getAvatarCharacter } from "@/lib/avatarCharacters";
 import { ArrowLeft, Car, Check, Coins, Home, Lock, ShoppingBag, UserRound, X } from "lucide-react";
 import PetCareActions, { DEFAULT_PET_RULES, PET_CARE_MESSAGES, PetHealthBar, type PetAction, type PetRules } from "@/components/PetCareActions";

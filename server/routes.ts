@@ -1490,6 +1490,18 @@ export async function registerRoutes(
     if (error) throw error;
     return data ? data.workspace : null;
   };
+  // How many App Store apps each hub has, for the plan card: kept a few minutes, and forgotten as
+  // soon as that hub is saved, so opening a page doesn't download both whole workspaces each time.
+  // (The free-plan check on saving below always reads the saved hubs fresh.)
+  const appCounts = new Map<string, { n: number; at: number }>();
+  const appsCount = async (hub: "work" | "life", userId: number): Promise<number> => {
+    const key = `${hub}:${userId}`, hit = appCounts.get(key);
+    if (hit && Date.now() - hit.at < 5 * 60_000) return hit.n;
+    const n = appsIn(hub, await savedHub(hub, userId));
+    appCounts.set(key, { n, at: Date.now() });
+    if (appCounts.size > 5000) appCounts.delete(appCounts.keys().next().value!);
+    return n;
+  };
   app.post(["/api/teacher-hub/import", "/api/teacher-hub/import/minutes", "/api/hub-chat", "/api/arise-todo/food/estimate", "/api/life-plan/build", "/api/sleep-finder/ask", "/api/comprehension/review/:id/suggest"], authMiddleware, plans.aiMeter);
   app.put(["/api/teacher-hub/workspace", "/api/arise-todo/workspace"], authMiddleware, async (req: any, res, next) => {
     try {
@@ -1498,6 +1510,7 @@ export async function registerRoutes(
       if (!user || !workspace || typeof workspace !== "object") return next();
       const hub = req.path.startsWith("/api/teacher-hub") ? "work" : "life";
       const other = hub === "work" ? "life" : "work";
+      appCounts.delete(`${hub}:${Number(user.id)}`);
       const mine = appsIn(hub, workspace);
       // No apps in this hub: this save can't be adding one, so skip the lookups.
       if (mine === 0) return next();
@@ -1521,13 +1534,13 @@ export async function registerRoutes(
       const user = req.adminPreview && req.realUser ? req.realUser : req.user;
       const id = Number(user.id);
       const [plan, ai, work, life, payment, paidProduct] = await Promise.all([
-        plans.todoUnlimited(user), plans.aiUsage(user), savedHub("work", id).catch(() => null), savedHub("life", id).catch(() => null),
+        plans.todoUnlimited(user), plans.aiUsage(user), appsCount("work", id).catch(() => 0), appsCount("life", id).catch(() => 0),
         plans.stripeReady(), plans.unlimitedPaidBy(id),
       ]);
       res.set("Cache-Control", "no-store");
       res.json({
         unlimited: plan.unlimited, via: plan.via, endsAt: plan.endsAt,
-        apps: { work: appsIn("work", work), life: appsIn("life", life), limit: plan.unlimited ? null : FREE_APPS },
+        apps: { work, life, limit: plan.unlimited ? null : FREE_APPS },
         ai: { limit: ai.limit, used: ai.used, left: ai.left },
         priceCents: UNLIMITED_MONTHLY_CENTS, yearlyCents: UNLIMITED_YEARLY_OFFER ? UNLIMITED_YEARLY_CENTS : null,
         payment, paidByYou: !!paidProduct, paidProduct, fairUse: FAIR_USE,
