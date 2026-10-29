@@ -22,7 +22,7 @@ def integer(data, offset):
         raise ValueError("Invalid ECDSA signature")
     length = data[offset + 1]
     value = data[offset + 2:offset + 2 + length]
-    return value.lstrip(b"\\0").rjust(32, b"\\0"), offset + 2 + length
+    return value.lstrip(bytes([0])).rjust(32, bytes([0])), offset + 2 + length
 
 def main():
     bundle, output = sys.argv[1:]
