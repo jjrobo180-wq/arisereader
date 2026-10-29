@@ -81,7 +81,8 @@ jobs:
                               results[bundle] = {"version": version, "state": "AWAITING_PROCESSING"}
                               continue
                           build = builds[0]
-                          results[bundle] = {"version": version, "state": build["attributes"]["processingState"], "buildId": build["id"], "appId": apps[0]["id"]}
+                          beta = get("builds/" + build["id"] + "/buildBetaDetail", {})["data"]["attributes"]
+                          results[bundle] = {"version": version, "state": build["attributes"]["processingState"], "buildId": build["id"], "appId": apps[0]["id"], "usesNonExemptEncryption": build["attributes"].get("usesNonExemptEncryption"), "internalBuildState": beta.get("internalBuildState"), "externalBuildState": beta.get("externalBuildState")}
                       print(json.dumps(results), flush=True)
                       if all(x["state"] in ("VALID", "FAILED", "INVALID", "APP_RECORD_NOT_FOUND") for x in results.values()):
                           break
