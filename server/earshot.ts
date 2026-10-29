@@ -22,6 +22,7 @@ import { registerSocialRoutes } from "./podcastSocial";
 import { registerCreatorRoutes } from "./podcastCreators";
 import { topShowsService } from "./podcastTop";
 import { nowNewsService, NOW_HOURS_DEFAULT } from "./podcastNow";
+import { standupService } from "./podcastStandup";
 import { showInfoService } from "./podcastInfo";
 import { accountSessions, registerPodscrollAccountRoutes, SESSION } from "./podcastAccounts";
 import { cleanMoment } from "../shared/earshotListen";
@@ -163,6 +164,7 @@ export interface EarshotOptions {
 }
 let sharedAdStore: AdStore | null = null;
 const nowServices = new WeakMap<object, ReturnType<typeof nowNewsService>>();
+const standupServices = new WeakMap<object, ReturnType<typeof standupService>>();
 const openingsStarted = new WeakSet<object>();
 
 export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandler, options: EarshotOptions) {
@@ -293,6 +295,37 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     const hours = Number(req.query?.hours) || NOW_HOURS_DEFAULT;
     res.set("Cache-Control", "no-store");
     res.json(nowNews!.list(hours, explicitFor(req)));
+  });
+
+  /** Stand-up (a Pod+ hub): favorite comedians' stand-up only, and a search that only finds
+   *  stand-up (server/podcastStandup.ts). */
+  let standup = standupServices.get(dir);
+  if (!standup) { standup = standupService({ apple: (url) => dir.apple(url), ask: (s2, u) => openAiJson(s2, u) }); standupServices.set(dir, standup); }
+  const standupAi = createAttemptLimiter({ max: 40, windowMs: 10 * 60_000 });
+  app.get(`${P}/standup`, authMiddleware, async (req: any, res) => {
+    if (limited(reads, req, res)) return;
+    const comic = typeof req.query?.comic === "string" ? req.query.comic : "";
+    try {
+      const list = comic ? await standup!.comic(comic) : await standup!.sampler();
+      res.set("Cache-Control", "private, max-age=900");
+      res.json({ episodes: clean(list, explicitFor(req)) });
+    } catch (e) { appleDown(res, e); }
+  });
+  app.get(`${P}/standup/search`, authMiddleware, async (req: any, res) => {
+    const q = typeof req.query?.q === "string" ? req.query.q.replace(/\s+/g, " ").trim().slice(0, 60) : "";
+    if (q.length < 2) return res.json({ episodes: [] });
+    if (limited(reads, req, res, "searches")) return;
+    try {
+      res.set("Cache-Control", "private, max-age=900");
+      res.json({ episodes: clean(await standup!.find(q), explicitFor(req)) });
+    } catch (e) { appleDown(res, e); }
+  });
+  app.post(`${P}/standup/suggest`, authMiddleware, async (req: any, res) => {
+    if (limited(standupAi, req, res, "AI suggestions")) return;
+    try {
+      const comics = Array.isArray(req.body?.comics) ? req.body.comics.map(String) : [];
+      res.json({ comics: await standup!.suggest(comics) });
+    } catch { res.status(503).json({ message: "Suggestions aren't available right now. Try again in a moment." }); }
   });
 
   /** About a show (the info button on the swipe screen): description, hosts, their other shows,
