@@ -6,6 +6,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { GENRE, GENRES, chooseEpisode, hiRes, isTeaser, pickNext, tasteOf, type Candidate, type PodMode, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal } from "@shared/earshot";
 import { Mic2 } from "lucide-react";
 import { StandupHub } from "./Standup";
+import { ClipsTest } from "./Clips";
 import { Bell, BookOpen, Check, LogOut, Zap, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Search, Sparkles, ThumbsUp, Users, X, Pause, Play } from "lucide-react";
 import { RadioBar, RadioView, type Station } from "./Radio";
 import { AudiobookBar, AudiobooksView, BookPage, type Reading } from "./Audiobooks";
@@ -20,7 +21,7 @@ import { setTheme, useTheme } from "../client/src/components/family-hub/earshot/
 import { HoursBackCard } from "../client/src/components/family-hub/earshot/EarshotListen";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
-type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "books" } | { kind: "book"; id: string } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "live" } | { kind: "now" } | { kind: "standup" } | { kind: "watch"; showId: string; episodeId: string };
+type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "books" } | { kind: "book"; id: string } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "live" } | { kind: "now" } | { kind: "standup" } | { kind: "clips" } | { kind: "watch"; showId: string; episodeId: string };
 
 const DEFAULT_GENRES = ["comedy", "news", "science", "tech", "truecrime", "history", "business", "culture"];
 const ACCENT = "#ff6a1f";
@@ -52,6 +53,7 @@ function parseHash(): View {
   if (a === "live") return { kind: "live" };
   if (a === "now" || a === "news") return { kind: "now" };
   if (a === "standup") return { kind: "standup" };
+  if (a === "clips") return { kind: "clips" };
   if (a === "party" && /^(new|[A-Za-z0-9_-]{6,20})$/.test(b || "")) return { kind: "party", id: b };
   if (a === "mode" && /^[a-z0-9-]{1,30}$/.test(b || "")) return { kind: "mode", id: b };
   return { kind: "home" };
@@ -557,6 +559,9 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       </section>;
   } else if (view.kind === "now") {
     content = <div className="min-w-0 flex-1 px-4 pb-16 sm:px-6"><NewsNow api={api} ex={ex} onOpen={openEp} onBack={() => go({ kind: "home" })} grid={(list) => <Grid list={list} onOpen={openEp} />} /></div>;
+  } else if (view.kind === "clips") {
+    // A test page (TikTok clips), reached by its link only: not in the menu yet.
+    content = <div className="mx-auto min-w-0 max-w-[560px] flex-1 px-4 sm:px-6"><ClipsTest onBack={() => go({ kind: "home" })} /></div>;
   } else if (view.kind === "standup") {
     content = <div className="min-w-0 flex-1 px-4 sm:px-6"><StandupHub api={api} ex={ex} say={say} onBack={() => go({ kind: "home" })} grid={(list) => <Grid list={list} onOpen={openEp} />} /></div>;
   } else if (view.kind === "radio") {
