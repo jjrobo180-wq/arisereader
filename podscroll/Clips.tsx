@@ -27,15 +27,24 @@ export function Clips({ api, say, onBack, onSignIn }: { api: Api; say: (m: strin
     api("/api/podscroll/clips").then((b) => { setIds(clipItems(b?.clips)); setCanEdit(!!b?.canEdit); }).catch((e) => { setIds([]); setErr(e.message); });
   }, [api]);
   // @people show as TikTok's official profile embed (their latest videos, playing on screen).
-  // embed.js turns the placeholders into players when it loads, so it's loaded again when they change.
-  const creators = list.filter(isCreatorItem).join(",");
+  // TikTok limits how many embeds a page may ask for, so only the profile in view and the next one
+  // are made (once each, kept after that); embed.js turns new placeholders into players.
+  const near = (i: number) => i >= active - 1 && i <= active + 1;
+  const [made, setMade] = useState<string[]>([]);
+  const want = list.filter((x, i) => isCreatorItem(x) && near(i) && !made.includes(x));
   useEffect(() => {
-    if (!creators) return;
-    document.querySelectorAll("script[data-ps-tiktok]").forEach((x) => x.remove());
-    const sc = document.createElement("script");
-    sc.src = "https://www.tiktok.com/embed.js"; sc.async = true; sc.dataset.psTiktok = "1";
-    document.body.appendChild(sc);
-  }, [creators]);
+    if (!want.length) return;
+    const t = setTimeout(() => {
+      setMade((m) => [...new Set([...m, ...want])]);
+      setTimeout(() => {
+        document.querySelectorAll("script[data-ps-tiktok]").forEach((x) => x.remove());
+        const sc = document.createElement("script");
+        sc.src = "https://www.tiktok.com/embed.js"; sc.async = true; sc.dataset.psTiktok = "1";
+        document.body.appendChild(sc);
+      }, 50);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [want.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
   const frames = useRef<(HTMLIFrameElement | null)[]>([]);
   const slides = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -90,7 +99,8 @@ export function Clips({ api, say, onBack, onSignIn }: { api: Api; say: (m: strin
     <div className="mt-4 h-[min(78dvh,760px)] snap-y snap-mandatory overflow-y-auto rounded-2xl bg-[#0f0f0f] [scrollbar-width:none]">
       {ids === null ? <div className="flex h-full items-center justify-center"><Loader2 size={24} className="animate-spin text-white/60" /></div>
         : list.length ? list.map((id, i) => <div key={id} ref={(el) => { slides.current[i] = el; }} data-i={i} className="flex h-full snap-start snap-always items-center justify-center p-2">
-        {isCreatorItem(id) ? <div className="h-full w-full overflow-y-auto rounded-xl bg-white">
+        {isCreatorItem(id) ? !made.includes(id) ? <div className="flex h-full w-full items-center justify-center rounded-xl text-lg font-semibold text-white/70">{id}</div>
+        : <div className="h-full w-full overflow-y-auto rounded-xl bg-white">
           <blockquote className="tiktok-embed" cite={`https://www.tiktok.com/${id}`} data-unique-id={id.slice(1)} data-embed-type="creator" style={{ maxWidth: 720, minWidth: 288, margin: 0 }}>
             <section><a target="_blank" rel="noreferrer" href={`https://www.tiktok.com/${id}?refer=creator_embed`}>{id}</a></section>
           </blockquote>
