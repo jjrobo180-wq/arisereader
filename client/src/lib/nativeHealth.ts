@@ -54,17 +54,37 @@ const localDay = (iso: string) => {
 };
 const pad = (d: Date) => `${localDay(d.toISOString())} 00:00:00`;
 
+// What went wrong reading each kind of data (shown when nothing could be read at all).
+let readErrors: string[] = [];
 async function daily(dataType: string, aggregation: "sum" | "max", days: number): Promise<Sample[]> {
   const end = new Date(); end.setHours(24, 0, 0, 0);
   const start = new Date(end); start.setDate(start.getDate() - days);
-  const res = await call("queryAggregated", { dataType, startDate: start.toISOString(), endDate: end.toISOString(), bucket: "day", aggregation }).catch(() => null);
-  return Array.isArray(res?.samples) ? res.samples.filter((s: Sample) => Number.isFinite(s?.value) && s.value > 0) : [];
+  const range = { startDate: start.toISOString(), endDate: end.toISOString() };
+  const good = (list: unknown): Sample[] => (Array.isArray(list) ? list.filter((s: any) => Number.isFinite(Number(s?.value)) && Number(s.value) > 0 && s?.startDate).map((s: any) => ({ ...s, value: Number(s.value) })) : []);
+  // Day totals straight from HealthKit.
+  try {
+    const res = await call("queryAggregated", { dataType, ...range, bucket: "day", aggregation });
+    const list = good(res?.samples);
+    if (list.length) return list;
+  } catch (e: any) { readErrors.push(`${dataType}: ${e?.message || e}`); }
+  // Some iPhones answer that with nothing: read the raw samples and add them up by day instead.
+  try {
+    const res = await call("readSamples", { dataType, ...range, limit: dataType === "weight" ? 200 : 20000, ascending: true });
+    const byDay = new Map<string, Sample>();
+    for (const s of good(res?.samples)) {
+      const day = localDay(s.startDate);
+      const had = byDay.get(day);
+      byDay.set(day, { startDate: `${day}T12:00:00`, unit: s.unit, value: !had ? s.value : aggregation === "sum" ? had.value + s.value : Math.max(had.value, s.value) });
+    }
+    return [...byDay.values()].map((s) => ({ ...s, value: aggregation === "sum" ? Math.round(s.value) : s.value }));
+  } catch (e: any) { readErrors.push(`${dataType}: ${e?.message || e}`); return []; }
 }
 
 /** Reads the last `days` days and sends them to this person's diary. Makes the device's key the first time. */
 export async function syncNativeHealth(token: string | null, memberId: string, days = 30): Promise<string> {
   let key = store.get(memberId);
   if (!key) { key = await makeHealthKey(token, memberId); store.set(memberId, key); }
+  readErrors = [];
   const [steps, active, weight] = await Promise.all([daily("steps", "sum", days), daily("calories", "sum", days), daily("weight", "max", days)]);
   const metric = (name: string, units: string, list: Sample[]) => ({ name, units, data: list.map((s) => ({ date: pad(new Date(s.startDate)), qty: s.value })) });
   const metrics = [
@@ -72,6 +92,7 @@ export async function syncNativeHealth(token: string | null, memberId: string, d
     metric("active_energy", "kcal", active),
     metric("weight_body_mass", weight[0]?.unit && /pound|lb/i.test(weight[0].unit) ? "lb" : "kg", weight),
   ].filter((m) => m.data.length);
+  if (!metrics.length && readErrors.length) throw new Error(`Apple Health didn't share any data (${readErrors[0]}). Check Settings → Health → Data Access & Devices → A.R.I.S.E. To-Do and turn everything on.`);
   if (!metrics.length) return "No steps, active calories or weight in Apple Health yet — or reading was turned off in Settings → Health → Data Access & Devices → A.R.I.S.E. To-Do.";
   const res = await fetch("/api/arise-todo/apple-health/sync", { method: "POST", cache: "no-store", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ data: { metrics } }) });
   const body = await res.json().catch(() => null);
