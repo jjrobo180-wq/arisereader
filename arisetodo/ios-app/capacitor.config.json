@@ -1,0 +1,9 @@
+{
+  "appId": "com.arisereader.arisetodo",
+  "appName": "A.R.I.S.E. To-Do",
+  "webDir": "www",
+  "server": {
+    "url": "https://arisetodo.com/app",
+    "cleartext": false
+  }
+}
