@@ -3,9 +3,11 @@ name: A.R.I.S.E. To-Do signed iOS release candidate
 on:
   workflow_dispatch:
   push:
-    branches: [feat/arisetodo-ios-app-store-starter]
+    branches: [feat/arisetodo-ios-app-store-starter, feat/arisetodo-native-ios-foundation]
     paths:
       - '.github/workflows/arisetodo-signed-release.yml'
+      - 'arisetodo/ios-app/**'
+      - 'client/src/main.tsx'
 jobs:
   signed-archive:
     runs-on: macos-15
@@ -32,6 +34,13 @@ jobs:
               exit 1
             fi
           done
+      - name: Build and bundle local frontend
+        run: |
+          npm ci
+          npx vite build
+          rm -rf arisetodo/ios-app/www
+          mkdir -p arisetodo/ios-app/www
+          cp -R dist/public/. arisetodo/ios-app/www/
       - name: Install native dependencies and generate iOS project
         working-directory: arisetodo/ios-app
         run: |

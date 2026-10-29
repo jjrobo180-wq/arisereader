@@ -2,8 +2,17 @@
   "appId": "com.arisereader.arisetodo",
   "appName": "A.R.I.S.E. To-Do",
   "webDir": "www",
-  "server": {
-    "url": "https://arisetodo.com/app",
-    "cleartext": false
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "backgroundColor": "#FFFFFF",
+      "showSpinner": false
+    },
+    "Keyboard": {
+      "resize": "native"
+    }
+  },
+  "ios": {
+    "contentInset": "automatic"
   }
 }
