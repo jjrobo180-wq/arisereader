@@ -1,5 +1,5 @@
 name: A.R.I.S.E. To-Do signed iOS release candidate
-# Development beta validation only. Upload is a separate, explicitly approved release step.
+# Development beta validation; approved internal TestFlight upload (not public App Review).
 on:
   workflow_dispatch:
   push:
