@@ -51,16 +51,16 @@ export function ProfileScreen({ handle, ctx, onBack, onEdit, onPeople, onChanged
     saved: ["Save posts for later", "Tap the bookmark on any post. Only you can see what you've saved."],
   };
 
-  return <div className="min-h-full pb-6">
+  return <div className="min-h-full min-w-0 overflow-x-hidden pb-8">
     <TopBar onBack={onBack} title={<span className="flex items-center gap-1">{p.name}{p.verified && <Verified size={18} />}</span>} sub={`${compactCount(data.posts)} ${data.posts === 1 ? "post" : "posts"}`}
       right={!onBack && me ? <button type="button" onClick={() => setMenu(true)} aria-label="More" className="hov grid h-10 w-10 place-items-center rounded-full"><MoreHorizontal size={20} /></button> : undefined} />
-    <div className="relative aspect-[3/1] max-h-[200px] w-full overflow-hidden" style={{ background: coverBg(p.handle) }}>
+    <div className="sx-profile-cover relative h-32 w-full overflow-hidden sm:h-40" style={{ background: coverBg(p.handle) }}>
       {p.cover && <img src={p.cover} alt="" className="absolute inset-0 h-full w-full object-cover" />}
     </div>
-    <div className="px-4">
+    <div className="px-4 sm:px-6">
       <div className="flex items-start justify-between gap-2">
-        <div className="-mt-[12%] max-[420px]:-mt-10 sm:-mt-16"><Avatar p={p} size={88} ring="0 0 0 4px var(--bg)" /></div>
-        <div className="flex flex-wrap justify-end gap-2 pt-3">
+        <div className="relative -mt-11 flex-none sm:-mt-12"><Avatar p={p} size={84} ring="0 0 0 4px var(--surface)" /></div>
+        <div className="flex min-w-0 flex-wrap justify-end gap-2 pt-3">
           {me ? <>
             <button type="button" onClick={share} aria-label="Share profile" className="btn-line grid h-9 w-9 place-items-center rounded-full"><Share size={17} /></button>
             <PillButton kind="line" onClick={onEdit}>Edit profile</PillButton>
@@ -101,9 +101,10 @@ export function ProfileScreen({ handle, ctx, onBack, onEdit, onPeople, onChanged
     {data.blocked ? <Empty title={`You blocked @${p.handle}`} text="They can't follow you, message you or see your posts." action={<PillButton onClick={() => block(false)}>Unblock</PillButton>} /> : <>
       <div className="glass noscroll sticky top-[53px] z-10 mt-3 flex overflow-x-auto border-b line" role="tablist">{tabs.map(([t, l]) => <TabBtn key={t} on={tab === t} onClick={() => setTab(t)}>{l}</TabBtn>)}</div>
       {!list.items && (tab === "media" ? <Spinner /> : <><PostSkeleton /><PostSkeleton /></>)}
+      {list.err && <div role="alert" className="border-b line px-5 py-7 text-center"><p className="text-[15px] font-semibold">Posts could not be loaded.</p><p className="muted mt-1 text-[13px]">{list.err}</p><PillButton kind="line" className="mt-3" onClick={list.reset}>Try again</PillButton></div>}
       {list.items && tab === "media" && list.items.length > 0 && <div className="pt-0.5"><Grid posts={list.items} onOpen={(x) => ctx.openPost(x)} /></div>}
       {list.items && tab !== "media" && list.items.map((x) => <PostCard key={x.id} post={x} ctx={ctx} onChange={(np) => list.patch(x.id, () => np)} onGone={() => list.patch(x.id, () => null)} />)}
-      {list.items && !list.items.length && <Empty title={empty[tab][0]} text={empty[tab][1]} action={me && tab === "posts" ? <PillButton kind="accent" onClick={() => ctx.compose()}>Write a post</PillButton> : undefined} />}
+      {list.items && !list.items.length && !list.err && <Empty title={empty[tab][0]} text={empty[tab][1]} action={me && tab === "posts" ? <PillButton kind="accent" onClick={() => ctx.compose()}>Write a post</PillButton> : undefined} />}
       {list.items && list.items.length > 0 && <Sentinel onSeen={list.more} done={list.done} />}
     </>}
 

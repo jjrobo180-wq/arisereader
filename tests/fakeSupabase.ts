@@ -51,6 +51,9 @@ export function fakeSupabase(specs: Record<string, TableSpec>, o: { missing?: st
     delete() { this.op = "delete"; return this; }
     eq(c: string, v: unknown) { this.filters.push((r) => same(r[c], v)); return this; }
     neq(c: string, v: unknown) { this.filters.push((r) => !same(r[c], v)); return this; }
+    gte(c: string, v: string) { this.filters.push((r) => String(r[c] ?? "") >= v); return this; }
+    lt(c: string, v: string) { this.filters.push((r) => String(r[c] ?? "") < v); return this; }
+    ilike(c: string, v: string) { const parts = v.split("%").map((x) => x.toLowerCase()); this.filters.push((r) => { const value = String(r[c] ?? "").toLowerCase(); let pos = 0; for (const part of parts) { const at = value.indexOf(part, pos); if (at < 0) return false; pos = at + part.length; } return true; }); return this; }
     is(c: string, v: unknown) { this.filters.push((r) => (v === null ? r[c] == null : r[c] === v)); return this; }
     in(c: string, list: unknown[]) { this.filters.push((r) => list.some((v) => same(r[c], v))); return this; }
     or(expr: string) {
