@@ -13,16 +13,21 @@ type Sample = { startDate: string; value: number; unit?: string };
 
 const bridge = (): Bridge | null => (typeof window !== "undefined" ? ((window as any).Capacitor as Bridge) || null : null);
 const pluginName = () => bridge()?.PluginHeaders?.find((h) => /health/i.test(h.name))?.name || "Health";
-const call = (method: string, options?: unknown) => {
+const call = (method: string, options?: unknown): Promise<any> => {
   const b = bridge();
   if (!b?.nativePromise) return Promise.reject(new Error("Apple Health works in the A.R.I.S.E. To-Do iPhone app."));
-  return b.nativePromise(pluginName(), method, options);
+  return b.nativePromise(pluginName(), method, options).catch((e: any) => {
+    const msg = String(e?.message || e || "");
+    if (/not implemented|unimplemented|not available|plugin/i.test(msg)) {
+      throw new Error("Apple Health isn't in this version of the app yet. Update A.R.I.S.E. To-Do in TestFlight, then try again.");
+    }
+    throw new Error(msg || "Apple Health didn't answer. Try again.");
+  });
 };
 
-/** True inside the iPhone app when the Health plugin is part of the build. */
+/** True inside the iPhone app. The plugin is asked directly; if a build lacks it, the call says so. */
 export function nativeHealthAvailable(): boolean {
-  const b = bridge();
-  return typeof window !== "undefined" && window.location.protocol === "capacitor:" && !!b?.nativePromise && !!b.PluginHeaders?.some((h) => /health/i.test(h.name));
+  return typeof window !== "undefined" && window.location.protocol === "capacitor:" && !!bridge()?.nativePromise;
 }
 
 const KEY_STORE = (memberId: string) => `arise_native_health_key:${memberId}`;
