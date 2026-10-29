@@ -32,6 +32,7 @@ import { registerListenRoutes } from "./podcastListen";
 import { perplexityJson } from "./perplexityAsk";
 import { setPerplexityKey } from "./aiProvider";
 import { noteShows } from "./podcastPrecheck";
+import { cleanReason, moderateText, refusedWords, reportFiled } from "./socialModeration";
 
 /** The site's Perplexity key: admin settings first (where book quizzes keep it), then the environment. */
 async function perplexityKey(): Promise<string> {
@@ -574,6 +575,8 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     if (!body) return res.status(400).json({ message: "Write something first." });
     if (limited(posts, req, res, "comments")) return;
     try {
+      const words = await moderateText(body);
+      if (!words.ok) return res.status(400).json({ message: refusedWords(words.reason), filtered: true });
       const comment = await store.addComment({ episodeId: id, showId: cleanPodId(req.body?.showId), userId: uid(req), author: commentAuthor(req.user?.displayName ?? req.user?.display_name), body, t: cleanMoment(req.body?.t) });
       res.json({ comment });
     } catch (e) { storeDown(res, e); }
@@ -591,7 +594,11 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     const id = cleanPodId(req.params.id);
     if (!id) return res.status(400).json({ message: "That isn't a comment." });
     if (limited(writes, req, res)) return;
-    try { await store.reportComment(id, uid(req)); res.json({ ok: true }); }
+    try {
+      await store.reportComment(id, uid(req));
+      reportFiled({ app: P === "/api/podscroll" ? "Pod+" : "Earshot (LifeHub)", what: "comment", id, by: `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, about: "an episode comment", reason: cleanReason(req.body?.reason) });
+      res.json({ ok: true });
+    }
     catch (e) { storeDown(res, e); }
   });
 }

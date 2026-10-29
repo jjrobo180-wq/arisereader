@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Infinity as InfinityIcon, Sparkles, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
+import { NATIVE_NO_PURCHASE, isNativeApp } from "@/lib/nativeApp";
 import { AI_LIMIT, APPS_FULL, FREE_APPS, growsPastFree } from "@shared/todoPlan";
 
 export type TodoPlan = {
@@ -167,7 +168,12 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
           <p className="mt-3 text-xs text-slate-500">Built-in sections like Calendar, Tasks and Notes are always free. Your {FREE_APPS} apps are shared by WorkHub and LifeHub, and nothing is ever deleted, even if you go back to Free. Already on a $10 Arise Reader plan? Unlimited is the same price on top.</p>
           {note && <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700" role="status">{note}</p>}
           <div className="mt-4">
-            {!plan
+            {isNativeApp()
+              ? <div className="space-y-2">
+                  <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700" data-testid="todo-plan-native">{NATIVE_NO_PURCHASE}</p>
+                  <button type="button" onClick={() => setReason(null)} className="flex min-h-12 w-full items-center justify-center rounded-2xl bg-slate-900 text-sm font-bold text-white">OK</button>
+                </div>
+              : !plan
               ? <button type="button" onClick={refreshTodoPlan} className="flex min-h-12 w-full items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-700" data-testid="todo-upgrade-check-plan">Checking your plan… Tap to retry</button>
               : plan.unlimited
               ? (plan.paidByYou

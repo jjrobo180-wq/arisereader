@@ -4,6 +4,7 @@
 // with student wording; students go to their A.R.I.S.E. Reader library. (AppRoutes and
 // AfterSignIn do the sending; this page only signs in.)
 import ForgotSignIn from "@/components/auth/ForgotSignIn";
+import { LEGAL } from "@/lib/nativeApp";
 import { useEffect, useState, type FormEvent } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
@@ -370,6 +371,11 @@ export default function SignIn() {
           <div className="mt-5 flex items-center justify-center gap-2 text-center text-xs font-semibold text-[#848ba4]">
             <LockKeyhole size={14}/> Secure access to your A.R.I.S.E. account
           </div>
+          <nav aria-label="Policies" className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs font-semibold text-[#6b7290]">
+            <a href={LEGAL.privacy} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center underline-offset-4 hover:underline">Privacy Policy</a>
+            <a href={LEGAL.terms} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center underline-offset-4 hover:underline">Terms of Use</a>
+            <a href={LEGAL.support} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center underline-offset-4 hover:underline">Support</a>
+          </nav>
         </section>
       </main>
     </div>

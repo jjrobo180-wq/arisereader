@@ -1,4 +1,4 @@
-name: A.R.I.S.E. To-Do signed iOS release candidate
+name: Arise To Duo signed iOS release candidate
 # Development beta validation only. Upload is a separate, explicitly approved release step.
 on:
   workflow_dispatch:
@@ -57,15 +57,9 @@ jobs:
           sips -z 1024 1024 -s format png "$RUNNER_TEMP/todo-icon.jpg" --out "$ICON/AppIcon-1024.png" >/dev/null
           printf '%s' '{"images":[{"filename":"AppIcon-1024.png","idiom":"universal","platform":"ios","size":"1024x1024"}],"info":{"author":"xcode","version":1}}' > "$ICON/Contents.json"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT" ios/App/App/Info.plist
-      - name: Apple Health permission text
+      - name: Permission text, name and export compliance (Info.plist)
         working-directory: arisetodo/ios-app
-        run: |
-          set -euo pipefail
-          PLIST=ios/App/App/Info.plist
-          /usr/libexec/PlistBuddy -c "Delete :NSHealthShareUsageDescription" "$PLIST" 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Delete :NSHealthUpdateUsageDescription" "$PLIST" 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Add :NSHealthShareUsageDescription string A.R.I.S.E. To-Do reads your steps, active calories and weight to fill in your Food & fitness diary." "$PLIST"
-          /usr/libexec/PlistBuddy -c "Add :NSHealthUpdateUsageDescription string A.R.I.S.E. To-Do does not write to Apple Health." "$PLIST"
+        run: python3 configure-ios.py ios/App/App/Info.plist
       - name: Import Apple signing certificate and provisioning profile
         shell: bash
         env:
