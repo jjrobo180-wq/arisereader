@@ -4,8 +4,6 @@
 // likes, comments and share counts come from the Arise server's public /api/podscroll routes
 // (server/earshot.ts registerPodscrollRoutes), which read Apple Podcasts. Audio plays straight
 // from each podcast's own host.
-import { Share } from "@capacitor/share";
-import { Capacitor } from "@capacitor/core";
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { applySignal, cleanEarshot, emptyEarshot, type Earshot, type PodEpisode, type Signal } from "@shared/earshot";
@@ -125,12 +123,13 @@ function App() {
 
   // Native iOS share sheet for podcast links; preserve browser sharing elsewhere.
   useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
+    const native = (window as Window & { Capacitor?: { isNativePlatform?: () => boolean; Plugins?: { Share?: { share: (args: { url: string; title: string }) => Promise<unknown> } } } }).Capacitor;
+    if (!native?.isNativePlatform?.() || !native.Plugins?.Share) return;
     const listener = (event: Event) => {
       const detail = (event as CustomEvent<{ url?: string; title?: string }>).detail;
       if (!detail?.url) return;
       event.preventDefault();
-      void Share.share({ url: detail.url, title: detail.title || "Pod+" }).catch(() => {});
+      void native.Plugins!.Share!.share({ url: detail.url, title: detail.title || "Pod+" }).catch(() => {});
     };
     window.addEventListener("podplus:native-share", listener);
     return () => window.removeEventListener("podplus:native-share", listener);
