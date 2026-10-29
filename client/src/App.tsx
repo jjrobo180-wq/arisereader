@@ -457,9 +457,13 @@ function OpenReaderPage() {
  * while sign-in and authenticated Work/Life hubs keep their existing routes. */
 function TodoPublicHomeRedirect() {
   useEffect(() => {
-    window.location.replace("/");
+    if (window.location.protocol === "capacitor:") {
+      window.location.hash = "#/signin";
+    } else {
+      window.location.replace("/");
+    }
   }, []);
-  return <main className="min-h-screen bg-[#f9fafc] p-8 text-center"><a href="/" className="font-semibold text-indigo-700 underline">Open the Arise To Duo homepage</a></main>;
+  return <main className="min-h-screen bg-[#f9fafc] p-8 text-center"><a href={window.location.protocol === "capacitor:" ? "#/signin" : "/"} className="font-semibold text-indigo-700 underline">Open A.R.I.S.E. To-Do</a></main>;
 }
 
 function AppRoutes() {
@@ -473,7 +477,7 @@ function AppRoutes() {
   const isEyeGazeStudent = !!user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent' && !!user.is_eye_gaze_user;
   const domain = typeof window === "undefined" ? "" : window.location.hostname.toLowerCase();
   const onReaderDomain = domain === "arisereader.com" || domain === "www.arisereader.com";
-  const onTodoDomain = domain === "arisetodo.com" || domain === "www.arisetodo.com";
+  const onTodoDomain = domain === "arisetodo.com" || domain === "www.arisetodo.com" || window.location.protocol === "capacitor:";
   // An adult in one hub is a tap away from the other (and from the split screen): fetch both hubs'
   // code while the page is idle, so switching between Arise WorkHub and Arise LifeHub is instant.
   const hubAdult = isHubAccount(user);
