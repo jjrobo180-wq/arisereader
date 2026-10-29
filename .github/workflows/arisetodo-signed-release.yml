@@ -71,6 +71,33 @@ jobs:
             CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
             archive
+      - name: Export App Store Connect IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+          <key>method</key><string>app-store-connect</string>
+          <key>destination</key><string>export</string>
+          <key>signingStyle</key><string>manual</string>
+          <key>teamID</key><string>6TYWWNKX6P</string>
+          <key>provisioningProfiles</key><dict>
+          <key>com.arisereader.arisetodo</key><string>$PROFILE_NAME</string>
+          </dict>
+          </dict></plist>
+          PLIST
+          # Plist here-doc intentionally quoted; replace placeholder with shell-provided profile name.
+          /usr/bin/sed -i '' "s|\$PROFILE_NAME|$PROFILE_NAME|g" "$RUNNER_TEMP/ExportOptions.plist"
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/ARISEToDo.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/arisetodo-export"
+      - name: Save IPA for review (not uploaded to Apple)
+        uses: actions/upload-artifact@v4
+        with:
+          name: arisetodo-ios-ipa-not-submitted
+          path: ${{ runner.temp }}/arisetodo-export/*.ipa
+          if-no-files-found: error
+          retention-days: 3
       - name: Upload signed archive artifact
         uses: actions/upload-artifact@v4
         with:
