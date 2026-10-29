@@ -1,16 +1,24 @@
 name: A.R.I.S.E. To-Do signed iOS release candidate
-# Manual signing validation only. The remote-WebView scaffold is not App Store-ready.
+# Development beta validation only. Upload is a separate, explicitly approved release step.
 on:
   workflow_dispatch:
+  push:
+    branches: [feat/arisetodo-ios-app-store-starter]
+    paths:
+      - '.github/workflows/arisetodo-signed-release.yml'
 jobs:
   signed-archive:
     runs-on: macos-15
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Verify app sources
+        run: test -f arisetodo/ios-app/capacitor.config.json
       - name: Verify signing configuration
         shell: bash
         env:
@@ -30,6 +38,16 @@ jobs:
           npm install --no-audit --no-fund
           npx cap add ios
           npx cap sync ios
+      - name: Prepare beta icon and build number
+        working-directory: arisetodo/ios-app
+        run: |
+          set -euo pipefail
+          ICON=ios/App/App/Assets.xcassets/AppIcon.appiconset
+          mkdir -p "$ICON"
+          sips -s format jpeg -s formatOptions 100 ../../client/public/icon-512.png --out "$RUNNER_TEMP/todo-icon.jpg" >/dev/null
+          sips -z 1024 1024 -s format png "$RUNNER_TEMP/todo-icon.jpg" --out "$ICON/AppIcon-1024.png" >/dev/null
+          printf '%s' '{"images":[{"filename":"AppIcon-1024.png","idiom":"universal","platform":"ios","size":"1024x1024"}],"info":{"author":"xcode","version":1}}' > "$ICON/Contents.json"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT" ios/App/App/Info.plist
       - name: Import Apple signing certificate and provisioning profile
         shell: bash
         env:
@@ -75,21 +93,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat > "$RUNNER_TEMP/ExportOptions.plist" <<'PLIST'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0"><dict>
-          <key>method</key><string>app-store-connect</string>
-          <key>destination</key><string>export</string>
-          <key>signingStyle</key><string>manual</string>
-          <key>teamID</key><string>6TYWWNKX6P</string>
-          <key>provisioningProfiles</key><dict>
-          <key>com.arisereader.arisetodo</key><string>$PROFILE_NAME</string>
-          </dict>
-          </dict></plist>
-          PLIST
-          # Plist here-doc intentionally quoted; replace placeholder with shell-provided profile name.
-          /usr/bin/sed -i '' "s|\$PROFILE_NAME|$PROFILE_NAME|g" "$RUNNER_TEMP/ExportOptions.plist"
+          python3 - <<'PY'
+          import os, plistlib
+          options = {
+              "method": "app-store-connect",
+              "destination": "export",
+              "signingStyle": "manual",
+              "teamID": "6TYWWNKX6P",
+              "provisioningProfiles": {"com.arisereader.arisetodo": os.environ["PROFILE_NAME"]},
+          }
+          with open(os.path.join(os.environ["RUNNER_TEMP"], "ExportOptions.plist"), "wb") as output:
+              plistlib.dump(options, output)
+          PY
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/ARISEToDo.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/arisetodo-export"
       - name: Save IPA for review (not uploaded to Apple)
         uses: actions/upload-artifact@v4
@@ -105,6 +120,31 @@ jobs:
           path: ${{ runner.temp }}/ARISEToDo.xcarchive
           if-no-files-found: error
           retention-days: 3
+      - name: Validate beta and perform explicitly approved TestFlight upload
+        env:
+          APPROVED_UPLOAD: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[approved-testflight]') }}
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          for name in APP_STORE_CONNECT_API_KEY APP_STORE_CONNECT_KEY_ID APP_STORE_CONNECT_ISSUER_ID; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Existing App Store Connect credential $name is unavailable to this job. No upload attempted."
+              exit 1
+            fi
+          done
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          printf '%s' "$APP_STORE_CONNECT_API_KEY" > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          IPA=("$RUNNER_TEMP"/arisetodo-export/*.ipa)
+          xcrun altool --validate-app -f "${IPA[0]}" -t ios --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+          if [[ "$APPROVED_UPLOAD" == "true" ]]; then
+            xcrun altool --upload-app -f "${IPA[0]}" -t ios --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+          fi
       - name: Remove temporary signing keychain
         if: always()
-        run: security delete-keychain "$RUNNER_TEMP/arisetodo.keychain-db" 2>/dev/null || true
+        run: |
+          security delete-keychain "$RUNNER_TEMP/arisetodo.keychain-db" 2>/dev/null || true
+          rm -rf "$HOME/.appstoreconnect/private_keys"
