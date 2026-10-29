@@ -1154,7 +1154,17 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const link = show && shareLink ? shareLink(show, ep) : ep.link;
     const text = shareText({ ...ep, link });
     let done = false;
-    try { if (navigator.share) { await navigator.share({ title: ep.title, text: `“${ep.title}” from ${ep.show}`, url: link || undefined }); done = true; } } catch (e: any) { if (e?.name === "AbortError") return; }
+    try {
+      const native = (window as Window & { Capacitor?: { isNativePlatform?: () => boolean; Plugins?: { Share?: { share: (args: { title: string; text: string; url?: string }) => Promise<unknown> } } } }).Capacitor;
+      const payload = { title: ep.title, text: `“${ep.title}” from ${ep.show}`, url: link || undefined };
+      if (native?.isNativePlatform?.() && native.Plugins?.Share) {
+        await native.Plugins.Share.share(payload);
+        done = true;
+      } else if (navigator.share) {
+        await navigator.share(payload);
+        done = true;
+      }
+    } catch (e: any) { if (e?.name === "AbortError" || e?.message?.toLowerCase?.().includes("cancel")) return; }
     if (!done) { try { await navigator.clipboard.writeText(text); say("Link copied. Paste it anywhere to share."); done = true; } catch { say(text); } }
     if (done) {
       setCounts((c) => ({ ...c, [ep.id]: { ...(c[ep.id] ?? { likes: 0, comments: 0, shares: 0, liked: false }), shares: (c[ep.id]?.shares ?? 0) + 1 } }));

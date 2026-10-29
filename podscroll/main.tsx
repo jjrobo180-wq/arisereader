@@ -121,6 +121,20 @@ function App() {
     return `${origin}/app/?s=${show.id}&e=${ep.id}`;
   }, []);
 
+  // Native iOS share sheet for podcast links; preserve browser sharing elsewhere.
+  useEffect(() => {
+    const native = (window as Window & { Capacitor?: { isNativePlatform?: () => boolean; Plugins?: { Share?: { share: (args: { url: string; title: string }) => Promise<unknown> } } } }).Capacitor;
+    if (!native?.isNativePlatform?.() || !native.Plugins?.Share) return;
+    const listener = (event: Event) => {
+      const detail = (event as CustomEvent<{ url?: string; title?: string }>).detail;
+      if (!detail?.url) return;
+      event.preventDefault();
+      void native.Plugins!.Share!.share({ url: detail.url, title: detail.title || "Pod+" }).catch(() => {});
+    };
+    window.addEventListener("podplus:native-share", listener);
+    return () => window.removeEventListener("podplus:native-share", listener);
+  }, []);
+
   // The home page (browse) comes first and opens episodes in the swipe feed. A shared swipe
   // link (?s=&e=) still opens straight into the feed.
   const [mode, setMode] = useState<"home" | "feed">(() => (start ? "feed" : "home"));
