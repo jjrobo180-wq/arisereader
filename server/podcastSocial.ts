@@ -351,7 +351,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
   app.get(`${P}/feed`, auth, gate, async (req: any, res) => {
     try {
       const voter = o.voterOf(req);
-      const tab = req.query?.tab === "following" ? "following" : req.query?.tab === "clips" ? "clips" : "all";
+      const tab = req.query?.tab === "following" ? "following" : req.query?.tab === "clips" ? "clips" : req.query?.tab === "foryou" ? "foryou" : "all";
       const cols = await postCols();
       res.set("Cache-Control", "no-store");
       if (tab === "clips") {
@@ -383,8 +383,12 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
       const all = await shape(data || [], voter);
       const voterOfPost = new Map((data || []).map((r: any) => [String(r.id), r.voter] as [string, string]));
       const now = Date.now();
-      const ranked = all.map((p) => ({ p, s: forYouScore({ likes: p.likes, comments: p.comments, reposts: p.reposts, at: p.at, followed: follows.has(voterOfPost.get(p.id) || ""), media: !!p.media?.length || !!p.episode, mine: p.mine }, now) }))
-        .sort((a, b) => b.s - a.s).map((x) => x.p);
+      // Legacy /feed and ?tab=all keep their chronological ordering.
+      // The new app explicitly opts in to the ranked For You timeline.
+      const ranked = tab === "foryou"
+        ? all.map((p) => ({ p, s: forYouScore({ likes: p.likes, comments: p.comments, reposts: p.reposts, at: p.at, followed: follows.has(voterOfPost.get(p.id) || ""), media: !!p.media?.length || !!p.episode, mine: p.mine }, now) }))
+            .sort((a, b) => b.s - a.s).map((x) => x.p)
+        : all;
       const slice = ranked.slice(page * 20, page * 20 + 20);
       res.json({ posts: slice, next: ranked.length > (page + 1) * 20 ? page + 1 : null });
     } catch (e) { fail(res, e); }
