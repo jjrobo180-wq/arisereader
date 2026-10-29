@@ -4,7 +4,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { ArrowLeft, Clock, Hash, Headphones, Image as ImageIcon, Play, Search, TrendingUp, X } from "lucide-react";
 import { hiRes } from "@shared/earshot";
-import { Avatar, Empty, FollowButton, NameLine, Sentinel, Spinner, compactCount, local, usePaged, type Person, type Post, type SCtx } from "./kit";
+import { TopBar, Avatar, Empty, FollowButton, NameLine, Sentinel, Spinner, compactCount, local, usePaged, type Person, type Post, type SCtx } from "./kit";
 import { PostCard, PostSkeleton } from "./PostCard";
 
 type Results = { people: Person[]; posts: Post[]; tags: { tag: string; posts: number }[] };
@@ -117,9 +117,10 @@ export function Grid({ posts, onOpen }: { posts: Post[]; onOpen: (p: Post) => vo
 }
 
 /** A hashtag's page: every post with it, newest first, loading more as you scroll. */
-export function TagScreen({ tag, ctx }: { tag: string; ctx: SCtx }) {
+export function TagScreen({ tag, ctx, onBack }: { tag: string; ctx: SCtx; onBack?: () => void }) {
   const list = usePaged<Post, string>((cursor) => ctx.api(`/api/earshot/social/tags/${encodeURIComponent(tag)}${cursor ? `?before=${encodeURIComponent(cursor)}` : ""}`).then((b) => ({ items: b.posts || [], next: b.next ?? null })), [tag]);
   return <div>
+    <TopBar onBack={onBack} title={`#${tag}`} />
     <div className="flex items-center gap-3 border-b line px-4 py-4"><span className="elev grid h-14 w-14 place-items-center rounded-2xl"><Hash size={28} className="accent" /></span><div><h1 className="text-[22px] font-extrabold">#{tag}</h1><p className="muted text-[14px]">Posts with #{tag}, newest first</p></div></div>
     {!list.items && <><PostSkeleton /><PostSkeleton /></>}
     {list.items?.map((p) => <PostCard key={p.id} post={p} ctx={ctx} onChange={(np) => list.patch(p.id, () => np)} onGone={() => list.patch(p.id, () => null)} />)}

@@ -45,8 +45,7 @@ test("pages, guestbook and the Social tab are wired up", () => {
   assert.match(server, /app\.post\(`\$\{P\}\/u\/:handle\/guestbook`/);
   assert.match(server, /app\.delete\(`\$\{P\}\/u\/:handle\/guestbook\/:id`/);
   assert.match(server, /const page = cleanPage\(req\.body\?\.page\)/);
-  const x = readFileSync(new URL("../client/src/components/family-hub/earshot/EarshotSocialX.tsx", import.meta.url), "utf8");
-  assert.match(x, /<PersonSpace /);
-  assert.match(x, /<PagesStrip /);
+  const player = readFileSync(new URL("../client/src/components/family-hub/earshot/EarshotPlayer.tsx", import.meta.url), "utf8");
+  assert.match(player, /<SocialApp /);
 });
 

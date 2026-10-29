@@ -13,7 +13,7 @@ import { InfoSheet } from "./EarshotInfo";
 import { ClipMaker, LIGHT_CSS, ProfileEditor, ShareSheet, UploadSheet, postEpisodeOf, toEpisode as micEpisode, toShow as micShow } from "./EarshotSocial";
 import { CreateSheet, GoLiveSheet, LiveChip, LiveRoom, OpenMic, SignInSheet, Studio, useCreator, type LiveSummary, type MicEpisode } from "./EarshotCreators";
 import { OWN_EPISODE, isMicSlot, type ListenSource } from "@shared/earshotCreators";
-import { XSocial } from "./EarshotSocialX";
+import { SocialApp } from "./social/SocialApp";
 import { PreviewCard, Previews, previewPicks, type PreviewPick } from "./EarshotPreviews";
 import { SubjectGrid, SubjectView } from "./EarshotTopics";
 import type { Topic } from "@shared/earshotTopics";
@@ -303,6 +303,9 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const afterSignIn = useRef<null | "create" | "golive" | "upload" | "studio">(null);
   const [liveRoom, setLiveRoom] = useState<{ id: string; ticket?: string } | null>(null);
   const [socialPerson, setSocialPerson] = useState<string | null>(null);
+  // Social asks for email sign-in before photos and videos; resolves true once signed in.
+  const [socialAsk, setSocialAsk] = useState<((ok: boolean) => void) | null>(null);
+  const socialSignIn = useCallback(() => new Promise<boolean>((resolve) => setSocialAsk(() => resolve)), []);
   const micPool = useRef<MicEpisode[]>([]);
   const micUsed = useRef<Set<string>>(new Set());
   const micHeard = useRef<{ ep: string; secs: number }>({ ep: "", secs: 0 });
@@ -1457,8 +1460,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     {tab === "explore" && previews && <Previews picks={previews} source={previewSource} episodes={(id) => loadEpisodes(id).then((b) => b.episodes)} onClose={() => setPreviews(null)} onPlay={(s, e, at) => { setPreviews(null); playNow(s, e, at); }} onShow={(show) => setSheet({ kind: "show", show })} onHush={() => players.current.forEach((a) => a.pause())} />}
     {tab === "openmic" && !student && lit(<OpenMic api={api} say={say} creator={creator} live={live} onCreate={() => create("create")} onStudio={() => create("studio")} onJoinLive={joinLive} onPerson={openCreator}
       night={!day} onPlay={(show, ep, at) => { sourceOf.current.set(ep.id, "openmic"); playNow(show, ep, at); }} />)}
-    {tab === "social" && !student && lit(<XSocial api={api} say={say} onHush={() => players.current.forEach((a) => a.pause())} onCreate={() => create("create")} openPerson={socialPerson} onPersonOpened={() => setSocialPerson(null)}
-      onPlay={(show, ep, at) => { if (OWN_EPISODE.test(ep.id) && !sourceOf.current.has(ep.id)) sourceOf.current.set(ep.id, "social"); playNow(show, ep, at); }} />)}
+    {tab === "social" && !student && <div className={`h-full ${miniPad}`}>{pad(<SocialApp api={api} say={say} night={!day} onSignIn={socialSignIn} onHush={() => players.current.forEach((a) => a.pause())} onCreate={() => create("create")} openPerson={socialPerson} onPersonOpened={() => setSocialPerson(null)}
+      onPlay={(show, ep, at) => { if (OWN_EPISODE.test(ep.id) && !sourceOf.current.has(ep.id)) sourceOf.current.set(ep.id, "social"); playNow(show, ep, at); }} />)}</div>}
     {tab === "library" && lit(<Library es={es} update={update} onEditInterests={onEditInterests} onMode={(m) => setSheet({ kind: "mode", id: m.id })} onOpen={(s) => loadEpisodes(s.showId).then(({ show, episodes }) => { const ep = episodes.find((e) => e.id === s.id); if (show && ep) playNow(show, ep); else say("That episode isn't available anymore."); }).catch((e) => say(e.message))} />)}
 
     {mini && nowItem?.ep && <MiniPlayer ep={nowItem.ep} art={nowItem.ep.art || nowItem.show.art} playing={playing} pct={dur ? (time / dur) * 100 : 0} light={day} standalone={!!standalone}
@@ -1492,6 +1495,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       onMore={() => { const x = txFor(activeEp); if (x) loadTx(activeEp, Math.max(-1, ...Array.from(x.chunks as Set<number>)) + 1); }} />}
 
     {/* Creating: sign in (Pod+), a profile, the Create menu, a new episode, going live, Studio, a LivePod */}
+    {socialAsk && <SignInSheet api={api} say={say} why="Sign in with your email to post photos and videos." onClose={() => { socialAsk(false); setSocialAsk(null); }}
+      onDone={(token, email) => { onSession?.(token, email); say(`Signed in as ${email}.`); const done = socialAsk; setSocialAsk(null); setTimeout(() => { reloadCreator(); done(true); }, 400); }} />}
     {maker === "signin" && <SignInSheet api={api} say={say} why="Sign in with your email to publish episodes, go live and see your Studio." onClose={() => { afterSignIn.current = null; setMaker(null); }}
       onDone={(token, email) => { onSession?.(token, email); say(`Signed in as ${email}.`); const next = afterSignIn.current; afterSignIn.current = null; setMaker(null); setTimeout(() => { reloadCreator(); if (next) setMaker(next === "golive" || next === "upload" ? "create" : next); }, 350); }} />}
     {maker === "profile" && <ProfileEditor api={api} say={say} initial={creator?.profile ?? null} avatars={[]} onClose={() => setMaker(null)} onSaved={() => { reloadCreator(); const next = afterSignIn.current; afterSignIn.current = null; setMaker(next ?? null); }} />}

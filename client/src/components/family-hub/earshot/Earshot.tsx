@@ -24,7 +24,7 @@ export default function Earshot({ family, setFamily, say }: SectionProps) {
       body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
     });
     const body: any = await res.json().catch(() => ({}));
-    if (!res.ok) throw Object.assign(new Error(body?.message || "Something went wrong. Try again."), { status: res.status });
+    if (!res.ok) throw Object.assign(new Error(body?.message || "Something went wrong. Try again."), { status: res.status, needSignIn: !!body?.needSignIn, needProfile: !!body?.needProfile });
     return body;
   }, [token]);
   // Audio comes through the server so smart ad skip can find the ads in this copy (server/podcastPlay.ts).
