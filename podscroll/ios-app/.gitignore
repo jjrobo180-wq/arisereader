@@ -1,0 +1,9 @@
+node_modules/
+ios/Pods/
+ios/App/App.xcworkspace/xcuserdata/
+.DS_Store
+*.ipa
+*.xcarchive
+*.mobileprovision
+*.p12
+*.p8
