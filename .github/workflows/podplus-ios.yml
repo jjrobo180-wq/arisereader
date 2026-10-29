@@ -1,0 +1,53 @@
+name: Pod+ iOS native build
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'podscroll/**'
+      - 'server/earshot.ts'
+      - 'client/src/components/family-hub/earshot/**'
+      - '.github/workflows/podplus-ios.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'podscroll/**'
+      - 'server/earshot.ts'
+      - 'client/src/components/family-hub/earshot/**'
+      - '.github/workflows/podplus-ios.yml'
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install Pod+ dependencies
+        run: npm ci
+      - name: Build actual Pod+ iOS web bundle
+        env:
+          PODPLUS_IOS: '1'
+        run: |
+          npx vite build --config podscroll/vite.config.ts
+          node podscroll/ios-app/prepare-web.mjs
+      - name: Install native tooling
+        working-directory: podscroll/ios-app
+        run: npm install --no-audit --no-fund
+      - name: Generate native iOS project
+        working-directory: podscroll/ios-app
+        run: |
+          npx cap add ios
+          npx cap sync ios
+      - name: Compile iOS simulator app (no Apple signing required)
+        working-directory: podscroll/ios-app
+        run: |
+          xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ./derived CODE_SIGNING_ALLOWED=NO build
+      - name: Save unsigned simulator build for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: podplus-ios-simulator
+          path: podscroll/ios-app/derived/Build/Products/Debug-iphonesimulator/App.app
+          if-no-files-found: error
+          retention-days: 7
