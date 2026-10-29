@@ -1,13 +1,6 @@
 import * as THREE from "three";
-
-export const HALLOREAD_ACTIVE = (() => {
-  try {
-    const now = new Date();
-    return now.getMonth() === 9 || (now.getMonth() === 10 && now.getDate() <= 2);
-  } catch {
-    return false;
-  }
-})();
+import { HALLOREAD_ACTIVE } from "@/lib/halloreadInfo";
+export { HALLOREAD_ACTIVE, halloreadPetGearName } from "@/lib/halloreadInfo";
 
 export type HalloreadSceneKind = "board" | "arcade" | "neighborhood" | "theater";
 
@@ -151,12 +144,6 @@ export function addHalloreadHomeDecor(root:THREE.Group,seed:number,facing=0){
   const g=ghost(.42);g.position.set(-2.2,3.1,2.9);decor.add(g);
   if(seed%2===0){const b=bat(.62);b.position.set(0,4.65,3);decor.add(b);}
   root.add(decor);
-}
-
-export function halloreadPetGearName(petId:string|null|undefined){
-  if(!HALLOREAD_ACTIVE||!petId||petId==="pet-none")return "";
-  const code=Array.from(petId).reduce((n,c)=>n+c.charCodeAt(0),0)%3;
-  return code===0?"Midnight Witch Hat":code===1?"Pumpkin Charm":"Little Bat Wings";
 }
 
 export function addHalloreadPetGear(root:THREE.Group,petId:string|null|undefined,height=1){

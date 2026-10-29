@@ -16,7 +16,7 @@
 // This file is the single place the numbers live: the pricing page, the
 // server's plan checks and billing all read them from here.
 
-import { UNLIMITED_MONTHLY_CENTS, UNLIMITED_YEARLY_CENTS } from "./todoPlan";
+import { UNLIMITED_MONTHLY_CENTS, UNLIMITED_YEARLY_CENTS } from "./todoPrices";
 
 export const PLANS = {
   teacher: {

@@ -1,0 +1,39 @@
+// The pets' names, models and personalities, with no 3D code: pages that only show a pet's name
+// or open its care sheet import this, so the 3D engine (three.js, in lib/pets.ts) loads only on
+// the pages that draw a pet.
+// Kenney Cube Pets, CC0: https://kenney.nl/assets/cube-pets
+export const PET_MODELS: Record<string, string> = {
+  "pet-dog": "/pets/dog.glb",
+  "pet-cat": "/pets/cat.glb",
+  "pet-bunny": "/pets/bunny.glb",
+  "pet-fox": "/pets/animal-fox.glb",
+  "pet-panda": "/pets/animal-panda.glb",
+  "pet-penguin": "/pets/animal-penguin.glb",
+  "pet-lion": "/pets/animal-lion.glb",
+  "pet-koala": "/pets/animal-koala.glb",
+  "pet-elephant": "/pets/animal-elephant.glb",
+  "pet-parrot": "/pets/animal-parrot.glb",
+  "pet-pig": "/pets/animal-pig.glb",
+  "pet-deer": "/pets/animal-deer.glb",
+};
+
+export const PET_PERSONALITIES: Record<string,{emoji:string;trait:string;favorite:string;greeting:string;motion:"bounce"|"sway"|"spin"}> = {
+  "pet-dog":{emoji:"🐶",trait:"Loyal and energetic",favorite:"Running beside you",greeting:"Adventure? I'm ready!",motion:"bounce"},
+  "pet-cat":{emoji:"🐱",trait:"Curious and clever",favorite:"Finding secret corners",greeting:"Let's investigate!",motion:"sway"},
+  "pet-bunny":{emoji:"🐰",trait:"Gentle and quick",favorite:"Hopping to new stories",greeting:"Hop along with me!",motion:"bounce"},
+  "pet-fox":{emoji:"🦊",trait:"Witty and adventurous",favorite:"Solving riddles",greeting:"I smell a mystery!",motion:"spin"},
+  "pet-panda":{emoji:"🐼",trait:"Calm and cuddly",favorite:"Quiet reading time",greeting:"Let's read together.",motion:"sway"},
+  "pet-penguin":{emoji:"🐧",trait:"Brave and playful",favorite:"Waddling to the dance floor",greeting:"Let's slide into a story!",motion:"sway"},
+  "pet-lion":{emoji:"🦁",trait:"Bold and encouraging",favorite:"Cheering for every quiz",greeting:"You can do it!",motion:"bounce"},
+  "pet-koala":{emoji:"🐨",trait:"Dreamy and thoughtful",favorite:"Cozy book nooks",greeting:"One page at a time.",motion:"sway"},
+  "pet-elephant":{emoji:"🐘",trait:"Wise and kind",favorite:"Remembering favorite tales",greeting:"Tell me what you learned!",motion:"bounce"},
+  "pet-parrot":{emoji:"🦜",trait:"Chatty and musical",favorite:"Singing at the club",greeting:"Read, dance, repeat!",motion:"spin"},
+  "pet-pig":{emoji:"🐷",trait:"Silly and friendly",favorite:"Making new friends",greeting:"Oink! What's next?",motion:"bounce"},
+  "pet-deer":{emoji:"🦌",trait:"Shy and observant",favorite:"Exploring gently",greeting:"Can we explore together?",motion:"sway"},
+};
+
+export const PET_CARE_EVENT = "arise:open-pet-care";
+
+export function openPetCare() {
+  window.dispatchEvent(new CustomEvent(PET_CARE_EVENT));
+}

@@ -5,7 +5,6 @@ import "./index.css";
 import "./login-mobile-fix.css";
 import "./keyboard-inset.css";
 import { watchKeyboard } from "./lib/keyboardInset";
-import { installReadPhotos } from "./lib/readPhotos";
 import { installDuoPaneBridge } from "./lib/duoPaneBridge";
 import { installMediaUnlock } from "./lib/mediaUnlock";
 
@@ -71,5 +70,6 @@ window.fetch = async function(input: RequestInfo | URL, init?: RequestInit): Pro
 watchKeyboard();
 
 // Real photos on every A.R.I.S.E. Original cover (client/src/lib/readPhotos.ts).
-installReadPhotos();
+// Loaded after the page starts: it carries every story's details, which the first screen doesn't need.
 createRoot(document.getElementById("root")!).render(<App />);
+void import("./lib/readPhotos").then((m) => m.installReadPhotos()).catch(() => { /* covers keep their drawings */ });

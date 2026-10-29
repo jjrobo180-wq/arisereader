@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { HALLOREAD_ACTIVE } from "@/lib/halloread";
+import { HALLOREAD_ACTIVE } from "@/lib/halloreadInfo";
 
 function playHalloreadStinger(){
   try{

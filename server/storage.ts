@@ -30,12 +30,20 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 5, delayMs = 1000): 
 
 // Simple in-memory cache with TTL - does NOT cache empty results
 const cache = new Map<string, { data: any; expires: number }>();
+// The same lookup asked for by several requests at once (a page opening fires a dozen requests,
+// each checking the same session) runs once, and they all share its answer.
+const inFlight = new Map<string, Promise<unknown>>();
 async function cached<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
   const cachedEntry = cache.get(key);
   if (cachedEntry && Date.now() < cachedEntry.expires) {
     return cachedEntry.data as T;
   }
-  const data = await fn();
+  const running = inFlight.get(key);
+  if (running) return running as Promise<T>;
+  const job = fn();
+  inFlight.set(key, job);
+  let data: T;
+  try { data = await job; } finally { inFlight.delete(key); }
   // Only cache non-empty results to avoid caching failed fetches
   if (Array.isArray(data) ? data.length > 0 : data != null) {
     cache.set(key, { data, expires: Date.now() + ttlMs });

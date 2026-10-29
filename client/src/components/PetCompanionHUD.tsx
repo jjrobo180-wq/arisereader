@@ -4,8 +4,8 @@ import { Coins, Moon, X } from "lucide-react";
 import PetCareActions, { DEFAULT_PET_RULES, PET_CARE_MESSAGES, PetHealthBar, petMood, type PetAction, type PetCare, type PetRules } from "@/components/PetCareActions";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
-import { PET_CARE_EVENT, PET_PERSONALITIES } from "@/lib/pets";
-import { halloreadPetGearName } from "@/lib/halloread";
+import { PET_CARE_EVENT, PET_PERSONALITIES } from "@/lib/petInfo";
+import { halloreadPetGearName } from "@/lib/halloreadInfo";
 
 type WorldPayload={
   economy:{wallet:number};
