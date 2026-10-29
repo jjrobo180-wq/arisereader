@@ -67,7 +67,10 @@ export function registerSocialPlus(app: Express, d: PlusDeps) {
     const followed = new Set((mine || []).map((x: any) => x.followee)), fans = new Set((theirs || []).map((x: any) => x.follower));
     return list.map((r) => ({ ...d.profileOf(r), followed: followed.has(r.voter), followsYou: fans.has(r.voter), followers: counts.get(r.voter) ?? 0, ...(r.voter === viewer ? { me: true } : {}) }));
   }
-  const postsQuery = async () => db().from("podcast_posts").select(await d.postCols()).eq("hidden", false);
+  // Supabase query builders are PromiseLike. Returning one directly from an async
+  // function eagerly executes the SELECT, losing .eq/.gte/.contains/.order methods.
+  // Wrap the builder in a plain object so callers can continue filtering it.
+  const postsQuery = async () => ({ q: db().from("podcast_posts").select(await d.postCols()).eq("hidden", false) });
 
   // -------------------------------------------------------------------------
   // Badges: unread notifications, unread conversations, message requests (polled by the app).
@@ -91,7 +94,7 @@ export function registerSocialPlus(app: Express, d: PlusDeps) {
       const me = v(req);
       const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
       const [{ data: recent, error: e1 }, blocked, { data: f }] = await Promise.all([
-        (await postsQuery()).gte("created_at", since).neq("kind", "bookmark").order("created_at", { ascending: false }).limit(400),
+        (await postsQuery()).q.gte("created_at", since).neq("kind", "bookmark").order("created_at", { ascending: false }).limit(400),
         d.blockSet(me),
         db().from("podcast_people_follows").select("follower,followee").limit(5000),
       ]);
@@ -135,8 +138,8 @@ export function registerSocialPlus(app: Express, d: PlusDeps) {
       const [peopleRes, postsRes, tagRes] = await Promise.all([
         tagOnly ? Promise.resolve({ data: [] }) : db().from("podcast_profiles").select(d.PROFILE_COLS).or(`handle.ilike.%${word.replace(/ /g, "_")}%,name.ilike.%${word}%`).limit(40),
         tagOnly
-          ? (await postsQuery()).contains("tags", [word.replace(/ /g, "")]).order("created_at", { ascending: false }).limit(40)
-          : (await postsQuery()).neq("kind", "bookmark").ilike("caption", `%${word}%`).order("created_at", { ascending: false }).limit(40),
+          ? (await postsQuery()).q.contains("tags", [word.replace(/ /g, "")]).order("created_at", { ascending: false }).limit(40)
+          : (await postsQuery()).q.neq("kind", "bookmark").ilike("caption", `%${word}%`).order("created_at", { ascending: false }).limit(40),
         db().from("podcast_posts").select("tags").eq("hidden", false).not("tags", "is", null).order("created_at", { ascending: false }).limit(600),
       ]);
       const ppl = (await people(((peopleRes as any).data || []).filter((r: any) => !blocked.has(r.voter)), me))
@@ -155,7 +158,7 @@ export function registerSocialPlus(app: Express, d: PlusDeps) {
     if (tag.length < 2) return res.json({ posts: [], next: null });
     try {
       const me = v(req);
-      let q = (await postsQuery()).contains("tags", [tag]).order("created_at", { ascending: false }).limit(20);
+      let q = (await postsQuery()).q.contains("tags", [tag]).order("created_at", { ascending: false }).limit(20);
       const before = cursor(req.query?.before); if (before) q = q.lt("created_at", before);
       const { data, error } = await q;
       check(error);
@@ -218,12 +221,12 @@ export function registerSocialPlus(app: Express, d: PlusDeps) {
         const { data: marks, error } = await q;
         check(error);
         const ids = (marks || []).map((m: any) => Number(m.post_id));
-        const { data: rows } = ids.length ? await (await postsQuery()).in("id", ids) : { data: [] };
+        const { data: rows } = ids.length ? await (await postsQuery()).q.in("id", ids) : { data: [] };
         const byId = new Map((rows || []).map((r: any) => [Number(r.id), r]));
         const posts = await d.shape(ids.map((id: number) => byId.get(id)).filter(Boolean), me);
         return res.json({ posts, next: (marks || []).length === 20 ? (marks as any[])[19].created_at : null });
       }
-      let q = (await postsQuery()).eq("voter", p.voter).order("created_at", { ascending: false }).limit(20);
+      let q = (await postsQuery()).q.eq("voter", p.voter).order("created_at", { ascending: false }).limit(20);
       if (tab === "posts") q = q.neq("kind", "bookmark");
       if (tab === "media") q = q.not("media", "is", null);
       if (tab === "clips") q = q.eq("kind", "clip");
@@ -282,7 +285,7 @@ export function registerSocialPlus(app: Express, d: PlusDeps) {
     try {
       const me = v(req);
       if (!(await d.myProfile(me))) return res.status(400).json({ message: "Make your profile first.", needProfile: true });
-      const { data: row, error } = await (await postsQuery()).eq("id", id).maybeSingle();
+      const { data: row, error } = await (await postsQuery()).q.eq("id", id).maybeSingle();
       check(error);
       const poll = row?.poll;
       if (!row || !poll || !Array.isArray(poll.options)) return res.status(404).json({ message: "That poll is gone." });
@@ -412,7 +415,7 @@ export function registerSocialPlus(app: Express, d: PlusDeps) {
       check(error);
       const rows = after ? data || [] : (data || []).reverse();
       const postIds = [...new Set(rows.map((m: any) => m.post_id).filter(Boolean))];
-      const { data: postRows } = postIds.length ? await (await postsQuery()).in("id", postIds) : { data: [] };
+      const { data: postRows } = postIds.length ? await (await postsQuery()).q.in("id", postIds) : { data: [] };
       const posts = new Map((await d.shape(postRows || [], me)).map((p) => [p.id, p] as [string, Post]));
       const side = t.a === me ? "a" : "b", other = side === "a" ? "b" : "a";
       const who = await d.peopleById([t[other]]);
@@ -451,7 +454,7 @@ export function registerSocialPlus(app: Express, d: PlusDeps) {
       const side = t.a === me ? "a" : "b";
       await db().from("podcast_dm_threads").update({ last_at: ins.data.created_at, last_text: preview, last_from: me, accepted, [`${side}_read_at`]: ins.data.created_at, a_hidden: false, b_hidden: false }).eq("id", t.id);
       let post: Post | null = null;
-      if (postId) { const { data: pr } = await (await postsQuery()).eq("id", postId).maybeSingle(); if (pr) [post] = await d.shape([pr], me); }
+      if (postId) { const { data: pr } = await (await postsQuery()).q.eq("id", postId).maybeSingle(); if (pr) [post] = await d.shape([pr], me); }
       res.json({ message: { id: String(ins.data.id), mine: true, body, media, post, at: ins.data.created_at } as Message });
     } catch (e) { fail(res, e); }
   });
