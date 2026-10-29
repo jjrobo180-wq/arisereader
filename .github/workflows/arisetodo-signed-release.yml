@@ -1,5 +1,5 @@
 name: A.R.I.S.E. To-Do signed iOS release candidate
-# Manual signing validation only. The remote-WebView scaffold is not App Store-ready.
+# Development beta validation only. Upload is a separate, explicitly approved release step.
 on:
   workflow_dispatch:
   push:
@@ -36,6 +36,16 @@ jobs:
           npm install --no-audit --no-fund
           npx cap add ios
           npx cap sync ios
+      - name: Prepare beta icon and build number
+        working-directory: arisetodo/ios-app
+        run: |
+          set -euo pipefail
+          ICON=ios/App/App/Assets.xcassets/AppIcon.appiconset
+          mkdir -p "$ICON"
+          sips -s format jpeg -s formatOptions 100 ../../client/public/icon-512.png --out "$RUNNER_TEMP/todo-icon.jpg" >/dev/null
+          sips -z 1024 1024 -s format png "$RUNNER_TEMP/todo-icon.jpg" --out "$ICON/AppIcon-1024.png" >/dev/null
+          printf '%s' '{"images":[{"filename":"AppIcon-1024.png","idiom":"universal","platform":"ios","size":"1024x1024"}],"info":{"author":"xcode","version":1}}' > "$ICON/Contents.json"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT" ios/App/App/Info.plist
       - name: Import Apple signing certificate and provisioning profile
         shell: bash
         env:
@@ -108,6 +118,27 @@ jobs:
           path: ${{ runner.temp }}/ARISEToDo.xcarchive
           if-no-files-found: error
           retention-days: 3
+      - name: Validate development beta with Apple
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          for name in APP_STORE_CONNECT_API_KEY APP_STORE_CONNECT_KEY_ID APP_STORE_CONNECT_ISSUER_ID; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Existing App Store Connect credential $name is unavailable to this job. No upload attempted."
+              exit 1
+            fi
+          done
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          printf '%s' "$APP_STORE_CONNECT_API_KEY" > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          IPA=("$RUNNER_TEMP"/arisetodo-export/*.ipa)
+          xcrun altool --validate-app -f "${IPA[0]}" -t ios --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
       - name: Remove temporary signing keychain
         if: always()
-        run: security delete-keychain "$RUNNER_TEMP/arisetodo.keychain-db" 2>/dev/null || true
+        run: |
+          security delete-keychain "$RUNNER_TEMP/arisetodo.keychain-db" 2>/dev/null || true
+          rm -rf "$HOME/.appstoreconnect/private_keys"
