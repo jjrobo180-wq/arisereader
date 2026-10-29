@@ -461,3 +461,10 @@ button:disabled{cursor:not-allowed;opacity:.5}
 .backup-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 .backup-panel .backup-status{grid-column:1/-1;color:var(--accent-2);font-size:12px;font-weight:600}
 @media(max-width:660px){.backup-panel{grid-template-columns:1fr;padding:18px}.backup-actions{flex-direction:row;flex-wrap:wrap}.backup-actions .secondary-btn{flex:1;min-width:140px}}
+
+/* The way to Beginners inside A.R.I.S.E. Reader (same account, leaderboard, points and prizes). */
+.reader-move{display:flex;align-items:center;gap:10px;margin-top:14px;padding:12px 14px;border-radius:14px;background:#fff3c4;color:#2b1d52;text-decoration:none;font-size:14px;line-height:1.4;border:2px solid #f0a500}
+.reader-move strong{display:block;font-size:15px}
+.reader-move svg{flex:none}
+.reader-move:hover{filter:brightness(1.03)}
+.reader-move:focus-visible{outline:3px solid #2f6fe4;outline-offset:3px}
