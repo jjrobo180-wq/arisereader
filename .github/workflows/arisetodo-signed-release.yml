@@ -120,8 +120,9 @@ jobs:
           path: ${{ runner.temp }}/ARISEToDo.xcarchive
           if-no-files-found: error
           retention-days: 3
-      - name: Validate development beta with Apple
+      - name: Validate beta and perform explicitly approved TestFlight upload
         env:
+          APPROVED_UPLOAD: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[approved-testflight]') }}
           APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
@@ -139,6 +140,9 @@ jobs:
           chmod 600 "$KEY_PATH"
           IPA=("$RUNNER_TEMP"/arisetodo-export/*.ipa)
           xcrun altool --validate-app -f "${IPA[0]}" -t ios --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+          if [[ "$APPROVED_UPLOAD" == "true" ]]; then
+            xcrun altool --upload-app -f "${IPA[0]}" -t ios --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+          fi
       - name: Remove temporary signing keychain
         if: always()
         run: |
