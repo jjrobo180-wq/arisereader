@@ -71,7 +71,7 @@ jobs:
           printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | base64 -D > "$RUNNER_TEMP/profile.mobileprovision"
           security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
           if [[ "$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/profile.plist")" != '6TYWWNKX6P.com.arisereader.podplus' ]]; then
-            python3 podscroll/ios-app/find-existing-profile.py com.arisereader.podplus "$RUNNER_TEMP/profile.mobileprovision"
+            python3 podscroll/ios-app/find-existing-profile.py com.arisereader.podplus "$RUNNER_TEMP/profile.mobileprovision" --create-missing-profile
             security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
           fi
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
@@ -135,8 +135,9 @@ jobs:
           path: ${{ runner.temp }}/PodPlus.xcarchive
           if-no-files-found: error
           retention-days: 3
-      - name: Validate development beta with Apple
+      - name: Validate beta and perform explicitly approved TestFlight upload
         env:
+          APPROVED_UPLOAD: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[approved-testflight]') }}
           APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
@@ -154,6 +155,9 @@ jobs:
           chmod 600 "$KEY_PATH"
           IPA=("$RUNNER_TEMP"/podplus-export/*.ipa)
           xcrun altool --validate-app -f "${IPA[0]}" -t ios --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+          if [[ "$APPROVED_UPLOAD" == "true" ]]; then
+            xcrun altool --upload-app -f "${IPA[0]}" -t ios --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+          fi
       - name: Remove temporary signing keychain
         if: always()
         run: |
