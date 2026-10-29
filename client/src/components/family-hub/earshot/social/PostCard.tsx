@@ -3,7 +3,7 @@
 // that plays muted as it scrolls into view, a poll, an episode or a clip you can play, or a quoted
 // post. Then reply, repost (or quote), like, save and share.
 import { useEffect, useRef, useState, type MouseEvent as RMouseEvent, type ReactNode } from "react";
-import { Ban, BarChart2, Bookmark, ChevronLeft, ChevronRight, Flag, Headphones, Heart, Link2, MessageCircle, MoreHorizontal, Pause, Play, Quote, Repeat2, Share, Trash2, Volume2, VolumeX, X } from "lucide-react";
+import { Ban, BarChart2, Bookmark, ChevronLeft, ChevronRight, Flag, Headphones, Heart, Link2, MessageCircle, MoreHorizontal, Pause, Play, Quote, Repeat2, Share, Sparkles, Trash2, Volume2, VolumeX, X } from "lucide-react";
 import { clock, durationWords, hiRes } from "@shared/earshot";
 import { toEpisode, toShow } from "../EarshotSocial";
 import { ActionSheet, Avatar, Layer, NameLine, RichText, compactCount, linkTo, shareOrCopy, shortAgo, type Media, type Post, type SCtx } from "./kit";
@@ -39,6 +39,7 @@ export function PostCard({ post, ctx, onChange, onGone, detail }: { post: Post; 
   const big = !!detail;
 
   return <article className={`${detail ? "" : "hov cursor-pointer"} border-b line px-4 pb-1.5 pt-3`} onClick={open}>
+    {post.recommended && !detail && <div className="sx-post-recommended"><Sparkles size={14} /><strong>Recommended by Pod+</strong><span>· Official podcast pick</span></div>}
     {plain && <p className="muted -mt-0.5 mb-1 flex items-center gap-2 pl-7 text-[13px] font-bold"><Repeat2 size={15} /><button type="button" className="hover:underline" onClick={(e) => { e.stopPropagation(); ctx.openProfile(post.author.handle); }}>{post.mine ? "You" : post.author.name} reposted</button></p>}
     <div className="flex gap-3">
       {!big && <Avatar p={p.author} size={40} onClick={() => ctx.openProfile(p.author.handle)} />}

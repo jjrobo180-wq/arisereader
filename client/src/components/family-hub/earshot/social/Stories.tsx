@@ -8,12 +8,12 @@ import { toEpisode, toShow } from "../EarshotSocial";
 import { ActionSheet, Avatar, Layer, NeedSignIn, shortAgo, uploadMedia, type Media, type Profile, type PostEpisode, type SCtx, type Story, type TrayItem } from "./kit";
 import { EpisodeFinder } from "./Composer";
 
-const RING = "conic-gradient(from 210deg, #ff6a1f, #f91880, #a855f7, #ff6a1f)";
+const RING = "conic-gradient(from 210deg, #ee6945, #d6d7df, #ee6945)";
 
 export function StoryTray({ tray, me, onOpen, onCreate }: { tray: TrayItem[] | null; me: Profile | null; onOpen: (i: number) => void; onCreate: () => void }) {
   const mine = tray?.find((t) => t.me);
   const others = (tray ?? []).map((t, i) => ({ t, i })).filter((x) => !x.t.me);
-  return <div className="noscroll flex gap-3.5 overflow-x-auto border-b line px-4 py-3" aria-label="Stories">
+  return <div className="sx-story-tray noscroll flex gap-3.5 overflow-x-auto border-b line px-4 py-3.5" aria-label="Stories">
     <div className="flex w-[68px] flex-none flex-col items-center gap-1.5">
       <button type="button" onClick={() => (mine ? onOpen(tray!.indexOf(mine)) : onCreate())} aria-label={mine ? "Your story" : "Add to your story"} className="relative">
         <span className="block rounded-full p-[2.5px]" style={{ background: mine ? RING : "transparent" }}><span className="block rounded-full p-[2px] bg">{me ? <Avatar p={me} size={58} /> : <span className="elev2 block h-[58px] w-[58px] rounded-full" />}</span></span>
