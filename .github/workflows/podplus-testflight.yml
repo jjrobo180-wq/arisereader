@@ -9,6 +9,8 @@ on:
 jobs:
   signed-archive:
     runs-on: macos-15
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
     timeout-minutes: 60
     environment: app-store
     steps:
