@@ -100,16 +100,17 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
     officialOwner = { voter: data?.voter ?? null, at: Date.now() };
     return officialOwner.voter;
   }
-  const gate: RequestHandler = (req: any, res, next) => {
+  const gate: RequestHandler = async (req: any, res, next) => {
     if (o.allowed && !o.allowed(req)) { res.status(403).json({ message: "Social isn't available on student accounts." }); return; }
-    if (P !== "/api/podscroll/social" || ["GET", "HEAD", "OPTIONS"].includes(req.method) || req.creator?.id) return next();
-    void officialVoter().then((owner) => {
+    if (P !== "/api/podscroll/social" || ["GET", "HEAD", "OPTIONS"].includes(req.method) || req.creator?.id) { next(); return; }
+    try {
+      const owner = await officialVoter();
       if (owner && owner === o.voterOf(req)) {
         res.status(401).json({ message: "Sign in to your Pod+ account to manage the official profile." });
         return;
       }
       next();
-    }).catch((e) => fail(res, e));
+    } catch (e) { fail(res, e); }
   };
   const limited = (lim: ReturnType<typeof createAttemptLimiter>, req: any, res: any) => {
     const k = o.voterOf(req); const wait = lim.retryAfter(k);
