@@ -58,7 +58,7 @@ export function SocialApp({ api: rawApi, say, night, theme, onThemeChange, onPla
     return () => { active = false; };
   }, [api]);
 
-  const push = useCallback((s: Screen, on?: Tab) => setTab((cur) => { const t = on ?? cur; setStacks((all) => ({ ...all, [t]: [...all[t], s] })); setSeenTabs((x) => new Set(x).add(t)); return t; }), []);
+  const push = useCallback((s: Screen, on?: Tab) => { setCompose(null); setCreate(false); setTab((cur) => { const t = on ?? cur; setStacks((all) => ({ ...all, [t]: [...all[t], s] })); setSeenTabs((x) => new Set(x).add(t)); return t; }); }, []);
   const pop = useCallback(() => setStacks((all) => ({ ...all, [tab]: all[tab].slice(0, -1) })), [tab]);
   useEffect(() => { if (openPerson) { push({ k: "profile", handle: openPerson }, "home"); onPersonOpened?.(); } }, [openPerson]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -82,6 +82,7 @@ export function SocialApp({ api: rawApi, say, night, theme, onThemeChange, onPla
   const oldCtx: OldCtx = { api, say, onPlay, audio, me: me ?? null, person: ctx.openProfile, comments: (p) => ctx.openPost(p as Post), repost: (p) => ctx.compose({ quote: p as Post }), needProfile: () => { needProfile(); } };
 
   const goTab = (t: Tab) => {
+    setCompose(null); setCreate(false);
     if (t === tab) {
       if (stacks[t].length) setStacks((all) => ({ ...all, [t]: [] }));
       else { const el = scrollers.current.get(`${t}:root`); if (el && el.scrollTop > 40) el.scrollTo({ top: 0, behavior: "smooth" }); else if (t === "home") { list.reset(); void loadTray(); } }
@@ -148,7 +149,8 @@ export function SocialApp({ api: rawApi, say, night, theme, onThemeChange, onPla
       </div>}
       {!list.items && <><PostSkeleton /><PostSkeleton /><PostSkeleton /></>}
       {list.items?.map((p) => <PostCard key={p.id} post={p} ctx={ctx} onChange={(np) => list.patch(p.id, () => np)} onGone={() => list.patch(p.id, () => null)} />)}
-      {list.items && !list.items.length && <Empty title={feed === "following" ? "Your timeline is empty" : "Nothing here yet"} text={feed === "following" ? "Follow people and their posts show up here." : "Be the first to post something."} action={<PillButton kind="accent" onClick={() => (feed === "following" ? goTab("search") : ctx.compose())}>{feed === "following" ? "Find people" : "Write a post"}</PillButton>} />}
+      {list.err && <div role="alert" className="border-b line px-5 py-7 text-center"><p className="font-semibold">Timeline is temporarily unavailable.</p><p className="muted mt-1 text-[13px]">{list.err}</p><PillButton kind="line" className="mt-3" onClick={list.reset}>Retry feed</PillButton></div>}
+      {list.items && !list.items.length && !list.err && <Empty title={feed === "following" ? "Your timeline is empty" : "Nothing here yet"} text={feed === "following" ? "Follow people and their posts show up here." : "Be the first to post something."} action={<PillButton kind="accent" onClick={() => (feed === "following" ? goTab("search") : ctx.compose())}>{feed === "following" ? "Find people" : "Write a post"}</PillButton>} />}
       {list.items && list.items.length > 0 && <Sentinel onSeen={list.more} done={list.done} />}
     </>}
   </div>;
@@ -252,7 +254,7 @@ export function SocialApp({ api: rawApi, say, night, theme, onThemeChange, onPla
       <NavBtn label="Profile" on={tab === "me"} onClick={() => goTab("me")}>{me ? <Avatar p={me} size={28} ring={tab === "me" ? "0 0 0 2px var(--fg)" : undefined} /> : <User size={24} strokeWidth={1.8} />}</NavBtn>
     </nav>
 
-    <div id="sx-layer" />
+    <div id="sx-layer" className="sx-overlay-root" />
     {create && <ActionSheet onClose={() => setCreate(false)} items={[
       { label: "Post", icon: <PenSquare size={20} />, onClick: () => setCompose({}) },
       { label: "Story", icon: <Clapperboard size={20} />, onClick: () => setMaker(true) },
