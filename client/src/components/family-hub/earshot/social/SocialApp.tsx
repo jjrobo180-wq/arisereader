@@ -68,7 +68,7 @@ export function SocialApp({ api: rawApi, say, night, onPlay, onHush, onCreate, o
   }), [api, say, me, push, needProfile, onSignIn, onPlay, onHush, audio]);
 
   // The For You / Following feed, page after page.
-  const list = usePaged<Post, string | number>((c) => api(`/api/earshot/social/feed?tab=${feed === "following" ? "following" : "all"}${c != null ? (feed === "following" ? `&before=${encodeURIComponent(String(c))}` : `&page=${c}`) : ""}`).then((b) => ({ items: b.posts || [], next: b.next ?? null })), [feed === "clips" ? "foryou" : feed]);
+  const list = usePaged<Post, string | number>((c) => api(`/api/earshot/social/feed?tab=${feed === "following" ? "following" : "foryou"}${c != null ? (feed === "following" ? `&before=${encodeURIComponent(String(c))}` : `&page=${c}`) : ""}`).then((b) => ({ items: b.posts || [], next: b.next ?? null })), [feed === "clips" ? "foryou" : feed]);
   useEffect(() => { if (feed === "clips" && !clips) api("/api/earshot/social/feed?tab=clips").then((b) => setClips(b.posts || [])).catch(() => setClips([])); }, [feed, clips, api]);
   const oldCtx: OldCtx = { api, say, onPlay, audio, me: me ?? null, person: ctx.openProfile, comments: (p) => ctx.openPost(p as Post), repost: (p) => ctx.compose({ quote: p as Post }), needProfile: () => { needProfile(); } };
 
