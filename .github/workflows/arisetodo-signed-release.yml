@@ -7,7 +7,7 @@ on:
     paths:
       - '.github/workflows/arisetodo-signed-release.yml'
       - 'arisetodo/ios-app/**'
-      - 'client/src/main.tsx'
+      - 'client/src/**'
 jobs:
   signed-archive:
     runs-on: macos-15
