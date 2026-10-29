@@ -5,9 +5,11 @@
 // while you browse, and each book remembers its chapter and spot on this device.
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ClickEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { BookOpen, BookOpenText, Bookmark, ChevronLeft, ChevronRight, Headphones, Loader2, Pause, Play, RotateCcw, RotateCw, Search, SkipBack, SkipForward, SlidersHorizontal, Sparkles, Star, X } from "lucide-react";
+import { BookOpen, BookOpenText, Bookmark, Check, ChevronLeft, ChevronRight, Download, Headphones, Loader2, Pause, Play, RotateCcw, RotateCw, Search, SkipBack, SkipForward, SlidersHorizontal, Sparkles, Star, X } from "lucide-react";
 import { onOtherSound, soundStarted } from "../client/src/components/family-hub/earshot/soundBus";
 import { bookAudioSupported, isRouted, levelOf, primeBookAudio, routeBook, setBookSound, setFade, setGate } from "./bookAudio";
+import { chapterKey, useOfflineAudio } from "../client/src/components/family-hub/earshot/offlineAudio";
+import { downloads, sizeLabel } from "./downloads";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
 export type BookKind = "solo" | "group" | "dramatic";
@@ -90,7 +92,11 @@ function useMarks(bookId: string): Mark[] {
 const details = new Map<string, Promise<BookDetail>>();
 function loadBook(api: Api, id: string): Promise<BookDetail> {
   let p = details.get(id);
-  if (!p) { p = api(`/api/earshot/books/${encodeURIComponent(id)}`).then((b) => b.book as BookDetail); p.catch(() => details.delete(id)); details.set(id, p); }
+  if (!p) {
+    // A downloaded book opens from this device when the server can't be reached.
+    p = api(`/api/earshot/books/${encodeURIComponent(id)}`).then((b) => b.book as BookDetail).catch((e) => { const saved = downloads?.savedBook(id); if (saved) return saved; throw e; });
+    p.catch(() => details.delete(id)); details.set(id, p);
+  }
   return p;
 }
 
@@ -225,6 +231,8 @@ export function AudiobooksView({ api, pro, onJoin, current, onOpen }: { api: Api
       </form>
     </div>
 
+    {!term && <DownloadedShelf onOpen={onOpen} />}
+
     {going.length > 0 && !term && <section aria-label="Continue listening" className="mt-5">
       <h2 className="mb-2 text-base font-semibold">Continue listening</h2>
       <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
@@ -288,6 +296,44 @@ export function AudiobooksView({ api, pro, onJoin, current, onOpen }: { api: Api
 
 // ---------------- one book ----------------
 
+/** Download a whole book to listen offline (Pod+ Membership), with progress, or remove it. */
+function BookDownload({ book }: { book: BookDetail }) {
+  useOfflineAudio();
+  const d = downloads;
+  if (!d) return null;
+  const st = d.bookState(book.id);
+  const saved = st.status === "saved";
+  const saving = st.status === "saving";
+  const size = d.books().find((b) => b.book.id === book.id)?.bytes || 0;
+  return <div className="mt-3 flex flex-col items-center gap-1">
+    <button onClick={() => { if (saved || saving) { if (!saving && !window.confirm(`Remove the download of “${book.title}”?`)) return; void d.remove(`book:${book.id}`); } else void d.saveBook(book); }}
+      className="inline-flex h-10 items-center gap-2 rounded-full bg-[#f2f2f2] px-4 text-sm font-semibold hover:bg-[#e5e5e5]" data-testid="ps-book-download">
+      {saving ? <Loader2 size={16} className="animate-spin" /> : saved ? <Check size={16} /> : <Download size={16} />}
+      {saving ? `Downloading… ${Math.round(st.pct * 100)}% · Stop` : saved ? "Downloaded · Remove" : "Download"}
+      {!saved && !saving && <MembersTag />}
+    </button>
+    {saved && size > 0 && <span className="text-xs text-[#767676]">{sizeLabel(size)} on this device · plays without a connection</span>}
+    {st.status === "error" && <span className="text-xs text-[#b42318]">{st.error}</span>}
+  </div>;
+}
+
+/** Books downloaded to this device, first on the audiobooks page. */
+function DownloadedShelf({ onOpen }: { onOpen: (id: string) => void }) {
+  useOfflineAudio();
+  const list = downloads?.books() || [];
+  if (!list.length) return null;
+  return <section aria-label="Downloaded" className="mt-5">
+    <h2 className="mb-2 flex items-center gap-1.5 text-base font-semibold"><Download size={16} />Downloaded</h2>
+    <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+      {list.map((b) => <button key={b.id} onClick={() => onOpen(b.book.id)} className="w-[120px] shrink-0 text-left">
+        <Cover src={b.book.cover} title={b.book.title} className="aspect-square w-full rounded-xl" />
+        <span className="mt-1.5 line-clamp-2 block text-[13px] font-semibold leading-snug">{b.book.title}</span>
+        <span className="block text-xs text-[#606060]">{sizeLabel(b.bytes)}</span>
+      </button>)}
+    </div>
+  </section>;
+}
+
 export function BookPage({ api, id, current, playing, onPlay, onToggle, onBack, onOpen }: { api: Api; id: string; current: Reading | null; playing: boolean; onPlay: (r: Reading) => void; onToggle: () => void; onBack: () => void; onOpen: (id: string) => void }) {
   const [book, setBook] = useState<BookDetail | null>(null);
   const [err, setErr] = useState("");
@@ -336,6 +382,7 @@ export function BookPage({ api, id, current, playing, onPlay, onToggle, onBack, 
       <button onClick={main} className="mt-5 inline-flex h-12 min-w-[180px] items-center justify-center gap-2 rounded-full px-6 text-[15px] font-semibold text-white" style={{ background: ACCENT }} data-testid="ps-book-play">
         {here && playing ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}{label}
       </button>
+      <BookDownload book={book} />
     </div>
 
     {book.about && <div className="mt-7">
@@ -906,7 +953,10 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
     };
     pausedAt.current = 0;
     setFade(a, 1);
-    if (shaped || routed.current) {
+    // Downloaded: the chapter plays from this device (it's the page's own, so sound settings still work).
+    const local = downloads?.url(chapterKey(book.id, chapter.n));
+    if (local) { a.removeAttribute("crossorigin"); start(local); }
+    else if (shaped || routed.current) {
       a.crossOrigin = "anonymous";
       getPass().then((k) => start(relayUrl(chapter, k))).catch(() => {
         // Not a member any more: play it as it is (a player already routed through the boost can't).

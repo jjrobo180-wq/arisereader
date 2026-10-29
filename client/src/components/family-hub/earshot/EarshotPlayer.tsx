@@ -2,7 +2,8 @@
 // Used by LifeHub's Earshot app (./Earshot.tsx) and by the separate Podscroll website (podscroll/),
 // so it imports nothing from the Arise app itself: the caller passes data, saving and the API.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { Bookmark, Car, Check, ChevronDown, ChevronLeft, Clock3, ExternalLink, Mic, Sparkles, Flag, Heart, Info, ListVideo, Loader2, Maximize2, Megaphone, MessageCircle, Minimize2, Minus, Moon, Pause, Play, Plus, RotateCcw, RotateCw, Search, Settings2, Share2, SkipForward, ThumbsDown, Trash2, X } from "lucide-react";
+import { Bookmark, Car, Check, ChevronDown, ChevronLeft, Clock3, Download, ExternalLink, Mic, Sparkles, Flag, Heart, Info, ListVideo, Loader2, Maximize2, Megaphone, MessageCircle, Minimize2, Minus, Moon, Pause, Play, Plus, RotateCcw, RotateCw, Search, Settings2, Share2, SkipForward, ThumbsDown, Trash2, X } from "lucide-react";
+import { episodeKey, offlineAudio, useOfflineAudio } from "./offlineAudio";
 import {
   EARSHOT_LIMITS, GENRES, GENRE, SPEEDS, chooseEpisode, chooseFreshEpisode, clock, compact, durationWords, mergeAds, pickNext, shareText, startAt, tasteOf, type AdMode,
   type AdRange, type Candidate, type Chapter, type Earshot as EarshotData, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal, type TranscriptChunk, type TxSegment,
@@ -572,6 +573,9 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
    *  page may shape its sound (crossOrigin). A player whose sound already goes through the boost can't
    *  play audio from other sites (it would be silent), so it is swapped for a fresh one first. */
   const setAudioSrc = (a: HTMLAudioElement, ep: PodEpisode, via: string | null): HTMLAudioElement => {
+    // Downloaded (Pod+): play the copy on this device. It's this page's own, so Voice boost still works.
+    const saved = offlineAudio()?.url(episodeKey(ep.id));
+    if (saved) { a.removeAttribute("crossorigin"); delete a.dataset.sid; a.src = saved; return a; }
     if (!via && isBoosted(a)) {
       const fresh = makeAudio();
       const i = players.current.indexOf(a); if (i >= 0) players.current[i] = fresh;
@@ -634,6 +638,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   }, [api, mediaUrl ? 1 : 0]);
   /** A session for this episode (its id), when its audio can come through the server. */
   const viaServer = (ep: PodEpisode): string | null => {
+    if (offlineAudio()?.url(episodeKey(ep.id))) return null; // downloaded: plays from this device
     const tok = playTok.current;
     if (!mediaUrl || !tok || tok.exp - Date.now() < 5 * 60_000 || direct.current.has(ep.id) || !throughServer(ep.audio)) return null;
     let p = plays.current.get(ep.id);
@@ -1466,7 +1471,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       night={!day} onPlay={(show, ep, at) => { sourceOf.current.set(ep.id, "openmic"); playNow(show, ep, at); }} />)}
     {tab === "social" && !student && <div className={`h-full ${miniPad}`}>{pad(<SocialApp api={api} say={say} night={!day} theme={theme} onThemeChange={setTheme} onSignIn={socialSignIn} onHush={() => players.current.forEach((a) => a.pause())} onCreate={() => create("create")} openPerson={socialPerson} onPersonOpened={() => setSocialPerson(null)}
       onPlay={(show, ep, at) => { if (OWN_EPISODE.test(ep.id) && !sourceOf.current.has(ep.id)) sourceOf.current.set(ep.id, "social"); playNow(show, ep, at); }} />)}</div>}
-    {tab === "library" && lit(<Library es={es} update={update} onEditInterests={onEditInterests} onMode={(m) => setSheet({ kind: "mode", id: m.id })} onOpen={(s) => loadEpisodes(s.showId).then(({ show, episodes }) => { const ep = episodes.find((e) => e.id === s.id); if (show && ep) playNow(show, ep); else say("That episode isn't available anymore."); }).catch((e) => say(e.message))} />)}
+    {tab === "library" && lit(<Library es={es} update={update} onEditInterests={onEditInterests} onMode={(m) => setSheet({ kind: "mode", id: m.id })} onPlayDownloads={(list, i) => playSaved(list, i, "Downloaded")} say={say} onOpen={(s) => loadEpisodes(s.showId).then(({ show, episodes }) => { const ep = episodes.find((e) => e.id === s.id); if (show && ep) playNow(show, ep); else say("That episode isn't available anymore."); }).catch((e) => say(e.message))} />)}
 
     {mini && nowItem?.ep && <MiniPlayer ep={nowItem.ep} art={nowItem.ep.art || nowItem.show.art} playing={playing} pct={dur ? (time / dur) * 100 : 0} light={day} standalone={!!standalone}
       onOpen={() => setTab(lastFeed.current)} onToggle={toggle} />}
@@ -2232,8 +2237,10 @@ const Tile = ({ art, title, sub, onClick }: { art: string; title: string; sub: s
 // ===========================================================================
 // Library
 // ===========================================================================
-function Library({ es, update, onEditInterests, onOpen, onMode }: { es: EarshotData; update: PlayerProps["update"]; onEditInterests: () => void; onOpen: (s: SavedEpisode) => void; onMode: (m: PodMode) => void }) {
-  const [which, setWhich] = useState<"liked" | "saved" | "following">("liked");
+function Library({ es, update, onEditInterests, onOpen, onMode, onPlayDownloads, say }: { es: EarshotData; update: PlayerProps["update"]; onEditInterests: () => void; onOpen: (s: SavedEpisode) => void; onMode: (m: PodMode) => void; onPlayDownloads: (list: SavedEpisode[], i: number) => void; say: (m: string) => void }) {
+  const offline = useOfflineAudio();
+  const [which, setWhich] = useState<"liked" | "saved" | "following" | "downloads">("liked");
+  const downloaded = offline ? offline.episodes().map((d) => d.ep) : [];
   const [asking, setAsking] = useState(false);
   const ranked = GENRES.map((g) => [g, tasteOf(es, g.id)] as const).sort((a, b) => b[1] - a[1]).slice(0, 6);
   const max = Math.max(1, ranked[0]?.[1] ?? 1);
@@ -2246,12 +2253,18 @@ function Library({ es, update, onEditInterests, onOpen, onMode }: { es: EarshotD
     <h4 className="mt-6 text-sm font-semibold">What your feed has learned</h4>
     <div className="mt-2 flex flex-col gap-2">{ranked.map(([g, v]) => <div key={g.id} className="grid grid-cols-[120px_1fr_32px] items-center gap-2 text-xs"><span className="truncate">{g.name}</span><span className="h-2 overflow-hidden rounded-full bg-white/10"><span className="block h-full rounded-full" style={{ width: `${Math.max(3, (Math.max(0, v) / max) * 100)}%`, background: g.color }} /></span><span className="text-right tabular-nums text-white/45">{Math.round((Math.max(0, v) / max) * 100)}</span></div>)}</div>
     <p className="mt-2 text-xs leading-relaxed text-white/45">Likes, follows, shares and listening raise a genre; quick skips lower it. About one in seven picks is something new on purpose.</p>
-    <div className="mt-6 flex gap-1.5">{(["liked", "saved", "following"] as const).map((w) => <button key={w} type="button" aria-pressed={which === w} onClick={() => setWhich(w)} className={`rounded-full px-3.5 py-1.5 text-xs font-semibold capitalize ${which === w ? "bg-white text-[#120e14]" : "bg-white/10 text-white/70"}`}>{w}</button>)}</div>
-    <div className="mt-3 grid grid-cols-3 gap-3">
+    <div className="mt-6 flex flex-wrap gap-1.5">{(offline ? (["liked", "saved", "following", "downloads"] as const) : (["liked", "saved", "following"] as const)).map((w) => <button key={w} type="button" aria-pressed={which === w} onClick={() => setWhich(w)} className={`rounded-full px-3.5 py-1.5 text-xs font-semibold capitalize ${which === w ? "bg-white text-[#120e14]" : "bg-white/10 text-white/70"}`}>{w}</button>)}</div>
+    {which === "downloads" && offline ? <div className="mt-3">
+      {downloaded.length ? <div className="flex flex-col divide-y divide-white/[.06]">{downloaded.map((e, i) => <div key={e.id} className="flex items-center gap-3 py-2">
+        <button type="button" onClick={() => onPlayDownloads(downloaded, i)} className="flex min-w-0 flex-1 items-center gap-3 text-left"><img src={e.art} alt="" referrerPolicy="no-referrer" className="h-12 w-12 flex-none rounded-lg object-cover" /><span className="min-w-0"><b className="line-clamp-2 text-sm leading-tight">{e.title}</b><span className="line-clamp-1 text-xs text-white/50">{e.show}</span></span></button>
+        <button type="button" aria-label={`Remove download: ${e.title}`} onClick={() => void offline.remove(episodeKey(e.id)).then(() => say("Download removed."))} className="grid h-10 w-10 flex-none place-items-center rounded-full text-white/55 hover:bg-white/10 hover:text-white"><Trash2 size={17} /></button>
+      </div>)}</div>
+        : <p className="flex flex-col items-center gap-2 py-6 text-center text-sm text-white/55"><Download size={20} />Tap Save on an episode, then Download, to listen without a connection.</p>}
+    </div> : <><div className="mt-3 grid grid-cols-3 gap-3">
       {which === "following" ? es.follows.map((s) => <div key={s.id} className="text-left"><img src={s.art} alt="" referrerPolicy="no-referrer" className="aspect-square w-full rounded-xl object-cover" /><b className="mt-1 line-clamp-2 text-xs">{s.name}</b></div>)
         : eps.map((e) => <button key={e.id} type="button" onClick={() => onOpen(e)} className="text-left"><img src={e.art} alt="" referrerPolicy="no-referrer" className="aspect-square w-full rounded-xl object-cover" /><b className="mt-1 line-clamp-2 text-xs leading-tight">{e.title}</b><span className="line-clamp-1 text-[11px] text-white/50">{e.show}</span></button>)}
     </div>
-    {((which === "following" && !es.follows.length) || (which !== "following" && !eps.length)) && <p className="py-6 text-center text-sm text-white/55">{which === "liked" ? "Double-tap an episode to like it." : which === "saved" ? "Tap the bookmark to save an episode for later." : "Tap + on a podcast to follow it."}</p>}
+    {((which === "following" && !es.follows.length) || (which !== "following" && !eps.length)) && <p className="py-6 text-center text-sm text-white/55">{which === "liked" ? "Double-tap an episode to like it." : which === "saved" ? "Tap the bookmark to save an episode for later." : "Tap + on a podcast to follow it."}</p>}</>}
     <div className="mt-8">{asking
       ? <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white/5 p-3 text-sm"><span className="flex-1">Clear what the feed has learned? Likes, saves and follows stay.</span><button type="button" onClick={() => { update((e) => ({ ...e, taste: Object.fromEntries(e.genres.map((g) => [g, 3])), skipped: [] })); setAsking(false); }} className="rounded-full px-4 py-1.5 font-semibold bg-white text-[#111013]">Reset</button><button type="button" onClick={() => setAsking(false)} className="rounded-full bg-white/10 px-4 py-1.5 font-bold">Cancel</button></div>
       : <button type="button" onClick={() => setAsking(true)} className="rounded-full bg-white/10 px-4 py-2 text-sm font-bold">Reset recommendations</button>}</div>
