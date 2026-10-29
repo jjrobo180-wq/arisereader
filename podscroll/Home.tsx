@@ -7,7 +7,7 @@ import { GENRE, GENRES, chooseEpisode, hiRes, isTeaser, pickNext, tasteOf, type 
 import { Mic2 } from "lucide-react";
 import { StandupHub } from "./Standup";
 import { Clips } from "./Clips";
-import { Bell, BookOpen, Check, Clapperboard, LogOut, Zap, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Music as MusicIcon, Search, Sparkles, ThumbsUp, Users, X, Pause, Play } from "lucide-react";
+import { Bell, BookOpen, Check, Clapperboard, LogOut, Zap, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, Monitor, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Music as MusicIcon, Search, Sparkles, ThumbsUp, Users, X, Pause, Play } from "lucide-react";
 import { RadioBar, RadioView, type Station } from "./Radio";
 import { MusicBar, MusicView, type Listening } from "./Music";
 import { AudiobookBar, AudiobooksView, BookPage, type Reading } from "./Audiobooks";
@@ -140,7 +140,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   const { theme, day } = useTheme();
   const dark = !day;
   useEffect(() => { if (visible) document.documentElement.style.background = dark ? "#0f0f0f" : "#ffffff"; }, [dark, visible]);
-  const cycleTheme = () => setTheme(theme === "system" ? (dark ? "light" : "dark") : theme === "dark" ? "light" : "dark");
+
 
   const ex = es.settings.explicit ? "&explicit=1" : "";
   const genres = useMemo(() => (es.setupDone && es.genres.length ? es.genres : DEFAULT_GENRES).filter((g) => GENRE[g]).slice(0, 12), [es.setupDone, es.genres]);
@@ -462,6 +462,12 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
         <button type="submit" aria-label="Search" className="inline-flex h-10 w-14 shrink-0 items-center justify-center rounded-r-full border border-[#d3d3d3] bg-[#f8f8f8] hover:bg-[#f0f0f0] sm:w-16"><Search size={20} strokeWidth={1.8} /></button>
       </form>
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+        <div role="group" aria-label="Appearance: Auto, Light, Dark" className="hidden shrink-0 items-center gap-0.5 rounded-full border border-[#d3d3d3] p-1 lg:flex">
+          {([["system", "Auto", Monitor], ["light", "Light", Sun], ["dark", "Dark", Moon]] as const).map(([value, label, Icon]) => (
+            <button key={value} type="button" onClick={() => setTheme(value)} aria-pressed={theme === value} title={value === "system" ? "Auto — match device theme" : `${label} mode`}
+              className={`flex h-8 items-center justify-center gap-1 rounded-full px-2.5 text-[12px] font-semibold transition-colors ${theme === value ? "bg-[#ff6a1f] text-white" : "text-[#606060] hover:bg-[#f2f2f2]"}`}><Icon size={15} strokeWidth={1.9} /><span>{label}</span></button>
+          ))}
+        </div>
         <button onClick={() => onOpenFeed()} className="hidden h-9 items-center gap-2 rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2] md:inline-flex"><Sparkles size={17} strokeWidth={1.8} />Swipe feed</button>
         {!pro && <button onClick={onJoin} className="hidden h-9 items-center rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white hover:bg-[#272727] lg:inline-flex">Go ad-free</button>}
         {!pro
@@ -660,7 +666,15 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
         </div>
         {menuBody}
         <div className="my-3 h-px bg-[#e5e5e5]" />
-        <button onClick={cycleTheme} className="flex h-10 w-full items-center gap-6 rounded-[10px] px-3 text-left text-sm hover:bg-[#f2f2f2]">{dark ? <Sun size={22} strokeWidth={1.8} /> : <Moon size={22} strokeWidth={1.8} />}{dark ? "Light mode" : "Dark mode"}</button>
+        <div className="px-3 py-2" role="group" aria-label="Appearance">
+          <p className="mb-2 text-xs font-semibold text-[#606060]">Appearance</p>
+          <div className="flex gap-1 rounded-xl border border-[#e5e5e5] p-1">
+            {([["system", "Auto", Monitor], ["light", "Light", Sun], ["dark", "Dark", Moon]] as const).map(([value, label, Icon]) => (
+              <button type="button" key={value} onClick={() => setTheme(value)} aria-pressed={theme === value}
+                className={`flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg text-[13px] font-semibold ${theme === value ? "bg-[#ff6a1f] text-white" : "text-[#606060] hover:bg-[#f2f2f2]"}`}><Icon size={16} />{label}</button>
+            ))}
+          </div>
+        </div>
         {pro
           ? <button onClick={() => { setDrawer(false); onSignOut(); }} className="flex h-10 w-full items-center gap-6 rounded-[10px] px-3 text-left text-sm hover:bg-[#f2f2f2]"><LogOut size={22} strokeWidth={1.8} />Sign out{email ? ` (${email})` : ""}</button>
           : <button onClick={() => { setDrawer(false); onSignIn(); }} className="flex h-10 w-full items-center gap-6 rounded-[10px] px-3 text-left text-sm font-medium text-[#065fd4] hover:bg-[#def1ff]"><UserCircle size={22} strokeWidth={1.8} />Sign in</button>}
