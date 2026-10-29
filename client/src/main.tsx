@@ -44,8 +44,7 @@ if (!window.location.hash) {
 // production web origin. Route relative API calls to the production backend.
 // The backend must explicitly allow the Capacitor origin and credentialed CORS
 // for authenticated sessions; this is verified separately before release.
-const isAriseTodoNative = window.location.protocol === "capacitor:" &&
-  /arisetodo/i.test(document.title);
+const isAriseTodoNative = window.location.protocol === "capacitor:";
 if (isAriseTodoNative && (!window.location.hash || window.location.hash === "#/")) {
   window.location.hash = "#/signin";
 }
