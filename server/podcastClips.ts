@@ -1,8 +1,8 @@
-// Pod+ Clips: one shared list of TikTok videos for the Clips page. Everyone can read it; only the
+// Pod+ Clips: one shared list of TikTok videos and @people for the Clips page. Everyone can read it; only the
 // site owner (signed in to Pod+ with an owner email) can change it. Kept in podcast_cache.
 import type { Express, RequestHandler } from "express";
 import { memoryKV, type KV } from "./podcastDirectory";
-import { clipIds } from "../shared/podClips";
+import { clipItems } from "../shared/podClips";
 
 const KEY = "clips:list";
 /** TikTok's own example video, so the page has something to show before any are picked. */
@@ -24,7 +24,7 @@ export function registerClipsRoutes(app: Express, gate: RequestHandler, opts: { 
   const load = async (): Promise<string[]> => {
     if (mem) return mem;
     const d = await kv.get(KEY).catch(() => null);
-    const ids = d && Array.isArray(d.value) ? clipIds(d.value) : null;
+    const ids = d && Array.isArray(d.value) ? clipItems(d.value) : null;
     if (ids) mem = ids;
     return ids ?? SAMPLE_CLIPS;
   };
@@ -37,7 +37,7 @@ export function registerClipsRoutes(app: Express, gate: RequestHandler, opts: { 
   app.post(`${prefix}/clips`, gate, async (req: any, res) => {
     if (!req.creator) return res.status(401).json({ message: "Sign in to change the clips.", needSignIn: true });
     if (!isOwner(req)) return res.status(403).json({ message: "Only the site owner can change the clips." });
-    const ids = clipIds(req.body?.clips);
+    const ids = clipItems(req.body?.clips);
     mem = ids;
     await kv.set(KEY, ids).catch(() => {});
     res.json({ clips: ids, canEdit: true });
