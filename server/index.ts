@@ -11,9 +11,13 @@ import { createServer } from "node:http";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { postJson, sitemapPages, submitChanged } from "./indexNow";
+import { nativeAppCors } from "./nativeAppCors";
 
 const app = express();
 const httpServer = createServer(app);
+
+// The A.R.I.S.E. To-Do iPhone app (capacitor://localhost) calling the API, sign-in included.
+app.use(nativeAppCors);
 
 // Serve search-engine discovery files for the correct domain. The two brands share
 // this server but must not share a sitemap or cross-domain discovery directives.
