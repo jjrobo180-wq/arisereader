@@ -1,0 +1,64 @@
+name: A.R.I.S.E. Reader promote validated beta
+on:
+  push:
+    branches: [feat/arisereader-testflight]
+    paths: ['.github/workflows/arisereader-upload.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  upload:
+    if: contains(github.event.head_commit.message, '[approved-testflight]')
+    runs-on: macos-15
+    timeout-minutes: 20
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    steps:
+      - name: Verify the source build passed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          STATUS=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/40914232449" --jq '.conclusion')
+          SOURCE=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/40914232449" --jq '.head_sha')
+          test "$STATUS" = success
+          test "$SOURCE" = e344e9baf4dc1950b97682f207863a1d22bd7977
+      - name: Download the exact validated signed IPA
+        uses: actions/download-artifact@v4
+        with:
+          name: arisereader-ios-ipa-not-submitted
+          run-id: 40914232449
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/reader-validated
+      - name: Verify Reader identity and bundled launch configuration
+        run: |
+          python3 - <<'PY'
+          import glob, json, os, plistlib, zipfile
+          paths = glob.glob(os.path.join(os.environ["RUNNER_TEMP"], "reader-validated", "*.ipa"))
+          assert len(paths) == 1, "Expected one validated IPA"
+          with zipfile.ZipFile(paths[0]) as app:
+              info = plistlib.loads(app.read("Payload/App.app/Info.plist"))
+              config = json.loads(app.read("Payload/App.app/capacitor.config.json"))
+              assert info["CFBundleIdentifier"] == "com.arisereader.reader"
+              assert info["CFBundleVersion"] == "1.1"
+              assert info["CFBundleShortVersionString"] == "1.0"
+              assert info.get("ITSAppUsesNonExemptEncryption") is False
+              assert config["appId"] == "com.arisereader.reader"
+              assert not config.get("server", {}).get("url"), "Remote launch URL is forbidden"
+              assert app.read("Payload/App.app/public/index.html")
+          print("Verified Reader 1.0 (1.1), local assets, and export-compliance declaration")
+          PY
+      - name: Upload verified Reader beta to TestFlight
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          trap 'rm -f "$KEY_PATH"' EXIT
+          printf '%s' "$APP_STORE_CONNECT_API_KEY" > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          IPA=("$RUNNER_TEMP"/reader-validated/*.ipa)
+          xcrun altool --upload-app -f "${IPA[0]}" -t ios --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
