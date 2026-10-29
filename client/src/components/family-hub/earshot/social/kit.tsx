@@ -72,8 +72,8 @@ export const SX_CSS = `
 
 /* Pod+ Social / mature responsive layout. Components keep their existing functionality. */
 .sx-social-root{
-  container-type:inline-size;position:relative;display:flex;height:100%;min-height:0;flex-direction:column;
-  box-sizing:border-box;padding-top:4rem;overflow:hidden;
+  container-type:inline-size;position:relative;display:flex;width:100%;height:100%;min-width:0;min-height:0;flex-direction:column;
+  box-sizing:border-box;padding-top:4rem;overflow:hidden;isolation:isolate;
   --bg:#101116;--surface:#181a20;--elev:#252830;--elev2:#2b2e36;--fg:#f4f5f7;
   --muted:#92949e;--line:rgba(245,245,255,.095);--hover:rgba(255,255,255,.052);
   --accent:#ee6945;--accent-ink:#fff;--link:#9bb6f9;
@@ -87,9 +87,12 @@ export const SX_CSS = `
 .sx-workspace{display:flex;flex:1;min-width:0;min-height:0;width:100%;max-width:1440px;margin:0 auto}
 .sx-left-sidebar,.sx-right-sidebar{display:none}
 .sx-main-column{position:relative;flex:1;min-width:0;min-height:0;background:var(--surface)}
-.sx-screens{position:relative;height:100%;min-height:0}
-.sx-scroll-layer{position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--elev2) transparent}
-.sx-content-layer{min-height:100%;width:100%;padding-bottom:calc(5rem + var(--ps-safe-b,0px));margin:0 auto}
+.sx-screens{position:relative;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;isolation:isolate}
+.sx-scroll-layer{position:absolute;inset:0;box-sizing:border-box;min-width:0;width:100%;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--elev2) transparent}
+.sx-content-layer{box-sizing:border-box;min-height:100%;min-width:0;width:100%;padding-bottom:calc(5rem + var(--ps-safe-b,0px));margin:0 auto}
+.sx-social-root>.sx-overlay-root{position:absolute;inset:0;z-index:100;pointer-events:none;isolation:isolate}
+.sx-social-root>.sx-overlay-root>*{pointer-events:auto}
+.sx-social-root .sx-profile-cover{background-color:var(--elev)!important;background-image:linear-gradient(120deg,#202b38 0%,#344253 54%,#b4684a 160%)!important;border-bottom:1px solid var(--line)}
 .sx-home{min-height:100%}
 .sx-feed-header{position:sticky;top:0;z-index:20;border-bottom:1px solid var(--line)}
 .sx-feed-title-row{display:flex;align-items:center;gap:12px;height:65px;padding:0 19px}
@@ -175,8 +178,8 @@ export const SX_CSS = `
 .sx-followed{background:var(--elev);color:var(--fg)}
 .sx-right-footer{font-size:11px;color:var(--muted);line-height:1.6;padding-top:25px;border-top:1px solid var(--line)}
 .sx-story-tray{background:var(--surface)}
-@container (min-width:900px){
-  .sx-left-sidebar{display:flex;flex:none;box-sizing:border-box;flex-direction:column;width:235px;min-height:0;overflow-y:auto;scrollbar-width:none;padding:28px 17px 24px;background:var(--bg)}
+@container (min-width:760px){
+  .sx-left-sidebar{display:flex;flex:none;box-sizing:border-box;flex-direction:column;width:211px;min-height:0;overflow-y:auto;scrollbar-width:none;padding:28px 17px 24px;background:var(--bg)}
   .sx-main-column{border-left:1px solid var(--line);border-right:1px solid var(--line)}
   .sx-mobile-nav,.sx-mobile-fab,.sx-mobile-avatar,.sx-mobile-brand{display:none}
   .sx-content-layer{padding-bottom:42px;max-width:760px}
@@ -191,7 +194,7 @@ export const SX_CSS = `
   .sx-join{padding:36px}
   .sx-social-root article{padding-left:25px;padding-right:25px}
 }
-@container (min-width:1250px){
+@container (min-width:1180px){
   .sx-right-sidebar{display:block;box-sizing:border-box;flex:none;width:310px;background:var(--bg)}
 }
 
