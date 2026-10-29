@@ -9,9 +9,12 @@ import type { Express, RequestHandler } from "express";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { cleanPodId, cleanUrl } from "../shared/earshot";
 import { cleanPage, type GuestEntry } from "../shared/earshotPage";
+import { cleanMedia, cleanPoll, cleanWebsite, forYouScore, hashtags, mentions, pollView, type Media, type PollData, type PollView } from "../shared/socialKit";
+import { moderateImages } from "./socialModeration";
+import { registerSocialPlus } from "./podcastSocialPlus";
 
 export class SocialUnavailable extends Error {}
-export type Profile = { handle: string; name: string; bio: string; avatar: string };
+export type Profile = { handle: string; name: string; bio: string; avatar: string; photo?: string; cover?: string; website?: string; location?: string; verified?: boolean; joined?: string };
 /** What a post keeps about its episode, so it plays with no lookup. */
 export type PostEpisode = { id: string; showId: string; show: string; title: string; art: string; audio: string; secs: number; date: string; about?: string };
 /** A moment of an episode: where it is in the clipper's copy, what's said, and its audio (cut and kept). */
@@ -22,12 +25,15 @@ export type Post = {
   /** For a repost: the post it passes on (one level deep). */
   repost: Post | null;
   author: Profile; likes: number; liked: boolean; comments: number; reposts: number; reposted: boolean; mine: boolean;
+  /** Photos or a video, a poll, and whether the viewer saved it. */
+  media?: Media[]; poll?: PollView | null; saved?: boolean;
 };
 export type Comment = { id: string; postId: string; parentId: string | null; body: string; at: string; author: Profile; likes: number; liked: boolean; mine: boolean };
-export type NoteKind = "like" | "comment" | "reply" | "follow" | "repost" | "comment_like" | "episode" | "guestbook";
+export type NoteKind = "like" | "comment" | "reply" | "follow" | "repost" | "comment_like" | "episode" | "guestbook" | "mention";
 export type Note = { id: string; kind: NoteKind; at: string; read: boolean; actor: Profile; post: { id: string; kind: PostKind; text: string; art: string } | null; comment: string };
 
 const BUCKET = "podcast-uploads";
+const PROFILE_COLS = "voter,handle,name,bio,avatar,hidden,photo,cover,website,location,verified,created_at";
 const AVATARS = ["🎧", "🎙️", "🦊", "🐼", "🐸", "🦁", "🐙", "🦄", "🐝", "🌵", "🌙", "🔥", "⚡", "🌈", "🍕", "🎸", "🏀", "🚀", "👾", "🧠"];
 export const SOCIAL_AVATARS = AVATARS;
 const text = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/[\u0000-\u0008\u000b-\u001f]/g, "").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim().slice(0, max) : "");
@@ -75,6 +81,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
   const talk = createAttemptLimiter({ max: 40, windowMs: 10 * 60_000 });
   const uploads = createAttemptLimiter({ max: 12, windowMs: 60 * 60_000 });
   const clips = createAttemptLimiter({ max: 20, windowMs: 60 * 60_000 });
+  const mediaUploads = createAttemptLimiter({ max: 60, windowMs: 60 * 60_000 });
   const missing = (e: any) => e && (e.code === "42P01" || e.code === "PGRST205" || /podcast_(profiles|posts|post_likes|people_follows|post_reports)/.test(String(e.message || "")) && /not find|does not exist/i.test(String(e.message || "")));
   const check = (error: any) => { if (error) { if (missing(error)) throw new SocialUnavailable(); throw error; } };
   const fail = (res: any, e: any) => {
@@ -107,9 +114,25 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
     return true;
   };
 
-  const profileOf = (r: any): Profile => ({ handle: r.handle, name: r.name, bio: r.bio || "", avatar: r.avatar || "🎧" });
+  const profileOf = (r: any): Profile => ({
+    handle: r.handle, name: r.name, bio: r.bio || "", avatar: r.avatar || "🎧",
+    ...(r.photo ? { photo: r.photo } : {}), ...(r.cover ? { cover: r.cover } : {}), ...(r.website ? { website: r.website } : {}),
+    ...(r.location ? { location: r.location } : {}), ...(r.verified ? { verified: true } : {}), ...(r.created_at ? { joined: r.created_at } : {}),
+  });
+  /** Where people's uploads live (posts only use files from here, from the poster's own folder). */
+  const publicPrefix = () => { try { return db().storage.from(BUCKET).getPublicUrl("").data.publicUrl.replace(/\/?$/, "/"); } catch { return ""; } };
+  const folderOf = (voter: string) => voter.replace(/[^A-Za-z0-9_-]/g, "");
+  /** Everyone the viewer blocked or who blocked them (their posts and messages stay out of sight both ways). */
+  async function blockSet(viewer: string): Promise<Set<string>> {
+    const [mine, theirs] = await Promise.all([
+      db().from("podcast_blocks").select("blocked").eq("blocker", viewer).limit(2000),
+      db().from("podcast_blocks").select("blocker").eq("blocked", viewer).limit(2000),
+    ]);
+    if (mine.error || theirs.error) return new Set();
+    return new Set([...(mine.data || []).map((b: any) => b.blocked), ...(theirs.data || []).map((b: any) => b.blocker)]);
+  }
   async function myProfile(voter: string) {
-    const { data, error } = await db().from("podcast_profiles").select("handle,name,bio,avatar").eq("voter", voter).maybeSingle();
+    const { data, error } = await db().from("podcast_profiles").select(PROFILE_COLS).eq("voter", voter).maybeSingle();
     check(error);
     return data ? profileOf(data) : null;
   }
@@ -121,11 +144,11 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
   }
   async function peopleById(voters: string[]) {
     if (!voters.length) return new Map<string, any>();
-    const { data, error } = await db().from("podcast_profiles").select("voter,handle,name,bio,avatar,hidden").in("voter", voters);
+    const { data, error } = await db().from("podcast_profiles").select(PROFILE_COLS).in("voter", voters);
     check(error);
     return new Map<string, any>((data || []).map((p: any) => [p.voter, p]));
   }
-  const postCols = async () => ((await hasV2()) ? "id,voter,kind,episode,caption,created_at,clip,repost_of,hidden" : "id,voter,kind,episode,caption,created_at,hidden");
+  const postCols = async () => ((await hasV2()) ? "id,voter,kind,episode,caption,created_at,clip,repost_of,hidden,media,poll" : "id,voter,kind,episode,caption,created_at,hidden");
   const episodeOf = (r: any): PostEpisode | null => (r.episode && typeof r.episode === "object" && r.episode.id ? r.episode : null);
 
   /** Posts with their authors, counts and the viewer's own likes and reposts (and, for reposts, the post they pass on). */
@@ -134,6 +157,13 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
     const on = await hasV2();
     const ids = rows.map((r) => Number(r.id));
     const originalIds = deep ? Array.from(new Set(rows.map((r) => r.repost_of).filter((x) => x != null).map(Number))) : [];
+    const hasPoll = rows.some((r) => r.poll);
+    const [blocked, savesRes, votesRes] = await Promise.all([
+      blockSet(viewer),
+      db().from("podcast_post_saves").select("post_id").eq("voter", viewer).in("post_id", ids).then((r: any) => r, () => ({ data: [] })),
+      hasPoll ? db().from("podcast_poll_votes").select("post_id,voter,choice").in("post_id", ids).then((r: any) => r, () => ({ data: [] })) : Promise.resolve({ data: [] }),
+    ]);
+    const savedIds = new Set(((savesRes as any).data || []).map((x: any) => Number(x.post_id)));
     const [who, likesRes, commentsRes, repostsRes, originalsRes] = await Promise.all([
       peopleById(Array.from(new Set(rows.map((r) => r.voter)))),
       db().from("podcast_post_likes").select("post_id,voter").in("post_id", ids),
@@ -145,7 +175,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
     const originals = new Map<number, Post>();
     if (originalIds.length) for (const p of await shape((originalsRes.data || []).filter((r: any) => !r.hidden), viewer, false)) originals.set(Number(p.id), p);
     const count = (list: any[], key: string, id: number) => list.filter((x) => Number(x[key]) === id).length;
-    return rows.filter((r) => who.has(r.voter) && !who.get(r.voter).hidden && !r.hidden).flatMap((r): Post[] => {
+    return rows.filter((r) => who.has(r.voter) && !who.get(r.voter).hidden && !r.hidden && !blocked.has(r.voter)).flatMap((r): Post[] => {
       const id = Number(r.id), likes = (likesRes.data || []).filter((x: any) => Number(x.post_id) === id), reposts = (repostsRes.data || []).filter((x: any) => Number(x.repost_of) === id);
       const repost = r.repost_of != null ? originals.get(Number(r.repost_of)) ?? null : null;
       // A repost of something deleted or hidden goes with it.
@@ -154,6 +184,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
         id: String(r.id), kind: r.kind, caption: r.caption || "", at: r.created_at, episode: episodeOf(r), clip: r.clip ?? null, repost,
         author: profileOf(who.get(r.voter)), likes: likes.length, liked: likes.some((x: any) => x.voter === viewer),
         comments: count(commentsRes.data || [], "post_id", id), reposts: reposts.length, reposted: reposts.some((x: any) => x.voter === viewer), mine: r.voter === viewer,
+        media: Array.isArray(r.media) ? r.media : [], poll: r.poll ? pollView(r.poll as PollData, ((votesRes as any).data || []).filter((v: any) => Number(v.post_id) === id), viewer) : null, saved: savedIds.has(id),
       }];
     });
   }
@@ -169,6 +200,15 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
       }
       await db().from("podcast_notifications").insert({ voter, actor, kind, post_id: postId ?? null, comment_id: commentId ?? null });
     } catch { /* a missed notification isn't worth failing the action for */ }
+  }
+  /** @mentions: each person named gets a notification (not the writer, not people already told). */
+  async function notifyMentions(body: string, actor: string, postId: number, commentId?: number, skip: string[] = []) {
+    const handles = mentions(body);
+    if (!handles.length) return;
+    try {
+      const { data } = await db().from("podcast_profiles").select("voter,handle").in("handle", handles);
+      for (const p of data || []) if (p.voter !== actor && !skip.includes(p.voter)) await notify(p.voter, actor, "mention", postId, commentId);
+    } catch { /* a missed mention isn't worth failing the post for */ }
   }
   async function postRow(id: number) {
     const { data, error } = await db().from("podcast_posts").select(await postCols()).eq("id", id).maybeSingle();
@@ -198,6 +238,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
   app.post(`${P}/me`, auth, gate, async (req: any, res) => {
     const handle = cleanHandle(req.body?.handle), name = text(req.body?.name, 40), bio = text(req.body?.bio, 160);
     const avatar = AVATARS.includes(req.body?.avatar) ? req.body.avatar : "🎧";
+    const website = cleanWebsite(req.body?.website), location = text(req.body?.location, 40);
     if (!handle) return res.status(400).json({ message: "Pick a username: 3-20 letters, numbers or _." });
     if (!name) return res.status(400).json({ message: "Add your name (or a nickname)." });
     if (limited(writes, req, res)) return;
@@ -206,9 +247,20 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
       const { data: taken, error: e1 } = await db().from("podcast_profiles").select("voter").eq("handle", handle).maybeSingle();
       check(e1);
       if (taken && taken.voter !== voter) return res.status(409).json({ message: `@${handle} is taken. Try another.` });
-      const { error } = await db().from("podcast_profiles").upsert({ voter, handle, name, bio, avatar, updated_at: new Date().toISOString() }, { onConflict: "voter" });
+      // A profile photo and cover: only files they uploaded themselves ("" removes one; left out keeps it).
+      const pic = (v: unknown) => (typeof v === "string" ? (v === "" ? "" : cleanMedia([{ type: "image", url: v }], publicPrefix(), folderOf(voter))[0]?.url ?? null) : undefined);
+      const photo = pic(req.body?.photo), cover = pic(req.body?.cover);
+      if (photo === null || cover === null) return res.status(400).json({ message: "Upload that picture first." });
+      const fresh = [photo, cover].filter((u): u is string => !!u);
+      if (fresh.length) { const v = await moderateImages(fresh); if (!v.ok) return res.status(400).json({ message: `That picture can't be used (${v.reason}).` }); }
+      const row: any = { voter, handle, name, bio, avatar, updated_at: new Date().toISOString() };
+      if (req.body?.website !== undefined) row.website = website || null;
+      if (req.body?.location !== undefined) row.location = location || null;
+      if (photo !== undefined) row.photo = photo || null;
+      if (cover !== undefined) row.cover = cover || null;
+      const { error } = await db().from("podcast_profiles").upsert(row, { onConflict: "voter" });
       check(error);
-      res.json({ profile: { handle, name, bio, avatar } });
+      res.json({ profile: await myProfile(voter) });
     } catch (e) { fail(res, e); }
   });
 
@@ -286,17 +338,31 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
         const posts = (await shape(data || [], voter)).sort((a, b) => clipScore(b, now) - clipScore(a, now)).slice(0, 60);
         return res.json({ posts });
       }
-      let q = db().from("podcast_posts").select(cols).eq("hidden", false).neq("kind", "bookmark").order("created_at", { ascending: false }).limit(60);
+      // Following: newest first, 20 at a time (?before=<time of the last one shown>).
+      // For You: the last few hundred posts ranked (shared/socialKit forYouScore), 20 a page (?page=n).
+      const before = typeof req.query?.before === "string" && !Number.isNaN(Date.parse(req.query.before)) ? new Date(req.query.before).toISOString() : null;
+      const page = Math.max(0, Math.min(30, Math.floor(Number(req.query?.page) || 0)));
+      const { data: f, error: fe } = await db().from("podcast_people_follows").select("followee").eq("follower", voter).limit(1000);
+      check(fe);
+      const follows = new Set((f || []).map((x: any) => x.followee));
       if (tab === "following") {
-        const { data: f, error } = await db().from("podcast_people_follows").select("followee").eq("follower", voter).limit(500);
+        if (!follows.size) return res.json({ posts: [], next: null });
+        let q = db().from("podcast_posts").select(cols).eq("hidden", false).neq("kind", "bookmark").in("voter", [...follows, voter]).order("created_at", { ascending: false }).limit(20);
+        if (before) q = q.lt("created_at", before);
+        const { data, error } = await q;
         check(error);
-        const ids = (f || []).map((x: any) => x.followee);
-        if (!ids.length) return res.json({ posts: [] });
-        q = db().from("podcast_posts").select(cols).eq("hidden", false).neq("kind", "bookmark").in("voter", [...ids, voter]).order("created_at", { ascending: false }).limit(60);
+        const posts = await shape(data || [], voter);
+        return res.json({ posts, next: (data || []).length === 20 ? (data as any[])[19].created_at : null });
       }
-      const { data, error } = await q;
+      const { data, error } = await db().from("podcast_posts").select(cols).eq("hidden", false).neq("kind", "bookmark").order("created_at", { ascending: false }).limit(400);
       check(error);
-      res.json({ posts: await shape(data || [], voter) });
+      const all = await shape(data || [], voter);
+      const voterOfPost = new Map((data || []).map((r: any) => [String(r.id), r.voter] as [string, string]));
+      const now = Date.now();
+      const ranked = all.map((p) => ({ p, s: forYouScore({ likes: p.likes, comments: p.comments, reposts: p.reposts, at: p.at, followed: follows.has(voterOfPost.get(p.id) || ""), media: !!p.media?.length || !!p.episode, mine: p.mine }, now) }))
+        .sort((a, b) => b.s - a.s).map((x) => x.p);
+      const slice = ranked.slice(page * 20, page * 20 + 20);
+      res.json({ posts: slice, next: ranked.length > (page + 1) * 20 ? page + 1 : null });
     } catch (e) { fail(res, e); }
   });
 
@@ -319,7 +385,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
     if (!handle) return res.status(404).json({ message: "That profile doesn't exist." });
     try {
       const voter = o.voterOf(req);
-      const { data: p, error } = await db().from("podcast_profiles").select("voter,handle,name,bio,avatar,hidden").eq("handle", handle).maybeSingle();
+      const { data: p, error } = await db().from("podcast_profiles").select(PROFILE_COLS).eq("handle", handle).maybeSingle();
       check(error);
       if (!p || p.hidden) return res.status(404).json({ message: "That profile doesn't exist." });
       const [{ data: posts, error: e2 }, { count: followers }, { count: following }, { data: mine }] = await Promise.all([
@@ -349,13 +415,13 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
       const voter = o.voterOf(req), q = searchTerm(req.query?.q);
       let rows: any[];
       if (q.length >= 2) {
-        const { data, error } = await db().from("podcast_profiles").select("voter,handle,name,bio,avatar,hidden").or(`handle.ilike.%${q.replace(/ /g, "_")}%,name.ilike.%${q}%`).limit(30);
+        const { data, error } = await db().from("podcast_profiles").select(PROFILE_COLS).or(`handle.ilike.%${q.replace(/ /g, "_")}%,name.ilike.%${q}%`).limit(30);
         check(error); rows = data || [];
       } else {
         // Suggestions: the most-followed people, then the newest.
         const [{ data: f, error: e1 }, { data: fresh, error: e2 }] = await Promise.all([
           db().from("podcast_people_follows").select("followee").limit(2000),
-          db().from("podcast_profiles").select("voter,handle,name,bio,avatar,hidden").order("created_at", { ascending: false }).limit(30),
+          db().from("podcast_profiles").select(PROFILE_COLS).order("created_at", { ascending: false }).limit(30),
         ]);
         check(e1); check(e2);
         const tally = new Map<string, number>(); for (const x of f || []) tally.set(x.followee, (tally.get(x.followee) ?? 0) + 1);
@@ -396,10 +462,15 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
   /** Post: share an episode, write something, post a clip of a moment, or quote someone's post. */
   app.post(`${P}/posts`, auth, gate, async (req: any, res) => {
     const kind: PostKind = ["text", "clip", "repost"].includes(req.body?.kind) ? req.body.kind : "share";
-    const caption = text(req.body?.caption, 280);
+    const caption = text(req.body?.caption, 500);
+    const voterNow = o.voterOf(req);
+    const media = kind === "text" ? cleanMedia(req.body?.media, publicPrefix(), folderOf(voterNow)) : [];
+    const poll = kind === "text" && req.body?.poll ? cleanPoll(req.body.poll) : null;
+    if (kind === "text" && Array.isArray(req.body?.media) && req.body.media.length && !media.length) return res.status(400).json({ message: "Upload your photos or video first." });
+    if (kind === "text" && req.body?.poll && !poll) return res.status(400).json({ message: "A poll needs 2 to 4 different choices." });
     const episode = req.body?.episode ? cleanPostEpisode(req.body.episode) : null;
     if ((kind === "share" || kind === "clip") && !episode) return res.status(400).json({ message: "That episode can't be shared." });
-    if (kind === "text" && !caption) return res.status(400).json({ message: "Write something first." });
+    if (kind === "text" && !caption && !media.length) return res.status(400).json({ message: "Write something or add a photo first." });
     const clip = kind === "clip" ? cleanClip(req.body?.clip, episode?.secs) : null;
     if (kind === "clip" && !clip) return res.status(400).json({ message: "A clip runs 5 to 90 seconds." });
     const repostOf = kind === "repost" ? cleanPodId(req.body?.repostOf) : "";
@@ -419,6 +490,13 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
       }
       const row: any = { voter, kind, episode_id: episode?.id ?? "0", episode: episode ?? {}, caption };
       if (clip) row.clip = clip;
+      if (media.length) {
+        const v = await moderateImages(media.filter((m) => m.type === "image").map((m) => m.url));
+        if (!v.ok) return res.status(400).json({ message: `That photo can't be posted (${v.reason}).` });
+        row.media = media;
+      }
+      if (poll) row.poll = poll;
+      const tags = hashtags(caption); if (tags.length) row.tags = tags;
       if (original) row.repost_of = original.id;
       const { data, error } = await db().from("podcast_posts").insert(row).select("id").single();
       if (error?.code === "23505") return res.status(409).json({ message: "You've already reposted that." });
@@ -435,6 +513,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
         }
       }
       if (original) await notify(original.voter, voter, "repost", Number(original.id));
+      await notifyMentions(caption, voter, id);
       const [post] = await shape([{ ...row, id, created_at: new Date().toISOString(), hidden: false }], voter);
       res.json({ id: String(id), post: post ?? null });
     } catch (e) { fail(res, e); }
@@ -572,6 +651,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
       const { data, error } = await db().from("podcast_comments").insert({ post_id: Number(id), voter, parent_id: parentId ? Number(parentId) : null, body }).select("id,post_id,voter,parent_id,body,created_at").single();
       check(error);
       await notify(post.voter, voter, "comment", Number(id), Number(data.id));
+      await notifyMentions(body, voter, Number(id), Number(data.id), [post.voter]);
       if (parentRow && parentRow.voter !== post.voter) await notify(parentRow.voter, voter, "reply", Number(id), Number(data.id));
       res.json({ comment: { id: String(data.id), postId: String(id), parentId, body, at: data.created_at, author: me, likes: 0, liked: false, mine: true } as Comment });
     } catch (e) { fail(res, e); }
@@ -665,15 +745,32 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
 
   const notCreator = (req: any, res: any) => {
     if (!o.isCreator || o.isCreator(req)) return false;
-    res.status(401).json({ message: "Sign in with your email to publish episodes.", needSignIn: true });
+    const pics = req.body?.kind === "image" || req.body?.kind === "video";
+    res.status(401).json({ message: pics ? "Sign in with your email to post photos and videos." : "Sign in with your email to publish episodes.", needSignIn: true });
     return true;
   };
 
   /** A link to upload your episode's audio (or cover) straight to storage. */
   app.post(`${P}/upload-url`, auth, gate, async (req: any, res) => {
     if (notCreator(req, res)) return;
-    const kind = req.body?.kind === "art" ? "art" : "audio";
+    const kind = req.body?.kind === "art" ? "art" : req.body?.kind === "image" ? "image" : req.body?.kind === "video" ? "video" : "audio";
     const type = text(req.body?.type, 60).toLowerCase(), size = Number(req.body?.size) || 0;
+    // Photos and videos for posts, stories, messages and profile pictures.
+    if (kind === "image" || kind === "video") {
+      const ok = kind === "image" ? /^image\/(jpeg|png|webp|gif)$/.test(type) : /^video\/(mp4|webm|quicktime)$/.test(type);
+      if (!ok) return res.status(400).json({ message: kind === "image" ? "Photos can be JPG, PNG, WebP or GIF." : "Videos can be MP4, WebM or MOV." });
+      if (size <= 0 || size > (kind === "image" ? 15 : 100) * 1024 * 1024) return res.status(400).json({ message: kind === "image" ? "Photos can be up to 15 MB." : "Videos can be up to 100 MB." });
+      if (limited(mediaUploads, req, res)) return;
+      try {
+        const voter = o.voterOf(req);
+        if (!(await myProfile(voter))) return res.status(400).json({ message: "Make your profile first.", needProfile: true });
+        const ext = ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov" } as Record<string, string>)[type];
+        const path = `${folderOf(voter)}/m/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { data, error } = await db().storage.from(BUCKET).createSignedUploadUrl(path);
+        if (error) { if (/bucket/i.test(String(error.message))) throw new SocialUnavailable(); throw error; }
+        return res.json({ url: data.signedUrl, path, publicUrl: db().storage.from(BUCKET).getPublicUrl(path).data.publicUrl });
+      } catch (e) { return fail(res, e); }
+    }
     const okType = kind === "art" ? /^image\/(jpeg|png|webp)$/.test(type) : /^audio\/(mpeg|mp3|mp4|x-m4a|m4a|aac|webm|ogg|wav|x-wav)$/.test(type);
     if (!okType) return res.status(400).json({ message: kind === "art" ? "Covers can be JPG, PNG or WebP." : "Audio can be MP3, M4A, AAC, WebM, OGG or WAV." });
     if (size <= 0 || size > (kind === "art" ? 8 : 100) * 1024 * 1024) return res.status(400).json({ message: kind === "art" ? "Covers can be up to 8 MB." : "Episodes can be up to 100 MB." });
@@ -720,5 +817,12 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
       }
       res.json({ id: String(data.id), episode });
     } catch (e) { fail(res, e); }
+  });
+
+  // The rest of the social app: explore and search, profiles, saved posts, polls, blocks, direct
+  // messages and stories (server/podcastSocialPlus.ts).
+  registerSocialPlus(app, {
+    P, auth, gate, db, voterOf: o.voterOf, check, fail, limited, writes, talk, PROFILE_COLS,
+    myProfile, peopleById, profileOf, shape, postCols, notify, hasV2, blockSet, publicPrefix, folderOf,
   });
 }
