@@ -51,8 +51,8 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/apple-keys" "$HOME/Library/MobileDevice/Provisioning Profiles"
           printf '%s\n' "$P8_KEY" > "$RUNNER_TEMP/apple-keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
-          printf '%s' "$IOS_DISTRIBUTION_CERT_BASE64" | base64 --decode > "$RUNNER_TEMP/distribution.p12"
-          printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/profile.mobileprovision"
+          printf '%s' "$IOS_DISTRIBUTION_CERT_BASE64" | base64 -D > "$RUNNER_TEMP/distribution.p12"
+          printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | base64 -D > "$RUNNER_TEMP/profile.mobileprovision"
           security create-keychain -p "" "$RUNNER_TEMP/build.keychain"
           security unlock-keychain -p "" "$RUNNER_TEMP/build.keychain"
           security import "$RUNNER_TEMP/distribution.p12" -k "$RUNNER_TEMP/build.keychain" -P "$IOS_DISTRIBUTION_CERT_PASSWORD" -T /usr/bin/codesign
