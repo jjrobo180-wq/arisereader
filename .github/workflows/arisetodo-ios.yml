@@ -22,6 +22,14 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Install application dependencies
+        run: npm ci
+      - name: Bundle A.R.I.S.E. application locally
+        run: |
+          npx vite build
+          rm -rf arisetodo/ios-app/www
+          mkdir -p arisetodo/ios-app/www
+          cp -R dist/public/. arisetodo/ios-app/www/
       - name: Install native tools
         working-directory: arisetodo/ios-app
         run: npm install --no-audit --no-fund
