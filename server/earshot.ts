@@ -15,6 +15,7 @@ import {
 import { createDirectory, openAiJson, openAiTranscribe, supabaseKV, type Directory, type Fetcher } from "./podcastDirectory";
 import { supabaseBlobs } from "./blobStore";
 import { registerAudiobookRoutes } from "./audiobooks";
+import { registerMusicRoutes } from "./music";
 import { TOPICS, genreSearchTerms, topicPlaylist } from "../shared/earshotTopics";
 import { crowdFor, memoryAdStore, registerAdRoutes, type AdStore } from "./podcastAds";
 import { copyTranscript, registerPlayRoutes, startOpenings, type Player } from "./podcastPlay";
@@ -673,5 +674,7 @@ export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetch
   });
   // Audiobooks (server/audiobooks.ts): LibriVox's public domain audiobooks.
   registerAudiobookRoutes(app, gate, { ask: perplexityJson(perplexityKey, openAiJson), transcribe: openAiTranscribe, ...(socialDb ? { kv: supabaseKV(socialDb), blobs: supabaseBlobs(socialDb) } : {}) });
+  // Music (server/music.ts): public domain recordings from the Internet Archive.
+  registerMusicRoutes(app, gate, socialDb ? { kv: supabaseKV(socialDb) } : {});
   registerEarshotRoutes(app, gate, { store, fetcher, directory, adStore, player, socialDb, prefix: "/api/podscroll" });
 }
