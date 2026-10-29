@@ -2,6 +2,10 @@ name: A.R.I.S.E. To-Do signed iOS release candidate
 # Manual signing validation only. The remote-WebView scaffold is not App Store-ready.
 on:
   workflow_dispatch:
+  push:
+    branches: [feat/arisetodo-ios-app-store-starter]
+    paths:
+      - '.github/workflows/arisetodo-signed-release.yml'
 jobs:
   signed-archive:
     runs-on: macos-15
@@ -11,6 +15,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Verify app sources
+        run: test -f arisetodo/ios-app/capacitor.config.json
       - name: Verify signing configuration
         shell: bash
         env:
@@ -71,6 +77,30 @@ jobs:
             CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
             archive
+      - name: Export App Store Connect IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, plistlib
+          options = {
+              "method": "app-store-connect",
+              "destination": "export",
+              "signingStyle": "manual",
+              "teamID": "6TYWWNKX6P",
+              "provisioningProfiles": {"com.arisereader.arisetodo": os.environ["PROFILE_NAME"]},
+          }
+          with open(os.path.join(os.environ["RUNNER_TEMP"], "ExportOptions.plist"), "wb") as output:
+              plistlib.dump(options, output)
+          PY
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/ARISEToDo.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/arisetodo-export"
+      - name: Save IPA for review (not uploaded to Apple)
+        uses: actions/upload-artifact@v4
+        with:
+          name: arisetodo-ios-ipa-not-submitted
+          path: ${{ runner.temp }}/arisetodo-export/*.ipa
+          if-no-files-found: error
+          retention-days: 3
       - name: Upload signed archive artifact
         uses: actions/upload-artifact@v4
         with:
