@@ -19,7 +19,7 @@ export type Post = {
   id: string; kind: "share" | "bookmark" | "own" | "text" | "clip" | "repost"; caption: string; at: string;
   episode: PostEpisode | null; clip: Clip | null; repost: Post | null; author: Profile;
   likes: number; liked: boolean; comments: number; reposts: number; reposted: boolean; mine: boolean;
-  media?: Media[]; poll?: PollView | null; saved?: boolean;
+  media?: Media[]; poll?: PollView | null; saved?: boolean; recommended?: boolean;
 };
 export type Comment = { id: string; postId: string; parentId: string | null; body: string; at: string; author: Profile; likes: number; liked: boolean; mine: boolean };
 export type Note = { id: string; kind: "like" | "comment" | "reply" | "follow" | "repost" | "comment_like" | "episode" | "guestbook" | "mention"; at: string; read: boolean; actor: Profile; post: { id: string; kind: Post["kind"]; text: string; art: string } | null; comment: string };
