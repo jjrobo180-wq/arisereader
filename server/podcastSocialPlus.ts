@@ -106,8 +106,12 @@ export function registerSocialPlus(app: Express, d: PlusDeps) {
       const { data: fresh } = await db().from("podcast_profiles").select(d.PROFILE_COLS).order("created_at", { ascending: false }).limit(40);
       const topIds = [...pop.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id).filter((id) => id !== me && !mine.has(id) && !blocked.has(id)).slice(0, 20);
       const top = topIds.length ? [...(await d.peopleById(topIds)).values()] : [];
+      // Always suggest the official Pod+ account to people who don't follow it yet,
+      // while respecting blocks, the current user, and hidden profiles.
+      const { data: official } = await db().from("podcast_profiles").select(d.PROFILE_COLS).eq("handle", "jjrobo180").maybeSingle();
+      const featured = official && official.verified && official.voter !== me && !mine.has(official.voter) && !blocked.has(official.voter) && !official.hidden ? [official] : [];
       const seen = new Set<string>();
-      const sug = [...top.sort((a, b) => (pop.get(b.voter) ?? 0) - (pop.get(a.voter) ?? 0)), ...(fresh || [])]
+      const sug = [...featured, ...top.sort((a, b) => (pop.get(b.voter) ?? 0) - (pop.get(a.voter) ?? 0)), ...(fresh || [])]
         .filter((r) => r.voter !== me && !mine.has(r.voter) && !blocked.has(r.voter) && !r.hidden && !seen.has(r.voter) && (seen.add(r.voter), true)).slice(0, 15);
       // The grid: photos, videos and episodes people are into this week.
       const all = await d.shape(recent || [], me);
