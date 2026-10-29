@@ -1,9 +1,13 @@
-name: Pod+ TestFlight upload
-# Manual, gated release: never uploads until signing credentials are configured.
+name: Pod+ signed iOS beta validation
+# Development beta validation only. Upload is a separate, explicitly approved release step.
 on:
   workflow_dispatch:
+  push:
+    branches: [feat/podplus-ios-app-store-starter]
+    paths:
+      - '.github/workflows/podplus-testflight.yml'
 jobs:
-  upload:
+  signed-archive:
     runs-on: macos-15
     timeout-minutes: 60
     environment: app-store
@@ -12,68 +16,137 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - name: Verify Apple credentials
+      - name: Verify app sources
+        run: test -f podscroll/ios-app/capacitor.config.json
+      - name: Verify signing configuration
+        shell: bash
         env:
-          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
-          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           IOS_DISTRIBUTION_CERT_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}
           IOS_DISTRIBUTION_CERT_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERT_PASSWORD }}
           IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
         run: |
-          for name in APP_STORE_CONNECT_API_KEY APP_STORE_CONNECT_KEY_ID APP_STORE_CONNECT_ISSUER_ID IOS_DISTRIBUTION_CERT_BASE64 IOS_DISTRIBUTION_CERT_PASSWORD IOS_PROVISIONING_PROFILE_BASE64; do
-            if [ -z "${!name}" ]; then
-              echo "::error::Missing required GitHub Actions secret: $name. No upload attempted."
+          for name in IOS_DISTRIBUTION_CERT_BASE64 IOS_DISTRIBUTION_CERT_PASSWORD IOS_PROVISIONING_PROFILE_BASE64; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing GitHub Actions secret: $name"
               exit 1
             fi
           done
-      - name: Compile web bundle
+      - name: Build bundled Pod+ app
         env:
           PODPLUS_IOS: '1'
         run: |
           npm ci
           npx vite build --config podscroll/vite.config.ts
           node podscroll/ios-app/prepare-web.mjs
-      - name: Generate iOS project
+      - name: Install native dependencies and generate iOS project
         working-directory: podscroll/ios-app
         run: |
           npm install --no-audit --no-fund
           npx cap add ios
           npx cap sync ios
-      - name: Install signing assets
+      - name: Prepare beta icon and build number
+        working-directory: podscroll/ios-app
+        run: |
+          set -euo pipefail
+          ICON=ios/App/App/Assets.xcassets/AppIcon.appiconset
+          mkdir -p "$ICON"
+          sips -s format jpeg -s formatOptions 100 ../public/icon-512.png --out "$RUNNER_TEMP/podplus-icon.jpg" >/dev/null
+          sips -z 1024 1024 -s format png "$RUNNER_TEMP/podplus-icon.jpg" --out "$ICON/AppIcon-1024.png" >/dev/null
+          printf '%s' '{"images":[{"filename":"AppIcon-1024.png","idiom":"universal","platform":"ios","size":"1024x1024"}],"info":{"author":"xcode","version":1}}' > "$ICON/Contents.json"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT" ios/App/App/Info.plist
+      - name: Import Apple signing certificate and provisioning profile
+        shell: bash
         env:
-          P8_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
-          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           IOS_DISTRIBUTION_CERT_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}
           IOS_DISTRIBUTION_CERT_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERT_PASSWORD }}
           IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
         run: |
-          mkdir -p "$RUNNER_TEMP/apple-keys" "$HOME/Library/MobileDevice/Provisioning Profiles"
-          printf '%s\n' "$P8_KEY" > "$RUNNER_TEMP/apple-keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
-          printf '%s' "$IOS_DISTRIBUTION_CERT_BASE64" | base64 -D > "$RUNNER_TEMP/distribution.p12"
+          set -euo pipefail
+          printf '%s' "$IOS_DISTRIBUTION_CERT_BASE64" | base64 -D > "$RUNNER_TEMP/signing.p12"
           printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | base64 -D > "$RUNNER_TEMP/profile.mobileprovision"
-          security create-keychain -p "" "$RUNNER_TEMP/build.keychain"
-          security unlock-keychain -p "" "$RUNNER_TEMP/build.keychain"
-          security import "$RUNNER_TEMP/distribution.p12" -k "$RUNNER_TEMP/build.keychain" -P "$IOS_DISTRIBUTION_CERT_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple: -s -k "" "$RUNNER_TEMP/build.keychain"
-          security list-keychains -d user -s "$RUNNER_TEMP/build.keychain" "$HOME/Library/Keychains/login.keychain-db"
-          cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/PodPlus.mobileprovision"
-      - name: Create and upload signed archive
+          security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
+          PROFILE_APP_ID=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/profile.plist")
+          if [[ "$PROFILE_APP_ID" != '6TYWWNKX6P.com.arisereader.podplus' ]]; then
+            echo "::error::Provisioning profile does not match Pod+ bundle ID"
+            exit 1
+          fi
+          security create-keychain -p "" "$RUNNER_TEMP/podplus.keychain-db"
+          security unlock-keychain -p "" "$RUNNER_TEMP/podplus.keychain-db"
+          security import "$RUNNER_TEMP/signing.p12" -k "$RUNNER_TEMP/podplus.keychain-db" -P "$IOS_DISTRIBUTION_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" "$RUNNER_TEMP/podplus.keychain-db"
+          security list-keychains -d user -s "$RUNNER_TEMP/podplus.keychain-db" "$HOME/Library/Keychains/login.keychain-db"
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+          echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+      - name: Archive signed app for physical iPhone
         working-directory: podscroll/ios-app
         env:
+          TEAM_ID: 6TYWWNKX6P
+        run: |
+          set -euo pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/PodPlus.xcarchive" \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            PRODUCT_BUNDLE_IDENTIFIER=com.arisereader.podplus \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            archive
+      - name: Export App Store Connect IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, plistlib
+          options = {
+              "method": "app-store-connect",
+              "destination": "export",
+              "signingStyle": "manual",
+              "teamID": "6TYWWNKX6P",
+              "provisioningProfiles": {"com.arisereader.podplus": os.environ["PROFILE_NAME"]},
+          }
+          with open(os.path.join(os.environ["RUNNER_TEMP"], "ExportOptions.plist"), "wb") as output:
+              plistlib.dump(options, output)
+          PY
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/PodPlus.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/podplus-export"
+      - name: Save IPA for review (not uploaded to Apple)
+        uses: actions/upload-artifact@v4
+        with:
+          name: podplus-ios-ipa-not-submitted
+          path: ${{ runner.temp }}/podplus-export/*.ipa
+          if-no-files-found: error
+          retention-days: 3
+      - name: Upload signed archive artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: podplus-ios-signed-archive
+          path: ${{ runner.temp }}/PodPlus.xcarchive
+          if-no-files-found: error
+          retention-days: 3
+      - name: Validate development beta with Apple
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
-          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/PodPlus.xcarchive" -allowProvisioningUpdates -authenticationKeyPath "$RUNNER_TEMP/apple-keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8" -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" DEVELOPMENT_TEAM=6TYWWNKX6P PRODUCT_BUNDLE_IDENTIFIER=com.arisereader.podplus archive
-          cat > "$RUNNER_TEMP/ExportOptions.plist" <<'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0"><dict>
-          <key>method</key><string>app-store-connect</string>
-          <key>teamID</key><string>6TYWWNKX6P</string>
-          <key>destination</key><string>upload</string>
-          <key>signingStyle</key><string>automatic</string>
-          </dict></plist>
-          EOF
-          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/PodPlus.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -allowProvisioningUpdates -authenticationKeyPath "$RUNNER_TEMP/apple-keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8" -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" -exportPath "$RUNNER_TEMP/podplus-export"
+          set -euo pipefail
+          for name in APP_STORE_CONNECT_API_KEY APP_STORE_CONNECT_KEY_ID APP_STORE_CONNECT_ISSUER_ID; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Existing App Store Connect credential $name is unavailable to this job. No upload attempted."
+              exit 1
+            fi
+          done
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          printf '%s' "$APP_STORE_CONNECT_API_KEY" > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          IPA=("$RUNNER_TEMP"/podplus-export/*.ipa)
+          xcrun altool --validate-app -f "${IPA[0]}" -t ios --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+      - name: Remove temporary signing keychain
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/podplus.keychain-db" 2>/dev/null || true
+          rm -rf "$HOME/.appstoreconnect/private_keys"
