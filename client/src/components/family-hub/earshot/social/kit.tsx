@@ -202,7 +202,7 @@ export function Avatar({ p, size = 40, onClick, ring }: { p: Pick<Profile, "hand
   const letters = (p.name || p.handle || "?").trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => [...w][0]).join("").toUpperCase() || "?";
   const inner = p.photo
     ? <img src={p.photo} alt="" loading="lazy" className="block h-full w-full rounded-full object-cover" />
-    : <span className="grid h-full w-full select-none place-items-center rounded-full font-semibold text-white" style={{ background: `linear-gradient(135deg, hsl(${h} 55% 52%), hsl(${(h + 40) % 360} 60% 38%))`, fontSize: Math.round(size * (letters.length > 1 ? 0.38 : 0.44)) }}>{letters}</span>;
+    : <span className="grid h-full w-full select-none place-items-center rounded-full font-semibold text-white" style={{ background: `linear-gradient(135deg, hsl(${(h * 0.1 + 208) % 360} 14% 34%), hsl(${(h * 0.1 + 225) % 360} 12% 21%))`, fontSize: Math.round(size * (letters.length > 1 ? 0.38 : 0.44)) }}>{letters}</span>;
   const box = <span className="relative block flex-none overflow-hidden rounded-full" style={{ width: size, height: size, boxShadow: ring }}>{inner}</span>;
   return onClick ? <button type="button" onClick={onClick} aria-label={`${p.name}'s profile`} className="flex-none rounded-full">{box}</button> : box;
 }
