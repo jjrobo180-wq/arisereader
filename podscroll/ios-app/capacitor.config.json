@@ -1,0 +1,6 @@
+{
+  "appId": "com.arisereader.podplus",
+  "appName": "Pod+",
+  "webDir": "../dist",
+  "bundledWebRuntime": false
+}

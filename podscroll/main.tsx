@@ -114,7 +114,12 @@ function App() {
     setEs((e) => list.reduce((acc, x) => applySignal(acc, x.genre, x.signal), e));
   }, []);
 
-  const shareLink = useCallback((show: { id: string }, ep: { id: string }) => `${location.origin}/app/?s=${show.id}&e=${ep.id}`, []);
+  const shareLink = useCallback((show: { id: string }, ep: { id: string }) => {
+    const origin = location.protocol === "capacitor:"
+      ? String(import.meta.env.VITE_PODSCROLL_SITE || "https://podscroll.onrender.com").replace(/\/$/, "")
+      : location.origin;
+    return `${origin}/app/?s=${show.id}&e=${ep.id}`;
+  }, []);
 
   // The home page (browse) comes first and opens episodes in the swipe feed. A shared swipe
   // link (?s=&e=) still opens straight into the feed.

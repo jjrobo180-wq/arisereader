@@ -607,6 +607,8 @@ const PODSCROLL_ORIGINS = ["https://podscroll.onrender.com", "https://podscroll.
 export function podscrollAllowed(origin: string, extra: string[] = []): boolean {
   if (!origin) return false;
   if (PODSCROLL_ORIGINS.includes(origin) || extra.includes(origin)) return true;
+  // The signed Pod+ iOS app loads its bundled UI from this WebView origin.
+  if (origin === "capacitor://localhost") return true;
   return /^https:\/\/podscroll[a-z0-9-]*\.onrender\.com$/.test(origin) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 }
 /** The visitor's address as Render's proxy saw it (the last X-Forwarded-For entry is the one it added). */

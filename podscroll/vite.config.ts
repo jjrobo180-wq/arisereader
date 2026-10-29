@@ -10,7 +10,8 @@ import { resolve } from "node:path";
 const repo = process.cwd();
 export default defineConfig({
   root: resolve(repo, "podscroll"),
-  base: "/",
+  // A native Capacitor WebView loads bundled files from capacitor://localhost.
+  base: process.env.PODPLUS_IOS === "1" ? "./" : "/",
   plugins: [react()],
   resolve: { alias: { "@shared": resolve(repo, "shared") } },
   css: {
