@@ -1,5 +1,5 @@
 """Find an existing App Store profile for the installed signing certificate.
-Read-only Apple API calls; never creates or replaces certificates or profiles.
+Reuses existing profiles and certificates; can create one missing app-specific profile.
 """
 import base64
 import hashlib
@@ -25,7 +25,8 @@ def integer(data, offset):
     return value.lstrip(bytes([0])).rjust(32, bytes([0])), offset + 2 + length
 
 def main():
-    bundle, output = sys.argv[1:]
+    bundle, output = sys.argv[1:3]
+    create_missing = "--create-missing-profile" in sys.argv[3:]
     names = ["APP_STORE_CONNECT_API_KEY", "APP_STORE_CONNECT_KEY_ID", "APP_STORE_CONNECT_ISSUER_ID"]
     for name in names:
         if not os.environ.get(name):
@@ -74,7 +75,31 @@ def main():
                     print("Reusing existing App Store profile matching bundle ID and current distribution certificate")
                     return
             url = result.get("links", {}).get("next")
-        raise RuntimeError("No existing active App Store profile for " + bundle + " includes the current distribution certificate")
+        if not create_missing:
+            raise RuntimeError("No existing active App Store profile for " + bundle + " includes the current distribution certificate")
+        def api(path, payload=None):
+            request = urllib.request.Request("https://api.appstoreconnect.apple.com/v1/" + path,
+                headers={"Authorization": "Bearer " + token, "Content-Type": "application/json"},
+                data=json.dumps(payload).encode() if payload else None)
+            try:
+                with urllib.request.urlopen(request, timeout=30) as response:
+                    return json.load(response)
+            except urllib.error.HTTPError as error:
+                raise RuntimeError(f"Apple signing configuration returned HTTP {error.code}; no certificate was changed") from None
+        ids = api("bundleIds?" + urllib.parse.urlencode({"filter[identifier]": bundle}))["data"]
+        if len(ids) != 1:
+            raise RuntimeError("No existing explicit Apple bundle ID for " + bundle + "; certificate remains unchanged")
+        certificates = api("certificates?limit=200")["data"]
+        matching = [x for x in certificates if x["attributes"]["certificateType"] in ("DISTRIBUTION", "IOS_DISTRIBUTION")
+                    and hashlib.sha256(base64.b64decode(x["attributes"]["certificateContent"])).digest() in fingerprints]
+        if not matching:
+            raise RuntimeError("Current distribution certificate was not found in Apple API; no certificate was replaced")
+        created = api("profiles", {"data": {"type": "profiles", "attributes": {
+            "name": bundle + " App Store " + str(now), "profileType": "IOS_APP_STORE"},
+            "relationships": {"bundleId": {"data": {"type": "bundleIds", "id": ids[0]["id"]}},
+                "certificates": {"data": [{"type": "certificates", "id": matching[0]["id"]}]}}}})
+        pathlib.Path(output).write_bytes(base64.b64decode(created["data"]["attributes"]["profileContent"]))
+        print("Created missing app-specific App Store profile using the EXISTING distribution certificate")
     finally:
         key_path.unlink(missing_ok=True)
 
