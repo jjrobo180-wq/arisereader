@@ -2,7 +2,7 @@
 // Messages and your Profile, each tab with its own stack of screens (profiles, posts, hashtags,
 // followers, chats, notifications). Server: server/podcastSocial.ts + server/podcastSocialPlus.ts.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Bell, Clapperboard, Compass, Hash, Home, Image as ImageIcon, Link2, Mail, Mic, PenSquare, Plus, Search, Send, TrendingUp, User } from "lucide-react";
+import { Bell, Clapperboard, Compass, Hash, Home, Image as ImageIcon, Link2, Mail, Mic, Monitor, Moon, PenSquare, Plus, Search, Send, Sun, TrendingUp, User } from "lucide-react";
 import type { PodEpisode, PodShow } from "@shared/earshot";
 import { ClipsFeed, useClipAudio, type Ctx as OldCtx } from "../EarshotSocial";
 import { ActionSheet, Avatar, Empty, PillButton, SX_CSS, Sentinel, linkTo, shareOrCopy, usePaged, type Api, type Counts, type Person, type Post, type Profile, type SCtx, type Thread, type TrayItem } from "./kit";
@@ -19,8 +19,9 @@ type Screen = { k: "profile"; handle: string } | { k: "post"; post: Post | strin
   | { k: "chat"; thread: Thread } | { k: "requests" } | { k: "activity" };
 type Feed = "foryou" | "following" | "clips";
 
-export function SocialApp({ api: rawApi, say, night, onPlay, onHush, onCreate, openPerson, onPersonOpened, onSignIn }: {
-  api: Api; say: (m: string) => void; night: boolean; onPlay: (show: PodShow, ep: PodEpisode, at?: number) => void; onHush?: () => void;
+export function SocialApp({ api: rawApi, say, night, theme, onThemeChange, onPlay, onHush, onCreate, openPerson, onPersonOpened, onSignIn }: {
+  api: Api; say: (m: string) => void; night: boolean; theme: "system" | "light" | "dark"; onThemeChange: (theme: "system" | "light" | "dark") => void;
+  onPlay: (show: PodShow, ep: PodEpisode, at?: number) => void; onHush?: () => void;
   onCreate?: () => void; openPerson?: string | null; onPersonOpened?: () => void; onSignIn?: () => Promise<boolean>;
 }) {
   // Always the newest api (signing in changes it), so a retry right after sign-in uses the new session.
@@ -175,6 +176,15 @@ export function SocialApp({ api: rawApi, say, night, onPlay, onHush, onCreate, o
           <button type="button" className={tab === "me" ? "sx-side-link sx-side-link-active" : "sx-side-link"} aria-current={tab === "me" ? "page" : undefined} onClick={() => goTab("me")}><User size={22} strokeWidth={1.8} /><span>Profile</span></button>
         </div>
         <button type="button" onClick={() => (needProfile() ? null : setCreate(true))} className="sx-side-create"><Plus size={19} /><span>Create post</span></button>
+        <div className="sx-side-appearance" role="group" aria-label="Appearance">
+          <span className="sx-side-bottom-label">APPEARANCE</span>
+          <div className="sx-side-theme-options">
+            {([["system", "Auto", Monitor], ["light", "Light", Sun], ["dark", "Dark", Moon]] as const).map(([value, label, Icon]) => (
+              <button type="button" key={value} onClick={() => onThemeChange(value)} aria-pressed={theme === value}
+                className={theme === value ? "sx-side-theme-active" : ""} title={value === "system" ? "Follow device appearance" : `${label} mode`}><Icon size={15} strokeWidth={1.8} /><span>{label}</span></button>
+            ))}
+          </div>
+        </div>
         <div className="sx-side-bottom">
           <span className="sx-side-bottom-label">YOUR ACCOUNT</span>
           <button type="button" className="sx-account-row" onClick={() => (me ? goTab("me") : setEdit(true))}>
