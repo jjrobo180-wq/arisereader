@@ -1,3 +1,4 @@
+import { isNativeApp, isNativeReader, nativeApiOrigin } from "./lib/nativeApp";
 import "./lib/sampleBoot";
 import { createRoot } from "react-dom/client";
 import App from "./App";
@@ -44,11 +45,10 @@ if (!window.location.hash) {
 // production web origin. Route relative API calls to the production backend.
 // The backend must explicitly allow the Capacitor origin and credentialed CORS
 // for authenticated sessions; this is verified separately before release.
-const isAriseTodoNative = window.location.protocol === "capacitor:";
+const isAriseTodoNative = isNativeApp;
 if (isAriseTodoNative && (!window.location.hash || window.location.hash === "#/")) {
-  window.location.hash = "#/signin";
+  window.location.hash = isNativeReader ? "#/signin?as=student" : "#/signin";
 }
-const nativeApiOrigin = "https://arisetodo.com";
 function resolveNativeApiUrl(url: string): string {
   if (!isAriseTodoNative || !url.startsWith("/api/")) return url;
   return nativeApiOrigin + url;

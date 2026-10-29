@@ -1,0 +1,18 @@
+{
+  "appId": "com.arisereader.reader",
+  "appName": "A.R.I.S.E. Reader",
+  "webDir": "www",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "backgroundColor": "#FFFFFF",
+      "showSpinner": false
+    },
+    "Keyboard": {
+      "resize": "native"
+    }
+  },
+  "ios": {
+    "contentInset": "automatic"
+  }
+}

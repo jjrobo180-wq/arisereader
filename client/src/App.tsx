@@ -1,3 +1,4 @@
+import { isNativeReader } from "./lib/nativeApp";
 import EyeGazeCelebrations from "@/components/EyeGazeCelebrations";
 import InstallAppPrompt from "@/components/InstallAppPrompt";
 import WorkHubTour from "@/components/WorkHubTour";
@@ -476,8 +477,8 @@ function AppRoutes() {
   // teacher, and parent roles must always keep the standard site layout.
   const isEyeGazeStudent = !!user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent' && !!user.is_eye_gaze_user;
   const domain = typeof window === "undefined" ? "" : window.location.hostname.toLowerCase();
-  const onReaderDomain = domain === "arisereader.com" || domain === "www.arisereader.com";
-  const onTodoDomain = domain === "arisetodo.com" || domain === "www.arisetodo.com" || window.location.protocol === "capacitor:";
+  const onReaderDomain = isNativeReader || domain === "arisereader.com" || domain === "www.arisereader.com";
+  const onTodoDomain = domain === "arisetodo.com" || domain === "www.arisetodo.com" || (window.location.protocol === "capacitor:" && !isNativeReader);
   // An adult in one hub is a tap away from the other (and from the split screen): fetch both hubs'
   // code while the page is idle, so switching between Arise WorkHub and Arise LifeHub is instant.
   const hubAdult = isHubAccount(user);
