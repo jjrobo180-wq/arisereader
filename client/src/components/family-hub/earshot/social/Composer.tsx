@@ -78,13 +78,13 @@ export function Composer({ ctx, quote, onClose, onPosted }: { ctx: SCtx; quote?:
   };
   const left = MAX - text.length;
 
-  return <Layer><div className="fade absolute inset-0 z-[75] flex items-stretch justify-center sm:items-start sm:p-8" style={{ background: "var(--overlay)" }} onClick={onClose}>
-    <div role="dialog" aria-modal="true" aria-label={quote ? "Quote post" : "New post"} onClick={(e) => e.stopPropagation()} className="rise bg flex w-full flex-col sm:max-h-[86%] sm:max-w-[600px] sm:rounded-2xl sm:shadow-2xl">
-      <div className="flex flex-none items-center justify-between px-3 pb-2 pt-[max(.6rem,env(safe-area-inset-top))]">
+  return <Layer><div className="sx-compose-backdrop fade" style={{ background: "var(--overlay)" }} onClick={onClose}>
+    <div role="dialog" aria-modal="true" aria-label={quote ? "Quote post" : "New post"} onClick={(e) => e.stopPropagation()} className="sx-compose-dialog rise bg flex w-full flex-col">
+      <div className="sx-compose-header flex flex-none items-center justify-between px-3 pb-2 pt-[max(.6rem,env(safe-area-inset-top))]">
         <button type="button" onClick={onClose} className="hov min-h-9 rounded-full px-3 text-[16px]">Cancel</button>
         <button type="button" onClick={post} disabled={!can} className="bg-accent inline-flex min-h-9 items-center gap-1.5 rounded-full px-5 text-[15px] font-bold disabled:opacity-40">{busy && <Loader2 size={15} className="animate-spin" />}{quote && !text.trim() ? "Repost" : "Post"}</button>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+      <div className="sx-compose-body min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         <div className="flex gap-3">
           {ctx.me && <Avatar p={ctx.me} size={40} />}
           <div className="relative min-w-0 flex-1">
@@ -121,7 +121,7 @@ export function Composer({ ctx, quote, onClose, onPosted }: { ctx: SCtx; quote?:
           </div>
         </div>
       </div>
-      <div className="flex flex-none items-center gap-1 border-t line px-3 py-2 pb-[max(.5rem,env(safe-area-inset-bottom))]">
+      <div className="sx-compose-footer flex flex-none items-center gap-1 px-3 py-2 pb-[max(.5rem,env(safe-area-inset-bottom))]">
         <input ref={picker} type="file" accept="image/*,video/mp4,video/quicktime,video/webm" multiple className="hidden" onChange={(e) => { void addFiles(e.target.files); e.target.value = ""; }} />
         <Tool label="Photo or video" disabled={!!quote || !!episode || !!poll || hasVideo || files.length >= 4} onClick={() => picker.current?.click()}><ImageIcon size={20} /></Tool>
         <Tool label="Poll" disabled={!!quote || !!episode || files.length > 0 || !!poll} onClick={() => setPoll({ options: ["", ""], days: 1 })}><BarChart2 size={20} /></Tool>
