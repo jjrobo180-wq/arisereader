@@ -1,0 +1,83 @@
+name: A.R.I.S.E. To-Do signed iOS release candidate
+# Manual signing validation only. The remote-WebView scaffold is not App Store-ready.
+on:
+  workflow_dispatch:
+jobs:
+  signed-archive:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify signing configuration
+        shell: bash
+        env:
+          IOS_DISTRIBUTION_CERT_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}
+          IOS_DISTRIBUTION_CERT_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERT_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          for name in IOS_DISTRIBUTION_CERT_BASE64 IOS_DISTRIBUTION_CERT_PASSWORD IOS_PROVISIONING_PROFILE_BASE64; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing GitHub Actions secret: $name"
+              exit 1
+            fi
+          done
+      - name: Install native dependencies and generate iOS project
+        working-directory: arisetodo/ios-app
+        run: |
+          npm install --no-audit --no-fund
+          npx cap add ios
+          npx cap sync ios
+      - name: Import Apple signing certificate and provisioning profile
+        shell: bash
+        env:
+          IOS_DISTRIBUTION_CERT_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}
+          IOS_DISTRIBUTION_CERT_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERT_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$IOS_DISTRIBUTION_CERT_BASE64" | base64 -D > "$RUNNER_TEMP/signing.p12"
+          printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | base64 -D > "$RUNNER_TEMP/profile.mobileprovision"
+          security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
+          PROFILE_APP_ID=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/profile.plist")
+          if [[ "$PROFILE_APP_ID" != '6TYWWNKX6P.com.arisereader.arisetodo' ]]; then
+            echo "::error::Provisioning profile does not match A.R.I.S.E. To-Do bundle ID"
+            exit 1
+          fi
+          security create-keychain -p "" "$RUNNER_TEMP/arisetodo.keychain-db"
+          security unlock-keychain -p "" "$RUNNER_TEMP/arisetodo.keychain-db"
+          security import "$RUNNER_TEMP/signing.p12" -k "$RUNNER_TEMP/arisetodo.keychain-db" -P "$IOS_DISTRIBUTION_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" "$RUNNER_TEMP/arisetodo.keychain-db"
+          security list-keychains -d user -s "$RUNNER_TEMP/arisetodo.keychain-db" "$HOME/Library/Keychains/login.keychain-db"
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+          echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+      - name: Archive signed app for physical iPhone
+        working-directory: arisetodo/ios-app
+        env:
+          TEAM_ID: 6TYWWNKX6P
+        run: |
+          set -euo pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/ARISEToDo.xcarchive" \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            PRODUCT_BUNDLE_IDENTIFIER=com.arisereader.arisetodo \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            archive
+      - name: Upload signed archive artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: arisetodo-ios-signed-archive
+          path: ${{ runner.temp }}/ARISEToDo.xcarchive
+          if-no-files-found: error
+          retention-days: 3
+      - name: Remove temporary signing keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/arisetodo.keychain-db" 2>/dev/null || true
