@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
 import type { AddressInfo } from "node:net";
-import { clipId, clipIds, CLIPS_MAX } from "../shared/podClips";
+import { clipCreator, clipId, clipIds, clipItems, CLIPS_MAX } from "../shared/podClips";
 import { clipOwners, registerClipsRoutes, SAMPLE_CLIPS } from "../server/podcastClips";
 import { memoryKV } from "../server/podcastDirectory";
 
@@ -13,7 +13,16 @@ test("clips: video ids from TikTok links", () => {
   assert.equal(clipId("https://vm.tiktok.com/ZMabc123/"), "", "short links have no id until opened");
   assert.deepEqual(clipIds("https://www.tiktok.com/@a/video/111111111\n\nhttps://www.tiktok.com/@b/video/222222222 https://www.tiktok.com/@a/video/111111111 junk"), ["111111111", "222222222"]);
   assert.deepEqual(clipIds(["333333333", "nope", 444444444]), ["333333333", "444444444"]);
-  assert.equal(clipIds(Array.from({ length: 150 }, (_, i) => String(100000000 + i))).length, CLIPS_MAX);
+  assert.equal(clipIds(Array.from({ length: 600 }, (_, i) => String(100000000 + i))).length, CLIPS_MAX);
+});
+
+test("clips: @people", () => {
+  assert.equal(clipCreator("@Scout2015"), "@scout2015");
+  assert.equal(clipCreator("https://www.tiktok.com/@scout2015?lang=en"), "@scout2015");
+  assert.equal(clipCreator("https://www.tiktok.com/@scout2015/video/6718335390845095173"), "");
+  assert.equal(clipCreator("#funny"), "", "hashtags aren't supported");
+  assert.deepEqual(clipItems("@a1, @b2 https://www.tiktok.com/@b/video/123456789 @A1 #tag"), ["@a1", "@b2", "123456789"]);
+  assert.deepEqual(clipIds("@a1 123456789"), ["123456789"]);
 });
 
 test("clips: the owner list", () => {
@@ -40,6 +49,8 @@ test("clips: everyone reads the list; only the owner changes it", async () => {
     assert.deepEqual(r, { clips: ["123456789", "987654321"], canEdit: false }, "everyone sees the owner's list");
     r = await (await fetch(base, { headers: { "x-email": "owner@site.com" } })).json();
     assert.equal(r.canEdit, true);
+    await post("@Scout2015 @other.one https://www.tiktok.com/@a/video/123456789", "owner@site.com");
+    assert.deepEqual((await (await fetch(base)).json()).clips, ["@scout2015", "@other.one", "123456789"], "people and videos together");
     await post("", "owner@site.com");
     assert.deepEqual((await (await fetch(base)).json()).clips, [], "the owner can empty it");
   } finally { server.close(); }
