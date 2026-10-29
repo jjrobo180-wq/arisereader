@@ -57,6 +57,15 @@ jobs:
           sips -z 1024 1024 -s format png "$RUNNER_TEMP/todo-icon.jpg" --out "$ICON/AppIcon-1024.png" >/dev/null
           printf '%s' '{"images":[{"filename":"AppIcon-1024.png","idiom":"universal","platform":"ios","size":"1024x1024"}],"info":{"author":"xcode","version":1}}' > "$ICON/Contents.json"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT" ios/App/App/Info.plist
+      - name: Apple Health permission text
+        working-directory: arisetodo/ios-app
+        run: |
+          set -euo pipefail
+          PLIST=ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Delete :NSHealthShareUsageDescription" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Delete :NSHealthUpdateUsageDescription" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :NSHealthShareUsageDescription string A.R.I.S.E. To-Do reads your steps, active calories and weight to fill in your Food & fitness diary." "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :NSHealthUpdateUsageDescription string A.R.I.S.E. To-Do does not write to Apple Health." "$PLIST"
       - name: Import Apple signing certificate and provisioning profile
         shell: bash
         env:
@@ -83,6 +92,18 @@ jobs:
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
           cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
           echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+          # Apple Health needs the HealthKit capability on the App ID and in this profile.
+          # Until the profile has it, build without the entitlement (the app works; Health shows as unavailable).
+          if /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.healthkit' "$RUNNER_TEMP/profile.plist" >/dev/null 2>&1; then
+            ENT=arisetodo/ios-app/ios/App/App/App.entitlements
+            /usr/libexec/PlistBuddy -c 'Add :com.apple.developer.healthkit bool true' "$ENT" 2>/dev/null || /usr/libexec/PlistBuddy -c 'Set :com.apple.developer.healthkit true' "$ENT"
+            /usr/libexec/PlistBuddy -c 'Add :com.apple.developer.healthkit.access array' "$ENT" 2>/dev/null || true
+            echo "HEALTH_ENTITLEMENTS=CODE_SIGN_ENTITLEMENTS=App/App.entitlements" >> "$GITHUB_ENV"
+            echo "Apple Health: HealthKit entitlement enabled"
+          else
+            echo "::warning::The provisioning profile has no HealthKit capability. Turn on HealthKit for com.arisereader.arisetodo, regenerate the profile and update IOS_PROVISIONING_PROFILE_BASE64. Building without Apple Health."
+            echo "HEALTH_ENTITLEMENTS=" >> "$GITHUB_ENV"
+          fi
       - name: Archive signed app for physical iPhone
         working-directory: arisetodo/ios-app
         env:
@@ -97,6 +118,7 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            $HEALTH_ENTITLEMENTS \
             archive
       - name: Export App Store Connect IPA
         shell: bash

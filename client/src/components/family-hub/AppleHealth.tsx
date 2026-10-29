@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Check, Copy, HeartPulse, Link2Off, RefreshCw, Smartphone } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { healthStatus, makeHealthKey, removeHealthLink, syncAddress, type HealthLink } from "@/lib/appleHealth";
+import { askHealthPermission, forgetNativeHealth, hasNativeHealthKey, nativeHealthAvailable, syncNativeHealth } from "@/lib/nativeHealth";
 import { applySync } from "@shared/appleHealth";
 import type { Health, Member } from "@shared/familyHub";
 import { Modal, Panel, danger, plain, primary, soft } from "./ui";
@@ -18,7 +19,8 @@ export function useAppleHealth(setHealth: (fn: (h: Health) => Health) => void): 
   const check = useCallback(() => {
     if (!token) return;
     setChecking(true);
-    healthStatus(token)
+    nativeAutoSync(token)
+      .then(() => healthStatus(token))
       .then(({ links, days }) => {
         setLinksState(links); setError("");
         const linked = new Set(links.map((l) => l.memberId));
@@ -39,6 +41,17 @@ export function useAppleHealth(setHealth: (fn: (h: Health) => Health) => void): 
   return { links, checking, error, check, setLinks: (fn) => setLinksState(fn) };
 }
 
+/** In the iPhone app: send fresh Apple Health numbers for everyone connected on this phone, at most every 10 minutes. */
+let lastNativeSync = 0;
+async function nativeAutoSync(token: string): Promise<void> {
+  if (!nativeHealthAvailable() || Date.now() - lastNativeSync < 10 * 60_000) return;
+  lastNativeSync = Date.now();
+  let keys: string[] = [];
+  try { keys = Object.keys(localStorage); } catch { return; }
+  const members = keys.filter((k) => k.startsWith("arise_native_health_key:")).map((k) => k.slice("arise_native_health_key:".length));
+  for (const memberId of members) await syncNativeHealth(token, memberId, 7).catch(() => { /* the panel shows status */ });
+}
+
 const ago = (iso: string | null) => {
   if (!iso) return "waiting for the first sync";
   const mins = Math.round((Date.now() - Date.parse(iso)) / 60_000);
@@ -52,9 +65,17 @@ export function AppleHealthPanel({ member, apple, say }: { member: Member; apple
   const { token } = useAuth();
   const [setup, setSetup] = useState(false);
   const link = apple.links.find((l) => l.memberId === member.id);
+  const inApp = nativeHealthAvailable();
+  const [syncing, setSyncing] = useState(false);
+  const connectInApp = async () => {
+    setSyncing(true);
+    try { await askHealthPermission(); say(await syncNativeHealth(token, member.id, 30)); apple.check(); }
+    catch (e: any) { say(e.message); }
+    finally { setSyncing(false); }
+  };
   const disconnect = async () => {
     if (!window.confirm("Disconnect Apple Health? The Shortcut will stop syncing. Numbers already synced stay in the diary.")) return;
-    try { await removeHealthLink(token, member.id); apple.setLinks((l) => l.filter((x) => x.memberId !== member.id)); say("Apple Health disconnected"); }
+    try { await removeHealthLink(token, member.id); forgetNativeHealth(member.id); apple.setLinks((l) => l.filter((x) => x.memberId !== member.id)); say("Apple Health disconnected"); }
     catch (e: any) { say(e.message); }
   };
   return <div data-plugin-anchor="apple-health"><Panel eyebrow="Apple Health" title={link ? "Connected" : "Connect your iPhone"} right={<HeartPulse size={18} className="text-rose-500" />}>
@@ -62,12 +83,16 @@ export function AppleHealthPanel({ member, apple, say }: { member: Member; apple
       <p className="text-sm text-slate-600">Steps, active calories and weight come in from Apple Health. <span className="font-semibold text-slate-700">{ago(link.lastSyncAt)}.</span></p>
       <div className="mt-3 flex flex-wrap gap-2">
         <button onClick={apple.check} className={soft + " min-h-9 text-xs"} disabled={apple.checking}><RefreshCw size={14} className={apple.checking ? "animate-spin" : ""} /> Check now</button>
-        <button onClick={() => setSetup(true)} className={plain + " min-h-9 text-xs"}>Set up again</button>
+        {inApp
+          ? <button onClick={() => void connectInApp()} className={plain + " min-h-9 text-xs"} disabled={syncing}>{syncing ? "Syncing…" : hasNativeHealthKey(member.id) ? "Sync from this iPhone" : "Use this iPhone instead"}</button>
+          : <button onClick={() => setSetup(true)} className={plain + " min-h-9 text-xs"}>Set up again</button>}
         <button onClick={() => void disconnect()} className={danger + " min-h-9 text-xs"}><Link2Off size={14} /> Disconnect</button>
       </div>
     </> : <>
       <p className="text-sm text-slate-600">Bring in steps, active calories and weight from your iPhone or Apple Watch every day, automatically.</p>
-      <button onClick={() => setSetup(true)} className={primary + " mt-3 w-full"}><Smartphone size={16} /> Connect Apple Health</button>
+      {inApp
+        ? <button onClick={() => void connectInApp()} disabled={syncing} className={primary + " mt-3 w-full"}><HeartPulse size={16} /> {syncing ? "Connecting…" : "Connect Apple Health"}</button>
+        : <button onClick={() => setSetup(true)} className={primary + " mt-3 w-full"}><Smartphone size={16} /> Connect Apple Health</button>}
     </>}
     {apple.error && <p className="mt-2 text-xs text-amber-700">{apple.error}</p>}
     {setup && <AppleSetup member={member} onClose={() => { setSetup(false); apple.check(); }} />}
