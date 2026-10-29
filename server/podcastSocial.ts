@@ -113,6 +113,20 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
     res.status(503).json({ message: "This part of Social is still being set up. Try again soon.", setup: true });
     return true;
   };
+  // v3 is optional while rolling out: keep existing social routes working before its migration.
+  let v3: { on: boolean; at: number } | null = null;
+  async function hasV3(): Promise<boolean> {
+    if (v3 && (v3.on || Date.now() - v3.at < 60_000)) return v3.on;
+    try {
+      const { error } = await db().from("podcast_blocks").select("blocker").limit(1);
+      v3 = { on: !error, at: Date.now() };
+    } catch {
+      v3 = { on: false, at: Date.now() };
+    }
+    return v3.on;
+  }
+  const profileCols = async () => (await hasV3())
+    ? PROFILE_COLS : "voter,handle,name,bio,avatar,hidden,created_at";
 
   const profileOf = (r: any): Profile => ({
     handle: r.handle, name: r.name, bio: r.bio || "", avatar: r.avatar || "🎧",
@@ -124,15 +138,20 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
   const folderOf = (voter: string) => voter.replace(/[^A-Za-z0-9_-]/g, "");
   /** Everyone the viewer blocked or who blocked them (their posts and messages stay out of sight both ways). */
   async function blockSet(viewer: string): Promise<Set<string>> {
-    const [mine, theirs] = await Promise.all([
-      db().from("podcast_blocks").select("blocked").eq("blocker", viewer).limit(2000),
-      db().from("podcast_blocks").select("blocker").eq("blocked", viewer).limit(2000),
-    ]);
-    if (mine.error || theirs.error) return new Set();
-    return new Set([...(mine.data || []).map((b: any) => b.blocked), ...(theirs.data || []).map((b: any) => b.blocker)]);
+    if (!(await hasV3())) return new Set();
+    try {
+      const [mine, theirs] = await Promise.all([
+        db().from("podcast_blocks").select("blocked").eq("blocker", viewer).limit(2000),
+        db().from("podcast_blocks").select("blocker").eq("blocked", viewer).limit(2000),
+      ]);
+      if (mine.error || theirs.error) return new Set();
+      return new Set([...(mine.data || []).map((b: any) => b.blocked), ...(theirs.data || []).map((b: any) => b.blocker)]);
+    } catch {
+      return new Set();
+    }
   }
   async function myProfile(voter: string) {
-    const { data, error } = await db().from("podcast_profiles").select(PROFILE_COLS).eq("voter", voter).maybeSingle();
+    const { data, error } = await db().from("podcast_profiles").select(await profileCols()).eq("voter", voter).maybeSingle();
     check(error);
     return data ? profileOf(data) : null;
   }
@@ -144,24 +163,29 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
   }
   async function peopleById(voters: string[]) {
     if (!voters.length) return new Map<string, any>();
-    const { data, error } = await db().from("podcast_profiles").select(PROFILE_COLS).in("voter", voters);
+    const { data, error } = await db().from("podcast_profiles").select(await profileCols()).in("voter", voters);
     check(error);
     return new Map<string, any>((data || []).map((p: any) => [p.voter, p]));
   }
-  const postCols = async () => ((await hasV2()) ? "id,voter,kind,episode,caption,created_at,clip,repost_of,hidden,media,poll" : "id,voter,kind,episode,caption,created_at,hidden");
+  const postCols = async () => {
+    if (!(await hasV2())) return "id,voter,kind,episode,caption,created_at,hidden";
+    const cols = "id,voter,kind,episode,caption,created_at,clip,repost_of,hidden";
+    return (await hasV3()) ? cols + ",media,poll" : cols;
+  };
   const episodeOf = (r: any): PostEpisode | null => (r.episode && typeof r.episode === "object" && r.episode.id ? r.episode : null);
 
   /** Posts with their authors, counts and the viewer's own likes and reposts (and, for reposts, the post they pass on). */
   async function shape(rows: any[], viewer: string, deep = true): Promise<Post[]> {
     if (!rows.length) return [];
     const on = await hasV2();
+    const onV3 = await hasV3();
     const ids = rows.map((r) => Number(r.id));
     const originalIds = deep ? Array.from(new Set(rows.map((r) => r.repost_of).filter((x) => x != null).map(Number))) : [];
     const hasPoll = rows.some((r) => r.poll);
     const [blocked, savesRes, votesRes] = await Promise.all([
       blockSet(viewer),
-      db().from("podcast_post_saves").select("post_id").eq("voter", viewer).in("post_id", ids).then((r: any) => r, () => ({ data: [] })),
-      hasPoll ? db().from("podcast_poll_votes").select("post_id,voter,choice").in("post_id", ids).then((r: any) => r, () => ({ data: [] })) : Promise.resolve({ data: [] }),
+      onV3 ? db().from("podcast_post_saves").select("post_id").eq("voter", viewer).in("post_id", ids) : Promise.resolve({ data: [] }),
+      onV3 && hasPoll ? db().from("podcast_poll_votes").select("post_id,voter,choice").in("post_id", ids) : Promise.resolve({ data: [] }),
     ]);
     const savedIds = new Set(((savesRes as any).data || []).map((x: any) => Number(x.post_id)));
     const [who, likesRes, commentsRes, repostsRes, originalsRes] = await Promise.all([
@@ -385,7 +409,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
     if (!handle) return res.status(404).json({ message: "That profile doesn't exist." });
     try {
       const voter = o.voterOf(req);
-      const { data: p, error } = await db().from("podcast_profiles").select(PROFILE_COLS).eq("handle", handle).maybeSingle();
+      const { data: p, error } = await db().from("podcast_profiles").select(await profileCols()).eq("handle", handle).maybeSingle();
       check(error);
       if (!p || p.hidden) return res.status(404).json({ message: "That profile doesn't exist." });
       const [{ data: posts, error: e2 }, { count: followers }, { count: following }, { data: mine }] = await Promise.all([
@@ -415,13 +439,13 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
       const voter = o.voterOf(req), q = searchTerm(req.query?.q);
       let rows: any[];
       if (q.length >= 2) {
-        const { data, error } = await db().from("podcast_profiles").select(PROFILE_COLS).or(`handle.ilike.%${q.replace(/ /g, "_")}%,name.ilike.%${q}%`).limit(30);
+        const { data, error } = await db().from("podcast_profiles").select(await profileCols()).or(`handle.ilike.%${q.replace(/ /g, "_")}%,name.ilike.%${q}%`).limit(30);
         check(error); rows = data || [];
       } else {
         // Suggestions: the most-followed people, then the newest.
         const [{ data: f, error: e1 }, { data: fresh, error: e2 }] = await Promise.all([
           db().from("podcast_people_follows").select("followee").limit(2000),
-          db().from("podcast_profiles").select(PROFILE_COLS).order("created_at", { ascending: false }).limit(30),
+          db().from("podcast_profiles").select(await profileCols()).order("created_at", { ascending: false }).limit(30),
         ]);
         check(e1); check(e2);
         const tally = new Map<string, number>(); for (const x of f || []) tally.set(x.followee, (tally.get(x.followee) ?? 0) + 1);
@@ -480,6 +504,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
     try {
       const voter = o.voterOf(req);
       if (kind !== "share" && (await needV2(res))) return;
+      if ((media.length || poll) && !(await hasV3())) return res.status(503).json({ message: "Photo and poll posts are still being set up.", setup: true });
       if (!(await myProfile(voter))) return res.status(400).json({ message: "Make your profile first.", needProfile: true });
       let original: any = null;
       if (kind === "repost") {
@@ -496,7 +521,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
         row.media = media;
       }
       if (poll) row.poll = poll;
-      const tags = hashtags(caption); if (tags.length) row.tags = tags;
+      if (await hasV3()) { const tags = hashtags(caption); if (tags.length) row.tags = tags; }
       if (original) row.repost_of = original.id;
       const { data, error } = await db().from("podcast_posts").insert(row).select("id").single();
       if (error?.code === "23505") return res.status(409).json({ message: "You've already reposted that." });
@@ -513,7 +538,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
         }
       }
       if (original) await notify(original.voter, voter, "repost", Number(original.id));
-      await notifyMentions(caption, voter, id);
+      if (await hasV3()) await notifyMentions(caption, voter, id);
       const [post] = await shape([{ ...row, id, created_at: new Date().toISOString(), hidden: false }], voter);
       res.json({ id: String(id), post: post ?? null });
     } catch (e) { fail(res, e); }
