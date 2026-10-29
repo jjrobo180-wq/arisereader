@@ -16,6 +16,7 @@ import { createDirectory, openAiJson, openAiTranscribe, supabaseKV, type Directo
 import { supabaseBlobs } from "./blobStore";
 import { registerAudiobookRoutes } from "./audiobooks";
 import { registerMusicRoutes } from "./music";
+import { registerClipsRoutes } from "./podcastClips";
 import { TOPICS, genreSearchTerms, topicPlaylist } from "../shared/earshotTopics";
 import { crowdFor, memoryAdStore, registerAdRoutes, type AdStore } from "./podcastAds";
 import { copyTranscript, registerPlayRoutes, startOpenings, type Player } from "./podcastPlay";
@@ -676,5 +677,7 @@ export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetch
   registerAudiobookRoutes(app, gate, { ask: perplexityJson(perplexityKey, openAiJson), transcribe: openAiTranscribe, ...(socialDb ? { kv: supabaseKV(socialDb), blobs: supabaseBlobs(socialDb) } : {}) });
   // Music (server/music.ts): public domain recordings from the Internet Archive.
   registerMusicRoutes(app, gate, socialDb ? { kv: supabaseKV(socialDb) } : {});
+  // Clips (server/podcastClips.ts): the owner's shared list of TikTok videos.
+  registerClipsRoutes(app, gate, socialDb ? { kv: supabaseKV(socialDb) } : {});
   registerEarshotRoutes(app, gate, { store, fetcher, directory, adStore, player, socialDb, prefix: "/api/podscroll" });
 }
