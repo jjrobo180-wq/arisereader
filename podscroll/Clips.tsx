@@ -1,27 +1,31 @@
-// Pod+ Clips (test page, #/clips, not in the menu yet): hand-picked TikTok videos in a swipe row
-// that play inside Pod+ through TikTok's official embed player (developers.tiktok.com/docs/en/embed-player).
-// Nothing opens TikTok. The clip in view plays; the rest pause. The list of links is kept on this
-// device while it's being tried out.
+// Pod+ Clips (#/clips, in the menu): TikTok videos in a swipe row that play inside Pod+ through
+// TikTok's official embed player (developers.tiktok.com/docs/en/embed-player). Nothing opens TikTok.
+// The clip in view plays; the rest pause. One shared list, set by the site owner, that everyone sees
+// (server/podcastClips.ts); the owner edits it right here when signed in.
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, Volume2, VolumeX } from "lucide-react";
+import { ChevronLeft, Loader2, Volume2, VolumeX } from "lucide-react";
+import { clipIds } from "@shared/podClips";
 
-const KEY = "podscroll.clips";
-/** The video id from a TikTok link ("…/video/7123…") or a bare id. */
-export const clipId = (s: string) => (/\/video\/(\d{8,25})/.exec(s)?.[1] || (/^\d{8,25}$/.test(s.trim()) ? s.trim() : ""));
-const readLinks = () => { try { return localStorage.getItem(KEY) || ""; } catch { return ""; } };
-// TikTok's own example video, so the page has something to show before any links are added.
-const SAMPLE = "https://www.tiktok.com/@scout2015/video/6718335390845095173";
+type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
+const link = (id: string) => `https://www.tiktok.com/video/${id}`;
 
 const send = (f: HTMLIFrameElement | null, type: string, value?: unknown) => {
   try { f?.contentWindow?.postMessage({ "x-tiktok-player": true, type, ...(value !== undefined ? { value } : {}) }, "https://www.tiktok.com"); } catch { /* player not ready */ }
 };
 
-export function ClipsTest({ onBack }: { onBack: () => void }) {
-  const [links, setLinks] = useState(() => readLinks() || SAMPLE);
+export function Clips({ api, say, onBack, onSignIn }: { api: Api; say: (m: string) => void; onBack: () => void; onSignIn: () => void }) {
+  const [ids, setIds] = useState<string[] | null>(null);
+  const [canEdit, setCanEdit] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
   const [editing, setEditing] = useState(false);
   const [sound, setSound] = useState(false);
   const [active, setActive] = useState(0);
-  const ids = [...new Set(links.split(/\s+/).map(clipId).filter(Boolean))].slice(0, 50);
+  const list = ids ?? [];
+  useEffect(() => {
+    api("/api/podscroll/clips").then((b) => { setIds(clipIds(b?.clips)); setCanEdit(!!b?.canEdit); }).catch((e) => { setIds([]); setErr(e.message); });
+  }, [api]);
   const frames = useRef<(HTMLIFrameElement | null)[]>([]);
   const slides = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -32,7 +36,7 @@ export function ClipsTest({ onBack }: { onBack: () => void }) {
     }, { threshold: [0.6] });
     slides.current.forEach((el) => el && io.observe(el));
     return () => io.disconnect();
-  }, [ids.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [list.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     frames.current.forEach((f, i) => { if (i === active) { send(f, "play"); send(f, sound ? "unMute" : "mute"); } else send(f, "pause"); });
   }, [active, sound]);
@@ -47,31 +51,41 @@ export function ClipsTest({ onBack }: { onBack: () => void }) {
     return () => window.removeEventListener("message", on);
   }, [active, sound]);
 
-  const save = (v: string) => { setLinks(v); try { localStorage.setItem(KEY, v); } catch { /* private window */ } };
+  const openEditor = () => { if (editing) { setEditing(false); return; } setDraft(list.map(link).join("\n")); setEditing(true); };
+  const save = () => {
+    setSaving(true); setErr("");
+    api("/api/podscroll/clips", { method: "POST", body: { clips: draft } })
+      .then((b) => { setIds(clipIds(b?.clips)); setEditing(false); say("Clips saved. Everyone sees them now."); })
+      .catch((e) => { setErr(e.message); if (e.needSignIn) onSignIn(); })
+      .finally(() => setSaving(false));
+  };
 
-  return <section aria-label="Clips (test)" className="pt-3 pb-10">
+  return <section aria-label="Clips" className="pt-3 pb-10">
     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
       <button onClick={onBack} className="-ml-2 inline-flex h-9 items-center gap-1 rounded-full pl-1 pr-3 text-sm font-medium hover:bg-[#f2f2f2]"><ChevronLeft size={20} />Home</button>
       <div className="flex items-center gap-2">
         <button onClick={() => setSound((v) => !v)} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#f2f2f2] px-3 text-sm font-semibold">{sound ? <Volume2 size={16} /> : <VolumeX size={16} />}{sound ? "Sound on" : "Tap for sound"}</button>
-        <button onClick={() => setEditing((v) => !v)} className="h-9 rounded-full bg-[#0f0f0f] px-3 text-sm font-semibold text-white">{editing ? "Done" : "Edit clips"}</button>
+        {canEdit && <button onClick={openEditor} className="h-9 rounded-full bg-[#0f0f0f] px-3 text-sm font-semibold text-white">{editing ? "Cancel" : "Edit clips"}</button>}
       </div>
     </div>
-    <h1 className="text-2xl font-bold tracking-tight">Clips <span className="align-middle text-xs font-semibold uppercase tracking-wide text-[#c2410c]">Test</span></h1>
-    <p className="mt-1 text-sm text-[#606060]">TikTok videos playing inside Pod+. Scroll: the clip in view plays, the rest pause. {ids.length} clip{ids.length === 1 ? "" : "s"}.</p>
+    <h1 className="text-2xl font-bold tracking-tight">Clips</h1>
+    <p className="mt-1 text-sm text-[#606060]">Short videos, right here in Pod+. Scroll: the clip in view plays, the rest pause.</p>
     {editing && <div className="mt-3">
       <label htmlFor="ps-clip-links" className="text-sm font-semibold">TikTok links, one per line</label>
-      <textarea id="ps-clip-links" value={links} onChange={(e) => save(e.target.value)} rows={6} placeholder="https://www.tiktok.com/@someone/video/7123456789012345678" className="mt-1.5 w-full rounded-xl border border-[#d3d3d3] p-3 font-mono text-xs outline-none focus:border-[#1c62b9]" />
-      <p className="mt-1 text-xs text-[#767676]">Open a video on TikTok, tap Share, Copy link, and paste it here. Short links (vm.tiktok.com) need opening first to get the full one.</p>
+      <textarea id="ps-clip-links" value={draft} onChange={(e) => setDraft(e.target.value)} rows={6} placeholder="https://www.tiktok.com/@someone/video/7123456789012345678" className="mt-1.5 w-full rounded-xl border border-[#d3d3d3] p-3 font-mono text-xs outline-none focus:border-[#1c62b9]" />
+      <p className="mt-1 text-xs text-[#767676]">Open a video on TikTok, tap Share, Copy link, and paste it here. Short links (vm.tiktok.com) need opening first to get the full one. Everyone sees this list.</p>
+      <button onClick={save} disabled={saving} className="mt-2 inline-flex h-10 items-center gap-2 rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white disabled:opacity-50">{saving && <Loader2 size={16} className="animate-spin" />}Save for everyone</button>
     </div>}
+    {err && <p role="alert" className="mt-2 text-sm text-[#c00]">{err}</p>}
     <div className="mt-4 h-[min(78dvh,760px)] snap-y snap-mandatory overflow-y-auto rounded-2xl bg-[#0f0f0f] [scrollbar-width:none]">
-      {ids.length ? ids.map((id, i) => <div key={id} ref={(el) => { slides.current[i] = el; }} data-i={i} className="flex h-full snap-start snap-always items-center justify-center p-2">
+      {ids === null ? <div className="flex h-full items-center justify-center"><Loader2 size={24} className="animate-spin text-white/60" /></div>
+        : list.length ? list.map((id, i) => <div key={id} ref={(el) => { slides.current[i] = el; }} data-i={i} className="flex h-full snap-start snap-always items-center justify-center p-2">
         <iframe ref={(el) => { frames.current[i] = el; }} title={`Clip ${i + 1}`} loading={Math.abs(i - active) <= 1 ? "eager" : "lazy"}
           src={`https://www.tiktok.com/player/v1/${id}?autoplay=${i === 0 ? 1 : 0}&loop=1&rel=0&music_info=0&description=0&closed_caption=1&muted=0`}
           allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowFullScreen
           className="aspect-[9/16] h-full max-h-full w-auto max-w-full rounded-xl border-0 bg-black" />
       </div>)
-        : <p className="p-10 text-center text-sm text-[#bdbdbd]">Tap “Edit clips” and paste some TikTok links.</p>}
+        : <p className="p-10 text-center text-sm text-[#bdbdbd]">{canEdit ? "Tap “Edit clips” and paste some TikTok links." : "No clips yet. Check back soon."}</p>}
     </div>
   </section>;
 }

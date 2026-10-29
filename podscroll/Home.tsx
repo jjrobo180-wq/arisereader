@@ -6,8 +6,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { GENRE, GENRES, chooseEpisode, hiRes, isTeaser, pickNext, tasteOf, type Candidate, type PodMode, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal } from "@shared/earshot";
 import { Mic2 } from "lucide-react";
 import { StandupHub } from "./Standup";
-import { ClipsTest } from "./Clips";
-import { Bell, BookOpen, Check, LogOut, Zap, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Music as MusicIcon, Search, Sparkles, ThumbsUp, Users, X, Pause, Play } from "lucide-react";
+import { Clips } from "./Clips";
+import { Bell, BookOpen, Check, Clapperboard, LogOut, Zap, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Music as MusicIcon, Search, Sparkles, ThumbsUp, Users, X, Pause, Play } from "lucide-react";
 import { RadioBar, RadioView, type Station } from "./Radio";
 import { MusicBar, MusicView, type Listening } from "./Music";
 import { AudiobookBar, AudiobooksView, BookPage, type Reading } from "./Audiobooks";
@@ -490,6 +490,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       {navItem("Social", <MessageCircle size={22} strokeWidth={1.8} />, false, () => onOpenFeed(undefined, "social"))}
       {navItem("Radio", <RadioIcon size={22} strokeWidth={1.8} />, view.kind === "radio", () => go({ kind: "radio" }))}
       {navItem("Music", <MusicIcon size={22} strokeWidth={1.8} />, view.kind === "music", () => go({ kind: "music" }))}
+      {navItem("Clips", <Clapperboard size={22} strokeWidth={1.8} />, view.kind === "clips", () => go({ kind: "clips" }))}
       {navItem("Up to the minute news", <Zap size={22} strokeWidth={1.8} />, view.kind === "now", () => go({ kind: "now" }))}
       {navItem("Stand-up", <Mic2 size={22} strokeWidth={1.8} />, view.kind === "standup", () => go({ kind: "standup" }))}
       {navItem("Audiobooks", <BookOpen size={22} strokeWidth={1.8} />, view.kind === "books" || view.kind === "book", () => go({ kind: "books" }))}
@@ -567,8 +568,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   } else if (view.kind === "now") {
     content = <div className="min-w-0 flex-1 px-4 pb-16 sm:px-6"><NewsNow api={api} ex={ex} onOpen={openEp} onBack={() => go({ kind: "home" })} grid={(list) => <Grid list={list} onOpen={openEp} />} /></div>;
   } else if (view.kind === "clips") {
-    // A test page (TikTok clips), reached by its link only: not in the menu yet.
-    content = <div className="mx-auto min-w-0 max-w-[560px] flex-1 px-4 sm:px-6"><ClipsTest onBack={() => go({ kind: "home" })} /></div>;
+    // Clips: the owner's shared list of TikTok videos (server/podcastClips.ts).
+    content = <div className="mx-auto min-w-0 max-w-[560px] flex-1 px-4 sm:px-6"><Clips api={api} say={say} onBack={() => go({ kind: "home" })} onSignIn={onSignIn} /></div>;
   } else if (view.kind === "standup") {
     content = <div className="min-w-0 flex-1 px-4 sm:px-6"><StandupHub api={api} ex={ex} say={say} onBack={() => go({ kind: "home" })} grid={(list) => <Grid list={list} onOpen={openEp} />} /></div>;
   } else if (view.kind === "radio") {
