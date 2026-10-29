@@ -121,6 +121,7 @@ import { createPresenceTracker, registerAdminStatsRoutes } from "./adminStats";
 import { registerTodoAdminRoutes } from "./todoAdmin";
 import { shuffleChoices, storedLetter } from "./quizShuffle";
 import { clientAddress, createAttemptLimiter, waitWords } from "./attemptLimiter";
+import { registerStudentRecoveryRoutes, type StudentRow } from "./studentRecovery";
 import { accountForEmailSignIn, looksLikeEmail, registerAccountRecoveryRoutes, type RecoveryAccount, type RecoveryDeps } from "./accountRecovery";
 import { DEFAULT_SITE_URL, PARENT_INVITES_PER_DAY, emailDocument, parentInviteEmail } from "./emailFormat";
 import { registerParentInviteEmailRoutes } from "./parentInviteEmails";
@@ -11221,6 +11222,34 @@ Important:
     return false;
   };
   const NOT_YOUR_STUDENT = { message: "You can only see and change your own students." };
+
+  // "Forgot username?" / "Forgot password?" for students (server/studentRecovery.ts).
+  {
+    const db = () => getAdminSupabase();
+    const COLS = "id, username, display_name, school_id, teacher_id, student_number";
+    const row = (r: any): StudentRow => ({ id: Number(r.id), username: r.username, displayName: r.display_name || r.username, schoolId: r.school_id ?? null, teacherId: r.teacher_id ?? null, studentNumber: r.student_number ?? null });
+    registerStudentRecoveryRoutes(app, {
+      auth: authMiddleware, teacherOrAdmin: teacherOrAdminMiddleware, canReachStudent,
+      studentsAtSchool: async (schoolId) => { const { data } = await db().from("users").select(COLS).eq("role", "student").eq("school_id", schoolId).is("archived_at", null).limit(5000); return (data || []).map(row); },
+      studentByUsername: async (u) => { const { data } = await db().from("users").select(COLS).eq("role", "student").eq("username", u).is("archived_at", null).maybeSingle(); return data ? row(data) : null; },
+      openHelp: async (studentId) => { const { data } = await db().from("student_password_help").select("id, student_id, created_at").eq("student_id", studentId).is("done_at", null).limit(1).maybeSingle(); return data ? { id: Number(data.id), studentId, createdAt: data.created_at } : null; },
+      addHelp: async (r) => { const { error } = await db().from("student_password_help").insert({ student_id: r.studentId, school_id: r.schoolId, teacher_id: r.teacherId }); if (error) throw error; },
+      notifyTeacher: async (teacherId, name) => { await db().from("notifications").insert({ user_id: teacherId, type: "password_help", title: "Password help", message: `${name} forgot their password. Open Reader to give them a new one.`, read: false }); },
+      helpFor: async (user: any) => {
+        let q = db().from("student_password_help").select("id, student_id, school_id, teacher_id, created_at").is("done_at", null).order("created_at", { ascending: false }).limit(200);
+        if (!user?.isAdmin) {
+          const school = Number(user?.school_id ?? user?.schoolId);
+          q = school > 0 ? q.or(`teacher_id.eq.${Number(user.id)},school_id.eq.${school}`) : q.eq("teacher_id", Number(user.id));
+        }
+        const { data } = await q;
+        const ids = [...new Set((data || []).map((r: any) => Number(r.student_id)))];
+        const { data: kids } = ids.length ? await db().from("users").select("id, username, display_name").in("id", ids) : { data: [] as any[] };
+        const by = new Map((kids || []).map((k: any) => [Number(k.id), k]));
+        return (data || []).filter((r: any) => by.has(Number(r.student_id))).map((r: any) => ({ id: Number(r.id), studentId: Number(r.student_id), createdAt: r.created_at, name: by.get(Number(r.student_id)).display_name, username: by.get(Number(r.student_id)).username, schoolId: r.school_id ?? null, teacherId: r.teacher_id ?? null }));
+      },
+      closeHelp: async (id, by) => { const { data } = await db().from("student_password_help").update({ done_at: new Date().toISOString(), done_by: by }).eq("id", id).select("student_id").maybeSingle(); return data ? { studentId: Number(data.student_id) } : null; },
+    });
+  }
 
   // Merging a student's two accounts (server/accountMerge.ts): the one a teacher made and the one
   // the student made later. A teacher works with their own students plus unlisted students at
