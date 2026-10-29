@@ -90,8 +90,38 @@ export const SX_CSS = `
 .sx-screens{position:relative;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;isolation:isolate}
 .sx-scroll-layer{position:absolute;inset:0;box-sizing:border-box;min-width:0;width:100%;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--elev2) transparent}
 .sx-content-layer{box-sizing:border-box;min-height:100%;min-width:0;width:100%;padding-bottom:calc(5rem + var(--ps-safe-b,0px));margin:0 auto}
-.sx-social-root>.sx-overlay-root{position:absolute;inset:0;z-index:100;pointer-events:none;isolation:isolate}
+/* The player has its own 64px top bar. Keep every Social dialog below it so
+   Cancel/Post never render behind Home or any other shell navigation. */
+.sx-social-root>.sx-overlay-root{position:absolute;inset:4rem 0 0;z-index:100;pointer-events:none;isolation:isolate}
 .sx-social-root>.sx-overlay-root>*{pointer-events:auto}
+/* Independent dialog geometry, not reliant on Tailwind's breakpoint utilities
+   (the standalone Podscroll build and the embedded app share this component). */
+.sx-social-root .sx-compose-backdrop{
+  position:absolute;inset:0;box-sizing:border-box;display:flex;align-items:flex-start;
+  justify-content:center;overflow-y:auto;padding:22px 16px;min-width:0;
+}
+.sx-social-root .sx-compose-dialog{
+  box-sizing:border-box;display:flex;flex-direction:column;flex:0 1 620px;min-width:0;
+  width:min(100%,620px);min-height:240px;max-height:min(760px,calc(100% - 1px));
+  margin:0;border:0!important;outline:0!important;border-radius:16px;
+  background:var(--surface);color:var(--fg);
+  box-shadow:0 16px 60px rgba(0,0,0,.26);overflow:hidden;
+}
+.sx-social-root .sx-compose-header{
+  display:flex;align-items:center;justify-content:space-between;flex:none;
+  box-sizing:border-box;min-height:58px;padding:10px 16px;
+  border:0!important;outline:0!important;background:var(--surface);
+}
+.sx-social-root .sx-compose-header button{pointer-events:auto}
+.sx-social-root .sx-compose-body{box-sizing:border-box;min-height:0;flex:1 1 auto;overflow-y:auto;padding:12px 20px}
+.sx-social-root .sx-compose-footer{
+  box-sizing:border-box;display:flex;align-items:center;flex:none;min-height:57px;
+  padding:10px 14px;border:0!important;box-shadow:none!important;background:var(--surface);
+}
+@container (max-width:759px){
+  .sx-social-root .sx-compose-backdrop{padding:0;overflow:hidden;background:var(--surface)!important}
+  .sx-social-root .sx-compose-dialog{flex:1;width:100%;height:100%;max-height:100%;min-height:0;border-radius:0;box-shadow:none}
+}
 .sx-social-root .sx-profile-cover{background-color:var(--elev)!important;background-image:linear-gradient(120deg,#202b38 0%,#344253 54%,#b4684a 160%)!important;border-bottom:1px solid var(--line)}
 .sx-home{min-height:100%}
 .sx-feed-header{position:sticky;top:0;z-index:20;border-bottom:1px solid var(--line)}
