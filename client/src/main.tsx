@@ -50,7 +50,7 @@ if (isAriseTodoNative && (!window.location.hash || window.location.hash === "#/"
 }
 const nativeApiOrigin = "https://arisetodo.com";
 function resolveNativeApiUrl(url: string): string {
-  if (!isAriseTodoNative || !/^\\/api\\//.test(url)) return url;
+  if (!isAriseTodoNative || !url.startsWith("/api/")) return url;
   return nativeApiOrigin + url;
 }
 
