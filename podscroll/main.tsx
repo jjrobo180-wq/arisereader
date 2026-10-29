@@ -12,6 +12,7 @@ import { LIGHT_SHEETS_CSS, Player, Setup, useTheme, type NowPlaying, type Player
 import { LIGHT_CSS } from "../client/src/components/family-hub/earshot/EarshotSocial";
 import { Home } from "./Home";
 import { AuthScreen } from "./Auth";
+import { downloads, installDownloads } from "./downloads";
 import "./styles.css";
 
 const API = String(import.meta.env.VITE_PODSCROLL_API || "https://arisereader.onrender.com").replace(/\/$/, "");
@@ -106,6 +107,13 @@ function App() {
   }, [session, api, setSession]);
   // Audio comes through the server so smart ad skip can find the ads in this copy.
   const mediaUrl = useCallback((path: string) => API + path.replace(/^\/api\/earshot/, "/api/podscroll"), []);
+  // Downloads (Pod+ Membership): episodes and audiobooks kept on this device to play offline.
+  const apiRef = useRef(api); apiRef.current = api;
+  const proRef = useRef(pro); proRef.current = pro;
+  useEffect(() => {
+    if (downloads) return;
+    installDownloads({ api: (p, i) => apiRef.current(p, i), apiBase: API, isMember: () => proRef.current, onJoin: () => setAuthMode("signup"), say });
+  }, [say]);
 
   const pending = useRef<{ genre: string; signal: Signal }[]>([]);
   const signal = useCallback((genre: string, s: Signal) => {
