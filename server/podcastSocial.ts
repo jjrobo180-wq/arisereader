@@ -77,6 +77,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
 }) {
   const P = `${o.prefix}/social`;
   const db = () => o.getDb();
+  const OFFICIAL_HANDLE = "jjrobo180";
   const writes = createAttemptLimiter({ max: 60, windowMs: 10 * 60_000 });
   const talk = createAttemptLimiter({ max: 40, windowMs: 10 * 60_000 });
   const uploads = createAttemptLimiter({ max: 12, windowMs: 60 * 60_000 });
@@ -386,8 +387,15 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
       // Legacy /feed and ?tab=all keep their chronological ordering.
       // The new app explicitly opts in to the ranked For You timeline.
       const ranked = tab === "foryou"
-        ? all.map((p) => ({ p, s: forYouScore({ likes: p.likes, comments: p.comments, reposts: p.reposts, at: p.at, followed: follows.has(voterOfPost.get(p.id) || ""), media: !!p.media?.length || !!p.episode, mine: p.mine }, now) }))
-            .sort((a, b) => b.s - a.s).map((x) => x.p)
+        ? all.map((p) => ({
+            p,
+            // Official podcast recommendations appear to everyone, even without a follow.
+            // Reserve the first slots for the latest genuine shares by our verified Pod+ account.
+            featured: p.author.handle === OFFICIAL_HANDLE && !!p.author.verified && p.kind === "share" && !!p.episode,
+            s: forYouScore({ likes: p.likes, comments: p.comments, reposts: p.reposts, at: p.at, followed: follows.has(voterOfPost.get(p.id) || ""), media: !!p.media?.length || !!p.episode, mine: p.mine }, now),
+          }))
+            .sort((a, b) => Number(b.featured) - Number(a.featured) || (a.featured && b.featured ? Date.parse(b.p.at) - Date.parse(a.p.at) : b.s - a.s))
+            .map(({ p, featured }) => featured ? { ...p, recommended: true } : p)
         : all;
       const slice = ranked.slice(page * 20, page * 20 + 20);
       res.json({ posts: slice, next: ranked.length > (page + 1) * 20 ? page + 1 : null });
