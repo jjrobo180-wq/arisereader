@@ -43,7 +43,7 @@ test("Pod+ home shows the episode you were on, to finish or continue", () => {
   const home = readFileSync("podscroll/Home.tsx", "utf8");
   assert.match(home, /function ContinueListening/);
   assert.match(home, /earshot\.spots/);
-  assert.match(home, /Finish this episode/);
+  assert.match(home, /leftWords\(sp\)/);
   assert.match(home, /chip === "all" && <ContinueListening/);
 });
 
