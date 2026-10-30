@@ -77,7 +77,7 @@ def main():
             with urllib.request.urlopen(req, timeout=30) as res:
                 return json.load(res)
         except urllib.error.HTTPError as e:
-            detail = e.read().decode(errors="replace")[:300]
+            detail = " ".join(e.read().decode(errors="replace").split())[:600]
             raise RuntimeError(f"Apple API {e.code} on {p.split('?')[0]}: {detail}") from None
 
     ids = api("bundleIds?" + urllib.parse.urlencode({"filter[identifier]": bundle, "limit": 5}))["data"]
@@ -92,8 +92,15 @@ def main():
         attrs = {"capabilityType": cap}
         if cap in SETTINGS:
             attrs["settings"] = SETTINGS[cap]
-        api("bundleIdCapabilities", {"data": {"type": "bundleIdCapabilities", "attributes": attrs,
-                                               "relationships": {"bundleId": {"data": {"type": "bundleIds", "id": bid}}}}})
+        rel = {"bundleId": {"data": {"type": "bundleIds", "id": bid}}}
+        try:
+            api("bundleIdCapabilities", {"data": {"type": "bundleIdCapabilities", "attributes": attrs, "relationships": rel}})
+        except RuntimeError as error:
+            if "settings" not in attrs:
+                raise
+            # Apple sometimes refuses the consent setting; the capability alone is enough for an app.
+            print(f"::warning title=Signing::{error}. Trying {cap} without settings.")
+            api("bundleIdCapabilities", {"data": {"type": "bundleIdCapabilities", "attributes": {"capabilityType": cap}, "relationships": rel}})
         print(f"::notice title=Signing::Turned on {cap} for {bundle}")
 
     # A profile made after the capabilities changed, for the same certificate.
