@@ -238,6 +238,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const [unlocked, setUnlocked] = useState(false);
   const unlockedRef = useRef(false);
   const [playing, setPlaying] = useState(false);
+  /** A weak connection: the episode is waiting for more sound ("buffering"), or for the signal to come back ("offline"). */
+  const [netWait, setNetWait] = useState<null | "buffering" | "offline">(null);
   const [time, setTime] = useState(0);
   const [dur, setDur] = useState(0);
   const [counts, setCounts] = useState<Record<string, Counts>>({});
@@ -544,6 +546,33 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
 
   // ---------------- audio: three players, so the next episode is loaded before you swipe ----------------
   const handlers = useRef({ time: (_a: HTMLAudioElement) => {}, ended: (_a: HTMLAudioElement) => {}, error: (_a: HTMLAudioElement) => {} });
+  /** The episode waiting for the signal to come back: which one, where it was, whether it was playing. */
+  const netRetry = useRef<{ ep: string; t: number; play: boolean; tries: number; timer: ReturnType<typeof setTimeout> | null } | null>(null);
+  /** The connection dropped: keep the same episode and spot, and try again when the signal returns
+   *  (and every few seconds, in case the phone doesn't say). Never skips to another episode. */
+  const waitForSignal = (a: HTMLAudioElement) => {
+    const id = a.dataset.ep || ""; if (!id) return;
+    const prev = netRetry.current && netRetry.current.ep === id ? netRetry.current : null;
+    if (prev?.timer) clearTimeout(prev.timer);
+    const t = Math.max(a.currentTime || 0, prev?.t || 0), play = prev ? prev.play : (!a.paused || playing);
+    const tries = (prev?.tries || 0) + 1;
+    setNetWait("offline");
+    const again = () => {
+      const r = netRetry.current; if (!r || r.ep !== id || cur.current !== a || a.dataset.ep !== id) return;
+      if (typeof navigator !== "undefined" && navigator.onLine === false) { r.timer = setTimeout(again, 3000); return; }
+      const src = a.currentSrc || a.src; if (!src) return;
+      a.src = src; a.load();
+      a.addEventListener("loadedmetadata", () => { try { if (r.t > 1) a.currentTime = r.t; } catch { /* not seekable yet */ } }, { once: true });
+      if (r.play) a.play().catch(() => {});
+    };
+    netRetry.current = { ep: id, t, play, tries, timer: setTimeout(again, Math.min(15000, 2000 * tries)) };
+  };
+  useEffect(() => {
+    const back = () => { const r = netRetry.current; if (r) { if (r.timer) clearTimeout(r.timer); r.timer = setTimeout(() => { const a = cur.current; if (a && a.dataset.ep === r.ep) { r.tries = 0; waitForSignal(a); } }, 300); } };
+    const gone = () => { const a = cur.current; if (a && a.dataset.ep && !a.paused) setNetWait("offline"); };
+    window.addEventListener("online", back); window.addEventListener("offline", gone);
+    return () => { window.removeEventListener("online", back); window.removeEventListener("offline", gone); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   /** The lock screen and headphone buttons control this player again (an audiobook or the radio may
    *  have taken them while they played). */
   const claimLockScreen = (a: HTMLAudioElement) => {
@@ -571,6 +600,14 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     a.addEventListener("play", () => { if (isBoosted(a)) resumeVoiceBoost(); if (a === cur.current) { setPlaying(true); soundStarted("pod"); claimLockScreen(a); } });
     a.addEventListener("pause", () => { if (a === cur.current) setPlaying(false); });
     a.addEventListener("error", () => { if (a === cur.current && a.dataset.ep) handlers.current.error(a); });
+    // Bad signal: say "Buffering…" (after a moment, so a short hiccup doesn't flash it) instead of
+    // doing anything drastic; it carries on by itself once enough sound has arrived.
+    let slow: ReturnType<typeof setTimeout> | null = null;
+    const waiting = () => { if (a !== cur.current || a.paused) return; if (slow) clearTimeout(slow); slow = setTimeout(() => { if (a === cur.current && !a.paused && a.readyState < 3) setNetWait((w) => w ?? "buffering"); }, 800); };
+    const flowing = () => { if (slow) { clearTimeout(slow); slow = null; } if (a === cur.current) setNetWait((w) => (w === "buffering" ? null : w)); };
+    a.addEventListener("waiting", waiting); a.addEventListener("stalled", waiting);
+    a.addEventListener("playing", () => { flowing(); if (a === cur.current) { setNetWait(null); if (netRetry.current?.timer) clearTimeout(netRetry.current.timer); netRetry.current = null; } });
+    a.addEventListener("canplay", flowing); a.addEventListener("pause", flowing);
     return a;
   }
   /** Points a player at an episode. Through the server with Voice boost on, the audio is fetched so the
@@ -739,6 +776,9 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const a = playerFor(ep, []);
     if (cur.current && cur.current !== a) cur.current.pause();
     cur.current = a;
+    // A different episode: whatever was waiting for the signal is let go.
+    if (netRetry.current && netRetry.current.ep !== ep.id) { if (netRetry.current.timer) clearTimeout(netRetry.current.timer); netRetry.current = null; }
+    setNetWait(null);
     // It failed while loading ahead (through the server): load it again now that it's playing.
     if (a.error && a.dataset.sid) handlers.current.error(a);
     listened.current = 0; lastTime.current = a.currentTime; lastSpot.current = 0; setSkipped(null);
@@ -990,9 +1030,16 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const sl = sleepRef.current;
     if (typeof sl === "number" && Date.now() >= sl) { a.pause(); setSleepAt(null); say("Sleep timer: paused. Sleep well."); }
     const adv = esRef.current.settings.advance;
-    if (adv && listened.current >= adv && !sheetRef.current && Date.now() - lastAutoAdvance.current > 5000) { listened.current = -1e9; lastAutoAdvance.current = Date.now(); goTo(activeRef.current + 1); }
+    if (adv && listened.current >= adv && !sheetRef.current && !netRetry.current && Date.now() - lastAutoAdvance.current > 5000) { listened.current = -1e9; lastAutoAdvance.current = Date.now(); goTo(activeRef.current + 1); }
   };
   handlers.current.ended = () => {
+    // A stream cut off by a bad signal can say "ended" long before the end: that's not the end, so
+    // wait for the signal and carry on from the same spot instead of moving to another episode.
+    const ca = cur.current;
+    const r0 = netRetry.current;
+    const stuck = !!r0 && r0.ep === ca?.dataset.ep && r0.tries >= 2 && Math.abs(r0.t - (ca?.currentTime || 0)) < 3 && navigator.onLine !== false;
+    if (ca && !stuck && Number.isFinite(ca.duration) && ca.duration > 0 && ca.currentTime < ca.duration - 8) { waitForSignal(ca); return; }
+    if (r0) { if (r0.timer) clearTimeout(r0.timer); netRetry.current = null; setNetWait(null); }
     const it = itemsRef.current[activeRef.current];
     if (it?.ep) { signal(it.show.genre, "finish"); saveSpot(it.ep, 0); const id = it.ep.id; update((e) => (e.heard.includes(id) ? e : { ...e, heard: [id, ...e.heard].slice(0, 200) })); }
     setPlaying(false);
@@ -1005,6 +1052,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     if (!sheetRef.current) goTo(activeRef.current + 1);
   };
   handlers.current.error = (a) => {
+    // No signal (or the connection broke mid-episode): wait for it, same episode, same spot.
+    if (a === cur.current && ((typeof navigator !== "undefined" && navigator.onLine === false) || a.error?.code === 2 || netRetry.current?.ep === a.dataset.ep)) { waitForSignal(a); return; }
     // Through the server didn't work: a new session once, then straight from the host, from the same spot.
     const it = itemsRef.current[activeRef.current]; const ep = it?.ep;
     if (ep && a.dataset.sid && a.dataset.ep === ep.id) {
@@ -1444,6 +1493,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
         onInfo={() => { setSheet({ kind: "info", show: it.show }); signal(it.show.genre, "open"); }} onNext={() => goTo(i + 1)} />)}
     </div>}
 
+    {netWait && activeEp && cur.current?.dataset.ep === activeEp.id && <div className={`pointer-events-none absolute inset-x-3 ${below} z-[27] flex justify-center`} data-testid="pod-net-wait"><div role="status" aria-live="polite" className="flex items-center gap-2 rounded-full bg-black/65 px-3.5 py-1.5 text-[13px] font-medium text-white ring-1 ring-white/10 backdrop-blur-xl"><Loader2 size={13} className="animate-spin" />{netWait === "offline" ? "Waiting for a signal… it'll pick up right where it stopped." : "Buffering…"}</div></div>}
     {holding && activeEp?.id === holding && <div className={`pointer-events-none absolute inset-x-3 ${below} z-[26] flex justify-center`}><div role="status" className="flex items-center gap-2 rounded-full bg-black/55 px-3.5 py-1.5 text-[13px] font-medium text-white ring-1 ring-white/10 backdrop-blur-xl"><Loader2 size={13} className="animate-spin" />Skipping the ads at the start…</div></div>}
     {tapAd && activeEp && tapAd.ep.id === activeEp.id && <div className={`pointer-events-none absolute inset-x-3 ${below} z-[26] flex justify-center`}>
       <div key={tapAd.n} role="status" className="pointer-events-auto relative flex max-w-full items-center gap-1.5 overflow-hidden rounded-full bg-[#ffd23f] py-1.5 pl-3.5 pr-1.5 text-[13px] font-semibold text-[#120e14] shadow-xl" data-testid="tap-ad-toast">
