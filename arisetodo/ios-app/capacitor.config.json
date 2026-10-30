@@ -17,6 +17,13 @@
         "sound",
         "alert"
       ]
+    },
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
     }
   },
   "ios": {

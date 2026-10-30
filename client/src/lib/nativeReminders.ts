@@ -8,6 +8,7 @@ import { dueHubReminders, type HubReminder } from "@shared/hubReminders";
 import { dueTodoReminders } from "@shared/todoReminders";
 import type { Workspace } from "@shared/teacherHub";
 import { hasNativePlugin, isNativeApp, nativeCall } from "@/lib/nativeApp";
+import { startApplePush, stopApplePush } from "@/lib/applePush";
 
 export type ReminderKind = "life" | "work";
 const PLUGIN = /localnotif/i;
@@ -71,11 +72,13 @@ export async function turnOnNativeReminders(_kind?: ReminderKind): Promise<void>
   const res = await call("requestPermissions");
   if (String(res?.display ?? "") !== "granted") throw new Error("Notifications are off for Arise To Duo. Turn them on in Settings → Notifications → Arise To Duo, then try again.");
   store.set(BOTH_KEY, "1");
+  void startApplePush(true); // messages and shares from the server, too
   window.dispatchEvent(new Event(REMINDERS_CHANGED));
 }
 
 export async function turnOffNativeReminders(_kind?: ReminderKind): Promise<void> {
   store.set(BOTH_KEY, "0");
+  void stopApplePush();
   store.drop(flagKey("life")); store.drop(flagKey("work"));
   await cancelScheduled("life"); await cancelScheduled("work");
   window.dispatchEvent(new Event(REMINDERS_CHANGED));
@@ -93,6 +96,8 @@ let tapsInstalled = false;
 export function installReminderTaps(): void {
   if (tapsInstalled || !isNativeApp()) return;
   tapsInstalled = true;
+  // Already allowed before: sign this iPhone up with the server again (the token can change).
+  if (nativeRemindersOn("life") || nativeRemindersOn("work")) void startApplePush(false);
   try {
     const plugin = (window as any).Capacitor?.Plugins?.LocalNotifications;
     void plugin?.addListener?.("localNotificationActionPerformed", (e: any) => {

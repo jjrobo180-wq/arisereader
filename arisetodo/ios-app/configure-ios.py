@@ -51,3 +51,24 @@ if os.path.exists(DELEGATE):
                          r"\1        try? AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default, options: [.mixWithOthers])\n", src, count=1)
         open(DELEGATE, "w", encoding="utf-8").write(src)
         print("AppDelegate: audio mixes with other apps" if n else "AppDelegate: launch method not found; audio session left as is")
+
+# Apple push notifications: hand the device token iOS gives the app to the push plugin.
+if os.path.exists(DELEGATE):
+    src = open(DELEGATE, encoding="utf-8").read()
+    if "didRegisterForRemoteNotificationsWithDeviceToken" not in src:
+        end = src.rfind("}")
+        hook = """
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: deviceToken)
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
+    }
+"""
+        if end > 0 and "import Capacitor" in src:
+            src = src[:end] + hook + src[end:]
+            open(DELEGATE, "w", encoding="utf-8").write(src)
+            print("AppDelegate: push notification token goes to the app")
+        else:
+            print("AppDelegate: could not add the push token hook")
