@@ -1,4 +1,5 @@
 import { EmailWords, ForwardingCard, OPEN_EMAIL_EVENT, openHubEmail, useHubInbox } from "@/components/teacher-hub/HubInbox";
+import { useParaTeamAutoAdd } from "@/lib/paraTeam";
 import { markEmailRead } from "@shared/hubInbox";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
@@ -605,6 +606,11 @@ function TeacherHubPage() {
   const openNotesApp = (k: string | null) => { setNotesAppOpen(k); if (k) window.scrollTo({ top: 0 }); };
   const mySheetsApps = ((workspace as any).sheetsInstalled as string[] | undefined ?? []).map((id) => sheetsAppPlugin("work", id)).filter((p): p is Plugin => !!p);
   const myOfficeApps = ((workspace as any).sheetsInstalled as string[] | undefined ?? []).map((id) => officeAppPlugin("work", id)).filter((p): p is Plugin => !!p);
+  // Already on a para team: Para Team is added to WorkHub's apps once.
+  useParaTeamAutoAdd(loaded && !loadError && !needsPlan && canUseHub, token, user?.id, "work", (((workspace as any).sheetsInstalled as string[] | undefined) ?? []).includes("work-para-team"), () => {
+    const p = officeAppPlugin("work", "work-para-team");
+    if (p) setWorkspace((prev) => ({ ...prev, sheetsInstalled: setWorkSheetsApp((prev as any).sheetsInstalled, p, true) } as Workspace));
+  });
   const drivePlugin = (workspace as any).driveInstalled ? driveAppPlugin("work") : undefined;
   const dropPlugin = (workspace as any).dropInstalled ? dropAppPlugin("work") : undefined;
   const hubSheets = cleanSpreadsheets(((workspace as any).sheets ?? {})["work-sheets"]);
