@@ -1,6 +1,6 @@
 name: Pod+ signed iOS beta validation
 # Development beta validation only. Upload is a separate, explicitly approved release step.
-# Release: Sign in with Apple entitlement, new Music shelves and covers, tab bar, no Clips, swipe-skip fix.
+# Release: Study Pod+ and Meeting Pod (AI from your notes).
 on:
   workflow_dispatch:
   push:
