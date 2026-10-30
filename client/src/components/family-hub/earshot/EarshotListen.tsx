@@ -7,7 +7,7 @@ import { sayAI, stopAiVoice } from "../../../lib/aiVoice";
 import { Car, Clock3, Loader2, MessageCircle, Play, Send, Sparkles, Volume2, X } from "lucide-react";
 import { clock, type Earshot as EarshotData, type PodEpisode, type SavedEpisode } from "@shared/earshot";
 import { driveSecs, fitDrive, hoursWords, sumKinds, weekKey, type AskMoment, type HoursBack } from "@shared/earshotListen";
-import { readHoursBack } from "./listenExtras";
+import { readCouldSave, readHoursBack } from "./listenExtras";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
 const ACCENT = "#ff8a3d";
@@ -205,8 +205,47 @@ export function useHoursBack(): HoursBack {
 }
 
 /** The counter: this week's time back, all time, and where it came from. light: on a white page (Pod+ home). */
-export function HoursBackCard({ light, onHide }: { light?: boolean; onHide?: () => void }) {
+/** The ads someone without Pod+ Membership sat through (listenExtras.countCouldSave). */
+export function useCouldSave(): HoursBack {
+  const [h, setH] = useState(readCouldSave);
+  useEffect(() => {
+    const again = () => setH(readCouldSave());
+    window.addEventListener("earshot-hours", again); window.addEventListener("storage", again);
+    const t = setInterval(again, 30_000);
+    return () => { window.removeEventListener("earshot-hours", again); window.removeEventListener("storage", again); clearInterval(t); };
+  }, []);
+  return h;
+}
+
+/** For someone without Pod+ Membership: the time it would have given back, the same way members see theirs. */
+function CouldSaveCard({ light, onHide, onJoin }: { light?: boolean; onHide?: () => void; onJoin?: () => void }) {
+  const c = useCouldSave(), h = useHoursBack();
+  const wkAds = c.weeks[weekKey()]?.ads ?? 0, allAds = c.total.ads;
+  const wkMine = sumKinds(h.weeks[weekKey()]);
+  const ink = light ? "text-[#0f0f0f]" : "text-white", soft = light ? "text-[#606060]" : "text-white/55";
+  const title = wkAds >= 60 ? `${hoursWords(wkAds)} of ads you could've skipped this week`
+    : allAds >= 60 ? `${hoursWords(allAds)} of ads you could've skipped`
+    : "Time you could save with Pod+";
+  const line = wkAds >= 60 || allAds >= 60
+    ? `Pod+ Membership skips ads for you automatically.${wkMine >= 60 ? ` You saved ${hoursWords(wkMine)} this week with a faster speed.` : ""}`
+    : "Pod+ Membership skips ads for you. The time it would give back adds up here as you listen.";
+  return <section aria-label="Time you could save" data-testid="could-save-card" className={`relative flex items-center gap-3.5 rounded-2xl p-3.5 pr-10 ${light ? "bg-[#fff4ec] ring-1 ring-[#ffd9bf]" : "bg-white/[.05] ring-1 ring-white/[.08]"}`}>
+    <span className="grid h-11 w-11 flex-none place-items-center rounded-full text-white" style={{ background: ACCENT }}><Clock3 size={21} /></span>
+    <div className="min-w-0">
+      <p className={`text-[15px] font-semibold ${ink}`}>{title}</p>
+      <p className={`text-xs leading-snug ${soft}`}>{line}</p>
+      {onJoin && <button type="button" onClick={onJoin} className="mt-2 h-8 rounded-full px-3.5 text-xs font-semibold text-white" style={{ background: ACCENT }}>Get it back with Pod+</button>}
+    </div>
+    {onHide && <button type="button" onClick={onHide} aria-label="Hide this counter" title="Hide (turn it back on in Settings)" className={`absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full ${light ? "text-[#606060] hover:bg-black/5" : "text-white/50 hover:bg-white/10"}`}><X size={15} /></button>}
+  </section>;
+}
+
+export function HoursBackCard({ light, onHide, member, onJoin }: { light?: boolean; onHide?: () => void;
+  /** A Pod+ member (ads skipped for them). Not a member: what they could have saved. Unknown: worked out from the tallies. */ member?: boolean; onJoin?: () => void }) {
   const h = useHoursBack();
+  const could = useCouldSave();
+  const notMember = member === false || (member === undefined && (could.weeks[weekKey()]?.ads ?? 0) > 0 && !(h.weeks[weekKey()]?.ads));
+  if (notMember) return <CouldSaveCard light={light} onHide={onHide} onJoin={onJoin} />;
   const week = h.weeks[weekKey()];
   const wk = sumKinds(week), all = sumKinds(h.total);
   const parts = ([["ads", "ads skipped"], ["intros", "intros skipped"], ["speed", "faster speed"]] as const).map(([k, l]) => [Math.round((week?.[k] ?? 0) / 60), l] as const).filter(([m]) => m > 0);

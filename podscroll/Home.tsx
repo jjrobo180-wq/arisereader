@@ -657,7 +657,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
 
       {!topic && chip !== "all" && <TopShows shows={topShows} onShow={openShowLatest} label={`Top in ${GENRE[chip]?.name ?? ""}`} note="Everything below stays unranked." />}
 
-      {chip === "all" && es.settings.hoursBack && <div className="mb-5"><HoursBackCard light onHide={() => { update((e) => ({ ...e, settings: { ...e.settings, hoursBack: false } })); say("Hours back is hidden. Turn it on again in Settings."); }} /></div>}
+      {chip === "all" && es.settings.hoursBack && <div className="mb-5"><HoursBackCard light member={pro} onJoin={onJoin} onHide={() => { update((e) => ({ ...e, settings: { ...e.settings, hoursBack: false } })); say("Hours back is hidden. Turn it on again in Settings."); }} /></div>}
       {chip === "all" && <ModesRow es={es} update={update} onOpen={(m) => go({ kind: "mode", id: m.id })} onNew={() => setNewMode(true)} onDrive={() => onOpenFeed(undefined, undefined, { id: "__drive", index: 0 })} onNews={() => go({ kind: "now" })} />}
 
 
