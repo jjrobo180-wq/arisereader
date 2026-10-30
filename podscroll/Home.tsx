@@ -7,6 +7,8 @@ import { GENRE, GENRES, chooseEpisode, hiRes, isTeaser, pickNext, tasteOf, type 
 import { Mic2 } from "lucide-react";
 import { StandupHub } from "./Standup";
 import { StudioView } from "./Studio";
+import { ImportView } from "./Import";
+import { ArrowDownToLine } from "lucide-react";
 import { Briefcase, GraduationCap } from "lucide-react";
 import { AccountSheet } from "./Account";
 import { Bell, BookOpen, Check, LogOut, PlusCircle, ShieldCheck, Zap, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, Monitor, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Music as MusicIcon, Search, Sparkles, ThumbsUp, Users, X, Pause, Play } from "lucide-react";
@@ -24,7 +26,7 @@ import { setTheme, useTheme } from "../client/src/components/family-hub/earshot/
 import { HoursBackCard } from "../client/src/components/family-hub/earshot/EarshotListen";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
-type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "music" } | { kind: "books" } | { kind: "book"; id: string } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "live" } | { kind: "now" } | { kind: "standup" } | { kind: "study" } | { kind: "meeting" } | { kind: "clips" } | { kind: "watch"; showId: string; episodeId: string };
+type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "music" } | { kind: "books" } | { kind: "book"; id: string } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "live" } | { kind: "now" } | { kind: "standup" } | { kind: "study" } | { kind: "meeting" } | { kind: "import" } | { kind: "clips" } | { kind: "watch"; showId: string; episodeId: string };
 
 const DEFAULT_GENRES = ["comedy", "news", "science", "tech", "truecrime", "history", "business", "culture"];
 const ACCENT = "#ff6a1f";
@@ -59,6 +61,7 @@ function parseHash(): View {
   if (a === "standup") return { kind: "standup" };
   if (a === "study") return { kind: "study" };
   if (a === "meeting") return { kind: "meeting" };
+  if (a === "import") return { kind: "import" };
   // Clips was taken out of Pod+ (October 2026); old links open the home page.
   if (a === "party" && /^(new|[A-Za-z0-9_-]{6,20})$/.test(b || "")) return { kind: "party", id: b };
   if (a === "mode" && /^[a-z0-9-]{1,30}$/.test(b || "")) return { kind: "mode", id: b };
@@ -515,6 +518,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       <div className="my-3 h-px bg-[#e5e5e5]" />
       <p className="mx-3 mb-1.5 mt-1 text-base font-semibold">You</p>
       {navItem("Library", <Library size={22} strokeWidth={1.8} />, false, () => onOpenFeed(undefined, "library"))}
+      {navItem("Bring your shows", <ArrowDownToLine size={22} strokeWidth={1.8} />, view.kind === "import", () => go({ kind: "import" }))}
       {navItem("Liked episodes", <ThumbsUp size={22} strokeWidth={1.8} />, view.kind === "liked", () => go({ kind: "liked" }))}
       {navItem("Listen later", <Clock size={22} strokeWidth={1.8} />, view.kind === "later", () => go({ kind: "later" }))}
       <div className="my-3 h-px bg-[#e5e5e5]" />
@@ -586,6 +590,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     content = <div className="min-w-0 flex-1 px-4 pb-16 sm:px-6"><NewsNow api={api} ex={ex} onOpen={openEp} onBack={() => go({ kind: "home" })} grid={(list) => <Grid list={list} onOpen={openEp} />} /></div>;
   } else if (view.kind === "standup") {
     content = <div className="min-w-0 flex-1 px-4 sm:px-6"><StandupHub api={api} ex={ex} say={say} onBack={() => go({ kind: "home" })} grid={(list) => <Grid list={list} onOpen={openEp} />} /></div>;
+  } else if (view.kind === "import") {
+    content = <ImportView api={api} es={es} update={update} say={say} onBack={() => go({ kind: "home" })} onSearch={(q) => go({ kind: "search", q })} onFollowing={() => onOpenFeed(undefined, "library")} />;
   } else if (view.kind === "study" || view.kind === "meeting") {
     content = <StudioView kind={view.kind} api={api} apiBase={liveBase.replace(/^ws/, "http")} say={say} onBack={() => go({ kind: "home" })} onSwitch={(k) => go({ kind: k })} />;
   } else if (view.kind === "radio") {
@@ -724,6 +730,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
           </div>
           <div className="my-1 h-px bg-[#e5e5e5]" />
           {navItem("Library", <Library size={22} strokeWidth={1.8} />, false, () => { setTabSheet(null); onOpenFeed(undefined, "library"); })}
+          {navItem("Bring your shows from another app", <ArrowDownToLine size={22} strokeWidth={1.8} />, view.kind === "import", () => { setTabSheet(null); go({ kind: "import" }); })}
           {navItem("Liked episodes", <ThumbsUp size={22} strokeWidth={1.8} />, view.kind === "liked", () => { setTabSheet(null); go({ kind: "liked" }); })}
           {navItem("Listen later", <Clock size={22} strokeWidth={1.8} />, view.kind === "later", () => { setTabSheet(null); go({ kind: "later" }); })}
           {navItem("Your interests", <Heart size={22} strokeWidth={1.8} />, false, () => { setTabSheet(null); onEditInterests(); })}
@@ -997,40 +1004,32 @@ function ContinueListening({ nowPod, visible, onToggle, onOpenNow, onResume }: {
     try { const v = JSON.parse(localStorage.getItem("earshot.spots") || "{}"); delete v[id]; localStorage.setItem("earshot.spots", JSON.stringify(v)); } catch { /* not kept */ }
     setSpots((x) => x.filter(([k]) => k !== id));
   };
-  const rest = spots.filter(([, s]) => !nowPod || s.title !== nowPod.title).slice(0, 8);
-  const top = nowPod ? null : rest[0];
-  const others = nowPod ? rest : rest.slice(1);
-  if (!nowPod && !top) return null;
-  return <section aria-label="Continue listening" className="mb-6 mt-1" data-testid="pod-continue">
-    {nowPod ? <div className="ps-keep flex items-center gap-3 rounded-2xl bg-[#0f0f0f] p-3 text-white ring-1 ring-white/10 sm:p-4">
-      <button onClick={onOpenNow} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Open ${nowPod.title}`}>
-        <img src={nowPod.art} alt="" referrerPolicy="no-referrer" className="h-16 w-16 shrink-0 rounded-xl object-cover" />
-        <span className="min-w-0"><span className="block text-[11px] font-bold uppercase tracking-[.14em] text-[#ff8a3d]">{nowPod.playing ? "Now playing" : "Paused · pick up where you left off"}</span>
-          <span className="mt-0.5 line-clamp-2 block text-[15px] font-semibold leading-snug">{nowPod.title}</span><span className="block truncate text-xs text-white/60">{nowPod.show}</span></span>
-      </button>
-      <button onClick={onToggle} data-testid="pod-continue-toggle" className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-white px-4 text-sm font-semibold text-[#0f0f0f]">{nowPod.playing ? <><Pause size={16} fill="currentColor" strokeWidth={0} />Pause</> : <><Play size={16} fill="currentColor" strokeWidth={0} />Resume</>}</button>
-    </div> : top && <div className="ps-keep flex items-center gap-3 rounded-2xl bg-[#0f0f0f] p-3 text-white ring-1 ring-white/10 sm:p-4">
-      <button onClick={() => onResume(top[0], top[1])} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Continue ${top[1].title}`}>
-        {top[1].art ? <img src={top[1].art} alt="" referrerPolicy="no-referrer" className="h-16 w-16 shrink-0 rounded-xl object-cover" /> : <span className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-white/10"><Play size={22} /></span>}
-        <span className="min-w-0 flex-1"><span className="block text-[11px] font-bold uppercase tracking-[.14em] text-[#ff8a3d]">Finish this episode</span>
-          <span className="mt-0.5 line-clamp-2 block text-[15px] font-semibold leading-snug">{top[1].title}</span><span className="block truncate text-xs text-white/60">{top[1].show} · {leftWords(top[1])}</span>
-          {top[1].secs > 0 && <span className="mt-2 block h-1 overflow-hidden rounded-full bg-white/20"><span className="block h-full rounded-full bg-[#ff6a1f]" style={{ width: `${Math.min(100, (top[1].t / top[1].secs) * 100)}%` }} /></span>}</span>
-      </button>
-      <button onClick={() => onResume(top[0], top[1])} data-testid="pod-continue-play" className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-white px-4 text-sm font-semibold text-[#0f0f0f]"><Play size={16} fill="currentColor" strokeWidth={0} />Continue</button>
-    </div>}
-    {others.length > 0 && <>
-      <h2 className="mb-2 mt-4 text-base font-bold">Continue listening</h2>
-      <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden">
-        {others.map(([id, sp]) => <div key={id} className="relative w-40 shrink-0 snap-start">
-          <button onClick={() => onResume(id, sp)} className="block w-full text-left" aria-label={`Continue ${sp.title}`}>
-            <span className="relative block aspect-square overflow-hidden rounded-xl bg-[#f2f2f2]"><img src={sp.art} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
-              {sp.secs > 0 && <span className="absolute inset-x-0 bottom-0 h-1 bg-black/30"><span className="block h-full bg-[#ff6a1f]" style={{ width: `${Math.min(100, (sp.t / sp.secs) * 100)}%` }} /></span>}</span>
-            <span className="mt-1.5 line-clamp-2 block text-[13px] font-semibold leading-snug">{sp.title}</span>
-            <span className="block truncate text-xs text-[#606060]">{leftWords(sp)}</span>
-          </button>
-          <button onClick={() => hide(id)} aria-label={`Remove ${sp.title} from Continue listening`} className="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-full bg-black/55 text-white"><X size={14} /></button>
-        </div>)}
-      </div>
-    </>}
+  const rest = spots.filter(([, s]) => !nowPod || s.title !== nowPod.title).slice(0, nowPod ? 2 : 3);
+  if (!nowPod && !rest.length) return null;
+  const art = (src: string) => src ? <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-11 w-11 shrink-0 rounded-lg object-cover" /> : <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-[#f2f2f2] text-[#909090]"><Play size={16} /></span>;
+  const bar = (sp: Spot) => sp.secs > 0 ? <span className="absolute inset-x-3 bottom-0 h-[2px] overflow-hidden rounded-full bg-[#eee]"><span className="block h-full bg-[#ff6a1f]" style={{ width: `${Math.min(100, (sp.t / sp.secs) * 100)}%` }} /></span> : null;
+  // One slim card: what's playing (or paused), then up to a few you didn't finish, one line each.
+  return <section aria-label="Continue listening" className="mb-5 mt-1" data-testid="pod-continue">
+    <p className="mb-1.5 text-[13px] font-semibold text-[#606060]">Continue listening</p>
+    <ul className="divide-y divide-[#f0f0f0] overflow-hidden rounded-2xl border border-[#e8e8e8] bg-white">
+      {nowPod && <li className="relative flex items-center gap-3 px-3 py-2.5">
+        <button onClick={onOpenNow} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Open ${nowPod.title}`}>
+          {art(nowPod.art)}
+          <span className="min-w-0"><span className="block truncate text-[14px] font-semibold leading-tight">{nowPod.title}</span>
+            <span className="mt-0.5 block truncate text-[12px] text-[#606060]">{nowPod.playing ? "Playing now" : "Paused"} · {nowPod.show}</span></span>
+        </button>
+        <button onClick={onToggle} data-testid="pod-continue-toggle" aria-label={nowPod.playing ? "Pause" : "Resume"} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#0f0f0f] text-white">{nowPod.playing ? <Pause size={15} fill="currentColor" strokeWidth={0} /> : <Play size={15} fill="currentColor" strokeWidth={0} className="ml-0.5" />}</button>
+      </li>}
+      {rest.map(([id, sp], k) => <li key={id} className="group relative flex items-center gap-3 px-3 py-2.5">
+        <button onClick={() => onResume(id, sp)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Continue ${sp.title}`}>
+          {art(sp.art)}
+          <span className="min-w-0"><span className="block truncate text-[14px] font-semibold leading-tight">{sp.title}</span>
+            <span className="mt-0.5 block truncate text-[12px] text-[#606060]">{leftWords(sp)} · {sp.show}</span></span>
+        </button>
+        <button onClick={() => hide(id)} aria-label={`Remove ${sp.title} from Continue listening`} className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#909090] hover:bg-[#f2f2f2]"><X size={14} /></button>
+        <button onClick={() => onResume(id, sp)} data-testid={!nowPod && k === 0 ? "pod-continue-play" : undefined} aria-label={`Play ${sp.title}`} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#e0e0e0] text-[#0f0f0f]"><Play size={15} fill="currentColor" strokeWidth={0} className="ml-0.5" /></button>
+        {bar(sp)}
+      </li>)}
+    </ul>
   </section>;
 }

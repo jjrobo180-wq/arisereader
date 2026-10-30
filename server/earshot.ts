@@ -18,6 +18,7 @@ import { registerAudiobookRoutes } from "./audiobooks";
 import { registerMusicRoutes } from "./music";
 import { registerClipsRoutes } from "./podcastClips";
 import { registerStudioRoutes } from "./podcastStudio";
+import { importCache, registerImportRoutes } from "./podcastImport";
 import { aiSpeech } from "./groqVoice";
 import { TOPICS, genreSearchTerms, topicPlaylist } from "../shared/earshotTopics";
 import { crowdFor, memoryAdStore, registerAdRoutes, type AdStore } from "./podcastAds";
@@ -180,6 +181,8 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
   const writes = createAttemptLimiter({ max: 120, windowMs: 10 * 60_000 });
   const posts = createAttemptLimiter({ max: 15, windowMs: 10 * 60_000 });
   const reading = createAttemptLimiter({ max: 60, windowMs: 10 * 60_000 });
+  // Bring your shows from another podcast app (server/podcastImport.ts).
+  registerImportRoutes(app, authMiddleware, P, { apple: (url) => dir.apple(url), cached: importCache() });
 
   const uid = (req: any) => String(req.user?.id ?? "");
   const isStudent = (req: any) => req.user?.role === "student";

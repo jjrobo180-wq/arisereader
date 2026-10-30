@@ -1197,7 +1197,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
   const toggleFollow = (show: PodShow) => {
     if (isFollowing(show.id)) { update((e) => ({ ...e, follows: e.follows.filter((f) => f.id !== show.id) })); signal(show.genre, "unfollow"); say(`Unfollowed ${show.name}.`); }
-    else { update((e) => ({ ...e, follows: [{ id: show.id, name: show.name, author: show.author, art: show.art, genre: show.genre, at: nowIso() }, ...e.follows].slice(0, 200) })); signal(show.genre, "follow"); say(`Following ${show.name}.`); }
+    else { update((e) => ({ ...e, follows: [{ id: show.id, name: show.name, author: show.author, art: show.art, genre: show.genre, at: nowIso() }, ...e.follows].slice(0, EARSHOT_LIMITS.follows) })); signal(show.genre, "follow"); say(`Following ${show.name}.`); }
   };
   const toggleLike = (ep: PodEpisode, genre: string) => {
     const on = !(counts[ep.id]?.liked);
