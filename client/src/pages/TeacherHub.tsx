@@ -462,15 +462,7 @@ function TeacherHubPage() {
   // Arise To Duo: on the iPhone Duo's inner screen the header keeps its extra buttons in ⋯ More.
   useAriseDuo();
   const setRail = (open: boolean) => { setRailState(open); if (inDuoPane()) return; try { localStorage.setItem("arise-hub-rail", open ? "open" : "closed"); } catch { /* not remembered */ } };
-  const moreRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!more) return;
-    const close = (e: Event) => { if (!moreRef.current?.contains(e.target as Node)) setMore(false); };
-    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setMore(false); };
-    document.addEventListener("pointerdown", close);
-    document.addEventListener("keydown", esc);
-    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", esc); };
-  }, [more]);
+  // The ⋯ menu (components/HubMoreMenu.tsx) closes itself on a tap outside it or Escape.
   // Night mode: the choice is remembered on this phone or computer.
   // Night mode is shared with LifeHub until "Same settings in both hubs" is turned off (lib/sharedLook.ts).
   const [night, setNight] = useState(() => readNight("work"));
