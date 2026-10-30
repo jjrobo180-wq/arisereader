@@ -6,8 +6,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { GENRE, GENRES, chooseEpisode, hiRes, isTeaser, pickNext, tasteOf, type Candidate, type PodMode, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal } from "@shared/earshot";
 import { Mic2 } from "lucide-react";
 import { StandupHub } from "./Standup";
+import { AccountSheet } from "./Account";
 import { Clips } from "./Clips";
-import { Bell, BookOpen, Check, Clapperboard, LogOut, Zap, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, Monitor, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Music as MusicIcon, Search, Sparkles, ThumbsUp, Users, X, Pause, Play } from "lucide-react";
+import { Bell, BookOpen, Check, Clapperboard, LogOut, ShieldCheck, Zap, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, Monitor, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Music as MusicIcon, Search, Sparkles, ThumbsUp, Users, X, Pause, Play } from "lucide-react";
 import { RadioBar, RadioView, type Station } from "./Radio";
 import { MusicBar, MusicView, type Listening } from "./Music";
 import { AudiobookBar, AudiobooksView, BookPage, type Reading } from "./Audiobooks";
@@ -301,6 +302,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   };
   const hidden = useMemo(() => ({ shows: new Set(es.blocked ?? []), eps: hiddenEps }), [es.blocked, hiddenEps]);
   const [acctOpen, setAcctOpen] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
   // Fresh Pod Modes rebuild once a day with the newest episodes (Morning Briefing: today's top news).
   const freshTried = useRef(new Set<string>());
   useEffect(() => {
@@ -458,8 +460,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       </div>
       <form role="search" className="flex min-w-0 max-w-[640px] flex-1 items-center" onSubmit={(e) => { e.preventDefault(); const t = q.trim(); if (t.length >= 2) go({ kind: "search", q: t }); }}>
         <label htmlFor="ps-q" className="sr-only">Search podcasts</label>
-        <input id="ps-q" type="search" value={q} onChange={(e) => setQ(e.target.value)} onFocus={() => { setSearching(true); setHint(0); }} onBlur={() => setSearching(false)} placeholder={narrow ? "Search" : HINTS[hint]} aria-label="Search podcasts" className="h-10 min-w-0 flex-1 rounded-l-full border border-r-0 border-[#d3d3d3] px-4 text-base text-[#0f0f0f] outline-none placeholder:text-[#888] focus:border-[#1c62b9]" />
-        <button type="submit" aria-label="Search" className="inline-flex h-10 w-14 shrink-0 items-center justify-center rounded-r-full border border-[#d3d3d3] bg-[#f8f8f8] hover:bg-[#f0f0f0] sm:w-16"><Search size={20} strokeWidth={1.8} /></button>
+        <input id="ps-q" type="search" value={q} onChange={(e) => setQ(e.target.value)} onFocus={() => { setSearching(true); setHint(0); }} onBlur={() => setSearching(false)} placeholder={narrow ? "Search" : HINTS[hint]} aria-label="Search podcasts" className="h-10 min-w-0 flex-1 rounded-l-full border border-r-0 border-[#d3d3d3] px-3 text-base sm:px-4 text-[#0f0f0f] outline-none placeholder:text-[#888] focus:border-[#1c62b9]" />
+        <button type="submit" aria-label="Search" className="inline-flex h-10 w-11 shrink-0 items-center justify-center rounded-r-full border border-[#d3d3d3] bg-[#f8f8f8] hover:bg-[#f0f0f0] sm:w-16"><Search size={20} strokeWidth={1.8} /></button>
       </form>
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">
         <div role="group" aria-label="Appearance: Auto, Light, Dark" className="hidden shrink-0 items-center gap-0.5 rounded-full border border-[#d3d3d3] p-1 lg:flex">
@@ -471,12 +473,13 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
         <button onClick={() => onOpenFeed()} className="hidden h-9 items-center gap-2 rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2] md:inline-flex"><Sparkles size={17} strokeWidth={1.8} />Swipe feed</button>
         {!pro && <button onClick={onJoin} className="hidden h-9 items-center rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white hover:bg-[#272727] lg:inline-flex">Go ad-free</button>}
         {!pro
-          ? <button onClick={onSignIn} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[#d3d3d3] px-3 text-sm font-medium text-[#065fd4] hover:bg-[#def1ff]"><UserCircle size={19} strokeWidth={1.8} /><span>Sign in</span></button>
+          ? <button onClick={onSignIn} aria-label="Sign in" className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[#d3d3d3] px-2 text-sm font-medium text-[#065fd4] hover:bg-[#def1ff] min-[420px]:px-3"><UserCircle size={19} strokeWidth={1.8} /><span className="hidden min-[420px]:inline">Sign in</span></button>
           : <span className="relative">
             <button onClick={() => setAcctOpen((v) => !v)} aria-expanded={acctOpen} aria-label="Your account" className="grid h-9 w-9 place-items-center rounded-full bg-[#ff6a1f] text-sm font-bold text-white">{email ? email.slice(0, 1).toUpperCase() : <UserCircle size={20} />}</button>
             {acctOpen && <div className="absolute right-0 top-11 z-40 w-64 rounded-xl border border-[#e5e5e5] bg-white p-2 text-[#0f0f0f] shadow-2xl">
               <p className="truncate px-3 pb-2 pt-1 text-sm font-semibold">{email || "Signed in"}</p>
               <p className="px-3 pb-2 text-xs text-[#606060]">Pod+ Member</p>
+              <button onClick={() => { setAcctOpen(false); setPrivacyOpen(true); }} className="flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm hover:bg-[#f2f2f2]"><ShieldCheck size={16} />Account & privacy</button>
               <button onClick={() => { setAcctOpen(false); onSignOut(); }} className="flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm hover:bg-[#f2f2f2]"><LogOut size={16} />Sign out</button>
             </div>}
           </span>}
@@ -529,6 +532,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
           api(`/api/earshot/show/${f.id}?x=1${ex}`).then((b) => { const e = (b.episodes || [])[0]; if (e) openEp(e); else say("No episodes to play yet."); }).catch((e) => say(e.message));
         }))}
       </>}
+      <div className="my-3 h-px bg-[#e5e5e5]" />
+      {navItem("Account & privacy", <ShieldCheck size={22} strokeWidth={1.8} />, false, () => setPrivacyOpen(true))}
       <div className="my-3 h-px bg-[#e5e5e5]" />
       {pro
         ? <p className="mx-3 text-sm text-[#606060]"><b className="text-[#0f0f0f]">Pod+ Member.</b> Ads get skipped, and your show can earn.</p>
@@ -618,7 +623,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
         </div>
       </div>}
 
-      {chip === "all" && !pro && <section aria-label="Pod+ Membership" className="ps-keep relative mb-6 mt-1 overflow-hidden rounded-2xl bg-[#0f0f0f] text-white">
+      {chip === "all" && !pro && <section aria-label="Pod+ Membership" className="ps-keep relative mb-6 mt-1 overflow-hidden rounded-2xl bg-[#0f0f0f] text-white ring-1 ring-white/10">
         <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[.18em] text-[#ff8a3d]">Pod+ Membership</p>
@@ -681,6 +686,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       </nav>
     </div>}
     <div className={`flex items-start ${station || reading || listening || nowPod ? "pb-20" : ""}`}>{sidebar}<main className="min-w-0 flex-1">{content}</main></div>
+    {privacyOpen && <AccountSheet api={api} email={email} signedIn={pro} say={say} onClose={() => setPrivacyOpen(false)} />}
     {nowPod && !station && !reading && !listening && <div role="region" aria-label="Now playing podcast" className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5e5e5] bg-white/95 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur">
       <div className="mx-auto flex h-14 max-w-2xl items-center gap-3 px-3">
         <button onClick={onPodOpen} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Open ${nowPod.title}`}>

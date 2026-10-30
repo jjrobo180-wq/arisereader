@@ -2,7 +2,8 @@
 // (Sleep, Commute... playlists), "Add to", and the AI podcast finder. Shared by both apps, so it
 // imports nothing from the Arise app itself.
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowUp, BookOpen, Bookmark, Car, Check, ChevronLeft, ChevronRight, Dumbbell, Headphones, ListPlus, Loader2, Moon, Newspaper, Play, Plus, Shirt, Sparkles, Trash2, X, type LucideIcon } from "lucide-react";
+import { ArrowUp, BookOpen, Bookmark, Car, Check, ChevronLeft, ChevronRight, Download, Dumbbell, Headphones, ListPlus, Loader2, Moon, Newspaper, Play, Plus, Shirt, Sparkles, Trash2, X, type LucideIcon } from "lucide-react";
+import { episodeKey, useOfflineAudio } from "./offlineAudio";
 import {
   DEFAULT_MODES, GENRE, HUB_FONTS, MODE_ICONS, clock, durationWords, hiRes, hubTheme, inkOn, realEpisodes,
   type Earshot as EarshotData, type PodEpisode, type PodMode, type PodShow, type SavedEpisode,
@@ -91,6 +92,13 @@ export function AddToSheet({ es, ep, saved, onSave, update, say, onClose, toSave
 }) {
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState("");
+  const offline = useOfflineAudio();
+  const dl = offline?.state(episodeKey(ep.id));
+  const downloadRow = offline && ep.audio ? <Toggle on={dl?.status === "saved"}
+    onClick={() => { if (dl?.status === "saved" || dl?.status === "saving") void offline.remove(episodeKey(ep.id)).then(() => say(dl.status === "saved" ? "Download removed." : "Download stopped.")); else void offline.saveEpisode(toSaved(ep)); }}
+    icon={dl?.status === "saving" ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} strokeWidth={1.8} />}
+    title={dl?.status === "saved" ? "Downloaded" : dl?.status === "saving" ? `Downloading… ${Math.round(dl.pct * 100)}%` : "Download"}
+    sub={dl?.status === "saved" ? "Plays without a connection · tap to remove" : dl?.status === "saving" ? "Tap to stop" : dl?.status === "error" ? dl.error || "Try again" : "Pod+ Membership · listen offline"} /> : null;
   const inMode = (m: PodMode) => m.episodes.some((x) => x.id === ep.id);
   const toggle = (id: string) => update((e) => ({ ...e, modes: e.modes.map((m) => (m.id !== id ? m : inMode(m) ? { ...m, episodes: m.episodes.filter((x) => x.id !== ep.id) } : { ...m, episodes: [toSaved(ep), ...m.episodes].slice(0, 150) })) }));
   const allIn = es.modes.every(inMode);
@@ -106,6 +114,7 @@ export function AddToSheet({ es, ep, saved, onSave, update, say, onClose, toSave
       <div className="flex items-center gap-3 border-b border-white/[.07] pb-3"><img src={hiRes(ep.art, 200)} alt="" referrerPolicy="no-referrer" className="h-11 w-11 rounded-md object-cover" /><span className="min-w-0"><span className="line-clamp-1 text-sm font-semibold">{ep.title}</span><span className="line-clamp-1 text-xs text-white/50">{ep.show}</span></span></div>
       <div className="mt-1 divide-y divide-white/[.06]">
         <Toggle on={saved} onClick={onSave} icon={<Bookmark size={16} strokeWidth={1.8} />} title="Listen later" sub="In your Library" />
+        {downloadRow}
       </div>
       <div className="mt-5 flex items-baseline justify-between"><h4 className="text-[12px] font-semibold uppercase tracking-[.14em] text-white/45">Pod Modes</h4><button type="button" onClick={all} className="text-xs font-medium text-white/60 hover:text-white">{allIn ? "Remove from all" : "Add to all"}</button></div>
       <div className="mt-1 divide-y divide-white/[.06]">

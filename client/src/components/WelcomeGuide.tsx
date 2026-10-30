@@ -1,6 +1,7 @@
 // Shown once after someone signs in: a welcome that explains, simply, how to add A.R.I.S.E. to the Home Screen
 // and how to turn on notifications. When it is closed, a small bar at the bottom says it once more and then
 // goes away on its own, for good. The words and the rules are in shared/welcomeGuide.ts.
+import { isNativeApp } from "@/lib/nativeApp";
 import { useEffect, useRef, useState } from "react";
 import { Bell, Check, Download, Share, SquarePlus, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -91,7 +92,8 @@ export default function WelcomeGuide() {
     return () => window.clearInterval(timer);
   }, [popup, eligible, state]);
 
-  if (!eligible) return null;
+  // The iPhone app is already an app, and its reminders are set up in each hub (no Home Screen steps).
+  if (!eligible || isNativeApp()) return null;
 
   function closeIt() { setPopup(false); save(closePopup(stateRef.current, Date.now())); }
 

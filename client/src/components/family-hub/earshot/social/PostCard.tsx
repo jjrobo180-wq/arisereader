@@ -7,6 +7,7 @@ import { Ban, BarChart2, Bookmark, ChevronLeft, ChevronRight, Flag, Headphones, 
 import { clock, durationWords, hiRes } from "@shared/earshot";
 import { toEpisode, toShow } from "../EarshotSocial";
 import { ActionSheet, Avatar, Layer, NameLine, RichText, compactCount, linkTo, shareOrCopy, shortAgo, type Media, type Post, type SCtx } from "./kit";
+import { ReportSheet } from "./Rules";
 
 export function PostCard({ post, ctx, onChange, onGone, detail }: { post: Post; ctx: SCtx; onChange: (p: Post) => void; onGone: () => void; detail?: boolean }) {
   // A plain repost shows the original, with "<name> reposted" above it; a quote shows the quote.
@@ -33,7 +34,8 @@ export function PostCard({ post, ctx, onChange, onGone, detail }: { post: Post; 
     ctx.api(`/api/earshot/social/posts/${p.id}/repost`, { method: "POST", body: { on } }).then(() => ctx.say(on ? "Reposted." : "Repost undone.")).catch((e) => { update(p); ctx.say(e.message); });
   };
   const remove = () => ctx.api(`/api/earshot/social/posts/${post.id}`, { method: "DELETE" }).then(() => { ctx.say("Your post was deleted."); onGone(); }).catch((e) => ctx.say(e.message));
-  const report = () => ctx.api(`/api/earshot/social/posts/${p.id}/report`, { method: "POST" }).then(() => { ctx.say("Thanks. We'll take a look."); onGone(); }).catch((e) => ctx.say(e.message));
+  const [reporting, setReporting] = useState(false);
+  const report = () => setReporting(true);
   const block = () => ctx.api("/api/earshot/social/block", { method: "POST", body: { handle: p.author.handle } }).then(() => { ctx.say(`You blocked @${p.author.handle}.`); onGone(); }).catch((e) => ctx.say(e.message));
   const open = () => { if (!detail) ctx.openPost(p); };
   const big = !!detail;
@@ -71,6 +73,7 @@ export function PostCard({ post, ctx, onChange, onGone, detail }: { post: Post; 
         { label: "Report post", icon: <Flag size={18} />, danger: true, onClick: report },
       ] : []),
     ]} />}
+    {reporting && <ReportSheet api={ctx.api} path={`/api/earshot/social/posts/${p.id}/report`} what="post" onClose={() => setReporting(false)} onDone={(m, ok) => { ctx.say(m); if (ok) onGone(); }} />}
     {reposting && <ActionSheet onClose={() => setReposting(false)} items={[
       { label: p.reposted ? "Undo repost" : "Repost", icon: <Repeat2 size={18} />, onClick: repost },
       { label: "Quote", icon: <Quote size={18} />, onClick: () => ctx.compose({ quote: p }) },

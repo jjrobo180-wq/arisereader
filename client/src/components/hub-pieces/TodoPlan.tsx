@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Infinity as InfinityIcon, Sparkles, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
+import { NATIVE_NO_PURCHASE, isNativeApp } from "@/lib/nativeApp";
 import { AI_LIMIT, APPS_FULL, FREE_APPS, growsPastFree } from "@shared/todoPlan";
 
 export type TodoPlan = {
@@ -130,10 +131,10 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
     : reason === "apps" ? `You're using your ${FREE_APPS} free apps`
     : reason === "ai" ? "AI is part of Unlimited"
     : "Get Arise To Duo Unlimited";
-  const lead = plan?.unlimited ? "Every app in the App Store, and AI for everyday use, in WorkHub and LifeHub."
-    : reason === "apps" ? `The free plan includes up to ${FREE_APPS} apps from the App Store. Remove one to make room, or go Unlimited for all 450+.`
-    : reason === "ai" ? `Add with AI, the AI assistant and meal estimates come with Unlimited, along with every app in the App Store, for ${price} a month.`
-    : "Every app in the App Store (450+), and AI, across WorkHub and LifeHub.";
+  const lead = plan?.unlimited ? "Every app in the App Gallery, and AI for everyday use, in WorkHub and LifeHub."
+    : reason === "apps" ? `The free plan includes up to ${FREE_APPS} apps from the App Gallery. Remove one to make room, or go Unlimited for all 450+.`
+    : reason === "ai" ? `Add with AI, the AI assistant and meal estimates come with Unlimited, along with every app in the App Gallery, for ${price} a month.`
+    : "Every app in the App Gallery (450+), and AI, across WorkHub and LifeHub.";
 
   return (
     <div className="fixed inset-0 kb-sheet z-[320] flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="upgrade-title" data-testid="todo-upgrade" onClick={(e) => { if (e.target === e.currentTarget) setReason(null); }}>
@@ -167,7 +168,12 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
           <p className="mt-3 text-xs text-slate-500">Built-in sections like Calendar, Tasks and Notes are always free. Your {FREE_APPS} apps are shared by WorkHub and LifeHub, and nothing is ever deleted, even if you go back to Free. Already on a $10 Arise Reader plan? Unlimited is the same price on top.</p>
           {note && <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700" role="status">{note}</p>}
           <div className="mt-4">
-            {!plan
+            {isNativeApp()
+              ? <div className="space-y-2">
+                  <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700" data-testid="todo-plan-native">{NATIVE_NO_PURCHASE}</p>
+                  <button type="button" onClick={() => setReason(null)} className="flex min-h-12 w-full items-center justify-center rounded-2xl bg-slate-900 text-sm font-bold text-white">OK</button>
+                </div>
+              : !plan
               ? <button type="button" onClick={refreshTodoPlan} className="flex min-h-12 w-full items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-700" data-testid="todo-upgrade-check-plan">Checking your plan… Tap to retry</button>
               : plan.unlimited
               ? (plan.paidByYou
@@ -200,7 +206,7 @@ export function PlanCard({ hub, hubApps }: { hub: "work" | "life"; hubApps: numb
   if (!plan) return null;
   if (plan.unlimited) {
     return <button type="button" onClick={() => openUpgrade("plan")} className="mb-3 flex w-full items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 p-3 text-left text-sm text-violet-900" data-testid="todo-plan-card">
-      <InfinityIcon className="h-5 w-5 shrink-0" /><span className="min-w-0 flex-1"><span className="block font-bold">Unlimited</span><span className="block text-xs text-violet-700">Every app in the App Store · {plan.ai.left} AI uses left this month</span></span>
+      <InfinityIcon className="h-5 w-5 shrink-0" /><span className="min-w-0 flex-1"><span className="block font-bold">Unlimited</span><span className="block text-xs text-violet-700">Every app in the App Gallery · {plan.ai.left} AI uses left this month</span></span>
     </button>;
   }
   const used = hubApps + (hub === "work" ? plan.apps.life : plan.apps.work);
@@ -215,6 +221,6 @@ export function PlanCard({ hub, hubApps }: { hub: "work" | "life"; hubApps: numb
       <div className="flex flex-1 gap-1" aria-hidden>{Array.from({ length: limit }, (_, i) => <span key={i} className={`h-2 flex-1 rounded-full ${i < used ? (full ? "bg-amber-500" : "bg-violet-500") : "bg-slate-100"}`} />)}</div>
       <span className={`shrink-0 text-xs font-semibold ${full ? "text-amber-700" : "text-slate-600"}`}>{Math.min(used, 99)} of {limit} apps</span>
     </div>
-    <p className="mt-1.5 text-xs text-slate-500">{used > limit ? "You can keep every app you have. To add another, remove one or go Unlimited." : "Apps from the App Store, shared by WorkHub and LifeHub. Built-in sections are always free."} · No AI on Free</p>
+    <p className="mt-1.5 text-xs text-slate-500">{used > limit ? "You can keep every app you have. To add another, remove one or go Unlimited." : "Apps from the App Gallery, shared by WorkHub and LifeHub. Built-in sections are always free."} · No AI on Free</p>
   </div>;
 }

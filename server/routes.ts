@@ -66,6 +66,9 @@ import { registerBrowserRoutes } from "./browserCheck";
 import { registerLifePlanRoutes } from "./lifePlan";
 import { registerSleepFinderRoutes } from "./sleepFinder";
 import { podscrollAllowed, registerEarshotRoutes, registerPodscrollRoutes, supabaseEarshotStore } from "./earshot";
+import { deletePodData } from "./podcastAccounts";
+import { hideLinks, onSocialReport, registerModerationRoutes } from "./socialModeration";
+import { registerSupportRoutes } from "./supportContact";
 import { attachLivePods } from "./podcastLive";
 import { attachListenParties } from "./podcastParty";
 import { createDirectory as createPodcastDirectory, supabaseKV } from "./podcastDirectory";
@@ -1261,6 +1264,15 @@ export async function registerRoutes(
   /** Fire and forget: an alert never slows down or breaks the request that caused it. */
   const alertAdmin = (event: Parameters<typeof adminAlerts.notify>[0], alert: Alert) => { void adminAlerts.notify(event, alert); };
   const personName = (user: any) => String(user?.displayName || user?.display_name || user?.username || "Someone");
+  // Pod+ and Earshot Social reports (server/socialModeration.ts) reach the admin at once, so
+  // reported posts, people and messages are looked at within 24 hours (App Review Guideline 1.2).
+  onSocialReport((r) => alertAdmin("problem_report", {
+    title: `${r.app}: a ${r.what} was reported`,
+    summary: `${r.reason || "Reported"} · ${r.what} ${r.id}${r.reports && r.reports >= 3 ? " · hidden after 3 reports" : ""}`,
+    lines: [["App", r.app], ["What", `${r.what} ${r.id}`], ["Reason", r.reason], ["About", r.about], ["Reported by", r.by], ["Reports so far", r.reports], ...hideLinks(r, APP_URL)],
+    note: "Look within 24 hours. Open a Hide link above to take it down (it asks once more before hiding). Hiding someone's profile hides everything they posted.",
+  }));
+  registerModerationRoutes(app, getAdminSupabase);
   // Grade, school and teacher for a student's alert. Each part is optional.
   const studentFacts = async (user: any): Promise<{ grade: string; school: string; teacher: string }> => {
     const facts = { grade: "", school: "", teacher: "" };
@@ -1588,6 +1600,16 @@ export async function registerRoutes(
     topShows: async () => { const lists = await Promise.all(PODCAST_GENRES.slice(0, 12).map((g) => podcasts.loadGenreShows(g.id).catch(() => []))); const out: string[] = []; for (let i = 0; i < 4; i++) for (const l of lists) if (l[i]) out.push(l[i].id); return out; } });
   registerEarshotRoutes(app, authMiddleware, { store: supabaseEarshotStore(getAdminSupabase), directory: podcasts, adStore: podcastAds, player: podcastPlayer, socialDb: getAdminSupabase });
   registerPodscrollRoutes(app, supabaseEarshotStore(getAdminSupabase, "podscroll"), undefined, podcasts, podcastAds, podcastPlayer, getAdminSupabase, { sendEmail: (to, subject, html) => sendEmail(to, subject, html) });
+  // Contact us (server/supportContact.ts): Arise To Duo's and Pod+'s Support pages and apps.
+  registerSupportRoutes(app, {
+    deliver: async (m) => {
+      const esc = (v: string) => v.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+      const html = `<h2 style="margin:0 0 8px">${esc(m.app)} support: ${esc(m.topic)}</h2><p style="margin:0 0 12px;color:#555">From ${esc(m.name || "someone")} &lt;${esc(m.email)}&gt;. Reply to this email to answer them.</p><p style="white-space:pre-wrap;margin:0">${esc(m.message)}</p>`;
+      const sent = await sendEmail(ADMIN_NOTIFY_EMAIL, `${m.app} support: ${m.topic}`, html, { replyTo: m.email }).catch(() => ({ sent: false }));
+      alertAdmin("problem_report", { title: `${m.app} support: ${m.topic}`, summary: `${m.name || m.email}: ${m.message.slice(0, 120)}`, lines: [["From", `${m.name} <${m.email}>`], ["Topic", m.topic], ["Message", m.message.slice(0, 1500)]] });
+      return sent.sent;
+    },
+  });
   attachLivePods(httpServer, getAdminSupabase);
   { const extra = String(process.env.PODSCROLL_ORIGINS || "").split(",").map((x) => x.trim()).filter(Boolean); attachListenParties(httpServer, (origin) => podscrollAllowed(origin, extra)); }
   registerPassLockRoutes(app, authMiddleware, { passwordHash: async (id) => (await storage.getUser(id))?.password });
@@ -7288,6 +7310,43 @@ export async function registerRoutes(
     res.json({ ok: true });
   });
 
+  // Delete my own account (App Store Guideline 5.1.1(v)): the person confirms with their password and
+  // the word DELETE. Everything that belongs to them goes (deleteUserAccount), with their podcast
+  // social profile, posts and messages. If the database still holds something that points at them,
+  // the account is closed at once (signed out, hidden) and the admin is told to finish it.
+  const selfDeletes = new Map<number, number[]>();
+  app.post("/api/account/delete", authMiddleware, async (req: any, res) => {
+    try {
+      const userId = Number(req.user?.id);
+      if (!Number.isSafeInteger(userId) || userId < 1) return res.status(401).json({ message: "Sign in again, then try." });
+      if (req.user?.isAdmin) return res.status(400).json({ message: "The admin account can't delete itself here. Make another admin first, or write to support." });
+      if (String(req.body?.confirm || "") !== "DELETE") return res.status(400).json({ message: "Type DELETE to confirm." });
+      const now = Date.now();
+      const tries = (selfDeletes.get(userId) || []).filter((t) => now - t < 15 * 60_000);
+      if (tries.length >= 5) return res.status(429).json({ message: "Too many tries. Wait a few minutes and try again." });
+      const password = typeof req.body?.password === "string" ? req.body.password : "";
+      const { data: row } = await supabase.from("users").select("password").eq("id", userId).maybeSingle();
+      const ok = !!row?.password && !!password && (await bcrypt.compare(password, row.password));
+      if (!ok) { selfDeletes.set(userId, [...tries, now]); return res.status(400).json({ message: "That password isn't right." }); }
+      selfDeletes.delete(userId);
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Account deletion isn't set up on the server yet. Write to support and we'll delete it for you." });
+      const target = await storage.getUser(userId);
+      const who = personName(target);
+      try { await deletePodData(getAdminSupabase(), [`u${userId}`]); } catch (e: any) { console.warn("[account-delete] podcast data:", e?.message); }
+      const { blockedBy } = await deleteUserAccount(userId);
+      if (blockedBy) {
+        await archiveProfile(userId, true, userId).catch(() => "missing");
+        alertAdmin("problem_report", { title: "Finish deleting an account", summary: `${who} deleted their account; ${blockedBy.replace(/_/g, " ")} still points at it.`, lines: [["User id", userId], ["Blocked by", blockedBy]], note: "The account is archived (signed out and hidden). Remove the rows in that table, then delete the user under Admin > Users.", ref: `u${userId}` });
+        return res.json({ ok: true, pending: true, message: "Your account is closed and signed out. The last of its data is removed within 7 days." });
+      }
+      alertAdmin("problem_report", { title: "An account was deleted", summary: `${who} deleted their own account.`, lines: [["User id", userId], ["Role", target?.role || "student"]] });
+      res.json({ ok: true });
+    } catch (e: any) {
+      console.error("[account-delete] Failed:", e?.message);
+      res.status(500).json({ message: "That didn't work. Try again, or write to support and we'll delete it for you." });
+    }
+  });
+
   // Change password (any logged-in user)
   app.post("/api/change-password", authMiddleware, async (req: any, res) => {
     const { currentPassword, newPassword } = req.body;
@@ -12611,15 +12670,13 @@ Important:
   });
 
   // Admin: delete user
-  app.delete("/api/admin/users/:userId", authMiddleware, adminMiddleware, async (req: any, res) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      if (!Number.isSafeInteger(userId) || userId < 1) return res.status(400).json({ message: "Invalid user." });
-      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Admin deletion is not configured on the server." });
-
+  /**
+   * Deletes a person's account and what belongs to them: the shared clean-up behind the admin's
+   * Delete button and a person deleting their own account (App Store Guideline 5.1.1(v)).
+   * Returns the table that still points at them if the database refused.
+   */
+  async function deleteUserAccount(userId: number): Promise<{ blockedBy?: string }> {
       const adminDb = getAdminSupabase();
-      const target = await storage.getUser(userId);
-      if (!target) return res.status(404).json({ message: "User not found." });
 
       // Most rows that belong to the person are removed by the database when the user is
       // deleted (on delete cascade). These are cleared first anyway, in an order that
@@ -12709,7 +12766,7 @@ Important:
         const blocked = /foreign key constraint .*on table "([^"]+)"/i.exec(error.message || "");
         if (blocked) {
           console.error("[admin-delete] Blocked by", blocked[1]);
-          return res.status(409).json({ message: `This profile still has ${blocked[1].replace(/_/g, " ")} linked to it, so it can't be deleted yet. Archive it instead to hide it right away.` });
+          return { blockedBy: blocked[1] };
         }
         throw new Error(error.message);
       }
@@ -12722,6 +12779,19 @@ Important:
       clearCache('eye_gaze_leaderboard');
       clearCache('advisoryLeaderboard');
 
+    return {};
+  }
+
+  app.delete("/api/admin/users/:userId", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (!Number.isSafeInteger(userId) || userId < 1) return res.status(400).json({ message: "Invalid user." });
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Admin deletion is not configured on the server." });
+
+      const target = await storage.getUser(userId);
+      if (!target) return res.status(404).json({ message: "User not found." });
+      const { blockedBy } = await deleteUserAccount(userId);
+      if (blockedBy) return res.status(409).json({ message: `This profile still has ${blockedBy.replace(/_/g, " ")} linked to it, so it can't be deleted yet. Archive it instead to hide it right away.` });
       res.json({ success: true, deletedRole: target.role || (target.isAdmin ? "admin" : "student") });
     } catch (error: any) {
       console.error("[admin-delete] Failed:", error?.message);

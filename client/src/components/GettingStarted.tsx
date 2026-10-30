@@ -120,7 +120,7 @@ export default function GettingStarted({ hub, startRole, canOpen, onOpen, onRemo
     </section>
 
     <footer className="flex flex-col items-start gap-3 rounded-2xl border border-dashed border-slate-300 p-4 sm:flex-row sm:items-center">
-      <p className="min-w-0 flex-1 text-sm text-slate-600">Done with this page? Remove it from your menu. You can add it back any time from the App Store.</p>
+      <p className="min-w-0 flex-1 text-sm text-slate-600">Done with this page? Remove it from your menu. You can add it back any time from the App Gallery.</p>
       <button type="button" onClick={onRemove} data-testid="gs-remove" className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 hover:bg-slate-50"><Trash2 className="h-4 w-4" /> Remove from menu</button>
     </footer>
   </div>;
