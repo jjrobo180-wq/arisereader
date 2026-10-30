@@ -1,6 +1,6 @@
 name: Pod+ signed iOS beta validation
 # Development beta validation only. Upload is a separate, explicitly approved release step.
-# Release: Bring your shows from another app; slimmer Continue listening.
+# Release: Continue listening as a row you swipe sideways.
 on:
   workflow_dispatch:
   push:
