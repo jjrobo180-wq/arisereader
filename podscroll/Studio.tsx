@@ -80,7 +80,7 @@ function usePodPlayer(api: Api, apiBase: string) {
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
   const ask = async (m: Made): Promise<VoiceStatus> => {
     for (let tries = 0; ; tries++) {
-      try { return await api("/api/earshot/studio/voice", { method: "POST", body: { lines: m.lines, solo: m.solo } }); }
+      try { return await api("/api/earshot/studio/voice", { method: "POST", body: { lines: m.lines, solo: m.solo, progress: true } }); }
       catch (e: any) { if (tries >= 2 || /set up|a lot in the last hour/i.test(String(e?.message))) throw e; await sleep(2000); }
     }
   };

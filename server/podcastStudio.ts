@@ -207,7 +207,7 @@ export function registerStudioRoutes(app: Express, gate: RequestHandler, o: { as
   // Making the sound: one piece per line, in order, in the background. The app starts playing the
   // first line as soon as it's made and keeps asking how far along the rest is, so a long episode
   // starts in seconds and a busy voice service just means a short wait, never an error.
-  type Job = { lines: Line[]; parts: ({ audio: Buffer; type: string } | null)[]; secs: number[]; failed: boolean; at: number };
+  type Job = { lines: Line[]; parts: ({ audio: Buffer; type: string } | null)[]; secs: number[]; failed: boolean; at: number; working?: Promise<void> };
   const jobs = new Map<string, Job>();
   const partKey = (key: string, n: number) => `${key}:${n}`;
   const run = async (key: string, job: Job) => {
@@ -231,15 +231,28 @@ export function registerStudioRoutes(app: Express, gate: RequestHandler, o: { as
     if (!lines.length) return res.status(400).json({ message: "Nothing to say." });
     const key = audioKey(lines);
     const job = jobs.get(key);
-    if (job && !job.failed) return res.json(status(key, job));
+    if (job && !job.failed) {
+      if (req.body?.progress === true) return res.json(status(key, job));
+      await job.working?.catch(() => {});
+      if (await haveWhole(key)) return res.json({ id: key });
+      return res.status(503).json({ message: "Update Pod+ to hear this one.", noVoice: true, busy: false });
+    }
     if (await haveWhole(key)) return res.json({ id: key, whole: true, done: true, parts: 0, made: [], secs: [] });
     if (!o.speak) return res.status(503).json({ message: "Voices aren't set up on this site yet.", noVoice: true, busy: false });
     if (!job && limited(voices, String(req.user?.id || ""), res)) return;
     const fresh: Job = { lines, parts: lines.map(() => null), secs: lines.map((l) => l.text.length / 15), failed: false, at: Date.now() };
     jobs.set(key, fresh);
     for (const [k, j] of jobs) if (Date.now() - j.at > 60 * 60_000) jobs.delete(k);
-    run(key, fresh).then(() => setTimeout(() => { if (jobs.get(key) === fresh) jobs.delete(key); }, 10 * 60_000).unref?.())
+    const working = run(key, fresh);
+    fresh.working = working;
+    working.then(() => setTimeout(() => { if (jobs.get(key) === fresh) jobs.delete(key); }, 10 * 60_000).unref?.())
       .catch((e: any) => { fresh.failed = true; console.error("[studio] voice failed:", String(e?.message || e).slice(0, 200)); });
+    // An app from before line-by-line playing waits for the whole file, as it always did.
+    if (req.body?.progress !== true) {
+      await working.catch(() => {});
+      if (await haveWhole(key)) return res.json({ id: key });
+      return res.status(503).json({ message: "Update Pod+ to hear this one.", noVoice: true, busy: false });
+    }
     return res.json(status(key, fresh));
   });
   /** One line's sound, once it's made. */

@@ -57,7 +57,7 @@ test("routes: write, voice, then fetch the audio (with ranges)", async () => {
     assert.equal(made.title, "Bio");
     assert.equal(made.lines.length, 2);
     assert.equal(asked, 1);
-    const ask = async () => (await fetch(`${base}/api/podscroll/studio/voice`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lines: made.lines }) })).json();
+    const ask = async () => (await fetch(`${base}/api/podscroll/studio/voice`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lines: made.lines, progress: true }) })).json();
     let voice = await ask();
     assert.equal(voice.id, made.audio);
     assert.equal(voice.parts, 2);
@@ -93,7 +93,7 @@ test("lines in different kinds of sound (a backup voice) still play, one after a
   const base = `http://127.0.0.1:${(server.address() as any).port}`;
   try {
     const lines = [{ speaker: "A", text: "One" }, { speaker: "B", text: "Two" }];
-    const ask = async () => (await fetch(`${base}/api/podscroll/studio/voice`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lines }) })).json();
+    const ask = async () => (await fetch(`${base}/api/podscroll/studio/voice`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lines, progress: true }) })).json();
     let v = await ask();
     for (let i = 0; i < 50 && !v.done; i++) { await new Promise((r) => setTimeout(r, 20)); v = await ask(); }
     assert.equal(v.done, true);
