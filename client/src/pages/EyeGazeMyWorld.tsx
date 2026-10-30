@@ -227,16 +227,7 @@ export default function EyeGazeMyWorld() {
   const speak = (text: string) => {
     if (!text) return;
     stopSpeaking();
-    void speakCharacterAI(text, {
-      calmMode: true,
-      onFallback: () => {
-        if (!("speechSynthesis" in window)) return;
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 0.84;
-        window.speechSynthesis.speak(utterance);
-      },
-    });
+    void speakCharacterAI(text, { calmMode: true });
   };
 
   const load = async () => {

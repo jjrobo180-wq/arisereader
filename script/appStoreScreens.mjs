@@ -132,6 +132,10 @@ await shot("podplus-meeting-pod", async (p) => { await p.goto(`${P}/app/#/meetin
 await shot("podplus-create-sheet", async (p) => { await pod(p); await p.getByTestId("pod-tab-create").click(); await wait(p, 800); });
 await shot("workhub-home", (p) => sample(p, "/hub"));
 await shot("workhub-tab-you", async (p) => { await sample(p, "/hub"); await p.frameLocator("#f").getByTestId("hub-tab-you").click(); await wait(p, 600); });
+await shot("podplus-continue", async (p) => {
+  await p.addInitScript(() => { try { localStorage.setItem("earshot.spots", JSON.stringify({ "1000650000001": { t: 1260, secs: 3300, title: "How the Universe Began, Part 2", show: "Sample Science Show", showId: "1", art: "", at: Date.now() } })); } catch {} });
+  await pod(p);
+});
 await shot("podplus-privacy", async (p) => { await p.goto(`${P}/privacy/`); await wait(p, 500); });
 await shot("podplus-support-dark", async (p) => { await p.goto(`${P}/support/`); await wait(p, 500); }, { dark: true });
 

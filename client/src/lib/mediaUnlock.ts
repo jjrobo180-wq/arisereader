@@ -7,7 +7,7 @@
 // So, on every tap (and key press):
 //  - every game sound engine (AudioContext) that is still waiting gets started;
 //  - on the first one, the one shared voice player (voiceElement) is started with a moment of
-//    silence and the device voice says nothing quietly — after that both may play at any time.
+//    silence — after that it may play at any time.
 // The voice lines (lib/tts.ts) all play through voiceElement for that reason.
 
 const SILENT = "data:audio/wav;base64,UklGRrQBAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YZABAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
@@ -44,13 +44,6 @@ function onGesture() {
     el.src = SILENT;
     void el.play().then(() => { if (el.src === SILENT) el.pause(); }).catch(() => { unlocked = false; });
   }
-  try {
-    if ("speechSynthesis" in window && !window.speechSynthesis.speaking) {
-      const u = new SpeechSynthesisUtterance(" ");
-      u.volume = 0;
-      window.speechSynthesis.speak(u);
-    }
-  } catch { /* no device voice */ }
 }
 
 /** Called once at start-up (main.tsx). */

@@ -14,10 +14,13 @@ import { Home } from "./Home";
 import { AuthScreen } from "./Auth";
 import { downloads, installDownloads } from "./downloads";
 import "./styles.css";
+import { configureAiVoice } from "../client/src/lib/aiVoice";
 
 // The shared social screens read this to link to Pod+'s own policies and support (social/Rules.tsx).
 (window as any).__PODPLUS__ = true;
 const API = String(import.meta.env.VITE_PODSCROLL_API || "https://arisereader.onrender.com").replace(/\/$/, "");
+// Spoken lines (recaps, Read along) use the AI voices on the Arise server, never the phone's robot voice.
+configureAiVoice({ base: API });
 const KEY = "podscroll.v1";
 type PageTab = "openmic" | "social" | "library";
 const STARTER_GENRES = ["comedy", "news", "science", "tech", "truecrime", "history", "business", "culture"];

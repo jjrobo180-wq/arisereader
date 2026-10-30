@@ -50,10 +50,7 @@ function speakThen(text: string, voice: boolean, onEnd?: () => void) {
   if (!voice) { if (onEnd) window.setTimeout(onEnd, 500 + text.length * 35); return; }
   let fell = false, ended = false; const end = () => { if (ended) return; ended = true; onEnd?.(); };
   const guard = window.setTimeout(end, 4000 + text.length * 90); // never get stuck if a voice never reports finishing
-  void speakCharacterAI(text, { calmMode: false, onEnd: () => { if (!fell) { window.clearTimeout(guard); end(); } }, onFallback: () => {
-    fell = true;
-    try { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate = 0.92; u.pitch = 1.08; u.onend = () => { window.clearTimeout(guard); end(); }; window.speechSynthesis.speak(u); } catch { window.clearTimeout(guard); end(); }
-  } });
+  void speakCharacterAI(text, { calmMode: false, onEnd: () => { if (!fell) { window.clearTimeout(guard); end(); } }, onFallback: () => { fell = true; window.clearTimeout(guard); end(); } });
 }
 
 export default function AnimalSplashGame({ onBack }: { onBack: () => void }) {

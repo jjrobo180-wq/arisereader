@@ -3,6 +3,7 @@
 // minutes), the Hours back counter, and timed comments popping up as their moment plays.
 // Imports nothing from the Arise app (Pod+ uses it too).
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { sayAI, stopAiVoice } from "../../../lib/aiVoice";
 import { Car, Clock3, Loader2, MessageCircle, Play, Send, Sparkles, Volume2, X } from "lucide-react";
 import { clock, type Earshot as EarshotData, type PodEpisode, type SavedEpisode } from "@shared/earshot";
 import { driveSecs, fitDrive, hoursWords, sumKinds, weekKey, type AskMoment, type HoursBack } from "@shared/earshotListen";
@@ -84,20 +85,20 @@ export function CatchUpSheet({ ep, api, upTo, play, earlier, onResume, onClose }
   const [res, setRes] = useState<{ recap: string; points: string[] } | null>(null);
   const [err, setErr] = useState("");
   const [speaking, setSpeaking] = useState(false);
-  const canSpeak = typeof window !== "undefined" && "speechSynthesis" in window;
+  const canSpeak = true;
   const earlierKey = earlier.join(",");
   useEffect(() => {
     let on = true;
     api("/api/earshot/catchup", { method: "POST", body: { showId: ep.showId, episodeId: ep.id, upTo: Math.floor(upTo), earlier: earlierKey ? earlierKey.split(",") : [], ...(play ? { play } : {}) } })
       .then((b) => { if (on) setRes({ recap: b.recap, points: b.points || [] }); }).catch((e: any) => { if (on) setErr(e?.message || "Couldn't write a recap right now."); });
-    return () => { on = false; if (canSpeak) window.speechSynthesis.cancel(); };
+    return () => { on = false; stopAiVoice(); };
   }, [api, ep.id, ep.showId, upTo, play, earlierKey, canSpeak]);
   const speak = () => {
     if (!res || !canSpeak) return;
-    if (speaking) { window.speechSynthesis.cancel(); setSpeaking(false); return; }
-    const u = new SpeechSynthesisUtterance([res.recap, ...res.points].join(" "));
-    u.rate = 1.05; u.onend = () => setSpeaking(false); u.onerror = () => setSpeaking(false);
-    window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); setSpeaking(true);
+    if (speaking) { stopAiVoice(); setSpeaking(false); return; }
+    // An AI voice (lib/aiVoice.ts), never the phone's robot voice.
+    setSpeaking(true);
+    void sayAI([res.recap, ...res.points].join(" "), { rate: 1.05, onEnd: () => setSpeaking(false), onError: (m) => setErr(m) });
   };
   return <ListenSheet title="Catch me up" icon={<Clock3 size={17} style={{ color: ACCENT }} />} onClose={onClose}>
     <div className="overflow-y-auto px-4 py-4">
@@ -109,7 +110,7 @@ export function CatchUpSheet({ ep, api, upTo, play, earlier, onResume, onClose }
         {!!res.points.length && <ul className="mt-4 space-y-2">{res.points.map((p) => <li key={p} className="flex gap-2.5 text-sm leading-snug text-white/80"><span className="mt-1.5 h-1.5 w-1.5 flex-none rounded-full" style={{ background: ACCENT }} />{p}</li>)}</ul>}
       </>}
       <div className="mt-6 flex flex-wrap gap-2">
-        <button type="button" onClick={() => { if (canSpeak) window.speechSynthesis.cancel(); onResume(); }} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-[#111013]"><Play size={15} fill="currentColor" strokeWidth={0} />{upTo >= 60 ? `Pick up at ${clock(upTo)}` : "Start listening"}</button>
+        <button type="button" onClick={() => { stopAiVoice(); onResume(); }} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-[#111013]"><Play size={15} fill="currentColor" strokeWidth={0} />{upTo >= 60 ? `Pick up at ${clock(upTo)}` : "Start listening"}</button>
         {res && canSpeak && <button type="button" onClick={speak} aria-pressed={speaking} className="flex min-h-11 items-center gap-2 rounded-full bg-white/10 px-4 text-sm font-semibold"><Volume2 size={16} />{speaking ? "Stop" : "Read it to me"}</button>}
       </div>
     </div>

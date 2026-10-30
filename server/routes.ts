@@ -74,7 +74,7 @@ import { attachLivePods } from "./podcastLive";
 import { attachListenParties } from "./podcastParty";
 import { createDirectory as createPodcastDirectory, supabaseKV } from "./podcastDirectory";
 import { startPrechecks as startPodcastPrechecks } from "./podcastPrecheck";
-import { groqSpeech, hasGroqVoice, voiceFor } from "./groqVoice";
+import { aiSpeech, hasAiVoice, hasGroqVoice, voiceFor } from "./groqVoice";
 import { supabaseBlobs } from "./blobStore";
 import { GENRES as PODCAST_GENRES } from "../shared/earshot";
 import { supabaseAdStore } from "./podcastAds";
@@ -9434,7 +9434,7 @@ Important:
   app.get("/api/eye-gaze/tts/status", (_req, res) => {
     const groq = !openAiVoiceOn() && hasGroqVoice();
     res.json({
-      configured: openAiVoiceOn() || hasGroqVoice(),
+      configured: openAiVoiceOn() || hasAiVoice(),
       provider: openAiVoiceOn() ? "openai" : groq ? "groq" : null,
       model: openAiVoiceOn() ? "gpt-4o-mini-tts" : groq ? (process.env.BOOK_TTS_MODEL || "canopylabs/orpheus-v1-english") : null,
     });
@@ -9519,10 +9519,11 @@ Important:
       // Groq's Orpheus voices (server/groqVoice.ts).
       const apiKey = process.env.OPENAI_API_KEY;
       const openAiOn = !!apiKey && apiKey !== "routed-to-grok";
-      if (!openAiOn && !hasGroqVoice()) {
+      if (!openAiOn && !hasAiVoice()) {
         return res.status(503).json({ message: "AI voice is not configured." });
       }
-      const groqVoice = () => groqSpeech(text, voiceFor(style, calmMode, sleepVoice)).then((s) => s.audio);
+      // Groq's Orpheus voice, then Deepgram's Aura (server/groqVoice.ts aiSpeech): always a real AI voice.
+      const groqVoice = () => aiSpeech(text, voiceFor(style, calmMode, sleepVoice)).then((s) => s.audio);
 
       const cacheKey = `${style}|${style === "sleep" ? sleepVoice : calmMode ? "calm" : "normal"}|${text}`;
       let cached = ttsAudioCache.get(cacheKey);
@@ -9542,7 +9543,7 @@ Important:
       let pending = ttsAudioInFlight.get(cacheKey);
       if (!pending) {
         pending = openAiOn
-          ? generateTtsAudio(text, calmMode, apiKey!, style, sleepVoice).catch((e) => (hasGroqVoice() ? groqVoice() : Promise.reject(e)))
+          ? generateTtsAudio(text, calmMode, apiKey!, style, sleepVoice).catch((e) => (hasAiVoice() ? groqVoice() : Promise.reject(e)))
           : groqVoice();
         ttsAudioInFlight.set(cacheKey, pending);
       }
@@ -9569,6 +9570,50 @@ Important:
       console.error("[eye-gaze-tts] failed:", error?.message);
       res.status(500).json({ message: "Could not create AI voice." });
     }
+  });
+
+  // Any spoken line in the apps (Daily brief, games, stories, poems, the Bookstore, the Sleep app,
+  // Pod+): a real AI voice, made once and kept (voice-cache). Signed in or not (the Pod+ app and the
+  // public pages have no Arise sign-in), so it is limited by address and by length instead.
+  const sayVoices = new Set(["hannah", "autumn", "diana", "austin", "daniel", "troy"]);
+  const sayLimit = createAttemptLimiter({ max: 240, windowMs: 10 * 60_000 });
+  const sayMade = new Map<string, Promise<{ audio: Buffer; type: string }>>();
+  app.options("/api/voice/say", (req, res) => {
+    const origin = String(req.headers.origin || "");
+    if (origin === "capacitor://localhost" || /^https:\/\/podscroll[a-z0-9-]*\.onrender\.com$/.test(origin) || /^https:\/\/(www\.)?podscroll\.app$/.test(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+      res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    }
+    res.status(204).end();
+  });
+  app.post("/api/voice/say", async (req, res) => {
+    const origin = String(req.headers.origin || "");
+    if (origin === "capacitor://localhost" || /^https:\/\/podscroll[a-z0-9-]*\.onrender\.com$/.test(origin) || /^https:\/\/(www\.)?podscroll\.app$/.test(origin)) { res.setHeader("Access-Control-Allow-Origin", origin); res.setHeader("Vary", "Origin"); }
+    const text = String(req.body?.text || "").replace(/\s+/g, " ").trim();
+    const voice = sayVoices.has(String(req.body?.voice)) ? String(req.body.voice) : "hannah";
+    if (!text) return res.status(400).json({ message: "Nothing to say." });
+    if (text.length > 4000) return res.status(400).json({ message: "That's too long to read in one go." });
+    if (!hasAiVoice()) return res.status(503).json({ message: "AI voice is not set up on this site yet." });
+    const key = `say:${voice}:${text}`;
+    let hit: { audio: Buffer; type: string } | null = ttsAudioCache.get(key) ? { audio: ttsAudioCache.get(key)!.audio, type: isWav(ttsAudioCache.get(key)!.audio) ? "audio/wav" : "audio/mpeg" } : null;
+    if (!hit) { const b = await ttsBlobs.get(key); if (b) { hit = { audio: b.data, type: b.type || "audio/mpeg" }; rememberTtsAudio(key, b.data); } }
+    if (!hit) {
+      const ip = clientAddress(req);
+      const wait = sayLimit.retryAfter(ip);
+      if (wait > 0) { res.set("Retry-After", String(Math.ceil(wait / 1000))); return res.status(429).json({ message: `The voice needs a short rest. Try again in ${waitWords(wait)}.` }); }
+      sayLimit.fail(ip);
+      let pending = sayMade.get(key);
+      if (!pending) { pending = aiSpeech(text, voice).then((s) => ({ audio: s.audio, type: s.type })); sayMade.set(key, pending); }
+      try { hit = await pending; }
+      catch (e: any) { console.error("[voice-say] failed:", String(e?.message || e).slice(0, 200)); return res.status(503).json({ message: "The AI voice is busy right now. Try again in a moment." }); }
+      finally { if (sayMade.get(key) === pending) sayMade.delete(key); }
+      rememberTtsAudio(key, hit.audio);
+      void ttsBlobs.put(key, hit.audio, hit.type);
+    }
+    res.setHeader("Content-Type", hit.type);
+    res.setHeader("Cache-Control", "private, max-age=86400");
+    res.send(hit.audio);
   });
 
   // A short, opt-in recording is transcribed for the Talker's word practice.

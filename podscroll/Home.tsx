@@ -628,6 +628,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
         </div>
       </div>}
 
+      {chip === "all" && <ContinueListening nowPod={nowPod} visible={visible} onToggle={onPodToggle} onOpenNow={onPodOpen}
+        onResume={(id, sp) => onOpenFeed({ showId: sp.showId, episodeId: id })} />}
       {chip === "all" && !pro && <section aria-label="Pod+ Membership" className="ps-keep relative mb-6 mt-1 overflow-hidden rounded-2xl bg-[#0f0f0f] text-white ring-1 ring-white/10">
         <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div className="min-w-0">
@@ -971,4 +973,64 @@ function TopicResults({ topic, api, ex, onOpen, top }: { topic: string; api: Api
       {list.length ? <div className="mt-2"><p className="mb-1 text-[12px] font-semibold uppercase tracking-[.14em] text-[#767676]">Every episode, newest first</p><Endless resetKey={topic} seed={list} more={moreFn} grid={(l) => <Grid list={l} onOpen={onOpen} />} /></div> : <p className="py-16 text-center text-[#606060]">Nothing mentions “{topic}” yet. Try a different spelling.</p>}
     </>}
   </div>;
+}
+
+
+// ---- Continue listening: the episode you were on, and the ones you didn't finish ----
+// Each podcast's spot is kept on this device by the player (EarshotPlayer saveSpot, "earshot.spots"),
+// and playing an episode again starts from there, so a tap here picks up where you stopped.
+type Spot = { t: number; secs: number; title: string; show: string; showId: string; art: string; at: number };
+function readSpotsHere(): [string, Spot][] {
+  try {
+    const v = JSON.parse(localStorage.getItem("earshot.spots") || "{}");
+    if (!v || typeof v !== "object") return [];
+    return (Object.entries(v) as [string, Spot][]).filter(([, s]) => s && s.showId && s.title && s.t > 0).sort((a, b) => b[1].at - a[1].at);
+  } catch { return []; }
+}
+const leftWords = (s: Spot) => { if (!s.secs) return `${Math.max(1, Math.round(s.t / 60))} min in`; const m = Math.max(1, Math.round((s.secs - s.t) / 60)); return m >= 60 ? `${Math.floor(m / 60)} hr ${m % 60} min left` : `${m} min left`; };
+
+function ContinueListening({ nowPod, visible, onToggle, onOpenNow, onResume }: { nowPod: NowPlaying | null; visible: boolean; onToggle?: () => void; onOpenNow?: () => void; onResume: (id: string, s: Spot) => void }) {
+  const [spots, setSpots] = useState<[string, Spot][]>(readSpotsHere);
+  // Fresh every time Home is shown (the player saves spots while it plays).
+  useEffect(() => { if (visible) setSpots(readSpotsHere()); }, [visible, nowPod?.title]);
+  const hide = (id: string) => {
+    try { const v = JSON.parse(localStorage.getItem("earshot.spots") || "{}"); delete v[id]; localStorage.setItem("earshot.spots", JSON.stringify(v)); } catch { /* not kept */ }
+    setSpots((x) => x.filter(([k]) => k !== id));
+  };
+  const rest = spots.filter(([, s]) => !nowPod || s.title !== nowPod.title).slice(0, 8);
+  const top = nowPod ? null : rest[0];
+  const others = nowPod ? rest : rest.slice(1);
+  if (!nowPod && !top) return null;
+  return <section aria-label="Continue listening" className="mb-6 mt-1" data-testid="pod-continue">
+    {nowPod ? <div className="ps-keep flex items-center gap-3 rounded-2xl bg-[#0f0f0f] p-3 text-white ring-1 ring-white/10 sm:p-4">
+      <button onClick={onOpenNow} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Open ${nowPod.title}`}>
+        <img src={nowPod.art} alt="" referrerPolicy="no-referrer" className="h-16 w-16 shrink-0 rounded-xl object-cover" />
+        <span className="min-w-0"><span className="block text-[11px] font-bold uppercase tracking-[.14em] text-[#ff8a3d]">{nowPod.playing ? "Now playing" : "Paused · pick up where you left off"}</span>
+          <span className="mt-0.5 line-clamp-2 block text-[15px] font-semibold leading-snug">{nowPod.title}</span><span className="block truncate text-xs text-white/60">{nowPod.show}</span></span>
+      </button>
+      <button onClick={onToggle} data-testid="pod-continue-toggle" className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-white px-4 text-sm font-semibold text-[#0f0f0f]">{nowPod.playing ? <><Pause size={16} fill="currentColor" strokeWidth={0} />Pause</> : <><Play size={16} fill="currentColor" strokeWidth={0} />Resume</>}</button>
+    </div> : top && <div className="ps-keep flex items-center gap-3 rounded-2xl bg-[#0f0f0f] p-3 text-white ring-1 ring-white/10 sm:p-4">
+      <button onClick={() => onResume(top[0], top[1])} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Continue ${top[1].title}`}>
+        <img src={top[1].art} alt="" referrerPolicy="no-referrer" className="h-16 w-16 shrink-0 rounded-xl object-cover" />
+        <span className="min-w-0 flex-1"><span className="block text-[11px] font-bold uppercase tracking-[.14em] text-[#ff8a3d]">Finish this episode · {leftWords(top[1])}</span>
+          <span className="mt-0.5 line-clamp-2 block text-[15px] font-semibold leading-snug">{top[1].title}</span><span className="block truncate text-xs text-white/60">{top[1].show}</span>
+          {top[1].secs > 0 && <span className="mt-2 block h-1 overflow-hidden rounded-full bg-white/20"><span className="block h-full rounded-full bg-[#ff6a1f]" style={{ width: `${Math.min(100, (top[1].t / top[1].secs) * 100)}%` }} /></span>}</span>
+      </button>
+      <button onClick={() => onResume(top[0], top[1])} data-testid="pod-continue-play" className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-white px-4 text-sm font-semibold text-[#0f0f0f]"><Play size={16} fill="currentColor" strokeWidth={0} />Continue</button>
+    </div>}
+    {others.length > 0 && <>
+      <h2 className="mb-2 mt-4 text-base font-bold">Continue listening</h2>
+      <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden">
+        {others.map(([id, sp]) => <div key={id} className="relative w-40 shrink-0 snap-start">
+          <button onClick={() => onResume(id, sp)} className="block w-full text-left" aria-label={`Continue ${sp.title}`}>
+            <span className="relative block aspect-square overflow-hidden rounded-xl bg-[#f2f2f2]"><img src={sp.art} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
+              {sp.secs > 0 && <span className="absolute inset-x-0 bottom-0 h-1 bg-black/30"><span className="block h-full bg-[#ff6a1f]" style={{ width: `${Math.min(100, (sp.t / sp.secs) * 100)}%` }} /></span>}</span>
+            <span className="mt-1.5 line-clamp-2 block text-[13px] font-semibold leading-snug">{sp.title}</span>
+            <span className="block truncate text-xs text-[#606060]">{leftWords(sp)}</span>
+          </button>
+          <button onClick={() => hide(id)} aria-label={`Remove ${sp.title} from Continue listening`} className="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-full bg-black/55 text-white"><X size={14} /></button>
+        </div>)}
+      </div>
+    </>}
+  </section>;
 }

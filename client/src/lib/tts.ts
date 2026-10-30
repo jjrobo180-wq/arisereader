@@ -1,7 +1,8 @@
 import { voiceElement } from "@/lib/mediaUnlock";
 import { API_BASE } from "@/lib/queryClient";
+import { sayAI, stopAiVoice } from "@/lib/aiVoice";
 
-// TTS helper for Eye Gaze quizzes using Web Speech API
+// TTS helper for Eye Gaze quizzes: AI voices only (the Learning Buddy voice, then lib/aiVoice.ts)
 // Improved: better voices, subtitles, hover-to-read, correct animal sound logic
 
 // Animal sound mapping - only used when the question asks "what animal is this?"
@@ -109,10 +110,8 @@ let activeBuddyAbortController: AbortController | null = null;
 let activeBuddyOnEnd: (() => void) | null = null;
 
 function stopActiveBuddyVoice(notifyEnd = false) {
-  // Stop any old browser/system speech too, so neural + browser voices can never overlap.
-  if ("speechSynthesis" in window) {
-    window.speechSynthesis.cancel();
-  }
+  // The backup AI voice too (lib/aiVoice.ts), so two lines never overlap.
+  stopAiVoice();
 
   if (activeBuddyAbortController) {
     activeBuddyAbortController.abort();
@@ -201,13 +200,18 @@ export async function speakCharacterAI(
   }
 ): Promise<boolean> {
   const token = getSessionToken();
-  if (!token || !text.trim()) {
-    options?.onFallback?.();
-    return false;
-  }
+  if (!text.trim()) return false;
 
   const requestId = ++activeBuddyRequestId;
   stopActiveBuddyVoice();
+  // The Learning Buddy voice couldn't play (not signed in, busy, failed): the same words in the
+  // general AI voice (lib/aiVoice.ts). Never the device's robot voice; onFallback only means
+  // no AI voice could be reached at all.
+  const general = () => {
+    if (requestId !== activeBuddyRequestId) return;
+    void sayAI(text, { voice: options?.calmMode ? "autumn" : "hannah", onStart: options?.onStart, onEnd: options?.onEnd, onError: () => options?.onFallback?.() });
+  };
+  if (!token) { general(); return false; }
 
   try {
     const calmMode = !!options?.calmMode;
@@ -240,7 +244,7 @@ export async function speakCharacterAI(
       if (requestId !== activeBuddyRequestId) return false;
 
       if (!response.ok) {
-        options?.onFallback?.();
+        general();
         return false;
       }
 
@@ -296,8 +300,7 @@ export async function speakCharacterAI(
       if (activeBuddyAudio === audio) activeBuddyAudio = null;
       if (requestId === activeBuddyRequestId) {
         activeBuddyOnEnd = null;
-        options?.onFallback?.();
-        options?.onEnd?.();
+        general();
       }
     };
 
@@ -313,8 +316,7 @@ export async function speakCharacterAI(
       return false;
     }
     activeBuddyOnEnd = null;
-    options?.onFallback?.();
-    options?.onEnd?.();
+    general();
     return false;
   }
 }

@@ -1,4 +1,4 @@
-// Spoken lines for the stage games: the character voice when available, the browser voice as a fallback,
+// Spoken lines for the stage games: AI voices only (the character voice, then the general AI voice),
 // and a guaranteed "finished" callback so a game never waits forever for speech.
 import { speakCharacterAI, stopSpeaking } from "@/lib/tts";
 
@@ -7,9 +7,6 @@ export function say(text: string, voice: boolean, onEnd?: () => void, calm = fal
   stopSpeaking();
   let fell = false, ended = false; const end = () => { if (ended) return; ended = true; window.clearTimeout(guard); onEnd?.(); };
   const guard = window.setTimeout(end, 3500 + text.length * 90);
-  void speakCharacterAI(text, { calmMode: calm, onEnd: () => { if (!fell) end(); }, onFallback: () => {
-    fell = true;
-    try { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate = 0.92; u.pitch = 1.08; u.onend = end; window.speechSynthesis.speak(u); } catch { end(); }
-  } });
+  void speakCharacterAI(text, { calmMode: calm, onEnd: () => { if (!fell) end(); }, onFallback: () => { fell = true; end(); } });
 }
 export { stopSpeaking };

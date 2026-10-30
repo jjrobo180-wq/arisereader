@@ -1,13 +1,14 @@
 // Book Store (a premium app): every public-domain book on Arise in one store — 70+ classics for adults
 // (shared/classicsCatalog.ts, built by script/build_classics.py) and the children's books from Read on
 // Arise (shared/readsCatalog.ts). The store and reader borrow the Read on Arise layout; the reader adds a
-// read-aloud player built on the device's own voices (like the Poem reader's "Listen"), with the
+// read-aloud player in AI voices (lib/aiVoice.ts; never the phone's robot voice), with the
 // paragraph being read highlighted, speed, voice, a sleep timer and automatic next chapter.
 // Shelf, progress and settings are saved to the account (usePro), so they follow the reader.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CLASSIC_BOOKS } from "@shared/classicsCatalog";
 import { READABLE_BOOKS, readsDir } from "@shared/readsCatalog";
 import { usePro } from "../kit";
+import { AI_VOICES, aiVoiceOr, preloadAiVoice, sayAI, stopAiVoice } from "@/lib/aiVoice";
 import { BookCover } from "./covers";
 import { useReadsFonts } from "@/pages/reads/useReads";
 import "./bookstore.css";
@@ -33,7 +34,7 @@ const GENRE_NOTE: Record<string, string> = {
 const FEATURED = ["c-pride-and-prejudice", "c-the-great-gatsby", "c-dracula", "c-the-count-of-monte-cristo", "c-jane-eyre", "c-the-time-machine", "c-meditations", "c-the-picture-of-dorian-gray"];
 const readTime = (w: number) => { const m = Math.round(w / 230); return m < 60 ? `${Math.max(1, m)} min read` : `${Math.round(m / 6) / 10} hr read`; };
 const listenTime = (w: number) => { const m = Math.round(w / 160); return m < 60 ? `${Math.max(1, m)} min listen` : `${Math.round(m / 6) / 10} hr listen`; };
-const canSpeak = () => typeof window !== "undefined" && "speechSynthesis" in window && typeof SpeechSynthesisUtterance !== "undefined";
+const canSpeak = () => true;
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 function Cover({ b, className = "" }: { b: StoreBook; className?: string }) {
@@ -185,7 +186,6 @@ function collect(root: HTMLElement): Seg[] {
   }
   return out;
 }
-const goodVoice = (v: SpeechSynthesisVoice) => /natural|enhanced|premium|neural|samantha|daniel|karen|moira|serena|google (us|uk) english|aria|jenny|guy|libby|sonia/i.test(v.name);
 
 function Reader({ book: b, listen, data, setData, onClose }: { book: StoreBook; listen: boolean; data: Data; setData: (u: (d: Data) => Data) => void; onClose: () => void }) {
   const saved = data.prog[b.id];
@@ -206,7 +206,6 @@ function Reader({ book: b, listen, data, setData, onClose }: { book: StoreBook; 
   const [segs, setSegs] = useState<Seg[]>([]);
   const [playing, setPlaying] = useState(false);
   const [at, setAt] = useState(0);
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [sleepEnd, setSleepEnd] = useState<number | null>(null);
   const [sleepLeft, setSleepLeft] = useState("");
   const run = useRef(0);
@@ -267,14 +266,7 @@ function Reader({ book: b, listen, data, setData, onClose }: { book: StoreBook; 
     if (playAfterLoad.current && list.length) { playAfterLoad.current = false; window.setTimeout(() => speakFrom(0, list), 150); }
   }, [html]);
 
-  // Voices arrive late on some browsers.
-  useEffect(() => {
-    if (!canSpeak()) return;
-    const load = () => setVoices(window.speechSynthesis.getVoices().filter((v) => /^en/i.test(v.lang)));
-    load(); window.speechSynthesis.addEventListener?.("voiceschanged", load);
-    return () => { window.speechSynthesis.removeEventListener?.("voiceschanged", load); window.speechSynthesis.cancel(); };
-  }, []);
-  const voice = voices.find((v) => v.voiceURI === data.voice) ?? voices.find((v) => goodVoice(v) && v.localService) ?? voices.find(goodVoice) ?? voices.find((v) => v.default) ?? voices[0];
+  const voice = aiVoiceOr(data.voice);
 
   const mark = (list: Seg[], i: number) => {
     article.current?.querySelectorAll(".bs-say").forEach((n) => n.classList.remove("bs-say"));
@@ -286,22 +278,18 @@ function Reader({ book: b, listen, data, setData, onClose }: { book: StoreBook; 
   };
 
   function speakFrom(i: number, list = segs) {
-    if (!canSpeak()) return;
-    const synth = window.speechSynthesis;
     const id = ++run.current;
-    synth.cancel();
+    stopAiVoice();
     if (i >= list.length) { chapterEnded(); return; }
     setPlaying(true); setAt(i); mark(list, i);
-    const u = new SpeechSynthesisUtterance(list[i].text);
-    const v = voices.find((x) => x.voiceURI === live.current.data.voice) ?? voice;
-    if (v) u.voice = v;
-    u.rate = live.current.data.rate;
-    u.onend = () => { if (run.current === id && playingRef.current) speakFrom(i + 1, list); };
-    u.onerror = (e) => { if (run.current === id && e.error !== "interrupted" && e.error !== "canceled") { setPlaying(false); } };
-    synth.speak(u);
-    if (synth.paused) synth.resume();
+    const v = aiVoiceOr(live.current.data.voice);
+    // The next paragraph is made while this one is read, so there's no gap between them.
+    if (list[i + 1]) void preloadAiVoice(list[i + 1].text, v).catch(() => {});
+    let failed = false;
+    void sayAI(list[i].text, { voice: v, rate: live.current.data.rate, onError: () => { failed = true; if (run.current === id) setPlaying(false); },
+      onEnd: () => { if (!failed && run.current === id && playingRef.current) speakFrom(i + 1, list); } });
   }
-  function stop() { run.current++; setPlaying(false); if (canSpeak()) window.speechSynthesis.cancel(); }
+  function stop() { run.current++; setPlaying(false); stopAiVoice(); }
   function chapterEnded() {
     const { sleepEnd: se, index: idx, ch: c, data: d } = live.current;
     if (se === -1) { stop(); setSleepEnd(null); return; }
@@ -332,7 +320,7 @@ function Reader({ book: b, listen, data, setData, onClose }: { book: StoreBook; 
       ms.setActionHandler("previoustrack", () => speakFrom(Math.max(0, atRef.current - 1)));
     } catch { /* not supported */ }
   }, [ch, index, segs]);
-  useEffect(() => () => { run.current++; if (canSpeak()) window.speechSynthesis.cancel(); }, []);
+  useEffect(() => () => { run.current++; stopAiVoice(); }, []);
 
   function goCh(n: number, keepPlaying = false) {
     if (!index) return;
@@ -388,7 +376,7 @@ function Reader({ book: b, listen, data, setData, onClose }: { book: StoreBook; 
           <button type="button" className="bs-pbtn bs-pmore" onClick={() => setMore((m) => !m)} aria-expanded={more} aria-label="More listening options">⋯</button>
         </div>
         {more && <div className="bs-player-row bs-player-more">
-          {voices.length > 1 && <select className="bs-psel bs-voice" value={voice?.voiceURI ?? ""} onChange={(e) => setData((d) => ({ ...d, voice: e.target.value }))} aria-label="Voice">{voices.map((v) => <option key={v.voiceURI} value={v.voiceURI}>{v.name.replace(/^(Microsoft|Google) /, "")}</option>)}</select>}
+          <select className="bs-psel bs-voice" value={voice} onChange={(e) => setData((d) => ({ ...d, voice: e.target.value }))} aria-label="Voice">{AI_VOICES.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}</select>
           <select className="bs-psel" value={sleepEnd === -1 ? "-1" : sleepEnd ? "on" : "0"} onChange={(e) => { const v = e.target.value; setSleepEnd(v === "0" ? null : v === "-1" ? -1 : Date.now() + Number(v) * 60000); }} aria-label="Sleep timer">
             <option value="0">Sleep timer: off</option><option value="15">Stop in 15 min</option><option value="30">Stop in 30 min</option><option value="60">Stop in 1 hour</option><option value="-1">Stop at end of chapter</option>{sleepEnd && sleepEnd > 0 && <option value="on">Timer on</option>}
           </select>
