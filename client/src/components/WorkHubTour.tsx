@@ -54,6 +54,7 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
       targets: [
         { sel: '[data-testid="hub-menu-arise"]', label: "A.R.I.S.E. Reader" },
         { sel: '[data-testid="hub-rail-show"]', label: "Open your menu", note: "Your menu is tucked away. Tap this tab to open it." },
+        { sel: '[data-testid="hub-tab-apps"]', label: "Apps", note: "Tap Apps to see every section." },
       ],
     },
     {
@@ -98,7 +99,7 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
       teacherOnly: true,
       body: "Everything else for your class sits under A.R.I.S.E. Reader too: Scenes, Parents, Quizzes & grading, Game time, Prizes and Reading records.",
       open: { tab: "reader" },
-      targets: [{ sel: '[data-tour="hub-menu"]', label: "Your menu" }],
+      targets: [{ sel: '[data-tour="hub-menu"]', label: "Your menu" }, { sel: '[data-testid="hub-tab-apps"]', label: "Apps" }],
     },
     {
       title: "Arise Learning",
@@ -108,6 +109,7 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
         { sel: '[data-testid="hub-learning-heading"]', label: "Arise Learning" },
         { sel: '[data-testid="hub-learning-math"]', label: "Arise Learning" },
         { sel: '[data-testid="hub-rail-show"]', label: "Open your menu", note: "Your menu is tucked away. Tap this tab to open it." },
+        { sel: '[data-testid="hub-tab-apps"]', label: "Apps", note: "Tap Apps to see every section." },
       ],
     },
     {
@@ -117,6 +119,7 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
       targets: [
         { sel: '[data-testid="hub-add-with-ai"]', label: "Add with AI" },
         { sel: '[data-testid="quick-add-event"]', label: "Add" },
+        { sel: '[data-testid="hub-tab-add"]', label: "Add" },
       ],
     },
     {

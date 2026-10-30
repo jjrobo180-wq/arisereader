@@ -6,7 +6,7 @@ import { cleanShortcut, type HubShortcut } from "./hubShortcut";
 
 /** Where the menu sits on a phone. On a computer it is always the sidebar on the left. */
 /** "drawer" is an app drawer: a button at the bottom opens every section as app icons, like Android. */
-/** "tabs" is the floating tab bar along the bottom (Home, Tasks, Add, Apps, You); only LifeHub has it. */
+/** "tabs" is the floating tab bar along the bottom (Home, Tasks, Add, Apps, You), the phone default in both hubs. */
 export type MenuSide = "left" | "right" | "top" | "bottom" | "drawer" | "tabs";
 /** How the phone menu closes: a Hide button (and a tab to bring it back), never, or by itself after a section is picked. */
 export type MenuClose = "button" | "always" | "auto";
@@ -108,6 +108,8 @@ export type AnyLayout = {
   theme: HubThemeId;
   /** What the ⚡ button in the header opens (shared/hubShortcut.ts). Not set until the person picks something. */
   shortcut?: HubShortcut;
+  /** 2 once the floating tab bar became the phone default (see cleanAnyLayout). */
+  menuV?: 2;
 };
 
 /** A pinned app on Home is kept in `home`/`homeHidden`/`homeSize` under this id, so it never collides
@@ -124,7 +126,7 @@ export const widgetIdOf = (id: string): string => id.slice(2);
 /** WorkHub's layout. */
 export type HubLayout = AnyLayout & { home: HomeSection[]; homeHidden: HomeSection[]; homeSize: Partial<Record<HomeSection, HomeSize>> };
 
-export const DEFAULT_LAYOUT: HubLayout = { menuSide: "left", deskSide: "left", folders: [], menuClose: "button", home: HOME_SECTIONS.map((s) => s.id), homeHidden: ["picture", "widgets"], homeSize: {}, theme: DEFAULT_HUB_THEME };
+export const DEFAULT_LAYOUT: HubLayout = { menuSide: "tabs", deskSide: "left", folders: [], menuClose: "button", home: HOME_SECTIONS.map((s) => s.id), homeHidden: ["picture", "widgets"], homeSize: {}, theme: DEFAULT_HUB_THEME };
 
 /**
  * A saved layout made safe for a hub whose Home has these parts (in their usual order): known choices only, every part
@@ -136,7 +138,10 @@ export function cleanAnyLayout<Id extends string>(raw: unknown, parts: readonly 
   const r: any = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
   const isPinned = (x: unknown): x is string => typeof x === "string" && isPinId(x) && pinnable.includes(unpinId(x));
   const isPart = (x: unknown): x is Id => typeof x === "string" && ((parts as readonly string[]).includes(x) || isPinned(x) || isWidgetHomeId(x));
-  const menuSide: MenuSide = MENU_SIDES.some((s) => s.id === r.menuSide) ? r.menuSide : defaults.menuSide;
+  // When the tab bar became the phone default, a layout still on the old default side rail moved to it once;
+  // a menu picked in Customize after that (menuV 2) is kept, the side rail included.
+  const oldDefault = defaults.menuSide === "tabs" && r.menuV !== 2 && (r.menuSide === undefined || r.menuSide === "left");
+  const menuSide: MenuSide = oldDefault ? "tabs" : MENU_SIDES.some((s) => s.id === r.menuSide) ? r.menuSide : defaults.menuSide;
   const menuClose: MenuClose = MENU_CLOSES.some((c) => c.id === r.menuClose) ? r.menuClose : defaults.menuClose;
   const home: Id[] = [];
   for (const x of Array.isArray(r.home) ? r.home : []) if (isPart(x) && !home.includes(x)) home.push(x);
@@ -160,7 +165,7 @@ export function cleanAnyLayout<Id extends string>(raw: unknown, parts: readonly 
   const deskSide: DeskSide = DESK_SIDES.some((s) => s.id === r.deskSide) ? r.deskSide : "left";
   const theme: HubThemeId = isHubThemeId(r.theme) ? r.theme : DEFAULT_HUB_THEME;
   const shortcut = cleanShortcut(r.shortcut);
-  return { menuSide, deskSide, folders: cleanFolders(r.folders), menuClose, home, homeHidden, homeSize, theme, ...(shortcut ? { shortcut } : {}) };
+  return { menuSide, deskSide, folders: cleanFolders(r.folders), menuClose, home, homeHidden, homeSize, theme, ...(shortcut ? { shortcut } : {}), menuV: 2 as const };
 }
 
 /** WorkHub's saved layout made safe. `pinnable`: installed Kit-plugin/Notes-app ids (see pinId) that may be pinned to Home. */
