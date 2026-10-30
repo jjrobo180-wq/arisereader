@@ -44,6 +44,8 @@ test("Pod+ home shows the episode you were on, to finish or continue", () => {
   assert.match(home, /function ContinueListening/);
   assert.match(home, /earshot\.spots/);
   assert.match(home, /leftWords\(sp\)/);
+  assert.match(home, /data-testid="pod-continue-row"/);
+  assert.match(home, /overflow-x-auto/);
   assert.match(home, /chip === "all" && <ContinueListening/);
 });
 
