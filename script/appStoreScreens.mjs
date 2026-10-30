@@ -3,7 +3,7 @@
 // iPhone-sized Chromium. Arise's hubs use the built-in sample profile (lib/sampleMode.ts), so no
 // account is needed; Pod+ reads the live Pod+ server for podcasts.
 import { createServer } from "node:http";
-import { readFile, stat, mkdir } from "node:fs/promises";
+import { readFile, stat, mkdir, writeFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { chromium } from "playwright";
 
@@ -89,4 +89,5 @@ await shot("podplus-support-dark", async (p) => { await p.goto(`${P}/support/`);
 
 await browser.close();
 console.log(results.join("\n"));
+await writeFile(`${out}/results.txt`, results.join("\n") + "\n");
 process.exit(0);

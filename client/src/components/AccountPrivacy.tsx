@@ -39,7 +39,7 @@ export default function AccountPrivacy({ onClose }: { onClose: () => void }) {
   const row = "flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-[15px] font-medium text-slate-800 hover:bg-slate-50";
   const input = "mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-base text-slate-900 outline-none focus:border-rose-500";
   return <div role="dialog" aria-modal="true" aria-labelledby="acct-privacy-title" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] sm:items-center" data-testid="account-privacy">
+    className="fixed inset-0 kb-sheet z-[120] flex items-end justify-center bg-slate-950/50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] sm:items-center" data-testid="account-privacy">
     <div className="relative max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl">
       <button type="button" onClick={onClose} aria-label="Close" className="absolute right-3 top-3 inline-flex h-11 w-11 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
       <h2 id="acct-privacy-title" className="pr-12 text-xl font-bold text-slate-950">Account & privacy</h2>

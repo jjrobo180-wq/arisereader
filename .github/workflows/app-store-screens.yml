@@ -10,6 +10,8 @@ on:
       - 'script/appStoreScreens.mjs'
       - 'client/src/**'
       - 'podscroll/**'
+permissions:
+  contents: write
 jobs:
   screens:
     runs-on: ubuntu-latest
@@ -31,6 +33,13 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Take the screenshots
         run: node script/appStoreScreens.mjs
+      - name: Keep the screenshots on the app-store-screens branch too (readable without downloading the artifact)
+        working-directory: screens
+        run: |
+          git init -q -b app-store-screens
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com add -A
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -qm "App Store screens for ${GITHUB_SHA}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" app-store-screens
       - uses: actions/upload-artifact@v4
         with:
           name: app-store-screens
