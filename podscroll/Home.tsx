@@ -473,7 +473,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
         <button onClick={() => onOpenFeed()} className="hidden h-9 items-center gap-2 rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2] md:inline-flex"><Sparkles size={17} strokeWidth={1.8} />Swipe feed</button>
         {!pro && <button onClick={onJoin} className="hidden h-9 items-center rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white hover:bg-[#272727] lg:inline-flex">Go ad-free</button>}
         {!pro
-          ? <button onClick={onSignIn} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[#d3d3d3] px-3 text-sm font-medium text-[#065fd4] hover:bg-[#def1ff]"><UserCircle size={19} strokeWidth={1.8} /><span>Sign in</span></button>
+          ? <button onClick={onSignIn} aria-label="Sign in" className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[#d3d3d3] px-2 text-sm font-medium text-[#065fd4] hover:bg-[#def1ff] min-[420px]:px-3"><UserCircle size={19} strokeWidth={1.8} /><span className="hidden min-[420px]:inline">Sign in</span></button>
           : <span className="relative">
             <button onClick={() => setAcctOpen((v) => !v)} aria-expanded={acctOpen} aria-label="Your account" className="grid h-9 w-9 place-items-center rounded-full bg-[#ff6a1f] text-sm font-bold text-white">{email ? email.slice(0, 1).toUpperCase() : <UserCircle size={20} />}</button>
             {acctOpen && <div className="absolute right-0 top-11 z-40 w-64 rounded-xl border border-[#e5e5e5] bg-white p-2 text-[#0f0f0f] shadow-2xl">
