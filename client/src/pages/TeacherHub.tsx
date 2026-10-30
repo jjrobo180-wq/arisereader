@@ -4,7 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormE
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
 import CustomizeSheet, { CustomizeGroup } from "@/components/CustomizeSheet";
 import DuoControls, { DuoHeaderButton } from "@/components/DuoControls";
-import { Columns2, LayoutGrid, PanelLeft, Palette } from "lucide-react";
+import { Bell, Columns2, LayoutGrid, PanelLeft, Palette } from "lucide-react";
 import { hubThemeOf } from "@shared/appThemes";
 import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/HubSearch";
 import { SupportBanner, SupportMenuItem } from "@/components/SupportArise";
@@ -129,6 +129,7 @@ import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
 import { useStayOnRefresh } from "@/lib/useStayOnRefresh";
 import { inDuoPane, useAriseDuo } from "@/lib/useAriseDuo";
+import { OPEN_APPS_EVENT, PhoneTabBar } from "@/components/family-hub/PhoneTabBar";
 import { HubLinkProvider, ItemConnections } from "@/components/teacher-hub/HubLinks";
 import { API_BASE } from "@/lib/queryClient";
 import { goalQuizzes, resolveLink, type HubLink } from "@shared/hubLinks";
@@ -444,6 +445,13 @@ function TeacherHubPage() {
     return () => { document.removeEventListener("keydown", esc); document.body.style.overflow = overflow; setAppsQuery(""); setHubGridFolder(null); };
   }, [apps]);
   const appsSwipe = useRef<number | null>(null);
+  // The tab bar's Apps button opens the app drawer.
+  useEffect(() => {
+    const show = () => setApps(true);
+    window.addEventListener(OPEN_APPS_EVENT, show);
+    return () => window.removeEventListener(OPEN_APPS_EVENT, show);
+  }, []);
+  const [youOpen, setYouOpen] = useState(false);
   // Arise To Duo: on the iPhone Duo's inner screen the header keeps its extra buttons in ⋯ More.
   useAriseDuo();
   const setRail = (open: boolean) => { setRailState(open); if (inDuoPane()) return; try { localStorage.setItem("arise-hub-rail", open ? "open" : "closed"); } catch { /* not remembered */ } };
@@ -482,7 +490,7 @@ function TeacherHubPage() {
   const subRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!addMenu) return;
-    const close = (e: Event) => { if (!addRef.current?.contains(e.target as Node)) setAddMenu(false); };
+    const close = (e: Event) => { if ((e.target as Element | null)?.closest?.("[data-add-toggle]")) return; if (!addRef.current?.contains(e.target as Node)) setAddMenu(false); };
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setAddMenu(false); };
     document.addEventListener("pointerdown", close);
     document.addEventListener("keydown", esc);
@@ -608,12 +616,14 @@ function TeacherHubPage() {
   /** A menu item's name on a phone: up to two short lines under its icon (one letter and dots told you nothing). On a computer, the full name. */
   const MENU_LABEL = `${across ? "w-[72px]" : "w-[66px]"} line-clamp-2 break-words text-[10px] leading-[1.15] md:w-auto md:max-w-none md:line-clamp-none md:text-sm md:leading-normal`;
   /** The app drawer: no menu on screen, just a button that opens every section as app icons. */
-  const drawerMenu = side === "drawer";
+  /** The floating tab bar (Home, Tasks, Add, Apps, You), the phone default. Inside a split-screen pane the app drawer stands in. */
+  const tabBar = side === "tabs" && !inDuoPane();
+  const drawerMenu = side === "drawer" || side === "tabs";
   const menuOpen = (layout.menuClose === "always" && !inDuoPane()) || rail;
   const canHide = layout.menuClose !== "always";
   /** On a phone the menu may close by itself once a section is picked. */
   const afterPick = () => { if (layout.menuClose === "auto" && typeof window !== "undefined" && window.innerWidth < 768) setRail(false); };
-  const pagePad = drawerMenu ? "px-3 sm:px-4" : side === "top" ? `px-3 sm:px-4 ${menuOpen ? "!pt-[84px] md:!pt-4" : "!pt-9 md:!pt-4"}` : side === "bottom" ? "px-3 sm:px-4" : side === "right" ? `pl-3 sm:pl-4 ${menuOpen ? "pr-[80px] sm:pr-[84px]" : "pr-9 sm:pr-10"}` : `pr-3 sm:pr-4 ${menuOpen ? "pl-[80px] sm:pl-[84px]" : "pl-9 sm:pl-10"}`;
+  const pagePad = tabBar ? "px-3 sm:px-4 max-md:pb-28" : drawerMenu ? "px-3 sm:px-4" : side === "top" ? `px-3 sm:px-4 ${menuOpen ? "!pt-[84px] md:!pt-4" : "!pt-9 md:!pt-4"}` : side === "bottom" ? "px-3 sm:px-4" : side === "right" ? `pl-3 sm:pl-4 ${menuOpen ? "pr-[80px] sm:pr-[84px]" : "pr-9 sm:pr-10"}` : `pr-3 sm:pr-4 ${menuOpen ? "pl-[80px] sm:pl-[84px]" : "pl-9 sm:pl-10"}`;
   const asidePhone = drawerMenu ? "hidden md:block" : side === "top"
     ? `inset-x-0 top-[65px] border-b px-2 pt-1.5 ${menuOpen ? "translate-y-0" : "-translate-y-full"}`
     : side === "bottom"
@@ -1078,7 +1088,7 @@ function TeacherHubPage() {
         {(drawerMenu || deskDrawer) && !apps && (
           <button type="button" onClick={() => setApps(true)} aria-label="Open all sections" data-testid="hub-apps-open"
             onTouchStart={(e) => { appsSwipe.current = e.touches[0].clientY; }} onTouchMove={(e) => { if (appsSwipe.current !== null && appsSwipe.current - e.touches[0].clientY > 30) { appsSwipe.current = null; setApps(true); } }}
-            className={`fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-40 h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full bg-slate-950 text-white shadow-xl transition active:scale-90 ${drawerMenu ? "inline-flex" : "hidden"} ${deskDrawer ? "md:inline-flex" : "md:hidden"}`}>
+            className={`fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-40 h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full bg-slate-950 text-white shadow-xl transition active:scale-90 ${drawerMenu && !tabBar ? "inline-flex" : "hidden"} ${deskDrawer ? "md:inline-flex" : "md:hidden"}`}>
             <AppsIcon className="h-6 w-6" />
           </button>
         )}
@@ -1466,10 +1476,11 @@ function TeacherHubPage() {
               { id: "layout", label: "Layout", icon: <PanelLeft />, content: <>
                 <CustomizeGroup title="Menu on your phone" help="Where it sits, and how it closes.">
                   <div role="radiogroup" aria-label="Where the menu sits" className="mb-3 flex flex-wrap gap-2">
-                    {MENU_SIDES.filter((o) => o.id !== "tabs").map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuSide === o.id} onClick={() => { setLayout({ ...layout, menuSide: o.id }); setRail(true); }} data-testid={`menu-side-${o.id}`}
+                    {MENU_SIDES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuSide === o.id} onClick={() => { setLayout({ ...layout, menuSide: o.id }); setRail(true); }} data-testid={`menu-side-${o.id}`}
                       className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold ${layout.menuSide === o.id ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>{o.label}</button>)}
                   </div>
-                  {layout.menuSide === "drawer" ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">A round button at the bottom of the screen opens every section as app icons, with a search box. Swipe it up or tap it; swipe down or tap outside to close.</p> : <div role="radiogroup" aria-label="How the menu closes" className="grid grid-cols-1 gap-2">
+                  {layout.menuSide === "tabs" ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600" data-testid="menu-tabs-help">A bar floats along the bottom of the screen: Home, Tasks, the + button to add anything, Apps for every section, and You for your account and settings.</p>
+                    : layout.menuSide === "drawer" ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">A round button at the bottom of the screen opens every section as app icons, with a search box. Swipe it up or tap it; swipe down or tap outside to close.</p> : <div role="radiogroup" aria-label="How the menu closes" className="grid grid-cols-1 gap-2">
                     {MENU_CLOSES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuClose === o.id} onClick={() => { setLayout({ ...layout, menuClose: o.id }); setRail(true); }} data-testid={`menu-close-${o.id}`}
                       className={`flex min-h-11 items-start gap-3 rounded-xl border px-3 py-2 text-left text-sm ${layout.menuClose === o.id ? "border-slate-950 bg-slate-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}>
                       <span className={`mt-0.5 inline-flex h-4 w-4 shrink-0 rounded-full border-2 ${layout.menuClose === o.id ? "border-[5px] border-slate-950" : "border-slate-300"}`} aria-hidden />
@@ -1741,17 +1752,17 @@ function TeacherHubPage() {
           </LockedApp>
         </main>
       </div>
-      {canUseHub && loaded && !loadError && !needsPlan && (workspace as any).aiChat && <HubChat hub="work" token={token} accent="bg-teal-700" lift raiseRem={side === "bottom" && menuOpen ? 4.9 : 0} />}
+      {canUseHub && loaded && !loadError && !needsPlan && (workspace as any).aiChat && <HubChat hub="work" token={token} accent="bg-teal-700" lift raiseRem={(side === "bottom" && menuOpen) || tabBar ? 4.9 : 0} />}
       {searching && <HubSearch entries={searchEntries} hubName="WorkHub" accent="bg-teal-700" onClose={() => setSearching(false)} />}
       {privacy && <AccountPrivacy onClose={() => setPrivacy(false)} />}
       {pollsOpen && <PollAnswers replies={pollAnswers.replies} markRead={pollAnswers.markRead} onClose={() => setPollsOpen(false)} onOpenMeetings={() => setTab("iep")} />}
       {notifyOpen && <HubModal title="Notification settings" onClose={() => setNotifyOpen(false)} closeOnBackdrop size="lg"><HubNotifySettings token={token} workspace={workspace} setWorkspace={setWorkspace} inModal /></HubModal>}
       {briefOpen && canUseHub && loaded && !loadError && <DailyBrief hub="work" brief={buildWorkBrief(workspace, TODAY(), new Date().getHours(), (user.displayName || "").split(" ")[0])} onClose={() => setBriefOpen(false)} onOpen={(t) => goTab(t as HubTab)} tint="from-teal-900 via-teal-700 to-amber-500" />}
       {canUseHub && loaded && !loadError && !needsPlan && (
-        <div ref={addRef} className={`fixed z-50 md:bottom-[max(1.25rem,env(safe-area-inset-bottom))] md:right-4 ${side === "bottom" && menuOpen ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${side === "right" && menuOpen ? "right-[88px]" : "right-4"}`}>
+        <div ref={addRef} className={`fixed z-50 md:bottom-[max(1.25rem,env(safe-area-inset-bottom))] md:right-4 ${tabBar ? "max-md:bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] max-md:left-1/2 max-md:right-auto md:left-auto" : side === "bottom" && menuOpen ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${tabBar ? "" : side === "right" && menuOpen ? "right-[88px]" : "right-4"}`}>
           {addMenu && (
             <div role="menu" aria-label="Add to your Hub" data-testid="quick-add-menu"
-              className="absolute bottom-[calc(100%+0.6rem)] right-0 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl">
+              className={`absolute bottom-[calc(100%+0.6rem)] right-0 w-60 ${tabBar ? "max-md:bottom-0 max-md:right-auto max-md:-translate-x-1/2" : ""} overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl`}>
               {[
                 // On a phone the AI assistant opens from here, so only one round button sits over the page.
                 ...((workspace as any).aiChat && window.matchMedia?.("(max-width: 639px)").matches ? [{ key: "chat", label: "Ask AI", detail: "The AI assistant", icon: <Sparkles className="h-4 w-4" />, go: () => document.querySelector<HTMLElement>('[data-testid="hub-chat-open"]')?.click() }] : []),
@@ -1778,11 +1789,25 @@ function TeacherHubPage() {
           )}
           <button type="button" onClick={() => setAddMenu((v) => !v)} aria-haspopup="menu" aria-expanded={addMenu}
             aria-label="Add to your Hub" data-testid="quick-add-event"
-            className="inline-flex h-14 items-center gap-2 rounded-full bg-teal-600 px-5 text-base font-semibold text-white shadow-lg hover:bg-teal-700">
+            className={`${tabBar ? "max-md:hidden" : ""} inline-flex h-14 items-center gap-2 rounded-full bg-teal-600 px-5 text-base font-semibold text-white shadow-lg hover:bg-teal-700`}>
             <Plus className={`h-5 w-5 transition-transform ${addMenu ? "rotate-45" : ""}`} /> Add
           </button>
         </div>
       )}
+      {canUseHub && loaded && !loadError && !needsPlan && tabBar && <PhoneTabBar hub="work" name={user.displayName || user.username || ""}
+        home={group.id === "home"} tasks={tab === "tasks"} addOpen={addMenu} onAdd={() => setAddMenu((v) => !v)}
+        onHome={() => { setAddMenu(false); goGroup("home"); }}
+        onTasks={() => { setAddMenu(false); if (visible.tasks !== false) goTab("tasks"); else { setStoreOpenApp("work-tasks"); setStore(true); } }}
+        youOpen={youOpen} setYouOpen={(open) => { setYouOpen(open); if (open) setAddMenu(false); }}
+        you={[
+          { id: "privacy", label: "Account & privacy", detail: "Your account, data and deleting it", icon: <ShieldCheck />, onClick: () => setPrivacy(true) },
+          { id: "notifications", label: "Notification settings", detail: "Morning summary and heads-ups", icon: <Bell />, onClick: () => setNotifyOpen(true) },
+          { id: "customize", label: "Customize", detail: "Menu, folders, Home and theme", icon: <Settings2 />, onClick: () => setCustomize(true) },
+          { id: "lock", label: "Passcode & locks", icon: <Lock />, onClick: () => setLockSettings(true) },
+          { id: "night", label: night ? "Day mode" : "Night mode", icon: night ? <Sun /> : <Moon />, onClick: toggleNight },
+          { id: "gallery", label: "App Gallery", detail: "Add apps, tabs and connections", icon: <ShoppingBag />, onClick: () => setStore(true) },
+          { id: "signout", label: "Sign out", icon: <LogOut />, danger: true, onClick: () => void signOut() },
+        ]} />}
       {quickEvent && <AddEventModal onClose={() => setQuickEvent(false)} onAdd={(items) => { setWorkspace((p) => addQuickItems(p, items, id)); if (items.task) reminderAdded(items); }} />}
       {homeTask === NEW_TASK && <TaskModal task={null} startTitle={homeQuick} today={TODAY()} lists={cleanTaskLists(workspace.taskLists)}
         onSave={addHomeTask} onClose={() => setHomeTask(null)} />}
