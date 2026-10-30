@@ -57,43 +57,111 @@ function silentClip(): string {
   return silence;
 }
 
-/** Plays a pod in AI voices (made on the server, by a hash of its words).  */
+/** Plays a pod in AI voices. The server makes the sound one line at a time; playing starts as soon
+ *  as the first line is ready and carries on line by line while the rest is made. If the next line
+ *  isn't ready yet it just waits for it (a busy voice service is a short pause, never an error). */
+type VoiceStatus = { id: string; whole?: boolean; parts: number; made: boolean[]; secs: number[]; done: boolean; failed?: boolean };
 function usePodPlayer(api: Api, apiBase: string) {
   const audio = useRef<HTMLAudioElement | null>(null);
   const [state, setState] = useState<{ id: string; status: "loading" | "playing" | "paused" } | null>(null);
   const [pos, setPos] = useState({ t: 0, d: 0 });
   const speaking = useRef(false);
+  const run = useRef(0); // which play this is; an older one stops when a newer one starts
+  const cur = useRef<{ m: Made; st: VoiceStatus; n: number } | null>(null);
   const stop = () => {
+    run.current++;
+    cur.current = null;
     audio.current?.pause();
     setState(null);
   };
   useEffect(() => onOtherSound("studio", () => { audio.current?.pause(); }), []);
-  useEffect(() => () => { audio.current?.pause(); }, []);
+  useEffect(() => () => { run.current++; audio.current?.pause(); }, []);
+
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  const ask = async (m: Made): Promise<VoiceStatus> => {
+    for (let tries = 0; ; tries++) {
+      try { return await api("/api/earshot/studio/voice", { method: "POST", body: { lines: m.lines, solo: m.solo, progress: true } }); }
+      catch (e: any) { if (tries >= 2 || /set up|a lot in the last hour/i.test(String(e?.message))) throw e; await sleep(2000); }
+    }
+  };
+  const before = (st: VoiceStatus, n: number) => st.secs.slice(0, n).reduce((a, b) => a + b, 0);
+  const total = (st: VoiceStatus) => st.secs.reduce((a, b) => a + b, 0);
+
+  /** Plays line `n` (and the ones after it), waiting for each to be made. */
+  const playFrom = async (mine: number, m: Made, n: number, at = 0) => {
+    let st = cur.current!.st;
+    while (!st.made[n]) {
+      if (run.current !== mine) return;
+      if (st.failed) throw new Error("Couldn't reach the voices. Tap Listen to try again.");
+      setState({ id: m.id, status: "loading" });
+      await sleep(1500);
+      if (run.current !== mine) return;
+      st = await ask(m);
+      if (cur.current) cur.current.st = st;
+    }
+    if (run.current !== mine || !cur.current) return;
+    cur.current.n = n;
+    const a = audio.current!;
+    a.onended = () => {
+      if (run.current !== mine || !cur.current) return;
+      const next = cur.current.n + 1;
+      if (next >= cur.current.st.parts) { cur.current = null; setState(null); setPos({ t: 0, d: 0 }); return; }
+      void playFrom(mine, m, next).catch((e: any) => { if (run.current === mine) { setState(null); sayRef.current(e?.message || "Couldn't reach the voices. Tap Listen to try again."); } });
+    };
+    a.ontimeupdate = () => { const c = cur.current; if (c && run.current === mine) setPos({ t: before(c.st, c.n) + a.currentTime, d: Math.max(total(c.st), before(c.st, c.n) + (Number.isFinite(a.duration) ? a.duration : 0)) }); };
+    a.src = `${apiBase}/api/podscroll/studio/audio/${st.id}/${n}`;
+    if (at > 0) a.addEventListener("loadedmetadata", () => { try { a.currentTime = at; } catch { /* starts at the top */ } }, { once: true });
+    await a.play();
+    // Keep the made-so-far list fresh while this line plays, so the position bar and the next line are ready.
+    if (!st.done) void ask(m).then((s) => { if (run.current === mine && cur.current) cur.current.st = s; }).catch(() => {});
+  };
+  const sayRef = useRef<(s: string) => void>(() => {});
 
   const play = async (m: Made, say: (s: string) => void) => {
+    sayRef.current = say;
     if (state?.id === m.id && audio.current && !speaking.current) {
       if (state.status === "playing") { audio.current.pause(); return; }
       if (state.status === "paused") { void audio.current.play(); return; }
     }
     stop();
+    const mine = run.current;
     setState({ id: m.id, status: "loading" });
     if (!audio.current) audio.current = new Audio();
     try { audio.current.onpause = null; audio.current.onplaying = null; audio.current.onended = null; audio.current.ontimeupdate = null; audio.current.src = silentClip(); void audio.current.play().catch(() => {}); } catch { /* no audio here */ }
     try {
-      const { id } = await api("/api/earshot/studio/voice", { method: "POST", body: { lines: m.lines, solo: m.solo } });
+      const st = await ask(m);
+      if (run.current !== mine) return;
       const a = audio.current!;
-      a.onplaying = () => { setState({ id: m.id, status: "playing" }); soundStarted("studio"); };
-      a.onpause = () => setState((s) => (s && s.id === m.id && s.status !== "loading" ? { ...s, status: "paused" } : s));
-      a.onended = () => setState(null);
-      a.ontimeupdate = () => setPos({ t: a.currentTime, d: Number.isFinite(a.duration) ? a.duration : 0 });
-      a.src = `${apiBase}/api/podscroll/studio/audio/${id}`;
-      await a.play();
+      a.onplaying = () => { if (run.current === mine) { setState({ id: m.id, status: "playing" }); soundStarted("studio"); } };
+      a.onpause = () => setState((s) => (s && s.id === m.id && s.status === "playing" && !a.ended ? { ...s, status: "paused" } : s));
+      if (st.whole) {
+        a.onended = () => { if (run.current === mine) setState(null); };
+        a.ontimeupdate = () => setPos({ t: a.currentTime, d: Number.isFinite(a.duration) ? a.duration : 0 });
+        a.src = `${apiBase}/api/podscroll/studio/audio/${st.id}`;
+        await a.play();
+        return;
+      }
+      cur.current = { m, st, n: 0 };
+      await playFrom(mine, m, 0);
     } catch (e: any) {
-      // AI voices only: no robot-voice fallback. The server already tried every AI voice it has.
-      setState(null); say(e?.message || "The AI voice is busy right now. Try again in a minute.");
+      // AI voices only: no robot-voice fallback.
+      if (run.current !== mine) return;
+      setState(null); say(e?.message || "Couldn't reach the voices. Tap Listen to try again.");
     }
   };
-  const seek = (t: number) => { if (audio.current) audio.current.currentTime = t; };
+  const seek = (t: number) => {
+    const a = audio.current, c = cur.current;
+    if (!a) return;
+    if (!c) { a.currentTime = t; return; }
+    // Find the line that time falls in; if it isn't made yet, go to the last one that is.
+    let n = 0;
+    while (n < c.st.parts - 1 && before(c.st, n + 1) <= t) n++;
+    while (n > 0 && !c.st.made[n]) n--;
+    const at = Math.max(0, t - before(c.st, n));
+    if (n === c.n) { a.currentTime = at; return; }
+    const mine = run.current;
+    void playFrom(mine, c.m, n, at).catch(() => {});
+  };
   return { state, pos, play, stop, seek };
 }
 
@@ -166,7 +234,7 @@ export function StudioView({ kind, api, apiBase, say, onBack, onSwitch }: { kind
             <button onClick={() => void share(open)} className="inline-flex h-12 items-center gap-2 rounded-full bg-white/15 px-5 text-sm font-semibold"><Share2 size={17} />Share</button>
           </div>
           {st && st !== "loading" && player.pos.d > 0 && <input type="range" min={0} max={player.pos.d} step={1} value={player.pos.t} onChange={(e) => player.seek(Number(e.target.value))} aria-label="Position" className="mt-4 w-full accent-white" />}
-          {st === "loading" && <p className="mt-3 text-xs text-white/70">This takes about half a minute the first time.</p>}
+          {st === "loading" && <p className="mt-3 text-xs text-white/70">Starts in a few seconds.</p>}
         </div>
       </div>
       <p className="mt-2 text-xs text-[#606060]">Made by AI from your notes. Check anything important against them.</p>
