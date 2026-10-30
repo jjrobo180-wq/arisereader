@@ -1,6 +1,6 @@
 name: Pod+ signed iOS beta validation
 # Development beta validation only. Upload is a separate, explicitly approved release step.
-# Release: Pod+ downloads for offline listening (podcasts and audiobooks, members).
+# Release: App Store readiness (background audio, Social safety, account deletion, privacy).
 on:
   workflow_dispatch:
   push:
