@@ -5,6 +5,7 @@ on:
   push:
     branches: [feat/arisetodo-ios-app-store-starter, feat/arisetodo-native-ios-foundation]
     paths:
+      - '.github/scripts/**'
       - '.github/workflows/arisetodo-signed-release.yml'
       - 'arisetodo/ios-app/**'
       - 'client/src/**'
