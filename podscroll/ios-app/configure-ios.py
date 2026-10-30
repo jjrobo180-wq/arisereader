@@ -15,10 +15,10 @@ PLIST = sys.argv[1] if len(sys.argv) > 1 else "ios/App/App/Info.plist"
 NAME = "Pod+"
 KEYS = {
     "CFBundleDisplayName": NAME,
-    "NSCameraUsageDescription": f"{NAME} uses the camera when you take a photo or video to post on Pod+ Social.",
+    "NSCameraUsageDescription": f"{NAME} uses the camera when you take a photo or video to post on Pod+ Social, or a photo of your notes for Study Pod+ and Meeting Pod.",
     "NSPhotoLibraryUsageDescription": f"{NAME} lets you pick photos and videos to post on Pod+ Social or use for your profile and episodes.",
     "NSPhotoLibraryAddUsageDescription": f"{NAME} saves clips and pictures you choose to your photo library.",
-    "NSMicrophoneUsageDescription": f"{NAME} uses the microphone when you record an episode, go live or talk in a listening party.",
+    "NSMicrophoneUsageDescription": f"{NAME} uses the microphone when you record an episode, a class or a meeting, go live or talk in a listening party.",
     "ITSAppUsesNonExemptEncryption": False,
 }
 

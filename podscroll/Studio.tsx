@@ -3,7 +3,7 @@
 // The words are written by AI on the server (server/podcastStudio.ts); what's made is kept on this
 // device only. Listening uses AI voices only (Orpheus, then Aura); never the phone's robot voice.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, Briefcase, Check, ChevronDown, ChevronLeft, Copy, FileText, GraduationCap, Loader2, Pause, Play, Share2, Sparkles, Trash2, Upload } from "lucide-react";
+import { BookOpen, Briefcase, Check, ChevronDown, ChevronLeft, Camera, Copy, FileText, GraduationCap, Loader2, Mic, Pause, Play, Share2, Sparkles, Square, Trash2, Upload } from "lucide-react";
 import { onOtherSound, soundStarted } from "../client/src/components/family-hub/earshot/soundBus";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
@@ -23,14 +23,14 @@ const COPY = {
   study: {
     name: "Study Pod+", icon: GraduationCap, color: "#6d28d9",
     tag: "Turn your study notes into a podcast you can listen to.",
-    help: "Paste your class notes, a study guide or a chapter summary. AI writes a short episode that explains it, then gives you the key points and a quick quiz.",
+    help: "Paste your class notes, add a PDF or photos of your notes, or record a class. AI writes a short episode that explains it, then gives you the key points and a quick quiz.",
     placeholder: "Paste your notes here…\n\nExample: Photosynthesis happens in the chloroplasts. Light reactions make ATP and NADPH…",
     go: "Make my Study Pod", saved: "Your Study Pods",
   },
   meeting: {
     name: "Meeting Pod", icon: Briefcase, color: "#0f766e",
     tag: "Meeting notes in, the summary and to-dos out.",
-    help: "Paste your meeting notes (rough is fine). AI pulls out the summary, decisions, who's doing what by when, and what's still open, plus a one-minute recap to listen to.",
+    help: "Paste your meeting notes (rough is fine), add a PDF or photos, or record the meeting. AI pulls out the summary, decisions, who's doing what by when, and what's still open, plus a one-minute recap to listen to.",
     placeholder: "Paste your meeting notes here…\n\nExample: Budget review w/ Sam & Priya. Agreed to move launch to May 12. Sam to send revised numbers by Fri…",
     go: "Summarize my meeting", saved: "Your Meeting Pods",
   },
@@ -57,43 +57,201 @@ function silentClip(): string {
   return silence;
 }
 
-/** Plays a pod in AI voices (made on the server, by a hash of its words).  */
+/** A photo made smaller (at most 1600 pixels across, JPEG), so it uploads fast and the AI can read it. */
+async function shrinkPhoto(f: File): Promise<string> {
+  const url = URL.createObjectURL(f);
+  try {
+    const img = await new Promise<HTMLImageElement>((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error("That photo couldn't be opened. Try another.")); i.src = url; });
+    const scale = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale)); canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", 0.85);
+  } finally { URL.revokeObjectURL(url); }
+}
+const toBase64 = async (f: File) => {
+  const bytes = new Uint8Array(await f.arrayBuffer());
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+};
+
+/** Records a lecture or meeting and writes it down a few minutes at a time, so a long recording is
+ *  mostly written down by the time it's stopped. Each piece is kept until the server has written it
+ *  down (a busy moment is tried again). */
+const PIECE_MS = 4 * 60_000;
+function useRecorder(api: Api, add: (text: string) => void) {
+  const [state, setState] = useState<"off" | "recording" | "finishing">("off");
+  const [secs, setSecs] = useState(0);
+  const [note, setNote] = useState("");
+  const rec = useRef<{ stream: MediaStream; recorder: MediaRecorder | null; cut: ReturnType<typeof setInterval> | null; tick: ReturnType<typeof setInterval> | null; started: number; texts: string[]; pending: number; stopping: boolean } | null>(null);
+  const pickType = () => ["audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/ogg"].find((t) => typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported?.(t)) || "";
+  const flushDone = () => {
+    const r = rec.current;
+    if (!r || !r.stopping || r.pending > 0) return;
+    const text = r.texts.filter(Boolean).join(" ").trim();
+    rec.current = null;
+    setState("off");
+    if (text) { add(text); setNote("Done. What was said is in your notes. Check it, then tap the button below."); }
+    else setNote("Nothing was heard in that recording. Try again closer to the speaker.");
+  };
+  const send = async (blob: Blob, n: number) => {
+    const r = rec.current!;
+    r.pending++;
+    for (let attempt = 0; ; attempt++) {
+      try { const out = await api("/api/earshot/studio/transcribe", { method: "POST", body: blob }); r.texts[n] = String(out?.text || ""); break; }
+      catch { if (attempt >= 5) { r.texts[n] = ""; setNote("A part of the recording couldn't be written down."); break; } await new Promise((ok) => setTimeout(ok, 3000 * (attempt + 1))); }
+    }
+    r.pending--;
+    flushDone();
+  };
+  const startPiece = () => {
+    const r = rec.current;
+    if (!r) return;
+    const type = pickType();
+    const recorder = new MediaRecorder(r.stream, type ? { mimeType: type } : undefined);
+    const n = r.texts.length; r.texts.push("");
+    const chunks: Blob[] = [];
+    recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+    recorder.onstop = () => { void send(new Blob(chunks, { type: recorder.mimeType || type || "audio/mp4" }), n); };
+    recorder.start();
+    r.recorder = recorder;
+  };
+  const start = async () => {
+    if (rec.current) return;
+    setNote("");
+    if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) { setNote("Recording doesn't work in this browser. Try Safari or Chrome, or the Pod+ app."); return; }
+    let stream: MediaStream;
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
+    catch { setNote("Pod+ needs the microphone to record. Allow it in Settings → Pod+ → Microphone, then try again."); return; }
+    rec.current = { stream, recorder: null, cut: null, tick: null, started: Date.now(), texts: [], pending: 0, stopping: false };
+    startPiece();
+    // Every few minutes the piece so far is sent to be written down, and a new one starts.
+    rec.current.cut = setInterval(() => { const r = rec.current; if (!r || r.stopping) return; const old = r.recorder; startPiece(); old?.stop(); }, PIECE_MS);
+    rec.current.tick = setInterval(() => setSecs(Math.round((Date.now() - (rec.current?.started || Date.now())) / 1000)), 1000);
+    setSecs(0); setState("recording");
+  };
+  const stop = () => {
+    const r = rec.current;
+    if (!r || r.stopping) return;
+    r.stopping = true;
+    if (r.cut) clearInterval(r.cut);
+    if (r.tick) clearInterval(r.tick);
+    setState("finishing");
+    setNote("Writing down what was said…");
+    r.recorder?.stop();
+    r.stream.getTracks().forEach((t) => t.stop());
+  };
+  useEffect(() => () => { const r = rec.current; if (r) { if (r.cut) clearInterval(r.cut); if (r.tick) clearInterval(r.tick); r.stream.getTracks().forEach((t) => t.stop()); } }, []);
+  return { state, secs, note, start, stop };
+}
+const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
+/** Plays a pod in AI voices. The server makes the sound one line at a time; playing starts as soon
+ *  as the first line is ready and carries on line by line while the rest is made. If the next line
+ *  isn't ready yet it just waits for it (a busy voice service is a short pause, never an error). */
+type VoiceStatus = { id: string; whole?: boolean; parts: number; made: boolean[]; secs: number[]; done: boolean; failed?: boolean };
 function usePodPlayer(api: Api, apiBase: string) {
   const audio = useRef<HTMLAudioElement | null>(null);
   const [state, setState] = useState<{ id: string; status: "loading" | "playing" | "paused" } | null>(null);
   const [pos, setPos] = useState({ t: 0, d: 0 });
   const speaking = useRef(false);
+  const run = useRef(0); // which play this is; an older one stops when a newer one starts
+  const cur = useRef<{ m: Made; st: VoiceStatus; n: number } | null>(null);
   const stop = () => {
+    run.current++;
+    cur.current = null;
     audio.current?.pause();
     setState(null);
   };
   useEffect(() => onOtherSound("studio", () => { audio.current?.pause(); }), []);
-  useEffect(() => () => { audio.current?.pause(); }, []);
+  useEffect(() => () => { run.current++; audio.current?.pause(); }, []);
+
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  const ask = async (m: Made): Promise<VoiceStatus> => {
+    for (let tries = 0; ; tries++) {
+      try { return await api("/api/earshot/studio/voice", { method: "POST", body: { lines: m.lines, solo: m.solo, progress: true } }); }
+      catch (e: any) { if (tries >= 2 || /set up|a lot in the last hour/i.test(String(e?.message))) throw e; await sleep(2000); }
+    }
+  };
+  const before = (st: VoiceStatus, n: number) => st.secs.slice(0, n).reduce((a, b) => a + b, 0);
+  const total = (st: VoiceStatus) => st.secs.reduce((a, b) => a + b, 0);
+
+  /** Plays line `n` (and the ones after it), waiting for each to be made. */
+  const playFrom = async (mine: number, m: Made, n: number, at = 0) => {
+    let st = cur.current!.st;
+    while (!st.made[n]) {
+      if (run.current !== mine) return;
+      if (st.failed) throw new Error("Couldn't reach the voices. Tap Listen to try again.");
+      setState({ id: m.id, status: "loading" });
+      await sleep(1500);
+      if (run.current !== mine) return;
+      st = await ask(m);
+      if (cur.current) cur.current.st = st;
+    }
+    if (run.current !== mine || !cur.current) return;
+    cur.current.n = n;
+    const a = audio.current!;
+    a.onended = () => {
+      if (run.current !== mine || !cur.current) return;
+      const next = cur.current.n + 1;
+      if (next >= cur.current.st.parts) { cur.current = null; setState(null); setPos({ t: 0, d: 0 }); return; }
+      void playFrom(mine, m, next).catch((e: any) => { if (run.current === mine) { setState(null); sayRef.current(e?.message || "Couldn't reach the voices. Tap Listen to try again."); } });
+    };
+    a.ontimeupdate = () => { const c = cur.current; if (c && run.current === mine) setPos({ t: before(c.st, c.n) + a.currentTime, d: Math.max(total(c.st), before(c.st, c.n) + (Number.isFinite(a.duration) ? a.duration : 0)) }); };
+    a.src = `${apiBase}/api/podscroll/studio/audio/${st.id}/${n}`;
+    if (at > 0) a.addEventListener("loadedmetadata", () => { try { a.currentTime = at; } catch { /* starts at the top */ } }, { once: true });
+    await a.play();
+    // Keep the made-so-far list fresh while this line plays, so the position bar and the next line are ready.
+    if (!st.done) void ask(m).then((s) => { if (run.current === mine && cur.current) cur.current.st = s; }).catch(() => {});
+  };
+  const sayRef = useRef<(s: string) => void>(() => {});
 
   const play = async (m: Made, say: (s: string) => void) => {
+    sayRef.current = say;
     if (state?.id === m.id && audio.current && !speaking.current) {
       if (state.status === "playing") { audio.current.pause(); return; }
       if (state.status === "paused") { void audio.current.play(); return; }
     }
     stop();
+    const mine = run.current;
     setState({ id: m.id, status: "loading" });
     if (!audio.current) audio.current = new Audio();
     try { audio.current.onpause = null; audio.current.onplaying = null; audio.current.onended = null; audio.current.ontimeupdate = null; audio.current.src = silentClip(); void audio.current.play().catch(() => {}); } catch { /* no audio here */ }
     try {
-      const { id } = await api("/api/earshot/studio/voice", { method: "POST", body: { lines: m.lines, solo: m.solo } });
+      const st = await ask(m);
+      if (run.current !== mine) return;
       const a = audio.current!;
-      a.onplaying = () => { setState({ id: m.id, status: "playing" }); soundStarted("studio"); };
-      a.onpause = () => setState((s) => (s && s.id === m.id && s.status !== "loading" ? { ...s, status: "paused" } : s));
-      a.onended = () => setState(null);
-      a.ontimeupdate = () => setPos({ t: a.currentTime, d: Number.isFinite(a.duration) ? a.duration : 0 });
-      a.src = `${apiBase}/api/podscroll/studio/audio/${id}`;
-      await a.play();
+      a.onplaying = () => { if (run.current === mine) { setState({ id: m.id, status: "playing" }); soundStarted("studio"); } };
+      a.onpause = () => setState((s) => (s && s.id === m.id && s.status === "playing" && !a.ended ? { ...s, status: "paused" } : s));
+      if (st.whole) {
+        a.onended = () => { if (run.current === mine) setState(null); };
+        a.ontimeupdate = () => setPos({ t: a.currentTime, d: Number.isFinite(a.duration) ? a.duration : 0 });
+        a.src = `${apiBase}/api/podscroll/studio/audio/${st.id}`;
+        await a.play();
+        return;
+      }
+      cur.current = { m, st, n: 0 };
+      await playFrom(mine, m, 0);
     } catch (e: any) {
-      // AI voices only: no robot-voice fallback. The server already tried every AI voice it has.
-      setState(null); say(e?.message || "The AI voice is busy right now. Try again in a minute.");
+      // AI voices only: no robot-voice fallback.
+      if (run.current !== mine) return;
+      setState(null); say(e?.message || "Couldn't reach the voices. Tap Listen to try again.");
     }
   };
-  const seek = (t: number) => { if (audio.current) audio.current.currentTime = t; };
+  const seek = (t: number) => {
+    const a = audio.current, c = cur.current;
+    if (!a) return;
+    if (!c) { a.currentTime = t; return; }
+    // Find the line that time falls in; if it isn't made yet, go to the last one that is.
+    let n = 0;
+    while (n < c.st.parts - 1 && before(c.st, n + 1) <= t) n++;
+    while (n > 0 && !c.st.made[n]) n--;
+    const at = Math.max(0, t - before(c.st, n));
+    if (n === c.n) { a.currentTime = at; return; }
+    const mine = run.current;
+    void playFrom(mine, c.m, n, at).catch(() => {});
+  };
   return { state, pos, play, stop, seek };
 }
 
@@ -114,12 +272,35 @@ export function StudioView({ kind, api, apiBase, say, onBack, onSwitch }: { kind
   useEffect(() => { setOpenId(null); setErr(""); }, [kind]);
   useEffect(() => { window.scrollTo({ top: 0 }); }, [openId]);
 
-  const readFile = async (f: File | undefined) => {
-    if (!f) return;
-    if (f.size > 2e6 || !/^text\/|json|csv|markdown/.test(f.type || "text/") && !/\.(txt|md|markdown|csv|text|rtf)$/i.test(f.name)) { say("Pick a text file (.txt or .md), or paste the notes."); return; }
-    const t = (await f.text()).replace(/\{\\[^}]*\}|\\[a-z]+\d* ?/g, " ");
-    setNotes((n) => (n.trim() ? `${n.trim()}\n\n${t.trim()}` : t.trim()).slice(0, 20000));
-    if (!title) setTitle(f.name.replace(/\.[^.]+$/, "").slice(0, 80));
+  const addNotes = (t: string) => setNotes((n) => (n.trim() ? `${n.trim()}\n\n${t.trim()}` : t.trim()).slice(0, 20000));
+  const [reading, setReading] = useState("");
+  const photo = useRef<HTMLInputElement>(null);
+  const recorder = useRecorder(api, (t) => addNotes(t));
+  /** Text files are read here; a PDF or photos are read by the server (the photos by AI). */
+  const readFiles = async (list: FileList | null) => {
+    const files = Array.from(list || []).slice(0, 10);
+    if (!files.length || reading) return;
+    setErr("");
+    const photos = files.filter((f) => /^image\//.test(f.type) || /\.(jpe?g|png|heic|heif|webp|gif)$/i.test(f.name));
+    try {
+      for (const f of files) {
+        if (photos.includes(f)) {
+          setReading(photos.length > 1 ? `Reading photo ${photos.indexOf(f) + 1} of ${photos.length}…` : "Reading your photo…");
+          const out = await api("/api/earshot/studio/read", { method: "POST", body: { kind: "image", image: await shrinkPhoto(f) } });
+          addNotes(out.text);
+        } else if (f.type === "application/pdf" || /\.pdf$/i.test(f.name)) {
+          if (f.size > 10e6) throw new Error("That PDF is too big (10 MB at most). Try a smaller one, or photos of the pages you need.");
+          setReading("Reading your PDF…");
+          const out = await api("/api/earshot/studio/read", { method: "POST", body: { kind: "pdf", data: await toBase64(f) } });
+          addNotes(out.text);
+        } else {
+          if (f.size > 2e6 || !/^text\/|json|csv|markdown/.test(f.type || "text/") && !/\.(txt|md|markdown|csv|text|rtf)$/i.test(f.name)) throw new Error("Pick a PDF, a photo, or a text file (.txt or .md). Word files: save as PDF first.");
+          addNotes((await f.text()).replace(/\{\\[^}]*\}|\\[a-z]+\d* ?/g, " "));
+        }
+        if (!title && files.length === 1) setTitle(f.name.replace(/\.[^.]+$/, "").slice(0, 80));
+      }
+    } catch (e: any) { setErr(e?.message || "That couldn't be read. Try again."); }
+    finally { setReading(""); }
   };
 
   const make = async () => {
@@ -166,7 +347,7 @@ export function StudioView({ kind, api, apiBase, say, onBack, onSwitch }: { kind
             <button onClick={() => void share(open)} className="inline-flex h-12 items-center gap-2 rounded-full bg-white/15 px-5 text-sm font-semibold"><Share2 size={17} />Share</button>
           </div>
           {st && st !== "loading" && player.pos.d > 0 && <input type="range" min={0} max={player.pos.d} step={1} value={player.pos.t} onChange={(e) => player.seek(Number(e.target.value))} aria-label="Position" className="mt-4 w-full accent-white" />}
-          {st === "loading" && <p className="mt-3 text-xs text-white/70">This takes about half a minute the first time.</p>}
+          {st === "loading" && <p className="mt-3 text-xs text-white/70">Starts in a few seconds.</p>}
         </div>
       </div>
       <p className="mt-2 text-xs text-[#606060]">Made by AI from your notes. Check anything important against them.</p>
@@ -208,10 +389,20 @@ export function StudioView({ kind, api, apiBase, say, onBack, onSwitch }: { kind
       <textarea id="studio-notes" data-testid="studio-notes" value={notes} onChange={(e) => setNotes(e.target.value.slice(0, 20000))} rows={9} placeholder={c.placeholder}
         className="mt-2 w-full resize-y rounded-xl bg-[#f6f6f6] p-3 text-[15px] leading-relaxed outline-none focus:ring-2 focus:ring-[#0f0f0f]/20" />
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-        <button type="button" onClick={() => file.current?.click()} className="inline-flex h-10 items-center gap-2 rounded-full bg-[#f2f2f2] px-4 text-sm font-semibold"><Upload size={16} />Add a text file</button>
-        <input ref={file} type="file" accept=".txt,.md,.markdown,.csv,.rtf,text/*" className="hidden" onChange={(e) => { void readFile(e.target.files?.[0]); e.target.value = ""; }} />
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => file.current?.click()} disabled={!!reading} data-testid="studio-add-file" className="inline-flex h-10 items-center gap-2 rounded-full bg-[#f2f2f2] px-4 text-sm font-semibold disabled:opacity-60"><Upload size={16} />PDF or file</button>
+          <button type="button" onClick={() => photo.current?.click()} disabled={!!reading} data-testid="studio-add-photo" className="inline-flex h-10 items-center gap-2 rounded-full bg-[#f2f2f2] px-4 text-sm font-semibold disabled:opacity-60"><Camera size={16} />Add photos</button>
+          {recorder.state === "off"
+            ? <button type="button" onClick={() => void recorder.start()} data-testid="studio-record" className="inline-flex h-10 items-center gap-2 rounded-full bg-[#f2f2f2] px-4 text-sm font-semibold"><Mic size={16} />{kind === "study" ? "Record a class" : "Record the meeting"}</button>
+            : <button type="button" onClick={recorder.stop} disabled={recorder.state !== "recording"} data-testid="studio-record-stop" className="inline-flex h-10 items-center gap-2 rounded-full bg-[#cc0000] px-4 text-sm font-semibold text-white disabled:opacity-70">{recorder.state === "recording" ? <><Square size={14} fill="currentColor" />Stop · {clock(recorder.secs)}</> : <><Loader2 size={16} className="animate-spin" />Writing it down…</>}</button>}
+        </div>
+        <input ref={file} type="file" multiple accept=".pdf,application/pdf,.txt,.md,.markdown,.csv,.rtf,text/*,image/*" className="hidden" onChange={(e) => { void readFiles(e.target.files); e.target.value = ""; }} />
+        <input ref={photo} type="file" multiple accept="image/*" className="hidden" onChange={(e) => { void readFiles(e.target.files); e.target.value = ""; }} />
         <span className="text-xs text-[#606060]">{notes.length.toLocaleString()} / 20,000</span>
       </div>
+      {reading && <p role="status" className="mt-2 inline-flex items-center gap-2 text-sm text-[#3f3f3f]"><Loader2 size={14} className="animate-spin" />{reading}</p>}
+      {recorder.state === "recording" && <p role="status" className="mt-2 flex items-center gap-2 text-sm text-[#3f3f3f]"><span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#cc0000]" />Recording. Keep Pod+ open; it's written down as you go.</p>}
+      {recorder.note && recorder.state !== "recording" && <p role="status" className="mt-2 text-sm text-[#3f3f3f]">{recorder.note}</p>}
       {kind === "study" && <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <Choice label="Length" value={length} set={setLength} options={[["quick", "Quick · ~3 min"], ["full", "Full · ~6 min"]]} />
         <Choice label="Hosts" value={style} set={setStyle} options={[["duo", "Two hosts"], ["solo", "One teacher"]]} />

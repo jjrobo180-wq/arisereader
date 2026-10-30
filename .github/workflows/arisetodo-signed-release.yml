@@ -74,8 +74,8 @@ jobs:
           set -euo pipefail
           printf '%s' "$IOS_DISTRIBUTION_CERT_BASE64" | base64 -D > "$RUNNER_TEMP/signing.p12"
           printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | base64 -D > "$RUNNER_TEMP/profile.mobileprovision"
-          # Sign in with Apple and Apple Health on the App ID, and a profile that includes them (same certificate).
-          python3 .github/scripts/apple_signing.py com.arisereader.arisetodo "$RUNNER_TEMP/profile.mobileprovision" HEALTHKIT APPLE_ID_AUTH
+          # Sign in with Apple, Apple Health and push notifications on the App ID, and a profile that includes them (same certificate).
+          python3 .github/scripts/apple_signing.py com.arisereader.arisetodo "$RUNNER_TEMP/profile.mobileprovision" HEALTHKIT APPLE_ID_AUTH PUSH_NOTIFICATIONS
           security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
@@ -112,6 +112,14 @@ jobs:
             echo "Sign in with Apple: entitlement enabled"
           else
             echo "::warning::The provisioning profile has no Sign in with Apple capability. Building without it."
+          fi
+          APS=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:aps-environment' "$RUNNER_TEMP/profile.plist" 2>/dev/null || true)
+          if [[ -n "$APS" ]]; then
+            /usr/libexec/PlistBuddy -c "Add :aps-environment string $APS" "$ENT" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :aps-environment $APS" "$ENT"
+            USE_ENT=1
+            echo "Push notifications: entitlement enabled ($APS)"
+          else
+            echo "::warning::The provisioning profile has no Push Notifications capability. Building without server notifications."
           fi
           if [[ -n "$USE_ENT" ]]; then echo "HEALTH_ENTITLEMENTS=CODE_SIGN_ENTITLEMENTS=App/App.entitlements" >> "$GITHUB_ENV"; else echo "HEALTH_ENTITLEMENTS=" >> "$GITHUB_ENV"; fi
       - name: Archive signed app for physical iPhone

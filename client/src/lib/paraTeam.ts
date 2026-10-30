@@ -162,3 +162,21 @@ export function useParaTeam(token: string | null | undefined, teamId: string | n
 }
 
 export type ParaTeamApi = ReturnType<typeof useParaTeam>;
+
+/** Para Team isn't preinstalled, but someone already on a para team gets it added to their apps once
+ *  (in each hub). Taking it away afterwards is kept: it's only added the first time. */
+export function useParaTeamAutoAdd(ready: boolean, token: string | null | undefined, userId: number | string | undefined, hub: "work" | "life", has: boolean, add: () => void) {
+  useEffect(() => {
+    if (!ready || !token || userId == null) return;
+    const key = `arise-para-auto:${hub}:${userId}`;
+    try { if (localStorage.getItem(key)) return; } catch { return; }
+    const mark = () => { try { localStorage.setItem(key, "1"); } catch { /* asked again next time */ } };
+    if (has) { mark(); return; }
+    let live = true;
+    paraApi<ParaTeamSummary[]>(token, "/api/para-teams").then((teams) => {
+      if (!live) return;
+      if (Array.isArray(teams) && teams.length > 0) { add(); mark(); }
+    }).catch(() => { /* tried again next time */ });
+    return () => { live = false; };
+  }, [ready, token, userId, hub, has]); // eslint-disable-line react-hooks/exhaustive-deps
+}
