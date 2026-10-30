@@ -186,13 +186,14 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
       targets: [
         { sel: '[data-testid="life-section-tasks"]', label: "Tasks" },
         { sel: '[data-testid="life-menu-tasks"]', label: "Tasks" },
+        { sel: '[data-testid="life-tab-tasks"]', label: "Tasks" },
         { sel: '[data-tour="life-content"]', label: "Tasks" },
       ],
     },
     {
       title: "Add anything",
       body: "The Add button adds a task, list, event, grocery item, note or bill from any screen.",
-      targets: [{ sel: '[data-testid="life-add-button"]', label: "Add" }],
+      targets: [{ sel: '[data-testid="life-add-button"]', label: "Add" }, { sel: '[data-testid="life-tab-add"]', label: "Add" }],
     },
     {
       title: "Family and settings",
@@ -201,6 +202,7 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
       targets: [
         { sel: '[data-testid="life-section-family"]', label: "Family & settings" },
         { sel: '[data-testid="life-menu-family"]', label: "Family & settings" },
+        { sel: '[data-testid="life-tab-you"]', label: "You", note: "Family & settings is in here too." },
         { sel: '[data-tour="life-content"]', label: "Family & settings" },
       ],
     },
@@ -211,6 +213,7 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
         { sel: '[data-testid="lifehub-plugin-store-header"]', label: "App Gallery" },
         { sel: '[data-testid="lifehub-plugin-store"]', label: "App Gallery" },
         { sel: '[data-testid="life-menu-app-store"]', label: "App Gallery" },
+        { sel: '[data-testid="life-tab-apps"]', label: "Apps", note: "App Gallery is in Apps." },
       ],
     },
     {

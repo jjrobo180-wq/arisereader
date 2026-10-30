@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Folder, LayoutGrid, Search, X } from "lucide-react";
 import { foldMenu, type MenuClose, type MenuEntry, type MenuFolder, type MenuSide } from "@shared/hubLayout";
 import { inDuoPane } from "@/lib/useAriseDuo";
+import { OPEN_APPS_EVENT } from "./PhoneTabBar";
 
 export type PhoneMenuItem = { id: string; label: string; icon: ReactNode; active: boolean; badge?: number; color?: string; onClick: () => void };
 
@@ -18,9 +19,9 @@ export function usePhoneMenu(side: MenuSide, close: MenuClose) {
   const pane = inDuoPane();
   const [rail, setRailState] = useState(() => { if (pane) return false; try { return localStorage.getItem(KEY) !== "closed"; } catch { return true; } });
   const setRail = (open: boolean) => { setRailState(open); if (pane) return; try { localStorage.setItem(KEY, open ? "open" : "closed"); } catch { /* not remembered */ } };
-  const open = side !== "drawer" && ((close === "always" && !pane) || rail);
+  const open = side !== "drawer" && side !== "tabs" && ((close === "always" && !pane) || rail);
   /** Room the page leaves for the menu on a phone (nothing on a computer). */
-  const pad = side === "drawer" ? "" : side === "left" ? (open ? "max-lg:pl-[80px]" : "max-lg:pl-9") : side === "right" ? (open ? "max-lg:pr-[80px]" : "max-lg:pr-9")
+  const pad = side === "drawer" ? "" : side === "tabs" ? "max-lg:pb-28" : side === "left" ? (open ? "max-lg:pl-[80px]" : "max-lg:pl-9") : side === "right" ? (open ? "max-lg:pr-[80px]" : "max-lg:pr-9")
     : side === "top" ? (open ? "max-lg:pt-[76px]" : "max-lg:pt-6") : open ? "max-lg:pb-[92px]" : "";
   /** On a phone the menu may close by itself once a section is picked. */
   const afterPick = () => { if (close === "auto" && typeof window !== "undefined" && window.innerWidth < 1024) setRail(false); };
@@ -41,6 +42,12 @@ export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 
   /** Inside the full app grid, tapping a folder drills into its own grid; a back button returns to the top level. */
   const [gridFolder, setGridFolder] = useState<string | null>(null);
   const swipe = useRef<number | null>(null);
+  // The tab bar's Apps button opens this drawer.
+  useEffect(() => {
+    const show = () => setApps(true);
+    window.addEventListener(OPEN_APPS_EVENT, show);
+    return () => window.removeEventListener(OPEN_APPS_EVENT, show);
+  }, []);
   useEffect(() => {
     if (!apps) return;
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setApps(false); };
@@ -54,7 +61,7 @@ export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 
   const canHide = close !== "always";
   const badge = (n?: number) => (n ? <span className="absolute right-1 top-0.5 min-w-[16px] rounded-full bg-rose-600 px-1 text-[9px] font-bold leading-4 text-white">{n > 99 ? "99+" : n}</span> : null);
 
-  const onPhone = side === "drawer";
+  const onPhone = side === "drawer" || side === "tabs";
   const searching = query.trim().length > 0;
   const openFolder = gridFolder ? folders.find((f) => f.id === gridFolder) : null;
   // Searching looks across every app, folders included (flattened to plain tiles), so something
@@ -65,7 +72,7 @@ export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 
     : openFolder ? openFolder.items.map((id) => items.find((i) => i.id === id)).filter((i): i is PhoneMenuItem => !!i).map((item) => ({ kind: "item" as const, item }))
     : foldMenu(items, folders);
   const drawer = !(onPhone || deskDrawer) ? null : <>
-      {!apps && !hideLauncher && <button type="button" onClick={() => setApps(true)} aria-label="Open all sections" data-testid="life-apps-open"
+      {!apps && !hideLauncher && side !== "tabs" && <button type="button" onClick={() => setApps(true)} aria-label="Open all sections" data-testid="life-apps-open"
         onTouchStart={(e) => { swipe.current = e.touches[0].clientY; }} onTouchMove={(e) => { if (swipe.current !== null && swipe.current - e.touches[0].clientY > 30) { swipe.current = null; setApps(true); } }}
         className={`fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-40 h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full bg-[#292446] text-white shadow-xl transition active:scale-90 ${onPhone ? "inline-flex" : "hidden"} ${deskDrawer ? "lg:inline-flex" : "lg:hidden"}`}><LayoutGrid className="h-6 w-6" /></button>}
       <div className={`fixed inset-0 z-[480] ${onPhone ? "" : "max-lg:hidden"} ${deskDrawer ? "" : "lg:hidden"} ${apps ? "" : "pointer-events-none"}`} aria-hidden={!apps}>

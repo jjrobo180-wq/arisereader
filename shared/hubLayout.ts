@@ -6,12 +6,13 @@ import { cleanShortcut, type HubShortcut } from "./hubShortcut";
 
 /** Where the menu sits on a phone. On a computer it is always the sidebar on the left. */
 /** "drawer" is an app drawer: a button at the bottom opens every section as app icons, like Android. */
-export type MenuSide = "left" | "right" | "top" | "bottom" | "drawer";
+/** "tabs" is the floating tab bar along the bottom (Home, Tasks, Add, Apps, You); only LifeHub has it. */
+export type MenuSide = "left" | "right" | "top" | "bottom" | "drawer" | "tabs";
 /** How the phone menu closes: a Hide button (and a tab to bring it back), never, or by itself after a section is picked. */
 export type MenuClose = "button" | "always" | "auto";
 
 export const MENU_SIDES: { id: MenuSide; label: string }[] = [
-  { id: "left", label: "Left side" }, { id: "right", label: "Right side" }, { id: "top", label: "Top" }, { id: "bottom", label: "Bottom" }, { id: "drawer", label: "App drawer" },
+  { id: "left", label: "Left side" }, { id: "right", label: "Right side" }, { id: "top", label: "Top" }, { id: "bottom", label: "Bottom" }, { id: "drawer", label: "App drawer" }, { id: "tabs", label: "Tab bar" },
 ];
 export const MENU_CLOSES: { id: MenuClose; label: string; detail: string }[] = [
   { id: "button", label: "Hide button", detail: "Tap Hide to tuck it away, and the small tab to bring it back." },
