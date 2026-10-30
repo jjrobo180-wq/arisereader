@@ -5,6 +5,7 @@
 import type { Express, RequestHandler } from "express";
 import { createHash, randomBytes, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
+import { AppleTokenError, PODPLUS_APP, appleRefreshToken, revokeAppleToken, verifyAppleToken } from "./appleSignIn";
 import { CODE_MINUTES, CODE_TRIES, CODE_WAIT_SECS, CODES_PER_DAY, cleanEmail } from "../shared/earshotCreators";
 
 export type Account = { id: number; email: string; device: string };
@@ -162,6 +163,37 @@ export function registerPodscrollAccountRoutes(app: Express, gate: RequestHandle
     }
   });
 
+  /** Sign in with Apple (the Pod+ iPhone app). The identity token is checked against Apple's keys
+   *  (server/appleSignIn.ts); the account is the one with that email (Apple's own or its private relay
+   *  address), made now if it's new, keeping this phone's profile like an email-code sign-in does. */
+  const apples = createAttemptLimiter({ max: 30, windowMs: 15 * 60_000 });
+  app.post(`${P}/apple`, gate, async (req: any, res) => {
+    if (tooMany(apples, device(req), res)) return;
+    try {
+      const claims = await verifyAppleToken(String(req.body?.identityToken || ""), [PODPLUS_APP]);
+      const email = cleanEmail(claims.email);
+      if (!email) return res.status(400).json({ message: "Apple didn't share an email. In Settings → Apple ID → Sign in with Apple, remove Pod+ and try again." });
+      let { data: acct, error } = await db().from("podcast_accounts").select("id,email,device").eq("email", email).maybeSingle();
+      if (error) throw error;
+      if (!acct) {
+        const made = await db().from("podcast_accounts").insert({ email, device: device(req) }).select("id,email,device").single();
+        if (made.error) throw made.error;
+        acct = made.data;
+      }
+      const token = randomBytes(33).toString("base64url");
+      const { error: e3 } = await db().from("podcast_account_sessions").insert({ token_hash: hash(token), account_id: acct.id });
+      if (e3) throw e3;
+      // Kept so the Apple sign-in can be revoked if the account is deleted (needs the Sign in with Apple key).
+      const refresh = await appleRefreshToken(String(req.body?.authorizationCode || ""), PODPLUS_APP).catch(() => "");
+      if (refresh) await db().from("settings").upsert({ key: `podplus_apple_refresh:${acct.id}`, value: refresh }, { onConflict: "key" }).then(() => {}, () => {});
+      res.json({ token, email: acct.email, sameDevice: acct.device === device(req) });
+    } catch (e: any) {
+      if (e instanceof AppleTokenError) return res.status(401).json({ message: e.message });
+      console.error("[podscroll] apple sign-in:", e?.message || e);
+      res.status(500).json({ message: "Sign in with Apple didn't work just now. Try again." });
+    }
+  });
+
   /** Delete my Pod+ account and everything made with it (App Store Guideline 5.1.1(v)). Works signed
    *  in (the account, its profile and this phone's data) or not (this phone's listening data and
    *  profile). Asks for the word DELETE so it's never done by a stray tap. */
@@ -173,6 +205,12 @@ export function registerPodscrollAccountRoutes(app: Express, gate: RequestHandle
       const voters = Array.from(new Set([`d${req.user?.id || ""}`, `d${device(req)}`].filter((v) => v.length > 17)));
       await deletePodData(db(), voters);
       if (req.creator?.id) {
+        // A Sign in with Apple link is revoked with Apple too (when the Sign in with Apple key is set).
+        try {
+          const key = `podplus_apple_refresh:${req.creator.id}`;
+          const { data } = await db().from("settings").select("value").eq("key", key).maybeSingle();
+          if (data?.value) { await revokeAppleToken(String(data.value), PODPLUS_APP).catch(() => false); await db().from("settings").delete().eq("key", key); }
+        } catch { /* the account still goes */ }
         await db().from("podcast_account_codes").delete().eq("email", req.creator.email).then(() => {}, () => {});
         const { error } = await db().from("podcast_accounts").delete().eq("id", req.creator.id);
         if (error) throw error;

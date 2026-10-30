@@ -5,7 +5,8 @@
   "description": "Arise To Duo iPhone app",
   "scripts": {
     "ios:add": "cap add ios",
-    "ios:sync": "cap sync ios"
+    "ios:sync": "cap sync ios",
+    "postinstall": "node ../../.github/scripts/capacitor8-spm.mjs"
   },
   "dependencies": {
     "@capacitor/core": "8.0.0",
@@ -17,7 +18,8 @@
     "@capacitor/keyboard": "8.0.0",
     "@capgo/capacitor-health": "^8.7.0",
     "@capacitor/local-notifications": "8.0.0",
-    "@ebarooni/capacitor-calendar": "^8.2.0"
+    "@ebarooni/capacitor-calendar": "^8.2.0",
+    "@capacitor-community/apple-sign-in": "^7.1.0"
   },
   "devDependencies": {
     "@capacitor/cli": "8.0.0"
