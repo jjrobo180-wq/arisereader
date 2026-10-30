@@ -72,7 +72,7 @@ export default function Pricing() {
       </section>
       <section className="mx-auto mb-16 max-w-6xl rounded-[1.75rem] border border-indigo-100 bg-white px-6 py-9 shadow-sm sm:px-10">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="max-w-2xl"><p className="text-xs font-black uppercase tracking-widest text-violet-600">Free to start · Unlimited {usd(UNLIMITED_MONTHLY_CENTS)}/month</p><h2 className="mt-2 text-2xl font-black">Arise To Duo — Work &amp; Life hubs</h2><p className="mt-3 text-sm leading-7 text-slate-600">Your portal for tasks, calendars, family planning, educator tools and access to your A.R.I.S.E. programs. The free plan includes both hubs and up to 3 apps from the App Store. Arise To Duo Unlimited adds all 575+ apps and AI for {usd(UNLIMITED_MONTHLY_CENTS)} a month ({usd(UNLIMITED_YEARLY_CENTS)} a year for a limited time). Cancel anytime; nothing is deleted.</p></div>
+          <div className="max-w-2xl"><p className="text-xs font-black uppercase tracking-widest text-violet-600">Free to start · Unlimited {usd(UNLIMITED_MONTHLY_CENTS)}/month</p><h2 className="mt-2 text-2xl font-black">Arise To Duo — Work &amp; Life hubs</h2><p className="mt-3 text-sm leading-7 text-slate-600">Your portal for tasks, calendars, family planning, educator tools and access to your A.R.I.S.E. programs. The free plan includes both hubs and up to 3 apps from the App Gallery. Arise To Duo Unlimited adds all 575+ apps and AI for {usd(UNLIMITED_MONTHLY_CENTS)} a month ({usd(UNLIMITED_YEARLY_CENTS)} a year for a limited time). Cancel anytime; nothing is deleted.</p></div>
           <button onClick={todo} className="rounded-xl bg-[#1b1842] px-6 py-3 font-bold text-white">Open Arise To Duo</button>
         </div>
       </section>
@@ -85,6 +85,6 @@ export default function Pricing() {
 function ToDoAddOn({ base }: { base: number }) {
   return <div className="mt-5 rounded-2xl border border-dashed border-violet-300 bg-violet-50/60 p-4 text-left" data-testid="pricing-todo-addon">
     <p className="flex items-baseline justify-between gap-2"><span className="text-sm font-black text-violet-900">+ Arise To Duo Unlimited</span><span className="text-sm font-black text-violet-900">+{usd(UNLIMITED_MONTHLY_CENTS)}<span className="text-xs font-semibold text-violet-700">/mo</span></span></p>
-    <p className="mt-1 text-xs leading-5 text-violet-800">Every app in the App Store and AI. {usd(base + UNLIMITED_MONTHLY_CENTS)}/month total, or {usd(UNLIMITED_YEARLY_CENTS)}/year for the add-on for a limited time.</p>
+    <p className="mt-1 text-xs leading-5 text-violet-800">Every app in the App Gallery and AI. {usd(base + UNLIMITED_MONTHLY_CENTS)}/month total, or {usd(UNLIMITED_YEARLY_CENTS)}/year for the add-on for a limited time.</p>
   </div>;
 }

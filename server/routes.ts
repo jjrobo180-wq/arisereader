@@ -67,7 +67,7 @@ import { registerLifePlanRoutes } from "./lifePlan";
 import { registerSleepFinderRoutes } from "./sleepFinder";
 import { podscrollAllowed, registerEarshotRoutes, registerPodscrollRoutes, supabaseEarshotStore } from "./earshot";
 import { deletePodData } from "./podcastAccounts";
-import { onSocialReport } from "./socialModeration";
+import { hideLinks, onSocialReport, registerModerationRoutes } from "./socialModeration";
 import { registerSupportRoutes } from "./supportContact";
 import { attachLivePods } from "./podcastLive";
 import { attachListenParties } from "./podcastParty";
@@ -1269,9 +1269,10 @@ export async function registerRoutes(
   onSocialReport((r) => alertAdmin("problem_report", {
     title: `${r.app}: a ${r.what} was reported`,
     summary: `${r.reason || "Reported"} · ${r.what} ${r.id}${r.reports && r.reports >= 3 ? " · hidden after 3 reports" : ""}`,
-    lines: [["App", r.app], ["What", `${r.what} ${r.id}`], ["Reason", r.reason], ["About", r.about], ["Reported by", r.by], ["Reports so far", r.reports]],
-    note: "Look within 24 hours. To take it down, set hidden = true on its row in Supabase (podcast_posts, podcast_comments, podcast_stories or podcast_profiles); a person's whole profile hides everything they posted.",
+    lines: [["App", r.app], ["What", `${r.what} ${r.id}`], ["Reason", r.reason], ["About", r.about], ["Reported by", r.by], ["Reports so far", r.reports], ...hideLinks(r, APP_URL)],
+    note: "Look within 24 hours. Open a Hide link above to take it down (it asks once more before hiding). Hiding someone's profile hides everything they posted.",
   }));
+  registerModerationRoutes(app, getAdminSupabase);
   // Grade, school and teacher for a student's alert. Each part is optional.
   const studentFacts = async (user: any): Promise<{ grade: string; school: string; teacher: string }> => {
     const facts = { grade: "", school: "", teacher: "" };

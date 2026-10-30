@@ -923,7 +923,7 @@ function TeacherHubPage() {
     out.push({ id: "customize", kind: "Section", title: "Customize", sub: "Menu, folders and Home", keywords: "settings layout", icon: <Settings2 className="h-4 w-4" />, open: () => setCustomize(true) });
     out.push({ id: "notify", kind: "Section", title: "Notification settings", sub: "Morning summary and heads-ups", keywords: "notifications reminders alerts push phone bell", open: () => setNotifyOpen(true) });
     out.push({ id: "passcode", kind: "Section", title: "Passcode & locks", sub: "Lock screens and notes", keywords: "lock passcode password privacy hide secure settings", icon: <Lock className="h-4 w-4" />, open: () => setLockSettings(true) });
-    out.push({ id: "store", kind: "Section", title: "App Store", keywords: "add plugins apps store", icon: <ShoppingBag className="h-4 w-4" />, open: () => setStore(true) });
+    out.push({ id: "store", kind: "Section", title: "App Gallery", keywords: "add plugins apps store", icon: <ShoppingBag className="h-4 w-4" />, open: () => setStore(true) });
     // Installed apps are Apps too (not a separate "Plugins" group), with their icons and colours.
     for (const d of myKits) { const Icon = kitIcon(d.icon); out.push({ id: `kit-${d.id}`, kind: "App", title: d.name, sub: d.tagline, icon: <Icon />, color: d.color, open: () => openKit(d.id) }); }
     for (const p of myNotesApps) out.push({ id: `notes-app-${p.id}`, kind: "App", title: p.name, icon: <StickyNote />, color: p.color, open: () => openNotesApp(p.id) });
@@ -1042,7 +1042,7 @@ function TeacherHubPage() {
             <button type="button" onClick={() => startAdding({})} className="hidden min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-teal-800 sm:inline-flex sm:px-4 duo:hidden" data-testid="hub-add-with-ai">
               <WandSparkles className="h-4 w-4" /> <span>Add<span className="hidden sm:inline"> with AI</span></span>
             </button>
-            <button type="button" onClick={() => setStore(true)} aria-label="App Store" title="App Store" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex duo:hidden" data-testid="hub-plugin-store"><ShoppingBag className="h-4 w-4" /> <span className="hidden lg:inline">App Store</span></button>
+            <button type="button" onClick={() => setStore(true)} aria-label="App Gallery" title="App Gallery" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex duo:hidden" data-testid="hub-plugin-store"><ShoppingBag className="h-4 w-4" /> <span className="hidden lg:inline">App Gallery</span></button>
             <LockButton className="hidden sm:inline-flex duo:hidden" />
             <button type="button" onClick={() => setCustomize((v) => !v)} aria-label="Customize your Hub" aria-expanded={customize} data-tour="customize" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex duo:hidden"><Settings2 className="h-4 w-4" /> <span className="hidden lg:inline">Customize</span></button>
             <button type="button" onClick={() => setPrivacy(true)} aria-label="Account & privacy" title="Account & privacy" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex duo:hidden"><ShieldCheck className="h-4 w-4" /></button>
@@ -1126,7 +1126,7 @@ function TeacherHubPage() {
                         <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { setApps(false); setStore(true); }} data-testid="hub-app-store"
                           className="flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
                           <span className="inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] text-white shadow-sm" style={{ backgroundColor: "var(--hub-accent, #5b3be0)" }}><ShoppingBag className="h-7 w-7" /></span>
-                          <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">App Store</span>
+                          <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">App Gallery</span>
                         </button>
                       </li>
                     )}
@@ -1389,7 +1389,7 @@ function TeacherHubPage() {
               <button type="button" onClick={() => { setStore(true); afterPick(); }} data-testid="hub-menu-app-store" data-hub-store
                 className="flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium">
                 <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: "var(--hub-accent, #5b3be0)" }}><ShoppingBag className="h-3.5 w-3.5" /></span>
-                <span className={`${MENU_LABEL}`}>App Store</span>
+                <span className={`${MENU_LABEL}`}>App Gallery</span>
               </button>
             </div>
           </div>
@@ -1400,7 +1400,7 @@ function TeacherHubPage() {
             <div data-kit-view className="space-y-3" data-testid="hub-kit-view">
               <div className="flex items-center justify-between gap-2">
                 <button type="button" onClick={() => setKitOpen(null)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><RailHide className="h-4 w-4" /> Back</button>
-                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> App Store</button>
+                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> App Gallery</button>
               </div>
               <KitPlugin key={kitOpen} def={kitDef(kitOpen)!} records={kitRecords} setRecords={setKitRecords} today={TODAY()} makeId={id} say={(m) => toasts.show(m, [])} />
             </div>
@@ -1409,7 +1409,7 @@ function TeacherHubPage() {
             <div data-kit-view className="space-y-3" data-testid="hub-notes-app-view">
               <div className="flex items-center justify-between gap-2">
                 <button type="button" onClick={() => setNotesAppOpen(null)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><RailHide className="h-4 w-4" /> Back</button>
-                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> App Store</button>
+                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> App Gallery</button>
               </div>
               <NotesKitApp key={notesAppOpen} name={notesAppPlugin("work", notesAppOpen)!.name} blurb={notesAppPlugin("work", notesAppOpen)!.description}
                 notes={notesAppRecords[notesAppOpen] ?? []} setNotes={(update) => setNotesAppRecords(notesAppOpen, update)} makeId={id} say={(m) => toasts.show(m, [])} />
@@ -1419,7 +1419,7 @@ function TeacherHubPage() {
             <div data-kit-view className="space-y-3" data-testid="hub-sheets-app-view">
               <div className="flex items-center justify-between gap-2">
                 <button type="button" onClick={closeApps} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><RailHide className="h-4 w-4" /> Back</button>
-                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> App Store</button>
+                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> App Gallery</button>
               </div>
               <OfficeApp config={SHEETS} legacy={legacySheets(hubSheets, (sid) => setHubSheets((all) => all.filter((x) => x.id !== sid)))} say={(m) => toasts.show(m, [])} />
             </div>
@@ -1428,7 +1428,7 @@ function TeacherHubPage() {
             <div data-kit-view className="space-y-3" data-testid="hub-drive-app-view">
               <div className="flex items-center justify-between gap-2">
                 <button type="button" onClick={closeApps} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><RailHide className="h-4 w-4" /> Back</button>
-                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> App Store</button>
+                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> App Gallery</button>
               </div>
               <DriveApp files={hubDrive} setFiles={setHubDrive} say={(m) => toasts.show(m, [])} token={token}
                 onReadWithAI={(f, blob) => setAdding({ preload: { file: new File([blob], f.name, { type: f.contentType || blob.type }), text: READ_DOC_ASK }, links: [{ kind: "file", id: f.id }] })} />
@@ -1438,7 +1438,7 @@ function TeacherHubPage() {
             <div data-kit-view className="space-y-3" data-testid="hub-drop-app-view">
               <div className="flex items-center justify-between gap-2">
                 <button type="button" onClick={closeApps} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><RailHide className="h-4 w-4" /> Back</button>
-                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> App Store</button>
+                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> App Gallery</button>
               </div>
               <DropApp say={(m) => toasts.show(m, [])} token={token} />
             </div>
@@ -1557,7 +1557,7 @@ function TeacherHubPage() {
               { id: "more", label: "Plan & data", icon: <Sparkles />, content: <>
                 <PlanCard hub="work" hubApps={appsIn("work", workspace)} />
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <button type="button" onClick={() => { setStore(true); setCustomize(false); }} className="flex min-h-11 items-center gap-3 rounded-xl border border-dashed border-slate-300 p-3 text-left text-sm text-slate-600 hover:bg-slate-50" data-testid="customize-plugin-store"><ShoppingBag className="h-5 w-5 shrink-0 text-slate-500" /><span><span className="block font-semibold text-slate-900">Browse the App Store</span>Add apps, tabs and connections.</span></button>
+                  <button type="button" onClick={() => { setStore(true); setCustomize(false); }} className="flex min-h-11 items-center gap-3 rounded-xl border border-dashed border-slate-300 p-3 text-left text-sm text-slate-600 hover:bg-slate-50" data-testid="customize-plugin-store"><ShoppingBag className="h-5 w-5 shrink-0 text-slate-500" /><span><span className="block font-semibold text-slate-900">Browse the App Gallery</span>Add apps, tabs and connections.</span></button>
                   <button type="button" onClick={() => { setCustomize(false); window.dispatchEvent(new Event("arise-tour:start")); }} className="flex min-h-11 items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 p-3 text-left text-sm font-semibold text-violet-900 hover:bg-violet-100" data-testid="hub-take-tour"><Sparkles className="h-4 w-4 shrink-0" /> Take the tour again</button>
                 </div>
                 <HubDataPanel workspace={workspace} bytes={bytes} token={token} onAdopt={sync.adopt} />
@@ -1719,7 +1719,7 @@ function TeacherHubPage() {
           )}
 
           {tab === "start" && <GettingStarted hub="work" startRole={startingRole(user, "work")} canOpen={guideCanOpen} onOpen={guideOpen}
-            onRemove={() => { setWorkspace((p) => ({ ...p, visibleTabs: { ...p.visibleTabs, start: false } })); setTab("overview"); toasts.show("Getting started removed. Add it back any time from the App Store.", [{ label: "Open App Store", run: () => setStore(true) }]); }} />}
+            onRemove={() => { setWorkspace((p) => ({ ...p, visibleTabs: { ...p.visibleTabs, start: false } })); setTab("overview"); toasts.show("Getting started removed. Add it back any time from the App Gallery.", [{ label: "Open App Gallery", run: () => setStore(true) }]); }} />}
           {tab === "calendar" && <HubCalendarTab workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} onReminderAdded={reminderAdded} />}
           {tab === "caseload" && <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} profileId={profileStudent} setProfileId={setProfileStudent} openTab={setTab} />}
           {tab === "goals" && <><HubGoalBoard workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} /><GoalsTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} /></>}

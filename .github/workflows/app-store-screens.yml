@@ -3,13 +3,10 @@ name: App Store screens
 # Run it from the Actions tab (Run workflow); the pictures are in the run's "app-store-screens" artifact.
 on:
   workflow_dispatch:
-  push:
-    branches: [fix/app-store-readiness]
+  pull_request:
     paths:
       - '.github/workflows/app-store-screens.yml'
       - 'script/appStoreScreens.mjs'
-      - 'client/src/**'
-      - 'podscroll/**'
 permissions:
   contents: write
 jobs:

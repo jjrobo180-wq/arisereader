@@ -596,7 +596,7 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     if (limited(writes, req, res)) return;
     try {
       await store.reportComment(id, uid(req));
-      reportFiled({ app: P === "/api/podscroll" ? "Pod+" : "Earshot (LifeHub)", what: "comment", id, by: `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, about: "an episode comment", reason: cleanReason(req.body?.reason) });
+      reportFiled({ app: P === "/api/podscroll" ? "Pod+" : "Earshot (LifeHub)", what: "comment", table: P === "/api/podscroll" ? "podscroll_comments" : "earshot_comments", id, by: `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, about: "an episode comment", reason: cleanReason(req.body?.reason) });
       res.json({ ok: true });
     }
     catch (e) { storeDown(res, e); }

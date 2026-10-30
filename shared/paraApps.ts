@@ -35,7 +35,7 @@ export const PERM_INFO: Record<PermKey, { label: string; line: string }> = {
   lessons: { label: "Edit anyone's lesson plans", line: "Paras can change or remove lesson plans other people wrote." },
   docs: { label: "Edit and delete anyone's links and files", line: "Paras can rename, move or delete docs and files other people added." },
   data: { label: "Edit and delete anyone's data entries", line: "Paras can change or remove behavior and goal data other people logged." },
-  appsAdd: { label: "Add and remove team apps", line: "Paras can add apps from the App Store to the team, and remove them." },
+  appsAdd: { label: "Add and remove team apps", line: "Paras can add apps from the App Gallery to the team, and remove them." },
   appsEdit: { label: "Make changes in team apps", line: "Paras can add, change and vote in the team's apps. Off: they can look but not change anything." },
 };
 

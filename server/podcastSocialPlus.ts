@@ -331,7 +331,7 @@ export function registerSocialPlus(app: Express, d: PlusDeps) {
     try {
       const p = await profileRow(handle);
       if (!p) return res.status(404).json({ message: "That profile doesn't exist." });
-      reportFiled({ app: d.appName, what: "profile", id: `@${handle}`, by: v(req), about: `${p.voter} · ${String(p.name ?? "")} · ${String(p.bio ?? "").slice(0, 160)}`, reason: cleanReason(req.body?.reason) });
+      reportFiled({ app: d.appName, what: "profile", owner: p.voter, id: `@${handle}`, by: v(req), about: `${p.voter} · ${String(p.name ?? "")} · ${String(p.bio ?? "").slice(0, 160)}`, reason: cleanReason(req.body?.reason) });
       res.json({ ok: true });
     } catch (e) { fail(res, e); }
   });
@@ -486,7 +486,7 @@ export function registerSocialPlus(app: Express, d: PlusDeps) {
       const { data: m, error } = await db().from("podcast_dm_messages").select("id,sender,body").eq("id", mid).eq("thread_id", t.id).maybeSingle();
       check(error);
       if (!m || m.sender === v(req)) return res.status(404).json({ message: "That message is gone." });
-      reportFiled({ app: d.appName, what: "message", id: String(mid), by: v(req), about: `${m.sender}: ${String(m.body ?? "").slice(0, 200)}`, reason: cleanReason(req.body?.reason) });
+      reportFiled({ app: d.appName, what: "message", owner: m.sender, id: String(mid), by: v(req), about: `${m.sender}: ${String(m.body ?? "").slice(0, 200)}`, reason: cleanReason(req.body?.reason) });
       res.json({ ok: true });
     } catch (e) { fail(res, e); }
   });
@@ -604,7 +604,7 @@ export function registerSocialPlus(app: Express, d: PlusDeps) {
     try {
       const { data: s } = await db().from("podcast_stories").select("reports,voter,body").eq("id", id).maybeSingle();
       if (s) await db().from("podcast_stories").update({ reports: (s.reports ?? 0) + 1, hidden: (s.reports ?? 0) + 1 >= 3 }).eq("id", id);
-      if (s) reportFiled({ app: d.appName, what: "story", id: String(id), by: v(req), about: `${s.voter}: ${String(s.body ?? "").slice(0, 200)}`, reason: cleanReason(req.body?.reason), reports: (s.reports ?? 0) + 1 });
+      if (s) reportFiled({ app: d.appName, what: "story", table: "podcast_stories", owner: s.voter, id: String(id), by: v(req), about: `${s.voter}: ${String(s.body ?? "").slice(0, 200)}`, reason: cleanReason(req.body?.reason), reports: (s.reports ?? 0) + 1 });
       res.json({ ok: true });
     } catch (e) { fail(res, e); }
   });

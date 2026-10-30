@@ -10,6 +10,9 @@
 //   the report button (hidden after 3 reports) is the safety net.
 // - Reports: every report is passed to the listener set by the server (an admin alert by email and
 //   in the bell), so it can be looked at within 24 hours.
+import { createHmac, timingSafeEqual } from "node:crypto";
+import type { Express } from "express";
+
 type Verdict = { ok: true } | { ok: false; reason: string };
 const BLOCK = ["sexual", "sexual/minors", "violence/graphic", "self-harm", "self-harm/intent", "self-harm/instructions"];
 const TEXT_BLOCK = ["sexual/minors", "hate/threatening", "harassment/threatening", "self-harm/instructions", "violence/graphic", "sexual"];
@@ -98,7 +101,13 @@ export async function moderateImages(urls: string[], text = "", fetcher: typeof 
 
 // ---------------- reports reach the admin ----------------
 
-export type ReportInfo = { app: string; what: "post" | "comment" | "story" | "profile" | "message"; id: string; by: string; about?: string; reason?: string; reports?: number };
+export type ReportInfo = {
+  app: string; what: "post" | "comment" | "story" | "profile" | "message"; id: string; by: string; about?: string; reason?: string; reports?: number;
+  /** Where the reported thing is kept (a table with a "hidden" column), for the one-tap Hide link. */
+  table?: HideTable;
+  /** Who posted it ("d<device>" or "u<id>"), for the one-tap "hide everything they posted" link. */
+  owner?: string;
+};
 let listener: ((r: ReportInfo) => void) | null = null;
 /** Set once by the server: each report becomes an admin alert. */
 export function onSocialReport(fn: (r: ReportInfo) => void) { listener = fn; }
@@ -108,3 +117,72 @@ export function reportFiled(r: ReportInfo) { try { listener?.(r); } catch { /* t
 /** The reasons people can pick when reporting. */
 export const REPORT_REASONS = ["Spam", "Hate or harassment", "Sexual content", "Violence or threats", "Self-harm", "Someone under 13", "Something else"] as const;
 export const cleanReason = (v: unknown) => (typeof v === "string" && (REPORT_REASONS as readonly string[]).includes(v) ? v : "Something else");
+
+// ---------------- one-tap take-down from the report email ----------------
+// Each report email carries signed links: "Hide this post" and "Hide everything they posted" (their
+// profile; a hidden profile hides all their posts, replies and stories). The link opens a page with
+// one button, so an email scanner opening the link never hides anything by itself.
+
+export type HideTable = "podcast_posts" | "podcast_comments" | "podcast_stories" | "podcast_profiles" | "earshot_comments" | "podscroll_comments";
+const HIDE_TABLES: HideTable[] = ["podcast_posts", "podcast_comments", "podcast_stories", "podcast_profiles", "earshot_comments", "podscroll_comments"];
+const HIDE_DAYS = 14;
+const secret = () => process.env.SESSION_SECRET || process.env.PODCAST_ACCOUNT_SECRET || "pod+";
+const b64 = (s: string) => Buffer.from(s).toString("base64url");
+
+/** A link token for hiding one row: table, key and expiry, signed. */
+export function hideToken(table: HideTable, key: string, now = Date.now()): string {
+  const body = b64(JSON.stringify({ t: table, k: key, e: now + HIDE_DAYS * 86_400_000 }));
+  return `${body}.${createHmac("sha256", secret()).update(body).digest("base64url")}`;
+}
+export function readHideToken(token: string, now = Date.now()): { table: HideTable; key: string } | null {
+  const [body, sig] = String(token || "").split(".");
+  if (!body || !sig) return null;
+  const want = createHmac("sha256", secret()).update(body).digest("base64url");
+  if (want.length !== sig.length || !timingSafeEqual(Buffer.from(want), Buffer.from(sig))) return null;
+  try {
+    const d = JSON.parse(Buffer.from(body, "base64url").toString());
+    if (!HIDE_TABLES.includes(d?.t) || typeof d?.k !== "string" || !d.k || !(Number(d.e) > now)) return null;
+    return { table: d.t, key: d.k };
+  } catch { return null; }
+}
+/** The take-down links for a report, as [label, url] pairs. */
+export function hideLinks(r: ReportInfo, appUrl: string): [string, string][] {
+  const out: [string, string][] = [];
+  const at = (table: HideTable, key: string) => `${appUrl.replace(/\/$/, "")}/api/moderation/hide?t=${encodeURIComponent(hideToken(table, key))}`;
+  if (r.table && r.table !== "podcast_profiles" && /^\d+$/.test(r.id)) out.push([`Hide this ${r.what}`, at(r.table, r.id)]);
+  if (r.owner && /^[du][A-Za-z0-9_-]{1,59}$/.test(r.owner)) out.push(["Hide everything they posted (their profile)", at("podcast_profiles", r.owner)]);
+  return out;
+}
+
+const page = (title: string, body: string) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${title}</title>
+<style>body{font:16px/1.5 -apple-system,system-ui,sans-serif;margin:0;padding:32px 20px;color:#16151a;background:#f6f6f9}main{max-width:480px;margin:0 auto;background:#fff;border-radius:20px;padding:24px;box-shadow:0 4px 24px rgba(0,0,0,.06)}h1{font-size:22px;margin:0 0 8px}button{font:inherit;font-weight:700;min-height:48px;width:100%;border:0;border-radius:999px;background:#d93025;color:#fff;margin-top:16px}p{color:#555}</style></head><body><main>${body}</main></body></html>`;
+const esc = (v: string) => v.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+const label = (t: HideTable) => (t === "podcast_profiles" ? "this person's profile and everything they posted" : t === "podcast_stories" ? "this story" : t === "podcast_posts" ? "this post" : "this reply");
+
+export function registerModerationRoutes(app: Express, getDb: () => any) {
+  app.get("/api/moderation/hide", (req: any, res) => {
+    const token = String(req.query?.t || "");
+    const r = readHideToken(token);
+    res.set("Cache-Control", "no-store");
+    if (!r) return res.status(400).type("html").send(page("Link expired", "<h1>This link has run out</h1><p>Take-down links work for 14 days. Set hidden = true on the row in Supabase instead.</p>"));
+    res.type("html").send(page("Hide reported content", `<h1>Hide ${esc(label(r.table))}?</h1><p>It disappears for everyone right away. Nothing is deleted, so it can be shown again in Supabase by setting hidden back to false.</p><form method="post" action="/api/moderation/hide"><input type="hidden" name="t" value="${esc(token)}"><button type="submit">Hide it</button></form>`));
+  });
+  app.post("/api/moderation/hide", async (req: any, res) => {
+    // The form is posted as application/x-www-form-urlencoded, which the site's JSON parser skips.
+    let raw = "";
+    if (req.body && typeof req.body.t === "string") raw = `t=${encodeURIComponent(req.body.t)}`;
+    else await new Promise<void>((done) => { req.on("data", (c: Buffer) => { if (raw.length < 4000) raw += c.toString(); }); req.on("end", done); req.on("error", done); });
+    const r = readHideToken(new URLSearchParams(raw).get("t") || "");
+    res.set("Cache-Control", "no-store");
+    if (!r) return res.status(400).type("html").send(page("Link expired", "<h1>This link has run out</h1><p>Set hidden = true on the row in Supabase instead.</p>"));
+    try {
+      const q = getDb().from(r.table).update({ hidden: true });
+      const { error } = await (r.table === "podcast_profiles" ? q.eq("voter", r.key) : q.eq("id", Number(r.key)));
+      if (error) throw error;
+      res.type("html").send(page("Hidden", `<h1>Hidden</h1><p>${esc(label(r.table)).replace(/^./, (c) => c.toUpperCase())} is hidden for everyone now.</p>`));
+    } catch (e: any) {
+      console.error("[moderation] hide:", e?.message || e);
+      res.status(500).type("html").send(page("Didn't work", "<h1>That didn't work</h1><p>Try again in a minute, or set hidden = true on the row in Supabase.</p>"));
+    }
+  });
+}

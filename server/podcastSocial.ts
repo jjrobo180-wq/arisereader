@@ -669,7 +669,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
       const { count } = await db().from("podcast_post_reports").select("voter", { count: "exact", head: true }).eq("post_id", Number(id));
       await db().from("podcast_posts").update({ reports: count ?? 1, hidden: (count ?? 0) >= 3 }).eq("id", Number(id));
       const { data: row } = await db().from("podcast_posts").select("voter,caption").eq("id", Number(id)).maybeSingle();
-      reportFiled({ app: appName, what: "post", id, by: o.voterOf(req), about: `${row?.voter ?? ""}: ${String(row?.caption ?? "").slice(0, 200)}`, reason: cleanReason(req.body?.reason), reports: count ?? 1 });
+      reportFiled({ app: appName, what: "post", table: "podcast_posts", owner: row?.voter, id, by: o.voterOf(req), about: `${row?.voter ?? ""}: ${String(row?.caption ?? "").slice(0, 200)}`, reason: cleanReason(req.body?.reason), reports: count ?? 1 });
       res.json({ ok: true });
     } catch (e) { fail(res, e); }
   });
@@ -772,7 +772,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
       const { data: c, error } = await db().from("podcast_comments").select("reports,voter,body").eq("id", Number(id)).maybeSingle();
       check(error);
       if (c) await db().from("podcast_comments").update({ reports: (c.reports ?? 0) + 1, hidden: (c.reports ?? 0) + 1 >= 3 }).eq("id", Number(id));
-      if (c) reportFiled({ app: appName, what: "comment", id, by: o.voterOf(req), about: `${c.voter}: ${String(c.body ?? "").slice(0, 200)}`, reason: cleanReason(req.body?.reason), reports: (c.reports ?? 0) + 1 });
+      if (c) reportFiled({ app: appName, what: "comment", table: "podcast_comments", owner: c.voter, id, by: o.voterOf(req), about: `${c.voter}: ${String(c.body ?? "").slice(0, 200)}`, reason: cleanReason(req.body?.reason), reports: (c.reports ?? 0) + 1 });
       res.json({ ok: true });
     } catch (e) { fail(res, e); }
   });
