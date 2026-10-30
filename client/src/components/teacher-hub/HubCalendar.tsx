@@ -807,7 +807,7 @@ export default function HubCalendarTab({ workspace, setWorkspace, token, makeId,
         {inIphoneApp() && !workspace.calendars.some((c) => isIphoneCalendar(c.url)) && (
           <div className="mb-4 rounded-2xl border border-teal-200 bg-teal-50 p-4" data-testid="calendar-iphone">
             <p className="font-semibold text-slate-900">Your iPhone Calendar</p>
-            <p className="mt-1 text-sm text-slate-600">Bring in every calendar on this iPhone: iCloud, Google, Outlook and your school's. Nothing on your iPhone is changed.</p>
+            <p className="mt-1 text-sm text-slate-600">Bring in every calendar on this iPhone: iCloud, Google, Outlook and your school's. Nothing on your iPhone is changed. If your school's calendar can't be added to your iPhone, paste its link below instead.</p>
             <div className="mt-3"><PrimaryButton type="button" onClick={() => void connectIphone()} disabled={!!busy || full}>
               {busy === "iphone" ? <><Loader2 className="h-4 w-4 animate-spin" /> Connecting…</> : <><Calendar className="h-4 w-4" /> Connect iPhone Calendar</>}
             </PrimaryButton></div>
@@ -832,10 +832,7 @@ export default function HubCalendarTab({ workspace, setWorkspace, token, makeId,
           </PrimaryButton>
         </form>
         {full && <p className="mt-2 text-sm text-slate-600">You can connect up to {HUB_IMPORT_LIMITS.calendars} calendars. Disconnect one to add another.</p>}
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <GhostButton onClick={() => fileRef.current?.click()}>{busy === "file" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} Upload a calendar file</GhostButton>
-          <input ref={fileRef} type="file" accept=".ics,.ical,text/calendar" hidden onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = ""; }} data-testid="hub-calendar-file" />
-        </div>
+        <input ref={fileRef} type="file" accept=".ics,.ical,text/calendar" hidden onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = ""; }} data-testid="hub-calendar-file" />
         {error && <div className="mt-3 flex gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><span>{error}</span></div>}
         {notice && <div className="mt-3 rounded-xl bg-teal-50 px-3 py-2 text-sm text-teal-900" role="status">{notice}</div>}
         <details className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
@@ -844,7 +841,7 @@ export default function HubCalendarTab({ workspace, setWorkspace, token, makeId,
             <p><strong>Google Calendar:</strong> on a computer, open Settings, pick your calendar under "Settings for my calendars", choose "Integrate calendar", and copy "Secret address in iCal format".</p>
             <p><strong>Outlook:</strong> on the web, open Settings, then Calendar, then "Shared calendars". Under "Publish a calendar" pick your calendar, choose "Can view all details", press Publish, and copy the ICS link.</p>
             <p><strong>Apple (iCloud):</strong> at icloud.com/calendar, press the share button next to your calendar, turn on "Public Calendar", and copy the link.</p>
-            <p className="text-slate-600">The link lets your Hub read your calendar. It can't change it. If your school has turned sharing off, export your calendar as a file and use "Upload a calendar file" instead.</p>
+            <p className="text-slate-600">The link lets your Hub read your calendar. It can't change it. On an iPhone, the easiest way is to add the calendar to your iPhone's Calendar app (Settings → Calendar → Accounts) and use Connect iPhone Calendar above.</p>
           </div>
         </details>
         <AskForCalendar sender={workspace.profile.senderName || ""} />
