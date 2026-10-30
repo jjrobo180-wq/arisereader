@@ -2,7 +2,7 @@
 provisioning profile that includes them, signed for the SAME distribution certificate as before.
 
 Usage: apple_signing.py <bundle id> <profile.mobileprovision> CAPABILITY [CAPABILITY ...]
-  CAPABILITY: APPLE_ID_AUTH (Sign in with Apple) or HEALTHKIT.
+  CAPABILITY: APPLE_ID_AUTH (Sign in with Apple), HEALTHKIT or PUSH_NOTIFICATIONS.
 
 Uses the App Store Connect API key the release workflows already have. Never creates, revokes or
 replaces a certificate. If anything fails it leaves the profile file as it was and prints a warning,
@@ -21,7 +21,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-ENTITLEMENT = {"APPLE_ID_AUTH": "com.apple.developer.applesignin", "HEALTHKIT": "com.apple.developer.healthkit"}
+ENTITLEMENT = {"APPLE_ID_AUTH": "com.apple.developer.applesignin", "HEALTHKIT": "com.apple.developer.healthkit", "PUSH_NOTIFICATIONS": "aps-environment"}
 SETTINGS = {"APPLE_ID_AUTH": [{"key": "APPLE_ID_AUTH_APP_CONSENT", "options": [{"key": "PRIMARY_APP_CONSENT"}]}]}
 
 
