@@ -5,7 +5,8 @@
   "description": "Arise To Duo iPhone app",
   "scripts": {
     "ios:add": "cap add ios",
-    "ios:sync": "cap sync ios"
+    "ios:sync": "cap sync ios",
+    "postinstall": "node ../../.github/scripts/capacitor8-spm.mjs"
   },
   "dependencies": {
     "@capacitor/core": "8.0.0",

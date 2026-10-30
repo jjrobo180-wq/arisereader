@@ -6,7 +6,8 @@
   "scripts": {
     "ios:add": "cap add ios",
     "ios:sync": "cap sync ios",
-    "ios:open": "cap open ios"
+    "ios:open": "cap open ios",
+    "postinstall": "node ../../.github/scripts/capacitor8-spm.mjs"
   },
   "dependencies": {
     "@capacitor/core": "8.0.0",
