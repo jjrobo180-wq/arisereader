@@ -153,6 +153,10 @@ await shot("todo-walkthrough-split", async (p) => {
 await shot("workhub-more-menu", async (p) => { await sample(p, "/hub"); await p.frameLocator("#f").getByTestId("hub-more").click(); await wait(p, 600); });
 await shot("workhub-gallery", async (p) => { await sample(p, "/hub"); const f = p.frameLocator("#f"); await f.getByTestId("hub-more").click(); await wait(p, 300); await f.getByTestId("hub-more-gallery").click(); await wait(p, 1500); });
 await shot("lifehub-gallery-search", async (p) => { await sample(p, "/lifehub?pane=home"); const f = p.frameLocator("#f"); await f.getByTestId("life-more").click(); await wait(p, 300); await f.getByTestId("life-more-gallery").click(); await wait(p, 1200); const box = f.getByRole("searchbox").first(); if (await box.count()) { await box.fill("calorie"); await wait(p, 800); } });
+await shot("podplus-could-save", async (p) => {
+  await p.addInitScript(() => { try { const d = new Date(); const m = new Date(d.getFullYear(), d.getMonth(), d.getDate()); m.setDate(m.getDate() - ((m.getDay() + 6) % 7)); const wk = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, "0")}-${String(m.getDate()).padStart(2, "0")}`; localStorage.setItem("earshot.couldSave", JSON.stringify({ total: { ads: 4300, intros: 0, speed: 0 }, weeks: { [wk]: { ads: 1850, intros: 0, speed: 0 } } })); } catch {} });
+  await pod(p);
+});
 await shot("podplus-privacy", async (p) => { await p.goto(`${P}/privacy/`); await wait(p, 500); });
 await shot("podplus-support-dark", async (p) => { await p.goto(`${P}/support/`); await wait(p, 500); }, { dark: true });
 
