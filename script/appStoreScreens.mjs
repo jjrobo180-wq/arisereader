@@ -136,6 +136,7 @@ await shot("podplus-continue", async (p) => {
   await p.addInitScript(() => { try { localStorage.setItem("earshot.spots", JSON.stringify({ "1000650000001": { t: 1260, secs: 3300, title: "How the Universe Began, Part 2", show: "Sample Science Show", showId: "1", art: "", at: Date.now() } })); } catch {} });
   await pod(p);
 });
+await shot("podplus-import", async (p) => { await p.goto(`${P}/app/#/import`); await wait(p, 6000); const skip = p.getByRole("button", { name: "Skip for now" }); if (await skip.count()) await skip.first().click(); await wait(p, 1200); });
 await shot("podplus-privacy", async (p) => { await p.goto(`${P}/privacy/`); await wait(p, 500); });
 await shot("podplus-support-dark", async (p) => { await p.goto(`${P}/support/`); await wait(p, 500); }, { dark: true });
 

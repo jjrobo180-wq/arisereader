@@ -171,7 +171,7 @@ export type Earshot = {
   settings: EarshotSettings;
 };
 
-export const EARSHOT_LIMITS = { follows: 200, liked: 300, saved: 300, heard: 200, skipped: 80, comment: 280, search: 80, modes: 24, modeEpisodes: 150 } as const;
+export const EARSHOT_LIMITS = { follows: 500, liked: 300, saved: 300, heard: 200, skipped: 80, comment: 280, search: 80, modes: 24, modeEpisodes: 150 } as const;
 /** Modes that start out Fresh (rebuilt daily). */
 export const FRESH_BY_DEFAULT = ["briefing"];
 export const defaultModes = (): PodMode[] => DEFAULT_MODES.map((m) => ({ id: m.id, name: m.name, icon: m.icon, episodes: [], ...(FRESH_BY_DEFAULT.includes(m.id) ? { fresh: true } : {}) }));
