@@ -28,12 +28,15 @@ export default function ForcePasswordChange() {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ newPassword }),
+        signal: AbortSignal.timeout(20_000),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || "Couldn't set your password. Try again.");
+      // Saved. The app goes on as soon as the account says so; this screen never sits on "Saving…".
       await refreshUser();
+      setBusy(false);
     } catch (e: any) {
-      setError(e.message || "Couldn't set your password. Try again.");
+      setError(e?.name === "TimeoutError" ? "That's taking too long. Check your connection and try again." : e.message || "Couldn't set your password. Try again.");
       setBusy(false);
     }
   };
