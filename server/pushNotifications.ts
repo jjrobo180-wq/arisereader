@@ -13,7 +13,7 @@ import { dueTodoReminders, TODO_REMINDER_URL, type TodoReminder } from "../share
 import { NEWS_TOPICS } from "../shared/todoNews";
 import { fetchHeadlines } from "./todoNews";
 import { dueNudges } from "../shared/healthNudges";
-import { APNS_PREFIX, appleToken, cleanAppleToken, hasApplePush, isAppleDevice, sendApplePush } from "./applePush";
+import { APNS_PREFIX, appleToken, cleanAppleToken, hasApplePush, isAppleDevice, loadAppleKey, sendApplePush } from "./applePush";
 
 type Gate = (req: any, res: any) => Promise<unknown | null>;
 type Row = { id: number; user_id: number; endpoint: string; p256dh: string; auth: string; time_zone: string; sent: Record<string, any> | null; hub?: boolean | null; todo?: boolean | null };
@@ -50,6 +50,9 @@ export async function pushKeys(): Promise<VapidKeys | null> {
   }
 }
 
+/** The Apple push key saved with the push settings (when the server's environment has none). */
+const appleKey = () => loadAppleKey(async () => (await supabase.from("push_settings").select("apns_key, apns_key_id, apns_team_id").eq("id", 1).maybeSingle()).data as any);
+
 /** Sends to one saved device; forgets it if the phone says it is gone. Returns whether it was delivered. */
 async function deliver(row: Row, message: PushMessage, keys: VapidKeys | null): Promise<boolean> {
   try {
@@ -64,14 +67,15 @@ async function deliver(row: Row, message: PushMessage, keys: VapidKeys | null): 
 }
 
 /** Sends a notification to every device a user turned notifications on for. */
-export async function notifyUser(userId: number, message: PushMessage, only?: PushApp): Promise<number> {
+export async function notifyUser(userId: number, message: PushMessage, only?: PushApp, counts?: { apple: number }): Promise<number> {
   const keys = await pushKeys();
+  await appleKey();
   const { data } = await supabase.from("push_subscriptions").select(SUBSCRIPTION_COLUMNS).eq("user_id", userId);
   let delivered = 0;
   for (const row of (data || []) as Row[]) {
     // The iPhone app holds both hubs, so it gets every notification meant for this person.
     if (only && !isAppleDevice(row.endpoint) && !wants(row, only)) continue;
-    if (await deliver(row, message, keys)) delivered++;
+    if (await deliver(row, message, keys)) { delivered++; if (counts && isAppleDevice(row.endpoint)) counts.apple++; }
   }
   return delivered;
 }
@@ -357,7 +361,8 @@ export function registerPushRoutes(app: Express, authMiddleware: RequestHandler,
 
   // The Arise To Duo iPhone app's Apple device token. It gets the same notifications as a phone with
   // Web Push (messages, shares, tests), never the scheduled reminders (the app schedules those itself).
-  app.get("/api/push/apple/config", (_req, res) => { res.json({ enabled: hasApplePush() }); });
+  void appleKey();
+  app.get("/api/push/apple/config", async (_req, res) => { await appleKey(); res.json({ enabled: hasApplePush() }); });
   app.post("/api/push/apple", authMiddleware, async (req: any, res) => {
     const token = cleanAppleToken(req.body?.token);
     if (!token) return res.status(400).json({ message: "That iPhone's notification details look wrong." });
@@ -401,11 +406,12 @@ export function registerPushRoutes(app: Express, authMiddleware: RequestHandler,
     const wait = testSends.retryAfter(who);
     if (wait) return res.status(429).json({ message: `That's a lot of tests. Try again in ${waitWords(wait)}.` });
     testSends.fail(who);
+    const counts = { apple: 0 };
     const delivered = await notifyUser(Number(req.user.id), which === "hub"
       ? { title: "Notifications are on", body: "You'll get reminders from your Arise WorkHub here.", url: HUB_REMINDER_URL, tag: "test" }
-      : { title: "Notifications are on", body: "You'll get reminders from Arise LifeHub here.", url: TODO_REMINDER_URL, tag: "todo-test" }, which);
+      : { title: "Notifications are on", body: "You'll get reminders from Arise LifeHub here.", url: TODO_REMINDER_URL, tag: "todo-test" }, which, counts);
     if (!delivered) return res.status(409).json({ message: "No phone is signed up yet. Turn notifications on first." });
-    res.json({ ok: true, delivered });
+    res.json({ ok: true, delivered, apple: counts.apple });
   };
 
   // Arise WorkHub reminders are part of the Hub, so only Hub teachers can turn them on.

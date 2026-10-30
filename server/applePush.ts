@@ -7,6 +7,8 @@
 //   APNS_KEY_ID   that key's 10-character id
 //   APPLE_TEAM_ID 6TYWWNKX6P
 // Optional: APNS_TOPIC (default com.arisereader.arisetodo), APNS_SANDBOX=1 for a debug build.
+// Without those environment variables, the key saved in the database (push_settings: apns_key,
+// apns_key_id, apns_team_id) is used, so it can be set up without touching the server's settings.
 import crypto from "node:crypto";
 import http2 from "node:http2";
 
@@ -19,21 +21,36 @@ export const cleanAppleToken = (v: unknown): string | null => {
   return /^[0-9a-f]{64,200}$/.test(t) ? t : null;
 };
 
+/** The key saved in the database, when the environment doesn't have one (loaded by loadAppleKey). */
+let saved: { key: string; id: string; team: string } | null = null;
+let loadedAt = 0;
+/** Reads the saved key (at most every 10 minutes). `read` gets the push_settings row. */
+export async function loadAppleKey(read: () => Promise<{ apns_key?: string | null; apns_key_id?: string | null; apns_team_id?: string | null } | null>): Promise<void> {
+  if (process.env.APNS_KEY || Date.now() - loadedAt < 10 * 60_000) return;
+  loadedAt = Date.now();
+  try {
+    const row = await read();
+    if (row?.apns_key && row.apns_key_id) { saved = { key: row.apns_key, id: row.apns_key_id, team: row.apns_team_id || "6TYWWNKX6P" }; jwt = null; }
+  } catch { /* tried again later */ }
+}
+const keyId = () => process.env.APNS_KEY_ID || saved?.id;
+const teamId = () => process.env.APPLE_TEAM_ID || process.env.APNS_TEAM_ID || saved?.team;
+
 function keyText(): string | null {
-  const raw = process.env.APNS_KEY?.trim();
+  const raw = (process.env.APNS_KEY || saved?.key)?.trim();
   if (!raw) return null;
   if (raw.includes("BEGIN PRIVATE KEY")) return raw.replace(/\\n/g, "\n");
   try { const t = Buffer.from(raw, "base64").toString("utf8"); return t.includes("BEGIN PRIVATE KEY") ? t : null; } catch { return null; }
 }
-export const hasApplePush = () => !!(keyText() && process.env.APNS_KEY_ID && (process.env.APPLE_TEAM_ID || process.env.APNS_TEAM_ID));
+export const hasApplePush = () => !!(keyText() && keyId() && teamId());
 
 let jwt: { token: string; at: number } | null = null;
 /** Apple's sign-in token for sending: made with the key, good for an hour (we remake it every 40 minutes). */
 export function appleJwt(now = Date.now()): string {
   if (jwt && now - jwt.at < 40 * 60_000) return jwt.token;
   const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url");
-  const head = b64({ alg: "ES256", kid: process.env.APNS_KEY_ID });
-  const body = b64({ iss: process.env.APPLE_TEAM_ID || process.env.APNS_TEAM_ID, iat: Math.floor(now / 1000) });
+  const head = b64({ alg: "ES256", kid: keyId() });
+  const body = b64({ iss: teamId(), iat: Math.floor(now / 1000) });
   const sig = crypto.sign("sha256", Buffer.from(`${head}.${body}`), { key: keyText()!, dsaEncoding: "ieee-p1363" }).toString("base64url");
   jwt = { token: `${head}.${body}.${sig}`, at: now };
   return jwt.token;
