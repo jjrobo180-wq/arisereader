@@ -1,6 +1,7 @@
 // The building blocks every Arise premium app is made from: saved data, cards and fields, charts,
 // a calendar heat map, sounds, speech, keeping the screen awake, printing and CSV downloads.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { sayAI } from "@/lib/aiVoice";
 import { X } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useAppData } from "@/lib/cloudDocs";
@@ -154,8 +155,9 @@ export function bell(freq = 528) {
   const a = audio(); if (!a) return;
   [1, 2.01, 3.03].forEach((mult, i) => { const o = a.createOscillator(), g = a.createGain(); o.frequency.value = freq * mult; g.gain.setValueAtTime(0.0001, a.currentTime); g.gain.exponentialRampToValueAtTime(0.18 / (i + 1), a.currentTime + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + 4 / (i + 1)); o.connect(g).connect(a.destination); o.start(); o.stop(a.currentTime + 4.2); });
 }
+/** Says it in an AI voice (lib/aiVoice.ts), never the phone's robot voice. */
 export function speak(text: string, rate = 1) {
-  try { const s = window.speechSynthesis; if (!s) return; s.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate = rate; s.speak(u); } catch { /* no speech */ }
+  void sayAI(text, { rate });
 }
 export function vibrate(ms: number | number[]) { try { navigator.vibrate?.(ms); } catch { /* none */ } }
 

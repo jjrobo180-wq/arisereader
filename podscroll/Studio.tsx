@@ -1,7 +1,7 @@
 // Pod+ Studio: Study Pod+ (study notes → a podcast episode with key points and a quiz) and Meeting Pod
 // (meeting notes → summary, decisions, action items, open questions and a spoken recap).
 // The words are written by AI on the server (server/podcastStudio.ts); what's made is kept on this
-// device only. Listening uses the Pod+ voices; when they can't be reached, the phone's own voice reads it.
+// device only. Listening uses AI voices only (Orpheus, then Aura); never the phone's robot voice.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BookOpen, Briefcase, Check, ChevronDown, ChevronLeft, Copy, FileText, GraduationCap, Loader2, Pause, Play, Share2, Sparkles, Trash2, Upload } from "lucide-react";
 import { onOtherSound, soundStarted } from "../client/src/components/family-hub/earshot/soundBus";
@@ -57,7 +57,7 @@ function silentClip(): string {
   return silence;
 }
 
-/** Plays a pod: the Pod+ voices when they can be made, else the phone's own voice reading the lines. */
+/** Plays a pod in AI voices (made on the server, by a hash of its words).  */
 function usePodPlayer(api: Api, apiBase: string) {
   const audio = useRef<HTMLAudioElement | null>(null);
   const [state, setState] = useState<{ id: string; status: "loading" | "playing" | "paused" } | null>(null);
@@ -65,35 +65,16 @@ function usePodPlayer(api: Api, apiBase: string) {
   const speaking = useRef(false);
   const stop = () => {
     audio.current?.pause();
-    if (speaking.current) { try { speechSynthesis.cancel(); } catch { /* none */ } speaking.current = false; }
     setState(null);
   };
-  useEffect(() => onOtherSound("studio", () => { audio.current?.pause(); if (speaking.current) { try { speechSynthesis.cancel(); } catch { /* none */ } speaking.current = false; setState(null); } }), []);
-  useEffect(() => () => { audio.current?.pause(); try { if (speaking.current) speechSynthesis.cancel(); } catch { /* none */ } }, []);
-
-  const readAloud = (m: Made) => {
-    if (typeof speechSynthesis === "undefined") throw new Error("no voice");
-    speechSynthesis.cancel();
-    const all = speechSynthesis.getVoices().filter((v) => /^en/i.test(v.lang));
-    const pick = [all[0], all.find((v, i) => i > 0 && v.name !== all[0]?.name) || all[0]];
-    speaking.current = true;
-    m.lines.forEach((l, i) => {
-      const u = new SpeechSynthesisUtterance(l.text);
-      const v = pick[l.speaker === "B" ? 1 : 0]; if (v) u.voice = v;
-      u.rate = 1.02;
-      if (i === m.lines.length - 1) u.onend = () => { speaking.current = false; setState(null); };
-      speechSynthesis.speak(u);
-    });
-    setState({ id: m.id, status: "playing" });
-    soundStarted("studio");
-  };
+  useEffect(() => onOtherSound("studio", () => { audio.current?.pause(); }), []);
+  useEffect(() => () => { audio.current?.pause(); }, []);
 
   const play = async (m: Made, say: (s: string) => void) => {
     if (state?.id === m.id && audio.current && !speaking.current) {
       if (state.status === "playing") { audio.current.pause(); return; }
       if (state.status === "paused") { void audio.current.play(); return; }
     }
-    if (state?.id === m.id && speaking.current) { stop(); return; }
     stop();
     setState({ id: m.id, status: "loading" });
     if (!audio.current) audio.current = new Audio();
@@ -108,8 +89,8 @@ function usePodPlayer(api: Api, apiBase: string) {
       a.src = `${apiBase}/api/podscroll/studio/audio/${id}`;
       await a.play();
     } catch (e: any) {
-      try { readAloud(m); say("Reading it with your phone's voice."); }
-      catch { setState(null); say(e?.message || "Couldn't play it right now."); }
+      // AI voices only: no robot-voice fallback. The server already tried every AI voice it has.
+      setState(null); say(e?.message || "The AI voice is busy right now. Try again in a minute.");
     }
   };
   const seek = (t: number) => { if (audio.current) audio.current.currentTime = t; };
