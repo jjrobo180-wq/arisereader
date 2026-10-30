@@ -85,7 +85,7 @@ def main():
     if len(ids) != 1:
         raise RuntimeError(f"No single App ID for {bundle}")
     bid = ids[0]["id"]
-    have = {x["attributes"]["capabilityType"] for x in api(f"bundleIds/{bid}/bundleIdCapabilities?limit=200")["data"]}
+    have = {x["attributes"]["capabilityType"] for x in api(f"bundleIds/{bid}/bundleIdCapabilities")["data"]}
     for cap in caps:
         if cap in have:
             continue
@@ -104,7 +104,7 @@ def main():
         print(f"::notice title=Signing::Turned on {cap} for {bundle}")
 
     # A profile made after the capabilities changed, for the same certificate.
-    url = f"bundleIds/{bid}/profiles?limit=200"
+    url = f"bundleIds/{bid}/profiles"
     chosen = None
     while url and not chosen:
         page = api(url)
