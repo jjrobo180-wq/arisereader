@@ -5,6 +5,7 @@
 // AfterSignIn do the sending; this page only signs in.)
 import ForgotSignIn from "@/components/auth/ForgotSignIn";
 import { LEGAL } from "@/lib/nativeApp";
+import { APPLE_LOGO_PATH, appleSignInAvailable, askApple } from "@/lib/appleSignIn";
 import { useEffect, useState, type FormEvent } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
@@ -25,7 +26,7 @@ const studentAccounts = [
 ] as const;
 
 export default function SignIn() {
-  const { login } = useAuth();
+  const { login, signInWithApple } = useAuth();
   const [, navigate] = useLocation();
   const onTodo = isTodoHost();
   // arisetodo.com is for anyone, so it has one sign-in (students sign in on arisereader.com).
@@ -83,6 +84,20 @@ export default function SignIn() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  /** Sign in with Apple (the iPhone app): signs in, or makes a free personal account the first time. */
+  const withApple = async () => {
+    if (submitting) return;
+    setError(""); setSubmitting(true);
+    try {
+      const apple = await askApple("com.arisereader.arisetodo");
+      if (!apple) return;
+      await signInWithApple(apple);
+      showHubMenuOnLogin();
+    } catch (err: any) {
+      setError(err instanceof Error ? err.message : "Sign in with Apple didn't work. Try again.");
+    } finally { setSubmitting(false); }
   };
 
   /** Typing the emailed code back. A right code turns the account on and signs the person in. */
@@ -329,6 +344,15 @@ export default function SignIn() {
                 {submitting ? "Signing you in…" : onTodo ? "Sign in and open my hubs" : adult ? "Sign in and open my hub" : "Sign in to A.R.I.S.E. Reader"} <ArrowRight size={18}/>
               </button>
             </form>
+            {(adult || onTodo) && appleSignInAvailable() && <>
+              <div className="my-4 flex items-center gap-3 text-xs text-[#8b91a5]"><span className="h-px flex-1 bg-[#e5e7f4]"/><span>or</span><span className="h-px flex-1 bg-[#e5e7f4]"/></div>
+              <button type="button" onClick={() => void withApple()} disabled={submitting} data-testid="apple-sign-in"
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-black text-[15px] font-semibold text-white transition hover:bg-[#1a1a1a] disabled:opacity-60">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={APPLE_LOGO_PATH} /></svg>
+                Sign in with Apple
+              </button>
+              <p className="mt-2 text-center text-xs text-[#7d839d]">New here? It makes your free account.</p>
+            </>}
             <ForgotSignIn />
             <div className="my-6 flex items-center gap-3 text-xs text-[#8b91a5]"><span className="h-px flex-1 bg-[#e5e7f4]"/><span>New to A.R.I.S.E.?</span><span className="h-px flex-1 bg-[#e5e7f4]"/></div>
             {onTodo ? <>

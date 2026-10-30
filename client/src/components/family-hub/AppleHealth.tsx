@@ -67,11 +67,19 @@ export function AppleHealthPanel({ member, apple, say }: { member: Member; apple
   const link = apple.links.find((l) => l.memberId === member.id);
   const inApp = nativeHealthAvailable();
   const [syncing, setSyncing] = useState(false);
+  // What the last try on this iPhone said, kept on screen (a toast disappears before it can be read).
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
   const connectInApp = async () => {
-    setSyncing(true);
-    try { await askHealthPermission(); say(await syncNativeHealth(token, member.id, 30)); apple.check(); }
-    catch (e: any) { say(e.message); }
-    finally { setSyncing(false); }
+    setSyncing(true); setResult(null);
+    try {
+      await askHealthPermission();
+      // The link is made first, so this person shows as connected even before Health has numbers to share.
+      const text = await syncNativeHealth(token, member.id, 30);
+      setResult({ ok: true, text }); say(text);
+    } catch (e: any) {
+      const text = String(e?.message || e || "Apple Health didn't answer. Try again.");
+      setResult({ ok: false, text }); say(text);
+    } finally { setSyncing(false); apple.check(); }
   };
   const disconnect = async () => {
     if (!window.confirm("Disconnect Apple Health? The Shortcut will stop syncing. Numbers already synced stay in the diary.")) return;
@@ -94,6 +102,7 @@ export function AppleHealthPanel({ member, apple, say }: { member: Member; apple
         ? <button onClick={() => void connectInApp()} disabled={syncing} className={primary + " mt-3 w-full"}><HeartPulse size={16} /> {syncing ? "Connecting…" : "Connect Apple Health"}</button>
         : <button onClick={() => setSetup(true)} className={primary + " mt-3 w-full"}><Smartphone size={16} /> Connect Apple Health</button>}
     </>}
+    {result && <p role="status" className={`mt-2 rounded-xl px-3 py-2 text-xs font-semibold ${result.ok ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`} data-testid="apple-health-result">{result.text}</p>}
     {apple.error && <p className="mt-2 text-xs text-amber-700">{apple.error}</p>}
     {setup && <AppleSetup member={member} onClose={() => { setSetup(false); apple.check(); }} />}
   </Panel></div>;

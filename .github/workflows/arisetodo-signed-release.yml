@@ -63,6 +63,9 @@ jobs:
       - name: Import Apple signing certificate and provisioning profile
         shell: bash
         env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           IOS_DISTRIBUTION_CERT_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}
           IOS_DISTRIBUTION_CERT_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERT_PASSWORD }}
           IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
@@ -70,6 +73,8 @@ jobs:
           set -euo pipefail
           printf '%s' "$IOS_DISTRIBUTION_CERT_BASE64" | base64 -D > "$RUNNER_TEMP/signing.p12"
           printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | base64 -D > "$RUNNER_TEMP/profile.mobileprovision"
+          # Sign in with Apple and Apple Health on the App ID, and a profile that includes them (same certificate).
+          python3 .github/scripts/apple_signing.py com.arisereader.arisetodo "$RUNNER_TEMP/profile.mobileprovision" HEALTHKIT APPLE_ID_AUTH
           security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
@@ -88,16 +93,26 @@ jobs:
           echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
           # Apple Health needs the HealthKit capability on the App ID and in this profile.
           # Until the profile has it, build without the entitlement (the app works; Health shows as unavailable).
+          ENT=arisetodo/ios-app/ios/App/App/App.entitlements
+          USE_ENT=""
           if /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.healthkit' "$RUNNER_TEMP/profile.plist" >/dev/null 2>&1; then
-            ENT=arisetodo/ios-app/ios/App/App/App.entitlements
             /usr/libexec/PlistBuddy -c 'Add :com.apple.developer.healthkit bool true' "$ENT" 2>/dev/null || /usr/libexec/PlistBuddy -c 'Set :com.apple.developer.healthkit true' "$ENT"
             /usr/libexec/PlistBuddy -c 'Add :com.apple.developer.healthkit.access array' "$ENT" 2>/dev/null || true
-            echo "HEALTH_ENTITLEMENTS=CODE_SIGN_ENTITLEMENTS=App/App.entitlements" >> "$GITHUB_ENV"
+            USE_ENT=1
             echo "Apple Health: HealthKit entitlement enabled"
           else
-            echo "::warning::The provisioning profile has no HealthKit capability. Turn on HealthKit for com.arisereader.arisetodo, regenerate the profile and update IOS_PROVISIONING_PROFILE_BASE64. Building without Apple Health."
-            echo "HEALTH_ENTITLEMENTS=" >> "$GITHUB_ENV"
+            echo "::warning::The provisioning profile has no HealthKit capability. Building without Apple Health."
           fi
+          if /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.applesignin' "$RUNNER_TEMP/profile.plist" >/dev/null 2>&1; then
+            /usr/libexec/PlistBuddy -c 'Delete :com.apple.developer.applesignin' "$ENT" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c 'Add :com.apple.developer.applesignin array' "$ENT"
+            /usr/libexec/PlistBuddy -c 'Add :com.apple.developer.applesignin:0 string Default' "$ENT"
+            USE_ENT=1
+            echo "Sign in with Apple: entitlement enabled"
+          else
+            echo "::warning::The provisioning profile has no Sign in with Apple capability. Building without it."
+          fi
+          if [[ -n "$USE_ENT" ]]; then echo "HEALTH_ENTITLEMENTS=CODE_SIGN_ENTITLEMENTS=App/App.entitlements" >> "$GITHUB_ENV"; else echo "HEALTH_ENTITLEMENTS=" >> "$GITHUB_ENV"; fi
       - name: Archive signed app for physical iPhone
         working-directory: arisetodo/ios-app
         env:
@@ -114,6 +129,13 @@ jobs:
             PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
             $HEALTH_ENTITLEMENTS \
             archive
+      - name: Show what the signed app is allowed to use (Apple Health, Sign in with Apple)
+        run: |
+          APP="$RUNNER_TEMP/ARISEToDo.xcarchive/Products/Applications/App.app"
+          ENT=$(codesign -d --entitlements :- "$APP" 2>/dev/null || true)
+          for k in com.apple.developer.healthkit com.apple.developer.applesignin aps-environment; do
+            if printf '%s' "$ENT" | grep -q "$k"; then echo "::notice title=Entitlement::$k is ON in the signed app"; else echo "::warning title=Entitlement::$k is OFF in the signed app"; fi
+          done
       - name: Export App Store Connect IPA
         shell: bash
         run: |

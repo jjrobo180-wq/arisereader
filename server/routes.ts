@@ -69,6 +69,7 @@ import { podscrollAllowed, registerEarshotRoutes, registerPodscrollRoutes, supab
 import { deletePodData } from "./podcastAccounts";
 import { hideLinks, onSocialReport, registerModerationRoutes } from "./socialModeration";
 import { registerSupportRoutes } from "./supportContact";
+import { ARISE_APP, AppleTokenError, appleRefreshToken, appleUsername, revokeAppleToken, verifyAppleToken } from "./appleSignIn";
 import { attachLivePods } from "./podcastLive";
 import { attachListenParties } from "./podcastParty";
 import { createDirectory as createPodcastDirectory, supabaseKV } from "./podcastDirectory";
@@ -1483,10 +1484,13 @@ export async function registerRoutes(
     // Signing up is open, and so are the two steps that finish it. They happen before anyone can
     // be signed in — the account is switched off until the emailed code is typed back — so putting
     // them behind this gate answered "not authenticated" to the very person it was made for.
+    // Apple Health's sync is sent by the iPhone app or a Shortcut with the diary's own private key
+    // (not a sign-in), so the gate must let it through to its own key check (server/appleHealth.ts).
     (method, path) => method === "POST" && (
       path === "/api/arise-todo/register" ||
       path === "/api/arise-todo/confirm-email" ||
-      path === "/api/arise-todo/resend-code"),
+      path === "/api/arise-todo/resend-code" ||
+      path === "/api/arise-todo/apple-health/sync"),
     async (user) => (user?.role === "parent" || user?.role === "teacher" ? (await plans.todoStatus(user)).access : true),
     "todo_required", "Arise LifeHub is an add-on for parents ($10 a month) and comes with Arise WorkHub for teachers.",
   ));
@@ -2954,6 +2958,59 @@ export async function registerRoutes(
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Sign in with Apple (Arise To Duo iPhone app): the identity token is checked against Apple's keys
+  // (server/appleSignIn.ts). An Apple ID used before signs back in to its account; one that's new links
+  // to the one account with the same verified email, or else makes a new personal account (Apple has
+  // already confirmed the email, so it's on at once). The link is kept in settings both ways.
+  const appleLimits = createAttemptLimiter({ max: 30, windowMs: 15 * 60_000 });
+  app.post("/api/auth/apple", async (req: any, res) => {
+    const address = clientAddress(req);
+    const wait = appleLimits.retryAfter(address);
+    if (wait > 0) return res.status(429).json({ message: `Too many tries. Try again in ${waitWords(wait)}.` });
+    appleLimits.fail(address);
+    try {
+      const claims = await verifyAppleToken(String(req.body?.identityToken || ""), [ARISE_APP]);
+      const name = [req.body?.givenName, req.body?.familyName].filter((x) => typeof x === "string" && x.trim()).map((x: string) => x.trim().slice(0, 40)).join(" ");
+      let userId = Number(await storage.getSetting(`apple_login:${claims.sub}`)) || 0;
+      let user: any = userId ? await storage.getUser(userId) : null;
+      let made = false;
+      if (!user && claims.email && claims.emailVerified) {
+        const { data } = await supabase.from("users").select("id, role, archived_at").ilike("email", claims.email).limit(3);
+        const adults = (data || []).filter((u: any) => u.role !== "student" && !u.archived_at);
+        if (adults.length === 1) user = await storage.getUser(Number(adults[0].id));
+      }
+      if (!user) {
+        const username = await appleUsername(claims.email, claims.privateEmail, async (n) => !!(await storage.getUserByUsername(n)));
+        user = await storage.createUser({
+          username, password: await bcrypt.hash(randomBytes(24).toString("base64url"), 10), displayName: name || "Arise user",
+          email: claims.email || null, role: "todo", approvedByTeacher: true, accountApproved: true,
+        });
+        made = true;
+        alertAdmin("teacher_signup", { title: "A personal account was made with Apple", summary: `${name || username} signed up with Sign in with Apple.`, lines: [["Username", username], ["Email", claims.email || "(hidden by Apple)"]] });
+      }
+      if (!user) throw new Error("no account");
+      if (user.archivedAt) return res.status(403).json({ message: "This account is archived. Write to support to restore it." });
+      if (Number(user.id) !== userId) {
+        await storage.upsertSetting(`apple_login:${claims.sub}`, String(user.id));
+        await storage.upsertSetting(`apple_user:${user.id}`, claims.sub);
+      }
+      // Kept so the Apple sign-in can be revoked if the account is deleted (needs the Sign in with Apple key).
+      const refresh = await appleRefreshToken(String(req.body?.authorizationCode || ""), ARISE_APP).catch(() => "");
+      if (refresh) await storage.upsertSetting(`apple_refresh:${user.id}`, refresh);
+      appleLimits.reset(address);
+      const session = await storage.createSession(user.id);
+      if (!user.isAdmin) void recordLogin(user.id, req.get("user-agent"));
+      res.json({
+        token: session.token, made,
+        user: { id: user.id, username: user.username, displayName: user.displayName, isAdmin: user.isAdmin, assessmentPromptShown: !!(user as any).assessment_prompt_seen_at, is_eye_gaze_user: user.is_eye_gaze_user, role: user.role, teacherId: user.teacherId, approvedByTeacher: user.approvedByTeacher, accountApproved: user.accountApproved, email: user.email, schoolId: user.school_id, totalPoints: user.totalPoints || 0, loginCount: 0, mustChangePassword: false },
+      });
+    } catch (e: any) {
+      if (e instanceof AppleTokenError) return res.status(401).json({ message: e.message });
+      console.error("[apple-sign-in]", e?.message || e);
+      res.status(500).json({ message: "Sign in with Apple didn't work just now. Try again." });
     }
   });
 
@@ -7333,6 +7390,13 @@ export async function registerRoutes(
       const target = await storage.getUser(userId);
       const who = personName(target);
       try { await deletePodData(getAdminSupabase(), [`u${userId}`]); } catch (e: any) { console.warn("[account-delete] podcast data:", e?.message); }
+      // An Apple ID linked to this account is unlinked (and its Apple sign-in revoked when the key is set).
+      try {
+        const sub = await storage.getSetting(`apple_user:${userId}`);
+        const refresh = await storage.getSetting(`apple_refresh:${userId}`);
+        if (refresh) await revokeAppleToken(refresh, ARISE_APP).catch(() => false);
+        if (sub || refresh) await getAdminSupabase().from("settings").delete().in("key", [`apple_login:${sub}`, `apple_user:${userId}`, `apple_refresh:${userId}`]); clearCache(`setting_apple_login:${sub}`); clearCache(`setting_apple_user:${userId}`); clearCache(`setting_apple_refresh:${userId}`);
+      } catch { /* the account still goes */ }
       const { blockedBy } = await deleteUserAccount(userId);
       if (blockedBy) {
         await archiveProfile(userId, true, userId).catch(() => "missing");

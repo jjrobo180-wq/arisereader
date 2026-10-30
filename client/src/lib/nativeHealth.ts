@@ -45,7 +45,13 @@ const READ = ["steps", "calories", "weight"];
 export async function askHealthPermission(): Promise<void> {
   const ok = await call("isAvailable").catch(() => null);
   if (ok && ok.available === false) throw new Error(ok.reason || "Apple Health isn't available on this device.");
-  await call("requestAuthorization", { read: READ, write: [] });
+  try { await call("requestAuthorization", { read: READ, write: [] }); }
+  catch (e: any) {
+    const msg = String(e?.message || e || "");
+    // Without the HealthKit capability in the app's signing profile, iOS refuses before showing anything.
+    if (/entitlement|not authorized to use|com\.apple\.developer\.healthkit/i.test(msg)) throw new Error("This build of Arise To Duo can't use Apple Health yet (HealthKit isn't switched on for the app). Update the app from TestFlight, then try again.");
+    throw new Error(`Apple Health didn't connect: ${msg || "no answer"}. Try again, or check Settings → Health → Data Access & Devices → Arise To Duo.`);
+  }
 }
 
 const localDay = (iso: string) => {
@@ -83,7 +89,11 @@ async function daily(dataType: string, aggregation: "sum" | "max", days: number)
 /** Reads the last `days` days and sends them to this person's diary. Makes the device's key the first time. */
 export async function syncNativeHealth(token: string | null, memberId: string, days = 30): Promise<string> {
   let key = store.get(memberId);
-  if (!key) { key = await makeHealthKey(token, memberId); store.set(memberId, key); }
+  if (!key) {
+    try { key = await makeHealthKey(token, memberId); }
+    catch (e: any) { throw new Error(`Couldn't link Apple Health to your diary: ${e?.message || "no answer from the server"}. Check your connection and try again.`); }
+    store.set(memberId, key);
+  }
   readErrors = [];
   const [steps, active, weight] = await Promise.all([daily("steps", "sum", days), daily("calories", "sum", days), daily("weight", "max", days)]);
   const metric = (name: string, units: string, list: Sample[]) => ({ name, units, data: list.map((s) => ({ date: pad(new Date(s.startDate)), qty: s.value })) });
@@ -96,7 +106,9 @@ export async function syncNativeHealth(token: string | null, memberId: string, d
   if (!metrics.length) return "No steps, active calories or weight in Apple Health yet — or reading was turned off in Settings → Health → Data Access & Devices → Arise To Duo.";
   const res = await fetch("/api/arise-todo/apple-health/sync", { method: "POST", cache: "no-store", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ data: { metrics } }) });
   const body = await res.json().catch(() => null);
-  if (res.status === 401) { store.drop(memberId); throw new Error("The Health link was turned off. Tap Connect Apple Health again."); }
+  // Only a key the server no longer knows is dropped (it says "isn't connected anymore"); anything
+  // else is shown as it is, so a sign-in or network problem never looks like Health was disconnected.
+  if (res.status === 401 && /connected anymore|invalid key/i.test(String(body?.message || ""))) { store.drop(memberId); throw new Error("This iPhone's Health link was replaced. Tap Connect Apple Health again."); }
   if (!res.ok) throw new Error(body?.message || "Couldn't sync Apple Health right now.");
   return body?.message || "Apple Health synced.";
 }
