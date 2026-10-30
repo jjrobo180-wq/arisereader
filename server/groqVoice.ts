@@ -34,7 +34,13 @@ export async function groqSpeech(text: string, voice: string): Promise<Speech> {
     const out: Buffer[] = new Array(chunks.length);
     for (let i = 0; i < chunks.length; i += 3) {
       await Promise.all(chunks.slice(i, i + 3).map(async (c, k) => {
-        const r = await piece(c, voice, format);
+        let r = await piece(c, voice, format);
+        // Too many at once: wait the few seconds Groq asks for and try that piece again.
+        for (let again = 0; again < 2 && (r.status === 429 || r.status >= 500); again++) {
+          const wait = Math.min(8, Math.max(1, Number(r.headers.get("retry-after")) || 2));
+          await new Promise((ok) => setTimeout(ok, wait * 1000));
+          r = await piece(c, voice, format);
+        }
         if (!r.ok) throw Object.assign(new Error(`speech ${r.status} ${(await r.text().catch(() => "")).slice(0, 200)}`), { status: r.status });
         out[i + k] = Buffer.from(await r.arrayBuffer());
       }));

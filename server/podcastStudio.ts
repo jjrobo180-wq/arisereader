@@ -105,18 +105,62 @@ export const audioKey = (lines: Line[]) => createHash("sha256").update(`studio:v
 
 /** Every line in its host's voice, one after another, as one file. */
 export async function speakLines(lines: Line[], speak: (text: string, voice: string) => Promise<Speech>): Promise<Speech> {
-  const parts: Speech[] = new Array(lines.length);
-  for (let i = 0; i < lines.length; i += 2) {
-    await Promise.all(lines.slice(i, i + 2).map(async (l, k) => { parts[i + k] = await speak(l.text, VOICES[l.speaker]); }));
+  const parts: Speech[] = [];
+  for (const l of lines) parts.push(await speak(l.text, VOICES[l.speaker]));
+  const whole = joinParts(parts);
+  if (!whole) throw new Error("mixed audio");
+  return whole;
+}
+
+/** The pieces as one file, when they are all the same kind of sound (else null: they're played one after another). */
+export function joinParts(parts: { audio: Buffer; type: string }[]): Speech | null {
+  if (parts.length && parts.every((p) => p.type === "audio/mpeg")) return { audio: Buffer.concat(parts.map((p) => p.audio)), type: "audio/mpeg" };
+  if (parts.length && parts.every((p) => p.type === "audio/wav")) return { audio: joinWavs(parts.map((p) => p.audio)), type: "audio/wav" };
+  return null;
+}
+
+const MP3_RATES = [[0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320], [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160]];
+/** About how many seconds a piece of sound lasts (for the position bar while the rest is still being made). */
+export function soundSeconds(s: { audio: Buffer; type: string }): number {
+  const b = s.audio;
+  if (s.type === "audio/wav" && b.length > 44 && b.toString("ascii", 0, 4) === "RIFF") {
+    let i = 12, rate = 0;
+    while (i + 8 <= b.length) {
+      const id = b.toString("ascii", i, i + 4), size = b.readUInt32LE(i + 4);
+      if (id === "fmt ") rate = b.readUInt32LE(i + 16);
+      if (id === "data") return rate ? Math.min(size, b.length - i - 8) / rate : 0;
+      i += 8 + size + (size % 2);
+    }
+    return 0;
   }
-  if (parts.every((p) => p.type === "audio/mpeg")) return { audio: Buffer.concat(parts.map((p) => p.audio)), type: "audio/mpeg" };
-  if (parts.every((p) => p.type === "audio/wav")) return { audio: joinWavs(parts.map((p) => p.audio)), type: "audio/wav" };
-  throw new Error("mixed audio");
+  let i = 0;
+  if (b.toString("ascii", 0, 3) === "ID3" && b.length > 10) i = 10 + ((b[6] & 127) << 21 | (b[7] & 127) << 14 | (b[8] & 127) << 7 | (b[9] & 127));
+  for (; i + 4 < b.length && i < 64_000; i++) {
+    if (b[i] !== 0xff || (b[i + 1] & 0xe0) !== 0xe0) continue;
+    const mpeg1 = (b[i + 1] & 0x18) === 0x18, kbps = MP3_RATES[mpeg1 ? 0 : 1][b[i + 2] >> 4];
+    if (kbps) return ((b.length - i) * 8) / (kbps * 1000);
+  }
+  return b.length / 6000; // about 48 kbps
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/** Keeps asking the voices until a line is said: a busy voice service just means waiting a little.
+ *  Gives up only after `patienceMs` (a site with no working voice at all). */
+export async function speakPatiently(text: string, voice: string, speak: (text: string, voice: string) => Promise<Speech>, patienceMs = 8 * 60_000, wait = sleep): Promise<Speech> {
+  const start = Date.now();
+  for (let attempt = 0; ; attempt++) {
+    try { return await speak(text, voice); }
+    catch (e: any) {
+      if (Date.now() - start > patienceMs) throw e;
+      await wait(Math.min(20_000, 1500 * 2 ** Math.min(attempt, 4)));
+    }
+  }
 }
 
 const parse = (s: string) => { try { return JSON.parse(s); } catch { const m = s.match(/\{[\s\S]*\}/); if (m) { try { return JSON.parse(m[0]); } catch { /* not JSON */ } } return null; } };
 
-export function registerStudioRoutes(app: Express, gate: RequestHandler, o: { ask: AskJson; speak?: (text: string, voice: string) => Promise<Speech>; blobs?: BlobStore }) {
+export function registerStudioRoutes(app: Express, gate: RequestHandler, o: { ask: AskJson; speak?: (text: string, voice: string) => Promise<Speech>; blobs?: BlobStore; patienceMs?: number }) {
+  const patienceMs = o.patienceMs ?? 8 * 60_000;
   const P = "/api/podscroll/studio";
   const writes = createAttemptLimiter({ max: 15, windowMs: 60 * 60_000 });
   const voices = createAttemptLimiter({ max: 20, windowMs: 60 * 60_000 });
@@ -124,7 +168,7 @@ export function registerStudioRoutes(app: Express, gate: RequestHandler, o: { as
   const remember = (key: string, s: { audio: Buffer; type: string }) => {
     memory.set(key, s);
     let bytes = 0; for (const v of memory.values()) bytes += v.audio.length;
-    for (const k of memory.keys()) { if (bytes <= 40e6 && memory.size <= 30) break; bytes -= memory.get(k)!.audio.length; memory.delete(k); }
+    for (const k of memory.keys()) { if (bytes <= 60e6 && memory.size <= 400) break; bytes -= memory.get(k)!.audio.length; memory.delete(k); }
   };
   const limited = (lim: ReturnType<typeof createAttemptLimiter>, key: string, res: any) => {
     const wait = lim.retryAfter(key);
@@ -141,8 +185,12 @@ export function registerStudioRoutes(app: Express, gate: RequestHandler, o: { as
     const title = clip(req.body?.title, 80);
     try {
       let made: StudyPod | MeetingPod | null = null;
-      for (let tries = 0; tries < 2 && !made; tries++) {
-        const raw = parse(await o.ask(system, `${title ? `Title the person gave: ${title}\n\n` : ""}${kind === "study" ? "Study notes" : "Meeting notes"}:\n${notes}`));
+      // A busy AI is asked again after a short wait; the person just sees "Writing your episode…" a little longer.
+      for (let tries = 0; tries < 4 && !made; tries++) {
+        let answer = "";
+        try { answer = await o.ask(system, `${title ? `Title the person gave: ${title}\n\n` : ""}${kind === "study" ? "Study notes" : "Meeting notes"}:\n${notes}`); }
+        catch (e) { if (tries === 3) throw e; await sleep(Math.min(o.patienceMs ?? 8000, 2000 * 2 ** tries)); continue; }
+        const raw = parse(answer);
         made = kind === "study" ? cleanStudy(raw, solo) : cleanMeeting(raw);
       }
       if (!made) return res.status(502).json({ message: "The AI's answer didn't come out right. Try again.", busy: false });
@@ -150,30 +198,58 @@ export function registerStudioRoutes(app: Express, gate: RequestHandler, o: { as
       return res.json({ ...made, audio: audioKey(made.lines) });
     } catch (e: any) {
       console.error(`[studio] ${kind} failed:`, String(e?.message || e).slice(0, 200));
-      return res.status(503).json({ message: "The AI is busy right now. Try again in a minute.", busy: false });
+      return res.status(503).json({ message: "Couldn't reach the AI just now. Tap the button again.", busy: false });
     }
   };
   app.post(`${P}/study`, gate, (req, res) => void write(req, res, "study"));
   app.post(`${P}/meeting`, gate, (req, res) => void write(req, res, "meeting"));
 
-  /** Makes the sound for a pod's lines (or finds it already made). Returns the key to fetch it by. */
+  // Making the sound: one piece per line, in order, in the background. The app starts playing the
+  // first line as soon as it's made and keeps asking how far along the rest is, so a long episode
+  // starts in seconds and a busy voice service just means a short wait, never an error.
+  type Job = { lines: Line[]; parts: ({ audio: Buffer; type: string } | null)[]; secs: number[]; failed: boolean; at: number };
+  const jobs = new Map<string, Job>();
+  const partKey = (key: string, n: number) => `${key}:${n}`;
+  const run = async (key: string, job: Job) => {
+    for (let n = 0; n < job.lines.length; n++) {
+      if (job.parts[n]) continue;
+      const kept = memory.get(partKey(key, n)) || (o.blobs ? await o.blobs.get(`studio:${partKey(key, n)}`).then((b) => (b ? { audio: b.data, type: b.type } : null)).catch(() => null) : null);
+      const made = kept || await speakPatiently(job.lines[n].text, VOICES[job.lines[n].speaker], o.speak!, patienceMs);
+      job.parts[n] = made; job.secs[n] = soundSeconds(made);
+      if (!kept) { remember(partKey(key, n), made); void o.blobs?.put(`studio:${partKey(key, n)}`, made.audio, made.type); }
+    }
+    const whole = joinParts(job.parts as { audio: Buffer; type: string }[]);
+    if (whole) { remember(key, whole); void o.blobs?.put(`studio:${key}`, whole.audio, whole.type); }
+  };
+  const status = (key: string, job: Job) => ({ id: key, parts: job.lines.length, made: job.parts.map((p) => !!p), secs: job.secs, done: job.parts.every(Boolean), failed: job.failed });
+  const haveWhole = async (key: string) => memory.has(key) || (!!o.blobs && await o.blobs.get(`studio:${key}`).then((b) => { if (b) remember(key, { audio: b.data, type: b.type }); return !!b; }).catch(() => false));
+
+  /** Starts making a pod's sound (or says how far along it is). Ask again to see progress. */
   app.post(`${P}/voice`, gate, async (req: any, res) => {
     res.set("Cache-Control", "no-store");
     const lines = cleanLines(req.body?.lines, req.body?.solo === true);
     if (!lines.length) return res.status(400).json({ message: "Nothing to say." });
     const key = audioKey(lines);
-    if (memory.has(key) || (o.blobs && await o.blobs.get(`studio:${key}`).then((b) => { if (b) remember(key, { audio: b.data, type: b.type }); return !!b; }))) return res.json({ id: key });
+    const job = jobs.get(key);
+    if (job && !job.failed) return res.json(status(key, job));
+    if (await haveWhole(key)) return res.json({ id: key, whole: true, done: true, parts: 0, made: [], secs: [] });
     if (!o.speak) return res.status(503).json({ message: "Voices aren't set up on this site yet.", noVoice: true, busy: false });
-    if (limited(voices, String(req.user?.id || ""), res)) return;
-    try {
-      const made = await speakLines(lines, o.speak);
-      remember(key, made);
-      void o.blobs?.put(`studio:${key}`, made.audio, made.type);
-      return res.json({ id: key });
-    } catch (e: any) {
-      console.error("[studio] voice failed:", String(e?.message || e).slice(0, 200));
-      return res.status(503).json({ message: "The voices are busy right now.", noVoice: true, busy: false });
-    }
+    if (!job && limited(voices, String(req.user?.id || ""), res)) return;
+    const fresh: Job = { lines, parts: lines.map(() => null), secs: lines.map((l) => l.text.length / 15), failed: false, at: Date.now() };
+    jobs.set(key, fresh);
+    for (const [k, j] of jobs) if (Date.now() - j.at > 60 * 60_000) jobs.delete(k);
+    run(key, fresh).then(() => setTimeout(() => { if (jobs.get(key) === fresh) jobs.delete(key); }, 10 * 60_000).unref?.())
+      .catch((e: any) => { fresh.failed = true; console.error("[studio] voice failed:", String(e?.message || e).slice(0, 200)); });
+    return res.json(status(key, fresh));
+  });
+  /** One line's sound, once it's made. */
+  app.get(`${P}/audio/:id/:n`, async (req, res) => {
+    const id = String(req.params.id || ""), n = Number(req.params.n);
+    if (!/^[a-f0-9]{64}$/.test(id) || !Number.isInteger(n) || n < 0 || n > 500) return res.status(400).end();
+    let hit = jobs.get(id)?.parts[n] || memory.get(partKey(id, n));
+    if (!hit && o.blobs) { const b = await o.blobs.get(`studio:${partKey(id, n)}`).catch(() => null); if (b) hit = { audio: b.data, type: b.type }; }
+    if (!hit) return res.status(404).end();
+    sendSound(req, res, hit);
   });
   /** The made sound itself. No device header (an audio element can't send one); the key is a hash of the words. */
   app.get(`${P}/audio/:id`, async (req, res) => {
@@ -182,16 +258,21 @@ export function registerStudioRoutes(app: Express, gate: RequestHandler, o: { as
     let hit = memory.get(id);
     if (!hit && o.blobs) { const b = await o.blobs.get(`studio:${id}`); if (b) { hit = { audio: b.data, type: b.type }; remember(id, hit); } }
     if (!hit) return res.status(404).end();
-    const size = hit.audio.length;
-    res.set({ "Content-Type": hit.type, "Accept-Ranges": "bytes", "Cache-Control": "private, max-age=604800" });
-    const range = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range || ""));
-    if (range && (range[1] || range[2])) {
-      const start = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2]));
-      const end = range[1] && range[2] ? Math.min(size - 1, Number(range[2])) : size - 1;
-      if (start >= size || start > end) { res.status(416).set("Content-Range", `bytes */${size}`).end(); return; }
-      res.status(206).set({ "Content-Range": `bytes ${start}-${end}/${size}`, "Content-Length": String(end - start + 1) }).send(hit.audio.subarray(start, end + 1));
-      return;
-    }
-    res.set("Content-Length", String(size)).send(hit.audio);
+    sendSound(req, res, hit);
   });
+}
+
+/** Sends sound, with byte ranges (iPhones ask for those). */
+function sendSound(req: any, res: any, hit: { audio: Buffer; type: string }) {
+  const size = hit.audio.length;
+  res.set({ "Content-Type": hit.type, "Accept-Ranges": "bytes", "Cache-Control": "private, max-age=604800" });
+  const range = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range || ""));
+  if (range && (range[1] || range[2])) {
+    const start = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2]));
+    const end = range[1] && range[2] ? Math.min(size - 1, Number(range[2])) : size - 1;
+    if (start >= size || start > end) { res.status(416).set("Content-Range", `bytes */${size}`).end(); return; }
+    res.status(206).set({ "Content-Range": `bytes ${start}-${end}/${size}`, "Content-Length": String(end - start + 1) }).send(hit.audio.subarray(start, end + 1));
+    return;
+  }
+  res.set("Content-Length", String(size)).send(hit.audio);
 }
