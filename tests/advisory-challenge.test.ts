@@ -180,7 +180,8 @@ test("the Reader opens the hub in a new tab, signs out to arisereader.com, and h
   assert.match(header, /whitespace-nowrap text-\[16px\][^"]*sm:text-\[19px\]/, "the name stays on one line on a phone");
   assert.match(page, /className="hidden max-w-\[260px\][^"]*lg:flex"/, "computers get the sidebar on the left");
   // The hubs' own default is the same: sidebar left on a computer, left rail with a Hide button on a phone.
-  assert.match(read("shared/hubLayout.ts"), /DEFAULT_LAYOUT: HubLayout = \{ menuSide: "left", deskSide: "left", folders: \[\], menuClose: "button"/);
+  // Both hubs moved to the floating tab bar on a phone, at the owner's request.
+  assert.match(read("shared/hubLayout.ts"), /DEFAULT_LAYOUT: HubLayout = \{ menuSide: "tabs", deskSide: "left", folders: \[\], menuClose: "button"/);
   // LifeHub (Arise To Duo) moved to the floating tab bar on a phone, at the owner's request.
   assert.match(read("shared/lifeLayout.ts"), /\{ menuSide: "tabs", menuClose: "button", homeHidden: \["widgets"\] \}/);
 });
