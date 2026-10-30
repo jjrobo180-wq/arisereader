@@ -52,3 +52,13 @@ test("opening Arise To Duo on iPhone doesn't stop other apps' audio", () => {
   assert.match(unlock, /window\.location\.protocol === "capacitor:"\) \{ startEnginesOnlyWhenPlaying\(\); return; \}/);
   assert.match(readFileSync("arisetodo/ios-app/configure-ios.py", "utf8"), /setCategory\(\.ambient, mode: \.default, options: \[\.mixWithOthers\]\)/);
 });
+
+test("Pod+ on a weak signal: says Buffering or Waiting for a signal, keeps the episode and its spot", () => {
+  const p = readFileSync("client/src/components/family-hub/earshot/EarshotPlayer.tsx", "utf8");
+  assert.match(p, /addEventListener\("waiting", waiting\)/);
+  assert.match(p, /Waiting for a signal/);
+  assert.match(p, /window\.addEventListener\("online", back\)/);
+  // A stream cut short isn't the end of the episode, and no auto-advance while waiting.
+  assert.match(p, /ca\.currentTime < ca\.duration - 8\) \{ waitForSignal\(ca\); return; \}/);
+  assert.match(p, /!netRetry\.current && Date\.now\(\) - lastAutoAdvance\.current > 5000/);
+});
