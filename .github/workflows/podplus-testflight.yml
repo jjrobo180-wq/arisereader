@@ -1,6 +1,6 @@
 name: Pod+ signed iOS beta validation
 # Development beta validation only. Upload is a separate, explicitly approved release step.
-# Release: Study Pod+ and Meeting Pod audio starts in seconds and never says the voices are busy.
+# Release: Study Pod+ and Meeting Pod take PDFs, photos and recordings; audio never says the voices are busy.
 on:
   workflow_dispatch:
   push:
