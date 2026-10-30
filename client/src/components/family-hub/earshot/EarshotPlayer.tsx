@@ -284,6 +284,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const cur = useRef<HTMLAudioElement | null>(null);
   const feedRef = useRef<HTMLDivElement | null>(null);
   const listened = useRef(0);
+  /** When the feed last moved on by itself (an episode ending, or the "swipe for me" timer). */
+  const lastAutoAdvance = useRef(0);
   const lastTime = useRef(0);
   const lastSpot = useRef(0);
   const counted = useRef<Set<string>>(new Set());
@@ -505,10 +507,12 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   // feed still has to carry on after it.
   useEffect(() => { if (itemsRef.current.length - activeRef.current < 3 && (tab === "foryou" || tab === "following")) extend(6); }, [poolTick, extend, tab, items.length]);
 
-  // Drop shows with nothing playable once they're ahead of the listener.
+  // Drop shows with nothing playable once they're well ahead of the listener. Never the very next
+  // card: taking it out while a swipe is landing on it moved every card after it up one, and the swipe
+  // landed one or more podcasts further on.
   useEffect(() => {
-    if (items.some((x, i) => x.state === "none" && i > active)) {
-      setItems((list) => list.filter((x, i) => !(x.state === "none" && i > activeRef.current)));
+    if (items.some((x, i) => x.state === "none" && i > active + 1)) {
+      setItems((list) => list.filter((x, i) => !(x.state === "none" && i > activeRef.current + 1)));
       extend(1);
     }
   }, [items, active, extend]);
@@ -986,13 +990,18 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const sl = sleepRef.current;
     if (typeof sl === "number" && Date.now() >= sl) { a.pause(); setSleepAt(null); say("Sleep timer: paused. Sleep well."); }
     const adv = esRef.current.settings.advance;
-    if (adv && listened.current >= adv && !sheetRef.current) { listened.current = -1e9; goTo(activeRef.current + 1); }
+    if (adv && listened.current >= adv && !sheetRef.current && Date.now() - lastAutoAdvance.current > 5000) { listened.current = -1e9; lastAutoAdvance.current = Date.now(); goTo(activeRef.current + 1); }
   };
   handlers.current.ended = () => {
     const it = itemsRef.current[activeRef.current];
     if (it?.ep) { signal(it.show.genre, "finish"); saveSpot(it.ep, 0); const id = it.ep.id; update((e) => (e.heard.includes(id) ? e : { ...e, heard: [id, ...e.heard].slice(0, 200) })); }
     setPlaying(false);
     if (sleepRef.current === "end") { setSleepAt(null); say("Sleep timer: stopped at the end of the episode."); return; }
+    // Move on by itself only after really listening, and never twice in a row within seconds. An
+    // episode that ends right after it starts (a saved spot at the very end, a skipped outro, a file
+    // that won't play) used to chain into several skips at once.
+    if (listened.current < 8 || Date.now() - lastAutoAdvance.current < 5000) { say("That episode is over. Swipe up for the next one."); return; }
+    lastAutoAdvance.current = Date.now();
     if (!sheetRef.current) goTo(activeRef.current + 1);
   };
   handlers.current.error = (a) => {
@@ -1481,7 +1490,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     {sheet?.kind === "show" && <ShowPage show={sheet.show} load={loadEpisodes} hideTeasers={es.settings.hideTeasers} following={isFollowing(sheet.show.id)} adFree={es.adFree.includes(sheet.show.id)} onAdFree={(on) => update((e) => ({ ...e, adFree: on ? [sheet.show.id, ...e.adFree.filter((x) => x !== sheet.show.id)].slice(0, 300) : e.adFree.filter((x) => x !== sheet.show.id) }))} onFollow={toggleFollow} onPlayFrom={playFrom} onClose={() => setSheet(null)} onGenre={(g) => { setSheet(null); setGenreMode(g); setTab("foryou"); }} spots={readSpots()} onAddTo={(ep) => setSheet({ kind: "addto", ep, genre: sheet.show.genre })} />}
     {sheet?.kind === "info" && <InfoSheet show={sheet.show} api={api} ex={ex} onClose={() => setSheet(null)} onShow={(show) => setSheet({ kind: "show", show })} onEpisodes={() => setSheet({ kind: "show", show: sheet.show })} />}
     {sheet?.kind === "share" && <ShareSheet api={api} say={say} ep={sheet.ep} social={!student} onLink={() => share(sheet.ep, sheet.genre, sheet.show)} onClose={() => setSheet(null)}
-      onClip={cur.current?.dataset.ep === sheet.ep.id ? () => setSheet({ kind: "clip", ep: sheet.ep, time: cur.current?.currentTime ?? 0 }) : undefined} />}
+      onClip={(window as any).__PODPLUS__ !== true && cur.current?.dataset.ep === sheet.ep.id ? () => setSheet({ kind: "clip", ep: sheet.ep, time: cur.current?.currentTime ?? 0 }) : undefined} />}
     {sheet?.kind === "clip" && <ClipMaker api={api} say={say} ep={sheet.ep} time={sheet.time} lines={txFor(sheet.ep)?.segments ?? []} sid={cur.current?.dataset.ep === sheet.ep.id ? cur.current?.dataset.sid : undefined}
       onPreview={(s, e) => previewClip(s, e)} onClose={() => setSheet(null)} />}
     {sheet?.kind === "addto" && <AddToSheet es={es} ep={sheet.ep} saved={es.saved.some((x) => x.id === sheet.ep.id)} onSave={() => toggleSave(sheet.ep, sheet.genre)} update={update} say={say} onClose={() => setSheet(null)} toSaved={savedOf} />}

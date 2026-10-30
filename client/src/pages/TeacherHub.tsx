@@ -1395,7 +1395,7 @@ function TeacherHubPage() {
           </div>
         </aside>
 
-        <main data-tour="hub-content" className={`min-w-0 space-y-7 pb-[max(5rem,env(safe-area-inset-bottom))] sm:space-y-9 ${deskSidebar ? "md:px-7 md:pt-6 lg:px-9 lg:pt-10 xl:px-12" : ""} ${(kitOpen && kitDef(kitOpen)) || (notesAppOpen && notesAppPlugin("work", notesAppOpen)) || sheetsAppOpen || driveOpen || dropOpen ? "[&>*:not([data-kit-view])]:hidden" : ""}`}>
+        <main data-tour="hub-content" className={`min-w-0 space-y-7 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)] sm:pb-[max(5rem,env(safe-area-inset-bottom))] sm:space-y-9 ${deskSidebar ? "md:px-7 md:pt-6 lg:px-9 lg:pt-10 xl:px-12" : ""} ${(kitOpen && kitDef(kitOpen)) || (notesAppOpen && notesAppPlugin("work", notesAppOpen)) || sheetsAppOpen || driveOpen || dropOpen ? "[&>*:not([data-kit-view])]:hidden" : ""}`}>
           {kitOpen && kitDef(kitOpen) && (
             <div data-kit-view className="space-y-3" data-testid="hub-kit-view">
               <div className="flex items-center justify-between gap-2">
@@ -1753,6 +1753,8 @@ function TeacherHubPage() {
             <div role="menu" aria-label="Add to your Hub" data-testid="quick-add-menu"
               className="absolute bottom-[calc(100%+0.6rem)] right-0 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl">
               {[
+                // On a phone the AI assistant opens from here, so only one round button sits over the page.
+                ...((workspace as any).aiChat && window.matchMedia?.("(max-width: 639px)").matches ? [{ key: "chat", label: "Ask AI", detail: "The AI assistant", icon: <Sparkles className="h-4 w-4" />, go: () => document.querySelector<HTMLElement>('[data-testid="hub-chat-open"]')?.click() }] : []),
                 { key: "ai", label: "With AI", detail: "Paste, photo or file", icon: <WandSparkles className="h-4 w-4" />, go: () => startAdding({}) },
                 { key: "event", label: "Event or reminder", detail: "", icon: <Calendar className="h-4 w-4" />, go: () => setQuickEvent(true) },
                 { key: "task", label: "To-do", detail: "", icon: <CheckSquare className="h-4 w-4" />, go: () => setTab("tasks"), tab: "tasks" as HubTab },

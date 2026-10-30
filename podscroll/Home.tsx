@@ -7,8 +7,7 @@ import { GENRE, GENRES, chooseEpisode, hiRes, isTeaser, pickNext, tasteOf, type 
 import { Mic2 } from "lucide-react";
 import { StandupHub } from "./Standup";
 import { AccountSheet } from "./Account";
-import { Clips } from "./Clips";
-import { Bell, BookOpen, Check, Clapperboard, LogOut, ShieldCheck, Zap, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, Monitor, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Music as MusicIcon, Search, Sparkles, ThumbsUp, Users, X, Pause, Play } from "lucide-react";
+import { Bell, BookOpen, Check, LogOut, PlusCircle, ShieldCheck, Zap, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, Monitor, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Music as MusicIcon, Search, Sparkles, ThumbsUp, Users, X, Pause, Play } from "lucide-react";
 import { RadioBar, RadioView, type Station } from "./Radio";
 import { MusicBar, MusicView, type Listening } from "./Music";
 import { AudiobookBar, AudiobooksView, BookPage, type Reading } from "./Audiobooks";
@@ -56,7 +55,7 @@ function parseHash(): View {
   if (a === "live") return { kind: "live" };
   if (a === "now" || a === "news") return { kind: "now" };
   if (a === "standup") return { kind: "standup" };
-  if (a === "clips") return { kind: "clips" };
+  // Clips was taken out of Pod+ (October 2026); old links open the home page.
   if (a === "party" && /^(new|[A-Za-z0-9_-]{6,20})$/.test(b || "")) return { kind: "party", id: b };
   if (a === "mode" && /^[a-z0-9-]{1,30}$/.test(b || "")) return { kind: "mode", id: b };
   return { kind: "home" };
@@ -303,6 +302,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   const hidden = useMemo(() => ({ shows: new Set(es.blocked ?? []), eps: hiddenEps }), [es.blocked, hiddenEps]);
   const [acctOpen, setAcctOpen] = useState(false);
   const [privacyOpen, setPrivacyOpen] = useState(false);
+  /** The phone tab bar's two sheets: "+" (make something) and "You" (account, library and settings). */
+  const [tabSheet, setTabSheet] = useState<"create" | "you" | null>(null);
   // Fresh Pod Modes rebuild once a day with the newest episodes (Morning Briefing: today's top news).
   const freshTried = useRef(new Set<string>());
   useEffect(() => {
@@ -499,7 +500,6 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       {navItem("Social", <MessageCircle size={22} strokeWidth={1.8} />, false, () => onOpenFeed(undefined, "social"))}
       {navItem("Radio", <RadioIcon size={22} strokeWidth={1.8} />, view.kind === "radio", () => go({ kind: "radio" }))}
       {navItem("Music", <MusicIcon size={22} strokeWidth={1.8} />, view.kind === "music", () => go({ kind: "music" }))}
-      {navItem("Clips", <Clapperboard size={22} strokeWidth={1.8} />, view.kind === "clips", () => go({ kind: "clips" }))}
       {navItem("Up to the minute news", <Zap size={22} strokeWidth={1.8} />, view.kind === "now", () => go({ kind: "now" }))}
       {navItem("Stand-up", <Mic2 size={22} strokeWidth={1.8} />, view.kind === "standup", () => go({ kind: "standup" }))}
       {navItem("Audiobooks", <BookOpen size={22} strokeWidth={1.8} />, view.kind === "books" || view.kind === "book", () => go({ kind: "books" }))}
@@ -578,9 +578,6 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       </section>;
   } else if (view.kind === "now") {
     content = <div className="min-w-0 flex-1 px-4 pb-16 sm:px-6"><NewsNow api={api} ex={ex} onOpen={openEp} onBack={() => go({ kind: "home" })} grid={(list) => <Grid list={list} onOpen={openEp} />} /></div>;
-  } else if (view.kind === "clips") {
-    // Clips: the owner's shared list of TikTok videos (server/podcastClips.ts).
-    content = <div className="mx-auto min-w-0 max-w-[560px] flex-1 px-4 sm:px-6"><Clips api={api} say={say} onBack={() => go({ kind: "home" })} onSignIn={onSignIn} /></div>;
   } else if (view.kind === "standup") {
     content = <div className="min-w-0 flex-1 px-4 sm:px-6"><StandupHub api={api} ex={ex} say={say} onBack={() => go({ kind: "home" })} grid={(list) => <Grid list={list} onOpen={openEp} />} /></div>;
   } else if (view.kind === "radio") {
@@ -685,7 +682,53 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
           : <button onClick={() => { setDrawer(false); onSignIn(); }} className="flex h-10 w-full items-center gap-6 rounded-[10px] px-3 text-left text-sm font-medium text-[#065fd4] hover:bg-[#def1ff]"><UserCircle size={22} strokeWidth={1.8} />Sign in</button>}
       </nav>
     </div>}
-    <div className={`flex items-start ${station || reading || listening || nowPod ? "pb-20" : ""}`}>{sidebar}<main className="min-w-0 flex-1">{content}</main></div>
+    <div className={`flex items-start ${station || reading || listening || nowPod ? "pb-20" : ""}`}>{sidebar}<main className="min-w-0 flex-1 pb-24 lg:pb-0">{content}</main></div>
+    {/* Phones: a floating tab bar (Home, Swipe feed, Create, You), like the iPhone's own apps. It
+        sits above whatever is playing at the bottom. The full menu is still behind ☰. */}
+    {view.kind !== "watch" && <nav aria-label="Pod+ tabs" className="ps-keep fixed left-1/2 z-[45] flex w-[min(92vw,420px)] -translate-x-1/2 items-center justify-between rounded-full bg-[#121212]/90 p-1.5 text-white shadow-[0_10px_40px_rgba(0,0,0,.35)] ring-1 ring-white/10 backdrop-blur-xl lg:hidden"
+      style={{ bottom: `calc(env(safe-area-inset-bottom, 0px) + ${station || reading || listening || nowPod ? "5.25rem" : "0.75rem"})` }}>
+      {([
+        ["home", "Home", <HomeIcon key="h" size={24} strokeWidth={1.9} />, view.kind === "home" && !tabSheet, () => { setTabSheet(null); setChip("all"); go({ kind: "home" }); }],
+        ["feed", "Swipe feed", <Sparkles key="f" size={24} strokeWidth={1.9} />, false, () => { setTabSheet(null); onOpenFeed(); }],
+        ["create", "Create", <PlusCircle key="c" size={28} strokeWidth={1.7} />, tabSheet === "create", () => setTabSheet((t) => (t === "create" ? null : "create"))],
+        ["you", "You", pro && email ? <span key="y" className="grid h-8 w-8 place-items-center rounded-full bg-[#ff6a1f] text-sm font-bold">{email.slice(0, 1).toUpperCase()}</span> : <UserCircle key="y" size={26} strokeWidth={1.8} />, tabSheet === "you", () => setTabSheet((t) => (t === "you" ? null : "you"))],
+      ] as const).map(([id, label, icon, on, act]) => <button key={id} type="button" onClick={act} aria-label={label} aria-pressed={on} data-testid={`pod-tab-${id}`}
+        className={`flex h-12 flex-1 items-center justify-center rounded-full transition ${on ? "bg-white/15" : "active:bg-white/10"}`}>{icon}</button>)}
+    </nav>}
+    {tabSheet && <div role="dialog" aria-modal="true" aria-label={tabSheet === "create" ? "Create" : "You"} onClick={(e) => { if (e.target === e.currentTarget) setTabSheet(null); }}
+      className="fixed inset-0 z-[44] flex items-end bg-black/40 px-3 lg:hidden" style={{ paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + ${station || reading || listening || nowPod ? "10rem" : "5.5rem"})` }}>
+      <div className="max-h-[70dvh] w-full overflow-y-auto rounded-3xl bg-white p-2 text-[#0f0f0f] shadow-2xl">
+        {tabSheet === "create" ? <>
+          <p className="px-3 pb-1 pt-2 text-sm font-semibold text-[#606060]">Create</p>
+          {navItem("Post on Social", <MessageCircle size={22} strokeWidth={1.8} />, false, () => { setTabSheet(null); onOpenFeed(undefined, "social"); })}
+          {navItem("Go live", <Mic size={22} strokeWidth={1.8} />, false, () => { setTabSheet(null); setGoLive(true); })}
+          {navItem("Listen together", <Users size={22} strokeWidth={1.8} />, false, () => { setTabSheet(null); go({ kind: "party", id: "new" }); })}
+          {navItem("Open Mic", <Mic2 size={22} strokeWidth={1.8} />, false, () => { setTabSheet(null); onOpenFeed(undefined, "openmic"); })}
+        </> : <>
+          <div className="flex items-center gap-3 px-3 py-2">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#ff6a1f] text-lg font-bold text-white">{pro && email ? email.slice(0, 1).toUpperCase() : <UserCircle size={24} />}</span>
+            <span className="min-w-0 flex-1"><span className="block truncate text-[15px] font-semibold">{pro ? email || "Pod+ Member" : "Listening without an account"}</span><span className="block text-xs text-[#606060]">{pro ? "Pod+ Member" : "Sign in to keep your place on every device"}</span></span>
+            {!pro && <button type="button" onClick={() => { setTabSheet(null); onSignIn(); }} className="h-9 shrink-0 rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white">Sign in</button>}
+          </div>
+          <div className="my-1 h-px bg-[#e5e5e5]" />
+          {navItem("Library", <Library size={22} strokeWidth={1.8} />, false, () => { setTabSheet(null); onOpenFeed(undefined, "library"); })}
+          {navItem("Liked episodes", <ThumbsUp size={22} strokeWidth={1.8} />, view.kind === "liked", () => { setTabSheet(null); go({ kind: "liked" }); })}
+          {navItem("Listen later", <Clock size={22} strokeWidth={1.8} />, view.kind === "later", () => { setTabSheet(null); go({ kind: "later" }); })}
+          {navItem("Your interests", <Heart size={22} strokeWidth={1.8} />, false, () => { setTabSheet(null); onEditInterests(); })}
+          <div className="px-3 py-2" role="group" aria-label="Appearance">
+            <p className="mb-2 text-xs font-semibold text-[#606060]">Appearance</p>
+            <div className="flex gap-1 rounded-xl border border-[#e5e5e5] p-1">
+              {([["system", "Auto", Monitor], ["light", "Light", Sun], ["dark", "Dark", Moon]] as const).map(([value, label, Icon]) => (
+                <button type="button" key={value} onClick={() => setTheme(value)} aria-pressed={theme === value}
+                  className={`flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg text-[13px] font-semibold ${theme === value ? "bg-[#ff6a1f] text-white" : "text-[#606060] hover:bg-[#f2f2f2]"}`}><Icon size={16} />{label}</button>
+              ))}
+            </div>
+          </div>
+          {navItem("Account & privacy", <ShieldCheck size={22} strokeWidth={1.8} />, false, () => { setTabSheet(null); setPrivacyOpen(true); })}
+          {pro && navItem("Sign out", <LogOut size={22} strokeWidth={1.8} />, false, () => { setTabSheet(null); onSignOut(); })}
+        </>}
+      </div>
+    </div>}
     {privacyOpen && <AccountSheet api={api} email={email} signedIn={pro} say={say} onClose={() => setPrivacyOpen(false)} />}
     {nowPod && !station && !reading && !listening && <div role="region" aria-label="Now playing podcast" className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5e5e5] bg-white/95 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur">
       <div className="mx-auto flex h-14 max-w-2xl items-center gap-3 px-3">
