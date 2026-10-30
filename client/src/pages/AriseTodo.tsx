@@ -28,7 +28,7 @@ import LinkPage from "@/components/family-hub/LinkPage";
 import LifePlanApp, { PLAN_FOCUS_KEY } from "@/components/family-hub/LifePlanApp";
 import LinkedProfiles from "@/components/family-hub/LinkedProfiles";
 import { linksApi } from "@/lib/profileLinks";
-import StickyBoard from "@/components/family-hub/StickyBoard";
+import StickyBoard, { ADD_STICKY_EVENT } from "@/components/family-hub/StickyBoard";
 import KitPlugin from "@/components/plugin-kit/KitPlugin";
 import { LIFE_VIEWS } from "@/components/family-hub/lifeApps";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
@@ -1134,11 +1134,14 @@ export default function AriseTodo() {
         <div role="menu" aria-label="Add to your To Do" data-testid="life-add-menu"
           className="absolute bottom-[calc(100%+0.6rem)] right-0 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl">
           {[
+            // On a phone the AI assistant opens from here, so only one round button sits over the page.
+            ...(family.widgets.chat && window.matchMedia?.("(max-width: 639px)").matches ? [{ key: "ai", label: "Ask AI", detail: "The AI assistant", icon: <Sparkles size={16} />, go: () => document.querySelector<HTMLElement>('[data-testid="hub-chat-open"]')?.click() }] : []),
             { key: "task", label: "Task", detail: "", icon: <CheckSquare size={16} />, go: openAdd },
             { key: "list", label: "List", detail: "A new list of tasks", icon: <FolderPlus size={16} />, go: () => setAddingList(true) },
             { key: "calendar", label: "Event", detail: "", icon: <CalendarDays size={16} />, go: () => goSection("calendar"), section: "calendar" },
             { key: "grocery", label: "Grocery item", detail: "", icon: <ShoppingCart size={16} />, go: () => goSection("grocery"), section: "grocery" },
             { key: "notes", label: "Note", detail: "", icon: <StickyNote size={16} />, go: () => goSection("notes"), section: "notes" },
+            ...(family.widgets.stickies ? [{ key: "sticky", label: "Sticky note", detail: "On your Home page", icon: <StickyNote size={16} />, go: () => { if (shown !== "home") setSection("home"); window.setTimeout(() => window.dispatchEvent(new Event(ADD_STICKY_EVENT)), shown === "home" ? 0 : 350); } }] : []),
             { key: "money", label: "Bill or expense", detail: "", icon: <Wallet size={16} />, go: () => goSection("money"), section: "money" },
           ].filter((item) => !item.section || sections.includes(item.section as FamilySection)).map((item) => (
             <button key={item.key} type="button" role="menuitem" data-testid={`life-add-${item.key}`}
@@ -1240,7 +1243,7 @@ export default function AriseTodo() {
         </div>
       </aside>
 
-      <main data-tour="life-content" className={`min-w-0 flex-1 px-3 pb-10 pt-4 sm:px-7 sm:pt-6 lg:px-9 lg:pt-10 xl:px-12 ${shown === "tasks" ? "duo-book:pt-4" : "duo:px-6"} duo-book:px-5 duo-book:pb-10 ${shown === "tasks" && layout.menuSide === "top" ? phone.pad.replace(/max-lg:pt-\S+/, "") : phone.pad}`}>
+      <main data-tour="life-content" className={`min-w-0 flex-1 px-3 pb-28 sm:pb-10 pt-4 sm:px-7 sm:pt-6 lg:px-9 lg:pt-10 xl:px-12 ${shown === "tasks" ? "duo-book:pt-4" : "duo:px-6"} duo-book:px-5 duo-book:pb-10 ${shown === "tasks" && layout.menuSide === "top" ? phone.pad.replace(/max-lg:pt-\S+/, "") : phone.pad}`}>
         <div className="mx-auto max-w-[1250px]">
           {shown === "tasks" && <header className="mb-5 flex flex-wrap items-start justify-between gap-4 duo-book:hidden">
             <div><p className="mb-2 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7]">Your everyday organizer</p><h1 className="text-3xl font-black tracking-tight text-[#232139] sm:text-4xl">Make room for what matters<span className="text-[#7866e1]">.</span></h1><p className="mt-2 text-sm leading-6 text-slate-500">One place to stay on top of life, work, and everything in between.</p></div>

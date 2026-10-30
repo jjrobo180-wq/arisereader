@@ -41,6 +41,8 @@ interface AuthContextType {
   exitViewAsTeacher: () => void;
   token: string | null;
   login: (username: string, password: string) => Promise<void>;
+  /** Sign in with Apple in the iPhone app (lib/appleSignIn.ts gets the token from iOS). True when a new account was made. */
+  signInWithApple: (apple: { identityToken: string; authorizationCode?: string; givenName?: string; familyName?: string }) => Promise<boolean>;
   /** Redeems a one-use code from arisereader.com (teachers, parents, LifeHub accounts, the administrator). */
   completeAdminHandoff: (code: string) => Promise<AuthUser>;
   register: (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null, gradeLevel?: string, unlisted?: { schoolName?: string; teacherName?: string; directoryTeacherId?: string; independent?: boolean; directorySchool?: string; advisoryId?: string }) => Promise<void>;
@@ -340,6 +342,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     returnIfAsked();
   }, [persistSession]);
 
+  const signInWithApple = useCallback(async (apple: { identityToken: string; authorizationCode?: string; givenName?: string; familyName?: string }) => {
+    sessionStorage.removeItem("arise_admin_preview_mode");
+    sessionStorage.removeItem(VIEW_AS_KEY);
+    setAdminPreviewMode(null);
+    persistSession(null, null);
+    const res = await fetch(`${API_BASE}/api/auth/apple`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(apple), cache: "no-store" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || typeof data?.token !== "string") throw new Error(data?.message || "Sign in with Apple didn't work. Try again.");
+    sessionStorage.removeItem(SAMPLE_SESSION_KEY);
+    resetAuthenticatedNavigation(data.user);
+    persistSession(data.user, data.token);
+    returnIfAsked();
+    return !!data.made;
+  }, [persistSession]);
+
   // Redeem a one-use sign-in code on arisetodo.com. The code is never a session token.
   const completeAdminHandoff = useCallback(async (code: string) => {
     if (!/^[a-f0-9]{64}$/.test(code)) throw new Error("The sign-in link is invalid.");
@@ -466,6 +483,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       exitViewAsTeacher,
       token,
       login,
+      signInWithApple,
       completeAdminHandoff,
       register,
       logout,

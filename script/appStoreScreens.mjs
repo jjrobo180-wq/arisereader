@@ -104,6 +104,19 @@ await shot("podplus-social", async (p) => {
   await p.getByRole("button", { name: /menu/i }).first().click(); await wait(p, 600);
   await p.getByRole("button", { name: /^Social/ }).first().click(); await wait(p, 6000);
 });
+await shot("podplus-music", async (p) => {
+  await p.goto(`${P}/app/#/music`); await wait(p, 6000);
+  const skip = p.getByRole("button", { name: "Skip for now" });
+  if (await skip.count()) { await skip.first().click(); }
+  await wait(p, 10000);
+});
+await shot("podplus-tab-you", async (p) => { await pod(p); await p.getByTestId("pod-tab-you").click(); await wait(p, 800); });
+await shot("podplus-tab-create", async (p) => { await pod(p); await p.getByTestId("pod-tab-create").click(); await wait(p, 800); });
+await shot("lifehub-add-menu", async (p) => {
+  await sample(p, "/lifehub?pane=home");
+  await p.frameLocator("#f").getByTestId("life-add-button").click();
+  await wait(p, 600);
+});
 await shot("podplus-privacy", async (p) => { await p.goto(`${P}/privacy/`); await wait(p, 500); });
 await shot("podplus-support-dark", async (p) => { await p.goto(`${P}/support/`); await wait(p, 500); }, { dark: true });
 
