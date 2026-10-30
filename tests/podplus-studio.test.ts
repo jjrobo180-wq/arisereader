@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
-import { audioKey, cleanLines, cleanMeeting, cleanNotes, cleanStudy, meetingPrompt, registerStudioRoutes, speakLines, studyPrompt } from "../server/podcastStudio";
+import { audioKey, cleanLines, cleanMeeting, cleanNotes, cleanStudy, meetingPrompt, registerStudioRoutes, soundSeconds, speakLines, speakPatiently, studyPrompt } from "../server/podcastStudio";
 
 test("lines: two speakers at most, markdown stripped, solo puts everything on one voice", () => {
   const raw = [{ speaker: "A", text: "**Hi** there" }, { speaker: "Leo", text: "Hello" }, { speaker: "B", text: "" }, { host: "B", line: "Bye" }];
@@ -57,8 +57,13 @@ test("routes: write, voice, then fetch the audio (with ranges)", async () => {
     assert.equal(made.title, "Bio");
     assert.equal(made.lines.length, 2);
     assert.equal(asked, 1);
-    const voice = await (await fetch(`${base}/api/podscroll/studio/voice`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lines: made.lines }) })).json();
+    const ask = async () => (await fetch(`${base}/api/podscroll/studio/voice`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lines: made.lines, progress: true }) })).json();
+    let voice = await ask();
     assert.equal(voice.id, made.audio);
+    assert.equal(voice.parts, 2);
+    for (let i = 0; i < 50 && !voice.done; i++) { await new Promise((r) => setTimeout(r, 20)); voice = await ask(); }
+    assert.equal(voice.done, true);
+    assert.equal(await (await fetch(`${base}/api/podscroll/studio/audio/${voice.id}/1`)).text(), "World");
     const audio = await fetch(`${base}/api/podscroll/studio/audio/${voice.id}`);
     assert.equal(audio.headers.get("content-type"), "audio/mpeg");
     assert.equal(await audio.text(), "HelloWorld");
@@ -67,4 +72,39 @@ test("routes: write, voice, then fetch the audio (with ranges)", async () => {
     assert.equal(await part.text(), "World");
     assert.equal((await fetch(`${base}/api/podscroll/studio/audio/${"0".repeat(64)}`)).status, 404);
   } finally { server.close(); }
+});
+
+test("a busy voice is waited for, never an error", async () => {
+  let calls = 0;
+  const waits: number[] = [];
+  const out = await speakPatiently("hi", "hannah", async (t) => { if (++calls < 4) throw new Error("speech 429 busy"); return { audio: Buffer.from(t), type: "audio/mpeg" }; }, 60_000, async (ms) => { waits.push(ms); });
+  assert.equal(out.audio.toString(), "hi");
+  assert.equal(waits.length, 3);
+  await assert.rejects(speakPatiently("hi", "hannah", async () => { throw new Error("no key"); }, -1, async () => {}));
+});
+
+test("lines in different kinds of sound (a backup voice) still play, one after another", async () => {
+  const app = express();
+  app.use(express.json());
+  const gate = (req: any, _res: any, next: any) => { req.user = { id: "device-2" }; next(); };
+  let n = 0;
+  registerStudioRoutes(app, gate, { ask: async () => "{}", speak: async (t) => (n++ % 2 ? { audio: Buffer.from(t), type: "audio/mpeg" } : { audio: Buffer.from(t), type: "audio/wav" }) });
+  const server = app.listen(0);
+  const base = `http://127.0.0.1:${(server.address() as any).port}`;
+  try {
+    const lines = [{ speaker: "A", text: "One" }, { speaker: "B", text: "Two" }];
+    const ask = async () => (await fetch(`${base}/api/podscroll/studio/voice`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lines, progress: true }) })).json();
+    let v = await ask();
+    for (let i = 0; i < 50 && !v.done; i++) { await new Promise((r) => setTimeout(r, 20)); v = await ask(); }
+    assert.equal(v.done, true);
+    assert.equal(v.failed, false);
+    assert.equal((await fetch(`${base}/api/podscroll/studio/audio/${v.id}/0`)).headers.get("content-type"), "audio/wav");
+    assert.equal((await fetch(`${base}/api/podscroll/studio/audio/${v.id}/1`)).headers.get("content-type"), "audio/mpeg");
+    assert.equal((await fetch(`${base}/api/podscroll/studio/audio/${v.id}`)).status, 404); // no single file: played piece by piece
+  } finally { server.close(); }
+});
+
+test("how long a piece of sound lasts", () => {
+  const frame = Buffer.alloc(6000); frame[0] = 0xff; frame[1] = 0xfb; frame[2] = 0x30; // MPEG-1 layer 3, 48 kbps
+  assert.equal(Math.round(soundSeconds({ audio: frame, type: "audio/mpeg" })), 1);
 });
