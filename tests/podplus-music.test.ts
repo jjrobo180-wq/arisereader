@@ -39,3 +39,13 @@ test("albums keep their recording year", () => {
   assert.equal(a.year, 1925);
   assert.equal(a.artist, "Bessie Smith");
 });
+
+test("file-name uploads with no artist are left out", async () => {
+  const { looksLikeJunk } = await import("../server/music");
+  assert.equal(looksLikeJunk("geometry_dash_1.9", "Pashok11"), true);
+  assert.equal(looksLikeJunk("hcpb", ""), true);
+  assert.equal(looksLikeJunk("ccb", "Unknown artist"), true);
+  assert.equal(looksLikeJunk("Moonlight Sonata", ""), false);
+  assert.equal(looksLikeJunk("Bolero", "Maurice Ravel"), false);
+  assert.equal(looksLikeJunk("1812", "Tchaikovsky"), false);
+});

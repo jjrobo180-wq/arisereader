@@ -92,9 +92,18 @@ export function musicSearchUrl(shelf: string, q: string, page = 1, sort: MusicSo
   return `${ARCHIVE}/advancedsearch.php?${p}`;
 }
 
+/** Uploads that aren't really albums: a file name for a title ("geometry_dash_1.9", "hcpb") with no artist. */
+export function looksLikeJunk(title: string, artist: string): boolean {
+  if (/\s/.test(title)) return false;
+  if (/_/.test(title)) return true;
+  const noArtist = !artist || /^unknown/i.test(artist);
+  return noArtist && (title.length <= 5 || /\d/.test(title) || /\./.test(title));
+}
+
 export function albumsFromSearch(body: any): Album[] {
   const docs: any[] = Array.isArray(body?.response?.docs) ? body.response.docs : [];
-  return docs.filter((d) => isFreeLicense(first(d?.licenseurl)) && ALBUM_ID.test(String(first(d?.identifier) || "")) && plain(first(d?.title), 200))
+  return docs.filter((d) => isFreeLicense(first(d?.licenseurl)) && ALBUM_ID.test(String(first(d?.identifier) || "")) && plain(first(d?.title), 200)
+      && !looksLikeJunk(plain(first(d?.title), 200), plain(first(d?.creator), 120)))
     .map((d) => {
       const id = String(first(d.identifier));
       const year = Number(String(first(d.year) || first(d.date) || "").slice(0, 4));
