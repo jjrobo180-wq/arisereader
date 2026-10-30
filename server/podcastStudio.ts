@@ -10,7 +10,8 @@
 // posted or shared: the notes come in, the result goes back to the one person who asked, and the
 // app keeps it on their device. Made audio is kept under a hash of its words (voice-cache bucket and
 // a small memory cache), so playing the same pod again doesn't make it again.
-import type { Express, RequestHandler } from "express";
+import express, { type Express, type RequestHandler } from "express";
+import { IMAGE_DATA, canSeePhotos, looksReadable, pdfText, readPhoto } from "./studioReading";
 import { createHash } from "node:crypto";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { joinWavs } from "./audiobooks";
@@ -159,7 +160,11 @@ export async function speakPatiently(text: string, voice: string, speak: (text: 
 
 const parse = (s: string) => { try { return JSON.parse(s); } catch { const m = s.match(/\{[\s\S]*\}/); if (m) { try { return JSON.parse(m[0]); } catch { /* not JSON */ } } return null; } };
 
-export function registerStudioRoutes(app: Express, gate: RequestHandler, o: { ask: AskJson; speak?: (text: string, voice: string) => Promise<Speech>; blobs?: BlobStore; patienceMs?: number }) {
+export function registerStudioRoutes(app: Express, gate: RequestHandler, o: { ask: AskJson; speak?: (text: string, voice: string) => Promise<Speech>; blobs?: BlobStore; patienceMs?: number;
+  /** Speech to text, for a recorded lecture or meeting. */
+  transcribe?: (audio: Blob, name: string, prompt?: string) => Promise<{ segments: { text: string }[] }>;
+  /** Reads the text in a photo of notes. */
+  see?: (dataUrl: string) => Promise<string>; }) {
   const patienceMs = o.patienceMs ?? 8 * 60_000;
   const P = "/api/podscroll/studio";
   const writes = createAttemptLimiter({ max: 15, windowMs: 60 * 60_000 });
@@ -201,6 +206,58 @@ export function registerStudioRoutes(app: Express, gate: RequestHandler, o: { as
       return res.status(503).json({ message: "Couldn't reach the AI just now. Tap the button again.", busy: false });
     }
   };
+  // Notes from a PDF or a photo: the text goes back into the notes box, where the person can check it.
+  const reads = createAttemptLimiter({ max: 120, windowMs: 60 * 60_000 });
+  app.post(`${P}/read`, express.json({ limit: "14mb" }), gate, async (req: any, res) => {
+    res.set("Cache-Control", "no-store");
+    const kind = req.body?.kind;
+    if (limited(reads, String(req.user?.id || ""), res)) return;
+    try {
+      if (kind === "pdf") {
+        const data = Buffer.from(String(req.body?.data || ""), "base64");
+        if (data.length < 50 || data.subarray(0, 5).toString("latin1") !== "%PDF-") return res.status(400).json({ message: "That isn't a PDF." });
+        const text = pdfText(data);
+        if (!looksReadable(text)) return res.status(422).json({ message: "This PDF is a scan (a picture of the pages), so there's no text in it to read. Take photos of the pages instead: tap Add photos.", scan: true });
+        return res.json({ text });
+      }
+      if (kind === "image") {
+        const image = String(req.body?.image || "");
+        if (!IMAGE_DATA.test(image) || image.length > 12_000_000) return res.status(400).json({ message: "That photo couldn't be opened. Try another." });
+        const see = o.see ?? (canSeePhotos() ? readPhoto : null);
+        if (!see) return res.status(503).json({ message: "Reading photos isn't set up on this site yet. Paste or type the notes instead." });
+        const text = (await see(image)).slice(0, 20_000);
+        if (!text.trim()) return res.status(422).json({ message: "No writing was found in that photo. Try a closer, brighter photo." });
+        return res.json({ text });
+      }
+      return res.status(400).json({ message: "Pick a PDF or a photo." });
+    } catch (e: any) {
+      console.error("[studio] read failed:", String(e?.message || e).slice(0, 200));
+      return res.status(503).json({ message: "Couldn't read that just now. Try again." });
+    }
+  });
+  // A recorded lecture or meeting, a few minutes at a time (the app sends each piece as it's recorded).
+  const hears = createAttemptLimiter({ max: 200, windowMs: 60 * 60_000 });
+  app.post(`${P}/transcribe`, express.raw({ type: () => true, limit: "26mb" }), gate, async (req: any, res) => {
+    res.set("Cache-Control", "no-store");
+    const audio: Buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+    if (audio.length < 1000) return res.json({ text: "" });
+    if (!o.transcribe) return res.status(503).json({ message: "Recording isn't set up on this site yet." });
+    if (limited(hears, String(req.user?.id || ""), res)) return;
+    const type = String(req.headers["content-type"] || "audio/mp4").split(";")[0];
+    const ext = /webm/.test(type) ? "webm" : /ogg/.test(type) ? "ogg" : /wav/.test(type) ? "wav" : /mpeg|mp3/.test(type) ? "mp3" : "m4a";
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const out = await o.transcribe(new Blob([audio], { type }), `recording.${ext}`);
+        return res.json({ text: out.segments.map((x) => x.text.trim()).filter(Boolean).join(" ").replace(/\s+/g, " ").trim() });
+      } catch (e: any) {
+        // Busy: wait and try again (the recording is never lost: the app keeps it until this answers).
+        if (attempt < 4) { await sleep(Math.min(o.patienceMs ?? 20_000, 3000 * 2 ** attempt)); continue; }
+        console.error("[studio] transcribe failed:", String(e?.message || e).slice(0, 200));
+        return res.status(503).json({ message: "Couldn't write down that part just now. It will be tried again." });
+      }
+    }
+  });
+
   app.post(`${P}/study`, gate, (req, res) => void write(req, res, "study"));
   app.post(`${P}/meeting`, gate, (req, res) => void write(req, res, "meeting"));
 

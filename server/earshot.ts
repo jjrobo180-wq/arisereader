@@ -694,6 +694,6 @@ export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetch
   // Clips (server/podcastClips.ts): the owner's shared list of TikTok videos.
   registerClipsRoutes(app, gate, socialDb ? { kv: supabaseKV(socialDb) } : {});
   // Study Pod+ and Meeting Pod (server/podcastStudio.ts): the person's own notes, turned into a podcast or a meeting summary.
-  registerStudioRoutes(app, gate, { ask: openAiJson, speak: (text, voice) => aiSpeech(text, voice), ...(socialDb ? { blobs: supabaseBlobs(socialDb) } : {}) });
+  registerStudioRoutes(app, gate, { ask: openAiJson, speak: (text, voice) => aiSpeech(text, voice), transcribe: openAiTranscribe, ...(socialDb ? { blobs: supabaseBlobs(socialDb) } : {}) });
   registerEarshotRoutes(app, gate, { store, fetcher, directory, adStore, player, socialDb, prefix: "/api/podscroll" });
 }

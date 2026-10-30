@@ -86,8 +86,9 @@ function App() {
       try {
         res = await fetch(url, {
           method: init?.method ?? "GET",
-          headers: { "X-Podscroll-Device": device, ...(session ? { "X-Podscroll-Session": session } : {}), ...(init?.body !== undefined ? { "Content-Type": "application/json" } : {}) },
-          body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
+          // A Blob (a recording) goes as it is; anything else as JSON.
+          headers: { "X-Podscroll-Device": device, ...(session ? { "X-Podscroll-Session": session } : {}), ...(init?.body instanceof Blob ? { "Content-Type": init.body.type || "application/octet-stream" } : init?.body !== undefined ? { "Content-Type": "application/json" } : {}) },
+          body: init?.body instanceof Blob ? init.body : init?.body !== undefined ? JSON.stringify(init.body) : undefined,
         });
       } catch { throw new Error("Can't reach Pod+ right now. Check your connection and try again."); }
       body = await res.json().catch(() => ({}));
