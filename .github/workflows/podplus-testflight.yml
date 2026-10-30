@@ -1,6 +1,6 @@
 name: Pod+ signed iOS beta validation
 # Development beta validation only. Upload is a separate, explicitly approved release step.
-# Release: Study Pod+ and Meeting Pod (AI from your notes).
+# Release: AI voices only; Continue listening on Home.
 on:
   workflow_dispatch:
   push:
