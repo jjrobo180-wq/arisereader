@@ -25,9 +25,9 @@ function setup(missing: string[] = []) {
   return { db, as, cuts, alice: as("dalice"), bob: as("dbob"), cara: as("dcara") };
 }
 async function profiles(t: ReturnType<typeof setup>) {
-  assert.equal((await t.alice.post("/me", { handle: "alice", name: "Alice", avatar: "🦊" })).statusCode, 200);
-  assert.equal((await t.bob.post("/me", { handle: "bob_b", name: "Bob" })).statusCode, 200);
-  assert.equal((await t.cara.post("/me", { handle: "cara", name: "Cara" })).statusCode, 200);
+  assert.equal((await t.alice.post("/me", { agreed: true, handle: "alice", name: "Alice", avatar: "🦊" })).statusCode, 200);
+  assert.equal((await t.bob.post("/me", { agreed: true, handle: "bob_b", name: "Bob" })).statusCode, 200);
+  assert.equal((await t.cara.post("/me", { agreed: true, handle: "cara", name: "Cara" })).statusCode, 200);
 }
 
 test("helpers: clips, ranking, threads, search terms and the AI's preview pick", () => {

@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChevronLeft, Headphones, Heart, Loader2, MessageCircle, Mic, Pause, Play, Plus, Quote, Repeat2, Scissors, Search, Send, Share2, Square, Upload, UserPlus, X } from "lucide-react";
 import { clock, durationWords, hiRes, type PodEpisode, type PodShow } from "@shared/earshot";
+import { RULES, policyLinks } from "./social/Rules";
 
 export const ACCENT = "#ff8a3d";
 
@@ -364,7 +365,9 @@ export function ProfileEditor({ api, say, initial, avatars, onClose, onSaved }: 
   const [bio, setBio] = useState(initial?.bio ?? "");
   const [avatar] = useState(initial?.avatar ?? avatars[0] ?? "🎧");
   const [busy, setBusy] = useState(false);
-  const save = () => { setBusy(true); api("/api/earshot/social/me", { method: "POST", body: { name, handle, bio, avatar } }).then(() => { say(initial ? "Profile saved." : "Welcome! Your profile is live."); onSaved(); }).catch((e) => say(e.message)).finally(() => setBusy(false)); };
+  const [agreed, setAgreed] = useState(!!initial);
+  const links = policyLinks();
+  const save = () => { setBusy(true); api("/api/earshot/social/me", { method: "POST", body: { agreed, name, handle, bio, avatar } }).then(() => { say(initial ? "Profile saved." : "Welcome! Your profile is live."); onSaved(); }).catch((e) => say(e.message)).finally(() => setBusy(false)); };
   return <Sheet title={initial ? "Edit profile" : "Make your profile"} onClose={onClose}>
     <div className="overflow-y-auto px-4 pb-5">
       <div className="flex items-center gap-3"><Avatar p={{ handle: handle || "you", name: name || "You", bio: "", avatar }} size={56} /><p className="text-sm text-white/55">Your initials are your picture.</p></div>
@@ -372,7 +375,12 @@ export function ProfileEditor({ api, say, initial, avatars, onClose, onSaved }: 
       <Field label="Username"><div className="flex items-center rounded-xl border border-white/10 bg-black/30 pl-3"><span className="text-white/45">@</span><input value={handle} onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20))} placeholder="podfan_22" className="min-h-11 w-full bg-transparent px-1 text-base outline-none" /></div></Field>
       <Field label="Bio"><textarea value={bio} onChange={(e) => setBio(e.target.value)} maxLength={160} rows={2} placeholder="What do you love listening to?" className={`${inputCls} py-2`} /></Field>
       <p className="mt-2 text-xs text-white/45">Your profile, posts, clips, bookmarks and episodes are public.</p>
-      <button type="button" onClick={save} disabled={busy || !name.trim() || handle.length < 3} className="mt-4 min-h-12 w-full rounded-full bg-white font-semibold text-[#111013] disabled:opacity-40">{busy ? "Saving…" : "Save"}</button>
+      {!initial && <div className="mt-3 rounded-2xl bg-white/5 p-3 text-[13px] leading-snug text-white/75">
+        <p className="font-bold text-white">Community rules</p>
+        <ul className="mt-1 list-disc space-y-0.5 pl-4">{RULES.map((r) => <li key={r}>{r}</li>)}</ul>
+        <label className="mt-2 flex min-h-11 items-start gap-2 font-semibold text-white"><input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 h-5 w-5 flex-none" /><span>I agree to the <a href={links.terms} target="_blank" rel="noreferrer" className="underline">Terms of Use</a> and community rules.</span></label>
+      </div>}
+      <button type="button" onClick={save} disabled={busy || !name.trim() || handle.length < 3 || !agreed} className="mt-4 min-h-12 w-full rounded-full bg-white font-semibold text-[#111013] disabled:opacity-40">{busy ? "Saving…" : "Save"}</button>
     </div>
   </Sheet>;
 }

@@ -278,7 +278,7 @@ export default function AdminPlans() {
             <div className="space-y-3 pt-4 border-t border-border" data-testid="admin-vip">
               <Label className="text-sm font-medium">Free Unlimited for chosen people (arisetodo)</Label>
               <p className="text-sm text-muted-foreground">
-                Everyone on this list gets every App Store app and AI (to the fair-use limit) in WorkHub and LifeHub, with no payment. Type an email and it switches on the moment they sign up and confirm it, or the username of an account that already exists, such as a parent. Take them off any time.
+                Everyone on this list gets every App Gallery app and AI (to the fair-use limit) in WorkHub and LifeHub, with no payment. Type an email and it switches on the moment they sign up and confirm it, or the username of an account that already exists, such as a parent. Take them off any time.
               </p>
               <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
                 <Input value={vipWho} onChange={(e) => setVipWho(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void addVip(); }} placeholder="Email, or username" autoComplete="off" aria-label="Email or username" data-testid="admin-vip-who" />

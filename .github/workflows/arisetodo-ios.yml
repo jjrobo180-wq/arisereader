@@ -38,6 +38,7 @@ jobs:
         run: |
           npx cap add ios
           npx cap sync ios
+          python3 configure-ios.py ios/App/App/Info.plist
       - name: Compile iOS simulator app
         working-directory: arisetodo/ios-app
         run: |

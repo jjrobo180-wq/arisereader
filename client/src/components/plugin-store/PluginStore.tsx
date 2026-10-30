@@ -6,6 +6,7 @@
 // pushing the page sideways), the list scrolls on its own without dragging the page behind it, and
 // buttons keep their width when Add turns into Added, so tapping one never moves anything else.
 // Its colours come from one palette, in day or night, so the hub's night mode can't half-darken it.
+import { isNativeApp } from "@/lib/nativeApp";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Rocket, Podcast as PodcastTile3 } from "lucide-react";
 import {
@@ -29,6 +30,9 @@ import {
   HUB_TEMPLATES, PLUGIN_CATEGORIES, connectionNeeds, isAddable, pluginsFor, searchPlugins, templatePlugins, OPEN_STORE_KEY, type HubTemplate, type Plugin, type PluginHub,
 } from "@shared/pluginStore";
 
+/** In the iPhone app, a description never talks about the app "coming soon": that's this app. */
+const nativeBlurb = (text: string) => text.replace(/\s*The full browser, with every site, comes with the Arise To Duo iPhone app, coming soon to the App Store\./, "");
+
 export const ICONS: Record<string, LucideIcon> = {
   Podcast: PodcastTile3, Rocket, Apple, BellRing, BookOpenCheck, Briefcase, Calculator, CalendarDays, CalendarPlus, CalendarRange, CheckSquare, ClipboardCheck, Clock, Droplets, Forward,
   GraduationCap, Handshake, HeartPulse, Landmark, Mail, MessageCircle, Newspaper, Pill, Plane, Smile, SmilePlus, Sparkles, StickyNote, Target, Timer,
@@ -38,7 +42,7 @@ export const ICONS: Record<string, LucideIcon> = {
 };
 
 /** The store's name, as people see it everywhere. */
-export const STORE_NAME = "App Store";
+export const STORE_NAME = "App Gallery";
 
 /**
  * Scrolls to a connection's setup box once the hub has drawn it (the tab or section opens first),
@@ -506,7 +510,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
             {open.recommendedFor && <p className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${soft}`} data-testid="plugin-recommended-for">
               <Sparkles className="h-3.5 w-3.5" /> Recommended for Arise {HUB_NAME[open.recommendedFor]} — works here too
             </p>}
-            <p className="mt-3 text-[15px] leading-6 text-[var(--s-sub)]">{open.description}</p>
+            <p className="mt-3 text-[15px] leading-6 text-[var(--s-sub)]">{isNativeApp() ? nativeBlurb(open.description) : open.description}</p>
           </div>
           <ul className="space-y-2 rounded-2xl bg-[var(--s-raised)] p-4">{open.features.map((f) => <li key={f} className="flex items-start gap-2 text-[15px] text-[var(--s-text)]"><span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${soft}`}><Check className="h-3.5 w-3.5" /></span>{f}</li>)}</ul>
           {open.target.kind === "connection" && <div className="rounded-2xl border border-[var(--s-line)] p-4" data-testid="plugin-setup-steps">

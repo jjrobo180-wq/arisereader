@@ -15,6 +15,8 @@ import { AuthScreen } from "./Auth";
 import { downloads, installDownloads } from "./downloads";
 import "./styles.css";
 
+// The shared social screens read this to link to Pod+'s own policies and support (social/Rules.tsx).
+(window as any).__PODPLUS__ = true;
 const API = String(import.meta.env.VITE_PODSCROLL_API || "https://arisereader.onrender.com").replace(/\/$/, "");
 const KEY = "podscroll.v1";
 type PageTab = "openmic" | "social" | "library";

@@ -1,4 +1,4 @@
-// Apple Health read directly inside the A.R.I.S.E. To-Do iPhone app (plugin: @capgo/capacitor-health).
+// Apple Health read directly inside the Arise To Duo iPhone app (plugin: @capgo/capacitor-health).
 // The website can't reach HealthKit, so this only works in the app. It sends the numbers to the same
 // /api/arise-todo/apple-health/sync route the Shortcut uses, in the Health Auto Export format the
 // server already understands — so the diary, the sync table and the "Check now" flow stay unchanged.
@@ -15,11 +15,11 @@ const bridge = (): Bridge | null => (typeof window !== "undefined" ? ((window as
 const pluginName = () => bridge()?.PluginHeaders?.find((h) => /health/i.test(h.name))?.name || "Health";
 const call = (method: string, options?: unknown): Promise<any> => {
   const b = bridge();
-  if (!b?.nativePromise) return Promise.reject(new Error("Apple Health works in the A.R.I.S.E. To-Do iPhone app."));
+  if (!b?.nativePromise) return Promise.reject(new Error("Apple Health works in the Arise To Duo iPhone app."));
   return b.nativePromise(pluginName(), method, options).catch((e: any) => {
     const msg = String(e?.message || e || "");
     if (/not implemented|unimplemented|not available|plugin/i.test(msg)) {
-      throw new Error("Apple Health isn't in this version of the app yet. Update A.R.I.S.E. To-Do in TestFlight, then try again.");
+      throw new Error("Apple Health isn't in this version of the app yet. Update Arise To Duo, then try again.");
     }
     throw new Error(msg || "Apple Health didn't answer. Try again.");
   });
@@ -92,8 +92,8 @@ export async function syncNativeHealth(token: string | null, memberId: string, d
     metric("active_energy", "kcal", active),
     metric("weight_body_mass", weight[0]?.unit && /pound|lb/i.test(weight[0].unit) ? "lb" : "kg", weight),
   ].filter((m) => m.data.length);
-  if (!metrics.length && readErrors.length) throw new Error(`Apple Health didn't share any data (${readErrors[0]}). Check Settings → Health → Data Access & Devices → A.R.I.S.E. To-Do and turn everything on.`);
-  if (!metrics.length) return "No steps, active calories or weight in Apple Health yet — or reading was turned off in Settings → Health → Data Access & Devices → A.R.I.S.E. To-Do.";
+  if (!metrics.length && readErrors.length) throw new Error(`Apple Health didn't share any data (${readErrors[0]}). Check Settings → Health → Data Access & Devices → Arise To Duo and turn everything on.`);
+  if (!metrics.length) return "No steps, active calories or weight in Apple Health yet — or reading was turned off in Settings → Health → Data Access & Devices → Arise To Duo.";
   const res = await fetch("/api/arise-todo/apple-health/sync", { method: "POST", cache: "no-store", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ data: { metrics } }) });
   const body = await res.json().catch(() => null);
   if (res.status === 401) { store.drop(memberId); throw new Error("The Health link was turned off. Tap Connect Apple Health again."); }
