@@ -89,6 +89,7 @@ import FamilyHome from "@/components/family-hub/FamilyHome";
 import Chores from "@/components/family-hub/Chores";
 import Behavior from "@/components/family-hub/Behavior";
 import FamilyCalendar from "@/components/family-hub/FamilyCalendar";
+import { useParaTeamAutoAdd } from "@/lib/paraTeam";
 import Polls from "@/components/family-hub/Polls";
 import { ShareButton } from "@/components/family-hub/ShareLink";
 import Trips from "@/components/family-hub/Trips";
@@ -678,6 +679,11 @@ export default function AriseTodo() {
   // menu entry, the same as a Notes-app install — see myNotesApps/phoneItems below.
   const pinnableSheets = (family.sheetsInstalled ?? []).map((id) => sheetsAppPlugin("life", id)).filter((p): p is Plugin => !!p);
   const installedOffice = (family.sheetsInstalled ?? []).map((id) => officeAppPlugin("life", id)).filter((p): p is Plugin => !!p);
+  // Already on a para team: Para Team is added to LifeHub's apps once.
+  useParaTeamAutoAdd(!!user && sync.loaded && !sync.recovery, token, user?.id, "life", (family.sheetsInstalled ?? []).includes("life-para-team"), () => {
+    const p = officeAppPlugin("life", "life-para-team");
+    if (p) setFamily((f) => ({ ...f, sheetsInstalled: setLifeSheetsApp(f.sheetsInstalled, p, true) }));
+  });
   const drivePlugin = family.driveInstalled ? driveAppPlugin("life") : undefined;
   const dropPlugin = family.dropInstalled ? dropAppPlugin("life") : undefined;
   /** Kit plugins added from WorkHub's shelf. LifeHub's own kits are sections, so these are only

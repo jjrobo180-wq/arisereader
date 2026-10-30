@@ -2,7 +2,7 @@
 // and switchable layers for tasks, bills and trips. Teachers can also switch on their
 // Arise WorkHub calendar: its events are read live from the Hub and shown here, read-only.
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { CalendarDays, Check, ChevronLeft, ChevronRight, ExternalLink, GraduationCap, MapPin, Plane, Plus, Receipt, Repeat2, Trash2, Users } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, ExternalLink, GraduationCap, Link2, MapPin, Plane, Plus, Receipt, RefreshCw, Repeat2, Trash2, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { MEMBER_COLORS, addDays, billDue, eventsOn, fromDay, toDay, type FamilyEvent, type EventRepeat } from "@shared/familyHub";
@@ -15,6 +15,19 @@ import { isNativeApp } from "@/lib/nativeApp";
 const PHONE_CAL = { id: "iphone", name: "iPhone Calendar", color: "#64748b", show: true };
 /** Read once per app launch when the calendar opens; the button reads again whenever asked. */
 let phoneReadThisLaunch = false;
+
+/** Linked calendars (by their .ics link) are read again when the calendar opens, at most every few hours. */
+const LINK_STALE_MS = 4 * 3600_000;
+let linksReadThisLaunch = false;
+type LinkEvent = { title: string; date: string; start: string; end: string; location: string; notes?: string };
+async function readLink(token: string | null, url: string): Promise<{ name: string; events: LinkEvent[] }> {
+  let zone = "UTC"; try { zone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch { /* UTC */ }
+  const r = await fetch(`${API_BASE}/api/arise-todo/calendar-link`, { method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ url, timeZone: zone }) });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.message || "That calendar couldn't be read right now.");
+  return { name: String(body.name || ""), events: Array.isArray(body.events) ? body.events : [] };
+}
+const hostName = (url: string) => { try { return new URL(url.replace(/^webcals?:/i, "https:")).hostname.replace(/^www\./, "").split(".")[0].replace(/^./, (c) => c.toUpperCase()) || "Linked calendar"; } catch { return "Linked calendar"; } };
 
 export type CalendarTask = { id: string; title: string; due: string; time: string; assignee: string; done: boolean };
 type Item = { key: string; kind: "event" | "task" | "bill" | "trip" | "hub"; title: string; time: string; color: string; event?: FamilyEvent; members: string[]; hub?: HubItem };
@@ -88,6 +101,46 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
     phoneReadThisLaunch = true;
     void importPhone(true);
   }, [phone, hasPhone]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Calendars linked by their .ics link (a school calendar that can't be added to the iPhone, or the website).
+  const { token } = useAuth();
+  const [link, setLink] = useState("");
+  const [linkBusy, setLinkBusy] = useState<string | null>(null);
+  const [linkNote, setLinkNote] = useState("");
+  const putLinked = (cal: { id: string; name: string; url: string }, events: LinkEvent[], isNew: boolean) => setFamily((f) => {
+    const syncedAt = new Date().toISOString();
+    const calendars = isNew ? [...f.calendars, { id: cal.id, name: cal.name.slice(0, 40), color: MEMBER_COLORS[f.calendars.length % MEMBER_COLORS.length], show: true, url: cal.url, syncedAt }]
+      : f.calendars.map((c) => (c.id === cal.id ? { ...c, syncedAt } : c));
+    const fresh = events.slice(0, 1000).map((e): FamilyEvent => ({ id: makeId(), title: String(e.title || "Event").slice(0, 120), date: e.date, time: e.start || "", endTime: e.start ? e.end || "" : "", calendarId: cal.id, memberIds: [], location: String(e.location || "").slice(0, 160), notes: String(e.notes || "").slice(0, 1000), repeat: "none" }));
+    return { ...f, calendars, events: [...f.events.filter((e) => e.calendarId !== cal.id), ...fresh] };
+  });
+  const connectLink = async (e: FormEvent) => {
+    e.preventDefault();
+    const url = link.trim();
+    if (!url || linkBusy) return;
+    if (family.calendars.some((c) => c.url === url)) { setLinkNote("That calendar is already linked."); return; }
+    setLinkBusy("new"); setLinkNote("");
+    try {
+      const got = await readLink(token, url);
+      const name = got.name || hostName(url);
+      putLinked({ id: makeId(), name, url }, got.events, true);
+      setLink("");
+      setLinkNote(`${name} is linked, with ${got.events.length} ${got.events.length === 1 ? "event" : "events"}. It refreshes when you open your calendar.`);
+    } catch (err: any) { setLinkNote(err?.message || "That calendar couldn't be read right now."); }
+    finally { setLinkBusy(null); }
+  };
+  const refreshLink = async (c: { id: string; name: string; url?: string }, quiet = false) => {
+    if (!c.url) return;
+    setLinkBusy(c.id);
+    try { const got = await readLink(token, c.url); putLinked({ id: c.id, name: c.name, url: c.url }, got.events, false); if (!quiet) say(`${c.name} is up to date`); }
+    catch (err: any) { if (!quiet) setLinkNote(err?.message || `${c.name} couldn't be read right now. Its events stay as they were.`); }
+    finally { setLinkBusy(null); }
+  };
+  useEffect(() => {
+    if (linksReadThisLaunch || !token) return;
+    linksReadThisLaunch = true;
+    void (async () => { for (const c of family.calendars) if (c.url && (!c.syncedAt || Date.now() - Date.parse(c.syncedAt) > LINK_STALE_MS)) await refreshLink(c, true); })();
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const first = fromDay(`${month}-01`);
   const gridStart = addDays(`${month}-01`, -first.getDay());
@@ -191,7 +244,9 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
           <ul className="space-y-1">{family.calendars.map((c) => <li key={c.id} className="flex min-h-10 items-center gap-3">
             <span className="h-3.5 w-3.5 shrink-0 rounded" style={{ background: c.color }} />
             <span className="min-w-0 flex-1 truncate text-sm font-semibold">{c.name}</span>
-            {family.calendars.length > 1 && !family.events.some((e) => e.calendarId === c.id) && <button onClick={() => setFamily((f) => ({ ...f, calendars: f.calendars.filter((x) => x.id !== c.id) }))} className="rounded-lg p-1 text-slate-300 hover:text-rose-500" aria-label={`Remove ${c.name} calendar`}><Trash2 size={14} /></button>}
+            {c.url && <button type="button" onClick={() => void refreshLink(c)} disabled={!!linkBusy} className="rounded-lg p-1 text-slate-400 hover:text-violet-600 disabled:opacity-40" aria-label={`Refresh ${c.name}`}><RefreshCw size={14} className={linkBusy === c.id ? "animate-spin" : ""} /></button>}
+            {c.url && <button type="button" onClick={() => { if (confirmed(`Unlink ${c.name}? Its events leave your calendar.`)) setFamily((f) => ({ ...f, calendars: f.calendars.filter((x) => x.id !== c.id), events: f.events.filter((e) => e.calendarId !== c.id) })); }} className="rounded-lg p-1 text-slate-300 hover:text-rose-500" aria-label={`Unlink ${c.name}`}><Trash2 size={14} /></button>}
+            {!c.url && family.calendars.length > 1 && !family.events.some((e) => e.calendarId === c.id) && <button onClick={() => setFamily((f) => ({ ...f, calendars: f.calendars.filter((x) => x.id !== c.id) }))} className="rounded-lg p-1 text-slate-300 hover:text-rose-500" aria-label={`Remove ${c.name} calendar`}><Trash2 size={14} /></button>}
             <Toggle on={c.show} label={`Show ${c.name}`} onChange={(on) => setFamily((f) => ({ ...f, calendars: f.calendars.map((x) => (x.id === c.id ? { ...x, show: on } : x)) }))} />
           </li>)}</ul>
           {teacher && <div className="mt-1 rounded-xl border border-teal-100 bg-teal-50/60 p-2.5" data-testid="todo-hub-calendar">
@@ -212,6 +267,15 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
             <p className="mt-0.5 text-[11px] font-semibold text-slate-500">{phoneNote || (hasPhone ? "Your iPhone's events refresh each time you open the app." : "Bring in every calendar on this iPhone: iCloud, Google, Outlook and school. Nothing on your iPhone is changed.")}</p>
             <button type="button" onClick={() => void importPhone()} disabled={phoneBusy} className={plain + " mt-2 min-h-11"}>{phoneBusy ? "Reading your iPhone…" : hasPhone ? "Refresh now" : "Connect iPhone Calendar"}</button>
           </div>}
+          <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-2.5" data-testid="life-calendar-link">
+            <p className="text-sm font-semibold text-slate-800">Add a calendar link</p>
+            <p className="mt-0.5 text-[11px] font-semibold text-slate-500">{phone ? "For a school or work calendar that can't be added to your iPhone." : "Google, Outlook, iCloud or your school's calendar."} Paste its link (it ends in .ics). Nothing on that calendar is changed.</p>
+            <form onSubmit={connectLink} className="mt-2 flex gap-2">
+              <input type="url" inputMode="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://… .ics" aria-label="Calendar link" className={inputClass + " min-w-0"} data-testid="life-calendar-link-input" />
+              <button type="submit" disabled={!link.trim() || !!linkBusy} className={primary} aria-label="Link calendar">{linkBusy === "new" ? <RefreshCw size={16} className="animate-spin" /> : <Link2 size={17} />}</button>
+            </form>
+            {linkNote && <p className="mt-2 text-[11px] font-semibold text-slate-600" role="status">{linkNote}</p>}
+          </div>
           <form onSubmit={addCalendar} className="mt-3 flex gap-2"><input value={newCal} onChange={(e) => setNewCal(e.target.value)} maxLength={40} placeholder="New calendar (e.g. Soccer)" aria-label="New calendar name" className={inputClass + " min-w-0"} /><button type="submit" className={primary} aria-label="Add calendar"><Plus size={17} /></button></form>
           <div className="mt-5 border-t border-slate-100 pt-4">
             <p className="mb-2 text-[11px] font-black uppercase tracking-wider text-slate-400">Also show</p>

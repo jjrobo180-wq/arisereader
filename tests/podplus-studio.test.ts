@@ -108,3 +108,31 @@ test("how long a piece of sound lasts", () => {
   const frame = Buffer.alloc(6000); frame[0] = 0xff; frame[1] = 0xfb; frame[2] = 0x30; // MPEG-1 layer 3, 48 kbps
   assert.equal(Math.round(soundSeconds({ audio: frame, type: "audio/mpeg" })), 1);
 });
+
+test("notes from a PDF, a photo, or a recording", async () => {
+  const zlib = await import("node:zlib");
+  const { pdfText, looksReadable } = await import("../server/studioReading");
+  const ops = Buffer.from("BT 72 720 Td (Photosynthesis happens in the chloroplasts.) Tj 0 -14 Td [(Plants make sug) 20 (ar from light) -300 (and water.)] TJ T* (Chlorophyll is green \\(mostly\\).) Tj ET");
+  const comp = zlib.deflateSync(ops);
+  const pdf = Buffer.concat([Buffer.from(`%PDF-1.4\n1 0 obj << /Length ${comp.length} /Filter /FlateDecode >>\nstream\n`), comp, Buffer.from("\nendstream\nendobj\n%%EOF")]);
+  const text = pdfText(pdf);
+  assert.equal(text, "Photosynthesis happens in the chloroplasts.\nPlants make sugar from light and water.\nChlorophyll is green (mostly).");
+  assert.ok(looksReadable(text));
+  assert.ok(!looksReadable("\u0001\u0002 12 34 #$%"));
+
+  const app = express();
+  app.use(express.json({ limit: "14mb" }));
+  const gate = (req: any, _res: any, next: any) => { req.user = { id: "device-3" }; next(); };
+  registerStudioRoutes(app, gate, { ask: async () => "{}", see: async () => "Mitochondria: powerhouse", transcribe: async () => ({ segments: [{ text: " Hello class. " }, { text: "Today: cells." }] }) });
+  const server = app.listen(0);
+  const base = `http://127.0.0.1:${(server.address() as any).port}`;
+  try {
+    const post = (path: string, body: unknown) => fetch(`${base}/api/podscroll/studio/${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    assert.equal((await (await post("read", { kind: "pdf", data: pdf.toString("base64") })).json()).text, text);
+    const scan = await post("read", { kind: "pdf", data: Buffer.from("%PDF-1.4\n" + "x".repeat(100)).toString("base64") });
+    assert.equal(scan.status, 422);
+    assert.equal((await (await post("read", { kind: "image", image: "data:image/jpeg;base64,AAAA" })).json()).text, "Mitochondria: powerhouse");
+    const heard = await fetch(`${base}/api/podscroll/studio/transcribe`, { method: "POST", headers: { "Content-Type": "audio/mp4" }, body: Buffer.alloc(2000, 1) });
+    assert.equal((await heard.json()).text, "Hello class. Today: cells.");
+  } finally { server.close(); }
+});

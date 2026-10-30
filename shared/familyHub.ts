@@ -62,7 +62,9 @@ export type ChoreDone = { id: string; choreId: string; date: string; memberId: s
 export type BehaviorEntry = { id: string; memberId: string; date: string; points: number; note: string };
 export type Reward = { id: string; title: string; cost: number };
 export type Redemption = { id: string; memberId: string; title: string; cost: number; date: string };
-export type FamilyCalendar = { id: string; name: string; color: string; show: boolean };
+export type FamilyCalendar = { id: string; name: string; color: string; show: boolean;
+  /** A calendar linked by its .ics link (a school or work calendar): its events are replaced each time it's read. */
+  url?: string; syncedAt?: string };
 export type EventRepeat = "none" | "weekly" | "monthly" | "yearly";
 export type FamilyEvent = {
   id: string; title: string; date: string; time: string; endTime: string; calendarId: string;
@@ -398,7 +400,9 @@ export function cleanFamily(input: unknown): Family {
   const calendars = Array.isArray(raw.calendars)
     ? rows(raw.calendars, LIMITS.calendars, (r) => {
       const name = str(r.name, 40).trim();
-      return name ? { id: id(r.id), name, color: color(r.color, "#7566e8"), show: bool(r.show, true) } : null;
+      const url = typeof r.url === "string" && /^(https?|webcal):\/\//i.test(r.url) && r.url.length <= 2000 ? r.url : "";
+      const syncedAt = url && typeof r.syncedAt === "string" && !Number.isNaN(Date.parse(r.syncedAt)) ? r.syncedAt.slice(0, 40) : "";
+      return name ? { id: id(r.id), name, color: color(r.color, "#7566e8"), show: bool(r.show, true), ...(url ? { url, ...(syncedAt ? { syncedAt } : {}) } : {}) } : null;
     })
     : base.calendars;
   const budget = Array.isArray(raw.budget)
