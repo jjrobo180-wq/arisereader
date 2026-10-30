@@ -1,34 +1,15 @@
-// The voice of the Eye Gazer lessons: the natural AI voice when it works, the device's own voice
-// when it doesn't, then a real animal sound if the line has one. Nothing here can hold a lesson up:
+// The voice of the Eye Gazer lessons: AI voices only (the Learning Buddy voice, then the general AI
+// voice; never the device's robot voice), then a real animal sound if the line has one. Nothing here can hold a lesson up:
 // every line always finishes (or is skipped), and the answer buttons never wait for the voice.
 import { preloadCharacterAI, speakCharacterAI, stopSpeaking } from "@/lib/tts";
 
 let line = 0;
 let sound: HTMLAudioElement | null = null;
 
-function deviceVoice(text: string, done: () => void) {
-  try {
-    if (!("speechSynthesis" in window)) return done();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.85;
-    let finished = false;
-    const finish = () => { if (!finished) { finished = true; done(); } };
-    utterance.onend = finish;
-    utterance.onerror = finish;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
-    // Some browsers never say they finished.
-    window.setTimeout(finish, Math.min(15000, 2000 + text.length * 90));
-  } catch {
-    done();
-  }
-}
-
 /** Stops whatever the lesson is saying or playing. */
 export function stopLessonVoice() {
   line++;
   stopSpeaking();
-  try { window.speechSynthesis?.cancel(); } catch { /* no device voice */ }
   if (sound) { sound.pause(); sound = null; }
 }
 
@@ -71,7 +52,7 @@ export function sayLessonLine(text: string, options: { voice: boolean; sound?: s
     onFallback: () => {
       if (fellBack || id !== line) return;
       fellBack = true;
-      deviceVoice(text, afterSpeech);
+      afterSpeech();
     },
   });
 }

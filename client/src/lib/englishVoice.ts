@@ -1,7 +1,8 @@
 // English Explorer's voice on the page: the premium AI voice from /api/english/voice (each clip is fetched
-// once and kept for the visit), with the browser's own voice as a fallback when the AI voice can't load.
+// once and kept for the visit), with the general AI voice (lib/aiVoice.ts) as the backup — never the robot voice.
 // Also the little game sounds (made with Web Audio, no files) and the microphone for "Say it".
 import { API_BASE } from "@/lib/queryClient";
+import { preloadAiVoice } from "@/lib/aiVoice";
 
 type Lang = "en" | "es";
 const clips = new Map<string, Promise<string | null>>();
@@ -34,23 +35,22 @@ export function preload(texts: { text: string; lang?: Lang; slow?: boolean }[]) 
 export function stopVoice() {
   playId++; seq++;
   if (current) { current.pause(); current = null; }
-  try { window.speechSynthesis?.cancel(); } catch { /* none */ }
 }
 
-function browserSay(text: string, lang: Lang, slow: boolean, id: number): Promise<void> {
-  return new Promise((resolve) => {
-    try {
-      const synth = window.speechSynthesis;
-      if (!synth || id !== playId) return resolve();
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = lang === "es" ? "es-MX" : "en-US";
-      u.rate = slow ? 0.6 : 0.85;
-      const voices = synth.getVoices().filter((v) => v.lang.toLowerCase().startsWith(lang));
-      const nice = voices.find((v) => /natural|google|samantha|aria|jenny/i.test(v.name)) || voices[0];
-      if (nice) u.voice = nice;
-      u.onend = () => resolve(); u.onerror = () => resolve();
-      synth.speak(u);
-    } catch { resolve(); }
+/** The premium voice couldn't answer: the same words in the general AI voice (lib/aiVoice.ts),
+ *  never the browser's robot voice. */
+async function backupSay(text: string, slow: boolean, id: number): Promise<void> {
+  let blob: Blob;
+  try { blob = await preloadAiVoice(text, "hannah"); } catch { return; }
+  if (id !== playId) return;
+  const url = URL.createObjectURL(blob);
+  await new Promise<void>((resolve) => {
+    const a = new Audio(url);
+    a.playbackRate = slow ? 0.75 : 0.95;
+    current = a;
+    const done = () => { if (current === a) current = null; URL.revokeObjectURL(url); resolve(); };
+    a.onended = done; a.onerror = done;
+    a.play().catch(done);
   });
 }
 
@@ -61,16 +61,15 @@ async function sayOne(text: string, opts: { lang?: Lang; slow?: boolean } = {}):
   const lang = opts.lang || "en", slow = !!opts.slow;
   playId++;
   if (current) { current.pause(); current = null; }
-  try { window.speechSynthesis?.cancel(); } catch { /* none */ }
   const id = playId;
   if (!text) return;
   const url = aiVoiceWorks ? await fetchClip(text, lang, slow) : null;
   if (id !== playId) return;
-  if (!url) return browserSay(text, lang, slow, id);
+  if (!url) return backupSay(text, slow, id);
   await new Promise<void>((resolve) => {
     const a = new Audio(url);
     current = a;
-    a.onended = () => resolve(); a.onerror = () => { aiVoiceWorks = false; void browserSay(text, lang, slow, id).then(resolve); };
+    a.onended = () => resolve(); a.onerror = () => { aiVoiceWorks = false; void backupSay(text, slow, id).then(resolve); };
     a.play().catch(() => resolve());
   });
 }

@@ -2,6 +2,7 @@
 // It plays by itself (captions, and an optional voice, move it along), or a teacher steps through it with a clicker.
 // Open it at /#/present. No login is needed and nothing is saved. The script is shared/presentShow.ts; the screens are scenes*.tsx.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import { sayAI, stopAiVoice } from "@/lib/aiVoice";
 import { useLocation } from "wouter";
 import { ArrowLeft, ArrowRight, Expand, Mic, MicOff, Pause, Play, PlayCircle, Presentation, RotateCcw, StickyNote, X } from "lucide-react";
 import { FLAT, SCENES, TARGET_SECONDS, clock, firstBeatOf, spokenText, totalSeconds, type SceneId } from "@shared/presentShow";
@@ -35,12 +36,6 @@ function useFit() {
   return { scale, width };
 }
 
-function pickVoice(): SpeechSynthesisVoice | null {
-  const voices = window.speechSynthesis?.getVoices?.() ?? [];
-  const english = voices.filter((v) => /^en(-|_|$)/i.test(v.lang));
-  return english.find((v) => /google us english|samantha|jenny|aria|zira/i.test(v.name)) ?? english.find((v) => v.lang.toLowerCase().startsWith("en-us")) ?? english[0] ?? null;
-}
-
 export default function StudentShow() {
   const [, navigate] = useLocation();
   const { scale, width } = useFit();
@@ -63,9 +58,9 @@ export default function StudentShow() {
   const scene = SCENES[cur.scene];
   const View = VIEWS[cur.id];
   const last = pos === FLAT.length - 1;
-  const browserVoice = typeof window !== "undefined" && "speechSynthesis" in window;
-  // the natural AI voice when the server has it, the computer's own voice otherwise
-  const voiceOk = ai || browserVoice;
+  // AI voices only: the show's own voice when the server has it, else the general AI voice (lib/aiVoice.ts)
+  const browserVoice = true;
+  const voiceOk = true;
   useEffect(() => {
     let alive = true;
     void aiVoiceReady().then((ok) => { if (alive && ok) { setAi(true); if (!voiceTouched.current) setVoice(true); } });
@@ -105,7 +100,7 @@ export default function StudentShow() {
 
   // the voice reads the caption of each beat
   useEffect(() => {
-    try { window.speechSynthesis?.cancel(); } catch { /* none */ }
+    stopAiVoice();
     audioRef.current?.pause(); audioRef.current = null;
     speech.current = { done: true, waiting: null };
     if (!started || !voice || !voiceOk) return;
@@ -113,15 +108,9 @@ export default function StudentShow() {
     const s: { done: boolean; waiting: (() => void) | null } = { done: false, waiting: null };
     speech.current = s;
     const finish = () => { s.done = true; const w = s.waiting; s.waiting = null; w?.(); };
-    const computerVoice = () => {
+    const computerVoice = () => { // the general AI voice
       if (!alive) return;
-      if (!browserVoice) return finish();
-      const say = new SpeechSynthesisUtterance(spokenText(cur.say));
-      const v = pickVoice();
-      if (v) { say.voice = v; say.lang = v.lang; } else say.lang = "en-US";
-      say.rate = 1;
-      say.onend = finish; say.onerror = finish;
-      window.speechSynthesis.speak(say);
+      void sayAI(spokenText(cur.say), { onEnd: finish });
     };
     if (ai) {
       void clipFor(pos).then((url) => {
@@ -134,9 +123,9 @@ export default function StudentShow() {
         a.play().catch(() => computerVoice());
       });
     } else computerVoice();
-    return () => { alive = false; audioRef.current?.pause(); audioRef.current = null; try { window.speechSynthesis?.cancel(); } catch { /* none */ } };
+    return () => { alive = false; audioRef.current?.pause(); audioRef.current = null; stopAiVoice(); };
   }, [pos, voice, started, cur.say, voiceOk, ai, browserVoice]);
-  useEffect(() => () => { try { window.speechSynthesis?.cancel(); } catch { /* none */ } }, []);
+  useEffect(() => () => { stopAiVoice(); }, []);
 
   // playing by itself: stay on the beat for its time (and until the voice has finished), then move on
   useEffect(() => {
@@ -179,7 +168,7 @@ export default function StudentShow() {
     return () => window.removeEventListener("keydown", onKey);
   }, [started, next, back, go, goScene, poke, toggleFullscreen, voiceOk, chooseVoice]);
 
-  const leave = () => { if (document.fullscreenElement) void document.exitFullscreen?.(); try { window.speechSynthesis?.cancel(); } catch { /* none */ } audioRef.current?.pause(); navigate("/tutorial"); };
+  const leave = () => { if (document.fullscreenElement) void document.exitFullscreen?.(); stopAiVoice(); audioRef.current?.pause(); navigate("/tutorial"); };
   useEffect(() => () => { if (document.fullscreenElement) void document.exitFullscreen?.(); }, []);
 
   const beatsInScene = scene.beats.length;

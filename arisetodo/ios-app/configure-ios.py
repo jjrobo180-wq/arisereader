@@ -35,3 +35,19 @@ plist.update(KEYS)
 with open(PLIST, "wb") as f:
     plistlib.dump(plist, f)
 print(f"Info.plist ready for {NAME}: {', '.join(sorted(KEYS))}")
+
+# Other apps' music and podcasts keep playing when Arise To Duo opens: the app starts with an
+# audio session that mixes with others (ambient), so it takes over the sound only when it really
+# plays something (a voice line, a story), which WebKit sets up by itself at that moment.
+import os
+import re
+
+DELEGATE = os.path.join(os.path.dirname(PLIST), "AppDelegate.swift")
+if os.path.exists(DELEGATE):
+    src = open(DELEGATE, encoding="utf-8").read()
+    if "AVAudioSession" not in src:
+        src = src.replace("import UIKit", "import UIKit\nimport AVFoundation", 1)
+        src, n = re.subn(r"(didFinishLaunchingWithOptions launchOptions: \[UIApplication\.LaunchOptionsKey: Any\]\?\) -> Bool \{\n)",
+                         r"\1        try? AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default, options: [.mixWithOthers])\n", src, count=1)
+        open(DELEGATE, "w", encoding="utf-8").write(src)
+        print("AppDelegate: audio mixes with other apps" if n else "AppDelegate: launch method not found; audio session left as is")

@@ -31,10 +31,7 @@ const media=[
 
 function speak(text:string){
   stopSpeaking();
-  void speakCharacterAI(text,{calmMode:true,onFallback:()=>{
-    if(!("speechSynthesis" in window))return;
-    const utterance=new SpeechSynthesisUtterance(text);utterance.rate=.82;window.speechSynthesis.cancel();window.speechSynthesis.speak(utterance);
-  }});
+  void speakCharacterAI(text,{calmMode:true});
 }
 
 function localDate(iso:string){return new Date(iso).toLocaleDateString();}

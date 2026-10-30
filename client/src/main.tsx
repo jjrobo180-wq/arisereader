@@ -6,10 +6,14 @@ import "./login-mobile-fix.css";
 import "./keyboard-inset.css";
 import { watchKeyboard } from "./lib/keyboardInset";
 import { installDuoPaneBridge } from "./lib/duoPaneBridge";
-import { installMediaUnlock } from "./lib/mediaUnlock";
+import { installMediaUnlock, voiceElement } from "./lib/mediaUnlock";
+import { configureAiVoice } from "@/lib/aiVoice";
+import { API_BASE } from "@/lib/queryClient";
 
 // Sound on tablets: the first tap unlocks game sounds and voice lines (lib/mediaUnlock.ts).
 installMediaUnlock();
+// Spoken lines everywhere use the AI voice, through the one unlocked player.
+configureAiVoice({ base: API_BASE, element: voiceElement });
 
 // A pane of the Arise To Duo split screen: one shared floating button instead of each pane's own.
 installDuoPaneBridge();
