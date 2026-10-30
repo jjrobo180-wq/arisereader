@@ -133,7 +133,7 @@ await shot("podplus-create-sheet", async (p) => { await pod(p); await p.getByTes
 await shot("workhub-home", (p) => sample(p, "/hub"));
 await shot("workhub-tab-you", async (p) => { await sample(p, "/hub"); await p.frameLocator("#f").getByTestId("hub-tab-you").click(); await wait(p, 600); });
 await shot("podplus-continue", async (p) => {
-  await p.addInitScript(() => { try { localStorage.setItem("earshot.spots", JSON.stringify({ "1000650000001": { t: 1260, secs: 3300, title: "How the Universe Began, Part 2", show: "Sample Science Show", showId: "1", art: "", at: Date.now() } })); } catch {} });
+  await p.addInitScript(() => { try { localStorage.setItem("earshot.spots", JSON.stringify({ "1000650000001": { t: 1260, secs: 3300, title: "How the Universe Began, Part 2", show: "Sample Science Show", showId: "1", art: "", at: Date.now() }, "1000650000002": { t: 600, secs: 2900, title: "The Hunt for a Lost City: the Long Version of a Very Long Title", show: "History Hour", showId: "2", art: "", at: Date.now() - 9e5 } })); } catch {} });
   await pod(p);
 });
 await shot("podplus-import", async (p) => { await p.goto(`${P}/app/#/import`); await wait(p, 6000); const skip = p.getByRole("button", { name: "Skip for now" }); if (await skip.count()) await skip.first().click(); await wait(p, 1200); });
