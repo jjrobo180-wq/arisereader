@@ -1011,9 +1011,9 @@ function ContinueListening({ nowPod, visible, onToggle, onOpenNow, onResume }: {
       <button onClick={onToggle} data-testid="pod-continue-toggle" className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-white px-4 text-sm font-semibold text-[#0f0f0f]">{nowPod.playing ? <><Pause size={16} fill="currentColor" strokeWidth={0} />Pause</> : <><Play size={16} fill="currentColor" strokeWidth={0} />Resume</>}</button>
     </div> : top && <div className="ps-keep flex items-center gap-3 rounded-2xl bg-[#0f0f0f] p-3 text-white ring-1 ring-white/10 sm:p-4">
       <button onClick={() => onResume(top[0], top[1])} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Continue ${top[1].title}`}>
-        <img src={top[1].art} alt="" referrerPolicy="no-referrer" className="h-16 w-16 shrink-0 rounded-xl object-cover" />
-        <span className="min-w-0 flex-1"><span className="block text-[11px] font-bold uppercase tracking-[.14em] text-[#ff8a3d]">Finish this episode · {leftWords(top[1])}</span>
-          <span className="mt-0.5 line-clamp-2 block text-[15px] font-semibold leading-snug">{top[1].title}</span><span className="block truncate text-xs text-white/60">{top[1].show}</span>
+        {top[1].art ? <img src={top[1].art} alt="" referrerPolicy="no-referrer" className="h-16 w-16 shrink-0 rounded-xl object-cover" /> : <span className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-white/10"><Play size={22} /></span>}
+        <span className="min-w-0 flex-1"><span className="block text-[11px] font-bold uppercase tracking-[.14em] text-[#ff8a3d]">Finish this episode</span>
+          <span className="mt-0.5 line-clamp-2 block text-[15px] font-semibold leading-snug">{top[1].title}</span><span className="block truncate text-xs text-white/60">{top[1].show} · {leftWords(top[1])}</span>
           {top[1].secs > 0 && <span className="mt-2 block h-1 overflow-hidden rounded-full bg-white/20"><span className="block h-full rounded-full bg-[#ff6a1f]" style={{ width: `${Math.min(100, (top[1].t / top[1].secs) * 100)}%` }} /></span>}</span>
       </button>
       <button onClick={() => onResume(top[0], top[1])} data-testid="pod-continue-play" className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-white px-4 text-sm font-semibold text-[#0f0f0f]"><Play size={16} fill="currentColor" strokeWidth={0} />Continue</button>
