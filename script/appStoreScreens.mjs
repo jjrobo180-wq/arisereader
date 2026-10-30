@@ -41,6 +41,15 @@ const sample = async (page, hash) => {
   await page.goto(`${A}/duo-preview.html?sample=1`);
   await page.evaluate((src) => { document.body.innerHTML = `<iframe id="f" src="${src}" style="position:fixed;inset:0;width:100%;height:100%;border:0"></iframe>`; document.body.style.margin = "0"; }, `/app#${hash}`);
   await wait(page, 7000);
+  // First open of the day shows the Daily brief over the hub: close it like a person would.
+  const brief = page.frameLocator("#f").getByRole("button", { name: "Close the brief" });
+  if (await brief.count()) { await brief.first().click(); await wait(page, 800); }
+};
+/** Pod+ asks for interests the first time: skip it like a person would. */
+const pod = async (page) => {
+  await page.goto(`${P}/app/`); await wait(page, 7000);
+  const skip = page.getByRole("button", { name: "Skip for now" });
+  if (await skip.count()) { await skip.first().click(); await wait(page, 1500); }
 };
 
 await shot("arise-signin", async (p) => { await p.goto(`${A}/#/signin`); await wait(p, 3000); });
@@ -73,16 +82,27 @@ await shot("lifehub-account-delete", async (p) => {
   await wait(p, 600);
 });
 await shot("duo-split", (p) => sample(p, "/duo"));
-await shot("podplus-home", async (p) => { await p.goto(`${P}/app/`); await wait(p, 9000); });
-await shot("podplus-home-dark", async (p) => { await p.goto(`${P}/app/`); await wait(p, 9000); }, { dark: true });
+await shot("podplus-home", (p) => pod(p));
+await shot("podplus-home-dark", (p) => pod(p), { dark: true });
 await shot("podplus-menu", async (p) => {
-  await p.goto(`${P}/app/`); await wait(p, 6000);
+  await pod(p);
   await p.getByRole("button", { name: /menu/i }).first().click(); await wait(p, 800);
 });
 await shot("podplus-account-privacy", async (p) => {
-  await p.goto(`${P}/app/`); await wait(p, 6000);
+  await pod(p);
   await p.getByRole("button", { name: /menu/i }).first().click(); await wait(p, 600);
-  await p.getByRole("button", { name: "Account & privacy" }).first().click(); await wait(p, 600);
+  await p.getByRole("button", { name: "Account & privacy" }).last().click(); await wait(p, 600);
+});
+await shot("podplus-account-delete", async (p) => {
+  await pod(p);
+  await p.getByRole("button", { name: /menu/i }).first().click(); await wait(p, 600);
+  await p.getByRole("button", { name: "Account & privacy" }).last().click(); await wait(p, 600);
+  await p.getByTestId("pod-delete-account").click(); await wait(p, 600);
+});
+await shot("podplus-social", async (p) => {
+  await pod(p);
+  await p.getByRole("button", { name: /menu/i }).first().click(); await wait(p, 600);
+  await p.getByRole("button", { name: /^Social/ }).first().click(); await wait(p, 6000);
 });
 await shot("podplus-privacy", async (p) => { await p.goto(`${P}/privacy/`); await wait(p, 500); });
 await shot("podplus-support-dark", async (p) => { await p.goto(`${P}/support/`); await wait(p, 500); }, { dark: true });
