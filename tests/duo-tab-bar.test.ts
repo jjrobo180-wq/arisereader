@@ -27,7 +27,10 @@ test("the tab bar has Home, Tasks, Add, Apps and You, and You holds the account 
   for (const id of ["tab-home", "tab-tasks", "tab-add", "tab-apps", "tab-you"]) assert.ok(bar.includes(`data-testid={id("${id}")}`), id);
   assert.match(bar, /work \? "md:hidden" : "lg:hidden"/, "phones only");
   const page = read("client/src/pages/AriseTodo.tsx");
-  for (const id of ["privacy", "notifications", "family", "customize", "lock", "night", "gallery", "signout"]) assert.ok(page.includes(`{ id: "${id}", label:`), id);
+  // The You sheet holds the same items as the ⋯ menu (components/HubMoreMenu.tsx).
+  const more = read("client/src/components/HubMoreMenu.tsx");
+  for (const id of ["notifications", "notification-settings", "customize", "night", "lock", "gallery", "walkthrough", "privacy", "signout"]) assert.ok(more.includes(`id: "${id}"`), id);
+  assert.match(page, /you=\{moreGroups\.flatMap\(\(g\) => g\.items\)\}/);
   // One floating Add on a phone: the + in the bar. The round Add button stays for computers and the split screen.
   assert.match(page, /tabBar \? "max-lg:hidden" : ""\} inline-flex h-14/);
   // Apps opens the same app drawer, with no second round button.

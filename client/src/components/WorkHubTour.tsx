@@ -289,6 +289,7 @@ function findTarget(targets: Target[] | undefined): { el: HTMLElement; target: T
 type Box = { top: number; left: number; width: number; height: number };
 const PAD = 6;
 
+const AUTO_START_OFF = true;
 export default function WorkHubTour() {
   const { user } = useAuth();
   const role = roleForUser(user);
@@ -320,6 +321,9 @@ export default function WorkHubTour() {
   // the tour while someone stares at an empty page. A local seen flag prevents
   // repeat intros on this device; the server remains the cross-device source.
   useEffect(() => {
+    // The first-run walkthrough (components/AppWalkthrough.tsx) replaced this as the tour everyone
+    // gets the first time; this spotlight tour now only runs when asked for ("arise-tour:start").
+    if (AUTO_START_OFF) return;
     if (!user || !role) return;
     const key = SEEN_KEY(user.id, role);
     if (user.isAdmin && user.role !== "teacher" && user.role !== "parent") return;

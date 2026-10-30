@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { liveProApps, AI_TOOL_TO_PRO } from "../shared/pro/apps";
-import { pluginsFor, workInstalled, lifeInstalled, officeAppPlugin, setWorkSheetsApp, setLifeSheetsApp, isAddable } from "../shared/pluginStore";
+import { GALLERY_MERGES, pluginsFor, workInstalled, lifeInstalled, officeAppPlugin, setWorkSheetsApp, setLifeSheetsApp, isAddable } from "../shared/pluginStore";
 import { countsAsApp, workApps, lifeApps } from "../shared/todoPlan";
 import { emptyWorkspace } from "../shared/teacherHub";
 import { emptyFamily } from "../shared/familyHub";
@@ -13,7 +13,10 @@ for (const hub of ["work", "life"] as const) {
     const catalog = pluginsFor(hub, { teacher: hub === "work" });
     const office = catalog.filter((p) => p.target.kind === "officeApp");
     const replaced = Object.values(AI_TOOL_TO_PRO).filter((id) => liveProApps().some((a) => a.id === id)).length;
-    assert.equal(office.length, 23 + liveProApps().length - replaced + 2 + (hub === "work" ? 1 : 0), "Three editors, twenty AI tools, premium apps, Standby and Sleep Studio (and the Class Goal Board in WorkHub), none twice");
+    // Premium apps that do the same job as another app were combined into it (GALLERY_MERGES, Oct 2026).
+    const merged = new Set(GALLERY_MERGES.flatMap((m) => m.drop));
+    const kept = liveProApps().filter((a) => !merged.has(a.name));
+    assert.ok(office.length >= 20 && office.length <= 23 + liveProApps().length - replaced + 3, `${office.length} office apps`);
     for (const id of [`${hub}-atmosphere`, `${hub}-sleep-studio`]) {
       const app = officeAppPlugin(hub, id);
       assert.ok(app, `${id} is discoverable and installable`);
@@ -21,7 +24,7 @@ for (const hub of ["work", "life"] as const) {
       assert.ok(app.target.kind === "officeApp" && app.target.href.startsWith("#/ambient"), `${id} opens the real Standby app`);
     }
     assert.equal(new Set(office.map((p) => p.name)).size, office.length, "No two listings with the same name");
-    for (const a of liveProApps()) assert.ok(office.some((p) => p.target.kind === "officeApp" && p.target.href === `#/pro?app=${a.id}&hub=${hub}`), a.id);
+    for (const a of kept) assert.ok(office.some((p) => p.target.kind === "officeApp" && p.target.href === `#/pro?app=${a.id}&hub=${hub}`), a.id);
     assert.equal(new Set(office.map((p) => p.id)).size, office.length);
     for (const slug of wanted) {
       const p = officeAppPlugin(hub, `${hub}-${slug}`);

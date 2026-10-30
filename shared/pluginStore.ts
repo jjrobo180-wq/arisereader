@@ -92,7 +92,7 @@ export type Plugin = {
 
 const PRO_CATEGORIES = Object.values(PRO_GROUPS).map((g) => g.category);
 export const PLUGIN_CATEGORIES: Record<PluginHub, readonly string[]> = {
-  work: ["Premium", ...PRO_CATEGORIES, "Planning", "Students & IEPs", "Classroom", "Families", "Teaching tools", "Checklists", "Ideas", "Wellness", "Connections", "Arise apps"],
+  work: ["Premium", ...PRO_CATEGORIES, "Planning", "Students & IEPs", "Classroom", "Families", "Teaching tools", "Checklists", "Ideas", "Wellness", "Connections", "Arise apps", "For teachers"],
   life: ["Premium", ...PRO_CATEGORIES, "Family", "Kitchen", "Health & wellness", "Money & home", "Everyday", "Checklists", "Fun", "Tools", "Inspiration", "Discover", "Connections", "Arise apps"],
 };
 
@@ -258,12 +258,12 @@ export const PLUGINS: readonly Plugin[] = [
   { id: "work-email", hub: "work", name: "Email", tagline: "Emails that need something from you", category: "Families", icon: "Mail", color: "#0369a1", target: tab("email"),
     description: "Forward emails in and keep the ones that need an answer, with a draft reply.",
     features: ["Forward emails in", "Flag what matters", "Turn an email into a to-do"] },
-  { id: "work-calendar-feeds", hub: "work", name: "Google, Outlook & Apple Calendar", tagline: "Bring in the calendars you use", category: "Connections", icon: "CalendarPlus", color: "#4f46e5", target: { kind: "connection", needs: { tab: "calendar" } },
+  { id: "work-calendar-feeds", hub: "work", name: "Calendars", tagline: "Your iPhone's calendars, or a calendar link", category: "Connections", icon: "CalendarPlus", color: "#4f46e5", target: { kind: "connection", needs: { tab: "calendar" } },
     anchor: '[data-testid="calendar-whose"]',
-    steps: ["In Google Calendar, Outlook or Apple Calendar, find your calendar's private address (it may be called the iCal, ICS or secret address) and copy it.", "In WorkHub, open Calendar and add a calendar, then paste the address.", "Give it a name. To add a colleague's calendar, choose to keep only the busy times.", "Its events show up in WorkHub and stay up to date on their own."],
-    needsNote: "Works with any calendar that gives you a link.",
-    description: "Connect any calendar by its link and its events show up in WorkHub, kept up to date. Add a colleague's calendar to see when they're busy.",
-    features: ["Google, Outlook, Apple or any calendar link", "Syncs on its own", "Colleagues' calendars, busy times only"] },
+    steps: ["In the iPhone app, open Calendar and tap Connect iPhone Calendar: every calendar on your iPhone comes in (iCloud, Google, Outlook, school).", "A school calendar that can't be added to your iPhone: copy its calendar link (iCal or ICS) and paste it under Calendar instead.", "Its events show up and stay up to date on their own."],
+    needsNote: "Uses the calendars on your iPhone. A link works for any other calendar.",
+    description: "Every calendar on your iPhone shows up here, kept up to date. If your school's calendar can't go on your iPhone, add it by its link.",
+    features: ["Every calendar on your iPhone", "Or any calendar by its link", "Colleagues' calendars, busy times only"] },
   { id: "work-apple-reminders", hub: "work", name: "Apple Reminders", tagline: "Reminders become WorkHub to-dos", category: "Connections", icon: "BellRing", color: "#475569", target: { kind: "connection", needs: { tab: "tasks" } },
     anchor: '[data-testid="apple-steps"]',
     steps: ["Open Tasks in WorkHub and find Apple Reminders at the bottom.", "Tap “Set it up (about 3 minutes)” and copy your private link.", "On your iPhone, make the Shortcut the setup shows you, using that link.", "Run it, or set it to run on its own: your reminders come in as to-dos."],
@@ -276,6 +276,12 @@ export const PLUGINS: readonly Plugin[] = [
     needsNote: "The site admin turns email on once for the whole site.",
     description: "Your own WorkHub address: forward any email to it and it becomes something to do.",
     features: ["Your own forwarding address", "Works from any email app", "Shows up in Email and Tasks"] },
+  // Para Team (pages/ParaTeam.tsx): a teacher's shared space with their paras and 1:1s. Added from
+  // the App Gallery like anything else, by the teacher or by a para joining a team.
+  { id: "work-para-team", hub: "work", name: "Para Team", tagline: "Your paras and 1:1s, all in one place", category: "Planning", icon: "HeartHandshake", color: "#0f766e",
+    target: { kind: "officeApp", id: "work-para-team", href: "#/para-team" },
+    description: "A shared space for a teacher and their paraprofessionals: schedules, student notes and messages, so everyone knows the plan.",
+    features: ["Make a team or join one", "Shared schedules and notes", "Works with free accounts"] },
   ...ARISE_APPS("work"),
 
   // ── Arise LifeHub ──────────────────────────────────────────────────────────
@@ -520,6 +526,10 @@ export const PLUGINS: readonly Plugin[] = [
     needsNote: "The site admin turns email on once for the whole site.",
     description: "Your own LifeHub address: forward any email to it and it becomes a task.",
     features: ["Your own forwarding address", "Works from any email app", "Lands in Tasks"] },
+  { id: "life-para-team", hub: "life", name: "Para Team", tagline: "Join your teacher's team", category: "Everyday", icon: "HeartHandshake", color: "#0f766e",
+    target: { kind: "officeApp", id: "life-para-team", href: "#/para-team" },
+    description: "For paraprofessionals and 1:1 aides: join the team your teacher made, with the day's schedule, student notes and messages in one place.",
+    features: ["Join with your teacher's code", "The day's schedule", "Notes and messages"] },
   ...ARISE_APPS("life"),
   // The Plugin Kit: 400 plugins drawn by shared tools (shared/pluginKit.ts).
   ...KIT_DEFS.map(kitPlugin),
@@ -558,11 +568,70 @@ const CROSS_PLUGINS: readonly Plugin[] = [...KIT_DEFS.map(crossKitPlugin), ...CR
  *  the lookups defined above can call it without depending on declaration order. */
 const allPlugins = (): readonly Plugin[] => [...PLUGINS, ...CROSS_PLUGINS];
 
+/** The App Gallery shows one app for one job (October 2026): where several did the same thing, the
+ *  one kept is named for what it does (a "Calorie counter", not "Food & fitness" or "Apple Health"),
+ *  and the others leave the gallery. Anyone who added one of them still has it; nothing is deleted. */
+export const GALLERY_MERGES: { keep: string; name?: string; tagline?: string; drop: string[] }[] = [
+  { keep: "Food & fitness", name: "Calorie counter", tagline: "Calories, food, water, exercise and Apple Health steps", drop: ["Food Journal", "Apple Health", "Weight & Measurements", "Health Calculators"] },
+  { keep: "Step counter", name: "Steps & activity", drop: ["Steps & Activity"] },
+  { keep: "Water tracker", drop: ["Water Goal Tracker"] },
+  { keep: "Coffee counter", name: "Caffeine counter", drop: ["Caffeine Counter"] },
+  { keep: "Mood", name: "Mood tracker", drop: ["Mood Tracker", "Energy level", "Stress level"] },
+  { keep: "Gratitude", drop: ["Gratitude Journal"] },
+  { keep: "Journal", drop: ["Daily Journal", "Journal prompts"] },
+  { keep: "Habits", name: "Habit tracker", drop: ["Habit Tracker", "Healthy habit ideas"] },
+  { keep: "Meditate", name: "Meditation & breathing", drop: ["Meditation Timer", "Guided Breathing", "Breathing exercises", "Mindful minutes", "Mindful moments"] },
+  { keep: "Goals", drop: ["Goals & Key Results"] },
+  { keep: "Pills", name: "Medications", tagline: "Pill and vitamin reminders, prescriptions and refills", drop: ["Medication Schedule", "Prescriptions", "Medicine cabinet"] },
+  { keep: "Doctors & dentists", drop: ["Doctor Visits"] },
+  { keep: "Medical info", drop: ["Medical ID Card"] },
+  { keep: "Workout log", tagline: "Workouts, runs, rides, swims, sets and bests", drop: ["Running miles", "Bike miles", "Swim laps", "Strength Log", "Run & Ride Log", "Plank timer log", "Push-up challenge"] },
+  { keep: "Yoga", drop: ["Yoga Flow"] },
+  { keep: "Stretching", drop: ["Stretch Routines", "Stretch breaks"] },
+  { keep: "Sleep", tagline: "Fall asleep tonight, a sleep log and a bedtime calculator", drop: ["Sleep Tracker", "Bedtime calculator", "In bed on time", "Better sleep tips"] },
+  { keep: "Car care", drop: ["Car care tips"] },
+  { keep: "Chores", drop: ["Chores done", "Chore trades"] },
+  { keep: "Recipe box", drop: ["Recipes to try", "Family recipes to save"] },
+  { keep: "Focus timer", drop: ["Pomodoro Focus"] },
+  { keep: "Reading list", drop: ["Reading Log", "Pages read", "Reading minutes"] },
+  { keep: "Budget & bills", drop: ["Bill due dates", "Daily spending", "Utility bills"] },
+  { keep: "Kindness challenge", drop: ["Kindness Quest", "Kind acts"] },
+  { keep: "World clock", drop: ["World Clock & Meeting Planner"] },
+  { keep: "Screen time", drop: ["Screen Break Timer"] },
+  { keep: "Tip & split", drop: ["Bill Splitter"] },
+  { keep: "Countdowns", drop: ["Event Countdowns"] },
+  { keep: "Self-care ideas", drop: ["Self-Care Bingo"] },
+  { keep: "Daily affirmations", drop: ["Affirmation Cards"] },
+  { keep: "Icebreakers", drop: ["Icebreaker Questions"] },
+  { keep: "Math facts", drop: ["Math Facts Practice"] },
+  { keep: "Specific praise", drop: ["Specific praise phrases"] },
+  // Replaced by the walkthrough that opens the first time the app is used (and from the ⋯ menu).
+  { keep: "", drop: ["Getting started"] },
+];
+const DROPPED = new Set(GALLERY_MERGES.flatMap((m) => m.drop));
+const RENAMED = new Map(GALLERY_MERGES.filter((m) => m.keep && (m.name || m.tagline)).map((m) => [m.keep, m]));
+/** The gallery's name for an app (after the merges above). */
+export const galleryName = (name: string) => RENAMED.get(name)?.name || name;
+
+/** WorkHub categories made for teachers. People who didn't sign up as a teacher see them together,
+ *  last, under "For teachers", so nothing assumes they teach. */
+export const TEACHER_CATEGORIES = ["Students & IEPs", "Classroom", "Families", "Teaching tools", "Ideas", "Arise apps"];
+const TEACHER_CHECKLIST = /\b(IEP|504|teach|teacher|student|class|classroom|school|sub\b|grading|report card|parent-teacher|field (day|trip)|picture day|open house|state test|test prep|science fair|fire drill|reevaluation|transition planning|observation|unit|graduation|winter break|end of year|back-to-school|first day|first month|monday ready|friday wrap)/i;
+
 /** Every plugin this hub can add: the ones built for it, then the ones built for the other hub that
- *  work here all the same (marked `recommendedFor`). */
-export function pluginsFor(hub: PluginHub, opts: { teacher: boolean }): Plugin[] {
-  const mine = (p: Plugin) => p.hub === hub && (!p.teacherOnly || opts.teacher);
-  return [...PLUGINS.filter(mine), ...CROSS_PLUGINS.filter(mine)];
+ *  work here all the same (marked `recommendedFor`). The Arise learning apps are only for teachers and
+ *  parents who came from A.R.I.S.E. Reader (`arise`). */
+export function pluginsFor(hub: PluginHub, opts: { teacher: boolean; arise?: boolean }): Plugin[] {
+  const arise = opts.arise ?? opts.teacher;
+  const mine = (p: Plugin) => p.hub === hub && (!p.teacherOnly || opts.teacher) && !DROPPED.has(p.name) && (p.category !== "Arise apps" || arise);
+  const shown = (p: Plugin): Plugin => {
+    const m = RENAMED.get(p.name);
+    let out = m ? { ...p, name: m.name || p.name, tagline: m.tagline || p.tagline } : p;
+    if (hub === "work" && !opts.teacher && (TEACHER_CATEGORIES.includes(out.category) || (out.category === "Checklists" && TEACHER_CHECKLIST.test(out.name)) || out.category === "Planning" && /lesson|PLC|PD hours|duty|testing|para|committee|observation|room & cart/i.test(out.name)))
+      out = { ...out, category: "For teachers" };
+    return out;
+  };
+  return [...PLUGINS.filter(mine), ...CROSS_PLUGINS.filter(mine)].map(shown);
 }
 
 /** Looks a plugin up by id across both the built-for-this-hub list and the crossed-over ones. */

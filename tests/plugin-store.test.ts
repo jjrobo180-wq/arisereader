@@ -84,7 +84,7 @@ test("connections open where they're set up, after the tab they live in", () => 
 test("search matches names, categories and features", () => {
   const work = pluginsFor("work", { teacher: true });
   assert.ok(searchPlugins(work, "iep").some((p) => p.id === "work-meetings"));
-  assert.ok(searchPlugins(work, "google calendar").some((p) => p.id === "work-calendar-feeds"));
+  assert.ok(searchPlugins(work, "iphone calendar").some((p) => p.id === "work-calendar-feeds"));
   assert.equal(searchPlugins(work, "").length, work.length);
   assert.equal(searchPlugins(work, "zzzz").length, 0);
 });

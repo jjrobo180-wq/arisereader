@@ -999,7 +999,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     if (due.length && !sheetRef.current) showMoment(due[due.length - 1]);
     setTime(t); if (a.duration && Number.isFinite(a.duration)) setDur(a.duration);
     const it = itemsRef.current[activeRef.current]; const ep = it?.ep;
-    if (ep && Math.abs(t - lastSpot.current) > 5) { lastSpot.current = t; saveSpot(ep, t); }
+    if (ep && a.dataset.ep === ep.id && Math.abs(t - lastSpot.current) > 5) { lastSpot.current = t; saveSpot(ep, t); }
     // Plays and listening time for episodes people made, for their Studio.
     if (ep && OWN_EPISODE.test(ep.id) && delta > 0 && delta < 2) {
       const h = micHeard.current;
@@ -1197,7 +1197,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
   const toggleFollow = (show: PodShow) => {
     if (isFollowing(show.id)) { update((e) => ({ ...e, follows: e.follows.filter((f) => f.id !== show.id) })); signal(show.genre, "unfollow"); say(`Unfollowed ${show.name}.`); }
-    else { update((e) => ({ ...e, follows: [{ id: show.id, name: show.name, author: show.author, art: show.art, genre: show.genre, at: nowIso() }, ...e.follows].slice(0, 200) })); signal(show.genre, "follow"); say(`Following ${show.name}.`); }
+    else { update((e) => ({ ...e, follows: [{ id: show.id, name: show.name, author: show.author, art: show.art, genre: show.genre, at: nowIso() }, ...e.follows].slice(0, EARSHOT_LIMITS.follows) })); signal(show.genre, "follow"); say(`Following ${show.name}.`); }
   };
   const toggleLike = (ep: PodEpisode, genre: string) => {
     const on = !(counts[ep.id]?.liked);
