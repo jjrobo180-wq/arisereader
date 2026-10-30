@@ -3,6 +3,22 @@
 import { useState } from "react";
 import { Bell, BellOff, Loader2 } from "lucide-react";
 import { nativeRemindersAvailable, nativeRemindersOn, sendNativeTest, turnOffNativeReminders, turnOnNativeReminders, type ReminderKind } from "@/lib/nativeReminders";
+import { applePushReady, sendAppleTest } from "@/lib/applePush";
+
+// "Send a test" goes through the server and Apple when this iPhone is signed up for Apple push, so a
+// test that shows up proves the whole path. Otherwise it falls back to one scheduled on the phone and
+// says plainly that server notifications aren't connected.
+async function sendTest(): Promise<string> {
+  let why = "";
+  if (applePushReady()) {
+    try {
+      if (await sendAppleTest() > 0) return "Apple accepted a test from the server. It should show in a few seconds.";
+      why = "Apple didn't accept the server's test.";
+    } catch (e: any) { why = String(e?.message || "").replace(/^\d+:\s*/, "").replace(/^\{"message":"(.*)"\}$/, "$1") || "The server's test didn't go through."; }
+  } else why = "This iPhone isn't signed up with the server for notifications yet.";
+  await sendNativeTest();
+  return `${why} A test from this iPhone will show in a few seconds instead.`;
+}
 
 export default function NativeRemindersPanel({ kind, onChange, buttonClass, ghostClass }: { kind: ReminderKind; onChange?: (on: boolean) => void; buttonClass: string; ghostClass: string }) {
   const [on, setOn] = useState(() => nativeRemindersOn(kind));
@@ -15,13 +31,19 @@ export default function NativeRemindersPanel({ kind, onChange, buttonClass, ghos
     catch (e: any) { setMessage(e?.message || "That didn't work. Try again."); }
     finally { setBusy(false); }
   };
+  const runTest = async () => {
+    setBusy(true); setMessage("");
+    try { setMessage(await sendTest()); }
+    catch (e: any) { setMessage(e?.message || "That didn't work. Try again."); }
+    finally { setBusy(false); }
+  };
   return <div className="space-y-3 text-sm leading-6 text-slate-600" data-testid={`native-reminders-${kind}`}>
     {!nativeRemindersAvailable() ? <p>Reminders need the newest version of Arise To Duo. Update the app, then come back here.</p>
       : on ? <>
         <p className="font-semibold text-emerald-700">Reminders are on for this iPhone.</p>
         <p className="text-xs text-slate-500">One switch for LifeHub and WorkHub. They follow the choices below and update whenever either hub changes.</p>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => void run(sendNativeTest, "A test reminder will show in a few seconds.")} disabled={busy} className={ghostClass}>{busy ? <Loader2 size={15} className="animate-spin" /> : <Bell size={15} />} Send a test</button>
+          <button type="button" onClick={() => void runTest()} disabled={busy} className={ghostClass}>{busy ? <Loader2 size={15} className="animate-spin" /> : <Bell size={15} />} Send a test</button>
           <button type="button" onClick={() => void run(() => turnOffNativeReminders(kind), "Reminders are off for this iPhone.", false)} disabled={busy} className={ghostClass}><BellOff size={15} /> Turn off</button>
         </div>
       </> : <>

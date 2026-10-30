@@ -23,3 +23,12 @@ test("apple push: tokens, payload and the signed sign-in token", () => {
   assert.equal(JSON.parse(Buffer.from(b, "base64url").toString()).iss, "6TYWWNKX6P");
   assert.ok(crypto.verify("sha256", Buffer.from(`${h}.${b}`), { key: publicKey, dsaEncoding: "ieee-p1363" }, Buffer.from(s, "base64url")));
 });
+
+test("apple push: the iPhone app's Send a test goes through the server and Apple first", async () => {
+  const { readFileSync } = await import("node:fs");
+  const panel = readFileSync("client/src/components/NativeRemindersPanel.tsx", "utf8");
+  assert.match(panel, /applePushReady\(\)/);
+  assert.match(panel, /sendAppleTest\(\)/);
+  assert.match(readFileSync("client/src/lib/applePush.ts", "utf8"), /\/api\/arise-todo\/push\/test/);
+  assert.match(readFileSync("server/pushNotifications.ts", "utf8"), /apple: counts\.apple/);
+});

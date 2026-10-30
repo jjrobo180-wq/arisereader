@@ -67,7 +67,7 @@ async function deliver(row: Row, message: PushMessage, keys: VapidKeys | null): 
 }
 
 /** Sends a notification to every device a user turned notifications on for. */
-export async function notifyUser(userId: number, message: PushMessage, only?: PushApp): Promise<number> {
+export async function notifyUser(userId: number, message: PushMessage, only?: PushApp, counts?: { apple: number }): Promise<number> {
   const keys = await pushKeys();
   await appleKey();
   const { data } = await supabase.from("push_subscriptions").select(SUBSCRIPTION_COLUMNS).eq("user_id", userId);
@@ -75,7 +75,7 @@ export async function notifyUser(userId: number, message: PushMessage, only?: Pu
   for (const row of (data || []) as Row[]) {
     // The iPhone app holds both hubs, so it gets every notification meant for this person.
     if (only && !isAppleDevice(row.endpoint) && !wants(row, only)) continue;
-    if (await deliver(row, message, keys)) delivered++;
+    if (await deliver(row, message, keys)) { delivered++; if (counts && isAppleDevice(row.endpoint)) counts.apple++; }
   }
   return delivered;
 }
@@ -406,11 +406,12 @@ export function registerPushRoutes(app: Express, authMiddleware: RequestHandler,
     const wait = testSends.retryAfter(who);
     if (wait) return res.status(429).json({ message: `That's a lot of tests. Try again in ${waitWords(wait)}.` });
     testSends.fail(who);
+    const counts = { apple: 0 };
     const delivered = await notifyUser(Number(req.user.id), which === "hub"
       ? { title: "Notifications are on", body: "You'll get reminders from your Arise WorkHub here.", url: HUB_REMINDER_URL, tag: "test" }
-      : { title: "Notifications are on", body: "You'll get reminders from Arise LifeHub here.", url: TODO_REMINDER_URL, tag: "todo-test" }, which);
+      : { title: "Notifications are on", body: "You'll get reminders from Arise LifeHub here.", url: TODO_REMINDER_URL, tag: "todo-test" }, which, counts);
     if (!delivered) return res.status(409).json({ message: "No phone is signed up yet. Turn notifications on first." });
-    res.json({ ok: true, delivered });
+    res.json({ ok: true, delivered, apple: counts.apple });
   };
 
   // Arise WorkHub reminders are part of the Hub, so only Hub teachers can turn them on.
