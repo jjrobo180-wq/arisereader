@@ -69,7 +69,7 @@ test("cleanLayout with no pinnable argument at all behaves exactly as it always 
 test("WorkHub wires pinned Kit plugins and Notes apps into Home: catalog, tiles and the open actions they reuse", () => {
   const hub = read("client/src/pages/TeacherHub.tsx");
   assert.match(hub, /const pinnableApps = \[\.\.\.myKits\.map\(\(d\) => d\.id\), \.\.\.myNotesApps\.map\(\(p\) => p\.id\)\];/);
-  assert.match(hub, /const layout = cleanLayout\(workspace\.layout, pinnableApps\);/);
+  assert.match(hub, /const layout = withSharedLook\(cleanLayout\(workspace\.layout, pinnableApps\)\);/);
   assert.match(hub, /for \(const d of myKits\) part\[pinId\(d\.id\)\] = pinTile\(kitIcon\(d\.icon\), d\.color, d\.name, d\.tagline, \(\) => openKit\(d\.id\)\);/);
   assert.match(hub, /for \(const p of myNotesApps\) part\[pinId\(p\.id\)\] = pinTile\(StickyNote, p\.color, p\.name, p\.tagline, \(\) => openNotesApp\(p\.id\)\);/);
   assert.match(hub, /catalog=\{\[\.\.\.WORK_PARTS, \.\.\.pinnedCatalog\]\}/);

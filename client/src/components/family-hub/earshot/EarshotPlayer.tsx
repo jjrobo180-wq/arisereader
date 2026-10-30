@@ -22,7 +22,7 @@ import { hiRes, type PodMode } from "@shared/earshot";
 import { momentsBetween, hoursWords, sumKinds } from "@shared/earshotListen";
 import { AskSheet, CatchUpSheet, DriveSheet, HoursBackCard, MomentBubble, catchUpWorthIt, useTimedComments, type TimedComment } from "./EarshotListen";
 import { onOtherSound, soundStarted } from "./soundBus";
-import { attachVoiceBoost, countHoursBack, isBoosted, primeVoiceBoost, readHoursBack, resumeVoiceBoost, setVoiceBoost } from "./listenExtras";
+import { attachVoiceBoost, countCouldSave, countHoursBack, isBoosted, primeVoiceBoost, readHoursBack, resumeVoiceBoost, setVoiceBoost } from "./listenExtras";
 
 type Counts = { likes: number; comments: number; shares: number; liked: boolean };
 type Comment = { id: string; author: string; body: string; at: string; mine: boolean; t?: number | null };
@@ -1009,6 +1009,12 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     }
     const mode = esRef.current.settings.adMode;
     if (ep && (listened.current > 1.5 || sheetRef.current?.kind === "read") && (mode !== "off" || sheetRef.current?.kind === "read")) wantTx(ep, t);
+    // Not skipping ads (no Pod+ Membership, or ad skip turned off): a found ad that plays is time a
+    // member would have had back. Shown as "With Pod+ you'd have saved…" (HoursBackCard).
+    if (ep && it && mode !== "auto" && delta > 0 && delta < 2 && !esRef.current.adFree.includes(it.show.id)) {
+      const ad = playAdAt(adsRef.current, t);
+      if (ad && ad.sure && ad.kind !== "intro") countCouldSave(delta);
+    }
     if (ep && it && mode === "auto" && !esRef.current.adFree.includes(it.show.id) && !markingRef.current) {
       const ad = playAdAt(adsRef.current, t);
       if (ad && ad.sure && !undone.current.has(ad.key)) smoothSkip(a, ad, ep.id, false);
