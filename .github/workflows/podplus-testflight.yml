@@ -6,6 +6,7 @@ on:
   push:
     branches: [feat/podplus-ios-app-store-starter]
     paths:
+      - '.github/scripts/**'
       - '.github/workflows/podplus-testflight.yml'
 jobs:
   signed-archive:
