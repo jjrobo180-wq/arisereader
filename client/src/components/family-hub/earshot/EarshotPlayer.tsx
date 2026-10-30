@@ -999,7 +999,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     if (due.length && !sheetRef.current) showMoment(due[due.length - 1]);
     setTime(t); if (a.duration && Number.isFinite(a.duration)) setDur(a.duration);
     const it = itemsRef.current[activeRef.current]; const ep = it?.ep;
-    if (ep && Math.abs(t - lastSpot.current) > 5) { lastSpot.current = t; saveSpot(ep, t); }
+    if (ep && a.dataset.ep === ep.id && Math.abs(t - lastSpot.current) > 5) { lastSpot.current = t; saveSpot(ep, t); }
     // Plays and listening time for episodes people made, for their Studio.
     if (ep && OWN_EPISODE.test(ep.id) && delta > 0 && delta < 2) {
       const h = micHeard.current;

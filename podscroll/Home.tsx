@@ -1004,32 +1004,32 @@ function ContinueListening({ nowPod, visible, onToggle, onOpenNow, onResume }: {
     try { const v = JSON.parse(localStorage.getItem("earshot.spots") || "{}"); delete v[id]; localStorage.setItem("earshot.spots", JSON.stringify(v)); } catch { /* not kept */ }
     setSpots((x) => x.filter(([k]) => k !== id));
   };
-  const rest = spots.filter(([, s]) => !nowPod || s.title !== nowPod.title).slice(0, nowPod ? 2 : 3);
+  const rest = spots.filter(([, s]) => !nowPod || s.title !== nowPod.title).slice(0, 12);
   if (!nowPod && !rest.length) return null;
   const art = (src: string) => src ? <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-11 w-11 shrink-0 rounded-lg object-cover" /> : <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-[#f2f2f2] text-[#909090]"><Play size={16} /></span>;
-  const bar = (sp: Spot) => sp.secs > 0 ? <span className="absolute inset-x-3 bottom-0 h-[2px] overflow-hidden rounded-full bg-[#eee]"><span className="block h-full bg-[#ff6a1f]" style={{ width: `${Math.min(100, (sp.t / sp.secs) * 100)}%` }} /></span> : null;
-  // One slim card: what's playing (or paused), then up to a few you didn't finish, one line each.
+  const card = "relative flex w-[17.5rem] shrink-0 snap-start items-center gap-2.5 overflow-hidden rounded-2xl border border-[#e8e8e8] bg-white py-2 pl-2 pr-2.5";
+  // One slim row you swipe sideways: what's playing (or paused) first, then the episodes you didn't finish.
   return <section aria-label="Continue listening" className="mb-5 mt-1" data-testid="pod-continue">
     <p className="mb-1.5 text-[13px] font-semibold text-[#606060]">Continue listening</p>
-    <ul className="divide-y divide-[#f0f0f0] overflow-hidden rounded-2xl border border-[#e8e8e8] bg-white">
-      {nowPod && <li className="relative flex items-center gap-3 px-3 py-2.5">
-        <button onClick={onOpenNow} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Open ${nowPod.title}`}>
+    <div className="-mx-4 flex snap-x snap-mandatory gap-2.5 overflow-x-auto scroll-px-4 px-4 pb-1 [scrollbar-width:none] sm:-mx-6 sm:scroll-px-6 sm:px-6 [&::-webkit-scrollbar]:hidden" data-testid="pod-continue-row">
+      {nowPod && <div className={card}>
+        <button onClick={onOpenNow} className="flex min-w-0 flex-1 items-center gap-2.5 text-left" aria-label={`Open ${nowPod.title}`}>
           {art(nowPod.art)}
           <span className="min-w-0"><span className="block truncate text-[14px] font-semibold leading-tight">{nowPod.title}</span>
             <span className="mt-0.5 block truncate text-[12px] text-[#606060]">{nowPod.playing ? "Playing now" : "Paused"} · {nowPod.show}</span></span>
         </button>
         <button onClick={onToggle} data-testid="pod-continue-toggle" aria-label={nowPod.playing ? "Pause" : "Resume"} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#0f0f0f] text-white">{nowPod.playing ? <Pause size={15} fill="currentColor" strokeWidth={0} /> : <Play size={15} fill="currentColor" strokeWidth={0} className="ml-0.5" />}</button>
-      </li>}
-      {rest.map(([id, sp], k) => <li key={id} className="group relative flex items-center gap-3 px-3 py-2.5">
-        <button onClick={() => onResume(id, sp)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Continue ${sp.title}`}>
+      </div>}
+      {rest.map(([id, sp], k) => <div key={id} className={card}>
+        <button onClick={() => onResume(id, sp)} className="flex min-w-0 flex-1 items-center gap-2.5 text-left" aria-label={`Continue ${sp.title}`}>
           {art(sp.art)}
           <span className="min-w-0"><span className="block truncate text-[14px] font-semibold leading-tight">{sp.title}</span>
             <span className="mt-0.5 block truncate text-[12px] text-[#606060]">{leftWords(sp)} · {sp.show}</span></span>
         </button>
-        <button onClick={() => hide(id)} aria-label={`Remove ${sp.title} from Continue listening`} className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#909090] hover:bg-[#f2f2f2]"><X size={14} /></button>
         <button onClick={() => onResume(id, sp)} data-testid={!nowPod && k === 0 ? "pod-continue-play" : undefined} aria-label={`Play ${sp.title}`} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#e0e0e0] text-[#0f0f0f]"><Play size={15} fill="currentColor" strokeWidth={0} className="ml-0.5" /></button>
-        {bar(sp)}
-      </li>)}
-    </ul>
+        <button onClick={() => hide(id)} aria-label={`Remove ${sp.title} from Continue listening`} className="absolute right-0.5 top-0.5 grid h-6 w-6 place-items-center rounded-full text-[#b0b0b0] hover:text-[#606060]"><X size={12} /></button>
+        {sp.secs > 0 && <span className="absolute inset-x-0 bottom-0 h-[2px] bg-[#f0f0f0]"><span className="block h-full bg-[#ff6a1f]" style={{ width: `${Math.min(100, (sp.t / sp.secs) * 100)}%` }} /></span>}
+      </div>)}
+    </div>
   </section>;
 }
