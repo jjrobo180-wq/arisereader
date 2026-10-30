@@ -137,6 +137,22 @@ await shot("podplus-continue", async (p) => {
   await pod(p);
 });
 await shot("podplus-import", async (p) => { await p.goto(`${P}/app/#/import`); await wait(p, 6000); const skip = p.getByRole("button", { name: "Skip for now" }); if (await skip.count()) await skip.first().click(); await wait(p, 1200); });
+await shot("todo-walkthrough", async (p) => {
+  await sample(p, "/lifehub?pane=home");
+  await p.frameLocator("#f").locator("body").evaluate(() => window.dispatchEvent(new Event("arise:walkthrough")));
+  await wait(p, 700);
+});
+await shot("todo-walkthrough-split", async (p) => {
+  await sample(p, "/lifehub?pane=home");
+  const f = p.frameLocator("#f");
+  await f.locator("body").evaluate(() => window.dispatchEvent(new Event("arise:walkthrough")));
+  await wait(p, 500);
+  for (let k = 0; k < 7; k++) { await f.getByTestId("walkthrough-next").click(); await wait(p, 150); }
+  await wait(p, 400);
+});
+await shot("workhub-more-menu", async (p) => { await sample(p, "/hub"); await p.frameLocator("#f").getByTestId("hub-more").click(); await wait(p, 600); });
+await shot("workhub-gallery", async (p) => { await sample(p, "/hub"); const f = p.frameLocator("#f"); await f.getByTestId("hub-more").click(); await wait(p, 300); await f.getByTestId("hub-more-gallery").click(); await wait(p, 1500); });
+await shot("lifehub-gallery-search", async (p) => { await sample(p, "/lifehub?pane=home"); const f = p.frameLocator("#f"); await f.getByTestId("life-more").click(); await wait(p, 300); await f.getByTestId("life-more-gallery").click(); await wait(p, 1200); const box = f.getByRole("searchbox").first(); if (await box.count()) { await box.fill("calorie"); await wait(p, 800); } });
 await shot("podplus-privacy", async (p) => { await p.goto(`${P}/privacy/`); await wait(p, 500); });
 await shot("podplus-support-dark", async (p) => { await p.goto(`${P}/support/`); await wait(p, 500); }, { dark: true });
 

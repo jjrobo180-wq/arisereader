@@ -112,6 +112,10 @@ export type PluginStoreProps = {
   initialOpen?: string;
   /** Teachers (and admins) have both hubs and see the teacher-only apps. */
   teacher: boolean;
+  /** Teacher-only apps and teacher wording (defaults to `teacher`). False for someone who didn't sign up as a teacher. */
+  teacherApps?: boolean;
+  /** The Arise learning apps: only for teachers and parents who came from A.R.I.S.E. Reader. */
+  arise?: boolean;
   isInstalled: (p: Plugin) => boolean;
   /** Adds or removes a tab or section app. The hub saves it. */
   onToggle: (p: Plugin, on: boolean) => void;
@@ -148,7 +152,7 @@ function Tile({ p, size = "md" }: { p: Plugin; size?: "md" | "lg" }) {
 /** How many apps a category shows before "See all". */
 const PER_CATEGORY = 6;
 
-export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpen, onClose, kit, notesApp, night = false, accent, initialOpen }: PluginStoreProps) {
+export default function PluginStore({ hub, teacher, teacherApps, arise, isInstalled, onToggle, onOpen, onClose, kit, notesApp, night = false, accent, initialOpen }: PluginStoreProps) {
   const { token } = useAuth();
   const pal = useMemo(() => storePalette(hub, night, accent), [hub, night, accent]);
   const vars = {
@@ -179,7 +183,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
   const openTemplateIdRef = useRef(openTemplateId);
   openTemplateIdRef.current = openTemplateId;
 
-  const all = useMemo(() => pluginsFor(hub, { teacher }), [hub, teacher]);
+  const all = useMemo(() => pluginsFor(hub, { teacher: teacherApps ?? teacher, arise: arise ?? teacher }), [hub, teacher, teacherApps, arise]);
   /** How many apps this hub's store has (built-in tools that are always there aren't counted). */
   const appCount = useMemo(() => all.filter((p) => countsAsApp(hub, p)).length, [all, hub]);
   /** The running plugin's definition: either a Kit plugin, or a Notes-app install (by its store id).

@@ -19,7 +19,7 @@ export default function NativeRemindersPanel({ kind, onChange, buttonClass, ghos
     {!nativeRemindersAvailable() ? <p>Reminders need the newest version of Arise To Duo. Update the app, then come back here.</p>
       : on ? <>
         <p className="font-semibold text-emerald-700">Reminders are on for this iPhone.</p>
-        <p className="text-xs text-slate-500">They follow the choices below and update whenever your {kind === "life" ? "LifeHub" : "WorkHub"} changes.</p>
+        <p className="text-xs text-slate-500">One switch for LifeHub and WorkHub. They follow the choices below and update whenever either hub changes.</p>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => void run(sendNativeTest, "A test reminder will show in a few seconds.")} disabled={busy} className={ghostClass}>{busy ? <Loader2 size={15} className="animate-spin" /> : <Bell size={15} />} Send a test</button>
           <button type="button" onClick={() => void run(() => turnOffNativeReminders(kind), "Reminders are off for this iPhone.", false)} disabled={busy} className={ghostClass}><BellOff size={15} /> Turn off</button>
