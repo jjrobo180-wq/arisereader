@@ -114,6 +114,7 @@ import CustomizeSheet, { CustomizeGroup } from "@/components/CustomizeSheet";
 import DuoControls, { DuoHeaderButton } from "@/components/DuoControls";
 import { LayoutGrid as LayoutGridIcon, PanelLeft, Palette } from "lucide-react";
 import { PhoneMenu, usePhoneMenu, type PhoneMenuItem } from "@/components/family-hub/PhoneMenu";
+import { PhoneTabBar } from "@/components/family-hub/PhoneTabBar";
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
 import { foldMenu } from "@shared/hubLayout";
 import { hubThemeOf } from "@shared/appThemes";
@@ -682,6 +683,11 @@ export default function AriseTodo() {
   const phone = usePhoneMenu(tileMode ? "drawer" : layout.menuSide, layout.menuClose);
   // Arise To Duo: the iPhone Duo's inner screen gets two panes that meet at the fold (see useAriseDuo).
   const duo = useAriseDuo();
+  /** The floating tab bar on a phone (Customize → Menu on your phone → Tab bar, the default). Not in the
+   *  Duo's book view or inside a split-screen pane, which have their own controls; there the app drawer stands in. */
+  const tabBar = !tileMode && layout.menuSide === "tabs" && duo.mode !== "book" && !inDuoPane();
+  const phoneSide = tileMode ? "drawer" : layout.menuSide === "tabs" && !tabBar ? "drawer" : layout.menuSide;
+  const [youOpen, setYouOpen] = useState(false);
   useEffect(() => {
     const before = document.title;
     document.title = "Arise To Duo";
@@ -770,7 +776,7 @@ export default function AriseTodo() {
   const addRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!addMenu) return;
-    const away = (e: MouseEvent) => { if (addRef.current && !addRef.current.contains(e.target as Node)) setAddMenu(false); };
+    const away = (e: MouseEvent) => { if ((e.target as Element | null)?.closest?.("[data-add-toggle]")) return; if (addRef.current && !addRef.current.contains(e.target as Node)) setAddMenu(false); };
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setAddMenu(false); };
     document.addEventListener("mousedown", away);
     document.addEventListener("keydown", esc);
@@ -1031,7 +1037,8 @@ export default function AriseTodo() {
               {MENU_SIDES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuSide === o.id} onClick={() => { setLayout({ ...layout, menuSide: o.id }); phone.setRail(true); }} data-testid={`life-menu-side-${o.id}`}
                 className={`min-h-11 rounded-full px-4 text-sm font-bold ring-1 ${layout.menuSide === o.id ? "bg-[#292446] text-white ring-[#292446]" : "bg-white text-slate-600 ring-slate-200"}`}>{o.label}</button>)}
             </div>
-            {layout.menuSide === "drawer" ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">A round button at the bottom of the screen opens every section as app icons, with a search box. Swipe it up or tap it; swipe down or tap outside to close.</p>
+            {layout.menuSide === "tabs" ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600" data-testid="life-menu-tabs-help">A bar floats along the bottom of the screen: Home, Tasks, the + button to add anything, Apps for every section, and You for your account and settings.</p>
+              : layout.menuSide === "drawer" ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">A round button at the bottom of the screen opens every section as app icons, with a search box. Swipe it up or tap it; swipe down or tap outside to close.</p>
               : <div role="radiogroup" aria-label="How the menu closes" className="grid grid-cols-1 gap-2">
                 {MENU_CLOSES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuClose === o.id} onClick={() => { setLayout({ ...layout, menuClose: o.id }); phone.setRail(true); }} data-testid={`life-menu-close-${o.id}`}
                   className={`flex min-h-11 items-start gap-3 rounded-xl border px-3 py-2 text-left text-sm ${layout.menuClose === o.id ? "border-[#292446] bg-slate-50" : "border-slate-200 bg-white"}`}>
@@ -1124,15 +1131,15 @@ export default function AriseTodo() {
         </div>
       </div>
     </header>
-    {family.widgets.chat && <HubChat hub="life" token={token} accent="bg-[#7968e5]" lift raiseRem={layout.menuSide === "bottom" && phone.open ? 4.9 : 0} />}
+    {family.widgets.chat && <HubChat hub="life" token={token} accent="bg-[#7968e5]" lift raiseRem={(layout.menuSide === "bottom" && phone.open) || tabBar ? 4.9 : 0} />}
     {searching && <HubSearch entries={buildSearchEntries()} hubName="LifeHub" accent="bg-[#292446]" onClose={() => setSearching(false)} />}
     {privacy && <AccountPrivacy onClose={() => setPrivacy(false)} />}
     {/* One floating button that adds anything, mirroring WorkHub. It sits clear of the phone menu
         when that menu is along the bottom or the right, so it never covers the menu's own buttons. */}
-    <div ref={addRef} className={`fixed z-50 lg:bottom-[max(1.25rem,env(safe-area-inset-bottom))] lg:right-4 ${layout.menuSide === "bottom" && phone.open ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${layout.menuSide === "right" && phone.open ? "right-[88px]" : "right-4"}`}>
+    <div ref={addRef} className={`fixed z-50 lg:bottom-[max(1.25rem,env(safe-area-inset-bottom))] lg:right-4 ${tabBar ? "max-lg:bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] max-lg:left-1/2 max-lg:right-auto" : layout.menuSide === "bottom" && phone.open ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${tabBar ? "lg:left-auto" : layout.menuSide === "right" && phone.open ? "right-[88px]" : "right-4"}`}>
       {addMenu && (
         <div role="menu" aria-label="Add to your To Do" data-testid="life-add-menu"
-          className="absolute bottom-[calc(100%+0.6rem)] right-0 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl">
+          className={`absolute bottom-[calc(100%+0.6rem)] right-0 w-60 ${tabBar ? "max-lg:bottom-0 max-lg:right-auto max-lg:-translate-x-1/2" : ""} overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl`}>
           {[
             // On a phone the AI assistant opens from here, so only one round button sits over the page.
             ...(family.widgets.chat && window.matchMedia?.("(max-width: 639px)").matches ? [{ key: "ai", label: "Ask AI", detail: "The AI assistant", icon: <Sparkles size={16} />, go: () => document.querySelector<HTMLElement>('[data-testid="hub-chat-open"]')?.click() }] : []),
@@ -1158,16 +1165,32 @@ export default function AriseTodo() {
       )}
       <button type="button" onClick={() => setAddMenu((v) => !v)} aria-haspopup="menu" aria-expanded={addMenu}
         aria-label="Add to your To Do" data-testid="life-add-button"
-        className="inline-flex h-14 items-center gap-2 rounded-full bg-[#6e5ae0] px-5 text-base font-semibold text-white shadow-lg transition hover:bg-[#5948c8]">
+        className={`${tabBar ? "max-lg:hidden" : ""} inline-flex h-14 items-center gap-2 rounded-full bg-[#6e5ae0] px-5 text-base font-semibold text-white shadow-lg transition hover:bg-[#5948c8]`}>
         <Plus className={`h-5 w-5 transition-transform ${addMenu ? "rotate-45" : ""}`} size={20} /> Add
       </button>
     </div>
+    {tabBar && <PhoneTabBar name={user.displayName || user.username || ""}
+      home={shown === "home" && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && !store} tasks={shown === "tasks" && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && !store}
+      addOpen={addMenu} onAdd={() => setAddMenu((v) => !v)}
+      onHome={() => { closeApps(); setStore(false); setAddMenu(false); goSection("home"); }}
+      onTasks={() => { closeApps(); setStore(false); setAddMenu(false); goSection("tasks"); }}
+      youOpen={youOpen} setYouOpen={(open) => { setYouOpen(open); if (open) setAddMenu(false); }}
+      you={[
+        { id: "privacy", label: "Account & privacy", detail: "Your account, data and deleting it", icon: <ShieldCheck />, onClick: () => setPrivacy(true) },
+        { id: "notifications", label: "Notifications", icon: <Bell />, onClick: () => { closeApps(); goSection("notifications"); } },
+        { id: "family", label: "Family & settings", detail: "People, linked children and sections", icon: <Users />, onClick: () => { closeApps(); goSection("family"); } },
+        { id: "customize", label: "Customize", detail: "Menu, folders, Home and theme", icon: <Settings2 />, onClick: () => setCustomizing(true) },
+        { id: "lock", label: "Passcode & locks", icon: <Lock />, onClick: () => setLockSettings(true) },
+        { id: "night", label: night ? "Day mode" : "Night mode", icon: night ? <Sun /> : <Moon />, onClick: toggleNight },
+        { id: "gallery", label: "App Gallery", detail: "Add more tools", icon: <ShoppingBag />, onClick: () => setStore(true) },
+        { id: "signout", label: "Sign out", icon: <LogOut />, danger: true, onClick: () => void signOut() },
+      ]} />}
     {briefOpen && <DailyBrief hub="life" brief={buildLifeBrief(family, data.tasks, currentDay, new Date().getHours(), (user.displayName || "").split(" ")[0])} onClose={() => setBriefOpen(false)} onOpen={goSection} />}
     {awayFromStart && <button type="button" onClick={backToStart} aria-label="Back to Start" data-testid="life-start-back"
       className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-4 z-40 inline-flex h-14 items-center gap-1.5 rounded-full bg-[#292446] pl-4 pr-5 text-sm font-extrabold text-white shadow-xl transition active:scale-90"><ArrowLeft className="h-5 w-5" /> Start</button>}
-    {duo.mode !== "book" && <PhoneMenu items={phoneItems} side={tileMode ? "drawer" : layout.menuSide} hideLauncher={tileMode && !awayFromStart} close={layout.menuClose} open={phone.open} setRail={phone.setRail} afterPick={phone.afterPick} top={64} folders={layout.folders} deskDrawer={dsk === "drawer"} />}
+    {duo.mode !== "book" && <PhoneMenu items={phoneItems} side={phoneSide} hideLauncher={tileMode && !awayFromStart} close={layout.menuClose} open={phone.open} setRail={phone.setRail} afterPick={phone.afterPick} top={64} folders={layout.folders} deskDrawer={dsk === "drawer"} />}
     <div className={`flex min-h-[calc(100vh-4rem)] w-full flex-col ${dsk === "top" ? "" : dsk === "right" ? "lg:flex-row-reverse" : "lg:flex-row"} duo-book:flex-row`}>
-      <aside className={`w-full border-b border-[#e4e6f0] bg-white lg:[&>*]:shrink-0 ${shown === "tasks" ? (layout.menuSide === "bottom" ? "" : phone.pad) : "max-lg:hidden"} ${deskAside} duo-book:sticky duo-book:top-16 duo-book:flex duo-book:h-[calc(100dvh-4rem)] duo-book:w-[var(--duo-left)] duo-book:shrink-0 duo-book:flex-col duo-book:overflow-y-auto duo-book:border-b-0 duo-book:border-r duo-book:p-0 duo-book:pb-10 duo-book:[&>*]:shrink-0`} data-testid="life-side">
+      <aside className={`w-full border-b border-[#e4e6f0] bg-white lg:[&>*]:shrink-0 ${shown === "tasks" ? (layout.menuSide === "bottom" || layout.menuSide === "tabs" ? "" : phone.pad) : "max-lg:hidden"} ${deskAside} duo-book:sticky duo-book:top-16 duo-book:flex duo-book:h-[calc(100dvh-4rem)] duo-book:w-[var(--duo-left)] duo-book:shrink-0 duo-book:flex-col duo-book:overflow-y-auto duo-book:border-b-0 duo-book:border-r duo-book:p-0 duo-book:pb-10 duo-book:[&>*]:shrink-0`} data-testid="life-side">
         <nav aria-label="Family Hub" className={`duo-book:flex duo-book:flex-col duo-book:gap-0.5 duo-book:overflow-visible duo-book:px-3 duo-book:pt-4 hidden gap-1 overflow-x-auto px-3 pb-2.5 pt-4 [scrollbar-width:none] sm:px-4 sm:pb-3 [&::-webkit-scrollbar]:hidden ${dsk === "top" ? "lg:flex lg:px-4 lg:py-2" : "lg:block lg:space-y-0.5 lg:px-3 lg:pb-0 lg:pt-6"}`}>
           {renderSectionItems(builtInSections, true)}
 
