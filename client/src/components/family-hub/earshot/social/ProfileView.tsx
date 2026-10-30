@@ -3,7 +3,7 @@
 // Podcasts; Likes and Saved on your own). Follow, Message, Share, Block. Plus Edit profile (photo
 // and cover uploads) and the followers / following lists.
 import { useEffect, useRef, useState } from "react";
-import { Ban, CalendarDays, Camera, Link2, Loader2, Mail, MapPin, MoreHorizontal, Plus, Search, Share, X } from "lucide-react";
+import { Ban, CalendarDays, Camera, Flag, LifeBuoy, Link2, Loader2, Mail, MapPin, MoreHorizontal, Plus, Search, Share, ShieldCheck, X } from "lucide-react";
 import { hiRes } from "@shared/earshot";
 import {
   ActionSheet, Avatar, Empty, FollowButton, NeedSignIn, PillButton, Sentinel, Sheet, Spinner, TopBar, Verified, RichText, compactCount, linkTo, shareOrCopy, uploadMedia, usePaged,
@@ -11,6 +11,7 @@ import {
 } from "./kit";
 import { PostCard, PostSkeleton } from "./PostCard";
 import { Grid, PersonRow, TabBtn } from "./Explore";
+import { ReportSheet, RulesAgree, policyLinks } from "./Rules";
 
 type Tab = "posts" | "media" | "clips" | "podcast" | "likes" | "saved";
 const hue = (s: string) => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 17);
@@ -25,6 +26,7 @@ export function ProfileScreen({ handle, ctx, onBack, onEdit, onPeople, onChanged
   const [tab, setTab] = useState<Tab>("posts");
   const [menu, setMenu] = useState(false);
   const [blockedOpen, setBlockedOpen] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const load = () => ctx.api(`/api/earshot/social/profile/${encodeURIComponent(handle)}`).then((b) => { setData(b); setErr(""); }).catch((e) => setErr(e?.message || "That profile didn't load."));
   useEffect(() => { setData(null); setTab("posts"); void load(); }, [handle, ctx.me?.handle, ctx.me?.photo, ctx.me?.cover, ctx.me?.name, ctx.me?.bio]); // eslint-disable-line react-hooks/exhaustive-deps
   const list = usePaged<Post, string>((c) => ctx.api(`/api/earshot/social/profile/${encodeURIComponent(handle)}/posts?tab=${tab}${c ? `&before=${encodeURIComponent(c)}` : ""}`).then((b) => ({ items: b.posts || [], next: b.next ?? null })), [handle, tab]);
@@ -111,10 +113,15 @@ export function ProfileScreen({ handle, ctx, onBack, onEdit, onPeople, onChanged
     {menu && <ActionSheet onClose={() => setMenu(false)} items={me ? [
       { label: "Share profile", icon: <Share size={18} />, onClick: share },
       { label: "Blocked accounts", icon: <Ban size={18} />, onClick: () => setBlockedOpen(true) },
+      { label: "Community rules", icon: <ShieldCheck size={18} />, onClick: () => window.open(policyLinks().rules, "_blank", "noopener") },
+      { label: "Privacy Policy", icon: <ShieldCheck size={18} />, onClick: () => window.open(policyLinks().privacy, "_blank", "noopener") },
+      { label: "Contact support", icon: <LifeBuoy size={18} />, onClick: () => window.open(policyLinks().support, "_blank", "noopener") },
     ] : [
       { label: "Share profile", icon: <Share size={18} />, onClick: share },
       data.blocked ? { label: `Unblock @${p.handle}`, icon: <Ban size={18} />, onClick: () => block(false) } : { label: `Block @${p.handle}`, icon: <Ban size={18} />, danger: true, onClick: () => block(true) },
+      { label: `Report @${p.handle}`, icon: <Flag size={18} />, danger: true, onClick: () => setReporting(true) },
     ]} />}
+    {reporting && <ReportSheet api={ctx.api} path={`/api/earshot/social/profile/${encodeURIComponent(p.handle)}/report`} what="account" onClose={() => setReporting(false)} onDone={(m) => ctx.say(m)} />}
     {blockedOpen && <BlockedSheet ctx={ctx} onClose={() => setBlockedOpen(false)} />}
   </div>;
 }
@@ -158,6 +165,8 @@ export function EditProfile({ ctx, initial, onClose, onSaved }: { ctx: SCtx; ini
   const [website, setWebsite] = useState(initial?.website ?? "");
   const [photo, setPhoto] = useState(initial?.photo ?? "");
   const [cover, setCover] = useState(initial?.cover ?? "");
+  /** A new profile needs the community rules agreed to (App Review Guideline 1.2). */
+  const [agreed, setAgreed] = useState(!!initial);
   const [up, setUp] = useState<"" | "photo" | "cover">("");
   const [busy, setBusy] = useState(false);
   const [page, setPage] = useState<any>(null);
@@ -185,9 +194,10 @@ export function EditProfile({ ctx, initial, onClose, onSaved }: { ctx: SCtx; ini
     const h = handle.trim().toLowerCase().replace(/^@/, "");
     if (!name.trim()) return ctx.say("Add your name.");
     if (!/^[a-z0-9_]{3,20}$/.test(h)) return ctx.say("Usernames are 3-20 letters, numbers or _.");
+    if (!agreed) return ctx.say("Agree to the community rules first.");
     setBusy(true);
     try {
-      const b = await ctx.api("/api/earshot/social/me", { method: "POST", body: { handle: h, name: name.trim(), bio: bio.trim(), avatar: initial?.avatar || "🎧", photo, cover, website: website.trim(), location: location.trim() } });
+      const b = await ctx.api("/api/earshot/social/me", { method: "POST", body: { agreed: true, handle: h, name: name.trim(), bio: bio.trim(), avatar: initial?.avatar || "🎧", photo, cover, website: website.trim(), location: location.trim() } });
       if (favsChanged.current) {
         const widgets = [...(page?.widgets || []).filter((w: any) => w?.type !== "top8"), { id: "w-top8", type: "top8", col: "main", shows: favs }];
         await ctx.api("/api/earshot/social/me/page", { method: "POST", body: { page: { ...(page || {}), widgets } } }).catch(() => {});
@@ -204,7 +214,7 @@ export function EditProfile({ ctx, initial, onClose, onSaved }: { ctx: SCtx; ini
     <div className="flex flex-none items-center gap-2 border-b line px-3 py-2">
       <button type="button" onClick={onClose} aria-label="Close" className="hov grid h-9 w-9 place-items-center rounded-full"><X size={20} /></button>
       <h3 className="flex-1 text-[17px] font-bold">{initial ? "Edit profile" : "Create your profile"}</h3>
-      <PillButton onClick={save} disabled={busy || !!up}>{busy ? <Loader2 size={16} className="animate-spin" /> : initial ? "Save" : "Create"}</PillButton>
+      <PillButton onClick={save} disabled={busy || !!up || !agreed}>{busy ? <Loader2 size={16} className="animate-spin" /> : initial ? "Save" : "Create"}</PillButton>
     </div>
     <div className="min-h-0 flex-1 overflow-y-auto pb-8">
       <div className="relative aspect-[3/1] w-full overflow-hidden" style={{ background: coverBg(handle) }}>
@@ -228,6 +238,7 @@ export function EditProfile({ ctx, initial, onClose, onSaved }: { ctx: SCtx; ini
         <label className="mt-3 block"><span className="muted mb-1 flex justify-between text-[13px] font-semibold"><span>Bio</span><span>{bio.length}/160</span></span><textarea value={bio} maxLength={160} rows={3} onChange={(e) => setBio(e.target.value)} className={`${field} resize-none`} placeholder="What you're into" /></label>
         <label className="mt-3 block"><span className="muted mb-1 block text-[13px] font-semibold">Location</span><input value={location} maxLength={40} onChange={(e) => setLocation(e.target.value)} className={field} placeholder="City, state" /></label>
         <label className="mt-3 block"><span className="muted mb-1 block text-[13px] font-semibold">Website</span><input value={website} maxLength={100} onChange={(e) => setWebsite(e.target.value)} className={field} placeholder="yoursite.com" inputMode="url" autoCapitalize="none" /></label>
+        {!initial && <RulesAgree agreed={agreed} onChange={setAgreed} />}
         {initial && <div className="mt-5">
           <div className="flex items-center justify-between"><span className="text-[15px] font-bold">Favorite podcasts</span>{favs.length < 8 && <button type="button" onClick={() => setFinding(true)} className="link flex items-center gap-1 text-[14px] font-bold"><Plus size={16} />Add</button>}</div>
           {!favs.length && <p className="muted mt-1 text-[14px]">Show up to 8 favorite shows on your profile.</p>}

@@ -162,6 +162,30 @@ export function registerPodscrollAccountRoutes(app: Express, gate: RequestHandle
     }
   });
 
+  /** Delete my Pod+ account and everything made with it (App Store Guideline 5.1.1(v)). Works signed
+   *  in (the account, its profile and this phone's data) or not (this phone's listening data and
+   *  profile). Asks for the word DELETE so it's never done by a stray tap. */
+  const deletes = createAttemptLimiter({ max: 5, windowMs: 60 * 60_000 });
+  app.post(`${P}/delete`, gate, async (req: any, res) => {
+    if (String(req.body?.confirm || "") !== "DELETE") return res.status(400).json({ message: "Type DELETE to confirm." });
+    if (tooMany(deletes, device(req), res)) return;
+    try {
+      const voters = Array.from(new Set([`d${req.user?.id || ""}`, `d${device(req)}`].filter((v) => v.length > 17)));
+      await deletePodData(db(), voters);
+      if (req.creator?.id) {
+        await db().from("podcast_account_codes").delete().eq("email", req.creator.email).then(() => {}, () => {});
+        const { error } = await db().from("podcast_accounts").delete().eq("id", req.creator.id);
+        if (error) throw error;
+        const token = String(req.headers["x-podscroll-session"] || "");
+        if (SESSION.test(token)) o.sessions.forget(token);
+      }
+      res.json({ ok: true });
+    } catch (e: any) {
+      console.error("[podscroll] account delete:", e?.message || e);
+      res.status(500).json({ message: "That didn't work. Try again, or write to us from the Support page and we'll delete it for you." });
+    }
+  });
+
   app.post(`${P}/signout`, gate, async (req: any, res) => {
     const token = String(req.headers["x-podscroll-session"] || "");
     if (SESSION.test(token)) {
@@ -170,4 +194,34 @@ export function registerPodscrollAccountRoutes(app: Express, gate: RequestHandle
     }
     res.json({ ok: true });
   });
+}
+
+/** Everything Pod+ keeps about these people ("d<device>" voters): profile (its posts, comments and
+ *  followers go with it), likes, follows, saves, votes, blocks, messages, stories, listens, ad votes,
+ *  episode comments and uploaded files. A table that doesn't exist yet is skipped. */
+export async function deletePodData(db: any, voters: string[]): Promise<void> {
+  const soft = (e: any) => !e || e.code === "42P01" || e.code === "PGRST205" || e.code === "42703" || /does not exist|not find/i.test(String(e.message || ""));
+  const run = async (q: any) => { const { error } = await q; if (!soft(error)) throw error; };
+  for (const voter of voters) {
+    const device = voter.slice(1);
+    for (const [table, column] of [
+      ["podcast_post_likes", "voter"], ["podcast_post_reports", "voter"], ["podcast_comment_likes", "voter"], ["podcast_poll_votes", "voter"],
+      ["podcast_post_saves", "voter"], ["podcast_people_follows", "follower"], ["podcast_people_follows", "followee"], ["podcast_notifications", "voter"],
+      ["podcast_notifications", "actor"], ["podcast_blocks", "blocker"], ["podcast_blocks", "blocked"], ["podcast_story_views", "voter"],
+      ["podcast_stories", "voter"], ["podcast_dm_threads", "a"], ["podcast_dm_threads", "b"], ["podcast_listens", "voter"],
+      ["podcast_ad_votes", "voter"], ["podcast_ad_skips", "voter"], ["podcast_comments", "voter"], ["podcast_posts", "voter"], ["podcast_profiles", "voter"],
+    ] as const) await run(db.from(table).delete().eq(column, voter));
+    // Episode comments and likes on the Pod+ site are kept by device id.
+    for (const table of ["podscroll_comment_reports", "podscroll_comments", "podscroll_likes"]) await run(db.from(table).delete().eq("user_id", device));
+    // Photos, videos, episodes and clips they uploaded.
+    const folder = voter.replace(/[^A-Za-z0-9_-]/g, "");
+    try {
+      const bucket = db.storage?.from("podcast-uploads");
+      for (const dir of [folder, `clips/${folder}`]) {
+        const { data } = (await bucket?.list(dir, { limit: 1000 })) || { data: [] };
+        const paths = (data || []).filter((f: any) => f?.name).map((f: any) => `${dir}/${f.name}`);
+        if (paths.length) await bucket.remove(paths);
+      }
+    } catch { /* files without a database row are unreachable once the profile is gone */ }
+  }
 }

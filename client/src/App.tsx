@@ -136,6 +136,8 @@ const AriseReader = lazyPage(() => import("./pages/AriseReader"));
 import TodoGate from "@/components/TodoGate";
 import { ReaderAdminToTodoRedirect, ReaderToHubHandoff, TodoAdminHandoff } from "@/components/AdminDomainHandoff";
 import { READER_APP, goToReader, goToSignIn, hubPathFor, isHubAccount, isReaderPage } from "@/lib/hubs";
+import NativePlans from "@/components/NativePlans";
+import { isNativeApp } from "@/lib/nativeApp";
 const TeacherScenes = lazyPage(() => import("./pages/TeacherScenes"));
 const StudentSceneLive = lazyPage(() => import("./pages/StudentSceneLive"));
 const Library = lazyPage(() => import("./pages/Library"));
@@ -463,7 +465,7 @@ function TodoPublicHomeRedirect() {
       window.location.replace("/");
     }
   }, []);
-  return <main className="min-h-screen bg-[#f9fafc] p-8 text-center"><a href={window.location.protocol === "capacitor:" ? "#/signin" : "/"} className="font-semibold text-indigo-700 underline">Open A.R.I.S.E. To-Do</a></main>;
+  return <main className="min-h-screen bg-[#f9fafc] p-8 text-center"><a href={window.location.protocol === "capacitor:" ? "#/signin" : "/"} className="font-semibold text-indigo-700 underline">Open Arise To Duo</a></main>;
 }
 
 function AppRoutes() {
@@ -642,14 +644,15 @@ function AppRoutes() {
       </Route>
       {/* Public: plans and pricing. */}
       <Route path="/pricing">
-        <Pricing />
+        {isNativeApp() ? <NativePlans /> : <Pricing />}
       </Route>
       {/* A teacher's plan: what they have, and paying for Premium. */}
       <Route path="/billing">
         {/* Billing is the teacher's plan page. A parent (back from Stripe, say, after picking Arise Math)
             goes to LifeHub's Reader page, where their add-ons are, never the sign-in screen; a payment's
             ?paid= id rides along and is confirmed there (HubAddons). */}
-        {user && (user.role === "teacher" || user.isAdmin) ? <ProtectedRoute><Billing /></ProtectedRoute>
+        {isNativeApp() && user ? <NativePlans />
+          : user && (user.role === "teacher" || user.isAdmin) ? <ProtectedRoute><Billing /></ProtectedRoute>
           : user && user.role === "parent" ? <OpenHubTab to="/lifehub" storageKey="lifehub_tab" value="reader" />
           : user && user.role === "todo" ? <Redirect to="/lifehub" replace />
           : <Redirect to="/" replace />}

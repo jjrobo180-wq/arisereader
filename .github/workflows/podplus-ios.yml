@@ -42,6 +42,7 @@ jobs:
         run: |
           npx cap add ios
           npx cap sync ios
+          python3 configure-ios.py ios/App/App/Info.plist
       - name: Compile iOS simulator app (no Apple signing required)
         working-directory: podscroll/ios-app
         run: |

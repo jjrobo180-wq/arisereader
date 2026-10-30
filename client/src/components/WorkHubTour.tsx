@@ -120,11 +120,11 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
       ],
     },
     {
-      title: "App Store",
+      title: "App Gallery",
       body: "Add extra tools to your WorkHub, like behavior points, attendance, a gradebook and notes. Everything there is optional.",
       targets: [
-        { sel: '[data-testid="hub-plugin-store"]', label: "App Store" },
-        { sel: '[data-testid="hub-menu-app-store"]', label: "App Store" },
+        { sel: '[data-testid="hub-plugin-store"]', label: "App Gallery" },
+        { sel: '[data-testid="hub-menu-app-store"]', label: "App Gallery" },
       ],
     },
     {
@@ -205,12 +205,12 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
       ],
     },
     {
-      title: "App Store",
+      title: "App Gallery",
       body: "Add extra tools, like a calendar, groceries, money, notes and more. Everything there is optional.",
       targets: [
-        { sel: '[data-testid="lifehub-plugin-store-header"]', label: "App Store" },
-        { sel: '[data-testid="lifehub-plugin-store"]', label: "App Store" },
-        { sel: '[data-testid="life-menu-app-store"]', label: "App Store" },
+        { sel: '[data-testid="lifehub-plugin-store-header"]', label: "App Gallery" },
+        { sel: '[data-testid="lifehub-plugin-store"]', label: "App Gallery" },
+        { sel: '[data-testid="life-menu-app-store"]', label: "App Gallery" },
       ],
     },
     {

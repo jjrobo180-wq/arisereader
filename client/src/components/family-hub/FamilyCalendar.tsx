@@ -8,6 +8,13 @@ import { API_BASE } from "@/lib/queryClient";
 import { MEMBER_COLORS, addDays, billDue, eventsOn, fromDay, toDay, type FamilyEvent, type EventRepeat } from "@shared/familyHub";
 import { Avatar, Label, MemberPicker, Modal, PageHead, Panel, Toggle, clock12, confirmed, danger, inputClass, memberOf, plain, primary, shortDate, type SectionProps } from "./ui";
 import { ShareButton } from "./ShareLink";
+import { addToIphoneCalendar, inIphoneApp, readIphoneEvents } from "@/lib/nativeCalendar";
+import { isNativeApp } from "@/lib/nativeApp";
+
+/** The calendar the iPhone's own events go in (Arise To Duo iPhone app). */
+const PHONE_CAL = { id: "iphone", name: "iPhone Calendar", color: "#64748b", show: true };
+/** Read once per app launch when the calendar opens; the button reads again whenever asked. */
+let phoneReadThisLaunch = false;
 
 export type CalendarTask = { id: string; title: string; due: string; time: string; assignee: string; done: boolean };
 type Item = { key: string; kind: "event" | "task" | "bill" | "trip" | "hub"; title: string; time: string; color: string; event?: FamilyEvent; members: string[]; hub?: HubItem };
@@ -55,6 +62,32 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
   const [editing, setEditing] = useState<FamilyEvent | null>(null);
   const [newCal, setNewCal] = useState("");
   const calColor = (id: string) => family.calendars.find((c) => c.id === id)?.color || "#94a3b8";
+
+  // The iPhone's own calendars (iCloud, Google, Outlook, school), in the app only. Their events go in
+  // the "iPhone Calendar" calendar and are replaced by a fresh read each time.
+  const phone = inIphoneApp();
+  const hasPhone = family.calendars.some((c) => c.id === PHONE_CAL.id);
+  const [phoneBusy, setPhoneBusy] = useState(false);
+  const [phoneNote, setPhoneNote] = useState("");
+  const importPhone = async (quiet = false) => {
+    if (phoneBusy) return;
+    setPhoneBusy(true); if (!quiet) setPhoneNote("");
+    try {
+      const list = (await readIphoneEvents()).slice(0, 1000);
+      setFamily((f) => ({
+        ...f,
+        calendars: f.calendars.some((c) => c.id === PHONE_CAL.id) ? f.calendars : [...f.calendars, { ...PHONE_CAL }],
+        events: [...f.events.filter((e) => e.calendarId !== PHONE_CAL.id), ...list.map((e): FamilyEvent => ({ id: makeId(), title: e.title.slice(0, 120), date: e.date, time: e.start, endTime: e.start ? e.end : "", calendarId: PHONE_CAL.id, memberIds: [], location: e.location.slice(0, 160), notes: e.notes.slice(0, 1000), repeat: "none" }))],
+      }));
+      if (!quiet) { setPhoneNote(`${list.length} ${list.length === 1 ? "event" : "events"} from your iPhone.`); say("iPhone Calendar is up to date"); }
+    } catch (e: any) { setPhoneNote(e?.message || "Your iPhone Calendar couldn't be read right now."); }
+    finally { setPhoneBusy(false); }
+  };
+  useEffect(() => {
+    if (!phone || !hasPhone || phoneReadThisLaunch) return;
+    phoneReadThisLaunch = true;
+    void importPhone(true);
+  }, [phone, hasPhone]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const first = fromDay(`${month}-01`);
   const gridStart = addDays(`${month}-01`, -first.getDay());
@@ -169,10 +202,15 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
             </div>
             {hubOn && <p className="pl-6 text-[11px] font-semibold text-slate-500">
               {hub.state === "loading" ? "Loading your Hub calendar…"
-                : hub.state === "locked" ? <>Arise WorkHub isn’t on for this account. <a href="/#/billing" className="font-bold text-teal-700 underline">Get Arise WorkHub</a></>
+                : hub.state === "locked" ? <>Arise WorkHub isn’t on for this account.{!isNativeApp() && <> <a href="/#/billing" className="font-bold text-teal-700 underline">Get Arise WorkHub</a></>}</>
                 : hub.state === "error" ? "Couldn’t reach your Hub calendar. It will try again when you change months."
                 : <>Events from your Hub, shown here read-only. <a href="/#/workhub" className="inline-flex items-center gap-0.5 font-bold text-teal-700 underline">Edit in the Hub<ExternalLink size={10} /></a></>}
             </p>}
+          </div>}
+          {phone && <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-2.5" data-testid="life-iphone-calendar">
+            <p className="text-sm font-semibold text-slate-800">iPhone Calendar</p>
+            <p className="mt-0.5 text-[11px] font-semibold text-slate-500">{phoneNote || (hasPhone ? "Your iPhone's events refresh each time you open the app." : "Bring in every calendar on this iPhone: iCloud, Google, Outlook and school. Nothing on your iPhone is changed.")}</p>
+            <button type="button" onClick={() => void importPhone()} disabled={phoneBusy} className={plain + " mt-2 min-h-11"}>{phoneBusy ? "Reading your iPhone…" : hasPhone ? "Refresh now" : "Connect iPhone Calendar"}</button>
           </div>}
           <form onSubmit={addCalendar} className="mt-3 flex gap-2"><input value={newCal} onChange={(e) => setNewCal(e.target.value)} maxLength={40} placeholder="New calendar (e.g. Soccer)" aria-label="New calendar name" className={inputClass + " min-w-0"} /><button type="submit" className={primary} aria-label="Add calendar"><Plus size={17} /></button></form>
           <div className="mt-5 border-t border-slate-100 pt-4">
@@ -217,6 +255,7 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
         <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
           <button type="submit" className={primary + " flex-1 px-5"}><Check size={17} /> Save event</button>
           <button type="button" onClick={() => setEditing(null)} className={plain}>Cancel</button>
+          {phone && editing.calendarId !== PHONE_CAL.id && editing.title.trim() && editing.date && <button type="button" onClick={() => addToIphoneCalendar({ title: editing.title.trim(), date: editing.date, start: editing.time, end: editing.endTime, location: editing.location, notes: editing.notes }).catch((e) => say(e?.message || "Couldn't open the iPhone Calendar."))} className={plain} data-testid="life-event-to-iphone"><CalendarDays size={16} /> Add to iPhone Calendar</button>}
           {family.events.some((e) => e.id === editing.id) && <button type="button" onClick={() => remove(editing)} className={danger} aria-label="Delete event"><Trash2 size={17} /></button>}
         </div>
       </form>

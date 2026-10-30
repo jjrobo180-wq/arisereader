@@ -28,3 +28,14 @@ The provisional bundle ID is `com.arisereader.podplus` — confirm availability 
 - **Signing:** enroll at https://developer.apple.com/programs/ and create the app record in https://appstoreconnect.apple.com/.
 
 The GitHub Actions workflow compiles an **unsigned simulator .app**. It cannot be installed through TestFlight. This scaffold does **not** configure signing, upload a TestFlight build, submit to Apple, or assert Apple approval. Apple's App Store Review Guidelines: https://developer.apple.com/app-store/review/guidelines/
+
+## App Store readiness (October 2026)
+
+Done in the app and on the server:
+- **Background audio:** podcasts, audiobooks and radio keep playing with the screen locked (`configure-ios.py` adds `UIBackgroundModes: audio`).
+- **Permissions:** a sentence for Camera, Photos and Microphone; export compliance answered.
+- **Pod+ Social safety (1.2):** community rules agreed to before making a profile (zero tolerance), a word and photo filter before anything is posted, report a post, reply, story, message or person (with a reason), block from profiles, replies and chats, posts hidden after 3 reports, and every report emailed to the admin (look within 24 hours).
+- **Account deletion (5.1.1(v)):** menu → Account & privacy → Delete my account (or Delete my data without an account).
+- **Privacy Policy / Terms / Support:** https://podscroll.onrender.com/privacy/, /terms/, /support/.
+
+Still yours to do in App Store Connect: the Privacy Policy and Support URLs above, App Privacy answers (email, user content, identifiers; none used for tracking), an age rating of 13+ or higher for Pod+ Social, screenshots, and App Review notes (no account needed to listen; email sign-in for Social).

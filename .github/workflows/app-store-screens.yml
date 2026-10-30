@@ -1,0 +1,44 @@
+name: App Store screens
+# Phone-size screenshots of Arise To Duo and Pod+ to check layouts, buttons and colors before a release.
+# Run it from the Actions tab (Run workflow); the pictures are in the run's "app-store-screens" artifact.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/app-store-screens.yml'
+      - 'script/appStoreScreens.mjs'
+permissions:
+  contents: write
+jobs:
+  screens:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build Arise and Pod+
+        run: |
+          npx vite build
+          npx vite build --config podscroll/vite.config.ts
+      - name: Install a browser
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Take the screenshots
+        run: node script/appStoreScreens.mjs
+      - name: Keep the screenshots on the app-store-screens branch too (readable without downloading the artifact)
+        working-directory: screens
+        run: |
+          git init -q -b app-store-screens
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com add -A
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -qm "App Store screens for ${GITHUB_SHA}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" app-store-screens
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-store-screens
+          path: screens/
+          retention-days: 7
