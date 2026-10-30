@@ -6,6 +6,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { GENRE, GENRES, chooseEpisode, hiRes, isTeaser, pickNext, tasteOf, type Candidate, type PodMode, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal } from "@shared/earshot";
 import { Mic2 } from "lucide-react";
 import { StandupHub } from "./Standup";
+import { StudioView } from "./Studio";
+import { Briefcase, GraduationCap } from "lucide-react";
 import { AccountSheet } from "./Account";
 import { Bell, BookOpen, Check, LogOut, PlusCircle, ShieldCheck, Zap, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, Monitor, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Music as MusicIcon, Search, Sparkles, ThumbsUp, Users, X, Pause, Play } from "lucide-react";
 import { RadioBar, RadioView, type Station } from "./Radio";
@@ -22,7 +24,7 @@ import { setTheme, useTheme } from "../client/src/components/family-hub/earshot/
 import { HoursBackCard } from "../client/src/components/family-hub/earshot/EarshotListen";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
-type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "music" } | { kind: "books" } | { kind: "book"; id: string } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "live" } | { kind: "now" } | { kind: "standup" } | { kind: "clips" } | { kind: "watch"; showId: string; episodeId: string };
+type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "music" } | { kind: "books" } | { kind: "book"; id: string } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "live" } | { kind: "now" } | { kind: "standup" } | { kind: "study" } | { kind: "meeting" } | { kind: "clips" } | { kind: "watch"; showId: string; episodeId: string };
 
 const DEFAULT_GENRES = ["comedy", "news", "science", "tech", "truecrime", "history", "business", "culture"];
 const ACCENT = "#ff6a1f";
@@ -55,6 +57,8 @@ function parseHash(): View {
   if (a === "live") return { kind: "live" };
   if (a === "now" || a === "news") return { kind: "now" };
   if (a === "standup") return { kind: "standup" };
+  if (a === "study") return { kind: "study" };
+  if (a === "meeting") return { kind: "meeting" };
   // Clips was taken out of Pod+ (October 2026); old links open the home page.
   if (a === "party" && /^(new|[A-Za-z0-9_-]{6,20})$/.test(b || "")) return { kind: "party", id: b };
   if (a === "mode" && /^[a-z0-9-]{1,30}$/.test(b || "")) return { kind: "mode", id: b };
@@ -504,6 +508,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       {navItem("Stand-up", <Mic2 size={22} strokeWidth={1.8} />, view.kind === "standup", () => go({ kind: "standup" }))}
       {navItem("Audiobooks", <BookOpen size={22} strokeWidth={1.8} />, view.kind === "books" || view.kind === "book", () => go({ kind: "books" }))}
       {navItem("Listen together", <Users size={22} strokeWidth={1.8} />, view.kind === "party", () => go({ kind: "party", id: "new" }))}
+      {navItem("Study Pod+", <GraduationCap size={22} strokeWidth={1.8} />, view.kind === "study", () => go({ kind: "study" }))}
+      {navItem("Meeting Pod", <Briefcase size={22} strokeWidth={1.8} />, view.kind === "meeting", () => go({ kind: "meeting" }))}
       {navItem(live.length ? `Live · ${live.length}` : "Live", <span className="grid h-[22px] w-[22px] place-items-center"><span className={`h-2.5 w-2.5 rounded-full bg-[#ff3b30] ${live.length ? "motion-safe:animate-pulse" : "opacity-50"}`} /></span>, view.kind === "live", () => go({ kind: "live" }))}
       {navItem("Go live", <Mic size={22} strokeWidth={1.8} />, false, () => setGoLive(true))}
       <div className="my-3 h-px bg-[#e5e5e5]" />
@@ -580,6 +586,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     content = <div className="min-w-0 flex-1 px-4 pb-16 sm:px-6"><NewsNow api={api} ex={ex} onOpen={openEp} onBack={() => go({ kind: "home" })} grid={(list) => <Grid list={list} onOpen={openEp} />} /></div>;
   } else if (view.kind === "standup") {
     content = <div className="min-w-0 flex-1 px-4 sm:px-6"><StandupHub api={api} ex={ex} say={say} onBack={() => go({ kind: "home" })} grid={(list) => <Grid list={list} onOpen={openEp} />} /></div>;
+  } else if (view.kind === "study" || view.kind === "meeting") {
+    content = <StudioView kind={view.kind} api={api} apiBase={liveBase.replace(/^ws/, "http")} say={say} onBack={() => go({ kind: "home" })} onSwitch={(k) => go({ kind: k })} />;
   } else if (view.kind === "radio") {
     content = <RadioView onPlay={playStation} current={station} />;
   } else if (view.kind === "music") {
@@ -700,6 +708,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       <div className="max-h-[70dvh] w-full overflow-y-auto rounded-3xl bg-white p-2 text-[#0f0f0f] shadow-2xl">
         {tabSheet === "create" ? <>
           <p className="px-3 pb-1 pt-2 text-sm font-semibold text-[#606060]">Create</p>
+          {navItem("Study Pod+", <GraduationCap size={22} strokeWidth={1.8} />, view.kind === "study", () => { setTabSheet(null); go({ kind: "study" }); })}
+          {navItem("Meeting Pod", <Briefcase size={22} strokeWidth={1.8} />, view.kind === "meeting", () => { setTabSheet(null); go({ kind: "meeting" }); })}
           {navItem("Post on Social", <MessageCircle size={22} strokeWidth={1.8} />, false, () => { setTabSheet(null); onOpenFeed(undefined, "social"); })}
           {navItem("Go live", <Mic size={22} strokeWidth={1.8} />, false, () => { setTabSheet(null); setGoLive(true); })}
           {navItem("Listen together", <Users size={22} strokeWidth={1.8} />, false, () => { setTabSheet(null); go({ kind: "party", id: "new" }); })}
