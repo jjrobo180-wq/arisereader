@@ -1,6 +1,6 @@
 // Family & settings: who's in the family, and which parts of the hub are switched on.
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Rocket } from "lucide-react";
+import { Rocket, BadgeCheck as BadgeCheckIcon4 } from "lucide-react";
 import { Apple, BookMarked, CalendarDays, Check, Droplets, History, Hourglass, NotebookPen, Pill, Newspaper, Quote, ShoppingCart, SmilePlus, Target, Pencil, Plane, Plus, Smile, Sparkles, StickyNote, Trash2, TrendingUp, UserPlus, Vote, Wallet, Wind, Shuffle, HeartHandshake, BookOpen, Link2, Users } from "lucide-react";
 import { MEMBER_COLORS, isOn, orderedToggleable, type FamilySection, type Member } from "@shared/familyHub";
 import { Avatar, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, inputClass, plain, primary, type SectionProps } from "./ui";
@@ -87,6 +87,7 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   mortgage: { label: "Loan calculator", detail: "Payments and interest for any loan", icon: <LandmarkIcon2 size={17} /> },
   clocks: { label: "World clock", detail: "Time where your people are", icon: <GlobeIcon2 size={17} /> },
   timers: { label: "Kitchen timers", detail: "Several timers at once", icon: <TimerIcon2 size={17} /> },
+  accountability: { label: "Accountability", detail: "Ask each other, get nudged, check it off with proof", icon: <BadgeCheckIcon4 size={17} /> },
   medical: { label: "Medical info", detail: "Allergies, medicines, blood type", icon: <HeartPulseIcon2 size={17} /> },
   browser: { label: "Browser", detail: "Browse, bookmark and save pages as tasks", icon: <GlobeIcon2 size={17} /> },
   // The Plugin Kit's LifeHub plugins (shared/pluginKit.ts).

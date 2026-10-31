@@ -65,6 +65,7 @@ import { registerFoodLookupRoutes } from "./foodLookup";
 import { registerFitRoutes } from "./fit";
 import { registerBrowserRoutes } from "./browserCheck";
 import { registerLifePlanRoutes } from "./lifePlan";
+import { registerAccountabilityRoutes, startAccountabilityTicker } from "./accountability";
 import { registerSleepFinderRoutes } from "./sleepFinder";
 import { podscrollAllowed, registerEarshotRoutes, registerPodscrollRoutes, supabaseEarshotStore } from "./earshot";
 import { deletePodData } from "./podcastAccounts";
@@ -1520,7 +1521,7 @@ export async function registerRoutes(
     if (appCounts.size > 5000) appCounts.delete(appCounts.keys().next().value!);
     return n;
   };
-  app.post(["/api/teacher-hub/import", "/api/teacher-hub/import/minutes", "/api/hub-chat", "/api/arise-todo/food/estimate", "/api/life-plan/build", "/api/sleep-finder/ask", "/api/comprehension/review/:id/suggest"], authMiddleware, plans.aiMeter);
+  app.post(["/api/teacher-hub/import", "/api/teacher-hub/import/minutes", "/api/hub-chat", "/api/arise-todo/food/estimate", "/api/life-plan/build", "/api/accountability/ai/worksheet", "/api/accountability/ai/quiz", "/api/sleep-finder/ask", "/api/comprehension/review/:id/suggest"], authMiddleware, plans.aiMeter);
   app.put(["/api/teacher-hub/workspace", "/api/arise-todo/workspace"], authMiddleware, async (req: any, res, next) => {
     try {
       const user = req.adminPreview && req.realUser ? req.realUser : req.user;
@@ -1592,6 +1593,14 @@ export async function registerRoutes(
   registerFitRoutes(app, authMiddleware);
   registerBrowserRoutes(app, authMiddleware);
   registerLifePlanRoutes(app, authMiddleware);
+  // Accountability (an Arise To Duo app): shared to-dos with nudges until done, proof, AI worksheets and quizzes.
+  const acctDeps = {
+    db: () => getAdminSupabase(),
+    push: (userId: number, message: { title: string; body: string; url?: string; tag?: string }) => notifyUser(userId, message, "todo"),
+    nameOf: async (id: number) => { const u: any = await storage.getUser(id); return String(u?.displayName || u?.display_name || "").trim().split(/\s+/)[0] || ""; },
+  };
+  registerAccountabilityRoutes(app, authMiddleware, acctDeps);
+  if (process.env.NODE_ENV !== "test") startAccountabilityTicker(acctDeps);
   registerSleepFinderRoutes(app, authMiddleware);
   // One podcast directory for Earshot and Podscroll: shared caches (kept in the database) and one pace for Apple.
   const podcasts = createPodcastDirectory({ kv: supabaseKV(getAdminSupabase) });
