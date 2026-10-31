@@ -5,7 +5,8 @@ import { Check, Copy, Loader2, RefreshCw } from "lucide-react";
 import { appleSummary, mergeReminders, type AppleReminder } from "@shared/appleReminders";
 import type { Workspace } from "@shared/teacherHub";
 import { api } from "./HubAvailability";
-import { Card, GhostButton } from "./ui";
+import { Card, GhostButton, PrimaryButton } from "./ui";
+import { appleRemindersAvailable, appleRemindersOn, connectAppleReminders, disconnectAppleReminders } from "@/lib/nativeAppleReminders";
 
 type SetWorkspace = Dispatch<SetStateAction<Workspace>>;
 
@@ -48,7 +49,35 @@ const STEPS: { title: string; body: string }[] = [
   { title: "Run it", body: "Tap the Shortcut to run it. In Shortcuts, Automation can run it for you every morning. Your to-dos show up here within a minute." },
 ];
 
+/** In the iPhone app Reminders are read straight from the phone: one button, no Shortcut or link. */
+function NativeRemindersCard() {
+  const [on, setOn] = useState(appleRemindersOn());
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
+  const connect = async () => {
+    setBusy(true); setNote("");
+    try { await connectAppleReminders(); setOn(true); setNote("Connected. Your reminders that aren't done are in LifeHub → Tasks, in a Reminders list, and check-offs stay in step both ways."); }
+    catch (e: any) { setNote(e?.message || "That didn't work. Try again."); } finally { setBusy(false); }
+  };
+  return (
+    <Card title="Apple Reminders" right={on ? <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">Connected</span> : undefined}>
+      <p className="text-sm text-slate-600">Reminders from the Reminders app on this iPhone come into LifeHub → Tasks each time you open the app. Checking one off in either place checks it off in both.</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {on ? <GhostButton onClick={() => { disconnectAppleReminders(); setOn(false); setNote("Disconnected. Tasks already brought in stay in LifeHub."); }}>Disconnect</GhostButton>
+          : <PrimaryButton onClick={() => void connect()} disabled={busy} data-testid="apple-reminders-connect">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Connect Apple Reminders</PrimaryButton>}
+      </div>
+      {note && <p role="status" className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">{note}</p>}
+    </Card>
+  );
+}
+
 export default function AppleRemindersCard({ token, check }: { token: string | null; check: () => Promise<number> }) {
+  if (appleRemindersAvailable()) return <NativeRemindersCard />;
+  return <ShortcutRemindersCard token={token} check={check} />;
+}
+
+/** On the website (Apple doesn't let a website read Reminders): an iPhone Shortcut sends them. */
+function ShortcutRemindersCard({ token, check }: { token: string | null; check: () => Promise<number> }) {
   const [url, setUrl] = useState("");
   const [waiting, setWaiting] = useState(0);
   const [note, setNote] = useState("");

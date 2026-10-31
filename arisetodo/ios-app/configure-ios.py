@@ -20,6 +20,8 @@ KEYS = {
     "NSHealthUpdateUsageDescription": f"{NAME} does not write to Apple Health.",
     "NSCalendarsFullAccessUsageDescription": f"{NAME} shows the events from your iPhone's calendars on your WorkHub and LifeHub calendar.",
     "NSCalendarsUsageDescription": f"{NAME} shows the events from your iPhone's calendars on your WorkHub and LifeHub calendar.",
+    "NSRemindersFullAccessUsageDescription": f"{NAME} brings your reminders from the Reminders app into your LifeHub tasks, and keeps their check-offs in step.",
+    "NSRemindersUsageDescription": f"{NAME} brings your reminders from the Reminders app into your LifeHub tasks, and keeps their check-offs in step.",
     "NSCalendarsWriteOnlyAccessUsageDescription": f"{NAME} adds the events you choose to your iPhone's calendar.",
     "NSCameraUsageDescription": f"{NAME} uses the camera to scan barcodes and take photos you add to your notes, tasks and posts.",
     "NSPhotoLibraryUsageDescription": f"{NAME} lets you pick photos to add to your notes, tasks and posts.",

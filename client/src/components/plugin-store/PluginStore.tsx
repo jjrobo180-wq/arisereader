@@ -514,10 +514,10 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
           <ul className="space-y-2 rounded-2xl bg-[var(--s-raised)] p-4">{open.features.map((f) => <li key={f} className="flex items-start gap-2 text-[15px] text-[var(--s-text)]"><span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${soft}`}><Check className="h-3.5 w-3.5" /></span>{f}</li>)}</ul>
           {open.target.kind === "connection" && <div className="rounded-2xl border border-[var(--s-line)] p-4" data-testid="plugin-setup-steps">
             <p className="text-[15px] font-black">How to set it up</p>
-            {open.steps && <ol className="mt-3 space-y-2.5">{open.steps.map((step, i) => <li key={i} className="flex gap-3 text-sm leading-5">
+            {open.steps && <ol className="mt-3 space-y-2.5">{((isNativeApp() && open.appSteps) || open.steps).map((step, i) => <li key={i} className="flex gap-3 text-sm leading-5">
               <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-black ${soft}`}>{i + 1}</span><span>{step}</span>
             </li>)}</ol>}
-            {open.needsNote && <p className="mt-3 text-xs text-[var(--s-sub)]">{open.needsNote}</p>}
+            {open.needsNote && <p className="mt-3 text-xs text-[var(--s-sub)]">{(isNativeApp() && open.appNote) || open.needsNote}</p>}
             {(() => { const need = connectionNeeds(open); return need && !isInstalled(need)
               ? <p className={`mt-3 rounded-xl p-3 text-xs ${soft}`}>This connects inside {need.name}. Add {need.name} first, then start setup.</p>
               : null; })()}

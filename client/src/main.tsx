@@ -1,3 +1,4 @@
+import "./lib/accountStorageBoot";
 import "./lib/sampleBoot";
 import { nativeAppInfo } from "./lib/nativeApp";
 import { createRoot } from "react-dom/client";

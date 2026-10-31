@@ -3,10 +3,12 @@
 // how to make it theirs. It matches the app as it is: the tab bar, the + button, Apps and the App
 // Gallery, the ⋯ menu and Customize, Apple connections, reminders, and the split screen (for an
 // iPhone Duo, and for everyone else too). It opens again from ⋯ → "How to use Arise To Duo".
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, ArrowRight, Bell, CalendarDays, Columns2, LayoutGrid, MoreHorizontal, Plus, Search, Sparkles, X } from "lucide-react";
-import { WALKTHROUGH_EVENT } from "@/components/HubMoreMenu";
+import { ArrowLeft, ArrowRight, Bell, CalendarDays, Check, Columns2, LayoutGrid, ListChecks, MoreHorizontal, Plus, Search, Sparkles, X } from "lucide-react";
+import { IPHONE_SETUP_EVENT, WALKTHROUGH_EVENT } from "@/components/HubMoreMenu";
+import { appleRemindersAvailable, appleRemindersOn, connectAppleReminders } from "@/lib/nativeAppleReminders";
+import { iphoneCalendarAvailable } from "@/lib/nativeCalendar";
 import { looksLikeDuoInner, useAriseDuo } from "@/lib/useAriseDuo";
 import { isNativeApp } from "@/lib/nativeApp";
 import { isSampleMode } from "@/lib/sampleMode";
@@ -15,10 +17,12 @@ import { nativeRemindersAvailable, nativeRemindersOn, turnOnNativeReminders } fr
 const DONE_KEY = (id: number | string) => `arise-walkthrough-v1:${id}`;
 type Step = { id: string; icon: ReactNode; tint: string; title: string; body: ReactNode; action?: { label: string; run: () => void | Promise<void> } };
 
-export default function AppWalkthrough({ userId, hub, arise, onGallery, onCustomize, onNotificationSettings }: {
+export default function AppWalkthrough({ userId, hub, arise, onGallery, onCustomize, onNotificationSettings, onConnectCalendar }: {
   userId: number | string; hub: "life" | "work";
   /** A teacher or parent from A.R.I.S.E. Reader (gets a card about Reader and Arise Learning). */ arise: boolean;
   onGallery: () => void; onCustomize: (tab?: string) => void; onNotificationSettings: () => void;
+  /** Reads the iPhone's calendars into this hub's calendar (the app's setup page). Resolves with how many events. */
+  onConnectCalendar?: () => Promise<number>;
 }) {
   const [open, setOpen] = useState(false);
   const [i, setI] = useState(0);
@@ -35,12 +39,16 @@ export default function AppWalkthrough({ userId, hub, arise, onGallery, onCustom
     // In the iPhone app it opens straight after sign-in (the notification question comes first).
     if (first) { const t = window.setTimeout(() => setOpen(true), isNativeApp() ? 250 : 900); return () => window.clearTimeout(t); }
   }, [userId]);
+  // Only the iPhone setup page (⋯ → iPhone connections), not the whole tour.
+  const [setupOnly, setSetupOnly] = useState(false);
   useEffect(() => {
-    const show = () => { setI(0); setNote(""); setOpen(true); };
+    const show = () => { setI(0); setNote(""); setSetupOnly(false); setOpen(true); };
+    const setup = () => { setSetupOnly(true); setOpen(true); };
     window.addEventListener(WALKTHROUGH_EVENT, show);
-    return () => window.removeEventListener(WALKTHROUGH_EVENT, show);
+    window.addEventListener(IPHONE_SETUP_EVENT, setup);
+    return () => { window.removeEventListener(WALKTHROUGH_EVENT, show); window.removeEventListener(IPHONE_SETUP_EVENT, setup); };
   }, []);
-  const close = () => { setOpen(false); try { localStorage.setItem(DONE_KEY(userId), "1"); } catch { /* shown again next time */ } };
+  const close = () => { setOpen(false); setSetupOnly(false); try { localStorage.setItem(DONE_KEY(userId), "1"); } catch { /* shown again next time */ } };
   if (!open) return null;
 
   const other = hub === "life" ? "WorkHub" : "LifeHub";
@@ -75,7 +83,7 @@ export default function AppWalkthrough({ userId, hub, arise, onGallery, onCustom
       body: <>Use the <b>search</b> at the top to find anything in your hub. You can see this tour again any time from <b>⋯ → How to use Arise To Duo</b>.</> },
   ];
   // The iPhone app gets its own full-screen version: notifications first, then the same steps.
-  if (isNativeApp()) return <NativeTour steps={steps} hub={hub} onClose={close} />;
+  if (isNativeApp()) return <NativeTour steps={steps} hub={hub} onClose={close} setupOnly={setupOnly} onConnectCalendar={onConnectCalendar} />;
 
   const step = steps[Math.min(i, steps.length - 1)];
   const last = i >= steps.length - 1;
@@ -104,53 +112,24 @@ export default function AppWalkthrough({ userId, hub, arise, onGallery, onCustom
 /** The iPhone app's first run: full-screen pages like a native app's onboarding. The first page asks
  *  for notifications (the iOS permission prompt comes from its button); then the tour, one idea per
  *  page, swipeable, with dots, Skip, and a big button at the thumb. */
-function NativeTour({ steps, hub, onClose }: { steps: Step[]; hub: "life" | "work"; onClose: () => void }) {
-  const askFirst = nativeRemindersAvailable() && !nativeRemindersOn(hub);
-  // The notification page replaces the tour's own reminders step (and its "Turn on reminders" button).
-  const pages = (askFirst ? steps.filter((s) => s.id !== "notify") : steps);
-  const [asking, setAsking] = useState(askFirst);
+function NativeTour({ steps, hub, onClose, setupOnly, onConnectCalendar }: { steps: Step[]; hub: "life" | "work"; onClose: () => void; setupOnly: boolean; onConnectCalendar?: () => Promise<number> }) {
+  // The setup page (notifications, iPhone Calendar, Apple Reminders) comes first; it replaces the
+  // tour's own reminders step. From ⋯ → iPhone connections it's shown on its own.
+  const pages = steps.filter((s) => s.id !== "notify");
+  const [asking, setAsking] = useState(true);
   const [i, setI] = useState(0);
-  const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState("");
   const touch = useRef<number | null>(null);
   const last = i >= pages.length - 1;
   const step = pages[Math.min(i, pages.length - 1)];
   const next = () => (last ? onClose() : setI((x) => x + 1));
   const back = () => setI((x) => Math.max(0, x - 1));
-  const allow = async () => {
-    setBusy(true); setNote("");
-    try { await turnOnNativeReminders(hub); setAsking(false); }
-    catch (e: any) { setNote(e?.message || "Notifications are off. You can turn them on any time in Settings → Notifications → Arise To Duo."); }
-    finally { setBusy(false); }
-  };
+
   const font = { fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif" };
   const shell = "fixed inset-0 z-[700] flex flex-col bg-white pb-[max(16px,env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] text-[#111018]";
   const primary = "flex h-[54px] w-full items-center justify-center gap-2 rounded-[16px] text-[17px] font-semibold text-white transition active:opacity-85 disabled:opacity-60";
 
-  if (asking) return <div className={shell} style={font} role="dialog" aria-modal="true" aria-label="Turn on notifications" data-testid="native-notify-ask">
-    <div className="mx-auto flex w-full max-w-md min-h-0 flex-1 flex-col px-7">
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
-        {/* A notification as it will look on the Lock Screen. */}
-        <div className="relative mb-10 w-full max-w-[19rem]" aria-hidden>
-          <div className="absolute inset-x-6 -bottom-3 h-14 rounded-[20px] bg-[#ecebf3]" />
-          <div className="relative flex items-start gap-3 rounded-[20px] bg-white/90 p-3.5 text-left shadow-[0_20px_50px_-20px_rgba(40,30,100,.45)] ring-1 ring-black/[.06]">
-            <img src="/icon-512.png" alt="" className="h-10 w-10 shrink-0 rounded-[10px]" />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-baseline justify-between gap-2"><span className="text-[14px] font-semibold">Arise To Duo</span><span className="text-[12px] text-[#8e8b9c]">now</span></div>
-              <p className="mt-0.5 text-[14px] leading-snug text-[#3d3a4b]">Dentist at 3:00 PM — leave in 20 minutes.</p>
-            </div>
-          </div>
-        </div>
-        <h1 className="text-[30px] font-bold leading-tight tracking-[-.02em] [text-wrap:balance]">Never miss what matters</h1>
-        <p className="mt-3 max-w-[20rem] text-[17px] leading-snug text-[#6b6879] [text-wrap:balance]">A morning summary, and a heads-up before tasks, events and bills. One switch covers LifeHub and WorkHub.</p>
-        {note && <p role="status" className="mt-5 rounded-[12px] bg-[#f4f3f8] px-4 py-3 text-[14px] leading-snug text-[#3d3a4b]">{note}</p>}
-      </div>
-      <div className="shrink-0 space-y-2 pt-4">
-        <button type="button" onClick={() => void allow()} disabled={busy} className={`${primary} bg-[#5b4fe0] shadow-[0_12px_28px_-12px_rgba(91,79,224,.8)]`} data-testid="native-notify-allow">Turn on notifications</button>
-        <button type="button" onClick={() => setAsking(false)} className="h-12 w-full text-[16px] font-medium text-[#6b6879]" data-testid="native-notify-later">Not now</button>
-      </div>
-    </div>
-  </div>;
+  if (asking) return <IphoneSetup hub={hub} font={font} shell={shell} primary={primary} onConnectCalendar={onConnectCalendar}
+    onDone={() => (setupOnly ? onClose() : setAsking(false))} doneLabel={setupOnly ? "Done" : "Continue"} />;
 
   return <div className={shell} style={font} role="dialog" aria-modal="true" aria-label="How to use Arise To Duo" data-testid="app-walkthrough"
     onTouchStart={(e) => { touch.current = e.touches[0]?.clientX ?? null; }}
@@ -173,6 +152,63 @@ function NativeTour({ steps, hub, onClose }: { steps: Step[]; hub: "life" | "wor
       <div className="shrink-0 px-6 pt-4">
         <div className="mb-5 flex justify-center gap-2" aria-label={`Page ${i + 1} of ${pages.length}`}>{pages.map((s, k) => <span key={s.id} className={`h-2 rounded-full transition-all duration-300 ${k === i ? "w-6 bg-[#111018]" : "w-2 bg-[#d6d4df]"}`} />)}</div>
         <button type="button" onClick={next} className={`${primary} bg-[#111018]`} data-testid="walkthrough-next">{last ? "Get started" : "Continue"}</button>
+      </div>
+    </div>
+  </div>;
+}
+
+/** The iPhone setup page: three things to connect, each with its own button and a check once it's on.
+ *  Notifications raise iOS's prompt; Calendar and Reminders ask for their own permission when tapped. */
+function IphoneSetup({ hub, font, shell, primary, onConnectCalendar, onDone, doneLabel }: {
+  hub: "life" | "work"; font: CSSProperties; shell: string; primary: string;
+  onConnectCalendar?: () => Promise<number>; onDone: () => void; doneLabel: string;
+}) {
+  type Row = "notify" | "calendar" | "reminders";
+  const [on, setOn] = useState<Record<Row, boolean>>(() => ({
+    notify: nativeRemindersOn(hub),
+    calendar: (() => { try { return localStorage.getItem("arise-iphone-calendar-on") === "1"; } catch { return false; } })(),
+    reminders: appleRemindersOn(),
+  }));
+  const [busy, setBusy] = useState<Row | "">("");
+  const [note, setNote] = useState<{ row: Row; text: string } | null>(null);
+  const run = async (row: Row, fn: () => Promise<string | void>) => {
+    if (busy) return;
+    setBusy(row); setNote(null);
+    try { const text = await fn(); setOn((o) => ({ ...o, [row]: true })); if (text) setNote({ row, text }); }
+    catch (e: any) { setNote({ row, text: e?.message || "That didn't work. You can try again any time from ⋯ → iPhone connections." }); }
+    finally { setBusy(""); }
+  };
+  const rows: { id: Row; show: boolean; icon: ReactNode; tint: string; title: string; text: string; go: () => Promise<string | void> }[] = [
+    { id: "notify", show: nativeRemindersAvailable(), icon: <Bell />, tint: "#e0465f", title: "Notifications", text: "A morning summary and a heads-up before tasks, events and bills.",
+      go: async () => { await turnOnNativeReminders(hub); } },
+    { id: "calendar", show: iphoneCalendarAvailable() && !!onConnectCalendar, icon: <CalendarDays />, tint: "#0a84ff", title: "iPhone Calendar", text: "Every calendar on your phone (iCloud, Google, Outlook, school), in your hub.",
+      go: async () => { const n = await onConnectCalendar!(); try { localStorage.setItem("arise-iphone-calendar-on", "1"); } catch { /* still connected */ } return `${n} ${n === 1 ? "event" : "events"} brought in.`; } },
+    { id: "reminders", show: appleRemindersAvailable(), icon: <ListChecks />, tint: "#f59e0b", title: "Apple Reminders", text: "Your reminders come into LifeHub → Tasks, and check-offs stay in step.",
+      go: async () => { await connectAppleReminders(); } },
+  ];
+  const shown = rows.filter((r) => r.show);
+  return <div className={shell} style={font} role="dialog" aria-modal="true" aria-label="Set up your iPhone" data-testid="native-notify-ask">
+    <div className="mx-auto flex w-full max-w-md min-h-0 flex-1 flex-col px-6">
+      <div className="flex min-h-0 flex-1 flex-col justify-center overflow-y-auto py-6">
+        <div className="text-center">
+          <h1 className="text-[30px] font-bold leading-tight tracking-[-.02em] [text-wrap:balance]">Bring in your iPhone</h1>
+          <p className="mx-auto mt-2 max-w-[20rem] text-[16px] leading-snug text-[#6b6879] [text-wrap:balance]">Turn on what you want. You can change any of it later in ⋯ → iPhone connections.</p>
+        </div>
+        <ul className="mt-7 divide-y divide-black/[.06] overflow-hidden rounded-[18px] bg-[#f6f5fb]">
+          {shown.map((r) => <li key={r.id} className="px-4 py-3.5" data-testid={`setup-${r.id}`}>
+            <div className="flex items-center gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px] text-white [&_svg]:h-[22px] [&_svg]:w-[22px]" style={{ background: r.tint }}>{r.icon}</span>
+              <span className="min-w-0 flex-1"><span className="block text-[16px] font-semibold leading-tight">{r.title}</span><span className="mt-0.5 block text-[13px] leading-snug text-[#6b6879]">{r.text}</span></span>
+              {on[r.id]
+                ? <span className="inline-flex h-9 shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-3 text-[13px] font-semibold text-emerald-800" data-testid={`setup-${r.id}-on`}><Check className="h-4 w-4" strokeWidth={3} />On</span>
+                : <button type="button" onClick={() => void run(r.id, r.go)} disabled={!!busy} className="inline-flex h-9 shrink-0 items-center rounded-full bg-[#5b4fe0] px-4 text-[14px] font-semibold text-white active:opacity-85 disabled:opacity-50" data-testid={`setup-${r.id}-go`}>{busy === r.id ? "…" : r.id === "notify" ? "Turn on" : "Connect"}</button>}
+            </div>
+            {note?.row === r.id && <p role="status" className="mt-2 pl-[3.25rem] text-[13px] leading-snug text-[#3d3a4b]">{note.text}</p>}
+          </li>)}
+        </ul>
+      </div>
+      <div className="shrink-0 space-y-2 pt-3">
+        <button type="button" onClick={onDone} className={`${primary} bg-[#111018]`} data-testid="native-notify-later">{doneLabel === "Continue" && !shown.some((r) => on[r.id]) ? "Not now" : doneLabel}</button>
       </div>
     </div>
   </div>;

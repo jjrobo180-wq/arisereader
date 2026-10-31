@@ -2,13 +2,16 @@
 // same items in the same order in both hubs, in groups so it's easy to find things. The tab bar's You
 // sheet (PhoneTabBar) shows the same items.
 import { useEffect, useRef, type ReactNode } from "react";
-import { Bell, BellRing, HelpCircle, Lock, LogOut, Moon, Settings2, ShieldCheck, ShoppingBag, Sun } from "lucide-react";
+import { Bell, BellRing, HelpCircle, Lock, LogOut, Moon, Settings2, ShieldCheck, ShoppingBag, Smartphone, Sun } from "lucide-react";
+import { isNativeApp } from "@/lib/nativeApp";
 
 export type MoreItem = { id: string; label: string; detail?: string; icon: ReactNode; onClick: () => void; danger?: boolean };
 export type MoreGroup = { title: string; items: MoreItem[] };
 
 /** Opens the first-run walkthrough again (components/AppWalkthrough.tsx). */
 export const WALKTHROUGH_EVENT = "arise:walkthrough";
+/** Opens the iPhone setup (notifications, iPhone Calendar, Apple Reminders) on its own, from the ⋯ menu. */
+export const IPHONE_SETUP_EVENT = "arise:iphone-setup";
 
 /** The groups both hubs show, given what each item does in that hub. */
 export function hubMoreGroups(o: {
@@ -19,6 +22,8 @@ export function hubMoreGroups(o: {
     { title: "Notifications", items: [
       { id: "notifications", label: "Notifications", detail: "What's new and what's due", icon: <Bell />, onClick: o.openNotifications },
       { id: "notification-settings", label: "Notification settings", detail: "Reminders on this phone and in the app", icon: <BellRing />, onClick: o.notificationSettings },
+      // In the iPhone app: the first-run setup again, for anything skipped then.
+      ...(isNativeApp() ? [{ id: "iphone-setup", label: "iPhone connections", detail: "Notifications, Calendar and Reminders", icon: <Smartphone />, onClick: () => window.dispatchEvent(new Event(IPHONE_SETUP_EVENT)) }] : []),
     ] },
     { title: "Settings", items: [
       { id: "customize", label: "Customize", detail: "Menu, Home, theme and split screen", icon: <Settings2 />, onClick: o.customize },
