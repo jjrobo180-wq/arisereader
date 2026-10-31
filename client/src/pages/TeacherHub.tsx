@@ -134,6 +134,7 @@ import { OPEN_APPS_EVENT, PhoneTabBar } from "@/components/family-hub/PhoneTabBa
 import { HubMoreMenu, hubMoreGroups, openNotificationBell } from "@/components/HubMoreMenu";
 import SameBothHubs from "@/components/SameBothHubs";
 import AppWalkthrough from "@/components/AppWalkthrough";
+import HubCoach from "@/components/HubCoach";
 import { SHARED_LOOK_EVENT, readNight, rememberLook, withSharedLook, writeNight } from "@/lib/sharedLook";
 import { boardGoals } from "@shared/hubGoalBoard";
 import { HubLinkProvider, ItemConnections } from "@/components/teacher-hub/HubLinks";
@@ -1007,6 +1008,7 @@ function TeacherHubPage() {
     <div className={`hub-paper hub-lifelook min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night ? "hub-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""}`}
       style={{ "--hub-accent": accent, "--hub-accent-deep": deepenAccent(accent) } as React.CSSProperties}>
       <UpgradeHost hub="work" />
+      {canUseHub && loaded && !loadError && !needsPlan && <HubCoach userId={user.id} hub="work" />}
       {canUseHub && loaded && !loadError && !needsPlan && <AppWalkthrough userId={user.id} hub="work" arise={user.role === "teacher" || user.role === "parent"}
         onGallery={() => setStore(true)} onCustomize={(t) => { setCustomizeTab(t); setCustomize(true); }} onNotificationSettings={() => setNotifyOpen(true)} />}
       {store && canUseHub && loaded && !loadError && !needsPlan && <PluginStore

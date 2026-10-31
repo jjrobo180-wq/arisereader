@@ -110,6 +110,7 @@ import { LockButton, LockedApp, PrivacyLockProvider } from "@/components/lock/Pr
 import { HubMoreMenu, hubMoreGroups, openNotificationBell } from "@/components/HubMoreMenu";
 import SameBothHubs from "@/components/SameBothHubs";
 import AppWalkthrough from "@/components/AppWalkthrough";
+import HubCoach from "@/components/HubCoach";
 import { SHARED_LOOK_EVENT, readNight, rememberLook, withSharedLook, writeNight } from "@/lib/sharedLook";
 import GettingStarted from "@/components/GettingStarted";
 import SnoozeBar from "@/components/SnoozeBar";
@@ -1003,6 +1004,8 @@ export default function AriseTodo() {
   });
   return <PrivacyLockProvider lock={family.lock} setLock={(lock) => setFamily((f) => ({ ...f, lock }))} apps={lockableApps} settings={lockSettings} onSettings={setLockSettings}><div className={`min-h-screen bg-[#f6f7fc] text-slate-900 ${night ? "todo-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""}`}>
     <UpgradeHost hub="life" />
+    {/* After the tour: the coach on the real hub (hold a widget, switch hubs, the App Gallery). */}
+    <HubCoach userId={user.id} hub="life" />
     <AppWalkthrough userId={user.id} hub="life" arise={user.role === "teacher" || user.role === "parent"}
       onGallery={() => setStore(true)} onCustomize={(t) => { setCustomizeTab(t); setCustomizing(true); }} onNotificationSettings={() => { closeApps(); goSection("notifications"); }} />
     {store && <PluginStore
