@@ -49,3 +49,14 @@ test("Sign in with Apple works for the Educator app, which makes parent accounts
   assert.match(r, /verifyAppleToken\(String\(req\.body\?\.identityToken \|\| ""\), \[ARISE_APP, EDUCATOR_APP\]\)/);
   assert.match(r, /role: fromApp === EDUCATOR_APP \? "parent" : "todo"/);
 });
+
+test("every app lets its owner delete their account, Apple accounts included", () => {
+  const r = read("server/routes.ts");
+  assert.match(r, /ok = \(await storage\.getSetting\(`apple_user:\$\{userId\}`\)\) === c\.sub;/, "a fresh Sign in with Apple for the same Apple ID");
+  const ap = read("client/src/components/AccountPrivacy.tsx");
+  assert.match(ap, /data-testid="account-delete-apple"/);
+  assert.match(ap, /appleIdentityToken, confirm: "DELETE"/);
+  assert.match(read("client/src/pages/TeacherReader.tsx"), /isReaderApp\(\) && <button type="button" onClick=\{\(\) => setPrivacy\(true\)\}/, "Educator app");
+  assert.match(read("client/src/pages/Profile.tsx"), /isNativeApp\(\) && <Button variant="ghost" size="sm" onClick=\{\(\) => setPrivacy\(true\)\}/, "student app");
+  assert.match(read("client/src/App.tsx"), /isNativeApp\(\) \? <Redirect to="\/signin" replace \/> : <iframe src="\/reader-landing\.html"/, "signed out in an app: the app's sign-in, never the website's landing page");
+});

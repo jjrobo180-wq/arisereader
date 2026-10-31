@@ -541,7 +541,7 @@ function AppRoutes() {
         <Redirect to="/" replace />
       </Route>
       <Route path="/">
-        {onTodoDomain ? (!user ? <TodoPublicHomeRedirect /> : <Redirect key="home-to-hub" to={hubPathFor(user)} replace />) : user ? (onReaderDomain && readerFirst(user) ? <OpenReaderPage /> : isHubAccount(user) ? <Redirect key="home-to-hub" to={hubPathFor(user)} replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <iframe src="/reader-landing.html" title="A.R.I.S.E. Reader — discover reading" style={{width:"100%",height:"100dvh",border:0,display:"block"}} />}
+        {onTodoDomain ? (!user ? <TodoPublicHomeRedirect /> : <Redirect key="home-to-hub" to={hubPathFor(user)} replace />) : user ? (onReaderDomain && readerFirst(user) ? <OpenReaderPage /> : isHubAccount(user) ? <Redirect key="home-to-hub" to={hubPathFor(user)} replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : isNativeApp() ? <Redirect to="/signin" replace /> : <iframe src="/reader-landing.html" title="A.R.I.S.E. Reader — discover reading" style={{width:"100%",height:"100dvh",border:0,display:"block"}} />}
       </Route>
       <Route path="/register">
         {user ? (isHubAccount(user) ? <Redirect to={hubPathFor(user)} replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register />}
