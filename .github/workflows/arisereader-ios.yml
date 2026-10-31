@@ -12,13 +12,26 @@ on:
       - 'client/src/**'
 jobs:
   signed-archive:
-    # Xcode 26.3 for now: Xcode 27 builds need the UIScene life cycle (PR #417) or iOS stops them at launch.
-    runs-on: macos-15
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    # GitHub's Xcode 27 image (Apple Silicon): builds with the iOS 27.1 SDK, for iPhone Duo.
+    runs-on: xcode-27
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - name: Use the newest Xcode 27 (the iOS 27.1 SDK makes the app fill the iPhone Duo's inner screen)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The newest final release of Xcode 27 (App Store Connect doesn't take builds from betas);
+          # a release candidate only when no final one is installed.
+          X=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | grep -viE 'beta|release_candidate|_rc' | sort -V | tail -1 || true)
+          if [[ -z "$X" ]]; then X=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | grep -viE 'beta' | sort -V | tail -1 || true); fi
+          if [[ -z "$X" ]]; then X=$(xcode-select -p | sed 's#/Contents/Developer$##'); fi
+          echo "DEVELOPER_DIR=$X/Contents/Developer" >> "$GITHUB_ENV"
+          SDK=$(DEVELOPER_DIR="$X/Contents/Developer" xcrun --sdk iphoneos --show-sdk-version)
+          echo "::notice title=Xcode::$(basename "$X") with the iOS $SDK SDK"
+          if [[ "$(printf '%s\n' 27.1 "$SDK" | sort -V | head -1)" != "27.1" ]]; then
+            echo "::warning title=iPhone Duo::The iOS $SDK SDK is older than 27.1, so the app won't fill the iPhone Duo's inner screen."
+          fi
       - uses: actions/setup-node@v4
         with:
           node-version: 22
