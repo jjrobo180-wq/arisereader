@@ -30,7 +30,13 @@ async function ask(path: string): Promise<any> {
   throw last instanceof Error ? new Error("Radio stations aren't loading right now. Try again in a moment.") : last;
 }
 
-const playable = (s: Station) => /^https:\/\//i.test(s.url_resolved || "") && !s.hls && !/\.m3u8(\?|$)/i.test(s.url_resolved);
+/** National networks that license their live streams only to their own apps and paid partners
+ *  (TuneIn, iHeart...): not played in Pod+, so no one's stream is used without permission (and App
+ *  Review guideline 5.2.3). Local and independent stations that run their own public stream stay. */
+const NETWORKS = /\b(cnn|hln|fox ?news|fox business|msnbc|cnbc|nbc news|abc news|cbs news|bbc|npr news|npr 24|bloomberg|sky news|c-?span|al ?jazeera|reuters|cbc news|espn|siriusxm|sirius|iheart|newsmax|one america|oan)\b/i;
+export const isNetwork = (s: Pick<Station, "name" | "tags">) => NETWORKS.test(s.name || "") || /\b(cnn|msnbc|fox ?news|bbc)\b/i.test(s.tags || "");
+
+const playable = (s: Station) => /^https:\/\//i.test(s.url_resolved || "") && !s.hls && !/\.m3u8(\?|$)/i.test(s.url_resolved) && !isNetwork(s);
 const cleanName = (s: string) => String(s || "").replace(/\s+/g, " ").trim() || "Untitled station";
 const where = (s: Station) => [s.state, s.countrycode].filter(Boolean).join(", ");
 const tagsOf = (s: Station) => String(s.tags || "").split(",").map((t) => t.trim()).filter(Boolean).slice(0, 3).join(" · ");
