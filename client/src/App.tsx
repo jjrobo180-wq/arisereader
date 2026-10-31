@@ -512,7 +512,9 @@ function AppRoutes() {
   // hub's, so a signed-out visitor is sent to that screen.
   if (isReaderPage()) {
     if (!user) { goToSignIn(); return null; }
-    return <AriseReader />;
+    // Its code may still be loading: show the spinner meanwhile (without a loading boundary here,
+    // React stopped with error 426 and the Educator app showed "Something went wrong").
+    return <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}><AriseReader /></Suspense>;
   }
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
