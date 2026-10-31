@@ -42,6 +42,7 @@ function getTokenFromCookie(): string | null {
   return null;
 }
 import SignIn from "./pages/SignIn";
+import NativeSignIn from "./pages/NativeSignIn";
 import Register from "./pages/Register";
 import TeacherSignup from "./pages/TeacherSignup";
 import ParentSignup from "./pages/ParentSignup";
@@ -529,7 +530,7 @@ function AppRoutes() {
         {isEyeGazeStudent ? <Redirect to="/library" replace /> : <ProtectedRoute><FypMyBooksPage /></ProtectedRoute>}
       </Route>
       <Route path="/signin">
-        {user ? <AfterSignIn onReaderDomain={onReaderDomain} onTodoDomain={onTodoDomain} /> : <SignIn />}
+        {user ? <AfterSignIn onReaderDomain={onReaderDomain} onTodoDomain={onTodoDomain} /> : isNativeApp() ? <NativeSignIn /> : <SignIn />}
       </Route>
       <Route path="/updates">
         <WhatsNew />

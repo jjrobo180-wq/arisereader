@@ -44,6 +44,17 @@ export async function startApplePush(ask = false): Promise<boolean> {
   }
 }
 
+/** True once this iPhone has handed the server its Apple device token in this launch. */
+export const applePushReady = (): boolean => !!lastToken;
+
+/** Asks the server to send a real test through Apple to this person's phones. Resolves with how many
+ *  phones Apple accepted it for; throws with the server's own words when it couldn't. */
+export async function sendAppleTest(): Promise<number> {
+  const res = await apiRequest("POST", "/api/arise-todo/push/test", {});
+  const data = await res.json().catch(() => ({}));
+  return Number(data?.apple ?? 0);
+}
+
 /** Stops this iPhone's server notifications (turning notifications off, or signing out). */
 export async function stopApplePush(): Promise<void> {
   if (!lastToken) return;
