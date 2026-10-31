@@ -72,7 +72,8 @@ export type AppleMessage = { title: string; body: string; url?: string; tag?: st
 export const applePayload = (m: AppleMessage) => JSON.stringify({ aps: { alert: { title: String(m.title || "").slice(0, 160), body: String(m.body || "").slice(0, 600) }, sound: "default", ...(m.tag ? { "thread-id": String(m.tag).slice(0, 64) } : {}) }, url: m.url || "/" });
 
 /** Sends to one iPhone. `gone`: Apple says the app was deleted or the token is no good, so forget it. */
-export function sendApplePush(token: string, m: AppleMessage): Promise<{ ok: boolean; gone: boolean }> {
+/** `topic` is the app's bundle id (Arise To Duo unless another app is named, like Pod+). */
+export function sendApplePush(token: string, m: AppleMessage, topic?: string): Promise<{ ok: boolean; gone: boolean }> {
   if (!hasApplePush()) return Promise.resolve({ ok: false, gone: false });
   return new Promise((resolve) => {
     let done = false;
@@ -81,7 +82,7 @@ export function sendApplePush(token: string, m: AppleMessage): Promise<{ ok: boo
       const req = connect().request({
         ":method": "POST", ":path": `/3/device/${token}`,
         authorization: `bearer ${appleJwt()}`,
-        "apns-topic": process.env.APNS_TOPIC || "com.arisereader.arisetodo",
+        "apns-topic": topic || process.env.APNS_TOPIC || "com.arisereader.arisetodo",
         "apns-push-type": "alert", "apns-priority": "10",
         "content-type": "application/json",
       });

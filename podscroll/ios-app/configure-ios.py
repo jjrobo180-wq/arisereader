@@ -32,3 +32,28 @@ plist["UIBackgroundModes"] = modes
 with open(PLIST, "wb") as f:
     plistlib.dump(plist, f)
 print(f"Info.plist ready for {NAME}: background audio, {', '.join(sorted(KEYS))}")
+
+# Apple push notifications ("New episode" from shows you follow, server/podPush.ts): hand the device
+# token iOS gives the app to the push plugin.
+import os
+
+DELEGATE = os.path.join(os.path.dirname(PLIST), "AppDelegate.swift")
+if os.path.exists(DELEGATE):
+    src = open(DELEGATE, encoding="utf-8").read()
+    if "didRegisterForRemoteNotificationsWithDeviceToken" not in src:
+        end = src.rfind("}")
+        hook = """
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: deviceToken)
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
+    }
+"""
+        if end > 0 and "import Capacitor" in src:
+            src = src[:end] + hook + src[end:]
+            open(DELEGATE, "w", encoding="utf-8").write(src)
+            print("AppDelegate: push notification token goes to the app")
+        else:
+            print("AppDelegate: could not add the push token hook")
