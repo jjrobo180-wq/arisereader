@@ -2,5 +2,13 @@
   "appId": "com.arisereader.podplus",
   "appName": "Pod+",
   "webDir": "../dist",
-  "bundledWebRuntime": false
+  "bundledWebRuntime": false,
+  "plugins": {
+    "CapacitorUpdater": {
+      "autoUpdate": false,
+      "updateUrl": "https://arisetodo.com/api/ota/podplus",
+      "channelUrl": "https://arisetodo.com/api/ota/podplus",
+      "statsUrl": ""
+    }
+  }
 }

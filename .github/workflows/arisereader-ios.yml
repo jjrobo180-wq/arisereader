@@ -61,6 +61,7 @@ jobs:
         working-directory: reader/ios-app
         run: |
           npm install --no-audit --no-fund
+          python3 ../../.github/scripts/ota_setup.py reader
           npx cap add ios
           npx cap sync ios
       - name: Prepare beta icon and build number

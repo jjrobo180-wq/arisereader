@@ -66,6 +66,7 @@ import { registerFitRoutes } from "./fit";
 import { registerBrowserRoutes } from "./browserCheck";
 import { registerLifePlanRoutes } from "./lifePlan";
 import { registerAccountabilityRoutes, startAccountabilityTicker } from "./accountability";
+import { registerOtaRoutes } from "./ota";
 import { registerSleepFinderRoutes } from "./sleepFinder";
 import { podscrollAllowed, registerEarshotRoutes, registerPodscrollRoutes, supabaseEarshotStore } from "./earshot";
 import { deletePodData } from "./podcastAccounts";
@@ -1593,6 +1594,8 @@ export async function registerRoutes(
   registerFitRoutes(app, authMiddleware);
   registerBrowserRoutes(app, authMiddleware);
   registerLifePlanRoutes(app, authMiddleware);
+  // Live updates for the iPhone apps' web code (server/ota.ts).
+  registerOtaRoutes(app);
   // Accountability (an Arise To Duo app): shared to-dos with nudges until done, proof, AI worksheets and quizzes.
   const acctDeps = {
     db: () => getAdminSupabase(),

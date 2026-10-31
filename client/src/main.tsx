@@ -1,6 +1,6 @@
 import "./lib/accountStorageBoot";
 import "./lib/sampleBoot";
-import { nativeAppInfo } from "./lib/nativeApp";
+import { markAppReady, nativeAppInfo } from "./lib/nativeApp";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
@@ -110,4 +110,7 @@ watchKeyboard();
 // Real photos on every A.R.I.S.E. Original cover (client/src/lib/readPhotos.ts).
 // Loaded after the page starts: it carries every story's details, which the first screen doesn't need.
 createRoot(document.getElementById("root")!).render(<App />);
+// Live updates: this copy of the app started and drew its first screen (otherwise the iPhone app goes
+// back to the copy that worked; client/src/lib/nativeApp.ts).
+setTimeout(() => { if (document.getElementById("root")?.childElementCount) markAppReady(); }, 2000);
 void import("./lib/readPhotos").then((m) => m.installReadPhotos()).catch(() => { /* covers keep their drawings */ });
