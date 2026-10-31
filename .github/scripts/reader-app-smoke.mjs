@@ -51,14 +51,18 @@ await shot("3-filled");
 await page.locator('[data-testid="native-submit"]').click();
 await page.waitForTimeout(9000);
 await shot("4-after-signin");
+log(`signed in as: ${await page.evaluate(() => { try { const raw = localStorage.getItem("arise_session_backup"); return raw ? "session saved" : "no session"; } catch { return "?"; } })} — page text: ${(await page.evaluate(() => document.body.innerText)).replace(/\s+/g, " ").slice(0, 160)}`);
 const broken = await page.locator('text=Something went wrong').count();
 log(`after sign-in: ${page.url().replace(ORIGIN, "")} — "Something went wrong" ${broken ? "SHOWN" : "not shown"}`);
 // Past the first-run screens, then a few seconds on the home screen.
 for (let i = 0; i < 6; i++) { const b = page.locator('[data-testid="reader-notify-later"], [data-testid="reader-tour-skip"], [data-testid="reader-tour-next"]').first(); if (!(await b.count())) break; await b.click().catch(() => {}); await page.waitForTimeout(700); }
 await page.waitForTimeout(4000);
 await shot("5-home");
+log(`home text: ${(await page.evaluate(() => document.body.innerText)).replace(/\s+/g, " ").slice(0, 200)}`);
 log(`home: ${page.url().replace(ORIGIN, "")} — "Something went wrong" ${(await page.locator('text=Something went wrong').count()) ? "SHOWN" : "not shown"}`);
 await browser.close(); server.close();
 console.log(`::notice title=${flavor} app smoke::${out.filter((l) => /ERROR|SHOWN|SQUASHED|failed|API 5/.test(l)).length} problems`);
+// Every line as a note too (the job's log and pictures aren't always reachable).
+out.slice(0, 40).forEach((l, i) => console.log(`::notice title=${flavor} ${String(i + 1).padStart(2, "0")}::${l.split("\n")[0].replace(/[\r\n]/g, " ").slice(0, 300)}`));
 for (const l of out.filter((l) => /PAGE ERROR|SHOWN|SQUASHED/.test(l))) console.log(`::error title=${flavor}::${l.split("\n")[0].replace(/[\r\n]/g, " ")}`);
 if (out.some((l) => /PAGE ERROR|SHOWN|SQUASHED/.test(l))) process.exitCode = 1;
