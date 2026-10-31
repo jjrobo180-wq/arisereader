@@ -2,6 +2,7 @@ import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useS
 import { Redirect, useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { useTodoCloud } from "@/lib/useTodoCloud";
+import { smartDate, smartLabel } from "@shared/smartDate";
 import { useSavedChoice } from "@/lib/useSavedChoice";
 import { useBackToStart } from "@/lib/useBackToStart";
 import { useStayOnRefresh } from "@/lib/useStayOnRefresh";
@@ -528,10 +529,29 @@ export default function AriseTodo() {
     return priority[a.priority] - priority[b.priority] || b.createdAt.localeCompare(a.createdAt);
   }), [data.tasks, selectedList, view, search, currentDay, memberFilter]);
 
+  // Smart dates (shared/smartDate.ts): "dentist tomorrow 3pm" fills in the due date and time as it's
+  // typed. Only while the date hasn't been picked by hand; the words that said it come off the title on save.
+  const smartRef = useRef<{ due: string; time: string } | null>(null);
+  const typeTitle = (title: string) => {
+    if (!editing) return;
+    const found = smartDate(title);
+    const auto = smartRef.current;
+    const handPicked = !!editing.due && !(auto && auto.due === editing.due && auto.time === editing.time);
+    if (found && !handPicked) {
+      smartRef.current = { due: found.date, time: found.time };
+      setEditing({ ...editing, title, due: found.date, time: found.time || editing.time });
+    } else if (!found && auto && !handPicked) {
+      smartRef.current = null;
+      setEditing({ ...editing, title, due: "", time: "" });
+    } else setEditing({ ...editing, title });
+  };
+  const smartFound = editing && smartRef.current && editing.due === smartRef.current.due ? smartDate(editing.title) : null;
   const saveTask = (event: FormEvent) => {
     event.preventDefault();
     if (!editing?.title.trim()) return;
-    const clean = { ...editing, title: editing.title.trim(), notes: editing.notes.trim(), assignee: editing.assignee.trim(), repeat: editing.due ? editing.repeat : "none" };
+    const smartTitle = smartFound?.title;
+    smartRef.current = null;
+    const clean = { ...editing, title: (smartTitle || editing.title).trim(), notes: editing.notes.trim(), assignee: editing.assignee.trim(), repeat: editing.due ? editing.repeat : "none" };
     setData(previous => ({
       ...previous,
       tasks: previous.tasks.some(task => task.id === clean.id)
@@ -1430,12 +1450,13 @@ export default function AriseTodo() {
       <div role="dialog" aria-modal="true" aria-labelledby="todo-modal-title" className="max-h-[96dvh] w-full overflow-y-auto overscroll-contain rounded-t-[1.5rem] bg-white p-4 shadow-2xl sm:max-w-lg sm:rounded-[1.5rem] sm:p-6 duo-book:h-[100dvh] duo-book:max-h-none duo-book:w-[var(--duo-left)] duo-book:max-w-none duo-book:rounded-none duo-book:rounded-r-[1.5rem] duo-book:p-5">
         <div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[.15em] text-violet-600">{duo.isDuo ? "Arise To Duo" : "Arise LifeHub"}</p><h2 id="todo-modal-title" className="mt-1 text-lg font-black sm:text-xl">{data.tasks.some(item => item.id === editing.id) ? "Edit task" : "Add a new task"}</h2></div><button onClick={() => setEditing(null)} aria-label="Close task editor" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={20} /></button></div>
         <form onSubmit={saveTask} className="space-y-3">
-          <label className="block text-xs font-bold text-slate-600">Task name<input autoFocus required maxLength={200} value={editing.title} onChange={event => setEditing({ ...editing, title: event.target.value })} className={inputClass + " mt-1.5"} placeholder="What needs to get done?" /></label>
+          <label className="block text-xs font-bold text-slate-600">Task name<input autoFocus required maxLength={200} value={editing.title} onChange={event => typeTitle(event.target.value)} className={inputClass + " mt-1.5"} placeholder="e.g. Dentist tomorrow 3pm" data-testid="life-task-title" /></label>
+          {smartFound && <p className="-mt-1 flex items-center gap-1.5 text-xs font-semibold text-violet-700" data-testid="life-task-smart"><CalendarClock size={14} /> Due {smartLabel(smartFound)} · from “{smartFound.matched}”</p>}
           <label className="block text-xs font-bold text-slate-600">Notes (optional)<textarea rows={2} maxLength={2000} value={editing.notes} onChange={event => setEditing({ ...editing, notes: event.target.value })} className={inputClass + " mt-1.5 py-3"} placeholder="Add more details..." /></label>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="block text-xs font-bold text-slate-600">List<select className={inputClass + " mt-1.5"} value={editing.listId} onChange={event => setEditing({ ...editing, listId: event.target.value })}>{data.lists.map(list => <option key={list.id} value={list.id}>{list.name}</option>)}</select></label>
             <label className="block text-xs font-bold text-slate-600">Priority<select className={inputClass + " mt-1.5"} value={editing.priority} onChange={event => setEditing({ ...editing, priority: event.target.value as Priority })}><option value="normal">Normal</option><option value="high">High</option><option value="low">Low</option></select></label>
-            <label className="block text-xs font-bold text-slate-600">Due date<input type="date" className={inputClass + " mt-1.5"} value={editing.due} onChange={event => setEditing({ ...editing, due: event.target.value, repeat: event.target.value ? editing.repeat : "none" })} /></label>
+            <label className="block text-xs font-bold text-slate-600">Due date<input type="date" className={inputClass + " mt-1.5"} value={editing.due} onChange={event => { smartRef.current = null; setEditing({ ...editing, due: event.target.value, repeat: event.target.value ? editing.repeat : "none" }); }} /></label>
             <label className="block text-xs font-bold text-slate-600">Time (optional)<input type="time" className={inputClass + " mt-1.5"} value={editing.time} onChange={event => setEditing({ ...editing, time: event.target.value })} /></label>
             <label className="block text-xs font-bold text-slate-600">Repeat<select className={inputClass + " mt-1.5"} disabled={!editing.due} value={editing.repeat} onChange={event => setEditing({ ...editing, repeat: event.target.value as Repeat })}><option value="none">Does not repeat</option><option value="daily">Every day</option><option value="weekly">Every week</option><option value="monthly">Every month</option></select></label>
           </div>

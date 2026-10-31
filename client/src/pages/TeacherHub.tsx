@@ -169,6 +169,7 @@ import { addEmailToTasks, arrangeEmails, emailCounts, emailTask, toggleEmailFlag
 import PinBanners, { PinButton } from "@/components/teacher-hub/HubPins";
 import HubSwitch from "@/components/HubSwitch";
 import HeaderShortcut, { type ShortcutChoice } from "@/components/HeaderShortcut";
+import { smartDate } from "@shared/smartDate";
 import HubMark from "@/components/HubMark";
 import { AdminTab } from "@/components/teacher-hub/HubReader";
 import WhatsNew from "@/pages/WhatsNew";
@@ -1684,8 +1685,8 @@ function TeacherHubPage() {
                   ),
                   todo: (
               <Card title="To do" collapseKey="home-todo" right={<button type="button" onClick={() => setTab("tasks")} className="min-h-11 shrink-0 text-sm font-medium text-teal-800 underline decoration-teal-200 underline-offset-4" data-testid="home-tasks-all">See all{openTasks > dueTasks.length ? ` ${openTasks}` : ""}</button>}>
-                <form onSubmit={(e) => { e.preventDefault(); const title = homeQuick.trim(); if (!title) return; addHomeTask({ title, dueDate: "", recurring: "", priority: false }); }} className="mb-3 flex gap-2" data-testid="home-task-add">
-                  <Field placeholder="Add a to-do and press Enter" aria-label="Quick add a to-do" value={homeQuick} onChange={(e) => setHomeQuick(e.target.value)} maxLength={200} />
+                <form onSubmit={(e) => { e.preventDefault(); const title = homeQuick.trim(); if (!title) return; const found = smartDate(title); addHomeTask(found ? { title: found.title, dueDate: found.date, dueTime: found.time, recurring: "", priority: false } : { title, dueDate: "", recurring: "", priority: false }); }} className="mb-3 flex gap-2" data-testid="home-task-add">
+                  <Field placeholder="Add a to-do, like “Call Ms. Lee tomorrow 3pm”" aria-label="Quick add a to-do" value={homeQuick} onChange={(e) => setHomeQuick(e.target.value)} maxLength={200} />
 <button type="button" onClick={() => setHomeTask(NEW_TASK)} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" aria-label="More options: due date, time, notes, repeat" title="Add a due date, time, notes or repeat" data-testid="home-task-more"><MoreHorizontal className="h-4 w-4" /> More</button>
                   <PrimaryButton type="submit" disabled={!homeQuick.trim()}>Add</PrimaryButton>
                 </form>

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { Bookmark, Car, Check, ChevronDown, ChevronLeft, Clock3, Download, ExternalLink, Mic, Sparkles, Flag, Heart, Info, ListVideo, Loader2, Maximize2, Megaphone, MessageCircle, Minimize2, Minus, Moon, Pause, Play, Plus, RotateCcw, RotateCw, Search, Settings2, Share2, SkipForward, ThumbsDown, Trash2, X } from "lucide-react";
 import { episodeKey, offlineAudio, useOfflineAudio } from "./offlineAudio";
 import {
-  EARSHOT_LIMITS, GENRES, GENRE, SPEEDS, chooseEpisode, chooseFreshEpisode, clock, compact, durationWords, mergeAds, pickNext, shareText, startAt, tasteOf, type AdMode,
+  EARSHOT_LIMITS, GENRES, GENRE, SPEEDS, safeTo, chooseEpisode, chooseFreshEpisode, clock, compact, durationWords, mergeAds, pickNext, shareText, startAt, tasteOf, type AdMode,
   type AdRange, type Candidate, type Chapter, type Earshot as EarshotData, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal, type TranscriptChunk, type TxSegment,
 } from "@shared/earshot";
 import { alignAds, guessAdAround, playAdAt, type PlayAd, type ServerAd } from "@shared/earshotAds";
@@ -692,7 +692,13 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const skipping = useRef(false);
   const skipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Past an ad, blended: ease out (when fadeOut), jump, ease back in once the audio there is ready. */
+  /** Episodes to play straight through from the top (no intro, ad or saved-spot jumps): one that
+   *  ended the moment it started, or that was restarted with Play after it finished. */
+  const plainPlay = useRef(new Set<string>());
   const smoothSkip = (a: HTMLAudioElement, ad: PlayAd, epId: string, fadeOut = true) => {
+    // Never jump into the last seconds of what's really there (a bad ad guess ended the episode on
+    // the spot, and Play then did the same jump again), and never in an episode set to play straight.
+    if (plainPlay.current.has(epId) || !safeTo(a, ad.e)) return;
     if (skipping.current) return; skipping.current = true;
     const land = () => {
       try { a.currentTime = ad.e; } catch { skipping.current = false; void fadeVolume(a, 1, 150); return; }
@@ -745,12 +751,13 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     a = setAudioSrc(a, ep, via);
     a.preload = "auto";
     // Through the server the intro is found and skipped exactly; otherwise long episodes start 90 s in.
-    const at = startAt(ep.secs, readSpots()[ep.id]?.t, via ? false : esRef.current.settings.skipIntro);
+    const at = plainPlay.current.has(ep.id) ? 0 : startAt(ep.secs, readSpots()[ep.id]?.t, via ? false : esRef.current.settings.skipIntro);
     a.addEventListener("loadedmetadata", () => {
       // Where to start: a saved spot or intro skip, or after the pre-roll the server found in this copy.
-      const pre = via && esRef.current.settings.adMode === "auto" && !esRef.current.adFree.includes(ep.showId) ? plays.current.get(ep.id)?.ads?.startAt ?? 0 : 0;
+      // Only somewhere well before the real end (Apple's length can be longer than the file).
+      const pre = via && !plainPlay.current.has(ep.id) && esRef.current.settings.adMode === "auto" && !esRef.current.adFree.includes(ep.showId) ? plays.current.get(ep.id)?.ads?.startAt ?? 0 : 0;
       const to = Math.max(at || 0, pre);
-      try { if (to && a!.dataset.ep === ep.id && a!.currentTime < 1) a!.currentTime = to; } catch { /* the host doesn't allow seeking */ }
+      try { if (to && a!.dataset.ep === ep.id && a!.currentTime < 1 && safeTo(a!, to)) a!.currentTime = to; } catch { /* the host doesn't allow seeking */ }
     }, { once: true });
     // iPhones ignore a jump made before the audio is ready; check again once it plays.
     a.addEventListener("playing", () => { if (a === cur.current) setAdsTick((x) => x + 1); const p = plays.current.get(ep.id); if (a!.dataset.sid && p && a!.dataset.sid === p.sid && esRef.current.settings.adMode === "auto" && !esRef.current.adFree.includes(ep.showId)) skipIfInAd(a!, p.ads?.ads ?? []); }, { once: true });
@@ -807,7 +814,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
         if (q?.ads?.ready || Date.now() - t0 > 8000) {
           const st = q?.ads?.startAt ?? 0;
           const back = (q?.ads?.ads ?? []).find((x) => x.sure && x.s <= 1)?.e ?? st;
-          const to = Math.max(st, back, 0);
+          const to = plainPlay.current.has(ep.id) || !safeTo(a, Math.max(st, back, 0)) ? 0 : Math.max(st, back, 0);
           // Past the pre-roll; with none, back to the start (the muted seconds weren't heard).
           try { if (to > a.currentTime) a.currentTime = to; else if (!to && a.currentTime <= 9) a.currentTime = 0; } catch { /* not seekable yet */ }
           a.muted = false; setHolding(null);
@@ -861,7 +868,12 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const it = items[active]; if (!it?.ep) return;
     const a = cur.current;
     if (!a || a.dataset.ep !== it.ep.id) { activate(active, true); return; }
-    if (a.paused) { a.playbackRate = esRef.current.settings.speed; a.play().catch(() => setPlaying(false)); } else a.pause();
+    if (a.paused) {
+      // Finished (or stuck at its very end): Play starts it again from the top, with nothing skipped.
+      const D = a.duration;
+      if (a.ended || (Number.isFinite(D) && D > 0 && a.currentTime >= D - 2)) { plainPlay.current.add(it.ep.id); try { a.currentTime = 0; } catch { /* not seekable */ } }
+      a.playbackRate = esRef.current.settings.speed; a.play().catch(() => setPlaying(false));
+    } else a.pause();
   };
   const seekBy = (d: number) => {
     const a = cur.current; if (!a || !a.dataset.ep) return;
@@ -1053,7 +1065,19 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     // Move on by itself only after really listening, and never twice in a row within seconds. An
     // episode that ends right after it starts (a saved spot at the very end, a skipped outro, a file
     // that won't play) used to chain into several skips at once.
-    if (listened.current < 8 || Date.now() - lastAutoAdvance.current < 5000) { say("That episode is over. Swipe up for the next one."); return; }
+    if (listened.current < 8 && ca && it?.ep && !plainPlay.current.has(it.ep.id)) {
+      // It ended within seconds of starting: a jump (saved spot, intro or ad skip) landed at the end.
+      // Play it from the top with nothing skipped, instead of stopping on "That episode is over".
+      plainPlay.current.add(it.ep.id); listened.current = 0;
+      try { ca.currentTime = 0; } catch { /* not seekable */ }
+      ca.play().then(() => setPlaying(true), () => setPlaying(false));
+      return;
+    }
+    if (listened.current < 8 || Date.now() - lastAutoAdvance.current < 5000) {
+      // Even played from the top it won't play: go on to the next one instead of stopping here.
+      if (Date.now() - lastAutoAdvance.current >= 5000 && !sheetRef.current) { lastAutoAdvance.current = Date.now(); say("That episode wouldn't play. Here's the next one."); goTo(activeRef.current + 1); return; }
+      say("That episode is over. Swipe up for the next one."); return;
+    }
     lastAutoAdvance.current = Date.now();
     if (!sheetRef.current) goTo(activeRef.current + 1);
   };
