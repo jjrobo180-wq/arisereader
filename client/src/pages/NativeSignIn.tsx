@@ -41,6 +41,12 @@ const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { ti
       { tint: "#0f766e", icon: <Users className="h-[22px] w-[22px]" />, title: "For parents", text: "Follow your child's reading and celebrate wins." },
       { tint: "#e0465f", icon: <Bell className="h-[22px] w-[22px]" />, title: "Notifications", text: "Messages and updates as they happen." },
     ] },
+  eyegaze: { icon: "/app-icons/eyegazer-1024.png", tagline: "Learn, play and talk with your eyes.", apple: true, signInHint: "Use your child's eye-gaze account, or your parent account.", create: "Create a parent account",
+    features: [
+      { tint: "#0891b2", icon: <Eye className="h-[22px] w-[22px]" />, title: "Made for eye gaze", text: "Games, lessons and a talker that work with a look, a tap or a switch." },
+      { tint: "#7c3aed", icon: <BookOpen className="h-[22px] w-[22px]" />, title: "Lessons and books", text: "Letters, words, life skills and stories at their level." },
+      { tint: "#e0465f", icon: <Bell className="h-[22px] w-[22px]" />, title: "Notifications", text: "Progress and reminders for parents." },
+    ] },
   fit: { icon: "/app-icons/fit-1024.png", tagline: "Train smarter. Eat better. See it work.", apple: true, signInHint: "Use your Arise account (Arise To Duo or A.R.I.S.E.).", create: "Create a free account",
     features: [
       { tint: "#5c8a12", icon: <Dumbbell className="h-[22px] w-[22px]" />, title: "Programs and tracking", text: "Proven plans, every set logged, records and rest timer." },
@@ -126,7 +132,7 @@ export default function NativeSignIn() {
 
   const apple = copy.apple && appleSignInAvailable();
   /** Making an account: To Duo has its own screen; the Reader apps use the website's sign-up pages. */
-  const create = () => (flavor === "reader" ? navigate("/register-independent") : flavor === "educator" ? setPicking(true) : go("signup"));
+  const create = () => (flavor === "reader" ? navigate("/register-independent") : flavor === "eyegaze" ? navigate("/parent-signup") : flavor === "educator" ? setPicking(true) : go("signup"));
   const [picking, setPicking] = useState(false);
 
   if (screen === "welcome") return <Shell>

@@ -1,0 +1,31 @@
+{
+  "appId": "com.arisereader.eyegazer",
+  "appName": "Arise Eye Gazer",
+  "webDir": "www",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1200,
+      "backgroundColor": "#FFFFFF",
+      "showSpinner": false
+    },
+    "Keyboard": {
+      "resize": "native"
+    },
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
+    },
+    "CapacitorUpdater": {
+      "autoUpdate": false,
+      "updateUrl": "https://arisetodo.com/api/ota/eyegaze",
+      "channelUrl": "https://arisetodo.com/api/ota/eyegaze",
+      "statsUrl": ""
+    }
+  },
+  "ios": {
+    "contentInset": "automatic"
+  }
+}
