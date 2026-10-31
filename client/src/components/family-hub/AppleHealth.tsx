@@ -82,7 +82,7 @@ export function AppleHealthPanel({ member, apple, say }: { member: Member; apple
     } finally { setSyncing(false); apple.check(); }
   };
   const disconnect = async () => {
-    if (!window.confirm("Disconnect Apple Health? The Shortcut will stop syncing. Numbers already synced stay in the diary.")) return;
+    if (!window.confirm(inApp ? "Disconnect Apple Health? This iPhone stops syncing. Numbers already synced stay in the diary." : "Disconnect Apple Health? The Shortcut will stop syncing. Numbers already synced stay in the diary.")) return;
     try { await removeHealthLink(token, member.id); forgetNativeHealth(member.id); apple.setLinks((l) => l.filter((x) => x.memberId !== member.id)); say("Apple Health disconnected"); }
     catch (e: any) { say(e.message); }
   };

@@ -3,6 +3,7 @@ import { Redirect, useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { useTodoCloud } from "@/lib/useTodoCloud";
 import { smartDate, smartLabel } from "@shared/smartDate";
+import { REMINDERS_CONNECTED, appleRemindersAvailable, appleRemindersOn, readAppleReminders, rememberReminders, seenReminders, setAppleReminderDone, type PhoneReminder } from "@/lib/nativeAppleReminders";
 import { useSavedChoice } from "@/lib/useSavedChoice";
 import { useBackToStart } from "@/lib/useBackToStart";
 import { useStayOnRefresh } from "@/lib/useStayOnRefresh";
@@ -89,7 +90,8 @@ import { cleanFamily, cleanSectionOrder, emptyFamily, FAMILY_SECTIONS, isCurrent
 import FamilyHome from "@/components/family-hub/FamilyHome";
 import Chores from "@/components/family-hub/Chores";
 import Behavior from "@/components/family-hub/Behavior";
-import FamilyCalendar from "@/components/family-hub/FamilyCalendar";
+import FamilyCalendar, { withPhoneEvents } from "@/components/family-hub/FamilyCalendar";
+import { readIphoneEvents } from "@/lib/nativeCalendar";
 import { useParaTeamAutoAdd } from "@/lib/paraTeam";
 import Polls from "@/components/family-hub/Polls";
 import { ShareButton } from "@/components/family-hub/ShareLink";
@@ -437,6 +439,46 @@ export default function AriseTodo() {
       return { ...previous, lists, tasks: [...previous.tasks, ...fresh] };
     });
   });
+  // Apple Reminders, read on the iPhone (lib/nativeAppleReminders.ts): once connected, the reminders that
+  // aren't done come into a "Reminders" list each time the app opens or comes back, and a check-off in
+  // the Reminders app is kept in step. One deleted here isn't brought back.
+  const remindersTick = useRef(0);
+  const pullReminders = useCallback(async (say = false) => {
+    if (!appleRemindersAvailable() || !appleRemindersOn() || Date.now() - remindersTick.current < 20_000) return;
+    remindersTick.current = Date.now();
+    let items: PhoneReminder[] = [];
+    try { items = await readAppleReminders(); } catch { return; }
+    const seen = seenReminders();
+    let added = 0;
+    setData(previous => {
+      let lists = previous.lists;
+      let list = lists.find(l => l.name.toLowerCase() === "reminders");
+      const byId = new Map(previous.tasks.map(t => [t.id, t]));
+      const tasks = previous.tasks.map(t => {
+        if (!t.id.startsWith("apple-")) return t;
+        const r = items.find(x => `apple-${x.key}` === t.id);
+        if (!r) return t;
+        return t.done === r.done && t.title === r.title && t.due === r.due && t.time === r.time ? t : { ...t, title: r.title, due: r.due, time: r.time, done: r.done, ...(r.done && !t.done ? { completedAt: new Date().toISOString() } : {}) };
+      });
+      const fresh = items.filter(r => !r.done && !byId.has(`apple-${r.key}`) && !seen.has(r.key));
+      if (fresh.length && !list) { list = { id: uid(), name: "Reminders", color: "#e5b04f" }; lists = [...lists, list]; }
+      for (const r of fresh) tasks.push({ id: `apple-${r.key}`, title: r.title, notes: r.notes, listId: list!.id, assignee: "", due: r.due, time: r.time, priority: "normal", repeat: "none", done: false, createdAt: new Date().toISOString() });
+      added = fresh.length;
+      const changed = fresh.length || tasks.some((t, i) => t !== previous.tasks[i]);
+      return changed ? { ...previous, lists, tasks } : previous;
+    });
+    rememberReminders(items.map(r => r.key));
+    if (say || added) setMessage(added ? `${added} reminder${added === 1 ? "" : "s"} from Apple Reminders added to your Reminders list` : "Apple Reminders is connected. Nothing new to bring in.");
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!user || !sync.loaded || sync.recovery) return;
+    void pullReminders();
+    const back = () => { if (document.visibilityState === "visible") void pullReminders(); };
+    const connected = () => { remindersTick.current = 0; void pullReminders(true); };
+    document.addEventListener("visibilitychange", back);
+    window.addEventListener(REMINDERS_CONNECTED, connected);
+    return () => { document.removeEventListener("visibilitychange", back); window.removeEventListener(REMINDERS_CONNECTED, connected); };
+  }, [user, sync.loaded, sync.recovery, pullReminders]);
   // Night mode: remembered on this device. Everyone starts in day mode (a new account too), even
   // when the phone itself is set to dark mode; night mode is only on once someone switches it on.
   // Night mode is shared with WorkHub until "Same settings in both hubs" is turned off (lib/sharedLook.ts).
@@ -564,6 +606,8 @@ export default function AriseTodo() {
     setMessage("Task saved");
   };
   const toggleDone = (task: Task) => {
+    // A task from Apple Reminders is checked off (or back on) in the Reminders app too.
+    if (task.id.startsWith("apple-")) void setAppleReminderDone(task.id.slice(6), !task.done);
     setData(previous => {
       const finished = !task.done;
       const tasks = previous.tasks.map(row => row.id === task.id
@@ -1004,7 +1048,8 @@ export default function AriseTodo() {
   return <PrivacyLockProvider lock={family.lock} setLock={(lock) => setFamily((f) => ({ ...f, lock }))} apps={lockableApps} settings={lockSettings} onSettings={setLockSettings}><div className={`min-h-screen bg-[#f6f7fc] text-slate-900 ${night ? "todo-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""}`}>
     <UpgradeHost hub="life" />
     <AppWalkthrough userId={user.id} hub="life" arise={user.role === "teacher" || user.role === "parent"}
-      onGallery={() => setStore(true)} onCustomize={(t) => { setCustomizeTab(t); setCustomizing(true); }} onNotificationSettings={() => { closeApps(); goSection("notifications"); }} />
+      onGallery={() => setStore(true)} onCustomize={(t) => { setCustomizeTab(t); setCustomizing(true); }} onNotificationSettings={() => { closeApps(); goSection("notifications"); }}
+      onConnectCalendar={async () => { const list = await readIphoneEvents(); setFamily((f) => withPhoneEvents(f, list, makeId)); return Math.min(list.length, 1000); }} />
     {store && <PluginStore
       hub="life"
       initialOpen={storeOpenApp ?? undefined}
@@ -1143,8 +1188,8 @@ export default function AriseTodo() {
           {(user.role === "parent" || user.isAdmin) && <SupportButton isAdmin={user.isAdmin} />}
           {(user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
           <div className={layout.shortcut ? "contents" : "hidden sm:contents duo:hidden"}>
-          <HeaderShortcut shortcut={layout.shortcut} choices={phoneItems} say={setMessage}
-            onChange={(next) => setFamily((f) => { const { shortcut: _old, ...rest } = f.layout ?? layout; return { ...f, layout: next ? { ...rest, shortcut: next } : rest }; })} />
+          {/* Not in the iPhone app: the app is the real thing, no Shortcut. */}{!isNativeApp() && <HeaderShortcut shortcut={layout.shortcut} choices={phoneItems} say={setMessage}
+            onChange={(next) => setFamily((f) => { const { shortcut: _old, ...rest } = f.layout ?? layout; return { ...f, layout: next ? { ...rest, shortcut: next } : rest }; })} />}
           </div>
           <HubSearchButton onOpen={() => setSearching(true)} />
           <span role="status" className={`hidden items-center gap-2 rounded-full px-3 py-2 text-xs font-bold sm:inline-flex ${sync.view.kind === "saved" ? "bg-emerald-50 text-emerald-700" : sync.view.kind === "blocked" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"} duo:hidden`}>{sync.view.kind === "saved" ? <Cloud size={14} /> : sync.view.kind === "blocked" ? <AlertCircle size={14} /> : <RefreshCw size={14} />}{saveStatus}</span>

@@ -8,11 +8,21 @@ import { API_BASE } from "@/lib/queryClient";
 import { MEMBER_COLORS, addDays, billDue, eventsOn, fromDay, toDay, type FamilyEvent, type EventRepeat } from "@shared/familyHub";
 import { Avatar, Label, MemberPicker, Modal, PageHead, Panel, Toggle, clock12, confirmed, danger, inputClass, memberOf, plain, primary, shortDate, type SectionProps } from "./ui";
 import { ShareButton } from "./ShareLink";
-import { addToIphoneCalendar, inIphoneApp, readIphoneEvents } from "@/lib/nativeCalendar";
+import { addToIphoneCalendar, inIphoneApp, readIphoneEvents, type PhoneEvent } from "@/lib/nativeCalendar";
 import { isNativeApp } from "@/lib/nativeApp";
 
 /** The calendar the iPhone's own events go in (Arise To Duo iPhone app). */
 const PHONE_CAL = { id: "iphone", name: "iPhone Calendar", color: "#64748b", show: true };
+
+/** The family with the iPhone's events in its "iPhone Calendar" calendar (replacing the last read).
+ *  Used here and by the app's first-run setup (pages/AriseTodo.tsx). */
+export function withPhoneEvents<F extends { calendars: any[]; events: FamilyEvent[] }>(f: F, list: PhoneEvent[], makeId: () => string): F {
+  return {
+    ...f,
+    calendars: f.calendars.some((c) => c.id === PHONE_CAL.id) ? f.calendars : [...f.calendars, { ...PHONE_CAL }],
+    events: [...f.events.filter((e) => e.calendarId !== PHONE_CAL.id), ...list.slice(0, 1000).map((e): FamilyEvent => ({ id: makeId(), title: e.title.slice(0, 120), date: e.date, time: e.start, endTime: e.start ? e.end : "", calendarId: PHONE_CAL.id, memberIds: [], location: e.location.slice(0, 160), notes: e.notes.slice(0, 1000), repeat: "none" }))],
+  };
+}
 /** Read once per app launch when the calendar opens; the button reads again whenever asked. */
 let phoneReadThisLaunch = false;
 
@@ -87,11 +97,7 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
     setPhoneBusy(true); if (!quiet) setPhoneNote("");
     try {
       const list = (await readIphoneEvents()).slice(0, 1000);
-      setFamily((f) => ({
-        ...f,
-        calendars: f.calendars.some((c) => c.id === PHONE_CAL.id) ? f.calendars : [...f.calendars, { ...PHONE_CAL }],
-        events: [...f.events.filter((e) => e.calendarId !== PHONE_CAL.id), ...list.map((e): FamilyEvent => ({ id: makeId(), title: e.title.slice(0, 120), date: e.date, time: e.start, endTime: e.start ? e.end : "", calendarId: PHONE_CAL.id, memberIds: [], location: e.location.slice(0, 160), notes: e.notes.slice(0, 1000), repeat: "none" }))],
-      }));
+      setFamily((f) => withPhoneEvents(f, list, makeId));
       if (!quiet) { setPhoneNote(`${list.length} ${list.length === 1 ? "event" : "events"} from your iPhone.`); say("iPhone Calendar is up to date"); }
     } catch (e: any) { setPhoneNote(e?.message || "Your iPhone Calendar couldn't be read right now."); }
     finally { setPhoneBusy(false); }
