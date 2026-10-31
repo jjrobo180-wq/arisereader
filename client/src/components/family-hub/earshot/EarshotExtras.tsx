@@ -21,7 +21,10 @@ type Spot = { t: number; secs: number };
 // ===========================================================================
 // The show page: big art, then every episode in a list; play any one and the rest follow
 // ===========================================================================
-export function ShowPage({ show, load, hideTeasers = true, following, onFollow, onPlayFrom, onClose, adFree, onAdFree, spots, onAddTo, onGenre }: {
+export function ShowPage({ show, load, hideTeasers = true, following, onFollow, onPlayFrom, onClose, adFree, onAdFree, spots, onAddTo, onGenre, nowId, nowPlaying = false, heard = [], onNowPlaying }: {
+  /** The episode in the player right now (and whether it's playing): marked in the list. */ nowId?: string; nowPlaying?: boolean;
+  /** Episodes listened to the end: marked Played. */ heard?: string[];
+  /** Back to the player (the episode that's playing). */ onNowPlaying?: () => void;
   show: PodShow; load: (id: string) => Promise<{ show: PodShow | null; episodes: PodEpisode[] }>; following: boolean; onFollow: (s: PodShow) => void;
   onPlayFrom: (show: PodShow, list: PodEpisode[], index: number) => void; onClose: () => void; adFree: boolean; onAdFree: (on: boolean) => void;
   spots: Record<string, Spot>; onAddTo: (ep: PodEpisode) => void; onGenre: (g: string) => void; hideTeasers?: boolean;
@@ -33,6 +36,8 @@ export function ShowPage({ show, load, hideTeasers = true, following, onFollow, 
   useEffect(() => { load(show.id).then((r) => { setEps(r.episodes); if (r.show) setFull({ ...r.show, genre: r.show.genre || show.genre }); }).catch((e) => setErr(e?.message || "This show didn't load.")); }, [show.id, load, show.genre]);
   const list = useMemo(() => { const real = eps ? realEpisodes(eps, hideTeasers) : []; return oldest ? real.slice().reverse() : real; }, [eps, oldest, hideTeasers]);
   const resumeAt = list.findIndex((e) => spots[e.id]);
+  const heardSet = useMemo(() => new Set(heard), [heard]);
+  const nowHere = !!nowId && list.some((e) => e.id === nowId);
   const art = hiRes(full.art);
   return <div className="absolute inset-0 z-40 overflow-y-auto bg-[#0e0d10] text-white [scrollbar-width:none]" role="dialog" aria-label={full.name}>
     <div className="relative">
@@ -43,7 +48,8 @@ export function ShowPage({ show, load, hideTeasers = true, following, onFollow, 
         <h2 className="mt-6 text-[22px] font-semibold leading-tight tracking-tight">{full.name}</h2>
         <p className="mt-1 text-sm text-white/45">{[full.author, eps?.length ? `${eps.length} episodes` : ""].filter(Boolean).join(" · ")}</p>
         <div className="mt-5 flex w-full max-w-xs gap-2">
-          <button type="button" disabled={!list.length} onClick={() => onPlayFrom(full, list, Math.max(0, resumeAt))} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-white text-sm font-semibold text-[#0e0d10] disabled:opacity-40"><Play size={15} fill="currentColor" />{resumeAt >= 0 ? "Resume" : oldest ? "Play first" : "Play latest"}</button>
+          {nowHere && onNowPlaying ? <button type="button" onClick={onNowPlaying} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-[#ff6a1f] text-sm font-semibold text-white" data-testid="show-now-playing"><Bars on={nowPlaying} />{nowPlaying ? "Episode playing" : "Episode paused"}</button>
+          : <button type="button" disabled={!list.length} onClick={() => onPlayFrom(full, list, Math.max(0, resumeAt))} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-white text-sm font-semibold text-[#0e0d10] disabled:opacity-40"><Play size={15} fill="currentColor" />{resumeAt >= 0 ? "Resume" : oldest ? "Play first" : "Play latest"}</button>}
           <button type="button" onClick={() => onFollow(full)} aria-label={following ? "Unfollow" : "Follow"} className={`grid min-h-11 min-w-11 place-items-center rounded-full ring-1 ${following ? "text-white ring-white/30" : "text-white/80 ring-white/15"}`}>{following ? <Check size={17} /> : <Plus size={17} />}</button>
         </div>
       </div>
@@ -60,17 +66,19 @@ export function ShowPage({ show, load, hideTeasers = true, following, onFollow, 
         {list.map((e, i) => {
           const spot = spots[e.id]; const pct = spot && e.secs ? Math.min(100, (spot.t / e.secs) * 100) : 0;
           const left = spot && e.secs ? Math.max(0, e.secs - spot.t) : 0;
-          return <li key={e.id} className="py-4">
+          const isNow = e.id === nowId; const played = !isNow && !spot && heardSet.has(e.id);
+          return <li key={e.id} className={`py-4 ${isNow ? "-mx-3 rounded-2xl bg-white/[.06] px-3" : ""}`} data-testid={isNow ? "show-episode-now" : played ? "show-episode-played" : undefined}>
             <button type="button" onClick={() => onPlayFrom(full, list, i)} className="block w-full text-left">
               <span className="block text-[11px] text-white/35">{e.date ? agoWords(e.date) : ""}</span>
-              <span className="mt-0.5 line-clamp-2 text-[15px] font-semibold leading-snug text-white/90">{e.title}</span>
+              <span className={`mt-0.5 line-clamp-2 text-[15px] font-semibold leading-snug ${isNow ? "text-[#ff8a4c]" : played ? "text-white/45" : "text-white/90"}`}>{e.title}</span>
               {e.about && <span className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-white/40">{e.about}</span>}
             </button>
             <div className="mt-2.5 flex items-center gap-3">
-              <button type="button" onClick={() => onPlayFrom(full, list, i)} aria-label={`Play ${e.title}`} className="flex items-center gap-2 rounded-full bg-white/[.07] py-1.5 pl-2 pr-3 text-xs font-medium text-white/80">
-                <Play size={12} fill="currentColor" />
-                {pct > 0 ? <><span className="relative h-1 w-10 overflow-hidden rounded-full bg-white/20"><span className="absolute inset-y-0 left-0 bg-white" style={{ width: `${pct}%` }} /></span>{durationWords(left)} left</> : (e.secs ? durationWords(e.secs) : "Play")}
-              </button>
+              {isNow ? <button type="button" onClick={onNowPlaying ?? (() => onPlayFrom(full, list, i))} className="flex items-center gap-2 rounded-full bg-[#ff6a1f] py-1.5 pl-2.5 pr-3 text-xs font-semibold text-white"><Bars on={nowPlaying} />{nowPlaying ? "Playing now" : "Paused"}</button>
+              : <button type="button" onClick={() => onPlayFrom(full, list, i)} aria-label={`Play ${e.title}`} className="flex items-center gap-2 rounded-full bg-white/[.07] py-1.5 pl-2 pr-3 text-xs font-medium text-white/80">
+                {played ? <Check size={12} strokeWidth={3} /> : <Play size={12} fill="currentColor" />}
+                {played ? "Played" : pct > 0 ? <><span className="relative h-1 w-10 overflow-hidden rounded-full bg-white/20"><span className="absolute inset-y-0 left-0 bg-white" style={{ width: `${pct}%` }} /></span>{durationWords(left)} left</> : (e.secs ? durationWords(e.secs) : "Play")}
+              </button>}
               <button type="button" onClick={() => onAddTo(e)} aria-label={`Add ${e.title} to a mode`} className="ml-auto grid h-8 w-8 place-items-center rounded-full text-white/40 hover:text-white/80"><ListPlus size={17} strokeWidth={1.7} /></button>
             </div>
           </li>;
@@ -256,4 +264,12 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
       {children}
     </div>
   </div>;
+}
+
+/** Little sound bars: moving while it plays, still while paused. */
+function Bars({ on }: { on: boolean }) {
+  return <span className="flex h-3 items-end gap-[2px]" aria-hidden>
+    <style>{"@keyframes sp-bar{0%,100%{height:30%}50%{height:100%}}"}</style>
+    {[0, 1, 2].map((k) => <span key={k} className="w-[3px] rounded-sm bg-current" style={{ height: on ? undefined : `${[50, 80, 40][k]}%`, animation: on ? `sp-bar ${0.7 + k * 0.15}s ease-in-out ${k * 0.12}s infinite` : "none" }} />)}
+  </span>;
 }

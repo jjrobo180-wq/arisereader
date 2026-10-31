@@ -1006,6 +1006,12 @@ function ContinueListening({ nowPod, visible, onToggle, onOpenNow, onResume }: {
   const [spots, setSpots] = useState<[string, Spot][]>(readSpotsHere);
   // Fresh every time Home is shown (the player saves spots while it plays).
   useEffect(() => { if (visible) setSpots(readSpotsHere()); }, [visible, nowPod?.title]);
+  // …and the moment the player saves one (switching shows, pausing), or another tab does.
+  useEffect(() => {
+    const again = () => setSpots(readSpotsHere());
+    window.addEventListener("earshot-spots", again); window.addEventListener("storage", again);
+    return () => { window.removeEventListener("earshot-spots", again); window.removeEventListener("storage", again); };
+  }, []);
   const hide = (id: string) => {
     try { const v = JSON.parse(localStorage.getItem("earshot.spots") || "{}"); delete v[id]; localStorage.setItem("earshot.spots", JSON.stringify(v)); } catch { /* not kept */ }
     setSpots((x) => x.filter(([k]) => k !== id));

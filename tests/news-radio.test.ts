@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { justIn, newestOf, newsLineup, refill } from "../client/src/components/family-hub/earshot/newsRadio";
+import { justIn, newestOf, newsLineup, refill, stationLineup } from "../client/src/components/family-hub/earshot/newsRadio";
 import type { PodEpisode } from "../shared/earshot";
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
@@ -62,4 +62,24 @@ test("national networks' streams aren't played in Pod+ Radio; local stations are
   for (const n of ["CNN", "CNN International", "Fox News Radio", "MSNBC", "BBC World Service", "Bloomberg Radio", "C-SPAN Radio", "NPR News"]) assert.ok(re.test(n), n);
   for (const n of ["1010 WINS", "KQED", "WNYC 93.9 FM", "KEXP", "News Radio 1190"]) assert.ok(!re.test(n), n);
   assert.match(radio, /&& !isNetwork\(s\);/, "left out of every Radio list, Live news stations too");
+});
+
+test("the station still plays when the last 12 hours have nothing: it reaches back to the latest it has", () => {
+  const now = Date.parse("2026-10-31T13:00:00Z");
+  const e = (id: string, showId: string, hrs: number) => ({ id, showId, show: showId, author: "", title: id, about: "", audio: "https://a/" + id + ".mp3", date: new Date(now - hrs * 3600_000).toISOString(), secs: 300, art: "", link: "", explicit: false });
+  const stale = [e("npr4pm", "npr", 21), e("cbs", "cbs", 15), e("old", "bbc", 30)];
+  assert.deepEqual(newsLineup(stale, now), []);
+  assert.deepEqual(stationLineup(stale, now).map((x) => x.id), ["cbs", "npr4pm"]);
+  assert.deepEqual(stationLineup([e("fresh", "npr", 1), ...stale], now).map((x) => x.id), ["fresh"]);
+});
+
+test("Live News Radio plays like a live stream: its own screen, no seeking, skipping or swiping", () => {
+  const src = readFileSync(new URL("../client/src/components/family-hub/earshot/EarshotPlayer.tsx", import.meta.url), "utf8");
+  assert.match(src, /function LiveNews\(/);
+  assert.match(src, /data-testid="pod-live-badge"/);
+  assert.match(src, /onAir \? "touch-none overflow-hidden" : "overflow-y-scroll"/);
+  assert.match(src, /set\("seekforward", live \? null/);
+  // The station replaces the feed, and podcasts aren't added after it.
+  assert.match(src, /NEWS_RADIO_NAME\} · Latest` : `Up next · \$\{NEWS_RADIO_NAME\}`\)\), true\);/);
+  assert.match(src, /if \(radio\.current\) return;\n    const list = itemsRef\.current;/);
 });
