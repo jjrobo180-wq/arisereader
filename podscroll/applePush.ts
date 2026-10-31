@@ -1,7 +1,7 @@
 // Pod+ notifications on iPhone (plugin: @capacitor/push-notifications). The phone hands the server its
 // Apple device token with the ids of the shows it follows (server/podPush.ts); the server sends
 // "New episode" when one of them puts one out. Tapping it opens that episode.
-import { hasNativePlugin, isNativeApp, nativeCall } from "../client/src/lib/nativeApp";
+import { hasNativePlugin, isNativeApp, nativeCall, nativeListen } from "../client/src/lib/nativeApp";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
 const PLUGIN = /^pushnotif/i;
@@ -29,12 +29,11 @@ export async function startPodPush(api: Api, follows: () => string[], ask: boole
     if (state !== "granted") return false;
     if (!listening) {
       listening = true;
-      const plugin = (window as any).Capacitor?.Plugins?.PushNotifications;
-      await plugin?.addListener?.("registration", (t: { value?: string }) => {
+      await nativeListen(NAME, "registration", (t: { value?: string }) => {
         token = String(t?.value || "");
         if (token) void syncPodPush(api, follows());
       });
-      await plugin?.addListener?.("pushNotificationActionPerformed", (e: any) => {
+      await nativeListen(NAME, "pushNotificationActionPerformed", (e: any) => {
         const q = new URLSearchParams(String(e?.notification?.data?.url || "").replace(/^[^?]*/, ""));
         const s = (q.get("s") || "").replace(/\D/g, ""), ep = (q.get("e") || "").replace(/\D/g, "");
         if (s && ep) window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: { showId: s, episodeId: ep } }));

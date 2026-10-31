@@ -16,7 +16,7 @@ import { Home } from "./Home";
 import { AuthScreen } from "./Auth";
 import { Welcome, WELCOME_KEY } from "./Welcome";
 import { OPEN_EVENT, podPushAllowed, startPodPush, syncPodPush } from "./applePush";
-import { isNativeApp } from "../client/src/lib/nativeApp";
+import { isNativeApp, markAppReady } from "../client/src/lib/nativeApp";
 import { downloads, installDownloads } from "./downloads";
 import "./styles.css";
 import { configureAiVoice } from "../client/src/lib/aiVoice";
@@ -146,7 +146,7 @@ function App() {
   // The home page (browse) comes first and opens episodes in the swipe feed. A shared swipe
   // link (?s=&e=) still opens straight into the feed.
   const [mode, setMode] = useState<"home" | "feed">(() => (start ? "feed" : "home"));
-  const [feedStart, setFeedStart] = useState<{ showId: string; episodeId: string; ep?: PodEpisode } | null>(start);
+  const [feedStart, setFeedStart] = useState<{ showId: string; episodeId: string; ep?: PodEpisode; next?: PodEpisode[] } | null>(start);
   const [feedKey, setFeedKey] = useState(0);
   // The scroll is For You and Following; Open Mic, Social and Library open from the home page as
   // their own pages (the same player, opened on that tab), each with a back button home.
@@ -154,11 +154,13 @@ function App() {
   const [feedMode, setFeedMode] = useState<{ id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" } | null>(null);
   // Picking an episode on the home page opens the swipe feed on it. Someone who never chose interests
   // gets a broad starting mix instead of the picker, so the episode they tapped plays right away.
-  const openFeed = useCallback((at?: { showId: string; episodeId: string; ep?: PodEpisode }, page?: PageTab, podMode?: { id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" }) => {
+  const openFeed = useCallback((at?: { showId: string; episodeId: string; ep?: PodEpisode; next?: PodEpisode[] }, page?: PageTab, podMode?: { id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" }) => {
     if ((at || page || podMode) && !esRef.current.setupDone) setEs((e) => e.setupDone ? e : ({ ...e, setupDone: true, genres: STARTER_GENRES, taste: Object.fromEntries(STARTER_GENRES.map((g) => [g, 3])) }));
     // Just a page (Social, Open Mic, Library, the scroll) and the player is already running: switch
     // its page, so what's playing keeps playing. A new episode or Pod Mode starts it fresh.
     if (!at && !podMode && feedSeenRef.current) { setFeedTab(page); setTabNonce((n) => n + 1); setMode("feed"); return; }
+    // Live News Radio is already on: back to it, still playing (it isn't started over).
+    if (podMode?.id === "__newsradio" && feedSeenRef.current && nowPodRef.current?.live) { setFeedTab(undefined); setTabNonce((n) => n + 1); setMode("feed"); return; }
     setFeedStart(at ?? null); setFeedTab(page); setFeedMode(podMode ?? null); setFeedKey((k) => k + 1); setMode("feed"); setFeedSeen(true);
   }, []);
 
@@ -182,6 +184,7 @@ function App() {
   const feedSeenRef = useRef(feedSeen); feedSeenRef.current = feedSeen;
   const [tabNonce, setTabNonce] = useState(0);
   const [nowPod, setNowPod] = useState<NowPlaying | null>(null);
+  const nowPodRef = useRef(nowPod); nowPodRef.current = nowPod;
   const podCtl = useRef<PlayerControl | null>(null);
   // The now-playing bar on the home page opens the player itself, on what's playing (not the last
   // page that was open in it, like Social).
@@ -252,3 +255,6 @@ function SignUpGate({ api, onDone, onClose }: { api: (path: string, init?: { met
 }
 
 createRoot(document.getElementById("root")!).render(<StrictMode><App /></StrictMode>);
+// Live updates: this copy of the app started and drew its first screen (otherwise the iPhone app goes
+// back to the copy that worked; client/src/lib/nativeApp.ts).
+setTimeout(() => { if (document.getElementById("root")?.childElementCount) markAppReady(); }, 2000);

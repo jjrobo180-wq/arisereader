@@ -17,6 +17,12 @@
         "sound",
         "alert"
       ]
+    },
+    "CapacitorUpdater": {
+      "autoUpdate": false,
+      "updateUrl": "https://arisetodo.com/api/ota/educator",
+      "channelUrl": "https://arisetodo.com/api/ota/educator",
+      "statsUrl": ""
     }
   },
   "ios": {

@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { hiRes, type PodEpisode, type PodShow } from "@shared/earshot";
 import { artIn } from "./art";
-import { ArrowLeft, Loader2, MoreVertical, Search as SearchIcon, Sparkles } from "lucide-react";
+import { ArrowLeft, Loader2, MoreVertical, Play, Search as SearchIcon, Sparkles } from "lucide-react";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
 type Kind = "all" | "episodes" | "shows";
@@ -74,7 +74,7 @@ export function didYouMean(q: string, texts: string[]): string | null {
 }
 
 export function SearchPage({ q, api, ex, onOpen, onMore, onSearch, hidden }: {
-  q: string; api: Api; ex: string; onOpen: (e: PodEpisode) => void; onMore: ((e: PodEpisode) => void) | null; onSearch: (q: string) => void;
+  q: string; api: Api; ex: string; onOpen: (e: PodEpisode, next?: PodEpisode[]) => void; onMore: ((e: PodEpisode) => void) | null; onSearch: (q: string) => void;
   hidden?: { shows: Set<string>; eps: Set<string> };
 }) {
   const [res, setRes] = useState<{ shows: PodShow[]; episodes: PodEpisode[] } | null>(null);
@@ -165,7 +165,7 @@ export function SearchPage({ q, api, ex, onOpen, onMore, onSearch, hidden }: {
           {ai.ai && ai.summary && <p className="mt-2 text-[15px] leading-relaxed">{ai.summary}</p>}
           {!ai.ai && <p className="mt-2 text-sm text-[#606060]">The closest shows for “{q}”:</p>}
           <div className="mt-3 flex flex-col divide-y divide-[#ececec]">
-            {ai.picks.slice(0, 4).map((p) => <button key={p.show.id} onClick={() => p.episode ? onOpen({ ...p.episode, art: p.episode.art || p.show.art }) : searchShow(p.show, "")} className="flex items-center gap-3 py-2.5 text-left">
+            {ai.picks.slice(0, 4).map((p) => <button key={p.show.id} onClick={() => { setSort("old"); searchShow(p.show, ""); }} data-testid="ps-ai-pick" className="flex items-center gap-3 py-2.5 text-left">
               <img src={hiRes(p.show.art, 100)} alt="" className="h-11 w-11 shrink-0 rounded-md object-cover" />
               <span className="min-w-0"><span className="block truncate text-sm font-semibold">{p.show.name}</span><span className="line-clamp-2 text-xs text-[#606060]">{p.why}</span></span>
             </button>)}
@@ -178,7 +178,7 @@ export function SearchPage({ q, api, ex, onOpen, onMore, onSearch, hidden }: {
 
     {/* Inside one show */}
     {inShow && <section className="mt-4">
-      <button onClick={() => { setInShow(null); setArchive(null); }} className="inline-flex h-9 items-center gap-1.5 rounded-full pl-2 pr-3 text-sm font-medium hover:bg-[#f2f2f2]"><ArrowLeft size={16} />All results for “{q}”</button>
+      <button onClick={() => { setInShow(null); setArchive(null); setSort("best"); }} className="inline-flex h-9 items-center gap-1.5 rounded-full pl-2 pr-3 text-sm font-medium hover:bg-[#f2f2f2]"><ArrowLeft size={16} />All results for “{q}”</button>
       <div className="mt-3 flex items-center gap-3">
         <img src={hiRes(inShow.art, 120)} alt="" className="h-14 w-14 rounded-lg object-cover" />
         <div className="min-w-0"><p className="truncate text-lg font-semibold">{inShow.name}</p><p className="text-xs text-[#606060]">Searching this show's archive{archive && archive !== "loading" ? ` · ${archive.total} episodes listed` : ""}</p></div>
@@ -188,6 +188,10 @@ export function SearchPage({ q, api, ex, onOpen, onMore, onSearch, hidden }: {
         <input id="ps-in-show" value={inQ} onChange={(e) => setInQ(e.target.value)} placeholder={`Search in ${inShow.name}`} className="h-10 min-w-0 flex-1 rounded-l-full border border-r-0 border-[#d3d3d3] px-4 text-base outline-none focus:border-[#1c62b9]" />
         <button type="submit" aria-label="Search this show" className="inline-flex h-10 w-12 items-center justify-center rounded-r-full border border-[#d3d3d3] bg-[#f8f8f8]"><SearchIcon size={18} /></button>
       </form>
+      {archive && archive !== "loading" && episodes.length > 0 && <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button onClick={() => onOpen(episodes[0], episodes.slice(1))} className="inline-flex h-10 items-center gap-1.5 rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white" data-testid="ps-play-order"><Play size={15} fill="currentColor" />{sort === "old" ? "Play from the first episode" : "Play from the newest"}</button>
+        <button onClick={() => setSort(sort === "old" ? "new" : "old")} className="inline-flex h-10 items-center rounded-full bg-[#f2f2f2] px-4 text-sm font-medium" data-testid="ps-order">{sort === "old" ? "Oldest first" : "Newest first"}</button>
+      </div>}
       {archive && archive !== "loading" && archive.total >= 200 && <p className="mt-2 text-xs text-[#767676]">Shows the 200 newest episodes this podcast lists. Some shows only keep recent episodes in their feed.</p>}
       {archive === "loading" && <div className="flex justify-center py-12"><Loader2 className="animate-spin text-[#606060]" size={24} /></div>}
     </section>}
@@ -211,7 +215,7 @@ export function SearchPage({ q, api, ex, onOpen, onMore, onSearch, hidden }: {
       {episodes.length === 0 && (inShow ? archive !== "loading" : !!res) && <p className="py-10 text-center text-[#606060]">{inShow ? "Nothing in this show matches. Try fewer words." : filtered ? "Nothing matches with these filters. Try clearing one." : `No episodes found for “${q}”.`}</p>}
       <ol className="mt-2 flex flex-col">
         {episodes.slice(0, limit).map((e) => <li key={e.id} className="group relative flex gap-3 rounded-xl py-3 pr-9">
-          <button onClick={() => onOpen(e)} className="flex min-w-0 flex-1 gap-3 text-left">
+          <button onClick={() => (inShow ? onOpen(e, episodes.slice(episodes.indexOf(e) + 1)) : onOpen(e))} className="flex min-w-0 flex-1 gap-3 text-left" data-testid="ps-ep">
             <span className="block h-[72px] w-[72px] shrink-0 overflow-hidden rounded-lg bg-[#f2f2f2] sm:h-[88px] sm:w-[156px]"><img src={hiRes(e.art, 160)} alt="" loading="lazy" {...artIn} className="pz-art h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 sm:object-contain" /></span>
             <span className="min-w-0">
               <span className="line-clamp-2 text-[15px] font-semibold leading-snug">{e.title}</span>

@@ -7,7 +7,7 @@
 import { dueHubReminders, type HubReminder } from "@shared/hubReminders";
 import { dueTodoReminders } from "@shared/todoReminders";
 import type { Workspace } from "@shared/teacherHub";
-import { hasNativePlugin, isNativeApp, nativeCall } from "@/lib/nativeApp";
+import { hasNativePlugin, isNativeApp, nativeCall, nativeListen } from "@/lib/nativeApp";
 import { startApplePush, stopApplePush } from "@/lib/applePush";
 
 export type ReminderKind = "life" | "work";
@@ -99,8 +99,7 @@ export function installReminderTaps(): void {
   // Already allowed before: sign this iPhone up with the server again (the token can change).
   if (nativeRemindersOn("life") || nativeRemindersOn("work")) void startApplePush(false);
   try {
-    const plugin = (window as any).Capacitor?.Plugins?.LocalNotifications;
-    void plugin?.addListener?.("localNotificationActionPerformed", (e: any) => {
+    void nativeListen("LocalNotifications", "localNotificationActionPerformed", (e: any) => {
       const url = String(e?.notification?.extra?.url || "");
       if (!url) return;
       if (url.startsWith("#")) window.location.hash = url.slice(1);
