@@ -90,5 +90,5 @@ test("invalid imported storage is ignored rather than causing a crash",()=>{
   const app=boot({version:1,settings:{},foods:[{date:"invalid",name:"garbage"}]});
   app.click({action:"water"},"[data-action]"); // Persist normalized in-memory data.
   assert.equal(app.current().foods.length,0);
-  assert.match(app.elements["#main"].innerHTML,/ARISE FIT/);
+  assert.match(app.elements["#main"].innerHTML,/A\.R\.I\.S\.E\. FIT/);
 });
