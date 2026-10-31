@@ -60,6 +60,22 @@ function resolveNativeApiUrl(url: string): string {
   return nativeApiOrigin + url;
 }
 
+// Pictures and media from the server (book covers: <img src="/api/book-cover/…">) load the same way:
+// in the app a short "/api/…" address would point inside the app, where they aren't.
+if (isAriseTodoNative) {
+  const ATTRS = ["src", "poster"];
+  const fix = (el: Element) => {
+    for (const a of ATTRS) { const v = el.getAttribute(a); if (v && v.startsWith("/api/")) el.setAttribute(a, nativeApiOrigin + v); }
+  };
+  const sweep = (root: ParentNode) => root.querySelectorAll?.('img[src^="/api/"], video[src^="/api/"], audio[src^="/api/"], source[src^="/api/"], video[poster^="/api/"]').forEach(fix);
+  new MutationObserver((list) => {
+    for (const m of list) {
+      if (m.type === "attributes") fix(m.target as Element);
+      else m.addedNodes.forEach((n) => { if (n.nodeType === 1) { fix(n as Element); sweep(n as Element); } });
+    }
+  }).observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ATTRS });
+}
+
 // Global fetch wrapper: a page load that briefly gets 401 (session store catching up) or 503 (server
 // restarting during a deploy) is tried again. Only reads (GET) are retried, so a sign-in, a save or a
 // submitted form is never sent twice; a wrong password is answered at once and counts once.

@@ -29,6 +29,7 @@ import { registerSocialRoutes } from "./podcastSocial";
 import { registerCreatorRoutes } from "./podcastCreators";
 import { topShowsService } from "./podcastTop";
 import { nowNewsService, NOW_HOURS_DEFAULT } from "./podcastNow";
+import { newsStation } from "./newsStation";
 import { standupService } from "./podcastStandup";
 import { showInfoService } from "./podcastInfo";
 import { accountSessions, registerPodscrollAccountRoutes, SESSION } from "./podcastAccounts";
@@ -172,6 +173,7 @@ export interface EarshotOptions {
 }
 let sharedAdStore: AdStore | null = null;
 const nowServices = new WeakMap<object, ReturnType<typeof nowNewsService>>();
+const stations = new WeakMap<object, ReturnType<typeof newsStation>>();
 const standupServices = new WeakMap<object, ReturnType<typeof standupService>>();
 const openingsStarted = new WeakSet<object>();
 
@@ -300,6 +302,18 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     nowServices.set(dir, nowNews);
     if (!options.fetcher && process.env.NODE_ENV !== "test") setTimeout(() => nowNews!.start(), 20_000).unref?.();
   }
+  /** Pod+ Live News Radio: one station for everyone (server/newsStation.ts): what's on air now, the
+   *  next few, and the server's clock, so every listener plays the same moment. */
+  let station = stations.get(dir);
+  if (!station) {
+    station = newsStation({ episodes: () => nowNews!.list(24, false).episodes, kv: options.socialDb ? supabaseKV(options.socialDb) : undefined });
+    stations.set(dir, station);
+  }
+  app.get(`${P}/now/station`, authMiddleware, async (req: any, res) => {
+    if (limited(reads, req, res)) return;
+    res.set("Cache-Control", "no-store");
+    try { res.json(await station!.view()); } catch { res.status(503).json({ message: "The news station is starting. Try again in a minute." }); }
+  });
   app.get(`${P}/now`, authMiddleware, async (req: any, res) => {
     if (limited(reads, req, res)) return;
     const hours = Number(req.query?.hours) || NOW_HOURS_DEFAULT;

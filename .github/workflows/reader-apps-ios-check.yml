@@ -1,0 +1,89 @@
+name: Reader apps iOS launch check
+# Builds both A.R.I.S.E. Reader iPhone apps for the iOS 27 simulator (Xcode 27, as TestFlight does),
+# opens each one and fails if iOS stops it. Catches native mistakes before a TestFlight build.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'reader/ios-app/**'
+      - 'educator/ios-app/**'
+      - '.github/scripts/adopt_uiscene.py'
+      - '.github/scripts/configure_reader_app.py'
+      - '.github/workflows/reader-apps-ios-check.yml'
+jobs:
+  ios:
+    runs-on: xcode-27
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { flavor: reader, bundle: com.arisereader.reader }
+          - { flavor: educator, bundle: com.arisereader.educator }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use the newest Xcode 27
+        shell: bash
+        run: |
+          set -euo pipefail
+          X=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | grep -viE 'beta|release_candidate|_rc' | sort -V | tail -1 || true)
+          if [[ -z "$X" ]]; then X=$(xcode-select -p | sed 's#/Contents/Developer$##'); fi
+          echo "DEVELOPER_DIR=$X/Contents/Developer" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install application dependencies
+        run: npm ci
+      - name: Bundle A.R.I.S.E. application locally
+        run: |
+          VITE_NATIVE_APP=${{ matrix.flavor }} npx vite build
+          rm -rf ${{ matrix.flavor }}/ios-app/www
+          mkdir -p ${{ matrix.flavor }}/ios-app/www
+          cp -R dist/public/. ${{ matrix.flavor }}/ios-app/www/
+      - name: Install native tools
+        working-directory: ${{ matrix.flavor }}/ios-app
+        run: npm install --no-audit --no-fund
+      - name: Generate native project
+        working-directory: ${{ matrix.flavor }}/ios-app
+        run: |
+          npx cap add ios
+          npx cap sync ios
+          python3 ../../.github/scripts/configure_reader_app.py ios/App/App/Info.plist ${{ matrix.flavor }}
+          python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist --below-status-bar
+      - name: Compile iOS simulator app
+        working-directory: ${{ matrix.flavor }}/ios-app
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ./derived CODE_SIGNING_ALLOWED=NO build
+      - name: Launch app in iPhone simulator
+        working-directory: ${{ matrix.flavor }}/ios-app
+        run: |
+          set -euo pipefail
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); g=sorted(d["devices"].items(), key=lambda kv: [int(n) for n in kv[0].rsplit("iOS-",1)[-1].split("-") if n.isdigit()] if "iOS-" in kv[0] else [0]); print(next(x["udid"] for _, group in reversed(g) for x in group if x["name"].startswith("iPhone")))')
+          xcrun simctl boot "$DEVICE"
+          xcrun simctl bootstatus "$DEVICE" -b
+          xcrun simctl install "$DEVICE" derived/Build/Products/Debug-iphonesimulator/App.app
+          xcrun simctl launch "$DEVICE" ${{ matrix.bundle }}
+          sleep 12
+          # Still running after launch (iOS stops an app that can't start, e.g. without the UIScene life cycle).
+          if ! xcrun simctl spawn "$DEVICE" launchctl list | grep -q "UIKitApplication:${{ matrix.bundle }}"; then
+            echo "::error title=Launch::The app quit right after it opened on the iOS simulator"
+            xcrun simctl spawn "$DEVICE" log show --last 2m --style compact --predicate 'eventMessage CONTAINS[c] "scene" OR eventMessage CONTAINS[c] "${{ matrix.bundle }}"' | tail -40 || true
+            exit 1
+          fi
+          echo "::notice title=Launch::Opened and still running on $(xcrun simctl list devices | grep "$DEVICE" | head -1 | xargs)"
+          # An iPhone Duo simulator has two screens: the picture is a nice-to-have, not the check.
+          xcrun simctl io "$DEVICE" screenshot "$RUNNER_TEMP/${{ matrix.flavor }}-launch.png" || xcrun simctl io "$DEVICE" screenshot --display=internal "$RUNNER_TEMP/${{ matrix.flavor }}-launch.png" || echo "::warning title=Screenshot::No launch screenshot from this simulator"
+      - name: Save iPhone launch screenshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.flavor }}-iphone-launch
+          path: ${{ runner.temp }}/${{ matrix.flavor }}-launch.png
+          if-no-files-found: warn
+      - name: Save simulator artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.flavor }}-ios-simulator
+          path: ${{ matrix.flavor }}/ios-app/derived/Build/Products/Debug-iphonesimulator/App.app
+          if-no-files-found: error
+          retention-days: 7

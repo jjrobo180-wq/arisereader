@@ -1,0 +1,43 @@
+name: Reader apps smoke test
+# Builds both A.R.I.S.E. Reader iPhone apps' pages as the iPhone builds do and signs in with the public
+# sample accounts against the live server in Chromium, reporting any page error (the screen that says
+# "Something went wrong") and the sign-in form's layout. Runs by hand and on Reader app changes.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'client/src/**'
+      - '.github/scripts/reader-app-smoke.mjs'
+      - '.github/workflows/reader-app-smoke.yml'
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { flavor: reader, user: sample, pass: sample1234 }
+          - { flavor: educator, user: sample-parent, pass: sample1234 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build the app's pages with the "inside the iPhone app" checks on
+        run: |
+          grep -rl 'window.location.protocol === "capacitor:"' client/src | xargs sed -i 's/window.location.protocol === "capacitor:"/true/g'
+          VITE_NATIVE_APP=${{ matrix.flavor }} npx vite build
+      - name: Install Playwright and Chromium
+        run: |
+          npm i --no-save playwright@1.49.1
+          npx playwright install --with-deps chromium
+      - name: Sign in and look around
+        run: node .github/scripts/reader-app-smoke.mjs dist/public ${{ matrix.flavor }} ${{ matrix.user }} ${{ matrix.pass }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-${{ matrix.flavor }}
+          path: smoke-*.png

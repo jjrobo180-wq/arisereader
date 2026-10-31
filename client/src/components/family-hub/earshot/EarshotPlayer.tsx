@@ -22,6 +22,7 @@ import { hiRes, type PodMode } from "@shared/earshot";
 import { momentsBetween, hoursWords, sumKinds } from "@shared/earshotListen";
 import { AskSheet, CatchUpSheet, DriveSheet, HoursBackCard, MomentBubble, catchUpWorthIt, useTimedComments, type TimedComment } from "./EarshotListen";
 import { onOtherSound, soundStarted } from "./soundBus";
+import { NEWS_RADIO_ID, NEWS_RADIO_NAME } from "./newsRadio";
 import { attachVoiceBoost, countCouldSave, countHoursBack, isBoosted, primeVoiceBoost, readHoursBack, resumeVoiceBoost, setVoiceBoost } from "./listenExtras";
 
 type Counts = { likes: number; comments: number; shares: number; liked: boolean };
@@ -31,7 +32,9 @@ type Item = { key: string; show: PodShow; why: string; ep: PodEpisode | null; st
   /** A show coming back around once the feed has been through every show it has: play an episode this feed hasn't. */
   again?: boolean;
   /** An Open Mic episode (made by someone on Pod+), woven into For You. */
-  mic?: { post: string; handle: string; name: string; newVoice: boolean; followed: boolean } };
+  mic?: { post: string; handle: string; name: string; newVoice: boolean; followed: boolean };
+  /** Pod+ Live News Radio: when this bulletin is on air for everyone (server clock, ms) and how long. */
+  live?: { startsAt: number; secs: number } };
 type Tab = "foryou" | "following" | "openmic" | "social" | "explore" | "library";
 
 export const ACCENT = "#ff8a3d";
@@ -116,7 +119,7 @@ export function Setup({ initial, student, onDone, onCancel, brand = "Earshot" }:
 // The player: feed, explore, library
 // ===========================================================================
 /** What's playing in the swipe player, for a mini bar on other pages (Pod+ keeps the player running). */
-export type NowPlaying = { title: string; show: string; art: string; playing: boolean };
+export type NowPlaying = { title: string; show: string; art: string; playing: boolean; /** Pod+ Live News Radio is on. */ live?: boolean };
 export type PlayerControl = { toggle: () => void; pause: () => void };
 export type PlayerProps = {
   /** Shown on screen right now (Pod+ keeps it running, hidden, on other pages so the sound goes on). */
@@ -200,7 +203,11 @@ function saveSpot(ep: PodEpisode, t: number) {
   else all[ep.id] = { t: Math.floor(t), secs: ep.secs, title: ep.title, show: ep.show, showId: ep.showId, art: ep.art, at: Date.now() };
   const keep = Object.entries(all).sort((a, b) => b[1].at - a[1].at).slice(0, 200);
   try { localStorage.setItem(SPOTS_KEY, JSON.stringify(Object.fromEntries(keep))); } catch { /* not kept */ }
+  // Continue listening (Home) updates right away.
+  try { window.dispatchEvent(new Event(SPOTS_EVENT)); } catch { /* no window */ }
 }
+/** Sent whenever a spot is saved, so Continue listening redraws without waiting. */
+export const SPOTS_EVENT = "earshot-spots";
 
 // ---- a short silent sound, played once on the first tap so every player can start later without one ----
 let silentUrl = "";
@@ -284,6 +291,9 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const undone = useRef<Set<string>>(new Set());
   const players = useRef<HTMLAudioElement[]>([]);
   const cur = useRef<HTMLAudioElement | null>(null);
+  const keepSpotRef = useRef<() => void>(() => {});
+  /** Pod+ Live News Radio while it is on (see startNewsRadio). */
+  const radio = useRef<{ offset: number; finished: string } | null>(null);
   const feedRef = useRef<HTMLDivElement | null>(null);
   const listened = useRef(0);
   /** When the feed last moved on by itself (an episode ending, or the "swipe for me" timer). */
@@ -433,6 +443,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   }, [student, esRef, mode, loadPools]);
 
   const extend = useCallback((n: number) => {
+    // The live news station plays only news: no podcasts after it.
+    if (radio.current) return;
     const list = itemsRef.current;
     const pool = candidates();
     const ctxOf = (shown: string[]) => ({ recentShows: list.slice(-5).map((x) => x.show.id), shownShows: shown, follows: esRef.current.follows.map((f) => f.id) });
@@ -485,6 +497,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       }
       woven.push(a); at++;
     }
+    if (radio.current) return;
     setItems((c) => [...c, ...woven]);
     added.filter((x) => x.state === "loading").forEach(fill);
   }, [candidates, fill, mode, esRef, student, growTargets, loadMore, widen]);
@@ -575,6 +588,21 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   /** The lock screen and headphone buttons control this player again (an audiobook or the radio may
    *  have taken them while they played). */
+  /** On the live news station: no skipping or seeking from the lock screen or headphones either. */
+  const onAirNow = () => !!itemsRef.current[activeRef.current]?.key.startsWith("nr-");
+  const skipButtons = () => {
+    const live = onAirNow();
+    const set = (k: MediaSessionAction, f: (() => void) | null) => { try { navigator.mediaSession.setActionHandler(k, f as any); } catch { /* not supported */ } };
+    set("nexttrack", live ? null : () => goTo(activeRef.current + 1));
+    set("previoustrack", live ? null : () => goTo(activeRef.current - 1));
+    set("seekbackward", live ? null : () => seekBy(-15));
+    set("seekforward", live ? null : () => seekBy(30));
+    set("seekto", null);
+    if (live) {
+      const ep = itemsRef.current[activeRef.current]?.ep;
+      try { navigator.mediaSession.metadata = new MediaMetadata({ title: `LIVE · ${NEWS_RADIO_NAME}`, artist: ep ? `${ep.show} · ${ep.title}` : "News", album: "Pod+", artwork: ep?.art ? [{ src: ep.art, sizes: "600x600" }] : [] }); } catch { /* not supported */ }
+    }
+  };
   const claimLockScreen = (a: HTMLAudioElement) => {
     if (!("mediaSession" in navigator)) return;
     try {
@@ -582,10 +610,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       if (ep) navigator.mediaSession.metadata = new MediaMetadata({ title: ep.title, artist: ep.show, album: standalone ? "Pod+" : "Earshot", artwork: ep.art ? [{ src: ep.art, sizes: "600x600" }] : [] });
       navigator.mediaSession.setActionHandler("play", () => { cur.current?.play().catch(() => {}); });
       navigator.mediaSession.setActionHandler("pause", () => cur.current?.pause());
-      navigator.mediaSession.setActionHandler("nexttrack", () => goTo(activeRef.current + 1));
-      navigator.mediaSession.setActionHandler("previoustrack", () => goTo(activeRef.current - 1));
-      navigator.mediaSession.setActionHandler("seekbackward", () => seekBy(-15));
-      navigator.mediaSession.setActionHandler("seekforward", () => seekBy(30));
+      skipButtons();
       void a;
     } catch { /* not supported */ }
   };
@@ -598,7 +623,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     a.addEventListener("timeupdate", () => { if (a === cur.current) handlers.current.time(a); });
     a.addEventListener("ended", () => { if (a === cur.current) handlers.current.ended(a); });
     a.addEventListener("play", () => { if (isBoosted(a)) resumeVoiceBoost(); if (a === cur.current) { setPlaying(true); soundStarted("pod"); claimLockScreen(a); } });
-    a.addEventListener("pause", () => { if (a === cur.current) setPlaying(false); });
+    a.addEventListener("pause", () => { if (a === cur.current) { setPlaying(false); keepSpotRef.current(); } });
     a.addEventListener("error", () => { if (a === cur.current && a.dataset.ep) handlers.current.error(a); });
     // Bad signal: say "Buffering…" (after a moment, so a short hiccup doesn't flash it) instead of
     // doing anything drastic; it carries on by itself once enough sound has arrived.
@@ -751,7 +776,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     a = setAudioSrc(a, ep, via);
     a.preload = "auto";
     // Through the server the intro is found and skipped exactly; otherwise long episodes start 90 s in.
-    const at = plainPlay.current.has(ep.id) ? 0 : startAt(ep.secs, readSpots()[ep.id]?.t, via ? false : esRef.current.settings.skipIntro);
+    const live = liveOf(ep.id);
+    const at = live ? liveAt(live) : plainPlay.current.has(ep.id) ? 0 : startAt(ep.secs, readSpots()[ep.id]?.t, via ? false : esRef.current.settings.skipIntro);
     a.addEventListener("loadedmetadata", () => {
       // Where to start: a saved spot or intro skip, or after the pre-roll the server found in this copy.
       // Only somewhere well before the real end (Apple's length can be longer than the file).
@@ -765,11 +791,14 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     return a;
   };
 
+  /** Saves where the episode in the player is, right now (before switching away from it). */
+  function keepSpot() { const it = itemsRef.current[activeRef.current]; const a = cur.current; if (it?.ep && !it.key.startsWith("nr-") && a && a.dataset.ep === it.ep.id && a.currentTime > 0) saveSpot(it.ep, a.currentTime); }
+  keepSpotRef.current = keepSpot;
   function pausePlayer() { cur.current?.pause(); setPlaying(false); }
   useEffect(() => { if (locked) { players.current.forEach((a) => a.pause()); setPlaying(false); } }, [locked]);
   const leave = useCallback((i: number) => {
     const it = itemsRef.current[i]; if (!it?.ep || !unlockedRef.current) return;
-    if (cur.current?.dataset.ep === it.ep.id) saveSpot(it.ep, cur.current.currentTime);
+    if (cur.current?.dataset.ep === it.ep.id && !it.key.startsWith("nr-")) saveSpot(it.ep, cur.current.currentTime);
     const secs = listened.current;
     if (secs < 3) { signal(it.show.genre, "skip"); update((e) => ({ ...e, skipped: [it.show.id, ...e.skipped].slice(0, 80) })); }
     else if (secs < 15) signal(it.show.genre, "pass");
@@ -804,7 +833,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     // them and the sound comes on. Muted, not paused: iPhones only start sound inside the tap.
     const p0 = plays.current.get(ep.id);
     const resuming = (readSpots()[ep.id]?.t ?? 0) > 5;
-    const hold = play && !resuming && !!p0 && !p0.ads?.ready && (a.currentTime || 0) < 2 && esRef.current.settings.adMode === "auto" && !esRef.current.adFree.includes(ep.showId);
+    const hold = play && !it.live && !resuming && !!p0 && !p0.ads?.ready && (a.currentTime || 0) < 2 && esRef.current.settings.adMode === "auto" && !esRef.current.adFree.includes(ep.showId);
     if (hold) {
       a.muted = true; setHolding(ep.id);
       const t0 = Date.now();
@@ -824,6 +853,13 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       };
       setTimeout(tick, 200);
     }
+    if (it.live) {
+      // Live: to where the station is now (again once it plays: iPhones ignore an early jump).
+      const live = it.live;
+      const sync = () => { try { const t = liveAt(live); if (a.dataset.ep === ep.id && Math.abs(a.currentTime - t) > 4 && safeTo(a, t)) a.currentTime = t; } catch { /* not seekable yet */ } };
+      if (a.readyState >= 1) sync(); else a.addEventListener("loadedmetadata", sync, { once: true });
+      a.addEventListener("playing", sync, { once: true });
+    }
     if (play) a.play().catch(() => { a.muted = false; setHolding(null); setPlaying(false); });
     if (next) playerFor(next, [a]);
     // Covers for the next few are fetched now, so they're there the moment you swipe.
@@ -831,10 +867,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     if ("mediaSession" in navigator) {
       try {
         navigator.mediaSession.metadata = new MediaMetadata({ title: ep.title, artist: ep.show, album: standalone ? "Pod+" : "Earshot", artwork: ep.art ? [{ src: ep.art, sizes: "600x600" }] : [] });
-        navigator.mediaSession.setActionHandler("nexttrack", () => goTo(activeRef.current + 1));
-        navigator.mediaSession.setActionHandler("previoustrack", () => goTo(activeRef.current - 1));
-        navigator.mediaSession.setActionHandler("seekbackward", () => seekBy(-15));
-        navigator.mediaSession.setActionHandler("seekforward", () => seekBy(30));
+        skipButtons();
       } catch { /* not supported */ }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -854,7 +887,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   useEffect(() => { if (activeEpId && cur.current?.dataset.ep !== activeEpId) activate(active, unlockedRef.current); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeEpId]);
   useEffect(() => { const n = items[active + 1]?.ep; if (n && cur.current) playerFor(n, [cur.current]); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [nextEpId]);
   useEffect(() => { if (cur.current) cur.current.playbackRate = es.settings.speed; }, [es.settings.speed]);
-  useEffect(() => { const save = () => { const it = itemsRef.current[activeRef.current]; if (it?.ep && cur.current?.dataset.ep === it.ep.id) saveSpot(it.ep, cur.current.currentTime); }; window.addEventListener("pagehide", save); return () => window.removeEventListener("pagehide", save); }, []);
+  useEffect(() => { const save = () => { const it = itemsRef.current[activeRef.current]; if (it?.ep && !it.key.startsWith("nr-") && cur.current?.dataset.ep === it.ep.id) saveSpot(it.ep, cur.current.currentTime); }; window.addEventListener("pagehide", save); return () => window.removeEventListener("pagehide", save); }, []);
 
   const goTo = (i: number) => {
     const root = feedRef.current; if (!root) return;
@@ -916,6 +949,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
 
   // ---------------- read along and ad skip ----------------
   const activeEp = items[active]?.ep ?? null;
+  /** Pod+ Live News Radio is on: it plays like a live station (LiveNews), no skipping or swiping. */
+  const onAir = !!items[active]?.key.startsWith("nr-");
   // ---------------- timestamped comments, popping up as their moment plays ----------------
   const timed = useTimedComments(api, activeEp?.id, commentsOn && es.settings.liveComments && !student);
   const timedRef = useRef<TimedComment[]>([]); timedRef.current = timed.list;
@@ -1011,7 +1046,10 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     if (due.length && !sheetRef.current) showMoment(due[due.length - 1]);
     setTime(t); if (a.duration && Number.isFinite(a.duration)) setDur(a.duration);
     const it = itemsRef.current[activeRef.current]; const ep = it?.ep;
-    if (ep && a.dataset.ep === ep.id && Math.abs(t - lastSpot.current) > 5) { lastSpot.current = t; saveSpot(ep, t); }
+    if (ep && a.dataset.ep === ep.id && !it?.key.startsWith("nr-") && Math.abs(t - lastSpot.current) > 5) { lastSpot.current = t; saveSpot(ep, t); }
+    // Live: this copy runs longer than the station's slot (ads stitched in): everyone else has moved
+    // on, so this phone does too.
+    if (it?.live && ep && a.dataset.ep === ep.id && !a.paused && liveClock() > it.live.startsAt + it.live.secs * 1000 + 6000 && Date.now() - lastAutoAdvance.current > 10_000) { lastAutoAdvance.current = Date.now(); void tuneIn(ep.id); }
     // Plays and listening time for episodes people made, for their Studio.
     if (ep && OWN_EPISODE.test(ep.id) && delta > 0 && delta < 2) {
       const h = micHeard.current;
@@ -1059,6 +1097,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     if (ca && !stuck && Number.isFinite(ca.duration) && ca.duration > 0 && ca.currentTime < ca.duration - 8) { waitForSignal(ca); return; }
     if (r0) { if (r0.timer) clearTimeout(r0.timer); netRetry.current = null; setNetWait(null); }
     const it = itemsRef.current[activeRef.current];
+    // Live News Radio: straight on to what's on air next (never back to the top of this one).
+    if (it?.live && it.ep) { setPlaying(false); lastAutoAdvance.current = Date.now(); void tuneIn(it.ep.id); return; }
     if (it?.ep) { signal(it.show.genre, "finish"); saveSpot(it.ep, 0); const id = it.ep.id; update((e) => (e.heard.includes(id) ? e : { ...e, heard: [id, ...e.heard].slice(0, 200) })); }
     setPlaying(false);
     if (sleepRef.current === "end") { setSleepAt(null); say("Sleep timer: stopped at the end of the episode."); return; }
@@ -1270,14 +1310,18 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     setTimeout(() => goTo(at), 120);
   };
   /** Plays a list back to back: the chosen episode now, the rest right after it in the feed. */
-  const playList = (list: Item[]) => {
+  const playList = (list: Item[], fresh = false, quiet = false) => {
     if (!list.length) return;
+    keepSpot();
+    if (!fresh) radio.current = null;
     unlock();
-    setSheet(null); setGenreMode(null);
-    const switching = mode !== "foryou";
+    // Quiet (the live station moving on by itself): whatever page or sheet is open stays open.
+    if (!quiet) setSheet(null);
+    setGenreMode(null);
+    const switching = fresh || mode !== "foryou";
     const at = !switching && itemsRef.current.length ? activeRef.current + 1 : 0;
-    if (switching) { picked.current = true; pausePlayer(); itemsRef.current = []; setActive(0); activeRef.current = 0; prevActive.current = -1; }
-    if (tab !== "foryou") setTab("foryou");
+    if (switching) { picked.current = mode !== "foryou"; pausePlayer(); itemsRef.current = []; setActive(0); activeRef.current = 0; prevActive.current = -1; if (feedRef.current) feedRef.current.scrollTop = 0; }
+    if (tab !== "foryou" && !quiet) setTab("foryou");
     setItems((cur) => { const next = switching ? [] : [...cur]; next.splice(at, 0, ...list); return next; });
     list.filter((x) => x.state === "loading").forEach(fill);
     setTimeout(() => goTo(at), 120);
@@ -1325,12 +1369,78 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
   const openRead = () => { const ep = items[active]?.ep; if (!ep) return; setSheet({ kind: "read" }); wantTx(ep, cur.current?.dataset.ep === ep.id ? cur.current.currentTime : 0); };
 
+  // Pod+ Live News Radio: one station for everyone (server/newsStation.ts). The server says which
+  // bulletin is on air and since when; this plays that one from the point it has reached, so every
+  // phone hears the same moment. Stop and Listen live again rejoins wherever the station is now.
+  const radioItem = (ep: PodEpisode, why: string, live: { startsAt: number; secs: number }): Item => {
+    const show: PodShow = { id: ep.showId, name: ep.show, author: ep.author, art: ep.art, genre: "news", appleGenre: "", link: ep.link, episodes: 0, explicit: ep.explicit, latest: ep.date };
+    return { key: `nr-${ep.id}-${live.startsAt}`, show, why, ep, state: "ready", live };
+  };
+  /** The station's clock (the server's), from this phone's. */
+  const liveClock = () => Date.now() + (radio.current?.offset ?? 0);
+  /** Where in this bulletin the station is now, in seconds (0 if it hasn't started yet). */
+  const liveAt = (live: { startsAt: number; secs: number }) => Math.max(0, Math.min(live.secs - 2, (liveClock() - live.startsAt) / 1000));
+  const liveOf = (epId: string) => itemsRef.current.find((x) => x.live && x.ep?.id === epId)?.live ?? null;
+  type StationSlot = { ep: PodEpisode; startsAt: number; secs: number };
+  const fetchStation = async (): Promise<{ slots: StationSlot[]; offset: number }> => {
+    const t0 = Date.now();
+    const b = await api(`/api/earshot/now/station`);
+    const t1 = Date.now();
+    return { slots: Array.isArray(b?.slots) ? b.slots.filter((x: any) => x?.ep?.id && Number.isFinite(x.startsAt) && x.secs > 0) : [], offset: Number(b?.now) ? Number(b.now) - (t0 + t1) / 2 : 0 };
+  };
+  const slotItems = (slots: StationSlot[], now: number) => slots.map((x) => radioItem(x.ep, x.startsAt <= now ? `${NEWS_RADIO_NAME} · On air` : `Up next · ${NEWS_RADIO_NAME}`, { startsAt: x.startsAt, secs: x.secs }));
+  /** Tune in (or back in) to whatever is on air now. Just after a bulletin finished early (ads
+   *  skipped), the next one starts from its beginning instead of replaying the end of that one. */
+  const tuneIn = async (justFinished = "") => {
+    try {
+      const { slots, offset } = await fetchStation();
+      if (!slots.length) { say("The news station is starting. Try again in a minute."); return; }
+      radio.current = { offset, finished: justFinished };
+      const now = Date.now() + offset;
+      const list = justFinished && slots[0]?.ep.id === justFinished && slots[1] ? slots.slice(1) : slots;
+      playList(slotItems(list, now), true, !!justFinished);
+      // The same spot in the list as before (the top): start it here, since the list changing alone doesn't.
+      setTimeout(() => {
+        const it = itemsRef.current[activeRef.current];
+        if (it?.live && (cur.current?.dataset.ep !== it.ep?.id || cur.current?.paused)) activate(activeRef.current, unlockedRef.current);
+      }, 400);
+    } catch (e: any) { say(e?.message || "News Radio didn't start. Try again."); }
+  };
+  const startNewsRadio = () => tuneIn();
+  /** Off the air: the station stops and the feed goes back to podcasts. */
+  const leaveStation = () => {
+    pausePlayer(); radio.current = null;
+    itemsRef.current = []; setItems([]); setActive(0); activeRef.current = 0; prevActive.current = -1;
+    if (feedRef.current) feedRef.current.scrollTop = 0;
+    extend(6);
+  };
+  // Keeps what's coming up current (a bulletin that just came out goes on next for everyone).
+  useEffect(() => {
+    const t = setInterval(async () => {
+      if (!radio.current) return;
+      // Picking something else turns the station off.
+      if (!itemsRef.current[activeRef.current]?.live) { radio.current = null; return; }
+      try {
+        const { slots, offset } = await fetchStation();
+        if (!radio.current || !slots.length) return;
+        radio.current.offset = offset;
+        const on = itemsRef.current[activeRef.current];
+        const after = slots.filter((x) => x.startsAt > (on?.live?.startsAt ?? 0));
+        if (!after.length) return;
+        setItems((list) => { const keep = list.slice(0, activeRef.current + 1); return [...keep, ...slotItems(after, Date.now() + offset)]; });
+      } catch { /* tries again next round */ }
+    }, 60_000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // A Pod Mode opened from the Pod+ home page plays back to back.
   const modeStarted = useRef(false);
   useEffect(() => {
     if (!playMode || modeStarted.current) return;
     modeStarted.current = true;
     if (playMode.id === "__drive") { setSheet({ kind: "drive" }); return; }
+    if (playMode.id === NEWS_RADIO_ID) { void startNewsRadio(); return; }
     const m = esRef.current.modes.find((x) => x.id === playMode.id);
     if (!m?.episodes.length) return;
     const mix = <T,>(l: T[]) => { const x = l.slice(); for (let i = x.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [x[i], x[j]] = [x[j], x[i]]; } return x; };
@@ -1403,7 +1513,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const nowEp = items[active]?.ep, nowShow = items[active]?.show;
   useEffect(() => {
     const started = playing || (!!cur.current && cur.current.dataset.ep === nowEp?.id && cur.current.currentTime > 0);
-    onNowPlaying?.(nowEp && nowShow && started ? { title: nowEp.title, show: nowShow.name, art: nowEp.art || nowShow.art, playing } : null);
+    onNowPlaying?.(nowEp && nowShow && started ? { title: nowEp.title, show: nowShow.name, art: nowEp.art || nowShow.art, playing, live: !!items[active]?.live } : null);
   }, [nowEp?.id, playing]); // eslint-disable-line react-hooks/exhaustive-deps
   if (control) control.current = { toggle: () => toggle(), pause: () => cur.current?.pause() };
   // Once per visit from the home screen: the screen's real measurements, to the server log.
@@ -1506,8 +1616,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     </header>}
 
     {(tab === "foryou" || tab === "following") && <div ref={feedRef} tabIndex={-1}
-      onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); goTo(active + 1); } else if (e.key === "ArrowUp") { e.preventDefault(); goTo(active - 1); } else if (e.key === " ") { e.preventDefault(); toggle(); } }}
-      className={`h-full snap-y snap-mandatory overflow-y-scroll overscroll-contain [scrollbar-width:none] focus:outline-none`}>
+      onKeyDown={(e) => { if (onAir) { if (e.key === " ") { e.preventDefault(); toggle(); } return; } if (e.key === "ArrowDown") { e.preventDefault(); goTo(active + 1); } else if (e.key === "ArrowUp") { e.preventDefault(); goTo(active - 1); } else if (e.key === " ") { e.preventDefault(); toggle(); } }}
+      className={`h-full snap-y snap-mandatory overscroll-contain [scrollbar-width:none] focus:outline-none ${onAir ? "touch-none overflow-hidden" : "overflow-y-scroll"}`}>
       {!items.length && <FeedEmpty tab={tab} error={loadError} state={loadState} hasFollows={es.follows.length > 0} onExplore={() => (onHome ? onHome() : setTab("explore"))} onRetry={() => { episodesCache.current.clear(); setRetry((r) => r + 1); }} />}
       {items.map((it, i) => <Card key={it.key} i={i} item={it} active={i === active} playing={playing && i === active} time={i === active ? time : 0} dur={i === active ? dur : it.ep?.secs ?? 0}
         counts={it.ep ? counts[it.ep.id] : undefined} commentsOn={commentsOn} following={it.mic ? it.mic.followed : isFollowing(it.show.id)} saved={!!it.ep && (es.saved.some((x) => x.id === it.ep!.id) || es.modes.some((m) => m.episodes.some((x) => x.id === it.ep!.id)))} notes={es.settings.notes} full={es.settings.fullCover} unlocked={unlocked}
@@ -1523,6 +1633,10 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
         onInfo={() => { setSheet({ kind: "info", show: it.show }); signal(it.show.genre, "open"); }} onNext={() => goTo(i + 1)} />)}
     </div>}
 
+    {onAir && tab === "foryou" && items[active]?.ep && <LiveNews ep={items[active].ep!} next={items.slice(active + 1).map((x) => x.ep).filter((x): x is PodEpisode => !!x)} playing={playing} unlocked={unlocked}
+      onToggle={() => { if (playing) pausePlayer(); else { unlock(); void tuneIn(); } }}
+      onMinimize={() => { if (onHome) onHome(); else setTab("explore"); }}
+      onLeave={() => { leaveStation(); if (onHome) onHome(); else setTab("explore"); }} />}
     {netWait && activeEp && cur.current?.dataset.ep === activeEp.id && <div className={`pointer-events-none absolute inset-x-3 ${below} z-[27] flex justify-center`} data-testid="pod-net-wait"><div role="status" aria-live="polite" className="flex items-center gap-2 rounded-full bg-black/65 px-3.5 py-1.5 text-[13px] font-medium text-white ring-1 ring-white/10 backdrop-blur-xl"><Loader2 size={13} className="animate-spin" />{netWait === "offline" ? "Waiting for a signal… it'll pick up right where it stopped." : "Buffering…"}</div></div>}
     {holding && activeEp?.id === holding && <div className={`pointer-events-none absolute inset-x-3 ${below} z-[26] flex justify-center`}><div role="status" className="flex items-center gap-2 rounded-full bg-black/55 px-3.5 py-1.5 text-[13px] font-medium text-white ring-1 ring-white/10 backdrop-blur-xl"><Loader2 size={13} className="animate-spin" />Skipping the ads at the start…</div></div>}
     {tapAd && activeEp && tapAd.ep.id === activeEp.id && <div className={`pointer-events-none absolute inset-x-3 ${below} z-[26] flex justify-center`}>
@@ -1567,7 +1681,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
 
     <div className={day ? "ps-light contents" : "contents"}>{day && <style>{LIGHT_CSS + LIGHT_SHEETS_CSS}</style>}
     {sheet?.kind === "comments" && <Comments ep={sheet.ep} now={cur.current?.dataset.ep === sheet.ep.id ? cur.current.currentTime : null} onJump={(t) => { setSheet(null); unlock(); seekTo(t); if (cur.current?.paused) toggle(); }} api={api} say={say} nickname={nickname} setNickname={setNickname} onClose={() => setSheet(null)} onPosted={() => { timed.reload(); setCounts((c) => ({ ...c, [sheet.ep.id]: { ...(c[sheet.ep.id] ?? { likes: 0, comments: 0, shares: 0, liked: false }), comments: (c[sheet.ep.id]?.comments ?? 0) + 1 } })); const it = items.find((x) => x.ep?.id === sheet.ep.id); if (it) signal(it.show.genre, "comment"); }} />}
-    {sheet?.kind === "show" && <ShowPage show={sheet.show} load={loadEpisodes} hideTeasers={es.settings.hideTeasers} following={isFollowing(sheet.show.id)} adFree={es.adFree.includes(sheet.show.id)} onAdFree={(on) => update((e) => ({ ...e, adFree: on ? [sheet.show.id, ...e.adFree.filter((x) => x !== sheet.show.id)].slice(0, 300) : e.adFree.filter((x) => x !== sheet.show.id) }))} onFollow={toggleFollow} onPlayFrom={playFrom} onClose={() => setSheet(null)} onGenre={(g) => { setSheet(null); setGenreMode(g); setTab("foryou"); }} spots={readSpots()} onAddTo={(ep) => setSheet({ kind: "addto", ep, genre: sheet.show.genre })} />}
+    {sheet?.kind === "show" && <ShowPage show={sheet.show} load={loadEpisodes} hideTeasers={es.settings.hideTeasers} following={isFollowing(sheet.show.id)} adFree={es.adFree.includes(sheet.show.id)} onAdFree={(on) => update((e) => ({ ...e, adFree: on ? [sheet.show.id, ...e.adFree.filter((x) => x !== sheet.show.id)].slice(0, 300) : e.adFree.filter((x) => x !== sheet.show.id) }))} onFollow={toggleFollow} onPlayFrom={playFrom} onClose={() => setSheet(null)} onGenre={(g) => { setSheet(null); setGenreMode(g); setTab("foryou"); }} spots={readSpots()} onAddTo={(ep) => setSheet({ kind: "addto", ep, genre: sheet.show.genre })}
+      nowId={activeEp?.id} nowPlaying={playing} heard={es.heard} onNowPlaying={() => setSheet(null)} />}
     {sheet?.kind === "info" && <InfoSheet show={sheet.show} api={api} ex={ex} onClose={() => setSheet(null)} onShow={(show) => setSheet({ kind: "show", show })} onEpisodes={() => setSheet({ kind: "show", show: sheet.show })} />}
     {sheet?.kind === "share" && <ShareSheet api={api} say={say} ep={sheet.ep} social={!student} onLink={() => share(sheet.ep, sheet.genre, sheet.show)} onClose={() => setSheet(null)}
       onClip={(window as any).__PODPLUS__ !== true && cur.current?.dataset.ep === sheet.ep.id ? () => setSheet({ kind: "clip", ep: sheet.ep, time: cur.current?.currentTime ?? 0 }) : undefined} />}
@@ -2358,4 +2473,61 @@ function Library({ es, update, onEditInterests, onOpen, onMode, onPlayDownloads,
       ? <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white/5 p-3 text-sm"><span className="flex-1">Clear what the feed has learned? Likes, saves and follows stay.</span><button type="button" onClick={() => { update((e) => ({ ...e, taste: Object.fromEntries(e.genres.map((g) => [g, 3])), skipped: [] })); setAsking(false); }} className="rounded-full px-4 py-1.5 font-semibold bg-white text-[#111013]">Reset</button><button type="button" onClick={() => setAsking(false)} className="rounded-full bg-white/10 px-4 py-1.5 font-bold">Cancel</button></div>
       : <button type="button" onClick={() => setAsking(true)} className="rounded-full bg-white/10 px-4 py-2 text-sm font-bold">Reset recommendations</button>}</div>
   </div>;
+}
+
+// ---- Pod+ Live News Radio, on air: looks and plays like a live news stream. One button (listen or
+// stop), no seek bar, no skipping, no swiping; the next bulletin comes on by itself. ----
+function PodMark({ size = 30 }: { size?: number }) {
+  return <svg width={size} height={size * 0.7} viewBox="0 0 30 21" aria-hidden="true"><rect width="30" height="21" rx="6" fill="#ff6a1f" /><rect x="8" y="7.5" width="2.4" height="6" rx="1.2" fill="#fff" /><rect x="12.2" y="4.5" width="2.4" height="12" rx="1.2" fill="#fff" /><rect x="16.4" y="6.5" width="2.4" height="8" rx="1.2" fill="#fff" /><rect x="20.6" y="8.5" width="2.4" height="4" rx="1.2" fill="#fff" /></svg>;
+}
+function LiveNews({ ep, next, playing, unlocked, onToggle, onMinimize, onLeave }: { ep: PodEpisode; next: PodEpisode[]; playing: boolean; unlocked: boolean; onToggle: () => void; onMinimize: () => void; onLeave: () => void }) {
+  const [clockNow, setClockNow] = useState(() => new Date());
+  useEffect(() => { const t = setInterval(() => setClockNow(new Date()), 15_000); return () => clearInterval(t); }, []);
+  const time = clockNow.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const ago = (() => { const m = Math.round((Date.now() - (Date.parse(ep.date) || Date.now())) / 60000); return m < 2 ? "just now" : m < 60 ? `${m} min ago` : `${Math.round(m / 60)} hr ago`; })();
+  const ticker = [ep, ...next].slice(0, 8).map((e) => `${e.show}: ${e.title}`);
+  const stop = (e: { stopPropagation: () => void }) => { e.stopPropagation(); };
+  return <section role="region" aria-label="Pod+ Live News Radio, live" data-testid="pod-live-news"
+    onWheel={stop}
+    className="absolute inset-0 z-[30] flex touch-none select-none flex-col overflow-hidden bg-[#08080c] text-white" style={{ overscrollBehavior: "none" }}>
+    <style>{"@keyframes ln-pulse{0%,100%{opacity:1}50%{opacity:.35}}@keyframes ln-bar{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}@keyframes ln-tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}"}</style>
+    {ep.art && <img src={ep.art} alt="" aria-hidden referrerPolicy="no-referrer" className="pointer-events-none absolute inset-0 h-full w-full scale-125 object-cover opacity-25 blur-3xl" />}
+    <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/80" />
+    <header className="relative z-[1] flex items-center justify-between gap-3 px-4 pt-[max(env(safe-area-inset-top),14px)]">
+      <span className="flex min-w-0 items-center gap-2"><PodMark /><span className="truncate text-[17px] font-bold tracking-[-0.03em]">Pod+ <span className="font-semibold text-white/70">Live News</span></span></span>
+      <span className="flex flex-none items-center gap-2">
+        <span className="flex items-center gap-1.5 rounded-md bg-[#e5172f] px-2 py-1 text-[12px] font-extrabold tracking-[.12em]" data-testid="pod-live-badge"><span className="h-2 w-2 rounded-full bg-white" style={{ animation: "ln-pulse 1.4s ease-in-out infinite" }} />LIVE</span>
+        <button type="button" onClick={onMinimize} aria-label="Keep listening and go back" data-testid="pod-live-minimize" className="grid h-9 w-9 place-items-center rounded-full bg-white/10 backdrop-blur"><ChevronDown size={20} /></button>
+      </span>
+    </header>
+
+    <div className="relative z-[1] flex flex-1 flex-col items-center justify-center px-6 text-center">
+      <div className="relative">
+        {ep.art ? <img src={ep.art} alt="" referrerPolicy="no-referrer" className="h-52 w-52 rounded-3xl object-cover shadow-2xl ring-1 ring-white/10 sm:h-60 sm:w-60" /> : <div className="grid h-52 w-52 place-items-center rounded-3xl bg-white/5"><PodMark size={80} /></div>}
+        <span className="absolute -bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-black/80 px-3 py-1 text-[11px] font-bold uppercase tracking-[.16em] ring-1 ring-white/10">
+          <span className="flex h-3 items-end gap-[2px]" aria-hidden>{[0, 1, 2, 3].map((k) => <span key={k} className="h-full w-[3px] origin-bottom rounded-sm bg-[#ff6a1f]" style={{ animation: playing ? `ln-bar ${0.6 + k * 0.13}s ease-in-out ${k * 0.1}s infinite` : "none", transform: playing ? undefined : "scaleY(.3)" }} />)}</span>
+          {playing ? "On air" : "Stopped"}
+        </span>
+      </div>
+      <p className="mt-8 text-[13px] font-semibold uppercase tracking-[.14em] text-[#ff8a4c]">{ep.show}</p>
+      <h2 className="mt-1.5 line-clamp-3 max-w-md text-[22px] font-bold leading-tight tracking-[-0.02em]" data-testid="pod-live-title">{ep.title}</h2>
+      <p className="mt-2 text-[13px] text-white/55">Bulletin from {ago} · {time}</p>
+      <button type="button" onClick={onToggle} aria-label={playing ? "Stop" : "Listen live"} data-testid="pod-live-toggle"
+        className={`mt-8 flex h-16 items-center gap-3 rounded-full px-8 text-[17px] font-bold shadow-xl ${playing ? "bg-white/12 ring-1 ring-white/20" : "bg-[#e5172f]"}`}>
+        {playing ? <><Pause size={22} fill="currentColor" strokeWidth={0} />Stop</> : <><Play size={22} fill="currentColor" strokeWidth={0} />{unlocked ? "Listen live" : "Tap to listen live"}</>}
+      </button>
+      {next[0] && <p className="mt-5 max-w-sm truncate text-[13px] text-white/50">Up next: <span className="text-white/75">{next[0].show}</span></p>}
+      <p className="mt-2 text-[12px] text-white/40">Everyone on Pod+ hears the same news, live.</p>
+      <button type="button" onClick={onLeave} data-testid="pod-live-off" className="mt-3 rounded-full px-3 py-1.5 text-[12px] font-semibold text-white/55 underline-offset-2 hover:underline">Turn off Live News</button>
+    </div>
+
+    <div className="relative z-[1] flex items-stretch overflow-hidden border-t border-white/10 bg-[#e5172f] pb-[env(safe-area-inset-bottom)] text-[13px] font-semibold" aria-hidden>
+      <span className="flex flex-none items-center bg-black px-3 py-2.5 text-[11px] font-extrabold tracking-[.14em]">HEADLINES</span>
+      <div className="min-w-0 flex-1 overflow-hidden py-2.5">
+        <div className="flex w-max whitespace-nowrap" style={{ animation: `ln-tick ${Math.max(30, ticker.join("").length / 4)}s linear infinite` }}>
+          {[0, 1].map((k) => <span key={k} className="flex">{ticker.map((t, i) => <span key={i} className="px-4">{t}<span className="pl-4 text-white/60">•</span></span>)}</span>)}
+        </div>
+      </div>
+    </div>
+  </section>;
 }

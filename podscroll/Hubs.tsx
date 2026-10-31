@@ -8,7 +8,7 @@ import {
 } from "@shared/earshot";
 import { ModeIcon } from "../client/src/components/family-hub/earshot/EarshotExtras";
 import { artIn } from "./art";
-import { ArrowUp, Ban, Bookmark, Car, Check, ThumbsDown, ChevronLeft, Pencil, ChevronRight, RefreshCw, Loader2, Palette, Play, Plus, RotateCcw, Shuffle, SlidersHorizontal, Sparkles, Trash2, X, Zap } from "lucide-react";
+import { ArrowUp, Ban, Bookmark, Car, Check, ThumbsDown, ChevronLeft, Pencil, ChevronRight, RefreshCw, Loader2, Palette, Play, Plus, RotateCcw, Shuffle, SlidersHorizontal, Sparkles, Trash2, X, Zap, Radio } from "lucide-react";
 
 type Update = (fn: (e: Earshot) => Earshot) => void;
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
@@ -18,7 +18,8 @@ const mins = (s: number) => { const m = Math.round(s / 60); return m >= 60 ? `${
 const newModeId = (name: string) => `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 16) || "mode"}-${Math.random().toString(36).slice(2, 6)}`;
 
 /** The row of Pod Modes on the home page. */
-export function ModesRow({ es, update, onOpen, onNew, onDrive, onNews }: { es: Earshot; update: Update; onOpen: (m: PodMode) => void; onNew: () => void; /** Opens Fit my drive (a built-in hub, always first). */ onDrive?: () => void; /** Opens Up to the Minute News (a built-in hub). */ onNews?: () => void }) {
+export function ModesRow({ es, update, onOpen, onNew, onDrive, onNews, onNewsRadio, onNewsStations }: { es: Earshot; update: Update; onOpen: (m: PodMode) => void; onNew: () => void; /** Opens Fit my drive (a built-in hub, always first). */ onDrive?: () => void; /** Opens Up to the Minute News (a built-in hub). */ onNews?: () => void;
+  /** Starts Pod+ Live News Radio. */ onNewsRadio?: () => void; /** Opens Live news stations (radio). */ onNewsStations?: () => void }) {
   const [arranging, setArranging] = useState(false);
   const move = (id: string, d: number) => update((e) => {
     const list = e.modes.slice(); const i = list.findIndex((m) => m.id === id); const j = i + d;
@@ -43,6 +44,28 @@ export function ModesRow({ es, update, onOpen, onNew, onDrive, onNews }: { es: E
         <span className="flex w-[112px] flex-col items-center gap-0.5 sm:w-[128px]">
           <span className="line-clamp-2 text-center text-[15px] font-semibold leading-tight">Fit my drive</span>
           <span className="text-center text-xs text-[#606060]">Ends as you arrive</span>
+        </span>
+      </button>}
+      {onNewsRadio && !arranging && <button onClick={onNewsRadio} aria-label="Pod+ Live News Radio: nonstop news from the newsrooms' latest bulletins" className="group flex shrink-0 flex-col items-center gap-2.5 active:scale-[.97] transition-transform" data-testid="hub-news-radio">
+        <span className="relative block h-[104px] w-[104px] sm:h-[120px] sm:w-[120px]">
+          <span className="grid h-full w-full place-items-center rounded-full text-white shadow-[0_12px_28px_-14px_rgba(0,0,0,.55)] transition-transform duration-500 group-hover:scale-[1.04]" style={{ background: "linear-gradient(135deg,#ff3b30,#9a1b14)" }}><Radio size={38} /></span>
+          <span className="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full bg-[#ff3b30] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow">Live</span>
+          <span className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-black/[.06]" />
+        </span>
+        <span className="flex w-[112px] flex-col items-center gap-0.5 sm:w-[128px]">
+          <span className="line-clamp-2 text-center text-[15px] font-semibold leading-tight">Pod+ Live News Radio</span>
+          <span className="text-center text-xs text-[#606060]">Nonstop news</span>
+        </span>
+      </button>}
+      {onNewsStations && !arranging && <button onClick={onNewsStations} aria-label="Live news stations: radio stations that are news all day" className="group flex shrink-0 flex-col items-center gap-2.5 active:scale-[.97] transition-transform" data-testid="hub-news-stations">
+        <span className="relative block h-[104px] w-[104px] sm:h-[120px] sm:w-[120px]">
+          <span className="grid h-full w-full place-items-center rounded-full text-white shadow-[0_12px_28px_-14px_rgba(0,0,0,.55)] transition-transform duration-500 group-hover:scale-[1.04]" style={{ background: "linear-gradient(135deg,#334155,#0f172a)" }}><Radio size={38} /></span>
+          <span className="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full bg-[#ff3b30] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow">On air</span>
+          <span className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-black/[.06]" />
+        </span>
+        <span className="flex w-[112px] flex-col items-center gap-0.5 sm:w-[128px]">
+          <span className="line-clamp-2 text-center text-[15px] font-semibold leading-tight">Live news stations</span>
+          <span className="text-center text-xs text-[#606060]">All-news radio</span>
         </span>
       </button>}
       {onNews && !arranging && <button onClick={onNews} aria-label="Up to the Minute News: only news from the last few hours" className="group flex shrink-0 flex-col items-center gap-2.5 active:scale-[.97] transition-transform" data-testid="hub-news-now">
