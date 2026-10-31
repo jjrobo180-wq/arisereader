@@ -170,7 +170,7 @@ test("the Reader opens the hub in a new tab, signs out to arisereader.com, and h
   const page = read("client/src/pages/TeacherReader.tsx");
   assert.match(page, /target="_blank" rel="noopener" onClick=\{openHub\} data-testid="reader-open-workhub"/);
   assert.match(page, /export const READER_SIGN_IN = `\$\{READER_APP\}#\/signin`;/);
-  assert.match(page, /onClick=\{\(\) => \{ logout\(\); window\.location\.assign\(READER_SIGN_IN\); \}\}/);
+  assert.match(page, /onClick=\{\(\) => \{ logout\(\); if \(isReaderApp\(\)\) goToSignIn\(\); else window\.location\.assign\(READER_SIGN_IN\); \}\}/);
   assert.match(page, /localStorage\.getItem\(RAIL_KEY\) !== "closed"/, "the phone rail starts open");
   // The Hide / Menu button is in the header, at the top left, not at the bottom of the rail.
   const header = page.slice(page.indexOf("<header"), page.indexOf("</header>"));
