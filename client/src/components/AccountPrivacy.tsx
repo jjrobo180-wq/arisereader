@@ -63,7 +63,9 @@ export default function AccountPrivacy({ onClose }: { onClose: () => void }) {
       </div>
       {deleting && !done && <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 p-4">
         <p className="text-[15px] font-bold text-rose-900">Delete your account?</p>
-        <p className="mt-1 text-sm leading-snug text-rose-900/80">{nativeFlavor() === "todo"
+        <p className="mt-1 text-sm leading-snug text-rose-900/80">{nativeFlavor() === "fit"
+          ? "This removes your Arise account and everything in it: your workouts, programs, food diary and weight, plus anything in Arise To Duo with the same account. It can't be undone."
+          : nativeFlavor() === "todo"
           ? "This removes your account and everything in it: your tasks, notes, calendars, LifeHub and WorkHub, files, and podcast profile and posts. It can't be undone. Anything shared with you by others stays with them."
           : "This removes your account and everything saved in it, including reading progress, quizzes and points. It can't be undone."}</p>
         <label className="mt-3 block text-sm font-semibold text-rose-900">Your password
