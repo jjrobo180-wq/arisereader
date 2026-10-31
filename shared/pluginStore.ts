@@ -80,6 +80,10 @@ export type Plugin = {
   teacherOnly?: boolean;
   /** For a connection: how to set it up, shown in the store before it sends you anywhere. */
   steps?: string[];
+  /** The steps in the iPhone app, when they differ (Apple Reminders and Health connect there with one tap, no Shortcut). */
+  appSteps?: string[];
+  /** The note in the iPhone app, when it differs. */
+  appNote?: string;
   /** For a connection: what it needs, in one line (an iPhone, the site admin...). */
   needsNote?: string;
   /** For a connection: a CSS selector for its setup box, which Start setup scrolls to and highlights. */
@@ -268,6 +272,8 @@ export const PLUGINS: readonly Plugin[] = [
     anchor: '[data-testid="apple-steps"]',
     steps: ["Open Tasks in WorkHub and find Apple Reminders at the bottom.", "Tap “Set it up (about 3 minutes)” and copy your private link.", "On your iPhone, make the Shortcut the setup shows you, using that link.", "Run it, or set it to run on its own: your reminders come in as to-dos."],
     needsNote: "Needs an iPhone. Reminders come into WorkHub only; nothing is sent back to Apple.",
+    appSteps: ["Open Tasks in WorkHub and find Apple Reminders at the bottom (or ⋯ → iPhone connections).", "Tap Connect Apple Reminders and allow access.", "Your reminders come into LifeHub → Tasks each time you open the app, and check-offs stay in step both ways."],
+    appNote: "Reads the Reminders app on this iPhone. Nothing to copy or set up.",
     description: "Send reminders from your iPhone straight into your WorkHub to-do list.",
     features: ["From Siri or the Reminders app", "Lands in Tasks", "Set up once"] },
   { id: "work-email-forwarding", hub: "work", name: "Email forwarding", tagline: "Forward an email, get a to-do", category: "Connections", icon: "Forward", color: "#334155", target: { kind: "connection", needs: { tab: "email" } },
@@ -518,6 +524,8 @@ export const PLUGINS: readonly Plugin[] = [
     anchor: '[data-plugin-anchor="apple-health"]',
     steps: ["Open Food & fitness in LifeHub and pick the person to connect.", "Tap “Connect Apple Health”. You'll get a private link and an iPhone Shortcut.", "On your iPhone, add the Shortcut and let it read your Health data.", "Steps, active calories and weight come in every day on their own."],
     needsNote: "Needs an iPhone (or Apple Watch). Connect each adult separately.",
+    appSteps: ["Open Food & fitness in LifeHub and pick the person to connect.", "Tap Connect Apple Health and allow access.", "Steps, active calories and weight come in every day on their own."],
+    appNote: "Reads Apple Health on this iPhone. Nothing to copy or set up.",
     description: "Bring steps, workouts and weight in from Apple Health, so Food & fitness fills itself in.",
     features: ["Steps and workouts", "Weight", "Set up once per person"] },
   { id: "life-email-forward", hub: "life", name: "Email forwarding", tagline: "Forward an email, get a task", category: "Connections", icon: "Forward", color: "#334155", target: { kind: "connection", needs: { section: "tasks" } },

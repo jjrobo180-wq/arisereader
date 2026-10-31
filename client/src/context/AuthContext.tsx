@@ -4,6 +4,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { setSchoolTheme, setTeacherBand } from "@/lib/schoolTheme";
 import { clearAuthenticatedNavigation, resetAuthenticatedNavigation } from "@/lib/navigation";
 import { forgetThisDevice } from "@/lib/pushDevice";
+import { setAccount } from "@/lib/accountStorage";
 import { isHubAccount } from "@/lib/hubs";
 import { clearSessionBackup, keepStorage, readSessionBackup, saveSessionBackup } from "@/lib/sessionBackup";
 import { SAMPLE_TOKEN, SAMPLE_USER, isSampleMode, resetSample } from "@/lib/sampleMode";
@@ -225,10 +226,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // The installed app asks the browser to keep its storage, so the sign-in survives a force-close.
   useEffect(() => { if (user) keepStorage(); }, [user?.id]);
+  // Already signed in when the app opens: use this account's own things on this device.
+  useEffect(() => { if (user?.id && token && !isSampleMode()) setAccount(user.id); }, [user?.id, token]);
 
   const persistSession = useCallback((u: AuthUser | null, t: string | null) => {
     sessionRef.current = { user: u, token: t };
     saveSessionCookie(u, t);
+    // Each account keeps its own things on this device; a different account opens fresh (accountStorage.ts).
+    if (u && t && !isSampleMode()) setAccount(u.id);
     setUser(u);
     setToken(t);
     if (u && u.schoolId) {
@@ -427,6 +432,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }).catch(() => {});
     }
     persistSession(null, null);
+    setAccount(null); // signed out: the next account to sign in opens with its own things
     forgetStay(); // the next person starts on Home, not on this person's open note
     window.dispatchEvent(new Event("arise-logout"));
   }, [persistSession]);

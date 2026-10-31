@@ -4,6 +4,8 @@
 // likes, comments and share counts come from the Arise server's public /api/podscroll routes
 // (server/earshot.ts registerPodscrollRoutes), which read Apple Podcasts. Audio plays straight
 // from each podcast's own host.
+import "./accountBoot";
+import { setAccount } from "../client/src/lib/accountStorage";
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { applySignal, cleanEarshot, emptyEarshot, type Earshot, type PodEpisode, type Signal } from "@shared/earshot";
@@ -57,6 +59,8 @@ function App() {
   const [authMode, setAuthMode] = useState<"signin" | "signup" | null>(null);
   const setJoinOpen = useCallback((on: boolean) => setAuthMode(on ? "signup" : null), []);
   const [email, setEmailState] = useState(() => read("podscroll.email") || "");
+  // Signed in from before this update: use this account's own things on this device (reloads once).
+  useEffect(() => { if (session && email) setAccount(email); }, [session, email]);
   const shown = useMemo(() => (pro ? es : { ...es, settings: { ...es.settings, adMode: "off" as const } }), [es, pro]);
   esRef.current = shown;
   const [toast, setToast] = useState("");
@@ -105,6 +109,7 @@ function App() {
   const signOut = useCallback(() => {
     void api("/api/earshot/account/signout", { method: "POST" }).catch(() => {});
     setSession(null); setEmailState(""); try { localStorage.removeItem("podscroll.email"); } catch { /* private window */ }
+    setAccount(null); setTimeout(() => window.location.reload(), 300); // the next person starts with an empty library
     say("Signed out.");
   }, [api, setSession, say]);
   // A saved session that's run out (or was signed out elsewhere) doesn't count as an account.
@@ -208,9 +213,9 @@ function App() {
 
   return <>
     {body}
-    {welcome && !authMode && <Welcome key={pro ? "in" : "out"} api={api} signedIn={pro} onSignedIn={(token, mail) => { setSession(token); setEmailState(mail); write("podscroll.email", mail); }}
+    {welcome && !authMode && <Welcome key={pro ? "in" : "out"} api={api} signedIn={pro} onSignedIn={(token, mail) => { setSession(token); setEmailState(mail); write("podscroll.email", mail); setAccount(mail); }}
       onEmail={() => setAuthMode("signin")} onPush={() => startPodPush(api, followIds, true)} onDone={finishWelcome} />}
-    {authMode && !pro && <AuthScreen api={api} dark={!day} start={authMode} onClose={() => setAuthMode(null)} onDone={(token, mail) => { setSession(token); setEmailState(mail); write("podscroll.email", mail); setAuthMode(null); say("You're signed in. Ads get skipped now."); }} />}
+    {authMode && !pro && <AuthScreen api={api} dark={!day} start={authMode} onClose={() => setAuthMode(null)} onDone={(token, mail) => { setSession(token); setEmailState(mail); write("podscroll.email", mail); setAuthMode(null); say("You're signed in. Ads get skipped now."); setAccount(mail); }} />}
     <div role="status" aria-live="polite" className={`pointer-events-none fixed bottom-[calc(24px+env(safe-area-inset-bottom,0px))] left-1/2 z-[80] max-w-[calc(100%-32px)] -translate-x-1/2 rounded-full bg-white px-4 py-2.5 text-center text-sm font-bold text-[#120e14] shadow-xl transition ${toast ? "opacity-100" : "translate-y-3 opacity-0"}`}>{toast}</div>
   </>;
 }
