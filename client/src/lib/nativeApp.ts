@@ -13,19 +13,22 @@ export const isNativeApp = (): boolean => typeof window !== "undefined" && windo
 
 /** Which iPhone app this build is (set at build time with VITE_NATIVE_APP): Arise To Duo ("todo"),
  *  A.R.I.S.E. Reader for students ("reader"), or A.R.I.S.E. Reader Educator for teachers and parents. */
-export type NativeFlavor = "todo" | "reader" | "educator";
+export type NativeFlavor = "todo" | "reader" | "educator" | "fit";
 export const nativeFlavor = (): NativeFlavor => {
   const f = String((import.meta as any).env?.VITE_NATIVE_APP || "");
-  return f === "reader" || f === "educator" ? f : "todo";
+  return f === "reader" || f === "educator" || f === "fit" ? f : "todo";
 };
 /** Inside one of the two A.R.I.S.E. Reader apps (student or Educator). */
-export const isReaderApp = (): boolean => isNativeApp() && nativeFlavor() !== "todo";
+export const isReaderApp = (): boolean => isNativeApp() && (nativeFlavor() === "reader" || nativeFlavor() === "educator");
+/** Inside the Arise Fit iPhone app. */
+export const isFitApp = (): boolean => isNativeApp() && nativeFlavor() === "fit";
 /** Each app's name, bundle id (Sign in with Apple asks for it) and server. All three use the same
  *  server, through arisetodo.com, the address the Arise To Duo app is already allowed to call. */
 export const NATIVE_APPS: Record<NativeFlavor, { name: string; bundle: string; api: string }> = {
   todo: { name: "Arise To Duo", bundle: "com.arisereader.arisetodo", api: "https://arisetodo.com" },
   reader: { name: "A.R.I.S.E. Reader", bundle: "com.arisereader.reader", api: "https://arisetodo.com" },
   educator: { name: "A.R.I.S.E. Reader Educator", bundle: "com.arisereader.educator", api: "https://arisetodo.com" },
+  fit: { name: "Arise Fit", bundle: "com.arisereader.fit", api: "https://arisetodo.com" },
 };
 export const nativeAppInfo = () => NATIVE_APPS[nativeFlavor()];
 

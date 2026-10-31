@@ -77,7 +77,7 @@ jobs:
         working-directory: reader/ios-app
         run: |
           python3 ../../.github/scripts/configure_reader_app.py ios/App/App/Info.plist reader
-          python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist
+          python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist --below-status-bar
       - name: Import Apple signing certificate and provisioning profile
         shell: bash
         env:

@@ -3,6 +3,7 @@ import InstallAppPrompt from "@/components/InstallAppPrompt";
 import WorkHubTour from "@/components/WorkHubTour";
 import ReaderFirstRun from "@/components/ReaderFirstRun";
 import NativeBack from "@/components/NativeBack";
+
 import ForcePasswordChange from "@/components/ForcePasswordChange";
 import { Switch, Route, Router, Redirect, useLocation } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
@@ -23,6 +24,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { lastKnownLocked, teacherLocked, usePlan } from "@/lib/plan";
 import { useState, useEffect, lazy, Suspense, type ComponentType } from "react";
+const FitApp = lazy(() => import("@/pages/fit/FitApp"));
 import { API_BASE } from "./lib/queryClient";
 import ProfileSetupOverlay from "./components/ProfileSetupOverlay";
 import EyeGazeSiteShell from "./components/EyeGazeSiteShell";
@@ -140,7 +142,7 @@ import TodoGate from "@/components/TodoGate";
 import { ReaderAdminToTodoRedirect, ReaderToHubHandoff, TodoAdminHandoff } from "@/components/AdminDomainHandoff";
 import { READER_APP, goToReader, goToSignIn, hubPathFor, isHubAccount, isReaderPage } from "@/lib/hubs";
 import NativePlans from "@/components/NativePlans";
-import { isNativeApp, isReaderApp } from "@/lib/nativeApp";
+import { isFitApp, isNativeApp, isReaderApp } from "@/lib/nativeApp";
 const TeacherScenes = lazyPage(() => import("./pages/TeacherScenes"));
 const StudentSceneLive = lazyPage(() => import("./pages/StudentSceneLive"));
 const Library = lazyPage(() => import("./pages/Library"));
@@ -512,11 +514,16 @@ function AppRoutes() {
   // hub's, so a signed-out visitor is sent to that screen.
   if (isReaderPage()) {
     if (!user) { goToSignIn(); return null; }
-    return <AriseReader />;
+    // Its code may still be loading: show the spinner meanwhile (without a loading boundary here,
+    // React stopped with error 426 and the Educator app showed "Something went wrong").
+    return <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}><AriseReader /></Suspense>;
   }
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
     <Switch key={routePath}>
+      <Route path="/fit">
+        <ProtectedRoute><FitApp /></ProtectedRoute>
+      </Route>
       <Route path="/lifehub">
         {onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : onReaderDomain && !user ? <Redirect to="/signin" replace /> : onReaderDomain ? <ReaderToTodoRedirect /> : <TodoGate><AriseTodo /></TodoGate>}
       </Route>
@@ -978,6 +985,8 @@ function AppInner() {
   // A student a teacher just bulk-added signs in with a default password (their
   // student number) and must replace it before doing anything else in the app.
   if (user?.mustChangePassword) return <ForcePasswordChange />;
+  // The Arise Fit iPhone app is its own app: sign in, then Arise Fit (pages/fit/FitApp.tsx).
+  if (isFitApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: "#0b0b10" }} />}>{user ? <FitApp /> : <NativeSignIn />}</Suspense></Router>;
 
   const overlays = !inGame;
   return (

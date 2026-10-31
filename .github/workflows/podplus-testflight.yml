@@ -1,6 +1,6 @@
 name: Pod+ signed iOS beta validation
 # Development beta validation only. Upload is a separate, explicitly approved release step.
-# Release: Radio leaves out national networks; Live News Radio; Xcode 27 with the UIScene life cycle
+# Release: now playing on show pages, Continue listening, live News Radio screen
 on:
   workflow_dispatch:
   push:
