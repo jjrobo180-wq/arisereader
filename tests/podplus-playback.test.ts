@@ -55,3 +55,20 @@ test("the iPhone apps hear their notification token (no JavaScript plugin packag
   assert.match(read("../client/src/lib/applePush.ts"), /nativeListen\(NAME, event, fn\)/);
   assert.match(read("../podscroll/applePush.ts"), /nativeListen\(NAME, "registration"/);
 });
+
+test("where you left off is kept with the real length, saved when you leave the app, and re-applied once it plays", () => {
+  const src = read("../client/src/components/family-hub/earshot/EarshotPlayer.tsx");
+  assert.match(src, /function saveSpot\(ep: PodEpisode, t: number, realSecs = 0\)/);
+  assert.match(src, /document\.addEventListener\("visibilitychange", hidden\)/);
+  assert.match(src, /startAt\(Math\.max\(ep\.secs \|\| 0, spot\?\.secs \|\| 0\), spot\?\.t/);
+  assert.match(src, /if \(!live && at > 5\) a\.addEventListener\("playing"/);
+});
+
+test("scrubbing: the spot under the finger at the lift, no jump back, slower only after a clear slide up", () => {
+  const src = read("../client/src/components/family-hub/earshot/EarshotPlayer.tsx");
+  assert.match(src, /const target = atRef\.current;/);
+  assert.match(src, /setLanding\(\{ t: target, until: Date\.now\(\) \+ 4000 \}\)/);
+  assert.match(src, /\[\[220, 0\.1, "Fine scrubbing"\], \[160, 0\.25/);
+  // A long jump through the server plays from the host there instead of waiting for the copy.
+  assert.match(src, /if \(!loaded && it\?\.ep && it\.ep\.id === a\.dataset\.ep && !it\.live && t - from > 60\)/);
+});
