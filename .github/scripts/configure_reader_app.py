@@ -30,6 +30,22 @@ with open(PLIST, "wb") as f:
 print(f"Info.plist ready for {NAME}: {', '.join(sorted(KEYS))}")
 
 DELEGATE = os.path.join(os.path.dirname(PLIST), "AppDelegate.swift")
+
+# Opening the app must not stop music or a podcast already playing in another app. The page's sound
+# (read-aloud, games) mixes with it: the audio session is "ambient, mix with others" from launch, and
+# WebKit takes the sound over only at the moment the app really plays something.
+if os.path.exists(DELEGATE):
+    src = open(DELEGATE, encoding="utf-8").read()
+    if "AVAudioSession" not in src:
+        import re
+        src = src.replace("import UIKit", "import UIKit\nimport AVFoundation", 1)
+        src, n = re.subn(r"(didFinishLaunchingWithOptions launchOptions: \[UIApplication\.LaunchOptionsKey: Any\]\?\) -> Bool \{\n)",
+                         r"\1        try? AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default, options: [.mixWithOthers])\n", src, count=1)
+        if not n:
+            sys.exit("AppDelegate: launch method not found; other apps' audio would stop when this app opens")
+        open(DELEGATE, "w", encoding="utf-8").write(src)
+        print("AppDelegate: audio mixes with other apps")
+
 if FLAVOR == "educator" and os.path.exists(DELEGATE):
     src = open(DELEGATE, encoding="utf-8").read()
     if "didRegisterForRemoteNotificationsWithDeviceToken" not in src:

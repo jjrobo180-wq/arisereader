@@ -7,7 +7,9 @@ import { VERSES, QUOTES, cleanReference, daysUntil, forDay, guessAisle, parseMos
 
 test("the new sections start off, and adding one from the store turns it on", () => {
   const f = emptyFamily();
-  for (const s of ADD_ON_SECTIONS) {
+  // The Calorie counter (health) comes added for everyone (Oct 30, 2026); the rest start off.
+  assert.equal(isOn("health", f), true, "the Calorie counter starts added");
+  for (const s of ADD_ON_SECTIONS.filter((x) => x !== "health")) {
     assert.ok(TOGGLEABLE.includes(s), s);
     assert.equal(isOn(s, f), false, `${s} starts off`);
     const p = PLUGINS.find((q) => q.target.kind === "section" && q.target.section === s);
@@ -30,7 +32,7 @@ test("a saved family keeps journal, countdowns, groceries, verses, meditation an
     savedQuotes: ["q1", "q1", 5, "q2"],
   };
   const f = cleanFamily(raw);
-  assert.deepEqual(f.sections, { journal: true, grocery: true });
+  assert.deepEqual(f.sections, { journal: true, grocery: true, health: true }, "the Calorie counter is added unless removed");
   assert.deepEqual(f.journal.map((e) => e.id), ["j1"]);
   assert.deepEqual(f.countdowns.map((c) => c.id), ["c1"]);
   assert.deepEqual(f.groceries.map((g) => g.id), ["g1"]);

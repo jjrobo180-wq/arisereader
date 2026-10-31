@@ -709,6 +709,13 @@ export function mergeAds(list: AdRange[]): AdRange[] {
 }
 
 /** Where to start an episode: where they left off (unless that's the very start or end), else past the intro. */
+/** An automatic jump (saved spot, intro or ad skip) only goes somewhere at least 15 s before the real
+ *  end of the audio, or anywhere while its length isn't known yet. Apple's length can be longer than
+ *  the file, and a jump past the end made an episode "end" the moment it started. */
+export function safeTo(a: { duration: number }, to: number): boolean {
+  const D = a.duration;
+  return to >= 0 && (!Number.isFinite(D) || D <= 0 || to < D - 15);
+}
 export function startAt(secs: number, resumeAt: number | undefined, skipIntro: boolean): number {
   if (resumeAt && resumeAt > 20 && (!secs || resumeAt < secs - 30)) return Math.floor(resumeAt);
   return introSkip(secs, skipIntro);
