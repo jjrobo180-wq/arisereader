@@ -21,7 +21,10 @@ let dbp: Promise<IDBDatabase> | null = null;
 function db(): Promise<IDBDatabase> {
   if (!dbp) {
     dbp = new Promise((resolve, reject) => {
-      const r = indexedDB.open(DB, 1);
+      // Each account's downloads are kept apart (the name is remembered per account; see accountBoot.ts).
+      let name = DB;
+      try { name = localStorage.getItem("podplus.downloads.db") || ""; if (!name) { name = `${DB}-${Date.now().toString(36)}`; localStorage.setItem("podplus.downloads.db", name); } } catch { name = DB; }
+      const r = indexedDB.open(name, 1);
       r.onupgradeneeded = () => { r.result.createObjectStore(FILES); r.result.createObjectStore(ITEMS); };
       r.onsuccess = () => resolve(r.result);
       r.onerror = () => reject(r.error || new Error("Downloads aren't available in this browser."));
