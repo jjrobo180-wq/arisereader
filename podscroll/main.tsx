@@ -12,9 +12,18 @@ import { LIGHT_SHEETS_CSS, Player, Setup, useTheme, type NowPlaying, type Player
 import { LIGHT_CSS } from "../client/src/components/family-hub/earshot/EarshotSocial";
 import { Home } from "./Home";
 import { AuthScreen } from "./Auth";
+import { Welcome, WELCOME_KEY } from "./Welcome";
+import { OPEN_EVENT, podPushAllowed, startPodPush, syncPodPush } from "./applePush";
+import { isNativeApp } from "../client/src/lib/nativeApp";
+import { downloads, installDownloads } from "./downloads";
 import "./styles.css";
+import { configureAiVoice } from "../client/src/lib/aiVoice";
 
+// The shared social screens read this to link to Pod+'s own policies and support (social/Rules.tsx).
+(window as any).__PODPLUS__ = true;
 const API = String(import.meta.env.VITE_PODSCROLL_API || "https://arisereader.onrender.com").replace(/\/$/, "");
+// Spoken lines (recaps, Read along) use the AI voices on the Arise server, never the phone's robot voice.
+configureAiVoice({ base: API });
 const KEY = "podscroll.v1";
 type PageTab = "openmic" | "social" | "library";
 const STARTER_GENRES = ["comedy", "news", "science", "tech", "truecrime", "history", "business", "culture"];
@@ -80,8 +89,9 @@ function App() {
       try {
         res = await fetch(url, {
           method: init?.method ?? "GET",
-          headers: { "X-Podscroll-Device": device, ...(session ? { "X-Podscroll-Session": session } : {}), ...(init?.body !== undefined ? { "Content-Type": "application/json" } : {}) },
-          body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
+          // A Blob (a recording) goes as it is; anything else as JSON.
+          headers: { "X-Podscroll-Device": device, ...(session ? { "X-Podscroll-Session": session } : {}), ...(init?.body instanceof Blob ? { "Content-Type": init.body.type || "application/octet-stream" } : init?.body !== undefined ? { "Content-Type": "application/json" } : {}) },
+          body: init?.body instanceof Blob ? init.body : init?.body !== undefined ? JSON.stringify(init.body) : undefined,
         });
       } catch { throw new Error("Can't reach Pod+ right now. Check your connection and try again."); }
       body = await res.json().catch(() => ({}));
@@ -106,6 +116,13 @@ function App() {
   }, [session, api, setSession]);
   // Audio comes through the server so smart ad skip can find the ads in this copy.
   const mediaUrl = useCallback((path: string) => API + path.replace(/^\/api\/earshot/, "/api/podscroll"), []);
+  // Downloads (Pod+ Membership): episodes and audiobooks kept on this device to play offline.
+  const apiRef = useRef(api); apiRef.current = api;
+  const proRef = useRef(pro); proRef.current = pro;
+  useEffect(() => {
+    if (downloads) return;
+    installDownloads({ api: (p, i) => apiRef.current(p, i), apiBase: API, isMember: () => proRef.current, onJoin: () => setAuthMode("signup"), say });
+  }, [say]);
 
   const pending = useRef<{ genre: string; signal: Signal }[]>([]);
   const signal = useCallback((genre: string, s: Signal) => {
@@ -139,6 +156,21 @@ function App() {
     if (!at && !podMode && feedSeenRef.current) { setFeedTab(page); setTabNonce((n) => n + 1); setMode("feed"); return; }
     setFeedStart(at ?? null); setFeedTab(page); setFeedMode(podMode ?? null); setFeedKey((k) => k + 1); setMode("feed"); setFeedSeen(true);
   }, []);
+
+  // The iPhone app's first launch: welcome (sign in or just listen), notifications, a short tour.
+  const [welcome, setWelcome] = useState(() => isNativeApp() && read(WELCOME_KEY) !== "1");
+  const finishWelcome = useCallback(() => { write(WELCOME_KEY, "1"); setWelcome(false); }, []);
+  const followIds = useCallback(() => esRef.current.follows.map((f) => f.id), []);
+  // New-episode notifications (podscroll/applePush.ts): sign the phone up again on each launch once
+  // they're allowed, keep the server's list of followed shows current, and open a tapped episode.
+  useEffect(() => { void podPushAllowed().then((on) => { if (on) void startPodPush(api, followIds, false); }); }, [api, followIds]);
+  const followKey = es.follows.map((f) => f.id).join(",");
+  useEffect(() => { const t = setTimeout(() => void syncPodPush(api, followIds()), 1500); return () => clearTimeout(t); }, [followKey, api, followIds]);
+  useEffect(() => {
+    const open = (e: Event) => { const d = (e as CustomEvent).detail; if (d?.showId && d?.episodeId) openFeed({ showId: d.showId, episodeId: d.episodeId }); };
+    window.addEventListener(OPEN_EVENT, open);
+    return () => window.removeEventListener(OPEN_EVENT, open);
+  }, [openFeed]);
   // The swipe player stays running (hidden) on the home page and the audiobook page stays running
   // (hidden) in the player, so what's playing keeps playing when you move between them.
   const [feedSeen, setFeedSeen] = useState(() => mode === "feed");
@@ -176,6 +208,8 @@ function App() {
 
   return <>
     {body}
+    {welcome && !authMode && <Welcome key={pro ? "in" : "out"} api={api} signedIn={pro} onSignedIn={(token, mail) => { setSession(token); setEmailState(mail); write("podscroll.email", mail); }}
+      onEmail={() => setAuthMode("signin")} onPush={() => startPodPush(api, followIds, true)} onDone={finishWelcome} />}
     {authMode && !pro && <AuthScreen api={api} dark={!day} start={authMode} onClose={() => setAuthMode(null)} onDone={(token, mail) => { setSession(token); setEmailState(mail); write("podscroll.email", mail); setAuthMode(null); say("You're signed in. Ads get skipped now."); }} />}
     <div role="status" aria-live="polite" className={`pointer-events-none fixed bottom-[calc(24px+env(safe-area-inset-bottom,0px))] left-1/2 z-[80] max-w-[calc(100%-32px)] -translate-x-1/2 rounded-full bg-white px-4 py-2.5 text-center text-sm font-bold text-[#120e14] shadow-xl transition ${toast ? "opacity-100" : "translate-y-3 opacity-0"}`}>{toast}</div>
   </>;

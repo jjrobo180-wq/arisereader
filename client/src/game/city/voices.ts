@@ -1,7 +1,7 @@
-// People talking out loud: the browser's built-in speech voices, varied per
-// person by voice, pitch and speed (nothing is downloaded), plus the speech
-// bubbles that show what they said.
+// People talking out loud in AI voices (lib/aiVoice.ts), a voice per person,
+// plus the speech bubbles that show what they said.
 import * as THREE from "three";
+import { preloadAiVoice, type AiVoiceName } from "@/lib/aiVoice";
 
 /** A white speech bubble with a tail; long lines wrap onto two rows. */
 export function speechBubble(text: string, accent = "#0f766e") {
@@ -51,40 +51,49 @@ export const CHATTER = [
 
 export const GREETINGS = ["Hi there!", "Hey!", "Nice day, huh?", "Hello!", "Morning!", "Love the outfit!", "Hey, how's it going?", "Have a good one!"];
 
+const CITY_VOICES: AiVoiceName[] = ["hannah", "austin", "diana", "daniel", "autumn", "troy"];
+
 export class Voices {
   muted = false;
-  private voices: SpeechSynthesisVoice[] = [];
-  private readonly ok = typeof window !== "undefined" && "speechSynthesis" in window && typeof SpeechSynthesisUtterance !== "undefined";
   private unlocked = false;
+  private audio: HTMLAudioElement | null = null;
+  private speaking = false;
+  private url = "";
+  private turn = 0;
 
-  constructor() {
-    if (!this.ok) return;
-    const load = () => { this.voices = window.speechSynthesis.getVoices().filter((v) => /^en/i.test(v.lang)); };
-    load();
-    window.speechSynthesis.addEventListener?.("voiceschanged", load);
+  /** Call from a tap or key press: browsers only allow sound after the reader has interacted. */
+  unlock() {
+    this.unlocked = true;
+    if (!this.audio && typeof Audio !== "undefined") { this.audio = new Audio(); this.audio.setAttribute("playsinline", ""); }
   }
 
-  /** Call from a tap or key press: browsers only allow speech after the reader has interacted. */
-  unlock() { this.unlocked = true; }
-
-  get busy() { return this.ok && window.speechSynthesis.speaking; }
+  get busy() { return this.speaking; }
 
   /**
-   * Says a line in the voice of person `seed`. `volume` fades with distance.
-   * Background chatter waits its turn; `important` lines (staff talking to you) cut in.
+   * Says a line in the AI voice of person `seed` (lib/aiVoice.ts; never the robot voice). `volume`
+   * fades with distance. Background chatter waits its turn; `important` lines (staff talking to you) cut in.
    */
   say(text: string, seed: number, volume = 1, important = false) {
-    if (!this.ok || this.muted || !this.unlocked || volume < 0.05) return false;
-    const synth = window.speechSynthesis;
-    if (synth.speaking || synth.pending) { if (!important) return false; synth.cancel(); }
-    const u = new SpeechSynthesisUtterance(text);
-    if (this.voices.length) u.voice = this.voices[Math.abs(seed) % this.voices.length];
-    u.pitch = 0.75 + ((seed * 37) % 60) / 100;
-    u.rate = 0.95 + ((seed * 13) % 18) / 100;
-    u.volume = Math.max(0, Math.min(1, volume));
-    try { synth.speak(u); } catch { return false; }
+    if (this.muted || !this.unlocked || !this.audio || volume < 0.05) return false;
+    if (this.speaking && !important) return false;
+    const turn = ++this.turn;
+    const a = this.audio;
+    a.pause();
+    this.speaking = true;
+    const voice = CITY_VOICES[Math.abs(seed) % CITY_VOICES.length];
+    preloadAiVoice(text, voice).then((blob) => {
+      if (turn !== this.turn) return;
+      if (this.url) URL.revokeObjectURL(this.url);
+      this.url = URL.createObjectURL(blob);
+      a.src = this.url;
+      a.volume = Math.max(0, Math.min(1, volume));
+      a.playbackRate = 0.95 + ((seed * 13) % 12) / 100;
+      a.onended = () => { if (turn === this.turn) this.speaking = false; };
+      a.onerror = a.onended as any;
+      return a.play();
+    }).catch(() => { if (turn === this.turn) this.speaking = false; });
     return true;
   }
 
-  stop() { if (this.ok) try { window.speechSynthesis.cancel(); } catch { /* ignore */ } }
+  stop() { this.turn++; this.speaking = false; this.audio?.pause(); }
 }

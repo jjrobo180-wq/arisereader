@@ -5,9 +5,12 @@
 // while you browse, and each book remembers its chapter and spot on this device.
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ClickEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { BookOpen, BookOpenText, Bookmark, ChevronLeft, ChevronRight, Headphones, Loader2, Pause, Play, RotateCcw, RotateCw, Search, SkipBack, SkipForward, SlidersHorizontal, Sparkles, Star, X } from "lucide-react";
+import { BookOpen, BookOpenText, Bookmark, Check, ChevronLeft, ChevronRight, Download, Headphones, Loader2, Pause, Play, RotateCcw, RotateCw, Search, SkipBack, SkipForward, SlidersHorizontal, Sparkles, Star, X } from "lucide-react";
 import { onOtherSound, soundStarted } from "../client/src/components/family-hub/earshot/soundBus";
+import { preloadAiVoice, sayAI, stopAiVoice } from "../client/src/lib/aiVoice";
 import { bookAudioSupported, isRouted, levelOf, primeBookAudio, routeBook, setBookSound, setFade, setGate } from "./bookAudio";
+import { chapterKey, useOfflineAudio } from "../client/src/components/family-hub/earshot/offlineAudio";
+import { downloads, sizeLabel } from "./downloads";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
 export type BookKind = "solo" | "group" | "dramatic";
@@ -90,7 +93,11 @@ function useMarks(bookId: string): Mark[] {
 const details = new Map<string, Promise<BookDetail>>();
 function loadBook(api: Api, id: string): Promise<BookDetail> {
   let p = details.get(id);
-  if (!p) { p = api(`/api/earshot/books/${encodeURIComponent(id)}`).then((b) => b.book as BookDetail); p.catch(() => details.delete(id)); details.set(id, p); }
+  if (!p) {
+    // A downloaded book opens from this device when the server can't be reached.
+    p = api(`/api/earshot/books/${encodeURIComponent(id)}`).then((b) => b.book as BookDetail).catch((e) => { const saved = downloads?.savedBook(id); if (saved) return saved; throw e; });
+    p.catch(() => details.delete(id)); details.set(id, p);
+  }
   return p;
 }
 
@@ -225,6 +232,8 @@ export function AudiobooksView({ api, pro, onJoin, current, onOpen }: { api: Api
       </form>
     </div>
 
+    {!term && <DownloadedShelf onOpen={onOpen} />}
+
     {going.length > 0 && !term && <section aria-label="Continue listening" className="mt-5">
       <h2 className="mb-2 text-base font-semibold">Continue listening</h2>
       <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
@@ -288,6 +297,44 @@ export function AudiobooksView({ api, pro, onJoin, current, onOpen }: { api: Api
 
 // ---------------- one book ----------------
 
+/** Download a whole book to listen offline (Pod+ Membership), with progress, or remove it. */
+function BookDownload({ book }: { book: BookDetail }) {
+  useOfflineAudio();
+  const d = downloads;
+  if (!d) return null;
+  const st = d.bookState(book.id);
+  const saved = st.status === "saved";
+  const saving = st.status === "saving";
+  const size = d.books().find((b) => b.book.id === book.id)?.bytes || 0;
+  return <div className="mt-3 flex flex-col items-center gap-1">
+    <button onClick={() => { if (saved || saving) { if (!saving && !window.confirm(`Remove the download of “${book.title}”?`)) return; void d.remove(`book:${book.id}`); } else void d.saveBook(book); }}
+      className="inline-flex h-10 items-center gap-2 rounded-full bg-[#f2f2f2] px-4 text-sm font-semibold hover:bg-[#e5e5e5]" data-testid="ps-book-download">
+      {saving ? <Loader2 size={16} className="animate-spin" /> : saved ? <Check size={16} /> : <Download size={16} />}
+      {saving ? `Downloading… ${Math.round(st.pct * 100)}% · Stop` : saved ? "Downloaded · Remove" : "Download"}
+      {!saved && !saving && <MembersTag />}
+    </button>
+    {saved && size > 0 && <span className="text-xs text-[#767676]">{sizeLabel(size)} on this device · plays without a connection</span>}
+    {st.status === "error" && <span className="text-xs text-[#b42318]">{st.error}</span>}
+  </div>;
+}
+
+/** Books downloaded to this device, first on the audiobooks page. */
+function DownloadedShelf({ onOpen }: { onOpen: (id: string) => void }) {
+  useOfflineAudio();
+  const list = downloads?.books() || [];
+  if (!list.length) return null;
+  return <section aria-label="Downloaded" className="mt-5">
+    <h2 className="mb-2 flex items-center gap-1.5 text-base font-semibold"><Download size={16} />Downloaded</h2>
+    <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+      {list.map((b) => <button key={b.id} onClick={() => onOpen(b.book.id)} className="w-[120px] shrink-0 text-left">
+        <Cover src={b.book.cover} title={b.book.title} className="aspect-square w-full rounded-xl" />
+        <span className="mt-1.5 line-clamp-2 block text-[13px] font-semibold leading-snug">{b.book.title}</span>
+        <span className="block text-xs text-[#606060]">{sizeLabel(b.bytes)}</span>
+      </button>)}
+    </div>
+  </section>;
+}
+
 export function BookPage({ api, id, current, playing, onPlay, onToggle, onBack, onOpen }: { api: Api; id: string; current: Reading | null; playing: boolean; onPlay: (r: Reading) => void; onToggle: () => void; onBack: () => void; onOpen: (id: string) => void }) {
   const [book, setBook] = useState<BookDetail | null>(null);
   const [err, setErr] = useState("");
@@ -336,6 +383,7 @@ export function BookPage({ api, id, current, playing, onPlay, onToggle, onBack, 
       <button onClick={main} className="mt-5 inline-flex h-12 min-w-[180px] items-center justify-center gap-2 rounded-full px-6 text-[15px] font-semibold text-white" style={{ background: ACCENT }} data-testid="ps-book-play">
         {here && playing ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}{label}
       </button>
+      <BookDownload book={book} />
     </div>
 
     {book.about && <div className="mt-7">
@@ -495,35 +543,30 @@ function sectionFor(sections: TextSection[], book: BookDetail, ch: number): numb
   return Math.min(sections.length - 1, Math.round((ch / Math.max(1, book.chapters.length)) * sections.length));
 }
 
-// ---- the narrator: the book's text read aloud, by an AI voice (members) or the device's own (free) ----
+// ---- the narrator: the book's text read aloud, by a premium AI voice (members) or the standard AI voice (free) ----
 const NARRATORS = [
   { id: "autumn", label: "Autumn", about: "Warm, female" }, { id: "diana", label: "Diana", about: "Clear, female" }, { id: "hannah", label: "Hannah", about: "Bright, female" },
   { id: "austin", label: "Austin", about: "Easygoing, male" }, { id: "daniel", label: "Daniel", about: "Calm, male" }, { id: "troy", label: "Troy", about: "Deep, male" },
 ];
-/** The device's best English voice (the "enhanced" and "natural" ones sound far better). */
-function deviceVoice(): SpeechSynthesisVoice | null {
-  try {
-    const all = window.speechSynthesis?.getVoices() || [];
-    const en = all.filter((v) => /^en(-|_|$)/i.test(v.lang));
-    return en.find((v) => /natural|premium|enhanced|neural/i.test(v.name)) || en.find((v) => /samantha|google us english|aria|jenny|daniel/i.test(v.name)) || en.find((v) => v.localService) || en[0] || null;
-  } catch { return null; }
-}
 const paragraphsOf = (text: string) => text.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
 
 type NarrState = { bookId: string; voice: string; playing: boolean; from: number; to: number; loading: boolean; sec: number };
 type Narrator = { narr: NarrState | null; start: (voice: string, sections: TextSection[], secAt: number) => void; toggle: () => void; stop: () => void; pause: () => void };
-/** The narrator: reads the book's text section after section, by an AI voice (members) or the
- *  device's own. Kept by the player bar, so closing Read along doesn't stop it. */
+/** The narrator: reads the book's text section after section, by a premium AI voice (members) or
+ *  the standard AI voice (free, client/src/lib/aiVoice.ts). Never the device's robot voice. Kept by the player bar, so closing Read along doesn't stop it. */
 function useNarrator(api: Api, bookId: string, onJoin: () => void): Narrator {
   const [narr, setNarr] = useState<NarrState | null>(null);
   const run = useRef(0);
   const el = useRef<HTMLAudioElement | null>(null);
   const secs = useRef<TextSection[]>([]);
+  // Where the standard voice is, so pause and play pick up at the same paragraph.
+  const freeAt = useRef<{ secAt: number; i: number; r: number } | null>(null);
+  const speakFree = useRef<((i: number) => void) | null>(null);
   const live = useRef({ api, bookId, onJoin }); live.current = { api, bookId, onJoin };
   const stop = useCallback(() => {
     run.current++;
     el.current?.pause();
-    try { window.speechSynthesis?.cancel(); } catch { /* none */ }
+    stopAiVoice();
     setNarr(null);
   }, []);
   const narrate = useCallback(async (voice: string, secAt: number, start: number, r: number): Promise<void> => {
@@ -535,12 +578,16 @@ function useNarrator(api: Api, bookId: string, onJoin: () => void): Narrator {
       const speakFrom = (i: number) => {
         if (r !== run.current) return;
         if (i >= ps.length) { void narrate(voice, secAt + 1, 0, r); return; }
-        setNarr({ bookId, voice, playing: true, from: i, to: i, loading: false, sec: secAt });
-        const u = new SpeechSynthesisUtterance(ps[i]);
-        const v = deviceVoice(); if (v) { u.voice = v; u.lang = v.lang; }
-        u.rate = 1; u.onend = () => speakFrom(i + 1); u.onerror = () => { if (r === run.current) setNarr(null); };
-        window.speechSynthesis.speak(u);
+        setNarr({ bookId, voice, playing: true, from: i, to: i, loading: true, sec: secAt });
+        freeAt.current = { secAt, i, r };
+        if (ps[i + 1]) void preloadAiVoice(ps[i + 1], "hannah").catch(() => {});
+        let failed = false;
+        void sayAI(ps[i], { voice: "hannah",
+          onStart: () => { if (r === run.current) { setNarr((n) => (n ? { ...n, loading: false } : n)); soundStarted("book"); } },
+          onError: () => { failed = true; if (r === run.current) setNarr(null); },
+          onEnd: () => { if (!failed && r === run.current) speakFrom(i + 1); } });
       };
+      speakFree.current = speakFrom;
       speakFrom(start);
       return;
     }
@@ -568,19 +615,23 @@ function useNarrator(api: Api, bookId: string, onJoin: () => void): Narrator {
     secs.current = sections;
     const r = ++run.current;
     el.current?.pause();
-    try { window.speechSynthesis?.cancel(); } catch { /* none */ }
+    stopAiVoice();
     void narrate(voice, secAt, 0, r);
   }, [narrate]);
   const cur = useRef<NarrState | null>(null); cur.current = narr;
   const toggle = useCallback(() => {
     const n = cur.current; if (!n) return;
-    if (n.voice === "device") { if (n.playing) window.speechSynthesis.pause(); else window.speechSynthesis.resume(); setNarr({ ...n, playing: !n.playing }); return; }
+    if (n.voice === "device") {
+      if (n.playing) { run.current++; stopAiVoice(); setNarr({ ...n, playing: false, loading: false }); }
+      else if (freeAt.current) { const r = ++run.current; void narrate("device", freeAt.current.secAt, freeAt.current.i, r); }
+      return;
+    }
     const a = el.current; if (!a) return;
     if (a.paused) { a.play().catch(() => {}); setNarr({ ...n, playing: true }); } else { a.pause(); setNarr({ ...n, playing: false }); }
   }, []);
   const pause = useCallback(() => {
     const n = cur.current; if (!n || !n.playing) return;
-    if (n.voice === "device") window.speechSynthesis.pause(); else el.current?.pause();
+    if (n.voice === "device") { run.current++; stopAiVoice(); } else el.current?.pause();
     setNarr({ ...n, playing: false });
   }, []);
   // A different book: the narrator stops.
@@ -661,7 +712,6 @@ function ReadAlong({ api, pro, onJoin, reading, time, onSeek, onClose, onPauseMa
   const startNarr = (voice: string) => {
     setPicking(false);
     if (voice !== "device" && !pro) { onJoin(); return; }
-    if (voice === "device" && !window.speechSynthesis) return;
     onPauseMain();
     narrator.start(voice, sections, at);
   };
@@ -702,7 +752,7 @@ function ReadAlong({ api, pro, onJoin, reading, time, onSeek, onClose, onPauseMa
                   <span><span className="font-semibold">{v.label}</span><span className="ml-2 text-xs text-[#606060]">{v.about}</span></span>{!pro && <MembersTag />}
                 </button>)}
                 <div className="my-1 h-px bg-[#ececec]" />
-                <button onClick={() => startNarr("device")} className="flex w-full items-center justify-between gap-2 rounded-xl px-2 py-2 text-left hover:bg-[#f2f2f2]"><span><span className="font-semibold">Your device's voice</span><span className="ml-2 text-xs text-[#606060]">Free</span></span></button>
+                <button onClick={() => startNarr("device")} className="flex w-full items-center justify-between gap-2 rounded-xl px-2 py-2 text-left hover:bg-[#f2f2f2]"><span><span className="font-semibold">Standard AI voice</span><span className="ml-2 text-xs text-[#606060]">Free</span></span></button>
               </div>}
             </div>}
             <h3 className="mb-4 text-[1.2em] font-semibold">{sec!.heading}</h3>
@@ -740,7 +790,7 @@ function ReadAlong({ api, pro, onJoin, reading, time, onSeek, onClose, onPauseMa
     </div>
     {narr && <div className="sticky bottom-0 z-10 flex items-center gap-3 border-t border-[#ececec] bg-white px-4 py-3" role="region" aria-label="Narrator">
       <button onClick={toggleNarr} aria-label={narr.playing ? "Pause narrator" : "Play narrator"} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white" style={{ background: ACCENT }}>{narr.loading ? <Loader2 className="animate-spin" size={18} /> : narr.playing ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}</button>
-      <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{narr.voice === "device" ? "Your device's voice" : NARRATORS.find((v) => v.id === narr.voice)?.label} is reading</span><span className="block truncate text-xs text-[#606060]">{sec?.heading}</span></span>
+      <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{narr.voice === "device" ? "Standard AI voice" : NARRATORS.find((v) => v.id === narr.voice)?.label} is reading</span><span className="block truncate text-xs text-[#606060]">{sec?.heading}</span></span>
       <button onClick={stopNarr} className="h-9 shrink-0 rounded-full bg-[#f2f2f2] px-3 text-sm font-semibold">Stop</button>
     </div>}
     {def && <div className="sticky bottom-0 z-10 border-t border-[#ececec] bg-white px-5 py-4 shadow-[0_-8px_24px_rgba(0,0,0,.08)]" role="status">
@@ -906,7 +956,10 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
     };
     pausedAt.current = 0;
     setFade(a, 1);
-    if (shaped || routed.current) {
+    // Downloaded: the chapter plays from this device (it's the page's own, so sound settings still work).
+    const local = downloads?.url(chapterKey(book.id, chapter.n));
+    if (local) { a.removeAttribute("crossorigin"); start(local); }
+    else if (shaped || routed.current) {
       a.crossOrigin = "anonymous";
       getPass().then((k) => start(relayUrl(chapter, k))).catch(() => {
         // Not a member any more: play it as it is (a player already routed through the boost can't).
@@ -1032,7 +1085,7 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
         <Cover src={book.cover} title={book.title} className="h-11 w-11 shrink-0 rounded-lg" />
         <span className="flex min-w-0 flex-col">
           <span className="truncate text-sm font-semibold">{book.title}</span>
-          {narr ? <span className="truncate text-xs" style={{ color: ACCENT }}>{narr.voice === "device" ? "Your device's voice" : NARRATORS.find((v) => v.id === narr.voice)?.label} is reading{narr.playing ? "" : " · paused"}</span>
+          {narr ? <span className="truncate text-xs" style={{ color: ACCENT }}>{narr.voice === "device" ? "Standard AI voice" : NARRATORS.find((v) => v.id === narr.voice)?.label} is reading{narr.playing ? "" : " · paused"}</span>
           : <span className="truncate text-xs text-[#606060]">{chName} · {clock(time)}{dur ? ` / ${clock(dur)}` : ""}{sleepWords ? ` · Sleep ${sleepWords}` : ""}</span>}
         </span>
       </button>

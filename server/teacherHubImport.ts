@@ -305,9 +305,10 @@ export function registerTeacherHubImportRoutes(app: Express, authMiddleware: Req
     }
   });
 
-  // A connected calendar: the page sends the link, and gets back the events to show.
-  app.post("/api/teacher-hub/calendar", authMiddleware, async (req: any, res) => {
-    if (!(await deps.gate(req, res))) return;
+  // A connected calendar: the page sends the link, and gets back the events to show. LifeHub uses the
+  // same reader for a calendar link (a school calendar that can't be added to the iPhone); its own
+  // add-on gate covers everything under /api/arise-todo.
+  const readLink = async (req: any, res: any) => {
     res.set("Cache-Control", "no-store");
     try {
       const link = typeof req.body?.url === "string" ? req.body.url.trim() : "";
@@ -322,5 +323,10 @@ export function registerTeacherHubImportRoutes(app: Express, authMiddleware: Req
       console.error("[teacher-hub] calendar read failed:", error?.name || "error");
       return res.status(500).json({ message: "That calendar could not be read right now. Try again in a moment." });
     }
+  };
+  app.post("/api/teacher-hub/calendar", authMiddleware, async (req: any, res) => {
+    if (!(await deps.gate(req, res))) return;
+    return readLink(req, res);
   });
+  app.post("/api/arise-todo/calendar-link", authMiddleware, readLink);
 }

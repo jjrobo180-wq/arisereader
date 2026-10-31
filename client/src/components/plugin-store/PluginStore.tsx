@@ -6,8 +6,10 @@
 // pushing the page sideways), the list scrolls on its own without dragging the page behind it, and
 // buttons keep their width when Add turns into Added, so tapping one never moves anything else.
 // Its colours come from one palette, in day or night, so the hub's night mode can't half-darken it.
+import { isNativeApp } from "@/lib/nativeApp";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Rocket, Podcast as PodcastTile3 } from "lucide-react";
+import { BookCopy as BookCopyTile, FileClock as FileClockTile, FileText as FileTextTile, Presentation as PresentationTile, QrCode as QrCodeTile, Table as TableTile, Contact as ContactTile } from "lucide-react";
 import {
   Apple, ArrowUpRight, BellRing, BookOpenCheck, Briefcase, Calculator, CalendarDays, CalendarPlus, CalendarRange, Check, CheckSquare,
   ClipboardCheck, Clock, Droplets, Forward, GraduationCap, Handshake, HeartPulse, History, Hourglass, Landmark, Mail, MessageCircle, Newspaper, NotebookPen, Pill, Plane,
@@ -29,16 +31,20 @@ import {
   HUB_TEMPLATES, PLUGIN_CATEGORIES, connectionNeeds, isAddable, pluginsFor, searchPlugins, templatePlugins, OPEN_STORE_KEY, type HubTemplate, type Plugin, type PluginHub,
 } from "@shared/pluginStore";
 
+/** In the iPhone app, a description never talks about the app "coming soon": that's this app. */
+const nativeBlurb = (text: string) => text.replace(/\s*The full browser, with every site, comes with the Arise To Duo iPhone app, coming soon to the App Store\./, "");
+
 export const ICONS: Record<string, LucideIcon> = {
   Podcast: PodcastTile3, Rocket, Apple, BellRing, BookOpenCheck, Briefcase, Calculator, CalendarDays, CalendarPlus, CalendarRange, CheckSquare, ClipboardCheck, Clock, Droplets, Forward,
   GraduationCap, Handshake, HeartPulse, Landmark, Mail, MessageCircle, Newspaper, Pill, Plane, Smile, SmilePlus, Sparkles, StickyNote, Target, Timer,
   Users, Vote, Wallet, NotebookPen, Hourglass, ShoppingCart, Wind, Quote, History, TrendingUp, Shuffle, HeartHandshake, BookOpenText, Link2, Sun, Trophy,
   ArrowLeftRight: ArrowLeftRightTile, BookOpen: BookOpenTile, Cake: CakeTile, Car: CarTile, ChefHat: ChefHatTile, CloudSun: CloudSunTile, CreditCard: CreditCardTile, Flower2: Flower2Tile, Gift: GiftTile, Heart: HeartTile, Mountain: MountainTile, PawPrint: PawPrintTile, Phone: PhoneTile, PiggyBank: PiggyBankTile, Repeat: RepeatTile, Tv: TvTile, UtensilsCrossed: UtensilsCrossedTile, Wrench: WrenchTile,
+  Table: TableTile, FileText: FileTextTile, Presentation: PresentationTile, FileClock: FileClockTile, FileUser: ContactTile, BookCopy: BookCopyTile, QrCode: QrCodeTile,
   Coins: CoinsTile2, Dumbbell: DumbbellTile2, Gauge: GaugeTile2, Globe: GlobeTile2, Hammer: HammerTile2, HandCoins: HandCoinsTile2, ListChecks: ListChecksTile2, Moon: MoonTile2, ShieldCheck: ShieldCheckTile2, Star: StarTile2, Stethoscope: StethoscopeTile2, Utensils: UtensilsTile2,
 };
 
 /** The store's name, as people see it everywhere. */
-export const STORE_NAME = "App Store";
+export const STORE_NAME = "App Gallery";
 
 /**
  * Scrolls to a connection's setup box once the hub has drawn it (the tab or section opens first),
@@ -108,6 +114,10 @@ export type PluginStoreProps = {
   initialOpen?: string;
   /** Teachers (and admins) have both hubs and see the teacher-only apps. */
   teacher: boolean;
+  /** Teacher-only apps and teacher wording (defaults to `teacher`). False for someone who didn't sign up as a teacher. */
+  teacherApps?: boolean;
+  /** The Arise learning apps: only for teachers and parents who came from A.R.I.S.E. Reader. */
+  arise?: boolean;
   isInstalled: (p: Plugin) => boolean;
   /** Adds or removes a tab or section app. The hub saves it. */
   onToggle: (p: Plugin, on: boolean) => void;
@@ -125,26 +135,25 @@ export type PluginStoreProps = {
   accent?: string;
 };
 
-function Tile({ p, size = "md" }: { p: Plugin; size?: "md" | "lg" }) {
+function Tile({ p, size = "md" }: { p: Plugin; size?: "md" | "lg" | "xl" }) {
   const Icon = ICONS[p.icon] ?? KIT_ICONS[p.icon] ?? Puzzle;
-  const box = size === "lg" ? "h-16 w-16 rounded-[1.3rem]" : "h-12 w-12 rounded-[1rem]";
+  const box = size === "xl" ? "h-20 w-20 rounded-[1.35rem]" : size === "lg" ? "h-16 w-16 rounded-[1.1rem]" : "h-14 w-14 rounded-[0.95rem]";
   return <span
     className={`relative flex shrink-0 items-center justify-center text-white ${box}`}
     style={{
-      background: `linear-gradient(150deg, ${mix(p.color, "#ffffff", 0.22)}, ${p.color} 55%, ${mix(p.color, "#000000", 0.18)})`,
-      boxShadow: `0 1px 2px rgba(0,0,0,.18), 0 6px 14px -6px ${p.color}99, inset 0 1px 0 rgba(255,255,255,.35)`,
+      background: `linear-gradient(160deg, ${mix(p.color, "#ffffff", 0.16)}, ${p.color} 60%, ${mix(p.color, "#000000", 0.12)})`,
+      boxShadow: `inset 0 0 0 0.5px rgba(0,0,0,.08), inset 0 1px 0 rgba(255,255,255,.25)`,
     }}
     aria-hidden
   >
-    <span className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-b from-white/25 via-transparent to-transparent" />
-    <Icon className={`relative drop-shadow-sm ${size === "lg" ? "h-8 w-8" : "h-6 w-6"}`} strokeWidth={2.1} />
+    <Icon className={`relative ${size === "xl" ? "h-10 w-10" : size === "lg" ? "h-8 w-8" : "h-7 w-7"}`} strokeWidth={1.9} />
   </span>;
 }
 
 /** How many apps a category shows before "See all". */
 const PER_CATEGORY = 6;
 
-export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpen, onClose, kit, notesApp, night = false, accent, initialOpen }: PluginStoreProps) {
+export default function PluginStore({ hub, teacher, teacherApps, arise, isInstalled, onToggle, onOpen, onClose, kit, notesApp, night = false, accent, initialOpen }: PluginStoreProps) {
   const { token } = useAuth();
   const pal = useMemo(() => storePalette(hub, night, accent), [hub, night, accent]);
   const vars = {
@@ -165,6 +174,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
   runningRef.current = running;
   const openPlugin = (p: Plugin) => { if (p.target.kind === "kit" && kit) { setRunning(p.target.id); setOpenId(null); } else if (p.target.kind === "notesApp" && notesApp) { setRunning(p.target.id); setOpenId(null); } else onOpen(p); };
   const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLElement>(null);
   // The hub redraws often (clocks, saving), so the latest close and open-detail live in refs
   // and the effects below run once, not on every redraw.
@@ -175,7 +185,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
   const openTemplateIdRef = useRef(openTemplateId);
   openTemplateIdRef.current = openTemplateId;
 
-  const all = useMemo(() => pluginsFor(hub, { teacher }), [hub, teacher]);
+  const all = useMemo(() => pluginsFor(hub, { teacher: teacherApps ?? teacher, arise: arise ?? teacher }), [hub, teacher, teacherApps, arise]);
   /** How many apps this hub's store has (built-in tools that are always there aren't counted). */
   const appCount = useMemo(() => all.filter((p) => countsAsApp(hub, p)).length, [all, hub]);
   /** The running plugin's definition: either a Kit plugin, or a Notes-app install (by its store id).
@@ -206,7 +216,8 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
     const body = document.body.style, y = window.scrollY;
     const was = { overflow: body.overflow, position: body.position, top: body.top, width: body.width };
     body.overflow = "hidden"; body.position = "fixed"; body.top = `-${y}px`; body.width = "100%";
-    closeRef.current?.focus({ preventScroll: true });
+    // Focus goes to the store itself (not its close button), so no focus ring shows on opening.
+    dialogRef.current?.focus({ preventScroll: true });
     return () => {
       window.removeEventListener("keydown", key, true);
       body.overflow = was.overflow; body.position = was.position; body.top = was.top; body.width = was.width;
@@ -251,14 +262,21 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
 
   const ring = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--s-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--s-bg)]";
   const solid = "bg-[var(--s-accent)] text-[var(--s-on-accent)] shadow-[0_4px_12px_-4px_var(--s-accent)]";
+  const solidBtn = solid;
   const soft = "bg-[var(--s-accent-soft)] text-[var(--s-accent-text)]";
   const quiet = "bg-[var(--s-raised)] text-[var(--s-text)]";
+  const quietBtn = quiet;
+  /** The row button, like the App Store's Get: a soft pill in the hub's colour, never a loud block. */
+  const getPill = "bg-[var(--s-raised)] text-[var(--s-accent-text)]";
 
   /** The button on a row or the detail sheet. Row buttons keep one width, so Add → Added moves nothing. */
-  const action = (p: Plugin, big?: boolean) => {
-    const size = big ? "min-h-12 px-5 text-[15px]" : "h-9 w-[5.5rem] px-2 text-[13px]";
+  const action = (p: Plugin, big?: boolean, onColor?: boolean) => {
+    const size = big ? "min-h-12 px-5 text-[15px]" : "h-8 w-[4.75rem] px-2 text-[13px]";
     const base = `inline-flex shrink-0 items-center justify-center gap-1 rounded-full font-bold transition-all active:scale-[.96] active:opacity-80 ${ring} ${size}`;
     const t = p.target;
+    // On a coloured card (the App of the day) every button is white with dark words, like the App Store's.
+    const solid = onColor ? "bg-white text-[#111111] shadow-[0_6px_16px_-8px_rgba(0,0,0,.45)]" : solidBtn;
+    const quiet = onColor ? "bg-white/20 text-white" : quietBtn;
     if (t.kind === "app") {
       const has = apps?.[t.app] ?? true;
       return has
@@ -277,9 +295,9 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
     const on = isInstalled(p);
     return on
       ? <button type="button" className={`${base} ${big ? quiet : soft}`} onClick={(e) => { e.stopPropagation(); if (big) toggle(p, false); else setOpenId(p.id); }} aria-label={big ? `Remove ${p.name}` : `${p.name} is added. Open details`} data-testid={`plugin-added-${p.id}`}>
-          {big ? "Remove" : <><Check className="h-4 w-4" />Added</>}
+          {big ? "Remove" : <><Check className="h-3.5 w-3.5" strokeWidth={3} />Added</>}
         </button>
-      : <button type="button" className={`${base} ${solid}`} onClick={(e) => { e.stopPropagation(); toggle(p, true); }} data-testid={`plugin-add-${p.id}`}><Plus className="h-4 w-4" />Add</button>;
+      : <button type="button" className={`${base} ${big ? solid : getPill}`} onClick={(e) => { e.stopPropagation(); toggle(p, true); }} data-testid={`plugin-add-${p.id}`}>{big && <Plus className="h-4 w-4" />}Add</button>;
   };
 
   /** A template's icon-and-colour badge, same look as a plugin's Tile. */
@@ -316,136 +334,121 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
     </div>;
   };
 
-  /** One app as a row: the whole row opens its details, the button on the right adds it. */
+  /** One app as a row, like the App Store: icon, name, one line about it, and the button on the right.
+   *  The whole row opens its details. A hairline under the words (not the icon) separates rows. */
   const row = (p: Plugin) => (
-    <li key={p.id} className="min-w-0">
+    <li key={p.id} className="group/li min-w-0">
       <div role="button" tabIndex={0} onClick={() => setOpenId(p.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpenId(p.id); } }}
-        className={`group flex h-full min-w-0 cursor-pointer items-center gap-3 rounded-2xl border border-[var(--s-line)] bg-[var(--s-surface)] p-3 text-left shadow-[0_1px_2px_rgba(0,0,0,.04)] transition-all hover:-translate-y-0.5 hover:border-[var(--s-accent)]/30 hover:shadow-[0_10px_24px_-14px_rgba(0,0,0,.35)] ${ring}`}
+        className={`group flex min-w-0 cursor-pointer items-center gap-3.5 rounded-2xl py-2 text-left transition-colors active:bg-[var(--s-raised)] ${ring}`}
         data-testid={`plugin-${p.id}`}>
         <Tile p={p} />
-        <span className="min-w-0 flex-1">
-          <span className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate text-[15px] font-bold leading-tight text-[var(--s-text)]">{p.name}</span>
-            {p.recommendedFor && <span title={`Recommended for Arise ${HUB_NAME[p.recommendedFor]}`} className="shrink-0 rounded-full border border-[var(--s-line)] px-1.5 py-px text-[10px] font-black uppercase tracking-wide text-[var(--s-faint)]">{HUB_NAME[p.recommendedFor]}</span>}
+        <span className="flex min-w-0 flex-1 items-center gap-3 self-stretch border-b border-[var(--s-line)] py-1.5 group-last/li:border-transparent">
+          <span className="min-w-0 flex-1">
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate text-[16px] font-semibold leading-tight text-[var(--s-text)]">{p.name}</span>
+              {p.recommendedFor && <span title={`Recommended for Arise ${HUB_NAME[p.recommendedFor]}`} className="shrink-0 rounded-md bg-[var(--s-raised)] px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-[var(--s-faint)]">{HUB_NAME[p.recommendedFor]}</span>}
+            </span>
+            <span className="mt-0.5 line-clamp-2 break-words text-[13px] leading-snug text-[var(--s-sub)]">{p.tagline}</span>
           </span>
-          <span className="mt-0.5 line-clamp-2 break-words text-[13px] leading-snug text-[var(--s-sub)]">{p.tagline}</span>
+          {action(p)}
         </span>
-        {action(p)}
       </div>
     </li>
   );
-  const rows = (list: Plugin[]) => <ul className="grid grid-cols-[minmax(0,1fr)] gap-2.5 sm:grid-cols-2 lg:grid-cols-3">{list.map(row)}</ul>;
+  /** Rows fill the width evenly: one column on a phone, two on a tablet, three on a computer. */
+  const rows = (list: Plugin[]) => <ul className="grid grid-cols-[minmax(0,1fr)] gap-x-8 sm:grid-cols-2 lg:grid-cols-3">{list.map(row)}</ul>;
 
-  /** The App of the day spotlight: the app's own colour fills the whole card, with a big icon badge
-   * standing in for artwork. Fixed height (not content-driven), so it never depends on how long the
-   * tagline runs. */
+  /** The App of the day: a wide card in the app's own colour. The label, icon, words and button all
+   *  share one left edge, and the card's height comes from its padding, so nothing is ever clipped. */
   const spotlightCard = (p: Plugin) => {
-    const deep = mix(p.color, "#000000", 0.55);
-    const Icon = ICONS[p.icon] ?? KIT_ICONS[p.icon] ?? Puzzle;
+    const deep = mix(p.color, "#000000", 0.42);
     return <div role="button" tabIndex={0} onClick={() => setOpenId(p.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpenId(p.id); } }}
-      className={`group relative flex h-[17rem] w-full cursor-pointer flex-col overflow-hidden rounded-[1.75rem] p-5 text-left text-white sm:h-72 sm:p-7 ${ring}`}
-      style={{ background: `radial-gradient(130% 110% at 100% 0%, ${mix(p.color, "#ffffff", 0.3)}, ${p.color} 45%, ${deep})` }}
+      className={`group relative flex w-full cursor-pointer flex-col overflow-hidden rounded-[1.5rem] p-5 text-left text-white shadow-[0_18px_40px_-24px_rgba(0,0,0,.55)] sm:p-7 ${ring}`}
+      style={{ background: `linear-gradient(145deg, ${mix(p.color, "#ffffff", 0.12)}, ${p.color} 45%, ${deep})` }}
       data-testid="plugin-spotlight">
-      <span className="pointer-events-none absolute inset-0 opacity-90 [background:radial-gradient(60%_80%_at_15%_100%,rgba(0,0,0,.35),transparent_65%)]" aria-hidden />
-      <span className="relative inline-flex w-fit items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.1em] backdrop-blur-sm"><Sparkles className="h-3 w-3" />App of the day</span>
-      <span className="pointer-events-none relative flex flex-1 items-center justify-center py-2 transition-transform duration-300 group-hover:scale-105" aria-hidden>
-        <span className="flex h-24 w-24 items-center justify-center rounded-[1.4rem] bg-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,.4),0_8px_20px_-8px_rgba(0,0,0,.45)] backdrop-blur-sm">
-          <Icon className="h-12 w-12" strokeWidth={1.6} />
+      <span className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-2xl" aria-hidden />
+      <span className="relative text-[11px] font-bold uppercase tracking-[.14em] text-white/75">App of the day</span>
+      <span className="relative mt-4 flex items-center gap-4">
+        <span className="rounded-[1.5rem] bg-white/15 p-1 shadow-[0_10px_24px_-12px_rgba(0,0,0,.5)]"><Tile p={p} size="xl" /></span>
+        <span className="min-w-0 flex-1">
+          <span className="line-clamp-2 block text-[22px] font-bold leading-tight tracking-tight sm:text-[28px]">{p.name}</span>
+          <span className="mt-1 line-clamp-2 block text-[15px] leading-snug text-white/85">{p.tagline}</span>
         </span>
       </span>
-      <span className="relative">
-        <span className="block truncate text-[26px] font-black tracking-tight drop-shadow-sm sm:text-[30px]">{p.name}</span>
-        <span className="mt-1 block max-w-sm text-[14px] leading-snug text-white/85 sm:text-[15px]">{p.tagline}</span>
-        <span className="mt-3 inline-block" onClick={(e) => e.stopPropagation()}>{action(p, true)}</span>
-      </span>
+      <span className="relative mt-5 flex" onClick={(e) => e.stopPropagation()}>{action(p, true, true)}</span>
     </div>;
   };
 
-  /** One rail card: a compact, full-colour tile with a small icon badge, a one-line title, a fixed
-   * two-line tagline slot (so a short tagline doesn't make its card shorter than its neighbours),
-   * and the button pinned to the same bottom edge on every card in the row. */
-  const railCard = (p: Plugin) => {
-    const deep = mix(p.color, "#000000", 0.55);
-    const Icon = ICONS[p.icon] ?? KIT_ICONS[p.icon] ?? Puzzle;
-    return <div role="button" tabIndex={0} key={p.id} onClick={() => setOpenId(p.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpenId(p.id); } }}
-      className={`group relative flex h-[11.5rem] w-32 shrink-0 cursor-pointer flex-col overflow-hidden rounded-[1.1rem] p-3 text-left text-white shadow-[0_6px_16px_-8px_rgba(0,0,0,.4)] snap-start sm:h-[12.5rem] sm:w-36 ${ring}`}
-      style={{ background: `radial-gradient(130% 110% at 100% 0%, ${mix(p.color, "#ffffff", 0.3)}, ${p.color} 45%, ${deep})` }}
+  /** A featured app as a card in the side-scrolling rail: same height, same edges, button on the same line. */
+  const railCard = (p: Plugin) => (
+    <div role="button" tabIndex={0} key={p.id} onClick={() => setOpenId(p.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpenId(p.id); } }}
+      className={`group flex h-full w-[9.5rem] shrink-0 cursor-pointer snap-start flex-col rounded-[1.25rem] bg-[var(--s-surface)] p-3.5 text-left shadow-[0_1px_2px_rgba(0,0,0,.05),0_8px_20px_-14px_rgba(0,0,0,.25)] ring-1 ring-[var(--s-line)] transition-transform active:scale-[.98] sm:w-[10.5rem] ${ring}`}
       data-testid={`plugin-rail-${p.id}`}>
-      <span className="pointer-events-none absolute inset-0 opacity-90 [background:radial-gradient(60%_80%_at_15%_100%,rgba(0,0,0,.35),transparent_65%)]" aria-hidden />
-      <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,.4)] backdrop-blur-sm" aria-hidden><Icon className="h-5 w-5" strokeWidth={1.8} /></span>
-      <span className="relative mt-2 min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-black leading-tight tracking-tight">{p.name}</span>
-        <span className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-white/75">{p.tagline}</span>
-      </span>
-      <span className="relative shrink-0" onClick={(e) => e.stopPropagation()}>{action(p)}</span>
-    </div>;
-  };
-  const posterRail = (list: Plugin[]) => <ul className="-mx-4 flex items-stretch gap-2.5 overflow-x-auto overscroll-x-contain px-4 pb-1 pt-1 [scrollbar-width:none] snap-x snap-mandatory sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden">
+      <Tile p={p} />
+      <span className="mt-3 block truncate text-[15px] font-semibold leading-tight text-[var(--s-text)]">{p.name}</span>
+      <span className="mt-1 line-clamp-2 min-h-[2.5em] text-[12.5px] leading-snug text-[var(--s-sub)]">{p.tagline}</span>
+      <span className="mt-3" onClick={(e) => e.stopPropagation()}>{action(p)}</span>
+    </div>
+  );
+  /** Scrolls sideways edge to edge on a phone; its first card lines up with everything above it. */
+  const posterRail = (list: Plugin[]) => <ul className="-mx-5 flex items-stretch gap-3 overflow-x-auto overscroll-x-contain px-5 pb-2 pt-1 [scroll-padding-inline:1.25rem] [scrollbar-width:none] snap-x snap-mandatory sm:-mx-8 sm:px-8 sm:[scroll-padding-inline:2rem] lg:mx-0 lg:px-0 lg:[scroll-padding-inline:0] [&::-webkit-scrollbar]:hidden">
     {list.map((p) => <li key={p.id} className="flex shrink-0">{railCard(p)}</li>)}
   </ul>;
 
   const categories = PLUGIN_CATEGORIES[hub].filter((c) => all.some((p) => p.category === c));
-  const chip = (on: boolean) => `inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-bold transition-all ${ring} ${on ? "bg-[var(--s-chip-on)] text-[var(--s-chip-on-text)] shadow-[0_4px_10px_-4px_rgba(0,0,0,.35)]" : "border border-[var(--s-line)] bg-[var(--s-surface)] text-[var(--s-text)] hover:border-[var(--s-accent)]/40"}`;
-  const label = "text-xs font-extrabold uppercase tracking-[.14em] text-[var(--s-faint)]";
+  const chip = (on: boolean) => `inline-flex h-8 shrink-0 items-center rounded-full px-3.5 text-[13px] font-semibold transition-colors ${ring} ${on ? "bg-[var(--s-chip-on)] text-[var(--s-chip-on-text)]" : "bg-[var(--s-raised)] text-[var(--s-text)]"}`;
+  const heading = "text-[22px] font-bold leading-tight tracking-[-.01em] text-[var(--s-text)]";
 
-  return <div className="fixed inset-0 z-[80] flex flex-col bg-[var(--s-bg)] text-[var(--s-text)]" style={vars} role="dialog" aria-modal="true" aria-label={`Arise ${STORE_NAME} for ${HUB_NAME[hub]}`} data-testid="plugin-store">
-    <header
-      className="relative shrink-0 overflow-hidden pb-7 pt-[env(safe-area-inset-top)] sm:pb-8"
-      style={{ background: `linear-gradient(120deg, ${pal.accent}, ${pal.accent2})` }}
-    >
-      <span className="pointer-events-none absolute inset-0 opacity-70 [background:radial-gradient(60%_140%_at_85%_0%,rgba(255,255,255,.28),transparent_60%)]" aria-hidden />
-      <div className="relative mx-auto flex h-14 max-w-[1100px] items-center gap-2.5 px-3 sm:h-16 sm:px-6">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.75rem] bg-white/20 text-white shadow-[inset_0_1px_0_rgba(255,255,255,.4)] backdrop-blur-sm" aria-hidden><ShoppingBag className="h-5 w-5" /></span>
-        <span className="min-w-0 flex-1 leading-tight">
-          <span className="block text-[10px] font-extrabold uppercase tracking-[.2em] text-white/75" data-testid="store-app-count">Arise · {appCount.toLocaleString()} apps</span>
-          <span className="block truncate text-[17px] font-black tracking-tight text-white">{STORE_NAME}</span>
-        </span>
-        {teacher && <nav aria-label="Which hub" className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-black/15 p-0.5 backdrop-blur-sm">
-          {(["work", "life"] as const).map((h) => <button key={h} type="button" onClick={h === hub ? undefined : switchHub} aria-current={h === hub ? "page" : undefined} aria-label={HUB_NAME[h]}
-            className={`inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-xs font-bold transition-colors ${ring} ${h === hub ? "bg-white text-[var(--s-text)] shadow-sm" : "text-white/80"}`}>
-            <HubMark tone={h} className="h-4 w-4 shrink-0" /><span className="hidden sm:inline">{HUB_NAME[h]}</span>
-          </button>)}
-        </nav>}
-        <button ref={closeRef} type="button" onClick={onClose} aria-label={`Close the ${STORE_NAME}`} className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 ${ring}`} data-testid="plugin-store-close"><X className="h-6 w-6" /></button>
+  return <div ref={dialogRef} tabIndex={-1} className="fixed inset-0 z-[80] flex flex-col bg-[var(--s-bg)] text-[var(--s-text)] outline-none" style={vars} role="dialog" aria-modal="true" aria-label={`Arise ${STORE_NAME} for ${HUB_NAME[hub]}`} data-testid="plugin-store">
+    {/* A plain header like the App Store's: a large title on the page colour, then search. */}
+    <header className="shrink-0 border-b border-[var(--s-line)] bg-[var(--s-bg)]/95 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
+      <div className="mx-auto max-w-[1100px] px-5 sm:px-8">
+        <div className="flex h-14 items-center gap-2">
+          {teacher && <nav aria-label="Which hub" className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-[var(--s-raised)] p-0.5">
+            {(["work", "life"] as const).map((h) => <button key={h} type="button" onClick={h === hub ? undefined : switchHub} aria-current={h === hub ? "page" : undefined} aria-label={HUB_NAME[h]}
+              className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold transition-colors ${ring} ${h === hub ? "bg-[var(--s-surface)] text-[var(--s-text)] shadow-sm" : "text-[var(--s-sub)]"}`}>
+              <HubMark tone={h} className="h-4 w-4 shrink-0" />{HUB_NAME[h]}
+            </button>)}
+          </nav>}
+          <button ref={closeRef} type="button" onClick={onClose} aria-label={`Close the ${STORE_NAME}`} className={`ml-auto inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--s-raised)] text-[var(--s-sub)] transition-colors hover:text-[var(--s-text)] ${ring}`} data-testid="plugin-store-close"><X className="h-[18px] w-[18px]" strokeWidth={2.4} /></button>
+        </div>
+        <div className="flex items-end justify-between gap-3 pb-3">
+          <h1 className="text-[32px] font-bold leading-none tracking-[-.02em] text-[var(--s-text)] sm:text-[36px]">{STORE_NAME}</h1>
+          <span className="pb-1 text-[13px] font-medium text-[var(--s-faint)]" data-testid="store-app-count">{appCount.toLocaleString()} apps</span>
+        </div>
+        <label className="relative block pb-3">
+          <span className="sr-only">Search apps</span>
+          <Search className="pointer-events-none absolute left-3 top-[1.1rem] h-[18px] w-[18px] text-[var(--s-faint)]" />
+          {/* 16px text, so an iPhone doesn't zoom the page when the box is tapped. */}
+          <input value={query} onChange={(e) => setQuery(e.target.value)} type="search" enterKeyHint="search" placeholder={`Search ${appCount.toLocaleString()} ${HUB_NAME[hub]} apps`}
+            className={`h-11 w-full rounded-xl border-0 bg-[var(--s-raised)] pl-10 pr-3 text-base text-[var(--s-text)] outline-none placeholder:text-[var(--s-faint)] ${ring}`}
+            data-testid="plugin-search" />
+        </label>
+        {/* The chips scroll sideways; they start on the same edge as the title. */}
+        <div className="-mx-5 flex gap-2 overflow-x-auto overscroll-x-contain px-5 pb-3 [scrollbar-width:none] sm:-mx-8 sm:px-8 lg:mx-0 lg:px-0 [&::-webkit-scrollbar]:hidden" role="group" aria-label="Show">
+          <button type="button" onClick={() => { setView("discover"); setCategory(null); }} aria-pressed={browsing} className={chip(view === "discover" && !category)}>All</button>
+          <button type="button" onClick={() => { setView("installed"); setCategory(null); }} aria-pressed={view === "installed"} className={chip(view === "installed")} data-testid="plugin-store-added">Added · {installedCount}</button>
+          {templates.length > 0 && <button type="button" onClick={() => { setView("templates"); setCategory(null); }} aria-pressed={view === "templates"} className={chip(view === "templates")} data-testid="plugin-store-templates">Hubs</button>}
+          {categories.map((c) => <button key={c} type="button" onClick={() => { setView("discover"); setCategory(c === category ? null : c); }} aria-pressed={category === c} className={chip(category === c)}>{c}</button>)}
+        </div>
       </div>
-      <label className="relative mx-auto mt-4 block max-w-[1100px] px-3 sm:px-6">
-        <span className="sr-only">Search apps</span>
-        <Search className="pointer-events-none absolute left-7 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[var(--s-faint)] sm:left-9" />
-        {/* 16px text, so an iPhone doesn't zoom the page when the box is tapped. */}
-        <input value={query} onChange={(e) => setQuery(e.target.value)} type="search" enterKeyHint="search" placeholder={`Search ${appCount.toLocaleString()} ${HUB_NAME[hub]} apps`}
-          className={`h-12 w-full rounded-2xl border pl-11 pr-3 text-base shadow-[0_8px_24px_-10px_rgba(0,0,0,.45)] outline-none ${ring}`}
-          style={{ background: pal.surface, color: pal.text, borderColor: pal.line }} data-testid="plugin-search" />
-      </label>
     </header>
 
     <main ref={listRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch]">
-      <div className="mx-auto max-w-[1100px] px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-4 sm:px-6">
-        {/* Stays at the top while the list scrolls under it. */}
-        <div className="sticky top-0 z-10 -mx-4 mt-3 bg-[var(--s-bg)] px-4 py-2 sm:-mx-6 sm:px-6">
-          <div className="-mx-4 flex gap-2 overflow-x-auto overscroll-x-contain px-4 [scrollbar-width:none] sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden" role="group" aria-label="Show">
-            <button type="button" onClick={() => { setView("discover"); setCategory(null); }} aria-pressed={browsing} className={chip(view === "discover" && !category)}>All</button>
-            <button type="button" onClick={() => { setView("installed"); setCategory(null); }} aria-pressed={view === "installed"} className={chip(view === "installed")} data-testid="plugin-store-added">Added · {installedCount}</button>
-            {templates.length > 0 && <button type="button" onClick={() => { setView("templates"); setCategory(null); }} aria-pressed={view === "templates"} className={chip(view === "templates")} data-testid="plugin-store-templates">Hubs</button>}
-            {categories.map((c) => <button key={c} type="button" onClick={() => { setView("discover"); setCategory(c === category ? null : c); }} aria-pressed={category === c} className={chip(category === c)}>{c}</button>)}
-          </div>
-        </div>
-
-        <div className="space-y-9 pt-1">
+      <div className="mx-auto max-w-[1100px] px-5 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-5 sm:px-8">
+        <div className="space-y-9">
           {browsing && spotlight && <section aria-labelledby="ps-spotlight">
             <h2 id="ps-spotlight" className="sr-only">App of the day</h2>
             {spotlightCard(spotlight)}
           </section>}
 
           {browsing && rail.length > 0 && <section aria-labelledby="ps-featured">
-            <div className="mb-3 flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-[var(--s-accent)]" aria-hidden />
-              <h2 id="ps-featured" className={label}>Featured for your {HUB_NAME[hub]}</h2>
-            </div>
+            <h2 id="ps-featured" className={`mb-3 ${heading}`}>Featured for your {HUB_NAME[hub]}</h2>
             {posterRail(rail)}
           </section>}
 
           {view === "templates" && <section aria-live="polite">
-            <h2 className="mb-1 text-lg font-black tracking-tight text-[var(--s-text)]">Build a new hub</h2>
+            <h2 className={`mb-1 ${heading}`}>Build a new hub</h2>
             <p className="mb-4 max-w-md text-sm text-[var(--s-sub)]">Each one adds a ready-made set of apps in a single tap. Add just the ones you want afterward, or remove any of them the same way you would on their own.</p>
             <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">{templates.map((t) => <li key={t.id}>{templateCard(t)}</li>)}</ul>
           </section>}
@@ -453,24 +456,24 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
           {view !== "templates" && (browsing
             ? categories.map((c) => {
                 const inCat = all.filter((p) => p.category === c);
-                return <section key={c} aria-labelledby={`ps-${c}`}>
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <h2 id={`ps-${c}`} className="min-w-0 truncate text-lg font-black tracking-tight text-[var(--s-text)]">{c}<span className="ml-2 text-sm font-semibold text-[var(--s-sub)]">{inCat.length}</span></h2>
-                    {inCat.length > PER_CATEGORY && <button type="button" onClick={() => setCategory(c)} className={`inline-flex h-9 shrink-0 items-center gap-1 rounded-full px-3 text-[13px] font-bold text-[var(--s-accent-text)] transition-colors hover:bg-[var(--s-accent-soft)] ${ring}`}>See all {inCat.length} <ArrowUpRight className="h-3.5 w-3.5" /></button>}
+                return <section key={c} aria-labelledby={`ps-${c}`} className="border-t border-[var(--s-line)] pt-5">
+                  <div className="mb-1 flex items-baseline justify-between gap-3">
+                    <h2 id={`ps-${c}`} className={`min-w-0 truncate ${heading}`}>{c}</h2>
+                    {inCat.length > PER_CATEGORY && <button type="button" onClick={() => setCategory(c)} className={`-mr-2 inline-flex h-9 shrink-0 items-center rounded-full px-2 text-[15px] font-medium text-[var(--s-accent-text)] ${ring}`}>See all</button>}
                   </div>
-                  {posterRail(inCat.slice(0, PER_CATEGORY))}
+                  {rows(inCat.slice(0, PER_CATEGORY))}
                 </section>;
               })
             : <section aria-live="polite">
-                <h2 className="mb-3 text-lg font-black tracking-tight text-[var(--s-text)]">
+                <h2 className={`mb-1 ${heading}`}>
                   {view === "installed" ? `Added to your ${HUB_NAME[hub]}` : category ?? "Results"}
-                  <span className="ml-2 text-sm font-semibold text-[var(--s-sub)]">{shown.length}{query.trim() ? ` · “${query.trim()}”` : ""}</span>
+                  <span className="ml-2 text-[15px] font-medium text-[var(--s-faint)]">{shown.length}{query.trim() ? ` · “${query.trim()}”` : ""}</span>
                 </h2>
                 {shown.length
                   ? rows(shown)
-                  : <div className="rounded-[1.4rem] border border-dashed border-[var(--s-line)] bg-[var(--s-surface)] p-10 text-center">
-                      <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--s-accent-soft)] text-[var(--s-accent-text)]"><Search className="h-5 w-5" /></span>
-                      <p className="text-[15px] font-bold text-[var(--s-text)]">{view === "installed" ? "Nothing added here yet." : "No apps match that."}</p>
+                  : <div className="mt-3 rounded-[1.4rem] bg-[var(--s-surface)] p-10 text-center ring-1 ring-[var(--s-line)]">
+                      <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--s-raised)] text-[var(--s-accent-text)]"><Search className="h-5 w-5" /></span>
+                      <p className="text-[15px] font-semibold text-[var(--s-text)]">{view === "installed" ? "Nothing added here yet." : "No apps match that."}</p>
                       <p className="mt-1 text-sm text-[var(--s-sub)]">{view === "installed" ? "Tap All to add your first one." : "Try another word, or tap All."}</p>
                     </div>}
               </section>)}
@@ -506,7 +509,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
             {open.recommendedFor && <p className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${soft}`} data-testid="plugin-recommended-for">
               <Sparkles className="h-3.5 w-3.5" /> Recommended for Arise {HUB_NAME[open.recommendedFor]} — works here too
             </p>}
-            <p className="mt-3 text-[15px] leading-6 text-[var(--s-sub)]">{open.description}</p>
+            <p className="mt-3 text-[15px] leading-6 text-[var(--s-sub)]">{isNativeApp() ? nativeBlurb(open.description) : open.description}</p>
           </div>
           <ul className="space-y-2 rounded-2xl bg-[var(--s-raised)] p-4">{open.features.map((f) => <li key={f} className="flex items-start gap-2 text-[15px] text-[var(--s-text)]"><span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${soft}`}><Check className="h-3.5 w-3.5" /></span>{f}</li>)}</ul>
           {open.target.kind === "connection" && <div className="rounded-2xl border border-[var(--s-line)] p-4" data-testid="plugin-setup-steps">

@@ -7,7 +7,22 @@ import { ChevronLeft, Loader2, Music as MusicIcon, Pause, Play, Search, SkipBack
 import { onOtherSound, soundStarted } from "../client/src/components/family-hub/earshot/soundBus";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
-export type Album = { id: string; title: string; artist: string; cover: string; plays: number };
+export type Album = { id: string; title: string; artist: string; cover: string; plays: number; art?: string; year?: number };
+type Artist = { name: string; image: string; albums: number };
+type Sort = "popular" | "new" | "old";
+const SORTS: [Sort, string][] = [["popular", "Popular"], ["new", "New"], ["old", "Oldest"]];
+
+/** The album's real picture, or a designed cover (its name on a color picked from the name) when there's none. */
+function Cover({ album, className = "" }: { album: Pick<Album, "title" | "artist" | "cover" | "art">; className?: string }) {
+  const [broken, setBroken] = useState(false);
+  const src = album.art || "";
+  if (src && !broken) return <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} className={`h-full w-full object-cover ${className}`} />;
+  const h = [...(album.artist + album.title)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
+  return <span className={`flex h-full w-full flex-col justify-between p-3 text-left text-white ${className}`} style={{ background: `linear-gradient(140deg, hsl(${h} 55% 38%), hsl(${(h + 40) % 360} 60% 18%))` }}>
+    <MusicIcon size={18} className="opacity-80" />
+    <span className="min-w-0"><span className="line-clamp-3 block text-[13px] font-bold leading-tight">{album.title}</span><span className="mt-1 block truncate text-[11px] opacity-80">{album.artist}</span></span>
+  </span>;
+}
 export type Track = { n: number; title: string; secs: number; audio: string };
 export type AlbumDetail = Album & { tracks: Track[]; about: string; license: string; link: string };
 /** What's playing: an album and which track. */
@@ -24,18 +39,27 @@ export function MusicView({ api, current, onPlay }: { api: Api; current: Listeni
   const [err, setErr] = useState("");
   const [open, setOpen] = useState<AlbumDetail | null>(null);
   const [opening, setOpening] = useState("");
+  const [sort, setSort] = useState<Sort>("popular");
+  const [artist, setArtist] = useState("");
+  const [artists, setArtists] = useState<Artist[]>([]);
+
+  useEffect(() => {
+    let live = true;
+    api(`/api/earshot/music/artists?shelf=${encodeURIComponent(shelf)}`).then((b) => { if (live) setArtists(Array.isArray(b?.artists) ? b.artists : []); }).catch(() => { if (live) setArtists([]); });
+    return () => { live = false; };
+  }, [api, shelf]);
 
   useEffect(() => {
     let live = true;
     setList(null); setErr("");
-    const p = new URLSearchParams({ shelf, q: term });
+    const p = new URLSearchParams({ shelf, q: term, sort, artist });
     api(`/api/earshot/music?${p}`).then((b) => {
       if (!live) return;
       setList(Array.isArray(b?.albums) ? b.albums : []);
       if (Array.isArray(b?.shelves)) setShelves(b.shelves);
     }).catch((e) => { if (live) setErr(e?.message || "Music isn't loading right now."); });
     return () => { live = false; };
-  }, [api, shelf, term]);
+  }, [api, shelf, term, sort, artist]);
 
   const openAlbum = (id: string) => {
     setOpening(id);
@@ -46,10 +70,10 @@ export function MusicView({ api, current, onPlay }: { api: Api; current: Listeni
     return <div className="px-4 pb-28 pt-3 sm:px-6">
       <button onClick={() => setOpen(null)} className="inline-flex h-9 items-center gap-1 rounded-full px-2 text-sm font-medium hover:bg-[#f2f2f2]"><ChevronLeft size={18} />Music</button>
       <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-end">
-        <img src={open.cover} alt="" className="h-40 w-40 shrink-0 rounded-xl object-cover ring-1 ring-black/5" referrerPolicy="no-referrer" />
+        <span className="block h-40 w-40 shrink-0 overflow-hidden rounded-xl ring-1 ring-black/5"><Cover album={open} /></span>
         <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight">{open.title}</h1>
-          <p className="mt-1 text-sm text-[#606060]">{open.artist} · {open.tracks.length} {open.tracks.length === 1 ? "track" : "tracks"}</p>
+          <p className="mt-1 text-sm text-[#606060]"><button onClick={() => { setOpen(null); setTerm(""); setQ(""); setArtist(open.artist); }} className="font-medium underline-offset-2 hover:underline">{open.artist}</button>{open.year ? ` · ${open.year}` : ""} · {open.tracks.length} {open.tracks.length === 1 ? "track" : "tracks"}</p>
           <button onClick={() => onPlay({ album: open, index: 0 })} className="mt-3 inline-flex h-10 items-center gap-2 rounded-full bg-[#0f0f0f] px-5 text-sm font-semibold text-white"><Play size={16} fill="currentColor" />Play all</button>
         </div>
       </div>
@@ -80,10 +104,25 @@ export function MusicView({ api, current, onPlay }: { api: Api; current: Listeni
         <button type="submit" aria-label="Find music" className="inline-flex h-10 w-12 shrink-0 items-center justify-center rounded-r-full border border-[#d3d3d3] bg-[#f8f8f8]"><Search size={18} /></button>
       </form>
     </div>
+    <div className="mt-4 flex flex-wrap items-center gap-2">
+      <div role="group" aria-label="Order" className="inline-flex rounded-full bg-[#f2f2f2] p-1">
+        {SORTS.map(([v, l]) => <button key={v} onClick={() => setSort(v)} aria-pressed={sort === v} className={`h-8 rounded-full px-3.5 text-sm font-semibold ${sort === v ? "bg-[#0f0f0f] text-white" : "text-[#3f3f3f]"}`}>{l}</button>)}
+      </div>
+      {artist && <button onClick={() => setArtist("")} className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[#ff6a1f] px-3 text-sm font-semibold text-white" aria-label={`Showing ${artist}. Show everyone`}>{artist} <span aria-hidden>✕</span></button>}
+    </div>
+    {!term && !artist && artists.length > 0 && <section aria-label="Artists" className="mt-5">
+      <h2 className="text-base font-bold">Artists</h2>
+      <div className="-mx-1 mt-2 flex gap-4 overflow-x-auto px-1 pb-2 [scrollbar-width:none]">
+        {artists.map((a) => <button key={a.name} onClick={() => setArtist(a.name)} className="flex w-20 shrink-0 flex-col items-center gap-1.5 text-center">
+          <span className="block h-20 w-20 overflow-hidden rounded-full bg-[#f2f2f2] ring-1 ring-black/5">{a.image ? <img src={a.image} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover" /> : <span className="grid h-full w-full place-items-center text-xl font-bold text-[#606060]">{a.name.slice(0, 1)}</span>}</span>
+          <span className="line-clamp-2 text-xs font-semibold leading-tight">{a.name}</span>
+        </button>)}
+      </div>
+    </section>}
     <div role="group" aria-label="Kinds of music" className="-mx-1 mt-4 flex gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
       {shelves.map((s) => {
         const on = !term && shelf === s.id;
-        return <button key={s.id} onClick={() => { setTerm(""); setQ(""); setShelf(s.id); }} aria-pressed={on} className={`h-8 shrink-0 whitespace-nowrap rounded-lg px-3 text-sm font-medium ${on ? "bg-[#0f0f0f] text-white" : "bg-[#f2f2f2] hover:bg-[#e5e5e5]"}`}>{s.label}</button>;
+        return <button key={s.id} onClick={() => { setTerm(""); setQ(""); setArtist(""); setShelf(s.id); }} aria-pressed={on} className={`h-8 shrink-0 whitespace-nowrap rounded-lg px-3 text-sm font-medium ${on ? "bg-[#0f0f0f] text-white" : "bg-[#f2f2f2] hover:bg-[#e5e5e5]"}`}>{s.label}</button>;
       })}
     </div>
     {err ? <p className="py-20 text-center text-[#606060]">{err}</p>
@@ -92,11 +131,11 @@ export function MusicView({ api, current, onPlay }: { api: Api; current: Listeni
       : <div className="mt-4 grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(160px,100%),1fr))]">
         {list.map((a) => <button key={a.id} onClick={() => openAlbum(a.id)} className="min-w-0 text-left">
           <span className="relative block aspect-square overflow-hidden rounded-xl bg-[#f2f2f2] ring-1 ring-black/5">
-            <img src={a.cover} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
+            <Cover album={a} />
             {(opening === a.id || current?.album.id === a.id) && <span className="absolute inset-0 grid place-items-center bg-black/35 text-white">{opening === a.id ? <Loader2 className="animate-spin" /> : <MusicIcon />}</span>}
           </span>
           <span className="mt-2 line-clamp-2 block text-sm font-semibold">{a.title}</span>
-          <span className="block truncate text-xs text-[#606060]">{a.artist}</span>
+          <span className="block truncate text-xs text-[#606060]">{a.artist}{a.year ? ` · ${a.year}` : ""}</span>
         </button>)}
       </div>}
     <p className="mt-8 text-xs text-[#767676]">Recordings from the <a href="https://archive.org" target="_blank" rel="noreferrer" className="underline">Internet Archive</a>, marked public domain.</p>
@@ -134,7 +173,7 @@ export function MusicBar({ listening, onChange, onStop, say }: { listening: List
   if (!track) return null;
   return <div role="region" aria-label="Now playing music" className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5e5e5] bg-white/95 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur">
     <div className="mx-auto flex max-w-[1600px] items-center gap-3 px-3 py-2.5 sm:px-5">
-      <img src={album.cover} alt="" className="h-11 w-11 shrink-0 rounded-lg object-cover" referrerPolicy="no-referrer" />
+      <span className="block h-11 w-11 shrink-0 overflow-hidden rounded-lg"><Cover album={album} className="!p-1 [&_span]:hidden" /></span>
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-sm font-semibold">{track.title}</span>
         <span className="truncate text-xs text-[#606060]">{album.artist} · {album.title}</span>

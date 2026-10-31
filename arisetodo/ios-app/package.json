@@ -2,10 +2,11 @@
   "name": "arisetodo-ios",
   "version": "0.1.0",
   "private": true,
-  "description": "A.R.I.S.E. To-Do native iOS preparation",
+  "description": "Arise To Duo iPhone app",
   "scripts": {
     "ios:add": "cap add ios",
-    "ios:sync": "cap sync ios"
+    "ios:sync": "cap sync ios",
+    "postinstall": "node ../../.github/scripts/capacitor8-spm.mjs"
   },
   "dependencies": {
     "@capacitor/core": "8.0.0",
@@ -14,7 +15,12 @@
     "@capacitor/haptics": "8.0.0",
     "@capacitor/share": "8.0.0",
     "@capacitor/splash-screen": "8.0.0",
-    "@capacitor/keyboard": "8.0.0"
+    "@capacitor/keyboard": "8.0.0",
+    "@capgo/capacitor-health": "^8.7.0",
+    "@capacitor/local-notifications": "8.0.0",
+    "@capacitor/push-notifications": "^8.0.0",
+    "@ebarooni/capacitor-calendar": "^8.2.0",
+    "@capacitor-community/apple-sign-in": "^7.1.0"
   },
   "devDependencies": {
     "@capacitor/cli": "8.0.0"

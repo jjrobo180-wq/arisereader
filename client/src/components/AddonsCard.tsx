@@ -13,6 +13,7 @@ import { BookOpen, Calculator, CheckCircle2, CheckSquare, ClipboardList, Landmar
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { appHref } from "@/lib/hubs";
+import { NATIVE_NO_PURCHASE, isNativeApp } from "@/lib/nativeApp";
 
 type Access = { access: boolean; via: string | null; endsAt: string | null; plan: { live: boolean; endsAt: string | null } | null; paidByYou: boolean; oldBundle?: boolean };
 type AppId = "math" | "history" | "social";
@@ -116,7 +117,7 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
           <h2 className="text-[11px] font-black uppercase tracking-[.2em] text-muted-foreground">Add-ons</h2>
           <p className="text-xs text-muted-foreground">
             {status}
-            {!user.isAdmin && <>{status && " · "}<a href={appHref("/billing")} className="font-bold text-violet-300 underline-offset-4 hover:underline">Prices</a></>}
+            {!user.isAdmin && !isNativeApp() && <>{status && " · "}<a href={appHref("/billing")} className="font-bold text-violet-300 underline-offset-4 hover:underline">Prices</a></>}
           </p>
         </div>
         <div className="mt-2.5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
@@ -169,6 +170,21 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
       </section>
     );
   }
+
+  // In the iPhone app: what's on the account, with no prices or buttons to buy (App Review 3.1.1).
+  if (isNativeApp()) return (
+    <section className="rounded-[1.6rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6" aria-label="Add-ons" data-testid="addons-card">
+      <h2 className="text-lg font-black text-[#141b32]">Add-ons</h2>
+      <p className="mt-1 text-sm text-slate-600">{NATIVE_NO_PURCHASE}</p>
+      <div className="mt-3 space-y-2">{apps.map((app) => {
+        const on = !!data.apps[app.id]?.access;
+        return <a key={app.id} href={app.href} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3" data-testid={`addons-native-${app.id}`}>
+          <app.icon className={`h-6 w-6 shrink-0 ${app.tone}`} />
+          <span className="min-w-0 flex-1"><span className="block text-sm font-black text-[#141b32]">{app.label}</span><span className="block text-xs text-slate-500">{on ? "On for your account" : "Not on this account"}</span></span>
+        </a>;
+      })}</div>
+    </section>
+  );
 
   let bundleAction: ReactNode = null;
   const ownPlanLive = !!b.plan?.live;

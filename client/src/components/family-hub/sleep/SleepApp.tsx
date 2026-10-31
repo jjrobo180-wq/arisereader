@@ -75,7 +75,7 @@ export default function SleepApp({ family, setFamily, today, makeId, say }: Sect
   const timerOn = useCallback(() => { if (app.settings.timer && !sleepSounds.timerEndsAt) sleepSounds.startTimer(app.settings.timer); }, [app.settings.timer]);
 
   const read = useCallback((title: string, lines: readonly ScriptLine[], toolId?: string) => {
-    narrator.play(lines, { title, voice: app.settings.voice, aiVoice: app.settings.aiVoice, deviceVoice: app.settings.deviceVoice, pace: app.settings.pace, token });
+    narrator.play(lines, { title, voice: "ai", aiVoice: app.settings.aiVoice, deviceVoice: app.settings.deviceVoice, pace: app.settings.pace, token });
     if (toolId) record(toolId);
     timerOn();
     setStage({ kind: "read" });

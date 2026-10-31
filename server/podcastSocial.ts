@@ -10,7 +10,7 @@ import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { cleanPodId, cleanUrl } from "../shared/earshot";
 import { cleanPage, type GuestEntry } from "../shared/earshotPage";
 import { cleanMedia, cleanPoll, cleanWebsite, forYouScore, hashtags, mentions, pollView, type Media, type PollData, type PollView } from "../shared/socialKit";
-import { moderateImages } from "./socialModeration";
+import { cleanReason, moderateImages, moderateText, refusedWords, reportFiled } from "./socialModeration";
 import { registerSocialPlus } from "./podcastSocialPlus";
 
 export class SocialUnavailable extends Error {}
@@ -117,6 +117,14 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
     if (wait > 0) { res.set("Retry-After", String(Math.ceil(wait / 1000))); res.status(429).json({ message: `Slow down a little. Try again in ${waitWords(wait)}.` }); return true; }
     lim.fail(k); return false;
   };
+  /** Words checked before they're posted (server/socialModeration.ts). True when it answered with a refusal. */
+  const refuseWords = async (res: any, ...parts: string[]) => {
+    const v = await moderateText(parts.filter(Boolean).join("\n"));
+    if (v.ok) return false;
+    res.status(400).json({ message: refusedWords(v.reason), filtered: true });
+    return true;
+  };
+  const appName = P.startsWith("/api/podscroll") ? "Pod+" : "Earshot (LifeHub)";
 
   // Comments, notifications, clips and reposts need migrations/podcast_social_v2.sql. Checked once a
   // minute until it's there, so running it turns them on without a restart.
@@ -286,7 +294,10 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
     if (!name) return res.status(400).json({ message: "Add your name (or a nickname)." });
     if (limited(writes, req, res)) return;
     try {
+      if (await refuseWords(res, handle, name, bio, location)) return;
       const voter = o.voterOf(req);
+      // A new profile needs the community rules agreed to first (Pod+ and LifeHub show them).
+      if (req.body?.agreed !== true && !(await myProfile(voter))) return res.status(400).json({ message: "Agree to the community rules to make your profile.", needRules: true });
       const { data: taken, error: e1 } = await db().from("podcast_profiles").select("voter").eq("handle", handle).maybeSingle();
       check(e1);
       if (taken && taken.voter !== voter) return res.status(409).json({ message: `@${handle} is taken. Try another.` });
@@ -329,6 +340,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
     if (!body) return res.status(400).json({ message: "Write something first." });
     if (limited(writes, req, res)) return;
     try {
+      if (await refuseWords(res, body)) return;
       const voter = o.voterOf(req);
       const me = await myProfile(voter);
       if (!me) return res.status(400).json({ message: "Make your profile first.", needProfile: true });
@@ -532,6 +544,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
     if (limited(writes, req, res)) return;
     if (kind === "clip" && limited(clips, req, res)) return;
     try {
+      if (await refuseWords(res, caption, poll ? JSON.stringify(poll) : "")) return;
       const voter = o.voterOf(req);
       if (kind !== "share" && (await needV2(res))) return;
       if ((media.length || poll) && !(await hasV3())) return res.status(503).json({ message: "Photo and poll posts are still being set up.", setup: true });
@@ -655,6 +668,8 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
       check(error);
       const { count } = await db().from("podcast_post_reports").select("voter", { count: "exact", head: true }).eq("post_id", Number(id));
       await db().from("podcast_posts").update({ reports: count ?? 1, hidden: (count ?? 0) >= 3 }).eq("id", Number(id));
+      const { data: row } = await db().from("podcast_posts").select("voter,caption").eq("id", Number(id)).maybeSingle();
+      reportFiled({ app: appName, what: "post", table: "podcast_posts", owner: row?.voter, id, by: o.voterOf(req), about: `${row?.voter ?? ""}: ${String(row?.caption ?? "").slice(0, 200)}`, reason: cleanReason(req.body?.reason), reports: count ?? 1 });
       res.json({ ok: true });
     } catch (e) { fail(res, e); }
   });
@@ -689,6 +704,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
     if (!body) return res.status(400).json({ message: "Write something first." });
     if (limited(talk, req, res)) return;
     try {
+      if (await refuseWords(res, body)) return;
       if (await needV2(res)) return;
       const voter = o.voterOf(req);
       const me = await myProfile(voter);
@@ -753,9 +769,10 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
     if (limited(writes, req, res)) return;
     try {
       if (await needV2(res)) return;
-      const { data: c, error } = await db().from("podcast_comments").select("reports").eq("id", Number(id)).maybeSingle();
+      const { data: c, error } = await db().from("podcast_comments").select("reports,voter,body").eq("id", Number(id)).maybeSingle();
       check(error);
       if (c) await db().from("podcast_comments").update({ reports: (c.reports ?? 0) + 1, hidden: (c.reports ?? 0) + 1 >= 3 }).eq("id", Number(id));
+      if (c) reportFiled({ app: appName, what: "comment", table: "podcast_comments", owner: c.voter, id, by: o.voterOf(req), about: `${c.voter}: ${String(c.body ?? "").slice(0, 200)}`, reason: cleanReason(req.body?.reason), reports: (c.reports ?? 0) + 1 });
       res.json({ ok: true });
     } catch (e) { fail(res, e); }
   });
@@ -852,6 +869,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
     if (!path || !mineOnly(path) || !mineOnly(artPath)) return res.status(400).json({ message: "Upload the audio first." });
     if (limited(writes, req, res)) return;
     try {
+      if (await refuseWords(res, title, about, text(req.body?.caption, 280))) return;
       const me = await myProfile(voter);
       if (!me) return res.status(400).json({ message: "Make your profile first.", needProfile: true });
       const audio = db().storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
@@ -878,6 +896,6 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
   // messages and stories (server/podcastSocialPlus.ts).
   registerSocialPlus(app, {
     P, auth, gate, db, voterOf: o.voterOf, check, fail, limited, writes, talk, PROFILE_COLS,
-    myProfile, peopleById, profileOf, shape, postCols, notify, hasV2, blockSet, publicPrefix, folderOf,
+    myProfile, peopleById, profileOf, shape, postCols, notify, hasV2, blockSet, publicPrefix, folderOf, refuseWords, appName,
   });
 }

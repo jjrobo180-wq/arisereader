@@ -33,7 +33,7 @@ const CUSTOMIZE_HUB: GuideTopic[] = [
   { id: "look", title: "Change the look", summary: "Themes and night mode.", open: "customize",
     points: ["Pick a theme in Customize.", "Switch between day and night mode from the header (or ⋯ on a phone)."] },
   { id: "apps", title: "Add or remove apps", summary: "Only keep what you use.", open: "store",
-    points: ["The App Store holds every extra app. Tap one, then Add.", "Remove an app the same way. Nothing in it is deleted: add it back and it's all still there.", "This Getting started page is an app too. Remove it whenever you're done with it."] },
+    points: ["The App Gallery holds every extra app. Tap one, then Add.", "Remove an app the same way. Nothing in it is deleted: add it back and it's all still there.", "This Getting started page is an app too. Remove it whenever you're done with it."] },
   { id: "lock", title: "Lock private things", summary: "A passcode for apps and notes.", open: "passcode",
     points: ["Tap the lock in the header (or search “Passcode”). Choose a 4 to 8 digit passcode.", "Switch on any app to lock it, or open a note and tap Lock note.", "Unlock once and everything opens until you tap Lock now. Forgot it? Your account password turns it off."] },
   { id: "alerts", title: "Choose your reminders", summary: "Phone and email notifications.", open: "notifications",
@@ -59,7 +59,7 @@ export const GUIDES: Guide[] = [
       { id: "child", title: "Link your child's reading", body: "Open A.R.I.S.E. Reader and add your child. You'll see their books, quizzes, points and reading score.", open: "reader" },
       { id: "todo", title: "Add your first to-do", body: "Type it in Tasks and press Enter. Tap More for a due date, time, notes, a repeat or who it's for.", open: "tasks" },
       { id: "calendar", title: "Put this week on the calendar", body: "Add events, give each family calendar its own colour, and set events to repeat.", open: "calendar" },
-      { id: "apps", title: "Add one app you'll use", body: "Chores, Grocery list, Meal planner, Budget & bills… pick one from the App Store.", open: "store" },
+      { id: "apps", title: "Add one app you'll use", body: "Chores, Grocery list, Meal planner, Budget & bills… pick one from the App Gallery.", open: "store" },
     ],
     topics: [
       { id: "home", title: "Home", summary: "Today at a glance.", open: "home", points: ["Today's to-dos, events, pinned notes and reminders in one place.", "Choose exactly what shows in Customize → Home screen."] },
@@ -87,7 +87,7 @@ export const GUIDES: Guide[] = [
       { id: "class", title: "Add your students", body: "In A.R.I.S.E. Reader → Students, add your class, or approve students who signed up and chose you as their teacher.", open: "reader" },
       { id: "calendar", title: "Connect your calendar", body: "Bring in Google, Outlook or Apple Calendar so meetings and events show in one place.", open: "calendar" },
       { id: "todo", title: "Add a to-do", body: "Type it on Home and press Enter. Tap More for a due date, time, notes or a repeat.", open: "tasks" },
-      { id: "apps", title: "Add the tools you use", body: "Caseload, Minutes, Gradebook, Attendance, Behavior, Lessons… add them from the App Store.", open: "store" },
+      { id: "apps", title: "Add the tools you use", body: "Caseload, Minutes, Gradebook, Attendance, Behavior, Lessons… add them from the App Gallery.", open: "store" },
       { id: "home", title: "Set up your Home screen", body: "Choose what shows on Home: agenda, to-dos, meetings, calendar and quick counts.", open: "customize" },
     ],
     topics: [
@@ -138,7 +138,7 @@ export const GUIDES: Guide[] = [
       { id: "todo", title: "Add your first to-do", body: "Type it in Tasks and press Enter. Tap More for a due date, time, notes or a repeat.", open: "tasks" },
       { id: "calendar", title: "Add an event", body: "Put something on the calendar. Events can repeat.", open: "calendar" },
       { id: "note", title: "Write a note", body: "Notes open full screen and save as you type.", open: "notes" },
-      { id: "apps", title: "Add an app", body: "Habits, Journal, Budget, Workouts… pick from the App Store.", open: "store" },
+      { id: "apps", title: "Add an app", body: "Habits, Journal, Budget, Workouts… pick from the App Gallery.", open: "store" },
     ],
     topics: [
       { id: "tasks", title: "Tasks", summary: "Lists for everything.", open: "tasks", points: ["Lists with colours, due dates, times, repeats and priority.", "Today and Upcoming views so nothing slips."] },

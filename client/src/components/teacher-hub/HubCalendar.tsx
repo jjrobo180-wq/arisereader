@@ -5,6 +5,7 @@ import { PinButton } from "./HubPins";
 import { useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import { AlarmClock, AlertTriangle, Bell, Calendar, CalendarClock, Check, Clock, EyeOff, List as ListIcon, Repeat, ChevronLeft, ChevronRight, Link2, Loader2, MapPin, Pencil, Plus, RefreshCw, Trash2, Upload, X } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
+import { IPHONE_CALENDAR_URL, inIphoneApp, isIphoneCalendar, readIphoneEvents } from "@/lib/nativeCalendar";
 import {
   HUB_IMPORT_LIMITS, cleanHubImport, clock12, describeHubAdded, mergeHubImport, removeCalendar, replaceCalendarEvents,
   type HubCalendar as ConnectedCalendar, type HubEvent, type Workspace,
@@ -182,6 +183,13 @@ async function readCalendarLink(token: string | null, url: string) {
   return data as { name: string; events: Omit<HubEvent, "id" | "calendarId">[] };
 }
 
+/** A connected calendar's events: from its link, or from the phone itself for the iPhone Calendar. */
+async function readCalendar(token: string | null, url: string): Promise<{ name: string; events: Omit<HubEvent, "id" | "calendarId">[] }> {
+  if (!isIphoneCalendar(url)) return readCalendarLink(token, url);
+  if (!inIphoneApp()) throw new Error("Your iPhone Calendar refreshes when you open your Hub in the Arise To Duo iPhone app.");
+  return { name: "iPhone Calendar", events: await readIphoneEvents() };
+}
+
 /**
  * Keeps connected calendars fresh: when the Hub opens, any calendar last read a
  * few hours ago is read again. A calendar that can't be reached keeps the events it had.
@@ -191,11 +199,13 @@ export function useCalendarRefresh(ready: boolean, token: string | null, calenda
   useEffect(() => {
     if (!ready || !token || started.current) return;
     started.current = true;
-    const stale = calendars.filter((c) => Date.now() - (Date.parse(c.syncedAt) || 0) > HUB_IMPORT_LIMITS.calendarStaleMs);
+    // The iPhone's own calendar is read fresh every time the Hub opens in the app (it's on the phone,
+    // so it's quick); calendar links when they're a few hours old.
+    const stale = calendars.filter((c) => isIphoneCalendar(c.url) ? inIphoneApp() : Date.now() - (Date.parse(c.syncedAt) || 0) > HUB_IMPORT_LIMITS.calendarStaleMs);
     void (async () => {
       for (const calendar of stale) {
         try {
-          const fresh = await readCalendarLink(token, calendar.url);
+          const fresh = await readCalendar(token, calendar.url);
           setWorkspace((prev) => (prev.calendars.some((c) => c.id === calendar.id)
             ? replaceCalendarEvents(prev, { ...calendar, syncedAt: new Date().toISOString() }, fresh.events, makeId)
             : prev));
@@ -716,11 +726,28 @@ export default function HubCalendarTab({ workspace, setWorkspace, token, makeId,
     if (busy) return;
     setBusy(calendar.id); setError(""); setNotice("");
     try {
-      const fresh = await readCalendarLink(token, calendar.url);
+      const fresh = await readCalendar(token, calendar.url);
       setWorkspace((prev) => replaceCalendarEvents(prev, { ...calendar, name: calendar.name || fresh.name, syncedAt: new Date().toISOString() }, fresh.events, makeId));
       setNotice(`${calendar.name} is up to date.`);
     } catch (err: any) {
       setError(err?.message || "That calendar could not be read right now.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /** In the iPhone app: every calendar on the phone (iCloud, Google, Outlook, school), read on the phone. */
+  async function connectIphone() {
+    if (busy) return;
+    setBusy("iphone"); setError(""); setNotice("");
+    try {
+      const events = await readIphoneEvents();
+      const had = workspace.calendars.find((c) => isIphoneCalendar(c.url));
+      const calendar: ConnectedCalendar = { id: had?.id || makeId(), name: "iPhone Calendar", url: IPHONE_CALENDAR_URL, syncedAt: new Date().toISOString() };
+      setWorkspace((prev) => replaceCalendarEvents(prev, calendar, events, makeId));
+      setNotice(`Your iPhone Calendar is connected, with ${events.length} ${events.length === 1 ? "event" : "events"} from the last month and the next four. It refreshes each time you open your Hub in the app.`);
+    } catch (err: any) {
+      setError(err?.message || "Your iPhone Calendar couldn't be read right now.");
     } finally {
       setBusy(null);
     }
@@ -777,6 +804,15 @@ export default function HubCalendarTab({ workspace, setWorkspace, token, makeId,
             ))}
           </ul>
         )}
+        {inIphoneApp() && !workspace.calendars.some((c) => isIphoneCalendar(c.url)) && (
+          <div className="mb-4 rounded-2xl border border-teal-200 bg-teal-50 p-4" data-testid="calendar-iphone">
+            <p className="font-semibold text-slate-900">Your iPhone Calendar</p>
+            <p className="mt-1 text-sm text-slate-600">Bring in every calendar on this iPhone: iCloud, Google, Outlook and your school's. Nothing on your iPhone is changed. If your school's calendar can't be added to your iPhone, paste its link below instead.</p>
+            <div className="mt-3"><PrimaryButton type="button" onClick={() => void connectIphone()} disabled={!!busy || full}>
+              {busy === "iphone" ? <><Loader2 className="h-4 w-4 animate-spin" /> Connecting…</> : <><Calendar className="h-4 w-4" /> Connect iPhone Calendar</>}
+            </PrimaryButton></div>
+          </div>
+        )}
         <div role="tablist" aria-label="Whose calendar is it" className="mb-3 flex gap-1 rounded-2xl bg-slate-100 p-1" data-testid="calendar-whose">
           {([["mine", "My calendar"], ["other", "Someone else's"]] as const).map(([value, label]) => (
             <button key={value} type="button" role="tab" aria-selected={whose === value} onClick={() => { setWhose(value); setError(""); }} className={`min-h-11 flex-1 rounded-xl px-2 text-sm font-semibold ${whose === value ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}>{label}</button>
@@ -796,10 +832,7 @@ export default function HubCalendarTab({ workspace, setWorkspace, token, makeId,
           </PrimaryButton>
         </form>
         {full && <p className="mt-2 text-sm text-slate-600">You can connect up to {HUB_IMPORT_LIMITS.calendars} calendars. Disconnect one to add another.</p>}
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <GhostButton onClick={() => fileRef.current?.click()}>{busy === "file" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} Upload a calendar file</GhostButton>
-          <input ref={fileRef} type="file" accept=".ics,.ical,text/calendar" hidden onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = ""; }} data-testid="hub-calendar-file" />
-        </div>
+        <input ref={fileRef} type="file" accept=".ics,.ical,text/calendar" hidden onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = ""; }} data-testid="hub-calendar-file" />
         {error && <div className="mt-3 flex gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><span>{error}</span></div>}
         {notice && <div className="mt-3 rounded-xl bg-teal-50 px-3 py-2 text-sm text-teal-900" role="status">{notice}</div>}
         <details className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
@@ -808,7 +841,7 @@ export default function HubCalendarTab({ workspace, setWorkspace, token, makeId,
             <p><strong>Google Calendar:</strong> on a computer, open Settings, pick your calendar under "Settings for my calendars", choose "Integrate calendar", and copy "Secret address in iCal format".</p>
             <p><strong>Outlook:</strong> on the web, open Settings, then Calendar, then "Shared calendars". Under "Publish a calendar" pick your calendar, choose "Can view all details", press Publish, and copy the ICS link.</p>
             <p><strong>Apple (iCloud):</strong> at icloud.com/calendar, press the share button next to your calendar, turn on "Public Calendar", and copy the link.</p>
-            <p className="text-slate-600">The link lets your Hub read your calendar. It can't change it. If your school has turned sharing off, export your calendar as a file and use "Upload a calendar file" instead.</p>
+            <p className="text-slate-600">The link lets your Hub read your calendar. It can't change it. On an iPhone, the easiest way is to add the calendar to your iPhone's Calendar app (Settings → Calendar → Accounts) and use Connect iPhone Calendar above.</p>
           </div>
         </details>
         <AskForCalendar sender={workspace.profile.senderName || ""} />

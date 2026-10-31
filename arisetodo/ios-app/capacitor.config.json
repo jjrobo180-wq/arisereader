@@ -1,6 +1,6 @@
 {
   "appId": "com.arisereader.arisetodo",
-  "appName": "A.R.I.S.E. To-Do",
+  "appName": "Arise To Duo",
   "webDir": "www",
   "plugins": {
     "SplashScreen": {
@@ -10,6 +10,20 @@
     },
     "Keyboard": {
       "resize": "native"
+    },
+    "LocalNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
+    },
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
     }
   },
   "ios": {

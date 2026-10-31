@@ -2,7 +2,8 @@
 // Used by LifeHub's Earshot app (./Earshot.tsx) and by the separate Podscroll website (podscroll/),
 // so it imports nothing from the Arise app itself: the caller passes data, saving and the API.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { Bookmark, Car, Check, ChevronDown, ChevronLeft, Clock3, ExternalLink, Mic, Sparkles, Flag, Heart, Info, ListVideo, Loader2, Maximize2, Megaphone, MessageCircle, Minimize2, Minus, Moon, Pause, Play, Plus, RotateCcw, RotateCw, Search, Settings2, Share2, SkipForward, ThumbsDown, Trash2, X } from "lucide-react";
+import { Bookmark, Car, Check, ChevronDown, ChevronLeft, Clock3, Download, ExternalLink, Mic, Sparkles, Flag, Heart, Info, ListVideo, Loader2, Maximize2, Megaphone, MessageCircle, Minimize2, Minus, Moon, Pause, Play, Plus, RotateCcw, RotateCw, Search, Settings2, Share2, SkipForward, ThumbsDown, Trash2, X } from "lucide-react";
+import { episodeKey, offlineAudio, useOfflineAudio } from "./offlineAudio";
 import {
   EARSHOT_LIMITS, GENRES, GENRE, SPEEDS, chooseEpisode, chooseFreshEpisode, clock, compact, durationWords, mergeAds, pickNext, shareText, startAt, tasteOf, type AdMode,
   type AdRange, type Candidate, type Chapter, type Earshot as EarshotData, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal, type TranscriptChunk, type TxSegment,
@@ -21,7 +22,7 @@ import { hiRes, type PodMode } from "@shared/earshot";
 import { momentsBetween, hoursWords, sumKinds } from "@shared/earshotListen";
 import { AskSheet, CatchUpSheet, DriveSheet, HoursBackCard, MomentBubble, catchUpWorthIt, useTimedComments, type TimedComment } from "./EarshotListen";
 import { onOtherSound, soundStarted } from "./soundBus";
-import { attachVoiceBoost, countHoursBack, isBoosted, primeVoiceBoost, readHoursBack, resumeVoiceBoost, setVoiceBoost } from "./listenExtras";
+import { attachVoiceBoost, countCouldSave, countHoursBack, isBoosted, primeVoiceBoost, readHoursBack, resumeVoiceBoost, setVoiceBoost } from "./listenExtras";
 
 type Counts = { likes: number; comments: number; shares: number; liked: boolean };
 type Comment = { id: string; author: string; body: string; at: string; mine: boolean; t?: number | null };
@@ -237,6 +238,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const [unlocked, setUnlocked] = useState(false);
   const unlockedRef = useRef(false);
   const [playing, setPlaying] = useState(false);
+  /** A weak connection: the episode is waiting for more sound ("buffering"), or for the signal to come back ("offline"). */
+  const [netWait, setNetWait] = useState<null | "buffering" | "offline">(null);
   const [time, setTime] = useState(0);
   const [dur, setDur] = useState(0);
   const [counts, setCounts] = useState<Record<string, Counts>>({});
@@ -283,6 +286,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const cur = useRef<HTMLAudioElement | null>(null);
   const feedRef = useRef<HTMLDivElement | null>(null);
   const listened = useRef(0);
+  /** When the feed last moved on by itself (an episode ending, or the "swipe for me" timer). */
+  const lastAutoAdvance = useRef(0);
   const lastTime = useRef(0);
   const lastSpot = useRef(0);
   const counted = useRef<Set<string>>(new Set());
@@ -504,10 +509,12 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   // feed still has to carry on after it.
   useEffect(() => { if (itemsRef.current.length - activeRef.current < 3 && (tab === "foryou" || tab === "following")) extend(6); }, [poolTick, extend, tab, items.length]);
 
-  // Drop shows with nothing playable once they're ahead of the listener.
+  // Drop shows with nothing playable once they're well ahead of the listener. Never the very next
+  // card: taking it out while a swipe is landing on it moved every card after it up one, and the swipe
+  // landed one or more podcasts further on.
   useEffect(() => {
-    if (items.some((x, i) => x.state === "none" && i > active)) {
-      setItems((list) => list.filter((x, i) => !(x.state === "none" && i > activeRef.current)));
+    if (items.some((x, i) => x.state === "none" && i > active + 1)) {
+      setItems((list) => list.filter((x, i) => !(x.state === "none" && i > activeRef.current + 1)));
       extend(1);
     }
   }, [items, active, extend]);
@@ -539,6 +546,33 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
 
   // ---------------- audio: three players, so the next episode is loaded before you swipe ----------------
   const handlers = useRef({ time: (_a: HTMLAudioElement) => {}, ended: (_a: HTMLAudioElement) => {}, error: (_a: HTMLAudioElement) => {} });
+  /** The episode waiting for the signal to come back: which one, where it was, whether it was playing. */
+  const netRetry = useRef<{ ep: string; t: number; play: boolean; tries: number; timer: ReturnType<typeof setTimeout> | null } | null>(null);
+  /** The connection dropped: keep the same episode and spot, and try again when the signal returns
+   *  (and every few seconds, in case the phone doesn't say). Never skips to another episode. */
+  const waitForSignal = (a: HTMLAudioElement) => {
+    const id = a.dataset.ep || ""; if (!id) return;
+    const prev = netRetry.current && netRetry.current.ep === id ? netRetry.current : null;
+    if (prev?.timer) clearTimeout(prev.timer);
+    const t = Math.max(a.currentTime || 0, prev?.t || 0), play = prev ? prev.play : (!a.paused || playing);
+    const tries = (prev?.tries || 0) + 1;
+    setNetWait("offline");
+    const again = () => {
+      const r = netRetry.current; if (!r || r.ep !== id || cur.current !== a || a.dataset.ep !== id) return;
+      if (typeof navigator !== "undefined" && navigator.onLine === false) { r.timer = setTimeout(again, 3000); return; }
+      const src = a.currentSrc || a.src; if (!src) return;
+      a.src = src; a.load();
+      a.addEventListener("loadedmetadata", () => { try { if (r.t > 1) a.currentTime = r.t; } catch { /* not seekable yet */ } }, { once: true });
+      if (r.play) a.play().catch(() => {});
+    };
+    netRetry.current = { ep: id, t, play, tries, timer: setTimeout(again, Math.min(15000, 2000 * tries)) };
+  };
+  useEffect(() => {
+    const back = () => { const r = netRetry.current; if (r) { if (r.timer) clearTimeout(r.timer); r.timer = setTimeout(() => { const a = cur.current; if (a && a.dataset.ep === r.ep) { r.tries = 0; waitForSignal(a); } }, 300); } };
+    const gone = () => { const a = cur.current; if (a && a.dataset.ep && !a.paused) setNetWait("offline"); };
+    window.addEventListener("online", back); window.addEventListener("offline", gone);
+    return () => { window.removeEventListener("online", back); window.removeEventListener("offline", gone); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   /** The lock screen and headphone buttons control this player again (an audiobook or the radio may
    *  have taken them while they played). */
   const claimLockScreen = (a: HTMLAudioElement) => {
@@ -566,12 +600,23 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     a.addEventListener("play", () => { if (isBoosted(a)) resumeVoiceBoost(); if (a === cur.current) { setPlaying(true); soundStarted("pod"); claimLockScreen(a); } });
     a.addEventListener("pause", () => { if (a === cur.current) setPlaying(false); });
     a.addEventListener("error", () => { if (a === cur.current && a.dataset.ep) handlers.current.error(a); });
+    // Bad signal: say "Buffering…" (after a moment, so a short hiccup doesn't flash it) instead of
+    // doing anything drastic; it carries on by itself once enough sound has arrived.
+    let slow: ReturnType<typeof setTimeout> | null = null;
+    const waiting = () => { if (a !== cur.current || a.paused) return; if (slow) clearTimeout(slow); slow = setTimeout(() => { if (a === cur.current && !a.paused && a.readyState < 3) setNetWait((w) => w ?? "buffering"); }, 800); };
+    const flowing = () => { if (slow) { clearTimeout(slow); slow = null; } if (a === cur.current) setNetWait((w) => (w === "buffering" ? null : w)); };
+    a.addEventListener("waiting", waiting); a.addEventListener("stalled", waiting);
+    a.addEventListener("playing", () => { flowing(); if (a === cur.current) { setNetWait(null); if (netRetry.current?.timer) clearTimeout(netRetry.current.timer); netRetry.current = null; } });
+    a.addEventListener("canplay", flowing); a.addEventListener("pause", flowing);
     return a;
   }
   /** Points a player at an episode. Through the server with Voice boost on, the audio is fetched so the
    *  page may shape its sound (crossOrigin). A player whose sound already goes through the boost can't
    *  play audio from other sites (it would be silent), so it is swapped for a fresh one first. */
   const setAudioSrc = (a: HTMLAudioElement, ep: PodEpisode, via: string | null): HTMLAudioElement => {
+    // Downloaded (Pod+): play the copy on this device. It's this page's own, so Voice boost still works.
+    const saved = offlineAudio()?.url(episodeKey(ep.id));
+    if (saved) { a.removeAttribute("crossorigin"); delete a.dataset.sid; a.src = saved; return a; }
     if (!via && isBoosted(a)) {
       const fresh = makeAudio();
       const i = players.current.indexOf(a); if (i >= 0) players.current[i] = fresh;
@@ -634,6 +679,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   }, [api, mediaUrl ? 1 : 0]);
   /** A session for this episode (its id), when its audio can come through the server. */
   const viaServer = (ep: PodEpisode): string | null => {
+    if (offlineAudio()?.url(episodeKey(ep.id))) return null; // downloaded: plays from this device
     const tok = playTok.current;
     if (!mediaUrl || !tok || tok.exp - Date.now() < 5 * 60_000 || direct.current.has(ep.id) || !throughServer(ep.audio)) return null;
     let p = plays.current.get(ep.id);
@@ -730,6 +776,9 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const a = playerFor(ep, []);
     if (cur.current && cur.current !== a) cur.current.pause();
     cur.current = a;
+    // A different episode: whatever was waiting for the signal is let go.
+    if (netRetry.current && netRetry.current.ep !== ep.id) { if (netRetry.current.timer) clearTimeout(netRetry.current.timer); netRetry.current = null; }
+    setNetWait(null);
     // It failed while loading ahead (through the server): load it again now that it's playing.
     if (a.error && a.dataset.sid) handlers.current.error(a);
     listened.current = 0; lastTime.current = a.currentTime; lastSpot.current = 0; setSkipped(null);
@@ -950,7 +999,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     if (due.length && !sheetRef.current) showMoment(due[due.length - 1]);
     setTime(t); if (a.duration && Number.isFinite(a.duration)) setDur(a.duration);
     const it = itemsRef.current[activeRef.current]; const ep = it?.ep;
-    if (ep && Math.abs(t - lastSpot.current) > 5) { lastSpot.current = t; saveSpot(ep, t); }
+    if (ep && a.dataset.ep === ep.id && Math.abs(t - lastSpot.current) > 5) { lastSpot.current = t; saveSpot(ep, t); }
     // Plays and listening time for episodes people made, for their Studio.
     if (ep && OWN_EPISODE.test(ep.id) && delta > 0 && delta < 2) {
       const h = micHeard.current;
@@ -960,6 +1009,12 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     }
     const mode = esRef.current.settings.adMode;
     if (ep && (listened.current > 1.5 || sheetRef.current?.kind === "read") && (mode !== "off" || sheetRef.current?.kind === "read")) wantTx(ep, t);
+    // Not skipping ads (no Pod+ Membership, or ad skip turned off): a found ad that plays is time a
+    // member would have had back. Shown as "With Pod+ you'd have saved…" (HoursBackCard).
+    if (ep && it && mode !== "auto" && delta > 0 && delta < 2 && !esRef.current.adFree.includes(it.show.id)) {
+      const ad = playAdAt(adsRef.current, t);
+      if (ad && ad.sure && ad.kind !== "intro") countCouldSave(delta);
+    }
     if (ep && it && mode === "auto" && !esRef.current.adFree.includes(it.show.id) && !markingRef.current) {
       const ad = playAdAt(adsRef.current, t);
       if (ad && ad.sure && !undone.current.has(ad.key)) smoothSkip(a, ad, ep.id, false);
@@ -981,16 +1036,30 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const sl = sleepRef.current;
     if (typeof sl === "number" && Date.now() >= sl) { a.pause(); setSleepAt(null); say("Sleep timer: paused. Sleep well."); }
     const adv = esRef.current.settings.advance;
-    if (adv && listened.current >= adv && !sheetRef.current) { listened.current = -1e9; goTo(activeRef.current + 1); }
+    if (adv && listened.current >= adv && !sheetRef.current && !netRetry.current && Date.now() - lastAutoAdvance.current > 5000) { listened.current = -1e9; lastAutoAdvance.current = Date.now(); goTo(activeRef.current + 1); }
   };
   handlers.current.ended = () => {
+    // A stream cut off by a bad signal can say "ended" long before the end: that's not the end, so
+    // wait for the signal and carry on from the same spot instead of moving to another episode.
+    const ca = cur.current;
+    const r0 = netRetry.current;
+    const stuck = !!r0 && r0.ep === ca?.dataset.ep && r0.tries >= 2 && Math.abs(r0.t - (ca?.currentTime || 0)) < 3 && navigator.onLine !== false;
+    if (ca && !stuck && Number.isFinite(ca.duration) && ca.duration > 0 && ca.currentTime < ca.duration - 8) { waitForSignal(ca); return; }
+    if (r0) { if (r0.timer) clearTimeout(r0.timer); netRetry.current = null; setNetWait(null); }
     const it = itemsRef.current[activeRef.current];
     if (it?.ep) { signal(it.show.genre, "finish"); saveSpot(it.ep, 0); const id = it.ep.id; update((e) => (e.heard.includes(id) ? e : { ...e, heard: [id, ...e.heard].slice(0, 200) })); }
     setPlaying(false);
     if (sleepRef.current === "end") { setSleepAt(null); say("Sleep timer: stopped at the end of the episode."); return; }
+    // Move on by itself only after really listening, and never twice in a row within seconds. An
+    // episode that ends right after it starts (a saved spot at the very end, a skipped outro, a file
+    // that won't play) used to chain into several skips at once.
+    if (listened.current < 8 || Date.now() - lastAutoAdvance.current < 5000) { say("That episode is over. Swipe up for the next one."); return; }
+    lastAutoAdvance.current = Date.now();
     if (!sheetRef.current) goTo(activeRef.current + 1);
   };
   handlers.current.error = (a) => {
+    // No signal (or the connection broke mid-episode): wait for it, same episode, same spot.
+    if (a === cur.current && ((typeof navigator !== "undefined" && navigator.onLine === false) || a.error?.code === 2 || netRetry.current?.ep === a.dataset.ep)) { waitForSignal(a); return; }
     // Through the server didn't work: a new session once, then straight from the host, from the same spot.
     const it = itemsRef.current[activeRef.current]; const ep = it?.ep;
     if (ep && a.dataset.sid && a.dataset.ep === ep.id) {
@@ -1134,7 +1203,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
   const toggleFollow = (show: PodShow) => {
     if (isFollowing(show.id)) { update((e) => ({ ...e, follows: e.follows.filter((f) => f.id !== show.id) })); signal(show.genre, "unfollow"); say(`Unfollowed ${show.name}.`); }
-    else { update((e) => ({ ...e, follows: [{ id: show.id, name: show.name, author: show.author, art: show.art, genre: show.genre, at: nowIso() }, ...e.follows].slice(0, 200) })); signal(show.genre, "follow"); say(`Following ${show.name}.`); }
+    else { update((e) => ({ ...e, follows: [{ id: show.id, name: show.name, author: show.author, art: show.art, genre: show.genre, at: nowIso() }, ...e.follows].slice(0, EARSHOT_LIMITS.follows) })); signal(show.genre, "follow"); say(`Following ${show.name}.`); }
   };
   const toggleLike = (ep: PodEpisode, genre: string) => {
     const on = !(counts[ep.id]?.liked);
@@ -1430,6 +1499,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
         onInfo={() => { setSheet({ kind: "info", show: it.show }); signal(it.show.genre, "open"); }} onNext={() => goTo(i + 1)} />)}
     </div>}
 
+    {netWait && activeEp && cur.current?.dataset.ep === activeEp.id && <div className={`pointer-events-none absolute inset-x-3 ${below} z-[27] flex justify-center`} data-testid="pod-net-wait"><div role="status" aria-live="polite" className="flex items-center gap-2 rounded-full bg-black/65 px-3.5 py-1.5 text-[13px] font-medium text-white ring-1 ring-white/10 backdrop-blur-xl"><Loader2 size={13} className="animate-spin" />{netWait === "offline" ? "Waiting for a signal… it'll pick up right where it stopped." : "Buffering…"}</div></div>}
     {holding && activeEp?.id === holding && <div className={`pointer-events-none absolute inset-x-3 ${below} z-[26] flex justify-center`}><div role="status" className="flex items-center gap-2 rounded-full bg-black/55 px-3.5 py-1.5 text-[13px] font-medium text-white ring-1 ring-white/10 backdrop-blur-xl"><Loader2 size={13} className="animate-spin" />Skipping the ads at the start…</div></div>}
     {tapAd && activeEp && tapAd.ep.id === activeEp.id && <div className={`pointer-events-none absolute inset-x-3 ${below} z-[26] flex justify-center`}>
       <div key={tapAd.n} role="status" className="pointer-events-auto relative flex max-w-full items-center gap-1.5 overflow-hidden rounded-full bg-[#ffd23f] py-1.5 pl-3.5 pr-1.5 text-[13px] font-semibold text-[#120e14] shadow-xl" data-testid="tap-ad-toast">
@@ -1466,7 +1536,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       night={!day} onPlay={(show, ep, at) => { sourceOf.current.set(ep.id, "openmic"); playNow(show, ep, at); }} />)}
     {tab === "social" && !student && <div className={`h-full ${miniPad}`}>{pad(<SocialApp api={api} say={say} night={!day} theme={theme} onThemeChange={setTheme} onSignIn={socialSignIn} onHush={() => players.current.forEach((a) => a.pause())} onCreate={() => create("create")} openPerson={socialPerson} onPersonOpened={() => setSocialPerson(null)}
       onPlay={(show, ep, at) => { if (OWN_EPISODE.test(ep.id) && !sourceOf.current.has(ep.id)) sourceOf.current.set(ep.id, "social"); playNow(show, ep, at); }} />)}</div>}
-    {tab === "library" && lit(<Library es={es} update={update} onEditInterests={onEditInterests} onMode={(m) => setSheet({ kind: "mode", id: m.id })} onOpen={(s) => loadEpisodes(s.showId).then(({ show, episodes }) => { const ep = episodes.find((e) => e.id === s.id); if (show && ep) playNow(show, ep); else say("That episode isn't available anymore."); }).catch((e) => say(e.message))} />)}
+    {tab === "library" && lit(<Library es={es} update={update} onEditInterests={onEditInterests} onMode={(m) => setSheet({ kind: "mode", id: m.id })} onPlayDownloads={(list, i) => playSaved(list, i, "Downloaded")} say={say} onOpen={(s) => loadEpisodes(s.showId).then(({ show, episodes }) => { const ep = episodes.find((e) => e.id === s.id); if (show && ep) playNow(show, ep); else say("That episode isn't available anymore."); }).catch((e) => say(e.message))} />)}
 
     {mini && nowItem?.ep && <MiniPlayer ep={nowItem.ep} art={nowItem.ep.art || nowItem.show.art} playing={playing} pct={dur ? (time / dur) * 100 : 0} light={day} standalone={!!standalone}
       onOpen={() => setTab(lastFeed.current)} onToggle={toggle} />}
@@ -1476,7 +1546,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     {sheet?.kind === "show" && <ShowPage show={sheet.show} load={loadEpisodes} hideTeasers={es.settings.hideTeasers} following={isFollowing(sheet.show.id)} adFree={es.adFree.includes(sheet.show.id)} onAdFree={(on) => update((e) => ({ ...e, adFree: on ? [sheet.show.id, ...e.adFree.filter((x) => x !== sheet.show.id)].slice(0, 300) : e.adFree.filter((x) => x !== sheet.show.id) }))} onFollow={toggleFollow} onPlayFrom={playFrom} onClose={() => setSheet(null)} onGenre={(g) => { setSheet(null); setGenreMode(g); setTab("foryou"); }} spots={readSpots()} onAddTo={(ep) => setSheet({ kind: "addto", ep, genre: sheet.show.genre })} />}
     {sheet?.kind === "info" && <InfoSheet show={sheet.show} api={api} ex={ex} onClose={() => setSheet(null)} onShow={(show) => setSheet({ kind: "show", show })} onEpisodes={() => setSheet({ kind: "show", show: sheet.show })} />}
     {sheet?.kind === "share" && <ShareSheet api={api} say={say} ep={sheet.ep} social={!student} onLink={() => share(sheet.ep, sheet.genre, sheet.show)} onClose={() => setSheet(null)}
-      onClip={cur.current?.dataset.ep === sheet.ep.id ? () => setSheet({ kind: "clip", ep: sheet.ep, time: cur.current?.currentTime ?? 0 }) : undefined} />}
+      onClip={(window as any).__PODPLUS__ !== true && cur.current?.dataset.ep === sheet.ep.id ? () => setSheet({ kind: "clip", ep: sheet.ep, time: cur.current?.currentTime ?? 0 }) : undefined} />}
     {sheet?.kind === "clip" && <ClipMaker api={api} say={say} ep={sheet.ep} time={sheet.time} lines={txFor(sheet.ep)?.segments ?? []} sid={cur.current?.dataset.ep === sheet.ep.id ? cur.current?.dataset.sid : undefined}
       onPreview={(s, e) => previewClip(s, e)} onClose={() => setSheet(null)} />}
     {sheet?.kind === "addto" && <AddToSheet es={es} ep={sheet.ep} saved={es.saved.some((x) => x.id === sheet.ep.id)} onSave={() => toggleSave(sheet.ep, sheet.genre)} update={update} say={say} onClose={() => setSheet(null)} toSaved={savedOf} />}
@@ -2232,8 +2302,10 @@ const Tile = ({ art, title, sub, onClick }: { art: string; title: string; sub: s
 // ===========================================================================
 // Library
 // ===========================================================================
-function Library({ es, update, onEditInterests, onOpen, onMode }: { es: EarshotData; update: PlayerProps["update"]; onEditInterests: () => void; onOpen: (s: SavedEpisode) => void; onMode: (m: PodMode) => void }) {
-  const [which, setWhich] = useState<"liked" | "saved" | "following">("liked");
+function Library({ es, update, onEditInterests, onOpen, onMode, onPlayDownloads, say }: { es: EarshotData; update: PlayerProps["update"]; onEditInterests: () => void; onOpen: (s: SavedEpisode) => void; onMode: (m: PodMode) => void; onPlayDownloads: (list: SavedEpisode[], i: number) => void; say: (m: string) => void }) {
+  const offline = useOfflineAudio();
+  const [which, setWhich] = useState<"liked" | "saved" | "following" | "downloads">("liked");
+  const downloaded = offline ? offline.episodes().map((d) => d.ep) : [];
   const [asking, setAsking] = useState(false);
   const ranked = GENRES.map((g) => [g, tasteOf(es, g.id)] as const).sort((a, b) => b[1] - a[1]).slice(0, 6);
   const max = Math.max(1, ranked[0]?.[1] ?? 1);
@@ -2246,12 +2318,18 @@ function Library({ es, update, onEditInterests, onOpen, onMode }: { es: EarshotD
     <h4 className="mt-6 text-sm font-semibold">What your feed has learned</h4>
     <div className="mt-2 flex flex-col gap-2">{ranked.map(([g, v]) => <div key={g.id} className="grid grid-cols-[120px_1fr_32px] items-center gap-2 text-xs"><span className="truncate">{g.name}</span><span className="h-2 overflow-hidden rounded-full bg-white/10"><span className="block h-full rounded-full" style={{ width: `${Math.max(3, (Math.max(0, v) / max) * 100)}%`, background: g.color }} /></span><span className="text-right tabular-nums text-white/45">{Math.round((Math.max(0, v) / max) * 100)}</span></div>)}</div>
     <p className="mt-2 text-xs leading-relaxed text-white/45">Likes, follows, shares and listening raise a genre; quick skips lower it. About one in seven picks is something new on purpose.</p>
-    <div className="mt-6 flex gap-1.5">{(["liked", "saved", "following"] as const).map((w) => <button key={w} type="button" aria-pressed={which === w} onClick={() => setWhich(w)} className={`rounded-full px-3.5 py-1.5 text-xs font-semibold capitalize ${which === w ? "bg-white text-[#120e14]" : "bg-white/10 text-white/70"}`}>{w}</button>)}</div>
-    <div className="mt-3 grid grid-cols-3 gap-3">
+    <div className="mt-6 flex flex-wrap gap-1.5">{(offline ? (["liked", "saved", "following", "downloads"] as const) : (["liked", "saved", "following"] as const)).map((w) => <button key={w} type="button" aria-pressed={which === w} onClick={() => setWhich(w)} className={`rounded-full px-3.5 py-1.5 text-xs font-semibold capitalize ${which === w ? "bg-white text-[#120e14]" : "bg-white/10 text-white/70"}`}>{w}</button>)}</div>
+    {which === "downloads" && offline ? <div className="mt-3">
+      {downloaded.length ? <div className="flex flex-col divide-y divide-white/[.06]">{downloaded.map((e, i) => <div key={e.id} className="flex items-center gap-3 py-2">
+        <button type="button" onClick={() => onPlayDownloads(downloaded, i)} className="flex min-w-0 flex-1 items-center gap-3 text-left"><img src={e.art} alt="" referrerPolicy="no-referrer" className="h-12 w-12 flex-none rounded-lg object-cover" /><span className="min-w-0"><b className="line-clamp-2 text-sm leading-tight">{e.title}</b><span className="line-clamp-1 text-xs text-white/50">{e.show}</span></span></button>
+        <button type="button" aria-label={`Remove download: ${e.title}`} onClick={() => void offline.remove(episodeKey(e.id)).then(() => say("Download removed."))} className="grid h-10 w-10 flex-none place-items-center rounded-full text-white/55 hover:bg-white/10 hover:text-white"><Trash2 size={17} /></button>
+      </div>)}</div>
+        : <p className="flex flex-col items-center gap-2 py-6 text-center text-sm text-white/55"><Download size={20} />Tap Save on an episode, then Download, to listen without a connection.</p>}
+    </div> : <><div className="mt-3 grid grid-cols-3 gap-3">
       {which === "following" ? es.follows.map((s) => <div key={s.id} className="text-left"><img src={s.art} alt="" referrerPolicy="no-referrer" className="aspect-square w-full rounded-xl object-cover" /><b className="mt-1 line-clamp-2 text-xs">{s.name}</b></div>)
         : eps.map((e) => <button key={e.id} type="button" onClick={() => onOpen(e)} className="text-left"><img src={e.art} alt="" referrerPolicy="no-referrer" className="aspect-square w-full rounded-xl object-cover" /><b className="mt-1 line-clamp-2 text-xs leading-tight">{e.title}</b><span className="line-clamp-1 text-[11px] text-white/50">{e.show}</span></button>)}
     </div>
-    {((which === "following" && !es.follows.length) || (which !== "following" && !eps.length)) && <p className="py-6 text-center text-sm text-white/55">{which === "liked" ? "Double-tap an episode to like it." : which === "saved" ? "Tap the bookmark to save an episode for later." : "Tap + on a podcast to follow it."}</p>}
+    {((which === "following" && !es.follows.length) || (which !== "following" && !eps.length)) && <p className="py-6 text-center text-sm text-white/55">{which === "liked" ? "Double-tap an episode to like it." : which === "saved" ? "Tap the bookmark to save an episode for later." : "Tap + on a podcast to follow it."}</p>}</>}
     <div className="mt-8">{asking
       ? <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white/5 p-3 text-sm"><span className="flex-1">Clear what the feed has learned? Likes, saves and follows stay.</span><button type="button" onClick={() => { update((e) => ({ ...e, taste: Object.fromEntries(e.genres.map((g) => [g, 3])), skipped: [] })); setAsking(false); }} className="rounded-full px-4 py-1.5 font-semibold bg-white text-[#111013]">Reset</button><button type="button" onClick={() => setAsking(false)} className="rounded-full bg-white/10 px-4 py-1.5 font-bold">Cancel</button></div>
       : <button type="button" onClick={() => setAsking(true)} className="rounded-full bg-white/10 px-4 py-2 text-sm font-bold">Reset recommendations</button>}</div>

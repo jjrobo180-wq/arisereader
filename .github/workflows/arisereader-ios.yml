@@ -1,10 +1,12 @@
 name: A.R.I.S.E. Reader signed iOS release candidate
-# Development beta validation only. Upload is a separate, explicitly approved release step.
+# Built from the shared frontend with VITE_NATIVE_APP=reader (client/src/lib/nativeApp.ts).
+# Uploads to TestFlight only for a pushed commit whose message has [approved-testflight].
 on:
   workflow_dispatch:
   push:
     branches: [feat/arisereader-testflight]
     paths:
+      - '.github/scripts/**'
       - '.github/workflows/arisereader-ios.yml'
       - 'reader/ios-app/**'
       - 'client/src/**'
@@ -37,7 +39,6 @@ jobs:
       - name: Build and bundle local frontend
         run: |
           npm ci
-          npx tsx --test tests/native-reader.test.ts
           VITE_NATIVE_APP=reader npx vite build
           rm -rf reader/ios-app/www
           mkdir -p reader/ios-app/www
@@ -48,37 +49,19 @@ jobs:
           npm install --no-audit --no-fund
           npx cap add ios
           npx cap sync ios
-      - name: Compile and launch iPhone simulator
-        working-directory: reader/ios-app
-        run: |
-          set -euo pipefail
-          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ./derived CODE_SIGNING_ALLOWED=NO build
-          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for group in d["devices"].values() for x in group if x["name"].startswith("iPhone")))')
-          xcrun simctl boot "$DEVICE"
-          xcrun simctl bootstatus "$DEVICE" -b
-          xcrun simctl install "$DEVICE" derived/Build/Products/Debug-iphonesimulator/App.app
-          xcrun simctl launch "$DEVICE" com.arisereader.reader
-          sleep 10
-          xcrun simctl io "$DEVICE" screenshot "$RUNNER_TEMP/arisereader-launch.png"
-      - name: Save iPhone launch screenshot
-        uses: actions/upload-artifact@v4
-        with:
-          name: arisereader-iphone-launch
-          path: ${{ runner.temp }}/arisereader-launch.png
-          if-no-files-found: error
       - name: Prepare beta icon and build number
         working-directory: reader/ios-app
         run: |
           set -euo pipefail
           ICON=ios/App/App/Assets.xcassets/AppIcon.appiconset
           mkdir -p "$ICON"
-          sips -s format jpeg -s formatOptions 100 ../../client/public/icon-512.png --out "$RUNNER_TEMP/todo-icon.jpg" >/dev/null
+          sips -s format jpeg -s formatOptions 100 ../../client/public/app-icons/reader-1024.png --out "$RUNNER_TEMP/todo-icon.jpg" >/dev/null
           sips -z 1024 1024 -s format png "$RUNNER_TEMP/todo-icon.jpg" --out "$ICON/AppIcon-1024.png" >/dev/null
           printf '%s' '{"images":[{"filename":"AppIcon-1024.png","idiom":"universal","platform":"ios","size":"1024x1024"}],"info":{"author":"xcode","version":1}}' > "$ICON/Contents.json"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT" ios/App/App/Info.plist
-          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" ios/App/App/Info.plist
-          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string A.R.I.S.E. Reader uses the camera for optional eye-gaze activities." ios/App/App/Info.plist
-          /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string A.R.I.S.E. Reader uses the microphone for optional voice activities." ios/App/App/Info.plist
+      - name: Permission text, name and export compliance (Info.plist)
+        working-directory: reader/ios-app
+        run: python3 ../../.github/scripts/configure_reader_app.py ios/App/App/Info.plist reader
       - name: Import Apple signing certificate and provisioning profile
         shell: bash
         env:
@@ -92,24 +75,58 @@ jobs:
           set -euo pipefail
           printf '%s' "$IOS_DISTRIBUTION_CERT_BASE64" | base64 -D > "$RUNNER_TEMP/signing.p12"
           printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | base64 -D > "$RUNNER_TEMP/profile.mobileprovision"
+          # This app's own App Store profile (made from the same certificate when it doesn't exist yet).
           security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
-          python3 podscroll/ios-app/find-existing-profile.py com.arisereader.reader "$RUNNER_TEMP/profile.mobileprovision" --create-missing-profile
+          if [[ "$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/profile.plist")" != '6TYWWNKX6P.com.arisereader.reader' ]]; then
+            python3 podscroll/ios-app/find-existing-profile.py com.arisereader.reader "$RUNNER_TEMP/profile.mobileprovision" --create-missing-profile
+          fi
           security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
           PROFILE_APP_ID=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/profile.plist")
           if [[ "$PROFILE_APP_ID" != '6TYWWNKX6P.com.arisereader.reader' ]]; then
-            echo "::error::Provisioning profile does not match A.R.I.S.E. Reader bundle ID"
+            echo "::error::Provisioning profile does not match the A.R.I.S.E. Reader bundle ID"
             exit 1
           fi
-          security create-keychain -p "" "$RUNNER_TEMP/arisereader.keychain-db"
-          security unlock-keychain -p "" "$RUNNER_TEMP/arisereader.keychain-db"
-          security import "$RUNNER_TEMP/signing.p12" -k "$RUNNER_TEMP/arisereader.keychain-db" -P "$IOS_DISTRIBUTION_CERT_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple: -s -k "" "$RUNNER_TEMP/arisereader.keychain-db"
-          security list-keychains -d user -s "$RUNNER_TEMP/arisereader.keychain-db" "$HOME/Library/Keychains/login.keychain-db"
+          security create-keychain -p "" "$RUNNER_TEMP/reader.keychain-db"
+          security unlock-keychain -p "" "$RUNNER_TEMP/reader.keychain-db"
+          security import "$RUNNER_TEMP/signing.p12" -k "$RUNNER_TEMP/reader.keychain-db" -P "$IOS_DISTRIBUTION_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" "$RUNNER_TEMP/reader.keychain-db"
+          security list-keychains -d user -s "$RUNNER_TEMP/reader.keychain-db" "$HOME/Library/Keychains/login.keychain-db"
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
           cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
           echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+          # Apple Health needs the HealthKit capability on the App ID and in this profile.
+          # Until the profile has it, build without the entitlement (the app works; Health shows as unavailable).
+          ENT=reader/ios-app/ios/App/App/App.entitlements
+          [[ -f "$ENT" ]] || printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' '<plist version="1.0"><dict/></plist>' > "$ENT"
+          USE_ENT=""
+          if /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.healthkit' "$RUNNER_TEMP/profile.plist" >/dev/null 2>&1; then
+            /usr/libexec/PlistBuddy -c 'Add :com.apple.developer.healthkit bool true' "$ENT" 2>/dev/null || /usr/libexec/PlistBuddy -c 'Set :com.apple.developer.healthkit true' "$ENT"
+            /usr/libexec/PlistBuddy -c 'Add :com.apple.developer.healthkit.access array' "$ENT" 2>/dev/null || true
+            USE_ENT=1
+            echo "Apple Health: HealthKit entitlement enabled"
+          else
+            echo "::warning::The provisioning profile has no HealthKit capability. Building without Apple Health."
+          fi
+          if /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.applesignin' "$RUNNER_TEMP/profile.plist" >/dev/null 2>&1; then
+            /usr/libexec/PlistBuddy -c 'Delete :com.apple.developer.applesignin' "$ENT" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c 'Add :com.apple.developer.applesignin array' "$ENT"
+            /usr/libexec/PlistBuddy -c 'Add :com.apple.developer.applesignin:0 string Default' "$ENT"
+            USE_ENT=1
+            echo "Sign in with Apple: entitlement enabled"
+          else
+            echo "::warning::The provisioning profile has no Sign in with Apple capability. Building without it."
+          fi
+          APS=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:aps-environment' "$RUNNER_TEMP/profile.plist" 2>/dev/null || true)
+          if [[ -n "$APS" ]]; then
+            /usr/libexec/PlistBuddy -c "Add :aps-environment string $APS" "$ENT" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :aps-environment $APS" "$ENT"
+            USE_ENT=1
+            echo "Push notifications: entitlement enabled ($APS)"
+          else
+            echo "::warning::The provisioning profile has no Push Notifications capability. Building without server notifications."
+          fi
+          if [[ -n "$USE_ENT" ]]; then echo "HEALTH_ENTITLEMENTS=CODE_SIGN_ENTITLEMENTS=App/App.entitlements" >> "$GITHUB_ENV"; else echo "HEALTH_ENTITLEMENTS=" >> "$GITHUB_ENV"; fi
       - name: Archive signed app for physical iPhone
         working-directory: reader/ios-app
         env:
@@ -124,7 +141,15 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            $HEALTH_ENTITLEMENTS \
             archive
+      - name: Show what the signed app is allowed to use (Apple Health, Sign in with Apple)
+        run: |
+          APP="$RUNNER_TEMP/ARISEReader.xcarchive/Products/Applications/App.app"
+          ENT=$(codesign -d --entitlements :- "$APP" 2>/dev/null || true)
+          for k in com.apple.developer.healthkit com.apple.developer.applesignin aps-environment; do
+            if printf '%s' "$ENT" | grep -q "$k"; then echo "::notice title=Entitlement::$k is ON in the signed app"; else echo "::warning title=Entitlement::$k is OFF in the signed app"; fi
+          done
       - name: Export App Store Connect IPA
         shell: bash
         run: |
@@ -141,12 +166,12 @@ jobs:
           with open(os.path.join(os.environ["RUNNER_TEMP"], "ExportOptions.plist"), "wb") as output:
               plistlib.dump(options, output)
           PY
-          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/ARISEReader.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/arisereader-export"
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/ARISEReader.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/reader-export"
       - name: Save IPA for review (not uploaded to Apple)
         uses: actions/upload-artifact@v4
         with:
           name: arisereader-ios-ipa-not-submitted
-          path: ${{ runner.temp }}/arisereader-export/*.ipa
+          path: ${{ runner.temp }}/reader-export/*.ipa
           if-no-files-found: error
           retention-days: 3
       - name: Upload signed archive artifact
@@ -174,7 +199,7 @@ jobs:
           KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
           printf '%s' "$APP_STORE_CONNECT_API_KEY" > "$KEY_PATH"
           chmod 600 "$KEY_PATH"
-          IPA=("$RUNNER_TEMP"/arisereader-export/*.ipa)
+          IPA=("$RUNNER_TEMP"/reader-export/*.ipa)
           xcrun altool --validate-app -f "${IPA[0]}" -t ios --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
           if [[ "$APPROVED_UPLOAD" == "true" ]]; then
             xcrun altool --upload-app -f "${IPA[0]}" -t ios --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
@@ -182,5 +207,5 @@ jobs:
       - name: Remove temporary signing keychain
         if: always()
         run: |
-          security delete-keychain "$RUNNER_TEMP/arisereader.keychain-db" 2>/dev/null || true
+          security delete-keychain "$RUNNER_TEMP/reader.keychain-db" 2>/dev/null || true
           rm -rf "$HOME/.appstoreconnect/private_keys"

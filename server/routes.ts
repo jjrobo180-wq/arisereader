@@ -66,11 +66,15 @@ import { registerBrowserRoutes } from "./browserCheck";
 import { registerLifePlanRoutes } from "./lifePlan";
 import { registerSleepFinderRoutes } from "./sleepFinder";
 import { podscrollAllowed, registerEarshotRoutes, registerPodscrollRoutes, supabaseEarshotStore } from "./earshot";
+import { deletePodData } from "./podcastAccounts";
+import { hideLinks, onSocialReport, registerModerationRoutes } from "./socialModeration";
+import { registerSupportRoutes } from "./supportContact";
+import { ARISE_APP, EDUCATOR_APP, AppleTokenError, appleRefreshToken, appleUsername, revokeAppleToken, verifyAppleToken } from "./appleSignIn";
 import { attachLivePods } from "./podcastLive";
 import { attachListenParties } from "./podcastParty";
 import { createDirectory as createPodcastDirectory, supabaseKV } from "./podcastDirectory";
 import { startPrechecks as startPodcastPrechecks } from "./podcastPrecheck";
-import { groqSpeech, hasGroqVoice, voiceFor } from "./groqVoice";
+import { aiSpeech, hasAiVoice, hasGroqVoice, voiceFor } from "./groqVoice";
 import { supabaseBlobs } from "./blobStore";
 import { GENRES as PODCAST_GENRES } from "../shared/earshot";
 import { supabaseAdStore } from "./podcastAds";
@@ -121,6 +125,7 @@ import { createPresenceTracker, registerAdminStatsRoutes } from "./adminStats";
 import { registerTodoAdminRoutes } from "./todoAdmin";
 import { shuffleChoices, storedLetter } from "./quizShuffle";
 import { clientAddress, createAttemptLimiter, waitWords } from "./attemptLimiter";
+import { registerStudentRecoveryRoutes, type StudentRow } from "./studentRecovery";
 import { accountForEmailSignIn, looksLikeEmail, registerAccountRecoveryRoutes, type RecoveryAccount, type RecoveryDeps } from "./accountRecovery";
 import { DEFAULT_SITE_URL, PARENT_INVITES_PER_DAY, emailDocument, parentInviteEmail } from "./emailFormat";
 import { registerParentInviteEmailRoutes } from "./parentInviteEmails";
@@ -1260,6 +1265,15 @@ export async function registerRoutes(
   /** Fire and forget: an alert never slows down or breaks the request that caused it. */
   const alertAdmin = (event: Parameters<typeof adminAlerts.notify>[0], alert: Alert) => { void adminAlerts.notify(event, alert); };
   const personName = (user: any) => String(user?.displayName || user?.display_name || user?.username || "Someone");
+  // Pod+ and Earshot Social reports (server/socialModeration.ts) reach the admin at once, so
+  // reported posts, people and messages are looked at within 24 hours (App Review Guideline 1.2).
+  onSocialReport((r) => alertAdmin("problem_report", {
+    title: `${r.app}: a ${r.what} was reported`,
+    summary: `${r.reason || "Reported"} · ${r.what} ${r.id}${r.reports && r.reports >= 3 ? " · hidden after 3 reports" : ""}`,
+    lines: [["App", r.app], ["What", `${r.what} ${r.id}`], ["Reason", r.reason], ["About", r.about], ["Reported by", r.by], ["Reports so far", r.reports], ...hideLinks(r, APP_URL)],
+    note: "Look within 24 hours. Open a Hide link above to take it down (it asks once more before hiding). Hiding someone's profile hides everything they posted.",
+  }));
+  registerModerationRoutes(app, getAdminSupabase);
   // Grade, school and teacher for a student's alert. Each part is optional.
   const studentFacts = async (user: any): Promise<{ grade: string; school: string; teacher: string }> => {
     const facts = { grade: "", school: "", teacher: "" };
@@ -1470,10 +1484,13 @@ export async function registerRoutes(
     // Signing up is open, and so are the two steps that finish it. They happen before anyone can
     // be signed in — the account is switched off until the emailed code is typed back — so putting
     // them behind this gate answered "not authenticated" to the very person it was made for.
+    // Apple Health's sync is sent by the iPhone app or a Shortcut with the diary's own private key
+    // (not a sign-in), so the gate must let it through to its own key check (server/appleHealth.ts).
     (method, path) => method === "POST" && (
       path === "/api/arise-todo/register" ||
       path === "/api/arise-todo/confirm-email" ||
-      path === "/api/arise-todo/resend-code"),
+      path === "/api/arise-todo/resend-code" ||
+      path === "/api/arise-todo/apple-health/sync"),
     async (user) => (user?.role === "parent" || user?.role === "teacher" ? (await plans.todoStatus(user)).access : true),
     "todo_required", "Arise LifeHub is an add-on for parents ($10 a month) and comes with Arise WorkHub for teachers.",
   ));
@@ -1587,6 +1604,16 @@ export async function registerRoutes(
     topShows: async () => { const lists = await Promise.all(PODCAST_GENRES.slice(0, 12).map((g) => podcasts.loadGenreShows(g.id).catch(() => []))); const out: string[] = []; for (let i = 0; i < 4; i++) for (const l of lists) if (l[i]) out.push(l[i].id); return out; } });
   registerEarshotRoutes(app, authMiddleware, { store: supabaseEarshotStore(getAdminSupabase), directory: podcasts, adStore: podcastAds, player: podcastPlayer, socialDb: getAdminSupabase });
   registerPodscrollRoutes(app, supabaseEarshotStore(getAdminSupabase, "podscroll"), undefined, podcasts, podcastAds, podcastPlayer, getAdminSupabase, { sendEmail: (to, subject, html) => sendEmail(to, subject, html) });
+  // Contact us (server/supportContact.ts): Arise To Duo's and Pod+'s Support pages and apps.
+  registerSupportRoutes(app, {
+    deliver: async (m) => {
+      const esc = (v: string) => v.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+      const html = `<h2 style="margin:0 0 8px">${esc(m.app)} support: ${esc(m.topic)}</h2><p style="margin:0 0 12px;color:#555">From ${esc(m.name || "someone")} &lt;${esc(m.email)}&gt;. Reply to this email to answer them.</p><p style="white-space:pre-wrap;margin:0">${esc(m.message)}</p>`;
+      const sent = await sendEmail(ADMIN_NOTIFY_EMAIL, `${m.app} support: ${m.topic}`, html, { replyTo: m.email }).catch(() => ({ sent: false }));
+      alertAdmin("problem_report", { title: `${m.app} support: ${m.topic}`, summary: `${m.name || m.email}: ${m.message.slice(0, 120)}`, lines: [["From", `${m.name} <${m.email}>`], ["Topic", m.topic], ["Message", m.message.slice(0, 1500)]] });
+      return sent.sent;
+    },
+  });
   attachLivePods(httpServer, getAdminSupabase);
   { const extra = String(process.env.PODSCROLL_ORIGINS || "").split(",").map((x) => x.trim()).filter(Boolean); attachListenParties(httpServer, (origin) => podscrollAllowed(origin, extra)); }
   registerPassLockRoutes(app, authMiddleware, { passwordHash: async (id) => (await storage.getUser(id))?.password });
@@ -2931,6 +2958,62 @@ export async function registerRoutes(
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Sign in with Apple (Arise To Duo iPhone app): the identity token is checked against Apple's keys
+  // (server/appleSignIn.ts). An Apple ID used before signs back in to its account; one that's new links
+  // to the one account with the same verified email, or else makes a new personal account (Apple has
+  // already confirmed the email, so it's on at once). The link is kept in settings both ways.
+  const appleLimits = createAttemptLimiter({ max: 30, windowMs: 15 * 60_000 });
+  app.post("/api/auth/apple", async (req: any, res) => {
+    const address = clientAddress(req);
+    const wait = appleLimits.retryAfter(address);
+    if (wait > 0) return res.status(429).json({ message: `Too many tries. Try again in ${waitWords(wait)}.` });
+    appleLimits.fail(address);
+    try {
+      const claims = await verifyAppleToken(String(req.body?.identityToken || ""), [ARISE_APP, EDUCATOR_APP]);
+      // A new account made from the Educator app is a parent account (like the website's parent sign-up,
+      // a child can be connected later); from Arise To Duo it's a personal LifeHub account.
+      const fromApp = claims.aud === EDUCATOR_APP ? EDUCATOR_APP : ARISE_APP;
+      const name = [req.body?.givenName, req.body?.familyName].filter((x) => typeof x === "string" && x.trim()).map((x: string) => x.trim().slice(0, 40)).join(" ");
+      let userId = Number(await storage.getSetting(`apple_login:${claims.sub}`)) || 0;
+      let user: any = userId ? await storage.getUser(userId) : null;
+      let made = false;
+      if (!user && claims.email && claims.emailVerified) {
+        const { data } = await supabase.from("users").select("id, role, archived_at").ilike("email", claims.email).limit(3);
+        const adults = (data || []).filter((u: any) => u.role !== "student" && !u.archived_at);
+        if (adults.length === 1) user = await storage.getUser(Number(adults[0].id));
+      }
+      if (!user) {
+        const username = await appleUsername(claims.email, claims.privateEmail, async (n) => !!(await storage.getUserByUsername(n)));
+        user = await storage.createUser({
+          username, password: await bcrypt.hash(randomBytes(24).toString("base64url"), 10), displayName: name || "Arise user",
+          email: claims.email || null, role: fromApp === EDUCATOR_APP ? "parent" : "todo", approvedByTeacher: true, accountApproved: true,
+        });
+        made = true;
+        alertAdmin("teacher_signup", { title: "A personal account was made with Apple", summary: `${name || username} signed up with Sign in with Apple.`, lines: [["Username", username], ["Email", claims.email || "(hidden by Apple)"]] });
+      }
+      if (!user) throw new Error("no account");
+      if (user.archivedAt) return res.status(403).json({ message: "This account is archived. Write to support to restore it." });
+      if (Number(user.id) !== userId) {
+        await storage.upsertSetting(`apple_login:${claims.sub}`, String(user.id));
+        await storage.upsertSetting(`apple_user:${user.id}`, claims.sub);
+      }
+      // Kept so the Apple sign-in can be revoked if the account is deleted (needs the Sign in with Apple key).
+      const refresh = await appleRefreshToken(String(req.body?.authorizationCode || ""), fromApp).catch(() => "");
+      if (refresh) { await storage.upsertSetting(`apple_refresh:${user.id}`, refresh); await storage.upsertSetting(`apple_refresh_app:${user.id}`, fromApp); }
+      appleLimits.reset(address);
+      const session = await storage.createSession(user.id);
+      if (!user.isAdmin) void recordLogin(user.id, req.get("user-agent"));
+      res.json({
+        token: session.token, made,
+        user: { id: user.id, username: user.username, displayName: user.displayName, isAdmin: user.isAdmin, assessmentPromptShown: !!(user as any).assessment_prompt_seen_at, is_eye_gaze_user: user.is_eye_gaze_user, role: user.role, teacherId: user.teacherId, approvedByTeacher: user.approvedByTeacher, accountApproved: user.accountApproved, email: user.email, schoolId: user.school_id, totalPoints: user.totalPoints || 0, loginCount: 0, mustChangePassword: false },
+      });
+    } catch (e: any) {
+      if (e instanceof AppleTokenError) return res.status(401).json({ message: e.message });
+      console.error("[apple-sign-in]", e?.message || e);
+      res.status(500).json({ message: "Sign in with Apple didn't work just now. Try again." });
     }
   });
 
@@ -7287,6 +7370,51 @@ export async function registerRoutes(
     res.json({ ok: true });
   });
 
+  // Delete my own account (App Store Guideline 5.1.1(v)): the person confirms with their password and
+  // the word DELETE. Everything that belongs to them goes (deleteUserAccount), with their podcast
+  // social profile, posts and messages. If the database still holds something that points at them,
+  // the account is closed at once (signed out, hidden) and the admin is told to finish it.
+  const selfDeletes = new Map<number, number[]>();
+  app.post("/api/account/delete", authMiddleware, async (req: any, res) => {
+    try {
+      const userId = Number(req.user?.id);
+      if (!Number.isSafeInteger(userId) || userId < 1) return res.status(401).json({ message: "Sign in again, then try." });
+      if (req.user?.isAdmin) return res.status(400).json({ message: "The admin account can't delete itself here. Make another admin first, or write to support." });
+      if (String(req.body?.confirm || "") !== "DELETE") return res.status(400).json({ message: "Type DELETE to confirm." });
+      const now = Date.now();
+      const tries = (selfDeletes.get(userId) || []).filter((t) => now - t < 15 * 60_000);
+      if (tries.length >= 5) return res.status(429).json({ message: "Too many tries. Wait a few minutes and try again." });
+      const password = typeof req.body?.password === "string" ? req.body.password : "";
+      const { data: row } = await supabase.from("users").select("password").eq("id", userId).maybeSingle();
+      const ok = !!row?.password && !!password && (await bcrypt.compare(password, row.password));
+      if (!ok) { selfDeletes.set(userId, [...tries, now]); return res.status(400).json({ message: "That password isn't right." }); }
+      selfDeletes.delete(userId);
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Account deletion isn't set up on the server yet. Write to support and we'll delete it for you." });
+      const target = await storage.getUser(userId);
+      const who = personName(target);
+      try { await deletePodData(getAdminSupabase(), [`u${userId}`]); } catch (e: any) { console.warn("[account-delete] podcast data:", e?.message); }
+      // An Apple ID linked to this account is unlinked (and its Apple sign-in revoked when the key is set).
+      try {
+        const sub = await storage.getSetting(`apple_user:${userId}`);
+        const refresh = await storage.getSetting(`apple_refresh:${userId}`);
+        const viaApp = (await storage.getSetting(`apple_refresh_app:${userId}`)) === EDUCATOR_APP ? EDUCATOR_APP : ARISE_APP;
+        if (refresh) await revokeAppleToken(refresh, viaApp).catch(() => false);
+        if (sub || refresh) await getAdminSupabase().from("settings").delete().in("key", [`apple_login:${sub}`, `apple_user:${userId}`, `apple_refresh:${userId}`, `apple_refresh_app:${userId}`]); clearCache(`setting_apple_login:${sub}`); clearCache(`setting_apple_user:${userId}`); clearCache(`setting_apple_refresh:${userId}`);
+      } catch { /* the account still goes */ }
+      const { blockedBy } = await deleteUserAccount(userId);
+      if (blockedBy) {
+        await archiveProfile(userId, true, userId).catch(() => "missing");
+        alertAdmin("problem_report", { title: "Finish deleting an account", summary: `${who} deleted their account; ${blockedBy.replace(/_/g, " ")} still points at it.`, lines: [["User id", userId], ["Blocked by", blockedBy]], note: "The account is archived (signed out and hidden). Remove the rows in that table, then delete the user under Admin > Users.", ref: `u${userId}` });
+        return res.json({ ok: true, pending: true, message: "Your account is closed and signed out. The last of its data is removed within 7 days." });
+      }
+      alertAdmin("problem_report", { title: "An account was deleted", summary: `${who} deleted their own account.`, lines: [["User id", userId], ["Role", target?.role || "student"]] });
+      res.json({ ok: true });
+    } catch (e: any) {
+      console.error("[account-delete] Failed:", e?.message);
+      res.status(500).json({ message: "That didn't work. Try again, or write to support and we'll delete it for you." });
+    }
+  });
+
   // Change password (any logged-in user)
   app.post("/api/change-password", authMiddleware, async (req: any, res) => {
     const { currentPassword, newPassword } = req.body;
@@ -9310,7 +9438,7 @@ Important:
   app.get("/api/eye-gaze/tts/status", (_req, res) => {
     const groq = !openAiVoiceOn() && hasGroqVoice();
     res.json({
-      configured: openAiVoiceOn() || hasGroqVoice(),
+      configured: openAiVoiceOn() || hasAiVoice(),
       provider: openAiVoiceOn() ? "openai" : groq ? "groq" : null,
       model: openAiVoiceOn() ? "gpt-4o-mini-tts" : groq ? (process.env.BOOK_TTS_MODEL || "canopylabs/orpheus-v1-english") : null,
     });
@@ -9395,10 +9523,11 @@ Important:
       // Groq's Orpheus voices (server/groqVoice.ts).
       const apiKey = process.env.OPENAI_API_KEY;
       const openAiOn = !!apiKey && apiKey !== "routed-to-grok";
-      if (!openAiOn && !hasGroqVoice()) {
+      if (!openAiOn && !hasAiVoice()) {
         return res.status(503).json({ message: "AI voice is not configured." });
       }
-      const groqVoice = () => groqSpeech(text, voiceFor(style, calmMode, sleepVoice)).then((s) => s.audio);
+      // Groq's Orpheus voice, then Deepgram's Aura (server/groqVoice.ts aiSpeech): always a real AI voice.
+      const groqVoice = () => aiSpeech(text, voiceFor(style, calmMode, sleepVoice)).then((s) => s.audio);
 
       const cacheKey = `${style}|${style === "sleep" ? sleepVoice : calmMode ? "calm" : "normal"}|${text}`;
       let cached = ttsAudioCache.get(cacheKey);
@@ -9418,7 +9547,7 @@ Important:
       let pending = ttsAudioInFlight.get(cacheKey);
       if (!pending) {
         pending = openAiOn
-          ? generateTtsAudio(text, calmMode, apiKey!, style, sleepVoice).catch((e) => (hasGroqVoice() ? groqVoice() : Promise.reject(e)))
+          ? generateTtsAudio(text, calmMode, apiKey!, style, sleepVoice).catch((e) => (hasAiVoice() ? groqVoice() : Promise.reject(e)))
           : groqVoice();
         ttsAudioInFlight.set(cacheKey, pending);
       }
@@ -9445,6 +9574,50 @@ Important:
       console.error("[eye-gaze-tts] failed:", error?.message);
       res.status(500).json({ message: "Could not create AI voice." });
     }
+  });
+
+  // Any spoken line in the apps (Daily brief, games, stories, poems, the Bookstore, the Sleep app,
+  // Pod+): a real AI voice, made once and kept (voice-cache). Signed in or not (the Pod+ app and the
+  // public pages have no Arise sign-in), so it is limited by address and by length instead.
+  const sayVoices = new Set(["hannah", "autumn", "diana", "austin", "daniel", "troy"]);
+  const sayLimit = createAttemptLimiter({ max: 240, windowMs: 10 * 60_000 });
+  const sayMade = new Map<string, Promise<{ audio: Buffer; type: string }>>();
+  app.options("/api/voice/say", (req, res) => {
+    const origin = String(req.headers.origin || "");
+    if (origin === "capacitor://localhost" || /^https:\/\/podscroll[a-z0-9-]*\.onrender\.com$/.test(origin) || /^https:\/\/(www\.)?podscroll\.app$/.test(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+      res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    }
+    res.status(204).end();
+  });
+  app.post("/api/voice/say", async (req, res) => {
+    const origin = String(req.headers.origin || "");
+    if (origin === "capacitor://localhost" || /^https:\/\/podscroll[a-z0-9-]*\.onrender\.com$/.test(origin) || /^https:\/\/(www\.)?podscroll\.app$/.test(origin)) { res.setHeader("Access-Control-Allow-Origin", origin); res.setHeader("Vary", "Origin"); }
+    const text = String(req.body?.text || "").replace(/\s+/g, " ").trim();
+    const voice = sayVoices.has(String(req.body?.voice)) ? String(req.body.voice) : "hannah";
+    if (!text) return res.status(400).json({ message: "Nothing to say." });
+    if (text.length > 4000) return res.status(400).json({ message: "That's too long to read in one go." });
+    if (!hasAiVoice()) return res.status(503).json({ message: "AI voice is not set up on this site yet." });
+    const key = `say:${voice}:${text}`;
+    let hit: { audio: Buffer; type: string } | null = ttsAudioCache.get(key) ? { audio: ttsAudioCache.get(key)!.audio, type: isWav(ttsAudioCache.get(key)!.audio) ? "audio/wav" : "audio/mpeg" } : null;
+    if (!hit) { const b = await ttsBlobs.get(key); if (b) { hit = { audio: b.data, type: b.type || "audio/mpeg" }; rememberTtsAudio(key, b.data); } }
+    if (!hit) {
+      const ip = clientAddress(req);
+      const wait = sayLimit.retryAfter(ip);
+      if (wait > 0) { res.set("Retry-After", String(Math.ceil(wait / 1000))); return res.status(429).json({ message: `The voice needs a short rest. Try again in ${waitWords(wait)}.` }); }
+      sayLimit.fail(ip);
+      let pending = sayMade.get(key);
+      if (!pending) { pending = aiSpeech(text, voice).then((s) => ({ audio: s.audio, type: s.type })); sayMade.set(key, pending); }
+      try { hit = await pending; }
+      catch (e: any) { console.error("[voice-say] failed:", String(e?.message || e).slice(0, 200)); return res.status(503).json({ message: "The AI voice is busy right now. Try again in a moment." }); }
+      finally { if (sayMade.get(key) === pending) sayMade.delete(key); }
+      rememberTtsAudio(key, hit.audio);
+      void ttsBlobs.put(key, hit.audio, hit.type);
+    }
+    res.setHeader("Content-Type", hit.type);
+    res.setHeader("Cache-Control", "private, max-age=86400");
+    res.send(hit.audio);
   });
 
   // A short, opt-in recording is transcribed for the Talker's word practice.
@@ -11222,6 +11395,34 @@ Important:
   };
   const NOT_YOUR_STUDENT = { message: "You can only see and change your own students." };
 
+  // "Forgot username?" / "Forgot password?" for students (server/studentRecovery.ts).
+  {
+    const db = () => getAdminSupabase();
+    const COLS = "id, username, display_name, school_id, teacher_id, student_number";
+    const row = (r: any): StudentRow => ({ id: Number(r.id), username: r.username, displayName: r.display_name || r.username, schoolId: r.school_id ?? null, teacherId: r.teacher_id ?? null, studentNumber: r.student_number ?? null });
+    registerStudentRecoveryRoutes(app, {
+      auth: authMiddleware, teacherOrAdmin: teacherOrAdminMiddleware, canReachStudent,
+      studentsAtSchool: async (schoolId) => { const { data } = await db().from("users").select(COLS).eq("role", "student").eq("school_id", schoolId).is("archived_at", null).limit(5000); return (data || []).map(row); },
+      studentByUsername: async (u) => { const { data } = await db().from("users").select(COLS).eq("role", "student").eq("username", u).is("archived_at", null).maybeSingle(); return data ? row(data) : null; },
+      openHelp: async (studentId) => { const { data } = await db().from("student_password_help").select("id, student_id, created_at").eq("student_id", studentId).is("done_at", null).limit(1).maybeSingle(); return data ? { id: Number(data.id), studentId, createdAt: data.created_at } : null; },
+      addHelp: async (r) => { const { error } = await db().from("student_password_help").insert({ student_id: r.studentId, school_id: r.schoolId, teacher_id: r.teacherId }); if (error) throw error; },
+      notifyTeacher: async (teacherId, name) => { await db().from("notifications").insert({ user_id: teacherId, type: "password_help", title: "Password help", message: `${name} forgot their password. Open Reader to give them a new one.`, read: false }); },
+      helpFor: async (user: any) => {
+        let q = db().from("student_password_help").select("id, student_id, school_id, teacher_id, created_at").is("done_at", null).order("created_at", { ascending: false }).limit(200);
+        if (!user?.isAdmin) {
+          const school = Number(user?.school_id ?? user?.schoolId);
+          q = school > 0 ? q.or(`teacher_id.eq.${Number(user.id)},school_id.eq.${school}`) : q.eq("teacher_id", Number(user.id));
+        }
+        const { data } = await q;
+        const ids = [...new Set((data || []).map((r: any) => Number(r.student_id)))];
+        const { data: kids } = ids.length ? await db().from("users").select("id, username, display_name").in("id", ids) : { data: [] as any[] };
+        const by = new Map((kids || []).map((k: any) => [Number(k.id), k]));
+        return (data || []).filter((r: any) => by.has(Number(r.student_id))).map((r: any) => ({ id: Number(r.id), studentId: Number(r.student_id), createdAt: r.created_at, name: by.get(Number(r.student_id)).display_name, username: by.get(Number(r.student_id)).username, schoolId: r.school_id ?? null, teacherId: r.teacher_id ?? null }));
+      },
+      closeHelp: async (id, by) => { const { data } = await db().from("student_password_help").update({ done_at: new Date().toISOString(), done_by: by }).eq("id", id).select("student_id").maybeSingle(); return data ? { studentId: Number(data.student_id) } : null; },
+    });
+  }
+
   // Merging a student's two accounts (server/accountMerge.ts): the one a teacher made and the one
   // the student made later. A teacher works with their own students plus unlisted students at
   // their school (those who signed up on their own); an administrator with every student.
@@ -12582,15 +12783,13 @@ Important:
   });
 
   // Admin: delete user
-  app.delete("/api/admin/users/:userId", authMiddleware, adminMiddleware, async (req: any, res) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      if (!Number.isSafeInteger(userId) || userId < 1) return res.status(400).json({ message: "Invalid user." });
-      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Admin deletion is not configured on the server." });
-
+  /**
+   * Deletes a person's account and what belongs to them: the shared clean-up behind the admin's
+   * Delete button and a person deleting their own account (App Store Guideline 5.1.1(v)).
+   * Returns the table that still points at them if the database refused.
+   */
+  async function deleteUserAccount(userId: number): Promise<{ blockedBy?: string }> {
       const adminDb = getAdminSupabase();
-      const target = await storage.getUser(userId);
-      if (!target) return res.status(404).json({ message: "User not found." });
 
       // Most rows that belong to the person are removed by the database when the user is
       // deleted (on delete cascade). These are cleared first anyway, in an order that
@@ -12680,7 +12879,7 @@ Important:
         const blocked = /foreign key constraint .*on table "([^"]+)"/i.exec(error.message || "");
         if (blocked) {
           console.error("[admin-delete] Blocked by", blocked[1]);
-          return res.status(409).json({ message: `This profile still has ${blocked[1].replace(/_/g, " ")} linked to it, so it can't be deleted yet. Archive it instead to hide it right away.` });
+          return { blockedBy: blocked[1] };
         }
         throw new Error(error.message);
       }
@@ -12693,6 +12892,19 @@ Important:
       clearCache('eye_gaze_leaderboard');
       clearCache('advisoryLeaderboard');
 
+    return {};
+  }
+
+  app.delete("/api/admin/users/:userId", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (!Number.isSafeInteger(userId) || userId < 1) return res.status(400).json({ message: "Invalid user." });
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Admin deletion is not configured on the server." });
+
+      const target = await storage.getUser(userId);
+      if (!target) return res.status(404).json({ message: "User not found." });
+      const { blockedBy } = await deleteUserAccount(userId);
+      if (blockedBy) return res.status(409).json({ message: `This profile still has ${blockedBy.replace(/_/g, " ")} linked to it, so it can't be deleted yet. Archive it instead to hide it right away.` });
       res.json({ success: true, deletedRole: target.role || (target.isAdmin ? "admin" : "student") });
     } catch (error: any) {
       console.error("[admin-delete] Failed:", error?.message);

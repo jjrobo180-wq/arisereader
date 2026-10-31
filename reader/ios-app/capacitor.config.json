@@ -4,12 +4,19 @@
   "webDir": "www",
   "plugins": {
     "SplashScreen": {
-      "launchShowDuration": 1500,
+      "launchShowDuration": 1200,
       "backgroundColor": "#FFFFFF",
       "showSpinner": false
     },
     "Keyboard": {
       "resize": "native"
+    },
+    "LocalNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
     }
   },
   "ios": {

@@ -17,6 +17,8 @@ import { ChatScreen, InboxScreen, PeoplePicker } from "./Messages";
 type Tab = "home" | "search" | "messages" | "me";
 type Screen = { k: "profile"; handle: string } | { k: "post"; post: Post | string } | { k: "tag"; tag: string } | { k: "people"; handle: string; which: "followers" | "following" }
   | { k: "chat"; thread: Thread } | { k: "requests" } | { k: "activity" };
+/** True on the Pod+ site and app (podscroll/main.tsx sets it). */
+const onPodPlus = () => typeof window !== "undefined" && (window as any).__PODPLUS__ === true;
 type Feed = "foryou" | "following" | "clips";
 
 export function SocialApp({ api: rawApi, say, night, theme, onThemeChange, onPlay, onHush, onCreate, openPerson, onPersonOpened, onSignIn }: {
@@ -130,7 +132,8 @@ export function SocialApp({ api: rawApi, say, night, theme, onThemeChange, onPla
         </button>
       </div>
       <div className="sx-feed-tabs" role="tablist">
-        {([["foryou", "For you"], ["following", "Following"], ["clips", "Clips"]] as const).map(([v, l]) =>
+        {/* Pod+ has no Clips tab (taken out October 2026); LifeHub keeps it. */}
+        {([["foryou", "For you"], ["following", "Following"], ...(onPodPlus() ? [] : [["clips", "Clips"]])] as [Feed, string][]).map(([v, l]) =>
           <button key={v} type="button" role="tab" aria-selected={feed === v} onClick={() => (feed === v ? list.reset() : setFeed(v))} className={feed === v ? "sx-feed-tab sx-feed-tab-active" : "sx-feed-tab"}>{l}</button>
         )}
       </div>

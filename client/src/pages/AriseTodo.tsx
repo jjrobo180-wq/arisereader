@@ -28,7 +28,7 @@ import LinkPage from "@/components/family-hub/LinkPage";
 import LifePlanApp, { PLAN_FOCUS_KEY } from "@/components/family-hub/LifePlanApp";
 import LinkedProfiles from "@/components/family-hub/LinkedProfiles";
 import { linksApi } from "@/lib/profileLinks";
-import StickyBoard from "@/components/family-hub/StickyBoard";
+import StickyBoard, { ADD_STICKY_EVENT } from "@/components/family-hub/StickyBoard";
 import KitPlugin from "@/components/plugin-kit/KitPlugin";
 import { LIFE_VIEWS } from "@/components/family-hub/lifeApps";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
@@ -89,6 +89,7 @@ import FamilyHome from "@/components/family-hub/FamilyHome";
 import Chores from "@/components/family-hub/Chores";
 import Behavior from "@/components/family-hub/Behavior";
 import FamilyCalendar from "@/components/family-hub/FamilyCalendar";
+import { useParaTeamAutoAdd } from "@/lib/paraTeam";
 import Polls from "@/components/family-hub/Polls";
 import { ShareButton } from "@/components/family-hub/ShareLink";
 import Trips from "@/components/family-hub/Trips";
@@ -105,6 +106,10 @@ import NotificationSettings from "@/components/family-hub/NotificationSettings";
 import { EmailForwardCard, useEmailInbox } from "@/components/family-hub/EmailForward";
 import Members, { SECTION_INFO } from "@/components/family-hub/Members";
 import { LockButton, LockedApp, PrivacyLockProvider } from "@/components/lock/PrivacyLock";
+import { HubMoreMenu, hubMoreGroups, openNotificationBell } from "@/components/HubMoreMenu";
+import SameBothHubs from "@/components/SameBothHubs";
+import AppWalkthrough from "@/components/AppWalkthrough";
+import { SHARED_LOOK_EVENT, readNight, rememberLook, withSharedLook, writeNight } from "@/lib/sharedLook";
 import GettingStarted from "@/components/GettingStarted";
 import SnoozeBar from "@/components/SnoozeBar";
 import { startingRole } from "@shared/gettingStarted";
@@ -114,6 +119,7 @@ import CustomizeSheet, { CustomizeGroup } from "@/components/CustomizeSheet";
 import DuoControls, { DuoHeaderButton } from "@/components/DuoControls";
 import { LayoutGrid as LayoutGridIcon, PanelLeft, Palette } from "lucide-react";
 import { PhoneMenu, usePhoneMenu, type PhoneMenuItem } from "@/components/family-hub/PhoneMenu";
+import { PhoneTabBar } from "@/components/family-hub/PhoneTabBar";
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
 import { foldMenu } from "@shared/hubLayout";
 import { hubThemeOf } from "@shared/appThemes";
@@ -129,7 +135,7 @@ import { HOME_SIZES, MENU_CLOSES, MENU_SIDES, moveSection, pinId, resizeSection,
 import { LIFE_PARTS, cleanLifeLayout, type LifeLayout } from "@shared/lifeLayout";
 import HubSwitch from "@/components/HubSwitch";
 import { SupportBanner, SupportButton, SupportMenuItem } from "@/components/SupportArise";
-import { HeartHandshake as ParaTeamIcon } from "lucide-react";
+
 import HeaderShortcut from "@/components/HeaderShortcut";
 import HubMark from "@/components/HubMark";
 import { HubTrialNote } from "@/components/HubTrialNote";
@@ -142,6 +148,9 @@ import "./hubThemes.css";
 import "./ariseDuo.css";
 import { inDuoPane, useAriseDuo, type DuoChoice } from "@/lib/useAriseDuo";
 import "@/components/teacher-hub/darkPalette.css";
+import AccountPrivacy from "@/components/AccountPrivacy";
+import { isNativeApp } from "@/lib/nativeApp";
+import { REMINDERS_CHANGED, installReminderTaps, scheduleNativeReminders } from "@/lib/nativeReminders";
 
 type Priority = "low" | "normal" | "high";
 type Repeat = "none" | "daily" | "weekly" | "monthly";
@@ -299,6 +308,22 @@ export default function AriseTodo() {
   const goToSiteHome = () => onTodoSite ? window.location.assign("/") : navigate("/");
   const sync = useTodoCloud<Data>({ userId: user?.id, token: user ? token : null, blank: fresh, isValid: isValidTodo });
   const data = useMemo(() => upgrade(sync.workspace), [sync.workspace]);
+  // In the iPhone app, reminders are scheduled on the phone and redone a few seconds after each change.
+  useEffect(() => {
+    if (!user || !isNativeApp()) return;
+    const t = window.setTimeout(() => { void scheduleNativeReminders("life", data).catch(() => { /* tried again on the next change */ }); }, 4000);
+    return () => window.clearTimeout(t);
+  }, [data, user]);
+  // ...and again when reminders are switched on (in either hub) and whenever the app comes back to the front.
+  const remindData = useRef(data); remindData.current = data;
+  useEffect(() => {
+    if (!user || !isNativeApp()) return;
+    installReminderTaps();
+    const again = () => { void scheduleNativeReminders("life", remindData.current).catch(() => {}); };
+    const front = () => { if (document.visibilityState === "visible") again(); };
+    window.addEventListener(REMINDERS_CHANGED, again); document.addEventListener("visibilitychange", front);
+    return () => { window.removeEventListener(REMINDERS_CHANGED, again); document.removeEventListener("visibilitychange", front); };
+  }, [user]);
   const rawSet = sync.setWorkspace;
   // Arise To Duo Free: up to 3 App Store apps across LifeHub and WorkHub (shared/todoPlan.ts). A
   // change that would add a 4th is held back here (so a save never fails over it), and the
@@ -413,13 +438,11 @@ export default function AriseTodo() {
   });
   // Night mode: remembered on this device. Everyone starts in day mode (a new account too), even
   // when the phone itself is set to dark mode; night mode is only on once someone switches it on.
-  const [night, setNight] = useState(() => {
-    try { return localStorage.getItem(NIGHT_KEY) === "1"; } catch { return false; }
-  });
-  const toggleNight = () => setNight(on => {
-    try { localStorage.setItem(NIGHT_KEY, on ? "0" : "1"); } catch { /* the choice just isn't remembered */ }
-    return !on;
-  });
+  // Night mode is shared with WorkHub until "Same settings in both hubs" is turned off (lib/sharedLook.ts).
+  const [night, setNight] = useState(() => readNight("life", NIGHT_KEY));
+  const toggleNight = () => setNight(on => { writeNight("life", !on, NIGHT_KEY); return !on; });
+  const [, setLookTick] = useState(0);
+  useEffect(() => { const f = () => { setNight(readNight("life", NIGHT_KEY)); setLookTick((x) => x + 1); }; window.addEventListener(SHARED_LOOK_EVENT, f); window.addEventListener("storage", f); return () => { window.removeEventListener(SHARED_LOOK_EVENT, f); window.removeEventListener("storage", f); }; }, []);
   const [legacy, setLegacy] = useState<Data | null>(() => {
     const old = read();
     return old.tasks.length || old.lists.some(list => !DEFAULT_LISTS.some(def => def.id === list.id && def.name === list.name)) ? old : null;
@@ -614,7 +637,8 @@ export default function AriseTodo() {
   const members = family.members;
   const memberByName = (name: string) => members.find(m => m.name.toLowerCase() === name.trim().toLowerCase());
   // The A.R.I.S.E. Reader tab is the parent portal, so only parents have it.
-  const sections = sectionOrderFor(family).filter(id => isOn(id, family) && (id !== "reader" || user?.role === "parent"));
+  // Getting started was replaced by the first-run walkthrough (components/AppWalkthrough.tsx).
+  const sections = sectionOrderFor(family).filter(id => id !== "start" && isOn(id, family) && (id !== "reader" || user?.role === "parent"));
   const installedSections = sections.filter((id) => ADD_ON_SECTIONS.includes(id));
   const builtInSections = sections.filter((id) => !ADD_ON_SECTIONS.includes(id));
   // Dragging (or, on a phone, the arrows) a menu item reorders it right where it sits.
@@ -655,14 +679,19 @@ export default function AriseTodo() {
   // menu entry, the same as a Notes-app install — see myNotesApps/phoneItems below.
   const pinnableSheets = (family.sheetsInstalled ?? []).map((id) => sheetsAppPlugin("life", id)).filter((p): p is Plugin => !!p);
   const installedOffice = (family.sheetsInstalled ?? []).map((id) => officeAppPlugin("life", id)).filter((p): p is Plugin => !!p);
+  // Already on a para team: Para Team is added to LifeHub's apps once.
+  useParaTeamAutoAdd(!!user && sync.loaded && !sync.recovery, token, user?.id, "life", (family.sheetsInstalled ?? []).includes("life-para-team"), () => {
+    const p = officeAppPlugin("life", "life-para-team");
+    if (p) setFamily((f) => ({ ...f, sheetsInstalled: setLifeSheetsApp(f.sheetsInstalled, p, true) }));
+  });
   const drivePlugin = family.driveInstalled ? driveAppPlugin("life") : undefined;
   const dropPlugin = family.dropInstalled ? dropAppPlugin("life") : undefined;
   /** Kit plugins added from WorkHub's shelf. LifeHub's own kits are sections, so these are only
    *  the crossed-over ones; they open full-page like a Notes-app install. */
   const myKits = (family.kitInstalled ?? []).map((k) => kitDef(k)).filter((d): d is NonNullable<ReturnType<typeof kitDef>> => !!d);
   const pinnableApps = [...pinnableNotes, ...pinnableSheets, ...(drivePlugin ? [drivePlugin] : []), ...(dropPlugin ? [dropPlugin] : [])];
-  const layout = cleanLifeLayout(family.layout, pinnableApps.map((p) => p.id));
-  const setLayout = (next: LifeLayout) => setFamily((f) => ({ ...f, layout: next }));
+  const layout = withSharedLook(cleanLifeLayout(family.layout, pinnableApps.map((p) => p.id)));
+  const setLayout = (next: LifeLayout) => { rememberLook(next); setFamily((f) => ({ ...f, layout: next })); window.dispatchEvent(new Event(SHARED_LOOK_EVENT)); };
   // The current theme's structural feel, reused for the task list's row style below (see
   // shared/appThemes.ts's HubTheme.homeLayout) — "cards" (today's) for Classic/Sunrise/Forest,
   // a dense tap-chip wrap for Tile/Candy, bracketed text lines for Old Computer, and a quiet
@@ -673,6 +702,11 @@ export default function AriseTodo() {
   const phone = usePhoneMenu(tileMode ? "drawer" : layout.menuSide, layout.menuClose);
   // Arise To Duo: the iPhone Duo's inner screen gets two panes that meet at the fold (see useAriseDuo).
   const duo = useAriseDuo();
+  /** The floating tab bar on a phone (Customize → Menu on your phone → Tab bar, the default). Not in the
+   *  Duo's book view or inside a split-screen pane, which have their own controls; there the app drawer stands in. */
+  const tabBar = !tileMode && layout.menuSide === "tabs" && duo.mode !== "book" && !inDuoPane();
+  const phoneSide = tileMode ? "drawer" : layout.menuSide === "tabs" && !tabBar ? "drawer" : layout.menuSide;
+  const [youOpen, setYouOpen] = useState(false);
   useEffect(() => {
     const before = document.title;
     document.title = "Arise To Duo";
@@ -707,7 +741,7 @@ export default function AriseTodo() {
     // Apps: everything in the menu (sections and installed apps), with their icons, like a phone's search.
     for (const it of phoneItems) out.push({ id: `s-${it.id}`, kind: "Section", title: it.label, icon: it.icon, color: it.color, open: it.onClick });
     // Apps not added yet: under "In the App Store", opening straight on that app's page.
-    for (const p of pluginsFor("life", { teacher: user.role === "teacher" || !!user.isAdmin })) {
+    for (const p of pluginsFor("life", { teacher: user.role === "teacher" || !!user.isAdmin, arise: user.role === "teacher" || user.role === "parent" || !!user.isAdmin })) {
       if (!isAddable(p) || lifeInstalled(p, family, family.notesInstalled, family.sheetsInstalled)) continue;
       const Icon = STORE_ICONS[p.icon] ?? kitIcon(p.icon);
       out.push({ id: `store-${p.id}`, kind: STORE_KIND, title: p.name, sub: p.tagline, keywords: `${p.category} ${p.description}`.slice(0, 300), icon: <Icon />, color: p.color, open: () => { setStoreOpenApp(p.id); setStore(true); } });
@@ -716,7 +750,7 @@ export default function AriseTodo() {
     if (!family.briefOff) out.push({ id: "brief", kind: "Section", title: "Daily Brief", sub: "Today at a glance", keywords: "morning summary today brief", icon: <Sun />, open: () => setBriefOpen(true) });
     out.push({ id: "customize", kind: "Section", title: "Customize", sub: "Menu, folders and Home", keywords: "settings layout", icon: <Settings2 />, open: () => setCustomizing(true) });
     out.push({ id: "passcode", kind: "Section", title: "Passcode & locks", sub: "Lock apps and notes", keywords: "lock passcode password privacy hide secure settings", icon: <Lock />, open: () => setLockSettings(true) });
-    out.push({ id: "store", kind: "Section", title: "App Store", keywords: "add plugins apps store", icon: <ShoppingBag />, open: () => setStore(true) });
+    out.push({ id: "store", kind: "Section", title: "App Gallery", keywords: "add plugins apps store", icon: <ShoppingBag />, open: () => setStore(true) });
     for (const t of data.tasks) out.push({ id: t.id, kind: "Tasks", title: t.title, sub: [t.done ? "Done" : "", t.due && `Due ${dw(t.due)}`].filter(Boolean).join(" · "), keywords: t.notes, open: () => goSection("tasks") });
     for (const e of f.events) out.push({ id: e.id, kind: "Calendar", title: e.title, sub: [dw(e.date), e.location].filter(Boolean).join(" · "), keywords: e.notes, open: () => goSection("calendar") });
     for (const n of f.notes) out.push({ id: n.id, kind: "Notes", title: n.locked ? n.title || "Locked note" : n.title || n.body.slice(0, 60) || "Note", keywords: n.locked ? "" : n.body.slice(0, 400), open: () => goSection("notes") });
@@ -735,6 +769,7 @@ export default function AriseTodo() {
   };
   const [storeOpenApp, setStoreOpenApp] = useState<string | null>(null);
   const [more, setMore] = useState(false);
+  const [privacy, setPrivacy] = useState(false);
   /** A Notes-app install (see shared/notesApp.ts; e.g. Work Notes, added from the App Store) open
    *  full-page, by its App Store plugin id. Not a FamilySection, so it sits alongside `section`. */
   const [notesAppOpen, setNotesAppOpenState] = useStayOnRefresh<string | null>("life-notes-app", null);
@@ -760,7 +795,7 @@ export default function AriseTodo() {
   const addRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!addMenu) return;
-    const away = (e: MouseEvent) => { if (addRef.current && !addRef.current.contains(e.target as Node)) setAddMenu(false); };
+    const away = (e: MouseEvent) => { if ((e.target as Element | null)?.closest?.("[data-add-toggle]")) return; if (addRef.current && !addRef.current.contains(e.target as Node)) setAddMenu(false); };
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setAddMenu(false); };
     document.addEventListener("mousedown", away);
     document.addEventListener("keydown", esc);
@@ -822,7 +857,7 @@ export default function AriseTodo() {
     ...(dropPlugin ? [{ id: "drop-app", label: dropPlugin.name, icon: <QrCode />, active: dropOpen, color: dropPlugin.color, onClick: () => { closeApps(); setDropOpen(true); } }] : []),
     ...myKits.map((d) => ({ id: `kit-${d.id}`, label: d.name, icon: <Puzzle />, active: kitOpen === d.id, color: d.color, onClick: () => { closeApps(); setKitOpen(d.id); } })),
     // The App Store sits in the phone menu and the app drawer, not tucked away in the ⋯ menu.
-    { id: "app-store", label: "App Store", icon: <ShoppingBag />, active: false, color: "#6a55dc", onClick: () => setStore(true) },
+    { id: "app-store", label: "App Gallery", icon: <ShoppingBag />, active: false, color: "#6a55dc", onClick: () => setStore(true) },
   ];
   // Passcode lock (components/lock/PrivacyLock.tsx): which app is open, and the apps that can be locked.
   const openAppId = notesAppOpen ? `notes-app-${notesAppOpen}` : sheetsAppOpen ? `sheets-app-${sheetsAppOpen}` : driveOpen ? "drive-app" : dropOpen ? "drop-app" : kitOpen ? `kit-${kitOpen}` : shown;
@@ -845,8 +880,8 @@ export default function AriseTodo() {
     else { setStoreOpenApp(`life-${t}`); setStore(true); }
   };
   const familyContent: ReactNode = shown === "home" ? <FamilyHome {...common} tasks={calendarTasks} go={setSection} name={(user?.displayName || "").split(" ")[0]} onToggleTask={id => { const task = data.tasks.find(row => row.id === id); if (task) toggleDone(task); }} openNotesApp={setNotesAppOpen} appTiles={phoneItems.filter((i) => i.id !== "home").map((i) => ({ id: `app-${i.id}`, label: i.label, icon: i.icon, color: i.color, badge: i.badge, onClick: i.onClick }))} />
-    : shown === "start" ? <GettingStarted hub="life" startRole={startingRole(user, "life")} canOpen={guideCanOpen} onOpen={guideOpen}
-        onRemove={() => { setFamily((f) => ({ ...f, sections: { ...f.sections, start: false } })); setSection("home"); setMessage("Getting started removed. Add it back any time from the App Store."); }} />
+    : false && shown === "start" ? <GettingStarted hub="life" startRole={startingRole(user, "life")} canOpen={guideCanOpen} onOpen={guideOpen}
+        onRemove={() => { setFamily((f) => ({ ...f, sections: { ...f.sections, start: false } })); setSection("home"); setMessage("Getting started removed. Add it back any time from the App Gallery."); }} />
     : shown === "calendar" ? <FamilyCalendar {...common} tasks={calendarTasks} onOpenTasks={() => { setSection("tasks"); setView("today"); }} />
     : shown === "reader" ? <Suspense fallback={<div className="grid grid-cols-1 min-h-[40vh] place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}><Reader say={setMessage} night={night} /></Suspense>
     : shown === "lifeplan" ? <LifePlanApp {...common} go={setSection} openStore={() => setStore(true)} />
@@ -883,12 +918,6 @@ export default function AriseTodo() {
           {!has && dsk !== "compact" && <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: a.soft, color: a.color }}>Add-on</span>}
         </button>;
       })}
-      {/* Para Team (pages/ParaTeam.tsx): paras and 1:1s often have a LifeHub account, so it's here too. */}
-      <button type="button" onClick={() => { window.location.hash = "/para-team"; }} data-testid="life-para-team" title="Para Team"
-        className={`flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-3 text-left text-sm font-bold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 ${dsk === "top" ? "" : "w-full"} ${dsk === "compact" ? "justify-center" : ""}`}>
-        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-700 text-white shadow-sm"><ParaTeamIcon className="h-4 w-4" /></span>
-        <span className={`min-w-0 flex-1 truncate ${dsk === "compact" ? "sr-only" : ""}`}>Para Team</span>
-      </button>
       <SupportMenuItem isAdmin={user.isAdmin} testId="life-support"
         className={`flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-3 text-left text-sm font-bold text-rose-700 transition hover:bg-rose-50 ${dsk === "top" ? "" : "w-full"} ${dsk === "compact" ? "justify-center" : ""}`}>
         <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-rose-600 text-white shadow-sm"><HeartNav className="h-4 w-4 fill-current" /></span>
@@ -944,13 +973,24 @@ export default function AriseTodo() {
             return id === "home" && learningHere ? <Fragment key="home-and-learning">{el}{lifeLearning}</Fragment> : el;
           })}
   </>;
+  // The ⋯ menu and the tab bar's You sheet: notifications and every setting, the same as WorkHub's.
+  const moreGroups = hubMoreGroups({
+    openNotifications: openNotificationBell,
+    notificationSettings: () => { closeApps(); goSection("notifications"); },
+    customize: () => setCustomizing(true), night, toggleNight, lock: () => setLockSettings(true),
+    gallery: () => setStore(true), privacy: () => setPrivacy(true), signOut: () => void signOut(),
+    extra: [{ id: "family", label: "Family & settings", detail: "People, linked children and sections", icon: <Users />, onClick: () => { closeApps(); goSection("family"); } }],
+  });
   return <PrivacyLockProvider lock={family.lock} setLock={(lock) => setFamily((f) => ({ ...f, lock }))} apps={lockableApps} settings={lockSettings} onSettings={setLockSettings}><div className={`min-h-screen bg-[#f6f7fc] text-slate-900 ${night ? "todo-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""}`}>
     <UpgradeHost hub="life" />
+    <AppWalkthrough userId={user.id} hub="life" arise={user.role === "teacher" || user.role === "parent"}
+      onGallery={() => setStore(true)} onCustomize={(t) => { setCustomizeTab(t); setCustomizing(true); }} onNotificationSettings={() => { closeApps(); goSection("notifications"); }} />
     {store && <PluginStore
       hub="life"
       initialOpen={storeOpenApp ?? undefined}
       night={night}
       teacher={user.role === "teacher" || !!user.isAdmin}
+      arise={user.role === "teacher" || user.role === "parent" || !!user.isAdmin}
       isInstalled={(p: Plugin) => lifeInstalled(p, family, family.notesInstalled, family.sheetsInstalled)}
       kit={{ records: family.kit, setRecords: (update) => setFamily((f) => ({ ...f, kit: update(f.kit) })), today: currentDay, makeId }}
       onToggle={(p: Plugin, on: boolean) => {
@@ -1016,12 +1056,14 @@ export default function AriseTodo() {
       onClose={() => { setCustomizing(false); setCustomizeTab(undefined); }}
       tabs={[
         { id: "layout", label: "Layout", icon: <PanelLeft />, content: <>
+          <SameBothHubs testId="life-same-both" />
           <CustomizeGroup title="Menu on your phone" help="Where it sits, and how it closes." testId="life-customize-phone-menu">
             <div role="radiogroup" aria-label="Where the menu sits" className="mb-3 flex flex-wrap gap-2">
               {MENU_SIDES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuSide === o.id} onClick={() => { setLayout({ ...layout, menuSide: o.id }); phone.setRail(true); }} data-testid={`life-menu-side-${o.id}`}
                 className={`min-h-11 rounded-full px-4 text-sm font-bold ring-1 ${layout.menuSide === o.id ? "bg-[#292446] text-white ring-[#292446]" : "bg-white text-slate-600 ring-slate-200"}`}>{o.label}</button>)}
             </div>
-            {layout.menuSide === "drawer" ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">A round button at the bottom of the screen opens every section as app icons, with a search box. Swipe it up or tap it; swipe down or tap outside to close.</p>
+            {layout.menuSide === "tabs" ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600" data-testid="life-menu-tabs-help">A bar floats along the bottom of the screen: Home, Tasks, the + button to add anything, Apps for every section, and You for your account and settings.</p>
+              : layout.menuSide === "drawer" ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">A round button at the bottom of the screen opens every section as app icons, with a search box. Swipe it up or tap it; swipe down or tap outside to close.</p>
               : <div role="radiogroup" aria-label="How the menu closes" className="grid grid-cols-1 gap-2">
                 {MENU_CLOSES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuClose === o.id} onClick={() => { setLayout({ ...layout, menuClose: o.id }); phone.setRail(true); }} data-testid={`life-menu-close-${o.id}`}
                   className={`flex min-h-11 items-start gap-3 rounded-xl border px-3 py-2 text-left text-sm ${layout.menuClose === o.id ? "border-[#292446] bg-slate-50" : "border-slate-200 bg-white"}`}>
@@ -1061,10 +1103,10 @@ export default function AriseTodo() {
           <PlanCard hub="life" hubApps={appsIn("life", data)} />
           <CustomizeGroup title="More settings">
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <button type="button" onClick={() => { setCustomizing(false); setStore(true); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#292446] px-4 text-sm font-bold text-white"><ShoppingBag size={16} /> App Store</button>
+              <button type="button" onClick={() => { setCustomizing(false); setStore(true); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#292446] px-4 text-sm font-bold text-white"><ShoppingBag size={16} /> App Gallery</button>
               <button type="button" onClick={() => { setCustomizing(false); setSection("family"); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-slate-700 ring-1 ring-slate-200"><Settings2 size={16} /> Sections, family and settings</button>
               <button type="button" onClick={() => { setCustomizing(false); setLockSettings(true); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-slate-700 ring-1 ring-slate-200"><Lock size={16} /> Passcode & locks</button>
-              <button type="button" onClick={() => { setCustomizing(false); window.dispatchEvent(new Event("arise-tour:start")); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-violet-50 px-4 text-sm font-bold text-violet-800 ring-1 ring-violet-200 hover:bg-violet-100" data-testid="life-take-tour">Take the tour again</button>
+              <button type="button" onClick={() => { setCustomizing(false); window.dispatchEvent(new Event("arise:walkthrough")); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-violet-50 px-4 text-sm font-bold text-violet-800 ring-1 ring-violet-200 hover:bg-violet-100" data-testid="life-take-tour">Take the tour again</button>
             </div>
           </CustomizeGroup>
         </> },
@@ -1091,41 +1133,31 @@ export default function AriseTodo() {
             onNavigate={(type) => { if (type.startsWith("life:")) setSection(type.slice(5) as FamilySection); else navigate(user.isAdmin ? "/admin" : "/profile"); }}
             onSettings={() => setSection("notifications")}
             triggerClassName={`relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 ${shown === "notifications" ? "bg-[#292446] text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`} />
-          <button onClick={toggleNight} aria-pressed={night} aria-label={night ? "Switch to day mode" : "Switch to night mode"} title={night ? "Day mode" : "Night mode"} className="hidden h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 hover:bg-slate-50 sm:inline-flex duo:hidden">{night ? <Sun size={16} /> : <Moon size={16} />}</button>
-          <button onClick={() => setStore(true)} aria-label="App Store" title="App Store" className="hidden h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:inline-flex duo:hidden" data-testid="lifehub-plugin-store-header"><ShoppingBag size={16} /> <span className="hidden lg:inline">App Store</span></button>
           <LockButton className="hidden sm:inline-flex duo:hidden" />
-          <button onClick={() => setCustomizing(true)} aria-label="Customize your LifeHub" className="hidden h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:inline-flex duo:hidden" data-testid="life-customize"><Settings2 size={16} /> <span className="hidden lg:inline">Customize</span></button>
-          <button onClick={() => void signOut()} aria-label="Sign out" title="Sign out" className="hidden h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 hover:bg-slate-50 sm:inline-flex duo:hidden"><LogOut size={16} /></button>
-          <div className="relative sm:hidden duo:block">
-            <button type="button" onClick={() => setMore((v) => !v)} aria-label="More" aria-haspopup="menu" aria-expanded={more} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700" data-testid="life-more"><MoreHorizontal size={20} /></button>
-            {more && <>
-              <div className="fixed inset-0 z-40" onClick={() => setMore(false)} aria-hidden />
-              <div role="menu" className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-56 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl">
-                <div role="status" className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium text-slate-600">{sync.view.kind === "saved" ? <CheckCircle2 size={16} className="text-emerald-600" /> : sync.view.kind === "blocked" ? <AlertCircle size={16} className="text-rose-600" /> : <Save size={16} />}{saveStatus}</div>
-                <button type="button" role="menuitem" onClick={() => { toggleNight(); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50">{night ? <Sun size={16} /> : <Moon size={16} />}{night ? "Day mode" : "Night mode"}</button>
-                <button type="button" role="menuitem" onClick={() => { setLockSettings(true); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50" data-testid="life-more-lock"><Lock size={16} />Passcode & locks</button>
-                <button type="button" role="menuitem" onClick={() => { setCustomizing(true); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><Settings2 size={16} />Customize</button>
-                <button type="button" role="menuitem" onClick={() => void signOut()} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><LogOut size={16} />Sign out</button>
-              </div>
-            </>}
-          </div>
+          <HubMoreMenu testId="life-more" open={more} setOpen={setMore} groups={moreGroups}
+            buttonClass="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            status={<span className="inline-flex items-center gap-2">{sync.view.kind === "saved" ? <CheckCircle2 size={14} className="text-emerald-600" /> : sync.view.kind === "blocked" ? <AlertCircle size={14} className="text-rose-600" /> : <Save size={14} />}{saveStatus}</span>} />
         </div>
       </div>
     </header>
-    {family.widgets.chat && <HubChat hub="life" token={token} accent="bg-[#7968e5]" lift raiseRem={layout.menuSide === "bottom" && phone.open ? 4.9 : 0} />}
+    {family.widgets.chat && <HubChat hub="life" token={token} accent="bg-[#7968e5]" lift raiseRem={(layout.menuSide === "bottom" && phone.open) || tabBar ? 4.9 : 0} />}
     {searching && <HubSearch entries={buildSearchEntries()} hubName="LifeHub" accent="bg-[#292446]" onClose={() => setSearching(false)} />}
+    {privacy && <AccountPrivacy onClose={() => setPrivacy(false)} />}
     {/* One floating button that adds anything, mirroring WorkHub. It sits clear of the phone menu
         when that menu is along the bottom or the right, so it never covers the menu's own buttons. */}
-    <div ref={addRef} className={`fixed z-50 lg:bottom-[max(1.25rem,env(safe-area-inset-bottom))] lg:right-4 ${layout.menuSide === "bottom" && phone.open ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${layout.menuSide === "right" && phone.open ? "right-[88px]" : "right-4"}`}>
+    <div ref={addRef} className={`fixed z-50 lg:bottom-[max(1.25rem,env(safe-area-inset-bottom))] lg:right-4 ${tabBar ? "max-lg:bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] max-lg:left-1/2 max-lg:right-auto" : layout.menuSide === "bottom" && phone.open ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${tabBar ? "lg:left-auto" : layout.menuSide === "right" && phone.open ? "right-[88px]" : "right-4"}`}>
       {addMenu && (
         <div role="menu" aria-label="Add to your To Do" data-testid="life-add-menu"
-          className="absolute bottom-[calc(100%+0.6rem)] right-0 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl">
+          className={`absolute bottom-[calc(100%+0.6rem)] right-0 w-60 ${tabBar ? "max-lg:bottom-0 max-lg:right-auto max-lg:-translate-x-1/2" : ""} overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl`}>
           {[
+            // On a phone the AI assistant opens from here, so only one round button sits over the page.
+            ...(family.widgets.chat && window.matchMedia?.("(max-width: 639px)").matches ? [{ key: "ai", label: "Ask AI", detail: "The AI assistant", icon: <Sparkles size={16} />, go: () => document.querySelector<HTMLElement>('[data-testid="hub-chat-open"]')?.click() }] : []),
             { key: "task", label: "Task", detail: "", icon: <CheckSquare size={16} />, go: openAdd },
             { key: "list", label: "List", detail: "A new list of tasks", icon: <FolderPlus size={16} />, go: () => setAddingList(true) },
             { key: "calendar", label: "Event", detail: "", icon: <CalendarDays size={16} />, go: () => goSection("calendar"), section: "calendar" },
             { key: "grocery", label: "Grocery item", detail: "", icon: <ShoppingCart size={16} />, go: () => goSection("grocery"), section: "grocery" },
             { key: "notes", label: "Note", detail: "", icon: <StickyNote size={16} />, go: () => goSection("notes"), section: "notes" },
+            ...(family.widgets.stickies ? [{ key: "sticky", label: "Sticky note", detail: "On your Home page", icon: <StickyNote size={16} />, go: () => { if (shown !== "home") setSection("home"); window.setTimeout(() => window.dispatchEvent(new Event(ADD_STICKY_EVENT)), shown === "home" ? 0 : 350); } }] : []),
             { key: "money", label: "Bill or expense", detail: "", icon: <Wallet size={16} />, go: () => goSection("money"), section: "money" },
           ].filter((item) => !item.section || sections.includes(item.section as FamilySection)).map((item) => (
             <button key={item.key} type="button" role="menuitem" data-testid={`life-add-${item.key}`}
@@ -1142,16 +1174,23 @@ export default function AriseTodo() {
       )}
       <button type="button" onClick={() => setAddMenu((v) => !v)} aria-haspopup="menu" aria-expanded={addMenu}
         aria-label="Add to your To Do" data-testid="life-add-button"
-        className="inline-flex h-14 items-center gap-2 rounded-full bg-[#6e5ae0] px-5 text-base font-semibold text-white shadow-lg transition hover:bg-[#5948c8]">
+        className={`${tabBar ? "max-lg:hidden" : ""} inline-flex h-14 items-center gap-2 rounded-full bg-[#6e5ae0] px-5 text-base font-semibold text-white shadow-lg transition hover:bg-[#5948c8]`}>
         <Plus className={`h-5 w-5 transition-transform ${addMenu ? "rotate-45" : ""}`} size={20} /> Add
       </button>
     </div>
+    {tabBar && <PhoneTabBar name={user.displayName || user.username || ""}
+      home={shown === "home" && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && !store} tasks={shown === "tasks" && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && !store}
+      addOpen={addMenu} onAdd={() => setAddMenu((v) => !v)}
+      onHome={() => { closeApps(); setStore(false); setAddMenu(false); goSection("home"); }}
+      onTasks={() => { closeApps(); setStore(false); setAddMenu(false); goSection("tasks"); }}
+      youOpen={youOpen} setYouOpen={(open) => { setYouOpen(open); if (open) setAddMenu(false); }}
+      you={moreGroups.flatMap((g) => g.items)} />}
     {briefOpen && <DailyBrief hub="life" brief={buildLifeBrief(family, data.tasks, currentDay, new Date().getHours(), (user.displayName || "").split(" ")[0])} onClose={() => setBriefOpen(false)} onOpen={goSection} />}
     {awayFromStart && <button type="button" onClick={backToStart} aria-label="Back to Start" data-testid="life-start-back"
       className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-4 z-40 inline-flex h-14 items-center gap-1.5 rounded-full bg-[#292446] pl-4 pr-5 text-sm font-extrabold text-white shadow-xl transition active:scale-90"><ArrowLeft className="h-5 w-5" /> Start</button>}
-    {duo.mode !== "book" && <PhoneMenu items={phoneItems} side={tileMode ? "drawer" : layout.menuSide} hideLauncher={tileMode && !awayFromStart} close={layout.menuClose} open={phone.open} setRail={phone.setRail} afterPick={phone.afterPick} top={64} folders={layout.folders} deskDrawer={dsk === "drawer"} />}
+    {duo.mode !== "book" && <PhoneMenu items={phoneItems} side={phoneSide} hideLauncher={tileMode && !awayFromStart} close={layout.menuClose} open={phone.open} setRail={phone.setRail} afterPick={phone.afterPick} top={64} folders={layout.folders} deskDrawer={dsk === "drawer"} />}
     <div className={`flex min-h-[calc(100vh-4rem)] w-full flex-col ${dsk === "top" ? "" : dsk === "right" ? "lg:flex-row-reverse" : "lg:flex-row"} duo-book:flex-row`}>
-      <aside className={`w-full border-b border-[#e4e6f0] bg-white lg:[&>*]:shrink-0 ${shown === "tasks" ? (layout.menuSide === "bottom" ? "" : phone.pad) : "max-lg:hidden"} ${deskAside} duo-book:sticky duo-book:top-16 duo-book:flex duo-book:h-[calc(100dvh-4rem)] duo-book:w-[var(--duo-left)] duo-book:shrink-0 duo-book:flex-col duo-book:overflow-y-auto duo-book:border-b-0 duo-book:border-r duo-book:p-0 duo-book:pb-10 duo-book:[&>*]:shrink-0`} data-testid="life-side">
+      <aside className={`w-full border-b border-[#e4e6f0] bg-white lg:[&>*]:shrink-0 ${shown === "tasks" ? (layout.menuSide === "bottom" || layout.menuSide === "tabs" ? "" : phone.pad) : "max-lg:hidden"} ${deskAside} duo-book:sticky duo-book:top-16 duo-book:flex duo-book:h-[calc(100dvh-4rem)] duo-book:w-[var(--duo-left)] duo-book:shrink-0 duo-book:flex-col duo-book:overflow-y-auto duo-book:border-b-0 duo-book:border-r duo-book:p-0 duo-book:pb-10 duo-book:[&>*]:shrink-0`} data-testid="life-side">
         <nav aria-label="Family Hub" className={`duo-book:flex duo-book:flex-col duo-book:gap-0.5 duo-book:overflow-visible duo-book:px-3 duo-book:pt-4 hidden gap-1 overflow-x-auto px-3 pb-2.5 pt-4 [scrollbar-width:none] sm:px-4 sm:pb-3 [&::-webkit-scrollbar]:hidden ${dsk === "top" ? "lg:flex lg:px-4 lg:py-2" : "lg:block lg:space-y-0.5 lg:px-3 lg:pb-0 lg:pt-6"}`}>
           {renderSectionItems(builtInSections, true)}
 
@@ -1193,7 +1232,7 @@ export default function AriseTodo() {
             ))}
           </div>
         </div>}
-        <div className={`hidden px-3 pt-2 duo-book:block ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}><button type="button" onClick={() => setStore(true)} className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 transition hover:border-violet-300 hover:bg-violet-50 hover:text-[#5f4dc8]" data-testid="lifehub-plugin-store"><ShoppingBag size={18} />App Store</button></div>
+        <div className={`hidden px-3 pt-2 duo-book:block ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}><button type="button" onClick={() => setStore(true)} className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 transition hover:border-violet-300 hover:bg-violet-50 hover:text-[#5f4dc8]" data-testid="lifehub-plugin-store"><ShoppingBag size={18} />App Gallery</button></div>
         {shown === "tasks" && <>
         <div className="hidden px-6 pb-3 pt-7 lg:block duo-book:block duo-book:pt-5"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-400">Tasks</span></div>
         <div className="flex gap-1 overflow-x-auto border-t border-slate-100 px-4 pb-4 pt-3 lg:block lg:space-y-1 lg:border-t-0 lg:px-3 lg:pb-0 lg:pt-0 duo-book:block duo-book:space-y-1 duo-book:border-t-0 duo-book:px-3 duo-book:pb-0 duo-book:pt-0 duo-stack:flex-wrap duo-stack:overflow-visible">
@@ -1227,7 +1266,7 @@ export default function AriseTodo() {
         </div>
       </aside>
 
-      <main data-tour="life-content" className={`min-w-0 flex-1 px-3 pb-10 pt-4 sm:px-7 sm:pt-6 lg:px-9 lg:pt-10 xl:px-12 ${shown === "tasks" ? "duo-book:pt-4" : "duo:px-6"} duo-book:px-5 duo-book:pb-10 ${shown === "tasks" && layout.menuSide === "top" ? phone.pad.replace(/max-lg:pt-\S+/, "") : phone.pad}`}>
+      <main data-tour="life-content" className={`min-w-0 flex-1 px-3 pb-28 sm:pb-10 pt-4 sm:px-7 sm:pt-6 lg:px-9 lg:pt-10 xl:px-12 ${shown === "tasks" ? "duo-book:pt-4" : "duo:px-6"} duo-book:px-5 duo-book:pb-10 ${shown === "tasks" && layout.menuSide === "top" ? phone.pad.replace(/max-lg:pt-\S+/, "") : phone.pad}`}>
         <div className="mx-auto max-w-[1250px]">
           {shown === "tasks" && <header className="mb-5 flex flex-wrap items-start justify-between gap-4 duo-book:hidden">
             <div><p className="mb-2 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7]">Your everyday organizer</p><h1 className="text-3xl font-black tracking-tight text-[#232139] sm:text-4xl">Make room for what matters<span className="text-[#7866e1]">.</span></h1><p className="mt-2 text-sm leading-6 text-slate-500">One place to stay on top of life, work, and everything in between.</p></div>
@@ -1259,7 +1298,7 @@ export default function AriseTodo() {
           {notesAppOpen && notesAppPlugin("life", notesAppOpen) && <div className="mt-2 space-y-3">
             <div className="flex items-center justify-between gap-2">
               <button type="button" onClick={() => setNotesAppOpen(null)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><ArrowLeft size={16} /> Back</button>
-              <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag size={16} /> App Store</button>
+              <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag size={16} /> App Gallery</button>
             </div>
             <NotesKitApp key={notesAppOpen} name={notesAppPlugin("life", notesAppOpen)!.name} blurb={notesAppPlugin("life", notesAppOpen)!.description}
               notes={family.notesApps[notesAppOpen] ?? []} setNotes={(update) => setNotesAppRecords(notesAppOpen, update)} makeId={makeId} say={setMessage} />
@@ -1267,28 +1306,28 @@ export default function AriseTodo() {
           {sheetsAppOpen && <div className="mt-2 space-y-3">
             <div className="flex items-center justify-between gap-2">
               <button type="button" onClick={() => setSheetsAppOpen(null)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><ArrowLeft size={16} /> Back</button>
-              <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag size={16} /> App Store</button>
+              <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag size={16} /> App Gallery</button>
             </div>
             <OfficeApp config={SHEETS} legacy={legacySheets(sheets, (sid) => setSheets((all) => all.filter((x) => x.id !== sid)))} say={setMessage} />
           </div>}
           {driveOpen && <div className="mt-2 space-y-3">
             <div className="flex items-center justify-between gap-2">
               <button type="button" onClick={() => setDriveOpen(false)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><ArrowLeft size={16} /> Back</button>
-              <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag size={16} /> App Store</button>
+              <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag size={16} /> App Gallery</button>
             </div>
             <DriveApp files={driveFiles} setFiles={setDriveFiles} say={setMessage} token={token} />
           </div>}
           {dropOpen && <div className="mt-2 space-y-3">
             <div className="flex items-center justify-between gap-2">
               <button type="button" onClick={() => setDropOpen(false)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><ArrowLeft size={16} /> Back</button>
-              <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag size={16} /> App Store</button>
+              <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag size={16} /> App Gallery</button>
             </div>
             <DropApp say={setMessage} token={token} />
           </div>}
           {kitOpen && kitDef(kitOpen) && <div className="mt-2 space-y-3">
             <div className="flex items-center justify-between gap-2">
               <button type="button" onClick={() => setKitOpen(null)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><ArrowLeft size={16} /> Back</button>
-              <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag size={16} /> App Store</button>
+              <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag size={16} /> App Gallery</button>
             </div>
             <KitPlugin key={kitOpen} def={kitDef(kitOpen)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
           </div>}

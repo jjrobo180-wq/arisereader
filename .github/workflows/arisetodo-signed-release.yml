@@ -1,10 +1,11 @@
-name: A.R.I.S.E. To-Do signed iOS release candidate
+name: Arise To Duo signed iOS release candidate
 # Development beta validation only. Upload is a separate, explicitly approved release step.
 on:
   workflow_dispatch:
   push:
     branches: [feat/arisetodo-ios-app-store-starter, feat/arisetodo-native-ios-foundation]
     paths:
+      - '.github/scripts/**'
       - '.github/workflows/arisetodo-signed-release.yml'
       - 'arisetodo/ios-app/**'
       - 'client/src/main.tsx'
@@ -57,9 +58,15 @@ jobs:
           sips -z 1024 1024 -s format png "$RUNNER_TEMP/todo-icon.jpg" --out "$ICON/AppIcon-1024.png" >/dev/null
           printf '%s' '{"images":[{"filename":"AppIcon-1024.png","idiom":"universal","platform":"ios","size":"1024x1024"}],"info":{"author":"xcode","version":1}}' > "$ICON/Contents.json"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT" ios/App/App/Info.plist
+      - name: Permission text, name and export compliance (Info.plist)
+        working-directory: arisetodo/ios-app
+        run: python3 configure-ios.py ios/App/App/Info.plist
       - name: Import Apple signing certificate and provisioning profile
         shell: bash
         env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           IOS_DISTRIBUTION_CERT_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}
           IOS_DISTRIBUTION_CERT_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERT_PASSWORD }}
           IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
@@ -67,6 +74,8 @@ jobs:
           set -euo pipefail
           printf '%s' "$IOS_DISTRIBUTION_CERT_BASE64" | base64 -D > "$RUNNER_TEMP/signing.p12"
           printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | base64 -D > "$RUNNER_TEMP/profile.mobileprovision"
+          # Sign in with Apple, Apple Health and push notifications on the App ID, and a profile that includes them (same certificate).
+          python3 .github/scripts/apple_signing.py com.arisereader.arisetodo "$RUNNER_TEMP/profile.mobileprovision" HEALTHKIT APPLE_ID_AUTH PUSH_NOTIFICATIONS
           security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
@@ -83,6 +92,36 @@ jobs:
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
           cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
           echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+          # Apple Health needs the HealthKit capability on the App ID and in this profile.
+          # Until the profile has it, build without the entitlement (the app works; Health shows as unavailable).
+          ENT=arisetodo/ios-app/ios/App/App/App.entitlements
+          USE_ENT=""
+          if /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.healthkit' "$RUNNER_TEMP/profile.plist" >/dev/null 2>&1; then
+            /usr/libexec/PlistBuddy -c 'Add :com.apple.developer.healthkit bool true' "$ENT" 2>/dev/null || /usr/libexec/PlistBuddy -c 'Set :com.apple.developer.healthkit true' "$ENT"
+            /usr/libexec/PlistBuddy -c 'Add :com.apple.developer.healthkit.access array' "$ENT" 2>/dev/null || true
+            USE_ENT=1
+            echo "Apple Health: HealthKit entitlement enabled"
+          else
+            echo "::warning::The provisioning profile has no HealthKit capability. Building without Apple Health."
+          fi
+          if /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.applesignin' "$RUNNER_TEMP/profile.plist" >/dev/null 2>&1; then
+            /usr/libexec/PlistBuddy -c 'Delete :com.apple.developer.applesignin' "$ENT" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c 'Add :com.apple.developer.applesignin array' "$ENT"
+            /usr/libexec/PlistBuddy -c 'Add :com.apple.developer.applesignin:0 string Default' "$ENT"
+            USE_ENT=1
+            echo "Sign in with Apple: entitlement enabled"
+          else
+            echo "::warning::The provisioning profile has no Sign in with Apple capability. Building without it."
+          fi
+          APS=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:aps-environment' "$RUNNER_TEMP/profile.plist" 2>/dev/null || true)
+          if [[ -n "$APS" ]]; then
+            /usr/libexec/PlistBuddy -c "Add :aps-environment string $APS" "$ENT" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :aps-environment $APS" "$ENT"
+            USE_ENT=1
+            echo "Push notifications: entitlement enabled ($APS)"
+          else
+            echo "::warning::The provisioning profile has no Push Notifications capability. Building without server notifications."
+          fi
+          if [[ -n "$USE_ENT" ]]; then echo "HEALTH_ENTITLEMENTS=CODE_SIGN_ENTITLEMENTS=App/App.entitlements" >> "$GITHUB_ENV"; else echo "HEALTH_ENTITLEMENTS=" >> "$GITHUB_ENV"; fi
       - name: Archive signed app for physical iPhone
         working-directory: arisetodo/ios-app
         env:
@@ -97,7 +136,15 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            $HEALTH_ENTITLEMENTS \
             archive
+      - name: Show what the signed app is allowed to use (Apple Health, Sign in with Apple)
+        run: |
+          APP="$RUNNER_TEMP/ARISEToDo.xcarchive/Products/Applications/App.app"
+          ENT=$(codesign -d --entitlements :- "$APP" 2>/dev/null || true)
+          for k in com.apple.developer.healthkit com.apple.developer.applesignin aps-environment; do
+            if printf '%s' "$ENT" | grep -q "$k"; then echo "::notice title=Entitlement::$k is ON in the signed app"; else echo "::warning title=Entitlement::$k is OFF in the signed app"; fi
+          done
       - name: Export App Store Connect IPA
         shell: bash
         run: |

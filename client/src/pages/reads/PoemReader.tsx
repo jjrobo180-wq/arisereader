@@ -1,6 +1,7 @@
 // Read on Arise: one poem on its own page, with the words to know beside it,
 // something to notice, and questions to think about.
 import { useEffect, useMemo, useRef, useState } from "react";
+import { sayAI, stopAiVoice } from "@/lib/aiVoice";
 import { Link, useParams } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { POEMS, poemBySlug, poemLineCount, type Poem } from "@shared/poems";
@@ -11,7 +12,7 @@ import "./reads.css";
 const SIZES = [17, 19, 21, 24];
 const SIZE_KEY = "reads_size";
 const Back = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>;
-const canSpeak = () => typeof window !== "undefined" && "speechSynthesis" in window && typeof SpeechSynthesisUtterance !== "undefined";
+const canSpeak = () => true;
 
 /** What the read-aloud voice says: the title, the poet, then the poem with a breath between stanzas. */
 function spokenText(p: Poem) {
@@ -32,7 +33,7 @@ export default function PoemReader() {
   useEffect(() => {
     window.scrollTo(0, 0);
     setDone(!!slug && poemsRead(user?.id).includes(slug));
-    return () => { if (canSpeak()) window.speechSynthesis.cancel(); setSpeaking(false); };
+    return () => { stopAiVoice(); setSpeaking(false); };
   }, [slug, user?.id]);
 
   // a poem counts as read once its last line has been on screen for a few seconds
@@ -60,18 +61,10 @@ export default function PoemReader() {
   }
 
   const listen = () => {
-    if (!canSpeak()) return;
-    const synth = window.speechSynthesis;
-    if (speaking) { synth.cancel(); setSpeaking(false); return; }
-    synth.cancel();
-    const parts = spokenText(poem);
-    parts.forEach((text, i) => {
-      const u = new SpeechSynthesisUtterance(text);
-      u.rate = 0.85; u.pitch = 1;
-      if (i === parts.length - 1) { u.onend = () => setSpeaking(false); u.onerror = () => setSpeaking(false); }
-      synth.speak(u);
-    });
+    if (speaking) { stopAiVoice(); setSpeaking(false); return; }
+    // An AI voice (lib/aiVoice.ts), never the robot voice; a stanza per piece, so it breathes between them.
     setSpeaking(true);
+    void sayAI(spokenText(poem).join("\n\n"), { voice: "autumn", rate: 0.95, onEnd: () => setSpeaking(false) });
   };
 
   const step = SIZES.indexOf(size);

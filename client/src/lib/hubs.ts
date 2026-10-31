@@ -1,5 +1,4 @@
-import { isNativeReader } from "./nativeApp";
-
+import { isReaderApp } from "./nativeApp";
 // Where adults live: teachers, parents, LifeHub-only accounts and the administrator all sign in
 // with the same screen on either site, and their hub always opens on arisetodo.com
 // (their own free Work and Life spaces on Arise To Duo).
@@ -11,7 +10,8 @@ export const TODO_APP = "https://arisetodo.com/app";
 export const READER_APP = "https://www.arisereader.com/";
 
 export const isTodoHost = () => typeof window !== "undefined" && /^(www\.)?arisetodo\.com$/i.test(window.location.hostname);
-export const isReaderHost = () => typeof window !== "undefined" && (isNativeReader || /^(www\.)?arisereader\.com$/i.test(window.location.hostname));
+/** arisereader.com, or one of the two A.R.I.S.E. Reader iPhone apps (they act as that site). */
+export const isReaderHost = () => typeof window !== "undefined" && (isReaderApp() || /^(www\.)?arisereader\.com$/i.test(window.location.hostname));
 
 /** Teachers, parents, LifeHub-only accounts and the administrator. */
 export function isHubAccount(user: HubUser): boolean {
@@ -36,11 +36,12 @@ export const READER_PAGE = "/reader";
 
 /** Is the page being shown right now the Reader's own page? */
 export const isReaderPage = (): boolean =>
-  typeof window !== "undefined" && (isNativeReader ? window.location.hash.split("?")[0] === "#/reader" : /^\/reader\/?$/.test(window.location.pathname));
+  typeof window !== "undefined" && (isReaderApp() ? window.location.hash.split("?")[0] === "#/reader" : /^\/reader\/?$/.test(window.location.pathname));
 
 /** Opens the Reader's own page. A real navigation, not a hash change: the To-Do app must unload. */
 export function goToReader(): void {
-  if (isNativeReader) { window.location.hash = "#/reader"; return; }
+  // The Reader apps are one bundled page: the Reader is a screen in it (#/reader), not another address.
+  if (isReaderApp()) { window.location.hash = "#/reader"; return; }
   try { window.location.assign(READER_PAGE); } catch { window.location.href = READER_PAGE; }
 }
 
@@ -64,7 +65,7 @@ export function signInHref(student = false): string {
 
 /** After signing out: back to the sign-in screen, on whichever site this is. */
 export function goToSignIn(): void {
-  if (isNativeReader) { window.location.hash = "#/signin"; return; }
+  if (isReaderApp()) { window.location.hash = "#/signin"; return; }
   try { window.location.replace(signInHref()); } catch { window.location.hash = "/signin"; }
 }
 

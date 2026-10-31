@@ -12,11 +12,16 @@ import {
   GENRE, EARSHOT_LIMITS, appleLookupUrl, appleSearchUrl, canComment, cleanComment, cleanPodId, commentAuthor, parseEpisode, parseShow, poolFromEpisodeSearch,
   type PodEpisode, type PodShow, type PoolShow, type TranscriptChunk,
 } from "../shared/earshot";
+import { registerPodPushRoutes, supabasePodPushDb } from "./podPush";
+import { loadAppleKey } from "./applePush";
 import { createDirectory, openAiJson, openAiTranscribe, supabaseKV, type Directory, type Fetcher } from "./podcastDirectory";
 import { supabaseBlobs } from "./blobStore";
 import { registerAudiobookRoutes } from "./audiobooks";
 import { registerMusicRoutes } from "./music";
 import { registerClipsRoutes } from "./podcastClips";
+import { registerStudioRoutes } from "./podcastStudio";
+import { importCache, registerImportRoutes } from "./podcastImport";
+import { aiSpeech } from "./groqVoice";
 import { TOPICS, genreSearchTerms, topicPlaylist } from "../shared/earshotTopics";
 import { crowdFor, memoryAdStore, registerAdRoutes, type AdStore } from "./podcastAds";
 import { copyTranscript, registerPlayRoutes, startOpenings, type Player } from "./podcastPlay";
@@ -32,6 +37,7 @@ import { registerListenRoutes } from "./podcastListen";
 import { perplexityJson } from "./perplexityAsk";
 import { setPerplexityKey } from "./aiProvider";
 import { noteShows } from "./podcastPrecheck";
+import { cleanReason, moderateText, refusedWords, reportFiled } from "./socialModeration";
 
 /** The site's Perplexity key: admin settings first (where book quizzes keep it), then the environment. */
 async function perplexityKey(): Promise<string> {
@@ -177,6 +183,8 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
   const writes = createAttemptLimiter({ max: 120, windowMs: 10 * 60_000 });
   const posts = createAttemptLimiter({ max: 15, windowMs: 10 * 60_000 });
   const reading = createAttemptLimiter({ max: 60, windowMs: 10 * 60_000 });
+  // Bring your shows from another podcast app (server/podcastImport.ts).
+  registerImportRoutes(app, authMiddleware, P, { apple: (url) => dir.apple(url), cached: importCache() });
 
   const uid = (req: any) => String(req.user?.id ?? "");
   const isStudent = (req: any) => req.user?.role === "student";
@@ -574,6 +582,8 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     if (!body) return res.status(400).json({ message: "Write something first." });
     if (limited(posts, req, res, "comments")) return;
     try {
+      const words = await moderateText(body);
+      if (!words.ok) return res.status(400).json({ message: refusedWords(words.reason), filtered: true });
       const comment = await store.addComment({ episodeId: id, showId: cleanPodId(req.body?.showId), userId: uid(req), author: commentAuthor(req.user?.displayName ?? req.user?.display_name), body, t: cleanMoment(req.body?.t) });
       res.json({ comment });
     } catch (e) { storeDown(res, e); }
@@ -591,7 +601,11 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     const id = cleanPodId(req.params.id);
     if (!id) return res.status(400).json({ message: "That isn't a comment." });
     if (limited(writes, req, res)) return;
-    try { await store.reportComment(id, uid(req)); res.json({ ok: true }); }
+    try {
+      await store.reportComment(id, uid(req));
+      reportFiled({ app: P === "/api/podscroll" ? "Pod+" : "Earshot (LifeHub)", what: "comment", table: P === "/api/podscroll" ? "podscroll_comments" : "earshot_comments", id, by: `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, about: "an episode comment", reason: cleanReason(req.body?.reason) });
+      res.json({ ok: true });
+    }
     catch (e) { storeDown(res, e); }
   });
 }
@@ -681,5 +695,17 @@ export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetch
   registerMusicRoutes(app, gate, socialDb ? { kv: supabaseKV(socialDb) } : {});
   // Clips (server/podcastClips.ts): the owner's shared list of TikTok videos.
   registerClipsRoutes(app, gate, socialDb ? { kv: supabaseKV(socialDb) } : {});
+  // Study Pod+ and Meeting Pod (server/podcastStudio.ts): the person's own notes, turned into a podcast or a meeting summary.
+  registerStudioRoutes(app, gate, { ask: openAiJson, speak: (text, voice) => aiSpeech(text, voice), transcribe: openAiTranscribe, ...(socialDb ? { blobs: supabaseBlobs(socialDb) } : {}) });
   registerEarshotRoutes(app, gate, { store, fetcher, directory, adStore, player, socialDb, prefix: "/api/podscroll" });
+  // New-episode notifications for the Pod+ iPhone app (server/podPush.ts).
+  if (socialDb) {
+    const dir = directory ?? (fetcher ? createDirectory({ fetcher }) : (sharedDirectory ??= createDirectory()));
+    registerPodPushRoutes(app, gate, {
+      db: supabasePodPushDb(socialDb),
+      newest: async (id) => { const { show, episodes } = await dir.loadShow(id); const e = episodes[0]; return show && e ? { show: show.name, episodeId: e.id, title: e.title } : null; },
+      idle: () => dir.idle(),
+      loadKey: () => loadAppleKey(async () => (await socialDb().from("push_settings").select("apns_key, apns_key_id, apns_team_id").eq("id", 1).maybeSingle()).data as any),
+    }, { ticker: !fetcher && process.env.NODE_ENV !== "test" });
+  }
 }

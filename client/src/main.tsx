@@ -1,5 +1,5 @@
-import { isNativeApp, isNativeReader, nativeApiOrigin } from "./lib/nativeApp";
 import "./lib/sampleBoot";
+import { nativeAppInfo } from "./lib/nativeApp";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
@@ -7,10 +7,14 @@ import "./login-mobile-fix.css";
 import "./keyboard-inset.css";
 import { watchKeyboard } from "./lib/keyboardInset";
 import { installDuoPaneBridge } from "./lib/duoPaneBridge";
-import { installMediaUnlock } from "./lib/mediaUnlock";
+import { installMediaUnlock, voiceElement } from "./lib/mediaUnlock";
+import { configureAiVoice } from "@/lib/aiVoice";
+import { API_BASE } from "@/lib/queryClient";
 
 // Sound on tablets: the first tap unlocks game sounds and voice lines (lib/mediaUnlock.ts).
 installMediaUnlock();
+// Spoken lines everywhere use the AI voice, through the one unlocked player.
+configureAiVoice({ base: API_BASE, element: voiceElement });
 
 // A pane of the Arise To Duo split screen: one shared floating button instead of each pane's own.
 installDuoPaneBridge();
@@ -45,10 +49,11 @@ if (!window.location.hash) {
 // production web origin. Route relative API calls to the production backend.
 // The backend must explicitly allow the Capacitor origin and credentialed CORS
 // for authenticated sessions; this is verified separately before release.
-const isAriseTodoNative = isNativeApp;
+const isAriseTodoNative = window.location.protocol === "capacitor:";
 if (isAriseTodoNative && (!window.location.hash || window.location.hash === "#/")) {
-  window.location.hash = isNativeReader ? "#/signin?as=student" : "#/signin";
+  window.location.hash = "#/signin";
 }
+const nativeApiOrigin = nativeAppInfo().api;
 function resolveNativeApiUrl(url: string): string {
   if (!isAriseTodoNative || !url.startsWith("/api/")) return url;
   return nativeApiOrigin + url;

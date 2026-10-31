@@ -6,6 +6,8 @@ import { Bell, BellOff, Loader2, Share, SquarePlus } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { Panel, plain, primary } from "./ui";
+import NativeRemindersPanel from "@/components/NativeRemindersPanel";
+import { isNativeApp } from "@/lib/nativeApp";
 
 type Phase = "checking" | "unsupported" | "install" | "off" | "on" | "blocked" | "unavailable";
 
@@ -34,7 +36,13 @@ async function currentSubscription() {
   return registration.pushManager.getSubscription();
 }
 
+/** In the iPhone app, reminders are scheduled on the phone (lib/nativeReminders.ts); on the web, Web Push. */
 export default function TodoNotifications() {
+  if (isNativeApp()) return <Panel eyebrow="Reminders" title="Notifications on this iPhone"><NativeRemindersPanel kind="life" buttonClass={primary + " min-h-11"} ghostClass={plain} /></Panel>;
+  return <WebTodoNotifications />;
+}
+
+function WebTodoNotifications() {
   const { token } = useAuth();
   const [phase, setPhase] = useState<Phase>("checking");
   const [busy, setBusy] = useState(false);

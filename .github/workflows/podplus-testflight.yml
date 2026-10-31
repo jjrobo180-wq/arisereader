@@ -5,6 +5,7 @@ on:
   push:
     branches: [feat/podplus-ios-app-store-starter]
     paths:
+      - '.github/scripts/**'
       - '.github/workflows/podplus-testflight.yml'
 jobs:
   signed-archive:
@@ -46,6 +47,7 @@ jobs:
           npm install --no-audit --no-fund
           npx cap add ios
           npx cap sync ios
+          python3 configure-ios.py ios/App/App/Info.plist
       - name: Prepare beta icon and build number
         working-directory: podscroll/ios-app
         run: |
@@ -73,6 +75,29 @@ jobs:
           if [[ "$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/profile.plist")" != '6TYWWNKX6P.com.arisereader.podplus' ]]; then
             python3 podscroll/ios-app/find-existing-profile.py com.arisereader.podplus "$RUNNER_TEMP/profile.mobileprovision" --create-missing-profile
             security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
+          fi
+          # Sign in with Apple and push notifications on the App ID, and a profile that includes them (same certificate).
+          python3 .github/scripts/apple_signing.py com.arisereader.podplus "$RUNNER_TEMP/profile.mobileprovision" APPLE_ID_AUTH PUSH_NOTIFICATIONS
+          security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
+          if /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.applesignin' "$RUNNER_TEMP/profile.plist" >/dev/null 2>&1; then
+            ENT=podscroll/ios-app/ios/App/App/App.entitlements
+            /usr/libexec/PlistBuddy -c 'Add :com.apple.developer.applesignin array' "$ENT"
+            /usr/libexec/PlistBuddy -c 'Add :com.apple.developer.applesignin:0 string Default' "$ENT"
+            echo "SIGN_ENTITLEMENTS=CODE_SIGN_ENTITLEMENTS=App/App.entitlements" >> "$GITHUB_ENV"
+          else
+            echo "::warning::The provisioning profile has no Sign in with Apple capability. Building without it."
+            echo "SIGN_ENTITLEMENTS=" >> "$GITHUB_ENV"
+          fi
+          # Push notifications (new episodes from followed shows): the aps-environment entitlement.
+          APS=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:aps-environment' "$RUNNER_TEMP/profile.plist" 2>/dev/null || true)
+          if [[ -n "$APS" ]]; then
+            ENT=podscroll/ios-app/ios/App/App/App.entitlements
+            [[ -f "$ENT" ]] || printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict/></plist>\n' > "$ENT"
+            /usr/libexec/PlistBuddy -c "Add :aps-environment string $APS" "$ENT" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :aps-environment $APS" "$ENT"
+            echo "SIGN_ENTITLEMENTS=CODE_SIGN_ENTITLEMENTS=App/App.entitlements" >> "$GITHUB_ENV"
+            echo "Push notifications: entitlement enabled ($APS)"
+          else
+            echo "::warning::The provisioning profile has no Push Notifications capability. Building without notifications."
           fi
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
@@ -103,6 +128,7 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            $SIGN_ENTITLEMENTS \
             archive
       - name: Export App Store Connect IPA
         shell: bash

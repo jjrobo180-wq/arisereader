@@ -6,8 +6,12 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { GENRE, GENRES, chooseEpisode, hiRes, isTeaser, pickNext, tasteOf, type Candidate, type PodMode, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal } from "@shared/earshot";
 import { Mic2 } from "lucide-react";
 import { StandupHub } from "./Standup";
-import { Clips } from "./Clips";
-import { Bell, BookOpen, Check, Clapperboard, LogOut, Zap, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, Monitor, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Music as MusicIcon, Search, Sparkles, ThumbsUp, Users, X, Pause, Play } from "lucide-react";
+import { StudioView } from "./Studio";
+import { ImportView } from "./Import";
+import { ArrowDownToLine } from "lucide-react";
+import { Briefcase, GraduationCap } from "lucide-react";
+import { AccountSheet } from "./Account";
+import { Bell, BookOpen, Check, LogOut, PlusCircle, ShieldCheck, Zap, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, Monitor, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Music as MusicIcon, Search, Sparkles, ThumbsUp, Users, X, Pause, Play } from "lucide-react";
 import { RadioBar, RadioView, type Station } from "./Radio";
 import { MusicBar, MusicView, type Listening } from "./Music";
 import { AudiobookBar, AudiobooksView, BookPage, type Reading } from "./Audiobooks";
@@ -22,7 +26,7 @@ import { setTheme, useTheme } from "../client/src/components/family-hub/earshot/
 import { HoursBackCard } from "../client/src/components/family-hub/earshot/EarshotListen";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
-type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "music" } | { kind: "books" } | { kind: "book"; id: string } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "live" } | { kind: "now" } | { kind: "standup" } | { kind: "clips" } | { kind: "watch"; showId: string; episodeId: string };
+type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "music" } | { kind: "books" } | { kind: "book"; id: string } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "live" } | { kind: "now" } | { kind: "standup" } | { kind: "study" } | { kind: "meeting" } | { kind: "import" } | { kind: "clips" } | { kind: "watch"; showId: string; episodeId: string };
 
 const DEFAULT_GENRES = ["comedy", "news", "science", "tech", "truecrime", "history", "business", "culture"];
 const ACCENT = "#ff6a1f";
@@ -55,7 +59,10 @@ function parseHash(): View {
   if (a === "live") return { kind: "live" };
   if (a === "now" || a === "news") return { kind: "now" };
   if (a === "standup") return { kind: "standup" };
-  if (a === "clips") return { kind: "clips" };
+  if (a === "study") return { kind: "study" };
+  if (a === "meeting") return { kind: "meeting" };
+  if (a === "import") return { kind: "import" };
+  // Clips was taken out of Pod+ (October 2026); old links open the home page.
   if (a === "party" && /^(new|[A-Za-z0-9_-]{6,20})$/.test(b || "")) return { kind: "party", id: b };
   if (a === "mode" && /^[a-z0-9-]{1,30}$/.test(b || "")) return { kind: "mode", id: b };
   return { kind: "home" };
@@ -301,6 +308,9 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   };
   const hidden = useMemo(() => ({ shows: new Set(es.blocked ?? []), eps: hiddenEps }), [es.blocked, hiddenEps]);
   const [acctOpen, setAcctOpen] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
+  /** The phone tab bar's two sheets: "+" (make something) and "You" (account, library and settings). */
+  const [tabSheet, setTabSheet] = useState<"create" | "you" | null>(null);
   // Fresh Pod Modes rebuild once a day with the newest episodes (Morning Briefing: today's top news).
   const freshTried = useRef(new Set<string>());
   useEffect(() => {
@@ -458,8 +468,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       </div>
       <form role="search" className="flex min-w-0 max-w-[640px] flex-1 items-center" onSubmit={(e) => { e.preventDefault(); const t = q.trim(); if (t.length >= 2) go({ kind: "search", q: t }); }}>
         <label htmlFor="ps-q" className="sr-only">Search podcasts</label>
-        <input id="ps-q" type="search" value={q} onChange={(e) => setQ(e.target.value)} onFocus={() => { setSearching(true); setHint(0); }} onBlur={() => setSearching(false)} placeholder={narrow ? "Search" : HINTS[hint]} aria-label="Search podcasts" className="h-10 min-w-0 flex-1 rounded-l-full border border-r-0 border-[#d3d3d3] px-4 text-base text-[#0f0f0f] outline-none placeholder:text-[#888] focus:border-[#1c62b9]" />
-        <button type="submit" aria-label="Search" className="inline-flex h-10 w-14 shrink-0 items-center justify-center rounded-r-full border border-[#d3d3d3] bg-[#f8f8f8] hover:bg-[#f0f0f0] sm:w-16"><Search size={20} strokeWidth={1.8} /></button>
+        <input id="ps-q" type="search" value={q} onChange={(e) => setQ(e.target.value)} onFocus={() => { setSearching(true); setHint(0); }} onBlur={() => setSearching(false)} placeholder={narrow ? "Search" : HINTS[hint]} aria-label="Search podcasts" className="h-10 min-w-0 flex-1 rounded-l-full border border-r-0 border-[#d3d3d3] px-3 text-base sm:px-4 text-[#0f0f0f] outline-none placeholder:text-[#888] focus:border-[#1c62b9]" />
+        <button type="submit" aria-label="Search" className="inline-flex h-10 w-11 shrink-0 items-center justify-center rounded-r-full border border-[#d3d3d3] bg-[#f8f8f8] hover:bg-[#f0f0f0] sm:w-16"><Search size={20} strokeWidth={1.8} /></button>
       </form>
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">
         <div role="group" aria-label="Appearance: Auto, Light, Dark" className="hidden shrink-0 items-center gap-0.5 rounded-full border border-[#d3d3d3] p-1 lg:flex">
@@ -471,12 +481,13 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
         <button onClick={() => onOpenFeed()} className="hidden h-9 items-center gap-2 rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2] md:inline-flex"><Sparkles size={17} strokeWidth={1.8} />Swipe feed</button>
         {!pro && <button onClick={onJoin} className="hidden h-9 items-center rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white hover:bg-[#272727] lg:inline-flex">Go ad-free</button>}
         {!pro
-          ? <button onClick={onSignIn} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[#d3d3d3] px-3 text-sm font-medium text-[#065fd4] hover:bg-[#def1ff]"><UserCircle size={19} strokeWidth={1.8} /><span>Sign in</span></button>
+          ? <button onClick={onSignIn} aria-label="Sign in" className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[#d3d3d3] px-2 text-sm font-medium text-[#065fd4] hover:bg-[#def1ff] min-[420px]:px-3"><UserCircle size={19} strokeWidth={1.8} /><span className="hidden min-[420px]:inline">Sign in</span></button>
           : <span className="relative">
             <button onClick={() => setAcctOpen((v) => !v)} aria-expanded={acctOpen} aria-label="Your account" className="grid h-9 w-9 place-items-center rounded-full bg-[#ff6a1f] text-sm font-bold text-white">{email ? email.slice(0, 1).toUpperCase() : <UserCircle size={20} />}</button>
             {acctOpen && <div className="absolute right-0 top-11 z-40 w-64 rounded-xl border border-[#e5e5e5] bg-white p-2 text-[#0f0f0f] shadow-2xl">
               <p className="truncate px-3 pb-2 pt-1 text-sm font-semibold">{email || "Signed in"}</p>
               <p className="px-3 pb-2 text-xs text-[#606060]">Pod+ Member</p>
+              <button onClick={() => { setAcctOpen(false); setPrivacyOpen(true); }} className="flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm hover:bg-[#f2f2f2]"><ShieldCheck size={16} />Account & privacy</button>
               <button onClick={() => { setAcctOpen(false); onSignOut(); }} className="flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm hover:bg-[#f2f2f2]"><LogOut size={16} />Sign out</button>
             </div>}
           </span>}
@@ -496,16 +507,18 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       {navItem("Social", <MessageCircle size={22} strokeWidth={1.8} />, false, () => onOpenFeed(undefined, "social"))}
       {navItem("Radio", <RadioIcon size={22} strokeWidth={1.8} />, view.kind === "radio", () => go({ kind: "radio" }))}
       {navItem("Music", <MusicIcon size={22} strokeWidth={1.8} />, view.kind === "music", () => go({ kind: "music" }))}
-      {navItem("Clips", <Clapperboard size={22} strokeWidth={1.8} />, view.kind === "clips", () => go({ kind: "clips" }))}
       {navItem("Up to the minute news", <Zap size={22} strokeWidth={1.8} />, view.kind === "now", () => go({ kind: "now" }))}
       {navItem("Stand-up", <Mic2 size={22} strokeWidth={1.8} />, view.kind === "standup", () => go({ kind: "standup" }))}
       {navItem("Audiobooks", <BookOpen size={22} strokeWidth={1.8} />, view.kind === "books" || view.kind === "book", () => go({ kind: "books" }))}
       {navItem("Listen together", <Users size={22} strokeWidth={1.8} />, view.kind === "party", () => go({ kind: "party", id: "new" }))}
+      {navItem("Study Pod+", <GraduationCap size={22} strokeWidth={1.8} />, view.kind === "study", () => go({ kind: "study" }))}
+      {navItem("Meeting Pod", <Briefcase size={22} strokeWidth={1.8} />, view.kind === "meeting", () => go({ kind: "meeting" }))}
       {navItem(live.length ? `Live · ${live.length}` : "Live", <span className="grid h-[22px] w-[22px] place-items-center"><span className={`h-2.5 w-2.5 rounded-full bg-[#ff3b30] ${live.length ? "motion-safe:animate-pulse" : "opacity-50"}`} /></span>, view.kind === "live", () => go({ kind: "live" }))}
       {navItem("Go live", <Mic size={22} strokeWidth={1.8} />, false, () => setGoLive(true))}
       <div className="my-3 h-px bg-[#e5e5e5]" />
       <p className="mx-3 mb-1.5 mt-1 text-base font-semibold">You</p>
       {navItem("Library", <Library size={22} strokeWidth={1.8} />, false, () => onOpenFeed(undefined, "library"))}
+      {navItem("Bring your shows", <ArrowDownToLine size={22} strokeWidth={1.8} />, view.kind === "import", () => go({ kind: "import" }))}
       {navItem("Liked episodes", <ThumbsUp size={22} strokeWidth={1.8} />, view.kind === "liked", () => go({ kind: "liked" }))}
       {navItem("Listen later", <Clock size={22} strokeWidth={1.8} />, view.kind === "later", () => go({ kind: "later" }))}
       <div className="my-3 h-px bg-[#e5e5e5]" />
@@ -529,6 +542,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
           api(`/api/earshot/show/${f.id}?x=1${ex}`).then((b) => { const e = (b.episodes || [])[0]; if (e) openEp(e); else say("No episodes to play yet."); }).catch((e) => say(e.message));
         }))}
       </>}
+      <div className="my-3 h-px bg-[#e5e5e5]" />
+      {navItem("Account & privacy", <ShieldCheck size={22} strokeWidth={1.8} />, false, () => setPrivacyOpen(true))}
       <div className="my-3 h-px bg-[#e5e5e5]" />
       {pro
         ? <p className="mx-3 text-sm text-[#606060]"><b className="text-[#0f0f0f]">Pod+ Member.</b> Ads get skipped, and your show can earn.</p>
@@ -573,11 +588,12 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       </section>;
   } else if (view.kind === "now") {
     content = <div className="min-w-0 flex-1 px-4 pb-16 sm:px-6"><NewsNow api={api} ex={ex} onOpen={openEp} onBack={() => go({ kind: "home" })} grid={(list) => <Grid list={list} onOpen={openEp} />} /></div>;
-  } else if (view.kind === "clips") {
-    // Clips: the owner's shared list of TikTok videos (server/podcastClips.ts).
-    content = <div className="mx-auto min-w-0 max-w-[560px] flex-1 px-4 sm:px-6"><Clips api={api} say={say} onBack={() => go({ kind: "home" })} onSignIn={onSignIn} /></div>;
   } else if (view.kind === "standup") {
     content = <div className="min-w-0 flex-1 px-4 sm:px-6"><StandupHub api={api} ex={ex} say={say} onBack={() => go({ kind: "home" })} grid={(list) => <Grid list={list} onOpen={openEp} />} /></div>;
+  } else if (view.kind === "import") {
+    content = <ImportView api={api} es={es} update={update} say={say} onBack={() => go({ kind: "home" })} onSearch={(q) => go({ kind: "search", q })} onFollowing={() => onOpenFeed(undefined, "library")} />;
+  } else if (view.kind === "study" || view.kind === "meeting") {
+    content = <StudioView kind={view.kind} api={api} apiBase={liveBase.replace(/^ws/, "http")} say={say} onBack={() => go({ kind: "home" })} onSwitch={(k) => go({ kind: k })} />;
   } else if (view.kind === "radio") {
     content = <RadioView onPlay={playStation} current={station} />;
   } else if (view.kind === "music") {
@@ -618,7 +634,9 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
         </div>
       </div>}
 
-      {chip === "all" && !pro && <section aria-label="Pod+ Membership" className="ps-keep relative mb-6 mt-1 overflow-hidden rounded-2xl bg-[#0f0f0f] text-white">
+      {chip === "all" && <ContinueListening nowPod={nowPod} visible={visible} onToggle={onPodToggle} onOpenNow={onPodOpen}
+        onResume={(id, sp) => onOpenFeed({ showId: sp.showId, episodeId: id })} />}
+      {chip === "all" && !pro && <section aria-label="Pod+ Membership" className="ps-keep relative mb-6 mt-1 overflow-hidden rounded-2xl bg-[#0f0f0f] text-white ring-1 ring-white/10">
         <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[.18em] text-[#ff8a3d]">Pod+ Membership</p>
@@ -639,7 +657,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
 
       {!topic && chip !== "all" && <TopShows shows={topShows} onShow={openShowLatest} label={`Top in ${GENRE[chip]?.name ?? ""}`} note="Everything below stays unranked." />}
 
-      {chip === "all" && es.settings.hoursBack && <div className="mb-5"><HoursBackCard light onHide={() => { update((e) => ({ ...e, settings: { ...e.settings, hoursBack: false } })); say("Hours back is hidden. Turn it on again in Settings."); }} /></div>}
+      {chip === "all" && es.settings.hoursBack && <div className="mb-5"><HoursBackCard light member={pro} onJoin={onJoin} onHide={() => { update((e) => ({ ...e, settings: { ...e.settings, hoursBack: false } })); say("Hours back is hidden. Turn it on again in Settings."); }} /></div>}
       {chip === "all" && <ModesRow es={es} update={update} onOpen={(m) => go({ kind: "mode", id: m.id })} onNew={() => setNewMode(true)} onDrive={() => onOpenFeed(undefined, undefined, { id: "__drive", index: 0 })} onNews={() => go({ kind: "now" })} />}
 
 
@@ -680,7 +698,57 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
           : <button onClick={() => { setDrawer(false); onSignIn(); }} className="flex h-10 w-full items-center gap-6 rounded-[10px] px-3 text-left text-sm font-medium text-[#065fd4] hover:bg-[#def1ff]"><UserCircle size={22} strokeWidth={1.8} />Sign in</button>}
       </nav>
     </div>}
-    <div className={`flex items-start ${station || reading || listening || nowPod ? "pb-20" : ""}`}>{sidebar}<main className="min-w-0 flex-1">{content}</main></div>
+    <div className={`flex items-start ${station || reading || listening || nowPod ? "pb-20" : ""}`}>{sidebar}<main className="min-w-0 flex-1 pb-24 lg:pb-0">{content}</main></div>
+    {/* Phones: a floating tab bar (Home, Swipe feed, Create, You), like the iPhone's own apps. It
+        sits above whatever is playing at the bottom. The full menu is still behind ☰. */}
+    {view.kind !== "watch" && <nav aria-label="Pod+ tabs" className="ps-keep fixed left-1/2 z-[45] flex w-[min(92vw,420px)] -translate-x-1/2 items-center justify-between rounded-full bg-[#121212]/90 p-1.5 text-white shadow-[0_10px_40px_rgba(0,0,0,.35)] ring-1 ring-white/10 backdrop-blur-xl lg:hidden"
+      style={{ bottom: `calc(env(safe-area-inset-bottom, 0px) + ${station || reading || listening || nowPod ? "5.25rem" : "0.75rem"})` }}>
+      {([
+        ["home", "Home", <HomeIcon key="h" size={24} strokeWidth={1.9} />, view.kind === "home" && !tabSheet, () => { setTabSheet(null); setChip("all"); go({ kind: "home" }); }],
+        ["feed", "Swipe feed", <Sparkles key="f" size={24} strokeWidth={1.9} />, false, () => { setTabSheet(null); onOpenFeed(); }],
+        ["create", "Create", <PlusCircle key="c" size={28} strokeWidth={1.7} />, tabSheet === "create", () => setTabSheet((t) => (t === "create" ? null : "create"))],
+        ["you", "You", pro && email ? <span key="y" className="grid h-8 w-8 place-items-center rounded-full bg-[#ff6a1f] text-sm font-bold">{email.slice(0, 1).toUpperCase()}</span> : <UserCircle key="y" size={26} strokeWidth={1.8} />, tabSheet === "you", () => setTabSheet((t) => (t === "you" ? null : "you"))],
+      ] as const).map(([id, label, icon, on, act]) => <button key={id} type="button" onClick={act} aria-label={label} aria-pressed={on} data-testid={`pod-tab-${id}`}
+        className={`flex h-12 flex-1 items-center justify-center rounded-full transition ${on ? "bg-white/15" : "active:bg-white/10"}`}>{icon}</button>)}
+    </nav>}
+    {tabSheet && <div role="dialog" aria-modal="true" aria-label={tabSheet === "create" ? "Create" : "You"} onClick={(e) => { if (e.target === e.currentTarget) setTabSheet(null); }}
+      className="fixed inset-0 z-[44] flex items-end bg-black/40 px-3 lg:hidden" style={{ paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + ${station || reading || listening || nowPod ? "10rem" : "5.5rem"})` }}>
+      <div className="max-h-[70dvh] w-full overflow-y-auto rounded-3xl bg-white p-2 text-[#0f0f0f] shadow-2xl">
+        {tabSheet === "create" ? <>
+          <p className="px-3 pb-1 pt-2 text-sm font-semibold text-[#606060]">Create</p>
+          {navItem("Study Pod+", <GraduationCap size={22} strokeWidth={1.8} />, view.kind === "study", () => { setTabSheet(null); go({ kind: "study" }); })}
+          {navItem("Meeting Pod", <Briefcase size={22} strokeWidth={1.8} />, view.kind === "meeting", () => { setTabSheet(null); go({ kind: "meeting" }); })}
+          {navItem("Post on Social", <MessageCircle size={22} strokeWidth={1.8} />, false, () => { setTabSheet(null); onOpenFeed(undefined, "social"); })}
+          {navItem("Go live", <Mic size={22} strokeWidth={1.8} />, false, () => { setTabSheet(null); setGoLive(true); })}
+          {navItem("Listen together", <Users size={22} strokeWidth={1.8} />, false, () => { setTabSheet(null); go({ kind: "party", id: "new" }); })}
+          {navItem("Open Mic", <Mic2 size={22} strokeWidth={1.8} />, false, () => { setTabSheet(null); onOpenFeed(undefined, "openmic"); })}
+        </> : <>
+          <div className="flex items-center gap-3 px-3 py-2">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#ff6a1f] text-lg font-bold text-white">{pro && email ? email.slice(0, 1).toUpperCase() : <UserCircle size={24} />}</span>
+            <span className="min-w-0 flex-1"><span className="block truncate text-[15px] font-semibold">{pro ? email || "Pod+ Member" : "Listening without an account"}</span><span className="block text-xs text-[#606060]">{pro ? "Pod+ Member" : "Sign in to keep your place on every device"}</span></span>
+            {!pro && <button type="button" onClick={() => { setTabSheet(null); onSignIn(); }} className="h-9 shrink-0 rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white">Sign in</button>}
+          </div>
+          <div className="my-1 h-px bg-[#e5e5e5]" />
+          {navItem("Library", <Library size={22} strokeWidth={1.8} />, false, () => { setTabSheet(null); onOpenFeed(undefined, "library"); })}
+          {navItem("Bring your shows from another app", <ArrowDownToLine size={22} strokeWidth={1.8} />, view.kind === "import", () => { setTabSheet(null); go({ kind: "import" }); })}
+          {navItem("Liked episodes", <ThumbsUp size={22} strokeWidth={1.8} />, view.kind === "liked", () => { setTabSheet(null); go({ kind: "liked" }); })}
+          {navItem("Listen later", <Clock size={22} strokeWidth={1.8} />, view.kind === "later", () => { setTabSheet(null); go({ kind: "later" }); })}
+          {navItem("Your interests", <Heart size={22} strokeWidth={1.8} />, false, () => { setTabSheet(null); onEditInterests(); })}
+          <div className="px-3 py-2" role="group" aria-label="Appearance">
+            <p className="mb-2 text-xs font-semibold text-[#606060]">Appearance</p>
+            <div className="flex gap-1 rounded-xl border border-[#e5e5e5] p-1">
+              {([["system", "Auto", Monitor], ["light", "Light", Sun], ["dark", "Dark", Moon]] as const).map(([value, label, Icon]) => (
+                <button type="button" key={value} onClick={() => setTheme(value)} aria-pressed={theme === value}
+                  className={`flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg text-[13px] font-semibold ${theme === value ? "bg-[#ff6a1f] text-white" : "text-[#606060] hover:bg-[#f2f2f2]"}`}><Icon size={16} />{label}</button>
+              ))}
+            </div>
+          </div>
+          {navItem("Account & privacy", <ShieldCheck size={22} strokeWidth={1.8} />, false, () => { setTabSheet(null); setPrivacyOpen(true); })}
+          {pro && navItem("Sign out", <LogOut size={22} strokeWidth={1.8} />, false, () => { setTabSheet(null); onSignOut(); })}
+        </>}
+      </div>
+    </div>}
+    {privacyOpen && <AccountSheet api={api} email={email} signedIn={pro} say={say} onClose={() => setPrivacyOpen(false)} />}
     {nowPod && !station && !reading && !listening && <div role="region" aria-label="Now playing podcast" className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5e5e5] bg-white/95 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur">
       <div className="mx-auto flex h-14 max-w-2xl items-center gap-3 px-3">
         <button onClick={onPodOpen} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Open ${nowPod.title}`}>
@@ -912,4 +980,56 @@ function TopicResults({ topic, api, ex, onOpen, top }: { topic: string; api: Api
       {list.length ? <div className="mt-2"><p className="mb-1 text-[12px] font-semibold uppercase tracking-[.14em] text-[#767676]">Every episode, newest first</p><Endless resetKey={topic} seed={list} more={moreFn} grid={(l) => <Grid list={l} onOpen={onOpen} />} /></div> : <p className="py-16 text-center text-[#606060]">Nothing mentions “{topic}” yet. Try a different spelling.</p>}
     </>}
   </div>;
+}
+
+
+// ---- Continue listening: the episode you were on, and the ones you didn't finish ----
+// Each podcast's spot is kept on this device by the player (EarshotPlayer saveSpot, "earshot.spots"),
+// and playing an episode again starts from there, so a tap here picks up where you stopped.
+type Spot = { t: number; secs: number; title: string; show: string; showId: string; art: string; at: number };
+function readSpotsHere(): [string, Spot][] {
+  try {
+    const v = JSON.parse(localStorage.getItem("earshot.spots") || "{}");
+    if (!v || typeof v !== "object") return [];
+    return (Object.entries(v) as [string, Spot][]).filter(([, s]) => s && s.showId && s.title && s.t > 0).sort((a, b) => b[1].at - a[1].at);
+  } catch { return []; }
+}
+const leftWords = (s: Spot) => { if (!s.secs) return `${Math.max(1, Math.round(s.t / 60))} min in`; const m = Math.max(1, Math.round((s.secs - s.t) / 60)); return m >= 60 ? `${Math.floor(m / 60)} hr ${m % 60} min left` : `${m} min left`; };
+
+function ContinueListening({ nowPod, visible, onToggle, onOpenNow, onResume }: { nowPod: NowPlaying | null; visible: boolean; onToggle?: () => void; onOpenNow?: () => void; onResume: (id: string, s: Spot) => void }) {
+  const [spots, setSpots] = useState<[string, Spot][]>(readSpotsHere);
+  // Fresh every time Home is shown (the player saves spots while it plays).
+  useEffect(() => { if (visible) setSpots(readSpotsHere()); }, [visible, nowPod?.title]);
+  const hide = (id: string) => {
+    try { const v = JSON.parse(localStorage.getItem("earshot.spots") || "{}"); delete v[id]; localStorage.setItem("earshot.spots", JSON.stringify(v)); } catch { /* not kept */ }
+    setSpots((x) => x.filter(([k]) => k !== id));
+  };
+  const rest = spots.filter(([, s]) => !nowPod || s.title !== nowPod.title).slice(0, 12);
+  if (!nowPod && !rest.length) return null;
+  const art = (src: string) => src ? <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-11 w-11 shrink-0 rounded-lg object-cover" /> : <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-[#f2f2f2] text-[#909090]"><Play size={16} /></span>;
+  const card = "relative flex w-[17.5rem] shrink-0 snap-start items-center gap-2.5 overflow-hidden rounded-2xl border border-[#e8e8e8] bg-white py-2 pl-2 pr-2.5";
+  // One slim row you swipe sideways: what's playing (or paused) first, then the episodes you didn't finish.
+  return <section aria-label="Continue listening" className="mb-5 mt-1" data-testid="pod-continue">
+    <p className="mb-1.5 text-[13px] font-semibold text-[#606060]">Continue listening</p>
+    <div className="-mx-4 flex snap-x snap-mandatory gap-2.5 overflow-x-auto scroll-px-4 px-4 pb-1 [scrollbar-width:none] sm:-mx-6 sm:scroll-px-6 sm:px-6 [&::-webkit-scrollbar]:hidden" data-testid="pod-continue-row">
+      {nowPod && <div className={card}>
+        <button onClick={onOpenNow} className="flex min-w-0 flex-1 items-center gap-2.5 text-left" aria-label={`Open ${nowPod.title}`}>
+          {art(nowPod.art)}
+          <span className="min-w-0"><span className="block truncate text-[14px] font-semibold leading-tight">{nowPod.title}</span>
+            <span className="mt-0.5 block truncate text-[12px] text-[#606060]">{nowPod.playing ? "Playing now" : "Paused"} · {nowPod.show}</span></span>
+        </button>
+        <button onClick={onToggle} data-testid="pod-continue-toggle" aria-label={nowPod.playing ? "Pause" : "Resume"} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#0f0f0f] text-white">{nowPod.playing ? <Pause size={15} fill="currentColor" strokeWidth={0} /> : <Play size={15} fill="currentColor" strokeWidth={0} className="ml-0.5" />}</button>
+      </div>}
+      {rest.map(([id, sp], k) => <div key={id} className={card}>
+        <button onClick={() => onResume(id, sp)} className="flex min-w-0 flex-1 items-center gap-2.5 text-left" aria-label={`Continue ${sp.title}`}>
+          {art(sp.art)}
+          <span className="min-w-0"><span className="block truncate text-[14px] font-semibold leading-tight">{sp.title}</span>
+            <span className="mt-0.5 block truncate text-[12px] text-[#606060]">{leftWords(sp)} · {sp.show}</span></span>
+        </button>
+        <button onClick={() => onResume(id, sp)} data-testid={!nowPod && k === 0 ? "pod-continue-play" : undefined} aria-label={`Play ${sp.title}`} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#e0e0e0] text-[#0f0f0f]"><Play size={15} fill="currentColor" strokeWidth={0} className="ml-0.5" /></button>
+        <button onClick={() => hide(id)} aria-label={`Remove ${sp.title} from Continue listening`} className="absolute right-0.5 top-0.5 grid h-6 w-6 place-items-center rounded-full text-[#b0b0b0] hover:text-[#606060]"><X size={12} /></button>
+        {sp.secs > 0 && <span className="absolute inset-x-0 bottom-0 h-[2px] bg-[#f0f0f0]"><span className="block h-full bg-[#ff6a1f]" style={{ width: `${Math.min(100, (sp.t / sp.secs) * 100)}%` }} /></span>}
+      </div>)}
+    </div>
+  </section>;
 }
