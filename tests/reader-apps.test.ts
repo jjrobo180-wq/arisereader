@@ -60,3 +60,9 @@ test("every app lets its owner delete their account, Apple accounts included", (
   assert.match(read("client/src/pages/Profile.tsx"), /isNativeApp\(\) && <Button variant="ghost" size="sm" onClick=\{\(\) => setPrivacy\(true\)\}/, "student app");
   assert.match(read("client/src/App.tsx"), /isNativeApp\(\) \? <Redirect to="\/signin" replace \/> : <iframe src="\/reader-landing\.html"/, "signed out in an app: the app's sign-in, never the website's landing page");
 });
+
+test("opening a Reader app doesn't stop other apps' music", () => {
+  const s = read(".github/scripts/configure_reader_app.py");
+  assert.match(s, /setCategory\(\.ambient, mode: \.default, options: \[\.mixWithOthers\]\)/);
+  assert.match(s, /sys\.exit\("AppDelegate: launch method not found/, "the build fails rather than ship an app that stops other audio");
+});
