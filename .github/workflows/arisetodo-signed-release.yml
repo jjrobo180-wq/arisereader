@@ -60,6 +60,7 @@ jobs:
         working-directory: arisetodo/ios-app
         run: |
           npm install --no-audit --no-fund
+          python3 ../../.github/scripts/ota_setup.py todo
           npx cap add ios
           npx cap sync ios
       - name: Prepare beta icon and build number

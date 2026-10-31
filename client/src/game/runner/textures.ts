@@ -4,6 +4,14 @@ import { hex, type Thing, type WorldLook } from "@shared/runner/missions";
 
 export const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Twemoji Mozilla",sans-serif';
 export type CardStyle = "both" | "words" | "pictures";
+/** Draws a big emoji. Safari (iPad and iPhone) draws nothing for an emoji over about 250px on a
+ *  canvas, so it's drawn at 200px on its own canvas and scaled up into place. */
+export function bigEmoji(c: CanvasRenderingContext2D, emoji: string, x: number, y: number, size: number) {
+  const draw = Math.min(size, 200), box = Math.ceil(draw * 1.3);
+  const cv = document.createElement("canvas"); cv.width = cv.height = box;
+  const e = cv.getContext("2d")!; e.font = `${draw}px ${EMOJI_FONT}`; e.textAlign = "center"; e.textBaseline = "middle"; e.fillText(emoji, box / 2, box / 2);
+  const k = size / draw; c.drawImage(cv, x - (box * k) / 2, y - (box * k) / 2, box * k, box * k);
+}
 
 function seeded(seed: number) { return () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }; }
 export function canvasTex(w: number, h: number, draw: (c: CanvasRenderingContext2D, rnd: () => number) => void, seed = 7, repeat = false) {

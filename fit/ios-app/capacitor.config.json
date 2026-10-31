@@ -11,6 +11,12 @@
     },
     "Keyboard": {
       "resize": "native"
+    },
+    "CapacitorUpdater": {
+      "autoUpdate": false,
+      "updateUrl": "https://arisetodo.com/api/ota/fit",
+      "channelUrl": "https://arisetodo.com/api/ota/fit",
+      "statsUrl": ""
     }
   },
   "ios": {
