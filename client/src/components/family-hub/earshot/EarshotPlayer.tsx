@@ -22,6 +22,7 @@ import { hiRes, type PodMode } from "@shared/earshot";
 import { momentsBetween, hoursWords, sumKinds } from "@shared/earshotListen";
 import { AskSheet, CatchUpSheet, DriveSheet, HoursBackCard, MomentBubble, catchUpWorthIt, useTimedComments, type TimedComment } from "./EarshotListen";
 import { onOtherSound, soundStarted } from "./soundBus";
+import { NEWS_RADIO_HOURS, NEWS_RADIO_ID, NEWS_RADIO_NAME, justIn, newestOf, newsLineup, refill } from "./newsRadio";
 import { attachVoiceBoost, countCouldSave, countHoursBack, isBoosted, primeVoiceBoost, readHoursBack, resumeVoiceBoost, setVoiceBoost } from "./listenExtras";
 
 type Counts = { likes: number; comments: number; shares: number; liked: boolean };
@@ -1325,12 +1326,54 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
   const openRead = () => { const ep = items[active]?.ep; if (!ep) return; setSheet({ kind: "read" }); wantTx(ep, cur.current?.dataset.ep === ep.id ? cur.current.currentTime : 0); };
 
+  // Pod+ Live News Radio (newsRadio.ts): the newest bulletin from each news show, back to back; a
+  // bulletin that comes out while it plays goes in next, and it never runs dry.
+  const radio = useRef<{ queued: Set<string>; newest: number } | null>(null);
+  const radioItem = (ep: PodEpisode, why: string): Item => {
+    const show: PodShow = { id: ep.showId, name: ep.show, author: ep.author, art: ep.art, genre: "news", appleGenre: "", link: ep.link, episodes: 0, explicit: ep.explicit, latest: ep.date };
+    return { key: `nr-${ep.id}-${Math.random().toString(36).slice(2, 6)}`, show, why, ep, state: "ready" };
+  };
+  const radioEpisodes = async (): Promise<PodEpisode[]> => {
+    const b = await api(`/api/earshot/now?hours=${NEWS_RADIO_HOURS}${ex}`);
+    return Array.isArray(b?.episodes) ? b.episodes : [];
+  };
+  const startNewsRadio = async () => {
+    try {
+      const list = newsLineup(await radioEpisodes());
+      if (!list.length) { say("The news is still coming in. Try again in a minute."); return; }
+      radio.current = { queued: new Set(list.map((e) => e.id)), newest: newestOf(list) };
+      playList(list.map((ep, k) => radioItem(ep, k === 0 ? `${NEWS_RADIO_NAME} · Latest` : `Up next · ${NEWS_RADIO_NAME}`)));
+    } catch (e: any) { say(e?.message || "News Radio didn't start. Try again."); }
+  };
+  useEffect(() => {
+    const t = setInterval(async () => {
+      const r = radio.current;
+      if (!r) return;
+      // Picking something else turns the station off.
+      if (!itemsRef.current[activeRef.current]?.key.startsWith("nr-")) { radio.current = null; return; }
+      try {
+        const all = await radioEpisodes();
+        const fresh = justIn(all, r.queued, r.newest);
+        const nearEnd = activeRef.current >= itemsRef.current.length - 2;
+        const more = fresh.length ? [] : nearEnd ? refill(all, r.queued) : [];
+        const add = [...fresh.map((ep) => radioItem(ep, `Just in · ${NEWS_RADIO_NAME}`)), ...more.map((ep) => radioItem(ep, `Up next · ${NEWS_RADIO_NAME}`))];
+        if (!add.length || radio.current !== r) return;
+        fresh.concat(more).forEach((e) => r.queued.add(e.id));
+        r.newest = Math.max(r.newest, newestOf(fresh));
+        setItems((list) => { const next = [...list]; next.splice(activeRef.current + 1, 0, ...add); return next; });
+      } catch { /* tries again next round */ }
+    }, 120_000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // A Pod Mode opened from the Pod+ home page plays back to back.
   const modeStarted = useRef(false);
   useEffect(() => {
     if (!playMode || modeStarted.current) return;
     modeStarted.current = true;
     if (playMode.id === "__drive") { setSheet({ kind: "drive" }); return; }
+    if (playMode.id === NEWS_RADIO_ID) { void startNewsRadio(); return; }
     const m = esRef.current.modes.find((x) => x.id === playMode.id);
     if (!m?.episodes.length) return;
     const mix = <T,>(l: T[]) => { const x = l.slice(); for (let i = x.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [x[i], x[j]] = [x[j], x[i]]; } return x; };

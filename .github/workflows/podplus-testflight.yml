@@ -1,6 +1,6 @@
 name: Pod+ signed iOS beta validation
 # Development beta validation only. Upload is a separate, explicitly approved release step.
-# Release: Xcode 27 with the UIScene life cycle: opens on iOS 27 and fills the iPhone Duo
+# Release: Pod+ Live News Radio and Live news stations; Xcode 27 with the UIScene life cycle
 on:
   workflow_dispatch:
   push:
