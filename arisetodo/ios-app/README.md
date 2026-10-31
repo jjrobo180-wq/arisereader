@@ -32,3 +32,4 @@ Done in the app and on the server:
 
 Still yours to do in App Store Connect: app name and subtitle, the Privacy Policy URL above, the App Privacy answers (contact info, user content, health and fitness, identifiers; none used for tracking), age rating, screenshots, a demo account for App Review, and the HealthKit capability on the App ID with a fresh provisioning profile.
 
+
