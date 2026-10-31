@@ -159,6 +159,8 @@ function App() {
     // Just a page (Social, Open Mic, Library, the scroll) and the player is already running: switch
     // its page, so what's playing keeps playing. A new episode or Pod Mode starts it fresh.
     if (!at && !podMode && feedSeenRef.current) { setFeedTab(page); setTabNonce((n) => n + 1); setMode("feed"); return; }
+    // Live News Radio is already on: back to it, still playing (it isn't started over).
+    if (podMode?.id === "__newsradio" && feedSeenRef.current && nowPodRef.current?.live) { setFeedTab(undefined); setTabNonce((n) => n + 1); setMode("feed"); return; }
     setFeedStart(at ?? null); setFeedTab(page); setFeedMode(podMode ?? null); setFeedKey((k) => k + 1); setMode("feed"); setFeedSeen(true);
   }, []);
 
@@ -182,6 +184,7 @@ function App() {
   const feedSeenRef = useRef(feedSeen); feedSeenRef.current = feedSeen;
   const [tabNonce, setTabNonce] = useState(0);
   const [nowPod, setNowPod] = useState<NowPlaying | null>(null);
+  const nowPodRef = useRef(nowPod); nowPodRef.current = nowPod;
   const podCtl = useRef<PlayerControl | null>(null);
   // The now-playing bar on the home page opens the player itself, on what's playing (not the last
   // page that was open in it, like Social).
