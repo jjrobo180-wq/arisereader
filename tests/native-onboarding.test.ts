@@ -23,8 +23,8 @@ test("the iPhone app signs in on its own screen; the website keeps its page", ()
 test("the app's first run asks for notifications, then shows the full-screen tour", () => {
   const w = read("client/src/components/AppWalkthrough.tsx");
   assert.match(w, /if \(isNativeApp\(\)\) return <NativeTour/);
-  assert.match(w, /data-testid="native-notify-allow"/);
-  assert.match(w, /await turnOnNativeReminders\(hub\)/, "the button raises iOS's permission prompt");
+  assert.match(w, /data-testid=\{`setup-\$\{r\.id\}-go`\}/, "each row has its own button");
+  assert.match(w, /await turnOnNativeReminders\(hub\)/, "the notifications button raises iOS's permission prompt");
   assert.match(w, /data-testid="native-notify-later"/, "Not now is always there");
   assert.match(w, /steps\.filter\(\(s\) => s\.id !== "notify"\)/, "no second reminders page");
 });

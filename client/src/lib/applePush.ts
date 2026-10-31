@@ -12,6 +12,8 @@ const PLUGIN = /^pushnotif/i;
 const NAME = "PushNotifications";
 let started = false;
 let lastToken = "";
+/** This iPhone's token, kept for the device (not an account) so signing out can always forget it. */
+const TOKEN_KEY = "arise-apns-token";
 
 export const applePushAvailable = (): boolean => hasNativePlugin(PLUGIN);
 const zone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch { return "UTC"; } };
@@ -36,6 +38,7 @@ export async function startApplePush(ask = false): Promise<boolean> {
         const token = String(t?.value || "");
         if (!token || token === lastToken) return;
         lastToken = token;
+        try { localStorage.setItem(TOKEN_KEY, token); } catch { /* still sent to the server */ }
         void apiRequest("POST", "/api/push/apple", { token, timeZone: zone(), app: appKey() }).catch(() => { lastToken = ""; });
       });
       await plugin?.addListener?.("pushNotificationActionPerformed", (e: any) => open(String(e?.notification?.data?.url || "")));
@@ -64,4 +67,20 @@ export async function stopApplePush(): Promise<void> {
   const token = lastToken;
   lastToken = "";
   await apiRequest("POST", "/api/push/apple/forget", { token, app: appKey() }).catch(() => {});
+}
+
+/** Signing out: tells the server to stop sending the account signing out to this iPhone. Uses the
+ *  outgoing account's own sign-in (passed in, since it's being cleared), and the token kept for the
+ *  device, so it works even when notifications weren't started in this launch. Never throws. */
+export async function forgetAppleDevice(authToken: string, apiBase = ""): Promise<void> {
+  let token = lastToken;
+  if (!token) { try { token = localStorage.getItem(TOKEN_KEY) || ""; } catch { token = ""; } }
+  lastToken = "";
+  if (!token || !authToken) return;
+  await fetch(`${apiBase}/api/push/apple/forget`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+    body: JSON.stringify({ token, app: appKey() }),
+    keepalive: true,
+  }).catch(() => {});
 }

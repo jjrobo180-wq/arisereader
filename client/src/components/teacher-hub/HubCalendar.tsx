@@ -475,10 +475,12 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
             {who && <span className="text-xs text-slate-500">Events and meetings about {who}. <button type="button" className="font-semibold text-teal-700 underline" onClick={() => setWho("")}>Show all</button></span>}
           </div>
         )}
-        <div role="tablist" aria-label="Calendar view" className="mb-4 flex flex-wrap gap-1 rounded-2xl bg-slate-100 p-1" data-testid="calendar-views">
+        {/* One row, always: the five views share it evenly, and on a very narrow phone it scrolls sideways
+            rather than wrapping to a second line. */}
+        <div role="tablist" aria-label="Calendar view" className="mb-4 flex gap-0.5 overflow-x-auto rounded-xl bg-slate-100 p-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" data-testid="calendar-views">
           {VIEWS.map(([key, label]) => (
             <button key={key} type="button" role="tab" aria-selected={view === key} onClick={() => setView(key)}
-              className={`min-h-11 min-w-[5.5rem] flex-1 rounded-xl px-2 text-sm font-semibold ${view === key ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}>{label}</button>
+              className={`min-h-11 flex-1 shrink-0 whitespace-nowrap rounded-[10px] px-1 text-[12.5px] font-semibold tracking-[-.01em] transition-colors ${view === key ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}>{label}</button>
           ))}
         </div>
 
