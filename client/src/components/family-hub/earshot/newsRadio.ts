@@ -28,6 +28,15 @@ export function newsLineup(list: PodEpisode[], now = Date.now(), hours = NEWS_RA
   return out;
 }
 
+/** How far back the station reaches when the last few hours have nothing (the news shows were slow
+ *  to post, or the server just started): it still plays the latest it has instead of saying no. */
+export const NEWS_RADIO_FALLBACK_HOURS = 24;
+/** The lineup, reaching back further only when the usual window is empty. */
+export function stationLineup(list: PodEpisode[], now = Date.now()): PodEpisode[] {
+  const l = newsLineup(list, now);
+  return l.length ? l : newsLineup(list, now, NEWS_RADIO_FALLBACK_HOURS);
+}
+
 /** Just in: bulletins newer than anything already on the air, not queued yet, newest first. */
 export function justIn(list: PodEpisode[], queued: Set<string>, newestOnAir: number, now = Date.now()): PodEpisode[] {
   return newsLineup(list, now).filter((e) => !queued.has(e.id) && when(e) > newestOnAir);
@@ -36,7 +45,7 @@ export function justIn(list: PodEpisode[], queued: Set<string>, newestOnAir: num
 /** What to add when the station is about to run out: lineup episodes not played yet, or (nothing
  *  new anywhere) the lineup again from the top, like a station repeating the latest headlines. */
 export function refill(list: PodEpisode[], played: Set<string>, now = Date.now()): PodEpisode[] {
-  const lineup = newsLineup(list, now);
+  const lineup = stationLineup(list, now);
   const fresh = lineup.filter((e) => !played.has(e.id));
   return fresh.length ? fresh : lineup;
 }
