@@ -55,3 +55,11 @@ test("Live news stations: a separate feed of stations that are news all day", ()
   assert.equal(fullTimeNews({ name: "Morning Show FM", tags: "talk,news" }), false);
   assert.match(read("podscroll/Home.tsx"), /<NewsStationsView onPlay=\{playStation\}/);
 });
+
+test("national networks' streams aren't played in Pod+ Radio; local stations are", () => {
+  const radio = read("podscroll/Radio.tsx");
+  const re = new RegExp(radio.match(/const NETWORKS = \/(.+)\/i;/)![1], "i");
+  for (const n of ["CNN", "CNN International", "Fox News Radio", "MSNBC", "BBC World Service", "Bloomberg Radio", "C-SPAN Radio", "NPR News"]) assert.ok(re.test(n), n);
+  for (const n of ["1010 WINS", "KQED", "WNYC 93.9 FM", "KEXP", "News Radio 1190"]) assert.ok(!re.test(n), n);
+  assert.match(radio, /&& !isNetwork\(s\);/, "left out of every Radio list, Live news stations too");
+});
