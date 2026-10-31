@@ -179,7 +179,7 @@ export default function NativeSignIn() {
   const signingUp = screen === "signup";
   return <Shell>
     <NavBar title="" onBack={() => go("welcome")} />
-    <form onSubmit={signingUp ? signUp : signIn} className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5">
+    <form onSubmit={signingUp ? signUp : signIn} className="flex min-h-0 flex-1 flex-col overflow-y-auto [&>*]:shrink-0 px-5">
       <Heading title={signingUp ? "Create your account" : "Sign in"} text={signingUp ? "Free, for anyone. You get LifeHub and WorkHub." : copy.signInHint} />
       <Group>
         {signingUp && <Field label="Name" value={name} onChange={setName} autoComplete="name" placeholder="Your name" testId="native-name" />}

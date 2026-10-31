@@ -1,7 +1,10 @@
 import { Component, ReactNode } from "react";
+import { isNativeApp } from "@/lib/nativeApp";
 
 interface State {
   hasError: boolean;
+  /** In the iPhone apps, what broke is shown in small print, so a screenshot says what to fix. */
+  detail?: string;
 }
 
 /** Reads the role from the saved sign-in (no names), so a crash report says whose screen broke. */
@@ -22,7 +25,7 @@ function reportCrash(error: unknown, info: any) {
     fetch("/api/client-error", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      keepalive: true,
+      // (No keepalive: the iPhone apps' web view drops keepalive requests to another site.)
       body: JSON.stringify({ host: location.hostname, route: location.hash || location.pathname, role: savedRole(), name: e?.name, message: e?.message, where }),
     }).catch(() => {});
   } catch { /* reporting must never break the page further */ }
@@ -40,7 +43,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   }
 
   handleRouteChange = () => {
-    if (this.state.hasError) this.setState({ hasError: false });
+    if (this.state.hasError) this.setState({ hasError: false, detail: undefined });
   };
 
   static getDerivedStateFromError(): State {
@@ -49,6 +52,8 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
 
   componentDidCatch(error: Error, info: any) {
     console.error("App error:", error, info);
+    const where = String(info?.componentStack || "").split("\n").map((x: string) => x.trim()).filter(Boolean).slice(0, 3).join(" < ");
+    this.setState({ detail: `${error?.name || "Error"}: ${error?.message || "unknown"}${where ? ` @ ${where}` : ""} · ${location.hash || "/"}`.slice(0, 400) });
     reportCrash(error, info);
   }
 
@@ -57,7 +62,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   };
 
   handleHome = () => {
-    this.setState({ hasError: false });
+    this.setState({ hasError: false, detail: undefined });
     const role = savedRole();
     if (role === "teacher" || role === "admin") window.location.hash = "#/workhub";
     else if (role === "parent" || role === "todo") window.location.hash = "#/lifehub";
@@ -95,6 +100,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
                 {adult ? "Back to my hub" : role === "guest" ? "Go to sign in" : "Back to Library"}
               </button>
             </div>
+            {isNativeApp() && this.state.detail && <p className="mt-6 select-text break-words text-left font-mono text-[11px] leading-snug text-muted-foreground" data-testid="error-detail">{this.state.detail}</p>}
           </div>
         </div>
       );

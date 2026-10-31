@@ -12,7 +12,8 @@ import { ArrowDownToLine } from "lucide-react";
 import { Briefcase, GraduationCap } from "lucide-react";
 import { AccountSheet } from "./Account";
 import { Bell, BookOpen, Check, LogOut, PlusCircle, ShieldCheck, Zap, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, Monitor, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Music as MusicIcon, Search, Sparkles, ThumbsUp, Users, X, Pause, Play } from "lucide-react";
-import { RadioBar, RadioView, type Station } from "./Radio";
+import { NewsStationsView, RadioBar, RadioView, type Station } from "./Radio";
+import { NEWS_RADIO_ID, NEWS_RADIO_NAME } from "../client/src/components/family-hub/earshot/newsRadio";
 import { MusicBar, MusicView, type Listening } from "./Music";
 import { AudiobookBar, AudiobooksView, BookPage, type Reading } from "./Audiobooks";
 import type { NowPlaying } from "../client/src/components/family-hub/earshot/EarshotPlayer";
@@ -26,7 +27,7 @@ import { setTheme, useTheme } from "../client/src/components/family-hub/earshot/
 import { HoursBackCard } from "../client/src/components/family-hub/earshot/EarshotListen";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
-type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "music" } | { kind: "books" } | { kind: "book"; id: string } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "live" } | { kind: "now" } | { kind: "standup" } | { kind: "study" } | { kind: "meeting" } | { kind: "import" } | { kind: "clips" } | { kind: "watch"; showId: string; episodeId: string };
+type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "music" } | { kind: "books" } | { kind: "book"; id: string } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "live" } | { kind: "now" } | { kind: "newsstations" } | { kind: "standup" } | { kind: "study" } | { kind: "meeting" } | { kind: "import" } | { kind: "clips" } | { kind: "watch"; showId: string; episodeId: string };
 
 const DEFAULT_GENRES = ["comedy", "news", "science", "tech", "truecrime", "history", "business", "culture"];
 const ACCENT = "#ff6a1f";
@@ -58,6 +59,7 @@ function parseHash(): View {
   if (a === "books") return /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(b || "") ? { kind: "book", id: b } : { kind: "books" };
   if (a === "live") return { kind: "live" };
   if (a === "now" || a === "news") return { kind: "now" };
+  if (a === "newsstations") return { kind: "newsstations" };
   if (a === "standup") return { kind: "standup" };
   if (a === "study") return { kind: "study" };
   if (a === "meeting") return { kind: "meeting" };
@@ -507,6 +509,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       {navItem("Social", <MessageCircle size={22} strokeWidth={1.8} />, false, () => onOpenFeed(undefined, "social"))}
       {navItem("Radio", <RadioIcon size={22} strokeWidth={1.8} />, view.kind === "radio", () => go({ kind: "radio" }))}
       {navItem("Music", <MusicIcon size={22} strokeWidth={1.8} />, view.kind === "music", () => go({ kind: "music" }))}
+      {navItem(NEWS_RADIO_NAME, <span className="grid h-[22px] w-[22px] place-items-center"><span className="h-2.5 w-2.5 rounded-full bg-[#ff3b30] motion-safe:animate-pulse" /></span>, false, () => onOpenFeed(undefined, undefined, { id: NEWS_RADIO_ID, index: 0 }))}
+      {navItem("Live news stations", <RadioIcon size={22} strokeWidth={1.8} />, view.kind === "newsstations", () => go({ kind: "newsstations" }))}
       {navItem("Up to the minute news", <Zap size={22} strokeWidth={1.8} />, view.kind === "now", () => go({ kind: "now" }))}
       {navItem("Stand-up", <Mic2 size={22} strokeWidth={1.8} />, view.kind === "standup", () => go({ kind: "standup" }))}
       {navItem("Audiobooks", <BookOpen size={22} strokeWidth={1.8} />, view.kind === "books" || view.kind === "book", () => go({ kind: "books" }))}
@@ -587,7 +591,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
           : <p className="mt-1 text-sm text-[#606060]">No one's live right now. Audio only, so you can go live from anywhere, camera off.</p>}
       </section>;
   } else if (view.kind === "now") {
-    content = <div className="min-w-0 flex-1 px-4 pb-16 sm:px-6"><NewsNow api={api} ex={ex} onOpen={openEp} onBack={() => go({ kind: "home" })} grid={(list) => <Grid list={list} onOpen={openEp} />} /></div>;
+    content = <div className="min-w-0 flex-1 px-4 pb-16 sm:px-6"><NewsNow api={api} ex={ex} onOpen={openEp} onRadio={() => onOpenFeed(undefined, undefined, { id: NEWS_RADIO_ID, index: 0 })} onBack={() => go({ kind: "home" })} grid={(list) => <Grid list={list} onOpen={openEp} />} /></div>;
   } else if (view.kind === "standup") {
     content = <div className="min-w-0 flex-1 px-4 sm:px-6"><StandupHub api={api} ex={ex} say={say} onBack={() => go({ kind: "home" })} grid={(list) => <Grid list={list} onOpen={openEp} />} /></div>;
   } else if (view.kind === "import") {
@@ -596,6 +600,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     content = <StudioView kind={view.kind} api={api} apiBase={liveBase.replace(/^ws/, "http")} say={say} onBack={() => go({ kind: "home" })} onSwitch={(k) => go({ kind: k })} />;
   } else if (view.kind === "radio") {
     content = <RadioView onPlay={playStation} current={station} />;
+  } else if (view.kind === "newsstations") {
+    content = <NewsStationsView onPlay={playStation} current={station} onBack={() => go({ kind: "home" })} />;
   } else if (view.kind === "music") {
     content = <MusicView api={api} current={listening} onPlay={playMusic} />;
   } else if (view.kind === "books") {
@@ -658,7 +664,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       {!topic && chip !== "all" && <TopShows shows={topShows} onShow={openShowLatest} label={`Top in ${GENRE[chip]?.name ?? ""}`} note="Everything below stays unranked." />}
 
       {chip === "all" && es.settings.hoursBack && <div className="mb-5"><HoursBackCard light member={pro} onJoin={onJoin} onHide={() => { update((e) => ({ ...e, settings: { ...e.settings, hoursBack: false } })); say("Hours back is hidden. Turn it on again in Settings."); }} /></div>}
-      {chip === "all" && <ModesRow es={es} update={update} onOpen={(m) => go({ kind: "mode", id: m.id })} onNew={() => setNewMode(true)} onDrive={() => onOpenFeed(undefined, undefined, { id: "__drive", index: 0 })} onNews={() => go({ kind: "now" })} />}
+      {chip === "all" && <ModesRow es={es} update={update} onOpen={(m) => go({ kind: "mode", id: m.id })} onNew={() => setNewMode(true)} onDrive={() => onOpenFeed(undefined, undefined, { id: "__drive", index: 0 })} onNews={() => go({ kind: "now" })} onNewsRadio={() => onOpenFeed(undefined, undefined, { id: NEWS_RADIO_ID, index: 0 })} onNewsStations={() => go({ kind: "newsstations" })} />}
 
 
       {topic ? <TopicResults key={topic} topic={topic} api={api} ex={ex} onOpen={openEp} top={tops[`t:${topic}`] || []} />
