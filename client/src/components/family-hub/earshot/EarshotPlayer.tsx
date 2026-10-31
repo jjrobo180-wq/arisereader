@@ -22,7 +22,7 @@ import { hiRes, type PodMode } from "@shared/earshot";
 import { momentsBetween, hoursWords, sumKinds } from "@shared/earshotListen";
 import { AskSheet, CatchUpSheet, DriveSheet, HoursBackCard, MomentBubble, catchUpWorthIt, useTimedComments, type TimedComment } from "./EarshotListen";
 import { onOtherSound, soundStarted } from "./soundBus";
-import { NEWS_RADIO_FALLBACK_HOURS, NEWS_RADIO_ID, NEWS_RADIO_NAME, justIn, newestOf, refill, stationLineup } from "./newsRadio";
+import { NEWS_RADIO_ID, NEWS_RADIO_NAME } from "./newsRadio";
 import { attachVoiceBoost, countCouldSave, countHoursBack, isBoosted, primeVoiceBoost, readHoursBack, resumeVoiceBoost, setVoiceBoost } from "./listenExtras";
 
 type Counts = { likes: number; comments: number; shares: number; liked: boolean };
@@ -32,7 +32,9 @@ type Item = { key: string; show: PodShow; why: string; ep: PodEpisode | null; st
   /** A show coming back around once the feed has been through every show it has: play an episode this feed hasn't. */
   again?: boolean;
   /** An Open Mic episode (made by someone on Pod+), woven into For You. */
-  mic?: { post: string; handle: string; name: string; newVoice: boolean; followed: boolean } };
+  mic?: { post: string; handle: string; name: string; newVoice: boolean; followed: boolean };
+  /** Pod+ Live News Radio: when this bulletin is on air for everyone (server clock, ms) and how long. */
+  live?: { startsAt: number; secs: number } };
 type Tab = "foryou" | "following" | "openmic" | "social" | "explore" | "library";
 
 export const ACCENT = "#ff8a3d";
@@ -117,7 +119,7 @@ export function Setup({ initial, student, onDone, onCancel, brand = "Earshot" }:
 // The player: feed, explore, library
 // ===========================================================================
 /** What's playing in the swipe player, for a mini bar on other pages (Pod+ keeps the player running). */
-export type NowPlaying = { title: string; show: string; art: string; playing: boolean };
+export type NowPlaying = { title: string; show: string; art: string; playing: boolean; /** Pod+ Live News Radio is on. */ live?: boolean };
 export type PlayerControl = { toggle: () => void; pause: () => void };
 export type PlayerProps = {
   /** Shown on screen right now (Pod+ keeps it running, hidden, on other pages so the sound goes on). */
@@ -291,7 +293,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const cur = useRef<HTMLAudioElement | null>(null);
   const keepSpotRef = useRef<() => void>(() => {});
   /** Pod+ Live News Radio while it is on (see startNewsRadio). */
-  const radio = useRef<{ queued: Set<string>; newest: number } | null>(null);
+  const radio = useRef<{ offset: number; finished: string } | null>(null);
   const feedRef = useRef<HTMLDivElement | null>(null);
   const listened = useRef(0);
   /** When the feed last moved on by itself (an episode ending, or the "swipe for me" timer). */
@@ -774,7 +776,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     a = setAudioSrc(a, ep, via);
     a.preload = "auto";
     // Through the server the intro is found and skipped exactly; otherwise long episodes start 90 s in.
-    const at = plainPlay.current.has(ep.id) ? 0 : startAt(ep.secs, readSpots()[ep.id]?.t, via ? false : esRef.current.settings.skipIntro);
+    const live = liveOf(ep.id);
+    const at = live ? liveAt(live) : plainPlay.current.has(ep.id) ? 0 : startAt(ep.secs, readSpots()[ep.id]?.t, via ? false : esRef.current.settings.skipIntro);
     a.addEventListener("loadedmetadata", () => {
       // Where to start: a saved spot or intro skip, or after the pre-roll the server found in this copy.
       // Only somewhere well before the real end (Apple's length can be longer than the file).
@@ -830,7 +833,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     // them and the sound comes on. Muted, not paused: iPhones only start sound inside the tap.
     const p0 = plays.current.get(ep.id);
     const resuming = (readSpots()[ep.id]?.t ?? 0) > 5;
-    const hold = play && !resuming && !!p0 && !p0.ads?.ready && (a.currentTime || 0) < 2 && esRef.current.settings.adMode === "auto" && !esRef.current.adFree.includes(ep.showId);
+    const hold = play && !it.live && !resuming && !!p0 && !p0.ads?.ready && (a.currentTime || 0) < 2 && esRef.current.settings.adMode === "auto" && !esRef.current.adFree.includes(ep.showId);
     if (hold) {
       a.muted = true; setHolding(ep.id);
       const t0 = Date.now();
@@ -849,6 +852,13 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
         setTimeout(tick, 200);
       };
       setTimeout(tick, 200);
+    }
+    if (it.live) {
+      // Live: to where the station is now (again once it plays: iPhones ignore an early jump).
+      const live = it.live;
+      const sync = () => { try { const t = liveAt(live); if (a.dataset.ep === ep.id && Math.abs(a.currentTime - t) > 4 && safeTo(a, t)) a.currentTime = t; } catch { /* not seekable yet */ } };
+      if (a.readyState >= 1) sync(); else a.addEventListener("loadedmetadata", sync, { once: true });
+      a.addEventListener("playing", sync, { once: true });
     }
     if (play) a.play().catch(() => { a.muted = false; setHolding(null); setPlaying(false); });
     if (next) playerFor(next, [a]);
@@ -1037,6 +1047,9 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     setTime(t); if (a.duration && Number.isFinite(a.duration)) setDur(a.duration);
     const it = itemsRef.current[activeRef.current]; const ep = it?.ep;
     if (ep && a.dataset.ep === ep.id && !it?.key.startsWith("nr-") && Math.abs(t - lastSpot.current) > 5) { lastSpot.current = t; saveSpot(ep, t); }
+    // Live: this copy runs longer than the station's slot (ads stitched in): everyone else has moved
+    // on, so this phone does too.
+    if (it?.live && ep && a.dataset.ep === ep.id && !a.paused && liveClock() > it.live.startsAt + it.live.secs * 1000 + 6000 && Date.now() - lastAutoAdvance.current > 10_000) { lastAutoAdvance.current = Date.now(); void tuneIn(ep.id); }
     // Plays and listening time for episodes people made, for their Studio.
     if (ep && OWN_EPISODE.test(ep.id) && delta > 0 && delta < 2) {
       const h = micHeard.current;
@@ -1084,6 +1097,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     if (ca && !stuck && Number.isFinite(ca.duration) && ca.duration > 0 && ca.currentTime < ca.duration - 8) { waitForSignal(ca); return; }
     if (r0) { if (r0.timer) clearTimeout(r0.timer); netRetry.current = null; setNetWait(null); }
     const it = itemsRef.current[activeRef.current];
+    // Live News Radio: straight on to what's on air next (never back to the top of this one).
+    if (it?.live && it.ep) { setPlaying(false); lastAutoAdvance.current = Date.now(); void tuneIn(it.ep.id); return; }
     if (it?.ep) { signal(it.show.genre, "finish"); saveSpot(it.ep, 0); const id = it.ep.id; update((e) => (e.heard.includes(id) ? e : { ...e, heard: [id, ...e.heard].slice(0, 200) })); }
     setPlaying(false);
     if (sleepRef.current === "end") { setSleepAt(null); say("Sleep timer: stopped at the end of the episode."); return; }
@@ -1098,7 +1113,6 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       ca.play().then(() => setPlaying(true), () => setPlaying(false));
       return;
     }
-    if (it?.key.startsWith("nr-") && !sheetRef.current) { lastAutoAdvance.current = Date.now(); goTo(activeRef.current + 1); return; }
     if (listened.current < 8 || Date.now() - lastAutoAdvance.current < 5000) {
       // Even played from the top it won't play: go on to the next one instead of stopping here.
       if (Date.now() - lastAutoAdvance.current >= 5000 && !sheetRef.current) { lastAutoAdvance.current = Date.now(); say("That episode wouldn't play. Here's the next one."); goTo(activeRef.current + 1); return; }
@@ -1296,16 +1310,18 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     setTimeout(() => goTo(at), 120);
   };
   /** Plays a list back to back: the chosen episode now, the rest right after it in the feed. */
-  const playList = (list: Item[], fresh = false) => {
+  const playList = (list: Item[], fresh = false, quiet = false) => {
     if (!list.length) return;
     keepSpot();
     if (!fresh) radio.current = null;
     unlock();
-    setSheet(null); setGenreMode(null);
+    // Quiet (the live station moving on by itself): whatever page or sheet is open stays open.
+    if (!quiet) setSheet(null);
+    setGenreMode(null);
     const switching = fresh || mode !== "foryou";
     const at = !switching && itemsRef.current.length ? activeRef.current + 1 : 0;
     if (switching) { picked.current = mode !== "foryou"; pausePlayer(); itemsRef.current = []; setActive(0); activeRef.current = 0; prevActive.current = -1; if (feedRef.current) feedRef.current.scrollTop = 0; }
-    if (tab !== "foryou") setTab("foryou");
+    if (tab !== "foryou" && !quiet) setTab("foryou");
     setItems((cur) => { const next = switching ? [] : [...cur]; next.splice(at, 0, ...list); return next; });
     list.filter((x) => x.state === "loading").forEach(fill);
     setTimeout(() => goTo(at), 120);
@@ -1353,51 +1369,67 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
   const openRead = () => { const ep = items[active]?.ep; if (!ep) return; setSheet({ kind: "read" }); wantTx(ep, cur.current?.dataset.ep === ep.id ? cur.current.currentTime : 0); };
 
-  // Pod+ Live News Radio (newsRadio.ts): the newest bulletin from each news show, back to back; a
-  // bulletin that comes out while it plays goes in next, and it never runs dry.
-  const radioItem = (ep: PodEpisode, why: string): Item => {
+  // Pod+ Live News Radio: one station for everyone (server/newsStation.ts). The server says which
+  // bulletin is on air and since when; this plays that one from the point it has reached, so every
+  // phone hears the same moment. Stop and Listen live again rejoins wherever the station is now.
+  const radioItem = (ep: PodEpisode, why: string, live: { startsAt: number; secs: number }): Item => {
     const show: PodShow = { id: ep.showId, name: ep.show, author: ep.author, art: ep.art, genre: "news", appleGenre: "", link: ep.link, episodes: 0, explicit: ep.explicit, latest: ep.date };
-    return { key: `nr-${ep.id}-${Math.random().toString(36).slice(2, 6)}`, show, why, ep, state: "ready" };
+    return { key: `nr-${ep.id}-${live.startsAt}`, show, why, ep, state: "ready", live };
   };
-  const radioEpisodes = async (): Promise<PodEpisode[]> => {
-    const b = await api(`/api/earshot/now?hours=${NEWS_RADIO_FALLBACK_HOURS}${ex}`);
-    return Array.isArray(b?.episodes) ? b.episodes : [];
+  /** The station's clock (the server's), from this phone's. */
+  const liveClock = () => Date.now() + (radio.current?.offset ?? 0);
+  /** Where in this bulletin the station is now, in seconds (0 if it hasn't started yet). */
+  const liveAt = (live: { startsAt: number; secs: number }) => Math.max(0, Math.min(live.secs - 2, (liveClock() - live.startsAt) / 1000));
+  const liveOf = (epId: string) => itemsRef.current.find((x) => x.live && x.ep?.id === epId)?.live ?? null;
+  type StationSlot = { ep: PodEpisode; startsAt: number; secs: number };
+  const fetchStation = async (): Promise<{ slots: StationSlot[]; offset: number }> => {
+    const t0 = Date.now();
+    const b = await api(`/api/earshot/now/station`);
+    const t1 = Date.now();
+    return { slots: Array.isArray(b?.slots) ? b.slots.filter((x: any) => x?.ep?.id && Number.isFinite(x.startsAt) && x.secs > 0) : [], offset: Number(b?.now) ? Number(b.now) - (t0 + t1) / 2 : 0 };
   };
+  const slotItems = (slots: StationSlot[], now: number) => slots.map((x) => radioItem(x.ep, x.startsAt <= now ? `${NEWS_RADIO_NAME} · On air` : `Up next · ${NEWS_RADIO_NAME}`, { startsAt: x.startsAt, secs: x.secs }));
+  /** Tune in (or back in) to whatever is on air now. Just after a bulletin finished early (ads
+   *  skipped), the next one starts from its beginning instead of replaying the end of that one. */
+  const tuneIn = async (justFinished = "") => {
+    try {
+      const { slots, offset } = await fetchStation();
+      if (!slots.length) { say("The news station is starting. Try again in a minute."); return; }
+      radio.current = { offset, finished: justFinished };
+      const now = Date.now() + offset;
+      const list = justFinished && slots[0]?.ep.id === justFinished && slots[1] ? slots.slice(1) : slots;
+      playList(slotItems(list, now), true, !!justFinished);
+      // The same spot in the list as before (the top): start it here, since the list changing alone doesn't.
+      setTimeout(() => {
+        const it = itemsRef.current[activeRef.current];
+        if (it?.live && (cur.current?.dataset.ep !== it.ep?.id || cur.current?.paused)) activate(activeRef.current, unlockedRef.current);
+      }, 400);
+    } catch (e: any) { say(e?.message || "News Radio didn't start. Try again."); }
+  };
+  const startNewsRadio = () => tuneIn();
   /** Off the air: the station stops and the feed goes back to podcasts. */
   const leaveStation = () => {
     pausePlayer(); radio.current = null;
     itemsRef.current = []; setItems([]); setActive(0); activeRef.current = 0; prevActive.current = -1;
     if (feedRef.current) feedRef.current.scrollTop = 0;
     extend(6);
-    if (onHome) onHome(); else setTab("explore");
   };
-  const startNewsRadio = async () => {
-    try {
-      const list = stationLineup(await radioEpisodes());
-      if (!list.length) { say("The news is still coming in. Try again in a minute."); return; }
-      radio.current = { queued: new Set(list.map((e) => e.id)), newest: newestOf(list) };
-      // The station replaces the feed: news only, from the newest bulletin.
-      playList(list.map((ep, k) => radioItem(ep, k === 0 ? `${NEWS_RADIO_NAME} · Latest` : `Up next · ${NEWS_RADIO_NAME}`)), true);
-    } catch (e: any) { say(e?.message || "News Radio didn't start. Try again."); }
-  };
+  // Keeps what's coming up current (a bulletin that just came out goes on next for everyone).
   useEffect(() => {
     const t = setInterval(async () => {
-      const r = radio.current;
-      if (!r) return;
+      if (!radio.current) return;
       // Picking something else turns the station off.
-      if (!itemsRef.current[activeRef.current]?.key.startsWith("nr-")) { radio.current = null; return; }
+      if (!itemsRef.current[activeRef.current]?.live) { radio.current = null; return; }
       try {
-        const all = await radioEpisodes();
-        const fresh = justIn(all, r.queued, r.newest);
-        const nearEnd = activeRef.current >= itemsRef.current.length - 2;
-        const more = fresh.length ? [] : nearEnd ? refill(all, r.queued) : [];
-        const add = [...fresh.map((ep) => radioItem(ep, `Just in · ${NEWS_RADIO_NAME}`)), ...more.map((ep) => radioItem(ep, `Up next · ${NEWS_RADIO_NAME}`))];
-        if (!add.length || radio.current !== r) return;
-        fresh.concat(more).forEach((e) => r.queued.add(e.id));
-        r.newest = Math.max(r.newest, newestOf(fresh));
-        setItems((list) => { const next = [...list]; next.splice(activeRef.current + 1, 0, ...add); return next; });
+        const { slots, offset } = await fetchStation();
+        if (!radio.current || !slots.length) return;
+        radio.current.offset = offset;
+        const on = itemsRef.current[activeRef.current];
+        const after = slots.filter((x) => x.startsAt > (on?.live?.startsAt ?? 0));
+        if (!after.length) return;
+        setItems((list) => { const keep = list.slice(0, activeRef.current + 1); return [...keep, ...slotItems(after, Date.now() + offset)]; });
       } catch { /* tries again next round */ }
-    }, 120_000);
+    }, 60_000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1481,7 +1513,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const nowEp = items[active]?.ep, nowShow = items[active]?.show;
   useEffect(() => {
     const started = playing || (!!cur.current && cur.current.dataset.ep === nowEp?.id && cur.current.currentTime > 0);
-    onNowPlaying?.(nowEp && nowShow && started ? { title: nowEp.title, show: nowShow.name, art: nowEp.art || nowShow.art, playing } : null);
+    onNowPlaying?.(nowEp && nowShow && started ? { title: nowEp.title, show: nowShow.name, art: nowEp.art || nowShow.art, playing, live: !!items[active]?.live } : null);
   }, [nowEp?.id, playing]); // eslint-disable-line react-hooks/exhaustive-deps
   if (control) control.current = { toggle: () => toggle(), pause: () => cur.current?.pause() };
   // Once per visit from the home screen: the screen's real measurements, to the server log.
@@ -1602,7 +1634,9 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     </div>}
 
     {onAir && tab === "foryou" && items[active]?.ep && <LiveNews ep={items[active].ep!} next={items.slice(active + 1).map((x) => x.ep).filter((x): x is PodEpisode => !!x)} playing={playing} unlocked={unlocked}
-      onToggle={toggle} onLeave={leaveStation} />}
+      onToggle={() => { if (playing) pausePlayer(); else { unlock(); void tuneIn(); } }}
+      onMinimize={() => { if (onHome) onHome(); else setTab("explore"); }}
+      onLeave={() => { leaveStation(); if (onHome) onHome(); else setTab("explore"); }} />}
     {netWait && activeEp && cur.current?.dataset.ep === activeEp.id && <div className={`pointer-events-none absolute inset-x-3 ${below} z-[27] flex justify-center`} data-testid="pod-net-wait"><div role="status" aria-live="polite" className="flex items-center gap-2 rounded-full bg-black/65 px-3.5 py-1.5 text-[13px] font-medium text-white ring-1 ring-white/10 backdrop-blur-xl"><Loader2 size={13} className="animate-spin" />{netWait === "offline" ? "Waiting for a signal… it'll pick up right where it stopped." : "Buffering…"}</div></div>}
     {holding && activeEp?.id === holding && <div className={`pointer-events-none absolute inset-x-3 ${below} z-[26] flex justify-center`}><div role="status" className="flex items-center gap-2 rounded-full bg-black/55 px-3.5 py-1.5 text-[13px] font-medium text-white ring-1 ring-white/10 backdrop-blur-xl"><Loader2 size={13} className="animate-spin" />Skipping the ads at the start…</div></div>}
     {tapAd && activeEp && tapAd.ep.id === activeEp.id && <div className={`pointer-events-none absolute inset-x-3 ${below} z-[26] flex justify-center`}>
@@ -2446,7 +2480,7 @@ function Library({ es, update, onEditInterests, onOpen, onMode, onPlayDownloads,
 function PodMark({ size = 30 }: { size?: number }) {
   return <svg width={size} height={size * 0.7} viewBox="0 0 30 21" aria-hidden="true"><rect width="30" height="21" rx="6" fill="#ff6a1f" /><rect x="8" y="7.5" width="2.4" height="6" rx="1.2" fill="#fff" /><rect x="12.2" y="4.5" width="2.4" height="12" rx="1.2" fill="#fff" /><rect x="16.4" y="6.5" width="2.4" height="8" rx="1.2" fill="#fff" /><rect x="20.6" y="8.5" width="2.4" height="4" rx="1.2" fill="#fff" /></svg>;
 }
-function LiveNews({ ep, next, playing, unlocked, onToggle, onLeave }: { ep: PodEpisode; next: PodEpisode[]; playing: boolean; unlocked: boolean; onToggle: () => void; onLeave: () => void }) {
+function LiveNews({ ep, next, playing, unlocked, onToggle, onMinimize, onLeave }: { ep: PodEpisode; next: PodEpisode[]; playing: boolean; unlocked: boolean; onToggle: () => void; onMinimize: () => void; onLeave: () => void }) {
   const [clockNow, setClockNow] = useState(() => new Date());
   useEffect(() => { const t = setInterval(() => setClockNow(new Date()), 15_000); return () => clearInterval(t); }, []);
   const time = clockNow.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
@@ -2463,7 +2497,7 @@ function LiveNews({ ep, next, playing, unlocked, onToggle, onLeave }: { ep: PodE
       <span className="flex min-w-0 items-center gap-2"><PodMark /><span className="truncate text-[17px] font-bold tracking-[-0.03em]">Pod+ <span className="font-semibold text-white/70">Live News</span></span></span>
       <span className="flex flex-none items-center gap-2">
         <span className="flex items-center gap-1.5 rounded-md bg-[#e5172f] px-2 py-1 text-[12px] font-extrabold tracking-[.12em]" data-testid="pod-live-badge"><span className="h-2 w-2 rounded-full bg-white" style={{ animation: "ln-pulse 1.4s ease-in-out infinite" }} />LIVE</span>
-        <button type="button" onClick={onLeave} aria-label="Leave Live News" className="grid h-9 w-9 place-items-center rounded-full bg-white/10 backdrop-blur"><X size={18} /></button>
+        <button type="button" onClick={onMinimize} aria-label="Keep listening and go back" data-testid="pod-live-minimize" className="grid h-9 w-9 place-items-center rounded-full bg-white/10 backdrop-blur"><ChevronDown size={20} /></button>
       </span>
     </header>
 
@@ -2483,6 +2517,8 @@ function LiveNews({ ep, next, playing, unlocked, onToggle, onLeave }: { ep: PodE
         {playing ? <><Pause size={22} fill="currentColor" strokeWidth={0} />Stop</> : <><Play size={22} fill="currentColor" strokeWidth={0} />{unlocked ? "Listen live" : "Tap to listen live"}</>}
       </button>
       {next[0] && <p className="mt-5 max-w-sm truncate text-[13px] text-white/50">Up next: <span className="text-white/75">{next[0].show}</span></p>}
+      <p className="mt-2 text-[12px] text-white/40">Everyone on Pod+ hears the same news, live.</p>
+      <button type="button" onClick={onLeave} data-testid="pod-live-off" className="mt-3 rounded-full px-3 py-1.5 text-[12px] font-semibold text-white/55 underline-offset-2 hover:underline">Turn off Live News</button>
     </div>
 
     <div className="relative z-[1] flex items-stretch overflow-hidden border-t border-white/10 bg-[#e5172f] pb-[env(safe-area-inset-bottom)] text-[13px] font-semibold" aria-hidden>
