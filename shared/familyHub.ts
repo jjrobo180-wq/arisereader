@@ -323,7 +323,7 @@ export const DEFAULT_BUDGET: BudgetCategory[] = [
 ];
 
 export const emptyFamily = (): Family => ({
-  members: [], sections: {}, sectionOrder: [...TOGGLEABLE], layers: { tasks: true, bills: true, trips: true, chores: false, hub: false }, chorePointsCount: true,
+  members: [], sections: { health: true }, sectionOrder: [...TOGGLEABLE], layers: { tasks: true, bills: true, trips: true, chores: false, hub: false }, chorePointsCount: true,
   chores: [], choreDone: [], behavior: [], rewards: DEFAULT_REWARDS.map((r) => ({ ...r })), redemptions: [],
   calendars: DEFAULT_CALENDARS.map((c) => ({ ...c })), events: [], trips: [], polls: [],
   bills: [], budget: DEFAULT_BUDGET.map((b) => ({ ...b })), expenses: [], income: 0, notes: [], health: emptyHealth(), cycleLogs: [], pills: [], pillDoses: [], moods: [], goals: [], news: { topics: ["top", "local", "NATION"], place: "" },
@@ -392,6 +392,8 @@ export function cleanFamily(input: unknown): Family {
   for (const [key, has] of Object.entries(WAS_STANDARD) as [FamilySection, (r: any) => boolean][]) {
     if (sections[key] === undefined && has(raw)) sections[key] = true;
   }
+  // The Calorie counter comes added for everyone (Oct 30, 2026). Removing it is saved as false, so that sticks.
+  if (sections.health === undefined) sections.health = true;
   const rawLayers = obj(raw.layers) || {};
   const layers: Layers = {
     tasks: bool(rawLayers.tasks, true), bills: bool(rawLayers.bills, true), trips: bool(rawLayers.trips, true), chores: bool(rawLayers.chores, false), hub: bool(rawLayers.hub, false),
