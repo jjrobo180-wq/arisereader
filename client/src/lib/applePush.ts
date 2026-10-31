@@ -3,7 +3,7 @@
 // server knows about (a message, something shared with you, a test). The app hands the server its
 // Apple device token once notifications are allowed; tapping a notification opens its page.
 import { apiRequest } from "@/lib/queryClient";
-import { hasNativePlugin, isNativeApp, nativeCall, nativeFlavor } from "@/lib/nativeApp";
+import { hasNativePlugin, isNativeApp, nativeCall, nativeFlavor, nativeListen } from "@/lib/nativeApp";
 
 /** Which app the server sends to (Arise To Duo unless this is the Educator app). */
 const appKey = () => (nativeFlavor() === "educator" ? "educator" : undefined);
@@ -12,6 +12,11 @@ const PLUGIN = /^pushnotif/i;
 const NAME = "PushNotifications";
 let started = false;
 let lastToken = "";
+/** Why this iPhone isn't signed up yet, in words (Apple's error, or the server's). */
+let lastProblem = "";
+let tokenWaiters: ((ok: boolean) => void)[] = [];
+const settle = (ok: boolean) => { const w = tokenWaiters; tokenWaiters = []; w.forEach((f) => f(ok)); };
+export const applePushProblem = () => lastProblem;
 /** This iPhone's token, kept for the device (not an account) so signing out can always forget it. */
 const TOKEN_KEY = "arise-apns-token";
 
@@ -33,15 +38,18 @@ export async function startApplePush(ask = false): Promise<boolean> {
     if (state !== "granted") return false;
     if (!started) {
       started = true;
-      const plugin = (window as any).Capacitor?.Plugins?.PushNotifications;
-      await plugin?.addListener?.("registration", (t: { value?: string }) => {
+      const add = (event: string, fn: (e: any) => void) => nativeListen(NAME, event, fn);
+      await add("registration", (t: { value?: string }) => {
         const token = String(t?.value || "");
-        if (!token || token === lastToken) return;
-        lastToken = token;
+        if (!token) return;
         try { localStorage.setItem(TOKEN_KEY, token); } catch { /* still sent to the server */ }
-        void apiRequest("POST", "/api/push/apple", { token, timeZone: zone(), app: appKey() }).catch(() => { lastToken = ""; });
+        // Ready once the server has it (Apple gives the same token again on each launch).
+        void apiRequest("POST", "/api/push/apple", { token, timeZone: zone(), app: appKey() })
+          .then(() => { lastToken = token; lastProblem = ""; settle(true); })
+          .catch((e: any) => { lastToken = ""; lastProblem = `The server didn't save this iPhone (${String(e?.message || "no connection").replace(/^\d+:\s*/, "").slice(0, 120)}).`; settle(false); });
       });
-      await plugin?.addListener?.("pushNotificationActionPerformed", (e: any) => open(String(e?.notification?.data?.url || "")));
+      await add("registrationError", (e: any) => { lastProblem = `Apple didn't give this iPhone a notification address (${String(e?.error || e?.message || "unknown error").slice(0, 120)}).`; settle(false); });
+      await add("pushNotificationActionPerformed", (e: any) => open(String(e?.notification?.data?.url || e?.notification?.data?.aps?.url || "")));
     }
     await nativeCall(PLUGIN, NAME, "register");
     return true;
@@ -52,6 +60,15 @@ export async function startApplePush(ask = false): Promise<boolean> {
 
 /** True once this iPhone has handed the server its Apple device token in this launch. */
 export const applePushReady = (): boolean => !!lastToken;
+
+/** Signs this iPhone up if it isn't yet, and waits (up to `ms`) for the server to have it. */
+export async function ensureApplePush(ms = 10_000): Promise<boolean> {
+  if (lastToken) return true;
+  const waiting = new Promise<boolean>((resolve) => { tokenWaiters.push(resolve); setTimeout(() => resolve(!!lastToken), ms); });
+  const asked = await startApplePush(true);
+  if (!asked) { if (!lastProblem) lastProblem = "Notifications are off for Arise To Duo in iPhone Settings."; settle(false); }
+  return waiting;
+}
 
 /** Asks the server to send a real test through Apple to this person's phones. Resolves with how many
  *  phones Apple accepted it for; throws with the server's own words when it couldn't. */

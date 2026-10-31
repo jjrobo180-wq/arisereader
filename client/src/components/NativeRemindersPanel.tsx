@@ -3,19 +3,20 @@
 import { useState } from "react";
 import { Bell, BellOff, Loader2 } from "lucide-react";
 import { nativeRemindersAvailable, nativeRemindersOn, sendNativeTest, turnOffNativeReminders, turnOnNativeReminders, type ReminderKind } from "@/lib/nativeReminders";
-import { applePushReady, sendAppleTest } from "@/lib/applePush";
+import { applePushProblem, ensureApplePush, sendAppleTest } from "@/lib/applePush";
 
 // "Send a test" goes through the server and Apple when this iPhone is signed up for Apple push, so a
 // test that shows up proves the whole path. Otherwise it falls back to one scheduled on the phone and
 // says plainly that server notifications aren't connected.
 async function sendTest(): Promise<string> {
   let why = "";
-  if (applePushReady()) {
+  // Not signed up yet in this launch: sign up now and wait for it, instead of giving up at once.
+  if (await ensureApplePush()) {
     try {
       if (await sendAppleTest() > 0) return "Apple accepted a test from the server. It should show in a few seconds.";
       why = "Apple didn't accept the server's test.";
     } catch (e: any) { why = String(e?.message || "").replace(/^\d+:\s*/, "").replace(/^\{"message":"(.*)"\}$/, "$1") || "The server's test didn't go through."; }
-  } else why = "This iPhone isn't signed up with the server for notifications yet.";
+  } else why = applePushProblem() || "This iPhone couldn't sign up with the server for notifications.";
   await sendNativeTest();
   return `${why} A test from this iPhone will show in a few seconds instead.`;
 }

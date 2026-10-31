@@ -57,3 +57,27 @@ if os.path.exists(DELEGATE):
             print("AppDelegate: push notification token goes to the app")
         else:
             print("AppDelegate: could not add the push token hook")
+
+# Background audio, part two: the app's sound session is "playback" (spoken audio, long form), so a
+# podcast keeps playing when you leave Pod+ or lock the phone, and isn't silenced by the side switch.
+# The background mode above allows it; without this session iOS still stops the web player's sound.
+if os.path.exists(DELEGATE):
+    src = open(DELEGATE, encoding="utf-8").read()
+    if "AVAudioSession" not in src:
+        marker = "didFinishLaunchingWithOptions"
+        at = src.find(marker)
+        ret = src.find("return true", at) if at >= 0 else -1
+        if at >= 0 and ret > 0:
+            setup = """// Pod+: keep playing in the background (spoken audio, long form).
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, policy: .longFormAudio)
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch { print("Pod+ audio session: \\(error)") }
+        """
+            src = src[:ret] + setup + src[ret:]
+            if "import AVFoundation" not in src:
+                src = src.replace("import UIKit", "import UIKit\nimport AVFoundation", 1)
+            open(DELEGATE, "w", encoding="utf-8").write(src)
+            print("AppDelegate: audio session set to playback (background listening)")
+        else:
+            print("AppDelegate: could not set the audio session")

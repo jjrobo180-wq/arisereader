@@ -128,7 +128,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   update: (fn: (e: Earshot) => Earshot) => void;
   api: Api;
   say: (m: string) => void;
-  onOpenFeed: (start?: { showId: string; episodeId: string; ep?: PodEpisode }, page?: "openmic" | "social" | "library", mode?: { id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" }) => void;
+  onOpenFeed: (start?: { showId: string; episodeId: string; ep?: PodEpisode; next?: PodEpisode[] }, page?: "openmic" | "social" | "library", mode?: { id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" }) => void;
   onEditInterests: () => void;
   pro: boolean;
   onJoin: () => void;
@@ -445,11 +445,11 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     return () => clearInterval(t);
   }, [searching, narrow]);
   // Browse here; listen in the swipe feed, starting on the episode you picked.
-  const openEp = useCallback((e: PodEpisode) => {
+  const openEp = useCallback((e: PodEpisode, next?: PodEpisode[]) => {
     // A tap teaches the feed too (a small nudge toward that show's genre).
     const g = (e as { genre?: string }).genre || showGenre.current.get(e.showId);
     if (g && GENRE[g]) signal(g, "open");
-    onOpenFeed({ showId: e.showId, episodeId: e.id, ep: e });
+    onOpenFeed({ showId: e.showId, episodeId: e.id, ep: e, next });
   }, [onOpenFeed, signal]);
   // An older #/watch/... link opens that episode in the swipe feed.
   useEffect(() => {
