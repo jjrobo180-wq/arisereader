@@ -1,8 +1,9 @@
 // Pod+'s first launch in the iPhone app (never on the website): a welcome screen with Sign in with
 // Apple, email, or "start listening" (listening never needs an account), then the notification
 // question (iOS's prompt comes from its button), then a short tour. Shown once per phone.
-import { useRef, useState, type ReactNode } from "react";
-import { Bell, GraduationCap, Hand, Heart, Loader2, Mail } from "lucide-react";
+import { useRef, useState } from "react";
+import { Bell, Loader2, Mail } from "lucide-react";
+import { PodScene, SceneFit } from "../client/src/components/tour/TourScenes";
 import { APPLE_LOGO_PATH, appleSignInAvailable, askApple } from "../client/src/lib/appleSignIn";
 import { POD_LINKS } from "./Account";
 import { podPushAllowed, podPushAvailable } from "./applePush";
@@ -11,10 +12,13 @@ export const WELCOME_KEY = "podplus.welcome.v1";
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
 type Page = "hello" | "notify" | "tour";
 
-const TOUR: { icon: ReactNode; tint: string; title: string; text: string }[] = [
-  { icon: <Hand />, tint: "#ff6a1f", title: "Swipe to discover", text: "Every card is a real episode. Tap the cover to listen, and swipe up for the next one." },
-  { icon: <Heart />, tint: "#e0457b", title: "It learns what you love", text: "Follow, like and save, and your feed and home page follow your taste. Group favourites into Pod Modes." },
-  { icon: <GraduationCap />, tint: "#7c5cff", title: "Make your own episodes", text: "Study Pod+ turns your notes, a PDF or a recorded class into a podcast, read by real AI voices." },
+const TOUR: { id: string; title: string; text: string }[] = [
+  { id: "swipe", title: "Swipe to discover", text: "Every card is a real episode. Tap the cover to listen, and swipe up for the next one." },
+  { id: "learn", title: "It learns what you love", text: "Follow, like and save, and your feed and home page follow your taste. Group favourites into Pod Modes." },
+  { id: "make", title: "Make your own podcast", text: "Study Pod+ turns your notes, a PDF or a recorded class into a podcast, read by real AI voices. Studio holds your own show." },
+  { id: "social", title: "Pod+ Social", text: "Post, share clips and stories, follow your favourite shows and creators, and message people, all in Social." },
+  { id: "live", title: "Go live", text: "Tap Go live to start a LivePod: talk live to your listeners, read their comments and get Cheers as you go." },
+  { id: "earn", title: "Earn from your show", text: "With Pod+ Rise you set your own prices: supporter memberships, premium episodes and Cheers from LivePods. Payouts are opening soon; join the list in Studio." },
 ];
 
 export function Welcome({ api, signedIn, onSignedIn, onEmail, onPush, onDone }: {
@@ -105,11 +109,9 @@ export function Welcome({ api, signedIn, onSignedIn, onEmail, onPush, onDone }: 
     onTouchEnd={(e) => { const x = touch.current; touch.current = null; if (x == null) return; const dx = (e.changedTouches[0]?.clientX ?? x) - x; if (dx < -50) next(); else if (dx > 50) setI(Math.max(0, i - 1)); }}>
     <div className="relative mx-auto flex w-full max-w-md min-h-0 flex-1 flex-col">
       <div className="flex h-12 shrink-0 items-center justify-end px-4">{!last && <button type="button" onClick={onDone} className="h-11 px-2 text-[16px] font-medium text-white/60" data-testid="pod-tour-skip">Skip</button>}</div>
-      <div key={i} className="flex min-h-0 flex-1 flex-col items-center justify-center px-8 text-center">
-        <div className="relative mb-10 grid h-44 w-44 place-items-center" aria-hidden>
-          <span className="absolute inset-0 rounded-full opacity-40 blur-3xl" style={{ background: step.tint }} />
-          <span className="relative grid h-24 w-24 place-items-center rounded-[1.6rem] text-white shadow-[0_20px_40px_-14px_rgba(0,0,0,.6)] [&_svg]:h-11 [&_svg]:w-11" style={{ background: `linear-gradient(160deg, ${step.tint}cc, ${step.tint})` }}>{step.icon}</span>
-        </div>
+      <div data-scene-col key={i} className="flex min-h-0 flex-1 flex-col items-center justify-center px-8 text-center">
+        {/* The page acted out on a small phone with Pod+'s real screens. */}
+        <div className="mb-6"><SceneFit><PodScene id={step.id} /></SceneFit></div>
         <h1 className="text-[28px] font-bold leading-tight tracking-[-.02em] [text-wrap:balance]">{step.title}</h1>
         <p className="mt-3 max-w-[21rem] text-[16px] leading-[1.45] text-white/65">{step.text}</p>
       </div>

@@ -1,6 +1,6 @@
 name: Pod+ signed iOS beta validation
 # Development beta validation only. Upload is a separate, explicitly approved release step.
-# Release: each account keeps its own library, progress, Study Pods and downloads on the device.
+# Release: Animated tour with Social, making podcasts, Go Live and earning; each account keeps its own things
 on:
   workflow_dispatch:
   push:
