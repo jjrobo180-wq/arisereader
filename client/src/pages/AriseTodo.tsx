@@ -1136,7 +1136,7 @@ export default function AriseTodo() {
       <div className="flex h-full items-center justify-between gap-2 px-3 sm:gap-4 sm:px-5 lg:px-6">
         <button type="button" onClick={() => setSection("home")} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="LifeHub home">
           <span className="flex h-8 w-8 shrink-0 overflow-hidden rounded-xl shadow-[0_5px_14px_#6d5ce72b]"><HubMark tone="life" className="h-full w-full" /></span>
-          <span className="min-w-0 truncate whitespace-nowrap text-[15px] font-extrabold tracking-tight text-slate-700" data-testid="hub-name">Arise To Duo</span>
+          <span className="min-w-0 truncate whitespace-nowrap text-[15px] font-extrabold tracking-tight text-slate-700" data-testid="hub-name">LifeHub</span>
         </button>
         <div className="flex shrink-0 items-center gap-2">
           <DuoHeaderButton onOpen={() => { setCustomizeTab("duo"); setCustomizing(true); }} />
@@ -1288,7 +1288,7 @@ export default function AriseTodo() {
 
       <main data-tour="life-content" className={`min-w-0 flex-1 px-3 pb-28 sm:pb-10 pt-4 sm:px-7 sm:pt-6 lg:px-9 lg:pt-10 xl:px-12 ${shown === "tasks" ? "duo-book:pt-4" : "duo:px-6"} duo-book:px-5 duo-book:pb-10 ${shown === "tasks" && layout.menuSide === "top" ? phone.pad.replace(/max-lg:pt-\S+/, "") : phone.pad}`}>
         <div className="mx-auto max-w-[1250px]">
-          {shown === "tasks" && <header className="mb-5 flex flex-wrap items-start justify-between gap-4 duo-book:hidden">
+          {shown === "tasks" && <header className="mb-5 hidden flex-wrap items-start justify-between gap-4 lg:flex duo-book:hidden">
             <div><p className="mb-2 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7]">Your everyday organizer</p><h1 className="text-3xl font-black tracking-tight text-[#232139] sm:text-4xl">Make room for what matters<span className="text-[#7866e1]">.</span></h1><p className="mt-2 text-sm leading-6 text-slate-500">One place to stay on top of life, work, and everything in between.</p></div>
             <button onClick={openAdd} className="hidden min-h-11 items-center gap-2 rounded-xl bg-[#705de0] px-5 text-sm font-bold text-white shadow-[0_8px_24px_#705de02b] hover:bg-[#604bd4] lg:inline-flex"><Plus size={18} /> New task</button>
           </header>}
@@ -1354,7 +1354,8 @@ export default function AriseTodo() {
           {!notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{shown === "home" && <div className="mb-4"><SupportBanner /></div>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
           {!notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown === "tasks" && <>
 
-          <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-4 duo-book:mt-0 duo-book:grid-cols-4 duo-book:gap-2 duo-stack:grid-cols-4">
+          {/* The four counts are in the tabs on a phone, so the cards show from a tablet up. */}
+          <div className="mt-7 hidden grid-cols-2 gap-3 md:grid md:grid-cols-4 duo-book:mt-0 duo-book:grid duo-book:grid-cols-4 duo-book:gap-2 duo-stack:grid-cols-4">
             {[
               { label: "Open tasks", count: active.length, icon: ListTodo, tint: "text-violet-600", bg: "bg-violet-50" },
               { label: "Due today", count: active.filter(task => task.due === currentDay).length, icon: Sun, tint: "text-amber-600", bg: "bg-amber-50" },
@@ -1363,7 +1364,7 @@ export default function AriseTodo() {
             ].map(stat => { const Icon = stat.icon; return <div key={stat.label} className="rounded-2xl border border-[#e7e8ef] bg-white p-4 shadow-[0_3px_16px_#17152b08] sm:p-5 duo-book:p-3"><div className="mb-3 flex items-center justify-between duo-book:mb-1"><span className="text-xs font-bold text-slate-500 duo-book:text-[11px] duo-book:leading-4">{stat.label}</span><span className={`rounded-xl p-2 duo-book:hidden ${stat.bg} ${stat.tint}`}><Icon size={17} /></span></div><p className="text-3xl font-black text-[#242238] duo-book:text-2xl">{stat.count}</p></div>; })}
           </div>
 
-          <div className="mt-7 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_280px] duo-book:mt-4 duo-book:gap-4">
+          <div className="mt-1 grid grid-cols-1 gap-6 md:mt-7 xl:grid-cols-[minmax(0,1fr)_280px] duo-book:mt-4 duo-book:gap-4">
             <section className="min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-6 duo-book:p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div><p className="text-[11px] font-extrabold uppercase tracking-[.15em] text-violet-600">{selectedName}</p><h2 className="mt-1 text-xl font-black">{viewTabs.find(tab => tab.id === view)?.title}</h2></div>
@@ -1377,7 +1378,8 @@ export default function AriseTodo() {
               <div className={
                 taskLayout === "terminal" ? "mt-5 space-y-0 border border-current/30 font-mono" :
                 taskLayout === "tiles" ? "mt-5 flex flex-wrap gap-2" :
-                "mt-5 space-y-2"
+                // Like the iPhone's Reminders: one list, rows split by hairlines.
+                "mt-4 divide-y divide-[#efeff5] overflow-hidden rounded-2xl border border-[#ececf3] bg-white"
               }>
                 {filtered.map(task => {
                   const list = data.lists.find(row => row.id === task.listId);
@@ -1385,26 +1387,29 @@ export default function AriseTodo() {
                   const rowClass =
                     taskLayout === "terminal" ? "group flex min-w-0 items-start gap-3 border-b border-current/20 p-2.5 last:border-b-0" :
                     taskLayout === "tiles" ? "group relative flex min-w-0 items-start gap-3 overflow-hidden rounded-none border-2 border-black bg-white p-3 pl-4 sm:p-3.5 sm:pl-5" :
-                    "group flex min-w-0 items-start gap-3 rounded-2xl border border-[#ececf3] bg-white p-3 transition hover:border-violet-200 hover:bg-[#fcfbff] sm:p-4";
+                    "group flex min-w-0 items-start gap-3 bg-white px-3 py-3 transition active:bg-slate-50 hover:bg-[#fcfbff] sm:px-4";
                   return <div key={task.id} className={rowClass}>
                     {taskLayout === "tiles" && <span aria-hidden="true" className="absolute inset-y-0 left-0 w-2" style={{ background: list?.color || tileColorOf(task.id) }} />}
                     {taskLayout === "terminal"
                       ? <button onClick={() => toggleDone(task)} aria-label={task.done ? `Reopen ${task.title}` : `Complete ${task.title}`} aria-pressed={task.done} className="mt-0.5 shrink-0 font-mono text-sm">[{task.done ? "x" : " "}]</button>
-                      : <button onClick={() => toggleDone(task)} aria-label={task.done ? `Reopen ${task.title}` : `Complete ${task.title}`} aria-pressed={task.done} className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border-2 transition ${task.done ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300 text-transparent hover:border-violet-500"}`}><Check size={15} /></button>}
+                      : <button onClick={() => toggleDone(task)} aria-label={task.done ? `Reopen ${task.title}` : `Complete ${task.title}`} aria-pressed={task.done} className={`-m-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition`}><span className={`flex h-[22px] w-[22px] items-center justify-center rounded-full border-2 ${task.done ? "border-[#6e5ce1] bg-[#6e5ce1] text-white" : "border-slate-300 text-transparent hover:border-violet-500"}`}><Check size={13} strokeWidth={3} /></span></button>}
                     <button onClick={() => setEditing({ ...task })} className="min-w-0 flex-1 text-left">
-                      <p className={`break-words text-sm font-bold sm:text-base ${task.done ? "text-slate-400 line-through" : "text-slate-800"}`}>{task.title}</p>
-                      {task.notes && <p className="mt-1 line-clamp-2 break-words text-xs leading-5 text-slate-500">{task.notes}</p>}
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-semibold">
-                        {list && <span className="rounded-lg bg-slate-50 px-2 py-1 text-slate-500"><span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ background: list.color }} />{list.name}</span>}
-                        {task.due && <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 ${late ? "bg-rose-50 text-rose-600" : "bg-slate-50 text-slate-500"}`}><CalendarDays size={12} /> {late ? "Overdue · " : ""}{prettyDate(task.due)}{task.time ? ` · ${task.time}` : ""}</span>}
+                      <p className={`line-clamp-2 break-words text-[15px] font-semibold leading-snug ${task.done ? "text-slate-400 line-through" : "text-slate-800"}`}>{task.title}</p>
+                      {/* One line of notes; a forwarded email shows who it's from instead of its whole header. */}
+                      {task.notes && (() => { const first = task.notes.split("\n")[0].trim(); const from = first.startsWith("From: ") ? first.slice(6).replace(/<.*>/, "").trim() : ""; return first ? <p className="mt-0.5 truncate text-xs text-slate-500">{from ? <>From {from}</> : first}</p> : null; })()}
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11.5px] font-semibold empty:hidden">
+                        {list && <span className="inline-flex items-center text-slate-500"><span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ background: list.color }} />{list.name}</span>}
+                        {task.due && <span className={`inline-flex items-center gap-1 ${late ? "text-rose-600" : "text-slate-500"}`}><CalendarDays size={12} /> {late ? "Overdue · " : ""}{prettyDate(task.due)}{task.time ? ` · ${task.time}` : ""}</span>}
                         {task.assignee && (() => { const m = memberByName(task.assignee); return m
                           ? <span className="inline-flex items-center gap-1.5 rounded-lg px-1.5 py-0.5" style={{ background: m.color + "1f", color: m.color }}><Avatar member={m} size="sm" />{m.name}</span>
                           : <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-blue-600"><Users size={12} /> {task.assignee}</span>; })()}
-                        {task.priority === "high" && <span className="rounded-lg bg-orange-50 px-2 py-1 text-orange-600">High priority</span>}
+                        {task.priority === "high" && <span className="text-orange-600">High priority</span>}
                         {task.repeat !== "none" && <span className="inline-flex items-center gap-1 text-slate-400"><Repeat2 size={12} /> {task.repeat}</span>}
                       </div>
                     </button>
-                    <div className="flex shrink-0 items-center gap-0.5">
+                    {/* On a phone, tapping the task opens it (Archive and Delete are in there); on a computer these
+                        show when the pointer is over the row. The other looks keep them always. */}
+                    <div className={`shrink-0 items-center gap-0.5 ${taskLayout === "terminal" || taskLayout === "tiles" ? "flex" : "hidden sm:flex sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:focus-within:opacity-100"}`}>
                       <button onClick={() => setEditing({ ...task })} aria-label={`Edit ${task.title}`} title="Edit" className="rounded-lg p-2 text-slate-400 transition hover:bg-violet-50 hover:text-violet-700"><Pencil size={16} /></button>
                       {task.archived
                         ? <button onClick={() => unarchiveTask(task)} aria-label={`Restore ${task.title} from archive`} title="Restore" className="rounded-lg p-2 text-slate-400 transition hover:bg-violet-50 hover:text-violet-700"><ArchiveRestore size={16} /></button>
@@ -1413,7 +1418,7 @@ export default function AriseTodo() {
                     </div>
                   </div>;
                 })}
-                {!filtered.length && <div className="flex flex-col items-center rounded-2xl border border-dashed border-slate-200 px-4 py-12 text-center"><span className="rounded-2xl bg-violet-50 p-4 text-violet-600">{view === "archived" ? <Archive size={26} /> : <Sparkles size={26} />}</span><p className="mt-4 text-lg font-extrabold">{search ? "No matching tasks" : view === "completed" ? "Nothing completed yet" : view === "archived" ? "Nothing archived" : "A fresh start"}</p><p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">{search ? "Try another search." : view === "today" ? "No tasks due today or overdue. Enjoy the breathing room." : view === "upcoming" ? "Nothing scheduled ahead yet." : view === "completed" ? "Finished tasks will appear here." : view === "archived" ? "Tasks you archive are tucked away here, and can always be brought back." : "Add your first task and start planning your day."}</p>{view !== "archived" && <button onClick={openAdd} className={buttonClass + " mt-5 bg-violet-100 text-violet-700"}><Plus size={16} /> Add a task</button>}</div>}
+                {!filtered.length && <div className="flex flex-col items-center px-4 py-12 text-center"><span className="rounded-2xl bg-violet-50 p-4 text-violet-600">{view === "archived" ? <Archive size={26} /> : <Sparkles size={26} />}</span><p className="mt-4 text-lg font-extrabold">{search ? "No matching tasks" : view === "completed" ? "Nothing completed yet" : view === "archived" ? "Nothing archived" : "A fresh start"}</p><p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">{search ? "Try another search." : view === "today" ? "No tasks due today or overdue. Enjoy the breathing room." : view === "upcoming" ? "Nothing scheduled ahead yet." : view === "completed" ? "Finished tasks will appear here." : view === "archived" ? "Tasks you archive are tucked away here, and can always be brought back." : "Add your first task and start planning your day."}</p>{view !== "archived" && <button onClick={openAdd} className={buttonClass + " mt-5 bg-violet-100 text-violet-700"}><Plus size={16} /> Add a task</button>}</div>}
               </div>
               {selectedList !== "all" && !DEFAULT_LISTS.some(list => list.id === selectedList) && <button onClick={() => { const list = data.lists.find(item => item.id === selectedList); if (list) removeList(list); }} className="mt-6 inline-flex items-center gap-2 text-xs font-semibold text-rose-500 hover:underline"><Trash2 size={14} /> Delete this custom list</button>}
             </section>
