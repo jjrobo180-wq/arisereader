@@ -10,8 +10,8 @@ const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/cs
 const server = createServer(async (req, res) => {
   const u = new URL(req.url, "http://x");
   if (u.pathname.startsWith("/api/")) { res.writeHead(200, { "content-type": "application/json" }); return res.end(u.pathname.includes("settings") ? JSON.stringify({ settings: null }) : "{}"); }
-  try { const f = join(dist, u.pathname === "/" ? "index.html" : u.pathname); res.writeHead(200, { "content-type": types[extname(f)] || "application/octet-stream" }); res.end(await readFile(f)); }
-  catch { res.writeHead(404); res.end(); }
+  try { const f = join(dist, u.pathname === "/" ? "index.html" : u.pathname); const body = await readFile(f); res.writeHead(200, { "content-type": types[extname(f)] || "application/octet-stream" }); res.end(body); }
+  catch { if (!res.headersSent) { res.writeHead(404); res.end(); } }
 }).listen(4173);
 process.on("unhandledRejection", (e) => { report.push("UNHANDLED: " + String(e?.stack || e).slice(0, 800)); void writeFile(`${out}report.md`, report.join("\n")); });
 process.on("uncaughtException", (e) => { report.push("UNCAUGHT: " + String(e?.stack || e).slice(0, 800)); void writeFile(`${out}report.md`, report.join("\n")); });
@@ -19,9 +19,9 @@ const report = [];
 const browser = await webkit.launch();
 const ctx = await browser.newContext({ ...devices["iPad (gen 7) landscape"] });
 // How to get into each game from its menu (button text, in order).
-const FLOW = { match: ["Play"], pop: ["First Words"], sentence: ["Little Line"], fidget: ["Surprise Tiles"], farm: [], runner: [], ninja: [], splash: [] };
+const FLOW = { match: ["Play"], pop: ["First Words"], sentence: ["Little Line"], fidget: ["Surprise Tiles"], farm: [], runner: ["PLAY"], ninja: ["PLAY"], splash: ["SPLASH!"], talker: [], flashcards: [], lessons: [], home: [] };
 const save = () => writeFile(`${out}report.md`, report.join("\n"));
-for (const g of (process.env.GAMES || "farm,runner,ninja,splash,pop").split(",")) {
+for (const g of (process.env.GAMES || "runner,ninja,splash,talker,flashcards,lessons,home").split(",")) {
   const errs = [], steps = [];
   let p;
   try {
@@ -41,7 +41,17 @@ for (const g of (process.env.GAMES || "farm,runner,ninja,splash,pop").split(",")
     await p.screenshot({ path: `${out}${g}-2-in.png` });
     for (let round = 0; round < 5; round++) {
       const picks = await p.evaluate(() => (window).__stage?.debugPicks?.() ?? []);
-      if (!picks.length) { steps.push(`round ${round}: nothing tappable in 3D`); const vp = p.viewportSize(); await p.touchscreen.tap(vp.width / 2, vp.height * 0.6); await p.waitForTimeout(1500); continue; }
+      if (!picks.length) {
+        const vp = p.viewportSize(); const a = await p.screenshot();
+        // a swipe left/right and a tap (steering, slicing), then: did the screen change?
+        const cdp = async (x0, y0, x1, y1) => { await p.evaluate(([x0, y0, x1, y1]) => { const el = document.elementFromPoint(x0, y0) || document.body; const mk = (type, x, y) => new PointerEvent(type, { pointerType: "touch", pointerId: 7, clientX: x, clientY: y, bubbles: true, isPrimary: true }); el.dispatchEvent(mk("pointerdown", x0, y0)); for (let i = 1; i <= 6; i++) window.dispatchEvent(mk("pointermove", x0 + (x1 - x0) * i / 6, y0 + (y1 - y0) * i / 6)); window.dispatchEvent(mk("pointerup", x1, y1)); }, [x0, y0, x1, y1]); };
+        await cdp(vp.width * 0.5, vp.height * 0.6, vp.width * (round % 2 ? 0.2 : 0.8), vp.height * 0.6);
+        await p.touchscreen.tap(vp.width * (0.3 + 0.1 * round), vp.height * 0.5);
+        await p.waitForTimeout(1500);
+        const b = await p.screenshot();
+        steps.push(`round ${round}: no 3D targets; swipe + tap -> screen ${Buffer.compare(a, b) ? "changed" : "SAME"}`);
+        continue;
+      }
       const before = JSON.stringify(picks.map((x) => x.id));
       const pk = picks[round % picks.length];
       await p.touchscreen.tap(pk.x, pk.y);
