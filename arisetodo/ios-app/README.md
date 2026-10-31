@@ -31,3 +31,4 @@ Done in the app and on the server:
 - **No purchases in the app** (3.1.1): prices, buy buttons and the donation banner are hidden in the iPhone app.
 
 Still yours to do in App Store Connect: app name and subtitle, the Privacy Policy URL above, the App Privacy answers (contact info, user content, health and fitness, identifiers; none used for tracking), age rating, screenshots, a demo account for App Review, and the HealthKit capability on the App ID with a fresh provisioning profile.
+
