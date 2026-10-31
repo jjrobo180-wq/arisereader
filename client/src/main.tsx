@@ -1,4 +1,5 @@
 import "./lib/sampleBoot";
+import { nativeAppInfo } from "./lib/nativeApp";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
@@ -52,7 +53,7 @@ const isAriseTodoNative = window.location.protocol === "capacitor:";
 if (isAriseTodoNative && (!window.location.hash || window.location.hash === "#/")) {
   window.location.hash = "#/signin";
 }
-const nativeApiOrigin = "https://arisetodo.com";
+const nativeApiOrigin = nativeAppInfo().api;
 function resolveNativeApiUrl(url: string): string {
   if (!isAriseTodoNative || !url.startsWith("/api/")) return url;
   return nativeApiOrigin + url;

@@ -1,15 +1,16 @@
-// The sign-in and sign-up screens of the Arise To Duo iPhone app (only inside the app; the website
+// The sign-in and sign-up screens of the iPhone apps: Arise To Duo, A.R.I.S.E. Reader (students) and
+// A.R.I.S.E. Reader Educator (teachers and parents). Only inside an app; the website
 // keeps pages/SignIn.tsx). Built like an iPhone app's first screen: a welcome page with Sign in with
 // Apple first, then email sign-in and a free account on their own screens, with grouped fields,
 // a back button, and nothing that reads like a web page (no header, no marketing columns, no
 // sample accounts). Signing in here is the same account as the website's.
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useLocation } from "wouter";
-import { Bell, Briefcase, ChevronLeft, Eye, EyeOff, HeartHandshake, Loader2, Mail } from "lucide-react";
+import { Bell, BookOpen, Briefcase, ChevronLeft, Eye, EyeOff, GraduationCap, HeartHandshake, Loader2, Mail, Trophy, Users } from "lucide-react";
 import ForgotSignIn from "@/components/auth/ForgotSignIn";
 import { useAuth } from "@/context/AuthContext";
 import { APPLE_LOGO_PATH, appleSignInAvailable, askApple } from "@/lib/appleSignIn";
-import { LEGAL } from "@/lib/nativeApp";
+import { LEGAL, nativeAppInfo, nativeFlavor, type NativeFlavor } from "@/lib/nativeApp";
 import { API_BASE } from "@/lib/queryClient";
 import { TEACHER_CONFIRM_KEY } from "@shared/schoolEmail";
 
@@ -18,11 +19,38 @@ type Screen = "welcome" | "signin" | "signup" | "code" | "forgot";
 /** Both hubs open with their menus showing after a first sign-in in the app. */
 const showHubMenus = () => { try { localStorage.setItem("arise-hub-rail", "open"); localStorage.setItem("arise-life-rail", "open"); } catch { /* default menus */ } };
 
+/** What each app says on its welcome screen. Students get their sign-in from a teacher or parent, so the
+ *  student app has no Sign in with Apple and no "free account" (an independent learner signs up on the
+ *  same page the website uses). */
+const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { tint: string; icon: ReactNode; title: string; text: string }[]; apple: boolean; signInHint: string; create: string }> = {
+  todo: { icon: "/icon-512.png", tagline: "Your life and your work, side by side.", apple: true, signInHint: "Use your Arise To Duo or A.R.I.S.E. Reader account.", create: "Create a free account",
+    features: [
+      { tint: "#6a55dc", icon: <HeartHandshake className="h-[22px] w-[22px]" />, title: "LifeHub", text: "Home, family, calendar, health and money." },
+      { tint: "#0f766e", icon: <Briefcase className="h-[22px] w-[22px]" />, title: "WorkHub", text: "Projects, meetings and to-dos for work." },
+      { tint: "#e0465f", icon: <Bell className="h-[22px] w-[22px]" />, title: "Reminders", text: "A heads-up before what matters, on your iPhone." },
+    ] },
+  reader: { icon: "/app-icons/reader-1024.png", tagline: "Read, play and grow, one book at a time.", apple: false, signInHint: "Use the username and password from your teacher or parent.", create: "I'm learning on my own",
+    features: [
+      { tint: "#6a3cf0", icon: <BookOpen className="h-[22px] w-[22px]" />, title: "Books at your level", text: "Stories picked for how you read." },
+      { tint: "#e08a1a", icon: <Trophy className="h-[22px] w-[22px]" />, title: "Quizzes and rewards", text: "Earn points for every book you finish." },
+      { tint: "#e0465f", icon: <Bell className="h-[22px] w-[22px]" />, title: "A reminder to read", text: "A daily nudge at the time you choose." },
+    ] },
+  educator: { icon: "/app-icons/educator-1024.png", tagline: "Your class and your readers, in your pocket.", apple: true, signInHint: "Use your A.R.I.S.E. teacher or parent account.", create: "Create an account",
+    features: [
+      { tint: "#6a3cf0", icon: <GraduationCap className="h-[22px] w-[22px]" />, title: "For teachers", text: "Your class, quizzes to grade and every student's progress." },
+      { tint: "#0f766e", icon: <Users className="h-[22px] w-[22px]" />, title: "For parents", text: "Follow your child's reading and celebrate wins." },
+      { tint: "#e0465f", icon: <Bell className="h-[22px] w-[22px]" />, title: "Notifications", text: "Messages and updates as they happen." },
+    ] },
+};
+
 const font = { fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif" };
 
 export default function NativeSignIn() {
   const { login, signInWithApple } = useAuth();
   const [, navigate] = useLocation();
+  const flavor = nativeFlavor();
+  const copy = COPY[flavor];
+  const appName = nativeAppInfo().name;
   const [screen, setScreen] = useState<Screen>("welcome");
   const [username, setUsername] = useState("");
   const [name, setName] = useState("");
@@ -48,7 +76,7 @@ export default function NativeSignIn() {
 
   // Sign in with Apple: signs in, or makes a free account the first time.
   const withApple = () => run("apple", async () => {
-    const apple = await askApple("com.arisereader.arisetodo");
+    const apple = await askApple(nativeAppInfo().bundle);
     if (!apple) return; // closed the Apple sheet
     await signInWithApple(apple);
     showHubMenus();
@@ -90,17 +118,18 @@ export default function NativeSignIn() {
     setNotice(data?.message || "A new code is on its way.");
   });
 
-  const apple = appleSignInAvailable();
+  const apple = copy.apple && appleSignInAvailable();
+  /** Making an account: To Duo has its own screen; the Reader apps use the website's sign-up pages. */
+  const create = () => (flavor === "reader" ? navigate("/register-independent") : flavor === "educator" ? setPicking(true) : go("signup"));
+  const [picking, setPicking] = useState(false);
 
   if (screen === "welcome") return <Shell>
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-8 text-center">
-      <img src="/icon-512.png" alt="" width={88} height={88} className="h-[88px] w-[88px] rounded-[22px] shadow-[0_18px_40px_-16px_rgba(76,58,190,.55)] ring-1 ring-black/5" />
-      <h1 className="mt-6 text-[34px] font-bold leading-[1.1] tracking-[-.02em] text-[#111018]">Arise To Duo</h1>
-      <p className="mt-2 max-w-[18rem] text-[17px] leading-snug text-[#6b6879] [text-wrap:balance]">Your life and your work, side by side.</p>
+      <img src={copy.icon} alt="" width={88} height={88} className="h-[88px] w-[88px] rounded-[22px] shadow-[0_18px_40px_-16px_rgba(76,58,190,.55)] ring-1 ring-black/5" />
+      <h1 className="mt-6 text-[34px] font-bold leading-[1.1] tracking-[-.02em] text-[#111018] [text-wrap:balance]">{appName}</h1>
+      <p className="mt-2 max-w-[18rem] text-[17px] leading-snug text-[#6b6879] [text-wrap:balance]">{copy.tagline}</p>
       <ul className="mt-9 w-full max-w-[20rem] space-y-5 text-left">
-        <Feature tint="#6a55dc" icon={<HeartHandshake className="h-[22px] w-[22px]" />} title="LifeHub" text="Home, family, calendar, health and money." />
-        <Feature tint="#0f766e" icon={<Briefcase className="h-[22px] w-[22px]" />} title="WorkHub" text="Projects, meetings and to-dos for work." />
-        <Feature tint="#e0465f" icon={<Bell className="h-[22px] w-[22px]" />} title="Reminders" text="A heads-up before what matters, on your iPhone." />
+        {copy.features.map((f) => <Feature key={f.title} {...f} />)}
       </ul>
     </div>
     <div className="shrink-0 space-y-3 px-6 pb-2">
@@ -111,9 +140,14 @@ export default function NativeSignIn() {
       </button>}
       <button type="button" onClick={() => go("signin")} disabled={!!busy} data-testid="native-email"
         className={`flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] text-[17px] font-semibold transition active:opacity-80 disabled:opacity-60 ${apple ? "bg-[#ecebf3] text-[#111018]" : "bg-[#5b4fe0] text-white"}`}>
-        <Mail className="h-5 w-5" /> Sign in with email
+        {flavor === "reader" ? "Sign in" : <><Mail className="h-5 w-5" /> Sign in with email</>}
       </button>
-      <button type="button" onClick={() => go("signup")} className="flex h-11 w-full items-center justify-center text-[15px] font-semibold text-[#5b4fe0]" data-testid="native-create">Create a free account</button>
+      {picking
+        ? <div className="grid grid-cols-2 gap-2" data-testid="native-create-pick">
+            <button type="button" onClick={() => navigate("/teacher-signup")} className="h-11 rounded-[12px] bg-white text-[15px] font-semibold text-[#5b4fe0] ring-1 ring-black/[.06]">I'm a teacher</button>
+            <button type="button" onClick={() => navigate("/parent-signup")} className="h-11 rounded-[12px] bg-white text-[15px] font-semibold text-[#5b4fe0] ring-1 ring-black/[.06]">I'm a parent</button>
+          </div>
+        : <button type="button" onClick={create} className="flex h-11 w-full items-center justify-center text-[15px] font-semibold text-[#5b4fe0]" data-testid="native-create">{copy.create}</button>}
       {error && <p role="alert" className="text-center text-[14px] text-[#d0263e]">{error}</p>}
       <Legal />
     </div>
@@ -146,7 +180,7 @@ export default function NativeSignIn() {
   return <Shell>
     <NavBar title="" onBack={() => go("welcome")} />
     <form onSubmit={signingUp ? signUp : signIn} className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5">
-      <Heading title={signingUp ? "Create your account" : "Sign in"} text={signingUp ? "Free, for anyone. You get LifeHub and WorkHub." : "Use your Arise To Duo or A.R.I.S.E. Reader account."} />
+      <Heading title={signingUp ? "Create your account" : "Sign in"} text={signingUp ? "Free, for anyone. You get LifeHub and WorkHub." : copy.signInHint} />
       <Group>
         {signingUp && <Field label="Name" value={name} onChange={setName} autoComplete="name" placeholder="Your name" testId="native-name" />}
         <Field label="Username" value={username} onChange={setUsername} autoComplete="username" placeholder={signingUp ? "Choose a username" : "Username or email"} testId="native-username" plain />
@@ -164,8 +198,8 @@ export default function NativeSignIn() {
           {busy === "apple" ? <Loader2 className="h-5 w-5 animate-spin" /> : <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={APPLE_LOGO_PATH} /></svg>}
           {signingUp ? "Sign up with Apple" : "Sign in with Apple"}
         </button>}
-        <button type="button" onClick={() => go(signingUp ? "signin" : "signup")} className="h-11 w-full text-[15px] text-[#6b6879]">
-          {signingUp ? <>Already have an account? <b className="font-semibold text-[#5b4fe0]">Sign in</b></> : <>New to Arise To Duo? <b className="font-semibold text-[#5b4fe0]">Create an account</b></>}
+        <button type="button" onClick={() => (signingUp ? go("signin") : flavor === "todo" ? go("signup") : go("welcome"))} className="h-11 w-full text-[15px] text-[#6b6879]">
+          {signingUp ? <>Already have an account? <b className="font-semibold text-[#5b4fe0]">Sign in</b></> : <>New to {appName}? <b className="font-semibold text-[#5b4fe0]">Create an account</b></>}
         </button>
       </div>
     </form>

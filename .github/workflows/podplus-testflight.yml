@@ -1,6 +1,6 @@
 name: Pod+ signed iOS beta validation
 # Development beta validation only. Upload is a separate, explicitly approved release step.
-# Release: welcome screen with Sign in with Apple, new-episode notifications, first-run tour.
+# Release: episodes never get stuck on That episode is over; Play always plays.
 on:
   workflow_dispatch:
   push:
