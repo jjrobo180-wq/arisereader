@@ -16,33 +16,41 @@ const server = createServer(async (req, res) => {
 const browser = await webkit.launch();
 const ctx = await browser.newContext({ ...devices["iPad (gen 7) landscape"] });
 const report = [];
+// How to get into each game from its menu (button text, in order).
+const FLOW = { match: ["Play"], pop: ["First Words"], sentence: ["Little Line"], fidget: ["Surprise Tiles"], farm: [], runner: [], ninja: [], splash: [] };
+const save = () => writeFile(`${out}report.md`, report.join("\n"));
 for (const g of ["match", "pop", "sentence", "fidget", "farm", "runner", "ninja", "splash"]) {
-  const p = await ctx.newPage();
-  const errs = [];
-  p.on("pageerror", (e) => errs.push("PAGE ERROR: " + e.message));
-  p.on("console", (m) => { if (m.type() === "error" || m.type() === "warning") errs.push(`${m.type()}: ${m.text().slice(0, 300)}`); });
-  await p.goto(`http://localhost:4173/index.html?g=${g}`);
-  await p.waitForTimeout(4000);
-  await p.screenshot({ path: `${out}${g}-1-open.png` });
-  // Start buttons first (a game's menu), then whatever can be tapped in the 3D scene.
-  const steps = [];
-  for (let round = 0; round < 6; round++) {
-    const btn = await p.$('button:visible:has-text("Play"), button:visible:has-text("Start"), button:visible:has-text("PLAY"), button:visible:has-text("Go"), button:visible:has-text("Let")');
-    if (btn && round < 2) { const t = (await btn.innerText()).slice(0, 40); await btn.tap().catch(() => {}); steps.push(`tap button "${t}"`); await p.waitForTimeout(2500); continue; }
-    const picks = await p.evaluate(() => (window).__stage?.debugPicks?.() ?? []);
-    steps.push(`round ${round}: ${picks.length} tappable in 3D`);
-    if (!picks.length) { const vp = p.viewportSize(); await p.touchscreen.tap(vp.width / 2, vp.height / 2); steps.push("tap centre"); await p.waitForTimeout(1500); continue; }
-    const before = JSON.stringify(picks.map((x) => x.id));
-    const pk = picks[Math.floor(picks.length / 2)];
-    await p.touchscreen.tap(pk.x, pk.y);
-    await p.waitForTimeout(1500);
-    const after = await p.evaluate(() => (window).__stage?.debugPicks?.() ?? []);
-    steps.push(`tap ${pk.id} at ${Math.round(pk.x)},${Math.round(pk.y)} -> ${JSON.stringify(after.map((x) => x.id)) === before ? "NOTHING CHANGED" : "changed"}`);
-  }
-  await p.screenshot({ path: `${out}${g}-2-after.png` });
+  const errs = [], steps = [];
+  let p;
+  try {
+    p = await ctx.newPage();
+    p.on("pageerror", (e) => errs.push("PAGE ERROR: " + e.message));
+    p.on("console", (m) => { if (m.type() === "error" || m.type() === "warning") errs.push(`${m.type()}: ${m.text().slice(0, 300)}`); });
+    await p.goto(`http://localhost:4173/index.html?g=${g}`);
+    await p.waitForTimeout(4000);
+    await p.screenshot({ path: `${out}${g}-1-open.png` });
+    steps.push("buttons: " + (await p.$$eval("button", (bs) => bs.filter((b) => b.offsetParent).map((b) => (b.innerText || b.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim().slice(0, 30)).join(" | "))));
+    for (const text of FLOW[g]) {
+      const b = p.locator("button", { hasText: text }).first();
+      if (await b.count()) { await b.tap({ timeout: 5000 }).catch((e) => steps.push("tap failed: " + e.message.slice(0, 120))); steps.push(`tap "${text}"`); await p.waitForTimeout(3000); }
+      else steps.push(`no button "${text}"`);
+    }
+    await p.screenshot({ path: `${out}${g}-2-in.png` });
+    for (let round = 0; round < 5; round++) {
+      const picks = await p.evaluate(() => (window).__stage?.debugPicks?.() ?? []);
+      if (!picks.length) { steps.push(`round ${round}: nothing tappable in 3D`); const vp = p.viewportSize(); await p.touchscreen.tap(vp.width / 2, vp.height * 0.6); await p.waitForTimeout(1500); continue; }
+      const before = JSON.stringify(picks.map((x) => x.id));
+      const pk = picks[round % picks.length];
+      await p.touchscreen.tap(pk.x, pk.y);
+      await p.waitForTimeout(1600);
+      const after = await p.evaluate(() => (window).__stage?.debugPicks?.() ?? []);
+      steps.push(`round ${round}: ${picks.length} tappable; tap ${pk.id} at ${Math.round(pk.x)},${Math.round(pk.y)} -> ${JSON.stringify(after.map((x) => x.id)) === before ? "nothing changed" : "changed"}`);
+    }
+    await p.screenshot({ path: `${out}${g}-3-after.png` });
+  } catch (e) { steps.push("RUNNER ERROR: " + String(e?.message || e).slice(0, 300)); }
   report.push(`## ${g}\n${steps.join("\n")}\n${errs.slice(0, 15).join("\n") || "(no errors)"}\n`);
-  await p.close();
+  await save();
+  await p?.close().catch(() => {});
 }
-await writeFile(`${out}report.md`, report.join("\n"));
 console.log(report.join("\n"));
 await browser.close(); server.close();
