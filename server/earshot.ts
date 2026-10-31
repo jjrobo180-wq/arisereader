@@ -12,6 +12,8 @@ import {
   GENRE, EARSHOT_LIMITS, appleLookupUrl, appleSearchUrl, canComment, cleanComment, cleanPodId, commentAuthor, parseEpisode, parseShow, poolFromEpisodeSearch,
   type PodEpisode, type PodShow, type PoolShow, type TranscriptChunk,
 } from "../shared/earshot";
+import { registerPodPushRoutes, supabasePodPushDb } from "./podPush";
+import { loadAppleKey } from "./applePush";
 import { createDirectory, openAiJson, openAiTranscribe, supabaseKV, type Directory, type Fetcher } from "./podcastDirectory";
 import { supabaseBlobs } from "./blobStore";
 import { registerAudiobookRoutes } from "./audiobooks";
@@ -696,4 +698,14 @@ export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetch
   // Study Pod+ and Meeting Pod (server/podcastStudio.ts): the person's own notes, turned into a podcast or a meeting summary.
   registerStudioRoutes(app, gate, { ask: openAiJson, speak: (text, voice) => aiSpeech(text, voice), transcribe: openAiTranscribe, ...(socialDb ? { blobs: supabaseBlobs(socialDb) } : {}) });
   registerEarshotRoutes(app, gate, { store, fetcher, directory, adStore, player, socialDb, prefix: "/api/podscroll" });
+  // New-episode notifications for the Pod+ iPhone app (server/podPush.ts).
+  if (socialDb) {
+    const dir = directory ?? (fetcher ? createDirectory({ fetcher }) : (sharedDirectory ??= createDirectory()));
+    registerPodPushRoutes(app, gate, {
+      db: supabasePodPushDb(socialDb),
+      newest: async (id) => { const { show, episodes } = await dir.loadShow(id); const e = episodes[0]; return show && e ? { show: show.name, episodeId: e.id, title: e.title } : null; },
+      idle: () => dir.idle(),
+      loadKey: () => loadAppleKey(async () => (await socialDb().from("push_settings").select("apns_key, apns_key_id, apns_team_id").eq("id", 1).maybeSingle()).data as any),
+    }, { ticker: !fetcher && process.env.NODE_ENV !== "test" });
+  }
 }
