@@ -13,17 +13,20 @@ const server = createServer(async (req, res) => {
   try { const f = join(dist, u.pathname === "/" ? "index.html" : u.pathname); res.writeHead(200, { "content-type": types[extname(f)] || "application/octet-stream" }); res.end(await readFile(f)); }
   catch { res.writeHead(404); res.end(); }
 }).listen(4173);
+process.on("unhandledRejection", (e) => { report.push("UNHANDLED: " + String(e?.stack || e).slice(0, 800)); void writeFile(`${out}report.md`, report.join("\n")); });
+process.on("uncaughtException", (e) => { report.push("UNCAUGHT: " + String(e?.stack || e).slice(0, 800)); void writeFile(`${out}report.md`, report.join("\n")); });
+const report = [];
 const browser = await webkit.launch();
 const ctx = await browser.newContext({ ...devices["iPad (gen 7) landscape"] });
-const report = [];
 // How to get into each game from its menu (button text, in order).
 const FLOW = { match: ["Play"], pop: ["First Words"], sentence: ["Little Line"], fidget: ["Surprise Tiles"], farm: [], runner: [], ninja: [], splash: [] };
 const save = () => writeFile(`${out}report.md`, report.join("\n"));
-for (const g of ["match", "pop", "sentence", "fidget", "farm", "runner", "ninja", "splash"]) {
+for (const g of (process.env.GAMES || "farm,runner,ninja,splash,pop").split(",")) {
   const errs = [], steps = [];
   let p;
   try {
     p = await ctx.newPage();
+    p.on("crash", () => errs.push("PAGE CRASHED (out of memory?)"));
     p.on("pageerror", (e) => errs.push("PAGE ERROR: " + e.message));
     p.on("console", (m) => { if (m.type() === "error" || m.type() === "warning") errs.push(`${m.type()}: ${m.text().slice(0, 300)}`); });
     await p.goto(`http://localhost:4173/index.html?g=${g}`);
