@@ -62,6 +62,7 @@ jobs:
           npx cap add ios
           npx cap sync ios
           python3 configure-ios.py ios/App/App/Info.plist
+          python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist
       - name: Prepare beta icon and build number
         working-directory: podscroll/ios-app
         run: |
