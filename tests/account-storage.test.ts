@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 class FakeStorage {
   private m = new Map<string, string>();
@@ -40,4 +41,11 @@ test("each account keeps its own things on the device; the sign-in itself is sha
   assert.equal(store.getItem("arise-night"), "1");
   setAccount(7); // same account again: no reload
   assert.equal(reloads, 3);
+});
+
+test("signing out forgets this iPhone's Apple push token for that account", () => {
+  const push = readFileSync(new URL("../client/src/lib/applePush.ts", import.meta.url), "utf8");
+  assert.match(push, /export async function forgetAppleDevice\(/, "pushDevice.ts imports it");
+  assert.match(push, /localStorage\.setItem\(TOKEN_KEY, token\)/, "the token is kept for the device");
+  assert.match(push, /\/api\/push\/apple\/forget/);
 });

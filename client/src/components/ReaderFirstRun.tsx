@@ -8,6 +8,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Bell, BookOpen, ClipboardList, GraduationCap, Sparkles, Trophy, Users } from "lucide-react";
 import { hasNativePlugin, nativeAppInfo, nativeCall, nativeFlavor } from "@/lib/nativeApp";
 import { startApplePush } from "@/lib/applePush";
+import { ReaderScene, SceneFit } from "@/components/tour/TourScenes";
 
 const DONE = (id: number | string) => `arise-reader-first-run-v1:${id}`;
 const LOCAL = /localnotif/i;
@@ -112,12 +113,9 @@ export default function ReaderFirstRun({ userId }: { userId: number | string }) 
     onTouchEnd={(e) => { const x = touch.current; touch.current = null; if (x == null) return; const dx = (e.changedTouches[0]?.clientX ?? x) - x; if (dx < -50) next(); else if (dx > 50) setI(Math.max(0, i - 1)); }}>
     <div className="mx-auto flex w-full max-w-md min-h-0 flex-1 flex-col">
       <div className="flex h-12 shrink-0 items-center justify-end px-4">{!last && <button type="button" onClick={close} className="h-11 px-2 text-[16px] font-medium text-[#6b6879]" data-testid="reader-tour-skip">Skip</button>}</div>
-      <div key={step.id} className="flex min-h-0 flex-1 flex-col items-center justify-center px-8 text-center">
-        <div className="relative mb-10 grid h-44 w-44 place-items-center" aria-hidden>
-          <span className="absolute inset-0 rounded-full opacity-25 blur-2xl" style={{ background: step.tint }} />
-          <span className="absolute inset-5 rounded-[2.4rem] opacity-15" style={{ background: step.tint }} />
-          <span className="relative grid h-24 w-24 place-items-center rounded-[1.6rem] text-white shadow-[0_18px_36px_-14px_rgba(0,0,0,.45)] [&_svg]:h-11 [&_svg]:w-11" style={{ background: `linear-gradient(160deg, ${step.tint}cc, ${step.tint})` }}>{step.icon}</span>
-        </div>
+      <div data-scene-col key={step.id} className="flex min-h-0 flex-1 flex-col items-center justify-center px-8 text-center">
+        {/* The page acted out on a small phone with the app's real screens (tour/TourScenes.tsx). */}
+        <div className="mb-6"><SceneFit><ReaderScene id={step.id} /></SceneFit></div>
         <h1 className="text-[28px] font-bold leading-tight tracking-[-.02em] [text-wrap:balance]">{step.title}</h1>
         <p className="mt-3 max-w-[21rem] text-[16px] leading-[1.45] text-[#6b6879]">{step.body}</p>
       </div>
