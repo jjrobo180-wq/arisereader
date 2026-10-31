@@ -1,6 +1,6 @@
 name: Pod+ signed iOS beta validation
 # Development beta validation only. Upload is a separate, explicitly approved release step.
-# Release: Live News Radio synced for everyone
+# Release: playback fixes, background audio
 on:
   workflow_dispatch:
   push:

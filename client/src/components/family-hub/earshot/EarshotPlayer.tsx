@@ -137,7 +137,7 @@ export type PlayerProps = {
   nickname?: string; setNickname?: (name: string) => void;
   /** An episode to open first, from a shared link. */
   /** The episode to open on; `ep` (when the page that was tapped has it) lets it start at once. */
-  start?: { showId: string; episodeId: string; ep?: PodEpisode } | null;
+  start?: { showId: string; episodeId: string; ep?: PodEpisode; next?: PodEpisode[] } | null;
   /** The full address of a server path, for audio played through the server (smart ad skip). */
   mediaUrl?: (path: string) => string;
   /** Where LivePod connects (wss://…), when the server is on another address (Podscroll). */
@@ -353,6 +353,20 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     }
     return p;
   }, [api, ex]);
+
+  /** A show's page lists its 200 newest episodes (not just the 25 the feed knows), so "Oldest
+   *  first" really starts near the beginning of a series. */
+  const archiveCache = useRef(new Map<string, Promise<{ show: PodShow | null; episodes: PodEpisode[] }>>());
+  const loadArchive = useCallback((showId: string) => {
+    let p = archiveCache.current.get(showId);
+    if (!p) {
+      p = api(`/api/earshot/show/${showId}/search?q=${ex}`).then((b) => ({ show: b.show ?? null, episodes: Array.isArray(b.episodes) ? b.episodes : [] }))
+        .then((r) => (r.episodes.length ? r : loadEpisodes(showId)), () => loadEpisodes(showId));
+      p.catch(() => archiveCache.current.delete(showId));
+      archiveCache.current.set(showId, p);
+    }
+    return p;
+  }, [api, ex, loadEpisodes]);
 
   /** Genres with episodes attached, several in one request. */
   const loadPools = useCallback(async (ids: string[]) => {
@@ -653,6 +667,32 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     else { a.removeAttribute("crossorigin"); delete a.dataset.sid; a.src = ep.audio; }
     return a;
   };
+  /** The server's copy isn't working out for this episode: play it straight from the show's host,
+   *  from the same moment, and don't go through the server for it again this time. */
+  const goDirect = (a: HTMLAudioElement, ep: PodEpisode, t: number, play: boolean) => {
+    direct.current.add(ep.id);
+    const p = plays.current.get(ep.id); if (p?.timer) clearTimeout(p.timer);
+    const b = setAudioSrc(a, ep, null); b.load();
+    if (t > 1) b.addEventListener("loadedmetadata", () => { try { b.currentTime = t; } catch { /* not seekable */ } }, { once: true });
+    if (play) b.play().then(() => setPlaying(true), () => setPlaying(false));
+    return b;
+  };
+  // Through the server and stuck with no sound for 10 seconds (the host is slow to hand the server the
+  // file, or the server's copy stalled): straight from the host from the same moment, instead of
+  // leaving it silent. Checked every 2 seconds while something should be playing.
+  const stall = useRef<{ ep: string; t: number; n: number }>({ ep: "", t: -1, n: 0 });
+  useEffect(() => {
+    const iv = setInterval(() => {
+      const a = cur.current; const it = itemsRef.current[activeRef.current];
+      if (!a || !it?.ep || a.paused || a.dataset.ep !== it.ep.id || !a.dataset.sid || direct.current.has(it.ep.id)) { stall.current = { ep: "", t: -1, n: 0 }; return; }
+      const s0 = stall.current;
+      if (s0.ep === it.ep.id && Math.abs(a.currentTime - s0.t) < 0.2 && a.readyState < 3) s0.n++;
+      else stall.current = { ep: it.ep.id, t: a.currentTime, n: 0 };
+      if (stall.current.n >= 5) { stall.current = { ep: "", t: -1, n: 0 }; a.muted = false; setHolding(null); goDirect(a, it.ep, it.live ? liveAt(it.live) : a.currentTime, true); }
+    }, 2000);
+    return () => clearInterval(iv);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   /** Voice boost on: route the playing episode through it (it must come through the server). */
   const boostCurrent = () => {
     const a = cur.current;
@@ -713,7 +753,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     p.used = Date.now();
     return p.sid;
   };
-  const sessionSrc = (ep: PodEpisode, sid: string) => mediaUrl!(`${playTok.current!.audio}${sid}?e=${ep.id}&s=${ep.showId}&k=${encodeURIComponent(playTok.current!.token)}`);
+  // u: the episode's own address, for an older episode the server's short lists don't have.
+  const sessionSrc = (ep: PodEpisode, sid: string) => mediaUrl!(`${playTok.current!.audio}${sid}?e=${ep.id}&s=${ep.showId}&k=${encodeURIComponent(playTok.current!.token)}&u=${encodeURIComponent(ep.audio || "")}`);
   const skipping = useRef(false);
   const skipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Past an ad, blended: ease out (when fadeOut), jump, ease back in once the audio there is ready. */
@@ -1095,6 +1136,18 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const r0 = netRetry.current;
     const stuck = !!r0 && r0.ep === ca?.dataset.ep && r0.tries >= 2 && Math.abs(r0.t - (ca?.currentTime || 0)) < 3 && navigator.onLine !== false;
     if (ca && !stuck && Number.isFinite(ca.duration) && ca.duration > 0 && ca.currentTime < ca.duration - 8) { waitForSignal(ca); return; }
+    // Said "ended" far before the episode's real length (the server's copy was cut short): not the
+    // end. Carry on from the same moment straight from the show's host.
+    {
+      const it0 = itemsRef.current[activeRef.current]; const real = it0?.ep?.secs || 0;
+      const cutShort = real >= 60 && ca && ca.currentTime > 0 && ca.currentTime < real * 0.85 - 10;
+      const neverStarted = !!ca?.dataset.sid && (ca?.currentTime ?? 0) < 5;
+      if (ca && it0?.ep && ca.dataset.ep === it0.ep.id && (cutShort || neverStarted) && !direct.current.has(it0.ep.id)) {
+        if (r0) { if (r0.timer) clearTimeout(r0.timer); netRetry.current = null; setNetWait(null); }
+        goDirect(ca, it0.ep, ca.currentTime, true);
+        return;
+      }
+    }
     if (r0) { if (r0.timer) clearTimeout(r0.timer); netRetry.current = null; setNetWait(null); }
     const it = itemsRef.current[activeRef.current];
     // Live News Radio: straight on to what's on air next (never back to the top of this one).
@@ -1460,8 +1513,13 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   useEffect(() => {
     if (!start || started.current) return;
     started.current = true;
+    // Picked from a show's list: the episodes after it in that list play next, in order (a series
+    // goes episode 1, 2, 3…), before the feed's own picks.
+    const after = (start.next ?? []).filter((e) => e.id !== start.episodeId && e.audio).slice(0, 40);
     const put = (show: PodShow, ep: PodEpisode, why: string) => {
-      setItems((list) => [{ key: `start-${ep.id}`, show, why, ep, state: "ready" }, ...list.filter((x) => x.ep?.id !== ep.id && x.key !== `start-${ep.id}`)]);
+      const queued: Item[] = after.map((e) => ({ key: `start-next-${e.id}`, show, why: `Up next · ${show.name}`, ep: e, state: "ready" as const }));
+      const taken = new Set([ep.id, ...after.map((e) => e.id)]);
+      setItems((list) => [{ key: `start-${ep.id}`, show, why, ep, state: "ready" }, ...queued, ...list.filter((x) => !(x.ep && taken.has(x.ep.id)) && x.key !== `start-${ep.id}` && !x.key.startsWith("start-next-"))]);
       if (feedRef.current) feedRef.current.scrollTop = 0;
     };
     // The episode that was tapped goes first straight away, before the feed's own first pick can
@@ -1681,7 +1739,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
 
     <div className={day ? "ps-light contents" : "contents"}>{day && <style>{LIGHT_CSS + LIGHT_SHEETS_CSS}</style>}
     {sheet?.kind === "comments" && <Comments ep={sheet.ep} now={cur.current?.dataset.ep === sheet.ep.id ? cur.current.currentTime : null} onJump={(t) => { setSheet(null); unlock(); seekTo(t); if (cur.current?.paused) toggle(); }} api={api} say={say} nickname={nickname} setNickname={setNickname} onClose={() => setSheet(null)} onPosted={() => { timed.reload(); setCounts((c) => ({ ...c, [sheet.ep.id]: { ...(c[sheet.ep.id] ?? { likes: 0, comments: 0, shares: 0, liked: false }), comments: (c[sheet.ep.id]?.comments ?? 0) + 1 } })); const it = items.find((x) => x.ep?.id === sheet.ep.id); if (it) signal(it.show.genre, "comment"); }} />}
-    {sheet?.kind === "show" && <ShowPage show={sheet.show} load={loadEpisodes} hideTeasers={es.settings.hideTeasers} following={isFollowing(sheet.show.id)} adFree={es.adFree.includes(sheet.show.id)} onAdFree={(on) => update((e) => ({ ...e, adFree: on ? [sheet.show.id, ...e.adFree.filter((x) => x !== sheet.show.id)].slice(0, 300) : e.adFree.filter((x) => x !== sheet.show.id) }))} onFollow={toggleFollow} onPlayFrom={playFrom} onClose={() => setSheet(null)} onGenre={(g) => { setSheet(null); setGenreMode(g); setTab("foryou"); }} spots={readSpots()} onAddTo={(ep) => setSheet({ kind: "addto", ep, genre: sheet.show.genre })}
+    {sheet?.kind === "show" && <ShowPage show={sheet.show} load={loadArchive} hideTeasers={es.settings.hideTeasers} following={isFollowing(sheet.show.id)} adFree={es.adFree.includes(sheet.show.id)} onAdFree={(on) => update((e) => ({ ...e, adFree: on ? [sheet.show.id, ...e.adFree.filter((x) => x !== sheet.show.id)].slice(0, 300) : e.adFree.filter((x) => x !== sheet.show.id) }))} onFollow={toggleFollow} onPlayFrom={playFrom} onClose={() => setSheet(null)} onGenre={(g) => { setSheet(null); setGenreMode(g); setTab("foryou"); }} spots={readSpots()} onAddTo={(ep) => setSheet({ kind: "addto", ep, genre: sheet.show.genre })}
       nowId={activeEp?.id} nowPlaying={playing} heard={es.heard} onNowPlaying={() => setSheet(null)} />}
     {sheet?.kind === "info" && <InfoSheet show={sheet.show} api={api} ex={ex} onClose={() => setSheet(null)} onShow={(show) => setSheet({ kind: "show", show })} onEpisodes={() => setSheet({ kind: "show", show: sheet.show })} />}
     {sheet?.kind === "share" && <ShareSheet api={api} say={say} ep={sheet.ep} social={!student} onLink={() => share(sheet.ep, sheet.genre, sheet.show)} onClose={() => setSheet(null)}
