@@ -12,6 +12,7 @@ import { iphoneCalendarAvailable } from "@/lib/nativeCalendar";
 import { looksLikeDuoInner, useAriseDuo } from "@/lib/useAriseDuo";
 import { isNativeApp } from "@/lib/nativeApp";
 import { isSampleMode } from "@/lib/sampleMode";
+import { SceneFit, TodoScene } from "@/components/tour/TourScenes";
 import { nativeRemindersAvailable, nativeRemindersOn, turnOnNativeReminders } from "@/lib/nativeReminders";
 
 const DONE_KEY = (id: number | string) => `arise-walkthrough-v1:${id}`;
@@ -58,15 +59,15 @@ export default function AppWalkthrough({ userId, hub, arise, onGallery, onCustom
     { id: "tabs", icon: <LayoutGrid />, tint: "#1d1a33", title: "Getting around",
       body: <>On a phone, the bar at the bottom has <b>Home</b>, <b>Tasks</b>, the <b>+</b> button, <b>Apps</b> (every section, with search) and <b>You</b> (your account and settings). On a bigger screen, the same things are in the menu on the side.</> },
     { id: "add", icon: <Plus />, tint: "#7968e5", title: "Add anything with +",
-      body: <>Tap <b>+</b> from any screen to add a task, a list, an event, a note and more. In {hub === "work" ? "WorkHub" : "LifeHub"} you can also paste or snap a photo and let AI sort it into tasks and events.</> },
+      body: <>Tap <b>+</b> from any screen to add a task, a list, an event, a note and more. Type a day or time in a task, like “dentist tomorrow 3pm”, and it's set for you. In {hub === "work" ? "WorkHub" : "LifeHub"} you can also paste or snap a photo and let AI sort it into tasks and events.</> },
     { id: "gallery", icon: <LayoutGrid />, tint: "#0f766e", title: "Only the apps you want",
-      body: <>Nothing extra is added for you. Open the <b>App Gallery</b> to add what helps, like a calorie counter, habits, a budget, meal planning or notes. Remove anything later; nothing you saved is lost.</>,
+      body: <>Your <b>Calorie counter</b> is already in. Open the <b>App Gallery</b> to add more, like habits, a budget, meal planning or notes. Remove anything later; nothing you saved is lost.</>,
       action: { label: "Open the App Gallery", run: () => { close(); onGallery(); } } },
     { id: "customize", icon: <MoreHorizontal />, tint: "#334155", title: "Make it yours",
-      body: <>The <b>⋯</b> menu at the top has notifications and every setting. <b>Customize</b> changes the menu (tab bar, side menu or app drawer), what's on Home and in what order, the theme and night mode. Both hubs start with the same settings; you can set each one its own way in Customize.</>,
+      body: <>Press and hold any widget on Home to move it. The <b>⋯</b> menu at the top has notifications and every setting. <b>Customize</b> changes the menu (tab bar, side menu or app drawer), what's on Home and in what order, the theme and night mode. Both hubs start with the same settings; you can set each one its own way in Customize.</>,
       action: { label: "Open Customize", run: () => { close(); onCustomize("layout"); } } },
     { id: "connect", icon: <CalendarDays />, tint: "#0284c7", title: "Bring in your iPhone",
-      body: <>{isNativeApp() ? "Everything connects through your iPhone:" : "In the iPhone app, everything connects through your iPhone:"} <b>Connect iPhone Calendar</b> in Calendar brings every calendar on your phone, and the <b>Calorie counter</b> reads steps and workouts from Apple Health. If your school's calendar can't go on your iPhone, paste its calendar link instead. School email can be forwarded in to your own address and becomes tasks.</> },
+      body: <>{isNativeApp() ? "Connect" : "In the iPhone app, connect"} your <b>iPhone Calendar</b> and <b>Apple Reminders</b> and they show up here. The <b>Calorie counter</b> reads steps and workouts from Apple Health. Forward school email in and it becomes tasks.</> },
     { id: "notify", icon: <Bell />, tint: "#e11d48", title: "Reminders on your phone",
       body: <>Get a morning summary and a heads-up before tasks, events and bills, as notifications on your phone and in the bell at the top. One switch covers both hubs.</>,
       action: isNativeApp() && nativeRemindersAvailable()
@@ -138,13 +139,9 @@ function NativeTour({ steps, hub, onClose, setupOnly, onConnectCalendar }: { ste
       <div className="flex h-12 shrink-0 items-center justify-end px-4">
         {!last && <button type="button" onClick={onClose} className="h-11 px-2 text-[16px] font-medium text-[#6b6879]" data-testid="walkthrough-skip">Skip</button>}
       </div>
-      <div key={step.id} className="flex min-h-0 flex-1 flex-col items-center justify-center px-8 text-center">
-        {/* The step's icon as a large app-style illustration on a soft glow of its own colour. */}
-        <div className="relative mb-10 grid h-44 w-44 place-items-center" aria-hidden>
-          <span className="absolute inset-0 rounded-full opacity-25 blur-2xl" style={{ background: step.tint }} />
-          <span className="absolute inset-5 rounded-[2.4rem] opacity-15" style={{ background: step.tint }} />
-          <span className="relative grid h-24 w-24 place-items-center rounded-[1.6rem] text-white shadow-[0_18px_36px_-14px_rgba(0,0,0,.45)] [&_svg]:h-11 [&_svg]:w-11" style={{ background: `linear-gradient(160deg, ${step.tint}cc, ${step.tint})` }}>{step.icon}</span>
-        </div>
+      <div data-scene-col key={step.id} className="flex min-h-0 flex-1 flex-col items-center justify-center px-8 text-center">
+        {/* The step acted out on a small phone with the app's real screens (tour/TourScenes.tsx). */}
+        <div className="mb-6"><SceneFit reserve={step.action ? 520 : 470}><TodoScene id={step.id} /></SceneFit></div>
         <h1 className="text-[28px] font-bold leading-tight tracking-[-.02em] [text-wrap:balance]">{step.title}</h1>
         <p className="mt-3 max-w-[21rem] text-[16px] leading-[1.45] text-[#6b6879] [&_b]:font-semibold [&_b]:text-[#111018]">{step.body}</p>
         {step.action && <button type="button" onClick={() => void step.action!.run()} className="mt-6 inline-flex h-11 items-center rounded-full bg-[#f1f0f7] px-5 text-[15px] font-semibold text-[#3f35c9] active:opacity-80" data-testid={`walkthrough-action-${step.id}`}>{step.action.label}</button>}
