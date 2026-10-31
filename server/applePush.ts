@@ -14,7 +14,13 @@ import http2 from "node:http2";
 
 export const APNS_PREFIX = "apns:";
 export const isAppleDevice = (endpoint: string) => endpoint.startsWith(APNS_PREFIX);
-export const appleToken = (endpoint: string) => endpoint.slice(APNS_PREFIX.length);
+/** Saved as "apns:<token>" (Arise To Duo) or "apns:<bundle id>:<token>" (another app, like the Educator app). */
+export const appleToken = (endpoint: string) => endpoint.slice(endpoint.lastIndexOf(":") + 1);
+/** The app a saved device belongs to (its bundle id), or undefined for Arise To Duo. */
+export const appleTopic = (endpoint: string): string | undefined => { const rest = endpoint.slice(APNS_PREFIX.length); const at = rest.lastIndexOf(":"); return at > 0 ? rest.slice(0, at) : undefined; };
+/** The apps besides Arise To Duo that sign up for server notifications. */
+export const APPLE_APPS: Record<string, string> = { educator: "com.arisereader.educator" };
+export const appleEndpoint = (token: string, app?: unknown) => APNS_PREFIX + (typeof app === "string" && APPLE_APPS[app] ? APPLE_APPS[app] + ":" : "") + token;
 /** A device token as iOS hands it over: hex, 64 characters or a little more. */
 export const cleanAppleToken = (v: unknown): string | null => {
   const t = String(v ?? "").trim().toLowerCase();
@@ -72,7 +78,8 @@ export type AppleMessage = { title: string; body: string; url?: string; tag?: st
 export const applePayload = (m: AppleMessage) => JSON.stringify({ aps: { alert: { title: String(m.title || "").slice(0, 160), body: String(m.body || "").slice(0, 600) }, sound: "default", ...(m.tag ? { "thread-id": String(m.tag).slice(0, 64) } : {}) }, url: m.url || "/" });
 
 /** Sends to one iPhone. `gone`: Apple says the app was deleted or the token is no good, so forget it. */
-export function sendApplePush(token: string, m: AppleMessage): Promise<{ ok: boolean; gone: boolean }> {
+/** `topic` is the app's bundle id (Arise To Duo unless another app is named, like Pod+). */
+export function sendApplePush(token: string, m: AppleMessage, topic?: string): Promise<{ ok: boolean; gone: boolean }> {
   if (!hasApplePush()) return Promise.resolve({ ok: false, gone: false });
   return new Promise((resolve) => {
     let done = false;
@@ -81,7 +88,7 @@ export function sendApplePush(token: string, m: AppleMessage): Promise<{ ok: boo
       const req = connect().request({
         ":method": "POST", ":path": `/3/device/${token}`,
         authorization: `bearer ${appleJwt()}`,
-        "apns-topic": process.env.APNS_TOPIC || "com.arisereader.arisetodo",
+        "apns-topic": topic || process.env.APNS_TOPIC || "com.arisereader.arisetodo",
         "apns-push-type": "alert", "apns-priority": "10",
         "content-type": "application/json",
       });

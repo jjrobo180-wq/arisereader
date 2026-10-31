@@ -3,7 +3,10 @@
 // server knows about (a message, something shared with you, a test). The app hands the server its
 // Apple device token once notifications are allowed; tapping a notification opens its page.
 import { apiRequest } from "@/lib/queryClient";
-import { hasNativePlugin, isNativeApp, nativeCall } from "@/lib/nativeApp";
+import { hasNativePlugin, isNativeApp, nativeCall, nativeFlavor } from "@/lib/nativeApp";
+
+/** Which app the server sends to (Arise To Duo unless this is the Educator app). */
+const appKey = () => (nativeFlavor() === "educator" ? "educator" : undefined);
 
 const PLUGIN = /^pushnotif/i;
 const NAME = "PushNotifications";
@@ -33,7 +36,7 @@ export async function startApplePush(ask = false): Promise<boolean> {
         const token = String(t?.value || "");
         if (!token || token === lastToken) return;
         lastToken = token;
-        void apiRequest("POST", "/api/push/apple", { token, timeZone: zone() }).catch(() => { lastToken = ""; });
+        void apiRequest("POST", "/api/push/apple", { token, timeZone: zone(), app: appKey() }).catch(() => { lastToken = ""; });
       });
       await plugin?.addListener?.("pushNotificationActionPerformed", (e: any) => open(String(e?.notification?.data?.url || "")));
     }
@@ -60,5 +63,5 @@ export async function stopApplePush(): Promise<void> {
   if (!lastToken) return;
   const token = lastToken;
   lastToken = "";
-  await apiRequest("POST", "/api/push/apple/forget", { token }).catch(() => {});
+  await apiRequest("POST", "/api/push/apple/forget", { token, app: appKey() }).catch(() => {});
 }
