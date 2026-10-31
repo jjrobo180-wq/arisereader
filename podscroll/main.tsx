@@ -16,7 +16,7 @@ import { Home } from "./Home";
 import { AuthScreen } from "./Auth";
 import { Welcome, WELCOME_KEY } from "./Welcome";
 import { OPEN_EVENT, podPushAllowed, startPodPush, syncPodPush } from "./applePush";
-import { isNativeApp } from "../client/src/lib/nativeApp";
+import { isNativeApp, markAppReady } from "../client/src/lib/nativeApp";
 import { downloads, installDownloads } from "./downloads";
 import "./styles.css";
 import { configureAiVoice } from "../client/src/lib/aiVoice";
@@ -255,3 +255,6 @@ function SignUpGate({ api, onDone, onClose }: { api: (path: string, init?: { met
 }
 
 createRoot(document.getElementById("root")!).render(<StrictMode><App /></StrictMode>);
+// Live updates: this copy of the app started and drew its first screen (otherwise the iPhone app goes
+// back to the copy that worked; client/src/lib/nativeApp.ts).
+setTimeout(() => { if (document.getElementById("root")?.childElementCount) markAppReady(); }, 2000);
