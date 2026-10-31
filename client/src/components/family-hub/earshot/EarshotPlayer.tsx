@@ -197,10 +197,12 @@ const savedWords = (s: number) => { const m = Math.round(s / 60); return m < 1 ?
 
 const SPOTS_KEY = "earshot.spots";
 const readSpots = (): Record<string, Spot> => { try { const v = JSON.parse(localStorage.getItem(SPOTS_KEY) || "{}"); return v && typeof v === "object" ? v : {}; } catch { return {}; } };
-function saveSpot(ep: PodEpisode, t: number) {
+function saveSpot(ep: PodEpisode, t: number, realSecs = 0) {
   const all = readSpots();
-  if (t < 15 || (ep.secs && t > ep.secs - 30)) delete all[ep.id];
-  else all[ep.id] = { t: Math.floor(t), secs: ep.secs, title: ep.title, show: ep.show, showId: ep.showId, art: ep.art, at: Date.now() };
+  // The listed length can be shorter than the file (ads stitched in): the longer of the two counts.
+  const secs = Math.max(ep.secs || 0, Number.isFinite(realSecs) ? Math.floor(realSecs) : 0, all[ep.id]?.secs || 0);
+  if (t < 15 || (secs && t > secs - 30)) delete all[ep.id];
+  else all[ep.id] = { t: Math.floor(t), secs, title: ep.title, show: ep.show, showId: ep.showId, art: ep.art, at: Date.now() };
   const keep = Object.entries(all).sort((a, b) => b[1].at - a[1].at).slice(0, 200);
   try { localStorage.setItem(SPOTS_KEY, JSON.stringify(Object.fromEntries(keep))); } catch { /* not kept */ }
   // Continue listening (Home) updates right away.
@@ -818,7 +820,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     a.preload = "auto";
     // Through the server the intro is found and skipped exactly; otherwise long episodes start 90 s in.
     const live = liveOf(ep.id);
-    const at = live ? liveAt(live) : plainPlay.current.has(ep.id) ? 0 : startAt(ep.secs, readSpots()[ep.id]?.t, via ? false : esRef.current.settings.skipIntro);
+    const spot = readSpots()[ep.id];
+    const at = live ? liveAt(live) : plainPlay.current.has(ep.id) ? 0 : startAt(Math.max(ep.secs || 0, spot?.secs || 0), spot?.t, via ? false : esRef.current.settings.skipIntro);
     a.addEventListener("loadedmetadata", () => {
       // Where to start: a saved spot or intro skip, or after the pre-roll the server found in this copy.
       // Only somewhere well before the real end (Apple's length can be longer than the file).
@@ -827,19 +830,21 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       try { if (to && a!.dataset.ep === ep.id && a!.currentTime < 1 && safeTo(a!, to)) a!.currentTime = to; } catch { /* the host doesn't allow seeking */ }
     }, { once: true });
     // iPhones ignore a jump made before the audio is ready; check again once it plays.
+    // Where you left off: iPhones can ignore the jump made while loading, so it's made again once it plays.
+    if (!live && at > 5) a.addEventListener("playing", () => { try { if (a!.dataset.ep === ep.id && a!.currentTime < at - 5 && safeTo(a!, at)) a!.currentTime = at; } catch { /* not seekable */ } }, { once: true });
     a.addEventListener("playing", () => { if (a === cur.current) setAdsTick((x) => x + 1); const p = plays.current.get(ep.id); if (a!.dataset.sid && p && a!.dataset.sid === p.sid && esRef.current.settings.adMode === "auto" && !esRef.current.adFree.includes(ep.showId)) skipIfInAd(a!, p.ads?.ads ?? []); }, { once: true });
     a.load();
     return a;
   };
 
   /** Saves where the episode in the player is, right now (before switching away from it). */
-  function keepSpot() { const it = itemsRef.current[activeRef.current]; const a = cur.current; if (it?.ep && !it.key.startsWith("nr-") && a && a.dataset.ep === it.ep.id && a.currentTime > 0) saveSpot(it.ep, a.currentTime); }
+  function keepSpot() { const it = itemsRef.current[activeRef.current]; const a = cur.current; if (it?.ep && !it.key.startsWith("nr-") && a && a.dataset.ep === it.ep.id && a.currentTime > 0) saveSpot(it.ep, a.currentTime, a.duration); }
   keepSpotRef.current = keepSpot;
   function pausePlayer() { cur.current?.pause(); setPlaying(false); }
   useEffect(() => { if (locked) { players.current.forEach((a) => a.pause()); setPlaying(false); } }, [locked]);
   const leave = useCallback((i: number) => {
     const it = itemsRef.current[i]; if (!it?.ep || !unlockedRef.current) return;
-    if (cur.current?.dataset.ep === it.ep.id && !it.key.startsWith("nr-")) saveSpot(it.ep, cur.current.currentTime);
+    if (cur.current?.dataset.ep === it.ep.id && !it.key.startsWith("nr-")) saveSpot(it.ep, cur.current.currentTime, cur.current.duration);
     const secs = listened.current;
     if (secs < 3) { signal(it.show.genre, "skip"); update((e) => ({ ...e, skipped: [it.show.id, ...e.skipped].slice(0, 80) })); }
     else if (secs < 15) signal(it.show.genre, "pass");
@@ -928,7 +933,11 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   useEffect(() => { if (activeEpId && cur.current?.dataset.ep !== activeEpId) activate(active, unlockedRef.current); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeEpId]);
   useEffect(() => { const n = items[active + 1]?.ep; if (n && cur.current) playerFor(n, [cur.current]); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [nextEpId]);
   useEffect(() => { if (cur.current) cur.current.playbackRate = es.settings.speed; }, [es.settings.speed]);
-  useEffect(() => { const save = () => { const it = itemsRef.current[activeRef.current]; if (it?.ep && !it.key.startsWith("nr-") && cur.current?.dataset.ep === it.ep.id) saveSpot(it.ep, cur.current.currentTime); }; window.addEventListener("pagehide", save); return () => window.removeEventListener("pagehide", save); }, []);
+  useEffect(() => { const save = () => { const it = itemsRef.current[activeRef.current]; if (it?.ep && !it.key.startsWith("nr-") && cur.current?.dataset.ep === it.ep.id) saveSpot(it.ep, cur.current.currentTime, cur.current.duration); };
+    // Leaving the app (iPhone doesn't always send pagehide) saves it too.
+    const hidden = () => { if (document.visibilityState === "hidden") save(); };
+    window.addEventListener("pagehide", save); document.addEventListener("visibilitychange", hidden);
+    return () => { window.removeEventListener("pagehide", save); document.removeEventListener("visibilitychange", hidden); }; }, []);
 
   const goTo = (i: number) => {
     const root = feedRef.current; if (!root) return;
@@ -969,6 +978,13 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const seekTo = (t: number, user = false) => {
     const a = cur.current; if (!a || !a.dataset.ep) return;
     const from = a.currentTime;
+    // A jump well past what's loaded, through the server: the server's copy may not have got there
+    // yet (it fetches from the start), so play from the show's host at that moment instead of waiting.
+    if (user && a.dataset.sid) {
+      const it = itemsRef.current[activeRef.current];
+      let loaded = false; try { for (let i = 0; i < a.buffered.length; i++) if (t >= a.buffered.start(i) - 1 && t <= a.buffered.end(i) + 20) loaded = true; } catch { /* unknown */ }
+      if (!loaded && it?.ep && it.ep.id === a.dataset.ep && !it.live && t - from > 60) { goDirect(a, it.ep, Math.max(0, t), !a.paused); setTime(t); noteSkip(it.ep.id, from, t); return; }
+    }
     a.currentTime = Math.max(0, t); setTime(a.currentTime);
     if (user && a.currentTime - from >= 10 && !markingRef.current) noteSkip(a.dataset.ep, from, a.currentTime);
   };
@@ -1087,7 +1103,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     if (due.length && !sheetRef.current) showMoment(due[due.length - 1]);
     setTime(t); if (a.duration && Number.isFinite(a.duration)) setDur(a.duration);
     const it = itemsRef.current[activeRef.current]; const ep = it?.ep;
-    if (ep && a.dataset.ep === ep.id && !it?.key.startsWith("nr-") && Math.abs(t - lastSpot.current) > 5) { lastSpot.current = t; saveSpot(ep, t); }
+    if (ep && a.dataset.ep === ep.id && !it?.key.startsWith("nr-") && Math.abs(t - lastSpot.current) > 5) { lastSpot.current = t; saveSpot(ep, t, a.duration); }
     // Live: this copy runs longer than the station's slot (ads stitched in): everyone else has moved
     // on, so this phone does too.
     if (it?.live && ep && a.dataset.ep === ep.id && !a.paused && liveClock() > it.live.startsAt + it.live.secs * 1000 + 6000 && Date.now() - lastAutoAdvance.current > 10_000) { lastAutoAdvance.current = Date.now(); void tuneIn(ep.id); }
@@ -2049,7 +2065,8 @@ const artFallback = (art: string) => (e: { currentTarget: HTMLImageElement }) =>
 const NONE_CHAPTERS: Chapter[] = [];
 const NONE_LINES: TxSegment[] = [];
 /** How much slower the scrub goes as the finger slides up away from the bar, and what it's called. */
-const SCRUB_RATES: [number, number, string][] = [[140, 0.1, "Fine scrubbing"], [90, 0.25, "Quarter-speed scrubbing"], [40, 0.5, "Half-speed scrubbing"], [0, 1, ""]];
+// Slower scrubbing only after a clear slide up (a thumb drifts upward on its own while dragging).
+const SCRUB_RATES: [number, number, string][] = [[220, 0.1, "Fine scrubbing"], [160, 0.25, "Quarter-speed scrubbing"], [100, 0.5, "Half-speed scrubbing"], [0, 1, ""]];
 const rateAt = (lift: number) => SCRUB_RATES.find(([d]) => lift >= d)!;
 const signedClock = (secs: number) => `${secs < 0 ? "−" : "+"}${clock(Math.abs(secs))}`;
 
@@ -2068,10 +2085,17 @@ function Scrubber({ time, dur, active, ads, chapters, lines, onSeek, onScrubbing
   const track = useRef<HTMLDivElement | null>(null);
   // The drag: where it began, the point the current speed is measured from, and the landing spot.
   const drag = useRef<{ id: number; from: number; y0: number; x0: number; base: number; rate: number; zone: string } | null>(null);
-  const [at, setAt] = useState<number | null>(null);
+  const [at, setAtState] = useState<number | null>(null);
+  // The latest spot under the finger (the state can lag a frame behind the lift).
+  const atRef = useRef<number | null>(null);
+  const setAt = (v: number | null) => { atRef.current = v; setAtState(v); };
+  // After letting go: show where it's going until the audio gets there (no jump back to the old time).
+  const [landing, setLanding] = useState<{ t: number; until: number } | null>(null);
+  useEffect(() => { if (landing && (Math.abs(time - landing.t) < 2 || Date.now() > landing.until)) setLanding(null); }, [time, landing]);
+  useEffect(() => { if (!landing) return; const id = setTimeout(() => setLanding(null), Math.max(0, landing.until - Date.now())); return () => clearTimeout(id); }, [landing]);
   const [rate, setRate] = useState(1);
   const live = at !== null;
-  const shown = live ? at : time;
+  const shown = live ? at : landing ? landing.t : time;
   const pct = (t: number) => (dur ? Math.min(100, Math.max(0, (t / dur) * 100)) : 0);
   const clamp = (t: number) => Math.min(Math.max(0, dur - 1), Math.max(0, t));
   const timeAtX = (x: number) => { const r = track.current!.getBoundingClientRect(); return clamp(((x - r.left) / r.width) * dur); };
@@ -2082,7 +2106,8 @@ function Scrubber({ time, dur, active, ads, chapters, lines, onSeek, onScrubbing
 
   const end = (seek: boolean) => {
     const d = drag.current; drag.current = null;
-    if (d && seek && at !== null) onSeek(at);
+    const target = atRef.current;
+    if (d && seek && target !== null) { setLanding({ t: target, until: Date.now() + 4000 }); onSeek(target); }
     setAt(null); setRate(1); onScrubbing(false);
   };
   const onDown = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -2120,7 +2145,7 @@ function Scrubber({ time, dur, active, ads, chapters, lines, onSeek, onScrubbing
   return <div className="flex flex-col">
     <div ref={track} role="slider" tabIndex={active ? 0 : -1} aria-label="Seek" aria-valuemin={0} aria-valuemax={Math.floor(dur)} aria-valuenow={Math.floor(shown)} aria-valuetext={`${clock(shown)} of ${clock(dur)}`} aria-disabled={!active}
       onPointerDown={onDown} onPointerMove={onMove} onPointerUp={() => end(true)} onPointerCancel={() => end(false)} onLostPointerCapture={() => drag.current && end(true)} onKeyDown={onKey}
-      className="relative h-9 w-full cursor-pointer touch-none select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 rounded-full">
+      className="relative h-11 w-full cursor-pointer touch-none select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 rounded-full">
       {/* The bar: thin at rest, swelling while you scrub. */}
       <div className={`absolute inset-x-0 top-1/2 -translate-y-1/2 overflow-hidden rounded-full bg-white/20 transition-[height,background-color] duration-200 ease-out ${live ? "h-[14px] bg-white/25" : "h-[5px]"}`}>
         <div className={`absolute inset-y-0 left-0 ${live ? "bg-white" : "bg-white/75"}`} style={{ width: `${pct(shown)}%` }} />
