@@ -7384,10 +7384,20 @@ export async function registerRoutes(
       const now = Date.now();
       const tries = (selfDeletes.get(userId) || []).filter((t) => now - t < 15 * 60_000);
       if (tries.length >= 5) return res.status(429).json({ message: "Too many tries. Wait a few minutes and try again." });
-      const password = typeof req.body?.password === "string" ? req.body.password : "";
-      const { data: row } = await supabase.from("users").select("password").eq("id", userId).maybeSingle();
-      const ok = !!row?.password && !!password && (await bcrypt.compare(password, row.password));
-      if (!ok) { selfDeletes.set(userId, [...tries, now]); return res.status(400).json({ message: "That password isn't right." }); }
+      // Confirmed with the account's password, or (an account made with Sign in with Apple has no
+      // password its owner knows) with a fresh Sign in with Apple for the same Apple ID.
+      let ok = false;
+      const appleToken = typeof req.body?.appleIdentityToken === "string" ? req.body.appleIdentityToken : "";
+      if (appleToken) {
+        try { const c = await verifyAppleToken(appleToken, [ARISE_APP, EDUCATOR_APP]); ok = (await storage.getSetting(`apple_user:${userId}`)) === c.sub; }
+        catch { ok = false; }
+      }
+      if (!ok) {
+        const password = typeof req.body?.password === "string" ? req.body.password : "";
+        const { data: row } = await supabase.from("users").select("password").eq("id", userId).maybeSingle();
+        ok = !!row?.password && !!password && (await bcrypt.compare(password, row.password));
+      }
+      if (!ok) { selfDeletes.set(userId, [...tries, now]); return res.status(400).json({ message: appleToken ? "That Apple ID isn't the one on this account." : "That password isn't right." }); }
       selfDeletes.delete(userId);
       if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Account deletion isn't set up on the server yet. Write to support and we'll delete it for you." });
       const target = await storage.getUser(userId);
