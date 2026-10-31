@@ -2,6 +2,7 @@ import EyeGazeCelebrations from "@/components/EyeGazeCelebrations";
 import InstallAppPrompt from "@/components/InstallAppPrompt";
 import WorkHubTour from "@/components/WorkHubTour";
 import ReaderFirstRun from "@/components/ReaderFirstRun";
+import NativeBack from "@/components/NativeBack";
 import ForcePasswordChange from "@/components/ForcePasswordChange";
 import { Switch, Route, Router, Redirect, useLocation } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
@@ -997,6 +998,7 @@ function AppInner() {
       <ParaJoinResume />
       <Router hook={useHashPathLocation}>
         <AuthenticatedNavigationTracker />
+        {isReaderApp() && user && <NativeBack />}
         <AdminPreviewBar />
       <ViewAsTeacherBar />
         <EyeGazeSiteShell>
