@@ -77,7 +77,9 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" ios/App/App/Info.plist
       - name: Permission text, name and export compliance (Info.plist)
         working-directory: arisetodo/ios-app
-        run: python3 configure-ios.py ios/App/App/Info.plist
+        run: |
+          python3 configure-ios.py ios/App/App/Info.plist
+          python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist
       - name: Import Apple signing certificate and provisioning profile
         shell: bash
         env:

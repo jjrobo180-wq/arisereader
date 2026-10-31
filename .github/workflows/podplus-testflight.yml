@@ -1,6 +1,6 @@
 name: Pod+ signed iOS beta validation
 # Development beta validation only. Upload is a separate, explicitly approved release step.
-# Release: Same as 21 (animated tour, per-account storage), built with Xcode 26.3 to check the launch crash
+# Release: Xcode 27 with the UIScene life cycle: opens on iOS 27 and fills the iPhone Duo
 on:
   workflow_dispatch:
   push:
@@ -50,6 +50,7 @@ jobs:
           npx cap add ios
           npx cap sync ios
           python3 configure-ios.py ios/App/App/Info.plist
+          python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist
       - name: Prepare beta icon and build number
         working-directory: podscroll/ios-app
         run: |
