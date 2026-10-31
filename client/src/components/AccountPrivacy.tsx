@@ -1,12 +1,14 @@
 // Account & privacy: the Privacy Policy, Terms of Use, Support, and deleting your own account
 // (App Store Guidelines 5.1.1(i) and 5.1.1(v)). Opened from the More menu in Arise LifeHub and
-// Arise WorkHub, on the website and in the Arise To Duo iPhone app.
+// Arise WorkHub, on the website and in the Arise To Duo iPhone app, and from the account button in
+// the two A.R.I.S.E. Reader iPhone apps. An account made with Sign in with Apple confirms with Apple.
 import { useState } from "react";
 import { FileText, LifeBuoy, Loader2, ShieldCheck, Trash2, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { goToSignIn } from "@/lib/hubs";
-import { LEGAL } from "@/lib/nativeApp";
+import { LEGAL, nativeAppInfo, nativeFlavor } from "@/lib/nativeApp";
+import { APPLE_LOGO_PATH, appleSignInAvailable, askApple } from "@/lib/appleSignIn";
 
 export default function AccountPrivacy({ onClose }: { onClose: () => void }) {
   const { user, token, logout } = useAuth();
@@ -16,16 +18,25 @@ export default function AccountPrivacy({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [done, setDone] = useState("");
-  const ready = !!password && typed.trim().toUpperCase() === "DELETE" && !busy;
+  const confirmed = typed.trim().toUpperCase() === "DELETE" && !busy;
+  const ready = !!password && confirmed;
+  // An account made with Sign in with Apple has no password its owner knows: it confirms with Apple.
+  const withApple = appleSignInAvailable();
 
-  const remove = async () => {
-    if (!ready) return;
+  const remove = async (apple = false) => {
+    if (apple ? !confirmed : !ready) return;
     setBusy(true); setErr("");
     try {
+      let appleIdentityToken = "";
+      if (apple) {
+        const a = await askApple(nativeAppInfo().bundle);
+        if (!a) { setBusy(false); return; }
+        appleIdentityToken = a.identityToken;
+      }
       const res = await fetch(`${API_BASE}/api/account/delete`, {
         method: "POST", cache: "no-store",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ password, confirm: "DELETE" }),
+        body: JSON.stringify(apple ? { appleIdentityToken, confirm: "DELETE" } : { password, confirm: "DELETE" }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body?.message || "That didn't work. Try again.");
@@ -52,15 +63,20 @@ export default function AccountPrivacy({ onClose }: { onClose: () => void }) {
       </div>
       {deleting && !done && <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 p-4">
         <p className="text-[15px] font-bold text-rose-900">Delete your account?</p>
-        <p className="mt-1 text-sm leading-snug text-rose-900/80">This removes your account and everything in it: your tasks, notes, calendars, LifeHub and WorkHub, files, and podcast profile and posts. It can't be undone. Anything shared with you by others stays with them.</p>
+        <p className="mt-1 text-sm leading-snug text-rose-900/80">{nativeFlavor() === "todo"
+          ? "This removes your account and everything in it: your tasks, notes, calendars, LifeHub and WorkHub, files, and podcast profile and posts. It can't be undone. Anything shared with you by others stays with them."
+          : "This removes your account and everything saved in it, including reading progress, quizzes and points. It can't be undone."}</p>
         <label className="mt-3 block text-sm font-semibold text-rose-900">Your password
           <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} className={input} data-testid="account-delete-password" /></label>
         <label className="mt-3 block text-sm font-semibold text-rose-900">Type DELETE to confirm
           <input value={typed} onChange={(e) => setTyped(e.target.value)} autoCapitalize="characters" autoComplete="off" className={input} data-testid="account-delete-confirm" /></label>
         {err && <p role="alert" className="mt-2 text-sm font-medium text-rose-800">{err}</p>}
+        {withApple && <button type="button" onClick={() => void remove(true)} disabled={!confirmed} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-black text-sm font-semibold text-white disabled:opacity-40" data-testid="account-delete-apple">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={APPLE_LOGO_PATH} /></svg>Signed up with Apple? Delete with Apple
+        </button>}
         <div className="mt-3 flex gap-2">
           <button type="button" onClick={() => { setDeleting(false); setPassword(""); setTyped(""); setErr(""); }} className="min-h-11 flex-1 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-800">Cancel</button>
-          <button type="button" onClick={() => void remove()} disabled={!ready} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-rose-600 text-sm font-semibold text-white disabled:opacity-40" data-testid="account-delete-submit">{busy && <Loader2 className="h-4 w-4 animate-spin" />}Delete forever</button>
+          <button type="button" onClick={() => void remove(false)} disabled={!ready} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-rose-600 text-sm font-semibold text-white disabled:opacity-40" data-testid="account-delete-submit">{busy && <Loader2 className="h-4 w-4 animate-spin" />}Delete forever</button>
         </div>
       </div>}
       {done && <p role="status" className="mt-3 rounded-2xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-900">{done} Signing you out…</p>}
