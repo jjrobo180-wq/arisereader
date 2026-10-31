@@ -1,0 +1,18 @@
+{
+  "name": "A.R.I.S.E. Fit",
+  "short_name": "ARISE Fit",
+  "description": "Private local-first food and movement journal",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "theme_color": "#101a23",
+  "background_color": "#0b131c",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
