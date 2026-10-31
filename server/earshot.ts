@@ -24,7 +24,7 @@ import { importCache, registerImportRoutes } from "./podcastImport";
 import { aiSpeech } from "./groqVoice";
 import { TOPICS, genreSearchTerms, topicPlaylist } from "../shared/earshotTopics";
 import { crowdFor, memoryAdStore, registerAdRoutes, type AdStore } from "./podcastAds";
-import { copyTranscript, registerPlayRoutes, startOpenings, type Player } from "./podcastPlay";
+import { copyTranscript, registerPlayRoutes, sameHostAudio, startOpenings, type Player } from "./podcastPlay";
 import { registerSocialRoutes } from "./podcastSocial";
 import { registerCreatorRoutes } from "./podcastCreators";
 import { topShowsService } from "./podcastTop";
@@ -394,19 +394,21 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
 
   /** Search inside one show: up to its 200 newest episodes as Apple lists them (most apps show 25).
    *  Words match titles and descriptions; no words lists the archive newest first. */
+  /** A show's 200 newest episodes (Apple's most), kept like a search. */
+  const archiveOf = (id: string) => dir.searches.get(`archive:${id}`, async () => {
+    const body = await dir.apple(appleLookupUrl(id, 200));
+    const results: unknown[] = Array.isArray(body?.results) ? body.results : [];
+    const show = results.map((r) => parseShow(r)).find((s) => s && s.id === id) ?? null;
+    const episodes = results.map((r) => parseEpisode(r, show)).filter(Boolean) as PodEpisode[];
+    return { shows: show ? [show] : [], episodes };
+  });
   app.get(`${P}/show/:id/search`, authMiddleware, async (req: any, res) => {
     const id = cleanPodId(req.params.id);
     if (!id) return res.status(400).json({ message: "That isn't a podcast." });
     const q = typeof req.query?.q === "string" ? req.query.q.replace(/\s+/g, " ").trim().slice(0, EARSHOT_LIMITS.search).toLowerCase() : "";
     if (limited(reads, req, res, "searches")) return;
     try {
-      const out = await dir.searches.get(`archive:${id}`, async () => {
-        const body = await dir.apple(appleLookupUrl(id, 200));
-        const results: unknown[] = Array.isArray(body?.results) ? body.results : [];
-        const show = results.map((r) => parseShow(r)).find((s) => s && s.id === id) ?? null;
-        const episodes = results.map((r) => parseEpisode(r, show)).filter(Boolean) as PodEpisode[];
-        return { shows: show ? [show] : [], episodes };
-      });
+      const out = await archiveOf(id);
       const words = q.split(" ").filter((w) => w.length > 1);
       const list = (clean(out.episodes, explicitFor(req)))
         .filter((e) => !words.length || words.every((w) => `${e.title} ${e.about}`.toLowerCase().includes(w)))
@@ -542,7 +544,17 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     registerPlayRoutes(app, authMiddleware, {
       prefix: P, player, dir, crowd: (ep) => crowdFor(adStore, ep), cleanId: cleanPodId, clientIp,
       voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`,
-      audioFor: async (showId, episodeId) => (await dir.loadShow(showId)).episodes.find((e) => e.id === episodeId)?.audio ?? null,
+      // The show's newest 25 first, then its 200 newest (an older episode, like a series' first), then
+      // the address the app sent, only when it's on the same host as this show's own episodes.
+      audioFor: async (showId, episodeId, sent) => {
+        const recent = (await dir.loadShow(showId)).episodes;
+        const hit = recent.find((e) => e.id === episodeId);
+        if (hit) return hit.audio;
+        const older = (await archiveOf(showId).catch(() => null))?.episodes ?? [];
+        const found = older.find((e) => e.id === episodeId);
+        if (found) return found.audio;
+        return sameHostAudio(sent, [...recent, ...older]);
+      },
     });
   }
 

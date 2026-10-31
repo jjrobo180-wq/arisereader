@@ -146,7 +146,7 @@ function App() {
   // The home page (browse) comes first and opens episodes in the swipe feed. A shared swipe
   // link (?s=&e=) still opens straight into the feed.
   const [mode, setMode] = useState<"home" | "feed">(() => (start ? "feed" : "home"));
-  const [feedStart, setFeedStart] = useState<{ showId: string; episodeId: string; ep?: PodEpisode } | null>(start);
+  const [feedStart, setFeedStart] = useState<{ showId: string; episodeId: string; ep?: PodEpisode; next?: PodEpisode[] } | null>(start);
   const [feedKey, setFeedKey] = useState(0);
   // The scroll is For You and Following; Open Mic, Social and Library open from the home page as
   // their own pages (the same player, opened on that tab), each with a back button home.
@@ -154,7 +154,7 @@ function App() {
   const [feedMode, setFeedMode] = useState<{ id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" } | null>(null);
   // Picking an episode on the home page opens the swipe feed on it. Someone who never chose interests
   // gets a broad starting mix instead of the picker, so the episode they tapped plays right away.
-  const openFeed = useCallback((at?: { showId: string; episodeId: string; ep?: PodEpisode }, page?: PageTab, podMode?: { id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" }) => {
+  const openFeed = useCallback((at?: { showId: string; episodeId: string; ep?: PodEpisode; next?: PodEpisode[] }, page?: PageTab, podMode?: { id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" }) => {
     if ((at || page || podMode) && !esRef.current.setupDone) setEs((e) => e.setupDone ? e : ({ ...e, setupDone: true, genres: STARTER_GENRES, taste: Object.fromEntries(STARTER_GENRES.map((g) => [g, 3])) }));
     // Just a page (Social, Open Mic, Library, the scroll) and the player is already running: switch
     // its page, so what's playing keeps playing. A new episode or Pod Mode starts it fresh.
