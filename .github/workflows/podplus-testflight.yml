@@ -1,6 +1,6 @@
 name: Pod+ signed iOS beta validation
 # Development beta validation only. Upload is a separate, explicitly approved release step.
-# Release: resume and scrubbing
+# Release: live updates
 on:
   workflow_dispatch:
   push:
@@ -60,6 +60,7 @@ jobs:
         working-directory: podscroll/ios-app
         run: |
           npm install --no-audit --no-fund
+          python3 ../../.github/scripts/ota_setup.py podplus
           npx cap add ios
           npx cap sync ios
           python3 configure-ios.py ios/App/App/Info.plist

@@ -70,3 +70,12 @@ export async function nativeListen(pluginName: string, event: string, fn: (data:
   } catch { /* nothing to listen with */ }
   return false;
 }
+
+/** Live updates (.github/scripts/ota_setup.py): tells the updater this copy of the app's web code
+ *  started fine. Without it within 15 seconds, the app goes back to the copy that worked. */
+let readySent = false;
+export function markAppReady(): void {
+  if (readySent || !isNativeApp() || !hasNativePlugin(/CapacitorUpdater/i)) return;
+  readySent = true;
+  void nativeCall(/CapacitorUpdater/i, "CapacitorUpdater", "notifyAppReady").catch(() => { readySent = false; });
+}

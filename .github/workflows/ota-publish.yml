@@ -1,0 +1,75 @@
+name: Live updates for the iPhone apps
+# Every change to the web code on master is built for each iPhone app and published as a GitHub
+# release "ota-<app>-<version>" with a zip. The apps ask arisetodo.com/api/ota/<app> when they open
+# (server/ota.ts) and switch to the new copy the next time they open, with no App Store build.
+# Native changes (plugins, Info.plist, icons) still need a TestFlight build: raise
+# .github/ota/native-level when making one, so older app builds never get web code made for it.
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - 'client/**'
+      - 'shared/**'
+      - 'podscroll/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.ts'
+      - 'tailwind.config.*'
+      - 'postcss.config.*'
+      - '.github/ota/native-level'
+      - '.github/workflows/ota-publish.yml'
+permissions:
+  contents: write
+concurrency:
+  group: ota-publish
+  cancel-in-progress: true
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        app: [todo, podplus, reader, educator, fit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build the app's web code
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ matrix.app }}" in
+            podplus)
+              PODPLUS_IOS=1 npx vite build --config podscroll/vite.config.ts
+              node podscroll/ios-app/prepare-web.mjs
+              echo "OUT=podscroll/dist" >> "$GITHUB_ENV" ;;
+            todo)
+              npx vite build
+              echo "OUT=dist/public" >> "$GITHUB_ENV" ;;
+            *)
+              VITE_NATIVE_APP=${{ matrix.app }} npx vite build
+              echo "OUT=dist/public" >> "$GITHUB_ENV" ;;
+          esac
+      - name: Zip and publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -f "$OUT/index.html"
+          LEVEL=$(tr -d '[:space:]' < .github/ota/native-level)
+          V="$LEVEL.$(( $(date +%s) / 60 )).0"
+          TAG="ota-${{ matrix.app }}-$V"
+          ZIP="$RUNNER_TEMP/$TAG.zip"
+          (cd "$OUT" && zip -qr -X "$ZIP" .)
+          echo "::notice title=${{ matrix.app }}::$TAG ($(du -h "$ZIP" | cut -f1))"
+          gh release create "$TAG" "$ZIP" --title "Live update: ${{ matrix.app }} $V" --notes "Web code for the ${{ matrix.app }} iPhone app at ${GITHUB_SHA::8}." --prerelease --latest=false --target "$GITHUB_SHA"
+          # Keep the 6 newest for each app.
+          gh release list --limit 200 --json tagName,createdAt --jq "[.[] | select(.tagName | startswith(\"ota-${{ matrix.app }}-\"))] | sort_by(.createdAt) | reverse | .[6:] | .[].tagName" \
+            | while read -r old; do gh release delete "$old" --yes --cleanup-tag || true; done
