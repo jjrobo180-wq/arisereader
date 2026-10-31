@@ -9,7 +9,8 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react
 import { AlertTriangle, BellRing, HeartHandshake, Languages, Sun, LineChart, Menu as MenuIcon, PanelLeftClose, Vote, Zap, BarChart3, BookOpen, Gift, Megaphone, Calculator, Heart, Landmark, CheckCircle2, ClipboardCheck, Clapperboard, Home, MessageSquare, Sparkles, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
-import { READER_APP, TODO_APP, appHref, isReaderHost } from "@/lib/hubs";
+import { READER_APP, TODO_APP, appHref, goToSignIn, isReaderHost } from "@/lib/hubs";
+import { isReaderApp } from "@/lib/nativeApp";
 import ReaderTools, { isReaderTab, type ReaderTab } from "@/components/teacher-hub/HubReaderTools";
 import ParentReader from "@/components/family-hub/Reader";
 import { SupportBanner, SupportButton, SupportMenuItem } from "@/components/SupportArise";
@@ -249,13 +250,14 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           {(isParent || user.isAdmin) && <SupportButton isAdmin={!!user.isAdmin} />}
           <span className="hidden text-sm sm:inline" style={{ color: "#c9c5dc" }}>{user.displayName}{school ? ` · ${school}` : ""}</span>
-          <button type="button" onClick={() => { logout(); window.location.assign(READER_SIGN_IN); }} className="min-h-10 whitespace-nowrap rounded-[10px] border px-2.5 text-[13px] font-bold sm:px-3.5 sm:text-sm" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#ece9f7" }}>Sign out</button>
+          <button type="button" onClick={() => { logout(); if (isReaderApp()) goToSignIn(); else window.location.assign(READER_SIGN_IN); }} className="min-h-10 whitespace-nowrap rounded-[10px] border px-2.5 text-[13px] font-bold sm:px-3.5 sm:text-sm" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#ece9f7" }}>Sign out</button>
         </div>
       </header>
 
       {/* The hub banner and the donation line. Both always show (neither can be hidden), kept slim. */}
       <div className={`flex flex-col gap-2 px-6 pt-4 ${rail ? "max-lg:pl-[92px]" : "max-lg:pl-10"}`}>
-        <section aria-label={`Open your ${hub.name}`} data-testid="reader-workhub-banner"
+        {/* Not in the iPhone apps: it links out to the website's hub and the paid add-ons (App Review 3.1.1). */}
+        {!isReaderApp() && <section aria-label={`Open your ${hub.name}`} data-testid="reader-workhub-banner"
           className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border px-4 py-3" style={{ borderColor: "#2c6f69", background: "#0f2624" }}>
           <div className="min-w-0 flex-[1_1_320px]">
             <h2 className="text-[17px] font-black leading-tight text-white">{hub.title}</h2>
@@ -270,7 +272,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
             ))}
             <a href={workhubHref} className="inline-flex min-h-9 items-center rounded-xl px-4 text-sm font-black" style={{ background: "#5eead4", color: "#062b27" }} target="_blank" rel="noopener" onClick={openHub} data-testid="reader-open-workhub">Open your {hub.name}</a>
           </div>
-        </section>
+        </section>}
         <SupportBanner dark />
       </div>
 

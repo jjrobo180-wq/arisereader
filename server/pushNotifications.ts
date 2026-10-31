@@ -13,7 +13,7 @@ import { dueTodoReminders, TODO_REMINDER_URL, type TodoReminder } from "../share
 import { NEWS_TOPICS } from "../shared/todoNews";
 import { fetchHeadlines } from "./todoNews";
 import { dueNudges } from "../shared/healthNudges";
-import { APNS_PREFIX, appleToken, cleanAppleToken, hasApplePush, isAppleDevice, loadAppleKey, sendApplePush } from "./applePush";
+import { APNS_PREFIX, appleEndpoint, appleToken, appleTopic, cleanAppleToken, hasApplePush, isAppleDevice, loadAppleKey, sendApplePush } from "./applePush";
 
 type Gate = (req: any, res: any) => Promise<unknown | null>;
 type Row = { id: number; user_id: number; endpoint: string; p256dh: string; auth: string; time_zone: string; sent: Record<string, any> | null; hub?: boolean | null; todo?: boolean | null };
@@ -57,7 +57,7 @@ const appleKey = () => loadAppleKey(async () => (await supabase.from("push_setti
 async function deliver(row: Row, message: PushMessage, keys: VapidKeys | null): Promise<boolean> {
   try {
     // The Arise To Duo iPhone app: straight to Apple.
-    const result = isAppleDevice(row.endpoint) ? await sendApplePush(appleToken(row.endpoint), message) : !keys ? { ok: false, gone: false } : await sendWebPush({ endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } }, message, keys);
+    const result = isAppleDevice(row.endpoint) ? await sendApplePush(appleToken(row.endpoint), message, appleTopic(row.endpoint)) : !keys ? { ok: false, gone: false } : await sendWebPush({ endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } }, message, keys);
     if (result.gone) await supabase.from("push_subscriptions").delete().eq("id", row.id);
     return result.ok;
   } catch (error: any) {
@@ -367,12 +367,12 @@ export function registerPushRoutes(app: Express, authMiddleware: RequestHandler,
     const token = cleanAppleToken(req.body?.token);
     if (!token) return res.status(400).json({ message: "That iPhone's notification details look wrong." });
     if (req.adminPreview || !Number.isSafeInteger(Number(req.user?.id))) return res.status(403).json({ message: "Sign in to your own account." });
-    try { await saveDevice(Number(req.user.id), { endpoint: APNS_PREFIX + token, p256dh: "apns", auth: "apns" }, cleanZone(req.body?.timeZone), "pro"); res.json({ ok: true, enabled: hasApplePush() }); }
+    try { await saveDevice(Number(req.user.id), { endpoint: appleEndpoint(token, req.body?.app), p256dh: "apns", auth: "apns" }, cleanZone(req.body?.timeZone), "pro"); res.json({ ok: true, enabled: hasApplePush() }); }
     catch (error: any) { console.error("[push] apple register failed", error?.message); res.status(500).json({ message: "Could not turn notifications on. Try again in a moment." }); }
   });
   app.post("/api/push/apple/forget", authMiddleware, async (req: any, res) => {
     const token = cleanAppleToken(req.body?.token);
-    if (token) await forgetDevice(Number(req.user.id), APNS_PREFIX + token);
+    if (token) await forgetDevice(Number(req.user.id), appleEndpoint(token, req.body?.app));
     res.json({ ok: true });
   });
 

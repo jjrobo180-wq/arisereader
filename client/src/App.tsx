@@ -1,6 +1,7 @@
 import EyeGazeCelebrations from "@/components/EyeGazeCelebrations";
 import InstallAppPrompt from "@/components/InstallAppPrompt";
 import WorkHubTour from "@/components/WorkHubTour";
+import ReaderFirstRun from "@/components/ReaderFirstRun";
 import ForcePasswordChange from "@/components/ForcePasswordChange";
 import { Switch, Route, Router, Redirect, useLocation } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
@@ -138,7 +139,7 @@ import TodoGate from "@/components/TodoGate";
 import { ReaderAdminToTodoRedirect, ReaderToHubHandoff, TodoAdminHandoff } from "@/components/AdminDomainHandoff";
 import { READER_APP, goToReader, goToSignIn, hubPathFor, isHubAccount, isReaderPage } from "@/lib/hubs";
 import NativePlans from "@/components/NativePlans";
-import { isNativeApp } from "@/lib/nativeApp";
+import { isNativeApp, isReaderApp } from "@/lib/nativeApp";
 const TeacherScenes = lazyPage(() => import("./pages/TeacherScenes"));
 const StudentSceneLive = lazyPage(() => import("./pages/StudentSceneLive"));
 const Library = lazyPage(() => import("./pages/Library"));
@@ -479,8 +480,9 @@ function AppRoutes() {
   // teacher, and parent roles must always keep the standard site layout.
   const isEyeGazeStudent = !!user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent' && !!user.is_eye_gaze_user;
   const domain = typeof window === "undefined" ? "" : window.location.hostname.toLowerCase();
-  const onReaderDomain = domain === "arisereader.com" || domain === "www.arisereader.com";
-  const onTodoDomain = domain === "arisetodo.com" || domain === "www.arisetodo.com" || window.location.protocol === "capacitor:";
+  // The two A.R.I.S.E. Reader iPhone apps act as arisereader.com; the Arise To Duo app as arisetodo.com.
+  const onReaderDomain = domain === "arisereader.com" || domain === "www.arisereader.com" || isReaderApp();
+  const onTodoDomain = domain === "arisetodo.com" || domain === "www.arisetodo.com" || (window.location.protocol === "capacitor:" && !isReaderApp());
   // An adult in one hub is a tap away from the other (and from the split screen): fetch both hubs'
   // code while the page is idle, so switching between Arise WorkHub and Arise LifeHub is instant.
   const hubAdult = isHubAccount(user);
@@ -989,7 +991,9 @@ function AppInner() {
       {overlays && isStudent && !isAdminPreview && !isDemoStudent && <ParentConnectionBanner />}
       {overlays && !isAdminPreview && !isDemoStudent && !isEyeGazeStudent && <WelcomeGuide />}
       {overlays && !isAdminPreview && <InstallAppPrompt />}
-      {overlays && !isAdminPreview && (user?.role === "teacher" || user?.role === "parent" || user?.role === "todo" || user?.isAdmin) && <WorkHubTour />}
+      {overlays && !isAdminPreview && !isReaderApp() && (user?.role === "teacher" || user?.role === "parent" || user?.role === "todo" || user?.isAdmin) && <WorkHubTour />}
+      {/* The Reader iPhone apps' first run: notifications (or a daily reading reminder) and a tour. */}
+      {isReaderApp() && user && !isAdminPreview && <ReaderFirstRun userId={user.id} />}
       <ParaJoinResume />
       <Router hook={useHashPathLocation}>
         <AuthenticatedNavigationTracker />

@@ -1,0 +1,24 @@
+{
+  "name": "reader-ios",
+  "private": true,
+  "version": "1.0.0",
+  "description": "A.R.I.S.E. Reader iPhone app (built from the shared frontend with VITE_NATIVE_APP=reader)",
+  "scripts": {
+    "ios:add": "cap add ios",
+    "ios:sync": "cap sync ios",
+    "postinstall": "node ../../.github/scripts/capacitor8-spm.mjs"
+  },
+  "dependencies": {
+    "@capacitor/core": "8.0.0",
+    "@capacitor/ios": "8.0.0",
+    "@capacitor/app": "8.0.0",
+    "@capacitor/haptics": "8.0.0",
+    "@capacitor/share": "8.0.0",
+    "@capacitor/splash-screen": "8.0.0",
+    "@capacitor/keyboard": "8.0.0",
+    "@capacitor/local-notifications": "8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.0.0"
+  }
+}

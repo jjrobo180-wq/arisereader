@@ -10,7 +10,7 @@ test("the iPhone app signs in on its own screen; the website keeps its page", ()
   const app = read("client/src/App.tsx");
   assert.match(app, /isNativeApp\(\) \? <NativeSignIn \/> : <SignIn \/>/);
   const s = read("client/src/pages/NativeSignIn.tsx");
-  assert.match(s, /askApple\("com\.arisereader\.arisetodo"\)/, "Sign in with Apple");
+  assert.match(s, /askApple\(nativeAppInfo\(\)\.bundle\)/, "Sign in with Apple, for whichever app this is");
   assert.match(s, /\/api\/arise-todo\/register/, "free account");
   assert.match(s, /\/api\/arise-todo\/confirm-email/, "email code");
   assert.match(s, /<ForgotSignIn \/>/, "forgot username or password");
