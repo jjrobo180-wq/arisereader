@@ -10,13 +10,16 @@ project doesn't, so after `cap add ios` and the other configure scripts, this ad
     Capacitor, which no longer gets them through the app delegate once scenes are on.
 Capacitor's pause/resume events, push notification callbacks and didFinishLaunching keep working.
 
-Usage: python3 adopt_uiscene.py ios/App/App/Info.plist
+Usage: python3 adopt_uiscene.py ios/App/App/Info.plist [--below-status-bar]
+  --below-status-bar: the page starts under the status bar instead of behind it (the A.R.I.S.E.
+  Reader apps, whose website pages have headers that stick to the top and would slide under the clock).
 """
 import os
 import plistlib
 import sys
 
-PLIST = sys.argv[1] if len(sys.argv) > 1 else "ios/App/App/Info.plist"
+PLIST = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith("--") else "ios/App/App/Info.plist"
+BELOW = "--below-status-bar" in sys.argv
 DELEGATE = os.path.join(os.path.dirname(PLIST), "AppDelegate.swift")
 
 with open(PLIST, "rb") as f:
@@ -60,6 +63,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
+        BELOW_HOOK
         // Opened from a link while closed: hand it on once the app is up.
         if let url = connectionOptions.urlContexts.first?.url {
             DispatchQueue.main.async { _ = ApplicationDelegateProxy.shared.application(UIApplication.shared, open: url, options: [:]) }
@@ -80,5 +84,35 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 }
 """
+    if BELOW:
+        src = src.replace("        BELOW_HOOK\n", """        // The page starts below the status bar (its sticky headers stay in view).
+        DispatchQueue.main.async { [weak self] in
+            if let w = self?.window, let root = w.rootViewController, !(root is BelowStatusBar) { w.rootViewController = BelowStatusBar(page: root) }
+        }
+""")
+        src += """
+
+/// Holds the app's page below the status bar, on white, like a standard iPhone app.
+final class BelowStatusBar: UIViewController {
+    let page: UIViewController
+    init(page: UIViewController) { self.page = page; super.init(nibName: nil, bundle: nil) }
+    required init?(coder: NSCoder) { return nil }
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .white
+        addChild(page)
+        view.addSubview(page.view)
+        page.didMove(toParent: self)
+    }
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        let top = view.safeAreaInsets.top
+        page.view.frame = CGRect(x: 0, y: top, width: view.bounds.width, height: view.bounds.height - top)
+    }
+    override var preferredStatusBarStyle: UIStatusBarStyle { .darkContent }
+}
+"""
+    else:
+        src = src.replace("        BELOW_HOOK\n", "")
     open(DELEGATE, "w", encoding="utf-8").write(src)
-print("AppDelegate: scene configuration and SceneDelegate added")
+print("AppDelegate: scene configuration and SceneDelegate added" + (" (page below the status bar)" if BELOW else ""))
