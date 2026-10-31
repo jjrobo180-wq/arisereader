@@ -8,7 +8,15 @@ const read = (p: string) => readFileSync(p, "utf8");
 test("its own app: bundle, sign-in screen, home, Apple sign-in and notifications", () => {
   assert.match(read("client/src/lib/nativeApp.ts"), /eyegaze: \{ name: "Arise Eye Gazer", bundle: "com\.arisereader\.eyegazer"/);
   assert.match(read("client/src/pages/NativeSignIn.tsx"), /eyegaze: \{ icon: "\/app-icons\/eyegazer-1024\.png"/);
-  assert.match(read("client/src/App.tsx"), /isEyeGazerApp\(\) && user\.role === "parent" \? <Redirect key="home-to-eyegaze-parent" to="\/eye-gaze-parent"/);
+  const app = read("client/src/App.tsx");
+  // Opening the app goes straight to Eye Gazer (parents: parent mode), never a hub.
+  assert.match(app, /eyeGazerApp \? <Redirect key="home-to-eyegaze" to=\{user\.role === "parent" \? "\/eye-gaze-parent" : "\/eye-gaze-home"\}/);
+  // Signing in inside the app never hands off to LifeHub or WorkHub on arisetodo.com.
+  assert.match(app, /if \(isEyeGazerApp\(\)\) return <Redirect to=\{user\.role === "parent" \? "\/eye-gaze-parent" : "\/eye-gaze-home"\}/);
+  // Its own simple account: name, username and password, no school or teacher.
+  const signIn = read("client/src/pages/NativeSignIn.tsx");
+  assert.match(signIn, /create: "Create an Eye Gazer account"/);
+  assert.match(signIn, /independent: true, isEyeGazeUser: true/);
   assert.match(read("server/appleSignIn.ts"), /EYEGAZER_APP = "com\.arisereader\.eyegazer"/);
   assert.match(read("server/applePush.ts"), /eyegaze: "com\.arisereader\.eyegazer"/);
   assert.match(read("client/src/lib/applePush.ts"), /nativeFlavor\(\) === "eyegaze" \? "eyegaze"/);
