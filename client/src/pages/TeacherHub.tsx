@@ -110,6 +110,7 @@ import {
   HUB_IMPORT, HUB_IMPORT_KINDS, clock12, cleanHubImport, describeHubAdded, mergeHubImport, updateStudent,
   WORK_ADD_ON_TABS, type AttendanceEntry, type HubImportItems, type HubTab, type Student, type Task, type Workspace,
   HUB_TABS, isTabOn,
+  replaceCalendarEvents,
 } from "@shared/teacherHub";
 import { addStudentWithTeam, draftHasAnyone, emptyTeamDraft, teamDraft, teamMembers, updateStudentWithTeam, type StudentDetails, type TeamDraft } from "@shared/hubStudentTeam";
 import { StudentTeamFields, StudentTeamSummary } from "@/components/teacher-hub/HubStudentTeam";
@@ -170,6 +171,7 @@ import PinBanners, { PinButton } from "@/components/teacher-hub/HubPins";
 import HubSwitch from "@/components/HubSwitch";
 import HeaderShortcut, { type ShortcutChoice } from "@/components/HeaderShortcut";
 import { smartDate } from "@shared/smartDate";
+import { IPHONE_CALENDAR_URL, isIphoneCalendar, readIphoneEvents } from "@/lib/nativeCalendar";
 import HubMark from "@/components/HubMark";
 import { AdminTab } from "@/components/teacher-hub/HubReader";
 import WhatsNew from "@/pages/WhatsNew";
@@ -1008,7 +1010,13 @@ function TeacherHubPage() {
       style={{ "--hub-accent": accent, "--hub-accent-deep": deepenAccent(accent) } as React.CSSProperties}>
       <UpgradeHost hub="work" />
       {canUseHub && loaded && !loadError && !needsPlan && <AppWalkthrough userId={user.id} hub="work" arise={user.role === "teacher" || user.role === "parent"}
-        onGallery={() => setStore(true)} onCustomize={(t) => { setCustomizeTab(t); setCustomize(true); }} onNotificationSettings={() => setNotifyOpen(true)} />}
+        onGallery={() => setStore(true)} onCustomize={(t) => { setCustomizeTab(t); setCustomize(true); }} onNotificationSettings={() => setNotifyOpen(true)}
+        onConnectCalendar={async () => {
+          // Same as Calendar → Connect iPhone Calendar (teacher-hub/HubCalendar.tsx).
+          const events = await readIphoneEvents();
+          setWorkspace((prev) => { const had = prev.calendars.find((c) => isIphoneCalendar(c.url)); return replaceCalendarEvents(prev, { id: had?.id || id(), name: "iPhone Calendar", url: IPHONE_CALENDAR_URL, syncedAt: new Date().toISOString() }, events, id); });
+          return events.length;
+        }} />}
       {store && canUseHub && loaded && !loadError && !needsPlan && <PluginStore
         hub="work"
         initialOpen={storeOpenApp ?? undefined}
@@ -1065,8 +1073,8 @@ function TeacherHubPage() {
             <HubSwitch current="hub" night={night} />
             {/* The ⚡ shortcut: on a phone only once one is set, so the name "WorkHub" fits in the header. */}
             <div className={layout.shortcut ? "contents" : "hidden sm:contents duo:hidden"}>
-            <HeaderShortcut shortcut={layout.shortcut} choices={shortcutChoices()} say={(m) => toasts.show(m, [])}
-              onChange={(next) => setWorkspace((p) => { const { shortcut: _old, ...rest } = p.layout ?? layout; return { ...p, layout: (next ? { ...rest, shortcut: next } : rest) as HubLayout }; })} />
+            {/* Not in the iPhone app: the app is the real thing, no Shortcut. */}{!isNativeApp() && <HeaderShortcut shortcut={layout.shortcut} choices={shortcutChoices()} say={(m) => toasts.show(m, [])}
+              onChange={(next) => setWorkspace((p) => { const { shortcut: _old, ...rest } = p.layout ?? layout; return { ...p, layout: (next ? { ...rest, shortcut: next } : rest) as HubLayout }; })} />}
             </div>
             <HubSearchButton onOpen={() => setSearching(true)} />
             <span className="hidden sm:contents duo:hidden"><SaveBadge view={view} /></span>
