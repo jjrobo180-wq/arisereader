@@ -133,3 +133,13 @@ export async function scheduleNativeReminders(kind: ReminderKind, workspace: unk
 export async function sendNativeTest(): Promise<void> {
   await call("schedule", { notifications: [{ id: reminderId(`test:${Date.now()}`), title: "Arise To Duo", body: "Reminders are working on this iPhone.", schedule: { at: new Date(Date.now() + 5000) } }] });
 }
+
+/** Signing out: every reminder scheduled on this iPhone is taken away, so the next account never sees the last one's. */
+export async function cancelAllNativeReminders(): Promise<void> {
+  if (!nativeRemindersAvailable()) return;
+  try {
+    const pending = await nativeCall(PLUGIN, NAME, "getPending");
+    const ids = (Array.isArray(pending?.notifications) ? pending.notifications : []).map((n: any) => ({ id: Number(n?.id) })).filter((n: { id: number }) => Number.isFinite(n.id));
+    if (ids.length) await nativeCall(PLUGIN, NAME, "cancel", { notifications: ids });
+  } catch { /* signing out always works */ }
+}

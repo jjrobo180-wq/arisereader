@@ -12,6 +12,8 @@ const PLUGIN = /^pushnotif/i;
 const NAME = "PushNotifications";
 let started = false;
 let lastToken = "";
+/** This iPhone's token, kept for the device (not an account) so signing out can always forget it. */
+const TOKEN_KEY = "arise-apns-token";
 
 export const applePushAvailable = (): boolean => hasNativePlugin(PLUGIN);
 const zone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch { return "UTC"; } };
