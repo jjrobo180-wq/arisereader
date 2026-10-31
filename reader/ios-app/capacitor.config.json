@@ -17,6 +17,12 @@
         "sound",
         "alert"
       ]
+    },
+    "CapacitorUpdater": {
+      "autoUpdate": false,
+      "updateUrl": "https://arisetodo.com/api/ota/reader",
+      "channelUrl": "https://arisetodo.com/api/ota/reader",
+      "statsUrl": ""
     }
   },
   "ios": {

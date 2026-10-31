@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { justIn, newestOf, newsLineup, refill } from "../client/src/components/family-hub/earshot/newsRadio";
+import { justIn, newestOf, newsLineup, refill, stationLineup } from "../client/src/components/family-hub/earshot/newsRadio";
 import type { PodEpisode } from "../shared/earshot";
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
@@ -39,8 +39,8 @@ test("Pod+ Home, the menu and Up to the Minute News start it; the player plays i
   assert.match(hubs, /Pod\+ Live News Radio/);
   assert.match(read("podscroll/Endless.tsx"), /Listen to Pod\+ Live News Radio/);
   assert.match(player, /playMode\.id === NEWS_RADIO_ID\) \{ void startNewsRadio\(\)/);
-  assert.match(player, /Just in · \$\{NEWS_RADIO_NAME\}/);
-  assert.match(player, /\/api\/earshot\/now\?hours=/);
+  assert.match(player, /\$\{NEWS_RADIO_NAME\} · On air/);
+  assert.match(player, /\/api\/earshot\/now\/station/);
 });
 
 test("Live news stations: a separate feed of stations that are news all day", () => {
@@ -62,4 +62,36 @@ test("national networks' streams aren't played in Pod+ Radio; local stations are
   for (const n of ["CNN", "CNN International", "Fox News Radio", "MSNBC", "BBC World Service", "Bloomberg Radio", "C-SPAN Radio", "NPR News"]) assert.ok(re.test(n), n);
   for (const n of ["1010 WINS", "KQED", "WNYC 93.9 FM", "KEXP", "News Radio 1190"]) assert.ok(!re.test(n), n);
   assert.match(radio, /&& !isNetwork\(s\);/, "left out of every Radio list, Live news stations too");
+});
+
+test("the station still plays when the last 12 hours have nothing: it reaches back to the latest it has", () => {
+  const now = Date.parse("2026-10-31T13:00:00Z");
+  const e = (id: string, showId: string, hrs: number) => ({ id, showId, show: showId, author: "", title: id, about: "", audio: "https://a/" + id + ".mp3", date: new Date(now - hrs * 3600_000).toISOString(), secs: 300, art: "", link: "", explicit: false });
+  const stale = [e("npr4pm", "npr", 21), e("cbs", "cbs", 15), e("old", "bbc", 30)];
+  assert.deepEqual(newsLineup(stale, now), []);
+  assert.deepEqual(stationLineup(stale, now).map((x) => x.id), ["cbs", "npr4pm"]);
+  assert.deepEqual(stationLineup([e("fresh", "npr", 1), ...stale], now).map((x) => x.id), ["fresh"]);
+});
+
+test("Live News Radio plays like a live stream: its own screen, no seeking, skipping or swiping", () => {
+  const src = readFileSync(new URL("../client/src/components/family-hub/earshot/EarshotPlayer.tsx", import.meta.url), "utf8");
+  assert.match(src, /function LiveNews\(/);
+  assert.match(src, /data-testid="pod-live-badge"/);
+  assert.match(src, /onAir \? "touch-none overflow-hidden" : "overflow-y-scroll"/);
+  assert.match(src, /set\("seekforward", live \? null/);
+  // The station replaces the feed, and podcasts aren't added after it.
+  assert.match(src, /playList\(slotItems\(list, now\), true, !!justFinished\)/);
+  assert.match(src, /if \(radio\.current\) return;\n    const list = itemsRef\.current;/);
+});
+
+test("one station for everyone: each phone plays what's on air from where it has reached, and never replays a bulletin's start", () => {
+  const src = readFileSync(new URL("../client/src/components/family-hub/earshot/EarshotPlayer.tsx", import.meta.url), "utf8");
+  assert.match(src, /api\(`\/api\/earshot\/now\/station`\)/);
+  assert.match(src, /const at = live \? liveAt\(live\) :/);
+  // No muted hold-then-back-to-the-start for the station, and a finished bulletin goes straight on.
+  assert.match(src, /const hold = play && !it\.live &&/);
+  assert.match(src, /if \(it\?\.live && it\.ep\) \{ setPlaying\(false\); lastAutoAdvance\.current = Date\.now\(\); void tuneIn\(it\.ep\.id\); return; \}\n    if \(it\?\.ep\) \{ signal/);
+  // Going back to Home keeps it playing; opening the hub again doesn't start it over.
+  assert.match(src, /onMinimize=\{\(\) => \{ if \(onHome\) onHome\(\); else setTab\("explore"\); \}\}/);
+  assert.match(readFileSync(new URL("../podscroll/main.tsx", import.meta.url), "utf8"), /podMode\?\.id === "__newsradio" && feedSeenRef\.current && nowPodRef\.current\?\.live/);
 });

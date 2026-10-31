@@ -6,7 +6,7 @@
 // sample accounts). Signing in here is the same account as the website's.
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useLocation } from "wouter";
-import { Bell, BookOpen, Briefcase, ChevronLeft, Eye, EyeOff, GraduationCap, HeartHandshake, Loader2, Mail, Trophy, Users } from "lucide-react";
+import { Apple as AppleIcon, Bell, BookOpen, Briefcase, Dumbbell, LineChart, ChevronLeft, Eye, EyeOff, GraduationCap, HeartHandshake, Loader2, Mail, Trophy, Users } from "lucide-react";
 import ForgotSignIn from "@/components/auth/ForgotSignIn";
 import { useAuth } from "@/context/AuthContext";
 import { APPLE_LOGO_PATH, appleSignInAvailable, askApple } from "@/lib/appleSignIn";
@@ -40,6 +40,12 @@ const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { ti
       { tint: "#6a3cf0", icon: <GraduationCap className="h-[22px] w-[22px]" />, title: "For teachers", text: "Your class, quizzes to grade and every student's progress." },
       { tint: "#0f766e", icon: <Users className="h-[22px] w-[22px]" />, title: "For parents", text: "Follow your child's reading and celebrate wins." },
       { tint: "#e0465f", icon: <Bell className="h-[22px] w-[22px]" />, title: "Notifications", text: "Messages and updates as they happen." },
+    ] },
+  fit: { icon: "/app-icons/fit-1024.png", tagline: "Train smarter. Eat better. See it work.", apple: true, signInHint: "Use your Arise account (Arise To Duo or A.R.I.S.E.).", create: "Create a free account",
+    features: [
+      { tint: "#5c8a12", icon: <Dumbbell className="h-[22px] w-[22px]" />, title: "Programs and tracking", text: "Proven plans, every set logged, records and rest timer." },
+      { tint: "#e0782f", icon: <AppleIcon className="h-[22px] w-[22px]" />, title: "Calories and macros", text: "Search, scan a barcode or snap a photo of your meal." },
+      { tint: "#3b82f6", icon: <LineChart className="h-[22px] w-[22px]" />, title: "Real progress", text: "Strength, volume, weight and streaks over time." },
     ] },
 };
 
@@ -180,7 +186,7 @@ export default function NativeSignIn() {
   return <Shell>
     <NavBar title="" onBack={() => go("welcome")} />
     <form onSubmit={signingUp ? signUp : signIn} className="flex min-h-0 flex-1 flex-col overflow-y-auto [&>*]:shrink-0 px-5">
-      <Heading title={signingUp ? "Create your account" : "Sign in"} text={signingUp ? "Free, for anyone. You get LifeHub and WorkHub." : copy.signInHint} />
+      <Heading title={signingUp ? "Create your account" : "Sign in"} text={signingUp ? (flavor === "fit" ? "Free, for anyone. The same account works in Arise To Duo." : "Free, for anyone. You get LifeHub and WorkHub.") : copy.signInHint} />
       <Group>
         {signingUp && <Field label="Name" value={name} onChange={setName} autoComplete="name" placeholder="Your name" testId="native-name" />}
         <Field label="Username" value={username} onChange={setUsername} autoComplete="username" placeholder={signingUp ? "Choose a username" : "Username or email"} testId="native-username" plain />
@@ -198,7 +204,7 @@ export default function NativeSignIn() {
           {busy === "apple" ? <Loader2 className="h-5 w-5 animate-spin" /> : <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={APPLE_LOGO_PATH} /></svg>}
           {signingUp ? "Sign up with Apple" : "Sign in with Apple"}
         </button>}
-        <button type="button" onClick={() => (signingUp ? go("signin") : flavor === "todo" ? go("signup") : go("welcome"))} className="h-11 w-full text-[15px] text-[#6b6879]">
+        <button type="button" onClick={() => (signingUp ? go("signin") : flavor === "todo" || flavor === "fit" ? go("signup") : go("welcome"))} className="h-11 w-full text-[15px] text-[#6b6879]">
           {signingUp ? <>Already have an account? <b className="font-semibold text-[#5b4fe0]">Sign in</b></> : <>New to {appName}? <b className="font-semibold text-[#5b4fe0]">Create an account</b></>}
         </button>
       </div>

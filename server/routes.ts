@@ -62,14 +62,17 @@ import { registerAdminHandoffRoutes } from "./adminHandoff";
 import { registerClientErrorRoutes } from "./clientErrors";
 import { registerTodoShareRoutes } from "./todoShare";
 import { registerFoodLookupRoutes } from "./foodLookup";
+import { registerFitRoutes } from "./fit";
 import { registerBrowserRoutes } from "./browserCheck";
 import { registerLifePlanRoutes } from "./lifePlan";
+import { registerAccountabilityRoutes, startAccountabilityTicker } from "./accountability";
+import { registerOtaRoutes } from "./ota";
 import { registerSleepFinderRoutes } from "./sleepFinder";
 import { podscrollAllowed, registerEarshotRoutes, registerPodscrollRoutes, supabaseEarshotStore } from "./earshot";
 import { deletePodData } from "./podcastAccounts";
 import { hideLinks, onSocialReport, registerModerationRoutes } from "./socialModeration";
 import { registerSupportRoutes } from "./supportContact";
-import { ARISE_APP, EDUCATOR_APP, AppleTokenError, appleRefreshToken, appleUsername, revokeAppleToken, verifyAppleToken } from "./appleSignIn";
+import { ARISE_APP, EDUCATOR_APP, FIT_APP, AppleTokenError, appleRefreshToken, appleUsername, revokeAppleToken, verifyAppleToken } from "./appleSignIn";
 import { attachLivePods } from "./podcastLive";
 import { attachListenParties } from "./podcastParty";
 import { createDirectory as createPodcastDirectory, supabaseKV } from "./podcastDirectory";
@@ -1519,7 +1522,7 @@ export async function registerRoutes(
     if (appCounts.size > 5000) appCounts.delete(appCounts.keys().next().value!);
     return n;
   };
-  app.post(["/api/teacher-hub/import", "/api/teacher-hub/import/minutes", "/api/hub-chat", "/api/arise-todo/food/estimate", "/api/life-plan/build", "/api/sleep-finder/ask", "/api/comprehension/review/:id/suggest"], authMiddleware, plans.aiMeter);
+  app.post(["/api/teacher-hub/import", "/api/teacher-hub/import/minutes", "/api/hub-chat", "/api/arise-todo/food/estimate", "/api/life-plan/build", "/api/accountability/ai/worksheet", "/api/accountability/ai/quiz", "/api/sleep-finder/ask", "/api/comprehension/review/:id/suggest"], authMiddleware, plans.aiMeter);
   app.put(["/api/teacher-hub/workspace", "/api/arise-todo/workspace"], authMiddleware, async (req: any, res, next) => {
     try {
       const user = req.adminPreview && req.realUser ? req.realUser : req.user;
@@ -1588,8 +1591,19 @@ export async function registerRoutes(
     ownerName: async (id) => { const owner: any = await storage.getUser(id); return String(owner?.displayName || owner?.display_name || "").trim().split(/\s+/)[0] || ""; },
   });
   registerFoodLookupRoutes(app, authMiddleware);
+  registerFitRoutes(app, authMiddleware);
   registerBrowserRoutes(app, authMiddleware);
   registerLifePlanRoutes(app, authMiddleware);
+  // Live updates for the iPhone apps' web code (server/ota.ts).
+  registerOtaRoutes(app);
+  // Accountability (an Arise To Duo app): shared to-dos with nudges until done, proof, AI worksheets and quizzes.
+  const acctDeps = {
+    db: () => getAdminSupabase(),
+    push: (userId: number, message: { title: string; body: string; url?: string; tag?: string }) => notifyUser(userId, message, "todo"),
+    nameOf: async (id: number) => { const u: any = await storage.getUser(id); return String(u?.displayName || u?.display_name || "").trim().split(/\s+/)[0] || ""; },
+  };
+  registerAccountabilityRoutes(app, authMiddleware, acctDeps);
+  if (process.env.NODE_ENV !== "test") startAccountabilityTicker(acctDeps);
   registerSleepFinderRoutes(app, authMiddleware);
   // One podcast directory for Earshot and Podscroll: shared caches (kept in the database) and one pace for Apple.
   const podcasts = createPodcastDirectory({ kv: supabaseKV(getAdminSupabase) });
@@ -2972,10 +2986,10 @@ export async function registerRoutes(
     if (wait > 0) return res.status(429).json({ message: `Too many tries. Try again in ${waitWords(wait)}.` });
     appleLimits.fail(address);
     try {
-      const claims = await verifyAppleToken(String(req.body?.identityToken || ""), [ARISE_APP, EDUCATOR_APP]);
+      const claims = await verifyAppleToken(String(req.body?.identityToken || ""), [ARISE_APP, EDUCATOR_APP, FIT_APP]);
       // A new account made from the Educator app is a parent account (like the website's parent sign-up,
       // a child can be connected later); from Arise To Duo it's a personal LifeHub account.
-      const fromApp = claims.aud === EDUCATOR_APP ? EDUCATOR_APP : ARISE_APP;
+      const fromApp = claims.aud === EDUCATOR_APP ? EDUCATOR_APP : claims.aud === FIT_APP ? FIT_APP : ARISE_APP;
       const name = [req.body?.givenName, req.body?.familyName].filter((x) => typeof x === "string" && x.trim()).map((x: string) => x.trim().slice(0, 40)).join(" ");
       let userId = Number(await storage.getSetting(`apple_login:${claims.sub}`)) || 0;
       let user: any = userId ? await storage.getUser(userId) : null;
@@ -7389,7 +7403,7 @@ export async function registerRoutes(
       let ok = false;
       const appleToken = typeof req.body?.appleIdentityToken === "string" ? req.body.appleIdentityToken : "";
       if (appleToken) {
-        try { const c = await verifyAppleToken(appleToken, [ARISE_APP, EDUCATOR_APP]); ok = (await storage.getSetting(`apple_user:${userId}`)) === c.sub; }
+        try { const c = await verifyAppleToken(appleToken, [ARISE_APP, EDUCATOR_APP, FIT_APP]); ok = (await storage.getSetting(`apple_user:${userId}`)) === c.sub; }
         catch { ok = false; }
       }
       if (!ok) {
@@ -7407,7 +7421,7 @@ export async function registerRoutes(
       try {
         const sub = await storage.getSetting(`apple_user:${userId}`);
         const refresh = await storage.getSetting(`apple_refresh:${userId}`);
-        const viaApp = (await storage.getSetting(`apple_refresh_app:${userId}`)) === EDUCATOR_APP ? EDUCATOR_APP : ARISE_APP;
+        const was = await storage.getSetting(`apple_refresh_app:${userId}`); const viaApp = was === EDUCATOR_APP || was === FIT_APP ? was : ARISE_APP;
         if (refresh) await revokeAppleToken(refresh, viaApp).catch(() => false);
         if (sub || refresh) await getAdminSupabase().from("settings").delete().in("key", [`apple_login:${sub}`, `apple_user:${userId}`, `apple_refresh:${userId}`, `apple_refresh_app:${userId}`]); clearCache(`setting_apple_login:${sub}`); clearCache(`setting_apple_user:${userId}`); clearCache(`setting_apple_refresh:${userId}`);
       } catch { /* the account still goes */ }

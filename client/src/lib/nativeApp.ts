@@ -13,19 +13,22 @@ export const isNativeApp = (): boolean => typeof window !== "undefined" && windo
 
 /** Which iPhone app this build is (set at build time with VITE_NATIVE_APP): Arise To Duo ("todo"),
  *  A.R.I.S.E. Reader for students ("reader"), or A.R.I.S.E. Reader Educator for teachers and parents. */
-export type NativeFlavor = "todo" | "reader" | "educator";
+export type NativeFlavor = "todo" | "reader" | "educator" | "fit";
 export const nativeFlavor = (): NativeFlavor => {
   const f = String((import.meta as any).env?.VITE_NATIVE_APP || "");
-  return f === "reader" || f === "educator" ? f : "todo";
+  return f === "reader" || f === "educator" || f === "fit" ? f : "todo";
 };
 /** Inside one of the two A.R.I.S.E. Reader apps (student or Educator). */
-export const isReaderApp = (): boolean => isNativeApp() && nativeFlavor() !== "todo";
+export const isReaderApp = (): boolean => isNativeApp() && (nativeFlavor() === "reader" || nativeFlavor() === "educator");
+/** Inside the Arise Fit iPhone app. */
+export const isFitApp = (): boolean => isNativeApp() && nativeFlavor() === "fit";
 /** Each app's name, bundle id (Sign in with Apple asks for it) and server. All three use the same
  *  server, through arisetodo.com, the address the Arise To Duo app is already allowed to call. */
 export const NATIVE_APPS: Record<NativeFlavor, { name: string; bundle: string; api: string }> = {
   todo: { name: "Arise To Duo", bundle: "com.arisereader.arisetodo", api: "https://arisetodo.com" },
   reader: { name: "A.R.I.S.E. Reader", bundle: "com.arisereader.reader", api: "https://arisetodo.com" },
   educator: { name: "A.R.I.S.E. Reader Educator", bundle: "com.arisereader.educator", api: "https://arisetodo.com" },
+  fit: { name: "Arise Fit", bundle: "com.arisereader.fit", api: "https://arisetodo.com" },
 };
 export const nativeAppInfo = () => NATIVE_APPS[nativeFlavor()];
 
@@ -50,3 +53,29 @@ export const LEGAL = {
 /** Plans and add-ons are bought on the website, never inside the iPhone app (App Review 3.1.1). What
  *  someone already has works in the app when they sign in. */
 export const NATIVE_NO_PURCHASE = "Plans and add-ons can't be bought in the iPhone app. Anything already on your account works here when you sign in.";
+
+/** Listens to a native plugin's events (a push token, a tapped notification) without its JavaScript
+ *  package: the plugin object if the page has one, else Capacitor's own registerPlugin or bridge
+ *  callback. Without this, a plugin that was never imported here had no addListener and the events
+ *  were lost (the iPhone never handed the server its notification token). */
+export async function nativeListen(pluginName: string, event: string, fn: (data: any) => void): Promise<boolean> {
+  const cap = typeof window !== "undefined" ? (window as any).Capacitor : null;
+  if (!cap || !isNativeApp()) return false;
+  try {
+    const plugin = cap.Plugins?.[pluginName] ?? cap.registerPlugin?.(pluginName);
+    if (plugin?.addListener) { await plugin.addListener(event, fn); return true; }
+  } catch { /* try the bridge */ }
+  try {
+    if (typeof cap.nativeCallback === "function") { cap.nativeCallback(pluginName, "addListener", { eventName: event }, fn); return true; }
+  } catch { /* nothing to listen with */ }
+  return false;
+}
+
+/** Live updates (.github/scripts/ota_setup.py): tells the updater this copy of the app's web code
+ *  started fine. Without it within 15 seconds, the app goes back to the copy that worked. */
+let readySent = false;
+export function markAppReady(): void {
+  if (readySent || !isNativeApp() || !hasNativePlugin(/CapacitorUpdater/i)) return;
+  readySent = true;
+  void nativeCall(/CapacitorUpdater/i, "CapacitorUpdater", "notifyAppReady").catch(() => { readySent = false; });
+}

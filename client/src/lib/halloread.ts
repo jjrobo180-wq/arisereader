@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { HALLOREAD_ACTIVE } from "@/lib/halloreadInfo";
+import { HALLOREAD_ACTIVE, halloreadPetGearName } from "@/lib/halloreadInfo";
 export { HALLOREAD_ACTIVE, halloreadPetGearName } from "@/lib/halloreadInfo";
 
 export type HalloreadSceneKind = "board" | "arcade" | "neighborhood" | "theater";

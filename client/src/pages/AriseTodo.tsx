@@ -50,6 +50,7 @@ import SleepApp from "@/components/family-hub/sleep/SleepApp";
 import Warranties from "@/components/family-hub/Warranties";
 import WorkoutLog from "@/components/family-hub/WorkoutLog";
 import WorldClock from "@/components/family-hub/WorldClock";
+import { BadgeCheck as BadgeCheckNav4 } from "lucide-react";
 import { Coins as CoinsNav2, CreditCard as CreditCardNav2, Dumbbell as DumbbellNav2, Gauge as GaugeNav2, Globe as GlobeNav2, GraduationCap as GraduationCapNav2, Hammer as HammerNav2, HandCoins as HandCoinsNav2, Handshake as HandshakeNav2, Heart as HeartNav2, HeartPulse as HeartPulseNav2, Landmark as LandmarkNav2, ListChecks as ListChecksNav2, Moon as MoonNav2, ShieldCheck as ShieldCheckNav2, Sparkles as SparklesNav2, Star as StarNav2, Stethoscope as StethoscopeNav2, Timer as TimerNav2, Utensils as UtensilsNav2 } from "lucide-react";
 import Birthdays from "@/components/family-hub/Birthdays";
 import CareTracker from "@/components/family-hub/CareTracker";
@@ -272,7 +273,7 @@ const SECTION_ICONS: Record<FamilySection, typeof Home> = {
   journal: NotebookPen, countdowns: Hourglass, grocery: ShoppingCart, meditate: Wind, bible: BookMarked, quotes: Quote, history: History, trending: TrendingUp,
   randomizer: Shuffle, relationships: HeartHandshake, dictionary: BookOpenText, links: Link2, lifeplan: Sparkles, linked: Users,
   habits: RepeatNav, gratitude: HeartNav, focus: TimerNav, bucket: MountainNav, recipes: ChefHatNav, meals: UtensilsCrossedNav, upkeep: WrenchNav, plants: Flower2Nav, birthdays: CakeNav, gifts: GiftNav, pets: PawPrintNav, contacts: PhoneNav, subscriptions: CreditCardNav, jars: PiggyBankNav, tips: CalculatorNav, reading: BookOpenNav, watchlist: TvNav, weather: CloudSunNav, convert: ArrowLeftRightNav, car: CarNav,
-  wishlist: HeartNav2, restaurants: UtensilsNav2, learning: GraduationCapNav2, projects: HammerNav2, loans: HandshakeNav2, cleaning: SparklesNav2, checkups: StethoscopeNav2, sleep: MoonNav2, sleepfinder: ListMusicNav3, earshot: PodcastNav3, workouts: DumbbellNav2, routines: ListChecksNav2, milestones: StarNav2, ious: HandCoinsNav2, allowance: CoinsNav2, giftcards: CreditCardNav2, warranties: ShieldCheckNav2, mileage: GaugeNav2, mortgage: LandmarkNav2, clocks: GlobeNav2, timers: TimerNav2, medical: HeartPulseNav2, browser: GlobeNav2,
+  wishlist: HeartNav2, restaurants: UtensilsNav2, learning: GraduationCapNav2, projects: HammerNav2, loans: HandshakeNav2, cleaning: SparklesNav2, checkups: StethoscopeNav2, sleep: MoonNav2, sleepfinder: ListMusicNav3, earshot: PodcastNav3, workouts: DumbbellNav2, routines: ListChecksNav2, milestones: StarNav2, ious: HandCoinsNav2, allowance: CoinsNav2, giftcards: CreditCardNav2, warranties: ShieldCheckNav2, mileage: GaugeNav2, mortgage: LandmarkNav2, clocks: GlobeNav2, timers: TimerNav2, medical: HeartPulseNav2, browser: GlobeNav2, accountability: BadgeCheckNav4,
   ...(Object.fromEntries(KIT_DEFS.filter((d) => d.hub === "life").map((d) => [d.id, kitIcon(d.icon)])) as Record<KitLifeId, typeof Home>),
 };
 // Home, Reader, Tasks, Notifications and Family & settings stay put; everything between
@@ -405,6 +406,8 @@ export default function AriseTodo() {
       if (!go) return;
       if ((FAMILY_SECTIONS as readonly string[]).includes(go)) {
         closeApps();
+        // An Accountability invite or nudge: the app is turned on for them if it wasn't yet.
+        if (go === "accountability") setFamily((f) => (f.sections.accountability ? f : { ...f, sections: { ...f.sections, accountability: true } }));
         setSection(go as FamilySection);
         const v = params.get("view");
         if (go === "tasks" && (v === "today" || v === "upcoming" || v === "all")) setView(v);

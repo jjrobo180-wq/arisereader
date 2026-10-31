@@ -8,7 +8,7 @@
 // Its colours come from one palette, in day or night, so the hub's night mode can't half-darken it.
 import { isNativeApp } from "@/lib/nativeApp";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { Rocket, Podcast as PodcastTile3 } from "lucide-react";
+import { Rocket, Podcast as PodcastTile3, BadgeCheck as BadgeCheckTile4 } from "lucide-react";
 import { BookCopy as BookCopyTile, FileClock as FileClockTile, FileText as FileTextTile, Presentation as PresentationTile, QrCode as QrCodeTile, Table as TableTile, Contact as ContactTile } from "lucide-react";
 import {
   Apple, ArrowUpRight, BellRing, BookOpenCheck, Briefcase, Calculator, CalendarDays, CalendarPlus, CalendarRange, Check, CheckSquare,
@@ -40,7 +40,7 @@ export const ICONS: Record<string, LucideIcon> = {
   Users, Vote, Wallet, NotebookPen, Hourglass, ShoppingCart, Wind, Quote, History, TrendingUp, Shuffle, HeartHandshake, BookOpenText, Link2, Sun, Trophy,
   ArrowLeftRight: ArrowLeftRightTile, BookOpen: BookOpenTile, Cake: CakeTile, Car: CarTile, ChefHat: ChefHatTile, CloudSun: CloudSunTile, CreditCard: CreditCardTile, Flower2: Flower2Tile, Gift: GiftTile, Heart: HeartTile, Mountain: MountainTile, PawPrint: PawPrintTile, Phone: PhoneTile, PiggyBank: PiggyBankTile, Repeat: RepeatTile, Tv: TvTile, UtensilsCrossed: UtensilsCrossedTile, Wrench: WrenchTile,
   Table: TableTile, FileText: FileTextTile, Presentation: PresentationTile, FileClock: FileClockTile, FileUser: ContactTile, BookCopy: BookCopyTile, QrCode: QrCodeTile,
-  Coins: CoinsTile2, Dumbbell: DumbbellTile2, Gauge: GaugeTile2, Globe: GlobeTile2, Hammer: HammerTile2, HandCoins: HandCoinsTile2, ListChecks: ListChecksTile2, Moon: MoonTile2, ShieldCheck: ShieldCheckTile2, Star: StarTile2, Stethoscope: StethoscopeTile2, Utensils: UtensilsTile2,
+  BadgeCheck: BadgeCheckTile4, Coins: CoinsTile2, Dumbbell: DumbbellTile2, Gauge: GaugeTile2, Globe: GlobeTile2, Hammer: HammerTile2, HandCoins: HandCoinsTile2, ListChecks: ListChecksTile2, Moon: MoonTile2, ShieldCheck: ShieldCheckTile2, Star: StarTile2, Stethoscope: StethoscopeTile2, Utensils: UtensilsTile2,
 };
 
 /** The store's name, as people see it everywhere. */
