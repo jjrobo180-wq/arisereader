@@ -74,13 +74,14 @@ jobs:
             exit 1
           fi
           echo "::notice title=Launch::Opened and still running on $(xcrun simctl list devices | grep "$DEVICE" | head -1 | xargs)"
-          xcrun simctl io "$DEVICE" screenshot "$RUNNER_TEMP/podplus-launch.png"
+          # An iPhone Duo simulator has two screens: the picture is a nice-to-have, not the check.
+          xcrun simctl io "$DEVICE" screenshot "$RUNNER_TEMP/podplus-launch.png" || xcrun simctl io "$DEVICE" screenshot --display=internal "$RUNNER_TEMP/podplus-launch.png" || echo "::warning title=Screenshot::No launch screenshot from this simulator"
       - name: Save beta launch screenshot
         uses: actions/upload-artifact@v4
         with:
           name: podplus-iphone-launch
           path: ${{ runner.temp }}/podplus-launch.png
-          if-no-files-found: error
+          if-no-files-found: warn
       - name: Save unsigned simulator build for review
         uses: actions/upload-artifact@v4
         with:
