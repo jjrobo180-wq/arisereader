@@ -15,6 +15,7 @@ export const PODPLUS_APP = "com.arisereader.podplus";
 export const EDUCATOR_APP = "com.arisereader.educator";
 /** Arise Fit, training and nutrition (personal accounts, like Arise To Duo). */
 export const FIT_APP = "com.arisereader.fit";
+export const EYEGAZER_APP = "com.arisereader.eyegazer";
 
 export type AppleClaims = { sub: string; email: string; emailVerified: boolean; privateEmail: boolean; aud: string };
 type Jwk = JsonWebKey & { kid?: string; alg?: string };

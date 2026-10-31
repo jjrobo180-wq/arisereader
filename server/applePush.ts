@@ -19,7 +19,7 @@ export const appleToken = (endpoint: string) => endpoint.slice(endpoint.lastInde
 /** The app a saved device belongs to (its bundle id), or undefined for Arise To Duo. */
 export const appleTopic = (endpoint: string): string | undefined => { const rest = endpoint.slice(APNS_PREFIX.length); const at = rest.lastIndexOf(":"); return at > 0 ? rest.slice(0, at) : undefined; };
 /** The apps besides Arise To Duo that sign up for server notifications. */
-export const APPLE_APPS: Record<string, string> = { educator: "com.arisereader.educator" };
+export const APPLE_APPS: Record<string, string> = { educator: "com.arisereader.educator", eyegaze: "com.arisereader.eyegazer" };
 export const appleEndpoint = (token: string, app?: unknown) => APNS_PREFIX + (typeof app === "string" && APPLE_APPS[app] ? APPLE_APPS[app] + ":" : "") + token;
 /** A device token as iOS hands it over: hex, 64 characters or a little more. */
 export const cleanAppleToken = (v: unknown): string | null => {

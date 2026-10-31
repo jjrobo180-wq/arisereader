@@ -6,7 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { hasNativePlugin, isNativeApp, nativeCall, nativeFlavor, nativeListen } from "@/lib/nativeApp";
 
 /** Which app the server sends to (Arise To Duo unless this is the Educator app). */
-const appKey = () => (nativeFlavor() === "educator" ? "educator" : undefined);
+const appKey = () => (nativeFlavor() === "educator" ? "educator" : nativeFlavor() === "eyegaze" ? "eyegaze" : undefined);
 
 const PLUGIN = /^pushnotif/i;
 const NAME = "PushNotifications";

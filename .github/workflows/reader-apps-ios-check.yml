@@ -7,6 +7,7 @@ on:
     paths:
       - 'reader/ios-app/**'
       - 'educator/ios-app/**'
+      - 'eyegazer/ios-app/**'
       - '.github/scripts/adopt_uiscene.py'
       - '.github/scripts/configure_reader_app.py'
       - '.github/workflows/reader-apps-ios-check.yml'
@@ -18,8 +19,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { flavor: reader, bundle: com.arisereader.reader }
-          - { flavor: educator, bundle: com.arisereader.educator }
+          - { flavor: reader, dir: reader, bundle: com.arisereader.reader }
+          - { flavor: educator, dir: educator, bundle: com.arisereader.educator }
+          - { flavor: eyegaze, dir: eyegazer, bundle: com.arisereader.eyegazer }
     steps:
       - uses: actions/checkout@v4
       - name: Use the newest Xcode 27
@@ -38,25 +40,25 @@ jobs:
       - name: Bundle A.R.I.S.E. application locally
         run: |
           VITE_NATIVE_APP=${{ matrix.flavor }} npx vite build
-          rm -rf ${{ matrix.flavor }}/ios-app/www
-          mkdir -p ${{ matrix.flavor }}/ios-app/www
-          cp -R dist/public/. ${{ matrix.flavor }}/ios-app/www/
+          rm -rf ${{ matrix.dir }}/ios-app/www
+          mkdir -p ${{ matrix.dir }}/ios-app/www
+          cp -R dist/public/. ${{ matrix.dir }}/ios-app/www/
       - name: Install native tools
-        working-directory: ${{ matrix.flavor }}/ios-app
+        working-directory: ${{ matrix.dir }}/ios-app
         run: npm install --no-audit --no-fund
       - name: Generate native project
-        working-directory: ${{ matrix.flavor }}/ios-app
+        working-directory: ${{ matrix.dir }}/ios-app
         run: |
           npx cap add ios
           npx cap sync ios
           python3 ../../.github/scripts/configure_reader_app.py ios/App/App/Info.plist ${{ matrix.flavor }}
           python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist --below-status-bar
       - name: Compile iOS simulator app
-        working-directory: ${{ matrix.flavor }}/ios-app
+        working-directory: ${{ matrix.dir }}/ios-app
         run: |
           xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ./derived CODE_SIGNING_ALLOWED=NO build
       - name: Launch app in iPhone simulator
-        working-directory: ${{ matrix.flavor }}/ios-app
+        working-directory: ${{ matrix.dir }}/ios-app
         run: |
           set -euo pipefail
           DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); g=sorted(d["devices"].items(), key=lambda kv: [int(n) for n in kv[0].rsplit("iOS-",1)[-1].split("-") if n.isdigit()] if "iOS-" in kv[0] else [0]); print(next(x["udid"] for _, group in reversed(g) for x in group if x["name"].startswith("iPhone")))')
@@ -84,6 +86,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.flavor }}-ios-simulator
-          path: ${{ matrix.flavor }}/ios-app/derived/Build/Products/Debug-iphonesimulator/App.app
+          path: ${{ matrix.dir }}/ios-app/derived/Build/Products/Debug-iphonesimulator/App.app
           if-no-files-found: error
           retention-days: 7
