@@ -5,10 +5,10 @@ import { useEffect, type ReactNode } from "react";
 import { X } from "lucide-react";
 
 // "lime" is the accent's old name (it was lime green); every screen uses it, so it keeps the name.
-export const C = { bg: "#0a0a0b", card: "#141518", card2: "#1e2024", line: "rgba(255,255,255,.07)", text: "#f2f1ee", dim: "#8d939b", lime: "#ff5a1f", orange: "#ffb020", blue: "#4d9fff", pink: "#e8455a", red: "#ff3b30", steel: "#b9c0c8" };
+export const C = { bg: "#080a0c", card: "#12171b", card2: "#1b2328", line: "rgba(211,221,223,.10)", text: "#f2f4f1", dim: "#8b999d", lime: "#c7a477", orange: "#e4a567", blue: "#7fa5b4", pink: "#bc8b86", red: "#d26d65", steel: "#bac3c2" };
 export const font = { fontFamily: "'Barlow', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif" };
 /** Headings: heavy, condensed, upper case. */
-export const display: React.CSSProperties = { fontFamily: "'Barlow Condensed', 'Oswald', 'Arial Narrow', 'Helvetica Neue', sans-serif", fontWeight: 800, textTransform: "uppercase", letterSpacing: ".01em" };
+export const display: React.CSSProperties = { fontFamily: "'Barlow Condensed', 'Oswald', 'Arial Narrow', 'Helvetica Neue', sans-serif", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".035em" };
 
 /** Loads the app's two typefaces once (the system face stands in until they arrive, or offline). */
 export function useFitFonts() {
@@ -22,22 +22,22 @@ export function useFitFonts() {
 }
 
 /** Gunmetal: a faint top light and a hairline edge, like machined steel. */
-export const cardStyle: React.CSSProperties = { background: `linear-gradient(180deg, #17191c 0%, ${C.card} 60%)`, boxShadow: "inset 0 1px 0 rgba(255,255,255,.05), 0 0 0 1px rgba(255,255,255,.04)" };
+export const cardStyle: React.CSSProperties = { background: `linear-gradient(145deg, #1b2327 0%, ${C.card} 62%, #101418 100%)`, boxShadow: "inset 0 1px 0 rgba(255,255,255,.055), 0 12px 30px rgba(0,0,0,.13), 0 0 0 1px rgba(190,204,208,.055)" };
 
 export function Card({ children, className = "", onClick, testId }: { children: ReactNode; className?: string; onClick?: () => void; testId?: string }) {
-  const cls = `rounded-[14px] p-4 ${onClick ? "text-left w-full active:scale-[.99] transition" : ""} ${className}`;
+  const cls = `rounded-[20px] p-[18px] ${onClick ? "text-left w-full active:scale-[.99] transition" : ""} ${className}`;
   return onClick
     ? <button type="button" onClick={onClick} className={cls} style={cardStyle} data-testid={testId}>{children}</button>
     : <div className={cls} style={cardStyle} data-testid={testId}>{children}</div>;
 }
 
 export function Title({ children, right }: { children: ReactNode; right?: ReactNode }) {
-  return <div className="mb-2 mt-6 flex items-center justify-between px-1"><h2 className="flex items-center gap-2 text-[15px] tracking-[.08em]" style={{ ...display, fontWeight: 700, color: C.steel }}><span aria-hidden className="h-3.5 w-1" style={{ background: C.lime }} />{children}</h2>{right}</div>;
+  return <div className="mb-3 mt-8 flex items-center justify-between px-1"><h2 className="flex items-center gap-2 text-[13px] tracking-[.18em]" style={{ ...display, fontWeight: 700, color: C.steel }}>{children}</h2>{right}</div>;
 }
 
 export function Btn({ children, onClick, kind = "primary", className = "", disabled, testId, type = "button" }: { children: ReactNode; onClick?: () => void; kind?: "primary" | "ghost" | "soft" | "danger"; className?: string; disabled?: boolean; testId?: string; type?: "button" | "submit" }) {
-  const st = kind === "primary" ? { background: C.lime, color: "#0b0b0c" } : kind === "soft" ? { background: C.card2, color: C.text } : kind === "danger" ? { background: "rgba(255,77,77,.14)", color: C.red } : { background: "transparent", color: C.lime };
-  return <button type={type} onClick={onClick} disabled={disabled} data-testid={testId} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-[10px] px-4 text-[16px] uppercase tracking-[.04em] transition active:scale-[.98] disabled:opacity-40 ${className}`} style={{ ...st, fontFamily: display.fontFamily, fontWeight: 700 }}>{children}</button>;
+  const st = kind === "primary" ? { background: C.lime, color: "#101417" } : kind === "soft" ? { background: C.card2, color: C.text } : kind === "danger" ? { background: "rgba(255,77,77,.14)", color: C.red } : { background: "transparent", color: C.lime };
+  return <button type={type} onClick={onClick} disabled={disabled} data-testid={testId} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-[12px] px-5 text-[14px] uppercase tracking-[.11em] transition active:scale-[.98] disabled:opacity-40 ${className}`} style={{ ...st, fontFamily: display.fontFamily, fontWeight: 700 }}>{children}</button>;
 }
 
 /** A ring that fills as a number approaches its goal. */
@@ -102,7 +102,7 @@ export function Sheet({ title, onClose, children, testId, right }: { title: stri
 export function Chips<T extends string>({ items, value, onChange, label }: { items: { id: T; label: string }[]; value: T; onChange: (v: T) => void; label: string }) {
   return <div role="group" aria-label={label} className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
     {items.map((i) => <button key={i.id} type="button" onClick={() => onChange(i.id)} aria-pressed={value === i.id}
-      className="h-9 shrink-0 whitespace-nowrap rounded-full px-3.5 text-[14px] font-semibold" style={value === i.id ? { background: C.text, color: C.bg } : { background: C.card, color: C.text }}>{i.label}</button>)}
+      className="h-9 shrink-0 whitespace-nowrap rounded-[10px] px-3.5 text-[13px] font-semibold" style={value === i.id ? { background: C.text, color: C.bg } : { background: C.card, color: C.text }}>{i.label}</button>)}
   </div>;
 }
 
@@ -110,7 +110,7 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   return <label className="block"><span className="mb-1 block text-[13px] font-semibold" style={{ color: C.dim }}>{label}</span>{children}</label>;
 }
 /** 17px text: iPhone doesn't zoom when it's tapped. */
-export const inputCls = "h-12 w-full min-w-0 rounded-[8px] px-3 text-[17px] outline-none focus:ring-2";
+export const inputCls = "h-12 w-full min-w-0 rounded-[12px] px-3 text-[17px] outline-none focus:ring-2";
 export const inputStyle = { background: C.card2, color: C.text, "--tw-ring-color": C.lime } as React.CSSProperties;
 
 export const fmtNum = (n: number) => (Math.round(n) >= 10000 ? `${(n / 1000).toFixed(1)}k` : Math.round(n).toLocaleString());
