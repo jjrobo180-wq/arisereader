@@ -27,9 +27,12 @@ export type FitData = {
   onboarded?: boolean;
   /** Intermittent fasting: the chosen protocol, a fast in progress and past fasts. */
   fasting?: Fasting;
+  /** Outdoor runs, walks and hikes tracked by GPS (shared/fitRun.ts). */
+  runs?: Run[];
 };
 
 import { DIET_BY_ID, cleanFasting, type Fasting } from "./fitNutrition";
+import { cleanRuns, type Run } from "./fitRun";
 
 export const LIMITS = { workouts: 3000, foods: 20000, routines: 60, weights: 3000, recent: 60, bytes: 2_500_000 };
 
@@ -78,6 +81,8 @@ export function cleanFit(raw: any): FitData {
   if (raw.onboarded) d.onboarded = true;
   const fasting = cleanFasting(raw.fasting);
   if (fasting) d.fasting = fasting;
+  const runs = cleanRuns(raw.runs);
+  if (runs.length) d.runs = runs;
   return d;
 }
 
