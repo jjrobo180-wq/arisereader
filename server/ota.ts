@@ -10,7 +10,10 @@ import type { Express } from "express";
 
 export const OTA_APPS = ["todo", "podplus", "reader", "educator", "fit", "eyegaze", "trainer", "notes"] as const;
 export type OtaApp = typeof OTA_APPS[number];
-export type OtaRelease = { app: OtaApp; level: number; built: number; version: string; url: string };
+/** `checksum`: the zip's SHA-256 (hex). The updater on the phone (@capgo/capacitor-updater 8) refuses
+ *  any update without it ("Checksum required") and checks the download against it before unpacking.
+ *  GitHub records it for every release file (`digest: "sha256:…"`). */
+export type OtaRelease = { app: OtaApp; level: number; built: number; version: string; url: string; checksum: string };
 
 const VERSION = /^(\d{1,4})\.(\d{1,10})\.0$/;
 export function parseVersion(v: unknown): { level: number; built: number } | null {
@@ -26,8 +29,10 @@ export function releasesFrom(list: unknown): OtaRelease[] {
     if (!m || !(OTA_APPS as readonly string[]).includes(m[1]) || (r as any)?.draft) continue;
     const v = parseVersion(m[2])!;
     const asset = ((r as any)?.assets || []).find((a: any) => /\.zip$/i.test(String(a?.name || "")) && /^https:\/\/github\.com\//.test(String(a?.browser_download_url || "")));
-    if (!asset) continue;
-    out.push({ app: m[1] as OtaApp, level: v.level, built: v.built, version: m[2], url: asset.browser_download_url });
+    const checksum = /^sha256:([a-f0-9]{64})$/i.exec(String(asset?.digest || ""))?.[1]?.toLowerCase();
+    // Without a checksum the phone won't install it, so it isn't offered.
+    if (!asset || !checksum) continue;
+    out.push({ app: m[1] as OtaApp, level: v.level, built: v.built, version: m[2], url: asset.browser_download_url, checksum });
   }
   return out;
 }
@@ -80,7 +85,7 @@ export function registerOtaRoutes(app: Express, o: { fetchJson?: (url: string) =
     const newest = list.filter((r) => r.app === which).sort((a, b) => b.built - a.built)[0]?.version || "none";
     console.log(`[ota] ${which} running ${String(req.body?.version_name ?? "")}/${String(req.body?.version_build ?? "")} → ${next ? `offered ${next.version}` : "nothing new"} (newest known ${newest})`);
     if (!next) return none(res);
-    res.json({ version: next.version, url: next.url });
+    res.json({ version: next.version, url: next.url, checksum: next.checksum });
   });
   // Channel requests (the updater may ask): there's one channel.
   app.put("/api/ota/:app", (_req, res) => res.json({ status: "ok", channel: "production" }));
