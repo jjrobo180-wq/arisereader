@@ -7,9 +7,12 @@ import {
   type FitData, type FitExercise, type Program, type Routine, type Units, type Workout,
 } from "@shared/fit";
 import { videoFor } from "@shared/fitVideos";
+import { SESSION_BY_ID, nextC25K, sessionMins, sessionsIn, type Session, type SessionCategory } from "@shared/fitSessions";
+import { BodyMap } from "./FitBody";
+import { SessionPlayer } from "./FitSession";
 import type { LibraryExercise, Update } from "./fitStore";
 import { CoverCard, VideoPlayer, VideoThumb } from "./FitVideo";
-import { Btn, C, Card, Chips, Sheet, Spark, Title, fmtDur, fmtNum, inputCls, inputStyle } from "./fitUi";
+import { Btn, C, Card, Chips, Sheet, Spark, Title, fmtDur, fmtNum, inputCls, inputStyle, display } from "./fitUi";
 
 export const libraryFallback = (): LibraryExercise[] => CATALOG.map((e) => ({ ...e, images: [], source: "arise" as const }));
 const MUSCLES = ["all", "chest", "back", "shoulders", "biceps", "triceps", "abs", "quads", "hamstrings", "glutes", "calves", "full body", "cardio"] as const;
@@ -26,7 +29,7 @@ export function Demo({ ex, size = "lg" }: { ex: LibraryExercise; size?: "sm" | "
     return () => window.clearInterval(t);
   }, [ex.images.length, size]);
   if (video) return <VideoThumb exId={ex.id} />;
-  const box = size === "sm" ? "h-14 w-14 rounded-[14px]" : "aspect-[4/3] w-full rounded-[20px]";
+  const box = size === "sm" ? "h-14 w-14 rounded-[10px]" : "aspect-[4/3] w-full rounded-[14px]";
   if (!ex.images.length) return <div className={`${box} grid shrink-0 place-items-center`} style={{ background: `linear-gradient(150deg, ${C.card2}, #24243a)` }} aria-hidden>
     <Dumbbell className={size === "sm" ? "h-6 w-6" : "h-14 w-14"} style={{ color: C.lime }} />
   </div>;
@@ -50,7 +53,7 @@ export function ExerciseDetail({ ex, data, onClose, onAdd }: { ex: LibraryExerci
       {ex.also.map((m) => <span key={m} className="rounded-full px-3 py-1 capitalize" style={{ background: C.card2 }}>{m}</span>)}
       <span className="rounded-full px-3 py-1 capitalize" style={{ background: C.card2 }}>{ex.equipment}</span>
     </div>
-    {ex.cues.length > 0 && <><Title>How to do it</Title><Card><ol className="space-y-2.5">{ex.cues.map((c, k) => <li key={k} className="flex gap-3 text-[15px] leading-snug"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[12px] font-bold" style={{ background: C.lime, color: "#10120a" }}>{k + 1}</span>{c}</li>)}</ol></Card></>}
+    {ex.cues.length > 0 && <><Title>How to do it</Title><Card><ol className="space-y-2.5">{ex.cues.map((c, k) => <li key={k} className="flex gap-3 text-[15px] leading-snug"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[12px] font-bold" style={{ background: C.lime, color: "#0b0b0c" }}>{k + 1}</span>{c}</li>)}</ol></Card></>}
     {rec && <><Title>Your records</Title><div className="grid grid-cols-3 gap-2">
       <Card className="!p-3"><p className="text-[11px]" style={{ color: C.dim }}>Est. 1-rep max</p><p className="text-[20px] font-bold">{fmtNum(rec.e1rm)}<span className="text-[12px]" style={{ color: C.dim }}> {u}</span></p></Card>
       <Card className="!p-3"><p className="text-[11px]" style={{ color: C.dim }}>Heaviest</p><p className="text-[20px] font-bold">{fmtNum(rec.weight)}<span className="text-[12px]" style={{ color: C.dim }}> ×{rec.reps}</span></p></Card>
@@ -85,15 +88,15 @@ export function Library({ list, data, onClose, onPick, title = "Exercises" }: { 
     </div>
     <div className="mb-2 mt-3 flex items-center justify-between">
       <p className="text-[12px]" style={{ color: C.dim }}>{shown.length === 300 ? "300+" : shown.length} exercises</p>
-      <button type="button" onClick={() => setVideosOnly((v) => !v)} aria-pressed={videosOnly} className="flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold" style={videosOnly ? { background: C.lime, color: "#10120a" } : { background: C.card, color: C.text }} data-testid="fit-videos-only"><PlayCircle className="h-4 w-4" />With video</button>
+      <button type="button" onClick={() => setVideosOnly((v) => !v)} aria-pressed={videosOnly} className="flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold" style={videosOnly ? { background: C.lime, color: "#0b0b0c" } : { background: C.card, color: C.text }} data-testid="fit-videos-only"><PlayCircle className="h-4 w-4" />With video</button>
     </div>
     <ul className="space-y-2">{shown.map((e) => <li key={e.id}>
-      <div className="flex items-center gap-3 rounded-[16px] p-2" style={{ background: C.card }}>
+      <div className="flex items-center gap-3 rounded-[12px] p-2" style={{ background: C.card }}>
         <button type="button" onClick={() => setOpen(e)} className="flex min-w-0 flex-1 items-center gap-3 text-left" data-testid={`fit-ex-${e.id}`}>
           <Demo ex={e} size="sm" />
           <span className="min-w-0"><span className="block truncate text-[15px] font-semibold">{e.name}</span><span className="block truncate text-[12px] capitalize" style={{ color: C.dim }}>{e.muscle} · {e.equipment}</span>{videoFor(e.id) && <span className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold" style={{ color: C.lime }}><PlayCircle className="h-3 w-3" />How-to video</span>}</span>
         </button>
-        {onPick && <button type="button" onClick={() => onPick(e)} aria-label={`Add ${e.name}`} className="grid h-11 w-11 shrink-0 place-items-center rounded-full" style={{ background: C.lime, color: "#10120a" }}><Plus className="h-5 w-5" /></button>}
+        {onPick && <button type="button" onClick={() => onPick(e)} aria-label={`Add ${e.name}`} className="grid h-11 w-11 shrink-0 place-items-center rounded-full" style={{ background: C.lime, color: "#0b0b0c" }}><Plus className="h-5 w-5" /></button>}
       </div>
     </li>)}</ul>
     {open && <ExerciseDetail ex={open} data={data} onClose={() => setOpen(null)} onAdd={onPick ? () => { onPick(open); setOpen(null); } : undefined} />}
@@ -151,7 +154,7 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
   if (done) {
     const vol = done.w.exercises.reduce((t, e) => t + e.sets.reduce((x, s) => x + s.reps * s.weight, 0), 0);
     return <Sheet title="Workout complete" onClose={() => setActive(null)} testId="fit-summary">
-      <div className="mt-4 text-center"><div className="mx-auto grid h-20 w-20 place-items-center rounded-full" style={{ background: C.lime }}><Trophy className="h-10 w-10" style={{ color: "#10120a" }} /></div>
+      <div className="mt-4 text-center"><div className="mx-auto grid h-20 w-20 place-items-center rounded-full" style={{ background: C.lime }}><Trophy className="h-10 w-10" style={{ color: "#0b0b0c" }} /></div>
         <h2 className="mt-4 text-[26px] font-bold">Nice work!</h2><p style={{ color: C.dim }}>{done.w.name}</p></div>
       <div className="mt-6 grid grid-cols-3 gap-2 text-center">
         <Card className="!p-3"><p className="text-[22px] font-bold">{fmtDur(done.w.secs)}</p><p className="text-[12px]" style={{ color: C.dim }}>Time</p></Card>
@@ -181,7 +184,7 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
             <div className="min-w-0 flex-1"><p className="text-[16px] font-bold" style={{ color: C.lime }}>{e.name}</p>
               {e.target && <p className="text-[12px]" style={{ color: C.dim }}>Target {e.target}{timed ? "" : " reps"} · rest {e.rest ?? 90}s</p>}
               {sug && <p className="mt-0.5 text-[12px]" style={{ color: C.text }}>{sug.why}</p>}
-              {ex && videoFor(ex.id) && <button type="button" onClick={() => setDetail(ex)} className="mt-1.5 flex h-7 items-center gap-1 rounded-full px-2.5 text-[12px] font-semibold" style={{ background: "rgba(196,245,58,.12)", color: C.lime }} data-testid={`fit-live-video-${ei}`}><PlayCircle className="h-3.5 w-3.5" />Watch form</button>}</div>
+              {ex && videoFor(ex.id) && <button type="button" onClick={() => setDetail(ex)} className="mt-1.5 flex h-7 items-center gap-1 rounded-full px-2.5 text-[12px] font-semibold" style={{ background: "rgba(255,90,31,.12)", color: C.lime }} data-testid={`fit-live-video-${ei}`}><PlayCircle className="h-3.5 w-3.5" />Watch form</button>}</div>
             <button type="button" onClick={() => set((a) => ({ ...a, exercises: a.exercises.filter((_, k) => k !== ei) }))} aria-label={`Remove ${e.name}`} className="grid h-9 w-9 place-items-center rounded-full" style={{ color: C.dim }}><Trash2 className="h-4 w-4" /></button>
           </div>
           <div className="mt-3 grid grid-cols-[2rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.75rem] items-center gap-1.5 text-center text-[11px] font-semibold uppercase" style={{ color: C.dim }}>
@@ -189,14 +192,14 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
           </div>
           {e.sets.map((s, si) => {
             const prev = last?.sets.filter((x) => !x.warm)[si];
-            return <div key={si} className="mt-1.5 grid grid-cols-[2rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.75rem] items-center gap-1.5 rounded-[12px] py-0.5" style={s.done ? { background: "rgba(196,245,58,.12)" } : undefined}>
+            return <div key={si} className="mt-1.5 grid grid-cols-[2rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.75rem] items-center gap-1.5 rounded-[8px] py-0.5" style={s.done ? { background: "rgba(255,90,31,.12)" } : undefined}>
               <button type="button" onClick={() => edit(ei, si, { warm: !s.warm })} className="text-center text-[14px] font-bold" style={{ color: s.warm ? C.orange : C.text }} aria-label={s.warm ? "Warm-up set" : `Set ${si + 1}`}>{s.warm ? "W" : si + 1}</button>
               <span className="truncate text-center text-[13px]" style={{ color: C.dim }}>{prev ? (timed ? `${prev.reps}s` : `${fmtNum(prev.weight)}×${prev.reps}`) : "—"}</span>
               {timed ? <input inputMode="numeric" value={s.reps || ""} onChange={(ev) => edit(ei, si, { reps: Number(ev.target.value.replace(/\D/g, "")) || 0 })} aria-label="Seconds" className="h-11 w-full min-w-0 rounded-[10px] text-center text-[17px] font-semibold outline-none" style={inputStyle} />
                 : <input inputMode="decimal" value={s.weight || ""} placeholder="0" onChange={(ev) => edit(ei, si, { weight: Number(ev.target.value.replace(/[^\d.]/g, "")) || 0 })} onDoubleClick={() => setPlateFor(s.weight)} aria-label={`Weight in ${u}`} className="h-11 w-full min-w-0 rounded-[10px] text-center text-[17px] font-semibold outline-none" style={inputStyle} />}
               {timed ? <span /> : <input inputMode="numeric" value={s.reps || ""} placeholder="0" onChange={(ev) => edit(ei, si, { reps: Number(ev.target.value.replace(/\D/g, "")) || 0 })} aria-label="Reps" className="h-11 w-full min-w-0 rounded-[10px] text-center text-[17px] font-semibold outline-none" style={inputStyle} />}
               <button type="button" onClick={() => tick(ei, si)} aria-label={s.done ? "Mark not done" : "Mark done"} aria-pressed={s.done} data-testid={`fit-set-${ei}-${si}`}
-                className="grid h-11 w-11 place-items-center rounded-[12px]" style={s.done ? { background: C.lime, color: "#10120a" } : { background: C.card2, color: C.dim }}><Check className="h-5 w-5" strokeWidth={3} /></button>
+                className="grid h-11 w-11 place-items-center rounded-[8px]" style={s.done ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2, color: C.dim }}><Check className="h-5 w-5" strokeWidth={3} /></button>
             </div>;
           })}
           <div className="mt-2 flex gap-2">
@@ -209,7 +212,7 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
       <Btn kind="soft" onClick={() => setAdding(true)} className="w-full" testId="fit-add-exercise"><Plus className="h-5 w-5" />Add exercise</Btn>
       <button type="button" onClick={() => { if (window.confirm("Discard this workout? Nothing will be saved.")) { saveActive(null); setActive(null); } }} className="h-12 w-full text-[15px] font-semibold" style={{ color: C.red }}>Discard workout</button>
     </div>
-    {rest && left > 0 && <div className="fixed inset-x-3 z-[75] rounded-[20px] p-3 shadow-2xl" style={{ bottom: "max(16px, env(safe-area-inset-bottom))", background: C.card2 }} data-testid="fit-rest">
+    {rest && left > 0 && <div className="fixed inset-x-3 z-[75] rounded-[14px] p-3 shadow-2xl" style={{ bottom: "max(16px, env(safe-area-inset-bottom))", background: C.card2 }} data-testid="fit-rest">
       <div className="flex items-center gap-3"><Timer className="h-6 w-6" style={{ color: C.lime }} />
         <div className="min-w-0 flex-1"><p className="text-[12px]" style={{ color: C.dim }}>Rest</p><p className="text-[24px] font-bold tabular-nums">{fmtDur(left)}</p></div>
         <Btn kind="soft" className="!min-h-10" onClick={() => setRest((r) => r && { ...r, until: r.until - 15000 })}>−15</Btn>
@@ -252,7 +255,7 @@ export function ProgramDetail({ p, data, update, onClose, onStartDay, list }: { 
   return <Sheet title={p.name} onClose={onClose} testId="fit-program">
     <CoverCard exId={programCover(p)} tall className="!p-5">
       <span className="text-[12px] font-bold uppercase tracking-[.14em]" style={{ color: C.lime }}>{p.level} · {p.goal}</span>
-      <span className="mt-1 block text-[26px] font-extrabold leading-tight tracking-tight">{p.name}</span>
+      <span className="mt-1 block text-[26px] font-extrabold leading-tight tracking-tight" style={display}>{p.name}</span>
       <span className="mt-2 block text-[14px] leading-snug" style={{ color: "#d6d6de" }}>{p.blurb}</span>
     </CoverCard>
     <div className="mt-3 grid grid-cols-4 gap-2 text-center">
@@ -260,7 +263,7 @@ export function ProgramDetail({ p, data, update, onClose, onStartDay, list }: { 
     </div>
     <p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>Equipment: {p.equipment}</p>
     {p.days.map((d) => <div key={d.id}><Title>{d.name}</Title><Card className="!p-1.5"><ul>{d.items.map((it, k) => { const ex = find(it.exId); return <li key={k} style={k ? { borderTop: `1px solid ${C.line}` } : undefined}>
-      <button type="button" disabled={!ex} onClick={() => ex && setWatch(ex)} className="flex w-full items-center gap-3 rounded-[14px] px-1.5 py-2 text-left active:bg-white/[.03]" data-testid={`fit-program-ex-${it.exId}`}>
+      <button type="button" disabled={!ex} onClick={() => ex && setWatch(ex)} className="flex w-full items-center gap-3 rounded-[10px] px-1.5 py-2 text-left active:bg-white/[.03]" data-testid={`fit-program-ex-${it.exId}`}>
         {videoFor(it.exId) ? <VideoThumb exId={it.exId} className="h-12 w-[76px] rounded-[10px]" /> : <span className="grid h-12 w-[76px] shrink-0 place-items-center rounded-[10px]" style={{ background: C.card2 }}><Dumbbell className="h-5 w-5" style={{ color: C.lime }} /></span>}
         <span className="min-w-0 flex-1"><span className="block truncate text-[15px] font-medium">{name(it.exId)}</span><span className="block text-[12px] tabular-nums" style={{ color: C.dim }}>{it.sets} × {it.reps} · rest {it.rest}s</span></span>
         <ChevronRight className="h-4 w-4 shrink-0" style={{ color: C.dim }} />
@@ -292,6 +295,39 @@ export function RoutineEditor({ routine, list, data, onSave, onClose, onDelete }
   </Sheet>;
 }
 
+const TYPES: { id: SessionCategory | "body"; label: string; sub: string; cover: string }[] = [
+  { id: "body", label: "Body map", sub: "Tap a muscle, train it", cover: "bench-press" },
+  { id: "hiit", label: "HIIT treadmill", sub: "Sprints, hills, Tabata", cover: "run" },
+  { id: "c25k", label: "Couch to 5K", sub: "9 weeks to 30 minutes", cover: "walk-incline" },
+  { id: "yoga", label: "Yoga", sub: "Mobility and recovery", cover: "worlds-greatest" },
+  { id: "meditation", label: "Meditation", sub: "Breathing and focus", cover: "childs-pose" },
+];
+const CAT_TITLE: Record<SessionCategory, string> = { hiit: "HIIT treadmill", c25k: "Couch to 5K", yoga: "Yoga", meditation: "Meditation" };
+
+/** A list of guided sessions in one category (Couch to 5K shows its 9 weeks with what's done). */
+function SessionList({ cat, data, onClose, onPlay }: { cat: SessionCategory; data: FitData; onClose: () => void; onPlay: (s: Session) => void }) {
+  const done = new Set(data.workouts.filter((w) => w.dayId && SESSION_BY_ID.has(w.dayId)).map((w) => w.dayId!));
+  const list = sessionsIn(cat);
+  const next = cat === "c25k" ? nextC25K(done) : undefined;
+  return <Sheet title={CAT_TITLE[cat]} onClose={onClose} testId={`fit-sessions-${cat}`}>
+    {cat === "c25k" && <CoverCard exId="run" tall className="mt-1 !p-5">
+      <span className="text-[12px] tracking-[.16em]" style={{ ...display, fontWeight: 700, color: C.lime }}>{done.size ? `${list.filter((x) => done.has(x.id)).length} of ${list.length} runs done` : "Start from zero"}</span>
+      <span className="mt-1 block text-[28px] leading-none" style={display}>{next ? next.name : "You ran a 5K."}</span>
+      <span className="mt-1 block text-[14px]" style={{ color: "#d6d6de" }}>{next ? `${next.blurb} About ${sessionMins(next)} minutes.` : "Keep going: three 30-minute runs a week."}</span>
+      {next && <Btn className="mt-4 w-full" onClick={() => onPlay(next)} testId="fit-c25k-next"><Play className="h-5 w-5" />Start this run</Btn>}
+    </CoverCard>}
+    {cat === "hiit" && <p className="mt-1 px-1 text-[14px]" style={{ color: C.dim }}>The app calls out every speed and incline change. Set the treadmill as it tells you.</p>}
+    <div className="mt-3 space-y-2">{list.map((x) => <Card key={x.id} onClick={() => onPlay(x)} className="!p-4" testId={`fit-session-${x.id}`}>
+      <div className="flex items-center gap-3">
+        {cat === "c25k" ? <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[8px] text-[18px]" style={{ ...display, ...(done.has(x.id) ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2 }) }}>{done.has(x.id) ? <Check className="h-5 w-5" strokeWidth={3} /> : `${x.week}.${x.day}`}</span>
+          : <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[8px] text-[18px] tabular-nums" style={{ ...display, background: C.card2, color: C.lime }}>{sessionMins(x)}′</span>}
+        <div className="min-w-0 flex-1"><p className="truncate text-[19px] leading-tight" style={display}>{x.name}</p><p className="line-clamp-2 text-[13px] leading-snug" style={{ color: C.dim }}>{x.blurb}</p></div>
+        <span className="shrink-0 text-right text-[11px] uppercase tracking-[.08em]" style={{ color: C.dim }}>{cat === "c25k" ? `${sessionMins(x)} min` : x.level}</span>
+      </div>
+    </Card>)}</div>
+  </Sheet>;
+}
+
 /** The rows of form videos on the Train tab. */
 const FORM_GROUPS = [
   { id: "big", label: "The big lifts", ids: ["back-squat", "bench-press", "deadlift", "ohp", "barbell-row", "pull-up", "rdl", "hip-thrust"] },
@@ -309,6 +345,13 @@ export function TrainTab({ data, update, list, onStart, say }: { data: FitData; 
   const [past, setPast] = useState<Workout | null>(null);
   const [watch, setWatch] = useState<LibraryExercise | null>(null);
   const [group, setGroup] = useState<(typeof FORM_GROUPS)[number]["id"]>("big");
+  const [body, setBody] = useState(false);
+  const [cat, setCat] = useState<SessionCategory | null>(null);
+  const [playing, setPlaying] = useState<Session | null>(null);
+  const saveSession = (x: Session, secs: number) => {
+    update((d) => ({ ...d, workouts: [...d.workouts, { id: uid(), date: new Date().toISOString(), name: x.name, programId: x.category === "c25k" ? "c25k" : `session-${x.category}`, dayId: x.id, secs, exercises: [] }] }));
+    setPlaying(null); say("Saved to your history.");
+  };
   const find = (id: string) => list.find((e) => e.id === id) ?? libraryFallback().find((e) => e.id === id);
   const active = data.program ? PROGRAM_BY_ID.get(data.program.id) : undefined;
   const next = active && data.program ? nextProgramDay(active, data.program.done) : null;
@@ -316,21 +359,26 @@ export function TrainTab({ data, update, list, onStart, say }: { data: FitData; 
   return <div>
     {active && next ? <CoverCard exId={next.day.items.find((i) => videoFor(i.exId))?.exId} tall className="!p-5" testId="fit-next-program">
       <span className="text-[12px] font-bold uppercase tracking-[.14em]" style={{ color: C.lime }}>{active.name} · Week {next.week}</span>
-      <span className="mt-1 block text-[26px] font-extrabold tracking-tight">{next.day.name}</span>
+      <span className="mt-1 block text-[26px] font-extrabold tracking-tight" style={display}>{next.day.name}</span>
       <span className="mt-1 block text-[14px]" style={{ color: "#d6d6de" }}>{next.day.items.length} exercises · about {Math.round(next.day.items.reduce((t, i) => t + i.sets * (i.rest + 45), 0) / 60)} min</span>
       <Btn onClick={startDay} className="mt-4 w-full" testId="fit-start-program-day"><Play className="h-5 w-5" />Start workout</Btn>
     </CoverCard> : <CoverCard exId="back-squat" tall className="!p-5">
       <span className="text-[12px] font-bold uppercase tracking-[.14em]" style={{ color: C.lime }}>{PROGRAMS.length} programs · every exercise on video</span>
-      <span className="mt-1 block text-[24px] font-extrabold tracking-tight">Pick a program</span>
+      <span className="mt-1 block text-[24px] font-extrabold tracking-tight" style={display}>Pick a program</span>
       <span className="mt-1 block text-[14px]" style={{ color: "#d6d6de" }}>A plan tells you exactly what to lift each day, shows you how, and says when to add weight.</span>
     </CoverCard>}
+    <Title>Train by type</Title>
+    <div className="grid grid-cols-2 gap-2" data-testid="fit-types">{TYPES.map((t, k) => <CoverCard key={t.id} exId={t.cover} onClick={() => (t.id === "body" ? setBody(true) : setCat(t.id))} className={`!min-h-[118px] !p-3 ${k === 0 ? "col-span-2" : ""}`} testId={`fit-type-${t.id}`}>
+      <span className="block text-[22px] leading-none" style={display}>{t.label}</span>
+      <span className="mt-1 block text-[12px]" style={{ color: "#c9c9d4" }}>{t.sub}</span>
+    </CoverCard>)}</div>
     <div className="mt-3 grid grid-cols-2 gap-2">
       <Btn kind="soft" onClick={() => onStart(startWorkout({ name: "Workout", exercises: [] }))} testId="fit-empty-workout"><Plus className="h-5 w-5" />Empty workout</Btn>
       <Btn kind="soft" onClick={() => setLib(true)} testId="fit-open-library"><Search className="h-5 w-5" />Exercises</Btn>
     </div>
     <Title>Programs</Title>
-    <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">{PROGRAMS.map((p) => <CoverCard key={p.id} exId={programCover(p)} onClick={() => setProg(p)} className={`!w-[250px] shrink-0 snap-start ${data.program?.id === p.id ? "!ring-2 !ring-[#c4f53a]" : ""}`} tall testId={`fit-program-${p.id}`}>
-      <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.14em]" style={{ color: C.lime }}>{p.level}{data.program?.id === p.id && <span className="rounded-full px-2 py-0.5 text-[10px]" style={{ background: C.lime, color: "#10120a" }}>Current</span>}</span>
+    <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">{PROGRAMS.map((p) => <CoverCard key={p.id} exId={programCover(p)} onClick={() => setProg(p)} className={`!w-[250px] shrink-0 snap-start ${data.program?.id === p.id ? "!ring-2 !ring-[#ff5a1f]" : ""}`} tall testId={`fit-program-${p.id}`}>
+      <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.14em]" style={{ color: C.lime }}>{p.level}{data.program?.id === p.id && <span className="rounded-full px-2 py-0.5 text-[10px]" style={{ background: C.lime, color: "#0b0b0c" }}>Current</span>}</span>
       <span className="mt-1 block text-[18px] font-bold leading-tight">{p.name}</span>
       <span className="mt-1 line-clamp-2 block text-[13px] leading-snug" style={{ color: "#c9c9d4" }}>{p.blurb}</span>
       <span className="mt-2 block text-[12px] font-semibold" style={{ color: "#c9c9d4" }}>{p.daysPerWeek}×/week · {p.weeks} wk · {p.equipment}</span>
@@ -338,7 +386,7 @@ export function TrainTab({ data, update, list, onStart, say }: { data: FitData; 
     <Title right={<button type="button" onClick={() => setLib(true)} className="text-[14px] font-semibold" style={{ color: C.lime }}>See all</button>}>Form videos</Title>
     <Chips label="Video group" value={group} onChange={setGroup} items={FORM_GROUPS.map((g) => ({ id: g.id, label: g.label }))} />
     <div className="-mx-4 mt-3 flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" data-testid="fit-form-videos">{FORM_GROUPS.find((g) => g.id === group)!.ids.filter((id) => videoFor(id) && find(id)).map((id) => <button key={id} type="button" onClick={() => setWatch(find(id)!)} className="w-[180px] shrink-0 snap-start text-left active:scale-[.98]" data-testid={`fit-form-${id}`}>
-      <VideoThumb exId={id} className="aspect-video w-full rounded-[16px]" />
+      <VideoThumb exId={id} className="aspect-video w-full rounded-[12px]" />
       <span className="mt-2 block truncate px-0.5 text-[14px] font-semibold">{find(id)!.name}</span>
       <span className="block truncate px-0.5 text-[12px] capitalize" style={{ color: C.dim }}>{find(id)!.muscle} · {find(id)!.equipment}</span>
     </button>)}</div>
@@ -348,13 +396,16 @@ export function TrainTab({ data, update, list, onStart, say }: { data: FitData; 
       <Btn className="!min-h-10" onClick={() => onStart(startWorkout({ name: r.name, exercises: planned(data, r.exercises, list) }))}><Play className="h-4 w-4" /></Btn>
     </Card>)}</div> : <p className="px-1 text-[14px]" style={{ color: C.dim }}>Save the workouts you do often, and start them in one tap.</p>}
     <Title>History</Title>
-    {data.workouts.length ? <div className="space-y-2">{data.workouts.slice(-20).reverse().map((w) => <Card key={w.id} onClick={() => setPast(w)} className="!p-3">
+    {data.workouts.length ? <div className="space-y-2">{data.workouts.slice(-20).reverse().map((w) => <Card key={w.id} onClick={() => (w.dayId && SESSION_BY_ID.has(w.dayId) && !w.exercises.length ? setPlaying(SESSION_BY_ID.get(w.dayId)!) : setPast(w))} className="!p-3">
       <div className="flex items-center gap-3"><History className="h-5 w-5 shrink-0" style={{ color: C.dim }} />
-        <div className="min-w-0 flex-1"><p className="truncate font-semibold">{w.name}</p><p className="text-[13px]" style={{ color: C.dim }}>{new Date(w.date).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · {fmtDur(w.secs)} · {w.exercises.length} exercises</p></div>
+        <div className="min-w-0 flex-1"><p className="truncate font-semibold">{w.name}</p><p className="text-[13px]" style={{ color: C.dim }}>{new Date(w.date).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · {fmtDur(w.secs)} · {w.exercises.length ? `${w.exercises.length} exercises` : w.programId === "c25k" ? "Couch to 5K" : w.programId?.startsWith("session-") ? CAT_TITLE[w.programId.slice(8) as SessionCategory] ?? "Guided" : "Workout"}</p></div>
         <ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>)}</div>
       : <p className="px-1 text-[14px]" style={{ color: C.dim }}>Your finished workouts show up here.</p>}
     {lib && <Library list={list} data={data} onClose={() => setLib(false)} />}
     {watch && <ExerciseDetail ex={watch} data={data} onClose={() => setWatch(null)} />}
+    {body && <BodyMap list={list} onClose={() => setBody(false)} onOpen={setWatch} onStart={(name, items) => { setBody(false); onStart(startWorkout({ name, exercises: planned(data, items, list) })); }} />}
+    {cat && <SessionList cat={cat} data={data} onClose={() => setCat(null)} onPlay={setPlaying} />}
+    {playing && <SessionPlayer session={playing} onClose={() => setPlaying(null)} onDone={(secs) => saveSession(playing, secs)} />}
     {prog && <ProgramDetail p={prog} data={data} update={update} list={list} onClose={() => setProg(null)} onStartDay={startDay} />}
     {routine && <RoutineEditor routine={routine} list={list} data={data} onClose={() => setRoutine(null)}
       onSave={(r) => { update((d) => ({ ...d, routines: d.routines.some((x) => x.id === r.id) ? d.routines.map((x) => (x.id === r.id ? r : x)) : [...d.routines, r] })); setRoutine(null); say("Routine saved."); }}
