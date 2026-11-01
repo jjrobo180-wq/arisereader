@@ -2,12 +2,13 @@
 // inside Arise To Duo (pages/AriseNotesPage.tsx): Home with the notes, Record, Upload, a note, Ask
 // your notes, Voice memo, and Settings (plan and minutes, family, privacy, accessibility).
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowRight, ChevronLeft, Columns2, Folder, Loader2, Mic, MessageCircle, Search, Settings, Sparkles, Upload, Users, Zap } from "lucide-react";
+import { ArrowRight, ChevronLeft, Columns2, Folder, Loader2, Lock, Mic, MessageCircle, Search, Settings, Sparkles, Upload, Users, Zap } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { startApplePush } from "@/lib/applePush";
 import { isNotesApp } from "@/lib/nativeApp";
 import { NOTES_PLANS, dayWords, fmtClock, templateOf } from "@shared/ariseNotes";
 import { notesApi, setNotesToken, type ListNote, type Me } from "./api";
+import { listLocalNotes, type LocalNote } from "./localNotes";
 import { Btn, IconBtn, Notice, Spinner, ToastHost, plural, shortDate, useToast } from "./ui";
 import "./notes.css";
 
@@ -18,10 +19,13 @@ const AskScreen = lazy(() => import("./AskScreen"));
 const MemoScreen = lazy(() => import("./MemoScreen"));
 const SettingsScreen = lazy(() => import("./SettingsScreen"));
 const PrivacyPage = lazy(() => import("./PrivacyPage"));
+const LocalNoteScreen = lazy(() => import("./LocalNoteScreen"));
 
 export type Route =
   | { name: "home" } | { name: "record" } | { name: "upload" } | { name: "note"; id: string; t?: number } | { name: "ask" } | { name: "memo" }
-  | { name: "settings"; tab?: "plan" | "family" | "privacy" | "access" } | { name: "privacy" };
+  | { name: "settings"; tab?: "plan" | "family" | "privacy" | "access" } | { name: "privacy" }
+  /** A Strict-mode note, kept only on this iPhone (localNotes.ts). */
+  | { name: "local"; id: string };
 export type Go = (r: Route) => void;
 export type AppCtx = {
   me: Me;
@@ -46,10 +50,11 @@ function parseHash(h: string): Route {
     case "usage": case "plans": return { name: "settings", tab: "plan" };
     case "family": return { name: "settings", tab: "family" };
     case "privacy": return { name: "privacy" };
+    case "local": return p[1] ? { name: "local", id: p[1] } : { name: "home" };
     default: return { name: "home" };
   }
 }
-const hashOf = (r: Route) => r.name === "home" ? "#/" : r.name === "note" ? `#/note/${r.id}${r.t !== undefined ? `/${Math.round(r.t)}` : ""}` : r.name === "settings" ? `#/settings${r.tab ? `/${r.tab}` : ""}` : `#/${r.name}`;
+const hashOf = (r: Route) => r.name === "home" ? "#/" : r.name === "local" ? `#/local/${r.id}` : r.name === "note" ? `#/note/${r.id}${r.t !== undefined ? `/${Math.round(r.t)}` : ""}` : r.name === "settings" ? `#/settings${r.tab ? `/${r.tab}` : ""}` : `#/${r.name}`;
 
 let lexendLoaded = false;
 const loadLexend = () => {
@@ -133,6 +138,7 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
       case "memo": return <MemoScreen ctx={ctx} />;
       case "settings": return <SettingsScreen ctx={ctx} tab={route.tab} />;
       case "privacy": return <PrivacyPage onBack={() => go({ name: "settings", tab: "privacy" })} />;
+      case "local": return <LocalNoteScreen key={route.id} ctx={ctx} id={route.id} />;
       default: return <Home ctx={ctx} notes={notes} onExit={onExit} />;
     }
   })();
@@ -188,6 +194,9 @@ export function openSplit(mode: "standalone" | "embedded", right: "tasks" | "cal
 
 function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; onExit?: () => void }) {
   const [q, setQ] = useState("");
+  // Strict-mode notes live only on this iPhone, so they're listed from here, not from the server.
+  const [local, setLocal] = useState<LocalNote[]>([]);
+  useEffect(() => { if (ctx.mode === "standalone") void listLocalNotes().then(setLocal); }, [notes, ctx.mode]);
   const [found, setFound] = useState<ListNote[] | null>(null);
   const [folder, setFolder] = useState<string>("");
   const [tag, setTag] = useState("");
@@ -246,6 +255,19 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
           {folders.map((f) => <button key={f} type="button" className="an-chip" aria-pressed={folder === f} onClick={() => setFolder(folder === f ? "" : f)}><Folder className="h-3.5 w-3.5" aria-hidden />{f}</button>)}
           {ctx.me.family && <button type="button" className="an-chip" aria-pressed={folder === "__family"} onClick={() => setFolder(folder === "__family" ? "" : "__family")}><Users className="h-3.5 w-3.5" aria-hidden />Family</button>}
           {tags.map((t) => <button key={t} type="button" className="an-chip" aria-pressed={tag === t} onClick={() => setTag(tag === t ? "" : t)}>#{t}</button>)}
+        </div>}
+        {local.length > 0 && !q && <div className="space-y-2" data-testid="notes-local-list">
+          <h3 className="flex items-center gap-1.5 text-[14px] font-bold text-[var(--an-violet-ink)]"><Lock className="h-4 w-4" aria-hidden />On this iPhone only</h3>
+          <ul className="grid gap-3 md:grid-cols-2">{local.map((n) => <li key={n.id}>
+            <button type="button" onClick={() => ctx.go({ name: "local", id: n.id })} className="an-card flex h-full w-full gap-3 p-4 text-left transition hover:border-[var(--an-violet)]" data-testid="notes-local-card">
+              <span aria-hidden className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--an-violet-soft)] text-[20px]">{templateOf(n.template).emoji}</span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2"><span className="truncate text-[16px] font-bold">{n.title || "Untitled note"}</span><span className="shrink-0 rounded-full bg-[var(--an-violet-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--an-violet-ink)]">Strict</span></span>
+                <span className="mt-0.5 block text-[13px] text-[var(--an-muted)]">{shortDate(n.createdAt)}{n.durationSecs ? ` · ${fmtClock(n.durationSecs)}` : ""} · {templateOf(n.template).label}</span>
+                {n.summary?.summary && <span className="an-extra mt-1.5 line-clamp-2 block text-[14px] leading-snug text-[#3d3a52]">{n.summary.summary}</span>}
+              </span>
+            </button>
+          </li>)}</ul>
         </div>}
         {notes === null ? <Spinner /> : shown.length ? <ul className="grid gap-3 md:grid-cols-2">{shown.map((n) => <NoteCard key={n.id} n={n} onOpen={() => ctx.go({ name: "note", id: n.id })} />)}</ul>
           : q ? <p className="an-card px-5 py-8 text-center text-[15px] text-[var(--an-muted)]">Nothing matched “{q}”.</p>

@@ -4,9 +4,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Mic, Pause, Play, Square, Star, Download, RefreshCw } from "lucide-react";
 import { fmtClock, NOTES_PLANS, type NotesTemplateId, type Segment } from "@shared/ariseNotes";
-import { notesApi, NotesError, type FullNote } from "./api";
+import { localDay, notesApi, NotesError, type FullNote, type PieceReply } from "./api";
 import { NotesRecorder, canRecord } from "./recorder";
-import { createSender, type OutPiece, type Sender } from "./sender";
+import { createPhoneSender, createSender, type OutPiece, type Sender } from "./sender";
+import { allowOnDeviceSpeech, hintsFor, summarizeOnDevice, type PrivacyLevel } from "@/lib/onDevice";
+import { PrivacyPicker, defaultPrivacy, rememberPrivacy, strictSummaryWorks, useOnDevice } from "./privacyMode";
+import { newLocalId, saveLocalNote, type LocalNote } from "./localNotes";
 import { sessionAudio } from "./player";
 import { ConsentCard, SpeakersToggle, TemplatePicker } from "./pickers";
 import { Btn, Notice, Section, useToast, minutesText } from "./ui";
@@ -40,6 +43,12 @@ export default function RecordScreen({ ctx }: { ctx: AppCtx }) {
   const limits = useRef({ pieceSecs: me.limits.pieceSecs, maxSecs: me.limits.maxSecs });
   const pieces = useRef<{ start: number; secs: number; url: string }[]>([]);
   const lineBox = useRef<HTMLDivElement>(null);
+  // Private and Strict modes (Notes iPhone app): written down on the phone (privacyMode.tsx).
+  const device = useOnDevice();
+  const [privacy, setPrivacy] = useState<PrivacyLevel>(defaultPrivacy);
+  const local = useRef<LocalNote | null>(null);
+  const heard = useRef<Segment[]>([]);
+  const strict = () => !!local.current;
 
   // Leaving while recording asks first; closing the tab warns.
   useEffect(() => {
@@ -71,7 +80,7 @@ export default function RecordScreen({ ctx }: { ctx: AppCtx }) {
 
   const onPiece = (p: { idx: number; blob: Blob; ext: string; start: number; secs: number }) => {
     pieces.current.push({ start: p.start, secs: p.secs, url: URL.createObjectURL(p.blob) });
-    if (note.current) sessionAudio.set(note.current.id, [...pieces.current]);
+    if (note.current && privacy === "standard") sessionAudio.set(note.current.id, [...pieces.current]);
     sender.current?.add(p);
   };
 
@@ -79,26 +88,41 @@ export default function RecordScreen({ ctx }: { ctx: AppCtx }) {
     setBusy(true); setProblem(null);
     let created: { note: FullNote; limits: { pieceSecs: number; maxSecs: number } };
     const now = new Date();
-    try {
-      created = await notesApi.create({ source: "record", title: title.trim() || undefined, defaultTitle: `Recording, ${now.toLocaleDateString("en-US", { month: "short", day: "numeric" })} ${now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`, template, speakers: speakers && me.features.speakers, saveOnly });
-    } catch (e: any) {
-      setBusy(false);
-      setProblem({ text: e.message, canSave: e instanceof NotesError && e.code !== "too_long" && !!e.body?.canSave });
-      return;
+    const defaultTitle = `Recording, ${now.toLocaleDateString("en-US", { month: "short", day: "numeric" })} ${now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+    if (privacy !== "standard") {
+      try { await allowOnDeviceSpeech(); } catch (e: any) { setBusy(false); setProblem({ text: e.message }); return; }
+      rememberPrivacy(privacy);
     }
-    note.current = created.note;
-    limits.current = created.limits;
-    sender.current = createSender(created.note.id, {
-      concurrency: 1,
-      onReply: (_p, r) => {
-        if (r.ok && r.segments?.length) setLines((l) => [...l, ...r.segments!].sort((a, b) => a.idx - b.idx));
-        if (!r.ok && (r.code === "minutes" || r.code === "cap")) setOutOfMinutes(r.message || "Out of minutes.");
-        if (!r.ok && r.code === "failed") say("A part couldn't be written down yet. It's saved; you can retry it from the note.");
-        if (r.usage) void ctx.refreshMe();
-      },
-      onFatal: (m) => say(m),
-      onProgress: (done, total) => setSent({ done, total }),
-    });
+    const onReply = (_p: OutPiece, r: PieceReply) => {
+      if (r.ok && r.segments?.length) { heard.current = [...heard.current, ...r.segments].sort((a, b) => a.idx - b.idx); setLines(heard.current); }
+      if (!r.ok && (r.code === "minutes" || r.code === "cap")) setOutOfMinutes(r.message || "Out of minutes.");
+      if (!r.ok && r.code === "failed") say("A part couldn't be written down yet. It's saved; you can retry it from the note.");
+      if (r.usage) void ctx.refreshMe();
+    };
+    if (privacy === "strict") {
+      // Strict: nothing goes to the server. The note is made and kept on this iPhone.
+      local.current = { id: newLocalId(), title: title.trim() || defaultTitle, template, source: "record", createdAt: now.toISOString(), durationSecs: 0, segments: [], highlights: [], summary: null, summaryProblem: "" };
+      created = { note: null as unknown as FullNote, limits: { pieceSecs: 300, maxSecs: 2 * 3600 } };
+      limits.current = created.limits;
+      sender.current = createPhoneSender({ hints: hintsFor(template), onReply, onFatal: (m) => say(m), onProgress: (done, total) => setSent({ done, total }) });
+    } else {
+      try {
+        created = await notesApi.create({ source: "record", title: title.trim() || undefined, defaultTitle, template, speakers: privacy === "standard" && speakers && me.features.speakers, saveOnly, privacy: privacy === "private" ? "private" : undefined });
+      } catch (e: any) {
+        setBusy(false);
+        setProblem({ text: e.message, canSave: privacy === "standard" && e instanceof NotesError && e.code !== "too_long" && !!e.body?.canSave });
+        return;
+      }
+      note.current = created.note;
+      limits.current = created.limits;
+      sender.current = createSender(created.note.id, {
+        concurrency: 1,
+        onReply,
+        onFatal: (m) => say(m),
+        onProgress: (done, total) => setSent({ done, total }),
+        onPhone: privacy === "private" ? { hints: hintsFor(template) } : undefined,
+      });
+    }
     const r = new NotesRecorder({
       onPiece, onLevel: setLevel, onTick: setSecs,
       onAutoStop: (why) => { say(why === "limit" ? `That's the longest recording on ${NOTES_PLANS[me.plan].name} (${minutesText(limits.current.maxSecs)}). It's saved.` : "The microphone stopped (another app may be using it). What was recorded is saved."); void finish(); },
@@ -107,8 +131,9 @@ export default function RecordScreen({ ctx }: { ctx: AppCtx }) {
     catch (e: any) {
       setBusy(false);
       setProblem({ text: e.message });
-      void notesApi.remove(created.note.id).catch(() => {});
+      if (note.current) void notesApi.remove(note.current.id).catch(() => {});
       note.current = null;
+      local.current = null;
       return;
     }
     rec.current = r;
@@ -136,6 +161,12 @@ export default function RecordScreen({ ctx }: { ctx: AppCtx }) {
   /** Leaving mid-way: finish in the background so the note is complete. */
   const finishQuietly = async () => {
     const n = note.current, s = sender.current;
+    if (local.current && s) {
+      await s.drained();
+      await saveLocalNote({ ...local.current, durationSecs: rec.current?.elapsed ?? 0, highlights, segments: heard.current }).catch(() => {});
+      ctx.refreshNotes();
+      return;
+    }
     if (!n || !s) return;
     await s.drained();
     await notesApi.finish(n.id, { durationSecs: rec.current?.elapsed ?? 0, highlights }).catch(() => {});
@@ -144,13 +175,31 @@ export default function RecordScreen({ ctx }: { ctx: AppCtx }) {
 
   const finish = async () => {
     const n = note.current, s = sender.current;
-    if (!n || !s) return;
+    if ((!n && !strict()) || !s) return;
     setPhase("finishing");
-    setStep("Saving the last part…");
+    setStep(strict() ? "Writing down the last part on this iPhone…" : "Saving the last part…");
     await rec.current?.stop();
     const duration = rec.current?.elapsed ?? secs;
     await s.drained();
     if (s.failed().length) { setLost(s.failed()); setStep(""); return; }
+    if (local.current) {
+      // Strict: saved on this iPhone, then summarized by the iPhone's own AI when it can.
+      let ln: LocalNote = { ...local.current, durationSecs: duration, highlights, segments: heard.current };
+      await saveLocalNote(ln);
+      if (ln.segments.length && strictSummaryWorks(device.st)) {
+        setStep("Writing your summary on this iPhone…");
+        try {
+          const summary = await summarizeOnDevice({ segments: ln.segments, template: ln.template, highlights, today: localDay(), onStep: setStep });
+          ln = { ...ln, summary, title: !title.trim() && summary.title ? summary.title : ln.title };
+        } catch (e: any) { ln = { ...ln, summaryProblem: String(e?.message || "") }; }
+        await saveLocalNote(ln);
+      }
+      ctx.setGuard(null);
+      ctx.refreshNotes();
+      ctx.go({ name: "local", id: ln.id });
+      return;
+    }
+    if (!n) return;
     setStep("Putting your transcript together…");
     let latest: FullNote | null = null;
     try { latest = (await notesApi.finish(n.id, { durationSecs: duration, highlights })).note; } catch (e: any) { say(e.message); }
@@ -182,7 +231,8 @@ export default function RecordScreen({ ctx }: { ctx: AppCtx }) {
       <TopBar ctx={ctx} title="Record" back={() => ctx.go({ name: "home" })} />
       <main className="mx-auto max-w-2xl space-y-4 px-4 pb-24 pt-5 sm:px-5">
         {!canRecord() && <Notice tone="bad">Recording doesn't work in this browser. Try Chrome or Safari, or upload a recording instead.</Notice>}
-        {me.usage.left <= 0 && <Notice tone="bad">{me.usage.capLeft <= 0 ? "This account has used its monthly safety limit." : "You're out of minutes for this month."} You can still record: the audio is saved and written down when minutes come back.</Notice>}
+        {device.available && <Section><PrivacyPicker value={privacy} onChange={setPrivacy} st={device.st} /></Section>}
+        {me.usage.left <= 0 && privacy !== "strict" && <Notice tone="bad">{me.usage.capLeft <= 0 ? "This account has used its monthly safety limit." : "You're out of minutes for this month."} You can still record: the audio is saved and written down when minutes come back.</Notice>}
         <Section>
           <label className="block">
             <span className="mb-1.5 block text-[14px] font-bold">Name it <span className="font-normal text-[var(--an-faint)]">(optional)</span></span>
@@ -190,13 +240,13 @@ export default function RecordScreen({ ctx }: { ctx: AppCtx }) {
           </label>
         </Section>
         <Section><TemplatePicker me={me} value={template} onChange={setTemplate} onLocked={() => { say("That template comes with a paid plan."); ctx.go({ name: "settings", tab: "plan" }); }} /></Section>
-        {(me.features.speakers ? me.services.speakers : true) && <Section><SpeakersToggle me={me} on={speakers} onChange={setSpeakers} onLocked={() => ctx.go({ name: "settings", tab: "plan" })} /></Section>}
+        {privacy === "standard" && (me.features.speakers ? me.services.speakers : true) && <Section><SpeakersToggle me={me} on={speakers} onChange={setSpeakers} onLocked={() => ctx.go({ name: "settings", tab: "plan" })} /></Section>}
         {me.settings.consent && <ConsentCard checked={told} onChange={setTold} />}
         {problem && <Notice tone="bad" action={problem.canSave ? <Btn kind="primary" onClick={() => void begin(true)}>Record and save for later</Btn> : undefined}>{problem.text}</Notice>}
-        <Btn kind="record" className="w-full !min-h-14 text-[17px]" busy={busy} disabled={!told || !canRecord()} onClick={() => void begin(me.usage.left <= 0)} data-testid="notes-start">
+        <Btn kind="record" className="w-full !min-h-14 text-[17px]" busy={busy} disabled={!told || !canRecord()} onClick={() => void begin(privacy === "standard" && me.usage.left <= 0)} data-testid="notes-start">
           <Mic className="h-5 w-5" />Start recording
         </Btn>
-        <p className="text-center text-[13px] leading-relaxed text-[var(--an-muted)]">Up to {minutesText(me.usage.maxSecs)} on {me.planName}. {me.usage.left > 0 ? `${me.usage.left.toLocaleString("en-US")} minutes left this month.` : ""} Keep this screen open while recording{/iPhone|iPad/.test(navigator.userAgent) ? "; locking an iPhone pauses the microphone" : ""}.</p>
+        <p className="text-center text-[13px] leading-relaxed text-[var(--an-muted)]">{privacy === "strict" ? "Strict recordings stay on this iPhone and don't use minutes (up to 2 hours)." : <>Up to {minutesText(me.usage.maxSecs)} on {me.planName}. {me.usage.left > 0 ? `${me.usage.left.toLocaleString("en-US")} minutes left this month.` : ""}</>} Keep this screen open while recording{/iPhone|iPad/.test(navigator.userAgent) ? "; locking an iPhone pauses the microphone" : ""}.</p>
       </main>
     </>;
   }

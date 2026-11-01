@@ -8,7 +8,7 @@
 // native level (web code made for the native shell it has) that was built after the one it's running.
 import type { Express } from "express";
 
-export const OTA_APPS = ["todo", "podplus", "reader", "educator", "fit", "eyegaze", "trainer", "notes"] as const;
+export const OTA_APPS = ["todo", "podplus", "reader", "educator", "fit", "eyegaze", "trainer", "notes", "talk"] as const;
 export type OtaApp = typeof OTA_APPS[number];
 /** `checksum`: the zip's SHA-256 (hex). The updater on the phone (@capgo/capacitor-updater 8) refuses
  *  any update without it ("Checksum required") and checks the download against it before unpacking.

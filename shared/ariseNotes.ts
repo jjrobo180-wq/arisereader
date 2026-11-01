@@ -202,6 +202,7 @@ export function warningDue(after: number, allowance: number, warned: number): 0 
 /** What it costs us, roughly, in cents (for spotting heavy users). */
 export const PROVIDER_CENTS_PER_MIN: Record<string, number> = {
   groq: 0.0667, // whisper-large-v3-turbo, $0.04 an hour
+  "on-device": 0, // Private mode: written down on the iPhone
   openai: 0.3, // gpt-4o-mini-transcribe
   "openai-diarize": 0.6, // gpt-4o-transcribe-diarize
   "openai-whisper": 0.6,

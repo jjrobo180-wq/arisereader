@@ -15,12 +15,12 @@ import { createHash, randomBytes } from "node:crypto";
 import { clientAddress, createAttemptLimiter, waitWords } from "./attemptLimiter";
 import {
   DEFAULT_SETTINGS, DIARIZE_PIECE_SECS, MEMO_MAX_SECS, NOTES_PLANS, NOTES_TEMPLATES, PIECE_MAX_BYTES, PIECE_SECS, PROVIDER_CENTS_PER_MIN,
-  aiCents, allows, cleanFamilyCode, cleanIep, cleanSettings, dayWords, familyCode, fmtClock, isTemplateId, monthStartOf, nextMonthStart, noteHtml, noteText,
+  aiCents, allows, capText, cleanFamilyCode, cleanIep, cleanSettings, dayWords, familyCode, fmtClock, isTemplateId, monthStartOf, nextMonthStart, noteHtml, noteText,
   planFor, rollAccount, searchQuery, segmentIdx, speakerName, templateAllowed, templateOf, transcribeCheck, transcriptForAi, usageView, warningDue,
   type IepDraft, type NoteForExport, type NoteSummary, type NotesFeature, type NotesPlanId, type NotesTemplateId, type Segment, type UsageView,
 } from "../shared/ariseNotes";
 import type { AccountRow, NoteRow, NotesStore, PieceRow } from "./ariseNotesStore";
-import { answerFromPassages, planSearch, readMemo, translateSummary, writeParentEmail, writeStudyTools, writeSummary, type AskJson, type Hearer } from "./ariseNotesAi";
+import { answerFromPassages, planSearch, readMemo, translateSummary, writeParentEmail, writeStudyTools, writeSummary, type AskJson, type HeardLine, type Hearer } from "./ariseNotesAi";
 import { addIepToWork, addToLife, addToWork, lifeTargets, workTargets, type EventIn, type LifeStore, type TaskIn, type WorkStore } from "./ariseNotesHubs";
 
 type User = { id: number; role?: string; isAdmin?: boolean; displayName?: string; username?: string; email?: string | null; teacherId?: number | null; accountApproved?: boolean };
@@ -188,9 +188,17 @@ export function registerAriseNotesRoutes(app: Express, auth: RequestHandler, dep
 
   // ─── Writing down one piece ─────────────────────────────────────────────────
   const pathOf = (n: NoteRow, idx: number, ext: string) => `${n.ownerId}/${n.id}/${idx}.${ext}`;
-  const transcribePiece = async (ctx: Ctx, note: NoteRow, piece: PieceRow, audio: Buffer, mime: string) => {
+  /** `onPhone`: Private mode, the iPhone already wrote this piece down; only its text arrives. A recording
+   *  that started with minutes left may finish (so its transcript isn't cut off); the safety cap still applies. */
+  const transcribePiece = async (ctx: Ctx, note: NoteRow, piece: PieceRow, audio: Buffer, mime: string, onPhone?: { lines: HeardLine[]; duration: number }) => {
     const path = piece.path || pathOf(note, piece.idx, piece.ext);
-    const check = transcribeCheck(ctx.usage, piece.secs || 60, now());
+    const est = Math.max(1, Math.ceil(Math.max(0, piece.secs || 60) / 60));
+    const check = onPhone
+      ? (ctx.usage.capLeft < est ? { ok: false as const, reason: "cap" as const, message: capText(ctx.usage.resetOn, now()) } : { ok: true as const })
+      : transcribeCheck(ctx.usage, piece.secs || 60, now());
+    if (!check.ok && onPhone) {
+      return { ok: false as const, code: check.reason, message: check.message, usage: ctx.usage };
+    }
     if (!check.ok) {
       if (!piece.path) await store.putAudio(path, audio, MIME[piece.ext] || "audio/webm");
       await store.savePiece({ ...piece, state: "no_minutes", path, error: check.message });
@@ -199,7 +207,7 @@ export function registerAriseNotesRoutes(app: Express, auth: RequestHandler, dep
     }
     let heard;
     try {
-      heard = await deps.hear.hear({ audio, ext: piece.ext, mime: mime || MIME[piece.ext] || "", speakers: allows(ctx.plan, "speakers") && note.extras?.speakers !== false, prompt: WHISPER_HINT[note.template] });
+      heard = onPhone ? { lines: onPhone.lines, duration: onPhone.duration, provider: "on-device", diarized: false } : await deps.hear.hear({ audio, ext: piece.ext, mime: mime || MIME[piece.ext] || "", speakers: allows(ctx.plan, "speakers") && note.extras?.speakers !== false, prompt: WHISPER_HINT[note.template] });
     } catch (e: any) {
       console.error("[notes] speech to text:", e?.message);
       if (!piece.path) await store.putAudio(path, audio, MIME[piece.ext] || "audio/webm").catch(() => {});
@@ -215,7 +223,7 @@ export function registerAriseNotesRoutes(app: Express, auth: RequestHandler, dep
     await store.logUsage({ userId: ctx.user.id, poolId: ctx.poolId, noteId: note.id, kind: "transcribe", minutes: charged.delta, secs: r2(secs), provider: heard.provider, costCents: Math.round((secs / 60) * (PROVIDER_CENTS_PER_MIN[heard.provider] ?? 0.5) * 10_000) / 10_000 });
     // The audio is kept only when the person chose to keep it.
     let kept: string | null = null;
-    if (note.audioKeep !== "delete") { await store.putAudio(path, audio, MIME[piece.ext] || "audio/webm"); kept = path; }
+    if (note.audioKeep !== "delete" && audio.length) { await store.putAudio(path, audio, MIME[piece.ext] || "audio/webm"); kept = path; }
     else if (piece.path) await store.removeAudio([piece.path]);
     await store.savePiece({ ...piece, secs: r2(secs), state: "done", path: kept, provider: heard.provider, error: "" });
     const [all, pieces] = await Promise.all([store.getSegments(note.id), store.getPieces(note.id)]);
@@ -306,10 +314,12 @@ export function registerAriseNotesRoutes(app: Express, auth: RequestHandler, dep
         return res.status(402).json({ code: check.ok ? "minutes" : check.reason, message: check.ok ? "No minutes left." : check.message, canSave: true, usage: ctx.usage });
       }
       const typed = cut(req.body?.title, 140);
+      // Private mode (Notes iPhone app): the audio is written down on the iPhone and never sent here.
+      const privateMode = req.body?.privacy === "private";
       const note = await store.createNote({
         ownerId: user.id, title: typed || cut(req.body?.defaultTitle, 140) || (source === "upload" ? "Uploaded recording" : "New recording"),
-        template, source, status: source === "upload" ? "processing" : "recording", audioKeep: ctx.me.settings.audio, folder: cut(req.body?.folder, 40),
-        extras: { autoTitle: !typed, speakers: allows(ctx.plan, "speakers") && req.body?.speakers !== false },
+        template, source, status: source === "upload" ? "processing" : "recording", audioKeep: privateMode ? "delete" : ctx.me.settings.audio, folder: cut(req.body?.folder, 40),
+        extras: { autoTitle: !typed, speakers: !privateMode && allows(ctx.plan, "speakers") && req.body?.speakers !== false, ...(privateMode ? { privacy: "private" } : {}) },
       });
       res.status(201).json({ note: await noteView(note, user), usage: ctx.usage, limits: { pieceSecs: allows(ctx.plan, "speakers") && deps.hear.speakersAvailable() && req.body?.speakers !== false ? DIARIZE_PIECE_SECS : PIECE_SECS, maxSecs: ctx.usage.maxSecs } });
     } catch (e) { fail(res, e, "create"); }
@@ -406,6 +416,37 @@ export function registerAriseNotesRoutes(app: Express, auth: RequestHandler, dep
       const out = await transcribePiece(ctx, note, piece, audio, String(req.headers?.["content-type"] || ""));
       res.status(out.ok ? 200 : out.code === "failed" ? 502 : 402).json(out);
     } catch (e) { fail(res, e, "piece"); }
+  });
+
+  // Private mode: a piece the iPhone already wrote down. Only its text and times arrive, never audio.
+  app.post("/api/notes/:id/pieces/text", auth, async (req: any, res) => {
+    try {
+      const user = await who(req, res);
+      if (!user) return;
+      if (limited(pieceLimit, `u${user.id}`, res)) return;
+      const note = await noteFor(user, req.params.id, res);
+      if (!note) return;
+      const b = req.body || {};
+      const idx = Math.floor(Number(b.idx));
+      const start = Number(b.start);
+      const secs = Number(b.secs) || 0;
+      if (!Number.isInteger(idx) || idx < 0 || idx > 2000 || !Number.isFinite(start) || start < 0 || secs <= 0 || secs > 3700 || !Array.isArray(b.lines) || b.lines.length > 3000) return res.status(400).json({ message: "That part of the transcript doesn't look right." });
+      const lines: HeardLine[] = b.lines.map((l: any) => ({ start: Math.max(0, Math.min(secs, Number(l?.start) || 0)), end: Math.max(0, Math.min(secs + 1, Number(l?.end) || 0)), text: cut(l?.text, 2000), speaker: null })).filter((l: HeardLine) => l.text);
+      const ctx = await ctxOf(user);
+      if (start + secs > ctx.usage.maxSecs + 90) {
+        const max = Math.round(ctx.usage.maxSecs / 60);
+        return res.status(413).json({ code: "too_long", message: `On ${NOTES_PLANS[ctx.plan].name}, one recording can be up to ${max >= 120 ? "2 hours" : `${max} minutes`}.` });
+      }
+      const existing = (await store.getPieces(note.id)).find((p) => p.idx === idx);
+      if (existing?.state === "done") {
+        const segs = (await store.getSegments(note.id)).filter((s) => s.idx >= segmentIdx(idx, 0) && s.idx < segmentIdx(idx + 1, 0));
+        return res.json({ ok: true, segments: segs, usage: ctx.usage, minutes: 0, repeat: true });
+      }
+      const piece: PieceRow = { noteId: note.id, idx, ownerId: note.ownerId, startSecs: r2(start), secs: r2(secs), ext: "txt", state: "new", path: null, provider: "on-device", error: "", bytes: 0, createdAt: new Date(now()).toISOString(), updatedAt: new Date(now()).toISOString() };
+      await store.savePiece(piece);
+      const out = await transcribePiece(ctx, note, piece, Buffer.alloc(0), "", { lines, duration: secs });
+      res.status(out.ok ? 200 : 402).json(out);
+    } catch (e) { fail(res, e, "text piece"); }
   });
 
   /** Writes down the pieces that were saved for later (out of minutes, or the service was busy). */

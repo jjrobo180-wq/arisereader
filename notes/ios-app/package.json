@@ -19,7 +19,8 @@
     "@capacitor-community/apple-sign-in": "^7.1.0",
     "@capgo/capacitor-updater": "^8.0.0",
     "@capacitor/push-notifications": "^8.0.0",
-    "@ebarooni/capacitor-calendar": "^8.2.0"
+    "@ebarooni/capacitor-calendar": "^8.2.0",
+    "arise-on-device": "file:./plugins/arise-on-device"
   },
   "devDependencies": {
     "@capacitor/cli": "8.0.0"

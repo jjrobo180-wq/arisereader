@@ -7,6 +7,8 @@ import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { NATIVE_NO_PURCHASE, isNativeApp } from "@/lib/nativeApp";
 import { notesApi, type Billing } from "./api";
+import { removeAllLocalNotes } from "./localNotes";
+import { PrivacyPicker, defaultPrivacy, rememberPrivacy, useOnDevice } from "./privacyMode";
 import { Btn, Notice, Section, Spinner, Toggle, useToast } from "./ui";
 import { TopBar, type AppCtx } from "./NotesApp";
 
@@ -44,6 +46,17 @@ function SignOut({ ctx }: { ctx: AppCtx }) {
       <p className="min-w-0 flex-1 text-[14px] text-[var(--an-muted)]">Signed in as <b className="text-[var(--an-ink)]">{ctx.me.user.name || "you"}</b>.</p>
       <Btn kind="soft" onClick={() => { logout(); window.location.hash = "#/"; }} data-testid="notes-sign-out"><LogOut className="h-4 w-4" />Sign out</Btn>
     </div>
+  </Section>;
+}
+
+// The Notes iPhone app: the privacy mode new recordings start in (each recording can change it).
+function UsualMode() {
+  const device = useOnDevice();
+  const [mode, setMode] = useState(defaultPrivacy);
+  if (!device.available) return null;
+  return <Section title="Recording privacy on this iPhone" icon={<Shield className="h-4 w-4" />}>
+    <p className="mb-2 text-[14px] text-[var(--an-muted)]">New recordings and uploads start in this mode. You can change it for each one.</p>
+    <PrivacyPicker value={mode} onChange={(v) => { setMode(v); rememberPrivacy(v); }} st={device.st} />
   </Section>;
 }
 
@@ -152,6 +165,7 @@ function PrivacyTab({ ctx }: { ctx: AppCtx }) {
     setBusy(true);
     try {
       await notesApi.wipe();
+      await removeAllLocalNotes().catch(() => {}); // Strict notes on this iPhone, too
       if (alsoAccount) {
         const res = await fetch(`${API_BASE}/api/account/delete`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ confirm: "DELETE", password }) });
         const data = await res.json().catch(() => null);
@@ -164,6 +178,7 @@ function PrivacyTab({ ctx }: { ctx: AppCtx }) {
     finally { setBusy(false); }
   };
   return <div className="space-y-4">
+    <UsualMode />
     <Section title="Audio" icon={<Shield className="h-4 w-4" />}>
       <p className="mb-2 text-[14px] text-[var(--an-muted)]">After a recording is written down:</p>
       {([["delete", "Delete the audio (recommended)", "Only the text is kept."], ["30d", "Keep the audio for 30 days", "Then it's deleted by itself."], ["keep", "Keep the audio", "So you can listen back any time."]] as const).map(([v, label, hint]) =>

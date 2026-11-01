@@ -28,6 +28,7 @@ const FitApp = lazy(() => import("@/pages/fit/FitApp"));
 const TrainerApp = lazy(() => import("@/pages/trainer/TrainerApp"));
 const TrainersPage = lazy(() => import("@/pages/coach/TrainersPage"));
 const NotesApp = lazy(() => import("@/components/arise-notes/NotesApp"));
+const TalkApp = lazy(() => import("@/pages/talk/TalkApp"));
 import { API_BASE } from "./lib/queryClient";
 import ProfileSetupOverlay from "./components/ProfileSetupOverlay";
 import EyeGazeSiteShell from "./components/EyeGazeSiteShell";
@@ -146,7 +147,7 @@ import TodoGate from "@/components/TodoGate";
 import { ReaderAdminToTodoRedirect, ReaderToHubHandoff, TodoAdminHandoff } from "@/components/AdminDomainHandoff";
 import { READER_APP, goToReader, goToSignIn, hubPathFor, isHubAccount, isReaderPage } from "@/lib/hubs";
 import NativePlans from "@/components/NativePlans";
-import { isEyeGazerApp, isFitApp, isNativeApp, isNotesApp, isReaderApp, isTrainerApp } from "@/lib/nativeApp";
+import { isEyeGazerApp, isFitApp, isNativeApp, isNotesApp, isReaderApp, isTalkApp, isTrainerApp } from "@/lib/nativeApp";
 const TeacherScenes = lazyPage(() => import("./pages/TeacherScenes"));
 const StudentSceneLive = lazyPage(() => import("./pages/StudentSceneLive"));
 const Library = lazyPage(() => import("./pages/Library"));
@@ -536,6 +537,8 @@ function AppRoutes() {
       </Route>
       {/* Arise Coaching: the public trainer directory, and Arise Trainer for coaches. */}
       <Route path="/trainers"><TrainersPage /></Route>
+      {/* Arise Talk: the talking boards (no account needed). */}
+      <Route path="/talk"><TalkApp /></Route>
       <Route path="/trainer">
         <ProtectedRoute><TrainerApp /></ProtectedRoute>
       </Route>
@@ -1013,6 +1016,8 @@ function AppInner() {
   // The Arise Notes iPhone app: sign in, then Arise Notes (components/arise-notes/NotesApp.tsx).
   if (isNotesApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: "#f5f4fb" }} />}>{user ? <NotesApp mode="standalone" /> : <NativeSignIn />}</Suspense></Router>;
   if (isFitApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: fitBootBg() }} />}>{user ? <FitApp /> : <NativeSignIn />}</Suspense></Router>;
+  // The Arise Talk iPhone app opens straight to the boards: an account is optional (More → Backup).
+  if (isTalkApp()) return <Suspense fallback={<div className="fixed inset-0" style={{ background: "#f5f4f1" }} />}><TalkApp /></Suspense>;
   // The Arise Trainer iPhone app: sign in, then Arise Trainer (pages/trainer/TrainerApp.tsx).
   if (isTrainerApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: fitBootBg() }} />}>{user ? <TrainerApp /> : <NativeSignIn />}</Suspense></Router>;
 

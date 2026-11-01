@@ -19,7 +19,7 @@ import sys
 import time
 
 APP = sys.argv[1]
-assert APP in ("todo", "podplus", "reader", "educator", "fit", "eyegaze", "trainer", "notes"), APP
+assert APP in ("todo", "podplus", "reader", "educator", "fit", "eyegaze", "trainer", "notes", "talk"), APP
 here = os.path.dirname(os.path.abspath(__file__))
 level = int(open(os.path.join(here, "..", "ota", "native-level")).read().strip())
 version = f"{level}.{int(time.time() // 60)}.0"

@@ -13,8 +13,8 @@ const read = (p: string) => readFileSync(p, "utf8");
 
 test("it's its own app: Arise Notes, com.arisereader.notes, opening to sign-in and then Notes", () => {
   const nat = read("client/src/lib/nativeApp.ts");
-  assert.match(nat, /\| "notes";/);
-  assert.match(nat, /\|\| f === "notes" \? f : "todo"/);
+  assert.match(nat, /\| "notes"( \| "talk")?;/);
+  assert.match(nat, /\|\| f === "notes"( \|\| f === "talk")? \? f : "todo"/);
   assert.match(nat, /notes: \{ name: "Arise Notes", bundle: "com\.arisereader\.notes", api: "https:\/\/arisetodo\.com" \}/);
   assert.match(nat, /export const isNotesApp = \(\): boolean => isNativeApp\(\) && nativeFlavor\(\) === "notes";/);
 
@@ -31,9 +31,9 @@ test("it's its own app: Arise Notes, com.arisereader.notes, opening to sign-in a
 test("Sign in with Apple accepts the Notes app", () => {
   assert.match(read("server/appleSignIn.ts"), /export const NOTES_APP = "com\.arisereader\.notes";/);
   const r = read("server/routes.ts");
-  assert.equal(r.match(/\[ARISE_APP, EDUCATOR_APP, FIT_APP, EYEGAZER_APP, TRAINER_APP, NOTES_APP\]/g)?.length, 2, "signing in, and checking before deleting an account");
-  assert.match(r, /claims\.aud === NOTES_APP \? NOTES_APP : ARISE_APP/);
-  assert.match(r, /was === NOTES_APP \? was : ARISE_APP/);
+  assert.equal(r.match(/\[ARISE_APP, EDUCATOR_APP, FIT_APP, EYEGAZER_APP, TRAINER_APP, NOTES_APP(, TALK_APP)?\]/g)?.length, 2, "signing in, and checking before deleting an account");
+  assert.match(r, /claims\.aud === NOTES_APP \? NOTES_APP : (claims\.aud === TALK_APP \? TALK_APP : )?ARISE_APP/);
+  assert.match(r, /was === NOTES_APP( \|\| was === TALK_APP)? \? was : ARISE_APP/);
 });
 
 test("no plans are sold inside the iPhone app (App Review 3.1.1)", () => {
@@ -91,9 +91,9 @@ test("the TestFlight build signs and uploads Arise Notes like the other apps", (
   assert.match(wf, /contains\(github\.event\.head_commit\.message, '\[approved-testflight\]'\)/, "uploads only when approved");
   assert.doesNotMatch(wf, /healthkit|HEALTHKIT|com\.arisereader\.fit|fit\/ios-app/i);
 
-  assert.match(read("server/ota.ts"), /"trainer", "notes"\] as const;/);
-  assert.match(read(".github/workflows/ota-publish.yml"), /app: \[[^\]]*\bnotes\]/);
-  assert.match(read(".github/scripts/ota_setup.py"), /"trainer", "notes"\), APP/);
+  assert.match(read("server/ota.ts"), /"trainer", "notes"(, "talk")?\] as const;/);
+  assert.match(read(".github/workflows/ota-publish.yml"), /app: \[[^\]]*\bnotes(, talk)?\]/);
+  assert.match(read(".github/scripts/ota_setup.py"), /"trainer", "notes"(, "talk")?\), APP/);
 });
 
 test("sign out, notifications, and Apple Reminders and Calendar in the Notes iPhone app", () => {
