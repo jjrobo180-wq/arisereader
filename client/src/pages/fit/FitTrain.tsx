@@ -12,6 +12,7 @@ import { BodyMap } from "./FitBody";
 import { SessionPlayer } from "./FitSession";
 import { OutdoorHub } from "./FitRun";
 import { FormCheck } from "./FitForm";
+import { saveToHealth } from "./fitNative";
 import type { LibraryExercise, Update } from "./fitStore";
 import { CoverCard, VideoPlayer, VideoThumb } from "./FitVideo";
 import { Btn, C, Card, Chips, Sheet, Spark, Title, fmtDur, fmtNum, inputCls, inputStyle, display } from "./fitUi";
@@ -150,6 +151,7 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
     if (!exercises.length) { if (window.confirm("No sets are checked off. Discard this workout?")) { saveActive(null); setActive(null); } return; }
     const w: Workout = { id: active.id, date: new Date(active.started).toISOString(), name: active.name, ...(active.programId ? { programId: active.programId, dayId: active.dayId } : {}), secs: Math.round((Date.now() - active.started) / 1000), exercises };
     const prs = newRecords(data.workouts, w);
+    saveToHealth("calories", Math.round((w.secs / 60) * 6), new Date(active.started));
     update((d) => ({ ...d, workouts: [...d.workouts, w], ...(d.program && active.programId === d.program.id && active.dayId ? { program: { ...d.program, done: [...d.program.done, `${active.dayId}@${w.date.slice(0, 10)}`] } } : {}) }));
     saveActive(null); setDone({ w, prs });
   };
@@ -355,6 +357,7 @@ export function TrainTab({ data, update, list, onStart, say }: { data: FitData; 
   const [outdoor, setOutdoor] = useState(false);
   const [form, setForm] = useState(false);
   const saveSession = (x: Session, secs: number) => {
+    saveToHealth("calories", Math.round((secs / 60) * ({ hiit: 11, c25k: 9, yoga: 3.5, meditation: 0 } as const)[x.category]), new Date(Date.now() - secs * 1000));
     update((d) => ({ ...d, workouts: [...d.workouts, { id: uid(), date: new Date().toISOString(), name: x.name, programId: x.category === "c25k" ? "c25k" : `session-${x.category}`, dayId: x.id, secs, exercises: [] }] }));
     setPlaying(null); say("Saved to your history.");
   };
