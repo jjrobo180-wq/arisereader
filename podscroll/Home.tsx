@@ -25,9 +25,11 @@ import { AddToMenu, ModePage, ModesRow, NewModeDialog, makeMode, toSaved } from 
 import { GoLiveSheet, LiveRoom, type LiveSummary } from "../client/src/components/family-hub/earshot/EarshotCreators";
 import { setTheme, useTheme } from "../client/src/components/family-hub/earshot/EarshotPlayer";
 import { HoursBackCard } from "../client/src/components/family-hub/earshot/EarshotListen";
+import { PodcastOfTheDay } from "./Today";
+import { WikiView } from "./Wiki";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
-type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "music" } | { kind: "books" } | { kind: "book"; id: string } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "live" } | { kind: "now" } | { kind: "newsstations" } | { kind: "standup" } | { kind: "study" } | { kind: "meeting" } | { kind: "import" } | { kind: "clips" } | { kind: "watch"; showId: string; episodeId: string };
+type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "music" } | { kind: "books" } | { kind: "book"; id: string } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "live" } | { kind: "now" } | { kind: "newsstations" } | { kind: "standup" } | { kind: "study" } | { kind: "meeting" } | { kind: "import" } | { kind: "clips" } | { kind: "watch"; showId: string; episodeId: string } | { kind: "wiki" };
 
 const DEFAULT_GENRES = ["comedy", "news", "science", "tech", "truecrime", "history", "business", "culture"];
 const ACCENT = "#ff6a1f";
@@ -64,6 +66,7 @@ function parseHash(): View {
   if (a === "study") return { kind: "study" };
   if (a === "meeting") return { kind: "meeting" };
   if (a === "import") return { kind: "import" };
+  if (a === "wiki") return { kind: "wiki" };
   // Clips was taken out of Pod+ (October 2026); old links open the home page.
   if (a === "party" && /^(new|[A-Za-z0-9_-]{6,20})$/.test(b || "")) return { kind: "party", id: b };
   if (a === "mode" && /^[a-z0-9-]{1,30}$/.test(b || "")) return { kind: "mode", id: b };
@@ -514,6 +517,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       {navItem("Up to the minute news", <Zap size={22} strokeWidth={1.8} />, view.kind === "now", () => go({ kind: "now" }))}
       {navItem("Stand-up", <Mic2 size={22} strokeWidth={1.8} />, view.kind === "standup", () => go({ kind: "standup" }))}
       {navItem("Audiobooks", <BookOpen size={22} strokeWidth={1.8} />, view.kind === "books" || view.kind === "book", () => go({ kind: "books" }))}
+      {navItem("Wiki podcasts", <Library size={22} strokeWidth={1.8} />, view.kind === "wiki", () => go({ kind: "wiki" }))}
       {navItem("Listen together", <Users size={22} strokeWidth={1.8} />, view.kind === "party", () => go({ kind: "party", id: "new" }))}
       {navItem("Study Pod+", <GraduationCap size={22} strokeWidth={1.8} />, view.kind === "study", () => go({ kind: "study" }))}
       {navItem("Meeting Pod", <Briefcase size={22} strokeWidth={1.8} />, view.kind === "meeting", () => go({ kind: "meeting" }))}
@@ -604,6 +608,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     content = <NewsStationsView onPlay={playStation} current={station} onBack={() => go({ kind: "home" })} />;
   } else if (view.kind === "music") {
     content = <MusicView api={api} current={listening} onPlay={playMusic} />;
+  } else if (view.kind === "wiki") {
+    content = <WikiView onBack={() => go({ kind: "home" })} />;
   } else if (view.kind === "books") {
     content = <AudiobooksView api={api} pro={pro} onJoin={onJoin} current={reading} onOpen={(id) => go({ kind: "book", id })} />;
   } else if (view.kind === "book") {
@@ -642,6 +648,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
 
       {chip === "all" && <ContinueListening nowPod={nowPod} visible={visible} onToggle={onPodToggle} onOpenNow={onPodOpen}
         onResume={(id, sp) => onOpenFeed({ showId: sp.showId, episodeId: id })} />}
+      {chip === "all" && <PodcastOfTheDay api={api} ex={ex} onOpen={openEp} />}
       {chip === "all" && !pro && <section aria-label="Pod+ Membership" className="ps-keep relative mb-6 mt-1 overflow-hidden rounded-2xl bg-[#0f0f0f] text-white ring-1 ring-white/10">
         <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div className="min-w-0">

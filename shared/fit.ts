@@ -11,6 +11,8 @@ export type FitExercise = { exId: string; name: string; sets: FitSet[]; rest?: n
 export type Workout = { id: string; date: string; name: string; programId?: string; dayId?: string; secs: number; exercises: FitExercise[]; note?: string };
 export type Routine = { id: string; name: string; exercises: { exId: string; name: string; sets: number; reps: string; rest: number }[] };
 export type FoodEntry = { id: string; date: string; meal: Meal; name: string; kcal: number; p: number; c: number; f: number; servings: number; serving?: string };
+/** A meal saved to add again in one tap (MyFitnessPal's "My Meals"). */
+export type SavedMeal = { id: string; name: string; items: Omit<FoodEntry, "id" | "date" | "meal">[] };
 export type Profile = { sex?: "m" | "f"; birthYear?: number; heightCm?: number; goal: Goal; activity: number; units: Units; kcalGoal?: number; macroSplit?: { p: number; c: number; f: number }; waterGoalMl: number; stepsGoal: number;
   /** A diet plan from fitNutrition.ts (it sets macroSplit) and whether food is counted in calories or Arise Points. */
   dietPlan?: string; trackMode?: "calories" | "points" };
@@ -27,9 +29,13 @@ export type FitData = {
   onboarded?: boolean;
   /** Intermittent fasting: the chosen protocol, a fast in progress and past fasts. */
   fasting?: Fasting;
+  /** Outdoor runs, walks and hikes tracked by GPS (shared/fitRun.ts). */
+  runs?: Run[];
+  savedMeals?: SavedMeal[];
 };
 
 import { DIET_BY_ID, cleanFasting, type Fasting } from "./fitNutrition";
+import { cleanRuns, type Run } from "./fitRun";
 
 export const LIMITS = { workouts: 3000, foods: 20000, routines: 60, weights: 3000, recent: 60, bytes: 2_500_000 };
 
@@ -78,6 +84,11 @@ export function cleanFit(raw: any): FitData {
   if (raw.onboarded) d.onboarded = true;
   const fasting = cleanFasting(raw.fasting);
   if (fasting) d.fasting = fasting;
+  const meals = (Array.isArray(raw.savedMeals) ? raw.savedMeals : []).slice(0, 60).filter((m: any) => m?.id && Array.isArray(m?.items) && m.items.length)
+    .map((m: any): SavedMeal => ({ id: str(m.id, 40), name: str(m.name, 60) || "Meal", items: m.items.slice(0, 30).map(food) }));
+  if (meals.length) d.savedMeals = meals;
+  const runs = cleanRuns(raw.runs);
+  if (runs.length) d.runs = runs;
   return d;
 }
 
@@ -176,6 +187,14 @@ export function goals(p: Profile, kg: number | undefined, today = new Date()): {
   const kcal = Math.round(p.kcalGoal ?? (p.goal === "lose" ? tdee * 0.8 : p.goal === "gain" ? tdee * 1.1 : tdee));
   const split = p.macroSplit ?? (p.goal === "lose" ? { p: 35, c: 35, f: 30 } : p.goal === "gain" ? { p: 25, c: 50, f: 25 } : { p: 30, c: 40, f: 30 });
   return { kcal, tdee: Math.round(tdee), p: Math.round((kcal * split.p) / 100 / 4), c: Math.round((kcal * split.c) / 100 / 4), f: Math.round((kcal * split.f) / 100 / 9) };
+}
+
+/** Adds weigh-ins from elsewhere (Apple Health) for days the app has none (its own entries win). */
+export function mergeWeights(d: FitData, weights: { date: string; kg: number }[]): FitData {
+  const have = new Set(d.weights.map((w) => w.date));
+  const byDay = new Map(weights.filter((w) => !have.has(w.date)).map((w) => [w.date, w]));
+  if (!byDay.size) return d;
+  return { ...d, weights: [...d.weights, ...byDay.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-LIMITS.weights) };
 }
 
 export const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

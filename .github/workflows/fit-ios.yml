@@ -98,7 +98,7 @@ jobs:
             python3 podscroll/ios-app/find-existing-profile.py com.arisereader.fit "$RUNNER_TEMP/profile.mobileprovision" --create-missing-profile --register-bundle-id "--app-name=Arise Fit"
           fi
           # Its capabilities on the App ID, and a profile that includes them (same certificate).
-          python3 .github/scripts/apple_signing.py com.arisereader.fit "$RUNNER_TEMP/profile.mobileprovision" APPLE_ID_AUTH
+          python3 .github/scripts/apple_signing.py com.arisereader.fit "$RUNNER_TEMP/profile.mobileprovision" HEALTHKIT APPLE_ID_AUTH
           security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")

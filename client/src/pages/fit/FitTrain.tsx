@@ -10,6 +10,9 @@ import { videoFor } from "@shared/fitVideos";
 import { SESSION_BY_ID, nextC25K, sessionMins, sessionsIn, type Session, type SessionCategory } from "@shared/fitSessions";
 import { BodyMap } from "./FitBody";
 import { SessionPlayer } from "./FitSession";
+import { OutdoorHub } from "./FitRun";
+import { FormCheck } from "./FitForm";
+import { saveToHealth } from "./fitNative";
 import type { LibraryExercise, Update } from "./fitStore";
 import { CoverCard, VideoPlayer, VideoThumb } from "./FitVideo";
 import { Btn, C, Card, Chips, Sheet, Spark, Title, fmtDur, fmtNum, inputCls, inputStyle, display } from "./fitUi";
@@ -148,6 +151,7 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
     if (!exercises.length) { if (window.confirm("No sets are checked off. Discard this workout?")) { saveActive(null); setActive(null); } return; }
     const w: Workout = { id: active.id, date: new Date(active.started).toISOString(), name: active.name, ...(active.programId ? { programId: active.programId, dayId: active.dayId } : {}), secs: Math.round((Date.now() - active.started) / 1000), exercises };
     const prs = newRecords(data.workouts, w);
+    saveToHealth("calories", Math.round((w.secs / 60) * 6), new Date(active.started));
     update((d) => ({ ...d, workouts: [...d.workouts, w], ...(d.program && active.programId === d.program.id && active.dayId ? { program: { ...d.program, done: [...d.program.done, `${active.dayId}@${w.date.slice(0, 10)}`] } } : {}) }));
     saveActive(null); setDone({ w, prs });
   };
@@ -295,8 +299,10 @@ export function RoutineEditor({ routine, list, data, onSave, onClose, onDelete }
   </Sheet>;
 }
 
-const TYPES: { id: SessionCategory | "body"; label: string; sub: string; cover: string }[] = [
+const TYPES: { id: SessionCategory | "body" | "outdoor" | "form"; label: string; sub: string; cover: string }[] = [
   { id: "body", label: "Body map", sub: "Tap a muscle, train it", cover: "bench-press" },
+  { id: "outdoor", label: "Run & trails", sub: "GPS map · US trails", cover: "jump-rope" },
+  { id: "form", label: "AI form check", sub: "Camera coaching", cover: "back-squat" },
   { id: "hiit", label: "HIIT treadmill", sub: "Sprints, hills, Tabata", cover: "run" },
   { id: "c25k", label: "Couch to 5K", sub: "9 weeks to 30 minutes", cover: "walk-incline" },
   { id: "yoga", label: "Yoga", sub: "Mobility and recovery", cover: "worlds-greatest" },
@@ -348,7 +354,10 @@ export function TrainTab({ data, update, list, onStart, say }: { data: FitData; 
   const [body, setBody] = useState(false);
   const [cat, setCat] = useState<SessionCategory | null>(null);
   const [playing, setPlaying] = useState<Session | null>(null);
+  const [outdoor, setOutdoor] = useState(false);
+  const [form, setForm] = useState(false);
   const saveSession = (x: Session, secs: number) => {
+    saveToHealth("calories", Math.round((secs / 60) * ({ hiit: 11, c25k: 9, yoga: 3.5, meditation: 0 } as const)[x.category]), new Date(Date.now() - secs * 1000));
     update((d) => ({ ...d, workouts: [...d.workouts, { id: uid(), date: new Date().toISOString(), name: x.name, programId: x.category === "c25k" ? "c25k" : `session-${x.category}`, dayId: x.id, secs, exercises: [] }] }));
     setPlaying(null); say("Saved to your history.");
   };
@@ -368,7 +377,7 @@ export function TrainTab({ data, update, list, onStart, say }: { data: FitData; 
       <span className="mt-1 block text-[14px]" style={{ color: "#d6d6de" }}>A plan tells you exactly what to lift each day, shows you how, and says when to add weight.</span>
     </CoverCard>}
     <Title>Train by type</Title>
-    <div className="grid grid-cols-2 gap-2" data-testid="fit-types">{TYPES.map((t, k) => <CoverCard key={t.id} exId={t.cover} onClick={() => (t.id === "body" ? setBody(true) : setCat(t.id))} className={`!min-h-[118px] !p-3 ${k === 0 ? "col-span-2" : ""}`} testId={`fit-type-${t.id}`}>
+    <div className="grid grid-cols-2 gap-2" data-testid="fit-types">{TYPES.map((t, k) => <CoverCard key={t.id} exId={t.cover} onClick={() => (t.id === "body" ? setBody(true) : t.id === "outdoor" ? setOutdoor(true) : t.id === "form" ? setForm(true) : setCat(t.id))} className={`!min-h-[118px] !p-3 ${k === 0 ? "col-span-2" : ""}`} testId={`fit-type-${t.id}`}>
       <span className="block text-[22px] leading-none" style={display}>{t.label}</span>
       <span className="mt-1 block text-[12px]" style={{ color: "#c9c9d4" }}>{t.sub}</span>
     </CoverCard>)}</div>
@@ -404,6 +413,8 @@ export function TrainTab({ data, update, list, onStart, say }: { data: FitData; 
     {lib && <Library list={list} data={data} onClose={() => setLib(false)} />}
     {watch && <ExerciseDetail ex={watch} data={data} onClose={() => setWatch(null)} />}
     {body && <BodyMap list={list} onClose={() => setBody(false)} onOpen={setWatch} onStart={(name, items) => { setBody(false); onStart(startWorkout({ name, exercises: planned(data, items, list) })); }} />}
+    {outdoor && <OutdoorHub data={data} update={update} say={say} onClose={() => setOutdoor(false)} />}
+    {form && <FormCheck onClose={() => setForm(false)} />}
     {cat && <SessionList cat={cat} data={data} onClose={() => setCat(null)} onPlay={setPlaying} />}
     {playing && <SessionPlayer session={playing} onClose={() => setPlaying(null)} onDone={(secs) => saveSession(playing, secs)} />}
     {prog && <ProgramDetail p={prog} data={data} update={update} list={list} onClose={() => setProg(null)} onStartDay={startDay} />}
