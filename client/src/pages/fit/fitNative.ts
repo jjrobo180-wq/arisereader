@@ -102,3 +102,15 @@ export function scheduleFastEnd(at: number | null) {
     } catch { /* no notifications on this build */ }
   })();
 }
+
+/** A one-off "time to eat" reminder after a workout (replaces the last one). false when it can't be set. */
+export async function scheduleRefuel(at: number, body: string): Promise<boolean> {
+  if (!isNativeApp()) return false;
+  try {
+    const perm = await notes("requestPermissions");
+    if (perm?.display && perm.display !== "granted") return false;
+    await notes("cancel", { notifications: [{ id: 500 }] });
+    await notes("schedule", { notifications: [{ id: 500, title: "Refuel", body, schedule: { at: new Date(at).toISOString(), allowWhileIdle: true } }] });
+    return true;
+  } catch { return false; }
+}

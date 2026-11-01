@@ -6,7 +6,7 @@ Usage: configure_fit_app.py <path to Info.plist> [fit|trainer|notes|talk]   (aft
     encryption built into iOS (HTTPS).
   - Arise Fit. Camera: barcodes, meal photos, form check and progress photos for a trainer. Photos:
     choosing a meal or progress photo. Location: mapping outdoor runs and finding trails. Health:
-    reading and saving to Apple Health.
+    reading and saving to Apple Health. Links: arisefit:// (Siri shortcuts and buddy invites).
   - Arise Trainer. Camera and Photos: a profile photo for the trainer directory, and photos in messages.
     Every permission needs a sentence saying why, or iOS stops the app when it's asked for.
   - Arise Notes. Microphone: recording meetings and voice memos. Camera and Photos: a video to
@@ -36,7 +36,7 @@ KEYS = {
     "fit": {
         "CFBundleDisplayName": "Arise Fit",
         "NSCameraUsageDescription": "Arise Fit uses the camera to scan a food's barcode, to take a photo of your meal so it can estimate the calories, to check your exercise form, and to take progress photos you choose to send your trainer. Form check video stays on your iPhone.",
-        "NSLocationWhenInUseUsageDescription": "Arise Fit uses your location to map and measure your outdoor runs, walks and hikes, and to find trails near you.",
+        "NSLocationWhenInUseUsageDescription": "Arise Fit uses your location to map and measure your outdoor runs, walks and hikes, and to find trails, gyms and healthy places to eat near you.",
         "NSHealthShareUsageDescription": "Arise Fit reads your steps, weight, workouts and active calories from Apple Health to show your progress, and to share them with your trainer only if you choose to.",
         "NSHealthUpdateUsageDescription": "Arise Fit saves your workouts, runs, weight and nutrition to Apple Health.",
         "NSPhotoLibraryUsageDescription": "Arise Fit lets you choose a photo of your meal so it can estimate the calories, or a progress photo or picture to send your trainer.",
@@ -70,6 +70,12 @@ with open(PLIST, "rb") as f:
     plist = plistlib.load(f)
 plist.update(COMMON)
 plist.update(KEYS)
+# Arise Fit opens arisefit:// links: Siri shortcuts ("Hey Siri, start my workout" opens arisefit://do/workout)
+# and buddy invites (arisefit://buddy/CODE). client/src/pages/fit/FitSiri.tsx reads them.
+if FLAVOR == "fit":
+    types = [t for t in plist.get("CFBundleURLTypes", []) if "arisefit" not in t.get("CFBundleURLSchemes", [])]
+    types.append({"CFBundleURLName": "com.arisereader.fit", "CFBundleURLSchemes": ["arisefit"]})
+    plist["CFBundleURLTypes"] = types
 for k in DROP:
     plist.pop(k, None)
 with open(PLIST, "wb") as f:

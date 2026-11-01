@@ -2,7 +2,7 @@
 // #/fit on the website). Tabs: Today, Train, Food, Fast, Run (Progress opens from Today). Data:
 // fitStore.ts → server/fit.ts. The look and motion follow the Arise Fit prototype (fitUi.tsx).
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, Apple, BarChart3, Bell, Check, ChevronRight, Footprints, HeartPulse, Dumbbell, Flame, Home, LogOut, Play, Route, Scale, Settings, ShieldCheck, Timer, Trophy } from "lucide-react";
+import { Activity, Apple, BarChart3, Bell, Check, ChefHat, ChevronRight, Footprints, HeartPulse, Dumbbell, Flame, Home, LogOut, MapPin, Mic, Play, Route, Scale, Settings, ShieldCheck, Timer, Trophy, Utensils } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import AccountPrivacy from "@/components/AccountPrivacy";
 import { goToSignIn } from "@/lib/hubs";
@@ -10,12 +10,16 @@ import { CATALOG, CATALOG_BY_ID, PROGRAM_BY_ID, dayKey, fromKg, goals, nextProgr
 import { useFitData, useLibrary, type Update } from "./fitStore";
 import { ExerciseDetail, LiveWorkout, TrainTab, libraryFallback, planned, readActive, startWorkout } from "./FitTrain";
 import { BodyMap, MiniBody, recColor } from "./FitBody";
-import { SmartWorkoutCard } from "./FitSmart";
+import { SmartWorkoutCard, smartWorkoutNow } from "./FitSmart";
+import { BuddyCard, BuddySheet } from "./FitBuddies";
+import { EatOut, NearbyGyms, RecipesSheet } from "./FitNearby";
+import { SiriSheet, useDeepLinks, type SiriAction } from "./FitSiri";
+import { ScanMachine } from "./FitGym";
 import { programArt } from "./fitArt";
 import { BODY_PARTS, PART_NAME, recovery } from "@shared/fitRecovery";
 import { FoodTab, latestKg, totals } from "./FitFood";
 import { CoverCard, VideoPlayer } from "./FitVideo";
-import { FastingSheet } from "./FitFasting";
+import { FastingSheet, endFast, startFast } from "./FitFasting";
 import { CoachCard, CoachScreen } from "./FitCoach";
 import { OutdoorHub } from "./FitRun";
 import { HealthSheet, RemindersSheet, StepsCard, useHealth } from "./FitHealth";
@@ -25,6 +29,8 @@ import { videoFor, videoOfTheDay } from "@shared/fitVideos";
 import { Bar, Btn, C, Card, Columns, Field, Ring, Sheet, Spark, StatusShade, Title, cardStyle, fmtDur, fmtNum, font, glowBg, haptic, inputCls, inputStyle, display, stagger, useFitFonts, Layer, ThemePicker } from "./fitUi";
 
 type Tab = "today" | "train" | "food" | "fast" | "run";
+/** Sheets that open over any tab (from Today, Siri or a link). */
+type Over = "" | "buddies" | "gyms" | "eat" | "recipes" | "siri" | "scan";
 
 /** Ticks once a second while `on` (live timers on Today). */
 function useClock(on: boolean) {
@@ -68,7 +74,7 @@ function Setup({ data, update, onDone }: { data: FitData; update: Update; onDone
   </Sheet>;
 }
 
-function TodayTab({ data, update, onTab, onStartProgram, onProgress, onSettings, onCoach, onStart, token, user, list }: { data: FitData; update: Update; onTab: (t: Tab) => void; onStartProgram: () => void; onProgress: () => void; onSettings: () => void; onCoach: () => void; onStart: (a: NonNullable<ReturnType<typeof readActive>>) => void; token: string | null; user: string; list: ReturnType<typeof libraryFallback> }) {
+function TodayTab({ data, update, onTab, onStartProgram, onProgress, onSettings, onCoach, onStart, onOver, token, user, list }: { data: FitData; update: Update; onTab: (t: Tab) => void; onStartProgram: () => void; onProgress: () => void; onSettings: () => void; onCoach: () => void; onStart: (a: NonNullable<ReturnType<typeof readActive>>) => void; onOver: (o: Over) => void; token: string | null; user: string; list: ReturnType<typeof libraryFallback> }) {
   const today = dayKey();
   const t = totals(data.foods.filter((f) => f.date === today));
   const g = goals(data.profile, latestKg(data));
@@ -137,6 +143,11 @@ function TodayTab({ data, update, onTab, onStartProgram, onProgress, onSettings,
       <div className="min-w-0 flex-1 space-y-2.5"><Bar label="Protein" value={t.p} goal={g.p} color={C.pink} delay={0.3} /><Bar label="Carbs" value={t.c} goal={g.c} color={C.blue} delay={0.45} /><Bar label="Fat" value={t.f} goal={g.f} color={C.orange} delay={0.6} /></div>
     </Card>
     <div className="mt-3"><CoachCard token={token} data={data} list={list} onStart={onStart} onOpen={onCoach} /></div>
+    <BuddyCard token={token} onOpen={() => onOver("buddies")} />
+    <div className="mt-3 grid grid-cols-3 gap-2" data-testid="fit-near-row">
+      {([["gyms", "Gyms near me", MapPin], ["eat", "Eat out", Utensils], ["recipes", "Recipes", ChefHat]] as const).map(([id, label, Icon], i) => <button key={id} type="button" onClick={() => { haptic("light"); onOver(id); }} className="fit-in flex min-h-[78px] flex-col items-start justify-between rounded-[14px] p-3 text-left active:scale-[.98]" style={{ ...cardStyle, ...stagger(i, 0.05) }} data-testid={`fit-open-${id}`}>
+        <Icon className="h-5 w-5" style={{ color: C.lime }} /><span className="text-[16px] leading-[1.05]" style={display}>{label}</span></button>)}
+    </div>
     <div className="mt-3 grid grid-cols-2 gap-2.5">
       {health ? <Card className="!p-3.5" style={stagger(0, 0, 0.15)}><Footprints className="h-5 w-5" style={{ color: C.lime }} /><p className="mt-2 text-[28px] leading-none tabular-nums" style={display}>{fmtNum(health.steps[today] ?? 0)}</p><p className="mt-1 text-[12px]" style={{ color: C.dim }}>steps today</p></Card>
         : <Card className="!p-3.5" style={stagger(0, 0, 0.15)}><Dumbbell className="h-5 w-5" style={{ color: C.lime }} /><p className="mt-2 text-[28px] leading-none tabular-nums" style={display}>{thisWeek.length}</p><p className="mt-1 text-[12px]" style={{ color: C.dim }}>workouts · 7 days</p></Card>}
@@ -218,7 +229,7 @@ function ProgressSheet({ data, update, list, onSettings, onClose }: { data: FitD
   </Sheet>;
 }
 
-function SettingsSheet({ data, update, onClose, onGoals, onAccount }: { data: FitData; update: Update; onClose: () => void; onGoals: () => void; onAccount: () => void }) {
+function SettingsSheet({ data, update, onClose, onGoals, onAccount, onSiri }: { data: FitData; update: Update; onClose: () => void; onGoals: () => void; onAccount: () => void; onSiri: () => void }) {
   const [sheet, setSheet] = useState<"" | "health" | "reminders">("");
   const { logout } = useAuth();
   const g = goals(data.profile, latestKg(data));
@@ -233,6 +244,7 @@ function SettingsSheet({ data, update, onClose, onGoals, onAccount }: { data: Fi
     <Title>iPhone</Title>
     <Card onClick={() => setSheet("health")} className="!p-4" testId="fit-open-health"><div className="flex items-center gap-3"><HeartPulse className="h-5 w-5" style={{ color: "#ff375f" }} /><span className="flex-1 font-semibold">Apple Health</span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
     <Card onClick={() => setSheet("reminders")} className="mt-2 !p-4" testId="fit-open-reminders"><div className="flex items-center gap-3"><Bell className="h-5 w-5" style={{ color: C.lime }} /><span className="flex-1 font-semibold">Reminders</span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
+    <Card onClick={onSiri} className="mt-2 !p-4" testId="fit-open-siri"><div className="flex items-center gap-3"><Mic className="h-5 w-5" style={{ color: C.lime }} /><span className="flex-1 font-semibold">Siri & Shortcuts</span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
     {sheet === "health" && <HealthSheet data={data} update={update} onClose={() => setSheet("")} />}
     {sheet === "reminders" && <RemindersSheet onClose={() => setSheet("")} />}
     <Title>Measurements</Title>
@@ -261,6 +273,12 @@ export default function FitApp() {
   const [account, setAccount] = useState(false);
   const [toast, setToast] = useState("");
   const say = useCallback((m: string) => { setToast(m); window.setTimeout(() => setToast((t) => (t === m ? "" : t)), 2600); }, []);
+  const [over, setOver] = useState<Over>("");
+  const [joinCode, setJoinCode] = useState<string | undefined>();
+  const [snap, setSnap] = useState(false);
+  // Siri, Shortcuts and links: run once the data is here (a link can arrive before it loads).
+  const [pending, setPending] = useState<SiriAction | null>(null);
+  useDeepLinks((l) => { if (l.buddy) { setJoinCode(l.buddy); setOver("buddies"); } if (l.action) setPending(l.action); });
   useEffect(() => { if (loaded && !data.onboarded) setSetup(true); }, [loaded, data.onboarded]);
   useEffect(() => { const was = document.documentElement.style.background; document.documentElement.style.background = C.bg; return () => { document.documentElement.style.background = was; }; }, []);
   const startProgram = () => {
@@ -268,18 +286,35 @@ export default function FitApp() {
     const next = nextProgramDay(prog, data.program.done);
     setActive(startWorkout({ name: `${prog.name}: ${next.day.name}`, programId: prog.id, dayId: next.day.id, exercises: planned(data, next.day.items, list) }));
   };
+  useEffect(() => {
+    if (!pending || !loaded) return;
+    const a = pending; setPending(null);
+    if (a === "workout") {
+      if (active) { say("Your workout is already going."); return; }
+      if (data.program) startProgram(); else setActive(smartWorkoutNow(data, list));
+      haptic("medium");
+    } else if (a === "water") {
+      const ml = data.profile.units === "kg" ? 250 : 237;
+      update((d) => ({ ...d, water: { ...d.water, [dayKey()]: Math.round((d.water[dayKey()] || 0) + ml) } }));
+      say(data.profile.units === "kg" ? "Added 250 ml of water." : "Added 8 oz of water.");
+    } else if (a === "fast-start") { if (data.fasting?.start) say("You're already fasting."); else { startFast(update); say("Fast started."); } setTab("fast"); }
+    else if (a === "fast-end") { if (data.fasting?.start) { endFast(update); say("Fast ended. Nice work."); } else say("You're not fasting right now."); setTab("fast"); }
+    else if (a === "run") setTab("run");
+    else if (a === "meal") { setSnap(true); setTab("food"); }
+    else setOver(a === "scan" ? "scan" : a === "gyms" ? "gyms" : a === "recipes" ? "recipes" : "buddies");
+  }, [pending, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
   const first = String(user?.displayName || "").trim().split(/\s+/)[0] || "";
   const tabs: [Tab, string, typeof Home][] = [["today", "Today", Home], ["train", "Train", Dumbbell], ["food", "Food", Apple], ["fast", "Fast", Timer], ["run", "Run", Route]];
   const at = Math.max(0, tabs.findIndex(([id]) => id === tab));
-  const go = (t: Tab) => { if (t !== tab) { haptic("light"); setTab(t); document.getElementById("fit-main")?.scrollTo({ top: 0 }); } };
+  const go = (t: Tab) => { if (t !== tab) { haptic("light"); setTab(t); setSnap(false); document.getElementById("fit-main")?.scrollTo({ top: 0 }); } };
   return <div className="fixed inset-0 flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} data-testid="fit-app">
     <StatusShade />
     <main id="fit-main" className="min-h-0 flex-1 overflow-y-auto px-4 pb-28 pt-[max(14px,env(safe-area-inset-top))]">
       {/* key={tab}: each tab's screen re-mounts, so it slides up into place and its rings and bars fill. */}
       <div key={tab} className="fit-in">
-        {tab === "today" && <TodayTab data={data} update={update} onTab={go} onStartProgram={startProgram} onProgress={() => setProgress(true)} onSettings={() => setSettings(true)} onCoach={() => setCoach(true)} onStart={(a) => { setCoach(false); setActive(a); }} token={token} user={first} list={list} />}
-        {tab === "train" && <><h1 className="mb-4 px-1 text-[46px] leading-[.95]" style={display}>Train</h1><TrainTab data={data} update={update} list={list} onStart={setActive} say={say} onCoach={() => setCoach(true)} /></>}
-        {tab === "food" && <><h1 className="mb-3 px-1 text-[46px] leading-[.95]" style={display}>Food</h1><FoodTab token={token} data={data} update={update} say={say} /></>}
+        {tab === "today" && <TodayTab data={data} update={update} onTab={go} onStartProgram={startProgram} onProgress={() => setProgress(true)} onSettings={() => setSettings(true)} onCoach={() => setCoach(true)} onStart={(a) => { setCoach(false); setActive(a); }} onOver={setOver} token={token} user={first} list={list} />}
+        {tab === "train" && <><h1 className="mb-4 px-1 text-[46px] leading-[.95]" style={display}>Train</h1><TrainTab data={data} update={update} list={list} onStart={setActive} say={say} onCoach={() => setCoach(true)} onGyms={() => setOver("gyms")} /></>}
+        {tab === "food" && <><h1 className="mb-3 px-1 text-[46px] leading-[.95]" style={display}>Food</h1><FoodTab token={token} data={data} update={update} say={say} snap={snap} onRecipes={() => setOver("recipes")} onEatOut={() => setOver("eat")} /></>}
         {tab === "fast" && <FastingSheet inline data={data} update={update} onClose={() => go("today")} />}
         {tab === "run" && <OutdoorHub inline data={data} update={update} say={say} onClose={() => go("today")} />}
       </div>
@@ -296,7 +331,13 @@ export default function FitApp() {
     {setup && <Setup data={data} update={update} onDone={() => setSetup(false)} />}
     {coach && <CoachScreen token={token} me={Number(user?.id) || 0} data={data} update={update} list={list} onStart={(a) => { setCoach(false); setActive(a); }} onClose={() => setCoach(false)} />}
     {progress && <ProgressSheet data={data} update={update} list={list} onClose={() => setProgress(false)} onSettings={() => setSettings(true)} />}
-    {settings && <SettingsSheet data={data} update={update} onClose={() => setSettings(false)} onGoals={() => { setSettings(false); setProgress(false); setSetup(true); }} onAccount={() => setAccount(true)} />}
+    {settings && <SettingsSheet data={data} update={update} onClose={() => setSettings(false)} onGoals={() => { setSettings(false); setProgress(false); setSetup(true); }} onAccount={() => setAccount(true)} onSiri={() => setOver("siri")} />}
+    {over === "buddies" && <BuddySheet onClose={() => { setOver(""); setJoinCode(undefined); }} say={say} joinCode={joinCode} />}
+    {over === "gyms" && <NearbyGyms data={data} update={update} say={say} onClose={() => setOver("")} />}
+    {over === "eat" && <EatOut data={data} update={update} say={say} onClose={() => setOver("")} />}
+    {over === "recipes" && <RecipesSheet data={data} update={update} say={say} onClose={() => setOver("")} />}
+    {over === "siri" && <SiriSheet onClose={() => setOver("")} />}
+    {over === "scan" && <ScanMachine data={data} update={update} onClose={() => setOver("")} />}
     {account && <Layer><div className="fixed inset-0 z-[90]"><AccountPrivacy onClose={() => setAccount(false)} /></div></Layer>}
     <div role="status" aria-live="polite" className={`pointer-events-none fixed left-1/2 z-[95] -translate-x-1/2 rounded-full px-4 py-2.5 text-[14px] font-semibold shadow-xl transition ${toast ? "opacity-100" : "opacity-0"}`} style={{ top: "max(16px, env(safe-area-inset-top))", background: C.text, color: C.bg }}>{toast}</div>
   </div>;

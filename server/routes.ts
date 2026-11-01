@@ -1597,7 +1597,7 @@ export async function registerRoutes(
     ownerName: async (id) => { const owner: any = await storage.getUser(id); return String(owner?.displayName || owner?.display_name || "").trim().split(/\s+/)[0] || ""; },
   });
   registerFoodLookupRoutes(app, authMiddleware);
-  registerFitRoutes(app, authMiddleware);
+  registerFitRoutes(app, authMiddleware, { nameOf: async (id) => { const u: any = await storage.getUser(id).catch(() => null); return String(u?.displayName || u?.display_name || u?.username || "").trim().split(/\s+/)[0] || ""; } });
   // Arise Coaching (server/coach.ts): the trainer directory, client–trainer connections and the Arise Trainer app.
   registerCoachRoutes(app, authMiddleware, {
     nameOf: async (id) => { const u: any = await storage.getUser(id).catch(() => null); return String(u?.displayName || u?.display_name || u?.username || "").trim().split(/\s+/)[0] || ""; },
