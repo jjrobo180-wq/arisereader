@@ -20,6 +20,9 @@ KEYS = {
     "CFBundleDisplayName": SHORT if len(NAME) > 18 else NAME,
     "ITSAppUsesNonExemptEncryption": False,
     "NSCameraUsageDescription": f"{NAME} uses the camera when a quiz is taken without a proctor, and as a mirror for practising letter sounds in Beginners." if FLAVOR != "eyegaze" else f"{NAME} uses the camera for the mirror and picture activities in the learning zone, and for photos in My World.",
+    # Animal Splash listens for the animal's name (speech recognition). Without this sentence iOS
+    # closes the app the moment a game starts listening.
+    "NSSpeechRecognitionUsageDescription": f"{NAME} listens when a reader says a word or an animal's name out loud in a game, to check it. Nothing is recorded or kept.",
     "NSMicrophoneUsageDescription": f"{NAME} uses the microphone when a reader practises reading out loud in Beginners." if FLAVOR != "eyegaze" else f"{NAME} uses the microphone for the talking and listening activities.",
 }
 with open(PLIST, "rb") as f:
