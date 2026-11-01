@@ -6,9 +6,9 @@ import { useEffect, useState, type ReactNode } from "react";
 import { X } from "lucide-react";
 
 // "lime" is the accent's old name (it was lime green); every screen uses it, so it keeps the name.
-export const C = { bg: "#0a0a0b", card: "#141518", card2: "#1e2024", line: "rgba(255,255,255,.07)", text: "#f2f1ee", dim: "#8d939b", lime: "#ff5a1f", orange: "#ffb020", blue: "#4d9fff", pink: "#e8455a", red: "#ff4d4d", steel: "#c9c9d4" };
+export const C = { bg: "#15171b", card: "#202329", card2: "#2b2f36", line: "rgba(255,255,255,.09)", text: "#f6f5f2", dim: "#a6acb5", lime: "#ff5a1f", orange: "#ffb020", blue: "#4d9fff", pink: "#ef5a6e", red: "#ff5c5c", steel: "#d6d6de" };
 /** The ember glow behind every screen. */
-export const glowBg = "radial-gradient(120% 55% at 50% -12%, #2a170d 0%, #0a0a0b 58%)";
+export const glowBg = "radial-gradient(120% 55% at 50% -12%, #3b2415 0%, #15171b 60%)";
 export const font = { fontFamily: "'Barlow', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif" };
 /** Headings: heavy, condensed, upper case. */
 export const display: React.CSSProperties = { fontFamily: "'Barlow Condensed', 'Oswald', 'Arial Narrow', 'Helvetica Neue', sans-serif", fontWeight: 800, textTransform: "uppercase", letterSpacing: ".01em" };
@@ -56,7 +56,7 @@ export function useFitFonts() {
 }
 
 /** Charcoal, lit faintly from the top. */
-export const cardStyle: React.CSSProperties = { background: "linear-gradient(180deg, #17191c, #141518)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.05)" };
+export const cardStyle: React.CSSProperties = { background: "linear-gradient(180deg, #262a30, #202329)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.07), 0 6px 18px rgba(0,0,0,.18)" };
 
 export function Card({ children, className = "", onClick, testId, style }: { children: ReactNode; className?: string; onClick?: () => void; testId?: string; style?: React.CSSProperties }) {
   const cls = `fit-in rounded-[14px] p-4 ${onClick ? "text-left w-full active:scale-[.98] transition-transform" : ""} ${className}`;

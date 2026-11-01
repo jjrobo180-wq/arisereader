@@ -2,11 +2,11 @@
   "appId": "com.arisereader.trainer",
   "appName": "Arise Trainer",
   "webDir": "www",
-  "backgroundColor": "#0a0a0b",
+  "backgroundColor": "#15171b",
   "plugins": {
     "SplashScreen": {
       "launchShowDuration": 900,
-      "backgroundColor": "#0a0a0b",
+      "backgroundColor": "#15171b",
       "showSpinner": false
     },
     "Keyboard": {
@@ -21,6 +21,6 @@
   },
   "ios": {
     "contentInset": "automatic",
-    "backgroundColor": "#0a0a0b"
+    "backgroundColor": "#15171b"
   }
 }

@@ -385,7 +385,7 @@ export function TrainTab({ data, update, list, onStart, say, onCoach }: { data: 
       <span className="mt-1 block text-[24px] font-extrabold tracking-tight" style={display}>Pick a program</span>
       <span className="mt-1 block text-[14px]" style={{ color: "#d6d6de" }}>A plan tells you exactly what to lift each day, shows you how, and says when to add weight.</span>
     </CoverCard>}
-    {onCoach && <button type="button" onClick={onCoach} className="fit-in fit-shine mt-3 flex w-full items-center gap-3 rounded-[14px] p-4 text-left active:scale-[.98]" style={{ background: "linear-gradient(150deg, #1e1410, #141518)", boxShadow: "inset 0 0 0 1px rgba(255,90,31,.35)" }} data-testid="fit-train-coach">
+    {onCoach && <button type="button" onClick={onCoach} className="fit-in fit-shine mt-3 flex w-full items-center gap-3 rounded-[14px] p-4 text-left active:scale-[.98]" style={{ background: "linear-gradient(150deg, #2e1d14, #202329)", boxShadow: "inset 0 0 0 1px rgba(255,90,31,.35)" }} data-testid="fit-train-coach">
       <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[12px]" style={{ background: C.lime, color: "#0b0b0c" }}><Trophy className="h-6 w-6" /></span>
       <span className="min-w-0 flex-1"><span className="block text-[22px] leading-none" style={display}>Find a remote trainer</span><span className="mt-0.5 block text-[13px]" style={{ color: C.steel }}>A real person, not AI: in person, live video or online</span></span>
       <ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></button>}
