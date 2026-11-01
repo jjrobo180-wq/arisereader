@@ -53,6 +53,12 @@ const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { ti
       { tint: "#e0782f", icon: <AppleIcon className="h-[22px] w-[22px]" />, title: "Calories and macros", text: "Search, scan a barcode or snap a photo of your meal." },
       { tint: "#3b82f6", icon: <LineChart className="h-[22px] w-[22px]" />, title: "Real progress", text: "Strength, volume, weight and streaks over time." },
     ] },
+  trainer: { icon: "/app-icons/trainer-1024.png", tagline: "Coach your clients. Grow your business.", apple: true, signInHint: "Use your Arise account (the same one works in Arise Fit).", create: "Create a free account",
+    features: [
+      { tint: "#ff5a1f", icon: <Users className="h-[22px] w-[22px]" />, title: "Clients, synced", text: "Their Arise Fit workouts, food and health data come to you." },
+      { tint: "#e0782f", icon: <Dumbbell className="h-[22px] w-[22px]" />, title: "Build and assign", text: "Workouts, programs, habits, nutrition and check-ins." },
+      { tint: "#3b82f6", icon: <Bell className="h-[22px] w-[22px]" />, title: "Get found", text: "List your prices in the Arise trainer directory." },
+    ] },
 };
 
 const font = { fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif" };
@@ -209,7 +215,7 @@ export default function NativeSignIn() {
   return <Shell>
     <NavBar title="" onBack={() => go("welcome")} />
     <form onSubmit={signingUp ? signUp : signIn} className="flex min-h-0 flex-1 flex-col overflow-y-auto [&>*]:shrink-0 px-5">
-      <Heading title={signingUp ? (eyeGazer ? "Create an Eye Gazer account" : "Create your account") : "Sign in"} text={signingUp ? (eyeGazer ? "No school or teacher needed. Just a name, a username and a password, and every Eye Gazer game, lesson and the talker are ready." : flavor === "fit" ? "Free, for anyone. The same account works in Arise To Duo." : "Free, for anyone. You get LifeHub and WorkHub.") : copy.signInHint} />
+      <Heading title={signingUp ? (eyeGazer ? "Create an Eye Gazer account" : "Create your account") : "Sign in"} text={signingUp ? (eyeGazer ? "No school or teacher needed. Just a name, a username and a password, and every Eye Gazer game, lesson and the talker are ready." : flavor === "fit" || flavor === "trainer" ? "Free, for anyone. The same account works in Arise Fit and Arise To Duo." : "Free, for anyone. You get LifeHub and WorkHub.") : copy.signInHint} />
       <Group>
         {signingUp && <Field label="Name" value={name} onChange={setName} autoComplete="name" placeholder="Your name" testId="native-name" />}
         <Field label="Username" value={username} onChange={setUsername} autoComplete="username" placeholder={signingUp ? "Choose a username" : "Username or email"} testId="native-username" plain />
@@ -228,7 +234,7 @@ export default function NativeSignIn() {
           {busy === "apple" ? <Loader2 className="h-5 w-5 animate-spin" /> : <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={APPLE_LOGO_PATH} /></svg>}
           {signingUp ? "Sign up with Apple" : "Sign in with Apple"}
         </button>}
-        <button type="button" onClick={() => (signingUp ? go("signin") : flavor === "todo" || flavor === "fit" || eyeGazer ? go("signup") : go("welcome"))} className="h-11 w-full text-[15px] text-[#6b6879]">
+        <button type="button" onClick={() => (signingUp ? go("signin") : flavor === "todo" || flavor === "fit" || flavor === "trainer" || eyeGazer ? go("signup") : go("welcome"))} className="h-11 w-full text-[15px] text-[#6b6879]">
           {signingUp ? <>Already have an account? <b className="font-semibold text-[#5b4fe0]">Sign in</b></> : <>New to {appName}? <b className="font-semibold text-[#5b4fe0]">Create an account</b></>}
         </button>
       </div>

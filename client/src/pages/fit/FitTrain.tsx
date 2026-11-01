@@ -12,9 +12,10 @@ import { BodyMap } from "./FitBody";
 import { SessionPlayer } from "./FitSession";
 import { OutdoorHub } from "./FitRun";
 import { FormCheck } from "./FitForm";
+import { saveToHealth } from "./fitNative";
 import type { LibraryExercise, Update } from "./fitStore";
 import { CoverCard, VideoPlayer, VideoThumb } from "./FitVideo";
-import { Btn, C, Card, Chips, Sheet, Spark, Title, fmtDur, fmtNum, inputCls, inputStyle, display } from "./fitUi";
+import { Btn, C, Card, Chips, Sheet, Spark, Title, fmtDur, fmtNum, glowBg, inputCls, inputStyle, display, stagger } from "./fitUi";
 
 export const libraryFallback = (): LibraryExercise[] => CATALOG.map((e) => ({ ...e, images: [], source: "arise" as const }));
 const MUSCLES = ["all", "chest", "back", "shoulders", "biceps", "triceps", "abs", "quads", "hamstrings", "glutes", "calves", "full body", "cardio"] as const;
@@ -150,29 +151,39 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
     if (!exercises.length) { if (window.confirm("No sets are checked off. Discard this workout?")) { saveActive(null); setActive(null); } return; }
     const w: Workout = { id: active.id, date: new Date(active.started).toISOString(), name: active.name, ...(active.programId ? { programId: active.programId, dayId: active.dayId } : {}), secs: Math.round((Date.now() - active.started) / 1000), exercises };
     const prs = newRecords(data.workouts, w);
+    saveToHealth("calories", Math.round((w.secs / 60) * 6), new Date(active.started));
     update((d) => ({ ...d, workouts: [...d.workouts, w], ...(d.program && active.programId === d.program.id && active.dayId ? { program: { ...d.program, done: [...d.program.done, `${active.dayId}@${w.date.slice(0, 10)}`] } } : {}) }));
     saveActive(null); setDone({ w, prs });
   };
   if (done) {
     const vol = done.w.exercises.reduce((t, e) => t + e.sets.reduce((x, s) => x + s.reps * s.weight, 0), 0);
-    return <Sheet title="Workout complete" onClose={() => setActive(null)} testId="fit-summary">
-      <div className="mt-4 text-center"><div className="mx-auto grid h-20 w-20 place-items-center rounded-full" style={{ background: C.lime }}><Trophy className="h-10 w-10" style={{ color: "#0b0b0c" }} /></div>
-        <h2 className="mt-4 text-[26px] font-bold">Nice work!</h2><p style={{ color: C.dim }}>{done.w.name}</p></div>
-      <div className="mt-6 grid grid-cols-3 gap-2 text-center">
-        <Card className="!p-3"><p className="text-[22px] font-bold">{fmtDur(done.w.secs)}</p><p className="text-[12px]" style={{ color: C.dim }}>Time</p></Card>
-        <Card className="!p-3"><p className="text-[22px] font-bold">{fmtNum(vol)}</p><p className="text-[12px]" style={{ color: C.dim }}>Volume ({u})</p></Card>
-        <Card className="!p-3"><p className="text-[22px] font-bold">{done.w.exercises.reduce((t, e) => t + e.sets.length, 0)}</p><p className="text-[12px]" style={{ color: C.dim }}>Sets</p></Card>
+    const top = done.prs[0];
+    return <div className="fixed inset-0 z-[80] flex flex-col overflow-y-auto px-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]" style={{ background: glowBg, color: C.text }} role="dialog" aria-modal="true" aria-label="Workout complete" data-testid="fit-summary">
+      <div className="flex min-h-[62vh] flex-col items-center justify-center text-center">
+        <div className="fit-pop grid h-[104px] w-[104px] place-items-center rounded-full" style={{ background: C.lime, boxShadow: "0 0 60px rgba(255,90,31,.5)" }}><Trophy className="h-[52px] w-[52px]" style={{ color: "#0b0b0c" }} /></div>
+        <h2 className="fit-in mt-6 text-[56px] leading-none" style={{ ...display, animationDelay: ".2s" }}>Done.</h2>
+        <p className="fit-in mt-2 text-[15px]" style={{ color: C.steel, animationDelay: ".3s" }}>{top ? `New record: ${top.name} ${fmtNum(top.value)} ${u}` : done.w.name}</p>
+        <div className="mt-6 grid w-full grid-cols-3 gap-2 text-center">
+          <Card className="!p-3" style={stagger(0, 0, 0.4)}><p className="text-[26px] leading-none tabular-nums" style={display}>{fmtDur(done.w.secs)}</p><p className="mt-1 text-[11px] uppercase" style={{ color: C.dim }}>Time</p></Card>
+          <Card className="!p-3" style={stagger(0, 0, 0.48)}><p className="text-[26px] leading-none tabular-nums" style={display}>{fmtNum(vol)}</p><p className="mt-1 text-[11px] uppercase" style={{ color: C.dim }}>{u} lifted</p></Card>
+          <Card className="!p-3" style={stagger(0, 0, 0.56)}><p className="text-[26px] leading-none tabular-nums" style={display}>{done.w.exercises.reduce((t, e) => t + e.sets.length, 0)}</p><p className="mt-1 text-[11px] uppercase" style={{ color: C.dim }}>Sets</p></Card>
+        </div>
       </div>
-      {done.prs.length > 0 && <><Title>New records</Title><div className="space-y-2">{done.prs.map((p) => <Card key={p.exId + p.kind} className="flex items-center gap-3 !p-3"><Trophy className="h-6 w-6" style={{ color: C.orange }} />
+      {done.prs.length > 0 && <><Title>New records</Title><div className="space-y-2">{done.prs.map((p, k) => <Card key={p.exId + p.kind} className="flex items-center gap-3 !p-3" style={stagger(k, 0.08, 0.6)}><Trophy className="h-6 w-6" style={{ color: C.orange }} />
         <div><p className="font-semibold">{p.name}</p><p className="text-[13px]" style={{ color: C.dim }}>{p.kind === "e1rm" ? `Est. 1-rep max ${fmtNum(p.value)} ${u}` : p.kind === "weight" ? `Heaviest ${fmtNum(p.value)} ${u}` : `Most volume ${fmtNum(p.value)} ${u}`}</p></div></Card>)}</div></>}
-      <Btn onClick={() => setActive(null)} className="mt-8 w-full" testId="fit-summary-done">Done</Btn>
-    </Sheet>;
+      <Btn onClick={() => setActive(null)} className="mt-8 w-full !min-h-[52px] !text-[19px]" testId="fit-summary-done">Back to today</Btn>
+    </div>;
   }
-  return <div className="fixed inset-0 z-[70] flex flex-col" style={{ background: C.bg, color: C.text }} data-testid="fit-live">
-    <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
-      <div className="min-w-0 flex-1"><input value={active.name} onChange={(e) => set((a) => ({ ...a, name: e.target.value.slice(0, 80) }))} aria-label="Workout name" className="w-full bg-transparent text-[20px] font-bold outline-none" />
-        <p className="flex items-center gap-1 text-[13px] tabular-nums" style={{ color: C.dim }}><Clock3 className="h-3.5 w-3.5" />{fmtDur((now - active.started) / 1000)}</p></div>
-      <Btn onClick={finish} testId="fit-finish">Finish</Btn>
+  const allSets = active.exercises.reduce((t, e) => t + e.sets.length, 0);
+  const doneSets = active.exercises.reduce((t, e) => t + e.sets.filter((s) => s.done).length, 0);
+  return <div className="fit-sheet fixed inset-0 z-[70] flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text }} data-testid="fit-live">
+    <div className="shrink-0 px-4 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
+      <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1"><input value={active.name} onChange={(e) => set((a) => ({ ...a, name: e.target.value.slice(0, 80) }))} aria-label="Workout name" className="w-full bg-transparent text-[30px] leading-none outline-none" style={display} />
+          <p className="mt-1 flex items-center gap-1 text-[13px] tabular-nums" style={{ color: C.dim }}><Clock3 className="h-3.5 w-3.5" />{fmtDur((now - active.started) / 1000)} · {doneSets} of {allSets} sets</p></div>
+        <Btn onClick={finish} testId="fit-finish">Finish</Btn>
+      </div>
+      <div className="mt-2.5 h-1.5 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,.08)" }}><div className="h-full rounded-full" style={{ width: `${allSets ? (doneSets / allSets) * 100 : 0}%`, background: C.lime, transition: "width .4s ease" }} /></div>
     </div>
     <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 pb-40">
       {active.exercises.map((e, ei) => {
@@ -180,10 +191,10 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
         const last = lastTime(data.workouts, e.exId);
         const sug = nextTime(last, e.target || "8-12", u, !!ex?.lower);
         const timed = !!ex && (CATALOG_BY_ID.get(e.exId)?.timed || repRange(e.target || "").secs);
-        return <Card key={ei} className="!p-3">
+        return <Card key={ei} className="!p-3" style={stagger(ei, 0.07, 0.1)}>
           <div className="flex items-start gap-3">
             {ex && <button type="button" onClick={() => setDetail(ex)} aria-label={`How to do ${e.name}`}><Demo ex={ex} size="sm" /></button>}
-            <div className="min-w-0 flex-1"><p className="text-[16px] font-bold" style={{ color: C.lime }}>{e.name}</p>
+            <div className="min-w-0 flex-1"><p className="text-[20px] leading-tight" style={{ ...display, color: C.lime }}>{e.name}</p>
               {e.target && <p className="text-[12px]" style={{ color: C.dim }}>Target {e.target}{timed ? "" : " reps"} · rest {e.rest ?? 90}s</p>}
               {sug && <p className="mt-0.5 text-[12px]" style={{ color: C.text }}>{sug.why}</p>}
               {ex && videoFor(ex.id) && <button type="button" onClick={() => setDetail(ex)} className="mt-1.5 flex h-7 items-center gap-1 rounded-full px-2.5 text-[12px] font-semibold" style={{ background: "rgba(255,90,31,.12)", color: C.lime }} data-testid={`fit-live-video-${ei}`}><PlayCircle className="h-3.5 w-3.5" />Watch form</button>}</div>
@@ -194,14 +205,14 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
           </div>
           {e.sets.map((s, si) => {
             const prev = last?.sets.filter((x) => !x.warm)[si];
-            return <div key={si} className="mt-1.5 grid grid-cols-[2rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.75rem] items-center gap-1.5 rounded-[8px] py-0.5" style={s.done ? { background: "rgba(255,90,31,.12)" } : undefined}>
+            return <div key={si} className="mt-1.5 grid grid-cols-[2rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.75rem] items-center gap-1.5 rounded-[10px] px-0.5 py-0.5 transition-colors duration-300" style={{ background: s.done ? "rgba(255,90,31,.14)" : "transparent" }}>
               <button type="button" onClick={() => edit(ei, si, { warm: !s.warm })} className="text-center text-[14px] font-bold" style={{ color: s.warm ? C.orange : C.text }} aria-label={s.warm ? "Warm-up set" : `Set ${si + 1}`}>{s.warm ? "W" : si + 1}</button>
               <span className="truncate text-center text-[13px]" style={{ color: C.dim }}>{prev ? (timed ? `${prev.reps}s` : `${fmtNum(prev.weight)}×${prev.reps}`) : "—"}</span>
               {timed ? <input inputMode="numeric" value={s.reps || ""} onChange={(ev) => edit(ei, si, { reps: Number(ev.target.value.replace(/\D/g, "")) || 0 })} aria-label="Seconds" className="h-11 w-full min-w-0 rounded-[10px] text-center text-[17px] font-semibold outline-none" style={inputStyle} />
                 : <input inputMode="decimal" value={s.weight || ""} placeholder="0" onChange={(ev) => edit(ei, si, { weight: Number(ev.target.value.replace(/[^\d.]/g, "")) || 0 })} onDoubleClick={() => setPlateFor(s.weight)} aria-label={`Weight in ${u}`} className="h-11 w-full min-w-0 rounded-[10px] text-center text-[17px] font-semibold outline-none" style={inputStyle} />}
               {timed ? <span /> : <input inputMode="numeric" value={s.reps || ""} placeholder="0" onChange={(ev) => edit(ei, si, { reps: Number(ev.target.value.replace(/\D/g, "")) || 0 })} aria-label="Reps" className="h-11 w-full min-w-0 rounded-[10px] text-center text-[17px] font-semibold outline-none" style={inputStyle} />}
               <button type="button" onClick={() => tick(ei, si)} aria-label={s.done ? "Mark not done" : "Mark done"} aria-pressed={s.done} data-testid={`fit-set-${ei}-${si}`}
-                className="grid h-11 w-11 place-items-center rounded-[8px]" style={s.done ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2, color: C.dim }}><Check className="h-5 w-5" strokeWidth={3} /></button>
+                className="grid h-11 w-11 place-items-center rounded-[10px] transition-colors duration-200" style={s.done ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2, color: C.dim }}><Check key={s.done ? "on" : "off"} className={`h-5 w-5 ${s.done ? "fit-tick" : ""}`} strokeWidth={3} /></button>
             </div>;
           })}
           <div className="mt-2 flex gap-2">
@@ -214,13 +225,13 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
       <Btn kind="soft" onClick={() => setAdding(true)} className="w-full" testId="fit-add-exercise"><Plus className="h-5 w-5" />Add exercise</Btn>
       <button type="button" onClick={() => { if (window.confirm("Discard this workout? Nothing will be saved.")) { saveActive(null); setActive(null); } }} className="h-12 w-full text-[15px] font-semibold" style={{ color: C.red }}>Discard workout</button>
     </div>
-    {rest && left > 0 && <div className="fixed inset-x-3 z-[75] rounded-[14px] p-3 shadow-2xl" style={{ bottom: "max(16px, env(safe-area-inset-bottom))", background: C.card2 }} data-testid="fit-rest">
+    {rest && left > 0 && <div className="fit-up fixed inset-x-3 z-[75] rounded-[16px] p-3.5" style={{ bottom: "max(16px, env(safe-area-inset-bottom))", background: C.card2, boxShadow: "0 -10px 40px rgba(0,0,0,.6)" }} data-testid="fit-rest">
       <div className="flex items-center gap-3"><Timer className="h-6 w-6" style={{ color: C.lime }} />
-        <div className="min-w-0 flex-1"><p className="text-[12px]" style={{ color: C.dim }}>Rest</p><p className="text-[24px] font-bold tabular-nums">{fmtDur(left)}</p></div>
+        <div className="min-w-0 flex-1"><p className="text-[12px] uppercase" style={{ color: C.dim }}>Rest</p><p className="text-[34px] leading-none tabular-nums" style={display}>{fmtDur(left)}</p></div>
         <Btn kind="soft" className="!min-h-10" onClick={() => setRest((r) => r && { ...r, until: r.until - 15000 })}>−15</Btn>
         <Btn kind="soft" className="!min-h-10" onClick={() => setRest((r) => r && { ...r, until: r.until + 15000, total: r.total + 15 })}>+15</Btn>
         <Btn className="!min-h-10" onClick={() => setRest(null)}>Skip</Btn></div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,.1)" }}><div className="h-full rounded-full" style={{ width: `${(left / rest.total) * 100}%`, background: C.lime, transition: "width .5s linear" }} /></div>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,.1)" }}><div className="h-full rounded-full" style={{ width: `${(left / rest.total) * 100}%`, background: C.lime, transition: "width 1s linear" }} /></div>
     </div>}
     {adding && <Library list={list} data={data} title="Add exercise" onClose={() => setAdding(false)} onPick={(ex) => { set((a) => ({ ...a, exercises: [...a.exercises, ...planned(data, [{ exId: ex.id, name: ex.name, sets: 3, reps: ex.equipment === "bodyweight" ? "10-15" : "8-12", rest: 90 }], list)] })); setAdding(false); }} />}
     {detail && <ExerciseDetail ex={detail} data={data} onClose={() => setDetail(null)} />}
@@ -342,7 +353,7 @@ const FORM_GROUPS = [
   { id: "mobility", label: "Mobility", ids: ["worlds-greatest", "hip-flexor-stretch", "hamstring-stretch", "cat-cow", "childs-pose"] },
 ] as const;
 
-export function TrainTab({ data, update, list, onStart, say }: { data: FitData; update: Update; list: LibraryExercise[]; onStart: (a: Active) => void; say: (m: string) => void }) {
+export function TrainTab({ data, update, list, onStart, say, onCoach }: { data: FitData; update: Update; list: LibraryExercise[]; onStart: (a: Active) => void; say: (m: string) => void; onCoach?: () => void }) {
   const [lib, setLib] = useState(false);
   const [prog, setProg] = useState<Program | null>(null);
   const [routine, setRoutine] = useState<Routine | null>(null);
@@ -355,6 +366,7 @@ export function TrainTab({ data, update, list, onStart, say }: { data: FitData; 
   const [outdoor, setOutdoor] = useState(false);
   const [form, setForm] = useState(false);
   const saveSession = (x: Session, secs: number) => {
+    saveToHealth("calories", Math.round((secs / 60) * ({ hiit: 11, c25k: 9, yoga: 3.5, meditation: 0 } as const)[x.category]), new Date(Date.now() - secs * 1000));
     update((d) => ({ ...d, workouts: [...d.workouts, { id: uid(), date: new Date().toISOString(), name: x.name, programId: x.category === "c25k" ? "c25k" : `session-${x.category}`, dayId: x.id, secs, exercises: [] }] }));
     setPlaying(null); say("Saved to your history.");
   };
@@ -363,18 +375,22 @@ export function TrainTab({ data, update, list, onStart, say }: { data: FitData; 
   const next = active && data.program ? nextProgramDay(active, data.program.done) : null;
   const startDay = () => { if (!active || !next) return; onStart(startWorkout({ name: `${active.name}: ${next.day.name}`, programId: active.id, dayId: next.day.id, exercises: planned(data, next.day.items, list) })); setProg(null); };
   return <div>
-    {active && next ? <CoverCard exId={next.day.items.find((i) => videoFor(i.exId))?.exId} tall className="!p-5" testId="fit-next-program">
+    {active && next ? <CoverCard exId={next.day.items.find((i) => videoFor(i.exId))?.exId} tall className="fit-shine !p-5" testId="fit-next-program">
       <span className="text-[12px] font-bold uppercase tracking-[.14em]" style={{ color: C.lime }}>{active.name} · Week {next.week}</span>
       <span className="mt-1 block text-[26px] font-extrabold tracking-tight" style={display}>{next.day.name}</span>
       <span className="mt-1 block text-[14px]" style={{ color: "#d6d6de" }}>{next.day.items.length} exercises · about {Math.round(next.day.items.reduce((t, i) => t + i.sets * (i.rest + 45), 0) / 60)} min</span>
-      <Btn onClick={startDay} className="mt-4 w-full" testId="fit-start-program-day"><Play className="h-5 w-5" />Start workout</Btn>
+      <Btn onClick={startDay} className="relative z-[1] mt-4 w-full" testId="fit-start-program-day"><Play className="h-5 w-5" />Start workout</Btn>
     </CoverCard> : <CoverCard exId="back-squat" tall className="!p-5">
       <span className="text-[12px] font-bold uppercase tracking-[.14em]" style={{ color: C.lime }}>{PROGRAMS.length} programs · every exercise on video</span>
       <span className="mt-1 block text-[24px] font-extrabold tracking-tight" style={display}>Pick a program</span>
       <span className="mt-1 block text-[14px]" style={{ color: "#d6d6de" }}>A plan tells you exactly what to lift each day, shows you how, and says when to add weight.</span>
     </CoverCard>}
+    {onCoach && <button type="button" onClick={onCoach} className="fit-in fit-shine mt-3 flex w-full items-center gap-3 rounded-[14px] p-4 text-left active:scale-[.98]" style={{ background: "linear-gradient(150deg, #2e1d14, #202329)", boxShadow: "inset 0 0 0 1px rgba(255,90,31,.35)" }} data-testid="fit-train-coach">
+      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[12px]" style={{ background: C.lime, color: "#0b0b0c" }}><Trophy className="h-6 w-6" /></span>
+      <span className="min-w-0 flex-1"><span className="block text-[22px] leading-none" style={display}>Find a remote trainer</span><span className="mt-0.5 block text-[13px]" style={{ color: C.steel }}>A real person, not AI: in person, live video or online</span></span>
+      <ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></button>}
     <Title>Train by type</Title>
-    <div className="grid grid-cols-2 gap-2" data-testid="fit-types">{TYPES.map((t, k) => <CoverCard key={t.id} exId={t.cover} onClick={() => (t.id === "body" ? setBody(true) : t.id === "outdoor" ? setOutdoor(true) : t.id === "form" ? setForm(true) : setCat(t.id))} className={`!min-h-[118px] !p-3 ${k === 0 ? "col-span-2" : ""}`} testId={`fit-type-${t.id}`}>
+    <div className="grid grid-cols-2 gap-2" data-testid="fit-types">{TYPES.map((t, k) => <CoverCard key={t.id} exId={t.cover} onClick={() => (t.id === "body" ? setBody(true) : t.id === "outdoor" ? setOutdoor(true) : t.id === "form" ? setForm(true) : setCat(t.id))} className={`fit-in !min-h-[118px] !p-3 ${k === 0 ? "col-span-2" : ""}`} style={stagger(k, 0.05)} testId={`fit-type-${t.id}`}>
       <span className="block text-[22px] leading-none" style={display}>{t.label}</span>
       <span className="mt-1 block text-[12px]" style={{ color: "#c9c9d4" }}>{t.sub}</span>
     </CoverCard>)}</div>

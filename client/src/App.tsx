@@ -25,6 +25,8 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { lastKnownLocked, teacherLocked, usePlan } from "@/lib/plan";
 import { useState, useEffect, lazy, Suspense, type ComponentType } from "react";
 const FitApp = lazy(() => import("@/pages/fit/FitApp"));
+const TrainerApp = lazy(() => import("@/pages/trainer/TrainerApp"));
+const TrainersPage = lazy(() => import("@/pages/coach/TrainersPage"));
 import { API_BASE } from "./lib/queryClient";
 import ProfileSetupOverlay from "./components/ProfileSetupOverlay";
 import EyeGazeSiteShell from "./components/EyeGazeSiteShell";
@@ -142,7 +144,7 @@ import TodoGate from "@/components/TodoGate";
 import { ReaderAdminToTodoRedirect, ReaderToHubHandoff, TodoAdminHandoff } from "@/components/AdminDomainHandoff";
 import { READER_APP, goToReader, goToSignIn, hubPathFor, isHubAccount, isReaderPage } from "@/lib/hubs";
 import NativePlans from "@/components/NativePlans";
-import { isEyeGazerApp, isFitApp, isNativeApp, isReaderApp } from "@/lib/nativeApp";
+import { isEyeGazerApp, isFitApp, isNativeApp, isReaderApp, isTrainerApp } from "@/lib/nativeApp";
 const TeacherScenes = lazyPage(() => import("./pages/TeacherScenes"));
 const StudentSceneLive = lazyPage(() => import("./pages/StudentSceneLive"));
 const Library = lazyPage(() => import("./pages/Library"));
@@ -529,6 +531,11 @@ function AppRoutes() {
     <Switch key={routePath}>
       <Route path="/fit">
         <ProtectedRoute><FitApp /></ProtectedRoute>
+      </Route>
+      {/* Arise Coaching: the public trainer directory, and Arise Trainer for coaches. */}
+      <Route path="/trainers"><TrainersPage /></Route>
+      <Route path="/trainer">
+        <ProtectedRoute><TrainerApp /></ProtectedRoute>
       </Route>
       <Route path="/lifehub">
         {eyeGazerApp ? <Redirect to={user ? "/eye-gaze-home" : "/signin"} replace /> : onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : onReaderDomain && !user ? <Redirect to="/signin" replace /> : onReaderDomain ? <ReaderToTodoRedirect /> : <TodoGate><AriseTodo /></TodoGate>}
@@ -992,7 +999,9 @@ function AppInner() {
   // student number) and must replace it before doing anything else in the app.
   if (user?.mustChangePassword) return <ForcePasswordChange />;
   // The Arise Fit iPhone app is its own app: sign in, then Arise Fit (pages/fit/FitApp.tsx).
-  if (isFitApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: "#0b0b10" }} />}>{user ? <FitApp /> : <NativeSignIn />}</Suspense></Router>;
+  if (isFitApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: "#15171b" }} />}>{user ? <FitApp /> : <NativeSignIn />}</Suspense></Router>;
+  // The Arise Trainer iPhone app: sign in, then Arise Trainer (pages/trainer/TrainerApp.tsx).
+  if (isTrainerApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: "#15171b" }} />}>{user ? <TrainerApp /> : <NativeSignIn />}</Suspense></Router>;
 
   const overlays = !inGame;
   return (

@@ -2,15 +2,15 @@
 // a photo or description estimated by AI, recent foods and quick add. Uses the same food lookup as the
 // Calorie counter in Arise To Duo (server/foodLookup.ts).
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Camera, Check, ChevronLeft, ChevronRight, Droplets, Loader2, Plus, ScanLine, Search, Sparkles, Trash2, Utensils, Zap } from "lucide-react";
-import { dayKey, goals, uid, type FitData, type FoodEntry, type Meal } from "@shared/fit";
+import { BarChart3, Bookmark, Camera, Check, ChevronLeft, ChevronRight, Copy, Droplets, Loader2, Plus, ScanLine, Search, Sparkles, Trash2, Utensils, Zap } from "lucide-react";
+import { dayKey, goals, uid, type FitData, type FoodEntry, type Meal, type SavedMeal } from "@shared/fit";
 import type { FoundFood } from "@shared/foodLookup";
 import { estimateMeal, lookupBarcode, searchFoods, shrinkPhoto } from "@/lib/foodLookup";
 import { canUseCamera, scanWithCamera } from "@/lib/barcodeScanner";
 import { DIET_BY_ID, DIET_PLANS, pointsBudget, pointsOf } from "@shared/fitNutrition";
 import type { Update } from "./fitStore";
 import { FastingCard, FastingSheet } from "./FitFasting";
-import { Bar, Btn, C, Card, Chips, Ring, Sheet, Title, display, fmtNum, inputCls, inputStyle } from "./fitUi";
+import { Bar, Btn, C, Card, Chips, Ring, Sheet, Title, display, fmtNum, inputCls, inputStyle, stagger } from "./fitUi";
 
 const MEALS: { id: Meal; label: string }[] = [{ id: "breakfast", label: "Breakfast" }, { id: "lunch", label: "Lunch" }, { id: "dinner", label: "Dinner" }, { id: "snack", label: "Snacks" }];
 type Picked = { name: string; kcal: number; p: number; c: number; f: number; serving?: string };
@@ -18,8 +18,9 @@ const fromFound = (f: FoundFood): Picked => ({ name: f.brand ? `${f.name} (${f.b
 export const totals = (foods: FoodEntry[]) => foods.reduce((t, f) => ({ kcal: t.kcal + f.kcal * f.servings, p: t.p + f.p * f.servings, c: t.c + f.c * f.servings, f: t.f + f.f * f.servings }), { kcal: 0, p: 0, c: 0, f: 0 });
 export const latestKg = (d: FitData) => d.weights.length ? d.weights[d.weights.length - 1].kg : undefined;
 
-function AddFood({ token, meal, date, data, update, onClose, say }: { token: string | null; meal: Meal; date: string; data: FitData; update: Update; onClose: () => void; say: (m: string) => void }) {
-  const [tab, setTab] = useState<"search" | "recent" | "scan" | "ai" | "quick">("search");
+type AddTab = "search" | "recent" | "meals" | "scan" | "ai" | "quick";
+function AddFood({ token, meal, date, data, update, onClose, say, start = "search" }: { token: string | null; meal: Meal; date: string; data: FitData; update: Update; onClose: () => void; say: (m: string) => void; start?: AddTab }) {
+  const [tab, setTab] = useState<AddTab>(start);
   const [q, setQ] = useState("");
   const [found, setFound] = useState<FoundFood[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -47,6 +48,10 @@ function AddFood({ token, meal, date, data, update, onClose, say }: { token: str
     update((d) => ({ ...d, foods: [...d.foods, entry], recentFoods: [{ name: p.name, kcal: p.kcal, p: p.p, c: p.c, f: p.f, servings: 1, ...(p.serving ? { serving: p.serving } : {}) }, ...d.recentFoods.filter((r) => r.name !== p.name)].slice(0, 60) }));
     say(`Added ${p.name}.`); onClose();
   };
+  const addMeal = (m: SavedMeal) => {
+    update((d) => ({ ...d, foods: [...d.foods, ...m.items.map((i) => ({ ...i, id: uid(), date, meal }))] }));
+    say(`Added ${m.name}.`); onClose();
+  };
   const row = (f: Picked, k: number | string) => <button key={k} type="button" onClick={() => { setPicked(f); setServings("1"); }} className="flex w-full items-center gap-3 rounded-[10px] p-3 text-left" style={{ background: C.card }}>
     <span className="min-w-0 flex-1"><span className="block truncate text-[15px] font-semibold">{f.name}</span><span className="block truncate text-[12px]" style={{ color: C.dim }}>{f.serving || "1 serving"} · P {Math.round(f.p)} · C {Math.round(f.c)} · F {Math.round(f.f)}</span></span>
     <span className="shrink-0 text-[15px] font-bold">{Math.round(f.kcal)}<span className="text-[11px] font-normal" style={{ color: C.dim }}> cal</span></span></button>;
@@ -66,7 +71,7 @@ function AddFood({ token, meal, date, data, update, onClose, say }: { token: str
     </Sheet>;
   }
   return <Sheet title={`Add to ${MEALS.find((m) => m.id === meal)?.label}`} onClose={onClose} testId="fit-add-food">
-    <Chips label="How to add" value={tab} onChange={(t) => { setTab(t); setErr(""); }} items={[{ id: "search", label: "Search" }, { id: "recent", label: "Recent" }, { id: "scan", label: "Barcode" }, { id: "ai", label: "Photo / AI" }, { id: "quick", label: "Quick add" }]} />
+    <Chips label="How to add" value={tab} onChange={(t) => { setTab(t); setErr(""); }} items={[{ id: "ai", label: "AI photo" }, { id: "search", label: "Search" }, { id: "recent", label: "Recent" }, { id: "meals", label: "My meals" }, { id: "scan", label: "Barcode" }, { id: "quick", label: "Quick add" }]} />
     {err && <p className="mt-3 rounded-[8px] p-3 text-[14px]" style={{ background: "rgba(255,77,77,.12)", color: "#ff9c9c" }} role="status">{err}</p>}
     {tab === "search" && <>
       <div className="relative mt-3"><Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2" style={{ color: C.dim }} />
@@ -75,6 +80,10 @@ function AddFood({ token, meal, date, data, update, onClose, say }: { token: str
       <div className="mt-3 space-y-2">{(found || []).map((f, k) => row(fromFound(f), k))}</div>
       {found && !found.length && !busy && <p className="py-8 text-center" style={{ color: C.dim }}>Nothing found. Try another word, or Quick add.</p>}
     </>}
+    {tab === "meals" && <div className="mt-3 space-y-2">{(data.savedMeals ?? []).length ? (data.savedMeals ?? []).map((m) => { const t = totals(m.items.map((i) => ({ ...i, id: "", date, meal }))); return <div key={m.id} className="flex items-center gap-2 rounded-[10px] p-3" style={{ background: C.card }}>
+      <button type="button" onClick={() => { addMeal(m); }} className="min-w-0 flex-1 text-left" data-testid={`fit-meal-${m.id}`}><span className="block truncate text-[17px] leading-tight" style={display}>{m.name}</span><span className="block truncate text-[12px]" style={{ color: C.dim }}>{m.items.length} foods · {Math.round(t.kcal)} cal · P {Math.round(t.p)}g</span></button>
+      <button type="button" aria-label={`Delete ${m.name}`} onClick={() => update((d) => ({ ...d, savedMeals: (d.savedMeals ?? []).filter((x) => x.id !== m.id) }))} className="grid h-9 w-9 place-items-center" style={{ color: C.dim }}><Trash2 className="h-4 w-4" /></button>
+    </div>; }) : <p className="py-8 text-center text-[14px]" style={{ color: C.dim }}>Save a meal from your diary (tap the bookmark next to a meal) to add it again in one tap.</p>}</div>}
     {tab === "recent" && <div className="mt-3 space-y-2">{data.recentFoods.length ? data.recentFoods.map((f, k) => row(f, k)) : <p className="py-8 text-center" style={{ color: C.dim }}>Foods you add show up here.</p>}</div>}
     {tab === "scan" && <div className="mt-3">
       {camera ? <div className="overflow-hidden rounded-[14px] bg-black"><video ref={video} playsInline muted className="aspect-[4/3] w-full object-cover" /><Btn kind="soft" className="w-full !rounded-none" onClick={() => setCamera(false)}>Cancel</Btn></div>
@@ -89,10 +98,18 @@ function AddFood({ token, meal, date, data, update, onClose, say }: { token: str
         <Camera className="h-5 w-5" />{ai.image ? "Photo added. Change it" : "Take or choose a photo"}
         <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { try { setAi((a) => ({ ...a, image: null })); const img = await shrinkPhoto(f); setAi((a) => ({ ...a, image: img })); } catch (er: any) { setErr(er.message); } } }} />
       </label>
-      {ai.image && <img src={ai.image} alt="Your meal" className="max-h-56 w-full rounded-[12px] object-cover" />}
+      {ai.image && <div className="fit-pop relative overflow-hidden rounded-[14px]" data-testid="fit-ai-photo">
+        <img src={ai.image} alt="Your meal" className="max-h-56 w-full object-cover" />
+        {/* While the AI looks at the photo: a scan line sweeps over it. */}
+        {busy && <><span aria-hidden className="absolute inset-0" style={{ background: "rgba(10,10,11,.35)" }} />
+          <span aria-hidden className="fit-scan absolute inset-x-[6%] h-[3px]" style={{ background: C.lime, boxShadow: `0 0 18px ${C.lime}` }} />
+          <span className="absolute inset-x-0 bottom-2.5 text-center text-[16px] tracking-[.14em]" style={display} role="status">Analyzing meal…</span></>}
+      </div>}
       <Btn className="w-full" disabled={busy || (!ai.text.trim() && !ai.image)} onClick={async () => { setBusy(true); setErr(""); try { const foods = await estimateMeal(token, ai.text.trim(), ai.image); setAi((a) => ({ ...a, foods })); if (!foods.length) setErr("No food found. Try describing it in more detail."); } catch (e: any) { setErr(e.message); } finally { setBusy(false); } }} testId="fit-ai-estimate">
-        {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}Estimate calories</Btn>
-      <div className="space-y-2">{ai.foods.map((f, k) => row(fromFound(f), k))}</div>
+        {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}{busy ? "Analyzing" : "Estimate calories"}</Btn>
+      {ai.foods.length > 0 && <p className="fit-in text-[12px] tracking-[.14em]" style={{ ...display, color: C.lime }}>AI found {ai.foods.length} {ai.foods.length === 1 ? "food" : "foods"}</p>}
+      <div className="space-y-2">{ai.foods.map((f, k) => <div key={`${k}-${f.name}`} className="fit-slide" style={stagger(k, 0.12)}>{row(fromFound(f), k)}</div>)}</div>
+      {ai.foods.length > 1 && <Btn className="w-full" onClick={() => { const items = ai.foods.map((f) => ({ ...fromFound(f), servings: 1 })); update((d) => ({ ...d, foods: [...d.foods, ...items.map((i) => ({ id: uid(), date, meal, name: i.name, kcal: i.kcal, p: i.p, c: i.c, f: i.f, servings: 1, ...(i.serving ? { serving: i.serving } : {}) }))] })); say(`Added ${items.length} foods.`); onClose(); }} testId="fit-ai-add-each">Add each food ({ai.foods.length})</Btn>}
       {ai.foods.length > 1 && <Btn kind="soft" className="w-full" onClick={() => { const t = ai.foods.reduce((a, f) => ({ kcal: a.kcal + f.calories, p: a.p + f.protein, c: a.c + f.carbs, f: a.f + f.fat }), { kcal: 0, p: 0, c: 0, f: 0 }); add({ name: ai.text.trim().slice(0, 60) || "Meal", ...t }, 1); }}>Add all as one meal</Btn>}
       <p className="text-[12px]" style={{ color: C.dim }}>AI estimates can be off. Check the numbers before you add them.</p>
     </div>}
@@ -103,6 +120,34 @@ function AddFood({ token, meal, date, data, update, onClose, say }: { token: str
       <Btn type="submit" className="w-full" disabled={!(Number(quick.kcal) > 0)}><Zap className="h-5 w-5" />Add</Btn>
     </form>}
     <p className="mt-6 text-[11px]" style={{ color: C.dim }}>Food data from USDA FoodData Central and Open Food Facts.</p>
+  </Sheet>;
+}
+
+/** The last 7 days against the goals: averages, days on target, and a bar for each day. */
+export function weekStats(data: FitData, end = new Date()) {
+  const g = goals(data.profile, latestKg(data));
+  const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(end); d.setDate(d.getDate() - (6 - i)); const k = dayKey(d); const t = totals(data.foods.filter((f) => f.date === k)); return { k, label: d.toLocaleDateString(undefined, { weekday: "short" }), ...t, logged: t.kcal > 0 }; });
+  const logged = days.filter((d) => d.logged);
+  const avg = (f: (x: (typeof days)[number]) => number) => (logged.length ? Math.round(logged.reduce((t, x) => t + f(x), 0) / logged.length) : 0);
+  const onTarget = logged.filter((d) => Math.abs(d.kcal - g.kcal) <= g.kcal * 0.1).length;
+  const proteinHit = logged.filter((d) => d.p >= g.p * 0.9).length;
+  return { g, days, logged: logged.length, kcal: avg((x) => x.kcal), p: avg((x) => x.p), c: avg((x) => x.c), f: avg((x) => x.f), onTarget, proteinHit };
+}
+
+function WeekReport({ data, onClose }: { data: FitData; onClose: () => void }) {
+  const w = weekStats(data);
+  const max = Math.max(w.g.kcal * 1.2, ...w.days.map((d) => d.kcal));
+  return <Sheet title="This week" onClose={onClose} testId="fit-report">
+    <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+      {([[fmtNum(w.kcal), `avg cal (goal ${fmtNum(w.g.kcal)})`], [`${w.onTarget}/${w.logged}`, "days on target"], [`${w.proteinHit}/${w.logged}`, "protein goal hit"]] as const).map(([v, l]) => <Card key={l} className="!px-1 !py-3"><p className="text-[26px] leading-none" style={display}>{v}</p><p className="mt-1 text-[11px] leading-tight" style={{ color: C.dim }}>{l}</p></Card>)}
+    </div>
+    <Card className="mt-3 !p-4"><div className="relative flex h-40 items-end gap-2">
+      <div className="pointer-events-none absolute inset-x-0 border-t border-dashed" style={{ bottom: `${(w.g.kcal / max) * 100}%`, borderColor: C.lime }} />
+      {w.days.map((d) => <div key={d.k} className="flex min-w-0 flex-1 flex-col items-center gap-1"><div className="w-full rounded-t-[4px]" style={{ height: `${Math.max(3, (d.kcal / max) * 140)}px`, background: !d.logged ? C.card2 : Math.abs(d.kcal - w.g.kcal) <= w.g.kcal * 0.1 ? C.lime : d.kcal > w.g.kcal ? C.orange : C.blue }} /><span className="text-[11px]" style={{ color: C.dim }}>{d.label}</span></div>)}
+    </div><p className="mt-2 text-[12px]" style={{ color: C.dim }}>Dashed line: your daily goal. Orange: over by 10%+, blue: under.</p></Card>
+    <Title>Average macros</Title>
+    <Card className="space-y-2.5 !p-4"><Bar label="Protein" value={w.p} goal={w.g.p} color={C.pink} /><Bar label="Carbs" value={w.c} goal={w.g.c} color={C.blue} /><Bar label="Fat" value={w.f} goal={w.g.f} color={C.orange} /></Card>
+    {w.logged < 7 && <p className="mt-3 px-1 text-[13px]" style={{ color: C.dim }}>{7 - w.logged} day{7 - w.logged === 1 ? "" : "s"} this week with nothing logged. Log every meal for an accurate picture.</p>}
   </Sheet>;
 }
 
@@ -131,21 +176,39 @@ export function PlanSheet({ data, update, onClose }: { data: FitData; update: Up
   </Sheet>;
 }
 
+/** One US fluid ounce in milliliters (water is kept in ml). */
+const OZ = 29.5735;
+
 export function FoodTab({ token, data, update, say }: { token: string | null; data: FitData; update: Update; say: (m: string) => void }) {
   const [date, setDate] = useState(dayKey());
-  const [adding, setAdding] = useState<Meal | null>(null);
+  const [adding, setAdding] = useState<{ meal: Meal; start?: AddTab } | null>(null);
   const [plan, setPlan] = useState(false);
+  const [report, setReport] = useState(false);
   const [fasting, setFasting] = useState(false);
   const today = date === dayKey();
   const foods = useMemo(() => data.foods.filter((f) => f.date === date), [data.foods, date]);
   const t = totals(foods);
   const g = goals(data.profile, latestKg(data));
   const water = data.water[date] || 0;
+  // US measurements (ounces) unless the person picked metric.
+  const us = data.profile.units !== "kg";
   const points = data.profile.trackMode === "points";
   const used = foods.reduce((n, f) => n + pointsOf({ kcal: f.kcal * f.servings, p: f.p * f.servings, c: f.c * f.servings, f: f.f * f.servings }), 0);
   const budget = pointsBudget(g);
   const diet = DIET_BY_ID.get(data.profile.dietPlan ?? "balanced")!;
   const cap = diet.carbCap;
+  const nowMeal: Meal = (() => { const h = new Date().getHours(); return h < 10 ? "breakfast" : h < 15 ? "lunch" : h < 21 ? "dinner" : "snack"; })();
+  const yesterday = (() => { const d = new Date(`${date}T12:00:00`); d.setDate(d.getDate() - 1); return dayKey(d); })();
+  const copyYesterday = (m: Meal) => {
+    const prev = data.foods.filter((f) => f.date === yesterday && f.meal === m);
+    if (!prev.length) return;
+    update((d) => ({ ...d, foods: [...d.foods, ...prev.map((f) => ({ ...f, id: uid(), date }))] })); say(`Copied yesterday's ${m}.`);
+  };
+  const saveMeal = (m: Meal, items: FoodEntry[]) => {
+    const name = window.prompt("Name this meal", `${MEALS.find((x) => x.id === m)?.label} · ${items.map((i) => i.name.split(" (")[0]).slice(0, 2).join(", ")}`.slice(0, 60));
+    if (!name?.trim()) return;
+    update((d) => ({ ...d, savedMeals: [{ id: uid(), name: name.trim().slice(0, 60), items: items.map(({ id, date: _d, meal: _m, ...rest }) => rest) }, ...(d.savedMeals ?? [])].slice(0, 60) })); say("Meal saved. Find it under My meals.");
+  };
   const shift = (n: number) => { const d = new Date(`${date}T12:00:00`); d.setDate(d.getDate() + n); setDate(dayKey(d)); };
   return <div>
     <div className="flex items-center justify-between">
@@ -153,11 +216,17 @@ export function FoodTab({ token, data, update, say }: { token: string | null; da
       <p className="text-[16px] font-bold">{today ? "Today" : new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}</p>
       <button type="button" onClick={() => shift(1)} disabled={today} aria-label="Next day" className="grid h-11 w-11 place-items-center rounded-full disabled:opacity-30" style={{ background: C.card }}><ChevronRight className="h-5 w-5" /></button>
     </div>
+    {today && <div className="mt-3 grid grid-cols-[1.4fr_1fr] gap-2">
+      <button type="button" onClick={() => setAdding({ meal: nowMeal, start: "ai" })} className="fit-shine flex min-h-[78px] items-center gap-3 rounded-[14px] px-4 text-left transition-transform active:scale-[.98]" style={{ background: "linear-gradient(150deg, #ff5a1f, #b8360a)", color: "#0b0b0c" }} data-testid="fit-snap-meal">
+        <Camera className="h-7 w-7 shrink-0" /><span><span className="block text-[26px] leading-none" style={display}>Snap a meal</span><span className="text-[12px] font-semibold">AI counts it for you</span></span></button>
+      <button type="button" onClick={() => setAdding({ meal: nowMeal, start: "scan" })} className="flex min-h-[78px] items-center gap-2 rounded-[14px] px-3 text-left transition-transform active:scale-[.98]" style={{ background: C.card2 }} data-testid="fit-scan-quick">
+        <ScanLine className="h-6 w-6 shrink-0" style={{ color: C.lime }} /><span className="text-[18px] leading-none" style={display}>Scan barcode</span></button>
+    </div>}
     <Card className="mt-3 flex items-center gap-4 !p-4">
       {points
         ? <Ring value={used} goal={budget} size={112} stroke={11}><div><p className="text-[30px] leading-none" style={display}>{Math.abs(budget - used)}</p><p className="mt-1 text-[11px]" style={{ color: C.dim }}>points {used > budget ? "over" : "left"}</p></div></Ring>
         : <Ring value={t.kcal} goal={g.kcal} size={112} stroke={11}><div><p className="text-[28px] leading-none" style={display}>{fmtNum(Math.abs(g.kcal - t.kcal))}</p><p className="mt-1 text-[11px]" style={{ color: C.dim }}>{t.kcal > g.kcal ? "cal over" : "cal left"}</p></div></Ring>}
-      <div className="min-w-0 flex-1 space-y-2.5"><Bar label="Protein" value={t.p} goal={g.p} color={C.pink} /><Bar label={cap !== undefined ? `Carbs (cap ${cap})` : "Carbs"} value={t.c} goal={cap !== undefined ? Math.min(g.c, cap) || cap : g.c} color={C.blue} /><Bar label="Fat" value={t.f} goal={g.f} color={C.orange} /></div>
+      <div className="min-w-0 flex-1 space-y-2.5"><Bar label="Protein" value={t.p} goal={g.p} color={C.pink} delay={0.3} /><Bar label={cap !== undefined ? `Carbs (cap ${cap})` : "Carbs"} value={t.c} goal={cap !== undefined ? Math.min(g.c, cap) || cap : g.c} color={C.blue} delay={0.45} /><Bar label="Fat" value={t.f} goal={g.f} color={C.orange} delay={0.6} /></div>
     </Card>
     <button type="button" onClick={() => setPlan(true)} className="mt-2 flex w-full items-center gap-3 rounded-[12px] px-4 py-3 text-left" style={{ background: C.card }} data-testid="fit-open-plan">
       <Utensils className="h-5 w-5 shrink-0" style={{ color: C.lime }} />
@@ -168,22 +237,29 @@ export function FoodTab({ token, data, update, say }: { token: string | null; da
     {MEALS.map((m) => {
       const list = foods.filter((f) => f.meal === m.id); const k = totals(list).kcal;
       const kp = list.reduce((n, f) => n + pointsOf({ kcal: f.kcal * f.servings, p: f.p * f.servings, c: f.c * f.servings, f: f.f * f.servings }), 0);
-      return <div key={m.id}><Title right={<span className="text-[13px] font-semibold tabular-nums" style={{ color: C.dim }}>{points ? `${kp} pts` : `${Math.round(k)} cal`}</span>}>{m.label}</Title>
+      const hadYesterday = !list.length && data.foods.some((f) => f.date === yesterday && f.meal === m.id);
+      return <div key={m.id}><Title right={<span className="flex items-center gap-1">
+        {hadYesterday && <button type="button" onClick={() => copyYesterday(m.id)} className="flex h-8 items-center gap-1 rounded-[6px] px-2 text-[12px] font-semibold" style={{ background: C.card, color: C.lime }} data-testid={`fit-copy-${m.id}`}><Copy className="h-3.5 w-3.5" />Yesterday</button>}
+        {list.length >= 2 && <button type="button" onClick={() => saveMeal(m.id, list)} aria-label={`Save ${m.label} as a meal`} className="grid h-8 w-8 place-items-center rounded-[6px]" style={{ background: C.card, color: C.dim }} data-testid={`fit-save-${m.id}`}><Bookmark className="h-4 w-4" /></button>}
+        <span className="ml-1 text-[13px] font-semibold tabular-nums" style={{ color: C.dim }}>{points ? `${kp} pts` : `${Math.round(k)} cal`}</span></span>}>{m.label}</Title>
         <Card className="!p-2">
-          {list.map((f) => <div key={f.id} className="flex items-center gap-2 px-2 py-2" style={{ borderBottom: `1px solid ${C.line}` }}>
+          {list.map((f) => <div key={f.id} className="fit-slide flex items-center gap-2 px-2 py-2" style={{ borderBottom: `1px solid ${C.line}` }}>
             <div className="min-w-0 flex-1"><p className="truncate text-[15px] font-medium">{f.name}</p><p className="text-[12px]" style={{ color: C.dim }}>{f.servings !== 1 ? `${f.servings} × ` : ""}{f.serving || "serving"}</p></div>
             <span className="text-right text-[15px] font-semibold tabular-nums">{points ? <>{pointsOf({ kcal: f.kcal * f.servings, p: f.p * f.servings, c: f.c * f.servings, f: f.f * f.servings })}<span className="text-[11px] font-normal" style={{ color: C.dim }}> pts</span></> : Math.round(f.kcal * f.servings)}</span>
             <button type="button" onClick={() => update((d) => ({ ...d, foods: d.foods.filter((x) => x.id !== f.id) }))} aria-label={`Remove ${f.name}`} className="grid h-9 w-9 place-items-center" style={{ color: C.dim }}><Trash2 className="h-4 w-4" /></button>
           </div>)}
-          <button type="button" onClick={() => setAdding(m.id)} className="flex min-h-11 w-full items-center gap-2 px-2 text-[15px] font-semibold" style={{ color: C.lime }} data-testid={`fit-add-${m.id}`}><Plus className="h-5 w-5" />Add food</button>
+          <button type="button" onClick={() => setAdding({ meal: m.id })} className="flex min-h-11 w-full items-center gap-2 px-2 text-[15px] font-semibold" style={{ color: C.lime }} data-testid={`fit-add-${m.id}`}><Plus className="h-5 w-5" />Add food</button>
         </Card></div>;
     })}
-    <Title right={<span className="text-[13px] font-semibold tabular-nums" style={{ color: C.dim }}>{(water / 1000).toFixed(2)} / {(data.profile.waterGoalMl / 1000).toFixed(1)} L</span>}>Water</Title>
+    <Title right={<span className="text-[13px] font-semibold tabular-nums" style={{ color: C.dim }}>{us ? `${Math.round(water / OZ)} / ${Math.round(data.profile.waterGoalMl / OZ)} oz` : `${(water / 1000).toFixed(2)} / ${(data.profile.waterGoalMl / 1000).toFixed(1)} L`}</span>}>Water</Title>
     <Card className="flex items-center gap-3 !p-3"><Droplets className="h-7 w-7 shrink-0" style={{ color: C.blue }} />
       <div className="h-3 min-w-0 flex-1 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,.08)" }}><div className="h-full rounded-full" style={{ width: `${Math.min(100, (water / data.profile.waterGoalMl) * 100)}%`, background: C.blue }} /></div>
-      {[250, 500].map((ml) => <Btn key={ml} kind="soft" className="!min-h-10 !px-3 text-[14px]" onClick={() => update((d) => ({ ...d, water: { ...d.water, [date]: (d.water[date] || 0) + ml } }))}>+{ml}</Btn>)}
+      {(us ? [[8, 8 * OZ], [16, 16 * OZ]] : [[250, 250], [500, 500]]).map(([label, ml]) => <Btn key={label} kind="soft" className="!min-h-10 !px-3 !text-[14px]" onClick={() => update((d) => ({ ...d, water: { ...d.water, [date]: Math.round((d.water[date] || 0) + ml) } }))}>+{label}{us ? " oz" : ""}</Btn>)}
     </Card>
-    {adding && <AddFood token={token} meal={adding} date={date} data={data} update={update} onClose={() => setAdding(null)} say={say} />}
+    <button type="button" onClick={() => setReport(true)} className="mt-4 flex w-full items-center gap-3 rounded-[12px] px-4 py-3 text-left" style={{ background: C.card }} data-testid="fit-open-report">
+      <BarChart3 className="h-5 w-5 shrink-0" style={{ color: C.lime }} /><span className="flex-1 text-[17px] leading-none" style={display}>Weekly nutrition report</span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></button>
+    {adding && <AddFood token={token} meal={adding.meal} start={adding.start} date={date} data={data} update={update} onClose={() => setAdding(null)} say={say} />}
+    {report && <WeekReport data={data} onClose={() => setReport(false)} />}
     {plan && <PlanSheet data={data} update={update} onClose={() => setPlan(false)} />}
     {fasting && <FastingSheet data={data} update={update} onClose={() => setFasting(false)} />}
   </div>;

@@ -1,0 +1,26 @@
+{
+  "appId": "com.arisereader.trainer",
+  "appName": "Arise Trainer",
+  "webDir": "www",
+  "backgroundColor": "#15171b",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 900,
+      "backgroundColor": "#15171b",
+      "showSpinner": false
+    },
+    "Keyboard": {
+      "resize": "native"
+    },
+    "CapacitorUpdater": {
+      "autoUpdate": false,
+      "updateUrl": "https://arisetodo.com/api/ota/trainer",
+      "channelUrl": "https://arisetodo.com/api/ota/trainer",
+      "statsUrl": ""
+    }
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "backgroundColor": "#15171b"
+  }
+}

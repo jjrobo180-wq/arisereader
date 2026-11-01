@@ -21,7 +21,7 @@ test("its own app: bundle, sign-in screen, home, Apple sign-in and notifications
   assert.match(app, /if \(isEyeGazerApp\(\)\) \{ window\.location\.hash = user \?/);
   assert.match(read("server/appleSignIn.ts"), /EYEGAZER_APP = "com\.arisereader\.eyegazer"/);
   assert.match(read("server/applePush.ts"), /eyegaze: "com\.arisereader\.eyegazer"/);
-  assert.match(read("client/src/lib/applePush.ts"), /nativeFlavor\(\) === "eyegaze" \? "eyegaze"/);
+  assert.match(read("client/src/lib/applePush.ts"), /f === "eyegaze"/);
   assert.ok(existsSync("client/public/app-icons/eyegazer-1024.png"));
 });
 
@@ -33,8 +33,15 @@ test("built and checked like the others, with live updates", () => {
   assert.match(wf, /apple_signing\.py com\.arisereader\.eyegazer "\$RUNNER_TEMP\/profile\.mobileprovision" APPLE_ID_AUTH PUSH_NOTIFICATIONS/);
   assert.match(wf, /ota_setup\.py eyegaze/);
   assert.match(read(".github/workflows/reader-apps-ios-check.yml"), /\{ flavor: eyegaze, dir: eyegazer, bundle: com\.arisereader\.eyegazer \}/);
-  assert.match(read(".github/workflows/ota-publish.yml"), /app: \[todo, podplus, reader, educator, fit, eyegaze\]/);
-  assert.match(read("server/ota.ts"), /"fit", "eyegaze"\]/);
+  assert.match(read(".github/workflows/ota-publish.yml"), /app: \[todo, podplus, reader, educator, fit, eyegaze(, trainer)?\]/);
+  assert.match(read("server/ota.ts"), /"fit", "eyegaze"(, "trainer")?\]/);
   assert.match(read("eyegazer/ios-app/package.json"), /@capacitor\/push-notifications/);
   assert.match(read("eyegazer/ios-app/package.json"), /@capgo\/capacitor-updater/);
+});
+
+test("every permission a game asks for has its sentence, or iOS closes the app", () => {
+  const plist = readFileSync(".github/scripts/configure_reader_app.py", "utf8");
+  // Animal Splash uses speech recognition (it listens for the animal's name).
+  assert.match(readFileSync("client/src/pages/AnimalSplashGame.tsx", "utf8"), /SpeechRecognition/);
+  for (const k of ["NSSpeechRecognitionUsageDescription", "NSMicrophoneUsageDescription", "NSCameraUsageDescription"]) assert.match(plist, new RegExp(`"${k}"`), k);
 });

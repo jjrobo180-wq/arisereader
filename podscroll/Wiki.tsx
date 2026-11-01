@@ -45,7 +45,7 @@ function Player({ title, onBack }: { title: string; onBack: () => void }) {
   const mins = listenMinutes(sections.reduce((t, s) => t + s.text.split(/\s+/).length, 0), rate);
   return <div className="mx-auto max-w-3xl px-4 pb-32 pt-4 sm:px-6" data-testid="wiki-player">
     <button onClick={() => { pause(); onBack(); }} className="mb-3 inline-flex items-center gap-1 text-sm font-medium text-[#606060]"><ChevronLeft size={18} />Wiki podcasts</button>
-    <div className="overflow-hidden rounded-2xl bg-[#0f0f0f] text-white">
+    <div className="ps-keep overflow-hidden rounded-2xl bg-[#0f0f0f] text-white ring-1 ring-white/10">
       <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-end">
         {art.image ? <img src={art.image} alt="" className="h-32 w-32 shrink-0 rounded-xl bg-white/10 object-cover" /> : <span className="grid h-32 w-32 shrink-0 place-items-center rounded-xl bg-white/10"><BookOpenText size={44} /></span>}
         <div className="min-w-0 flex-1">
@@ -101,7 +101,7 @@ export function WikiView({ onBack }: { onBack: () => void }) {
       <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#fff1e8] text-[#ff6a1f]"><Play size={16} fill="currentColor" /></span>
       <span className="min-w-0"><span className="block text-[15px] font-semibold">{h.title}</span><span className="line-clamp-2 block text-[13px] text-[#606060]">{h.snippet}</span><span className="text-[12px] text-[#909090]">about {listenMinutes(h.words)} min</span></span>
     </button></li>)}{!hits.length && <li className="p-3 text-[#606060]">No articles found.</li>}</ul>}
-    {!hits && feat?.today && <button onClick={() => setOpen(feat.today!.title)} className="mt-6 flex w-full flex-col overflow-hidden rounded-2xl bg-[#0f0f0f] text-left text-white sm:flex-row" data-testid="wiki-featured">
+    {!hits && feat?.today && <button onClick={() => setOpen(feat.today!.title)} className="ps-keep mt-6 flex w-full flex-col overflow-hidden rounded-2xl bg-[#0f0f0f] text-left text-white sm:flex-row" data-testid="wiki-featured">
       {feat.today.image && <img src={feat.today.image} alt="" className="h-44 w-full object-cover sm:h-auto sm:w-48" />}
       <span className="flex-1 p-5"><span className="text-[11px] font-bold uppercase tracking-[.18em] text-[#ff8a3d]">Today's featured article</span><span className="mt-1 block text-[22px] font-bold leading-tight">{feat.today.title}</span><span className="mt-1.5 line-clamp-3 block text-[13px] text-white/70">{feat.today.extract}</span>
         <span className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#ff6a1f] px-4 py-2 text-[14px] font-semibold"><Play size={15} fill="currentColor" />Listen</span></span>

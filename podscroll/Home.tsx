@@ -25,7 +25,6 @@ import { AddToMenu, ModePage, ModesRow, NewModeDialog, makeMode, toSaved } from 
 import { GoLiveSheet, LiveRoom, type LiveSummary } from "../client/src/components/family-hub/earshot/EarshotCreators";
 import { setTheme, useTheme } from "../client/src/components/family-hub/earshot/EarshotPlayer";
 import { HoursBackCard } from "../client/src/components/family-hub/earshot/EarshotListen";
-import { PodcastOfTheDay } from "./Today";
 import { WikiView } from "./Wiki";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
@@ -648,7 +647,6 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
 
       {chip === "all" && <ContinueListening nowPod={nowPod} visible={visible} onToggle={onPodToggle} onOpenNow={onPodOpen}
         onResume={(id, sp) => onOpenFeed({ showId: sp.showId, episodeId: id })} />}
-      {chip === "all" && <PodcastOfTheDay api={api} ex={ex} onOpen={openEp} />}
       {chip === "all" && !pro && <section aria-label="Pod+ Membership" className="ps-keep relative mb-6 mt-1 overflow-hidden rounded-2xl bg-[#0f0f0f] text-white ring-1 ring-white/10">
         <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div className="min-w-0">

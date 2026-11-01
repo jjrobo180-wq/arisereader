@@ -5,7 +5,8 @@ import { Flame, Square, Timer } from "lucide-react";
 import { FASTING_PROTOCOLS, emptyFasting, fastingStage, fastingStatus, fastingStreak, type Fasting } from "@shared/fitNutrition";
 import type { FitData } from "@shared/fit";
 import type { Update } from "./fitStore";
-import { Btn, C, Card, Ring, Sheet, Title, display, fmtDur } from "./fitUi";
+import { Btn, C, Card, Ring, Sheet, Title, display, fmtDur, stagger } from "./fitUi";
+import { scheduleFastEnd } from "./fitNative";
 
 function useNow(on: boolean) {
   const [now, setNow] = useState(Date.now());
@@ -15,8 +16,11 @@ function useNow(on: boolean) {
 
 const time = (ms: number) => new Date(ms).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 
-export function startFast(update: Update) { update((d) => ({ ...d, fasting: { ...(d.fasting ?? emptyFasting()), start: new Date().toISOString() } })); }
+export function startFast(update: Update) {
+  update((d) => { const f = { ...(d.fasting ?? emptyFasting()), start: new Date().toISOString() }; scheduleFastEnd(fastingStatus(f).endsAt); return { ...d, fasting: f }; });
+}
 export function endFast(update: Update) {
+  scheduleFastEnd(null);
   update((d) => {
     const f = d.fasting; if (!f?.start) return d;
     const goalH = fastingStatus(f).goalH;
@@ -47,7 +51,7 @@ export function FastingCard({ data, update, onOpen }: { data: FitData; update: U
   </Card>;
 }
 
-export function FastingSheet({ data, update, onClose }: { data: FitData; update: Update; onClose: () => void }) {
+export function FastingSheet({ data, update, onClose, inline }: { data: FitData; update: Update; onClose: () => void; inline?: boolean }) {
   const f: Fasting = data.fasting ?? emptyFasting();
   const now = useNow(!!f.start);
   const st = fastingStatus(f, now);
@@ -55,21 +59,21 @@ export function FastingSheet({ data, update, onClose }: { data: FitData; update:
   const streak = fastingStreak(f);
   const done = f.log.filter((x) => Date.parse(x.end) - Date.parse(x.start) >= x.goalH * 3_600_000).length;
   const longest = Math.max(0, ...f.log.map((x) => Date.parse(x.end) - Date.parse(x.start)));
-  return <Sheet title="Fasting" onClose={onClose} testId="fit-fasting">
-    <div className="mt-2 grid place-items-center">
-      <Ring value={st.active ? st.pct : 0} goal={1} size={240} stroke={16}>
+  return <Sheet title="Fasting" onClose={onClose} testId="fit-fasting" inline={inline}>
+    <div className="mt-4 grid place-items-center">
+      <Ring value={st.active ? st.pct : 0} goal={1} size={260} stroke={18} glow>
         <div>
-          <p className="text-[12px] tracking-[.16em]" style={{ ...display, fontWeight: 700, color: st.active ? C.lime : C.dim }}>{st.active ? stage.name : "Ready"}</p>
-          <p className="text-[46px] leading-none tabular-nums" style={display}>{fmtDur(st.elapsedMs / 1000)}</p>
+          <p className="text-[13px] tracking-[.18em]" style={{ ...display, color: st.active ? C.lime : C.dim }}>{st.active ? stage.name : "Ready"}</p>
+          <p className="text-[50px] leading-none tabular-nums" style={display}>{fmtDur(st.elapsedMs / 1000)}</p>
           <p className="mt-1 text-[13px]" style={{ color: C.dim }}>of {st.goalH} hours</p>
         </div>
       </Ring>
       {st.active && <p className="mt-3 max-w-xs text-center text-[14px]" style={{ color: C.steel }}>{stage.text}</p>}
       {st.active && <p className="mt-1 text-[13px]" style={{ color: C.dim }}>Started {time(Date.parse(f.start!))} · goal at {time(st.endsAt)}</p>}
     </div>
-    <Btn className="mt-5 w-full" kind={st.active ? "danger" : "primary"} onClick={() => (st.active ? endFast(update) : startFast(update))} testId="fit-fasting-toggle">{st.active ? "End fast" : "Start fast now"}</Btn>
+    <Btn className="mt-6 w-full !min-h-[54px] !text-[19px]" kind={st.active ? "soft" : "primary"} onClick={() => (st.active ? endFast(update) : startFast(update))} testId="fit-fasting-toggle">{st.active ? "End fast" : "Start fast now"}</Btn>
     <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-      {([[streak, "streak"], [done, "completed"], [longest ? Math.floor(longest / 3_600_000) + "h" : "—", "longest"]] as const).map(([n, l]) => <Card key={l} className="!px-1 !py-3"><p className="text-[24px] leading-none" style={display}>{n}</p><p className="mt-1 text-[11px] uppercase tracking-[.1em]" style={{ color: C.dim }}>{l}</p></Card>)}
+      {([[streak, "streak"], [done, "completed"], [longest ? Math.floor(longest / 3_600_000) + "h" : "—", "longest"]] as const).map(([n, l], k) => <Card key={l} className="!px-1 !py-3" style={stagger(k, 0.08, 0.2)}><p className="text-[24px] leading-none" style={display}>{n}</p><p className="mt-1 text-[11px] uppercase tracking-[.1em]" style={{ color: C.dim }}>{l}</p></Card>)}
     </div>
     <Title>Protocol</Title>
     <div className="grid grid-cols-2 gap-2">{FASTING_PROTOCOLS.map((p) => <button key={p.id} type="button" onClick={() => update((d) => ({ ...d, fasting: { ...(d.fasting ?? emptyFasting()), protocol: p.id } }))} aria-pressed={f.protocol === p.id}
