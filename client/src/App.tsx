@@ -142,7 +142,7 @@ import TodoGate from "@/components/TodoGate";
 import { ReaderAdminToTodoRedirect, ReaderToHubHandoff, TodoAdminHandoff } from "@/components/AdminDomainHandoff";
 import { READER_APP, goToReader, goToSignIn, hubPathFor, isHubAccount, isReaderPage } from "@/lib/hubs";
 import NativePlans from "@/components/NativePlans";
-import { isFitApp, isNativeApp, isReaderApp } from "@/lib/nativeApp";
+import { isEyeGazerApp, isFitApp, isNativeApp, isReaderApp } from "@/lib/nativeApp";
 const TeacherScenes = lazyPage(() => import("./pages/TeacherScenes"));
 const StudentSceneLive = lazyPage(() => import("./pages/StudentSceneLive"));
 const Library = lazyPage(() => import("./pages/Library"));
@@ -292,7 +292,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!user) return <Redirect to="/" replace />;
   if (isPlanTeacher && teacherLocked(plan) && location.split("?")[0] !== "/billing") return <Redirect to="/billing" replace />;
   // A linked parent can also open their child's talker and family tools.
-  if (user.role === 'parent' && !user.isAdmin && !['/parent-dashboard', '/eye-gaze-parent', '/eye-gaze-parent-controls', '/eye-gaze-talker', '/my-world', '/eye-gaze-flashcards', '/eye-gaze-life-skills', '/eye-gaze-potty'].includes(location)) {
+  if (user.role === 'parent' && !user.isAdmin && !(isEyeGazerApp() && (location.startsWith('/eye-gaze') || location === '/my-world' || location === '/arise-city' || location === '/reading-level-up')) && !['/parent-dashboard', '/eye-gaze-parent', '/eye-gaze-parent-controls', '/eye-gaze-talker', '/my-world', '/eye-gaze-flashcards', '/eye-gaze-life-skills', '/eye-gaze-potty'].includes(location)) {
     return <Redirect to="/parent-dashboard" replace />;
   }
   return <>{children}</>;
@@ -410,6 +410,9 @@ function StudentOnTodo() {
 function AfterSignIn({ onReaderDomain, onTodoDomain }: { onReaderDomain: boolean; onTodoDomain: boolean }) {
   const { user } = useAuth();
   if (!user) return null;
+  // The Eye Gazer app is its own place: whoever signs in (an Eye Gazer account, a LifeHub or
+  // teacher account, the administrator) opens the eye-gaze home, never a hub on arisetodo.com.
+  if (isEyeGazerApp()) return <Redirect to={user.role === "parent" ? "/eye-gaze-parent" : "/eye-gaze-home"} replace />;
   // Signed in from a Para Team invite link: straight back to join that team.
   const paraJoin = pendingParaJoin();
   if (paraJoin && isHubAccount(user)) return <Redirect to={`/para-team/join/${paraJoin}`} replace />;
@@ -481,7 +484,8 @@ function AppRoutes() {
   const [routePath] = useLocation();
   // Eye-gaze mode is only for non-privileged learner accounts. Admin,
   // teacher, and parent roles must always keep the standard site layout.
-  const isEyeGazeStudent = !!user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent' && !!user.is_eye_gaze_user;
+  const eyeGazerApp = isEyeGazerApp();
+  const isEyeGazeStudent = !!user && user.role !== 'parent' && (eyeGazerApp || (!user.isAdmin && user.role !== 'teacher' && !!user.is_eye_gaze_user));
   const domain = typeof window === "undefined" ? "" : window.location.hostname.toLowerCase();
   // The two A.R.I.S.E. Reader iPhone apps act as arisereader.com; the Arise To Duo app as arisetodo.com.
   const onReaderDomain = domain === "arisereader.com" || domain === "www.arisereader.com" || isReaderApp();
@@ -525,10 +529,10 @@ function AppRoutes() {
         <ProtectedRoute><FitApp /></ProtectedRoute>
       </Route>
       <Route path="/lifehub">
-        {onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : onReaderDomain && !user ? <Redirect to="/signin" replace /> : onReaderDomain ? <ReaderToTodoRedirect /> : <TodoGate><AriseTodo /></TodoGate>}
+        {eyeGazerApp ? <Redirect to={user ? "/eye-gaze-home" : "/signin"} replace /> : onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : onReaderDomain && !user ? <Redirect to="/signin" replace /> : onReaderDomain ? <ReaderToTodoRedirect /> : <TodoGate><AriseTodo /></TodoGate>}
       </Route>
       <Route path="/to-do">
-        {onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : onReaderDomain && !user ? <Redirect to="/signin" replace /> : onReaderDomain ? <ReaderToTodoRedirect /> : <TodoGate><AriseTodo /></TodoGate>}
+        {eyeGazerApp ? <Redirect to={user ? "/eye-gaze-home" : "/signin"} replace /> : onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : onReaderDomain && !user ? <Redirect to="/signin" replace /> : onReaderDomain ? <ReaderToTodoRedirect /> : <TodoGate><AriseTodo /></TodoGate>}
       </Route>
       <Route path="/todo-admin">
         {user?.isAdmin ? <ProtectedRoute><TodoAdmin /></ProtectedRoute> : user ? <Redirect to="/" replace /> : <Redirect to="/signin" replace />}
@@ -549,13 +553,13 @@ function AppRoutes() {
         <Redirect to="/" replace />
       </Route>
       <Route path="/">
-        {onTodoDomain ? (!user ? <TodoPublicHomeRedirect /> : <Redirect key="home-to-hub" to={hubPathFor(user)} replace />) : user ? (onReaderDomain && readerFirst(user) ? <OpenReaderPage /> : isHubAccount(user) ? <Redirect key="home-to-hub" to={hubPathFor(user)} replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : isNativeApp() ? <Redirect to="/signin" replace /> : <iframe src="/reader-landing.html" title="A.R.I.S.E. Reader — discover reading" style={{width:"100%",height:"100dvh",border:0,display:"block"}} />}
+        {onTodoDomain ? (!user ? <TodoPublicHomeRedirect /> : <Redirect key="home-to-hub" to={hubPathFor(user)} replace />) : user ? (eyeGazerApp ? <Redirect key="home-to-eyegaze" to={user.role === "parent" ? "/eye-gaze-parent" : "/eye-gaze-home"} replace /> : onReaderDomain && readerFirst(user) ? <OpenReaderPage /> : isHubAccount(user) ? <Redirect key="home-to-hub" to={hubPathFor(user)} replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : isNativeApp() ? <Redirect to="/signin" replace /> : <iframe src="/reader-landing.html" title="A.R.I.S.E. Reader — discover reading" style={{width:"100%",height:"100dvh",border:0,display:"block"}} />}
       </Route>
       <Route path="/register">
-        {user ? (isHubAccount(user) ? <Redirect to={hubPathFor(user)} replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register />}
+        {user ? (eyeGazerApp ? <Redirect to={user.role === "parent" ? "/eye-gaze-parent" : "/eye-gaze-home"} replace /> : isHubAccount(user) ? <Redirect to={hubPathFor(user)} replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register />}
       </Route>
       <Route path="/register-independent">
-        {user ? (isHubAccount(user) ? <Redirect to={hubPathFor(user)} replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register independent />}
+        {user ? (eyeGazerApp ? <Redirect to={user.role === "parent" ? "/eye-gaze-parent" : "/eye-gaze-home"} replace /> : isHubAccount(user) ? <Redirect to={hubPathFor(user)} replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register independent />}
       </Route>
       <Route path="/meet/:token">
         <MeetingPoll />
@@ -624,10 +628,10 @@ function AppRoutes() {
         {!user ? <Redirect to="/signin" replace /> : isHubAccount(user) ? <ProApps /> : <Redirect to="/" replace />}
       </Route>
       <Route path="/workhub">
-        {onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : !user ? <Redirect to="/signin" replace /> : <TeacherHub />}
+        {eyeGazerApp ? <Redirect to={user ? "/eye-gaze-home" : "/signin"} replace /> : onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : !user ? <Redirect to="/signin" replace /> : <TeacherHub />}
       </Route>
       <Route path="/teacher-hub">
-        {onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : !user ? <Redirect to="/signin" replace /> : <TeacherHub />}
+        {eyeGazerApp ? <Redirect to={user ? "/eye-gaze-home" : "/signin"} replace /> : onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : !user ? <Redirect to="/signin" replace /> : <TeacherHub />}
       </Route>
       <Route path="/hub">
         <Redirect to="/workhub" replace />

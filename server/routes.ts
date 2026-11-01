@@ -72,7 +72,7 @@ import { podscrollAllowed, registerEarshotRoutes, registerPodscrollRoutes, supab
 import { deletePodData } from "./podcastAccounts";
 import { hideLinks, onSocialReport, registerModerationRoutes } from "./socialModeration";
 import { registerSupportRoutes } from "./supportContact";
-import { ARISE_APP, EDUCATOR_APP, FIT_APP, AppleTokenError, appleRefreshToken, appleUsername, revokeAppleToken, verifyAppleToken } from "./appleSignIn";
+import { ARISE_APP, EDUCATOR_APP, EYEGAZER_APP, FIT_APP, AppleTokenError, appleRefreshToken, appleUsername, revokeAppleToken, verifyAppleToken } from "./appleSignIn";
 import { attachLivePods } from "./podcastLive";
 import { attachListenParties } from "./podcastParty";
 import { createDirectory as createPodcastDirectory, supabaseKV } from "./podcastDirectory";
@@ -2986,10 +2986,10 @@ export async function registerRoutes(
     if (wait > 0) return res.status(429).json({ message: `Too many tries. Try again in ${waitWords(wait)}.` });
     appleLimits.fail(address);
     try {
-      const claims = await verifyAppleToken(String(req.body?.identityToken || ""), [ARISE_APP, EDUCATOR_APP, FIT_APP]);
+      const claims = await verifyAppleToken(String(req.body?.identityToken || ""), [ARISE_APP, EDUCATOR_APP, FIT_APP, EYEGAZER_APP]);
       // A new account made from the Educator app is a parent account (like the website's parent sign-up,
       // a child can be connected later); from Arise To Duo it's a personal LifeHub account.
-      const fromApp = claims.aud === EDUCATOR_APP ? EDUCATOR_APP : claims.aud === FIT_APP ? FIT_APP : ARISE_APP;
+      const fromApp = claims.aud === EDUCATOR_APP ? EDUCATOR_APP : claims.aud === FIT_APP ? FIT_APP : claims.aud === EYEGAZER_APP ? EYEGAZER_APP : ARISE_APP;
       const name = [req.body?.givenName, req.body?.familyName].filter((x) => typeof x === "string" && x.trim()).map((x: string) => x.trim().slice(0, 40)).join(" ");
       let userId = Number(await storage.getSetting(`apple_login:${claims.sub}`)) || 0;
       let user: any = userId ? await storage.getUser(userId) : null;
@@ -3003,7 +3003,7 @@ export async function registerRoutes(
         const username = await appleUsername(claims.email, claims.privateEmail, async (n) => !!(await storage.getUserByUsername(n)));
         user = await storage.createUser({
           username, password: await bcrypt.hash(randomBytes(24).toString("base64url"), 10), displayName: name || "Arise user",
-          email: claims.email || null, role: fromApp === EDUCATOR_APP ? "parent" : "todo", approvedByTeacher: true, accountApproved: true,
+          email: claims.email || null, role: fromApp === EDUCATOR_APP || fromApp === EYEGAZER_APP ? "parent" : "todo", approvedByTeacher: true, accountApproved: true,
         });
         made = true;
         alertAdmin("teacher_signup", { title: "A personal account was made with Apple", summary: `${name || username} signed up with Sign in with Apple.`, lines: [["Username", username], ["Email", claims.email || "(hidden by Apple)"]] });
@@ -7403,7 +7403,7 @@ export async function registerRoutes(
       let ok = false;
       const appleToken = typeof req.body?.appleIdentityToken === "string" ? req.body.appleIdentityToken : "";
       if (appleToken) {
-        try { const c = await verifyAppleToken(appleToken, [ARISE_APP, EDUCATOR_APP, FIT_APP]); ok = (await storage.getSetting(`apple_user:${userId}`)) === c.sub; }
+        try { const c = await verifyAppleToken(appleToken, [ARISE_APP, EDUCATOR_APP, FIT_APP, EYEGAZER_APP]); ok = (await storage.getSetting(`apple_user:${userId}`)) === c.sub; }
         catch { ok = false; }
       }
       if (!ok) {
@@ -7421,7 +7421,7 @@ export async function registerRoutes(
       try {
         const sub = await storage.getSetting(`apple_user:${userId}`);
         const refresh = await storage.getSetting(`apple_refresh:${userId}`);
-        const was = await storage.getSetting(`apple_refresh_app:${userId}`); const viaApp = was === EDUCATOR_APP || was === FIT_APP ? was : ARISE_APP;
+        const was = await storage.getSetting(`apple_refresh_app:${userId}`); const viaApp = was === EDUCATOR_APP || was === FIT_APP || was === EYEGAZER_APP ? was : ARISE_APP;
         if (refresh) await revokeAppleToken(refresh, viaApp).catch(() => false);
         if (sub || refresh) await getAdminSupabase().from("settings").delete().in("key", [`apple_login:${sub}`, `apple_user:${userId}`, `apple_refresh:${userId}`, `apple_refresh_app:${userId}`]); clearCache(`setting_apple_login:${sub}`); clearCache(`setting_apple_user:${userId}`); clearCache(`setting_apple_refresh:${userId}`);
       } catch { /* the account still goes */ }

@@ -5,10 +5,12 @@ import { Activity, Apple, BarChart3, ChevronRight, Dumbbell, Flame, Home, LogOut
 import { useAuth } from "@/context/AuthContext";
 import AccountPrivacy from "@/components/AccountPrivacy";
 import { goToSignIn } from "@/lib/hubs";
-import { CATALOG_BY_ID, PROGRAM_BY_ID, dayKey, fromKg, goals, nextProgramDay, records, streak, toKg, weeklySets, type FitData, type Goal, type Units } from "@shared/fit";
+import { CATALOG, CATALOG_BY_ID, PROGRAM_BY_ID, dayKey, fromKg, goals, nextProgramDay, records, streak, toKg, weeklySets, type FitData, type Goal, type Units } from "@shared/fit";
 import { useFitData, useLibrary, type Update } from "./fitStore";
-import { LiveWorkout, TrainTab, libraryFallback, planned, readActive, startWorkout } from "./FitTrain";
+import { ExerciseDetail, LiveWorkout, TrainTab, libraryFallback, planned, programCover, readActive, startWorkout } from "./FitTrain";
 import { FoodTab, latestKg, totals } from "./FitFood";
+import { CoverCard, VideoPlayer } from "./FitVideo";
+import { videoFor, videoOfTheDay } from "@shared/fitVideos";
 import { Bar, Btn, C, Card, Columns, Field, Ring, Sheet, Spark, Title, fmtNum, font, inputCls, inputStyle } from "./fitUi";
 
 type Tab = "today" | "train" | "food" | "progress";
@@ -48,7 +50,7 @@ function Setup({ data, update, onDone }: { data: FitData; update: Update; onDone
   </Sheet>;
 }
 
-function TodayTab({ data, update, onTab, onStartProgram, user }: { data: FitData; update: Update; onTab: (t: Tab) => void; onStartProgram: () => void; user: string }) {
+function TodayTab({ data, update, onTab, onStartProgram, user, list }: { data: FitData; update: Update; onTab: (t: Tab) => void; onStartProgram: () => void; user: string; list: ReturnType<typeof libraryFallback> }) {
   const today = dayKey();
   const t = totals(data.foods.filter((f) => f.date === today));
   const g = goals(data.profile, latestKg(data));
@@ -59,6 +61,10 @@ function TodayTab({ data, update, onTab, onStartProgram, user }: { data: FitData
   const thisWeek = data.workouts.filter((w) => Date.parse(w.date) >= weekAgo);
   const vol = thisWeek.reduce((a, w) => a + w.exercises.reduce((b, e) => b + e.sets.reduce((c, x) => c + x.reps * x.weight, 0), 0), 0);
   const hour = new Date().getHours();
+  // Today's form tip: from the next workout when there is one, otherwise from the whole catalog.
+  const tipId = videoOfTheDay(next ? next.day.items.map((i) => i.exId) : CATALOG.map((e) => e.id));
+  const tip = tipId ? list.find((e) => e.id === tipId) : undefined;
+  const [watch, setWatch] = useState(false);
   return <div>
     <div className="flex items-end justify-between px-1">
       <div><p className="text-[14px]" style={{ color: C.dim }}>{hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"}{user ? `, ${user}` : ""}</p><h1 className="text-[30px] font-bold tracking-tight">Today</h1></div>
@@ -68,16 +74,19 @@ function TodayTab({ data, update, onTab, onStartProgram, user }: { data: FitData
       <Ring value={t.kcal} goal={g.kcal} size={124}><div><p className="text-[26px] font-bold leading-none">{fmtNum(Math.max(0, g.kcal - t.kcal))}</p><p className="mt-1 text-[11px]" style={{ color: C.dim }}>calories left</p></div></Ring>
       <div className="min-w-0 flex-1 space-y-2.5"><Bar label="Protein" value={t.p} goal={g.p} color={C.pink} /><Bar label="Carbs" value={t.c} goal={g.c} color={C.blue} /><Bar label="Fat" value={t.f} goal={g.f} color={C.orange} /></div>
     </Card>
-    {next && prog ? <Card className="mt-3 !p-4" testId="fit-today-next">
-      <p className="text-[12px] font-bold uppercase tracking-wider" style={{ color: C.lime }}>Up next · Week {next.week}</p>
-      <p className="mt-1 text-[20px] font-bold">{next.day.name}</p><p className="text-[14px]" style={{ color: C.dim }}>{prog.name} · {next.day.items.length} exercises</p>
+    {next && prog ? <CoverCard exId={next.day.items.find((i) => videoFor(i.exId))?.exId ?? programCover(prog)} tall className="mt-3 !p-4" testId="fit-today-next">
+      <span className="text-[12px] font-bold uppercase tracking-[.14em]" style={{ color: C.lime }}>Up next · Week {next.week}</span>
+      <span className="mt-1 block text-[24px] font-extrabold tracking-tight">{next.day.name}</span><span className="block text-[14px]" style={{ color: "#d6d6de" }}>{prog.name} · {next.day.items.length} exercises</span>
       <Btn className="mt-3 w-full" onClick={onStartProgram}><Play className="h-5 w-5" />Start workout</Btn>
-    </Card> : <Card className="mt-3 !p-4" onClick={() => onTab("train")}><div className="flex items-center gap-3"><Dumbbell className="h-8 w-8" style={{ color: C.lime }} /><div className="min-w-0 flex-1"><p className="font-bold">Start training</p><p className="text-[13px]" style={{ color: C.dim }}>Pick a program or start an empty workout.</p></div><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>}
+    </CoverCard> : <CoverCard exId="back-squat" onClick={() => onTab("train")} className="mt-3"><span className="flex items-end gap-3"><Dumbbell className="h-8 w-8 shrink-0" style={{ color: C.lime }} /><span className="min-w-0 flex-1"><span className="block text-[18px] font-bold">Start training</span><span className="block text-[13px]" style={{ color: "#d6d6de" }}>Pick a program, with a how-to video for every exercise.</span></span><ChevronRight className="h-5 w-5" /></span></CoverCard>}
     <div className="mt-3 grid grid-cols-2 gap-3">
       <Card className="!p-4"><Activity className="h-5 w-5" style={{ color: C.lime }} /><p className="mt-2 text-[24px] font-bold">{thisWeek.length}</p><p className="text-[12px]" style={{ color: C.dim }}>workouts this week</p></Card>
       <Card className="!p-4"><BarChart3 className="h-5 w-5" style={{ color: C.blue }} /><p className="mt-2 text-[24px] font-bold">{fmtNum(vol)}</p><p className="text-[12px]" style={{ color: C.dim }}>{data.profile.units} lifted this week</p></Card>
     </div>
+    {tip && <><Title right={<button type="button" onClick={() => setWatch(true)} className="text-[14px] font-semibold" style={{ color: C.lime }}>Cues</button>}>Form tip of the day</Title>
+      <VideoPlayer exId={tip.id} label={tip.name} testId="fit-today-tip" /></>}
     <WeightCard data={data} update={update} />
+    {watch && tip && <ExerciseDetail ex={tip} data={data} onClose={() => setWatch(false)} />}
   </div>;
 }
 
@@ -139,7 +148,7 @@ function SettingsSheet({ data, update, onClose, onGoals, onAccount }: { data: Fi
     <Title>Account</Title>
     <Card onClick={onAccount} className="!p-4"><div className="flex items-center gap-3"><ShieldCheck className="h-5 w-5" style={{ color: C.dim }} /><span className="flex-1 font-semibold">Account & privacy</span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
     <Btn kind="danger" className="mt-2 w-full" onClick={() => { logout(); goToSignIn(); }} testId="fit-signout"><LogOut className="h-5 w-5" />Sign out</Btn>
-    <p className="mt-8 text-center text-[11px] leading-relaxed" style={{ color: C.dim }}>Exercise photos from wger.de (Creative Commons, credited on each exercise). Food data from USDA FoodData Central and Open Food Facts. Arise Fit isn't medical advice; check with a doctor before starting a new diet or training plan.</p>
+    <p className="mt-8 text-center text-[11px] leading-relaxed" style={{ color: C.dim }}>How-to videos play from YouTube and belong to their creators. Exercise photos from wger.de (Creative Commons, credited on each exercise). Food data from USDA FoodData Central and Open Food Facts. Arise Fit isn't medical advice; check with a doctor before starting a new diet or training plan.</p>
   </Sheet>;
 }
 
@@ -166,7 +175,7 @@ export default function FitApp() {
   const tabs: [Tab, string, typeof Home][] = [["today", "Today", Home], ["train", "Train", Dumbbell], ["food", "Food", Apple], ["progress", "Progress", BarChart3]];
   return <div className="fixed inset-0 flex flex-col" style={{ background: C.bg, color: C.text, ...font }} data-testid="fit-app">
     <main className="min-h-0 flex-1 overflow-y-auto px-4 pb-28 pt-[max(14px,env(safe-area-inset-top))]">
-      {tab === "today" && <TodayTab data={data} update={update} onTab={setTab} onStartProgram={startProgram} user={first} />}
+      {tab === "today" && <TodayTab data={data} update={update} onTab={setTab} onStartProgram={startProgram} user={first} list={list} />}
       {tab === "train" && <><h1 className="mb-4 px-1 text-[30px] font-bold tracking-tight">Train</h1><TrainTab data={data} update={update} list={list} onStart={setActive} say={say} /></>}
       {tab === "food" && <><h1 className="mb-3 px-1 text-[30px] font-bold tracking-tight">Food</h1><FoodTab token={token} data={data} update={update} say={say} /></>}
       {tab === "progress" && <ProgressTab data={data} update={update} list={list} onSettings={() => setSettings(true)} />}

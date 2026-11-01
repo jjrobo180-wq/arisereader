@@ -14,13 +14,13 @@ import plistlib
 import sys
 
 PLIST, FLAVOR = sys.argv[1], sys.argv[2]
-NAME = {"reader": "A.R.I.S.E. Reader", "educator": "A.R.I.S.E. Reader Educator"}[FLAVOR]
-SHORT = {"reader": "A.R.I.S.E.", "educator": "Educator"}[FLAVOR]
+NAME = {"reader": "A.R.I.S.E. Reader", "educator": "A.R.I.S.E. Reader Educator", "eyegaze": "Arise Eye Gazer"}[FLAVOR]
+SHORT = {"reader": "A.R.I.S.E.", "educator": "Educator", "eyegaze": "Eye Gazer"}[FLAVOR]
 KEYS = {
     "CFBundleDisplayName": SHORT if len(NAME) > 18 else NAME,
     "ITSAppUsesNonExemptEncryption": False,
-    "NSCameraUsageDescription": f"{NAME} uses the camera when a quiz is taken without a proctor, and as a mirror for practising letter sounds in Beginners.",
-    "NSMicrophoneUsageDescription": f"{NAME} uses the microphone when a reader practises reading out loud in Beginners.",
+    "NSCameraUsageDescription": f"{NAME} uses the camera when a quiz is taken without a proctor, and as a mirror for practising letter sounds in Beginners." if FLAVOR != "eyegaze" else f"{NAME} uses the camera for the mirror and picture activities in the learning zone, and for photos in My World.",
+    "NSMicrophoneUsageDescription": f"{NAME} uses the microphone when a reader practises reading out loud in Beginners." if FLAVOR != "eyegaze" else f"{NAME} uses the microphone for the talking and listening activities.",
 }
 with open(PLIST, "rb") as f:
     plist = plistlib.load(f)
@@ -46,7 +46,7 @@ if os.path.exists(DELEGATE):
         open(DELEGATE, "w", encoding="utf-8").write(src)
         print("AppDelegate: audio mixes with other apps")
 
-if FLAVOR == "educator" and os.path.exists(DELEGATE):
+if FLAVOR in ("educator", "eyegaze") and os.path.exists(DELEGATE):
     src = open(DELEGATE, encoding="utf-8").read()
     if "didRegisterForRemoteNotificationsWithDeviceToken" not in src:
         end = src.rfind("}")
