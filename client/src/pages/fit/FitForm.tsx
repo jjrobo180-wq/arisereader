@@ -110,7 +110,7 @@ export function FormCheck({ onClose }: { onClose: () => void }) {
 
   return <Sheet title="AI form check" onClose={onClose} testId="fit-form">
     {!on && <>
-      <div className="mt-1 rounded-[14px] p-4" style={{ background: "linear-gradient(150deg, #2a160c, #141518)" }}>
+      <div className="mt-1 rounded-[14px] p-4" style={{ background: "linear-gradient(150deg, #2a160c, #202329)" }}>
         <ScanEye className="h-8 w-8" style={{ color: C.lime }} />
         <p className="mt-2 text-[26px] leading-none" style={display}>Your AI spotter</p>
         <p className="mt-1 text-[14px] leading-snug" style={{ color: C.steel }}>Prop your phone up, step back, and lift. It counts every rep, grades your depth, lockout and body line, and calls out what to fix.</p>

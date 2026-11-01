@@ -17,7 +17,7 @@ export default function TrainersPage() {
       <h1 className="fit-in mt-1 text-[48px] leading-[.92]" style={display}>Find a real trainer</h1>
       <p className="mt-2 text-[16px]" style={{ color: C.steel }}>Certified coaches, not AI. Each trainer sets their own prices for in-person, live video or online coaching. Reviews come only from people they've actually coached.</p>
       <Directory onOpen={(t) => setOpen(t.id)} />
-      <Card className="mt-8 !p-5" style={{ background: "linear-gradient(150deg, #1e1410, #141518)" }}>
+      <Card className="mt-8 !p-5" style={{ background: "linear-gradient(150deg, #2e1d14, #202329)" }}>
         <div className="flex items-start gap-3"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-[12px]" style={{ background: C.lime, color: "#0b0b0c" }}><UserRound className="h-6 w-6" /></span>
           <div><p className="text-[26px] leading-none" style={display}>Are you a trainer?</p>
             <p className="mt-1 text-[14px]" style={{ color: C.steel }}>List your prices, get reviews and coach clients in Arise Trainer. Their Arise Fit workouts, food and health data come to you automatically. {money(LISTING.cents)} a month after a {LISTING.trialDays}-day free trial.</p>
