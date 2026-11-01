@@ -5,7 +5,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type
 import { BookOpen, CalendarDays, Clock, HeartHandshake, Lightbulb, ListChecks, MessageCircle, PlayCircle, Route, Settings, Star, Sun, Timer, Volume2, VolumeX, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useAppData } from "@/lib/cloudDocs";
-import { LIVE_TAG, clearPottyNotifications, showRunningTimer, syncPottyTimer } from "@/lib/pottyPush";
+import { LIVE_TAG, clearPottyNotifications, showRunningTimer, syncPottySchedule, syncPottyTimer } from "@/lib/pottyPush";
 import { Modal, fmtDuration, uid, useTick } from "../kit";
 import { DEFAULT_DATA, tripInterval, METHOD_LIST, NEEDS, STAGES, ageMonths, ageText, blankChild, buildSchedule, cleanData, clockOf, dayOf, earnsSticker, hm, isAccident, isSuccess, minsOf, sitMinutes, stageById, type Child, type Comms, type Entry, type Kind, type NeedId } from "@shared/pro/potty";
 import { Ctx, type LogPrefill, type PottyCtx, type Tab } from "./ctx";
@@ -86,6 +86,15 @@ export default function PottyApp() {
   }, [data.notify, timerKey]);
   // Looking at the app's own alert: the phone's notifications are not needed too.
   useEffect(() => { if (alertOn) void clearPottyNotifications(); }, [alertOn]);
+  // In the iPhone app, today's sit and prompt times are also scheduled on the phone, so they ring with the app closed.
+  const schedKey = data.notify && data.schedRun ? `${data.schedRun.kid}:${data.schedRun.day}:${JSON.stringify(data.schedules[data.schedRun.kid]?.items ?? null)}` : "";
+  useEffect(() => {
+    const run = data.notify ? data.schedRun : null;
+    const k = run ? data.kids.find((x) => x.id === run.kid) : null;
+    if (!run || !k || run.day !== dayOf(Date.now())) { void syncPottySchedule("", null, ""); return; }
+    const items = (data.schedules[k.id]?.items?.length ? data.schedules[k.id].items : buildSchedule(k)).filter((i) => i.kind === "sit" || i.kind === "prompt");
+    void syncPottySchedule(k.name, items, run.day);
+  }, [schedKey]); // eslint-disable-line react-hooks/exhaustive-deps
   // Today's schedule as reminders: ring at each sit or prompt time.
   const rung = useRef<Set<string>>(new Set());
   useEffect(() => {

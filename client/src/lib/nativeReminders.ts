@@ -67,6 +67,22 @@ export function planReminders(kind: ReminderKind, workspace: unknown, from: numb
   return out;
 }
 
+/** Seconds between reminders that come due at the same moment, so they arrive one by one. */
+export const SAME_TIME_GAP_MS = 20_000;
+/** What iOS is handed. Each reminder gets its own thread, so iOS shows them as separate notifications
+ *  instead of stacking them into one, and reminders due at the same moment are spaced a little apart. */
+export function nativeNotifications(kind: ReminderKind, plan: PlannedReminder[]) {
+  const seen = new Map<number, number>();
+  return plan.map((r) => {
+    const n = seen.get(r.at) ?? 0;
+    seen.set(r.at, n + 1);
+    return {
+      id: reminderId(`${kind}:${r.key}`), title: r.title, body: r.body, threadIdentifier: `${kind}:${r.key}`,
+      schedule: { at: new Date(r.at + n * SAME_TIME_GAP_MS), allowWhileIdle: true }, extra: { url: r.url },
+    };
+  });
+}
+
 /** Asks iOS to allow notifications and turns reminders on, for LifeHub and WorkHub both. */
 export async function turnOnNativeReminders(_kind?: ReminderKind): Promise<void> {
   const res = await call("requestPermissions");
@@ -122,7 +138,7 @@ export async function scheduleNativeReminders(kind: ReminderKind, workspace: unk
   const plan = planReminders(kind, workspace, now + 60_000, zone()).slice(0, MOST_PER_KIND);
   await cancelScheduled(kind);
   if (!plan.length) return 0;
-  const notifications = plan.map((r) => ({ id: reminderId(`${kind}:${r.key}`), title: r.title, body: r.body, schedule: { at: new Date(r.at), allowWhileIdle: true }, extra: { url: r.url } }));
+  const notifications = nativeNotifications(kind, plan);
   await call("schedule", { notifications });
   store.set(idsKey(kind), JSON.stringify(notifications.map((n) => n.id)));
   return notifications.length;

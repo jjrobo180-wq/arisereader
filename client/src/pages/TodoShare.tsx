@@ -78,6 +78,7 @@ export default function TodoShare() {
         {view.kind === "goals" && <GoalsView view={view} />}
         {view.kind === "health" && <HealthView view={view} today={data.today} />}
         {view.kind === "links" && <LinksView view={view} />}
+        {view.kind === "meals" && <MealsView view={view} today={data.today} />}
       </>}
       <p className="mt-6 text-center text-xs text-slate-400">Anyone with this link can see this page. Only share it with people you trust.</p>
     </div>
@@ -95,6 +96,7 @@ export function SharedViewBody({ view, today }: { view: SharedView; today: strin
     {view.kind === "goals" && <GoalsView view={view} />}
     {view.kind === "health" && <HealthView view={view} today={today} />}
     {view.kind === "links" && <LinksView view={view} />}
+    {view.kind === "meals" && <MealsView view={view} today={today} />}
   </>;
 }
 
@@ -228,6 +230,19 @@ function ChoresView({ view, today }: { view: Extract<SharedView, { kind: "chores
       </tr>)}</tbody>
     </table>
   </Card>;
+}
+
+const MEAL_SLOT: Record<string, string> = { breakfast: "🥣 Breakfast", lunch: "🥪 Lunch", dinner: "🍽️ Dinner" };
+/** This week's meal plan, a day at a time; a meal made from a recipe shows what goes in it. */
+function MealsView({ view, today }: { view: Extract<SharedView, { kind: "meals" }>; today: string }) {
+  if (!view.days.some((d) => d.meals.length)) return <Empty>No meals planned this week yet.</Empty>;
+  return <div className="space-y-3">{view.days.map((d) => <Card key={d.date} className={`!p-4 ${d.date === today ? "ring-2 ring-violet-200" : ""}`}>
+    <h2 className="font-black">{day(d.date, { weekday: "long", month: "short", day: "numeric" })}{d.date === today && <span className="ml-2 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-bold text-violet-700">Today</span>}</h2>
+    {d.meals.length ? <ul className="mt-2 space-y-2">{d.meals.map((m, i) => <li key={i} className="text-sm">
+      <span className="font-bold text-slate-500">{MEAL_SLOT[m.slot] || m.slot}</span> <span className="font-semibold">{m.text}</span>
+      {m.ingredients.length > 0 && <details className="mt-1 text-xs text-slate-500"><summary className="cursor-pointer font-semibold">What goes in it</summary><ul className="mt-1 list-disc pl-5">{m.ingredients.map((x, j) => <li key={j}>{x}</li>)}</ul></details>}
+    </li>)}</ul> : <p className="mt-1 text-sm text-slate-400">Nothing planned</p>}
+  </Card>)}</div>;
 }
 
 /** A family's link page: their links as big buttons, like a link tree. */

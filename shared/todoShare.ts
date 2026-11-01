@@ -17,16 +17,17 @@ export type ShareTarget =
   | { kind: "chores" }
   | { kind: "goals" }
   | { kind: "health"; id: string }     // one person's food & fitness
-  | { kind: "links" };                 // the family's link page
+  | { kind: "links" }                  // the family's link page
+  | { kind: "meals" };                 // this week's meal plan
 
 const ID = /^[\w.-]{1,100}$/;
 
-/** Reads "poll:abc", "tasks", "tasks:list1", "calendar", "bills", "trips", "trip:abc", "chores", "goals", "health:member". */
+/** Reads "poll:abc", "tasks", "tasks:list1", "calendar", "bills", "trips", "trip:abc", "chores", "goals", "health:member", "meals". */
 export function parseTarget(value: unknown): ShareTarget | null {
   if (typeof value !== "string" || value.length > 120) return null;
   const [kind, id = "", extra] = value.split(":");
   if (extra !== undefined || (id && !ID.test(id))) return null;
-  if (kind === "calendar" || kind === "bills" || kind === "chores" || kind === "goals" || kind === "links") return id ? null : { kind };
+  if (kind === "calendar" || kind === "bills" || kind === "chores" || kind === "goals" || kind === "links" || kind === "meals") return id ? null : { kind };
   if (kind === "tasks") return { kind, id };
   if (kind === "trips") return id ? null : { kind: "trips", id: "" };
   if (kind === "trip") return id ? { kind: "trips", id } : null;
@@ -50,6 +51,7 @@ export type SharedView =
   | { kind: "trips"; title: string; trips: { name: string; destination: string; start: string; end: string; notes: string; budget: number; stops: { date: string; time: string; title: string; cost: number }[]; packing: { person: string; items: { item: string; packed: boolean }[] }[] }[] }
   | { kind: "chores"; title: string; week: string[]; people: Person[]; chores: { title: string; points: number; days: { date: string; person: string; due: boolean; done: boolean }[] }[] }
   | { kind: "goals"; title: string; goals: { title: string; why: string; category: string; person: string; due: string; progress: number; label: string; done: boolean; steps: { title: string; done: boolean }[] }[] }
+  | { kind: "meals"; title: string; week: string[]; days: { date: string; meals: { slot: string; text: string; recipe: string; ingredients: string[] }[] }[] }
   | { kind: "health"; title: string; person: string; kid: boolean; goals: { calories: number; water: number; steps: number; activeMinutes: number; fruitVeg: number }; days: { date: string; calories: number; exercise: number; minutes: number; water: number; steps: number; fruitVeg: number; meals: { meal: string; name: string; calories: number }[] }[] };
 
 const nameOf = (members: Member[], id: string) => members.find((m) => m.id === id)?.name || "";
@@ -177,6 +179,23 @@ export function sharedView(workspace: unknown, target: ShareTarget, today: strin
     };
   }
 
+  if (target.kind === "meals") {
+    // The planner's week: Monday to Sunday, the one today is in.
+    const start = addDays(today, -((fromDay(today).getDay() + 6) % 7));
+    const week = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+    const slots = ["breakfast", "lunch", "dinner"];
+    return {
+      kind: "meals", title: "This week's meals", week,
+      days: week.map((date) => ({
+        date,
+        meals: family.meals.filter((m) => m.date === date).sort((a, b) => slots.indexOf(a.slot) - slots.indexOf(b.slot)).map((m) => {
+          const recipe = family.recipes.find((x) => x.id === m.recipeId);
+          return { slot: m.slot, text: m.text || recipe?.title || "", recipe: recipe?.title || "", ingredients: recipe ? recipe.ingredients.slice(0, 30) : [] };
+        }).filter((m) => m.text),
+      })),
+    };
+  }
+
   if (target.kind === "health") {
     const who = healthPeople(family, opts.ownerName || "").find((m) => m.id === target.id);
     if (!who) return null;
@@ -211,6 +230,7 @@ export function targetLabel(workspace: unknown, t: ShareTarget, ownerName = ""):
     case "chores": return "Chore chart";
     case "goals": return "Goals";
     case "links": return "Link page";
+    case "meals": return "This week's meals";
     case "health": return `Food & fitness: ${healthPeople(family, ownerName).find((m) => m.id === t.id)?.name || "(removed)"}`;
   }
 }

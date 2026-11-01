@@ -89,3 +89,13 @@ test("it's in the To Duo App Gallery and opens from a notification", () => {
   assert.match(readFileSync(new URL("../client/src/pages/AriseTodo.tsx", import.meta.url), "utf8"), /if \(go === "accountability"\) setFamily/);
   assert.match(readFileSync(new URL("../server/routes.ts", import.meta.url), "utf8"), /"\/api\/accountability\/ai\/worksheet", "\/api\/accountability\/ai\/quiz"/);
 });
+
+test("already done: what was done, today or up to a week back, never ahead", async () => {
+  const { cleanDoneAlready } = await import("../shared/accountability");
+  const now = Date.parse("2026-11-01T18:00:00Z"); // Nov 1, midday in Denver
+  assert.equal(cleanDoneAlready({ title: "  " }, "America/Denver", now), null);
+  assert.deepEqual(cleanDoneAlready({ title: "Did the dishes", note: "Sparkling", day: "2026-10-31" }, "America/Denver", now), { title: "Did the dishes", note: "Sparkling", day: "2026-10-31" });
+  assert.equal(cleanDoneAlready({ title: "Laundry", day: "2026-11-05" }, "America/Denver", now)!.day, "2026-11-01", "not in the future");
+  assert.equal(cleanDoneAlready({ title: "Laundry", day: "2026-09-01" }, "America/Denver", now)!.day, "2026-11-01", "not long ago");
+  assert.equal(cleanDoneAlready({ title: "Laundry" }, "America/Denver", now)!.day, "2026-11-01");
+});

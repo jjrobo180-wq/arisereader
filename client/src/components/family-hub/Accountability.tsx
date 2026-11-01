@@ -68,7 +68,7 @@ export default function Accountability({ say }: SectionProps) {
   const [error, setError] = useState("");
   const [spaceId, setSpaceId] = useState(() => { try { return localStorage.getItem(SPACE_KEY) || ""; } catch { return ""; } });
   const [tab, setTab] = useState<"today" | "tasks" | "activity">("today");
-  const [sheet, setSheet] = useState<null | { kind: "new" } | { kind: "edit"; task: AcctTask } | { kind: "do"; task: AcctTask } | { kind: "task"; task: AcctTask } | { kind: "invite" } | { kind: "start" } | { kind: "join"; code?: string } | { kind: "review"; checkin: Checkin }>(null);
+  const [sheet, setSheet] = useState<null | { kind: "new" } | { kind: "edit"; task: AcctTask } | { kind: "do"; task: AcctTask } | { kind: "task"; task: AcctTask } | { kind: "invite" } | { kind: "start" } | { kind: "join"; code?: string } | { kind: "review"; checkin: Checkin } | { kind: "done" }>(null);
   const [kid, setKid] = useState<AcctTask | null>(null);
 
   const load = useCallback(async () => {
@@ -139,6 +139,7 @@ export default function Accountability({ say }: SectionProps) {
     </div>
 
     <button type="button" onClick={() => setSheet({ kind: "new" })} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-3xl bg-[#0d9488] text-base font-black text-white shadow-[0_12px_30px_#0d948844] transition active:scale-[.98]" data-testid="acct-ask"><Plus size={22} strokeWidth={3} />Ask for something</button>
+    <button type="button" onClick={() => setSheet({ kind: "done" })} className="-mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-3xl border-2 border-teal-600 bg-white text-base font-black text-teal-700 transition active:scale-[.98]" data-testid="acct-did"><Camera size={20} strokeWidth={2.5} />I already did something</button>
 
     {/* everyone's progress */}
     <div className="flex snap-x gap-3 overflow-x-auto pb-1 [scrollbar-width:none]" data-testid="acct-dashboard">
@@ -183,6 +184,8 @@ export default function Accountability({ say }: SectionProps) {
       onDelete={() => { if (window.confirm(`Remove “${sheet.task.title}”?`)) void act(() => api(`/tasks/${sheet.task.id}`, { method: "DELETE" }), "Removed.").then((ok) => ok && setSheet(null)); }} />}
     {sheet?.kind === "review" && <ReviewSheet checkin={sheet.checkin} task={tasks.find((t) => t.id === sheet.checkin.taskId)} who={nameOf(sheet.checkin.by)} api={api} onClose={() => setSheet(null)}
       onReview={async (status, feedback) => { const ok = await act(() => api(`/checkins/${sheet.checkin.id}/review`, { method: "POST", body: { status, feedback } }), status === "approved" ? "Approved ⭐" : "Sent back for a redo."); if (ok) setSheet(null); }} />}
+    {sheet?.kind === "done" && <DoneSheet spaceId={space.id} today={today} api={api} say={say} others={space.members.filter((m) => m.userId !== me).map((m) => m.name || "your partner")} onClose={() => setSheet(null)}
+      onSend={async (body) => { const others = space.members.filter((m) => m.userId !== me); const ok = await act(() => api("/done", { method: "POST", body: { spaceId: space.id, ...body } }), others.length ? `Sent ✓ ${others.length === 1 ? others[0].name || "Your partner" : "Everyone"} will see it.` : "Saved ✓"); if (ok) setSheet(null); }} />}
     {kid?.quiz && <KidQuiz quiz={kid.quiz} onClose={() => setKid(null)} onFinish={async (answers) => { const ok = await act(() => api("/checkins", { method: "POST", body: { taskId: kid.id, day: today, answers, note: "" } }), kid.createdBy === me ? "Quiz saved ✓" : `Quiz sent to ${nameOf(kid.createdBy)} ✓`); if (ok) setKid(null); }} />}
   </div>;
 }
@@ -362,14 +365,10 @@ async function shrinkPhoto(f: File): Promise<Blob> {
   } catch { return f; }
 }
 
-function DoSheet({ task, spaceId, today, api, say, asker, onClose, onKid, onDone }: { task: AcctTask; spaceId: string; today: string; api: ReturnType<typeof useApi>; say: (m: string) => void; asker: string; onClose: () => void; onKid: () => void; onDone: (b: { note: string; proof: Proof[]; answers: Record<string, string> }) => Promise<void> }) {
-  const [note, setNote] = useState(""); const [proof, setProof] = useState<(Proof & { preview: string })[]>([]);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [ws, setWs] = useState<Worksheet | null>(task.worksheet);
-  const [editing, setEditing] = useState(false);
-  const [up, setUp] = useState(""); const [busy, setBusy] = useState(false);
-  const input = useRef<HTMLInputElement>(null);
-  const accept = task.proof === "video" ? "video/*" : task.proof === "photo" ? "image/*" : "image/*,video/*";
+/** Photos and videos of finished work: shrunk, uploaded to the space's private store, and previewed. */
+function useProofUpload(api: ReturnType<typeof useApi>, spaceId: string, say: (m: string) => void) {
+  const [proof, setProof] = useState<(Proof & { preview: string })[]>([]);
+  const [up, setUp] = useState("");
   const add = async (files: FileList | null) => {
     for (const f0 of Array.from(files || []).slice(0, 6 - proof.length)) {
       try {
@@ -385,6 +384,48 @@ function DoSheet({ task, spaceId, today, api, say, asker, onClose, onKid, onDone
     }
     setUp("");
   };
+  return { proof, setProof, up, add };
+}
+
+function ProofPicker({ proof, setProof, up, add, kind }: ReturnType<typeof useProofUpload> & { kind: ProofKind }) {
+  const input = useRef<HTMLInputElement>(null);
+  const accept = kind === "video" ? "video/*" : kind === "photo" ? "image/*" : "image/*,video/*";
+  return <>
+    <div className="grid grid-cols-3 gap-2">
+      {proof.map((p) => <div key={p.path} className="relative aspect-square overflow-hidden rounded-2xl bg-slate-100">{p.type === "video" ? <video src={p.preview} className="h-full w-full object-cover" muted playsInline /> : <img src={p.preview} alt="" className="h-full w-full object-cover" />}<button type="button" onClick={() => setProof((x) => x.filter((y) => y.path !== p.path))} aria-label="Remove" className="absolute right-1 top-1 grid h-7 w-7 place-items-center rounded-full bg-black/60 text-white"><X size={14} /></button></div>)}
+      {proof.length < 6 && <button type="button" onClick={() => input.current?.click()} disabled={!!up} className="flex aspect-square flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-teal-300 bg-teal-50 text-sm font-black text-teal-700" data-testid="acct-add-proof">{up ? <Loader2 className="animate-spin" /> : kind === "video" ? <Video /> : <Camera />}{up ? "…" : "Add"}</button>}
+    </div>
+    {up && <p className="text-xs font-bold text-teal-700">{up}</p>}
+    <input ref={input} type="file" accept={accept} multiple hidden onChange={(e) => { void add(e.target.files); e.target.value = ""; }} />
+  </>;
+}
+
+/** "I already did something": what it was, a photo or video, and a note, sent to the others in the space to approve. */
+function DoneSheet({ spaceId, today, api, say, others, onClose, onSend }: { spaceId: string; today: string; api: ReturnType<typeof useApi>; say: (m: string) => void; others: string[]; onClose: () => void; onSend: (b: { title: string; note: string; proof: Proof[]; day: string }) => Promise<void> }) {
+  const [title, setTitle] = useState(""); const [note, setNote] = useState(""); const [day, setDay] = useState(today);
+  const [busy, setBusy] = useState(false);
+  const files = useProofUpload(api, spaceId, say);
+  const ready = title.trim() && files.proof.length && !files.up;
+  const to = others.length === 1 ? others[0] : others.length ? "everyone" : "";
+  return <Sheet title="I already did something" onClose={onClose} wide><div className="space-y-4" data-testid="acct-done">
+    <p className="text-sm text-slate-500">Nobody had to ask. Add a photo or video and {to ? `${to} can look and approve it` : "it's saved to your activity"}.</p>
+    <Lbl t="What did you do?"><input className={field} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Did the dishes, folded laundry, cleaned the car…" maxLength={120} autoFocus /></Lbl>
+    <Lbl t="Photo or video"><ProofPicker {...files} kind="either" /></Lbl>
+    <Lbl t="When"><Chips value={day} options={[[today, "Today"], [addDays(today, -1), "Yesterday"]]} onChange={setDay} /></Lbl>
+    <textarea className={`${field} min-h-16 py-2`} value={note} onChange={(e) => setNote(e.target.value)} placeholder="A note (optional)" />
+    <button type="button" disabled={busy || !ready} onClick={async () => { setBusy(true); await onSend({ title: title.trim(), note, day, proof: files.proof.map(({ path, type }) => ({ path, type })) }); setBusy(false); }} className={`${tealBtn} w-full py-4 text-base`} data-testid="acct-done-send">
+      {busy ? <Loader2 className="animate-spin" size={18} /> : <Check size={20} strokeWidth={3} />}{!title.trim() ? "Say what you did" : !files.proof.length ? "Add a photo or video first" : to ? `Send to ${to}` : "Save it"}</button>
+  </div></Sheet>;
+}
+
+function DoSheet({ task, spaceId, today, api, say, asker, onClose, onKid, onDone }: { task: AcctTask; spaceId: string; today: string; api: ReturnType<typeof useApi>; say: (m: string) => void; asker: string; onClose: () => void; onKid: () => void; onDone: (b: { note: string; proof: Proof[]; answers: Record<string, string> }) => Promise<void> }) {
+  const [note, setNote] = useState("");
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [ws, setWs] = useState<Worksheet | null>(task.worksheet);
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const files = useProofUpload(api, spaceId, say);
+  const { proof, up } = files;
   const needs = task.kind === "task" && task.proof !== "none" && !proof.length;
   return <Sheet title={task.title} onClose={onClose} wide><div className="space-y-4" data-testid="acct-do">
     <p className="text-sm text-slate-500">{asker === "You" ? "Your own to-do" : `${asker} asked`} · {repeatWords(task.repeat)} · by {timeWords(task.due)}</p>
@@ -396,12 +437,7 @@ function DoSheet({ task, spaceId, today, api, say, asker, onClose, onKid, onDone
     </>}
     {task.kind !== "quiz" && <div className="space-y-2">
       <p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">{task.kind === "worksheet" ? "Photo of the paper (optional)" : task.proof === "none" ? "Photo or video (optional)" : task.proof === "video" ? "Add a video" : task.proof === "photo" ? "Add a photo" : "Add a photo or video"}</p>
-      <div className="grid grid-cols-3 gap-2">
-        {proof.map((p) => <div key={p.path} className="relative aspect-square overflow-hidden rounded-2xl bg-slate-100">{p.type === "video" ? <video src={p.preview} className="h-full w-full object-cover" muted playsInline /> : <img src={p.preview} alt="" className="h-full w-full object-cover" />}<button type="button" onClick={() => setProof((x) => x.filter((y) => y.path !== p.path))} aria-label="Remove" className="absolute right-1 top-1 grid h-7 w-7 place-items-center rounded-full bg-black/60 text-white"><X size={14} /></button></div>)}
-        {proof.length < 6 && <button type="button" onClick={() => input.current?.click()} disabled={!!up} className="flex aspect-square flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-teal-300 bg-teal-50 text-sm font-black text-teal-700" data-testid="acct-add-proof">{up ? <Loader2 className="animate-spin" /> : task.proof === "video" ? <Video /> : <Camera />}{up ? "…" : "Add"}</button>}
-      </div>
-      {up && <p className="text-xs font-bold text-teal-700">{up}</p>}
-      <input ref={input} type="file" accept={accept} multiple hidden onChange={(e) => { void add(e.target.files); e.target.value = ""; }} />
+      <ProofPicker {...files} kind={task.proof} />
     </div>}
     {task.kind !== "quiz" && <textarea className={`${field} min-h-16 py-2`} value={note} onChange={(e) => setNote(e.target.value)} placeholder="A note (optional): how it went" />}
     {task.kind !== "quiz" && <button type="button" disabled={busy || !!up || needs} onClick={async () => { setBusy(true); const extra = task.kind === "worksheet" && ws && JSON.stringify(ws) !== JSON.stringify(task.worksheet) ? { ...answers, edited: "yes" } : answers; await onDone({ note, proof: proof.map(({ path, type }) => ({ path, type })), answers: extra }); setBusy(false); }} className={`${tealBtn} w-full py-4 text-base`} data-testid="acct-submit">{busy ? <Loader2 className="animate-spin" size={18} /> : <Check size={20} strokeWidth={3} />}{needs ? (task.proof === "video" ? "Add a video first" : "Add a photo first") : asker === "You" ? "Check it off" : `Check off and send to ${asker}`}</button>}

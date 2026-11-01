@@ -111,6 +111,17 @@ export function cleanTask(v: any, members: number[]): Omit<AcctTask, "id" | "spa
   };
 }
 
+/** "I already did this" (no one asked yet), cleaned: what was done, a note, and the day it was done.
+ *  The day can be today or up to a week back in the sender's time zone; anything else is today. */
+export function cleanDoneAlready(v: any, tz: string, nowMs: number): { title: string; note: string; day: string } | null {
+  const title = str(v?.title, LIMITS.title);
+  if (!title) return null;
+  const today = localNow(nowMs, tz).day;
+  const asked = typeof v?.day === "string" && DAY.test(v.day) ? v.day : today;
+  const day = asked <= today && asked >= addDays(today, -7) ? asked : today;
+  return { title, note: str(v?.note, LIMITS.note), day };
+}
+
 export function cleanAnswers(v: any): Record<string, string> {
   const out: Record<string, string> = {};
   if (!v || typeof v !== "object") return out;
