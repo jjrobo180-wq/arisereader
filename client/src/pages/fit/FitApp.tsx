@@ -18,7 +18,7 @@ import { HealthSheet, RemindersSheet, StepsCard, useHealth } from "./FitHealth";
 import { saveToHealth } from "./fitNative";
 import { DIET_BY_ID, fastingStatus, pointsBudget, pointsOf } from "@shared/fitNutrition";
 import { videoFor, videoOfTheDay } from "@shared/fitVideos";
-import { Bar, Btn, C, Card, Columns, Field, Ring, Sheet, Spark, Title, fmtDur, fmtNum, font, glowBg, inputCls, inputStyle, display, stagger, useFitFonts } from "./fitUi";
+import { Bar, Btn, C, Card, Columns, Field, Ring, Sheet, Spark, Title, fmtDur, fmtNum, font, glowBg, inputCls, inputStyle, display, stagger, useFitFonts, Layer} from "./fitUi";
 
 type Tab = "today" | "train" | "food" | "fast" | "run";
 
@@ -242,7 +242,7 @@ export default function FitApp() {
     {coach && <CoachScreen token={token} me={Number(user?.id) || 0} data={data} update={update} list={list} onStart={(a) => { setCoach(false); setActive(a); }} onClose={() => setCoach(false)} />}
     {progress && <ProgressSheet data={data} update={update} list={list} onClose={() => setProgress(false)} onSettings={() => setSettings(true)} />}
     {settings && <SettingsSheet data={data} update={update} onClose={() => setSettings(false)} onGoals={() => { setSettings(false); setProgress(false); setSetup(true); }} onAccount={() => setAccount(true)} />}
-    {account && <div className="fixed inset-0 z-[90]"><AccountPrivacy onClose={() => setAccount(false)} /></div>}
+    {account && <Layer><div className="fixed inset-0 z-[90]"><AccountPrivacy onClose={() => setAccount(false)} /></div></Layer>}
     <div role="status" aria-live="polite" className={`pointer-events-none fixed left-1/2 z-[95] -translate-x-1/2 rounded-full px-4 py-2.5 text-[14px] font-semibold shadow-xl transition ${toast ? "opacity-100" : "opacity-0"}`} style={{ top: "max(16px, env(safe-area-inset-top))", background: C.text, color: C.bg }}>{toast}</div>
   </div>;
 }
