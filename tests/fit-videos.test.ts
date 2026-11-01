@@ -35,15 +35,17 @@ test("the form tip changes each day and stays the same all day", () => {
   assert.equal(videoOfTheDay(["wger-1"]), undefined);
 });
 
-test("the player page: YouTube's player on arisetodo.com, only real ids, a way out when it can't play", () => {
+test("the player page: YouTube's player on arisetodo.com, only real ids, and it never leaves the app", () => {
   assert.ok(existsSync("client/public/fit-video.html"));
   const page = readFileSync("client/public/fit-video.html", "utf8");
   assert.match(page, /\/\^\[A-Za-z0-9_-\]\{11\}\$\/\.test\(id\)/, "checks the id before using it");
   assert.match(page, /youtube-nocookie\.com/);
   assert.match(page, /playsinline: 1/, "plays inside the page on iPhone instead of jumping to full screen");
   assert.match(page, /onError: function \(\) \{ showFallback\(\); \}/);
-  assert.match(page, /Watch on YouTube/);
+  assert.doesNotMatch(page, /youtube\.com\/watch|Watch on YouTube|target="_blank"/, "no link out to YouTube");
   const ui = readFileSync("client/src/pages/fit/FitVideo.tsx", "utf8");
   assert.match(ui, /isNativeApp\(\) \? nativeAppInfo\(\)\.api : window\.location\.origin/, "the iPhone app plays through arisetodo.com");
   assert.match(ui, /allow="autoplay; encrypted-media; picture-in-picture; fullscreen"/);
+  assert.match(ui, /sandbox="allow-scripts allow-same-origin allow-presentation"/, "no pop-ups or navigation: the YouTube app never opens");
+  for (const f of ["FitVideo.tsx", "FitTrain.tsx", "FitApp.tsx"]) assert.doesNotMatch(readFileSync(`client/src/pages/fit/${f}`, "utf8"), /window\.open|Open in YouTube|howToVideo/, `${f} sends no one to YouTube`);
 });

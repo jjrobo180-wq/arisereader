@@ -1,9 +1,9 @@
 // Arise Fit training: the exercise library, the live workout (sets, rest timer, records, what to lift
 // next time), programs, routines and history.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronRight, Clock3, Dumbbell, Flame, History, Minus, Play, PlayCircle, Plus, Search, Timer, Trash2, Trophy, Youtube } from "lucide-react";
+import { Check, ChevronRight, Clock3, Dumbbell, Flame, History, Minus, Play, PlayCircle, Plus, Search, Timer, Trash2, Trophy } from "lucide-react";
 import {
-  CATALOG, CATALOG_BY_ID, PROGRAMS, PROGRAM_BY_ID, e1rm, fromKg, howToVideo, lastTime, newRecords, nextProgramDay, nextTime, plates, records, repRange, uid,
+  CATALOG, CATALOG_BY_ID, PROGRAMS, PROGRAM_BY_ID, e1rm, fromKg, lastTime, newRecords, nextProgramDay, nextTime, plates, records, repRange, uid,
   type FitData, type FitExercise, type Program, type Routine, type Units, type Workout,
 } from "@shared/fit";
 import { videoFor } from "@shared/fitVideos";
@@ -51,7 +51,6 @@ export function ExerciseDetail({ ex, data, onClose, onAdd }: { ex: LibraryExerci
       <span className="rounded-full px-3 py-1 capitalize" style={{ background: C.card2 }}>{ex.equipment}</span>
     </div>
     {ex.cues.length > 0 && <><Title>How to do it</Title><Card><ol className="space-y-2.5">{ex.cues.map((c, k) => <li key={k} className="flex gap-3 text-[15px] leading-snug"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[12px] font-bold" style={{ background: C.lime, color: "#10120a" }}>{k + 1}</span>{c}</li>)}</ol></Card></>}
-    {!videoFor(ex.id) && <button type="button" onClick={() => window.open(howToVideo(ex.name), "_blank", "noopener")} className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-[14px] text-[15px] font-semibold" style={{ background: "#2a1214", color: "#ff6b6b" }} data-testid="fit-youtube"><Youtube className="h-5 w-5" />Find a how-to video on YouTube</button>}
     {rec && <><Title>Your records</Title><div className="grid grid-cols-3 gap-2">
       <Card className="!p-3"><p className="text-[11px]" style={{ color: C.dim }}>Est. 1-rep max</p><p className="text-[20px] font-bold">{fmtNum(rec.e1rm)}<span className="text-[12px]" style={{ color: C.dim }}> {u}</span></p></Card>
       <Card className="!p-3"><p className="text-[11px]" style={{ color: C.dim }}>Heaviest</p><p className="text-[20px] font-bold">{fmtNum(rec.weight)}<span className="text-[12px]" style={{ color: C.dim }}> ×{rec.reps}</span></p></Card>

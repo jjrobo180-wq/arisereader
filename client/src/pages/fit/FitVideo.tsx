@@ -1,16 +1,16 @@
 // Arise Fit's how-to videos (shared/fitVideos.ts): a still with a play button that turns into YouTube's
-// player when tapped, and small video stills for lists. The player runs through /fit-video.html on
+// player when tapped, and small video stills for lists. Videos only ever play here, inside the app:
+// the player is sandboxed with no pop-ups and no top-level navigation, so nothing in it (YouTube's logo,
+// its title, the end screen) can leave the app or open the YouTube app. The player runs through /fit-video.html on
 // arisetodo.com, so it also works inside the iPhone app (see that page for why).
 import { useState, type ReactNode } from "react";
-import { ExternalLink, Play } from "lucide-react";
+import { Play } from "lucide-react";
 import { isNativeApp, nativeAppInfo } from "@/lib/nativeApp";
-import { videoFor, videoPlayerUrl, videoThumb, videoWatchUrl } from "@shared/fitVideos";
+import { videoFor, videoPlayerUrl, videoThumb } from "@shared/fitVideos";
 import { C } from "./fitUi";
 
 /** Where the player page lives: this site, or arisetodo.com inside the iPhone app. */
 const playerOrigin = () => (isNativeApp() ? nativeAppInfo().api : window.location.origin);
-
-export const openOnYouTube = (id: string) => { window.open(videoWatchUrl(id), "_blank", "noopener"); };
 
 /** The exercise's how-to video: a still first (nothing loads from YouTube until it's tapped), then the player. */
 export function VideoPlayer({ exId, label = "How-to video", className = "", testId = "fit-video" }: { exId: string; label?: string; className?: string; testId?: string }) {
@@ -21,7 +21,8 @@ export function VideoPlayer({ exId, label = "How-to video", className = "", test
     <div className="relative aspect-video w-full overflow-hidden rounded-[20px] bg-black shadow-[0_20px_40px_-20px_rgba(0,0,0,.8)] ring-1 ring-white/[.06]">
       {playing
         ? <iframe src={videoPlayerUrl(v.id, playerOrigin())} title={v.title} className="absolute inset-0 h-full w-full border-0"
-            allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" data-testid={`${testId}-frame`} />
+            allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen referrerPolicy="strict-origin-when-cross-origin"
+            sandbox="allow-scripts allow-same-origin allow-presentation" data-testid={`${testId}-frame`} />
         : <button type="button" onClick={() => setPlaying(true)} className="group absolute inset-0 text-left" aria-label={`Play: ${v.title}`} data-testid={`${testId}-play`}>
             <img src={videoThumb(v.id, "hq")} alt="" loading="lazy" className="absolute inset-0 h-full w-full scale-[1.34] object-cover transition duration-500 group-active:scale-[1.3]" />
             <span aria-hidden className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(11,11,16,.05) 30%, rgba(11,11,16,.88) 100%)" }} />
@@ -31,10 +32,6 @@ export function VideoPlayer({ exId, label = "How-to video", className = "", test
             </span>
             <span className="absolute inset-x-3 bottom-3 line-clamp-2 text-[15px] font-semibold leading-snug text-white">{v.title}</span>
           </button>}
-    </div>
-    <div className="mt-2 flex items-center justify-between gap-3 px-1 text-[12px]" style={{ color: C.dim }}>
-      <span className="min-w-0 truncate">Video from YouTube</span>
-      <button type="button" onClick={() => openOnYouTube(v.id)} className="flex shrink-0 items-center gap-1 font-semibold" style={{ color: C.text }} data-testid={`${testId}-youtube`}>Open in YouTube<ExternalLink className="h-3.5 w-3.5" /></button>
     </div>
   </div>;
 }
