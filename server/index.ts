@@ -194,6 +194,10 @@ app.use(/^\/api\/(podscroll|earshot)\/studio\/transcribe$/, express.raw({ type: 
 // The sign-in is checked first, so a stranger can't make the server read 26 MB just to turn them away.
 app.use(/^\/api\/notes\/[^/]+\/pieces$/, (req, res, next) => { authMiddleware(req, res, next).catch(next); }, express.raw({ type: "*/*", limit: "26mb" }));
 app.use("/api/notes/memo", (req, res, next) => { authMiddleware(req, res, next).catch(next); }, express.raw({ type: "*/*", limit: "9mb" }));
+// Arise Talk: a backup with photo buttons, a photo to read, and a short recording to hear.
+app.use("/api/talk/backup", express.json({ limit: "8mb" }));
+app.use("/api/talk/ai/photo", express.json({ limit: "4mb" }));
+app.use("/api/talk/listen", express.raw({ type: "audio/*", limit: "4mb" }));
 app.use("/api/app-data", express.json({ limit: "2500kb" }));
 app.use("/api/apps/ai", express.json({ limit: "200kb" }));
 // LifeHub workspaces can exceed the default 100 KB JSON request size.
