@@ -1,7 +1,7 @@
 // Arise Fit training: the exercise library, the live workout (sets, rest timer, records, what to lift
 // next time), programs, routines and history.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronRight, Clock3, Dumbbell, Flame, History, Minus, Play, PlayCircle, Plus, Search, Timer, Trash2, Trophy } from "lucide-react";
+import { Check, ChevronRight, Clock3, Dumbbell, Flame, History, Minus, Pause, Play, PlayCircle, Plus, Search, Timer, Trash2, Trophy } from "lucide-react";
 import {
   CATALOG, CATALOG_BY_ID, PROGRAMS, PROGRAM_BY_ID, e1rm, fromKg, lastTime, newRecords, nextProgramDay, nextTime, plates, records, repRange, uid,
   type FitData, type FitExercise, type Program, type Routine, type Units, type Workout,
@@ -110,7 +110,11 @@ export function Library({ list, data, onClose, onPick, title = "Exercises" }: { 
 
 // ——— The live workout ——————————————————————————————————————————————————————————————————————————
 
-type Active = { id: string; name: string; started: number; programId?: string; dayId?: string; exercises: FitExercise[] };
+/** `pausedMs`: time spent paused so far; `pausedAt`: when the current pause began (unset while going).
+ *  Both are saved with the workout, so a pause survives closing the app. */
+type Active = { id: string; name: string; started: number; programId?: string; dayId?: string; exercises: FitExercise[]; pausedMs?: number; pausedAt?: number | null };
+/** Seconds of actual workout: from the start, leaving out any time paused. */
+export const workoutSecs = (a: Pick<Active, "started" | "pausedMs" | "pausedAt">, now: number) => Math.max(0, ((a.pausedAt ?? now) - a.started - (a.pausedMs ?? 0)) / 1000);
 export const readActive = (): Active | null => { try { return JSON.parse(localStorage.getItem(ACTIVE) || "null"); } catch { return null; } };
 const saveActive = (a: Active | null) => { try { if (a) localStorage.setItem(ACTIVE, JSON.stringify(a)); else localStorage.removeItem(ACTIVE); } catch { /* kept in memory */ } };
 
@@ -138,7 +142,17 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
   const [done, setDone] = useState<null | { w: Workout; prs: ReturnType<typeof newRecords> }>(null);
   useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 500); return () => window.clearInterval(t); }, []);
   const set = (fn: (a: Active) => Active) => { const n = fn(active); saveActive(n); setActive(n); };
-  const left = rest ? Math.max(0, Math.ceil((rest.until - now) / 1000)) : 0;
+  const paused = active.pausedAt != null;
+  // While paused the rest timer stands still: `rest.until` is moved on by the pause when it ends.
+  const left = rest ? Math.max(0, Math.ceil((rest.until - (paused ? active.pausedAt! : now)) / 1000)) : 0;
+  const pause = () => { if (paused) return; set((a) => ({ ...a, pausedAt: Date.now() })); haptic("medium"); say("Workout paused"); };
+  const resume = () => {
+    if (!paused) return;
+    const gap = Date.now() - active.pausedAt!;
+    setRest((r) => r && { ...r, until: r.until + gap });
+    set((a) => ({ ...a, pausedMs: (a.pausedMs ?? 0) + gap, pausedAt: null }));
+    haptic("medium");
+  };
   const buzzed = useRef(false);
   useEffect(() => { if (rest && left === 0 && !buzzed.current) { buzzed.current = true; navigator.vibrate?.([200, 100, 200]); say("Rest's over. Next set!"); } if (left > 0) buzzed.current = false; }, [left, rest, say]);
 
@@ -151,7 +165,7 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
   const finish = () => {
     const exercises = active.exercises.map((e) => ({ ...e, sets: e.sets.filter((s) => s.done) })).filter((e) => e.sets.length);
     if (!exercises.length) { if (window.confirm("No sets are checked off. Discard this workout?")) { saveActive(null); setActive(null); } return; }
-    const w: Workout = { id: active.id, date: new Date(active.started).toISOString(), name: active.name, ...(active.programId ? { programId: active.programId, dayId: active.dayId } : {}), secs: Math.round((Date.now() - active.started) / 1000), exercises };
+    const w: Workout = { id: active.id, date: new Date(active.started).toISOString(), name: active.name, ...(active.programId ? { programId: active.programId, dayId: active.dayId } : {}), secs: Math.round(workoutSecs(active, Date.now())), exercises };
     const prs = newRecords(data.workouts, w);
     saveToHealth("calories", Math.round((w.secs / 60) * 6), new Date(active.started));
     update((d) => ({ ...d, workouts: [...d.workouts, w], ...(d.program && active.programId === d.program.id && active.dayId ? { program: { ...d.program, done: [...d.program.done, `${active.dayId}@${w.date.slice(0, 10)}`] } } : {}) }));
@@ -182,7 +196,8 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
     <div className="shrink-0 px-4 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1"><input value={active.name} onChange={(e) => set((a) => ({ ...a, name: e.target.value.slice(0, 80) }))} aria-label="Workout name" className="w-full bg-transparent text-[30px] leading-none outline-none" style={display} />
-          <p className="mt-1 flex items-center gap-1 text-[13px] tabular-nums" style={{ color: C.dim }}><Clock3 className="h-3.5 w-3.5" />{fmtDur((now - active.started) / 1000)} · {doneSets} of {allSets} sets</p></div>
+          <p className="mt-1 flex items-center gap-1 text-[13px] tabular-nums" style={{ color: C.dim }}><Clock3 className="h-3.5 w-3.5" />{fmtDur(workoutSecs(active, now))}{paused ? " · paused" : ""} · {doneSets} of {allSets} sets</p></div>
+        <button type="button" onClick={paused ? resume : pause} aria-label={paused ? "Resume workout" : "Pause workout"} className="grid h-11 w-11 shrink-0 place-items-center rounded-full" style={{ background: C.card2 }} data-testid="fit-pause">{paused ? <Play className="ml-0.5 h-5 w-5" fill="currentColor" /> : <Pause className="h-5 w-5" fill="currentColor" />}</button>
         <Btn onClick={finish} testId="fit-finish">Finish</Btn>
       </div>
       <div className="mt-2.5 h-1.5 overflow-hidden rounded-full" style={{ background: C.track }}><div className="h-full rounded-full" style={{ width: `${allSets ? (doneSets / allSets) * 100 : 0}%`, background: C.lime, transition: "width .4s ease" }} /></div>
@@ -227,7 +242,15 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
       <Btn kind="soft" onClick={() => setAdding(true)} className="w-full" testId="fit-add-exercise"><Plus className="h-5 w-5" />Add exercise</Btn>
       <button type="button" onClick={() => { if (window.confirm("Discard this workout? Nothing will be saved.")) { saveActive(null); setActive(null); } }} className="h-12 w-full text-[15px] font-semibold" style={{ color: C.red }}>Discard workout</button>
     </div>
-    {rest && left > 0 && <div className="fit-up fixed inset-x-3 z-[75] rounded-[16px] p-3.5" style={{ bottom: "max(16px, env(safe-area-inset-bottom))", background: C.card2, boxShadow: "0 -10px 40px rgba(0,0,0,.6)" }} data-testid="fit-rest">
+    {paused && <div className="fixed inset-0 z-[78] flex flex-col items-center justify-center px-6 text-center" style={{ background: "rgba(11,11,12,.92)", color: C.text, ...font }} role="dialog" aria-modal="true" aria-label="Workout paused" data-testid="fit-paused">
+      <p className="text-[13px] uppercase tracking-[.2em]" style={{ color: C.dim }}>Paused</p>
+      <p className="mt-2 text-[72px] leading-none tabular-nums" style={display}>{fmtDur(workoutSecs(active, now))}</p>
+      <p className="mt-2 text-[14px]" style={{ color: C.steel }}>{doneSets} of {allSets} sets done{rest && left > 0 ? ` · ${fmtDur(left)} rest left` : ""}. The clock is stopped.</p>
+      <button type="button" onClick={resume} aria-label="Resume workout" className="mt-8 grid h-20 w-20 place-items-center rounded-full shadow-[0_10px_30px_rgba(255,90,31,.4)]" style={{ background: C.lime, color: "#0b0b0c" }} data-testid="fit-resume"><Play className="ml-1 h-9 w-9" fill="currentColor" /></button>
+      <p className="mt-3 text-[13px]" style={{ color: C.dim }}>Resume</p>
+      <Btn kind="soft" onClick={finish} className="mt-8">Finish workout</Btn>
+    </div>}
+    {rest && left > 0 && !paused && <div className="fit-up fixed inset-x-3 z-[75] rounded-[16px] p-3.5" style={{ bottom: "max(16px, env(safe-area-inset-bottom))", background: C.card2, boxShadow: "0 -10px 40px rgba(0,0,0,.6)" }} data-testid="fit-rest">
       <div className="flex items-center gap-3"><Timer className="h-6 w-6" style={{ color: C.lime }} />
         <div className="min-w-0 flex-1"><p className="text-[12px] uppercase" style={{ color: C.dim }}>Rest</p><p className="text-[34px] leading-none tabular-nums" style={display}>{fmtDur(left)}</p></div>
         <Btn kind="soft" className="!min-h-10" onClick={() => setRest((r) => r && { ...r, until: r.until - 15000 })}>−15</Btn>
