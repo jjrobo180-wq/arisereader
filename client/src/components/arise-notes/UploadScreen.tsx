@@ -3,10 +3,13 @@
 // opens with its summary when they're all done.
 import { useRef, useState } from "react";
 import { FileUp, RefreshCw, Upload } from "lucide-react";
-import { DIARIZE_PIECE_SECS, NOTES_UPLOAD_MAX_BYTES, fmtClock, type NotesTemplateId } from "@shared/ariseNotes";
-import { notesApi, NotesError, type FullNote } from "./api";
+import { DIARIZE_PIECE_SECS, NOTES_UPLOAD_MAX_BYTES, fmtClock, type NotesTemplateId, type Segment } from "@shared/ariseNotes";
+import { localDay, notesApi, NotesError, type FullNote, type PieceReply } from "./api";
 import { planUpload, type UploadPlan } from "./audioSplit";
-import { createSender, type OutPiece, type Sender } from "./sender";
+import { createPhoneSender, createSender, type OutPiece, type Sender } from "./sender";
+import { allowOnDeviceSpeech, hintsFor, summarizeOnDevice, type PrivacyLevel } from "@/lib/onDevice";
+import { PrivacyPicker, defaultPrivacy, rememberPrivacy, strictSummaryWorks, useOnDevice } from "./privacyMode";
+import { newLocalId, saveLocalNote, type LocalNote } from "./localNotes";
 import { SpeakersToggle, TemplatePicker } from "./pickers";
 import { Btn, Notice, Section, useToast, minutesText } from "./ui";
 import { TopBar, type AppCtx } from "./NotesApp";
@@ -33,20 +36,29 @@ export default function UploadScreen({ ctx }: { ctx: AppCtx }) {
   const input = useRef<HTMLInputElement>(null);
   const sender = useRef<Sender | null>(null);
   const note = useRef<FullNote | null>(null);
-  const diarize = speakers && me.features.speakers && me.services.speakers;
+  // Private and Strict modes (Notes iPhone app): written down on the phone (privacyMode.tsx).
+  const device = useOnDevice();
+  const [privacy, setPrivacyState] = useState<PrivacyLevel>(defaultPrivacy);
+  const local = useRef<LocalNote | null>(null);
+  const heard = useRef<Segment[]>([]);
+  const maxSecs = privacy === "strict" ? 2 * 3600 : me.usage.maxSecs;
+  const diarize = privacy === "standard" && speakers && me.features.speakers && me.services.speakers;
 
-  const choose = async (f: File | null | undefined, sp = speakers) => {
+  const choose = async (f: File | null | undefined, sp = speakers, mode: PrivacyLevel = privacy) => {
     if (!f) return;
-    const split = sp && me.features.speakers && me.services.speakers;
+    // The iPhone writes down 5-minute pieces at a time; the speech services take longer ones.
+    const split = mode === "standard" && sp && me.features.speakers && me.services.speakers;
+    const pieceSecs = mode === "standard" ? (split ? DIARIZE_PIECE_SECS : 600) : 300;
+    const max = mode === "strict" ? 2 * 3600 : me.usage.maxSecs;
     setProblem(null); setPlan(null); setFile(f);
     setTitle((t) => t || f.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").slice(0, 140));
     if (f.size > NOTES_UPLOAD_MAX_BYTES) { setProblem({ text: `That file is ${mb(f.size)}. Files can be up to 500 MB. Save just the audio, or a shorter part, and try again.` }); return; }
     setReading(true);
     try {
-      const p = await planUpload(f, { pieceSecs: split ? DIARIZE_PIECE_SECS : 600, maxBytes: me.limits.pieceBytes, name: f.name });
+      const p = await planUpload(f, { pieceSecs, maxBytes: me.limits.pieceBytes, name: f.name });
       setPlan(p);
-      if (p.total > me.usage.maxSecs + 30) setProblem({ text: `This recording is ${minutesText(p.total)} long. On ${me.planName}, one recording can be up to ${minutesText(me.usage.maxSecs)}.`, upgrade: me.plan === "free" });
-      else if (p.total && Math.ceil(p.total / 60) > me.usage.left && me.usage.left > 0) setProblem({ text: `This recording is about ${Math.ceil(p.total / 60)} minutes and you have ${me.usage.left} left this month. The rest will be saved and written down when minutes come back (or when you upgrade).` });
+      if (p.total > max + 30) setProblem({ text: `This recording is ${minutesText(p.total)} long. ${mode === "strict" ? "Strict recordings" : `On ${me.planName}, one recording`} can be up to ${minutesText(max)}.`, upgrade: mode !== "strict" && me.plan === "free" });
+      else if (mode !== "strict" && p.total && Math.ceil(p.total / 60) > me.usage.left && me.usage.left > 0) setProblem({ text: `This recording is about ${Math.ceil(p.total / 60)} minutes and you have ${me.usage.left} left this month. The rest will be saved and written down when minutes come back (or when you upgrade).` });
     } catch (e: any) { setProblem({ text: e.message || "That file couldn't be read." }); }
     finally { setReading(false); }
   };
@@ -54,26 +66,35 @@ export default function UploadScreen({ ctx }: { ctx: AppCtx }) {
   const start = async (saveOnly = false) => {
     if (!file || !plan) return;
     setProblem(null);
-    let created;
-    try {
-      created = await notesApi.create({ source: "upload", title: title.trim() || undefined, defaultTitle: file.name.replace(/\.[^.]+$/, "").slice(0, 140) || "Uploaded recording", template, expectedSecs: plan.total, speakers: diarize, saveOnly: saveOnly || me.usage.left <= 0 });
-    } catch (e: any) {
-      setProblem({ text: e.message, canSave: e instanceof NotesError && !!e.body?.canSave, upgrade: e instanceof NotesError && (e.code === "too_long" || e.code === "minutes") });
-      return;
+    const defaultTitle = file.name.replace(/\.[^.]+$/, "").slice(0, 140) || "Uploaded recording";
+    if (privacy !== "standard") {
+      try { await allowOnDeviceSpeech(); } catch (e: any) { setProblem({ text: e.message }); return; }
+      rememberPrivacy(privacy);
     }
-    note.current = created.note;
+    let lines = 0;
+    const onReply = (_p: OutPiece, r: PieceReply) => {
+      if (r.ok) { lines += r.segments?.length ?? 0; heard.current = [...heard.current, ...(r.segments ?? [])].sort((a, b) => a.idx - b.idx); setProgress((x) => ({ ...x, lines })); }
+      else if (r.code === "minutes" || r.code === "cap") setNoMinutes(r.message || "Out of minutes.");
+    };
+    const onProgress = (done: number, total: number) => setProgress((x) => ({ ...x, done, total: Math.max(total, plan.count) }));
+    let s: Sender;
+    if (privacy === "strict") {
+      // Strict: nothing goes to the server. The note is made and kept on this iPhone.
+      local.current = { id: newLocalId(), title: title.trim() || defaultTitle, template, source: "upload", createdAt: new Date().toISOString(), durationSecs: plan.total, segments: [], highlights: [], summary: null, summaryProblem: "" };
+      s = createPhoneSender({ hints: hintsFor(template), onReply, onFatal: (m) => setProblem({ text: m }), onProgress });
+    } else {
+      let created;
+      try {
+        created = await notesApi.create({ source: "upload", title: title.trim() || undefined, defaultTitle, template, expectedSecs: plan.total, speakers: diarize, saveOnly: privacy === "standard" && (saveOnly || me.usage.left <= 0), privacy: privacy === "private" ? "private" : undefined });
+      } catch (e: any) {
+        setProblem({ text: e.message, canSave: privacy === "standard" && e instanceof NotesError && !!e.body?.canSave, upgrade: e instanceof NotesError && (e.code === "too_long" || e.code === "minutes") });
+        return;
+      }
+      note.current = created.note;
+      s = createSender(created.note.id, { concurrency: privacy === "private" ? 1 : 3, onReply, onFatal: (m) => setProblem({ text: m }), onProgress, onPhone: privacy === "private" ? { hints: hintsFor(template) } : undefined });
+    }
     setPhase("sending");
     setStep("Reading the file…");
-    let lines = 0;
-    const s = createSender(created.note.id, {
-      concurrency: 3,
-      onReply: (_p, r) => {
-        if (r.ok) { lines += r.segments?.length ?? 0; setProgress((x) => ({ ...x, lines })); }
-        else if (r.code === "minutes" || r.code === "cap") setNoMinutes(r.message || "Out of minutes.");
-      },
-      onFatal: (m) => setProblem({ text: m }),
-      onProgress: (done, total) => setProgress((x) => ({ ...x, done, total: Math.max(total, plan.count) })),
-    });
     sender.current = s;
     ctx.setGuard(() => window.confirm("The recording is still being sent. Leave anyway? Parts not sent yet will be missing."));
     let idx = 0;
@@ -81,7 +102,7 @@ export default function UploadScreen({ ctx }: { ctx: AppCtx }) {
       for await (const p of plan.pieces()) {
         // Keep only a few pieces in memory at once.
         while (s.pending() >= 4) await new Promise((r) => setTimeout(r, 300));
-        setStep(`Writing down part ${Math.min(idx + 1, plan.count)} of ${plan.count}…`);
+        setStep(`Writing down part ${Math.min(idx + 1, plan.count)} of ${plan.count}${privacy === "standard" ? "" : " on this iPhone"}…`);
         s.add({ idx: idx++, blob: p.blob, ext: p.ext, start: p.start, secs: p.secs });
       }
     } catch (e: any) { setProblem({ text: e.message || "Part of the file couldn't be read." }); }
@@ -91,6 +112,22 @@ export default function UploadScreen({ ctx }: { ctx: AppCtx }) {
   };
 
   const wrapUp = async () => {
+    if (local.current && plan) {
+      // Strict: saved on this iPhone, then summarized by the iPhone's own AI when it can.
+      setPhase("finishing");
+      let ln: LocalNote = { ...local.current, segments: heard.current };
+      await saveLocalNote(ln);
+      if (ln.segments.length && strictSummaryWorks(device.st)) {
+        setStep("Writing your summary on this iPhone…");
+        try { ln = { ...ln, summary: await summarizeOnDevice({ segments: ln.segments, template: ln.template, highlights: [], today: localDay(), onStep: setStep }) }; }
+        catch (e: any) { ln = { ...ln, summaryProblem: String(e?.message || "") }; }
+        await saveLocalNote(ln);
+      }
+      ctx.setGuard(null);
+      ctx.refreshNotes();
+      ctx.go({ name: "local", id: ln.id });
+      return;
+    }
     const n = note.current;
     if (!n || !plan) return;
     setPhase("finishing");
@@ -128,7 +165,7 @@ export default function UploadScreen({ ctx }: { ctx: AppCtx }) {
           <p className="mt-1 text-[14px] text-[var(--an-muted)]">{step}</p>
           <div className="mx-auto mt-5 h-3 max-w-md overflow-hidden rounded-full bg-[var(--an-violet-soft)]" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}><div className="h-full rounded-full bg-[var(--an-violet)] transition-all" style={{ width: `${phase === "finishing" ? 100 : pct}%` }} /></div>
           <p className="mt-2 text-[13px] text-[var(--an-faint)]">{progress.done} of {progress.total || plan?.count} parts · {progress.lines} lines so far</p>
-          <p className="mx-auto mt-4 max-w-sm text-[13px] leading-relaxed text-[var(--an-muted)]">Keep this page open until it's done. It takes about a minute for every half hour of audio.</p>
+          <p className="mx-auto mt-4 max-w-sm text-[13px] leading-relaxed text-[var(--an-muted)]">Keep this page open until it's done. {privacy === "standard" ? "It takes about a minute for every half hour of audio." : "On this iPhone it takes a few minutes for every half hour of audio, and keeping Arise Notes open lets it finish."}</p>
         </section>
         {noMinutes && <Notice tone="warn">{noMinutes} The rest of the recording is saved and will be written down when minutes come back.</Notice>}
         {problem && <Notice tone="bad">{problem.text}</Notice>}
@@ -154,9 +191,10 @@ export default function UploadScreen({ ctx }: { ctx: AppCtx }) {
       {file && <>
         <Section><label className="block"><span className="mb-1.5 block text-[14px] font-bold">Name</span><input className="an-input" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={140} data-testid="notes-title" /></label></Section>
         <Section><TemplatePicker me={me} value={template} onChange={setTemplate} onLocked={() => ctx.go({ name: "settings", tab: "plan" })} /></Section>
-        {(me.features.speakers ? me.services.speakers : true) && <Section><SpeakersToggle me={me} on={speakers} onChange={(v) => { setSpeakers(v); if (file) void choose(file, v); }} onLocked={() => ctx.go({ name: "settings", tab: "plan" })} /></Section>}
-        <Btn kind="primary" className="w-full !min-h-14 text-[17px]" disabled={!plan || reading || (!!plan && plan.total > me.usage.maxSecs + 30)} busy={reading} onClick={() => void start()} data-testid="notes-upload-start"><Upload className="h-5 w-5" />Write it down</Btn>
-        <p className="text-center text-[13px] text-[var(--an-muted)]">Uses about {plan?.total ? Math.max(1, Math.ceil(plan.total / 60)) : "…"} of your {me.usage.left.toLocaleString("en-US")} minutes left. {me.settings.audio === "delete" ? "The audio is deleted once it's written down." : me.settings.audio === "30d" ? "The audio is kept for 30 days." : "The audio is kept with the note."}</p>
+        {device.available && <Section><PrivacyPicker value={privacy} onChange={(v) => { setPrivacyState(v); void choose(file, speakers, v); }} st={device.st} /></Section>}
+        {privacy === "standard" && (me.features.speakers ? me.services.speakers : true) && <Section><SpeakersToggle me={me} on={speakers} onChange={(v) => { setSpeakers(v); if (file) void choose(file, v); }} onLocked={() => ctx.go({ name: "settings", tab: "plan" })} /></Section>}
+        <Btn kind="primary" className="w-full !min-h-14 text-[17px]" disabled={!plan || reading || (!!plan && plan.total > maxSecs + 30)} busy={reading} onClick={() => void start()} data-testid="notes-upload-start"><Upload className="h-5 w-5" />Write it down</Btn>
+        <p className="text-center text-[13px] text-[var(--an-muted)]">{privacy === "strict" ? "Stays on this iPhone and doesn't use minutes." : <>Uses about {plan?.total ? Math.max(1, Math.ceil(plan.total / 60)) : "…"} of your {me.usage.left.toLocaleString("en-US")} minutes left. {privacy === "private" ? "The audio stays on this iPhone; only the text is sent." : me.settings.audio === "delete" ? "The audio is deleted once it's written down." : me.settings.audio === "30d" ? "The audio is kept for 30 days." : "The audio is kept with the note."}</>}</p>
       </>}
     </main>
   </>;

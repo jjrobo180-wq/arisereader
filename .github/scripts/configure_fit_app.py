@@ -11,7 +11,8 @@ Usage: configure_fit_app.py <path to Info.plist> [fit|trainer|notes]   (after `n
     Every permission needs a sentence saying why, or iOS stops the app when it's asked for.
   - Arise Notes. Microphone: recording meetings and voice memos. Camera and Photos: a video to
     upload (only its sound is used). Reminders and Calendars: adding the to-dos and events a person
-    picks. A light look, like the Notes app.
+    picks. Speech Recognition: Private and Strict modes write recordings down on the iPhone. A light
+    look, like the Notes app.
   - All: messages from a trainer or client arrive as notifications, so the app hands iOS's device
     token to the push plugin (@capacitor/push-notifications).
 """
@@ -50,6 +51,7 @@ KEYS = {
         "NSMicrophoneUsageDescription": "Arise Notes uses the microphone to record your meetings, classes and voice memos so it can write them down and summarize them.",
         "NSCameraUsageDescription": "Arise Notes uses the camera only when you choose to record a video to upload. Only its sound is written down.",
         "NSPhotoLibraryUsageDescription": "Arise Notes lets you choose a recording or video from your library to upload. Only its sound is written down.",
+        "NSSpeechRecognitionUsageDescription": "In Private and Strict modes, Arise Notes writes down your recordings on this iPhone, so the audio never leaves it.",
         "NSRemindersFullAccessUsageDescription": "Arise Notes adds the to-dos you choose from your meetings to the Reminders app.",
         "NSRemindersUsageDescription": "Arise Notes adds the to-dos you choose from your meetings to the Reminders app.",
         "NSCalendarsWriteOnlyAccessUsageDescription": "Arise Notes adds the events you choose from your meetings to your iPhone's calendar.",
