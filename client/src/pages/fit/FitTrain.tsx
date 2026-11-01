@@ -15,7 +15,7 @@ import { FormCheck } from "./FitForm";
 import { saveToHealth } from "./fitNative";
 import type { LibraryExercise, Update } from "./fitStore";
 import { CoverCard, VideoPlayer, VideoThumb } from "./FitVideo";
-import { Btn, C, Card, Chips, Sheet, Spark, Title, fmtDur, fmtNum, glowBg, inputCls, inputStyle, display, stagger } from "./fitUi";
+import { Btn, C, Card, Chips, Sheet, Spark, Title, fmtDur, fmtNum, glowBg, inputCls, inputStyle, display, stagger, Layer, font} from "./fitUi";
 
 export const libraryFallback = (): LibraryExercise[] => CATALOG.map((e) => ({ ...e, images: [], source: "arise" as const }));
 const MUSCLES = ["all", "chest", "back", "shoulders", "biceps", "triceps", "abs", "quads", "hamstrings", "glutes", "calves", "full body", "cardio"] as const;
@@ -158,7 +158,7 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
   if (done) {
     const vol = done.w.exercises.reduce((t, e) => t + e.sets.reduce((x, s) => x + s.reps * s.weight, 0), 0);
     const top = done.prs[0];
-    return <div className="fixed inset-0 z-[80] flex flex-col overflow-y-auto px-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]" style={{ background: glowBg, color: C.text }} role="dialog" aria-modal="true" aria-label="Workout complete" data-testid="fit-summary">
+    return <Layer><div className="fixed inset-0 z-[80] flex flex-col overflow-y-auto px-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} role="dialog" aria-modal="true" aria-label="Workout complete" data-testid="fit-summary">
       <div className="flex min-h-[62vh] flex-col items-center justify-center text-center">
         <div className="fit-pop grid h-[104px] w-[104px] place-items-center rounded-full" style={{ background: C.lime, boxShadow: "0 0 60px rgba(255,90,31,.5)" }}><Trophy className="h-[52px] w-[52px]" style={{ color: "#0b0b0c" }} /></div>
         <h2 className="fit-in mt-6 text-[56px] leading-none" style={{ ...display, animationDelay: ".2s" }}>Done.</h2>
@@ -172,11 +172,11 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
       {done.prs.length > 0 && <><Title>New records</Title><div className="space-y-2">{done.prs.map((p, k) => <Card key={p.exId + p.kind} className="flex items-center gap-3 !p-3" style={stagger(k, 0.08, 0.6)}><Trophy className="h-6 w-6" style={{ color: C.orange }} />
         <div><p className="font-semibold">{p.name}</p><p className="text-[13px]" style={{ color: C.dim }}>{p.kind === "e1rm" ? `Est. 1-rep max ${fmtNum(p.value)} ${u}` : p.kind === "weight" ? `Heaviest ${fmtNum(p.value)} ${u}` : `Most volume ${fmtNum(p.value)} ${u}`}</p></div></Card>)}</div></>}
       <Btn onClick={() => setActive(null)} className="mt-8 w-full !min-h-[52px] !text-[19px]" testId="fit-summary-done">Back to today</Btn>
-    </div>;
+    </div></Layer>;
   }
   const allSets = active.exercises.reduce((t, e) => t + e.sets.length, 0);
   const doneSets = active.exercises.reduce((t, e) => t + e.sets.filter((s) => s.done).length, 0);
-  return <div className="fit-sheet fixed inset-0 z-[70] flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text }} data-testid="fit-live">
+  return <Layer><div className="fit-sheet fixed inset-0 z-[70] flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} data-testid="fit-live">
     <div className="shrink-0 px-4 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1"><input value={active.name} onChange={(e) => set((a) => ({ ...a, name: e.target.value.slice(0, 80) }))} aria-label="Workout name" className="w-full bg-transparent text-[30px] leading-none outline-none" style={display} />
@@ -236,7 +236,7 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
     {adding && <Library list={list} data={data} title="Add exercise" onClose={() => setAdding(false)} onPick={(ex) => { set((a) => ({ ...a, exercises: [...a.exercises, ...planned(data, [{ exId: ex.id, name: ex.name, sets: 3, reps: ex.equipment === "bodyweight" ? "10-15" : "8-12", rest: 90 }], list)] })); setAdding(false); }} />}
     {detail && <ExerciseDetail ex={detail} data={data} onClose={() => setDetail(null)} />}
     {plateFor !== null && <PlateSheet units={u} start={plateFor} onClose={() => setPlateFor(null)} />}
-  </div>;
+  </div></Layer>;
 }
 
 function PlateSheet({ units, start, onClose }: { units: Units; start: number; onClose: () => void }) {

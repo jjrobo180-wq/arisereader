@@ -68,3 +68,14 @@ test("server: trails come from Overpass by the server, cached, with places from 
   assert.equal((await call("/api/fit/trails", { lat: "x", lng: "1", km: "5" })).status, 400);
   assert.equal((await call("/api/fit/places", { q: "Denver" })).out.place.label, "Denver, Colorado");
 });
+
+test("full-screen views open on top of the whole app, never inside the scrolling page", () => {
+  const ui = read("fitUi.tsx");
+  assert.match(ui, /createPortal\(children, document\.body\)/);
+  assert.match(ui, /return <Layer><div className="fit-sheet fixed inset-0/);
+  // Entrance animations must not keep a transform once they finish (that traps "fixed" screens).
+  for (const k of ["fitIn", "fitSlide", "fitSheet", "fitPop", "fitUp"]) assert.match(ui, new RegExp(`animation:${k} [^}]*backwards`), k);
+  assert.doesNotMatch(ui, /animation:fit(In|Slide|Sheet|Pop|Up) [^}]* both/);
+  assert.match(read("FitTrain.tsx"), /return <Layer><div className="fit-sheet fixed inset-0 z-\[70\]/);
+  assert.match(read("FitRun.tsx"), /return <Layer><div className="fit-sheet fixed inset-0 z-\[85\]/);
+});

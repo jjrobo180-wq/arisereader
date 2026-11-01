@@ -3,6 +3,7 @@
 // Fonts with system fallbacks), and motion on everything: screens slide in, rings and bars fill, the
 // streak pulses, the hero card shines. Small shared pieces used by every screen.
 import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 // "lime" is the accent's old name (it was lime green); every screen uses it, so it keeps the name.
@@ -15,17 +16,17 @@ export const display: React.CSSProperties = { fontFamily: "'Barlow Condensed', '
 
 /** The app's motion: entrances, fills, the shine, the scan line. Turned off for Reduce Motion. */
 export const FIT_CSS = `
-.fit-in{animation:fitIn .45s cubic-bezier(.2,.9,.2,1) both}
+.fit-in{animation:fitIn .45s cubic-bezier(.2,.9,.2,1) backwards}
 @keyframes fitIn{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
-.fit-slide{animation:fitSlide .4s cubic-bezier(.2,.9,.2,1) both}
+.fit-slide{animation:fitSlide .4s cubic-bezier(.2,.9,.2,1) backwards}
 @keyframes fitSlide{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:none}}
-.fit-sheet{animation:fitSheet .38s cubic-bezier(.2,.9,.2,1) both}
+.fit-sheet{animation:fitSheet .38s cubic-bezier(.2,.9,.2,1) backwards}
 @keyframes fitSheet{from{opacity:.4;transform:translateX(100%)}to{opacity:1;transform:none}}
-.fit-pop{animation:fitPop .6s cubic-bezier(.2,1.6,.4,1) both}
+.fit-pop{animation:fitPop .6s cubic-bezier(.2,1.6,.4,1) backwards}
 @keyframes fitPop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:scale(1)}}
-.fit-tick{animation:fitTick .35s cubic-bezier(.2,1.6,.4,1) both}
+.fit-tick{animation:fitTick .35s cubic-bezier(.2,1.6,.4,1) backwards}
 @keyframes fitTick{from{transform:scale(.6)}to{transform:scale(1)}}
-.fit-bar{animation:fitBar 1.1s cubic-bezier(.2,.9,.2,1) both;transform-origin:left}
+.fit-bar{animation:fitBar 1.1s cubic-bezier(.2,.9,.2,1) backwards;transform-origin:left}
 @keyframes fitBar{from{transform:scaleX(0)}}
 .fit-shine{position:relative;overflow:hidden}
 .fit-shine::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.14) 50%,transparent 65%);animation:fitShine 2.8s ease-in-out infinite}
@@ -34,7 +35,7 @@ export const FIT_CSS = `
 @keyframes fitPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 .fit-scan{animation:fitScan 1.1s ease-in-out infinite alternate}
 @keyframes fitScan{from{top:8%}to{top:88%}}
-.fit-up{animation:fitUp .35s cubic-bezier(.2,.9,.2,1) both}
+.fit-up{animation:fitUp .35s cubic-bezier(.2,.9,.2,1) backwards}
 @keyframes fitUp{from{transform:translateY(110%)}to{transform:none}}
 .fit-route{stroke-dasharray:4000;stroke-dashoffset:4000;animation:fitRoute 1.8s ease-out .2s forwards}
 @keyframes fitRoute{to{stroke-dashoffset:0}}
@@ -124,6 +125,15 @@ export function Columns({ items, color = C.lime }: { items: { label: string; val
 }
 
 /** A sheet that slides up over the screen (full height on phones). */
+/** Full-screen layers (sheets, the live workout, the run tracker) go straight onto the page body.
+ *  Rendered inside the scrolling page, a moving parent (any animation with a transform) traps a
+ *  "fixed" screen inside it: it opened partway down the list, with the screen behind showing at its
+ *  sides. On the body nothing can. */
+export function Layer({ children }: { children: ReactNode }) {
+  if (typeof document === "undefined" || !document.body) return <>{children}</>;
+  return createPortal(children, document.body);
+}
+
 /** A screen that slides in from the right over the app (full height on phones). With `inline`, the
  *  same content is drawn as a tab instead: a big heading, no close button. */
 export function Sheet({ title, onClose, children, testId, right, inline }: { title: string; onClose: () => void; children: ReactNode; testId?: string; right?: ReactNode; inline?: boolean }) {
@@ -132,14 +142,14 @@ export function Sheet({ title, onClose, children, testId, right, inline }: { tit
     <div className="mb-3 flex items-end justify-between px-1"><h1 className="text-[46px] leading-[.95]" style={display}>{title}</h1>{right}</div>
     {children}
   </div>;
-  return <div className="fit-sheet fixed inset-0 z-[80] flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} role="dialog" aria-modal="true" aria-label={title} data-testid={testId}>
+  return <Layer><div className="fit-sheet fixed inset-0 z-[80] flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} role="dialog" aria-modal="true" aria-label={title} data-testid={testId}>
     <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
       <button type="button" onClick={onClose} aria-label="Close" className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card }}><X className="h-5 w-5" /></button>
       <h1 className="min-w-0 flex-1 truncate text-center text-[22px]" style={display}>{title}</h1>
       <div className="flex min-w-11 justify-end">{right}</div>
     </div>
     <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[max(24px,env(safe-area-inset-bottom))]">{children}</div>
-  </div>;
+  </div></Layer>;
 }
 
 export function Chips<T extends string>({ items, value, onChange, label }: { items: { id: T; label: string }[]; value: T; onChange: (v: T) => void; label: string }) {
