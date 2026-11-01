@@ -4,6 +4,7 @@
 // time you have, picks exercises you know when it can, and sets sets, reps and rest for your goal.
 // Pure functions: the app, the server and the tests share them.
 import { CATALOG, CATALOG_BY_ID, type CatalogExercise, type Equipment, type FitData, type Goal, type Workout } from "./fit";
+import { canDo } from "./fitGym";
 
 export type BodyPart = "chest" | "back" | "shoulders" | "biceps" | "triceps" | "forearms" | "abs" | "quads" | "hamstrings" | "glutes" | "calves";
 export const BODY_PARTS: BodyPart[] = ["chest", "shoulders", "back", "biceps", "triceps", "forearms", "abs", "quads", "hamstrings", "glutes", "calves"];
@@ -51,8 +52,9 @@ export const recoveryLevel = (pct: number): "fresh" | "recovering" | "sore" => (
 
 // ——— Smart workouts ——————————————————————————————————————————————————————————————————————————————
 
-export type Equip = "gym" | "dumbbells" | "bodyweight";
-export const EQUIP_LABEL: Record<Equip, string> = { gym: "Full gym", dumbbells: "Dumbbells", bodyweight: "No equipment" };
+/** "mygym": only what the person's own gym has (shared/fitGym.ts), passed as `gear`. */
+export type Equip = "gym" | "dumbbells" | "bodyweight" | "mygym";
+export const EQUIP_LABEL: Record<Equip, string> = { gym: "Full gym", dumbbells: "Dumbbells", bodyweight: "No equipment", mygym: "My gym" };
 export type Focus = "push" | "pull" | "legs" | "upper" | "full";
 export const FOCUS_LABEL: Record<Focus, string> = { push: "Push", pull: "Pull", legs: "Legs", upper: "Upper body", full: "Full body" };
 const GROUP_NAME: Record<Focus, string> = { push: "push muscles", pull: "pull muscles", legs: "legs", upper: "upper-body muscles", full: "muscles" };
@@ -67,6 +69,7 @@ const ALLOWED: Record<Equip, Set<Equipment>> = {
   gym: new Set<Equipment>(["barbell", "dumbbell", "machine", "cable", "bodyweight", "kettlebell", "band", "bench", "pull-up bar", "other"]),
   dumbbells: new Set<Equipment>(["dumbbell", "bodyweight", "bench", "kettlebell", "band"]),
   bodyweight: new Set<Equipment>(["bodyweight"]),
+  mygym: new Set<Equipment>(),
 };
 /** Stretches, holds and cardio aren't strength picks. */
 const SKIP = new Set(["cat-cow", "childs-pose", "hamstring-stretch", "hip-flexor-stretch", "worlds-greatest", "wall-sit", "farmer-carry", "box-jump", "burpee"]);
@@ -76,11 +79,11 @@ const BODYWEIGHT_OK = new Set(["lunge", "bulgarian-split-squat", "step-up", "jum
 const STAPLE = new Set(["bench-press", "db-bench", "incline-bench", "db-incline", "push-up", "dip", "ohp", "db-shoulder-press", "lateral-raise", "face-pull", "pull-up", "chin-up", "lat-pulldown", "barbell-row", "db-row", "seated-cable-row", "inverted-row",
   "back-squat", "front-squat", "goblet-squat", "leg-press", "bulgarian-split-squat", "lunge", "bodyweight-squat", "rdl", "db-rdl", "leg-curl", "hip-thrust", "glute-bridge", "calf-raise", "single-calf",
   "barbell-curl", "db-curl", "hammer-curl", "triceps-pushdown", "overhead-triceps", "skull-crusher", "plank", "hanging-leg-raise", "dead-bug", "cable-crunch", "deadlift"]);
-const allowed = (equip: Equip, e: CatalogExercise) => ALLOWED[equip].has(e.equipment) || (equip === "bodyweight" && BODYWEIGHT_OK.has(e.id));
+const allowed = (equip: Equip, e: CatalogExercise, gear?: string[]) => equip === "mygym" ? canDo(e.id, gear ?? []) : ALLOWED[equip].has(e.equipment) || (equip === "bodyweight" && BODYWEIGHT_OK.has(e.id));
 /** Bodyweight moves worth doing even in a gym. */
 const BW_KEEP = new Set(["pull-up", "chin-up", "dip", "hanging-leg-raise", "inverted-row"]);
 /** With weights to hand, loaded lifts come before bodyweight versions. */
-const equipBonus = (equip: Equip, e: CatalogExercise) => (e.equipment !== "bodyweight" || BW_KEEP.has(e.id) ? 0 : equip === "gym" ? -4 : equip === "dumbbells" ? -3 : 0);
+const equipBonus = (equip: Equip, e: CatalogExercise) => (e.equipment !== "bodyweight" || BW_KEEP.has(e.id) ? 0 : equip === "gym" || equip === "mygym" ? -4 : equip === "dumbbells" ? -3 : 0);
 /** Lifts that belong to one kind of day (a deadlift on a full-body day doubles up on the squat and RDL). */
 const ONLY_ON: Record<string, Focus[]> = { deadlift: ["pull"], "rack-pull": ["pull"], "sumo-deadlift": ["legs", "pull"], "good-morning": ["legs"], "back-extension": ["pull", "legs"] };
 /** On some days a muscle is trained a particular way: rear delts on pull day, presses on push day. */
@@ -88,7 +91,7 @@ const PREFER: Partial<Record<Focus, Partial<Record<BodyPart, string[]>>>> = {
   pull: { shoulders: ["face-pull", "rear-delt-fly", "band-pull-apart"] },
   push: { shoulders: ["ohp", "db-shoulder-press", "arnold-press", "lateral-raise", "cable-lateral", "pike-push-up"] },
 };
-export type GenOptions = { equip: Equip; mins: number; goal: Goal; focus?: Focus | "auto"; seed?: number };
+export type GenOptions = { equip: Equip; mins: number; goal: Goal; focus?: Focus | "auto"; seed?: number; gear?: string[] };
 export type GenItem = { exId: string; name: string; sets: number; reps: string; rest: number; muscle: BodyPart };
 export type GenWorkout = { focus: Focus; title: string; muscles: BodyPart[]; items: GenItem[]; mins: number; why: string };
 
@@ -125,10 +128,10 @@ export function prescription(goal: Goal, e: CatalogExercise, first: boolean): { 
 }
 
 /** Exercises that can stand in for one (same muscle, allowed equipment), best first. */
-export function alternatives(exId: string, equip: Equip, exclude: string[] = [], history: Workout[] = []): CatalogExercise[] {
+export function alternatives(exId: string, equip: Equip, exclude: string[] = [], history: Workout[] = [], gear?: string[]): CatalogExercise[] {
   const ex = CATALOG_BY_ID.get(exId); if (!ex) return [];
   const done = new Set(history.flatMap((w) => w.exercises.map((e) => e.exId)));
-  return CATALOG.filter((e) => e.id !== exId && e.muscle === ex.muscle && allowed(equip, e) && !SKIP.has(e.id) && !exclude.includes(e.id) && (!e.timed || ex.timed))
+  return CATALOG.filter((e) => e.id !== exId && e.muscle === ex.muscle && allowed(equip, e, gear) && !SKIP.has(e.id) && !exclude.includes(e.id) && (!e.timed || ex.timed))
     .sort((a, b) => Number(done.has(b.id)) - Number(done.has(a.id)) || Math.abs(compound(a) - compound(ex)) - Math.abs(compound(b) - compound(ex)));
 }
 
@@ -151,7 +154,7 @@ export function generateWorkout(data: Pick<FitData, "workouts" | "profile">, o: 
   for (const m of [...plan, ...plan]) {
     if (items.length >= (core ? 7 : 8) || est(items) >= o.mins - 6 - (core ? 5 : 0)) break;
     const nth = seenMuscle.get(m) ?? 0;
-    const all = CATALOG.filter((e) => e.muscle === m && allowed(o.equip, e) && !SKIP.has(e.id) && !e.timed && !used.has(e.id) && (!ONLY_ON[e.id] || ONLY_ON[e.id].includes(focus)));
+    const all = CATALOG.filter((e) => e.muscle === m && allowed(o.equip, e, o.gear) && !SKIP.has(e.id) && !e.timed && !used.has(e.id) && (!ONLY_ON[e.id] || ONLY_ON[e.id].includes(focus)));
     const preferred = PREFER[focus]?.[m];
     // When a day wants a muscle trained a particular way and that isn't possible, it's left out.
     const pool = preferred ? all.filter((e) => preferred.includes(e.id)) : all;
@@ -164,7 +167,7 @@ export function generateWorkout(data: Pick<FitData, "workouts" | "profile">, o: 
     items.push({ exId: pick.id, name: pick.name, muscle: m, ...prescription(o.goal, pick, nth === 0) });
   }
   if (core) {
-    const abs = CATALOG.filter((e) => e.muscle === "abs" && allowed(o.equip, e) && !used.has(e.id) && !SKIP.has(e.id) && e.id !== "mountain-climber");
+    const abs = CATALOG.filter((e) => e.muscle === "abs" && allowed(o.equip, e, o.gear) && !used.has(e.id) && !SKIP.has(e.id) && e.id !== "mountain-climber");
     const pick = abs.map((e) => ({ e, k: (STAPLE.has(e.id) ? 2 : 0) + (done.has(e.id) ? 1 : 0) + next() })).sort((a, b) => b.k - a.k)[0]?.e;
     if (pick) items.push({ exId: pick.id, name: pick.name, muscle: "abs", ...prescription(o.goal, pick, false) });
   }

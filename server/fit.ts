@@ -6,6 +6,8 @@
 //   GET     /api/fit/trails    trails near a point, from OpenStreetMap through Overpass (?lat&lng&km)
 //   GET     /api/fit/trail     one trail's line (?type&id)
 //   GET     /api/fit/places    a town, park or zip code → a point, from Nominatim (?q)
+//   POST    /api/fit/identify  a photo of a machine, or of a home or apartment gym → the equipment in it
+//                              (shared/fitGym.ts names the only answers allowed). Photos aren't kept.
 //   The phone can't call Overpass and Nominatim itself: they refuse requests that don't identify the
 //   app, and Overpass's main server is often too busy. The server asks with Arise Fit's name, tries
 //   the other public Overpass servers when one fails, and remembers answers for an hour.
@@ -13,6 +15,32 @@ import type { Express, RequestHandler } from "express";
 import { CATALOG, LIMITS, cleanFit, type CatalogExercise } from "../shared/fit";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { TRAIL_KM, trailCell, trailGeometryQuery, trailsQuery } from "../shared/fitRun";
+import { GEAR_PROMPT_LIST, cleanGearIds } from "../shared/fitGym";
+
+export type GearAnswer = { gear: string[]; name: string; note: string };
+/** What the AI sees: the photo, and the machines it may name. */
+export const IDENTIFY_PROMPT = (mode: "machine" | "gym") => `You identify gym equipment in photos for a workout app.
+${mode === "machine" ? "The photo shows ONE machine or piece of equipment someone wants to use. Name it." : "The photo shows part of a gym, home gym or apartment gym. List every piece of equipment you can see."}
+Answer only with ids from this list:
+${GEAR_PROMPT_LIST}
+Reply as JSON: {"gear": ["<id>", ...], "name": "<what the equipment is called, in plain words, or \"\" if unsure>", "note": "<one short sentence, or \"\">"}.
+${mode === "machine" ? "Put the single best match first. If it isn't gym equipment or you can't tell, reply with an empty gear list and say why in note." : "List each id once. If you can't see any equipment, reply with an empty gear list."}`;
+
+async function askAiForGear(image: string, mode: "machine" | "gym"): Promise<GearAnswer> {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "gpt-4.1", temperature: 0.1, max_tokens: 400, response_format: { type: "json_object" },
+      messages: [{ role: "system", content: IDENTIFY_PROMPT(mode) }, { role: "user", content: [{ type: "text", text: mode === "machine" ? "What is this machine?" : "What equipment is here?" }, { type: "image_url", image_url: { url: image, detail: "low" } }] }] }),
+    signal: AbortSignal.timeout(40_000),
+  });
+  if (res.status === 429) throw new Error("busy");
+  if (!res.ok) throw new Error(`status ${res.status}`);
+  const body: any = await res.json();
+  let parsed: any = {};
+  try { parsed = JSON.parse(body?.choices?.[0]?.message?.content || "{}"); } catch { parsed = {}; }
+  return { gear: cleanGearIds(parsed.gear), name: String(parsed.name || "").slice(0, 80), note: String(parsed.note || "").slice(0, 200) };
+}
 
 export type FitStore = { get(userId: number): Promise<unknown | null>; set(userId: number, data: unknown): Promise<void> };
 
@@ -87,8 +115,23 @@ export function mergeLibrary(wger: LibraryExercise[]): LibraryExercise[] {
   return out;
 }
 
-export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, opts: { store?: FitStore; fetchJson?: (url: string) => Promise<any>; overpass?: (query: string) => Promise<any> } = {}) {
+export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, opts: { store?: FitStore; fetchJson?: (url: string) => Promise<any>; overpass?: (query: string) => Promise<any>; identify?: (image: string, mode: "machine" | "gym") => Promise<GearAnswer> } = {}) {
   const store = opts.store ?? createSupabaseFitStore();
+  const identify = opts.identify ?? (process.env.OPENAI_API_KEY ? askAiForGear : null);
+  const looks = createAttemptLimiter({ max: 40, windowMs: 60 * 60_000 });
+  app.post("/api/fit/identify", authMiddleware, async (req: any, res) => {
+    res.set?.("Cache-Control", "no-store");
+    if (!identify) return res.status(503).json({ message: "Photo scanning isn't set up on this site yet. Pick the machine from the list instead." });
+    const mode = req.body?.mode === "gym" ? "gym" : "machine";
+    const image = typeof req.body?.image === "string" && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(req.body.image) && req.body.image.length < 3_000_000 ? req.body.image : null;
+    if (!image) return res.status(400).json({ message: "Take or choose a photo first." });
+    const key = String(req.user?.id);
+    const wait = looks.retryAfter(key);
+    if (wait > 0) return res.status(429).json({ message: `That's a lot of photos for one hour. Try again in ${waitWords(wait)}.` });
+    looks.fail(key);
+    try { return res.json(await identify(image, mode)); }
+    catch (error: any) { return res.status(503).json({ message: error?.message === "busy" ? "The AI is busy. Try again in a minute." : "The photo couldn't be read. Try again, or pick the machine from the list." }); }
+  });
   const saves = createAttemptLimiter({ max: 600, windowMs: 10 * 60_000 });
   const fetchJson = opts.fetchJson ?? (async (url: string) => {
     const r = await fetch(url, { headers: { Accept: "application/json", "User-Agent": "AriseFit/1.0 (+https://arisetodo.com)", Referer: "https://arisetodo.com/" }, signal: AbortSignal.timeout(20_000) });
