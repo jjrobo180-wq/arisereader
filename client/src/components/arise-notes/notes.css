@@ -1,0 +1,88 @@
+/* Arise Notes: the app's own look (the Arise To Duo family: soft lavender page, white cards, violet
+   actions, coral for recording) and the accessibility settings: a dyslexia-friendly font, simple
+   text, high contrast and large buttons. */
+.an-root {
+  --an-bg: #f5f4fb;
+  --an-card: #ffffff;
+  --an-line: #e7e5f1;
+  --an-ink: #18172a;
+  --an-muted: #67647d;
+  --an-faint: #9a97ad;
+  --an-violet: #6a55dc;
+  --an-violet-ink: #4b3bb8;
+  --an-violet-soft: #efecff;
+  --an-coral: #ef4e5b;
+  --an-coral-soft: #ffe9eb;
+  --an-amber: #c67a07;
+  --an-amber-soft: #fff4dc;
+  --an-green: #138a5b;
+  --an-green-soft: #e3f7ee;
+  background: var(--an-bg);
+  color: var(--an-ink);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.an-root *:focus-visible { outline: 3px solid var(--an-violet); outline-offset: 2px; border-radius: 10px; }
+.an-card { background: var(--an-card); border: 1px solid var(--an-line); border-radius: 20px; }
+.an-btn { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-height: 2.75rem; padding: 0 1rem; border-radius: 14px; font-weight: 650; font-size: .925rem; transition: background .15s, transform .1s, box-shadow .15s; }
+.an-btn:active { transform: scale(.98); }
+.an-btn:disabled { opacity: .5; cursor: not-allowed; }
+.an-primary { background: var(--an-violet); color: #fff; box-shadow: 0 8px 20px -12px rgba(106, 85, 220, .9); }
+.an-primary:hover { background: var(--an-violet-ink); }
+.an-soft { background: var(--an-violet-soft); color: var(--an-violet-ink); }
+.an-soft:hover { background: #e4dfff; }
+.an-plain { background: #fff; color: #3d3a52; border: 1px solid var(--an-line); }
+.an-plain:hover { background: #faf9ff; }
+.an-danger { background: #fff1f2; color: #c0263a; border: 1px solid #ffd5da; }
+.an-record { background: var(--an-coral); color: #fff; box-shadow: 0 10px 24px -12px rgba(239, 78, 91, .9); }
+.an-ghost { background: transparent; color: var(--an-muted); }
+.an-ghost:hover { background: rgba(106, 85, 220, .07); color: var(--an-violet-ink); }
+.an-input { width: 100%; min-height: 2.75rem; border-radius: 14px; border: 1px solid var(--an-line); background: #fff; padding: 0 .9rem; font-size: 1rem; color: var(--an-ink); }
+.an-input:focus { outline: none; border-color: var(--an-violet); box-shadow: 0 0 0 3px rgba(106, 85, 220, .15); }
+textarea.an-input { padding: .7rem .9rem; line-height: 1.5; }
+.an-chip { display: inline-flex; align-items: center; gap: .3rem; height: 2rem; padding: 0 .75rem; border-radius: 999px; font-size: .8rem; font-weight: 650; background: #fff; border: 1px solid var(--an-line); color: #4a4762; white-space: nowrap; }
+.an-chip[aria-pressed="true"] { background: var(--an-ink); color: #fff; border-color: var(--an-ink); }
+.an-time { font-variant-numeric: tabular-nums; font-size: .75rem; font-weight: 650; color: var(--an-violet-ink); background: var(--an-violet-soft); border-radius: 8px; padding: .1rem .4rem; }
+.an-mark { background: #fff1a8; border-radius: 3px; }
+.an-logo { background: linear-gradient(135deg, #7b5cf0 0%, #5a46d6 55%, #ef4e5b 130%); }
+.an-pulse { animation: an-pulse 1.6s ease-in-out infinite; }
+@keyframes an-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(239, 78, 91, .45); } 50% { box-shadow: 0 0 0 14px rgba(239, 78, 91, 0); } }
+.an-bars span { display: inline-block; width: 4px; margin: 0 2px; border-radius: 4px; background: var(--an-coral); transition: height .09s linear; }
+.an-fade { animation: an-fade .25s ease-out; }
+@keyframes an-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.an-sheet-back { background: rgba(20, 18, 40, .38); backdrop-filter: blur(2px); }
+.an-scroll::-webkit-scrollbar { height: 0; width: 0; }
+.an-flip { perspective: 900px; }
+.an-flip > div { transition: transform .45s; transform-style: preserve-3d; }
+.an-flip[data-flipped="true"] > div { transform: rotateY(180deg); }
+.an-flip .an-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.an-flip .an-back { transform: rotateY(180deg); }
+
+/* Dyslexia-friendly font (Lexend, loaded when this is switched on). */
+.an-root.an-dyslexic, .an-root.an-dyslexic .an-input, .an-root.an-dyslexic button { font-family: "Lexend", "Atkinson Hyperlegible", system-ui, sans-serif; letter-spacing: .015em; word-spacing: .06em; }
+.an-root.an-dyslexic .an-read { line-height: 1.85; }
+
+/* Simple text: bigger words, more room, fewer extras. */
+.an-root.an-simple .an-read { font-size: 1.125rem; line-height: 1.8; }
+.an-root.an-simple .an-extra { display: none !important; }
+
+/* High contrast. */
+.an-root.an-contrast { --an-bg: #ffffff; --an-line: #1a1a1a; --an-muted: #1f1f1f; --an-faint: #333333; --an-violet: #3a1fb8; --an-violet-ink: #24107a; --an-violet-soft: #ebe6ff; --an-coral: #b3001b; }
+.an-root.an-contrast .an-card { border-width: 2px; }
+.an-root.an-contrast .an-btn, .an-root.an-contrast .an-chip, .an-root.an-contrast .an-input { border: 2px solid #111; }
+.an-root.an-contrast .an-primary { background: #24107a; }
+.an-root.an-contrast .an-time { background: #fff; border: 1px solid #24107a; }
+
+/* Large buttons. */
+.an-root.an-large .an-btn { min-height: 3.5rem; font-size: 1.05rem; padding: 0 1.25rem; border-radius: 16px; }
+.an-root.an-large .an-chip { height: 2.6rem; font-size: .95rem; padding: 0 1rem; }
+.an-root.an-large .an-input { min-height: 3.4rem; font-size: 1.1rem; }
+.an-root.an-large .an-icon-btn { width: 3.4rem !important; height: 3.4rem !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .an-pulse, .an-fade { animation: none; }
+  .an-flip > div { transition: none; }
+}
+@media print {
+  .an-noprint { display: none !important; }
+}

@@ -28,7 +28,9 @@ import {
   isSchoolKind, parentCanLink, premiumMessage, priceOf, schoolKindOf, seatsFor,
   type Entitlement, type HubAccess, type PlanFacts, type PlanGrant, type PlanKind, type PlanPerson,
   todoUnlimitedFor, stripeMode, cleanVipEmail, cleanVipList, onVipList, VIP_MAX, type VipEntry,
+  NOTES_PLAN_KINDS, isNotesKind, notesKindOf, notesProductOf,
 } from "../shared/plans";
+import { NOTES_PLANS, isNotesProduct, planOfProduct, productName, productPrice, type NotesPlanId, type NotesProduct } from "../shared/ariseNotes";
 import { TODO_PLAN_KINDS, infoFromGrant, stripeKeyMode, type PlanInfo } from "../shared/todoAdmin";
 import { AI_LIMIT, FAIR_USE, UNLIMITED_AI_PER_MONTH, UNLIMITED_MONTHLY_CENTS, UNLIMITED_NAME, UNLIMITED_YEARLY_OFFER, aiMonth } from "../shared/todoPlan";
 
@@ -806,7 +808,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   // A teacher's class plan replaces a family's plan once it covers every child in the
   // family: the family plan is cancelled and the unused days refunded to the card.
 
-  const ADDON_PAGES: Record<string, string> = { "/social/": "/social/", "/math/": "/math/", "/history/": "/history/", "/to-do": "/#/to-do", "/billing": "/#/billing", "/workhub": "/#/workhub", "/lifehub": "/#/lifehub" };
+  const ADDON_PAGES: Record<string, string> = { "/social/": "/social/", "/math/": "/math/", "/history/": "/history/", "/to-do": "/#/to-do", "/billing": "/#/billing", "/workhub": "/#/workhub", "/lifehub": "/#/lifehub", "/notes/": "/notes/", "/arise-notes": "/#/arise-notes" };
   const addonReturn = (req: any) => {
     const origin = new URL(siteOf(req)).origin;
     const asked = String(req.body?.returnPath || "/billing");
@@ -1112,6 +1114,125 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     } catch (e) { fail(res, e, "add-on portal"); }
   });
 
+  // ─── Arise Notes (shared/ariseNotes.ts): Basic, Plus (monthly or yearly) and Family ───────────
+  // One Notes plan per person. Changing plans changes the same subscription in place (Stripe charges
+  // or credits the difference at once), so the new limits apply right away and nobody pays twice.
+  const notesLive = async (userId: number) => {
+    const rows = await Promise.all(NOTES_PLAN_KINDS.map(async (kind) => ({ kind, grant: await current(kind, userId) })));
+    return rows.filter((r) => grantLive(r.grant, now())).sort((a, b) => Date.parse(b.grant!.updatedAt) - Date.parse(a.grant!.updatedAt));
+  };
+  /** The Notes plan this account has paid for (or was given). The admin always has Plus. */
+  const notesPlanOf = async (userId: number, user?: AnyUser | null): Promise<{ plan: NotesPlanId; product: NotesProduct | null; grant: PlanGrant | null }> => {
+    if (user?.isAdmin) return { plan: "plus", product: null, grant: null };
+    const live = await notesLive(userId);
+    if (!live.length) return { plan: "free", product: null, grant: null };
+    const product = notesProductOf(live[0].kind)!;
+    return { plan: planOfProduct(product), product, grant: live[0].grant };
+  };
+  const notesBuyer = (req: any): AnyUser => {
+    const buyer: AnyUser = req.user;
+    if (req.adminPreview || !buyer) throw new Refused("Sign in to your own account to choose a plan.", 403);
+    if (buyer.isAdmin) throw new Refused("The admin account already has Arise Notes Plus.", 409);
+    if (buyer.role === "student" || !buyer.role) throw new Refused("Ask a parent or teacher to set up Arise Notes for you.", 403);
+    if (buyer.accountApproved === false) throw new Refused("Your account is still waiting for approval.", 403);
+    return buyer;
+  };
+
+  app.get("/api/notes/billing", auth, async (req: any, res: any) => {
+    try {
+      const user: AnyUser = req.user;
+      const p = await notesPlanOf(user.id, user);
+      const g = p.grant;
+      res.set("Cache-Control", "no-store");
+      res.json({
+        payment: !!(await stripeKey()), plan: p.plan, product: p.product, endsAt: g?.endsAt ?? null, cancelAtPeriodEnd: !!g?.cancelAtPeriodEnd,
+        paidOnline: g?.source === "stripe", canManage: !!g?.stripeCustomerId && g.buyerId === user.id, given: g?.source === "admin",
+        plans: NOTES_PLANS, admin: !!user.isAdmin, canBuy: !user.isAdmin && user.role !== "student" && !!user.role,
+      });
+    } catch (e) { fail(res, e, "notes billing"); }
+  });
+
+  app.post("/api/notes/billing/checkout", auth, async (req: any, res: any) => {
+    try {
+      const buyer = notesBuyer(req);
+      const product = req.body?.product;
+      if (!isNotesProduct(product)) throw new Refused("Choose a plan.", 400);
+      if ((await notesLive(buyer.id)).length) throw new Refused("You already have an Arise Notes plan. Change it from the plans page instead.", 409, "has_plan");
+      const kind = notesKindOf(product);
+      const pending = await readPending(kind, buyer.id);
+      if (pending && now() - Date.parse(pending.at) < 2 * 60_000) throw new Refused("A payment page for this was just opened. Finish it there, or try again in two minutes.", 409);
+      const metadata: Record<string, string> = { kind, ownerId: String(buyer.id), buyerId: String(buyer.id) };
+      const email = typeof buyer.email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyer.email) ? buyer.email : undefined;
+      let customer: string | undefined;
+      for (const k of PLAN_KINDS) { const g = await readGrant(k, buyer.id); if (g?.buyerId === buyer.id && g.stripeCustomerId) { customer = g.stripeCustomerId; break; } }
+      const price = productPrice(product);
+      const back = addonReturn(req);
+      const session = await stripe("POST", "/checkout/sessions", {
+        mode: "subscription",
+        client_reference_id: `${kind}:${buyer.id}`,
+        ...(customer ? { customer } : email ? { customer_email: email } : {}),
+        line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: price.cents, recurring: { interval: price.interval }, product_data: { name: productName(product) } } }],
+        metadata,
+        subscription_data: { metadata },
+        success_url: back.done,
+        cancel_url: back.back,
+      });
+      if (typeof session?.url !== "string" || !session.url.startsWith("https://")) throw new Refused("The payment page could not be opened. Nothing was charged.", 502);
+      if (typeof session.id === "string" && /^cs_[A-Za-z0-9_]{8,200}$/.test(session.id)) {
+        await write(KEY.pending(kind, buyer.id), JSON.stringify({ sessionId: session.id, buyerId: buyer.id, at: iso(now()) }));
+      }
+      res.json({ url: session.url });
+    } catch (e) { fail(res, e, "notes checkout"); }
+  });
+
+  /** Upgrade or downgrade: the same subscription moves to the new plan, prorated at once. */
+  app.post("/api/notes/billing/change", auth, async (req: any, res: any) => {
+    try {
+      const buyer = notesBuyer(req);
+      const product = req.body?.product;
+      if (!isNotesProduct(product)) throw new Refused("Choose a plan.", 400);
+      const [held] = await notesLive(buyer.id);
+      if (!held) throw new Refused("You don't have a paid Arise Notes plan yet. Choose one to start.", 409, "no_plan");
+      const grant = held.grant!;
+      const toKind = notesKindOf(product);
+      if (held.kind === toKind) throw new Refused("You're already on that plan.", 409);
+      if (grant.source !== "stripe" || !grant.stripeSubscriptionId || !grant.stripeItemId) throw new Refused("Your plan was given to you, so it can't be changed online. Ask the person who set it up.", 409);
+      if (grant.buyerId && grant.buyerId !== buyer.id) throw new Refused("Only the person who pays for this plan can change it.", 403);
+      const price = productPrice(product);
+      const made = await stripe("POST", "/products", { name: productName(product) });
+      if (typeof made?.id !== "string") throw new Refused("The plan could not be changed. Nothing was charged.", 502);
+      const metadata: Record<string, string> = { kind: toKind, ownerId: String(buyer.id), buyerId: String(buyer.id) };
+      const sub = await stripe("POST", subscriptionPath(grant.stripeSubscriptionId), {
+        items: [{ id: grant.stripeItemId, price_data: { currency: "usd", product: made.id, unit_amount: price.cents, recurring: { interval: price.interval } } }],
+        proration_behavior: "always_invoice",
+        cancel_at_period_end: "false",
+        metadata,
+      });
+      const next = grantFromSubscription(sub, now());
+      if (!next || next.kind !== toKind || next.ownerId !== buyer.id) throw new Refused("The plan could not be changed.", 502);
+      // The old plan's record ends now; the subscription carries on under the new plan.
+      await serial(async () => {
+        const old = await readGrant(held.kind, buyer.id, true);
+        if (old && old.stripeSubscriptionId === grant.stripeSubscriptionId) await saveGrant({ ...old, status: "canceled", endsAt: iso(now()), updatedAt: iso(now()) });
+      });
+      await applyStripeGrant(next);
+      res.json({ ok: true, plan: planOfProduct(product), product });
+    } catch (e) { fail(res, e, "notes change"); }
+  });
+
+  app.post("/api/notes/billing/portal", auth, async (req: any, res: any) => {
+    try {
+      const user: AnyUser = req.user;
+      const [held] = await notesLive(user.id);
+      const grant = held?.grant;
+      if (!grant?.stripeCustomerId) throw new Refused("There is no online payment to manage for Arise Notes.", 409);
+      if (grant.buyerId && grant.buyerId !== user.id) throw new Refused("Only the person who pays for this plan can manage its billing.", 403);
+      const session = await stripe("POST", "/billing_portal/sessions", { customer: grant.stripeCustomerId, return_url: addonReturn(req).back });
+      if (typeof session?.url !== "string" || !session.url.startsWith("https://")) throw new Refused("The billing page could not be opened.", 502);
+      res.json({ url: session.url });
+    } catch (e) { fail(res, e, "notes portal"); }
+  });
+
   // ─── Arise To Duo: Free and the $5 upgrade ────────────────────────────
   // Free: up to 3 App Store apps across both hubs, and no AI. Unlimited ($5 a month): every app,
   // and AI up to a fair-use ceiling. See shared/todoPlan.ts. (The app check is in routes.ts, which
@@ -1325,6 +1446,9 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       } else if (kind === "bundle_family" || kind === "todo_family") {
         const p = await deps.getUser(ownerId);
         if (!p || p.role !== "parent") throw new Refused("That account is not a parent.");
+      } else if (isNotesKind(kind)) {
+        const u = await deps.getUser(ownerId);
+        if (!u) throw new Refused("That account could not be found.");
       } else if (!isSchoolKind(kind)) {
         const t = await deps.getUser(ownerId);
         if (!t || t.role !== "teacher") throw new Refused("That account is not a teacher.");
@@ -1524,7 +1648,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     return { cents: charge.cents - charge.refundedCents, at: charge.at };
   };
 
-  return { entitlement, hubAccess, adminTodo: { planInfos: todoPlanInfos, customerOwners, payments: stripePayments, personPayments, personCustomer, giveTrial, endTrial, cancelPaid, keepPlan, refundLast, readVip, vipSet, stripeKey }, socialAccess, appStatus, appAccess, todoStatus, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget, todoUnlimited, aiUsage, aiMeter, stripeReady: async () => !!(await stripeKey()), unlimitedPaidBy: async (userId: number) => { for (const k of ["todo_unlimited", "todo_unlimited_year"] as const) { const g = await readGrant(k, userId); if (g && g.buyerId === userId && g.stripeCustomerId && grantLive(g, now())) return k === "todo_unlimited_year" ? "unlimited_year" : "unlimited"; } return null; } };
+  return { notesPlan: notesPlanOf, entitlement, hubAccess, adminTodo: { planInfos: todoPlanInfos, customerOwners, payments: stripePayments, personPayments, personCustomer, giveTrial, endTrial, cancelPaid, keepPlan, refundLast, readVip, vipSet, stripeKey }, socialAccess, appStatus, appAccess, todoStatus, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget, todoUnlimited, aiUsage, aiMeter, stripeReady: async () => !!(await stripeKey()), unlimitedPaidBy: async (userId: number) => { for (const k of ["todo_unlimited", "todo_unlimited_year"] as const) { const g = await readGrant(k, userId); if (g && g.buyerId === userId && g.stripeCustomerId && grantLive(g, now())) return k === "todo_unlimited_year" ? "unlimited_year" : "unlimited"; } return null; } };
 }
 
 export type Plans = ReturnType<typeof registerPlanRoutes>;

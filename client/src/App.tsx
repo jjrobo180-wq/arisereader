@@ -134,6 +134,7 @@ const TodoAdmin = lazyPage(() => import("./pages/TodoAdmin"));
 const AmbientStandby = lazyPage(() => import("./pages/AmbientStandby"));
 const ClassGoalBoard = lazyPage(() => import("./pages/ClassGoalBoard"));
 const AriseOffice = lazyPage(() => import("./pages/AriseOffice"));
+const AriseNotesPage = lazyPage(() => import("./pages/AriseNotesPage"));
 const PremiumStudio = lazyPage(() => import("./pages/PremiumStudio"));
 const ProApps = lazyPage(() => import("./pages/ProApps"));
 const ParaTeam = lazyPage(() => import("./pages/ParaTeam"));
@@ -621,6 +622,10 @@ function AppRoutes() {
       </Route>
       <Route path="/class-goal">
         {!user ? <Redirect to="/signin" replace /> : isHubAccount(user) ? <ClassGoalBoard /> : <Redirect to="/" replace />}
+      </Route>
+      {/* Arise Notes, the AI note taker, inside Arise To Duo (also on its own at /notes/). */}
+      <Route path="/arise-notes">
+        {!user ? <Redirect to="/signin" replace /> : <AriseNotesPage />}
       </Route>
       <Route path="/office">
         {!user ? <Redirect to="/signin" replace /> : isHubAccount(user) ? <AriseOffice /> : <Redirect to="/" replace />}
