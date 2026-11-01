@@ -13,10 +13,10 @@ export const isNativeApp = (): boolean => typeof window !== "undefined" && windo
 
 /** Which iPhone app this build is (set at build time with VITE_NATIVE_APP): Arise To Duo ("todo"),
  *  A.R.I.S.E. Reader for students ("reader"), or A.R.I.S.E. Reader Educator for teachers and parents. */
-export type NativeFlavor = "todo" | "reader" | "educator" | "fit" | "eyegaze";
+export type NativeFlavor = "todo" | "reader" | "educator" | "fit" | "eyegaze" | "trainer";
 export const nativeFlavor = (): NativeFlavor => {
   const f = String((import.meta as any).env?.VITE_NATIVE_APP || "");
-  return f === "reader" || f === "educator" || f === "fit" || f === "eyegaze" ? f : "todo";
+  return f === "reader" || f === "educator" || f === "fit" || f === "eyegaze" || f === "trainer" ? f : "todo";
 };
 /** Inside one of the two A.R.I.S.E. Reader apps (student or Educator). */
 export const isReaderApp = (): boolean => isNativeApp() && (nativeFlavor() === "reader" || nativeFlavor() === "educator" || nativeFlavor() === "eyegaze");
@@ -24,6 +24,8 @@ export const isReaderApp = (): boolean => isNativeApp() && (nativeFlavor() === "
 export const isEyeGazerApp = (): boolean => isNativeApp() && nativeFlavor() === "eyegaze";
 /** Inside the Arise Fit iPhone app. */
 export const isFitApp = (): boolean => isNativeApp() && nativeFlavor() === "fit";
+/** Inside the Arise Trainer iPhone app (coaches; pages/trainer/TrainerApp.tsx). */
+export const isTrainerApp = (): boolean => isNativeApp() && nativeFlavor() === "trainer";
 /** Each app's name, bundle id (Sign in with Apple asks for it) and server. All three use the same
  *  server, through arisetodo.com, the address the Arise To Duo app is already allowed to call. */
 export const NATIVE_APPS: Record<NativeFlavor, { name: string; bundle: string; api: string }> = {
@@ -32,6 +34,7 @@ export const NATIVE_APPS: Record<NativeFlavor, { name: string; bundle: string; a
   educator: { name: "A.R.I.S.E. Reader Educator", bundle: "com.arisereader.educator", api: "https://arisetodo.com" },
   fit: { name: "Arise Fit", bundle: "com.arisereader.fit", api: "https://arisetodo.com" },
   eyegaze: { name: "Arise Eye Gazer", bundle: "com.arisereader.eyegazer", api: "https://arisetodo.com" },
+  trainer: { name: "Arise Trainer", bundle: "com.arisereader.trainer", api: "https://arisetodo.com" },
 };
 export const nativeAppInfo = () => NATIVE_APPS[nativeFlavor()];
 
