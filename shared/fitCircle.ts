@@ -1,11 +1,13 @@
-// Arise Fit: workout buddies (server/fitBuddies.ts, client/src/pages/fit/FitBuddies.tsx).
-// You invite friends with a code or link; each joins as your guest. Everyone in the group sees
-// everyone's training (workouts, streak, new records) as it happens, gets a notification when a
-// buddy finishes a workout, and can send a cheer or a nudge. A guest has every Arise Fit feature
-// except inviting guests of their own. What's shared is only training: never food, weight or photos.
+// Arise Fit: workout circles (server/fitCircle.ts, client/src/pages/fit/FitCircle.tsx).
+// A circle is a group of friends, each on their own Arise Fit account, who keep each other on track.
+// Anyone in a circle can invite more people with the circle's code or link. Everyone sees everyone's
+// training (workouts, streak, new records) as it happens, gets a notification when someone finishes
+// a workout, and can send a cheer or a nudge. Only training is shared: never food, weight or photos.
+// (Sharing Arise Fit+ with someone is a different thing: the guest pass, shared/fitPlus.ts.)
 import { CATALOG_BY_ID, records, streak, type FitData } from "./fit";
 
-export const MAX_GUESTS = 5;
+/** Most people in one circle, the person who started it included. */
+export const MAX_CIRCLE = 10;
 export const CODE_LEN = 6;
 /** No 0/O or 1/I/L, so a code read aloud or typed from a text is never ambiguous. */
 const CODE_ABC = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -14,10 +16,10 @@ export const cleanCode = (raw: unknown): string | null => {
   const s = String(raw ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
   return s.length === CODE_LEN && [...s].every((ch) => CODE_ABC.includes(ch)) ? s : null;
 };
-/** The link a friend opens to join (the website and the iPhone app both read ?buddy=CODE). */
-export const inviteLink = (base: string, code: string) => `${base.replace(/\/$/, "")}#/fit?buddy=${code}`;
+/** The link a friend opens to join (the website and the iPhone app both read ?circle=CODE). */
+export const circleLink = (base: string, code: string) => `${base.replace(/\/$/, "")}#/fit?circle=${code}`;
 
-export type BuddyStats = {
+export type MemberStats = {
   /** Workouts in the last 7 days. */ week: number;
   minutes7: number;
   sets7: number;
@@ -28,7 +30,7 @@ export type BuddyStats = {
   units: "lb" | "kg";
   goal: string;
 };
-export type Buddy = { id: number; name: string; role: "host" | "guest"; me: boolean; stats: BuddyStats | null };
+export type Member = { id: number; name: string; owner: boolean; me: boolean; stats: MemberStats | null };
 export type CheerKind = "cheer" | "nudge" | "fire" | "strong";
 export const CHEERS: Record<CheerKind, { e: string; label: string; body: (from: string) => string }> = {
   cheer: { e: "👏", label: "Cheer", body: (n) => `${n} cheered you on. Keep it up!` },
@@ -40,8 +42,8 @@ export type Cheer = { from: number; name: string; kind: CheerKind; at: number };
 
 const GOAL_WORDS: Record<string, string> = { lose: "Losing fat", maintain: "Staying fit", gain: "Building muscle" };
 
-/** What buddies see about someone: training only. */
-export function buddyStats(d: Pick<FitData, "workouts" | "foods" | "profile">, now = Date.now()): BuddyStats {
+/** What the circle sees about someone: training only. */
+export function memberStats(d: Pick<FitData, "workouts" | "foods" | "profile">, now = Date.now()): MemberStats {
   const weekAgo = now - 7 * 864e5;
   const recent = d.workouts.filter((w) => { const t = Date.parse(w.date); return t >= weekAgo && t <= now + 864e5; });
   const sets = (w: FitData["workouts"][number]) => w.exercises.reduce((n, e) => n + e.sets.filter((s) => s.done !== false && !s.warm).length, 0);
@@ -63,7 +65,7 @@ export function buddyStats(d: Pick<FitData, "workouts" | "foods" | "profile">, n
   };
 }
 
-/** Workouts in `after` that weren't in `before` and happened in the last 12 hours (to tell buddies). */
+/** Workouts in `after` that weren't in `before` and happened in the last 12 hours (to tell the circle). */
 export function newWorkouts(before: Pick<FitData, "workouts"> | null, after: Pick<FitData, "workouts">, now = Date.now()) {
   const had = new Set((before?.workouts ?? []).map((w) => w.id));
   return after.workouts.filter((w) => !had.has(w.id) && now - Date.parse(w.date) < 12 * 3600_000 && w.exercises.length > 0);
