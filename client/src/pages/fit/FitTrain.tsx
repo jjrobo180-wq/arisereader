@@ -9,13 +9,15 @@ import {
 import { videoFor } from "@shared/fitVideos";
 import { SESSION_BY_ID, nextC25K, sessionMins, sessionsIn, type Session, type SessionCategory } from "@shared/fitSessions";
 import { BodyMap } from "./FitBody";
+import { SmartWorkoutCard } from "./FitSmart";
+import { programArt, type ArtKind } from "./fitArt";
 import { SessionPlayer } from "./FitSession";
 import { OutdoorHub } from "./FitRun";
 import { FormCheck } from "./FitForm";
 import { saveToHealth } from "./fitNative";
 import type { LibraryExercise, Update } from "./fitStore";
 import { CoverCard, VideoPlayer, VideoThumb } from "./FitVideo";
-import { Btn, C, Card, Chips, Sheet, Spark, Title, fmtDur, fmtNum, glowBg, inputCls, inputStyle, display, stagger } from "./fitUi";
+import { Btn, C, Card, Chips, Sheet, Spark, Title, fmtDur, fmtNum, glowBg, inputCls, inputStyle, display, stagger, Layer, font, haptic} from "./fitUi";
 
 export const libraryFallback = (): LibraryExercise[] => CATALOG.map((e) => ({ ...e, images: [], source: "arise" as const }));
 const MUSCLES = ["all", "chest", "back", "shoulders", "biceps", "triceps", "abs", "quads", "hamstrings", "glutes", "calves", "full body", "cardio"] as const;
@@ -144,7 +146,7 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
   const tick = (ei: number, si: number) => {
     const s = active.exercises[ei].sets[si];
     edit(ei, si, { done: !s.done });
-    if (!s.done) { const secs = active.exercises[ei].rest ?? 90; if (secs > 0) setRest({ until: Date.now() + secs * 1000, total: secs }); navigator.vibrate?.(30); }
+    if (!s.done) { const secs = active.exercises[ei].rest ?? 90; if (secs > 0) setRest({ until: Date.now() + secs * 1000, total: secs }); navigator.vibrate?.(30); haptic("medium"); }
   };
   const finish = () => {
     const exercises = active.exercises.map((e) => ({ ...e, sets: e.sets.filter((s) => s.done) })).filter((e) => e.sets.length);
@@ -153,12 +155,12 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
     const prs = newRecords(data.workouts, w);
     saveToHealth("calories", Math.round((w.secs / 60) * 6), new Date(active.started));
     update((d) => ({ ...d, workouts: [...d.workouts, w], ...(d.program && active.programId === d.program.id && active.dayId ? { program: { ...d.program, done: [...d.program.done, `${active.dayId}@${w.date.slice(0, 10)}`] } } : {}) }));
-    saveActive(null); setDone({ w, prs });
+    saveActive(null); haptic("success"); setDone({ w, prs });
   };
   if (done) {
     const vol = done.w.exercises.reduce((t, e) => t + e.sets.reduce((x, s) => x + s.reps * s.weight, 0), 0);
     const top = done.prs[0];
-    return <div className="fixed inset-0 z-[80] flex flex-col overflow-y-auto px-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]" style={{ background: glowBg, color: C.text }} role="dialog" aria-modal="true" aria-label="Workout complete" data-testid="fit-summary">
+    return <Layer><div className="fixed inset-0 z-[80] flex flex-col overflow-y-auto px-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} role="dialog" aria-modal="true" aria-label="Workout complete" data-testid="fit-summary">
       <div className="flex min-h-[62vh] flex-col items-center justify-center text-center">
         <div className="fit-pop grid h-[104px] w-[104px] place-items-center rounded-full" style={{ background: C.lime, boxShadow: "0 0 60px rgba(255,90,31,.5)" }}><Trophy className="h-[52px] w-[52px]" style={{ color: "#0b0b0c" }} /></div>
         <h2 className="fit-in mt-6 text-[56px] leading-none" style={{ ...display, animationDelay: ".2s" }}>Done.</h2>
@@ -172,18 +174,18 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
       {done.prs.length > 0 && <><Title>New records</Title><div className="space-y-2">{done.prs.map((p, k) => <Card key={p.exId + p.kind} className="flex items-center gap-3 !p-3" style={stagger(k, 0.08, 0.6)}><Trophy className="h-6 w-6" style={{ color: C.orange }} />
         <div><p className="font-semibold">{p.name}</p><p className="text-[13px]" style={{ color: C.dim }}>{p.kind === "e1rm" ? `Est. 1-rep max ${fmtNum(p.value)} ${u}` : p.kind === "weight" ? `Heaviest ${fmtNum(p.value)} ${u}` : `Most volume ${fmtNum(p.value)} ${u}`}</p></div></Card>)}</div></>}
       <Btn onClick={() => setActive(null)} className="mt-8 w-full !min-h-[52px] !text-[19px]" testId="fit-summary-done">Back to today</Btn>
-    </div>;
+    </div></Layer>;
   }
   const allSets = active.exercises.reduce((t, e) => t + e.sets.length, 0);
   const doneSets = active.exercises.reduce((t, e) => t + e.sets.filter((s) => s.done).length, 0);
-  return <div className="fit-sheet fixed inset-0 z-[70] flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text }} data-testid="fit-live">
+  return <Layer><div className="fit-sheet fixed inset-0 z-[70] flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} data-testid="fit-live">
     <div className="shrink-0 px-4 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1"><input value={active.name} onChange={(e) => set((a) => ({ ...a, name: e.target.value.slice(0, 80) }))} aria-label="Workout name" className="w-full bg-transparent text-[30px] leading-none outline-none" style={display} />
           <p className="mt-1 flex items-center gap-1 text-[13px] tabular-nums" style={{ color: C.dim }}><Clock3 className="h-3.5 w-3.5" />{fmtDur((now - active.started) / 1000)} · {doneSets} of {allSets} sets</p></div>
         <Btn onClick={finish} testId="fit-finish">Finish</Btn>
       </div>
-      <div className="mt-2.5 h-1.5 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,.08)" }}><div className="h-full rounded-full" style={{ width: `${allSets ? (doneSets / allSets) * 100 : 0}%`, background: C.lime, transition: "width .4s ease" }} /></div>
+      <div className="mt-2.5 h-1.5 overflow-hidden rounded-full" style={{ background: C.track }}><div className="h-full rounded-full" style={{ width: `${allSets ? (doneSets / allSets) * 100 : 0}%`, background: C.lime, transition: "width .4s ease" }} /></div>
     </div>
     <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 pb-40">
       {active.exercises.map((e, ei) => {
@@ -231,12 +233,12 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
         <Btn kind="soft" className="!min-h-10" onClick={() => setRest((r) => r && { ...r, until: r.until - 15000 })}>−15</Btn>
         <Btn kind="soft" className="!min-h-10" onClick={() => setRest((r) => r && { ...r, until: r.until + 15000, total: r.total + 15 })}>+15</Btn>
         <Btn className="!min-h-10" onClick={() => setRest(null)}>Skip</Btn></div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,.1)" }}><div className="h-full rounded-full" style={{ width: `${(left / rest.total) * 100}%`, background: C.lime, transition: "width 1s linear" }} /></div>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: C.track }}><div className="h-full rounded-full" style={{ width: `${(left / rest.total) * 100}%`, background: C.lime, transition: "width 1s linear" }} /></div>
     </div>}
     {adding && <Library list={list} data={data} title="Add exercise" onClose={() => setAdding(false)} onPick={(ex) => { set((a) => ({ ...a, exercises: [...a.exercises, ...planned(data, [{ exId: ex.id, name: ex.name, sets: 3, reps: ex.equipment === "bodyweight" ? "10-15" : "8-12", rest: 90 }], list)] })); setAdding(false); }} />}
     {detail && <ExerciseDetail ex={detail} data={data} onClose={() => setDetail(null)} />}
     {plateFor !== null && <PlateSheet units={u} start={plateFor} onClose={() => setPlateFor(null)} />}
-  </div>;
+  </div></Layer>;
 }
 
 function PlateSheet({ units, start, onClose }: { units: Units; start: number; onClose: () => void }) {
@@ -266,10 +268,10 @@ export function ProgramDetail({ p, data, update, onClose, onStartDay, list }: { 
   const name = (id: string) => find(id)?.name ?? CATALOG_BY_ID.get(id)?.name ?? id;
   const videos = new Set(p.days.flatMap((d) => d.items.map((i) => i.exId)).filter((id) => videoFor(id))).size;
   return <Sheet title={p.name} onClose={onClose} testId="fit-program">
-    <CoverCard exId={programCover(p)} tall className="!p-5">
+    <CoverCard art={programArt(p)} tall className="!p-5">
       <span className="text-[12px] font-bold uppercase tracking-[.14em]" style={{ color: C.lime }}>{p.level} · {p.goal}</span>
       <span className="mt-1 block text-[26px] font-extrabold leading-tight tracking-tight" style={display}>{p.name}</span>
-      <span className="mt-2 block text-[14px] leading-snug" style={{ color: "#d6d6de" }}>{p.blurb}</span>
+      <span className="mt-2 block text-[14px] leading-snug" style={{ color: C.steel }}>{p.blurb}</span>
     </CoverCard>
     <div className="mt-3 grid grid-cols-4 gap-2 text-center">
       {([[p.daysPerWeek, "days / wk"], [p.weeks, "weeks"], [videos, "videos"], [p.days.length, "workouts"]] as const).map(([n, l]) => <Card key={l} className="!px-1 !py-3"><p className="text-[20px] font-bold">{n}</p><p className="text-[11px]" style={{ color: C.dim }}>{l}</p></Card>)}
@@ -308,14 +310,14 @@ export function RoutineEditor({ routine, list, data, onSave, onClose, onDelete }
   </Sheet>;
 }
 
-const TYPES: { id: SessionCategory | "body" | "outdoor" | "form"; label: string; sub: string; cover: string }[] = [
-  { id: "body", label: "Body map", sub: "Tap a muscle, train it", cover: "bench-press" },
-  { id: "outdoor", label: "Run & trails", sub: "GPS map · US trails", cover: "jump-rope" },
-  { id: "form", label: "AI form check", sub: "Camera coaching", cover: "back-squat" },
-  { id: "hiit", label: "HIIT treadmill", sub: "Sprints, hills, Tabata", cover: "run" },
-  { id: "c25k", label: "Couch to 5K", sub: "9 weeks to 30 minutes", cover: "walk-incline" },
-  { id: "yoga", label: "Yoga", sub: "Mobility and recovery", cover: "worlds-greatest" },
-  { id: "meditation", label: "Meditation", sub: "Breathing and focus", cover: "childs-pose" },
+const TYPES: { id: SessionCategory | "body" | "outdoor" | "form"; label: string; sub: string; cover: ArtKind }[] = [
+  { id: "body", label: "Muscle recovery", sub: "Body map · tap a muscle", cover: "body" },
+  { id: "outdoor", label: "Run & trails", sub: "GPS map · US trails", cover: "trails" },
+  { id: "form", label: "AI form check", sub: "Camera coaching", cover: "form" },
+  { id: "hiit", label: "HIIT treadmill", sub: "Sprints, hills, Tabata", cover: "hiit" },
+  { id: "c25k", label: "Couch to 5K", sub: "9 weeks to 30 minutes", cover: "c25k" },
+  { id: "yoga", label: "Yoga", sub: "Mobility and recovery", cover: "yoga" },
+  { id: "meditation", label: "Meditation", sub: "Breathing and focus", cover: "meditation" },
 ];
 const CAT_TITLE: Record<SessionCategory, string> = { hiit: "HIIT treadmill", c25k: "Couch to 5K", yoga: "Yoga", meditation: "Meditation" };
 
@@ -325,10 +327,10 @@ function SessionList({ cat, data, onClose, onPlay }: { cat: SessionCategory; dat
   const list = sessionsIn(cat);
   const next = cat === "c25k" ? nextC25K(done) : undefined;
   return <Sheet title={CAT_TITLE[cat]} onClose={onClose} testId={`fit-sessions-${cat}`}>
-    {cat === "c25k" && <CoverCard exId="run" tall className="mt-1 !p-5">
+    {cat === "c25k" && <CoverCard art="c25k" tall className="mt-1 !p-5">
       <span className="text-[12px] tracking-[.16em]" style={{ ...display, fontWeight: 700, color: C.lime }}>{done.size ? `${list.filter((x) => done.has(x.id)).length} of ${list.length} runs done` : "Start from zero"}</span>
       <span className="mt-1 block text-[28px] leading-none" style={display}>{next ? next.name : "You ran a 5K."}</span>
-      <span className="mt-1 block text-[14px]" style={{ color: "#d6d6de" }}>{next ? `${next.blurb} About ${sessionMins(next)} minutes.` : "Keep going: three 30-minute runs a week."}</span>
+      <span className="mt-1 block text-[14px]" style={{ color: C.steel }}>{next ? `${next.blurb} About ${sessionMins(next)} minutes.` : "Keep going: three 30-minute runs a week."}</span>
       {next && <Btn className="mt-4 w-full" onClick={() => onPlay(next)} testId="fit-c25k-next"><Play className="h-5 w-5" />Start this run</Btn>}
     </CoverCard>}
     {cat === "hiit" && <p className="mt-1 px-1 text-[14px]" style={{ color: C.dim }}>The app calls out every speed and incline change. Set the treadmill as it tells you.</p>}
@@ -375,35 +377,33 @@ export function TrainTab({ data, update, list, onStart, say, onCoach }: { data: 
   const next = active && data.program ? nextProgramDay(active, data.program.done) : null;
   const startDay = () => { if (!active || !next) return; onStart(startWorkout({ name: `${active.name}: ${next.day.name}`, programId: active.id, dayId: next.day.id, exercises: planned(data, next.day.items, list) })); setProg(null); };
   return <div>
-    {active && next ? <CoverCard exId={next.day.items.find((i) => videoFor(i.exId))?.exId} tall className="fit-shine !p-5" testId="fit-next-program">
-      <span className="text-[12px] font-bold uppercase tracking-[.14em]" style={{ color: C.lime }}>{active.name} · Week {next.week}</span>
-      <span className="mt-1 block text-[26px] font-extrabold tracking-tight" style={display}>{next.day.name}</span>
-      <span className="mt-1 block text-[14px]" style={{ color: "#d6d6de" }}>{next.day.items.length} exercises · about {Math.round(next.day.items.reduce((t, i) => t + i.sets * (i.rest + 45), 0) / 60)} min</span>
+    <SmartWorkoutCard data={data} list={list} onStart={onStart} testId="fit-train-smart" />
+    {active && next && <Title>Your program</Title>}
+    {active && next ? <CoverCard art={programArt(active)} className="!p-5" testId="fit-next-program">
+      <span className="text-[12px] tracking-[.14em]" style={{ ...display, color: C.lime }}>{active.name} · Week {next.week}</span>
+      <span className="mt-0.5 block text-[28px] leading-none" style={display}>{next.day.name}</span>
+      <span className="mt-1 block text-[14px]" style={{ color: C.steel }}>{next.day.items.length} exercises · about {Math.round(next.day.items.reduce((t, i) => t + i.sets * (i.rest + 45), 0) / 60)} min</span>
       <Btn onClick={startDay} className="relative z-[1] mt-4 w-full" testId="fit-start-program-day"><Play className="h-5 w-5" />Start workout</Btn>
-    </CoverCard> : <CoverCard exId="back-squat" tall className="!p-5">
-      <span className="text-[12px] font-bold uppercase tracking-[.14em]" style={{ color: C.lime }}>{PROGRAMS.length} programs · every exercise on video</span>
-      <span className="mt-1 block text-[24px] font-extrabold tracking-tight" style={display}>Pick a program</span>
-      <span className="mt-1 block text-[14px]" style={{ color: "#d6d6de" }}>A plan tells you exactly what to lift each day, shows you how, and says when to add weight.</span>
-    </CoverCard>}
-    {onCoach && <button type="button" onClick={onCoach} className="fit-in fit-shine mt-3 flex w-full items-center gap-3 rounded-[14px] p-4 text-left active:scale-[.98]" style={{ background: "linear-gradient(150deg, #2e1d14, #202329)", boxShadow: "inset 0 0 0 1px rgba(255,90,31,.35)" }} data-testid="fit-train-coach">
+    </CoverCard> : null}
+    {onCoach && <button type="button" onClick={onCoach} className="fit-in fit-shine mt-3 flex w-full items-center gap-3 rounded-[14px] p-4 text-left active:scale-[.98]" style={{ background: `linear-gradient(150deg, ${C.emberSoft}, ${C.card})`, boxShadow: "inset 0 0 0 1px rgba(255,90,31,.35)" }} data-testid="fit-train-coach">
       <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[12px]" style={{ background: C.lime, color: "#0b0b0c" }}><Trophy className="h-6 w-6" /></span>
       <span className="min-w-0 flex-1"><span className="block text-[22px] leading-none" style={display}>Find a remote trainer</span><span className="mt-0.5 block text-[13px]" style={{ color: C.steel }}>A real person, not AI: in person, live video or online</span></span>
       <ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></button>}
     <Title>Train by type</Title>
-    <div className="grid grid-cols-2 gap-2" data-testid="fit-types">{TYPES.map((t, k) => <CoverCard key={t.id} exId={t.cover} onClick={() => (t.id === "body" ? setBody(true) : t.id === "outdoor" ? setOutdoor(true) : t.id === "form" ? setForm(true) : setCat(t.id))} className={`fit-in !min-h-[118px] !p-3 ${k === 0 ? "col-span-2" : ""}`} style={stagger(k, 0.05)} testId={`fit-type-${t.id}`}>
-      <span className="block text-[22px] leading-none" style={display}>{t.label}</span>
-      <span className="mt-1 block text-[12px]" style={{ color: "#c9c9d4" }}>{t.sub}</span>
+    <div className="grid grid-cols-2 gap-2.5" data-testid="fit-types">{TYPES.map((t, k) => <CoverCard key={t.id} art={t.cover} onClick={() => (t.id === "body" ? setBody(true) : t.id === "outdoor" ? setOutdoor(true) : t.id === "form" ? setForm(true) : setCat(t.id))} className={`fit-in !min-h-[118px] !p-3 ${k === 0 ? "col-span-2" : ""}`} style={stagger(k, 0.05)} testId={`fit-type-${t.id}`}>
+      <span className="block text-[20px] leading-none" style={display}>{t.label}</span>
+      <span className="mt-1 block text-[12px]" style={{ color: C.dim }}>{t.sub}</span>
     </CoverCard>)}</div>
     <div className="mt-3 grid grid-cols-2 gap-2">
-      <Btn kind="soft" onClick={() => onStart(startWorkout({ name: "Workout", exercises: [] }))} testId="fit-empty-workout"><Plus className="h-5 w-5" />Empty workout</Btn>
-      <Btn kind="soft" onClick={() => setLib(true)} testId="fit-open-library"><Search className="h-5 w-5" />Exercises</Btn>
+      <Btn kind="soft" className="!px-3 !text-[16px] whitespace-nowrap" onClick={() => onStart(startWorkout({ name: "Workout", exercises: [] }))} testId="fit-empty-workout"><Plus className="h-5 w-5 shrink-0" />Empty workout</Btn>
+      <Btn kind="soft" className="!px-3 !text-[16px] whitespace-nowrap" onClick={() => setLib(true)} testId="fit-open-library"><Search className="h-5 w-5 shrink-0" />Exercises</Btn>
     </div>
     <Title>Programs</Title>
-    <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">{PROGRAMS.map((p) => <CoverCard key={p.id} exId={programCover(p)} onClick={() => setProg(p)} className={`!w-[250px] shrink-0 snap-start ${data.program?.id === p.id ? "!ring-2 !ring-[#ff5a1f]" : ""}`} tall testId={`fit-program-${p.id}`}>
+    <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">{PROGRAMS.map((p) => <CoverCard key={p.id} art={programArt(p)} onClick={() => setProg(p)} className={`!w-[250px] shrink-0 snap-start ${data.program?.id === p.id ? "!ring-2 !ring-[#ff5a1f]" : ""}`} tall testId={`fit-program-${p.id}`}>
       <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.14em]" style={{ color: C.lime }}>{p.level}{data.program?.id === p.id && <span className="rounded-full px-2 py-0.5 text-[10px]" style={{ background: C.lime, color: "#0b0b0c" }}>Current</span>}</span>
       <span className="mt-1 block text-[18px] font-bold leading-tight">{p.name}</span>
-      <span className="mt-1 line-clamp-2 block text-[13px] leading-snug" style={{ color: "#c9c9d4" }}>{p.blurb}</span>
-      <span className="mt-2 block text-[12px] font-semibold" style={{ color: "#c9c9d4" }}>{p.daysPerWeek}×/week · {p.weeks} wk · {p.equipment}</span>
+      <span className="mt-1 line-clamp-2 block text-[13px] leading-snug" style={{ color: C.steel }}>{p.blurb}</span>
+      <span className="mt-2 block text-[12px] font-semibold" style={{ color: C.steel }}>{p.daysPerWeek}×/week · {p.weeks} wk · {p.equipment}</span>
     </CoverCard>)}</div>
     <Title right={<button type="button" onClick={() => setLib(true)} className="text-[14px] font-semibold" style={{ color: C.lime }}>See all</button>}>Form videos</Title>
     <Chips label="Video group" value={group} onChange={setGroup} items={FORM_GROUPS.map((g) => ({ id: g.id, label: g.label }))} />
@@ -425,7 +425,7 @@ export function TrainTab({ data, update, list, onStart, say, onCoach }: { data: 
       : <p className="px-1 text-[14px]" style={{ color: C.dim }}>Your finished workouts show up here.</p>}
     {lib && <Library list={list} data={data} onClose={() => setLib(false)} />}
     {watch && <ExerciseDetail ex={watch} data={data} onClose={() => setWatch(null)} />}
-    {body && <BodyMap list={list} onClose={() => setBody(false)} onOpen={setWatch} onStart={(name, items) => { setBody(false); onStart(startWorkout({ name, exercises: planned(data, items, list) })); }} />}
+    {body && <BodyMap data={data} list={list} onClose={() => setBody(false)} onOpen={setWatch} onStart={(name, items) => { setBody(false); onStart(startWorkout({ name, exercises: planned(data, items, list) })); }} />}
     {outdoor && <OutdoorHub data={data} update={update} say={say} onClose={() => setOutdoor(false)} />}
     {form && <FormCheck onClose={() => setForm(false)} />}
     {cat && <SessionList cat={cat} data={data} onClose={() => setCat(null)} onPlay={setPlaying} />}

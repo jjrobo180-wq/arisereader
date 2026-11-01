@@ -48,7 +48,7 @@ export function HealthSheet({ data, update, onClose }: { data: FitData; update: 
   };
   const connect = async () => { setBusy(true); setMsg(""); try { await connectHealth(); setOn(true); setBusy(false); await sync(); } catch (e: any) { setMsg(e.message); setBusy(false); } };
   return <Sheet title="Apple Health" onClose={onClose} testId="fit-health">
-    <div className="mt-1 rounded-[14px] p-4" style={{ background: "linear-gradient(150deg, #3a0f17, #202329)" }}>
+    <div className="mt-1 rounded-[14px] p-4" style={{ background: `linear-gradient(150deg, ${C.tint}, ${C.card})` }}>
       <HeartPulse className="h-8 w-8" style={{ color: "#ff375f" }} />
       <p className="mt-2 text-[24px] leading-none" style={display}>{on ? "Connected" : "Connect Apple Health"}</p>
       <p className="mt-1 text-[14px] leading-snug" style={{ color: C.steel }}>Reads your steps, active calories, heart rate and weigh-ins. Saves your workouts' calories, run distances and weight back to Health.</p>

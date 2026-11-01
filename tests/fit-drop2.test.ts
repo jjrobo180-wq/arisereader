@@ -34,7 +34,7 @@ test("routes are kept small, and saved runs are cleaned", () => {
 
 test("trails: the query, results nearest first without duplicates, and geometry", () => {
   const q = trailsQuery(39.74, -104.99, 25);
-  assert.match(q, /\[out:json\]/); assert.match(q, /around:25000,39\.74,-104\.99/); assert.match(q, /route"~"\^\(hiking\|foot\|running\|mtb\)\$"/); assert.match(q, /out tags center/);
+  assert.match(q, /\[out:json\]/); assert.match(q, /\[bbox:39\.5148,-105\.2829,39\.9652,-104\.6971\]/); assert.match(q, /route"~"\^\(hiking\|foot\|running\|mtb\)\$"/); assert.match(q, /out tags center/); // a box around the point: faster than "around"
   const json = { elements: [
     { type: "relation", id: 1, center: { lat: 39.9, lon: -105.3 }, tags: { name: "Far Trail", route: "hiking", distance: "12.5" } },
     { type: "way", id: 2, center: { lat: 39.75, lon: -105.0 }, tags: { name: "Near Path", highway: "path", sac_scale: "mountain_hiking", surface: "dirt" } },

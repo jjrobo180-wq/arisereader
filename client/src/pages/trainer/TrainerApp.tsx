@@ -11,7 +11,7 @@ import { startApplePush } from "@/lib/applePush";
 import { MODES, MODE_LABEL, PER_LABEL, SPECIALTIES, US_STATES, cleanTrainer, fromCents, money, type Library, type Mode, type Per, type Price, type PublicTrainer, type TrainerProfile } from "@shared/coach";
 import { Avatar, Stars, TrainerPage } from "../coach/CoachUi";
 import { ago, coachApi, post, put, shortDate, shrinkImage, usePoll, when, type ClientRow, type TrainerHome } from "../coach/coachApi";
-import { Btn, C, Card, Chips, Field, Ring, Sheet, Title, display, font, glowBg, inputCls, inputStyle, stagger, useFitFonts } from "../fit/fitUi";
+import { Btn, C, Card, Chips, Field, Ring, Sheet, Title, display, font, glowBg, inputCls, inputStyle, stagger, useFitFonts, Layer, StatusShade, ThemePicker } from "../fit/fitUi";
 import { ClientSheet } from "./TrainerClient";
 import { FormBuilder, OwnExerciseSheet, ProgramBuilder, WorkoutBuilder, newId } from "./TrainerBuilder";
 
@@ -42,7 +42,8 @@ export default function TrainerApp() {
   const requests = (data?.clients ?? []).filter((c) => c.status === "requested").length;
   const tabs: [Tab, string, typeof Users, number][] = [["clients", "Clients", Users, requests], ["inbox", "Inbox", Inbox, unread], ["schedule", "Schedule", CalendarDays, 0], ["library", "Library", BookOpen, 0], ["business", "Business", Briefcase, 0]];
   const at = tabs.findIndex(([id]) => id === tab);
-  return <div className="fixed inset-0 flex flex-col" style={{ background: glowBg, color: C.text, ...font }} data-testid="trainer-app">
+  return <div className="fixed inset-0 flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} data-testid="trainer-app">
+    <StatusShade />
     <main className="min-h-0 flex-1 overflow-y-auto px-4 pb-28 pt-[max(14px,env(safe-area-inset-top))]">
       {!data ? <p className="mt-24 text-center" style={{ color: C.dim }}>{err || "Loading…"}</p> : <div key={tab} className="fit-in">
         {tab === "clients" && <Clients data={data} token={token} onOpen={setOpen} say={say} goBusiness={() => setTab("business")} />}
@@ -52,7 +53,7 @@ export default function TrainerApp() {
         {tab === "business" && <Business data={data} token={token} reload={reload} say={say} />}
       </div>}
     </main>
-    <nav aria-label="Arise Trainer" className="fixed inset-x-3 z-[40] mx-auto flex max-w-md items-center rounded-[14px] p-1.5" style={{ bottom: "max(12px, env(safe-area-inset-bottom))", background: "rgba(32,35,41,.96)", backdropFilter: "blur(16px)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.06), 0 12px 32px rgba(0,0,0,.6)" }}>
+    <nav aria-label="Arise Trainer" className="fixed inset-x-3 z-[40] mx-auto flex max-w-md items-center rounded-[14px] p-1.5" style={{ bottom: "max(12px, env(safe-area-inset-bottom))", background: C.nav, backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", boxShadow: `${C.navShadow}, inset 0 0 0 1px ${C.navBorder}` }}>
       <span aria-hidden className="absolute bottom-1.5 top-1.5 rounded-[10px]" style={{ width: `calc((100% - 12px) / ${tabs.length})`, left: `calc(6px + ${at} * (100% - 12px) / ${tabs.length})`, background: "linear-gradient(180deg, rgba(255,90,31,.24), rgba(255,90,31,.08))", boxShadow: "inset 0 -2px 0 #ff5a1f", transition: "left .35s cubic-bezier(.2,.9,.2,1)" }} />
       {tabs.map(([id, label, Icon, badge]) => <button key={id} type="button" onClick={() => setTab(id)} aria-current={tab === id ? "page" : undefined} data-testid={`tr-tab-${id}`}
         className="relative flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 rounded-[10px] text-[11px] uppercase tracking-[.06em] transition-colors" style={{ fontFamily: display.fontFamily, fontWeight: 800, color: tab === id ? C.lime : C.dim }}>
@@ -102,8 +103,8 @@ function Clients({ data, token, onOpen, say, goBusiness }: { data: TrainerHome; 
     {tags.length > 0 && <div className="mb-2"><Chips label="Tag" value={tag} onChange={setTag} items={[{ id: "", label: "All" }, ...tags.map((t) => ({ id: t, label: t }))]} /></div>}
     {active.length ? <div className="space-y-2">{active.map((c, k) => <ClientRowCard key={c.id} c={c} k={k} onOpen={() => onOpen(c)} pick={picking ? { on: picked.includes(c.id), toggle: () => setPicked((p) => (p.includes(c.id) ? p.filter((x) => x !== c.id) : [...p, c.id])) } : undefined} />)}</div>
       : <Card className="text-center"><Users className="mx-auto h-8 w-8" style={{ color: C.dim }} /><p className="mt-2 text-[20px]" style={display}>No clients yet</p><p className="mt-1 text-[14px]" style={{ color: C.dim }}>When someone in Arise Fit asks you to coach them, they show up here. Their workouts, food and health data come with them.</p></Card>}
-    {picking && picked.length > 0 && <div className="fit-up fixed inset-x-3 z-[45] flex gap-2 rounded-[14px] p-2" style={{ bottom: "calc(max(12px, env(safe-area-inset-bottom)) + 76px)", background: C.card2, boxShadow: "0 -10px 40px rgba(0,0,0,.6)" }}>
-      <Btn className="flex-1 !text-[15px]" onClick={() => setCast(true)} testId="tr-broadcast"><Megaphone className="h-4 w-4" />Message {picked.length}</Btn></div>}
+    {picking && picked.length > 0 && <Layer><div className="fit-up fixed inset-x-3 z-[45] flex gap-2 rounded-[14px] p-2" style={{ bottom: "calc(max(12px, env(safe-area-inset-bottom)) + 76px)", background: C.card2, boxShadow: "0 -10px 40px rgba(0,0,0,.6)" }}>
+      <Btn className="flex-1 !text-[15px]" onClick={() => setCast(true)} testId="tr-broadcast"><Megaphone className="h-4 w-4" />Message {picked.length}</Btn></div></Layer>}
     {cast && <Broadcast token={token} ids={picked} onClose={() => setCast(false)} onSent={(n) => { setCast(false); setPicking(false); setPicked([]); say(`Sent to ${n} ${n === 1 ? "client" : "clients"}.`); }} />}
   </div>;
 }
@@ -207,13 +208,15 @@ function Business({ data, token, reload, say }: { data: TrainerHome; token: stri
       {r.text && <p className="mt-1.5 text-[14px]">{r.text}</p>}
       {r.reply ? <p className="mt-2 rounded-[8px] p-2 text-[13px]" style={{ background: C.card2, color: C.steel }}>You: {r.reply}</p> : <button type="button" onClick={() => setReply({ id: r.id, text: "" })} className="mt-2 text-[13px] font-semibold" style={{ color: C.lime }}>Reply</button>}</Card>)}</div>
       : <p className="px-1 text-[14px]" style={{ color: C.dim }}>Clients you've coached can review you in Arise Fit. <Star className="inline h-3.5 w-3.5" /></p>}
+    <Title>Appearance</Title>
+    <ThemePicker testId="tr-theme" />
     <Title>Account</Title>
     <Card onClick={() => setAccount(true)} className="!p-4"><div className="flex items-center gap-3"><ShieldCheck className="h-5 w-5" style={{ color: C.dim }} /><span className="flex-1 font-semibold">Account & privacy</span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
     <Btn kind="danger" className="mt-2 w-full" onClick={() => { logout(); goToSignIn(); }}><LogOut className="h-5 w-5" />Sign out</Btn>
     <p className="mt-6 text-center text-[11px] leading-relaxed" style={{ color: C.dim }}>Clients pay you directly through your own links. Client data comes from Arise Fit only with the client's permission and stops when they stop sharing. Keep it private.</p>
     {edit && <ListingEditor token={token} initial={data.profile} onClose={() => setEdit(false)} onSaved={() => { setEdit(false); reload(); say("Listing saved."); }} />}
     {preview && <TrainerPage id={pub.id} preview={{ trainer: pub, reviews: data.reviews }} onClose={() => setPreview(false)} />}
-    {account && <div className="fixed inset-0 z-[90]"><AccountPrivacy onClose={() => setAccount(false)} /></div>}
+    {account && <Layer><div className="fixed inset-0 z-[90]"><AccountPrivacy onClose={() => setAccount(false)} /></div></Layer>}
     {reply && <Sheet title="Reply to review" onClose={() => setReply(null)}><textarea value={reply.text} onChange={(e) => setReply({ ...reply, text: e.target.value.slice(0, 800) })} rows={5} className="w-full rounded-[12px] p-3 text-[17px] outline-none" style={inputStyle} />
       <Btn className="mt-3 w-full" disabled={!reply.text.trim()} onClick={async () => { await post(token, `/reviews/${reply.id}/reply`, { reply: reply.text }); setReply(null); reload(); }}>Post reply</Btn></Sheet>}
   </div>;

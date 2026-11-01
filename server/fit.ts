@@ -12,7 +12,7 @@
 import type { Express, RequestHandler } from "express";
 import { CATALOG, LIMITS, cleanFit, type CatalogExercise } from "../shared/fit";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
-import { trailGeometryQuery, trailsQuery } from "../shared/fitRun";
+import { TRAIL_KM, trailCell, trailGeometryQuery, trailsQuery } from "../shared/fitRun";
 
 export type FitStore = { get(userId: number): Promise<unknown | null>; set(userId: number, data: unknown): Promise<void> };
 
@@ -114,24 +114,32 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
   // ——— Trails and places (OpenStreetMap) ———————————————————————————————————————————————————————
   const UA = "AriseFit/1.0 (+https://arisetodo.com; trails for Arise Fit runners)";
   const OVERPASS_SERVERS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
+  // All the public Overpass servers at once: the first good answer wins and the others are stopped.
   const overpassFetch = opts.overpass ?? (async (q: string): Promise<any> => {
-    let last = "";
-    for (const url of OVERPASS_SERVERS) {
-      try {
-        const r = await fetch(url, { method: "POST", headers: { "User-Agent": UA, Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ data: q }).toString(), signal: AbortSignal.timeout(28_000) });
-        if (r.ok) { const j = await r.json(); if (Array.isArray(j?.elements)) return j; }
-        last = `status ${r.status}`;
-      } catch (e: any) { last = e?.message || "unreachable"; }
-    }
-    throw new Error(last);
+    const stop = new AbortController();
+    const ask = async (url: string) => {
+      const r = await fetch(url, { method: "POST", headers: { "User-Agent": UA, Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ data: q }).toString(), signal: stop.signal });
+      if (!r.ok) throw new Error(`${url} ${r.status}`);
+      const j = await r.json();
+      if (!Array.isArray(j?.elements)) throw new Error(`${url} bad answer`);
+      return j;
+    };
+    const timer = setTimeout(() => stop.abort(), 22_000);
+    try { return await Promise.any(OVERPASS_SERVERS.map(ask)); }
+    catch (e: any) { throw new Error((e?.errors ?? []).map((x: any) => x?.message).join("; ") || "unreachable"); }
+    finally { clearTimeout(timer); stop.abort(); }
   });
   const cache = new Map<string, { at: number; body: any }>();
+  // Trails barely change: answers are kept a day, and two people asking at once share one fetch.
+  const inflight = new Map<string, Promise<any>>();
   const cached = async (key: string, make: () => Promise<any>) => {
     const hit = cache.get(key);
-    if (hit && Date.now() - hit.at < 3600_000) return hit.body;
-    const body = await make();
+    if (hit && Date.now() - hit.at < 24 * 3600_000) return hit.body;
+    let p = inflight.get(key);
+    if (!p) { p = make().finally(() => inflight.delete(key)); inflight.set(key, p); }
+    const body = await p;
     cache.set(key, { at: Date.now(), body });
-    if (cache.size > 2000) for (const k of Array.from(cache.keys()).slice(0, 500)) cache.delete(k);
+    if (cache.size > 3000) for (const k of Array.from(cache.keys()).slice(0, 500)) cache.delete(k);
     return body;
   };
   const lookups = createAttemptLimiter({ max: 120, windowMs: 10 * 60_000 });
@@ -142,9 +150,11 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
     const lat = num(req.query.lat, -90, 90), lng = num(req.query.lng, -180, 180), km = num(req.query.km, 1, 60);
     if (lat === null || lng === null || km === null) return res.status(400).json({ message: "That place couldn't be read." });
     if (tooMany(req, res)) return;
-    // Rounded to about 1 km, so people nearby share one answer.
-    const key = `t:${lat.toFixed(2)},${lng.toFixed(2)},${Math.round(km)}`;
-    try { res.json(await cached(key, () => overpassFetch(trailsQuery(Number(lat.toFixed(2)), Number(lng.toFixed(2)), km)))); }
+    // One answer per ~11 km grid cell, always the widest radius, so nearby people and every radius
+    // choice share it (the phone filters by distance).
+    const [cLat, cLng] = trailCell(lat, lng);
+    res.set("Cache-Control", "public, max-age=86400");
+    try { res.json(await cached(`t:${cLat},${cLng}`, () => overpassFetch(trailsQuery(cLat, cLng, TRAIL_KM)))); }
     catch (e: any) { console.error("[fit] trails", e?.message); res.status(503).json({ message: "The trail map is busy right now. Try again in a minute." }); }
   });
   app.get("/api/fit/trail", authMiddleware, async (req: any, res) => {
@@ -152,6 +162,7 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
     const id = num(req.query.id, 1, 1e12);
     if (!type || id === null || !Number.isInteger(id)) return res.status(400).json({ message: "That trail couldn't be read." });
     if (tooMany(req, res)) return;
+    res.set("Cache-Control", "public, max-age=86400");
     try { res.json(await cached(`g:${type}${id}`, () => overpassFetch(trailGeometryQuery({ type, id })))); }
     catch (e: any) { console.error("[fit] trail", e?.message); res.status(503).json({ message: "That trail's map couldn't load. Try again in a minute." }); }
   });
