@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Copy, FileText, Link2, Mail, Printer, Trash2, Users } from "lucide-react";
 import { cleanIep, noteText, type IepDraft } from "@shared/ariseNotes";
 import { announceSaved } from "@/lib/paneSync";
+import { addToAppleReminders, addToIphoneCalendar, appleAddAvailable } from "@/lib/notesApple";
 import { notesApi, type FullNote, type HubTargets } from "./api";
 import { copyText, download, fileName, mailtoLink, noteDocx, notePdf, pdfCanShow, printNote } from "./exporters";
 import { Btn, Notice, PlanLock, Sheet, Spinner, Toggle, useToast } from "./ui";
@@ -14,6 +15,11 @@ const exportable = (n: FullNote) => ({ title: n.title, createdAt: n.createdAt, d
 // ─── Review before anything goes to the planner ──────────────────────────────
 type Row = { id?: string; on: boolean; title: string; due: string; time: string; who: string };
 type EventRow = { on: boolean; title: string; date: string; time: string };
+// In the iPhone app the checked items can also go to Apple Reminders and the iPhone Calendar; the
+// choice is remembered on this phone.
+const APPLE_KEY = { reminders: "arise-notes-apple-reminders", calendar: "arise-notes-apple-calendar" };
+const remembered = (k: string) => { try { return localStorage.getItem(k) !== "0"; } catch { return true; } };
+const remember = (k: string, on: boolean) => { try { localStorage.setItem(k, on ? "1" : "0"); } catch { /* not kept */ } };
 
 export function PlannerSheet({ ctx, note, onClose, onDone }: { ctx: AppCtx; note: FullNote; onClose: () => void; onDone: (n: FullNote) => void }) {
   const say = useToast();
@@ -22,6 +28,9 @@ export function PlannerSheet({ ctx, note, onClose, onDone }: { ctx: AppCtx; note
   const [listId, setListId] = useState("");
   const [calendarId, setCalendarId] = useState("");
   const [busy, setBusy] = useState(false);
+  const apple = appleAddAvailable();
+  const [toReminders, setToReminders] = useState(() => apple && remembered(APPLE_KEY.reminders));
+  const [toCalendar, setToCalendar] = useState(() => apple && remembered(APPLE_KEY.calendar));
   const s = note.summary;
   const [rows, setRows] = useState<Row[]>(() => (s?.actions ?? []).map((a) => {
     const row = note.actions.find((x) => x.text === a.what);
@@ -37,7 +46,15 @@ export function PlannerSheet({ ctx, note, onClose, onDone }: { ctx: AppCtx; note
       const r = await notesApi.send(note.id, { hub, listId: hub === "life" ? listId : undefined, calendarId: hub === "life" ? calendarId : undefined, tasks: pickedTasks.map((x) => ({ id: x.id, title: x.title, who: x.who, due: x.due, time: x.time })), events: pickedEvents });
       announceSaved(hub === "work" ? "workhub" : "todo", ctx.me.user.id);
       const where = hub === "work" ? "WorkHub" : `LifeHub${r.list ? ` (${r.list})` : ""}`;
-      say(`Added ${[r.tasks && `${r.tasks} to-do${r.tasks === 1 ? "" : "s"}`, r.events && `${r.events} event${r.events === 1 ? "" : "s"}`].filter(Boolean).join(" and ")} to ${where}.`);
+      // Then the iPhone's own apps, when chosen. Arise To Duo already has them, so a problem here is
+      // said plainly and nothing is undone.
+      const from = `From Arise Notes: ${note.title}`;
+      const also: string[] = [];
+      try {
+        if (toReminders && pickedTasks.length) { const n = await addToAppleReminders(pickedTasks.map((x) => ({ title: x.title, due: x.due, time: x.time, notes: from }))); if (n) also.push("Reminders"); }
+        if (toCalendar && pickedEvents.length) { const n = await addToIphoneCalendar(pickedEvents.map((x) => ({ title: x.title, date: x.date, time: x.time, notes: from }))); if (n) also.push("Calendar"); }
+      } catch (e: any) { say(`Added to ${where}, but not to the iPhone: ${e.message}`); onDone({ ...note, actions: r.actions }); onClose(); return; }
+      say(`Added ${[r.tasks && `${r.tasks} to-do${r.tasks === 1 ? "" : "s"}`, r.events && `${r.events} event${r.events === 1 ? "" : "s"}`].filter(Boolean).join(" and ")} to ${where}${also.length ? ` and the iPhone's ${also.join(" and ")}` : ""}.`);
       onDone({ ...note, actions: r.actions });
       onClose();
     } catch (e: any) { say(e.message); }
@@ -72,6 +89,11 @@ export function PlannerSheet({ ctx, note, onClose, onDone }: { ctx: AppCtx; note
           <div className="min-w-0 flex-1 space-y-2"><input className="an-input" value={e.title} onChange={(x) => setE(i, { title: x.target.value })} aria-label="Event" /><div className="flex flex-wrap gap-2"><input type="date" className="an-input !min-h-9 !w-auto" value={e.date} onChange={(x) => setE(i, { date: x.target.value })} aria-label="Date" /><input type="time" className="an-input !min-h-9 !w-auto" value={e.time} onChange={(x) => setE(i, { time: x.target.value })} aria-label="Time" /></div></div>
         </div>)}
         {hub === "life" && targets.life && targets.life.calendars.length > 1 && <label className="flex items-center gap-2 text-[14px]">Calendar <select className="an-input !min-h-9 !w-auto" value={calendarId} onChange={(e) => setCalendarId(e.target.value)}>{targets.life.calendars.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
+      </fieldset>}
+      {apple && (rows.length > 0 || events.length > 0) && <fieldset className="space-y-2 rounded-2xl border border-[var(--an-line)] p-3" data-testid="notes-apple-targets">
+        <legend className="px-1 text-[14px] font-bold">Also on this iPhone</legend>
+        {rows.length > 0 && <Toggle on={toReminders} onChange={(v) => { setToReminders(v); remember(APPLE_KEY.reminders, v); }} label="Add to-dos to Apple Reminders" />}
+        {events.length > 0 && <Toggle on={toCalendar} onChange={(v) => { setToCalendar(v); remember(APPLE_KEY.calendar, v); }} label="Add events to the iPhone Calendar" />}
       </fieldset>}
       <Btn kind="primary" className="w-full" busy={busy} disabled={!pickedTasks.length && !pickedEvents.length} onClick={() => void send()} data-testid="notes-planner-send">
         Add {pickedTasks.length + pickedEvents.length || ""} to {hub === "work" ? "WorkHub" : "LifeHub"}

@@ -51,7 +51,7 @@ test("the iOS project: light, the microphone with a reason, live updates from ou
   assert.equal(cap.plugins.CapacitorUpdater.updateUrl, "https://arisetodo.com/api/ota/notes");
   assert.equal(cap.plugins.CapacitorUpdater.statsUrl, "");
   const pkg = JSON.parse(read("notes/ios-app/package.json"));
-  for (const dep of ["@capacitor/ios", "@capacitor-community/apple-sign-in", "@capgo/capacitor-updater", "@capacitor/status-bar"]) assert.ok(pkg.dependencies[dep], dep);
+  for (const dep of ["@capacitor/ios", "@capacitor-community/apple-sign-in", "@capgo/capacitor-updater", "@capacitor/status-bar", "@capacitor/push-notifications", "@ebarooni/capacitor-calendar"]) assert.ok(pkg.dependencies[dep], dep);
   assert.equal(pkg.dependencies["@capgo/capacitor-health"], undefined, "no Apple Health");
 
   // The Info.plist the build writes.
@@ -60,7 +60,7 @@ test("the iOS project: light, the microphone with a reason, live updates from ou
   writeFileSync(plist, '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>UIUserInterfaceStyle</key><string>Dark</string></dict></plist>');
   execFileSync("python3", [".github/scripts/configure_fit_app.py", plist, "notes"]);
   const out = read(plist);
-  for (const key of ["NSMicrophoneUsageDescription", "NSCameraUsageDescription", "NSPhotoLibraryUsageDescription"]) assert.match(out, new RegExp(`<key>${key}</key>\\s*<string>Arise Notes [^<]{20,}</string>`), key);
+  for (const key of ["NSMicrophoneUsageDescription", "NSCameraUsageDescription", "NSPhotoLibraryUsageDescription", "NSRemindersFullAccessUsageDescription", "NSRemindersUsageDescription", "NSCalendarsWriteOnlyAccessUsageDescription", "NSCalendarsFullAccessUsageDescription", "NSCalendarsUsageDescription"]) assert.match(out, new RegExp(`<key>${key}</key>\\s*<string>Arise Notes [^<]{20,}</string>`), key);
   assert.match(out, /<key>CFBundleDisplayName<\/key>\s*<string>Arise Notes<\/string>/);
   assert.match(out, /<key>UIUserInterfaceStyle<\/key>\s*<string>Light<\/string>/, "Notes has only a light look");
   assert.match(out, /<key>ITSAppUsesNonExemptEncryption<\/key>\s*<false\/>/);
@@ -94,4 +94,30 @@ test("the TestFlight build signs and uploads Arise Notes like the other apps", (
   assert.match(read("server/ota.ts"), /"trainer", "notes"\] as const;/);
   assert.match(read(".github/workflows/ota-publish.yml"), /app: \[[^\]]*\bnotes\]/);
   assert.match(read(".github/scripts/ota_setup.py"), /"trainer", "notes"\), APP/);
+});
+
+test("sign out, notifications, and Apple Reminders and Calendar in the Notes iPhone app", () => {
+  const settings = read("client/src/components/arise-notes/SettingsScreen.tsx");
+  assert.match(settings, /\{ctx\.mode === "standalone" && <SignOut ctx=\{ctx\} \/>\}/, "the Notes app and /notes/ can sign out (To Duo has its own)");
+  assert.match(settings, /onClick=\{\(\) => \{ logout\(\); window\.location\.hash = "#\/"; \}\}/);
+  assert.match(read("client/src/context/AuthContext.tsx"), /forgetThisDevice\(/, "signing out stops this phone's notifications");
+
+  const push = read("client/src/lib/applePush.ts");
+  assert.match(push, /\|\| f === "notes" \? f : undefined/, "the server sends to the Notes app's bundle");
+  assert.match(push, /nativeFlavor\(\) === "notes"\) \{ window\.location\.hash = notes\[1\]/, "a tapped /notes/# link opens inside the app");
+  assert.match(read("server/applePush.ts"), /notes: "com\.arisereader\.notes"/);
+  assert.match(read("client/src/components/arise-notes/NotesApp.tsx"), /if \(isNotesApp\(\) && user\) void startApplePush\(true\);/);
+
+  const apple = read("client/src/lib/notesApple.ts");
+  assert.match(apple, /call\("requestFullRemindersAccess"\)/);
+  assert.match(apple, /call\("createReminder", \{ title:/);
+  assert.match(apple, /call\("requestWriteOnlyCalendarAccess"\)/);
+  assert.match(apple, /call\("createEvent", \{ title:/);
+  const sheet = read("client/src/components/arise-notes/noteSheets.tsx");
+  assert.match(sheet, /label="Add to-dos to Apple Reminders"/);
+  assert.match(sheet, /label="Add events to the iPhone Calendar"/);
+  assert.ok(sheet.indexOf("await notesApi.send(") < sheet.indexOf("await addToAppleReminders("), "Arise To Duo first, then the iPhone");
+  const memo = read("client/src/components/arise-notes/MemoScreen.tsx");
+  assert.match(memo, /label="Also add to Apple Reminders"/);
+  assert.match(memo, /label="Also add to the iPhone Calendar"/);
 });

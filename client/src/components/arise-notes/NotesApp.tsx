@@ -4,6 +4,8 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowRight, ChevronLeft, Columns2, Folder, Loader2, Mic, MessageCircle, Search, Settings, Sparkles, Upload, Users, Zap } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { startApplePush } from "@/lib/applePush";
+import { isNotesApp } from "@/lib/nativeApp";
 import { NOTES_PLANS, dayWords, fmtClock, templateOf } from "@shared/ariseNotes";
 import { notesApi, setNotesToken, type ListNote, type Me } from "./api";
 import { Btn, IconBtn, Notice, Spinner, ToastHost, plural, shortDate, useToast } from "./ui";
@@ -69,6 +71,9 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   const tokenRef = useRef(token);
   tokenRef.current = token;
   useEffect(() => { setNotesToken(() => tokenRef.current); }, []);
+  // The Notes iPhone app: notifications (80% of the minutes used, out of minutes, and messages from
+  // the rest of Arise to this account). iOS asks once.
+  useEffect(() => { if (isNotesApp() && user) void startApplePush(true); }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [me, setMe] = useState<Me | null>(null);
   const [error, setError] = useState("");
   const [notes, setNotes] = useState<ListNote[] | null>(null);
