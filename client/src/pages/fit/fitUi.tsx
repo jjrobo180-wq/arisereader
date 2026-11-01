@@ -1,24 +1,43 @@
-// Arise Fit's look: a dark, focused gym app. Small shared pieces used by every screen.
+// Arise Fit's look: a hard, dark gym app. Graphite and gunmetal, an ember-orange accent, a heavy
+// condensed face for headings (Barlow Condensed, loaded from Google Fonts with system fallbacks) and
+// tight corners. Small shared pieces used by every screen.
 import { useEffect, type ReactNode } from "react";
 import { X } from "lucide-react";
 
-export const C = { bg: "#0b0b10", card: "#15151c", card2: "#1d1d26", line: "rgba(255,255,255,.08)", text: "#f4f4f7", dim: "#9a9aa8", lime: "#c4f53a", orange: "#ff8a3d", blue: "#5aa9ff", pink: "#ff5c8a", red: "#ff4d4d" };
-export const font = { fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Inter', system-ui, sans-serif" };
+// "lime" is the accent's old name (it was lime green); every screen uses it, so it keeps the name.
+export const C = { bg: "#0a0a0b", card: "#141518", card2: "#1e2024", line: "rgba(255,255,255,.07)", text: "#f2f1ee", dim: "#8d939b", lime: "#ff5a1f", orange: "#ffb020", blue: "#4d9fff", pink: "#e8455a", red: "#ff3b30", steel: "#b9c0c8" };
+export const font = { fontFamily: "'Barlow', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif" };
+/** Headings: heavy, condensed, upper case. */
+export const display: React.CSSProperties = { fontFamily: "'Barlow Condensed', 'Oswald', 'Arial Narrow', 'Helvetica Neue', sans-serif", fontWeight: 800, textTransform: "uppercase", letterSpacing: ".01em" };
+
+/** Loads the app's two typefaces once (the system face stands in until they arrive, or offline). */
+export function useFitFonts() {
+  useEffect(() => {
+    if (document.getElementById("arise-fit-fonts")) return;
+    const l = document.createElement("link");
+    l.id = "arise-fit-fonts"; l.rel = "stylesheet";
+    l.href = "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Barlow:wght@400;500;600;700&display=swap";
+    document.head.appendChild(l);
+  }, []);
+}
+
+/** Gunmetal: a faint top light and a hairline edge, like machined steel. */
+export const cardStyle: React.CSSProperties = { background: `linear-gradient(180deg, #17191c 0%, ${C.card} 60%)`, boxShadow: "inset 0 1px 0 rgba(255,255,255,.05), 0 0 0 1px rgba(255,255,255,.04)" };
 
 export function Card({ children, className = "", onClick, testId }: { children: ReactNode; className?: string; onClick?: () => void; testId?: string }) {
-  const cls = `rounded-[20px] p-4 ${onClick ? "text-left w-full active:scale-[.99] transition" : ""} ${className}`;
+  const cls = `rounded-[14px] p-4 ${onClick ? "text-left w-full active:scale-[.99] transition" : ""} ${className}`;
   return onClick
-    ? <button type="button" onClick={onClick} className={cls} style={{ background: C.card }} data-testid={testId}>{children}</button>
-    : <div className={cls} style={{ background: C.card }} data-testid={testId}>{children}</div>;
+    ? <button type="button" onClick={onClick} className={cls} style={cardStyle} data-testid={testId}>{children}</button>
+    : <div className={cls} style={cardStyle} data-testid={testId}>{children}</div>;
 }
 
 export function Title({ children, right }: { children: ReactNode; right?: ReactNode }) {
-  return <div className="mb-2 mt-6 flex items-center justify-between px-1"><h2 className="text-[13px] font-bold uppercase tracking-[.12em]" style={{ color: C.dim }}>{children}</h2>{right}</div>;
+  return <div className="mb-2 mt-6 flex items-center justify-between px-1"><h2 className="flex items-center gap-2 text-[15px] tracking-[.08em]" style={{ ...display, fontWeight: 700, color: C.steel }}><span aria-hidden className="h-3.5 w-1" style={{ background: C.lime }} />{children}</h2>{right}</div>;
 }
 
 export function Btn({ children, onClick, kind = "primary", className = "", disabled, testId, type = "button" }: { children: ReactNode; onClick?: () => void; kind?: "primary" | "ghost" | "soft" | "danger"; className?: string; disabled?: boolean; testId?: string; type?: "button" | "submit" }) {
-  const st = kind === "primary" ? { background: C.lime, color: "#10120a" } : kind === "soft" ? { background: C.card2, color: C.text } : kind === "danger" ? { background: "rgba(255,77,77,.14)", color: C.red } : { background: "transparent", color: C.lime };
-  return <button type={type} onClick={onClick} disabled={disabled} data-testid={testId} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-[14px] px-4 text-[15px] font-semibold transition active:scale-[.98] disabled:opacity-40 ${className}`} style={st}>{children}</button>;
+  const st = kind === "primary" ? { background: C.lime, color: "#0b0b0c" } : kind === "soft" ? { background: C.card2, color: C.text } : kind === "danger" ? { background: "rgba(255,77,77,.14)", color: C.red } : { background: "transparent", color: C.lime };
+  return <button type={type} onClick={onClick} disabled={disabled} data-testid={testId} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-[10px] px-4 text-[16px] uppercase tracking-[.04em] transition active:scale-[.98] disabled:opacity-40 ${className}`} style={{ ...st, fontFamily: display.fontFamily, fontWeight: 700 }}>{children}</button>;
 }
 
 /** A ring that fills as a number approaches its goal. */
@@ -73,7 +92,7 @@ export function Sheet({ title, onClose, children, testId, right }: { title: stri
   return <div className="fixed inset-0 z-[80] flex flex-col" style={{ background: C.bg, color: C.text, ...font }} role="dialog" aria-modal="true" aria-label={title} data-testid={testId}>
     <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
       <button type="button" onClick={onClose} aria-label="Close" className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card }}><X className="h-5 w-5" /></button>
-      <h1 className="min-w-0 flex-1 truncate text-center text-[17px] font-bold">{title}</h1>
+      <h1 className="min-w-0 flex-1 truncate text-center text-[20px]" style={display}>{title}</h1>
       <div className="flex min-w-11 justify-end">{right}</div>
     </div>
     <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[max(24px,env(safe-area-inset-bottom))]">{children}</div>
@@ -91,7 +110,7 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   return <label className="block"><span className="mb-1 block text-[13px] font-semibold" style={{ color: C.dim }}>{label}</span>{children}</label>;
 }
 /** 17px text: iPhone doesn't zoom when it's tapped. */
-export const inputCls = "h-12 w-full min-w-0 rounded-[12px] px-3 text-[17px] outline-none focus:ring-2";
+export const inputCls = "h-12 w-full min-w-0 rounded-[8px] px-3 text-[17px] outline-none focus:ring-2";
 export const inputStyle = { background: C.card2, color: C.text, "--tw-ring-color": C.lime } as React.CSSProperties;
 
 export const fmtNum = (n: number) => (Math.round(n) >= 10000 ? `${(n / 1000).toFixed(1)}k` : Math.round(n).toLocaleString());
