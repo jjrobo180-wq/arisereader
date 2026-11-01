@@ -12,6 +12,7 @@ import { ExerciseDetail, LiveWorkout, TrainTab, libraryFallback, planned, progra
 import { FoodTab, latestKg, totals } from "./FitFood";
 import { CoverCard, VideoPlayer } from "./FitVideo";
 import { FastingSheet } from "./FitFasting";
+import { CoachCard, CoachScreen } from "./FitCoach";
 import { OutdoorHub } from "./FitRun";
 import { HealthSheet, RemindersSheet, StepsCard, useHealth } from "./FitHealth";
 import { saveToHealth } from "./fitNative";
@@ -63,7 +64,7 @@ function Setup({ data, update, onDone }: { data: FitData; update: Update; onDone
   </Sheet>;
 }
 
-function TodayTab({ data, update, onTab, onStartProgram, onProgress, user, list }: { data: FitData; update: Update; onTab: (t: Tab) => void; onStartProgram: () => void; onProgress: () => void; user: string; list: ReturnType<typeof libraryFallback> }) {
+function TodayTab({ data, update, onTab, onStartProgram, onProgress, onCoach, onStart, token, user, list }: { data: FitData; update: Update; onTab: (t: Tab) => void; onStartProgram: () => void; onProgress: () => void; onCoach: () => void; onStart: (a: NonNullable<ReturnType<typeof readActive>>) => void; token: string | null; user: string; list: ReturnType<typeof libraryFallback> }) {
   const today = dayKey();
   const t = totals(data.foods.filter((f) => f.date === today));
   const g = goals(data.profile, latestKg(data));
@@ -104,6 +105,7 @@ function TodayTab({ data, update, onTab, onStartProgram, onProgress, user, list 
       <Btn className="relative z-[1] mt-3 w-full !min-h-[50px] !text-[19px]" onClick={onStartProgram} testId="fit-today-start"><Play className="h-5 w-5" fill="currentColor" />Start workout</Btn>
     </CoverCard> : <CoverCard exId="back-squat" onClick={() => onTab("train")} tall className="fit-in fit-shine mt-3 !p-[18px]"><span className="text-[12px] tracking-[.14em]" style={{ ...display, color: C.lime }}>Get started</span><span className="block text-[30px] leading-none" style={display}>Start training</span><span className="mt-1 block text-[14px]" style={{ color: C.steel }}>Pick a program, with a how-to video for every exercise.</span>
       <span className="relative z-[1] mt-3 flex min-h-[50px] w-full items-center justify-center gap-2 rounded-[10px] text-[19px]" style={{ ...display, background: C.lime, color: "#0b0b0c" }}><Dumbbell className="h-5 w-5" />Pick a program</span></CoverCard>}
+    <div className="mt-3"><CoachCard token={token} data={data} list={list} onStart={onStart} onOpen={onCoach} /></div>
     <div className="mt-3 grid grid-cols-2 gap-2.5">
       {health ? <Card className="!p-3.5" style={stagger(0, 0, 0.15)}><p className="text-[30px] leading-none tabular-nums" style={display}>{fmtNum(health.steps[today] ?? 0)}</p><p className="mt-1 text-[12px]" style={{ color: C.dim }}>steps · Apple Health</p></Card>
         : <Card className="!p-3.5" style={stagger(0, 0, 0.15)}><p className="text-[30px] leading-none tabular-nums" style={display}>{thisWeek.length}</p><p className="mt-1 text-[12px]" style={{ color: C.dim }}>workouts · 7 days</p></Card>}
@@ -199,6 +201,7 @@ export default function FitApp() {
   const [setup, setSetup] = useState(false);
   const [settings, setSettings] = useState(false);
   const [progress, setProgress] = useState(false);
+  const [coach, setCoach] = useState(false);
   const [account, setAccount] = useState(false);
   const [toast, setToast] = useState("");
   const say = useCallback((m: string) => { setToast(m); window.setTimeout(() => setToast((t) => (t === m ? "" : t)), 2600); }, []);
@@ -217,8 +220,8 @@ export default function FitApp() {
     <main id="fit-main" className="min-h-0 flex-1 overflow-y-auto px-4 pb-28 pt-[max(14px,env(safe-area-inset-top))]">
       {/* key={tab}: each tab's screen re-mounts, so it slides up into place and its rings and bars fill. */}
       <div key={tab} className="fit-in">
-        {tab === "today" && <TodayTab data={data} update={update} onTab={go} onStartProgram={startProgram} onProgress={() => setProgress(true)} user={first} list={list} />}
-        {tab === "train" && <><h1 className="mb-4 px-1 text-[46px] leading-[.95]" style={display}>Train</h1><TrainTab data={data} update={update} list={list} onStart={setActive} say={say} /></>}
+        {tab === "today" && <TodayTab data={data} update={update} onTab={go} onStartProgram={startProgram} onProgress={() => setProgress(true)} onCoach={() => setCoach(true)} onStart={(a) => { setCoach(false); setActive(a); }} token={token} user={first} list={list} />}
+        {tab === "train" && <><h1 className="mb-4 px-1 text-[46px] leading-[.95]" style={display}>Train</h1><TrainTab data={data} update={update} list={list} onStart={setActive} say={say} onCoach={() => setCoach(true)} /></>}
         {tab === "food" && <><h1 className="mb-3 px-1 text-[46px] leading-[.95]" style={display}>Food</h1><FoodTab token={token} data={data} update={update} say={say} /></>}
         {tab === "fast" && <FastingSheet inline data={data} update={update} onClose={() => go("today")} />}
         {tab === "run" && <OutdoorHub inline data={data} update={update} say={say} onClose={() => go("today")} />}
@@ -234,6 +237,7 @@ export default function FitApp() {
     </nav>
     {active && <LiveWorkout active={active} setActive={setActive} data={data} update={update} list={list} say={say} />}
     {setup && <Setup data={data} update={update} onDone={() => setSetup(false)} />}
+    {coach && <CoachScreen token={token} me={Number(user?.id) || 0} data={data} update={update} list={list} onStart={(a) => { setCoach(false); setActive(a); }} onClose={() => setCoach(false)} />}
     {progress && <ProgressSheet data={data} update={update} list={list} onClose={() => setProgress(false)} onSettings={() => setSettings(true)} />}
     {settings && <SettingsSheet data={data} update={update} onClose={() => setSettings(false)} onGoals={() => { setSettings(false); setProgress(false); setSetup(true); }} onAccount={() => setAccount(true)} />}
     {account && <div className="fixed inset-0 z-[90]"><AccountPrivacy onClose={() => setAccount(false)} /></div>}
