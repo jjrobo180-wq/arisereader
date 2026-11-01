@@ -11,6 +11,8 @@ export type FitExercise = { exId: string; name: string; sets: FitSet[]; rest?: n
 export type Workout = { id: string; date: string; name: string; programId?: string; dayId?: string; secs: number; exercises: FitExercise[]; note?: string };
 export type Routine = { id: string; name: string; exercises: { exId: string; name: string; sets: number; reps: string; rest: number }[] };
 export type FoodEntry = { id: string; date: string; meal: Meal; name: string; kcal: number; p: number; c: number; f: number; servings: number; serving?: string };
+/** A meal saved to add again in one tap (MyFitnessPal's "My Meals"). */
+export type SavedMeal = { id: string; name: string; items: Omit<FoodEntry, "id" | "date" | "meal">[] };
 export type Profile = { sex?: "m" | "f"; birthYear?: number; heightCm?: number; goal: Goal; activity: number; units: Units; kcalGoal?: number; macroSplit?: { p: number; c: number; f: number }; waterGoalMl: number; stepsGoal: number;
   /** A diet plan from fitNutrition.ts (it sets macroSplit) and whether food is counted in calories or Arise Points. */
   dietPlan?: string; trackMode?: "calories" | "points" };
@@ -29,6 +31,7 @@ export type FitData = {
   fasting?: Fasting;
   /** Outdoor runs, walks and hikes tracked by GPS (shared/fitRun.ts). */
   runs?: Run[];
+  savedMeals?: SavedMeal[];
 };
 
 import { DIET_BY_ID, cleanFasting, type Fasting } from "./fitNutrition";
@@ -81,6 +84,9 @@ export function cleanFit(raw: any): FitData {
   if (raw.onboarded) d.onboarded = true;
   const fasting = cleanFasting(raw.fasting);
   if (fasting) d.fasting = fasting;
+  const meals = (Array.isArray(raw.savedMeals) ? raw.savedMeals : []).slice(0, 60).filter((m: any) => m?.id && Array.isArray(m?.items) && m.items.length)
+    .map((m: any): SavedMeal => ({ id: str(m.id, 40), name: str(m.name, 60) || "Meal", items: m.items.slice(0, 30).map(food) }));
+  if (meals.length) d.savedMeals = meals;
   const runs = cleanRuns(raw.runs);
   if (runs.length) d.runs = runs;
   return d;
