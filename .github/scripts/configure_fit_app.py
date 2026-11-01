@@ -1,7 +1,7 @@
 """Arise Fit and Arise Trainer iPhone apps: the Info.plist settings App Review checks, and the AppDelegate
 hook push notifications need.
 
-Usage: configure_fit_app.py <path to Info.plist> [fit|trainer|notes]   (after `npx cap add ios && npx cap sync ios`)
+Usage: configure_fit_app.py <path to Info.plist> [fit|trainer|notes|talk]   (after `npx cap add ios && npx cap sync ios`)
   - The name under the icon, the status bar following the app's theme, and that it only uses the
     encryption built into iOS (HTTPS).
   - Arise Fit. Camera: barcodes, meal photos, form check and progress photos for a trainer. Photos:
@@ -22,7 +22,7 @@ import sys
 
 PLIST = sys.argv[1]
 FLAVOR = sys.argv[2] if len(sys.argv) > 2 else "fit"
-assert FLAVOR in ("fit", "trainer", "notes"), FLAVOR
+assert FLAVOR in ("fit", "trainer", "notes", "talk"), FLAVOR
 # The app picks its own look (Light, Dark or Auto in Settings), so iOS follows the phone and the status
 # bar plugin (@capacitor/status-bar) sets the clock's color to match: dark on Light, light on Dark.
 COMMON = {
@@ -40,6 +40,12 @@ KEYS = {
         "NSHealthShareUsageDescription": "Arise Fit reads your steps, weight, workouts and active calories from Apple Health to show your progress, and to share them with your trainer only if you choose to.",
         "NSHealthUpdateUsageDescription": "Arise Fit saves your workouts, runs, weight and nutrition to Apple Health.",
         "NSPhotoLibraryUsageDescription": "Arise Fit lets you choose a photo of your meal so it can estimate the calories, or a progress photo or picture to send your trainer.",
+    },
+    "talk": {
+        "CFBundleDisplayName": "Arise Talk",
+        "NSMicrophoneUsageDescription": "Arise Talk uses the microphone only when you tap Listen, to hear what someone says to you and suggest replies you can tap. The recording isn't kept.",
+        "NSCameraUsageDescription": "Arise Talk uses the camera when you take a photo for a button or for Snap to talk, which suggests words about what's in the photo.",
+        "NSPhotoLibraryUsageDescription": "Arise Talk lets you choose a photo to put on a button or to get words about it.",
     },
     "trainer": {
         "CFBundleDisplayName": "Arise Trainer",
@@ -71,7 +77,7 @@ with open(PLIST, "wb") as f:
 print(f"Info.plist ready for {KEYS['CFBundleDisplayName']}: {', '.join(sorted({**COMMON, **KEYS}))}")
 
 DELEGATE = os.path.join(os.path.dirname(PLIST), "AppDelegate.swift")
-if os.path.exists(DELEGATE):
+if FLAVOR != "talk" and os.path.exists(DELEGATE):  # Arise Talk sends no notifications
     src = open(DELEGATE, encoding="utf-8").read()
     if "didRegisterForRemoteNotificationsWithDeviceToken" not in src:
         end = src.rfind("}")
