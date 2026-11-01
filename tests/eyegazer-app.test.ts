@@ -17,6 +17,8 @@ test("its own app: bundle, sign-in screen, home, Apple sign-in and notifications
   const signIn = read("client/src/pages/NativeSignIn.tsx");
   assert.match(signIn, /create: "Create an Eye Gazer account"/);
   assert.match(signIn, /independent: true, isEyeGazeUser: true/);
+  // An old "#/reader" address in the Eye Gazer app opens Eye Gazer, not the Reader.
+  assert.match(app, /if \(isEyeGazerApp\(\)\) \{ window\.location\.hash = user \?/);
   assert.match(read("server/appleSignIn.ts"), /EYEGAZER_APP = "com\.arisereader\.eyegazer"/);
   assert.match(read("server/applePush.ts"), /eyegaze: "com\.arisereader\.eyegazer"/);
   assert.match(read("client/src/lib/applePush.ts"), /nativeFlavor\(\) === "eyegaze" \? "eyegaze"/);

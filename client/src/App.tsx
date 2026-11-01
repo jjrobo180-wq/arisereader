@@ -517,6 +517,8 @@ function AppRoutes() {
   // router — a page of its own rather than a screen inside the To-Do app. Signing in is still the
   // hub's, so a signed-out visitor is sent to that screen.
   if (isReaderPage()) {
+    // The Eye Gazer app never shows A.R.I.S.E. Reader: an old "#/reader" address opens Eye Gazer.
+    if (isEyeGazerApp()) { window.location.hash = user ? (user.role === "parent" ? "#/eye-gaze-parent" : "#/eye-gaze-home") : "#/signin"; return null; }
     if (!user) { goToSignIn(); return null; }
     // Its code may still be loading: show the spinner meanwhile (without a loading boundary here,
     // React stopped with error 426 and the Educator app showed "Something went wrong").
