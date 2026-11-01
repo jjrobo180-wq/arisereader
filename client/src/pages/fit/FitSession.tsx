@@ -96,7 +96,7 @@ export function SessionPlayer({ session, onClose, onDone }: { session: Session; 
       <div className="min-w-0 flex-1 text-center"><p className="truncate text-[17px]" style={display}>{session.name}</p><p className="text-[12px] tabular-nums" style={{ color: C.dim }}>{fmtDur(elapsed)} / {fmtDur(total)}</p></div>
       <button type="button" onClick={() => { setVoice((v) => !v); stopAiVoice(); }} aria-label={voice ? "Mute voice" : "Turn voice on"} aria-pressed={voice} className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card }}>{voice ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}</button>
     </div>
-    <div className="mx-4 h-1.5 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,.08)" }}><div className="h-full" style={{ width: `${Math.min(100, (elapsed / total) * 100)}%`, background: C.lime, transition: "width .25s linear" }} /></div>
+    <div className="mx-4 h-1.5 overflow-hidden rounded-full" style={{ background: C.track }}><div className="h-full" style={{ width: `${Math.min(100, (elapsed / total) * 100)}%`, background: C.lime, transition: "width .25s linear" }} /></div>
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-6 text-center">
       <p className="text-[14px] tracking-[.2em]" style={{ ...display, fontWeight: 700, color }}>{i + 1} / {session.phases.length}</p>
       {BREATH.has(p.kind) || p.kind === "still"

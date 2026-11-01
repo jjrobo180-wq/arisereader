@@ -7,7 +7,8 @@ import { useState, type ReactNode } from "react";
 import { Play } from "lucide-react";
 import { isNativeApp, nativeAppInfo } from "@/lib/nativeApp";
 import { videoFor, videoPlayerUrl, videoThumb } from "@shared/fitVideos";
-import { C } from "./fitUi";
+import { C, cardStyle } from "./fitUi";
+import { Art, workoutArt, type ArtKind } from "./fitArt";
 
 /** Where the player page lives: this site, or arisetodo.com inside the iPhone app. */
 const playerOrigin = () => (isNativeApp() ? nativeAppInfo().api : window.location.origin);
@@ -47,23 +48,18 @@ export function VideoThumb({ exId, className = "h-14 w-[88px] rounded-[8px]", ba
   </span>;
 }
 
-/** A card with a video still as a picture across its top and the words below it on the card, never on
- *  top of the picture (YouTube stills have their own big words, and the two fought each other). */
-export function CoverCard({ exId, children, onClick, className = "", testId, tall, style }: { exId?: string; children: ReactNode; onClick?: () => void; className?: string; testId?: string; tall?: boolean; style?: React.CSSProperties }) {
-  const v = exId ? videoFor(exId) : undefined;
-  const h = tall ? 150 : 96;
+/** A card with designed cover art across its top (fitArt.tsx) and the words below it on the card,
+ *  never on top of a picture. `art` picks the art; otherwise it follows the exercise's muscle. */
+export function CoverCard({ exId, art, children, onClick, className = "", testId, tall, style }: { exId?: string; art?: ArtKind; children: ReactNode; onClick?: () => void; className?: string; testId?: string; tall?: boolean; style?: React.CSSProperties }) {
+  const kind = art ?? workoutArt("", exId);
+  const h = tall ? 132 : 86;
   const inner = <>
-    <span aria-hidden className="absolute inset-x-0 top-0 overflow-hidden" style={{ height: h }}>
-      {v ? <img src={videoThumb(v.id, "hq")} alt="" loading="lazy" className="h-full w-full scale-[1.34] object-cover" />
-        : <span className="block h-full w-full" style={{ background: "linear-gradient(150deg, #ff5a1f 0%, #b8360a 55%, #5a2410 100%)" }} />}
-      {/* Fades the bottom of the picture into the card. */}
-      <span className="absolute inset-x-0 bottom-0 h-8" style={{ background: `linear-gradient(180deg, transparent, ${C.card})` }} />
-    </span>
-    <span aria-hidden className="block" style={{ height: h - 8 }} />
-    <span className="relative flex flex-col">{children}</span>
+    <span aria-hidden className="absolute inset-x-0 top-0" style={{ height: h }}><Art kind={kind} className="h-full w-full" /></span>
+    <span aria-hidden className="block" style={{ height: h }} />
+    <span className="relative flex flex-col pt-3">{children}</span>
   </>;
-  const cls = `relative block overflow-hidden rounded-[14px] p-4 text-left ring-1 ring-white/[.07] ${onClick ? "w-full transition active:scale-[.98]" : ""} ${className.replace(/!?min-h-\[[^\]]+\]/g, "")}`;
+  const cls = `relative block overflow-hidden rounded-[16px] px-4 pb-4 text-left ${onClick ? "w-full transition active:scale-[.98]" : ""} ${className.replace(/!?min-h-\[[^\]]+\]/g, "").replace(/!p-\[?[0-9.]+(px)?\]?/g, "")}`;
   return onClick
-    ? <button type="button" onClick={onClick} className={cls} style={{ background: C.card, ...style }} data-testid={testId}>{inner}</button>
-    : <div className={cls} style={{ background: C.card, ...style }} data-testid={testId}>{inner}</div>;
+    ? <button type="button" onClick={onClick} className={cls} style={{ ...cardStyle, ...style }} data-testid={testId}>{inner}</button>
+    : <div className={cls} style={{ ...cardStyle, ...style }} data-testid={testId}>{inner}</div>;
 }
