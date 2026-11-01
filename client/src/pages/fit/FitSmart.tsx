@@ -36,6 +36,20 @@ function usePlan(data: FitData) {
   return { plan, opts, gear, setOpts, shuffle: () => keep({ seed: Math.floor(Math.random() * 1e9) }), setItems: (items: GenItem[]) => keep({ items }) };
 }
 
+/** Today's built-for-you workout, ready to start (for Siri and shortcuts: the same plan the card shows). */
+export function smartWorkoutNow(data: FitData, list: LibraryExercise[]) {
+  const stored = read<Opts>(OPTS_KEY, { equip: data.profile.gym ? "mygym" : "gym", mins: 45, focus: "auto" });
+  const opts: Opts = stored.equip === "mygym" && !data.profile.gym ? { ...stored, equip: "gym" } : stored;
+  const gear = opts.equip === "mygym" ? data.profile.gym?.gear : undefined;
+  const saved = read<{ day: string; seed: number; key: string; items?: GenItem[] } | null>(PLAN_KEY, null);
+  const today = dayKey();
+  const key = `${opts.equip}|${opts.mins}|${opts.focus}|${data.profile.goal}|${gear?.join(",") ?? ""}`;
+  const same = saved && saved.day === today && saved.key === key;
+  const base = generateWorkout(data, { ...opts, goal: data.profile.goal, seed: same ? saved!.seed : Number(today.replace(/-/g, "")), gear });
+  const items = same && saved!.items?.length ? saved!.items : base.items;
+  return startWorkout({ name: base.title, programId: "smart", dayId: today, exercises: planned(data, items, list) });
+}
+
 export function SmartWorkoutCard({ data, list, onStart, testId = "fit-smart" }: { data: FitData; list: LibraryExercise[]; onStart: (a: ReturnType<typeof startWorkout>) => void; testId?: string }) {
   const { plan, opts, gear, setOpts, shuffle, setItems } = usePlan(data);
   const [options, setOptions] = useState(false);

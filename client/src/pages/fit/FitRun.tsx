@@ -153,7 +153,7 @@ const TRAIL_KEY = "arise-fit-trails:";
 const store = { get: (k: string) => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } }, set: (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage full */ } } };
 type Place = { ll: LatLng; label: string };
 export const lastPlace = (): Place | null => { const p = store.get(LOC_KEY); return p && Array.isArray(p.ll) ? p : null; };
-const keepPlace = (p: Place) => store.set(LOC_KEY, p);
+export const keepPlace = (p: Place) => store.set(LOC_KEY, p);
 
 /** Where the phone is: a recent fix right away when there is one (up to 10 minutes old), else a quick one. */
 export function locate(): Promise<LatLng> {

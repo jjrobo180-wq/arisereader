@@ -1,7 +1,7 @@
 // Arise Fit training: the exercise library, the live workout (sets, rest timer, records, what to lift
 // next time), programs, routines and history.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeftRight, Check, ChevronRight, Clock3, Dumbbell, Flame, History, Minus, Pause, Play, PlayCircle, Plus, ScanEye, ScanLine, Search, Timer, Trash2, Trophy } from "lucide-react";
+import { ArrowLeftRight, Check, ChevronRight, Clock3, Dumbbell, Flame, History, MapPin, Minus, Pause, Play, PlayCircle, Plus, ScanEye, ScanLine, Search, Timer, Trash2, Trophy } from "lucide-react";
 import {
   CATALOG, CATALOG_BY_ID, PROGRAMS, PROGRAM_BY_ID, e1rm, fromKg, lastTime, newRecords, nextProgramDay, nextTime, plates, records, repRange, uid,
   type FitData, type FitExercise, type Program, type Routine, type Units, type Workout,
@@ -423,7 +423,7 @@ const FORM_GROUPS = [
   { id: "mobility", label: "Mobility", ids: ["worlds-greatest", "hip-flexor-stretch", "hamstring-stretch", "cat-cow", "childs-pose"] },
 ] as const;
 
-export function TrainTab({ data, update, list, onStart, say, onCoach }: { data: FitData; update: Update; list: LibraryExercise[]; onStart: (a: Active) => void; say: (m: string) => void; onCoach?: () => void }) {
+export function TrainTab({ data, update, list, onStart, say, onCoach, onGyms }: { data: FitData; update: Update; list: LibraryExercise[]; onStart: (a: Active) => void; say: (m: string) => void; onCoach?: () => void; onGyms?: () => void }) {
   const [lib, setLib] = useState(false);
   const [prog, setProg] = useState<Program | null>(null);
   const [routine, setRoutine] = useState<Routine | null>(null);
@@ -453,6 +453,8 @@ export function TrainTab({ data, update, list, onStart, say, onCoach }: { data: 
         <Dumbbell className="h-6 w-6 shrink-0" style={{ color: C.lime }} /><span className="min-w-0"><span className="block text-[17px] leading-none" style={display}>My gym</span><span className="mt-0.5 block truncate text-[12px]" style={{ color: C.dim }}>{data.profile.gym ? gymLabel(data.profile.gym) : "Pick yours"}</span></span></button>
       <button type="button" onClick={() => setScan(true)} className="fit-in flex min-h-[64px] items-center gap-2.5 rounded-[14px] px-3 text-left active:scale-[.98]" style={{ background: C.card, boxShadow: `inset 0 0 0 1px ${C.line}` }} data-testid="fit-scan-machine">
         <ScanLine className="h-6 w-6 shrink-0" style={{ color: C.lime }} /><span className="min-w-0"><span className="block text-[17px] leading-none" style={display}>Scan a machine</span><span className="mt-0.5 block truncate text-[12px]" style={{ color: C.dim }}>QR code or photo</span></span></button>
+      {onGyms && <button type="button" onClick={onGyms} className="fit-in col-span-2 flex min-h-[48px] items-center gap-2.5 rounded-[14px] px-3 text-left active:scale-[.98]" style={{ background: C.card, boxShadow: `inset 0 0 0 1px ${C.line}` }} data-testid="fit-train-gyms">
+        <MapPin className="h-5 w-5 shrink-0" style={{ color: C.lime }} /><span className="flex-1 text-[16px] leading-none" style={display}>Gyms near me</span><span className="text-[12px]" style={{ color: C.dim }}>Prices · busy times</span></button>}
     </div>
     <SmartWorkoutCard data={data} list={list} onStart={onStart} testId="fit-train-smart" />
     {active && next && <Title>Your program</Title>}
