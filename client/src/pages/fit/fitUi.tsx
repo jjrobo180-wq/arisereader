@@ -1,18 +1,52 @@
-// Arise Fit's look: a hard, dark gym app. Graphite and gunmetal, an ember-orange accent, a heavy
-// condensed face for headings (Barlow Condensed, loaded from Google Fonts with system fallbacks) and
-// tight corners. Small shared pieces used by every screen.
-import { useEffect, type ReactNode } from "react";
+// Arise Fit's look (matches the Arise Fit prototype): near-black with an ember glow at the top, charcoal
+// cards, one blaze-orange accent, a heavy condensed face for headings (Barlow Condensed, from Google
+// Fonts with system fallbacks), and motion on everything: screens slide in, rings and bars fill, the
+// streak pulses, the hero card shines. Small shared pieces used by every screen.
+import { useEffect, useState, type ReactNode } from "react";
 import { X } from "lucide-react";
 
 // "lime" is the accent's old name (it was lime green); every screen uses it, so it keeps the name.
-export const C = { bg: "#080a0c", card: "#12171b", card2: "#1b2328", line: "rgba(211,221,223,.10)", text: "#f2f4f1", dim: "#8b999d", lime: "#c7a477", orange: "#e4a567", blue: "#7fa5b4", pink: "#bc8b86", red: "#d26d65", steel: "#bac3c2" };
+export const C = { bg: "#0a0a0b", card: "#141518", card2: "#1e2024", line: "rgba(255,255,255,.07)", text: "#f2f1ee", dim: "#8d939b", lime: "#ff5a1f", orange: "#ffb020", blue: "#4d9fff", pink: "#e8455a", red: "#ff4d4d", steel: "#c9c9d4" };
+/** The ember glow behind every screen. */
+export const glowBg = "radial-gradient(120% 55% at 50% -12%, #2a170d 0%, #0a0a0b 58%)";
 export const font = { fontFamily: "'Barlow', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif" };
 /** Headings: heavy, condensed, upper case. */
-export const display: React.CSSProperties = { fontFamily: "'Barlow Condensed', 'Oswald', 'Arial Narrow', 'Helvetica Neue', sans-serif", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".035em" };
+export const display: React.CSSProperties = { fontFamily: "'Barlow Condensed', 'Oswald', 'Arial Narrow', 'Helvetica Neue', sans-serif", fontWeight: 800, textTransform: "uppercase", letterSpacing: ".01em" };
 
-/** Loads the app's two typefaces once (the system face stands in until they arrive, or offline). */
+/** The app's motion: entrances, fills, the shine, the scan line. Turned off for Reduce Motion. */
+export const FIT_CSS = `
+.fit-in{animation:fitIn .45s cubic-bezier(.2,.9,.2,1) both}
+@keyframes fitIn{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
+.fit-slide{animation:fitSlide .4s cubic-bezier(.2,.9,.2,1) both}
+@keyframes fitSlide{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:none}}
+.fit-sheet{animation:fitSheet .38s cubic-bezier(.2,.9,.2,1) both}
+@keyframes fitSheet{from{opacity:.4;transform:translateX(100%)}to{opacity:1;transform:none}}
+.fit-pop{animation:fitPop .6s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes fitPop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:scale(1)}}
+.fit-tick{animation:fitTick .35s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes fitTick{from{transform:scale(.6)}to{transform:scale(1)}}
+.fit-bar{animation:fitBar 1.1s cubic-bezier(.2,.9,.2,1) both;transform-origin:left}
+@keyframes fitBar{from{transform:scaleX(0)}}
+.fit-shine{position:relative;overflow:hidden}
+.fit-shine::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.14) 50%,transparent 65%);animation:fitShine 2.8s ease-in-out infinite}
+@keyframes fitShine{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+.fit-pulse{animation:fitPulse 1.6s ease-in-out infinite}
+@keyframes fitPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+.fit-scan{animation:fitScan 1.1s ease-in-out infinite alternate}
+@keyframes fitScan{from{top:8%}to{top:88%}}
+.fit-up{animation:fitUp .35s cubic-bezier(.2,.9,.2,1) both}
+@keyframes fitUp{from{transform:translateY(110%)}to{transform:none}}
+.fit-route{stroke-dasharray:4000;stroke-dashoffset:4000;animation:fitRoute 1.8s ease-out .2s forwards}
+@keyframes fitRoute{to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion: reduce){.fit-in,.fit-slide,.fit-sheet,.fit-pop,.fit-tick,.fit-bar,.fit-pulse,.fit-up,.fit-route{animation:none!important;stroke-dashoffset:0}.fit-shine::after,.fit-scan{animation:none!important}}
+`;
+/** A staggered entrance: item k starts a little after item k-1. */
+export const stagger = (k: number, step = 0.06, from = 0) => ({ animationDelay: `${(from + k * step).toFixed(2)}s` });
+
+/** Loads the app's two typefaces and its motion styles once (the system face stands in until the fonts arrive, or offline). */
 export function useFitFonts() {
   useEffect(() => {
+    if (!document.getElementById("arise-fit-motion")) { const st = document.createElement("style"); st.id = "arise-fit-motion"; st.textContent = FIT_CSS; document.head.appendChild(st); }
     if (document.getElementById("arise-fit-fonts")) return;
     const l = document.createElement("link");
     l.id = "arise-fit-fonts"; l.rel = "stylesheet";
@@ -21,41 +55,44 @@ export function useFitFonts() {
   }, []);
 }
 
-/** Gunmetal: a faint top light and a hairline edge, like machined steel. */
-export const cardStyle: React.CSSProperties = { background: `linear-gradient(145deg, #1b2327 0%, ${C.card} 62%, #101418 100%)`, boxShadow: "inset 0 1px 0 rgba(255,255,255,.055), 0 12px 30px rgba(0,0,0,.13), 0 0 0 1px rgba(190,204,208,.055)" };
+/** Charcoal, lit faintly from the top. */
+export const cardStyle: React.CSSProperties = { background: "linear-gradient(180deg, #17191c, #141518)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.05)" };
 
-export function Card({ children, className = "", onClick, testId }: { children: ReactNode; className?: string; onClick?: () => void; testId?: string }) {
-  const cls = `rounded-[20px] p-[18px] ${onClick ? "text-left w-full active:scale-[.99] transition" : ""} ${className}`;
+export function Card({ children, className = "", onClick, testId, style }: { children: ReactNode; className?: string; onClick?: () => void; testId?: string; style?: React.CSSProperties }) {
+  const cls = `fit-in rounded-[14px] p-4 ${onClick ? "text-left w-full active:scale-[.98] transition-transform" : ""} ${className}`;
   return onClick
-    ? <button type="button" onClick={onClick} className={cls} style={cardStyle} data-testid={testId}>{children}</button>
-    : <div className={cls} style={cardStyle} data-testid={testId}>{children}</div>;
+    ? <button type="button" onClick={onClick} className={cls} style={{ ...cardStyle, ...style }} data-testid={testId}>{children}</button>
+    : <div className={cls} style={{ ...cardStyle, ...style }} data-testid={testId}>{children}</div>;
 }
 
 export function Title({ children, right }: { children: ReactNode; right?: ReactNode }) {
-  return <div className="mb-3 mt-8 flex items-center justify-between px-1"><h2 className="flex items-center gap-2 text-[13px] tracking-[.18em]" style={{ ...display, fontWeight: 700, color: C.steel }}>{children}</h2>{right}</div>;
+  return <div className="mb-3 mt-8 flex items-center justify-between px-1"><h2 className="flex items-center gap-2 text-[13px] tracking-[.16em]" style={{ ...display, color: C.dim }}>{children}</h2>{right}</div>;
 }
 
 export function Btn({ children, onClick, kind = "primary", className = "", disabled, testId, type = "button" }: { children: ReactNode; onClick?: () => void; kind?: "primary" | "ghost" | "soft" | "danger"; className?: string; disabled?: boolean; testId?: string; type?: "button" | "submit" }) {
-  const st = kind === "primary" ? { background: C.lime, color: "#101417" } : kind === "soft" ? { background: C.card2, color: C.text } : kind === "danger" ? { background: "rgba(255,77,77,.14)", color: C.red } : { background: "transparent", color: C.lime };
-  return <button type={type} onClick={onClick} disabled={disabled} data-testid={testId} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-[12px] px-5 text-[14px] uppercase tracking-[.11em] transition active:scale-[.98] disabled:opacity-40 ${className}`} style={{ ...st, fontFamily: display.fontFamily, fontWeight: 700 }}>{children}</button>;
+  const st = kind === "primary" ? { background: C.lime, color: "#0b0b0c" } : kind === "soft" ? { background: C.card2, color: C.text } : kind === "danger" ? { background: "rgba(255,77,77,.14)", color: C.red } : { background: "transparent", color: C.lime };
+  return <button type={type} onClick={onClick} disabled={disabled} data-testid={testId} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-[10px] px-5 text-[18px] uppercase tracking-[.04em] transition active:scale-[.97] disabled:opacity-40 ${className}`} style={{ ...st, fontFamily: display.fontFamily, fontWeight: 800 }}>{children}</button>;
 }
 
 /** A ring that fills as a number approaches its goal. */
-export function Ring({ value, goal, size = 128, stroke = 12, color = C.lime, children }: { value: number; goal: number; size?: number; stroke?: number; color?: string; children?: ReactNode }) {
+export function Ring({ value, goal, size = 128, stroke = 12, color = C.lime, glow, children }: { value: number; goal: number; size?: number; stroke?: number; color?: string; glow?: boolean; children?: ReactNode }) {
   const r = (size - stroke) / 2, c = 2 * Math.PI * r, f = goal > 0 ? Math.min(1, value / goal) : 0;
+  // Starts empty and sweeps to its value when it first appears.
+  const [shown, setShown] = useState(false);
+  useEffect(() => { const t = requestAnimationFrame(() => requestAnimationFrame(() => setShown(true))); return () => cancelAnimationFrame(t); }, []);
   return <div className="relative grid place-items-center" style={{ width: size, height: size }}>
     <svg width={size} height={size} className="-rotate-90" aria-hidden>
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,.08)" strokeWidth={stroke} />
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={value > goal ? C.orange : color} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - f)} style={{ transition: "stroke-dashoffset .6s ease" }} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={value > goal ? C.orange : color} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={shown ? c * (1 - f) : c} style={{ transition: "stroke-dashoffset 1.4s cubic-bezier(.2,.9,.2,1)", ...(glow ? { filter: `drop-shadow(0 0 10px ${color}80)` } : {}) }} />
     </svg>
     <div className="absolute inset-0 grid place-items-center text-center">{children}</div>
   </div>;
 }
 
-export function Bar({ label, value, goal, color, unit = "g" }: { label: string; value: number; goal: number; color: string; unit?: string }) {
+export function Bar({ label, value, goal, color, unit = "g", delay = 0 }: { label: string; value: number; goal: number; color: string; unit?: string; delay?: number }) {
   return <div className="min-w-0 flex-1">
     <div className="flex items-baseline justify-between text-[12px]"><span style={{ color: C.dim }}>{label}</span><span className="font-semibold tabular-nums">{Math.round(value)}<span style={{ color: C.dim }}>/{goal}{unit}</span></span></div>
-    <div className="mt-1.5 h-2 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,.08)" }}><div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, goal ? (value / goal) * 100 : 0)}%`, background: color }} /></div>
+    <div className="mt-1.5 h-2 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,.08)" }}><div className="fit-bar h-full rounded-full transition-[width] duration-500" style={{ width: `${Math.min(100, goal ? (value / goal) * 100 : 0)}%`, background: color, animationDelay: `${delay}s` }} /></div>
   </div>;
 }
 
@@ -81,18 +118,24 @@ export function Spark({ points, height = 90, color = C.lime, label }: { points: 
 export function Columns({ items, color = C.lime }: { items: { label: string; value: number }[]; color?: string }) {
   const max = Math.max(1, ...items.map((i) => i.value));
   return <div className="flex h-28 items-end gap-1.5">{items.map((i) => <div key={i.label} className="flex min-w-0 flex-1 flex-col items-center gap-1">
-    <div className="w-full rounded-t-[6px]" style={{ height: `${Math.max(3, (i.value / max) * 92)}px`, background: i.value ? color : "rgba(255,255,255,.08)" }} />
+    <div className="w-full rounded-t-[6px] transition-[height] duration-700" style={{ height: `${Math.max(3, (i.value / max) * 92)}px`, background: i.value ? color : "rgba(255,255,255,.08)" }} />
     <span className="truncate text-[10px]" style={{ color: C.dim }}>{i.label}</span>
   </div>)}</div>;
 }
 
 /** A sheet that slides up over the screen (full height on phones). */
-export function Sheet({ title, onClose, children, testId, right }: { title: string; onClose: () => void; children: ReactNode; testId?: string; right?: ReactNode }) {
-  useEffect(() => { const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", esc); return () => window.removeEventListener("keydown", esc); }, [onClose]);
-  return <div className="fixed inset-0 z-[80] flex flex-col" style={{ background: C.bg, color: C.text, ...font }} role="dialog" aria-modal="true" aria-label={title} data-testid={testId}>
+/** A screen that slides in from the right over the app (full height on phones). With `inline`, the
+ *  same content is drawn as a tab instead: a big heading, no close button. */
+export function Sheet({ title, onClose, children, testId, right, inline }: { title: string; onClose: () => void; children: ReactNode; testId?: string; right?: ReactNode; inline?: boolean }) {
+  useEffect(() => { if (inline) return; const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", esc); return () => window.removeEventListener("keydown", esc); }, [onClose, inline]);
+  if (inline) return <div data-testid={testId}>
+    <div className="mb-3 flex items-end justify-between px-1"><h1 className="text-[46px] leading-[.95]" style={display}>{title}</h1>{right}</div>
+    {children}
+  </div>;
+  return <div className="fit-sheet fixed inset-0 z-[80] flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} role="dialog" aria-modal="true" aria-label={title} data-testid={testId}>
     <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
       <button type="button" onClick={onClose} aria-label="Close" className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card }}><X className="h-5 w-5" /></button>
-      <h1 className="min-w-0 flex-1 truncate text-center text-[20px]" style={display}>{title}</h1>
+      <h1 className="min-w-0 flex-1 truncate text-center text-[22px]" style={display}>{title}</h1>
       <div className="flex min-w-11 justify-end">{right}</div>
     </div>
     <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[max(24px,env(safe-area-inset-bottom))]">{children}</div>
@@ -102,7 +145,7 @@ export function Sheet({ title, onClose, children, testId, right }: { title: stri
 export function Chips<T extends string>({ items, value, onChange, label }: { items: { id: T; label: string }[]; value: T; onChange: (v: T) => void; label: string }) {
   return <div role="group" aria-label={label} className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
     {items.map((i) => <button key={i.id} type="button" onClick={() => onChange(i.id)} aria-pressed={value === i.id}
-      className="h-9 shrink-0 whitespace-nowrap rounded-[10px] px-3.5 text-[13px] font-semibold" style={value === i.id ? { background: C.text, color: C.bg } : { background: C.card, color: C.text }}>{i.label}</button>)}
+      className="h-9 shrink-0 whitespace-nowrap rounded-[10px] px-3.5 text-[13px] font-semibold transition-colors duration-200" style={value === i.id ? { background: C.lime, color: "#0b0b0c" } : { background: C.card, color: C.text }}>{i.label}</button>)}
   </div>;
 }
 

@@ -1,7 +1,8 @@
 // Arise Fit: training and nutrition in one app (the iPhone app built with VITE_NATIVE_APP=fit, and
-// #/fit on the website). Tabs: Today, Train, Food, Progress. Data: fitStore.ts → server/fit.ts.
+// #/fit on the website). Tabs: Today, Train, Food, Fast, Run (Progress opens from Today). Data:
+// fitStore.ts → server/fit.ts. The look and motion follow the Arise Fit prototype (fitUi.tsx).
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, Apple, BarChart3, Bell, ChevronRight, HeartPulse, Dumbbell, Flame, Home, LogOut, Play, Scale, Settings, ShieldCheck, Trophy } from "lucide-react";
+import { Activity, Apple, BarChart3, Bell, ChevronRight, HeartPulse, Dumbbell, Flame, Home, LogOut, Play, Route, Scale, Settings, ShieldCheck, Timer, Trophy } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import AccountPrivacy from "@/components/AccountPrivacy";
 import { goToSignIn } from "@/lib/hubs";
@@ -10,14 +11,22 @@ import { useFitData, useLibrary, type Update } from "./fitStore";
 import { ExerciseDetail, LiveWorkout, TrainTab, libraryFallback, planned, programCover, readActive, startWorkout } from "./FitTrain";
 import { FoodTab, latestKg, totals } from "./FitFood";
 import { CoverCard, VideoPlayer } from "./FitVideo";
-import { FastingCard, FastingSheet } from "./FitFasting";
+import { FastingSheet } from "./FitFasting";
+import { OutdoorHub } from "./FitRun";
 import { HealthSheet, RemindersSheet, StepsCard, useHealth } from "./FitHealth";
 import { saveToHealth } from "./fitNative";
-import { DIET_BY_ID, pointsBudget, pointsOf } from "@shared/fitNutrition";
+import { DIET_BY_ID, fastingStatus, pointsBudget, pointsOf } from "@shared/fitNutrition";
 import { videoFor, videoOfTheDay } from "@shared/fitVideos";
-import { Bar, Btn, C, Card, Columns, Field, Ring, Sheet, Spark, Title, fmtNum, font, inputCls, inputStyle, display, useFitFonts } from "./fitUi";
+import { Bar, Btn, C, Card, Columns, Field, Ring, Sheet, Spark, Title, fmtDur, fmtNum, font, glowBg, inputCls, inputStyle, display, stagger, useFitFonts } from "./fitUi";
 
-type Tab = "today" | "train" | "food" | "progress";
+type Tab = "today" | "train" | "food" | "fast" | "run";
+
+/** Ticks once a second while `on` (live timers on Today). */
+function useClock(on: boolean) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { if (!on) return; const t = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(t); }, [on]);
+  return now;
+}
 
 function Setup({ data, update, onDone }: { data: FitData; update: Update; onDone: () => void }) {
   const p = data.profile;
@@ -54,7 +63,7 @@ function Setup({ data, update, onDone }: { data: FitData; update: Update; onDone
   </Sheet>;
 }
 
-function TodayTab({ data, update, onTab, onStartProgram, user, list }: { data: FitData; update: Update; onTab: (t: Tab) => void; onStartProgram: () => void; user: string; list: ReturnType<typeof libraryFallback> }) {
+function TodayTab({ data, update, onTab, onStartProgram, onProgress, user, list }: { data: FitData; update: Update; onTab: (t: Tab) => void; onStartProgram: () => void; onProgress: () => void; user: string; list: ReturnType<typeof libraryFallback> }) {
   const today = dayKey();
   const t = totals(data.foods.filter((f) => f.date === today));
   const g = goals(data.profile, latestKg(data));
@@ -69,39 +78,47 @@ function TodayTab({ data, update, onTab, onStartProgram, user, list }: { data: F
   const tipId = videoOfTheDay(next ? next.day.items.map((i) => i.exId) : CATALOG.map((e) => e.id));
   const tip = tipId ? list.find((e) => e.id === tipId) : undefined;
   const [watch, setWatch] = useState(false);
-  const [fasting, setFasting] = useState(false);
   const health = useHealth(update);
+  const fast = fastingStatus(data.fasting, useClock(!!data.fasting?.start));
   const points = data.profile.trackMode === "points";
   const used = data.foods.filter((f) => f.date === today).reduce((n, f) => n + pointsOf({ kcal: f.kcal * f.servings, p: f.p * f.servings, c: f.c * f.servings, f: f.f * f.servings }), 0);
   const budget = pointsBudget(g);
   return <div>
+    <p className="px-1 text-[14px]" style={{ color: C.dim }}>{hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"}{user ? `, ${user}` : ""}</p>
     <div className="flex items-end justify-between px-1">
-      <div><p className="text-[11px] font-semibold uppercase tracking-[.22em]" style={{ color: C.lime }}>ARISE / PERFORMANCE</p><h1 className="mt-2 text-[43px] leading-[.95]" style={display}>Your day<span style={{ color: C.lime }}>.</span></h1><p className="mt-2 text-[13px]" style={{ color: C.dim }}>{hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"}{user ? `, ${user}` : ""} · Build with intention.</p></div>
-      {s > 0 && <div className="flex items-center gap-1 rounded-full px-3 py-1.5" style={{ background: C.card }} aria-label={`${s} day streak`}><Flame className="h-4 w-4" style={{ color: C.orange }} /><span className="text-[15px] font-bold">{s}</span></div>}
+      <h1 className="text-[46px] leading-[.95]" style={display}>Today</h1>
+      <div className="flex items-center gap-2">
+        {s > 0 && <div className="fit-pulse flex items-center gap-1 rounded-full px-3 py-1.5" style={{ background: C.card }} aria-label={`${s} day streak`}><Flame className="h-4 w-4" fill={C.orange} style={{ color: C.orange }} /><span className="text-[18px] leading-none" style={display}>{s}</span></div>}
+        <button type="button" onClick={onProgress} aria-label="Progress and settings" className="grid h-10 w-10 place-items-center rounded-full" style={{ background: C.card }} data-testid="fit-open-progress"><BarChart3 className="h-5 w-5" /></button>
+      </div>
     </div>
-    <Card className="mt-6 flex items-center gap-4 !p-5" onClick={() => onTab("food")} testId="fit-today-calories">
+    <Card className="mt-4 flex items-center gap-4" onClick={() => onTab("food")} testId="fit-today-calories">
       {points
         ? <Ring value={used} goal={budget} size={124}><div><p className="text-[36px] leading-none" style={display}>{Math.max(0, budget - used)}</p><p className="mt-1 text-[11px] uppercase tracking-[.1em]" style={{ color: C.dim }}>points left</p></div></Ring>
         : <Ring value={t.kcal} goal={g.kcal} size={124}><div><p className="text-[34px] leading-none" style={display}>{fmtNum(Math.max(0, g.kcal - t.kcal))}</p><p className="mt-1 text-[11px] uppercase tracking-[.1em]" style={{ color: C.dim }}>calories left</p></div></Ring>}
-      <div className="min-w-0 flex-1 space-y-2.5"><Bar label="Protein" value={t.p} goal={g.p} color={C.pink} /><Bar label="Carbs" value={t.c} goal={g.c} color={C.blue} /><Bar label="Fat" value={t.f} goal={g.f} color={C.orange} /></div>
+      <div className="min-w-0 flex-1 space-y-2.5"><Bar label="Protein" value={t.p} goal={g.p} color={C.pink} delay={0.3} /><Bar label="Carbs" value={t.c} goal={g.c} color={C.blue} delay={0.45} /><Bar label="Fat" value={t.f} goal={g.f} color={C.orange} delay={0.6} /></div>
     </Card>
-    {next && prog ? <CoverCard exId={next.day.items.find((i) => videoFor(i.exId))?.exId ?? programCover(prog)} tall className="mt-3 !p-4" testId="fit-today-next">
-      <span className="text-[12px] font-bold uppercase tracking-[.14em]" style={{ color: C.lime }}>Up next · Week {next.week}</span>
-      <span className="mt-1 block text-[24px] font-extrabold tracking-tight" style={display}>{next.day.name}</span><span className="block text-[14px]" style={{ color: "#d6d6de" }}>{prog.name} · {next.day.items.length} exercises</span>
-      <Btn className="mt-3 w-full" onClick={onStartProgram}><Play className="h-5 w-5" />Start workout</Btn>
-    </CoverCard> : <CoverCard exId="back-squat" onClick={() => onTab("train")} className="mt-3"><span className="flex items-end gap-3"><Dumbbell className="h-8 w-8 shrink-0" style={{ color: C.lime }} /><span className="min-w-0 flex-1"><span className="block text-[18px] font-bold">Start training</span><span className="block text-[13px]" style={{ color: "#d6d6de" }}>Pick a program, with a how-to video for every exercise.</span></span><ChevronRight className="h-5 w-5" /></span></CoverCard>}
-    <div className="mt-4 grid grid-cols-2 gap-3">
-      <Card className="!p-4"><Activity className="h-5 w-5" style={{ color: C.lime }} /><p className="mt-2 text-[24px] font-bold">{thisWeek.length}</p><p className="text-[12px]" style={{ color: C.dim }}>SESSIONS / 7 DAYS</p></Card>
-      <Card className="!p-4"><BarChart3 className="h-5 w-5" style={{ color: C.blue }} /><p className="mt-2 text-[24px] font-bold">{fmtNum(vol)}</p><p className="text-[12px]" style={{ color: C.dim }}>{data.profile.units} MOVED / 7 DAYS</p></Card>
+    {next && prog ? <CoverCard exId={next.day.items.find((i) => videoFor(i.exId))?.exId ?? programCover(prog)} tall className="fit-in fit-shine mt-3 !p-[18px]" testId="fit-today-next">
+      <span className="text-[12px] tracking-[.14em]" style={{ ...display, color: C.lime }}>Up next · Week {next.week}</span>
+      <span className="block text-[30px] leading-none" style={display}>{next.day.name}</span><span className="mt-1 block text-[14px]" style={{ color: C.steel }}>{prog.name} · {next.day.items.length} exercises · {Math.round(next.day.items.reduce((a, i) => a + i.sets * (i.rest + 45), 0) / 60)} min</span>
+      <Btn className="relative z-[1] mt-3 w-full !min-h-[50px] !text-[19px]" onClick={onStartProgram} testId="fit-today-start"><Play className="h-5 w-5" fill="currentColor" />Start workout</Btn>
+    </CoverCard> : <CoverCard exId="back-squat" onClick={() => onTab("train")} tall className="fit-in fit-shine mt-3 !p-[18px]"><span className="text-[12px] tracking-[.14em]" style={{ ...display, color: C.lime }}>Get started</span><span className="block text-[30px] leading-none" style={display}>Start training</span><span className="mt-1 block text-[14px]" style={{ color: C.steel }}>Pick a program, with a how-to video for every exercise.</span>
+      <span className="relative z-[1] mt-3 flex min-h-[50px] w-full items-center justify-center gap-2 rounded-[10px] text-[19px]" style={{ ...display, background: C.lime, color: "#0b0b0c" }}><Dumbbell className="h-5 w-5" />Pick a program</span></CoverCard>}
+    <div className="mt-3 grid grid-cols-2 gap-2.5">
+      {health ? <Card className="!p-3.5" style={stagger(0, 0, 0.15)}><p className="text-[30px] leading-none tabular-nums" style={display}>{fmtNum(health.steps[today] ?? 0)}</p><p className="mt-1 text-[12px]" style={{ color: C.dim }}>steps · Apple Health</p></Card>
+        : <Card className="!p-3.5" style={stagger(0, 0, 0.15)}><p className="text-[30px] leading-none tabular-nums" style={display}>{thisWeek.length}</p><p className="mt-1 text-[12px]" style={{ color: C.dim }}>workouts · 7 days</p></Card>}
+      <Card className="!p-3.5" onClick={() => onTab("fast")} style={stagger(0, 0, 0.25)} testId="fit-today-fast"><p className="text-[30px] leading-none tabular-nums" style={{ ...display, color: fast.active ? C.text : C.dim }}>{fast.active ? fmtDur(fast.elapsedMs / 1000) : "—"}</p><p className="mt-1 text-[12px]" style={{ color: C.dim }}>{fast.active ? "fasting" : "not fasting"} · {data.fasting?.protocol ?? "16:8"}</p></Card>
+    </div>
+    <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+      <Card className="!p-3.5" style={stagger(0, 0, 0.35)}><Activity className="h-5 w-5" style={{ color: C.lime }} /><p className="mt-2 text-[26px] leading-none tabular-nums" style={display}>{fmtNum(vol)}</p><p className="mt-1 text-[12px]" style={{ color: C.dim }}>{data.profile.units} moved · 7 days</p></Card>
+      <Card className="!p-3.5" onClick={() => onTab("run")} style={stagger(0, 0, 0.45)}><Route className="h-5 w-5" style={{ color: C.lime }} /><p className="mt-2 text-[26px] leading-none" style={display}>Run</p><p className="mt-1 text-[12px]" style={{ color: C.dim }}>GPS · trails near you</p></Card>
     </div>
     {health && <div className="mt-3"><StepsCard data={data} snap={health} /></div>}
-    <div className="mt-3"><FastingCard data={data} update={update} onOpen={() => setFasting(true)} /></div>
-    <p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>{DIET_BY_ID.get(data.profile.dietPlan ?? "balanced")?.name} plan · change it in Food</p>
+    <p className="mt-3 px-1 text-[12px]" style={{ color: C.dim }}>{DIET_BY_ID.get(data.profile.dietPlan ?? "balanced")?.name} plan · change it in Food</p>
     {tip && <><Title right={<button type="button" onClick={() => setWatch(true)} className="text-[14px] font-semibold" style={{ color: C.lime }}>Cues</button>}>Form tip of the day</Title>
       <VideoPlayer exId={tip.id} label={tip.name} testId="fit-today-tip" /></>}
     <WeightCard data={data} update={update} />
     {watch && tip && <ExerciseDetail ex={tip} data={data} onClose={() => setWatch(false)} />}
-    {fasting && <FastingSheet data={data} update={update} onClose={() => setFasting(false)} />}
   </div>;
 }
 
@@ -117,7 +134,7 @@ function WeightCard({ data, update }: { data: FitData; update: Update }) {
   </Card></>;
 }
 
-function ProgressTab({ data, update, list, onSettings }: { data: FitData; update: Update; list: ReturnType<typeof libraryFallback>; onSettings: () => void }) {
+function ProgressSheet({ data, update, list, onSettings, onClose }: { data: FitData; update: Update; list: ReturnType<typeof libraryFallback>; onSettings: () => void; onClose: () => void }) {
   const u = data.profile.units;
   const rec = useMemo(() => [...records(data.workouts).entries()].sort((a, b) => b[1].e1rm - a[1].e1rm).slice(0, 10), [data.workouts]);
   const name = (id: string) => list.find((e) => e.id === id)?.name ?? CATALOG_BY_ID.get(id)?.name ?? id;
@@ -131,9 +148,7 @@ function ProgressTab({ data, update, list, onSettings }: { data: FitData; update
   }), [data.workouts]);
   const sets = weeklySets(data.workouts, muscle);
   const food7 = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); const k = dayKey(d); return { label: d.toLocaleDateString(undefined, { weekday: "narrow" }), value: Math.round(totals(data.foods.filter((f) => f.date === k)).kcal) }; });
-  return <div>
-    <div className="flex items-end justify-between px-1"><h1 className="text-[36px] leading-[.95]" style={display}>Progress</h1>
-      <button type="button" onClick={onSettings} aria-label="Settings" className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card }} data-testid="fit-settings"><Settings className="h-5 w-5" /></button></div>
+  return <Sheet title="Progress" onClose={onClose} testId="fit-progress" right={<button type="button" onClick={onSettings} aria-label="Settings" className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card }} data-testid="fit-settings"><Settings className="h-5 w-5" /></button>}>
     <Title>Volume per week ({u})</Title><Card><Columns items={weeks} /></Card>
     <Title>Sets per muscle this week</Title><Card>{Object.keys(sets).length ? <ul className="space-y-2">{Object.entries(sets).sort((a, b) => b[1] - a[1]).map(([m, n]) => <li key={m} className="flex items-center gap-3"><span className="w-24 shrink-0 text-[14px] capitalize">{m}</span>
       <div className="h-2.5 min-w-0 flex-1 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,.08)" }}><div className="h-full rounded-full" style={{ width: `${Math.min(100, (n / 20) * 100)}%`, background: n >= 10 ? C.lime : C.orange }} /></div><span className="w-6 text-right text-[13px] font-semibold tabular-nums">{n}</span></li>)}</ul>
@@ -145,7 +160,7 @@ function ProgressTab({ data, update, list, onSettings }: { data: FitData; update
       <div className="text-right"><p className="text-[18px] font-bold">{fmtNum(b.e1rm)}</p><p className="text-[11px]" style={{ color: C.dim }}>est. max</p></div></Card>)}</div>
       : <p className="px-1 text-[14px]" style={{ color: C.dim }}>Your best lifts show up here.</p>}
     <WeightCard data={data} update={update} />
-  </div>;
+  </Sheet>;
 }
 
 function SettingsSheet({ data, update, onClose, onGoals, onAccount }: { data: FitData; update: Update; onClose: () => void; onGoals: () => void; onAccount: () => void }) {
@@ -183,6 +198,7 @@ export default function FitApp() {
   const [active, setActive] = useState(readActive);
   const [setup, setSetup] = useState(false);
   const [settings, setSettings] = useState(false);
+  const [progress, setProgress] = useState(false);
   const [account, setAccount] = useState(false);
   const [toast, setToast] = useState("");
   const say = useCallback((m: string) => { setToast(m); window.setTimeout(() => setToast((t) => (t === m ? "" : t)), 2600); }, []);
@@ -194,23 +210,32 @@ export default function FitApp() {
     setActive(startWorkout({ name: `${prog.name}: ${next.day.name}`, programId: prog.id, dayId: next.day.id, exercises: planned(data, next.day.items, list) }));
   };
   const first = String(user?.displayName || "").trim().split(/\s+/)[0] || "";
-  const tabs: [Tab, string, typeof Home][] = [["today", "Today", Home], ["train", "Train", Dumbbell], ["food", "Food", Apple], ["progress", "Progress", BarChart3]];
-  return <div className="fixed inset-0 flex flex-col" style={{ background: `radial-gradient(120% 55% at 50% -12%, #2a170d 0%, ${C.bg} 58%)`, color: C.text, ...font }} data-testid="fit-app">
-    <main className="min-h-0 flex-1 overflow-y-auto px-4 pb-28 pt-[max(14px,env(safe-area-inset-top))]">
-      {tab === "today" && <TodayTab data={data} update={update} onTab={setTab} onStartProgram={startProgram} user={first} list={list} />}
-      {tab === "train" && <><h1 className="mb-4 px-1 text-[36px] leading-[.95]" style={display}>Train</h1><TrainTab data={data} update={update} list={list} onStart={setActive} say={say} /></>}
-      {tab === "food" && <><h1 className="mb-3 px-1 text-[36px] leading-[.95]" style={display}>Food</h1><FoodTab token={token} data={data} update={update} say={say} /></>}
-      {tab === "progress" && <ProgressTab data={data} update={update} list={list} onSettings={() => setSettings(true)} />}
+  const tabs: [Tab, string, typeof Home][] = [["today", "Today", Home], ["train", "Train", Dumbbell], ["food", "Food", Apple], ["fast", "Fast", Timer], ["run", "Run", Route]];
+  const at = Math.max(0, tabs.findIndex(([id]) => id === tab));
+  const go = (t: Tab) => { if (t !== tab) { setTab(t); document.getElementById("fit-main")?.scrollTo({ top: 0 }); } };
+  return <div className="fixed inset-0 flex flex-col" style={{ background: glowBg, color: C.text, ...font }} data-testid="fit-app">
+    <main id="fit-main" className="min-h-0 flex-1 overflow-y-auto px-4 pb-28 pt-[max(14px,env(safe-area-inset-top))]">
+      {/* key={tab}: each tab's screen re-mounts, so it slides up into place and its rings and bars fill. */}
+      <div key={tab} className="fit-in">
+        {tab === "today" && <TodayTab data={data} update={update} onTab={go} onStartProgram={startProgram} onProgress={() => setProgress(true)} user={first} list={list} />}
+        {tab === "train" && <><h1 className="mb-4 px-1 text-[46px] leading-[.95]" style={display}>Train</h1><TrainTab data={data} update={update} list={list} onStart={setActive} say={say} /></>}
+        {tab === "food" && <><h1 className="mb-3 px-1 text-[46px] leading-[.95]" style={display}>Food</h1><FoodTab token={token} data={data} update={update} say={say} /></>}
+        {tab === "fast" && <FastingSheet inline data={data} update={update} onClose={() => go("today")} />}
+        {tab === "run" && <OutdoorHub inline data={data} update={update} say={say} onClose={() => go("today")} />}
+      </div>
       {saving === "offline" && <p className="mt-6 text-center text-[12px]" style={{ color: C.dim }}>Offline: changes are kept on this phone and will save when you're back online.</p>}
     </main>
-    <nav aria-label="Arise Fit" className="fixed inset-x-3 z-[40] mx-auto flex max-w-md items-center rounded-[14px] p-1.5 shadow-[0_12px_32px_rgba(0,0,0,.5)]" style={{ bottom: "max(12px, env(safe-area-inset-bottom))", background: "rgba(18,19,22,.94)", backdropFilter: "blur(16px)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.06), 0 12px 32px rgba(0,0,0,.6)" }}>
-      {tabs.map(([id, label, Icon]) => <button key={id} type="button" onClick={() => setTab(id)} aria-current={tab === id ? "page" : undefined} data-testid={`fit-tab-${id}`}
-        className="flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 rounded-[10px] text-[12px] uppercase tracking-[.08em] transition" style={{ fontFamily: display.fontFamily, fontWeight: 700, ...(tab === id ? { background: "linear-gradient(180deg, rgba(255,90,31,.22), rgba(255,90,31,.08))", color: C.lime, boxShadow: "inset 0 -2px 0 #ff5a1f" } : { color: C.dim }) }}>
+    <nav aria-label="Arise Fit" className="fixed inset-x-3 z-[40] mx-auto flex max-w-md items-center rounded-[14px] p-1.5" style={{ bottom: "max(12px, env(safe-area-inset-bottom))", background: "rgba(18,19,22,.96)", backdropFilter: "blur(16px)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.06), 0 12px 32px rgba(0,0,0,.6)" }}>
+      {/* The highlight slides under the tab you pick. */}
+      <span aria-hidden className="absolute bottom-1.5 top-1.5 rounded-[10px]" style={{ width: `calc((100% - 12px) / ${tabs.length})`, left: `calc(6px + ${at} * (100% - 12px) / ${tabs.length})`, background: "linear-gradient(180deg, rgba(255,90,31,.24), rgba(255,90,31,.08))", boxShadow: "inset 0 -2px 0 #ff5a1f", transition: "left .35s cubic-bezier(.2,.9,.2,1)" }} />
+      {tabs.map(([id, label, Icon]) => <button key={id} type="button" onClick={() => go(id)} aria-current={tab === id ? "page" : undefined} data-testid={`fit-tab-${id}`}
+        className="relative flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 rounded-[10px] text-[12px] uppercase tracking-[.08em] transition-colors duration-200" style={{ fontFamily: display.fontFamily, fontWeight: 800, color: tab === id ? C.lime : C.dim }}>
         <Icon className="h-[22px] w-[22px]" />{label}</button>)}
     </nav>
     {active && <LiveWorkout active={active} setActive={setActive} data={data} update={update} list={list} say={say} />}
     {setup && <Setup data={data} update={update} onDone={() => setSetup(false)} />}
-    {settings && <SettingsSheet data={data} update={update} onClose={() => setSettings(false)} onGoals={() => { setSettings(false); setSetup(true); }} onAccount={() => setAccount(true)} />}
+    {progress && <ProgressSheet data={data} update={update} list={list} onClose={() => setProgress(false)} onSettings={() => setSettings(true)} />}
+    {settings && <SettingsSheet data={data} update={update} onClose={() => setSettings(false)} onGoals={() => { setSettings(false); setProgress(false); setSetup(true); }} onAccount={() => setAccount(true)} />}
     {account && <div className="fixed inset-0 z-[90]"><AccountPrivacy onClose={() => setAccount(false)} /></div>}
     <div role="status" aria-live="polite" className={`pointer-events-none fixed left-1/2 z-[95] -translate-x-1/2 rounded-full px-4 py-2.5 text-[14px] font-semibold shadow-xl transition ${toast ? "opacity-100" : "opacity-0"}`} style={{ top: "max(16px, env(safe-area-inset-top))", background: C.text, color: C.bg }}>{toast}</div>
   </div>;

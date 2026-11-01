@@ -47,15 +47,15 @@ export function VideoThumb({ exId, className = "h-14 w-[88px] rounded-[8px]", ba
 }
 
 /** A card with a video still behind it, darkened so the words on it stay readable. */
-export function CoverCard({ exId, children, onClick, className = "", testId, tall }: { exId?: string; children: ReactNode; onClick?: () => void; className?: string; testId?: string; tall?: boolean }) {
+export function CoverCard({ exId, children, onClick, className = "", testId, tall, style }: { exId?: string; children: ReactNode; onClick?: () => void; className?: string; testId?: string; tall?: boolean; style?: React.CSSProperties }) {
   const v = exId ? videoFor(exId) : undefined;
   const inner = <>
     {v && <img src={videoThumb(v.id, "hq")} alt="" loading="lazy" className="absolute inset-0 h-full w-full scale-[1.34] object-cover" />}
-    <span aria-hidden className="absolute inset-0" style={{ background: v ? "linear-gradient(180deg, rgba(11,11,16,.15) 0%, rgba(11,11,16,.72) 55%, rgba(11,11,16,.96) 100%)" : `linear-gradient(140deg, #2a160c, ${C.card})` }} />
+    <span aria-hidden className="absolute inset-0" style={{ background: v ? "linear-gradient(180deg, rgba(10,10,11,.1) 0%, rgba(10,10,11,.7) 55%, rgba(10,10,11,.96) 100%)" : "linear-gradient(180deg, rgba(10,10,11,.1), rgba(10,10,11,.95)), repeating-linear-gradient(135deg, #2a1d14 0 14px, #20160f 14px 28px)" }} />
     <span className="relative flex h-full flex-col justify-end">{children}</span>
   </>;
-  const cls = `relative block overflow-hidden rounded-[14px] p-4 text-left ring-1 ring-white/[.06] ${tall ? "min-h-[200px]" : "min-h-[150px]"} ${onClick ? "w-full transition active:scale-[.99]" : ""} ${className}`;
+  const cls = `relative block overflow-hidden rounded-[14px] p-4 text-left ring-1 ring-white/[.06] ${tall ? "min-h-[200px]" : "min-h-[150px]"} ${onClick ? "w-full transition active:scale-[.98]" : ""} ${className}`;
   return onClick
-    ? <button type="button" onClick={onClick} className={cls} style={{ background: C.card }} data-testid={testId}>{inner}</button>
-    : <div className={cls} style={{ background: C.card }} data-testid={testId}>{inner}</div>;
+    ? <button type="button" onClick={onClick} className={cls} style={{ background: C.card, ...style }} data-testid={testId}>{inner}</button>
+    : <div className={cls} style={{ background: C.card, ...style }} data-testid={testId}>{inner}</div>;
 }
