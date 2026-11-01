@@ -6,7 +6,7 @@ import { Play, RotateCcw } from "lucide-react";
 import { CATALOG_BY_ID, type Muscle } from "@shared/fit";
 import { videoFor } from "@shared/fitVideos";
 import type { LibraryExercise } from "./fitStore";
-import { Btn, C, Chips, Sheet, display } from "./fitUi";
+import { Btn, C, Chips, Sheet, display, stagger } from "./fitUi";
 import { VideoThumb } from "./FitVideo";
 
 export type BodyPart = Extract<Muscle, "chest" | "back" | "shoulders" | "biceps" | "triceps" | "forearms" | "abs" | "quads" | "hamstrings" | "glutes" | "calves">;
@@ -44,7 +44,7 @@ function Figure({ shapes, picked, onPick, label }: { shapes: typeof FRONT; picke
   const fill = (p: BodyPart) => (p === picked ? "url(#fitMuscleOn)" : "url(#fitMuscle)");
   const shape = (s: (typeof FRONT)[number], k: string, mirror: boolean) => <path key={k} d={s.d} transform={mirror ? "translate(200 0) scale(-1 1)" : undefined}
     fill={fill(s.part)} stroke={s.part === picked ? "#ffb08a" : "#3b3f45"} strokeWidth={s.part === picked ? 1.4 : 1} strokeLinejoin="round"
-    className="cursor-pointer transition-[fill] duration-200" onClick={() => onPick(s.part)} role="button" aria-label={NAMES[s.part]} aria-pressed={s.part === picked} />;
+    className="cursor-pointer transition-[fill,stroke] duration-300" onClick={() => onPick(s.part)} role="button" aria-label={NAMES[s.part]} aria-pressed={s.part === picked} />;
   return <figure className="m-0 flex min-w-0 flex-1 flex-col items-center">
     <svg viewBox="20 4 160 424" className="h-[340px] w-full max-w-[170px]" role="group" aria-label={`${label} of the body`}>
       <defs>
@@ -76,15 +76,15 @@ export function BodyMap({ list, onClose, onOpen, onStart }: { list: LibraryExerc
     <p className="mt-1 text-center text-[14px]" style={{ color: C.dim }}>Tap a muscle to see what trains it.</p>
     <div className="mt-2 flex gap-2"><Figure shapes={FRONT} picked={picked} onPick={setPicked} label="Front" /><Figure shapes={BACK} picked={picked} onPick={setPicked} label="Back" /></div>
     <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
-      {(Object.keys(NAMES) as BodyPart[]).map((p) => <button key={p} type="button" onClick={() => setPicked(p)} aria-pressed={picked === p} className="h-9 shrink-0 rounded-[8px] px-3 text-[14px] uppercase tracking-[.06em]" style={{ fontFamily: display.fontFamily, fontWeight: 700, ...(picked === p ? { background: C.lime, color: "#0b0b0c" } : { background: C.card, color: C.text }) }} data-testid={`fit-body-${p}`}>{NAMES[p]}</button>)}
+      {(Object.keys(NAMES) as BodyPart[]).map((p) => <button key={p} type="button" onClick={() => setPicked(p)} aria-pressed={picked === p} className="h-9 shrink-0 rounded-[8px] px-3 text-[14px] uppercase tracking-[.06em]" style={{ fontFamily: display.fontFamily, fontWeight: 800, transition: "background .2s, color .2s", ...(picked === p ? { background: C.lime, color: "#0b0b0c" } : { background: C.card, color: C.text }) }} data-testid={`fit-body-${p}`}>{NAMES[p]}</button>)}
     </div>
-    {picked && <div className="mt-5" data-testid="fit-body-results">
+    {picked && <div key={picked} className="fit-in mt-5" data-testid="fit-body-results">
       <div className="flex items-end justify-between px-1">
         <div><p className="text-[30px] leading-none" style={display}>{NAMES[picked]}</p><p className="mt-1 text-[13px]" style={{ color: C.dim }}>{exercises.length} exercises</p></div>
         {quick.length >= 2 && <Btn className="!min-h-10" onClick={() => onStart(`${NAMES[picked]} blast`, quick.map((e) => ({ exId: e.id, sets: 3, reps: e.equipment === "bodyweight" ? "10-15" : "8-12", rest: 90 })))} testId="fit-body-start"><Play className="h-4 w-4" />Train it</Btn>}
       </div>
       <div className="mt-3"><Chips label="Equipment" value={equip} onChange={setEquip} items={EQUIP.map((m) => ({ id: m, label: m === "any" ? "Any equipment" : m[0].toUpperCase() + m.slice(1) }))} /></div>
-      <ul className="mt-3 space-y-2">{exercises.map((e) => <li key={e.id}><button type="button" onClick={() => onOpen(e)} className="flex w-full items-center gap-3 rounded-[12px] p-2 text-left" style={{ background: C.card }} data-testid={`fit-body-ex-${e.id}`}>
+      <ul className="mt-3 space-y-2">{exercises.map((e, k) => <li key={`${picked}-${equip}-${e.id}`} className="fit-slide" style={stagger(Math.min(k, 10), 0.07)}><button type="button" onClick={() => onOpen(e)} className="flex w-full items-center gap-3 rounded-[12px] p-2.5 text-left active:scale-[.98] transition-transform" style={{ background: C.card }} data-testid={`fit-body-ex-${e.id}`}>
         {videoFor(e.id) ? <VideoThumb exId={e.id} /> : <span className="grid h-14 w-[88px] shrink-0 place-items-center rounded-[8px]" style={{ background: C.card2, color: C.dim }}>—</span>}
         <span className="min-w-0"><span className="block truncate text-[15px] font-semibold">{e.name}</span><span className="block truncate text-[12px] capitalize" style={{ color: C.dim }}>{e.muscle === picked ? "Main mover" : `Also works ${picked}`} · {e.equipment}</span></span>
       </button></li>)}</ul>
