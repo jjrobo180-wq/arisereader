@@ -77,8 +77,34 @@ export async function nativeListen(pluginName: string, event: string, fn: (data:
 /** Live updates (.github/scripts/ota_setup.py): tells the updater this copy of the app's web code
  *  started fine. Without it within 15 seconds, the app goes back to the copy that worked. */
 let readySent = false;
-export function markAppReady(): void {
-  if (readySent || !isNativeApp() || !hasNativePlugin(/CapacitorUpdater/i)) return;
-  readySent = true;
-  void nativeCall(/CapacitorUpdater/i, "CapacitorUpdater", "notifyAppReady").catch(() => { readySent = false; });
+/** Tells the updater "this copy started fine". It doesn't depend on the plugin list
+ *  (Capacitor.PluginHeaders), which newer Capacitor versions don't always fill in: without this
+ *  signal every downloaded update was rolled back 15 seconds after it opened. Resolves true once sent. */
+export async function markAppReady(): Promise<boolean> {
+  if (readySent) return true;
+  if (!isNativeApp()) return false;
+  const cap = typeof window !== "undefined" ? (window as any).Capacitor : null;
+  const tries: (() => Promise<unknown>)[] = [];
+  const plugin = cap?.Plugins?.CapacitorUpdater;
+  if (plugin?.notifyAppReady) tries.push(() => plugin.notifyAppReady());
+  try { const reg = cap?.registerPlugin?.("CapacitorUpdater"); if (reg?.notifyAppReady) tries.push(() => reg.notifyAppReady()); } catch { /* not available */ }
+  tries.push(() => nativeCall(/CapacitorUpdater/i, "CapacitorUpdater", "notifyAppReady"));
+  for (const t of tries) {
+    try { await t(); readySent = true; return true; } catch { /* try the next way */ }
+  }
+  return false;
+}
+
+/** Sends the ready signal as soon as the first screen is drawn, retrying well inside the
+ *  updater's 15-second window (a slow start no longer counts as a failed update). */
+export function markAppReadyWhenDrawn(): void {
+  if (!isNativeApp()) return;
+  let n = 0;
+  const tick = () => {
+    n++;
+    const drawn = !!document.getElementById("root")?.childElementCount;
+    if (drawn) void markAppReady().then((ok) => { if (!ok && n < 12) window.setTimeout(tick, 1000); });
+    else if (n < 12) window.setTimeout(tick, 1000);
+  };
+  window.setTimeout(tick, 800);
 }
