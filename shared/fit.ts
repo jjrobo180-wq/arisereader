@@ -183,6 +183,14 @@ export function goals(p: Profile, kg: number | undefined, today = new Date()): {
   return { kcal, tdee: Math.round(tdee), p: Math.round((kcal * split.p) / 100 / 4), c: Math.round((kcal * split.c) / 100 / 4), f: Math.round((kcal * split.f) / 100 / 9) };
 }
 
+/** Adds weigh-ins from elsewhere (Apple Health) for days the app has none (its own entries win). */
+export function mergeWeights(d: FitData, weights: { date: string; kg: number }[]): FitData {
+  const have = new Set(d.weights.map((w) => w.date));
+  const byDay = new Map(weights.filter((w) => !have.has(w.date)).map((w) => [w.date, w]));
+  if (!byDay.size) return d;
+  return { ...d, weights: [...d.weights, ...byDay.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-LIMITS.weights) };
+}
+
 export const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 export const uid = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 

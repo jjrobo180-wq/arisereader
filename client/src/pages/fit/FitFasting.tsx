@@ -6,6 +6,7 @@ import { FASTING_PROTOCOLS, emptyFasting, fastingStage, fastingStatus, fastingSt
 import type { FitData } from "@shared/fit";
 import type { Update } from "./fitStore";
 import { Btn, C, Card, Ring, Sheet, Title, display, fmtDur } from "./fitUi";
+import { scheduleFastEnd } from "./fitNative";
 
 function useNow(on: boolean) {
   const [now, setNow] = useState(Date.now());
@@ -15,8 +16,11 @@ function useNow(on: boolean) {
 
 const time = (ms: number) => new Date(ms).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 
-export function startFast(update: Update) { update((d) => ({ ...d, fasting: { ...(d.fasting ?? emptyFasting()), start: new Date().toISOString() } })); }
+export function startFast(update: Update) {
+  update((d) => { const f = { ...(d.fasting ?? emptyFasting()), start: new Date().toISOString() }; scheduleFastEnd(fastingStatus(f).endsAt); return { ...d, fasting: f }; });
+}
 export function endFast(update: Update) {
+  scheduleFastEnd(null);
   update((d) => {
     const f = d.fasting; if (!f?.start) return d;
     const goalH = fastingStatus(f).goalH;

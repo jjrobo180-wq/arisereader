@@ -7,6 +7,7 @@ import type { FitData } from "@shared/fit";
 import { uid } from "@shared/fit";
 import { MILE, NOMINATIM, OVERPASS, acceptFix, distLabel, haversine, pace, parseGeometry, parseTrails, runCalories, shrinkPath, splits, trailGeometryQuery, trailsQuery, type LatLng, type Run, type RunKind, type Trail } from "@shared/fitRun";
 import { sayAI } from "@/lib/aiVoice";
+import { saveToHealth } from "./fitNative";
 import type { Update } from "./fitStore";
 import { latestKg } from "./FitFood";
 import { Btn, C, Card, Chips, Sheet, Title, display, fmtDur, font, inputCls, inputStyle } from "./fitUi";
@@ -98,6 +99,8 @@ export function RunTracker({ data, update, onClose, say, trail }: { data: FitDat
   const save = () => {
     const r: Run = { id: uid(), date: new Date(run.current.started).toISOString(), kind, secs: Math.round(secs), meters: Math.round(meters), path: shrinkPath(points.map((p) => p.ll)), ...(trail ? { trail: trail.name } : {}) };
     update((d) => ({ ...d, runs: [...(d.runs ?? []), r].slice(-300), workouts: [...d.workouts, { id: r.id, date: r.date, name: `${trail ? trail.name : `Outdoor ${KIND_LABEL[kind].toLowerCase()}`} · ${distLabel(r.meters, unit)} ${unit}`, programId: "outdoor", dayId: r.id, secs: r.secs, exercises: [] }] }));
+    const started = new Date(run.current.started), ended = new Date(run.current.started + r.secs * 1000);
+    saveToHealth("distance", r.meters, started, ended); saveToHealth("calories", runCalories(kind, r.meters, latestKg(data)), started, ended);
     say("Saved to your history."); onClose();
   };
   const path = points.map((p) => p.ll);
