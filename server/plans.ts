@@ -808,7 +808,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   // A teacher's class plan replaces a family's plan once it covers every child in the
   // family: the family plan is cancelled and the unused days refunded to the card.
 
-  const ADDON_PAGES: Record<string, string> = { "/social/": "/social/", "/math/": "/math/", "/history/": "/history/", "/to-do": "/#/to-do", "/billing": "/#/billing", "/workhub": "/#/workhub", "/lifehub": "/#/lifehub", "/notes/": "/notes/", "/arise-notes": "/#/arise-notes" };
+  const ADDON_PAGES: Record<string, string> = { "/social/": "/social/", "/math/": "/math/", "/history/": "/history/", "/to-do": "/#/to-do", "/billing": "/#/billing", "/workhub": "/#/workhub", "/lifehub": "/#/lifehub", "/notes/": "/notes/", "/arise-notes": "/#/arise-notes", "/fit": "/#/fit" };
   const addonReturn = (req: any) => {
     const origin = new URL(siteOf(req)).origin;
     const asked = String(req.body?.returnPath || "/billing");
@@ -1233,6 +1233,60 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     } catch (e) { fail(res, e, "notes portal"); }
   });
 
+  // ─── Arise Fit+ (shared/fitPlus.ts): $10 a month, one per account ────────────────────────────
+  // Sold on the website only (never inside the iPhone app). Sharing it with one guest is
+  // server/fitPass.ts's job; this part is the paid plan itself.
+  /** This account's own Fit+ (paid for, or given by the admin). The admin always has it. */
+  const fitPlusOwn = async (userId: number, user?: AnyUser | null): Promise<{ live: boolean; admin: boolean; grant: PlanGrant | null }> => {
+    if (user?.isAdmin) return { live: true, admin: true, grant: null };
+    const grant = await current("fit_plus", userId);
+    return { live: grantLive(grant, now()), admin: false, grant };
+  };
+  app.post("/api/fit/billing/checkout", auth, async (req: any, res: any) => {
+    try {
+      const buyer: AnyUser = req.user;
+      if (req.adminPreview || !buyer) throw new Refused("Sign in to your own account to subscribe.", 403);
+      if (buyer.isAdmin) throw new Refused("The admin account already has Arise Fit+.", 409);
+      if (buyer.accountApproved === false) throw new Refused("Your account is still waiting for approval.", 403);
+      const kind: PlanKind = "fit_plus";
+      if (grantLive(await current(kind, buyer.id), now())) throw new Refused("You already have Arise Fit+. Use Manage billing to change it.", 409, "has_plan");
+      const pending = await readPending(kind, buyer.id);
+      if (pending && now() - Date.parse(pending.at) < 2 * 60_000) throw new Refused("A payment page for this was just opened. Finish it there, or try again in two minutes.", 409);
+      const metadata: Record<string, string> = { kind, ownerId: String(buyer.id), buyerId: String(buyer.id) };
+      const email = typeof buyer.email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyer.email) ? buyer.email : undefined;
+      let customer: string | undefined;
+      for (const k of PLAN_KINDS) { const g = await readGrant(k, buyer.id); if (g?.buyerId === buyer.id && g.stripeCustomerId) { customer = g.stripeCustomerId; break; } }
+      req.body = { ...(req.body || {}), returnPath: "/fit" };
+      const back = addonReturn(req);
+      const session = await stripe("POST", "/checkout/sessions", {
+        mode: "subscription",
+        client_reference_id: `${kind}:${buyer.id}`,
+        ...(customer ? { customer } : email ? { customer_email: email } : {}),
+        line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: priceOf(kind).cents, recurring: { interval: "month" }, product_data: { name: "Arise Fit+", description: "Everything in Arise Fit, plus AI machine and gym scanning, camera rep counting, after-workout reports, gyms and healthy food near you, AI recipes, and a guest pass to share it with one person." } } }],
+        metadata,
+        subscription_data: { metadata },
+        success_url: back.done,
+        cancel_url: back.back,
+      });
+      if (typeof session?.url !== "string" || !session.url.startsWith("https://")) throw new Refused("The payment page could not be opened. Nothing was charged.", 502);
+      if (typeof session.id === "string" && /^cs_[A-Za-z0-9_]{8,200}$/.test(session.id)) {
+        await write(KEY.pending(kind, buyer.id), JSON.stringify({ sessionId: session.id, buyerId: buyer.id, at: iso(now()) }));
+      }
+      res.json({ url: session.url });
+    } catch (e) { fail(res, e, "fit checkout"); }
+  });
+  app.post("/api/fit/billing/portal", auth, async (req: any, res: any) => {
+    try {
+      const user: AnyUser = req.user;
+      const grant = await current("fit_plus", user.id);
+      if (!grant?.stripeCustomerId) throw new Refused("There is no online payment to manage for Arise Fit+.", 409);
+      if (grant.buyerId && grant.buyerId !== user.id) throw new Refused("Only the person who pays for this plan can manage its billing.", 403);
+      const session = await stripe("POST", "/billing_portal/sessions", { customer: grant.stripeCustomerId, return_url: (req.body = { ...(req.body || {}), returnPath: "/fit" }, addonReturn(req)).back });
+      if (typeof session?.url !== "string" || !session.url.startsWith("https://")) throw new Refused("The billing page could not be opened.", 502);
+      res.json({ url: session.url });
+    } catch (e) { fail(res, e, "fit portal"); }
+  });
+
   // ─── Arise To Duo: Free and the $5 upgrade ────────────────────────────
   // Free: up to 3 App Store apps across both hubs, and no AI. Unlimited ($5 a month): every app,
   // and AI up to a fair-use ceiling. See shared/todoPlan.ts. (The app check is in routes.ts, which
@@ -1446,7 +1500,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       } else if (kind === "bundle_family" || kind === "todo_family") {
         const p = await deps.getUser(ownerId);
         if (!p || p.role !== "parent") throw new Refused("That account is not a parent.");
-      } else if (isNotesKind(kind)) {
+      } else if (isNotesKind(kind) || kind === "fit_plus") {
         const u = await deps.getUser(ownerId);
         if (!u) throw new Refused("That account could not be found.");
       } else if (!isSchoolKind(kind)) {
@@ -1648,7 +1702,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     return { cents: charge.cents - charge.refundedCents, at: charge.at };
   };
 
-  return { notesPlan: notesPlanOf, entitlement, hubAccess, adminTodo: { planInfos: todoPlanInfos, customerOwners, payments: stripePayments, personPayments, personCustomer, giveTrial, endTrial, cancelPaid, keepPlan, refundLast, readVip, vipSet, stripeKey }, socialAccess, appStatus, appAccess, todoStatus, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget, todoUnlimited, aiUsage, aiMeter, stripeReady: async () => !!(await stripeKey()), unlimitedPaidBy: async (userId: number) => { for (const k of ["todo_unlimited", "todo_unlimited_year"] as const) { const g = await readGrant(k, userId); if (g && g.buyerId === userId && g.stripeCustomerId && grantLive(g, now())) return k === "todo_unlimited_year" ? "unlimited_year" : "unlimited"; } return null; } };
+  return { notesPlan: notesPlanOf, fitPlusOwn, entitlement, hubAccess, adminTodo: { planInfos: todoPlanInfos, customerOwners, payments: stripePayments, personPayments, personCustomer, giveTrial, endTrial, cancelPaid, keepPlan, refundLast, readVip, vipSet, stripeKey }, socialAccess, appStatus, appAccess, todoStatus, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget, todoUnlimited, aiUsage, aiMeter, stripeReady: async () => !!(await stripeKey()), unlimitedPaidBy: async (userId: number) => { for (const k of ["todo_unlimited", "todo_unlimited_year"] as const) { const g = await readGrant(k, userId); if (g && g.buyerId === userId && g.stripeCustomerId && grantLive(g, now())) return k === "todo_unlimited_year" ? "unlimited_year" : "unlimited"; } return null; } };
 }
 
 export type Plans = ReturnType<typeof registerPlanRoutes>;

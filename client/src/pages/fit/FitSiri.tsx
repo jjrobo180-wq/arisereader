@@ -1,14 +1,14 @@
 // Arise Fit with Siri. Every action has a link: arisefit://do/<action> opens the iPhone app and does it
 // (the app registers the arisefit:// scheme: .github/scripts/configure_fit_app.py), and
 // …/#/fit?do=<action> does the same on the website. A shortcut in Apple's Shortcuts app that opens the
-// link runs when you say its name to Siri ("Hey Siri, start my workout"). Buddy invites use
-// arisefit://buddy/<CODE> and …/#/fit?buddy=<CODE>.
+// link runs when you say its name to Siri ("Hey Siri, start my workout"). Circle invites and guest
+// passes use arisefit://circle|pass/<CODE> and …/#/fit?circle=|pass=<CODE> (shared/fitLinks.ts).
 import { useEffect, useRef, useState } from "react";
 import { Check, Copy, Mic } from "lucide-react";
 import { TODO_APP } from "@/lib/hubs";
 import { isNativeApp, nativeCall, nativeListen } from "@/lib/nativeApp";
 import { Btn, C, Card, Sheet, Title, display, haptic } from "./fitUi";
-import { SIRI_ACTIONS, readLink, type SiriAction } from "@shared/fitLinks";
+import { SIRI_ACTIONS, readLink, type FitLink, type SiriAction } from "@shared/fitLinks";
 export { SIRI_ACTIONS, readLink, type SiriAction };
 
 export const actionLink = (id: SiriAction, native = isNativeApp()) => (native ? `arisefit://do/${id}` : `${TODO_APP}#/fit?do=${id}`);
@@ -16,14 +16,14 @@ export const actionLink = (id: SiriAction, native = isNativeApp()) => (native ? 
 /** Runs links the app was opened with: on the website (the page address) and in the iPhone app
  *  (the link that opened it, and any opened while it's running). The address is cleaned afterwards so
  *  a reload doesn't run it again. */
-export function useDeepLinks(handle: (l: { action?: SiriAction; buddy?: string }) => void) {
+export function useDeepLinks(handle: (l: FitLink) => void) {
   const fn = useRef(handle); fn.current = handle;
   useEffect(() => {
-    const run = (url: string | undefined | null) => { if (!url) return; const l = readLink(url); if (l.action || l.buddy) fn.current(l); };
+    const run = (url: string | undefined | null) => { if (!url) return; const l = readLink(url); if (l.action || l.circle || l.pass) fn.current(l); };
     const href = window.location.href;
-    if (/[?&](do|buddy)=/.test(href)) {
+    if (/[?&](do|circle|pass)=/.test(href)) {
       run(href);
-      try { const h = window.location.hash.replace(/[?&](do|buddy)=[^&]*/g, "").replace(/\?$/, ""); history.replaceState(null, "", `${window.location.pathname}${window.location.search}${h}`); } catch { /* keep the address */ }
+      try { const h = window.location.hash.replace(/[?&](do|circle|pass)=[^&]*/g, "").replace(/\?$/, ""); history.replaceState(null, "", `${window.location.pathname}${window.location.search}${h}`); } catch { /* keep the address */ }
     }
     if (!isNativeApp()) return;
     nativeCall(/^App$/, "App", "getLaunchUrl").then((r: any) => run(r?.url)).catch(() => {});

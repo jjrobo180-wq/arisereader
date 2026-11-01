@@ -16,6 +16,7 @@ import { fitApi, type Update } from "./fitStore";
 import { lastPlace, keepPlace, locate } from "./FitRun";
 import { latestKg, totals } from "./FitFood";
 import { Btn, C, Card, Sheet, Title, display, haptic, inputCls, inputStyle } from "./fitUi";
+import { PlusTag, isPlusError, usePlus } from "./FitPlus";
 
 type Crowd = { level: BusyLevel; n: number; mins: number } | null;
 const apple = () => typeof navigator !== "undefined" && /iPhone|iPad|Macintosh/.test(navigator.userAgent);
@@ -223,22 +224,24 @@ export function RecipesSheet({ data, update, onClose, say }: { data: FitData; up
   const [cooking, setCooking] = useState(false);
   const [err, setErr] = useState("");
   const [made, setMade] = useState<Recipe[]>([]);
+  const { plus, ask } = usePlus();
   const g = goals(data.profile, latestKg(data));
   const t = totals(data.foods.filter((f) => f.date === dayKey()));
   const left = { kcal: Math.max(0, Math.round(g.kcal - t.kcal)), p: Math.max(0, Math.round(g.p - t.p)) };
   const list = useMemo(() => pickRecipes(left, { tag, hour: new Date().getHours(), goal: data.profile.goal }), [tag, left.kcal, left.p, data.profile.goal]); // eslint-disable-line react-hooks/exhaustive-deps
   const cook = async () => {
+    if (!plus) { ask("ai-recipes"); return; }
     setErr(""); setCooking(true);
     try {
       const r = await fitApi<{ recipe: Recipe }>(token, "/recipe", { method: "POST", body: JSON.stringify({ have, goal: data.profile.goal, left }) });
       setMade((m) => [r.recipe, ...m].slice(0, 5)); setOpen(r.recipe); haptic("success");
-    } catch (e: any) { setErr(e.message); } finally { setCooking(false); }
+    } catch (e: any) { if (isPlusError(e)) ask("ai-recipes"); else setErr(e.message); } finally { setCooking(false); }
   };
   const tags: (RecipeTag | "all")[] = ["all", "high-protein", "post-workout", "quick", "low-cal", "breakfast", "lunch", "dinner", "snack", "vegetarian", "meal-prep"];
   return <Sheet title="Recipes" onClose={onClose} testId="fit-recipes">
     <p className="px-1 text-[15px]" style={{ color: C.steel }}>{left.kcal > 0 ? <>You have about <b>{left.kcal} calories</b> and <b>{left.p} g protein</b> left today. Best fits first.</> : "Healthy recipes, most protein per calorie first."}</p>
     <Card className="mt-3 !p-4">
-      <p className="flex items-center gap-2 text-[17px] leading-none" style={display}><Sparkles className="h-5 w-5" style={{ color: C.lime }} />Make one from what I have</p>
+      <p className="flex items-center gap-2 text-[17px] leading-none" style={display}><Sparkles className="h-5 w-5" style={{ color: C.lime }} />Make one from what I have<PlusTag /></p>
       <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (have.trim().length >= 3) void cook(); }}>
         <input value={have} onChange={(e) => setHave(e.target.value.slice(0, 400))} placeholder="chicken, rice, broccoli, eggs…" className={inputCls} style={inputStyle} aria-label="What you have" data-testid="fit-recipe-have" />
         <Btn type="submit" disabled={cooking || have.trim().length < 3} className="!px-3" testId="fit-recipe-make">{cooking ? <Loader2 className="h-5 w-5 animate-spin" /> : <ChefHat className="h-5 w-5" />}<span className="sr-only">Make a recipe</span></Btn>

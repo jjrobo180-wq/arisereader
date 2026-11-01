@@ -7,6 +7,7 @@ import { dayKey, goals, uid, type FitData, type FoodEntry, type Meal, type Saved
 import type { FoundFood } from "@shared/foodLookup";
 import { estimateMeal, lookupBarcode, searchFoods, shrinkPhoto } from "@/lib/foodLookup";
 import { canUseCamera, scanWithCamera } from "@/lib/barcodeScanner";
+import { PlusTag } from "./FitPlus";
 import { DIET_BY_ID, DIET_PLANS, pointsBudget, pointsOf } from "@shared/fitNutrition";
 import type { Update } from "./fitStore";
 import { FastingCard, FastingSheet } from "./FitFasting";
@@ -236,7 +237,7 @@ export function FoodTab({ token, data, update, say, snap, onRecipes, onEatOut }:
     </button>
     {(onRecipes || onEatOut) && <div className="mt-2 grid grid-cols-2 gap-2">
       {onRecipes && <button type="button" onClick={onRecipes} className="flex min-h-[56px] items-center gap-2.5 rounded-[12px] px-3.5 text-left" style={{ background: C.card }} data-testid="fit-food-recipes"><ChefHat className="h-5 w-5 shrink-0" style={{ color: C.lime }} /><span className="text-[17px] leading-none" style={display}>Recipes</span></button>}
-      {onEatOut && <button type="button" onClick={onEatOut} className="flex min-h-[56px] items-center gap-2.5 rounded-[12px] px-3.5 text-left" style={{ background: C.card }} data-testid="fit-food-eat-out"><MapPin className="h-5 w-5 shrink-0" style={{ color: C.lime }} /><span className="text-[17px] leading-none" style={display}>Eat out</span></button>}
+      {onEatOut && <button type="button" onClick={onEatOut} className="flex min-h-[56px] items-center gap-2.5 rounded-[12px] px-3.5 text-left" style={{ background: C.card }} data-testid="fit-food-eat-out"><MapPin className="h-5 w-5 shrink-0" style={{ color: C.lime }} /><span className="text-[17px] leading-none" style={display}>Eat out<PlusTag /></span></button>}
     </div>}
     {today && <div className="mt-2"><FastingCard data={data} update={update} onOpen={() => setFasting(true)} /></div>}
     {MEALS.map((m) => {
