@@ -61,7 +61,7 @@ test("the gradual-increase program and the body map", () => {
   const iron = PROGRAMS.find((p) => p.id === "iron-progression")!;
   assert.equal(iron.weeks, 12); assert.equal(iron.days.length, 4);
   assert.ok(iron.days.every((d) => d.items.some((i) => /-/.test(i.reps))), "rep ranges drive the weight increases");
-  const body = readFileSync("client/src/pages/fit/FitBody.tsx", "utf8");
+  const body = readFileSync("client/src/pages/fit/FitBody.tsx", "utf8") + readFileSync("client/src/pages/fit/bodyShapes.ts", "utf8");
   for (const m of ["chest", "back", "shoulders", "biceps", "triceps", "forearms", "abs", "quads", "hamstrings", "glutes", "calves"]) {
     assert.match(body, new RegExp(`part: "${m}"`), `${m} is on the figure`);
     assert.ok(CATALOG.some((e) => e.muscle === m || e.also.includes(m as never)), `${m} has exercises`);

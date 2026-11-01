@@ -61,7 +61,7 @@ export function CoachCard({ token, data, list, onStart, onOpen }: { token: strin
         <Btn className="!min-h-10 !px-3 !text-[15px]" onClick={() => onStart(startAssigned(a, data, list))} testId="fit-coach-start"><Play className="h-4 w-4" fill="currentColor" />Start</Btn></div>)}
     </Card>;
   }
-  return <Card onClick={onOpen} className="fit-shine !p-4" style={{ background: "linear-gradient(150deg, #2e1d14, #202329)" }} testId="fit-find-trainer">
+  return <Card onClick={onOpen} className="fit-shine !p-4" style={{ background: `linear-gradient(150deg, ${C.emberSoft}, ${C.card})` }} testId="fit-find-trainer">
     <div className="flex items-center gap-3"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-[12px]" style={{ background: C.lime, color: "#0b0b0c" }}><UserRound className="h-6 w-6" /></span>
       <span className="min-w-0 flex-1"><span className="block text-[22px] leading-none" style={display}>{pending ? "Request sent" : "Find a trainer"}</span>
         <span className="mt-0.5 block text-[13px]" style={{ color: C.steel }}>{pending ? `Waiting for ${pending.trainer!.name} to accept.` : "Real coaches, not AI. In person, live video or online."}</span></span>
@@ -102,7 +102,7 @@ export function CoachScreen({ token, me, data, update, list, onStart, onClose }:
   const hasActive = mine.some((l) => l.status === "active");
   // Once there's a trainer (or a request), notifications bring their messages and new workouts.
   useEffect(() => { if (mine.length && isNativeApp()) void startApplePush(true); }, [mine.length]);
-  const findNew = <Directory onOpen={(t) => setOpen(t.id)} intro={<Card className="!p-4" style={{ background: "linear-gradient(150deg, #2e1d14, #202329)" }}>
+  const findNew = <Directory onOpen={(t) => setOpen(t.id)} intro={<Card className="!p-4" style={{ background: `linear-gradient(150deg, ${C.emberSoft}, ${C.card})` }}>
     <p className="text-[12px] tracking-[.14em]" style={{ ...display, color: C.lime }}>Real people. No AI.</p>
     <p className="text-[28px] leading-none" style={display}>Find your trainer</p>
     <p className="mt-1 text-[14px]" style={{ color: C.steel }}>Certified coaches set their own prices for in-person, live-video or online training. Read reviews from their real clients, then ask one to coach you.</p>

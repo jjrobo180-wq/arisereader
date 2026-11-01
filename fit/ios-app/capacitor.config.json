@@ -2,11 +2,11 @@
   "appId": "com.arisereader.fit",
   "appName": "Arise Fit",
   "webDir": "www",
-  "backgroundColor": "#15171b",
+  "backgroundColor": "#f2f2f4",
   "plugins": {
     "SplashScreen": {
       "launchShowDuration": 900,
-      "backgroundColor": "#15171b",
+      "backgroundColor": "#f2f2f4",
       "showSpinner": false
     },
     "Keyboard": {
@@ -17,10 +17,13 @@
       "updateUrl": "https://arisetodo.com/api/ota/fit",
       "channelUrl": "https://arisetodo.com/api/ota/fit",
       "statsUrl": ""
+    },
+    "StatusBar": {
+      "style": "LIGHT"
     }
   },
   "ios": {
     "contentInset": "automatic",
-    "backgroundColor": "#15171b"
+    "backgroundColor": "#f2f2f4"
   }
 }

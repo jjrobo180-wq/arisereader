@@ -5,9 +5,14 @@ import { readFileSync } from "node:fs";
 
 const read = (f: string) => readFileSync(new URL(`../client/src/pages/fit/${f}`, import.meta.url), "utf8");
 
-test("palette: graphite (not near-black), lighter cards, one orange accent, readable gray text", () => {
+test("palette: Light by default (white cards on soft gray), Dark is graphite, one orange accent", () => {
   const ui = read("fitUi.tsx");
-  for (const c of ['bg: "#15171b"', 'card: "#202329"', 'dim: "#a6acb5"', 'lime: "#ff5a1f"', 'blue: "#4d9fff"', 'orange: "#ffb020"']) assert.ok(ui.includes(c), c);
+  const light = ui.slice(ui.indexOf("light: {"), ui.indexOf("dark: {"));
+  const dark = ui.slice(ui.indexOf("dark: {"), ui.indexOf("} as const;"));
+  for (const c of ['bg: "#f2f2f4"', 'card: "#ffffff"', 'text: "#111318"', 'dim: "#6b717c"', 'accent: "#ff5a1f"']) assert.ok(light.includes(c), `light ${c}`);
+  for (const c of ['bg: "#15171b"', 'card: "#202329"', 'dim: "#a6acb5"', 'accent: "#ff5a1f"', 'blue: "#4d9fff"', 'amber: "#ffb020"']) assert.ok(dark.includes(c), `dark ${c}`);
+  assert.match(ui, /lime: v\("accent"\)/, "screens use the accent through C.lime");
+  assert.match(ui, /return x === "dark" \|\| x === "auto" \? x : "light"/, "Light unless Dark or Auto was chosen");
   assert.ok(!ui.includes("#c7a477"), "the old champagne accent is gone");
 });
 

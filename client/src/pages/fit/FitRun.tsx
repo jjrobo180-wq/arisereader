@@ -12,7 +12,7 @@ import { sayAI } from "@/lib/aiVoice";
 import { saveToHealth } from "./fitNative";
 import type { Update } from "./fitStore";
 import { latestKg } from "./FitFood";
-import { Btn, C, Card, Chips, Layer, Sheet, Title, display, fmtDur, font, inputCls, inputStyle } from "./fitUi";
+import { Btn, C, Card, Chips, Layer, Sheet, Title, display, fmtDur, font, inputCls, inputStyle, resolvedTheme } from "./fitUi";
 
 // ——— Leaflet, loaded once from cdnjs ————————————————————————————————————————————————————————————
 let leaflet: Promise<any> | null = null;
@@ -38,7 +38,7 @@ function MapView({ path = [], lines = [], here, follow = false, className = "h-6
     loadLeaflet().then((L) => {
       if (!live || !box.current || map.current) return;
       map.current = L.map(box.current, { zoomControl: false, attributionControl: true }).setView(here ?? path[0] ?? lines[0]?.[0] ?? [39.5, -98.35], here || path.length || lines.length ? 15 : 4);
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { maxZoom: 19, subdomains: "abcd", attribution: "© OpenStreetMap contributors © CARTO" }).addTo(map.current);
+      L.tileLayer(`https://{s}.basemaps.cartocdn.com/${resolvedTheme() === "light" ? "light_all" : "dark_all"}/{z}/{x}/{y}{r}.png`, { maxZoom: 19, subdomains: "abcd", attribution: "© OpenStreetMap contributors © CARTO" }).addTo(map.current);
       setTimeout(() => map.current?.invalidateSize(), 50);
     }).catch((e) => live && setErr(e.message));
     return () => { live = false; try { map.current?.remove(); } catch { /* gone */ } map.current = null; layers.current = {}; };
@@ -54,7 +54,7 @@ function MapView({ path = [], lines = [], here, follow = false, className = "h-6
     if (fit && (l.trail || l.route)) { try { m.fitBounds((l.route ?? l.trail).getBounds(), { padding: [24, 24] }); } catch { /* empty */ } }
     else if (follow && at) m.setView(at, Math.max(m.getZoom(), 16), { animate: true });
   }, [path, lines, here, follow, fit]);
-  return <div className={`relative overflow-hidden rounded-[14px] ${className}`} style={{ background: "#1c1f24" }}>
+  return <div className={`relative overflow-hidden rounded-[14px] ${className}`} style={{ background: C.card2 }}>
     <div ref={box} className="absolute inset-0" />
     {err && <p className="absolute inset-0 grid place-items-center px-4 text-center text-[14px]" style={{ color: C.dim }}>{err}</p>}
   </div>;
@@ -112,10 +112,10 @@ export function RunTracker({ data, update, onClose, say, trail }: { data: FitDat
     <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
       <button type="button" onClick={() => { if (state === "ready" || window.confirm("Stop tracking? This run won't be saved.")) onClose(); }} className="h-11 rounded-full px-4 text-[15px] font-semibold" style={{ background: C.card }}>{state === "ready" ? "Close" : "Discard"}</button>
       <p className="min-w-0 flex-1 truncate text-center text-[20px]" style={display}>{trail ? trail.name : `Outdoor ${KIND_LABEL[kind]}`}</p>
-      <span className="flex h-11 items-center gap-1 rounded-full px-3 text-[12px] font-semibold" style={{ background: C.card, color: acc !== null && acc <= 20 ? "#4ade80" : acc !== null && acc <= 35 ? C.orange : C.dim }}><Crosshair className="h-4 w-4" />{acc !== null ? `±${acc}m` : "GPS"}</span>
+      <span className="flex h-11 items-center gap-1 rounded-full px-3 text-[12px] font-semibold" style={{ background: C.card, color: acc !== null && acc <= 20 ? C.green : acc !== null && acc <= 35 ? C.orange : C.dim }}><Crosshair className="h-4 w-4" />{acc !== null ? `±${acc}m` : "GPS"}</span>
     </div>
     <div className="px-3"><MapView path={path} lines={trail?.lines} here={here} follow={state === "running"} fit={state === "done"} className="h-[42vh]" /></div>
-    {err && <p className="mx-3 mt-2 rounded-[10px] px-3 py-2 text-[13px]" style={{ background: "rgba(255,59,48,.12)", color: "#ff8a80" }}>{err}</p>}
+    {err && <p className="mx-3 mt-2 rounded-[10px] px-3 py-2 text-[13px]" style={{ background: "rgba(255,59,48,.12)", color: C.red }}>{err}</p>}
     <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
       {state === "ready" && <div className="mt-3"><Chips label="Activity" value={kind} onChange={setKind} items={(["run", "walk", "hike"] as RunKind[]).map((k) => ({ id: k, label: KIND_LABEL[k] }))} /></div>}
       <div className="mt-4 text-center">
@@ -270,7 +270,7 @@ export function TrailFinder({ data, onClose, onGo }: { data: FitData; onClose: (
       <div className="flex shrink-0 gap-1">{RADII.map((r) => <button key={r} type="button" onClick={() => setRadius(r)} aria-pressed={radius === r} className="h-9 rounded-[8px] px-2.5 text-[13px] font-semibold" style={radius === r ? { background: C.lime, color: "#0b0b0c" } : { background: C.card }}>{r} {unit}</button>)}</div>
     </div>
     <div className="mt-2"><Chips label="Difficulty" value={diff} onChange={setDiff} items={[{ id: "all", label: "All trails" }, { id: "Easy", label: "Easy" }, { id: "Moderate", label: "Moderate" }, { id: "Hard", label: "Hard" }]} /></div>
-    {err && <p className="mt-3 rounded-[10px] px-3 py-2 text-[13px]" style={{ background: "rgba(255,59,48,.12)", color: "#ff8a80" }}>{err}</p>}
+    {err && <p className="mt-3 rounded-[10px] px-3 py-2 text-[13px]" style={{ background: "rgba(255,59,48,.12)", color: C.red }}>{err}</p>}
     {busy && !trails && <div className="mt-3 space-y-2" aria-label="Loading trails">{[0, 1, 2, 3].map((k) => <div key={k} className="h-[68px] animate-pulse rounded-[12px]" style={{ background: C.card }} />)}</div>}
     {trails && <p className="mb-2 mt-3 text-[12px]" style={{ color: C.dim }}>{shown.length} trails within {radius} {unit}</p>}
     <ul className="space-y-2">{shown.slice(0, 100).map((t) => <li key={`${t.type}${t.id}`}><button type="button" onPointerDown={() => { lineOf(t).catch(() => {}); }} onClick={() => openTrail(t)} className="flex w-full items-center gap-3 rounded-[12px] p-3 text-left active:scale-[.99]" style={{ background: C.card }} data-testid={`fit-trail-${t.id}`}>
