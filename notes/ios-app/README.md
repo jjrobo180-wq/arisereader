@@ -10,3 +10,7 @@ It is the shared frontend built with `VITE_NATIVE_APP=notes`: it opens to the iP
 - The microphone permission text is set by `.github/scripts/configure_fit_app.py notes`.
 - Plans aren't sold in the app (App Review 3.1.1): Settings → Plan shows the minutes only.
 - Recording stops if the iPhone locks or the app goes to the background; keep the app open while recording.
+
+## Builds
+
+- Private and Strict modes use the on-device plugin in `plugins/arise-on-device` (Apple Speech; Foundation Models on iOS 26 for Strict summaries).
