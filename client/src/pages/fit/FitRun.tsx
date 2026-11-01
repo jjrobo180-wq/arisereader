@@ -45,7 +45,8 @@ function MapView({ path = [], lines = [], here, follow = false, className = "h-6
     const L = (window as any).L, m = map.current; if (!L || !m) return;
     const l = layers.current;
     l.trail?.remove(); l.trail = lines.length ? L.polyline(lines, { color: "#b9c0c8", weight: 5, opacity: 0.55, dashArray: "6 8" }).addTo(m) : undefined;
-    l.route?.remove(); l.route = path.length > 1 ? L.polyline(path, { color: "#ff5a1f", weight: 5, opacity: 0.95 }).addTo(m) : undefined;
+    // A finished route draws itself in (fit-route); a live one just grows as you move.
+    l.route?.remove(); l.route = path.length > 1 ? L.polyline(path, { color: "#ff5a1f", weight: 5, opacity: 0.95, ...(fit ? { className: "fit-route" } : {}) }).addTo(m) : undefined;
     l.dot?.remove(); const at = here ?? path[path.length - 1];
     l.dot = at ? L.circleMarker(at, { radius: 8, color: "#fff", weight: 3, fillColor: "#ff5a1f", fillOpacity: 1 }).addTo(m) : undefined;
     if (fit && (l.trail || l.route)) { try { m.fitBounds((l.route ?? l.trail).getBounds(), { padding: [24, 24] }); } catch { /* empty */ } }
@@ -105,7 +106,7 @@ export function RunTracker({ data, update, onClose, say, trail }: { data: FitDat
   };
   const path = points.map((p) => p.ll);
 
-  return <div className="fixed inset-0 z-[85] flex flex-col" style={{ background: C.bg, color: C.text, ...font }} data-testid="fit-run">
+  return <div className="fit-sheet fixed inset-0 z-[85] flex flex-col" style={{ background: C.bg, color: C.text, ...font }} data-testid="fit-run">
     <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
       <button type="button" onClick={() => { if (state === "ready" || window.confirm("Stop tracking? This run won't be saved.")) onClose(); }} className="h-11 rounded-full px-4 text-[15px] font-semibold" style={{ background: C.card }}>{state === "ready" ? "Close" : "Discard"}</button>
       <p className="min-w-0 flex-1 truncate text-center text-[20px]" style={display}>{trail ? trail.name : `Outdoor ${KIND_LABEL[kind]}`}</p>
@@ -116,7 +117,7 @@ export function RunTracker({ data, update, onClose, say, trail }: { data: FitDat
     <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
       {state === "ready" && <div className="mt-3"><Chips label="Activity" value={kind} onChange={setKind} items={(["run", "walk", "hike"] as RunKind[]).map((k) => ({ id: k, label: KIND_LABEL[k] }))} /></div>}
       <div className="mt-4 text-center">
-        <p className="text-[84px] leading-none tabular-nums" style={display} data-testid="fit-run-distance">{distLabel(meters, unit)}</p>
+        <p className="text-[84px] leading-none tabular-nums transition-all" style={display} data-testid="fit-run-distance">{distLabel(meters, unit)}</p>
         <p className="text-[13px] uppercase tracking-[.2em]" style={{ color: C.dim }}>{unit === "mi" ? "miles" : "kilometers"}</p>
       </div>
       <div className="mt-4 grid grid-cols-3 gap-2 text-center">
@@ -131,7 +132,7 @@ export function RunTracker({ data, update, onClose, say, trail }: { data: FitDat
       <p className="mt-6 text-center text-[11px] leading-relaxed" style={{ color: C.dim }}>Keep Arise Fit open with the screen on while you track. Maps © OpenStreetMap contributors © CARTO.</p>
     </div>
     {state !== "done" && <div className="flex shrink-0 items-center justify-center gap-5 pb-[max(20px,env(safe-area-inset-bottom))] pt-2">
-      {state === "ready" && <button type="button" onClick={start} disabled={!here} className="grid h-24 w-24 place-items-center rounded-full text-[22px] shadow-[0_12px_36px_rgba(255,90,31,.45)] disabled:opacity-40" style={{ ...display, background: C.lime, color: "#0b0b0c" }} data-testid="fit-run-start">Go</button>}
+      {state === "ready" && <button type="button" onClick={start} disabled={!here} className="fit-pop grid h-24 w-24 place-items-center rounded-full text-[26px] shadow-[0_12px_36px_rgba(255,90,31,.45)] active:scale-95 disabled:opacity-40" style={{ ...display, background: C.lime, color: "#0b0b0c" }} data-testid="fit-run-start">Go</button>}
       {state === "running" && <button type="button" onClick={pause} aria-label="Pause" className="grid h-20 w-20 place-items-center rounded-full" style={{ background: C.card2 }}><Pause className="h-9 w-9" fill="currentColor" /></button>}
       {state === "paused" && <><button type="button" onClick={resume} aria-label="Resume" className="grid h-20 w-20 place-items-center rounded-full" style={{ background: C.lime, color: "#0b0b0c" }}><Play className="ml-1 h-9 w-9" fill="currentColor" /></button>
         <button type="button" onClick={finish} aria-label="Finish" className="grid h-20 w-20 place-items-center rounded-full" style={{ background: C.red }} data-testid="fit-run-finish"><Square className="h-8 w-8" fill="currentColor" /></button></>}
@@ -222,7 +223,7 @@ export function TrailFinder({ data, onClose, onGo }: { data: FitData; onClose: (
 }
 
 // ——— Outdoor hub: start a run, your totals and route history ——————————————————————————————————————
-export function OutdoorHub({ data, update, onClose, say }: { data: FitData; update: Update; onClose: () => void; say: (m: string) => void }) {
+export function OutdoorHub({ data, update, onClose, say, inline }: { data: FitData; update: Update; onClose: () => void; say: (m: string) => void; inline?: boolean }) {
   const unit = unitOf(data);
   const [tracking, setTracking] = useState<null | { trail?: { name: string; lines: LatLng[][] } }>(null);
   const [trails, setTrails] = useState(false);
@@ -231,10 +232,10 @@ export function OutdoorHub({ data, update, onClose, say }: { data: FitData; upda
   const weekAgo = Date.now() - 7 * 864e5;
   const week = runs.filter((r) => Date.parse(r.date) >= weekAgo);
   const best = (m: number) => runs.filter((r) => r.meters >= m && r.kind === "run").map((r) => (r.secs / r.meters) * m).sort((a, b) => a - b)[0];
-  return <Sheet title="Outdoor" onClose={onClose} testId="fit-outdoor">
+  return <Sheet title={inline ? "Outdoor run" : "Outdoor"} onClose={onClose} testId="fit-outdoor" inline={inline}>
     <div className="mt-1 grid grid-cols-2 gap-2">
-      <button type="button" onClick={() => setTracking({})} className="flex min-h-[110px] flex-col justify-end rounded-[14px] p-4 text-left" style={{ background: "linear-gradient(150deg, #ff5a1f, #b8360a)", color: "#0b0b0c" }} data-testid="fit-outdoor-start"><Route className="h-7 w-7" /><span className="mt-2 text-[26px] leading-none" style={display}>Start run</span><span className="text-[12px] font-semibold">GPS · live map</span></button>
-      <button type="button" onClick={() => setTrails(true)} className="flex min-h-[110px] flex-col justify-end rounded-[14px] p-4 text-left" style={{ background: C.card2 }} data-testid="fit-outdoor-trails"><Mountain className="h-7 w-7" style={{ color: C.lime }} /><span className="mt-2 text-[26px] leading-none" style={display}>Trails</span><span className="text-[12px]" style={{ color: C.dim }}>Every US trail near you</span></button>
+      <button type="button" onClick={() => setTracking({})} className="fit-in fit-shine flex min-h-[110px] flex-col justify-end rounded-[14px] p-4 text-left active:scale-[.98]" style={{ background: "linear-gradient(150deg, #ff5a1f, #b8360a)", color: "#0b0b0c" }} data-testid="fit-outdoor-start"><Route className="h-7 w-7" /><span className="mt-2 text-[26px] leading-none" style={display}>Start run</span><span className="text-[12px] font-semibold">GPS · live map</span></button>
+      <button type="button" onClick={() => setTrails(true)} className="fit-in flex min-h-[110px] flex-col justify-end rounded-[14px] p-4 text-left active:scale-[.98]" style={{ background: C.card2, animationDelay: ".08s" }} data-testid="fit-outdoor-trails"><Mountain className="h-7 w-7" style={{ color: C.lime }} /><span className="mt-2 text-[26px] leading-none" style={display}>Trails</span><span className="text-[12px]" style={{ color: C.dim }}>Every US trail near you</span></button>
     </div>
     <div className="mt-3 grid grid-cols-3 gap-2 text-center">
       {([[distLabel(week.reduce((t, r) => t + r.meters, 0), unit), `${unit} this week`], [best(unit === "mi" ? MILE : 1000) ? fmtDur(best(unit === "mi" ? MILE : 1000)!) : "—", `best ${unit}`], [best(5000) ? fmtDur(best(5000)!) : "—", "best 5K"]] as const).map(([v, l]) => <Card key={l} className="!px-1 !py-3"><p className="text-[24px] leading-none tabular-nums" style={display}>{v}</p><p className="mt-1 text-[11px] uppercase tracking-[.08em]" style={{ color: C.dim }}>{l}</p></Card>)}

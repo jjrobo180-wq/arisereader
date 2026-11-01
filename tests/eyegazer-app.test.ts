@@ -38,3 +38,10 @@ test("built and checked like the others, with live updates", () => {
   assert.match(read("eyegazer/ios-app/package.json"), /@capacitor\/push-notifications/);
   assert.match(read("eyegazer/ios-app/package.json"), /@capgo\/capacitor-updater/);
 });
+
+test("every permission a game asks for has its sentence, or iOS closes the app", () => {
+  const plist = readFileSync(".github/scripts/configure_reader_app.py", "utf8");
+  // Animal Splash uses speech recognition (it listens for the animal's name).
+  assert.match(readFileSync("client/src/pages/AnimalSplashGame.tsx", "utf8"), /SpeechRecognition/);
+  for (const k of ["NSSpeechRecognitionUsageDescription", "NSMicrophoneUsageDescription", "NSCameraUsageDescription"]) assert.match(plist, new RegExp(`"${k}"`), k);
+});
