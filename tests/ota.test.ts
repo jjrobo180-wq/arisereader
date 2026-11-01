@@ -57,8 +57,13 @@ test("signed builds set the updater up; the apps say they started fine; master p
     const c = JSON.parse(readFileSync(`${d}/ios-app/capacitor.config.json`, "utf8")).plugins.CapacitorUpdater;
     assert.match(c.updateUrl, /^https:\/\/arisetodo\.com\/api\/ota\//); assert.equal(c.statsUrl, ""); assert.match(c.channelUrl, /^https:\/\/arisetodo\.com\//);
   }
-  assert.match(readFileSync("client/src/main.tsx", "utf8"), /markAppReady\(\)/);
-  assert.match(readFileSync("podscroll/main.tsx", "utf8"), /markAppReady\(\)/);
+  // Every app tells the updater it started fine, retrying, without needing Capacitor's plugin list
+  // (that check failed silently and every downloaded update was rolled back after 15 seconds).
+  assert.match(readFileSync("client/src/main.tsx", "utf8"), /markAppReadyWhenDrawn\(\)/);
+  assert.match(readFileSync("podscroll/main.tsx", "utf8"), /markAppReadyWhenDrawn\(\)/);
+  const nat = readFileSync("client/src/lib/nativeApp.ts", "utf8");
+  assert.doesNotMatch(nat.slice(nat.indexOf("export async function markAppReady")), /^[^\n]*hasNativePlugin/m, "the ready signal doesn't depend on the plugin list");
+  assert.match(nat, /Plugins\?\.CapacitorUpdater/);
   const pub = readFileSync(".github/workflows/ota-publish.yml", "utf8");
   assert.match(pub, /branches: \[master\]/);
   assert.match(pub, /gh release create "\$TAG" "\$ZIP"/);

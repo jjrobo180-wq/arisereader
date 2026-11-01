@@ -1,6 +1,6 @@
 import "./lib/accountStorageBoot";
 import "./lib/sampleBoot";
-import { markAppReady, nativeAppInfo } from "./lib/nativeApp";
+import { markAppReadyWhenDrawn, nativeAppInfo } from "./lib/nativeApp";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
@@ -113,4 +113,4 @@ createRoot(document.getElementById("root")!).render(<App />);
 void import("./lib/readPhotos").then((m) => m.installReadPhotos()).catch(() => { /* covers keep their drawings */ });
 // Live updates: this copy of the app started and drew its first screen (otherwise the iPhone app goes
 // back to the copy that worked; client/src/lib/nativeApp.ts).
-setTimeout(() => { if (document.getElementById("root")?.childElementCount) markAppReady(); }, 2000);
+markAppReadyWhenDrawn();
