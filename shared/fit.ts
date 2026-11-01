@@ -15,7 +15,9 @@ export type FoodEntry = { id: string; date: string; meal: Meal; name: string; kc
 export type SavedMeal = { id: string; name: string; items: Omit<FoodEntry, "id" | "date" | "meal">[] };
 export type Profile = { sex?: "m" | "f"; birthYear?: number; heightCm?: number; goal: Goal; activity: number; units: Units; kcalGoal?: number; macroSplit?: { p: number; c: number; f: number }; waterGoalMl: number; stepsGoal: number;
   /** A diet plan from fitNutrition.ts (it sets macroSplit) and whether food is counted in calories or Arise Points. */
-  dietPlan?: string; trackMode?: "calories" | "points" };
+  dietPlan?: string; trackMode?: "calories" | "points";
+  /** The gym they train at and the equipment it has (shared/fitGym.ts). */
+  gym?: MyGym };
 export type FitData = {
   v: 1;
   profile: Profile;
@@ -36,6 +38,7 @@ export type FitData = {
 
 import { DIET_BY_ID, cleanFasting, type Fasting } from "./fitNutrition";
 import { cleanRuns, type Run } from "./fitRun";
+import { cleanGym, type MyGym } from "./fitGym";
 
 export const LIMITS = { workouts: 3000, foods: 20000, routines: 60, weights: 3000, recent: 60, bytes: 2_500_000 };
 
@@ -66,6 +69,7 @@ export function cleanFit(raw: any): FitData {
     stepsGoal: num(p.stepsGoal, 1000, 50000, 8000),
     ...(DIET_BY_ID.has(String(p.dietPlan)) ? { dietPlan: String(p.dietPlan) } : {}),
     ...(p.trackMode === "points" ? { trackMode: "points" as const } : {}),
+    ...(cleanGym(p.gym) ? { gym: cleanGym(p.gym) } : {}),
   };
   const set = (s: any): FitSet => ({ reps: num(s?.reps, 0, 1000), weight: num(s?.weight, 0, 2000), done: !!s?.done, ...(s?.warm ? { warm: true } : {}), ...(s?.rpe ? { rpe: num(s.rpe, 1, 10) } : {}) });
   const ex = (e: any): FitExercise => ({ exId: str(e?.exId, 80), name: str(e?.name, 80), sets: (Array.isArray(e?.sets) ? e.sets : []).slice(0, 30).map(set), ...(e?.rest ? { rest: num(e.rest, 0, 900) } : {}), ...(e?.target ? { target: str(e.target, 20) } : {}), ...(e?.note ? { note: str(e.note, 300) } : {}) });

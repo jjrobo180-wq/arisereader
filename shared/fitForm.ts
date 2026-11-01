@@ -100,3 +100,15 @@ export class RepCounter {
 
 /** For a plank: is this frame in a good line? */
 export const plankOk = (a: Angles) => a.seen >= 0.5 && a.body >= 160 && a.body <= 195;
+
+/** The camera rep counter that fits an exercise, or null when the camera can't follow it. */
+const LIFT_OF: Record<string, FormLift> = {
+  "back-squat": "squat", "front-squat": "squat", "goblet-squat": "squat", "bodyweight-squat": "squat", "kb-goblet-squat": "squat", "jump-squat": "squat", "band-squat": "squat", thruster: "squat",
+  "push-up": "pushup", "incline-push-up": "pushup",
+  lunge: "lunge", "bulgarian-split-squat": "lunge", "step-up": "lunge",
+  deadlift: "hinge", rdl: "hinge", "db-rdl": "hinge", "sumo-deadlift": "hinge", "good-morning": "hinge", "kb-swing": "hinge",
+  ohp: "press", "db-shoulder-press": "press", "arnold-press": "press",
+  "barbell-curl": "curl", "db-curl": "curl", "hammer-curl": "curl", "cable-curl": "curl",
+  plank: "plank",
+};
+export const formLiftFor = (exId: string): FormLift | null => LIFT_OF[exId] ?? null;

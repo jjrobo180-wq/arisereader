@@ -1,7 +1,7 @@
 // Arise Fit training: the exercise library, the live workout (sets, rest timer, records, what to lift
 // next time), programs, routines and history.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronRight, Clock3, Dumbbell, Flame, History, Minus, Pause, Play, PlayCircle, Plus, Search, Timer, Trash2, Trophy } from "lucide-react";
+import { ArrowLeftRight, Check, ChevronRight, Clock3, Dumbbell, Flame, History, Minus, Pause, Play, PlayCircle, Plus, ScanEye, ScanLine, Search, Timer, Trash2, Trophy } from "lucide-react";
 import {
   CATALOG, CATALOG_BY_ID, PROGRAMS, PROGRAM_BY_ID, e1rm, fromKg, lastTime, newRecords, nextProgramDay, nextTime, plates, records, repRange, uid,
   type FitData, type FitExercise, type Program, type Routine, type Units, type Workout,
@@ -14,6 +14,10 @@ import { programArt, type ArtKind } from "./fitArt";
 import { SessionPlayer } from "./FitSession";
 import { OutdoorHub } from "./FitRun";
 import { FormCheck } from "./FitForm";
+import { formLiftFor } from "@shared/fitForm";
+import { prescription } from "@shared/fitRecovery";
+import { Debrief, GymSheet, ScanMachine, SwapSheet } from "./FitGym";
+import { gymLabel } from "@shared/fitGym";
 import { saveToHealth } from "./fitNative";
 import type { LibraryExercise, Update } from "./fitStore";
 import { CoverCard, VideoPlayer, VideoThumb } from "./FitVideo";
@@ -140,6 +144,9 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
   const [detail, setDetail] = useState<LibraryExercise | null>(null);
   const [plateFor, setPlateFor] = useState<number | null>(null);
   const [done, setDone] = useState<null | { w: Workout; prs: ReturnType<typeof newRecords> }>(null);
+  const [swapFor, setSwapFor] = useState<number | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [camFor, setCamFor] = useState<number | null>(null);
   useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 500); return () => window.clearInterval(t); }, []);
   const set = (fn: (a: Active) => Active) => { const n = fn(active); saveActive(n); setActive(n); };
   const paused = active.pausedAt != null;
@@ -161,6 +168,30 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
     const s = active.exercises[ei].sets[si];
     edit(ei, si, { done: !s.done });
     if (!s.done) { const secs = active.exercises[ei].rest ?? 90; if (secs > 0) setRest({ until: Date.now() + secs * 1000, total: secs }); navigator.vibrate?.(30); haptic("medium"); }
+  };
+  /** An exercise set up the way the workout builder would (sets, reps, rest, last time's weight). */
+  const fresh = (exId: string, like?: FitExercise) => {
+    const ex = CATALOG_BY_ID.get(exId);
+    const pr = ex ? prescription(data.profile.goal, ex, false) : { sets: 3, reps: "8-12", rest: 90 };
+    return planned(data, [{ exId, name: ex?.name, sets: like ? Math.max(1, like.sets.filter((x) => !x.done).length || like.sets.length) : pr.sets, reps: like?.target || pr.reps, rest: like?.rest ?? pr.rest }], list)[0];
+  };
+  const addEx = (exId: string) => { set((a) => ({ ...a, exercises: [...a.exercises, fresh(exId)] })); say("Added."); };
+  // A swap keeps the sets already done under the old exercise and moves the rest to the new one.
+  const swapEx = (ei: number, exId: string) => set((a) => {
+    const old = a.exercises[ei];
+    const kept = old.sets.some((x) => x.done) ? [{ ...old, sets: old.sets.filter((x) => x.done) }] : [];
+    return { ...a, exercises: [...a.exercises.slice(0, ei), ...kept, fresh(exId, old), ...a.exercises.slice(ei + 1)] };
+  });
+  /** Reps counted by the camera go into the next set that isn't done, and it's checked off. */
+  const logCamera = (ei: number, r: { reps: number; clean: number; secs: number; faults: string[] }) => {
+    const e = active.exercises[ei];
+    const timed = !!(CATALOG_BY_ID.get(e.exId)?.timed || repRange(e.target || "").secs);
+    let si = e.sets.findIndex((x) => !x.done);
+    if (si < 0) { set((a) => ({ ...a, exercises: a.exercises.map((x, k) => k !== ei ? x : { ...x, sets: [...x.sets, { ...(x.sets[x.sets.length - 1] ?? { reps: 0, weight: 0 }), done: false, warm: false }] }) })); si = e.sets.length; }
+    const note = r.reps ? `Camera: ${r.clean} of ${r.reps} reps clean${r.faults.length ? `. Work on: ${r.faults.join("; ")}` : ""}.` : "";
+    set((a) => ({ ...a, exercises: a.exercises.map((x, k) => k !== ei ? x : { ...x, ...(note ? { note } : {}), sets: x.sets.map((y, j) => j !== si ? y : { ...y, reps: timed ? r.secs : r.reps, done: true }) }) }));
+    const secs = e.rest ?? 90; if (secs > 0) setRest({ until: Date.now() + secs * 1000, total: secs });
+    haptic("medium"); say(timed ? `Logged ${r.secs} seconds.` : `Logged ${r.reps} reps.`);
   };
   const finish = () => {
     const exercises = active.exercises.map((e) => ({ ...e, sets: e.sets.filter((s) => s.done) })).filter((e) => e.sets.length);
@@ -187,6 +218,7 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
       </div>
       {done.prs.length > 0 && <><Title>New records</Title><div className="space-y-2">{done.prs.map((p, k) => <Card key={p.exId + p.kind} className="flex items-center gap-3 !p-3" style={stagger(k, 0.08, 0.6)}><Trophy className="h-6 w-6" style={{ color: C.orange }} />
         <div><p className="font-semibold">{p.name}</p><p className="text-[13px]" style={{ color: C.dim }}>{p.kind === "e1rm" ? `Est. 1-rep max ${fmtNum(p.value)} ${u}` : p.kind === "weight" ? `Heaviest ${fmtNum(p.value)} ${u}` : `Most volume ${fmtNum(p.value)} ${u}`}</p></div></Card>)}</div></>}
+      <Debrief w={done.w} data={data} />
       <Btn onClick={() => setActive(null)} className="mt-8 w-full !min-h-[52px] !text-[19px]" testId="fit-summary-done">Back to today</Btn>
     </div></Layer>;
   }
@@ -215,7 +247,11 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
               {e.target && <p className="text-[12px]" style={{ color: C.dim }}>Target {e.target}{timed ? "" : " reps"} · rest {e.rest ?? 90}s</p>}
               {sug && <p className="mt-0.5 text-[12px]" style={{ color: C.text }}>{sug.why}</p>}
               {ex && videoFor(ex.id) && <button type="button" onClick={() => setDetail(ex)} className="mt-1.5 flex h-7 items-center gap-1 rounded-full px-2.5 text-[12px] font-semibold" style={{ background: "rgba(255,90,31,.12)", color: C.lime }} data-testid={`fit-live-video-${ei}`}><PlayCircle className="h-3.5 w-3.5" />Watch form</button>}</div>
-            <button type="button" onClick={() => set((a) => ({ ...a, exercises: a.exercises.filter((_, k) => k !== ei) }))} aria-label={`Remove ${e.name}`} className="grid h-9 w-9 place-items-center rounded-full" style={{ color: C.dim }}><Trash2 className="h-4 w-4" /></button>
+            <div className="flex shrink-0 flex-col items-center gap-1">
+              <button type="button" onClick={() => setSwapFor(ei)} aria-label={`Swap ${e.name}`} className="grid h-9 w-9 place-items-center rounded-full" style={{ background: C.card2 }} data-testid={`fit-live-swap-${ei}`}><ArrowLeftRight className="h-4 w-4" /></button>
+              {formLiftFor(e.exId) && <button type="button" onClick={() => setCamFor(ei)} aria-label={`Count ${e.name} reps with the camera`} className="grid h-9 w-9 place-items-center rounded-full" style={{ background: C.card2, color: C.lime }} data-testid={`fit-live-cam-${ei}`}><ScanEye className="h-4 w-4" /></button>}
+              <button type="button" onClick={() => set((a) => ({ ...a, exercises: a.exercises.filter((_, k) => k !== ei) }))} aria-label={`Remove ${e.name}`} className="grid h-9 w-9 place-items-center rounded-full" style={{ color: C.dim }}><Trash2 className="h-4 w-4" /></button>
+            </div>
           </div>
           <div className="mt-3 grid grid-cols-[2rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.75rem] items-center gap-1.5 text-center text-[11px] font-semibold uppercase" style={{ color: C.dim }}>
             <span>Set</span><span>Last</span><span>{timed ? "Secs" : u}</span><span>{timed ? "" : "Reps"}</span><span />
@@ -239,16 +275,20 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
           </div>
         </Card>;
       })}
-      <Btn kind="soft" onClick={() => setAdding(true)} className="w-full" testId="fit-add-exercise"><Plus className="h-5 w-5" />Add exercise</Btn>
+      <div className="grid grid-cols-2 gap-2">
+        <Btn kind="soft" onClick={() => setAdding(true)} className="w-full !px-3" testId="fit-add-exercise"><Plus className="h-5 w-5" />Add exercise</Btn>
+        <Btn kind="soft" onClick={() => setScanning(true)} className="w-full !px-3" testId="fit-live-scan"><ScanLine className="h-5 w-5" />Scan machine</Btn>
+      </div>
       <button type="button" onClick={() => { if (window.confirm("Discard this workout? Nothing will be saved.")) { saveActive(null); setActive(null); } }} className="h-12 w-full text-[15px] font-semibold" style={{ color: C.red }}>Discard workout</button>
     </div>
-    {paused && <div className="fixed inset-0 z-[78] flex flex-col items-center justify-center px-6 text-center" style={{ background: "rgba(11,11,12,.92)", color: C.text, ...font }} role="dialog" aria-modal="true" aria-label="Workout paused" data-testid="fit-paused">
-      <p className="text-[13px] uppercase tracking-[.2em]" style={{ color: C.dim }}>Paused</p>
+    {/* The paused screen is always dark, so its words are always light (the theme's text colors are dark in Light). */}
+    {paused && <div className="fixed inset-0 z-[78] flex flex-col items-center justify-center px-6 text-center" style={{ background: "rgba(11,11,12,.94)", color: "#ffffff", ...font }} role="dialog" aria-modal="true" aria-label="Workout paused" data-testid="fit-paused">
+      <p className="text-[13px] uppercase tracking-[.2em]" style={{ color: "rgba(255,255,255,.7)" }}>Paused</p>
       <p className="mt-2 text-[72px] leading-none tabular-nums" style={display}>{fmtDur(workoutSecs(active, now))}</p>
-      <p className="mt-2 text-[14px]" style={{ color: C.steel }}>{doneSets} of {allSets} sets done{rest && left > 0 ? ` · ${fmtDur(left)} rest left` : ""}. The clock is stopped.</p>
+      <p className="mt-2 text-[14px]" style={{ color: "rgba(255,255,255,.82)" }}>{doneSets} of {allSets} sets done{rest && left > 0 ? ` · ${fmtDur(left)} rest left` : ""}. The clock is stopped.</p>
       <button type="button" onClick={resume} aria-label="Resume workout" className="mt-8 grid h-20 w-20 place-items-center rounded-full shadow-[0_10px_30px_rgba(255,90,31,.4)]" style={{ background: C.lime, color: "#0b0b0c" }} data-testid="fit-resume"><Play className="ml-1 h-9 w-9" fill="currentColor" /></button>
-      <p className="mt-3 text-[13px]" style={{ color: C.dim }}>Resume</p>
-      <Btn kind="soft" onClick={finish} className="mt-8">Finish workout</Btn>
+      <p className="mt-3 text-[13px]" style={{ color: "rgba(255,255,255,.7)" }}>Resume</p>
+      <button type="button" onClick={finish} className="mt-8 inline-flex min-h-12 items-center justify-center rounded-[10px] px-6 text-[18px] uppercase tracking-[.04em]" style={{ background: "rgba(255,255,255,.14)", color: "#ffffff", fontFamily: display.fontFamily, fontWeight: 800 }} data-testid="fit-paused-finish">Finish workout</button>
     </div>}
     {rest && left > 0 && !paused && <div className="fit-up fixed inset-x-3 z-[75] rounded-[16px] p-3.5" style={{ bottom: "max(16px, env(safe-area-inset-bottom))", background: C.card2, boxShadow: "0 -10px 40px rgba(0,0,0,.6)" }} data-testid="fit-rest">
       <div className="flex items-center gap-3"><Timer className="h-6 w-6" style={{ color: C.lime }} />
@@ -261,6 +301,11 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
     {adding && <Library list={list} data={data} title="Add exercise" onClose={() => setAdding(false)} onPick={(ex) => { set((a) => ({ ...a, exercises: [...a.exercises, ...planned(data, [{ exId: ex.id, name: ex.name, sets: 3, reps: ex.equipment === "bodyweight" ? "10-15" : "8-12", rest: 90 }], list)] })); setAdding(false); }} />}
     {detail && <ExerciseDetail ex={detail} data={data} onClose={() => setDetail(null)} />}
     {plateFor !== null && <PlateSheet units={u} start={plateFor} onClose={() => setPlateFor(null)} />}
+    {swapFor !== null && active.exercises[swapFor] && <SwapSheet exId={active.exercises[swapFor].exId} data={data} exclude={active.exercises.map((x) => x.exId)}
+      onPick={(id) => { swapEx(swapFor, id); setSwapFor(null); say("Swapped."); }} onScan={() => { setSwapFor(null); setScanning(true); }} onClose={() => setSwapFor(null)} />}
+    {scanning && <ScanMachine data={data} update={update} onClose={() => setScanning(false)} onUse={addEx} useLabel="Add" />}
+    {camFor !== null && active.exercises[camFor] && <FormCheck lift={formLiftFor(active.exercises[camFor].exId) ?? undefined} logLabel={`Log set ${Math.min(active.exercises[camFor].sets.filter((x) => x.done).length + 1, active.exercises[camFor].sets.length + 1)}`}
+      onLog={(r) => logCamera(camFor, r)} onClose={() => setCamFor(null)} />}
   </div></Layer>;
 }
 
@@ -390,6 +435,8 @@ export function TrainTab({ data, update, list, onStart, say, onCoach }: { data: 
   const [playing, setPlaying] = useState<Session | null>(null);
   const [outdoor, setOutdoor] = useState(false);
   const [form, setForm] = useState(false);
+  const [gymOpen, setGymOpen] = useState(false);
+  const [scan, setScan] = useState(false);
   const saveSession = (x: Session, secs: number) => {
     saveToHealth("calories", Math.round((secs / 60) * ({ hiit: 11, c25k: 9, yoga: 3.5, meditation: 0 } as const)[x.category]), new Date(Date.now() - secs * 1000));
     update((d) => ({ ...d, workouts: [...d.workouts, { id: uid(), date: new Date().toISOString(), name: x.name, programId: x.category === "c25k" ? "c25k" : `session-${x.category}`, dayId: x.id, secs, exercises: [] }] }));
@@ -400,6 +447,13 @@ export function TrainTab({ data, update, list, onStart, say, onCoach }: { data: 
   const next = active && data.program ? nextProgramDay(active, data.program.done) : null;
   const startDay = () => { if (!active || !next) return; onStart(startWorkout({ name: `${active.name}: ${next.day.name}`, programId: active.id, dayId: next.day.id, exercises: planned(data, next.day.items, list) })); setProg(null); };
   return <div>
+    {/* Your gym (workouts use only its equipment) and scanning a machine you're standing at. */}
+    <div className="mb-3 grid grid-cols-2 gap-2">
+      <button type="button" onClick={() => setGymOpen(true)} className="fit-in flex min-h-[64px] items-center gap-2.5 rounded-[14px] px-3 text-left active:scale-[.98]" style={{ background: C.card, boxShadow: `inset 0 0 0 1px ${C.line}` }} data-testid="fit-my-gym">
+        <Dumbbell className="h-6 w-6 shrink-0" style={{ color: C.lime }} /><span className="min-w-0"><span className="block text-[17px] leading-none" style={display}>My gym</span><span className="mt-0.5 block truncate text-[12px]" style={{ color: C.dim }}>{data.profile.gym ? gymLabel(data.profile.gym) : "Pick yours"}</span></span></button>
+      <button type="button" onClick={() => setScan(true)} className="fit-in flex min-h-[64px] items-center gap-2.5 rounded-[14px] px-3 text-left active:scale-[.98]" style={{ background: C.card, boxShadow: `inset 0 0 0 1px ${C.line}` }} data-testid="fit-scan-machine">
+        <ScanLine className="h-6 w-6 shrink-0" style={{ color: C.lime }} /><span className="min-w-0"><span className="block text-[17px] leading-none" style={display}>Scan a machine</span><span className="mt-0.5 block truncate text-[12px]" style={{ color: C.dim }}>QR code or photo</span></span></button>
+    </div>
     <SmartWorkoutCard data={data} list={list} onStart={onStart} testId="fit-train-smart" />
     {active && next && <Title>Your program</Title>}
     {active && next ? <CoverCard art={programArt(active)} className="!p-5" testId="fit-next-program">
@@ -451,6 +505,8 @@ export function TrainTab({ data, update, list, onStart, say, onCoach }: { data: 
     {body && <BodyMap data={data} list={list} onClose={() => setBody(false)} onOpen={setWatch} onStart={(name, items) => { setBody(false); onStart(startWorkout({ name, exercises: planned(data, items, list) })); }} />}
     {outdoor && <OutdoorHub data={data} update={update} say={say} onClose={() => setOutdoor(false)} />}
     {form && <FormCheck onClose={() => setForm(false)} />}
+    {gymOpen && <GymSheet data={data} update={update} onClose={() => setGymOpen(false)} />}
+    {scan && <ScanMachine data={data} update={update} onClose={() => setScan(false)} useLabel="Start" onUse={(exId) => { const ex = CATALOG_BY_ID.get(exId); if (!ex) return; const pr = prescription(data.profile.goal, ex, true); onStart(startWorkout({ name: ex.name, exercises: planned(data, [{ exId, name: ex.name, ...pr }], list) })); }} />}
     {cat && <SessionList cat={cat} data={data} onClose={() => setCat(null)} onPlay={setPlaying} />}
     {playing && <SessionPlayer session={playing} onClose={() => setPlaying(null)} onDone={(secs) => saveSession(playing, secs)} />}
     {prog && <ProgramDetail p={prog} data={data} update={update} list={list} onClose={() => setProg(null)} onStartDay={startDay} />}

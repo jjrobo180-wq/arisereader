@@ -61,7 +61,7 @@ test("words never sit on top of video pictures; trails go through the server; US
 test("server: trails come from Overpass by the server, cached, with places from Nominatim", async () => {
   const { registerFitRoutes, createMemoryFitStore } = await import("../server/fit");
   const routes = new Map<string, any[]>();
-  const app: any = { get: (p: string, ...h: any[]) => routes.set(`GET ${p}`, h), put: (p: string, ...h: any[]) => routes.set(`PUT ${p}`, h) };
+  const app: any = { get: (p: string, ...h: any[]) => routes.set(`GET ${p}`, h), put: (p: string, ...h: any[]) => routes.set(`PUT ${p}`, h), post: (p: string, ...h: any[]) => routes.set(`POST ${p}`, h) };
   let asked = 0;
   registerFitRoutes(app, (_q: any, _r: any, next: any) => next(), { store: createMemoryFitStore(), overpass: async () => { asked++; return { elements: [{ type: "way", id: 5, tags: { name: "Ridge Trail", sac_scale: "hiking" }, center: { lat: 39.7, lon: -105 } }] }; },
     fetchJson: async () => [{ lat: "39.74", lon: "-104.99", display_name: "Denver, Colorado, United States" }] });
