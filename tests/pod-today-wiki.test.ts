@@ -51,6 +51,8 @@ test("every Wiki podcast credits Wikipedia and its license, and uses the AI voic
   const ui = readFileSync("podscroll/Wiki.tsx", "utf8");
   assert.match(ui, /CC BY-SA|WIKI_LICENSE/); assert.match(ui, /art\.url/); assert.match(ui, /sayAI\(/);
   assert.doesNotMatch(ui, /speechSynthesis/);
+  // Dark mode flips dark cards to light unless they're marked ps-keep (Home.tsx DARK_CSS); unmarked, the white text vanished.
+  for (const m of ui.matchAll(/className=["{`]+([^"`]*bg-\[#0f0f0f\][^"`]*)/g)) assert.match(m[1], /\bps-keep\b/, m[1]);
   const home = readFileSync("podscroll/Home.tsx", "utf8");
   assert.match(home, /<PodcastOfTheDay /); assert.match(home, /navItem\("Wiki podcasts"/); assert.match(home, /a === "wiki"/);
 });
