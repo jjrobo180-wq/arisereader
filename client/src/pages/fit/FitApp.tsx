@@ -76,10 +76,10 @@ function TodayTab({ data, update, onTab, onStartProgram, user, list }: { data: F
   const budget = pointsBudget(g);
   return <div>
     <div className="flex items-end justify-between px-1">
-      <div><p className="text-[14px]" style={{ color: C.dim }}>{hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"}{user ? `, ${user}` : ""}</p><h1 className="text-[36px] leading-[.95]" style={display}>Today</h1></div>
+      <div><p className="text-[11px] font-semibold uppercase tracking-[.22em]" style={{ color: C.lime }}>ARISE / PERFORMANCE</p><h1 className="mt-2 text-[43px] leading-[.95]" style={display}>Your day<span style={{ color: C.lime }}>.</span></h1><p className="mt-2 text-[13px]" style={{ color: C.dim }}>{hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"}{user ? `, ${user}` : ""} · Build with intention.</p></div>
       {s > 0 && <div className="flex items-center gap-1 rounded-full px-3 py-1.5" style={{ background: C.card }} aria-label={`${s} day streak`}><Flame className="h-4 w-4" style={{ color: C.orange }} /><span className="text-[15px] font-bold">{s}</span></div>}
     </div>
-    <Card className="mt-4 flex items-center gap-4 !p-4" onClick={() => onTab("food")} testId="fit-today-calories">
+    <Card className="mt-6 flex items-center gap-4 !p-5" onClick={() => onTab("food")} testId="fit-today-calories">
       {points
         ? <Ring value={used} goal={budget} size={124}><div><p className="text-[36px] leading-none" style={display}>{Math.max(0, budget - used)}</p><p className="mt-1 text-[11px] uppercase tracking-[.1em]" style={{ color: C.dim }}>points left</p></div></Ring>
         : <Ring value={t.kcal} goal={g.kcal} size={124}><div><p className="text-[34px] leading-none" style={display}>{fmtNum(Math.max(0, g.kcal - t.kcal))}</p><p className="mt-1 text-[11px] uppercase tracking-[.1em]" style={{ color: C.dim }}>calories left</p></div></Ring>}
@@ -90,9 +90,9 @@ function TodayTab({ data, update, onTab, onStartProgram, user, list }: { data: F
       <span className="mt-1 block text-[24px] font-extrabold tracking-tight" style={display}>{next.day.name}</span><span className="block text-[14px]" style={{ color: "#d6d6de" }}>{prog.name} · {next.day.items.length} exercises</span>
       <Btn className="mt-3 w-full" onClick={onStartProgram}><Play className="h-5 w-5" />Start workout</Btn>
     </CoverCard> : <CoverCard exId="back-squat" onClick={() => onTab("train")} className="mt-3"><span className="flex items-end gap-3"><Dumbbell className="h-8 w-8 shrink-0" style={{ color: C.lime }} /><span className="min-w-0 flex-1"><span className="block text-[18px] font-bold">Start training</span><span className="block text-[13px]" style={{ color: "#d6d6de" }}>Pick a program, with a how-to video for every exercise.</span></span><ChevronRight className="h-5 w-5" /></span></CoverCard>}
-    <div className="mt-3 grid grid-cols-2 gap-3">
-      <Card className="!p-4"><Activity className="h-5 w-5" style={{ color: C.lime }} /><p className="mt-2 text-[24px] font-bold">{thisWeek.length}</p><p className="text-[12px]" style={{ color: C.dim }}>workouts this week</p></Card>
-      <Card className="!p-4"><BarChart3 className="h-5 w-5" style={{ color: C.blue }} /><p className="mt-2 text-[24px] font-bold">{fmtNum(vol)}</p><p className="text-[12px]" style={{ color: C.dim }}>{data.profile.units} lifted this week</p></Card>
+    <div className="mt-4 grid grid-cols-2 gap-3">
+      <Card className="!p-4"><Activity className="h-5 w-5" style={{ color: C.lime }} /><p className="mt-2 text-[24px] font-bold">{thisWeek.length}</p><p className="text-[12px]" style={{ color: C.dim }}>SESSIONS / 7 DAYS</p></Card>
+      <Card className="!p-4"><BarChart3 className="h-5 w-5" style={{ color: C.blue }} /><p className="mt-2 text-[24px] font-bold">{fmtNum(vol)}</p><p className="text-[12px]" style={{ color: C.dim }}>{data.profile.units} MOVED / 7 DAYS</p></Card>
     </div>
     {health && <div className="mt-3"><StepsCard data={data} snap={health} /></div>}
     <div className="mt-3"><FastingCard data={data} update={update} onOpen={() => setFasting(true)} /></div>
