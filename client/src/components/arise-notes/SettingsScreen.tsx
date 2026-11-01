@@ -5,6 +5,7 @@ import { Check, Crown, Eye, Shield, Trash2, Type, Users } from "lucide-react";
 import { NOTES_PLANS, dayWords, type NotesPlanId, type NotesProduct, type NotesSettings } from "@shared/ariseNotes";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
+import { NATIVE_NO_PURCHASE, isNativeApp } from "@/lib/nativeApp";
 import { notesApi, type Billing } from "./api";
 import { Btn, Notice, Section, Spinner, Toggle, useToast } from "./ui";
 import { TopBar, type AppCtx } from "./NotesApp";
@@ -45,7 +46,10 @@ function PlanTab({ ctx }: { ctx: AppCtx }) {
   const [busy, setBusy] = useState("");
   const [yearly, setYearly] = useState(true);
   const [admin, setAdmin] = useState<{ name: string; minutes: number; costCents: number; jobs: number }[] | null>(null);
-  useEffect(() => { notesApi.billing().then(setBill).catch((e) => say(e.message)); if (ctx.me.user.admin) notesApi.adminUsage().then((r) => setAdmin(r.people)).catch(() => {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Plans aren't sold inside the iPhone app (App Review Guideline 3.1.1): it shows the minutes and
+  // what's on the account, with no prices, buy buttons or billing links.
+  const native = isNativeApp();
+  useEffect(() => { if (!native) notesApi.billing().then(setBill).catch((e) => say(e.message)); if (ctx.me.user.admin) notesApi.adminUsage().then((r) => setAdmin(r.people)).catch(() => {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const returnPath = ctx.mode === "embedded" ? "/arise-notes" : "/notes/";
   const choose = async (p: NotesProduct) => {
     setBusy(p);
@@ -67,7 +71,7 @@ function PlanTab({ ctx }: { ctx: AppCtx }) {
       <div className="mt-4 h-3 overflow-hidden rounded-full bg-[var(--an-violet-soft)]" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Minutes used"><div className={`h-full rounded-full ${u.warn === 100 ? "bg-[var(--an-coral)]" : u.warn === 80 ? "bg-[#f5a524]" : "bg-[var(--an-violet)]"}`} style={{ width: `${pct}%` }} /></div>
       <p className="mt-3 text-[13px] leading-relaxed text-[var(--an-muted)]">You're on <b>{ctx.me.planName}</b>{u.pooled ? " (your family's shared minutes)" : ""}. Every minute of audio counts, recorded or uploaded, rounded up per recording. One recording can be up to {u.maxSecs >= 7200 ? "2 hours" : `${Math.round(u.maxSecs / 60)} minutes`}.{u.warn ? " You'll get a heads-up at 80% and at 100%." : ""}</p>
     </Section>
-    {!bill ? <Spinner /> : <>
+    {native ? <Notice>{NATIVE_NO_PURCHASE}</Notice> : !bill ? <Spinner /> : <>
       {bill.canBuy && !bill.payment && <Notice tone="warn">Paid plans aren't open on this site yet.</Notice>}
       {bill.given && <Notice>Your plan was set up for you{bill.endsAt ? ` until ${new Date(bill.endsAt).toLocaleDateString()}` : ""}.</Notice>}
       <div className="flex items-center justify-center gap-2 text-[14px]"><span>Plus billed</span><button type="button" className="an-chip" aria-pressed={!yearly} onClick={() => setYearly(false)}>Monthly</button><button type="button" className="an-chip" aria-pressed={yearly} onClick={() => setYearly(true)}>Yearly · save 17%</button></div>
