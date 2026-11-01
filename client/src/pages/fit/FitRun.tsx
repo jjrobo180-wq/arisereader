@@ -5,12 +5,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Crosshair, Flag, Footprints, LocateFixed, MapPin, Mountain, Pause, Play, Route, Search, Square, Trophy } from "lucide-react";
 import type { FitData } from "@shared/fit";
 import { uid } from "@shared/fit";
-import { MILE, NOMINATIM, OVERPASS, acceptFix, distLabel, haversine, pace, parseGeometry, parseTrails, runCalories, shrinkPath, splits, trailGeometryQuery, trailsQuery, type LatLng, type Run, type RunKind, type Trail } from "@shared/fitRun";
+import { MILE, TRAIL_KM, trailCell, acceptFix, distLabel, haversine, pace, parseGeometry, parseTrails, runCalories, shrinkPath, splits, type LatLng, type Run, type RunKind, type Trail } from "@shared/fitRun";
+import { useAuth } from "@/context/AuthContext";
+import { fitApi } from "./fitStore";
 import { sayAI } from "@/lib/aiVoice";
 import { saveToHealth } from "./fitNative";
 import type { Update } from "./fitStore";
 import { latestKg } from "./FitFood";
-import { Btn, C, Card, Chips, Sheet, Title, display, fmtDur, font, inputCls, inputStyle } from "./fitUi";
+import { Btn, C, Card, Chips, Layer, Sheet, Title, display, fmtDur, font, inputCls, inputStyle, resolvedTheme } from "./fitUi";
 
 // ——— Leaflet, loaded once from cdnjs ————————————————————————————————————————————————————————————
 let leaflet: Promise<any> | null = null;
@@ -36,7 +38,7 @@ function MapView({ path = [], lines = [], here, follow = false, className = "h-6
     loadLeaflet().then((L) => {
       if (!live || !box.current || map.current) return;
       map.current = L.map(box.current, { zoomControl: false, attributionControl: true }).setView(here ?? path[0] ?? lines[0]?.[0] ?? [39.5, -98.35], here || path.length || lines.length ? 15 : 4);
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { maxZoom: 19, subdomains: "abcd", attribution: "© OpenStreetMap contributors © CARTO" }).addTo(map.current);
+      L.tileLayer(`https://{s}.basemaps.cartocdn.com/${resolvedTheme() === "light" ? "light_all" : "dark_all"}/{z}/{x}/{y}{r}.png`, { maxZoom: 19, subdomains: "abcd", attribution: "© OpenStreetMap contributors © CARTO" }).addTo(map.current);
       setTimeout(() => map.current?.invalidateSize(), 50);
     }).catch((e) => live && setErr(e.message));
     return () => { live = false; try { map.current?.remove(); } catch { /* gone */ } map.current = null; layers.current = {}; };
@@ -52,7 +54,7 @@ function MapView({ path = [], lines = [], here, follow = false, className = "h-6
     if (fit && (l.trail || l.route)) { try { m.fitBounds((l.route ?? l.trail).getBounds(), { padding: [24, 24] }); } catch { /* empty */ } }
     else if (follow && at) m.setView(at, Math.max(m.getZoom(), 16), { animate: true });
   }, [path, lines, here, follow, fit]);
-  return <div className={`relative overflow-hidden rounded-[14px] ${className}`} style={{ background: "#121316" }}>
+  return <div className={`relative overflow-hidden rounded-[14px] ${className}`} style={{ background: C.card2 }}>
     <div ref={box} className="absolute inset-0" />
     {err && <p className="absolute inset-0 grid place-items-center px-4 text-center text-[14px]" style={{ color: C.dim }}>{err}</p>}
   </div>;
@@ -106,14 +108,14 @@ export function RunTracker({ data, update, onClose, say, trail }: { data: FitDat
   };
   const path = points.map((p) => p.ll);
 
-  return <div className="fit-sheet fixed inset-0 z-[85] flex flex-col" style={{ background: C.bg, color: C.text, ...font }} data-testid="fit-run">
+  return <Layer><div className="fit-sheet fixed inset-0 z-[85] flex flex-col" style={{ background: C.bg, color: C.text, ...font }} data-testid="fit-run">
     <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
       <button type="button" onClick={() => { if (state === "ready" || window.confirm("Stop tracking? This run won't be saved.")) onClose(); }} className="h-11 rounded-full px-4 text-[15px] font-semibold" style={{ background: C.card }}>{state === "ready" ? "Close" : "Discard"}</button>
       <p className="min-w-0 flex-1 truncate text-center text-[20px]" style={display}>{trail ? trail.name : `Outdoor ${KIND_LABEL[kind]}`}</p>
-      <span className="flex h-11 items-center gap-1 rounded-full px-3 text-[12px] font-semibold" style={{ background: C.card, color: acc !== null && acc <= 20 ? "#4ade80" : acc !== null && acc <= 35 ? C.orange : C.dim }}><Crosshair className="h-4 w-4" />{acc !== null ? `±${acc}m` : "GPS"}</span>
+      <span className="flex h-11 items-center gap-1 rounded-full px-3 text-[12px] font-semibold" style={{ background: C.card, color: acc !== null && acc <= 20 ? C.green : acc !== null && acc <= 35 ? C.orange : C.dim }}><Crosshair className="h-4 w-4" />{acc !== null ? `±${acc}m` : "GPS"}</span>
     </div>
     <div className="px-3"><MapView path={path} lines={trail?.lines} here={here} follow={state === "running"} fit={state === "done"} className="h-[42vh]" /></div>
-    {err && <p className="mx-3 mt-2 rounded-[10px] px-3 py-2 text-[13px]" style={{ background: "rgba(255,59,48,.12)", color: "#ff8a80" }}>{err}</p>}
+    {err && <p className="mx-3 mt-2 rounded-[10px] px-3 py-2 text-[13px]" style={{ background: "rgba(255,59,48,.12)", color: C.red }}>{err}</p>}
     <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
       {state === "ready" && <div className="mt-3"><Chips label="Activity" value={kind} onChange={setKind} items={(["run", "walk", "hike"] as RunKind[]).map((k) => ({ id: k, label: KIND_LABEL[k] }))} /></div>}
       <div className="mt-4 text-center">
@@ -137,51 +139,109 @@ export function RunTracker({ data, update, onClose, say, trail }: { data: FitDat
       {state === "paused" && <><button type="button" onClick={resume} aria-label="Resume" className="grid h-20 w-20 place-items-center rounded-full" style={{ background: C.lime, color: "#0b0b0c" }}><Play className="ml-1 h-9 w-9" fill="currentColor" /></button>
         <button type="button" onClick={finish} aria-label="Finish" className="grid h-20 w-20 place-items-center rounded-full" style={{ background: C.red }} data-testid="fit-run-finish"><Square className="h-8 w-8" fill="currentColor" /></button></>}
     </div>}
-  </div>;
+  </div></Layer>;
 }
 
 // ——— Trails ————————————————————————————————————————————————————————————————————————————————————————
-async function overpass(q: string): Promise<any> {
-  const r = await fetch(OVERPASS, { method: "POST", body: new URLSearchParams({ data: q }), signal: AbortSignal.timeout(30000) });
-  if (!r.ok) throw new Error(r.status === 429 ? "The trail map is busy. Try again in a minute." : "Trails couldn't load right now.");
-  return r.json();
+// Trails and place search go through Arise's server (server/fit.ts), which asks OpenStreetMap for us.
+// To feel instant: the last place you were is remembered, trails for an area are kept on the phone for a
+// week (and fetched once for the widest radius, so changing the distance only filters), and the Run tab
+// starts fetching trails in the background before Trails is even opened.
+const trailApi = (token: string | null, path: string) => fitApi<any>(token, path).catch((e: Error) => { throw new Error(/reach|fetch|network/i.test(e.message) ? "No connection. Check your internet and try again." : e.message); });
+const LOC_KEY = "arise-fit-last-place";
+const TRAIL_KEY = "arise-fit-trails:";
+const store = { get: (k: string) => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } }, set: (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage full */ } } };
+type Place = { ll: LatLng; label: string };
+export const lastPlace = (): Place | null => { const p = store.get(LOC_KEY); return p && Array.isArray(p.ll) ? p : null; };
+const keepPlace = (p: Place) => store.set(LOC_KEY, p);
+
+/** Where the phone is: a recent fix right away when there is one (up to 10 minutes old), else a quick one. */
+export function locate(): Promise<LatLng> {
+  return new Promise((ok, fail) => {
+    if (!navigator.geolocation) return fail(new Error("This phone can't share its location. Search for a town or park instead."));
+    const done = (p: GeolocationPosition) => ok([p.coords.latitude, p.coords.longitude]);
+    const why = (e: GeolocationPositionError) => new Error(e.code === 1 ? "Location is off for Arise Fit. Turn it on in Settings › Arise Fit › Location, or search for a town or park." : "Couldn't find your location. Search for a town or park instead.");
+    navigator.geolocation.getCurrentPosition(done, (e) => {
+      if (e.code === 1) return fail(why(e));
+      // Timed out or no quick fix: one more try using GPS.
+      navigator.geolocation.getCurrentPosition(done, (e2) => fail(why(e2)), { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+    }, { enableHighAccuracy: false, timeout: 6000, maximumAge: 600_000 });
+  });
 }
+
+const fetching = new Map<string, Promise<any>>();
+const lineCache = new Map<string, Promise<LatLng[][]>>();
+/** Trails around a point: from the phone when they're less than a week old, otherwise from the server. */
+export function trailsNear(token: string | null, ll: LatLng): { cached: any | null; fresh: Promise<any> } {
+  const [cLat, cLng] = trailCell(ll[0], ll[1]);
+  const key = TRAIL_KEY + `${cLat},${cLng}`;
+  const hit = store.get(key);
+  const cached = hit && Date.now() - hit.at < 7 * 864e5 ? hit.json : null;
+  let fresh = fetching.get(key);
+  if (!fresh) {
+    fresh = cached ? Promise.resolve(cached) : trailApi(token, `/trails?${new URLSearchParams({ lat: String(cLat), lng: String(cLng), km: String(TRAIL_KM) })}`).then((json) => { store.set(key, { at: Date.now(), json }); return json; });
+    fresh.catch(() => fetching.delete(key));
+    fetching.set(key, fresh);
+  }
+  return { cached, fresh };
+}
+/** Started by the Run tab so Trails opens with its list already there. */
+export function prewarmTrails(token: string | null) { const p = lastPlace(); if (p) trailsNear(token, p.ll).fresh.catch(() => {}); }
 
 export function TrailFinder({ data, onClose, onGo }: { data: FitData; onClose: () => void; onGo: (t: { name: string; lines: LatLng[][] }) => void }) {
   const unit = unitOf(data);
-  const [from, setFrom] = useState<{ ll: LatLng; label: string } | null>(null);
+  const { token } = useAuth();
+  const [from, setFrom] = useState<Place | null>(lastPlace);
   const [q, setQ] = useState("");
-  const [radius, setRadius] = useState<"10" | "25" | "50">("25");
-  const [trails, setTrails] = useState<Trail[] | null>(null);
+  // Search distance, in the person's own units (miles in the US).
+  const RADII = unit === "mi" ? [5, 15, 30] : [10, 25, 50];
+  const [radius, setRadius] = useState(RADII[1]);
+  const [json, setJson] = useState<any | null>(() => { const p = lastPlace(); return p ? trailsNear(token, p.ll).cached : null; });
+  const [locating, setLocating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [open, setOpen] = useState<{ t: Trail; lines: LatLng[][] } | null>(null);
   const [diff, setDiff] = useState<"all" | "Easy" | "Moderate" | "Hard">("all");
+  // Every radius comes from the same list: changing it only filters, so it's instant.
+  const radiusM = (unit === "mi" ? radius * MILE : radius * 1000);
+  const trails = useMemo(() => (json && from ? parseTrails(json, from.ll).filter((t) => t.away <= radiusM) : null), [json, from, radiusM]);
 
-  const nearMe = () => {
-    setErr(""); setBusy(true);
-    navigator.geolocation?.getCurrentPosition((p) => setFrom({ ll: [p.coords.latitude, p.coords.longitude], label: "Near you" }), (e) => { setBusy(false); setErr(e.code === 1 ? "Location is off. Search for a town or park instead." : "Couldn't get your location. Search instead."); }, { enableHighAccuracy: false, timeout: 15000 });
+  const go = (p: Place) => { setFrom(p); keepPlace(p); };
+  const nearMe = (quiet = false) => {
+    if (!quiet) setErr("");
+    setLocating(true);
+    locate().then((ll) => {
+      const was = from?.ll;
+      // Only move the list when you've really moved (more than about a mile).
+      if (!was || from?.label !== "Near you" || haversine(was, ll) > 1500) go({ ll, label: "Near you" });
+      else keepPlace({ ll, label: "Near you" });
+    }).catch((e) => { if (!quiet || !from) setErr(e.message); }).finally(() => setLocating(false));
   };
   const search = async () => {
     const t = q.trim(); if (t.length < 2) return;
     setErr(""); setBusy(true);
     try {
-      const r = await fetch(`${NOMINATIM}?${new URLSearchParams({ q: t, format: "json", limit: "1", countrycodes: "us" })}`, { headers: { Accept: "application/json" } });
-      const hit = (await r.json())?.[0];
-      if (!hit) { setBusy(false); setErr(`Couldn't find "${t}". Try a town, park or zip code.`); return; }
-      setFrom({ ll: [Number(hit.lat), Number(hit.lon)], label: String(hit.display_name).split(",").slice(0, 2).join(",") });
-    } catch { setBusy(false); setErr("Search isn't reachable right now."); }
+      const { place } = await trailApi(token, `/places?${new URLSearchParams({ q: t })}`);
+      if (!place) { setErr(`Couldn't find "${t}". Try a town, park or zip code.`); return; }
+      go({ ll: [place.lat, place.lng], label: place.label });
+    } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   };
   useEffect(() => {
     if (!from) return;
-    let live = true; setBusy(true); setTrails(null);
-    overpass(trailsQuery(from.ll[0], from.ll[1], Number(radius))).then((j) => live && setTrails(parseTrails(j, from.ll))).catch((e) => live && setErr(e.message)).finally(() => live && setBusy(false));
+    let live = true;
+    const { cached, fresh } = trailsNear(token, from.ll);
+    if (cached) setJson(cached); else { setJson(null); setBusy(true); }
+    fresh.then((j) => live && setJson(j)).catch((e) => live && !cached && setErr(e.message)).finally(() => live && setBusy(false));
     return () => { live = false; };
-  }, [from, radius]);
-  useEffect(() => { nearMe(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const openTrail = async (t: Trail) => {
-    setBusy(true); setErr("");
-    try { setOpen({ t, lines: parseGeometry(await overpass(trailGeometryQuery(t))) }); } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+  }, [from, token]);
+  // Opens on the last place right away, and checks where you are now in the background.
+  useEffect(() => { nearMe(!!lastPlace()); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // A trail opens at once; its line draws on the map as soon as it arrives (fetching starts the
+  // moment a finger touches the row).
+  const lineOf = (t: Trail) => { const k = `${t.type}${t.id}`; let p = lineCache.get(k); if (!p) { p = trailApi(token, `/trail?${new URLSearchParams({ type: t.type, id: String(t.id) })}`).then(parseGeometry); p.catch(() => lineCache.delete(k)); lineCache.set(k, p); } return p; };
+  const openTrail = (t: Trail) => {
+    setErr(""); setOpen({ t, lines: [] });
+    lineOf(t).then((lines) => setOpen((o) => (o && o.t.id === t.id ? { t, lines } : o))).catch((e: any) => setErr(e.message));
   };
   const shown = (trails ?? []).filter((t) => diff === "all" || t.difficulty === diff);
   const awayLabel = (m: number) => `${(m / (unit === "mi" ? MILE : 1000)).toFixed(1)} ${unit} away`;
@@ -203,21 +263,21 @@ export function TrailFinder({ data, onClose, onGo }: { data: FitData; onClose: (
       <div className="relative min-w-0 flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2" style={{ color: C.dim }} />
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Town, park or zip code" className={`${inputCls} pl-10`} style={inputStyle} data-testid="fit-trail-search" /></div>
       <Btn type="submit" kind="soft">Find</Btn>
-      <Btn kind="soft" onClick={nearMe} className="!px-3"><LocateFixed className="h-5 w-5" /></Btn>
+      <Btn kind="soft" onClick={() => nearMe()} className="!px-3" testId="fit-trail-gps"><LocateFixed className={`h-5 w-5 ${locating ? "animate-pulse" : ""}`} style={{ color: locating ? C.lime : undefined }} /></Btn>
     </form>
     <div className="mt-3 flex items-center justify-between gap-2">
-      <p className="flex min-w-0 items-center gap-1.5 truncate text-[14px]" style={{ color: C.steel }}><MapPin className="h-4 w-4 shrink-0" style={{ color: C.lime }} />{from?.label ?? "Finding you…"}</p>
-      <div className="flex shrink-0 gap-1">{(["10", "25", "50"] as const).map((r) => <button key={r} type="button" onClick={() => setRadius(r)} aria-pressed={radius === r} className="h-8 rounded-[6px] px-2 text-[12px] font-semibold" style={radius === r ? { background: C.lime, color: "#0b0b0c" } : { background: C.card }}>{r} km</button>)}</div>
+      <p className="flex min-w-0 items-center gap-1.5 truncate text-[14px]" style={{ color: C.steel }}><MapPin className="h-4 w-4 shrink-0" style={{ color: C.lime }} />{locating && !from ? "Finding you…" : from?.label ?? "Tap the target to use your location"}{locating && from ? " · updating" : ""}</p>
+      <div className="flex shrink-0 gap-1">{RADII.map((r) => <button key={r} type="button" onClick={() => setRadius(r)} aria-pressed={radius === r} className="h-9 rounded-[8px] px-2.5 text-[13px] font-semibold" style={radius === r ? { background: C.lime, color: "#0b0b0c" } : { background: C.card }}>{r} {unit}</button>)}</div>
     </div>
     <div className="mt-2"><Chips label="Difficulty" value={diff} onChange={setDiff} items={[{ id: "all", label: "All trails" }, { id: "Easy", label: "Easy" }, { id: "Moderate", label: "Moderate" }, { id: "Hard", label: "Hard" }]} /></div>
-    {err && <p className="mt-3 rounded-[10px] px-3 py-2 text-[13px]" style={{ background: "rgba(255,59,48,.12)", color: "#ff8a80" }}>{err}</p>}
-    {busy && <p className="mt-6 text-center text-[14px]" style={{ color: C.dim }}>Searching trails…</p>}
-    {trails && !busy && <p className="mb-2 mt-3 text-[12px]" style={{ color: C.dim }}>{shown.length} trails</p>}
-    <ul className="space-y-2">{shown.slice(0, 100).map((t) => <li key={`${t.type}${t.id}`}><button type="button" onClick={() => openTrail(t)} className="flex w-full items-center gap-3 rounded-[12px] p-3 text-left" style={{ background: C.card }} data-testid={`fit-trail-${t.id}`}>
+    {err && <p className="mt-3 rounded-[10px] px-3 py-2 text-[13px]" style={{ background: "rgba(255,59,48,.12)", color: C.red }}>{err}</p>}
+    {busy && !trails && <div className="mt-3 space-y-2" aria-label="Loading trails">{[0, 1, 2, 3].map((k) => <div key={k} className="h-[68px] animate-pulse rounded-[12px]" style={{ background: C.card }} />)}</div>}
+    {trails && <p className="mb-2 mt-3 text-[12px]" style={{ color: C.dim }}>{shown.length} trails within {radius} {unit}</p>}
+    <ul className="space-y-2">{shown.slice(0, 100).map((t) => <li key={`${t.type}${t.id}`}><button type="button" onPointerDown={() => { lineOf(t).catch(() => {}); }} onClick={() => openTrail(t)} className="flex w-full items-center gap-3 rounded-[12px] p-3 text-left active:scale-[.99]" style={{ background: C.card }} data-testid={`fit-trail-${t.id}`}>
       <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[8px]" style={{ background: C.card2, color: t.difficulty === "Hard" || t.difficulty === "Expert" ? C.red : t.difficulty === "Moderate" ? C.orange : C.lime }}><Mountain className="h-5 w-5" /></span>
       <span className="min-w-0 flex-1"><span className="block truncate text-[18px] leading-tight" style={display}>{t.name}</span><span className="block truncate text-[12px] capitalize" style={{ color: C.dim }}>{awayLabel(t.away)}{t.km ? ` · ${(unit === "mi" ? t.km / 1.609 : t.km).toFixed(1)} ${unit}` : ""}{t.difficulty ? ` · ${t.difficulty}` : ""}</span></span>
     </button></li>)}</ul>
-    {trails && !busy && !shown.length && <p className="mt-6 text-center text-[14px]" style={{ color: C.dim }}>No mapped trails here. Try a bigger radius or another place.</p>}
+    {trails && !shown.length && <p className="mt-6 text-center text-[14px]" style={{ color: C.dim }}>No mapped trails here. Try a bigger radius or another place.</p>}
     <p className="mt-6 text-[11px]" style={{ color: C.dim }}>Trail data © OpenStreetMap contributors. Search by Nominatim.</p>
   </Sheet>;
 }
@@ -225,6 +285,9 @@ export function TrailFinder({ data, onClose, onGo }: { data: FitData; onClose: (
 // ——— Outdoor hub: start a run, your totals and route history ——————————————————————————————————————
 export function OutdoorHub({ data, update, onClose, say, inline }: { data: FitData; update: Update; onClose: () => void; say: (m: string) => void; inline?: boolean }) {
   const unit = unitOf(data);
+  const { token } = useAuth();
+  // Start loading trails near the last place now, so Trails opens with its list already there.
+  useEffect(() => { prewarmTrails(token); }, [token]);
   const [tracking, setTracking] = useState<null | { trail?: { name: string; lines: LatLng[][] } }>(null);
   const [trails, setTrails] = useState(false);
   const [view, setView] = useState<Run | null>(null);

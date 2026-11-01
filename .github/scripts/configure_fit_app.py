@@ -2,7 +2,8 @@
 hook push notifications need.
 
 Usage: configure_fit_app.py <path to Info.plist> [fit|trainer]   (after `npx cap add ios && npx cap sync ios`)
-  - The name under the icon, dark look, and that it only uses the encryption built into iOS (HTTPS).
+  - The name under the icon, the status bar following the app's theme, and that it only uses the
+    encryption built into iOS (HTTPS).
   - Arise Fit. Camera: barcodes, meal photos, form check and progress photos for a trainer. Photos:
     choosing a meal or progress photo. Location: mapping outdoor runs and finding trails. Health:
     reading and saving to Apple Health.
@@ -18,12 +19,14 @@ import sys
 PLIST = sys.argv[1]
 FLAVOR = sys.argv[2] if len(sys.argv) > 2 else "fit"
 assert FLAVOR in ("fit", "trainer"), FLAVOR
+# The app picks its own look (Light, Dark or Auto in Settings), so iOS follows the phone and the status
+# bar plugin (@capacitor/status-bar) sets the clock's color to match: dark on Light, light on Dark.
 COMMON = {
     "ITSAppUsesNonExemptEncryption": False,
-    "UIUserInterfaceStyle": "Dark",
-    "UIStatusBarStyle": "UIStatusBarStyleLightContent",
-    "UIViewControllerBasedStatusBarAppearance": False,
+    "UIStatusBarStyle": "UIStatusBarStyleDarkContent",
+    "UIViewControllerBasedStatusBarAppearance": True,
 }
+DROP = ["UIUserInterfaceStyle"]
 KEYS = {
     "fit": {
         "CFBundleDisplayName": "Arise Fit",
@@ -43,6 +46,8 @@ with open(PLIST, "rb") as f:
     plist = plistlib.load(f)
 plist.update(COMMON)
 plist.update(KEYS)
+for k in DROP:
+    plist.pop(k, None)
 with open(PLIST, "wb") as f:
     plistlib.dump(plist, f)
 print(f"Info.plist ready for {KEYS['CFBundleDisplayName']}: {', '.join(sorted({**COMMON, **KEYS}))}")

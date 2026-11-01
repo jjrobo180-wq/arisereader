@@ -82,10 +82,19 @@ export const NOMINATIM = "https://nominatim.openstreetmap.org/search";
 
 export type Trail = { id: number; type: "relation" | "way"; name: string; km?: number; kind: string; difficulty?: string; surface?: string; lat: number; lng: number; away: number };
 
-/** Named hiking routes and trails within `km` of a point. */
+/** The widest search the app offers (30 miles), plus a little: one fetch covers every radius choice. */
+export const TRAIL_KM = 50;
+/** Trails are fetched for a grid cell about 11 km across (0.1°), so nearby searches share one answer
+ *  and changing the radius never fetches again (the list is just filtered by distance). */
+export const trailCell = (lat: number, lng: number): [number, number] => [Math.round(lat * 10) / 10, Math.round(lng * 10) / 10];
+
+/** Named hiking routes and trails within `km` of a point. A box (not a circle) is much faster for
+ *  Overpass to search; the app measures each trail's real distance afterwards. */
 export function trailsQuery(lat: number, lng: number, km = 25): string {
-  const r = Math.round(Math.min(60, Math.max(2, km)) * 1000);
-  return `[out:json][timeout:25];(relation["route"~"^(hiking|foot|running|mtb)$"]["name"](around:${r},${lat},${lng});way["highway"~"^(path|footway|track|bridleway)$"]["name"]["sac_scale"](around:${r},${lat},${lng});way["highway"="path"]["name"]["trail_visibility"](around:${r},${lat},${lng}););out tags center 150;`;
+  const k = Math.min(60, Math.max(2, km));
+  const dLat = k / 111, dLng = k / (111 * Math.max(0.2, Math.cos((lat * Math.PI) / 180)));
+  const box = [lat - dLat, lng - dLng, lat + dLat, lng + dLng].map((n) => n.toFixed(4)).join(",");
+  return `[out:json][timeout:20][bbox:${box}];(relation["route"~"^(hiking|foot|running|mtb)$"]["name"];way["highway"~"^(path|footway|track|bridleway)$"]["name"]["sac_scale"];way["highway"="path"]["name"]["trail_visibility"];);out tags center 300;`;
 }
 /** One trail's full line. */
 export const trailGeometryQuery = (t: Pick<Trail, "id" | "type">) => `[out:json][timeout:25];${t.type}(${t.id});out geom;`;

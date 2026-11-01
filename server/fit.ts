@@ -3,9 +3,16 @@
 //   GET/PUT /api/fit/data      their data (cleaned and size-capped; table public.fit_data)
 //   GET     /api/fit/exercises the library: Arise Fit's own catalog plus wger's open exercise database
 //                              (wger.de, photos under Creative Commons, each credited in the app)
+//   GET     /api/fit/trails    trails near a point, from OpenStreetMap through Overpass (?lat&lng&km)
+//   GET     /api/fit/trail     one trail's line (?type&id)
+//   GET     /api/fit/places    a town, park or zip code → a point, from Nominatim (?q)
+//   The phone can't call Overpass and Nominatim itself: they refuse requests that don't identify the
+//   app, and Overpass's main server is often too busy. The server asks with Arise Fit's name, tries
+//   the other public Overpass servers when one fails, and remembers answers for an hour.
 import type { Express, RequestHandler } from "express";
 import { CATALOG, LIMITS, cleanFit, type CatalogExercise } from "../shared/fit";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
+import { TRAIL_KM, trailCell, trailGeometryQuery, trailsQuery } from "../shared/fitRun";
 
 export type FitStore = { get(userId: number): Promise<unknown | null>; set(userId: number, data: unknown): Promise<void> };
 
@@ -80,11 +87,11 @@ export function mergeLibrary(wger: LibraryExercise[]): LibraryExercise[] {
   return out;
 }
 
-export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, opts: { store?: FitStore; fetchJson?: (url: string) => Promise<any> } = {}) {
+export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, opts: { store?: FitStore; fetchJson?: (url: string) => Promise<any>; overpass?: (query: string) => Promise<any> } = {}) {
   const store = opts.store ?? createSupabaseFitStore();
   const saves = createAttemptLimiter({ max: 600, windowMs: 10 * 60_000 });
   const fetchJson = opts.fetchJson ?? (async (url: string) => {
-    const r = await fetch(url, { headers: { Accept: "application/json", "User-Agent": "AriseFit/1.0 (arisetodo.com)" }, signal: AbortSignal.timeout(20_000) });
+    const r = await fetch(url, { headers: { Accept: "application/json", "User-Agent": "AriseFit/1.0 (+https://arisetodo.com)", Referer: "https://arisetodo.com/" }, signal: AbortSignal.timeout(20_000) });
     if (!r.ok) throw new Error(`status ${r.status}`);
     return r.json();
   });
@@ -102,6 +109,72 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
     if (JSON.stringify(data).length > LIMITS.bytes) return res.status(413).json({ message: "That's more than Arise Fit can keep. Delete some old workouts or foods first." });
     try { await store.set(Number(req.user.id), data); res.json({ ok: true }); }
     catch { res.status(503).json({ message: "Arise Fit couldn't save. Your changes are kept on this phone and will save when you're back online." }); }
+  });
+
+  // ——— Trails and places (OpenStreetMap) ———————————————————————————————————————————————————————
+  const UA = "AriseFit/1.0 (+https://arisetodo.com; trails for Arise Fit runners)";
+  const OVERPASS_SERVERS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
+  // All the public Overpass servers at once: the first good answer wins and the others are stopped.
+  const overpassFetch = opts.overpass ?? (async (q: string): Promise<any> => {
+    const stop = new AbortController();
+    const ask = async (url: string) => {
+      const r = await fetch(url, { method: "POST", headers: { "User-Agent": UA, Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ data: q }).toString(), signal: stop.signal });
+      if (!r.ok) throw new Error(`${url} ${r.status}`);
+      const j = await r.json();
+      if (!Array.isArray(j?.elements)) throw new Error(`${url} bad answer`);
+      return j;
+    };
+    const timer = setTimeout(() => stop.abort(), 22_000);
+    try { return await Promise.any(OVERPASS_SERVERS.map(ask)); }
+    catch (e: any) { throw new Error((e?.errors ?? []).map((x: any) => x?.message).join("; ") || "unreachable"); }
+    finally { clearTimeout(timer); stop.abort(); }
+  });
+  const cache = new Map<string, { at: number; body: any }>();
+  // Trails barely change: answers are kept a day, and two people asking at once share one fetch.
+  const inflight = new Map<string, Promise<any>>();
+  const cached = async (key: string, make: () => Promise<any>) => {
+    const hit = cache.get(key);
+    if (hit && Date.now() - hit.at < 24 * 3600_000) return hit.body;
+    let p = inflight.get(key);
+    if (!p) { p = make().finally(() => inflight.delete(key)); inflight.set(key, p); }
+    const body = await p;
+    cache.set(key, { at: Date.now(), body });
+    if (cache.size > 3000) for (const k of Array.from(cache.keys()).slice(0, 500)) cache.delete(k);
+    return body;
+  };
+  const lookups = createAttemptLimiter({ max: 120, windowMs: 10 * 60_000 });
+  const tooMany = (req: any, res: any) => { const k = `trail:${req.user?.id}`; if (lookups.retryAfter(k)) { res.status(429).json({ message: "Too many searches. Try again in a few minutes." }); return true; } lookups.fail(k); return false; };
+  const num = (v: unknown, lo: number, hi: number) => { const n = Number(v); return Number.isFinite(n) && n >= lo && n <= hi ? n : null; };
+
+  app.get("/api/fit/trails", authMiddleware, async (req: any, res) => {
+    const lat = num(req.query.lat, -90, 90), lng = num(req.query.lng, -180, 180), km = num(req.query.km, 1, 60);
+    if (lat === null || lng === null || km === null) return res.status(400).json({ message: "That place couldn't be read." });
+    if (tooMany(req, res)) return;
+    // One answer per ~11 km grid cell, always the widest radius, so nearby people and every radius
+    // choice share it (the phone filters by distance).
+    const [cLat, cLng] = trailCell(lat, lng);
+    res.set("Cache-Control", "public, max-age=86400");
+    try { res.json(await cached(`t:${cLat},${cLng}`, () => overpassFetch(trailsQuery(cLat, cLng, TRAIL_KM)))); }
+    catch (e: any) { console.error("[fit] trails", e?.message); res.status(503).json({ message: "The trail map is busy right now. Try again in a minute." }); }
+  });
+  app.get("/api/fit/trail", authMiddleware, async (req: any, res) => {
+    const type = req.query.type === "relation" ? "relation" : req.query.type === "way" ? "way" : null;
+    const id = num(req.query.id, 1, 1e12);
+    if (!type || id === null || !Number.isInteger(id)) return res.status(400).json({ message: "That trail couldn't be read." });
+    if (tooMany(req, res)) return;
+    res.set("Cache-Control", "public, max-age=86400");
+    try { res.json(await cached(`g:${type}${id}`, () => overpassFetch(trailGeometryQuery({ type, id })))); }
+    catch (e: any) { console.error("[fit] trail", e?.message); res.status(503).json({ message: "That trail's map couldn't load. Try again in a minute." }); }
+  });
+  app.get("/api/fit/places", authMiddleware, async (req: any, res) => {
+    const q = String(req.query.q ?? "").trim().slice(0, 120);
+    if (q.length < 2) return res.status(400).json({ message: "Type a town, park or zip code." });
+    if (tooMany(req, res)) return;
+    try {
+      const list = await cached(`p:${q.toLowerCase()}`, () => fetchJson(`https://nominatim.openstreetmap.org/search?${new URLSearchParams({ q, format: "json", limit: "1", countrycodes: "us" })}`));
+      const hit = Array.isArray(list) ? list[0] : null;
+      res.json(hit ? { place: { lat: Number(hit.lat), lng: Number(hit.lon), label: String(hit.display_name || q).split(",").slice(0, 2).join(",").trim() } } : { place: null });
+    } catch (e: any) { console.error("[fit] places", e?.message); res.status(503).json({ message: "Place search isn't reachable right now." }); }
   });
 
   // The library: built once a day from wger (about 800 exercises in English), kept in memory.
