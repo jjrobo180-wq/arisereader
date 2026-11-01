@@ -1597,7 +1597,12 @@ export async function registerRoutes(
     ownerName: async (id) => { const owner: any = await storage.getUser(id); return String(owner?.displayName || owner?.display_name || "").trim().split(/\s+/)[0] || ""; },
   });
   registerFoodLookupRoutes(app, authMiddleware);
-  registerFitRoutes(app, authMiddleware, { nameOf: async (id) => { const u: any = await storage.getUser(id).catch(() => null); return String(u?.displayName || u?.display_name || u?.username || "").trim().split(/\s+/)[0] || ""; } });
+  registerFitRoutes(app, authMiddleware, {
+    nameOf: async (id) => { const u: any = await storage.getUser(id).catch(() => null); return String(u?.displayName || u?.display_name || u?.username || "").trim().split(/\s+/)[0] || ""; },
+    // Arise Fit+: the account's own plan (server/plans.ts); guest passes are worked out in server/fitPass.ts.
+    ownPlus: async (id) => plans.fitPlusOwn(id, (await storage.getUser(id).catch(() => null)) as any),
+    payment: () => plans.stripeReady(),
+  });
   // Arise Coaching (server/coach.ts): the trainer directory, client–trainer connections and the Arise Trainer app.
   registerCoachRoutes(app, authMiddleware, {
     nameOf: async (id) => { const u: any = await storage.getUser(id).catch(() => null); return String(u?.displayName || u?.display_name || u?.username || "").trim().split(/\s+/)[0] || ""; },

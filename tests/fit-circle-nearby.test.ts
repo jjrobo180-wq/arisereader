@@ -3,8 +3,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { emptyFit, type FitData, type Workout } from "../shared/fit";
-import { MAX_GUESTS, buddyStats, cleanCode, inviteLink, makeCode, newWorkouts } from "../shared/fitBuddy";
-import { createBuddies, createMemoryKv } from "../server/fitBuddies";
+import { MAX_CIRCLE, circleLink, cleanCode, makeCode, memberStats, newWorkouts } from "../shared/fitCircle";
+import { createCircles } from "../server/fitCircle";
+import { createMemoryKv } from "../server/fitKv";
+import { createPasses } from "../server/fitPass";
+import { PASS_SWITCH_DAYS, PLUS_REQUIRED, passLink } from "../shared/fitPlus";
 import { registerFitRoutes, createMemoryFitStore } from "../server/fit";
 import { CHAIN_BY_ID, FOOD_CHAINS, GYM_CHAINS, busyCurve, busyLevel, crowdNow, foodChainOf, foodQuery, gymChainOf, gymTypeFor, gymsQuery, nearbyCell, parsePlaces, quietTimes } from "../shared/fitNearby";
 import { GYM_BY_ID } from "../shared/fitGym";
@@ -16,113 +19,150 @@ const set = (weight: number, reps = 8) => ({ reps, weight, done: true });
 const workout = (id: string, date: string, weight = 100): Workout => ({ id, date, name: "Push", secs: 2700, exercises: [{ exId: "bench-press", name: "Bench Press", sets: [set(weight), set(weight), set(weight)] }] });
 const withWorkouts = (ws: Workout[]): FitData => ({ ...emptyFit(), workouts: ws });
 
-function setup() {
-  const data = new Map<number, unknown>();
-  const sent: { to: number; title: string; body: string }[] = [];
-  const names: Record<number, string> = { 1: "Ava", 2: "Ben", 3: "Cam", 4: "Dee", 5: "Eli", 6: "Fay", 7: "Gus", 8: "Hal" };
-  const b = createBuddies({ kv: createMemoryKv(), getData: async (id) => data.get(id) ?? null, nameOf: async (id) => names[id] ?? "", notify: async (to, m) => { sent.push({ to, title: m.title, body: m.body }); } });
-  return { b, data, sent };
+test("codes: easy to read aloud, cleaned when typed, and links that open Arise Fit", () => {
+  for (let i = 0; i < 50; i++) { const c = makeCode(); assert.equal(c.length, 6); assert.doesNotMatch(c, /[01ILO]/); assert.equal(cleanCode(c.toLowerCase()), c); }
+  assert.equal(cleanCode("ABC12"), null);
+  assert.equal(circleLink("https://arisetodo.com/app", "ABCDEF"), "https://arisetodo.com/app#/fit?circle=ABCDEF");
+  assert.equal(passLink("https://arisetodo.com/app", "ABCDEF"), "https://arisetodo.com/app#/fit?pass=ABCDEF");
+});
+
+function circles() {
+  const sent: { to: number; body: string }[] = [];
+  const names: Record<number, string> = { 1: "Ava", 2: "Ben", 3: "Cam", 4: "Dee", 9: "Ida" };
+  const c = createCircles({ kv: createMemoryKv(), getData: async () => null, nameOf: async (id) => names[id] ?? "", notify: async (to, m) => { sent.push({ to, body: m.body }); } });
+  return { c, sent };
 }
 
-test("invite codes: easy to read aloud, cleaned when typed, and a link that opens Arise Fit", () => {
-  for (let i = 0; i < 50; i++) { const c = makeCode(); assert.equal(c.length, 6); assert.doesNotMatch(c, /[01ILO]/); assert.equal(cleanCode(c.toLowerCase().replace(/(...)/, "$1-")), c); }
-  assert.equal(cleanCode("ABC12"), null);
-  assert.equal(cleanCode("ABCDE0"), null, "0 is never in a code");
-  assert.equal(inviteLink("https://arisetodo.com/app", "ABCDEF"), "https://arisetodo.com/app#/fit?buddy=ABCDEF");
+test("circle: anyone in it can invite, everyone has their own account, it's capped", async () => {
+  const { c, sent } = circles();
+  const { code } = await c.invite(1) as { code: string };
+  assert.equal((await c.view(1)).inCircle, false);
+  assert.deepEqual(await c.join(2, code), { ok: true });
+  assert.ok(sent.some((x) => x.to === 1 && /Ben joined/.test(x.body)));
+  assert.equal((await c.invite(2) as any).code, code, "a member shares the same circle code");
+  assert.deepEqual(await c.join(3, code), { ok: true });
+  const v = await c.view(3);
+  assert.equal(v.inCircle, true); assert.equal(v.owner, false); assert.equal(v.members.length, 3);
+  assert.equal((await c.invite(2, true) as any).error, 403, "only the starter replaces the code");
+  for (let id = 10; id < 10 + MAX_CIRCLE - 3; id++) assert.deepEqual(await c.join(id, code), { ok: true });
+  assert.equal((await c.join(99, code) as any).error, 409, "full");
+  const other = await c.invite(9) as { code: string };
+  assert.equal((await c.join(2, other.code) as any).error, 409, "one circle at a time");
 });
 
-test("buddies: a friend joins with my code; guests can't invite guests; the group is capped", async () => {
-  const { b, sent } = setup();
-  const { code } = await b.invite(1) as { code: string };
-  assert.equal((await b.view(1)).role, "none", "no group until someone joins");
-  assert.equal((await b.join(1, code) as any).error, 400, "your own code");
-  assert.deepEqual(await b.join(2, code.toLowerCase()), { ok: true });
-  assert.equal(sent.at(-1)?.to, 1); assert.match(sent.at(-1)!.body, /Ben joined/);
-  const host = await b.view(1), guest = await b.view(2);
-  assert.equal(host.role, "host"); assert.equal(host.code, code);
-  assert.equal(guest.role, "guest"); assert.equal(guest.code, null); assert.equal(guest.canInvite, false);
-  assert.deepEqual(guest.buddies.map((x) => [x.name, x.role, x.me]), [["Ava", "host", false], ["Ben", "guest", true]]);
-  // A guest has everything except adding guests.
-  assert.equal((await b.invite(2) as any).error, 403);
-  for (const id of [3, 4, 5, 6]) assert.deepEqual(await b.join(id, code), { ok: true });
-  assert.equal((await b.view(1)).buddies.length, 1 + MAX_GUESTS);
-  assert.equal((await b.join(7, code) as any).error, 409, "full");
-  // Someone hosting their own group can't also be a guest.
-  const other = await b.invite(8) as { code: string };
-  await b.join(7, other.code);
-  assert.equal((await b.join(8, code) as any).error, 409);
-  assert.match((await b.join(7, code) as any).message, /already in Hal's group/);
-  // A new code: the old one stops working, people already in stay.
-  const fresh = await b.invite(1, true) as { code: string };
-  assert.notEqual(fresh.code, code);
-  await b.remove(1, 6);
-  assert.equal((await b.join(6, code) as any).error, 404);
-  assert.deepEqual(await b.join(6, fresh.code), { ok: true });
-});
-
-test("buddies: cheers, leaving, removing, ending the group", async () => {
-  const { b, sent } = setup();
-  const { code } = await b.invite(1) as { code: string };
-  await b.join(2, code); await b.join(3, code);
-  assert.deepEqual(await b.cheer(2, 3, "fire"), { ok: true }, "guests can cheer each other");
+test("circle: cheers, removing, and the circle carries on when its starter leaves", async () => {
+  const { c, sent } = circles();
+  const { code } = await c.invite(1) as { code: string };
+  await c.join(2, code); await c.join(3, code); await c.join(4, code);
+  assert.deepEqual(await c.cheer(2, 3, "fire"), { ok: true });
   assert.match(sent.at(-1)!.body, /Ben says you're on fire/);
-  assert.equal((await b.view(3)).cheers[0].kind, "fire");
-  assert.equal((await b.cheer(2, 2, "cheer") as any).error, 404, "not yourself");
-  assert.equal((await b.cheer(2, 99, "cheer") as any).error, 404, "only your group");
-  assert.equal((await b.remove(2, 3) as any).error, 404, "only the host removes");
-  await b.leave(3);
-  assert.equal((await b.view(3)).role, "none");
-  assert.equal((await b.view(1)).buddies.length, 2);
-  await b.leave(1); // the host ends it
-  assert.equal((await b.view(2)).role, "none");
-  assert.equal((await b.join(4, code) as any).error, 404, "an ended group's code is gone");
+  assert.equal((await c.cheer(2, 2, "cheer") as any).error, 404);
+  assert.equal((await c.remove(2, 3) as any).error, 404, "only the starter removes");
+  await c.remove(1, 4);
+  assert.equal((await c.view(4)).inCircle, false);
+  await c.leave(1);
+  const v = await c.view(2);
+  assert.equal(v.inCircle, true); assert.equal(v.owner, true, "Ben runs it now");
+  assert.deepEqual(v.members.map((m) => m.name), ["Ben", "Cam"]);
+  assert.deepEqual(await c.join(4, code), { ok: true }, "the same code still works");
 });
 
-test("what buddies see: training only, this week, new records", () => {
+test("what the circle sees: training only, this week, new records", () => {
   const now = Date.parse("2026-11-01T18:00:00Z");
   const iso = (daysAgo: number) => new Date(now - daysAgo * day).toISOString();
-  const d = { ...withWorkouts([workout("a", iso(20), 100), workout("b", iso(2), 120), workout("c", iso(0.1), 110)]), foods: [{ id: "f", date: "2026-11-01", meal: "lunch" as const, name: "Secret pizza", kcal: 900, p: 30, c: 90, f: 40, servings: 1 }], weights: [{ date: "2026-11-01", kg: 90 }] };
-  const s = buddyStats(d, now);
-  assert.equal(s.week, 2);
-  assert.equal(s.sets7, 6);
-  assert.equal(s.minutes7, 90);
-  assert.equal(s.last?.date, iso(0.1));
+  const d = { ...withWorkouts([workout("a", iso(20), 100), workout("b", iso(2), 120), workout("c", iso(0.1), 110)]), foods: [{ id: "f", date: "2026-11-01", meal: "lunch" as const, name: "Secret pizza", kcal: 900, p: 30, c: 90, f: 40, servings: 1 }] };
+  const s = memberStats(d, now);
+  assert.equal(s.week, 2); assert.equal(s.sets7, 6); assert.equal(s.minutes7, 90);
   assert.deepEqual(s.prs.map((p) => [p.name, p.weight]), [["Bench Press", 120]]);
-  assert.ok(!JSON.stringify(s).includes("pizza") && !("weights" in s) && !("foods" in s), "no food or weight");
-  assert.equal(newWorkouts(withWorkouts([workout("a", iso(1))]), withWorkouts([workout("a", iso(1)), workout("z", iso(0.05))]), now).length, 1);
-  assert.equal(newWorkouts(null, withWorkouts([workout("old", iso(3))]), now).length, 0, "an old workout synced from another phone isn't news");
+  assert.ok(!JSON.stringify(s).includes("pizza"));
+  assert.equal(newWorkouts(null, withWorkouts([workout("old", iso(3))]), now).length, 0);
 });
 
-test("saving a new workout tells your buddies; saving when you're in no group tells nobody", async () => {
+function passes(paying: Set<number>) {
+  const sent: { to: number; title: string }[] = [];
+  let t = Date.parse("2026-11-01T12:00:00Z");
+  const p = createPasses({ kv: createMemoryKv(), ownPlus: async (id) => ({ live: paying.has(id), grant: paying.has(id) ? { endsAt: "2026-12-01T00:00:00Z", stripeCustomerId: "cus_1", buyerId: id } : null }), nameOf: async (id) => ["", "Ava", "Ben", "Cam", "Dee"][id] ?? "", notify: async (to, m) => { sent.push({ to, title: m.title }); }, now: () => t });
+  return { p, sent, later: (days: number) => { t += days * day; } };
+}
+
+test("guest pass: one per paying account, shares Fit+, and a guest can't pass it on", async () => {
+  const paying = new Set([1]);
+  const { p, sent, later } = passes(paying);
+  assert.equal((await p.code(2) as any).error, 403, "free accounts have no pass");
+  const { code } = await p.code(1) as { code: string };
+  assert.equal((await p.plusOf(2)).plus, false);
+  assert.deepEqual(await p.redeem(2, code), { ok: true });
+  assert.ok(sent.some((x) => x.to === 1 && x.title === "Guest pass used"));
+  const ben = await p.status(2);
+  assert.equal(ben.plus, true); assert.equal(ben.via, "guest-pass"); assert.equal(ben.pass.role, "guest"); assert.equal(ben.pass.owner?.name, "Ava"); assert.equal(ben.canGivePass, false);
+  assert.equal((await p.code(2) as any).error, 403, "a guest can't give a pass");
+  assert.equal((await p.redeem(3, code) as any).error, 409, "one guest per pass");
+  assert.equal((await p.redeem(1, code) as any).error, 400);
+  const ava = await p.status(1);
+  assert.equal(ava.via, "plan"); assert.equal(ava.pass.guest?.name, "Ben"); assert.equal(ava.canManage, true);
+  // Ava stops paying: Ben loses Fit+ too.
+  paying.delete(1);
+  assert.equal((await p.plusOf(2)).plus, false);
+  paying.add(1);
+  assert.equal((await p.plusOf(2)).plus, true);
+  // Taking it back: the pass can go to someone new after 30 days.
+  await p.end(1);
+  assert.equal((await p.plusOf(2)).plus, false);
+  assert.equal((await p.redeem(3, code) as any).error, 409, "not yet");
+  assert.ok((await p.status(1)).pass.switchAfter);
+  later(PASS_SWITCH_DAYS + 1);
+  assert.deepEqual(await p.redeem(3, code), { ok: true });
+  // A guest who buys Fit+ themselves frees the pass.
+  paying.add(3);
+  assert.equal((await p.status(1)).pass.guest, null);
+  assert.equal((await p.redeem(3, code) as any).error, 409, "you already have Fit+");
+});
+
+test("Fit+ gates the paid features on the server", async () => {
+  const routes: Record<string, Function[]> = {};
+  const add = (m: string) => (path: string, ...h: Function[]) => { routes[`${m} ${path}`] = h; };
+  const paying = new Set([1]);
+  registerFitRoutes({ get: add("GET"), post: add("POST"), put: add("PUT") } as any, (_q: any, _s: any, n: any) => n(), {
+    store: createMemoryFitStore(), kv: createMemoryKv(), ownPlus: async (id) => ({ live: paying.has(id) }),
+    overpass: async () => ({ elements: [] }), recipe: async () => null, identify: async () => ({ gear: [], name: "", note: "" }),
+  });
+  const run = async (key: string, user: number, query: any = {}, body: any = {}) => {
+    let status = 200, json: any = null;
+    const res: any = { set() { return res; }, status(c: number) { status = c; return res; }, json(v: any) { json = v; return res; } };
+    const req = { user: { id: user }, query, body };
+    for (const h of routes[key]) { let next = false; await h(req, res, () => { next = true; }); if (!next) break; }
+    return { status, json };
+  };
+  for (const [key, q, b] of [["GET /api/fit/nearby", { kind: "gyms", lat: "39.7", lng: "-105" }, {}], ["POST /api/fit/recipe", {}, { have: "eggs" }], ["POST /api/fit/identify", {}, { image: "data:image/jpeg;base64,AAAA" }], ["POST /api/fit/busy", {}, { place: "n1", level: "busy" }]] as const) {
+    const free = await run(key, 2, q, b);
+    assert.equal(free.status, 402, key); assert.equal(free.json.code, PLUS_REQUIRED);
+    assert.notEqual((await run(key, 1, q, b)).status, 402, key);
+  }
+  const plus = (await run("GET /api/fit/plus", 2)).json;
+  assert.equal(plus.plus, false); assert.equal(plus.price, "$10/month");
+});
+
+test("saving a new workout tells your circle", async () => {
   const routes: Record<string, Function> = {};
   const add = (m: string) => (path: string, ...h: Function[]) => { routes[`${m} ${path}`] = h[h.length - 1]; };
   const sent: { to: number; title: string }[] = [];
-  const kv = createMemoryKv();
   registerFitRoutes({ get: add("GET"), post: add("POST"), put: add("PUT") } as any, (_q: any, _s: any, n: any) => n(), {
-    store: createMemoryFitStore(), kv, nameOf: async (id) => ["", "Ava", "Ben", "Cam"][id] ?? "", notify: async (to, m) => { sent.push({ to, title: m.title }); },
-    overpass: async () => ({ elements: [] }),
+    store: createMemoryFitStore(), kv: createMemoryKv(), nameOf: async (id) => ["", "Ava", "Ben", "Cam"][id] ?? "", notify: async (to, m) => { sent.push({ to, title: m.title }); },
   });
-  const call = async (key: string, user: number, body: any = {}, query: any = {}) => {
+  const call = async (key: string, user: number, body: any = {}) => {
     let status = 200, json: any = null;
     const res: any = { set() { return res; }, status(c: number) { status = c; return res; }, json(v: any) { json = v; return res; } };
-    await routes[key]({ user: { id: user }, body, query }, res);
+    await routes[key]({ user: { id: user }, body, query: {} }, res);
     await new Promise((r) => setTimeout(r, 5));
     return { status, json };
   };
-  const code = (await call("POST /api/fit/buddies/invite", 1)).json.code;
-  assert.equal((await call("POST /api/fit/buddies/join", 2, { code })).status, 200);
-  assert.equal((await call("POST /api/fit/buddies/join", 1, { code: "ZZZZZZ" })).status, 404);
+  const code = (await call("POST /api/fit/circle/invite", 1)).json.code;
+  assert.equal((await call("POST /api/fit/circle/join", 2, { code })).status, 200);
   sent.length = 0;
   await call("PUT /api/fit/data", 2, { data: withWorkouts([workout("w1", new Date().toISOString())]) });
   assert.deepEqual(sent, [{ to: 1, title: "Ben just trained 💪" }]);
-  await call("PUT /api/fit/data", 2, { data: withWorkouts([workout("w1", new Date().toISOString())]) });
-  assert.equal(sent.length, 1, "the same workout saved again isn't news");
   await call("PUT /api/fit/data", 3, { data: withWorkouts([workout("w9", new Date().toISOString())]) });
-  assert.equal(sent.length, 1, "Cam isn't in a group");
-  const view = (await call("GET /api/fit/buddies", 1)).json;
-  assert.equal(view.buddies.find((x: any) => x.name === "Ben").stats.week, 1);
-  assert.equal((await call("POST /api/fit/buddies/cheer", 1, { to: 2, kind: "nudge" })).status, 200);
-  assert.equal(sent.at(-1)?.to, 2);
+  assert.equal(sent.length, 1, "Cam isn't in a circle");
 });
 
 test("gym chains: matched by name, priced, and set as My gym", () => {
@@ -185,7 +225,7 @@ test("the nearby endpoint: one fetch per area, and people's crowd reports", asyn
   const add = (m: string) => (path: string, ...h: Function[]) => { routes[`${m} ${path}`] = h[h.length - 1]; };
   const asked: string[] = [];
   registerFitRoutes({ get: add("GET"), post: add("POST"), put: add("PUT") } as any, (_q: any, _s: any, n: any) => n(), {
-    store: createMemoryFitStore(), kv: createMemoryKv(),
+    store: createMemoryFitStore(), kv: createMemoryKv(), ownPlus: async () => ({ live: true }),
     overpass: async (q) => { asked.push(q); return { elements: [{ type: "node", id: 7, lat: 39.75, lon: -104.99, tags: { name: "Planet Fitness" } }] }; },
   });
   const call = async (key: string, user: number, query: any = {}, body: any = {}) => {
@@ -226,7 +266,7 @@ test("recipes: numbers add up, best fits first, AI recipes cleaned", async () =>
   const add = (m: string) => (path: string, ...h: Function[]) => { routes[`${m} ${path}`] = h[h.length - 1]; };
   let asked: any = null;
   registerFitRoutes({ get: add("GET"), post: add("POST"), put: add("PUT") } as any, (_q: any, _s: any, n: any) => n(), {
-    store: createMemoryFitStore(), kv: createMemoryKv(), recipe: async (ask) => { asked = ask; return ok; },
+    store: createMemoryFitStore(), kv: createMemoryKv(), ownPlus: async () => ({ live: true }), recipe: async (ask) => { asked = ask; return ok; },
   });
   const call = async (body: any) => { let status = 200, json: any = null; const res: any = { set() { return res; }, status(c: number) { status = c; return res; }, json(v: any) { json = v; return res; } }; await routes["POST /api/fit/recipe"]({ user: { id: 1 }, body }, res); return { status, json }; };
   assert.equal((await call({ have: "" })).status, 400);
@@ -237,18 +277,18 @@ test("recipes: numbers add up, best fits first, AI recipes cleaned", async () =>
 test("Siri and links: actions and invites, in the app and on the website", () => {
   assert.deepEqual(readLink("arisefit://do/workout"), { action: "workout" });
   assert.deepEqual(readLink("https://arisetodo.com/app#/fit?do=fast-start"), { action: "fast-start" });
-  assert.deepEqual(readLink("https://arisetodo.com/app#/fit?buddy=abcdef"), { buddy: "ABCDEF" });
-  assert.deepEqual(readLink("arisefit://buddy/K7M2PQ"), { buddy: "K7M2PQ" });
+  assert.deepEqual(readLink("https://arisetodo.com/app#/fit?circle=abcdef"), { circle: "ABCDEF" });
+  assert.deepEqual(readLink("arisefit://pass/K7M2PQ"), { pass: "K7M2PQ" });
   assert.deepEqual(readLink("arisefit://do/delete-everything"), {});
   assert.equal(new Set(SIRI_ACTIONS.map((a) => a.phrase)).size, SIRI_ACTIONS.length);
   const plist = readFileSync(new URL("../.github/scripts/configure_fit_app.py", import.meta.url), "utf8");
   assert.match(plist, /CFBundleURLSchemes": \["arisefit"\]/);
 });
 
-test("wired in: buddies, near me and recipes on Today, Siri in Settings, eat out in Food, gyms in Train", () => {
+test("wired in: circle, Fit+, near me and recipes on Today, Siri in Settings, eat out in Food, gyms in Train", () => {
   const read = (f: string) => readFileSync(new URL(`../client/src/pages/fit/${f}`, import.meta.url), "utf8");
   const app = read("FitApp.tsx");
-  for (const s of ["<BuddyCard", "<BuddySheet", "<NearbyGyms", "<EatOut", "<RecipesSheet", "<SiriSheet", "useDeepLinks(", "fit-open-siri", "smartWorkoutNow("]) assert.ok(app.includes(s), s);
+  for (const s of ["<CircleCard", "<CircleSheet", "<PlusProvider", "<NearbyGyms", "<EatOut", "<RecipesSheet", "<SiriSheet", "useDeepLinks(", "fit-open-siri", "smartWorkoutNow("]) assert.ok(app.includes(s), s);
   assert.ok(read("FitFood.tsx").includes("fit-food-eat-out"));
   assert.ok(read("FitTrain.tsx").includes("fit-train-gyms"));
 });

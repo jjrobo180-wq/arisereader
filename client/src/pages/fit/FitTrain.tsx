@@ -21,6 +21,7 @@ import { gymLabel } from "@shared/fitGym";
 import { saveToHealth } from "./fitNative";
 import type { LibraryExercise, Update } from "./fitStore";
 import { CoverCard, VideoPlayer, VideoThumb } from "./FitVideo";
+import { PlusTag, usePlus } from "./FitPlus";
 import { Btn, C, Card, Chips, Sheet, Spark, Title, fmtDur, fmtNum, glowBg, inputCls, inputStyle, display, stagger, Layer, font, haptic} from "./fitUi";
 
 export const libraryFallback = (): LibraryExercise[] => CATALOG.map((e) => ({ ...e, images: [], source: "arise" as const }));
@@ -137,6 +138,7 @@ export function planned(data: FitData, items: { exId: string; name?: string; set
 export function startWorkout(a: Omit<Active, "id" | "started">): Active { const w = { ...a, id: uid(), started: Date.now() }; saveActive(w); return w; }
 
 export function LiveWorkout({ active, setActive, data, update, list, say }: { active: Active; setActive: (a: Active | null) => void; data: FitData; update: Update; list: LibraryExercise[]; say: (m: string) => void }) {
+  const { plus, ask } = usePlus();
   const u: Units = data.profile.units;
   const [now, setNow] = useState(Date.now());
   const [rest, setRest] = useState<{ until: number; total: number } | null>(null);
@@ -218,7 +220,9 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
       </div>
       {done.prs.length > 0 && <><Title>New records</Title><div className="space-y-2">{done.prs.map((p, k) => <Card key={p.exId + p.kind} className="flex items-center gap-3 !p-3" style={stagger(k, 0.08, 0.6)}><Trophy className="h-6 w-6" style={{ color: C.orange }} />
         <div><p className="font-semibold">{p.name}</p><p className="text-[13px]" style={{ color: C.dim }}>{p.kind === "e1rm" ? `Est. 1-rep max ${fmtNum(p.value)} ${u}` : p.kind === "weight" ? `Heaviest ${fmtNum(p.value)} ${u}` : `Most volume ${fmtNum(p.value)} ${u}`}</p></div></Card>)}</div></>}
-      <Debrief w={done.w} data={data} />
+      {plus ? <Debrief w={done.w} data={data} /> : <Card className="mt-6 !p-4" onClick={() => ask("debrief")} testId="fit-debrief-locked">
+        <p className="text-[20px] leading-none" style={display}>Your after-workout report<PlusTag /></p>
+        <p className="mt-1.5 text-[14px]" style={{ color: C.steel }}>See when you'll be sore, how much protein and carbs to eat and by when, water, and facts on creatine and pre-workout.</p></Card>}
       <Btn onClick={() => setActive(null)} className="mt-8 w-full !min-h-[52px] !text-[19px]" testId="fit-summary-done">Back to today</Btn>
     </div></Layer>;
   }
@@ -249,7 +253,7 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
               {ex && videoFor(ex.id) && <button type="button" onClick={() => setDetail(ex)} className="mt-1.5 flex h-7 items-center gap-1 rounded-full px-2.5 text-[12px] font-semibold" style={{ background: "rgba(255,90,31,.12)", color: C.lime }} data-testid={`fit-live-video-${ei}`}><PlayCircle className="h-3.5 w-3.5" />Watch form</button>}</div>
             <div className="flex shrink-0 flex-col items-center gap-1">
               <button type="button" onClick={() => setSwapFor(ei)} aria-label={`Swap ${e.name}`} className="grid h-9 w-9 place-items-center rounded-full" style={{ background: C.card2 }} data-testid={`fit-live-swap-${ei}`}><ArrowLeftRight className="h-4 w-4" /></button>
-              {formLiftFor(e.exId) && <button type="button" onClick={() => setCamFor(ei)} aria-label={`Count ${e.name} reps with the camera`} className="grid h-9 w-9 place-items-center rounded-full" style={{ background: C.card2, color: C.lime }} data-testid={`fit-live-cam-${ei}`}><ScanEye className="h-4 w-4" /></button>}
+              {formLiftFor(e.exId) && <button type="button" onClick={() => (plus ? setCamFor(ei) : ask("camera-reps"))} aria-label={`Count ${e.name} reps with the camera`} className="grid h-9 w-9 place-items-center rounded-full" style={{ background: C.card2, color: C.lime }} data-testid={`fit-live-cam-${ei}`}><ScanEye className="h-4 w-4" /></button>}
               <button type="button" onClick={() => set((a) => ({ ...a, exercises: a.exercises.filter((_, k) => k !== ei) }))} aria-label={`Remove ${e.name}`} className="grid h-9 w-9 place-items-center rounded-full" style={{ color: C.dim }}><Trash2 className="h-4 w-4" /></button>
             </div>
           </div>
@@ -454,7 +458,7 @@ export function TrainTab({ data, update, list, onStart, say, onCoach, onGyms }: 
       <button type="button" onClick={() => setScan(true)} className="fit-in flex min-h-[64px] items-center gap-2.5 rounded-[14px] px-3 text-left active:scale-[.98]" style={{ background: C.card, boxShadow: `inset 0 0 0 1px ${C.line}` }} data-testid="fit-scan-machine">
         <ScanLine className="h-6 w-6 shrink-0" style={{ color: C.lime }} /><span className="min-w-0"><span className="block text-[17px] leading-none" style={display}>Scan a machine</span><span className="mt-0.5 block truncate text-[12px]" style={{ color: C.dim }}>QR code or photo</span></span></button>
       {onGyms && <button type="button" onClick={onGyms} className="fit-in col-span-2 flex min-h-[48px] items-center gap-2.5 rounded-[14px] px-3 text-left active:scale-[.98]" style={{ background: C.card, boxShadow: `inset 0 0 0 1px ${C.line}` }} data-testid="fit-train-gyms">
-        <MapPin className="h-5 w-5 shrink-0" style={{ color: C.lime }} /><span className="flex-1 text-[16px] leading-none" style={display}>Gyms near me</span><span className="text-[12px]" style={{ color: C.dim }}>Prices · busy times</span></button>}
+        <MapPin className="h-5 w-5 shrink-0" style={{ color: C.lime }} /><span className="flex-1 text-[16px] leading-none" style={display}>Gyms near me<PlusTag /></span><span className="text-[12px]" style={{ color: C.dim }}>Prices · busy times</span></button>}
     </div>
     <SmartWorkoutCard data={data} list={list} onStart={onStart} testId="fit-train-smart" />
     {active && next && <Title>Your program</Title>}

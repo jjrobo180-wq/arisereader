@@ -65,7 +65,7 @@ test("the photo endpoint: one machine or a whole room, photos never kept", async
   const add = (m: string) => (path: string, ...h: Function[]) => { routes[`${m} ${path}`] = h[h.length - 1]; };
   const seen: string[] = [];
   registerFitRoutes({ get: add("GET"), post: add("POST"), put: add("PUT") } as any, (_q: any, _s: any, n: any) => n(), {
-    store: { get: async () => null, set: async () => {} },
+    store: { get: async () => null, set: async () => {} }, ownPlus: async () => ({ live: true }), kv: (await import("../server/fitKv")).createMemoryKv(),
     identify: async (_img, mode) => { seen.push(mode); return mode === "gym" ? { gear: ["dumbbells", "bench"], name: "", note: "" } : { gear: ["leg-press"], name: "Leg press", note: "" }; },
   });
   const call = async (body: any) => {

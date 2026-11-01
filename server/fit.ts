@@ -12,7 +12,9 @@
 //                              with how busy people say each gym is right now (shared/fitNearby.ts)
 //   POST    /api/fit/busy      {place, level} "it's packed": shown to everyone for 90 minutes
 //   POST    /api/fit/recipe    {have, goal, left} the AI makes a recipe from what's in your kitchen
-//   /api/fit/buddies…          workout buddies (server/fitBuddies.ts)
+//   /api/fit/circle…           workout circles (server/fitCircle.ts)
+//   /api/fit/plus, /pass…      Arise Fit+ and guest passes (server/fitPass.ts)
+// Photo scanning, AI recipes, gyms near me and eat out (identify, recipe, nearby, busy) need Fit+.
 //   The phone can't call Overpass and Nominatim itself: they refuse requests that don't identify the
 //   app, and Overpass's main server is often too busy. The server asks with Arise Fit's name, tries
 //   the other public Overpass servers when one fails, and remembers answers for an hour.
@@ -23,7 +25,9 @@ import { TRAIL_KM, trailCell, trailGeometryQuery, trailsQuery } from "../shared/
 import { GEAR_PROMPT_LIST, cleanGearIds } from "../shared/fitGym";
 import { NEARBY, REPORT_MS, crowdNow, foodQuery, gymsQuery, nearbyCell, type BusyLevel } from "../shared/fitNearby";
 import { cleanRecipe, type Recipe } from "../shared/fitRecipes";
-import { createSupabaseKv, registerBuddyRoutes, type BuddyDeps, type FitKv } from "./fitBuddies";
+import { registerCircleRoutes, type CircleDeps } from "./fitCircle";
+import { createSupabaseKv, type FitKv } from "./fitKv";
+import { needsPlus, registerPassRoutes, type PassDeps } from "./fitPass";
 
 export type RecipeAsk = { have: string; goal: string; left: { kcal: number; p: number } };
 export const RECIPE_PROMPT = `You are a nutrition coach writing one healthy, simple recipe for a fitness app.
@@ -143,12 +147,16 @@ export function mergeLibrary(wger: LibraryExercise[]): LibraryExercise[] {
   return out;
 }
 
-export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, opts: { store?: FitStore; fetchJson?: (url: string) => Promise<any>; overpass?: (query: string) => Promise<any>; identify?: (image: string, mode: "machine" | "gym") => Promise<GearAnswer>; recipe?: (ask: RecipeAsk) => Promise<Recipe | null>; kv?: FitKv; nameOf?: BuddyDeps["nameOf"]; notify?: BuddyDeps["notify"] } = {}) {
+export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, opts: { store?: FitStore; fetchJson?: (url: string) => Promise<any>; overpass?: (query: string) => Promise<any>; identify?: (image: string, mode: "machine" | "gym") => Promise<GearAnswer>; recipe?: (ask: RecipeAsk) => Promise<Recipe | null>; kv?: FitKv; nameOf?: CircleDeps["nameOf"]; notify?: CircleDeps["notify"]; ownPlus?: PassDeps["ownPlus"]; payment?: PassDeps["payment"] } = {}) {
   const store = opts.store ?? createSupabaseFitStore();
-  const buddies = registerBuddyRoutes(app, authMiddleware, { kv: opts.kv ?? createSupabaseKv(), getData: (id) => store.get(id), nameOf: opts.nameOf, notify: opts.notify });
+  const kv = opts.kv ?? createSupabaseKv();
+  const circles = registerCircleRoutes(app, authMiddleware, { kv, getData: (id) => store.get(id), nameOf: opts.nameOf, notify: opts.notify });
+  // Without a plan check (a test that doesn't pass one), nobody has Fit+.
+  const passes = registerPassRoutes(app, authMiddleware, { kv, ownPlus: opts.ownPlus ?? (async () => ({ live: false })), payment: opts.payment, nameOf: opts.nameOf, notify: opts.notify });
+  const plus = (what: string) => needsPlus(passes.plusOf, what);
   const recipe = opts.recipe ?? (process.env.OPENAI_API_KEY ? askAiForRecipe : null);
   const cooks = createAttemptLimiter({ max: 20, windowMs: 60 * 60_000 });
-  app.post("/api/fit/recipe", authMiddleware, async (req: any, res) => {
+  app.post("/api/fit/recipe", authMiddleware, plus("Making a recipe from what you have"), async (req: any, res) => {
     res.set?.("Cache-Control", "no-store");
     if (!recipe) return res.status(503).json({ message: "Recipe ideas aren't set up on this site yet. Try one from the list." });
     const have = String(req.body?.have ?? "").replace(/\s+/g, " ").trim().slice(0, 400);
@@ -166,7 +174,7 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
   });
   const identify = opts.identify ?? (process.env.OPENAI_API_KEY ? askAiForGear : null);
   const looks = createAttemptLimiter({ max: 40, windowMs: 60 * 60_000 });
-  app.post("/api/fit/identify", authMiddleware, async (req: any, res) => {
+  app.post("/api/fit/identify", authMiddleware, plus("Photo scanning"), async (req: any, res) => {
     res.set?.("Cache-Control", "no-store");
     if (!identify) return res.status(503).json({ message: "Photo scanning isn't set up on this site yet. Pick the machine from the list instead." });
     const mode = req.body?.mode === "gym" ? "gym" : "machine";
@@ -199,12 +207,12 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
     if (JSON.stringify(data).length > LIMITS.bytes) return res.status(413).json({ message: "That's more than Arise Fit can keep. Delete some old workouts or foods first." });
     const me = Number(req.user.id);
     try {
-      // A buddy who just finished a workout: their group hears about it (only when they're in one).
-      const group = await buddies.groupOf(me).catch(() => null);
+      // Someone who just finished a workout: their circle hears about it (only when they're in one).
+      const group = await circles.groupOf(me).catch(() => null);
       const before = group ? cleanFit(await store.get(me).catch(() => null)) : null;
       await store.set(me, data);
       res.json({ ok: true });
-      if (group) void buddies.tell(me, before, data).catch(() => {});
+      if (group) void circles.tell(me, before, data).catch(() => {});
     }
     catch { res.status(503).json({ message: "Arise Fit couldn't save. Your changes are kept on this phone and will save when you're back online." }); }
   });
@@ -279,7 +287,7 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
   // Kept for a day per grid cell. How busy a gym is right now comes from people's own reports.
   const reports = new Map<string, { level: BusyLevel; at: number; by: string }[]>();
   const LEVELS: BusyLevel[] = ["quiet", "some", "busy", "packed"];
-  app.get("/api/fit/nearby", authMiddleware, async (req: any, res) => {
+  app.get("/api/fit/nearby", authMiddleware, plus("Finding places near you"), async (req: any, res) => {
     const kind = req.query.kind === "food" ? "food" : req.query.kind === "gyms" ? "gyms" : null;
     const lat = num(req.query.lat, -90, 90), lng = num(req.query.lng, -180, 180);
     if (!kind || lat === null || lng === null) return res.status(400).json({ message: "That place couldn't be read." });
@@ -294,7 +302,7 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
       res.json({ cell: [cLat, cLng], elements: json?.elements ?? [], crowd });
     } catch (e: any) { console.error("[fit] nearby", e?.message); res.status(503).json({ message: "The map is busy right now. Try again in a minute." }); }
   });
-  app.post("/api/fit/busy", authMiddleware, async (req: any, res) => {
+  app.post("/api/fit/busy", authMiddleware, plus("Crowd reports"), async (req: any, res) => {
     const place = String(req.body?.place ?? "");
     const level = LEVELS.includes(req.body?.level) ? req.body.level as BusyLevel : null;
     if (!/^[nwr]\d{1,14}$/.test(place) || !level) return res.status(400).json({ message: "That report couldn't be read." });

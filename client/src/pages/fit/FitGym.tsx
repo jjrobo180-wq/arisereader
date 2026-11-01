@@ -17,6 +17,7 @@ import { SUPPLEMENTS, debrief } from "@shared/fitDebrief";
 import { fitApi, type Update } from "./fitStore";
 import { scheduleRefuel } from "./fitNative";
 import { Btn, C, Card, Chips, Sheet, Title, display, haptic, inputCls, inputStyle } from "./fitUi";
+import { PlusTag, isPlusError, useNeedsPlus, usePlus } from "./FitPlus";
 
 type GearAnswer = { gear: string[]; name: string; note: string };
 const KIND_NAME: Record<GearKind, string> = { free: "Free weights", station: "Racks, benches and bars", machine: "Machines", cable: "Cables", cardio: "Cardio", small: "Small equipment" };
@@ -42,6 +43,8 @@ export function GymSheet({ data, update, onClose }: { data: FitData; update: Upd
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   const photos = useRef<HTMLInputElement>(null);
+  const need = useNeedsPlus();
+  const { ask } = usePlus();
   const kind = type ? GYM_BY_ID.get(type) : null;
   const pick = (id: string) => { haptic("light"); setType(id); setGear(new Set(saved?.type === id ? saved.gear : GYM_BY_ID.get(id)!.gear)); setFound([]); setErr(""); };
   const toggle = (id: string) => setGear((g) => { const n = new Set(g); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -57,7 +60,7 @@ export function GymSheet({ data, update, onClose }: { data: FitData; update: Upd
       setGear((g) => new Set([...g, ...got]));
       setFound([...got]);
       if (!got.size) setErr("No equipment was found in those photos. Try photos with the machines in full view, or tick them off below.");
-    } catch (e: any) { setErr(e?.message || "The photos couldn't be read. Tick off your equipment below instead."); }
+    } catch (e: any) { if (isPlusError(e)) ask("photo-scan"); else setErr(e?.message || "The photos couldn't be read. Tick off your equipment below instead."); }
     finally { setBusy(""); if (photos.current) photos.current.value = ""; }
   };
   const save = () => {
@@ -77,7 +80,7 @@ export function GymSheet({ data, update, onClose }: { data: FitData; update: Upd
         <button type="button" onClick={() => setType(null)} className="text-[14px] font-semibold" style={{ color: C.lime }}>Change</button></div></Card>
       <label className="mt-3 block px-1 text-[13px] font-semibold" style={{ color: C.dim }} htmlFor="fit-gym-name">Name (optional)</label>
       <input id="fit-gym-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={kind?.scan ? "My garage gym" : `${kind?.name} on Main St`} className={inputCls} style={inputStyle} maxLength={60} />
-      <Btn kind="soft" className="mt-3 w-full" onClick={() => photos.current?.click()} disabled={!!busy} testId="fit-gym-photos">{busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}{busy || "Scan with photos"}</Btn>
+      <Btn kind="soft" className="mt-3 w-full" onClick={() => need("photo-scan", () => photos.current?.click())} disabled={!!busy} testId="fit-gym-photos">{busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}{busy || <>Scan with photos<PlusTag /></>}</Btn>
       <input ref={photos} type="file" accept="image/*" multiple capture="environment" className="hidden" onChange={(e) => void scan(e.target.files)} />
       <p className="mt-1.5 px-1 text-[12px]" style={{ color: C.dim }}>Take a few photos around the room. The AI lists what it sees; photos aren't kept.</p>
       {found.length > 0 && <p className="mt-2 rounded-[10px] px-3 py-2 text-[14px]" style={{ background: C.tint }} role="status"><Sparkles className="mr-1 inline h-4 w-4" style={{ color: C.lime }} />Found {found.map((g) => GEAR_BY_ID.get(g)?.name).join(", ")}.</p>}
@@ -173,6 +176,8 @@ export function ScanMachine({ data, update, onClose, onUse, useLabel }: { data: 
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState("");
   const photo = useRef<HTMLInputElement>(null);
+  const need = useNeedsPlus();
+  const { ask } = usePlus();
   const fromQr = (text: string) => {
     const g = gearFromText(text);
     if (g) { setGear(g); setNote(""); haptic("success"); }
@@ -186,7 +191,7 @@ export function ScanMachine({ data, update, onClose, onUse, useLabel }: { data: 
       const g = r.gear[0] ? GEAR_BY_ID.get(r.gear[0]) : null;
       if (g) { setGear(g); setAlso(r.gear.slice(1, 4)); haptic("success"); }
       else setNote(r.note || "That didn't look like gym equipment. Try again with the whole machine in the photo, or pick it from the list.");
-    } catch (e: any) { setNote(e?.message || "The photo couldn't be read. Pick the machine from the list."); }
+    } catch (e: any) { if (isPlusError(e)) ask("photo-scan"); else setNote(e?.message || "The photo couldn't be read. Pick the machine from the list."); }
     finally { setBusy(false); if (photo.current) photo.current.value = ""; }
   };
   const list = useMemo(() => GEAR.filter((g) => !q.trim() || `${g.name} ${g.aka.join(" ")}`.toLowerCase().includes(q.trim().toLowerCase())), [q]);
@@ -201,9 +206,9 @@ export function ScanMachine({ data, update, onClose, onUse, useLabel }: { data: 
     {mode === "qr" && <QrScanner onText={fromQr} onError={(m) => { setMode("photo"); setNote(m); }} />}
     {mode === "qr" && <p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>Works with the QR codes many gyms put on their machines.</p>}
     {mode === "photo" && <>
-      <button type="button" onClick={() => photo.current?.click()} disabled={busy} className="mt-3 flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 rounded-[14px] text-center" style={{ background: C.card, boxShadow: `inset 0 0 0 2px ${C.line}` }} data-testid="fit-scan-photo">
+      <button type="button" onClick={() => need("photo-scan", () => photo.current?.click())} disabled={busy} className="mt-3 flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 rounded-[14px] text-center" style={{ background: C.card, boxShadow: `inset 0 0 0 2px ${C.line}` }} data-testid="fit-scan-photo">
         {busy ? <Loader2 className="h-10 w-10 animate-spin" style={{ color: C.lime }} /> : <Camera className="h-10 w-10" style={{ color: C.lime }} />}
-        <span className="text-[22px]" style={display}>{busy ? "Looking at it…" : "Take a photo of the machine"}</span>
+        <span className="text-[22px]" style={display}>{busy ? "Looking at it…" : <>Take a photo of the machine<PlusTag /></>}</span>
         <span className="px-6 text-[13px]" style={{ color: C.dim }}>Get the whole machine in the shot. The photo isn't kept.</span></button>
       <input ref={photo} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => void fromPhoto(e.target.files?.[0])} />
     </>}
