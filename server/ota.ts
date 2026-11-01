@@ -42,10 +42,16 @@ export function pickUpdate(releases: OtaRelease[], app: OtaApp, current: unknown
 export function registerOtaRoutes(app: Express, o: { fetchJson?: (url: string) => Promise<any>; repo?: string; now?: () => number } = {}) {
   const repo = o.repo ?? "jjrobo180-wq/arisereader";
   const now = o.now ?? Date.now;
+  // GitHub answers "not changed" (304) to a repeat look without counting it against the hourly
+  // allowance, so the list is asked for with the last answer's ETag.
+  let etag = "", lastBody: any = null;
   const fetchJson = o.fetchJson ?? (async (url: string) => {
-    const r = await fetch(url, { headers: { Accept: "application/vnd.github+json", "User-Agent": "arisetodo-ota", ...(process.env.GITHUB_TOKEN ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` } : {}) }, signal: AbortSignal.timeout(10_000) });
-    if (!r.ok) throw new Error(`github ${r.status}`);
-    return r.json();
+    const r = await fetch(url, { headers: { Accept: "application/vnd.github+json", "User-Agent": "arisetodo-ota", ...(etag ? { "If-None-Match": etag } : {}), ...(process.env.GITHUB_TOKEN ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` } : {}) }, signal: AbortSignal.timeout(10_000) });
+    if (r.status === 304 && lastBody) return lastBody;
+    if (!r.ok) throw new Error(`github ${r.status} (left this hour: ${r.headers.get("x-ratelimit-remaining") ?? "?"})`);
+    etag = r.headers.get("etag") || "";
+    lastBody = await r.json();
+    return lastBody;
   });
   // One look at GitHub every 5 minutes for every app and phone (well inside its hourly allowance).
   let cache: { at: number; list: OtaRelease[] } | null = null;
@@ -54,7 +60,8 @@ export function registerOtaRoutes(app: Express, o: { fetchJson?: (url: string) =
     if (cache && now() - cache.at < 5 * 60_000) return cache.list;
     loading ??= fetchJson(`https://api.github.com/repos/${repo}/releases?per_page=100`)
       .then((list) => { const l = releasesFrom(list); cache = { at: now(), list: l }; return l; })
-      .catch(() => cache?.list ?? [])
+      // A failed look keeps the last list but tries again in a minute, not five.
+      .catch((e) => { console.warn("[ota] couldn't read the releases:", e?.message || e); if (cache) cache = { at: now() - 4 * 60_000, list: cache.list }; return cache?.list ?? []; })
       .finally(() => { loading = null; });
     return loading;
   };
@@ -68,7 +75,10 @@ export function registerOtaRoutes(app: Express, o: { fetchJson?: (url: string) =
     if (process.env.OTA_OFF === "1") return none(res, "Live updates are paused");
     // The copy it's running ("builtin" is the one it shipped with: then the version set at build).
     const current = parseVersion(req.body?.version_name) ? req.body.version_name : req.body?.version_build;
-    const next = pickUpdate(await releases(), which, current);
+    const list = await releases();
+    const next = pickUpdate(list, which, current);
+    const newest = list.filter((r) => r.app === which).sort((a, b) => b.built - a.built)[0]?.version || "none";
+    console.log(`[ota] ${which} running ${String(req.body?.version_name ?? "")}/${String(req.body?.version_build ?? "")} → ${next ? `offered ${next.version}` : "nothing new"} (newest known ${newest})`);
     if (!next) return none(res);
     res.json({ version: next.version, url: next.url });
   });
