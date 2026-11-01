@@ -46,8 +46,8 @@ test("the Reader apps stay inside the app and never link to purchases", () => {
 
 test("Sign in with Apple works for the Educator app, which makes parent accounts", () => {
   const r = read("server/routes.ts");
-  assert.match(r, /verifyAppleToken\(String\(req\.body\?\.identityToken \|\| ""\), \[ARISE_APP, EDUCATOR_APP, FIT_APP\]\)/);
-  assert.match(r, /role: fromApp === EDUCATOR_APP \? "parent" : "todo"/);
+  assert.match(r, /verifyAppleToken\(String\(req\.body\?\.identityToken \|\| ""\), \[ARISE_APP, EDUCATOR_APP, FIT_APP, EYEGAZER_APP\]\)/);
+  assert.match(r, /role: fromApp === EDUCATOR_APP \|\| fromApp === EYEGAZER_APP \? "parent" : "todo"/);
 });
 
 test("every app lets its owner delete their account, Apple accounts included", () => {

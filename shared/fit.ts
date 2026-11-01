@@ -11,7 +11,9 @@ export type FitExercise = { exId: string; name: string; sets: FitSet[]; rest?: n
 export type Workout = { id: string; date: string; name: string; programId?: string; dayId?: string; secs: number; exercises: FitExercise[]; note?: string };
 export type Routine = { id: string; name: string; exercises: { exId: string; name: string; sets: number; reps: string; rest: number }[] };
 export type FoodEntry = { id: string; date: string; meal: Meal; name: string; kcal: number; p: number; c: number; f: number; servings: number; serving?: string };
-export type Profile = { sex?: "m" | "f"; birthYear?: number; heightCm?: number; goal: Goal; activity: number; units: Units; kcalGoal?: number; macroSplit?: { p: number; c: number; f: number }; waterGoalMl: number; stepsGoal: number };
+export type Profile = { sex?: "m" | "f"; birthYear?: number; heightCm?: number; goal: Goal; activity: number; units: Units; kcalGoal?: number; macroSplit?: { p: number; c: number; f: number }; waterGoalMl: number; stepsGoal: number;
+  /** A diet plan from fitNutrition.ts (it sets macroSplit) and whether food is counted in calories or Arise Points. */
+  dietPlan?: string; trackMode?: "calories" | "points" };
 export type FitData = {
   v: 1;
   profile: Profile;
@@ -23,7 +25,14 @@ export type FitData = {
   water: Record<string, number>;
   weights: { date: string; kg: number }[];
   onboarded?: boolean;
+  /** Intermittent fasting: the chosen protocol, a fast in progress and past fasts. */
+  fasting?: Fasting;
+  /** Outdoor runs, walks and hikes tracked by GPS (shared/fitRun.ts). */
+  runs?: Run[];
 };
+
+import { DIET_BY_ID, cleanFasting, type Fasting } from "./fitNutrition";
+import { cleanRuns, type Run } from "./fitRun";
 
 export const LIMITS = { workouts: 3000, foods: 20000, routines: 60, weights: 3000, recent: 60, bytes: 2_500_000 };
 
@@ -52,6 +61,8 @@ export function cleanFit(raw: any): FitData {
     macroSplit: p.macroSplit ? { p: num(p.macroSplit.p, 5, 70), c: num(p.macroSplit.c, 5, 75), f: num(p.macroSplit.f, 10, 70) } : undefined,
     waterGoalMl: num(p.waterGoalMl, 500, 8000, 2500),
     stepsGoal: num(p.stepsGoal, 1000, 50000, 8000),
+    ...(DIET_BY_ID.has(String(p.dietPlan)) ? { dietPlan: String(p.dietPlan) } : {}),
+    ...(p.trackMode === "points" ? { trackMode: "points" as const } : {}),
   };
   const set = (s: any): FitSet => ({ reps: num(s?.reps, 0, 1000), weight: num(s?.weight, 0, 2000), done: !!s?.done, ...(s?.warm ? { warm: true } : {}), ...(s?.rpe ? { rpe: num(s.rpe, 1, 10) } : {}) });
   const ex = (e: any): FitExercise => ({ exId: str(e?.exId, 80), name: str(e?.name, 80), sets: (Array.isArray(e?.sets) ? e.sets : []).slice(0, 30).map(set), ...(e?.rest ? { rest: num(e.rest, 0, 900) } : {}), ...(e?.target ? { target: str(e.target, 20) } : {}), ...(e?.note ? { note: str(e.note, 300) } : {}) });
@@ -68,6 +79,10 @@ export function cleanFit(raw: any): FitData {
   for (const [k, v] of Object.entries(raw.water && typeof raw.water === "object" ? raw.water : {})) if (day(k)) d.water[k] = num(v, 0, 20000);
   d.weights = (Array.isArray(raw.weights) ? raw.weights : []).slice(-LIMITS.weights).filter((w: any) => day(w?.date)).map((w: any) => ({ date: day(w.date), kg: num(w.kg, 20, 400) }));
   if (raw.onboarded) d.onboarded = true;
+  const fasting = cleanFasting(raw.fasting);
+  if (fasting) d.fasting = fasting;
+  const runs = cleanRuns(raw.runs);
+  if (runs.length) d.runs = runs;
   return d;
 }
 
@@ -323,6 +338,13 @@ export type Program = { id: string; name: string; blurb: string; level: "Beginne
 const I = (exId: string, sets: number, reps: string, rest = 90) => ({ exId, sets, reps, rest });
 
 export const PROGRAMS: Program[] = [
+  { id: "iron-progression", name: "Iron Progression", blurb: "A 12-week gradual-increase plan. Every lift has a rep range: hit the top of it on every set and the app adds weight next time; miss and you repeat until you own it. Four days, upper and lower.", level: "Beginner", goal: "Strength & size", daysPerWeek: 4, weeks: 12, equipment: "Barbell, dumbbells, cables",
+    days: [
+      { id: "u1", name: "Upper · Heavy", items: [I("bench-press", 4, "5-8", 150), I("barbell-row", 4, "6-10", 120), I("ohp", 3, "6-10", 120), I("lat-pulldown", 3, "8-12", 90), I("triceps-pushdown", 3, "10-15", 60), I("db-curl", 3, "10-15", 60)] },
+      { id: "l1", name: "Lower · Heavy", items: [I("back-squat", 4, "5-8", 180), I("rdl", 3, "6-10", 150), I("leg-press", 3, "10-15", 120), I("leg-curl", 3, "10-15", 75), I("calf-raise", 4, "10-15", 60), I("plank", 3, "45s", 45)] },
+      { id: "u2", name: "Upper · Volume", items: [I("db-incline", 4, "8-12", 90), I("seated-cable-row", 4, "8-12", 90), I("db-shoulder-press", 3, "8-12", 90), I("pull-up", 3, "AMRAP", 120), I("lateral-raise", 3, "12-15", 60), I("hammer-curl", 3, "10-12", 60)] },
+      { id: "l2", name: "Lower · Volume", items: [I("deadlift", 3, "3-6", 210), I("bulgarian-split-squat", 3, "8-12", 90), I("hip-thrust", 3, "8-12", 90), I("leg-extension", 3, "12-15", 60), I("seated-calf", 3, "12-20", 45), I("hanging-leg-raise", 3, "10-15", 60)] },
+    ] },
   { id: "starter-strength", name: "Starter Strength", blurb: "Three full-body days a week built on the big lifts. Add a little weight every session while it keeps going up.", level: "Beginner", goal: "Strength", daysPerWeek: 3, weeks: 12, equipment: "Barbell gym",
     days: [
       { id: "a", name: "Day A", items: [I("back-squat", 3, "5", 180), I("bench-press", 3, "5", 180), I("barbell-row", 3, "5", 150), I("plank", 3, "30s", 60)] },
