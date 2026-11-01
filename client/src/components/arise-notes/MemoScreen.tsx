@@ -4,10 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import { CalendarPlus, Check, ListChecks, Mic, NotebookPen, Square } from "lucide-react";
 import { MEMO_MAX_SECS, fmtClock, type MemoIdea } from "@shared/ariseNotes";
 import { announceSaved } from "@/lib/paneSync";
+import { addToAppleReminders, addToIphoneCalendar, appleAddAvailable } from "@/lib/notesApple";
 import { localDay, notesApi } from "./api";
 import { recordMemo, canRecord } from "./recorder";
-import { Btn, Notice, Section, useToast } from "./ui";
+import { Btn, Notice, Section, Toggle, useToast } from "./ui";
 import { TopBar, type AppCtx } from "./NotesApp";
+
+// In the iPhone app a memo's to-do can also go to Apple Reminders, and its event to the iPhone
+// Calendar (the same choices as the planner screen, remembered on this phone).
+const APPLE_KEY = { task: "arise-notes-apple-reminders", event: "arise-notes-apple-calendar" };
+const remembered = (k: string) => { try { return localStorage.getItem(k) !== "0"; } catch { return true; } };
+const remember = (k: string, on: boolean) => { try { localStorage.setItem(k, on ? "1" : "0"); } catch { /* not kept */ } };
 
 export default function MemoScreen({ ctx }: { ctx: AppCtx }) {
   const say = useToast();
@@ -20,6 +27,8 @@ export default function MemoScreen({ ctx }: { ctx: AppCtx }) {
   const [hub, setHub] = useState<"life" | "work">(ctx.hub);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const apple = appleAddAvailable();
+  const [toApple, setToApple] = useState(() => ({ task: apple && remembered(APPLE_KEY.task), event: apple && remembered(APPLE_KEY.event) }));
   const rec = useRef<Awaited<ReturnType<typeof recordMemo>> | null>(null);
   const tick = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(() => () => { if (tick.current) clearInterval(tick.current); void rec.current?.stop(); }, []);
@@ -57,7 +66,13 @@ export default function MemoScreen({ ctx }: { ctx: AppCtx }) {
         ? { hub, tasks: [], events: [{ title: idea.title, date: idea.date, time: idea.time, notes: idea.details }] }
         : { hub, tasks: [{ title: idea.title, who: "", due: idea.date, time: idea.time, notes: idea.details }], events: [] });
       announceSaved(hub === "work" ? "workhub" : "todo", ctx.me.user.id);
-      say(idea.kind === "event" ? `On your ${hub === "work" ? "WorkHub" : "LifeHub"} calendar.` : `Added to ${hub === "work" ? "WorkHub" : r.list ? `your ${r.list} list` : "LifeHub"}.`);
+      const where = idea.kind === "event" ? `On your ${hub === "work" ? "WorkHub" : "LifeHub"} calendar` : `Added to ${hub === "work" ? "WorkHub" : r.list ? `your ${r.list} list` : "LifeHub"}`;
+      let also = "";
+      try {
+        if (idea.kind === "task" && toApple.task) { if (await addToAppleReminders([{ title: idea.title, due: idea.date, time: idea.time, notes: idea.details }])) also = " and Apple Reminders"; }
+        if (idea.kind === "event" && toApple.event) { if (await addToIphoneCalendar([{ title: idea.title, date: idea.date, time: idea.time, notes: idea.details }])) also = " and the iPhone Calendar"; }
+      } catch (e: any) { say(`${where}, but not on the iPhone: ${e.message}`); setState("done"); return; }
+      say(`${where}${also}.`);
       setState("done");
     } catch (e: any) { say(e.message); }
     finally { setBusy(false); }
@@ -88,6 +103,9 @@ export default function MemoScreen({ ctx }: { ctx: AppCtx }) {
           {idea.kind !== "note" && <div className="flex flex-wrap gap-2"><input type="date" className="an-input !w-auto" value={idea.date} onChange={(e) => set({ date: e.target.value })} aria-label="Date" /><input type="time" className="an-input !w-auto" value={idea.time} onChange={(e) => set({ time: e.target.value })} aria-label="Time" /></div>}
           {idea.kind !== "note" && ctx.me.user.workHub && <div className="flex gap-2"><button type="button" className="an-chip" aria-pressed={hub === "life"} onClick={() => setHub("life")}>LifeHub</button><button type="button" className="an-chip" aria-pressed={hub === "work"} onClick={() => setHub("work")}>WorkHub</button></div>}
           {idea.kind === "event" && !idea.date && <p className="text-[13px] text-[var(--an-amber)]">Pick a day for the calendar.</p>}
+          {apple && idea.kind !== "note" && (idea.kind === "task"
+            ? <Toggle on={toApple.task} onChange={(v) => { setToApple((a) => ({ ...a, task: v })); remember(APPLE_KEY.task, v); }} label="Also add to Apple Reminders" />
+            : <Toggle on={toApple.event} onChange={(v) => { setToApple((a) => ({ ...a, event: v })); remember(APPLE_KEY.event, v); }} label="Also add to the iPhone Calendar" />)}
           <Btn kind="primary" className="w-full" busy={busy} disabled={!idea.title.trim() || (idea.kind === "event" && !idea.date)} onClick={() => void add()} data-testid="notes-memo-add"><Check className="h-4 w-4" />{idea.kind === "note" ? "Keep as a note" : idea.kind === "event" ? "Add to calendar" : "Add the to-do"}</Btn>
         </div>
       </Section>}

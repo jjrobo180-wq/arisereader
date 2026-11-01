@@ -1,7 +1,7 @@
 // Settings: plan and minutes (with upgrades and billing), the Family plan, audio and privacy
 // (including deleting everything), accessibility, and defaults.
 import { useEffect, useState } from "react";
-import { Check, Crown, Eye, Shield, Trash2, Type, Users } from "lucide-react";
+import { Check, Crown, Eye, LogOut, Shield, Trash2, Type, Users } from "lucide-react";
 import { NOTES_PLANS, dayWords, type NotesPlanId, type NotesProduct, type NotesSettings } from "@shared/ariseNotes";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
@@ -30,8 +30,21 @@ export default function SettingsScreen({ ctx, tab: start }: { ctx: AppCtx; tab?:
       {tab === "family" && <FamilyTab ctx={ctx} />}
       {tab === "privacy" && <PrivacyTab ctx={ctx} />}
       {tab === "access" && <AccessTab ctx={ctx} />}
+      {ctx.mode === "standalone" && <SignOut ctx={ctx} />}
     </main>
   </>;
+}
+
+// The Notes app on its own (the iPhone app and /notes/) signs out here. Inside Arise To Duo, To Duo's
+// own sign-out is used. Signing out also stops notifications to this phone (AuthContext.logout).
+function SignOut({ ctx }: { ctx: AppCtx }) {
+  const { logout } = useAuth();
+  return <Section title="Account" icon={<LogOut className="h-4 w-4" />}>
+    <div className="flex flex-wrap items-center gap-3">
+      <p className="min-w-0 flex-1 text-[14px] text-[var(--an-muted)]">Signed in as <b className="text-[var(--an-ink)]">{ctx.me.user.name || "you"}</b>.</p>
+      <Btn kind="soft" onClick={() => { logout(); window.location.hash = "#/"; }} data-testid="notes-sign-out"><LogOut className="h-4 w-4" />Sign out</Btn>
+    </div>
+  </Section>;
 }
 
 function useSettings(ctx: AppCtx) {
