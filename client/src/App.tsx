@@ -27,6 +27,7 @@ import { useState, useEffect, lazy, Suspense, type ComponentType } from "react";
 const FitApp = lazy(() => import("@/pages/fit/FitApp"));
 const TrainerApp = lazy(() => import("@/pages/trainer/TrainerApp"));
 const TrainersPage = lazy(() => import("@/pages/coach/TrainersPage"));
+const NotesApp = lazy(() => import("@/components/arise-notes/NotesApp"));
 import { API_BASE } from "./lib/queryClient";
 import ProfileSetupOverlay from "./components/ProfileSetupOverlay";
 import EyeGazeSiteShell from "./components/EyeGazeSiteShell";
@@ -145,7 +146,7 @@ import TodoGate from "@/components/TodoGate";
 import { ReaderAdminToTodoRedirect, ReaderToHubHandoff, TodoAdminHandoff } from "@/components/AdminDomainHandoff";
 import { READER_APP, goToReader, goToSignIn, hubPathFor, isHubAccount, isReaderPage } from "@/lib/hubs";
 import NativePlans from "@/components/NativePlans";
-import { isEyeGazerApp, isFitApp, isNativeApp, isReaderApp, isTrainerApp } from "@/lib/nativeApp";
+import { isEyeGazerApp, isFitApp, isNativeApp, isNotesApp, isReaderApp, isTrainerApp } from "@/lib/nativeApp";
 const TeacherScenes = lazyPage(() => import("./pages/TeacherScenes"));
 const StudentSceneLive = lazyPage(() => import("./pages/StudentSceneLive"));
 const Library = lazyPage(() => import("./pages/Library"));
@@ -1009,6 +1010,8 @@ function AppInner() {
   // student number) and must replace it before doing anything else in the app.
   if (user?.mustChangePassword) return <ForcePasswordChange />;
   // The Arise Fit iPhone app is its own app: sign in, then Arise Fit (pages/fit/FitApp.tsx).
+  // The Arise Notes iPhone app: sign in, then Arise Notes (components/arise-notes/NotesApp.tsx).
+  if (isNotesApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: "#f5f4fb" }} />}>{user ? <NotesApp mode="standalone" /> : <NativeSignIn />}</Suspense></Router>;
   if (isFitApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: fitBootBg() }} />}>{user ? <FitApp /> : <NativeSignIn />}</Suspense></Router>;
   // The Arise Trainer iPhone app: sign in, then Arise Trainer (pages/trainer/TrainerApp.tsx).
   if (isTrainerApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: fitBootBg() }} />}>{user ? <TrainerApp /> : <NativeSignIn />}</Suspense></Router>;

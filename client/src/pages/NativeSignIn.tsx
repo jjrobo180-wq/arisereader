@@ -6,7 +6,7 @@
 // sample accounts). Signing in here is the same account as the website's.
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useLocation } from "wouter";
-import { Apple as AppleIcon, Bell, BookOpen, Briefcase, Dumbbell, LineChart, ChevronLeft, Eye, EyeOff, GraduationCap, HeartHandshake, Loader2, Mail, Trophy, Users } from "lucide-react";
+import { Apple as AppleIcon, Bell, BookOpen, Briefcase, Dumbbell, LineChart, ChevronLeft, Eye, EyeOff, GraduationCap, HeartHandshake, ListChecks, Loader2, Mail, Mic, Sparkles, Trophy, Users } from "lucide-react";
 import ForgotSignIn from "@/components/auth/ForgotSignIn";
 import { useAuth } from "@/context/AuthContext";
 import { APPLE_LOGO_PATH, appleSignInAvailable, askApple } from "@/lib/appleSignIn";
@@ -58,6 +58,12 @@ const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { ti
       { tint: "#ff5a1f", icon: <Users className="h-[22px] w-[22px]" />, title: "Clients, synced", text: "Their Arise Fit workouts, food and health data come to you." },
       { tint: "#e0782f", icon: <Dumbbell className="h-[22px] w-[22px]" />, title: "Build and assign", text: "Workouts, programs, habits, nutrition and check-ins." },
       { tint: "#3b82f6", icon: <Bell className="h-[22px] w-[22px]" />, title: "Get found", text: "List your prices in the Arise trainer directory." },
+    ] },
+  notes: { icon: "/app-icons/notes-1024.png", tagline: "Record it. Get the notes.", apple: true, signInHint: "Use your Arise account (the same one works in Arise To Duo).", create: "Create a free account",
+    features: [
+      { tint: "#6a55dc", icon: <Mic className="h-[22px] w-[22px]" />, title: "Record or upload", text: "Meetings, classes and IEP meetings, up to 2 hours." },
+      { tint: "#7b5cf0", icon: <Sparkles className="h-[22px] w-[22px]" />, title: "Transcript and summary", text: "Every word with times, then the key points." },
+      { tint: "#ef4e5b", icon: <ListChecks className="h-[22px] w-[22px]" />, title: "Straight to your planner", text: "To-dos and dates go into Arise To Duo." },
     ] },
 };
 
@@ -215,7 +221,7 @@ export default function NativeSignIn() {
   return <Shell>
     <NavBar title="" onBack={() => go("welcome")} />
     <form onSubmit={signingUp ? signUp : signIn} className="flex min-h-0 flex-1 flex-col overflow-y-auto [&>*]:shrink-0 px-5">
-      <Heading title={signingUp ? (eyeGazer ? "Create an Eye Gazer account" : "Create your account") : "Sign in"} text={signingUp ? (eyeGazer ? "No school or teacher needed. Just a name, a username and a password, and every Eye Gazer game, lesson and the talker are ready." : flavor === "fit" || flavor === "trainer" ? "Free, for anyone. The same account works in Arise Fit and Arise To Duo." : "Free, for anyone. You get LifeHub and WorkHub.") : copy.signInHint} />
+      <Heading title={signingUp ? (eyeGazer ? "Create an Eye Gazer account" : "Create your account") : "Sign in"} text={signingUp ? (eyeGazer ? "No school or teacher needed. Just a name, a username and a password, and every Eye Gazer game, lesson and the talker are ready." : flavor === "fit" || flavor === "trainer" ? "Free, for anyone. The same account works in Arise Fit and Arise To Duo." : flavor === "notes" ? "Free, for anyone, with 60 minutes a month. The same account works in Arise To Duo." : "Free, for anyone. You get LifeHub and WorkHub.") : copy.signInHint} />
       <Group>
         {signingUp && <Field label="Name" value={name} onChange={setName} autoComplete="name" placeholder="Your name" testId="native-name" />}
         <Field label="Username" value={username} onChange={setUsername} autoComplete="username" placeholder={signingUp ? "Choose a username" : "Username or email"} testId="native-username" plain />
@@ -234,7 +240,7 @@ export default function NativeSignIn() {
           {busy === "apple" ? <Loader2 className="h-5 w-5 animate-spin" /> : <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={APPLE_LOGO_PATH} /></svg>}
           {signingUp ? "Sign up with Apple" : "Sign in with Apple"}
         </button>}
-        <button type="button" onClick={() => (signingUp ? go("signin") : flavor === "todo" || flavor === "fit" || flavor === "trainer" || eyeGazer ? go("signup") : go("welcome"))} className="h-11 w-full text-[15px] text-[#6b6879]">
+        <button type="button" onClick={() => (signingUp ? go("signin") : flavor === "todo" || flavor === "fit" || flavor === "trainer" || flavor === "notes" || eyeGazer ? go("signup") : go("welcome"))} className="h-11 w-full text-[15px] text-[#6b6879]">
           {signingUp ? <>Already have an account? <b className="font-semibold text-[#5b4fe0]">Sign in</b></> : <>New to {appName}? <b className="font-semibold text-[#5b4fe0]">Create an account</b></>}
         </button>
       </div>

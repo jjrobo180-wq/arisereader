@@ -1,7 +1,7 @@
 """Arise Fit and Arise Trainer iPhone apps: the Info.plist settings App Review checks, and the AppDelegate
 hook push notifications need.
 
-Usage: configure_fit_app.py <path to Info.plist> [fit|trainer]   (after `npx cap add ios && npx cap sync ios`)
+Usage: configure_fit_app.py <path to Info.plist> [fit|trainer|notes]   (after `npx cap add ios && npx cap sync ios`)
   - The name under the icon, the status bar following the app's theme, and that it only uses the
     encryption built into iOS (HTTPS).
   - Arise Fit. Camera: barcodes, meal photos, form check and progress photos for a trainer. Photos:
@@ -9,7 +9,9 @@ Usage: configure_fit_app.py <path to Info.plist> [fit|trainer]   (after `npx cap
     reading and saving to Apple Health.
   - Arise Trainer. Camera and Photos: a profile photo for the trainer directory, and photos in messages.
     Every permission needs a sentence saying why, or iOS stops the app when it's asked for.
-  - Both: messages from a trainer or client arrive as notifications, so the app hands iOS's device
+  - Arise Notes. Microphone: recording meetings and voice memos. Camera and Photos: a video to
+    upload (only its sound is used). A light look, like the Notes app.
+  - All: messages from a trainer or client arrive as notifications, so the app hands iOS's device
     token to the push plugin (@capacitor/push-notifications).
 """
 import os
@@ -18,7 +20,7 @@ import sys
 
 PLIST = sys.argv[1]
 FLAVOR = sys.argv[2] if len(sys.argv) > 2 else "fit"
-assert FLAVOR in ("fit", "trainer"), FLAVOR
+assert FLAVOR in ("fit", "trainer", "notes"), FLAVOR
 # The app picks its own look (Light, Dark or Auto in Settings), so iOS follows the phone and the status
 # bar plugin (@capacitor/status-bar) sets the clock's color to match: dark on Light, light on Dark.
 COMMON = {
@@ -26,7 +28,8 @@ COMMON = {
     "UIStatusBarStyle": "UIStatusBarStyleDarkContent",
     "UIViewControllerBasedStatusBarAppearance": True,
 }
-DROP = ["UIUserInterfaceStyle"]
+# Arise Notes has only a light look, so it stays Light even when the phone is in Dark Mode.
+DROP = [] if FLAVOR == "notes" else ["UIUserInterfaceStyle"]
 KEYS = {
     "fit": {
         "CFBundleDisplayName": "Arise Fit",
@@ -40,6 +43,13 @@ KEYS = {
         "CFBundleDisplayName": "Arise Trainer",
         "NSCameraUsageDescription": "Arise Trainer uses the camera to take your profile photo for the trainer directory and photos you send your clients in messages.",
         "NSPhotoLibraryUsageDescription": "Arise Trainer lets you choose your profile photo and photos to send your clients in messages.",
+    },
+    "notes": {
+        "CFBundleDisplayName": "Arise Notes",
+        "NSMicrophoneUsageDescription": "Arise Notes uses the microphone to record your meetings, classes and voice memos so it can write them down and summarize them.",
+        "NSCameraUsageDescription": "Arise Notes uses the camera only when you choose to record a video to upload. Only its sound is written down.",
+        "NSPhotoLibraryUsageDescription": "Arise Notes lets you choose a recording or video from your library to upload. Only its sound is written down.",
+        "UIUserInterfaceStyle": "Light",
     },
 }[FLAVOR]
 with open(PLIST, "rb") as f:

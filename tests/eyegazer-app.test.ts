@@ -33,8 +33,8 @@ test("built and checked like the others, with live updates", () => {
   assert.match(wf, /apple_signing\.py com\.arisereader\.eyegazer "\$RUNNER_TEMP\/profile\.mobileprovision" APPLE_ID_AUTH PUSH_NOTIFICATIONS/);
   assert.match(wf, /ota_setup\.py eyegaze/);
   assert.match(read(".github/workflows/reader-apps-ios-check.yml"), /\{ flavor: eyegaze, dir: eyegazer, bundle: com\.arisereader\.eyegazer \}/);
-  assert.match(read(".github/workflows/ota-publish.yml"), /app: \[todo, podplus, reader, educator, fit, eyegaze(, trainer)?\]/);
-  assert.match(read("server/ota.ts"), /"fit", "eyegaze"(, "trainer")?\]/);
+  assert.match(read(".github/workflows/ota-publish.yml"), /app: \[todo, podplus, reader, educator, fit, eyegaze(, trainer)?(, talk)?(, notes)?\]/);
+  assert.match(read("server/ota.ts"), /"fit", "eyegaze"(, "trainer")?(, "talk")?(, "notes")?\]/);
   assert.match(read("eyegazer/ios-app/package.json"), /@capacitor\/push-notifications/);
   assert.match(read("eyegazer/ios-app/package.json"), /@capgo\/capacitor-updater/);
 });

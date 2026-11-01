@@ -8,7 +8,7 @@
 // native level (web code made for the native shell it has) that was built after the one it's running.
 import type { Express } from "express";
 
-export const OTA_APPS = ["todo", "podplus", "reader", "educator", "fit", "eyegaze", "trainer"] as const;
+export const OTA_APPS = ["todo", "podplus", "reader", "educator", "fit", "eyegaze", "trainer", "notes"] as const;
 export type OtaApp = typeof OTA_APPS[number];
 export type OtaRelease = { app: OtaApp; level: number; built: number; version: string; url: string };
 
