@@ -52,7 +52,7 @@ export default function TrainerApp() {
         {tab === "business" && <Business data={data} token={token} reload={reload} say={say} />}
       </div>}
     </main>
-    <nav aria-label="Arise Trainer" className="fixed inset-x-3 z-[40] mx-auto flex max-w-md items-center rounded-[14px] p-1.5" style={{ bottom: "max(12px, env(safe-area-inset-bottom))", background: "rgba(18,19,22,.96)", backdropFilter: "blur(16px)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.06), 0 12px 32px rgba(0,0,0,.6)" }}>
+    <nav aria-label="Arise Trainer" className="fixed inset-x-3 z-[40] mx-auto flex max-w-md items-center rounded-[14px] p-1.5" style={{ bottom: "max(12px, env(safe-area-inset-bottom))", background: "rgba(32,35,41,.96)", backdropFilter: "blur(16px)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.06), 0 12px 32px rgba(0,0,0,.6)" }}>
       <span aria-hidden className="absolute bottom-1.5 top-1.5 rounded-[10px]" style={{ width: `calc((100% - 12px) / ${tabs.length})`, left: `calc(6px + ${at} * (100% - 12px) / ${tabs.length})`, background: "linear-gradient(180deg, rgba(255,90,31,.24), rgba(255,90,31,.08))", boxShadow: "inset 0 -2px 0 #ff5a1f", transition: "left .35s cubic-bezier(.2,.9,.2,1)" }} />
       {tabs.map(([id, label, Icon, badge]) => <button key={id} type="button" onClick={() => setTab(id)} aria-current={tab === id ? "page" : undefined} data-testid={`tr-tab-${id}`}
         className="relative flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 rounded-[10px] text-[11px] uppercase tracking-[.06em] transition-colors" style={{ fontFamily: display.fontFamily, fontWeight: 800, color: tab === id ? C.lime : C.dim }}>

@@ -50,7 +50,7 @@ function Setup({ data, update, onDone }: { data: FitData; update: Update; onDone
     <p className="mt-2 text-[15px]" style={{ color: C.dim }}>So Arise Fit can set your calories and macros. You can change any of it later.</p>
     <div className="mt-5 space-y-4">
       <Field label="Goal"><div className="grid grid-cols-3 gap-2">{([["lose", "Lose fat"], ["maintain", "Maintain"], ["gain", "Build muscle"]] as const).map(([v, l]) => <button key={v} type="button" onClick={() => setGoal(v)} className="h-12 rounded-[8px] text-[14px] font-semibold" style={pill(goal === v)}>{l}</button>)}</div></Field>
-      <Field label="Units"><div className="grid grid-cols-2 gap-2">{(["lb", "kg"] as const).map((v) => <button key={v} type="button" onClick={() => setUnits(v)} className="h-12 rounded-[8px] text-[14px] font-semibold" style={pill(units === v)}>{v === "lb" ? "Pounds, inches" : "Kilograms, cm"}</button>)}</div></Field>
+      <Field label="Units"><div className="grid grid-cols-2 gap-2">{(["lb", "kg"] as const).map((v) => <button key={v} type="button" onClick={() => setUnits(v)} className="h-12 rounded-[8px] text-[14px] font-semibold" style={pill(units === v)}>{v === "lb" ? "US (lb, ft, mi)" : "Metric (kg, cm, km)"}</button>)}</div></Field>
       <Field label="Sex (for the calorie formula)"><div className="grid grid-cols-2 gap-2">{([["m", "Male"], ["f", "Female"]] as const).map(([v, l]) => <button key={v} type="button" onClick={() => setSex(v)} className="h-12 rounded-[8px] text-[14px] font-semibold" style={pill(sex === v)}>{l}</button>)}</div></Field>
       <div className="grid grid-cols-3 gap-2">
         <Field label="Born (year)"><input inputMode="numeric" value={year} onChange={(e) => setYear(e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="1995" className={inputCls} style={inputStyle} /></Field>
@@ -64,7 +64,7 @@ function Setup({ data, update, onDone }: { data: FitData; update: Update; onDone
   </Sheet>;
 }
 
-function TodayTab({ data, update, onTab, onStartProgram, onProgress, onCoach, onStart, token, user, list }: { data: FitData; update: Update; onTab: (t: Tab) => void; onStartProgram: () => void; onProgress: () => void; onCoach: () => void; onStart: (a: NonNullable<ReturnType<typeof readActive>>) => void; token: string | null; user: string; list: ReturnType<typeof libraryFallback> }) {
+function TodayTab({ data, update, onTab, onStartProgram, onProgress, onSettings, onCoach, onStart, token, user, list }: { data: FitData; update: Update; onTab: (t: Tab) => void; onStartProgram: () => void; onProgress: () => void; onSettings: () => void; onCoach: () => void; onStart: (a: NonNullable<ReturnType<typeof readActive>>) => void; token: string | null; user: string; list: ReturnType<typeof libraryFallback> }) {
   const today = dayKey();
   const t = totals(data.foods.filter((f) => f.date === today));
   const g = goals(data.profile, latestKg(data));
@@ -90,7 +90,8 @@ function TodayTab({ data, update, onTab, onStartProgram, onProgress, onCoach, on
       <h1 className="text-[46px] leading-[.95]" style={display}>Today</h1>
       <div className="flex items-center gap-2">
         {s > 0 && <div className="fit-pulse flex items-center gap-1 rounded-full px-3 py-1.5" style={{ background: C.card }} aria-label={`${s} day streak`}><Flame className="h-4 w-4" fill={C.orange} style={{ color: C.orange }} /><span className="text-[18px] leading-none" style={display}>{s}</span></div>}
-        <button type="button" onClick={onProgress} aria-label="Progress and settings" className="grid h-10 w-10 place-items-center rounded-full" style={{ background: C.card }} data-testid="fit-open-progress"><BarChart3 className="h-5 w-5" /></button>
+        <button type="button" onClick={onProgress} aria-label="Progress" className="grid h-10 w-10 place-items-center rounded-full" style={{ background: C.card }} data-testid="fit-open-progress"><BarChart3 className="h-5 w-5" /></button>
+        <button type="button" onClick={onSettings} aria-label="Settings" className="grid h-10 w-10 place-items-center rounded-full" style={{ background: C.card }} data-testid="fit-open-settings"><Settings className="h-5 w-5" /></button>
       </div>
     </div>
     <Card className="mt-4 flex items-center gap-4" onClick={() => onTab("food")} testId="fit-today-calories">
@@ -180,9 +181,10 @@ function SettingsSheet({ data, update, onClose, onGoals, onAccount }: { data: Fi
     <Card onClick={() => setSheet("reminders")} className="mt-2 !p-4" testId="fit-open-reminders"><div className="flex items-center gap-3"><Bell className="h-5 w-5" style={{ color: C.lime }} /><span className="flex-1 font-semibold">Reminders</span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
     {sheet === "health" && <HealthSheet data={data} update={update} onClose={() => setSheet("")} />}
     {sheet === "reminders" && <RemindersSheet onClose={() => setSheet("")} />}
-    <Title>Units</Title>
-    <div className="grid grid-cols-2 gap-2">{(["lb", "kg"] as const).map((v) => <Btn key={v} kind={data.profile.units === v ? "primary" : "soft"} onClick={() => update((d) => ({ ...d, profile: { ...d.profile, units: v } }))}>{v === "lb" ? "Pounds" : "Kilograms"}</Btn>)}</div>
-    <p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>Weights you've already logged keep the numbers you typed.</p>
+    <Title>Measurements</Title>
+    <div className="grid grid-cols-2 gap-2" data-testid="fit-units">{(["lb", "kg"] as const).map((v) => <button key={v} type="button" onClick={() => update((d) => ({ ...d, profile: { ...d.profile, units: v } }))} aria-pressed={data.profile.units === v} className="rounded-[12px] p-3 text-left" style={data.profile.units === v ? { background: C.lime, color: "#0b0b0c" } : { background: C.card }}>
+      <span className="block text-[20px] leading-none" style={display}>{v === "lb" ? "US" : "Metric"}</span><span className="mt-1 block text-[12px] font-semibold">{v === "lb" ? "lb · miles · ft/in · oz" : "kg · km · cm · liters"}</span></button>)}</div>
+    <p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>Weights, distances, height and water all switch. Weights you've already logged keep the numbers you typed.</p>
     <Title>Account</Title>
     <Card onClick={onAccount} className="!p-4"><div className="flex items-center gap-3"><ShieldCheck className="h-5 w-5" style={{ color: C.dim }} /><span className="flex-1 font-semibold">Account & privacy</span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
     <Btn kind="danger" className="mt-2 w-full" onClick={() => { logout(); goToSignIn(); }} testId="fit-signout"><LogOut className="h-5 w-5" />Sign out</Btn>
@@ -220,7 +222,7 @@ export default function FitApp() {
     <main id="fit-main" className="min-h-0 flex-1 overflow-y-auto px-4 pb-28 pt-[max(14px,env(safe-area-inset-top))]">
       {/* key={tab}: each tab's screen re-mounts, so it slides up into place and its rings and bars fill. */}
       <div key={tab} className="fit-in">
-        {tab === "today" && <TodayTab data={data} update={update} onTab={go} onStartProgram={startProgram} onProgress={() => setProgress(true)} onCoach={() => setCoach(true)} onStart={(a) => { setCoach(false); setActive(a); }} token={token} user={first} list={list} />}
+        {tab === "today" && <TodayTab data={data} update={update} onTab={go} onStartProgram={startProgram} onProgress={() => setProgress(true)} onSettings={() => setSettings(true)} onCoach={() => setCoach(true)} onStart={(a) => { setCoach(false); setActive(a); }} token={token} user={first} list={list} />}
         {tab === "train" && <><h1 className="mb-4 px-1 text-[46px] leading-[.95]" style={display}>Train</h1><TrainTab data={data} update={update} list={list} onStart={setActive} say={say} onCoach={() => setCoach(true)} /></>}
         {tab === "food" && <><h1 className="mb-3 px-1 text-[46px] leading-[.95]" style={display}>Food</h1><FoodTab token={token} data={data} update={update} say={say} /></>}
         {tab === "fast" && <FastingSheet inline data={data} update={update} onClose={() => go("today")} />}
@@ -228,7 +230,7 @@ export default function FitApp() {
       </div>
       {saving === "offline" && <p className="mt-6 text-center text-[12px]" style={{ color: C.dim }}>Offline: changes are kept on this phone and will save when you're back online.</p>}
     </main>
-    <nav aria-label="Arise Fit" className="fixed inset-x-3 z-[40] mx-auto flex max-w-md items-center rounded-[14px] p-1.5" style={{ bottom: "max(12px, env(safe-area-inset-bottom))", background: "rgba(18,19,22,.96)", backdropFilter: "blur(16px)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.06), 0 12px 32px rgba(0,0,0,.6)" }}>
+    <nav aria-label="Arise Fit" className="fixed inset-x-3 z-[40] mx-auto flex max-w-md items-center rounded-[14px] p-1.5" style={{ bottom: "max(12px, env(safe-area-inset-bottom))", background: "rgba(32,35,41,.96)", backdropFilter: "blur(16px)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.06), 0 12px 32px rgba(0,0,0,.6)" }}>
       {/* The highlight slides under the tab you pick. */}
       <span aria-hidden className="absolute bottom-1.5 top-1.5 rounded-[10px]" style={{ width: `calc((100% - 12px) / ${tabs.length})`, left: `calc(6px + ${at} * (100% - 12px) / ${tabs.length})`, background: "linear-gradient(180deg, rgba(255,90,31,.24), rgba(255,90,31,.08))", boxShadow: "inset 0 -2px 0 #ff5a1f", transition: "left .35s cubic-bezier(.2,.9,.2,1)" }} />
       {tabs.map(([id, label, Icon]) => <button key={id} type="button" onClick={() => go(id)} aria-current={tab === id ? "page" : undefined} data-testid={`fit-tab-${id}`}

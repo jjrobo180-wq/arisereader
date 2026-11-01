@@ -999,9 +999,9 @@ function AppInner() {
   // student number) and must replace it before doing anything else in the app.
   if (user?.mustChangePassword) return <ForcePasswordChange />;
   // The Arise Fit iPhone app is its own app: sign in, then Arise Fit (pages/fit/FitApp.tsx).
-  if (isFitApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: "#0b0b10" }} />}>{user ? <FitApp /> : <NativeSignIn />}</Suspense></Router>;
+  if (isFitApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: "#15171b" }} />}>{user ? <FitApp /> : <NativeSignIn />}</Suspense></Router>;
   // The Arise Trainer iPhone app: sign in, then Arise Trainer (pages/trainer/TrainerApp.tsx).
-  if (isTrainerApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: "#0a0a0b" }} />}>{user ? <TrainerApp /> : <NativeSignIn />}</Suspense></Router>;
+  if (isTrainerApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: "#15171b" }} />}>{user ? <TrainerApp /> : <NativeSignIn />}</Suspense></Router>;
 
   const overlays = !inGame;
   return (

@@ -2,11 +2,11 @@
   "appId": "com.arisereader.fit",
   "appName": "Arise Fit",
   "webDir": "www",
-  "backgroundColor": "#0b0b10",
+  "backgroundColor": "#15171b",
   "plugins": {
     "SplashScreen": {
       "launchShowDuration": 900,
-      "backgroundColor": "#0b0b10",
+      "backgroundColor": "#15171b",
       "showSpinner": false
     },
     "Keyboard": {
@@ -21,6 +21,6 @@
   },
   "ios": {
     "contentInset": "automatic",
-    "backgroundColor": "#0b0b10"
+    "backgroundColor": "#15171b"
   }
 }

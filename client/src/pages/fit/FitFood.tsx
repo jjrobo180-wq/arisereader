@@ -176,6 +176,9 @@ export function PlanSheet({ data, update, onClose }: { data: FitData; update: Up
   </Sheet>;
 }
 
+/** One US fluid ounce in milliliters (water is kept in ml). */
+const OZ = 29.5735;
+
 export function FoodTab({ token, data, update, say }: { token: string | null; data: FitData; update: Update; say: (m: string) => void }) {
   const [date, setDate] = useState(dayKey());
   const [adding, setAdding] = useState<{ meal: Meal; start?: AddTab } | null>(null);
@@ -187,6 +190,8 @@ export function FoodTab({ token, data, update, say }: { token: string | null; da
   const t = totals(foods);
   const g = goals(data.profile, latestKg(data));
   const water = data.water[date] || 0;
+  // US measurements (ounces) unless the person picked metric.
+  const us = data.profile.units !== "kg";
   const points = data.profile.trackMode === "points";
   const used = foods.reduce((n, f) => n + pointsOf({ kcal: f.kcal * f.servings, p: f.p * f.servings, c: f.c * f.servings, f: f.f * f.servings }), 0);
   const budget = pointsBudget(g);
@@ -246,10 +251,10 @@ export function FoodTab({ token, data, update, say }: { token: string | null; da
           <button type="button" onClick={() => setAdding({ meal: m.id })} className="flex min-h-11 w-full items-center gap-2 px-2 text-[15px] font-semibold" style={{ color: C.lime }} data-testid={`fit-add-${m.id}`}><Plus className="h-5 w-5" />Add food</button>
         </Card></div>;
     })}
-    <Title right={<span className="text-[13px] font-semibold tabular-nums" style={{ color: C.dim }}>{(water / 1000).toFixed(2)} / {(data.profile.waterGoalMl / 1000).toFixed(1)} L</span>}>Water</Title>
+    <Title right={<span className="text-[13px] font-semibold tabular-nums" style={{ color: C.dim }}>{us ? `${Math.round(water / OZ)} / ${Math.round(data.profile.waterGoalMl / OZ)} oz` : `${(water / 1000).toFixed(2)} / ${(data.profile.waterGoalMl / 1000).toFixed(1)} L`}</span>}>Water</Title>
     <Card className="flex items-center gap-3 !p-3"><Droplets className="h-7 w-7 shrink-0" style={{ color: C.blue }} />
       <div className="h-3 min-w-0 flex-1 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,.08)" }}><div className="h-full rounded-full" style={{ width: `${Math.min(100, (water / data.profile.waterGoalMl) * 100)}%`, background: C.blue }} /></div>
-      {[250, 500].map((ml) => <Btn key={ml} kind="soft" className="!min-h-10 !px-3 text-[14px]" onClick={() => update((d) => ({ ...d, water: { ...d.water, [date]: (d.water[date] || 0) + ml } }))}>+{ml}</Btn>)}
+      {(us ? [[8, 8 * OZ], [16, 16 * OZ]] : [[250, 250], [500, 500]]).map(([label, ml]) => <Btn key={label} kind="soft" className="!min-h-10 !px-3 !text-[14px]" onClick={() => update((d) => ({ ...d, water: { ...d.water, [date]: Math.round((d.water[date] || 0) + ml) } }))}>+{label}{us ? " oz" : ""}</Btn>)}
     </Card>
     <button type="button" onClick={() => setReport(true)} className="mt-4 flex w-full items-center gap-3 rounded-[12px] px-4 py-3 text-left" style={{ background: C.card }} data-testid="fit-open-report">
       <BarChart3 className="h-5 w-5 shrink-0" style={{ color: C.lime }} /><span className="flex-1 text-[17px] leading-none" style={display}>Weekly nutrition report</span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></button>

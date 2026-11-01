@@ -61,7 +61,7 @@ export function CoachCard({ token, data, list, onStart, onOpen }: { token: strin
         <Btn className="!min-h-10 !px-3 !text-[15px]" onClick={() => onStart(startAssigned(a, data, list))} testId="fit-coach-start"><Play className="h-4 w-4" fill="currentColor" />Start</Btn></div>)}
     </Card>;
   }
-  return <Card onClick={onOpen} className="fit-shine !p-4" style={{ background: "linear-gradient(150deg, #1e1410, #141518)" }} testId="fit-find-trainer">
+  return <Card onClick={onOpen} className="fit-shine !p-4" style={{ background: "linear-gradient(150deg, #2e1d14, #202329)" }} testId="fit-find-trainer">
     <div className="flex items-center gap-3"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-[12px]" style={{ background: C.lime, color: "#0b0b0c" }}><UserRound className="h-6 w-6" /></span>
       <span className="min-w-0 flex-1"><span className="block text-[22px] leading-none" style={display}>{pending ? "Request sent" : "Find a trainer"}</span>
         <span className="mt-0.5 block text-[13px]" style={{ color: C.steel }}>{pending ? `Waiting for ${pending.trainer!.name} to accept.` : "Real coaches, not AI. In person, live video or online."}</span></span>
@@ -102,7 +102,7 @@ export function CoachScreen({ token, me, data, update, list, onStart, onClose }:
   const hasActive = mine.some((l) => l.status === "active");
   // Once there's a trainer (or a request), notifications bring their messages and new workouts.
   useEffect(() => { if (mine.length && isNativeApp()) void startApplePush(true); }, [mine.length]);
-  const findNew = <Directory onOpen={(t) => setOpen(t.id)} intro={<Card className="!p-4" style={{ background: "linear-gradient(150deg, #1e1410, #141518)" }}>
+  const findNew = <Directory onOpen={(t) => setOpen(t.id)} intro={<Card className="!p-4" style={{ background: "linear-gradient(150deg, #2e1d14, #202329)" }}>
     <p className="text-[12px] tracking-[.14em]" style={{ ...display, color: C.lime }}>Real people. No AI.</p>
     <p className="text-[28px] leading-none" style={display}>Find your trainer</p>
     <p className="mt-1 text-[14px]" style={{ color: C.steel }}>Certified coaches set their own prices for in-person, live-video or online training. Read reviews from their real clients, then ask one to coach you.</p>
@@ -184,7 +184,7 @@ function PlanTab({ token, link, side, saveSide, data, update, list, onStart }: {
         <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full" style={on ? { background: C.lime, color: "#0b0b0c" } : { boxShadow: `inset 0 0 0 2px ${C.dim}` }}>{on && <Check key="on" className="fit-tick h-5 w-5" strokeWidth={3} />}</span><span className="font-semibold">{h.name}</span></button>; })}</div></>}
     {n && <><Title><Utensils className="h-4 w-4" />Nutrition targets</Title><Card>
       <div className="grid grid-cols-4 gap-2 text-center">{([["kcal", n.kcal, "cal"], ["Protein", n.p, "g"], ["Carbs", n.c, "g"], ["Fat", n.f, "g"]] as const).map(([l, v, u]) => <div key={l}><p className="text-[22px] leading-none" style={display}>{v ?? "—"}</p><p className="mt-1 text-[11px] uppercase" style={{ color: C.dim }}>{l === "kcal" ? "calories" : `${l} ${u}`}</p></div>)}</div>
-      {n.waterL ? <p className="mt-3 text-[13px]" style={{ color: C.dim }}>Water: {n.waterL} L a day</p> : null}
+      {n.waterL ? <p className="mt-3 text-[13px]" style={{ color: C.dim }}>Water: {data.profile.units === "kg" ? `${n.waterL} L` : `${Math.round((n.waterL * 1000) / 29.5735)} oz`} a day</p> : null}
       {n.note && <p className="mt-2 whitespace-pre-line text-[14px]">{n.note}</p>}
       {n.kcal && <Btn kind="soft" className="mt-3 w-full" onClick={() => {
         const kcal = n.kcal!; const split = n.p && n.c && n.f ? (() => { const P = n.p! * 4, Cc = n.c! * 4, F = n.f! * 9, sum = P + Cc + F; return { p: Math.round((P / sum) * 100), c: Math.round((Cc / sum) * 100), f: 100 - Math.round((P / sum) * 100) - Math.round((Cc / sum) * 100) }; })() : undefined;

@@ -48,13 +48,13 @@ function Figure({ shapes, picked, onPick, label }: { shapes: typeof FRONT; picke
   return <figure className="m-0 flex min-w-0 flex-1 flex-col items-center">
     <svg viewBox="20 4 160 424" className="h-[340px] w-full max-w-[170px]" role="group" aria-label={`${label} of the body`}>
       <defs>
-        <linearGradient id="fitMuscle" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#3a3e44" /><stop offset="1" stopColor="#24272b" /></linearGradient>
+        <linearGradient id="fitMuscle" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#4b5058" /><stop offset="1" stopColor="#353940" /></linearGradient>
         <linearGradient id="fitMuscleOn" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#ff7a3d" /><stop offset="1" stopColor="#d9400c" /></linearGradient>
         <filter id="fitGlow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="3.5" /></filter>
       </defs>
-      <path d={SILHOUETTE} fill="#16181b" stroke="#2a2d32" />
-      <path d={SILHOUETTE} transform="translate(200 0) scale(-1 1)" fill="#16181b" stroke="#2a2d32" />
-      <ellipse cx="100" cy="34" rx="15" ry="19" fill="#1f2226" />
+      <path d={SILHOUETTE} fill="#262a30" stroke="#3a3e46" />
+      <path d={SILHOUETTE} transform="translate(200 0) scale(-1 1)" fill="#262a30" stroke="#3a3e46" />
+      <ellipse cx="100" cy="34" rx="15" ry="19" fill="#30343b" />
       {picked && shapes.filter((s) => s.part === picked).map((s, i) => <g key={`g${i}`} filter="url(#fitGlow)" opacity=".55" pointerEvents="none"><path d={s.d} fill="#ff5a1f" /><path d={s.d} transform="translate(200 0) scale(-1 1)" fill="#ff5a1f" /></g>)}
       {shapes.map((s, i) => shape(s, `l${i}`, false))}
       {shapes.map((s, i) => shape(s, `r${i}`, true))}
