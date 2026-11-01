@@ -55,7 +55,11 @@ import { registerQuizIntegrityRoutes } from "./quizIntegrity";
 import { registerParentQuizPermissionRoutes } from "./parentQuizPermission";
 import { registerComprehensionRoutes } from "./comprehension";
 import { recordLogin, registerStudentActivityRoutes } from "./studentActivity";
-import { countHubStudents, createHubGate, registerTeacherHubRoutes } from "./teacherHub";
+import { countHubStudents, createHubGate, createSupabaseWorkspaceStore, registerTeacherHubRoutes } from "./teacherHub";
+import { registerAriseNotesRoutes, startNotesTicker } from "./ariseNotes";
+import { createSupabaseNotesStore } from "./ariseNotesStore";
+import { askSiteAi, createHearer, siteAiReady } from "./ariseNotesAi";
+import { createSupabaseLifeStore } from "./ariseNotesHubs";
 import { registerAriseTodoRoutes } from "./ariseTodo";
 import { registerWhatsNewRoutes } from "./whatsNew";
 import { registerAdminHandoffRoutes } from "./adminHandoff";
@@ -1612,6 +1616,28 @@ export async function registerRoutes(
   };
   registerAccountabilityRoutes(app, authMiddleware, acctDeps);
   if (process.env.NODE_ENV !== "test") startAccountabilityTicker(acctDeps);
+  // Arise Notes, the AI note taker (server/ariseNotes.ts): its own app at /notes/ and an app inside
+  // Arise To Duo. Record or upload, a transcript with times, AI summaries, minutes per plan.
+  const notesStore = createSupabaseNotesStore(() => getAdminSupabase() as any);
+  registerAriseNotesRoutes(app, authMiddleware, {
+    store: notesStore,
+    hear: createHearer(),
+    ask: askSiteAi,
+    aiReady: siteAiReady,
+    planOf: async (userId, user) => (await plans.notesPlan(userId, user as any)).plan,
+    getUser: async (id) => (await storage.getUser(id)) as any,
+    // Students under 13 only come through a teacher or a parent: a student account needs one.
+    studentAllowed: async (u) => !!u.teacherId || (await getStudentParentIds(Number(u.id))).length > 0,
+    push: (userId, message) => notifyUser(userId, message),
+    email: async (to, subject, html) => (await sendEmail(to, subject, html)).sent,
+    life: createSupabaseLifeStore(() => getAdminSupabase()),
+    work: createSupabaseWorkspaceStore(),
+    makeQuiz: async (user, q) => {
+      const quiz = await storage.createCustomEyeGazeQuiz(user.id, q.title, q.description, "Custom", q.questions, user.isAdmin ? "global" : "teacher_students", user.isAdmin ? null : user.id, "regular");
+      return quiz?.id ? { id: Number(quiz.id) } : null;
+    },
+  });
+  if (process.env.NODE_ENV !== "test") startNotesTicker(notesStore);
   registerSleepFinderRoutes(app, authMiddleware);
   // One podcast directory for Earshot and Podscroll: shared caches (kept in the database) and one pace for Apple.
   const podcasts = createPodcastDirectory({ kv: supabaseKV(getAdminSupabase) });

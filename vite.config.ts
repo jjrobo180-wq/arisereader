@@ -16,6 +16,13 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    // Two pages: the A.R.I.S.E. / Arise To Duo app, and Arise Notes on its own at /notes/.
+    rollupOptions: {
+      input: {
+        main: path.resolve(import.meta.dirname, "client", "index.html"),
+        notes: path.resolve(import.meta.dirname, "client", "notes", "index.html"),
+      },
+    },
   },
   server: {
     fs: {

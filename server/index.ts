@@ -190,6 +190,10 @@ app.use("/api/docs", express.json({ limit: "11mb" }));
 // meetings (raw audio, a few minutes at a time). Before the global JSON parser, for their size.
 app.use(/^\/api\/(podscroll|earshot)\/studio\/read$/, express.json({ limit: "14mb" }));
 app.use(/^\/api\/(podscroll|earshot)\/studio\/transcribe$/, express.raw({ type: "*/*", limit: "26mb" }));
+// Arise Notes (server/ariseNotes.ts): a piece of a recording or a voice memo arrives as raw audio.
+// The sign-in is checked first, so a stranger can't make the server read 26 MB just to turn them away.
+app.use(/^\/api\/notes\/[^/]+\/pieces$/, (req, res, next) => { authMiddleware(req, res, next).catch(next); }, express.raw({ type: "*/*", limit: "26mb" }));
+app.use("/api/notes/memo", (req, res, next) => { authMiddleware(req, res, next).catch(next); }, express.raw({ type: "*/*", limit: "9mb" }));
 app.use("/api/app-data", express.json({ limit: "2500kb" }));
 app.use("/api/apps/ai", express.json({ limit: "200kb" }));
 // LifeHub workspaces can exceed the default 100 KB JSON request size.
