@@ -1,17 +1,18 @@
 // Arise Fit's guided-session player (shared/fitSessions.ts): one phase at a time with a big countdown,
 // a spoken cue at each change, three beeps before it, treadmill speed and incline for intervals, and an
-// expanding circle for breathing. The screen stays awake while it runs.
+// expanding circle for breathing. The coach speaks in the app's AI voice (lib/aiVoice, "troy"), never
+// the phone's built-in voice. The screen stays awake while it runs.
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Gauge, Mountain, Pause, Play, Trophy, Volume2, VolumeX, X } from "lucide-react";
 import { sessionSecs, type Phase, type Session } from "@shared/fitSessions";
+import { preloadAiVoice, sayAI, stopAiVoice } from "@/lib/aiVoice";
 import { Btn, C, Card, display, fmtDur, font } from "./fitUi";
 
 const KIND_COLOR: Record<Phase["kind"], string> = { warm: "#ffb020", work: "#ff5a1f", rest: "#4d9fff", cool: "#8d939b", pose: "#ff5a1f", "breathe-in": "#4d9fff", hold: "#b9c0c8", "breathe-out": "#ff5a1f", still: "#b9c0c8" };
 const BREATH = new Set<Phase["kind"]>(["breathe-in", "hold", "breathe-out"]);
 
-function say(text: string) {
-  try { const s = window.speechSynthesis; if (!s) return; s.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate = 1.02; u.pitch = 0.85; s.speak(u); } catch { /* no voice on this device */ }
-}
+const COACH = "troy" as const;
+function say(text: string) { stopAiVoice(); void sayAI(text, { voice: COACH }).catch(() => { /* no voice reachable: the screen still shows everything */ }); }
 let audio: AudioContext | null = null;
 function beep(high = false) {
   try {
@@ -49,11 +50,13 @@ export function SessionPlayer({ session, onClose, onDone }: { session: Session; 
   const left = Math.ceil(leftMs / 1000);
   const elapsed = session.phases.slice(0, i).reduce((t, x) => t + x.secs, 0) + (p.secs - leftMs / 1000);
 
+  // Every line the coach will say, made ahead so each one plays the moment its phase starts.
+  useEffect(() => { for (const t of new Set(session.phases.map(announce)).values()) void preloadAiVoice(t, COACH).catch(() => {}); }, [session]);
   // Keep the screen on.
   useEffect(() => {
     let lock: any = null;
     (navigator as any).wakeLock?.request?.("screen").then((l: any) => { lock = l; }).catch(() => {});
-    return () => { try { lock?.release?.(); } catch { /* gone */ } window.speechSynthesis?.cancel(); };
+    return () => { try { lock?.release?.(); } catch { /* gone */ } stopAiVoice(); };
   }, []);
   useEffect(() => { if (finished) return; const t = window.setInterval(() => setNow(Date.now()), 200); return () => window.clearInterval(t); }, [finished]);
   // A new phase: speak it.
@@ -70,7 +73,7 @@ export function SessionPlayer({ session, onClose, onDone }: { session: Session; 
   }, [now]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const go = (to: number) => { const n = Math.max(0, Math.min(session.phases.length - 1, to)); setI(n); if (pausedLeft !== null) setPausedLeft(session.phases[n].secs * 1000); else setEndAt(Date.now() + session.phases[n].secs * 1000); };
-  const toggle = () => { if (pausedLeft !== null) { setEndAt(Date.now() + pausedLeft); setPausedLeft(null); } else { setPausedLeft(leftMs); window.speechSynthesis?.cancel(); } };
+  const toggle = () => { if (pausedLeft !== null) { setEndAt(Date.now() + pausedLeft); setPausedLeft(null); } else { setPausedLeft(leftMs); stopAiVoice(); } };
   const color = KIND_COLOR[p.kind];
   const next = session.phases[i + 1];
   const breathScale = p.kind === "breathe-in" ? 1 : p.kind === "breathe-out" ? 0.45 : p.kind === "hold" ? (session.phases[i - 1]?.kind === "breathe-in" ? 1 : 0.45) : 0.7;
@@ -91,7 +94,7 @@ export function SessionPlayer({ session, onClose, onDone }: { session: Session; 
     <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
       <button type="button" onClick={() => { if (window.confirm("End this session?")) onClose(); }} aria-label="End session" className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card }}><X className="h-5 w-5" /></button>
       <div className="min-w-0 flex-1 text-center"><p className="truncate text-[17px]" style={display}>{session.name}</p><p className="text-[12px] tabular-nums" style={{ color: C.dim }}>{fmtDur(elapsed)} / {fmtDur(total)}</p></div>
-      <button type="button" onClick={() => { setVoice((v) => !v); window.speechSynthesis?.cancel(); }} aria-label={voice ? "Mute voice" : "Turn voice on"} aria-pressed={voice} className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card }}>{voice ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}</button>
+      <button type="button" onClick={() => { setVoice((v) => !v); stopAiVoice(); }} aria-label={voice ? "Mute voice" : "Turn voice on"} aria-pressed={voice} className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card }}>{voice ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}</button>
     </div>
     <div className="mx-4 h-1.5 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,.08)" }}><div className="h-full" style={{ width: `${Math.min(100, (elapsed / total) * 100)}%`, background: C.lime, transition: "width .25s linear" }} /></div>
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-6 text-center">
