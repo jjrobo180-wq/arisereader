@@ -1,7 +1,7 @@
 // Arise Fit: training and nutrition in one app (the iPhone app built with VITE_NATIVE_APP=fit, and
 // #/fit on the website). Tabs: Today, Train, Food, Progress. Data: fitStore.ts → server/fit.ts.
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, Apple, BarChart3, ChevronRight, Dumbbell, Flame, Home, LogOut, Play, Scale, Settings, ShieldCheck, Trophy } from "lucide-react";
+import { Activity, Apple, BarChart3, Bell, ChevronRight, HeartPulse, Dumbbell, Flame, Home, LogOut, Play, Scale, Settings, ShieldCheck, Trophy } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import AccountPrivacy from "@/components/AccountPrivacy";
 import { goToSignIn } from "@/lib/hubs";
@@ -11,6 +11,8 @@ import { ExerciseDetail, LiveWorkout, TrainTab, libraryFallback, planned, progra
 import { FoodTab, latestKg, totals } from "./FitFood";
 import { CoverCard, VideoPlayer } from "./FitVideo";
 import { FastingCard, FastingSheet } from "./FitFasting";
+import { HealthSheet, RemindersSheet, StepsCard, useHealth } from "./FitHealth";
+import { saveToHealth } from "./fitNative";
 import { DIET_BY_ID, pointsBudget, pointsOf } from "@shared/fitNutrition";
 import { videoFor, videoOfTheDay } from "@shared/fitVideos";
 import { Bar, Btn, C, Card, Columns, Field, Ring, Sheet, Spark, Title, fmtNum, font, inputCls, inputStyle, display, useFitFonts } from "./fitUi";
@@ -68,6 +70,7 @@ function TodayTab({ data, update, onTab, onStartProgram, user, list }: { data: F
   const tip = tipId ? list.find((e) => e.id === tipId) : undefined;
   const [watch, setWatch] = useState(false);
   const [fasting, setFasting] = useState(false);
+  const health = useHealth(update);
   const points = data.profile.trackMode === "points";
   const used = data.foods.filter((f) => f.date === today).reduce((n, f) => n + pointsOf({ kcal: f.kcal * f.servings, p: f.p * f.servings, c: f.c * f.servings, f: f.f * f.servings }), 0);
   const budget = pointsBudget(g);
@@ -91,6 +94,7 @@ function TodayTab({ data, update, onTab, onStartProgram, user, list }: { data: F
       <Card className="!p-4"><Activity className="h-5 w-5" style={{ color: C.lime }} /><p className="mt-2 text-[24px] font-bold">{thisWeek.length}</p><p className="text-[12px]" style={{ color: C.dim }}>workouts this week</p></Card>
       <Card className="!p-4"><BarChart3 className="h-5 w-5" style={{ color: C.blue }} /><p className="mt-2 text-[24px] font-bold">{fmtNum(vol)}</p><p className="text-[12px]" style={{ color: C.dim }}>{data.profile.units} lifted this week</p></Card>
     </div>
+    {health && <div className="mt-3"><StepsCard data={data} snap={health} /></div>}
     <div className="mt-3"><FastingCard data={data} update={update} onOpen={() => setFasting(true)} /></div>
     <p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>{DIET_BY_ID.get(data.profile.dietPlan ?? "balanced")?.name} plan · change it in Food</p>
     {tip && <><Title right={<button type="button" onClick={() => setWatch(true)} className="text-[14px] font-semibold" style={{ color: C.lime }}>Cues</button>}>Form tip of the day</Title>
@@ -107,7 +111,7 @@ function WeightCard({ data, update }: { data: FitData; update: Update }) {
   const pts = data.weights.slice(-30).map((w) => ({ x: w.date.slice(5), y: Math.round(fromKg(w.kg, u) * 10) / 10 }));
   return <><Title>Weight</Title><Card>
     <Spark points={pts} color={C.blue} label={(y) => `${y} ${u}`} />
-    <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); const n = Number(val); if (n > 0) { update((d) => ({ ...d, weights: [...d.weights.filter((x) => x.date !== dayKey()), { date: dayKey(), kg: Math.round(toKg(n, u) * 10) / 10 }] })); setVal(""); } }}>
+    <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); const n = Number(val); if (n > 0) { saveToHealth("weight", Math.round(toKg(n, u) * 10) / 10); update((d) => ({ ...d, weights: [...d.weights.filter((x) => x.date !== dayKey()), { date: dayKey(), kg: Math.round(toKg(n, u) * 10) / 10 }] })); setVal(""); } }}>
       <input inputMode="decimal" value={val} onChange={(e) => setVal(e.target.value.replace(/[^\d.]/g, "").slice(0, 5))} placeholder={`Today's weight (${u})`} className={inputCls} style={inputStyle} data-testid="fit-weight" />
       <Btn type="submit" disabled={!(Number(val) > 0)}><Scale className="h-5 w-5" /></Btn></form>
   </Card></>;
@@ -145,6 +149,7 @@ function ProgressTab({ data, update, list, onSettings }: { data: FitData; update
 }
 
 function SettingsSheet({ data, update, onClose, onGoals, onAccount }: { data: FitData; update: Update; onClose: () => void; onGoals: () => void; onAccount: () => void }) {
+  const [sheet, setSheet] = useState<"" | "health" | "reminders">("");
   const { logout } = useAuth();
   const g = goals(data.profile, latestKg(data));
   const [kcal, setKcal] = useState(data.profile.kcalGoal ? String(data.profile.kcalGoal) : "");
@@ -153,6 +158,11 @@ function SettingsSheet({ data, update, onClose, onGoals, onAccount }: { data: Fi
     <Card onClick={onGoals} className="!p-4"><div className="flex items-center justify-between"><div><p className="font-semibold">Body and goal</p><p className="text-[13px]" style={{ color: C.dim }}>{g.kcal} calories · P {g.p}g · C {g.c}g · F {g.f}g (maintenance about {g.tdee})</p></div><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
     <Card className="mt-2 !p-4"><Field label="Set my own calorie goal (blank = automatic)"><div className="flex gap-2"><input inputMode="numeric" value={kcal} onChange={(e) => setKcal(e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder={String(g.kcal)} className={inputCls} style={inputStyle} />
       <Btn kind="soft" onClick={() => update((d) => ({ ...d, profile: { ...d.profile, kcalGoal: Number(kcal) >= 900 ? Number(kcal) : undefined } }))}>Save</Btn></div></Field></Card>
+    <Title>iPhone</Title>
+    <Card onClick={() => setSheet("health")} className="!p-4" testId="fit-open-health"><div className="flex items-center gap-3"><HeartPulse className="h-5 w-5" style={{ color: "#ff375f" }} /><span className="flex-1 font-semibold">Apple Health</span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
+    <Card onClick={() => setSheet("reminders")} className="mt-2 !p-4" testId="fit-open-reminders"><div className="flex items-center gap-3"><Bell className="h-5 w-5" style={{ color: C.lime }} /><span className="flex-1 font-semibold">Reminders</span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
+    {sheet === "health" && <HealthSheet data={data} update={update} onClose={() => setSheet("")} />}
+    {sheet === "reminders" && <RemindersSheet onClose={() => setSheet("")} />}
     <Title>Units</Title>
     <div className="grid grid-cols-2 gap-2">{(["lb", "kg"] as const).map((v) => <Btn key={v} kind={data.profile.units === v ? "primary" : "soft"} onClick={() => update((d) => ({ ...d, profile: { ...d.profile, units: v } }))}>{v === "lb" ? "Pounds" : "Kilograms"}</Btn>)}</div>
     <p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>Weights you've already logged keep the numbers you typed.</p>
