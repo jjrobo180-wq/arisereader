@@ -1,0 +1,75 @@
+name: Widget simulator diagnostics
+# Installs the app with its widgets on an iOS simulator and records what iOS says when it loads the widget extension.
+on:
+  push:
+    branches: ['diag/widget-sim']
+jobs:
+  sim:
+    runs-on: xcode-27
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: fit-all, flavor: fit, dir: fit, bundle: com.arisereader.fit, tint: ff5a1f, keep: 99 }
+          - { name: fit-two, flavor: fit, dir: fit, bundle: com.arisereader.fit, tint: ff5a1f, keep: 2 }
+          - { name: todo-all, flavor: todo, dir: arisetodo, bundle: com.arisereader.arisetodo, tint: f5b400, keep: 99 }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use the newest Xcode 27
+        shell: bash
+        run: |
+          X=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | grep -viE 'beta|release_candidate|_rc' | sort -V | tail -1 || true)
+          if [[ -z "$X" ]]; then X=$(xcode-select -p | sed 's#/Contents/Developer$##'); fi
+          echo "DEVELOPER_DIR=$X/Contents/Developer" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Bundle
+        run: |
+          if [[ "${{ matrix.flavor }}" == "fit" ]]; then VITE_NATIVE_APP=fit npx vite build; else npx vite build; fi
+          rm -rf ${{ matrix.dir }}/ios-app/www && mkdir -p ${{ matrix.dir }}/ios-app/www && cp -R dist/public/. ${{ matrix.dir }}/ios-app/www/
+      - working-directory: ${{ matrix.dir }}/ios-app
+        run: npm install --no-audit --no-fund
+      - name: Generate native project
+        working-directory: ${{ matrix.dir }}/ios-app
+        run: |
+          if [[ "${{ matrix.flavor }}" == "fit" ]]; then python3 ../../.github/scripts/ota_setup.py fit; fi
+          npx cap add ios && npx cap sync ios
+          if [[ "${{ matrix.flavor }}" == "fit" ]]; then python3 ../../.github/scripts/configure_fit_app.py ios/App/App/Info.plist fit; else python3 configure-ios.py ios/App/App/Info.plist; python3 add-sound.py ios/App/App.xcodeproj/project.pbxproj ios/App/App; fi
+          python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist
+      - name: Add widgets
+        working-directory: ${{ matrix.dir }}/ios-app
+        run: |
+          ruby -rxcodeproj -e 'puts Xcodeproj::VERSION' || gem install xcodeproj --no-document --user-install
+          export GEM_PATH="$(ruby -e 'puts Gem.user_dir'):$(ruby -e 'puts Gem.default_dir')"
+          W=$(python3 -c "import json;print(json.dumps(json.load(open('widgets.json'))[:${{ matrix.keep }}]))")
+          echo "widgets: $W"
+          ruby ../../.github/scripts/add_widget.rb ios/App/App.xcodeproj ${{ matrix.bundle }} "$W" ${{ matrix.tint }}
+      - name: Build for simulator (ad-hoc signed)
+        working-directory: ${{ matrix.dir }}/ios-app
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ./derived CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO DEVELOPMENT_TEAM= build | tail -5
+      - name: Install, launch and read what iOS says about the widgets
+        working-directory: ${{ matrix.dir }}/ios-app
+        run: |
+          set -x
+          APP=derived/Build/Products/Release-iphonesimulator/App.app
+          ls "$APP/PlugIns"; plutil -p "$APP/PlugIns/AriseWidgets.appex/Info.plist" | grep -E "Identifier|Minimum"
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys;d=json.load(sys.stdin)['devices'];print([x['udid'] for k,v in d.items() if 'iOS' in k for x in v if 'iPhone' in x['name']][-1])")
+          xcrun simctl boot "$UDID"; xcrun simctl bootstatus "$UDID" -b
+          START=$(date '+%Y-%m-%d %H:%M:%S')
+          xcrun simctl install "$UDID" "$APP"
+          xcrun simctl launch "$UDID" ${{ matrix.bundle }} || true
+          sleep 40
+          xcrun simctl terminate "$UDID" ${{ matrix.bundle }} || true
+          sleep 20
+          echo "===== LOG (widget extension / chronod)"
+          xcrun simctl spawn "$UDID" log show --start "$START" --style compact --predicate 'process == "chronod" OR process == "AriseWidgets" OR eventMessage CONTAINS[c] "AriseWidgets" OR eventMessage CONTAINS[c] "${{ matrix.bundle }}.widgets"' 2>&1 | grep -viE "sandbox|activity" | head -300 || true
+          echo "===== CRASH REPORTS"
+          ls -la ~/Library/Logs/DiagnosticReports/ 2>/dev/null | grep -i -E "arise|widget" || echo none
+          for f in $(ls ~/Library/Logs/DiagnosticReports/*AriseWidgets* 2>/dev/null); do head -80 "$f"; done
+          echo "===== DESCRIPTOR CACHE"
+          D=~/Library/Developer/CoreSimulator/Devices/$UDID/data
+          grep -rl "Arise\." "$D/Library" 2>/dev/null | head -20 || true
+          grep -rao "Arise\.[a-z.]*" "$D/Library" 2>/dev/null | sort -u | head -80 || true
