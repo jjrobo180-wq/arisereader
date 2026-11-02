@@ -26,6 +26,7 @@ export default function LinkedProfiles({ family, say }: SectionProps) {
   const [state, setState] = useState<LinksState | null>(null);
   const [error, setError] = useState("");
   const [inviting, setInviting] = useState(false);
+  const [asking, setAsking] = useState(false);
   const [viewing, setViewing] = useState<{ owner: SharedLink; item: ShareItem } | null>(null);
   const people = useMemo(() => healthPeople(family, user?.displayName?.split(" ")[0] || "Me").map((m) => ({ id: m.id, name: m.name })), [family, user?.displayName]);
   const catalog = useMemo(() => shareCatalog(people), [people]);
@@ -38,9 +39,16 @@ export default function LinkedProfiles({ family, say }: SectionProps) {
 
   return <div className="space-y-6">
     <PageHead eyebrow="Linked profiles" title="Share with the people who help" blurb="Link a co-parent, grandparent, sitter or teacher's A.R.I.S.E. account. You pick what they can see, and what they can change. Change it or stop sharing any time."
-      action={<button type="button" onClick={() => setInviting(true)} className={primary + " min-h-11 px-5"} data-testid="link-invite-open"><UserPlus size={17} /> Link someone</button>} />
+      action={<span className="flex flex-wrap gap-2"><button type="button" onClick={() => setAsking(true)} className={plain + " min-h-11 px-4"} data-testid="link-ask-open"><Eye size={17} /> Ask to see theirs</button><button type="button" onClick={() => setInviting(true)} className={primary + " min-h-11 px-5"} data-testid="link-invite-open"><UserPlus size={17} /> Link someone</button></span>} />
     {error && <p role="alert" className="rounded-2xl bg-rose-50 p-4 text-sm text-rose-700">{error} <button type="button" onClick={() => void load()} className="font-bold underline">Try again</button></p>}
     {!state && !error && <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-slate-400" /></div>}
+
+    {(state?.requests ?? []).map((r) => <div key={r.id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4" data-testid="link-request">
+      <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500 text-white"><Eye size={18} /></span>
+      <div className="min-w-0 flex-1"><p className="font-black text-slate-900">{r.fromName} asks to see yours</p><p className="text-sm text-slate-600">{grantSummary(r.grants, catalog)} · {Object.values(r.grants).includes("edit") ? "can log and change things" : "view only"}</p></div>
+      <button type="button" onClick={() => void act(() => api.approve(r.id), `You're sharing with ${r.fromName}.`)} className={primary} data-testid="link-request-approve"><Check size={16} /> Share</button>
+      <button type="button" onClick={() => void act(() => api.decline(r.id), "Request declined")} className={plain}>Not now</button>
+    </div>)}
 
     {pending.map((l) => <div key={`${l.ownerId}-${l.id}`} className="flex flex-wrap items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 p-4" data-testid="link-invite">
       <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600 text-white"><Mail size={18} /></span>
@@ -66,6 +74,9 @@ export default function LinkedProfiles({ family, say }: SectionProps) {
 
     {inviting && <InviteModal catalog={catalog} onClose={() => setInviting(false)} onInvite={async (email, nickname, grants) => {
       try { await api.invite(email, nickname, grants); setInviting(false); say(`Invite sent. When ${nickname || email} signs in to A.R.I.S.E., they'll see it to accept.`); await load(); } catch (e: any) { say(e.message); throw e; }
+    }} />}
+    {asking && <AskModal catalog={catalog} onClose={() => setAsking(false)} onAsk={async (email, nickname, grants) => {
+      try { await api.ask(email, nickname, grants); setAsking(false); say(`Request sent. When ${nickname || email} opens A.R.I.S.E., they can tap Share.`); } catch (e: any) { say(e.message); throw e; }
     }} />}
     {viewing && <LifeViewModal owner={viewing.owner} item={viewing.item} onClose={() => setViewing(null)} />}
   </div>;
@@ -103,10 +114,11 @@ function SharedWithMe({ link, catalog, onOpenLife, onLeave }: { link: SharedLink
 /** Off / View / Edit for each thing. LifeHub pages stop at View. */
 function GrantPicker({ grants, setGrants, catalog }: { grants: Grants; setGrants: (g: Grants) => void; catalog: ShareItem[] }) {
   const [query, setQuery] = useState("");
+  const [all, setAll] = useState(false);
   const q = query.trim().toLowerCase();
   const apps = catalog.filter((c) => c.kind === "app");
   const life = catalog.filter((c) => c.kind === "life");
-  const shownApps = q ? apps.filter((a) => a.label.toLowerCase().includes(q)) : apps.filter((a) => POPULAR.includes(a.id) || grants[a.id]).sort((a, b) => POPULAR.indexOf(a.id) - POPULAR.indexOf(b.id));
+  const shownApps = q ? apps.filter((a) => a.label.toLowerCase().includes(q)) : all ? apps : apps.filter((a) => POPULAR.includes(a.id) || grants[a.id]).sort((a, b) => POPULAR.indexOf(a.id) - POPULAR.indexOf(b.id));
   const set = (id: string, v: Access | null) => { const next = { ...grants }; if (v) next[id] = v; else delete next[id]; setGrants(next); };
   const row = (item: ShareItem) => {
     const v = grants[item.id] ?? null;
@@ -123,6 +135,7 @@ function GrantPicker({ grants, setGrants, catalog }: { grants: Grants; setGrants
       <h4 className="text-xs font-extrabold uppercase tracking-[.14em] text-slate-400">Apps</h4>
       <div className="relative mt-2"><Search size={15} className="pointer-events-none absolute left-3 top-3 text-slate-400" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={`Find any of ${apps.length} apps`} aria-label="Find an app" className={inputClass + " h-10 min-h-10 pl-9"} /></div>
       <ul className="divide-y divide-slate-100">{shownApps.map(row)}</ul>
+      {!q && apps.length > shownApps.length && <button type="button" onClick={() => setAll(true)} className="mt-1 w-full rounded-xl py-2 text-sm font-bold text-violet-700 hover:bg-violet-50" data-testid="grant-show-all">Show all {apps.length} apps</button>}
       {q && !shownApps.length && <p className="py-3 text-sm text-slate-500">No app matches “{query}”.</p>}
     </section>
     <section>
@@ -181,6 +194,34 @@ function InviteModal({ catalog, onClose, onInvite }: { catalog: ShareItem[]; onC
       <GrantPicker grants={grants} setGrants={setGrants} catalog={catalog} />
       <div className="sticky bottom-0 flex gap-2 border-t border-slate-100 bg-white pt-4">
         <button type="submit" disabled={!email.trim() || busy} className={primary + " min-h-12 flex-1"} data-testid="link-invite-send">{busy ? <Loader2 size={17} className="animate-spin" /> : <UserPlus size={17} />} Send invite · {count(grants)} shared</button>
+        <button type="button" onClick={onClose} className={plain}>Cancel</button>
+      </div>
+    </form>
+  </Modal>;
+}
+
+/** "Ask to see theirs": for when the other person already keeps the data on their own phone. */
+function AskModal({ catalog, onClose, onAsk }: { catalog: ShareItem[]; onClose: () => void; onAsk: (email: string, nickname: string, grants: Grants) => Promise<void> }) {
+  const [email, setEmail] = useState("");
+  const [nickname, setNickname] = useState("");
+  const [grants, setGrants] = useState<Grants>({ "app:potty": "edit" });
+  const [busy, setBusy] = useState(false);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !count(grants) || busy) return;
+    setBusy(true);
+    try { await onAsk(email.trim(), nickname.trim(), grants); } catch { /* the message is shown */ } finally { setBusy(false); }
+  };
+  return <Modal title="Ask to see theirs" eyebrow="Linked profiles" onClose={onClose} wide>
+    <form onSubmit={submit} className="space-y-5" data-testid="link-ask-form">
+      <p className="text-sm text-slate-600">Already logging on their own phone, like a daughter doing Potty Training? Ask, and what they keep opens here too. They choose whether to share, and can stop any time. You see and log in <b>their</b> copy, so nothing is split in two.</p>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <input autoFocus type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Their A.R.I.S.E. email" aria-label="Their email" className={inputClass} autoCapitalize="none" required />
+        <input value={nickname} onChange={(e) => setNickname(e.target.value)} maxLength={40} placeholder="Your name for them (optional)" aria-label="Name" className={inputClass} />
+      </div>
+      <GrantPicker grants={grants} setGrants={setGrants} catalog={catalog} />
+      <div className="sticky bottom-0 flex gap-2 border-t border-slate-100 bg-white pt-4">
+        <button type="submit" disabled={!email.trim() || !count(grants) || busy} className={primary + " min-h-12 flex-1"} data-testid="link-ask-send">{busy ? <Loader2 size={17} className="animate-spin" /> : <Eye size={17} />} Send request</button>
         <button type="button" onClick={onClose} className={plain}>Cancel</button>
       </div>
     </form>

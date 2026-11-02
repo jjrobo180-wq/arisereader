@@ -145,7 +145,7 @@ export default function PageScreen({ ctx, id, onBack }: { ctx: AppCtx; id: strin
 
   return <div className="flex h-full min-h-0 flex-col" style={{ background: lookStyle(look).background as string }} data-testid="pages-note">
     {/* Top bar */}
-    <header className="an-noprint sticky top-0 z-30 flex items-center gap-1 border-b border-black/5 bg-white/80 px-2 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
+    <header className="an-noprint an-notehead sticky top-0 z-30 flex items-center gap-1 px-2 pt-[env(safe-area-inset-top)]">
       <IconBtn label="Back to notes" onClick={back}><ChevronLeft className="h-6 w-6" /></IconBtn>
       <span className="min-w-0 flex-1 truncate text-[13px] text-[var(--an-muted)]">{page.locked && !content ? "Locked" : SYNC_WORDS[state]}</span>
       {content && <IconBtn label="Appearance" onClick={() => setPanel("look")}><Palette className="h-5 w-5" /></IconBtn>}
@@ -246,7 +246,7 @@ function TextBody({ content, look, edit, onSketch, onAiNote }: { content: PageCo
   const addTable = () => insertHtml(`<table style="border-collapse: collapse; width: 100%">${Array.from({ length: 3 }, (_, r) => `<tr>${Array.from({ length: 3 }, () => `<${r ? "td" : "th"} style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left"><br></${r ? "td" : "th"}>`).join("")}</tr>`).join("")}</table><p><br></p>`);
   const style = lookStyle(look);
   return <>
-    <div className="an-noprint sticky top-[calc(env(safe-area-inset-top)+3.5rem)] z-20 flex items-center border-b border-black/5 bg-white/85 backdrop-blur-xl">
+    <div className="an-noprint an-notehead sticky top-[calc(env(safe-area-inset-top)+3.5rem)] z-20 flex items-center">
       <div className="min-w-0 flex-1">{toolbar}</div>
       <div className="flex shrink-0 items-center gap-0.5 border-l border-black/5 px-1">
         <IconBtn label="Add a picture" onClick={() => fileIn.current?.click()}><ImageIcon className="h-[18px] w-[18px]" /></IconBtn>
@@ -257,8 +257,8 @@ function TextBody({ content, look, edit, onSketch, onAiNote }: { content: PageCo
       <input ref={fileIn} type="file" accept="image/*" className="sr-only" onChange={(e) => { void addImage(e.target.files?.[0]); e.target.value = ""; }} />
     </div>
     <div className="min-h-0 flex-1 overflow-y-auto" style={style}>
-      <div className={`mx-auto px-5 pb-10 pt-6 sm:px-8 ${look.wide ? "max-w-none" : "max-w-[760px]"}`}>
-        <input className="w-full bg-transparent text-[30px] font-extrabold leading-tight tracking-[-.02em] outline-none placeholder:opacity-40" style={{ fontFamily: style.fontFamily, color: "inherit" }}
+      <div className={`mx-auto px-6 pb-10 pt-7 sm:px-10 ${look.wide ? "max-w-none" : "max-w-[760px]"}`}>
+        <input className="an-bare an-doc-title w-full bg-transparent text-[34px] leading-[1.1] outline-none placeholder:opacity-30" style={{ fontFamily: style.fontFamily, color: "inherit" }}
           value={content.title} onChange={(e) => edit({ title: e.target.value.slice(0, 140) })} placeholder="Title" aria-label="Title" data-testid="pages-title" />
         <div className="mt-3">{page}</div>
       </div>
@@ -305,7 +305,7 @@ function InkBody({ content, pencilOnly, edit, onPencilOnly, title }: { content: 
     <input ref={photoIn} type="file" accept="image/*" className="sr-only" onChange={(e) => { void addPhotoPage(e.target.files?.[0]); e.target.value = ""; }} />
     <div className="min-h-0 flex-1 overflow-auto bg-[#ecebf3] px-3 py-5 sm:px-6" data-testid="pages-ink">
       <div className="mx-auto" style={{ width: `min(100%, ${Math.round(820 * zoom)}px)`, minWidth: zoom > 1 ? `${Math.round(820 * zoom)}px` : undefined }}>
-        <input className="mb-3 w-full bg-transparent text-[24px] font-extrabold tracking-[-.02em] text-[#1b1a26] outline-none placeholder:text-[#9a98ab]" value={content.title} onChange={(e) => edit({ title: e.target.value.slice(0, 140) })} placeholder="Title" aria-label="Title" data-testid="pages-title" />
+        <input className="an-bare an-doc-title mb-3 w-full bg-transparent text-[28px] text-[#1b1a26] outline-none placeholder:text-[#9a98ab]" value={content.title} onChange={(e) => edit({ title: e.target.value.slice(0, 140) })} placeholder="Title" aria-label="Title" data-testid="pages-title" />
         <div className="space-y-5">{content.ink.map((p, i) => <div key={p.id}>
           <InkCanvas page={p} tools={tools} pencilOnly={pencilOnly} label={`${title || "Note"}, page ${i + 1}`} onChange={(np) => setPage(i, np)} onPen={() => { if (!pencilOnly) onPencilOnly(true); }} />
           <div className="mt-1.5 flex items-center justify-between text-[12px] text-[#6b6880]">
