@@ -77,6 +77,7 @@ jobs:
         working-directory: arisetodo/ios-app
         run: |
           python3 configure-ios.py ios/App/App/Info.plist
+          python3 add-sound.py ios/App/App.xcodeproj/project.pbxproj ios/App/App
           python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist
       - name: Import Apple signing certificate and provisioning profile
         shell: bash

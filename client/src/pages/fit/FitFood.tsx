@@ -2,6 +2,7 @@
 // a photo or description estimated by AI, recent foods and quick add. Uses the same food lookup as the
 // Calorie counter in Arise To Duo (server/foodLookup.ts).
 import { useEffect, useMemo, useRef, useState } from "react";
+import { dayGoals } from "@shared/fitVacation";
 import { BarChart3, Bookmark, Camera, Check, ChefHat, ChevronLeft, ChevronRight, Copy, Droplets, Loader2, MapPin, Plus, ScanLine, Search, Sparkles, Trash2, Utensils, Zap } from "lucide-react";
 import { dayKey, goals, uid, type FitData, type FoodEntry, type Meal, type SavedMeal } from "@shared/fit";
 import type { FoundFood } from "@shared/foodLookup";
@@ -190,7 +191,7 @@ export function FoodTab({ token, data, update, say, snap, onRecipes, onEatOut }:
   const today = date === dayKey();
   const foods = useMemo(() => data.foods.filter((f) => f.date === date), [data.foods, date]);
   const t = totals(foods);
-  const g = goals(data.profile, latestKg(data));
+  const g = dayGoals(data, latestKg(data), new Date(`${date}T12:00:00`));
   const water = data.water[date] || 0;
   // US measurements (ounces) unless the person picked metric.
   const us = data.profile.units !== "kg";

@@ -13,6 +13,7 @@
 //   POST    /api/fit/busy      {place, level} "it's packed": shown to everyone for 90 minutes
 //   POST    /api/fit/recipe    {have, goal, left} the AI makes a recipe from what's in your kitchen
 //   /api/fit/circle…           workout circles (server/fitCircle.ts)
+//   /api/fit/buddy…            workout buddies matched with a stranger (server/fitBuddy.ts)
 //   /api/fit/plus, /pass…      Arise Fit+ and guest passes (server/fitPass.ts)
 // Photo scanning, AI recipes, gyms near me and eat out (identify, recipe, nearby, busy) need Fit+.
 //   The phone can't call Overpass and Nominatim itself: they refuse requests that don't identify the
@@ -26,6 +27,7 @@ import { GEAR_PROMPT_LIST, cleanGearIds } from "../shared/fitGym";
 import { NEARBY, REPORT_MS, crowdNow, foodQuery, gymsQuery, nearbyCell, type BusyLevel } from "../shared/fitNearby";
 import { cleanRecipe, type Recipe } from "../shared/fitRecipes";
 import { registerCircleRoutes, type CircleDeps } from "./fitCircle";
+import { registerBuddyRoutes } from "./fitBuddy";
 import { createSupabaseKv, type FitKv } from "./fitKv";
 import { needsPlus, registerPassRoutes, type PassDeps } from "./fitPass";
 
@@ -151,6 +153,7 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
   const store = opts.store ?? createSupabaseFitStore();
   const kv = opts.kv ?? createSupabaseKv();
   const circles = registerCircleRoutes(app, authMiddleware, { kv, getData: (id) => store.get(id), nameOf: opts.nameOf, notify: opts.notify });
+  const buddies = registerBuddyRoutes(app, authMiddleware, { kv, getData: (id) => store.get(id), notify: opts.notify });
   // Without a plan check (a test that doesn't pass one), nobody has Fit+.
   const passes = registerPassRoutes(app, authMiddleware, { kv, ownPlus: opts.ownPlus ?? (async () => ({ live: false })), payment: opts.payment, nameOf: opts.nameOf, notify: opts.notify });
   const plus = (what: string) => needsPlus(passes.plusOf, what);
@@ -209,10 +212,12 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
     try {
       // Someone who just finished a workout: their circle hears about it (only when they're in one).
       const group = await circles.groupOf(me).catch(() => null);
-      const before = group ? cleanFit(await store.get(me).catch(() => null)) : null;
+      const buddy = await buddies.pairOf(me).catch(() => null);
+      const before = group || buddy ? cleanFit(await store.get(me).catch(() => null)) : null;
       await store.set(me, data);
       res.json({ ok: true });
       if (group) void circles.tell(me, before, data).catch(() => {});
+      if (buddy) void buddies.tell(me, before, data).catch(() => {});
     }
     catch { res.status(503).json({ message: "Arise Fit couldn't save. Your changes are kept on this phone and will save when you're back online." }); }
   });

@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { CATALOG, PROGRAMS } from "../shared/fit";
-import { FIT_VIDEOS, videoFor, videoOfTheDay, videoPlayerUrl, videoThumb, videoWatchUrl } from "../shared/fitVideos";
+import { FIT_VIDEOS, SHORT_VIDEOS, longVideoFor, quickClipsUrl, videoFor, videoOfTheDay, videoPlayerUrl, videoThumb, videoWatchUrl } from "../shared/fitVideos";
 
 test("every exercise in the catalog has its own real YouTube video", () => {
   for (const e of CATALOG) {
@@ -48,4 +48,17 @@ test("the player page: YouTube's player on arisetodo.com, only real ids, and it 
   assert.match(ui, /allow="autoplay; encrypted-media; picture-in-picture; fullscreen"/);
   assert.match(ui, /sandbox="allow-scripts allow-same-origin allow-presentation"/, "no pop-ups or navigation: the YouTube app never opens");
   for (const f of ["FitVideo.tsx", "FitTrain.tsx", "FitApp.tsx"]) assert.doesNotMatch(readFileSync(`client/src/pages/fit/${f}`, "utf8"), /window\.open|Open in YouTube|howToVideo/, `${f} sends no one to YouTube`);
+});
+
+test("short clips: real exercises, valid ids, no repeats, and they come first with the long tutorial behind", () => {
+  const ids = Object.values(SHORT_VIDEOS).map((v) => v.id);
+  assert.equal(new Set(ids).size, ids.length, "a short is used twice");
+  for (const [k, v] of Object.entries(SHORT_VIDEOS)) {
+    assert.ok(CATALOG.some((e) => e.id === k), `${k} is not an exercise`);
+    assert.match(v.id, /^[A-Za-z0-9_-]{11}$/, k);
+    assert.equal(videoFor(k)?.id, v.id, `${k} should show its short first`);
+    assert.equal(videoFor(k)?.short, true);
+  }
+  assert.equal(longVideoFor("bench-press")?.id, FIT_VIDEOS["bench-press"].id);
+  assert.match(quickClipsUrl("Leg press"), /^https:\/\/www\.youtube\.com\/results\?search_query=Leg%20press%20form%20%23shorts/);
 });

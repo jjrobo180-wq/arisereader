@@ -12,6 +12,7 @@ import { ExerciseDetail, LiveWorkout, TrainTab, libraryFallback, planned, readAc
 import { BodyMap, MiniBody, recColor } from "./FitBody";
 import { SmartWorkoutCard, smartWorkoutNow } from "./FitSmart";
 import { CircleCard, CircleSheet } from "./FitCircle";
+import { BuddyCard, BuddySheet } from "./FitBuddy";
 import { PlusProvider, PlusTag, usePlus } from "./FitPlus";
 import { EatOut, NearbyGyms, RecipesSheet } from "./FitNearby";
 import { SiriSheet, useDeepLinks, type SiriAction } from "./FitSiri";
@@ -19,6 +20,8 @@ import { ScanMachine } from "./FitGym";
 import { programArt } from "./fitArt";
 import { BODY_PARTS, PART_NAME, recovery } from "@shared/fitRecovery";
 import { SleepSheet } from "./FitSleep";
+import { SplitCard, VacationCard, VacationSheet } from "./FitVacation";
+import { dayGoals } from "@shared/fitVacation";
 import { FoodTab, latestKg, totals } from "./FitFood";
 import { CoverCard, VideoPlayer } from "./FitVideo";
 import { FastingSheet, endFast, startFast } from "./FitFasting";
@@ -40,7 +43,7 @@ function sleepToday(data: FitData) {
 
 type Tab = "today" | "train" | "food" | "fast" | "run";
 /** Sheets that open over any tab (from Today, Siri or a link). */
-type Over = "" | "sleep" | "circle" | "gyms" | "eat" | "recipes" | "siri" | "scan";
+type Over = "" | "vacation" | "sleep" | "circle" | "buddy" | "gyms" | "eat" | "recipes" | "siri" | "scan";
 
 /** Ticks once a second while `on` (live timers on Today). */
 function useClock(on: boolean) {
@@ -87,7 +90,7 @@ function Setup({ data, update, onDone }: { data: FitData; update: Update; onDone
 function TodayTab({ data, update, onTab, onStartProgram, onProgress, onSettings, onCoach, onStart, onOver, token, user, list }: { data: FitData; update: Update; onTab: (t: Tab) => void; onStartProgram: () => void; onProgress: () => void; onSettings: () => void; onCoach: () => void; onStart: (a: NonNullable<ReturnType<typeof readActive>>) => void; onOver: (o: Over) => void; token: string | null; user: string; list: ReturnType<typeof libraryFallback> }) {
   const today = dayKey();
   const t = totals(data.foods.filter((f) => f.date === today));
-  const g = goals(data.profile, latestKg(data));
+  const g = dayGoals(data, latestKg(data));
   const s = streak(data);
   const prog = data.program ? PROGRAM_BY_ID.get(data.program.id) : undefined;
   const next = prog && data.program ? nextProgramDay(prog, data.program.done) : null;
@@ -149,12 +152,14 @@ function TodayTab({ data, update, onTab, onStartProgram, onProgress, onSettings,
     </Card>
     <Card className="mt-3 flex items-center gap-4" onClick={() => onTab("food")} testId="fit-today-calories">
       {points
-        ? <Ring value={used} goal={budget} size={118}><div><p className="text-[34px] leading-none" style={display}>{Math.max(0, budget - used)}</p><p className="mt-1 text-[11px] uppercase tracking-[.1em]" style={{ color: C.dim }}>points left</p></div></Ring>
-        : <Ring value={t.kcal} goal={g.kcal} size={118}><div><p className="text-[32px] leading-none" style={display}>{fmtNum(Math.max(0, g.kcal - t.kcal))}</p><p className="mt-1 text-[11px] uppercase tracking-[.1em]" style={{ color: C.dim }}>calories left</p></div></Ring>}
+        ? <Ring value={used} goal={budget} size={118}><div><p className="text-[34px] leading-none" style={display}>{Math.max(0, budget - used)}</p><p className="mt-1 whitespace-nowrap text-[10px] uppercase tracking-[.04em]" style={{ color: C.dim }}>pts left</p></div></Ring>
+        : <Ring value={t.kcal} goal={g.kcal} size={118}><div><p className="text-[32px] leading-none" style={display}>{fmtNum(Math.max(0, g.kcal - t.kcal))}</p><p className="mt-1 whitespace-nowrap text-[10px] uppercase tracking-[.04em]" style={{ color: C.dim }}>cal left</p></div></Ring>}
       <div className="min-w-0 flex-1 space-y-2.5"><Bar label="Protein" value={t.p} goal={g.p} color={C.pink} delay={0.3} /><Bar label="Carbs" value={t.c} goal={g.c} color={C.blue} delay={0.45} /><Bar label="Fat" value={t.f} goal={g.f} color={C.orange} delay={0.6} /></div>
     </Card>
+    {g.note && <p className="mt-2 px-1 text-[13px]" style={{ color: C.steel }} data-testid="fit-vacation-note">{g.note}</p>}
     <div className="mt-3"><CoachCard token={token} data={data} list={list} onStart={onStart} onOpen={onCoach} /></div>
     <CircleCard token={token} onOpen={() => onOver("circle")} />
+    <BuddyCard token={token} onOpen={() => onOver("buddy")} />
     <div className="mt-3 grid grid-cols-3 gap-2" data-testid="fit-near-row">
       {([["gyms", "Gyms near me", MapPin], ["eat", "Eat out", Utensils], ["recipes", "Recipes", ChefHat]] as const).map(([id, label, Icon], i) => <button key={id} type="button" onClick={() => { haptic("light"); onOver(id); }} className="fit-in flex min-h-[78px] flex-col items-start justify-between rounded-[14px] p-3 text-left active:scale-[.98]" style={{ ...cardStyle, ...stagger(i, 0.05) }} data-testid={`fit-open-${id}`}>
         <Icon className="h-5 w-5" style={{ color: C.lime }} /><span className="text-[16px] leading-[1.05]" style={display}>{label}{id !== "recipes" && <PlusTag />}</span></button>)}
@@ -166,6 +171,8 @@ function TodayTab({ data, update, onTab, onStartProgram, onProgress, onSettings,
       <Card className="!p-3.5" style={stagger(0, 0, 0.35)}><Activity className="h-5 w-5" style={{ color: C.lime }} /><p className="mt-2 text-[28px] leading-none tabular-nums" style={display}>{fmtNum(vol)}</p><p className="mt-1 text-[12px]" style={{ color: C.dim }}>{data.profile.units} lifted · 7 days</p></Card>
       <Card className="!p-3.5" onClick={() => onTab("run")} style={stagger(0, 0, 0.45)}><Route className="h-5 w-5" style={{ color: C.lime }} /><p className="mt-2 text-[28px] leading-none" style={display}>Run</p><p className="mt-1 text-[12px]" style={{ color: C.dim }}>GPS · trails near you</p></Card>
     </div>
+    <SplitCard data={data} update={update} onStart={onStart} />
+    <VacationCard data={data} onOpen={() => onOver("vacation")} />
     <Card className="mt-3 flex items-center gap-3 !p-3.5" onClick={() => onOver("sleep")} testId="fit-today-sleep"><Moon className="h-5 w-5 shrink-0" style={{ color: C.lime }} />
       <span className="min-w-0 flex-1"><span className="block text-[13px]" style={{ color: C.dim }}>{data.sleep?.asleepAt ? "Sleeping now" : "Sleep"}</span><span className="block text-[22px] leading-none tabular-nums" style={display}>{data.sleep?.asleepAt ? "Tap when you wake" : sleepToday(data)}</span></span>
       <ChevronRight className="h-5 w-5 shrink-0" style={{ color: C.dim }} /></Card>
@@ -372,8 +379,10 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
     {coach && <CoachScreen token={token} me={Number(user?.id) || 0} data={data} update={update} list={list} onStart={(a) => { setCoach(false); setActive(a); }} onClose={() => setCoach(false)} />}
     {progress && <ProgressSheet data={data} update={update} list={list} onClose={() => setProgress(false)} onSettings={() => setSettings(true)} />}
     {settings && <SettingsSheet data={data} update={update} onClose={() => setSettings(false)} onGoals={() => { setSettings(false); setProgress(false); setSetup(true); }} onAccount={() => setAccount(true)} onSiri={() => setOver("siri")} />}
+    {over === "vacation" && <VacationSheet data={data} update={update} list={list} onStart={(a) => setActive(a)} say={say} onClose={() => setOver("")} />}
     {over === "sleep" && <SleepSheet data={data} update={update} say={say} onClose={() => setOver("")} />}
     {over === "circle" && <CircleSheet onClose={() => { setOver(""); setJoinCode(undefined); }} say={say} joinCode={joinCode} />}
+    {over === "buddy" && <BuddySheet onClose={() => setOver("")} say={say} />}
     {over === "gyms" && <NearbyGyms data={data} update={update} say={say} onClose={() => setOver("")} />}
     {over === "eat" && <EatOut data={data} update={update} say={say} onClose={() => setOver("")} />}
     {over === "recipes" && <RecipesSheet data={data} update={update} say={say} onClose={() => setOver("")} />}

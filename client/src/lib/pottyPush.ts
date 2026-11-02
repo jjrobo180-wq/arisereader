@@ -5,7 +5,7 @@
 // notifications (LocalNotifications), so they ring with the app closed and no server is needed.
 import { API_BASE } from "@/lib/queryClient";
 import { isNativeApp, nativeCall } from "@/lib/nativeApp";
-import { nativeRemindersAvailable } from "@/lib/nativeReminders";
+import { nativeRemindersAvailable, soundField } from "@/lib/nativeReminders";
 import { MAX_REPEATS, REPEAT_EVERY_MS, ringMessage } from "@shared/pro/potty/timerPush";
 
 export type PushPhase = "checking" | "unsupported" | "install" | "off" | "on" | "blocked" | "unavailable";
@@ -43,7 +43,7 @@ const TEST_ID = 910_099;
 export function nativeRings(kidName: string, endAt: number) {
   return POTTY_NATIVE_IDS.map((id, sends) => {
     const m = ringMessage({ kidName, sends });
-    return { id, title: m.title, body: m.body, threadIdentifier: `potty:${id}`, schedule: { at: new Date(endAt + sends * REPEAT_EVERY_MS), allowWhileIdle: true }, extra: { url: URL_POTTY } };
+    return { id, title: m.title, body: m.body, threadIdentifier: `potty:${id}`, schedule: { at: new Date(endAt + sends * REPEAT_EVERY_MS), allowWhileIdle: true }, extra: { url: URL_POTTY }, ...soundField() };
   });
 }
 async function nativePermission(): Promise<string> {
@@ -89,7 +89,7 @@ export async function turnOnPhone(token: string | null): Promise<PushPhase> {
 
 export const sendPottyTest = async (token: string | null) => {
   if (native()) {
-    await local("schedule", { notifications: [{ id: TEST_ID, title: "🚽 Potty notifications are on", body: "You'll get one like this when the potty timer ends, even with the app closed.", schedule: { at: new Date(Date.now() + 5000) }, extra: { url: URL_POTTY } }] });
+    await local("schedule", { notifications: [{ id: TEST_ID, title: "🚽 Potty notifications are on", body: "You'll get one like this when the potty timer ends, even with the app closed.", schedule: { at: new Date(Date.now() + 5000) }, extra: { url: URL_POTTY }, ...soundField() }] });
     return { ok: true };
   }
   return api(token, "/api/pro/potty/push/test", {});
@@ -115,16 +115,26 @@ export async function syncPottyTimer(token: string | null, timer: { kid: string;
  *  closed. `items` null clears them. Only in the iPhone app; the website rings them while open. */
 export const POTTY_SCHEDULE_BASE = 911_000;
 const SCHEDULE_MAX = 40;
+const SCHEDULE_DAYS = 3;
 export async function syncPottySchedule(kidName: string, items: { id: string; time: string; label: string }[] | null, day: string): Promise<void> {
   if (!native()) return;
   await local("cancel", { notifications: Array.from({ length: SCHEDULE_MAX }, (_, i) => ({ id: POTTY_SCHEDULE_BASE + i })) }).catch(() => {});
   if (!items?.length) return;
   const now = Date.now();
-  const notifications = items.map((it, i) => {
-    const [h, m] = it.time.split(":").map(Number);
-    const at = new Date(`${day}T00:00:00`); at.setHours(h || 0, m || 0, 0, 0);
-    return { id: POTTY_SCHEDULE_BASE + i, title: `🚽 ${it.label || "Potty time"}`, body: `Time for ${kidName || "your child"} to try the toilet. Open the app to log it.`, threadIdentifier: `potty-sched:${it.id}`, schedule: { at, allowWhileIdle: true }, extra: { url: URL_POTTY } };
-  }).filter((n) => n.schedule.at.getTime() > now).slice(0, SCHEDULE_MAX);
+  // The same times for today and the next two days, so the phone keeps ringing even if the app isn't opened tomorrow.
+  const all: { at: Date; it: { id: string; time: string; label: string }; d: number }[] = [];
+  for (let d = 0; d < SCHEDULE_DAYS; d++) {
+    for (const it of items) {
+      const [h, m] = it.time.split(":").map(Number);
+      const at = new Date(`${day}T00:00:00`); at.setDate(at.getDate() + d); at.setHours(h || 0, m || 0, 0, 0);
+      if (at.getTime() > now) all.push({ at, it, d });
+    }
+  }
+  all.sort((x, y) => x.at.getTime() - y.at.getTime());
+  const notifications = all.slice(0, SCHEDULE_MAX).map(({ at, it, d }, i) => ({
+    id: POTTY_SCHEDULE_BASE + i, title: it.label || "Potty time", body: `Time for ${kidName || "your child"} to try the toilet. Open the app to log it.`,
+    threadIdentifier: `potty-sched:${d}:${it.id}`, schedule: { at, allowWhileIdle: true }, extra: { url: URL_POTTY }, ...soundField(),
+  }));
   if (notifications.length) await local("schedule", { notifications }).catch(() => {});
 }
 
