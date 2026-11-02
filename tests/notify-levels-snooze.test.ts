@@ -29,14 +29,26 @@ test("settings: level, to-do nudge and food nudge are kept and cleaned", () => {
   assert.equal(cleanNotify({}).todoNudge.on, true, "on out of the box");
 });
 
-test("to-dos still to do: only when something's due, and it opens the list", () => {
+test("to-dos still to do: one notification per to-do, only when something's due, and it opens the list", () => {
   const due = ws({}, { tasks: [{ id: "a", title: "Call dentist", due: DAY }, { id: "b", title: "Laundry", due: "2026-10-18" }, { id: "c", title: "Later", due: "2026-10-25" }] });
-  const [r] = dueTodoReminders(due, at("12:31"), ZONE, {}).filter((x) => x.key.startsWith("todo:nudge:tasks"));
-  assert.ok(r, "sent at 12:30");
-  assert.match(r.title, /2 to-dos still to do \(1 overdue\)/);
-  assert.match(r.body, /Call dentist, Laundry/);
-  assert.match(r.url, /\?go=tasks&view=today$/);
+  const list = dueTodoReminders(due, at("12:31"), ZONE, {}).filter((x) => x.key.startsWith("todo:nudge:tasks"));
+  assert.equal(list.length, 2, "one each, not one bundle");
+  const dentist = list.find((r) => r.title.startsWith("Call dentist"))!, laundry = list.find((r) => r.title.startsWith("Laundry"))!;
+  assert.match(dentist.body, /^Due today/);
+  assert.match(laundry.body, /^Overdue since Oct 18/);
+  assert.match(dentist.url, /\?go=tasks&view=today$/);
+  assert.notEqual(dentist.key, laundry.key);
+  // Once sent, the same time doesn't send them again.
+  const sent = Object.fromEntries(list.map((r) => [r.key, 1]));
+  assert.equal(dueTodoReminders(due, at("12:36"), ZONE, sent).filter((x) => x.key.startsWith("todo:nudge:tasks")).length, 0);
   assert.equal(dueTodoReminders(ws({}, { tasks: [{ id: "c", title: "Later", due: "2026-10-25" }] }), at("12:31"), ZONE, {}).filter((x) => x.key.startsWith("todo:nudge:tasks")).length, 0);
+});
+
+test("to-dos still to do: a long list sends the first few on their own and one for the rest", () => {
+  const tasks = Array.from({ length: 12 }, (_, i) => ({ id: `t${i}`, title: `Task ${i}`, due: DAY }));
+  const list = dueTodoReminders(ws({}, { tasks }), at("12:31"), ZONE, {}).filter((x) => x.key.startsWith("todo:nudge:tasks"));
+  assert.equal(list.length, 9);
+  assert.match(list[list.length - 1].title, /^\+ 4 more to-dos still to do/);
 });
 
 test("food not tracked: nothing logged, a missing meal, and nothing once it's all logged", () => {

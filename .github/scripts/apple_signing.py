@@ -2,7 +2,9 @@
 provisioning profile that includes them, signed for the SAME distribution certificate as before.
 
 Usage: apple_signing.py <bundle id> <profile.mobileprovision> CAPABILITY [CAPABILITY ...]
-  CAPABILITY: APPLE_ID_AUTH (Sign in with Apple), HEALTHKIT or PUSH_NOTIFICATIONS.
+  CAPABILITY: APPLE_ID_AUTH (Sign in with Apple), HEALTHKIT, PUSH_NOTIFICATIONS or APP_GROUPS.
+When <profile> does not exist yet, set SEED_PROFILE to another profile signed by the same certificate
+(a widget extension has no profile of its own to start from).
 
 Uses the App Store Connect API key the release workflows already have. Never creates, revokes or
 replaces a certificate. If anything fails it leaves the profile file as it was and prints a warning,
@@ -21,7 +23,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-ENTITLEMENT = {"APPLE_ID_AUTH": "com.apple.developer.applesignin", "HEALTHKIT": "com.apple.developer.healthkit", "PUSH_NOTIFICATIONS": "aps-environment"}
+ENTITLEMENT = {"APPLE_ID_AUTH": "com.apple.developer.applesignin", "HEALTHKIT": "com.apple.developer.healthkit", "PUSH_NOTIFICATIONS": "aps-environment", "APP_GROUPS": "com.apple.security.application-groups"}
 SETTINGS = {"APPLE_ID_AUTH": [{"key": "APPLE_ID_AUTH_APP_CONSENT", "options": [{"key": "PRIMARY_APP_CONSENT"}]}]}
 
 
@@ -61,7 +63,12 @@ def decode_profile(raw):
 
 def main():
     bundle, path, caps = sys.argv[1], pathlib.Path(sys.argv[2]), sys.argv[3:]
-    current = decode_profile(path.read_bytes())
+    seed = os.environ.get("SEED_PROFILE")
+    if not path.exists() and seed:
+        base = decode_profile(pathlib.Path(seed).read_bytes())
+        current = {"DeveloperCertificates": base["DeveloperCertificates"], "Entitlements": {}}
+    else:
+        current = decode_profile(path.read_bytes())
     want = [ENTITLEMENT[c] for c in caps]
     if all(k in current.get("Entitlements", {}) for k in want):
         print(f"::notice title=Signing::{bundle}: the profile already has {', '.join(caps)}")

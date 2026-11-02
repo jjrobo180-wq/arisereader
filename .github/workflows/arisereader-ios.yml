@@ -78,7 +78,10 @@ jobs:
         working-directory: reader/ios-app
         run: |
           python3 ../../.github/scripts/configure_reader_app.py ios/App/App/Info.plist reader
-          python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist --below-status-bar
+          # Full screen: the page draws behind the status bar (client/src/reader-app.css keeps it clear of the clock).
+          python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist
+          # Home Screen widgets: the app's data bridge and the widget's files (added to the project after signing is set up).
+          python3 ../../.github/scripts/reader_widgets.py ios/App/App/AppDelegate.swift
       - name: Import Apple signing certificate and provisioning profile
         shell: bash
         env:
@@ -118,6 +121,8 @@ jobs:
           ENT=reader/ios-app/ios/App/App/App.entitlements
           [[ -f "$ENT" ]] || printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' '<plist version="1.0"><dict/></plist>' > "$ENT"
           USE_ENT=""
+          # The keychain group shared with the Home Screen widgets (reader_widgets.py wrote it).
+          if grep -q keychain-access-groups "$ENT"; then USE_ENT=1; fi
           if /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.healthkit' "$RUNNER_TEMP/profile.plist" >/dev/null 2>&1; then
             /usr/libexec/PlistBuddy -c 'Add :com.apple.developer.healthkit bool true' "$ENT" 2>/dev/null || /usr/libexec/PlistBuddy -c 'Set :com.apple.developer.healthkit true' "$ENT"
             /usr/libexec/PlistBuddy -c 'Add :com.apple.developer.healthkit.access array' "$ENT" 2>/dev/null || true
@@ -144,22 +149,56 @@ jobs:
             echo "::warning::The provisioning profile has no Push Notifications capability. Building without server notifications."
           fi
           if [[ -n "$USE_ENT" ]]; then echo "HEALTH_ENTITLEMENTS=CODE_SIGN_ENTITLEMENTS=App/App.entitlements" >> "$GITHUB_ENV"; else echo "HEALTH_ENTITLEMENTS=" >> "$GITHUB_ENV"; fi
+          # The Home Screen widgets' own App ID and profile (registered the first time). If Apple won't
+          # give one, the app is built without widgets rather than not at all.
+          if python3 podscroll/ios-app/find-existing-profile.py com.arisereader.reader.widgets "$RUNNER_TEMP/widgets.mobileprovision" --create-missing-profile --register-bundle-id "--app-name=ARISE Reader Widgets"; then
+            security cms -D -i "$RUNNER_TEMP/widgets.mobileprovision" > "$RUNNER_TEMP/widgets.plist"
+            W_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/widgets.plist")
+            W_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/widgets.plist")
+            cp "$RUNNER_TEMP/widgets.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$W_UUID.mobileprovision"
+            echo "WIDGET_PROFILE=$W_NAME" >> "$GITHUB_ENV"
+            echo "::notice title=Widgets::Signing profile ready for com.arisereader.reader.widgets"
+          else
+            echo "::warning title=Widgets::No signing profile for the widgets. Building the app without them."
+          fi
+      - name: Add the Home Screen widgets to the project
+        working-directory: reader/ios-app
+        run: |
+          set -uo pipefail
+          if [[ -z "${WIDGET_PROFILE:-}" ]]; then echo "No widget profile: skipped"; exit 0; fi
+          gem install xcodeproj --no-document --user-install
+          if APP_PROFILE="$PROFILE_NAME" PATH="$(ruby -e 'print Gem.user_dir')/bin:$PATH" ruby ../../.github/scripts/reader_widgets.rb ios/App/App.xcodeproj; then
+            echo "WIDGETS=1" >> "$GITHUB_ENV"
+          else
+            echo "::warning title=Widgets::Couldn't add the widgets to the project. Building the app without them."
+          fi
       - name: Archive signed app for physical iPhone
         working-directory: reader/ios-app
         env:
           TEAM_ID: 6TYWWNKX6P
         run: |
           set -euo pipefail
-          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -archivePath "$RUNNER_TEMP/ARISEReader.xcarchive" \
-            DEVELOPMENT_TEAM="$TEAM_ID" \
-            PRODUCT_BUNDLE_IDENTIFIER=com.arisereader.reader \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
-            $HEALTH_ENTITLEMENTS \
-            archive
+          if [[ "${WIDGETS:-}" == "1" ]]; then
+            # Each target carries its own bundle ID, profile and entitlements (reader_widgets.rb).
+            xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+              -destination 'generic/platform=iOS' \
+              -archivePath "$RUNNER_TEMP/ARISEReader.xcarchive" \
+              DEVELOPMENT_TEAM="$TEAM_ID" \
+              CODE_SIGN_STYLE=Manual \
+              CODE_SIGN_IDENTITY="Apple Distribution" \
+              archive
+          else
+            xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+              -destination 'generic/platform=iOS' \
+              -archivePath "$RUNNER_TEMP/ARISEReader.xcarchive" \
+              DEVELOPMENT_TEAM="$TEAM_ID" \
+              PRODUCT_BUNDLE_IDENTIFIER=com.arisereader.reader \
+              CODE_SIGN_STYLE=Manual \
+              CODE_SIGN_IDENTITY="Apple Distribution" \
+              PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+              $HEALTH_ENTITLEMENTS \
+              archive
+          fi
       - name: Show what the signed app is allowed to use (Apple Health, Sign in with Apple)
         run: |
           APP="$RUNNER_TEMP/ARISEReader.xcarchive/Products/Applications/App.app"
@@ -178,7 +217,7 @@ jobs:
               "destination": "export",
               "signingStyle": "manual",
               "teamID": "6TYWWNKX6P",
-              "provisioningProfiles": {"com.arisereader.reader": os.environ["PROFILE_NAME"]},
+              "provisioningProfiles": {"com.arisereader.reader": os.environ["PROFILE_NAME"], **({"com.arisereader.reader.widgets": os.environ["WIDGET_PROFILE"]} if os.environ.get("WIDGETS") == "1" else {})},
           }
           with open(os.path.join(os.environ["RUNNER_TEMP"], "ExportOptions.plist"), "wb") as output:
               plistlib.dump(options, output)

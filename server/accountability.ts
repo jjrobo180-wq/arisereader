@@ -7,7 +7,7 @@ import type { Express, RequestHandler } from "express";
 import { randomUUID } from "node:crypto";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import {
-  LIMITS, QUIZ_PROMPT, WORKSHEET_PROMPT, aiUserMessage, cleanAiAsk, cleanAnswers, cleanCode, cleanQuiz, cleanTask, cleanWorksheet, dueOn,
+  LIMITS, QUIZ_PROMPT, WORKSHEET_PROMPT, aiUserMessage, cleanAiAsk, cleanAnswers, cleanCode, cleanDoneAlready, cleanQuiz, cleanTask, cleanWorksheet, dueOn,
   inviteCode, isDone, localNow, newId, nudgeNow, nudgeText, scoreQuiz, type AcctTask, type Checkin, type Member, type Proof, type Space,
 } from "../shared/accountability";
 import { goUrl } from "../shared/todoReminders";
@@ -315,6 +315,40 @@ export function registerAccountabilityRoutes(app: Express, authMiddleware: Reque
       }
       res.json({ ok: true, id, status, score });
     } catch (e) { fail(res, e, "check-in"); }
+  });
+
+  /** Something already done that nobody asked for yet ("I did the dishes"): sent with its photo or
+   *  video in one go. Makes a one-time to-do for the sender, already checked off for that day and
+   *  waiting for someone else in the space to look and approve. Body { spaceId, title, note, proof, day }. */
+  app.post("/api/accountability/done", authMiddleware, async (req: any, res) => {
+    const userId = me(req, res); if (userId == null) return;
+    if (limited(writes, String(userId), res)) return;
+    try {
+      const spaceId = String(req.body?.spaceId || "");
+      const members = await memberOf(userId, spaceId);
+      if (!members) return res.status(404).json({ message: "That space isn't yours." });
+      const asked = cleanDoneAlready(req.body, members.find((m) => m.userId === userId)?.tz || "", now());
+      if (!asked) return res.status(400).json({ message: "Say what you did." });
+      const proof: Proof[] = (Array.isArray(req.body?.proof) ? req.body.proof : []).slice(0, LIMITS.proofs)
+        .filter((p: any) => typeof p?.path === "string" && p.path.startsWith(`${spaceId}/${userId}/`) && /^[A-Za-z0-9_/.-]+$/.test(p.path))
+        .map((p: any) => ({ path: p.path, type: p.type === "video" ? "video" : "photo" }));
+      if (!proof.length) return res.status(400).json({ message: "Add a photo or video of it." });
+      const others = members.filter((m) => m.userId !== userId);
+      const t = cleanTask({ title: asked.title, kind: "task", assignee: userId, repeat: { every: "once", date: asked.day }, due: "23:59", nag: 0, proof: "either", review: others.length > 0 }, members.map((m) => m.userId))!;
+      const taskId = newId();
+      const { error } = await db().from("acct_tasks").insert({ id: taskId, space_id: spaceId, data: t, assignee: userId, created_by: userId });
+      if (error) throw error;
+      // Waiting for someone else to approve (status "done"), unless they're alone in the space.
+      const status = others.length ? "done" : "approved";
+      const checkId = newId();
+      const data = { note: asked.note, proof, answers: {}, score: null, status, feedback: "", reviewedBy: null, reviewedAt: null };
+      const { error: e2 } = await db().from("acct_checkins").insert({ id: checkId, task_id: taskId, space_id: spaceId, day: asked.day, by_user: userId, at: new Date(now()).toISOString(), data });
+      if (e2) throw e2;
+      const who = nameIn(members, userId);
+      const kind = proof.some((p) => p.type === "video") ? "video" : "photo";
+      for (const m of others) void deps.push(m.userId, { title: `✓ ${who} did it: ${asked.title}`, body: `${kind === "video" ? "Video" : "Photo"} attached. Tap to look and approve.`, url: URL_FOR(taskId), tag: `acct-done-${taskId}-${asked.day}` }).catch(() => {});
+      res.json({ ok: true, id: checkId, taskId, status });
+    } catch (e) { fail(res, e, "done already"); }
   });
 
   /** The one who asked approves it, or sends it back. Body { status: "approved"|"redo", feedback }. */

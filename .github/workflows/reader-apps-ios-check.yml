@@ -52,7 +52,13 @@ jobs:
           npx cap add ios
           npx cap sync ios
           python3 ../../.github/scripts/configure_reader_app.py ios/App/App/Info.plist ${{ matrix.flavor }}
-          python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist --below-status-bar
+          python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist ${{ matrix.flavor == 'reader' && '' || '--below-status-bar' }}
+          # The Reader app's Home Screen widgets (an app extension), built unsigned here.
+          if [[ "${{ matrix.flavor }}" == "reader" ]]; then
+            python3 ../../.github/scripts/reader_widgets.py ios/App/App/AppDelegate.swift
+            gem install xcodeproj --no-document --user-install
+            PATH="$(ruby -e 'print Gem.user_dir')/bin:$PATH" ruby ../../.github/scripts/reader_widgets.rb ios/App/App.xcodeproj
+          fi
       - name: Compile iOS simulator app
         working-directory: ${{ matrix.dir }}/ios-app
         run: |

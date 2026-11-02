@@ -1,4 +1,6 @@
 import { useSavedChoice } from "@/lib/useSavedChoice";
+import { updateReaderWidget } from "@/lib/readerWidget";
+import { isReaderApp } from "@/lib/nativeApp";
 import { BookTitleSuggest, DidYouMeanList, type PickedBook } from "@/components/BookTitleSuggest";
 import type { BookCandidate } from "@shared/bookMatch";
 import { shelvesByPoints } from "@shared/libraryShelves";
@@ -34,6 +36,11 @@ import { READABLE_BOOKS, readableBook } from "@shared/readsCatalog";
 import { loadReadsKeyIds } from "./reads/useReads";
 /** True when this library book can be read in Read on Arise. */
 const canReadHere = (book: { id: number; title: string }) => { const r = readableBook(book.id); return !!r && (r.key !== null || r.title === book.title); };
+/** The Reader iPhone app shows every book card the same way: cover, title, points and one button
+ *  ("Read & Quiz" when the book can be read, else "Take Quiz"), like the Quick Reads cards. */
+const appCards = () => isReaderApp();
+const cardGoes = (book: { id: number; title: string; readUrl?: string | null }) =>
+  book.readUrl ? (canReadHere(book) ? `/reads/book/${book.id}` : `/read/${book.id}`) : `/quiz/${book.id}`;
 
 // Book IDs that appear in the school curriculum section
 const CURRICULUM_BOOK_IDS = [303, 38]; // Shadow Shaper, The Outsiders
@@ -164,6 +171,12 @@ export default function Library() {
   const [bookBands, setBookBands] = useState<Record<string, string>>({});
   const [userBand, setUserBand] = useState("");
   const [showBandInfo, setShowBandInfo] = useState(false);
+  // The Reader iPhone app's Home Screen widget shows this reader's points and quizzes (lib/readerWidget.ts).
+  const passedCount = results.filter((r) => r.passed !== false).length;
+  useEffect(() => {
+    if (!user || user.isAdmin || user.role !== "student") return;
+    updateReaderWidget({ name: user.displayName || "", points: liveTotalPoints, quizzes: passedCount, band: userBand });
+  }, [user?.id, user?.displayName, liveTotalPoints, passedCount, userBand]); // eslint-disable-line react-hooks/exhaustive-deps
   const [sortBy, setSortBy] = useSavedChoice<"points" | "popular" | "recent" | "classics" | "new">("library-sort", "points", ["points", "popular", "recent", "classics", "new"]);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showInbox, setShowInbox] = useState(false);
@@ -1375,7 +1388,7 @@ export default function Library() {
                           <Trophy className="mb-1.5 h-4 w-4 text-amber-500" /><span className="block text-xs font-black">Progress & Rewards</span>
                           {studentRewards.some(r => r.claimStatus === "approved") && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-green-500" />}
                         </button>
-                        {!user?.is_eye_gaze_user && (
+                        {!user?.is_eye_gaze_user && !isReaderApp() && (
                           <button onClick={() => { navigate("/avatar-world"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
                             <User className="mb-1.5 h-4 w-4 text-cyan-500" /><span className="block text-xs font-black">Avatar World</span>
                           </button>
@@ -1991,7 +2004,7 @@ export default function Library() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <div className="book-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {Array.from({ length: 10 }).map((_, i) => (
               <div key={i} className="aspect-[2/3] bg-muted animate-pulse rounded-xl" />
             ))}
@@ -2021,7 +2034,7 @@ export default function Library() {
             ) : (
               <>
                 {searchBooks.length > 0 && (
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                  <div className="book-grid grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
                     {searchBooksShown.map((book) => {
                       const result = results.find(r => r.bookId === book.id);
                       const isDone = completedIds.has(book.id);
@@ -2045,12 +2058,12 @@ export default function Library() {
                             {result && <p className="mt-1 text-xs font-semibold text-primary">{result.score}/{result.total} correct</p>}
                             <div className="mt-2 flex gap-1.5">
                               {book.readUrl && (
-                                <Button size="sm" variant="outline" className="h-7 flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate(canReadHere(book) ? `/reads/book/${book.id}` : `/read/${book.id}`); }}>
+                                <Button size="sm" variant="outline" className="card-read h-7 flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate(canReadHere(book) ? `/reads/book/${book.id}` : `/read/${book.id}`); }}>
                                   <BookOpen className="mr-1 h-3 w-3" />Read
                                 </Button>
                               )}
-                              <Button size="sm" variant="default" className="h-7 flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate(`/quiz/${book.id}`); }}>
-                                {user?.role === 'teacher' || user?.isAdmin ? 'View' : 'Quiz'}
+                              <Button size="sm" variant="default" className="h-7 flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate(appCards() ? cardGoes(book) : `/quiz/${book.id}`); }}>
+                                {user?.role === 'teacher' || user?.isAdmin ? 'View' : appCards() ? (book.readUrl ? 'Read & Quiz' : 'Take Quiz') : 'Quiz'}
                               </Button>
                             </div>
                           </div>
@@ -2129,7 +2142,7 @@ export default function Library() {
                 </div>
                 <p className="mb-1 ml-7 text-sm text-muted-foreground">Read the whole book right here, then take the quiz.</p>
                 <ExtraCreditNote className="mb-4 ml-7" />
-                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
+                <div className="book-row flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
                   {READABLE_BOOKS.map((rb) => {
                     const book = books.find(b => b.id === rb.bookId);
                     const result = results.find(r => r.bookId === rb.bookId);
@@ -2150,8 +2163,8 @@ export default function Library() {
                           </div>
                           {result && <p className="mt-1 text-xs font-semibold text-primary">{result.score}/{result.total} correct</p>}
                           <div className="mt-2 flex gap-1.5">
-                            <Button size="sm" variant="outline" className="h-7 flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate(`/reads/book/${rb.bookId}`); }}><BookOpen className="mr-1 h-3 w-3" />Read</Button>
-                            <Button size="sm" variant="default" className="h-7 flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate(`/quiz/${rb.bookId}`); }}>{user?.role === 'teacher' || user?.isAdmin ? 'View' : 'Quiz'}</Button>
+                            <Button size="sm" variant="outline" className="card-read h-7 flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate(`/reads/book/${rb.bookId}`); }}><BookOpen className="mr-1 h-3 w-3" />Read</Button>
+                            <Button size="sm" variant="default" className="h-7 flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate(appCards() ? `/reads/book/${rb.bookId}` : `/quiz/${rb.bookId}`); }}>{user?.role === 'teacher' || user?.isAdmin ? 'View' : appCards() ? 'Read & Quiz' : 'Quiz'}</Button>
                           </div>
                         </div>
                       </Card>
@@ -2172,7 +2185,7 @@ export default function Library() {
                 </div>
                 <p className="text-sm text-muted-foreground mb-1 ml-7">Fun quizzes from your favorite anime and comic books.</p>
                 <ExtraCreditNote className="mb-4 ml-7" />
-                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
+                <div className="book-row flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
                   {animeComicBooks.map((book) => {
                     const result = results.find(r => r.bookId === book.id);
                     const isDone = completedIds.has(book.id);
@@ -2232,7 +2245,7 @@ export default function Library() {
             <div key={pts} className="mb-10" data-tour={pts === pointsOrder.filter(k => pointsGroups[k])[0] ? "point-books" : undefined}>
               <h2 className="text-lg font-bold mb-1 text-foreground">{pts} Point Books</h2>
               <ExtraCreditNote className="mb-4" />
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              <div className="book-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {groupBooks.map((book) => {
                   const result = results.find(r => r.bookId === book.id);
                   const isDone = completedIds.has(book.id);
@@ -2289,7 +2302,7 @@ export default function Library() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="h-7 text-xs flex-1"
+                              className="card-read h-7 text-xs flex-1"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 navigate(canReadHere(book)?`/reads/book/${book.id}`:`/read/${book.id}`);
@@ -2306,11 +2319,11 @@ export default function Library() {
                             className="h-7 text-xs flex-1"
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/quiz/${book.id}`);
+                              navigate(appCards() ? cardGoes(book) : `/quiz/${book.id}`);
                             }}
                             data-testid={`button-quiz-${book.id}`}
                           >
-                            {user?.role === 'teacher' || user?.isAdmin ? 'View' : 'Quiz'}
+                            {user?.role === 'teacher' || user?.isAdmin ? 'View' : appCards() ? (book.readUrl ? 'Read & Quiz' : 'Take Quiz') : 'Quiz'}
                           </Button>
                         </div>
                         <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} bookId={book.id} />
@@ -2341,7 +2354,7 @@ export default function Library() {
             ) : (
             <>
             <ExtraCreditNote className="mb-4" />
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div className="book-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {pagedBooks.map((book) => {
                 const result = results.find(r => r.bookId === book.id);
                 const isDone = completedIds.has(book.id);
@@ -2395,7 +2408,7 @@ export default function Library() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-7 text-xs flex-1"
+                            className="card-read h-7 text-xs flex-1"
                             onClick={(e) => {
                               e.stopPropagation();
                               navigate(canReadHere(book)?`/reads/book/${book.id}`:`/read/${book.id}`);
@@ -2411,10 +2424,10 @@ export default function Library() {
                           className="h-7 text-xs flex-1"
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/quiz/${book.id}`);
+                            navigate(appCards() ? cardGoes(book) : `/quiz/${book.id}`);
                           }}
                         >
-                          {user?.role === 'teacher' || user?.isAdmin ? 'View' : 'Quiz'}
+                          {user?.role === 'teacher' || user?.isAdmin ? 'View' : appCards() ? (book.readUrl ? 'Read & Quiz' : 'Take Quiz') : 'Quiz'}
                         </Button>
                       </div>
                     </div>

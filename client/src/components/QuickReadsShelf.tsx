@@ -84,7 +84,7 @@ export default function QuickReadsShelf({ newsBookIds, results, onOpen, onSeeAll
         })}
       </div>
 
-      <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: "x mandatory" }}>
+      <div className="book-row flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: "x mandatory" }}>
         {shown.map((a) => {
           const r = resultFor(a.slug);
           return (

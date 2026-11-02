@@ -30,6 +30,19 @@ const store = {
 };
 const zone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch { return "UTC"; } };
 
+/** The notification sound. iOS plays no sound for a scheduled notification unless one is named, and
+ *  the file has to be inside the app: arisetodo/ios-app/sounds/ is copied into it by configure-ios.py. */
+export const CHIME = "arise-chime.wav";
+const SOUND_KEY = "arise_native_sound";
+/** On unless the person turned it off (Settings, Reminders). */
+export const nativeSoundOn = (): boolean => store.get(SOUND_KEY) !== "0";
+export function setNativeSound(on: boolean): void {
+  store.set(SOUND_KEY, on ? "1" : "0");
+  window.dispatchEvent(new Event(REMINDERS_CHANGED)); // schedules again with, or without, the sound
+}
+/** Spread into a scheduled notification to give it the sound (or nothing, when sound is off). */
+export const soundField = (): { sound?: string } => (nativeSoundOn() ? { sound: CHIME } : {});
+
 /** True in an app build that can schedule notifications. */
 export const nativeRemindersAvailable = (): boolean => hasNativePlugin(PLUGIN);
 /** True inside the app at all (so the website's "add to Home Screen" steps are never shown there). */
@@ -65,6 +78,22 @@ export function planReminders(kind: ReminderKind, workspace: unknown, from: numb
     }
   }
   return out;
+}
+
+/** Seconds between reminders that come due at the same moment, so they arrive one by one. */
+export const SAME_TIME_GAP_MS = 20_000;
+/** What iOS is handed. Each reminder gets its own thread, so iOS shows them as separate notifications
+ *  instead of stacking them into one, and reminders due at the same moment are spaced a little apart. */
+export function nativeNotifications(kind: ReminderKind, plan: PlannedReminder[]) {
+  const seen = new Map<number, number>();
+  return plan.map((r) => {
+    const n = seen.get(r.at) ?? 0;
+    seen.set(r.at, n + 1);
+    return {
+      id: reminderId(`${kind}:${r.key}`), title: r.title, body: r.body, threadIdentifier: `${kind}:${r.key}`,
+      schedule: { at: new Date(r.at + n * SAME_TIME_GAP_MS), allowWhileIdle: true }, extra: { url: r.url }, ...soundField(),
+    };
+  });
 }
 
 /** Asks iOS to allow notifications and turns reminders on, for LifeHub and WorkHub both. */
@@ -122,7 +151,7 @@ export async function scheduleNativeReminders(kind: ReminderKind, workspace: unk
   const plan = planReminders(kind, workspace, now + 60_000, zone()).slice(0, MOST_PER_KIND);
   await cancelScheduled(kind);
   if (!plan.length) return 0;
-  const notifications = plan.map((r) => ({ id: reminderId(`${kind}:${r.key}`), title: r.title, body: r.body, schedule: { at: new Date(r.at), allowWhileIdle: true }, extra: { url: r.url } }));
+  const notifications = nativeNotifications(kind, plan);
   await call("schedule", { notifications });
   store.set(idsKey(kind), JSON.stringify(notifications.map((n) => n.id)));
   return notifications.length;
@@ -130,7 +159,7 @@ export async function scheduleNativeReminders(kind: ReminderKind, workspace: unk
 
 /** A test notification a few seconds from now. */
 export async function sendNativeTest(): Promise<void> {
-  await call("schedule", { notifications: [{ id: reminderId(`test:${Date.now()}`), title: "Arise To Duo", body: "Reminders are working on this iPhone.", schedule: { at: new Date(Date.now() + 5000) } }] });
+  await call("schedule", { notifications: [{ id: reminderId(`test:${Date.now()}`), title: "Arise To Duo", body: "Reminders are working on this iPhone.", schedule: { at: new Date(Date.now() + 5000) }, ...soundField() }] });
 }
 
 /** Signing out: every reminder scheduled on this iPhone is taken away, so the next account never sees the last one's. */

@@ -6,7 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { hasNativePlugin, isNativeApp, nativeCall, nativeFlavor, nativeListen } from "@/lib/nativeApp";
 
 /** Which app the server sends to (Arise To Duo unless this is the Educator app). */
-const appKey = () => { const f = nativeFlavor(); return f === "educator" || f === "eyegaze" || f === "fit" || f === "trainer" ? f : undefined; };
+const appKey = () => { const f = nativeFlavor(); return f === "educator" || f === "eyegaze" || f === "fit" || f === "trainer" || f === "notes" ? f : undefined; };
 
 const PLUGIN = /^pushnotif/i;
 const NAME = "PushNotifications";
@@ -24,6 +24,9 @@ export const applePushAvailable = (): boolean => hasNativePlugin(PLUGIN);
 const zone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch { return "UTC"; } };
 const open = (url: string) => {
   if (!url) return;
+  // Arise Notes links to its own page (/notes/#/usage); the Notes iPhone app is that page.
+  const notes = /^\/notes\/#(.*)$/.exec(url);
+  if (notes && nativeFlavor() === "notes") { window.location.hash = notes[1] || "/"; return; }
   if (url.startsWith("#")) window.location.hash = url.slice(1);
   else if (url.startsWith("/")) window.location.hash = url;
 };

@@ -2,11 +2,13 @@
 // a photo or description estimated by AI, recent foods and quick add. Uses the same food lookup as the
 // Calorie counter in Arise To Duo (server/foodLookup.ts).
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BarChart3, Bookmark, Camera, Check, ChevronLeft, ChevronRight, Copy, Droplets, Loader2, Plus, ScanLine, Search, Sparkles, Trash2, Utensils, Zap } from "lucide-react";
+import { dayGoals } from "@shared/fitVacation";
+import { BarChart3, Bookmark, Camera, Check, ChefHat, ChevronLeft, ChevronRight, Copy, Droplets, Loader2, MapPin, Plus, ScanLine, Search, Sparkles, Trash2, Utensils, Zap } from "lucide-react";
 import { dayKey, goals, uid, type FitData, type FoodEntry, type Meal, type SavedMeal } from "@shared/fit";
 import type { FoundFood } from "@shared/foodLookup";
 import { estimateMeal, lookupBarcode, searchFoods, shrinkPhoto } from "@/lib/foodLookup";
 import { canUseCamera, scanWithCamera } from "@/lib/barcodeScanner";
+import { PlusTag } from "./FitPlus";
 import { DIET_BY_ID, DIET_PLANS, pointsBudget, pointsOf } from "@shared/fitNutrition";
 import type { Update } from "./fitStore";
 import { FastingCard, FastingSheet } from "./FitFasting";
@@ -179,16 +181,17 @@ export function PlanSheet({ data, update, onClose }: { data: FitData; update: Up
 /** One US fluid ounce in milliliters (water is kept in ml). */
 const OZ = 29.5735;
 
-export function FoodTab({ token, data, update, say }: { token: string | null; data: FitData; update: Update; say: (m: string) => void }) {
+export function FoodTab({ token, data, update, say, snap, onRecipes, onEatOut }: { token: string | null; data: FitData; update: Update; say: (m: string) => void; snap?: boolean; onRecipes?: () => void; onEatOut?: () => void }) {
   const [date, setDate] = useState(dayKey());
-  const [adding, setAdding] = useState<{ meal: Meal; start?: AddTab } | null>(null);
+  // snap: opened by Siri ("Log my meal"), straight to the camera.
+  const [adding, setAdding] = useState<{ meal: Meal; start?: AddTab } | null>(() => (snap ? { meal: (() => { const h = new Date().getHours(); return h < 10 ? "breakfast" : h < 15 ? "lunch" : h < 21 ? "dinner" : "snack"; })(), start: "ai" } : null));
   const [plan, setPlan] = useState(false);
   const [report, setReport] = useState(false);
   const [fasting, setFasting] = useState(false);
   const today = date === dayKey();
   const foods = useMemo(() => data.foods.filter((f) => f.date === date), [data.foods, date]);
   const t = totals(foods);
-  const g = goals(data.profile, latestKg(data));
+  const g = dayGoals(data, latestKg(data), new Date(`${date}T12:00:00`));
   const water = data.water[date] || 0;
   // US measurements (ounces) unless the person picked metric.
   const us = data.profile.units !== "kg";
@@ -233,6 +236,10 @@ export function FoodTab({ token, data, update, say }: { token: string | null; da
       <span className="min-w-0 flex-1"><span className="block text-[17px] leading-none" style={display}>{diet.name} plan</span><span className="mt-0.5 block text-[12px]" style={{ color: C.dim }}>{points ? `Arise Points · ${budget} a day` : `Calories · ${fmtNum(g.kcal)} a day`} · P{diet.split.p} C{diet.split.c} F{diet.split.f}</span></span>
       <ChevronRight className="h-5 w-5" style={{ color: C.dim }} />
     </button>
+    {(onRecipes || onEatOut) && <div className="mt-2 grid grid-cols-2 gap-2">
+      {onRecipes && <button type="button" onClick={onRecipes} className="flex min-h-[56px] items-center gap-2.5 rounded-[12px] px-3.5 text-left" style={{ background: C.card }} data-testid="fit-food-recipes"><ChefHat className="h-5 w-5 shrink-0" style={{ color: C.lime }} /><span className="text-[17px] leading-none" style={display}>Recipes</span></button>}
+      {onEatOut && <button type="button" onClick={onEatOut} className="flex min-h-[56px] items-center gap-2.5 rounded-[12px] px-3.5 text-left" style={{ background: C.card }} data-testid="fit-food-eat-out"><MapPin className="h-5 w-5 shrink-0" style={{ color: C.lime }} /><span className="text-[17px] leading-none" style={display}>Eat out<PlusTag /></span></button>}
+    </div>}
     {today && <div className="mt-2"><FastingCard data={data} update={update} onOpen={() => setFasting(true)} /></div>}
     {MEALS.map((m) => {
       const list = foods.filter((f) => f.meal === m.id); const k = totals(list).kcal;
@@ -253,7 +260,7 @@ export function FoodTab({ token, data, update, say }: { token: string | null; da
     })}
     <Title right={<span className="text-[13px] font-semibold tabular-nums" style={{ color: C.dim }}>{us ? `${Math.round(water / OZ)} / ${Math.round(data.profile.waterGoalMl / OZ)} oz` : `${(water / 1000).toFixed(2)} / ${(data.profile.waterGoalMl / 1000).toFixed(1)} L`}</span>}>Water</Title>
     <Card className="flex items-center gap-3 !p-3"><Droplets className="h-7 w-7 shrink-0" style={{ color: C.blue }} />
-      <div className="h-3 min-w-0 flex-1 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,.08)" }}><div className="h-full rounded-full" style={{ width: `${Math.min(100, (water / data.profile.waterGoalMl) * 100)}%`, background: C.blue }} /></div>
+      <div className="h-3 min-w-0 flex-1 overflow-hidden rounded-full" style={{ background: C.track }}><div className="h-full rounded-full" style={{ width: `${Math.min(100, (water / data.profile.waterGoalMl) * 100)}%`, background: C.blue }} /></div>
       {(us ? [[8, 8 * OZ], [16, 16 * OZ]] : [[250, 250], [500, 500]]).map(([label, ml]) => <Btn key={label} kind="soft" className="!min-h-10 !px-3 !text-[14px]" onClick={() => update((d) => ({ ...d, water: { ...d.water, [date]: Math.round((d.water[date] || 0) + ml) } }))}>+{label}{us ? " oz" : ""}</Btn>)}
     </Card>
     <button type="button" onClick={() => setReport(true)} className="mt-4 flex w-full items-center gap-3 rounded-[12px] px-4 py-3 text-left" style={{ background: C.card }} data-testid="fit-open-report">

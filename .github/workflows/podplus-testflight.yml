@@ -1,6 +1,5 @@
 name: Pod+ signed iOS beta validation
 # Development beta validation only. Upload is a separate, explicitly approved release step.
-# Release: live updates
 on:
   workflow_dispatch:
   push:

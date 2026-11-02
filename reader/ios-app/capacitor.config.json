@@ -4,7 +4,7 @@
   "webDir": "www",
   "plugins": {
     "SplashScreen": {
-      "launchShowDuration": 1200,
+      "launchShowDuration": 800,
       "backgroundColor": "#FFFFFF",
       "showSpinner": false
     },
@@ -26,6 +26,8 @@
     }
   },
   "ios": {
-    "contentInset": "automatic"
+    "contentInset": "never",
+    "backgroundColor": "#ffffff",
+    "scrollEnabled": true
   }
 }
