@@ -130,9 +130,9 @@ export default function PottyApp() {
       <div className="flex flex-wrap items-center gap-2 pb-3">
         {data.kids.map((k) => { const on = k.id === kid.id; return <button key={k.id} type="button" onClick={() => set((d) => ({ ...d, cur: k.id }))} aria-pressed={on} className="inline-flex min-h-11 items-center gap-2 rounded-full pl-1.5 pr-4 font-bold transition" style={on ? { background: C.ink, color: "#fff" } : { background: "#fff", color: C.inkSoft, boxShadow: `inset 0 0 0 1.5px ${C.line}` }}>
           <span className="flex h-8 w-8 items-center justify-center rounded-full text-xl" style={{ background: on ? "#ffffff1f" : C.ground }}>{k.avatar}</span><span className="ph">{k.name}</span>{on && <span className="hidden text-xs font-semibold opacity-70 sm:inline">{[ageText(ageMonths(k.birth)), stage.title].filter(Boolean).join(" · ")}</span>}</button>; })}
-        <Btn2 kind="ghost" onClick={() => setAdding(true)}>+ Add a child</Btn2>
+        <Btn2 kind="ghost" onClick={() => setAdding(true)}>+ Child</Btn2>
         <span className="flex-1" />
-        <span className="text-xs" style={{ color: C.muted }}>{state === "saved" ? "Saved" : state === "saving" ? "Saving…" : state === "offline" ? "Offline — saved on this device" : state === "error" ? "Couldn't save" : ""}</span>
+        <span className="text-xs" style={{ color: C.muted }}>{state === "saved" ? "" : state === "saving" ? "Saving…" : state === "offline" ? "Offline — saved on this device" : state === "error" ? "Couldn't save" : ""}</span>
         <button type="button" onClick={() => set((d) => ({ ...d, voice: !d.voice }))} className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white" style={{ boxShadow: `inset 0 0 0 1.5px ${C.line}`, color: C.inkSoft }} aria-label={data.voice ? "Turn the voice off" : "Turn the voice on"} title={data.voice ? "Voice on" : "Voice off"}>{data.voice ? <Volume2 size={17} /> : <VolumeX size={17} />}</button>
         <button type="button" onClick={() => setEditing(kid)} className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white" style={{ boxShadow: `inset 0 0 0 1.5px ${C.line}`, color: C.inkSoft }} aria-label={`${kid.name}'s profile and routine`} title="Profile and routine"><Settings size={17} /></button>
       </div>
@@ -140,7 +140,7 @@ export default function PottyApp() {
       <nav aria-label="Potty Training" className="potty-noprint sticky top-0 z-20 -mx-3 mb-5 overflow-x-auto px-3 py-2 [scrollbar-width:none] sm:-mx-5 sm:px-5 [&::-webkit-scrollbar]:hidden" style={{ background: `${C.ground}F2`, backdropFilter: "blur(8px)" }}>
         <div className="flex w-max gap-1.5">{TABS.map((t) => { const on = t.id === tab; return <button key={t.id} type="button" data-potty-tab={t.id} onClick={() => go(t.id)} aria-current={on ? "page" : undefined} className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[13.5px] font-bold transition" style={on ? { background: C.duck, color: C.ink } : { color: C.inkSoft }}><t.icon size={16} />{t.label}</button>; })}</div>
       </nav>
-      {data.timer && timerKid && <div className="potty-noprint mb-5 flex items-center gap-3 rounded-2xl px-4 py-3" style={{ background: C.duckSoft }}>
+      {data.timer && timerKid && tab !== "simple" && <div className="potty-noprint mb-5 flex items-center gap-3 rounded-2xl px-4 py-3" style={{ background: C.duckSoft }}>
         <span className="shrink-0 text-xl">⏰</span>
         {/* On a narrow phone the text keeps a readable width and Restart drops below it. */}
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2"><p className="min-w-0 flex-[1_1_10rem] text-sm font-bold leading-snug">Potty reminder for {timerKid.name} in <span className="whitespace-nowrap tabular-nums">{fmtDuration(Math.max(0, (data.timer.endAt - Date.now()) / 1000))}</span></p>
