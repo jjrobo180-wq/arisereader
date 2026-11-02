@@ -1,12 +1,13 @@
 #!/usr/bin/env ruby
 # Adds the AriseWidgets extension (native/widget-extension/AriseWidgets.swift) to a Capacitor iOS project.
 #
-#   ruby add_widget.rb <App.xcodeproj> <host bundle id> '["Name 1","Name 2","Name 3"]' <tint hex>
+#   ruby add_widget.rb <App.xcodeproj> <host bundle id> '[["id1","Name 1"],["id2","Name 2"]]' <tint hex>
 #
+# <widgets json> is a list of [slot id, widget name] pairs; each gets a simple and a detailed widget.
 # The extension is called AriseWidgets, its bundle id is <host>.widgets, and it reads the App Group
 # group.<host> that the AriseWidgets plugin writes to. Run after `npx cap add ios && npx cap sync ios`.
 # WIDGET_SOURCE (a Swift file, relative to the repository) replaces the standard three-slot widgets with
-# an app's own (Arise Notes: notes/ios-app/widgets/NotesWidgets.swift); the names then only name it.
+# an app's own (Arise Notes: notes/ios-app/widgets/NotesWidgets.swift); the widgets json then only counts them.
 # For a signed build, also set SIGN_TEAM, APP_PROFILE and WIDGET_PROFILE (provisioning profile names),
 # APP_ENTITLEMENTS (path of the app's entitlements, relative to the App folder) and BUILD_NUMBER. Signing
 # is then set in the project itself, so the archive command must not override it.
@@ -17,15 +18,29 @@ require "json"
 require "fileutils"
 
 project_path, host, names_json, tint = ARGV
-abort "usage: add_widget.rb <App.xcodeproj> <host bundle id> <names json> <tint>" unless project_path && host && names_json
-names = JSON.parse(names_json)
-abort "need exactly three widget names" unless names.length == 3
+abort "usage: add_widget.rb <App.xcodeproj> <host bundle id> <widgets json> <tint>" unless project_path && host && names_json
+widgets = JSON.parse(names_json) # [["id", "Name"], ...]
+abort "need at least one widget" if widgets.empty?
+names = widgets.map { |w| w[1] }
 
 root = File.expand_path("../..", __dir__)
 own = ENV["WIDGET_SOURCE"].to_s.strip
-template = own.empty? ? File.join(root, "native/widget-extension/AriseWidgets.swift") : File.join(root, own)
-src = File.read(template)
-src = src.sub("__NAMES__", JSON.generate(names)).sub("__TINT__", tint || "ff5a1f") if own.empty?
+if own.empty?
+  src = File.read(File.join(root, "native/widget-extension/AriseWidgets.swift"))
+  structs = widgets.each_with_index.map do |w, i|
+    "struct AriseSimple#{i}: Widget { var body: some WidgetConfiguration { SimpleWidget(id: #{w[0].to_json}, name: #{w[1].to_json}).config } }
+" \
+    "struct AriseDetail#{i}: Widget { var body: some WidgetConfiguration { DetailWidget(id: #{w[0].to_json}, name: #{w[1].to_json}).config } }"
+  end.join("
+")
+  bundle = widgets.each_index.map { |i| "        AriseSimple#{i}()
+        AriseDetail#{i}()" }.join("
+")
+  src = src.sub("__WIDGETS__", JSON.generate(widgets)).sub("__TINT__", tint || "ff5a1f").sub("__STRUCTS__", structs).sub("__BUNDLE__", bundle)
+else
+  # An app's own widgets (Arise Notes): used as they are.
+  src = File.read(File.join(root, own))
+end
 
 ios_dir = File.dirname(project_path)
 dir = File.join(ios_dir, "AriseWidgets")
@@ -36,7 +51,7 @@ File.write(File.join(dir, "Info.plist"), <<~PLIST)
   <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
   <plist version="1.0"><dict>
     <key>CFBundleDevelopmentRegion</key><string>$(DEVELOPMENT_LANGUAGE)</string>
-    <key>CFBundleDisplayName</key><string>#{names[0]}</string>
+    <key>CFBundleDisplayName</key><string>Widgets</string>
     <key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
     <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
@@ -105,4 +120,4 @@ if ENV["SIGN_TEAM"]
 end
 
 proj.save
-puts "Added AriseWidgets (#{host}.widgets) with #{names.join(', ')}"
+puts "Added AriseWidgets (#{host}.widgets) with #{widgets.length * 2} widgets"

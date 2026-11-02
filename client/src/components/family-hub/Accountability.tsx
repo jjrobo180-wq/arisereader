@@ -9,6 +9,7 @@ import {
   NAG_CHOICES, addDays, builtinQuiz, builtinWorksheet, checkinFor, dueOn, isDone, localNow, minutesOf, newId, personStats, repeatWords, scoreQuiz, streak, timeWords,
   type AcctTask, type Checkin, type Proof, type ProofKind, type Quiz, type Repeat, type Space, type TaskKind, type Worksheet, type WsItem,
 } from "@shared/accountability";
+import { publishWidgets } from "@/lib/widgets";
 import type { SectionProps } from "./ui";
 
 const TEAL = "#0d9488";
@@ -84,6 +85,14 @@ export default function Accountability({ say }: SectionProps) {
   const me = data?.me ?? 0;
   const tasks = useMemo(() => (data?.tasks ?? []).filter((t) => t.spaceId === space?.id), [data, space?.id]);
   const checkins = useMemo(() => (data?.checkins ?? []).filter((c) => c.spaceId === space?.id), [data, space?.id]);
+  // Widget (Home Screen and Lock Screen): what's due for you today and how the week is going.
+  useEffect(() => {
+    if (!data || !me) return;
+    const stats = personStats(me, tasks, checkins, today);
+    const dueToday = tasks.filter((t) => t.assignee === me && !t.archived && dueOn(t, today) && !isDone(checkinFor(checkins, t.id, today)));
+    publishWidgets([{ id: "duo.accountability", title: "Accountability", value: stats.todayDue ? `${stats.todayDone}/${stats.todayDue}` : "None due", detail: stats.todayDue ? (dueToday[0]?.title ?? "All done today") : "Nothing asked of you today", tint: "#0d9488",
+      progress: stats.todayDue ? stats.todayDone / stats.todayDue : 0, lines: [...dueToday.slice(0, 6).map((t) => t.title), `Week: ${stats.rate}% done`] }]);
+  }, [data, tasks, checkins, today, me]); // eslint-disable-line react-hooks/exhaustive-deps
   const nameOf = (id: number) => (id === me ? "You" : space?.members.find((m) => m.userId === id)?.name || "Someone");
 
   // An invite link (#/lifehub?go=accountability&join=CODE) or a tapped notification (…&task=ID).

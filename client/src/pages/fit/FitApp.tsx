@@ -22,7 +22,8 @@ import { BODY_PARTS, PART_NAME, recovery } from "@shared/fitRecovery";
 import { SleepSheet } from "./FitSleep";
 import { SplitCard, VacationCard, VacationSheet } from "./FitVacation";
 import { dayGoals } from "@shared/fitVacation";
-import { publishWidgets } from "@/lib/widgets";
+import { publishWidgets, watchWidgetActions } from "@/lib/widgets";
+import { applyFitTaps, fitWidgetSlots } from "@/lib/fitWidgets";
 import { FoodTab, latestKg, totals } from "./FitFood";
 import { CoverCard, VideoPlayer } from "./FitVideo";
 import { FastingSheet, endFast, startFast } from "./FitFasting";
@@ -328,18 +329,9 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
   const [pending, setPending] = useState<SiriAction | null>(null);
   useDeepLinks((l) => { if (l.circle) { setJoinCode(l.circle); setOverRaw("circle"); } if (l.pass) onPass(l.pass); if (l.action) setPending(l.action); });
   useEffect(() => { if (loaded && !data.onboarded) setSetup(true); }, [loaded, data.onboarded]);
-  // Widgets (Home Screen and Lock Screen): calories left, workouts this week, protein.
-  useEffect(() => {
-    if (!loaded) return;
-    const today = dayKey(), t = totals(data.foods.filter((f) => f.date === today)), g = dayGoals(data, latestKg(data));
-    const left = Math.round(g.kcal - t.kcal), weekAgo = Date.now() - 7 * 864e5;
-    const week = data.workouts.filter((w) => Date.parse(w.date) >= weekAgo).length, s = streak(data);
-    publishWidgets([
-      { title: "Calories left", value: left >= 0 ? String(left) : `${-left} over`, detail: `${Math.round(t.kcal)} of ${g.kcal} eaten`, tint: "#ff5a1f", progress: g.kcal ? t.kcal / g.kcal : 0 },
-      { title: "Workouts this week", value: String(week), detail: s ? `${s} day streak` : "Start a streak today", tint: "#22c55e" },
-      { title: "Protein today", value: `${Math.round(t.p)} g`, detail: `Goal ${g.p} g`, tint: "#3b82f6", progress: g.p ? t.p / g.p : 0 },
-    ]);
-  }, [loaded, data.foods, data.workouts, data.profile, data.vacation]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Widgets (Home Screen and Lock Screen): what they show, and taps on their buttons (a glass of water).
+  useEffect(() => { if (loaded) publishWidgets(fitWidgetSlots(data, latestKg(data))); }, [loaded, data]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!loaded) return; return watchWidgetActions((taps) => update((d) => applyFitTaps(d, taps))); }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { const was = document.documentElement.style.background; document.documentElement.style.background = C.bg; return () => { document.documentElement.style.background = was; }; }, []);
   const startProgram = () => {
     const prog = data.program ? PROGRAM_BY_ID.get(data.program.id) : undefined; if (!prog || !data.program) return;

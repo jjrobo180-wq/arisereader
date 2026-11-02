@@ -108,6 +108,10 @@ import Mood from "@/components/family-hub/Mood";
 import News from "@/components/family-hub/News";
 import NotificationSettings from "@/components/family-hub/NotificationSettings";
 import { EmailForwardCard, useEmailInbox } from "@/components/family-hub/EmailForward";
+import { useLifeFeed } from "@/components/family-hub/useLifeFeed";
+import type { Forecast } from "@shared/lifePlugins";
+import { publishWidgets } from "@/lib/widgets";
+import { duoWidgetSlots } from "@/lib/duoWidgets";
 import Members, { SECTION_INFO } from "@/components/family-hub/Members";
 import { LockButton, LockedApp, PrivacyLockProvider } from "@/components/lock/PrivacyLock";
 import { HubMoreMenu, hubMoreGroups, openNotificationBell } from "@/components/HubMoreMenu";
@@ -934,6 +938,12 @@ export default function AriseTodo() {
   const makeId = uid;
   const calendarTasks = data.tasks.map(task => ({ id: task.id, title: task.title, due: task.due, time: task.time, assignee: task.assignee, done: task.done }));
   const common = { family, setFamily, today: currentDay, makeId, say: setMessage };
+  // Widgets (Home Screen and Lock Screen): agenda, to-dos, bills, goals, notes, countdowns, email and weather.
+  const weatherFeed = useLifeFeed<Forecast>(family.weather.place ? `/api/lifehub/weather?place=${encodeURIComponent(family.weather.place)}&unit=${family.weather.unit}` : null, 0);
+  useEffect(() => {
+    const listName = (id: string) => data.lists.find(l => l.id === id)?.name;
+    publishWidgets(duoWidgetSlots(family, data.tasks.filter(t => !t.archived).map(t => ({ id: t.id, title: t.title, due: t.due, time: t.time, done: t.done, listName: listName(t.listId) })), currentDay, weatherFeed.data ?? null));
+  }, [family, data.tasks, data.lists, currentDay, weatherFeed.data]);
   // Where the Getting started page's buttons go (components/GettingStarted.tsx).
   const guideCanOpen = (t: string) => ["customize", "store", "search", "passcode", "notifications"].includes(t)
     || (t === "reader" ? sections.includes("reader") : (FAMILY_SECTIONS as readonly string[]).includes(t) && t !== "start");
