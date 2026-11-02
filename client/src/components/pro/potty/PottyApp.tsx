@@ -7,8 +7,9 @@ import { useAuth } from "@/context/AuthContext";
 import { useAppData } from "@/lib/cloudDocs";
 import { LIVE_TAG, clearPottyNotifications, showRunningTimer, syncPottySchedule, syncPottyTimer, turnOnPhone } from "@/lib/pottyPush";
 import { isNativeApp } from "@/lib/nativeApp";
+import { publishWidgets } from "@/lib/widgets";
 import { Modal, fmtDuration, uid, useTick } from "../kit";
-import { DEFAULT_DATA, tripInterval, METHOD_LIST, NEEDS, STAGES, ageMonths, ageText, blankChild, buildSchedule, cleanData, clockOf, dayOf, earnsSticker, hm, isAccident, isSuccess, minsOf, sitMinutes, stageById, type Child, type Comms, type Entry, type Kind, type NeedId } from "@shared/pro/potty";
+import { DEFAULT_DATA, isPeeEvent, isPoopEvent, tripInterval, METHOD_LIST, NEEDS, STAGES, ageMonths, ageText, blankChild, buildSchedule, cleanData, clockOf, dayOf, earnsSticker, hm, isAccident, isSuccess, minsOf, sitMinutes, stageById, type Child, type Comms, type Entry, type Kind, type NeedId } from "@shared/pro/potty";
 import { Ctx, type LogPrefill, type PottyCtx, type Tab } from "./ctx";
 import { Alert, Celebrate, SitTimer } from "./KidMode";
 import { LogSheet } from "./LogSheet";
@@ -113,6 +114,23 @@ export default function PottyApp() {
     const due = items.find((i) => (i.kind === "sit" || i.kind === "prompt") && nowM >= minsOf(i.time) && nowM - minsOf(i.time) < 2 && !rung.current.has(`${run.day}:${i.id}`));
     if (due) { rung.current.add(`${run.day}:${due.id}`); if (data.cur !== k.id) set((d) => ({ ...d, cur: k.id })); setAlertOn(true); }
   });
+
+  // Widgets (Home Screen and Lock Screen): the next sit, today's tally and the last pee.
+  const widgetKey = JSON.stringify([kid?.id, data.timer?.kid === kid?.id ? data.timer?.endAt : 0, data.logs.length, data.logs[data.logs.length - 1]?.at]);
+  useEffect(() => {
+    if (!kid) return;
+    const today = dayOf(Date.now());
+    const mine = data.logs.filter((x) => x.kid === kid.id);
+    const todays = mine.filter((x) => dayOf(x.at) === today);
+    const pees = todays.filter((x) => isPeeEvent(x.kind)), poops = todays.filter((x) => isPoopEvent(x.kind)), oops = todays.filter((x) => isAccident(x.kind));
+    const lastPee = mine.filter((x) => isPeeEvent(x.kind)).reduce((m, x) => Math.max(m, x.at), 0);
+    const t = data.timer && data.timer.kid === kid.id && data.timer.endAt > Date.now() ? data.timer : null;
+    publishWidgets([
+      { title: `${kid.name}'s next sit`, value: t ? clockOf(t.endAt) : "No timer", detail: t ? "Counting down" : "Open the app to start one", tint: "#f5b400", until: t?.endAt },
+      { title: "Potty today", value: `${pees.length} pee${pees.length === 1 ? "" : "s"}`, detail: `${poops.length} poop${poops.length === 1 ? "" : "s"}, ${oops.length} accident${oops.length === 1 ? "" : "s"}`, tint: "#3b82f6" },
+      { title: "Last pee", value: lastPee ? clockOf(lastPee) : "None yet", detail: lastPee && dayOf(lastPee) !== today ? "Not today" : undefined, tint: "#22c55e" },
+    ]);
+  }, [widgetKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep the current tab visible in the scrolling menu on a phone.
   useEffect(() => { document.querySelector<HTMLElement>(`[data-potty-tab="${tab}"]`)?.scrollIntoView?.({ inline: "center", block: "nearest", behavior: "smooth" }); }, [tab]);

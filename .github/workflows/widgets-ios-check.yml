@@ -1,0 +1,75 @@
+name: iPhone widgets build check
+# Builds each app that has widgets for the iOS 27 simulator with its widget extension (AriseWidgets) and
+# fails if the extension doesn't compile or isn't inside the app. Unsigned: signing the extension for
+# TestFlight needs an App ID, an App Group and a provisioning profile in the Apple developer account.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'native/**'
+      - '.github/scripts/add_widget.rb'
+      - '.github/workflows/widgets-ios-check.yml'
+      - 'client/src/lib/widgets.ts'
+jobs:
+  ios:
+    runs-on: xcode-27
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { flavor: todo, dir: arisetodo, bundle: com.arisereader.arisetodo, tint: f5b400, names: '["Next potty sit","Potty today","Last pee"]' }
+          - { flavor: fit, dir: fit, bundle: com.arisereader.fit, tint: ff5a1f, names: '["Calories left","Workouts this week","Protein today"]' }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use the newest Xcode 27
+        shell: bash
+        run: |
+          set -euo pipefail
+          X=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | grep -viE 'beta|release_candidate|_rc' | sort -V | tail -1 || true)
+          if [[ -z "$X" ]]; then X=$(xcode-select -p | sed 's#/Contents/Developer$##'); fi
+          echo "DEVELOPER_DIR=$X/Contents/Developer" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install application dependencies
+        run: npm ci
+      - name: Bundle the app locally
+        run: |
+          if [[ "${{ matrix.flavor }}" == "fit" ]]; then VITE_NATIVE_APP=fit npx vite build; else npx vite build; fi
+          rm -rf ${{ matrix.dir }}/ios-app/www
+          mkdir -p ${{ matrix.dir }}/ios-app/www
+          cp -R dist/public/. ${{ matrix.dir }}/ios-app/www/
+      - name: Install native tools
+        working-directory: ${{ matrix.dir }}/ios-app
+        run: npm install --no-audit --no-fund
+      - name: Generate native project
+        working-directory: ${{ matrix.dir }}/ios-app
+        run: |
+          if [[ "${{ matrix.flavor }}" == "fit" ]]; then python3 ../../.github/scripts/ota_setup.py fit; fi
+          npx cap add ios
+          npx cap sync ios
+          if [[ "${{ matrix.flavor }}" == "fit" ]]; then
+            python3 ../../.github/scripts/configure_fit_app.py ios/App/App/Info.plist
+          else
+            python3 configure-ios.py ios/App/App/Info.plist
+            python3 add-sound.py ios/App/App.xcodeproj/project.pbxproj ios/App/App
+          fi
+          python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist
+      - name: Add the widget extension
+        working-directory: ${{ matrix.dir }}/ios-app
+        run: |
+          ruby -rxcodeproj -e 'puts Xcodeproj::VERSION' || gem install xcodeproj --no-document --user-install
+          export GEM_PATH="$(ruby -e 'puts Gem.user_dir'):$(ruby -e 'puts Gem.default_dir')"
+          ruby ../../.github/scripts/add_widget.rb ios/App/App.xcodeproj ${{ matrix.bundle }} '${{ matrix.names }}' ${{ matrix.tint }}
+      - name: Compile iOS simulator app with its widgets
+        working-directory: ${{ matrix.dir }}/ios-app
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ./derived CODE_SIGNING_ALLOWED=NO build
+      - name: The widgets are inside the app
+        working-directory: ${{ matrix.dir }}/ios-app
+        run: |
+          APP=derived/Build/Products/Debug-iphonesimulator/App.app
+          ls "$APP/PlugIns"
+          test -d "$APP/PlugIns/AriseWidgets.appex"
