@@ -1,4 +1,5 @@
 import { useSavedChoice } from "@/lib/useSavedChoice";
+import { isReaderApp } from "@/lib/nativeApp";
 import { BookTitleSuggest, DidYouMeanList, type PickedBook } from "@/components/BookTitleSuggest";
 import type { BookCandidate } from "@shared/bookMatch";
 import { shelvesByPoints } from "@shared/libraryShelves";
@@ -1375,7 +1376,7 @@ export default function Library() {
                           <Trophy className="mb-1.5 h-4 w-4 text-amber-500" /><span className="block text-xs font-black">Progress & Rewards</span>
                           {studentRewards.some(r => r.claimStatus === "approved") && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-green-500" />}
                         </button>
-                        {!user?.is_eye_gaze_user && (
+                        {!user?.is_eye_gaze_user && !isReaderApp() && (
                           <button onClick={() => { navigate("/avatar-world"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
                             <User className="mb-1.5 h-4 w-4 text-cyan-500" /><span className="block text-xs font-black">Avatar World</span>
                           </button>
@@ -1991,7 +1992,7 @@ export default function Library() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <div className="book-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {Array.from({ length: 10 }).map((_, i) => (
               <div key={i} className="aspect-[2/3] bg-muted animate-pulse rounded-xl" />
             ))}
@@ -2021,7 +2022,7 @@ export default function Library() {
             ) : (
               <>
                 {searchBooks.length > 0 && (
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                  <div className="book-grid grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
                     {searchBooksShown.map((book) => {
                       const result = results.find(r => r.bookId === book.id);
                       const isDone = completedIds.has(book.id);
@@ -2232,7 +2233,7 @@ export default function Library() {
             <div key={pts} className="mb-10" data-tour={pts === pointsOrder.filter(k => pointsGroups[k])[0] ? "point-books" : undefined}>
               <h2 className="text-lg font-bold mb-1 text-foreground">{pts} Point Books</h2>
               <ExtraCreditNote className="mb-4" />
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              <div className="book-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {groupBooks.map((book) => {
                   const result = results.find(r => r.bookId === book.id);
                   const isDone = completedIds.has(book.id);
@@ -2341,7 +2342,7 @@ export default function Library() {
             ) : (
             <>
             <ExtraCreditNote className="mb-4" />
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div className="book-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {pagedBooks.map((book) => {
                 const result = results.find(r => r.bookId === book.id);
                 const isDone = completedIds.has(book.id);
