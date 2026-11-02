@@ -36,12 +36,17 @@ export type FitData = {
   savedMeals?: SavedMeal[];
   /** Sleep nights and goal (shared/fitSleep.ts). */
   sleep?: Sleep;
+  /** A trip being planned around (shared/fitVacation.ts). */
+  vacation?: Vacation;
+  /** The rest of a workout saved part-way through, to finish later (shared/fitVacation.ts). */
+  splitLeft?: SplitLeft;
 };
 
 import { DIET_BY_ID, cleanFasting, type Fasting } from "./fitNutrition";
 import { cleanRuns, type Run } from "./fitRun";
 import { cleanGym, type MyGym } from "./fitGym";
 import { cleanSleep, type Sleep } from "./fitSleep";
+import { cleanSplit, cleanVacation, type SplitLeft, type Vacation } from "./fitVacation";
 
 export const LIMITS = { workouts: 3000, foods: 20000, routines: 60, weights: 3000, recent: 60, bytes: 2_500_000 };
 
@@ -96,6 +101,10 @@ export function cleanFit(raw: any): FitData {
   if (meals.length) d.savedMeals = meals;
   const sleep = cleanSleep(raw.sleep);
   if (sleep) d.sleep = sleep;
+  const vacation = cleanVacation(raw.vacation);
+  if (vacation) d.vacation = vacation;
+  const splitLeft = cleanSplit(raw.splitLeft);
+  if (splitLeft) d.splitLeft = splitLeft;
   const runs = cleanRuns(raw.runs);
   if (runs.length) d.runs = runs;
   return d;

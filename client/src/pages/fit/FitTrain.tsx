@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeftRight, Check, ChevronRight, Clock3, Dumbbell, Flame, History, MapPin, Minus, Pause, Play, PlayCircle, Plus, ScanEye, ScanLine, Search, Timer, Trash2, Trophy } from "lucide-react";
 import {
-  CATALOG, CATALOG_BY_ID, PROGRAMS, PROGRAM_BY_ID, e1rm, fromKg, lastTime, newRecords, nextProgramDay, nextTime, plates, records, repRange, uid,
+  CATALOG, CATALOG_BY_ID, PROGRAMS, PROGRAM_BY_ID, dayKey, e1rm, fromKg, lastTime, newRecords, nextProgramDay, nextTime, plates, records, repRange, uid,
   type FitData, type FitExercise, type Program, type Routine, type Units, type Workout,
 } from "@shared/fit";
 import { videoFor } from "@shared/fitVideos";
@@ -56,7 +56,7 @@ export function ExerciseDetail({ ex, data, onClose, onAdd }: { ex: LibraryExerci
   }), [data.workouts, ex.id]);
   const rec = records(data.workouts).get(ex.id);
   return <Sheet title={ex.name} onClose={onClose} testId="fit-exercise">
-    {videoFor(ex.id) ? <VideoPlayer exId={ex.id} /> : <Demo ex={ex} />}
+    {videoFor(ex.id) ? <VideoPlayer exId={ex.id} name={ex.name} /> : <><Demo ex={ex} /><VideoPlayer exId={ex.id} name={ex.name} className="mt-3" /></>}
     {!videoFor(ex.id) && ex.images[0] && <p className="mt-2 text-[11px]" style={{ color: C.dim }}>Photos: {[...new Set(ex.images.map((i) => i.credit))].join(", ")} · {ex.images[0].license} · via wger.de</p>}
     <div className="mt-4 flex flex-wrap gap-2 text-[13px]">
       <span className="rounded-full px-3 py-1 font-semibold capitalize" style={{ background: C.card2, color: C.lime }}>{ex.muscle}</span>
@@ -117,7 +117,7 @@ export function Library({ list, data, onClose, onPick, title = "Exercises" }: { 
 
 /** `pausedMs`: time spent paused so far; `pausedAt`: when the current pause began (unset while going).
  *  Both are saved with the workout, so a pause survives closing the app. */
-type Active = { id: string; name: string; started: number; programId?: string; dayId?: string; exercises: FitExercise[]; pausedMs?: number; pausedAt?: number | null };
+type Active = { id: string; name: string; started: number; programId?: string; dayId?: string; /** 2 and up when this is the rest of a workout that was split (shared/fitVacation.ts). */ part?: number; exercises: FitExercise[]; pausedMs?: number; pausedAt?: number | null };
 /** Seconds of actual workout: from the start, leaving out any time paused. */
 export const workoutSecs = (a: Pick<Active, "started" | "pausedMs" | "pausedAt">, now: number) => Math.max(0, ((a.pausedAt ?? now) - a.started - (a.pausedMs ?? 0)) / 1000);
 export const readActive = (): Active | null => { try { return JSON.parse(localStorage.getItem(ACTIVE) || "null"); } catch { return null; } };
@@ -198,11 +198,26 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
   const finish = () => {
     const exercises = active.exercises.map((e) => ({ ...e, sets: e.sets.filter((s) => s.done) })).filter((e) => e.sets.length);
     if (!exercises.length) { if (window.confirm("No sets are checked off. Discard this workout?")) { saveActive(null); setActive(null); } return; }
-    const w: Workout = { id: active.id, date: new Date(active.started).toISOString(), name: active.name, ...(active.programId ? { programId: active.programId, dayId: active.dayId } : {}), secs: Math.round(workoutSecs(active, Date.now())), exercises };
+    const w: Workout = { id: active.id, date: new Date(active.started).toISOString(), name: (active.part ?? 1) > 1 ? `${active.name.replace(/ \(part \d+\)$/, "")} (part ${active.part})` : active.name, ...(active.programId ? { programId: active.programId, dayId: active.dayId } : {}), secs: Math.round(workoutSecs(active, Date.now())), exercises };
     const prs = newRecords(data.workouts, w);
     saveToHealth("calories", Math.round((w.secs / 60) * 6), new Date(active.started));
     update((d) => ({ ...d, workouts: [...d.workouts, w], ...(d.program && active.programId === d.program.id && active.dayId ? { program: { ...d.program, done: [...d.program.done, `${active.dayId}@${w.date.slice(0, 10)}`] } } : {}) }));
     saveActive(null); haptic("success"); setDone({ w, prs });
+  };
+  /** Saves what's been done so far as its own workout and keeps the rest to finish later (from Today). */
+  const savePart = () => {
+    const exercises = active.exercises.map((e) => ({ ...e, sets: e.sets.filter((x) => x.done) })).filter((e) => e.sets.length);
+    const left = active.exercises.map((e) => ({ ...e, sets: e.sets.filter((x) => !x.done) })).filter((e) => e.sets.length);
+    if (!exercises.length) { say("Check off a set first."); return; }
+    if (!left.length) { finish(); return; }
+    const part = active.part ?? 1;
+    const base = active.name.replace(/ \(part \d+\)$/, "");
+    // The program day isn't ticked off until the last part is done, so this saves without a program.
+    const w: Workout = { id: active.id, date: new Date(active.started).toISOString(), name: `${base} (part ${part})`, secs: Math.round(workoutSecs(active, Date.now())), exercises };
+    saveToHealth("calories", Math.round((w.secs / 60) * 6), new Date(active.started));
+    update((d) => ({ ...d, workouts: [...d.workouts, w], splitLeft: { name: base, ...(active.programId ? { programId: active.programId, dayId: active.dayId } : {}), part: part + 1, date: dayKey(), exercises: left } }));
+    saveActive(null); setActive(null); haptic("success");
+    say(`Part ${part} saved. The rest is waiting on Today.`);
   };
   if (done) {
     const vol = done.w.exercises.reduce((t, e) => t + e.sets.reduce((x, s) => x + s.reps * s.weight, 0), 0);
@@ -237,6 +252,7 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
         <Btn onClick={finish} testId="fit-finish">Finish</Btn>
       </div>
       <div className="mt-2.5 h-1.5 overflow-hidden rounded-full" style={{ background: C.track }}><div className="h-full rounded-full" style={{ width: `${allSets ? (doneSets / allSets) * 100 : 0}%`, background: C.lime, transition: "width .4s ease" }} /></div>
+      {doneSets > 0 && doneSets < allSets && <button type="button" onClick={savePart} className="mt-2 text-[13px] font-semibold underline" style={{ color: C.dim }} data-testid="fit-split">Save this part, finish the rest later today</button>}
     </div>
     <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 pb-40">
       {active.exercises.map((e, ei) => {

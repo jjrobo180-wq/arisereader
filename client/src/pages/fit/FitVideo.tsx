@@ -6,35 +6,47 @@
 import { useState, type ReactNode } from "react";
 import { Play } from "lucide-react";
 import { isNativeApp, nativeAppInfo } from "@/lib/nativeApp";
-import { videoFor, videoPlayerUrl, videoThumb } from "@shared/fitVideos";
+import { longVideoFor, quickClipsUrl, videoFor, videoPlayerUrl, videoThumb, type FitVideo } from "@shared/fitVideos";
 import { C, cardStyle } from "./fitUi";
 import { Art, workoutArt, type ArtKind } from "./fitArt";
 
 /** Where the player page lives: this site, or arisetodo.com inside the iPhone app. */
 const playerOrigin = () => (isNativeApp() ? nativeAppInfo().api : window.location.origin);
 
-/** The exercise's how-to video: a still first (nothing loads from YouTube until it's tapped), then the player. */
-export function VideoPlayer({ exId, label = "How-to video", className = "", testId = "fit-video" }: { exId: string; label?: string; className?: string; testId?: string }) {
-  const v = videoFor(exId);
+/** One video: a still first (nothing loads from YouTube until it's tapped), then the player. Shorts are upright. */
+function Clip({ v, testId }: { v: FitVideo; testId: string }) {
   const [playing, setPlaying] = useState(false);
-  if (!v) return null;
+  const frame = v.short ? "mx-auto aspect-[9/16] w-[min(100%,calc(58vh*9/16))]" : "aspect-video w-full";
+  return <div className={`relative overflow-hidden rounded-[14px] bg-black shadow-[0_20px_40px_-20px_rgba(0,0,0,.8)] ring-1 ring-white/[.06] ${frame}`}>
+    {playing
+      ? <iframe src={videoPlayerUrl(v.id, playerOrigin())} title={v.title} className="absolute inset-0 h-full w-full border-0"
+          allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen referrerPolicy="strict-origin-when-cross-origin"
+          sandbox="allow-scripts allow-same-origin allow-presentation" data-testid={`${testId}-frame`} />
+      : <button type="button" onClick={() => setPlaying(true)} className="group absolute inset-0 text-left" aria-label={`Play: ${v.title}`} data-testid={`${testId}-play`}>
+          <img src={videoThumb(v.id, "hq")} alt="" loading="lazy" className={`absolute inset-0 h-full w-full object-cover transition duration-500 group-active:scale-[1.02] ${v.short ? "scale-[1.9]" : "scale-[1.34]"}`} />
+          <span aria-hidden className="absolute inset-0" style={{ background: "rgba(0,0,0,.18)" }} />
+          <span className="absolute left-1/2 top-1/2 grid h-16 w-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full shadow-[0_10px_30px_rgba(255,90,31,.35)] transition group-active:scale-95" style={{ background: C.lime }}>
+            <Play className="ml-1 h-7 w-7" fill="#0b0b0c" style={{ color: "#0b0b0c" }} />
+          </span>
+        </button>}
+  </div>;
+}
+
+/** The exercise's how-to clip: a short one (a minute or less) when there is one, with the long tutorial a tap away.
+ *  With no video at all, a link to quick clips on YouTube. */
+export function VideoPlayer({ exId, name, label = "Quick how-to", className = "", testId = "fit-video" }: { exId: string; name?: string; label?: string; className?: string; testId?: string }) {
+  const v = videoFor(exId);
+  const long = longVideoFor(exId);
+  const [showLong, setShowLong] = useState(false);
+  if (!v) return name ? <a href={quickClipsUrl(name)} target="_blank" rel="noopener noreferrer" className={`flex min-h-12 items-center justify-center gap-2 rounded-[12px] px-4 text-[15px] font-semibold ${className}`} style={{ background: C.card2, color: C.text }} data-testid={`${testId}-find`}><Play className="h-4 w-4" fill={C.lime} style={{ color: C.lime }} />Find a quick clip of {name}</a> : null;
   return <div className={className} data-testid={testId}>
-    <div className="relative aspect-video w-full overflow-hidden rounded-[14px] bg-black shadow-[0_20px_40px_-20px_rgba(0,0,0,.8)] ring-1 ring-white/[.06]">
-      {playing
-        ? <iframe src={videoPlayerUrl(v.id, playerOrigin())} title={v.title} className="absolute inset-0 h-full w-full border-0"
-            allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen referrerPolicy="strict-origin-when-cross-origin"
-            sandbox="allow-scripts allow-same-origin allow-presentation" data-testid={`${testId}-frame`} />
-        : <button type="button" onClick={() => setPlaying(true)} className="group absolute inset-0 text-left" aria-label={`Play: ${v.title}`} data-testid={`${testId}-play`}>
-            <img src={videoThumb(v.id, "hq")} alt="" loading="lazy" className="absolute inset-0 h-full w-full scale-[1.34] object-cover transition duration-500 group-active:scale-[1.3]" />
-            <span aria-hidden className="absolute inset-0" style={{ background: "rgba(0,0,0,.18)" }} />
-            <span className="absolute left-1/2 top-1/2 grid h-16 w-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full shadow-[0_10px_30px_rgba(255,90,31,.35)] transition group-active:scale-95" style={{ background: C.lime }}>
-              <Play className="ml-1 h-7 w-7" fill="#0b0b0c" style={{ color: "#0b0b0c" }} />
-            </span>
-          </button>}
-    </div>
+    <Clip v={v} testId={testId} />
     {/* The video's name under it, not on top of it. */}
-    <p className="mt-2 px-0.5 text-[11px] font-bold uppercase tracking-[.12em]" style={{ color: C.lime }}>{label}</p>
+    <p className="mt-2 px-0.5 text-[11px] font-bold uppercase tracking-[.12em]" style={{ color: C.lime }}>{v.short ? `${label} · under a minute` : label}</p>
     <p className="line-clamp-2 px-0.5 text-[15px] font-semibold leading-snug" style={{ color: C.text }}>{v.title}</p>
+    {long && (showLong
+      ? <div className="mt-3"><Clip v={long} testId={`${testId}-long`} /><p className="mt-2 px-0.5 text-[13px]" style={{ color: C.dim }}>{long.title}</p></div>
+      : <button type="button" onClick={() => setShowLong(true)} className="mt-2 px-0.5 text-[13px] font-semibold underline" style={{ color: C.dim }} data-testid={`${testId}-more`}>Want more detail? Watch the full tutorial</button>)}
   </div>;
 }
 
