@@ -57,6 +57,7 @@ KEYS = {
         "NSMicrophoneUsageDescription": "Arise Notes uses the microphone to record your meetings, classes and voice memos so it can write them down and summarize them.",
         "NSCameraUsageDescription": "Arise Notes uses the camera only when you choose to record a video to upload. Only its sound is written down.",
         "NSPhotoLibraryUsageDescription": "Arise Notes lets you choose a recording or video from your library to upload. Only its sound is written down.",
+        "NSFaceIDUsageDescription": "Arise Notes uses Face ID to unlock your locked notes.",
         "NSSpeechRecognitionUsageDescription": "In Private and Strict modes, Arise Notes writes down your recordings on this iPhone, so the audio never leaves it.",
         "NSRemindersFullAccessUsageDescription": "Arise Notes adds the to-dos you choose from your meetings to the Reminders app.",
         "NSRemindersUsageDescription": "Arise Notes adds the to-dos you choose from your meetings to the Reminders app.",
@@ -64,6 +65,8 @@ KEYS = {
         "NSCalendarsFullAccessUsageDescription": "Arise Notes adds the events you choose from your meetings to your iPhone's calendar.",
         "NSCalendarsUsageDescription": "Arise Notes adds the events you choose from your meetings to your iPhone's calendar.",
         "UIUserInterfaceStyle": "Light",
+        # The widgets open the app with arisenotes:// links (Record, New note, a note).
+        "CFBundleURLTypes": [{"CFBundleURLName": "com.arisereader.notes", "CFBundleURLSchemes": ["arisenotes"]}],
     },
 }[FLAVOR]
 with open(PLIST, "rb") as f:

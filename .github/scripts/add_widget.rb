@@ -6,6 +6,8 @@
 # <widgets json> is a list of [slot id, widget name] pairs; each gets a simple and a detailed widget.
 # The extension is called AriseWidgets, its bundle id is <host>.widgets, and it reads the App Group
 # group.<host> that the AriseWidgets plugin writes to. Run after `npx cap add ios && npx cap sync ios`.
+# WIDGET_SOURCE (a Swift file, relative to the repository) replaces the standard three-slot widgets with
+# an app's own (Arise Notes: notes/ios-app/widgets/NotesWidgets.swift); the widgets json then only counts them.
 # For a signed build, also set SIGN_TEAM, APP_PROFILE and WIDGET_PROFILE (provisioning profile names),
 # APP_ENTITLEMENTS (path of the app's entitlements, relative to the App folder) and BUILD_NUMBER. Signing
 # is then set in the project itself, so the archive command must not override it.
@@ -22,13 +24,23 @@ abort "need at least one widget" if widgets.empty?
 names = widgets.map { |w| w[1] }
 
 root = File.expand_path("../..", __dir__)
-src = File.read(File.join(root, "native/widget-extension/AriseWidgets.swift"))
-structs = widgets.each_with_index.map do |w, i|
-  "struct AriseSimple#{i}: Widget { var body: some WidgetConfiguration { SimpleWidget(id: #{w[0].to_json}, name: #{w[1].to_json}).config } }\n" \
-  "struct AriseDetail#{i}: Widget { var body: some WidgetConfiguration { DetailWidget(id: #{w[0].to_json}, name: #{w[1].to_json}).config } }"
-end.join("\n")
-bundle = widgets.each_index.map { |i| "        AriseSimple#{i}()\n        AriseDetail#{i}()" }.join("\n")
-src = src.sub("__WIDGETS__", JSON.generate(widgets)).sub("__TINT__", tint || "ff5a1f").sub("__STRUCTS__", structs).sub("__BUNDLE__", bundle)
+own = ENV["WIDGET_SOURCE"].to_s.strip
+if own.empty?
+  src = File.read(File.join(root, "native/widget-extension/AriseWidgets.swift"))
+  structs = widgets.each_with_index.map do |w, i|
+    "struct AriseSimple#{i}: Widget { var body: some WidgetConfiguration { SimpleWidget(id: #{w[0].to_json}, name: #{w[1].to_json}).config } }
+" \
+    "struct AriseDetail#{i}: Widget { var body: some WidgetConfiguration { DetailWidget(id: #{w[0].to_json}, name: #{w[1].to_json}).config } }"
+  end.join("
+")
+  bundle = widgets.each_index.map { |i| "        AriseSimple#{i}()
+        AriseDetail#{i}()" }.join("
+")
+  src = src.sub("__WIDGETS__", JSON.generate(widgets)).sub("__TINT__", tint || "ff5a1f").sub("__STRUCTS__", structs).sub("__BUNDLE__", bundle)
+else
+  # An app's own widgets (Arise Notes): used as they are.
+  src = File.read(File.join(root, own))
+end
 
 ios_dir = File.dirname(project_path)
 dir = File.join(ios_dir, "AriseWidgets")
