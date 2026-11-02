@@ -6,7 +6,7 @@
 // sample accounts). Signing in here is the same account as the website's.
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useLocation } from "wouter";
-import { Apple as AppleIcon, Bell, BookOpen, Briefcase, Dumbbell, LineChart, ChevronLeft, Eye, EyeOff, GraduationCap, HeartHandshake, Loader2, Mail, Trophy, Users } from "lucide-react";
+import { Apple as AppleIcon, Bell, BookOpen, Briefcase, Dumbbell, LineChart, ChevronLeft, Eye, EyeOff, GraduationCap, HeartHandshake, ListChecks, Loader2, Mail, Mic, Sparkles, Trophy, Users } from "lucide-react";
 import ForgotSignIn from "@/components/auth/ForgotSignIn";
 import { useAuth } from "@/context/AuthContext";
 import { APPLE_LOGO_PATH, appleSignInAvailable, askApple } from "@/lib/appleSignIn";
@@ -41,11 +41,29 @@ const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { ti
       { tint: "#0f766e", icon: <Users className="h-[22px] w-[22px]" />, title: "For parents", text: "Follow your child's reading and celebrate wins." },
       { tint: "#e0465f", icon: <Bell className="h-[22px] w-[22px]" />, title: "Notifications", text: "Messages and updates as they happen." },
     ] },
+  eyegaze: { icon: "/app-icons/eyegazer-1024.png", tagline: "Learn, play and talk with your eyes.", apple: true, signInHint: "Use your Eye Gazer account, or any A.R.I.S.E. account.", create: "Create an Eye Gazer account",
+    features: [
+      { tint: "#0891b2", icon: <Eye className="h-[22px] w-[22px]" />, title: "Made for eye gaze", text: "Games, lessons and a talker that work with a look, a tap or a switch." },
+      { tint: "#7c3aed", icon: <BookOpen className="h-[22px] w-[22px]" />, title: "Lessons and books", text: "Letters, words, life skills and stories at their level." },
+      { tint: "#e0465f", icon: <Bell className="h-[22px] w-[22px]" />, title: "Notifications", text: "Progress and reminders for parents." },
+    ] },
   fit: { icon: "/app-icons/fit-1024.png", tagline: "Train smarter. Eat better. See it work.", apple: true, signInHint: "Use your Arise account (Arise To Duo or A.R.I.S.E.).", create: "Create a free account",
     features: [
       { tint: "#5c8a12", icon: <Dumbbell className="h-[22px] w-[22px]" />, title: "Programs and tracking", text: "Proven plans, every set logged, records and rest timer." },
       { tint: "#e0782f", icon: <AppleIcon className="h-[22px] w-[22px]" />, title: "Calories and macros", text: "Search, scan a barcode or snap a photo of your meal." },
       { tint: "#3b82f6", icon: <LineChart className="h-[22px] w-[22px]" />, title: "Real progress", text: "Strength, volume, weight and streaks over time." },
+    ] },
+  trainer: { icon: "/app-icons/trainer-1024.png", tagline: "Coach your clients. Grow your business.", apple: true, signInHint: "Use your Arise account (the same one works in Arise Fit).", create: "Create a free account",
+    features: [
+      { tint: "#ff5a1f", icon: <Users className="h-[22px] w-[22px]" />, title: "Clients, synced", text: "Their Arise Fit workouts, food and health data come to you." },
+      { tint: "#e0782f", icon: <Dumbbell className="h-[22px] w-[22px]" />, title: "Build and assign", text: "Workouts, programs, habits, nutrition and check-ins." },
+      { tint: "#3b82f6", icon: <Bell className="h-[22px] w-[22px]" />, title: "Get found", text: "List your prices in the Arise trainer directory." },
+    ] },
+  notes: { icon: "/app-icons/notes-1024.png", tagline: "Record it. Get the notes.", apple: true, signInHint: "Use your Arise account (the same one works in Arise To Duo).", create: "Create a free account",
+    features: [
+      { tint: "#6a55dc", icon: <Mic className="h-[22px] w-[22px]" />, title: "Record or upload", text: "Meetings, classes and IEP meetings, up to 2 hours." },
+      { tint: "#7b5cf0", icon: <Sparkles className="h-[22px] w-[22px]" />, title: "Transcript and summary", text: "Every word with times, then the key points." },
+      { tint: "#ef4e5b", icon: <ListChecks className="h-[22px] w-[22px]" />, title: "Straight to your planner", text: "To-dos and dates go into Arise To Duo." },
     ] },
 };
 
@@ -90,8 +108,24 @@ export default function NativeSignIn() {
 
   const signIn = (e: FormEvent) => { e.preventDefault(); void run("form", async () => { await login(username.trim(), password); showHubMenus(); }); };
 
+  /** Eye Gazer: a plain account of its own. Just a name, a username and a password: no school,
+   *  no teacher, no email code. It opens straight into the eye-gaze home with every feature. */
+  const signUpEyeGazer = () => run("form", async () => {
+    const clean = username.trim().toLowerCase();
+    if (name.trim().length < 2) throw new Error("Enter a name.");
+    if (!/^[a-z0-9_-]{3,30}$/.test(clean)) throw new Error("Usernames are 3–30 letters, numbers, dashes or underscores.");
+    if (password.length < 6) throw new Error("Use a password with at least 6 characters.");
+    const res = await fetch(`${API_BASE}/api/register`, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: clean, displayName: name.trim(), password, independent: true, isEyeGazeUser: true }) });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(data?.message || "Couldn't create your account.");
+    await login(clean, password);
+    navigate("/eye-gaze-home");
+  });
+
   const signUp = (e: FormEvent) => {
     e.preventDefault();
+    if (flavor === "eyegaze") { void signUpEyeGazer(); return; }
     void run("form", async () => {
       const clean = username.trim().toLowerCase();
       if (name.trim().length < 2) throw new Error("Enter your name.");
@@ -126,7 +160,7 @@ export default function NativeSignIn() {
 
   const apple = copy.apple && appleSignInAvailable();
   /** Making an account: To Duo has its own screen; the Reader apps use the website's sign-up pages. */
-  const create = () => (flavor === "reader" ? navigate("/register-independent") : flavor === "educator" ? setPicking(true) : go("signup"));
+  const create = () => (flavor === "reader" ? navigate("/register-independent") :  flavor === "educator" ? setPicking(true) : go("signup"));
   const [picking, setPicking] = useState(false);
 
   if (screen === "welcome") return <Shell>
@@ -183,28 +217,30 @@ export default function NativeSignIn() {
   </Shell>;
 
   const signingUp = screen === "signup";
+  const eyeGazer = flavor === "eyegaze";
   return <Shell>
     <NavBar title="" onBack={() => go("welcome")} />
     <form onSubmit={signingUp ? signUp : signIn} className="flex min-h-0 flex-1 flex-col overflow-y-auto [&>*]:shrink-0 px-5">
-      <Heading title={signingUp ? "Create your account" : "Sign in"} text={signingUp ? (flavor === "fit" ? "Free, for anyone. The same account works in Arise To Duo." : "Free, for anyone. You get LifeHub and WorkHub.") : copy.signInHint} />
+      <Heading title={signingUp ? (eyeGazer ? "Create an Eye Gazer account" : "Create your account") : "Sign in"} text={signingUp ? (eyeGazer ? "No school or teacher needed. Just a name, a username and a password, and every Eye Gazer game, lesson and the talker are ready." : flavor === "fit" || flavor === "trainer" ? "Free, for anyone. The same account works in Arise Fit and Arise To Duo." : flavor === "notes" ? "Free, for anyone, with 60 minutes a month. The same account works in Arise To Duo." : "Free, for anyone. You get LifeHub and WorkHub.") : copy.signInHint} />
       <Group>
         {signingUp && <Field label="Name" value={name} onChange={setName} autoComplete="name" placeholder="Your name" testId="native-name" />}
         <Field label="Username" value={username} onChange={setUsername} autoComplete="username" placeholder={signingUp ? "Choose a username" : "Username or email"} testId="native-username" plain />
-        {signingUp && <Field label="Email" value={email} onChange={setEmail} type="email" autoComplete="email" placeholder="you@example.com" testId="native-signup-email" plain />}
-        <Field label="Password" value={password} onChange={setPassword} type={show ? "text" : "password"} autoComplete={signingUp ? "new-password" : "current-password"} placeholder={signingUp ? "8 or more characters" : "Required"} testId="native-password" plain
+        {signingUp && !eyeGazer && <Field label="Email" value={email} onChange={setEmail} type="email" autoComplete="email" placeholder="you@example.com" testId="native-signup-email" plain />}
+        <Field label="Password" value={password} onChange={setPassword} type={show ? "text" : "password"} autoComplete={signingUp ? "new-password" : "current-password"} placeholder={signingUp ? (eyeGazer ? "6 or more characters" : "8 or more characters") : "Required"} testId="native-password" plain
           trailing={<button type="button" onClick={() => setShow((v) => !v)} aria-label={show ? "Hide password" : "Show password"} className="-mr-2 grid h-11 w-11 place-items-center text-[#8e8b9c]">{show ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}</button>} />
       </Group>
       {!signingUp && <button type="button" onClick={() => go("forgot")} className="mt-3 self-start px-1 py-2 text-[15px] font-semibold text-[#5b4fe0]">Forgot username or password?</button>}
-      {signingUp && <p className="mt-3 px-1 text-[13px] leading-snug text-[#8e8b9c]">We'll email a 6-digit code to confirm it. Your email is also how you reset your password.</p>}
+      {signingUp && eyeGazer && <button type="button" onClick={() => navigate("/parent-signup")} className="mt-3 self-start px-1 py-2 text-[14px] font-semibold text-[#5b4fe0]">A parent who wants family controls? Make a parent account</button>}
+      {signingUp && !eyeGazer && <p className="mt-3 px-1 text-[13px] leading-snug text-[#8e8b9c]">We'll email a 6-digit code to confirm it. Your email is also how you reset your password.</p>}
       <Message error={error} notice={notice} />
       <div className="mt-auto space-y-3 pb-2 pt-8">
-        <Primary busy={busy === "form"} disabled={!username.trim() || !password || (signingUp && (!name.trim() || !email.trim()))}>{signingUp ? "Create account" : "Sign in"}</Primary>
+        <Primary busy={busy === "form"} disabled={!username.trim() || !password || (signingUp && (!name.trim() || (!eyeGazer && !email.trim())))}>{signingUp ? "Create account" : "Sign in"}</Primary>
         {apple && <button type="button" onClick={withApple} disabled={!!busy}
           className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-black text-[17px] font-semibold text-white active:opacity-80 disabled:opacity-60">
           {busy === "apple" ? <Loader2 className="h-5 w-5 animate-spin" /> : <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={APPLE_LOGO_PATH} /></svg>}
           {signingUp ? "Sign up with Apple" : "Sign in with Apple"}
         </button>}
-        <button type="button" onClick={() => (signingUp ? go("signin") : flavor === "todo" || flavor === "fit" ? go("signup") : go("welcome"))} className="h-11 w-full text-[15px] text-[#6b6879]">
+        <button type="button" onClick={() => (signingUp ? go("signin") : flavor === "todo" || flavor === "fit" || flavor === "trainer" || flavor === "notes" || eyeGazer ? go("signup") : go("welcome"))} className="h-11 w-full text-[15px] text-[#6b6879]">
           {signingUp ? <>Already have an account? <b className="font-semibold text-[#5b4fe0]">Sign in</b></> : <>New to {appName}? <b className="font-semibold text-[#5b4fe0]">Create an account</b></>}
         </button>
       </div>

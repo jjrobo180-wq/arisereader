@@ -1,4 +1,5 @@
 import { isNativeApp } from "@/lib/nativeApp";
+import { updateReaderWidget } from "@/lib/readerWidget";
 import { cancelAllNativeReminders } from "@/lib/nativeReminders";
 import { forgetAppleDevice } from "@/lib/applePush";
 // Signing out should stop Arise WorkHub reminders on this phone or computer: they carry students' names,
@@ -9,6 +10,7 @@ import { API_BASE } from "@/lib/queryClient";
 export async function forgetThisDevice(token: string | null): Promise<void> {
   // The iPhone app: its scheduled reminders and its Apple push token belong to the account signing out.
   if (isNativeApp()) {
+    updateReaderWidget(null); // the Home Screen widget stops showing this reader
     await Promise.all([cancelAllNativeReminders(), token ? forgetAppleDevice(token, API_BASE) : Promise.resolve()]).catch(() => {});
   }
   try {

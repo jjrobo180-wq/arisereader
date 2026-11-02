@@ -44,7 +44,7 @@ export default function EyeGazeHome() {
   useEffect(() => {
     let active = true;
     void fetchFamilySettings(token).then(result => {
-      if (active) setControls(result.settings);
+      if (active && result?.settings) setControls(result.settings);
     }).catch(() => {});
     return () => { active = false; };
   }, [token, user?.id]);

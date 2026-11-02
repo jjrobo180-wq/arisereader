@@ -24,6 +24,9 @@ export type TodoReminder = HubReminder & { news?: { topic: string; place: string
 const MEAL_WORD: Record<Meal, string> = { breakfast: "breakfast", lunch: "lunch", dinner: "dinner", snacks: "snacks" };
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+/** How many to-dos get a notification of their own at each "still to do" time; the rest share one. */
+export const TODO_NUDGE_EACH = 8;
+const shortDate = (day: string) => new Date(`${day}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 const toMinutes = (hm: string) => {
   const m = /^(\d{1,2}):(\d{2})$/.exec(hm || "");
   return m ? Number(m[1]) * 60 + Number(m[2]) : null;
@@ -165,18 +168,27 @@ export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: st
   const loggedMeal = (meal: Meal) => health.food.some((f) => f.memberId === member.id && f.date === date && f.meal === meal);
   const foodToday = health.food.filter((f) => f.memberId === member.id && f.date === date);
 
-  // "You have to-dos to do": at each chosen time while today's or overdue to-dos are left.
+  // "You have to-dos to do": at each chosen time while today's or overdue to-dos are left, one
+  // notification per to-do (not one bundle), so each can be read and tapped on its own. A long list
+  // sends the first TODO_NUDGE_EACH on their own and the rest as one "+ N more".
   if (prefs.todoNudge.on) {
-    const left = tasks.filter((t) => typeof t.due === "string" && t.due && t.due <= date);
+    const left = tasks.filter((t) => typeof t.due === "string" && t.due && t.due <= date)
+      .sort((a, b) => Number(b.priority === "high") - Number(a.priority === "high") || String(a.due).localeCompare(String(b.due)));
     const times = persistent ? [...new Set([...prefs.todoNudge.times, "10:00", "15:00", "19:30"])].sort() : prefs.todoNudge.times;
     if (left.length) for (const at of times) {
+      if (!now(at)) continue;
       const key = `todo:nudge:tasks:${date}:${at}`;
-      if (sent[key] || !now(at)) continue;
-      const overdue = left.filter((t) => t.due < date).length;
-      const names = left.slice(0, 2).map((t) => String(t.title).slice(0, 40));
-      out.push({ key, title: `${plural(left.length, "to-do")} still to do${overdue ? ` (${overdue} overdue)` : ""} ✅`,
-        body: `${names.join(", ")}${left.length > 2 ? ` + ${left.length - 2} more` : ""}. Open LifeHub to check them off.`, url: goUrl("tasks", "view=today") });
-      break; // one at a time, even if a pass was missed
+      const each = left.slice(0, TODO_NUDGE_EACH);
+      for (const t of each) {
+        const taskKey = `${key}:${t.id}`;
+        if (sent[taskKey]) continue;
+        const overdue = t.due < date;
+        out.push({ key: taskKey, title: `${String(t.title).slice(0, 120)}${overdue ? "" : " ✅"}`,
+          body: `${overdue ? `Overdue since ${shortDate(t.due)}` : "Due today"}${t.priority === "high" ? " · high priority" : ""}${t.assignee ? ` · ${t.assignee}` : ""}. Tap to check it off.`, url: goUrl("tasks", "view=today") });
+      }
+      const rest = left.length - each.length;
+      if (rest > 0 && !sent[key]) out.push({ key, title: `+ ${plural(rest, "more to-do")} still to do`, body: "Open LifeHub to see them all.", url: goUrl("tasks", "view=today") });
+      break; // one nudge time at a time, even if a pass was missed
     }
   }
 

@@ -1,13 +1,28 @@
 // Arise Fit training: the exercise library, the live workout (sets, rest timer, records, what to lift
 // next time), programs, routines and history.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronRight, Clock3, Dumbbell, Flame, History, Minus, Play, Plus, Search, Timer, Trash2, Trophy, Youtube } from "lucide-react";
+import { ArrowLeftRight, Check, ChevronRight, Clock3, Dumbbell, Flame, History, MapPin, Minus, Pause, Play, PlayCircle, Plus, ScanEye, ScanLine, Search, Timer, Trash2, Trophy } from "lucide-react";
 import {
-  CATALOG, CATALOG_BY_ID, PROGRAMS, PROGRAM_BY_ID, e1rm, fromKg, howToVideo, lastTime, newRecords, nextProgramDay, nextTime, plates, records, repRange, uid,
+  CATALOG, CATALOG_BY_ID, PROGRAMS, PROGRAM_BY_ID, dayKey, e1rm, fromKg, lastTime, newRecords, nextProgramDay, nextTime, plates, records, repRange, uid,
   type FitData, type FitExercise, type Program, type Routine, type Units, type Workout,
 } from "@shared/fit";
+import { videoFor } from "@shared/fitVideos";
+import { SESSION_BY_ID, nextC25K, sessionMins, sessionsIn, type Session, type SessionCategory } from "@shared/fitSessions";
+import { BodyMap } from "./FitBody";
+import { SmartWorkoutCard } from "./FitSmart";
+import { programArt, type ArtKind } from "./fitArt";
+import { SessionPlayer } from "./FitSession";
+import { OutdoorHub } from "./FitRun";
+import { FormCheck } from "./FitForm";
+import { formLiftFor } from "@shared/fitForm";
+import { prescription } from "@shared/fitRecovery";
+import { Debrief, GymSheet, ScanMachine, SwapSheet } from "./FitGym";
+import { gymLabel } from "@shared/fitGym";
+import { saveToHealth } from "./fitNative";
 import type { LibraryExercise, Update } from "./fitStore";
-import { Btn, C, Card, Chips, Sheet, Spark, Title, fmtDur, fmtNum, inputCls, inputStyle } from "./fitUi";
+import { CoverCard, VideoPlayer, VideoThumb } from "./FitVideo";
+import { PlusTag, usePlus } from "./FitPlus";
+import { Btn, C, Card, Chips, Sheet, Spark, Title, fmtDur, fmtNum, glowBg, inputCls, inputStyle, display, stagger, Layer, font, haptic} from "./fitUi";
 
 export const libraryFallback = (): LibraryExercise[] => CATALOG.map((e) => ({ ...e, images: [], source: "arise" as const }));
 const MUSCLES = ["all", "chest", "back", "shoulders", "biceps", "triceps", "abs", "quads", "hamstrings", "glutes", "calves", "full body", "cardio"] as const;
@@ -17,12 +32,14 @@ const ACTIVE = "arise-fit-active";
 /** The exercise's photos, cross-fading between positions so the movement shows. */
 export function Demo({ ex, size = "lg" }: { ex: LibraryExercise; size?: "sm" | "lg" }) {
   const [i, setI] = useState(0);
+  const video = size === "sm" && !!videoFor(ex.id);
   useEffect(() => {
-    if (ex.images.length < 2 || size === "sm") return;
+    if (video || ex.images.length < 2 || size === "sm") return;
     const t = window.setInterval(() => setI((x) => (x + 1) % ex.images.length), 1100);
     return () => window.clearInterval(t);
   }, [ex.images.length, size]);
-  const box = size === "sm" ? "h-14 w-14 rounded-[14px]" : "aspect-[4/3] w-full rounded-[20px]";
+  if (video) return <VideoThumb exId={ex.id} />;
+  const box = size === "sm" ? "h-14 w-14 rounded-[10px]" : "aspect-[4/3] w-full rounded-[14px]";
   if (!ex.images.length) return <div className={`${box} grid shrink-0 place-items-center`} style={{ background: `linear-gradient(150deg, ${C.card2}, #24243a)` }} aria-hidden>
     <Dumbbell className={size === "sm" ? "h-6 w-6" : "h-14 w-14"} style={{ color: C.lime }} />
   </div>;
@@ -39,15 +56,14 @@ export function ExerciseDetail({ ex, data, onClose, onAdd }: { ex: LibraryExerci
   }), [data.workouts, ex.id]);
   const rec = records(data.workouts).get(ex.id);
   return <Sheet title={ex.name} onClose={onClose} testId="fit-exercise">
-    <Demo ex={ex} />
-    {ex.images[0] && <p className="mt-2 text-[11px]" style={{ color: C.dim }}>Photos: {[...new Set(ex.images.map((i) => i.credit))].join(", ")} · {ex.images[0].license} · via wger.de</p>}
+    {videoFor(ex.id) ? <VideoPlayer exId={ex.id} name={ex.name} /> : <><Demo ex={ex} /><VideoPlayer exId={ex.id} name={ex.name} className="mt-3" /></>}
+    {!videoFor(ex.id) && ex.images[0] && <p className="mt-2 text-[11px]" style={{ color: C.dim }}>Photos: {[...new Set(ex.images.map((i) => i.credit))].join(", ")} · {ex.images[0].license} · via wger.de</p>}
     <div className="mt-4 flex flex-wrap gap-2 text-[13px]">
       <span className="rounded-full px-3 py-1 font-semibold capitalize" style={{ background: C.card2, color: C.lime }}>{ex.muscle}</span>
       {ex.also.map((m) => <span key={m} className="rounded-full px-3 py-1 capitalize" style={{ background: C.card2 }}>{m}</span>)}
       <span className="rounded-full px-3 py-1 capitalize" style={{ background: C.card2 }}>{ex.equipment}</span>
     </div>
-    {ex.cues.length > 0 && <><Title>How to do it</Title><Card><ol className="space-y-2.5">{ex.cues.map((c, k) => <li key={k} className="flex gap-3 text-[15px] leading-snug"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[12px] font-bold" style={{ background: C.lime, color: "#10120a" }}>{k + 1}</span>{c}</li>)}</ol></Card></>}
-    <button type="button" onClick={() => window.open(howToVideo(ex.name), "_blank", "noopener")} className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-[14px] text-[15px] font-semibold" style={{ background: "#2a1214", color: "#ff6b6b" }} data-testid="fit-youtube"><Youtube className="h-5 w-5" />Watch how on YouTube</button>
+    {ex.cues.length > 0 && <><Title>How to do it</Title><Card><ol className="space-y-2.5">{ex.cues.map((c, k) => <li key={k} className="flex gap-3 text-[15px] leading-snug"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[12px] font-bold" style={{ background: C.lime, color: "#0b0b0c" }}>{k + 1}</span>{c}</li>)}</ol></Card></>}
     {rec && <><Title>Your records</Title><div className="grid grid-cols-3 gap-2">
       <Card className="!p-3"><p className="text-[11px]" style={{ color: C.dim }}>Est. 1-rep max</p><p className="text-[20px] font-bold">{fmtNum(rec.e1rm)}<span className="text-[12px]" style={{ color: C.dim }}> {u}</span></p></Card>
       <Card className="!p-3"><p className="text-[11px]" style={{ color: C.dim }}>Heaviest</p><p className="text-[20px] font-bold">{fmtNum(rec.weight)}<span className="text-[12px]" style={{ color: C.dim }}> ×{rec.reps}</span></p></Card>
@@ -66,12 +82,13 @@ export function Library({ list, data, onClose, onPick, title = "Exercises" }: { 
   const [q, setQ] = useState("");
   const [muscle, setMuscle] = useState<(typeof MUSCLES)[number]>("all");
   const [equip, setEquip] = useState<(typeof EQUIP)[number]>("any");
+  const [videosOnly, setVideosOnly] = useState(false);
   const [open, setOpen] = useState<LibraryExercise | null>(null);
   const shown = useMemo(() => {
     const t = q.trim().toLowerCase();
-    return list.filter((e) => (muscle === "all" || e.muscle === muscle || e.also.includes(muscle as never)) && (equip === "any" || e.equipment === equip) && (!t || e.name.toLowerCase().includes(t)))
+    return list.filter((e) => (muscle === "all" || e.muscle === muscle || e.also.includes(muscle as never)) && (equip === "any" || e.equipment === equip) && (!t || e.name.toLowerCase().includes(t)) && (!videosOnly || !!videoFor(e.id)))
       .sort((a, b) => Number(b.source === "arise") - Number(a.source === "arise") || a.name.localeCompare(b.name)).slice(0, 300);
-  }, [list, q, muscle, equip]);
+  }, [list, q, muscle, equip, videosOnly]);
   return <Sheet title={title} onClose={onClose} testId="fit-library">
     <div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2" style={{ color: C.dim }} />
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${list.length} exercises`} className={`${inputCls} pl-10`} style={inputStyle} data-testid="fit-library-search" /></div>
@@ -79,14 +96,17 @@ export function Library({ list, data, onClose, onPick, title = "Exercises" }: { 
       <Chips label="Muscle" value={muscle} onChange={setMuscle} items={MUSCLES.map((m) => ({ id: m, label: m === "all" ? "All muscles" : m[0].toUpperCase() + m.slice(1) }))} />
       <Chips label="Equipment" value={equip} onChange={setEquip} items={EQUIP.map((m) => ({ id: m, label: m === "any" ? "Any equipment" : m[0].toUpperCase() + m.slice(1) }))} />
     </div>
-    <p className="mb-2 mt-3 text-[12px]" style={{ color: C.dim }}>{shown.length === 300 ? "300+" : shown.length} exercises</p>
+    <div className="mb-2 mt-3 flex items-center justify-between">
+      <p className="text-[12px]" style={{ color: C.dim }}>{shown.length === 300 ? "300+" : shown.length} exercises</p>
+      <button type="button" onClick={() => setVideosOnly((v) => !v)} aria-pressed={videosOnly} className="flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold" style={videosOnly ? { background: C.lime, color: "#0b0b0c" } : { background: C.card, color: C.text }} data-testid="fit-videos-only"><PlayCircle className="h-4 w-4" />With video</button>
+    </div>
     <ul className="space-y-2">{shown.map((e) => <li key={e.id}>
-      <div className="flex items-center gap-3 rounded-[16px] p-2" style={{ background: C.card }}>
+      <div className="flex items-center gap-3 rounded-[12px] p-2" style={{ background: C.card }}>
         <button type="button" onClick={() => setOpen(e)} className="flex min-w-0 flex-1 items-center gap-3 text-left" data-testid={`fit-ex-${e.id}`}>
           <Demo ex={e} size="sm" />
-          <span className="min-w-0"><span className="block truncate text-[15px] font-semibold">{e.name}</span><span className="block truncate text-[12px] capitalize" style={{ color: C.dim }}>{e.muscle} · {e.equipment}</span></span>
+          <span className="min-w-0"><span className="block truncate text-[15px] font-semibold">{e.name}</span><span className="block truncate text-[12px] capitalize" style={{ color: C.dim }}>{e.muscle} · {e.equipment}</span>{videoFor(e.id) && <span className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold" style={{ color: C.lime }}><PlayCircle className="h-3 w-3" />How-to video</span>}</span>
         </button>
-        {onPick && <button type="button" onClick={() => onPick(e)} aria-label={`Add ${e.name}`} className="grid h-11 w-11 shrink-0 place-items-center rounded-full" style={{ background: C.lime, color: "#10120a" }}><Plus className="h-5 w-5" /></button>}
+        {onPick && <button type="button" onClick={() => onPick(e)} aria-label={`Add ${e.name}`} className="grid h-11 w-11 shrink-0 place-items-center rounded-full" style={{ background: C.lime, color: "#0b0b0c" }}><Plus className="h-5 w-5" /></button>}
       </div>
     </li>)}</ul>
     {open && <ExerciseDetail ex={open} data={data} onClose={() => setOpen(null)} onAdd={onPick ? () => { onPick(open); setOpen(null); } : undefined} />}
@@ -95,7 +115,11 @@ export function Library({ list, data, onClose, onPick, title = "Exercises" }: { 
 
 // ——— The live workout ——————————————————————————————————————————————————————————————————————————
 
-type Active = { id: string; name: string; started: number; programId?: string; dayId?: string; exercises: FitExercise[] };
+/** `pausedMs`: time spent paused so far; `pausedAt`: when the current pause began (unset while going).
+ *  Both are saved with the workout, so a pause survives closing the app. */
+type Active = { id: string; name: string; started: number; programId?: string; dayId?: string; /** 2 and up when this is the rest of a workout that was split (shared/fitVacation.ts). */ part?: number; exercises: FitExercise[]; pausedMs?: number; pausedAt?: number | null };
+/** Seconds of actual workout: from the start, leaving out any time paused. */
+export const workoutSecs = (a: Pick<Active, "started" | "pausedMs" | "pausedAt">, now: number) => Math.max(0, ((a.pausedAt ?? now) - a.started - (a.pausedMs ?? 0)) / 1000);
 export const readActive = (): Active | null => { try { return JSON.parse(localStorage.getItem(ACTIVE) || "null"); } catch { return null; } };
 const saveActive = (a: Active | null) => { try { if (a) localStorage.setItem(ACTIVE, JSON.stringify(a)); else localStorage.removeItem(ACTIVE); } catch { /* kept in memory */ } };
 
@@ -114,6 +138,7 @@ export function planned(data: FitData, items: { exId: string; name?: string; set
 export function startWorkout(a: Omit<Active, "id" | "started">): Active { const w = { ...a, id: uid(), started: Date.now() }; saveActive(w); return w; }
 
 export function LiveWorkout({ active, setActive, data, update, list, say }: { active: Active; setActive: (a: Active | null) => void; data: FitData; update: Update; list: LibraryExercise[]; say: (m: string) => void }) {
+  const { plus, ask } = usePlus();
   const u: Units = data.profile.units;
   const [now, setNow] = useState(Date.now());
   const [rest, setRest] = useState<{ until: number; total: number } | null>(null);
@@ -121,9 +146,22 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
   const [detail, setDetail] = useState<LibraryExercise | null>(null);
   const [plateFor, setPlateFor] = useState<number | null>(null);
   const [done, setDone] = useState<null | { w: Workout; prs: ReturnType<typeof newRecords> }>(null);
+  const [swapFor, setSwapFor] = useState<number | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [camFor, setCamFor] = useState<number | null>(null);
   useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 500); return () => window.clearInterval(t); }, []);
   const set = (fn: (a: Active) => Active) => { const n = fn(active); saveActive(n); setActive(n); };
-  const left = rest ? Math.max(0, Math.ceil((rest.until - now) / 1000)) : 0;
+  const paused = active.pausedAt != null;
+  // While paused the rest timer stands still: `rest.until` is moved on by the pause when it ends.
+  const left = rest ? Math.max(0, Math.ceil((rest.until - (paused ? active.pausedAt! : now)) / 1000)) : 0;
+  const pause = () => { if (paused) return; set((a) => ({ ...a, pausedAt: Date.now() })); haptic("medium"); say("Workout paused"); };
+  const resume = () => {
+    if (!paused) return;
+    const gap = Date.now() - active.pausedAt!;
+    setRest((r) => r && { ...r, until: r.until + gap });
+    set((a) => ({ ...a, pausedMs: (a.pausedMs ?? 0) + gap, pausedAt: null }));
+    haptic("medium");
+  };
   const buzzed = useRef(false);
   useEffect(() => { if (rest && left === 0 && !buzzed.current) { buzzed.current = true; navigator.vibrate?.([200, 100, 200]); say("Rest's over. Next set!"); } if (left > 0) buzzed.current = false; }, [left, rest, say]);
 
@@ -131,36 +169,90 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
   const tick = (ei: number, si: number) => {
     const s = active.exercises[ei].sets[si];
     edit(ei, si, { done: !s.done });
-    if (!s.done) { const secs = active.exercises[ei].rest ?? 90; if (secs > 0) setRest({ until: Date.now() + secs * 1000, total: secs }); navigator.vibrate?.(30); }
+    if (!s.done) { const secs = active.exercises[ei].rest ?? 90; if (secs > 0) setRest({ until: Date.now() + secs * 1000, total: secs }); navigator.vibrate?.(30); haptic("medium"); }
+  };
+  /** An exercise set up the way the workout builder would (sets, reps, rest, last time's weight). */
+  const fresh = (exId: string, like?: FitExercise) => {
+    const ex = CATALOG_BY_ID.get(exId);
+    const pr = ex ? prescription(data.profile.goal, ex, false) : { sets: 3, reps: "8-12", rest: 90 };
+    return planned(data, [{ exId, name: ex?.name, sets: like ? Math.max(1, like.sets.filter((x) => !x.done).length || like.sets.length) : pr.sets, reps: like?.target || pr.reps, rest: like?.rest ?? pr.rest }], list)[0];
+  };
+  const addEx = (exId: string) => { set((a) => ({ ...a, exercises: [...a.exercises, fresh(exId)] })); say("Added."); };
+  // A swap keeps the sets already done under the old exercise and moves the rest to the new one.
+  const swapEx = (ei: number, exId: string) => set((a) => {
+    const old = a.exercises[ei];
+    const kept = old.sets.some((x) => x.done) ? [{ ...old, sets: old.sets.filter((x) => x.done) }] : [];
+    return { ...a, exercises: [...a.exercises.slice(0, ei), ...kept, fresh(exId, old), ...a.exercises.slice(ei + 1)] };
+  });
+  /** Reps counted by the camera go into the next set that isn't done, and it's checked off. */
+  const logCamera = (ei: number, r: { reps: number; clean: number; secs: number; faults: string[] }) => {
+    const e = active.exercises[ei];
+    const timed = !!(CATALOG_BY_ID.get(e.exId)?.timed || repRange(e.target || "").secs);
+    let si = e.sets.findIndex((x) => !x.done);
+    if (si < 0) { set((a) => ({ ...a, exercises: a.exercises.map((x, k) => k !== ei ? x : { ...x, sets: [...x.sets, { ...(x.sets[x.sets.length - 1] ?? { reps: 0, weight: 0 }), done: false, warm: false }] }) })); si = e.sets.length; }
+    const note = r.reps ? `Camera: ${r.clean} of ${r.reps} reps clean${r.faults.length ? `. Work on: ${r.faults.join("; ")}` : ""}.` : "";
+    set((a) => ({ ...a, exercises: a.exercises.map((x, k) => k !== ei ? x : { ...x, ...(note ? { note } : {}), sets: x.sets.map((y, j) => j !== si ? y : { ...y, reps: timed ? r.secs : r.reps, done: true }) }) }));
+    const secs = e.rest ?? 90; if (secs > 0) setRest({ until: Date.now() + secs * 1000, total: secs });
+    haptic("medium"); say(timed ? `Logged ${r.secs} seconds.` : `Logged ${r.reps} reps.`);
   };
   const finish = () => {
     const exercises = active.exercises.map((e) => ({ ...e, sets: e.sets.filter((s) => s.done) })).filter((e) => e.sets.length);
     if (!exercises.length) { if (window.confirm("No sets are checked off. Discard this workout?")) { saveActive(null); setActive(null); } return; }
-    const w: Workout = { id: active.id, date: new Date(active.started).toISOString(), name: active.name, ...(active.programId ? { programId: active.programId, dayId: active.dayId } : {}), secs: Math.round((Date.now() - active.started) / 1000), exercises };
+    const w: Workout = { id: active.id, date: new Date(active.started).toISOString(), name: (active.part ?? 1) > 1 ? `${active.name.replace(/ \(part \d+\)$/, "")} (part ${active.part})` : active.name, ...(active.programId ? { programId: active.programId, dayId: active.dayId } : {}), secs: Math.round(workoutSecs(active, Date.now())), exercises };
     const prs = newRecords(data.workouts, w);
+    saveToHealth("calories", Math.round((w.secs / 60) * 6), new Date(active.started));
     update((d) => ({ ...d, workouts: [...d.workouts, w], ...(d.program && active.programId === d.program.id && active.dayId ? { program: { ...d.program, done: [...d.program.done, `${active.dayId}@${w.date.slice(0, 10)}`] } } : {}) }));
-    saveActive(null); setDone({ w, prs });
+    saveActive(null); haptic("success"); setDone({ w, prs });
+  };
+  /** Saves what's been done so far as its own workout and keeps the rest to finish later (from Today). */
+  const savePart = () => {
+    const exercises = active.exercises.map((e) => ({ ...e, sets: e.sets.filter((x) => x.done) })).filter((e) => e.sets.length);
+    const left = active.exercises.map((e) => ({ ...e, sets: e.sets.filter((x) => !x.done) })).filter((e) => e.sets.length);
+    if (!exercises.length) { say("Check off a set first."); return; }
+    if (!left.length) { finish(); return; }
+    const part = active.part ?? 1;
+    const base = active.name.replace(/ \(part \d+\)$/, "");
+    // The program day isn't ticked off until the last part is done, so this saves without a program.
+    const w: Workout = { id: active.id, date: new Date(active.started).toISOString(), name: `${base} (part ${part})`, secs: Math.round(workoutSecs(active, Date.now())), exercises };
+    saveToHealth("calories", Math.round((w.secs / 60) * 6), new Date(active.started));
+    update((d) => ({ ...d, workouts: [...d.workouts, w], splitLeft: { name: base, ...(active.programId ? { programId: active.programId, dayId: active.dayId } : {}), part: part + 1, date: dayKey(), exercises: left } }));
+    saveActive(null); setActive(null); haptic("success");
+    say(`Part ${part} saved. The rest is waiting on Today.`);
   };
   if (done) {
     const vol = done.w.exercises.reduce((t, e) => t + e.sets.reduce((x, s) => x + s.reps * s.weight, 0), 0);
-    return <Sheet title="Workout complete" onClose={() => setActive(null)} testId="fit-summary">
-      <div className="mt-4 text-center"><div className="mx-auto grid h-20 w-20 place-items-center rounded-full" style={{ background: C.lime }}><Trophy className="h-10 w-10" style={{ color: "#10120a" }} /></div>
-        <h2 className="mt-4 text-[26px] font-bold">Nice work!</h2><p style={{ color: C.dim }}>{done.w.name}</p></div>
-      <div className="mt-6 grid grid-cols-3 gap-2 text-center">
-        <Card className="!p-3"><p className="text-[22px] font-bold">{fmtDur(done.w.secs)}</p><p className="text-[12px]" style={{ color: C.dim }}>Time</p></Card>
-        <Card className="!p-3"><p className="text-[22px] font-bold">{fmtNum(vol)}</p><p className="text-[12px]" style={{ color: C.dim }}>Volume ({u})</p></Card>
-        <Card className="!p-3"><p className="text-[22px] font-bold">{done.w.exercises.reduce((t, e) => t + e.sets.length, 0)}</p><p className="text-[12px]" style={{ color: C.dim }}>Sets</p></Card>
+    const top = done.prs[0];
+    return <Layer><div className="fixed inset-0 z-[80] flex flex-col overflow-y-auto px-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} role="dialog" aria-modal="true" aria-label="Workout complete" data-testid="fit-summary">
+      <div className="flex min-h-[62vh] flex-col items-center justify-center text-center">
+        <div className="fit-pop grid h-[104px] w-[104px] place-items-center rounded-full" style={{ background: C.lime, boxShadow: "0 0 60px rgba(255,90,31,.5)" }}><Trophy className="h-[52px] w-[52px]" style={{ color: "#0b0b0c" }} /></div>
+        <h2 className="fit-in mt-6 text-[56px] leading-none" style={{ ...display, animationDelay: ".2s" }}>Done.</h2>
+        <p className="fit-in mt-2 text-[15px]" style={{ color: C.steel, animationDelay: ".3s" }}>{top ? `New record: ${top.name} ${fmtNum(top.value)} ${u}` : done.w.name}</p>
+        <div className="mt-6 grid w-full grid-cols-3 gap-2 text-center">
+          <Card className="!p-3" style={stagger(0, 0, 0.4)}><p className="text-[26px] leading-none tabular-nums" style={display}>{fmtDur(done.w.secs)}</p><p className="mt-1 text-[11px] uppercase" style={{ color: C.dim }}>Time</p></Card>
+          <Card className="!p-3" style={stagger(0, 0, 0.48)}><p className="text-[26px] leading-none tabular-nums" style={display}>{fmtNum(vol)}</p><p className="mt-1 text-[11px] uppercase" style={{ color: C.dim }}>{u} lifted</p></Card>
+          <Card className="!p-3" style={stagger(0, 0, 0.56)}><p className="text-[26px] leading-none tabular-nums" style={display}>{done.w.exercises.reduce((t, e) => t + e.sets.length, 0)}</p><p className="mt-1 text-[11px] uppercase" style={{ color: C.dim }}>Sets</p></Card>
+        </div>
       </div>
-      {done.prs.length > 0 && <><Title>New records</Title><div className="space-y-2">{done.prs.map((p) => <Card key={p.exId + p.kind} className="flex items-center gap-3 !p-3"><Trophy className="h-6 w-6" style={{ color: C.orange }} />
+      {done.prs.length > 0 && <><Title>New records</Title><div className="space-y-2">{done.prs.map((p, k) => <Card key={p.exId + p.kind} className="flex items-center gap-3 !p-3" style={stagger(k, 0.08, 0.6)}><Trophy className="h-6 w-6" style={{ color: C.orange }} />
         <div><p className="font-semibold">{p.name}</p><p className="text-[13px]" style={{ color: C.dim }}>{p.kind === "e1rm" ? `Est. 1-rep max ${fmtNum(p.value)} ${u}` : p.kind === "weight" ? `Heaviest ${fmtNum(p.value)} ${u}` : `Most volume ${fmtNum(p.value)} ${u}`}</p></div></Card>)}</div></>}
-      <Btn onClick={() => setActive(null)} className="mt-8 w-full" testId="fit-summary-done">Done</Btn>
-    </Sheet>;
+      {plus ? <Debrief w={done.w} data={data} /> : <Card className="mt-6 !p-4" onClick={() => ask("debrief")} testId="fit-debrief-locked">
+        <p className="text-[20px] leading-none" style={display}>Your after-workout report<PlusTag /></p>
+        <p className="mt-1.5 text-[14px]" style={{ color: C.steel }}>See when you'll be sore, how much protein and carbs to eat and by when, water, and facts on creatine and pre-workout.</p></Card>}
+      <Btn onClick={() => setActive(null)} className="mt-8 w-full !min-h-[52px] !text-[19px]" testId="fit-summary-done">Back to today</Btn>
+    </div></Layer>;
   }
-  return <div className="fixed inset-0 z-[70] flex flex-col" style={{ background: C.bg, color: C.text }} data-testid="fit-live">
-    <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
-      <div className="min-w-0 flex-1"><input value={active.name} onChange={(e) => set((a) => ({ ...a, name: e.target.value.slice(0, 80) }))} aria-label="Workout name" className="w-full bg-transparent text-[20px] font-bold outline-none" />
-        <p className="flex items-center gap-1 text-[13px] tabular-nums" style={{ color: C.dim }}><Clock3 className="h-3.5 w-3.5" />{fmtDur((now - active.started) / 1000)}</p></div>
-      <Btn onClick={finish} testId="fit-finish">Finish</Btn>
+  const allSets = active.exercises.reduce((t, e) => t + e.sets.length, 0);
+  const doneSets = active.exercises.reduce((t, e) => t + e.sets.filter((s) => s.done).length, 0);
+  return <Layer><div className="fit-sheet fixed inset-0 z-[70] flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} data-testid="fit-live">
+    <div className="shrink-0 px-4 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
+      <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1"><input value={active.name} onChange={(e) => set((a) => ({ ...a, name: e.target.value.slice(0, 80) }))} aria-label="Workout name" className="w-full bg-transparent text-[30px] leading-none outline-none" style={display} />
+          <p className="mt-1 flex items-center gap-1 text-[13px] tabular-nums" style={{ color: C.dim }}><Clock3 className="h-3.5 w-3.5" />{fmtDur(workoutSecs(active, now))}{paused ? " · paused" : ""} · {doneSets} of {allSets} sets</p></div>
+        <button type="button" onClick={paused ? resume : pause} aria-label={paused ? "Resume workout" : "Pause workout"} className="grid h-11 w-11 shrink-0 place-items-center rounded-full" style={{ background: C.card2 }} data-testid="fit-pause">{paused ? <Play className="ml-0.5 h-5 w-5" fill="currentColor" /> : <Pause className="h-5 w-5" fill="currentColor" />}</button>
+        <Btn onClick={finish} testId="fit-finish">Finish</Btn>
+      </div>
+      <div className="mt-2.5 h-1.5 overflow-hidden rounded-full" style={{ background: C.track }}><div className="h-full rounded-full" style={{ width: `${allSets ? (doneSets / allSets) * 100 : 0}%`, background: C.lime, transition: "width .4s ease" }} /></div>
+      {doneSets > 0 && doneSets < allSets && <button type="button" onClick={savePart} className="mt-2 text-[13px] font-semibold underline" style={{ color: C.dim }} data-testid="fit-split">Save this part, finish the rest later today</button>}
     </div>
     <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 pb-40">
       {active.exercises.map((e, ei) => {
@@ -168,27 +260,32 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
         const last = lastTime(data.workouts, e.exId);
         const sug = nextTime(last, e.target || "8-12", u, !!ex?.lower);
         const timed = !!ex && (CATALOG_BY_ID.get(e.exId)?.timed || repRange(e.target || "").secs);
-        return <Card key={ei} className="!p-3">
+        return <Card key={ei} className="!p-3" style={stagger(ei, 0.07, 0.1)}>
           <div className="flex items-start gap-3">
             {ex && <button type="button" onClick={() => setDetail(ex)} aria-label={`How to do ${e.name}`}><Demo ex={ex} size="sm" /></button>}
-            <div className="min-w-0 flex-1"><p className="text-[16px] font-bold" style={{ color: C.lime }}>{e.name}</p>
+            <div className="min-w-0 flex-1"><p className="text-[20px] leading-tight" style={{ ...display, color: C.lime }}>{e.name}</p>
               {e.target && <p className="text-[12px]" style={{ color: C.dim }}>Target {e.target}{timed ? "" : " reps"} · rest {e.rest ?? 90}s</p>}
-              {sug && <p className="mt-0.5 text-[12px]" style={{ color: C.text }}>{sug.why}</p>}</div>
-            <button type="button" onClick={() => set((a) => ({ ...a, exercises: a.exercises.filter((_, k) => k !== ei) }))} aria-label={`Remove ${e.name}`} className="grid h-9 w-9 place-items-center rounded-full" style={{ color: C.dim }}><Trash2 className="h-4 w-4" /></button>
+              {sug && <p className="mt-0.5 text-[12px]" style={{ color: C.text }}>{sug.why}</p>}
+              {ex && videoFor(ex.id) && <button type="button" onClick={() => setDetail(ex)} className="mt-1.5 flex h-7 items-center gap-1 rounded-full px-2.5 text-[12px] font-semibold" style={{ background: "rgba(255,90,31,.12)", color: C.lime }} data-testid={`fit-live-video-${ei}`}><PlayCircle className="h-3.5 w-3.5" />Watch form</button>}</div>
+            <div className="flex shrink-0 flex-col items-center gap-1">
+              <button type="button" onClick={() => setSwapFor(ei)} aria-label={`Swap ${e.name}`} className="grid h-9 w-9 place-items-center rounded-full" style={{ background: C.card2 }} data-testid={`fit-live-swap-${ei}`}><ArrowLeftRight className="h-4 w-4" /></button>
+              {formLiftFor(e.exId) && <button type="button" onClick={() => (plus ? setCamFor(ei) : ask("camera-reps"))} aria-label={`Count ${e.name} reps with the camera`} className="grid h-9 w-9 place-items-center rounded-full" style={{ background: C.card2, color: C.lime }} data-testid={`fit-live-cam-${ei}`}><ScanEye className="h-4 w-4" /></button>}
+              <button type="button" onClick={() => set((a) => ({ ...a, exercises: a.exercises.filter((_, k) => k !== ei) }))} aria-label={`Remove ${e.name}`} className="grid h-9 w-9 place-items-center rounded-full" style={{ color: C.dim }}><Trash2 className="h-4 w-4" /></button>
+            </div>
           </div>
           <div className="mt-3 grid grid-cols-[2rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.75rem] items-center gap-1.5 text-center text-[11px] font-semibold uppercase" style={{ color: C.dim }}>
             <span>Set</span><span>Last</span><span>{timed ? "Secs" : u}</span><span>{timed ? "" : "Reps"}</span><span />
           </div>
           {e.sets.map((s, si) => {
             const prev = last?.sets.filter((x) => !x.warm)[si];
-            return <div key={si} className="mt-1.5 grid grid-cols-[2rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.75rem] items-center gap-1.5 rounded-[12px] py-0.5" style={s.done ? { background: "rgba(196,245,58,.12)" } : undefined}>
+            return <div key={si} className="mt-1.5 grid grid-cols-[2rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.75rem] items-center gap-1.5 rounded-[10px] px-0.5 py-0.5 transition-colors duration-300" style={{ background: s.done ? "rgba(255,90,31,.14)" : "transparent" }}>
               <button type="button" onClick={() => edit(ei, si, { warm: !s.warm })} className="text-center text-[14px] font-bold" style={{ color: s.warm ? C.orange : C.text }} aria-label={s.warm ? "Warm-up set" : `Set ${si + 1}`}>{s.warm ? "W" : si + 1}</button>
               <span className="truncate text-center text-[13px]" style={{ color: C.dim }}>{prev ? (timed ? `${prev.reps}s` : `${fmtNum(prev.weight)}×${prev.reps}`) : "—"}</span>
               {timed ? <input inputMode="numeric" value={s.reps || ""} onChange={(ev) => edit(ei, si, { reps: Number(ev.target.value.replace(/\D/g, "")) || 0 })} aria-label="Seconds" className="h-11 w-full min-w-0 rounded-[10px] text-center text-[17px] font-semibold outline-none" style={inputStyle} />
                 : <input inputMode="decimal" value={s.weight || ""} placeholder="0" onChange={(ev) => edit(ei, si, { weight: Number(ev.target.value.replace(/[^\d.]/g, "")) || 0 })} onDoubleClick={() => setPlateFor(s.weight)} aria-label={`Weight in ${u}`} className="h-11 w-full min-w-0 rounded-[10px] text-center text-[17px] font-semibold outline-none" style={inputStyle} />}
               {timed ? <span /> : <input inputMode="numeric" value={s.reps || ""} placeholder="0" onChange={(ev) => edit(ei, si, { reps: Number(ev.target.value.replace(/\D/g, "")) || 0 })} aria-label="Reps" className="h-11 w-full min-w-0 rounded-[10px] text-center text-[17px] font-semibold outline-none" style={inputStyle} />}
               <button type="button" onClick={() => tick(ei, si)} aria-label={s.done ? "Mark not done" : "Mark done"} aria-pressed={s.done} data-testid={`fit-set-${ei}-${si}`}
-                className="grid h-11 w-11 place-items-center rounded-[12px]" style={s.done ? { background: C.lime, color: "#10120a" } : { background: C.card2, color: C.dim }}><Check className="h-5 w-5" strokeWidth={3} /></button>
+                className="grid h-11 w-11 place-items-center rounded-[10px] transition-colors duration-200" style={s.done ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2, color: C.dim }}><Check key={s.done ? "on" : "off"} className={`h-5 w-5 ${s.done ? "fit-tick" : ""}`} strokeWidth={3} /></button>
             </div>;
           })}
           <div className="mt-2 flex gap-2">
@@ -198,21 +295,38 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
           </div>
         </Card>;
       })}
-      <Btn kind="soft" onClick={() => setAdding(true)} className="w-full" testId="fit-add-exercise"><Plus className="h-5 w-5" />Add exercise</Btn>
+      <div className="grid grid-cols-2 gap-2">
+        <Btn kind="soft" onClick={() => setAdding(true)} className="w-full !px-3" testId="fit-add-exercise"><Plus className="h-5 w-5" />Add exercise</Btn>
+        <Btn kind="soft" onClick={() => setScanning(true)} className="w-full !px-3" testId="fit-live-scan"><ScanLine className="h-5 w-5" />Scan machine</Btn>
+      </div>
       <button type="button" onClick={() => { if (window.confirm("Discard this workout? Nothing will be saved.")) { saveActive(null); setActive(null); } }} className="h-12 w-full text-[15px] font-semibold" style={{ color: C.red }}>Discard workout</button>
     </div>
-    {rest && left > 0 && <div className="fixed inset-x-3 z-[75] rounded-[20px] p-3 shadow-2xl" style={{ bottom: "max(16px, env(safe-area-inset-bottom))", background: C.card2 }} data-testid="fit-rest">
+    {/* The paused screen is always dark, so its words are always light (the theme's text colors are dark in Light). */}
+    {paused && <div className="fixed inset-0 z-[78] flex flex-col items-center justify-center px-6 text-center" style={{ background: "rgba(11,11,12,.94)", color: "#ffffff", ...font }} role="dialog" aria-modal="true" aria-label="Workout paused" data-testid="fit-paused">
+      <p className="text-[13px] uppercase tracking-[.2em]" style={{ color: "rgba(255,255,255,.7)" }}>Paused</p>
+      <p className="mt-2 text-[72px] leading-none tabular-nums" style={display}>{fmtDur(workoutSecs(active, now))}</p>
+      <p className="mt-2 text-[14px]" style={{ color: "rgba(255,255,255,.82)" }}>{doneSets} of {allSets} sets done{rest && left > 0 ? ` · ${fmtDur(left)} rest left` : ""}. The clock is stopped.</p>
+      <button type="button" onClick={resume} aria-label="Resume workout" className="mt-8 grid h-20 w-20 place-items-center rounded-full shadow-[0_10px_30px_rgba(255,90,31,.4)]" style={{ background: C.lime, color: "#0b0b0c" }} data-testid="fit-resume"><Play className="ml-1 h-9 w-9" fill="currentColor" /></button>
+      <p className="mt-3 text-[13px]" style={{ color: "rgba(255,255,255,.7)" }}>Resume</p>
+      <button type="button" onClick={finish} className="mt-8 inline-flex min-h-12 items-center justify-center rounded-[10px] px-6 text-[18px] uppercase tracking-[.04em]" style={{ background: "rgba(255,255,255,.14)", color: "#ffffff", fontFamily: display.fontFamily, fontWeight: 800 }} data-testid="fit-paused-finish">Finish workout</button>
+    </div>}
+    {rest && left > 0 && !paused && <div className="fit-up fixed inset-x-3 z-[75] rounded-[16px] p-3.5" style={{ bottom: "max(16px, env(safe-area-inset-bottom))", background: C.card2, boxShadow: "0 -10px 40px rgba(0,0,0,.6)" }} data-testid="fit-rest">
       <div className="flex items-center gap-3"><Timer className="h-6 w-6" style={{ color: C.lime }} />
-        <div className="min-w-0 flex-1"><p className="text-[12px]" style={{ color: C.dim }}>Rest</p><p className="text-[24px] font-bold tabular-nums">{fmtDur(left)}</p></div>
+        <div className="min-w-0 flex-1"><p className="text-[12px] uppercase" style={{ color: C.dim }}>Rest</p><p className="text-[34px] leading-none tabular-nums" style={display}>{fmtDur(left)}</p></div>
         <Btn kind="soft" className="!min-h-10" onClick={() => setRest((r) => r && { ...r, until: r.until - 15000 })}>−15</Btn>
         <Btn kind="soft" className="!min-h-10" onClick={() => setRest((r) => r && { ...r, until: r.until + 15000, total: r.total + 15 })}>+15</Btn>
         <Btn className="!min-h-10" onClick={() => setRest(null)}>Skip</Btn></div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,.1)" }}><div className="h-full rounded-full" style={{ width: `${(left / rest.total) * 100}%`, background: C.lime, transition: "width .5s linear" }} /></div>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: C.track }}><div className="h-full rounded-full" style={{ width: `${(left / rest.total) * 100}%`, background: C.lime, transition: "width 1s linear" }} /></div>
     </div>}
     {adding && <Library list={list} data={data} title="Add exercise" onClose={() => setAdding(false)} onPick={(ex) => { set((a) => ({ ...a, exercises: [...a.exercises, ...planned(data, [{ exId: ex.id, name: ex.name, sets: 3, reps: ex.equipment === "bodyweight" ? "10-15" : "8-12", rest: 90 }], list)] })); setAdding(false); }} />}
     {detail && <ExerciseDetail ex={detail} data={data} onClose={() => setDetail(null)} />}
     {plateFor !== null && <PlateSheet units={u} start={plateFor} onClose={() => setPlateFor(null)} />}
-  </div>;
+    {swapFor !== null && active.exercises[swapFor] && <SwapSheet exId={active.exercises[swapFor].exId} data={data} exclude={active.exercises.map((x) => x.exId)}
+      onPick={(id) => { swapEx(swapFor, id); setSwapFor(null); say("Swapped."); }} onScan={() => { setSwapFor(null); setScanning(true); }} onClose={() => setSwapFor(null)} />}
+    {scanning && <ScanMachine data={data} update={update} onClose={() => setScanning(false)} onUse={addEx} useLabel="Add" />}
+    {camFor !== null && active.exercises[camFor] && <FormCheck lift={formLiftFor(active.exercises[camFor].exId) ?? undefined} logLabel={`Log set ${Math.min(active.exercises[camFor].sets.filter((x) => x.done).length + 1, active.exercises[camFor].sets.length + 1)}`}
+      onLog={(r) => logCamera(camFor, r)} onClose={() => setCamFor(null)} />}
+  </div></Layer>;
 }
 
 function PlateSheet({ units, start, onClose }: { units: Units; start: number; onClose: () => void }) {
@@ -232,17 +346,32 @@ function PlateSheet({ units, start, onClose }: { units: Units; start: number; on
 
 // ——— Programs and routines ————————————————————————————————————————————————————————————————————
 
+/** The exercise whose video stands for a program (its first day's first lift). */
+export const programCover = (p: Program) => p.days[0]?.items.find((i) => videoFor(i.exId))?.exId;
+
 export function ProgramDetail({ p, data, update, onClose, onStartDay, list }: { p: Program; data: FitData; update: Update; onClose: () => void; onStartDay: () => void; list: LibraryExercise[] }) {
   const on = data.program?.id === p.id;
-  const name = (id: string) => list.find((e) => e.id === id)?.name ?? CATALOG_BY_ID.get(id)?.name ?? id;
+  const [watch, setWatch] = useState<LibraryExercise | null>(null);
+  const find = (id: string) => list.find((e) => e.id === id) ?? libraryFallback().find((e) => e.id === id);
+  const name = (id: string) => find(id)?.name ?? CATALOG_BY_ID.get(id)?.name ?? id;
+  const videos = new Set(p.days.flatMap((d) => d.items.map((i) => i.exId)).filter((id) => videoFor(id))).size;
   return <Sheet title={p.name} onClose={onClose} testId="fit-program">
-    <div className="rounded-[20px] p-5" style={{ background: `linear-gradient(140deg, #24311a, ${C.card})` }}>
-      <p className="text-[13px] font-bold uppercase tracking-wider" style={{ color: C.lime }}>{p.level} · {p.goal}</p>
-      <p className="mt-2 text-[15px] leading-snug">{p.blurb}</p>
-      <div className="mt-4 grid grid-cols-3 gap-2 text-center"><div><p className="text-[22px] font-bold">{p.daysPerWeek}</p><p className="text-[11px]" style={{ color: C.dim }}>days / week</p></div><div><p className="text-[22px] font-bold">{p.weeks}</p><p className="text-[11px]" style={{ color: C.dim }}>weeks</p></div><div><p className="truncate text-[15px] font-bold leading-[2]">{p.equipment}</p><p className="text-[11px]" style={{ color: C.dim }}>equipment</p></div></div>
+    <CoverCard art={programArt(p)} tall className="!p-5">
+      <span className="text-[12px] font-bold uppercase tracking-[.14em]" style={{ color: C.lime }}>{p.level} · {p.goal}</span>
+      <span className="mt-1 block text-[26px] font-extrabold leading-tight tracking-tight" style={display}>{p.name}</span>
+      <span className="mt-2 block text-[14px] leading-snug" style={{ color: C.steel }}>{p.blurb}</span>
+    </CoverCard>
+    <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+      {([[p.daysPerWeek, "days / wk"], [p.weeks, "weeks"], [videos, "videos"], [p.days.length, "workouts"]] as const).map(([n, l]) => <Card key={l} className="!px-1 !py-3"><p className="text-[20px] font-bold">{n}</p><p className="text-[11px]" style={{ color: C.dim }}>{l}</p></Card>)}
     </div>
-    {p.days.map((d) => <div key={d.id}><Title>{d.name}</Title><Card className="!p-2"><ul>{d.items.map((it, k) => <li key={k} className="flex items-center justify-between gap-3 px-2 py-2.5" style={k ? { borderTop: `1px solid ${C.line}` } : undefined}>
-      <span className="min-w-0 truncate text-[15px] font-medium">{name(it.exId)}</span><span className="shrink-0 text-[13px] tabular-nums" style={{ color: C.dim }}>{it.sets} × {it.reps}</span></li>)}</ul></Card></div>)}
+    <p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>Equipment: {p.equipment}</p>
+    {p.days.map((d) => <div key={d.id}><Title>{d.name}</Title><Card className="!p-1.5"><ul>{d.items.map((it, k) => { const ex = find(it.exId); return <li key={k} style={k ? { borderTop: `1px solid ${C.line}` } : undefined}>
+      <button type="button" disabled={!ex} onClick={() => ex && setWatch(ex)} className="flex w-full items-center gap-3 rounded-[10px] px-1.5 py-2 text-left active:bg-white/[.03]" data-testid={`fit-program-ex-${it.exId}`}>
+        {videoFor(it.exId) ? <VideoThumb exId={it.exId} className="h-12 w-[76px] rounded-[10px]" /> : <span className="grid h-12 w-[76px] shrink-0 place-items-center rounded-[10px]" style={{ background: C.card2 }}><Dumbbell className="h-5 w-5" style={{ color: C.lime }} /></span>}
+        <span className="min-w-0 flex-1"><span className="block truncate text-[15px] font-medium">{name(it.exId)}</span><span className="block text-[12px] tabular-nums" style={{ color: C.dim }}>{it.sets} × {it.reps} · rest {it.rest}s</span></span>
+        <ChevronRight className="h-4 w-4 shrink-0" style={{ color: C.dim }} />
+      </button></li>; })}</ul></Card></div>)}
+    {watch && <ExerciseDetail ex={watch} data={data} onClose={() => setWatch(null)} />}
     <div className="sticky bottom-0 mt-6 space-y-2 pb-2 pt-3" style={{ background: C.bg }}>
       {on ? <><Btn onClick={onStartDay} className="w-full" testId="fit-program-next"><Play className="h-5 w-5" />Start next workout</Btn>
         <Btn kind="danger" className="w-full" onClick={() => { if (window.confirm(`Stop ${p.name}? Your workouts stay in your history.`)) update((x) => ({ ...x, program: undefined })); }}>Stop this program</Btn></>
@@ -269,31 +398,118 @@ export function RoutineEditor({ routine, list, data, onSave, onClose, onDelete }
   </Sheet>;
 }
 
-export function TrainTab({ data, update, list, onStart, say }: { data: FitData; update: Update; list: LibraryExercise[]; onStart: (a: Active) => void; say: (m: string) => void }) {
+const TYPES: { id: SessionCategory | "body" | "outdoor" | "form"; label: string; sub: string; cover: ArtKind }[] = [
+  { id: "body", label: "Muscle recovery", sub: "Body map · tap a muscle", cover: "body" },
+  { id: "outdoor", label: "Run & trails", sub: "GPS map · US trails", cover: "trails" },
+  { id: "form", label: "AI form check", sub: "Camera coaching", cover: "form" },
+  { id: "hiit", label: "HIIT treadmill", sub: "Sprints, hills, Tabata", cover: "hiit" },
+  { id: "c25k", label: "Couch to 5K", sub: "9 weeks to 30 minutes", cover: "c25k" },
+  { id: "yoga", label: "Yoga", sub: "Mobility and recovery", cover: "yoga" },
+  { id: "meditation", label: "Meditation", sub: "Breathing and focus", cover: "meditation" },
+];
+const CAT_TITLE: Record<SessionCategory, string> = { hiit: "HIIT treadmill", c25k: "Couch to 5K", yoga: "Yoga", meditation: "Meditation" };
+
+/** A list of guided sessions in one category (Couch to 5K shows its 9 weeks with what's done). */
+function SessionList({ cat, data, onClose, onPlay }: { cat: SessionCategory; data: FitData; onClose: () => void; onPlay: (s: Session) => void }) {
+  const done = new Set(data.workouts.filter((w) => w.dayId && SESSION_BY_ID.has(w.dayId)).map((w) => w.dayId!));
+  const list = sessionsIn(cat);
+  const next = cat === "c25k" ? nextC25K(done) : undefined;
+  return <Sheet title={CAT_TITLE[cat]} onClose={onClose} testId={`fit-sessions-${cat}`}>
+    {cat === "c25k" && <CoverCard art="c25k" tall className="mt-1 !p-5">
+      <span className="text-[12px] tracking-[.16em]" style={{ ...display, fontWeight: 700, color: C.lime }}>{done.size ? `${list.filter((x) => done.has(x.id)).length} of ${list.length} runs done` : "Start from zero"}</span>
+      <span className="mt-1 block text-[28px] leading-none" style={display}>{next ? next.name : "You ran a 5K."}</span>
+      <span className="mt-1 block text-[14px]" style={{ color: C.steel }}>{next ? `${next.blurb} About ${sessionMins(next)} minutes.` : "Keep going: three 30-minute runs a week."}</span>
+      {next && <Btn className="mt-4 w-full" onClick={() => onPlay(next)} testId="fit-c25k-next"><Play className="h-5 w-5" />Start this run</Btn>}
+    </CoverCard>}
+    {cat === "hiit" && <p className="mt-1 px-1 text-[14px]" style={{ color: C.dim }}>The app calls out every speed and incline change. Set the treadmill as it tells you.</p>}
+    <div className="mt-3 space-y-2">{list.map((x) => <Card key={x.id} onClick={() => onPlay(x)} className="!p-4" testId={`fit-session-${x.id}`}>
+      <div className="flex items-center gap-3">
+        {cat === "c25k" ? <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[8px] text-[18px]" style={{ ...display, ...(done.has(x.id) ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2 }) }}>{done.has(x.id) ? <Check className="h-5 w-5" strokeWidth={3} /> : `${x.week}.${x.day}`}</span>
+          : <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[8px] text-[18px] tabular-nums" style={{ ...display, background: C.card2, color: C.lime }}>{sessionMins(x)}′</span>}
+        <div className="min-w-0 flex-1"><p className="truncate text-[19px] leading-tight" style={display}>{x.name}</p><p className="line-clamp-2 text-[13px] leading-snug" style={{ color: C.dim }}>{x.blurb}</p></div>
+        <span className="shrink-0 text-right text-[11px] uppercase tracking-[.08em]" style={{ color: C.dim }}>{cat === "c25k" ? `${sessionMins(x)} min` : x.level}</span>
+      </div>
+    </Card>)}</div>
+  </Sheet>;
+}
+
+/** The rows of form videos on the Train tab. */
+const FORM_GROUPS = [
+  { id: "big", label: "The big lifts", ids: ["back-squat", "bench-press", "deadlift", "ohp", "barbell-row", "pull-up", "rdl", "hip-thrust"] },
+  { id: "home", label: "At home", ids: ["push-up", "bodyweight-squat", "glute-bridge", "plank", "inverted-row", "pike-push-up", "lunge", "burpee", "dead-bug"] },
+  { id: "dumbbell", label: "Dumbbells", ids: ["db-bench", "db-row", "goblet-squat", "db-shoulder-press", "db-rdl", "lateral-raise", "db-curl", "bulgarian-split-squat"] },
+  { id: "core", label: "Core", ids: ["plank", "side-plank", "dead-bug", "hanging-leg-raise", "ab-wheel", "cable-crunch", "russian-twist", "bicycle-crunch"] },
+  { id: "cardio", label: "Cardio", ids: ["rower", "run", "walk-incline", "bike", "jump-rope", "stairs", "kb-swing", "elliptical"] },
+  { id: "mobility", label: "Mobility", ids: ["worlds-greatest", "hip-flexor-stretch", "hamstring-stretch", "cat-cow", "childs-pose"] },
+] as const;
+
+export function TrainTab({ data, update, list, onStart, say, onCoach, onGyms }: { data: FitData; update: Update; list: LibraryExercise[]; onStart: (a: Active) => void; say: (m: string) => void; onCoach?: () => void; onGyms?: () => void }) {
   const [lib, setLib] = useState(false);
   const [prog, setProg] = useState<Program | null>(null);
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [past, setPast] = useState<Workout | null>(null);
+  const [watch, setWatch] = useState<LibraryExercise | null>(null);
+  const [group, setGroup] = useState<(typeof FORM_GROUPS)[number]["id"]>("big");
+  const [body, setBody] = useState(false);
+  const [cat, setCat] = useState<SessionCategory | null>(null);
+  const [playing, setPlaying] = useState<Session | null>(null);
+  const [outdoor, setOutdoor] = useState(false);
+  const [form, setForm] = useState(false);
+  const [gymOpen, setGymOpen] = useState(false);
+  const [scan, setScan] = useState(false);
+  const saveSession = (x: Session, secs: number) => {
+    saveToHealth("calories", Math.round((secs / 60) * ({ hiit: 11, c25k: 9, yoga: 3.5, meditation: 0 } as const)[x.category]), new Date(Date.now() - secs * 1000));
+    update((d) => ({ ...d, workouts: [...d.workouts, { id: uid(), date: new Date().toISOString(), name: x.name, programId: x.category === "c25k" ? "c25k" : `session-${x.category}`, dayId: x.id, secs, exercises: [] }] }));
+    setPlaying(null); say("Saved to your history.");
+  };
+  const find = (id: string) => list.find((e) => e.id === id) ?? libraryFallback().find((e) => e.id === id);
   const active = data.program ? PROGRAM_BY_ID.get(data.program.id) : undefined;
   const next = active && data.program ? nextProgramDay(active, data.program.done) : null;
   const startDay = () => { if (!active || !next) return; onStart(startWorkout({ name: `${active.name}: ${next.day.name}`, programId: active.id, dayId: next.day.id, exercises: planned(data, next.day.items, list) })); setProg(null); };
   return <div>
-    {active && next ? <Card className="!p-5" testId="fit-next-program">
-      <p className="text-[12px] font-bold uppercase tracking-wider" style={{ color: C.lime }}>{active.name} · Week {next.week}</p>
-      <p className="mt-1 text-[22px] font-bold">{next.day.name}</p>
-      <p className="mt-1 text-[14px]" style={{ color: C.dim }}>{next.day.items.length} exercises · about {Math.round(next.day.items.reduce((t, i) => t + i.sets * (i.rest + 45), 0) / 60)} min</p>
-      <Btn onClick={startDay} className="mt-4 w-full" testId="fit-start-program-day"><Play className="h-5 w-5" />Start workout</Btn>
-    </Card> : <Card className="!p-5"><p className="text-[20px] font-bold">Pick a program</p><p className="mt-1 text-[14px]" style={{ color: C.dim }}>A plan tells you exactly what to lift each day and when to add weight.</p></Card>}
+    {/* Your gym (workouts use only its equipment) and scanning a machine you're standing at. */}
+    <div className="mb-3 grid grid-cols-2 gap-2">
+      <button type="button" onClick={() => setGymOpen(true)} className="fit-in flex min-h-[64px] items-center gap-2.5 rounded-[14px] px-3 text-left active:scale-[.98]" style={{ background: C.card, boxShadow: `inset 0 0 0 1px ${C.line}` }} data-testid="fit-my-gym">
+        <Dumbbell className="h-6 w-6 shrink-0" style={{ color: C.lime }} /><span className="min-w-0"><span className="block text-[17px] leading-none" style={display}>My gym</span><span className="mt-0.5 block truncate text-[12px]" style={{ color: C.dim }}>{data.profile.gym ? gymLabel(data.profile.gym) : "Pick yours"}</span></span></button>
+      <button type="button" onClick={() => setScan(true)} className="fit-in flex min-h-[64px] items-center gap-2.5 rounded-[14px] px-3 text-left active:scale-[.98]" style={{ background: C.card, boxShadow: `inset 0 0 0 1px ${C.line}` }} data-testid="fit-scan-machine">
+        <ScanLine className="h-6 w-6 shrink-0" style={{ color: C.lime }} /><span className="min-w-0"><span className="block text-[17px] leading-none" style={display}>Scan a machine</span><span className="mt-0.5 block truncate text-[12px]" style={{ color: C.dim }}>QR code or photo</span></span></button>
+      {onGyms && <button type="button" onClick={onGyms} className="fit-in col-span-2 flex min-h-[48px] items-center gap-2.5 rounded-[14px] px-3 text-left active:scale-[.98]" style={{ background: C.card, boxShadow: `inset 0 0 0 1px ${C.line}` }} data-testid="fit-train-gyms">
+        <MapPin className="h-5 w-5 shrink-0" style={{ color: C.lime }} /><span className="flex-1 text-[16px] leading-none" style={display}>Gyms near me<PlusTag /></span><span className="text-[12px]" style={{ color: C.dim }}>Prices · busy times</span></button>}
+    </div>
+    <SmartWorkoutCard data={data} list={list} onStart={onStart} testId="fit-train-smart" />
+    {active && next && <Title>Your program</Title>}
+    {active && next ? <CoverCard art={programArt(active)} className="!p-5" testId="fit-next-program">
+      <span className="text-[12px] tracking-[.14em]" style={{ ...display, color: C.lime }}>{active.name} · Week {next.week}</span>
+      <span className="mt-0.5 block text-[28px] leading-none" style={display}>{next.day.name}</span>
+      <span className="mt-1 block text-[14px]" style={{ color: C.steel }}>{next.day.items.length} exercises · about {Math.round(next.day.items.reduce((t, i) => t + i.sets * (i.rest + 45), 0) / 60)} min</span>
+      <Btn onClick={startDay} className="relative z-[1] mt-4 w-full" testId="fit-start-program-day"><Play className="h-5 w-5" />Start workout</Btn>
+    </CoverCard> : null}
+    {onCoach && <button type="button" onClick={onCoach} className="fit-in fit-shine mt-3 flex w-full items-center gap-3 rounded-[14px] p-4 text-left active:scale-[.98]" style={{ background: `linear-gradient(150deg, ${C.emberSoft}, ${C.card})`, boxShadow: "inset 0 0 0 1px rgba(255,90,31,.35)" }} data-testid="fit-train-coach">
+      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[12px]" style={{ background: C.lime, color: "#0b0b0c" }}><Trophy className="h-6 w-6" /></span>
+      <span className="min-w-0 flex-1"><span className="block text-[22px] leading-none" style={display}>Find a remote trainer</span><span className="mt-0.5 block text-[13px]" style={{ color: C.steel }}>A real person, not AI: in person, live video or online</span></span>
+      <ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></button>}
+    <Title>Train by type</Title>
+    <div className="grid grid-cols-2 gap-2.5" data-testid="fit-types">{TYPES.map((t, k) => <CoverCard key={t.id} art={t.cover} onClick={() => (t.id === "body" ? setBody(true) : t.id === "outdoor" ? setOutdoor(true) : t.id === "form" ? setForm(true) : setCat(t.id))} className={`fit-in !min-h-[118px] !p-3 ${k === 0 ? "col-span-2" : ""}`} style={stagger(k, 0.05)} testId={`fit-type-${t.id}`}>
+      <span className="block text-[20px] leading-none" style={display}>{t.label}</span>
+      <span className="mt-1 block text-[12px]" style={{ color: C.dim }}>{t.sub}</span>
+    </CoverCard>)}</div>
     <div className="mt-3 grid grid-cols-2 gap-2">
-      <Btn kind="soft" onClick={() => onStart(startWorkout({ name: "Workout", exercises: [] }))} testId="fit-empty-workout"><Plus className="h-5 w-5" />Empty workout</Btn>
-      <Btn kind="soft" onClick={() => setLib(true)} testId="fit-open-library"><Search className="h-5 w-5" />Exercises</Btn>
+      <Btn kind="soft" className="!px-3 !text-[16px] whitespace-nowrap" onClick={() => onStart(startWorkout({ name: "Workout", exercises: [] }))} testId="fit-empty-workout"><Plus className="h-5 w-5 shrink-0" />Empty workout</Btn>
+      <Btn kind="soft" className="!px-3 !text-[16px] whitespace-nowrap" onClick={() => setLib(true)} testId="fit-open-library"><Search className="h-5 w-5 shrink-0" />Exercises</Btn>
     </div>
     <Title>Programs</Title>
-    <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">{PROGRAMS.map((p) => <button key={p.id} type="button" onClick={() => setProg(p)} className="w-[240px] shrink-0 snap-start rounded-[20px] p-4 text-left active:scale-[.98]" style={{ background: data.program?.id === p.id ? "linear-gradient(140deg,#2b3a17,#15151c)" : C.card }} data-testid={`fit-program-${p.id}`}>
-      <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: C.lime }}>{p.level}</p>
-      <p className="mt-1 text-[17px] font-bold leading-tight">{p.name}</p>
-      <p className="mt-1 line-clamp-2 text-[13px] leading-snug" style={{ color: C.dim }}>{p.blurb}</p>
-      <p className="mt-3 text-[12px] font-semibold" style={{ color: C.dim }}>{p.daysPerWeek}×/week · {p.weeks} wk · {p.equipment}</p>
+    <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">{PROGRAMS.map((p) => <CoverCard key={p.id} art={programArt(p)} onClick={() => setProg(p)} className={`!w-[250px] shrink-0 snap-start ${data.program?.id === p.id ? "!ring-2 !ring-[#ff5a1f]" : ""}`} tall testId={`fit-program-${p.id}`}>
+      <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.14em]" style={{ color: C.lime }}>{p.level}{data.program?.id === p.id && <span className="rounded-full px-2 py-0.5 text-[10px]" style={{ background: C.lime, color: "#0b0b0c" }}>Current</span>}</span>
+      <span className="mt-1 block text-[18px] font-bold leading-tight">{p.name}</span>
+      <span className="mt-1 line-clamp-2 block text-[13px] leading-snug" style={{ color: C.steel }}>{p.blurb}</span>
+      <span className="mt-2 block text-[12px] font-semibold" style={{ color: C.steel }}>{p.daysPerWeek}×/week · {p.weeks} wk · {p.equipment}</span>
+    </CoverCard>)}</div>
+    <Title right={<button type="button" onClick={() => setLib(true)} className="text-[14px] font-semibold" style={{ color: C.lime }}>See all</button>}>Form videos</Title>
+    <Chips label="Video group" value={group} onChange={setGroup} items={FORM_GROUPS.map((g) => ({ id: g.id, label: g.label }))} />
+    <div className="-mx-4 mt-3 flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" data-testid="fit-form-videos">{FORM_GROUPS.find((g) => g.id === group)!.ids.filter((id) => videoFor(id) && find(id)).map((id) => <button key={id} type="button" onClick={() => setWatch(find(id)!)} className="w-[180px] shrink-0 snap-start text-left active:scale-[.98]" data-testid={`fit-form-${id}`}>
+      <VideoThumb exId={id} className="aspect-video w-full rounded-[12px]" />
+      <span className="mt-2 block truncate px-0.5 text-[14px] font-semibold">{find(id)!.name}</span>
+      <span className="block truncate px-0.5 text-[12px] capitalize" style={{ color: C.dim }}>{find(id)!.muscle} · {find(id)!.equipment}</span>
     </button>)}</div>
     <Title right={<button type="button" onClick={() => setRoutine({ id: uid(), name: "", exercises: [] })} className="text-[14px] font-semibold" style={{ color: C.lime }} data-testid="fit-new-routine">New</button>}>My routines</Title>
     {data.routines.length ? <div className="space-y-2">{data.routines.map((r) => <Card key={r.id} className="flex items-center gap-3 !p-3">
@@ -301,12 +517,20 @@ export function TrainTab({ data, update, list, onStart, say }: { data: FitData; 
       <Btn className="!min-h-10" onClick={() => onStart(startWorkout({ name: r.name, exercises: planned(data, r.exercises, list) }))}><Play className="h-4 w-4" /></Btn>
     </Card>)}</div> : <p className="px-1 text-[14px]" style={{ color: C.dim }}>Save the workouts you do often, and start them in one tap.</p>}
     <Title>History</Title>
-    {data.workouts.length ? <div className="space-y-2">{data.workouts.slice(-20).reverse().map((w) => <Card key={w.id} onClick={() => setPast(w)} className="!p-3">
+    {data.workouts.length ? <div className="space-y-2">{data.workouts.slice(-20).reverse().map((w) => <Card key={w.id} onClick={() => (w.dayId && SESSION_BY_ID.has(w.dayId) && !w.exercises.length ? setPlaying(SESSION_BY_ID.get(w.dayId)!) : setPast(w))} className="!p-3">
       <div className="flex items-center gap-3"><History className="h-5 w-5 shrink-0" style={{ color: C.dim }} />
-        <div className="min-w-0 flex-1"><p className="truncate font-semibold">{w.name}</p><p className="text-[13px]" style={{ color: C.dim }}>{new Date(w.date).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · {fmtDur(w.secs)} · {w.exercises.length} exercises</p></div>
+        <div className="min-w-0 flex-1"><p className="truncate font-semibold">{w.name}</p><p className="text-[13px]" style={{ color: C.dim }}>{new Date(w.date).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · {fmtDur(w.secs)} · {w.exercises.length ? `${w.exercises.length} exercises` : w.programId === "c25k" ? "Couch to 5K" : w.programId?.startsWith("session-") ? CAT_TITLE[w.programId.slice(8) as SessionCategory] ?? "Guided" : "Workout"}</p></div>
         <ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>)}</div>
       : <p className="px-1 text-[14px]" style={{ color: C.dim }}>Your finished workouts show up here.</p>}
     {lib && <Library list={list} data={data} onClose={() => setLib(false)} />}
+    {watch && <ExerciseDetail ex={watch} data={data} onClose={() => setWatch(null)} />}
+    {body && <BodyMap data={data} list={list} onClose={() => setBody(false)} onOpen={setWatch} onStart={(name, items) => { setBody(false); onStart(startWorkout({ name, exercises: planned(data, items, list) })); }} />}
+    {outdoor && <OutdoorHub data={data} update={update} say={say} onClose={() => setOutdoor(false)} />}
+    {form && <FormCheck onClose={() => setForm(false)} />}
+    {gymOpen && <GymSheet data={data} update={update} onClose={() => setGymOpen(false)} />}
+    {scan && <ScanMachine data={data} update={update} onClose={() => setScan(false)} useLabel="Start" onUse={(exId) => { const ex = CATALOG_BY_ID.get(exId); if (!ex) return; const pr = prescription(data.profile.goal, ex, true); onStart(startWorkout({ name: ex.name, exercises: planned(data, [{ exId, name: ex.name, ...pr }], list) })); }} />}
+    {cat && <SessionList cat={cat} data={data} onClose={() => setCat(null)} onPlay={setPlaying} />}
+    {playing && <SessionPlayer session={playing} onClose={() => setPlaying(null)} onDone={(secs) => saveSession(playing, secs)} />}
     {prog && <ProgramDetail p={prog} data={data} update={update} list={list} onClose={() => setProg(null)} onStartDay={startDay} />}
     {routine && <RoutineEditor routine={routine} list={list} data={data} onClose={() => setRoutine(null)}
       onSave={(r) => { update((d) => ({ ...d, routines: d.routines.some((x) => x.id === r.id) ? d.routines.map((x) => (x.id === r.id ? r : x)) : [...d.routines, r] })); setRoutine(null); say("Routine saved."); }}

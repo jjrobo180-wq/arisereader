@@ -1,0 +1,34 @@
+name: Eye Gazer on iPad (WebKit, touch)
+# Plays each Eye Gazer game in Safari's engine as an iPad with finger taps (tests/ipad) and saves
+# screenshots and errors to the ipad-shots branch.
+on:
+  workflow_dispatch:
+  push:
+    branches: [test/ipad-webkit]
+permissions:
+  contents: write
+jobs:
+  ipad:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx vite build --config tests/ipad/vite.config.ts
+      - name: Safari's engine
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.56.1
+          npx playwright install --with-deps webkit
+      - run: node tests/ipad/run.mjs
+      - name: Save the screenshots to the ipad-shots branch
+        if: always()
+        run: |
+          cd tests/ipad/out
+          git init -q -b ipad-shots
+          git config user.name "ipad-check"; git config user.email "ipad-check@users.noreply.github.com"
+          git add -A && git commit -qm "iPad check ${GITHUB_SHA::8}"
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" ipad-shots

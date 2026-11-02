@@ -29,6 +29,10 @@ export type ProfileLinkDeps = {
 const ownerKey = (id: number) => `profile_links_owner_${id}`;
 const emailKey = (email: string) => `profile_links_email_${createHash("sha256").update(email).digest("hex").slice(0, 40)}`;
 const viewerKey = (id: number) => `profile_links_viewer_${id}`;
+/** Requests "may I see yours?", kept under the email they were sent to (hashed), until that person answers. */
+const askKey = (email: string) => `profile_links_ask_${createHash("sha256").update(email).digest("hex").slice(0, 40)}`;
+const asks = createAttemptLimiter({ max: 15, windowMs: 24 * 3600_000 });
+type Ask = { id: string; fromId: number; nickname: string; grants: Record<string, "view" | "edit">; createdAt: string };
 const invites = createAttemptLimiter({ max: 15, windowMs: 24 * 3600_000 });
 
 /** One lock per settings key, so two changes at once can't both rewrite the same list from the same old copy. */
@@ -51,6 +55,17 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
   const editIds = (key: string, fn: (ids: number[]) => number[]) => withLock(key, async () => { await deps.upsertSetting(key, JSON.stringify(fn(await readIds(key)))); });
   const me = (req: any): { id: number; email: string } | null => { const u = req.adminPreview && req.realUser ? req.realUser : req.user; return u?.id ? { id: Number(u.id), email: normalEmail(u.email) } : null; };
   const nameOf = async (id: number) => { const u = await deps.getUser(id).catch(() => null); return String(u?.displayName || "").trim() || "Someone"; };
+
+  const readAsks = async (email: string): Promise<Ask[]> => {
+    const v = await readJson(askKey(email));
+    return (Array.isArray(v) ? v : []).flatMap((r: any): Ask[] => {
+      const id = typeof r?.id === "string" && /^[\w-]{6,40}$/.test(r.id) ? r.id : "";
+      const fromId = Number.isInteger(r?.fromId) && r.fromId > 0 ? r.fromId : 0;
+      if (!id || !fromId) return [];
+      return [{ id, fromId, nickname: typeof r.nickname === "string" ? r.nickname.replace(/[\u0000-\u001f]/g, " ").trim().slice(0, LINK_LIMITS.nickname) : "", grants: cleanGrants(r.grants) as Ask["grants"], createdAt: typeof r.createdAt === "string" ? r.createdAt.slice(0, 40) : "" }];
+    }).slice(0, 50);
+  };
+  const saveAsks = (email: string, list: Ask[]) => deps.upsertSetting(askKey(email), JSON.stringify(list));
 
   /** Every owner who has shared (or invited) this person, and the one link each. */
   async function sharedWith(viewer: { id: number; email: string }): Promise<ProfileLink[]> {
@@ -79,8 +94,9 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
       const [mine, theirs] = await Promise.all([ownerLinks(u.id), sharedWith(u)]);
       const mineOut = await Promise.all(mine.map(async (l) => ({ id: l.id, email: l.email, nickname: l.nickname, status: l.status, grants: l.grants, viewerName: l.viewerId ? await nameOf(l.viewerId) : "", createdAt: l.createdAt })));
       const withMe = await Promise.all(theirs.map(async (l) => ({ id: l.id, ownerId: l.ownerId, ownerName: await nameOf(l.ownerId), status: l.status, grants: l.grants })));
+      const requests = await Promise.all((u.email ? await readAsks(u.email) : []).filter((r) => r.fromId !== u.id).map(async (r) => ({ id: r.id, fromId: r.fromId, fromName: await nameOf(r.fromId), nickname: r.nickname, grants: r.grants, createdAt: r.createdAt })));
       res.set("Cache-Control", "no-store");
-      res.json({ mine: mineOut, withMe, myEmail: u.email });
+      res.json({ mine: mineOut, withMe, myEmail: u.email, requests });
     } catch (error: any) {
       console.error("[profile-links] list:", error?.message);
       res.status(500).json({ message: "Linked profiles couldn't be loaded. Try again." });
@@ -151,6 +167,70 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
       res.status(500).json({ message: "Couldn't stop sharing. Try again." });
     }
   });
+
+  // "Ask to see theirs": the other person (who already keeps the data, say a daughter logging potty trips on her
+  // own phone) gets a request and chooses whether to share. Nothing is shared until she approves, and the
+  // reply never says whether that email has an account.
+  app.post("/api/profile-links/ask", authMiddleware, async (req: any, res) => {
+    const u = me(req);
+    if (!u) return res.status(401).json({ message: "Sign in first." });
+    const email = normalEmail(req.body?.email);
+    if (!email) return res.status(400).json({ message: "Type their email address." });
+    if (email === u.email) return res.status(400).json({ message: "That's your own email." });
+    const wait = asks.retryAfter(`u${u.id}`);
+    if (wait > 0) return res.status(429).json({ message: `You've sent a lot of requests today. Try again in ${waitWords(wait)}.` });
+    const grants = cleanGrants(req.body?.grants);
+    if (!Object.keys(grants).length) return res.status(400).json({ message: "Pick at least one thing to ask for." });
+    try {
+      await withLock(askKey(email), async () => {
+        const list = (await readAsks(email)).filter((r) => r.fromId !== u.id);
+        list.push({ id: randomUUID().replace(/-/g, "").slice(0, 20), fromId: u.id, nickname: String(req.body?.nickname || "").trim().slice(0, LINK_LIMITS.nickname), grants: grants as Ask["grants"], createdAt: iso() });
+        await saveAsks(email, list.slice(-50));
+      });
+      asks.fail(`u${u.id}`);
+      res.json({ ok: true });
+    } catch {
+      res.status(500).json({ message: "The request couldn't be sent. Try again." });
+    }
+  });
+
+  const answerAsk = (how: "approve" | "decline"): RequestHandler => async (req: any, res) => {
+    const u = me(req);
+    if (!u) return res.status(401).json({ message: "Sign in first." });
+    if (!u.email) return res.status(400).json({ message: "Add an email to your account first." });
+    try {
+      const ask = await withLock(askKey(u.email), async () => {
+        const list = await readAsks(u.email);
+        const found = list.find((r) => r.id === req.params.id);
+        if (found) await saveAsks(u.email, list.filter((r) => r !== found));
+        return found;
+      });
+      if (!ask) return res.status(404).json({ message: "That request isn't there any more." });
+      if (how === "approve") {
+        const asker = await deps.getUser(ask.fromId).catch(() => null);
+        const askerEmail = normalEmail(asker?.email);
+        // What is shared is what was asked for, or less: the approver may narrow it, never widen it.
+        const chosen = req.body?.grants !== undefined ? cleanGrants(req.body.grants) : ask.grants;
+        const grants: Record<string, Access> = {};
+        for (const [id, v] of Object.entries(chosen)) { const asked = ask.grants[id]; if (asked) grants[id] = asked === "view" || v === "view" ? "view" : "edit"; }
+        if (!Object.keys(grants).length) return res.status(400).json({ message: "Pick at least one thing to share." });
+        await withLock(ownerKey(u.id), async () => {
+          const links = await ownerLinks(u.id);
+          const at = links.findIndex((l) => l.viewerId === ask.fromId || (!!askerEmail && l.email === askerEmail));
+          if (at >= 0) links[at] = { ...links[at], viewerId: ask.fromId, status: "active", grants: { ...links[at].grants, ...grants }, updatedAt: iso() };
+          else if (links.length >= LINK_LIMITS.perOwner) throw Object.assign(new Error(`You can link up to ${LINK_LIMITS.perOwner} people.`), { status: 409 });
+          else links.push({ id: randomUUID().replace(/-/g, "").slice(0, 20), ownerId: u.id, email: askerEmail || `user${ask.fromId}@linked.invalid`, viewerId: ask.fromId, nickname: ask.nickname, status: "active", grants, createdAt: iso(), updatedAt: iso() });
+          await saveOwnerLinks(u.id, links);
+        });
+        await editIds(viewerKey(ask.fromId), (ids) => [...ids, u.id]);
+      }
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(error?.status || 500).json({ message: error?.status ? error.message : "Couldn't save. Try again." });
+    }
+  };
+  app.post("/api/profile-links/requests/:id/approve", authMiddleware, answerAsk("approve"));
+  app.post("/api/profile-links/requests/:id/decline", authMiddleware, answerAsk("decline"));
 
   const respond = (how: "accept" | "leave"): RequestHandler => async (req: any, res) => {
     const u = me(req);

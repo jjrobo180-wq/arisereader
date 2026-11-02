@@ -25,9 +25,11 @@ import { AddToMenu, ModePage, ModesRow, NewModeDialog, makeMode, toSaved } from 
 import { GoLiveSheet, LiveRoom, type LiveSummary } from "../client/src/components/family-hub/earshot/EarshotCreators";
 import { setTheme, useTheme } from "../client/src/components/family-hub/earshot/EarshotPlayer";
 import { HoursBackCard } from "../client/src/components/family-hub/earshot/EarshotListen";
+import { WikiMini, WikiView } from "./Wiki";
+import { SmartDownloads, setSmartDownloads, smartDownloadsOn } from "./smartDownloads";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
-type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "music" } | { kind: "books" } | { kind: "book"; id: string } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "live" } | { kind: "now" } | { kind: "newsstations" } | { kind: "standup" } | { kind: "study" } | { kind: "meeting" } | { kind: "import" } | { kind: "clips" } | { kind: "watch"; showId: string; episodeId: string };
+type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "music" } | { kind: "books" } | { kind: "book"; id: string } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "live" } | { kind: "now" } | { kind: "newsstations" } | { kind: "standup" } | { kind: "study" } | { kind: "meeting" } | { kind: "import" } | { kind: "clips" } | { kind: "watch"; showId: string; episodeId: string } | { kind: "wiki" };
 
 const DEFAULT_GENRES = ["comedy", "news", "science", "tech", "truecrime", "history", "business", "culture"];
 const ACCENT = "#ff6a1f";
@@ -64,6 +66,7 @@ function parseHash(): View {
   if (a === "study") return { kind: "study" };
   if (a === "meeting") return { kind: "meeting" };
   if (a === "import") return { kind: "import" };
+  if (a === "wiki") return { kind: "wiki" };
   // Clips was taken out of Pod+ (October 2026); old links open the home page.
   if (a === "party" && /^(new|[A-Za-z0-9_-]{6,20})$/.test(b || "")) return { kind: "party", id: b };
   if (a === "mode" && /^[a-z0-9-]{1,30}$/.test(b || "")) return { kind: "mode", id: b };
@@ -142,6 +145,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   liveBase: string;
 }) {
   const [view, setViewState] = useState<View>(parseHash);
+  const [wikiOpen, setWikiOpen] = useState<string | null>(null);
   // Switch views right away, and keep the address in step (so Back and links work).
   const go = useCallback((v: View) => { const h = hashOf(v); setViewState(v); if (location.hash !== h) location.hash = h; window.scrollTo(0, 0); }, []);
   useEffect(() => { const on = () => { setViewState(parseHash()); window.scrollTo(0, 0); }; window.addEventListener("hashchange", on); return () => window.removeEventListener("hashchange", on); }, []);
@@ -490,6 +494,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
               <p className="truncate px-3 pb-2 pt-1 text-sm font-semibold">{email || "Signed in"}</p>
               <p className="px-3 pb-2 text-xs text-[#606060]">Pod+ Member</p>
               <button onClick={() => { setAcctOpen(false); setPrivacyOpen(true); }} className="flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm hover:bg-[#f2f2f2]"><ShieldCheck size={16} />Account & privacy</button>
+              <button onClick={() => { const on = !smartDownloadsOn(); setSmartDownloads(on); setAcctOpen(false); say(on ? "Smart downloads are on." : "Smart downloads are off."); }} className="flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm hover:bg-[#f2f2f2]"><ArrowDownToLine size={16} />Smart downloads: {smartDownloadsOn() ? "on" : "off"}</button>
               <button onClick={() => { setAcctOpen(false); onSignOut(); }} className="flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm hover:bg-[#f2f2f2]"><LogOut size={16} />Sign out</button>
             </div>}
           </span>}
@@ -514,6 +519,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       {navItem("Up to the minute news", <Zap size={22} strokeWidth={1.8} />, view.kind === "now", () => go({ kind: "now" }))}
       {navItem("Stand-up", <Mic2 size={22} strokeWidth={1.8} />, view.kind === "standup", () => go({ kind: "standup" }))}
       {navItem("Audiobooks", <BookOpen size={22} strokeWidth={1.8} />, view.kind === "books" || view.kind === "book", () => go({ kind: "books" }))}
+      {navItem("Wiki podcasts", <Library size={22} strokeWidth={1.8} />, view.kind === "wiki", () => go({ kind: "wiki" }))}
       {navItem("Listen together", <Users size={22} strokeWidth={1.8} />, view.kind === "party", () => go({ kind: "party", id: "new" }))}
       {navItem("Study Pod+", <GraduationCap size={22} strokeWidth={1.8} />, view.kind === "study", () => go({ kind: "study" }))}
       {navItem("Meeting Pod", <Briefcase size={22} strokeWidth={1.8} />, view.kind === "meeting", () => go({ kind: "meeting" }))}
@@ -604,6 +610,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     content = <NewsStationsView onPlay={playStation} current={station} onBack={() => go({ kind: "home" })} />;
   } else if (view.kind === "music") {
     content = <MusicView api={api} current={listening} onPlay={playMusic} />;
+  } else if (view.kind === "wiki") {
+    content = <WikiView onBack={() => go({ kind: "home" })} start={wikiOpen} />;
   } else if (view.kind === "books") {
     content = <AudiobooksView api={api} pro={pro} onJoin={onJoin} current={reading} onOpen={(id) => go({ kind: "book", id })} />;
   } else if (view.kind === "book") {
@@ -755,6 +763,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       </div>
     </div>}
     {privacyOpen && <AccountSheet api={api} email={email} signedIn={pro} say={say} onClose={() => setPrivacyOpen(false)} />}
+    {view.kind !== "wiki" && <WikiMini lift={!!(station || reading || listening || nowPod)} onOpen={(t) => { setWikiOpen(t); go({ kind: "wiki" }); }} />}
     {nowPod && !station && !reading && !listening && <div role="region" aria-label="Now playing podcast" className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5e5e5] bg-white/95 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur">
       <div className="mx-auto flex h-14 max-w-2xl items-center gap-3 px-3">
         <button onClick={onPodOpen} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Open ${nowPod.title}`}>
@@ -774,6 +783,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       <button onClick={() => { undo.undo(); setUndo(null); }} className="h-9 shrink-0 rounded-lg px-3 font-semibold text-[#3ea6ff] hover:bg-white/10">Undo</button>
     </div>}
     {newMode && <NewModeDialog onClose={() => setNewMode(false)} onMake={(name) => { const id = makeMode(update, name); setNewMode(false); go({ kind: "mode", id }); }} />}
+    {visible && pro && <SmartDownloads api={api} follows={es.follows} heard={es.heard} member={pro} ex={ex} say={say} />}
     {goLive && <GoLiveSheet api={api} say={(m) => { say(m); if (/sign in|profile|account/i.test(m)) { setGoLive(false); onJoin(); } }} onClose={() => setGoLive(false)} onStarted={(id, ticket) => { setGoLive(false); setStation(null); setReading(null); setListening(null); setLiveRoom({ id, ticket }); }} />}
     {liveRoom && <LiveRoom key={liveRoom.id} api={api} say={say} roomId={liveRoom.id} ticket={liveRoom.ticket} wsBase={liveBase}
       onClose={() => { setLiveRoom(null); api("/api/earshot/creators/live").then((b) => setLive(b.live || [])).catch(() => {}); }} />}
@@ -1039,7 +1049,7 @@ function ContinueListening({ nowPod, visible, onToggle, onOpenNow, onResume }: {
             <span className="mt-0.5 block truncate text-[12px] text-[#606060]">{leftWords(sp)} · {sp.show}</span></span>
         </button>
         <button onClick={() => onResume(id, sp)} data-testid={!nowPod && k === 0 ? "pod-continue-play" : undefined} aria-label={`Play ${sp.title}`} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#e0e0e0] text-[#0f0f0f]"><Play size={15} fill="currentColor" strokeWidth={0} className="ml-0.5" /></button>
-        <button onClick={() => hide(id)} aria-label={`Remove ${sp.title} from Continue listening`} className="absolute right-0.5 top-0.5 grid h-6 w-6 place-items-center rounded-full text-[#b0b0b0] hover:text-[#606060]"><X size={12} /></button>
+        <button onClick={() => hide(id)} aria-label={`Remove ${sp.title} from Continue listening`} className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[#b0b0b0] hover:bg-[#f2f2f2] hover:text-[#606060]"><X size={14} /></button>
         {sp.secs > 0 && <span className="absolute inset-x-0 bottom-0 h-[2px] bg-[#f0f0f0]"><span className="block h-full bg-[#ff6a1f]" style={{ width: `${Math.min(100, (sp.t / sp.secs) * 100)}%` }} /></span>}
       </div>)}
     </div>

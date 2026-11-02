@@ -16,7 +16,10 @@ import { Home } from "./Home";
 import { AuthScreen } from "./Auth";
 import { Welcome, WELCOME_KEY } from "./Welcome";
 import { OPEN_EVENT, podPushAllowed, startPodPush, syncPodPush } from "./applePush";
-import { isNativeApp, markAppReady } from "../client/src/lib/nativeApp";
+import { isNativeApp, markAppReadyWhenDrawn } from "../client/src/lib/nativeApp";
+import { publishWidgets } from "../client/src/lib/widgets";
+import { podWidgetSlots } from "../client/src/lib/podWidgets";
+import { subscribeWiki, wikiState } from "./wikiPlayer";
 import { downloads, installDownloads } from "./downloads";
 import "./styles.css";
 import { configureAiVoice } from "../client/src/lib/aiVoice";
@@ -185,6 +188,13 @@ function App() {
   const [tabNonce, setTabNonce] = useState(0);
   const [nowPod, setNowPod] = useState<NowPlaying | null>(null);
   const nowPodRef = useRef(nowPod); nowPodRef.current = nowPod;
+  // Home Screen and Lock Screen widgets (iPhone app): what's playing, saved, followed and more.
+  const [wikiTick, setWikiTick] = useState(0);
+  useEffect(() => subscribeWiki(() => setWikiTick((n) => n + 1)), []);
+  useEffect(() => {
+    const w = wikiState();
+    publishWidgets(podWidgetSlots(es, nowPod ? { title: nowPod.title, show: nowPod.show, playing: nowPod.playing, live: nowPod.live } : null, w.art ? { title: w.art.title, playing: w.playing } : null));
+  }, [es, nowPod, wikiTick]);
   const podCtl = useRef<PlayerControl | null>(null);
   // The now-playing bar on the home page opens the player itself, on what's playing (not the last
   // page that was open in it, like Social).
@@ -257,4 +267,4 @@ function SignUpGate({ api, onDone, onClose }: { api: (path: string, init?: { met
 createRoot(document.getElementById("root")!).render(<StrictMode><App /></StrictMode>);
 // Live updates: this copy of the app started and drew its first screen (otherwise the iPhone app goes
 // back to the copy that worked; client/src/lib/nativeApp.ts).
-setTimeout(() => { if (document.getElementById("root")?.childElementCount) markAppReady(); }, 2000);
+markAppReadyWhenDrawn();
