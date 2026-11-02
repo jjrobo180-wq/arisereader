@@ -608,7 +608,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const onAirNow = () => !!itemsRef.current[activeRef.current]?.key.startsWith("nr-");
   const skipButtons = () => {
     const live = onAirNow();
-    const set = (k: MediaSessionAction, f: (() => void) | null) => { try { navigator.mediaSession.setActionHandler(k, f as any); } catch { /* not supported */ } };
+    const set = (k: MediaSessionAction, f: ((d: any) => void) | null) => { try { navigator.mediaSession.setActionHandler(k, f as any); } catch { /* not supported */ } };
     // Like Apple Podcasts: the lock screen shows back 15 / forward 30 and a bar you can drag. (Next and
     // previous track buttons would replace the skip buttons there, so they're left off.)
     set("nexttrack", null);
