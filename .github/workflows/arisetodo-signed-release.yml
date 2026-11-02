@@ -69,7 +69,7 @@ jobs:
           set -euo pipefail
           ICON=ios/App/App/Assets.xcassets/AppIcon.appiconset
           mkdir -p "$ICON"
-          sips -s format jpeg -s formatOptions 100 ../../client/public/icon-512.png --out "$RUNNER_TEMP/todo-icon.jpg" >/dev/null
+          sips -s format jpeg -s formatOptions 100 ../../client/public/app-icons/todo-1024.png --out "$RUNNER_TEMP/todo-icon.jpg" >/dev/null
           sips -z 1024 1024 -s format png "$RUNNER_TEMP/todo-icon.jpg" --out "$ICON/AppIcon-1024.png" >/dev/null
           printf '%s' '{"images":[{"filename":"AppIcon-1024.png","idiom":"universal","platform":"ios","size":"1024x1024"}],"info":{"author":"xcode","version":1}}' > "$ICON/Contents.json"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT" ios/App/App/Info.plist

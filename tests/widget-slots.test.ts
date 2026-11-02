@@ -17,13 +17,14 @@ test("Fit: every widget in widgets.json has a slot, with short text", () => {
   for (const s of cleanSlots(slots)) assert.ok(s.title && s.value, s.id);
 });
 
-test("To Duo: each widget in widgets.json is sent by the app (the potty ones from the potty app, accountability from its page)", () => {
+test("To Duo: each widget in widgets.json is sent by the app (one potty widget from the potty app, accountability from its page)", () => {
   const ids = list("../arisetodo/ios-app/widgets.json").map((w) => w[0]);
   const here = duoWidgetSlots(emptyFamily(), [], "2026-11-02", null).map((s) => s.id);
-  const elsewhere = ["duo.potty.next", "duo.potty.today", "duo.potty.last", "duo.accountability"];
+  const elsewhere = ["duo.potty.next", "duo.accountability"];
   assert.deepEqual([...here, ...elsewhere].sort(), [...ids].sort());
   const potty = readFileSync(new URL("../client/src/components/pro/potty/PottyApp.tsx", import.meta.url), "utf8");
-  for (const id of elsewhere.slice(0, 3)) assert.ok(potty.includes(`"${id}"`), id);
+  assert.ok(potty.includes('"duo.potty.next"'));
+  assert.ok(!potty.includes('"duo.potty.today"') && !potty.includes('"duo.potty.last"'), "only one potty widget");
   assert.ok(readFileSync(new URL("../client/src/components/family-hub/Accountability.tsx", import.meta.url), "utf8").includes('"duo.accountability"'));
 });
 
@@ -52,6 +53,9 @@ test("slot text is trimmed and bad data dropped", () => {
 
 test("the widget extension, plugin and workflows are in place", () => {
   const ext = readFileSync(new URL("../native/widget-extension/AriseWidgets.swift", import.meta.url), "utf8");
-  for (const word of ["AppIntentConfiguration", "SlotActionIntent", "__WIDGETS__", "__BUNDLE__", "systemLarge"]) assert.ok(ext.includes(word), word);
+  for (const word of ["StaticConfiguration", "__WIDGETS__", "__BUNDLE__", "systemLarge", ".detail", "Image(systemName:", "GlowRing", "timerInterval", "contentTransition"]) assert.ok(ext.includes(word), word);
+  for (const word of ["AppIntent", "import AppIntents", "Button(intent"]) assert.ok(!ext.includes(word), `no ${word}`);
+  // An interpolated display name ("\\(name) +") made the extension crash on load (seen on the iOS simulator), so iOS listed none.
+  assert.ok(!/configurationDisplayName\("[^"]*\\\(/.test(ext), "no interpolated configurationDisplayName");
   assert.ok(readFileSync(new URL("../native/arise-widgets/ios/Sources/AriseWidgetsPlugin/AriseWidgetsPlugin.swift", import.meta.url), "utf8").includes("takeActions"));
 });

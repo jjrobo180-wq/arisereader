@@ -17,7 +17,9 @@ import { searchFoods } from "@/lib/foodLookup";
 import { fitApi, type Update } from "./fitStore";
 import { lastPlace, keepPlace, locate } from "./FitRun";
 import { latestKg, totals } from "./FitFood";
-import { Btn, C, Card, Sheet, Title, display, haptic, inputCls, inputStyle } from "./fitUi";
+import { Btn, C, Card, Sheet, Title, display, haptic, inputCls, inputStyle, usePointsMode } from "./fitUi";
+import { amountText, pointsOf, DIET_BY_ID } from "@shared/fitNutrition";
+import type { MenuPick } from "@shared/fitMenuAi";
 import { PlusTag, isPlusError, usePlus } from "./FitPlus";
 
 type Crowd = { level: BusyLevel; n: number; mins: number } | null;
@@ -65,8 +67,12 @@ function useNearby(kind: NearbyKind) {
     let had = false;
     try { const v = JSON.parse(localStorage.getItem(ck) || "null"); if (v?.r && Date.now() - v.at < 864e5) { had = true; setList(parsePlaces(v.r, kind, from.ll, kind === "gyms" ? 25 : 10)); setCrowd(v.r.crowd ?? {}); } } catch { /* nothing kept */ }
     setBusy(!had);
-    fitApi<{ elements: any[]; crowd: Record<string, Crowd> }>(token, `/nearby?${new URLSearchParams({ kind, lat: String(from.ll[0]), lng: String(from.ll[1]) })}`)
-      .then((r) => { if (!live) return; setList(parsePlaces(r, kind, from.ll, kind === "gyms" ? 25 : 10)); setCrowd(r.crowd ?? {}); setErr(""); try { localStorage.setItem(ck, JSON.stringify({ at: Date.now(), r })); } catch { /* storage full */ } })
+    const q = (extra = "") => fitApi<{ elements: any[]; crowd: Record<string, Crowd> }>(token, `/nearby?${new URLSearchParams({ kind, lat: String(from.ll[0]), lng: String(from.ll[1]) })}${extra}`);
+    let full = false;
+    // Food: the closest couple of kilometres come back first (a small search), the whole area fills in behind it.
+    if (kind === "food" && !had) q("&quick=1").then((r) => { if (!live || full) return; const near = parsePlaces(r, kind, from.ll, 10); if (!near.length) return; setList(near); setErr(""); setBusy(false); }).catch(() => { /* the full search answers */ });
+    q()
+      .then((r) => { full = true; if (!live) return; setList(parsePlaces(r, kind, from.ll, kind === "gyms" ? 25 : 10)); setCrowd(r.crowd ?? {}); setErr(""); try { localStorage.setItem(ck, JSON.stringify({ at: Date.now(), r })); } catch { /* storage full */ } })
       .catch((e) => live && !had && setErr(/reach|fetch|network/i.test(e.message) ? "No connection. Check your internet and try again." : e.message))
       .finally(() => live && setBusy(false));
     return () => { live = false; };
@@ -218,9 +224,10 @@ function EatFilters({ goal, setGoal, lim, setLim }: { goal: Goal; setGoal: (g: G
 /** One menu item with a button that logs it; the button turns into a check so it's clear it went in. */
 function PickRow({ name, m, serving, logName, update, say }: { name: string; m: Macro; serving: string; logName: string; update: Update; say: (m: string) => void }) {
   const [added, setAdded] = useState(false);
+  const pts = usePointsMode();
   useEffect(() => { if (!added) return; const t = window.setTimeout(() => setAdded(false), 2500); return () => window.clearTimeout(t); }, [added]);
   return <div className="flex items-center gap-3 rounded-[10px] p-2.5" style={{ background: C.card2 }}>
-    <div className="min-w-0 flex-1"><p className="text-[14px] font-semibold leading-snug">{name}</p><p className="mt-0.5 text-[12px] tabular-nums" style={{ color: C.dim }}>about {Math.round(m.kcal)} cal · P {Math.round(m.p)}g · C {Math.round(m.c)}g · F {Math.round(m.f)}g</p></div>
+    <div className="min-w-0 flex-1"><p className="text-[14px] font-semibold leading-snug">{name}</p><p className="mt-0.5 text-[12px] tabular-nums" style={{ color: C.dim }}>about {amountText(m, pts ? "points" : "calories")} · P {Math.round(m.p)}g · C {Math.round(m.c)}g · F {Math.round(m.f)}g</p></div>
     <button type="button" onClick={() => { logFood(update, { name: logName, kcal: m.kcal, p: m.p, c: m.c, f: m.f, serving }); setAdded(true); say(`Added to ${mealNow()}.`); }} aria-label={added ? `${name} added` : `Add ${name}`} className="grid h-10 w-10 shrink-0 place-items-center rounded-full transition-transform active:scale-90" style={{ background: added ? C.card : C.lime, color: added ? C.lime : "#0b0b0c" }} data-testid="fit-log-pick">{added ? <Check className="h-5 w-5" /> : <Plus className="h-5 w-5" />}</button>
   </div>;
 }
@@ -290,10 +297,52 @@ export function EatOut({ data, update, onClose, say }: { data: FitData; update: 
   </Sheet>;
 }
 
+/** Ask the AI what to order at a restaurant, fit to what's left of today. Works for places that aren't in any list. */
+function MenuAi({ data, update, say, place, cuisine = "" }: { data: FitData; update: Update; say: (m: string) => void; place?: string; cuisine?: string }) {
+  const { token } = useAuth();
+  const { plus, ask } = usePlus();
+  const pts = usePointsMode();
+  const [name, setName] = useState(place ?? "");
+  const [wants, setWants] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [picks, setPicks] = useState<MenuPick[] | null>(null);
+  const run = async () => {
+    const target = (place ?? name).trim();
+    if (target.length < 2) { setErr("Type a restaurant's name."); return; }
+    if (!plus) { ask("eat-out"); return; }
+    setErr(""); setBusy(true);
+    try {
+      const g = goals(data.profile, latestKg(data));
+      const t = totals(data.foods.filter((f) => f.date === dayKey()));
+      const left = { kcal: Math.max(0, Math.round(g.kcal - t.kcal)), p: Math.max(0, Math.round(g.p - t.p)), c: Math.max(0, Math.round(g.c - t.c)), f: Math.max(0, Math.round(g.f - t.f)) };
+      const r = await fitApi<{ picks: MenuPick[] }>(token, "/menu", { method: "POST", body: JSON.stringify({ place: target, cuisine, goal: data.profile.goal, diet: DIET_BY_ID.get(data.profile.dietPlan ?? "balanced")?.name ?? "balanced", mode: pts ? "points" : "calories", wants, left }) });
+      setPicks(r.picks); haptic("success");
+    } catch (e: any) { if (isPlusError(e)) ask("eat-out"); else setErr(e.message); } finally { setBusy(false); }
+  };
+  return <div className={place ? "mt-3" : "mb-3"} data-testid="fit-menu-ai">
+    {!place && <Card className="!p-4">
+      <p className="flex items-center gap-2 text-[17px] leading-none" style={display}><Sparkles className="h-5 w-5" style={{ color: C.lime }} />What should I order?<PlusTag /></p>
+      <p className="mt-1 text-[13px]" style={{ color: C.dim }}>Any restaurant, even ones that aren't listed. The AI picks what fits what's left of your day.</p>
+      <input value={name} onChange={(e) => setName(e.target.value.slice(0, 80))} placeholder="Olive Garden, a sushi place, Texas Roadhouse…" className={`${inputCls} mt-3`} style={inputStyle} aria-label="Restaurant" data-testid="fit-menu-place" />
+    </Card>}
+    <div className={place ? "" : "mt-2"}>
+      <input value={wants} onChange={(e) => setWants(e.target.value.slice(0, 160))} placeholder="Anything specific? (high protein, no dairy, under 600…)" className={inputCls} style={inputStyle} aria-label="What you want" onKeyDown={(e) => { if (e.key === "Enter") void run(); }} />
+      <Btn kind={place ? "soft" : "primary"} className="mt-2 w-full" onClick={run} disabled={busy} testId="fit-menu-go">{busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}{picks ? "Try again" : place ? "Ask AI what to order here" : "Find my best order"}</Btn>
+    </div>
+    {err && <p className="mt-2 text-[14px]" style={{ color: C.red }} role="alert">{err}</p>}
+    {picks && <div className="mt-3 space-y-2" data-testid="fit-menu-picks">
+      {picks.map((m, k) => <div key={`${m.name}-${k}`}><PickRow name={m.name} m={m} serving="1 order" logName={`${place ?? name}: ${m.name}`} update={update} say={say} />{m.how && <p className="px-3 pt-1 text-[12px] leading-snug" style={{ color: C.steel }}>{m.how}</p>}</div>)}
+      <p className="px-1 text-[11px] leading-relaxed" style={{ color: C.dim }}>AI estimates from typical menus, not the restaurant's published numbers. Ask for the nutrition info if exact values matter.</p>
+    </div>}
+  </div>;
+}
+
 function FoodNear({ data, update, say, filter }: { data: FitData; update: Update; say: (m: string) => void; filter: Filter }) {
   const { list, busy, bar } = useNearby("food");
   const [open, setOpen] = useState<string | null>(null);
   return <div className="mt-3">
+    <MenuAi data={data} update={update} say={say} />
     {bar}
     <div className="mt-2 space-y-2">{(list ?? []).slice(0, 40).map((p) => {
       const chain = p.chain ? FOOD_CHAINS.find((c) => c.id === p.chain) : null;
@@ -305,6 +354,7 @@ function FoodNear({ data, update, say, filter }: { data: FitData; update: Update
           <ChevronRight className="h-5 w-5 shrink-0 transition-transform" style={{ color: C.dim, transform: open === p.id ? "rotate(90deg)" : undefined }} /></button>
         {open === p.id && <>
           {chain ? <ChainPicks chain={chain} filter={filter} update={update} say={say} /> : <p className="mt-2 text-[14px]">{tip || "Look for grilled protein, vegetables, and sauces on the side."}</p>}
+          <MenuAi data={data} update={update} say={say} place={p.name} cuisine={(p.cuisine ?? "").replace(/[_;]/g, " ")} />
           <a href={directionsUrl(p, apple())} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-[14px] font-semibold" style={{ color: C.lime }}><Navigation className="h-4 w-4" />Directions</a>
         </>}
       </Card>;
@@ -318,6 +368,7 @@ function FoodNear({ data, update, say, filter }: { data: FitData; update: Update
 export function RecipesSheet({ data, update, onClose, say }: { data: FitData; update: Update; onClose: () => void; say: (m: string) => void }) {
   const { token } = useAuth();
   const [tag, setTag] = useState<RecipeTag | "all">("all");
+  const pts = usePointsMode();
   const [open, setOpen] = useState<Recipe | null>(null);
   const [have, setHave] = useState("");
   const [cooking, setCooking] = useState(false);
@@ -350,15 +401,16 @@ export function RecipesSheet({ data, update, onClose, say }: { data: FitData; up
     <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">{tags.map((x) => <button key={x} type="button" onClick={() => setTag(x)} aria-pressed={tag === x} className="h-9 shrink-0 rounded-full px-3 text-[13px] font-semibold" style={tag === x ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2, color: C.text }}>{x === "all" ? "Best for now" : TAG_NAME[x]}</button>)}</div>
     <div className="mt-2 space-y-2">{[...made, ...list].map((r) => <Card key={r.id} onClick={() => setOpen(r)} className="flex items-center gap-3 !p-3" testId={`fit-recipe-${r.id}`}>
       <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[10px] " style={{ background: C.card2 }} aria-hidden><RecipeIcon id={r.id} tags={r.tags} className="h-6 w-6" /></span>
-      <div className="min-w-0 flex-1"><p className="truncate text-[16px] font-semibold">{r.name}</p><p className="text-[12px] tabular-nums" style={{ color: C.dim }}>{r.kcal} cal · P {r.p}g · {r.mins} min{r.id.startsWith("ai-") ? " · made for you" : ""}</p></div>
+      <div className="min-w-0 flex-1"><p className="truncate text-[16px] font-semibold">{r.name}</p><p className="text-[12px] tabular-nums" style={{ color: C.dim }}>{amountText(r, pts ? "points" : "calories")} · P {r.p}g · {r.mins} min{r.id.startsWith("ai-") ? " · made for you" : ""}</p></div>
       <ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></Card>)}</div>
     {open && <RecipeDetail r={open} onClose={() => setOpen(null)} onLog={() => { logFood(update, { name: open.name, kcal: open.kcal, p: open.p, c: open.c, f: open.f, serving: "1 serving" }); say(`Logged to ${mealNow()}.`); setOpen(null); }} />}
   </Sheet>;
 }
 
 function RecipeDetail({ r, onClose, onLog }: { r: Recipe; onClose: () => void; onLog: () => void }) {
+  const pts = usePointsMode();
   return <Sheet title={r.name} onClose={onClose} testId="fit-recipe-detail">
-    <div className="grid grid-cols-4 gap-2 text-center">{([["Cal", r.kcal], ["Protein", `${r.p}g`], ["Carbs", `${r.c}g`], ["Fat", `${r.f}g`]] as const).map(([l, v]) => <Card key={l} className="!p-2.5"><p className="text-[22px] leading-none tabular-nums" style={display}>{v}</p><p className="mt-1 text-[11px]" style={{ color: C.dim }}>{l}</p></Card>)}</div>
+    <div className="grid grid-cols-4 gap-2 text-center">{([[pts ? "Points" : "Cal", pts ? pointsOf(r) : r.kcal], ["Protein", `${r.p}g`], ["Carbs", `${r.c}g`], ["Fat", `${r.f}g`]] as const).map(([l, v]) => <Card key={l} className="!p-2.5"><p className="text-[22px] leading-none tabular-nums" style={display}>{v}</p><p className="mt-1 text-[11px]" style={{ color: C.dim }}>{l}</p></Card>)}</div>
     <p className="mt-2 px-1 text-[13px]" style={{ color: C.dim }}>Per serving · makes {r.serves} · {r.mins} min{r.tags.length ? ` · ${r.tags.map((x) => TAG_NAME[x]).join(", ")}` : ""}</p>
     <Title>Ingredients</Title>
     <Card className="!p-4"><ul className="space-y-1.5">{r.ingredients.map((i, k) => <li key={k} className="text-[15px]">• {i}</li>)}</ul></Card>
