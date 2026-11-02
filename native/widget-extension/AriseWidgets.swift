@@ -1,14 +1,26 @@
-// Three widgets for an Arise iPhone app (Home Screen small and medium, Lock Screen rectangular, circular
-// and inline). They show whatever the app last handed to the AriseWidgets plugin: up to three "slots",
-// one per widget. Built by .github/scripts/add_widget.rb into an extension called AriseWidgets, with
-// the names below filled in for the app.
+// Widgets for an Arise iPhone app. The app hands the AriseWidgets plugin a set of "slots" (a title, a big
+// value, some detail lines, a ring, buttons...) and every slot becomes two widgets in the gallery:
+//   * a simple one (Home Screen small and medium, Lock Screen rectangular, circular and inline), and
+//   * a detailed one (small, medium and large) whose look you pick when you edit the widget:
+//     Clean, Bold, Dark, Sunset or Ocean.
+// Slots with buttons (add a glass of water...) work right from the widget; the app picks the taps up the
+// next time it opens. Built by .github/scripts/add_widget.rb into an extension called AriseWidgets, with
+// the widget list below filled in for the app.
 import SwiftUI
 import WidgetKit
+import AppIntents
 
-private let appNames: [String] = __NAMES__
+private let appWidgets: [[String]] = __WIDGETS__
 private let appTint = "__TINT__"
 
+struct SlotAction: Codable {
+    var label: String = ""
+    var action: String = ""
+    var amount: Double = 0
+}
+
 struct Slot: Codable {
+    var id: String = ""
     var title: String = ""
     var value: String = ""
     var detail: String?
@@ -17,18 +29,30 @@ struct Slot: Codable {
     var until: Double?
     /// 0...1
     var progress: Double?
+    /// More lines for the detailed widgets.
+    var lines: [String]?
+    /// Buttons that work from the widget.
+    var actions: [SlotAction]?
+    /// A running total the buttons add to (value becomes "<current> <unit>", the ring is current / goal).
+    var current: Double?
+    var goal: Double?
+    var unit: String?
 }
 
-private func hostGroup() -> String {
+private func group() -> String {
     var id = Bundle.main.bundleIdentifier ?? ""
     if id.hasSuffix(".widgets") { id = String(id.dropLast(".widgets".count)) }
     return "group." + id
 }
 
-private func loadSlots() -> [Slot] {
-    guard let data = UserDefaults(suiteName: hostGroup())?.data(forKey: "slots"),
-          let slots = try? JSONDecoder().decode([Slot].self, from: data) else { return [] }
+private func loadSlots() -> [String: Slot] {
+    guard let data = UserDefaults(suiteName: group())?.data(forKey: "slots"),
+          let slots = try? JSONDecoder().decode([String: Slot].self, from: data) else { return [:] }
     return slots
+}
+
+private func saveSlots(_ slots: [String: Slot]) {
+    if let data = try? JSONEncoder().encode(slots) { UserDefaults(suiteName: group())?.set(data, forKey: "slots") }
 }
 
 private func color(_ hex: String?) -> Color {
@@ -37,106 +61,286 @@ private func color(_ hex: String?) -> Color {
     return Color(red: Double((n >> 16) & 255) / 255, green: Double((n >> 8) & 255) / 255, blue: Double(n & 255) / 255)
 }
 
+private func number(_ v: Double) -> String { v == v.rounded() ? String(Int(v)) : String(format: "%.1f", v) }
+
+// MARK: - Buttons that work from the widget
+
+struct SlotActionIntent: AppIntent {
+    static var title: LocalizedStringResource = "Widget button"
+    static var isDiscoverable: Bool = false
+
+    @Parameter(title: "Slot") var slotId: String
+    @Parameter(title: "Action") var action: String
+    @Parameter(title: "Amount") var amount: Double
+
+    init() {}
+    init(slotId: String, action: String, amount: Double) {
+        self.slotId = slotId
+        self.action = action
+        self.amount = amount
+    }
+
+    func perform() async throws -> some IntentResult {
+        var slots = loadSlots()
+        if var s = slots[slotId] {
+            if let cur = s.current {
+                let now = max(0, cur + amount)
+                s.current = now
+                s.value = "\(number(now)) \(s.unit ?? "")".trimmingCharacters(in: .whitespaces)
+                if let g = s.goal, g > 0 { s.progress = min(1, now / g) }
+            }
+            slots[slotId] = s
+            saveSlots(slots)
+        }
+        if let defaults = UserDefaults(suiteName: group()) {
+            var pending = (defaults.array(forKey: "pending") as? [[String: Any]]) ?? []
+            pending.append(["id": slotId, "action": action, "amount": amount, "at": Date().timeIntervalSince1970 * 1000])
+            defaults.set(Array(pending.suffix(200)), forKey: "pending")
+        }
+        WidgetCenter.shared.reloadAllTimelines()
+        return .result()
+    }
+}
+
+// MARK: - Looks
+
+enum Look: String, AppEnum {
+    case clean, bold, dark, sunset, ocean
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Look"
+    static var caseDisplayRepresentations: [Look: DisplayRepresentation] = [
+        .clean: "Clean", .bold: "Bold", .dark: "Dark", .sunset: "Sunset", .ocean: "Ocean",
+    ]
+}
+
+struct LookIntent: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource = "Look"
+    static var description = IntentDescription("Pick how this widget looks.")
+    @Parameter(title: "Look", default: .sunset) var look: Look
+}
+
+private struct Palette {
+    let text: Color
+    let secondary: Color
+    let accent: Color
+    let background: AnyShapeStyle
+
+    init(_ look: Look, tint: Color) {
+        switch look {
+        case .clean:
+            text = .primary; secondary = .secondary; accent = tint; background = AnyShapeStyle(.background)
+        case .bold:
+            text = .white; secondary = .white.opacity(0.8); accent = .white; background = AnyShapeStyle(tint)
+        case .dark:
+            text = .white; secondary = .white.opacity(0.65); accent = tint; background = AnyShapeStyle(Color(red: 0.07, green: 0.08, blue: 0.1))
+        case .sunset:
+            text = .white; secondary = .white.opacity(0.85); accent = .white
+            background = AnyShapeStyle(LinearGradient(colors: [Color(red: 1, green: 0.45, blue: 0.3), Color(red: 0.55, green: 0.2, blue: 0.6)], startPoint: .topLeading, endPoint: .bottomTrailing))
+        case .ocean:
+            text = .white; secondary = .white.opacity(0.85); accent = .white
+            background = AnyShapeStyle(LinearGradient(colors: [Color(red: 0.1, green: 0.6, blue: 0.85), Color(red: 0.05, green: 0.2, blue: 0.5)], startPoint: .topLeading, endPoint: .bottomTrailing))
+        }
+    }
+}
+
+// MARK: - Entries
+
 struct SlotEntry: TimelineEntry {
     let date: Date
     let slot: Slot
-    let placeholder: Bool
+    let look: Look
 }
 
-struct SlotProvider: TimelineProvider {
-    let index: Int
-    private func entry(_ placeholder: Bool = false) -> SlotEntry {
-        let slots = loadSlots()
-        if placeholder || index >= slots.count {
-            return SlotEntry(date: Date(), slot: Slot(title: appNames[index], value: "Open the app", detail: "to fill this in"), placeholder: true)
-        }
-        return SlotEntry(date: Date(), slot: slots[index], placeholder: false)
-    }
-    func placeholder(in context: Context) -> SlotEntry { SlotEntry(date: Date(), slot: Slot(title: appNames[index], value: "--"), placeholder: true) }
-    func getSnapshot(in context: Context, completion: @escaping (SlotEntry) -> Void) { completion(entry()) }
+private func slotFor(_ id: String, _ name: String) -> Slot {
+    loadSlots()[id] ?? Slot(id: id, title: name, value: "Open the app", detail: "to fill this in")
+}
+
+struct SimpleProvider: TimelineProvider {
+    let id: String
+    let name: String
+    func placeholder(in context: Context) -> SlotEntry { SlotEntry(date: Date(), slot: Slot(id: id, title: name, value: "--"), look: .clean) }
+    func getSnapshot(in context: Context, completion: @escaping (SlotEntry) -> Void) { completion(SlotEntry(date: Date(), slot: slotFor(id, name), look: .clean)) }
     func getTimeline(in context: Context, completion: @escaping (Timeline<SlotEntry>) -> Void) {
-        completion(Timeline(entries: [entry()], policy: .after(Date().addingTimeInterval(15 * 60))))
+        completion(Timeline(entries: [SlotEntry(date: Date(), slot: slotFor(id, name), look: .clean)], policy: .after(Date().addingTimeInterval(15 * 60))))
     }
 }
 
-struct SlotView: View {
-    @Environment(\.widgetFamily) var family
-    let entry: SlotEntry
+struct DetailProvider: AppIntentTimelineProvider {
+    let id: String
+    let name: String
+    func placeholder(in context: Context) -> SlotEntry { SlotEntry(date: Date(), slot: Slot(id: id, title: name, value: "--"), look: .sunset) }
+    func snapshot(for configuration: LookIntent, in context: Context) async -> SlotEntry { SlotEntry(date: Date(), slot: slotFor(id, name), look: configuration.look) }
+    func timeline(for configuration: LookIntent, in context: Context) async -> Timeline<SlotEntry> {
+        Timeline(entries: [SlotEntry(date: Date(), slot: slotFor(id, name), look: configuration.look)], policy: .after(Date().addingTimeInterval(15 * 60)))
+    }
+}
 
-    private var big: some View {
-        Group {
-            if let until = entry.slot.until, until > Date().timeIntervalSince1970 * 1000 {
-                Text(Date(timeIntervalSince1970: until / 1000), style: .timer).monospacedDigit()
-            } else {
-                Text(entry.slot.value)
+// MARK: - Views
+
+private struct BigValue: View {
+    let slot: Slot
+    var body: some View {
+        if let until = slot.until, until > Date().timeIntervalSince1970 * 1000 {
+            Text(Date(timeIntervalSince1970: until / 1000), style: .timer).monospacedDigit()
+        } else {
+            Text(slot.value)
+        }
+    }
+}
+
+private struct Ring: View {
+    let progress: Double
+    let tint: Color
+    let track: Color
+    var body: some View {
+        ZStack {
+            Circle().stroke(track, lineWidth: 9)
+            Circle().trim(from: 0, to: min(1, max(0, progress))).stroke(tint, style: StrokeStyle(lineWidth: 9, lineCap: .round)).rotationEffect(.degrees(-90))
+        }
+    }
+}
+
+private struct Buttons: View {
+    let slot: Slot
+    let pal: Palette
+    var body: some View {
+        if let actions = slot.actions, !actions.isEmpty {
+            HStack(spacing: 8) {
+                ForEach(Array(actions.prefix(3).enumerated()), id: \.offset) { _, a in
+                    Button(intent: SlotActionIntent(slotId: slot.id, action: a.action, amount: a.amount)) {
+                        Text(a.label).font(.footnote.weight(.bold)).padding(.horizontal, 10).padding(.vertical, 6)
+                            .background(pal.accent.opacity(0.22), in: Capsule()).foregroundStyle(pal.text)
+                    }.buttonStyle(.plain)
+                }
             }
         }
     }
+}
 
+struct SimpleView: View {
+    @Environment(\.widgetFamily) var family
+    let entry: SlotEntry
     var body: some View {
+        let s = entry.slot
+        let tint = color(s.tint)
         switch family {
         case .accessoryCircular:
             ZStack {
-                if let p = entry.slot.progress { Gauge(value: min(1, max(0, p))) { EmptyView() } currentValueLabel: { big.font(.system(size: 14, weight: .bold)).minimumScaleFactor(0.5) }.gaugeStyle(.accessoryCircularCapacity) }
-                else { big.font(.system(size: 15, weight: .bold)).minimumScaleFactor(0.4).lineLimit(1) }
+                if let p = s.progress {
+                    Gauge(value: min(1, max(0, p))) { EmptyView() } currentValueLabel: { BigValue(slot: s).font(.system(size: 13, weight: .bold)).minimumScaleFactor(0.4) }.gaugeStyle(.accessoryCircularCapacity)
+                } else {
+                    BigValue(slot: s).font(.system(size: 15, weight: .bold)).minimumScaleFactor(0.4).lineLimit(1)
+                }
             }
         case .accessoryInline:
-            Text("\(entry.slot.title) \(entry.slot.value)")
+            Text("\(s.title) \(s.value)")
         case .accessoryRectangular:
             VStack(alignment: .leading, spacing: 1) {
-                Text(entry.slot.title).font(.caption2).textCase(.uppercase).opacity(0.7)
-                big.font(.headline).minimumScaleFactor(0.6).lineLimit(1)
-                if let d = entry.slot.detail { Text(d).font(.caption2).lineLimit(1) }
+                Text(s.title).font(.caption2).textCase(.uppercase).opacity(0.7)
+                BigValue(slot: s).font(.headline).minimumScaleFactor(0.6).lineLimit(1)
+                if let d = s.detail { Text(d).font(.caption2).lineLimit(1) }
             }
         case .systemMedium:
             HStack(alignment: .center, spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(entry.slot.title).font(.footnote.weight(.semibold)).textCase(.uppercase).foregroundColor(color(entry.slot.tint))
-                    big.font(.system(size: 40, weight: .heavy, design: .rounded)).minimumScaleFactor(0.5).lineLimit(1)
-                    if let d = entry.slot.detail { Text(d).font(.subheadline).foregroundColor(.secondary).lineLimit(2) }
+                    Text(s.title).font(.footnote.weight(.semibold)).textCase(.uppercase).foregroundColor(tint)
+                    BigValue(slot: s).font(.system(size: 40, weight: .heavy, design: .rounded)).minimumScaleFactor(0.5).lineLimit(1)
+                    if let d = s.detail { Text(d).font(.subheadline).foregroundColor(.secondary).lineLimit(2) }
                 }
                 Spacer(minLength: 0)
-                if let p = entry.slot.progress {
-                    ZStack {
-                        Circle().stroke(color(entry.slot.tint).opacity(0.2), lineWidth: 10)
-                        Circle().trim(from: 0, to: min(1, max(0, p))).stroke(color(entry.slot.tint), style: StrokeStyle(lineWidth: 10, lineCap: .round)).rotationEffect(.degrees(-90))
-                    }.frame(width: 76, height: 76)
-                }
+                if let p = s.progress { Ring(progress: p, tint: tint, track: tint.opacity(0.2)).frame(width: 76, height: 76) }
             }
         default:
             VStack(alignment: .leading, spacing: 4) {
-                Text(entry.slot.title).font(.caption.weight(.semibold)).textCase(.uppercase).foregroundColor(color(entry.slot.tint))
+                Text(s.title).font(.caption.weight(.semibold)).textCase(.uppercase).foregroundColor(tint)
                 Spacer(minLength: 0)
-                big.font(.system(size: 34, weight: .heavy, design: .rounded)).minimumScaleFactor(0.5).lineLimit(1)
-                if let d = entry.slot.detail { Text(d).font(.footnote).foregroundColor(.secondary).lineLimit(2) }
+                BigValue(slot: s).font(.system(size: 34, weight: .heavy, design: .rounded)).minimumScaleFactor(0.5).lineLimit(1)
+                if let d = s.detail { Text(d).font(.footnote).foregroundColor(.secondary).lineLimit(2) }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }
 
-private func slotConfig(_ index: Int) -> some WidgetConfiguration {
-    StaticConfiguration(kind: "AriseSlot\(index)", provider: SlotProvider(index: index)) { entry in
-        if #available(iOS 17.0, *) {
-            SlotView(entry: entry).containerBackground(.background, for: .widget)
-        } else {
-            SlotView(entry: entry).padding()
+struct DetailView: View {
+    @Environment(\.widgetFamily) var family
+    let entry: SlotEntry
+    var body: some View {
+        let s = entry.slot
+        let pal = Palette(entry.look, tint: color(s.tint))
+        let rows = family == .systemLarge ? 8 : family == .systemMedium ? 3 : 0
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(s.title).font(.caption.weight(.bold)).textCase(.uppercase).foregroundStyle(pal.secondary)
+                Spacer(minLength: 0)
+                if family != .systemSmall, let p = s.progress {
+                    Text("\(Int((min(1, max(0, p)) * 100).rounded()))%").font(.caption.weight(.bold)).foregroundStyle(pal.text)
+                }
+            }
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    BigValue(slot: s).font(.system(size: family == .systemSmall ? 30 : 38, weight: .heavy, design: .rounded)).foregroundStyle(pal.text).minimumScaleFactor(0.5).lineLimit(1)
+                    if let d = s.detail { Text(d).font(.footnote).foregroundStyle(pal.secondary).lineLimit(family == .systemSmall ? 2 : 1) }
+                }
+                Spacer(minLength: 0)
+                if family != .systemSmall, let p = s.progress { Ring(progress: p, tint: pal.accent, track: pal.accent.opacity(0.25)).frame(width: 64, height: 64) }
+            }
+            if rows > 0, let lines = s.lines, !lines.isEmpty {
+                Divider().overlay(pal.secondary.opacity(0.4))
+                ForEach(Array(lines.prefix(rows).enumerated()), id: \.offset) { _, line in
+                    Text(line).font(.callout).foregroundStyle(pal.text).lineLimit(1)
+                }
+            }
+            if family != .systemSmall { Spacer(minLength: 0); Buttons(slot: s, pal: pal) }
+            else if let a = s.actions?.first {
+                Spacer(minLength: 0)
+                Button(intent: SlotActionIntent(slotId: s.id, action: a.action, amount: a.amount)) {
+                    Text(a.label).font(.footnote.weight(.bold)).padding(.horizontal, 10).padding(.vertical, 5).background(pal.accent.opacity(0.22), in: Capsule()).foregroundStyle(pal.text)
+                }.buttonStyle(.plain)
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
-    .configurationDisplayName(appNames[index])
-    .description("Updates when you open the app.")
-    .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryCircular, .accessoryInline])
 }
 
-struct AriseSlot0: Widget { var body: some WidgetConfiguration { slotConfig(0) } }
-struct AriseSlot1: Widget { var body: some WidgetConfiguration { slotConfig(1) } }
-struct AriseSlot2: Widget { var body: some WidgetConfiguration { slotConfig(2) } }
+private struct DetailBackground: View {
+    let look: Look
+    let tint: String?
+    var body: some View { Rectangle().fill(Palette(look, tint: color(tint)).background) }
+}
+
+// MARK: - Widgets
+
+struct SimpleWidget: Widget {
+    let id: String
+    let name: String
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "Arise.\(id)", provider: SimpleProvider(id: id, name: name)) { entry in
+            SimpleView(entry: entry).containerBackground(.background, for: .widget)
+        }
+        .configurationDisplayName(name)
+        .description("Simple. Updates when you open the app.")
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryCircular, .accessoryInline])
+    }
+}
+
+struct DetailWidget: Widget {
+    let id: String
+    let name: String
+    var body: some WidgetConfiguration {
+        AppIntentConfiguration(kind: "Arise.\(id).detail", intent: LookIntent.self, provider: DetailProvider(id: id, name: name)) { entry in
+            DetailView(entry: entry).containerBackground(for: .widget) { DetailBackground(look: entry.look, tint: entry.slot.tint) }
+        }
+        .configurationDisplayName("\(name) +")
+        .description("Detailed, with a look you choose and buttons where they help.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+    }
+}
+
+__STRUCTS__
 
 @main
 struct AriseWidgetBundle: WidgetBundle {
     var body: some Widget {
-        AriseSlot0()
-        AriseSlot1()
-        AriseSlot2()
+__BUNDLE__
     }
 }

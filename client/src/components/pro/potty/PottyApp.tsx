@@ -126,9 +126,11 @@ export default function PottyApp() {
     const lastPee = mine.filter((x) => isPeeEvent(x.kind)).reduce((m, x) => Math.max(m, x.at), 0);
     const t = data.timer && data.timer.kid === kid.id && data.timer.endAt > Date.now() ? data.timer : null;
     publishWidgets([
-      { title: `${kid.name}'s next sit`, value: t ? clockOf(t.endAt) : "No timer", detail: t ? "Counting down" : "Open the app to start one", tint: "#f5b400", until: t?.endAt },
-      { title: "Potty today", value: `${pees.length} pee${pees.length === 1 ? "" : "s"}`, detail: `${poops.length} poop${poops.length === 1 ? "" : "s"}, ${oops.length} accident${oops.length === 1 ? "" : "s"}`, tint: "#3b82f6" },
-      { title: "Last pee", value: lastPee ? clockOf(lastPee) : "None yet", detail: lastPee && dayOf(lastPee) !== today ? "Not today" : undefined, tint: "#22c55e" },
+      { id: "duo.potty.next", title: `${kid.name}'s next sit`, value: t ? clockOf(t.endAt) : "No timer", detail: t ? "Counting down" : "Open the app to start one", tint: "#f5b400", until: t?.endAt,
+        lines: [`${pees.length} pees, ${poops.length} poops today`, lastPee ? `Last pee ${clockOf(lastPee)}` : "No pee yet today"] },
+      { id: "duo.potty.today", title: "Potty today", value: `${pees.length} pee${pees.length === 1 ? "" : "s"}`, detail: `${poops.length} poop${poops.length === 1 ? "" : "s"}, ${oops.length} accident${oops.length === 1 ? "" : "s"}`, tint: "#3b82f6",
+        lines: todays.slice(-6).reverse().map((x) => `${clockOf(x.at)}  ${x.kind}`) },
+      { id: "duo.potty.last", title: "Last pee", value: lastPee ? clockOf(lastPee) : "None yet", detail: lastPee && dayOf(lastPee) !== today ? "Not today" : undefined, tint: "#22c55e" },
     ]);
   }, [widgetKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
