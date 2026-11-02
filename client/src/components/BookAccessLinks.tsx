@@ -70,10 +70,10 @@ export default function BookAccessLinks({ bookTitle, author, readUrl, bookId }: 
   };
 
   return (
-    <div className="mt-3">
+    <div className="book-access mt-3">
       <button
         onClick={(e) => { e.stopPropagation(); setShowLinks(!showLinks); }}
-        className="flex items-center justify-center gap-2 w-full text-sm font-bold text-primary bg-primary/10 hover:bg-primary/20 transition-colors rounded-xl py-3 px-4 border border-primary/30"
+        className="flex items-center justify-center gap-2 w-full text-sm font-bold leading-tight text-center text-primary bg-primary/10 hover:bg-primary/20 transition-colors rounded-xl py-2.5 px-3 border border-primary/30"
       >
         <Book className="w-4 h-4" />
         {showLinks ? "Hide ways to read" : "Ways to read this book"}

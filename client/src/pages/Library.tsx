@@ -35,6 +35,11 @@ import { READABLE_BOOKS, readableBook } from "@shared/readsCatalog";
 import { loadReadsKeyIds } from "./reads/useReads";
 /** True when this library book can be read in Read on Arise. */
 const canReadHere = (book: { id: number; title: string }) => { const r = readableBook(book.id); return !!r && (r.key !== null || r.title === book.title); };
+/** The Reader iPhone app shows every book card the same way: cover, title, points and one button
+ *  ("Read & Quiz" when the book can be read, else "Take Quiz"), like the Quick Reads cards. */
+const appCards = () => isReaderApp();
+const cardGoes = (book: { id: number; title: string; readUrl?: string | null }) =>
+  book.readUrl ? (canReadHere(book) ? `/reads/book/${book.id}` : `/read/${book.id}`) : `/quiz/${book.id}`;
 
 // Book IDs that appear in the school curriculum section
 const CURRICULUM_BOOK_IDS = [303, 38]; // Shadow Shaper, The Outsiders
@@ -2046,12 +2051,12 @@ export default function Library() {
                             {result && <p className="mt-1 text-xs font-semibold text-primary">{result.score}/{result.total} correct</p>}
                             <div className="mt-2 flex gap-1.5">
                               {book.readUrl && (
-                                <Button size="sm" variant="outline" className="h-7 flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate(canReadHere(book) ? `/reads/book/${book.id}` : `/read/${book.id}`); }}>
+                                <Button size="sm" variant="outline" className="card-read h-7 flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate(canReadHere(book) ? `/reads/book/${book.id}` : `/read/${book.id}`); }}>
                                   <BookOpen className="mr-1 h-3 w-3" />Read
                                 </Button>
                               )}
-                              <Button size="sm" variant="default" className="h-7 flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate(`/quiz/${book.id}`); }}>
-                                {user?.role === 'teacher' || user?.isAdmin ? 'View' : 'Quiz'}
+                              <Button size="sm" variant="default" className="h-7 flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate(appCards() ? cardGoes(book) : `/quiz/${book.id}`); }}>
+                                {user?.role === 'teacher' || user?.isAdmin ? 'View' : appCards() ? (book.readUrl ? 'Read & Quiz' : 'Take Quiz') : 'Quiz'}
                               </Button>
                             </div>
                           </div>
@@ -2130,7 +2135,7 @@ export default function Library() {
                 </div>
                 <p className="mb-1 ml-7 text-sm text-muted-foreground">Read the whole book right here, then take the quiz.</p>
                 <ExtraCreditNote className="mb-4 ml-7" />
-                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
+                <div className="book-row flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
                   {READABLE_BOOKS.map((rb) => {
                     const book = books.find(b => b.id === rb.bookId);
                     const result = results.find(r => r.bookId === rb.bookId);
@@ -2151,8 +2156,8 @@ export default function Library() {
                           </div>
                           {result && <p className="mt-1 text-xs font-semibold text-primary">{result.score}/{result.total} correct</p>}
                           <div className="mt-2 flex gap-1.5">
-                            <Button size="sm" variant="outline" className="h-7 flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate(`/reads/book/${rb.bookId}`); }}><BookOpen className="mr-1 h-3 w-3" />Read</Button>
-                            <Button size="sm" variant="default" className="h-7 flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate(`/quiz/${rb.bookId}`); }}>{user?.role === 'teacher' || user?.isAdmin ? 'View' : 'Quiz'}</Button>
+                            <Button size="sm" variant="outline" className="card-read h-7 flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate(`/reads/book/${rb.bookId}`); }}><BookOpen className="mr-1 h-3 w-3" />Read</Button>
+                            <Button size="sm" variant="default" className="h-7 flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate(appCards() ? `/reads/book/${rb.bookId}` : `/quiz/${rb.bookId}`); }}>{user?.role === 'teacher' || user?.isAdmin ? 'View' : appCards() ? 'Read & Quiz' : 'Quiz'}</Button>
                           </div>
                         </div>
                       </Card>
@@ -2173,7 +2178,7 @@ export default function Library() {
                 </div>
                 <p className="text-sm text-muted-foreground mb-1 ml-7">Fun quizzes from your favorite anime and comic books.</p>
                 <ExtraCreditNote className="mb-4 ml-7" />
-                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
+                <div className="book-row flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
                   {animeComicBooks.map((book) => {
                     const result = results.find(r => r.bookId === book.id);
                     const isDone = completedIds.has(book.id);
@@ -2290,7 +2295,7 @@ export default function Library() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="h-7 text-xs flex-1"
+                              className="card-read h-7 text-xs flex-1"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 navigate(canReadHere(book)?`/reads/book/${book.id}`:`/read/${book.id}`);
@@ -2307,11 +2312,11 @@ export default function Library() {
                             className="h-7 text-xs flex-1"
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/quiz/${book.id}`);
+                              navigate(appCards() ? cardGoes(book) : `/quiz/${book.id}`);
                             }}
                             data-testid={`button-quiz-${book.id}`}
                           >
-                            {user?.role === 'teacher' || user?.isAdmin ? 'View' : 'Quiz'}
+                            {user?.role === 'teacher' || user?.isAdmin ? 'View' : appCards() ? (book.readUrl ? 'Read & Quiz' : 'Take Quiz') : 'Quiz'}
                           </Button>
                         </div>
                         <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} bookId={book.id} />
@@ -2396,7 +2401,7 @@ export default function Library() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-7 text-xs flex-1"
+                            className="card-read h-7 text-xs flex-1"
                             onClick={(e) => {
                               e.stopPropagation();
                               navigate(canReadHere(book)?`/reads/book/${book.id}`:`/read/${book.id}`);
@@ -2412,10 +2417,10 @@ export default function Library() {
                           className="h-7 text-xs flex-1"
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/quiz/${book.id}`);
+                            navigate(appCards() ? cardGoes(book) : `/quiz/${book.id}`);
                           }}
                         >
-                          {user?.role === 'teacher' || user?.isAdmin ? 'View' : 'Quiz'}
+                          {user?.role === 'teacher' || user?.isAdmin ? 'View' : appCards() ? (book.readUrl ? 'Read & Quiz' : 'Take Quiz') : 'Quiz'}
                         </Button>
                       </div>
                     </div>
