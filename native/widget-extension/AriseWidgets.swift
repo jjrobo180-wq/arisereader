@@ -91,10 +91,11 @@ func symbolFor(_ id: String) -> String {
 
 enum Look: String {
     case clean, bold, dark, sunset, ocean
-    /// A look for each detailed widget (they rotate through the five so a set of them isn't all one colour).
+    /// A look for each detailed widget: they take turns down the app's list, so a set of them isn't all one colour.
     static func forId(_ id: String) -> Look {
-        let all: [Look] = [.dark, .sunset, .bold, .ocean, .clean]
-        return all[abs(id.unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) % 9973 }) % all.count]
+        let all: [Look] = [.dark, .sunset, .ocean, .bold, .clean]
+        let i = appWidgets.firstIndex { $0.first == id } ?? id.unicodeScalars.reduce(0) { ($0 + Int($1.value)) % 997 }
+        return all[i % all.count]
     }
 }
 
@@ -439,7 +440,7 @@ struct DetailView: View {
             }
         } else {
             let large = family == .systemLarge
-            let rows = large ? 6 : 2
+            let lines = s.lines ?? []
             VStack(alignment: .leading, spacing: large ? 10 : 7) {
                 HStack(spacing: 8) {
                     IconBadge(symbol: symbol, theme: t, size: large ? 32 : 26)
@@ -459,19 +460,56 @@ struct DetailView: View {
                         Image(systemName: symbol).font(.system(size: large ? 54 : 40, weight: .bold)).foregroundStyle(t.accent).symbolRenderingMode(.hierarchical).shadow(color: t.glow.opacity(0.6), radius: 8)
                     }
                 }
-                if s.progress != nil || countdownRange(s, from: entry.date) != nil { GlowBar(slot: s, date: entry.date, theme: t) }
-                if let lines = s.lines, !lines.isEmpty {
-                    let shown = Array(lines.prefix(rows))
-                    VStack(alignment: .leading, spacing: large ? 6 : 4) {
-                        ForEach(Array(shown.enumerated()), id: \.offset) { i, line in
-                            DetailRow(line: line, hot: i == entry.tick % shown.count, large: large, theme: t)
+                if countdownRange(s, from: entry.date) != nil || (large && s.progress != nil) { GlowBar(slot: s, date: entry.date, theme: t) }
+                if large {
+                    if !lines.isEmpty {
+                        let shown = Array(lines.prefix(5))
+                        VStack(alignment: .leading, spacing: 6) {
+                            ForEach(Array(shown.enumerated()), id: \.offset) { i, line in
+                                DetailRow(line: line, hot: i == entry.tick % shown.count, large: true, theme: t)
+                            }
                         }
                     }
+                    Spacer(minLength: 0)
+                    NowCard(slot: s, tick: entry.tick, theme: t, symbol: symbol)
+                } else {
+                    Spacer(minLength: 0)
+                    if !lines.isEmpty {
+                        DetailRow(line: lines[entry.tick % lines.count], hot: true, large: false, theme: t)
+                            .id(entry.tick).transition(.push(from: .bottom))
+                    }
                 }
-                Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+}
+
+/// The bottom of the large widget: a big glowing card that cycles through the lines (or shows the detail).
+struct NowCard: View {
+    let slot: Slot
+    let tick: Int
+    let theme: Theme
+    let symbol: String
+    var body: some View {
+        let lines = slot.lines ?? []
+        let text = lines.isEmpty ? (slot.detail ?? slot.value) : lines[tick % lines.count]
+        HStack(spacing: 12) {
+            Image(systemName: symbol).font(.system(size: 22, weight: .bold)).foregroundStyle(theme.text).symbolRenderingMode(.hierarchical)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(verbatim: "RIGHT NOW").font(.system(size: 10, weight: .heavy, design: .rounded)).foregroundStyle(theme.secondary)
+                Text(verbatim: text).font(.system(size: 16, weight: .bold, design: .rounded)).foregroundStyle(theme.text).lineLimit(1)
+                    .id(tick).transition(.push(from: .bottom))
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(LinearGradient(colors: [theme.glow.opacity(0.45), theme.accent.opacity(0.12)], startPoint: .leading, endPoint: .trailing))
+        )
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(theme.glow.opacity(0.5), lineWidth: 1))
+        .shadow(color: theme.glow.opacity(0.35), radius: 8)
     }
 }
 

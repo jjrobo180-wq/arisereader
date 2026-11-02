@@ -76,7 +76,7 @@ jobs:
           APP=derived/Build/Products/Release-iphonesimulator/App.app
           ls "$APP/PlugIns"; plutil -p "$APP/PlugIns/AriseWidgets.appex/Info.plist" | grep -E "Identifier|Minimum"
           UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys;d=json.load(sys.stdin)['devices'];print([x['udid'] for k,v in d.items() if 'iOS' in k for x in v if 'iPhone' in x['name']][-1])")
-          xcrun simctl boot "$UDID"; xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl boot "$UDID" || true; xcrun simctl bootstatus "$UDID" -b
           START=$(date '+%Y-%m-%d %H:%M:%S')
           xcrun simctl install "$UDID" "$APP"
           xcrun simctl launch "$UDID" ${{ matrix.bundle }} || true
