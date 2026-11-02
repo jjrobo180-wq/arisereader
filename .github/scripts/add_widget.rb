@@ -24,8 +24,8 @@ names = widgets.map { |w| w[1] }
 root = File.expand_path("../..", __dir__)
 src = File.read(File.join(root, "native/widget-extension/AriseWidgets.swift"))
 structs = widgets.each_with_index.map do |w, i|
-  "struct AriseSimple#{i}: Widget { var body: some WidgetConfiguration { SimpleWidget(id: #{w[0].to_json}, name: #{w[1].to_json}).body } }\n" \
-  "struct AriseDetail#{i}: Widget { var body: some WidgetConfiguration { DetailWidget(id: #{w[0].to_json}, name: #{w[1].to_json}).body } }"
+  "struct AriseSimple#{i}: Widget { var body: some WidgetConfiguration { SimpleWidget(id: #{w[0].to_json}, name: #{w[1].to_json}).config } }\n" \
+  "struct AriseDetail#{i}: Widget { var body: some WidgetConfiguration { DetailWidget(id: #{w[0].to_json}, name: #{w[1].to_json}).config } }"
 end.join("\n")
 bundle = widgets.each_index.map { |i| "        AriseSimple#{i}()\n        AriseDetail#{i}()" }.join("\n")
 src = src.sub("__WIDGETS__", JSON.generate(widgets)).sub("__TINT__", tint || "ff5a1f").sub("__STRUCTS__", structs).sub("__BUNDLE__", bundle)

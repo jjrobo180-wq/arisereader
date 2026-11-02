@@ -310,10 +310,10 @@ private struct DetailBackground: View {
 
 // MARK: - Widgets
 
-struct SimpleWidget: Widget {
+struct SimpleWidget {
     let id: String
     let name: String
-    var body: some WidgetConfiguration {
+    var config: some WidgetConfiguration {
         StaticConfiguration(kind: "Arise.\(id)", provider: SimpleProvider(id: id, name: name)) { entry in
             SimpleView(entry: entry).containerBackground(.background, for: .widget)
         }
@@ -323,10 +323,10 @@ struct SimpleWidget: Widget {
     }
 }
 
-struct DetailWidget: Widget {
+struct DetailWidget {
     let id: String
     let name: String
-    var body: some WidgetConfiguration {
+    var config: some WidgetConfiguration {
         AppIntentConfiguration(kind: "Arise.\(id).detail", intent: LookIntent.self, provider: DetailProvider(id: id, name: name)) { entry in
             DetailView(entry: entry).containerBackground(for: .widget) { DetailBackground(look: entry.look, tint: entry.slot.tint) }
         }
