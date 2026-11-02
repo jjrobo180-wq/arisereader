@@ -2410,7 +2410,9 @@ export async function registerRoutes(
   // Auth routes
   app.post("/api/register", async (req, res) => {
     try {
-      const { username, password, displayName, isEyeGazeUser, gradeLevel } = req.body;
+      const { password, displayName, isEyeGazeUser, gradeLevel } = req.body;
+      // A space typed after a username would make the account impossible to sign in to.
+      const username = typeof req.body.username === "string" ? req.body.username.trim() : req.body.username;
       let { teacherId, schoolId } = req.body;
       if (!username || !password || !displayName) {
         return res.status(400).json({ message: "All fields are required" });
@@ -2661,7 +2663,9 @@ export async function registerRoutes(
   // code emailed to it and is let in at once; the admin only steps in if that email can't be sent.
   app.post("/api/auth/register-teacher", async (req, res) => {
     try {
-      const { username, password, displayName, email, schoolId, gradeLevel, gradesTaught } = req.body;
+      const { password, displayName, email, schoolId, gradeLevel, gradesTaught } = req.body;
+      // A space typed after a username would make the account impossible to sign in to.
+      const username = typeof req.body.username === "string" ? req.body.username.trim() : req.body.username;
       if (!username || !password || !displayName) {
         return res.status(400).json({ message: "All fields are required" });
       }

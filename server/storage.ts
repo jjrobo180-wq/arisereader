@@ -422,7 +422,11 @@ export class DatabaseStorage implements IStorage {
 
   async getUserByUsername(username: string) {
     const data = await fetchSingle(supabase.from("users").select("*").eq("username", username).maybeSingle());
-    return mapUser(data);
+    if (data) return mapUser(data);
+    // Some older accounts were saved with a space after the username. Sign-in trims what's typed, so
+    // without this they could never be found, whatever the password.
+    const spaced = await fetchSingle(supabase.from("users").select("*").eq("username", `${username} `).maybeSingle());
+    return mapUser(spaced);
   }
 
   async createUser(user: { username: string; password: string; displayName: string; isEyeGazeUser?: boolean; role?: string; teacherId?: number | null; directoryTeacherName?: string | null; approvedByTeacher?: boolean; accountApproved?: boolean; email?: string | null; schoolId?: number | null; studentNumber?: string | null; mustChangePassword?: boolean }) {
