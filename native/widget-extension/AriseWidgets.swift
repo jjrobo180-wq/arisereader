@@ -1,14 +1,11 @@
 // Widgets for an Arise iPhone app. The app hands the AriseWidgets plugin a set of "slots" (a title, a big
 // value, some detail lines, a ring, buttons...) and every slot becomes two widgets in the gallery:
 //   * a simple one (Home Screen small and medium, Lock Screen rectangular, circular and inline), and
-//   * a detailed one (small, medium and large) whose look you pick when you edit the widget:
-//     Clean, Bold, Dark, Sunset or Ocean.
-// Slots with buttons (add a glass of water...) work right from the widget; the app picks the taps up the
-// next time it opens. Built by .github/scripts/add_widget.rb into an extension called AriseWidgets, with
+//   * a detailed one (small, medium and large) in one of five looks (Clean, Bold, Dark, Sunset, Ocean).
+// Plain widgets only (no App Intents): that is the shape that iOS lists reliably. Built by .github/scripts/add_widget.rb into an extension called AriseWidgets, with
 // the widget list below filled in for the app.
 import SwiftUI
 import WidgetKit
-import AppIntents
 
 private let appWidgets: [[String]] = __WIDGETS__
 private let appTint = "__TINT__"
@@ -65,57 +62,15 @@ private func number(_ v: Double) -> String { v == v.rounded() ? String(Int(v)) :
 
 // MARK: - Buttons that work from the widget
 
-struct SlotActionIntent: AppIntent {
-    static var title: LocalizedStringResource = "Widget button"
-    static var isDiscoverable: Bool = false
-
-    @Parameter(title: "Slot") var slotId: String
-    @Parameter(title: "Action") var action: String
-    @Parameter(title: "Amount") var amount: Double
-
-    init() {}
-    init(slotId: String, action: String, amount: Double) {
-        self.slotId = slotId
-        self.action = action
-        self.amount = amount
-    }
-
-    func perform() async throws -> some IntentResult {
-        var slots = loadSlots()
-        if var s = slots[slotId] {
-            if let cur = s.current {
-                let now = max(0, cur + amount)
-                s.current = now
-                s.value = "\(number(now)) \(s.unit ?? "")".trimmingCharacters(in: .whitespaces)
-                if let g = s.goal, g > 0 { s.progress = min(1, now / g) }
-            }
-            slots[slotId] = s
-            saveSlots(slots)
-        }
-        if let defaults = UserDefaults(suiteName: group()) {
-            var pending = (defaults.array(forKey: "pending") as? [[String: Any]]) ?? []
-            pending.append(["id": slotId, "action": action, "amount": amount, "at": Date().timeIntervalSince1970 * 1000])
-            defaults.set(Array(pending.suffix(200)), forKey: "pending")
-        }
-        WidgetCenter.shared.reloadAllTimelines()
-        return .result()
-    }
-}
-
 // MARK: - Looks
 
-enum Look: String, AppEnum {
+enum Look: String {
     case clean, bold, dark, sunset, ocean
-    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Look"
-    static var caseDisplayRepresentations: [Look: DisplayRepresentation] = [
-        .clean: "Clean", .bold: "Bold", .dark: "Dark", .sunset: "Sunset", .ocean: "Ocean",
-    ]
-}
-
-struct LookIntent: WidgetConfigurationIntent {
-    static var title: LocalizedStringResource = "Look"
-    static var description = IntentDescription("Pick how this widget looks.")
-    @Parameter(title: "Look", default: .sunset) var look: Look
+    /// A look for each detailed widget (they rotate through the five so a set of them isn't all one colour).
+    static func forId(_ id: String) -> Look {
+        let all: [Look] = [.sunset, .dark, .ocean, .bold, .clean]
+        return all[abs(id.unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) % 9973 }) % all.count]
+    }
 }
 
 private struct Palette {
@@ -164,13 +119,13 @@ struct SimpleProvider: TimelineProvider {
     }
 }
 
-struct DetailProvider: AppIntentTimelineProvider {
+struct DetailProvider: TimelineProvider {
     let id: String
     let name: String
-    func placeholder(in context: Context) -> SlotEntry { SlotEntry(date: Date(), slot: Slot(id: id, title: name, value: "--"), look: .sunset) }
-    func snapshot(for configuration: LookIntent, in context: Context) async -> SlotEntry { SlotEntry(date: Date(), slot: slotFor(id, name), look: configuration.look) }
-    func timeline(for configuration: LookIntent, in context: Context) async -> Timeline<SlotEntry> {
-        Timeline(entries: [SlotEntry(date: Date(), slot: slotFor(id, name), look: configuration.look)], policy: .after(Date().addingTimeInterval(15 * 60)))
+    func placeholder(in context: Context) -> SlotEntry { SlotEntry(date: Date(), slot: Slot(id: id, title: name, value: "--"), look: Look.forId(id)) }
+    func getSnapshot(in context: Context, completion: @escaping (SlotEntry) -> Void) { completion(SlotEntry(date: Date(), slot: slotFor(id, name), look: Look.forId(id))) }
+    func getTimeline(in context: Context, completion: @escaping (Timeline<SlotEntry>) -> Void) {
+        completion(Timeline(entries: [SlotEntry(date: Date(), slot: slotFor(id, name), look: Look.forId(id))], policy: .after(Date().addingTimeInterval(15 * 60))))
     }
 }
 
@@ -195,23 +150,6 @@ private struct Ring: View {
         ZStack {
             Circle().stroke(track, lineWidth: 9)
             Circle().trim(from: 0, to: min(1, max(0, progress))).stroke(tint, style: StrokeStyle(lineWidth: 9, lineCap: .round)).rotationEffect(.degrees(-90))
-        }
-    }
-}
-
-private struct Buttons: View {
-    let slot: Slot
-    let pal: Palette
-    var body: some View {
-        if let actions = slot.actions, !actions.isEmpty {
-            HStack(spacing: 8) {
-                ForEach(Array(actions.prefix(3).enumerated()), id: \.offset) { _, a in
-                    Button(intent: SlotActionIntent(slotId: slot.id, action: a.action, amount: a.amount)) {
-                        Text(a.label).font(.footnote.weight(.bold)).padding(.horizontal, 10).padding(.vertical, 6)
-                            .background(pal.accent.opacity(0.22), in: Capsule()).foregroundStyle(pal.text)
-                    }.buttonStyle(.plain)
-                }
-            }
         }
     }
 }
@@ -290,13 +228,7 @@ struct DetailView: View {
                     Text(line).font(.callout).foregroundStyle(pal.text).lineLimit(1)
                 }
             }
-            if family != .systemSmall { Spacer(minLength: 0); Buttons(slot: s, pal: pal) }
-            else if let a = s.actions?.first {
-                Spacer(minLength: 0)
-                Button(intent: SlotActionIntent(slotId: s.id, action: a.action, amount: a.amount)) {
-                    Text(a.label).font(.footnote.weight(.bold)).padding(.horizontal, 10).padding(.vertical, 5).background(pal.accent.opacity(0.22), in: Capsule()).foregroundStyle(pal.text)
-                }.buttonStyle(.plain)
-            }
+            if family != .systemSmall { Spacer(minLength: 0) }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -327,11 +259,11 @@ struct DetailWidget {
     let id: String
     let name: String
     var config: some WidgetConfiguration {
-        AppIntentConfiguration(kind: "Arise.\(id).detail", intent: LookIntent.self, provider: DetailProvider(id: id, name: name)) { entry in
+        StaticConfiguration(kind: "Arise.\(id).detail", provider: DetailProvider(id: id, name: name)) { entry in
             DetailView(entry: entry).containerBackground(for: .widget) { DetailBackground(look: entry.look, tint: entry.slot.tint) }
         }
         .configurationDisplayName("\(name) +")
-        .description("Detailed, with a look you choose and buttons where they help.")
+        .description("Detailed. Updates when you open the app.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
