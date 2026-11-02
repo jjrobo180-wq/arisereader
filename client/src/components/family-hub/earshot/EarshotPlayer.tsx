@@ -608,12 +608,14 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const onAirNow = () => !!itemsRef.current[activeRef.current]?.key.startsWith("nr-");
   const skipButtons = () => {
     const live = onAirNow();
-    const set = (k: MediaSessionAction, f: (() => void) | null) => { try { navigator.mediaSession.setActionHandler(k, f as any); } catch { /* not supported */ } };
-    set("nexttrack", live ? null : () => goTo(activeRef.current + 1));
-    set("previoustrack", live ? null : () => goTo(activeRef.current - 1));
-    set("seekbackward", live ? null : () => seekBy(-15));
-    set("seekforward", live ? null : () => seekBy(30));
-    set("seekto", null);
+    const set = (k: MediaSessionAction, f: ((d: any) => void) | null) => { try { navigator.mediaSession.setActionHandler(k, f as any); } catch { /* not supported */ } };
+    // Like Apple Podcasts: the lock screen shows back 15 / forward 30 and a bar you can drag. (Next and
+    // previous track buttons would replace the skip buttons there, so they're left off.)
+    set("nexttrack", null);
+    set("previoustrack", null);
+    set("seekbackward", live ? null : (d: any) => seekBy(-(Number(d?.seekOffset) || 15)));
+    set("seekforward", live ? null : (d: any) => seekBy(Number(d?.seekOffset) || 30));
+    set("seekto", live ? null : (d: any) => { if (typeof d?.seekTime === "number") seekTo(d.seekTime, true); });
     if (live) {
       const ep = itemsRef.current[activeRef.current]?.ep;
       try { navigator.mediaSession.metadata = new MediaMetadata({ title: `LIVE · ${NEWS_RADIO_NAME}`, artist: ep ? `${ep.show} · ${ep.title}` : "News", album: "Pod+", artwork: ep?.art ? [{ src: ep.art, sizes: "600x600" }] : [] }); } catch { /* not supported */ }
@@ -962,6 +964,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       a.playbackRate = esRef.current.settings.speed; a.play().catch(() => setPlaying(false));
     } else a.pause();
   };
+  const lastPos = useRef(0);
   const seekBy = (d: number) => {
     const a = cur.current; if (!a || !a.dataset.ep) return;
     const from = a.currentTime;
@@ -989,7 +992,9 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       let loaded = false; try { for (let i = 0; i < a.buffered.length; i++) if (t >= a.buffered.start(i) - 1 && t <= a.buffered.end(i) + 20) loaded = true; } catch { /* unknown */ }
       if (!loaded && it?.ep && it.ep.id === a.dataset.ep && !it.live && t - from > 60) { goDirect(a, it.ep, Math.max(0, t), !a.paused); setTime(t); noteSkip(it.ep.id, from, t); return; }
     }
-    a.currentTime = Math.max(0, t); setTime(a.currentTime);
+    // Dragged to a spot inside an ad: the listener chose to be there, so it isn't skipped out from under them.
+    if (user) { const ad = adsRef.current.find((x) => t >= x.s && t < x.e - 1); if (ad) undone.current.add(ad.key); }
+    a.currentTime = Math.max(0, t); setTime(a.currentTime); lastPos.current = 0;
     if (user && a.currentTime - from >= 10 && !markingRef.current) noteSkip(a.dataset.ep, from, a.currentTime);
   };
   // Forward jumps in a row (+30, +30…) are one skip; sent when they stop. Several listeners skipping the
@@ -1106,6 +1111,11 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const due = momentsBetween(timedRef.current, prev, t);
     if (due.length && !sheetRef.current) showMoment(due[due.length - 1]);
     setTime(t); if (a.duration && Number.isFinite(a.duration)) setDur(a.duration);
+    // The lock screen's own bar and times.
+    if (Date.now() - lastPos.current > 900 && a.duration && Number.isFinite(a.duration) && !itemsRef.current[activeRef.current]?.key.startsWith("nr-")) {
+      lastPos.current = Date.now();
+      try { navigator.mediaSession?.setPositionState?.({ duration: a.duration, playbackRate: a.playbackRate || 1, position: Math.max(0, Math.min(t, a.duration)) }); } catch { /* not supported */ }
+    }
     const it = itemsRef.current[activeRef.current]; const ep = it?.ep;
     if (ep && a.dataset.ep === ep.id && !it?.key.startsWith("nr-") && Math.abs(t - lastSpot.current) > 5) { lastSpot.current = t; saveSpot(ep, t, a.duration); }
     // Live: this copy runs longer than the station's slot (ads stitched in): everyone else has moved
@@ -2005,14 +2015,7 @@ function Card(p: CardProps) {
           </span>
         </div>}
         {ep && <div className="pointer-events-auto mt-4 flex flex-col">
-          <div className="relative h-5 w-full">
-            <div className="absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-white/15" />
-            {p.dur > 0 && p.adMarks.filter((a) => a.e - a.s < p.dur * 0.6).map((a) => <div key={a.key} title={a.label} className="absolute top-1/2 h-[3px] -translate-y-1/2 rounded-full" style={{ left: `${Math.min(100, (a.s / p.dur) * 100)}%`, width: `${Math.max(0.6, ((a.e - a.s) / p.dur) * 100)}%`, background: a.kind === "intro" ? "rgba(255,255,255,.3)" : a.sure ? "rgba(255,214,102,.55)" : "rgba(255,214,102,.25)" }} />)}
-            <div className="absolute left-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-white" style={{ width: `${pct}%` }} />
-            <input type="range" min={0} max={Math.max(1, Math.floor(p.dur))} value={Math.floor(p.time)} onChange={(e) => p.onSeek(Number(e.target.value))} aria-label="Seek" disabled={!p.active}
-              className="absolute inset-0 h-5 w-full cursor-pointer appearance-none bg-transparent [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white [&::-moz-range-track]:bg-transparent [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white" />
-          </div>
-          <div className="flex items-center justify-between text-[11px] tabular-nums text-white/40"><span>{clock(p.time)}</span><span>-{clock(Math.max(0, p.dur - p.time))}</span></div>
+          <Scrubber time={p.time} dur={p.dur} active={p.active} ads={p.adMarks} chapters={p.chapters} lines={p.lines} onSeek={p.onSeek} onScrubbing={setScrubbing} middle={null} />
           <div className="mt-2 flex items-center justify-between">
             {p.unlocked && p.active && !p.marking ? <button type="button" onClick={p.onMark} aria-label="That's an ad: skip it" title="That's an ad: skip it" data-testid="thats-an-ad" className="inline-flex h-10 items-center gap-1.5 rounded-full bg-[#ffd23f] px-3 text-xs font-bold text-[#120e14] shadow active:scale-95"><Megaphone size={15} strokeWidth={2} />Ad? Skip</button> : <span className="w-10" />}
             <div className="flex items-center gap-6">
