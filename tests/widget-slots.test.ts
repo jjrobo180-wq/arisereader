@@ -29,6 +29,7 @@ test("To Duo: each widget in widgets.json is sent by the app (the potty ones fro
 
 test("To Duo: agenda, to-dos, bills and countdowns show what's coming", () => {
   const f = emptyFamily();
+  f.sections.money = true;
   f.bills = [{ id: "b", name: "Rent", amount: 1200, dueDay: 5, category: "Home", autopay: false, paid: [] }];
   f.countdowns = [{ id: "c", title: "Trip", date: "2026-11-12", emoji: "x", color: "#fff" }];
   const s = Object.fromEntries(duoWidgetSlots(f, [{ id: "t", title: "Call vet", due: "2026-11-02", time: "09:00", done: false }, { id: "e", title: "Fwd: receipt", due: "", time: "", done: false, listName: "Email" }], "2026-11-02", null).map((x) => [x.id, x]));
