@@ -71,6 +71,17 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
     open(id);
   };
   const saveFolders = (f: Folder[]) => sync.saveSettings({ ...settings, folders: f });
+  // A widget's "New note" or "Handwrite" opens here with a new note.
+  useEffect(() => {
+    const check = () => {
+      let want: string | null = null;
+      try { want = sessionStorage.getItem("arise-pages-new"); sessionStorage.removeItem("arise-pages-new"); } catch { /* none */ }
+      if (want) create(PAGE_TEMPLATES.find((t) => t.id === (want === "ink" ? "ink-lined" : "blank"))!);
+    };
+    check();
+    window.addEventListener("arise-pages-new", check);
+    return () => window.removeEventListener("arise-pages-new", check);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const nav = <nav className="space-y-1" aria-label="Folders">
     <NavRow on={filter.kind === "all"} icon="🗒️" label="All notes" count={live.length} onClick={() => setFilter({ kind: "all" })} />

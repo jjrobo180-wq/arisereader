@@ -65,6 +65,8 @@ KEYS = {
         "NSCalendarsFullAccessUsageDescription": "Arise Notes adds the events you choose from your meetings to your iPhone's calendar.",
         "NSCalendarsUsageDescription": "Arise Notes adds the events you choose from your meetings to your iPhone's calendar.",
         "UIUserInterfaceStyle": "Light",
+        # The widgets open the app with arisenotes:// links (Record, New note, a note).
+        "CFBundleURLTypes": [{"CFBundleURLName": "com.arisereader.notes", "CFBundleURLSchemes": ["arisenotes"]}],
     },
 }[FLAVOR]
 with open(PLIST, "rb") as f:

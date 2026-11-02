@@ -10,6 +10,8 @@ import { isNotesApp } from "@/lib/nativeApp";
 import { NOTES_PLANS, dayWords, fmtClock, templateOf } from "@shared/ariseNotes";
 import { notesApi, setNotesToken, type ListNote, type Me } from "./api";
 import { listLocalNotes, type LocalNote } from "./localNotes";
+import { listenForLinks, widgetAi, widgetPages } from "./widgetLinks";
+import { pagesSyncFor } from "./pages/pagesSync";
 import { Btn, IconBtn, Notice, Spinner, ToastHost, plural, shortDate, useToast } from "./ui";
 import "./notes.css";
 
@@ -130,6 +132,11 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, [mode, route]);
+
+  // The iPhone app's widgets: a tap opens the right screen, and they show your latest notes.
+  useEffect(() => { listenForLinks(go); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (isNotesApp() && notes) widgetAi(notes); }, [notes]);
+  useEffect(() => { if (isNotesApp() && user?.id) return pagesSyncFor(Number(user.id)).subscribe((snap) => widgetPages(snap.metas)); }, [user?.id]);
 
   const s = me?.settings;
   useEffect(() => { if (s?.font === "dyslexic") loadLexend(); }, [s?.font]);

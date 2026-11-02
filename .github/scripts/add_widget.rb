@@ -5,6 +5,8 @@
 #
 # The extension is called AriseWidgets, its bundle id is <host>.widgets, and it reads the App Group
 # group.<host> that the AriseWidgets plugin writes to. Run after `npx cap add ios && npx cap sync ios`.
+# WIDGET_SOURCE (a Swift file, relative to the repository) replaces the standard three-slot widgets with
+# an app's own (Arise Notes: notes/ios-app/widgets/NotesWidgets.swift); the names then only name it.
 # For a signed build, also set SIGN_TEAM, APP_PROFILE and WIDGET_PROFILE (provisioning profile names),
 # APP_ENTITLEMENTS (path of the app's entitlements, relative to the App folder) and BUILD_NUMBER. Signing
 # is then set in the project itself, so the archive command must not override it.
@@ -20,8 +22,10 @@ names = JSON.parse(names_json)
 abort "need exactly three widget names" unless names.length == 3
 
 root = File.expand_path("../..", __dir__)
-src = File.read(File.join(root, "native/widget-extension/AriseWidgets.swift"))
-src = src.sub("__NAMES__", JSON.generate(names)).sub("__TINT__", tint || "ff5a1f")
+own = ENV["WIDGET_SOURCE"].to_s.strip
+template = own.empty? ? File.join(root, "native/widget-extension/AriseWidgets.swift") : File.join(root, own)
+src = File.read(template)
+src = src.sub("__NAMES__", JSON.generate(names)).sub("__TINT__", tint || "ff5a1f") if own.empty?
 
 ios_dir = File.dirname(project_path)
 dir = File.join(ios_dir, "AriseWidgets")

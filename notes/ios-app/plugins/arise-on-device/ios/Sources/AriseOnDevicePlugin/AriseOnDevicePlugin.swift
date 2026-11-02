@@ -9,6 +9,8 @@
 //   generate({ instructions, prompt })         -> { text }
 //   secretSave/secretLoad/secretRemove/secretHas({ key, value?, reason? })  Keychain, behind Face ID
 //     (the locked notes' key: client/src/components/arise-notes/pages/pagesLock.ts)
+//   widgetSave({ json })          the Home Screen widgets' list of notes (titles and short previews only),
+//     through the App Group group.<bundle id> (notes/ios-app/widgets/NotesWidgets.swift)
 //   readHandwriting({ image })    -> { text }  Apple Vision text recognition, on the iPhone, so
 //     handwritten notes can be searched
 import Foundation
@@ -16,6 +18,7 @@ import LocalAuthentication
 import Security
 import Vision
 import UIKit
+import WidgetKit
 import AVFoundation
 import Capacitor
 import Speech
@@ -36,7 +39,8 @@ public class AriseOnDevicePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "secretLoad", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "secretRemove", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "secretHas", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "readHandwriting", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "readHandwriting", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "widgetSave", returnType: CAPPluginReturnPromise)
     ]
 
     /// Running recognitions, kept so they aren't released before they finish.
@@ -280,5 +284,15 @@ public class AriseOnDevicePlugin: CAPPlugin, CAPBridgedPlugin {
             do { try VNImageRequestHandler(cgImage: cg, options: [:]).perform([request]) }
             catch { call.reject("The handwriting couldn't be read.") }
         }
+    }
+
+    // ─── Widgets ────────────────────────────────────────────────────────────
+    @objc func widgetSave(_ call: CAPPluginCall) {
+        guard let json = call.getString("json"), let data = json.data(using: .utf8), data.count < 200_000 else { call.reject("Nothing to show."); return }
+        let group = "group." + (Bundle.main.bundleIdentifier ?? "com.arisereader.notes")
+        guard let shared = UserDefaults(suiteName: group) else { call.reject("The widgets aren't set up in this build.", "NO_GROUP"); return }
+        shared.set(data, forKey: "notesWidget")
+        WidgetCenter.shared.reloadAllTimelines()
+        call.resolve(["ok": true])
     }
 }
