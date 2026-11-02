@@ -17,7 +17,8 @@ import { searchFoods } from "@/lib/foodLookup";
 import { fitApi, type Update } from "./fitStore";
 import { lastPlace, keepPlace, locate } from "./FitRun";
 import { latestKg, totals } from "./FitFood";
-import { Btn, C, Card, Sheet, Title, display, haptic, inputCls, inputStyle } from "./fitUi";
+import { Btn, C, Card, Sheet, Title, display, haptic, inputCls, inputStyle, usePointsMode } from "./fitUi";
+import { amountText, pointsOf } from "@shared/fitNutrition";
 import { PlusTag, isPlusError, usePlus } from "./FitPlus";
 
 type Crowd = { level: BusyLevel; n: number; mins: number } | null;
@@ -65,8 +66,12 @@ function useNearby(kind: NearbyKind) {
     let had = false;
     try { const v = JSON.parse(localStorage.getItem(ck) || "null"); if (v?.r && Date.now() - v.at < 864e5) { had = true; setList(parsePlaces(v.r, kind, from.ll, kind === "gyms" ? 25 : 10)); setCrowd(v.r.crowd ?? {}); } } catch { /* nothing kept */ }
     setBusy(!had);
-    fitApi<{ elements: any[]; crowd: Record<string, Crowd> }>(token, `/nearby?${new URLSearchParams({ kind, lat: String(from.ll[0]), lng: String(from.ll[1]) })}`)
-      .then((r) => { if (!live) return; setList(parsePlaces(r, kind, from.ll, kind === "gyms" ? 25 : 10)); setCrowd(r.crowd ?? {}); setErr(""); try { localStorage.setItem(ck, JSON.stringify({ at: Date.now(), r })); } catch { /* storage full */ } })
+    const q = (extra = "") => fitApi<{ elements: any[]; crowd: Record<string, Crowd> }>(token, `/nearby?${new URLSearchParams({ kind, lat: String(from.ll[0]), lng: String(from.ll[1]) })}${extra}`);
+    let full = false;
+    // Food: the closest couple of kilometres come back first (a small search), the whole area fills in behind it.
+    if (kind === "food" && !had) q("&quick=1").then((r) => { if (!live || full) return; const near = parsePlaces(r, kind, from.ll, 10); if (!near.length) return; setList(near); setErr(""); setBusy(false); }).catch(() => { /* the full search answers */ });
+    q()
+      .then((r) => { full = true; if (!live) return; setList(parsePlaces(r, kind, from.ll, kind === "gyms" ? 25 : 10)); setCrowd(r.crowd ?? {}); setErr(""); try { localStorage.setItem(ck, JSON.stringify({ at: Date.now(), r })); } catch { /* storage full */ } })
       .catch((e) => live && !had && setErr(/reach|fetch|network/i.test(e.message) ? "No connection. Check your internet and try again." : e.message))
       .finally(() => live && setBusy(false));
     return () => { live = false; };
@@ -218,9 +223,10 @@ function EatFilters({ goal, setGoal, lim, setLim }: { goal: Goal; setGoal: (g: G
 /** One menu item with a button that logs it; the button turns into a check so it's clear it went in. */
 function PickRow({ name, m, serving, logName, update, say }: { name: string; m: Macro; serving: string; logName: string; update: Update; say: (m: string) => void }) {
   const [added, setAdded] = useState(false);
+  const pts = usePointsMode();
   useEffect(() => { if (!added) return; const t = window.setTimeout(() => setAdded(false), 2500); return () => window.clearTimeout(t); }, [added]);
   return <div className="flex items-center gap-3 rounded-[10px] p-2.5" style={{ background: C.card2 }}>
-    <div className="min-w-0 flex-1"><p className="text-[14px] font-semibold leading-snug">{name}</p><p className="mt-0.5 text-[12px] tabular-nums" style={{ color: C.dim }}>about {Math.round(m.kcal)} cal · P {Math.round(m.p)}g · C {Math.round(m.c)}g · F {Math.round(m.f)}g</p></div>
+    <div className="min-w-0 flex-1"><p className="text-[14px] font-semibold leading-snug">{name}</p><p className="mt-0.5 text-[12px] tabular-nums" style={{ color: C.dim }}>about {amountText(m, pts ? "points" : "calories")} · P {Math.round(m.p)}g · C {Math.round(m.c)}g · F {Math.round(m.f)}g</p></div>
     <button type="button" onClick={() => { logFood(update, { name: logName, kcal: m.kcal, p: m.p, c: m.c, f: m.f, serving }); setAdded(true); say(`Added to ${mealNow()}.`); }} aria-label={added ? `${name} added` : `Add ${name}`} className="grid h-10 w-10 shrink-0 place-items-center rounded-full transition-transform active:scale-90" style={{ background: added ? C.card : C.lime, color: added ? C.lime : "#0b0b0c" }} data-testid="fit-log-pick">{added ? <Check className="h-5 w-5" /> : <Plus className="h-5 w-5" />}</button>
   </div>;
 }
@@ -318,6 +324,7 @@ function FoodNear({ data, update, say, filter }: { data: FitData; update: Update
 export function RecipesSheet({ data, update, onClose, say }: { data: FitData; update: Update; onClose: () => void; say: (m: string) => void }) {
   const { token } = useAuth();
   const [tag, setTag] = useState<RecipeTag | "all">("all");
+  const pts = usePointsMode();
   const [open, setOpen] = useState<Recipe | null>(null);
   const [have, setHave] = useState("");
   const [cooking, setCooking] = useState(false);
@@ -350,15 +357,16 @@ export function RecipesSheet({ data, update, onClose, say }: { data: FitData; up
     <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">{tags.map((x) => <button key={x} type="button" onClick={() => setTag(x)} aria-pressed={tag === x} className="h-9 shrink-0 rounded-full px-3 text-[13px] font-semibold" style={tag === x ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2, color: C.text }}>{x === "all" ? "Best for now" : TAG_NAME[x]}</button>)}</div>
     <div className="mt-2 space-y-2">{[...made, ...list].map((r) => <Card key={r.id} onClick={() => setOpen(r)} className="flex items-center gap-3 !p-3" testId={`fit-recipe-${r.id}`}>
       <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[10px] " style={{ background: C.card2 }} aria-hidden><RecipeIcon id={r.id} tags={r.tags} className="h-6 w-6" /></span>
-      <div className="min-w-0 flex-1"><p className="truncate text-[16px] font-semibold">{r.name}</p><p className="text-[12px] tabular-nums" style={{ color: C.dim }}>{r.kcal} cal · P {r.p}g · {r.mins} min{r.id.startsWith("ai-") ? " · made for you" : ""}</p></div>
+      <div className="min-w-0 flex-1"><p className="truncate text-[16px] font-semibold">{r.name}</p><p className="text-[12px] tabular-nums" style={{ color: C.dim }}>{amountText(r, pts ? "points" : "calories")} · P {r.p}g · {r.mins} min{r.id.startsWith("ai-") ? " · made for you" : ""}</p></div>
       <ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></Card>)}</div>
     {open && <RecipeDetail r={open} onClose={() => setOpen(null)} onLog={() => { logFood(update, { name: open.name, kcal: open.kcal, p: open.p, c: open.c, f: open.f, serving: "1 serving" }); say(`Logged to ${mealNow()}.`); setOpen(null); }} />}
   </Sheet>;
 }
 
 function RecipeDetail({ r, onClose, onLog }: { r: Recipe; onClose: () => void; onLog: () => void }) {
+  const pts = usePointsMode();
   return <Sheet title={r.name} onClose={onClose} testId="fit-recipe-detail">
-    <div className="grid grid-cols-4 gap-2 text-center">{([["Cal", r.kcal], ["Protein", `${r.p}g`], ["Carbs", `${r.c}g`], ["Fat", `${r.f}g`]] as const).map(([l, v]) => <Card key={l} className="!p-2.5"><p className="text-[22px] leading-none tabular-nums" style={display}>{v}</p><p className="mt-1 text-[11px]" style={{ color: C.dim }}>{l}</p></Card>)}</div>
+    <div className="grid grid-cols-4 gap-2 text-center">{([[pts ? "Points" : "Cal", pts ? pointsOf(r) : r.kcal], ["Protein", `${r.p}g`], ["Carbs", `${r.c}g`], ["Fat", `${r.f}g`]] as const).map(([l, v]) => <Card key={l} className="!p-2.5"><p className="text-[22px] leading-none tabular-nums" style={display}>{v}</p><p className="mt-1 text-[11px]" style={{ color: C.dim }}>{l}</p></Card>)}</div>
     <p className="mt-2 px-1 text-[13px]" style={{ color: C.dim }}>Per serving · makes {r.serves} · {r.mins} min{r.tags.length ? ` · ${r.tags.map((x) => TAG_NAME[x]).join(", ")}` : ""}</p>
     <Title>Ingredients</Title>
     <Card className="!p-4"><ul className="space-y-1.5">{r.ingredients.map((i, k) => <li key={k} className="text-[15px]">• {i}</li>)}</ul></Card>

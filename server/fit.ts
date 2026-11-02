@@ -301,13 +301,18 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
     if (!kind || lat === null || lng === null) return res.status(400).json({ message: "That place couldn't be read." });
     if (tooMany(req, res)) return;
     const [cLat, cLng] = nearbyCell(kind, lat, lng);
+    // A quick look (food only): just the closest ~2.5 km, centred on the person, which the map server answers in a
+    // second or two. The app asks for it alongside the full search and shows it first.
+    const quick = kind === "food" && req.query.quick === "1";
     try {
-      const json = await cached(`n:${kind}:${cLat},${cLng}`, () => overpassFetch(kind === "gyms" ? gymsQuery(cLat, cLng, NEARBY.gyms.km) : foodQuery(cLat, cLng, NEARBY.food.km)));
+      const json = quick
+        ? await cached(`nq:${Math.round(lat * 100) / 100},${Math.round(lng * 100) / 100}`, () => overpassFetch(foodQuery(Math.round(lat * 100) / 100, Math.round(lng * 100) / 100, 2.5)))
+        : await cached(`n:${kind}:${cLat},${cLng}`, () => overpassFetch(kind === "gyms" ? gymsQuery(cLat, cLng, NEARBY.gyms.km) : foodQuery(cLat, cLng, NEARBY.food.km)));
       const now = Date.now();
       const crowd: Record<string, ReturnType<typeof crowdNow>> = {};
       if (kind === "gyms") for (const el of json?.elements ?? []) { const id = `${String(el?.type || "n")[0]}${el?.id}`; const c = crowdNow(reports.get(id) ?? [], now); if (c) crowd[id] = c; }
       res.set("Cache-Control", "no-store");
-      res.json({ cell: [cLat, cLng], elements: json?.elements ?? [], crowd });
+      res.json({ cell: [cLat, cLng], elements: json?.elements ?? [], crowd, ...(quick ? { quick: true } : {}) });
     } catch (e: any) { console.error("[fit] nearby", e?.message); res.status(503).json({ message: "The map is busy right now. Try again in a minute." }); }
   });
   app.post("/api/fit/busy", authMiddleware, plus("Crowd reports"), async (req: any, res) => {
