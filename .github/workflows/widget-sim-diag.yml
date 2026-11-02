@@ -12,7 +12,6 @@ jobs:
       matrix:
         include:
           - { name: fit-all, flavor: fit, dir: fit, bundle: com.arisereader.fit, tint: ff5a1f, keep: 99 }
-          - { name: fit-two, flavor: fit, dir: fit, bundle: com.arisereader.fit, tint: ff5a1f, keep: 2 }
           - { name: todo-all, flavor: todo, dir: arisetodo, bundle: com.arisereader.arisetodo, tint: f5b400, keep: 99 }
     steps:
       - uses: actions/checkout@v4
@@ -61,9 +60,9 @@ jobs:
           START=$(date '+%Y-%m-%d %H:%M:%S')
           xcrun simctl install "$UDID" "$APP"
           xcrun simctl launch "$UDID" ${{ matrix.bundle }} || true
-          sleep 40
+          sleep 30
           xcrun simctl terminate "$UDID" ${{ matrix.bundle }} || true
-          sleep 20
+          sleep 200
           echo "===== LOG (widget extension / chronod)"
           xcrun simctl spawn "$UDID" log show --start "$START" --style compact --predicate 'process == "chronod" OR process == "AriseWidgets" OR eventMessage CONTAINS[c] "AriseWidgets" OR eventMessage CONTAINS[c] "${{ matrix.bundle }}.widgets"' 2>&1 | grep -viE "sandbox|activity" | head -300 || true
           echo "===== CRASH REPORTS"
@@ -73,3 +72,5 @@ jobs:
           D=~/Library/Developer/CoreSimulator/Devices/$UDID/data
           grep -rl "Arise\." "$D/Library" 2>/dev/null | head -20 || true
           grep -rao "Arise\.[a-z.]*" "$D/Library" 2>/dev/null | sort -u | head -80 || true
+          echo "===== VERDICT"
+          if ls ~/Library/Logs/DiagnosticReports/*AriseWidgets* >/dev/null 2>&1; then echo "WIDGET EXTENSION CRASHED"; grep -ohE '"symbol":"[^"]*"' ~/Library/Logs/DiagnosticReports/*AriseWidgets* | head -8; exit 1; else echo "NO WIDGET EXTENSION CRASH"; fi
