@@ -12,6 +12,7 @@
 //                              with how busy people say each gym is right now (shared/fitNearby.ts)
 //   POST    /api/fit/busy      {place, level} "it's packed": shown to everyone for 90 minutes
 //   POST    /api/fit/recipe    {have, goal, left} the AI makes a recipe from what's in your kitchen
+//   POST    /api/fit/menu      {place, cuisine, goal, diet, mode, left, wants} the AI suggests what to order at a restaurant
 //   /api/fit/circle…           workout circles (server/fitCircle.ts)
 //   /api/fit/buddy…            workout buddies matched with a stranger (server/fitBuddy.ts)
 //   /api/fit/plus, /pass…      Arise Fit+ and guest passes (server/fitPass.ts)
@@ -26,6 +27,7 @@ import { TRAIL_KM, trailCell, trailGeometryQuery, trailsQuery } from "../shared/
 import { GEAR_PROMPT_LIST, cleanGearIds } from "../shared/fitGym";
 import { NEARBY, REPORT_MS, crowdNow, foodQuery, gymsQuery, nearbyCell, type BusyLevel } from "../shared/fitNearby";
 import { cleanRecipe, type Recipe } from "../shared/fitRecipes";
+import { MENU_PROMPT, cleanMenuPicks, menuUserText, type MenuAsk, type MenuPick } from "../shared/fitMenuAi";
 import { registerCircleRoutes, type CircleDeps } from "./fitCircle";
 import { registerBuddyRoutes } from "./fitBuddy";
 import { createSupabaseKv, type FitKv } from "./fitKv";
@@ -49,6 +51,20 @@ async function askAiForRecipe(ask: RecipeAsk): Promise<Recipe | null> {
   if (!res.ok) throw new Error(`status ${res.status}`);
   const body: any = await res.json();
   try { return cleanRecipe(JSON.parse(body?.choices?.[0]?.message?.content || "{}")); } catch { return null; }
+}
+
+async function askAiForMenu(ask: MenuAsk): Promise<MenuPick[]> {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "gpt-4.1-mini", temperature: 0.4, max_tokens: 700, response_format: { type: "json_object" },
+      messages: [{ role: "system", content: MENU_PROMPT }, { role: "user", content: menuUserText(ask) }] }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (res.status === 429) throw new Error("busy");
+  if (!res.ok) throw new Error(`status ${res.status}`);
+  const body: any = await res.json();
+  try { return cleanMenuPicks(JSON.parse(body?.choices?.[0]?.message?.content || "{}")); } catch { return []; }
 }
 
 export type GearAnswer = { gear: string[]; name: string; note: string };
@@ -149,7 +165,7 @@ export function mergeLibrary(wger: LibraryExercise[]): LibraryExercise[] {
   return out;
 }
 
-export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, opts: { store?: FitStore; fetchJson?: (url: string) => Promise<any>; overpass?: (query: string) => Promise<any>; identify?: (image: string, mode: "machine" | "gym") => Promise<GearAnswer>; recipe?: (ask: RecipeAsk) => Promise<Recipe | null>; kv?: FitKv; nameOf?: CircleDeps["nameOf"]; notify?: CircleDeps["notify"]; ownPlus?: PassDeps["ownPlus"]; payment?: PassDeps["payment"] } = {}) {
+export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, opts: { store?: FitStore; fetchJson?: (url: string) => Promise<any>; overpass?: (query: string) => Promise<any>; identify?: (image: string, mode: "machine" | "gym") => Promise<GearAnswer>; recipe?: (ask: RecipeAsk) => Promise<Recipe | null>; menu?: (ask: MenuAsk) => Promise<MenuPick[]>; kv?: FitKv; nameOf?: CircleDeps["nameOf"]; notify?: CircleDeps["notify"]; ownPlus?: PassDeps["ownPlus"]; payment?: PassDeps["payment"] } = {}) {
   const store = opts.store ?? createSupabaseFitStore();
   const kv = opts.kv ?? createSupabaseKv();
   const circles = registerCircleRoutes(app, authMiddleware, { kv, getData: (id) => store.get(id), nameOf: opts.nameOf, notify: opts.notify });
@@ -174,6 +190,27 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
       const r = await recipe({ have, goal, left: { kcal: n(req.body?.left?.kcal, 5000), p: n(req.body?.left?.p, 400) } });
       return r ? res.json({ recipe: r }) : res.status(422).json({ message: "Couldn't make a recipe from that. Try listing a protein, a carb and a vegetable." });
     } catch (e: any) { return res.status(503).json({ message: e?.message === "busy" ? "The AI is busy. Try again in a minute." : "Couldn't make a recipe right now. Try again in a minute." }); }
+  });
+  const menu = opts.menu ?? (process.env.OPENAI_API_KEY ? askAiForMenu : null);
+  const orders = createAttemptLimiter({ max: 40, windowMs: 60 * 60_000 });
+  app.post("/api/fit/menu", authMiddleware, plus("Ordering help at restaurants"), async (req: any, res) => {
+    res.set?.("Cache-Control", "no-store");
+    if (!menu) return res.status(503).json({ message: "Ordering help isn't set up on this site yet. Try \"Match goals\" instead." });
+    const clean = (v: unknown, n: number) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, n);
+    const place = clean(req.body?.place, 80);
+    if (place.length < 2) return res.status(400).json({ message: "Type a restaurant's name." });
+    const key = String(req.user?.id);
+    const wait = orders.retryAfter(key);
+    if (wait) return res.status(429).json({ message: `That's a lot of lookups for one hour. Try again in ${waitWords(wait)}.` });
+    orders.fail(key);
+    const n = (v: unknown, hi: number) => Math.max(0, Math.min(hi, Math.round(Number(v) || 0)));
+    const goal = ({ lose: "lose fat", maintain: "stay fit", gain: "build muscle" } as any)[req.body?.goal] ?? "stay fit";
+    const left = req.body?.left ?? {};
+    try {
+      const picks = await menu({ place, cuisine: clean(req.body?.cuisine, 40), goal, diet: clean(req.body?.diet, 40) || "balanced", mode: req.body?.mode === "points" ? "points" : "calories", wants: clean(req.body?.wants, 160),
+        left: { kcal: n(left.kcal, 6000), p: n(left.p, 400), c: n(left.c, 800), f: n(left.f, 400) } });
+      return picks.length ? res.json({ picks }) : res.status(422).json({ message: "Couldn't come up with picks for that place. Try the chain's name or a cuisine." });
+    } catch (e: any) { return res.status(503).json({ message: e?.message === "busy" ? "The AI is busy. Try again in a minute." : "Couldn't look that up right now. Try again in a minute." }); }
   });
   const identify = opts.identify ?? (process.env.OPENAI_API_KEY ? askAiForGear : null);
   const looks = createAttemptLimiter({ max: 40, windowMs: 60 * 60_000 });
@@ -301,13 +338,18 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
     if (!kind || lat === null || lng === null) return res.status(400).json({ message: "That place couldn't be read." });
     if (tooMany(req, res)) return;
     const [cLat, cLng] = nearbyCell(kind, lat, lng);
+    // A quick look (food only): just the closest ~2.5 km, centred on the person, which the map server answers in a
+    // second or two. The app asks for it alongside the full search and shows it first.
+    const quick = kind === "food" && req.query.quick === "1";
     try {
-      const json = await cached(`n:${kind}:${cLat},${cLng}`, () => overpassFetch(kind === "gyms" ? gymsQuery(cLat, cLng, NEARBY.gyms.km) : foodQuery(cLat, cLng, NEARBY.food.km)));
+      const json = quick
+        ? await cached(`nq:${Math.round(lat * 100) / 100},${Math.round(lng * 100) / 100}`, () => overpassFetch(foodQuery(Math.round(lat * 100) / 100, Math.round(lng * 100) / 100, 2.5)))
+        : await cached(`n:${kind}:${cLat},${cLng}`, () => overpassFetch(kind === "gyms" ? gymsQuery(cLat, cLng, NEARBY.gyms.km) : foodQuery(cLat, cLng, NEARBY.food.km)));
       const now = Date.now();
       const crowd: Record<string, ReturnType<typeof crowdNow>> = {};
       if (kind === "gyms") for (const el of json?.elements ?? []) { const id = `${String(el?.type || "n")[0]}${el?.id}`; const c = crowdNow(reports.get(id) ?? [], now); if (c) crowd[id] = c; }
       res.set("Cache-Control", "no-store");
-      res.json({ cell: [cLat, cLng], elements: json?.elements ?? [], crowd });
+      res.json({ cell: [cLat, cLng], elements: json?.elements ?? [], crowd, ...(quick ? { quick: true } : {}) });
     } catch (e: any) { console.error("[fit] nearby", e?.message); res.status(503).json({ message: "The map is busy right now. Try again in a minute." }); }
   });
   app.post("/api/fit/busy", authMiddleware, plus("Crowd reports"), async (req: any, res) => {

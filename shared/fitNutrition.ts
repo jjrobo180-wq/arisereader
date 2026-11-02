@@ -26,6 +26,9 @@ export function pointsOf(m: Macros): number {
   return Math.max(0, Math.round(raw));
 }
 
+/** A food's size in the unit the person tracks: "5 pts" or "310 cal". */
+export const amountText = (m: Macros, mode?: "calories" | "points") => (mode === "points" ? `${pointsOf(m)} pts` : `${Math.round(m.kcal)} cal`);
+
 /** The daily Arise Points budget that matches a calorie and macro goal (never under 18). */
 export const pointsBudget = (g: Macros) => Math.max(18, pointsOf(g));
 

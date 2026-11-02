@@ -9,7 +9,7 @@ import type { FoundFood } from "@shared/foodLookup";
 import { estimateMeal, lookupBarcode, searchFoods, shrinkPhoto } from "@/lib/foodLookup";
 import { canUseCamera, scanWithCamera } from "@/lib/barcodeScanner";
 import { PlusTag } from "./FitPlus";
-import { DIET_BY_ID, DIET_PLANS, pointsBudget, pointsOf } from "@shared/fitNutrition";
+import { DIET_BY_ID, DIET_PLANS, amountText, pointsBudget, pointsOf } from "@shared/fitNutrition";
 import type { Update } from "./fitStore";
 import { FastingCard, FastingSheet } from "./FitFasting";
 import { Bar, Btn, C, Card, Chips, Ring, Sheet, Title, display, fmtNum, inputCls, inputStyle, stagger } from "./fitUi";
@@ -23,6 +23,7 @@ export const latestKg = (d: FitData) => d.weights.length ? d.weights[d.weights.l
 type AddTab = "search" | "recent" | "meals" | "scan" | "ai" | "quick";
 function AddFood({ token, meal, date, data, update, onClose, say, start = "search" }: { token: string | null; meal: Meal; date: string; data: FitData; update: Update; onClose: () => void; say: (m: string) => void; start?: AddTab }) {
   const [tab, setTab] = useState<AddTab>(start);
+  const pts = data.profile.trackMode === "points";
   const [q, setQ] = useState("");
   const [found, setFound] = useState<FoundFood[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -56,7 +57,7 @@ function AddFood({ token, meal, date, data, update, onClose, say, start = "searc
   };
   const row = (f: Picked, k: number | string) => <button key={k} type="button" onClick={() => { setPicked(f); setServings("1"); }} className="flex w-full items-center gap-3 rounded-[10px] p-3 text-left" style={{ background: C.card }}>
     <span className="min-w-0 flex-1"><span className="block truncate text-[15px] font-semibold">{f.name}</span><span className="block truncate text-[12px]" style={{ color: C.dim }}>{f.serving || "1 serving"} · P {Math.round(f.p)} · C {Math.round(f.c)} · F {Math.round(f.f)}</span></span>
-    <span className="shrink-0 text-[15px] font-bold">{Math.round(f.kcal)}<span className="text-[11px] font-normal" style={{ color: C.dim }}> cal</span></span></button>;
+    <span className="shrink-0 text-[15px] font-bold">{pts ? pointsOf(f) : Math.round(f.kcal)}<span className="text-[11px] font-normal" style={{ color: C.dim }}> {pts ? "pts" : "cal"}</span></span></button>;
 
   if (picked) {
     const n = Math.max(0.05, Number(servings) || 1);
@@ -66,9 +67,10 @@ function AddFood({ token, meal, date, data, update, onClose, say, start = "searc
       <div className="mt-4 flex items-center gap-3"><span className="text-[15px] font-semibold">Servings</span>
         <input inputMode="decimal" value={servings} onChange={(e) => setServings(e.target.value.replace(/[^\d.]/g, "").slice(0, 5))} aria-label="Servings" className={`${inputCls} !w-28 text-center font-bold`} style={inputStyle} />
         {[0.5, 1, 2].map((v) => <button key={v} type="button" onClick={() => setServings(String(v))} className="h-11 rounded-[8px] px-3 text-[14px] font-semibold" style={{ background: C.card2 }}>{v}</button>)}</div>
-      <div className="mt-6 grid grid-cols-4 gap-2 text-center">{[["Calories", picked.kcal, ""], ["Protein", picked.p, "g"], ["Carbs", picked.c, "g"], ["Fat", picked.f, "g"]].map(([l, v, u]) =>
+      {pts && <div className="mt-6 flex items-center justify-between rounded-[12px] px-4 py-4" style={{ background: C.card }}><span className="text-[15px] font-semibold">Arise Points</span><span className="text-[40px] leading-none" style={{ ...display, color: C.lime }} data-testid="fit-food-points-big">{pointsOf({ kcal: picked.kcal * n, p: picked.p * n, c: picked.c * n, f: picked.f * n })}</span></div>}
+      <div className={`${pts ? "mt-2" : "mt-6"} grid grid-cols-4 gap-2 text-center`}>{[["Calories", picked.kcal, ""], ["Protein", picked.p, "g"], ["Carbs", picked.c, "g"], ["Fat", picked.f, "g"]].map(([l, v, u]) =>
         <Card key={l as string} className="!p-3"><p className="text-[20px] font-bold">{Math.round((v as number) * n)}<span className="text-[11px]" style={{ color: C.dim }}>{u}</span></p><p className="text-[11px]" style={{ color: C.dim }}>{l}</p></Card>)}</div>
-      <div className="mt-2 flex items-center justify-between rounded-[10px] px-4 py-3" style={{ background: C.card }}><span className="text-[14px]" style={{ color: C.dim }}>Arise Points</span><span className="text-[26px] leading-none" style={{ ...display, color: C.lime }} data-testid="fit-food-points">{pointsOf({ kcal: picked.kcal * n, p: picked.p * n, c: picked.c * n, f: picked.f * n })}</span></div>
+      {!pts && <div className="mt-2 flex items-center justify-between rounded-[10px] px-4 py-3" style={{ background: C.card }}><span className="text-[14px]" style={{ color: C.dim }}>Arise Points</span><span className="text-[26px] leading-none" style={{ ...display, color: C.lime }} data-testid="fit-food-points">{pointsOf({ kcal: picked.kcal * n, p: picked.p * n, c: picked.c * n, f: picked.f * n })}</span></div>}
       <Btn className="mt-8 w-full" onClick={() => add(picked, n)} testId="fit-food-add">Add to {MEALS.find((m) => m.id === meal)?.label}</Btn>
     </Sheet>;
   }
