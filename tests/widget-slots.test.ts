@@ -53,7 +53,8 @@ test("slot text is trimmed and bad data dropped", () => {
 test("the widget extension, plugin and workflows are in place", () => {
   const ext = readFileSync(new URL("../native/widget-extension/AriseWidgets.swift", import.meta.url), "utf8");
   for (const word of ["StaticConfiguration", "__WIDGETS__", "__BUNDLE__", "systemLarge", ".detail"]) assert.ok(ext.includes(word), word);
-  // Plain WidgetKit only: App Intents in the extension stopped iOS from listing the widgets.
   for (const word of ["AppIntent", "import AppIntents", "Button(intent"]) assert.ok(!ext.includes(word), `no ${word}`);
+  // An interpolated display name ("\\(name) +") made the extension crash on load (seen on the iOS simulator), so iOS listed none.
+  assert.ok(!/configurationDisplayName\("[^"]*\\\(/.test(ext), "no interpolated configurationDisplayName");
   assert.ok(readFileSync(new URL("../native/arise-widgets/ios/Sources/AriseWidgetsPlugin/AriseWidgetsPlugin.swift", import.meta.url), "utf8").includes("takeActions"));
 });
