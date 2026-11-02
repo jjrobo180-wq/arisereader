@@ -63,3 +63,34 @@ test("food amounts read in the unit the person tracks", () => {
   assert.equal(amountText(m), "700 cal");
   assert.match(amountText(m, "points"), /^\d+ pts$/);
 });
+
+import { cleanMenuPicks, menuUserText } from "../shared/fitMenuAi";
+import { registerFitRoutes, createMemoryFitStore } from "../server/fit";
+import { createMemoryKv } from "../server/fitKv";
+
+test("AI order suggestions are cleaned before they're shown or logged", () => {
+  const picks = cleanMenuPicks({ picks: [
+    { name: "  Grilled chicken salad ", how: "Dressing on the side", kcal: "420", p: 45, c: 18, f: 20 },
+    { name: "", kcal: 300, p: 1, c: 1, f: 1 }, { name: "Nothing", kcal: 5, p: 0, c: 0, f: 0 }, { name: "Bad", kcal: "lots", p: 1, c: 1, f: 1 }, { name: "Absurd", kcal: 90000, p: 1, c: 1, f: 1 },
+  ] });
+  assert.deepEqual(picks, [{ name: "Grilled chicken salad", how: "Dressing on the side", kcal: 420, p: 45, c: 18, f: 20 }]);
+  assert.deepEqual(cleanMenuPicks(null), []);
+  assert.equal(cleanMenuPicks({ picks: Array.from({ length: 20 }, (_, i) => ({ name: `x${i}`, kcal: 300, p: 20, c: 20, f: 10 })) }).length, 6);
+  assert.match(menuUserText({ place: "Olive Garden", cuisine: "italian", goal: "lose fat", diet: "Balanced", mode: "points", wants: "no dairy", left: { kcal: 800, p: 60, c: 70, f: 25 } }), /Olive Garden \(italian\)[\s\S]*Arise Points[\s\S]*800 calories[\s\S]*no dairy/);
+});
+
+test("POST /api/fit/menu asks the AI with what's left of the day", async () => {
+  const routes: Record<string, Function> = {};
+  const add = (m: string) => (path: string, ...h: Function[]) => { routes[`${m} ${path}`] = h[h.length - 1]; };
+  let asked: any = null;
+  registerFitRoutes({ get: add("GET"), post: add("POST"), put: add("PUT") } as any, (_q: any, _s: any, n: any) => n(), {
+    store: createMemoryFitStore(), kv: createMemoryKv(), ownPlus: async () => ({ live: true }),
+    menu: async (ask) => { asked = ask; return ask.place === "Nowhere" ? [] : [{ name: "Chicken fajitas, no tortilla", how: "Skip the rice", kcal: 480, p: 48, c: 22, f: 20 }]; },
+  });
+  const call = async (body: any) => { let status = 200, json: any = null; const res: any = { set() { return res; }, status(c: number) { status = c; return res; }, json(v: any) { json = v; return res; } }; await routes["POST /api/fit/menu"]({ user: { id: 7 }, body, query: {}, headers: {} }, res); return { status, json }; };
+  assert.equal((await call({ place: "" })).status, 400);
+  const ok = await call({ place: "Chili's", cuisine: "american", goal: "lose", mode: "points", wants: "high protein", left: { kcal: 700.4, p: 55, c: 60, f: 20 } });
+  assert.equal(ok.json.picks[0].name, "Chicken fajitas, no tortilla");
+  assert.deepEqual(asked, { place: "Chili's", cuisine: "american", goal: "lose fat", diet: "balanced", mode: "points", wants: "high protein", left: { kcal: 700, p: 55, c: 60, f: 20 } });
+  assert.equal((await call({ place: "Nowhere" })).status, 422);
+});

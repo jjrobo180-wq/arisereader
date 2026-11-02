@@ -18,7 +18,8 @@ import { fitApi, type Update } from "./fitStore";
 import { lastPlace, keepPlace, locate } from "./FitRun";
 import { latestKg, totals } from "./FitFood";
 import { Btn, C, Card, Sheet, Title, display, haptic, inputCls, inputStyle, usePointsMode } from "./fitUi";
-import { amountText, pointsOf } from "@shared/fitNutrition";
+import { amountText, pointsOf, DIET_BY_ID } from "@shared/fitNutrition";
+import type { MenuPick } from "@shared/fitMenuAi";
 import { PlusTag, isPlusError, usePlus } from "./FitPlus";
 
 type Crowd = { level: BusyLevel; n: number; mins: number } | null;
@@ -296,10 +297,52 @@ export function EatOut({ data, update, onClose, say }: { data: FitData; update: 
   </Sheet>;
 }
 
+/** Ask the AI what to order at a restaurant, fit to what's left of today. Works for places that aren't in any list. */
+function MenuAi({ data, update, say, place, cuisine = "" }: { data: FitData; update: Update; say: (m: string) => void; place?: string; cuisine?: string }) {
+  const { token } = useAuth();
+  const { plus, ask } = usePlus();
+  const pts = usePointsMode();
+  const [name, setName] = useState(place ?? "");
+  const [wants, setWants] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [picks, setPicks] = useState<MenuPick[] | null>(null);
+  const run = async () => {
+    const target = (place ?? name).trim();
+    if (target.length < 2) { setErr("Type a restaurant's name."); return; }
+    if (!plus) { ask("eat-out"); return; }
+    setErr(""); setBusy(true);
+    try {
+      const g = goals(data.profile, latestKg(data));
+      const t = totals(data.foods.filter((f) => f.date === dayKey()));
+      const left = { kcal: Math.max(0, Math.round(g.kcal - t.kcal)), p: Math.max(0, Math.round(g.p - t.p)), c: Math.max(0, Math.round(g.c - t.c)), f: Math.max(0, Math.round(g.f - t.f)) };
+      const r = await fitApi<{ picks: MenuPick[] }>(token, "/menu", { method: "POST", body: JSON.stringify({ place: target, cuisine, goal: data.profile.goal, diet: DIET_BY_ID.get(data.profile.dietPlan ?? "balanced")?.name ?? "balanced", mode: pts ? "points" : "calories", wants, left }) });
+      setPicks(r.picks); haptic("success");
+    } catch (e: any) { if (isPlusError(e)) ask("eat-out"); else setErr(e.message); } finally { setBusy(false); }
+  };
+  return <div className={place ? "mt-3" : "mb-3"} data-testid="fit-menu-ai">
+    {!place && <Card className="!p-4">
+      <p className="flex items-center gap-2 text-[17px] leading-none" style={display}><Sparkles className="h-5 w-5" style={{ color: C.lime }} />What should I order?<PlusTag /></p>
+      <p className="mt-1 text-[13px]" style={{ color: C.dim }}>Any restaurant, even ones that aren't listed. The AI picks what fits what's left of your day.</p>
+      <input value={name} onChange={(e) => setName(e.target.value.slice(0, 80))} placeholder="Olive Garden, a sushi place, Texas Roadhouse…" className={`${inputCls} mt-3`} style={inputStyle} aria-label="Restaurant" data-testid="fit-menu-place" />
+    </Card>}
+    <div className={place ? "" : "mt-2"}>
+      <input value={wants} onChange={(e) => setWants(e.target.value.slice(0, 160))} placeholder="Anything specific? (high protein, no dairy, under 600…)" className={inputCls} style={inputStyle} aria-label="What you want" onKeyDown={(e) => { if (e.key === "Enter") void run(); }} />
+      <Btn kind={place ? "soft" : "primary"} className="mt-2 w-full" onClick={run} disabled={busy} testId="fit-menu-go">{busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}{picks ? "Try again" : place ? "Ask AI what to order here" : "Find my best order"}</Btn>
+    </div>
+    {err && <p className="mt-2 text-[14px]" style={{ color: C.red }} role="alert">{err}</p>}
+    {picks && <div className="mt-3 space-y-2" data-testid="fit-menu-picks">
+      {picks.map((m, k) => <div key={`${m.name}-${k}`}><PickRow name={m.name} m={m} serving="1 order" logName={`${place ?? name}: ${m.name}`} update={update} say={say} />{m.how && <p className="px-3 pt-1 text-[12px] leading-snug" style={{ color: C.steel }}>{m.how}</p>}</div>)}
+      <p className="px-1 text-[11px] leading-relaxed" style={{ color: C.dim }}>AI estimates from typical menus, not the restaurant's published numbers. Ask for the nutrition info if exact values matter.</p>
+    </div>}
+  </div>;
+}
+
 function FoodNear({ data, update, say, filter }: { data: FitData; update: Update; say: (m: string) => void; filter: Filter }) {
   const { list, busy, bar } = useNearby("food");
   const [open, setOpen] = useState<string | null>(null);
   return <div className="mt-3">
+    <MenuAi data={data} update={update} say={say} />
     {bar}
     <div className="mt-2 space-y-2">{(list ?? []).slice(0, 40).map((p) => {
       const chain = p.chain ? FOOD_CHAINS.find((c) => c.id === p.chain) : null;
@@ -311,6 +354,7 @@ function FoodNear({ data, update, say, filter }: { data: FitData; update: Update
           <ChevronRight className="h-5 w-5 shrink-0 transition-transform" style={{ color: C.dim, transform: open === p.id ? "rotate(90deg)" : undefined }} /></button>
         {open === p.id && <>
           {chain ? <ChainPicks chain={chain} filter={filter} update={update} say={say} /> : <p className="mt-2 text-[14px]">{tip || "Look for grilled protein, vegetables, and sauces on the side."}</p>}
+          <MenuAi data={data} update={update} say={say} place={p.name} cuisine={(p.cuisine ?? "").replace(/[_;]/g, " ")} />
           <a href={directionsUrl(p, apple())} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-[14px] font-semibold" style={{ color: C.lime }}><Navigation className="h-4 w-4" />Directions</a>
         </>}
       </Card>;
