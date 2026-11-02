@@ -218,12 +218,12 @@ const rememberTab = (t: "ai" | "pages") => { try { localStorage.setItem(TAB_KEY,
 export function TabBar({ ctx, on }: { ctx: AppCtx; on: "ai" | "pages" }) {
   const Tab = ({ id, icon, label }: { id: "ai" | "pages"; icon: ReactNode; label: string }) =>
     <button type="button" role="tab" aria-selected={on === id} onClick={() => ctx.go(id === "ai" ? { name: "home" } : { name: "pages" })} data-testid={`notes-tab-${id}`}
-      className={`flex flex-1 flex-col items-center gap-0.5 rounded-2xl py-1.5 text-[11px] font-bold transition ${on === id ? "text-[var(--an-violet)]" : "text-[var(--an-faint)] hover:text-[var(--an-muted)]"}`}>
-      <span className={`grid h-8 w-14 place-items-center rounded-full ${on === id ? "bg-[var(--an-violet-soft)]" : ""}`}>{icon}</span>{label}</button>;
-  return <nav role="tablist" aria-label="Arise Notes" className="an-noprint fixed inset-x-0 bottom-0 z-40 border-t border-[var(--an-line)] bg-white/90 px-6 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-xl" data-testid="notes-tabs">
-    <div className="mx-auto flex max-w-sm gap-2">
-      <Tab id="ai" icon={<Sparkles className="h-5 w-5" />} label="AI Notes" />
-      <Tab id="pages" icon={<NotebookPen className="h-5 w-5" />} label="Notes" />
+      className={`an-tabpill flex flex-1 items-center justify-center gap-2 rounded-full py-2.5 text-[13.5px] font-bold ${on === id ? "bg-[var(--an-ink)] text-white shadow-[0_8px_18px_-8px_rgba(20,19,31,.7)]" : "text-[var(--an-muted)] hover:text-[var(--an-ink)]"}`}>
+      {icon}{label}</button>;
+  return <nav role="tablist" aria-label="Arise Notes" className="an-noprint an-tabbar fixed inset-x-0 bottom-0 z-40 px-5 pb-[max(.6rem,env(safe-area-inset-bottom))] pt-2.5" data-testid="notes-tabs">
+    <div className="mx-auto flex max-w-xs gap-1 rounded-full bg-black/[.045] p-1">
+      <Tab id="ai" icon={<Sparkles className="h-[17px] w-[17px]" />} label="AI Notes" />
+      <Tab id="pages" icon={<NotebookPen className="h-[17px] w-[17px]" />} label="Notes" />
     </div>
   </nav>;
 }

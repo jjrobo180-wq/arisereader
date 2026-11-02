@@ -40,9 +40,9 @@ export function Sheet({ title, onClose, children, wide }: { title: ReactNode; on
   }, [onClose]);
   return <div className="fixed inset-0 kb-sheet z-[400] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={typeof title === "string" ? title : undefined}>
     <button type="button" aria-label="Close" data-close className="an-sheet-back absolute inset-0 h-full w-full cursor-default" onClick={onClose} />
-    <div ref={ref} className={`an-fade relative max-h-[92dvh] w-full overflow-y-auto rounded-t-[26px] bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-[26px] ${wide ? "sm:max-w-2xl" : "sm:max-w-lg"}`}>
+    <div ref={ref} className={`an-fade relative max-h-[92dvh] w-full overflow-y-auto an-sheet-card bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:rounded-[28px] ${wide ? "sm:max-w-2xl" : "sm:max-w-lg"}`}>
       <div className="mb-4 flex items-center gap-3">
-        <h2 className="min-w-0 flex-1 text-lg font-bold tracking-tight">{title}</h2>
+        <h2 className="min-w-0 flex-1 an-display text-[22px]">{title}</h2>
         <IconBtn label="Close" data-close onClick={onClose}><X className="h-5 w-5" /></IconBtn>
       </div>
       {children}

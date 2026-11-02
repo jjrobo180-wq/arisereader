@@ -3,7 +3,7 @@
 // Apple Notes. New notes start from a blank page or a template (meeting, journal, Cornell, graph
 // paper…), in the look you chose for new notes.
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, FolderPlus, Grid2X2, Hash, List as ListIcon, Lock, LockOpen, PenLine, Pin, Plus, RotateCcw, Search, Settings2, Trash2 } from "lucide-react";
+import { ChevronDown, FileText, FolderPlus, Grid2X2, Hash, LayoutTemplate, List as ListIcon, Lock, LockOpen, PenLine, Pin, Plus, RotateCcw, Search, Settings2, Trash2 } from "lucide-react";
 import { DEFAULT_LOOK, PAGE_TEMPLATES, PAPER_THEMES, TRASH_DAYS, blankInkPage, cleanLook, pageTitle, type Folder, type Page, type PageMeta, type PageTemplate } from "@shared/arisePages";
 import { api } from "../api";
 import { Btn, IconBtn, Notice, Sheet, Spinner, Toggle, shortDate, useToast } from "../ui";
@@ -13,6 +13,7 @@ import { drafts } from "./drafts";
 import { lockNow } from "./pagesLock";
 import { FolderSheet, SYNC_WORDS, VaultSheet, usePages, useUnlocked } from "./pagesUi";
 import { newPageId } from "./pagesSync";
+import { groupNotes } from "./pagesGroups";
 
 type Filter = { kind: "all" } | { kind: "pinned" } | { kind: "folder"; id: string } | { kind: "tag"; tag: string } | { kind: "locked" } | { kind: "ink" } | { kind: "trash" };
 const FKEY = "arise-pages-filter";
@@ -84,50 +85,57 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const nav = <nav className="space-y-1" aria-label="Folders">
-    <NavRow on={filter.kind === "all"} icon="🗒️" label="All notes" count={live.length} onClick={() => setFilter({ kind: "all" })} />
-    <NavRow on={filter.kind === "pinned"} icon="📌" label="Pinned" count={live.filter((m) => m.pinned).length} onClick={() => setFilter({ kind: "pinned" })} />
-    <NavRow on={filter.kind === "ink"} icon="✍️" label="Handwritten" count={live.filter((m) => m.kind === "ink").length} onClick={() => setFilter({ kind: "ink" })} />
-    <NavRow on={filter.kind === "locked"} icon="🔒" label="Locked" count={live.filter((m) => m.locked).length} onClick={() => setFilter({ kind: "locked" })} />
-    {folders.length > 0 && <p className="px-3 pb-1 pt-3 text-[12px] font-bold uppercase tracking-wider text-[var(--an-faint)]">Folders</p>}
-    {folders.map((f) => <NavRow key={f.id} on={filter.kind === "folder" && filter.id === f.id} icon={f.icon} dot={f.color} label={f.name} count={live.filter((m) => m.folderId === f.id).length}
+    <NavRow on={filter.kind === "all"} icon={<FileText className="h-[18px] w-[18px]" />} tint="linear-gradient(135deg,#8a6bff,#5b45d8)" label="All notes" count={live.length} onClick={() => setFilter({ kind: "all" })} />
+    <NavRow on={filter.kind === "pinned"} icon={<Pin className="h-[18px] w-[18px]" />} tint="linear-gradient(135deg,#ffb23f,#f08a00)" label="Pinned" count={live.filter((m) => m.pinned).length} onClick={() => setFilter({ kind: "pinned" })} />
+    <NavRow on={filter.kind === "ink"} icon={<PenLine className="h-[18px] w-[18px]" />} tint="linear-gradient(135deg,#ff7a85,#ea3f55)" label="Handwritten" count={live.filter((m) => m.kind === "ink").length} onClick={() => setFilter({ kind: "ink" })} />
+    <NavRow on={filter.kind === "locked"} icon={<Lock className="h-[18px] w-[18px]" />} tint="linear-gradient(135deg,#7d8499,#505770)" label="Locked" count={live.filter((m) => m.locked).length} onClick={() => setFilter({ kind: "locked" })} />
+    {folders.length > 0 && <p className="an-eyebrow px-3 pb-1 pt-4">Folders</p>}
+    {folders.map((f) => <NavRow key={f.id} on={filter.kind === "folder" && filter.id === f.id} icon={<span className="text-[18px] leading-none">{f.icon}</span>} tint={f.color ? `${f.color}33` : "#ecebf5"} soft label={f.name} count={live.filter((m) => m.folderId === f.id).length}
       onClick={() => setFilter({ kind: "folder", id: f.id })} onEdit={() => { setEditFolder(f); setSheet("folder"); }} />)}
-    <button type="button" className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-[14px] font-semibold text-[var(--an-violet)] hover:bg-[var(--an-violet-soft)]" onClick={() => { setEditFolder(null); setSheet("folder"); }} data-testid="pages-new-folder"><FolderPlus className="h-4 w-4" />New folder</button>
-    {tags.length > 0 && <><p className="px-3 pb-1 pt-3 text-[12px] font-bold uppercase tracking-wider text-[var(--an-faint)]">Tags</p>
+    <button type="button" className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-[15px] font-semibold text-[var(--an-violet)] hover:bg-[var(--an-violet-soft)]" onClick={() => { setEditFolder(null); setSheet("folder"); }} data-testid="pages-new-folder"><span className="grid h-9 w-9 place-items-center rounded-xl border border-dashed border-[var(--an-violet)]/40"><FolderPlus className="h-[18px] w-[18px]" /></span>New folder</button>
+    {tags.length > 0 && <><p className="an-eyebrow px-3 pb-1 pt-4">Tags</p>
       <div className="flex flex-wrap gap-1.5 px-2">{tags.map((t) => <button key={t} type="button" className="an-chip !min-h-8 !text-[13px]" aria-pressed={filter.kind === "tag" && filter.tag === t} onClick={() => setFilter({ kind: "tag", tag: t })}><Hash className="h-3 w-3" />{t}</button>)}</div></>}
-    <div className="pt-3"><NavRow on={filter.kind === "trash"} icon="🗑️" label="Recently Deleted" count={metas.filter((m) => m.deletedAt).length} onClick={() => setFilter({ kind: "trash" })} /></div>
+    <div className="pt-3"><NavRow on={filter.kind === "trash"} icon={<Trash2 className="h-[18px] w-[18px]" />} tint="linear-gradient(135deg,#b9bdcb,#8d92a6)" label="Recently Deleted" count={metas.filter((m) => m.deletedAt).length} onClick={() => setFilter({ kind: "trash" })} /></div>
   </nav>;
 
   const filterName = filter.kind === "all" ? "All notes" : filter.kind === "pinned" ? "Pinned" : filter.kind === "ink" ? "Handwritten" : filter.kind === "locked" ? "Locked" : filter.kind === "trash" ? "Recently Deleted" : filter.kind === "tag" ? `#${filter.tag}` : folders.find((f) => f.id === filter.id)?.name ?? "Folder";
   const grid = settings.prefs.view === "grid" && !wide;
 
-  const list = <div className="flex h-full min-h-0 flex-col">
-    <div className="space-y-3 px-4 pb-3 pt-4">
-      <div className="flex items-center gap-2">
-        {!wide ? <FilterMenu name={filterName}>{nav}</FilterMenu> : <h2 className="min-w-0 flex-1 truncate text-[22px] font-extrabold tracking-[-.02em]">{filterName}</h2>}
-        <span className="ml-auto text-[12px] text-[var(--an-faint)]" aria-live="polite">{SYNC_WORDS[state]}</span>
-        {settings.vault && key && <IconBtn label="Lock locked notes now" onClick={() => { lockNow(); say("Locked notes are locked."); }}><LockOpen className="h-5 w-5" /></IconBtn>}
-        {!wide && <IconBtn label={grid ? "Show as a list" : "Show as cards"} onClick={() => sync.saveSettings({ ...settings, prefs: { ...settings.prefs, view: grid ? "list" : "grid" } })}>{grid ? <ListIcon className="h-5 w-5" /> : <Grid2X2 className="h-5 w-5" />}</IconBtn>}
-        <IconBtn label="Notes settings" onClick={() => setSheet("settings")}><Settings2 className="h-5 w-5" /></IconBtn>
+  const by = settings.prefs.sort === "created" ? "createdAt" : "updatedAt";
+  const sections = useMemo(() => (filter.kind === "trash" || q.trim() || settings.prefs.sort === "title" ? [{ label: "", items: shown }] : groupNotes(shown, by)), [shown, filter.kind, q, settings.prefs.sort, by]);
+  const card = (m: PageMeta, i: number) => <PageCard key={m.id} m={m} i={i} grid={grid} on={openId === m.id} folder={folders.find((f) => f.id === m.folderId)} trash={filter.kind === "trash"}
+    onOpen={() => open(m.id)} onRestore={() => { sync.restore(m.id); say("Restored."); }} onForever={async () => { if (!window.confirm("Delete this note for good?")) return; await sync.forever([m.id]).catch((e) => say(e.message)); }} />;
+
+  const list = <div className="relative flex h-full min-h-0 flex-col">
+    <div className="space-y-3.5 px-4 pb-2 pt-[max(1rem,env(safe-area-inset-top))]">
+      <div className="flex items-end gap-2">
+        <div className="min-w-0 flex-1">
+          {!wide ? <FilterMenu name={filterName}>{nav}</FilterMenu> : <h2 className="an-display truncate text-[34px]">{filterName}</h2>}
+          <p className="mt-1 text-[13px] text-[var(--an-muted)]" aria-live="polite">{shown.length} {shown.length === 1 ? "note" : "notes"}<span className="text-[var(--an-faint)]"> · {SYNC_WORDS[state]}</span></p>
+        </div>
+        {settings.vault && key && <button type="button" className="an-round-btn" aria-label="Lock locked notes now" onClick={() => { lockNow(); say("Locked notes are locked."); }}><LockOpen className="h-[18px] w-[18px]" /></button>}
+        {!wide && <button type="button" className="an-round-btn" aria-label={grid ? "Show as a list" : "Show as cards"} onClick={() => sync.saveSettings({ ...settings, prefs: { ...settings.prefs, view: grid ? "list" : "grid" } })}>{grid ? <ListIcon className="h-[18px] w-[18px]" /> : <Grid2X2 className="h-[18px] w-[18px]" />}</button>}
+        <button type="button" className="an-round-btn" aria-label="Notes settings" onClick={() => setSheet("settings")}><Settings2 className="h-[18px] w-[18px]" /></button>
       </div>
-      <label className="relative block"><span className="sr-only">Search notes</span>
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--an-faint)]" aria-hidden />
-        <input className="an-input pl-9" placeholder="Search notes and handwriting" value={q} onChange={(e) => setQ(e.target.value)} data-testid="pages-search" />
+      <label className="an-search block"><span className="sr-only">Search notes</span>
+        <Search className="pointer-events-none absolute left-4 top-1/2 z-[1] h-[18px] w-[18px] -translate-y-1/2 text-[var(--an-faint)]" aria-hidden />
+        <input className="an-input an-bare an-search-input" style={{ height: "3rem", borderRadius: 999, paddingLeft: "2.9rem" }} placeholder="Search notes and handwriting" value={q} onChange={(e) => setQ(e.target.value)} data-testid="pages-search" />
       </label>
-      {filter.kind !== "trash" && <div className="flex gap-2">
-        <Btn kind="primary" className="flex-1" onClick={() => create(PAGE_TEMPLATES[0])} data-testid="pages-new"><Plus className="h-4 w-4" />New note</Btn>
-        <Btn kind="soft" onClick={() => create(PAGE_TEMPLATES.find((t) => t.id === "ink-lined")!)} data-testid="pages-new-ink"><PenLine className="h-4 w-4" />Handwrite</Btn>
-        <Btn kind="plain" onClick={() => setSheet("new")} aria-label="More kinds of note" data-testid="pages-templates"><ChevronDown className="h-4 w-4" /></Btn>
+      {filter.kind !== "trash" && <div className="an-scroll -mx-4 flex gap-2 overflow-x-auto px-4">
+        <button type="button" className="an-quick" onClick={() => create(PAGE_TEMPLATES.find((t) => t.id === "ink-lined")!)} data-testid="pages-new-ink"><PenLine className="h-4 w-4" />Handwrite</button>
+        <button type="button" className="an-quick" onClick={() => setSheet("new")} data-testid="pages-templates"><LayoutTemplate className="h-4 w-4" />Templates</button>
       </div>}
       {filter.kind === "trash" && <div className="flex items-center gap-2 text-[13px] text-[var(--an-muted)]"><span className="flex-1">Notes stay here {TRASH_DAYS} days, then they're deleted for good.</span>
         {shown.length > 0 && <Btn kind="danger" onClick={async () => { if (!window.confirm(`Delete ${shown.length} note${shown.length === 1 ? "" : "s"} for good? This can't be undone.`)) return; try { await sync.forever(shown.map((m) => m.id)); say("Deleted for good."); } catch (e: any) { say(e.message); } }}>Empty</Btn>}</div>}
     </div>
-    <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-28">
+    <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-44">
       {state === "loading" && !metas.length ? <Spinner /> : shown.length === 0 ? <Empty filter={filter} q={q} onNew={() => create(PAGE_TEMPLATES[0])} />
-        : <ul className={grid ? "grid grid-cols-2 gap-3 sm:grid-cols-3" : "space-y-1.5"} data-testid="pages-list">
-          {shown.map((m) => <PageCard key={m.id} m={m} grid={grid} on={openId === m.id} folder={folders.find((f) => f.id === m.folderId)} trash={filter.kind === "trash"}
-            onOpen={() => open(m.id)} onRestore={() => { sync.restore(m.id); say("Restored."); }} onForever={async () => { if (!window.confirm("Delete this note for good?")) return; await sync.forever([m.id]).catch((e) => say(e.message)); }} />)}
-        </ul>}
+        : <div data-testid="pages-list">{sections.map((sec) => <section key={sec.label || "all"}>
+          {sec.label && <h3 className="an-group-label">{sec.label}<span>{sec.items.length}</span></h3>}
+          <ul className={grid ? "an-masonry" : "an-rows"} style={sec.label ? undefined : { marginTop: ".5rem" }}>{sec.items.map((m, i) => card(m, i))}</ul>
+        </section>)}</div>}
     </div>
+    {filter.kind !== "trash" && <button type="button" className="an-fab" style={wide ? { position: "absolute", right: "1rem", bottom: "1.25rem" } : undefined} onClick={() => create(PAGE_TEMPLATES[0])} data-testid="pages-new" aria-label="New note"><Plus className="h-6 w-6" strokeWidth={2.4} />New note</button>}
   </div>;
 
   const editor = openId ? <PageScreen key={openId} ctx={ctx} id={openId} onBack={() => ctx.go({ name: "pages" })} /> : null;
@@ -138,7 +146,7 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
       {wide ? <>
         <aside className="hidden w-[240px] shrink-0 overflow-y-auto border-r border-[var(--an-line)] px-2 py-4 lg:block">{nav}</aside>
         <section className="w-[360px] shrink-0 border-r border-[var(--an-line)]">{list}</section>
-        <main className="min-w-0 flex-1">{editor ?? <div className="grid h-full place-items-center text-center text-[15px] text-[var(--an-muted)]"><div><div className="text-[44px]">🗒️</div>Choose a note, or make a new one.</div></div>}</main>
+        <main className="min-w-0 flex-1">{editor ?? <div className="grid h-full place-items-center text-center text-[15px] text-[var(--an-muted)]"><div><div className="an-empty-stack"><i /><i /><i>✍️</i></div><p className="an-display text-[24px] text-[var(--an-ink)]">Choose a note</p><p className="mt-1">or start a new one.</p></div></div>}</main>
       </> : <main className="min-w-0 flex-1">{editor ?? list}</main>}
     </div>
     {sheet === "new" && <Sheet title="New note" onClose={() => setSheet("")} wide>
@@ -157,11 +165,11 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
   </div>;
 }
 
-function NavRow({ on, icon, dot, label, count, onClick, onEdit }: { on: boolean; icon: string; dot?: string; label: string; count: number; onClick: () => void; onEdit?: () => void }) {
-  return <div className={`group flex items-center rounded-xl ${on ? "bg-[var(--an-violet-soft)]" : "hover:bg-black/[.03]"}`}>
-    <button type="button" onClick={onClick} aria-pressed={on} className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2 text-left text-[15px] font-semibold">
-      <span aria-hidden className="text-[16px]">{icon}</span>{dot && <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dot }} />}
-      <span className="min-w-0 flex-1 truncate">{label}</span><span className="text-[13px] font-normal text-[var(--an-faint)]">{count}</span>
+function NavRow({ on, icon, tint, soft, label, count, onClick, onEdit }: { on: boolean; icon: React.ReactNode; tint: string; soft?: boolean; label: string; count: number; onClick: () => void; onEdit?: () => void }) {
+  return <div className={`group flex items-center rounded-2xl transition ${on ? "bg-[var(--an-violet-soft)]" : "hover:bg-black/[.03]"}`}>
+    <button type="button" onClick={onClick} aria-pressed={on} className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2 text-left text-[16px] font-semibold">
+      <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-xl" style={{ background: tint, color: soft ? "var(--an-ink)" : "#fff", boxShadow: soft ? undefined : "inset 0 1px 0 rgba(255,255,255,.3)" }}>{icon}</span>
+      <span className="min-w-0 flex-1 truncate">{label}</span><span className="text-[14px] font-medium tabular-nums text-[var(--an-faint)]">{count}</span>
     </button>
     {onEdit && <button type="button" className="mr-1 rounded-lg px-2 py-1 text-[12px] font-semibold text-[var(--an-muted)] opacity-0 group-hover:opacity-100 focus:opacity-100" onClick={onEdit} aria-label={`Edit ${label}`}>Edit</button>}
   </div>;
@@ -170,44 +178,52 @@ function NavRow({ on, icon, dot, label, count, onClick, onEdit }: { on: boolean;
 function FilterMenu({ name, children }: { name: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return <>
-    <button type="button" className="flex min-w-0 items-center gap-1 text-[22px] font-extrabold tracking-[-.02em]" onClick={() => setOpen(true)} aria-haspopup="dialog" data-testid="pages-filter">
-      <span className="truncate">{name}</span><ChevronDown className="h-5 w-5 shrink-0 text-[var(--an-muted)]" /></button>
+    <button type="button" className="an-display flex min-w-0 max-w-full items-center gap-1.5 text-[34px]" onClick={() => setOpen(true)} aria-haspopup="dialog" data-testid="pages-filter">
+      <span className="truncate">{name}</span><ChevronDown className="mt-1 h-6 w-6 shrink-0 text-[var(--an-violet)]" /></button>
     {open && <Sheet title="Folders" onClose={() => setOpen(false)}><div onClick={(e) => { if ((e.target as HTMLElement).closest("button[aria-pressed]")) setOpen(false); }}>{children}</div></Sheet>}
   </>;
 }
 
-function PageCard({ m, grid, on, folder, trash, onOpen, onRestore, onForever }: { m: PageMeta; grid: boolean; on: boolean; folder?: Folder; trash: boolean; onOpen: () => void; onRestore: () => void; onForever: () => void }) {
+/** The colour a note wears: its own, or by kind. */
+const tileOf = (m: PageMeta) => m.color || (m.kind === "ink" ? "#ef4e5b" : "#6a55dc");
+
+function PageCard({ m, i, grid, on, folder, trash, onOpen, onRestore, onForever }: { m: PageMeta; i: number; grid: boolean; on: boolean; folder?: Folder; trash: boolean; onOpen: () => void; onRestore: () => void; onForever: () => void }) {
   const look = cleanLook(m.content?.look ?? DEFAULT_LOOK);
   const paper = PAPER_THEMES[look.theme];
   const title = pageTitle(m as any);
-  const meta = <span className="flex items-center gap-1.5 text-[12px] text-[var(--an-muted)]">{m.pinned && <Pin className="h-3 w-3 text-[var(--an-violet)]" aria-label="Pinned" />}{m.locked && <Lock className="h-3 w-3" aria-label="Locked" />}{m.kind === "ink" && <PenLine className="h-3 w-3" aria-label="Handwritten" />}{shortDate(m.updatedAt)}{folder && <span className="truncate">· {folder.icon} {folder.name}</span>}</span>;
+  const meta = <span className="flex items-center gap-1.5 text-[12px] text-[var(--an-muted)]">{m.pinned && <Pin className="h-3 w-3 text-[#f08a00]" aria-label="Pinned" />}{m.locked && <Lock className="h-3 w-3" aria-label="Locked" />}{shortDate(m.updatedAt)}{folder && <span className="truncate">· {folder.icon} {folder.name}</span>}</span>;
   const preview = m.locked ? "Locked" : m.preview || (m.kind === "ink" ? "Handwritten note" : "No text yet");
-  if (trash) return <li className="an-card flex items-center gap-3 p-3">
+  const delay = { animationDelay: `${Math.min(i, 8) * 40}ms` };
+  if (trash) return <li className="an-lift flex items-center gap-3 p-3" style={delay}>
     <span className="min-w-0 flex-1"><span className="block truncate text-[15px] font-bold">{title}</span>{meta}</span>
     <IconBtn label="Restore" onClick={onRestore}><RotateCcw className="h-5 w-5" /></IconBtn><IconBtn label="Delete for good" onClick={onForever}><Trash2 className="h-5 w-5 text-[#c2283a]" /></IconBtn>
   </li>;
-  if (grid) return <li><button type="button" onClick={onOpen} data-testid="pages-card" className={`flex h-44 w-full flex-col overflow-hidden rounded-2xl border text-left shadow-[0_8px_24px_-20px_rgba(30,20,90,.6)] transition hover:-translate-y-0.5 ${on ? "ring-2 ring-[var(--an-violet)]" : ""}`} style={{ borderColor: m.color || "var(--an-line)" }}>
-    <span className="relative block flex-1 overflow-hidden px-3 pt-3 text-[12px] leading-snug" style={{ background: paper.bg, color: paper.ink }}>
-      {m.color && <span className="absolute left-0 top-0 h-1 w-full" style={{ background: m.color }} />}
-      <span className="line-clamp-6 opacity-80">{m.locked ? <span className="flex h-full items-center justify-center pt-8"><Lock className="h-7 w-7 opacity-50" /></span> : preview}</span>
+  // Cards grow with what's in them, like paper: a long note is taller than a one-liner.
+  const lines = m.locked ? 3 : Math.max(2, Math.min(9, Math.ceil(preview.length / 26)));
+  if (grid) return <li className="an-lift" style={delay}><button type="button" onClick={onOpen} data-testid="pages-card" className="an-paper" data-on={on}>
+    <span className="relative block px-3.5 pb-3 pt-4 text-[12.5px] leading-[1.45]" style={{ background: paper.bg, color: paper.ink, minHeight: `${3.2 + lines * 1.1}rem` }}>
+      <span className="absolute left-3.5 top-0 h-1.5 w-8 rounded-b-full" style={{ background: tileOf(m) }} />
+      {m.locked ? <span className="flex items-center justify-center py-5"><Lock className="h-7 w-7 opacity-40" /></span>
+        : m.kind === "ink" ? <span className="flex items-center gap-2 opacity-70"><PenLine className="h-4 w-4" />{preview}</span>
+        : <span className="line-clamp-[9] opacity-80" style={{ WebkitLineClamp: lines }}>{preview}</span>}
     </span>
-    <span className="block border-t border-[var(--an-line)] bg-white px-3 py-2"><span className="block truncate text-[14px] font-bold">{title}</span>{meta}</span>
+    <span className="block border-t border-black/5 bg-white px-3.5 py-2.5"><span className="an-display block truncate text-[16px] !leading-tight">{title}</span>{meta}</span>
   </button></li>;
-  return <li><button type="button" onClick={onOpen} data-testid="pages-card" className={`flex w-full gap-3 rounded-2xl px-3 py-3 text-left transition ${on ? "bg-[var(--an-violet-soft)]" : "hover:bg-black/[.03]"}`}>
-    <span className="mt-1 h-9 w-1.5 shrink-0 rounded-full" style={{ background: m.color || "transparent" }} />
-    <span className="min-w-0 flex-1"><span className="block truncate text-[15px] font-bold">{title}</span><span className="block truncate text-[14px] text-[var(--an-muted)]">{preview}</span>{meta}</span>
+  return <li className="an-lift" style={delay}><button type="button" onClick={onOpen} data-testid="pages-card" className="an-row" data-on={on}>
+    <span className="an-tile" style={{ background: `linear-gradient(135deg, ${tileOf(m)}, ${tileOf(m)}cc)` }} aria-hidden>{m.locked ? <Lock className="h-[18px] w-[18px]" /> : m.kind === "ink" ? <PenLine className="h-[18px] w-[18px]" /> : <FileText className="h-[18px] w-[18px]" />}</span>
+    <span className="min-w-0 flex-1"><span className="block truncate text-[16px] font-bold tracking-[-.01em]">{title}</span><span className="block truncate text-[14px] text-[var(--an-muted)]">{preview}</span>{meta}</span>
   </button></li>;
 }
 
 function Empty({ filter, q, onNew }: { filter: Filter; q: string; onNew: () => void }) {
-  if (q) return <p className="px-3 py-10 text-center text-[15px] text-[var(--an-muted)]">Nothing matched “{q}”.</p>;
-  if (filter.kind === "trash") return <p className="px-3 py-10 text-center text-[15px] text-[var(--an-muted)]">Nothing in Recently Deleted.</p>;
-  if (filter.kind === "locked") return <p className="px-3 py-10 text-center text-[15px] text-[var(--an-muted)]">No locked notes. Open a note, tap ⋯, then Lock note.</p>;
-  return <div className="px-6 py-12 text-center">
-    <div aria-hidden className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-3xl bg-[var(--an-violet-soft)] text-[30px]">🗒️</div>
-    <h3 className="text-[18px] font-bold">{filter.kind === "all" ? "Your notes live here" : "Nothing here yet"}</h3>
-    <p className="mx-auto mt-1.5 max-w-xs text-[15px] leading-relaxed text-[var(--an-muted)]">Type, handwrite with your Apple Pencil, add pictures, checklists and tables. Everything syncs to your other devices.</p>
-    <Btn kind="primary" className="mt-5" onClick={onNew}><Plus className="h-4 w-4" />New note</Btn>
+  if (q) return <p className="px-3 py-16 text-center text-[15px] text-[var(--an-muted)]">Nothing matched “{q}”.</p>;
+  if (filter.kind === "trash") return <p className="px-3 py-16 text-center text-[15px] text-[var(--an-muted)]">Nothing in Recently Deleted.</p>;
+  if (filter.kind === "locked") return <p className="px-3 py-16 text-center text-[15px] text-[var(--an-muted)]">No locked notes. Open a note, tap ⋯, then Lock note.</p>;
+  return <div className="px-6 py-14 text-center an-lift">
+    <div aria-hidden className="an-empty-stack"><i /><i /><i>✍️</i></div>
+    <h3 className="an-display text-[26px]">{filter.kind === "all" ? "A fresh page" : "Nothing here yet"}</h3>
+    <p className="mx-auto mt-2 max-w-xs text-[15px] leading-relaxed text-[var(--an-muted)]">Type, handwrite with your Apple Pencil, add pictures, checklists and tables. Everything syncs to your other devices.</p>
+    <Btn kind="primary" className="mt-6 !min-h-12 !px-6" onClick={onNew}><Plus className="h-4 w-4" />Start writing</Btn>
   </div>;
 }
 
