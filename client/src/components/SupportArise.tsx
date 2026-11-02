@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { ExternalLink, Heart, Lock, X } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { appHref } from "@/lib/hubs";
+import { isNativeApp } from "@/lib/nativeApp";
 import type { DonateInfo } from "@shared/donate";
 
 let cached: Promise<DonateInfo | null> | null = null;
@@ -69,7 +70,8 @@ export function SupportButton({ isAdmin = false, className = "" }: { isAdmin?: b
   const info = useDonateInfo();
   const [open, setOpen] = useState(false);
   // Until a link is saved, only the admin sees it (with a reminder of where to add one).
-  if (!info && !isAdmin) return null;
+  // Donations to the developer can't be collected through an outside link in the iPhone app (App Review 3.1.1).
+  if ((!info && !isAdmin) || isNativeApp()) return null;
   return <>
     <button type="button" onClick={() => setOpen(true)} aria-label="Support A.R.I.S.E." title={info ? "Support A.R.I.S.E." : "Add your donation link in Admin → Donation goal"}
       className={`inline-flex h-11 min-w-11 items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 text-sm font-bold text-rose-700 transition hover:bg-rose-100 ${className}`} data-testid="support-button">
@@ -85,7 +87,7 @@ export function SupportButton({ isAdmin = false, className = "" }: { isAdmin?: b
 export function SupportBanner({ dark = false }: { dark?: boolean }) {
   const info = useDonateInfo();
   const [open, setOpen] = useState(false);
-  if (!info) return null;
+  if (!info || isNativeApp()) return null;
   return <>
     <div className={`flex items-center rounded-2xl border sm:flex-wrap ${dark ? "gap-2.5 border-rose-400/30 bg-[#24121c] px-3 py-2" : "gap-3 border-rose-200/80 bg-gradient-to-r from-rose-50 to-violet-50 px-3 py-2.5 sm:px-4 sm:py-3"}`} data-testid="support-banner">
       <span className={`hidden shrink-0 items-center justify-center rounded-xl bg-rose-600 text-white sm:inline-flex ${dark ? "h-7 w-7" : "h-9 w-9"}`}><Heart size={dark ? 14 : 17} className="fill-current" /></span>
@@ -103,7 +105,7 @@ export function SupportBanner({ dark = false }: { dark?: boolean }) {
 export function SupportMenuItem({ isAdmin = false, className, children, testId = "support-menu-item" }: { isAdmin?: boolean; className: string; children: ReactNode; testId?: string }) {
   const info = useDonateInfo();
   const [open, setOpen] = useState(false);
-  if (!info && !isAdmin) return null;
+  if ((!info && !isAdmin) || isNativeApp()) return null;
   return <>
     <button type="button" onClick={() => setOpen(true)} className={className} title="Support A.R.I.S.E." data-testid={testId}>{children}</button>
     {open && createPortal(<SupportSheet info={info} onClose={() => setOpen(false)} />, document.body)}

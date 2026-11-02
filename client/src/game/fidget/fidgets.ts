@@ -7,7 +7,7 @@ import { gradientSky } from "@/game/stage/stage";
 import type { StageAudio } from "@/game/stage/audio";
 import { makeWater, heightAt, MAX_RIPPLES, type Ripple } from "@/game/splash/water";
 import { mesh, roundedBox, starShape, std } from "@/game/runner/models";
-import { canvasTex, EMOJI_FONT } from "@/game/runner/textures";
+import { bigEmoji, canvasTex } from "@/game/runner/textures";
 
 export type FidgetId = "popit" | "bubbles" | "spinner" | "slime" | "ripple" | "stars" | "clicker" | "orbs" | "kaleido" | "switches" | "tiles" | "reveal";
 export const FIDGETS: { id: FidgetId; name: string; emoji: string; hint: string; how: string }[] = [
@@ -390,7 +390,7 @@ function reveal(ctx: FidgetCtx): Fidget {
   const coverMat = new THREE.MeshStandardMaterial({ map: coverTex, roughness: 0.5 });
   type T = { m: THREE.Mesh; off: boolean; t: number; vx: number; vr: number };
   let ts: T[] = []; let item = SURPRISES[Math.floor(Math.random() * SURPRISES.length)]; let doneT = -1;
-  const paint = () => { picMat.map?.dispose(); picMat.map = canvasTex(640, 512, c => { const g = c.createRadialGradient(320, 256, 20, 320, 256, 400); g.addColorStop(0, "#ffffff"); g.addColorStop(1, `hsl(${Math.random() * 360},80%,82%)`); c.fillStyle = g; c.fillRect(0, 0, 640, 512); c.font = `340px ${EMOJI_FONT}`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(item[1], 320, 280); }); picMat.needsUpdate = true; };
+  const paint = () => { picMat.map?.dispose(); picMat.map = canvasTex(640, 512, c => { const g = c.createRadialGradient(320, 256, 20, 320, 256, 400); g.addColorStop(0, "#ffffff"); g.addColorStop(1, `hsl(${Math.random() * 360},80%,82%)`); c.fillStyle = g; c.fillRect(0, 0, 640, 512); bigEmoji(c, item[1], 320, 280, 340); }); picMat.needsUpdate = true; };
   const build = () => {
     for (const t of ts) { stage.unpick(t.m); root.remove(t.m); } ts = []; doneT = -1;
     item = SURPRISES.filter(s => s !== item)[Math.floor(Math.random() * (SURPRISES.length - 1))]; paint();

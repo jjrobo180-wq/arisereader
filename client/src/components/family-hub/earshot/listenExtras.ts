@@ -38,6 +38,29 @@ export function countHoursBack(kind: SavedKind, secs: number) {
 }
 if (typeof window !== "undefined") window.addEventListener("pagehide", () => { if (flushT) { clearTimeout(flushT); flush(); } });
 
+// Time Pod+ Membership would have given back: the ads someone without it sat through (ads Pod+ had
+// found, which a member's player skips by itself). Same weekly shape as Hours back, its own tally.
+const MISSED_KEY = "earshot.couldSave";
+export function readCouldSave(): HoursBack {
+  try { const raw = localStorage.getItem(MISSED_KEY); return raw ? cleanHoursBack(JSON.parse(raw)) : emptyHoursBack(); } catch { return emptyHoursBack(); }
+}
+let missedPending = 0;
+let missedT: ReturnType<typeof setTimeout> | null = null;
+function flushMissed() {
+  missedT = null;
+  const h = addHoursBack(readCouldSave(), "ads", missedPending);
+  missedPending = 0;
+  try { localStorage.setItem(MISSED_KEY, JSON.stringify(h)); } catch { /* not kept */ }
+  try { window.dispatchEvent(new Event("earshot-hours")); } catch { /* no window */ }
+}
+/** Seconds of a found ad that played because ads aren't skipped for this listener. */
+export function countCouldSave(secs: number) {
+  if (!Number.isFinite(secs) || secs <= 0) return;
+  missedPending += secs;
+  if (!missedT) missedT = setTimeout(flushMissed, 4000);
+}
+if (typeof window !== "undefined") window.addEventListener("pagehide", () => { if (missedT) { clearTimeout(missedT); flushMissed(); } });
+
 // ---------------------------------------------------------------------------
 // Voice boost: a gentle compressor (quiet parts up, loud parts down) and a lift where voices are
 // clearest, with a little low rumble taken out. Only audio that comes through our own server can be

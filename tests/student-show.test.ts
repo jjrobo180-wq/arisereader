@@ -53,7 +53,7 @@ test("every scene shows its own beats and the player is wired in", () => {
     assert.ok(player.includes(names[s.id]), `${s.id} is used by the player`);
   }
   for (const key of ["ArrowRight", "PageDown", "ArrowLeft", "PageUp", '" "', "Home", "End", "Escape"]) assert.ok(player.includes(key), `key ${key}`);
-  assert.ok(player.includes("speechSynthesis") && player.includes("requestFullscreen"));
+  assert.ok(player.includes("sayAI") && !player.includes("SpeechSynthesisUtterance") && player.includes("requestFullscreen"));
   assert.ok(player.includes("show-start-auto") && player.includes("show-start-clicker") && player.includes("show-caption"));
 });
 

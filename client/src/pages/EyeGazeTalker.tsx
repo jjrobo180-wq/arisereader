@@ -387,15 +387,6 @@ export default function EyeGazeTalker() {
     };
   }, [dwell, dwellMs]);
 
-  const deviceVoice = (text: string, onEnd?: () => void) => {
-    if (!("speechSynthesis" in window)) { setNotice("Speech is unavailable on this device."); return; }
-    window.speechSynthesis.cancel();
-    const speech = new SpeechSynthesisUtterance(text);
-    speech.lang = "en-US";
-    speech.rate = 0.85;
-    speech.onend = () => onEnd?.();
-    window.speechSynthesis.speak(speech);
-  };
 
   const playAnimal = (word: string) => {
     if (!animalSounds[word]) return;
@@ -409,12 +400,10 @@ export default function EyeGazeTalker() {
   const say = (text: string, onEnd?: () => void) => {
     setNotice("");
     animalAudio.current?.pause();
-    window.speechSynthesis?.cancel();
-    if (voiceStatus === "device") { deviceVoice(text, onEnd); return; }
     let fallbackStarted = false;
     void speakCharacterAI(text, { calmMode: true,
       onEnd: () => { if (!fallbackStarted) onEnd?.(); },
-      onFallback: () => { fallbackStarted = true; setVoiceStatus("device"); setNotice("Using the device voice for now."); deviceVoice(text, onEnd); },
+      onFallback: () => { fallbackStarted = true; setNotice("The AI voice isn't reachable right now. Try again in a moment."); onEnd?.(); },
     });
   };
 

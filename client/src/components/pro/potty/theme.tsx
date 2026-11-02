@@ -87,10 +87,10 @@ export function Confetti({ n = 70 }: { n?: number }) {
 /** Speaks to the child: the site's natural voice when available, the device's voice otherwise. */
 export function say(text: string, on: boolean) {
   if (!on || !text.trim()) return;
-  const fallback = () => { try { if (!("speechSynthesis" in window)) return; window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate = 0.92; u.pitch = 1.1; window.speechSynthesis.speak(u); } catch { /* no voice */ } };
-  try { void speakCharacterAI(text, { calmMode: true, onFallback: fallback }).catch(fallback); } catch { fallback(); }
+  // AI voices only (lib/tts.ts falls back to the general AI voice by itself).
+  try { void speakCharacterAI(text, { calmMode: true }).catch(() => {}); } catch { /* no voice */ }
 }
-export function hush() { try { stopSpeaking(); window.speechSynthesis?.cancel(); } catch { /* none */ } }
+export function hush() { try { stopSpeaking(); } catch { /* none */ } }
 export function notify(title: string, body: string) {
   try { if ("Notification" in window && Notification.permission === "granted" && document.hidden) new Notification(title, { body }); } catch { /* none */ }
 }

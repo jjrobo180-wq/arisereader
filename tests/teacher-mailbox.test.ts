@@ -89,7 +89,7 @@ test("connecting Google keeps only an encrypted refresh token, and reads whose m
   const row = store.rows.get(7)!;
   assert.equal(row.email, "maria@school.org");
   assert.equal(row.display_name, "Maria Rivera");
-  assert.ok(row.refresh_token.startsWith("v1.") && !row.refresh_token.includes("RT"));
+  assert.ok(row.refresh_token.startsWith("v1.") && row.refresh_token !== "RT"); // (random ciphertext can contain "RT" by chance)
   assert.equal(decryptSecret(row.refresh_token, key), "RT");
   const body = new URLSearchParams(net.calls[0].init.body);
   assert.equal(body.get("code"), "the-code");

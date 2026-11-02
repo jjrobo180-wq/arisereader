@@ -307,7 +307,7 @@ function Running({ family, setFamily, today, say, go, openStore, plan, onRebuild
               </>}
             {it.opens && (opensOn
               ? <button type="button" onClick={() => go(it.opens!)} className={soft + " min-h-9 text-xs"}><ExternalLink size={13} /> Open {SECTION_INFO[it.opens]?.label ?? PLAN_OPENS[it.opens]}</button>
-              : <button type="button" onClick={openStore} className="min-h-9 rounded-xl px-2 text-xs font-semibold text-violet-700 hover:underline">Get {SECTION_INFO[it.opens]?.label ?? PLAN_OPENS[it.opens]} in the App Store</button>)}
+              : <button type="button" onClick={openStore} className="min-h-9 rounded-xl px-2 text-xs font-semibold text-violet-700 hover:underline">Get {SECTION_INFO[it.opens]?.label ?? PLAN_OPENS[it.opens]} in the App Gallery</button>)}
           </div>
         </li>;
       })}</ul> : <Empty icon={<Sparkles />} title="Nothing on today">Enjoy the rest. Your next reminders are on the Schedule tab.</Empty>}

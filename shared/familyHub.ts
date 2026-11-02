@@ -16,10 +16,10 @@ import { cleanSleepApp, emptySleepApp, type SleepApp } from "./sleepApp";
 import { cleanSleepFinder, emptySleepFinder, type SleepFinder } from "./sleepFinder";
 import { cleanEarshot, emptyEarshot, type Earshot } from "./earshot";
 
-export const FAMILY_SECTIONS = ["home", "tasks", "start", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", ...KIT_LIFE_IDS, "linked", "notifications", "reader", "family"] as const;
+export const FAMILY_SECTIONS = ["home", "tasks", "start", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", "accountability", ...KIT_LIFE_IDS, "linked", "notifications", "reader", "family"] as const;
 export type FamilySection = typeof FAMILY_SECTIONS[number];
 /** Sections that can be switched off. Home, Tasks, Notifications and Family members always show. */
-export const TOGGLEABLE: readonly FamilySection[] = ["start", "goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", ...KIT_LIFE_IDS];
+export const TOGGLEABLE: readonly FamilySection[] = ["start", "goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", "accountability", ...KIT_LIFE_IDS];
 /** Sections added from the Plugin Store: off until the family adds them (the others start on).
  *  LifeHub comes with Tasks, Notes, Calendar, Home, Notifications and Settings; everything else,
  *  Goals, Chores and the rest included, is added from the App Store and counts towards the free
@@ -27,7 +27,7 @@ export const TOGGLEABLE: readonly FamilySection[] = ["start", "goals", "chores",
  *  everything in it back. */
 export const ADD_ON_SECTIONS: readonly FamilySection[] = [
   "goals", "chores", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "news",
-  "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", ...KIT_LIFE_IDS];
+  "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", "accountability", ...KIT_LIFE_IDS];
 
 /** LifeHub screens that were standard before Oct 12, 2026, and how to tell one is in use. */
 const some = (v: unknown) => Array.isArray(v) && v.length > 0;
@@ -62,7 +62,9 @@ export type ChoreDone = { id: string; choreId: string; date: string; memberId: s
 export type BehaviorEntry = { id: string; memberId: string; date: string; points: number; note: string };
 export type Reward = { id: string; title: string; cost: number };
 export type Redemption = { id: string; memberId: string; title: string; cost: number; date: string };
-export type FamilyCalendar = { id: string; name: string; color: string; show: boolean };
+export type FamilyCalendar = { id: string; name: string; color: string; show: boolean;
+  /** A calendar linked by its .ics link (a school or work calendar): its events are replaced each time it's read. */
+  url?: string; syncedAt?: string };
 export type EventRepeat = "none" | "weekly" | "monthly" | "yearly";
 export type FamilyEvent = {
   id: string; title: string; date: string; time: string; endTime: string; calendarId: string;
@@ -321,7 +323,7 @@ export const DEFAULT_BUDGET: BudgetCategory[] = [
 ];
 
 export const emptyFamily = (): Family => ({
-  members: [], sections: {}, sectionOrder: [...TOGGLEABLE], layers: { tasks: true, bills: true, trips: true, chores: false, hub: false }, chorePointsCount: true,
+  members: [], sections: { health: true }, sectionOrder: [...TOGGLEABLE], layers: { tasks: true, bills: true, trips: true, chores: false, hub: false }, chorePointsCount: true,
   chores: [], choreDone: [], behavior: [], rewards: DEFAULT_REWARDS.map((r) => ({ ...r })), redemptions: [],
   calendars: DEFAULT_CALENDARS.map((c) => ({ ...c })), events: [], trips: [], polls: [],
   bills: [], budget: DEFAULT_BUDGET.map((b) => ({ ...b })), expenses: [], income: 0, notes: [], health: emptyHealth(), cycleLogs: [], pills: [], pillDoses: [], moods: [], goals: [], news: { topics: ["top", "local", "NATION"], place: "" },
@@ -390,6 +392,8 @@ export function cleanFamily(input: unknown): Family {
   for (const [key, has] of Object.entries(WAS_STANDARD) as [FamilySection, (r: any) => boolean][]) {
     if (sections[key] === undefined && has(raw)) sections[key] = true;
   }
+  // The Calorie counter comes added for everyone (Oct 30, 2026). Removing it is saved as false, so that sticks.
+  if (sections.health === undefined) sections.health = true;
   const rawLayers = obj(raw.layers) || {};
   const layers: Layers = {
     tasks: bool(rawLayers.tasks, true), bills: bool(rawLayers.bills, true), trips: bool(rawLayers.trips, true), chores: bool(rawLayers.chores, false), hub: bool(rawLayers.hub, false),
@@ -398,7 +402,9 @@ export function cleanFamily(input: unknown): Family {
   const calendars = Array.isArray(raw.calendars)
     ? rows(raw.calendars, LIMITS.calendars, (r) => {
       const name = str(r.name, 40).trim();
-      return name ? { id: id(r.id), name, color: color(r.color, "#7566e8"), show: bool(r.show, true) } : null;
+      const url = typeof r.url === "string" && /^(https?|webcal):\/\//i.test(r.url) && r.url.length <= 2000 ? r.url : "";
+      const syncedAt = url && typeof r.syncedAt === "string" && !Number.isNaN(Date.parse(r.syncedAt)) ? r.syncedAt.slice(0, 40) : "";
+      return name ? { id: id(r.id), name, color: color(r.color, "#7566e8"), show: bool(r.show, true), ...(url ? { url, ...(syncedAt ? { syncedAt } : {}) } : {}) } : null;
     })
     : base.calendars;
   const budget = Array.isArray(raw.budget)

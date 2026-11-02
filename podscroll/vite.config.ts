@@ -10,13 +10,14 @@ import { resolve } from "node:path";
 const repo = process.cwd();
 export default defineConfig({
   root: resolve(repo, "podscroll"),
-  base: "/",
+  // A native Capacitor WebView loads bundled files from capacitor://localhost.
+  base: process.env.PODPLUS_IOS === "1" ? "./" : "/",
   plugins: [react()],
   resolve: { alias: { "@shared": resolve(repo, "shared") } },
   css: {
     postcss: {
       plugins: [
-        tailwindcss({ content: [resolve(repo, "podscroll/**/*.{html,tsx,ts}"), resolve(repo, "client/src/components/family-hub/earshot/*.tsx")], theme: { extend: {} }, plugins: [] }),
+        tailwindcss({ content: [resolve(repo, "podscroll/**/*.{html,tsx,ts}"), resolve(repo, "client/src/components/family-hub/earshot/**/*.tsx")], theme: { extend: {} }, plugins: [] }),
         autoprefixer(),
       ],
     },

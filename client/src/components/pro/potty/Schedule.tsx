@@ -56,7 +56,7 @@ export default function Schedule() {
     <div className="space-y-6">
       <Section title="Use it today">
         <Panel>
-          {running ? <Note tone="tip">Today's schedule is ringing reminders. Keep this page open (on a phone, keep the screen on).</Note> : <p className="text-sm" style={{ color: C.inkSoft }}>Ring a reminder at every sit and potty break today. Works while this page is open.</p>}
+          {running ? <Note tone="tip">Today's schedule is ringing reminders. In the iPhone app they also ring with the app closed. On the website, keep this page open.</Note> : <p className="text-sm" style={{ color: C.inkSoft }}>Ring a reminder at every sit and potty break. In the iPhone app they ring with the app closed; on the website, keep this page open.</p>}
           <div className="mt-3 flex flex-wrap gap-2">
             {running ? <Btn2 onClick={() => set((d) => ({ ...d, schedRun: null }))}>Stop reminders</Btn2> : <Btn2 kind="duck" onClick={() => { if (showing === "builder") keep(); set((d) => ({ ...d, schedRun: { kid: kid.id, day: dayOf(Date.now()) } })); }}><Bell size={15} />Ring today's reminders</Btn2>}
             <Btn2 onClick={print}><Printer size={15} />Print for the fridge</Btn2>

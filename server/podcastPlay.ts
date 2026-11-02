@@ -757,7 +757,8 @@ export type PlayRouteDeps = {
   /** Listeners' marks and skips in content time, and everyone's votes (server/podcastAds.ts crowdFor). */
   crowd?: (episodeId: string) => Promise<{ marks: { key: string; s: number; e: number; label: string; support: number; voters: string[] }[]; skips: { key: string; s: number; e: number; support: number }[]; votes: { key: string; voter: string; vote: number }[] }>;
   /** The episode's audio address (from the directory). */
-  audioFor: (showId: string, episodeId: string) => Promise<string | null>;
+  /** `sent`: the audio address the app has for it (used only when the show's own lists don't have it). */
+  audioFor: (showId: string, episodeId: string, sent?: string) => Promise<string | null>;
   voterOf: (req: any) => string;
   clientIp: (req: any) => string;
   cleanId: (v: unknown) => string;
@@ -794,7 +795,7 @@ export function registerPlayRoutes(app: any, auth: any, d: PlayRouteDeps) {
       // keeps going (its copy may differ a little if the host stitched in different ads).
       if (tooMany(voter)) return res.status(429).end();
       let url: string | null = null;
-      try { url = await d.audioFor(showId, episodeId); } catch { url = null; }
+      try { url = await d.audioFor(showId, episodeId, typeof req.query?.u === "string" ? req.query.u.slice(0, 1500) : ""); } catch { url = null; }
       if (!url) return res.status(404).end();
       s = player.open({ sid, voter, episodeId, showId, url, ua: String(req.headers["user-agent"] || "").slice(0, 300), ip: d.clientIp(req) });
     }
@@ -910,4 +911,15 @@ export function startPlayDiagnostics(kv: KVLike, player: Player, dir?: Pick<Dire
   };
   const timer = setInterval(() => { void tick(); }, everyMs); (timer as any).unref?.();
   return { tick, stop: () => clearInterval(timer) };
+}
+
+/** The app's own address for an episode, accepted only when it's https on the same host as one of
+ *  that show's known episodes (so the server never fetches somewhere a link was pointed at). */
+export function sameHostAudio(sent: string | undefined, known: { audio: string }[]): string | null {
+  if (!sent) return null;
+  let u: URL; try { u = new URL(sent); } catch { return null; }
+  if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+  if (/^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|0\.|\[)/i.test(u.hostname)) return null;
+  const hosts = new Set(known.map((e) => { try { return new URL(e.audio).hostname.toLowerCase(); } catch { return ""; } }).filter(Boolean));
+  return hosts.has(u.hostname.toLowerCase()) ? u.toString() : null;
 }

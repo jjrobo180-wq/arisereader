@@ -7,7 +7,7 @@
 // So, on every tap (and key press):
 //  - every game sound engine (AudioContext) that is still waiting gets started;
 //  - on the first one, the one shared voice player (voiceElement) is started with a moment of
-//    silence and the device voice says nothing quietly — after that both may play at any time.
+//    silence — after that it may play at any time.
 // The voice lines (lib/tts.ts) all play through voiceElement for that reason.
 
 const SILENT = "data:audio/wav;base64,UklGRrQBAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YZABAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
@@ -44,18 +44,16 @@ function onGesture() {
     el.src = SILENT;
     void el.play().then(() => { if (el.src === SILENT) el.pause(); }).catch(() => { unlocked = false; });
   }
-  try {
-    if ("speechSynthesis" in window && !window.speechSynthesis.speaking) {
-      const u = new SpeechSynthesisUtterance(" ");
-      u.volume = 0;
-      window.speechSynthesis.speak(u);
-    }
-  } catch { /* no device voice */ }
 }
 
 /** Called once at start-up (main.tsx). */
 export function installMediaUnlock(): void {
   if (typeof window === "undefined") return;
+  // The Arise To Duo iPhone app lets sound play without a tap, so nothing is unlocked there. A
+  // silent clip or a running sound engine takes over the iPhone's audio, and that stopped music
+  // and podcasts from other apps the moment someone opened Arise To Duo. There, a sound engine is
+  // only started when a game actually plays a sound.
+  if (window.location.protocol === "capacitor:") { startEnginesOnlyWhenPlaying(); return; }
   // Every sound engine any game makes is remembered, so a tap can start it.
   const w = window as unknown as Record<string, unknown>;
   for (const name of ["AudioContext", "webkitAudioContext"]) {
@@ -69,4 +67,15 @@ export function installMediaUnlock(): void {
   for (const type of ["pointerup", "touchend", "click", "keydown"]) {
     window.addEventListener(type, onGesture, { capture: true, passive: true });
   }
+}
+
+/** iPhone app: a sound engine (AudioContext) starts the moment something in it plays, not before. */
+function startEnginesOnlyWhenPlaying(): void {
+  const Node = (window as unknown as { AudioScheduledSourceNode?: { prototype: { start: (...a: unknown[]) => void } } }).AudioScheduledSourceNode;
+  if (!Node) return;
+  const start = Node.prototype.start;
+  Node.prototype.start = function (this: AudioNode, ...args: unknown[]) {
+    try { if (this.context.state === "suspended") void (this.context as AudioContext).resume().catch(() => {}); } catch { /* fine */ }
+    return start.apply(this, args);
+  };
 }

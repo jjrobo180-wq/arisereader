@@ -4,12 +4,14 @@
 // the eyes closed. With the AI voice, each sentence comes from the server's calm "sleep" voice
 // (server/routes.ts, /api/eye-gaze/tts), fetched a couple of sentences ahead so there are no
 // gaps, and kept on this phone (Cache Storage) so a story heard once plays again instantly, even
-// offline. If the AI voice can't be reached, the phone's own voice takes over mid-sentence.
+// offline. Signed out, or if the sleep voice can't be reached, the general AI voice says it
+// (lib/aiVoice.ts). It is always an AI voice: the phone's robot voice is never used.
 //
 // Only one HTMLAudioElement is used, and it's started inside the tap that begins the reading:
 // iPhones only let audio play that way, and a single reused element stays allowed afterwards.
 
 import { API_BASE } from "@/lib/queryClient";
+import { preloadAiVoice } from "@/lib/aiVoice";
 import type { ScriptLine } from "@shared/sleepScripts";
 import { toSegments, type Pace, type Segment } from "@shared/sleepSpeech";
 import { sleepSounds } from "./soundEngine";
@@ -26,23 +28,9 @@ export type NarratorOptions = {
 };
 export type NarratorSnapshot = { state: "idle" | "loading" | "playing" | "paused"; title: string; index: number; total: number; line: string; device: boolean };
 
-const DEVICE_RATE: Record<Pace, number> = { slow: 0.9, slower: 0.82, slowest: 0.74 };
 const AI_RATE: Record<Pace, number> = { slow: 1, slower: 0.96, slowest: 0.9 };
 
 // ── Voices ──────────────────────────────────────────────────────────────────
-
-const canSpeak = () => typeof window !== "undefined" && "speechSynthesis" in window && typeof SpeechSynthesisUtterance !== "undefined";
-const goodVoice = (v: SpeechSynthesisVoice) => /natural|enhanced|premium|neural|samantha|daniel|karen|moira|serena|google (us|uk) english|aria|jenny|guy|libby|sonia/i.test(v.name);
-
-/** The phone's English voices, best first. */
-export function deviceVoices(): SpeechSynthesisVoice[] {
-  if (!canSpeak()) return [];
-  return window.speechSynthesis.getVoices().filter((v) => /^en/i.test(v.lang)).sort((a, b) => Number(goodVoice(b)) - Number(goodVoice(a)) || Number(b.localService) - Number(a.localService));
-}
-function pickVoice(uri: string): SpeechSynthesisVoice | undefined {
-  const all = deviceVoices();
-  return all.find((v) => v.voiceURI === uri) ?? all[0];
-}
 
 /** djb2, for naming cached sentences. */
 function hash(s: string) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(16); }
@@ -92,10 +80,9 @@ class Narrator {
     this.segments = toSegments(lines, opts.pace);
     this.index = 0;
     this.paused = false;
-    this.device = opts.voice === "device" || this.aiUnavailable || !opts.token;
-    // Unlock both voices inside the tap, so either can speak later without one.
-    if (canSpeak()) { try { window.speechSynthesis.cancel(); window.speechSynthesis.speak(new SpeechSynthesisUtterance("")); } catch { /* no phone voice */ } }
-    if (!this.device) {
+    this.device = false;
+    // Unlock the player inside the tap, so it can speak later without one.
+    {
       const a = this.element();
       try { this.unlockUrl = this.unlockUrl || silentWav(); a.src = this.unlockUrl; void a.play().catch(() => {}); } catch { /* fine */ }
     }
@@ -108,8 +95,7 @@ class Narrator {
   pause() {
     if (this.snapshot.state === "idle" || this.paused) return;
     this.paused = true;
-    if (this.device) { if (canSpeak()) window.speechSynthesis.cancel(); }
-    else this.audio?.pause();
+    this.audio?.pause();
     this.publish({ ...this.snapshot, state: "paused" });
   }
 
@@ -125,7 +111,6 @@ class Narrator {
     this.run++;
     this.paused = false;
     this.resumeWaiters.splice(0).forEach((fn) => fn());
-    if (canSpeak()) { try { window.speechSynthesis.cancel(); } catch { /* fine */ } }
     if (this.audio) { this.audio.pause(); this.audio.onended = null; this.audio.onerror = null; }
     this.finishCurrent?.("interrupted");
     this.finishCurrent = null;
@@ -165,13 +150,13 @@ class Narrator {
       if (seg.text) {
         this.publish({ ...this.snapshot, state: this.paused ? "paused" : "playing", index: this.index, line: seg.text, device: this.device });
         if (!this.device) for (let k = 1; k <= 2; k++) { const next = this.segments[this.index + k]; if (next?.text) void this.voice(next.text).catch(() => {}); }
-        let result = this.device ? await this.sayDevice(seg.text) : await this.sayAi(seg.text, run);
+        let result = await this.sayAi(seg.text, run);
         if (run !== this.run) return;
-        if (result === "failed" && !this.device) {
-          this.aiUnavailable = true;
-          this.device = true;
-          this.publish({ ...this.snapshot, device: true });
-          result = await this.sayDevice(seg.text);
+        if (result === "failed") {
+          // One more try after a moment (the voice was busy); then on to the next sentence.
+          await this.quiet(1500, run);
+          if (run !== this.run) return;
+          result = await this.sayAi(seg.text, run);
           if (run !== this.run) return;
         }
         if (result === "interrupted" && this.paused) continue; // say this sentence again after resuming
@@ -193,24 +178,6 @@ class Narrator {
       const started = Date.now();
       const tick = () => { if (run !== this.run || Date.now() - started >= ms) resolve(); else setTimeout(tick, Math.min(250, ms)); };
       setTimeout(tick, Math.min(250, ms));
-    });
-  }
-
-  private sayDevice(text: string): Promise<"done" | "interrupted" | "failed"> {
-    if (!canSpeak()) return Promise.resolve("failed");
-    const opts = this.opts!;
-    return new Promise((resolve) => {
-      const u = new SpeechSynthesisUtterance(text);
-      const v = pickVoice(opts.deviceVoice);
-      if (v) u.voice = v;
-      u.rate = DEVICE_RATE[opts.pace];
-      u.pitch = 0.95;
-      let settled = false;
-      const finish = (r: "done" | "interrupted" | "failed") => { if (!settled) { settled = true; this.finishCurrent = null; resolve(r); } };
-      this.finishCurrent = finish;
-      u.onend = () => finish(this.paused ? "interrupted" : "done");
-      u.onerror = (e) => finish(e.error === "interrupted" || e.error === "canceled" ? "interrupted" : "failed");
-      window.speechSynthesis.speak(u);
     });
   }
 
@@ -258,13 +225,15 @@ class Narrator {
           if (hit) return await hit.blob();
         }
       } catch { /* no cache here */ }
-      const r = await fetch(`${API_BASE}/api/eye-gaze/tts`, {
+      let blob: Blob;
+      const r = opts.token ? await fetch(`${API_BASE}/api/eye-gaze/tts`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(opts.token ? { Authorization: `Bearer ${opts.token}` } : {}) },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${opts.token}` },
         body: JSON.stringify({ text, style: "sleep", voice: opts.aiVoice }),
-      });
-      if (!r.ok) throw new VoiceUnavailable(String(r.status));
-      const blob = await r.blob();
+      }).catch(() => null) : null;
+      if (r?.ok) blob = await r.blob();
+      // The general AI voice in a matching calm voice.
+      else blob = await preloadAiVoice(text, opts.aiVoice === "deep" ? "daniel" : "autumn").catch((e) => { throw new VoiceUnavailable(String(e?.message || "")); });
       try { if (typeof caches !== "undefined") await (await caches.open(CACHE_NAME)).put(url, new Response(blob, { headers: { "Content-Type": blob.type || "audio/mpeg" } })); } catch { /* storage full or blocked */ }
       return blob;
     })();

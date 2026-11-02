@@ -56,7 +56,7 @@ export default function DuoSplit() {
       if (e.origin !== window.location.origin) return;
       const r = e.data as Partial<DuoPaneReply> | null;
       if (!r || r.type !== "arise-duo-result" || r.ok) return;
-      setToast(r.action === "ai" ? "The AI assistant isn't added on this side yet. Add it from that hub's App Store." : "There's nothing to add on this side.");
+      setToast(r.action === "ai" ? "The AI assistant isn't added on this side yet. Add it from that hub's App Gallery." : "There's nothing to add on this side.");
     };
     window.addEventListener("message", onReply);
     return () => window.removeEventListener("message", onReply);

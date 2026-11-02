@@ -1,10 +1,11 @@
 // A.R.I.S.E. Beginners' voice and ears on the page.
 // - say(): the premium AI voice from /api/beginners/voice (each clip fetched once per visit), with the browser's own
-//   voice as a fallback. It reports how far along the clip is, so Ari's mouth can follow the words.
+//   general AI voice (lib/aiVoice.ts) as the backup — never the browser's robot voice. It reports how far along the clip is, so Ari's mouth can follow the words.
 // - the microphone: short recordings that stop by themselves after the child speaks (one word), long ones the child
 //   stops (reading a story), and a live loudness level for the voice bar.
 // - little game sounds made with Web Audio (no files).
 import { API_BASE } from "@/lib/queryClient";
+import { preloadAiVoice } from "@/lib/aiVoice";
 
 let token: string | null = null;
 export function setBeginnersToken(t: string | null) { token = t; }
@@ -49,31 +50,22 @@ export function stopVoice() {
   playId++;
   if (current) { current.pause(); current = null; }
   browserOn = false;
-  try { window.speechSynthesis?.cancel(); } catch { /* none */ }
 }
 
-function browserSay(text: string, slow: boolean, id: number): Promise<void> {
-  return new Promise((resolve) => {
-    try {
-      const synth = window.speechSynthesis;
-      if (!synth || id !== playId) return resolve();
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = "en-US";
-      u.rate = slow ? 0.55 : 0.82;
-      const voices = synth.getVoices().filter((v) => v.lang.toLowerCase().startsWith("en"));
-      const nice = voices.find((v) => /natural|google us|samantha|aria|jenny/i.test(v.name)) || voices[0];
-      if (nice) u.voice = nice;
-      // The browser doesn't say how long it will take; a guess keeps the mouth moving about right.
-      browserLength = (text.length * 62 + 300) / (slow ? 0.55 : 0.82);
-      browserStart = performance.now();
-      u.onstart = () => { browserStart = performance.now(); browserOn = true; };
-      let finished = false;
-      const end = () => { if (finished) return; finished = true; browserOn = false; resolve(); };
-      u.onend = end; u.onerror = end;
-      synth.speak(u);
-      // Some browsers never fire onend; don't let a lesson wait forever.
-      setTimeout(end, browserLength + 4000);
-    } catch { resolve(); }
+/** The premium voice couldn't answer: the same words in the general AI voice (lib/aiVoice.ts),
+ *  never the browser's robot voice. Played on its own Audio so progress() keeps Ari's mouth moving. */
+async function backupSay(text: string, slow: boolean, id: number): Promise<void> {
+  let blob: Blob;
+  try { blob = await preloadAiVoice(text, "hannah"); } catch { return; }
+  if (id !== playId) return;
+  const url = URL.createObjectURL(blob);
+  await new Promise<void>((resolve) => {
+    const a = new Audio(url);
+    a.playbackRate = slow ? 0.75 : 0.92;
+    current = a;
+    const done = () => { if (current === a) current = null; URL.revokeObjectURL(url); resolve(); };
+    a.onended = done; a.onerror = done;
+    a.play().catch(done);
   });
 }
 
@@ -85,12 +77,12 @@ export async function say(text: string, opts: { slow?: boolean } = {}): Promise<
   if (!text) return;
   const url = aiWorks ? await fetchClip(text, slow) : null;
   if (id !== playId) return;
-  if (!url) return browserSay(text, slow, id);
+  if (!url) return backupSay(text, slow, id);
   await new Promise<void>((resolve) => {
     const a = new Audio(url);
     current = a;
     a.onended = () => { if (current === a) current = null; resolve(); };
-    a.onerror = () => { aiWorks = false; if (current === a) current = null; void browserSay(text, slow, id).then(resolve); };
+    a.onerror = () => { aiWorks = false; if (current === a) current = null; void backupSay(text, slow, id).then(resolve); };
     a.play().catch(() => { if (current === a) current = null; resolve(); });
   });
 }

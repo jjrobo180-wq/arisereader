@@ -5,6 +5,8 @@ import { Bell, BellOff, Loader2, Share, SquarePlus } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { Card, GhostButton, PrimaryButton } from "./ui";
 import { localZone } from "./HubImport";
+import NativeRemindersPanel from "@/components/NativeRemindersPanel";
+import { isNativeApp } from "@/lib/nativeApp";
 
 type Phase = "checking" | "unsupported" | "install" | "off" | "on" | "blocked" | "unavailable";
 
@@ -28,7 +30,13 @@ async function api(token: string | null, path: string, body?: unknown) {
   return data;
 }
 
-export default function HubNotifications({ token, collapseKey = "home-notifications" }: { token: string | null; /** Leave empty where the card is not allowed to fold shut (inside a pop-up). */ collapseKey?: string }) {
+/** In the iPhone app, reminders are scheduled on the phone (lib/nativeReminders.ts); on the web, Web Push. */
+export default function HubNotifications(props: Parameters<typeof WebHubNotifications>[0]) {
+  if (isNativeApp()) return <Card title="Notifications on this iPhone" collapseKey={props.collapseKey || undefined}><NativeRemindersPanel kind="work" buttonClass="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" ghostClass="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50" /></Card>;
+  return <WebHubNotifications {...props} />;
+}
+
+function WebHubNotifications({ token, collapseKey = "home-notifications" }: { token: string | null; /** Leave empty where the card is not allowed to fold shut (inside a pop-up). */ collapseKey?: string }) {
   const [phase, setPhase] = useState<Phase>("checking");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");

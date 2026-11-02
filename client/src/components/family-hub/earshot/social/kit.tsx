@@ -242,7 +242,7 @@ export function Avatar({ p, size = 40, onClick, ring }: { p: Pick<Profile, "hand
     ? <img src={p.photo} alt="" loading="lazy" className="block h-full w-full rounded-full object-cover" />
     : <span className="grid h-full w-full select-none place-items-center rounded-full font-semibold text-white" style={{ background: `linear-gradient(135deg, hsl(${(h * 0.1 + 208) % 360} 14% 34%), hsl(${(h * 0.1 + 225) % 360} 12% 21%))`, fontSize: Math.round(size * (letters.length > 1 ? 0.38 : 0.44)) }}>{letters}</span>;
   const box = <span className="relative block flex-none overflow-hidden rounded-full" style={{ width: size, height: size, boxShadow: ring }}>{inner}</span>;
-  return onClick ? <button type="button" onClick={onClick} aria-label={`${p.name}'s profile`} className="flex-none rounded-full">{box}</button> : box;
+  return onClick ? <button type="button" onClick={onClick} aria-label={`${p.name}'s profile`} className="h-fit flex-none rounded-full">{box}</button> : box;
 }
 export const Verified = ({ size = 16 }: { size?: number }) => <BadgeCheck size={size} className="flex-none fill-[#1d9bf0] text-white" aria-label="Verified" />;
 export function NameLine({ p, onClick, small }: { p: Profile; onClick?: () => void; small?: boolean }) {

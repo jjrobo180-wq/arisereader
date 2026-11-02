@@ -68,7 +68,7 @@ export default function ReadingRunnerPro({ onBack }: { onBack: () => void }) {
   const say = useCallback((text: string, calm = false) => {
     if (!settingsRef.current.voice) return;
     stopSpeaking();
-    void speakCharacterAI(text, { calmMode: calm, onFallback: () => { if (!("speechSynthesis" in window)) return; window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate = 0.95; u.pitch = 1.1; window.speechSynthesis.speak(u); } });
+    void speakCharacterAI(text, { calmMode: calm });
   }, []);
   const click = () => { audio.ensure(); audio.play("select"); };
   const hover = () => { audio.ensure(); audio.play("hover"); };

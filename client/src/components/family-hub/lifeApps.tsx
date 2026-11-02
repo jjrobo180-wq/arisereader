@@ -5,6 +5,7 @@
 import type { ReactNode } from "react";
 import type { FamilySection } from "@shared/familyHub";
 import type { SectionProps } from "@/components/family-hub/ui";
+import Accountability from "@/components/family-hub/Accountability";
 import Allowance from "@/components/family-hub/Allowance";
 import Behavior from "@/components/family-hub/Behavior";
 import Bible from "@/components/family-hub/Bible";
@@ -131,5 +132,6 @@ export const LIFE_VIEWS: Partial<Record<FamilySection, (props: SectionProps) => 
   clocks: (p) => <WorldClock {...p} />,
   timers: (p) => <KitchenTimers {...p} />,
   medical: (p) => <MedicalInfo {...p} />,
+  accountability: (p) => <Accountability {...p} />,
   family: (p) => <Members {...p} />,
 };

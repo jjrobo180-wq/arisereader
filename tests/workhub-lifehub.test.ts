@@ -125,7 +125,7 @@ test("there's no way back to the old screens: old addresses and admins land in t
   // Signing in lands admins and teachers in WorkHub on Home. No tab is asked for: setting one
   // here opened the Hub on the admin console, which sits inside the A.R.I.S.E. Reader menu item.
   // (One AfterSignIn decides this for every sign-in route since Oct 12.)
-  assert.match(app, /\{user \? <AfterSignIn onReaderDomain=\{onReaderDomain\} onTodoDomain=\{onTodoDomain\} \/> : <SignIn \/>\}/);
+  assert.match(app, /\{user \? <AfterSignIn onReaderDomain=\{onReaderDomain\} onTodoDomain=\{onTodoDomain\} \/> : isNativeApp\(\) \? <NativeSignIn \/> : <SignIn \/>\}/);
   assert.ok(!/path="\/(register|register-independent)?"[\s\S]{0,40}OpenHubTab to="\/workhub"/.test(app), "the sign-in routes ask for no tab");
   assert.match(read("client/src/pages/TeacherHub.tsx"), /sessionStorage\.getItem\("workhub_tab"\)[\s\S]*\}, \[location\]\);/);
   assert.match(read("client/src/pages/AriseTodo.tsx"), /sessionStorage\.getItem\("lifehub_tab"\)[\s\S]*\}, \[location\]\);/);

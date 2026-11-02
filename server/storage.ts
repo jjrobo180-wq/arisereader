@@ -33,6 +33,10 @@ const cache = new Map<string, { data: any; expires: number }>();
 // The same lookup asked for by several requests at once (a page opening fires a dozen requests,
 // each checking the same session) runs once, and they all share its answer.
 const inFlight = new Map<string, Promise<unknown>>();
+/** Drops every kept session of this user, so the next request reads their account fresh. */
+export function forgetUserSessions(userId: number) {
+  for (const [key, entry] of cache) if (key.startsWith("session_") && Number(entry.data?.user?.id) === Number(userId)) cache.delete(key);
+}
 async function cached<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
   const cachedEntry = cache.get(key);
   if (cachedEntry && Date.now() < cachedEntry.expires) {
@@ -459,7 +463,11 @@ export class DatabaseStorage implements IStorage {
    *  a default password (their student number), and also clears the flag. */
   async setPasswordAndClearMustChange(userId: number, newPassword: string) {
     const hashed = await bcrypt.hash(newPassword, 10);
-    await supabase.from("users").update({ password: hashed, must_change_password: false }).eq("id", userId);
+    const { error } = await supabase.from("users").update({ password: hashed, must_change_password: false }).eq("id", userId);
+    if (error) throw new Error("Couldn't save your password. Try again.");
+    // Their signed-in session is kept for two minutes, still saying "must change password": forget
+    // it now, or the app keeps showing "Saving…" until it runs out.
+    forgetUserSessions(userId);
   }
 
   async resetPassword(userId: number, newPassword: string) {

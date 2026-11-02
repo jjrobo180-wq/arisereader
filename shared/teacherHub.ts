@@ -286,7 +286,7 @@ export function emptyWorkspace(): Workspace {
   return {
     version: 1,
     profile: { school: "", gradeBand: "", subject: "" },
-    visibleTabs: Object.fromEntries(HUB_TABS.map((tab) => [tab, !WORK_ADD_ON_TABS.includes(tab)])) as Record<HubTab, boolean>,
+    visibleTabs: Object.fromEntries(HUB_TABS.map((tab) => [tab, !WORK_ADD_ON_TABS.includes(tab) && tab !== "start"])) as Record<HubTab, boolean>,
     tabsV2: true,
     tabsV3: true,
     groupOrder: [],
@@ -346,6 +346,9 @@ export function normalizeWorkspace(raw: any): Workspace {
   };
   for (const key of LISTS) out[key] = Array.isArray(raw[key]) ? raw[key] : [];
   if (raw.goalsStd !== true) out.visibleTabs = { ...out.visibleTabs, goals: true };
+  // Getting started was replaced by the walkthrough that opens the first time the app is used
+  // (components/AppWalkthrough.tsx), so the screen is gone for everyone.
+  out.visibleTabs = { ...out.visibleTabs, start: false };
   out.pins = cleanPins(raw.pins);
   out.iepDrafts = cleanIepDrafts(raw.iepDrafts);
   // Goal quizzes (shared/hubLinks.ts): kept as saved, with anything malformed dropped.

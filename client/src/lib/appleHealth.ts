@@ -15,4 +15,8 @@ export const healthStatus = (token: string | null) => call<{ links: HealthLink[]
 export const makeHealthKey = (token: string | null, memberId: string) => call<{ token: string }>(token, "/link", { method: "POST", body: JSON.stringify({ memberId }) }).then((b) => b.token);
 export const removeHealthLink = (token: string | null, memberId: string) => call(token, `/link?memberId=${encodeURIComponent(memberId)}`, { method: "DELETE" });
 /** The address the iPhone Shortcut posts to. */
-export const syncAddress = () => `${API_BASE || (typeof window !== "undefined" ? window.location.origin : "")}/api/arise-todo/apple-health/sync`;
+export const syncAddress = () => {
+  // In the iPhone app the page's own address is capacitor://localhost, which a Shortcut can't reach.
+  const here = typeof window === "undefined" ? "" : window.location.protocol === "capacitor:" ? "https://arisetodo.com" : window.location.origin;
+  return `${API_BASE || here}/api/arise-todo/apple-health/sync`;
+};

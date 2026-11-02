@@ -5,7 +5,8 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type
 import { BookOpen, CalendarDays, Clock, HeartHandshake, Lightbulb, ListChecks, MessageCircle, PlayCircle, Route, Settings, Star, Sun, Timer, Volume2, VolumeX, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useAppData } from "@/lib/cloudDocs";
-import { LIVE_TAG, clearPottyNotifications, showRunningTimer, syncPottyTimer } from "@/lib/pottyPush";
+import { LIVE_TAG, clearPottyNotifications, showRunningTimer, syncPottySchedule, syncPottyTimer, turnOnPhone } from "@/lib/pottyPush";
+import { isNativeApp } from "@/lib/nativeApp";
 import { Modal, fmtDuration, uid, useTick } from "../kit";
 import { DEFAULT_DATA, tripInterval, METHOD_LIST, NEEDS, STAGES, ageMonths, ageText, blankChild, buildSchedule, cleanData, clockOf, dayOf, earnsSticker, hm, isAccident, isSuccess, minsOf, sitMinutes, stageById, type Child, type Comms, type Entry, type Kind, type NeedId } from "@shared/pro/potty";
 import { Ctx, type LogPrefill, type PottyCtx, type Tab } from "./ctx";
@@ -84,14 +85,29 @@ export default function PottyApp() {
     if (!data.notify || !data.timer || data.timer.endAt <= Date.now()) { void clearPottyNotifications([LIVE_TAG]); return; }
     void showRunningTimer(timerKid?.name || "Your child", clockOf(data.timer.endAt));
   }, [data.notify, timerKey]);
+  // In the iPhone app, starting a timer or the day's reminders turns phone notifications on (asking iOS once), so they ring with the app closed.
+  useEffect(() => {
+    if (!isNativeApp() || data.notify || (!data.timer && !data.schedRun)) return;
+    void turnOnPhone(token).then((p) => { if (p === "on") set((d) => ({ ...d, notify: true })); }).catch(() => {});
+  }, [token, data.notify, !!data.timer, !!data.schedRun]); // eslint-disable-line react-hooks/exhaustive-deps
   // Looking at the app's own alert: the phone's notifications are not needed too.
   useEffect(() => { if (alertOn) void clearPottyNotifications(); }, [alertOn]);
+  // In the iPhone app, today's sit and prompt times are also scheduled on the phone, so they ring with the app closed.
+  const schedKey = data.notify && data.schedRun ? `${data.schedRun.kid}:${data.schedRun.day}:${JSON.stringify(data.schedules[data.schedRun.kid]?.items ?? null)}` : "";
+  useEffect(() => {
+    const run = data.notify ? data.schedRun : null;
+    const k = run ? data.kids.find((x) => x.id === run.kid) : null;
+    if (!run || !k) { void syncPottySchedule("", null, ""); return; }
+    const items = (data.schedules[k.id]?.items?.length ? data.schedules[k.id].items : buildSchedule(k)).filter((i) => i.kind === "sit" || i.kind === "prompt");
+    void syncPottySchedule(k.name, items, dayOf(Date.now())); // from today, whatever day it was started
+  }, [schedKey]); // eslint-disable-line react-hooks/exhaustive-deps
   // Today's schedule as reminders: ring at each sit or prompt time.
   const rung = useRef<Set<string>>(new Set());
   useEffect(() => {
     const run = data.schedRun; if (!run || alertOn) return;
     const k = data.kids.find((x) => x.id === run.kid); if (!k) return;
-    if (run.day !== dayOf(Date.now())) { set((d) => ({ ...d, schedRun: null })); return; }
+    // A new day: with phone notifications on, the reminders carry on every day until stopped; otherwise they stop.
+    if (run.day !== dayOf(Date.now())) { set((d) => ({ ...d, schedRun: d.notify ? { kid: run.kid, day: dayOf(Date.now()) } : null })); return; }
     const items = data.schedules[k.id]?.items?.length ? data.schedules[k.id].items : buildSchedule(k);
     const nowM = minsOf(hm(Date.now()));
     const due = items.find((i) => (i.kind === "sit" || i.kind === "prompt") && nowM >= minsOf(i.time) && nowM - minsOf(i.time) < 2 && !rung.current.has(`${run.day}:${i.id}`));

@@ -11,9 +11,13 @@ import { createServer } from "node:http";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { postJson, sitemapPages, submitChanged } from "./indexNow";
+import { nativeAppCors } from "./nativeAppCors";
 
 const app = express();
 const httpServer = createServer(app);
+
+// The A.R.I.S.E. To-Do iPhone app (capacitor://localhost) calling the API, sign-in included.
+app.use(nativeAppCors);
 
 // Serve search-engine discovery files for the correct domain. The two brands share
 // this server but must not share a sitemap or cross-domain discovery directives.
@@ -182,12 +186,28 @@ app.use(/^\/api\/para-teams\/[^/]+\/apps\/data$/, express.json({ limit: "3mb" })
 app.use("/api/teacher-hub/workspace", express.json({ limit: "6mb" }));
 // Arise Office files and premium-app data: big workbooks and documents are saved here whole.
 app.use("/api/docs", express.json({ limit: "11mb" }));
+// Pod+ Studio: notes from a PDF or a photo (JSON with the file inside), and recorded lectures and
+// meetings (raw audio, a few minutes at a time). Before the global JSON parser, for their size.
+app.use(/^\/api\/(podscroll|earshot)\/studio\/read$/, express.json({ limit: "14mb" }));
+app.use(/^\/api\/(podscroll|earshot)\/studio\/transcribe$/, express.raw({ type: "*/*", limit: "26mb" }));
+// Arise Notes (server/ariseNotes.ts): a piece of a recording or a voice memo arrives as raw audio.
+// The sign-in is checked first, so a stranger can't make the server read 26 MB just to turn them away.
+app.use(/^\/api\/notes\/[^/]+\/pieces$/, (req, res, next) => { authMiddleware(req, res, next).catch(next); }, express.raw({ type: "*/*", limit: "26mb" }));
+app.use("/api/notes/memo", (req, res, next) => { authMiddleware(req, res, next).catch(next); }, express.raw({ type: "*/*", limit: "9mb" }));
+// Arise Talk: a backup with photo buttons, a photo to read, and a short recording to hear.
+app.use("/api/talk/backup", express.json({ limit: "8mb" }));
+app.use("/api/talk/ai/photo", express.json({ limit: "4mb" }));
+app.use("/api/talk/listen", express.raw({ type: "audio/*", limit: "4mb" }));
 app.use("/api/app-data", express.json({ limit: "2500kb" }));
 app.use("/api/apps/ai", express.json({ limit: "200kb" }));
 // LifeHub workspaces can exceed the default 100 KB JSON request size.
 app.use("/api/arise-todo/workspace", express.json({ limit: "6mb" }));
 // A meal photo for the food diary's calorie estimate (shrunk on the phone first).
 app.use("/api/arise-todo/food/estimate", express.json({ limit: "4mb" }));
+// Arise Fit: a photo of a machine or a gym (shrunk on the phone, but still far over the usual 100 KB),
+// and the whole Fit diary, which passes 100 KB after a few months of food, workouts and runs.
+app.use("/api/fit/identify", express.json({ limit: "8mb" }));
+app.use("/api/fit/data", express.json({ limit: "5mb" }));
 // Apple Health apps can send a couple of months of readings in one post.
 app.use("/api/arise-todo/apple-health/sync", express.json({ limit: "5mb" }));
 // An upload that big is only read for someone who is signed in: the sign-in is checked first, so a stranger can't make

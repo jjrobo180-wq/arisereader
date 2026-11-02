@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import type { SleepSettings } from "@shared/sleepApp";
 import { TIMER_CHOICES_LABELS } from "@shared/sleepContent";
 import { useSleep } from "./context";
-import { deviceVoices, narrator } from "./narrator";
+import { narrator } from "./narrator";
 import { Choices, Sheet, Switch } from "./parts";
 
 function Row({ title, detail, children }: { title: string; detail?: ReactNode; children: ReactNode }) {
@@ -19,28 +19,11 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
   const { app, update, token } = useSleep();
   const s = app.settings;
   const set = (patch: Partial<SleepSettings>) => update((a) => ({ ...a, settings: { ...a.settings, ...patch } }));
-  const [voices, setVoices] = useState(() => deviceVoices());
-  useEffect(() => {
-    if (!("speechSynthesis" in window)) return;
-    const load = () => setVoices(deviceVoices());
-    load();
-    window.speechSynthesis.addEventListener?.("voiceschanged", load);
-    return () => window.speechSynthesis.removeEventListener?.("voiceschanged", load);
-  }, []);
-  const test = () => narrator.play(["This is how I'll sound tonight.", "Slow, and quiet, and calm."], { title: "Voice test", voice: s.voice, aiVoice: s.aiVoice, deviceVoice: s.deviceVoice, pace: s.pace, token });
+  const test = () => narrator.play(["This is how I'll sound tonight.", "Slow, and quiet, and calm."], { title: "Voice test", voice: "ai", aiVoice: s.aiVoice, deviceVoice: s.deviceVoice, pace: s.pace, token });
 
   return <Sheet title="Settings" onClose={onClose}>
-    <Row title="Reading voice" detail="The calm voice is AI-generated, and stories you've heard play from your phone after that. Your phone's own voice also works with no internet.">
-      <Choices label="Reading voice" value={s.voice} options={[{ id: "ai", label: "Calm voice (AI)" }, { id: "device", label: "My phone's voice" }]} onChange={(voice) => set({ voice })} />
-      {s.voice === "ai"
-        ? <div className="mt-3"><Choices label="Which calm voice" value={s.aiVoice} options={[{ id: "warm", label: "Warm" }, { id: "deep", label: "Deep" }]} onChange={(aiVoice) => set({ aiVoice })} /></div>
-        : voices.length > 0 && <label className="mt-3 block">
-            <span className="sl-small text-[var(--sl-faint)]">Phone voice</span>
-            <select value={s.deviceVoice} onChange={(e) => set({ deviceVoice: e.target.value })} className="sl-input mt-1">
-              <option value="">Best available</option>
-              {voices.map((v) => <option key={v.voiceURI} value={v.voiceURI}>{v.name}</option>)}
-            </select>
-          </label>}
+    <Row title="Reading voice" detail="A calm AI voice reads to you. Stories you've heard play from your phone after that.">
+      <Choices label="Which calm voice" value={s.aiVoice} options={[{ id: "warm", label: "Warm" }, { id: "deep", label: "Deep" }]} onChange={(aiVoice) => set({ aiVoice })} />
       <button type="button" onClick={test} className="sl-btn sl-quiet mt-3">Hear a sample</button>
     </Row>
     <Row title="Reading pace" detail="How long the quiet is between sentences.">

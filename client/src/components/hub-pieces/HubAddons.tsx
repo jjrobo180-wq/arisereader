@@ -6,6 +6,7 @@ import { Calculator, CheckCircle2, CheckSquare, Landmark, Users } from "lucide-r
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { appHref } from "@/lib/hubs";
+import { NATIVE_NO_PURCHASE, isNativeApp } from "@/lib/nativeApp";
 import { Pill, fmtDay, kit, type Which } from "./kit";
 
 type Access = { access: boolean; via: string | null; endsAt: string | null; plan: { live: boolean; endsAt: string | null } | null; paidByYou: boolean; oldBundle?: boolean };
@@ -69,6 +70,18 @@ export default function HubAddons({ which, returnPath = "/billing", showLifeHub 
   if (!user) return null;
   if (!data) return <p className={k.small}>Loading add-ons…</p>;
   const role = data.role, b = data.bundle, t = data.todo, teacher = role === "teacher";
+
+  // In the iPhone app: what's on the account, with no prices or buttons to buy (App Review 3.1.1).
+  if (isNativeApp()) return <div className="space-y-3" data-testid="hub-addons">
+    <p className={k.text}>{NATIVE_NO_PURCHASE}</p>
+    <ul className="space-y-2">{APPS.map((app) => {
+      const a = data.apps[app.id], on = !!a.access || !!a.plan?.live || (teacher && !!data.premium), Icon = app.icon;
+      return <li key={app.id} className={`${k.row} flex items-center gap-3`} data-testid={`addons-app-${app.id}`}>
+        <span className={k.tile}><Icon className="h-5 w-5" /></span>
+        <a href={app.href} className="min-w-0 flex-1 hover:underline"><span className={`block ${k.h}`}>{app.label}</span><span className={`block ${k.small}`}>{on ? "On for your account" : "Not on this account"}</span></a>
+      </li>;
+    })}</ul>
+  </div>;
 
   const free = role === "parent" ? "Your parent account is always free: your child's progress, game limits and the proctor code never cost anything."
     : teacher && data.premiumVia === "grandfathered" ? `Reading with your class is free for you this school year${data.premiumEndsAt ? `, until ${longDay(data.premiumEndsAt)}` : ""}.`

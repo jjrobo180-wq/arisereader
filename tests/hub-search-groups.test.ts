@@ -12,7 +12,7 @@ const all = [
 test("like iPhone search: an app is the top hit when it's among the best, then Apps, then saved things, App Store last", () => {
   const { top, groups } = groupResults(searchHub(all, "potty"));
   assert.equal(top?.title, "Potty Training");
-  assert.equal(groups[groups.length - 1].label, "In the App Store");
+  assert.equal(groups[groups.length - 1].label, "In the App Gallery");
   const labels = groups.map((g) => g.label);
   assert.ok(!labels.includes("Section"), "sections show as Apps, not 'Section'");
   for (const k of ["Notes", "Tasks", "Calendar"]) assert.ok(labels.includes(k), k);

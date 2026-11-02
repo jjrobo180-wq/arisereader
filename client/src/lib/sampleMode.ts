@@ -123,6 +123,8 @@ export function installSampleMode(): void {
     if (url.pathname === "/api/arise-todo/workspace") return workspaceRoute("todo", method, url, body);
     if (url.pathname === "/api/teacher-hub/workspace") return workspaceRoute("work", method, url, body);
     if (url.pathname === "/api/me") return json(200, SAMPLE_USER);
+    // Spoken lines: the real AI voice (nothing about anyone is sent, only the words on screen).
+    if (url.pathname === "/api/voice/say") return network(input, init);
     // Anything else needs a real account: a quiet "not here" instead of a call to the server.
     return json(method === "GET" ? 404 : 403, { message: "This is a sample — create a free account to use this." });
   };

@@ -50,7 +50,7 @@ export function searchHub<T extends SearchEntry>(entries: T[], typed: string, li
 
 /** Kinds that are "an app" for search: built-in sections, installed apps and settings screens. */
 export const APP_KINDS = ["Section", "App"] as const;
-export const STORE_KIND = "App Store";
+export const STORE_KIND = "App Gallery";
 export type ResultGroup<T> = { label: string; items: T[] };
 
 /**
@@ -70,6 +70,6 @@ export function groupResults<T extends SearchEntry>(found: T[]): { top: T | null
   for (const e of rest) if (!isApp(e) && e.kind !== STORE_KIND && !order.includes(e.kind)) order.push(e.kind);
   for (const k of order) groups.push({ label: k, items: rest.filter((e) => e.kind === k) });
   const store = rest.filter((e) => e.kind === STORE_KIND);
-  if (store.length) groups.push({ label: "In the App Store", items: store });
+  if (store.length) groups.push({ label: "In the App Gallery", items: store });
   return { top, groups };
 }

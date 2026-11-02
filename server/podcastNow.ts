@@ -17,8 +17,8 @@ export const NOW_NEWS_SHOWS = [
 ];
 
 export const NOW_HOURS_DEFAULT = 6;
-export const NOW_HOURS_MAX = 12;
-const KEEP_HOURS = 24; // remembered this long; shown only within the asked window
+export const NOW_HOURS_MAX = 24;
+const KEEP_HOURS = 30; // remembered this long; shown only within the asked window
 const ROUND_MS = 10 * 60_000;
 const NAMES_MS = 24 * 3600_000;
 
@@ -44,7 +44,58 @@ export function freshNews(list: PodEpisode[], hours: number, now = Date.now(), p
   return out;
 }
 
+// ---- The shows' own RSS feeds: Apple's episode lookup can run many hours behind an hourly bulletin
+// (NPR News Now showed yesterday's 4pm news the next morning), so the named shows are also read
+// straight from their feeds every round. ----
+const tag = (xml: string, name: string) => { const m = xml.match(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)</${name}>`, "i")); return m ? m[1].replace(/^\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*$/, "$1").trim() : ""; };
+const attr = (xml: string, name: string, a: string) => { const m = xml.match(new RegExp(`<${name}\\s[^>]*\\b${a}=["']([^"']+)["']`, "i")); return m ? m[1].replace(/&amp;/g, "&") : ""; };
+const decode = (s: string) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n)).replace(/&amp;/g, "&");
+/** Plain text from feed text (often HTML, escaped once or twice). */
+const unescape = (s: string) => decode(decode(s).replace(/<[^>]+>/g, " ")).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+function durationSecs(v: string): number {
+  if (!v) return 0;
+  const p = v.trim().split(":").map(Number);
+  if (p.some((n) => !Number.isFinite(n))) return 0;
+  return Math.round(p.reduce((t, n) => t * 60 + n, 0));
+}
+/** A number id for a feed episode (episode ids are numbers everywhere): 19 digits starting with 9,
+ *  so it never meets one of Apple's (13 digits or fewer). */
+export function feedEpisodeId(showId: string, guid: string): string {
+  let a = 0x811c9dc5, b = 0x01000193;
+  for (const c of `${showId}|${guid}`) { const k = c.charCodeAt(0); a = Math.imul(a ^ k, 16777619) >>> 0; b = Math.imul(b ^ k, 2246822519) >>> 0; }
+  return `9${String(a).padStart(10, "0")}${String(b % 1e8).padStart(8, "0")}`.slice(0, 19);
+}
+/** The newest `max` episodes in a show's RSS feed. */
+export function feedEpisodes(xml: string, show: PodShow, max = 4): PodEpisode[] {
+  const out: PodEpisode[] = [];
+  for (const raw of String(xml).split(/<item[\s>]/i).slice(1)) {
+    const item = raw.split(/<\/item>/i)[0];
+    let audio = attr(item, "enclosure", "url");
+    if (/^http:\/\//i.test(audio)) audio = audio.replace(/^http:/i, "https:");
+    const title = unescape(tag(item, "title")).slice(0, 300);
+    const t = Date.parse(tag(item, "pubDate"));
+    if (!/^https:\/\//i.test(audio) || !title || !Number.isFinite(t)) continue;
+    const guid = tag(item, "guid") || audio;
+    out.push({
+      id: feedEpisodeId(show.id, guid), showId: show.id, show: show.name, author: show.author, title,
+      about: unescape(tag(item, "description") || tag(item, "itunes:summary")).slice(0, 2000),
+      audio, date: new Date(t).toISOString(), secs: durationSecs(tag(item, "itunes:duration")),
+      art: attr(item, "itunes:image", "href") || show.art, link: tag(item, "link") || show.link, explicit: show.explicit,
+    });
+    if (out.length >= max) break;
+  }
+  return out;
+}
+/** Feed episodes that Apple already has (same show, same title) are dropped: Apple's ids are kept. */
+export function mergeFeed(apple: PodEpisode[], feed: PodEpisode[]): PodEpisode[] {
+  const key = (e: PodEpisode) => `${e.showId}|${norm(e.title)}`;
+  const have = new Set(apple.map(key));
+  return [...apple, ...feed.filter((e) => !have.has(key(e)))];
+}
+
 export type NowDeps = {
+  /** A show's RSS feed, as text (tests). */
+  feed?: (url: string) => Promise<string>;
   apple: (url: string) => Promise<any>;
   idle: () => boolean;
   /** The News genre's top shows. */
@@ -59,6 +110,12 @@ export function nowNewsService(d: NowDeps) {
   const now = d.now ?? (() => Date.now());
   const sleep = d.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const shows = new Map<string, PodShow>();
+  const named = new Set<string>();
+  const readFeed = d.feed ?? (async (url: string) => {
+    const r = await fetch(url, { signal: AbortSignal.timeout(8_000), headers: { "User-Agent": "PodPlus/1.0 (+https://arisetodo.com)" } });
+    if (!r.ok) throw new Error(`feed ${r.status}`);
+    return (await r.text()).slice(0, 3_000_000);
+  });
   let namesAt = 0;
   let episodes: PodEpisode[] = [];
   let lastRound = 0;
@@ -73,7 +130,7 @@ export function nowNewsService(d: NowDeps) {
         const b = await d.apple(appleSearchUrl(name, "podcast", 5, true));
         const found = (Array.isArray(b?.results) ? b.results : []).map((r: unknown) => parseShow(r, "news")).filter(Boolean) as PodShow[];
         const hit = found.find((s) => sameShowName(name, s.name));
-        if (hit) shows.set(hit.id, { ...hit, genre: "news" });
+        if (hit) { shows.set(hit.id, { ...hit, genre: "news" }); named.add(hit.id); }
       } catch (e: any) { if (e?.message === "busy") await sleep(15_000); }
     }
     namesAt = now();
@@ -113,11 +170,22 @@ export function nowNewsService(d: NowDeps) {
           }
         } catch (e: any) { if (e?.message === "busy") await sleep(15_000); }
       }
+      // The named bulletins straight from their feeds (a few at a time; a slow feed only misses this round).
+      const feeds = [...named].map((id) => shows.get(id)).filter((s): s is PodShow => !!s?.feed && /^https?:\/\//i.test(s.feed));
+      const fromFeeds: PodEpisode[] = [];
+      for (let i = 0; i < feeds.length; i += 6) {
+        await Promise.all(feeds.slice(i, i + 6).map(async (show) => {
+          try { fromFeeds.push(...feedEpisodes(await readFeed(show.feed!), show)); } catch { /* Apple's copy still counts */ }
+        }));
+      }
+      found.push(...mergeFeed(found, fromFeeds).slice(found.length));
       if (found.length) {
         const since = now() - KEEP_HOURS * 3600_000;
         const byId = new Map(episodes.map((e) => [e.id, e] as [string, PodEpisode]));
         for (const e of found) byId.set(e.id, e);
-        episodes = [...byId.values()].filter((e) => (Date.parse(e.date) || 0) >= since);
+        // One copy of each episode: Apple's once it has caught up with the feed.
+        const all = [...byId.values()].filter((e) => (Date.parse(e.date) || 0) >= since);
+        episodes = mergeFeed(all.filter((e) => e.id.length < 19), all.filter((e) => e.id.length >= 19));
       }
       lastRound = now();
     } finally { running = false; }

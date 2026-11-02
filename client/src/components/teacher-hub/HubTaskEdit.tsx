@@ -1,6 +1,7 @@
 // Arise WorkHub: the pop-up that adds a to-do or changes one that is already on the list, and
 // checking to-dos off with a way back. Used by Reminders & to-dos and by the To do card on Home.
-import { useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
+import { useRef, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
+import { smartDate, smartLabel } from "@shared/smartDate";
 import { Trash2, Undo2 } from "lucide-react";
 import { addDays, friendlyDate } from "@shared/hubDates";
 import { recentlyDone, toggleTask, undoTask, type TaskFields } from "@shared/hubTasks";
@@ -35,10 +36,22 @@ export function TaskModal({ task, startTitle = "", today, onSave, onClose, onDel
   const [draft, setDraft] = useState<TaskFields>(() => (task
     ? { title: task.title, dueDate: task.dueDate, dueTime: task.dueTime || "", recurring: task.recurring, priority: task.priority === "high", notes: task.notes || "", links: cleanLinks(task.links), ...(lists ? { listId: task.listId || "" } : {}) }
     : { title: startTitle, dueDate: "", dueTime: "", recurring: "", priority: false, notes: "", links: [], ...(lists ? { listId: startList } : {}) }));
+  // Smart dates (shared/smartDate.ts): "call parent tomorrow 3pm" fills in the due date and time as
+  // it's typed, unless a date was picked by hand. The words that said it come off the title on save.
+  const auto = useRef<{ due: string; time: string } | null>(null);
+  const typeTitle = (title: string) => {
+    const found = smartDate(title);
+    const a = auto.current;
+    const handPicked = !!draft.dueDate && !(a && a.due === draft.dueDate && a.time === (draft.dueTime || ""));
+    if (found && !handPicked) { auto.current = { due: found.date, time: found.time }; setDraft({ ...draft, title, dueDate: found.date, dueTime: found.time }); }
+    else if (!found && a && !handPicked) { auto.current = null; setDraft({ ...draft, title, dueDate: "", dueTime: "" }); }
+    else setDraft({ ...draft, title });
+  };
+  const smart = auto.current && draft.dueDate === auto.current.due ? smartDate(draft.title) : null;
   function save(e?: FormEvent) {
     e?.preventDefault();
     if (!draft.title.trim()) return;
-    onSave(draft);
+    onSave(smart ? { ...draft, title: smart.title } : draft);
     onClose();
   }
   const chip = (active: boolean) => `inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold ${active ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`;
@@ -47,9 +60,10 @@ export function TaskModal({ task, startTitle = "", today, onSave, onClose, onDel
       footer={<div className="flex flex-wrap items-center gap-2"><PrimaryButton onClick={() => save()} disabled={!draft.title.trim()}>{task ? "Save changes" : "Save"}</PrimaryButton><GhostButton onClick={onClose}>Cancel</GhostButton>
         {task && onDelete && <button type="button" onClick={() => { onDelete(); onClose(); }} className="ml-auto inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-medium text-red-600 hover:bg-red-50" data-testid="task-delete"><Trash2 className="h-4 w-4" /> Delete</button>}</div>}>
       <form onSubmit={save} className="grid grid-cols-1 gap-3" data-testid="task-form">
-        <Labeled label="To-do"><Field data-autofocus value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} required maxLength={200} /></Labeled>
+        <Labeled label="To-do"><Field data-autofocus value={draft.title} onChange={(e) => typeTitle(e.target.value)} required maxLength={200} placeholder="e.g. Call a parent tomorrow 3pm" data-testid="work-task-title" /></Labeled>
+        {smart && <p className="-mt-1 text-xs font-semibold text-violet-700" data-testid="work-task-smart">Due {smartLabel(smart)} · from “{smart.matched}”</p>}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Labeled label="Due date"><Field type="date" value={draft.dueDate} onChange={(e) => setDraft({ ...draft, dueDate: e.target.value, dueTime: e.target.value ? draft.dueTime : "" })} /></Labeled>
+          <Labeled label="Due date"><Field type="date" value={draft.dueDate} onChange={(e) => { auto.current = null; setDraft({ ...draft, dueDate: e.target.value, dueTime: e.target.value ? draft.dueTime : "" }); }} /></Labeled>
           <Labeled label="Due time (optional)"><Field type="time" aria-label="Due time (optional)" disabled={!draft.dueDate} value={draft.dueTime || ""} onChange={(e) => setDraft({ ...draft, dueTime: e.target.value })} /></Labeled>
         </div>
         <div className="flex flex-wrap gap-2" role="group" aria-label="Quick due dates">

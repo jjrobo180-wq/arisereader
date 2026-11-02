@@ -4,6 +4,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { setSchoolTheme, setTeacherBand } from "@/lib/schoolTheme";
 import { clearAuthenticatedNavigation, resetAuthenticatedNavigation } from "@/lib/navigation";
 import { forgetThisDevice } from "@/lib/pushDevice";
+import { setAccount } from "@/lib/accountStorage";
 import { isHubAccount } from "@/lib/hubs";
 import { clearSessionBackup, keepStorage, readSessionBackup, saveSessionBackup } from "@/lib/sessionBackup";
 import { SAMPLE_TOKEN, SAMPLE_USER, isSampleMode, resetSample } from "@/lib/sampleMode";
@@ -41,6 +42,8 @@ interface AuthContextType {
   exitViewAsTeacher: () => void;
   token: string | null;
   login: (username: string, password: string) => Promise<void>;
+  /** Sign in with Apple in the iPhone app (lib/appleSignIn.ts gets the token from iOS). True when a new account was made. */
+  signInWithApple: (apple: { identityToken: string; authorizationCode?: string; givenName?: string; familyName?: string }) => Promise<boolean>;
   /** Redeems a one-use code from arisereader.com (teachers, parents, LifeHub accounts, the administrator). */
   completeAdminHandoff: (code: string) => Promise<AuthUser>;
   register: (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null, gradeLevel?: string, unlisted?: { schoolName?: string; teacherName?: string; directoryTeacherId?: string; independent?: boolean; directorySchool?: string; advisoryId?: string }) => Promise<void>;
@@ -126,7 +129,7 @@ function loadSessionCookie(): { user: AuthUser | null; token: string | null } {
 // Pages outside the app (A.R.I.S.E. Connect at /social/, Arise Math at /math/, Arise History at /history/) send people here to sign in or sign up,
 // and ask to be taken back afterwards. Only known pages are allowed, so this can't be used to send someone elsewhere.
 const RETURN_KEY = "arise_return_to";
-const RETURN_PAGES = new Set(["/social/", "/math/", "/history/"]);
+const RETURN_PAGES = new Set(["/social/", "/math/", "/history/", "/notes/"]);
 function returnIfAsked() {
   try {
     const to = sessionStorage.getItem(RETURN_KEY);
@@ -223,10 +226,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // The installed app asks the browser to keep its storage, so the sign-in survives a force-close.
   useEffect(() => { if (user) keepStorage(); }, [user?.id]);
+  // Already signed in when the app opens: use this account's own things on this device.
+  useEffect(() => { if (user?.id && token && !isSampleMode()) setAccount(user.id); }, [user?.id, token]);
 
   const persistSession = useCallback((u: AuthUser | null, t: string | null) => {
     sessionRef.current = { user: u, token: t };
     saveSessionCookie(u, t);
+    // Each account keeps its own things on this device; a different account opens fresh (accountStorage.ts).
+    if (u && t && !isSampleMode()) setAccount(u.id);
     setUser(u);
     setToken(t);
     if (u && u.schoolId) {
@@ -340,6 +347,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     returnIfAsked();
   }, [persistSession]);
 
+  const signInWithApple = useCallback(async (apple: { identityToken: string; authorizationCode?: string; givenName?: string; familyName?: string }) => {
+    sessionStorage.removeItem("arise_admin_preview_mode");
+    sessionStorage.removeItem(VIEW_AS_KEY);
+    setAdminPreviewMode(null);
+    persistSession(null, null);
+    const res = await fetch(`${API_BASE}/api/auth/apple`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(apple), cache: "no-store" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || typeof data?.token !== "string") throw new Error(data?.message || "Sign in with Apple didn't work. Try again.");
+    sessionStorage.removeItem(SAMPLE_SESSION_KEY);
+    resetAuthenticatedNavigation(data.user);
+    persistSession(data.user, data.token);
+    returnIfAsked();
+    return !!data.made;
+  }, [persistSession]);
+
   // Redeem a one-use sign-in code on arisetodo.com. The code is never a session token.
   const completeAdminHandoff = useCallback(async (code: string) => {
     if (!/^[a-f0-9]{64}$/.test(code)) throw new Error("The sign-in link is invalid.");
@@ -410,6 +432,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }).catch(() => {});
     }
     persistSession(null, null);
+    setAccount(null); // signed out: the next account to sign in opens with its own things
     forgetStay(); // the next person starts on Home, not on this person's open note
     window.dispatchEvent(new Event("arise-logout"));
   }, [persistSession]);
@@ -466,6 +489,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       exitViewAsTeacher,
       token,
       login,
+      signInWithApple,
       completeAdminHandoff,
       register,
       logout,

@@ -10,6 +10,7 @@ import { onOtherSound, soundStarted } from "../client/src/components/family-hub/
 export type Station = {
   stationuuid: string; name: string; url_resolved: string; favicon: string; tags: string;
   country: string; countrycode: string; state: string; codec: string; bitrate: number; hls: number;
+  votes?: number; clickcount?: number;
 };
 
 // Radio Browser runs a few identical servers; try them in turn.
@@ -29,7 +30,13 @@ async function ask(path: string): Promise<any> {
   throw last instanceof Error ? new Error("Radio stations aren't loading right now. Try again in a moment.") : last;
 }
 
-const playable = (s: Station) => /^https:\/\//i.test(s.url_resolved || "") && !s.hls && !/\.m3u8(\?|$)/i.test(s.url_resolved);
+/** National networks that license their live streams only to their own apps and paid partners
+ *  (TuneIn, iHeart...): not played in Pod+, so no one's stream is used without permission (and App
+ *  Review guideline 5.2.3). Local and independent stations that run their own public stream stay. */
+const NETWORKS = /\b(cnn|hln|fox ?news|fox business|msnbc|cnbc|nbc news|abc news|cbs news|bbc|npr news|npr 24|bloomberg|sky news|c-?span|al ?jazeera|reuters|cbc news|espn|siriusxm|sirius|iheart|newsmax|one america|oan)\b/i;
+export const isNetwork = (s: Pick<Station, "name" | "tags">) => NETWORKS.test(s.name || "") || /\b(cnn|msnbc|fox ?news|bbc)\b/i.test(s.tags || "");
+
+const playable = (s: Station) => /^https:\/\//i.test(s.url_resolved || "") && !s.hls && !/\.m3u8(\?|$)/i.test(s.url_resolved) && !isNetwork(s);
 const cleanName = (s: string) => String(s || "").replace(/\s+/g, " ").trim() || "Untitled station";
 const where = (s: Station) => [s.state, s.countrycode].filter(Boolean).join(", ");
 const tagsOf = (s: Station) => String(s.tags || "").split(",").map((t) => t.trim()).filter(Boolean).slice(0, 3).join(" · ");
@@ -122,6 +129,58 @@ export function RadioView({ onPlay, current }: { onPlay: (s: Station) => void; c
               <span className="truncate text-sm font-semibold">{cleanName(s.name)}</span>
               <span className="truncate text-xs text-[#606060]">{where(s) || s.country}</span>
               {tagsOf(s) && <span className="truncate text-xs text-[#606060]">{tagsOf(s)}</span>}
+            </span>
+          </button>;
+        })}
+      </div>}
+    <p className="mt-8 text-xs text-[#767676]">Station list from <a href="https://www.radio-browser.info" target="_blank" rel="noreferrer" className="underline">Radio Browser</a>, a free community directory.</p>
+  </div>;
+}
+
+/** Music, sports and talk tags: a station with any of them isn't news all day. */
+const NOT_NEWS = /\b(music|pop|rock|hits?|country|jazz|classical|dance|hip ?hop|r&b|rnb|oldies|adult contemporary|top ?40|[5-9]0s|00s|gospel|christian music|worship|latin|reggae|electronic|edm|variety|sports?|talk|comedy|soul|blues|metal|indie|alternative|chill|lounge|ambient)\b/i;
+/** A station that is news full time: called "news", or tagged news with no music, sports or talk. */
+export function fullTimeNews(s: Pick<Station, "name" | "tags">): boolean {
+  const tags = String(s.tags || "").toLowerCase();
+  if (/\bnews\b/i.test(s.name || "") && !/\b(music|hits|sports?)\b/i.test(s.name || "")) return true;
+  return /\bnews\b/.test(tags) && !NOT_NEWS.test(tags);
+}
+
+/** Live news stations (separate from Pod+ Live News Radio): radio stations that are news all day,
+ *  from their own live streams in the Radio Browser directory. This country's first. */
+export function NewsStationsView({ onPlay, current, onBack }: { onPlay: (s: Station) => void; current: Station | null; onBack: () => void }) {
+  const country = useMemo(myCountry, []);
+  const [list, setList] = useState<Station[] | null>(null);
+  const [err, setErr] = useState("");
+  const [spin, setSpin] = useState(0);
+  useEffect(() => {
+    let live = true;
+    setList(null); setErr("");
+    const p = new URLSearchParams({ hidebroken: "true", tag: "news", order: "votes", reverse: "true", limit: "400" });
+    ask(`/json/stations/search?${p}`).then((rows: Station[]) => {
+      if (!live) return;
+      const seen = new Set<string>();
+      const out = (Array.isArray(rows) ? rows : []).filter(playable).filter(fullTimeNews).filter((s) => { const k = cleanName(s.name).toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+      out.sort((a, b) => (Number(b.countrycode === country) - Number(a.countrycode === country)) || ((b.votes || 0) - (a.votes || 0)));
+      setList(out.slice(0, 80));
+    }).catch((e) => { if (live) setErr(e.message); });
+    return () => { live = false; };
+  }, [country, spin]);
+  return <div className="px-4 pb-28 pt-3 sm:px-6">
+    <button onClick={onBack} className="mb-2 text-sm font-medium text-[#606060] hover:text-[#0f0f0f]">← Home</button>
+    <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight"><span className="h-2.5 w-2.5 rounded-full bg-[#ff3b30] motion-safe:animate-pulse" />Live news stations</h1>
+    <p className="mt-1 max-w-xl text-sm text-[#606060]">Radio stations that are news all day, live from each station's own stream. For news from the big newsrooms back to back, try Pod+ Live News Radio.</p>
+    {err ? <div className="py-20 text-center"><p className="text-[#606060]">{err}</p><button onClick={() => setSpin((n) => n + 1)} className="mt-4 h-9 rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white">Try again</button></div>
+      : !list ? <div className="flex justify-center py-24" role="status" aria-label="Loading stations"><Loader2 className="animate-spin text-[#606060]" size={28} /></div>
+      : !list.length ? <p className="py-20 text-center text-[#606060]">No news stations are on the air right now. Try again in a little while.</p>
+      : <div className="mt-4 grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr))]" data-testid="news-stations">
+        {list.map((s) => {
+          const on = current?.stationuuid === s.stationuuid;
+          return <button key={s.stationuuid} onClick={() => onPlay(s)} aria-pressed={on} className={`flex min-w-0 items-center gap-3 rounded-xl p-2.5 text-left transition-colors ${on ? "bg-[#fff1e8] ring-1 ring-[#ff6a1f]" : "bg-[#f7f7f5] hover:bg-[#efefec]"}`}>
+            <Logo s={s} size={52} />
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className="truncate text-sm font-semibold">{cleanName(s.name)}</span>
+              <span className="truncate text-xs text-[#606060]">{where(s) || s.country}</span>
             </span>
           </button>;
         })}

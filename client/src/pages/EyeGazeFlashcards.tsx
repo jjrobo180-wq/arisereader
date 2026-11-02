@@ -45,13 +45,7 @@ function cloneDefaults(): Deck[] {
 
 function say(text:string){
   stopSpeaking();
-  void speakCharacterAI(text,{calmMode:true,onFallback:()=>{
-    if(!("speechSynthesis" in window)) return;
-    const u=new SpeechSynthesisUtterance(text);
-    u.rate=.82;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(u);
-  }});
+  void speakCharacterAI(text,{calmMode:true});
 }
 
 const cacheKey="arise-eye-gaze-flashcard-decks";

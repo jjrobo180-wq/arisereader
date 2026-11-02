@@ -1,12 +1,15 @@
 // Sticky notes (a Plugin Store add-on): notes you can put anywhere on the LifeHub Home screen.
 // Drag a note by its top strip. Where it sits is saved as a share of the width (so it stays put on
 // a phone or a big screen) and a distance down the page.
-import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { GripHorizontal, Palette, Plus, X } from "lucide-react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { GripHorizontal, Palette, X } from "lucide-react";
 import { NOTE_COLORS, type Family, type Sticky } from "@shared/familyHub";
 import type { SetFamily } from "./ui";
 
 const NOTE_W = 200;
+
+/** Sent by the Add menu to put a new sticky note on the board. */
+export const ADD_STICKY_EVENT = "arise:add-sticky";
 
 export default function StickyBoard({ family, setFamily, makeId, children }: { family: Family; setFamily: SetFamily; makeId: () => string; children: ReactNode }) {
   const board = useRef<HTMLDivElement>(null);
@@ -16,6 +19,14 @@ export default function StickyBoard({ family, setFamily, makeId, children }: { f
 
   const update = (id: string, patch: Partial<Sticky>) => setFamily((f) => ({ ...f, stickies: f.stickies.map((s) => (s.id === id ? { ...s, ...patch } : s)) }));
   const remove = (id: string) => setFamily((f) => ({ ...f, stickies: f.stickies.filter((s) => s.id !== id) }));
+  // "Sticky note" is in the floating Add menu (pages/AriseTodo.tsx), so the board has no button of
+  // its own on top of Add and the AI button.
+  const addRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    const onAdd = () => addRef.current();
+    window.addEventListener(ADD_STICKY_EVENT, onAdd);
+    return () => window.removeEventListener(ADD_STICKY_EVENT, onAdd);
+  }, []);
   const add = () => {
     const n = family.stickies.length;
     // Lands near the top of what you can see right now.
@@ -40,9 +51,9 @@ export default function StickyBoard({ family, setFamily, makeId, children }: { f
     setDrag(null); start.current = null;
   };
 
+  addRef.current = add;
   return <div ref={board} className="relative" data-testid="sticky-board">
     {children}
-    <button type="button" onClick={add} className="fixed bottom-5 right-5 z-30 inline-flex min-h-12 items-center gap-2 rounded-2xl bg-[#f5c542] px-4 text-sm font-black text-[#3b2f05] shadow-[0_10px_30px_#b4891f55] hover:bg-[#f0b928]" data-testid="sticky-add"><Plus size={18} />Sticky note</button>
     {family.stickies.map((s) => {
       const at = drag?.id === s.id ? drag : s;
       return <div key={s.id} className="absolute z-20 flex flex-col rounded-xl shadow-[0_10px_24px_#17152b26] ring-1 ring-black/5" style={{ left: `${at.x * 100}%`, top: at.y, width: NOTE_W, maxWidth: "calc(100% - 8px)", background: s.color, transform: drag?.id === s.id ? "rotate(-1.5deg) scale(1.02)" : "rotate(-0.5deg)" }} data-testid="sticky-note">

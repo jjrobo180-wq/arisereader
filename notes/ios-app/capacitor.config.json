@@ -1,0 +1,29 @@
+{
+  "appId": "com.arisereader.notes",
+  "appName": "Arise Notes",
+  "webDir": "www",
+  "backgroundColor": "#f5f4fb",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 900,
+      "backgroundColor": "#f5f4fb",
+      "showSpinner": false
+    },
+    "Keyboard": {
+      "resize": "native"
+    },
+    "CapacitorUpdater": {
+      "autoUpdate": false,
+      "updateUrl": "https://arisetodo.com/api/ota/notes",
+      "channelUrl": "https://arisetodo.com/api/ota/notes",
+      "statsUrl": ""
+    },
+    "StatusBar": {
+      "style": "LIGHT"
+    }
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "backgroundColor": "#f5f4fb"
+  }
+}

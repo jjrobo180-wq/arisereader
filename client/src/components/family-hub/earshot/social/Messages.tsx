@@ -1,7 +1,8 @@
 // Direct messages: the inbox, message requests, a new-message picker, and a chat.
 import { useEffect, useRef, useState } from "react";
-import { Image as ImageIcon, Loader2, MailPlus, Search, Send } from "lucide-react";
-import { Avatar, Empty, NameLine, NeedSignIn, PillButton, Sheet, Spinner, TopBar, shortAgo, uploadMedia, type Message, type Person, type Post, type Profile, type SCtx, type Thread } from "./kit";
+import { Ban, Flag, Image as ImageIcon, Loader2, MailPlus, MoreHorizontal, Search, Send } from "lucide-react";
+import { ReportSheet } from "./Rules";
+import { ActionSheet, Avatar, Empty, NameLine, NeedSignIn, PillButton, Sheet, Spinner, TopBar, shortAgo, uploadMedia, type Message, type Person, type Post, type Profile, type SCtx, type Thread } from "./kit";
 import { Body } from "./PostCard";
 
 export function InboxScreen({ ctx, requests, onOpen, onBack }: { ctx: SCtx; requests?: boolean; onOpen: (t: Thread) => void; onBack?: () => void }) {
@@ -83,11 +84,20 @@ export function ChatScreen({ thread, ctx, onBack }: { thread: Thread; ctx: SCtx;
   const decline = () => ctx.api(`/api/earshot/social/dm/${thread.id}`, { method: "DELETE" }).then(onBack).catch((e) => ctx.say(e.message));
   const block = () => ctx.api("/api/earshot/social/block", { method: "POST", body: { handle: thread.with.handle, on: true } }).then(() => { ctx.say(`You blocked @${thread.with.handle}.`); onBack(); }).catch((e) => ctx.say(e.message));
   const who = info.with || thread.with;
+  // Report a message (the ⋯ under it) or the person, and block them, from the chat's ⋯ menu.
+  const [chatMenu, setChatMenu] = useState(false);
+  const [reporting, setReporting] = useState<{ path: string; what: string } | null>(null);
   const lastMine = [...(msgs || [])].reverse().find((m) => m.mine);
   const seen = lastMine && info.seenAt && Date.parse(info.seenAt) >= Date.parse(lastMine.at);
 
   return <div className="flex h-full min-h-full flex-col">
-    <TopBar onBack={onBack} title={<button type="button" onClick={() => ctx.openProfile(who.handle)} className="flex items-center gap-2"><Avatar p={who} size={30} /><span className="truncate">{who.name}</span></button>} />
+    <TopBar onBack={onBack} title={<button type="button" onClick={() => ctx.openProfile(who.handle)} className="flex items-center gap-2"><Avatar p={who} size={30} /><span className="truncate">{who.name}</span></button>}
+      right={<button type="button" onClick={() => setChatMenu(true)} aria-label="Report or block" className="hov grid h-10 w-10 place-items-center rounded-full"><MoreHorizontal size={20} /></button>} />
+    {chatMenu && <ActionSheet onClose={() => setChatMenu(false)} items={[
+      { label: `Block @${who.handle}`, icon: <Ban size={18} />, danger: true, onClick: block },
+      { label: `Report @${who.handle}`, icon: <Flag size={18} />, danger: true, onClick: () => setReporting({ path: `/api/earshot/social/profile/${encodeURIComponent(who.handle)}/report`, what: "account" }) },
+    ]} />}
+    {reporting && <ReportSheet api={ctx.api} path={reporting.path} what={reporting.what} onClose={() => setReporting(null)} onDone={(m) => ctx.say(m)} />}
     <div className="min-h-0 flex-1 px-3 py-3">
       {!msgs ? <Spinner /> : !msgs.length && <div className="py-8 text-center"><div className="mx-auto w-fit"><Avatar p={who} size={72} /></div><p className="mt-2 text-[17px] font-bold">{who.name}</p><p className="muted text-[14px]">@{who.handle}</p><PillButton small kind="line" className="mt-3" onClick={() => ctx.openProfile(who.handle)}>View profile</PillButton></div>}
       {msgs?.map((m, i) => {
@@ -99,7 +109,8 @@ export function ChatScreen({ thread, ctx, onBack }: { thread: Thread; ctx: SCtx;
               {m.media.map((x) => (x.type === "image" ? <img key={x.url} src={x.url} alt="" className="mb-1 max-h-72 rounded-2xl object-cover" /> : <video key={x.url} src={x.url} controls playsInline className="mb-1 max-h-72 rounded-2xl" />))}
               {m.post && <button type="button" onClick={() => ctx.openPost(m.post as Post)} className="mb-1 block w-64 overflow-hidden rounded-2xl border line p-3 text-left"><Body p={m.post} ctx={ctx} compact /></button>}
               {m.body && <p className={`whitespace-pre-wrap break-words rounded-3xl px-4 py-2.5 text-[15px] ${m.mine ? "rounded-br-md bg-[color:var(--link)] text-white" : "elev rounded-bl-md"}`}>{m.body}</p>}
-              <p className={`muted mt-0.5 text-[11px] ${m.mine ? "text-right" : ""}`}>{new Date(m.at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}{m.id === lastMine?.id && seen ? " · Seen" : ""}</p>
+              <p className={`muted mt-0.5 text-[11px] ${m.mine ? "text-right" : ""}`}>{new Date(m.at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}{m.id === lastMine?.id && seen ? " · Seen" : ""}
+                {!m.mine && <> · <button type="button" onClick={() => setReporting({ path: `/api/earshot/social/dm/${thread.id}/messages/${m.id}/report`, what: "message" })} className="underline-offset-2 hover:underline">Report</button></>}</p>
             </div>
           </div>
         </div>;

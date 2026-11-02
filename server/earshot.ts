@@ -12,18 +12,24 @@ import {
   GENRE, EARSHOT_LIMITS, appleLookupUrl, appleSearchUrl, canComment, cleanComment, cleanPodId, commentAuthor, parseEpisode, parseShow, poolFromEpisodeSearch,
   type PodEpisode, type PodShow, type PoolShow, type TranscriptChunk,
 } from "../shared/earshot";
+import { registerPodPushRoutes, supabasePodPushDb } from "./podPush";
+import { loadAppleKey } from "./applePush";
 import { createDirectory, openAiJson, openAiTranscribe, supabaseKV, type Directory, type Fetcher } from "./podcastDirectory";
 import { supabaseBlobs } from "./blobStore";
 import { registerAudiobookRoutes } from "./audiobooks";
 import { registerMusicRoutes } from "./music";
 import { registerClipsRoutes } from "./podcastClips";
+import { registerStudioRoutes } from "./podcastStudio";
+import { importCache, registerImportRoutes } from "./podcastImport";
+import { aiSpeech } from "./groqVoice";
 import { TOPICS, genreSearchTerms, topicPlaylist } from "../shared/earshotTopics";
 import { crowdFor, memoryAdStore, registerAdRoutes, type AdStore } from "./podcastAds";
-import { copyTranscript, registerPlayRoutes, startOpenings, type Player } from "./podcastPlay";
+import { copyTranscript, registerPlayRoutes, sameHostAudio, startOpenings, type Player } from "./podcastPlay";
 import { registerSocialRoutes } from "./podcastSocial";
 import { registerCreatorRoutes } from "./podcastCreators";
 import { topShowsService } from "./podcastTop";
 import { nowNewsService, NOW_HOURS_DEFAULT } from "./podcastNow";
+import { newsStation } from "./newsStation";
 import { standupService } from "./podcastStandup";
 import { showInfoService } from "./podcastInfo";
 import { accountSessions, registerPodscrollAccountRoutes, SESSION } from "./podcastAccounts";
@@ -32,6 +38,7 @@ import { registerListenRoutes } from "./podcastListen";
 import { perplexityJson } from "./perplexityAsk";
 import { setPerplexityKey } from "./aiProvider";
 import { noteShows } from "./podcastPrecheck";
+import { cleanReason, moderateText, refusedWords, reportFiled } from "./socialModeration";
 
 /** The site's Perplexity key: admin settings first (where book quizzes keep it), then the environment. */
 async function perplexityKey(): Promise<string> {
@@ -166,6 +173,7 @@ export interface EarshotOptions {
 }
 let sharedAdStore: AdStore | null = null;
 const nowServices = new WeakMap<object, ReturnType<typeof nowNewsService>>();
+const stations = new WeakMap<object, ReturnType<typeof newsStation>>();
 const standupServices = new WeakMap<object, ReturnType<typeof standupService>>();
 const openingsStarted = new WeakSet<object>();
 
@@ -177,6 +185,8 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
   const writes = createAttemptLimiter({ max: 120, windowMs: 10 * 60_000 });
   const posts = createAttemptLimiter({ max: 15, windowMs: 10 * 60_000 });
   const reading = createAttemptLimiter({ max: 60, windowMs: 10 * 60_000 });
+  // Bring your shows from another podcast app (server/podcastImport.ts).
+  registerImportRoutes(app, authMiddleware, P, { apple: (url) => dir.apple(url), cached: importCache() });
 
   const uid = (req: any) => String(req.user?.id ?? "");
   const isStudent = (req: any) => req.user?.role === "student";
@@ -292,6 +302,18 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     nowServices.set(dir, nowNews);
     if (!options.fetcher && process.env.NODE_ENV !== "test") setTimeout(() => nowNews!.start(), 20_000).unref?.();
   }
+  /** Pod+ Live News Radio: one station for everyone (server/newsStation.ts): what's on air now, the
+   *  next few, and the server's clock, so every listener plays the same moment. */
+  let station = stations.get(dir);
+  if (!station) {
+    station = newsStation({ episodes: () => nowNews!.list(24, false).episodes, kv: options.socialDb ? supabaseKV(options.socialDb) : undefined });
+    stations.set(dir, station);
+  }
+  app.get(`${P}/now/station`, authMiddleware, async (req: any, res) => {
+    if (limited(reads, req, res)) return;
+    res.set("Cache-Control", "no-store");
+    try { res.json(await station!.view()); } catch { res.status(503).json({ message: "The news station is starting. Try again in a minute." }); }
+  });
   app.get(`${P}/now`, authMiddleware, async (req: any, res) => {
     if (limited(reads, req, res)) return;
     const hours = Number(req.query?.hours) || NOW_HOURS_DEFAULT;
@@ -372,19 +394,21 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
 
   /** Search inside one show: up to its 200 newest episodes as Apple lists them (most apps show 25).
    *  Words match titles and descriptions; no words lists the archive newest first. */
+  /** A show's 200 newest episodes (Apple's most), kept like a search. */
+  const archiveOf = (id: string) => dir.searches.get(`archive:${id}`, async () => {
+    const body = await dir.apple(appleLookupUrl(id, 200));
+    const results: unknown[] = Array.isArray(body?.results) ? body.results : [];
+    const show = results.map((r) => parseShow(r)).find((s) => s && s.id === id) ?? null;
+    const episodes = results.map((r) => parseEpisode(r, show)).filter(Boolean) as PodEpisode[];
+    return { shows: show ? [show] : [], episodes };
+  });
   app.get(`${P}/show/:id/search`, authMiddleware, async (req: any, res) => {
     const id = cleanPodId(req.params.id);
     if (!id) return res.status(400).json({ message: "That isn't a podcast." });
     const q = typeof req.query?.q === "string" ? req.query.q.replace(/\s+/g, " ").trim().slice(0, EARSHOT_LIMITS.search).toLowerCase() : "";
     if (limited(reads, req, res, "searches")) return;
     try {
-      const out = await dir.searches.get(`archive:${id}`, async () => {
-        const body = await dir.apple(appleLookupUrl(id, 200));
-        const results: unknown[] = Array.isArray(body?.results) ? body.results : [];
-        const show = results.map((r) => parseShow(r)).find((s) => s && s.id === id) ?? null;
-        const episodes = results.map((r) => parseEpisode(r, show)).filter(Boolean) as PodEpisode[];
-        return { shows: show ? [show] : [], episodes };
-      });
+      const out = await archiveOf(id);
       const words = q.split(" ").filter((w) => w.length > 1);
       const list = (clean(out.episodes, explicitFor(req)))
         .filter((e) => !words.length || words.every((w) => `${e.title} ${e.about}`.toLowerCase().includes(w)))
@@ -520,7 +544,17 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     registerPlayRoutes(app, authMiddleware, {
       prefix: P, player, dir, crowd: (ep) => crowdFor(adStore, ep), cleanId: cleanPodId, clientIp,
       voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`,
-      audioFor: async (showId, episodeId) => (await dir.loadShow(showId)).episodes.find((e) => e.id === episodeId)?.audio ?? null,
+      // The show's newest 25 first, then its 200 newest (an older episode, like a series' first), then
+      // the address the app sent, only when it's on the same host as this show's own episodes.
+      audioFor: async (showId, episodeId, sent) => {
+        const recent = (await dir.loadShow(showId)).episodes;
+        const hit = recent.find((e) => e.id === episodeId);
+        if (hit) return hit.audio;
+        const older = (await archiveOf(showId).catch(() => null))?.episodes ?? [];
+        const found = older.find((e) => e.id === episodeId);
+        if (found) return found.audio;
+        return sameHostAudio(sent, [...recent, ...older]);
+      },
     });
   }
 
@@ -574,6 +608,8 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     if (!body) return res.status(400).json({ message: "Write something first." });
     if (limited(posts, req, res, "comments")) return;
     try {
+      const words = await moderateText(body);
+      if (!words.ok) return res.status(400).json({ message: refusedWords(words.reason), filtered: true });
       const comment = await store.addComment({ episodeId: id, showId: cleanPodId(req.body?.showId), userId: uid(req), author: commentAuthor(req.user?.displayName ?? req.user?.display_name), body, t: cleanMoment(req.body?.t) });
       res.json({ comment });
     } catch (e) { storeDown(res, e); }
@@ -591,7 +627,11 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     const id = cleanPodId(req.params.id);
     if (!id) return res.status(400).json({ message: "That isn't a comment." });
     if (limited(writes, req, res)) return;
-    try { await store.reportComment(id, uid(req)); res.json({ ok: true }); }
+    try {
+      await store.reportComment(id, uid(req));
+      reportFiled({ app: P === "/api/podscroll" ? "Pod+" : "Earshot (LifeHub)", what: "comment", table: P === "/api/podscroll" ? "podscroll_comments" : "earshot_comments", id, by: `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, about: "an episode comment", reason: cleanReason(req.body?.reason) });
+      res.json({ ok: true });
+    }
     catch (e) { storeDown(res, e); }
   });
 }
@@ -607,6 +647,8 @@ const PODSCROLL_ORIGINS = ["https://podscroll.onrender.com", "https://podscroll.
 export function podscrollAllowed(origin: string, extra: string[] = []): boolean {
   if (!origin) return false;
   if (PODSCROLL_ORIGINS.includes(origin) || extra.includes(origin)) return true;
+  // The signed Pod+ iOS app loads its bundled UI from this WebView origin.
+  if (origin === "capacitor://localhost") return true;
   return /^https:\/\/podscroll[a-z0-9-]*\.onrender\.com$/.test(origin) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 }
 /** The visitor's address as Render's proxy saw it (the last X-Forwarded-For entry is the one it added). */
@@ -679,5 +721,17 @@ export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetch
   registerMusicRoutes(app, gate, socialDb ? { kv: supabaseKV(socialDb) } : {});
   // Clips (server/podcastClips.ts): the owner's shared list of TikTok videos.
   registerClipsRoutes(app, gate, socialDb ? { kv: supabaseKV(socialDb) } : {});
+  // Study Pod+ and Meeting Pod (server/podcastStudio.ts): the person's own notes, turned into a podcast or a meeting summary.
+  registerStudioRoutes(app, gate, { ask: openAiJson, speak: (text, voice) => aiSpeech(text, voice), transcribe: openAiTranscribe, ...(socialDb ? { blobs: supabaseBlobs(socialDb) } : {}) });
   registerEarshotRoutes(app, gate, { store, fetcher, directory, adStore, player, socialDb, prefix: "/api/podscroll" });
+  // New-episode notifications for the Pod+ iPhone app (server/podPush.ts).
+  if (socialDb) {
+    const dir = directory ?? (fetcher ? createDirectory({ fetcher }) : (sharedDirectory ??= createDirectory()));
+    registerPodPushRoutes(app, gate, {
+      db: supabasePodPushDb(socialDb),
+      newest: async (id) => { const { show, episodes } = await dir.loadShow(id); const e = episodes[0]; return show && e ? { show: show.name, episodeId: e.id, title: e.title } : null; },
+      idle: () => dir.idle(),
+      loadKey: () => loadAppleKey(async () => (await socialDb().from("push_settings").select("apns_key, apns_key_id, apns_team_id").eq("id", 1).maybeSingle()).data as any),
+    }, { ticker: !fetcher && process.env.NODE_ENV !== "test" });
+  }
 }

@@ -7,7 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Trophy, BookOpen, MessageSquare, Send, ExternalLink, Mail, Award, Lock, User, LayoutGrid, LogOut, Brain, Info } from "lucide-react";
+import { ArrowLeft, Trophy, BookOpen, MessageSquare, Send, ExternalLink, Mail, Award, Lock, User, LayoutGrid, LogOut, Brain, Info, ShieldCheck } from "lucide-react";
+import AccountPrivacy from "@/components/AccountPrivacy";
+import { isNativeApp } from "@/lib/nativeApp";
 import { CELEBRATION_OPTIONS, CelebrationStyle } from "@/components/Celebration";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
@@ -619,6 +621,8 @@ export default function Profile() {
     }
   };
 
+  // In the iPhone app: policies, support and deleting the account (App Review 5.1.1).
+  const [privacy, setPrivacy] = useState(false);
   const handleLogout = () => {
     if (!window.confirm("Are you sure you want to log out?")) return;
     // Clear module-level caches
@@ -677,6 +681,9 @@ export default function Profile() {
           </div>
           <NotificationBell refreshKey={notifRefreshKey} />
           <div className="hidden sm:flex"><ReportProblemButton variant="ghost" size="sm" /></div>
+          {isNativeApp() && <Button variant="ghost" size="sm" onClick={() => setPrivacy(true)} data-testid="profile-account">
+            <ShieldCheck className="w-4 h-4" /><span className="ml-1">Account</span>
+          </Button>}
           <Button variant="ghost" size="sm" onClick={handleLogout}>
             <span className="hidden sm:inline">Logout</span>
             <LogOut className="w-4 h-4 sm:hidden" />
@@ -684,6 +691,7 @@ export default function Profile() {
         </div>
       </header>
 
+      {privacy && <AccountPrivacy onClose={() => setPrivacy(false)} />}
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
         <>
         {user?.role === 'student' && (

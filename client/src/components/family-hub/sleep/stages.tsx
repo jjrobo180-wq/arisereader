@@ -2,6 +2,7 @@
 // Lights out, and the now-playing dock with the sleep timer. None of them ever shows a clock:
 // knowing the time at night only starts the "how many hours are left" math.
 import { useEffect, useRef, useState } from "react";
+import { sayAI } from "@/lib/aiVoice";
 import { Moon, Pause, Play, SkipBack, SkipForward, Square, Timer, X } from "lucide-react";
 import { SOUNDS, TIMER_CHOICES_LABELS, breathCycleSecs, type BreathPattern, type BreathStep } from "@shared/sleepContent";
 import { displayRef } from "@shared/sleepScripts";
@@ -57,7 +58,7 @@ export function ReadStage({ onClose, onLightsOut }: { onClose: () => void; onLig
           : <button type="button" onClick={() => narrator.pause()} className="sl-btn sl-primary h-14 w-14 !p-0" aria-label="Pause"><Pause size={24} aria-hidden /></button>}
         <button type="button" onClick={() => narrator.skip(1)} className="sl-btn sl-ghost sl-icon" aria-label="Skip one sentence"><SkipForward size={20} aria-hidden /></button>
       </div>
-      <p className="sl-small mt-3 text-center text-[var(--sl-faint)]">{timerWords(left)}{v.device ? ". Reading with your phone's voice." : ""}</p>
+      <p className="sl-small mt-3 text-center text-[var(--sl-faint)]">{timerWords(left)}</p>
     </div>}
   </div>;
 }
@@ -68,14 +69,9 @@ export type BreathMode = { kind: "pattern"; pattern: BreathPattern } | { kind: "
 const COUNT_STEPS: BreathStep[] = [{ kind: "in", secs: 4 }, { kind: "out", secs: 6 }];
 const THE_STEPS: BreathStep[] = [{ kind: "in", secs: 1 }, { kind: "out", secs: 1 }];
 
+/** Breathing cues in the calm AI voice (never the phone's robot voice). */
 function speakCue(text: string) {
-  try {
-    if (!("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.rate = 0.8; u.pitch = 0.95; u.volume = 0.8;
-    window.speechSynthesis.speak(u);
-  } catch { /* no phone voice */ }
+  void sayAI(text, { voice: "autumn", rate: 0.9 });
 }
 
 export function BreathStage({ mode, minutes, onClose, onLightsOut }: { mode: BreathMode; minutes: number; onClose: () => void; onLightsOut: () => void }) {

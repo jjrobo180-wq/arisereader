@@ -1,0 +1,97 @@
+// Pod+ Live News Radio (client/src/components/family-hub/earshot/newsRadio.ts) and Live news
+// stations (podscroll/Radio.tsx), the separate all-news radio feed.
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { justIn, newestOf, newsLineup, refill, stationLineup } from "../client/src/components/family-hub/earshot/newsRadio";
+import type { PodEpisode } from "../shared/earshot";
+
+const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+const NOW = Date.parse("2026-10-31T06:00:00Z");
+const ep = (id: string, showId: string, minsAgo: number, secs = 300, audio = `https://cdn.example/${id}.mp3`): PodEpisode => ({
+  id, showId, show: showId, author: "", title: id, about: "", audio, date: new Date(NOW - minsAgo * 60_000).toISOString(), secs, art: "", link: "", explicit: false,
+});
+
+test("the lineup: newest bulletin of each show, newest first, news-length, https only", () => {
+  const list = [ep("npr-1", "npr", 5), ep("npr-0", "npr", 65), ep("cbs-1", "cbs", 20), ep("bbc-1", "bbc", 90),
+    ep("long", "pod", 10, 3 * 3600), ep("old", "abc", 13 * 60), ep("future", "fox", -60), ep("http", "ap", 3, 60, "http://x/a.mp3")];
+  assert.deepEqual(newsLineup(list, NOW).map((e) => e.id), ["npr-1", "cbs-1", "bbc-1"]);
+});
+
+test("a bulletin that comes out while it plays goes in next; nothing twice", () => {
+  const first = newsLineup([ep("npr-1", "npr", 30), ep("cbs-1", "cbs", 40)], NOW);
+  const queued = new Set(first.map((e) => e.id));
+  const later = [ep("npr-2", "npr", 1), ep("npr-1", "npr", 30), ep("cbs-1", "cbs", 40)];
+  assert.deepEqual(justIn(later, queued, newestOf(first), NOW).map((e) => e.id), ["npr-2"]);
+  assert.deepEqual(justIn(first, queued, newestOf(first), NOW), []);
+});
+
+test("it never runs dry: new episodes first, else the latest headlines again", () => {
+  const all = [ep("a", "npr", 5), ep("b", "cbs", 10)];
+  assert.deepEqual(refill(all, new Set(["a"]), NOW).map((e) => e.id), ["b"]);
+  assert.deepEqual(refill(all, new Set(["a", "b"]), NOW).map((e) => e.id), ["a", "b"]);
+});
+
+test("Pod+ Home, the menu and Up to the Minute News start it; the player plays it live", () => {
+  const home = read("podscroll/Home.tsx"), hubs = read("podscroll/Hubs.tsx"), player = read("client/src/components/family-hub/earshot/EarshotPlayer.tsx");
+  assert.match(home, /onNewsRadio=\{\(\) => onOpenFeed\(undefined, undefined, \{ id: NEWS_RADIO_ID, index: 0 \}\)\}/);
+  assert.match(home, /navItem\(NEWS_RADIO_NAME/);
+  assert.match(hubs, /Pod\+ Live News Radio/);
+  assert.match(read("podscroll/Endless.tsx"), /Listen to Pod\+ Live News Radio/);
+  assert.match(player, /playMode\.id === NEWS_RADIO_ID\) \{ void startNewsRadio\(\)/);
+  assert.match(player, /\$\{NEWS_RADIO_NAME\} · On air/);
+  assert.match(player, /\/api\/earshot\/now\/station/);
+});
+
+test("Live news stations: a separate feed of stations that are news all day", () => {
+  const radio = read("podscroll/Radio.tsx");
+  const body = radio.slice(radio.indexOf("const NOT_NEWS"), radio.indexOf("/** Live news stations"));
+  // eslint-disable-next-line no-new-func
+  const fullTimeNews = new Function(`${body.replace(/export function/, "function").replace(/: Pick<Station, "name" \| "tags">/, "").replace(/\): boolean/, ")")}; return fullTimeNews;`)() as (s: { name: string; tags: string }) => boolean;
+  assert.equal(fullTimeNews({ name: "1010 WINS", tags: "news,new york,am" }), true);
+  assert.equal(fullTimeNews({ name: "KNX News 97.1", tags: "news talk" }), true, "called news");
+  assert.equal(fullTimeNews({ name: "Hits 101", tags: "pop,hits,news" }), false);
+  assert.equal(fullTimeNews({ name: "Sports Talk 1500", tags: "sports,news,talk" }), false);
+  assert.equal(fullTimeNews({ name: "Morning Show FM", tags: "talk,news" }), false);
+  assert.match(read("podscroll/Home.tsx"), /<NewsStationsView onPlay=\{playStation\}/);
+});
+
+test("national networks' streams aren't played in Pod+ Radio; local stations are", () => {
+  const radio = read("podscroll/Radio.tsx");
+  const re = new RegExp(radio.match(/const NETWORKS = \/(.+)\/i;/)![1], "i");
+  for (const n of ["CNN", "CNN International", "Fox News Radio", "MSNBC", "BBC World Service", "Bloomberg Radio", "C-SPAN Radio", "NPR News"]) assert.ok(re.test(n), n);
+  for (const n of ["1010 WINS", "KQED", "WNYC 93.9 FM", "KEXP", "News Radio 1190"]) assert.ok(!re.test(n), n);
+  assert.match(radio, /&& !isNetwork\(s\);/, "left out of every Radio list, Live news stations too");
+});
+
+test("the station still plays when the last 12 hours have nothing: it reaches back to the latest it has", () => {
+  const now = Date.parse("2026-10-31T13:00:00Z");
+  const e = (id: string, showId: string, hrs: number) => ({ id, showId, show: showId, author: "", title: id, about: "", audio: "https://a/" + id + ".mp3", date: new Date(now - hrs * 3600_000).toISOString(), secs: 300, art: "", link: "", explicit: false });
+  const stale = [e("npr4pm", "npr", 21), e("cbs", "cbs", 15), e("old", "bbc", 30)];
+  assert.deepEqual(newsLineup(stale, now), []);
+  assert.deepEqual(stationLineup(stale, now).map((x) => x.id), ["cbs", "npr4pm"]);
+  assert.deepEqual(stationLineup([e("fresh", "npr", 1), ...stale], now).map((x) => x.id), ["fresh"]);
+});
+
+test("Live News Radio plays like a live stream: its own screen, no seeking, skipping or swiping", () => {
+  const src = readFileSync(new URL("../client/src/components/family-hub/earshot/EarshotPlayer.tsx", import.meta.url), "utf8");
+  assert.match(src, /function LiveNews\(/);
+  assert.match(src, /data-testid="pod-live-badge"/);
+  assert.match(src, /onAir \? "touch-none overflow-hidden" : "overflow-y-scroll"/);
+  assert.match(src, /set\("seekforward", live \? null/);
+  // The station replaces the feed, and podcasts aren't added after it.
+  assert.match(src, /playList\(slotItems\(list, now\), true, !!justFinished\)/);
+  assert.match(src, /if \(radio\.current\) return;\n    const list = itemsRef\.current;/);
+});
+
+test("one station for everyone: each phone plays what's on air from where it has reached, and never replays a bulletin's start", () => {
+  const src = readFileSync(new URL("../client/src/components/family-hub/earshot/EarshotPlayer.tsx", import.meta.url), "utf8");
+  assert.match(src, /api\(`\/api\/earshot\/now\/station`\)/);
+  assert.match(src, /const at = live \? liveAt\(live\) :/);
+  // No muted hold-then-back-to-the-start for the station, and a finished bulletin goes straight on.
+  assert.match(src, /const hold = play && !it\.live &&/);
+  assert.match(src, /if \(it\?\.live && it\.ep\) \{ setPlaying\(false\); lastAutoAdvance\.current = Date\.now\(\); void tuneIn\(it\.ep\.id\); return; \}\n    if \(it\?\.ep\) \{ signal/);
+  // Going back to Home keeps it playing; opening the hub again doesn't start it over.
+  assert.match(src, /onMinimize=\{\(\) => \{ if \(onHome\) onHome\(\); else setTab\("explore"\); \}\}/);
+  assert.match(readFileSync(new URL("../podscroll/main.tsx", import.meta.url), "utf8"), /podMode\?\.id === "__newsradio" && feedSeenRef\.current && nowPodRef\.current\?\.live/);
+});

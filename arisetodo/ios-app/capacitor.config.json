@@ -1,9 +1,38 @@
 {
   "appId": "com.arisereader.arisetodo",
-  "appName": "A.R.I.S.E. To-Do",
+  "appName": "Arise To Duo",
   "webDir": "www",
-  "server": {
-    "url": "https://arisetodo.com/app",
-    "cleartext": false
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "backgroundColor": "#FFFFFF",
+      "showSpinner": false
+    },
+    "Keyboard": {
+      "resize": "native"
+    },
+    "LocalNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
+    },
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
+    },
+    "CapacitorUpdater": {
+      "autoUpdate": false,
+      "updateUrl": "https://arisetodo.com/api/ota/todo",
+      "channelUrl": "https://arisetodo.com/api/ota/todo",
+      "statsUrl": ""
+    }
+  },
+  "ios": {
+    "contentInset": "automatic"
   }
 }

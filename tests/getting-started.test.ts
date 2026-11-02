@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { GUIDES, guideFor, startingRole } from "../shared/gettingStarted";
 import { TOGGLEABLE, ADD_ON_SECTIONS, isOn, emptyFamily, cleanSectionOrder } from "../shared/familyHub";
-import { WORK_BUILT_IN_TABS, isTabOn, emptyWorkspace } from "../shared/teacherHub";
+import { WORK_BUILT_IN_TABS, isTabOn, emptyWorkspace, normalizeWorkspace } from "../shared/teacherHub";
 import { visibleGroups } from "../shared/hubTabGroups";
-import { PLUGINS } from "../shared/pluginStore";
+import { PLUGINS, pluginsFor } from "../shared/pluginStore";
 
 test("a guide for each kind of person, each with steps, features, customizing and tips", () => {
   assert.deepEqual(GUIDES.map((g) => g.role), ["parent", "teacher", "student", "personal"]);
@@ -22,21 +22,18 @@ test("a guide for each kind of person, each with steps, features, customizing an
   assert.equal(guideFor("student").label, "Student");
 });
 
-test("it's in both menus from the start, at the top, and can be removed and added back", () => {
-  assert.ok(TOGGLEABLE.includes("start") && !ADD_ON_SECTIONS.includes("start"));
-  assert.equal(isOn("start", emptyFamily()), true);
-  assert.equal(isOn("start", { sections: { start: false } }), false);
-  assert.equal(cleanSectionOrder(["notes", "goals"])[0], "start");
-  assert.ok(WORK_BUILT_IN_TABS.includes("start"));
+test("Getting started is replaced by the first-run walkthrough in both hubs (October 2026)", () => {
   const v = emptyWorkspace().visibleTabs;
-  assert.equal(isTabOn("start", v), true);
-  assert.equal(isTabOn("start", { ...v, start: false }), false);
-  assert.equal(visibleGroups(v)[1].id, "start");
-  assert.ok(PLUGINS.some((p) => p.id === "life-start") && PLUGINS.some((p) => p.id === "work-start"));
+  assert.equal(isTabOn("start", v), false);
+  assert.equal(normalizeWorkspace({ visibleTabs: { start: true } }).visibleTabs.start, false);
+  assert.ok(!pluginsFor("life", { teacher: false }).some((p) => p.name === "Getting started"));
+  assert.ok(!pluginsFor("work", { teacher: true }).some((p) => p.name === "Getting started"));
+  for (const page of ["../client/src/pages/AriseTodo.tsx", "../client/src/pages/TeacherHub.tsx"]) assert.match(readFileSync(new URL(page, import.meta.url), "utf8"), /<AppWalkthrough userId=\{user\.id\} hub="(life|work)"/);
+  const w = readFileSync(new URL("../client/src/components/AppWalkthrough.tsx", import.meta.url), "utf8");
+  for (const part of ["Getting around", "Add anything with +", "Only the apps you want", "Make it yours", "Bring in your iPhone", "Reminders on your phone", "split screen", "looksLikeDuoInner"]) assert.ok(w.includes(part), part);
 });
 
 test("the page has the picker, checklist, features, customizing and a remove button", () => {
   const src = readFileSync(new URL("../client/src/components/GettingStarted.tsx", import.meta.url), "utf8");
   for (const part of ['data-testid="gs-remove"', "gs-role-", "Your first few minutes", "What's here", "Make it yours", "Good to know"]) assert.ok(src.includes(part), part);
-  for (const page of ["../client/src/pages/AriseTodo.tsx", "../client/src/pages/TeacherHub.tsx"]) assert.match(readFileSync(new URL(page, import.meta.url), "utf8"), /<GettingStarted hub="(life|work)"/);
 });

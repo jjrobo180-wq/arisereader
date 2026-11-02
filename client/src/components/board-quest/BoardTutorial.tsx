@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { sayAI, stopAiVoice } from '@/lib/aiVoice';
 import { Check, Dices, Hand, Shield, Trophy, Volume2, RotateCcw, Users } from 'lucide-react';
 import { API_BASE } from '@/lib/queryClient';
 import { BOARD_LAST_SPACE, HANDS, rpsWinner, type Hand as HandChoice, type View, type TutorialResult } from '@shared/boardQuest';
@@ -24,20 +25,15 @@ export default function BoardTutorial({ view, myId, token, sound, busy, offline,
   useEffect(() => {
     let alive = true, url = '', fallbackActive = false;
     const controller = new AbortController();
-    const stop = () => { alive = false; controller.abort(); audioRef.current?.pause(); audioRef.current = null; if (url) URL.revokeObjectURL(url); if (fallbackActive) window.speechSynthesis?.cancel(); };
+    const stop = () => { alive = false; controller.abort(); audioRef.current?.pause(); audioRef.current = null; if (url) URL.revokeObjectURL(url); if (fallbackActive) stopAiVoice(); };
     cancelRef.current = stop;
     if (!sound || ready) { setVoiceState(sound ? '' : 'Narration muted'); return stop; }
+    // The announcer line didn't come: the same words in the general AI voice (never the device's robot voice).
     const fallback = () => {
       if (!alive) return;
-      if (!('speechSynthesis' in window)) { setVoiceState('Read the rules below, then continue.'); return; }
       fallbackActive = true;
-      const speech = new SpeechSynthesisUtterance(card.text);
-      const voices = speechSynthesis.getVoices();
-      const voice = voices.find(voice => /Guy|Daniel|David|Alex/i.test(voice.name) && /^en/i.test(voice.lang)) || voices.find(voice => /^en/i.test(voice.lang));
-      if (voice) speech.voice = voice;
-      speech.rate = 1; speech.pitch = .85;
-      speech.onend = () => { if (alive) setVoiceState('Device narration finished'); };
-      setVoiceState('Device narration'); speechSynthesis.speak(speech);
+      setVoiceState('AI narration');
+      void sayAI(card.text, { voice: 'troy', onEnd: () => { if (alive) setVoiceState('AI narration finished'); }, onError: () => { if (alive) setVoiceState('Read the rules below, then continue.'); } });
     };
     const narrate = async () => {
       setVoiceState('Preparing AI announcer…');

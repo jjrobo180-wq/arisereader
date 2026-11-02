@@ -1,9 +1,10 @@
 // A post with its replies (reply, like, delete, report), and Activity (notifications by day).
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AtSign, Flag, Heart, Loader2, MessageCircle, Mic, MoreHorizontal, Repeat2, Trash2, UserPlus } from "lucide-react";
+import { AtSign, Ban, Flag, Heart, Loader2, MessageCircle, Mic, MoreHorizontal, Repeat2, Trash2, UserPlus } from "lucide-react";
 import { hiRes } from "@shared/earshot";
 import { ActionSheet, Avatar, Empty, NameLine, PillButton, RichText, Spinner, TopBar, compactCount, shortAgo, type Comment, type Note, type Post, type SCtx } from "./kit";
 import { PostCard, PostSkeleton } from "./PostCard";
+import { ReportSheet } from "./Rules";
 import { TabBtn } from "./Explore";
 
 export function PostScreen({ start, ctx, onBack }: { start: Post | string; ctx: SCtx; onBack: () => void }) {
@@ -40,7 +41,8 @@ export function PostScreen({ start, ctx, onBack }: { start: Post | string; ctx: 
     ctx.api(`/api/earshot/social/comments/${c.id}/like`, { method: "POST", body: { on } }).catch(() => {});
   };
   const remove = (c: Comment) => ctx.api(`/api/earshot/social/comments/${c.id}`, { method: "DELETE" }).then(() => { setList((l) => (l || []).filter((x) => x.id !== c.id && x.parentId !== c.id)); ctx.say("Reply deleted."); }).catch((e) => ctx.say(e.message));
-  const report = (c: Comment) => ctx.api(`/api/earshot/social/comments/${c.id}/report`, { method: "POST" }).then(() => { setList((l) => (l || []).filter((x) => x.id !== c.id)); ctx.say("Reported. Thanks for telling us."); }).catch((e) => ctx.say(e.message));
+  const [reporting, setReporting] = useState<Comment | null>(null);
+  const report = (c: Comment) => setReporting(c);
   const replyTo = (c: Comment) => { setTo(c); setText((t) => (t.startsWith(`@${c.author.handle}`) ? t : `@${c.author.handle} ${t}`)); setTimeout(() => box.current?.focus(), 30); };
 
   const row = (c: Comment, nested = false) => <div key={c.id} className={`flex gap-3 py-3 pr-4 ${nested ? "pl-[60px]" : "pl-4"}`}>
@@ -76,8 +78,10 @@ export function PostScreen({ start, ctx, onBack }: { start: Post | string; ctx: 
     {menu && <ActionSheet onClose={() => setMenu(null)} items={[
       ...(menu.mine || post?.mine ? [{ label: "Delete reply", icon: <Trash2 size={18} />, danger: true, onClick: () => remove(menu) }] : []),
       ...(!menu.mine ? [{ label: "Report reply", icon: <Flag size={18} />, onClick: () => report(menu) }] : []),
+      ...(!menu.mine ? [{ label: `Block @${menu.author.handle}`, icon: <Ban size={18} />, danger: true, onClick: () => ctx.api("/api/earshot/social/block", { method: "POST", body: { handle: menu.author.handle } }).then(() => { setList((l) => (l || []).filter((x) => x.author.handle !== menu.author.handle)); ctx.say(`You blocked @${menu.author.handle}.`); }).catch((e) => ctx.say(e.message)) }] : []),
       { label: `View @${menu.author.handle}`, icon: <AtSign size={18} />, onClick: () => ctx.openProfile(menu.author.handle) },
     ]} />}
+    {reporting && <ReportSheet api={ctx.api} path={`/api/earshot/social/comments/${reporting.id}/report`} what="reply" onClose={() => setReporting(null)} onDone={(m, ok) => { const gone = reporting; ctx.say(m); if (ok && gone) setList((l) => (l || []).filter((x) => x.id !== gone.id)); }} />}
   </div>;
 }
 

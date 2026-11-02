@@ -5,7 +5,7 @@
 // invites, add-ons) are the hub-built ones in components/hub-pieces.
 import QuizCheckPanel, { needsBookCheck } from "@/components/QuizCheckPanel";
 import { MergeAccountsCard } from "./MergeAccounts";
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import {
   AlertTriangle, Award, BookOpen, Check, CheckCircle2, ChevronRight, Clock3, Copy, ExternalLink,
@@ -335,6 +335,12 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
   /* ---- password, rewards and moving a student to another teacher (one pop-up) ---- */
   const [action, setAction] = useState<Action | null>(null);
   const openAction = (student: Action["student"], kind: Action["kind"]) => { setFlash(null); setAction({ student, kind }); };
+  // Students who used "Forgot password?" on the sign-in screen (server/studentRecovery.ts).
+  const [helps, setHelps] = useState<{ id: number; studentId: number; name: string; username: string; createdAt: string }[]>([]);
+  const helpId = useRef<number | null>(null);
+  const loadHelps = useCallback(() => request("/api/teacher/password-help").then((d) => setHelps(Array.isArray(d?.requests) ? d.requests : [])).catch(() => {}), [request]);
+  useEffect(() => { if (tab === "reader") void loadHelps(); }, [tab, loadHelps]);
+  const closeHelp = (id: number) => { setHelps((l) => l.filter((h) => h.id !== id)); request(`/api/teacher/password-help/${id}/done`, { method: "POST" }).catch(() => {}); };
 
   const [apSub, setApSub] = useSub<"join" | "grades" | "books" | "quizzes">("approvals", "join");
   const [qSub, setQSub] = useSub<"grade" | "camera" | "proctor">("quizzes", "grade");
@@ -396,6 +402,16 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
           {!user?.isAdmin && <Launch icon={<Award className="h-5 w-5" />} title="Your plan" detail="Plans, add-ons and billing" onClick={() => openPage("/billing")} />}
         </div>
       </Card>
+
+      {helps.length > 0 && <Card title={`Password help (${helps.length})`} collapseKey="reader-password-help">
+        <p className="mb-3 text-sm text-slate-600">These students forgot their password on the sign-in screen. Give them a new one so they don't make a second account.</p>
+        <ul className="space-y-2">{helps.map((h) => <li key={h.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-sm">
+          <KeyRound className="h-4 w-4 text-slate-500" />
+          <span className="min-w-0 flex-1"><b className="text-slate-900">{h.name}</b> <span className="text-slate-500">@{h.username} · {new Date(h.createdAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span></span>
+          <button type="button" onClick={() => { helpId.current = h.id; openAction({ id: h.studentId, name: h.name, username: h.username }, "password"); }} className="min-h-9 rounded-lg bg-slate-900 px-3 font-semibold text-white hover:bg-slate-800">Set new password</button>
+          <button type="button" onClick={() => closeHelp(h.id)} className="min-h-9 rounded-lg px-3 font-semibold text-slate-600 hover:bg-slate-100">Dismiss</button>
+        </li>)}</ul>
+      </Card>}
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card title="Needs you" collapseKey="reader-needs">
@@ -578,8 +594,8 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
 
     {pop && <StudentPopup pop={pop} onClose={closePop} />}
 
-    {action && <StudentAction action={action} request={request} teachers={school?.teachers || []} onClose={() => setAction(null)}
-      onDone={(text, reload) => { done(text); setAction(null); if (reload) { void loadSchool(); void loadClass(); } }} />}
+    {action && <StudentAction action={action} request={request} teachers={school?.teachers || []} onClose={() => { helpId.current = null; setAction(null); }}
+      onDone={(text, reload) => { if (helpId.current) { closeHelp(helpId.current); helpId.current = null; } done(text); setAction(null); if (reload) { void loadSchool(); void loadClass(); } }} />}
   </div>;
 }
 

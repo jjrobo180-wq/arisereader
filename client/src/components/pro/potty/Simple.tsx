@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { phoneState, sendPottyTest, turnOnPhone, type PushPhase } from "@/lib/pottyPush";
+import { isNativeApp } from "@/lib/nativeApp";
 import { useTick, fmtDuration } from "../kit";
 import { AGO_CHOICES, DRINK_TYPES, JUST_NOW, clockOf, dayOf, isPeeEvent, isPoopEvent, comingText, mlToOz, minutesAfter, nextRing, ozToMl, planSits, resolveWhen, whenText, type DrinkType, type Entry, type Kind, type When } from "@shared/pro/potty";
 import { usePotty } from "./ctx";
@@ -66,7 +67,7 @@ function PhoneNotify() {
   const blocker: Partial<Record<PushPhase, string>> = {
     install: "On iPhone, first add this app to your Home Screen: tap Share, then Add to Home Screen. Open it from there, then turn this on.",
     blocked: "Notifications are blocked for this site. Allow them in your phone's settings for this app or browser, then come back here.",
-    unsupported: "This browser can't show notifications. Try Chrome or Safari, or the app on your Home Screen.",
+    unsupported: isNativeApp() ? "Notifications aren't in this version of the app yet. Update Arise To Duo from the App Store, then try again." : "This browser can't show notifications. Try Chrome or Safari, or the app on your Home Screen.",
     unavailable: "Phone notifications aren't set up on the server yet.",
   };
   return <Panel>

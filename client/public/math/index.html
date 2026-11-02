@@ -592,7 +592,21 @@ const keep = { get(k, d){ try { return JSON.parse(localStorage.getItem(k)||'null
 let CAT = null, ME = null;
 const S = { tab:null, menu:false, board:null, period:'week', assign:null, cls:null, children:null, childId:null, live:undefined, run:null, result:null, lplay:null, err:{}, drafts:keep.get('arise_math_drafts', []) };
 let GAME = null, gameTimer = null, beatTimer = null, playAccess = null, playErr = null;
-const canSpeak = 'speechSynthesis' in window;
+// Read aloud in an AI voice (POST /api/voice/say on the Arise server), never the robot voice.
+const canSpeak = true;
+const VOICE_BASE = location.protocol === 'capacitor:' ? 'https://arisetodo.com' : '';
+let voiceAudio = null, voiceTurn = 0;
+const voiceClips = new Map();
+function aiSay(text){
+  const t = String(text||'').replace(/\s+/g,' ').trim(); if(!t) return;
+  const turn = ++voiceTurn;
+  if(!voiceAudio){ voiceAudio = new Audio(); voiceAudio.setAttribute('playsinline',''); }
+  voiceAudio.pause();
+  let p = voiceClips.get(t);
+  if(!p){ p = fetch(VOICE_BASE + '/api/voice/say', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text: t, voice: 'hannah' }) })
+    .then(r => r.ok ? r.blob() : Promise.reject(new Error('voice'))).then(b => URL.createObjectURL(b)); voiceClips.set(t, p); p.catch(() => voiceClips.delete(t)); }
+  p.then(url => { if(turn !== voiceTurn) return; voiceAudio.src = url; voiceAudio.playbackRate = .95; return voiceAudio.play(); }).catch(() => {});
+}
 const role = () => ME?.user.role || 'guest';
 const isStaff = () => role()==='teacher' || role()==='admin';
 const P = () => ME?.profile;
@@ -852,7 +866,7 @@ function resultsHTML(){
       <div class="row"><button class="btn primary" data-act="home">Pick another quiz</button><button class="btn" data-act="tab" data-v="board">${svg('trophy')}Leaderboard</button><button class="btn" data-act="tab" data-v="games">${svg('game')}Game room</button></div>
     </div></div>`;
 }
-function speakText(t){ if(!canSpeak) return; try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(String(t).replace(/<[^>]+>/g,' ').replace(/−/g,' minus ').replace(/×/g,' times ').replace(/÷/g,' divided by ').replace(/\?/g,' what ').replace(/x²/g,'x squared ').replace(/=/g,' equals ').replace(/</g,' is less than ').replace(/>/g,' is greater than ')); u.rate=.92; speechSynthesis.speak(u); }catch(e){} }
+function speakText(t){ aiSay(String(t).replace(/<[^>]+>/g,' ').replace(/−/g,' minus ').replace(/×/g,' times ').replace(/÷/g,' divided by ').replace(/\?/g,' what ').replace(/x²/g,'x squared ').replace(/=/g,' equals ').replace(/</g,' is less than ').replace(/>/g,' is greater than ')); }
 const plainOf = it => { const d=document.createElement('div'); d.innerHTML=it.prompt; d.querySelectorAll('.fr').forEach(f=>{ const [a,b]=f.children; f.textContent=` ${a.textContent} over ${b.textContent} `; }); return d.textContent; };
 function speakAuto(){ if (P()?.a11y.read && S.run) speakText(S.run.session.item.ask+'. '+plainOf(S.run.session.item)); }
 

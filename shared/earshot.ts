@@ -171,7 +171,7 @@ export type Earshot = {
   settings: EarshotSettings;
 };
 
-export const EARSHOT_LIMITS = { follows: 200, liked: 300, saved: 300, heard: 200, skipped: 80, comment: 280, search: 80, modes: 24, modeEpisodes: 150 } as const;
+export const EARSHOT_LIMITS = { follows: 500, liked: 300, saved: 300, heard: 200, skipped: 80, comment: 280, search: 80, modes: 24, modeEpisodes: 150 } as const;
 /** Modes that start out Fresh (rebuilt daily). */
 export const FRESH_BY_DEFAULT = ["briefing"];
 export const defaultModes = (): PodMode[] => DEFAULT_MODES.map((m) => ({ id: m.id, name: m.name, icon: m.icon, episodes: [], ...(FRESH_BY_DEFAULT.includes(m.id) ? { fresh: true } : {}) }));
@@ -709,6 +709,13 @@ export function mergeAds(list: AdRange[]): AdRange[] {
 }
 
 /** Where to start an episode: where they left off (unless that's the very start or end), else past the intro. */
+/** An automatic jump (saved spot, intro or ad skip) only goes somewhere at least 15 s before the real
+ *  end of the audio, or anywhere while its length isn't known yet. Apple's length can be longer than
+ *  the file, and a jump past the end made an episode "end" the moment it started. */
+export function safeTo(a: { duration: number }, to: number): boolean {
+  const D = a.duration;
+  return to >= 0 && (!Number.isFinite(D) || D <= 0 || to < D - 15);
+}
 export function startAt(secs: number, resumeAt: number | undefined, skipIntro: boolean): number {
   if (resumeAt && resumeAt > 20 && (!secs || resumeAt < secs - 30)) return Math.floor(resumeAt);
   return introSkip(secs, skipIntro);

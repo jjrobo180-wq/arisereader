@@ -54,6 +54,7 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
       targets: [
         { sel: '[data-testid="hub-menu-arise"]', label: "A.R.I.S.E. Reader" },
         { sel: '[data-testid="hub-rail-show"]', label: "Open your menu", note: "Your menu is tucked away. Tap this tab to open it." },
+        { sel: '[data-testid="hub-tab-apps"]', label: "Apps", note: "Tap Apps to see every section." },
       ],
     },
     {
@@ -98,7 +99,7 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
       teacherOnly: true,
       body: "Everything else for your class sits under A.R.I.S.E. Reader too: Scenes, Parents, Quizzes & grading, Game time, Prizes and Reading records.",
       open: { tab: "reader" },
-      targets: [{ sel: '[data-tour="hub-menu"]', label: "Your menu" }],
+      targets: [{ sel: '[data-tour="hub-menu"]', label: "Your menu" }, { sel: '[data-testid="hub-tab-apps"]', label: "Apps" }],
     },
     {
       title: "Arise Learning",
@@ -108,6 +109,7 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
         { sel: '[data-testid="hub-learning-heading"]', label: "Arise Learning" },
         { sel: '[data-testid="hub-learning-math"]', label: "Arise Learning" },
         { sel: '[data-testid="hub-rail-show"]', label: "Open your menu", note: "Your menu is tucked away. Tap this tab to open it." },
+        { sel: '[data-testid="hub-tab-apps"]', label: "Apps", note: "Tap Apps to see every section." },
       ],
     },
     {
@@ -117,14 +119,15 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
       targets: [
         { sel: '[data-testid="hub-add-with-ai"]', label: "Add with AI" },
         { sel: '[data-testid="quick-add-event"]', label: "Add" },
+        { sel: '[data-testid="hub-tab-add"]', label: "Add" },
       ],
     },
     {
-      title: "App Store",
+      title: "App Gallery",
       body: "Add extra tools to your WorkHub, like behavior points, attendance, a gradebook and notes. Everything there is optional.",
       targets: [
-        { sel: '[data-testid="hub-plugin-store"]', label: "App Store" },
-        { sel: '[data-testid="hub-menu-app-store"]', label: "App Store" },
+        { sel: '[data-testid="hub-plugin-store"]', label: "App Gallery" },
+        { sel: '[data-testid="hub-menu-app-store"]', label: "App Gallery" },
       ],
     },
     {
@@ -186,13 +189,14 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
       targets: [
         { sel: '[data-testid="life-section-tasks"]', label: "Tasks" },
         { sel: '[data-testid="life-menu-tasks"]', label: "Tasks" },
+        { sel: '[data-testid="life-tab-tasks"]', label: "Tasks" },
         { sel: '[data-tour="life-content"]', label: "Tasks" },
       ],
     },
     {
       title: "Add anything",
       body: "The Add button adds a task, list, event, grocery item, note or bill from any screen.",
-      targets: [{ sel: '[data-testid="life-add-button"]', label: "Add" }],
+      targets: [{ sel: '[data-testid="life-add-button"]', label: "Add" }, { sel: '[data-testid="life-tab-add"]', label: "Add" }],
     },
     {
       title: "Family and settings",
@@ -201,16 +205,18 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
       targets: [
         { sel: '[data-testid="life-section-family"]', label: "Family & settings" },
         { sel: '[data-testid="life-menu-family"]', label: "Family & settings" },
+        { sel: '[data-testid="life-tab-you"]', label: "You", note: "Family & settings is in here too." },
         { sel: '[data-tour="life-content"]', label: "Family & settings" },
       ],
     },
     {
-      title: "App Store",
+      title: "App Gallery",
       body: "Add extra tools, like a calendar, groceries, money, notes and more. Everything there is optional.",
       targets: [
-        { sel: '[data-testid="lifehub-plugin-store-header"]', label: "App Store" },
-        { sel: '[data-testid="lifehub-plugin-store"]', label: "App Store" },
-        { sel: '[data-testid="life-menu-app-store"]', label: "App Store" },
+        { sel: '[data-testid="lifehub-plugin-store-header"]', label: "App Gallery" },
+        { sel: '[data-testid="lifehub-plugin-store"]', label: "App Gallery" },
+        { sel: '[data-testid="life-menu-app-store"]', label: "App Gallery" },
+        { sel: '[data-testid="life-tab-apps"]', label: "Apps", note: "App Gallery is in Apps." },
       ],
     },
     {
@@ -283,6 +289,7 @@ function findTarget(targets: Target[] | undefined): { el: HTMLElement; target: T
 type Box = { top: number; left: number; width: number; height: number };
 const PAD = 6;
 
+const AUTO_START_OFF = true;
 export default function WorkHubTour() {
   const { user } = useAuth();
   const role = roleForUser(user);
@@ -314,6 +321,9 @@ export default function WorkHubTour() {
   // the tour while someone stares at an empty page. A local seen flag prevents
   // repeat intros on this device; the server remains the cross-device source.
   useEffect(() => {
+    // The first-run walkthrough (components/AppWalkthrough.tsx) replaced this as the tour everyone
+    // gets the first time; this spotlight tour now only runs when asked for ("arise-tour:start").
+    if (AUTO_START_OFF) return;
     if (!user || !role) return;
     const key = SEEN_KEY(user.id, role);
     if (user.isAdmin && user.role !== "teacher" && user.role !== "parent") return;

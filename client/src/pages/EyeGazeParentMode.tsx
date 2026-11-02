@@ -146,12 +146,7 @@ export default function EyeGazeParentMode() {
   const photoLabels = Array.from(new Set([...places.flatMap(place => place.words.map(word => word.label)), ...defaultNeeds.map(item => item.label), ...(draft.alwaysHere || []).map(item => item.label)])).sort();
 
   const speak = (line: string) => {
-    void speakCharacterAI(line, { calmMode: true, onFallback: () => {
-      if (!("speechSynthesis" in window)) return;
-      const utterance = new SpeechSynthesisUtterance(line);
-      utterance.rate = 0.85;
-      window.speechSynthesis.speak(utterance);
-    } });
+    void speakCharacterAI(line, { calmMode: true });
   };
 
   const record = async (word: string, outcome: string, prompt?: number) => {

@@ -4,6 +4,8 @@
 // likes, comments and share counts come from the Arise server's public /api/podscroll routes
 // (server/earshot.ts registerPodscrollRoutes), which read Apple Podcasts. Audio plays straight
 // from each podcast's own host.
+import "./accountBoot";
+import { setAccount } from "../client/src/lib/accountStorage";
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { applySignal, cleanEarshot, emptyEarshot, type Earshot, type PodEpisode, type Signal } from "@shared/earshot";
@@ -12,9 +14,18 @@ import { LIGHT_SHEETS_CSS, Player, Setup, useTheme, type NowPlaying, type Player
 import { LIGHT_CSS } from "../client/src/components/family-hub/earshot/EarshotSocial";
 import { Home } from "./Home";
 import { AuthScreen } from "./Auth";
+import { Welcome, WELCOME_KEY } from "./Welcome";
+import { OPEN_EVENT, podPushAllowed, startPodPush, syncPodPush } from "./applePush";
+import { isNativeApp, markAppReadyWhenDrawn } from "../client/src/lib/nativeApp";
+import { downloads, installDownloads } from "./downloads";
 import "./styles.css";
+import { configureAiVoice } from "../client/src/lib/aiVoice";
 
+// The shared social screens read this to link to Pod+'s own policies and support (social/Rules.tsx).
+(window as any).__PODPLUS__ = true;
 const API = String(import.meta.env.VITE_PODSCROLL_API || "https://arisereader.onrender.com").replace(/\/$/, "");
+// Spoken lines (recaps, Read along) use the AI voices on the Arise server, never the phone's robot voice.
+configureAiVoice({ base: API });
 const KEY = "podscroll.v1";
 type PageTab = "openmic" | "social" | "library";
 const STARTER_GENRES = ["comedy", "news", "science", "tech", "truecrime", "history", "business", "culture"];
@@ -48,6 +59,8 @@ function App() {
   const [authMode, setAuthMode] = useState<"signin" | "signup" | null>(null);
   const setJoinOpen = useCallback((on: boolean) => setAuthMode(on ? "signup" : null), []);
   const [email, setEmailState] = useState(() => read("podscroll.email") || "");
+  // Signed in from before this update: use this account's own things on this device (reloads once).
+  useEffect(() => { if (session && email) setAccount(email); }, [session, email]);
   const shown = useMemo(() => (pro ? es : { ...es, settings: { ...es.settings, adMode: "off" as const } }), [es, pro]);
   esRef.current = shown;
   const [toast, setToast] = useState("");
@@ -80,8 +93,9 @@ function App() {
       try {
         res = await fetch(url, {
           method: init?.method ?? "GET",
-          headers: { "X-Podscroll-Device": device, ...(session ? { "X-Podscroll-Session": session } : {}), ...(init?.body !== undefined ? { "Content-Type": "application/json" } : {}) },
-          body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
+          // A Blob (a recording) goes as it is; anything else as JSON.
+          headers: { "X-Podscroll-Device": device, ...(session ? { "X-Podscroll-Session": session } : {}), ...(init?.body instanceof Blob ? { "Content-Type": init.body.type || "application/octet-stream" } : init?.body !== undefined ? { "Content-Type": "application/json" } : {}) },
+          body: init?.body instanceof Blob ? init.body : init?.body !== undefined ? JSON.stringify(init.body) : undefined,
         });
       } catch { throw new Error("Can't reach Pod+ right now. Check your connection and try again."); }
       body = await res.json().catch(() => ({}));
@@ -95,6 +109,7 @@ function App() {
   const signOut = useCallback(() => {
     void api("/api/earshot/account/signout", { method: "POST" }).catch(() => {});
     setSession(null); setEmailState(""); try { localStorage.removeItem("podscroll.email"); } catch { /* private window */ }
+    setAccount(null); setTimeout(() => window.location.reload(), 300); // the next person starts with an empty library
     say("Signed out.");
   }, [api, setSession, say]);
   // A saved session that's run out (or was signed out elsewhere) doesn't count as an account.
@@ -106,6 +121,13 @@ function App() {
   }, [session, api, setSession]);
   // Audio comes through the server so smart ad skip can find the ads in this copy.
   const mediaUrl = useCallback((path: string) => API + path.replace(/^\/api\/earshot/, "/api/podscroll"), []);
+  // Downloads (Pod+ Membership): episodes and audiobooks kept on this device to play offline.
+  const apiRef = useRef(api); apiRef.current = api;
+  const proRef = useRef(pro); proRef.current = pro;
+  useEffect(() => {
+    if (downloads) return;
+    installDownloads({ api: (p, i) => apiRef.current(p, i), apiBase: API, isMember: () => proRef.current, onJoin: () => setAuthMode("signup"), say });
+  }, [say]);
 
   const pending = useRef<{ genre: string; signal: Signal }[]>([]);
   const signal = useCallback((genre: string, s: Signal) => {
@@ -114,12 +136,17 @@ function App() {
     setEs((e) => list.reduce((acc, x) => applySignal(acc, x.genre, x.signal), e));
   }, []);
 
-  const shareLink = useCallback((show: { id: string }, ep: { id: string }) => `${location.origin}/app/?s=${show.id}&e=${ep.id}`, []);
+  const shareLink = useCallback((show: { id: string }, ep: { id: string }) => {
+    const origin = location.protocol === "capacitor:"
+      ? String(import.meta.env.VITE_PODSCROLL_SITE || "https://podscroll.onrender.com").replace(/\/$/, "")
+      : location.origin;
+    return `${origin}/app/?s=${show.id}&e=${ep.id}`;
+  }, []);
 
   // The home page (browse) comes first and opens episodes in the swipe feed. A shared swipe
   // link (?s=&e=) still opens straight into the feed.
   const [mode, setMode] = useState<"home" | "feed">(() => (start ? "feed" : "home"));
-  const [feedStart, setFeedStart] = useState<{ showId: string; episodeId: string; ep?: PodEpisode } | null>(start);
+  const [feedStart, setFeedStart] = useState<{ showId: string; episodeId: string; ep?: PodEpisode; next?: PodEpisode[] } | null>(start);
   const [feedKey, setFeedKey] = useState(0);
   // The scroll is For You and Following; Open Mic, Social and Library open from the home page as
   // their own pages (the same player, opened on that tab), each with a back button home.
@@ -127,19 +154,37 @@ function App() {
   const [feedMode, setFeedMode] = useState<{ id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" } | null>(null);
   // Picking an episode on the home page opens the swipe feed on it. Someone who never chose interests
   // gets a broad starting mix instead of the picker, so the episode they tapped plays right away.
-  const openFeed = useCallback((at?: { showId: string; episodeId: string; ep?: PodEpisode }, page?: PageTab, podMode?: { id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" }) => {
+  const openFeed = useCallback((at?: { showId: string; episodeId: string; ep?: PodEpisode; next?: PodEpisode[] }, page?: PageTab, podMode?: { id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" }) => {
     if ((at || page || podMode) && !esRef.current.setupDone) setEs((e) => e.setupDone ? e : ({ ...e, setupDone: true, genres: STARTER_GENRES, taste: Object.fromEntries(STARTER_GENRES.map((g) => [g, 3])) }));
     // Just a page (Social, Open Mic, Library, the scroll) and the player is already running: switch
     // its page, so what's playing keeps playing. A new episode or Pod Mode starts it fresh.
     if (!at && !podMode && feedSeenRef.current) { setFeedTab(page); setTabNonce((n) => n + 1); setMode("feed"); return; }
+    // Live News Radio is already on: back to it, still playing (it isn't started over).
+    if (podMode?.id === "__newsradio" && feedSeenRef.current && nowPodRef.current?.live) { setFeedTab(undefined); setTabNonce((n) => n + 1); setMode("feed"); return; }
     setFeedStart(at ?? null); setFeedTab(page); setFeedMode(podMode ?? null); setFeedKey((k) => k + 1); setMode("feed"); setFeedSeen(true);
   }, []);
+
+  // The iPhone app's first launch: welcome (sign in or just listen), notifications, a short tour.
+  const [welcome, setWelcome] = useState(() => isNativeApp() && read(WELCOME_KEY) !== "1");
+  const finishWelcome = useCallback(() => { write(WELCOME_KEY, "1"); setWelcome(false); }, []);
+  const followIds = useCallback(() => esRef.current.follows.map((f) => f.id), []);
+  // New-episode notifications (podscroll/applePush.ts): sign the phone up again on each launch once
+  // they're allowed, keep the server's list of followed shows current, and open a tapped episode.
+  useEffect(() => { void podPushAllowed().then((on) => { if (on) void startPodPush(api, followIds, false); }); }, [api, followIds]);
+  const followKey = es.follows.map((f) => f.id).join(",");
+  useEffect(() => { const t = setTimeout(() => void syncPodPush(api, followIds()), 1500); return () => clearTimeout(t); }, [followKey, api, followIds]);
+  useEffect(() => {
+    const open = (e: Event) => { const d = (e as CustomEvent).detail; if (d?.showId && d?.episodeId) openFeed({ showId: d.showId, episodeId: d.episodeId }); };
+    window.addEventListener(OPEN_EVENT, open);
+    return () => window.removeEventListener(OPEN_EVENT, open);
+  }, [openFeed]);
   // The swipe player stays running (hidden) on the home page and the audiobook page stays running
   // (hidden) in the player, so what's playing keeps playing when you move between them.
   const [feedSeen, setFeedSeen] = useState(() => mode === "feed");
   const feedSeenRef = useRef(feedSeen); feedSeenRef.current = feedSeen;
   const [tabNonce, setTabNonce] = useState(0);
   const [nowPod, setNowPod] = useState<NowPlaying | null>(null);
+  const nowPodRef = useRef(nowPod); nowPodRef.current = nowPod;
   const podCtl = useRef<PlayerControl | null>(null);
   // The now-playing bar on the home page opens the player itself, on what's playing (not the last
   // page that was open in it, like Social).
@@ -171,7 +216,9 @@ function App() {
 
   return <>
     {body}
-    {authMode && !pro && <AuthScreen api={api} dark={!day} start={authMode} onClose={() => setAuthMode(null)} onDone={(token, mail) => { setSession(token); setEmailState(mail); write("podscroll.email", mail); setAuthMode(null); say("You're signed in. Ads get skipped now."); }} />}
+    {welcome && !authMode && <Welcome key={pro ? "in" : "out"} api={api} signedIn={pro} onSignedIn={(token, mail) => { setSession(token); setEmailState(mail); write("podscroll.email", mail); setAccount(mail); }}
+      onEmail={() => setAuthMode("signin")} onPush={() => startPodPush(api, followIds, true)} onDone={finishWelcome} />}
+    {authMode && !pro && <AuthScreen api={api} dark={!day} start={authMode} onClose={() => setAuthMode(null)} onDone={(token, mail) => { setSession(token); setEmailState(mail); write("podscroll.email", mail); setAuthMode(null); say("You're signed in. Ads get skipped now."); setAccount(mail); }} />}
     <div role="status" aria-live="polite" className={`pointer-events-none fixed bottom-[calc(24px+env(safe-area-inset-bottom,0px))] left-1/2 z-[80] max-w-[calc(100%-32px)] -translate-x-1/2 rounded-full bg-white px-4 py-2.5 text-center text-sm font-bold text-[#120e14] shadow-xl transition ${toast ? "opacity-100" : "translate-y-3 opacity-0"}`}>{toast}</div>
   </>;
 }
@@ -208,3 +255,6 @@ function SignUpGate({ api, onDone, onClose }: { api: (path: string, init?: { met
 }
 
 createRoot(document.getElementById("root")!).render(<StrictMode><App /></StrictMode>);
+// Live updates: this copy of the app started and drew its first screen (otherwise the iPhone app goes
+// back to the copy that worked; client/src/lib/nativeApp.ts).
+markAppReadyWhenDrawn();

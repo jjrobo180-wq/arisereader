@@ -33,9 +33,10 @@ const KIND_LABEL: Record<PlanKind, string> = {
   school: "Premium · School", teacher: "Premium · Teacher", hub_school: "Arise WorkHub · School", hub_teacher: "Arise WorkHub · Teacher",
   social: "A.R.I.S.E. Connect · Account (old)", bundle_family: "Learning Bundle · Family", bundle_teacher: "Learning Bundle · Class (old)",
   todo_family: "LifeHub · Family", math_class: "Arise Math · Class", history_class: "Arise History · Class", social_class: "A.R.I.S.E. Connect · Class", ai_pro: "Arise AI Pro", storage_20gb: "Storage · 20 GB", storage_100gb: "Storage · 100 GB", storage_500gb: "Storage · 500 GB", todo_unlimited: "To-Do Unlimited · Monthly ($5)", todo_unlimited_year: "To-Do Unlimited · Yearly ($50)",
+  notes_basic: "Arise Notes · Basic ($4.99)", notes_plus: "Arise Notes · Plus ($7.99)", notes_plus_year: "Arise Notes · Plus yearly ($79.99)", notes_family: "Arise Notes · Family ($9.99)", fit_plus: "Arise Fit+ ($10)",
 };
 /** Plans given to one parent account, picked by its ID. */
-const byAccountId = (k: PlanKind) => k === "social" || k === "bundle_family" || k === "todo_family";
+const byAccountId = (k: PlanKind) => k === "social" || k === "bundle_family" || k === "todo_family" || k.startsWith("notes_");
 const isSchool = (k: PlanKind) => k === "school" || k === "hub_school";
 
 export default function AdminPlans() {
@@ -278,7 +279,7 @@ export default function AdminPlans() {
             <div className="space-y-3 pt-4 border-t border-border" data-testid="admin-vip">
               <Label className="text-sm font-medium">Free Unlimited for chosen people (arisetodo)</Label>
               <p className="text-sm text-muted-foreground">
-                Everyone on this list gets every App Store app and AI (to the fair-use limit) in WorkHub and LifeHub, with no payment. Type an email and it switches on the moment they sign up and confirm it, or the username of an account that already exists, such as a parent. Take them off any time.
+                Everyone on this list gets every App Gallery app and AI (to the fair-use limit) in WorkHub and LifeHub, with no payment. Type an email and it switches on the moment they sign up and confirm it, or the username of an account that already exists, such as a parent. Take them off any time.
               </p>
               <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
                 <Input value={vipWho} onChange={(e) => setVipWho(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void addVip(); }} placeholder="Email, or username" autoComplete="off" aria-label="Email or username" data-testid="admin-vip-who" />

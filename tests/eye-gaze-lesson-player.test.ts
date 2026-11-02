@@ -85,5 +85,6 @@ test("the quiz never waits on the voice and stays readable on any background", (
   assert.doesNotMatch(player, /hsl\(0 0% 100%\)/);
   const voice = readFileSync("client/src/lib/lessonVoice.ts", "utf8");
   assert.match(voice, /onFallback/);
-  assert.match(voice, /deviceVoice/);
+  // AI voices only: the robot voice is never a fallback.
+  assert.doesNotMatch(voice, /SpeechSynthesisUtterance/);
 });

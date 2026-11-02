@@ -1,6 +1,9 @@
 import EyeGazeCelebrations from "@/components/EyeGazeCelebrations";
 import InstallAppPrompt from "@/components/InstallAppPrompt";
 import WorkHubTour from "@/components/WorkHubTour";
+import ReaderFirstRun from "@/components/ReaderFirstRun";
+import NativeBack from "@/components/NativeBack";
+
 import ForcePasswordChange from "@/components/ForcePasswordChange";
 import { Switch, Route, Router, Redirect, useLocation } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
@@ -21,6 +24,11 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { lastKnownLocked, teacherLocked, usePlan } from "@/lib/plan";
 import { useState, useEffect, lazy, Suspense, type ComponentType } from "react";
+const FitApp = lazy(() => import("@/pages/fit/FitApp"));
+const TrainerApp = lazy(() => import("@/pages/trainer/TrainerApp"));
+const TrainersPage = lazy(() => import("@/pages/coach/TrainersPage"));
+const NotesApp = lazy(() => import("@/components/arise-notes/NotesApp"));
+const TalkApp = lazy(() => import("@/pages/talk/TalkApp"));
 import { API_BASE } from "./lib/queryClient";
 import ProfileSetupOverlay from "./components/ProfileSetupOverlay";
 import EyeGazeSiteShell from "./components/EyeGazeSiteShell";
@@ -42,6 +50,7 @@ function getTokenFromCookie(): string | null {
   return null;
 }
 import SignIn from "./pages/SignIn";
+import NativeSignIn from "./pages/NativeSignIn";
 import Register from "./pages/Register";
 import TeacherSignup from "./pages/TeacherSignup";
 import ParentSignup from "./pages/ParentSignup";
@@ -127,6 +136,7 @@ const TodoAdmin = lazyPage(() => import("./pages/TodoAdmin"));
 const AmbientStandby = lazyPage(() => import("./pages/AmbientStandby"));
 const ClassGoalBoard = lazyPage(() => import("./pages/ClassGoalBoard"));
 const AriseOffice = lazyPage(() => import("./pages/AriseOffice"));
+const AriseNotesPage = lazyPage(() => import("./pages/AriseNotesPage"));
 const PremiumStudio = lazyPage(() => import("./pages/PremiumStudio"));
 const ProApps = lazyPage(() => import("./pages/ProApps"));
 const ParaTeam = lazyPage(() => import("./pages/ParaTeam"));
@@ -136,6 +146,8 @@ const AriseReader = lazyPage(() => import("./pages/AriseReader"));
 import TodoGate from "@/components/TodoGate";
 import { ReaderAdminToTodoRedirect, ReaderToHubHandoff, TodoAdminHandoff } from "@/components/AdminDomainHandoff";
 import { READER_APP, goToReader, goToSignIn, hubPathFor, isHubAccount, isReaderPage } from "@/lib/hubs";
+import NativePlans from "@/components/NativePlans";
+import { isEyeGazerApp, isFitApp, isNativeApp, isNotesApp, isReaderApp, isTalkApp, isTrainerApp } from "@/lib/nativeApp";
 const TeacherScenes = lazyPage(() => import("./pages/TeacherScenes"));
 const StudentSceneLive = lazyPage(() => import("./pages/StudentSceneLive"));
 const Library = lazyPage(() => import("./pages/Library"));
@@ -285,7 +297,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!user) return <Redirect to="/" replace />;
   if (isPlanTeacher && teacherLocked(plan) && location.split("?")[0] !== "/billing") return <Redirect to="/billing" replace />;
   // A linked parent can also open their child's talker and family tools.
-  if (user.role === 'parent' && !user.isAdmin && !['/parent-dashboard', '/eye-gaze-parent', '/eye-gaze-parent-controls', '/eye-gaze-talker', '/my-world', '/eye-gaze-flashcards', '/eye-gaze-life-skills', '/eye-gaze-potty'].includes(location)) {
+  if (user.role === 'parent' && !user.isAdmin && !(isEyeGazerApp() && (location.startsWith('/eye-gaze') || location === '/my-world' || location === '/arise-city' || location === '/reading-level-up')) && !['/parent-dashboard', '/eye-gaze-parent', '/eye-gaze-parent-controls', '/eye-gaze-talker', '/my-world', '/eye-gaze-flashcards', '/eye-gaze-life-skills', '/eye-gaze-potty'].includes(location)) {
     return <Redirect to="/parent-dashboard" replace />;
   }
   return <>{children}</>;
@@ -403,6 +415,9 @@ function StudentOnTodo() {
 function AfterSignIn({ onReaderDomain, onTodoDomain }: { onReaderDomain: boolean; onTodoDomain: boolean }) {
   const { user } = useAuth();
   if (!user) return null;
+  // The Eye Gazer app is its own place: whoever signs in (an Eye Gazer account, a LifeHub or
+  // teacher account, the administrator) opens the eye-gaze home, never a hub on arisetodo.com.
+  if (isEyeGazerApp()) return <Redirect to={user.role === "parent" ? "/eye-gaze-parent" : "/eye-gaze-home"} replace />;
   // Signed in from a Para Team invite link: straight back to join that team.
   const paraJoin = pendingParaJoin();
   if (paraJoin && isHubAccount(user)) return <Redirect to={`/para-team/join/${paraJoin}`} replace />;
@@ -457,9 +472,13 @@ function OpenReaderPage() {
  * while sign-in and authenticated Work/Life hubs keep their existing routes. */
 function TodoPublicHomeRedirect() {
   useEffect(() => {
-    window.location.replace("/");
+    if (window.location.protocol === "capacitor:") {
+      window.location.hash = "#/signin";
+    } else {
+      window.location.replace("/");
+    }
   }, []);
-  return <main className="min-h-screen bg-[#f9fafc] p-8 text-center"><a href="/" className="font-semibold text-indigo-700 underline">Open the Arise To Duo homepage</a></main>;
+  return <main className="min-h-screen bg-[#f9fafc] p-8 text-center"><a href={window.location.protocol === "capacitor:" ? "#/signin" : "/"} className="font-semibold text-indigo-700 underline">Open Arise To Duo</a></main>;
 }
 
 function AppRoutes() {
@@ -470,10 +489,12 @@ function AppRoutes() {
   const [routePath] = useLocation();
   // Eye-gaze mode is only for non-privileged learner accounts. Admin,
   // teacher, and parent roles must always keep the standard site layout.
-  const isEyeGazeStudent = !!user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent' && !!user.is_eye_gaze_user;
+  const eyeGazerApp = isEyeGazerApp();
+  const isEyeGazeStudent = !!user && user.role !== 'parent' && (eyeGazerApp || (!user.isAdmin && user.role !== 'teacher' && !!user.is_eye_gaze_user));
   const domain = typeof window === "undefined" ? "" : window.location.hostname.toLowerCase();
-  const onReaderDomain = domain === "arisereader.com" || domain === "www.arisereader.com";
-  const onTodoDomain = domain === "arisetodo.com" || domain === "www.arisetodo.com";
+  // The two A.R.I.S.E. Reader iPhone apps act as arisereader.com; the Arise To Duo app as arisetodo.com.
+  const onReaderDomain = domain === "arisereader.com" || domain === "www.arisereader.com" || isReaderApp();
+  const onTodoDomain = domain === "arisetodo.com" || domain === "www.arisetodo.com" || (window.location.protocol === "capacitor:" && !isReaderApp());
   // An adult in one hub is a tap away from the other (and from the split screen): fetch both hubs'
   // code while the page is idle, so switching between Arise WorkHub and Arise LifeHub is instant.
   const hubAdult = isHubAccount(user);
@@ -501,17 +522,31 @@ function AppRoutes() {
   // router — a page of its own rather than a screen inside the To-Do app. Signing in is still the
   // hub's, so a signed-out visitor is sent to that screen.
   if (isReaderPage()) {
+    // The Eye Gazer app never shows A.R.I.S.E. Reader: an old "#/reader" address opens Eye Gazer.
+    if (isEyeGazerApp()) { window.location.hash = user ? (user.role === "parent" ? "#/eye-gaze-parent" : "#/eye-gaze-home") : "#/signin"; return null; }
     if (!user) { goToSignIn(); return null; }
-    return <AriseReader />;
+    // Its code may still be loading: show the spinner meanwhile (without a loading boundary here,
+    // React stopped with error 426 and the Educator app showed "Something went wrong").
+    return <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}><AriseReader /></Suspense>;
   }
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
     <Switch key={routePath}>
+      <Route path="/fit">
+        <ProtectedRoute><FitApp /></ProtectedRoute>
+      </Route>
+      {/* Arise Coaching: the public trainer directory, and Arise Trainer for coaches. */}
+      <Route path="/trainers"><TrainersPage /></Route>
+      {/* Arise Talk: the talking boards (no account needed). */}
+      <Route path="/talk"><TalkApp /></Route>
+      <Route path="/trainer">
+        <ProtectedRoute><TrainerApp /></ProtectedRoute>
+      </Route>
       <Route path="/lifehub">
-        {onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : onReaderDomain && !user ? <Redirect to="/signin" replace /> : onReaderDomain ? <ReaderToTodoRedirect /> : <TodoGate><AriseTodo /></TodoGate>}
+        {eyeGazerApp ? <Redirect to={user ? "/eye-gaze-home" : "/signin"} replace /> : onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : onReaderDomain && !user ? <Redirect to="/signin" replace /> : onReaderDomain ? <ReaderToTodoRedirect /> : <TodoGate><AriseTodo /></TodoGate>}
       </Route>
       <Route path="/to-do">
-        {onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : onReaderDomain && !user ? <Redirect to="/signin" replace /> : onReaderDomain ? <ReaderToTodoRedirect /> : <TodoGate><AriseTodo /></TodoGate>}
+        {eyeGazerApp ? <Redirect to={user ? "/eye-gaze-home" : "/signin"} replace /> : onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : onReaderDomain && !user ? <Redirect to="/signin" replace /> : onReaderDomain ? <ReaderToTodoRedirect /> : <TodoGate><AriseTodo /></TodoGate>}
       </Route>
       <Route path="/todo-admin">
         {user?.isAdmin ? <ProtectedRoute><TodoAdmin /></ProtectedRoute> : user ? <Redirect to="/" replace /> : <Redirect to="/signin" replace />}
@@ -523,7 +558,7 @@ function AppRoutes() {
         {isEyeGazeStudent ? <Redirect to="/library" replace /> : <ProtectedRoute><FypMyBooksPage /></ProtectedRoute>}
       </Route>
       <Route path="/signin">
-        {user ? <AfterSignIn onReaderDomain={onReaderDomain} onTodoDomain={onTodoDomain} /> : <SignIn />}
+        {user ? <AfterSignIn onReaderDomain={onReaderDomain} onTodoDomain={onTodoDomain} /> : isNativeApp() ? <NativeSignIn /> : <SignIn />}
       </Route>
       <Route path="/updates">
         <WhatsNew />
@@ -532,13 +567,13 @@ function AppRoutes() {
         <Redirect to="/" replace />
       </Route>
       <Route path="/">
-        {onTodoDomain ? (!user ? <TodoPublicHomeRedirect /> : <Redirect key="home-to-hub" to={hubPathFor(user)} replace />) : user ? (onReaderDomain && readerFirst(user) ? <OpenReaderPage /> : isHubAccount(user) ? <Redirect key="home-to-hub" to={hubPathFor(user)} replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <iframe src="/reader-landing.html" title="A.R.I.S.E. Reader — discover reading" style={{width:"100%",height:"100dvh",border:0,display:"block"}} />}
+        {onTodoDomain ? (!user ? <TodoPublicHomeRedirect /> : <Redirect key="home-to-hub" to={hubPathFor(user)} replace />) : user ? (eyeGazerApp ? <Redirect key="home-to-eyegaze" to={user.role === "parent" ? "/eye-gaze-parent" : "/eye-gaze-home"} replace /> : onReaderDomain && readerFirst(user) ? <OpenReaderPage /> : isHubAccount(user) ? <Redirect key="home-to-hub" to={hubPathFor(user)} replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : isNativeApp() ? <Redirect to="/signin" replace /> : <iframe src="/reader-landing.html" title="A.R.I.S.E. Reader — discover reading" style={{width:"100%",height:"100dvh",border:0,display:"block"}} />}
       </Route>
       <Route path="/register">
-        {user ? (isHubAccount(user) ? <Redirect to={hubPathFor(user)} replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register />}
+        {user ? (eyeGazerApp ? <Redirect to={user.role === "parent" ? "/eye-gaze-parent" : "/eye-gaze-home"} replace /> : isHubAccount(user) ? <Redirect to={hubPathFor(user)} replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register />}
       </Route>
       <Route path="/register-independent">
-        {user ? (isHubAccount(user) ? <Redirect to={hubPathFor(user)} replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register independent />}
+        {user ? (eyeGazerApp ? <Redirect to={user.role === "parent" ? "/eye-gaze-parent" : "/eye-gaze-home"} replace /> : isHubAccount(user) ? <Redirect to={hubPathFor(user)} replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register independent />}
       </Route>
       <Route path="/meet/:token">
         <MeetingPoll />
@@ -592,6 +627,10 @@ function AppRoutes() {
       <Route path="/class-goal">
         {!user ? <Redirect to="/signin" replace /> : isHubAccount(user) ? <ClassGoalBoard /> : <Redirect to="/" replace />}
       </Route>
+      {/* Arise Notes, the AI note taker, inside Arise To Duo (also on its own at /notes/). */}
+      <Route path="/arise-notes">
+        {!user ? <Redirect to="/signin" replace /> : <AriseNotesPage />}
+      </Route>
       <Route path="/office">
         {!user ? <Redirect to="/signin" replace /> : isHubAccount(user) ? <AriseOffice /> : <Redirect to="/" replace />}
       </Route>
@@ -607,10 +646,10 @@ function AppRoutes() {
         {!user ? <Redirect to="/signin" replace /> : isHubAccount(user) ? <ProApps /> : <Redirect to="/" replace />}
       </Route>
       <Route path="/workhub">
-        {onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : !user ? <Redirect to="/signin" replace /> : <TeacherHub />}
+        {eyeGazerApp ? <Redirect to={user ? "/eye-gaze-home" : "/signin"} replace /> : onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : !user ? <Redirect to="/signin" replace /> : <TeacherHub />}
       </Route>
       <Route path="/teacher-hub">
-        {onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : !user ? <Redirect to="/signin" replace /> : <TeacherHub />}
+        {eyeGazerApp ? <Redirect to={user ? "/eye-gaze-home" : "/signin"} replace /> : onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : !user ? <Redirect to="/signin" replace /> : <TeacherHub />}
       </Route>
       <Route path="/hub">
         <Redirect to="/workhub" replace />
@@ -638,14 +677,15 @@ function AppRoutes() {
       </Route>
       {/* Public: plans and pricing. */}
       <Route path="/pricing">
-        <Pricing />
+        {isNativeApp() ? <NativePlans /> : <Pricing />}
       </Route>
       {/* A teacher's plan: what they have, and paying for Premium. */}
       <Route path="/billing">
         {/* Billing is the teacher's plan page. A parent (back from Stripe, say, after picking Arise Math)
             goes to LifeHub's Reader page, where their add-ons are, never the sign-in screen; a payment's
             ?paid= id rides along and is confirmed there (HubAddons). */}
-        {user && (user.role === "teacher" || user.isAdmin) ? <ProtectedRoute><Billing /></ProtectedRoute>
+        {isNativeApp() && user ? <NativePlans />
+          : user && (user.role === "teacher" || user.isAdmin) ? <ProtectedRoute><Billing /></ProtectedRoute>
           : user && user.role === "parent" ? <OpenHubTab to="/lifehub" storageKey="lifehub_tab" value="reader" />
           : user && user.role === "todo" ? <Redirect to="/lifehub" replace />
           : <Redirect to="/" replace />}
@@ -954,6 +994,11 @@ function useFullscreenGameRoute() {
 }
 
 
+/** Arise Fit and Arise Trainer open on their theme's background (Light unless Dark was chosen), so there's no dark flash. */
+function fitBootBg() {
+  try { const t = localStorage.getItem("arise-fit-theme"); return t === "dark" || (t === "auto" && matchMedia("(prefers-color-scheme: dark)").matches) ? "#15171b" : "#f2f2f4"; } catch { return "#f2f2f4"; }
+}
+
 function AppInner() {
   const { user, realUser, adminPreviewMode } = useAuth();
   const inGame = useFullscreenGameRoute();
@@ -967,6 +1012,14 @@ function AppInner() {
   // A student a teacher just bulk-added signs in with a default password (their
   // student number) and must replace it before doing anything else in the app.
   if (user?.mustChangePassword) return <ForcePasswordChange />;
+  // The Arise Fit iPhone app is its own app: sign in, then Arise Fit (pages/fit/FitApp.tsx).
+  // The Arise Notes iPhone app: sign in, then Arise Notes (components/arise-notes/NotesApp.tsx).
+  if (isNotesApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: "#f5f4fb" }} />}>{user ? <NotesApp mode="standalone" /> : <NativeSignIn />}</Suspense></Router>;
+  if (isFitApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: fitBootBg() }} />}>{user ? <FitApp /> : <NativeSignIn />}</Suspense></Router>;
+  // The Arise Talk iPhone app opens straight to the boards: an account is optional (More → Backup).
+  if (isTalkApp()) return <Suspense fallback={<div className="fixed inset-0" style={{ background: "#f5f4f1" }} />}><TalkApp /></Suspense>;
+  // The Arise Trainer iPhone app: sign in, then Arise Trainer (pages/trainer/TrainerApp.tsx).
+  if (isTrainerApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: fitBootBg() }} />}>{user ? <TrainerApp /> : <NativeSignIn />}</Suspense></Router>;
 
   const overlays = !inGame;
   return (
@@ -981,10 +1034,13 @@ function AppInner() {
       {overlays && isStudent && !isAdminPreview && !isDemoStudent && <ParentConnectionBanner />}
       {overlays && !isAdminPreview && !isDemoStudent && !isEyeGazeStudent && <WelcomeGuide />}
       {overlays && !isAdminPreview && <InstallAppPrompt />}
-      {overlays && !isAdminPreview && (user?.role === "teacher" || user?.role === "parent" || user?.role === "todo" || user?.isAdmin) && <WorkHubTour />}
+      {overlays && !isAdminPreview && !isReaderApp() && (user?.role === "teacher" || user?.role === "parent" || user?.role === "todo" || user?.isAdmin) && <WorkHubTour />}
+      {/* The Reader iPhone apps' first run: notifications (or a daily reading reminder) and a tour. */}
+      {isReaderApp() && user && !isAdminPreview && <ReaderFirstRun userId={user.id} />}
       <ParaJoinResume />
       <Router hook={useHashPathLocation}>
         <AuthenticatedNavigationTracker />
+        {isReaderApp() && user && <NativeBack />}
         <AdminPreviewBar />
       <ViewAsTeacherBar />
         <EyeGazeSiteShell>

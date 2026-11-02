@@ -3,6 +3,7 @@
 // one). Listening never needs an account; it's the Pod+ Membership (ad skip, creator earnings).
 import { useState } from "react";
 import { Check, Eye, EyeOff, Loader2, X } from "lucide-react";
+import { APPLE_LOGO_PATH, appleSignInAvailable, askApple } from "../client/src/lib/appleSignIn";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
 type Mode = "signin" | "signup" | "forgot" | "code";
@@ -26,6 +27,14 @@ export function AuthScreen({ api, onDone, onClose, dark, start = "signin" }: { a
   const sendCode = () => run(async () => { await api("/api/earshot/account/code", { method: "POST", body: { email: email.trim() } }); setSent(true); setInfo(`We sent a 6-digit code to ${email.trim()}. Check your spam folder if it isn't there.`); });
   const verify = (withPassword: boolean) => run(async () => {
     const b = await api("/api/earshot/account/verify", { method: "POST", body: { email: email.trim(), code, ...(withPassword ? { password } : {}) } });
+    onDone(b.token, b.email);
+  });
+
+  // Sign in with Apple (the Pod+ iPhone app): signs in, or makes the account the first time.
+  const withApple = () => run(async () => {
+    const apple = await askApple("com.arisereader.podplus");
+    if (!apple) return;
+    const b = await api("/api/earshot/account/apple", { method: "POST", body: apple });
     onDone(b.token, b.email);
   });
 
@@ -55,6 +64,11 @@ export function AuthScreen({ api, onDone, onClose, dark, start = "signin" }: { a
       <p className="text-[11px] font-bold uppercase tracking-[.18em] text-[#ff6a1f]">Pod+</p>
       <h2 id="ps-auth-title" className="mt-1 pr-8 text-[26px] font-bold leading-tight tracking-tight">{titles[mode]}</h2>
 
+      {(mode === "signin" || mode === "signup") && appleSignInAvailable() && <button type="button" onClick={withApple} disabled={busy} data-testid="pod-apple-sign-in"
+        className={`mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-full text-[15px] font-semibold disabled:opacity-50 ${dark ? "bg-white text-black" : "bg-black text-white"}`}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={APPLE_LOGO_PATH} /></svg>
+        {mode === "signup" ? "Sign up with Apple" : "Sign in with Apple"}
+      </button>}
       {(mode === "signin" || mode === "signup") && <div className={`mt-4 grid grid-cols-2 rounded-full p-1 ${C.tab}`} role="tablist">
         {(["signin", "signup"] as Mode[]).map((m) => <button key={m} role="tab" aria-selected={mode === m} onClick={() => go(m)} className={`h-10 rounded-full text-sm font-semibold ${mode === m ? C.tabOn : ""}`}>{m === "signin" ? "Sign in" : "Create account"}</button>)}
       </div>}

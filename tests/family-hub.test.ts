@@ -43,7 +43,7 @@ test("cleaning drops bad rows, caps text and keeps good data unchanged", () => {
   assert.equal(messy.bills[0].amount, 1200.56);
   assert.equal(messy.bills[0].dueDay, 31);
   assert.deepEqual(messy.bills[0].paid, ["2026-10"]);
-  assert.deepEqual(messy.sections, { chores: false, money: true, polls: true }, "bills and polls saved: in use; chores was switched off");
+  assert.deepEqual(messy.sections, { chores: false, money: true, polls: true, health: true }, "bills and polls saved: in use; chores was switched off; the Calorie counter comes added");
   assert.equal(isOn("chores", messy), false);
   assert.equal(isOn("home", messy), true);
 });
@@ -143,5 +143,5 @@ test("screens a family used before they became App Store add-ons stay added; emp
   assert.equal(isOn("chores", old), false, "switched off by the family: stays off");
   assert.equal(isOn("cycle", old), false, "nothing saved: off");
   const fresh = cleanFamily(JSON.parse(JSON.stringify(emptyFamily())));
-  assert.deepEqual(fresh.sections, {}, "a new family's starter rewards and budget don't count as use");
+  assert.deepEqual(fresh.sections, { health: true }, "a new family's starter rewards and budget don't count as use; the Calorie counter comes added");
 });

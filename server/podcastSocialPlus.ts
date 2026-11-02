@@ -12,7 +12,7 @@ import type { RequestHandler, Express } from "express";
 import { createAttemptLimiter } from "./attemptLimiter";
 import type { Post, PostEpisode, Profile, NoteKind } from "./podcastSocial";
 import { cleanColor, cleanMedia, forYouScore, hashtags, pairOf, type Media } from "../shared/socialKit";
-import { moderateImages } from "./socialModeration";
+import { cleanReason, moderateImages, reportFiled } from "./socialModeration";
 
 type Limiter = ReturnType<typeof createAttemptLimiter>;
 export type PlusDeps = {
@@ -22,6 +22,10 @@ export type PlusDeps = {
   shape: (rows: any[], viewer: string, deep?: boolean) => Promise<Post[]>; postCols: () => Promise<string>;
   notify: (voter: string, actor: string, kind: NoteKind, postId?: number, commentId?: number) => Promise<void>; hasV2: () => Promise<boolean>;
   blockSet: (v: string) => Promise<Set<string>>; publicPrefix: () => string; folderOf: (v: string) => string;
+  /** Checks words before they're posted; true when it already answered with a refusal. */
+  refuseWords: (res: any, ...parts: string[]) => Promise<boolean>;
+  /** "Pod+" or "Earshot (LifeHub)", for report alerts. */
+  appName: string;
 };
 export type Person = Profile & { followed?: boolean; followers?: number; me?: boolean; followsYou?: boolean };
 export type Thread = { id: string; with: Profile; lastText: string; lastAt: string; lastFromMe: boolean; unread: boolean; accepted: boolean; request: boolean };
@@ -319,6 +323,18 @@ export function registerSocialPlus(app: Express, d: PlusDeps) {
       res.json({ ok: true });
     } catch (e) { fail(res, e); }
   });
+  /** Report a person (their profile, name or how they act). The admin hears about it at once. */
+  app.post(`${P}/profile/:handle/report`, auth, gate, async (req: any, res) => {
+    const handle = handleOf(req.params.handle);
+    if (!handle) return res.status(400).json({ message: "That profile doesn't exist." });
+    if (limited(d.writes, req, res)) return;
+    try {
+      const p = await profileRow(handle);
+      if (!p) return res.status(404).json({ message: "That profile doesn't exist." });
+      reportFiled({ app: d.appName, what: "profile", owner: p.voter, id: `@${handle}`, by: v(req), about: `${p.voter} · ${String(p.name ?? "")} · ${String(p.bio ?? "").slice(0, 160)}`, reason: cleanReason(req.body?.reason) });
+      res.json({ ok: true });
+    } catch (e) { fail(res, e); }
+  });
   app.get(`${P}/blocked`, auth, gate, async (req: any, res) => {
     try {
       const me = v(req);
@@ -440,6 +456,7 @@ export function registerSocialPlus(app: Express, d: PlusDeps) {
       const media = cleanMedia(req.body?.media, d.publicPrefix(), d.folderOf(me)).slice(0, 1);
       const postId = idOf(req.body?.postId);
       if (!body && !media.length && !postId) return res.status(400).json({ message: "Write something first." });
+      if (body && (await d.refuseWords(res, body))) return;
       if (media.length && media[0].type === "image") { const ok = await moderateImages([media[0].url]); if (!ok.ok) return res.status(400).json({ message: `That photo can't be sent (${ok.reason}).` }); }
       // A request holds a few messages until it's accepted; replying accepts it.
       let accepted = !!t.accepted;
@@ -456,6 +473,21 @@ export function registerSocialPlus(app: Express, d: PlusDeps) {
       let post: Post | null = null;
       if (postId) { const { data: pr } = await (await postsQuery()).q.eq("id", postId).maybeSingle(); if (pr) [post] = await d.shape([pr], me); }
       res.json({ message: { id: String(ins.data.id), mine: true, body, media, post, at: ins.data.created_at } as Message });
+    } catch (e) { fail(res, e); }
+  });
+
+  /** Report a message someone sent you. The admin hears about it at once; block them to stop more. */
+  app.post(`${P}/dm/:id/messages/:mid/report`, auth, gate, async (req: any, res) => {
+    const mid = idOf(req.params.mid);
+    if (!mid) return res.status(400).json({ message: "That isn't a message." });
+    if (limited(d.writes, req, res)) return;
+    try {
+      const t = await myThread(req, res); if (!t) return;
+      const { data: m, error } = await db().from("podcast_dm_messages").select("id,sender,body").eq("id", mid).eq("thread_id", t.id).maybeSingle();
+      check(error);
+      if (!m || m.sender === v(req)) return res.status(404).json({ message: "That message is gone." });
+      reportFiled({ app: d.appName, what: "message", owner: m.sender, id: String(mid), by: v(req), about: `${m.sender}: ${String(m.body ?? "").slice(0, 200)}`, reason: cleanReason(req.body?.reason) });
+      res.json({ ok: true });
     } catch (e) { fail(res, e); }
   });
 
@@ -528,6 +560,7 @@ export function registerSocialPlus(app: Express, d: PlusDeps) {
         ? { id: String(req.body.episode.id), showId: String(req.body.episode.showId || ""), show: text(req.body.episode.show, 200), title: text(req.body.episode.title, 300), art: /^https:\/\//.test(String(req.body.episode.art || "")) ? String(req.body.episode.art).slice(0, 600) : "", audio: String(req.body.episode.audio).slice(0, 1200), secs: Math.max(0, Math.floor(Number(req.body.episode.secs) || 0)), date: text(req.body.episode.date, 40) }
         : null;
       if (!media.length && !body && !ep) return res.status(400).json({ message: "Add a photo, a video, some words or an episode." });
+      if (body && (await d.refuseWords(res, body))) return;
       if (Array.isArray(req.body?.media) && req.body.media.length && !media.length) return res.status(400).json({ message: "Upload your photo or video first." });
       if (media.length && media[0].type === "image") { const ok = await moderateImages([media[0].url]); if (!ok.ok) return res.status(400).json({ message: `That photo can't be posted (${ok.reason}).` }); }
       const { data, error } = await db().from("podcast_stories").insert({ voter: me, media: media.length ? media : null, body, bg, episode: ep }).select("id,created_at").single();
@@ -569,8 +602,9 @@ export function registerSocialPlus(app: Express, d: PlusDeps) {
     const id = idOf(req.params.id);
     if (limited(d.writes, req, res)) return;
     try {
-      const { data: s } = await db().from("podcast_stories").select("reports").eq("id", id).maybeSingle();
+      const { data: s } = await db().from("podcast_stories").select("reports,voter,body").eq("id", id).maybeSingle();
       if (s) await db().from("podcast_stories").update({ reports: (s.reports ?? 0) + 1, hidden: (s.reports ?? 0) + 1 >= 3 }).eq("id", id);
+      if (s) reportFiled({ app: d.appName, what: "story", table: "podcast_stories", owner: s.voter, id: String(id), by: v(req), about: `${s.voter}: ${String(s.body ?? "").slice(0, 200)}`, reason: cleanReason(req.body?.reason), reports: (s.reports ?? 0) + 1 });
       res.json({ ok: true });
     } catch (e) { fail(res, e); }
   });

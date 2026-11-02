@@ -53,7 +53,7 @@ export function TeamStore() {
   const removeApp = (a: ParaApp) => setApps(settings.apps.filter((k) => k !== a.key), `${a.name} removed. Add it back any time; what's in it is kept.`);
 
   return <>
-    <SectionHead title="App Store" line={`${all.length} apps from the Arise App Store, ready for your team: polls, sign-up lists, trackers, checklists, calculators and more. What you put in a team app is shared with everyone on the team.`} />
+    <SectionHead title="App Gallery" line={`${all.length} apps from the Arise App Gallery, ready for your team: polls, sign-up lists, trackers, checklists, calculators and more. What you put in a team app is shared with everyone on the team.`} />
     {!manage && <p className="mb-4 flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900"><Lock className="h-4 w-4 shrink-0" />Only the team's teacher can add or remove apps. You can open the ones already added from the menu.</p>}
     <div className="mb-3 flex flex-col gap-2 sm:flex-row">
       <label className="relative min-w-0 flex-1">
@@ -165,7 +165,7 @@ export function TeamAppPage({ appKey }: { appKey: string }) {
   const app = paraApp(appKey || "");
   const added = !!app && settingsOf(p).apps.includes(app.key);
   const { family, setFamily, editable } = useTeamFamily(p);
-  if (!app || !added) return <><SectionHead title="App not found" /><EmptyNote>That app isn't on this team any more. <button type="button" className={SMALL} onClick={() => p.go("store")}>Open the App Store</button></EmptyNote></>;
+  if (!app || !added) return <><SectionHead title="App not found" /><EmptyNote>That app isn't on this team any more. <button type="button" className={SMALL} onClick={() => p.go("store")}>Open the App Gallery</button></EmptyNote></>;
   const common = { family, setFamily, today: p.today, makeId, say: p.say };
   let body: ReactNode = null;
   if (app.kind === "office") {
@@ -213,7 +213,7 @@ export function TeamAppsNav({ current, onOpen, compact }: { current: string | nu
       </button>;
     })}
     <button type="button" onClick={() => onOpen(null)} aria-current={current === "" ? "page" : undefined} className={cls(current === "")} data-testid="para-nav-store">
-      <ShoppingBag className="h-[18px] w-[18px] shrink-0" /><span className={compact ? "" : "flex-1"}>App Store</span>
+      <ShoppingBag className="h-[18px] w-[18px] shrink-0" /><span className={compact ? "" : "flex-1"}>App Gallery</span>
     </button>
   </>;
 }

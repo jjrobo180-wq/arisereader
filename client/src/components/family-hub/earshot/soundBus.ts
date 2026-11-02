@@ -1,6 +1,6 @@
 // One sound at a time across Pod+: the swipe player, audiobooks and the radio tell each other when
 // they start, and the others pause. (They all keep running when you move between pages.)
-export type SoundSource = "pod" | "book" | "radio" | "music";
+export type SoundSource = "pod" | "book" | "radio" | "music" | "studio";
 const EVENT = "podplus:sound";
 
 export function soundStarted(source: SoundSource) {

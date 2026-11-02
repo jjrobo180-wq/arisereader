@@ -3,6 +3,7 @@
 // HubTrialNote/HubEndedNote below stay for the "hub is locked, pay to unlock" case, not trials.
 import { type ReactNode } from "react";
 import { Clock3, Lock } from "lucide-react";
+import { NATIVE_NO_PURCHASE, isNativeApp } from "@/lib/nativeApp";
 
 export type HubTrial = { daysLeft: number; endsAt: string } | null;
 
@@ -38,8 +39,9 @@ export function HubEndedNote({ which, upgradeHref, onUpgrade, children }: { whic
         <p className="mt-1 text-sm leading-6 text-slate-600">
           {which === "work" ? "Your caseload, calendar, tasks, notes and the rest of WorkHub (and LifeHub) are locked." : "Your lists, calendar, chores, food & fitness and the rest of LifeHub are locked."} Everything you saved is kept and comes back when you upgrade. Your A.R.I.S.E. Reader tools below still work.
         </p>
+        {isNativeApp() && <p className="mt-2 text-sm leading-6 text-slate-600">{NATIVE_NO_PURCHASE}</p>}
         <div className="mt-3 flex flex-wrap gap-2">
-          {onUpgrade
+          {isNativeApp() ? null : onUpgrade
             ? <button type="button" onClick={onUpgrade} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white hover:bg-slate-800">Upgrade to get {name} back</button>
             : <a href={upgradeHref} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white hover:bg-slate-800">Upgrade to get {name} back</a>}
           {children}

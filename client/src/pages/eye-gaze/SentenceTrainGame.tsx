@@ -64,6 +64,7 @@ function makeCar(color: number, len: number) {
 
 class Line {
   blocks: Block[] = []; cars: Car[] = []; train = new THREE.Group(); private wheels: THREE.Group[] = []; private chimney = new THREE.Vector3();
+  hidePicture() { this.pic.visible = false; }
   private pic: THREE.Mesh; private picMat = new THREE.MeshBasicMaterial({ transparent: true, toneMapped: false });
   private trainX = 0; private trainV = 0; private targetX = 0; private leaving = false; private smokeT = 0; carLen = 2.6; trainScale = 1;
   private cloudsG = new THREE.Group();
@@ -205,7 +206,7 @@ export default function SentenceTrainGame({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     const el = host.current; if (!el) return;
     const s = new Stage(el, { quality: settings.quality, fov: 42, camPos: [0, 1.2, 18], target: [0, 0, 0], bloom: 0.3, dwell: settings.dwell, dwellMs: 1000 });
-    stageRef.current = s; const line = new Line(s); lineRef.current = line; line.layout(); line.setPicture("ALL ABOARD!", "🚂🚃🚃");
+    stageRef.current = s; const line = new Line(s); lineRef.current = line; line.layout(); /* the picture board shows once a trip starts (on a tablet it sat over the trip menu) */
     s.onFrame = (dt, t) => line.update(dt, t); resume.current?.();
     return () => { s.dispose(); stageRef.current = null; lineRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -282,7 +283,7 @@ export default function SentenceTrainGame({ onBack }: { onBack: () => void }) {
             {trip + 1 < TRIPS.length && <GazeButton dwell={D} onSelect={() => start(trip + 1)} className="min-h-16 rounded-2xl bg-rose-600 text-xl font-black text-white">Next: {TRIPS[trip + 1].emoji} {TRIPS[trip + 1].name} ▶</GazeButton>}
             <div className="grid grid-cols-2 gap-2">
               <GazeButton dwell={D} onSelect={() => start(trip)} className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-slate-100 font-black"><RotateCcw className="h-5 w-5" />Again</GazeButton>
-              <GazeButton dwell={D} onSelect={() => { st.current.token++; setView("pick"); }} className="min-h-14 rounded-2xl bg-slate-100 font-black">Trips</GazeButton>
+              <GazeButton dwell={D} onSelect={() => { st.current.token++; lineRef.current?.hidePicture(); setView("pick"); }} className="min-h-14 rounded-2xl bg-slate-100 font-black">Trips</GazeButton>
             </div>
           </div>
         </div>

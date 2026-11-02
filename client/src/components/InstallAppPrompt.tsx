@@ -1,6 +1,7 @@
 // A small pop-up for people on a computer: get A.R.I.S.E. as an app (a shortcut on the desktop or dock that
 // opens in its own window) and turn on notifications. It shows once, a few seconds after sign-in, and comes
 // back no sooner than two weeks after "Not now". Not shown on phones, in the installed app, or when done.
+import { isNativeApp } from "@/lib/nativeApp";
 import { useEffect, useState } from "react";
 import { Bell, Check, Download, MonitorSmartphone, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -10,7 +11,7 @@ const KEY = "arise-install-prompt";
 const WAIT = 14 * 86_400_000;
 type BIP = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
 
-const installed = () => window.matchMedia?.("(display-mode: standalone)").matches || (navigator as any).standalone === true;
+const installed = () => isNativeApp() || window.matchMedia?.("(display-mode: standalone)").matches || (navigator as any).standalone === true;
 const desktop = () => window.matchMedia?.("(pointer: fine)").matches && window.innerWidth >= 1024;
 function browser(): "chrome" | "edge" | "safari" | "firefox" | "other" {
   const ua = navigator.userAgent;

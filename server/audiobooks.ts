@@ -21,6 +21,7 @@ import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { parseDefinition } from "../shared/lifePlugins";
 import type { KV } from "./podcastDirectory";
 import type { BlobStore } from "./blobStore";
+import { registerPodDownloadRoute } from "./podDownload";
 
 export type BookKind = "solo" | "group" | "dramatic";
 export type Book = { id: string; title: string; author: string; cover: string; downloads: number; rating: number; reviews: number; about: string; reader: string; kind: BookKind; added: string };
@@ -538,6 +539,9 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
       stream.pipe(res);
     } catch { if (!res.headersSent) res.status(502).end(); else res.end(); }
   });
+
+  // Downloads (members): a podcast episode relayed from its host, with the same signed pass.
+  registerPodDownloadRoute(app, { prefix, clientIp, passOk: (k) => relayPassOk(relayKey, k, now()) });
 
   app.get(`${prefix}/books/relay-pass`, gate, (req: any, res) => {
     if (!isMember(req)) return membersOnly(res, "Voice boost");

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Support | Arise To Duo</title>
+<meta name="description" content="Get help with Arise To Duo and A.R.I.S.E. Reader." />
+<link rel="canonical" href="https://arisetodo.com/support/" />
+<meta name="theme-color" content="#ffffff" />
+<style>
+:root{color-scheme:light dark;--fg:#16151a;--muted:#5b5966;--line:#e6e4ec;--bg:#fff;--card:#f7f6fa;--accent:#5b4fd6}
+@media (prefers-color-scheme:dark){:root{--fg:#f1f0f5;--muted:#a9a6b5;--line:#2c2a33;--bg:#121116;--card:#1b1a21}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-text-size-adjust:100%}
+main{max-width:760px;margin:0 auto;padding:max(28px,env(safe-area-inset-top)) 20px max(48px,env(safe-area-inset-bottom))}
+.brand{display:inline-flex;align-items:center;gap:8px;font-weight:800;color:var(--fg);text-decoration:none;letter-spacing:-.01em}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--accent)}
+h1{font-size:clamp(28px,6vw,38px);line-height:1.15;letter-spacing:-.02em;margin:22px 0 6px}
+h2{font-size:20px;margin:30px 0 6px;letter-spacing:-.01em}
+p,li{color:var(--fg)} .muted{color:var(--muted)}
+ul{padding-left:22px} li{margin:4px 0}
+a{color:var(--accent);text-underline-offset:3px}
+nav.links{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+nav.links a{display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border:1px solid var(--line);border-radius:999px;text-decoration:none;color:var(--fg);font-weight:600;font-size:14px}
+nav.links a[aria-current]{background:var(--accent);border-color:var(--accent);color:#fff}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 18px;margin:16px 0}
+form{display:grid;gap:12px;margin-top:10px}
+label{display:grid;gap:4px;font-weight:600;font-size:14px}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:11px 12px;min-height:44px;width:100%}
+textarea{min-height:140px;resize:vertical}
+button{font:inherit;font-weight:700;min-height:48px;border:0;border-radius:999px;background:var(--accent);color:#fff;cursor:pointer}
+button:disabled{opacity:.5}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+#status{min-height:24px;font-weight:600}
+footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-size:14px}
+</style>
+</head>
+<body>
+<main>
+<a class="brand" href="https://arisetodo.com/"><span class="dot"></span>Arise To Duo</a>
+<h1>Support</h1>
+<p class="muted">We read every message and write back within 2 business days.</p>
+<nav class="links" aria-label="Policies"><a href="https://arisetodo.com/privacy/">Privacy Policy</a><a href="https://arisetodo.com/terms/">Terms of Use</a><a href="https://arisetodo.com/support/" aria-current="page">Support</a></nav>
+<div class="card">
+<b>Quick answers</b>
+<ul>
+<li><b>Delete your account:</b> in the app, open &#8943; &rarr; Account &amp; privacy &rarr; Delete my account.</li>
+<li><b>Apple Health:</b> in the iPhone app, open LifeHub &rarr; Food &amp; fitness &rarr; Connect Apple Health. To stop it, turn it off in Settings &rarr; Health &rarr; Data Access &amp; Devices &rarr; Arise To Duo.</li>
+<li><b>iPhone Calendar:</b> in the iPhone app, open the Calendar and tap Connect iPhone Calendar.</li>
+<li><b>Forgot your password:</b> tap Forgot password on the sign-in screen.</li>
+<li><b>Plans:</b> anything bought on the website works in the app when you sign in.</li>
+</ul>
+</div>
+<h2>Contact us</h2>
+<form id="f" novalidate>
+<label>Your name <input name="name" autocomplete="name" maxlength="80" /></label>
+<label>Your email <input name="email" type="email" inputmode="email" autocomplete="email" required maxlength="254" /></label>
+<label>What's it about?
+<select name="topic"><option>Question</option><option>Something isn't working</option><option>Report a post or person</option><option>Delete my account or data</option><option>Privacy</option><option>Other</option></select></label>
+<label>Message <textarea name="message" required maxlength="4000"></textarea></label>
+<label class="hp" aria-hidden="true">Website <input name="website" tabindex="-1" autocomplete="off" /></label>
+<button type="submit">Send</button>
+<p id="status" role="status" aria-live="polite"></p>
+</form>
+<footer class="muted">&copy; 2026 Arise To Duo. <a href="https://arisetodo.com/privacy/">Privacy Policy</a> &middot; <a href="https://arisetodo.com/terms/">Terms of Use</a></footer>
+<script>
+document.getElementById("f").addEventListener("submit", async function (e) {
+  e.preventDefault();
+  var f = e.target, s = document.getElementById("status"), b = f.querySelector("button");
+  var data = Object.fromEntries(new FormData(f).entries());
+  b.disabled = true; s.textContent = "Sending…";
+  try {
+    var r = await fetch("/api/support/contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+    var j = await r.json().catch(function () { return {}; });
+    s.textContent = j.message || (r.ok ? "Thanks. We'll write back soon." : "That didn't send. Try again.");
+    if (r.ok) f.reset();
+  } catch (err) { s.textContent = "That didn't send. Check your connection and try again."; }
+  b.disabled = false;
+});
+</script>
+
+</main>
+</body>
+</html>

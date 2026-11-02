@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play, SkipBack, SkipForward, X, Volume2, VolumeX } from "lucide-react";
 import { beep, chime, fmtDuration, speak, useTick, useWakeLock, vibrate } from "./kit";
+import { stopAiVoice } from "@/lib/aiVoice";
 
 export type Step = { label: string; sec: number; kind?: "work" | "rest" | "prep" | "cool"; note?: string; color?: string; say?: string };
 const KIND_COLOR = { work: "#ea580c", rest: "#0ea5e9", prep: "#64748b", cool: "#16a34a" };
@@ -48,7 +49,7 @@ export function SequencePlayer({ steps, title, onDone, onClose, color = "#ea580c
       <p className="text-sm font-bold opacity-80">{title}</p>
       <div className="flex gap-2">
         <button type="button" onClick={() => setTalk(!talk)} aria-label={talk ? "Mute voice" : "Voice on"} className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/15 hover:bg-white/25">{talk ? <Volume2 size={18} /> : <VolumeX size={18} />}</button>
-        <button type="button" onClick={() => { window.speechSynthesis?.cancel(); onClose(); }} aria-label="Stop" className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/15 hover:bg-white/25"><X size={20} /></button>
+        <button type="button" onClick={() => { stopAiVoice(); onClose(); }} aria-label="Stop" className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/15 hover:bg-white/25"><X size={20} /></button>
       </div>
     </div>
     {done ? <div className="text-center">

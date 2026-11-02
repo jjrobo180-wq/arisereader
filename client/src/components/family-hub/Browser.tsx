@@ -2,6 +2,7 @@
 // pages, and save any page as a task. Limited for now (see shared/browserApp.ts): a site that
 // doesn't allow being shown inside another website opens in Safari instead. The full browser
 // comes with the Arise To Duo iPhone app.
+import { isNativeApp } from "@/lib/nativeApp";
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, Bookmark, Columns2, Maximize2, Minimize2, BookmarkCheck, ExternalLink, Globe, ListPlus, Loader2, RotateCw, Search, ShieldAlert, Sparkles, Trash2, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -97,7 +98,7 @@ export default function Browser({ family, setFamily, makeId, say, onAddTask }: P
       style={shownSize === "side" ? { width: "calc(100vw - var(--duo-left, 50vw))" } : undefined}>
       {noteOpen && shownSize === "normal" && <div className="flex items-start gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900" data-testid="browser-limited-note">
         <Sparkles className="mt-0.5 h-4 w-4 shrink-0" />
-        <p className="min-w-0 flex-1"><b>Limited for now.</b> Google, YouTube, Facebook and many other big sites don't allow being opened inside another website, so those open in Safari. The full browser, with every site, comes with the <b>Arise To Duo iPhone app</b>, coming soon to the App Store.</p>
+        <p className="min-w-0 flex-1"><b>Limited for now.</b> Google, YouTube, Facebook and many other big sites don't allow being opened inside another website, so those open in Safari.{!isNativeApp() && <> The full browser, with every site, comes with the <b>Arise To Duo iPhone app</b>, coming soon to the App Store.</>}</p>
         <button type="button" onClick={closeNote} aria-label="Hide this note" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg hover:bg-sky-100"><X className="h-4 w-4" /></button>
       </div>}
 
@@ -143,7 +144,7 @@ export default function Browser({ family, setFamily, makeId, say, onAddTask }: P
             {!page.query && <button type="button" onClick={toggleMark} className={plain}>{marked ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />} {marked ? "Bookmarked" : "Bookmark"}</button>}
             {!page.query && onAddTask && <button type="button" onClick={saveTask} className={plain}><ListPlus className="h-4 w-4" /> Save as a task</button>}
           </div>}
-          {page.reason !== "address" && page.reason !== "unreachable" && <p className="mt-4 max-w-sm text-xs text-slate-500">In the Arise To Duo iPhone app, coming soon to the App Store, it opens right here.</p>}
+          {page.reason !== "address" && page.reason !== "unreachable" && !isNativeApp() && <p className="mt-4 max-w-sm text-xs text-slate-500">In the Arise To Duo iPhone app, coming soon to the App Store, it opens right here.</p>}
         </div>
       )}
 

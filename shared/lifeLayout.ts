@@ -23,7 +23,7 @@ export type LifePart = (typeof LIFE_PARTS)[number]["id"];
 
 export type LifeLayout = AnyLayout & { home: LifePart[]; homeHidden: LifePart[] };
 
-/** LifeHub starts with the menu as a side rail on a phone, same as WorkHub's default.
+/** LifeHub starts with the floating tab bar on a phone, same as WorkHub (see cleanAnyLayout for the one-time move).
  *  `pinnable`: installed Kit-plugin/Notes-app ids (see pinId in hubLayout.ts) that may be pinned to Home. */
 export const cleanLifeLayout = (raw: unknown, pinnable: readonly string[] = []): LifeLayout =>
-  cleanAnyLayout(raw, LIFE_PARTS.map((p) => p.id), { menuSide: "left", menuClose: "button", homeHidden: ["widgets"] }, pinnable) as LifeLayout;
+  cleanAnyLayout(raw, LIFE_PARTS.map((p) => p.id), { menuSide: "tabs", menuClose: "button", homeHidden: ["widgets"] }, pinnable) as LifeLayout;

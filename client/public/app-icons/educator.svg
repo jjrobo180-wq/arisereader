@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#262140"/><stop offset="1" stop-color="#110f1c"/></linearGradient>
+    <linearGradient id="vi" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9a72ff"/><stop offset="1" stop-color="#6a3cf0"/></linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <circle cx="512" cy="560" r="380" fill="#7c4dff" opacity=".14"/>
+  <!-- open book -->
+  <path d="M512 560 C 430 500, 300 480, 190 500 L 190 850 C 300 830, 430 850, 512 900 Z" fill="url(#vi)"/>
+  <path d="M512 560 C 594 500, 724 480, 834 500 L 834 850 C 724 830, 594 850, 512 900 Z" fill="#8a5cff"/>
+  <path d="M512 560 L 512 900" stroke="#110f1c" stroke-width="14" stroke-linecap="round" opacity=".35"/>
+  <!-- graduation cap -->
+  <g transform="translate(512 0) scale(.82) translate(-512 30)">
+  <path d="M512 150 L 822 270 L 512 390 L 202 270 Z" fill="#ffffff"/>
+  <path d="M352 330 L 352 430 C 420 480, 604 480, 672 430 L 672 330 L 512 392 Z" fill="#e9e4ff"/>
+  <path d="M780 286 L 780 420" stroke="#ffffff" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="780" cy="436" r="26" fill="#ffb84d"/>
+  </g>
+</svg>

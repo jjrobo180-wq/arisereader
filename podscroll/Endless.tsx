@@ -135,7 +135,7 @@ const minutesAgo = (iso: string, now: number) => {
 };
 
 /** The hub page: only news from the last few hours, newest first, refreshed every 3 minutes. */
-export function NewsNow({ api, ex, onOpen, onBack, grid }: { api: Api; ex: string; onOpen: (e: PodEpisode) => void; onBack: () => void; grid: (list: PodEpisode[]) => ReactNode }) {
+export function NewsNow({ api, ex, onOpen, onRadio, onBack, grid }: { api: Api; ex: string; onOpen: (e: PodEpisode) => void; /** Pod+ Live News Radio: all of it, back to back. */ onRadio?: () => void; onBack: () => void; grid: (list: PodEpisode[]) => ReactNode }) {
   const [hours, setHours] = useState(() => { try { return Number(localStorage.getItem("podscroll.nowHours")) || 6; } catch { return 6; } });
   const [data, setData] = useState<{ episodes: PodEpisode[]; updatedAt: string | null; warming: boolean } | null>(null);
   const [err, setErr] = useState("");
@@ -161,6 +161,7 @@ export function NewsNow({ api, ex, onOpen, onBack, grid }: { api: Api; ex: strin
         {[2, 4, 6, 12].map((h) => <button key={h} onClick={() => pick(h)} aria-pressed={hours === h} className={`h-9 rounded-full px-4 text-sm font-semibold ${hours === h ? "bg-[#ffb37a] text-[#1a1206]" : "bg-[#ffffff]/10 text-[#ffffff] hover:bg-[#ffffff]/20"}`}>Last {h} hours</button>)}
         <button onClick={pull} className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-[#e6ebf5] hover:bg-[#ffffff]/10"><RefreshCw size={15} />Refresh</button>
       </div>
+      {onRadio && <button onClick={onRadio} className="mt-4 inline-flex h-11 items-center gap-2 rounded-full bg-[#ffffff] px-5 text-[15px] font-semibold text-[#0f172a] active:scale-[.98]" data-testid="news-radio-start"><span className="h-2.5 w-2.5 rounded-full bg-[#ff3b30] motion-safe:animate-pulse" />Listen to Pod+ Live News Radio</button>}
       {data?.updatedAt && <p className="mt-3 text-xs text-[#aab6cf]">Checked {minutesAgo(data.updatedAt, now).toLowerCase()}</p>}
     </div>
     {err ? <p className="py-16 text-center text-[#606060]">{err}</p>
