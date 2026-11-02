@@ -62,3 +62,9 @@ test("short clips: real exercises, valid ids, no repeats, and they come first wi
   assert.equal(longVideoFor("bench-press")?.id, FIT_VIDEOS["bench-press"].id);
   assert.match(quickClipsUrl("Leg press"), /^https:\/\/www\.youtube\.com\/results\?search_query=Leg%20press%20form%20%23shorts/);
 });
+
+test("Arise Fit draws edge to edge: viewport-fit=cover is set in the Fit app so safe areas work", async () => {
+  const { readFileSync } = await import("node:fs");
+  const main = readFileSync(new URL("../client/src/main.tsx", import.meta.url), "utf8");
+  assert.match(main, /isFitApp\(\)[\s\S]*viewport-fit=cover/);
+});

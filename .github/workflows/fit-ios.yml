@@ -98,7 +98,7 @@ jobs:
             python3 podscroll/ios-app/find-existing-profile.py com.arisereader.fit "$RUNNER_TEMP/profile.mobileprovision" --create-missing-profile --register-bundle-id "--app-name=Arise Fit"
           fi
           # Its capabilities on the App ID, and a profile that includes them (same certificate).
-          python3 .github/scripts/apple_signing.py com.arisereader.fit "$RUNNER_TEMP/profile.mobileprovision" HEALTHKIT APPLE_ID_AUTH PUSH_NOTIFICATIONS
+          python3 .github/scripts/apple_signing.py com.arisereader.fit "$RUNNER_TEMP/profile.mobileprovision" HEALTHKIT APPLE_ID_AUTH PUSH_NOTIFICATIONS APP_GROUPS
           security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
@@ -145,8 +145,47 @@ jobs:
           else
             echo "::warning::The provisioning profile has no Push Notifications capability. Building without server notifications."
           fi
+          # Widgets: the app's profile needs the App Group and the widget extension needs a profile of its own.
+          # Without both, the app is built as before, without widgets.
+          if /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.security.application-groups' "$RUNNER_TEMP/profile.plist" >/dev/null 2>&1; then
+            SEED_PROFILE="$RUNNER_TEMP/profile.mobileprovision" python3 .github/scripts/apple_signing.py com.arisereader.fit.widgets "$RUNNER_TEMP/widget.mobileprovision" APP_GROUPS || true
+            if [[ -s "$RUNNER_TEMP/widget.mobileprovision" ]] && security cms -D -i "$RUNNER_TEMP/widget.mobileprovision" > "$RUNNER_TEMP/widget.plist" 2>/dev/null && /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.security.application-groups' "$RUNNER_TEMP/widget.plist" >/dev/null 2>&1; then
+              cp "$RUNNER_TEMP/widget.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/widget.plist").mobileprovision"
+              /usr/libexec/PlistBuddy -c 'Delete :com.apple.security.application-groups' "$ENT" 2>/dev/null || true
+              /usr/libexec/PlistBuddy -c 'Add :com.apple.security.application-groups array' "$ENT"
+              /usr/libexec/PlistBuddy -c 'Add :com.apple.security.application-groups:0 string group.com.arisereader.fit' "$ENT"
+              USE_ENT=1
+              echo "WIDGETS=1" >> "$GITHUB_ENV"
+              echo "WIDGET_PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/widget.plist")" >> "$GITHUB_ENV"
+              echo "Widgets: App Group and widget profile ready"
+            else
+              echo "::warning::No provisioning profile for the widget extension (com.arisereader.fit.widgets). Building without widgets."
+            fi
+          else
+            echo "::warning::The app's provisioning profile has no App Group. Building without widgets."
+          fi
           if [[ -n "$USE_ENT" ]]; then echo "HEALTH_ENTITLEMENTS=CODE_SIGN_ENTITLEMENTS=App/App.entitlements" >> "$GITHUB_ENV"; else echo "HEALTH_ENTITLEMENTS=" >> "$GITHUB_ENV"; fi
+      - name: Add the widget extension (signed)
+        if: env.WIDGETS == '1'
+        working-directory: fit/ios-app
+        env:
+          SIGN_TEAM: 6TYWWNKX6P
+          APP_ENTITLEMENTS: App/App.entitlements
+          BUILD_NUMBER: ${{ github.run_number }}.${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          ruby -rxcodeproj -e 'puts Xcodeproj::VERSION' || gem install xcodeproj --no-document --user-install
+          export GEM_PATH="$(ruby -e 'puts Gem.user_dir'):$(ruby -e 'puts Gem.default_dir')"
+          APP_PROFILE="$PROFILE_NAME" WIDGET_PROFILE="$WIDGET_PROFILE_NAME" ruby ../../.github/scripts/add_widget.rb ios/App/App.xcodeproj com.arisereader.fit '["Calories left","Workouts this week","Protein today"]' ff5a1f
+      - name: Archive signed app with widgets
+        if: env.WIDGETS == '1'
+        working-directory: fit/ios-app
+        run: |
+          set -euo pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/AriseFit.xcarchive" archive
+          test -d "$RUNNER_TEMP/AriseFit.xcarchive/Products/Applications/App.app/PlugIns/AriseWidgets.appex"
       - name: Archive signed app for physical iPhone
+        if: env.WIDGETS != '1'
         working-directory: fit/ios-app
         env:
           TEAM_ID: 6TYWWNKX6P
@@ -182,6 +221,8 @@ jobs:
               "teamID": "6TYWWNKX6P",
               "provisioningProfiles": {"com.arisereader.fit": os.environ["PROFILE_NAME"]},
           }
+          if os.environ.get("WIDGET_PROFILE_NAME"):
+              options["provisioningProfiles"]["com.arisereader.fit.widgets"] = os.environ["WIDGET_PROFILE_NAME"]
           with open(os.path.join(os.environ["RUNNER_TEMP"], "ExportOptions.plist"), "wb") as output:
               plistlib.dump(options, output)
           PY
