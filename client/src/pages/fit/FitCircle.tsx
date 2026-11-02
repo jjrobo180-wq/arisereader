@@ -2,6 +2,7 @@
 // account, who see each other's training as it happens, get a notification when someone in the circle
 // finishes a workout, and send cheers and nudges. Anyone in the circle can invite more people.
 import { useCallback, useEffect, useState } from "react";
+import { CheerIcon } from "./FitIcon";
 import { Copy, Crown, Flame, Loader2, LogOut, Share2, Trophy, UserPlus, Users, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { TODO_APP } from "@/lib/hubs";
@@ -36,7 +37,7 @@ export function CircleCard({ token, onOpen }: { token: string | null; onOpen: ()
       : <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full" style={{ background: C.card2 }}><Users className="h-5 w-5" style={{ color: C.lime }} /></span>}
     <div className="min-w-0 flex-1">
       <p className="text-[19px] leading-none" style={display}>Workout circle</p>
-      <p className="mt-1 truncate text-[13px]" style={{ color: C.dim }}>{cheer && Date.now() - cheer.at < 864e5 ? `${CHEERS[cheer.kind].e} ${cheer.name} · ${agoWords(cheer.at)}`
+      <p className="mt-1 truncate text-[13px]" style={{ color: C.dim }}>{cheer && Date.now() - cheer.at < 864e5 ? `${cheer.name} · ${agoWords(cheer.at)}`
         : latest ? `${latest.name} trained ${agoWords(latest.stats!.last!.date)}: ${latest.stats!.last!.name}` : others.length ? "Nobody has trained yet this week" : "Train with friends and keep each other on track"}</p>
     </div>
   </Card>;
@@ -61,7 +62,7 @@ export function CircleSheet({ onClose, say, joinCode }: { onClose: () => void; s
   };
   const invite = async () => { const r = view?.code ? { code: view.code } : await call("/circle/invite", {}); if (r?.code) await share(r.code); };
   const join = async () => { const c = cleanCode(code); if (!c) { setMsg(`Codes are ${CODE_LEN} letters and numbers.`); return; } if (await call("/circle/join", { code: c }, "You're in! Say hi with a cheer.")) { setCode(""); haptic("success"); } };
-  const cheer = async (to: Member, kind: CheerKind) => { haptic("light"); await call("/circle/cheer", { to: to.id, kind }, `${CHEERS[kind].e} Sent to ${to.name}`); };
+  const cheer = async (to: Member, kind: CheerKind) => { haptic("light"); await call("/circle/cheer", { to: to.id, kind }, `Sent to ${to.name}`); };
   const members = view?.members ?? [];
   const full = members.length >= (view?.max ?? 10);
   return <Sheet title="Workout circle" onClose={onClose} testId="fit-circle">
@@ -75,7 +76,7 @@ export function CircleSheet({ onClose, say, joinCode }: { onClose: () => void; s
           onRemove={view.owner && !m.me ? () => { if (window.confirm(`Remove ${m.name} from your circle?`)) void call("/circle/remove", { id: m.id }, `${m.name} was removed.`); } : undefined} />)}</div></>}
 
       {view.cheers.length > 0 && <><Title>Cheers for you</Title>
-        <Card className="!p-3"><ul className="space-y-2">{view.cheers.slice(0, 6).map((c, i) => <li key={i} className="flex items-center gap-2 text-[14px]"><span className="text-[18px]" aria-hidden>{CHEERS[c.kind].e}</span><span className="flex-1"><b>{c.name}</b> {c.kind === "nudge" ? "nudged you" : "cheered you on"}</span><span className="text-[12px]" style={{ color: C.dim }}>{agoWords(c.at)}</span></li>)}</ul></Card></>}
+        <Card className="!p-3"><ul className="space-y-2">{view.cheers.slice(0, 6).map((c, i) => <li key={i} className="flex items-center gap-2 text-[14px]"><CheerIcon kind={c.kind} className="h-[18px] w-[18px]" /><span className="flex-1"><b>{c.name}</b> {c.kind === "nudge" ? "nudged you" : "cheered you on"}</span><span className="text-[12px]" style={{ color: C.dim }}>{agoWords(c.at)}</span></li>)}</ul></Card></>}
 
       <Title>{view.inCircle ? "Invite someone" : "Start a circle"}</Title>
       <Card className="!p-4">
@@ -115,8 +116,8 @@ function MemberRow({ m, rank, onCheer, onRemove, busy }: { m: Member; rank: numb
     {s && (s.streak > 0 || s.prs.length > 0 || s.minutes7 > 0) && <div className="mt-2.5 flex flex-wrap gap-1.5 text-[12px] font-semibold">
       {s.streak > 0 && <span className="flex items-center gap-1 rounded-full px-2.5 py-1" style={{ background: C.card2 }}><Flame className="h-3.5 w-3.5" style={{ color: C.lime }} />{s.streak}-day streak</span>}
       {s.minutes7 > 0 && <span className="rounded-full px-2.5 py-1" style={{ background: C.card2 }}>{s.minutes7} min · {s.sets7} sets</span>}
-      {s.prs.map((p) => <span key={p.name} className="rounded-full px-2.5 py-1" style={{ background: C.tint }}>🏆 {p.name} {p.weight} {s.units} × {p.reps}</span>)}
+      {s.prs.map((p) => <span key={p.name} className="rounded-full px-2.5 py-1" style={{ background: C.tint }}><Trophy className="mr-1 inline h-3.5 w-3.5" />{p.name} {p.weight} {s.units} × {p.reps}</span>)}
     </div>}
-    {!m.me && <div className="mt-2.5 grid grid-cols-4 gap-1.5">{(Object.keys(CHEERS) as CheerKind[]).map((k) => <button key={k} type="button" disabled={busy} onClick={() => onCheer(k)} className="flex h-10 items-center justify-center gap-1 rounded-[10px] text-[12px] font-semibold disabled:opacity-50" style={{ background: C.card2 }} data-testid={`fit-cheer-${k}-${m.id}`}><span aria-hidden>{CHEERS[k].e}</span>{CHEERS[k].label}</button>)}</div>}
+    {!m.me && <div className="mt-2.5 grid grid-cols-4 gap-1.5">{(Object.keys(CHEERS) as CheerKind[]).map((k) => <button key={k} type="button" disabled={busy} onClick={() => onCheer(k)} className="flex h-10 items-center justify-center gap-1 rounded-[10px] text-[12px] font-semibold disabled:opacity-50" style={{ background: C.card2 }} data-testid={`fit-cheer-${k}-${m.id}`}><CheerIcon kind={k} />{CHEERS[k].label}</button>)}</div>}
   </Card>;
 }

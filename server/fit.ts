@@ -260,7 +260,10 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
     // choice share it (the phone filters by distance).
     const [cLat, cLng] = trailCell(lat, lng);
     res.set("Cache-Control", "public, max-age=86400");
-    try { res.json(await cached(`t:${cLat},${cLng}`, () => overpassFetch(trailsQuery(cLat, cLng, TRAIL_KM)))); }
+    // A quick look (up to 20 km) is much cheaper for the map server than the full 50 km, so the first list
+    // shows in seconds; the wide one fills in behind it. Each is kept a day per cell.
+    const wide = km > 20;
+    try { res.json(await cached(`${wide ? "t" : "t20"}:${cLat},${cLng}`, () => overpassFetch(trailsQuery(cLat, cLng, wide ? TRAIL_KM : 20)))); }
     catch (e: any) { console.error("[fit] trails", e?.message); res.status(503).json({ message: "The trail map is busy right now. Try again in a minute." }); }
   });
   app.get("/api/fit/trail", authMiddleware, async (req: any, res) => {

@@ -14,6 +14,8 @@ export type SayOptions = {
   onEnd?: () => void;
   onError?: (message: string) => void;
   /** Called as each piece of a long text starts, with its index. */ onPart?: (index: number, text: string) => void;
+  /** Longest piece the voice is asked for at once (default 1400 characters). */ pieceMax?: number;
+  /** Start sooner: the first piece is kept short so the first sound comes back quickly. */ fastStart?: boolean;
 };
 
 let base = "";
@@ -46,6 +48,13 @@ export function voicePieces(text: string, max = 1400): string[] {
     if (rest) out.push(rest);
   }
   return out;
+}
+
+/** The pieces sayAI will ask the voice for, so a caller can fetch the first one ahead of time. */
+export function sayPieces(text: string, opts: Pick<SayOptions, "pieceMax" | "fastStart"> = {}): string[] {
+  let pieces = voicePieces(text, opts.pieceMax || 1400);
+  if (opts.fastStart && pieces[0] && pieces[0].length > 360) pieces = [...voicePieces(pieces[0], 300), ...pieces.slice(1)];
+  return pieces;
 }
 
 async function fetchVoice(text: string, voice: AiVoiceName): Promise<Blob> {
@@ -86,7 +95,7 @@ export async function sayAI(text: string, opts: SayOptions = {}): Promise<boolea
   stopAiVoice();
   const id = ++playing;
   const voice = opts.voice || "hannah";
-  const pieces = voicePieces(text);
+  const pieces = sayPieces(text, opts);
   if (!pieces.length) { opts.onEnd?.(); return true; }
   const a = element();
   let url = "";
@@ -97,7 +106,7 @@ export async function sayAI(text: string, opts: SayOptions = {}): Promise<boolea
     for (let i = 0; i < pieces.length; i++) {
       const blob = await preloadAiVoice(pieces[i], voice);
       if (id !== playing) return false;
-      if (i + 1 < pieces.length) void preloadAiVoice(pieces[i + 1], voice).catch(() => {});
+      for (let k = 1; k <= 2; k++) if (i + k < pieces.length) void preloadAiVoice(pieces[i + k], voice).catch(() => {});
       if (url) URL.revokeObjectURL(url);
       url = URL.createObjectURL(blob);
       const ok = await new Promise<boolean>((resolve) => {

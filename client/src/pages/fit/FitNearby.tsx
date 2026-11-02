@@ -5,13 +5,15 @@
 //   to Food in one tap.
 // - Recipes: healthy recipes that fit what's left of today, and the AI makes one from what you have.
 // Data and numbers: shared/fitNearby.ts and shared/fitRecipes.ts; places come through server/fit.ts.
-import { useEffect, useMemo, useState } from "react";
-import { ChefHat, ChevronRight, Clock, ExternalLink, Globe, Loader2, LocateFixed, MapPin, Navigation, Plus, Search, Sparkles, Users, Utensils } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { RecipeIcon } from "./FitIcon";
+import { Check, ChefHat, ChevronRight, Clock, ExternalLink, Globe, Loader2, LocateFixed, MapPin, Navigation, Plus, Salad, Search, SlidersHorizontal, Sparkles, Users, Utensils } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { dayKey, goals, uid, type FitData, type Meal } from "@shared/fit";
-import { BUSY_WORDS, CHAIN_BY_ID, FOOD_CHAINS, PRICES_CHECKED, REPORT_WORDS, busyCurve, busyLevel, cuisineTip, directionsUrl, gymTypeFor, hourWords, parsePlaces, quietTimes, type BusyLevel, type FoodChain, type NearbyKind, type Place } from "@shared/fitNearby";
+import { BUSY_WORDS, CHAIN_BY_ID, FOOD_CHAINS, nearbyCell, PRICES_CHECKED, REPORT_WORDS, busyCurve, busyLevel, cuisineTip, directionsUrl, gymTypeFor, hourWords, parsePlaces, quietTimes, type BusyLevel, type FoodChain, type NearbyKind, type Place } from "@shared/fitNearby";
 import { GYM_BY_ID } from "@shared/fitGym";
 import { TAG_NAME, pickRecipes, type Recipe, type RecipeTag } from "@shared/fitRecipes";
+import { searchFoods } from "@/lib/foodLookup";
 import { fitApi, type Update } from "./fitStore";
 import { lastPlace, keepPlace, locate } from "./FitRun";
 import { latestKg, totals } from "./FitFood";
@@ -58,10 +60,14 @@ function useNearby(kind: NearbyKind) {
   useEffect(() => {
     if (!from) return;
     let live = true;
-    setBusy(true);
+    // What this area looked like last time shows at once; the fresh answer replaces it when it arrives.
+    const ck = `arise-fit-near:${kind}:${nearbyCell(kind, from.ll[0], from.ll[1]).join(",")}`;
+    let had = false;
+    try { const v = JSON.parse(localStorage.getItem(ck) || "null"); if (v?.r && Date.now() - v.at < 864e5) { had = true; setList(parsePlaces(v.r, kind, from.ll, kind === "gyms" ? 25 : 10)); setCrowd(v.r.crowd ?? {}); } } catch { /* nothing kept */ }
+    setBusy(!had);
     fitApi<{ elements: any[]; crowd: Record<string, Crowd> }>(token, `/nearby?${new URLSearchParams({ kind, lat: String(from.ll[0]), lng: String(from.ll[1]) })}`)
-      .then((r) => { if (!live) return; setList(parsePlaces(r, kind, from.ll, kind === "gyms" ? 25 : 10)); setCrowd(r.crowd ?? {}); setErr(""); })
-      .catch((e) => live && setErr(/reach|fetch|network/i.test(e.message) ? "No connection. Check your internet and try again." : e.message))
+      .then((r) => { if (!live) return; setList(parsePlaces(r, kind, from.ll, kind === "gyms" ? 25 : 10)); setCrowd(r.crowd ?? {}); setErr(""); try { localStorage.setItem(ck, JSON.stringify({ at: Date.now(), r })); } catch { /* storage full */ } })
+      .catch((e) => live && !had && setErr(/reach|fetch|network/i.test(e.message) ? "No connection. Check your internet and try again." : e.message))
       .finally(() => live && setBusy(false));
     return () => { live = false; };
   }, [from, kind, token]);
@@ -163,35 +169,128 @@ function GymDetail({ p, crowd, data, onClose, onSet, onReport, token }: { p: Pla
 }
 
 // ——— Eat out ————————————————————————————————————————————————————————————————————————————————————
-function ChainPicks({ chain, update, say }: { chain: FoodChain; update: Update; say: (m: string) => void }) {
+type Goal = "all" | "fits" | "protein" | "lowcarb" | "lowcal" | "lowfat";
+const GOALS: { id: Goal; label: string }[] = [{ id: "all", label: "Everything" }, { id: "fits", label: "Fits my day" }, { id: "protein", label: "High protein" }, { id: "lowcarb", label: "Low carb" }, { id: "lowcal", label: "Low calorie" }, { id: "lowfat", label: "Low fat" }];
+type Limits = { maxKcal: number; minP: number; maxC: number };
+const NO_LIMITS: Limits = { maxKcal: 1200, minP: 0, maxC: 120 }; // the ends of each slider mean "no limit"
+type Macro = { kcal: number; p: number; c: number; f: number };
+type Filter = { goal: Goal; lim: Limits; meal: Macro };
+
+/** Whether one menu item matches the chosen goal and the sliders. */
+const matches = (m: Macro, { goal, lim, meal }: Filter) => {
+  if (lim.maxKcal < NO_LIMITS.maxKcal && m.kcal > lim.maxKcal) return false;
+  if (lim.minP > 0 && m.p < lim.minP) return false;
+  if (lim.maxC < NO_LIMITS.maxC && m.c > lim.maxC) return false;
+  switch (goal) {
+    case "protein": return m.p >= 25 && (m.p * 4) / Math.max(1, m.kcal) >= 0.22;
+    case "lowcarb": return m.c <= 30;
+    case "lowcal": return m.kcal <= 400;
+    case "lowfat": return m.f <= 12;
+    case "fits": return m.kcal <= meal.kcal * 1.1 && m.p >= meal.p * 0.7;
+    default: return true;
+  }
+};
+
+/** A restaurant's real logo (from its website), or its first letter while that loads or if it can't. */
+function BrandLogo({ domain, name, size = 40 }: { domain?: string; name: string; size?: number }) {
+  const [bad, setBad] = useState(false);
+  const box = { width: size, height: size };
+  if (!domain || bad) return <span className="grid shrink-0 place-items-center rounded-[10px] text-[17px] font-bold" style={{ ...box, background: C.card2, color: C.dim }} aria-hidden>{name.slice(0, 1).toUpperCase()}</span>;
+  return <img src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`} alt="" loading="lazy" onError={() => setBad(true)} className="shrink-0 rounded-[10px] bg-white object-contain p-1" style={box} />;
+}
+
+function EatFilters({ goal, setGoal, lim, setLim }: { goal: Goal; setGoal: (g: Goal) => void; lim: Limits; setLim: (l: Limits) => void }) {
+  const [open, setOpen] = useState(false);
+  const row = (label: string, value: string, el: ReactNode) => <label className="block"><span className="flex items-center justify-between text-[13px]"><span style={{ color: C.dim }}>{label}</span><b className="tabular-nums">{value}</b></span>{el}</label>;
+  const on = lim.maxKcal < NO_LIMITS.maxKcal || lim.minP > 0 || lim.maxC < NO_LIMITS.maxC;
+  return <div className="mt-3">
+    <div className="flex gap-1.5 overflow-x-auto pb-1" role="group" aria-label="Match a goal">{GOALS.map((g) => <button key={g.id} type="button" onClick={() => setGoal(g.id)} aria-pressed={goal === g.id} className="h-9 shrink-0 rounded-full px-3 text-[13px] font-semibold" style={goal === g.id ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2, color: C.text }} data-testid={`fit-eat-goal-${g.id}`}>{g.label}</button>)}</div>
+    <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="mt-1 inline-flex items-center gap-1.5 px-1 text-[13px] font-semibold" style={{ color: C.lime }}><SlidersHorizontal className="h-4 w-4" />Adjust{on ? " (on)" : ""}</button>
+    {open && <Card className="mt-2 space-y-3 !p-4">
+      {row("Most calories", lim.maxKcal >= NO_LIMITS.maxKcal ? "No limit" : `${lim.maxKcal}`, <input type="range" min={200} max={NO_LIMITS.maxKcal} step={50} value={lim.maxKcal} onChange={(e) => setLim({ ...lim, maxKcal: Number(e.target.value) })} className="mt-1 w-full" style={{ accentColor: C.lime }} />)}
+      {row("Least protein", lim.minP <= 0 ? "No limit" : `${lim.minP} g`, <input type="range" min={0} max={60} step={5} value={lim.minP} onChange={(e) => setLim({ ...lim, minP: Number(e.target.value) })} className="mt-1 w-full" style={{ accentColor: C.lime }} />)}
+      {row("Most carbs", lim.maxC >= NO_LIMITS.maxC ? "No limit" : `${lim.maxC} g`, <input type="range" min={5} max={NO_LIMITS.maxC} step={5} value={lim.maxC} onChange={(e) => setLim({ ...lim, maxC: Number(e.target.value) })} className="mt-1 w-full" style={{ accentColor: C.lime }} />)}
+      {on && <button type="button" onClick={() => setLim(NO_LIMITS)} className="text-[13px] font-semibold underline" style={{ color: C.dim }}>Clear</button>}
+    </Card>}
+  </div>;
+}
+
+/** One menu item with a button that logs it; the button turns into a check so it's clear it went in. */
+function PickRow({ name, m, serving, logName, update, say }: { name: string; m: Macro; serving: string; logName: string; update: Update; say: (m: string) => void }) {
+  const [added, setAdded] = useState(false);
+  useEffect(() => { if (!added) return; const t = window.setTimeout(() => setAdded(false), 2500); return () => window.clearTimeout(t); }, [added]);
+  return <div className="flex items-center gap-3 rounded-[10px] p-2.5" style={{ background: C.card2 }}>
+    <div className="min-w-0 flex-1"><p className="text-[14px] font-semibold leading-snug">{name}</p><p className="mt-0.5 text-[12px] tabular-nums" style={{ color: C.dim }}>about {Math.round(m.kcal)} cal · P {Math.round(m.p)}g · C {Math.round(m.c)}g · F {Math.round(m.f)}g</p></div>
+    <button type="button" onClick={() => { logFood(update, { name: logName, kcal: m.kcal, p: m.p, c: m.c, f: m.f, serving }); setAdded(true); say(`Added to ${mealNow()}.`); }} aria-label={added ? `${name} added` : `Add ${name}`} className="grid h-10 w-10 shrink-0 place-items-center rounded-full transition-transform active:scale-90" style={{ background: added ? C.card : C.lime, color: added ? C.lime : "#0b0b0c" }} data-testid="fit-log-pick">{added ? <Check className="h-5 w-5" /> : <Plus className="h-5 w-5" />}</button>
+  </div>;
+}
+
+/** More of a chain's menu from the nutrition database (USDA), when its short list isn't enough. */
+function MoreFromChain({ chain, filter, update, say }: { chain: FoodChain; filter: Filter; update: Update; say: (m: string) => void }) {
+  const { token } = useAuth();
+  const [st, setSt] = useState<"idle" | "busy" | "done" | "err">("idle");
+  const [foods, setFoods] = useState<{ name: string; m: Macro; serving: string }[]>([]);
+  const load = () => {
+    setSt("busy");
+    searchFoods(token, chain.name).then((b) => {
+      const seen = new Set<string>();
+      setFoods(b.foods.filter((f) => chain.match.test(`${f.brand || ""} ${f.name}`) && f.calories > 0).map((f) => ({ name: f.name.slice(0, 80), m: { kcal: f.calories, p: f.protein, c: f.carbs, f: f.fat }, serving: f.serving || "1 serving" }))
+        .filter((f) => { const k = f.name.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; }));
+      setSt("done");
+    }).catch(() => setSt("err"));
+  };
+  const shown = foods.filter((f) => matches(f.m, filter));
+  if (st === "idle") return <button type="button" onClick={load} className="mt-1 inline-flex h-10 items-center gap-2 rounded-[10px] px-3 text-[14px] font-semibold" style={{ background: C.card2 }} data-testid={`fit-chain-more-${chain.id}`}><Search className="h-4 w-4" />See more from {chain.name}</button>;
+  if (st === "busy") return <p className="flex items-center gap-2 py-2 text-[13px]" style={{ color: C.dim }}><Loader2 className="h-4 w-4 animate-spin" />Looking up the {chain.name} menu…</p>;
+  if (st === "err") return <button type="button" onClick={load} className="text-[13px] font-semibold underline" style={{ color: C.red }}>Couldn't load the menu. Tap to try again.</button>;
+  return <>{shown.map((f, k) => <PickRow key={`${f.name}-${k}`} name={f.name} m={f.m} serving={f.serving} logName={`${chain.name}: ${f.name}`} update={update} say={say} />)}
+    {!shown.length && <p className="text-[13px]" style={{ color: C.dim }}>{foods.length ? "Nothing else here matches your filters." : `No more ${chain.name} items found.`}</p>}</>;
+}
+
+function ChainPicks({ chain, filter, update, say }: { chain: FoodChain; filter: Filter; update: Update; say: (m: string) => void }) {
+  const picks = chain.picks.filter((p) => matches(p, filter));
   return <div className="mt-3 space-y-2">
     <p className="text-[13px] leading-snug" style={{ color: C.steel }}>{chain.tip}</p>
-    {chain.picks.map((p) => <div key={p.name} className="flex items-center gap-3 rounded-[10px] p-2.5" style={{ background: C.card2 }}>
-      <div className="min-w-0 flex-1"><p className="text-[14px] font-semibold leading-snug">{p.name}</p><p className="mt-0.5 text-[12px] tabular-nums" style={{ color: C.dim }}>about {p.kcal} cal · P {p.p}g · C {p.c}g · F {p.f}g</p></div>
-      <button type="button" onClick={() => { logFood(update, { name: `${chain.name}: ${p.name}`, kcal: p.kcal, p: p.p, c: p.c, f: p.f, serving: "1 order" }); say(`Logged to ${mealNow()}.`); }} aria-label={`Log ${p.name}`} className="grid h-10 w-10 shrink-0 place-items-center rounded-full" style={{ background: C.lime, color: "#0b0b0c" }} data-testid={`fit-log-pick`}><Plus className="h-5 w-5" /></button>
-    </div>)}
+    {picks.map((p) => <PickRow key={p.name} name={p.name} m={p} serving="1 order" logName={`${chain.name}: ${p.name}`} update={update} say={say} />)}
+    {!picks.length && <p className="text-[13px]" style={{ color: C.dim }}>None of the short list match your filters. Try "See more".</p>}
+    <MoreFromChain chain={chain} filter={filter} update={update} say={say} />
   </div>;
 }
 
 export function EatOut({ data, update, onClose, say }: { data: FitData; update: Update; onClose: () => void; say: (m: string) => void }) {
-  const [tab, setTab] = useState<"near" | "chains">("near");
+  const [tab, setTab] = useState<"near" | "chains" | "match">("near");
   const [open, setOpen] = useState<string | null>(null);
+  const [goal, setGoal] = useState<Goal>("all");
+  const [lim, setLim] = useState<Limits>(NO_LIMITS);
+  const g = goals(data.profile, latestKg(data));
+  // One meal's share of the day (a third), for "Fits my day".
+  const filter: Filter = { goal, lim, meal: { kcal: Math.max(250, g.kcal / 3), p: g.p / 3, c: g.c / 3, f: g.f / 3 } };
+  const everything = useMemo(() => FOOD_CHAINS.flatMap((c) => c.picks.map((p) => ({ chain: c, p }))).filter((x) => matches(x.p, filter)).sort((a, b) => (goal === "lowcal" || goal === "lowcarb" || goal === "lowfat" ? a.p.kcal - b.p.kcal : b.p.p / Math.max(1, b.p.kcal) - a.p.p / Math.max(1, a.p.kcal))), [goal, lim.maxKcal, lim.minP, lim.maxC, g.kcal, g.p]); // eslint-disable-line react-hooks/exhaustive-deps
   return <Sheet title="Eat out" onClose={onClose} testId="fit-eat-out">
-    <p className="px-1 text-[15px]" style={{ color: C.steel }}>Healthier picks at places around you. Tap + to log one.</p>
-    <div className="mt-3 grid grid-cols-2 gap-1 rounded-[12px] p-1" style={{ background: C.card2 }} role="tablist">
-      {([["near", "Near me"], ["chains", "Every chain"]] as const).map(([id, l]) => <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className="h-9 rounded-[9px] text-[13px] font-semibold" style={tab === id ? { background: C.card, color: C.text } : { color: C.dim }} data-testid={`fit-eat-${id}`}>{l}</button>)}
+    <p className="px-1 text-[15px]" style={{ color: C.steel }}>Healthier picks at places around you. Tap + to add one to today.</p>
+    <div className="mt-3 grid grid-cols-3 gap-1 rounded-[12px] p-1" style={{ background: C.card2 }} role="tablist">
+      {([["near", "Near me"], ["chains", "Every chain"], ["match", "Match goals"]] as const).map(([id, l]) => <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className="h-9 rounded-[9px] text-[13px] font-semibold" style={tab === id ? { background: C.card, color: C.text } : { color: C.dim }} data-testid={`fit-eat-${id}`}>{l}</button>)}
     </div>
-    {tab === "near" ? <FoodNear data={data} update={update} say={say} /> : <div className="mt-3 space-y-2">{FOOD_CHAINS.map((c) => <Card key={c.id} className="!p-3.5">
+    <EatFilters goal={goal} setGoal={setGoal} lim={lim} setLim={setLim} />
+    {tab === "near" && <FoodNear data={data} update={update} say={say} filter={filter} />}
+    {tab === "chains" && <div className="mt-3 space-y-2">{FOOD_CHAINS.map((c) => <Card key={c.id} className="!p-3.5">
       <button type="button" onClick={() => setOpen(open === c.id ? null : c.id)} aria-expanded={open === c.id} className="flex w-full items-center gap-3 text-left" data-testid={`fit-chain-${c.id}`}>
-        <span className="text-[24px]" aria-hidden>{c.e}</span><span className="flex-1 text-[19px] leading-none" style={display}>{c.name}</span>
+        <BrandLogo domain={c.domain} name={c.name} /><span className="flex-1 text-[19px] leading-none" style={display}>{c.name}</span>
         <ChevronRight className="h-5 w-5 transition-transform" style={{ color: C.dim, transform: open === c.id ? "rotate(90deg)" : undefined }} /></button>
-      {open === c.id && <ChainPicks chain={c} update={update} say={say} />}
+      {open === c.id && <ChainPicks chain={c} filter={filter} update={update} say={say} />}
     </Card>)}</div>}
-    <p className="mt-4 px-1 text-[11px] leading-relaxed" style={{ color: C.dim }}>Numbers are close to each chain's published nutrition and can change; check their nutrition info for exact values. Places from OpenStreetMap.</p>
+    {tab === "match" && <div className="mt-3 space-y-2" data-testid="fit-eat-match">
+      <p className="px-1 text-[13px]" style={{ color: C.dim }}>{goal === "all" && lim.maxKcal >= NO_LIMITS.maxKcal && lim.minP <= 0 && lim.maxC >= NO_LIMITS.maxC ? "Pick a goal above, or adjust the sliders, to see what fits across every chain." : `${everything.length} ${everything.length === 1 ? "item matches" : "items match"}, best first.`}</p>
+      {everything.slice(0, 60).map(({ chain, p }) => <div key={`${chain.id}-${p.name}`} className="rounded-[12px] p-2" style={{ background: C.card }}>
+        <div className="mb-1.5 flex items-center gap-2 px-1"><BrandLogo domain={chain.domain} name={chain.name} size={24} /><span className="text-[13px] font-semibold" style={{ color: C.dim }}>{chain.name}</span></div>
+        <PickRow name={p.name} m={p} serving="1 order" logName={`${chain.name}: ${p.name}`} update={update} say={say} /></div>)}
+      {!everything.length && <p className="py-6 text-center text-[14px]" style={{ color: C.dim }}>Nothing matches. Loosen a filter.</p>}
+    </div>}
+    <p className="mt-4 px-1 text-[11px] leading-relaxed" style={{ color: C.dim }}>Numbers are close to each chain's published nutrition and can change; check their nutrition info for exact values. "See more" items come from the USDA food database. Places from OpenStreetMap. Logos belong to their companies.</p>
   </Sheet>;
 }
 
-function FoodNear({ data, update, say }: { data: FitData; update: Update; say: (m: string) => void }) {
+function FoodNear({ data, update, say, filter }: { data: FitData; update: Update; say: (m: string) => void; filter: Filter }) {
   const { list, busy, bar } = useNearby("food");
   const [open, setOpen] = useState<string | null>(null);
   return <div className="mt-3">
@@ -201,11 +300,11 @@ function FoodNear({ data, update, say }: { data: FitData; update: Update; say: (
       const tip = chain ? "" : cuisineTip(p.cuisine);
       return <Card key={p.id} className="!p-3.5" testId={`fit-food-near-${p.id}`}>
         <button type="button" onClick={() => setOpen(open === p.id ? null : p.id)} aria-expanded={open === p.id} className="flex w-full items-center gap-3 text-left">
-          <span className="text-[22px]" aria-hidden>{chain?.e ?? "🥗"}</span>
+          {chain ? <BrandLogo domain={chain.domain} name={chain.name} size={38} /> : <span className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-[10px]" style={{ background: C.card2, color: C.lime }} aria-hidden><Salad className="h-5 w-5" /></span>}
           <span className="min-w-0 flex-1"><span className="block truncate text-[16px] font-semibold">{p.name}</span><span className="block truncate text-[12px]" style={{ color: C.dim }}>{away(p.km, data)}{p.cuisine ? ` · ${p.cuisine.replace(/[_;]/g, " ")}` : ""}</span></span>
           <ChevronRight className="h-5 w-5 shrink-0 transition-transform" style={{ color: C.dim, transform: open === p.id ? "rotate(90deg)" : undefined }} /></button>
         {open === p.id && <>
-          {chain ? <ChainPicks chain={chain} update={update} say={say} /> : <p className="mt-2 text-[14px]">{tip || "Look for grilled protein, vegetables, and sauces on the side."}</p>}
+          {chain ? <ChainPicks chain={chain} filter={filter} update={update} say={say} /> : <p className="mt-2 text-[14px]">{tip || "Look for grilled protein, vegetables, and sauces on the side."}</p>}
           <a href={directionsUrl(p, apple())} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-[14px] font-semibold" style={{ color: C.lime }}><Navigation className="h-4 w-4" />Directions</a>
         </>}
       </Card>;
@@ -250,7 +349,7 @@ export function RecipesSheet({ data, update, onClose, say }: { data: FitData; up
     </Card>
     <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">{tags.map((x) => <button key={x} type="button" onClick={() => setTag(x)} aria-pressed={tag === x} className="h-9 shrink-0 rounded-full px-3 text-[13px] font-semibold" style={tag === x ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2, color: C.text }}>{x === "all" ? "Best for now" : TAG_NAME[x]}</button>)}</div>
     <div className="mt-2 space-y-2">{[...made, ...list].map((r) => <Card key={r.id} onClick={() => setOpen(r)} className="flex items-center gap-3 !p-3" testId={`fit-recipe-${r.id}`}>
-      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[10px] text-[26px]" style={{ background: C.card2 }} aria-hidden>{r.e}</span>
+      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[10px] " style={{ background: C.card2 }} aria-hidden><RecipeIcon id={r.id} tags={r.tags} className="h-6 w-6" /></span>
       <div className="min-w-0 flex-1"><p className="truncate text-[16px] font-semibold">{r.name}</p><p className="text-[12px] tabular-nums" style={{ color: C.dim }}>{r.kcal} cal · P {r.p}g · {r.mins} min{r.id.startsWith("ai-") ? " · made for you" : ""}</p></div>
       <ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></Card>)}</div>
     {open && <RecipeDetail r={open} onClose={() => setOpen(null)} onLog={() => { logFood(update, { name: open.name, kcal: open.kcal, p: open.p, c: open.c, f: open.f, serving: "1 serving" }); say(`Logged to ${mealNow()}.`); setOpen(null); }} />}

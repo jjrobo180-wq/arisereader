@@ -39,6 +39,8 @@
 .an-ghost:hover { background: rgba(106, 85, 220, .07); color: var(--an-violet-ink); }
 .an-input { width: 100%; min-height: 2.75rem; border-radius: 14px; border: 1px solid var(--an-line); background: #fff; padding: 0 .9rem; font-size: 1rem; color: var(--an-ink); }
 .an-input:focus { outline: none; border-color: var(--an-violet); box-shadow: 0 0 0 3px rgba(106, 85, 220, .15); }
+/* The .an-input padding shorthand above would otherwise beat the utility class and put the placeholder under the magnifier. */
+.an-input.an-search { padding-left: 2.6rem; }
 textarea.an-input { padding: .7rem .9rem; line-height: 1.5; }
 .an-chip { display: inline-flex; align-items: center; gap: .3rem; height: 2rem; padding: 0 .75rem; border-radius: 999px; font-size: .8rem; font-weight: 650; background: #fff; border: 1px solid var(--an-line); color: #4a4762; white-space: nowrap; }
 .an-chip[aria-pressed="true"] { background: var(--an-ink); color: #fff; border-color: var(--an-ink); }

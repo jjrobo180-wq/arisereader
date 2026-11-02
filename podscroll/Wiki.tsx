@@ -1,9 +1,9 @@
 // Pod+ Wiki podcasts: search Wikipedia (or pick today's featured or most-read articles) and listen to
 // any article read by an AI voice, section by section, with speed and voice choices. Wikipedia text
 // is CC BY-SA 4.0: every episode credits the article with a link, on screen and in the reading.
-import { useEffect, useRef, useState } from "react";
+import { Component, useEffect, useRef, useState, type ReactNode } from "react";
 import { BookOpenText, ChevronLeft, ExternalLink, Loader2, Pause, Play, Search, SkipBack, SkipForward } from "lucide-react";
-import { AI_VOICES, sayAI, stopAiVoice, voicePieces, type AiVoiceName } from "../client/src/lib/aiVoice";
+import { AI_VOICES, preloadAiVoice, sayAI, sayPieces, stopAiVoice, type AiVoiceName } from "../client/src/lib/aiVoice";
 import { WIKI_LICENSE, listenMinutes, parseArticle, parseFeatured, parseSearch, wikiArticleUrl, wikiFeaturedUrl, wikiIntro, wikiOutro, wikiSearchUrl, type FeaturedWiki, type WikiArticle, type WikiHit } from "@shared/podWiki";
 
 const getJson = async (url: string) => { const r = await fetch(url); if (!r.ok) throw new Error("Wikipedia isn't reachable right now."); return r.json(); };
@@ -31,9 +31,11 @@ function Player({ title, onBack }: { title: string; onBack: () => void }) {
     const step = (i: number, p: number) => {
       if (id !== run.current) return;
       if (i > sections.length) { setPlaying(false); setSec(-1); setPiece(0); return; }
-      const pieces = voicePieces(textOf(i), 900);
+      const pieces = sayPieces(textOf(i), { pieceMax: 900, fastStart: true });
       setSec(i); setLoading(true);
-      void sayAI(pieces.slice(p).join(" "), { voice, rate, onStart: () => setLoading(false), onPart: (k) => id === run.current && setPiece(p + k),
+      // The next section's first words are fetched while this one plays, so there's no gap between them.
+      if (i + 1 <= sections.length) { const nx = sayPieces(textOf(i + 1), { pieceMax: 900, fastStart: true })[0]; if (nx) void preloadAiVoice(nx, voice).catch(() => {}); }
+      void sayAI(pieces.slice(p).join(" "), { voice, rate, pieceMax: 900, fastStart: true, onStart: () => setLoading(false), onPart: (k) => id === run.current && setPiece(p + k),
         onEnd: () => step(i + 1, 0), onError: (m) => { if (id === run.current) { setErr(m); setPlaying(false); setLoading(false); } } });
     };
     step(from, fromPiece);
@@ -68,13 +70,31 @@ function Player({ title, onBack }: { title: string; onBack: () => void }) {
     <ol className="mt-4 space-y-1">{sections.map((s, i) => <li key={i}>
       <button onClick={() => play(i)} className={`flex w-full items-start gap-3 rounded-xl p-3 text-left ${sec === i ? "bg-[#fff1e8]" : "hover:bg-[#f2f2f2]"}`}>
         <span className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full text-[12px] font-bold ${sec === i ? "bg-[#ff6a1f] text-white" : "bg-[#f2f2f2] text-[#606060]"}`}>{i + 1}</span>
-        <span className="min-w-0"><span className="block text-[15px] font-semibold">{s.title}</span><span className="line-clamp-2 block text-[13px] text-[#606060]">{s.text}</span></span>
+        <span className="min-w-0"><span className="block text-[15px] font-semibold">{s.title}</span><span className="line-clamp-2 block text-[13px] text-[#606060]">{s.text.slice(0, 220)}</span></span>
       </button></li>)}</ol>
     <p className="mt-6 text-[12px] leading-relaxed text-[#606060]">From the Wikipedia article <a href={art.url} target="_blank" rel="noreferrer" className="font-semibold underline">“{art.title}”<ExternalLink size={11} className="ml-0.5 inline" /></a>, by Wikipedia's contributors, licensed under <a href={WIKI_LICENSE.url} target="_blank" rel="noreferrer" className="underline">{WIKI_LICENSE.name}</a>. This reading is an AI-voiced adaptation, shared under the same license.</p>
   </div>;
 }
 
+/** A problem inside Wiki podcasts shows a message and a way back, instead of taking the whole app down. */
+class WikiGuard extends Component<{ onBack: () => void; children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch() { stopAiVoice(); }
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return <div className="mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6"><p className="font-semibold">Wiki podcasts hit a problem.</p>
+      <p className="mt-1 text-sm text-[#606060]">Nothing else is affected. Try again, or go back home.</p>
+      <div className="mt-4 flex gap-2"><button onClick={() => this.setState({ failed: false })} className="h-10 rounded-full bg-[#ff6a1f] px-4 text-sm font-semibold text-white">Try again</button>
+        <button onClick={this.props.onBack} className="h-10 rounded-full bg-[#f2f2f2] px-4 text-sm font-semibold">Home</button></div></div>;
+  }
+}
+
 export function WikiView({ onBack }: { onBack: () => void }) {
+  return <WikiGuard onBack={onBack}><WikiViewInner onBack={onBack} /></WikiGuard>;
+}
+
+function WikiViewInner({ onBack }: { onBack: () => void }) {
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<WikiHit[] | null>(null);
   const [busy, setBusy] = useState(false);

@@ -33,10 +33,10 @@ export type MemberStats = {
 export type Member = { id: number; name: string; owner: boolean; me: boolean; stats: MemberStats | null };
 export type CheerKind = "cheer" | "nudge" | "fire" | "strong";
 export const CHEERS: Record<CheerKind, { e: string; label: string; body: (from: string) => string }> = {
-  cheer: { e: "👏", label: "Cheer", body: (n) => `${n} cheered you on. Keep it up!` },
-  fire: { e: "🔥", label: "On fire", body: (n) => `${n} says you're on fire 🔥` },
-  strong: { e: "💪", label: "Strong", body: (n) => `${n} saw your workout: strong work 💪` },
-  nudge: { e: "⏰", label: "Nudge", body: (n) => `${n} nudged you: time for a workout?` },
+  cheer: { e: "", label: "Cheer", body: (n) => `${n} cheered you on. Keep it up!` },
+  fire: { e: "", label: "On fire", body: (n) => `${n} says you're on fire` },
+  strong: { e: "", label: "Strong", body: (n) => `${n} saw your workout: strong work` },
+  nudge: { e: "", label: "Nudge", body: (n) => `${n} nudged you: time for a workout?` },
 };
 export type Cheer = { from: number; name: string; kind: CheerKind; at: number };
 

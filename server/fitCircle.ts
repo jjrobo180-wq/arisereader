@@ -144,7 +144,7 @@ export function createCircles(deps: CircleDeps) {
       const w = fresh[fresh.length - 1];
       const name = await nameOf(me);
       const others = [g.owner, ...g.members].filter((x) => x !== me);
-      for (const id of others) void notify(id, { title: `${name} just trained 💪`, body: `${w.name} · ${Math.max(1, Math.round(w.secs / 60))} min. Send a cheer!`, url: "#/fit", tag: `fit-done-${me}` });
+      for (const id of others) void notify(id, { title: `${name} just trained`, body: `${w.name} · ${Math.max(1, Math.round(w.secs / 60))} min. Send a cheer!`, url: "#/fit", tag: `fit-done-${me}` });
       return others.length;
     },
   };

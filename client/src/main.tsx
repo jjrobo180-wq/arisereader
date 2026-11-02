@@ -1,6 +1,7 @@
 import "./lib/accountStorageBoot";
 import "./lib/sampleBoot";
 import { markAppReadyWhenDrawn, nativeAppInfo } from "./lib/nativeApp";
+import { allowPopups } from "./lib/popupSupport";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
@@ -54,6 +55,7 @@ const isAriseTodoNative = window.location.protocol === "capacitor:";
 if (isAriseTodoNative && (!window.location.hash || window.location.hash === "#/")) {
   window.location.hash = "#/signin";
 }
+allowPopups();
 const nativeApiOrigin = nativeAppInfo().api;
 function resolveNativeApiUrl(url: string): string {
   if (!isAriseTodoNative || !url.startsWith("/api/")) return url;

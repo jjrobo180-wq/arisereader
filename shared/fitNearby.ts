@@ -84,36 +84,36 @@ export function crowdNow(reports: { level: BusyLevel; at: number }[], now = Date
 
 // ——— Healthier picks at chains ———————————————————————————————————————————————————————————————————————
 export type MenuPick = { name: string; kcal: number; p: number; c: number; f: number; tip?: string };
-export type FoodChain = { id: string; name: string; match: RegExp; e: string; picks: MenuPick[]; tip: string };
+export type FoodChain = { id: string; name: string; match: RegExp; /** The chain's website, for its logo. */ domain: string; picks: MenuPick[]; tip: string };
 /** About-right numbers from each chain's published nutrition (they change; the app says "about"). */
 export const FOOD_CHAINS: FoodChain[] = [
-  { id: "chipotle", name: "Chipotle", match: /chipotle/i, e: "🌯", tip: "A bowl beats a burrito (the tortilla is 320 calories). Ask for half rice and extra fajita veggies.",
+  { id: "chipotle", name: "Chipotle", match: /chipotle/i, domain: "chipotle.com", tip: "A bowl beats a burrito (the tortilla is 320 calories). Ask for half rice and extra fajita veggies.",
     picks: [{ name: "Chicken bowl: half white rice, black beans, fajita veggies, salsa, lettuce", kcal: 465, p: 43, c: 52, f: 11 }, { name: "Chicken salad: black beans, fajita veggies, salsa (no dressing)", kcal: 360, p: 41, c: 33, f: 9 }, { name: "Double chicken bowl: fajita veggies, salsa, lettuce", kcal: 405, p: 65, c: 10, f: 14 }] },
-  { id: "chick-fil-a", name: "Chick-fil-A", match: /chick-?fil-?a/i, e: "🐔", tip: "Grilled, not breaded. Swap fries for a fruit cup.",
+  { id: "chick-fil-a", name: "Chick-fil-A", match: /chick-?fil-?a/i, domain: "chick-fil-a.com", tip: "Grilled, not breaded. Swap fries for a fruit cup.",
     picks: [{ name: "Grilled nuggets (8 count)", kcal: 130, p: 25, c: 1, f: 3 }, { name: "Grilled nuggets (12 count) and a fruit cup", kcal: 260, p: 39, c: 20, f: 4 }, { name: "Grilled chicken sandwich", kcal: 390, p: 28, c: 44, f: 12 }] },
-  { id: "subway", name: "Subway", match: /\bsubway\b/i, e: "🥪", tip: "Pile on vegetables, skip mayo and creamy sauces (mustard or vinegar instead).",
+  { id: "subway", name: "Subway", match: /\bsubway\b/i, domain: "subway.com", tip: "Pile on vegetables, skip mayo and creamy sauces (mustard or vinegar instead).",
     picks: [{ name: "6-inch turkey on wheat, all the veggies, mustard", kcal: 280, p: 20, c: 44, f: 4 }, { name: "Footlong rotisserie-style chicken, veggies, no mayo", kcal: 560, p: 48, c: 82, f: 10 }] },
-  { id: "mcdonalds", name: "McDonald's", match: /mc\s*donald'?s/i, e: "🍔", tip: "Breakfast sandwiches and plain burgers are your best bets. Water or a diet soda instead of a regular one.",
+  { id: "mcdonalds", name: "McDonald's", match: /mc\s*donald'?s/i, domain: "mcdonalds.com", tip: "Breakfast sandwiches and plain burgers are your best bets. Water or a diet soda instead of a regular one.",
     picks: [{ name: "Egg McMuffin", kcal: 310, p: 17, c: 30, f: 13 }, { name: "McDouble (no cheese) and apple slices", kcal: 355, p: 21, c: 36, f: 14 }, { name: "6 Chicken McNuggets", kcal: 250, p: 14, c: 15, f: 15 }] },
-  { id: "taco-bell", name: "Taco Bell", match: /taco\s*bell/i, e: "🌮", tip: "Order it \"fresco style\" (pico instead of cheese and sauce) to cut calories.",
+  { id: "taco-bell", name: "Taco Bell", match: /taco\s*bell/i, domain: "tacobell.com", tip: "Order it \"fresco style\" (pico instead of cheese and sauce) to cut calories.",
     picks: [{ name: "2 chicken soft tacos", kcal: 320, p: 24, c: 30, f: 10 }, { name: "Black bean soft taco, fresco style", kcal: 160, p: 6, c: 26, f: 4 }] },
-  { id: "starbucks", name: "Starbucks", match: /starbucks/i, e: "☕", tip: "Skip the syrups and whipped cream. Egg bites and wraps are good protein.",
+  { id: "starbucks", name: "Starbucks", match: /starbucks/i, domain: "starbucks.com", tip: "Skip the syrups and whipped cream. Egg bites and wraps are good protein.",
     picks: [{ name: "Egg white & roasted red pepper egg bites", kcal: 170, p: 12, c: 11, f: 8 }, { name: "Spinach, feta & egg white wrap", kcal: 290, p: 20, c: 34, f: 8 }] },
-  { id: "wendys", name: "Wendy's", match: /wendy'?s/i, e: "🍟", tip: "Chili is one of the best fast-food meals there is: protein and fiber.",
+  { id: "wendys", name: "Wendy's", match: /wendy'?s/i, domain: "wendys.com", tip: "Chili is one of the best fast-food meals there is: protein and fiber.",
     picks: [{ name: "Large chili", kcal: 370, p: 25, c: 36, f: 15 }, { name: "Small chili and a plain baked potato", kcal: 520, p: 24, c: 89, f: 10 }] },
-  { id: "panda-express", name: "Panda Express", match: /panda\s*express/i, e: "🥡", tip: "Get Super Greens instead of rice or chow mein.",
+  { id: "panda-express", name: "Panda Express", match: /panda\s*express/i, domain: "pandaexpress.com", tip: "Get Super Greens instead of rice or chow mein.",
     picks: [{ name: "Grilled teriyaki chicken with Super Greens", kcal: 365, p: 42, c: 18, f: 16 }, { name: "String bean chicken breast with Super Greens", kcal: 300, p: 18, c: 23, f: 15 }] },
-  { id: "popeyes", name: "Popeyes", match: /popeyes/i, e: "🍗", tip: "Blackened (not breaded) tenders have most of the protein and little of the fat.",
+  { id: "popeyes", name: "Popeyes", match: /popeyes/i, domain: "popeyes.com", tip: "Blackened (not breaded) tenders have most of the protein and little of the fat.",
     picks: [{ name: "Blackened chicken tenders (3)", kcal: 170, p: 26, c: 2, f: 2 }, { name: "Blackened tenders (5) and green beans", kcal: 340, p: 45, c: 10, f: 9 }] },
-  { id: "cava", name: "CAVA", match: /\bcava\b/i, e: "🥙", tip: "Greens or half greens, half grains. Pick one dip, not three.",
+  { id: "cava", name: "CAVA", match: /\bcava\b/i, domain: "cava.com", tip: "Greens or half greens, half grains. Pick one dip, not three.",
     picks: [{ name: "Greens + grains bowl with grilled chicken, tomato & cucumber, tzatziki", kcal: 510, p: 38, c: 44, f: 20 }] },
-  { id: "sweetgreen", name: "Sweetgreen", match: /sweetgreen/i, e: "🥗", tip: "Add a protein, and ask for the dressing on the side.",
+  { id: "sweetgreen", name: "Sweetgreen", match: /sweetgreen/i, domain: "sweetgreen.com", tip: "Add a protein, and ask for the dressing on the side.",
     picks: [{ name: "Kale Caesar with blackened chicken", kcal: 430, p: 34, c: 18, f: 26 }] },
-  { id: "panera", name: "Panera Bread", match: /panera/i, e: "🥣", tip: "Half a sandwich with a cup of soup keeps it reasonable.",
+  { id: "panera", name: "Panera Bread", match: /panera/i, domain: "panerabread.com", tip: "Half a sandwich with a cup of soup keeps it reasonable.",
     picks: [{ name: "Half turkey sandwich and a cup of turkey chili", kcal: 520, p: 33, c: 58, f: 16 }] },
-  { id: "jersey-mikes", name: "Jersey Mike's", match: /jersey\s*mike'?s/i, e: "🥖", tip: "Order it as a \"sub in a tub\" (a salad, no bread).",
+  { id: "jersey-mikes", name: "Jersey Mike's", match: /jersey\s*mike'?s/i, domain: "jerseymikes.com", tip: "Order it as a \"sub in a tub\" (a salad, no bread).",
     picks: [{ name: "Turkey & provolone sub in a tub", kcal: 390, p: 32, c: 10, f: 24 }] },
-  { id: "dunkin", name: "Dunkin'", match: /dunkin/i, e: "🍩", tip: "Wake-Up Wraps and egg-white sandwiches beat donuts and muffins.",
+  { id: "dunkin", name: "Dunkin'", match: /dunkin/i, domain: "dunkindonuts.com", tip: "Wake-Up Wraps and egg-white sandwiches beat donuts and muffins.",
     picks: [{ name: "Turkey sausage, egg & cheese wake-up wrap", kcal: 240, p: 14, c: 15, f: 13 }] },
 ];
 export const foodChainOf = (name: string, brand = ""): FoodChain | null => FOOD_CHAINS.find((c) => c.match.test(brand) || c.match.test(name)) ?? null;

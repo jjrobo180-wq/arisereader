@@ -2,7 +2,7 @@
 // #/fit on the website). Tabs: Today, Train, Food, Fast, Run (Progress opens from Today). Data:
 // fitStore.ts → server/fit.ts. The look and motion follow the Arise Fit prototype (fitUi.tsx).
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, Apple, BarChart3, Bell, Check, ChefHat, Crown, ChevronRight, Footprints, HeartPulse, Dumbbell, Flame, Home, LogOut, MapPin, Mic, Play, Route, Scale, Settings, ShieldCheck, Timer, Trophy, Utensils } from "lucide-react";
+import { Activity, Apple, BarChart3, Bell, Check, ChefHat, Crown, ChevronRight, Footprints, HeartPulse, Dumbbell, Flame, Home, LogOut, MapPin, Mic, Moon, Play, Route, Scale, Settings, ShieldCheck, Timer, Trophy, Utensils } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import AccountPrivacy from "@/components/AccountPrivacy";
 import { goToSignIn } from "@/lib/hubs";
@@ -18,6 +18,7 @@ import { SiriSheet, useDeepLinks, type SiriAction } from "./FitSiri";
 import { ScanMachine } from "./FitGym";
 import { programArt } from "./fitArt";
 import { BODY_PARTS, PART_NAME, recovery } from "@shared/fitRecovery";
+import { SleepSheet } from "./FitSleep";
 import { FoodTab, latestKg, totals } from "./FitFood";
 import { CoverCard, VideoPlayer } from "./FitVideo";
 import { FastingSheet, endFast, startFast } from "./FitFasting";
@@ -29,9 +30,17 @@ import { DIET_BY_ID, fastingStatus, pointsBudget, pointsOf } from "@shared/fitNu
 import { videoFor, videoOfTheDay } from "@shared/fitVideos";
 import { Bar, Btn, C, Card, Columns, Field, Ring, Sheet, Spark, StatusShade, Title, cardStyle, fmtDur, fmtNum, font, glowBg, haptic, inputCls, inputStyle, display, stagger, useFitFonts, Layer, ThemePicker } from "./fitUi";
 
+/** Today's sleep card line: last night's hours, or an invitation to log. */
+function sleepToday(data: FitData) {
+  const n = data.sleep?.nights[data.sleep.nights.length - 1];
+  if (!n) return "Track your sleep";
+  const h = (n.wake - n.bed) / 3_600_000;
+  return `${Math.floor(h)}h ${String(Math.round((h % 1) * 60)).padStart(2, "0")}m last night`;
+}
+
 type Tab = "today" | "train" | "food" | "fast" | "run";
 /** Sheets that open over any tab (from Today, Siri or a link). */
-type Over = "" | "circle" | "gyms" | "eat" | "recipes" | "siri" | "scan";
+type Over = "" | "sleep" | "circle" | "gyms" | "eat" | "recipes" | "siri" | "scan";
 
 /** Ticks once a second while `on` (live timers on Today). */
 function useClock(on: boolean) {
@@ -157,6 +166,9 @@ function TodayTab({ data, update, onTab, onStartProgram, onProgress, onSettings,
       <Card className="!p-3.5" style={stagger(0, 0, 0.35)}><Activity className="h-5 w-5" style={{ color: C.lime }} /><p className="mt-2 text-[28px] leading-none tabular-nums" style={display}>{fmtNum(vol)}</p><p className="mt-1 text-[12px]" style={{ color: C.dim }}>{data.profile.units} lifted · 7 days</p></Card>
       <Card className="!p-3.5" onClick={() => onTab("run")} style={stagger(0, 0, 0.45)}><Route className="h-5 w-5" style={{ color: C.lime }} /><p className="mt-2 text-[28px] leading-none" style={display}>Run</p><p className="mt-1 text-[12px]" style={{ color: C.dim }}>GPS · trails near you</p></Card>
     </div>
+    <Card className="mt-3 flex items-center gap-3 !p-3.5" onClick={() => onOver("sleep")} testId="fit-today-sleep"><Moon className="h-5 w-5 shrink-0" style={{ color: C.lime }} />
+      <span className="min-w-0 flex-1"><span className="block text-[13px]" style={{ color: C.dim }}>{data.sleep?.asleepAt ? "Sleeping now" : "Sleep"}</span><span className="block text-[22px] leading-none tabular-nums" style={display}>{data.sleep?.asleepAt ? "Tap when you wake" : sleepToday(data)}</span></span>
+      <ChevronRight className="h-5 w-5 shrink-0" style={{ color: C.dim }} /></Card>
     {health && <div className="mt-3"><StepsCard data={data} snap={health} /></div>}
     {tip && <><Title right={<button type="button" onClick={() => setWatch(true)} className="text-[14px] font-semibold" style={{ color: C.lime }}>Cues</button>}>Form tip of the day</Title>
       <VideoPlayer exId={tip.id} label={tip.name} testId="fit-today-tip" /></>}
@@ -325,7 +337,7 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
       const ml = data.profile.units === "kg" ? 250 : 237;
       update((d) => ({ ...d, water: { ...d.water, [dayKey()]: Math.round((d.water[dayKey()] || 0) + ml) } }));
       say(data.profile.units === "kg" ? "Added 250 ml of water." : "Added 8 oz of water.");
-    } else if (a === "fast-start") { if (data.fasting?.start) say("You're already fasting."); else { startFast(update); say("Fast started."); } setTab("fast"); }
+    } else if (a === "fast-start") { if (data.fasting?.start) say("You're already fasting."); else { startFast(update, data.fasting?.protocol); say("Fast started."); } setTab("fast"); }
     else if (a === "fast-end") { if (data.fasting?.start) { endFast(update); say("Fast ended. Nice work."); } else say("You're not fasting right now."); setTab("fast"); }
     else if (a === "run") setTab("run");
     else if (a === "meal") { setSnap(true); setTab("food"); }
@@ -360,6 +372,7 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
     {coach && <CoachScreen token={token} me={Number(user?.id) || 0} data={data} update={update} list={list} onStart={(a) => { setCoach(false); setActive(a); }} onClose={() => setCoach(false)} />}
     {progress && <ProgressSheet data={data} update={update} list={list} onClose={() => setProgress(false)} onSettings={() => setSettings(true)} />}
     {settings && <SettingsSheet data={data} update={update} onClose={() => setSettings(false)} onGoals={() => { setSettings(false); setProgress(false); setSetup(true); }} onAccount={() => setAccount(true)} onSiri={() => setOver("siri")} />}
+    {over === "sleep" && <SleepSheet data={data} update={update} say={say} onClose={() => setOver("")} />}
     {over === "circle" && <CircleSheet onClose={() => { setOver(""); setJoinCode(undefined); }} say={say} joinCode={joinCode} />}
     {over === "gyms" && <NearbyGyms data={data} update={update} say={say} onClose={() => setOver("")} />}
     {over === "eat" && <EatOut data={data} update={update} say={say} onClose={() => setOver("")} />}
