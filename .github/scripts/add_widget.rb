@@ -5,6 +5,9 @@
 #
 # The extension is called AriseWidgets, its bundle id is <host>.widgets, and it reads the App Group
 # group.<host> that the AriseWidgets plugin writes to. Run after `npx cap add ios && npx cap sync ios`.
+# For a signed build, also set SIGN_TEAM, APP_PROFILE and WIDGET_PROFILE (provisioning profile names),
+# APP_ENTITLEMENTS (path of the app's entitlements, relative to the App folder) and BUILD_NUMBER. Signing
+# is then set in the project itself, so the archive command must not override it.
 # The Apple side (an App ID for the extension, the App Group, a provisioning profile) is only needed for a
 # signed build; a simulator build compiles without them.
 require "xcodeproj"
@@ -36,7 +39,7 @@ File.write(File.join(dir, "Info.plist"), <<~PLIST)
     <key>CFBundleName</key><string>$(PRODUCT_NAME)</string>
     <key>CFBundlePackageType</key><string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key><string>$(MARKETING_VERSION)</string>
-    <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>CFBundleVersion</key><string>#{ENV["BUILD_NUMBER"] || "$(CURRENT_PROJECT_VERSION)"}</string>
     <key>NSExtension</key><dict><key>NSExtensionPointIdentifier</key><string>com.apple.widgetkit-extension</string></dict>
   </dict></plist>
 PLIST
@@ -81,6 +84,21 @@ embed = app.new_copy_files_build_phase("Embed Foundation Extensions")
 embed.symbol_dst_subfolder_spec = :plug_ins
 build_file = embed.add_file_reference(ext.product_reference, true)
 build_file.settings = { "ATTRIBUTES" => ["RemoveHeadersOnCopy"] }
+
+if ENV["SIGN_TEAM"]
+  signing = lambda do |target, profile, entitlements|
+    target.build_configurations.each do |c|
+      next unless c.name == "Release"
+      c.build_settings["CODE_SIGN_STYLE"] = "Manual"
+      c.build_settings["DEVELOPMENT_TEAM"] = ENV["SIGN_TEAM"]
+      c.build_settings["CODE_SIGN_IDENTITY"] = "Apple Distribution"
+      c.build_settings["PROVISIONING_PROFILE_SPECIFIER"] = profile
+      c.build_settings["CODE_SIGN_ENTITLEMENTS"] = entitlements if entitlements
+    end
+  end
+  signing.call(app, ENV.fetch("APP_PROFILE"), ENV["APP_ENTITLEMENTS"])
+  signing.call(ext, ENV.fetch("WIDGET_PROFILE"), "AriseWidgets/AriseWidgets.entitlements")
+end
 
 proj.save
 puts "Added AriseWidgets (#{host}.widgets) with #{names.join(', ')}"
