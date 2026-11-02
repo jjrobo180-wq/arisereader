@@ -60,6 +60,8 @@ import { registerAriseNotesRoutes, startNotesTicker } from "./ariseNotes";
 import { createSupabaseNotesStore } from "./ariseNotesStore";
 import { askSiteAi, createHearer, siteAiReady } from "./ariseNotesAi";
 import { createSupabaseLifeStore } from "./ariseNotesHubs";
+import { registerPagesRoutes, startPagesTicker } from "./arisePages";
+import { createSupabasePagesStore } from "./arisePagesStore";
 import { registerAriseTodoRoutes } from "./ariseTodo";
 import { registerWhatsNewRoutes } from "./whatsNew";
 import { registerAdminHandoffRoutes } from "./adminHandoff";
@@ -1650,6 +1652,10 @@ export async function registerRoutes(
     },
   });
   if (process.env.NODE_ENV !== "test") startNotesTicker(notesStore);
+  // Arise Notes → Notes: typed and handwritten notes, synced across devices (free for everyone).
+  const pagesStore = createSupabasePagesStore(() => getAdminSupabase() as any);
+  registerPagesRoutes(app, authMiddleware, { store: pagesStore, ask: askSiteAi, aiReady: siteAiReady, life: createSupabaseLifeStore(() => getAdminSupabase()) });
+  if (process.env.NODE_ENV !== "test") startPagesTicker(pagesStore);
   registerSleepFinderRoutes(app, authMiddleware);
   // One podcast directory for Earshot and Podscroll: shared caches (kept in the database) and one pace for Apple.
   const podcasts = createPodcastDirectory({ kv: supabaseKV(getAdminSupabase) });

@@ -195,6 +195,8 @@ app.use(/^\/api\/(podscroll|earshot)\/studio\/transcribe$/, express.raw({ type: 
 app.use(/^\/api\/notes\/[^/]+\/pieces$/, (req, res, next) => { authMiddleware(req, res, next).catch(next); }, express.raw({ type: "*/*", limit: "26mb" }));
 app.use("/api/notes/memo", (req, res, next) => { authMiddleware(req, res, next).catch(next); }, express.raw({ type: "*/*", limit: "9mb" }));
 // Arise Talk: a backup with photo buttons, a photo to read, and a short recording to hear.
+// Arise Notes → Notes: a note with pictures or handwritten pages (up to 6 MB, a little more as JSON).
+app.use(/^\/api\/pages\/[0-9a-fA-F-]{36}$/, express.json({ limit: "9mb" }));
 app.use("/api/talk/backup", express.json({ limit: "8mb" }));
 app.use("/api/talk/ai/photo", express.json({ limit: "4mb" }));
 app.use("/api/talk/listen", express.raw({ type: "audio/*", limit: "4mb" }));
