@@ -131,7 +131,7 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
     <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-44">
       {state === "loading" && !metas.length ? <Spinner /> : shown.length === 0 ? <Empty filter={filter} q={q} onNew={() => create(PAGE_TEMPLATES[0])} />
         : <div data-testid="pages-list">{sections.map((sec) => <section key={sec.label || "all"}>
-          {sec.label && <h3 className="an-group-label">{sec.label}<span>{sec.items.length}</span></h3>}
+          {sec.label && <h3 className="an-group-label">{sec.label}</h3>}
           <ul className={grid ? "an-masonry" : "an-rows"} style={sec.label ? undefined : { marginTop: ".5rem" }}>{sec.items.map((m, i) => card(m, i))}</ul>
         </section>)}</div>}
     </div>
@@ -198,16 +198,16 @@ function PageCard({ m, i, grid, on, folder, trash, onOpen, onRestore, onForever 
     <span className="min-w-0 flex-1"><span className="block truncate text-[15px] font-bold">{title}</span>{meta}</span>
     <IconBtn label="Restore" onClick={onRestore}><RotateCcw className="h-5 w-5" /></IconBtn><IconBtn label="Delete for good" onClick={onForever}><Trash2 className="h-5 w-5 text-[#c2283a]" /></IconBtn>
   </li>;
-  // Cards grow with what's in them, like paper: a long note is taller than a one-liner.
-  const lines = m.locked ? 3 : Math.max(2, Math.min(9, Math.ceil(preview.length / 26)));
   if (grid) return <li className="an-lift" style={delay}><button type="button" onClick={onOpen} data-testid="pages-card" className="an-paper" data-on={on}>
-    <span className="relative block px-3.5 pb-3 pt-4 text-[12.5px] leading-[1.45]" style={{ background: paper.bg, color: paper.ink, minHeight: `${3.2 + lines * 1.1}rem` }}>
-      <span className="absolute left-3.5 top-0 h-1.5 w-8 rounded-b-full" style={{ background: tileOf(m) }} />
-      {m.locked ? <span className="flex items-center justify-center py-5"><Lock className="h-7 w-7 opacity-40" /></span>
-        : m.kind === "ink" ? <span className="flex items-center gap-2 opacity-70"><PenLine className="h-4 w-4" />{preview}</span>
-        : <span className="line-clamp-[9] opacity-80" style={{ WebkitLineClamp: lines }}>{preview}</span>}
+    <span className="block flex-1 px-3.5 pb-2 pt-3.5 text-[14px] leading-[1.4]" style={{ background: paper.bg, color: paper.ink, minHeight: "6.5rem" }}>
+      {m.locked ? <span className="flex items-center justify-center py-4"><Lock className="h-7 w-7 opacity-40" /></span>
+        : m.kind === "ink" ? <span className="flex items-center gap-2 opacity-70"><PenLine className="h-4 w-4 shrink-0" /><span className="line-clamp-4">{preview}</span></span>
+        : <span className="line-clamp-5 opacity-80">{preview}</span>}
     </span>
-    <span className="block border-t border-black/5 bg-white px-3.5 py-2.5"><span className="an-display block truncate text-[16px] !leading-tight">{title}</span>{meta}</span>
+    <span className="flex items-center gap-2 border-t border-black/5 bg-white px-3.5 py-2.5">
+      <span className="min-w-0 flex-1"><span className="an-display block truncate text-[16px] !leading-tight">{title}</span>{meta}</span>
+      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: tileOf(m) }} aria-hidden />
+    </span>
   </button></li>;
   return <li className="an-lift" style={delay}><button type="button" onClick={onOpen} data-testid="pages-card" className="an-row" data-on={on}>
     <span className="an-tile" style={{ background: `linear-gradient(135deg, ${tileOf(m)}, ${tileOf(m)}cc)` }} aria-hidden>{m.locked ? <Lock className="h-[18px] w-[18px]" /> : m.kind === "ink" ? <PenLine className="h-[18px] w-[18px]" /> : <FileText className="h-[18px] w-[18px]" />}</span>

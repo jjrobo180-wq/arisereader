@@ -25,6 +25,7 @@ import { dayGoals } from "@shared/fitVacation";
 import { publishWidgets, watchWidgetActions } from "@/lib/widgets";
 import { applyFitTaps, fitWidgetSlots } from "@/lib/fitWidgets";
 import { FoodTab, latestKg, totals } from "./FitFood";
+import { FeatureTour, Onboarding } from "./FitOnboard";
 import { CoverCard, VideoPlayer } from "./FitVideo";
 import { FastingSheet, endFast, startFast } from "./FitFasting";
 import { CoachCard, CoachScreen } from "./FitCoach";
@@ -33,7 +34,7 @@ import { HealthSheet, RemindersSheet, StepsCard, useHealth } from "./FitHealth";
 import { saveToHealth } from "./fitNative";
 import { DIET_BY_ID, fastingStatus, pointsBudget, pointsOf } from "@shared/fitNutrition";
 import { videoFor, videoOfTheDay } from "@shared/fitVideos";
-import { Bar, Btn, C, Card, Columns, Field, Ring, Sheet, Spark, StatusShade, Title, cardStyle, fmtDur, fmtNum, font, glowBg, haptic, inputCls, inputStyle, display, stagger, useFitFonts, Layer, ThemePicker } from "./fitUi";
+import { Bar, Btn, C, Card, Columns, Field, Ring, Sheet, Spark, StatusShade, Title, cardStyle, fmtDur, fmtNum, font, glowBg, haptic, inputCls, inputStyle, display, stagger, useFitFonts, Layer, ThemePicker, PointsModeCtx } from "./fitUi";
 
 /** Today's sleep card line: last night's hours, or an invitation to log. */
 function sleepToday(data: FitData) {
@@ -52,41 +53,6 @@ function useClock(on: boolean) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => { if (!on) return; const t = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(t); }, [on]);
   return now;
-}
-
-function Setup({ data, update, onDone }: { data: FitData; update: Update; onDone: () => void }) {
-  const p = data.profile;
-  const [units, setUnits] = useState<Units>(p.units);
-  const [goal, setGoal] = useState<Goal>(p.goal);
-  const [sex, setSex] = useState(p.sex ?? "");
-  const [year, setYear] = useState(p.birthYear ? String(p.birthYear) : "");
-  const [height, setHeight] = useState(p.heightCm ? String(units === "kg" ? p.heightCm : Math.round(p.heightCm / 2.54)) : "");
-  const [weight, setWeight] = useState(() => { const kg = latestKg(data); return kg ? String(Math.round(fromKg(kg, units))) : ""; });
-  const [activity, setActivity] = useState(p.activity);
-  const save = () => {
-    const h = Number(height), w = Number(weight), y = Number(year);
-    update((d) => ({ ...d, onboarded: true,
-      profile: { ...d.profile, units, goal, activity, ...(sex ? { sex: sex as "m" | "f" } : {}), ...(y > 1900 ? { birthYear: y } : {}), ...(h > 0 ? { heightCm: units === "kg" ? h : Math.round(h * 2.54) } : {}) },
-      weights: w > 0 ? [...d.weights.filter((x) => x.date !== dayKey()), { date: dayKey(), kg: Math.round(toKg(w, units) * 10) / 10 }] : d.weights }));
-    onDone();
-  };
-  const pill = (on: boolean) => (on ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2, color: C.text });
-  return <Sheet title="Your goals" onClose={() => { update((d) => ({ ...d, onboarded: true })); onDone(); }} testId="fit-setup">
-    <p className="mt-2 text-[15px]" style={{ color: C.dim }}>So Arise Fit can set your calories and macros. You can change any of it later.</p>
-    <div className="mt-5 space-y-4">
-      <Field label="Goal"><div className="grid grid-cols-3 gap-2">{([["lose", "Lose fat"], ["maintain", "Maintain"], ["gain", "Build muscle"]] as const).map(([v, l]) => <button key={v} type="button" onClick={() => setGoal(v)} className="h-12 rounded-[8px] text-[14px] font-semibold" style={pill(goal === v)}>{l}</button>)}</div></Field>
-      <Field label="Units"><div className="grid grid-cols-2 gap-2">{(["lb", "kg"] as const).map((v) => <button key={v} type="button" onClick={() => setUnits(v)} className="h-12 rounded-[8px] text-[14px] font-semibold" style={pill(units === v)}>{v === "lb" ? "US (lb, ft, mi)" : "Metric (kg, cm, km)"}</button>)}</div></Field>
-      <Field label="Sex (for the calorie formula)"><div className="grid grid-cols-2 gap-2">{([["m", "Male"], ["f", "Female"]] as const).map(([v, l]) => <button key={v} type="button" onClick={() => setSex(v)} className="h-12 rounded-[8px] text-[14px] font-semibold" style={pill(sex === v)}>{l}</button>)}</div></Field>
-      <div className="grid grid-cols-3 gap-2">
-        <Field label="Born (year)"><input inputMode="numeric" value={year} onChange={(e) => setYear(e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="1995" className={inputCls} style={inputStyle} /></Field>
-        <Field label={`Height (${units === "kg" ? "cm" : "in"})`}><input inputMode="numeric" value={height} onChange={(e) => setHeight(e.target.value.replace(/\D/g, "").slice(0, 3))} placeholder={units === "kg" ? "175" : "69"} className={inputCls} style={inputStyle} /></Field>
-        <Field label={`Weight (${units})`}><input inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value.replace(/[^\d.]/g, "").slice(0, 5))} placeholder={units === "kg" ? "80" : "175"} className={inputCls} style={inputStyle} /></Field>
-      </div>
-      <Field label="How active are you?"><select value={activity} onChange={(e) => setActivity(Number(e.target.value))} className={inputCls} style={inputStyle}>
-        <option value={1.2}>Mostly sitting</option><option value={1.375}>Light: 1–3 workouts a week</option><option value={1.45}>Moderate: 3–4 a week</option><option value={1.55}>Active: 5–6 a week</option><option value={1.725}>Very active: hard training daily</option></select></Field>
-    </div>
-    <Btn className="mt-8 w-full" onClick={save} testId="fit-setup-save">Save my goals</Btn>
-  </Sheet>;
 }
 
 function TodayTab({ data, update, onTab, onStartProgram, onProgress, onSettings, onCoach, onStart, onOver, token, user, list }: { data: FitData; update: Update; onTab: (t: Tab) => void; onStartProgram: () => void; onProgress: () => void; onSettings: () => void; onCoach: () => void; onStart: (a: NonNullable<ReturnType<typeof readActive>>) => void; onOver: (o: Over) => void; token: string | null; user: string; list: ReturnType<typeof libraryFallback> }) {
@@ -252,7 +218,7 @@ function ProgressSheet({ data, update, list, onSettings, onClose }: { data: FitD
   </Sheet>;
 }
 
-function SettingsSheet({ data, update, onClose, onGoals, onAccount, onSiri }: { data: FitData; update: Update; onClose: () => void; onGoals: () => void; onAccount: () => void; onSiri: () => void }) {
+function SettingsSheet({ data, update, onClose, onGoals, onTour, onAccount, onSiri }: { data: FitData; update: Update; onClose: () => void; onGoals: () => void; onTour: () => void; onAccount: () => void; onSiri: () => void }) {
   const [sheet, setSheet] = useState<"" | "health" | "reminders">("");
   const { logout } = useAuth();
   const g = goals(data.profile, latestKg(data));
@@ -264,6 +230,7 @@ function SettingsSheet({ data, update, onClose, onGoals, onAccount, onSiri }: { 
     <Card onClick={onGoals} className="!p-4"><div className="flex items-center justify-between"><div><p className="font-semibold">Body and goal</p><p className="text-[13px]" style={{ color: C.dim }}>{g.kcal} calories · P {g.p}g · C {g.c}g · F {g.f}g (maintenance about {g.tdee})</p></div><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
     <Card className="mt-2 !p-4"><Field label="Set my own calorie goal (blank = automatic)"><div className="flex gap-2"><input inputMode="numeric" value={kcal} onChange={(e) => setKcal(e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder={String(g.kcal)} className={inputCls} style={inputStyle} />
       <Btn kind="soft" onClick={() => update((d) => ({ ...d, profile: { ...d.profile, kcalGoal: Number(kcal) >= 900 ? Number(kcal) : undefined } }))}>Save</Btn></div></Field></Card>
+    <Card onClick={onTour} className="mt-2 !p-4" testId="fit-open-tour"><div className="flex items-center gap-3"><Play className="h-5 w-5" style={{ color: C.lime }} /><span className="flex-1"><span className="block font-semibold">How Arise Fit works</span><span className="block text-[13px]" style={{ color: C.dim }}>A quick animated tour of every feature</span></span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
     <Title>Arise Fit+</Title>
     <PlusRow />
     <Title>iPhone</Title>
@@ -315,6 +282,7 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
   const [tab, setTab] = useState<Tab>("today");
   const [active, setActive] = useState(readActive);
   const [setup, setSetup] = useState(false);
+  const [tour, setTour] = useState(false);
   const [settings, setSettings] = useState(false);
   const [progress, setProgress] = useState(false);
   const [coach, setCoach] = useState(false);
@@ -359,7 +327,7 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
   const tabs: [Tab, string, typeof Home][] = [["today", "Today", Home], ["train", "Train", Dumbbell], ["food", "Food", Apple], ["fast", "Fast", Timer], ["run", "Run", Route]];
   const at = Math.max(0, tabs.findIndex(([id]) => id === tab));
   const go = (t: Tab) => { if (t !== tab) { haptic("light"); setTab(t); setSnap(false); document.getElementById("fit-main")?.scrollTo({ top: 0 }); } };
-  return <div className="fixed inset-0 flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} data-testid="fit-app">
+  return <PointsModeCtx.Provider value={data.profile.trackMode === "points"}><div className="fixed inset-0 flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} data-testid="fit-app">
     <StatusShade />
     <main id="fit-main" className="min-h-0 flex-1 overflow-y-auto px-4 pb-28 pt-[max(14px,env(safe-area-inset-top))]">
       {/* key={tab}: each tab's screen re-mounts, so it slides up into place and its rings and bars fill. */}
@@ -380,10 +348,11 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
         <Icon className="h-[22px] w-[22px]" />{label}</button>)}
     </nav>
     {active && <LiveWorkout active={active} setActive={setActive} data={data} update={update} list={list} say={say} />}
-    {setup && <Setup data={data} update={update} onDone={() => setSetup(false)} />}
+    {setup && <Onboarding data={data} update={update} edit={!!data.onboarded} onDone={() => setSetup(false)} />}
+    {tour && <Layer><FeatureTour onClose={() => setTour(false)} /></Layer>}
     {coach && <CoachScreen token={token} me={Number(user?.id) || 0} data={data} update={update} list={list} onStart={(a) => { setCoach(false); setActive(a); }} onClose={() => setCoach(false)} />}
     {progress && <ProgressSheet data={data} update={update} list={list} onClose={() => setProgress(false)} onSettings={() => setSettings(true)} />}
-    {settings && <SettingsSheet data={data} update={update} onClose={() => setSettings(false)} onGoals={() => { setSettings(false); setProgress(false); setSetup(true); }} onAccount={() => setAccount(true)} onSiri={() => setOver("siri")} />}
+    {settings && <SettingsSheet data={data} update={update} onClose={() => setSettings(false)} onGoals={() => { setSettings(false); setProgress(false); setSetup(true); }} onTour={() => { setSettings(false); setProgress(false); setTour(true); }} onAccount={() => setAccount(true)} onSiri={() => setOver("siri")} />}
     {over === "vacation" && <VacationSheet data={data} update={update} list={list} onStart={(a) => setActive(a)} say={say} onClose={() => setOver("")} />}
     {over === "sleep" && <SleepSheet data={data} update={update} say={say} onClose={() => setOver("")} />}
     {over === "circle" && <CircleSheet onClose={() => { setOver(""); setJoinCode(undefined); }} say={say} joinCode={joinCode} />}
@@ -394,5 +363,5 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
     {over === "siri" && <SiriSheet onClose={() => setOver("")} />}
     {over === "scan" && <ScanMachine data={data} update={update} onClose={() => setOver("")} />}
     {account && <Layer><div className="fixed inset-0 z-[90]"><AccountPrivacy onClose={() => setAccount(false)} /></div></Layer>}
-  </div>;
+  </div></PointsModeCtx.Provider>;
 }
