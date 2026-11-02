@@ -31,22 +31,20 @@ html.reader-app [role="button"] {
 }
 html.reader-app img { -webkit-touch-callout: none; }
 
-/* Book covers: three across on a phone, so more of the shelf fits on the screen. */
+/* Book cards: every one the same, like the Quick Reads cards: cover, title, author, points and one
+   button ("Read & Quiz" or "Take Quiz", Library.tsx). Two across on a phone, and the cards in the
+   rows that scroll sideways are exactly as wide as the ones in the grids. */
+html.reader-app { --card-gap: 1rem; --card-w: calc((100vw - 1.5rem - var(--card-gap)) / 2); }
+html.reader-app .book-access,
+html.reader-app .card-read { display: none !important; }
 @media (max-width: 599px) {
-  html.reader-app .book-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 0.5rem !important; }
-  html.reader-app .book-grid > * { border-radius: 0.75rem; }
-  html.reader-app .book-grid .p-3 { padding: 0.375rem 0.4rem 0.45rem; }
-  html.reader-app .book-grid h3 { font-size: 0.72rem; line-height: 1.15; }
-  html.reader-app .book-grid h3 + p { font-size: 0.62rem; margin-top: 0.1rem; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
-  html.reader-app .book-grid .mt-2 { margin-top: 0.3rem; }
-  html.reader-app .book-grid .mt-1 { margin-top: 0.15rem; }
-  html.reader-app .book-grid .rounded-full { font-size: 0.6rem; padding: 0.05rem 0.35rem; }
-  html.reader-app .book-grid .rounded-full svg { width: 0.6rem; height: 0.6rem; }
-  html.reader-app .book-grid button { height: 1.6rem; min-height: 0; padding: 0 0.25rem; font-size: 0.66rem; }
-  html.reader-app .book-grid button svg { display: none; }
-  html.reader-app .book-grid .gap-1\.5 { gap: 0.25rem; }
-  html.reader-app .book-grid .absolute.right-2.top-2,
-  html.reader-app .book-grid .absolute.top-2.right-2 { right: 0.25rem; top: 0.25rem; padding: 0.05rem 0.35rem; font-size: 0.58rem; }
-  /* Hover lifts mean nothing on a touch screen. */
-  html.reader-app .book-grid > *:hover { transform: none; }
+  html.reader-app .book-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: var(--card-gap) !important; }
+  html.reader-app .book-row { gap: var(--card-gap) !important; }
+  html.reader-app .book-row > * { width: var(--card-w) !important; }
 }
+html.reader-app .book-grid > *, html.reader-app .book-row > * { display: flex; flex-direction: column; }
+/* The button sits at the bottom, so cards with a one-line title line up with their neighbors. */
+html.reader-app .book-grid > * > .p-3, html.reader-app .book-row > * > .p-3 { flex: 1; display: flex; flex-direction: column; }
+html.reader-app .book-grid > * > .p-3 > div:has(> button):not(.book-access), html.reader-app .book-row > * > .p-3 > div:has(> button):not(.book-access) { margin-top: auto; padding-top: 0.5rem; }
+/* Hover lifts mean nothing on a touch screen. */
+html.reader-app .book-grid > *:hover, html.reader-app .book-row > *:hover { transform: none; }
