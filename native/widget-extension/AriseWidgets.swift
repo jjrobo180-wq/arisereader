@@ -262,7 +262,7 @@ struct DetailWidget {
         StaticConfiguration(kind: "Arise.\(id).detail", provider: DetailProvider(id: id, name: name)) { entry in
             DetailView(entry: entry).containerBackground(for: .widget) { DetailBackground(look: entry.look, tint: entry.slot.tint) }
         }
-        .configurationDisplayName("\(name) +")
+        .configurationDisplayName(name + " +") // a plain String: an interpolated name crashed the extension
         .description("Detailed. Updates when you open the app.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
