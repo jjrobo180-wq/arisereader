@@ -17,7 +17,12 @@ export type Challenge = {
   /** The day the winning advisory gets its prize. */
   prizeDay: string;
   prize: string;
+  /** Grades that race as one team instead of advisory by advisory. Only the race changes: students
+   *  stay in their own advisories everywhere else (rosters, co-advisor access, uploads). */
+  combinedGrades?: readonly CombinedGrade[];
 };
+
+export type CombinedGrade = { grade: string; name: string };
 
 /** Conservatory Green Middle School's fall challenge. Everyone starts at zero on Oct 20. */
 export const CGMS_FALL_2026: Challenge = {
@@ -28,6 +33,7 @@ export const CGMS_FALL_2026: Challenge = {
   lastDay: "2026-11-19",
   prizeDay: "2026-11-20",
   prize: "a pizza party",
+  combinedGrades: [{ grade: "6", name: "Lit Lab Advisory" }],
 };
 
 /** The challenge running at a school (found by its name), if any. */
@@ -85,12 +91,30 @@ export function daysLeft(c: Challenge, now = Date.now()): number {
 }
 
 /** `books`: quizzes the advisory's students took during the challenge ("books read"). */
-export type Standing = { rank: number; name: string; grade: string; room: string; students: number; points: number; books: number };
+export type Standing = {
+  rank: number; name: string; grade: string; room: string; students: number; points: number; books: number;
+  /** For a combined team: the advisories racing in it. */
+  advisories?: string[];
+};
 
-/** Advisories ranked by points, most first. Advisories with the same points share a place. */
-export function rankAdvisories(advisories: readonly Advisory[], studentAdvisory: ReadonlyMap<number, string>, points: ReadonlyMap<number, number>, books: ReadonlyMap<number, number> = new Map()): Standing[] {
-  const rows = advisories.map((a) => ({ name: advisoryName(a), grade: a.grade || "", room: a.room || "", students: 0, points: 0, books: 0 }));
-  const byName = new Map(rows.map((r) => [r.name, r]));
+/** Advisories ranked by points, most first. Advisories with the same points share a place, and a
+ *  combined grade's advisories count as one team. */
+export function rankAdvisories(advisories: readonly Advisory[], studentAdvisory: ReadonlyMap<number, string>, points: ReadonlyMap<number, number>, books: ReadonlyMap<number, number> = new Map(), combinedGrades: readonly CombinedGrade[] = []): Standing[] {
+  const rows: Omit<Standing, "rank">[] = [];
+  const byName = new Map<string, Omit<Standing, "rank">>();
+  for (const a of advisories) {
+    const name = advisoryName(a);
+    const team = combinedGrades.find((g) => g.grade === a.grade);
+    let row = team ? rows.find((r) => r.name === team.name) : undefined;
+    if (!row) {
+      row = team
+        ? { name: team.name, grade: team.grade, room: "", students: 0, points: 0, books: 0, advisories: [] }
+        : { name, grade: a.grade || "", room: a.room || "", students: 0, points: 0, books: 0 };
+      rows.push(row);
+    }
+    if (team) row.advisories!.push(name);
+    byName.set(name, row);
+  }
   for (const [studentId, name] of studentAdvisory) {
     const row = byName.get(name);
     if (!row) continue;
