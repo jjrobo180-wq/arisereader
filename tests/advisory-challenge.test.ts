@@ -64,13 +64,13 @@ test("advisories are ranked by their students' points, and ties share a place", 
   assert.deepEqual([1, 2, 3, 4, 11, 12, 13, 21, 22, 101].map(ordinal), ["1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "101st"]);
 });
 
-test("all of grade 6 races as the Lit Lab Advisory, without changing anyone's real advisory", async () => {
+test("all of grade 6 races as the Ms. Garcia's Lit Lab, without changing anyone's real advisory", async () => {
   const advisories = advisoriesForSchool(CGMS);
   assert.equal(advisories.length, 15, "the school's advisories themselves don't change");
   const students = new Map<number, string>([[1, "Boucher & Groussman"], [2, "Balestrini & Tsui"], [3, "Mullaney & Muniz"], [4, "Chase & Shuster"], [5, "idk"]]);
   const rows = rankAdvisories(advisories, students, new Map([[1, 10], [2, 20], [3, 5], [4, 30], [5, 99]]), new Map([[1, 1], [2, 2], [3, 3], [4, 1]]), CGMS_FALL_2026.combinedGrades);
   assert.equal(rows.length, 11);
-  const lab = rows.find((r) => r.name === "Lit Lab Advisory")!;
+  const lab = rows.find((r) => r.name === "Ms. Garcia's Lit Lab")!;
   assert.deepEqual([lab.rank, lab.points, lab.students, lab.books, lab.grade, lab.room], [1, 35, 3, 6, "6", ""]);
   assert.equal(lab.advisories?.length, 5);
   assert.ok(rows.every((r) => r === lab || r.grade !== "6"));
@@ -114,11 +114,11 @@ test("a student sees every advisory's place and their own advisory's, counting f
   assert.ok(!calls[0].ids.includes(999), "a student who left the school (archived) doesn't count");
 });
 
-test("a sixth grader's place is the Lit Lab Advisory's", async () => {
+test("a sixth grader's place is the Ms. Garcia's Lit Lab's", async () => {
   const { get } = fakeApp();
   const { body } = await get({ id: 104, role: "student", school_id: 4 });
-  assert.equal(body.mine.advisory, "Lit Lab Advisory");
-  assert.equal(body.standings.find((s: any) => s.name === "Lit Lab Advisory").students, 1);
+  assert.equal(body.mine.advisory, "Ms. Garcia's Lit Lab");
+  assert.equal(body.standings.find((s: any) => s.name === "Ms. Garcia's Lit Lab").students, 1);
   assert.ok(!body.standings.some((s: any) => s.name === "Garcia & Micou"));
 });
 

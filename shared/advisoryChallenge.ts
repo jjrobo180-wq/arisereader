@@ -33,7 +33,7 @@ export const CGMS_FALL_2026: Challenge = {
   lastDay: "2026-11-19",
   prizeDay: "2026-11-20",
   prize: "a pizza party",
-  combinedGrades: [{ grade: "6", name: "Lit Lab Advisory" }],
+  combinedGrades: [{ grade: "6", name: "Ms. Garcia's Lit Lab" }],
 };
 
 /** The challenge running at a school (found by its name), if any. */
