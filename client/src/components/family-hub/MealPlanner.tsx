@@ -8,6 +8,7 @@ import { addDaysTo, guessAisle } from "@shared/lifePlugins";
 import type { Family, MealSlot } from "@shared/familyHub";
 import { MEAL_IDEAS, SERVING_SIZES, defaultServing, dollars, emptyDays, ideaCost, mealsFrom, perMeal, round2, searchPrices, servingWord, type PriceItem } from "@shared/mealPrices";
 import { addToGroceries } from "./Recipes";
+import { ShareButton } from "./ShareLink";
 import { PageHead, Panel, inputClass, plain, primary, soft, type SectionProps } from "./ui";
 
 const SLOTS: MealSlot[] = ["breakfast", "lunch", "dinner"];
@@ -89,7 +90,7 @@ export default function MealPlanner({ family, setFamily, today, makeId, say }: S
 
   return <div className="space-y-5">
     <PageHead eyebrow="Meal planner" title="This week's meals" blurb="Tap + on a day to add a meal, or fill every open dinner in one tap. Groceries go on your list."
-      action={family.recipes.length ? <button type="button" onClick={shopRecipes} className={plain}><ShoppingCart size={16} />Shop recipes</button> : undefined} />
+      action={<div className="flex flex-wrap items-center gap-2"><ShareButton target="meals" title="This week's meals" say={say} label="Share this week" />{family.recipes.length ? <button type="button" onClick={shopRecipes} className={plain}><ShoppingCart size={16} />Shop recipes</button> : null}</div>} />
 
     <Panel>
       <div className="flex items-center gap-2">

@@ -27,6 +27,8 @@ import { useState, useEffect, lazy, Suspense, type ComponentType } from "react";
 const FitApp = lazy(() => import("@/pages/fit/FitApp"));
 const TrainerApp = lazy(() => import("@/pages/trainer/TrainerApp"));
 const TrainersPage = lazy(() => import("@/pages/coach/TrainersPage"));
+const NotesApp = lazy(() => import("@/components/arise-notes/NotesApp"));
+const TalkApp = lazy(() => import("@/pages/talk/TalkApp"));
 import { API_BASE } from "./lib/queryClient";
 import ProfileSetupOverlay from "./components/ProfileSetupOverlay";
 import EyeGazeSiteShell from "./components/EyeGazeSiteShell";
@@ -134,6 +136,7 @@ const TodoAdmin = lazyPage(() => import("./pages/TodoAdmin"));
 const AmbientStandby = lazyPage(() => import("./pages/AmbientStandby"));
 const ClassGoalBoard = lazyPage(() => import("./pages/ClassGoalBoard"));
 const AriseOffice = lazyPage(() => import("./pages/AriseOffice"));
+const AriseNotesPage = lazyPage(() => import("./pages/AriseNotesPage"));
 const PremiumStudio = lazyPage(() => import("./pages/PremiumStudio"));
 const ProApps = lazyPage(() => import("./pages/ProApps"));
 const ParaTeam = lazyPage(() => import("./pages/ParaTeam"));
@@ -144,7 +147,7 @@ import TodoGate from "@/components/TodoGate";
 import { ReaderAdminToTodoRedirect, ReaderToHubHandoff, TodoAdminHandoff } from "@/components/AdminDomainHandoff";
 import { READER_APP, goToReader, goToSignIn, hubPathFor, isHubAccount, isReaderPage } from "@/lib/hubs";
 import NativePlans from "@/components/NativePlans";
-import { isEyeGazerApp, isFitApp, isNativeApp, isReaderApp, isTrainerApp } from "@/lib/nativeApp";
+import { isEyeGazerApp, isFitApp, isNativeApp, isNotesApp, isReaderApp, isTalkApp, isTrainerApp } from "@/lib/nativeApp";
 const TeacherScenes = lazyPage(() => import("./pages/TeacherScenes"));
 const StudentSceneLive = lazyPage(() => import("./pages/StudentSceneLive"));
 const Library = lazyPage(() => import("./pages/Library"));
@@ -534,6 +537,8 @@ function AppRoutes() {
       </Route>
       {/* Arise Coaching: the public trainer directory, and Arise Trainer for coaches. */}
       <Route path="/trainers"><TrainersPage /></Route>
+      {/* Arise Talk: the talking boards (no account needed). */}
+      <Route path="/talk"><TalkApp /></Route>
       <Route path="/trainer">
         <ProtectedRoute><TrainerApp /></ProtectedRoute>
       </Route>
@@ -621,6 +626,10 @@ function AppRoutes() {
       </Route>
       <Route path="/class-goal">
         {!user ? <Redirect to="/signin" replace /> : isHubAccount(user) ? <ClassGoalBoard /> : <Redirect to="/" replace />}
+      </Route>
+      {/* Arise Notes, the AI note taker, inside Arise To Duo (also on its own at /notes/). */}
+      <Route path="/arise-notes">
+        {!user ? <Redirect to="/signin" replace /> : <AriseNotesPage />}
       </Route>
       <Route path="/office">
         {!user ? <Redirect to="/signin" replace /> : isHubAccount(user) ? <AriseOffice /> : <Redirect to="/" replace />}
@@ -738,7 +747,7 @@ function AppRoutes() {
         <ProtectedRoute>{isEyeGazeStudent ? <Redirect to="/eye-gaze-lessons" replace /> : <Library />}</ProtectedRoute>
       </Route>
       <Route path="/avatar-world">
-        {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
+        {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user && !isReaderApp()
           ? <ProtectedRoute><AvatarWorld /></ProtectedRoute>
           : <Redirect to="/" replace />}
       </Route>
@@ -1004,15 +1013,20 @@ function AppInner() {
   // student number) and must replace it before doing anything else in the app.
   if (user?.mustChangePassword) return <ForcePasswordChange />;
   // The Arise Fit iPhone app is its own app: sign in, then Arise Fit (pages/fit/FitApp.tsx).
+  // The Arise Notes iPhone app: sign in, then Arise Notes (components/arise-notes/NotesApp.tsx).
+  if (isNotesApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: "#f5f4fb" }} />}>{user ? <NotesApp mode="standalone" /> : <NativeSignIn />}</Suspense></Router>;
   if (isFitApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: fitBootBg() }} />}>{user ? <FitApp /> : <NativeSignIn />}</Suspense></Router>;
+  // The Arise Talk iPhone app opens straight to the boards: an account is optional (More → Backup).
+  if (isTalkApp()) return <Suspense fallback={<div className="fixed inset-0" style={{ background: "#f5f4f1" }} />}><TalkApp /></Suspense>;
   // The Arise Trainer iPhone app: sign in, then Arise Trainer (pages/trainer/TrainerApp.tsx).
   if (isTrainerApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: fitBootBg() }} />}>{user ? <TrainerApp /> : <NativeSignIn />}</Suspense></Router>;
 
   const overlays = !inGame;
   return (
     <>
-      {overlays && isStudent && !isEyeGazeStudent && <PointsSideTab />}
-      {overlays && isStudent && !isEyeGazeStudent && <AvatarWorldSideTab />}
+      {/* The Reader iPhone app keeps the screen clean: no tabs on the right edge (points, Avatar World). */}
+      {overlays && isStudent && !isEyeGazeStudent && !isReaderApp() && <PointsSideTab />}
+      {overlays && isStudent && !isEyeGazeStudent && !isReaderApp() && <AvatarWorldSideTab />}
       {/* The Advisory Challenge pop-up replaces the Halloread welcome and the "your standing" pop-up
           (which still shows for students whose school has no challenge). */}
       {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <AdvisoryChallengePopup onNavigate={(path) => { window.location.hash = path; }} />}

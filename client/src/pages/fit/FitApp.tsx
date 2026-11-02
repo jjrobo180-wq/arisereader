@@ -2,7 +2,7 @@
 // #/fit on the website). Tabs: Today, Train, Food, Fast, Run (Progress opens from Today). Data:
 // fitStore.ts → server/fit.ts. The look and motion follow the Arise Fit prototype (fitUi.tsx).
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, Apple, BarChart3, Bell, Check, ChevronRight, Footprints, HeartPulse, Dumbbell, Flame, Home, LogOut, Play, Route, Scale, Settings, ShieldCheck, Timer, Trophy } from "lucide-react";
+import { Activity, Apple, BarChart3, Bell, Check, ChefHat, Crown, ChevronRight, Footprints, HeartPulse, Dumbbell, Flame, Home, LogOut, MapPin, Mic, Moon, Play, Route, Scale, Settings, ShieldCheck, Timer, Trophy, Utensils } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import AccountPrivacy from "@/components/AccountPrivacy";
 import { goToSignIn } from "@/lib/hubs";
@@ -10,21 +10,43 @@ import { CATALOG, CATALOG_BY_ID, PROGRAM_BY_ID, dayKey, fromKg, goals, nextProgr
 import { useFitData, useLibrary, type Update } from "./fitStore";
 import { ExerciseDetail, LiveWorkout, TrainTab, libraryFallback, planned, readActive, startWorkout } from "./FitTrain";
 import { BodyMap, MiniBody, recColor } from "./FitBody";
-import { SmartWorkoutCard } from "./FitSmart";
+import { SmartWorkoutCard, smartWorkoutNow } from "./FitSmart";
+import { CircleCard, CircleSheet } from "./FitCircle";
+import { BuddyCard, BuddySheet } from "./FitBuddy";
+import { PlusProvider, PlusTag, usePlus } from "./FitPlus";
+import { EatOut, NearbyGyms, RecipesSheet } from "./FitNearby";
+import { SiriSheet, useDeepLinks, type SiriAction } from "./FitSiri";
+import { ScanMachine } from "./FitGym";
 import { programArt } from "./fitArt";
 import { BODY_PARTS, PART_NAME, recovery } from "@shared/fitRecovery";
+import { SleepSheet } from "./FitSleep";
+import { SplitCard, VacationCard, VacationSheet } from "./FitVacation";
+import { dayGoals } from "@shared/fitVacation";
+import { publishWidgets, watchWidgetActions } from "@/lib/widgets";
+import { applyFitTaps, fitWidgetSlots } from "@/lib/fitWidgets";
 import { FoodTab, latestKg, totals } from "./FitFood";
+import { FeatureTour, Onboarding } from "./FitOnboard";
 import { CoverCard, VideoPlayer } from "./FitVideo";
-import { FastingSheet } from "./FitFasting";
+import { FastingSheet, endFast, startFast } from "./FitFasting";
 import { CoachCard, CoachScreen } from "./FitCoach";
 import { OutdoorHub } from "./FitRun";
 import { HealthSheet, RemindersSheet, StepsCard, useHealth } from "./FitHealth";
 import { saveToHealth } from "./fitNative";
 import { DIET_BY_ID, fastingStatus, pointsBudget, pointsOf } from "@shared/fitNutrition";
 import { videoFor, videoOfTheDay } from "@shared/fitVideos";
-import { Bar, Btn, C, Card, Columns, Field, Ring, Sheet, Spark, StatusShade, Title, cardStyle, fmtDur, fmtNum, font, glowBg, haptic, inputCls, inputStyle, display, stagger, useFitFonts, Layer, ThemePicker } from "./fitUi";
+import { Bar, Btn, C, Card, Columns, Field, Ring, Sheet, Spark, StatusShade, Title, cardStyle, fmtDur, fmtNum, font, glowBg, haptic, inputCls, inputStyle, display, stagger, useFitFonts, Layer, ThemePicker, PointsModeCtx } from "./fitUi";
+
+/** Today's sleep card line: last night's hours, or an invitation to log. */
+function sleepToday(data: FitData) {
+  const n = data.sleep?.nights[data.sleep.nights.length - 1];
+  if (!n) return "Track your sleep";
+  const h = (n.wake - n.bed) / 3_600_000;
+  return `${Math.floor(h)}h ${String(Math.round((h % 1) * 60)).padStart(2, "0")}m last night`;
+}
 
 type Tab = "today" | "train" | "food" | "fast" | "run";
+/** Sheets that open over any tab (from Today, Siri or a link). */
+type Over = "" | "vacation" | "sleep" | "circle" | "buddy" | "gyms" | "eat" | "recipes" | "siri" | "scan";
 
 /** Ticks once a second while `on` (live timers on Today). */
 function useClock(on: boolean) {
@@ -33,45 +55,10 @@ function useClock(on: boolean) {
   return now;
 }
 
-function Setup({ data, update, onDone }: { data: FitData; update: Update; onDone: () => void }) {
-  const p = data.profile;
-  const [units, setUnits] = useState<Units>(p.units);
-  const [goal, setGoal] = useState<Goal>(p.goal);
-  const [sex, setSex] = useState(p.sex ?? "");
-  const [year, setYear] = useState(p.birthYear ? String(p.birthYear) : "");
-  const [height, setHeight] = useState(p.heightCm ? String(units === "kg" ? p.heightCm : Math.round(p.heightCm / 2.54)) : "");
-  const [weight, setWeight] = useState(() => { const kg = latestKg(data); return kg ? String(Math.round(fromKg(kg, units))) : ""; });
-  const [activity, setActivity] = useState(p.activity);
-  const save = () => {
-    const h = Number(height), w = Number(weight), y = Number(year);
-    update((d) => ({ ...d, onboarded: true,
-      profile: { ...d.profile, units, goal, activity, ...(sex ? { sex: sex as "m" | "f" } : {}), ...(y > 1900 ? { birthYear: y } : {}), ...(h > 0 ? { heightCm: units === "kg" ? h : Math.round(h * 2.54) } : {}) },
-      weights: w > 0 ? [...d.weights.filter((x) => x.date !== dayKey()), { date: dayKey(), kg: Math.round(toKg(w, units) * 10) / 10 }] : d.weights }));
-    onDone();
-  };
-  const pill = (on: boolean) => (on ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2, color: C.text });
-  return <Sheet title="Your goals" onClose={() => { update((d) => ({ ...d, onboarded: true })); onDone(); }} testId="fit-setup">
-    <p className="mt-2 text-[15px]" style={{ color: C.dim }}>So Arise Fit can set your calories and macros. You can change any of it later.</p>
-    <div className="mt-5 space-y-4">
-      <Field label="Goal"><div className="grid grid-cols-3 gap-2">{([["lose", "Lose fat"], ["maintain", "Maintain"], ["gain", "Build muscle"]] as const).map(([v, l]) => <button key={v} type="button" onClick={() => setGoal(v)} className="h-12 rounded-[8px] text-[14px] font-semibold" style={pill(goal === v)}>{l}</button>)}</div></Field>
-      <Field label="Units"><div className="grid grid-cols-2 gap-2">{(["lb", "kg"] as const).map((v) => <button key={v} type="button" onClick={() => setUnits(v)} className="h-12 rounded-[8px] text-[14px] font-semibold" style={pill(units === v)}>{v === "lb" ? "US (lb, ft, mi)" : "Metric (kg, cm, km)"}</button>)}</div></Field>
-      <Field label="Sex (for the calorie formula)"><div className="grid grid-cols-2 gap-2">{([["m", "Male"], ["f", "Female"]] as const).map(([v, l]) => <button key={v} type="button" onClick={() => setSex(v)} className="h-12 rounded-[8px] text-[14px] font-semibold" style={pill(sex === v)}>{l}</button>)}</div></Field>
-      <div className="grid grid-cols-3 gap-2">
-        <Field label="Born (year)"><input inputMode="numeric" value={year} onChange={(e) => setYear(e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="1995" className={inputCls} style={inputStyle} /></Field>
-        <Field label={`Height (${units === "kg" ? "cm" : "in"})`}><input inputMode="numeric" value={height} onChange={(e) => setHeight(e.target.value.replace(/\D/g, "").slice(0, 3))} placeholder={units === "kg" ? "175" : "69"} className={inputCls} style={inputStyle} /></Field>
-        <Field label={`Weight (${units})`}><input inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value.replace(/[^\d.]/g, "").slice(0, 5))} placeholder={units === "kg" ? "80" : "175"} className={inputCls} style={inputStyle} /></Field>
-      </div>
-      <Field label="How active are you?"><select value={activity} onChange={(e) => setActivity(Number(e.target.value))} className={inputCls} style={inputStyle}>
-        <option value={1.2}>Mostly sitting</option><option value={1.375}>Light: 1–3 workouts a week</option><option value={1.45}>Moderate: 3–4 a week</option><option value={1.55}>Active: 5–6 a week</option><option value={1.725}>Very active: hard training daily</option></select></Field>
-    </div>
-    <Btn className="mt-8 w-full" onClick={save} testId="fit-setup-save">Save my goals</Btn>
-  </Sheet>;
-}
-
-function TodayTab({ data, update, onTab, onStartProgram, onProgress, onSettings, onCoach, onStart, token, user, list }: { data: FitData; update: Update; onTab: (t: Tab) => void; onStartProgram: () => void; onProgress: () => void; onSettings: () => void; onCoach: () => void; onStart: (a: NonNullable<ReturnType<typeof readActive>>) => void; token: string | null; user: string; list: ReturnType<typeof libraryFallback> }) {
+function TodayTab({ data, update, onTab, onStartProgram, onProgress, onSettings, onCoach, onStart, onOver, token, user, list }: { data: FitData; update: Update; onTab: (t: Tab) => void; onStartProgram: () => void; onProgress: () => void; onSettings: () => void; onCoach: () => void; onStart: (a: NonNullable<ReturnType<typeof readActive>>) => void; onOver: (o: Over) => void; token: string | null; user: string; list: ReturnType<typeof libraryFallback> }) {
   const today = dayKey();
   const t = totals(data.foods.filter((f) => f.date === today));
-  const g = goals(data.profile, latestKg(data));
+  const g = dayGoals(data, latestKg(data));
   const s = streak(data);
   const prog = data.program ? PROGRAM_BY_ID.get(data.program.id) : undefined;
   const next = prog && data.program ? nextProgramDay(prog, data.program.done) : null;
@@ -101,6 +88,7 @@ function TodayTab({ data, update, onTab, onStartProgram, onProgress, onSettings,
         <h1 className="mt-1 text-[40px] leading-[.95]" style={display}>{hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"}{user ? <><br />{user}</> : ""}</h1>
       </div>
       <div className="flex shrink-0 items-center gap-2 pt-1">
+        <PlusButton />
         <button type="button" onClick={onProgress} aria-label="Progress" className="grid h-11 w-11 place-items-center rounded-full" style={round} data-testid="fit-open-progress"><BarChart3 className="h-5 w-5" /></button>
         <button type="button" onClick={onSettings} aria-label="Settings" className="grid h-11 w-11 place-items-center rounded-full" style={round} data-testid="fit-open-settings"><Settings className="h-5 w-5" /></button>
       </div>
@@ -132,11 +120,18 @@ function TodayTab({ data, update, onTab, onStartProgram, onProgress, onSettings,
     </Card>
     <Card className="mt-3 flex items-center gap-4" onClick={() => onTab("food")} testId="fit-today-calories">
       {points
-        ? <Ring value={used} goal={budget} size={118}><div><p className="text-[34px] leading-none" style={display}>{Math.max(0, budget - used)}</p><p className="mt-1 text-[11px] uppercase tracking-[.1em]" style={{ color: C.dim }}>points left</p></div></Ring>
-        : <Ring value={t.kcal} goal={g.kcal} size={118}><div><p className="text-[32px] leading-none" style={display}>{fmtNum(Math.max(0, g.kcal - t.kcal))}</p><p className="mt-1 text-[11px] uppercase tracking-[.1em]" style={{ color: C.dim }}>calories left</p></div></Ring>}
+        ? <Ring value={used} goal={budget} size={118}><div><p className="text-[34px] leading-none" style={display}>{Math.max(0, budget - used)}</p><p className="mt-1 whitespace-nowrap text-[10px] uppercase tracking-[.04em]" style={{ color: C.dim }}>pts left</p></div></Ring>
+        : <Ring value={t.kcal} goal={g.kcal} size={118}><div><p className="text-[32px] leading-none" style={display}>{fmtNum(Math.max(0, g.kcal - t.kcal))}</p><p className="mt-1 whitespace-nowrap text-[10px] uppercase tracking-[.04em]" style={{ color: C.dim }}>cal left</p></div></Ring>}
       <div className="min-w-0 flex-1 space-y-2.5"><Bar label="Protein" value={t.p} goal={g.p} color={C.pink} delay={0.3} /><Bar label="Carbs" value={t.c} goal={g.c} color={C.blue} delay={0.45} /><Bar label="Fat" value={t.f} goal={g.f} color={C.orange} delay={0.6} /></div>
     </Card>
+    {g.note && <p className="mt-2 px-1 text-[13px]" style={{ color: C.steel }} data-testid="fit-vacation-note">{g.note}</p>}
     <div className="mt-3"><CoachCard token={token} data={data} list={list} onStart={onStart} onOpen={onCoach} /></div>
+    <CircleCard token={token} onOpen={() => onOver("circle")} />
+    <BuddyCard token={token} onOpen={() => onOver("buddy")} />
+    <div className="mt-3 grid grid-cols-3 gap-2" data-testid="fit-near-row">
+      {([["gyms", "Gyms near me", MapPin], ["eat", "Eat out", Utensils], ["recipes", "Recipes", ChefHat]] as const).map(([id, label, Icon], i) => <button key={id} type="button" onClick={() => { haptic("light"); onOver(id); }} className="fit-in flex min-h-[78px] flex-col items-start justify-between rounded-[14px] p-3 text-left active:scale-[.98]" style={{ ...cardStyle, ...stagger(i, 0.05) }} data-testid={`fit-open-${id}`}>
+        <Icon className="h-5 w-5" style={{ color: C.lime }} /><span className="text-[16px] leading-[1.05]" style={display}>{label}{id !== "recipes" && <PlusTag />}</span></button>)}
+    </div>
     <div className="mt-3 grid grid-cols-2 gap-2.5">
       {health ? <Card className="!p-3.5" style={stagger(0, 0, 0.15)}><Footprints className="h-5 w-5" style={{ color: C.lime }} /><p className="mt-2 text-[28px] leading-none tabular-nums" style={display}>{fmtNum(health.steps[today] ?? 0)}</p><p className="mt-1 text-[12px]" style={{ color: C.dim }}>steps today</p></Card>
         : <Card className="!p-3.5" style={stagger(0, 0, 0.15)}><Dumbbell className="h-5 w-5" style={{ color: C.lime }} /><p className="mt-2 text-[28px] leading-none tabular-nums" style={display}>{thisWeek.length}</p><p className="mt-1 text-[12px]" style={{ color: C.dim }}>workouts · 7 days</p></Card>}
@@ -144,6 +139,11 @@ function TodayTab({ data, update, onTab, onStartProgram, onProgress, onSettings,
       <Card className="!p-3.5" style={stagger(0, 0, 0.35)}><Activity className="h-5 w-5" style={{ color: C.lime }} /><p className="mt-2 text-[28px] leading-none tabular-nums" style={display}>{fmtNum(vol)}</p><p className="mt-1 text-[12px]" style={{ color: C.dim }}>{data.profile.units} lifted · 7 days</p></Card>
       <Card className="!p-3.5" onClick={() => onTab("run")} style={stagger(0, 0, 0.45)}><Route className="h-5 w-5" style={{ color: C.lime }} /><p className="mt-2 text-[28px] leading-none" style={display}>Run</p><p className="mt-1 text-[12px]" style={{ color: C.dim }}>GPS · trails near you</p></Card>
     </div>
+    <SplitCard data={data} update={update} onStart={onStart} />
+    <VacationCard data={data} onOpen={() => onOver("vacation")} />
+    <Card className="mt-3 flex items-center gap-3 !p-3.5" onClick={() => onOver("sleep")} testId="fit-today-sleep"><Moon className="h-5 w-5 shrink-0" style={{ color: C.lime }} />
+      <span className="min-w-0 flex-1"><span className="block text-[13px]" style={{ color: C.dim }}>{data.sleep?.asleepAt ? "Sleeping now" : "Sleep"}</span><span className="block text-[22px] leading-none tabular-nums" style={display}>{data.sleep?.asleepAt ? "Tap when you wake" : sleepToday(data)}</span></span>
+      <ChevronRight className="h-5 w-5 shrink-0" style={{ color: C.dim }} /></Card>
     {health && <div className="mt-3"><StepsCard data={data} snap={health} /></div>}
     {tip && <><Title right={<button type="button" onClick={() => setWatch(true)} className="text-[14px] font-semibold" style={{ color: C.lime }}>Cues</button>}>Form tip of the day</Title>
       <VideoPlayer exId={tip.id} label={tip.name} testId="fit-today-tip" /></>}
@@ -218,7 +218,7 @@ function ProgressSheet({ data, update, list, onSettings, onClose }: { data: FitD
   </Sheet>;
 }
 
-function SettingsSheet({ data, update, onClose, onGoals, onAccount }: { data: FitData; update: Update; onClose: () => void; onGoals: () => void; onAccount: () => void }) {
+function SettingsSheet({ data, update, onClose, onGoals, onTour, onAccount, onSiri }: { data: FitData; update: Update; onClose: () => void; onGoals: () => void; onTour: () => void; onAccount: () => void; onSiri: () => void }) {
   const [sheet, setSheet] = useState<"" | "health" | "reminders">("");
   const { logout } = useAuth();
   const g = goals(data.profile, latestKg(data));
@@ -230,9 +230,13 @@ function SettingsSheet({ data, update, onClose, onGoals, onAccount }: { data: Fi
     <Card onClick={onGoals} className="!p-4"><div className="flex items-center justify-between"><div><p className="font-semibold">Body and goal</p><p className="text-[13px]" style={{ color: C.dim }}>{g.kcal} calories · P {g.p}g · C {g.c}g · F {g.f}g (maintenance about {g.tdee})</p></div><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
     <Card className="mt-2 !p-4"><Field label="Set my own calorie goal (blank = automatic)"><div className="flex gap-2"><input inputMode="numeric" value={kcal} onChange={(e) => setKcal(e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder={String(g.kcal)} className={inputCls} style={inputStyle} />
       <Btn kind="soft" onClick={() => update((d) => ({ ...d, profile: { ...d.profile, kcalGoal: Number(kcal) >= 900 ? Number(kcal) : undefined } }))}>Save</Btn></div></Field></Card>
+    <Card onClick={onTour} className="mt-2 !p-4" testId="fit-open-tour"><div className="flex items-center gap-3"><Play className="h-5 w-5" style={{ color: C.lime }} /><span className="flex-1"><span className="block font-semibold">How Arise Fit works</span><span className="block text-[13px]" style={{ color: C.dim }}>A quick animated tour of every feature</span></span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
+    <Title>Arise Fit+</Title>
+    <PlusRow />
     <Title>iPhone</Title>
     <Card onClick={() => setSheet("health")} className="!p-4" testId="fit-open-health"><div className="flex items-center gap-3"><HeartPulse className="h-5 w-5" style={{ color: "#ff375f" }} /><span className="flex-1 font-semibold">Apple Health</span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
     <Card onClick={() => setSheet("reminders")} className="mt-2 !p-4" testId="fit-open-reminders"><div className="flex items-center gap-3"><Bell className="h-5 w-5" style={{ color: C.lime }} /><span className="flex-1 font-semibold">Reminders</span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
+    <Card onClick={onSiri} className="mt-2 !p-4" testId="fit-open-siri"><div className="flex items-center gap-3"><Mic className="h-5 w-5" style={{ color: C.lime }} /><span className="flex-1 font-semibold">Siri & Shortcuts</span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
     {sheet === "health" && <HealthSheet data={data} update={update} onClose={() => setSheet("")} />}
     {sheet === "reminders" && <RemindersSheet onClose={() => setSheet("")} />}
     <Title>Measurements</Title>
@@ -246,7 +250,30 @@ function SettingsSheet({ data, update, onClose, onGoals, onAccount }: { data: Fi
   </Sheet>;
 }
 
+/** Today's header: the Fit+ crown (filled when you have it). */
+function PlusButton() {
+  const { plus, ask } = usePlus();
+  return <button type="button" onClick={() => ask()} aria-label={plus ? "Arise Fit+" : "Get Arise Fit+"} className="grid h-11 w-11 place-items-center rounded-full" style={plus ? { background: C.lime, color: "#0b0b0c" } : { background: C.card, boxShadow: cardStyle.boxShadow }} data-testid="fit-open-plus"><Crown className="h-5 w-5" /></button>;
+}
+function PlusRow() {
+  const { plus, status, ask } = usePlus();
+  return <Card onClick={() => ask()} className="!p-4" testId="fit-settings-plus"><div className="flex items-center gap-3"><Crown className="h-5 w-5" style={{ color: C.lime }} />
+    <span className="min-w-0 flex-1"><span className="block font-semibold">{plus ? "You have Fit+" : `Get Fit+ · ${status.price}`}</span><span className="block text-[13px]" style={{ color: C.dim }}>{status.pass.role === "owner" ? (status.pass.guest ? `Guest pass: ${status.pass.guest.name}` : "Guest pass: not shared yet") : status.pass.role === "guest" ? `Guest pass from ${status.pass.owner?.name}` : "Guest pass, plans and billing"}</span></span>
+    <ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>;
+}
+
+/** Arise Fit with Fit+ around it: the toast and a guest pass link live out here so the Fit+ sheet can use them. */
 export default function FitApp() {
+  const [toast, setToast] = useState("");
+  const say = useCallback((m: string) => { setToast(m); window.setTimeout(() => setToast((t) => (t === m ? "" : t)), 2600); }, []);
+  const [passCode, setPassCode] = useState<string | undefined>();
+  return <PlusProvider say={say} passCode={passCode} onPassShown={() => setPassCode(undefined)}>
+    <FitMain say={say} onPass={setPassCode} />
+    <div role="status" aria-live="polite" className={`pointer-events-none fixed left-1/2 z-[95] -translate-x-1/2 rounded-full px-4 py-2.5 text-[14px] font-semibold shadow-xl transition ${toast ? "opacity-100" : "opacity-0"}`} style={{ top: "max(16px, env(safe-area-inset-top))", background: C.text, color: C.bg }}>{toast}</div>
+  </PlusProvider>;
+}
+
+function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: string) => void }) {
   const { user, token } = useAuth();
   const { data, update, loaded, saving } = useFitData(token);
   useFitFonts();
@@ -255,31 +282,59 @@ export default function FitApp() {
   const [tab, setTab] = useState<Tab>("today");
   const [active, setActive] = useState(readActive);
   const [setup, setSetup] = useState(false);
+  const [tour, setTour] = useState(false);
   const [settings, setSettings] = useState(false);
   const [progress, setProgress] = useState(false);
   const [coach, setCoach] = useState(false);
   const [account, setAccount] = useState(false);
-  const [toast, setToast] = useState("");
-  const say = useCallback((m: string) => { setToast(m); window.setTimeout(() => setToast((t) => (t === m ? "" : t)), 2600); }, []);
+  const { plus, ask, loaded: plusLoaded } = usePlus();
+  const [over, setOverRaw] = useState<Over>("");
+  // Gyms near me and Eat out are Fit+.
+  const setOver = (o: Over) => { if ((o === "gyms" || o === "eat") && !plus) { ask(o === "gyms" ? "gyms" : "eat-out"); return; } setOverRaw(o); };
+  const [joinCode, setJoinCode] = useState<string | undefined>();
+  const [snap, setSnap] = useState(false);
+  // Siri, Shortcuts and links: run once the data is here (a link can arrive before it loads).
+  const [pending, setPending] = useState<SiriAction | null>(null);
+  useDeepLinks((l) => { if (l.circle) { setJoinCode(l.circle); setOverRaw("circle"); } if (l.pass) onPass(l.pass); if (l.action) setPending(l.action); });
   useEffect(() => { if (loaded && !data.onboarded) setSetup(true); }, [loaded, data.onboarded]);
+  // Widgets (Home Screen and Lock Screen): what they show, and taps on their buttons (a glass of water).
+  useEffect(() => { if (loaded) publishWidgets(fitWidgetSlots(data, latestKg(data))); }, [loaded, data]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!loaded) return; return watchWidgetActions((taps) => update((d) => applyFitTaps(d, taps))); }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { const was = document.documentElement.style.background; document.documentElement.style.background = C.bg; return () => { document.documentElement.style.background = was; }; }, []);
   const startProgram = () => {
     const prog = data.program ? PROGRAM_BY_ID.get(data.program.id) : undefined; if (!prog || !data.program) return;
     const next = nextProgramDay(prog, data.program.done);
     setActive(startWorkout({ name: `${prog.name}: ${next.day.name}`, programId: prog.id, dayId: next.day.id, exercises: planned(data, next.day.items, list) }));
   };
+  useEffect(() => {
+    if (!pending || !loaded || !plusLoaded) return;
+    const a = pending; setPending(null);
+    if (a === "workout") {
+      if (active) { say("Your workout is already going."); return; }
+      if (data.program) startProgram(); else setActive(smartWorkoutNow(data, list));
+      haptic("medium");
+    } else if (a === "water") {
+      const ml = data.profile.units === "kg" ? 250 : 237;
+      update((d) => ({ ...d, water: { ...d.water, [dayKey()]: Math.round((d.water[dayKey()] || 0) + ml) } }));
+      say(data.profile.units === "kg" ? "Added 250 ml of water." : "Added 8 oz of water.");
+    } else if (a === "fast-start") { if (data.fasting?.start) say("You're already fasting."); else { startFast(update, data.fasting?.protocol); say("Fast started."); } setTab("fast"); }
+    else if (a === "fast-end") { if (data.fasting?.start) { endFast(update); say("Fast ended. Nice work."); } else say("You're not fasting right now."); setTab("fast"); }
+    else if (a === "run") setTab("run");
+    else if (a === "meal") { setSnap(true); setTab("food"); }
+    else setOver(a === "scan" ? "scan" : a === "gyms" ? "gyms" : a === "recipes" ? "recipes" : "circle");
+  }, [pending, loaded, plusLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
   const first = String(user?.displayName || "").trim().split(/\s+/)[0] || "";
   const tabs: [Tab, string, typeof Home][] = [["today", "Today", Home], ["train", "Train", Dumbbell], ["food", "Food", Apple], ["fast", "Fast", Timer], ["run", "Run", Route]];
   const at = Math.max(0, tabs.findIndex(([id]) => id === tab));
-  const go = (t: Tab) => { if (t !== tab) { haptic("light"); setTab(t); document.getElementById("fit-main")?.scrollTo({ top: 0 }); } };
-  return <div className="fixed inset-0 flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} data-testid="fit-app">
+  const go = (t: Tab) => { if (t !== tab) { haptic("light"); setTab(t); setSnap(false); document.getElementById("fit-main")?.scrollTo({ top: 0 }); } };
+  return <PointsModeCtx.Provider value={data.profile.trackMode === "points"}><div className="fixed inset-0 flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} data-testid="fit-app">
     <StatusShade />
     <main id="fit-main" className="min-h-0 flex-1 overflow-y-auto px-4 pb-28 pt-[max(14px,env(safe-area-inset-top))]">
       {/* key={tab}: each tab's screen re-mounts, so it slides up into place and its rings and bars fill. */}
       <div key={tab} className="fit-in">
-        {tab === "today" && <TodayTab data={data} update={update} onTab={go} onStartProgram={startProgram} onProgress={() => setProgress(true)} onSettings={() => setSettings(true)} onCoach={() => setCoach(true)} onStart={(a) => { setCoach(false); setActive(a); }} token={token} user={first} list={list} />}
-        {tab === "train" && <><h1 className="mb-4 px-1 text-[46px] leading-[.95]" style={display}>Train</h1><TrainTab data={data} update={update} list={list} onStart={setActive} say={say} onCoach={() => setCoach(true)} /></>}
-        {tab === "food" && <><h1 className="mb-3 px-1 text-[46px] leading-[.95]" style={display}>Food</h1><FoodTab token={token} data={data} update={update} say={say} /></>}
+        {tab === "today" && <TodayTab data={data} update={update} onTab={go} onStartProgram={startProgram} onProgress={() => setProgress(true)} onSettings={() => setSettings(true)} onCoach={() => setCoach(true)} onStart={(a) => { setCoach(false); setActive(a); }} onOver={setOver} token={token} user={first} list={list} />}
+        {tab === "train" && <><h1 className="mb-4 px-1 text-[46px] leading-[.95]" style={display}>Train</h1><TrainTab data={data} update={update} list={list} onStart={setActive} say={say} onCoach={() => setCoach(true)} onGyms={() => setOver("gyms")} /></>}
+        {tab === "food" && <><h1 className="mb-3 px-1 text-[46px] leading-[.95]" style={display}>Food</h1><FoodTab token={token} data={data} update={update} say={say} snap={snap} onRecipes={() => setOver("recipes")} onEatOut={() => setOver("eat")} /></>}
         {tab === "fast" && <FastingSheet inline data={data} update={update} onClose={() => go("today")} />}
         {tab === "run" && <OutdoorHub inline data={data} update={update} say={say} onClose={() => go("today")} />}
       </div>
@@ -293,11 +348,20 @@ export default function FitApp() {
         <Icon className="h-[22px] w-[22px]" />{label}</button>)}
     </nav>
     {active && <LiveWorkout active={active} setActive={setActive} data={data} update={update} list={list} say={say} />}
-    {setup && <Setup data={data} update={update} onDone={() => setSetup(false)} />}
+    {setup && <Onboarding data={data} update={update} edit={!!data.onboarded} onDone={() => setSetup(false)} />}
+    {tour && <Layer><FeatureTour onClose={() => setTour(false)} /></Layer>}
     {coach && <CoachScreen token={token} me={Number(user?.id) || 0} data={data} update={update} list={list} onStart={(a) => { setCoach(false); setActive(a); }} onClose={() => setCoach(false)} />}
     {progress && <ProgressSheet data={data} update={update} list={list} onClose={() => setProgress(false)} onSettings={() => setSettings(true)} />}
-    {settings && <SettingsSheet data={data} update={update} onClose={() => setSettings(false)} onGoals={() => { setSettings(false); setProgress(false); setSetup(true); }} onAccount={() => setAccount(true)} />}
+    {settings && <SettingsSheet data={data} update={update} onClose={() => setSettings(false)} onGoals={() => { setSettings(false); setProgress(false); setSetup(true); }} onTour={() => { setSettings(false); setProgress(false); setTour(true); }} onAccount={() => setAccount(true)} onSiri={() => setOver("siri")} />}
+    {over === "vacation" && <VacationSheet data={data} update={update} list={list} onStart={(a) => setActive(a)} say={say} onClose={() => setOver("")} />}
+    {over === "sleep" && <SleepSheet data={data} update={update} say={say} onClose={() => setOver("")} />}
+    {over === "circle" && <CircleSheet onClose={() => { setOver(""); setJoinCode(undefined); }} say={say} joinCode={joinCode} />}
+    {over === "buddy" && <BuddySheet onClose={() => setOver("")} say={say} />}
+    {over === "gyms" && <NearbyGyms data={data} update={update} say={say} onClose={() => setOver("")} />}
+    {over === "eat" && <EatOut data={data} update={update} say={say} onClose={() => setOver("")} />}
+    {over === "recipes" && <RecipesSheet data={data} update={update} say={say} onClose={() => setOver("")} />}
+    {over === "siri" && <SiriSheet onClose={() => setOver("")} />}
+    {over === "scan" && <ScanMachine data={data} update={update} onClose={() => setOver("")} />}
     {account && <Layer><div className="fixed inset-0 z-[90]"><AccountPrivacy onClose={() => setAccount(false)} /></div></Layer>}
-    <div role="status" aria-live="polite" className={`pointer-events-none fixed left-1/2 z-[95] -translate-x-1/2 rounded-full px-4 py-2.5 text-[14px] font-semibold shadow-xl transition ${toast ? "opacity-100" : "opacity-0"}`} style={{ top: "max(16px, env(safe-area-inset-top))", background: C.text, color: C.bg }}>{toast}</div>
-  </div>;
+  </div></PointsModeCtx.Provider>;
 }

@@ -3,7 +3,7 @@
 // default (clean white cards on soft gray), and Dark (graphite); "Auto" follows the iPhone. Every
 // color is a CSS variable, so switching theme repaints the whole app at once. Shared by Arise Fit
 // and Arise Trainer.
-import { useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Moon, Smartphone, Sun, X } from "lucide-react";
 import { hasNativePlugin, isNativeApp, nativeCall } from "@/lib/nativeApp";
@@ -263,3 +263,7 @@ export const inputStyle = { background: C.card2, color: C.text, "--tw-ring-color
 
 export const fmtNum = (n: number) => (Math.round(n) >= 10000 ? `${(n / 1000).toFixed(1)}k` : Math.round(n).toLocaleString());
 export const fmtDur = (s: number) => { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = Math.floor(s % 60); return h ? `${h}:${String(m).padStart(2, "0")}:${String(x).padStart(2, "0")}` : `${m}:${String(x).padStart(2, "0")}`; };
+
+/** Whether this person counts food in Arise Points (true) or calories (false); food lists read it to show the right number. */
+export const PointsModeCtx = createContext(false);
+export const usePointsMode = () => useContext(PointsModeCtx);

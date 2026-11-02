@@ -1,6 +1,7 @@
 // Choosing a note template (shared/noteTemplates.ts): search or browse by category, look at the outline,
 // then start a note from it. The same chooser is used in LifeHub Notes, the Notes apps and WorkHub Notes.
 import { useEffect, useMemo, useState } from "react";
+import { CategoryIcon } from "./arise-notes/NoteIcon";
 import { ArrowLeft, LayoutTemplate, Search, X } from "lucide-react";
 import { NOTE_TEMPLATE_CATEGORIES, fillTemplate, findTemplates, type NoteTemplate, type NoteTemplateCategory } from "@shared/noteTemplates";
 
@@ -37,7 +38,7 @@ export default function NoteTemplatePicker({ onPick, onClose, hub }: { onPick: (
 
   const card = (tpl: NoteTemplate) => <li key={tpl.id}><button type="button" onClick={() => setLooking(tpl)}
     className="flex h-full w-full items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-sm" data-testid={`template-${tpl.id}`}>
-    <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-xl" aria-hidden>{tpl.emoji}</span>
+    <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-600" aria-hidden><CategoryIcon category={tpl.category} className="h-5 w-5" /></span>
     <span className="min-w-0"><span className="block text-sm font-extrabold text-slate-900">{tpl.name}</span><span className="mt-0.5 block text-xs leading-snug text-slate-500">{tpl.blurb}</span></span>
   </button></li>;
 
@@ -53,7 +54,7 @@ export default function NoteTemplatePicker({ onPick, onClose, hub }: { onPick: (
 
       {looking ? <div className="flex min-h-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-          <div className="flex items-center gap-3"><span className="text-3xl" aria-hidden>{looking.emoji}</span><div><p className="text-xs font-bold uppercase tracking-[.14em] text-violet-600">{looking.category}</p><h3 className="text-xl font-black text-slate-900">{looking.name}</h3></div></div>
+          <div className="flex items-center gap-3"><span className="text-slate-600" aria-hidden><CategoryIcon category={looking.category} className="h-8 w-8" /></span><div><p className="text-xs font-bold uppercase tracking-[.14em] text-violet-600">{looking.category}</p><h3 className="text-xl font-black text-slate-900">{looking.name}</h3></div></div>
           <p className="mt-2 text-sm text-slate-500">{looking.blurb}</p>
           <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-base font-black text-slate-900">{fillTemplate(looking.title)}</p>

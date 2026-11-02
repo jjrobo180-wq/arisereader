@@ -200,3 +200,24 @@ test("a bills link can't be voted on, a closed poll can't be voted in, and links
   const token = (await ended.call("POST", "/api/arise-todo/shares", {}, { target: "calendar" })).body.token;
   assert.equal((await ended.call("GET", "/api/todo-share/:token", { token })).status, 410);
 });
+
+test("this week's meals: a share link for the planner's Monday-to-Sunday week, with recipes", () => {
+  assert.deepEqual(parseTarget("meals"), { kind: "meals" });
+  assert.equal(parseTarget("meals:x"), null);
+  const ws = workspace();
+  ws.family.recipes = [{ id: "r1", title: "Chicken tacos", ingredients: ["1 lb chicken", "Tortillas"], steps: "", tags: "", servings: 4, minutes: 30 }];
+  ws.family.meals = [
+    { id: "a", date: "2026-10-09", slot: "dinner", text: "", recipeId: "r1" },
+    { id: "b", date: "2026-10-09", slot: "breakfast", text: "Oatmeal", recipeId: "" },
+    { id: "c", date: "2026-10-12", slot: "dinner", text: "Next week's soup", recipeId: "" },
+  ];
+  const view: any = sharedView(ws, { kind: "meals" }, TODAY);
+  assert.equal(view.kind, "meals");
+  assert.equal(view.week[0], "2026-10-05", "starts on Monday");
+  assert.equal(view.week[6], "2026-10-11");
+  const friday = view.days.find((d: any) => d.date === TODAY);
+  assert.deepEqual(friday.meals.map((m: any) => m.text), ["Oatmeal", "Chicken tacos"], "in order, recipe name filled in");
+  assert.deepEqual(friday.meals[1].ingredients, ["1 lb chicken", "Tortillas"]);
+  assert.ok(!JSON.stringify(view).includes("Next week's soup"), "only this week");
+  assert.equal(targetLabel(ws, { kind: "meals" }), "This week's meals");
+});

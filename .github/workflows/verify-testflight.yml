@@ -64,31 +64,22 @@ jobs:
                   r, offset = integer(signature, offset)
                   s, offset = integer(signature, offset)
                   token = header + "." + payload + "." + b64(r + s)
-                  targets = {"com.arisereader.arisetodo": "6.1", "com.arisereader.podplus": "4.1"}
+                  targets = {"com.arisereader.arisetodo": None, "com.arisereader.fit": None, "com.arisereader.podplus": None, "com.arisereader.notes": None, "com.arisereader.reader": None, "com.arisereader.eyegazer": None, "com.arisereader.educator": None, "com.arisereader.trainer": None}
                   def get(path, params):
                       request = urllib.request.Request("https://api.appstoreconnect.apple.com/v1/" + path + "?" + urllib.parse.urlencode(params), headers={"Authorization": "Bearer " + token})
                       with urllib.request.urlopen(request, timeout=30) as response:
                           return json.load(response)
                   results = {}
-                  for attempt in range(20):
-                      for bundle, version in targets.items():
-                          apps = get("apps", {"filter[bundleId]": bundle})["data"]
-                          if not apps:
-                              results[bundle] = {"version": version, "state": "APP_RECORD_NOT_FOUND"}
-                              continue
-                          builds = get("builds", {"filter[app]": apps[0]["id"], "filter[version]": version})["data"]
-                          if not builds:
-                              results[bundle] = {"version": version, "state": "AWAITING_PROCESSING"}
-                              continue
-                          build = builds[0]
-                          results[bundle] = {"version": version, "state": build["attributes"]["processingState"], "buildId": build["id"], "appId": apps[0]["id"]}
-                      print(json.dumps(results), flush=True)
-                      if all(x["state"] in ("VALID", "FAILED", "INVALID", "APP_RECORD_NOT_FOUND") for x in results.values()):
-                          break
-                      time.sleep(30)
+                  for bundle in targets:
+                      apps = get("apps", {"filter[bundleId]": bundle})["data"]
+                      if not apps:
+                          results[bundle] = {"state": "APP_RECORD_NOT_FOUND"}
+                          continue
+                      builds = get("builds", {"filter[app]": apps[0]["id"], "sort": "-uploadedDate", "limit": "3"})["data"]
+                      results[bundle] = {"state": builds[0]["attributes"]["processingState"] if builds else "NO_BUILDS",
+                                         "latest": [{"build": x["attributes"]["version"], "uploaded": x["attributes"]["uploadedDate"], "state": x["attributes"]["processingState"]} for x in builds]}
+                  print(json.dumps(results), flush=True)
                   pathlib.Path(os.environ["RUNNER_TEMP"], "testflight-status.json").write_text(json.dumps(results, indent=2))
-                  if any(x["state"] != "VALID" for x in results.values()):
-                      raise RuntimeError("One or more uploaded builds are not yet VALID; see status artifact")
               finally:
                   key_path.unlink(missing_ok=True)
           

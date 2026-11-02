@@ -153,7 +153,7 @@ const TRAIL_KEY = "arise-fit-trails:";
 const store = { get: (k: string) => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } }, set: (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage full */ } } };
 type Place = { ll: LatLng; label: string };
 export const lastPlace = (): Place | null => { const p = store.get(LOC_KEY); return p && Array.isArray(p.ll) ? p : null; };
-const keepPlace = (p: Place) => store.set(LOC_KEY, p);
+export const keepPlace = (p: Place) => store.set(LOC_KEY, p);
 
 /** Where the phone is: a recent fix right away when there is one (up to 10 minutes old), else a quick one. */
 export function locate(): Promise<LatLng> {
@@ -172,18 +172,22 @@ export function locate(): Promise<LatLng> {
 const fetching = new Map<string, Promise<any>>();
 const lineCache = new Map<string, Promise<LatLng[][]>>();
 /** Trails around a point: from the phone when they're less than a week old, otherwise from the server. */
-export function trailsNear(token: string | null, ll: LatLng): { cached: any | null; fresh: Promise<any> } {
+export function trailsNear(token: string | null, ll: LatLng): { cached: any | null; quick: Promise<any> | null; fresh: Promise<any> } {
   const [cLat, cLng] = trailCell(ll[0], ll[1]);
   const key = TRAIL_KEY + `${cLat},${cLng}`;
   const hit = store.get(key);
   const cached = hit && Date.now() - hit.at < 7 * 864e5 ? hit.json : null;
   let fresh = fetching.get(key);
+  // Nothing kept yet: a nearby-only list (20 km) is asked for at the same time as the full one, and
+  // shows first because it comes back much sooner.
+  let quick: Promise<any> | null = null;
+  if (!fresh && !cached) quick = trailApi(token, `/trails?${new URLSearchParams({ lat: String(cLat), lng: String(cLng), km: "20" })}`);
   if (!fresh) {
     fresh = cached ? Promise.resolve(cached) : trailApi(token, `/trails?${new URLSearchParams({ lat: String(cLat), lng: String(cLng), km: String(TRAIL_KM) })}`).then((json) => { store.set(key, { at: Date.now(), json }); return json; });
     fresh.catch(() => fetching.delete(key));
     fetching.set(key, fresh);
   }
-  return { cached, fresh };
+  return { cached, quick, fresh };
 }
 /** Started by the Run tab so Trails opens with its list already there. */
 export function prewarmTrails(token: string | null) { const p = lastPlace(); if (p) trailsNear(token, p.ll).fresh.catch(() => {}); }
@@ -229,8 +233,8 @@ export function TrailFinder({ data, onClose, onGo }: { data: FitData; onClose: (
   useEffect(() => {
     if (!from) return;
     let live = true;
-    const { cached, fresh } = trailsNear(token, from.ll);
-    if (cached) setJson(cached); else { setJson(null); setBusy(true); }
+    const { cached, quick, fresh } = trailsNear(token, from.ll);
+    if (cached) setJson(cached); else { setJson(null); setBusy(true); quick?.then((j) => live && setJson((cur: any) => cur ?? j)).catch(() => {}); }
     fresh.then((j) => live && setJson(j)).catch((e) => live && !cached && setErr(e.message)).finally(() => live && setBusy(false));
     return () => { live = false; };
   }, [from, token]);

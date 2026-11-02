@@ -27,6 +27,7 @@ export const PANE_OPTIONS: PaneOption[] = [
   life("lifeplan", "AI Reminders"),
   life("focus", "Focus timer"),
   life("browser", "Browser"),
+  { id: "arisenotes", label: "Arise Notes", path: "/arise-notes?pane=1", group: "LifeHub" },
 ];
 
 export const SPLIT_KEY = "arise_duo_split_v1";

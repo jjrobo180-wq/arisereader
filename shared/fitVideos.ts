@@ -3,7 +3,7 @@
 // /fit-video.html (client/public), which hosts YouTube's player on arisetodo.com: inside the iPhone app
 // the page has no web address of its own, and YouTube's player refuses to start without one.
 
-export type FitVideo = { id: string; title: string };
+export type FitVideo = { id: string; title: string; /** A YouTube Short (a minute or less), upright. */ short?: boolean };
 
 export const FIT_VIDEOS: Record<string, FitVideo> = {
   "bench-press": { id: "4Y2ZdHCOXok", title: "How to PROPERLY Bench Press for Growth (5 Easy Steps)" },
@@ -114,13 +114,71 @@ export const FIT_VIDEOS: Record<string, FitVideo> = {
   "childs-pose": { id: "6USdGiJ1BaA", title: "Correct Technique for Child's Pose Stretch" },
 };
 
+/** Short clips (YouTube Shorts, about a minute or less) for the exercises that have one. These come first:
+ *  the longer tutorials above stay a tap away. More are added here as they're found. */
+export const SHORT_VIDEOS: Record<string, FitVideo> = {
+  "bench-press": { id: "0cXAp6WhSj4", title: "The PERFECT Bench Press (5 Steps)", short: true },
+  "incline-bench": { id: "98HWfiRonkE", title: "The Perfect Incline Bench Press", short: true },
+  "db-bench": { id: "k2IDDkdho94", title: "Perfect Dumbbell Bench Press: Key Form Cues", short: true },
+  "db-incline": { id: "8fXfwG4ftaQ", title: "The PERFECT Incline Dumbbell Chest Press", short: true },
+  "db-fly": { id: "95g8rULJSfY", title: "The Dumbbell Chest Fly", short: true },
+  "cable-fly": { id: "I-Ue34qLxc4", title: "The PERFECT Cable Chest Fly", short: true },
+  "push-up": { id: "xEaUcMeZHt4", title: "A Proper Push-Up", short: true },
+  "dip": { id: "h969mJSXWC4", title: "3 Dip Tips for a Bigger Chest, Shoulders and Triceps", short: true },
+  "bench-dip": { id: "iH16WFso6fo", title: "Bench dips tutorial", short: true },
+  "deadlift": { id: "8np3vKDBJfc", title: "The PERFECT Deadlift (5 Steps)", short: true },
+  "pull-up": { id: "ZPG8OsHKXLw", title: "The PERFECT Pull-Up (5 Steps)", short: true },
+  "chin-up": { id: "ykPUIEj4-W0", title: "How To Do Chin-Ups Properly", short: true },
+  "lat-pulldown": { id: "bNmvKpJSWKM", title: "The PERFECT Lat Pulldown", short: true },
+  "barbell-row": { id: "Nqh7q3zDCoQ", title: "The PERFECT Barbell Row (5 Steps)", short: true },
+  "db-row": { id: "H8jf3DwlIlo", title: "How To Single Arm Dumbbell Rows", short: true },
+  "seated-cable-row": { id: "8QuMq1GMMng", title: "How to PROPERLY do a Seated Cable Row", short: true },
+  "face-pull": { id: "eX3meoTL2xU", title: "Perfect Face Pull Form", short: true },
+  "ohp": { id: "zoN5EH50Dro", title: "Perfect Overhead Press Form", short: true },
+  "db-shoulder-press": { id: "k6tzKisR3NY", title: "The PERFECT Dumbbell Shoulder Press", short: true },
+  "lateral-raise": { id: "Kl3LEzQ5Zqs", title: "The Perfect Lateral Raise", short: true },
+  "rear-delt-fly": { id: "LsT-bR_zxLo", title: "The PERFECT Dumbbell Rear Delt Fly", short: true },
+  "barbell-curl": { id: "54x2WF1_Suc", title: "The Perfect Barbell Bicep Curl", short: true },
+  "db-curl": { id: "NdJ_y2BCNkI", title: "How to do bicep curls with dumbbells", short: true },
+  "incline-curl": { id: "uCUaRFlA9vE", title: "The PERFECT Incline Bicep Curl", short: true },
+  "hammer-curl": { id: "3YYRmJ3RBj0", title: "How to Do Hammer Curls", short: true },
+  "triceps-pushdown": { id: "1FjkhpZsaxc", title: "The Perfect Triceps Pushdown", short: true },
+  "skull-crusher": { id: "ZY7HEE_A-ns", title: "Skull Crushers: Triceps Growth", short: true },
+  "overhead-triceps": { id: "b_r_LW4HEcM", title: "The PERFECT Overhead Tricep Extension", short: true },
+  "back-squat": { id: "tNUq6b5t11Q", title: "The PERFECT Barbell Squat", short: true },
+  "goblet-squat": { id: "8WUe1MNvN8Y", title: "How to Do a Goblet Squat", short: true },
+  "leg-press": { id: "EotSw18oR9w", title: "The PERFECT Leg Press", short: true },
+  "bulgarian-split-squat": { id: "Cow3ESXmrTU", title: "The PERFECT Bulgarian Split Squat", short: true },
+  "lunge": { id: "V7nP1QjaCLY", title: "Learn How to Lunge (the right way)", short: true },
+  "leg-extension": { id: "iQ92TuvBqRo", title: "The Perfect Leg Extension", short: true },
+  "leg-curl": { id: "WKFzO6U6lE4", title: "Gym Tip: Lying Leg Curl", short: true },
+  "rdl": { id: "35NpRFgFldo", title: "Barbell Romanian Deadlift (RDL)", short: true },
+  "db-rdl": { id: "hu3jRvTc_po", title: "The PERFECT Dumbbell Romanian Deadlift", short: true },
+  "hip-thrust": { id: "-GEVlyzVbcg", title: "Perfect Hip Thrust Form in 30 Seconds", short: true },
+  "glute-bridge": { id: "X_IGw8U_e38", title: "How to do Glute Bridges with Perfect Form", short: true },
+  "kb-swing": { id: "RVxTRZ5RON8", title: "How to Do a Kettlebell Swing", short: true },
+  "calf-raise": { id: "nxK14pAb8bE", title: "How to Do Calf Raises Correctly", short: true },
+  "plank": { id: "nVIeqNLGLa0", title: "How to Do a Proper Plank", short: true },
+  "hanging-leg-raise": { id: "0wSUjj5j1xo", title: "How To Do Hanging Leg Raises", short: true },
+  "mountain-climber": { id: "fpmWW6iXfes", title: "Proper Mountain Climber Form", short: true },
+};
+
 const YT_ID = /^[A-Za-z0-9_-]{11}$/;
 
-/** The how-to video for an exercise, if it has one. */
+/** The video to show for an exercise: a short clip when there is one, otherwise the longer tutorial. */
 export const videoFor = (exId: string): FitVideo | undefined => {
+  const s = SHORT_VIDEOS[exId];
+  if (s && YT_ID.test(s.id)) return s;
   const v = FIT_VIDEOS[exId];
   return v && YT_ID.test(v.id) ? v : undefined;
 };
+/** The longer tutorial, only when a short clip is shown first (so it can sit behind a tap). */
+export const longVideoFor = (exId: string): FitVideo | undefined => {
+  const s = SHORT_VIDEOS[exId], v = FIT_VIDEOS[exId];
+  return s && v && YT_ID.test(v.id) && v.id !== s.id ? v : undefined;
+};
+/** YouTube's own search for quick clips of an exercise (Shorts and videos under four minutes). */
+export const quickClipsUrl = (name: string) => `https://www.youtube.com/results?search_query=${encodeURIComponent(`${name} form #shorts`)}&sp=EgIYAQ%253D%253D`;
 
 /** YouTube's still for a video: "mq" is 16:9 (320×180), "hq" is larger (480×360, letterboxed). */
 export const videoThumb = (id: string, size: "mq" | "hq" | "maxres" = "mq") =>

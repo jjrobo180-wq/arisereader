@@ -1,0 +1,29 @@
+{
+  "appId": "com.arisereader.talk",
+  "appName": "Arise Talk",
+  "webDir": "www",
+  "backgroundColor": "#f5f4f1",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 900,
+      "backgroundColor": "#f5f4f1",
+      "showSpinner": false
+    },
+    "Keyboard": {
+      "resize": "native"
+    },
+    "CapacitorUpdater": {
+      "autoUpdate": false,
+      "updateUrl": "https://arisetodo.com/api/ota/talk",
+      "channelUrl": "https://arisetodo.com/api/ota/talk",
+      "statsUrl": ""
+    },
+    "StatusBar": {
+      "style": "LIGHT"
+    }
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "backgroundColor": "#f5f4f1"
+  }
+}

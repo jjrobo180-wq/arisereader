@@ -63,7 +63,9 @@ export default function AccountPrivacy({ onClose }: { onClose: () => void }) {
       </div>
       {deleting && !done && <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 p-4">
         <p className="text-[15px] font-bold text-rose-900">Delete your account?</p>
-        <p className="mt-1 text-sm leading-snug text-rose-900/80">{nativeFlavor() === "trainer"
+        <p className="mt-1 text-sm leading-snug text-rose-900/80">{nativeFlavor() === "talk"
+          ? "This removes your Arise account and its backup of your Arise Talk words, phrases and settings (they stay on this phone). Cancel Premium first if you have it. It can't be undone."
+          : nativeFlavor() === "trainer"
           ? "This removes your Arise account and everything in it: your trainer listing, reviews, client plans, workouts you built and messages, plus Arise Fit with the same account. Cancel your listing plan first. It can't be undone."
           : nativeFlavor() === "fit"
           ? "This removes your Arise account and everything in it: your workouts, programs, food diary and weight, plus anything in Arise To Duo with the same account. It can't be undone."

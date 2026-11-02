@@ -1,8 +1,8 @@
 // The reminders switch inside the Arise To Duo iPhone app (lib/nativeReminders.ts), in place of the
 // website's Web Push steps (which ask to add the site to the Home Screen and can't work in the app).
 import { useState } from "react";
-import { Bell, BellOff, Loader2 } from "lucide-react";
-import { nativeRemindersAvailable, nativeRemindersOn, sendNativeTest, turnOffNativeReminders, turnOnNativeReminders, type ReminderKind } from "@/lib/nativeReminders";
+import { Bell, BellOff, Loader2, Volume2, VolumeX } from "lucide-react";
+import { nativeRemindersAvailable, nativeRemindersOn, nativeSoundOn, sendNativeTest, setNativeSound, turnOffNativeReminders, turnOnNativeReminders, type ReminderKind } from "@/lib/nativeReminders";
 import { applePushProblem, ensureApplePush, sendAppleTest } from "@/lib/applePush";
 
 // "Send a test" goes through the server and Apple when this iPhone is signed up for Apple push, so a
@@ -25,6 +25,7 @@ export default function NativeRemindersPanel({ kind, onChange, buttonClass, ghos
   const [on, setOn] = useState(() => nativeRemindersOn(kind));
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [sound, setSound] = useState(nativeSoundOn);
   const what = kind === "life" ? "a morning summary, heads-ups before tasks and events, bills, water, meals, workouts and more" : "a morning summary and heads-ups before events, meetings and to-dos";
   const run = async (fn: () => Promise<void>, done: string, next?: boolean) => {
     setBusy(true); setMessage("");
@@ -45,6 +46,7 @@ export default function NativeRemindersPanel({ kind, onChange, buttonClass, ghos
         <p className="text-xs text-slate-500">One switch for LifeHub and WorkHub. They follow the choices below and update whenever either hub changes.</p>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => void runTest()} disabled={busy} className={ghostClass}>{busy ? <Loader2 size={15} className="animate-spin" /> : <Bell size={15} />} Send a test</button>
+          <button type="button" onClick={() => { const next = !sound; setNativeSound(next); setSound(next); setMessage(next ? "Reminders will make a sound." : "Reminders are silent now."); }} disabled={busy} className={ghostClass} aria-pressed={sound} data-testid="native-reminder-sound">{sound ? <Volume2 size={15} /> : <VolumeX size={15} />} Sound {sound ? "on" : "off"}</button>
           <button type="button" onClick={() => void run(() => turnOffNativeReminders(kind), "Reminders are off for this iPhone.", false)} disabled={busy} className={ghostClass}><BellOff size={15} /> Turn off</button>
         </div>
       </> : <>

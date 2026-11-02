@@ -1,7 +1,7 @@
 // Reminders worked out on the iPhone (client/src/lib/nativeReminders.ts) follow the server's rules.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { planReminders, reminderId } from "../client/src/lib/nativeReminders";
+import { CHIME, nativeNotifications, planReminders, reminderId } from "../client/src/lib/nativeReminders";
 import { emptyWorkspace } from "../shared/teacherHub";
 import { emptyFamily } from "../shared/familyHub";
 
@@ -34,4 +34,14 @@ test("notification ids are stable positive numbers", () => {
   assert.equal(reminderId("life:event:f1"), reminderId("life:event:f1"));
   assert.notEqual(reminderId("life:event:f1"), reminderId("life:event:f2"));
   assert.ok(reminderId("x") > 0 && reminderId("x") < 2 ** 31);
+});
+
+test("scheduled notifications name a sound (iOS plays none otherwise) and the file ships in the app", async () => {
+  const [n] = nativeNotifications("life", [{ key: "k", title: "t", body: "b", url: "#/x", at: Date.now() + 60_000 } as any]);
+  assert.equal((n as any).sound, CHIME);
+  const { existsSync, readFileSync } = await import("node:fs");
+  assert.ok(existsSync(`arisetodo/ios-app/sounds/${CHIME}`), "sound file is in the repo");
+  assert.match(readFileSync("arisetodo/ios-app/sounds/" + CHIME).subarray(0, 4).toString(), /RIFF/);
+  assert.match(readFileSync(".github/workflows/arisetodo-ios.yml", "utf8"), /add-sound\.py/);
+  assert.match(readFileSync(".github/workflows/arisetodo-signed-release.yml", "utf8"), /add-sound\.py/);
 });

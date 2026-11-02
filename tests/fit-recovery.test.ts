@@ -111,6 +111,7 @@ test("themes: Light, Dark and Auto in Settings (and in Arise Trainer); the iPhon
   }
   const plist = read(".github/scripts/configure_fit_app.py");
   assert.match(plist, /"UIViewControllerBasedStatusBarAppearance": True/);
-  assert.match(plist, /DROP = \["UIUserInterfaceStyle"\]/, "no forced dark look");
+  // Fit and Trainer follow the phone's look (Arise Notes, which has only a light look, keeps Light).
+  assert.match(plist, /DROP = \[\] if FLAVOR == "notes" else \["UIUserInterfaceStyle"\]/, "no forced dark look");
   assert.match(read("client/src/App.tsx"), /fallback=\{<div className="fixed inset-0" style=\{\{ background: fitBootBg\(\) \}\} \/>\}/);
 });
