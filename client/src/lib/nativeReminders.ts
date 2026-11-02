@@ -30,6 +30,19 @@ const store = {
 };
 const zone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch { return "UTC"; } };
 
+/** The notification sound. iOS plays no sound for a scheduled notification unless one is named, and
+ *  the file has to be inside the app: arisetodo/ios-app/sounds/ is copied into it by configure-ios.py. */
+export const CHIME = "arise-chime.wav";
+const SOUND_KEY = "arise_native_sound";
+/** On unless the person turned it off (Settings, Reminders). */
+export const nativeSoundOn = (): boolean => store.get(SOUND_KEY) !== "0";
+export function setNativeSound(on: boolean): void {
+  store.set(SOUND_KEY, on ? "1" : "0");
+  window.dispatchEvent(new Event(REMINDERS_CHANGED)); // schedules again with, or without, the sound
+}
+/** Spread into a scheduled notification to give it the sound (or nothing, when sound is off). */
+export const soundField = (): { sound?: string } => (nativeSoundOn() ? { sound: CHIME } : {});
+
 /** True in an app build that can schedule notifications. */
 export const nativeRemindersAvailable = (): boolean => hasNativePlugin(PLUGIN);
 /** True inside the app at all (so the website's "add to Home Screen" steps are never shown there). */
@@ -78,7 +91,7 @@ export function nativeNotifications(kind: ReminderKind, plan: PlannedReminder[])
     seen.set(r.at, n + 1);
     return {
       id: reminderId(`${kind}:${r.key}`), title: r.title, body: r.body, threadIdentifier: `${kind}:${r.key}`,
-      schedule: { at: new Date(r.at + n * SAME_TIME_GAP_MS), allowWhileIdle: true }, extra: { url: r.url },
+      schedule: { at: new Date(r.at + n * SAME_TIME_GAP_MS), allowWhileIdle: true }, extra: { url: r.url }, ...soundField(),
     };
   });
 }
@@ -146,7 +159,7 @@ export async function scheduleNativeReminders(kind: ReminderKind, workspace: unk
 
 /** A test notification a few seconds from now. */
 export async function sendNativeTest(): Promise<void> {
-  await call("schedule", { notifications: [{ id: reminderId(`test:${Date.now()}`), title: "Arise To Duo", body: "Reminders are working on this iPhone.", schedule: { at: new Date(Date.now() + 5000) } }] });
+  await call("schedule", { notifications: [{ id: reminderId(`test:${Date.now()}`), title: "Arise To Duo", body: "Reminders are working on this iPhone.", schedule: { at: new Date(Date.now() + 5000) }, ...soundField() }] });
 }
 
 /** Signing out: every reminder scheduled on this iPhone is taken away, so the next account never sees the last one's. */
