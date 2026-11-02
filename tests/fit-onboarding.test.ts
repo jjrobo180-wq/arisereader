@@ -31,7 +31,7 @@ test("a faster pace means fewer calories, but never under a safe floor", () => {
   const easy = goals({ ...base, pace: 0.25 }, 90).kcal, steady = goals({ ...base, pace: 0.5 }, 90).kcal, fast = goals({ ...base, pace: 1 }, 90).kcal;
   assert.ok(easy > steady && steady > fast, `${easy} ${steady} ${fast}`);
   assert.ok(fast >= 1500);
-  assert.equal(paceKcal({ goal: "lose", sex: "f", pace: 1 }, 1600), 1600); // never above maintenance
+  assert.equal(paceKcal({ goal: "lose", sex: "f", pace: 1 }, 1100), 1100); // never above maintenance
   assert.equal(paceKcal({ goal: "lose", sex: "f", pace: 1 }, 2000), 1200);
   assert.equal(paceKcal({ goal: "maintain", pace: 1 }, 2200), 2200);
   assert.equal(paceKcal({ goal: "gain", pace: 0.5 }, 2400), 2950);
