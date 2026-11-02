@@ -12,6 +12,7 @@ import { ExerciseDetail, LiveWorkout, TrainTab, libraryFallback, planned, readAc
 import { BodyMap, MiniBody, recColor } from "./FitBody";
 import { SmartWorkoutCard, smartWorkoutNow } from "./FitSmart";
 import { CircleCard, CircleSheet } from "./FitCircle";
+import { BuddyCard, BuddySheet } from "./FitBuddy";
 import { PlusProvider, PlusTag, usePlus } from "./FitPlus";
 import { EatOut, NearbyGyms, RecipesSheet } from "./FitNearby";
 import { SiriSheet, useDeepLinks, type SiriAction } from "./FitSiri";
@@ -42,7 +43,7 @@ function sleepToday(data: FitData) {
 
 type Tab = "today" | "train" | "food" | "fast" | "run";
 /** Sheets that open over any tab (from Today, Siri or a link). */
-type Over = "" | "vacation" | "sleep" | "circle" | "gyms" | "eat" | "recipes" | "siri" | "scan";
+type Over = "" | "vacation" | "sleep" | "circle" | "buddy" | "gyms" | "eat" | "recipes" | "siri" | "scan";
 
 /** Ticks once a second while `on` (live timers on Today). */
 function useClock(on: boolean) {
@@ -158,6 +159,7 @@ function TodayTab({ data, update, onTab, onStartProgram, onProgress, onSettings,
     {g.note && <p className="mt-2 px-1 text-[13px]" style={{ color: C.steel }} data-testid="fit-vacation-note">{g.note}</p>}
     <div className="mt-3"><CoachCard token={token} data={data} list={list} onStart={onStart} onOpen={onCoach} /></div>
     <CircleCard token={token} onOpen={() => onOver("circle")} />
+    <BuddyCard token={token} onOpen={() => onOver("buddy")} />
     <div className="mt-3 grid grid-cols-3 gap-2" data-testid="fit-near-row">
       {([["gyms", "Gyms near me", MapPin], ["eat", "Eat out", Utensils], ["recipes", "Recipes", ChefHat]] as const).map(([id, label, Icon], i) => <button key={id} type="button" onClick={() => { haptic("light"); onOver(id); }} className="fit-in flex min-h-[78px] flex-col items-start justify-between rounded-[14px] p-3 text-left active:scale-[.98]" style={{ ...cardStyle, ...stagger(i, 0.05) }} data-testid={`fit-open-${id}`}>
         <Icon className="h-5 w-5" style={{ color: C.lime }} /><span className="text-[16px] leading-[1.05]" style={display}>{label}{id !== "recipes" && <PlusTag />}</span></button>)}
@@ -380,6 +382,7 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
     {over === "vacation" && <VacationSheet data={data} update={update} list={list} onStart={(a) => setActive(a)} say={say} onClose={() => setOver("")} />}
     {over === "sleep" && <SleepSheet data={data} update={update} say={say} onClose={() => setOver("")} />}
     {over === "circle" && <CircleSheet onClose={() => { setOver(""); setJoinCode(undefined); }} say={say} joinCode={joinCode} />}
+    {over === "buddy" && <BuddySheet onClose={() => setOver("")} say={say} />}
     {over === "gyms" && <NearbyGyms data={data} update={update} say={say} onClose={() => setOver("")} />}
     {over === "eat" && <EatOut data={data} update={update} say={say} onClose={() => setOver("")} />}
     {over === "recipes" && <RecipesSheet data={data} update={update} say={say} onClose={() => setOver("")} />}
