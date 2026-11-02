@@ -28,7 +28,7 @@ const t = (id: string, name: string, category: NoteTemplateCategory, emoji: stri
 
 export const NOTE_TEMPLATES: readonly NoteTemplate[] = [
   // ── Meetings ──────────────────────────────────────────────────────────────
-  t("meeting", "Meeting notes", "Meetings", "🗂️", "Agenda, notes, decisions and action items", "Meeting — {date}", `
+  t("meeting", "Meeting notes", "Meetings", "", "Agenda, notes, decisions and action items", "Meeting — {date}", `
 Date: {date}
 Time: —
 Where / link: —
@@ -50,7 +50,7 @@ ACTION ITEMS (who · what · by when)
 ☐ — · — · —
 
 NEXT MEETING: —`, "work"),
-  t("one-on-one", "1-on-1", "Meetings", "🤝", "Check-in with a manager, mentor or teammate", "1-on-1 — {date}", `
+  t("one-on-one", "1-on-1", "Meetings", "", "Check-in with a manager, mentor or teammate", "1-on-1 — {date}", `
 With: —
 Date: {date}
 
@@ -72,7 +72,7 @@ GOALS / GROWTH
 ACTION ITEMS
 ☐
 ☐ `, "work"),
-  t("standup", "Daily stand-up", "Meetings", "⏱️", "Yesterday, today, blockers", "Stand-up — {date}", `
+  t("standup", "Daily stand-up", "Meetings", "", "Yesterday, today, blockers", "Stand-up — {date}", `
 Date: {date}
 
 YESTERDAY
@@ -83,7 +83,7 @@ TODAY
 
 BLOCKERS / NEED HELP WITH
 - `, "work"),
-  t("call", "Phone call notes", "Meetings", "📞", "Who called, what was said, follow-up", "Call — {date}", `
+  t("call", "Phone call notes", "Meetings", "", "Who called, what was said, follow-up", "Call — {date}", `
 Date: {date}   Time: —
 Who: —
 Number / email: —
@@ -95,7 +95,7 @@ WHAT WAS SAID
 FOLLOW-UP
 ☐
 Call back by: —`),
-  t("kickoff", "Project kickoff", "Meetings", "🚀", "Goals, roles, timeline and risks", "Project kickoff: —", `
+  t("kickoff", "Project kickoff", "Meetings", "", "Goals, roles, timeline and risks", "Project kickoff: —", `
 Project: —
 Date: {date}
 Owner: —
@@ -122,7 +122,7 @@ RISKS & HOW WE'LL HANDLE THEM
 FIRST NEXT STEPS
 ☐
 ☐ `, "work"),
-  t("brainstorm", "Brainstorm", "Meetings", "💡", "Every idea first, then pick the best", "Brainstorm: —", `
+  t("brainstorm", "Brainstorm", "Meetings", "", "Every idea first, then pick the best", "Brainstorm: —", `
 Question we're solving: —
 Date: {date}
 People: —
@@ -140,7 +140,7 @@ TOP 3
 
 WHAT WE'LL TRY FIRST
 ☐ `),
-  t("interview", "Interview notes", "Meetings", "🧑‍💼", "Questions, answers and a score", "Interview: —", `
+  t("interview", "Interview notes", "Meetings", "", "Questions, answers and a score", "Interview: —", `
 Candidate: —
 Role: —
 Date: {date}
@@ -162,7 +162,7 @@ CONCERNS
 
 OVERALL (1–5): —
 Recommend? ☐ Yes  ☐ No  ☐ Maybe`, "work"),
-  t("retro", "Retrospective", "Meetings", "🔁", "What went well, what didn't, what to change", "Retro — {date}", `
+  t("retro", "Retrospective", "Meetings", "", "What went well, what didn't, what to change", "Retro — {date}", `
 Date: {date}
 Project / period: —
 
@@ -178,11 +178,11 @@ WHAT WE'LL CHANGE
 
 SHOUT-OUTS
 - `, "work"),
-  t("family-meeting", "Family meeting", "Meetings", "👨‍👩‍👧", "Wins, the week ahead, problems to solve", "Family meeting — {date}", `
+  t("family-meeting", "Family meeting", "Meetings", "", "Wins, the week ahead, problems to solve", "Family meeting — {date}", `
 Date: {date}
 Who's here: —
 
-THIS WEEK'S WINS 🎉
+THIS WEEK'S WINS
 -
 
 THE WEEK AHEAD (who needs a ride, practices, appointments)
@@ -198,11 +198,11 @@ SOMETHING FUN TO PLAN
 - `, "life"),
 
   // ── Everyday ──────────────────────────────────────────────────────────────
-  t("quick", "Quick note", "Everyday", "📝", "A plain note with a date at the top", "Note — {date}", `
+  t("quick", "Quick note", "Everyday", "", "A plain note with a date at the top", "Note — {date}", `
 {date}
 
 `),
-  t("todo", "To-do list", "Everyday", "✅", "Must do, should do, could do", "To do — {date}", `
+  t("todo", "To-do list", "Everyday", "", "Must do, should do, could do", "To do — {date}", `
 MUST DO TODAY
 ☐
 ☐
@@ -215,7 +215,7 @@ SHOULD DO
 COULD DO (if there's time)
 ☐
 ☐ `),
-  t("brain-dump", "Brain dump", "Everyday", "🧠", "Empty your head, then sort it", "Brain dump — {date}", `
+  t("brain-dump", "Brain dump", "Everyday", "", "Empty your head, then sort it", "Brain dump — {date}", `
 Write down EVERYTHING on your mind. Don't sort it yet.
 -
 -
@@ -228,7 +228,7 @@ Do today: —
 This week: —
 Someday: —
 Let it go: —`),
-  t("journal", "Daily journal", "Everyday", "📔", "How today went, in a few minutes", "Journal — {date}", `
+  t("journal", "Daily journal", "Everyday", "", "How today went, in a few minutes", "Journal — {date}", `
 {date}
 
 Today I felt: —
@@ -236,7 +236,7 @@ The best part of today: —
 Something hard: —
 Something I learned: —
 Tomorrow I want to: —`),
-  t("pros-cons", "Pros & cons", "Everyday", "⚖️", "Weigh up a decision", "Decision: —", `
+  t("pros-cons", "Pros & cons", "Everyday", "", "Weigh up a decision", "Decision: —", `
 The decision: —
 Date: {date}
 
@@ -253,7 +253,7 @@ CONS
 What matters most here: —
 My gut says: —
 Decision: —`),
-  t("book-notes", "Book notes", "Everyday", "📚", "Quotes, ideas and what you'll remember", "Book: —", `
+  t("book-notes", "Book notes", "Everyday", "", "Quotes, ideas and what you'll remember", "Book: —", `
 Title: —
 Author: —
 Started: {date}   Finished: —
@@ -267,7 +267,7 @@ FAVORITE QUOTES
 
 WHAT I'LL DO DIFFERENTLY
 - `),
-  t("class-notes", "Class / lecture notes", "Everyday", "🎓", "Cornell-style: notes, questions, summary", "Class notes — {date}", `
+  t("class-notes", "Class / lecture notes", "Everyday", "", "Cornell-style: notes, questions, summary", "Class notes — {date}", `
 Class: —
 Topic: —
 Date: {date}
@@ -282,7 +282,7 @@ SUMMARY (in my own words)
 
 TO STUDY / ASK ABOUT
 ☐ `),
-  t("idea", "Idea", "Everyday", "✨", "Capture an idea before it's gone", "Idea: —", `
+  t("idea", "Idea", "Everyday", "", "Capture an idea before it's gone", "Idea: —", `
 The idea: —
 Why it could work: —
 Who it's for: —
@@ -290,7 +290,7 @@ First tiny step: ☐ —
 Date: {date}`),
 
   // ── Food & health ─────────────────────────────────────────────────────────
-  t("food-diary", "Food diary", "Food & health", "🍎", "Meals, snacks, water and how you felt", "Food diary — {date}", `
+  t("food-diary", "Food diary", "Food & health", "", "Meals, snacks, water and how you felt", "Food diary — {date}", `
 Date: {date}
 
 BREAKFAST  (time: —)
@@ -313,7 +313,7 @@ WATER (one box per glass)
 
 Energy today (1–5): —
 Notes: —`, "life"),
-  t("meal-plan", "Weekly meal plan", "Food & health", "🍽️", "Seven days of meals and the shopping list", "Meal plan — week of {date}", `
+  t("meal-plan", "Weekly meal plan", "Food & health", "", "Seven days of meals and the shopping list", "Meal plan — week of {date}", `
 Week of {date}
 
 MON  B: —  L: —  D: —
@@ -332,7 +332,7 @@ SHOPPING LIST
 ☐
 ☐
 ☐ `, "life"),
-  t("workout", "Workout log", "Food & health", "🏋️", "Exercises, sets, reps and how it felt", "Workout — {date}", `
+  t("workout", "Workout log", "Food & health", "", "Exercises, sets, reps and how it felt", "Workout — {date}", `
 Date: {date}
 Type: —   Length: — min
 
@@ -348,7 +348,7 @@ EXERCISE · SETS × REPS · WEIGHT
 CARDIO: —
 How I felt (1–5): —
 Next time: —`, "life"),
-  t("symptoms", "Symptom tracker", "Food & health", "🩺", "What, when, how bad, what helped", "Symptoms — {date}", `
+  t("symptoms", "Symptom tracker", "Food & health", "", "What, when, how bad, what helped", "Symptoms — {date}", `
 Who: —
 
 DATE · TIME · SYMPTOM · HOW BAD (1–10) · WHAT HELPED
@@ -360,7 +360,7 @@ Medicines taken: —
 Food / sleep / stress that day: —
 Questions for the doctor:
 ☐ `, "life"),
-  t("doctor-visit", "Doctor visit", "Food & health", "🏥", "Questions to ask and what they said", "Doctor visit — {date}", `
+  t("doctor-visit", "Doctor visit", "Food & health", "", "Questions to ask and what they said", "Doctor visit — {date}", `
 Who: —
 Doctor: —
 Date: {date}   Time: —
@@ -380,7 +380,7 @@ NEW MEDICINES / CHANGES
 -
 
 NEXT APPOINTMENT: —`, "life"),
-  t("meds", "Medication list", "Food & health", "💊", "Every medicine, dose and doctor", "Medications — —", `
+  t("meds", "Medication list", "Food & health", "", "Every medicine, dose and doctor", "Medications — —", `
 Person: —
 Allergies: —
 Updated: {date}
@@ -391,7 +391,7 @@ MEDICINE · DOSE · WHEN · FOR · PRESCRIBED BY
 - — · — · — · — · —
 
 Pharmacy: —   Phone: —`, "life"),
-  t("sleep", "Sleep log", "Food & health", "😴", "Bedtime, wake time and how you slept", "Sleep log — week of {date}", `
+  t("sleep", "Sleep log", "Food & health", "", "Bedtime, wake time and how you slept", "Sleep log — week of {date}", `
 Week of {date}
 
 DAY · IN BED · ASLEEP · WOKE · QUALITY (1–5)
@@ -405,7 +405,7 @@ Sun · — · — · — · —
 
 Caffeine after noon? —   Screens before bed? —
 What helped: —`, "life"),
-  t("habit-week", "Habit tracker (week)", "Food & health", "📆", "Tick off habits for seven days", "Habits — week of {date}", `
+  t("habit-week", "Habit tracker (week)", "Food & health", "", "Tick off habits for seven days", "Habits — week of {date}", `
 Week of {date}
 
 HABIT          M  T  W  T  F  S  S
@@ -417,7 +417,7 @@ HABIT          M  T  W  T  F  S  S
 What made it easier: —`),
 
   // ── Home & family ─────────────────────────────────────────────────────────
-  t("grocery", "Grocery list", "Home & family", "🛒", "Sorted by aisle so the trip is quick", "Groceries — {date}", `
+  t("grocery", "Grocery list", "Home & family", "", "Sorted by aisle so the trip is quick", "Groceries — {date}", `
 PRODUCE
 ☐
 ☐
@@ -439,7 +439,7 @@ HOUSEHOLD
 ☐
 
 Budget: $—`, "life"),
-  t("packing", "Packing list", "Home & family", "🧳", "Clothes, toiletries, tech and documents", "Packing: —", `
+  t("packing", "Packing list", "Home & family", "", "Clothes, toiletries, tech and documents", "Packing: —", `
 Trip: —   Leaving: —   Nights: —
 
 CLOTHES
@@ -468,7 +468,7 @@ DOCUMENTS
 FOR THE KIDS
 ☐ Snacks
 ☐ Something to do in the car`, "life"),
-  t("babysitter", "Babysitter info", "Home & family", "🍼", "Everything a sitter needs to know", "For the sitter", `
+  t("babysitter", "Babysitter info", "Home & family", "", "Everything a sitter needs to know", "For the sitter", `
 Kids: —   Ages: —
 Our numbers: —
 Back by: —
@@ -491,7 +491,7 @@ HOUSE RULES
 -
 
 Wi-Fi: —   Password: —`, "life"),
-  t("emergency", "Emergency contacts", "Home & family", "🚨", "Who to call when it matters", "Emergency contacts", `
+  t("emergency", "Emergency contacts", "Home & family", "", "Who to call when it matters", "Emergency contacts", `
 Emergency: 911
 Poison control: 1-800-222-1222
 
@@ -512,7 +512,7 @@ INSURANCE
 - Car: — · policy # —
 
 Updated: {date}`, "life"),
-  t("wifi", "Wi-Fi & codes", "Home & family", "🔐", "Network names, door codes and accounts", "Wi-Fi & codes", `
+  t("wifi", "Wi-Fi & codes", "Home & family", "", "Network names, door codes and accounts", "Wi-Fi & codes", `
 WI-FI
 Network: —   Password: —
 Guest network: —   Password: —
@@ -524,7 +524,7 @@ STREAMING & ACCOUNTS (no bank passwords here)
 - — : —
 
 Updated: {date}`, "life"),
-  t("party", "Party planning", "Home & family", "🎉", "Guests, food, decorations and a timeline", "Party: —", `
+  t("party", "Party planning", "Home & family", "", "Guests, food, decorations and a timeline", "Party: —", `
 For: —   Date: —   Time: —
 Where: —   Theme: —
 Budget: $—
@@ -546,7 +546,7 @@ TIMELINE
 1 week before: ☐ order cake
 Day before: ☐ shop · ☐ decorate
 Day of: ☐ —`, "life"),
-  t("gift-ideas", "Gift ideas", "Home & family", "🎁", "Ideas for everyone, all year", "Gift ideas", `
+  t("gift-ideas", "Gift ideas", "Home & family", "", "Ideas for everyone, all year", "Gift ideas", `
 PERSON · OCCASION · IDEA · PRICE · BOUGHT
 — · — · — · $— · ☐
 — · — · — · $— · ☐
@@ -554,7 +554,7 @@ PERSON · OCCASION · IDEA · PRICE · BOUGHT
 
 Things they mentioned wanting:
 - `, "life"),
-  t("home-upkeep", "Home maintenance", "Home & family", "🔧", "What to check each season", "Home maintenance", `
+  t("home-upkeep", "Home maintenance", "Home & family", "", "What to check each season", "Home maintenance", `
 EVERY MONTH
 ☐ Test smoke & CO alarms
 ☐ Clean the kitchen sink drain
@@ -572,7 +572,7 @@ FALL
 
 REPAIRS TO DO
 ☐ — (who: —, cost: $—)`, "life"),
-  t("recipe", "Recipe card", "Home & family", "🥘", "Ingredients, steps and notes", "Recipe: —", `
+  t("recipe", "Recipe card", "Home & family", "", "Ingredients, steps and notes", "Recipe: —", `
 Serves: —   Prep: — min   Cook: — min
 
 INGREDIENTS
@@ -587,7 +587,7 @@ STEPS
 
 NOTES / CHANGES I MADE
 - `, "life"),
-  t("chores", "Chore chart", "Home & family", "🧹", "Who does what, every day", "Chores — week of {date}", `
+  t("chores", "Chore chart", "Home & family", "", "Who does what, every day", "Chores — week of {date}", `
 Week of {date}
 
 CHORE          WHO      M  T  W  T  F  S  S
@@ -598,7 +598,7 @@ Tidy room      —        ☐  ☐  ☐  ☐  ☐  ☐  ☐
 —              —        ☐  ☐  ☐  ☐  ☐  ☐  ☐
 
 Reward this week: —`, "life"),
-  t("moving", "Moving checklist", "Home & family", "📦", "Eight weeks out to moving day", "Moving checklist", `
+  t("moving", "Moving checklist", "Home & family", "", "Eight weeks out to moving day", "Moving checklist", `
 New address: —   Moving day: —
 
 8 WEEKS BEFORE
@@ -620,7 +620,7 @@ MOVING DAY
 ☐ Keys handed over`, "life"),
 
   // ── School & teaching ─────────────────────────────────────────────────────
-  t("parent-conference", "Parent-teacher conference", "School & teaching", "🏫", "Strengths, concerns and a plan together", "Conference: — — {date}", `
+  t("parent-conference", "Parent-teacher conference", "School & teaching", "", "Strengths, concerns and a plan together", "Conference: — — {date}", `
 Student: —
 Date: {date}
 With: —
@@ -643,7 +643,7 @@ PLAN — AT HOME
 ☐
 
 FOLLOW UP ON: —`),
-  t("iep-meeting", "IEP meeting notes", "School & teaching", "📋", "Present levels, goals, services and next steps", "IEP meeting: — — {date}", `
+  t("iep-meeting", "IEP meeting notes", "School & teaching", "", "Present levels, goals, services and next steps", "IEP meeting: — — {date}", `
 Student: —
 Meeting type: ☐ Annual  ☐ Initial  ☐ Re-eval  ☐ Amendment
 Date: {date}
@@ -669,7 +669,7 @@ NEXT STEPS (who · what · by when)
 ☐ — · — · —
 
 Next review: —`, "work"),
-  t("lesson", "Lesson plan", "School & teaching", "🍎", "Objective, hook, activities and a check", "Lesson: —", `
+  t("lesson", "Lesson plan", "School & teaching", "", "Objective, hook, activities and a check", "Lesson: —", `
 Subject / grade: —
 Date: {date}
 Standard: —
@@ -698,7 +698,7 @@ DIFFERENTIATION / SUPPORTS
 
 REFLECTION (after)
 —`, "work"),
-  t("observation", "Class observation", "School & teaching", "👀", "What you saw, glows and grows", "Observation — {date}", `
+  t("observation", "Class observation", "School & teaching", "", "What you saw, glows and grows", "Observation — {date}", `
 Teacher / class: —
 Date: {date}   Time: —
 Focus: —
@@ -714,7 +714,7 @@ GROWS
 
 QUESTIONS TO TALK ABOUT
 - `, "work"),
-  t("student-checkin", "Student check-in", "School & teaching", "🙋", "A quick talk with one student", "Check-in: — — {date}", `
+  t("student-checkin", "Student check-in", "School & teaching", "", "A quick talk with one student", "Check-in: — — {date}", `
 Student: —
 Date: {date}
 
@@ -727,7 +727,7 @@ WHAT WOULD HELP
 -
 
 Plan / next check-in: —`, "work"),
-  t("sub-plans", "Substitute plans", "School & teaching", "🧑‍🏫", "Everything a sub needs for the day", "Sub plans — {date}", `
+  t("sub-plans", "Substitute plans", "School & teaching", "", "Everything a sub needs for the day", "Sub plans — {date}", `
 Date: {date}
 Teacher: —   Room: —
 Helpful neighbor teacher: —
@@ -745,7 +745,7 @@ WHERE THINGS ARE
 
 EMERGENCY PROCEDURES: —
 Please leave a note about: —`, "work"),
-  t("plc", "PLC / staff meeting", "School & teaching", "👥", "Data, strategies and commitments", "PLC — {date}", `
+  t("plc", "PLC / staff meeting", "School & teaching", "", "Data, strategies and commitments", "PLC — {date}", `
 Date: {date}
 Team: —
 
@@ -760,7 +760,7 @@ STRATEGIES WE'LL TRY
 
 COMMITMENTS (who · what · by when)
 ☐ — · — · —`, "work"),
-  t("homework", "Homework planner", "School & teaching", "✏️", "Every class, what's due and when", "Homework — week of {date}", `
+  t("homework", "Homework planner", "School & teaching", "", "Every class, what's due and when", "Homework — week of {date}", `
 Week of {date}
 
 CLASS · ASSIGNMENT · DUE · DONE
@@ -774,7 +774,7 @@ TESTS COMING UP
 Study plan: —`, "life"),
 
   // ── Planning ──────────────────────────────────────────────────────────────
-  t("weekly-plan", "Weekly planner", "Planning", "🗓️", "Top 3, every day, and a review", "Week of {date}", `
+  t("weekly-plan", "Weekly planner", "Planning", "", "Top 3, every day, and a review", "Week of {date}", `
 Week of {date}
 
 TOP 3 THIS WEEK
@@ -793,7 +793,7 @@ SUN  —
 END OF WEEK
 Done: —
 Carry over: —`),
-  t("goals", "Goal plan", "Planning", "🎯", "A goal, why it matters and the steps", "Goal: —", `
+  t("goals", "Goal plan", "Planning", "", "A goal, why it matters and the steps", "Goal: —", `
 My goal: —
 By: —
 Why it matters to me: —
@@ -810,7 +810,7 @@ WHAT MIGHT GET IN THE WAY
 — → what I'll do: —
 
 Check-in dates: —`),
-  t("year-review", "Year in review", "Planning", "🏆", "Look back, then look ahead", "Year in review", `
+  t("year-review", "Year in review", "Planning", "", "Look back, then look ahead", "Year in review", `
 BEST MOMENTS
 -
 
@@ -827,7 +827,7 @@ NEXT YEAR, I WANT TO
 ☐
 ☐
 ☐ `),
-  t("event-plan", "Event plan", "Planning", "📣", "Who, what, when, where and the to-dos", "Event: —", `
+  t("event-plan", "Event plan", "Planning", "", "Who, what, when, where and the to-dos", "Event: —", `
 Event: —
 Date: —   Time: —
 Where: —
@@ -846,7 +846,7 @@ DAY-OF RUN SHEET
 — : —`),
 
   // ── Money ─────────────────────────────────────────────────────────────────
-  t("budget", "Monthly budget", "Money", "💵", "Income, bills, spending and savings", "Budget — {date}", `
+  t("budget", "Monthly budget", "Money", "", "Income, bills, spending and savings", "Budget — {date}", `
 Month: —
 
 INCOME
@@ -870,7 +870,7 @@ SPENDING
 SAVINGS: $—
 TOTAL OUT: $—
 LEFT OVER: $—`, "life"),
-  t("savings-goal", "Savings goal", "Money", "🐷", "How much, by when, and how", "Saving for: —", `
+  t("savings-goal", "Savings goal", "Money", "", "How much, by when, and how", "Saving for: —", `
 Saving for: —
 Goal: $—   By: —
 Saved so far: $—
@@ -885,7 +885,7 @@ DEPOSITS
 {date}: $—`, "life"),
 
   // ── Faith & mind ──────────────────────────────────────────────────────────
-  t("sermon", "Sermon / Bible study notes", "Faith & mind", "📖", "Passage, key points and how to live it", "Bible study — {date}", `
+  t("sermon", "Sermon / Bible study notes", "Faith & mind", "", "Passage, key points and how to live it", "Bible study — {date}", `
 Date: {date}
 Passage: —
 Speaker / group: —
@@ -905,15 +905,15 @@ HOW I'LL LIVE IT THIS WEEK
 ☐
 
 Prayer: —`, "life"),
-  t("prayer", "Prayer list", "Faith & mind", "🙏", "Requests, and the ones answered", "Prayer list", `
+  t("prayer", "Prayer list", "Faith & mind", "", "Requests, and the ones answered", "Prayer list", `
 PRAYING FOR
 - — (since {date})
 -
 -
 
-ANSWERED 🙌
+ANSWERED
 - `, "life"),
-  t("gratitude", "Gratitude", "Faith & mind", "🌻", "Three good things, every day", "Grateful — {date}", `
+  t("gratitude", "Gratitude", "Faith & mind", "", "Three good things, every day", "Grateful — {date}", `
 {date}
 
 Three things I'm grateful for:
@@ -923,7 +923,7 @@ Three things I'm grateful for:
 
 Someone who made my day better: —
 Something I'm looking forward to: —`),
-  t("reflection", "Weekly reflection", "Faith & mind", "🌙", "Slow down and look at your week", "Reflection — week of {date}", `
+  t("reflection", "Weekly reflection", "Faith & mind", "", "Slow down and look at your week", "Reflection — week of {date}", `
 Week of {date}
 
 What gave me energy: —
@@ -934,7 +934,7 @@ What I need less of: —
 One thing for next week: —`),
 
   // ── Travel ────────────────────────────────────────────────────────────────
-  t("itinerary", "Trip itinerary", "Travel", "✈️", "Flights, stays and a day-by-day plan", "Trip: —", `
+  t("itinerary", "Trip itinerary", "Travel", "", "Flights, stays and a day-by-day plan", "Trip: —", `
 Where: —   Dates: —
 
 GETTING THERE
@@ -957,7 +957,7 @@ RESERVATIONS
 ☐ — at —
 
 Budget: $—`, "life"),
-  t("road-trip", "Road trip", "Travel", "🚗", "Stops, snacks and the car check", "Road trip: —", `
+  t("road-trip", "Road trip", "Travel", "", "Stops, snacks and the car check", "Road trip: —", `
 From: —   To: —   Miles: —
 
 CAR CHECK

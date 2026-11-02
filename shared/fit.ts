@@ -34,11 +34,14 @@ export type FitData = {
   /** Outdoor runs, walks and hikes tracked by GPS (shared/fitRun.ts). */
   runs?: Run[];
   savedMeals?: SavedMeal[];
+  /** Sleep nights and goal (shared/fitSleep.ts). */
+  sleep?: Sleep;
 };
 
 import { DIET_BY_ID, cleanFasting, type Fasting } from "./fitNutrition";
 import { cleanRuns, type Run } from "./fitRun";
 import { cleanGym, type MyGym } from "./fitGym";
+import { cleanSleep, type Sleep } from "./fitSleep";
 
 export const LIMITS = { workouts: 3000, foods: 20000, routines: 60, weights: 3000, recent: 60, bytes: 2_500_000 };
 
@@ -91,6 +94,8 @@ export function cleanFit(raw: any): FitData {
   const meals = (Array.isArray(raw.savedMeals) ? raw.savedMeals : []).slice(0, 60).filter((m: any) => m?.id && Array.isArray(m?.items) && m.items.length)
     .map((m: any): SavedMeal => ({ id: str(m.id, 40), name: str(m.name, 60) || "Meal", items: m.items.slice(0, 30).map(food) }));
   if (meals.length) d.savedMeals = meals;
+  const sleep = cleanSleep(raw.sleep);
+  if (sleep) d.sleep = sleep;
   const runs = cleanRuns(raw.runs);
   if (runs.length) d.runs = runs;
   return d;

@@ -92,13 +92,18 @@ export async function applyReminders(r: Reminders): Promise<void> {
   } catch (e) { throw friendly(e, "Reminders"); }
 }
 
-/** A one-off "fast complete" alert at the goal time (replaced or cancelled with the fast). */
-export function scheduleFastEnd(at: number | null) {
+/** A one-off "fast complete" alert at the goal time (replaced or cancelled with the fast). Only set for
+ *  a goal at least a few minutes away, so starting a fast can never fire it on the spot. */
+export function scheduleFastEnd(at: number | null, startedAt?: number) {
   if (!isNativeApp() || !readReminders().fasting) return;
   void (async () => {
     try {
       await notes("cancel", { notifications: [{ id: 400 }] });
-      if (at && at > Date.now()) await notes("schedule", { notifications: [{ id: 400, title: "Fast complete", body: "You hit your fasting goal. Break it with protein and log your meal.", schedule: { at: new Date(at).toISOString(), allowWhileIdle: true } }] });
+      // A fast that was just started has its whole goal still ahead; anything closer than 10 minutes
+      // after the start, or already past, is not a finished fast and is never scheduled.
+      const ahead = at ? at - Date.now() : 0;
+      if (!at || ahead < 10 * 60_000 || (startedAt && at - startedAt < 10 * 60_000)) return;
+      await notes("schedule", { notifications: [{ id: 400, title: "Fast complete", body: "You hit your fasting goal. Break it with protein and log your meal.", schedule: { at: new Date(at).toISOString(), allowWhileIdle: true } }] });
     } catch { /* no notifications on this build */ }
   })();
 }

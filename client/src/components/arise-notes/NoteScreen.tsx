@@ -2,6 +2,7 @@
 // time to hear that moment, edit any line, rename speakers), and the tools (a parent-friendly email,
 // translation, flashcards and a quiz). Share and export are in the share sheet.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { NoteTypeIcon } from "./NoteIcon";
 import { CalendarPlus, Check, ChevronDown, Lock, MoreHorizontal, Pause, Pencil, Play, RefreshCw, Search, Share2, Sparkles, Star, Volume2, X } from "lucide-react";
 import { NOTES_PLANS, fmtClock, speakerName, templateOf, type NoteSummary, type NotesTemplateId, type Timed } from "@shared/ariseNotes";
 import { sayAI, stopAiVoice } from "@/lib/aiVoice";
@@ -71,7 +72,7 @@ export default function NoteScreen({ ctx, id, at }: { ctx: AppCtx; id: string; a
       <div className="flex flex-wrap items-center gap-2 text-[13px] text-[var(--an-muted)]">
         <span>{longDate(note.createdAt)}</span>
         {note.durationSecs > 0 && <span>· {fmtClock(note.durationSecs)}</span>}
-        <button type="button" className="an-chip" onClick={() => note.mine && setSheet("template")} disabled={!note.mine}><span aria-hidden>{note.source === "memo" ? "⚡" : t.emoji}</span>{note.source === "memo" ? "Voice memo" : t.label}{note.mine && <ChevronDown className="h-3.5 w-3.5" aria-hidden />}</button>
+        <button type="button" className="an-chip" onClick={() => note.mine && setSheet("template")} disabled={!note.mine}><NoteTypeIcon id={note.source === "memo" ? "memo" : t.id} className="h-3.5 w-3.5" />{note.source === "memo" ? "Voice memo" : t.label}{note.mine && <ChevronDown className="h-3.5 w-3.5" aria-hidden />}</button>
         {!note.mine && <span className="an-chip">Shared with your family</span>}
       </div>
       {note.status === "processing" && <Notice>Still writing this down… it updates by itself.</Notice>}

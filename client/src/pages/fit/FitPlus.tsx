@@ -2,6 +2,7 @@
 // Fit+ is bought on the website only. The iPhone app never shows a price or a way to pay (App Review
 // 3.1.1): it says Fit+ is on the account when it is, and a guest pass works anywhere.
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { FeatureIcon } from "./FitIcon";
 import { Check, Copy, Crown, Loader2, Share2, Ticket, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
@@ -100,7 +101,7 @@ export function PlusSheet({ status, feature, passCode, reload, say, onClose }: {
 
     <Title>{status.plus ? "Included" : "What you get"}</Title>
     <Card className="!p-4"><ul className="space-y-3">{PLUS_FEATURES.map((f) => <li key={f.id} className="flex gap-3" style={feature === f.id ? { color: C.text } : undefined}>
-      <span className="text-[22px] leading-none" aria-hidden>{f.e}</span>
+      <FeatureIcon id={f.id} className="mt-0.5 h-5 w-5 shrink-0" />
       <span className="min-w-0"><span className="block text-[15px] font-semibold">{f.name}{status.plus && <Check className="ml-1.5 inline h-4 w-4" style={{ color: C.lime }} />}</span><span className="block text-[13px] leading-snug" style={{ color: C.dim }}>{f.blurb}</span></span></li>)}</ul>
       <p className="mt-3 text-[12px]" style={{ color: C.dim }}>Workouts, programs, food, fasting, runs, recipes and your workout circle stay free.</p></Card>
 

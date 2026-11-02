@@ -13,13 +13,13 @@ export const PASS_SWITCH_DAYS = 30;
 
 export type PlusFeature = "photo-scan" | "camera-reps" | "debrief" | "gyms" | "eat-out" | "ai-recipes" | "guest-pass";
 export const PLUS_FEATURES: { id: PlusFeature; e: string; name: string; blurb: string }[] = [
-  { id: "photo-scan", e: "📸", name: "Photo scanning", blurb: "Snap any machine to learn it, or your home or apartment gym to set up your equipment" },
-  { id: "camera-reps", e: "🎥", name: "Camera rep counting", blurb: "Your phone counts reps and coaches your form during a workout" },
-  { id: "debrief", e: "📋", name: "After-workout report", blurb: "When you'll be sore, what to eat and by when, water, creatine and pre-workout" },
-  { id: "gyms", e: "📍", name: "Gyms near me", blurb: "Prices, busy times and live crowd reports" },
-  { id: "eat-out", e: "🥗", name: "Eat out", blurb: "Healthier picks at restaurants and fast food near you, logged in one tap" },
-  { id: "ai-recipes", e: "👨‍🍳", name: "AI recipes", blurb: "A recipe made from what's in your kitchen, fit to your goals" },
-  { id: "guest-pass", e: "🎟️", name: "Guest pass", blurb: "Share Fit+ free with one friend or family member" },
+  { id: "photo-scan", e: "", name: "Photo scanning", blurb: "Snap any machine to learn it, or your home or apartment gym to set up your equipment" },
+  { id: "camera-reps", e: "", name: "Camera rep counting", blurb: "Your phone counts reps and coaches your form during a workout" },
+  { id: "debrief", e: "", name: "After-workout report", blurb: "When you'll be sore, what to eat and by when, water, creatine and pre-workout" },
+  { id: "gyms", e: "", name: "Gyms near me", blurb: "Prices, busy times and live crowd reports" },
+  { id: "eat-out", e: "", name: "Eat out", blurb: "Healthier picks at restaurants and fast food near you, logged in one tap" },
+  { id: "ai-recipes", e: "", name: "AI recipes", blurb: "A recipe made from what's in your kitchen, fit to your goals" },
+  { id: "guest-pass", e: "", name: "Guest pass", blurb: "Share Fit+ free with one friend or family member" },
 ];
 export const PLUS_NAME: Record<PlusFeature, string> = Object.fromEntries(PLUS_FEATURES.map((f) => [f.id, f.name])) as Record<PlusFeature, string>;
 

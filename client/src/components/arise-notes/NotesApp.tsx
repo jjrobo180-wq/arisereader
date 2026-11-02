@@ -2,6 +2,7 @@
 // inside Arise To Duo (pages/AriseNotesPage.tsx): Home with the notes, Record, Upload, a note, Ask
 // your notes, Voice memo, and Settings (plan and minutes, family, privacy, accessibility).
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { NoteTypeIcon } from "./NoteIcon";
 import { ArrowRight, ChevronLeft, Columns2, Folder, Loader2, Lock, Mic, MessageCircle, Search, Settings, Sparkles, Upload, Users, Zap } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { startApplePush } from "@/lib/applePush";
@@ -247,7 +248,7 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
           <label className="relative w-full sm:w-72">
             <span className="sr-only">Search notes</span>
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--an-faint)]" aria-hidden />
-            <input className="an-input pl-9" placeholder="Search every note" value={q} onChange={(e) => setQ(e.target.value)} data-testid="notes-search" />
+            <input className="an-input an-search" placeholder="Search every note" value={q} onChange={(e) => setQ(e.target.value)} data-testid="notes-search" />
           </label>
         </div>
         {(folders.length > 0 || tags.length > 0 || ctx.me.family) && <div className="an-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
@@ -297,7 +298,7 @@ function NoteCard({ n, onOpen }: { n: ListNote; onOpen: () => void }) {
   const t = templateOf(n.template);
   return <li>
     <button type="button" onClick={onOpen} className="an-card flex h-full w-full gap-3 p-4 text-left transition hover:border-[var(--an-violet)]" data-testid="notes-card">
-      <span aria-hidden className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--an-violet-soft)] text-[20px]">{n.source === "memo" ? "⚡" : t.emoji}</span>
+      <span aria-hidden className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--an-violet-soft)] text-[var(--an-violet)]"><NoteTypeIcon id={n.source === "memo" ? "memo" : t.id} className="h-5 w-5" /></span>
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2"><span className="truncate text-[16px] font-bold">{n.title || "Untitled note"}</span>{st && <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${st.tone}`}>{st.text}</span>}</span>
         <span className="mt-0.5 block text-[13px] text-[var(--an-muted)]">{shortDate(n.createdAt)}{n.durationSecs ? ` · ${fmtClock(n.durationSecs)}` : ""} · {n.source === "memo" ? "Voice memo" : t.label}{n.by ? ` · ${n.by}` : ""}</span>
@@ -311,7 +312,7 @@ function NoteCard({ n, onOpen }: { n: ListNote; onOpen: () => void }) {
 function EmptyNotes({ ctx }: { ctx: AppCtx }) {
   const p = NOTES_PLANS[ctx.me.plan];
   return <div className="an-card px-6 py-10 text-center">
-    <div aria-hidden className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-3xl bg-[var(--an-violet-soft)] text-[30px]">🎙️</div>
+    <div aria-hidden className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-3xl bg-[var(--an-violet-soft)] text-[var(--an-violet)]"><Mic className="h-7 w-7" /></div>
     <h3 className="text-[18px] font-bold">Your first note is one tap away</h3>
     <p className="mx-auto mt-1.5 max-w-sm text-[15px] leading-relaxed text-[var(--an-muted)]">Record a meeting or class, or upload a recording. You'll get a transcript with times, a summary and the to-dos, ready for your planner. {p.name} includes {plural(p.minutes, "minute")} a month.</p>
     <div className="mt-5 flex flex-wrap justify-center gap-2"><Btn kind="record" onClick={() => ctx.go({ name: "record" })}><Mic className="h-4 w-4" />Record</Btn><Btn kind="soft" onClick={() => ctx.go({ name: "upload" })}><Upload className="h-4 w-4" />Upload</Btn></div>

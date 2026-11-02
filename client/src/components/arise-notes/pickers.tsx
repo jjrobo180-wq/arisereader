@@ -1,5 +1,6 @@
 // Pieces shared by Record and Upload: the template choice, the consent reminder and the speaker switch.
 import type { NotesTemplateId } from "@shared/ariseNotes";
+import { NoteTypeIcon } from "./NoteIcon";
 import { Lock } from "lucide-react";
 import type { Me } from "./api";
 import { Toggle } from "./ui";
@@ -12,7 +13,7 @@ export function TemplatePicker({ me, value, onChange, onLocked }: { me: Me; valu
         const on = value === t.id;
         return <button key={t.id} type="button" role="radio" aria-checked={on} onClick={() => (t.allowed ? onChange(t.id) : onLocked())} data-testid={`notes-template-${t.id}`}
           className={`relative flex min-h-[86px] flex-col items-start gap-1 rounded-2xl border p-3 text-left transition ${on ? "border-[var(--an-violet)] bg-[var(--an-violet-soft)] ring-2 ring-[var(--an-violet)]" : "border-[var(--an-line)] bg-white hover:border-[var(--an-violet)]"}`}>
-          <span aria-hidden className="text-[22px] leading-none">{t.emoji}</span>
+          <span aria-hidden className="text-[var(--an-violet)]"><NoteTypeIcon id={t.id} className="h-[22px] w-[22px]" /></span>
           <span className="text-[14px] font-bold leading-tight">{t.label}</span>
           <span className="an-extra text-[12px] leading-snug text-[var(--an-muted)]">{t.blurb}</span>
           {!t.allowed && <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-[var(--an-amber-soft)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--an-amber)]"><Lock className="h-3 w-3" aria-hidden />{t.id === "iep" ? "Plus" : "Basic"}</span>}

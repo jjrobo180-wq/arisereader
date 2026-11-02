@@ -723,6 +723,10 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     }
   };
 
+  // Opened by tapping an episode (or a Pod Mode): that tap unlocks every player right now, so the
+  // episode starts by itself when it has loaded, with no second tap on Play.
+  useEffect(() => { if (start?.ep || playMode) unlock(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ---------------- playback through the server: ads found in this listener's own copy ----------------
   useEffect(() => {
     if (!mediaUrl) return;
@@ -1183,9 +1187,9 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       return;
     }
     if (listened.current < 8 || Date.now() - lastAutoAdvance.current < 5000) {
-      // Even played from the top it won't play: go on to the next one instead of stopping here.
-      if (Date.now() - lastAutoAdvance.current >= 5000 && !sheetRef.current) { lastAutoAdvance.current = Date.now(); say("That episode wouldn't play. Here's the next one."); goTo(activeRef.current + 1); return; }
-      say("That episode is over. Swipe up for the next one."); return;
+      // Even played from the top it ended within seconds: stay on this episode (never jump to another one
+      // by itself) and let the listener choose.
+      say("That episode stopped early. Tap play to try again, or swipe up for the next one."); return;
     }
     lastAutoAdvance.current = Date.now();
     if (!sheetRef.current) goTo(activeRef.current + 1);

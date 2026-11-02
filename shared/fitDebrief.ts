@@ -60,7 +60,7 @@ export function debrief(w: Workout, data: Pick<FitData, "workouts" | "profile" |
 /** Plain facts about two supplements people ask about. */
 export const SUPPLEMENTS = [
   {
-    id: "creatine", name: "Creatine", e: "🧪",
+    id: "creatine", name: "Creatine", e: "",
     lead: "The most researched supplement for strength. It helps you do a rep or two more and build muscle a little faster.",
     points: [
       "Take 3 to 5 g of creatine monohydrate every day. The time of day doesn't matter; taking it every day does.",
@@ -71,7 +71,7 @@ export const SUPPLEMENTS = [
     ],
   },
   {
-    id: "preworkout", name: "Pre-workout", e: "⚡",
+    id: "preworkout", name: "Pre-workout", e: "",
     lead: "Mostly caffeine. It can help you feel more alert and push a bit harder, but food and sleep matter more.",
     points: [
       "Have it 30 to 60 minutes before training. A cup or two of coffee works the same way for most people.",

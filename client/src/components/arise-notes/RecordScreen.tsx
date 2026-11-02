@@ -262,7 +262,7 @@ export default function RecordScreen({ ctx }: { ctx: AppCtx }) {
         <div className="an-bars mt-2 flex h-10 items-center" aria-hidden>
           {Array.from({ length: 16 }, (_, i) => <span key={i} style={{ height: `${Math.max(4, (phase === "recording" && !paused ? level : 0) * 40 * (0.45 + 0.55 * Math.abs(Math.sin(i * 1.7 + secs))))}px` }} />)}
         </div>
-        <p className="mt-2 text-[14px] text-[var(--an-muted)]">{phase === "finishing" ? step : paused ? "Paused. Nothing is being recorded." : highlights.length ? `${highlights.length} part${highlights.length === 1 ? "" : "s"} marked important` : "Tap ★ when something matters. It goes first in the summary."}</p>
+        <p className="mt-2 text-[14px] text-[var(--an-muted)]">{phase === "finishing" ? step : paused ? "Paused. Nothing is being recorded." : highlights.length ? `${highlights.length} part${highlights.length === 1 ? "" : "s"} marked important` : "Tap the star when something matters. It goes first in the summary."}</p>
         {phase === "recording" && <div className="mt-5 flex flex-wrap justify-center gap-3">
           <Btn kind="plain" onClick={togglePause} aria-keyshortcuts="Space" data-testid="notes-pause">{paused ? <><Play className="h-4 w-4" />Resume</> : <><Pause className="h-4 w-4" />Pause</>}</Btn>
           <Btn kind="soft" onClick={mark} disabled={paused} aria-keyshortcuts="H" data-testid="notes-highlight"><Star className="h-4 w-4" />This matters</Btn>

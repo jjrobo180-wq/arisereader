@@ -254,13 +254,13 @@ export function cleanSettings(raw: unknown): NotesSettings {
 export type NotesTemplateId = "general" | "iep" | "parent" | "staff" | "lecture" | "doctor" | "interview";
 export type NotesTemplate = { id: NotesTemplateId; label: string; emoji: string; blurb: string; sections: string[]; focus: string; needs?: NotesFeature };
 export const NOTES_TEMPLATES: NotesTemplate[] = [
-  { id: "general", label: "General", emoji: "📝", blurb: "Summary, key points, decisions and to-dos.", sections: [], focus: "A clear general summary." },
-  { id: "iep", label: "IEP meeting", emoji: "🧩", blurb: "A structured IEP draft for you to review.", sections: [], focus: "An IEP or special education meeting about one student.", needs: "iep" },
-  { id: "parent", label: "Parent conference", emoji: "👪", blurb: "Strengths, concerns, agreements, help at home.", sections: ["Strengths", "Concerns", "What we agreed", "How to help at home"], focus: "A parent-teacher conference about a child.", needs: "templates" },
-  { id: "staff", label: "Staff meeting", emoji: "🏫", blurb: "Announcements, decisions, who does what.", sections: ["Announcements", "Decisions", "Who is doing what"], focus: "A staff or team meeting.", needs: "templates" },
-  { id: "lecture", label: "Class lecture", emoji: "🎓", blurb: "Main ideas, key terms, examples, homework.", sections: ["Main ideas", "Key terms", "Examples", "Homework and due dates"], focus: "A class lecture or lesson, summarized for studying.", needs: "templates" },
-  { id: "doctor", label: "Doctor visit", emoji: "🩺", blurb: "Findings, medicines, instructions, follow-up.", sections: ["Why we went", "What the doctor found", "Medicines", "What to do at home", "Follow-up"], focus: "A doctor or therapy visit. Be careful and exact with medicines and doses; never add medical advice of your own.", needs: "templates" },
-  { id: "interview", label: "Interview", emoji: "🎙️", blurb: "About them, strengths, concerns, quotes.", sections: ["About them", "Strengths", "Concerns", "Notable quotes", "Next steps"], focus: "An interview (a job interview, a podcast or a conversation with one person).", needs: "templates" },
+  { id: "general", label: "General", emoji: "", blurb: "Summary, key points, decisions and to-dos.", sections: [], focus: "A clear general summary." },
+  { id: "iep", label: "IEP meeting", emoji: "", blurb: "A structured IEP draft for you to review.", sections: [], focus: "An IEP or special education meeting about one student.", needs: "iep" },
+  { id: "parent", label: "Parent conference", emoji: "", blurb: "Strengths, concerns, agreements, help at home.", sections: ["Strengths", "Concerns", "What we agreed", "How to help at home"], focus: "A parent-teacher conference about a child.", needs: "templates" },
+  { id: "staff", label: "Staff meeting", emoji: "", blurb: "Announcements, decisions, who does what.", sections: ["Announcements", "Decisions", "Who is doing what"], focus: "A staff or team meeting.", needs: "templates" },
+  { id: "lecture", label: "Class lecture", emoji: "", blurb: "Main ideas, key terms, examples, homework.", sections: ["Main ideas", "Key terms", "Examples", "Homework and due dates"], focus: "A class lecture or lesson, summarized for studying.", needs: "templates" },
+  { id: "doctor", label: "Doctor visit", emoji: "", blurb: "Findings, medicines, instructions, follow-up.", sections: ["Why we went", "What the doctor found", "Medicines", "What to do at home", "Follow-up"], focus: "A doctor or therapy visit. Be careful and exact with medicines and doses; never add medical advice of your own.", needs: "templates" },
+  { id: "interview", label: "Interview", emoji: "", blurb: "About them, strengths, concerns, quotes.", sections: ["About them", "Strengths", "Concerns", "Notable quotes", "Next steps"], focus: "An interview (a job interview, a podcast or a conversation with one person).", needs: "templates" },
 ];
 export const isTemplateId = (v: unknown): v is NotesTemplateId => typeof v === "string" && NOTES_TEMPLATES.some((t) => t.id === v);
 export const templateOf = (id: unknown): NotesTemplate => NOTES_TEMPLATES.find((t) => t.id === id) ?? NOTES_TEMPLATES[0];

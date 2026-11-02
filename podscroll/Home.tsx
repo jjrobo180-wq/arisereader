@@ -26,6 +26,7 @@ import { GoLiveSheet, LiveRoom, type LiveSummary } from "../client/src/component
 import { setTheme, useTheme } from "../client/src/components/family-hub/earshot/EarshotPlayer";
 import { HoursBackCard } from "../client/src/components/family-hub/earshot/EarshotListen";
 import { WikiView } from "./Wiki";
+import { SmartDownloads, setSmartDownloads, smartDownloadsOn } from "./smartDownloads";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
 type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "music" } | { kind: "books" } | { kind: "book"; id: string } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "live" } | { kind: "now" } | { kind: "newsstations" } | { kind: "standup" } | { kind: "study" } | { kind: "meeting" } | { kind: "import" } | { kind: "clips" } | { kind: "watch"; showId: string; episodeId: string } | { kind: "wiki" };
@@ -492,6 +493,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
               <p className="truncate px-3 pb-2 pt-1 text-sm font-semibold">{email || "Signed in"}</p>
               <p className="px-3 pb-2 text-xs text-[#606060]">Pod+ Member</p>
               <button onClick={() => { setAcctOpen(false); setPrivacyOpen(true); }} className="flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm hover:bg-[#f2f2f2]"><ShieldCheck size={16} />Account & privacy</button>
+              <button onClick={() => { const on = !smartDownloadsOn(); setSmartDownloads(on); setAcctOpen(false); say(on ? "Smart downloads are on." : "Smart downloads are off."); }} className="flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm hover:bg-[#f2f2f2]"><ArrowDownToLine size={16} />Smart downloads: {smartDownloadsOn() ? "on" : "off"}</button>
               <button onClick={() => { setAcctOpen(false); onSignOut(); }} className="flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm hover:bg-[#f2f2f2]"><LogOut size={16} />Sign out</button>
             </div>}
           </span>}
@@ -779,6 +781,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       <button onClick={() => { undo.undo(); setUndo(null); }} className="h-9 shrink-0 rounded-lg px-3 font-semibold text-[#3ea6ff] hover:bg-white/10">Undo</button>
     </div>}
     {newMode && <NewModeDialog onClose={() => setNewMode(false)} onMake={(name) => { const id = makeMode(update, name); setNewMode(false); go({ kind: "mode", id }); }} />}
+    {visible && pro && <SmartDownloads api={api} follows={es.follows} heard={es.heard} member={pro} ex={ex} say={say} />}
     {goLive && <GoLiveSheet api={api} say={(m) => { say(m); if (/sign in|profile|account/i.test(m)) { setGoLive(false); onJoin(); } }} onClose={() => setGoLive(false)} onStarted={(id, ticket) => { setGoLive(false); setStation(null); setReading(null); setListening(null); setLiveRoom({ id, ticket }); }} />}
     {liveRoom && <LiveRoom key={liveRoom.id} api={api} say={say} roomId={liveRoom.id} ticket={liveRoom.ticket} wsBase={liveBase}
       onClose={() => { setLiveRoom(null); api("/api/earshot/creators/live").then((b) => setLive(b.live || [])).catch(() => {}); }} />}
@@ -1044,7 +1047,7 @@ function ContinueListening({ nowPod, visible, onToggle, onOpenNow, onResume }: {
             <span className="mt-0.5 block truncate text-[12px] text-[#606060]">{leftWords(sp)} · {sp.show}</span></span>
         </button>
         <button onClick={() => onResume(id, sp)} data-testid={!nowPod && k === 0 ? "pod-continue-play" : undefined} aria-label={`Play ${sp.title}`} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#e0e0e0] text-[#0f0f0f]"><Play size={15} fill="currentColor" strokeWidth={0} className="ml-0.5" /></button>
-        <button onClick={() => hide(id)} aria-label={`Remove ${sp.title} from Continue listening`} className="absolute right-0.5 top-0.5 grid h-6 w-6 place-items-center rounded-full text-[#b0b0b0] hover:text-[#606060]"><X size={12} /></button>
+        <button onClick={() => hide(id)} aria-label={`Remove ${sp.title} from Continue listening`} className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[#b0b0b0] hover:bg-[#f2f2f2] hover:text-[#606060]"><X size={14} /></button>
         {sp.secs > 0 && <span className="absolute inset-x-0 bottom-0 h-[2px] bg-[#f0f0f0]"><span className="block h-full bg-[#ff6a1f]" style={{ width: `${Math.min(100, (sp.t / sp.secs) * 100)}%` }} /></span>}
       </div>)}
     </div>

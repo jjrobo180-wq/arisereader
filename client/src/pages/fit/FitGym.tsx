@@ -7,6 +7,7 @@
 // - Swap an exercise during a workout for another that works the same muscle with your equipment.
 // - After a workout: when you'll be sore, what to eat and by when, water, and facts on creatine and pre-workout.
 import { useEffect, useMemo, useRef, useState } from "react";
+import { GearIcon, GymIcon, SupplementIcon } from "./FitIcon";
 import { ArrowLeftRight, Bell, Camera, Check, ChevronRight, Droplets, Loader2, QrCode, ScanLine, Search, Sparkles, Utensils } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { shrinkPhoto } from "@/lib/foodLookup";
@@ -73,9 +74,9 @@ export function GymSheet({ data, update, onClose }: { data: FitData; update: Upd
     {!type ? <>
       <p className="px-1 text-[15px]" style={{ color: C.steel }}>Where do you train? Workouts built for you will only use equipment your gym has.</p>
       <div className="mt-4 grid grid-cols-2 gap-2">{GYM_TYPES.map((g) => <button key={g.id} type="button" onClick={() => pick(g.id)} className="fit-in flex min-h-[86px] flex-col items-start rounded-[14px] p-3 text-left active:scale-[.98]" style={{ background: C.card, boxShadow: `inset 0 0 0 1px ${C.line}` }} data-testid={`fit-gym-type-${g.id}`}>
-        <span className="text-[22px]" aria-hidden>{g.e}</span><span className="mt-1 text-[17px] leading-tight" style={display}>{g.name}</span></button>)}</div>
+        <GymIcon gym={g} className="h-6 w-6" /><span className="mt-1 text-[17px] leading-tight" style={display}>{g.name}</span></button>)}</div>
     </> : <>
-      <Card className="!p-4"><div className="flex items-start gap-3"><span className="text-[28px]" aria-hidden>{kind?.e}</span>
+      <Card className="!p-4"><div className="flex items-start gap-3">{kind && <GymIcon gym={kind} className="h-7 w-7" />}
         <div className="min-w-0 flex-1"><p className="text-[24px] leading-none" style={display}>{kind?.name}</p><p className="mt-1 text-[13px]" style={{ color: C.steel }}>{kind?.blurb}</p></div>
         <button type="button" onClick={() => setType(null)} className="text-[14px] font-semibold" style={{ color: C.lime }}>Change</button></div></Card>
       <label className="mt-3 block px-1 text-[13px] font-semibold" style={{ color: C.dim }} htmlFor="fit-gym-name">Name (optional)</label>
@@ -88,7 +89,7 @@ export function GymSheet({ data, update, onClose }: { data: FitData; update: Upd
       <p className="mt-3 px-1 text-[13px]" style={{ color: C.dim }}>{kind?.scan ? "Tick what you have." : "Typical for this gym. Every location is different: switch off anything yours doesn't have."}</p>
       {KINDS.map((k) => <div key={k}><Title>{KIND_NAME[k]}</Title>
         <div className="grid grid-cols-2 gap-2">{GEAR.filter((g) => g.kind === k).map((g) => { const on = gear.has(g.id); return <button key={g.id} type="button" onClick={() => toggle(g.id)} aria-pressed={on} className="flex min-h-12 items-center gap-2 rounded-[10px] px-2.5 text-left text-[14px] font-semibold" style={on ? { background: C.lime, color: "#0b0b0c" } : { background: C.card, color: C.text, boxShadow: `inset 0 0 0 1px ${C.line}` }} data-testid={`fit-gear-${g.id}`}>
-          <span aria-hidden>{on ? <Check className="h-4 w-4" /> : g.e}</span><span className="leading-tight">{g.name}</span></button>; })}</div></div>)}
+          <span aria-hidden>{on ? <Check className="h-4 w-4" /> : <GearIcon gear={g} className="h-4 w-4" />}</span><span className="leading-tight">{g.name}</span></button>; })}</div></div>)}
       <Btn className="mt-6 w-full" onClick={save} testId="fit-gym-save"><Check className="h-5 w-5" />Save my gym</Btn>
       {saved && <button type="button" onClick={() => { update((d) => { const { gym: _g, ...profile } = d.profile; return { ...d, profile }; }); onClose(); }} className="mt-3 h-11 w-full text-[14px] font-semibold" style={{ color: C.dim }}>Forget my gym</button>}
     </>}
@@ -151,13 +152,13 @@ export function MachineGuide({ gear, data, update, onUse, useLabel = "Add to wor
   const gym = data.profile.gym;
   const missing = gym && !gym.gear.includes(gear.id);
   return <div data-testid="fit-machine">
-    <Card className="!p-4"><div className="flex items-center gap-3"><span className="grid h-14 w-14 shrink-0 place-items-center rounded-[12px] text-[30px]" style={{ background: C.tint }} aria-hidden>{gear.e}</span>
+    <Card className="!p-4"><div className="flex items-center gap-3"><span className="grid h-14 w-14 shrink-0 place-items-center rounded-[12px]" style={{ background: C.tint }} aria-hidden><GearIcon gear={gear} className="h-7 w-7" /></span>
       <div className="min-w-0"><p className="text-[26px] leading-none" style={display}>{gear.name}</p>
         <p className="mt-1 text-[13px]" style={{ color: C.steel }}>Works {gear.works.map((m) => MUSCLE_NAME[m] ?? m).join(", ").toLowerCase()}</p></div></div></Card>
     <Title>How to use it</Title>
     <Card className="!p-4"><ol className="space-y-2">{gear.how.map((h, i) => <li key={i} className="flex gap-2.5 text-[15px] leading-snug"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[13px]" style={{ ...display, background: C.lime, color: "#0b0b0c" }}>{i + 1}</span>{h}</li>)}</ol></Card>
     <Title>Avoid</Title>
-    <Card className="!p-4"><ul className="space-y-1.5">{gear.avoid.map((a, i) => <li key={i} className="text-[15px] leading-snug">✕ {a}</li>)}</ul></Card>
+    <Card className="!p-4"><ul className="space-y-1.5">{gear.avoid.map((a, i) => <li key={i} className="text-[15px] leading-snug">– {a}</li>)}</ul></Card>
     {exercises.length > 0 && <><Title>Exercises on it</Title>
       <div className="space-y-2">{exercises.map((e) => <Card key={e.id} className="flex items-center gap-3 !p-3">
         <div className="min-w-0 flex-1"><p className="truncate text-[16px] font-semibold">{e.name}</p><p className="text-[12px]" style={{ color: C.dim }}>{MUSCLE_NAME[e.muscle]}{e.cues[0] ? ` · ${e.cues[0]}` : ""}</p></div>
@@ -216,7 +217,7 @@ export function ScanMachine({ data, update, onClose, onUse, useLabel }: { data: 
       <div className="relative mt-3"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: C.dim }} />
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Leg press, rower…" aria-label="Search machines" className={`${inputCls} !pl-9`} style={inputStyle} /></div>
       <div className="mt-2 space-y-1.5">{list.map((g) => <button key={g.id} type="button" onClick={() => setGear(g)} className="flex min-h-12 w-full items-center gap-3 rounded-[10px] px-3 text-left" style={{ background: C.card }} data-testid={`fit-scan-pick-${g.id}`}>
-        <span aria-hidden>{g.e}</span><span className="flex-1 text-[15px] font-semibold">{g.name}</span><ChevronRight className="h-4 w-4" style={{ color: C.dim }} /></button>)}</div>
+        <GearIcon gear={g} /><span className="flex-1 text-[15px] font-semibold">{g.name}</span><ChevronRight className="h-4 w-4" style={{ color: C.dim }} /></button>)}</div>
     </>}
   </Sheet>;
 }
@@ -267,7 +268,7 @@ export function Debrief({ w, data }: { w: Workout; data: FitData }) {
     <Title>Supplements</Title>
     <div className="space-y-2">{SUPPLEMENTS.map((s) => <Card key={s.id} className="!p-4">
       <button type="button" onClick={() => setOpen(open === s.id ? null : s.id)} aria-expanded={open === s.id} className="flex w-full items-center gap-3 text-left" data-testid={`fit-supp-${s.id}`}>
-        <span className="text-[24px]" aria-hidden>{s.e}</span><span className="min-w-0 flex-1"><span className="block text-[20px] leading-none" style={display}>{s.name}</span><span className="mt-1 block text-[13px]" style={{ color: C.steel }}>{s.lead}</span></span>
+        <SupplementIcon id={s.id} className="h-6 w-6" /><span className="min-w-0 flex-1"><span className="block text-[20px] leading-none" style={display}>{s.name}</span><span className="mt-1 block text-[13px]" style={{ color: C.steel }}>{s.lead}</span></span>
         <ChevronRight className="h-5 w-5 shrink-0 transition-transform" style={{ color: C.dim, transform: open === s.id ? "rotate(90deg)" : undefined }} /></button>
       {open === s.id && <ul className="mt-3 space-y-1.5">{s.points.map((p, i) => <li key={i} className="text-[14px] leading-snug">• {p}</li>)}</ul>}
     </Card>)}</div>
