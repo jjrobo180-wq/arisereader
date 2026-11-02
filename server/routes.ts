@@ -55,7 +55,13 @@ import { registerQuizIntegrityRoutes } from "./quizIntegrity";
 import { registerParentQuizPermissionRoutes } from "./parentQuizPermission";
 import { registerComprehensionRoutes } from "./comprehension";
 import { recordLogin, registerStudentActivityRoutes } from "./studentActivity";
-import { countHubStudents, createHubGate, registerTeacherHubRoutes } from "./teacherHub";
+import { countHubStudents, createHubGate, createSupabaseWorkspaceStore, registerTeacherHubRoutes } from "./teacherHub";
+import { registerAriseNotesRoutes, startNotesTicker } from "./ariseNotes";
+import { createSupabaseNotesStore } from "./ariseNotesStore";
+import { askSiteAi, createHearer, siteAiReady } from "./ariseNotesAi";
+import { createSupabaseLifeStore } from "./ariseNotesHubs";
+import { registerPagesRoutes, startPagesTicker } from "./arisePages";
+import { createSupabasePagesStore } from "./arisePagesStore";
 import { registerAriseTodoRoutes } from "./ariseTodo";
 import { registerWhatsNewRoutes } from "./whatsNew";
 import { registerAdminHandoffRoutes } from "./adminHandoff";
@@ -63,6 +69,8 @@ import { registerClientErrorRoutes } from "./clientErrors";
 import { registerTodoShareRoutes } from "./todoShare";
 import { registerFoodLookupRoutes } from "./foodLookup";
 import { registerFitRoutes } from "./fit";
+import { registerCoachRoutes } from "./coach";
+import { registerTalkRoutes } from "./talk";
 import { registerBrowserRoutes } from "./browserCheck";
 import { registerLifePlanRoutes } from "./lifePlan";
 import { registerAccountabilityRoutes, startAccountabilityTicker } from "./accountability";
@@ -72,7 +80,7 @@ import { podscrollAllowed, registerEarshotRoutes, registerPodscrollRoutes, supab
 import { deletePodData } from "./podcastAccounts";
 import { hideLinks, onSocialReport, registerModerationRoutes } from "./socialModeration";
 import { registerSupportRoutes } from "./supportContact";
-import { ARISE_APP, EDUCATOR_APP, EYEGAZER_APP, FIT_APP, AppleTokenError, appleRefreshToken, appleUsername, revokeAppleToken, verifyAppleToken } from "./appleSignIn";
+import { ARISE_APP, EDUCATOR_APP, EYEGAZER_APP, FIT_APP, NOTES_APP, TALK_APP, TRAINER_APP, AppleTokenError, appleRefreshToken, appleUsername, revokeAppleToken, verifyAppleToken } from "./appleSignIn";
 import { attachLivePods } from "./podcastLive";
 import { attachListenParties } from "./podcastParty";
 import { createDirectory as createPodcastDirectory, supabaseKV } from "./podcastDirectory";
@@ -1591,7 +1599,25 @@ export async function registerRoutes(
     ownerName: async (id) => { const owner: any = await storage.getUser(id); return String(owner?.displayName || owner?.display_name || "").trim().split(/\s+/)[0] || ""; },
   });
   registerFoodLookupRoutes(app, authMiddleware);
-  registerFitRoutes(app, authMiddleware);
+  registerFitRoutes(app, authMiddleware, {
+    nameOf: async (id) => { const u: any = await storage.getUser(id).catch(() => null); return String(u?.displayName || u?.display_name || u?.username || "").trim().split(/\s+/)[0] || ""; },
+    // Arise Fit+: the account's own plan (server/plans.ts); guest passes are worked out in server/fitPass.ts.
+    ownPlus: async (id) => plans.fitPlusOwn(id, (await storage.getUser(id).catch(() => null)) as any),
+    payment: () => plans.stripeReady(),
+  });
+  // Arise Coaching (server/coach.ts): the trainer directory, client–trainer connections and the Arise Trainer app.
+  registerCoachRoutes(app, authMiddleware, {
+    nameOf: async (id) => { const u: any = await storage.getUser(id).catch(() => null); return String(u?.displayName || u?.display_name || u?.username || "").trim().split(/\s+/)[0] || ""; },
+    stripeKey: () => plans.adminTodo.stripeKey(),
+    appUrl: APP_URL,
+    isAdmin: (req) => !!req.user?.isAdmin && !req.adminPreview,
+  });
+  // Arise Talk (server/talk.ts): backups, Premium and the AI helpers for the talking app.
+  registerTalkRoutes(app, authMiddleware, {
+    stripeKey: () => plans.adminTodo.stripeKey(),
+    appUrl: APP_URL,
+    isAdmin: (req) => !!req.user?.isAdmin && !req.adminPreview,
+  });
   registerBrowserRoutes(app, authMiddleware);
   registerLifePlanRoutes(app, authMiddleware);
   // Live updates for the iPhone apps' web code (server/ota.ts).
@@ -1604,6 +1630,32 @@ export async function registerRoutes(
   };
   registerAccountabilityRoutes(app, authMiddleware, acctDeps);
   if (process.env.NODE_ENV !== "test") startAccountabilityTicker(acctDeps);
+  // Arise Notes, the AI note taker (server/ariseNotes.ts): its own app at /notes/ and an app inside
+  // Arise To Duo. Record or upload, a transcript with times, AI summaries, minutes per plan.
+  const notesStore = createSupabaseNotesStore(() => getAdminSupabase() as any);
+  registerAriseNotesRoutes(app, authMiddleware, {
+    store: notesStore,
+    hear: createHearer(),
+    ask: askSiteAi,
+    aiReady: siteAiReady,
+    planOf: async (userId, user) => (await plans.notesPlan(userId, user as any)).plan,
+    getUser: async (id) => (await storage.getUser(id)) as any,
+    // Students under 13 only come through a teacher or a parent: a student account needs one.
+    studentAllowed: async (u) => !!u.teacherId || (await getStudentParentIds(Number(u.id))).length > 0,
+    push: (userId, message) => notifyUser(userId, message),
+    email: async (to, subject, html) => (await sendEmail(to, subject, html)).sent,
+    life: createSupabaseLifeStore(() => getAdminSupabase()),
+    work: createSupabaseWorkspaceStore(),
+    makeQuiz: async (user, q) => {
+      const quiz = await storage.createCustomEyeGazeQuiz(user.id, q.title, q.description, "Custom", q.questions, user.isAdmin ? "global" : "teacher_students", user.isAdmin ? null : user.id, "regular");
+      return quiz?.id ? { id: Number(quiz.id) } : null;
+    },
+  });
+  if (process.env.NODE_ENV !== "test") startNotesTicker(notesStore);
+  // Arise Notes → Notes: typed and handwritten notes, synced across devices (free for everyone).
+  const pagesStore = createSupabasePagesStore(() => getAdminSupabase() as any);
+  registerPagesRoutes(app, authMiddleware, { store: pagesStore, ask: askSiteAi, aiReady: siteAiReady, life: createSupabaseLifeStore(() => getAdminSupabase()) });
+  if (process.env.NODE_ENV !== "test") startPagesTicker(pagesStore);
   registerSleepFinderRoutes(app, authMiddleware);
   // One podcast directory for Earshot and Podscroll: shared caches (kept in the database) and one pace for Apple.
   const podcasts = createPodcastDirectory({ kv: supabaseKV(getAdminSupabase) });
@@ -2986,10 +3038,10 @@ export async function registerRoutes(
     if (wait > 0) return res.status(429).json({ message: `Too many tries. Try again in ${waitWords(wait)}.` });
     appleLimits.fail(address);
     try {
-      const claims = await verifyAppleToken(String(req.body?.identityToken || ""), [ARISE_APP, EDUCATOR_APP, FIT_APP, EYEGAZER_APP]);
+      const claims = await verifyAppleToken(String(req.body?.identityToken || ""), [ARISE_APP, EDUCATOR_APP, FIT_APP, EYEGAZER_APP, TRAINER_APP, NOTES_APP, TALK_APP]);
       // A new account made from the Educator app is a parent account (like the website's parent sign-up,
       // a child can be connected later); from Arise To Duo it's a personal LifeHub account.
-      const fromApp = claims.aud === EDUCATOR_APP ? EDUCATOR_APP : claims.aud === FIT_APP ? FIT_APP : claims.aud === EYEGAZER_APP ? EYEGAZER_APP : ARISE_APP;
+      const fromApp = claims.aud === EDUCATOR_APP ? EDUCATOR_APP : claims.aud === FIT_APP ? FIT_APP : claims.aud === EYEGAZER_APP ? EYEGAZER_APP : claims.aud === TRAINER_APP ? TRAINER_APP : claims.aud === NOTES_APP ? NOTES_APP : claims.aud === TALK_APP ? TALK_APP : ARISE_APP;
       const name = [req.body?.givenName, req.body?.familyName].filter((x) => typeof x === "string" && x.trim()).map((x: string) => x.trim().slice(0, 40)).join(" ");
       let userId = Number(await storage.getSetting(`apple_login:${claims.sub}`)) || 0;
       let user: any = userId ? await storage.getUser(userId) : null;
@@ -7403,7 +7455,7 @@ export async function registerRoutes(
       let ok = false;
       const appleToken = typeof req.body?.appleIdentityToken === "string" ? req.body.appleIdentityToken : "";
       if (appleToken) {
-        try { const c = await verifyAppleToken(appleToken, [ARISE_APP, EDUCATOR_APP, FIT_APP, EYEGAZER_APP]); ok = (await storage.getSetting(`apple_user:${userId}`)) === c.sub; }
+        try { const c = await verifyAppleToken(appleToken, [ARISE_APP, EDUCATOR_APP, FIT_APP, EYEGAZER_APP, TRAINER_APP, NOTES_APP, TALK_APP]); ok = (await storage.getSetting(`apple_user:${userId}`)) === c.sub; }
         catch { ok = false; }
       }
       if (!ok) {
@@ -7421,7 +7473,7 @@ export async function registerRoutes(
       try {
         const sub = await storage.getSetting(`apple_user:${userId}`);
         const refresh = await storage.getSetting(`apple_refresh:${userId}`);
-        const was = await storage.getSetting(`apple_refresh_app:${userId}`); const viaApp = was === EDUCATOR_APP || was === FIT_APP || was === EYEGAZER_APP ? was : ARISE_APP;
+        const was = await storage.getSetting(`apple_refresh_app:${userId}`); const viaApp = was === EDUCATOR_APP || was === FIT_APP || was === EYEGAZER_APP || was === TRAINER_APP || was === NOTES_APP || was === TALK_APP ? was : ARISE_APP;
         if (refresh) await revokeAppleToken(refresh, viaApp).catch(() => false);
         if (sub || refresh) await getAdminSupabase().from("settings").delete().in("key", [`apple_login:${sub}`, `apple_user:${userId}`, `apple_refresh:${userId}`, `apple_refresh_app:${userId}`]); clearCache(`setting_apple_login:${sub}`); clearCache(`setting_apple_user:${userId}`); clearCache(`setting_apple_refresh:${userId}`);
       } catch { /* the account still goes */ }

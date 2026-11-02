@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Gauge, Mountain, Pause, Play, Trophy, Volume2, VolumeX, X } from "lucide-react";
 import { sessionSecs, type Phase, type Session } from "@shared/fitSessions";
 import { preloadAiVoice, sayAI, stopAiVoice } from "@/lib/aiVoice";
-import { Btn, C, Card, display, fmtDur, font } from "./fitUi";
+import { Btn, C, Card, display, fmtDur, font, Layer} from "./fitUi";
 
 const KIND_COLOR: Record<Phase["kind"], string> = { warm: "#ffb020", work: "#ff5a1f", rest: "#4d9fff", cool: "#8d939b", pose: "#ff5a1f", "breathe-in": "#4d9fff", hold: "#b9c0c8", "breathe-out": "#ff5a1f", still: "#b9c0c8" };
 const BREATH = new Set<Phase["kind"]>(["breathe-in", "hold", "breathe-out"]);
@@ -78,7 +78,7 @@ export function SessionPlayer({ session, onClose, onDone }: { session: Session; 
   const next = session.phases[i + 1];
   const breathScale = p.kind === "breathe-in" ? 1 : p.kind === "breathe-out" ? 0.45 : p.kind === "hold" ? (session.phases[i - 1]?.kind === "breathe-in" ? 1 : 0.45) : 0.7;
 
-  if (finished) return <div className="fixed inset-0 z-[90] flex flex-col items-center justify-center px-6 text-center" style={{ background: `radial-gradient(90% 60% at 50% 20%, #3a1a0a, ${C.bg})`, color: C.text, ...font }} data-testid="fit-session-done">
+  if (finished) return <Layer><div className="fixed inset-0 z-[90] flex flex-col items-center justify-center px-6 text-center" style={{ background: `radial-gradient(90% 60% at 50% 20%, #3a1a0a, ${C.bg})`, color: C.text, ...font }} data-testid="fit-session-done">
     <div className="grid h-24 w-24 place-items-center rounded-full" style={{ background: C.lime }}><Trophy className="h-12 w-12" style={{ color: "#0b0b0c" }} /></div>
     <h1 className="mt-6 text-[44px] leading-none" style={display}>Done.</h1>
     <p className="mt-2 text-[16px]" style={{ color: C.steel }}>{session.name}</p>
@@ -88,15 +88,15 @@ export function SessionPlayer({ session, onClose, onDone }: { session: Session; 
     </div>
     <Btn className="mt-8 w-full max-w-sm" onClick={() => onDone(Math.round((Date.now() - started.current) / 1000))} testId="fit-session-save">Save to history</Btn>
     <button type="button" onClick={onClose} className="mt-3 h-11 text-[15px]" style={{ color: C.dim }}>Close without saving</button>
-  </div>;
+  </div></Layer>;
 
-  return <div className="fixed inset-0 z-[90] flex flex-col" style={{ background: `radial-gradient(110% 70% at 50% 30%, ${color}26, ${C.bg} 70%)`, color: C.text, ...font }} data-testid="fit-session">
+  return <Layer><div className="fixed inset-0 z-[90] flex flex-col" style={{ background: `radial-gradient(110% 70% at 50% 30%, ${color}26, ${C.bg} 70%)`, color: C.text, ...font }} data-testid="fit-session">
     <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
       <button type="button" onClick={() => { if (window.confirm("End this session?")) onClose(); }} aria-label="End session" className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card }}><X className="h-5 w-5" /></button>
       <div className="min-w-0 flex-1 text-center"><p className="truncate text-[17px]" style={display}>{session.name}</p><p className="text-[12px] tabular-nums" style={{ color: C.dim }}>{fmtDur(elapsed)} / {fmtDur(total)}</p></div>
       <button type="button" onClick={() => { setVoice((v) => !v); stopAiVoice(); }} aria-label={voice ? "Mute voice" : "Turn voice on"} aria-pressed={voice} className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card }}>{voice ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}</button>
     </div>
-    <div className="mx-4 h-1.5 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,.08)" }}><div className="h-full" style={{ width: `${Math.min(100, (elapsed / total) * 100)}%`, background: C.lime, transition: "width .25s linear" }} /></div>
+    <div className="mx-4 h-1.5 overflow-hidden rounded-full" style={{ background: C.track }}><div className="h-full" style={{ width: `${Math.min(100, (elapsed / total) * 100)}%`, background: C.lime, transition: "width .25s linear" }} /></div>
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-6 text-center">
       <p className="text-[14px] tracking-[.2em]" style={{ ...display, fontWeight: 700, color }}>{i + 1} / {session.phases.length}</p>
       {BREATH.has(p.kind) || p.kind === "still"
@@ -118,5 +118,5 @@ export function SessionPlayer({ session, onClose, onDone }: { session: Session; 
       <button type="button" onClick={toggle} aria-label={pausedLeft !== null ? "Resume" : "Pause"} className="grid h-20 w-20 place-items-center rounded-full shadow-[0_10px_30px_rgba(255,90,31,.4)]" style={{ background: C.lime, color: "#0b0b0c" }} data-testid="fit-session-pause">{pausedLeft !== null ? <Play className="ml-1 h-9 w-9" fill="currentColor" /> : <Pause className="h-9 w-9" fill="currentColor" />}</button>
       <button type="button" onClick={() => (i + 1 < session.phases.length ? go(i + 1) : setFinished(true))} aria-label="Skip" className="grid h-14 w-14 place-items-center rounded-full" style={{ background: C.card }} data-testid="fit-session-skip"><ChevronRight className="h-7 w-7" /></button>
     </div>
-  </div>;
+  </div></Layer>;
 }

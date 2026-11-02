@@ -11,7 +11,7 @@
     "noEmit": true,
     "types": ["vite/client"],
     "allowSyntheticDefaultImports": true,
-    "paths": { "@shared/*": ["../shared/*"] }
+    "paths": { "@shared/*": ["../shared/*"], "@/*": ["../client/src/*"] }
   },
   "include": ["./*.tsx", "../client/src/components/family-hub/earshot/EarshotPlayer.tsx", "../shared/earshot.ts"]
 }

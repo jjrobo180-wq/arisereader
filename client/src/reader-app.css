@@ -1,0 +1,50 @@
+/* The A.R.I.S.E. Reader iPhone app (html.reader-app, set in main.tsx): a full-screen app, not a web
+   page in a frame. The page draws behind the status bar (contentInset "never" in
+   reader/ios-app/capacitor.config.json); whatever sits at the top grows down past the clock, so the
+   top of the screen is the app's own color instead of a white strip.
+   In an older build that still holds the page below the status bar, env(safe-area-inset-top) is 0
+   and none of this moves anything. */
+html.reader-app {
+  --sat: env(safe-area-inset-top, 0px);
+  -webkit-text-size-adjust: 100%;
+  background: hsl(var(--background));
+}
+html.reader-app body {
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+/* A header that sticks to the top runs behind the clock and keeps its content below it. */
+html.reader-app .sticky.top-0 { padding-top: var(--sat); }
+/* A page with no such header starts below the clock. */
+html.reader-app body:not(:has(.sticky.top-0)) #root { padding-top: var(--sat); }
+/* Full-screen sheets and pop-ups keep their close buttons and titles out from under the clock. */
+html.reader-app [role="dialog"].fixed.inset-0,
+html.reader-app .fixed.inset-0 > [role="dialog"]:first-child { padding-top: max(var(--sat), 0px); }
+
+/* App-like touch: no long-press callouts or text selection on buttons and links, no gray flash. */
+html.reader-app button,
+html.reader-app a,
+html.reader-app [role="button"] {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+html.reader-app img { -webkit-touch-callout: none; }
+
+/* Book cards: every one the same, like the Quick Reads cards: cover, title, author, points and one
+   button ("Read & Quiz" or "Take Quiz", Library.tsx). Two across on a phone, and the cards in the
+   rows that scroll sideways are exactly as wide as the ones in the grids. */
+html.reader-app { --card-gap: 1rem; --card-w: calc((100vw - 1.5rem - var(--card-gap)) / 2); }
+html.reader-app .book-access,
+html.reader-app .card-read { display: none !important; }
+@media (max-width: 599px) {
+  html.reader-app .book-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: var(--card-gap) !important; }
+  html.reader-app .book-row { gap: var(--card-gap) !important; }
+  html.reader-app .book-row > * { width: var(--card-w) !important; }
+}
+html.reader-app .book-grid > *, html.reader-app .book-row > * { display: flex; flex-direction: column; }
+/* The button sits at the bottom, so cards with a one-line title line up with their neighbors. */
+html.reader-app .book-grid > * > .p-3, html.reader-app .book-row > * > .p-3 { flex: 1; display: flex; flex-direction: column; }
+html.reader-app .book-grid > * > .p-3 > div:has(> button):not(.book-access), html.reader-app .book-row > * > .p-3 > div:has(> button):not(.book-access) { margin-top: auto; padding-top: 0.5rem; }
+/* Hover lifts mean nothing on a touch screen. */
+html.reader-app .book-grid > *:hover, html.reader-app .book-row > *:hover { transform: none; }

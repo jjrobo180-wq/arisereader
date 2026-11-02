@@ -368,16 +368,26 @@ export function introFromAi(raw: string, segs: TxSegment[], ads: AdRange[], word
 /** Everything found, combined: AI first; phrase blocks the AI didn't cover only when they're very
  *  strong (and then as "ask", not auto); the learned pre-roll; publisher chapters named as ads. */
 export function combineAds(ai: AdRange[] | null, phrase: AdRange[], learned: AdRange | null, chapters: AdRange[]): AdRange[] {
-  const all: AdRange[] = [...(ai ?? []), ...chapters.map((c) => ({ ...c, conf: 0.9, kind: "chapter" }))];
+  const all: AdRange[] = [...(ai ?? []).map((a) => ({ ...a })), ...chapters.map((c) => ({ ...c, conf: 0.9, kind: "chapter" }))];
+  // An AI-found ad that the wording rules (or the show's own history) also point at is surer than either alone.
+  for (const x of all) {
+    const others = [...phrase, ...(learned ? [learned] : [])].filter((p) => Math.min(x.e, p.e) - Math.max(x.s, p.s) > 0);
+    if (x.kind === "ai" && others.length) x.conf = Math.min(0.97, 1 - (1 - (x.conf ?? 0)) * (1 - Math.max(...others.map((p) => p.conf ?? 0)) * 0.8));
+  }
   const covered = (a: AdRange) => all.some((b) => Math.min(a.e, b.e) - Math.max(a.s, b.s) > (a.e - a.s) * 0.4);
-  for (const p of phrase) if (!covered(p) && (ai === null || (p.conf ?? 0) >= 0.6)) all.push(ai === null ? p : { ...p, conf: Math.min(p.conf ?? 0.6, 0.6) });
+  // Ad-sounding stretches the AI missed: three or more ad lines together (conf 0.8) are still skipped by
+  // themselves, since a missed ad costs more than one more sure skip. Weaker ones are only offered.
+  for (const p of phrase) if (!covered(p) && (ai === null || (p.conf ?? 0) >= 0.6)) all.push(ai === null || (p.conf ?? 0) >= 0.8 ? p : { ...p, conf: Math.min(p.conf ?? 0.6, 0.6) });
   if (learned && !covered(learned)) all.push(learned);
   const merged: AdRange[] = [];
   for (const a of all.slice().sort((x, y) => x.s - y.s)) {
     const last = merged[merged.length - 1];
     if (last && a.s <= last.e + 2) {
       last.e = Math.max(last.e, a.e);
+      // Two different ways of finding it agreeing is stronger than either: the chances both are wrong multiply.
+      const agree = last.kind !== a.kind && Math.min(last.e, a.e) - Math.max(last.s, a.s) > 0;
       if ((a.conf ?? 0) > (last.conf ?? 0)) { last.conf = a.conf; last.kind = a.kind; }
+      if (agree) last.conf = Math.min(0.97, 1 - (1 - (last.conf ?? 0)) * (1 - Math.min(a.conf ?? 0, last.conf ?? 0) * 0.8));
       if ((!last.label || /^(ad break|pre-roll)$/i.test(last.label)) && a.label && !/^(ad break|pre-roll)$/i.test(a.label)) last.label = a.label;
     } else merged.push({ ...a });
   }
@@ -439,7 +449,8 @@ export function alignAds(list: ServerAd[], D: number): PlayAd[] {
   for (const a of list) {
     if ((a.score ?? 1) < 1 || a.e <= a.s) continue;
     if (fits(a)) {
-      const sure = a.kind === "user" ? true : a.kind === "crowd" ? false : a.conf >= 0.75;
+      // Ways of finding ads that look at the audio or the show's own history are skipped from a lower bar.
+      const sure = a.kind === "user" ? true : a.kind === "crowd" ? false : a.conf >= (a.kind === "splice" || a.kind === "known" || a.kind === "dai" || a.kind === "learned" || a.kind === "chapter" ? 0.65 : 0.72);
       out.push({ key: a.key, s: a.s, e: Math.min(a.e, D), label: a.label, kind: a.kind, sure });
     } else if (a.kind !== "crowd" && a.kind !== "user") {
       const b = Math.round(a.dur);

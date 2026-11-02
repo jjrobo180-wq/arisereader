@@ -63,6 +63,10 @@ if os.path.exists(DELEGATE):
 # The background mode above allows it; without this session iOS still stops the web player's sound.
 if os.path.exists(DELEGATE):
     src = open(DELEGATE, encoding="utf-8").read()
+    if "AVAudioSession" in src and "setActive(true)" in src:
+        # An older build of this project: take the launch-time activation out.
+        src = src.replace("try AVAudioSession.sharedInstance().setActive(true)", "// (not activated at launch: that stops other apps' audio)")
+        open(DELEGATE, "w", encoding="utf-8").write(src)
     if "AVAudioSession" not in src:
         marker = "didFinishLaunchingWithOptions"
         at = src.find(marker)
@@ -70,8 +74,10 @@ if os.path.exists(DELEGATE):
         if at >= 0 and ret > 0:
             setup = """// Pod+: keep playing in the background (spoken audio, long form).
         do {
+            // Only choose the kind of audio here. Never activate the session at launch: that takes the
+            // speaker from whatever else is playing (music, a podcast in another app) before Pod+ has
+            // played a thing. iOS starts the session when Pod+ actually plays something.
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, policy: .longFormAudio)
-            try AVAudioSession.sharedInstance().setActive(true)
         } catch { print("Pod+ audio session: \\(error)") }
         """
             src = src[:ret] + setup + src[ret:]

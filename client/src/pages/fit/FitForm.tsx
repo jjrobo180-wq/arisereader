@@ -23,8 +23,9 @@ function loadPose(): Promise<any> {
 
 const coach = (t: string) => { stopAiVoice(); void sayAI(t, { voice: "troy" }).catch(() => {}); };
 
-export function FormCheck({ onClose }: { onClose: () => void }) {
-  const [lift, setLift] = useState<FormLift>("squat");
+/** `lift` starts on that lift; `onLog` (during a workout) puts the reps counted into the set. */
+export function FormCheck({ onClose, lift: startLift, onLog, logLabel }: { onClose: () => void; lift?: FormLift; onLog?: (r: { reps: number; clean: number; secs: number; faults: string[] }) => void; logLabel?: string }) {
+  const [lift, setLift] = useState<FormLift>(startLift ?? "squat");
   const [facing, setFacing] = useState<"user" | "environment">("user");
   const [on, setOn] = useState(false);
   const [status, setStatus] = useState("");
@@ -102,15 +103,17 @@ export function FormCheck({ onClose }: { onClose: () => void }) {
       <p className="text-[72px] leading-none" style={display}>{rule.hold ? fmtDur(hold) : `${score}%`}</p>
       <p className="text-[14px]" style={{ color: C.dim }}>{rule.hold ? "in a good line" : `${reps.filter((r) => r.good).length} of ${reps.length} reps clean`}</p></div>
     {!rule.hold && reps.length > 0 && <><Title>Every rep</Title><div className="space-y-2">{reps.map((r) => <Card key={r.n} className="flex items-start gap-3 !p-3">
-      {r.good ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" style={{ color: "#4ade80" }} /> : <XCircle className="mt-0.5 h-5 w-5 shrink-0" style={{ color: C.red }} />}
+      {r.good ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" style={{ color: C.green }} /> : <XCircle className="mt-0.5 h-5 w-5 shrink-0" style={{ color: C.red }} />}
       <div><p className="text-[17px] leading-tight" style={display}>Rep {r.n}</p><p className="text-[13px]" style={{ color: C.dim }}>{r.good ? "Clean." : r.faults.join(" · ")}</p></div></Card>)}</div></>}
-    <Btn className="mt-6 w-full" onClick={() => { setDone(false); setOn(true); }}>Go again</Btn>
+    {onLog && (rule.hold ? hold >= 1 : reps.length > 0) && <Btn className="mt-6 w-full" testId="fit-form-log" onClick={() => { onLog({ reps: reps.length, clean: reps.filter((r) => r.good).length, secs: Math.round(hold), faults: [...new Set(reps.flatMap((r) => r.faults))].slice(0, 3) }); onClose(); }}>
+      <CheckCircle2 className="h-5 w-5" />{logLabel ?? "Log it"}: {rule.hold ? fmtDur(hold) : `${reps.length} reps`}</Btn>}
+    <Btn kind={onLog ? "soft" : "primary"} className="mt-3 w-full" onClick={() => { setDone(false); setOn(true); }}>Go again</Btn>
     <p className="mt-6 text-[11px] leading-relaxed" style={{ color: C.dim }}>The AI coach estimates joint angles from video, so treat it as a second pair of eyes, not a trainer. Your video is processed on your phone and never uploaded.</p>
   </Sheet>;
 
   return <Sheet title="AI form check" onClose={onClose} testId="fit-form">
     {!on && <>
-      <div className="mt-1 rounded-[14px] p-4" style={{ background: "linear-gradient(150deg, #2a160c, #141518)" }}>
+      <div className="mt-1 rounded-[14px] p-4" style={{ background: `linear-gradient(150deg, ${C.emberSoft}, ${C.card})` }}>
         <ScanEye className="h-8 w-8" style={{ color: C.lime }} />
         <p className="mt-2 text-[26px] leading-none" style={display}>Your AI spotter</p>
         <p className="mt-1 text-[14px] leading-snug" style={{ color: C.steel }}>Prop your phone up, step back, and lift. It counts every rep, grades your depth, lockout and body line, and calls out what to fix.</p>

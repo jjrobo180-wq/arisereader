@@ -13,10 +13,10 @@ export const isNativeApp = (): boolean => typeof window !== "undefined" && windo
 
 /** Which iPhone app this build is (set at build time with VITE_NATIVE_APP): Arise To Duo ("todo"),
  *  A.R.I.S.E. Reader for students ("reader"), or A.R.I.S.E. Reader Educator for teachers and parents. */
-export type NativeFlavor = "todo" | "reader" | "educator" | "fit" | "eyegaze";
+export type NativeFlavor = "todo" | "reader" | "educator" | "fit" | "eyegaze" | "trainer" | "notes" | "talk";
 export const nativeFlavor = (): NativeFlavor => {
   const f = String((import.meta as any).env?.VITE_NATIVE_APP || "");
-  return f === "reader" || f === "educator" || f === "fit" || f === "eyegaze" ? f : "todo";
+  return f === "reader" || f === "educator" || f === "fit" || f === "eyegaze" || f === "trainer" || f === "notes" || f === "talk" ? f : "todo";
 };
 /** Inside one of the two A.R.I.S.E. Reader apps (student or Educator). */
 export const isReaderApp = (): boolean => isNativeApp() && (nativeFlavor() === "reader" || nativeFlavor() === "educator" || nativeFlavor() === "eyegaze");
@@ -24,6 +24,12 @@ export const isReaderApp = (): boolean => isNativeApp() && (nativeFlavor() === "
 export const isEyeGazerApp = (): boolean => isNativeApp() && nativeFlavor() === "eyegaze";
 /** Inside the Arise Fit iPhone app. */
 export const isFitApp = (): boolean => isNativeApp() && nativeFlavor() === "fit";
+/** Inside the Arise Trainer iPhone app (coaches; pages/trainer/TrainerApp.tsx). */
+export const isTrainerApp = (): boolean => isNativeApp() && nativeFlavor() === "trainer";
+/** Inside the Arise Notes iPhone app (the AI note taker; components/arise-notes/NotesApp.tsx). */
+export const isNotesApp = (): boolean => isNativeApp() && nativeFlavor() === "notes";
+/** Inside the Arise Talk iPhone app (the talking boards; pages/talk/TalkApp.tsx). */
+export const isTalkApp = (): boolean => isNativeApp() && nativeFlavor() === "talk";
 /** Each app's name, bundle id (Sign in with Apple asks for it) and server. All three use the same
  *  server, through arisetodo.com, the address the Arise To Duo app is already allowed to call. */
 export const NATIVE_APPS: Record<NativeFlavor, { name: string; bundle: string; api: string }> = {
@@ -32,6 +38,9 @@ export const NATIVE_APPS: Record<NativeFlavor, { name: string; bundle: string; a
   educator: { name: "A.R.I.S.E. Reader Educator", bundle: "com.arisereader.educator", api: "https://arisetodo.com" },
   fit: { name: "Arise Fit", bundle: "com.arisereader.fit", api: "https://arisetodo.com" },
   eyegaze: { name: "Arise Eye Gazer", bundle: "com.arisereader.eyegazer", api: "https://arisetodo.com" },
+  trainer: { name: "Arise Trainer", bundle: "com.arisereader.trainer", api: "https://arisetodo.com" },
+  notes: { name: "Arise Notes", bundle: "com.arisereader.notes", api: "https://arisetodo.com" },
+  talk: { name: "Arise Talk", bundle: "com.arisereader.talk", api: "https://arisetodo.com" },
 };
 export const nativeAppInfo = () => NATIVE_APPS[nativeFlavor()];
 

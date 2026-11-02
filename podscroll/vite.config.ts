@@ -13,7 +13,7 @@ export default defineConfig({
   // A native Capacitor WebView loads bundled files from capacitor://localhost.
   base: process.env.PODPLUS_IOS === "1" ? "./" : "/",
   plugins: [react()],
-  resolve: { alias: { "@shared": resolve(repo, "shared") } },
+  resolve: { alias: { "@shared": resolve(repo, "shared"), "@": resolve(repo, "client/src") } },
   css: {
     postcss: {
       plugins: [

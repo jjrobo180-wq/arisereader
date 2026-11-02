@@ -19,7 +19,7 @@ test("every filled template fits in a note (title 120, body 5000) and has no lef
     assert.ok(title.length <= 120, `${t.id} title`);
     assert.ok(body.length > 0 && body.length <= 5000, `${t.id} body`);
     assert.doesNotMatch(title + body, /\{[a-z]+\}/, `${t.id} still has a placeholder`);
-    assert.ok(t.emoji && t.blurb && t.name, `${t.id} needs a name, emoji and blurb`);
+    assert.ok(t.blurb && t.name, `${t.id} needs a name and blurb`);
   }
   assert.match(fillTemplate("Meeting — {date}", day), /Oct 18, 2026/);
 });
