@@ -3,6 +3,7 @@
 // AI transcripts (server/audiobooks.ts); the audio plays straight from the Archive (or through the
 // server when Voice boost shapes it). Like the radio, a book keeps playing in the bar at the bottom
 // while you browse, and each book remembers its chapter and spot on this device.
+import { SeekBar } from "./SeekBar";
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ClickEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { BookOpen, BookOpenText, Bookmark, Check, ChevronLeft, ChevronRight, Download, Headphones, Loader2, Pause, Play, RotateCcw, RotateCw, Search, SkipBack, SkipForward, SlidersHorizontal, Sparkles, Star, X } from "lucide-react";
@@ -1070,15 +1071,11 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
   // The speed shows at once while you drag or tap, but reaches the player only once you stop for a
   // moment: changing it many times a second made the sound stutter and glitch.
   const pickSpeed = (next: number) => { next = Math.round(Math.min(3, Math.max(0.5, next)) * 20) / 20; setSpeed(next); ls.set("podscroll.bookSpeed", String(next)); };
-  const pct = dur ? Math.min(100, (time / dur) * 100) : 0;
   const { main: chName } = chapterName(chapter || { n: ch + 1, title: "", sub: "", secs: 0, audio: "", bytes: 0 });
   const sleepWords = sleepAt === null ? "" : sleepAt === "end" ? "End of chapter" : `${Math.max(1, Math.ceil((sleepAt - Date.now()) / 60000))} min`;
 
   return <div role="region" aria-label="Now playing audiobook" className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5e5e5] bg-white/95 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur">
-    <input type="range" min={0} max={dur || 1} step={1} value={Math.min(time, dur || 1)} aria-label="Position in chapter"
-      onChange={(e) => { const a = audio.current; const v = Number(e.target.value); setTime(v); if (a) a.currentTime = v; }}
-      className="ps-book-range absolute -top-[7px] left-0 h-[14px] w-full cursor-pointer appearance-none bg-transparent"
-      style={{ background: `linear-gradient(to right, ${ACCENT} ${pct}%, transparent ${pct}%) center / 100% 3px no-repeat` }} />
+    <SeekBar time={time} dur={dur} label="Position in chapter" color={ACCENT} onSeek={(v) => { const a = audio.current; setTime(v); if (a) a.currentTime = v; }} />
     <style>{".ps-book-range::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#ff6a1f}.ps-book-range::-moz-range-thumb{width:12px;height:12px;border:0;border-radius:50%;background:#ff6a1f}"}</style>
     <div className="mx-auto flex max-w-[1600px] items-center gap-1.5 px-3 py-2.5 sm:gap-2.5 sm:px-5">
       <button onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Open ${book.title}`}>
