@@ -1,4 +1,5 @@
 import { useSavedChoice } from "@/lib/useSavedChoice";
+import { updateReaderWidget } from "@/lib/readerWidget";
 import { isReaderApp } from "@/lib/nativeApp";
 import { BookTitleSuggest, DidYouMeanList, type PickedBook } from "@/components/BookTitleSuggest";
 import type { BookCandidate } from "@shared/bookMatch";
@@ -165,6 +166,12 @@ export default function Library() {
   const [bookBands, setBookBands] = useState<Record<string, string>>({});
   const [userBand, setUserBand] = useState("");
   const [showBandInfo, setShowBandInfo] = useState(false);
+  // The Reader iPhone app's Home Screen widget shows this reader's points and quizzes (lib/readerWidget.ts).
+  const passedCount = results.filter((r) => r.passed !== false).length;
+  useEffect(() => {
+    if (!user || user.isAdmin || user.role !== "student") return;
+    updateReaderWidget({ name: user.displayName || "", points: liveTotalPoints, quizzes: passedCount, band: userBand });
+  }, [user?.id, user?.displayName, liveTotalPoints, passedCount, userBand]); // eslint-disable-line react-hooks/exhaustive-deps
   const [sortBy, setSortBy] = useSavedChoice<"points" | "popular" | "recent" | "classics" | "new">("library-sort", "points", ["points", "popular", "recent", "classics", "new"]);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showInbox, setShowInbox] = useState(false);
