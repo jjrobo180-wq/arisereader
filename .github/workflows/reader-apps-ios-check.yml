@@ -52,7 +52,7 @@ jobs:
           npx cap add ios
           npx cap sync ios
           python3 ../../.github/scripts/configure_reader_app.py ios/App/App/Info.plist ${{ matrix.flavor }}
-          python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist --below-status-bar
+          python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist ${{ matrix.flavor == 'reader' && '' || '--below-status-bar' }}
       - name: Compile iOS simulator app
         working-directory: ${{ matrix.dir }}/ios-app
         run: |

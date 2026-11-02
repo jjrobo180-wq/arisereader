@@ -747,7 +747,7 @@ function AppRoutes() {
         <ProtectedRoute>{isEyeGazeStudent ? <Redirect to="/eye-gaze-lessons" replace /> : <Library />}</ProtectedRoute>
       </Route>
       <Route path="/avatar-world">
-        {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
+        {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user && !isReaderApp()
           ? <ProtectedRoute><AvatarWorld /></ProtectedRoute>
           : <Redirect to="/" replace />}
       </Route>
@@ -1024,8 +1024,9 @@ function AppInner() {
   const overlays = !inGame;
   return (
     <>
-      {overlays && isStudent && !isEyeGazeStudent && <PointsSideTab />}
-      {overlays && isStudent && !isEyeGazeStudent && <AvatarWorldSideTab />}
+      {/* The Reader iPhone app keeps the screen clean: no tabs on the right edge (points, Avatar World). */}
+      {overlays && isStudent && !isEyeGazeStudent && !isReaderApp() && <PointsSideTab />}
+      {overlays && isStudent && !isEyeGazeStudent && !isReaderApp() && <AvatarWorldSideTab />}
       {/* The Advisory Challenge pop-up replaces the Halloread welcome and the "your standing" pop-up
           (which still shows for students whose school has no challenge). */}
       {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <AdvisoryChallengePopup onNavigate={(path) => { window.location.hash = path; }} />}

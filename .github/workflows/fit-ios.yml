@@ -176,7 +176,7 @@ jobs:
           set -euo pipefail
           ruby -rxcodeproj -e 'puts Xcodeproj::VERSION' || gem install xcodeproj --no-document --user-install
           export GEM_PATH="$(ruby -e 'puts Gem.user_dir'):$(ruby -e 'puts Gem.default_dir')"
-          APP_PROFILE="$PROFILE_NAME" WIDGET_PROFILE="$WIDGET_PROFILE_NAME" ruby ../../.github/scripts/add_widget.rb ios/App/App.xcodeproj com.arisereader.fit '["Calories left","Workouts this week","Protein today"]' ff5a1f
+          APP_PROFILE="$PROFILE_NAME" WIDGET_PROFILE="$WIDGET_PROFILE_NAME" ruby ../../.github/scripts/add_widget.rb ios/App/App.xcodeproj com.arisereader.fit "$(cat widgets.json)" ff5a1f
       - name: Archive signed app with widgets
         if: env.WIDGETS == '1'
         working-directory: fit/ios-app
