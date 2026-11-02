@@ -1,3 +1,4 @@
+import { isReaderApp } from "@/lib/nativeApp";
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocation } from 'wouter';
 import { Clock3, BookOpen } from 'lucide-react';
@@ -83,7 +84,7 @@ export default function ClubPlayGate({ children }: { children: ReactNode }) {
       {error && <button className="secondary" onClick={() => retry.current()}>Try again</button>}
     </section>
   </main>;
-  return <>{children}<PetCompanionHUD/><aside className={`club-play-timer ${!access?.unlimitedThisWeek && remaining <= 60 ? 'low' : ''}`} aria-label={access?.unlimitedThisWeek?"Unlimited Club Arise play this week":"Club Arise daily play timer"}>
+  return <>{children}{!isReaderApp() && <PetCompanionHUD/>}<aside className={`club-play-timer ${!access?.unlimitedThisWeek && remaining <= 60 ? 'low' : ''}`} aria-label={access?.unlimitedThisWeek?"Unlimited Club Arise play this week":"Club Arise daily play timer"}>
     <div><Clock3 size={20} /><strong role="timer" aria-label={access?.unlimitedThisWeek?"Unlimited play this week":`${remaining} seconds of play remaining`}>{time}</strong><span>{access?.unlimitedThisWeek?"this week":"left today"}</span></div>
     <p>{access?.unlimitedThisWeek?<><b>Quiz passed!</b> Unlimited play is active until next Monday.</>:access?.weeklyUnlimitedOnPass?<><b>Pass a book quiz</b> for unlimited play this week.</>:<>Daily play rule is active.</>}</p>
     {!access?.unlimitedThisWeek&&access?.weeklyUnlimitedOnPass&&<button onClick={() => navigate('/library')}><BookOpen size={18} /><span>Unlock the week</span></button>}

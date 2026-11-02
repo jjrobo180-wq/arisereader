@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { isReaderApp } from "@/lib/nativeApp";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
@@ -267,7 +268,7 @@ export default function Games() {
           <b>Games</b>
           <span>{WORLDS.length} game worlds and {GAMES.length} multiplayer games</span>
         </div>
-        <AvatarWorldButton token={token} onOpen={() => setTravel({ path: "/avatar-world", label: "Opening Avatar World…" })} />
+        {!isReaderApp() && <AvatarWorldButton token={token} onOpen={() => setTravel({ path: "/avatar-world", label: "Opening Avatar World…" })} />}
       </header>
 
       <div className="axl-scroll" onScroll={(e) => setScrolled((e.currentTarget as HTMLDivElement).scrollTop > 24)}>
