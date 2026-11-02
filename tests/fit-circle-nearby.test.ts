@@ -160,7 +160,7 @@ test("saving a new workout tells your circle", async () => {
   assert.equal((await call("POST /api/fit/circle/join", 2, { code })).status, 200);
   sent.length = 0;
   await call("PUT /api/fit/data", 2, { data: withWorkouts([workout("w1", new Date().toISOString())]) });
-  assert.deepEqual(sent, [{ to: 1, title: "Ben just trained 💪" }]);
+  assert.deepEqual(sent, [{ to: 1, title: "Ben just trained" }]);
   await call("PUT /api/fit/data", 3, { data: withWorkouts([workout("w9", new Date().toISOString())]) });
   assert.equal(sent.length, 1, "Cam isn't in a circle");
 });
