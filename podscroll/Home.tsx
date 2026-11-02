@@ -25,7 +25,7 @@ import { AddToMenu, ModePage, ModesRow, NewModeDialog, makeMode, toSaved } from 
 import { GoLiveSheet, LiveRoom, type LiveSummary } from "../client/src/components/family-hub/earshot/EarshotCreators";
 import { setTheme, useTheme } from "../client/src/components/family-hub/earshot/EarshotPlayer";
 import { HoursBackCard } from "../client/src/components/family-hub/earshot/EarshotListen";
-import { WikiView } from "./Wiki";
+import { WikiMini, WikiView } from "./Wiki";
 import { SmartDownloads, setSmartDownloads, smartDownloadsOn } from "./smartDownloads";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
@@ -145,6 +145,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   liveBase: string;
 }) {
   const [view, setViewState] = useState<View>(parseHash);
+  const [wikiOpen, setWikiOpen] = useState<string | null>(null);
   // Switch views right away, and keep the address in step (so Back and links work).
   const go = useCallback((v: View) => { const h = hashOf(v); setViewState(v); if (location.hash !== h) location.hash = h; window.scrollTo(0, 0); }, []);
   useEffect(() => { const on = () => { setViewState(parseHash()); window.scrollTo(0, 0); }; window.addEventListener("hashchange", on); return () => window.removeEventListener("hashchange", on); }, []);
@@ -610,7 +611,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   } else if (view.kind === "music") {
     content = <MusicView api={api} current={listening} onPlay={playMusic} />;
   } else if (view.kind === "wiki") {
-    content = <WikiView onBack={() => go({ kind: "home" })} />;
+    content = <WikiView onBack={() => go({ kind: "home" })} start={wikiOpen} />;
   } else if (view.kind === "books") {
     content = <AudiobooksView api={api} pro={pro} onJoin={onJoin} current={reading} onOpen={(id) => go({ kind: "book", id })} />;
   } else if (view.kind === "book") {
@@ -762,6 +763,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       </div>
     </div>}
     {privacyOpen && <AccountSheet api={api} email={email} signedIn={pro} say={say} onClose={() => setPrivacyOpen(false)} />}
+    {view.kind !== "wiki" && <WikiMini lift={!!(station || reading || listening || nowPod)} onOpen={(t) => { setWikiOpen(t); go({ kind: "wiki" }); }} />}
     {nowPod && !station && !reading && !listening && <div role="region" aria-label="Now playing podcast" className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5e5e5] bg-white/95 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur">
       <div className="mx-auto flex h-14 max-w-2xl items-center gap-3 px-3">
         <button onClick={onPodOpen} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Open ${nowPod.title}`}>

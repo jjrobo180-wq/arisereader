@@ -123,3 +123,42 @@ test("your own app data is unchanged, and the app shows a clear banner and never
   const pro = readFileSync(new URL("../client/src/pages/ProApps.tsx", import.meta.url), "utf8");
   assert.match(pro, /<SharedOwnerContext\.Provider value=\{shared\}>/);
 });
+
+test("ask to see theirs: the person who keeps the data approves, and only then can the asker open (and log in) their copy", async () => {
+  const { call } = setup();
+  // Grandma (2) keeps Potty Training on her own phone; Jordan (1) asks to see it.
+  await call("PUT", "/api/app-data/:app", 2, { params: { app: "pro-potty" }, body: { data: { kids: ["Mia"] } } });
+  assert.equal((await call("POST", "/api/profile-links/ask", 1, { body: { email: "grandma@example.com", nickname: "Mom", grants: {} } })).status, 400, "ask for something");
+  assert.equal((await call("POST", "/api/profile-links/ask", 1, { body: { email: "jordan@example.com", grants: { "app:potty": "edit" } } })).status, 400, "not yourself");
+  assert.equal((await call("POST", "/api/profile-links/ask", 1, { body: { email: "GRANDMA@example.com", nickname: "Mom", grants: { "app:potty": "edit", "app:not-real": "edit", "life:calendar": "edit" } } })).status, 200);
+  // Nothing opens before she answers.
+  assert.equal((await call("GET", "/api/app-data/:app", 1, { params: { app: "pro-potty" }, query: { owner: "2" } })).status, 403);
+  const theirs = await call("GET", "/api/profile-links", 2);
+  assert.equal(theirs.body.requests.length, 1);
+  assert.equal(theirs.body.requests[0].fromName, "Jordan Rivera");
+  assert.deepEqual(theirs.body.requests[0].grants, { "app:potty": "edit", "life:calendar": "view" });
+  assert.equal((await call("GET", "/api/profile-links", 3)).body.requests.length, 0, "a stranger sees no one's requests");
+  assert.equal((await call("POST", "/api/profile-links/requests/:id/approve", 3, { params: { id: theirs.body.requests[0].id } })).status, 404, "only the person it was sent to can answer");
+  // She shares just Potty Training, and only to view: the approver can narrow what was asked, never widen it.
+  const ok = await call("POST", "/api/profile-links/requests/:id/approve", 2, { params: { id: theirs.body.requests[0].id }, body: { grants: { "app:potty": "view", "app:water": "edit" } } });
+  assert.equal(ok.status, 200);
+  assert.equal((await call("GET", "/api/profile-links", 2)).body.requests.length, 0);
+  const mine = await call("GET", "/api/profile-links", 2);
+  assert.deepEqual(mine.body.mine[0].grants, { "app:potty": "view" });
+  assert.equal(mine.body.mine[0].status, "active");
+  assert.equal((await call("GET", "/api/app-data/:app", 1, { params: { app: "pro-potty" }, query: { owner: "2" } })).status, 200);
+  assert.equal((await call("PUT", "/api/app-data/:app", 1, { params: { app: "pro-potty" }, query: { owner: "2" }, body: { data: { kids: ["x"] } } })).status, 403, "view only until she allows edit");
+  const link = mine.body.mine[0];
+  await call("PUT", "/api/profile-links/:id", 2, { params: { id: link.id }, body: { grants: { "app:potty": "edit" } } });
+  assert.equal((await call("PUT", "/api/app-data/:app", 1, { params: { app: "pro-potty" }, query: { owner: "2" }, body: { data: { kids: ["Mia", "log"] } } })).status, 200);
+  // Declining removes the request.
+  await call("POST", "/api/profile-links/ask", 3, { body: { email: "grandma@example.com", grants: { "app:potty": "view" } } });
+  const r2 = (await call("GET", "/api/profile-links", 2)).body.requests[0];
+  assert.equal((await call("POST", "/api/profile-links/requests/:id/decline", 2, { params: { id: r2.id } })).status, 200);
+  assert.equal((await call("GET", "/api/profile-links", 2)).body.requests.length, 0);
+});
+
+test("the people picker can show every app that can be shared", () => {
+  const ui = readFileSync("client/src/components/family-hub/LinkedProfiles.tsx", "utf8");
+  assert.match(ui, /Show all \{apps\.length\} apps/); assert.match(ui, /Ask to see theirs/);
+});

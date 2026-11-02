@@ -99,6 +99,8 @@ jobs:
           fi
           # Its capabilities on the App ID, and a profile that includes them (same certificate).
           python3 .github/scripts/apple_signing.py com.arisereader.notes "$RUNNER_TEMP/profile.mobileprovision" APPLE_ID_AUTH PUSH_NOTIFICATIONS
+          # The App Group the widgets read from (group.com.arisereader.notes). Without it, no widgets.
+          python3 .github/scripts/apple_signing.py com.arisereader.notes "$RUNNER_TEMP/profile.mobileprovision" APPLE_ID_AUTH PUSH_NOTIFICATIONS APP_GROUPS || echo "::warning::No App Group on the Arise Notes profile yet."
           security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
@@ -136,8 +138,49 @@ jobs:
           else
             echo "::warning::The provisioning profile has no Push Notifications capability. Building without server notifications."
           fi
+          # Widgets: the app's profile needs the App Group and the widget extension needs a profile of its own.
+          # Without both, the app is built as before, without widgets.
+          if /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.security.application-groups:0' "$RUNNER_TEMP/profile.plist" >/dev/null 2>&1; then
+            SEED_PROFILE="$RUNNER_TEMP/profile.mobileprovision" python3 .github/scripts/apple_signing.py com.arisereader.notes.widgets "$RUNNER_TEMP/widget.mobileprovision" APP_GROUPS || true
+            if [[ -s "$RUNNER_TEMP/widget.mobileprovision" ]] && security cms -D -i "$RUNNER_TEMP/widget.mobileprovision" > "$RUNNER_TEMP/widget.plist" 2>/dev/null && /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.security.application-groups:0' "$RUNNER_TEMP/widget.plist" >/dev/null 2>&1; then
+              cp "$RUNNER_TEMP/widget.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/widget.plist").mobileprovision"
+              /usr/libexec/PlistBuddy -c 'Delete :com.apple.security.application-groups' "$ENT" 2>/dev/null || true
+              /usr/libexec/PlistBuddy -c 'Add :com.apple.security.application-groups array' "$ENT"
+              /usr/libexec/PlistBuddy -c 'Add :com.apple.security.application-groups:0 string group.com.arisereader.notes' "$ENT"
+              USE_ENT=1
+              echo "WIDGETS=1" >> "$GITHUB_ENV"
+              echo "WIDGET_PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/widget.plist")" >> "$GITHUB_ENV"
+              echo "Widgets: App Group and widget profile ready"
+            else
+              echo "::warning::No provisioning profile for the widget extension (com.arisereader.notes.widgets). Building without widgets."
+            fi
+          else
+            echo "::warning::The app's provisioning profile has no App Group. Building without widgets."
+          fi
           if [[ -n "$USE_ENT" ]]; then echo "APP_ENTITLEMENTS=CODE_SIGN_ENTITLEMENTS=App/App.entitlements" >> "$GITHUB_ENV"; else echo "APP_ENTITLEMENTS=" >> "$GITHUB_ENV"; fi
+      - name: Add the Arise Notes widgets (signed)
+        if: env.WIDGETS == '1'
+        working-directory: notes/ios-app
+        env:
+          SIGN_TEAM: 6TYWWNKX6P
+          APP_ENTITLEMENTS: App/App.entitlements
+          WIDGET_SOURCE: notes/ios-app/widgets/NotesWidgets.swift
+          BUILD_NUMBER: ${{ github.run_number }}.${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          ruby -rxcodeproj -e 'puts Xcodeproj::VERSION' || gem install xcodeproj --no-document --user-install
+          export GEM_PATH="$(ruby -e 'puts Gem.user_dir'):$(ruby -e 'puts Gem.default_dir')"
+          APP_PROFILE="$PROFILE_NAME" WIDGET_PROFILE="$WIDGET_PROFILE_NAME" ruby ../../.github/scripts/add_widget.rb ios/App/App.xcodeproj com.arisereader.notes "$(cat widgets.json)" 6a55dc
+      - name: Archive signed app with widgets
+        if: env.WIDGETS == '1'
+        working-directory: notes/ios-app
+        run: |
+          set -euo pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/AriseNotes.xcarchive" archive
+          test -d "$RUNNER_TEMP/AriseNotes.xcarchive/Products/Applications/App.app/PlugIns/AriseWidgets.appex"
+          echo "::notice title=Widgets::Arise Notes widgets are in this build"
       - name: Archive signed app for physical iPhone
+        if: env.WIDGETS != '1'
         working-directory: notes/ios-app
         env:
           TEAM_ID: 6TYWWNKX6P
@@ -157,7 +200,7 @@ jobs:
         run: |
           APP="$RUNNER_TEMP/AriseNotes.xcarchive/Products/Applications/App.app"
           ENT=$(codesign -d --entitlements :- "$APP" 2>/dev/null || true)
-          for k in com.apple.developer.applesignin aps-environment; do
+          for k in com.apple.developer.applesignin aps-environment com.apple.security.application-groups; do
             if printf '%s' "$ENT" | grep -q "$k"; then echo "::notice title=Entitlement::$k is ON in the signed app"; else echo "::warning title=Entitlement::$k is OFF in the signed app"; fi
           done
       - name: Export App Store Connect IPA
@@ -173,6 +216,8 @@ jobs:
               "teamID": "6TYWWNKX6P",
               "provisioningProfiles": {"com.arisereader.notes": os.environ["PROFILE_NAME"]},
           }
+          if os.environ.get("WIDGET_PROFILE_NAME"):
+              options["provisioningProfiles"]["com.arisereader.notes.widgets"] = os.environ["WIDGET_PROFILE_NAME"]
           with open(os.path.join(os.environ["RUNNER_TEMP"], "ExportOptions.plist"), "wb") as output:
               plistlib.dump(options, output)
           PY

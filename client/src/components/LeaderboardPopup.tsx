@@ -83,6 +83,14 @@ function injectStyles() {
   document.head.appendChild(style);
 }
 
+// The standings pop up once each time the app is opened from scratch, not every time you leave it and come back
+// (coming back remounts this screen). A page-level flag covers coming back; the session flag covers the web view
+// being reloaded behind the scenes. A full restart of the app clears both.
+let shownThisLaunch = false;
+const LAUNCH_KEY = "arise.leaderboardPopup.shown";
+const alreadyShown = () => { if (shownThisLaunch) return true; try { return sessionStorage.getItem(LAUNCH_KEY) === "1"; } catch { return false; } };
+const markShown = () => { shownThisLaunch = true; try { sessionStorage.setItem(LAUNCH_KEY, "1"); } catch { /* fine */ } };
+
 export default function LeaderboardPopup({ onNavigate }: { onNavigate: (path: string) => void }) {
   const { user, token: authToken } = useAuth();
   const fetched = useRef(false);
@@ -93,6 +101,7 @@ export default function LeaderboardPopup({ onNavigate }: { onNavigate: (path: st
   useEffect(() => {
     if (fetched.current) return;
     if (!user) return;
+    if (alreadyShown()) return;
 
     // Use token from AuthContext, fall back to cookie
     let token = authToken;
@@ -123,6 +132,8 @@ export default function LeaderboardPopup({ onNavigate }: { onNavigate: (path: st
         if (!res.ok) return;
         const data: StandingData = await res.json();
         if (!data.show) return;
+        if (alreadyShown()) return;
+        markShown();
 
           // Wait for tutorial to finish
           setTimeout(() => {

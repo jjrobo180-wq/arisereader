@@ -4,7 +4,8 @@ import type { Grants } from "@shared/profileLinks";
 
 export type MyLink = { id: string; email: string; nickname: string; status: "pending" | "active"; grants: Grants; viewerName: string; createdAt?: string };
 export type SharedLink = { id: string; ownerId: number; ownerName: string; status: "pending" | "active"; grants: Grants };
-export type LinksState = { mine: MyLink[]; withMe: SharedLink[]; myEmail: string };
+export type ShareRequest = { id: string; fromId: number; fromName: string; nickname: string; grants: Grants; createdAt: string };
+export type LinksState = { mine: MyLink[]; withMe: SharedLink[]; myEmail: string; requests?: ShareRequest[] };
 
 async function call<T>(token: string | null, path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, { ...init, headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(init.headers || {}) } });
@@ -18,6 +19,9 @@ export const linksApi = (token: string | null) => ({
   invite: (email: string, nickname: string, grants: Grants) => call<{ link: MyLink }>(token, "/api/profile-links", { method: "POST", body: JSON.stringify({ email, nickname, grants }) }).then((r) => r.link),
   update: (id: string, patch: { grants?: Grants; nickname?: string }) => call<{ link: MyLink }>(token, `/api/profile-links/${id}`, { method: "PUT", body: JSON.stringify(patch) }).then((r) => r.link),
   remove: (id: string) => call<{ ok: true }>(token, `/api/profile-links/${id}`, { method: "DELETE" }),
+  ask: (email: string, nickname: string, grants: Grants) => call<{ ok: true }>(token, "/api/profile-links/ask", { method: "POST", body: JSON.stringify({ email, nickname, grants }) }),
+  approve: (id: string, grants?: Grants) => call<{ ok: true }>(token, `/api/profile-links/requests/${id}/approve`, { method: "POST", body: JSON.stringify(grants ? { grants } : {}) }),
+  decline: (id: string) => call<{ ok: true }>(token, `/api/profile-links/requests/${id}/decline`, { method: "POST", body: "{}" }),
   accept: (ownerId: number, id: string) => call<{ ok: true }>(token, `/api/profile-links/from/${ownerId}/${id}/accept`, { method: "POST" }),
   leave: (ownerId: number, id: string) => call<{ ok: true }>(token, `/api/profile-links/from/${ownerId}/${id}/leave`, { method: "POST" }),
   lifeView: (ownerId: number, item: string, today: string) => call<{ view: any; today: string; owner: string }>(token, `/api/profile-links/from/${ownerId}/life/${encodeURIComponent(item)}?today=${today}`),

@@ -3,13 +3,15 @@
 // your notes, Voice memo, and Settings (plan and minutes, family, privacy, accessibility).
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { NoteTypeIcon } from "./NoteIcon";
-import { ArrowRight, ChevronLeft, Columns2, Folder, Loader2, Lock, Mic, MessageCircle, Search, Settings, Sparkles, Upload, Users, Zap } from "lucide-react";
+import { ArrowRight, ChevronLeft, Columns2, Folder, Loader2, Lock, Mic, MessageCircle, NotebookPen, Search, Settings, Sparkles, Upload, Users, Zap } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { startApplePush } from "@/lib/applePush";
 import { isNotesApp } from "@/lib/nativeApp";
 import { NOTES_PLANS, dayWords, fmtClock, templateOf } from "@shared/ariseNotes";
 import { notesApi, setNotesToken, type ListNote, type Me } from "./api";
 import { listLocalNotes, type LocalNote } from "./localNotes";
+import { listenForLinks, widgetAi, widgetPages } from "./widgetLinks";
+import { pagesSyncFor } from "./pages/pagesSync";
 import { Btn, IconBtn, Notice, Spinner, ToastHost, plural, shortDate, useToast } from "./ui";
 import "./notes.css";
 
@@ -21,12 +23,15 @@ const MemoScreen = lazy(() => import("./MemoScreen"));
 const SettingsScreen = lazy(() => import("./SettingsScreen"));
 const PrivacyPage = lazy(() => import("./PrivacyPage"));
 const LocalNoteScreen = lazy(() => import("./LocalNoteScreen"));
+const PagesView = lazy(() => import("./pages/PagesView"));
 
 export type Route =
   | { name: "home" } | { name: "record" } | { name: "upload" } | { name: "note"; id: string; t?: number } | { name: "ask" } | { name: "memo" }
   | { name: "settings"; tab?: "plan" | "family" | "privacy" | "access" } | { name: "privacy" }
   /** A Strict-mode note, kept only on this iPhone (localNotes.ts). */
-  | { name: "local"; id: string };
+  | { name: "local"; id: string }
+  /** The Notes tab: typed and handwritten notes (pages/PagesView.tsx), and one of them open. */
+  | { name: "pages" } | { name: "page"; id: string };
 export type Go = (r: Route) => void;
 export type AppCtx = {
   me: Me;
@@ -52,10 +57,12 @@ function parseHash(h: string): Route {
     case "family": return { name: "settings", tab: "family" };
     case "privacy": return { name: "privacy" };
     case "local": return p[1] ? { name: "local", id: p[1] } : { name: "home" };
+    case "pages": return { name: "pages" };
+    case "page": return p[1] ? { name: "page", id: p[1] } : { name: "pages" };
     default: return { name: "home" };
   }
 }
-const hashOf = (r: Route) => r.name === "home" ? "#/" : r.name === "local" ? `#/local/${r.id}` : r.name === "note" ? `#/note/${r.id}${r.t !== undefined ? `/${Math.round(r.t)}` : ""}` : r.name === "settings" ? `#/settings${r.tab ? `/${r.tab}` : ""}` : `#/${r.name}`;
+const hashOf = (r: Route) => r.name === "home" ? "#/" : r.name === "local" ? `#/local/${r.id}` : r.name === "page" ? `#/page/${r.id}` : r.name === "note" ? `#/note/${r.id}${r.t !== undefined ? `/${Math.round(r.t)}` : ""}` : r.name === "settings" ? `#/settings${r.tab ? `/${r.tab}` : ""}` : `#/${r.name}`;
 
 let lexendLoaded = false;
 const loadLexend = () => {
@@ -83,7 +90,13 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   const [me, setMe] = useState<Me | null>(null);
   const [error, setError] = useState("");
   const [notes, setNotes] = useState<ListNote[] | null>(null);
-  const [route, setRoute] = useState<Route>(() => (mode === "standalone" ? parseHash(window.location.hash) : startNote ? { name: "note", id: startNote } : { name: "home" }));
+  const [route, setRoute] = useState<Route>(() => {
+    if (mode !== "standalone") return startNote ? { name: "note", id: startNote } : lastTab() === "pages" ? { name: "pages" } : { name: "home" };
+    // Opening the app with no address goes back to the tab you were on.
+    const bare = !window.location.hash || window.location.hash === "#/" || window.location.hash === "#/signin";
+    return bare && lastTab() === "pages" ? { name: "pages" } : parseHash(window.location.hash);
+  });
+  useEffect(() => { if (route.name === "pages" || route.name === "page") rememberTab("pages"); else if (route.name === "home") rememberTab("ai"); }, [route.name]);
   const guard = useRef<(() => boolean) | null>(null);
 
   const refreshMe = useCallback(async () => {
@@ -120,6 +133,11 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
     return () => window.removeEventListener("popstate", onPop);
   }, [mode, route]);
 
+  // The iPhone app's widgets: a tap opens the right screen, and they show your latest notes.
+  useEffect(() => { listenForLinks(go); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (isNotesApp() && notes) widgetAi(notes); }, [notes]);
+  useEffect(() => { if (isNotesApp() && user?.id) return pagesSyncFor(Number(user.id)).subscribe((snap) => widgetPages(snap.metas)); }, [user?.id]);
+
   const s = me?.settings;
   useEffect(() => { if (s?.font === "dyslexic") loadLexend(); }, [s?.font]);
   const rootClass = ["an-root min-h-[100dvh]", s?.font === "dyslexic" && "an-dyslexic", s?.simple && "an-simple", s?.contrast && "an-contrast", s?.large && "an-large"].filter(Boolean).join(" ");
@@ -140,7 +158,9 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
       case "settings": return <SettingsScreen ctx={ctx} tab={route.tab} />;
       case "privacy": return <PrivacyPage onBack={() => go({ name: "settings", tab: "privacy" })} />;
       case "local": return <LocalNoteScreen key={route.id} ctx={ctx} id={route.id} />;
-      default: return <Home ctx={ctx} notes={notes} onExit={onExit} />;
+      case "pages": return <PagesView ctx={ctx} openId={null} tabs={<TabBar ctx={ctx} on="pages" />} />;
+      case "page": return <PagesView ctx={ctx} openId={route.id} tabs={<TabBar ctx={ctx} on="pages" />} />;
+      default: return <><Home ctx={ctx} notes={notes} onExit={onExit} /><TabBar ctx={ctx} on="ai" /></>;
     }
   })();
   return <div className={rootClass} data-testid="arise-notes">
@@ -189,6 +209,23 @@ export function openSplit(mode: "standalone" | "embedded", right: "tasks" | "cal
   try { localStorage.setItem("arise_duo_split_v1", JSON.stringify({ left: "arisenotes", right })); } catch { /* the split opens with its own picks */ }
   if (mode === "embedded") window.location.hash = "#/duo";
   else window.location.assign(/^(www\.)?arisetodo\.com$/i.test(window.location.hostname) ? "/app#/duo" : "/#/duo");
+}
+
+// ─── The two tabs: AI Notes (recordings) and Notes (typed and handwritten) ───
+const TAB_KEY = "arise-notes-tab";
+const lastTab = () => { try { return localStorage.getItem(TAB_KEY) === "pages" ? "pages" : "ai"; } catch { return "ai"; } };
+const rememberTab = (t: "ai" | "pages") => { try { localStorage.setItem(TAB_KEY, t); } catch { /* not kept */ } };
+export function TabBar({ ctx, on }: { ctx: AppCtx; on: "ai" | "pages" }) {
+  const Tab = ({ id, icon, label }: { id: "ai" | "pages"; icon: ReactNode; label: string }) =>
+    <button type="button" role="tab" aria-selected={on === id} onClick={() => ctx.go(id === "ai" ? { name: "home" } : { name: "pages" })} data-testid={`notes-tab-${id}`}
+      className={`flex flex-1 flex-col items-center gap-0.5 rounded-2xl py-1.5 text-[11px] font-bold transition ${on === id ? "text-[var(--an-violet)]" : "text-[var(--an-faint)] hover:text-[var(--an-muted)]"}`}>
+      <span className={`grid h-8 w-14 place-items-center rounded-full ${on === id ? "bg-[var(--an-violet-soft)]" : ""}`}>{icon}</span>{label}</button>;
+  return <nav role="tablist" aria-label="Arise Notes" className="an-noprint fixed inset-x-0 bottom-0 z-40 border-t border-[var(--an-line)] bg-white/90 px-6 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-xl" data-testid="notes-tabs">
+    <div className="mx-auto flex max-w-sm gap-2">
+      <Tab id="ai" icon={<Sparkles className="h-5 w-5" />} label="AI Notes" />
+      <Tab id="pages" icon={<NotebookPen className="h-5 w-5" />} label="Notes" />
+    </div>
+  </nav>;
 }
 
 // ─── Home ────────────────────────────────────────────────────────────────────
