@@ -184,6 +184,20 @@ jobs:
           set -euo pipefail
           xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/AriseFit.xcarchive" archive
           test -d "$RUNNER_TEMP/AriseFit.xcarchive/Products/Applications/App.app/PlugIns/AriseWidgets.appex"
+      - name: Widget diagnostics (what the archive really contains)
+        if: env.WIDGETS == '1'
+        working-directory: fit/ios-app
+        run: |
+          A="$RUNNER_TEMP/AriseFit.xcarchive/Products/Applications/App.app"
+          echo "== host Info.plist"; plutil -p "$A/Info.plist" | grep -E "CFBundle(Identifier|Version|ShortVersionString)|MinimumOSVersion|DTPlatform" || true
+          X="$A/PlugIns/AriseWidgets.appex"
+          echo "== appex files"; ls -la "$X"
+          echo "== appex Info.plist"; plutil -p "$X/Info.plist"
+          echo "== appex entitlements"; codesign -d --entitlements :- "$X" 2>&1 | head -30 || true
+          echo "== appex signature"; codesign -dvv "$X" 2>&1 | grep -E "Identifier|Authority|TeamIdentifier|Format" || true
+          echo "== widget kinds in the binary"; strings "$X/AriseWidgets" | grep -E "^Arise\.fit" | sort -u
+          echo "== arch / min os"; lipo -info "$X/AriseWidgets"; vtool -show-build "$X/AriseWidgets" 2>&1 | head -12 || true
+          echo "== appintents metadata"; ls "$X/Metadata.appintents" 2>&1 | head
       - name: Archive signed app for physical iPhone
         if: env.WIDGETS != '1'
         working-directory: fit/ios-app
