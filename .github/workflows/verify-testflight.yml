@@ -64,7 +64,7 @@ jobs:
                   r, offset = integer(signature, offset)
                   s, offset = integer(signature, offset)
                   token = header + "." + payload + "." + b64(r + s)
-                  targets = {"com.arisereader.arisetodo": None, "com.arisereader.fit": None, "com.arisereader.podplus": None}
+                  targets = {"com.arisereader.arisetodo": None, "com.arisereader.fit": None, "com.arisereader.podplus": None, "com.arisereader.notes": None, "com.arisereader.reader": None}
                   def get(path, params):
                       request = urllib.request.Request("https://api.appstoreconnect.apple.com/v1/" + path + "?" + urllib.parse.urlencode(params), headers={"Authorization": "Bearer " + token})
                       with urllib.request.urlopen(request, timeout=30) as response:
