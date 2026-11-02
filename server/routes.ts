@@ -137,6 +137,7 @@ import { registerTodoAdminRoutes } from "./todoAdmin";
 import { shuffleChoices, storedLetter } from "./quizShuffle";
 import { clientAddress, createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { registerStudentRecoveryRoutes, type StudentRow } from "./studentRecovery";
+import { registerHelpTicketRoutes } from "./helpTickets";
 import { accountForEmailSignIn, looksLikeEmail, registerAccountRecoveryRoutes, type RecoveryAccount, type RecoveryDeps } from "./accountRecovery";
 import { DEFAULT_SITE_URL, PARENT_INVITES_PER_DAY, emailDocument, parentInviteEmail } from "./emailFormat";
 import { registerParentInviteEmailRoutes } from "./parentInviteEmails";
@@ -11470,6 +11471,39 @@ Important:
     return false;
   };
   const NOT_YOUR_STUDENT = { message: "You can only see and change your own students." };
+
+  // "Still stuck?" on the sign-in screen: a message to the admin without an account (server/helpTickets.ts).
+  {
+    const tickets = () => getAdminSupabase().from("student_help_tickets");
+    registerHelpTicketRoutes(app, {
+      auth: authMiddleware, admin: adminMiddleware,
+      findOpenDuplicate: async (t) => {
+        const { data, error } = await tickets().select("id").is("done_at", null).eq("first_name", t.firstName).eq("last_name", t.lastName).eq("school", t.school).eq("issue", t.issue).limit(1);
+        if (error) throw error;
+        return !!data?.length;
+      },
+      save: async (t) => {
+        const { error } = await tickets().insert({ first_name: t.firstName, last_name: t.lastName, school: t.school, grade: t.grade, advisory: t.advisory, issue: t.issue, email: t.email || null });
+        if (error) throw error;
+      },
+      alert: (t) => alertAdmin("problem_report", {
+        title: `Help ticket from ${t.firstName} ${t.lastName}`,
+        summary: `${t.school}, grade ${t.grade}, ${t.advisory}: ${t.issue.slice(0, 160)}`,
+        lines: [["Name", `${t.firstName} ${t.lastName}`], ["School", t.school], ["Grade", t.grade], ["Advisory", t.advisory], ["Problem", t.issue], ["Email", t.email || "None. They expect you in advisory by the following school day."]],
+        note: "Sent from the sign-in screen without an account. It's under Help tickets in the Inbox on the admin page.",
+      }),
+      list: async () => {
+        const { data, error } = await tickets().select("id, first_name, last_name, school, grade, advisory, issue, email, created_at, done_at").is("done_at", null).order("created_at", { ascending: false }).limit(200);
+        if (error) throw error;
+        return (data || []).map((r: any) => ({ id: Number(r.id), firstName: r.first_name, lastName: r.last_name, school: r.school, grade: r.grade, advisory: r.advisory, issue: r.issue, email: r.email || "", createdAt: r.created_at, doneAt: r.done_at }));
+      },
+      markDone: async (id, by) => {
+        const { data, error } = await tickets().update({ done_at: new Date().toISOString(), done_by: by }).eq("id", id).is("done_at", null).select("id");
+        if (error) throw error;
+        return !!data?.length;
+      },
+    });
+  }
 
   // "Forgot username?" / "Forgot password?" for students (server/studentRecovery.ts).
   {

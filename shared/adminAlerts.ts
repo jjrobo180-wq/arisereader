@@ -43,7 +43,7 @@ export const ALERT_EVENTS: readonly AlertEventInfo[] = [
   { key: "approval_request", group: "Requests", label: "Grade change, Eye Gaze mode and reward requests", hint: "Students asking to change grade band or Eye Gaze mode, or to claim a reward.", defaults: { email: true, inApp: true } },
   { key: "club_signup", group: "Requests", label: "A Reading Club sign-up", hint: "Waiting for you to confirm or deny.", defaults: { email: true, inApp: true } },
   { key: "student_message", group: "Messages", label: "Someone sends you a message", hint: "Students, parents and teachers writing to the admin inbox.", defaults: { email: true, inApp: true } },
-  { key: "problem_report", group: "Messages", label: "Someone reports a problem", hint: "From the Report button on any page.", defaults: { email: true, inApp: true } },
+  { key: "problem_report", group: "Messages", label: "Someone reports a problem", hint: "From the Report button on any page, and help tickets from the sign-in screen.", defaults: { email: true, inApp: true } },
 ];
 
 export type AlertSettings = {

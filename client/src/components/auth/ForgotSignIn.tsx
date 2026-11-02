@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { API_BASE } from "@/lib/queryClient";
+import HelpTicketForm from "./HelpTicketForm";
 
 /**
  * "Forgot username?" and "Forgot password?" on the sign-in screens.
  * Students: pick your school, then your student ID number (or first and last name). The username
  * is shown right away; a forgotten password goes to the teacher, who gives a new one.
  * Anyone with an email on their account: we email the username(s) and a link to choose a new password.
+ * Still stuck: message the admin without an account (HelpTicketForm).
  */
 type Mode = "username" | "password";
 type School = { id: number; name: string };
@@ -23,6 +25,7 @@ export default function ForgotSignIn({ dark = false }: { dark?: boolean }) {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; text: string; username?: string } | null>(null);
+  const [messaging, setMessaging] = useState(false);
 
   useEffect(() => {
     if (!mode || schools.length) return;
@@ -54,7 +57,7 @@ export default function ForgotSignIn({ dark = false }: { dark?: boolean }) {
       setNote({ ok, text: d.message || (ok ? "We told your teacher." : "We couldn't find your account.") });
     }
   };
-  const close = () => { setMode(null); setNote(null); setByEmail(false); };
+  const close = () => { setMode(null); setNote(null); setByEmail(false); setMessaging(false); };
 
   const link = dark ? "text-violet-300 hover:text-white" : "text-[#5b53df] hover:text-[#4941cb]";
   const box = dark ? "border-white/10 bg-white/5 text-slate-200" : "border-[#e3e6f0] bg-[#f8f8fd] text-[#3b4256]";
@@ -68,6 +71,7 @@ export default function ForgotSignIn({ dark = false }: { dark?: boolean }) {
       <button type="button" onClick={() => setMode("password")} className={`min-h-10 underline-offset-2 hover:underline ${link}`}>Forgot password?</button>
     </div>
   );
+  if (messaging) return <HelpTicketForm dark={dark} onBack={close} />;
   return (
     <form onSubmit={send} className={`mt-4 space-y-3 rounded-xl border p-4 text-sm ${box}`}>
       <div className="flex gap-2">
@@ -101,6 +105,7 @@ export default function ForgotSignIn({ dark = false }: { dark?: boolean }) {
         <button type="button" onClick={close} className={`h-10 rounded-lg px-3 font-bold ${link}`}>Cancel</button>
       </div>
       <button type="button" onClick={() => { setByEmail(!byEmail); setNote(null); }} className={`text-xs font-bold underline ${link}`}>{byEmail ? "I'm a student without an email" : "Have an email on your account? Use it instead"}</button>
+      <button type="button" onClick={() => { setMessaging(true); setNote(null); }} className={`block text-xs font-bold underline ${link}`}>Still stuck? Message the admin (no account needed)</button>
     </form>
   );
 }

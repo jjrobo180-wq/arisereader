@@ -29,6 +29,7 @@ import AdminPlans from "@/components/AdminPlans";
 import PlayTimeManager from "@/components/PlayTimeManager";
 import StudentActivity from "@/components/StudentActivity";
 import AdminInbox from "@/components/admin/AdminInbox";
+import HelpTickets from "@/components/admin/HelpTickets";
 import AlertSettingsCard from "@/components/admin/AlertSettings";
 import AdminPrograms from "@/components/admin/AdminPrograms";
 import BookPointsDialog from "@/components/admin/BookPointsDialog";
@@ -4434,6 +4435,7 @@ Generate exactly 10 questions.`;
                 <h1 className="text-xl font-black sm:text-2xl">Inbox</h1>
                 <p className="mt-1 text-sm text-muted-foreground">Messages and problem reports from students, parents and teachers.</p>
               </div>
+              <HelpTickets token={token || getTokenFromCookie()} />
               <AdminInbox
                 token={token || getTokenFromCookie()}
                 people={students.map((s) => ({ id: s.id, displayName: s.displayName, username: s.username }))}
