@@ -122,7 +122,7 @@ export function WikiMini({ lift, onOpen }: { lift: boolean; onOpen: (title: stri
   useEffect(() => subscribeWiki(() => bump((n) => n + 1)), []);
   const st = wikiState();
   if (!st.art) return null;
-  return <div role="region" aria-label="Now playing Wiki podcast" className="fixed inset-x-3 z-[41] flex items-center gap-3 rounded-2xl bg-[#0f0f0f] p-2 pr-3 text-white shadow-xl ring-1 ring-white/10"
+  return <div role="region" aria-label="Now playing Wiki podcast" className="ps-keep fixed inset-x-3 z-[41] flex items-center gap-3 rounded-2xl bg-[#0f0f0f] p-2 pr-3 text-white shadow-xl ring-1 ring-white/10"
     style={{ bottom: `calc(env(safe-area-inset-bottom, 0px) + ${lift ? "5.5rem" : "0.75rem"})` }} data-testid="wiki-mini">
     <button onClick={() => onOpen(st.art!.title)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Open ${st.art.title}`}>
       {st.art.image ? <img src={st.art.image} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" /> : <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white/10"><BookOpenText size={18} /></span>}
