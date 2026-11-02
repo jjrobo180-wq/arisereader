@@ -64,7 +64,7 @@ test("advisories are ranked by their students' points, and ties share a place", 
   assert.deepEqual([1, 2, 3, 4, 11, 12, 13, 21, 22, 101].map(ordinal), ["1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "101st"]);
 });
 
-test("all of grade 6 races as the Ms. Garcia's Lit Lab, without changing anyone's real advisory", async () => {
+test("all of grade 6 races as Ms. Garcia's Lit Lab, without changing anyone's real advisory", async () => {
   const advisories = advisoriesForSchool(CGMS);
   assert.equal(advisories.length, 15, "the school's advisories themselves don't change");
   const students = new Map<number, string>([[1, "Boucher & Groussman"], [2, "Balestrini & Tsui"], [3, "Mullaney & Muniz"], [4, "Chase & Shuster"], [5, "idk"]]);
@@ -114,7 +114,7 @@ test("a student sees every advisory's place and their own advisory's, counting f
   assert.ok(!calls[0].ids.includes(999), "a student who left the school (archived) doesn't count");
 });
 
-test("a sixth grader's place is the Ms. Garcia's Lit Lab's", async () => {
+test("a sixth grader's place is Ms. Garcia's Lit Lab's", async () => {
   const { get } = fakeApp();
   const { body } = await get({ id: 104, role: "student", school_id: 4 });
   assert.equal(body.mine.advisory, "Ms. Garcia's Lit Lab");
