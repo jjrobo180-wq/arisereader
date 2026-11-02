@@ -1,6 +1,6 @@
 import "./lib/accountStorageBoot";
 import "./lib/sampleBoot";
-import { markAppReadyWhenDrawn, nativeAppInfo } from "./lib/nativeApp";
+import { isFitApp, markAppReadyWhenDrawn, nativeAppInfo } from "./lib/nativeApp";
 import { allowPopups } from "./lib/popupSupport";
 import { createRoot } from "react-dom/client";
 import App from "./App";
@@ -12,6 +12,14 @@ import { installDuoPaneBridge } from "./lib/duoPaneBridge";
 import { installMediaUnlock, voiceElement } from "./lib/mediaUnlock";
 import { configureAiVoice } from "@/lib/aiVoice";
 import { API_BASE } from "@/lib/queryClient";
+
+// Arise Fit draws edge to edge (contentInset "never" in fit/ios-app/capacitor.config.json). Without
+// viewport-fit=cover the page stops short of the home indicator and env(safe-area-inset-*) reads 0, so titles
+// sit under the Dynamic Island and the tab bar floats above a gray strip.
+if (isFitApp()) {
+  const vp = document.querySelector('meta[name="viewport"]');
+  if (vp && !/viewport-fit/.test(vp.getAttribute("content") || "")) vp.setAttribute("content", `${vp.getAttribute("content")}, viewport-fit=cover`);
+}
 
 // Sound on tablets: the first tap unlocks game sounds and voice lines (lib/mediaUnlock.ts).
 installMediaUnlock();
