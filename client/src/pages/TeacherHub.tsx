@@ -1009,7 +1009,7 @@ function TeacherHubPage() {
       const sid = student ? workspace.students.find((x) => x.name === student)?.id : undefined;
       setAdding({ start: "file", preload: { text: student ? `These are ${student}'s documents (IEP, goal pages, progress reports). Pull out ${student}'s IEP goals with the baseline, target, unit and dates, any progress-monitoring or meeting dates as reminders or meetings, and anything else worth keeping.` : READ_DOC_ASK }, links: sid ? [{ kind: "student", id: sid }] : [] });
     }}>
-    <div style={hubLook.style} className={`hub-paper hub-lifelook min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night && !hubLook.look ? "hub-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""} ${hubLook.className}`}
+    <div style={hubLook.style} className={`${hubLook.look ? "" : "hub-paper hub-lifelook "}min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night && !hubLook.look ? "hub-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""} ${hubLook.className}`}
       style={{ "--hub-accent": accent, "--hub-accent-deep": deepenAccent(accent) } as React.CSSProperties}>
       <UpgradeHost hub="work" />
       {canUseHub && loaded && !loadError && !needsPlan && <HubCoach userId={user.id} hub="work" />}
