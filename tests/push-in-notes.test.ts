@@ -303,3 +303,14 @@ test("a day's notes are the notes dated that day, each in its class, and a new o
   assert.equal(noteKey(day[0], BLOCKS), lee.key);
   assert.equal(newNote(lee, "2026-10-14", "z", NOW).date, "2026-10-14");
 });
+
+test("a student's note keeps the space while it's being typed, and saving trims it", () => {
+  let n = withEntry(note(), "Ava", { note: "Needed " }, NOW);
+  assert.equal(n.students[0].note, "Needed ");
+  n = withEntry(n, "Ava", { note: "Needed help" }, NOW);
+  assert.equal(n.students[0].note, "Needed help");
+  n = withEntry(n, "Ava", { support: "Sentence " }, NOW);
+  assert.equal(n.students[0].support, "Sentence ");
+  assert.equal(n.students[0].note, "Needed help");
+  assert.equal(cleanPushInNote(withEntry(note(), "Ava", { note: "Needed " }, NOW))!.students[0].note, "Needed");
+});

@@ -183,6 +183,10 @@ export function withEntry(note: PushInNote, student: string, change: Partial<Pus
   const next = { ...entryOf(note, student), ...change, student: entryOf(note, student).student };
   const kept = note.students.filter((s) => fold(s.student) !== fold(student));
   const full = cleanStudent(next, new Set(note.materials.map((m) => m.id)));
+  // This runs on every keystroke, so the text stays as typed: trimming here ate the space between words.
+  // Saving (cleanPushInNotes) trims it.
+  if (full?.note) full.note = String(next.note).slice(0, PUSH_IN_LIMITS.note);
+  if (full?.support) full.support = String(next.support).slice(0, PUSH_IN_LIMITS.support);
   return { ...note, students: full ? [...kept, full] : kept, updatedAt: now };
 }
 
