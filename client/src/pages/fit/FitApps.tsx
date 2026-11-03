@@ -72,14 +72,15 @@ export function AppsTab({ data, update, say, onOpen }: { data: FitData; update: 
         {Array.from({ length: TAB_MAX }, (_, i) => { const id = a.tabs[i]; const app = id ? FIT_APP_BY_ID.get(id) : undefined;
           return app ? <div key={i} className="relative flex flex-col items-center gap-1 rounded-[12px] py-2" style={{ background: C.card2 }}>
             <AppTile app={app} size={34} /><span className="w-full truncate px-1 text-center text-[11px] font-semibold">{app.name}</span>
-            {edit && <div className="mt-0.5 flex gap-0.5">
-              <button type="button" aria-label={`Move ${app.name} left`} disabled={i === 0} onClick={() => set((x) => moveTab(x, app.id, -1))} className="grid h-6 w-6 place-items-center rounded-full disabled:opacity-30" style={{ background: C.card }}><ChevronLeft className="h-3.5 w-3.5" /></button>
-              <button type="button" aria-label={`Take ${app.name} off the tab bar`} onClick={() => set((x) => toggleTab(x, app.id))} className="grid h-6 w-6 place-items-center rounded-full" style={{ background: C.card, color: C.red }}><X className="h-3.5 w-3.5" /></button>
-              <button type="button" aria-label={`Move ${app.name} right`} disabled={i >= a.tabs.length - 1} onClick={() => set((x) => moveTab(x, app.id, 1))} className="grid h-6 w-6 place-items-center rounded-full disabled:opacity-30" style={{ background: C.card }}><ChevronRight className="h-3.5 w-3.5" /></button></div>}
+            {edit && <button type="button" aria-label={`Take ${app.name} off the tab bar`} onClick={() => set((x) => toggleTab(x, app.id))} className="absolute -right-1 -top-1.5 grid h-6 w-6 place-items-center rounded-full shadow" style={{ background: C.card, color: C.red, boxShadow: `0 0 0 1px ${C.line}` }} data-testid={`fit-tabbar-off-${app.id}`}><X className="h-3.5 w-3.5" /></button>}
           </div> : <div key={i} className="grid place-items-center rounded-[12px] px-1 py-2 text-center text-[11px] font-semibold" style={{ boxShadow: `inset 0 0 0 1.5px ${C.line}`, color: C.dim, borderStyle: "dashed" }}>Empty<br />slot</div>; })}
         <Slot label="Apps" fixed />
       </div>
-      <p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>{edit ? "Tap the pin on an app below to put it on the tab bar." : "Tap Edit to change it."}</p>
+      {edit && a.tabs.length > 1 && <div className="mt-2 flex flex-wrap items-center gap-1.5 px-1" aria-label="Order of the tab bar">{a.tabs.map((id, i) => { const app = FIT_APP_BY_ID.get(id)!; return <span key={id} className="flex items-center gap-0.5 rounded-full py-0.5 pl-1 pr-2 text-[12px] font-semibold" style={{ background: C.card2 }}>
+        <button type="button" aria-label={`Move ${app.name} left`} disabled={i === 0} onClick={() => set((x) => moveTab(x, id, -1))} className="grid h-7 w-7 place-items-center rounded-full disabled:opacity-25"><ChevronLeft className="h-4 w-4" /></button>
+        {app.name}
+        <button type="button" aria-label={`Move ${app.name} right`} disabled={i >= a.tabs.length - 1} onClick={() => set((x) => moveTab(x, id, 1))} className="grid h-7 w-7 place-items-center rounded-full disabled:opacity-25"><ChevronRight className="h-4 w-4" /></button></span>; })}</div>}
+      <p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>{edit ? "Tap an app below to pin it to the tab bar or take it off. Use the arrows to change the order." : "Tap Edit to change it."}</p>
     </Card>
 
     <Title>Added</Title>
@@ -126,7 +127,7 @@ export function AppStore({ data, update, say, onClose, onOpen }: { data: FitData
   return <Sheet title="Arise Fit apps" onClose={onClose} testId="fit-store">
     <div className="relative mt-1"><Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2" style={{ color: C.dim }} />
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search apps" className={`${inputCls} pl-10`} style={inputStyle} aria-label="Search apps" data-testid="fit-store-search" /></div>
-    {!q && <div className="-mx-4 mt-3 flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">{featured.map((id) => { const app = FIT_APP_BY_ID.get(id)!; const has = a.added.includes(id);
+    {!q && <div className="-mx-4 mt-3 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">{featured.map((id) => { const app = FIT_APP_BY_ID.get(id)!; const has = a.added.includes(id);
       return <button key={id} type="button" onClick={() => (has ? onOpen(id) : (set((x) => addApp(x, id)), haptic("success"), say(`${app.name} added.`)))} className="fit-in relative flex h-[150px] w-[230px] shrink-0 snap-start flex-col justify-end overflow-hidden rounded-[18px] p-4 text-left text-white active:scale-[.98]" style={{ background: `linear-gradient(150deg, ${app.tile[0]}, ${app.tile[1]})` }}>
         <span className="absolute right-3 top-3 opacity-90"><AppTile app={app} size={44} /></span>
         <span className="absolute inset-0" style={{ background: "radial-gradient(90% 70% at 100% 0%, rgba(255,255,255,.3), transparent 60%)" }} />

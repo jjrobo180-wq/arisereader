@@ -245,10 +245,10 @@ export function SleepSheet({ data, update, onClose, say, inline, onBreathe }: { 
             <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full" style={{ background: C.track }}><span className="block h-full rounded-full" style={{ width: `${(p.got / p.of) * 100}%`, background: "#818cf8" }} /></span>
             <span className="w-10 text-right tabular-nums" style={{ color: C.dim }}>{p.got}/{p.of}</span></div>)}</div>}
           {last && !last.q && <Rested q={0} setQ={(q) => update((d) => ({ ...d, sleep: rateNight(d.sleep, last.date, q) }))} className="mt-3" />}
-          <div className="mt-4 grid grid-cols-[1fr_auto_auto] gap-2">
-            <Btn onClick={start} testId="fit-sleep-start"><Moon className="h-5 w-5" />Going to sleep</Btn>
-            <Btn kind="soft" onClick={() => setSheet("log")} testId="fit-sleep-log-open"><Plus className="h-4 w-4" />Night</Btn>
-            <Btn kind="soft" onClick={() => setSheet("nap")}><Plus className="h-4 w-4" />Nap</Btn>
+          <Btn className="mt-4 w-full" onClick={start} testId="fit-sleep-start"><Moon className="h-5 w-5" />Going to sleep</Btn>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <Btn kind="soft" onClick={() => setSheet("log")} testId="fit-sleep-log-open"><Plus className="h-4 w-4" />Log a night</Btn>
+            <Btn kind="soft" onClick={() => setSheet("nap")}><Plus className="h-4 w-4" />Log a nap</Btn>
           </div>
           {syncing && <p className="mt-2 text-center text-[12px]" style={{ color: C.dim }}>Checking Apple Health…</p>}
         </Card>}

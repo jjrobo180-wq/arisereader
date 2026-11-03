@@ -106,8 +106,8 @@ const SCREENS = [
   ["train", tap("fit-tab-train"), { scrolls: 4 }],
   ["food", tap("fit-tab-food"), { scrolls: 3 }],
   ["settings", tap("fit-open-settings"), { scrolls: 4 }],
-  ["progress", tap("fit-open-progress"), { scrolls: 2 }],
-  ["sleep", seq(async (p) => { await p.getByTestId("fit-today-sleep").scrollIntoViewIfNeeded(); }, tap("fit-today-sleep")), { scrolls: 3 }],
+  ["progress", seq(tap("fit-tab-apps"), tap("fit-apps-open-progress")), { scrolls: 2 }],
+  ["sleep", tap("fit-today-sleep"), { scrolls: 3 }],
 ];
 try { const extra = await import(new URL("./fitScreens.list.mjs", import.meta.url)); SCREENS.push(...extra.default({ tap, seq })); } catch { /* none */ }
 const only = process.env.FIT_SCREENS ? new Set(process.env.FIT_SCREENS.split(",")) : null;
