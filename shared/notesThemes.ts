@@ -32,7 +32,7 @@ export function themeVars(t: NotesTheme): Record<string, string> {
   return {
     "--an-bg": t.bg, "--an-card": t.card, "--an-line": t.line, "--an-ink": t.ink, "--an-muted": t.muted, "--an-faint": t.faint,
     "--an-violet": t.accent, "--an-violet-ink": t.accentInk, "--an-violet-soft": t.accentSoft, "--an-on-accent": t.onAccent,
-    "--an-coral": t.record, "--an-on-record": t.onRecord,
+    "--an-hero": t.accent, "--an-on-hero": t.onAccent, "--an-coral": t.record, "--an-on-record": t.onRecord,
     "--an-coral-soft": `color-mix(in srgb, ${t.record} 16%, ${t.card})`,
     "--an-amber": t.dark ? "#ffc969" : "#8a5a10", "--an-amber-soft": `color-mix(in srgb, #f5a524 ${t.dark ? 18 : 16}%, ${t.card})`,
     "--an-green": t.dark ? "#7de2b8" : "#0d6b47", "--an-green-soft": `color-mix(in srgb, #138a5b ${t.dark ? 24 : 12}%, ${t.card})`,

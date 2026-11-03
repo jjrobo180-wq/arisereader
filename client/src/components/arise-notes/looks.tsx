@@ -47,7 +47,7 @@ export function LookHomeHero({ look, a }: { look: NotesTheme; a: HomeActions }) 
       default: return null;
     }
   })();
-  return <section className={`an-l-hero an-l-hero-${look.id}`}>{body}</section>;
+  return <section className={`an-l-hero an-l-hero-${look.id}`}>{a.minutes && <div className="an-l-minutes">{a.minutes}</div>}{body}</section>;
 }
 
 const STATUS: Record<string, string> = { recording: "Recording", processing: "Writing down…", no_minutes: "Out of minutes", failed: "Needs a retry" };
@@ -107,4 +107,14 @@ export function LookRecordArt({ look, secs, paused, finishing, level }: { look: 
 /** The big title at the top of a note. */
 export function LookNoteTitle({ look, title, meta }: { look: NotesTheme; title: string; meta: string }) {
   return <header className={`an-l-notetitle an-l-notetitle-${look.id}`}><h1>{look.id === "console" ? title.toLowerCase().replace(/\s+/g, "_") : title}</h1><p>{meta}</p></header>;
+}
+
+/** The floating icon bar at the bottom: Home, Notes, Record and your settings. */
+export function LookTabBar({ on, initial, home, notes, record, settings }: { on: "ai" | "pages"; initial: string; home: () => void; notes: () => void; record: () => void; settings: () => void }) {
+  return <nav aria-label="Arise Notes" className="an-noprint an-l-bar" data-testid="notes-tabs">
+    <button type="button" aria-label="Home" aria-current={on === "ai" ? "page" : undefined} onClick={home} data-testid="notes-tab-ai"><Svg size={25}><path d="M4 11.5 12 4l8 7.5V19a1 1 0 0 1-1 1h-4v-5H9v5H5a1 1 0 0 1-1-1z" /></Svg></button>
+    <button type="button" aria-label="Notes" aria-current={on === "pages" ? "page" : undefined} onClick={notes} data-testid="notes-tab-pages"><Svg size={25}><path d="M12 3c.7 4.6 2.4 6.3 7 7-4.6.7-6.3 2.4-7 7-.7-4.6-2.4-6.3-7-7 4.6-.7 6.3-2.4 7-7zM19 3v4M17 5h4" /></Svg></button>
+    <button type="button" aria-label="Record" onClick={record} data-testid="notes-tab-record"><Svg size={27}><circle cx="12" cy="12" r="9" /><path d="M12 8v8M8 12h8" /></Svg></button>
+    <button type="button" aria-label="Settings" onClick={settings} data-testid="notes-tab-settings"><span className="an-l-avatar">{initial}</span></button>
+  </nav>;
 }
