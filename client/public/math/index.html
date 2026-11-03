@@ -2004,6 +2004,306 @@ document.addEventListener('dragover', e => { const d = e.target.closest?.('#snap
 document.addEventListener('dragleave', e => { e.target.closest?.('#snapDrop')?.classList.remove('over'); });
 document.addEventListener('drop', e => { const d = e.target.closest?.('#snapDrop'); if (!d) return; e.preventDefault(); d.classList.remove('over'); const f = [...(e.dataTransfer?.files || [])].find(x => x.type.startsWith('image/')); if (f) takeImage(f); });
 </script>
+<style>
+/* Test Prep (the "prep" tab) */
+.prep-hero{display:grid;gap:6px}
+.prep-thumbs{display:flex;flex-wrap:wrap;gap:8px}
+.prep-thumbs figure{position:relative;margin:0;width:84px;height:84px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--card-2)}
+.prep-thumbs img{width:100%;height:100%;object-fit:cover}
+.prep-thumbs button{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:999px;border:0;background:rgba(0,0,0,.6);color:#fff;display:grid;place-items:center;cursor:pointer}
+.prep-thumbs button svg{width:14px;height:14px}
+.prep-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+.prep-card{display:grid;gap:8px;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;cursor:pointer;color:inherit;font:inherit}
+.prep-card:hover{border-color:var(--primary)}
+.prep-card h3{margin:0;font-size:1.05rem}
+.prep-topic{display:grid;gap:10px;background:var(--card-2);border:1px solid var(--line);border-radius:16px;padding:14px}
+.prep-topic h3{margin:0;font-size:1.05rem}
+.prep-steps{margin:0;padding-left:1.3em;display:grid;gap:8px}
+.prep-steps b{display:block}
+.prep-q{font-size:1.15rem;font-weight:700;line-height:1.45;white-space:pre-wrap}
+.pchoices{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.pchoices button{min-height:56px;padding:10px 14px;text-align:left;font-weight:700;font-size:1.02rem;background:var(--card-2);border:2px solid var(--line);border-radius:14px;color:inherit;cursor:pointer}
+.pchoices button:hover:not(:disabled){border-color:var(--primary)}
+.pchoices button.is-good{background:color-mix(in oklab,var(--leaf) 18%,var(--card));border-color:var(--leaf)}
+.pchoices button.is-bad{background:color-mix(in oklab,var(--coral) 14%,var(--card));border-color:var(--coral)}
+.pchoices button:disabled{cursor:default}
+.pchoices button:disabled:not(.is-good){opacity:.55}
+.prep-in{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.prep-in input{flex:1;min-width:160px;min-height:48px;border-radius:12px;border:2px solid var(--line);background:var(--card);color:inherit;padding:0 14px;font-size:1.05rem}
+.prep-in input.is-bad{border-color:var(--coral)}
+.prep-form input[type=text],.prep-form input[type=date],.prep-form select{width:100%;min-height:46px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:inherit;padding:0 12px;font:inherit}
+.prep-form .two{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.prep-score{font-size:2.6rem;font-weight:900;line-height:1}
+</style>
+<script>
+/* =====================================================================================
+   TEST PREP: practice sheets, worksheets, sample problems, or a standard or lesson name
+   become lessons and practice for an upcoming test (server/ariseMathPrep.ts).
+   Uses the helpers above (S, ME, api, esc, svg, render, toast, confetti, ansMatch, shrinkImage).
+   ===================================================================================== */
+Object.assign(I, { prep:'<path d="M9 4h6l1 2h3v15H5V6h3z"/><path d="M9 4v3h6V4"/><path d="M8.5 13l2 2 4.5-4.5"/>' });
+// The tab, for everyone: students, teachers and parents.
+TABS.student.splice(1, 0, ['prep','Test Prep','prep']);
+TABS.teacher.splice(1, 0, ['prep','Test Prep','prep']);
+TABS.parent.splice(1, 0, ['prep','Test Prep','prep']);
+if (location.hash === '#prep') S.tab = 'prep';
+const _mainHTML = mainHTML;
+mainHTML = function(){ if (ME && !S.snap && !S.lesson && S.tab === 'prep') return prepHTML(); return _mainHTML(); };
+
+const PREP_MAX_IMAGES = 6;
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+function untilWords(day){
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day||'')) return '';
+  const n = Math.round((Date.parse(day+'T12:00:00Z') - Date.parse(today()+'T12:00:00Z'))/86400000);
+  return n < 0 ? '' : n === 0 ? 'Test is today' : n === 1 ? 'Test is tomorrow' : `Test in ${n} days`;
+}
+const P0 = () => (S.prep ||= { list:null, view:'list', form:{ title:'', testDate:'', grade:'', text:'', images:[] }, err:null, busy:false, set:null, prog:{}, q:null });
+async function prepLoad(force){
+  const R = P0();
+  if (R.list && !force) return;
+  try { const r = await api('/prep'); Object.assign(R, { list:r.sets, share:r.share, children:r.children||[], ai:r.ai, err:null }); }
+  catch (e) { R.err = e.message; R.list = R.list || []; }
+  if (S.tab === 'prep') render();
+}
+const qAll = set => set.topics.flatMap(t => t.questions.map(q => ({ ...q, topic:t.name, topicId:t.id })));
+function setScore(set, prog, topicId){
+  const qs = topicId ? (set.topics.find(t=>t.id===topicId)?.questions || []) : set.topics.flatMap(t=>t.questions);
+  return { total:qs.length, done:qs.filter(q=>prog[q.id]).length, right:qs.filter(q=>prog[q.id]==='right').length };
+}
+const prepHead = (title, back) => `<div class="card"><div class="row" style="gap:10px;flex-wrap:nowrap;align-items:center"><button class="btn sm" data-act="prepback" data-v="${back}">${svg('back')}Back</button><span class="small muted">${esc(title)}</span></div>`;
+
+function prepHTML(){
+  const R = P0();
+  if (!R.list) { prepLoad(); return `<div class="card"><p class="muted">Loading Test Prep…</p></div>`; }
+  if (R.busy) return `<div class="card"><div class="snap-wait" role="status"><div class="spin" aria-hidden="true"></div><h2>${esc(R.busy)}</h2><p class="muted small">Reading the practice material and writing lessons and practice questions. This can take up to a minute.</p></div></div>`;
+  if (R.view === 'new') return prepNewHTML();
+  if (R.view === 'set' && R.set) return prepSetHTML();
+  if (R.view === 'learn' && R.set) return prepLearnHTML();
+  if (R.view === 'quiz' && R.set && R.q) return prepQuizHTML();
+  return prepListHTML();
+}
+
+function prepListHTML(){
+  const R = P0(), staff = R.share === 'class', parent = R.share === 'child';
+  const intro = staff ? 'Add your test’s study guide, practice sheet or standard. Get lessons and practice, then send it to your class.'
+    : parent ? 'Add the practice sheet or the lesson your child is being tested on. Get lessons and practice, then send it to your child.'
+    : 'Got a test coming up? Add photos of your practice sheets or type the lesson name. You’ll get how-to lessons and practice questions with every step.';
+  const cards = R.list.map(s => {
+    const p = s.progress, pct = p.total ? Math.round(p.done/p.total*100) : 0, when = untilWords(s.testDate);
+    return `<button class="prep-card" data-act="prepopen" data-v="${esc(s.id)}">
+      <span class="eyebrow">${when ? esc(when) : s.mine ? 'Your test prep' : `From ${esc(s.ownerName || 'your teacher')}`}</span>
+      <h3>${esc(s.title)}</h3>
+      <span class="small muted">${esc(s.topics.slice(0,3).join(' · '))}${s.topics.length>3?` · +${s.topics.length-3} more`:''}</span>
+      <div class="bar leaf"><i style="width:${pct}%"></i></div>
+      <span class="small muted">${p.done} of ${p.total} practiced${p.done?` · ${p.right} right`:''}${s.mine && s.sharedCount ? ` · sent to ${s.sharedCount}` : ''}</span></button>`;
+  }).join('');
+  return `<div class="card prep-hero"><span class="eyebrow">Test Prep</span><h1 style="margin:0">Get ready for the test</h1><p class="muted" style="margin:0">${intro}</p>
+      <div class="row" style="gap:8px;margin-top:6px"><button class="btn primary" data-act="prepnew">${svg('plus')}New test prep</button></div></div>
+    ${R.err ? `<div class="card"><p class="feedback bad" role="alert">${esc(R.err)}</p></div>` : ''}
+    ${R.list.length ? `<div class="card stack"><div class="card-h" style="margin-bottom:0"><h2>Your tests</h2></div><div class="prep-grid">${cards}</div></div>`
+      : `<div class="card"><p class="muted">No test prep yet. Tap <b>New test prep</b> to make your first one.</p></div>`}`;
+}
+
+function prepNewHTML(){
+  const R = P0(), F = R.form, student = role() === 'student';
+  const thumbs = F.images.map((src,i) => `<figure><img src="${src}" alt="Page ${i+1}"><button type="button" data-act="prepimgdel" data-v="${i}" aria-label="Remove page ${i+1}">${svg('x')}</button></figure>`).join('');
+  const grades = ['', 'K', ...range(1,12).map(String)].map(g => `<option value="${g}" ${F.grade===g?'selected':''}>${g ? (g==='K'?'Kindergarten':`Grade ${g}`) : (student?'My grade':'Pick a grade')}</option>`).join('');
+  return `${prepHead('New test prep','list')}<h1 style="margin-top:12px">New test prep</h1><p class="muted" style="margin-top:4px">Add what the test covers: photos of the practice sheet, worksheet, study guide or sample problems, and/or the lesson name or standard.</p></div>
+    <div class="card stack prep-form">
+      ${R.err ? `<p class="feedback bad" role="alert">${esc(R.err)}</p>` : ''}
+      <div class="two">
+        <label class="f"><span class="small muted">Test name (optional)</span><input type="text" id="prepTitle" maxlength="80" placeholder="Unit 4 test: fractions" value="${esc(F.title)}"></label>
+        <label class="f"><span class="small muted">Test date (optional)</span><input type="date" id="prepDate" value="${esc(F.testDate)}" min="${today()}"></label>
+        ${student ? '' : `<label class="f"><span class="small muted">Grade</span><select id="prepGrade">${grades}</select></label>`}
+      </div>
+      <div class="drop" id="prepDrop">
+        ${thumbs ? `<div class="prep-thumbs">${thumbs}</div>` : `<div style="width:56px;height:56px;border-radius:16px;background:var(--primary-soft);color:var(--primary-text);display:grid;place-items:center">${svg('camera','style="width:30px;height:30px"')}</div>`}
+        ${F.images.length < PREP_MAX_IMAGES ? `<div class="btns"><label class="btn primary">${svg('camera')}Take a photo<input type="file" id="prepCam" accept="image/*" capture="environment"></label>
+          <label class="btn outline">${svg('image')}Upload pages<input type="file" id="prepFile" accept="image/*" multiple></label></div>
+          <p class="small muted">Up to ${PREP_MAX_IMAGES} pages. On a computer you can also paste a screenshot (Ctrl+V or ⌘V) or drag pictures in.</p>` : `<p class="small muted">That’s ${PREP_MAX_IMAGES} pages, the most at once.</p>`}
+      </div>
+      <label class="f"><span class="small muted">Lesson name, standard, or problems (optional if you added photos)</span><textarea class="snap-text" id="prepText" maxlength="2000" placeholder="Example: 6.EE.A.2, writing and evaluating expressions. Or: Lesson 5.3 adding fractions with unlike denominators">${esc(F.text)}</textarea></label>
+      <div class="row" style="gap:8px"><button class="btn primary" data-act="prepgo">${svg('prep')}Make my practice</button></div>
+      <p class="small muted">Tips: good light, hold the camera straight over the page, and include the whole sheet.</p>
+    </div>`;
+}
+
+function prepSetHTML(){
+  const R = P0(), s = R.set, sc = setScore(s, R.prog), when = untilWords(s.testDate);
+  const mine = R.mine, canSend = mine && (R.share === 'class' || R.share === 'child');
+  const topics = s.topics.map(t => {
+    const p = setScore(s, R.prog, t.id), pct = p.total ? Math.round(p.done/p.total*100) : 0;
+    return `<div class="prep-topic"><div class="row" style="justify-content:space-between;gap:8px;align-items:flex-start"><div><h3>${esc(t.name)}</h3>${t.standard?`<span class="small muted">${esc(t.standard)}</span>`:''}</div><span class="small muted tnum">${p.right}/${p.total}</span></div>
+      ${t.summary?`<p class="small" style="margin:0">${esc(t.summary)}</p>`:''}
+      <div class="bar leaf"><i style="width:${pct}%"></i></div>
+      <div class="row" style="gap:8px"><button class="btn outline sm" data-act="preplearn" data-v="${esc(t.id)}">${svg('book')}How to do it</button><button class="btn primary sm" data-act="prepquiz" data-v="${esc(t.id)}">${svg('practice')}Practice</button></div></div>`;
+  }).join('');
+  const send = canSend ? (R.share === 'class'
+      ? `<button class="btn outline" data-act="prepshare">${svg('class')}${s.sharedWith.length ? 'Send to new students too' : 'Send to my class'}</button>`
+      : (R.children||[]).length ? (R.children.length === 1
+          ? `<button class="btn outline" data-act="prepshare" data-v="${R.children[0].id}">${svg('heart')}Send to ${esc(R.children[0].name)}</button>`
+          : R.children.map(c => `<button class="btn outline sm" data-act="prepshare" data-v="${c.id}">${svg('heart')}Send to ${esc(c.name)}</button>`).join(''))
+        : `<span class="small muted">Link your child’s account to send them this.</span>`) : '';
+  return `${prepHead('Test Prep','list')}<div style="margin-top:12px" class="stack">${when?`<span class="eyebrow">${esc(when)}</span>`:''}<h1 style="margin:0">${esc(s.title)}</h1>
+      ${s.overview?`<p class="muted" style="margin:0">${esc(s.overview)}</p>`:''}
+      <span class="small muted">${sc.done} of ${sc.total} practiced · ${sc.right} right${!mine && s.ownerName ? ` · from ${esc(s.ownerName)}` : ''}${mine && s.sharedWith.length ? ` · sent to ${s.sharedWith.length}` : ''}</span>
+      <div class="row" style="gap:8px"><button class="btn primary" data-act="prepquiz" data-v="">${svg('target')}Practice test (every topic)</button>${send}</div></div></div>
+    <div class="card stack"><div class="card-h" style="margin-bottom:0"><div><h2>What’s on the test</h2><span class="small muted">Learn how to do each one, then practice it.</span></div></div>${topics}</div>
+    <div class="card"><button class="btn sm" data-act="prepdel">${svg('x')}${mine ? 'Delete this test prep' : 'Remove from my list'}</button></div>`;
+}
+
+function prepLearnHTML(){
+  const R = P0(), t = R.set.topics.find(x => x.id === R.topicId);
+  if (!t) { R.view = 'set'; return prepSetHTML(); }
+  const shown = R.exShown || 0, ex = t.example;
+  return `${prepHead(R.set.title,'set')}<div style="margin-top:12px" class="stack"><span class="eyebrow">How to do it${t.standard?` · ${esc(t.standard)}`:''}</span><h1 style="margin:0">${esc(t.name)}</h1>${t.summary?`<p class="muted" style="margin:0">${esc(t.summary)}</p>`:''}</div></div>
+    ${t.howTo.length?`<div class="card stack"><h2 style="margin:0">The steps</h2><ol class="prep-steps">${t.howTo.map(s=>`<li>${s.title?`<b>${esc(s.title)}</b>`:''}${esc(s.work)}</li>`).join('')}</ol>${canSpeak?`<div><button class="btn sm" data-act="prepread">${svg('speaker')}Read it to me</button></div>`:''}</div>`:''}
+    ${ex?`<div class="card stack"><h2 style="margin:0">Worked example</h2><div class="snap-prob">${esc(ex.problem)}</div>
+      ${shown?`<ol class="prep-steps">${ex.steps.slice(0,shown).map(s=>`<li>${s.title?`<b>${esc(s.title)}</b>`:''}${esc(s.work)}</li>`).join('')}</ol>`:''}
+      ${shown>=ex.steps.length?`<p class="feedback good">Answer: ${esc(ex.answer)}</p>`:`<div class="row" style="gap:8px"><button class="btn outline sm" data-act="prepexstep">${shown?`Next step (${shown+1} of ${ex.steps.length})`:'Show the first step'}</button><button class="btn sm" data-act="prepexall">Show every step</button></div>`}</div>`:''}
+    ${t.watchOut.length?`<div class="card idea"><span class="eyebrow">Watch out</span><ul style="margin:6px 0 0;padding-left:1.2em">${t.watchOut.map(w=>`<li>${esc(w)}</li>`).join('')}</ul></div>`:''}
+    <div class="card"><button class="btn primary" data-act="prepquiz" data-v="${esc(t.id)}">${svg('practice')}Practice ${esc(t.name)}</button></div>`;
+}
+
+function startPrepQuiz(topicId){
+  const R = P0(), all = qAll(R.set).filter(q => !topicId || q.topicId === topicId);
+  // Practice the ones not done right yet first; a practice test mixes every topic.
+  const order = [...all].sort((a,b) => (R.prog[a.id]==='right') - (R.prog[b.id]==='right') || (topicId ? 0 : Math.random()-.5));
+  R.q = { topicId, qs: topicId ? order : order.slice(0, 15), i:0, picked:[], fb:null, steps:0, hint:false, done:false, right:0, firstTry:true, finished:false };
+  R.view = 'quiz'; render(); window.scrollTo({top:0});
+}
+function prepQuizHTML(){
+  const R = P0(), Q = R.q, t = Q.topicId ? R.set.topics.find(x=>x.id===Q.topicId) : null, title = t ? t.name : 'Practice test';
+  if (Q.finished) {
+    const pct = Q.qs.length ? Math.round(Q.right/Q.qs.length*100) : 0;
+    return `${prepHead(R.set.title,'set')}<div style="margin-top:12px" class="stack"><span class="eyebrow">${esc(title)}</span><h1 style="margin:0">${pct>=80?'You’re ready!':pct>=50?'Getting there!':'Keep practicing!'}</h1>
+      <div class="prep-score tnum">${Q.right}/${Q.qs.length}</div><p class="muted" style="margin:0">right on the first try</p>
+      <div class="row" style="gap:8px"><button class="btn primary" data-act="prepquiz" data-v="${esc(Q.topicId||'')}">${svg('practice')}Practice again</button>${t?`<button class="btn outline" data-act="prepmore" data-v="${esc(t.id)}" ${R.moreBusy?'disabled':''}>${svg('plus')}${R.moreBusy?'Making more…':'More questions'}</button><button class="btn" data-act="preplearn" data-v="${esc(t.id)}">${svg('book')}Review how to do it</button>`:''}</div></div></div>`;
+  }
+  const q = Q.qs[Q.i], n = Q.qs.length;
+  const choice = q.choices.length > 1;
+  const answer = choice
+    ? `<div class="pchoices">${q.choices.map(c => { const wrong = Q.picked.includes(c), good = Q.done && c === q.answer; return `<button type="button" data-act="preppick" data-v="${esc(c)}" class="${good?'is-good':wrong?'is-bad':''}" ${Q.done||wrong?'disabled':''}>${esc(c)}</button>`; }).join('')}</div>`
+    : Q.done ? `<p class="feedback good">Answer: ${esc(q.answer)}</p>`
+      : `<form id="prepAnsForm" class="prep-in" autocomplete="off"><label for="prepAns" class="sr">Your answer</label><input type="text" id="prepAns" placeholder="Your answer" spellcheck="false" class="${Q.bad?'is-bad':''}"><button class="btn primary" type="submit">${svg('check')}Check</button></form>`;
+  const steps = Q.steps ? `<ol class="prep-steps">${q.steps.slice(0, Q.steps).map(s=>`<li>${s.title?`<b>${esc(s.title)}</b>`:''}${esc(s.work)}</li>`).join('')}</ol>` : '';
+  const stepBtn = q.steps.length && Q.steps < q.steps.length ? `<button class="btn sm" data-act="prepstep">${Q.steps?`Next step (${Q.steps+1} of ${q.steps.length})`:'Show me how'}</button>` : '';
+  return `${prepHead(R.set.title,'set')}<div style="margin-top:12px" class="row" style="justify-content:space-between"><span class="eyebrow">${esc(title)}${t?'':` · ${esc(q.topic)}`}</span><span class="small muted tnum" style="margin-left:auto">Question ${Q.i+1} of ${n}</span></div>
+      <div class="bar" style="margin-top:8px"><i style="width:${Math.round(Q.i/n*100)}%"></i></div></div>
+    <div class="card stack"><div class="prep-q">${esc(q.q)}</div>${answer}
+      ${Q.fb?`<p class="wk-fb ${Q.fb.c}" role="status">${esc(Q.fb.t)}</p>`:''}
+      ${Q.hint && q.hint && !Q.done ? `<p class="wk-fb tip">Hint: ${esc(q.hint)}</p>` : ''}
+      ${steps}
+      <div class="row" style="gap:8px">${!Q.done && q.hint && !Q.hint ? `<button class="btn sm" data-act="prephint">${svg('info')}Hint</button>` : ''}${stepBtn}${!Q.done?`<button class="btn sm" data-act="prepreveal">Show the answer</button>`:''}${Q.done?`<button class="btn primary" data-act="prepnext">${Q.i+1<n?'Next question →':'See how I did'}</button>`:''}</div></div>`;
+}
+function prepMark(right){
+  const R = P0(), Q = R.q, q = Q.qs[Q.i];
+  Q.done = true;
+  const first = right && Q.firstTry;
+  if (first) { Q.right++; confetti(); }
+  R.prog[q.id] = first ? 'right' : 'wrong';
+  api(`/prep/${encodeURIComponent(R.set.id)}/progress`, { method:'PUT', body:{ answers:{ [q.id]: R.prog[q.id] } } }).catch(()=>{});
+  const li = R.list?.find(x=>x.id===R.set.id); if (li) li.progress = setScore(R.set, R.prog);
+}
+function prepAnswer(v){
+  const R = P0(), Q = R.q, q = Q.qs[Q.i];
+  if (Q.done) return;
+  const ok = q.choices.length > 1 ? v === q.answer : q.accept.some(a => ansMatch(v, a));
+  if (ok) { Q.fb = { c:'ok', t: Q.firstTry ? 'Yes! That’s right.' : 'That’s it! Now you’ve got it.' }; Q.steps = q.steps.length; prepMark(true); }
+  else {
+    if (q.choices.length > 1) Q.picked.push(v);
+    Q.firstTry = false; Q.bad = true;
+    Q.fb = { c:'bad', t: !Q.hint && q.hint ? 'Not quite. Try the hint, or tap “Show me how”.' : 'Not quite. Open the next step for help, then try again.' };
+    if (q.choices.length > 1 && Q.picked.length >= q.choices.length - 1) { Q.steps = q.steps.length; prepMark(false); Q.fb = { c:'tip', t:'Here’s how to do it. Read each step, then try the next one.' }; }
+  }
+  render();
+  if (!Q.done) setTimeout(()=>{ const i=document.getElementById('prepAns'); if (i){ i.value = q.choices.length>1 ? '' : v; i.focus({preventScroll:true}); } }, 0);
+}
+async function prepGo(){
+  const R = P0(), F = R.form;
+  F.title = document.getElementById('prepTitle')?.value.trim() || '';
+  F.testDate = document.getElementById('prepDate')?.value || '';
+  F.grade = document.getElementById('prepGrade')?.value || F.grade || '';
+  F.text = document.getElementById('prepText')?.value.trim() || '';
+  if (!F.images.length && !F.text) { R.err = 'Add photos of the practice sheet, or type the lesson name or standard.'; return render(); }
+  R.err = null; R.busy = 'Making your practice…'; render(); window.scrollTo({top:0});
+  try {
+    const r = await api('/prep', { method:'POST', body:{ title:F.title, testDate:F.testDate, grade:F.grade, text:F.text, images:F.images } });
+    R.busy = false;
+    if (r.notMath) { R.view = 'new'; R.err = r.notMath; return render(); }
+    R.form = { title:'', testDate:'', grade:'', text:'', images:[] };
+    R.set = r.set; R.prog = r.progress || {}; R.mine = true; R.view = 'set';
+    prepLoad(true);
+  } catch (e) { R.busy = false; R.view = 'new'; R.err = e.message; }
+  render(); window.scrollTo({top:0});
+}
+async function prepAddImages(files){
+  const R = P0();
+  for (const f of [...files].slice(0, PREP_MAX_IMAGES - R.form.images.length)) {
+    try { R.form.images.push(await shrinkImage(f)); R.err = null; } catch (e) { R.err = e.message; }
+  }
+  render();
+}
+const keepForm = () => { const R = P0(), F = R.form; if (R.view !== 'new') return; F.title = document.getElementById('prepTitle')?.value ?? F.title; F.testDate = document.getElementById('prepDate')?.value ?? F.testDate; F.grade = document.getElementById('prepGrade')?.value ?? F.grade; F.text = document.getElementById('prepText')?.value ?? F.text; };
+
+document.addEventListener('click', async e => {
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const act = el.dataset.act, v = el.dataset.v, R = S.prep;
+  if (act === 'tab' && v === 'prep') { P0().view = 'list'; return prepLoad(true); }
+  if (!act.startsWith('prep') || !R) return;
+  switch (act) {
+    case 'prepnew': R.view = 'new'; R.err = null; render(); window.scrollTo({top:0}); return;
+    case 'prepback': if (v === 'list') { R.view = 'list'; R.q = null; prepLoad(true); } else R.view = v; render(); window.scrollTo({top:0}); return;
+    case 'prepimgdel': keepForm(); R.form.images.splice(+v, 1); return render();
+    case 'prepgo': return prepGo();
+    case 'prepopen':
+      try { const r = await api('/prep/' + encodeURIComponent(v)); R.set = r.set; R.prog = r.progress || {}; R.mine = r.mine; R.view = 'set'; render(); window.scrollTo({top:0}); }
+      catch (err) { toast(err.message); prepLoad(true); }
+      return;
+    case 'preplearn': R.topicId = v; R.exShown = 0; R.view = 'learn'; render(); window.scrollTo({top:0}); return;
+    case 'prepexstep': R.exShown = (R.exShown||0) + 1; return render();
+    case 'prepexall': R.exShown = 99; return render();
+    case 'prepread': { const t = R.set.topics.find(x=>x.id===R.topicId); if (t) speakText(t.name + '. ' + t.howTo.map((s,i)=>`Step ${i+1}. ${s.title ? s.title + '. ' : ''}${s.work}`).join(' ')); return; }
+    case 'prepquiz': return startPrepQuiz(v || '');
+    case 'preppick': return prepAnswer(v);
+    case 'prephint': R.q.hint = true; return render();
+    case 'prepstep': R.q.steps++; return render();
+    case 'prepreveal': { const q = R.q.qs[R.q.i]; R.q.firstTry = false; R.q.steps = q.steps.length; R.q.fb = { c:'tip', t:`The answer is ${q.answer}. Read the steps to see how.` }; prepMark(false); return render(); }
+    case 'prepnext': { const Q = R.q; if (Q.i + 1 >= Q.qs.length) Q.finished = true; else Object.assign(Q, { i:Q.i+1, picked:[], fb:null, steps:0, hint:false, done:false, firstTry:true, bad:false }); render(); window.scrollTo({top:0}); setTimeout(()=>document.getElementById('prepAns')?.focus({preventScroll:true}), 0); return; }
+    case 'prepmore': {
+      R.moreBusy = true; render();
+      try { const r = await api(`/prep/${encodeURIComponent(R.set.id)}/more`, { method:'POST', body:{ topicId:v } }); const t = R.set.topics.find(x=>x.id===v); if (t) t.questions.push(...r.questions); R.moreBusy = false; toast(`${r.questions.length} new questions added.`); return startPrepQuiz(v); }
+      catch (err) { R.moreBusy = false; toast(err.message); return render(); }
+    }
+    case 'prepshare':
+      try { const r = await api(`/prep/${encodeURIComponent(R.set.id)}/share`, { method:'POST', body: v ? { childIds:[+v] } : {} }); toast(`Sent to ${r.sent} ${r.sent===1?'student':'students'}.`); const o = await api('/prep/' + encodeURIComponent(R.set.id)); R.set = o.set; render(); }
+      catch (err) { toast(err.message); }
+      return;
+    case 'prepdel':
+      if (!confirm(R.mine ? 'Delete this test prep for everyone you sent it to?' : 'Take this test prep off your list?')) return;
+      try { await api('/prep/' + encodeURIComponent(R.set.id), { method:'DELETE' }); R.view = 'list'; R.set = null; await prepLoad(true); }
+      catch (err) { toast(err.message); }
+      return;
+  }
+});
+document.addEventListener('submit', e => {
+  if (e.target.id !== 'prepAnsForm') return;
+  e.preventDefault();
+  const v = (document.getElementById('prepAns')?.value || '').trim();
+  if (!v) { S.prep.q.fb = { c:'tip', t:'Type your answer first.' }; return render(); }
+  prepAnswer(v);
+});
+document.addEventListener('change', e => { if ((e.target.id === 'prepCam' || e.target.id === 'prepFile') && e.target.files?.length) { keepForm(); prepAddImages(e.target.files); } });
+document.addEventListener('input', e => { if (e.target.id === 'prepAns') e.target.classList.remove('is-bad'); });
+document.addEventListener('paste', e => {
+  if (S.tab !== 'prep' || S.prep?.view !== 'new') return;
+  const files = [...(e.clipboardData?.items || [])].filter(i => i.type.startsWith('image/')).map(i => i.getAsFile()).filter(Boolean);
+  if (files.length) { e.preventDefault(); keepForm(); prepAddImages(files); }
+});
+document.addEventListener('dragover', e => { const d = e.target.closest?.('#prepDrop'); if (d) { e.preventDefault(); d.classList.add('over'); } });
+document.addEventListener('dragleave', e => { e.target.closest?.('#prepDrop')?.classList.remove('over'); });
+document.addEventListener('drop', e => { const d = e.target.closest?.('#prepDrop'); if (!d) return; e.preventDefault(); d.classList.remove('over'); const files = [...(e.dataTransfer?.files || [])].filter(f => f.type.startsWith('image/')); if (files.length) { keepForm(); prepAddImages(files); } });
+</script>
 <script src="/addons/addon-bar.js" defer></script>
 </body>
 </html>
