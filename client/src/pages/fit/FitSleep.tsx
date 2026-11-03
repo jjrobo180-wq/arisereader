@@ -247,8 +247,8 @@ export function SleepSheet({ data, update, onClose, say, inline, onBreathe }: { 
           {last && !last.q && <Rested q={0} setQ={(q) => update((d) => ({ ...d, sleep: rateNight(d.sleep, last.date, q) }))} className="mt-3" />}
           <Btn className="mt-4 w-full" onClick={start} testId="fit-sleep-start"><Moon className="h-5 w-5" />Going to sleep</Btn>
           <div className="mt-2 grid grid-cols-2 gap-2">
-            <Btn kind="soft" onClick={() => setSheet("log")} testId="fit-sleep-log-open"><Plus className="h-4 w-4" />Log a night</Btn>
-            <Btn kind="soft" onClick={() => setSheet("nap")}><Plus className="h-4 w-4" />Log a nap</Btn>
+            <Btn kind="soft" onClick={() => setSheet("log")} testId="fit-sleep-log-open"><Plus className="h-4 w-4" />Night</Btn>
+            <Btn kind="soft" onClick={() => setSheet("nap")}><Plus className="h-4 w-4" />Nap</Btn>
           </div>
           {syncing && <p className="mt-2 text-center text-[12px]" style={{ color: C.dim }}>Checking Apple Health…</p>}
         </Card>}
