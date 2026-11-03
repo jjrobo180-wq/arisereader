@@ -305,3 +305,46 @@
 
 /* The bar runs into the area below it on the iPhone, with no seam. */
 .an-themed .an-tabbar { background: var(--an-bg) !important; backdrop-filter: none; -webkit-backdrop-filter: none; }
+
+/* ——— The look's color takes over the top of the app, under the status bar ——— */
+.an-themed.an-root::before { background: var(--an-hero); }
+.an-themed header.sticky { background: var(--an-hero) !important; color: var(--an-on-hero); border-color: transparent !important; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.an-themed header.sticky .an-icon-btn, .an-themed header.sticky button { color: var(--an-on-hero) !important; }
+.an-themed .an-l-hero { margin: -1.25rem -1rem 0; padding: calc(env(safe-area-inset-top) + 1rem) 1rem 1.25rem; background: var(--an-hero); color: var(--an-on-hero); }
+.an-themed .an-l-hero h1 { color: inherit; }
+.an-themed .an-l-hero .an-l-record { background: var(--an-on-hero); color: var(--an-hero); border-color: transparent; box-shadow: none; }
+.an-l-minutes { align-self: flex-end; font-size: .8rem; font-weight: 700; }
+.an-l-minutes * { color: inherit !important; background: none !important; border: 0 !important; padding: 0; }
+/* These looks' Record is the color block itself. */
+.an-themed .an-l-hero-swiss, .an-themed .an-l-hero-studio { padding-bottom: 0; gap: 0; }
+.an-themed .an-l-hero-swiss .an-l-record, .an-themed .an-l-hero-studio .an-l-record { background: none; color: inherit; }
+.an-themed .an-l-hero-swiss { padding-inline: 0; }
+.an-themed .an-l-hero-swiss .an-l-minutes { padding-inline: 1rem; }
+.an-themed .an-l-hero-swiss .an-l-record { height: 13rem; }
+.an-themed .an-l-hero-swiss .an-l-secondary { background: var(--an-bg); color: var(--an-ink); }
+.an-themed .an-l-hero-swiss .an-l-secondary button { color: var(--an-ink); }
+.an-themed .an-l-hero-studio .an-l-recdot { background: var(--an-on-hero); color: var(--an-hero); }
+.an-themed .an-l-hero-studio .an-l-secondary { margin: .4rem 0 1rem; }
+.an-themed .an-l-hero-studio .an-l-askbar { margin-bottom: 1rem; }
+.an-themed .an-l-hero-cassette .an-l-tape { background: var(--an-bg); color: var(--an-ink); }
+.an-themed .an-l-hero-cassette .an-l-tape > div { background: var(--an-card); }
+.an-themed .an-l-hero-cassette .an-l-record { border-bottom: 5px solid rgba(0,0,0,.3); }
+.an-themed .an-l-hero-timeline .an-l-tdot { background: var(--an-hero); }
+.an-themed .an-l-hero-console .an-l-secondary button { background: var(--an-bg); border-color: var(--an-bg); color: var(--an-ink); }
+.an-themed .an-l-hero-gazette .an-l-masthead { border-color: currentColor; }
+.an-themed .an-l-hero-gazette .an-l-masthead h1 { color: inherit; }
+.an-themed .an-l-hero-gazette .an-l-secondary button { background: var(--an-bg); }
+.an-themed .an-l-hero-punch { padding-bottom: 1.5rem; }
+.an-themed .an-l-hero-punch .an-l-record { background: #fff36b; color: #000; }
+.an-themed .an-l-hero-grove .an-l-pills > button:not(.an-l-record) { color: inherit; border-color: currentColor; }
+.an-themed .an-l-hero-chatline .an-l-bubble-me { background: var(--an-on-hero); color: var(--an-hero); }
+.an-themed .an-l-hero-frost .an-l-record { border-color: rgba(255,255,255,.4); }
+.an-themed .an-l-hero .an-l-tiles .an-l-record { background: var(--an-on-hero); color: var(--an-hero); }
+.an-themed .an-l-hero .an-l-tiles .an-l-recdot { background: var(--an-hero); color: var(--an-on-hero); }
+/* ——— The floating icon bar ——— */
+.an-l-bar { position: fixed; left: 50%; bottom: max(.75rem, env(safe-area-inset-bottom)); z-index: 40; transform: translateX(-50%); display: grid; grid-template-columns: repeat(4, 1fr); align-items: center; width: min(calc(100% - 2.5rem), 24rem); padding: .4rem; border-radius: 999px; background: #121212; color: #fff; border: 1px solid #2c2c2c; box-shadow: 0 12px 30px rgba(0,0,0,.35); }
+.an-l-bar button { display: grid; place-items: center; min-height: 3.2rem; border: 0; border-radius: 999px; background: none; color: inherit; cursor: pointer; }
+.an-l-bar button[aria-current="page"] { background: #383838; }
+.an-l-avatar { display: grid; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: 50%; background: var(--an-coral); color: var(--an-on-record); font-weight: 800; }
+.an-themed .an-l-hero-margin .an-l-askbar { color: inherit; border-bottom-color: currentColor; }
+.an-themed .an-l-hero-frost .an-l-secondary button { background: var(--an-card); color: var(--an-ink); border-color: transparent; }
