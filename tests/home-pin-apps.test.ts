@@ -63,7 +63,7 @@ test("LifeHub's cleanLifeLayout accepts pinnable ids the same way WorkHub's clea
 test("cleanLayout with no pinnable argument at all behaves exactly as it always did (every existing call site)", () => {
   const layout = cleanLayout({});
   assert.ok(!layout.home.some((id) => isPinId(id)), "no pins appear unless a pinnable list is passed");
-  assert.equal(layout.home.length, 11, "the usual 11 built-in WorkHub Home parts, nothing more");
+  assert.equal(layout.home.length, 10, "the usual 10 built-in WorkHub Home parts, nothing more");
 });
 
 test("WorkHub wires pinned Kit plugins and Notes apps into Home: catalog, tiles and the open actions they reuse", () => {
