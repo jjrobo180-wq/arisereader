@@ -348,3 +348,8 @@
 .an-l-avatar { display: grid; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: 50%; background: var(--an-coral); color: var(--an-on-record); font-weight: 800; }
 .an-themed .an-l-hero-margin .an-l-askbar { color: inherit; border-bottom-color: currentColor; }
 .an-themed .an-l-hero-frost .an-l-secondary button { background: var(--an-card); color: var(--an-ink); border-color: transparent; }
+
+/* A note's tool bar: one solid strip with readable tools, in every look. */
+.an-notebar { background: var(--an-card); color: var(--an-ink); border-bottom: 1px solid var(--an-line); }
+.an-notebar button, .an-notebar button span { color: var(--an-ink) !important; background-color: transparent; }
+.an-notebar button[aria-pressed="true"] { background-color: var(--an-violet-soft); }

@@ -98,6 +98,10 @@ import { cleanGroupOrder, HUB_GROUPS, SUB_LABELS, groupLabel, groupOf, groupTabs
 import "@/components/teacher-hub/hubNight.css";
 import "./hubThemes.css";
 import { useHubLook } from "@/components/HubLook";
+import { LookDock, LookOS, LookYou, type OsScreen } from "@/components/look-os/LookOS";
+import { addDays } from "@shared/familyHub";
+import { calendarEvents } from "@shared/hubHidden";
+import { toggleTask } from "@shared/hubTasks";
 import "@/components/teacher-hub/hubPaper.css";
 import "@/components/teacher-hub/darkPalette.css";
 import "@/components/teacher-hub/hubLifeLook.css";
@@ -466,7 +470,7 @@ function TeacherHubPage() {
   }, []);
   const [youOpen, setYouOpen] = useState(false);
   // Arise To Duo: on the iPhone Duo's inner screen the header keeps its extra buttons in ⋯ More.
-  useAriseDuo();
+  const duo = useAriseDuo();
   const setRail = (open: boolean) => { setRailState(open); if (inDuoPane()) return; try { localStorage.setItem("arise-hub-rail", open ? "open" : "closed"); } catch { /* not remembered */ } };
   // The ⋯ menu (components/HubMoreMenu.tsx) closes itself on a tap outside it or Escape.
   // Night mode: the choice is remembered on this phone or computer.
@@ -632,7 +636,9 @@ function TeacherHubPage() {
   const layout = withSharedLook(cleanLayout(workspace.layout, pinnableApps));
   const hubLook = useHubLook(layout.theme, night);
   const setLayout = (next: HubLayout) => { rememberLook(next); setWorkspace((p) => ({ ...p, layout: next })); window.dispatchEvent(new Event(SHARED_LOOK_EVENT)); };
-  const side = layout.menuSide;
+  /** A look runs as its own system, everywhere but the Duo's book view and split-screen panes. */
+  const osOn = !!hubLook.look && duo.mode !== "book" && !inDuoPane();
+  const side = osOn ? "tabs" : layout.menuSide;
   /** The menu runs across the screen (top or bottom) instead of down a side. */
   const across = side === "top" || side === "bottom";
   /** A menu item's name on a phone: up to two short lines under its icon (one letter and dots told you nothing). On a computer, the full name. */
@@ -652,7 +658,7 @@ function TeacherHubPage() {
     ? `inset-x-0 bottom-0 border-t px-2 pt-1.5 ${menuOpen ? "translate-y-0" : "translate-y-full"}`
     : `bottom-0 top-[65px] w-[72px] ${side === "right" ? "right-0 border-l pr-[env(safe-area-inset-right)]" : "left-0 border-r pl-[env(safe-area-inset-left)]"} ${menuOpen ? "translate-x-0" : side === "right" ? "translate-x-full" : "-translate-x-full"}`;
   // Where the menu sits on a computer (Customize): sidebar left or right, icons only, a top bar, or the app drawer.
-  const desk = layout.deskSide;
+  const desk = osOn ? "drawer" : layout.deskSide;
   const deskDrawer = desk === "drawer", deskTop = desk === "top", deskCompact = desk === "compact";
   // On a computer the sidebar sits like LifeHub's: full height, flush to the edge, white with a hairline,
   // and the page beside it gets LifeHub's roomy padding. The top bar and app drawer keep the centred page.
@@ -1004,13 +1010,35 @@ function TeacherHubPage() {
     gallery: () => setStore(true), privacy: () => setPrivacy(true), signOut: () => void signOut(),
     extra: user.isAdmin ? [{ id: "admin", label: "To-Do admin", icon: <ShieldCheck />, onClick: () => { window.location.hash = "/todo-admin"; } }] : [],
   });
+  const osReady = osOn && canUseHub && loaded && !loadError && !needsPlan;
+  const osTab: OsScreen | null = tab === "overview" ? "home" : tab === "tasks" || tab === "calendar" || tab === "notes" ? tab : null;
+  const osCore = osReady && !!osTab && !kitOpen && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen;
+  const osGo = (s: OsScreen) => { setStore(false); setAddMenu(false); goTab(s === "home" ? "overview" : s); };
+  const osAdd = (title?: string) => { if (title) { setHomeQuick(title.slice(0, 200)); setHomeTask(NEW_TASK); } else setAddMenu((v) => !v); };
+  const osApps = () => setApps(true);
+  const osOff = (["tasks", "calendar", "notes"] as const).filter((t) => !isTabOn(t, visible, !!user.isAdmin));
+  const osFirst = (user.displayName || "").split(" ")[0];
+  const osToday = TODAY();
+  const osEvents = osCore ? calendarEvents(workspace, osToday, addDays(osToday, 34)) : [];
+  const osDays = !osCore ? [] : Array.from({ length: 35 }, (_, n) => {
+    const date = addDays(osToday, n), d = new Date(`${date}T12:00:00`);
+    return { date, weekday: d.toLocaleDateString(undefined, { weekday: "short" }), day: String(d.getDate()), month: d.toLocaleDateString(undefined, { month: "short" }),
+      items: [...osEvents.filter((e) => e.date === date).map((e) => ({ id: e.id, time: e.start, title: e.title })),
+        ...workspace.meetings.filter((m) => !m.done && m.date === date).map((m) => ({ id: m.id, time: m.time ?? "", title: m.type || "Meeting" })),
+        ...workspace.tasks.filter((t) => !t.done && !t.archived && t.dueDate === date).map((t) => ({ id: t.id, time: t.dueTime ?? "", title: t.title }))] };
+  });
+  const osLists = cleanTaskLists(workspace.taskLists);
+  const osTasks = workspace.tasks.filter((t) => !t.archived).map((t) => { const list = osLists.find((l) => l.id === t.listId); return { id: t.id, title: t.title, done: t.done, due: t.dueDate, late: !t.done && !!t.dueDate && t.dueDate < osToday, dueLabel: t.dueDate ? new Date(`${t.dueDate}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "", listName: list?.name ?? "", color: list?.color ?? "", assignee: "", notes: t.notes ?? "" }; });
+  // Notes about a student show only their title outside the Notes app, so nothing private sits on Home.
+  const osNotes = [...workspace.notes].sort((a, b) => (b.date || "").localeCompare(a.date || "")).map((n) => ({ id: n.id, title: n.title || n.type || "Note", body: n.student ? "" : n.body, locked: n.locked }));
+  const osShortcuts = (["caseload", "lessons", "iep", "goals"] as const).filter((t) => isTabOn(t, visible, !!user.isAdmin)).map((t) => ({ id: t, label: TAB_META.find((m) => m.id === t)?.label || t, onClick: () => goTab(t) }));
   return (
     <PrivacyLockProvider lock={workspace.lock ?? null} setLock={(lock) => setWorkspace((p) => ({ ...p, lock }))} apps={lockableApps} settings={lockSettings} onSettings={setLockSettings}><HubLinkProvider workspace={workspace} openLink={openLink} token={token} readDocument={(student) => {
       const sid = student ? workspace.students.find((x) => x.name === student)?.id : undefined;
       setAdding({ start: "file", preload: { text: student ? `These are ${student}'s documents (IEP, goal pages, progress reports). Pull out ${student}'s IEP goals with the baseline, target, unit and dates, any progress-monitoring or meeting dates as reminders or meetings, and anything else worth keeping.` : READ_DOC_ASK }, links: sid ? [{ kind: "student", id: sid }] : [] });
     }}>
-    <div style={hubLook.style} className={`${hubLook.look ? "" : "hub-paper hub-lifelook "}min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night && !hubLook.look ? "hub-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""} ${hubLook.className}`}
-      style={{ "--hub-accent": accent, "--hub-accent-deep": deepenAccent(accent) } as React.CSSProperties}>
+    <div className={`${hubLook.look ? "" : "hub-paper hub-lifelook "}min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night && !hubLook.look ? "hub-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""} ${hubLook.className}`}
+      style={{ ...hubLook.style, "--hub-accent": accent, "--hub-accent-deep": deepenAccent(accent) } as React.CSSProperties}>
       <UpgradeHost hub="work" />
       {canUseHub && loaded && !loadError && !needsPlan && <HubCoach userId={user.id} hub="work" />}
       {canUseHub && loaded && !loadError && !needsPlan && <AppWalkthrough userId={user.id} hub="work" arise={user.role === "teacher" || user.role === "parent"}
@@ -1064,7 +1092,7 @@ function TeacherHubPage() {
         onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "tab" in at) setTab(at.tab); if (p.target.kind === "widget") setTab("overview"); if (p.target.kind === "brief") setBriefOpen(true); if (p.target.kind === "sheetsApp") { closeApps(); setSheetsAppOpen(p.target.id); } if (p.target.kind === "officeApp") { closeApps(); window.location.hash = p.target.href; } if (p.target.kind === "driveApp") { closeApps(); setDriveOpen(true); } if (p.target.kind === "dropApp") { closeApps(); setDropOpen(true); } setStore(false); if (p.target.kind === "assistant") toasts.show("Tap the ✦ button at the bottom right to chat.", []); if (p.target.kind === "assistantPro") window.location.hash = "#/billing"; }}
         onClose={() => { setStore(false); setStoreOpenApp(null); }}
       />}
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <header className={`${osCore ? "los-ghost" : "sticky top-0 z-40"} border-b border-slate-200 bg-white/95 backdrop-blur`}>
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3 md:px-6">
           <a href="#/workhub" onClick={(e) => { e.preventDefault(); setTab("overview"); }} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="WorkHub home" title="WorkHub home">
             <span className="flex h-7 w-7 shrink-0 overflow-hidden rounded-lg sm:h-8 sm:w-8"><HubMark tone="work" className="h-full w-full" /></span>
@@ -1105,7 +1133,7 @@ function TeacherHubPage() {
         {!menuOpen && !drawerMenu && <button type="button" onClick={() => setRail(true)} aria-label="Show menu" data-testid="hub-rail-show"
           className={`fixed z-30 inline-flex items-center justify-center border border-slate-200 bg-white text-slate-600 shadow-md md:hidden ${side === "top" ? "left-1/2 top-[65px] h-7 w-14 -translate-x-1/2 rounded-b-xl border-t-0" : side === "bottom" ? "bottom-0 left-1/2 h-7 w-14 -translate-x-1/2 rounded-t-xl border-b-0 pb-[env(safe-area-inset-bottom)]" : side === "right" ? "right-0 top-[77px] h-14 w-7 rounded-l-xl border-r-0" : "left-0 top-[77px] h-14 w-7 rounded-r-xl border-l-0"}`}>
           {side === "top" ? <ChevronDown className="h-5 w-5" /> : side === "bottom" ? <ChevronUp className="h-5 w-5" /> : side === "right" ? <RailHide className="h-5 w-5" /> : <RailShow className="h-5 w-5" />}</button>}
-        {(drawerMenu || deskDrawer) && !apps && (
+        {(drawerMenu || deskDrawer) && !apps && !osOn && (
           <button type="button" onClick={() => setApps(true)} aria-label="Open all sections" data-testid="hub-apps-open"
             onTouchStart={(e) => { appsSwipe.current = e.touches[0].clientY; }} onTouchMove={(e) => { if (appsSwipe.current !== null && appsSwipe.current - e.touches[0].clientY > 30) { appsSwipe.current = null; setApps(true); } }}
             className={`fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-40 h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full bg-slate-950 text-white shadow-xl transition active:scale-90 ${drawerMenu && !tabBar ? "inline-flex" : "hidden"} ${deskDrawer ? "md:inline-flex" : "md:hidden"}`}>
@@ -1624,7 +1652,7 @@ function TeacherHubPage() {
             </div>
           )}
 
-          <LockedApp locked={tab !== "overview" && appLocked(workspace.lock, tab)} name={TAB_META.find((m) => m.id === tab)?.label || "This screen"}>
+          {!osCore && <LockedApp locked={tab !== "overview" && appLocked(workspace.lock, tab)} name={TAB_META.find((m) => m.id === tab)?.label || "This screen"}>
           {tab === "overview" && (
             <>
               <SupportBanner />
@@ -1776,7 +1804,7 @@ function TeacherHubPage() {
           {tab === "schedules" && <Schedules workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} warnings={scheduleWarnings} />}
           {tab === "email" && <ForwardingCard token={token} isAdmin={!!user?.isAdmin} />}
           {tab === "email" && <Emails workspace={workspace} setWorkspace={setWorkspace} remove={remove} toast={(text, actions) => { toasts.show(text, actions); }} onViewTasks={() => setTab("tasks")} openId={openEmailId} />}
-          </LockedApp>
+          </LockedApp>}
         </main>
       </div>
       {canUseHub && loaded && !loadError && !needsPlan && (workspace as any).aiChat && <HubChat hub="work" token={token} accent="bg-teal-700" lift raiseRem={(side === "bottom" && menuOpen) || tabBar ? 4.9 : 0} />}
@@ -1821,7 +1849,14 @@ function TeacherHubPage() {
           </button>
         </div>
       )}
-      {canUseHub && loaded && !loadError && !needsPlan && tabBar && <PhoneTabBar hub="work" name={user.displayName || user.username || ""}
+      {osCore && hubLook.look && <LookOS look={hubLook.look} name={osFirst} dateLabel={new Date(`${osToday}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+        banner={<SupportBanner />} screen={osTab!} go={osGo} openApps={osApps} add={osAdd} tasks={osTasks} days={osDays} notes={osNotes} shortcuts={osShortcuts} off={osOff} lockedApps={workspace.lock?.apps} onYou={() => setYouOpen(true)}
+        toggle={(tid) => setWorkspace((p) => ({ ...p, tasks: toggleTask(p.tasks, tid, TODAY()).tasks }))} openTask={setHomeTask}
+        content={<LockedApp locked={appLocked(workspace.lock, tab)} name={TAB_META.find((m) => m.id === tab)?.label || "This screen"}>{tab === "calendar" ? <HubCalendarTab workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} onReminderAdded={(items) => reminderAdded(items)} /> : tab === "notes" ? <HubNotes key={notesKey} workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} /> : null}</LockedApp>} />}
+      {osReady && !osCore && hubLook.look && <LookDock inApp look={hubLook.look} screen={null} go={osGo} openApps={osApps} add={osAdd} off={osOff} you={() => setYouOpen(true)} initial={(osFirst || "Y").charAt(0).toUpperCase()} />}
+      {osReady && youOpen && hubLook.look && <LookYou look={hubLook.look} onClose={() => setYouOpen(false)} top={<><HubSwitch current="hub" night={night} /><HubTrialNote trial={trial} which="work" upgradeHref="#/billing" /></>}
+        items={[{ id: "search", label: "Search", detail: "Everything in WorkHub", onClick: () => setSearching(true) }, ...moreGroups.flatMap((g) => g.items)]} />}
+      {canUseHub && loaded && !loadError && !needsPlan && tabBar && !osOn && <PhoneTabBar hub="work" name={user.displayName || user.username || ""}
         home={group.id === "home"} tasks={tab === "tasks"} addOpen={addMenu} onAdd={() => setAddMenu((v) => !v)}
         onHome={() => { setAddMenu(false); goGroup("home"); }}
         onTasks={() => { setAddMenu(false); if (visible.tasks !== false) goTab("tasks"); else { setStoreOpenApp("work-tasks"); setStore(true); } }}

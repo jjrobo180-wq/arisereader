@@ -53,7 +53,7 @@ export function CoachCard({ token, data, list, onStart, onOpen }: { token: strin
         <Avatar t={t} size={48} />
         <span className="min-w-0 flex-1"><span className="block text-[11px] tracking-[.14em]" style={{ ...display, color: C.lime }}>Your trainer</span><span className="block truncate text-[22px] leading-none" style={display}>{t.name}</span>
           <span className="block truncate text-[12px]" style={{ color: C.dim }}>{active.unread ? `${active.unread} new ${active.unread === 1 ? "message" : "messages"}` : active.last ? active.last.body || "Photo" : "Say hi"}</span></span>
-        {active.unread > 0 && <span className="fit-pop grid h-7 min-w-7 place-items-center rounded-full px-2 text-[13px] font-bold" style={{ background: C.lime, color: "#0b0b0c" }}>{active.unread}</span>}
+        {active.unread > 0 && <span className="fit-pop grid h-7 min-w-7 place-items-center rounded-full px-2 text-[13px] font-bold" style={{ background: C.lime, color: "var(--fit-on-accent)" }}>{active.unread}</span>}
         <ChevronRight className="h-5 w-5" style={{ color: C.dim }} />
       </button>
       {today.map((a) => <div key={a.id} className="mt-3 flex items-center gap-3 rounded-[12px] p-3" style={{ background: C.card2 }}>
@@ -62,7 +62,7 @@ export function CoachCard({ token, data, list, onStart, onOpen }: { token: strin
     </Card>;
   }
   return <Card onClick={onOpen} className="fit-shine !p-4" style={{ background: `linear-gradient(150deg, ${C.emberSoft}, ${C.card})` }} testId="fit-find-trainer">
-    <div className="flex items-center gap-3"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-[12px]" style={{ background: C.lime, color: "#0b0b0c" }}><UserRound className="h-6 w-6" /></span>
+    <div className="flex items-center gap-3"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-[12px]" style={{ background: C.lime, color: "var(--fit-on-accent)" }}><UserRound className="h-6 w-6" /></span>
       <span className="min-w-0 flex-1"><span className="block text-[22px] leading-none" style={display}>{pending ? "Request sent" : "Find a trainer"}</span>
         <span className="mt-0.5 block text-[13px]" style={{ color: C.steel }}>{pending ? `Waiting for ${pending.trainer!.name} to accept.` : "Real coaches, not AI. In person, live video or online."}</span></span>
       <ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div>
@@ -81,7 +81,7 @@ function RequestSheet({ token, t, onClose, onSent }: { token: string | null; t: 
     <p className="-mt-1 mb-2 px-1 text-[13px]" style={{ color: C.dim }}>Once {t.name.split(" ")[0]} accepts, these go to them automatically, so you never type anything twice. Change it or stop sharing any time.</p>
     <div className="space-y-2">{(Object.keys(CONSENT_LABEL) as (keyof Consent)[]).map((k) => <label key={k} className="flex items-center gap-3 rounded-[12px] p-3" style={{ background: C.card }}>
       <span className="min-w-0 flex-1"><span className="block font-semibold">{CONSENT_LABEL[k][0]}</span><span className="block text-[12px]" style={{ color: C.dim }}>{CONSENT_LABEL[k][1]}</span></span>
-      <input type="checkbox" checked={consent[k]} onChange={(e) => setConsent({ ...consent, [k]: e.target.checked })} className="h-6 w-6 shrink-0 accent-[#ff5a1f]" data-testid={`fit-consent-${k}`} /></label>)}</div>
+      <input type="checkbox" checked={consent[k]} onChange={(e) => setConsent({ ...consent, [k]: e.target.checked })} className="h-6 w-6 shrink-0 accent-[var(--fit-accent)]" data-testid={`fit-consent-${k}`} /></label>)}</div>
     <Field label="Message (optional)"><textarea value={msg} onChange={(e) => setMsg(e.target.value.slice(0, 1000))} rows={4} placeholder="Your goal, your schedule, any injuries…" className="mt-3 w-full rounded-[12px] p-3 text-[17px] outline-none" style={inputStyle} /></Field>
     {err && <p className="mt-2 text-[14px]" style={{ color: C.red }}>{err}</p>}
     <Btn className="mt-5 w-full" disabled={busy} onClick={async () => { setBusy(true); setErr(""); try { await post(token, "/request", { trainerId: t.id, consent, message: msg }); onSent(); } catch (e: any) { setErr(e.message); } finally { setBusy(false); } }} testId="fit-coach-send">Send request</Btn>
@@ -167,21 +167,21 @@ function PlanTab({ token, link, side, saveSide, data, update, list, onStart }: {
   const n = c.nutrition;
   const row = (a: Assigned, k: number) => <Card key={a.id} className="!p-3" style={stagger(k, 0.05)}>
     <div className="flex items-center gap-3">
-      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[10px] text-center" style={{ background: isDone(a) ? C.lime : C.card2, color: isDone(a) ? "#0b0b0c" : C.text }}>{isDone(a) ? <Check className="h-5 w-5" strokeWidth={3} /> : <span className="text-[11px] font-bold leading-tight">{a.date === today ? "TODAY" : new Date(`${a.date}T12:00:00`).toLocaleDateString(undefined, { weekday: "short" }).toUpperCase()}</span>}</span>
+      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[10px] text-center" style={{ background: isDone(a) ? C.lime : C.card2, color: isDone(a) ? "var(--fit-on-accent)" : C.text }}>{isDone(a) ? <Check className="h-5 w-5" strokeWidth={3} /> : <span className="text-[11px] font-bold leading-tight">{a.date === today ? "TODAY" : new Date(`${a.date}T12:00:00`).toLocaleDateString(undefined, { weekday: "short" }).toUpperCase()}</span>}</span>
       <div className="min-w-0 flex-1"><p className="truncate font-semibold">{a.name}</p><p className="truncate text-[12px]" style={{ color: C.dim }}>{shortDate(a.date)} · {a.items.length} exercises{a.mins ? ` · ${a.mins} min` : ""}</p></div>
       {!isDone(a) && <Btn className="!min-h-10 !px-3 !text-[15px]" onClick={() => onStart(startAssigned(a, data, list))} testId={`fit-coach-go-${a.id}`}><Play className="h-4 w-4" fill="currentColor" /></Btn>}
     </div>
     {a.note && <p className="mt-2 rounded-[8px] p-2 text-[13px]" style={{ background: C.card2, color: C.steel }}>“{a.note}”</p>}
   </Card>;
   return <div>
-    {due && <Card onClick={() => setCheckin(true)} className="fit-shine mb-3 !p-4" style={{ background: "linear-gradient(150deg, #ff5a1f, #b8360a)", color: "#0b0b0c" }} testId="fit-checkin-due">
+    {due && <Card onClick={() => setCheckin(true)} className="fit-shine mb-3 !p-4" style={{ background: "linear-gradient(150deg, var(--fit-accent), var(--fit-accent-deep))", color: "var(--fit-on-accent)" }} testId="fit-checkin-due">
       <div className="flex items-center gap-3"><ClipboardCheck className="h-7 w-7" /><span><span className="block text-[22px] leading-none" style={display}>Check-in due</span><span className="text-[13px] font-semibold">{c.checkin!.title} · {c.checkin!.questions.length} questions</span></span></div></Card>}
     {missed.length > 0 && <><Title>Catch up</Title><div className="space-y-2">{missed.map(row)}</div></>}
     <Title>Workouts</Title>
     {upcoming.length ? <div className="space-y-2">{upcoming.map(row)}</div> : <p className="px-1 text-[14px]" style={{ color: C.dim }}>{t.name.split(" ")[0]} hasn't put workouts on your plan yet.</p>}
     {habitsToday.length > 0 && <><Title right={<span className="text-[13px] font-semibold" style={{ color: C.dim }}>{checked.filter((x) => habitsToday.some((h) => h.id === x)).length}/{habitsToday.length}</span>}>Today's habits</Title>
-      <div className="space-y-2">{habitsToday.map((h) => { const on = checked.includes(h.id); return <button key={h.id} type="button" onClick={() => toggle(h.id)} aria-pressed={on} className="flex w-full items-center gap-3 rounded-[12px] p-3 text-left transition-colors" style={{ background: on ? "rgba(255,90,31,.14)" : C.card }} data-testid={`fit-habit-${h.id}`}>
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full" style={on ? { background: C.lime, color: "#0b0b0c" } : { boxShadow: `inset 0 0 0 2px ${C.dim}` }}>{on && <Check key="on" className="fit-tick h-5 w-5" strokeWidth={3} />}</span><span className="font-semibold">{h.name}</span></button>; })}</div></>}
+      <div className="space-y-2">{habitsToday.map((h) => { const on = checked.includes(h.id); return <button key={h.id} type="button" onClick={() => toggle(h.id)} aria-pressed={on} className="flex w-full items-center gap-3 rounded-[12px] p-3 text-left transition-colors" style={{ background: on ? "rgba(var(--fit-accent-rgb),.14)" : C.card }} data-testid={`fit-habit-${h.id}`}>
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full" style={on ? { background: C.lime, color: "var(--fit-on-accent)" } : { boxShadow: `inset 0 0 0 2px ${C.dim}` }}>{on && <Check key="on" className="fit-tick h-5 w-5" strokeWidth={3} />}</span><span className="font-semibold">{h.name}</span></button>; })}</div></>}
     {n && <><Title><Utensils className="h-4 w-4" />Nutrition targets</Title><Card>
       <div className="grid grid-cols-4 gap-2 text-center">{([["kcal", n.kcal, "cal"], ["Protein", n.p, "g"], ["Carbs", n.c, "g"], ["Fat", n.f, "g"]] as const).map(([l, v, u]) => <div key={l}><p className="text-[22px] leading-none" style={display}>{v ?? "—"}</p><p className="mt-1 text-[11px] uppercase" style={{ color: C.dim }}>{l === "kcal" ? "calories" : `${l} ${u}`}</p></div>)}</div>
       {n.waterL ? <p className="mt-3 text-[13px]" style={{ color: C.dim }}>Water: {data.profile.units === "kg" ? `${n.waterL} L` : `${Math.round((n.waterL * 1000) / 29.5735)} oz`} a day</p> : null}
@@ -205,8 +205,8 @@ function CheckinSheet({ form, onClose, onSubmit }: { form: NonNullable<MyLink["c
     <div className="mt-2 space-y-4">{form.questions.map((q) => <Field key={q.id} label={q.q}>
       {q.kind === "text" && <textarea rows={3} value={String(a[q.id] ?? "")} onChange={(e) => setA({ ...a, [q.id]: e.target.value })} className="w-full rounded-[12px] p-3 text-[17px] outline-none" style={inputStyle} />}
       {q.kind === "number" && <input inputMode="decimal" value={String(a[q.id] ?? "")} onChange={(e) => setA({ ...a, [q.id]: e.target.value.replace(/[^\d.]/g, "") === "" ? "" : Number(e.target.value.replace(/[^\d.]/g, "")) })} className={inputCls} style={inputStyle} />}
-      {q.kind === "scale" && <div className="grid grid-cols-10 gap-1">{Array.from({ length: 10 }, (_, i) => i + 1).map((n) => <button key={n} type="button" onClick={() => setA({ ...a, [q.id]: n })} className="h-11 rounded-[8px] text-[15px] font-bold" style={a[q.id] === n ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2 }}>{n}</button>)}</div>}
-      {q.kind === "yesno" && <div className="grid grid-cols-2 gap-2">{["Yes", "No"].map((v) => <button key={v} type="button" onClick={() => setA({ ...a, [q.id]: v })} className="h-12 rounded-[10px] font-semibold" style={a[q.id] === v ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2 }}>{v}</button>)}</div>}
+      {q.kind === "scale" && <div className="grid grid-cols-10 gap-1">{Array.from({ length: 10 }, (_, i) => i + 1).map((n) => <button key={n} type="button" onClick={() => setA({ ...a, [q.id]: n })} className="h-11 rounded-[8px] text-[15px] font-bold" style={a[q.id] === n ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card2 }}>{n}</button>)}</div>}
+      {q.kind === "yesno" && <div className="grid grid-cols-2 gap-2">{["Yes", "No"].map((v) => <button key={v} type="button" onClick={() => setA({ ...a, [q.id]: v })} className="h-12 rounded-[10px] font-semibold" style={a[q.id] === v ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card2 }}>{v}</button>)}</div>}
     </Field>)}</div>
     <Btn className="mt-6 w-full" onClick={() => onSubmit(a)} testId="fit-checkin-send">Send to my trainer</Btn>
   </Sheet>;
@@ -232,7 +232,7 @@ function Sessions({ token, link, reload }: { token: string | null; link: MyLink;
     {asking && <Sheet title="Ask for a session" onClose={() => setAsking(false)}>
       <div className="mt-2 space-y-4">
         <Field label="When"><input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} className={inputCls} style={inputStyle} /></Field>
-        <Field label="How"><div className="grid grid-cols-3 gap-2">{(t.modes.length ? t.modes : (["virtual"] as Mode[])).map((m) => <button key={m} type="button" onClick={() => setMode(m)} className="h-12 rounded-[10px] text-[13px] font-semibold" style={mode === m ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2 }}>{MODE_LABEL[m]}</button>)}</div></Field>
+        <Field label="How"><div className="grid grid-cols-3 gap-2">{(t.modes.length ? t.modes : (["virtual"] as Mode[])).map((m) => <button key={m} type="button" onClick={() => setMode(m)} className="h-12 rounded-[10px] text-[13px] font-semibold" style={mode === m ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card2 }}>{MODE_LABEL[m]}</button>)}</div></Field>
         <Field label="Note"><input value={note} onChange={(e) => setNote(e.target.value.slice(0, 300))} placeholder="What you'd like to work on" className={inputCls} style={inputStyle} /></Field>
       </div>
       <Btn className="mt-6 w-full" disabled={!at} onClick={async () => { await post(token, `/links/${link.id}/appointment`, { at: new Date(at).toISOString(), mode, note, mins: 60, place: "" }); setAsking(false); reload(); }}>Send to {t.name.split(" ")[0]}</Btn>
@@ -248,7 +248,7 @@ function Photos({ link, side, saveSide }: { link: MyLink; side: ClientSide; save
   if (!link.consent.photos) return <Card className="text-center"><Lock className="mx-auto h-8 w-8" style={{ color: C.dim }} /><p className="mt-2 text-[20px]" style={display}>Photos are off</p><p className="mt-1 text-[14px]" style={{ color: C.dim }}>Turn on Progress photos under Sharing to send your trainer photos of your progress.</p></Card>;
   return <div>
     <Chips label="Pose" value={pose} onChange={setPose} items={[{ id: "front", label: "Front" }, { id: "side", label: "Side" }, { id: "back", label: "Back" }, { id: "other", label: "Other" }]} />
-    <label className="mt-3 flex min-h-14 cursor-pointer items-center justify-center gap-2 rounded-[12px] text-[18px]" style={{ ...display, background: C.lime, color: "#0b0b0c" }} data-testid="fit-photo-add"><Camera className="h-5 w-5" />Add a progress photo
+    <label className="mt-3 flex min-h-14 cursor-pointer items-center justify-center gap-2 rounded-[12px] text-[18px]" style={{ ...display, background: C.lime, color: "var(--fit-on-accent)" }} data-testid="fit-photo-add"><Camera className="h-5 w-5" />Add a progress photo
       <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; const img = await shrinkImage(f, 900, 0.75); saveSide({ ...side, photos: [...side.photos, { id: Math.random().toString(36).slice(2, 10), date: dayKey(), pose, img }].slice(-60) }); }} /></label>
     <p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>Only you and your trainer see these.</p>
     <div className="mt-3 grid grid-cols-3 gap-2">{byDate.map((p, k) => <button key={p.id} type="button" onClick={() => setBig(p)} className="fit-pop relative aspect-[3/4] overflow-hidden rounded-[10px]" style={stagger(Math.min(k, 9), 0.04)}>
@@ -269,7 +269,7 @@ function Sharing({ token, link, reload }: { token: string | null; link: MyLink; 
     <p className="px-1 text-[13px]" style={{ color: C.dim }}>What {t.name.split(" ")[0]} can see from Arise Fit. Turning something off stops it right away.</p>
     <div className="mt-2 space-y-2">{(Object.keys(CONSENT_LABEL) as (keyof Consent)[]).map((k) => <label key={k} className="flex items-center gap-3 rounded-[12px] p-3" style={{ background: C.card }}>
       <span className="min-w-0 flex-1"><span className="block font-semibold">{CONSENT_LABEL[k][0]}</span><span className="block text-[12px]" style={{ color: C.dim }}>{CONSENT_LABEL[k][1]}</span></span>
-      <input type="checkbox" checked={consent[k]} onChange={(e) => void change({ ...consent, [k]: e.target.checked })} className="h-6 w-6 shrink-0 accent-[#ff5a1f]" /></label>)}</div>
+      <input type="checkbox" checked={consent[k]} onChange={(e) => void change({ ...consent, [k]: e.target.checked })} className="h-6 w-6 shrink-0 accent-[var(--fit-accent)]" /></label>)}</div>
     <Title>Review {t.name.split(" ")[0]}</Title>
     <Card>{sent ? <p className="flex items-center gap-2 font-semibold"><BadgeCheck className="h-5 w-5" style={{ color: C.lime }} />Thanks! Your review is on {t.name.split(" ")[0]}'s page.</p> : <>
       <Stars value={stars} size={30} onPick={setStars} />

@@ -88,7 +88,7 @@ export function GymSheet({ data, update, onClose }: { data: FitData; update: Upd
       {err && <p className="mt-2 text-[14px]" style={{ color: C.red }} role="alert">{err}</p>}
       <p className="mt-3 px-1 text-[13px]" style={{ color: C.dim }}>{kind?.scan ? "Tick what you have." : "Typical for this gym. Every location is different: switch off anything yours doesn't have."}</p>
       {KINDS.map((k) => <div key={k}><Title>{KIND_NAME[k]}</Title>
-        <div className="grid grid-cols-2 gap-2">{GEAR.filter((g) => g.kind === k).map((g) => { const on = gear.has(g.id); return <button key={g.id} type="button" onClick={() => toggle(g.id)} aria-pressed={on} className="flex min-h-12 items-center gap-2 rounded-[10px] px-2.5 text-left text-[14px] font-semibold" style={on ? { background: C.lime, color: "#0b0b0c" } : { background: C.card, color: C.text, boxShadow: `inset 0 0 0 1px ${C.line}` }} data-testid={`fit-gear-${g.id}`}>
+        <div className="grid grid-cols-2 gap-2">{GEAR.filter((g) => g.kind === k).map((g) => { const on = gear.has(g.id); return <button key={g.id} type="button" onClick={() => toggle(g.id)} aria-pressed={on} className="flex min-h-12 items-center gap-2 rounded-[10px] px-2.5 text-left text-[14px] font-semibold" style={on ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card, color: C.text, boxShadow: `inset 0 0 0 1px ${C.line}` }} data-testid={`fit-gear-${g.id}`}>
           <span aria-hidden>{on ? <Check className="h-4 w-4" /> : <GearIcon gear={g} className="h-4 w-4" />}</span><span className="leading-tight">{g.name}</span></button>; })}</div></div>)}
       <Btn className="mt-6 w-full" onClick={save} testId="fit-gym-save"><Check className="h-5 w-5" />Save my gym</Btn>
       {saved && <button type="button" onClick={() => { update((d) => { const { gym: _g, ...profile } = d.profile; return { ...d, profile }; }); onClose(); }} className="mt-3 h-11 w-full text-[14px] font-semibold" style={{ color: C.dim }}>Forget my gym</button>}
@@ -156,7 +156,7 @@ export function MachineGuide({ gear, data, update, onUse, useLabel = "Add to wor
       <div className="min-w-0"><p className="text-[26px] leading-none" style={display}>{gear.name}</p>
         <p className="mt-1 text-[13px]" style={{ color: C.steel }}>Works {gear.works.map((m) => MUSCLE_NAME[m] ?? m).join(", ").toLowerCase()}</p></div></div></Card>
     <Title>How to use it</Title>
-    <Card className="!p-4"><ol className="space-y-2">{gear.how.map((h, i) => <li key={i} className="flex gap-2.5 text-[15px] leading-snug"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[13px]" style={{ ...display, background: C.lime, color: "#0b0b0c" }}>{i + 1}</span>{h}</li>)}</ol></Card>
+    <Card className="!p-4"><ol className="space-y-2">{gear.how.map((h, i) => <li key={i} className="flex gap-2.5 text-[15px] leading-snug"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[13px]" style={{ ...display, background: C.lime, color: "var(--fit-on-accent)" }}>{i + 1}</span>{h}</li>)}</ol></Card>
     <Title>Avoid</Title>
     <Card className="!p-4"><ul className="space-y-1.5">{gear.avoid.map((a, i) => <li key={i} className="text-[15px] leading-snug">– {a}</li>)}</ul></Card>
     {exercises.length > 0 && <><Title>Exercises on it</Title>

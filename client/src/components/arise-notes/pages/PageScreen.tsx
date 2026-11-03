@@ -235,7 +235,7 @@ function TextBody({ content, look, edit, onSketch, onAiNote }: { content: PageCo
   const { toolbar, page } = useRichEditor({
     startHtml: content.html, resetKey: "page", onChange: (html) => { if (!filled.current) { filled.current = true; return; } if (html !== content.html) edit({ html }); },
     placeholder: "Start writing…", testId: "pages-rich", label: "Note", pageClassName: "min-h-[60vh] ![color:inherit] ![font-size:inherit] ![line-height:inherit] [font-family:inherit] pb-40",
-    toolbarClassName: "bg-white/85 backdrop-blur-xl",
+    toolbarClassName: "bg-transparent",
   });
   const fileIn = useRef<HTMLInputElement>(null);
   const addImage = async (f: File | undefined) => {
@@ -246,7 +246,7 @@ function TextBody({ content, look, edit, onSketch, onAiNote }: { content: PageCo
   const addTable = () => insertHtml(`<table style="border-collapse: collapse; width: 100%">${Array.from({ length: 3 }, (_, r) => `<tr>${Array.from({ length: 3 }, () => `<${r ? "td" : "th"} style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left"><br></${r ? "td" : "th"}>`).join("")}</tr>`).join("")}</table><p><br></p>`);
   const style = lookStyle(look);
   return <>
-    <div className="an-noprint an-notehead sticky top-[calc(env(safe-area-inset-top)+3.5rem)] z-20 flex items-center">
+    <div className="an-noprint an-notebar z-20 flex items-center">
       <div className="min-w-0 flex-1">{toolbar}</div>
       <div className="flex shrink-0 items-center gap-0.5 border-l border-black/5 px-1">
         <IconBtn label="Add a picture" onClick={() => fileIn.current?.click()}><ImageIcon className="h-[18px] w-[18px]" /></IconBtn>

@@ -6,9 +6,9 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Gauge, Mountain, Pause, Play, Trophy, Volume2, VolumeX, X } from "lucide-react";
 import { sessionSecs, type Phase, type Session } from "@shared/fitSessions";
 import { preloadAiVoice, sayAI, stopAiVoice } from "@/lib/aiVoice";
-import { Btn, C, Card, display, fmtDur, font, Layer} from "./fitUi";
+import { Btn, C, Card, accentNow, display, fmtDur, font, Layer } from "./fitUi";
 
-const KIND_COLOR: Record<Phase["kind"], string> = { warm: "#ffb020", work: "#ff5a1f", rest: "#4d9fff", cool: "#8d939b", pose: "#ff5a1f", "breathe-in": "#4d9fff", hold: "#b9c0c8", "breathe-out": "#ff5a1f", still: "#b9c0c8" };
+const KIND_COLOR: Record<Phase["kind"], string> = { warm: "#ffb020", work: "accent", rest: "#4d9fff", cool: "#8d939b", pose: "accent", "breathe-in": "#4d9fff", hold: "#b9c0c8", "breathe-out": "accent", still: "#b9c0c8" };
 const BREATH = new Set<Phase["kind"]>(["breathe-in", "hold", "breathe-out"]);
 
 const COACH = "troy" as const;
@@ -74,12 +74,13 @@ export function SessionPlayer({ session, onClose, onDone }: { session: Session; 
 
   const go = (to: number) => { const n = Math.max(0, Math.min(session.phases.length - 1, to)); setI(n); if (pausedLeft !== null) setPausedLeft(session.phases[n].secs * 1000); else setEndAt(Date.now() + session.phases[n].secs * 1000); };
   const toggle = () => { if (pausedLeft !== null) { setEndAt(Date.now() + pausedLeft); setPausedLeft(null); } else { setPausedLeft(leftMs); stopAiVoice(); } };
-  const color = KIND_COLOR[p.kind];
+  // "accent" is the color theme's accent (a hex, since an alpha is added to it below).
+  const color = KIND_COLOR[p.kind] === "accent" ? accentNow() : KIND_COLOR[p.kind];
   const next = session.phases[i + 1];
   const breathScale = p.kind === "breathe-in" ? 1 : p.kind === "breathe-out" ? 0.45 : p.kind === "hold" ? (session.phases[i - 1]?.kind === "breathe-in" ? 1 : 0.45) : 0.7;
 
-  if (finished) return <Layer><div className="fixed inset-0 z-[90] flex flex-col items-center justify-center px-6 text-center" style={{ background: `radial-gradient(90% 60% at 50% 20%, #3a1a0a, ${C.bg})`, color: C.text, ...font }} data-testid="fit-session-done">
-    <div className="grid h-24 w-24 place-items-center rounded-full" style={{ background: C.lime }}><Trophy className="h-12 w-12" style={{ color: "#0b0b0c" }} /></div>
+  if (finished) return <Layer><div className="fixed inset-0 z-[90] flex flex-col items-center justify-center px-6 text-center" style={{ background: `radial-gradient(90% 60% at 50% 20%, ${C.emberSoft}, ${C.bg})`, color: C.text, ...font }} data-testid="fit-session-done">
+    <div className="grid h-24 w-24 place-items-center rounded-full" style={{ background: C.lime }}><Trophy className="h-12 w-12" style={{ color: "var(--fit-on-accent)" }} /></div>
     <h1 className="mt-6 text-[44px] leading-none" style={display}>Done.</h1>
     <p className="mt-2 text-[16px]" style={{ color: C.steel }}>{session.name}</p>
     <div className="mt-6 grid w-full max-w-sm grid-cols-2 gap-2">
@@ -115,7 +116,7 @@ export function SessionPlayer({ session, onClose, onDone }: { session: Session; 
     </div>
     <div className="flex shrink-0 items-center justify-center gap-6 pb-[max(24px,env(safe-area-inset-bottom))] pt-2">
       <button type="button" onClick={() => go(i - 1)} disabled={i === 0} aria-label="Previous" className="grid h-14 w-14 place-items-center rounded-full disabled:opacity-30" style={{ background: C.card }}><ChevronLeft className="h-7 w-7" /></button>
-      <button type="button" onClick={toggle} aria-label={pausedLeft !== null ? "Resume" : "Pause"} className="grid h-20 w-20 place-items-center rounded-full shadow-[0_10px_30px_rgba(255,90,31,.4)]" style={{ background: C.lime, color: "#0b0b0c" }} data-testid="fit-session-pause">{pausedLeft !== null ? <Play className="ml-1 h-9 w-9" fill="currentColor" /> : <Pause className="h-9 w-9" fill="currentColor" />}</button>
+      <button type="button" onClick={toggle} aria-label={pausedLeft !== null ? "Resume" : "Pause"} className="grid h-20 w-20 place-items-center rounded-full shadow-[0_10px_30px_rgba(var(--fit-accent-rgb),.4)]" style={{ background: C.lime, color: "var(--fit-on-accent)" }} data-testid="fit-session-pause">{pausedLeft !== null ? <Play className="ml-1 h-9 w-9" fill="currentColor" /> : <Pause className="h-9 w-9" fill="currentColor" />}</button>
       <button type="button" onClick={() => (i + 1 < session.phases.length ? go(i + 1) : setFinished(true))} aria-label="Skip" className="grid h-14 w-14 place-items-center rounded-full" style={{ background: C.card }} data-testid="fit-session-skip"><ChevronRight className="h-7 w-7" /></button>
     </div>
   </div></Layer>;
