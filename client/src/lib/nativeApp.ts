@@ -117,3 +117,12 @@ export function markAppReadyWhenDrawn(): void {
   };
   window.setTimeout(tick, 800);
 }
+
+/** The hash to open for a notification's link. Links are written "/#/lifehub?go=tasks", and this page
+ *  already lives at "/", so only what's after the "#" belongs in the hash. */
+export const notificationHash = (url: string): string | null => {
+  if (url.startsWith("#")) return url.slice(1);
+  if (!url.startsWith("/")) return null;
+  const at = url.indexOf("#");
+  return at >= 0 ? url.slice(at + 1) : url;
+};

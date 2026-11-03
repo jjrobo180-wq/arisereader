@@ -7,7 +7,7 @@
 import { dueHubReminders, type HubReminder } from "@shared/hubReminders";
 import { dueTodoReminders } from "@shared/todoReminders";
 import type { Workspace } from "@shared/teacherHub";
-import { hasNativePlugin, isNativeApp, nativeCall, nativeListen } from "@/lib/nativeApp";
+import { hasNativePlugin, isNativeApp, nativeCall, nativeListen, notificationHash } from "@/lib/nativeApp";
 import { startApplePush, stopApplePush } from "@/lib/applePush";
 
 export type ReminderKind = "life" | "work";
@@ -131,8 +131,8 @@ export function installReminderTaps(): void {
     void nativeListen("LocalNotifications", "localNotificationActionPerformed", (e: any) => {
       const url = String(e?.notification?.extra?.url || "");
       if (!url) return;
-      if (url.startsWith("#")) window.location.hash = url.slice(1);
-      else if (url.startsWith("/")) window.location.hash = url;
+      const hash = notificationHash(url);
+      if (hash !== null) window.location.hash = hash;
     });
   } catch { /* no listener here */ }
 }
