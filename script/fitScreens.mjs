@@ -44,7 +44,12 @@ const out = "fit-screens";
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch();
 const results = [];
-async function shot(name, fn, { dark = false, scrolls = 1, prefs } = {}) {
+async function shot(name, fn, { dark = false, scrolls = 1, prefs, at: atTime, noTodaySleep, schedule } = {}) {
+  // A screen can be taken at a set time of day (the morning check-in only shows in the morning).
+  const fixed = atTime ? (() => { const d = new Date(); const [h, m] = atTime.split(":").map(Number); d.setHours(h, m, 0, 0); return d.getTime(); })() : null;
+  if (typeof prefs === "function") prefs = prefs(fixed ?? Date.now());
+  let data = noTodaySleep ? { ...DATA, sleep: { ...DATA.sleep, nights: DATA.sleep.nights.filter((n) => n.date !== today) } } : DATA;
+  if (schedule) data = { ...data, sleep: { ...data.sleep, schedule: { bed: "22:45", wake: "06:30" } } };
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: dark ? "dark" : "light", userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1" });
   await ctx.addCookies([{ name: "arise_session", value: cookie, domain: "localhost", path: "/" }]);
   await ctx.addInitScript(([d, dark, prefs]) => {
@@ -53,13 +58,14 @@ async function shot(name, fn, { dark = false, scrolls = 1, prefs } = {}) {
       localStorage.setItem("arise-fit-theme", dark ? "dark" : "light");
       for (const [k, v] of Object.entries(prefs || {})) localStorage.setItem(k, v);
     } catch { /* none */ }
-  }, [DATA, dark, prefs]);
+  }, [data, dark, prefs]);
+  if (fixed) await ctx.clock.setFixedTime(new Date(fixed));
   await ctx.route("**/api/**", async (route) => {
     const url = new URL(route.request().url());
     const p = url.pathname;
     const json = (body, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
     if (p === "/api/me") return json(USER);
-    if (p === "/api/fit/data") return route.request().method() === "GET" ? json({ data: DATA }) : json({ ok: true });
+    if (p === "/api/fit/data") return route.request().method() === "GET" ? json({ data }) : json({ ok: true });
     if (p === "/api/fit/exercises") return json({ exercises: [] });
     if (p === "/api/fit/plus") return json({ plus: true, via: "admin", price: "$4.99 a month", pass: { role: "none" } });
     return json({ message: "Not in the sample." }, 404);

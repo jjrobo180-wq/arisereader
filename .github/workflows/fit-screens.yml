@@ -23,6 +23,16 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Type-check Arise Fit (its own files only; the rest of the site isn't checked here)
+        shell: bash
+        run: |
+          set +e
+          npx tsc --noEmit -p . > tsc.txt 2>&1
+          grep -E "^(client/src/pages/(fit|trainer)/|shared/fit|client/src/App\.tsx)" tsc.txt > fit-tsc.txt
+          cat fit-tsc.txt
+          mkdir -p fit-screens && cp fit-tsc.txt fit-screens/typecheck.txt
+          if [ -s fit-tsc.txt ]; then echo "::error title=Arise Fit type errors::$(wc -l < fit-tsc.txt) errors"; fi
+          exit 0
       - name: Build the site
         run: npx vite build
       - name: Install a browser

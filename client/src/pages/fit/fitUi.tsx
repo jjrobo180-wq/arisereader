@@ -161,9 +161,11 @@ export const FIT_CSS = `
 @keyframes fitScan{from{top:8%}to{top:88%}}
 .fit-up{animation:fitUp .35s cubic-bezier(.2,.9,.2,1) backwards}
 @keyframes fitUp{from{transform:translateY(110%)}to{transform:none}}
+.fit-wiggle{animation:fitWiggle .32s ease-in-out infinite alternate}
+@keyframes fitWiggle{from{transform:rotate(-1.6deg)}to{transform:rotate(1.6deg)}}
 .fit-route{stroke-dasharray:4000;stroke-dashoffset:4000;animation:fitRoute 1.8s ease-out .2s forwards}
 @keyframes fitRoute{to{stroke-dashoffset:0}}
-@media (prefers-reduced-motion: reduce){.fit-in,.fit-slide,.fit-sheet,.fit-pop,.fit-tick,.fit-bar,.fit-pulse,.fit-up,.fit-route{animation:none!important;stroke-dashoffset:0}.fit-shine::after,.fit-scan{animation:none!important}}
+@media (prefers-reduced-motion: reduce){.fit-in,.fit-slide,.fit-sheet,.fit-pop,.fit-tick,.fit-bar,.fit-pulse,.fit-up,.fit-route,.fit-wiggle{animation:none!important;stroke-dashoffset:0}.fit-shine::after,.fit-scan{animation:none!important}}
 `;
 /** A staggered entrance: item k starts a little after item k-1. */
 export const stagger = (k: number, step = 0.06, from = 0) => ({ animationDelay: `${(from + k * step).toFixed(2)}s` });

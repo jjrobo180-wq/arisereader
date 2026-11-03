@@ -18,13 +18,20 @@ import { formLiftFor } from "@shared/fitForm";
 import { prescription } from "@shared/fitRecovery";
 import { Debrief, GymSheet, ScanMachine, SwapSheet } from "./FitGym";
 import { gymLabel } from "@shared/fitGym";
-import { saveToHealth } from "./fitNative";
+import { saveMindful, saveToHealth } from "./fitNative";
 import type { LibraryExercise, Update } from "./fitStore";
 import { CoverCard, VideoPlayer, VideoThumb } from "./FitVideo";
 import { PlusTag, usePlus } from "./FitPlus";
 import { Btn, C, Card, Chips, Sheet, Spark, Title, fmtDur, fmtNum, glowBg, inputCls, inputStyle, display, stagger, Layer, font, haptic} from "./fitUi";
 
 export const libraryFallback = (): LibraryExercise[] => CATALOG.map((e) => ({ ...e, images: [], source: "arise" as const }));
+/** Saves a finished guided session to history (and its calories, or mindful minutes, to Apple Health). */
+export function logSession(update: Update, x: Session, secs: number) {
+  const end = new Date(), start = new Date(Date.now() - secs * 1000);
+  if (x.category === "meditation") saveMindful(start, end);
+  else saveToHealth("calories", Math.round((secs / 60) * ({ hiit: 11, c25k: 9, yoga: 3.5, meditation: 0, mobility: 2.5 } as const)[x.category]), start);
+  update((d) => ({ ...d, workouts: [...d.workouts, { id: uid(), date: end.toISOString(), name: x.name, programId: x.category === "c25k" ? "c25k" : `session-${x.category}`, dayId: x.id, secs, exercises: [] }] }));
+}
 const MUSCLES = ["all", "chest", "back", "shoulders", "biceps", "triceps", "abs", "quads", "hamstrings", "glutes", "calves", "full body", "cardio"] as const;
 const EQUIP = ["any", "barbell", "dumbbell", "machine", "cable", "bodyweight", "kettlebell", "band"] as const;
 const ACTIVE = "arise-fit-active";
@@ -405,9 +412,10 @@ const TYPES: { id: SessionCategory | "body" | "outdoor" | "form"; label: string;
   { id: "hiit", label: "HIIT treadmill", sub: "Sprints, hills, Tabata", cover: "hiit" },
   { id: "c25k", label: "Couch to 5K", sub: "9 weeks to 30 minutes", cover: "c25k" },
   { id: "yoga", label: "Yoga", sub: "Mobility and recovery", cover: "yoga" },
-  { id: "meditation", label: "Meditation", sub: "Breathing and focus", cover: "meditation" },
+  { id: "mobility", label: "Mobility", sub: "Stretching and flexibility", cover: "mobility" },
+  { id: "meditation", label: "Breathe", sub: "Breathing and meditation", cover: "meditation" },
 ];
-const CAT_TITLE: Record<SessionCategory, string> = { hiit: "HIIT treadmill", c25k: "Couch to 5K", yoga: "Yoga", meditation: "Meditation" };
+const CAT_TITLE: Record<SessionCategory, string> = { hiit: "HIIT treadmill", c25k: "Couch to 5K", yoga: "Yoga", meditation: "Breathe", mobility: "Mobility" };
 
 /** A list of guided sessions in one category (Couch to 5K shows its 9 weeks with what's done). */
 function SessionList({ cat, data, onClose, onPlay }: { cat: SessionCategory; data: FitData; onClose: () => void; onPlay: (s: Session) => void }) {
@@ -457,11 +465,7 @@ export function TrainTab({ data, update, list, onStart, say, onCoach, onGyms }: 
   const [form, setForm] = useState(false);
   const [gymOpen, setGymOpen] = useState(false);
   const [scan, setScan] = useState(false);
-  const saveSession = (x: Session, secs: number) => {
-    saveToHealth("calories", Math.round((secs / 60) * ({ hiit: 11, c25k: 9, yoga: 3.5, meditation: 0 } as const)[x.category]), new Date(Date.now() - secs * 1000));
-    update((d) => ({ ...d, workouts: [...d.workouts, { id: uid(), date: new Date().toISOString(), name: x.name, programId: x.category === "c25k" ? "c25k" : `session-${x.category}`, dayId: x.id, secs, exercises: [] }] }));
-    setPlaying(null); say("Saved to your history.");
-  };
+  const saveSession = (x: Session, secs: number) => { logSession(update, x, secs); setPlaying(null); say("Saved to your history."); };
   const find = (id: string) => list.find((e) => e.id === id) ?? libraryFallback().find((e) => e.id === id);
   const active = data.program ? PROGRAM_BY_ID.get(data.program.id) : undefined;
   const next = active && data.program ? nextProgramDay(active, data.program.done) : null;
