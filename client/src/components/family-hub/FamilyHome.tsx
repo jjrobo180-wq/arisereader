@@ -9,7 +9,7 @@ import { pinId } from "@shared/hubLayout";
 import { addDays, billDue, billState, choreDoneOn, choreDueOn, choreOwner, daysBetween, eventsOn, isOn, money, starBalance, tally, toggleChore, type FamilySection } from "@shared/familyHub";
 import { notesAppPlugin, type Plugin } from "@shared/pluginStore";
 import { hubThemeOf } from "@shared/appThemes";
-import { HubLookHero } from "@/components/HubLook";
+import { HubLookHero, useActiveLook } from "@/components/HubLook";
 import { liveFaces } from "@shared/liveTiles";
 import type { Forecast } from "@shared/lifePlugins";
 import { useLifeFeed } from "./useLifeFeed";
@@ -53,7 +53,7 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
   const myNotesApps = (family.notesInstalled ?? []).map((id) => notesAppPlugin("life", id)).filter((p): p is Plugin => !!p);
   const layout = cleanLifeLayout(family.layout, myNotesApps.map((p) => p.id));
   // Widened past Record<LifePart, ...> below so a pinned Notes app (see pinId) can add its own entry.
-  const look = hubThemeOf(layout.theme).look ?? null;
+  const look = useActiveLook();
   const part: Record<string, ReactNode | null> = {
     greeting: look ? <HubLookHero look={look} date={shortDate(today, { weekday: "long", month: "long", day: "numeric" })} greeting={`${greeting}${name ? `, ${name}` : ""}.`}
       primary={{ label: dueTasks.length ? `${dueTasks.length} task${dueTasks.length === 1 ? "" : "s"} due` : "See your tasks", onClick: () => go("tasks") }}

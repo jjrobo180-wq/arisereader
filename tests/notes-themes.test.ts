@@ -29,3 +29,13 @@ test("the areas around the page follow the look on the iPhone", () => {
   const swift = readFileSync(new URL("../notes/ios-app/plugins/arise-on-device/ios/Sources/AriseOnDevicePlugin/AriseOnDevicePlugin.swift", import.meta.url), "utf8");
   assert.match(swift, /CAPPluginMethod\(name: "setBackdrop"/);
 });
+test("the iPhone app draws edge to edge, so the header stays put and covers the status bar", () => {
+  const config = JSON.parse(readFileSync(new URL("../notes/ios-app/capacitor.config.json", import.meta.url), "utf8"));
+  assert.equal(config.ios.contentInset, "never");
+  const css = readFileSync(new URL("../client/src/components/arise-notes/notes.css", import.meta.url), "utf8");
+  assert.match(css, /\.an-root::before \{[^}]*height: env\(safe-area-inset-top\)/);
+});
+test("the iPhone app's page reaches the screen edges, so headers sit below the clock", () => {
+  const main = readFileSync(new URL("../client/src/main.tsx", import.meta.url), "utf8");
+  assert.match(main, /isNotesApp\(\)\) \{\s*const vp/);
+});

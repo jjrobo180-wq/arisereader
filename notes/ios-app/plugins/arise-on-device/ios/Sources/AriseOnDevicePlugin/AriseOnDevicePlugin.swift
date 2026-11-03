@@ -299,6 +299,8 @@ public class AriseOnDevicePlugin: CAPPlugin, CAPBridgedPlugin {
             webView.isOpaque = false
             webView.backgroundColor = color
             webView.scrollView.backgroundColor = color
+            webView.scrollView.bounces = false
+            webView.scrollView.alwaysBounceVertical = false
             webView.underPageBackgroundColor = color
             webView.superview?.backgroundColor = color
             self?.bridge?.viewController?.view.backgroundColor = color

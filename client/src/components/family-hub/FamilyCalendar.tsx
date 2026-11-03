@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { CalendarDays, Check, ChevronLeft, ChevronRight, ExternalLink, GraduationCap, Link2, MapPin, Plane, Plus, Receipt, RefreshCw, Repeat2, Trash2, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
+import { LookAgenda, useActiveLook } from "@/components/HubLook";
 import { MEMBER_COLORS, addDays, billDue, eventsOn, fromDay, toDay, type FamilyEvent, type EventRepeat } from "@shared/familyHub";
 import { Avatar, Label, MemberPicker, Modal, PageHead, Panel, Toggle, clock12, confirmed, danger, inputClass, memberOf, plain, primary, shortDate, type SectionProps } from "./ui";
 import { ShareButton } from "./ShareLink";
@@ -204,7 +205,14 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
   const add = (date = picked) => setEditing(blankEvent(date, family.calendars[0]?.id || "", makeId()));
   const dayItems = itemsOn(picked);
 
+  const look = useActiveLook();
+  const agenda = look ? Array.from({ length: 14 }, (_, n) => {
+    const date = addDays(today, n), d = new Date(`${date}T12:00:00`);
+    return { date, weekday: d.toLocaleDateString(undefined, { weekday: "short" }), day: String(d.getDate()), month: d.toLocaleDateString(undefined, { month: "short" }),
+      items: [...eventsOn(family, date).map((e) => ({ id: e.id, time: e.time, title: e.title })), ...tasks.filter((t) => !t.done && t.due === date).map((t) => ({ id: t.id, time: t.time, title: t.title }))] };
+  }) : [];
   return <div className="space-y-6">
+    {look && <LookAgenda look={look} days={agenda} onPick={setPicked} />}
     <PageHead eyebrow="Calendar" title="Family calendar" blurb="Everyone's practices, appointments and plans in one place. Switch calendars and people on or off to see just what you need."
       action={<div className="flex flex-wrap items-center gap-2"><ShareButton target="calendar" title="Family calendar" say={say} /><button onClick={() => add()} className={primary + " min-h-11 px-5"}><Plus size={18} /> New event</button></div>} />
 
