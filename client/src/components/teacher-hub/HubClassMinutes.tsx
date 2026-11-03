@@ -100,7 +100,7 @@ export function DeleteClassModal({ workspace, today, groupKey, onDelete, onClose
     <HubModal title={`Delete ${title}?`} size="sm" onClose={onClose}
       footer={<div className="flex flex-wrap gap-2"><button type="button" onClick={() => onDelete(group, removeMinutes)} data-testid="class-delete-confirm" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-red-700 px-4 text-sm font-semibold text-white hover:bg-red-800"><Trash2 className="h-4 w-4" aria-hidden /> Delete class</button><GhostButton onClick={onClose}>Cancel</GhostButton></div>}>
       <div className="grid grid-cols-1 gap-3 text-sm text-slate-700" data-testid="class-delete-modal">
-        <p>The class comes off this page. Its {people(group.students.length)} stay on your list, and minutes already logged are kept.</p>
+        <p>The class comes off this page. Its students stay on your list, and minutes already logged are kept.</p>
         <label className="flex min-h-11 items-center gap-3 font-medium"><input type="checkbox" className="h-5 w-5" checked={removeMinutes} onChange={(e) => setRemoveMinutes(e.target.checked)} data-testid="class-delete-minutes" />Also remove their required minutes for this class</label>
       </div>
     </HubModal>
