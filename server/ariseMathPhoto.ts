@@ -10,7 +10,7 @@ import { randomUUID } from "node:crypto";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { SKILLS } from "../shared/ariseMath";
 import { SOLVE_PROMPT, sameAnswer, solveText, wrongArithmetic } from "../shared/ariseMathVerify";
-import { PHOTO_LIMITS, answerMatches, cleanTutorReply, tutorPrompt, type TutorReply } from "../shared/ariseMathPhoto";
+import { PHOTO_LIMITS, answerMatches, cleanTutorReply, tutorPrompt, type TutorReply, type TutorResult } from "../shared/ariseMathPhoto";
 
 export type PhotoAsk = { system: string; text: string; image: string | null };
 export type MathPhotoDeps = {
@@ -97,7 +97,7 @@ export function registerMathPhotoRoutes(app: Express, auth: RequestHandler, deps
     }
     let parsed: unknown = null;
     try { parsed = JSON.parse(raw); } catch { parsed = null; }
-    let result = cleanTutorReply(parsed, skillIds);
+    let result: TutorResult = cleanTutorReply(parsed, skillIds);
     // A picture is never turned down on one try: look once more before saying there's no math.
     if ("notMath" in result && image) {
       console.warn("[arise-math-photo] first look found no math; looking again");
@@ -109,7 +109,7 @@ export function registerMathPhotoRoutes(app: Express, auth: RequestHandler, deps
     if ("notMath" in result) return res.json({ notMath: result.notMath });
     // The answer is checked by a second solver, and the worked math by code, with one fresh try if either fails.
     if (!deps.skipCheck) {
-      const trusted = async (r: typeof result) => {
+      const trusted = async (r: TutorResult) => {
         if ("notMath" in r) return false;
         const written = [...r.reply.steps.map((s) => s.explain), ...r.reply.examples.flatMap((e) => e.steps.map((s) => s.work))];
         if (written.some((w) => wrongArithmetic(w).length)) return false;
@@ -121,7 +121,7 @@ export function registerMathPhotoRoutes(app: Express, auth: RequestHandler, deps
       };
       if (!(await trusted(result))) {
         console.warn("[arise-math-photo] answer didn't pass the check; solving again");
-        let again: typeof result | null = null;
+        let again: TutorResult | null = null;
         try { again = cleanTutorReply(JSON.parse(await askAI({ system: tutorPrompt(skillList, grade), text: `Solve this again, slowly, and check every "=": ${result.reply.problem}`, image })), skillIds); } catch { again = null; }
         if (!again || !(await trusted(again))) return res.status(502).json({ message: "I couldn’t confirm the answer to this one, so I won’t guess. Try again, or type the problem in." });
         result = again;
