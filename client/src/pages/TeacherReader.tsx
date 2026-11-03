@@ -218,13 +218,13 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
 
   const toApprove = counts ? counts.joining + counts.gradeChanges : 0;
 
-  // The teacher's own advisory, found by their last name ("Ms. Chase" → "Chase & Shuster").
+  // The teacher's own advisory (or combined team), found by their last name ("Ms. Chase" → "Chase & Shuster").
   const mine = useMemo(() => {
     if (!challenge?.challenge || !user) return null;
     const words = nameWords(user.displayName || "");
     const last = words[words.length - 1];
     if (!last) return null;
-    return challenge.standings.find((s) => s.name.toLowerCase().split(/\s*&\s*/).some((n) => n === last)) || null;
+    return challenge.standings.find((s) => [s.name, ...(s.advisories || [])].some((name) => name.toLowerCase().split(/\s*&\s*/).some((n) => n === last))) || null;
   }, [challenge, user]);
 
   if (!user) return null;

@@ -1,19 +1,21 @@
 // Arise Notes: the app. The same screens run on their own at /notes/ (client/src/notes/main.tsx) and
 // inside Arise To Duo (pages/AriseNotesPage.tsx): Home with the notes, Record, Upload, a note, Ask
 // your notes, Voice memo, and Settings (plan and minutes, family, privacy, accessibility).
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { NoteTypeIcon } from "./NoteIcon";
 import { ArrowRight, ChevronLeft, Columns2, Folder, Loader2, Lock, Mic, MessageCircle, NotebookPen, Search, Settings, Sparkles, Upload, Users, Zap } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { startApplePush } from "@/lib/applePush";
-import { isNotesApp } from "@/lib/nativeApp";
-import { NOTES_PLANS, dayWords, fmtClock, templateOf } from "@shared/ariseNotes";
+import { isNotesApp, nativeCall } from "@/lib/nativeApp";
+import { NOTES_PLANS, dayWords, fmtClock, templateOf, themeOf, themeVars } from "@shared/ariseNotes";
 import { notesApi, setNotesToken, type ListNote, type Me } from "./api";
 import { listLocalNotes, type LocalNote } from "./localNotes";
 import { listenForLinks, widgetAi, widgetPages } from "./widgetLinks";
 import { pagesSyncFor } from "./pages/pagesSync";
 import { Btn, IconBtn, Notice, Spinner, ToastHost, plural, shortDate, useToast } from "./ui";
+import { LookHomeHero, LookNoteList, activeLook } from "./looks";
 import "./notes.css";
+import "./notes-themes.css";
 
 const RecordScreen = lazy(() => import("./RecordScreen"));
 const UploadScreen = lazy(() => import("./UploadScreen"));
@@ -27,7 +29,7 @@ const PagesView = lazy(() => import("./pages/PagesView"));
 
 export type Route =
   | { name: "home" } | { name: "record" } | { name: "upload" } | { name: "note"; id: string; t?: number } | { name: "ask" } | { name: "memo" }
-  | { name: "settings"; tab?: "plan" | "family" | "privacy" | "access" } | { name: "privacy" }
+  | { name: "settings"; tab?: "plan" | "look" | "family" | "privacy" | "access" } | { name: "privacy" }
   /** A Strict-mode note, kept only on this iPhone (localNotes.ts). */
   | { name: "local"; id: string }
   /** The Notes tab: typed and handwritten notes (pages/PagesView.tsx), and one of them open. */
@@ -52,7 +54,7 @@ function parseHash(h: string): Route {
     case "note": return p[1] ? { name: "note", id: p[1], t: p[2] ? Number(p[2]) : undefined } : { name: "home" };
     case "ask": return { name: "ask" };
     case "memo": return { name: "memo" };
-    case "settings": return { name: "settings", tab: (["plan", "family", "privacy", "access"] as const).find((t) => t === p[1]) };
+    case "settings": return { name: "settings", tab: (["plan", "look", "family", "privacy", "access"] as const).find((t) => t === p[1]) };
     case "usage": case "plans": return { name: "settings", tab: "plan" };
     case "family": return { name: "settings", tab: "family" };
     case "privacy": return { name: "privacy" };
@@ -71,6 +73,15 @@ const loadLexend = () => {
   const l = document.createElement("link");
   l.rel = "stylesheet";
   l.href = "https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap";
+  document.head.appendChild(l);
+};
+const loadedFonts = new Set<string>();
+const loadThemeFont = (href?: string) => {
+  if (!href || loadedFonts.has(href) || typeof document === "undefined") return;
+  loadedFonts.add(href);
+  const l = document.createElement("link");
+  l.rel = "stylesheet";
+  l.href = href;
   document.head.appendChild(l);
 };
 
@@ -140,7 +151,28 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
 
   const s = me?.settings;
   useEffect(() => { if (s?.font === "dyslexic") loadLexend(); }, [s?.font]);
-  const rootClass = ["an-root min-h-[100dvh]", s?.font === "dyslexic" && "an-dyslexic", s?.simple && "an-simple", s?.contrast && "an-contrast", s?.large && "an-large"].filter(Boolean).join(" ");
+  // High contrast is an accessibility need, so it always wins over a look.
+  const look = themeOf(s?.theme);
+  const themed = !s?.contrast && look.id !== "classic";
+  useEffect(() => { if (themed) loadThemeFont(look.fontUrl); }, [themed, look.fontUrl]);
+  // The areas around the page (behind the status bar and Home indicator) match the look.
+  const backdrop = s?.contrast ? "#ffffff" : themed ? look.bg : "#f5f4fb";
+  const darkBackdrop = themed && !!look.dark;
+  useEffect(() => {
+    const html = document.documentElement, body = document.body;
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    const before = [html.style.background, body.style.background, meta?.content];
+    html.style.background = backdrop;
+    body.style.background = backdrop;
+    if (meta) meta.content = backdrop;
+    if (isNotesApp()) {
+      void nativeCall(/ariseondevice/i, "AriseOnDevice", "setBackdrop", { color: backdrop }).catch(() => {});
+      void nativeCall(/statusbar/i, "StatusBar", "setStyle", { style: darkBackdrop ? "DARK" : "LIGHT" }).catch(() => {});
+    }
+    return () => { html.style.background = before[0] ?? ""; body.style.background = before[1] ?? ""; if (meta && before[2]) meta.content = before[2]; };
+  }, [backdrop, darkBackdrop]);
+  const rootClass = ["an-root min-h-[100dvh]", s?.font === "dyslexic" && "an-dyslexic", s?.simple && "an-simple", s?.contrast && "an-contrast", s?.large && "an-large", themed && "an-themed", themed && `an-theme-${look.id}`].filter(Boolean).join(" ");
+  const rootStyle = themed ? themeVars(look) as CSSProperties : undefined;
 
   if (!me) {
     return <div className={rootClass}>
@@ -163,7 +195,7 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
       default: return <><Home ctx={ctx} notes={notes} onExit={onExit} /><TabBar ctx={ctx} on="ai" /></>;
     }
   })();
-  return <div className={rootClass} data-testid="arise-notes">
+  return <div className={rootClass} style={rootStyle} data-testid="arise-notes">
     <Suspense fallback={<div className="pt-32"><Spinner /></div>}>{screen}</Suspense>
   </div>;
 }
@@ -250,6 +282,7 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
   const shown = all.filter((n) => (folder === "__family" ? !n.mine || n.familyShared : !folder || n.folder === folder) && (!tag || n.tags.includes(tag)));
   const first = ctx.me.user.name.split(" ")[0];
   const exit = ctx.mode === "embedded" && onExit;
+  const look = activeLook(ctx.me.settings);
   return <>
     <TopBar ctx={ctx} back={exit ? onExit : undefined} title={exit ? <span className="flex items-center gap-2"><Logo size={26} />Arise Notes</span> : undefined}
       right={<>
@@ -258,6 +291,12 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
         <IconBtn label="Settings" onClick={() => ctx.go({ name: "settings" })}><Settings className="h-5 w-5" /></IconBtn>
       </>} />
     <main className="mx-auto max-w-5xl space-y-5 px-4 pb-24 pt-5 sm:px-5">
+      {look ? <>
+        <LookHomeHero look={look} a={{ first, minutes: null, record: () => ctx.go({ name: "record" }), upload: () => ctx.go({ name: "upload" }), memo: () => ctx.go({ name: "memo" }), ask: () => ctx.go({ name: "ask" }), memoLocked: !ctx.me.features.memo }} />
+      <MinutesBanner ctx={ctx} />
+      {!ctx.me.services.speech && <Notice tone="warn">Speech to text isn't switched on for this site yet, so recordings are saved but can't be written down.</Notice>}
+
+      </> : <>
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-[13px] font-semibold uppercase tracking-wider text-[var(--an-violet)]">Arise Notes</p>
@@ -278,6 +317,8 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
         <span className="min-w-0 flex-1 truncate text-[15px] text-[var(--an-muted)]">Ask your notes: “What did I promise Maya's mom last month?”</span>
         <ArrowRight className="h-4 w-4 text-[var(--an-faint)]" aria-hidden />
       </button>
+
+      </>}
 
       <section aria-labelledby="notes-heading" className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -307,7 +348,7 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
             </button>
           </li>)}</ul>
         </div>}
-        {notes === null ? <Spinner /> : shown.length ? <ul className="grid gap-3 md:grid-cols-2">{shown.map((n) => <NoteCard key={n.id} n={n} onOpen={() => ctx.go({ name: "note", id: n.id })} />)}</ul>
+        {notes === null ? <Spinner /> : shown.length ? (look ? <LookNoteList look={look} notes={shown} onOpen={(n) => ctx.go({ name: "note", id: n.id })} /> : <ul className="grid gap-3 md:grid-cols-2">{shown.map((n) => <NoteCard key={n.id} n={n} onOpen={() => ctx.go({ name: "note", id: n.id })} />)}</ul>)
           : q ? <p className="an-card px-5 py-8 text-center text-[15px] text-[var(--an-muted)]">Nothing matched “{q}”.</p>
             : <EmptyNotes ctx={ctx} />}
       </section>

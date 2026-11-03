@@ -154,6 +154,7 @@ import { useLifeHubTrial } from "@/components/TodoGate";
 const Reader = lazy(() => import("@/components/family-hub/Reader"));
 import "./todoNight.css";
 import "./hubThemes.css";
+import { useHubLook } from "@/components/HubLook";
 import "./ariseDuo.css";
 import { inDuoPane, useAriseDuo, type DuoChoice } from "@/lib/useAriseDuo";
 import "@/components/teacher-hub/darkPalette.css";
@@ -768,6 +769,7 @@ export default function AriseTodo() {
   // shared/appThemes.ts's HubTheme.homeLayout) — "cards" (today's) for Classic/Sunrise/Forest,
   // a dense tap-chip wrap for Tile/Candy, bracketed text lines for Old Computer, and a quiet
   // thin-divider list for Minimalist.
+  const hubLook = useHubLook(layout.theme, night);
   const taskLayout = hubThemeOf(layout.theme).homeLayout ?? "cards";
   // The Tile theme is a Windows-Phone start screen: every app is a tile on Home, so there is no menu strip beside it.
   const tileMode = taskLayout === "tiles";
@@ -1059,7 +1061,7 @@ export default function AriseTodo() {
     gallery: () => setStore(true), privacy: () => setPrivacy(true), signOut: () => void signOut(),
     extra: [{ id: "family", label: "Family & settings", detail: "People, linked children and sections", icon: <Users />, onClick: () => { closeApps(); goSection("family"); } }],
   });
-  return <PrivacyLockProvider lock={family.lock} setLock={(lock) => setFamily((f) => ({ ...f, lock }))} apps={lockableApps} settings={lockSettings} onSettings={setLockSettings}><div className={`min-h-screen bg-[#f6f7fc] text-slate-900 ${night ? "todo-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""}`}>
+  return <PrivacyLockProvider lock={family.lock} setLock={(lock) => setFamily((f) => ({ ...f, lock }))} apps={lockableApps} settings={lockSettings} onSettings={setLockSettings}><div style={hubLook.style} className={`min-h-screen bg-[#f6f7fc] text-slate-900 ${night && !hubLook.look ? "todo-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""} ${hubLook.className}`}>
     <UpgradeHost hub="life" />
     {/* After the tour: the coach on the real hub (hold a widget, switch hubs, the App Gallery). */}
     <HubCoach userId={user.id} hub="life" />
@@ -1440,7 +1442,7 @@ export default function AriseTodo() {
                 taskLayout === "terminal" ? "mt-5 space-y-0 border border-current/30 font-mono" :
                 taskLayout === "tiles" ? "mt-5 flex flex-wrap gap-2" :
                 // Like the iPhone's Reminders: one list, rows split by hairlines.
-                "mt-4 divide-y divide-[#efeff5] overflow-hidden rounded-2xl border border-[#ececf3] bg-white"
+                "hub-tasklist mt-4 divide-y divide-[#efeff5] overflow-hidden rounded-2xl border border-[#ececf3] bg-white"
               }>
                 {filtered.map(task => {
                   const list = data.lists.find(row => row.id === task.listId);
@@ -1448,7 +1450,7 @@ export default function AriseTodo() {
                   const rowClass =
                     taskLayout === "terminal" ? "group flex min-w-0 items-start gap-3 border-b border-current/20 p-2.5 last:border-b-0" :
                     taskLayout === "tiles" ? "group relative flex min-w-0 items-start gap-3 overflow-hidden rounded-none border-2 border-black bg-white p-3 pl-4 sm:p-3.5 sm:pl-5" :
-                    "group flex min-w-0 items-start gap-3 bg-white px-3 py-3 transition active:bg-slate-50 hover:bg-[#fcfbff] sm:px-4";
+                    "hub-taskrow group flex min-w-0 items-start gap-3 bg-white px-3 py-3 transition active:bg-slate-50 hover:bg-[#fcfbff] sm:px-4";
                   return <div key={task.id} className={rowClass}>
                     {taskLayout === "tiles" && <span aria-hidden="true" className="absolute inset-y-0 left-0 w-2" style={{ background: list?.color || tileColorOf(task.id) }} />}
                     {taskLayout === "terminal"

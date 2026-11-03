@@ -9,6 +9,7 @@ import { pinId } from "@shared/hubLayout";
 import { addDays, billDue, billState, choreDoneOn, choreDueOn, choreOwner, daysBetween, eventsOn, isOn, money, starBalance, tally, toggleChore, type FamilySection } from "@shared/familyHub";
 import { notesAppPlugin, type Plugin } from "@shared/pluginStore";
 import { hubThemeOf } from "@shared/appThemes";
+import { HubLookHero } from "@/components/HubLook";
 import { liveFaces } from "@shared/liveTiles";
 import type { Forecast } from "@shared/lifePlugins";
 import { useLifeFeed } from "./useLifeFeed";
@@ -52,8 +53,11 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
   const myNotesApps = (family.notesInstalled ?? []).map((id) => notesAppPlugin("life", id)).filter((p): p is Plugin => !!p);
   const layout = cleanLifeLayout(family.layout, myNotesApps.map((p) => p.id));
   // Widened past Record<LifePart, ...> below so a pinned Notes app (see pinId) can add its own entry.
+  const look = hubThemeOf(layout.theme).look ?? null;
   const part: Record<string, ReactNode | null> = {
-    greeting: <><header className="flex flex-wrap items-start justify-between gap-4">
+    greeting: look ? <HubLookHero look={look} date={shortDate(today, { weekday: "long", month: "long", day: "numeric" })} greeting={`${greeting}${name ? `, ${name}` : ""}.`}
+      primary={{ label: dueTasks.length ? `${dueTasks.length} task${dueTasks.length === 1 ? "" : "s"} due` : "See your tasks", onClick: () => go("tasks") }}
+      links={[on("calendar") && { label: "Calendar", onClick: () => go("calendar") }, on("chores") && { label: "Chores", onClick: () => go("chores") }, on("notes") && { label: "Notes", onClick: () => go("notes") }].filter((x): x is { label: string; onClick: () => void } => !!x)} /> : <><header className="flex flex-wrap items-start justify-between gap-4">
       <div><p className="mb-1.5 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7] sm:mb-2">{shortDate(today, { weekday: "long", month: "long", day: "numeric" })}</p><h1 className="text-2xl font-black tracking-tight text-[#232139] sm:text-4xl">{greeting}{name ? `, ${name}` : ""}<span className="text-[#7866e1]">.</span></h1><p className="mt-1.5 text-sm leading-6 text-slate-500 sm:mt-2">Here's what's happening with your family today.</p></div>
     </header></>,
     widgets: family.widgets.board ? <WidgetBoard items={family.widgetBoard} makeId={makeId} accent="bg-[#292446]"

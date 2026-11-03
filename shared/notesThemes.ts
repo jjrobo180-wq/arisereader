@@ -1,0 +1,44 @@
+// Arise Notes looks: what a person can pick in Settings > Appearance. Each look is colors, type and
+// shape, set through the app's CSS variables, plus its own Home, recording and note designs (looks.tsx).
+export type NotesThemeId = "classic" | "studio" | "margin" | "bloom" | "timeline" | "console" | "swiss" | "cassette" | "frost" | "grove" | "gazette" | "punch" | "chatline" | "deck";
+export type NotesTheme = {
+  id: NotesThemeId; label: string; blurb: string; dark?: boolean;
+  bg: string; card: string; line: string; ink: string; muted: string; faint: string;
+  accent: string; accentInk: string; accentSoft: string; onAccent: string; record: string; onRecord: string;
+  font: string; display: string; fontUrl?: string; radius: number; border?: number; hardShadow?: boolean;
+};
+const SANS = '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
+const g = (families: string) => `https://fonts.googleapis.com/css2?${families}&display=swap`;
+export const NOTES_THEMES: NotesTheme[] = [
+  { id: "classic", label: "Classic", blurb: "The original Arise Notes look.", bg: "#f6f5fa", card: "#ffffff", line: "#e7e5f1", ink: "#14131f", muted: "#67647d", faint: "#716e87", accent: "#6a55dc", accentInk: "#4b3bb8", accentSoft: "#efecff", onAccent: "#ffffff", record: "#d93a48", onRecord: "#ffffff", font: SANS, display: 'ui-serif, "New York", Georgia, serif', radius: 20 },
+  { id: "studio", label: "Studio", blurb: "Dark, with bold coral.", dark: true, bg: "#101014", card: "#1a1a21", line: "#2c2c36", ink: "#f4f3f0", muted: "#c9c8d1", faint: "#a9a8b3", accent: "#ff6a55", accentInk: "#ff8b7a", accentSoft: "#33201e", onAccent: "#190503", record: "#ff6a55", onRecord: "#190503", font: '"Space Grotesk", sans-serif', display: '"Space Grotesk", sans-serif', fontUrl: g("family=Space+Grotesk:wght@400;500;600;700"), radius: 20 },
+  { id: "margin", label: "Margin", blurb: "Crisp white pages and blue ink.", bg: "#ffffff", card: "#ffffff", line: "#dadde5", ink: "#15171c", muted: "#4a4f5c", faint: "#5e6370", accent: "#1f3fd6", accentInk: "#1f3fd6", accentSoft: "#e8ecfc", onAccent: "#ffffff", record: "#c8322a", onRecord: "#ffffff", font: '"Instrument Sans", sans-serif', display: '"Instrument Sans", sans-serif', fontUrl: g("family=Instrument+Sans:wght@400;500;600;700"), radius: 8 },
+  { id: "bloom", label: "Bloom", blurb: "Bold violet and playful shapes.", bg: "#eeeaff", card: "#ffffff", line: "#dcd5ff", ink: "#17132e", muted: "#4a4464", faint: "#5f5980", accent: "#5b45d6", accentInk: "#4b37c4", accentSoft: "#e6e1ff", onAccent: "#ffffff", record: "#c92f45", onRecord: "#ffffff", font: '"DM Sans", sans-serif', display: '"Bricolage Grotesque", sans-serif', fontUrl: g("family=Bricolage+Grotesque:wght@500;700;800&family=DM+Sans:wght@400;500;600;700"), radius: 26 },
+  { id: "timeline", label: "Timeline", blurb: "Soft teal and rounded type.", bg: "#f3f7f6", card: "#ffffff", line: "#bad3d1", ink: "#0e2a2b", muted: "#436062", faint: "#55706f", accent: "#0b6e6e", accentInk: "#0b6e6e", accentSoft: "#dcebe9", onAccent: "#ffffff", record: "#b9431f", onRecord: "#ffffff", font: '"Manrope", sans-serif', display: '"Manrope", sans-serif', fontUrl: g("family=Manrope:wght@500;700;800"), radius: 20 },
+  { id: "console", label: "Console", blurb: "Black and green, like a terminal.", dark: true, bg: "#07110c", card: "#0e1c15", line: "#1f4a32", ink: "#f0fff5", muted: "#b8f5cf", faint: "#9ad9b2", accent: "#47e58a", accentInk: "#47e58a", accentSoft: "#15301f", onAccent: "#04140a", record: "#47e58a", onRecord: "#04140a", font: '"IBM Plex Mono", monospace', display: '"IBM Plex Mono", monospace', fontUrl: g("family=IBM+Plex+Mono:wght@400;500;700"), radius: 0, border: 1 },
+  { id: "swiss", label: "Swiss", blurb: "Red, white and a strict grid.", bg: "#f7f7f4", card: "#ffffff", line: "#111111", ink: "#111111", muted: "#333333", faint: "#555555", accent: "#d81e1e", accentInk: "#c41a1a", accentSoft: "#fbe4e4", onAccent: "#ffffff", record: "#d81e1e", onRecord: "#ffffff", font: '"Archivo", sans-serif', display: '"Archivo", sans-serif', fontUrl: g("family=Archivo:wght@500;700;900"), radius: 0 },
+  { id: "cassette", label: "Cassette", blurb: "Warm retro tape deck.", dark: true, bg: "#2b2320", card: "#3a302b", line: "#5a4c45", ink: "#f6e9d5", muted: "#dccdb6", faint: "#c7b8a1", accent: "#e8602c", accentInk: "#ffb24d", accentSoft: "#4a3428", onAccent: "#210b02", record: "#e8602c", onRecord: "#210b02", font: '"Rubik", sans-serif', display: '"Rubik", sans-serif', fontUrl: g("family=Rubik:wght@400;500;700;800"), radius: 12 },
+  { id: "frost", label: "Frost", blurb: "Icy blue and airy panels.", bg: "#c9e2f5", card: "#f4fafe", line: "#a9cbe3", ink: "#0b2340", muted: "#33506f", faint: "#3f5b78", accent: "#0b2340", accentInk: "#14406f", accentSoft: "#dcebf7", onAccent: "#ffffff", record: "#b8324a", onRecord: "#ffffff", font: '"Sora", sans-serif', display: '"Sora", sans-serif', fontUrl: g("family=Sora:wght@400;600;700"), radius: 22 },
+  { id: "grove", label: "Grove", blurb: "Calm green with elegant headings.", bg: "#f2efd9", card: "#fbf9ec", line: "#c9c5a5", ink: "#10291f", muted: "#3f5247", faint: "#4f6357", accent: "#173a2c", accentInk: "#173a2c", accentSoft: "#dde6c8", onAccent: "#f2efd9", record: "#9f3b20", onRecord: "#ffffff", font: '"Figtree", sans-serif', display: '"Fraunces", serif', fontUrl: g("family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Figtree:wght@400;500;700"), radius: 24 },
+  { id: "gazette", label: "Gazette", blurb: "Classic newspaper.", bg: "#f4f0e6", card: "#fbf8f0", line: "#1a1712", ink: "#1a1712", muted: "#4a453b", faint: "#5c564a", accent: "#a81e1e", accentInk: "#a81e1e", accentSoft: "#f2dfd6", onAccent: "#ffffff", record: "#a81e1e", onRecord: "#ffffff", font: '"Libre Franklin", sans-serif', display: '"Playfair Display", serif', fontUrl: g("family=Playfair+Display:wght@700;900&family=Libre+Franklin:wght@400;600;700"), radius: 0 },
+  { id: "punch", label: "Punch", blurb: "Loud colors and thick outlines.", bg: "#fff36b", card: "#ffffff", line: "#000000", ink: "#000000", muted: "#222222", faint: "#333333", accent: "#ff5ca8", accentInk: "#000000", accentSoft: "#ffe3f0", onAccent: "#000000", record: "#ff5ca8", onRecord: "#000000", font: '"Lexend", sans-serif', display: '"Lexend", sans-serif', fontUrl: g("family=Lexend:wght@400;600;800;900"), radius: 0, border: 3, hardShadow: true },
+  { id: "chatline", label: "Chatline", blurb: "Clean and bright, like messages.", bg: "#f1f3f7", card: "#ffffff", line: "#d5d9e2", ink: "#171a21", muted: "#4c5361", faint: "#5f6675", accent: "#1457d2", accentInk: "#1457d2", accentSoft: "#e3ecfb", onAccent: "#ffffff", record: "#c92a20", onRecord: "#ffffff", font: '"Plus Jakarta Sans", sans-serif', display: '"Plus Jakarta Sans", sans-serif', fontUrl: g("family=Plus+Jakarta+Sans:wght@400;500;700;800"), radius: 20 },
+  { id: "deck", label: "Deck", blurb: "Dark with bright mint accents.", dark: true, bg: "#20232b", card: "#2c3039", line: "#434854", ink: "#ffffff", muted: "#d6d9e0", faint: "#b9bdc7", accent: "#9de3d3", accentInk: "#9de3d3", accentSoft: "#2f4a47", onAccent: "#14161c", record: "#ff7a5c", onRecord: "#1e0802", font: '"Outfit", sans-serif', display: '"Outfit", sans-serif', fontUrl: g("family=Outfit:wght@400;500;700;800"), radius: 28 },
+];
+export const isThemeId = (v: unknown): v is NotesThemeId => NOTES_THEMES.some((t) => t.id === v);
+export const themeOf = (id: unknown): NotesTheme => NOTES_THEMES.find((t) => t.id === id) ?? NOTES_THEMES[0];
+/** The CSS variables a look sets on the app's root. */
+export function themeVars(t: NotesTheme): Record<string, string> {
+  return {
+    "--an-bg": t.bg, "--an-card": t.card, "--an-line": t.line, "--an-ink": t.ink, "--an-muted": t.muted, "--an-faint": t.faint,
+    "--an-violet": t.accent, "--an-violet-ink": t.accentInk, "--an-violet-soft": t.accentSoft, "--an-on-accent": t.onAccent,
+    "--an-coral": t.record, "--an-on-record": t.onRecord,
+    "--an-coral-soft": `color-mix(in srgb, ${t.record} 16%, ${t.card})`,
+    "--an-amber": t.dark ? "#ffc969" : "#8a5a10", "--an-amber-soft": `color-mix(in srgb, #f5a524 ${t.dark ? 18 : 16}%, ${t.card})`,
+    "--an-green": t.dark ? "#7de2b8" : "#0d6b47", "--an-green-soft": `color-mix(in srgb, #138a5b ${t.dark ? 24 : 12}%, ${t.card})`,
+    "--an-font": t.font, "--an-serif": t.display, "--an-radius": `${t.radius}px`, "--an-border": `${t.border ?? 1}px`,
+    "--an-glass": `color-mix(in srgb, ${t.card} 86%, transparent)`,
+    "--an-shadow": t.hardShadow ? "4px 4px 0 #000" : t.dark ? "0 10px 28px -16px rgba(0,0,0,.8)" : "0 1px 2px rgba(0,0,0,.05), 0 10px 28px -16px rgba(0,0,0,.28)",
+    "--an-shadow-lg": t.hardShadow ? "7px 7px 0 #000" : t.dark ? "0 18px 40px -18px rgba(0,0,0,.9)" : "0 18px 40px -22px rgba(0,0,0,.4)",
+  };
+}

@@ -52,14 +52,14 @@ export function registerAdvisoryChallengeRoutes(app: Express, deps: ChallengeDep
         deps.pointsBetween(ids, w.fromMs, w.endMs, w.fromDay, w.endDayExclusive),
         deps.quizzesBetween ? deps.quizzesBetween(ids, w.fromMs, w.endMs, w.fromDay, w.endDayExclusive) : Promise.resolve(new Map<number, number>()),
       ]);
-      const standings = rankAdvisories(advisoriesForSchool(school.name), studentAdvisory, points, books);
+      const standings = rankAdvisories(advisoriesForSchool(school.name), studentAdvisory, points, books, challenge.combinedGrades);
 
       let mine: ChallengeView["mine"] = null;
       // A student's own advisory; for a parent, their (first) child's in this school.
       const me = isStudent ? Number(user.id) : isParent ? (kids.find((k) => studentAdvisory.has(k.id))?.id ?? kids[0]?.id ?? null) : null;
       if (me != null) {
         const name = studentAdvisory.get(me) || null;
-        const row = name ? standings.find((s) => s.name === name) : undefined;
+        const row = name ? standings.find((s) => s.name === name || s.advisories?.includes(name)) : undefined;
         mine = { advisory: row ? row.name : null, rank: row ? row.rank : null, points: Math.round((points.get(me) || 0) * 10) / 10 };
       }
       const view: ChallengeView = { challenge: { ...challenge, phase, daysLeft: daysLeft(challenge, now) }, standings, mine };
