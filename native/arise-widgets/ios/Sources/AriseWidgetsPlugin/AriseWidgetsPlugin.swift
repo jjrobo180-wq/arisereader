@@ -4,6 +4,7 @@
 //   publish({ slots: [{ title, value, detail?, tint?, until?, progress? }] }) -> {}
 import Foundation
 import Capacitor
+import UIKit
 import WidgetKit
 
 @objc(AriseWidgetsPlugin)
@@ -12,12 +13,30 @@ public class AriseWidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
     public let jsName = "AriseWidgets"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "publish", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "takeActions", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "takeActions", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setBackdrop", returnType: CAPPluginReturnPromise)
     ]
 
     private var defaults: UserDefaults? { UserDefaults(suiteName: "group." + (Bundle.main.bundleIdentifier ?? "")) }
 
     /// Saves slots by their id (a slot sent again replaces the old one; others stay) and redraws the widgets.
+    /// Colors the areas around the page (behind the status bar and the Home indicator) to match the look.
+    @objc func setBackdrop(_ call: CAPPluginCall) {
+        let hex = (call.getString("color") ?? "").trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        guard hex.count == 6, let value = UInt32(hex, radix: 16) else { call.reject("Use a color like #2b2320."); return }
+        let color = UIColor(red: CGFloat((value >> 16) & 255) / 255, green: CGFloat((value >> 8) & 255) / 255, blue: CGFloat(value & 255) / 255, alpha: 1)
+        DispatchQueue.main.async { [weak self] in
+            guard let webView = self?.bridge?.webView else { call.reject("The app isn't ready."); return }
+            webView.isOpaque = false
+            webView.backgroundColor = color
+            webView.scrollView.backgroundColor = color
+            webView.underPageBackgroundColor = color
+            webView.superview?.backgroundColor = color
+            self?.bridge?.viewController?.view.backgroundColor = color
+            call.resolve()
+        }
+    }
+
     @objc func publish(_ call: CAPPluginCall) {
         guard let slots = call.getArray("slots") as? [[String: Any]], let defaults = defaults else {
             call.reject("The widgets' shared storage isn't available in this build.")
