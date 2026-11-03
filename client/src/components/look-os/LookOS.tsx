@@ -1,7 +1,7 @@
 // Arise Duo's looks as their own operating systems: each has its own navigation, Home, calendar and
 // tasks screens, all on the same real data. Other apps open inside it with its dock (LookDock).
-import { useState, type FormEvent, type ReactNode } from "react";
-import type { NotesTheme } from "@shared/notesThemes";
+import { useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
+import { themeVars, type NotesTheme } from "@shared/notesThemes";
 import { LookTaskList, type AgendaDay, type LookTask } from "@/components/HubLook";
 import { LockedApp, useLock } from "@/components/lock/PrivacyLock";
 import "./lookOS.css";
@@ -14,6 +14,7 @@ export type OsProps = {
   notes: { id: string; title: string; body: string; locked?: boolean }[]; shortcuts: { id: string; label: string; onClick: () => void }[];
   /** The full Calendar or Notes app, for adding and editing. */
   content?: ReactNode; onYou: () => void;
+  /** Shown at the bottom of Home: invitations and the hub's standing banner. */ banner?: ReactNode;
   /** Main apps turned off in the App Gallery, which leave the dock. */ off?: OsScreen[];
   /** Apps behind the passcode, whose details stay off Home until it is entered. */ lockedApps?: string[];
   /** Problems to show on any screen, such as a save that failed. */
@@ -37,7 +38,7 @@ const LABEL: Record<NavId, string> = { home: "Home", tasks: "Tasks", add: "Add",
 export function LookDock({ look, screen, go, openApps, add, you, initial, off = [], inApp = false }: { look: NotesTheme; screen: OsScreen | null; go: (s: OsScreen) => void; openApps: () => void; add: (title?: string) => void; you: () => void; initial: string; off?: OsScreen[]; inApp?: boolean }) {
   const words = WORDS[look.id];
   const textNav = !!words;
-  return <nav className={`los-dock los-dock-${look.id}${inApp ? " los-dock-inapp" : ""}`} aria-label="Arise Duo" data-testid="los-dock">
+  return <nav style={themeVars(look) as CSSProperties} className={`los-dock los-dock-${look.id}${inApp ? " los-dock-inapp" : ""}`} aria-label="Arise Duo" data-testid="los-dock">
     {NAV.filter((n) => !off.includes(n as OsScreen)).map((n) => {
       const act = n === "add" ? () => add() : n === "apps" ? openApps : n === "you" ? you : () => go(n as OsScreen);
       return <button key={n} type="button" data-nav={n} data-add-toggle={n === "add" || undefined} aria-label={LABEL[n]} aria-current={screen === n ? "page" : undefined} onClick={act}>
@@ -146,10 +147,10 @@ export function LookOS(p0: OsProps) {
   const chips = ["Open", "Today", "Done", ...(lists.length > 1 ? lists : [])];
   const shown = p.tasks.filter((t) => filter === "Done" ? t.done : !t.done && (filter === "Open" || (filter === "Today" ? t.late || t.due === p.days[0]?.date : t.listName === filter)));
   const taskScreen = <div className="los-pad"><header className="los-title"><h1>Tasks</h1></header><div className="los-filter" role="group" aria-label="Show">{chips.map((f) => <button key={f} type="button" aria-pressed={filter === f} onClick={() => setFilter(f)}>{f}</button>)}</div>{shown.length ? <LookTaskList look={p.look} tasks={shown} onToggle={p.toggle} onOpen={p.openTask} /> : <p className="los-none">Nothing here.</p>}</div>;
-  return <div className={`los los-${p.look.id}`} data-screen={p.screen} data-testid="look-os">
+  return <div style={themeVars(p.look) as CSSProperties} className={`los los-${p.look.id}`} data-screen={p.screen} data-testid="look-os">
     <div className="los-body">
       {p.look.id === "gazette" && p.screen !== "home" && <div className="los-paper"><header><h1>The Daily Duo</h1><small>{p.dateLabel}</small></header></div>}
-      {p.screen === "home" && <Home {...p} />}
+      {p.screen === "home" && <><Home {...p} />{p.banner && <div className="los-banner">{p.banner}</div>}</>}
       {p.screen === "tasks" && <LockedApp locked={locked("tasks")} name="Tasks">{taskScreen}</LockedApp>}
       {p.screen === "calendar" && <div className="los-pad"><header className="los-title"><h1>Calendar</h1></header><CalendarWidget look={p.look} days={p.days} go={() => {}} big /><div className="los-app">{p.content}</div></div>}
       {p.screen === "notes" && <div className="los-pad"><div className="los-app">{p.content}</div></div>}
@@ -157,6 +158,6 @@ export function LookOS(p0: OsProps) {
     <LookDock look={p.look} screen={p.screen} go={p.go} openApps={p.openApps} add={p.add} you={p.onYou} off={p.off} initial={(p.name || "Y").charAt(0).toUpperCase()} />
   </div>;
 }
-export function LookYou({ items: list, top, onClose }: { items: OsMenuItem[]; top?: ReactNode; onClose: () => void }) {
-  return <div className="los-sheetback" onClick={onClose}><div role="dialog" aria-modal="true" aria-label="You" className="los-sheet" onClick={(e) => e.stopPropagation()}><button type="button" className="los-close" onClick={onClose}>Close</button>{top && <div className="los-sheettop">{top}</div>}{list.map((m) => <button key={m.id} type="button" data-danger={m.danger || undefined} onClick={() => { onClose(); m.onClick(); }}><b>{m.label}</b>{m.detail && <small>{m.detail}</small>}</button>)}</div></div>;
+export function LookYou({ look, items: list, top, onClose }: { look: NotesTheme; items: OsMenuItem[]; top?: ReactNode; onClose: () => void }) {
+  return <div style={themeVars(look) as CSSProperties} className="los-sheetback" onClick={onClose}><div role="dialog" aria-modal="true" aria-label="You" className="los-sheet" onClick={(e) => e.stopPropagation()}><button type="button" className="los-close" onClick={onClose}>Close</button>{top && <div className="los-sheettop">{top}</div>}{list.map((m) => <button key={m.id} type="button" data-danger={m.danger || undefined} onClick={() => { onClose(); m.onClick(); }}><b>{m.label}</b>{m.detail && <small>{m.detail}</small>}</button>)}</div></div>;
 }

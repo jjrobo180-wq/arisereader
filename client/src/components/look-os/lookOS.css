@@ -24,6 +24,7 @@
 .los-filter button { min-height: 2.75rem; padding: 0 1rem; border-radius: var(--an-radius); background: var(--an-card); font-weight: 700; }
 .los-filter [aria-pressed="true"] { background: var(--an-violet); color: var(--an-on-accent); }
 .los-app { margin-top: 1rem; }
+.los-banner { padding: 1rem; }
 .los .lk-agenda { display: none; }
 .los-alerts { position: fixed; top: calc(env(safe-area-inset-top) + .5rem); left: .75rem; right: .75rem; z-index: 46; max-height: 60dvh; overflow-y: auto; }
 .los-alerts:empty { display: none; }

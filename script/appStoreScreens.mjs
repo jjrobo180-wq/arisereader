@@ -166,7 +166,7 @@ const withLook = async (p, id, hash) => { await p.addInitScript((look) => { try 
 const inBatches = async (jobs, size = 6) => { for (let i = 0; i < jobs.length; i += size) await Promise.all(jobs.slice(i, i + size).map((j) => j())); };
 const lookJobs = [];
 for (const id of LOOKS) {
-  for (const [name, hash] of [["home", "/lifehub?pane=home"], ["tasks", "/lifehub?pane=tasks"], ["calendar", "/lifehub?go=calendar"], ["notes", "/lifehub?go=notes"], ["app", "/lifehub?go=grocery"]])
+  for (const [name, hash] of [["home", "/lifehub?pane=home"], ["tasks", "/lifehub?pane=tasks"], ["calendar", "/lifehub?go=calendar"], ["notes", "/lifehub?go=notes"], ["app", "/lifehub?go=notifications"]])
     lookJobs.push(() => shot(`look-${id}-${name}`, (p) => withLook(p, id, hash)));
   lookJobs.push(() => shot(`look-work-${id}-home`, (p) => withLook(p, id, "/hub")));
   for (const nav of ["tasks", "calendar", "notes"]) lookJobs.push(() => shot(`look-work-${id}-${nav}`, async (p) => { await withLook(p, id, "/hub"); await p.frameLocator("#f").locator(`[data-nav="${nav}"]`).click(); await wait(p, 1200); }));

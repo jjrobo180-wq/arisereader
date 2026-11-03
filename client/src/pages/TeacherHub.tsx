@@ -1652,8 +1652,8 @@ function TeacherHubPage() {
             </div>
           )}
 
-          <LockedApp locked={tab !== "overview" && appLocked(workspace.lock, tab)} name={TAB_META.find((m) => m.id === tab)?.label || "This screen"}>
-          {!osCore && tab === "overview" && (
+          {!osCore && <LockedApp locked={tab !== "overview" && appLocked(workspace.lock, tab)} name={TAB_META.find((m) => m.id === tab)?.label || "This screen"}>
+          {tab === "overview" && (
             <>
               <SupportBanner />
               {(() => {
@@ -1786,14 +1786,14 @@ function TeacherHubPage() {
 
           {false && tab === "start" && <GettingStarted hub="work" startRole={startingRole(user, "work")} canOpen={guideCanOpen} onOpen={guideOpen}
             onRemove={() => { setWorkspace((p) => ({ ...p, visibleTabs: { ...p.visibleTabs, start: false } })); setTab("overview"); toasts.show("Getting started removed. Add it back any time from the App Gallery.", [{ label: "Open App Gallery", run: () => setStore(true) }]); }} />}
-          {!osCore && tab === "calendar" && <HubCalendarTab workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} onReminderAdded={reminderAdded} />}
+          {tab === "calendar" && <HubCalendarTab workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} onReminderAdded={reminderAdded} />}
           {tab === "caseload" && <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} profileId={profileStudent} setProfileId={setProfileStudent} openTab={setTab} />}
           {tab === "goals" && <><HubGoalBoard workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} />{(isTabOn("caseload", visible, !!user.isAdmin) || workspace.goals.length > 0) && <GoalsTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} />}</>}
           {tab === "minutes" && <MinutesTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} token={token} />}
           {tab === "iep" && <Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} studentOptions={studentOptions} token={token} makeId={id} account={{ name: cleanSenderName(String((user as any)?.displayName || (user as any)?.username || "")), email: String((user as any)?.email || "") }} />}
           {tab === "lessons" && <HubLessons workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} say={(text) => toasts.show(text, [])} />}
-          {!osCore && tab === "tasks" && <><Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} toast={(text, actions) => { toasts.show(text, actions); }} /><AppleRemindersCard token={token} check={checkApple} /></>}
-          {!osCore && tab === "notes" && <HubNotes key={notesKey} workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} />}
+          {tab === "tasks" && <><Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} toast={(text, actions) => { toasts.show(text, actions); }} /><AppleRemindersCard token={token} check={checkApple} /></>}
+          {tab === "notes" && <HubNotes key={notesKey} workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} />}
           {tab === "admin" && user.isAdmin && adminSection === "updates" && <WhatsNew embedded />}
           {tab === "admin" && user.isAdmin && adminSection !== "updates" && <AdminTab night={night} section={adminSection} onSection={setAdminSection} settingsPart={adminSettings} onSettingsPart={setAdminSettings} settingsInSidebar={!deskDrawer} />}
           {tab === "arise" && <Arise workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
@@ -1804,7 +1804,7 @@ function TeacherHubPage() {
           {tab === "schedules" && <Schedules workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} warnings={scheduleWarnings} />}
           {tab === "email" && <ForwardingCard token={token} isAdmin={!!user?.isAdmin} />}
           {tab === "email" && <Emails workspace={workspace} setWorkspace={setWorkspace} remove={remove} toast={(text, actions) => { toasts.show(text, actions); }} onViewTasks={() => setTab("tasks")} openId={openEmailId} />}
-          </LockedApp>
+          </LockedApp>}
         </main>
       </div>
       {canUseHub && loaded && !loadError && !needsPlan && (workspace as any).aiChat && <HubChat hub="work" token={token} accent="bg-teal-700" lift raiseRem={(side === "bottom" && menuOpen) || tabBar ? 4.9 : 0} />}
@@ -1850,11 +1850,11 @@ function TeacherHubPage() {
         </div>
       )}
       {osCore && hubLook.look && <LookOS look={hubLook.look} name={osFirst} dateLabel={new Date(`${osToday}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
-        screen={osTab!} go={osGo} openApps={osApps} add={osAdd} tasks={osTasks} days={osDays} notes={osNotes} shortcuts={osShortcuts} off={osOff} lockedApps={workspace.lock?.apps} onYou={() => setYouOpen(true)}
+        banner={<SupportBanner />} screen={osTab!} go={osGo} openApps={osApps} add={osAdd} tasks={osTasks} days={osDays} notes={osNotes} shortcuts={osShortcuts} off={osOff} lockedApps={workspace.lock?.apps} onYou={() => setYouOpen(true)}
         toggle={(tid) => setWorkspace((p) => ({ ...p, tasks: toggleTask(p.tasks, tid, TODAY()).tasks }))} openTask={setHomeTask}
-        content={<LockedApp locked={appLocked(workspace.lock, tab)} name={TAB_META.find((m) => m.id === tab)?.label || "This screen"}>{tab === "calendar" ? <HubCalendarTab workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} onReminderAdded={reminderAdded} /> : tab === "notes" ? <HubNotes key={notesKey} workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} /> : null}</LockedApp>} />}
+        content={<LockedApp locked={appLocked(workspace.lock, tab)} name={TAB_META.find((m) => m.id === tab)?.label || "This screen"}>{tab === "calendar" ? <HubCalendarTab workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} onReminderAdded={(items) => reminderAdded(items)} /> : tab === "notes" ? <HubNotes key={notesKey} workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} /> : null}</LockedApp>} />}
       {osReady && !osCore && hubLook.look && <LookDock inApp look={hubLook.look} screen={null} go={osGo} openApps={osApps} add={osAdd} off={osOff} you={() => setYouOpen(true)} initial={(osFirst || "Y").charAt(0).toUpperCase()} />}
-      {osReady && youOpen && <LookYou onClose={() => setYouOpen(false)} top={<><HubSwitch current="hub" night={night} /><HubTrialNote trial={trial} which="work" upgradeHref="#/billing" /></>}
+      {osReady && youOpen && hubLook.look && <LookYou look={hubLook.look} onClose={() => setYouOpen(false)} top={<><HubSwitch current="hub" night={night} /><HubTrialNote trial={trial} which="work" upgradeHref="#/billing" /></>}
         items={[{ id: "search", label: "Search", detail: "Everything in WorkHub", onClick: () => setSearching(true) }, ...moreGroups.flatMap((g) => g.items)]} />}
       {canUseHub && loaded && !loadError && !needsPlan && tabBar && !osOn && <PhoneTabBar hub="work" name={user.displayName || user.username || ""}
         home={group.id === "home"} tasks={tab === "tasks"} addOpen={addMenu} onAdd={() => setAddMenu((v) => !v)}
