@@ -70,7 +70,7 @@ export const HUB_THEMES: HubTheme[] = [
   ...NOTES_THEMES.filter((t) => t.id !== "classic").map((t): HubTheme => ({
     id: t.id as HubThemeId, name: t.label, tagline: t.blurb, swatch: [t.bg, t.accent, t.record], vars: {}, look: t,
     radius: t.radius === 0 ? "sharp" : t.radius > 20 ? "round" : "normal", shadow: t.hardShadow ? "hard" : "soft",
-    font: t.id === "console" ? "mono" : "system", homeLayout: t.id === "console" ? "terminal" : t.id === "swiss" || t.id === "punch" ? "tiles" : "cards",
+    font: t.id === "console" ? "mono" : "system", homeLayout: t.id === "console" ? "terminal" : "cards",
   })),
 ];
 

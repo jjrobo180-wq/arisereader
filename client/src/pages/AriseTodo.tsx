@@ -154,7 +154,7 @@ import { useLifeHubTrial } from "@/components/TodoGate";
 const Reader = lazy(() => import("@/components/family-hub/Reader"));
 import "./todoNight.css";
 import "./hubThemes.css";
-import { useHubLook } from "@/components/HubLook";
+import { LookTaskList, useHubLook } from "@/components/HubLook";
 import "./ariseDuo.css";
 import { inDuoPane, useAriseDuo, type DuoChoice } from "@/lib/useAriseDuo";
 import "@/components/teacher-hub/darkPalette.css";
@@ -1438,7 +1438,9 @@ export default function AriseTodo() {
                 {members.map(m => <button key={m.id} onClick={() => setMemberFilter(memberFilter === m.name ? "" : m.name)} aria-pressed={memberFilter === m.name} className="inline-flex min-h-9 items-center gap-1.5 rounded-xl px-2.5 text-xs font-bold ring-1 bg-white text-slate-600 ring-slate-200" style={memberFilter === m.name ? { background: m.color, color: "#fff", boxShadow: `0 0 0 1px ${m.color}` } : undefined}><span>{m.emoji || "🙂"}</span>{m.name}<span className="opacity-70">{active.filter(t => t.assignee.trim().toLowerCase() === m.name.toLowerCase()).length}</span></button>)}
               </div>}
               <div className="relative mt-5"><Search size={17} className="pointer-events-none absolute left-3 top-3.5 text-slate-400" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tasks, notes, or names" aria-label="Search tasks" className={inputClass + " pl-10"} /></div>
-              <div className={
+              {hubLook.look && <LookTaskList look={hubLook.look} tasks={filtered.map((task) => { const list = data.lists.find((row) => row.id === task.listId); return { id: task.id, title: task.title, done: task.done, due: task.due, late: !task.done && !!task.due && task.due < currentDay, dueLabel: task.due ? prettyDate(task.due) : "", listName: list?.name ?? "", color: list?.color ?? "", assignee: task.assignee ?? "", notes: task.notes ?? "" }; })}
+                onToggle={(id) => { const task = filtered.find((t) => t.id === id); if (task) toggleDone(task); }} onOpen={(id) => { const task = filtered.find((t) => t.id === id); if (task) setEditing({ ...task }); }} />}
+              <div className={hubLook.look ? "hidden" :
                 taskLayout === "terminal" ? "mt-5 space-y-0 border border-current/30 font-mono" :
                 taskLayout === "tiles" ? "mt-5 flex flex-wrap gap-2" :
                 // Like the iPhone's Reminders: one list, rows split by hairlines.
