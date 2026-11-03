@@ -97,6 +97,7 @@ import { deadlineLabel, meetingDeadline } from "@shared/meetingDeadline";
 import { cleanGroupOrder, HUB_GROUPS, SUB_LABELS, groupLabel, groupOf, groupTabs, openGroup, visibleGroups, type HubGroupId } from "@shared/hubTabGroups";
 import "@/components/teacher-hub/hubNight.css";
 import "./hubThemes.css";
+import { useHubLook } from "@/components/HubLook";
 import "@/components/teacher-hub/hubPaper.css";
 import "@/components/teacher-hub/darkPalette.css";
 import "@/components/teacher-hub/hubLifeLook.css";
@@ -629,6 +630,7 @@ function TeacherHubPage() {
   // Every added Kit plugin and Notes app may be pinned to Home as its own tile (myKits/myNotesApps, just above).
   const pinnableApps = [...myKits.map((d) => d.id), ...myNotesApps.map((p) => p.id)];
   const layout = withSharedLook(cleanLayout(workspace.layout, pinnableApps));
+  const hubLook = useHubLook(layout.theme, night);
   const setLayout = (next: HubLayout) => { rememberLook(next); setWorkspace((p) => ({ ...p, layout: next })); window.dispatchEvent(new Event(SHARED_LOOK_EVENT)); };
   const side = layout.menuSide;
   /** The menu runs across the screen (top or bottom) instead of down a side. */
@@ -1007,7 +1009,7 @@ function TeacherHubPage() {
       const sid = student ? workspace.students.find((x) => x.name === student)?.id : undefined;
       setAdding({ start: "file", preload: { text: student ? `These are ${student}'s documents (IEP, goal pages, progress reports). Pull out ${student}'s IEP goals with the baseline, target, unit and dates, any progress-monitoring or meeting dates as reminders or meetings, and anything else worth keeping.` : READ_DOC_ASK }, links: sid ? [{ kind: "student", id: sid }] : [] });
     }}>
-    <div className={`hub-paper hub-lifelook min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night ? "hub-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""}`}
+    <div style={hubLook.style} className={`hub-paper hub-lifelook min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night && !hubLook.look ? "hub-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""} ${hubLook.className}`}
       style={{ "--hub-accent": accent, "--hub-accent-deep": deepenAccent(accent) } as React.CSSProperties}>
       <UpgradeHost hub="work" />
       {canUseHub && loaded && !loadError && !needsPlan && <HubCoach userId={user.id} hub="work" />}
