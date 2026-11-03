@@ -161,7 +161,7 @@ await shot("podplus-privacy", async (p) => { await p.goto(`${P}/privacy/`); awai
 await shot("podplus-support-dark", async (p) => { await p.goto(`${P}/support/`); await wait(p, 500); }, { dark: true });
 
 // Each look is its own system: its main screens in the real app, on the sample profile.
-const LOOKS = ["studio", "margin", "bloom", "timeline", "console", "swiss", "cassette", "frost", "grove", "gazette", "punch", "chatline", "deck"];
+const LOOKS = ["studio", "margin", "bloom", "timeline", "console", "swiss", "cassette", "frost", "grove", "gazette", "punch", "chatline", "deck", "tide"];
 const withLook = async (p, id, hash) => { await p.addInitScript((look) => { try { sessionStorage.setItem("arise-sample:arise-shared-look", JSON.stringify({ theme: look })); } catch { /* none */ } }, id); await sample(p, hash); };
 const inBatches = async (jobs, size = 6) => { for (let i = 0; i < jobs.length; i += size) await Promise.all(jobs.slice(i, i + size).map((j) => j())); };
 const lookJobs = [];
@@ -176,12 +176,13 @@ for (const id of ["cassette", "grove", "punch", "deck"]) lookJobs.push(() => sho
 for (const id of ["studio", "frost"]) { lookJobs.push(() => shot(`look-work-${id}-add`, async (p) => { await withLook(p, id, "/hub"); await p.frameLocator("#f").locator('[data-nav="add"]').click(); await wait(p, 800); })); lookJobs.push(() => shot(`look-work-${id}-apps`, async (p) => { await withLook(p, id, "/hub"); await p.frameLocator("#f").locator('[data-nav="apps"]').click(); await wait(p, 800); })); }
 // Night mode, on the looks that are light by day.
 const nightOf = async (p, id, hash) => { await p.addInitScript(() => { try { for (const k of ["arise-todo-night", "arise-hub-night"]) sessionStorage.setItem(`arise-sample:${k}`, "1"); } catch { /* none */ } }); await withLook(p, id, hash); };
-for (const id of ["margin", "bloom", "timeline", "swiss", "frost", "grove", "gazette", "punch", "chatline"]) {
+for (const id of ["margin", "bloom", "timeline", "swiss", "frost", "grove", "gazette", "punch", "chatline", "tide"]) {
   for (const [name, hash] of [["home", "/lifehub?pane=home"], ["tasks", "/lifehub?pane=tasks"], ["calendar", "/lifehub?go=calendar"], ["app", "/lifehub?go=notifications"], ["work", "/hub"]])
     lookJobs.push(() => shot(`night-${id}-${name}`, (p) => nightOf(p, id, hash)));
   lookJobs.push(() => shot(`night-${id}-bell`, async (p) => { await nightOf(p, id, "/lifehub?pane=home"); await p.frameLocator("#f").getByTestId("notification-bell").click(); await wait(p, 900); }));
   lookJobs.push(() => shot(`night-${id}-you`, async (p) => { await nightOf(p, id, "/lifehub?pane=home"); await p.frameLocator("#f").locator('[data-nav="you"]').click(); await wait(p, 800); }));
 }
+for (const mode of ["light", "dark"]) lookJobs.push(() => shot(`fit-tide-${mode}`, async (p) => { await p.addInitScript((m) => { try { sessionStorage.setItem("arise-sample:arise-fit-palette", "tide"); sessionStorage.setItem("arise-sample:arise-fit-theme", m); } catch { /* none */ } }, mode); await sample(p, "/fit"); }));
 await inBatches(lookJobs);
 
 await browser.close();
