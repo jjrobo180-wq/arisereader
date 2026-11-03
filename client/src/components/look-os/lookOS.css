@@ -29,6 +29,7 @@
 .los-alerts:empty { display: none; }
 .los-ghost { position: fixed !important; top: 0; left: 0; right: 0; visibility: hidden; pointer-events: none; }
 .los-sheettop { display: flex; flex-wrap: wrap; gap: .5rem; padding-bottom: .5rem; }
+.los-sheettop > :not(button) { flex-basis: 100%; }
 .los-sheettop button { display: inline-flex; width: auto; border-bottom: 0; }
 /* Inside another app the regular top bar stays, so every dock sits along the bottom. */
 .los-dock-inapp.los-dock-swiss, .los-dock-inapp.los-dock-gazette { top: auto; left: 0; right: 0; bottom: 0; padding-bottom: env(safe-area-inset-bottom); border-block: 2px solid var(--an-ink) 0; border-top: 2px solid var(--an-ink); }
