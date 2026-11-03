@@ -16,6 +16,7 @@ import type { Express, RequestHandler } from "express";
 import { randomUUID } from "node:crypto";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import type { KV } from "./podcastDirectory";
+import { CheckUnavailable, checkQuestions, checkTopics, type AskJson } from "../shared/ariseMathVerify";
 import { COULD_NOT_BUILD, NO_MATH_FOUND, PREP_LIMITS, cleanMore, cleanPrepAsk, cleanPrepReply, cleanReading, morePrompt, prepPrompt, readPrompt, readingText, type PrepSet } from "../shared/ariseMathPrep";
 
 export type PrepAsk = { system: string; text: string; images: string[] };
@@ -24,6 +25,8 @@ export type MathPrepDeps = {
   /** Asks the AI and returns its reply, which should be JSON. */
   askAI?: (ask: PrepAsk) => Promise<string>;
   aiConfigured?: () => boolean;
+  /** Tests only: leaves out the second solver. */
+  skipCheck?: boolean;
   gradeOf?: (userId: number) => Promise<string | null>;
   /** A teacher's students, and a parent's linked children (ids). */
   studentsOf?: (teacherId: number) => Promise<{ id: number }[]>;
@@ -34,6 +37,7 @@ export type MathPrepDeps = {
 };
 
 class PrepAiError extends Error {}
+const CHECK_FAILED = "I built your practice but couldn’t double-check the math just now. Tap Build again.";
 const IMAGE_RE = /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/;
 const MODEL = () => process.env.MATH_PREP_MODEL || process.env.MATH_TUTOR_MODEL || "gpt-4.1";
 
@@ -72,6 +76,7 @@ export function registerMathPrepRoutes(app: Express, auth: RequestHandler, deps:
   const now = deps.now ?? Date.now;
   const kv = deps.kv;
   const askAI = deps.askAI ?? askOpenAI;
+  const askJson: AskJson = async (system, text) => JSON.parse(await askAI({ system, text, images: [] }));
   const aiConfigured = deps.aiConfigured ?? (() => !!process.env.OPENAI_API_KEY);
   const builds = createAttemptLimiter({ max: PREP_LIMITS.perDay, windowMs: 24 * 3600_000, now });
   const mores = createAttemptLimiter({ max: PREP_LIMITS.morePerDay, windowMs: 24 * 3600_000, now });
@@ -164,6 +169,12 @@ export function registerMathPrepRoutes(app: Express, auth: RequestHandler, deps:
       if ("notMath" in result) return res.status(502).json({ message: COULD_NOT_BUILD });
     }
     if ("notMath" in result) return res.json({ notMath: result.notMath });
+    // Nothing reaches a student unchecked. If the check can't run, nothing is shown: wrong math is worse than a retry.
+    if (!deps.skipCheck) {
+      try { result.set.topics = await checkTopics(result.set.topics, askJson); }
+      catch (e: any) { console.error("[arise-math-prep] check failed:", e?.message || e); return res.status(502).json({ message: e instanceof CheckUnavailable ? CHECK_FAILED : COULD_NOT_BUILD }); }
+      if (!result.set.topics.length) { console.error("[arise-math-prep] no questions passed the check"); return res.status(502).json({ message: COULD_NOT_BUILD }); }
+    }
     try {
       const set: PrepSet = { ...result.set, id: randomUUID(), ownerId: u.id, ownerName: u.name, ownerRole: u.role, sharedWith: [], createdAt: new Date(now()).toISOString() };
       await kv.set(setKey(set.id), set);
@@ -199,7 +210,8 @@ export function registerMathPrepRoutes(app: Express, auth: RequestHandler, deps:
       catch (e: any) { return res.status(502).json({ message: e instanceof PrepAiError ? e.message : "The math helper couldn’t make more right now. Try again." }); }
       let parsed: unknown = null;
       try { parsed = JSON.parse(raw); } catch { parsed = null; }
-      const added = cleanMore(parsed, topic.questions);
+      let added = cleanMore(parsed, topic.questions);
+      if (!deps.skipCheck) added = await checkQuestions(added, askJson).catch(() => []);
       if (!added.length) return res.status(502).json({ message: "The math helper couldn’t make more right now. Try again." });
       // Kept with the set (newest set wins if two people ask at once), so everyone it's shared with gets them.
       const fresh = (await getSet(s.id)) || s;

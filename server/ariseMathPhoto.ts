@@ -9,12 +9,15 @@ import type { Express, RequestHandler } from "express";
 import { randomUUID } from "node:crypto";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { SKILLS } from "../shared/ariseMath";
-import { PHOTO_LIMITS, answerMatches, cleanTutorReply, tutorPrompt, type TutorReply } from "../shared/ariseMathPhoto";
+import { SOLVE_PROMPT, sameAnswer, solveText, wrongArithmetic } from "../shared/ariseMathVerify";
+import { PHOTO_LIMITS, answerMatches, cleanTutorReply, tutorPrompt, type TutorReply, type TutorResult } from "../shared/ariseMathPhoto";
 
 export type PhotoAsk = { system: string; text: string; image: string | null };
 export type MathPhotoDeps = {
   /** Asks the AI and returns its reply, which should be JSON. */
   askAI?: (ask: PhotoAsk) => Promise<string>;
+  /** Tests only: leaves out the second solver. */
+  skipCheck?: boolean;
   aiConfigured?: () => boolean;
   /** The grade a student gave at sign-up, if any. */
   gradeOf?: (userId: number) => Promise<string | null>;
@@ -94,7 +97,7 @@ export function registerMathPhotoRoutes(app: Express, auth: RequestHandler, deps
     }
     let parsed: unknown = null;
     try { parsed = JSON.parse(raw); } catch { parsed = null; }
-    let result = cleanTutorReply(parsed, skillIds);
+    let result: TutorResult = cleanTutorReply(parsed, skillIds);
     // A picture is never turned down on one try: look once more before saying there's no math.
     if ("notMath" in result && image) {
       console.warn("[arise-math-photo] first look found no math; looking again");
@@ -102,6 +105,27 @@ export function registerMathPhotoRoutes(app: Express, auth: RequestHandler, deps
         const again = await askAI({ system: tutorPrompt(skillList, grade), text: `Look again, closely. Turn the picture in your mind if it is sideways. If any math is visible, solve the first complete problem you can read.${typed ? ` The student added this note: ${typed}` : ""}`, image });
         result = cleanTutorReply(JSON.parse(again), skillIds);
       } catch (e: any) { console.warn("[arise-math-photo] second look failed:", e?.message || e); }
+    }
+    if ("notMath" in result) return res.json({ notMath: result.notMath });
+    // The answer is checked by a second solver, and the worked math by code, with one fresh try if either fails.
+    if (!deps.skipCheck) {
+      const trusted = async (r: TutorResult) => {
+        if ("notMath" in r) return false;
+        const written = [...r.reply.steps.map((s) => s.explain), ...r.reply.examples.flatMap((e) => e.steps.map((s) => s.work))];
+        if (written.some((w) => wrongArithmetic(w).length)) return false;
+        try {
+          const solved: any = JSON.parse(await askAI({ system: SOLVE_PROMPT, text: solveText([{ id: "1", q: r.reply.problem, choices: [] }]), image: null }));
+          const one = solved?.results?.[0];
+          return one?.solvable !== false && r.accept.some((a) => sameAnswer(String(one?.answer ?? ""), a));
+        } catch { return false; }
+      };
+      if (!(await trusted(result))) {
+        console.warn("[arise-math-photo] answer didn't pass the check; solving again");
+        let again: TutorResult | null = null;
+        try { again = cleanTutorReply(JSON.parse(await askAI({ system: tutorPrompt(skillList, grade), text: `Solve this again, slowly, and check every "=": ${result.reply.problem}`, image })), skillIds); } catch { again = null; }
+        if (!again || !(await trusted(again))) return res.status(502).json({ message: "I couldn’t confirm the answer to this one, so I won’t guess. Try again, or type the problem in." });
+        result = again;
+      }
     }
     if ("notMath" in result) return res.json({ notMath: result.notMath });
     prune();
