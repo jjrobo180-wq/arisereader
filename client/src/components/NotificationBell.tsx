@@ -340,7 +340,7 @@ export function NotificationBell({
       role="dialog"
       aria-label="Notifications"
       style={position.mobile ? { top: position.top, left: 8, right: 8 } : { top: position.top, right: position.right, width: 420 }}
-      className="fixed z-[10000] flex max-h-[min(78vh,640px)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#151326] text-[#f5f3ff] shadow-[0_28px_90px_rgba(0,0,0,.55)] ring-1 ring-violet-400/10"
+      className="hub-notif fixed z-[10000] flex max-h-[min(78vh,640px)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#151326] text-[#f5f3ff] shadow-[0_28px_90px_rgba(0,0,0,.55)] ring-1 ring-violet-400/10"
     >
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/[.06] to-cyan-400/[.07] px-4 py-3">
         <div className="min-w-0">

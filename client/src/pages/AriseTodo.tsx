@@ -87,7 +87,7 @@ import NotesKitApp from "@/components/plugin-kit/NotesKitApp";
 import { LEARNING_APPS, LearningIcon, openLearning, useLearningAccess } from "@/components/hub-pieces/LearningApps";
 import { PlanCard, UpgradeHost, appsBlocked, appsFull, openUpgrade, useTodoPlan } from "@/components/hub-pieces/TodoPlan";
 import { appsIn, countsAsApp } from "@shared/todoPlan";
-import { cleanFamily, cleanSectionOrder, emptyFamily, FAMILY_SECTIONS, isCurrentFamily, isOn, orderedToggleable, TOGGLEABLE, ADD_ON_SECTIONS, type Family, type FamilySection } from "@shared/familyHub";
+import { addDays, eventsOn, cleanFamily, cleanSectionOrder, emptyFamily, FAMILY_SECTIONS, isCurrentFamily, isOn, orderedToggleable, TOGGLEABLE, ADD_ON_SECTIONS, type Family, type FamilySection } from "@shared/familyHub";
 import FamilyHome from "@/components/family-hub/FamilyHome";
 import Chores from "@/components/family-hub/Chores";
 import Behavior from "@/components/family-hub/Behavior";
@@ -128,7 +128,7 @@ import CustomizeSheet, { CustomizeGroup } from "@/components/CustomizeSheet";
 import DuoControls, { DuoHeaderButton } from "@/components/DuoControls";
 import { LayoutGrid as LayoutGridIcon, PanelLeft, Palette } from "lucide-react";
 import { PhoneMenu, usePhoneMenu, type PhoneMenuItem } from "@/components/family-hub/PhoneMenu";
-import { PhoneTabBar } from "@/components/family-hub/PhoneTabBar";
+import { OPEN_APPS_EVENT, PhoneTabBar } from "@/components/family-hub/PhoneTabBar";
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
 import { foldMenu } from "@shared/hubLayout";
 import { hubThemeOf } from "@shared/appThemes";
@@ -155,6 +155,7 @@ const Reader = lazy(() => import("@/components/family-hub/Reader"));
 import "./todoNight.css";
 import "./hubThemes.css";
 import { LookTaskList, useHubLook } from "@/components/HubLook";
+import { LookDock, LookOS, LookYou, type OsScreen } from "@/components/look-os/LookOS";
 import "./ariseDuo.css";
 import { inDuoPane, useAriseDuo, type DuoChoice } from "@/lib/useAriseDuo";
 import "@/components/teacher-hub/darkPalette.css";
@@ -773,13 +774,15 @@ export default function AriseTodo() {
   const taskLayout = hubThemeOf(layout.theme).homeLayout ?? "cards";
   // The Tile theme is a Windows-Phone start screen: every app is a tile on Home, so there is no menu strip beside it.
   const tileMode = taskLayout === "tiles";
-  const phone = usePhoneMenu(tileMode ? "drawer" : layout.menuSide, layout.menuClose);
+  const phone = usePhoneMenu(tileMode || hubLook.look ? "drawer" : layout.menuSide, layout.menuClose);
   // Arise To Duo: the iPhone Duo's inner screen gets two panes that meet at the fold (see useAriseDuo).
   const duo = useAriseDuo();
   /** The floating tab bar on a phone (Customize → Menu on your phone → Tab bar, the default). Not in the
    *  Duo's book view or inside a split-screen pane, which have their own controls; there the app drawer stands in. */
-  const tabBar = !tileMode && layout.menuSide === "tabs" && duo.mode !== "book" && !inDuoPane();
-  const phoneSide = tileMode ? "drawer" : layout.menuSide === "tabs" && !tabBar ? "drawer" : layout.menuSide;
+  /** A look runs as its own system, everywhere but the Duo's book view and split-screen panes. */
+  const osOn = !!hubLook.look && duo.mode !== "book" && !inDuoPane();
+  const tabBar = osOn || (!tileMode && layout.menuSide === "tabs" && duo.mode !== "book" && !inDuoPane());
+  const phoneSide = osOn ? "tabs" : tileMode ? "drawer" : layout.menuSide === "tabs" && !tabBar ? "drawer" : layout.menuSide;
   const [youOpen, setYouOpen] = useState(false);
   useEffect(() => {
     const before = document.title;
@@ -787,7 +790,7 @@ export default function AriseTodo() {
     return () => { document.title = before; };
   }, []);
   // The menu on a computer (Customize). Tasks keeps the full sidebar so its lists stay at hand.
-  const dsk = shown === "tasks" ? "left" : tileMode ? "drawer" : layout.deskSide;
+  const dsk = osOn ? "drawer" : shown === "tasks" ? "left" : tileMode ? "drawer" : layout.deskSide;
   const deskAside = dsk === "drawer" ? "lg:hidden"
     : dsk === "top" ? "lg:sticky lg:top-16 lg:z-30 lg:block lg:w-full"
     : dsk === "compact" ? "lg:sticky lg:top-16 lg:flex lg:h-[calc(100vh-4rem)] lg:w-[76px] lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r"
@@ -1061,6 +1064,19 @@ export default function AriseTodo() {
     gallery: () => setStore(true), privacy: () => setPrivacy(true), signOut: () => void signOut(),
     extra: [{ id: "family", label: "Family & settings", detail: "People, linked children and sections", icon: <Users />, onClick: () => { closeApps(); goSection("family"); } }],
   });
+  const inOtherApp = !!notesAppOpen || !!sheetsAppOpen || driveOpen || dropOpen || !!kitOpen;
+  const osCore = osOn && !inOtherApp && (["home", "tasks", "calendar", "notes"] as FamilySection[]).includes(shown);
+  const osGo = (s: OsScreen) => { closeApps(); setStore(false); setAddMenu(false); goSection(s); };
+  const osAdd = (title?: string) => { if (title) setEditing({ ...emptyTask(data.lists[0].id), title: title.slice(0, 200) }); else setAddMenu((v) => !v); };
+  const osOff = (["calendar", "notes"] as const).filter((s) => !sections.includes(s));
+  const osApps = () => window.dispatchEvent(new Event(OPEN_APPS_EVENT));
+  const osFirst = (user.displayName || "").split(" ")[0];
+  const osDays = Array.from({ length: 35 }, (_, n) => {
+    const date = addDays(currentDay, n), d = new Date(`${date}T12:00:00`);
+    return { date, weekday: d.toLocaleDateString(undefined, { weekday: "short" }), day: String(d.getDate()), month: d.toLocaleDateString(undefined, { month: "short" }),
+      items: [...eventsOn(family, date).map((e) => ({ id: e.id, time: e.time, title: e.title })), ...data.tasks.filter((t) => !t.done && t.due === date).map((t) => ({ id: t.id, time: t.time, title: t.title }))] };
+  });
+  const osTasks = data.tasks.map((task) => { const list = data.lists.find((row) => row.id === task.listId); return { id: task.id, title: task.title, done: task.done, due: task.due, late: !task.done && !!task.due && task.due < currentDay, dueLabel: task.due ? prettyDate(task.due) : "", listName: list?.name ?? "", color: list?.color ?? "", assignee: task.assignee ?? "", notes: task.notes ?? "" }; });
   return <PrivacyLockProvider lock={family.lock} setLock={(lock) => setFamily((f) => ({ ...f, lock }))} apps={lockableApps} settings={lockSettings} onSettings={setLockSettings}><div style={hubLook.style} className={`min-h-screen bg-[#f6f7fc] text-slate-900 ${night && !hubLook.look ? "todo-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""} ${hubLook.className}`}>
     <UpgradeHost hub="life" />
     {/* After the tour: the coach on the real hub (hold a widget, switch hubs, the App Gallery). */}
@@ -1195,7 +1211,7 @@ export default function AriseTodo() {
         </> },
       ]} />}
     {/* The same header as WorkHub: the hub on the left, everything you do to it on the right. */}
-    <header className="sticky top-0 z-40 h-16 border-b border-[#e4e6f0] bg-white/95 backdrop-blur" data-testid="life-header">
+    <header className={`${osCore ? "los-ghost" : "sticky top-0 z-40"} h-16 border-b border-[#e4e6f0] bg-white/95 backdrop-blur`} data-testid="life-header">
       <div className="flex h-full items-center justify-between gap-2 px-3 sm:gap-4 sm:px-5 lg:px-6">
         <button type="button" onClick={() => setSection("home")} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="LifeHub home">
           <span className="flex h-8 w-8 shrink-0 overflow-hidden rounded-xl shadow-[0_5px_14px_#6d5ce72b]"><HubMark tone="life" className="h-full w-full" /></span>
@@ -1203,7 +1219,7 @@ export default function AriseTodo() {
         </button>
         <div className="flex shrink-0 items-center gap-2">
           <DuoHeaderButton onOpen={() => { setCustomizeTab("duo"); setCustomizing(true); }} />
-          {(user.role === "parent" || user.isAdmin) && <SupportButton isAdmin={user.isAdmin} />}
+          {!osOn && (user.role === "parent" || user.isAdmin) && <SupportButton isAdmin={user.isAdmin} />}
           {(user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
           <div className={layout.shortcut ? "contents" : "hidden sm:contents duo:hidden"}>
           {/* Not in the iPhone app: the app is the real thing, no Shortcut. */}{!isNativeApp() && <HeaderShortcut shortcut={layout.shortcut} choices={phoneItems} say={setMessage}
@@ -1261,7 +1277,16 @@ export default function AriseTodo() {
         <Plus className={`h-5 w-5 transition-transform ${addMenu ? "rotate-45" : ""}`} size={20} /> Add
       </button>
     </div>
-    {tabBar && <PhoneTabBar name={user.displayName || user.username || ""}
+    {osCore && hubLook.look && <LookOS look={hubLook.look} name={osFirst} dateLabel={new Date(`${currentDay}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+      banner={<>{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}<SupportBanner />{family.widgets.stickies && <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{null}</StickyBoard>}</>} screen={shown as OsScreen} go={osGo} openApps={osApps} add={osAdd} tasks={osTasks} days={osDays} off={osOff} onYou={() => setYouOpen(true)}
+      toggle={(id) => { const task = data.tasks.find((t) => t.id === id); if (task) toggleDone(task); }} openTask={(id) => { const task = data.tasks.find((t) => t.id === id); if (task) setEditing({ ...task }); }}
+      notes={[...family.notes].sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt.localeCompare(a.updatedAt))} lockedApps={family.lock?.apps}
+      shortcuts={phoneItems.filter((i) => !["home", "tasks", "calendar", "notes"].includes(i.id)).slice(0, 4).map((i) => ({ id: i.id, label: i.label, onClick: i.onClick }))}
+      content={<LockedApp locked={appLocked(family.lock, shown)} name={openAppName}>{shown === "calendar" || shown === "notes" ? familyContent : null}</LockedApp>} />}
+    {osOn && !osCore && hubLook.look && <LookDock inApp look={hubLook.look} screen={null} go={osGo} openApps={osApps} add={osAdd} off={osOff} you={() => setYouOpen(true)} initial={(osFirst || "Y").charAt(0).toUpperCase()} />}
+    {osOn && youOpen && hubLook.look && <LookYou look={hubLook.look} onClose={() => setYouOpen(false)} top={<>{(user.role === "parent" || user.isAdmin) && <SupportButton isAdmin={user.isAdmin} />}{(user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) && <HubSwitch current="todo" night={night} />}<HubTrialNote trial={trial} which="life" upgradeHref="#/billing" /></>}
+      items={[{ id: "search", label: "Search", detail: "Everything in LifeHub", onClick: () => setSearching(true) }, { id: "duo", label: "Duo & split screen", onClick: () => { setCustomizeTab("duo"); setCustomizing(true); } }, ...moreGroups.flatMap((g) => g.items)]} />}
+    {tabBar && !osOn && <PhoneTabBar name={user.displayName || user.username || ""}
       home={shown === "home" && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && !store} tasks={shown === "tasks" && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && !store}
       addOpen={addMenu} onAdd={() => setAddMenu((v) => !v)}
       onHome={() => { closeApps(); setStore(false); setAddMenu(false); goSection("home"); }}
@@ -1356,6 +1381,7 @@ export default function AriseTodo() {
             <button onClick={openAdd} className="hidden min-h-11 items-center gap-2 rounded-xl bg-[#705de0] px-5 text-sm font-bold text-white shadow-[0_8px_24px_#705de02b] hover:bg-[#604bd4] lg:inline-flex"><Plus size={18} /> New task</button>
           </header>}
 
+          <div className={osCore ? "los-alerts" : "contents"}>
           {sync.view.kind === "retrying" && <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800"><CloudOff size={18} /> Connection interrupted. Your changes are kept on this device and will be retried. <button className="underline" onClick={sync.retry}>Retry now</button></div>}
           {sync.view.kind === "blocked" && <section className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800" role="alert">
             <div className="flex items-center gap-2"><AlertCircle size={18} /><strong>{sync.view.block === "conflict" ? "Tasks changed on another device" : "Cloud save needs attention"}</strong></div>
@@ -1374,6 +1400,7 @@ export default function AriseTodo() {
             <div className="mt-3 flex flex-wrap gap-2"><button onClick={importOldTasks} className={buttonClass + " bg-indigo-700 text-white"}>Add old tasks to my account</button><button onClick={dismissLegacy} className={buttonClass + " bg-white text-indigo-700 ring-1 ring-indigo-200"}>Not now</button></div>
           </section>}
 
+          </div>
           <SnoozeBar />
           {message && <div role="status" className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-[600] w-[min(92vw,440px)] -translate-x-1/2 rounded-2xl bg-[#292446] px-4 py-3 text-center text-sm font-semibold text-white shadow-[0_18px_40px_#16152a40]">{message}</div>}
           <div className="mt-4"><HubTrialNote trial={trial} which="life" upgradeHref="#/billing" onUpgrade={user.role === "parent" ? () => { setSection("reader"); window.setTimeout(() => document.getElementById("parent-plans")?.scrollIntoView({ behavior: "smooth" }), 600); } : undefined} /></div>
@@ -1414,8 +1441,8 @@ export default function AriseTodo() {
             </div>
             <KitPlugin key={kitOpen} def={kitDef(kitOpen)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
           </div>}
-          {!notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{shown === "home" && <div className="mb-4"><SupportBanner /></div>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
-          {!notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown === "tasks" && <>
+          {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{shown === "home" && <div className="mb-4"><SupportBanner /></div>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
+          {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown === "tasks" && <>
 
           {/* The four counts are in the tabs on a phone, so the cards show from a tablet up. */}
           <div className="mt-7 hidden grid-cols-2 gap-3 md:grid md:grid-cols-4 duo-book:mt-0 duo-book:grid duo-book:grid-cols-4 duo-book:gap-2 duo-stack:grid-cols-4">

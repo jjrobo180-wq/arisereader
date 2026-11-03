@@ -149,7 +149,7 @@ export function useRichEditor({ startHtml, resetKey, onChange, onSaveKey, placeh
         <Tool title="Redo" keys="Ctrl+Y" onClick={() => exec("redo")}><Redo2 size={16} /></Tool>
         <ToolSep />
         <DropButton title="Paragraph style" label={<span className="w-[72px] truncate text-left text-[12px] font-semibold">{styleLabel}</span>}>{(close) => <MenuList items={STYLES.map((s) => ({ label: s.label, checked: state.block === s.tag, onClick: () => exec("formatBlock", s.tag) }))} onDone={close} />}</DropButton>
-        <DropButton title="Font" label={<span className="w-[78px] truncate text-left text-[12px]" style={{ fontFamily: state.font || undefined }}>{state.font || "Font"}</span>}>{(close) => <MenuList items={DOC_FONTS.map((f) => ({ label: f, checked: state.font === f, icon: <span style={{ fontFamily: f }}>A</span>, onClick: () => exec("fontName", f) }))} onDone={close} />}</DropButton>
+        <DropButton title="Font" label={<span className="w-[78px] truncate text-left text-[12px]" style={{ fontFamily: state.font || undefined }}>{state.font && !state.font.startsWith("-") ? state.font : "Font"}</span>}>{(close) => <MenuList items={DOC_FONTS.map((f) => ({ label: f, checked: state.font === f, icon: <span style={{ fontFamily: f }}>A</span>, onClick: () => exec("fontName", f) }))} onDone={close} />}</DropButton>
         <DropButton title="Text size" label={<span className="w-6 text-center text-[12px]">{state.size}</span>}>{(close) => <MenuList items={SIZES.map((s) => ({ label: String(s), checked: state.size === s, onClick: () => fontSize(s) }))} onDone={close} />}</DropButton>
         <ToolSep />
         <Tool title="Bold" keys="Ctrl+B" active={state.b} onClick={() => exec("bold")}><Bold size={16} /></Tool>
