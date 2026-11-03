@@ -16,7 +16,7 @@ import type { Express, RequestHandler } from "express";
 import { randomUUID } from "node:crypto";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import type { KV } from "./podcastDirectory";
-import { PREP_LIMITS, cleanMore, cleanPrepAsk, cleanPrepReply, morePrompt, prepPrompt, type PrepSet } from "../shared/ariseMathPrep";
+import { COULD_NOT_BUILD, NO_MATH_FOUND, PREP_LIMITS, cleanMore, cleanPrepAsk, cleanPrepReply, cleanReading, morePrompt, prepPrompt, readPrompt, readingText, type PrepSet } from "../shared/ariseMathPrep";
 
 export type PrepAsk = { system: string; text: string; images: string[] };
 export type MathPrepDeps = {
@@ -132,7 +132,7 @@ export function registerMathPrepRoutes(app: Express, auth: RequestHandler, deps:
     const images = (Array.isArray(req.body?.images) ? req.body.images : []).filter((x: unknown) => typeof x === "string" && x);
     if (images.length > PREP_LIMITS.images) return res.status(400).json({ message: `Add up to ${PREP_LIMITS.images} pictures at a time.` });
     if (images.some((x: string) => x.length > PREP_LIMITS.imageChars || !IMAGE_RE.test(x))) return res.status(400).json({ message: "One of the pictures couldn’t be read. Try a JPG or PNG photo or screenshot." });
-    if (!images.length && !ask.text) return res.status(400).json({ message: "Add photos of the practice sheet, or type the lesson name or standard." });
+    if (!images.length && !ask.text) return res.status(400).json({ message: "Add a picture of the practice sheet." });
     const wait = builds.retryAfter(String(u.id));
     if (wait) return res.status(429).json({ message: `That’s a lot of test prep today! You can make another in ${waitWords(wait)}.` });
     builds.fail(String(u.id));
@@ -150,7 +150,19 @@ export function registerMathPrepRoutes(app: Express, auth: RequestHandler, deps:
     }
     let parsed: unknown = null;
     try { parsed = JSON.parse(raw); } catch { parsed = null; }
-    const result = cleanPrepReply(parsed, ask);
+    let result = cleanPrepReply(parsed, ask);
+    // A picture is never turned down on one try: look again just to read it, then build from what was read.
+    if ("notMath" in result && images.length) {
+      console.warn("[arise-math-prep] first look found no math; reading the pictures");
+      let reading = cleanReading(null);
+      try { reading = cleanReading(JSON.parse(await askAI({ system: readPrompt(), text: "Read these pictures.", images }))); }
+      catch (e: any) { console.warn("[arise-math-prep] closer look failed:", e?.message || e); return res.status(502).json({ message: COULD_NOT_BUILD }); }
+      if (!reading.found && !ask.text) return res.json({ notMath: NO_MATH_FOUND });
+      const asked = { ...ask, grade: ask.grade || reading.grade };
+      try { result = cleanPrepReply(JSON.parse(await askAI({ system: prepPrompt(asked), text: [ask.title && `The test: ${ask.title}`, ask.text && `What the test covers (typed): ${ask.text}`, readingText(reading)].filter(Boolean).join("\n"), images: [] })), asked); }
+      catch (e: any) { console.warn("[arise-math-prep] rebuild failed:", e?.message || e); return res.status(502).json({ message: COULD_NOT_BUILD }); }
+      if ("notMath" in result) return res.status(502).json({ message: COULD_NOT_BUILD });
+    }
     if ("notMath" in result) return res.json({ notMath: result.notMath });
     try {
       const set: PrepSet = { ...result.set, id: randomUUID(), ownerId: u.id, ownerName: u.name, ownerRole: u.role, sharedWith: [], createdAt: new Date(now()).toISOString() };

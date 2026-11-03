@@ -2087,9 +2087,9 @@ function prepHTML(){
 
 function prepListHTML(){
   const R = P0(), staff = R.share === 'class', parent = R.share === 'child';
-  const intro = staff ? 'Add your test’s study guide, practice sheet or standard. Get lessons and practice, then send it to your class.'
-    : parent ? 'Add the practice sheet or the lesson your child is being tested on. Get lessons and practice, then send it to your child.'
-    : 'Got a test coming up? Add photos of your practice sheets or type the lesson name. You’ll get how-to lessons and practice questions with every step.';
+  const intro = staff ? 'Add a picture of your test’s study guide or practice sheet. We’ll figure out the type of problems, make lessons and practice, and you can send it to your class.'
+    : parent ? 'Add a picture of the practice sheet. We’ll figure out the type of problems, make lessons and practice, and you can send it to your child.'
+    : 'Got a test coming up? Add a picture of your practice sheet. We’ll figure out the type of problems and make how-to lessons and practice with every step.';
   const cards = R.list.map(s => {
     const p = s.progress, pct = p.total ? Math.round(p.done/p.total*100) : 0, when = untilWords(s.testDate);
     return `<button class="prep-card" data-act="prepopen" data-v="${esc(s.id)}">
@@ -2228,7 +2228,7 @@ async function prepGo(){
   F.testDate = document.getElementById('prepDate')?.value || '';
   F.grade = document.getElementById('prepGrade')?.value || F.grade || '';
   F.text = document.getElementById('prepText')?.value.trim() || '';
-  if (!F.images.length && !F.text) { R.err = 'Add photos of the practice sheet, or type the lesson name or standard.'; return render(); }
+  if (!F.images.length && !F.text) { R.err = 'Add a picture of the practice sheet.'; return render(); }
   R.err = null; R.busy = 'Making your practice…'; render(); window.scrollTo({top:0});
   try {
     const r = await api('/prep', { method:'POST', body:{ title:F.title, testDate:F.testDate, grade:F.grade, text:F.text, images:F.images } });
