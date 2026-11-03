@@ -12,7 +12,7 @@ const lum = (hex: string) => {
 };
 const ratio = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
 
-test("there are 24 looks plus Classic", () => assert.equal(NOTES_THEMES.length, 25));
+test("there are 34 looks plus Classic", () => assert.equal(NOTES_THEMES.length, 35));
 for (const t of NOTES_THEMES) test(`${t.label} text is readable`, () => {
   for (const [name, fg, bg] of [["ink/bg", t.ink, t.bg], ["ink/card", t.ink, t.card], ["muted/bg", t.muted, t.bg], ["muted/card", t.muted, t.card], ["faint/card", t.faint, t.card], ["accent ink/card", t.accentInk, t.card], ["accent ink/soft", t.accentInk, t.accentSoft], ["on accent", t.onAccent, t.accent], ["on record", t.onRecord, t.record]] as const)
     assert.ok(ratio(fg, bg) >= 4.5, `${t.id} ${name}: ${ratio(fg, bg).toFixed(2)}`);
@@ -50,4 +50,32 @@ test("every look has a readable night mode", () => {
     for (const [fg, bg, min] of [[n.ink, n.bg, 7], [n.ink, n.card, 7], [n.muted, n.card, 4.5], [n.faint, n.card, 4.5], [n.onAccent, n.accent, 4.5], [n.accentInk, n.card, 4.5]] as const)
       assert.ok(ratio(fg, bg) >= min, `${t.id}: ${fg} on ${bg} is ${ratio(fg, bg).toFixed(2)}`);
   }
+});
+
+test("the ten system looks are whole systems in Duo and Notes: Home, calendar, getting around, windows, recording", () => {
+  const ids = ["pocket", "glass", "desktop", "millennium", "workstation", "retro", "monolith", "ink", "neon", "orbit"];
+  const read = (f: string) => readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
+  const sys = read("client/src/components/look-os/systems.tsx"), css = read("client/src/components/look-os/systems.css");
+  const notes = read("client/src/components/arise-notes/looks.tsx"), ncss = read("client/src/components/arise-notes/notes-systems.css");
+  const os = read("client/src/components/look-os/LookOS.tsx");
+  assert.match(os, /SYSTEM_LOOKS\.has\(look\.id\)\) return <SystemDock/);
+  assert.match(os, /SYSTEM_LOOKS\.has\(p\.look\.id\)\) return <SystemHome/);
+  assert.match(os, /DESKTOP_LOOKS\.has\(p\.look\.id\) \? <div className="sys-desk"><SystemWindow/);
+  for (const id of ids) {
+    assert.ok(NOTES_THEMES.some((t) => t.id === id), `${id} is a look`);
+    assert.match(sys, new RegExp(`case "${id}"`), `${id} has its own Duo Home and calendar`);
+    assert.match(css, new RegExp(`sys-dock-${id}`), `${id} has its own way of getting around`);
+    assert.match(notes, new RegExp(`case "${id}"`), `${id} has its own Notes Home`);
+    assert.match(ncss, new RegExp(`an-l-hero-${id}`), `${id} styles the Notes Home`);
+    assert.match(ncss, new RegExp(`an-theme-${id} \\.an-l-bar`), `${id} has its own Notes tab bar`);
+  }
+  // Taskbars open a start menu; the desktop looks open screens in windows.
+  assert.match(sys, /aria-haspopup="menu" onClick=\{\(\) => setMenu\(!menu\)\} data-testid="sys-start"/);
+  for (const id of ["desktop", "millennium", "workstation", "retro"]) assert.match(css, new RegExp(`sys-win-${id}`), `${id} windows`);
+  // Original designs: no company names in what people see.
+  for (const word of ["Windows", "Microsoft", "Apple", "iPhone", "macOS", "Luna", "Aero"]) {
+    for (const t of NOTES_THEMES.filter((x) => ids.includes(x.id))) assert.ok(!`${t.label} ${t.blurb}`.includes(word), `${t.id} doesn't say ${word}`);
+  }
+  // E-Ink holds still.
+  assert.match(css, /\.los-ink, \.los-ink \* \{ animation: none !important; transition: none !important; \}/);
 });

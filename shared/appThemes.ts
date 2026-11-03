@@ -10,7 +10,7 @@ import { NOTES_THEMES, type NotesTheme } from "./notesThemes";
 
 export type HubThemeId =
   | "classic" | "tile" | "crt"
-  | "studio" | "margin" | "bloom" | "timeline" | "console" | "swiss" | "cassette" | "frost" | "grove" | "gazette" | "punch" | "chatline" | "deck" | "tide" | "vinyl" | "hush" | "aurora" | "atelier" | "blueprint" | "arcade" | "typewriter" | "darkroom" | "zen" | "cockpit";
+  | "studio" | "margin" | "bloom" | "timeline" | "console" | "swiss" | "cassette" | "frost" | "grove" | "gazette" | "punch" | "chatline" | "deck" | "tide" | "vinyl" | "hush" | "aurora" | "atelier" | "blueprint" | "arcade" | "typewriter" | "darkroom" | "zen" | "cockpit" | "pocket" | "glass" | "desktop" | "millennium" | "workstation" | "retro" | "monolith" | "ink" | "neon" | "orbit";
 
 export type HubTheme = {
   id: HubThemeId;

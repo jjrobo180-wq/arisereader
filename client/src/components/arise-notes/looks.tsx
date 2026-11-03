@@ -3,6 +3,7 @@
 import { type CSSProperties, useEffect, useState, type ReactNode } from "react";
 import { fmtClock, nightLook, templateOf, themeOf, type NotesTheme, type NotesSettings } from "@shared/ariseNotes";
 import type { ListNote } from "./api";
+import "./notes-systems.css";
 
 /** The look to draw, or null for Classic. High contrast always uses the Classic layout. */
 export function activeLook(settings?: NotesSettings | null): NotesTheme | null {
@@ -55,6 +56,17 @@ export function LookHomeHero({ look, a }: { look: NotesTheme; a: HomeActions }) 
       case "cockpit": return <><small className="an-l-eyebrow">Voice recorder armed</small><h1>Ready when you are.</h1>{rec("Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
       case "tide": return <><div className="an-l-tidedate"><b>{new Date().getDate()}</b><span>{new Date().toLocaleDateString(undefined, { weekday: "long" })}<br />{new Date().toLocaleDateString(undefined, { month: "long" })}</span></div>{rec("Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
       case "deck": return <><h1>Your deck</h1>{rec("Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
+      // The ten system looks.
+      case "pocket": return <><h1>Recordings</h1><AskBar a={a} text="Search or ask your notes" /><div className="an-s-pocketrec">{rec(<span className="an-s-recdot" />, "an-s-roundrec")}<small>Tap to record</small></div><Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
+      case "glass": return <><div aria-hidden className="an-s-blobs"><i /><i /><i /></div><div className="an-s-pane"><small className="an-l-eyebrow">Arise Notes</small><h1>Speak. It writes itself.</h1>{rec(<><span className="an-s-orb" />Record</>)}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></div></>;
+      case "desktop": return <div className="an-s-win an-s-win-desktop"><header><span className="an-s-lights"><i /><i /><i /></span><b>New Recording</b></header><div><h1>Ready to record</h1><p className="an-s-sub">A meeting, class or visit. Notes, summary and to-dos when you stop.</p>{rec(<><span className="an-s-recdot" />Record</>)}<Secondary a={a} labels={["Upload…", "Voice Memo", "Ask"]} /></div></div>;
+      case "millennium": return <div className="an-s-win an-s-win-millennium"><header><b>Sound Recorder - Arise Notes</b><span className="an-s-ctls"><i /><i /><i /></span></header><div><div className="an-s-lcd"><span>00:00</span><small>Ready</small></div>{rec(<><span className="an-s-recdot" />Record</>)}<Secondary a={a} labels={["Upload...", "Voice memo", "Ask"]} /></div></div>;
+      case "workstation": return <div className="an-s-ws"><small className="an-l-eyebrow">Voice recorder</small><h1>{a.first ? `Hi ${a.first}, ` : ""}what are we capturing?</h1>{rec(<span className="an-s-mic"><MicIcon size={30} /></span>, "an-s-roundrec")}<Secondary a={a} labels={["Upload", "Voice memo", "Ask"]} /></div>;
+      case "retro": return <div className="an-s-win an-s-win-retro"><header><b>Sound Recorder</b><span className="an-s-ctls"><i /><i /><i /></span></header><div><div className="an-s-lcd an-s-lcd-green"><span>0:00</span><small>Length: 0.00 sec.</small></div><div className="an-s-wavebox" aria-hidden><i /></div>{rec("● Record")}<Secondary a={a} labels={["Upload...", "Memo", "Ask"]} /></div></div>;
+      case "monolith": return <><small className="an-l-eyebrow">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</small><h1>Record.</h1><p className="an-s-sub">Every word kept. Nothing missed.</p>{rec("Begin")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
+      case "ink": return <><small className="an-s-folio">New page</small><h1>What shall we write down?</h1>{rec("Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
+      case "neon": return <><small className="an-s-hud">// VOICE.CAPTURE — STANDBY</small><h1 data-text="RECORD">RECORD</h1>{rec("● INITIATE")}<Secondary a={a} labels={["UPLOAD", "MEMO", "ASK"]} /></>;
+      case "orbit": return <><h1>Notes</h1><div className="an-s-orbitrec">{rec(<><MicIcon size={34} /><small>Record</small></>, "an-s-roundrec")}</div><Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
       default: return null;
     }
   })();
@@ -117,6 +129,13 @@ export function LookRecordArt({ look, secs, paused, finishing, level }: { look: 
       case "gazette": return <>{clock}<h2><span className="an-l-livedot" />Live from the meeting</h2></>;
       case "swiss": case "punch": case "deck": case "timeline": return <>{clock}{bars}</>;
       case "bloom": case "grove": return <div className="an-l-ring"><div style={{ transform: `scale(${live ? 1 + (secs % 2) * .08 : .92})` }}>{clock}</div></div>;
+      case "pocket": case "desktop": return <>{clock}<div aria-hidden className="an-s-scope">{Array.from({ length: 40 }, (_, i) => <i key={i} style={{ height: live ? Math.max(3, Math.max(level, .25) * 64 * Math.abs(Math.sin(i * .9 + secs * 2))) : 3 }} />)}<b /></div></>;
+      case "glass": return <div className="an-s-orbclock" data-live={live ? "1" : undefined} style={{ "--lvl": live ? Math.max(level, .1) : 0 } as CSSProperties}>{clock}</div>;
+      case "millennium": case "retro": return <><div className="an-s-lcd an-s-lcd-green">{clock}<small>{live ? "Recording" : status}</small></div><div aria-hidden className="an-s-meter">{Array.from({ length: 20 }, (_, i) => <i key={i} data-on={live && i < Math.round(Math.max(level, .1) * 20) ? "1" : undefined} />)}</div></>;
+      case "workstation": case "orbit": { const c = 2 * Math.PI * 54; return <div className="an-s-ringclock"><svg viewBox="0 0 120 120" aria-hidden><circle cx="60" cy="60" r="54" className="an-s-ringtrack" /><circle cx="60" cy="60" r="54" className="an-s-ringfill" strokeDasharray={c} strokeDashoffset={c * (1 - (secs % 60) / 60)} /></svg>{clock}</div>; }
+      case "monolith": return <>{clock}<div aria-hidden className="an-s-goldline" style={{ transform: `scaleX(${live ? Math.max(level, .05) : .02})` }} /></>;
+      case "ink": return <>{clock}<p className="an-s-inkstatus">{live ? "Listening. Write-up when you stop." : status}</p></>;
+      case "neon": return <>{clock}<div aria-hidden className="an-s-neonbars">{Array.from({ length: 16 }, (_, i) => <i key={i} style={{ height: live ? `${Math.max(8, Math.max(level, .2) * 100 * Math.abs(Math.sin(i * 1.4 + secs)))}%` : "8%" }} />)}</div></>;
       case "console": return <>{clock}<p aria-hidden className="an-l-ascii">{live ? Array.from({ length: 24 }, (_, i) => "▁▂▃▅▇▆▄▂"[(i * 3 + secs) % 8]).join("") : "▁".repeat(24)}</p></>;
       default: return <>{clock}{bars}</>;
     }
