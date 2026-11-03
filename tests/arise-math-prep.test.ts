@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
 import type { AddressInfo } from "node:net";
-import { cleanMore, cleanPrepAsk, cleanPrepReply, cleanQuestion, daysUntil, prepPrompt } from "../shared/ariseMathPrep";
+import { COULD_NOT_BUILD, NO_MATH_FOUND, cleanReading, readPrompt, cleanMore, cleanPrepAsk, cleanPrepReply, cleanQuestion, daysUntil, prepPrompt } from "../shared/ariseMathPrep";
 import { registerMathPrepRoutes } from "../server/ariseMathPrep";
 import { memoryKV } from "../server/podcastDirectory";
 
@@ -92,4 +92,31 @@ test("prep routes: make, open, practice, more, share with a class, and delete", 
     assert.equal((await call("", "2:student")).body.sets.length, 0, "deleting takes it off the class's lists too");
     assert.equal(asks, 2);
   } finally { server.close(); }
+});
+
+test("a good worksheet isn't turned down: a refused picture is read, then built from what was read", async () => {
+  const run = async (answers: string[], body: any = { images: ["data:image/png;base64,iVBORw0KGgo="] }) => {
+    const app = express(); app.use(express.json({ limit: "30mb" }));
+    const seen: { system: string; text: string; images: string[] }[] = [];
+    registerMathPrepRoutes(app, ((req: any, _r: any, next: any) => { req.user = { id: 1, role: "teacher", displayName: "T" }; next(); }) as any, { kv: memoryKV(), aiConfigured: () => true, askAI: async (a) => { seen.push(a); const x = answers[seen.length - 1]; if (x === undefined) throw new Error("no more"); return x; } });
+    const server = app.listen(0);
+    try { const r = await fetch(`http://127.0.0.1:${(server.address() as AddressInfo).port}/api/math/prep`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); return { status: r.status, body: await r.json(), seen }; }
+    finally { server.close(); }
+  };
+  const refused = JSON.stringify({ notMath: "Please upload a clear photo of the math practice sheet, or type the lesson name or standard." });
+  const read = JSON.stringify({ hasMath: true, types: ["doubles"], gradeGuess: "2", problems: ["3 + 3 = ?"] });
+  const good = run([refused, read, JSON.stringify(reply)]);
+  const made = await good;
+  assert.equal(made.status, 200); assert.ok(made.body.set.topics.length);
+  assert.equal(made.seen[1].system, readPrompt()); assert.equal(made.seen[1].images.length, 1);
+  assert.equal(made.seen[2].images.length, 0); assert.match(made.seen[2].text, /3 \+ 3/);
+  const garbled = await run(["{ cut off", read, JSON.stringify(reply)]);
+  assert.equal(garbled.status, 200, "a reply cut short gets the same second look");
+  const cat = await run([refused, JSON.stringify({ hasMath: false, types: [], problems: [] })]);
+  assert.equal(cat.body.notMath, NO_MATH_FOUND, "only after two looks, and it never asks for the lesson name");
+  const stuck = await run([refused, read, "nope"]);
+  assert.equal(stuck.status, 502); assert.equal(stuck.body.message, COULD_NOT_BUILD);
+  assert.equal(cleanReading({ hasMath: false, problems: ["12 x 4"] }).found, true, "numbers on the page beat a wrong no");
+  const typed = await run([JSON.stringify(reply)], { text: "fractions" });
+  assert.equal(typed.seen.length, 1, "no picture, nothing extra");
 });

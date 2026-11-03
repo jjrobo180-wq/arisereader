@@ -94,7 +94,15 @@ export function registerMathPhotoRoutes(app: Express, auth: RequestHandler, deps
     }
     let parsed: unknown = null;
     try { parsed = JSON.parse(raw); } catch { parsed = null; }
-    const result = cleanTutorReply(parsed, skillIds);
+    let result = cleanTutorReply(parsed, skillIds);
+    // A picture is never turned down on one try: look once more before saying there's no math.
+    if ("notMath" in result && image) {
+      console.warn("[arise-math-photo] first look found no math; looking again");
+      try {
+        const again = await askAI({ system: tutorPrompt(skillList, grade), text: `Look again, closely. Turn the picture in your mind if it is sideways. If any math is visible, solve the first complete problem you can read.${typed ? ` The student added this note: ${typed}` : ""}`, image });
+        result = cleanTutorReply(JSON.parse(again), skillIds);
+      } catch (e: any) { console.warn("[arise-math-photo] second look failed:", e?.message || e); }
+    }
     if ("notMath" in result) return res.json({ notMath: result.notMath });
     prune();
     const id = randomUUID();
