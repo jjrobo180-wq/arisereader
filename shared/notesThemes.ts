@@ -1,5 +1,5 @@
 // Arise Notes looks: what a person can pick in Settings > Appearance. Each look is colors, type and
-// shape, applied across every screen by setting the app's CSS variables (notes-themes.css does the rest).
+// shape, set through the app's CSS variables, plus its own Home, recording and note designs (looks.tsx).
 export type NotesThemeId = "classic" | "studio" | "margin" | "bloom" | "timeline" | "console" | "swiss" | "cassette" | "frost" | "grove" | "gazette" | "punch" | "chatline" | "deck";
 export type NotesTheme = {
   id: NotesThemeId; label: string; blurb: string; dark?: boolean;

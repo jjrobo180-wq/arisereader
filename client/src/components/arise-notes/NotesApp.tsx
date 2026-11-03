@@ -13,6 +13,7 @@ import { listLocalNotes, type LocalNote } from "./localNotes";
 import { listenForLinks, widgetAi, widgetPages } from "./widgetLinks";
 import { pagesSyncFor } from "./pages/pagesSync";
 import { Btn, IconBtn, Notice, Spinner, ToastHost, plural, shortDate, useToast } from "./ui";
+import { LookHomeHero, LookNoteList, activeLook } from "./looks";
 import "./notes.css";
 import "./notes-themes.css";
 
@@ -265,6 +266,7 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
   const shown = all.filter((n) => (folder === "__family" ? !n.mine || n.familyShared : !folder || n.folder === folder) && (!tag || n.tags.includes(tag)));
   const first = ctx.me.user.name.split(" ")[0];
   const exit = ctx.mode === "embedded" && onExit;
+  const look = activeLook(ctx.me.settings);
   return <>
     <TopBar ctx={ctx} back={exit ? onExit : undefined} title={exit ? <span className="flex items-center gap-2"><Logo size={26} />Arise Notes</span> : undefined}
       right={<>
@@ -273,6 +275,12 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
         <IconBtn label="Settings" onClick={() => ctx.go({ name: "settings" })}><Settings className="h-5 w-5" /></IconBtn>
       </>} />
     <main className="mx-auto max-w-5xl space-y-5 px-4 pb-24 pt-5 sm:px-5">
+      {look ? <>
+        <LookHomeHero look={look} a={{ first, minutes: null, record: () => ctx.go({ name: "record" }), upload: () => ctx.go({ name: "upload" }), memo: () => ctx.go({ name: "memo" }), ask: () => ctx.go({ name: "ask" }), memoLocked: !ctx.me.features.memo }} />
+      <MinutesBanner ctx={ctx} />
+      {!ctx.me.services.speech && <Notice tone="warn">Speech to text isn't switched on for this site yet, so recordings are saved but can't be written down.</Notice>}
+
+      </> : <>
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-[13px] font-semibold uppercase tracking-wider text-[var(--an-violet)]">Arise Notes</p>
@@ -293,6 +301,8 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
         <span className="min-w-0 flex-1 truncate text-[15px] text-[var(--an-muted)]">Ask your notes: “What did I promise Maya's mom last month?”</span>
         <ArrowRight className="h-4 w-4 text-[var(--an-faint)]" aria-hidden />
       </button>
+
+      </>}
 
       <section aria-labelledby="notes-heading" className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -322,7 +332,7 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
             </button>
           </li>)}</ul>
         </div>}
-        {notes === null ? <Spinner /> : shown.length ? <ul className="grid gap-3 md:grid-cols-2">{shown.map((n) => <NoteCard key={n.id} n={n} onOpen={() => ctx.go({ name: "note", id: n.id })} />)}</ul>
+        {notes === null ? <Spinner /> : shown.length ? (look ? <LookNoteList look={look} notes={shown} onOpen={(n) => ctx.go({ name: "note", id: n.id })} /> : <ul className="grid gap-3 md:grid-cols-2">{shown.map((n) => <NoteCard key={n.id} n={n} onOpen={() => ctx.go({ name: "note", id: n.id })} />)}</ul>)
           : q ? <p className="an-card px-5 py-8 text-center text-[15px] text-[var(--an-muted)]">Nothing matched “{q}”.</p>
             : <EmptyNotes ctx={ctx} />}
       </section>

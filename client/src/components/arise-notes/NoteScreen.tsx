@@ -2,6 +2,7 @@
 // time to hear that moment, edit any line, rename speakers), and the tools (a parent-friendly email,
 // translation, flashcards and a quiz). Share and export are in the share sheet.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { LookNoteTitle, activeLook } from "./looks";
 import { NoteTypeIcon } from "./NoteIcon";
 import { CalendarPlus, Check, ChevronDown, Lock, MoreHorizontal, Pause, Pencil, Play, RefreshCw, Search, Share2, Sparkles, Star, Volume2, X } from "lucide-react";
 import { NOTES_PLANS, fmtClock, speakerName, templateOf, type NoteSummary, type NotesTemplateId, type Timed } from "@shared/ariseNotes";
@@ -61,6 +62,7 @@ export default function NoteScreen({ ctx, id, at }: { ctx: AppCtx; id: string; a
   const pending = note.pieces.filter((p) => p.state === "no_minutes" || p.state === "failed");
   const outOf = note.pieces.some((p) => p.state === "no_minutes");
   const t = templateOf(note.template);
+  const look = activeLook(me.settings);
 
   return <>
     <TopBar ctx={ctx} back={() => ctx.go({ name: "home" })} title={<button type="button" className="max-w-full truncate text-left" onClick={() => note.mine && setSheet("title")} aria-label={`Title: ${note.title}. Rename`}>{note.title || "Untitled note"}</button>}
@@ -69,6 +71,7 @@ export default function NoteScreen({ ctx, id, at }: { ctx: AppCtx; id: string; a
         {note.mine && <IconBtn label="Note settings" onClick={() => setSheet("more")}><MoreHorizontal className="h-5 w-5" /></IconBtn>}
       </>} />
     <main className={`mx-auto max-w-3xl space-y-4 px-4 pt-4 sm:px-5 ${player.ready ? "pb-36" : "pb-24"}`}>
+      {look && <LookNoteTitle look={look} title={note.title || "Untitled note"} meta={`${longDate(note.createdAt)}${note.durationSecs > 0 ? ` · ${fmtClock(note.durationSecs)}` : ""}`} />}
       <div className="flex flex-wrap items-center gap-2 text-[13px] text-[var(--an-muted)]">
         <span>{longDate(note.createdAt)}</span>
         {note.durationSecs > 0 && <span>· {fmtClock(note.durationSecs)}</span>}
