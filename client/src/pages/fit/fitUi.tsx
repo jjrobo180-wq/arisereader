@@ -203,7 +203,7 @@ export function Title({ children, right }: { children: ReactNode; right?: ReactN
 }
 
 export function Btn({ children, onClick, kind = "primary", className = "", disabled, testId, type = "button" }: { children: ReactNode; onClick?: () => void; kind?: "primary" | "ghost" | "soft" | "danger"; className?: string; disabled?: boolean; testId?: string; type?: "button" | "submit" }) {
-  const st = kind === "primary" ? { background: C.lime, color: "#0b0b0c" } : kind === "soft" ? { background: C.card2, color: C.text } : kind === "danger" ? { background: "rgba(255,77,77,.14)", color: C.red } : { background: "transparent", color: C.lime };
+  const st = kind === "primary" ? { background: C.lime, color: "var(--fit-on-accent)" } : kind === "soft" ? { background: C.card2, color: C.text } : kind === "danger" ? { background: "rgba(255,77,77,.14)", color: C.red } : { background: "transparent", color: C.lime };
   return <button type={type} onClick={onClick} disabled={disabled} data-testid={testId} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-[10px] px-5 text-[18px] uppercase tracking-[.04em] transition active:scale-[.97] disabled:opacity-40 ${className}`} style={{ ...st, fontFamily: display.fontFamily, fontWeight: 800 }}>{children}</button>;
 }
 
@@ -287,7 +287,7 @@ export function Sheet({ title, onClose, children, testId, right, inline }: { tit
 export function Chips<T extends string>({ items, value, onChange, label }: { items: { id: T; label: string }[]; value: T; onChange: (v: T) => void; label: string }) {
   return <div role="group" aria-label={label} className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
     {items.map((i) => <button key={i.id} type="button" onClick={() => onChange(i.id)} aria-pressed={value === i.id}
-      className="h-9 shrink-0 whitespace-nowrap rounded-[10px] px-3.5 text-[13px] font-semibold transition-colors duration-200" style={value === i.id ? { background: C.lime, color: "#0b0b0c" } : { background: C.card, color: C.text, boxShadow: `inset 0 0 0 1px ${C.line}` }}>{i.label}</button>)}
+      className="h-9 shrink-0 whitespace-nowrap rounded-[10px] px-3.5 text-[13px] font-semibold transition-colors duration-200" style={value === i.id ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card, color: C.text, boxShadow: `inset 0 0 0 1px ${C.line}` }}>{i.label}</button>)}
   </div>;
 }
 

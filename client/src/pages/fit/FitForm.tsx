@@ -121,7 +121,7 @@ export function FormCheck({ onClose, lift: startLift, onLog, logLabel }: { onClo
       <Title>Lift</Title>
       <Chips label="Lift" value={lift} onChange={setLift} items={(Object.keys(LIFTS) as FormLift[]).map((k) => ({ id: k, label: LIFTS[k].name }))} />
       <Card className="mt-3 !p-4"><p className="text-[12px] tracking-[.14em]" style={{ ...display, fontWeight: 700, color: C.lime }}>Setup</p><p className="mt-1 text-[15px]">{rule.setup}</p></Card>
-      <div className="mt-3 grid grid-cols-2 gap-2">{(["user", "environment"] as const).map((f) => <button key={f} type="button" onClick={() => setFacing(f)} aria-pressed={facing === f} className="h-11 rounded-[10px] text-[14px] font-semibold" style={facing === f ? { background: C.lime, color: "#0b0b0c" } : { background: C.card }}>{f === "user" ? "Front camera" : "Back camera"}</button>)}</div>
+      <div className="mt-3 grid grid-cols-2 gap-2">{(["user", "environment"] as const).map((f) => <button key={f} type="button" onClick={() => setFacing(f)} aria-pressed={facing === f} className="h-11 rounded-[10px] text-[14px] font-semibold" style={facing === f ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card }}>{f === "user" ? "Front camera" : "Back camera"}</button>)}</div>
       <Btn className="mt-4 w-full" onClick={() => setOn(true)} testId="fit-form-start"><Camera className="h-5 w-5" />Start form check</Btn>
       <p className="mt-4 text-[11px] leading-relaxed" style={{ color: C.dim }}>Uses Google's MediaPipe pose model on your phone. Video never leaves your device.</p>
     </>}
