@@ -43,6 +43,7 @@ export function LookHomeHero({ look, a }: { look: NotesTheme; a: HomeActions }) 
       case "gazette": return <><header className="an-l-masthead"><h1>The Arise Notes</h1><p>{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p></header>{rec("Start a new story: Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
       case "punch": return <><h1>ARISE NOTES</h1>{rec("RECORD")}<Secondary a={a} labels={["UPLOAD", "MEMO", "ASK"]} /></>;
       case "chatline": return <><h1>Ask your notes</h1><button type="button" className="an-l-bubble-me" onClick={a.ask} data-testid="notes-ask-bar">What did I promise Maya’s mom?</button><div className="an-l-chatbar"><button type="button" onClick={a.ask}>Ask anything</button>{rec("Record")}</div><Secondary a={a} ask={false} /></>;
+      case "tide": return <><div className="an-l-tidedate"><b>{new Date().getDate()}</b><span>{new Date().toLocaleDateString(undefined, { weekday: "long" })}<br />{new Date().toLocaleDateString(undefined, { month: "long" })}</span></div>{rec("Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
       case "deck": return <><h1>Your deck</h1>{rec("Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
       default: return null;
     }

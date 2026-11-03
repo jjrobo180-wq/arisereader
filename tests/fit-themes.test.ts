@@ -9,8 +9,8 @@ const UI = readFileSync(new URL("../client/src/pages/fit/fitUi.tsx", import.meta
 const lum = (h: string) => { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((x) => (x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
 const contrast = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
 
-test("nine color themes, Ember (the original orange) first", () => {
-  assert.deepEqual(PALETTE_IDS, ["ember", "volt", "ocean", "aqua", "berry", "violet", "gold", "crimson", "mono"]);
+test("ten color themes, Ember (the original orange) first", () => {
+  assert.deepEqual(PALETTE_IDS, ["ember", "volt", "ocean", "aqua", "berry", "violet", "gold", "crimson", "tide", "mono"]);
   assert.equal(PALETTES.ember.light[0], "#ff5a1f");
   assert.equal(PALETTES.ember.dark[0], "#ff5a1f");
 });

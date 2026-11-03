@@ -1,6 +1,6 @@
 // Arise Duo's looks as their own operating systems: each has its own navigation, Home, calendar and
 // tasks screens, all on the same real data. Other apps open inside it with its dock (LookDock).
-import { useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { themeVars, type NotesTheme } from "@shared/notesThemes";
 import { LookTaskList, type AgendaDay, type LookTask } from "@/components/HubLook";
 import { LockedApp, useLock } from "@/components/lock/PrivacyLock";
@@ -72,6 +72,7 @@ function CalendarWidget({ look, days, go, big }: { look: NotesTheme; days: Agend
       case "grove": return <p className="los-prose">{items(today).length ? <>Today you have <b>{items(today).map((x) => x.title).slice(0, 3).join(", ")}</b>.</> : "Nothing is planned today."} {busy[1] && <>Then, on {busy[1].weekday}, <b>{items(busy[1])[0].title}</b>.</>}</p>;
       case "gazette": return busy.length ? <div className="los-listings">{busy.slice(0, big ? 8 : 4).map((d) => <p key={d.date}><b>{d.weekday}, {d.month} {d.day}.</b> {items(d).map((x) => x.title).join("; ")}.</p>)}</div> : none;
       case "chatline": return <div className="los-bubbles"><p>{busy.length ? `Next up: ${items(busy[0])[0].title}, ${busy[0].weekday} ${busy[0].day}.` : "Your calendar is clear."}</p>{busy[1] && <p>After that: {items(busy[1])[0].title}.</p>}</div>;
+      case "tide": { const first = new Date(`${today.date}T12:00:00`); const blanks = new Date(first.getFullYear(), first.getMonth(), 1).getDay(); const total = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate(); const count = new Map(days.filter((d) => d.month === today.month).map((d) => [Number(d.day), items(d).length])); return <div className="los-depth"><b>{first.toLocaleDateString(undefined, { month: "long" })}</b><div>{Array.from({ length: blanks }, (_, i) => <i key={`b${i}`} />)}{Array.from({ length: total }, (_, i) => { const n = count.get(i + 1) ?? 0; return <span key={i} data-on={i + 1 === Number(today.day) || undefined}><em style={{ height: `${Math.min(n, 4) * 25}%` }} /><small>{i + 1}</small></span>; })}</div></div>; }
       case "deck": return <div className="los-datecard"><b>{today.day}</b><small>{today.weekday}, {today.month}</small>{items(today).slice(0, limit).map((x) => <Item key={x.id} x={x} />)}</div>;
       default: return none;
     }
@@ -79,6 +80,35 @@ function CalendarWidget({ look, days, go, big }: { look: NotesTheme; days: Agend
   return <button type="button" className={`los-cal los-cal-${look.id}`} onClick={go} data-testid="los-calendar">{body}</button>;
 }
 function asciiWeek(week: AgendaDay[]) { const pad = new Date(`${week[0].date}T12:00:00`).getDay(); return ("   ".repeat(pad) + week.slice(0, 7 - pad).map((d, i) => (i === 0 ? `[${d.day}]` : d.day.padStart(2))).join(" ")); }
+
+// Tide: every day in a running list against a gauge, and a marker of how far ahead you've scrolled.
+const TICKS = ["#ffcf4a", "#ff8a6b", "#7ff0c8", "#bfeaf3"];
+const tickOf = (s: string) => TICKS[Array.from(s).reduce((n, c) => n + c.charCodeAt(0), 0) % TICKS.length];
+const aheadWords = (i: number) => { const w = Math.floor(i / 7); return w === 0 ? "This week" : w === 1 ? "Next week" : `In ${w} weeks`; };
+function TideAgenda({ days, go }: { days: AgendaDay[]; go: () => void }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [mark, setMark] = useState("");
+  useEffect(() => {
+    const scroller = box.current?.closest(".los-body");
+    if (!scroller) return;
+    let hide = 0;
+    const on = () => {
+      const middle = window.innerHeight / 2;
+      const rows = Array.from(box.current?.children ?? []) as HTMLElement[];
+      const at = rows.findIndex((r) => r.getBoundingClientRect().bottom >= middle);
+      if (at < 0 || rows[at].getBoundingClientRect().top > middle) return;
+      setMark(aheadWords(at));
+      window.clearTimeout(hide);
+      hide = window.setTimeout(() => setMark(""), 700);
+    };
+    scroller.addEventListener("scroll", on, { passive: true });
+    return () => { scroller.removeEventListener("scroll", on); window.clearTimeout(hide); };
+  }, []);
+  return <><div ref={box} className="los-tide-days">{days.map((d) => <button type="button" key={d.date} onClick={go} data-empty={!d.items.length || undefined}>
+    <span className="los-tide-list">{d.items.map((x) => <span key={x.id}><i style={{ background: tickOf(x.title) }} /><b>{x.title}</b>{x.time && <small>{x.time}</small>}</span>)}</span>
+    <span className="los-tide-gauge"><small>{d.day === "1" ? d.month : d.weekday}</small><b>{d.day}</b></span>
+  </button>)}</div>{mark && <div className="los-tide-mark" aria-hidden>{mark}</div>}</>;
+}
 
 function NotesWidget({ notes, go, count = 3 }: { notes: OsProps["notes"]; go: () => void; count?: number }) {
   return <button type="button" className="los-noteswidget" onClick={go}>{notes.length ? notes.slice(0, count).map((n) => <span key={n.id}><b>{n.title || "Untitled"}</b><small>{n.locked ? "Locked" : n.body.split("\n")[0]}</small></span>) : <span><b>No notes yet</b><small>Tap to write one</small></span>}</button>;
@@ -108,6 +138,7 @@ function Home(p: OsProps) {
     case "punch": return <div className="los-stickers"><h1>{hi.toUpperCase()}{first.toUpperCase()}!</h1><div className="los-bigbtns"><button type="button" onClick={() => p.go("tasks")}><b>{open.length}</b>TASKS</button><button type="button" onClick={() => p.go("calendar")}><b>{p.days[0]?.items.length ?? 0}</b>TODAY</button><button type="button" onClick={() => p.go("notes")}><b>{p.notes.length}</b>NOTES</button><button type="button" onClick={p.openApps}><b>+</b>APPS</button></div>{cal}{list}</div>;
     case "chatline": return <Chat {...p} greeting={`${hi}${first}. You have ${open.length} task${open.length === 1 ? "" : "s"} open.`} />;
     case "deck": return <Cards {...p} />;
+    case "tide": return <><header className="los-tide-hero"><b>{p.days[0]?.day ?? new Date().getDate()}</b><span>{p.dateLabel}<small>{open.length ? `${open.length} open` : "All clear"}</small></span></header><div className="los-pad">{open.length > 0 && <LookTaskList look={p.look} tasks={open.slice(0, 3)} onToggle={p.toggle} onOpen={p.openTask} />}<NotesWidget notes={p.notes} go={() => p.go("notes")} count={2} /></div><TideAgenda days={p.days} go={() => p.go("calendar")} /></>;
     default: return null;
   }
 }
@@ -154,7 +185,7 @@ export function LookOS(p0: OsProps) {
       {p.look.id === "gazette" && p.screen !== "home" && <div className="los-paper"><header><h1>The Daily Duo</h1><small>{p.dateLabel}</small></header></div>}
       {p.screen === "home" && <><Home {...p} />{p.banner && <div className="los-banner">{p.banner}</div>}</>}
       {p.screen === "tasks" && <LockedApp locked={locked("tasks")} name="Tasks">{taskScreen}</LockedApp>}
-      {p.screen === "calendar" && <div className="los-pad"><header className="los-title"><h1>Calendar</h1></header><CalendarWidget look={p.look} days={p.days} go={() => {}} big /><div className="los-app">{p.content}</div></div>}
+      {p.screen === "calendar" && <div className="los-pad"><header className="los-title"><h1>Calendar</h1></header><CalendarWidget look={p.look} days={p.days} go={() => {}} big />{p.look.id === "tide" && <TideAgenda days={p.days.slice(0, 14)} go={() => {}} />}<div className="los-app">{p.content}</div></div>}
       {p.screen === "notes" && <div className="los-pad"><div className="los-app">{p.content}</div></div>}
     </div>
     <LookDock look={p.look} screen={p.screen} go={p.go} openApps={p.openApps} add={p.add} you={p.onYou} off={p.off} initial={(p.name || "Y").charAt(0).toUpperCase()} />

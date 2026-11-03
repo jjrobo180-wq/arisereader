@@ -10,7 +10,7 @@ import { NOTES_THEMES, type NotesTheme } from "./notesThemes";
 
 export type HubThemeId =
   | "classic" | "tile" | "crt"
-  | "studio" | "margin" | "bloom" | "timeline" | "console" | "swiss" | "cassette" | "frost" | "grove" | "gazette" | "punch" | "chatline" | "deck";
+  | "studio" | "margin" | "bloom" | "timeline" | "console" | "swiss" | "cassette" | "frost" | "grove" | "gazette" | "punch" | "chatline" | "deck" | "tide";
 
 export type HubTheme = {
   id: HubThemeId;

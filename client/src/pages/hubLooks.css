@@ -276,3 +276,7 @@ html[data-hub-look] .hub-notif [class*="text-slate"], html[data-hub-look] .hub-n
 html[data-hub-look] [data-testid="hub-todo-switch"] { background: var(--an-card) !important; --tw-ring-color: var(--an-line) !important; border-radius: var(--an-radius) !important; box-shadow: var(--an-shadow, none) !important; }
 html[data-hub-look] [data-testid="hub-todo-switch"] a { background: transparent !important; color: var(--an-ink) !important; border-radius: calc(var(--an-radius) * .7) !important; }
 html[data-hub-look] [data-testid="hub-todo-switch"] a[aria-current="page"] { background: var(--an-violet) !important; color: var(--an-on-accent) !important; }
+
+.lk-tasks-tide .lk-row { border-left: 4px solid var(--an-violet); border-bottom: 1px solid var(--an-line); padding-left: .6rem; }
+.hub-theme-tide [data-testid$="tab-bar"] { border-radius: 14px; }
+.lk-tasks-tide small { color: var(--an-ink) !important; }

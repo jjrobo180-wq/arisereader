@@ -3,7 +3,7 @@
 // Each theme has an accent for Light and one for Dark (Light's is deeper so it reads on white), and the
 // text color that sits on it. The glow, the soft tint, the deep end of gradients and the see-through
 // versions are worked out from the accent, so every theme looks finished in both modes.
-export type PaletteId = "ember" | "volt" | "ocean" | "aqua" | "berry" | "violet" | "gold" | "crimson" | "mono";
+export type PaletteId = "ember" | "volt" | "ocean" | "aqua" | "berry" | "violet" | "gold" | "crimson" | "mono" | "tide";
 type Pal = { name: string; light: [accent: string, on: string]; dark: [accent: string, on: string] };
 export const PALETTES: Record<PaletteId, Pal> = {
   ember: { name: "Ember", light: ["#ff5a1f", "#0b0b0c"], dark: ["#ff5a1f", "#0b0b0c"] },
@@ -14,6 +14,7 @@ export const PALETTES: Record<PaletteId, Pal> = {
   violet: { name: "Violet", light: ["#7c3aed", "#ffffff"], dark: ["#a98bff", "#0b0b0c"] },
   gold: { name: "Gold", light: ["#c28400", "#0b0b0c"], dark: ["#ffc83d", "#0b0b0c"] },
   crimson: { name: "Crimson", light: ["#dc2626", "#ffffff"], dark: ["#ff5757", "#0b0b0c"] },
+  tide: { name: "Tide", light: ["#0b6e80", "#ffffff"], dark: ["#ffcf4a", "#08303a"] },
   mono: { name: "Mono", light: ["#15171b", "#ffffff"], dark: ["#f4f3ef", "#111318"] },
 };
 export const PALETTE_IDS = Object.keys(PALETTES) as PaletteId[];
@@ -24,6 +25,11 @@ export const mix = (a: string, b: string, t: number) => { const x = hexRgb(a), y
 export function paletteTokens(id: PaletteId, mode: "light" | "dark", black = false): Record<string, string> {
   const [accent, on] = PALETTES[id][mode];
   const rgb = hexRgb(accent).join(",");
+  // Tide tints the whole app, not just its accent.
+  if (id === "tide" && mode === "light") return { accent, "on-accent": on, "accent-rgb": rgb, "accent-deep": mix(accent, "#000000", 0.32), "accent-hi": mix(accent, "#ffffff", 0.28), bg: "#e6f4f7", card2: "#d6ebef",
+    glow: "linear-gradient(180deg, #7fd0dc 0%, #e6f4f7 36%)", "ember-soft": "#d6ebef", tint: `rgba(${rgb},.12)`, "glow-tint": "#7fd0dc" };
+  if (id === "tide" && !black) return { accent, "on-accent": on, "accent-rgb": rgb, "accent-deep": mix(accent, "#000000", 0.4), "accent-hi": mix(accent, "#ffffff", 0.22), bg: "#06161c", card: "#0c242c", "card-bg": "linear-gradient(180deg, #113039, #0c242c)", card2: "#12333d", line: "rgba(190,235,245,.16)", track: "rgba(190,235,245,.16)", nav: "rgba(12,36,44,.95)", gap: "#0c242c", body: "#12333d", muscle: "#1e4753",
+    glow: "linear-gradient(180deg, #0b4f5e 0%, #06161c 42%)", "ember-soft": "#12333d", tint: `rgba(${rgb},.16)`, "glow-tint": "#0b4f5e" };
   if (mode === "light") {
     // Ember keeps its exact original peach glow.
     const glow = id === "ember" ? "#ffe2d3" : mix(accent, "#f2f2f4", 0.82);
