@@ -2,6 +2,7 @@
 // Run with: npx tsx --test tests/notes-themes.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { NOTES_THEMES, cleanSettings, themeOf } from "../shared/ariseNotes";
 
 const lum = (hex: string) => {
@@ -20,4 +21,11 @@ test("a saved look is kept, and anything else means Classic", () => {
   assert.equal(cleanSettings({ theme: "nope" }).theme, "classic");
   assert.equal(cleanSettings({}).theme, "classic");
   assert.equal(themeOf("nope").id, "classic");
+});
+test("the areas around the page follow the look on the iPhone", () => {
+  const app = readFileSync(new URL("../client/src/components/arise-notes/NotesApp.tsx", import.meta.url), "utf8");
+  assert.match(app, /"setBackdrop", \{ color: backdrop \}/);
+  assert.match(app, /"StatusBar", "setStyle"/);
+  const swift = readFileSync(new URL("../notes/ios-app/plugins/arise-on-device/ios/Sources/AriseOnDevicePlugin/AriseOnDevicePlugin.swift", import.meta.url), "utf8");
+  assert.match(swift, /CAPPluginMethod\(name: "setBackdrop"/);
 });
