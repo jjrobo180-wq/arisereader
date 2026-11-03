@@ -10,6 +10,7 @@
 //   assignments and live games. Teachers see only their own students; parents only their linked children.
 // - Math points are separate from reading points, so they don't change reading competitions or prizes.
 // Tables: migrations/arise_math.sql.
+import { curriculumForStaff, curriculumLesson, curriculumQuiz } from "../shared/ariseMathCurriculum";
 import type { Express, RequestHandler } from "express";
 import { randomUUID } from "node:crypto";
 import { createAttemptLimiter } from "./attemptLimiter";
@@ -398,6 +399,7 @@ export function registerAriseMathRoutes(app: Express, auth: RequestHandler, deps
     const shown = it.done ? it.steps.length : Math.min(it.hints, it.steps.length);
     return {
       skill: it.skill, ask: it.ask, prompt: it.prompt, viz: it.viz, long: it.long, kind: it.kind, choices: it.choices,
+      topic: (it as any).topic ?? null, videos: (it as any).videos ?? [],
       tries: it.tries, hints: it.hints, done: it.done, result: it.result, wrong: it.wrong,
       steps: it.steps.slice(0, shown), stepsTotal: it.steps.length, answer: it.done ? String(it.answer) : null, answerLabel: it.done ? answerLabel(it) : null,
     };
@@ -412,7 +414,8 @@ export function registerAriseMathRoutes(app: Express, auth: RequestHandler, deps
 
   app.post("/api/math/quizzes", auth, handle(async (req, res) => {
     const v = await viewer(req);
-    if (v.role !== "student") return res.status(403).json({ message: "Quizzes are for student accounts." });
+    // A teacher can try a curriculum quiz before assigning it. Every other quiz is for students.
+    if (v.role !== "student" && !(isStaff(v) && req.body?.type === "curriculum")) return res.status(403).json({ message: "Quizzes are for student accounts." });
     if (quizzesToday.retryAfter(String(v.id))) return res.status(429).json({ message: "That’s a lot of math for one day! Come back tomorrow for more quizzes." });
     const b = req.body || {};
     const p = profileNow(await store.getProfile(v.id), now());
@@ -433,12 +436,18 @@ export function registerAriseMathRoutes(app: Express, auth: RequestHandler, deps
     } else if (b.type === "mixed") {
       const band = isBand(b.band) ? b.band : bandFor(p, v);
       kind = "mixed"; title = "Mixed review"; items = mixed(band, 5);
+    } else if (b.type === "curriculum") {
+      const lesson = curriculumLesson(b.lesson);
+      if (!lesson) return res.status(404).json({ message: "That lesson isn’t here." });
+      kind = "skill"; skill = lesson.id; title = lesson.title;
+      items = curriculumQuiz(lesson, (LIMITS.quizLength as readonly number[]).includes(Number(b.n)) ? Number(b.n) : 5, random);
     } else if (b.type === "assign") {
       const a = await store.getAssignment(String(b.assignmentId || ""));
       if (!a || !v.hasClass || a.teacher_id !== v.teacherId) return res.status(404).json({ message: "That assignment isn’t for your class." });
       kind = "assign"; assignmentId = a.id; title = a.title; skill = a.skill;
       if (a.skill === "custom") items = Array.from({ length: a.n }, (_, i) => customProblem(a.questions[i % a.questions.length], random));
       else if (a.skill === "mixed") items = mixed(a.band, a.n);
+      else if (curriculumLesson(a.skill)) items = curriculumQuiz(curriculumLesson(a.skill)!, a.n, random);
       else if (isSkill(a.skill)) items = Array.from({ length: a.n }, () => makeProblem(a.skill as SkillId, random));
       if (!items.length) return res.status(400).json({ message: "That assignment has no questions yet." });
     } else return res.status(400).json({ message: "Pick a quiz." });
@@ -615,6 +624,11 @@ export function registerAriseMathRoutes(app: Express, auth: RequestHandler, deps
   }));
 
   /* ---------- assignments */
+  app.get("/api/math/curriculum", auth, handle(async (req, res) => {
+    if (!isStaff(await viewer(req))) return res.status(403).json({ message: "Teachers only." });
+    res.json({ lessons: curriculumForStaff() });
+  }));
+
   const assignmentOut = (a: AssignmentRow) => ({ id: a.id, skill: a.skill, n: a.n, due: a.due, title: a.title, band: a.band, questions: a.skill === "custom" ? a.questions.length : 0, createdAt: a.created_at });
 
   app.get("/api/math/assignments", auth, handle(async (req, res) => {
@@ -646,6 +660,7 @@ export function registerAriseMathRoutes(app: Express, auth: RequestHandler, deps
     let title: string, questions: CustomQuestion[] = [];
     if (isSkill(b.skill)) title = SKILLS[b.skill as SkillId].name;
     else if (b.skill === "mixed") title = "Mixed review";
+    else if (curriculumLesson(b.skill)) { const l = curriculumLesson(b.skill)!; title = `Grade ${l.grade}, Unit ${l.unit}, Lesson ${l.lesson}: ${l.title}`; }
     else if (b.skill === "custom") {
       questions = (Array.isArray(b.questions) ? b.questions : []).slice(0, LIMITS.customPerAssignment).map(cleanCustom).filter((q: CustomQuestion | null): q is CustomQuestion => !!q);
       if (!questions.length) return res.status(400).json({ message: "Add at least one question with a number answer." });
