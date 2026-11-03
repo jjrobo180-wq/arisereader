@@ -171,7 +171,7 @@ function WeekStrip({ data, streak: s }: { data: FitData; streak: number }) {
       const k = dayKey(d), on = trained.has(k), today = k === dayKey(now), future = d > now && !today;
       return <div key={k} className="flex flex-col items-center gap-1" style={stagger(i, 0.03)}>
         <span className="text-[11px] font-semibold" style={{ color: today ? C.lime : C.dim }}>{d.toLocaleDateString(undefined, { weekday: "narrow" })}</span>
-        <span className={`grid h-9 w-9 place-items-center rounded-full text-[14px] ${on ? "fit-pop" : ""}`} style={{ ...display, ...(on ? { background: C.lime, color: "#0b0b0c" } : today ? { boxShadow: `inset 0 0 0 2px ${C.lime}`, color: C.text } : { background: C.card2, color: future ? C.dim : C.text, opacity: future ? 0.6 : 1 }) }}>{on ? <Check className="h-4 w-4" strokeWidth={3} /> : d.getDate()}</span>
+        <span className={`grid h-9 w-9 place-items-center rounded-full text-[14px] ${on ? "fit-pop" : ""}`} style={{ ...display, ...(on ? { background: C.lime, color: "var(--fit-on-accent)" } : today ? { boxShadow: `inset 0 0 0 2px ${C.lime}`, color: C.text } : { background: C.card2, color: future ? C.dim : C.text, opacity: future ? 0.6 : 1 }) }}>{on ? <Check className="h-4 w-4" strokeWidth={3} /> : d.getDate()}</span>
       </div>;
     })}</div>
   </Card>;
@@ -240,7 +240,7 @@ function SettingsSheet({ data, update, onClose, onGoals, onTour, onAccount, onSi
     {sheet === "health" && <HealthSheet data={data} update={update} onClose={() => setSheet("")} />}
     {sheet === "reminders" && <RemindersSheet onClose={() => setSheet("")} />}
     <Title>Measurements</Title>
-    <div className="grid grid-cols-2 gap-2" data-testid="fit-units">{(["lb", "kg"] as const).map((v) => <button key={v} type="button" onClick={() => update((d) => ({ ...d, profile: { ...d.profile, units: v } }))} aria-pressed={data.profile.units === v} className="rounded-[12px] p-3 text-left" style={data.profile.units === v ? { background: C.lime, color: "#0b0b0c" } : { background: C.card }}>
+    <div className="grid grid-cols-2 gap-2" data-testid="fit-units">{(["lb", "kg"] as const).map((v) => <button key={v} type="button" onClick={() => update((d) => ({ ...d, profile: { ...d.profile, units: v } }))} aria-pressed={data.profile.units === v} className="rounded-[12px] p-3 text-left" style={data.profile.units === v ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card }}>
       <span className="block text-[20px] leading-none" style={display}>{v === "lb" ? "US" : "Metric"}</span><span className="mt-1 block text-[12px] font-semibold">{v === "lb" ? "lb · miles · ft/in · oz" : "kg · km · cm · liters"}</span></button>)}</div>
     <p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>Weights, distances, height and water all switch. Weights you've already logged keep the numbers you typed.</p>
     <Title>Account</Title>
@@ -253,7 +253,7 @@ function SettingsSheet({ data, update, onClose, onGoals, onTour, onAccount, onSi
 /** Today's header: the Fit+ crown (filled when you have it). */
 function PlusButton() {
   const { plus, ask } = usePlus();
-  return <button type="button" onClick={() => ask()} aria-label={plus ? "Arise Fit+" : "Get Arise Fit+"} className="grid h-11 w-11 place-items-center rounded-full" style={plus ? { background: C.lime, color: "#0b0b0c" } : { background: C.card, boxShadow: cardStyle.boxShadow }} data-testid="fit-open-plus"><Crown className="h-5 w-5" /></button>;
+  return <button type="button" onClick={() => ask()} aria-label={plus ? "Arise Fit+" : "Get Arise Fit+"} className="grid h-11 w-11 place-items-center rounded-full" style={plus ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card, boxShadow: cardStyle.boxShadow }} data-testid="fit-open-plus"><Crown className="h-5 w-5" /></button>;
 }
 function PlusRow() {
   const { plus, status, ask } = usePlus();
@@ -342,7 +342,7 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
     </main>
     <nav aria-label="Arise Fit" className="fixed inset-x-3 z-[40] mx-auto flex max-w-md items-center rounded-[14px] p-1.5" style={{ bottom: "max(12px, env(safe-area-inset-bottom))", background: C.nav, backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", boxShadow: `${C.navShadow}, inset 0 0 0 1px ${C.navBorder}` }}>
       {/* The highlight slides under the tab you pick. */}
-      <span aria-hidden className="absolute bottom-1.5 top-1.5 rounded-[10px]" style={{ width: `calc((100% - 12px) / ${tabs.length})`, left: `calc(6px + ${at} * (100% - 12px) / ${tabs.length})`, background: "linear-gradient(180deg, rgba(255,90,31,.24), rgba(255,90,31,.08))", boxShadow: "inset 0 -2px 0 #ff5a1f", transition: "left .35s cubic-bezier(.2,.9,.2,1)" }} />
+      <span aria-hidden className="absolute bottom-1.5 top-1.5 rounded-[10px]" style={{ width: `calc((100% - 12px) / ${tabs.length})`, left: `calc(6px + ${at} * (100% - 12px) / ${tabs.length})`, background: "linear-gradient(180deg, rgba(var(--fit-accent-rgb),.24), rgba(var(--fit-accent-rgb),.08))", boxShadow: "inset 0 -2px 0 var(--fit-accent)", transition: "left .35s cubic-bezier(.2,.9,.2,1)" }} />
       {tabs.map(([id, label, Icon]) => <button key={id} type="button" onClick={() => go(id)} aria-current={tab === id ? "page" : undefined} data-testid={`fit-tab-${id}`}
         className="relative flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 rounded-[10px] text-[12px] uppercase tracking-[.08em] transition-colors duration-200" style={{ fontFamily: display.fontFamily, fontWeight: 800, color: tab === id ? C.lime : C.dim }}>
         <Icon className="h-[22px] w-[22px]" />{label}</button>)}

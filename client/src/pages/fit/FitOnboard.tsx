@@ -58,16 +58,16 @@ const ONB_CSS = `
 function Choice({ on, onClick, title, sub, icon, testId }: { on: boolean; onClick: () => void; title: string; sub?: string; icon?: ReactNode; testId?: string }) {
   return <button type="button" onClick={() => { haptic("light"); onClick(); }} aria-pressed={on} data-testid={testId}
     className="flex w-full items-center gap-3 rounded-[14px] p-3.5 text-left transition-transform active:scale-[.985]"
-    style={on ? { background: "linear-gradient(180deg, rgba(255,90,31,.22), rgba(255,90,31,.08))", boxShadow: `inset 0 0 0 2px ${C.lime}` } : { background: C.card, boxShadow: `inset 0 0 0 1px ${C.line}` }}>
-    {icon && <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px]" style={{ background: on ? C.lime : C.card2, color: on ? "#0b0b0c" : C.text }}>{icon}</span>}
+    style={on ? { background: "linear-gradient(180deg, rgba(var(--fit-accent-rgb),.22), rgba(var(--fit-accent-rgb),.08))", boxShadow: `inset 0 0 0 2px ${C.lime}` } : { background: C.card, boxShadow: `inset 0 0 0 1px ${C.line}` }}>
+    {icon && <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px]" style={{ background: on ? C.lime : C.card2, color: on ? "var(--fit-on-accent)" : C.text }}>{icon}</span>}
     <span className="min-w-0 flex-1"><span className="block text-[17px] font-bold leading-tight">{title}</span>{sub && <span className="mt-0.5 block text-[13px] leading-snug" style={{ color: C.dim }}>{sub}</span>}</span>
-    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full transition-all" style={on ? { background: C.lime, color: "#0b0b0c" } : { boxShadow: `inset 0 0 0 2px ${C.line}` }}>{on && <Check className="h-4 w-4" strokeWidth={3} />}</span>
+    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full transition-all" style={on ? { background: C.lime, color: "var(--fit-on-accent)" } : { boxShadow: `inset 0 0 0 2px ${C.line}` }}>{on && <Check className="h-4 w-4" strokeWidth={3} />}</span>
   </button>;
 }
 
 const Seg = <T extends string>({ items, value, onChange, testId }: { items: readonly (readonly [T, string])[]; value: T; onChange: (v: T) => void; testId?: string }) =>
   <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }} data-testid={testId}>
-    {items.map(([v, l]) => <button key={v} type="button" aria-pressed={value === v} onClick={() => { haptic("light"); onChange(v); }} className="h-12 rounded-[12px] px-2 text-[15px] font-bold transition-transform active:scale-95" style={value === v ? { background: C.lime, color: "#0b0b0c" } : { background: C.card, color: C.text, boxShadow: `inset 0 0 0 1px ${C.line}` }}>{l}</button>)}
+    {items.map(([v, l]) => <button key={v} type="button" aria-pressed={value === v} onClick={() => { haptic("light"); onChange(v); }} className="h-12 rounded-[12px] px-2 text-[15px] font-bold transition-transform active:scale-95" style={value === v ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card, color: C.text, boxShadow: `inset 0 0 0 1px ${C.line}` }}>{l}</button>)}
   </div>;
 
 const Label = ({ children }: { children: ReactNode }) => <span className="mb-1.5 block text-[13px] font-semibold" style={{ color: C.dim }}>{children}</span>;
@@ -227,7 +227,7 @@ function Welcome() {
     <div className="relative grid h-44 w-44 place-items-center">
       <span className="ob-pulse absolute inset-0 rounded-full" style={{ background: C.lime, opacity: 0.25 }} />
       <span className="ob-pulse absolute inset-0 rounded-full" style={{ background: C.lime, opacity: 0.25, animationDelay: "1.2s" }} />
-      <span className="ob-pop relative"><span className="ob-float grid h-28 w-28 place-items-center rounded-[32px]" style={{ background: `linear-gradient(145deg, ${C.lime}, #ff8a3d)`, boxShadow: "0 24px 50px -16px rgba(255,90,31,.8)" }}><Dumbbell className="h-14 w-14" style={{ color: "#0b0b0c" }} /></span></span>
+      <span className="ob-pop relative"><span className="ob-float grid h-28 w-28 place-items-center rounded-[32px]" style={{ background: `linear-gradient(145deg, ${C.lime}, var(--fit-accent-hi))`, boxShadow: "0 24px 50px -16px rgba(var(--fit-accent-rgb),.8)" }}><Dumbbell className="h-14 w-14" style={{ color: "var(--fit-on-accent)" }} /></span></span>
     </div>
     <h1 className="mt-8 text-[54px] leading-[.9]" style={display}>Welcome to<br /><span style={{ color: C.lime }}>Arise Fit</span></h1>
   </div>;
@@ -274,7 +274,7 @@ function Access({ update }: { update: Update }) {
   const row = (icon: ReactNode, t: string, s: string, st: Perm, go: () => void, id: string) => <div className="flex items-center gap-3 rounded-[14px] p-3.5" style={{ background: C.card }}>
     <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px]" style={{ background: C.card2 }}>{icon}</span>
     <span className="min-w-0 flex-1"><span className="block text-[16px] font-bold leading-tight">{t}</span><span className="mt-0.5 block text-[13px] leading-snug" style={{ color: C.dim }}>{s}</span></span>
-    <button type="button" onClick={go} disabled={!native || st === "busy" || st === "ok"} className="h-10 shrink-0 rounded-full px-4 text-[14px] font-bold disabled:opacity-60" style={st === "ok" ? { background: C.green, color: "#fff" } : { background: C.lime, color: "#0b0b0c" }} data-testid={`fit-allow-${id}`}>{st === "ok" ? "On" : st === "busy" ? "…" : st === "err" ? "Retry" : "Allow"}</button>
+    <button type="button" onClick={go} disabled={!native || st === "busy" || st === "ok"} className="h-10 shrink-0 rounded-full px-4 text-[14px] font-bold disabled:opacity-60" style={st === "ok" ? { background: C.green, color: "#fff" } : { background: C.lime, color: "var(--fit-on-accent)" }} data-testid={`fit-allow-${id}`}>{st === "ok" ? "On" : st === "busy" ? "…" : st === "err" ? "Retry" : "Allow"}</button>
   </div>;
   return <div className="mt-4 space-y-2.5">
     <p className="text-[14px]" style={{ color: C.dim }}>{native ? "Optional, and you can change any of these in iPhone Settings." : "These work in the Arise Fit iPhone app. You can skip them here."}</p>

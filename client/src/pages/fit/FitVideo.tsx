@@ -25,8 +25,8 @@ function Clip({ v, testId }: { v: FitVideo; testId: string }) {
       : <button type="button" onClick={() => setPlaying(true)} className="group absolute inset-0 text-left" aria-label={`Play: ${v.title}`} data-testid={`${testId}-play`}>
           <img src={videoThumb(v.id, "hq")} alt="" loading="lazy" className={`absolute inset-0 h-full w-full object-cover transition duration-500 group-active:scale-[1.02] ${v.short ? "scale-[1.9]" : "scale-[1.34]"}`} />
           <span aria-hidden className="absolute inset-0" style={{ background: "rgba(0,0,0,.18)" }} />
-          <span className="absolute left-1/2 top-1/2 grid h-16 w-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full shadow-[0_10px_30px_rgba(255,90,31,.35)] transition group-active:scale-95" style={{ background: C.lime }}>
-            <Play className="ml-1 h-7 w-7" fill="#0b0b0c" style={{ color: "#0b0b0c" }} />
+          <span className="absolute left-1/2 top-1/2 grid h-16 w-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full shadow-[0_10px_30px_rgba(var(--fit-accent-rgb),.35)] transition group-active:scale-95" style={{ background: C.lime }}>
+            <Play className="ml-1 h-7 w-7" style={{ color: C.ink, fill: C.ink }} />
           </span>
         </button>}
   </div>;

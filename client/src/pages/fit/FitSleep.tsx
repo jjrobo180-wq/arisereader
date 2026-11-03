@@ -90,7 +90,7 @@ export function SleepSheet({ data, update, onClose, say }: { data: FitData; upda
         <Field label="Went to bed"><input type="time" value={bed} onChange={(e) => setBed(e.target.value)} className={inputCls} style={inputStyle} /></Field>
         <Field label="Woke up"><input type="time" value={wake} onChange={(e) => setWake(e.target.value)} className={inputCls} style={inputStyle} /></Field></div>
         <p className="mt-3 text-[13px] font-semibold" style={{ color: C.dim }}>How rested do you feel? (optional)</p>
-        <div className="mt-1.5 grid grid-cols-5 gap-1.5">{[1, 2, 3, 4, 5].map((n) => <button key={n} type="button" onClick={() => setQ(q === n ? 0 : n)} aria-pressed={q === n} className="h-10 rounded-[10px] text-[15px] font-semibold" style={q === n ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2 }}>{n}</button>)}</div>
+        <div className="mt-1.5 grid grid-cols-5 gap-1.5">{[1, 2, 3, 4, 5].map((n) => <button key={n} type="button" onClick={() => setQ(q === n ? 0 : n)} aria-pressed={q === n} className="h-10 rounded-[10px] text-[15px] font-semibold" style={q === n ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card2 }}>{n}</button>)}</div>
         <Btn className="mt-4 w-full" onClick={logIt} testId="fit-sleep-log"><Check className="h-5 w-5" />Save night</Btn></Card></>}
 
     {sleep.nights.length > 0 && <><Title>History</Title>
