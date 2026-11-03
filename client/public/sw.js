@@ -30,8 +30,8 @@ self.addEventListener("push", (event) => {
   const title = data.title || "A.R.I.S.E.";
   const options = {
     body: data.body || "",
-    icon: "/icon-192.png",
-    badge: "/icon-192.png",
+    icon: /arisetodo\.com$/i.test(self.location.hostname) ? "/todo-icon-192.png" : "/icon-192.png",
+    badge: /arisetodo\.com$/i.test(self.location.hostname) ? "/todo-icon-192.png" : "/icon-192.png",
     tag: data.tag || undefined,
     data: { url: data.url || "/", snooze: data.snooze || null },
   };
