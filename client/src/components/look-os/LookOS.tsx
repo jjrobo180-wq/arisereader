@@ -14,6 +14,7 @@ export type OsProps = {
   notes: { id: string; title: string; body: string; locked?: boolean }[]; shortcuts: { id: string; label: string; onClick: () => void }[];
   /** The full Calendar or Notes app, for adding and editing. */
   content?: ReactNode; onYou: () => void;
+  /** The hub's name and its Work/Life switch, always at the top. */ hubName: string; hubSwitch: ReactNode;
   /** Shown at the bottom of Home: invitations and the hub's standing banner. */ banner?: ReactNode;
   /** Main apps turned off in the App Gallery, which leave the dock. */ off?: OsScreen[];
   /** Apps behind the passcode, whose details stay off Home until it is entered. */ lockedApps?: string[];
@@ -148,6 +149,7 @@ export function LookOS(p0: OsProps) {
   const shown = p.tasks.filter((t) => filter === "Done" ? t.done : !t.done && (filter === "Open" || (filter === "Today" ? t.late || t.due === p.days[0]?.date : t.listName === filter)));
   const taskScreen = <div className="los-pad"><header className="los-title"><h1>Tasks</h1></header><div className="los-filter" role="group" aria-label="Show">{chips.map((f) => <button key={f} type="button" aria-pressed={filter === f} onClick={() => setFilter(f)}>{f}</button>)}</div>{shown.length ? <LookTaskList look={p.look} tasks={shown} onToggle={p.toggle} onOpen={p.openTask} /> : <p className="los-none">Nothing here.</p>}</div>;
   return <div style={themeVars(p.look) as CSSProperties} className={`los los-${p.look.id}`} data-screen={p.screen} data-testid="look-os">
+    <header className="los-topbar"><b>{p.look.id === "console" ? `~/${p.hubName.toLowerCase()}` : p.hubName}</b>{p.hubSwitch}</header>
     <div className="los-body">
       {p.look.id === "gazette" && p.screen !== "home" && <div className="los-paper"><header><h1>The Daily Duo</h1><small>{p.dateLabel}</small></header></div>}
       {p.screen === "home" && <><Home {...p} />{p.banner && <div className="los-banner">{p.banner}</div>}</>}
