@@ -22,6 +22,8 @@
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+/* Content scrolling up stops at the status bar instead of sliding behind the clock. */
+.an-root::before { content: ""; position: fixed; inset: 0 0 auto; z-index: 25; height: env(safe-area-inset-top); background: var(--an-bg); pointer-events: none; }
 .an-root *:focus-visible { outline: 3px solid var(--an-violet); outline-offset: 2px; border-radius: 10px; }
 .an-card { background: var(--an-card); border: 1px solid var(--an-line); border-radius: 20px; }
 .an-btn { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-height: 2.75rem; padding: 0 1rem; border-radius: 14px; font-weight: 650; font-size: .925rem; transition: background .15s, transform .1s, box-shadow .15s; }
