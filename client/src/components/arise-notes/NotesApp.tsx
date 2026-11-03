@@ -6,7 +6,7 @@ import { NoteTypeIcon } from "./NoteIcon";
 import { ArrowRight, ChevronLeft, Columns2, Folder, Loader2, Lock, Mic, MessageCircle, NotebookPen, Search, Settings, Sparkles, Upload, Users, Zap } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { startApplePush } from "@/lib/applePush";
-import { isNotesApp } from "@/lib/nativeApp";
+import { isNotesApp, nativeCall } from "@/lib/nativeApp";
 import { NOTES_PLANS, dayWords, fmtClock, templateOf, themeOf, themeVars } from "@shared/ariseNotes";
 import { notesApi, setNotesToken, type ListNote, type Me } from "./api";
 import { listLocalNotes, type LocalNote } from "./localNotes";
@@ -155,6 +155,22 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   const look = themeOf(s?.theme);
   const themed = !s?.contrast && look.id !== "classic";
   useEffect(() => { if (themed) loadThemeFont(look.fontUrl); }, [themed, look.fontUrl]);
+  // The areas around the page (behind the status bar and Home indicator) match the look.
+  const backdrop = s?.contrast ? "#ffffff" : themed ? look.bg : "#f5f4fb";
+  const darkBackdrop = themed && !!look.dark;
+  useEffect(() => {
+    const html = document.documentElement, body = document.body;
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    const before = [html.style.background, body.style.background, meta?.content];
+    html.style.background = backdrop;
+    body.style.background = backdrop;
+    if (meta) meta.content = backdrop;
+    if (isNotesApp()) {
+      void nativeCall(/ariseondevice/i, "AriseOnDevice", "setBackdrop", { color: backdrop }).catch(() => {});
+      void nativeCall(/statusbar/i, "StatusBar", "setStyle", { style: darkBackdrop ? "DARK" : "LIGHT" }).catch(() => {});
+    }
+    return () => { html.style.background = before[0] ?? ""; body.style.background = before[1] ?? ""; if (meta && before[2]) meta.content = before[2]; };
+  }, [backdrop, darkBackdrop]);
   const rootClass = ["an-root min-h-[100dvh]", s?.font === "dyslexic" && "an-dyslexic", s?.simple && "an-simple", s?.contrast && "an-contrast", s?.large && "an-large", themed && "an-themed", themed && `an-theme-${look.id}`].filter(Boolean).join(" ");
   const rootStyle = themed ? themeVars(look) as CSSProperties : undefined;
 
