@@ -31,7 +31,6 @@ export const HOME_SECTIONS = [
   { id: "calendar", label: "Your calendar" },
   { id: "meetings", label: "Upcoming meetings" },
   { id: "todo", label: "To do" },
-  { id: "notifications", label: "Notifications" },
   { id: "profile", label: "Workspace profile" },
 ] as const;
 export type HomeSection = (typeof HOME_SECTIONS)[number]["id"];

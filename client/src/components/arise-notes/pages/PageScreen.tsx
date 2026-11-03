@@ -143,7 +143,7 @@ export default function PageScreen({ ctx, id, onBack }: { ctx: AppCtx; id: strin
   const meta = sync.meta(page.id);
   const trashed = !!(meta?.deletedAt ?? page.deletedAt);
 
-  return <div className="flex h-full min-h-0 flex-col" style={{ background: lookStyle(look).background as string }} data-testid="pages-note">
+  return <div className="flex h-full min-h-0 flex-col" data-paper={look.theme} style={{ background: lookStyle(look).background as string }} data-testid="pages-note">
     {/* Top bar */}
     <header className="an-noprint an-notehead sticky top-0 z-30 flex items-center gap-1 px-2 pt-[env(safe-area-inset-top)]">
       <IconBtn label="Back to notes" onClick={back}><ChevronLeft className="h-6 w-6" /></IconBtn>
@@ -256,7 +256,7 @@ function TextBody({ content, look, edit, onSketch, onAiNote }: { content: PageCo
       </div>
       <input ref={fileIn} type="file" accept="image/*" className="sr-only" onChange={(e) => { void addImage(e.target.files?.[0]); e.target.value = ""; }} />
     </div>
-    <div className="min-h-0 flex-1 overflow-y-auto" style={style}>
+    <div className="min-h-0 flex-1 overflow-y-auto" data-paper={look.theme} style={style}>
       <div className={`mx-auto px-6 pb-10 pt-7 sm:px-10 ${look.wide ? "max-w-none" : "max-w-[760px]"}`}>
         <input className="an-bare an-doc-title w-full bg-transparent text-[34px] leading-[1.1] outline-none placeholder:opacity-30" style={{ fontFamily: style.fontFamily, color: "inherit" }}
           value={content.title} onChange={(e) => edit({ title: e.target.value.slice(0, 140) })} placeholder="Title" aria-label="Title" data-testid="pages-title" />

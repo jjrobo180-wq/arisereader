@@ -2,7 +2,7 @@
 // the page on the iPhone, and each look's own top of Home. Classic, Tile and Old Computer add nothing.
 import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { hubThemeOf } from "@shared/appThemes";
-import { themeVars, type NotesTheme } from "@shared/notesThemes";
+import { nightLook, themeVars, type NotesTheme } from "@shared/notesThemes";
 import { isNativeApp, nativeCall } from "@/lib/nativeApp";
 import "@/components/arise-notes/notes-themes.css";
 import "@/pages/hubLooks.css";
@@ -19,7 +19,8 @@ const loadFont = (href?: string) => {
 
 /** What the hub root needs for its theme. A look replaces night mode, since it has its own colors. */
 export function useHubLook(themeId: unknown, night: boolean): { look: NotesTheme | null; className: string; style?: CSSProperties } {
-  const look = hubThemeOf(themeId).look ?? null;
+  const base = hubThemeOf(themeId).look ?? null;
+  const look = base && night ? nightLook(base) : base;
   const sent = useRef(false);
   useEffect(() => { publishLook(look); return () => publishLook(null); }, [look]);
   useEffect(() => { if (look) loadFont(look.fontUrl); }, [look]);

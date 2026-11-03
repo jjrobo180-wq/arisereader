@@ -215,6 +215,7 @@ function LookTab({ ctx }: { ctx: AppCtx }) {
   const s = ctx.me.settings;
   return <Section title="Choose your look">
     <p className="mb-3 text-[14px] text-[var(--an-muted)]">{s.contrast ? "High contrast is on, so it replaces your look until you turn it off in Accessibility." : "Pick the one you like. It changes right away and follows your account."}</p>
+    <div className="mb-3 an-card rounded-2xl p-3" data-testid="notes-night"><Toggle on={s.night} onChange={(v) => void save({ night: v })} label="Night mode" /></div>
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3" data-testid="notes-looks">
       {NOTES_THEMES.map((t) => <button key={t.id} type="button" className="an-look" aria-pressed={s.theme === t.id} onClick={() => void save({ theme: t.id })} data-testid={`notes-look-${t.id}`}>
         <span aria-hidden className="an-look-preview" style={{ background: t.bg, borderRadius: Math.min(t.radius, 12) }}>

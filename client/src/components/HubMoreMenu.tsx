@@ -20,7 +20,6 @@ export function hubMoreGroups(o: {
 }): MoreGroup[] {
   return [
     { title: "Notifications", items: [
-      { id: "notifications", label: "Notifications", detail: "What's new and what's due", icon: <Bell />, onClick: o.openNotifications },
       { id: "notification-settings", label: "Notification settings", detail: "Reminders on this phone and in the app", icon: <BellRing />, onClick: o.notificationSettings },
       // In the iPhone app: the first-run setup again, for anything skipped then.
       ...(isNativeApp() ? [{ id: "iphone-setup", label: "iPhone connections", detail: "Notifications, Calendar and Reminders", icon: <Smartphone />, onClick: () => window.dispatchEvent(new Event(IPHONE_SETUP_EVENT)) }] : []),
