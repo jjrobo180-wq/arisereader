@@ -353,3 +353,6 @@
 .an-notebar { background: var(--an-card); color: var(--an-ink); border-bottom: 1px solid var(--an-line); }
 .an-notebar button, .an-notebar button span { color: var(--an-ink) !important; background-color: transparent; }
 .an-notebar button[aria-pressed="true"] { background-color: var(--an-violet-soft); }
+
+/* Night: the plain paper follows the dark look, so a note isn't a bright white page. Chosen paper colors stay. */
+.an-night [data-paper="paper"] { background-color: var(--an-card) !important; color: var(--an-ink) !important; color-scheme: dark; }

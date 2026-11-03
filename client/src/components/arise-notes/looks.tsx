@@ -1,13 +1,13 @@
 // The designs behind Settings > Appearance: each look's own Home, recording display and note heading.
 // Everything still does the same work as the Classic screens; only the arrangement changes.
 import { useEffect, useState, type ReactNode } from "react";
-import { fmtClock, templateOf, themeOf, type NotesTheme, type NotesSettings } from "@shared/ariseNotes";
+import { fmtClock, nightLook, templateOf, themeOf, type NotesTheme, type NotesSettings } from "@shared/ariseNotes";
 import type { ListNote } from "./api";
 
 /** The look to draw, or null for Classic. High contrast always uses the Classic layout. */
 export function activeLook(settings?: NotesSettings | null): NotesTheme | null {
   if (!settings || settings.contrast || settings.theme === "classic") return null;
-  return themeOf(settings.theme);
+  return settings.night ? nightLook(themeOf(settings.theme)) : themeOf(settings.theme);
 }
 
 const Svg = ({ children, size = 22 }: { children: ReactNode; size?: number }) => <svg aria-hidden width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">{children}</svg>;

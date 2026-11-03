@@ -29,6 +29,7 @@ export const isThemeId = (v: unknown): v is NotesThemeId => NOTES_THEMES.some((t
 export const themeOf = (id: unknown): NotesTheme => NOTES_THEMES.find((t) => t.id === id) ?? NOTES_THEMES[0];
 type NightColors = Pick<NotesTheme, "bg" | "card" | "line" | "ink" | "muted" | "faint" | "accent" | "accentInk" | "accentSoft" | "onAccent">;
 const NIGHT_COLORS: Partial<Record<NotesThemeId, NightColors>> = {
+  classic: { bg: "#14121f", card: "#1f1c2e", line: "#35314a", ink: "#f3f1fb", muted: "#c0bcd6", faint: "#aaa6c3", accent: "#9d8cff", accentInk: "#b8abff", accentSoft: "#2b2650", onAccent: "#120c2e" },
   margin: { bg: "#12141a", card: "#1b1e26", line: "#333845", ink: "#f2f3f6", muted: "#b6bac6", faint: "#a4a8b5", accent: "#8ea2ff", accentInk: "#aebcff", accentSoft: "#232a45", onAccent: "#0b0e1c" },
   bloom: { bg: "#17132e", card: "#241e45", line: "#3b3368", ink: "#f3f0ff", muted: "#c9c2e8", faint: "#b4acd8", accent: "#a08cff", accentInk: "#bbacff", accentSoft: "#2f2860", onAccent: "#120c2e" },
   timeline: { bg: "#0c1c1d", card: "#142a2b", line: "#2a4a4b", ink: "#e8f5f3", muted: "#acc9c6", faint: "#97b8b5", accent: "#37bdb7", accentInk: "#66d6d0", accentSoft: "#17393a", onAccent: "#04201f" },
