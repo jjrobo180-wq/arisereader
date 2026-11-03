@@ -1,19 +1,20 @@
 // Arise Notes: the app. The same screens run on their own at /notes/ (client/src/notes/main.tsx) and
 // inside Arise To Duo (pages/AriseNotesPage.tsx): Home with the notes, Record, Upload, a note, Ask
 // your notes, Voice memo, and Settings (plan and minutes, family, privacy, accessibility).
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { NoteTypeIcon } from "./NoteIcon";
 import { ArrowRight, ChevronLeft, Columns2, Folder, Loader2, Lock, Mic, MessageCircle, NotebookPen, Search, Settings, Sparkles, Upload, Users, Zap } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { startApplePush } from "@/lib/applePush";
 import { isNotesApp } from "@/lib/nativeApp";
-import { NOTES_PLANS, dayWords, fmtClock, templateOf } from "@shared/ariseNotes";
+import { NOTES_PLANS, dayWords, fmtClock, templateOf, themeOf, themeVars } from "@shared/ariseNotes";
 import { notesApi, setNotesToken, type ListNote, type Me } from "./api";
 import { listLocalNotes, type LocalNote } from "./localNotes";
 import { listenForLinks, widgetAi, widgetPages } from "./widgetLinks";
 import { pagesSyncFor } from "./pages/pagesSync";
 import { Btn, IconBtn, Notice, Spinner, ToastHost, plural, shortDate, useToast } from "./ui";
 import "./notes.css";
+import "./notes-themes.css";
 
 const RecordScreen = lazy(() => import("./RecordScreen"));
 const UploadScreen = lazy(() => import("./UploadScreen"));
@@ -27,7 +28,7 @@ const PagesView = lazy(() => import("./pages/PagesView"));
 
 export type Route =
   | { name: "home" } | { name: "record" } | { name: "upload" } | { name: "note"; id: string; t?: number } | { name: "ask" } | { name: "memo" }
-  | { name: "settings"; tab?: "plan" | "family" | "privacy" | "access" } | { name: "privacy" }
+  | { name: "settings"; tab?: "plan" | "look" | "family" | "privacy" | "access" } | { name: "privacy" }
   /** A Strict-mode note, kept only on this iPhone (localNotes.ts). */
   | { name: "local"; id: string }
   /** The Notes tab: typed and handwritten notes (pages/PagesView.tsx), and one of them open. */
@@ -52,7 +53,7 @@ function parseHash(h: string): Route {
     case "note": return p[1] ? { name: "note", id: p[1], t: p[2] ? Number(p[2]) : undefined } : { name: "home" };
     case "ask": return { name: "ask" };
     case "memo": return { name: "memo" };
-    case "settings": return { name: "settings", tab: (["plan", "family", "privacy", "access"] as const).find((t) => t === p[1]) };
+    case "settings": return { name: "settings", tab: (["plan", "look", "family", "privacy", "access"] as const).find((t) => t === p[1]) };
     case "usage": case "plans": return { name: "settings", tab: "plan" };
     case "family": return { name: "settings", tab: "family" };
     case "privacy": return { name: "privacy" };
@@ -71,6 +72,15 @@ const loadLexend = () => {
   const l = document.createElement("link");
   l.rel = "stylesheet";
   l.href = "https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap";
+  document.head.appendChild(l);
+};
+const loadedFonts = new Set<string>();
+const loadThemeFont = (href?: string) => {
+  if (!href || loadedFonts.has(href) || typeof document === "undefined") return;
+  loadedFonts.add(href);
+  const l = document.createElement("link");
+  l.rel = "stylesheet";
+  l.href = href;
   document.head.appendChild(l);
 };
 
@@ -140,7 +150,12 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
 
   const s = me?.settings;
   useEffect(() => { if (s?.font === "dyslexic") loadLexend(); }, [s?.font]);
-  const rootClass = ["an-root min-h-[100dvh]", s?.font === "dyslexic" && "an-dyslexic", s?.simple && "an-simple", s?.contrast && "an-contrast", s?.large && "an-large"].filter(Boolean).join(" ");
+  // High contrast is an accessibility need, so it always wins over a look.
+  const look = themeOf(s?.theme);
+  const themed = !s?.contrast && look.id !== "classic";
+  useEffect(() => { if (themed) loadThemeFont(look.fontUrl); }, [themed, look.fontUrl]);
+  const rootClass = ["an-root min-h-[100dvh]", s?.font === "dyslexic" && "an-dyslexic", s?.simple && "an-simple", s?.contrast && "an-contrast", s?.large && "an-large", themed && "an-themed", themed && `an-theme-${look.id}`].filter(Boolean).join(" ");
+  const rootStyle = themed ? themeVars(look) as CSSProperties : undefined;
 
   if (!me) {
     return <div className={rootClass}>
@@ -163,7 +178,7 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
       default: return <><Home ctx={ctx} notes={notes} onExit={onExit} /><TabBar ctx={ctx} on="ai" /></>;
     }
   })();
-  return <div className={rootClass} data-testid="arise-notes">
+  return <div className={rootClass} style={rootStyle} data-testid="arise-notes">
     <Suspense fallback={<div className="pt-32"><Spinner /></div>}>{screen}</Suspense>
   </div>;
 }

@@ -212,6 +212,9 @@ export const PROVIDER_CENTS_PER_MIN: Record<string, number> = {
 /** AI writing (summaries, answers): about half a dollar a million tokens, at four characters a token. */
 export const aiCents = (chars: number) => Math.round((chars / 4) * 0.00005 * 10_000) / 10_000;
 
+export { NOTES_THEMES, isThemeId, themeOf, themeVars, type NotesTheme, type NotesThemeId } from "./notesThemes";
+import { isThemeId, type NotesThemeId } from "./notesThemes";
+
 // ─── Settings ─────────────────────────────────────────────────────────────────
 
 export type AudioKeep = "delete" | "30d" | "keep";
@@ -224,6 +227,8 @@ export type NotesSettings = {
   simple: boolean;
   contrast: boolean;
   large: boolean;
+  /** The look picked in Settings > Appearance. */
+  theme: NotesThemeId;
   /** Ask "Let everyone know this meeting is being recorded" before each recording. */
   consent: boolean;
   template: NotesTemplateId;
@@ -232,7 +237,7 @@ export type NotesSettings = {
   /** Where action items go by default. */
   hub: "life" | "work";
 };
-export const DEFAULT_SETTINGS: NotesSettings = { audio: "delete", font: "standard", simple: false, contrast: false, large: false, consent: true, template: "general", voice: "hannah", hub: "life" };
+export const DEFAULT_SETTINGS: NotesSettings = { audio: "delete", font: "standard", simple: false, contrast: false, large: false, theme: "classic", consent: true, template: "general", voice: "hannah", hub: "life" };
 const VOICES = ["hannah", "autumn", "diana", "austin", "daniel", "troy"];
 export function cleanSettings(raw: unknown): NotesSettings {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
@@ -242,6 +247,7 @@ export function cleanSettings(raw: unknown): NotesSettings {
     simple: r.simple === true,
     contrast: r.contrast === true,
     large: r.large === true,
+    theme: isThemeId(r.theme) ? r.theme : "classic",
     consent: r.consent !== false,
     template: isTemplateId(r.template) ? r.template : "general",
     voice: typeof r.voice === "string" && VOICES.includes(r.voice) ? r.voice : "hannah",

@@ -1,0 +1,44 @@
+/* The looks people pick in Settings > Appearance (shared/notesThemes.ts sets the variables). Only
+   .an-themed is touched, so Classic and High contrast stay exactly as they were. */
+.an-root.an-themed { background: var(--an-bg); font-family: var(--an-font); }
+.an-themed ::selection { background: color-mix(in srgb, var(--an-violet) 30%, transparent); }
+.an-themed .an-card, .an-themed .an-rows, .an-themed .an-paper, .an-themed .an-round-btn, .an-themed .bg-white, .an-themed .an-plain, .an-themed .an-input, .an-themed .an-search input, .an-themed .bg-slate-50, .an-themed .bg-slate-100 { background: var(--an-card) !important; color: var(--an-ink); }
+.an-themed .an-card, .an-themed .an-rows, .an-themed .an-paper { border: var(--an-border) solid var(--an-line) !important; border-radius: var(--an-radius); box-shadow: var(--an-shadow); }
+.an-themed .an-rows > li + li { border-top: 1px solid var(--an-line); }
+.an-themed .an-btn, .an-themed .an-input { border-radius: min(var(--an-radius), 16px); }
+.an-themed .an-plain, .an-themed .an-input { border: var(--an-border) solid var(--an-line); }
+.an-themed .an-primary { background: var(--an-violet) !important; color: var(--an-on-accent) !important; box-shadow: var(--an-shadow); }
+.an-themed .an-primary:hover { filter: brightness(1.08); }
+.an-themed .an-soft, .an-themed .an-quick { background: var(--an-violet-soft); color: var(--an-violet-ink); }
+.an-themed .an-record { background: var(--an-coral); color: var(--an-on-record); box-shadow: var(--an-shadow); }
+.an-themed .an-ghost:hover, .an-themed .an-row:active { background: var(--an-violet-soft); }
+.an-themed .an-danger { background: var(--an-coral-soft); color: var(--an-ink); border-color: var(--an-coral); }
+.an-themed .an-chip { background: var(--an-card); color: var(--an-ink); border-color: var(--an-line); }
+.an-themed .an-chip[aria-pressed="true"] { background: var(--an-ink); color: var(--an-bg); border-color: var(--an-ink); }
+.an-themed .an-time { background: var(--an-violet-soft); color: var(--an-violet-ink); }
+.an-themed .an-mark { background: #fff1a8; color: #14131f; }
+.an-themed .an-glass, .an-themed .an-notehead, .an-themed .an-tabbar, .an-themed .bg-white\/95, .an-themed .bg-white\/90, .an-themed .bg-white\/85 { background: var(--an-glass) !important; border-color: var(--an-line) !important; }
+.an-themed .an-sheet-card { background: var(--an-card) !important; color: var(--an-ink); border-radius: var(--an-radius) var(--an-radius) 0 0; }
+.an-themed .an-sheet-card::before { background: var(--an-line); }
+.an-themed .an-logo { background: var(--an-violet); color: var(--an-on-accent) !important; }
+.an-themed .an-fab { background: var(--an-violet) !important; color: var(--an-on-accent) !important; }
+.an-themed .an-empty-stack i { background: var(--an-card) !important; border-color: var(--an-line); }
+/* Colors written straight into the screens: follow the look. */
+.an-themed [class*="text-[#3d3a52]"], .an-themed [class*="text-[#1b1a26]"], .an-themed .text-slate-600 { color: var(--an-ink) !important; }
+.an-themed [class*="text-[#6b6880]"], .an-themed [class*="text-[#9a98ab]"], .an-themed [class*="text-[#9a97ad]"] { color: var(--an-muted) !important; }
+.an-themed [class*="text-[#9c1c2a]"], .an-themed [class*="text-[#c2283a]"], .an-themed [class*="text-[#7a4a04]"], .an-themed [class*="text-[#8a5a10]"], .an-themed [class*="text-[#0d5c3d]"] { color: var(--an-ink) !important; }
+.an-themed [class*="bg-[#f7f5ff]"], .an-themed [class*="bg-[#ecebf3]"] { background: var(--an-violet-soft) !important; color: var(--an-ink); }
+.an-themed [class*="bg-[var(--an-violet)]"], .an-themed [class*="bg-[var(--an-violet)]"] svg { color: var(--an-on-accent) !important; }
+.an-themed [class*="bg-[var(--an-coral)]"], .an-themed [class*="bg-[var(--an-coral)]"] svg { color: var(--an-on-record) !important; }
+.an-themed [class*="bg-[var(--an-ink)]"] { color: var(--an-bg) !important; }
+.an-themed [class*="bg-[#f5a524]"] { color: #1b1200 !important; }
+.an-themed .bg-black\/\[\.045\], .an-themed .bg-black\/\[\.03\], .an-themed .bg-black\/5, .an-themed .bg-black\/10 { background: var(--an-violet-soft) !important; }
+/* Outlined looks: stronger edges on the things people press. */
+.an-theme-punch .an-btn, .an-theme-punch .an-chip, .an-theme-punch .an-input, .an-theme-punch .an-round-btn { border: 3px solid #000 !important; font-weight: 800; }
+.an-theme-punch .an-btn:active { transform: translate(2px, 2px); box-shadow: none; }
+.an-theme-console .an-btn, .an-theme-console .an-chip { border: 1px solid var(--an-violet); }
+.an-theme-swiss .an-btn, .an-theme-gazette .an-btn { border: 1px solid var(--an-ink); }
+/* A preview of each look in the picker. */
+.an-look { display: flex; flex-direction: column; gap: .5rem; min-height: 8.5rem; padding: .75rem; text-align: left; border-radius: 16px; border: 2px solid var(--an-line); background: var(--an-card); color: var(--an-ink); }
+.an-look[aria-pressed="true"] { border-color: var(--an-violet-ink); box-shadow: 0 0 0 2px var(--an-violet-ink); }
+.an-look-preview { display: flex; align-items: flex-end; justify-content: space-between; height: 3.5rem; padding: .5rem; border: 1px solid rgba(127,127,127,.35); overflow: hidden; }
