@@ -1,6 +1,13 @@
 /* Each Arise Duo look's own system. Colors come from shared/notesThemes.ts. */
 .los-native .los-hide { display: none !important; }
 .los { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; background: var(--an-bg); color: var(--an-ink); font-family: var(--an-font); }
+/* Every system's top bar: the hub's name and the Work/Life switch, in the system's own colors. */
+.los-topbar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: .5rem; box-sizing: content-box; height: 3.4rem; padding: env(safe-area-inset-top) 1rem 0; background: var(--an-bg); color: var(--an-ink); font-family: var(--an-serif); }
+.los-topbar b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1.05rem; font-weight: 800; }
+.los-studio[data-screen="home"] .los-topbar, .los-bloom[data-screen="home"] .los-topbar, .los-timeline[data-screen="home"] .los-topbar, .los-cassette[data-screen="home"] .los-topbar { background: var(--an-violet); color: var(--an-on-accent); }
+.los-console .los-topbar { border-bottom: 1px solid var(--an-line); }
+.los-gazette .los-topbar, .los-swiss .los-topbar, .los-margin .los-topbar { border-bottom: 1px solid var(--an-ink); }
+.los-punch .los-topbar { border-bottom: 3px solid #000; }
 .los-body { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 6rem; }
 .los button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; text-align: left; }
 .los h1, .los h2, .los h3 { margin: 0; font-family: var(--an-serif); }
@@ -8,10 +15,10 @@
 .los small { font-size: .78rem; }
 .los-pad { padding: 1rem; min-width: 0; }
 .los-none { color: var(--an-muted); margin: 0; }
-.los-title { padding: env(safe-area-inset-top) 0 .7rem; }
+.los-title { padding: 0 0 .7rem; }
 .los-swiss .los-title, .los-gazette .los-title { padding-top: 0; margin-top: 0; }
 .los-title h1 { font-size: 2.2rem; font-weight: 800; letter-spacing: -.03em; }
-.los-hero { padding: calc(env(safe-area-inset-top) + 1.2rem) 1rem 1.3rem; background: var(--an-violet); color: var(--an-on-accent); }
+.los-hero { padding: calc(0px + 1.2rem) 1rem 1.3rem; background: var(--an-violet); color: var(--an-on-accent); }
 .los-cal { display: block; width: 100%; margin-top: .6rem; }
 .los-item { display: block; font-size: .92rem; line-height: 1.35; }
 .los-item em { font-style: normal; font-weight: 700; margin-right: .4rem; opacity: .8; }
@@ -48,10 +55,10 @@
 .los-dock-bloom { left: .75rem; right: .75rem; bottom: max(.75rem, env(safe-area-inset-bottom)); padding: .5rem; border-radius: 28px; background: var(--an-card); box-shadow: 0 10px 28px rgba(23,19,46,.2); }
 .los-dock-console { left: 0; right: 0; bottom: 0; padding: 0 .25rem max(.2rem, env(safe-area-inset-bottom)); background: var(--an-card); border-top: 1px solid var(--an-violet); font-size: .78rem; color: var(--an-violet); }
 .los-dock-console [aria-current="page"] { border-radius: 0; }
-.los-dock-swiss { top: env(safe-area-inset-top); bottom: auto; left: 0; right: 0; background: var(--an-bg); border-bottom: 2px solid var(--an-ink); font-weight: 900; font-size: 1.1rem; }
+.los-dock-swiss { top: calc(env(safe-area-inset-top) + 3.4rem); bottom: auto; left: 0; right: 0; background: var(--an-bg); border-bottom: 2px solid var(--an-ink); font-weight: 900; font-size: 1.1rem; }
 .los-dock-swiss button + button { border-left: 1px solid var(--an-ink); }
 .los-dock-swiss [aria-current="page"] { border-radius: 0; background: var(--an-ink); color: var(--an-bg); }
-.los-swiss .los-body { padding: calc(env(safe-area-inset-top) + 3rem) 0 2rem; }
+.los-swiss .los-body { padding: 3rem 0 2rem; }
 .los-dock-cassette { left: .5rem; right: .5rem; bottom: max(.5rem, env(safe-area-inset-bottom)); gap: 3px; padding: .35rem; border-radius: 12px; background: #1b1614; font: 700 .68rem ui-monospace, monospace; }
 .los-dock-cassette button { min-height: 3.1rem; border-radius: 6px; background: var(--an-ink); color: #210b02; border-bottom: 5px solid #8f8171; }
 .los-dock-cassette [aria-current="page"] { background: var(--an-violet); color: var(--an-on-accent); border-bottom-width: 1px; transform: translateY(3px); }
@@ -60,10 +67,10 @@
 .los-dock-frost button { aspect-ratio: 1; min-height: 0; border-radius: 50%; background: rgba(255,255,255,.72); backdrop-filter: blur(14px); box-shadow: 0 6px 16px rgba(11,35,64,.18); }
 .los-dock-grove { border-top: 1px solid var(--an-line); left: 0; right: 0; bottom: 0; padding: .4rem .25rem max(.4rem, env(safe-area-inset-bottom)); background: var(--an-bg); font: 500 .92rem var(--an-serif); }
 .los-dock-grove [aria-current="page"] { background: none; color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 5px; }
-.los-dock-gazette { top: calc(env(safe-area-inset-top) + 5.1rem); bottom: auto; left: .8rem; right: .8rem; border-block: 1px solid var(--an-ink); background: var(--an-bg); font-size: .76rem; font-weight: 700; }
+.los-dock-gazette { top: calc(env(safe-area-inset-top) + 8.5rem); bottom: auto; left: .8rem; right: .8rem; border-block: 1px solid var(--an-ink); background: var(--an-bg); font-size: .76rem; font-weight: 700; }
 .los-dock-gazette [aria-current="page"] { background: none; color: var(--an-violet); }
-.los-gazette .los-body { padding: calc(env(safe-area-inset-top) + 8.1rem) 0 2rem; }
-.los-gazette .los-paper header { position: fixed; top: 0; left: 0; right: 0; z-index: 40; padding: calc(env(safe-area-inset-top) + .5rem) .8rem 0; height: calc(env(safe-area-inset-top) + 5.1rem); background: var(--an-bg); text-align: center; }
+.los-gazette .los-body { padding: 8.1rem 0 2rem; }
+.los-gazette .los-paper header { position: fixed; top: calc(env(safe-area-inset-top) + 3.4rem); left: 0; right: 0; z-index: 40; padding: .5rem .8rem 0; height: 5.1rem; background: var(--an-bg); text-align: center; }
 .los-dock-punch { left: .5rem; right: .9rem; bottom: max(.8rem, env(safe-area-inset-bottom)); gap: .25rem; font-size: .64rem; font-weight: 900; }
 .los-dock-punch button { min-height: 3rem; background: #fff; color: #000; border: 3px solid #000; box-shadow: 3px 3px 0 #000; }
 .los-dock-punch [aria-current="page"] { background: #ff5ca8; color: #000; border-radius: 0; }
@@ -80,7 +87,7 @@
 .los-strip [data-busy]:not([data-on]) b { color: var(--an-violet-ink); }
 .los-studio .los-noteswidget { padding: 1rem; border-radius: 20px; background: var(--an-card); margin-top: 1rem; }
 /* Margin */
-.los-page { padding: calc(env(safe-area-inset-top) + 1rem) 1rem 1rem; }
+.los-page { padding: calc(0px + 1rem) 1rem 1rem; }
 .los-page h1 { margin-top: .3rem; font-size: 2.3rem; line-height: 1.03; font-weight: 600; letter-spacing: -.04em; }
 .los-date { font-family: ui-monospace, monospace; color: var(--an-muted); }
 .los-page h2 { padding-bottom: .25rem; border-bottom: 2px solid var(--an-ink); }
@@ -113,7 +120,7 @@
 .los-stream li::before { content: ""; position: absolute; left: -1.6rem; top: .25rem; width: .8rem; height: .8rem; border-radius: 50%; background: var(--an-violet); }
 .los-stream small { display: block; font-weight: 700; color: var(--an-violet-ink); }
 /* Console */
-.los-term { padding: calc(env(safe-area-inset-top) + .8rem) .8rem 1rem; font-size: .9rem; }
+.los-term { padding: calc(0px + .8rem) .8rem 1rem; font-size: .9rem; }
 .los-term p { margin: 0 0 .3rem; }
 .los-cmd { margin-top: 1rem !important; color: var(--an-violet); }
 .los-ascii { margin: 0; font: inherit; white-space: pre; overflow-x: auto; }
@@ -132,7 +139,7 @@
 .los-giant small { display: block; font-weight: 700; margin-bottom: .3rem; }
 .los-swiss .los-noteswidget span { padding: .5rem 0; border-top: 1px solid var(--an-ink); }
 /* Cassette */
-.los-tape { padding: calc(env(safe-area-inset-top) + .8rem) .8rem 1rem; background: var(--an-violet); color: var(--an-on-accent); }
+.los-tape { padding: calc(0px + .8rem) .8rem 1rem; background: var(--an-violet); color: var(--an-on-accent); }
 .los-window { display: flex; justify-content: space-between; align-items: center; padding: .7rem .8rem; border-radius: 8px; background: #111; color: #ffb24d; font: 500 .85rem ui-monospace, monospace; }
 .los-reels { display: flex; align-items: center; justify-content: space-between; height: 6rem; margin: .8rem 1.4rem 0; padding: 0 1rem; border-radius: 3.5rem; background: var(--an-bg); }
 .los-reels i { width: 4.4rem; height: 4.4rem; border: 10px dashed var(--an-ink); border-radius: 50%; box-sizing: border-box; animation: los-spin 6s linear infinite; }
@@ -154,7 +161,7 @@
 .los-glass { margin-top: .8rem; padding: 1rem; border-radius: 24px; background: rgba(255,255,255,.6); backdrop-filter: blur(14px); }
 .los-glass .los-noteswidget { margin: 0; }
 /* Grove */
-.los-journal { padding: calc(env(safe-area-inset-top) + 2rem) 1.4rem 1rem; }
+.los-journal { padding: calc(0px + 2rem) 1.4rem 1rem; }
 .los-journal h1 { margin: .5rem 0 1rem; font-size: 3rem; line-height: 1; font-weight: 500; letter-spacing: -.03em; }
 .los-prose { margin: 0 0 1rem; font: 500 1.3rem/1.38 var(--an-serif); }
 .los-prose b { font-weight: 700; }
@@ -172,7 +179,7 @@
 .los-listings p { margin: 0 0 .5rem; font-size: .88rem; line-height: 1.35; }
 .los-cols .lk-tasks-margin .lk-margin { display: none; }
 /* Punch */
-.los-stickers { padding: calc(env(safe-area-inset-top) + 1rem) 1rem 1rem; }
+.los-stickers { padding: calc(0px + 1rem) 1rem 1rem; }
 .los-stickers h1 { font-size: 2rem; font-weight: 900; line-height: 1; }
 .los-bigbtns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; margin: .9rem 0; }
 .los-bigbtns button { min-height: 8rem; padding: .7rem !important; border: 4px solid #000 !important; box-shadow: 6px 6px 0 #000; color: #000 !important; font-weight: 900; }
@@ -185,7 +192,7 @@
 .los-punch .los-month span { border-radius: 0; }
 .los-punch .los-month [data-on] { background: #ff5ca8; color: #000; border: 2px solid #000; }
 /* Chatline */
-.los-chat { display: flex; flex-direction: column; gap: .5rem; min-height: 100%; padding: calc(env(safe-area-inset-top) + 1rem) .9rem 1rem; }
+.los-chat { display: flex; flex-direction: column; gap: .5rem; min-height: 100%; padding: calc(0px + 1rem) .9rem 1rem; }
 .los-them, .los-bubbles p { align-self: flex-start; max-width: 85%; margin: 0; padding: .7rem .95rem !important; border-radius: 20px 20px 20px 4px; background: var(--an-card) !important; }
 .los-bubbles { display: flex; flex-direction: column; gap: .5rem; }
 .los-chat .los-cal { margin: 0; }
@@ -195,7 +202,7 @@
 .los-composer input { flex: 1; min-width: 0; min-height: 3rem; padding: 0 1rem; border: 1px solid var(--an-line); border-radius: 999px; background: var(--an-card); color: var(--an-ink); font: 16px var(--an-font); }
 .los-composer button { display: grid; place-items: center; width: 3rem; border-radius: 50%; background: var(--an-violet) !important; color: var(--an-on-accent) !important; }
 /* Deck */
-.los-stack { padding: calc(env(safe-area-inset-top) + 1rem) 1rem 1rem; }
+.los-stack { padding: calc(0px + 1rem) 1rem 1rem; }
 .los-cards { position: relative; margin-top: 1.2rem; min-height: 26rem; }
 .los-cards > i { position: absolute; top: -1rem; left: 1.4rem; right: 1.4rem; height: 6rem; border-radius: 30px; }
 .los-cards > i + i { top: -.5rem; left: .7rem; right: .7rem; }
