@@ -2,7 +2,7 @@
 // (including deleting everything), accessibility, and defaults.
 import { useEffect, useState } from "react";
 import { Check, Crown, Eye, LogOut, Shield, Trash2, Type, Users } from "lucide-react";
-import { NOTES_PLANS, dayWords, type NotesPlanId, type NotesProduct, type NotesSettings } from "@shared/ariseNotes";
+import { NOTES_PLANS, NOTES_THEMES, dayWords, type NotesPlanId, type NotesProduct, type NotesSettings } from "@shared/ariseNotes";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { NATIVE_NO_PURCHASE, isNativeApp } from "@/lib/nativeApp";
@@ -12,7 +12,7 @@ import { PrivacyPicker, defaultPrivacy, rememberPrivacy, useOnDevice } from "./p
 import { Btn, Notice, Section, Spinner, Toggle, useToast } from "./ui";
 import { TopBar, type AppCtx } from "./NotesApp";
 
-type Tab = "plan" | "family" | "privacy" | "access";
+type Tab = "plan" | "look" | "family" | "privacy" | "access";
 const money = (c: number) => `$${(c / 100).toFixed(2)}`;
 const FEATURES: Record<NotesPlanId, string[]> = {
   free: ["60 minutes a month", "Recordings up to 30 minutes", "Transcripts with times", "AI summaries"],
@@ -23,7 +23,7 @@ const FEATURES: Record<NotesPlanId, string[]> = {
 
 export default function SettingsScreen({ ctx, tab: start }: { ctx: AppCtx; tab?: Tab }) {
   const [tab, setTab] = useState<Tab>(start ?? "plan");
-  const tabs: [Tab, string][] = [["plan", "Plan & minutes"], ["family", "Family"], ["privacy", "Privacy"], ["access", "Accessibility"]];
+  const tabs: [Tab, string][] = [["plan", "Plan & minutes"], ["look", "Appearance"], ["family", "Family"], ["privacy", "Privacy"], ["access", "Accessibility"]];
   return <>
     <TopBar ctx={ctx} title="Settings" back={() => ctx.go({ name: "home" })} />
     <main className="mx-auto max-w-3xl space-y-4 px-4 pb-24 pt-4 sm:px-5">
@@ -31,6 +31,7 @@ export default function SettingsScreen({ ctx, tab: start }: { ctx: AppCtx; tab?:
       {tab === "plan" && <PlanTab ctx={ctx} />}
       {tab === "family" && <FamilyTab ctx={ctx} />}
       {tab === "privacy" && <PrivacyTab ctx={ctx} />}
+      {tab === "look" && <LookTab ctx={ctx} />}
       {tab === "access" && <AccessTab ctx={ctx} />}
       {ctx.mode === "standalone" && <SignOut ctx={ctx} />}
     </main>
@@ -207,6 +208,24 @@ function PrivacyTab({ ctx }: { ctx: AppCtx }) {
         </div>}
     </Section>
   </div>;
+}
+
+function LookTab({ ctx }: { ctx: AppCtx }) {
+  const save = useSettings(ctx);
+  const s = ctx.me.settings;
+  return <Section title="Choose your look">
+    <p className="mb-3 text-[14px] text-[var(--an-muted)]">{s.contrast ? "High contrast is on, so it replaces your look until you turn it off in Accessibility." : "Pick the one you like. It changes right away and follows your account."}</p>
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3" data-testid="notes-looks">
+      {NOTES_THEMES.map((t) => <button key={t.id} type="button" className="an-look" aria-pressed={s.theme === t.id} onClick={() => void save({ theme: t.id })} data-testid={`notes-look-${t.id}`}>
+        <span aria-hidden className="an-look-preview" style={{ background: t.bg, borderRadius: Math.min(t.radius, 12) }}>
+          <span style={{ width: "2.1rem", height: "1.5rem", background: t.card, border: `1px solid ${t.line}`, borderRadius: Math.min(t.radius, 8) }} />
+          <span style={{ width: "1.5rem", height: "1.5rem", background: t.record, borderRadius: t.radius ? 999 : 0 }} />
+        </span>
+        <span className="text-[15px] font-bold">{t.label}</span>
+        <span className="text-[12.5px] leading-snug text-[var(--an-muted)]">{t.blurb}</span>
+      </button>)}
+    </div>
+  </Section>;
 }
 
 function AccessTab({ ctx }: { ctx: AppCtx }) {
