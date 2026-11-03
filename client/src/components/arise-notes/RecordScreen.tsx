@@ -256,7 +256,7 @@ export default function RecordScreen({ ctx }: { ctx: AppCtx }) {
   return <>
     <TopBar ctx={ctx} title={phase === "recording" ? (paused ? "Paused" : "Recording") : "Finishing"} />
     <main className="mx-auto max-w-2xl space-y-4 px-4 pb-24 pt-5 sm:px-5">
-      <section className="an-card flex flex-col items-center px-5 py-7 text-center" aria-live="polite">
+      <section className={`an-card flex flex-col items-center px-5 py-7 text-center${look ? " an-l-recsec" : ""}`} aria-live="polite">
         {look ? <LookRecordArt look={look} secs={secs} paused={paused} finishing={phase === "finishing"} level={level} /> : <>
         <div className={`grid h-24 w-24 place-items-center rounded-full ${phase === "recording" && !paused ? "an-pulse bg-[var(--an-coral)] text-white" : "bg-[var(--an-violet-soft)] text-[var(--an-violet-ink)]"}`}>
           {phase === "finishing" ? <RefreshCw className="h-9 w-9 animate-spin" aria-hidden /> : paused ? <Pause className="h-10 w-10" aria-hidden /> : <Mic className="h-10 w-10" aria-hidden />}
@@ -267,7 +267,7 @@ export default function RecordScreen({ ctx }: { ctx: AppCtx }) {
         </div>
         </>}
         <p className="mt-2 text-[14px] text-[var(--an-muted)]">{phase === "finishing" ? step : paused ? "Paused. Nothing is being recorded." : highlights.length ? `${highlights.length} part${highlights.length === 1 ? "" : "s"} marked important` : "Tap the star when something matters. It goes first in the summary."}</p>
-        {phase === "recording" && <div className="mt-5 flex flex-wrap justify-center gap-3">
+        {phase === "recording" && <div className={`mt-5 flex flex-wrap justify-center gap-3${look ? " an-l-controls" : ""}`}>
           <Btn kind="plain" onClick={togglePause} aria-keyshortcuts="Space" data-testid="notes-pause">{paused ? <><Play className="h-4 w-4" />Resume</> : <><Pause className="h-4 w-4" />Pause</>}</Btn>
           <Btn kind="soft" onClick={mark} disabled={paused} aria-keyshortcuts="H" data-testid="notes-highlight"><Star className="h-4 w-4" />This matters</Btn>
           <Btn kind="record" onClick={() => void finish()} data-testid="notes-stop"><Square className="h-4 w-4" />Stop</Btn>
