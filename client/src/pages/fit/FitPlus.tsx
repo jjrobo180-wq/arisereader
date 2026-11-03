@@ -56,7 +56,7 @@ export function useNeedsPlus() {
 /** A small "Fit+" tag beside things that need it, for people who don't have it. */
 export function PlusTag() {
   const { plus } = usePlus();
-  return plus ? null : <span className="ml-1.5 inline-flex items-center rounded-full px-1.5 py-[1px] align-middle text-[10px] font-bold tracking-wide" style={{ background: C.lime, color: "#0b0b0c" }}>FIT+</span>;
+  return plus ? null : <span className="ml-1.5 inline-flex items-center rounded-full px-1.5 py-[1px] align-middle text-[10px] font-bold tracking-wide" style={{ background: C.lime, color: "var(--fit-on-accent)" }}>FIT+</span>;
 }
 
 export function PlusSheet({ status, feature, passCode, reload, say, onClose }: { status: PlusStatus; feature?: PlusFeature; passCode?: string; reload: () => Promise<void>; say: (m: string) => void; onClose: () => void }) {

@@ -35,7 +35,7 @@ export function BodyFigure({ side, fill, picked, onPick, className = "", label }
       <path d={SILHOUETTE} style={{ fill: C.body }} />
       <path d={SILHOUETTE} transform={mirror} style={{ fill: C.body }} />
       <ellipse cx="100" cy="33" rx="16" ry="21" style={{ fill: C.body }} />
-      {picked && shapes.filter((s) => s.part === picked).map((s, i) => <g key={`glow${i}`} style={{ filter: "blur(4px)" }} opacity=".55" pointerEvents="none"><path d={s.d} fill="#ff5a1f" /><path d={s.d} transform={mirror} fill="#ff5a1f" /></g>)}
+      {picked && shapes.filter((s) => s.part === picked).map((s, i) => <g key={`glow${i}`} style={{ filter: "blur(4px)" }} opacity=".55" pointerEvents="none"><path d={s.d} style={{ fill: C.lime }} /><path d={s.d} transform={mirror} style={{ fill: C.lime }} /></g>)}
       {shapes.map((s, i) => muscle(s, `l${i}`, false))}
       {shapes.map((s, i) => muscle(s, `r${i}`, true))}
       {lines.map((d, i) => <g key={`d${i}`} pointerEvents="none" opacity=".75"><path d={d} fill="none" strokeWidth={1.1} strokeLinecap="round" style={{ stroke: C.gap }} /><path d={d} transform={mirror} fill="none" strokeWidth={1.1} strokeLinecap="round" style={{ stroke: C.gap }} /></g>)}
