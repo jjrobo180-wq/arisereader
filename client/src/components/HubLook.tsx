@@ -31,12 +31,16 @@ export function useHubLook(themeId: unknown, night: boolean): { look: NotesTheme
       html.style.background = look.bg;
       body.style.background = look.bg;
       if (meta) meta.content = look.bg;
+      // Pop-ups that open outside the hub (Notifications) take the look's colors from here.
+      const vars = Object.entries(themeVars(look) as Record<string, string>);
+      for (const [k, v] of vars) html.style.setProperty(k, String(v));
+      html.dataset.hubLook = look.id;
       if (isNativeApp()) {
         sent.current = true;
         void nativeCall(/arisewidgets/i, "AriseWidgets", "setBackdrop", { color: look.bg }).catch(() => {});
         void nativeCall(/statusbar/i, "StatusBar", "setStyle", { style: look.dark ? "DARK" : "LIGHT" }).catch(() => {});
       }
-      return () => { html.style.background = before[0] ?? ""; body.style.background = before[1] ?? ""; if (meta && before[2]) meta.content = before[2]; };
+      return () => { for (const [k] of vars) html.style.removeProperty(k); delete html.dataset.hubLook; html.style.background = before[0] ?? ""; body.style.background = before[1] ?? ""; if (meta && before[2]) meta.content = before[2]; };
     }
     if (sent.current && isNativeApp()) {
       sent.current = false;

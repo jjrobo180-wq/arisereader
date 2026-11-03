@@ -1,12 +1,12 @@
 /* Each Arise Duo look's own system. Colors come from shared/notesThemes.ts. */
 .los-native .los-hide { display: none !important; }
 .los { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; background: var(--an-bg); color: var(--an-ink); font-family: var(--an-font); }
-.los-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 6rem; }
+.los-body { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 6rem; }
 .los button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; text-align: left; }
 .los h1, .los h2, .los h3 { margin: 0; font-family: var(--an-serif); }
 .los h2 { margin-top: 1.2rem; font-size: 1rem; font-weight: 800; }
 .los small { font-size: .78rem; }
-.los-pad { padding: 1rem; }
+.los-pad { padding: 1rem; min-width: 0; }
 .los-none { color: var(--an-muted); margin: 0; }
 .los-title { padding: env(safe-area-inset-top) 0 .7rem; }
 .los-swiss .los-title, .los-gazette .los-title { padding-top: 0; margin-top: 0; }
@@ -20,7 +20,9 @@
 .los-noteswidget small { display: block; opacity: .75; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .los-shortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
 .los-shortcuts button { min-height: 3rem; padding: 0 .8rem; border-radius: 16px; background: var(--an-card); font-weight: 700; }
-.los-filter { display: flex; gap: .4rem; }
+.los-filter { display: flex; gap: .4rem; overflow-x: auto; scrollbar-width: none; margin: 0 -1rem .6rem; padding: 0 1rem; }
+.los-filter::-webkit-scrollbar { display: none; }
+.los-filter button { flex: none; }
 .los-filter button { min-height: 2.75rem; padding: 0 1rem; border-radius: var(--an-radius); background: var(--an-card); font-weight: 700; }
 .los-filter [aria-pressed="true"] { background: var(--an-violet); color: var(--an-on-accent); }
 .los-app { margin-top: 1rem; }
@@ -56,7 +58,7 @@
 .los-dock-cassette [data-nav="add"] { background: #d3331f; color: #fff; }
 .los-dock-frost { left: .5rem; right: .5rem; bottom: max(.6rem, env(safe-area-inset-bottom)); gap: .3rem; }
 .los-dock-frost button { aspect-ratio: 1; min-height: 0; border-radius: 50%; background: rgba(255,255,255,.72); backdrop-filter: blur(14px); box-shadow: 0 6px 16px rgba(11,35,64,.18); }
-.los-dock-grove { left: 0; right: 0; bottom: 0; padding: .4rem .25rem max(.4rem, env(safe-area-inset-bottom)); background: var(--an-bg); font: 500 .92rem var(--an-serif); }
+.los-dock-grove { border-top: 1px solid var(--an-line); left: 0; right: 0; bottom: 0; padding: .4rem .25rem max(.4rem, env(safe-area-inset-bottom)); background: var(--an-bg); font: 500 .92rem var(--an-serif); }
 .los-dock-grove [aria-current="page"] { background: none; color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 5px; }
 .los-dock-gazette { top: calc(env(safe-area-inset-top) + 5.1rem); bottom: auto; left: .8rem; right: .8rem; border-block: 1px solid var(--an-ink); background: var(--an-bg); font-size: .76rem; font-weight: 700; }
 .los-dock-gazette [aria-current="page"] { background: none; color: var(--an-violet); }
