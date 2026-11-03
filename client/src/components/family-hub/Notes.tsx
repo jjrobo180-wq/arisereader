@@ -37,7 +37,7 @@ export default function Notes({ family, setFamily, makeId, say }: SectionProps) 
     <PageHead eyebrow="Notes" title="Family notes" blurb="Everything you keep needing to look up: codes, contacts, lists and ideas. Pinned notes also show on Home."
       action={<div className="flex flex-wrap gap-2"><NoteTemplatesButton hub="life" onPick={(t) => setEditing({ ...blank(t.title), body: t.body })} /><button onClick={() => setEditing(blank())} className={primary + " min-h-11 px-5"}><Plus size={18} /> New note</button></div>} />
     {family.notes.length > 0 && <div className="relative max-w-md"><Search size={17} className="pointer-events-none absolute left-3 top-3.5 text-slate-400" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search notes" aria-label="Search notes" className={inputClass + " pl-10"} /></div>}
-    {notes.length ? <div className="columns-1 gap-4 sm:columns-2 xl:columns-3 [&>*]:mb-4">
+    {notes.length ? <div className="hub-notes columns-1 gap-4 sm:columns-2 xl:columns-3 [&>*]:mb-4">
       {notes.map((n) => <article key={n.id} className="note-card group break-inside-avoid rounded-2xl border border-black/5 p-4 shadow-[0_3px_16px_#17152b0a]" style={{ background: n.color }}>
         <div className="flex items-start gap-2">
           <button onClick={() => void open(n)} className="min-w-0 flex-1 text-left" data-locked={n.locked ? "" : undefined}>
