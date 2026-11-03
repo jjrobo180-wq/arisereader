@@ -1831,7 +1831,7 @@ function snapHTML(){
         ${N.img?`<img class="snap-img" src="${N.img}" alt="Your problem"><button class="btn sm" data-act="snapclear">${svg('x')}Use a different picture</button>`
           :`<div class="cam" style="width:56px;height:56px;border-radius:16px;background:var(--primary-soft);color:var(--primary-text);display:grid;place-items:center">${svg('camera','style="width:30px;height:30px"')}</div>
           <div class="btns"><label class="btn primary">${svg('camera')}Take a photo<input type="file" id="snapCam" accept="image/*" capture="environment"></label>
-            <label class="btn outline">${svg('image')}Upload a screenshot<input type="file" id="snapFile" accept="image/*"></label></div>
+            <label class="btn outline">${svg('image')}Upload a screenshot<input type="file" id="snapFile" accept="image/*,.heic,.heif,.pdf,application/pdf"></label></div>
           <p class="small muted">On a computer you can also paste a screenshot here (Ctrl+V or ⌘V), or drag a picture in.</p>`}
       </div>
       <label class="f"><span class="small muted">${N.img?'Anything to add? (optional, like “just number 4”)':'Or type the problem'}</span><textarea class="snap-text" id="snapText" maxlength="600" placeholder="${N.img?'Number 4 please':'Example: 3x + 5 = 20'}">${esc(N.text)}</textarea></label>
@@ -2116,11 +2116,12 @@ function prepNewHTML(){
         <label class="f"><span class="small muted">Test date (optional)</span><input type="date" id="prepDate" value="${esc(F.testDate)}" min="${today()}"></label>
         ${student ? '' : `<label class="f"><span class="small muted">Grade</span><select id="prepGrade">${grades}</select></label>`}
       </div>
+      ${R.adding ? `<p class="small muted" role="status">Opening your pages…</p>` : ''}
       <div class="drop" id="prepDrop">
         ${thumbs ? `<div class="prep-thumbs">${thumbs}</div>` : `<div style="width:56px;height:56px;border-radius:16px;background:var(--primary-soft);color:var(--primary-text);display:grid;place-items:center">${svg('camera','style="width:30px;height:30px"')}</div>`}
         ${F.images.length < PREP_MAX_IMAGES ? `<div class="btns"><label class="btn primary">${svg('camera')}Take a photo<input type="file" id="prepCam" accept="image/*" capture="environment"></label>
-          <label class="btn outline">${svg('image')}Upload pages<input type="file" id="prepFile" accept="image/*" multiple></label></div>
-          <p class="small muted">Up to ${PREP_MAX_IMAGES} pages. On a computer you can also paste a screenshot (Ctrl+V or ⌘V) or drag pictures in.</p>` : `<p class="small muted">That’s ${PREP_MAX_IMAGES} pages, the most at once.</p>`}
+          <label class="btn outline">${svg('image')}Upload pages<input type="file" id="prepFile" accept="image/*,.heic,.heif,.pdf,application/pdf" multiple></label></div>
+          <p class="small muted">Up to ${PREP_MAX_IMAGES} pages: any photo, screenshot or PDF. On a computer you can also paste a screenshot (Ctrl+V or ⌘V) or drag pictures in.</p>` : `<p class="small muted">That’s ${PREP_MAX_IMAGES} pages, the most at once.</p>`}
       </div>
       <label class="f"><span class="small muted">Lesson name, standard, or problems (optional if you added photos)</span><textarea class="snap-text" id="prepText" maxlength="2000" placeholder="Example: 6.EE.A.2, writing and evaluating expressions. Or: Lesson 5.3 adding fractions with unlike denominators">${esc(F.text)}</textarea></label>
       <div class="row" style="gap:8px"><button class="btn primary" data-act="prepgo">${svg('prep')}Make my practice</button></div>
@@ -2239,11 +2240,75 @@ async function prepGo(){
 }
 async function prepAddImages(files){
   const R = P0();
-  for (const f of [...files].slice(0, PREP_MAX_IMAGES - R.form.images.length)) {
-    try { R.form.images.push(await shrinkImage(f)); R.err = null; } catch (e) { R.err = e.message; }
+  R.err = null; R.adding = true; render();
+  for (const f of [...files]) {
+    const room = PREP_MAX_IMAGES - R.form.images.length;
+    if (room <= 0) { R.err = `That’s ${PREP_MAX_IMAGES} pages, the most at once.`; break; }
+    try { R.form.images.push(...(await pagesOf(f, room))); } catch (e) { R.err = e.message; }
   }
-  render();
+  R.adding = false; render();
 }
+/* ---------- any picture or PDF → JPEG ----------
+   Phones and computers hand over many kinds of picture: JPG, PNG, iPhone HEIC/HEIF, WebP, AVIF, GIF,
+   BMP, TIFF, and PDFs of worksheets. Everything is turned into a JPEG (at most 1600 px) here, which is
+   what the math helper reads. HEIC and PDF are opened with heic2any and PDF.js, loaded only when needed. */
+const loadScript = (src) => new Promise((ok, no) => { if (document.querySelector(`script[src="${src}"]`)?.dataset.ready) return ok(); const el = document.createElement('script'); el.src = src; el.onload = () => { el.dataset.ready = '1'; ok(); }; el.onerror = () => no(new Error('That kind of file needs the internet to open. Check your connection and try again.')); document.head.appendChild(el); });
+const isPdf = f => /pdf/i.test(f.type || '') || /\.pdf$/i.test(f.name || '');
+const isHeic = f => /hei[cf]/i.test(f.type || '') || /\.(heic|heif)$/i.test(f.name || '');
+function toJpeg(src, w, h){
+  const sc = Math.min(1, 1600 / Math.max(w || 1, h || 1));
+  const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w * sc)); c.height = Math.max(1, Math.round(h * sc));
+  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(src, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.85);
+}
+async function decodePicture(blob){
+  // createImageBitmap opens more kinds of picture than <img>, and turns phone photos the right way up.
+  if (window.createImageBitmap) {
+    try { const b = await createImageBitmap(blob, { imageOrientation:'from-image' }); try { return toJpeg(b, b.width, b.height); } finally { b.close?.(); } } catch {}
+  }
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = url; });
+    return toJpeg(img, img.naturalWidth, img.naturalHeight);
+  } finally { URL.revokeObjectURL(url); }
+}
+async function heicToJpeg(file){
+  await loadScript('https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js');
+  const out = await window.heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 });
+  return Array.isArray(out) ? out[0] : out;
+}
+async function pdfPages(file, most){
+  await loadScript('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js');
+  const lib = window.pdfjsLib;
+  lib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  const doc = await lib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+  const pages = [];
+  for (let n = 1; n <= Math.min(doc.numPages, most); n++) {
+    const page = await doc.getPage(n), base = page.getViewport({ scale: 1 });
+    const vp = page.getViewport({ scale: Math.min(3, 1600 / Math.max(base.width, base.height)) });
+    const c = document.createElement('canvas'); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+    await page.render({ canvasContext: g, viewport: vp }).promise;
+    pages.push(c.toDataURL('image/jpeg', 0.85));
+  }
+  if (!pages.length) throw new Error('That PDF has no pages.');
+  return pages;
+}
+/** Every page of a file, as JPEG data URLs: one for a picture, up to `most` for a PDF. */
+async function pagesOf(file, most = 1){
+  if (!file) throw new Error('No picture was picked.');
+  try {
+    if (isPdf(file)) return await pdfPages(file, most);
+    try { return [await decodePicture(file)]; }
+    catch (first) { return [await decodePicture(await heicToJpeg(file))]; }   // HEIC, or anything the browser can't open itself
+  } catch (e) {
+    console.warn('[arise-math] picture', file.type, file.name, e);
+    throw new Error(isPdf(file) ? 'That PDF couldn’t be opened. Try a screenshot of the page instead.' : 'That picture couldn’t be opened. Try taking a screenshot of it and uploading the screenshot.');
+  }
+}
+// Snap a problem uses the same routine (the first page of a PDF).
+shrinkImage = async (file) => (await pagesOf(file, 1))[0];
+
 const keepForm = () => { const R = P0(), F = R.form; if (R.view !== 'new') return; F.title = document.getElementById('prepTitle')?.value ?? F.title; F.testDate = document.getElementById('prepDate')?.value ?? F.testDate; F.grade = document.getElementById('prepGrade')?.value ?? F.grade; F.text = document.getElementById('prepText')?.value ?? F.text; };
 
 document.addEventListener('click', async e => {
@@ -2302,7 +2367,7 @@ document.addEventListener('paste', e => {
 });
 document.addEventListener('dragover', e => { const d = e.target.closest?.('#prepDrop'); if (d) { e.preventDefault(); d.classList.add('over'); } });
 document.addEventListener('dragleave', e => { e.target.closest?.('#prepDrop')?.classList.remove('over'); });
-document.addEventListener('drop', e => { const d = e.target.closest?.('#prepDrop'); if (!d) return; e.preventDefault(); d.classList.remove('over'); const files = [...(e.dataTransfer?.files || [])].filter(f => f.type.startsWith('image/')); if (files.length) { keepForm(); prepAddImages(files); } });
+document.addEventListener('drop', e => { const d = e.target.closest?.('#prepDrop'); if (!d) return; e.preventDefault(); d.classList.remove('over'); const files = [...(e.dataTransfer?.files || [])]; if (files.length) { keepForm(); prepAddImages(files); } });
 </script>
 <script src="/addons/addon-bar.js" defer></script>
 </body>
