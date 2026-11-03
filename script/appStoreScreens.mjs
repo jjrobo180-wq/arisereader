@@ -174,6 +174,14 @@ for (const id of LOOKS) {
 for (const nav of ["you", "add", "apps"]) lookJobs.push(() => shot(`look-studio-${nav}`, async (p) => { await withLook(p, "studio", "/lifehub?pane=home"); await p.frameLocator("#f").locator(`[data-nav="${nav}"]`).click(); await wait(p, 800); }));
 for (const id of ["cassette", "grove", "punch", "deck"]) lookJobs.push(() => shot(`look-${id}-notifications`, async (p) => { await withLook(p, id, "/lifehub?pane=home"); const f = p.frameLocator("#f"); await f.locator('[data-nav="you"]').click(); await f.getByRole("button", { name: /^Notifications/ }).first().click(); await wait(p, 1000); }));
 for (const id of ["studio", "frost"]) { lookJobs.push(() => shot(`look-work-${id}-add`, async (p) => { await withLook(p, id, "/hub"); await p.frameLocator("#f").locator('[data-nav="add"]').click(); await wait(p, 800); })); lookJobs.push(() => shot(`look-work-${id}-apps`, async (p) => { await withLook(p, id, "/hub"); await p.frameLocator("#f").locator('[data-nav="apps"]').click(); await wait(p, 800); })); }
+// Night mode, on the looks that are light by day.
+const nightOf = async (p, id, hash) => { await p.addInitScript(() => { try { for (const k of ["arise-todo-night", "arise-hub-night"]) sessionStorage.setItem(`arise-sample:${k}`, "1"); } catch { /* none */ } }); await withLook(p, id, hash); };
+for (const id of ["margin", "bloom", "timeline", "swiss", "frost", "grove", "gazette", "punch", "chatline"]) {
+  for (const [name, hash] of [["home", "/lifehub?pane=home"], ["tasks", "/lifehub?pane=tasks"], ["calendar", "/lifehub?go=calendar"], ["app", "/lifehub?go=notifications"], ["work", "/hub"]])
+    lookJobs.push(() => shot(`night-${id}-${name}`, (p) => nightOf(p, id, hash)));
+  lookJobs.push(() => shot(`night-${id}-bell`, async (p) => { await nightOf(p, id, "/lifehub?pane=home"); await p.frameLocator("#f").getByTestId("notification-bell").click(); await wait(p, 900); }));
+  lookJobs.push(() => shot(`night-${id}-you`, async (p) => { await nightOf(p, id, "/lifehub?pane=home"); await p.frameLocator("#f").locator('[data-nav="you"]').click(); await wait(p, 800); }));
+}
 await inBatches(lookJobs);
 
 await browser.close();

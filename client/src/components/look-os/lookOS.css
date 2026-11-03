@@ -7,7 +7,7 @@
 .los-studio[data-screen="home"] .los-topbar, .los-bloom[data-screen="home"] .los-topbar, .los-timeline[data-screen="home"] .los-topbar, .los-cassette[data-screen="home"] .los-topbar { background: var(--an-violet); color: var(--an-on-accent); }
 .los-console .los-topbar { border-bottom: 1px solid var(--an-line); }
 .los-gazette .los-topbar, .los-swiss .los-topbar, .los-margin .los-topbar { border-bottom: 1px solid var(--an-ink); }
-.los-punch .los-topbar { border-bottom: 3px solid #000; }
+.los-punch .los-topbar { border-bottom: 3px solid var(--an-edge, #000); }
 .los-body { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 6rem; }
 .los button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; text-align: left; }
 .los h1, .los h2, .los h3 { margin: 0; font-family: var(--an-serif); }
@@ -66,7 +66,7 @@
 .los-dock-cassette [aria-current="page"] { background: var(--an-violet); color: var(--an-on-accent); border-bottom-width: 1px; transform: translateY(3px); }
 .los-dock-cassette [data-nav="add"] { background: #d3331f; color: #fff; }
 .los-dock-frost { left: .5rem; right: .5rem; bottom: max(.6rem, env(safe-area-inset-bottom)); gap: .3rem; }
-.los-dock-frost button { aspect-ratio: 1; min-height: 0; border-radius: 50%; background: rgba(255,255,255,.72); backdrop-filter: blur(14px); box-shadow: 0 6px 16px rgba(11,35,64,.18); }
+.los-dock-frost button { aspect-ratio: 1; min-height: 0; border-radius: 50%; background: var(--an-glass); backdrop-filter: blur(14px); box-shadow: 0 6px 16px rgba(11,35,64,.18); }
 .los-dock-grove { border-top: 1px solid var(--an-line); left: 0; right: 0; bottom: 0; padding: .4rem .25rem max(.4rem, env(safe-area-inset-bottom)); background: var(--an-bg); font: 500 .92rem var(--an-serif); }
 .los-dock-grove [aria-current="page"] { background: none; color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 5px; }
 .los-dock-gazette { top: calc(env(safe-area-inset-top) + 8.5rem); bottom: auto; left: .8rem; right: .8rem; border-block: 1px solid var(--an-ink); background: var(--an-bg); font-size: .76rem; font-weight: 700; }
@@ -74,9 +74,9 @@
 .los-gazette .los-body { padding: 8.1rem 0 2rem; }
 .los-gazette .los-paper header { position: fixed; top: calc(env(safe-area-inset-top) + 3.4rem); left: 0; right: 0; z-index: 40; padding: .5rem .8rem 0; height: 5.1rem; background: var(--an-bg); text-align: center; }
 .los-dock-punch { left: .5rem; right: .9rem; bottom: max(.8rem, env(safe-area-inset-bottom)); gap: .25rem; font-size: .64rem; font-weight: 900; }
-.los-dock-punch button { min-height: 3rem; background: #fff; color: #000; border: 3px solid #000; box-shadow: 3px 3px 0 #000; }
+.los-dock-punch button { min-height: 3rem; background: var(--an-card); color: var(--an-ink); border: 3px solid var(--an-edge, #000); box-shadow: 3px 3px 0 var(--an-edge, #000); }
 .los-dock-punch [aria-current="page"] { background: #ff5ca8; color: #000; border-radius: 0; }
-.los-dock-punch [data-nav="add"] { background: #a7f36b; }
+.los-dock-punch [data-nav="add"] { background: #a7f36b; color: #000; }
 .los-dock-deck { left: 1rem; right: 1rem; bottom: max(.75rem, env(safe-area-inset-bottom)); padding: .4rem; border-radius: 24px; background: var(--an-card); }
 /* Studio */
 .los-studio .los-hero { padding-bottom: 1.5rem; }
@@ -157,10 +157,10 @@
 .los-ring b { font-size: 4rem; line-height: 1; font-weight: 700; }
 .los-frost .los-hero p { margin: .7rem 0 0; font-weight: 600; }
 .los-orbs { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .2rem; }
-.los-orbs span { display: grid; justify-items: center; align-content: center; aspect-ratio: 1; border-radius: 50%; background: rgba(255,255,255,.65); font-size: .85rem; }
+.los-orbs span { display: grid; justify-items: center; align-content: center; aspect-ratio: 1; border-radius: 50%; background: var(--an-glass); font-size: .85rem; }
 .los-orbs small { font-size: .6rem; }
 .los-orbs [data-on] { background: var(--an-violet); color: var(--an-on-accent); }
-.los-glass { margin-top: .8rem; padding: 1rem; border-radius: 24px; background: rgba(255,255,255,.6); backdrop-filter: blur(14px); }
+.los-glass { margin-top: .8rem; padding: 1rem; border-radius: 24px; background: var(--an-glass); backdrop-filter: blur(14px); }
 .los-glass .los-noteswidget { margin: 0; }
 /* Grove */
 .los-journal { padding: calc(0px + 2rem) 1.4rem 1rem; }
@@ -184,15 +184,15 @@
 .los-stickers { padding: calc(0px + 1rem) 1rem 1rem; }
 .los-stickers h1 { font-size: 2rem; font-weight: 900; line-height: 1; }
 .los-bigbtns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; margin: .9rem 0; }
-.los-bigbtns button { min-height: 8rem; padding: .7rem !important; border: 4px solid #000 !important; box-shadow: 6px 6px 0 #000; color: #000 !important; font-weight: 900; }
+.los-bigbtns button { min-height: 8rem; padding: .7rem !important; border: 4px solid var(--an-edge, #000) !important; box-shadow: 6px 6px 0 var(--an-edge, #000); color: #000 !important; font-weight: 900; }
 .los-bigbtns button:nth-child(1) { background: #ff5ca8 !important; transform: rotate(-1.5deg); }
 .los-bigbtns button:nth-child(2) { background: #6ee7f9 !important; transform: rotate(1deg); }
 .los-bigbtns button:nth-child(3) { background: #a7f36b !important; transform: rotate(1deg); }
 .los-bigbtns button:nth-child(4) { background: #fff !important; transform: rotate(-1deg); }
 .los-bigbtns b { display: block; font-size: 3.4rem; line-height: 1; }
-.los-punch .los-cal { padding: .8rem; border: 4px solid #000; background: #fff !important; color: #000; box-shadow: 6px 6px 0 #000; }
+.los-punch .los-cal { padding: .8rem; border: 4px solid var(--an-edge, #000); background: var(--an-card) !important; color: var(--an-ink); box-shadow: 6px 6px 0 var(--an-edge, #000); }
 .los-punch .los-month span { border-radius: 0; }
-.los-punch .los-month [data-on] { background: #ff5ca8; color: #000; border: 2px solid #000; }
+.los-punch .los-month [data-on] { background: #ff5ca8; color: #000; border: 2px solid var(--an-edge, #000); }
 /* Chatline */
 .los-chat { display: flex; flex-direction: column; gap: .5rem; min-height: 100%; padding: calc(0px + 1rem) .9rem 1rem; }
 .los-them, .los-bubbles p { align-self: flex-start; max-width: 85%; margin: 0; padding: .7rem .95rem !important; border-radius: 20px 20px 20px 4px; background: var(--an-card) !important; }
@@ -226,3 +226,10 @@
 .los-close { text-align: right !important; font-weight: 700; color: var(--an-violet-ink) !important; }
 @media (min-width: 900px) { .los-body > * { max-width: 46rem; margin-inline: auto; } }
 @media (prefers-reduced-motion: reduce) { .los-reels i { animation: none; } }
+
+/* Night: floating docks lift off the dark page, and shared dark bars stay visible. */
+.los-dock-dark.los-dock-studio, .los-dock-dark.los-dock-timeline, .los-dock-dark.los-dock-chatline { background: var(--an-card); color: var(--an-ink); box-shadow: 0 0 0 1px var(--an-line), 0 12px 30px rgba(0,0,0,.5); }
+.los-dock-dark.los-dock-bloom, .los-dock-dark.los-dock-deck { box-shadow: 0 0 0 1px var(--an-line), 0 12px 30px rgba(0,0,0,.5); }
+.los-dock-dark.los-dock-margin, .los-dock-dark.los-dock-grove { border-top-color: var(--an-line); }
+.los-dock-dark.los-dock-margin [aria-current="page"] { color: var(--an-violet-ink); box-shadow: inset 0 3px 0 var(--an-violet-ink); }
+.los-dock-dark.los-dock-gazette [aria-current="page"] { color: var(--an-violet-ink); }

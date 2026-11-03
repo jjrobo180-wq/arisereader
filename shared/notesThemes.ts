@@ -27,6 +27,27 @@ export const NOTES_THEMES: NotesTheme[] = [
 ];
 export const isThemeId = (v: unknown): v is NotesThemeId => NOTES_THEMES.some((t) => t.id === v);
 export const themeOf = (id: unknown): NotesTheme => NOTES_THEMES.find((t) => t.id === id) ?? NOTES_THEMES[0];
+type NightColors = Pick<NotesTheme, "bg" | "card" | "line" | "ink" | "muted" | "faint" | "accent" | "accentInk" | "accentSoft" | "onAccent">;
+const NIGHT_COLORS: Partial<Record<NotesThemeId, NightColors>> = {
+  margin: { bg: "#12141a", card: "#1b1e26", line: "#333845", ink: "#f2f3f6", muted: "#b6bac6", faint: "#a4a8b5", accent: "#8ea2ff", accentInk: "#aebcff", accentSoft: "#232a45", onAccent: "#0b0e1c" },
+  bloom: { bg: "#17132e", card: "#241e45", line: "#3b3368", ink: "#f3f0ff", muted: "#c9c2e8", faint: "#b4acd8", accent: "#a08cff", accentInk: "#bbacff", accentSoft: "#2f2860", onAccent: "#120c2e" },
+  timeline: { bg: "#0c1c1d", card: "#142a2b", line: "#2a4a4b", ink: "#e8f5f3", muted: "#acc9c6", faint: "#97b8b5", accent: "#37bdb7", accentInk: "#66d6d0", accentSoft: "#17393a", onAccent: "#04201f" },
+  swiss: { bg: "#111111", card: "#1a1a1a", line: "#f2f2ee", ink: "#f2f2ee", muted: "#c9c9c4", faint: "#b0b0ab", accent: "#d92a22", accentInk: "#ff7a71", accentSoft: "#3a1614", onAccent: "#ffffff" },
+  frost: { bg: "#0b1a2c", card: "#132739", line: "#2a4560", ink: "#e6f2fb", muted: "#aac3d8", faint: "#97b1c6", accent: "#9fd0f5", accentInk: "#b7dcf8", accentSoft: "#183450", onAccent: "#0b2340" },
+  grove: { bg: "#10201a", card: "#182c23", line: "#33493d", ink: "#f0edd8", muted: "#bcc4ad", faint: "#a8b199", accent: "#c6d89a", accentInk: "#d3e2ac", accentSoft: "#24392d", onAccent: "#10201a" },
+  gazette: { bg: "#16140f", card: "#211e17", line: "#e8e2d2", ink: "#efe9da", muted: "#c4bda9", faint: "#aea793", accent: "#e8665b", accentInk: "#f0857b", accentSoft: "#38201b", onAccent: "#160b09" },
+  punch: { bg: "#181818", card: "#262626", line: "#fff36b", ink: "#ffffff", muted: "#dddddd", faint: "#c4c4c4", accent: "#ff5ca8", accentInk: "#fff36b", accentSoft: "#3a1c2c", onAccent: "#000000" },
+  chatline: { bg: "#0e1116", card: "#1b2029", line: "#2f3642", ink: "#eef1f6", muted: "#b3bac6", faint: "#a0a8b5", accent: "#5b96ff", accentInk: "#8ab4ff", accentSoft: "#18263e", onAccent: "#05122a" },
+};
+const nightCache = new Map<NotesThemeId, NotesTheme>();
+/** A look in night mode. Looks that are already dark stay as they are. */
+export function nightLook(t: NotesTheme): NotesTheme {
+  const colors = NIGHT_COLORS[t.id];
+  if (t.dark || !colors) return t;
+  let out = nightCache.get(t.id);
+  if (!out) { out = { ...t, ...colors, dark: true }; nightCache.set(t.id, out); }
+  return out;
+}
 /** The CSS variables a look sets on the app's root. */
 export function themeVars(t: NotesTheme): Record<string, string> {
   return {
@@ -38,7 +59,8 @@ export function themeVars(t: NotesTheme): Record<string, string> {
     "--an-green": t.dark ? "#7de2b8" : "#0d6b47", "--an-green-soft": `color-mix(in srgb, #138a5b ${t.dark ? 24 : 12}%, ${t.card})`,
     "--an-font": t.font, "--an-serif": t.display, "--an-radius": `${t.radius}px`, "--an-border": `${t.border ?? 1}px`,
     "--an-glass": `color-mix(in srgb, ${t.card} 86%, transparent)`,
-    "--an-shadow": t.hardShadow ? "4px 4px 0 #000" : t.dark ? "0 10px 28px -16px rgba(0,0,0,.8)" : "0 1px 2px rgba(0,0,0,.05), 0 10px 28px -16px rgba(0,0,0,.28)",
-    "--an-shadow-lg": t.hardShadow ? "7px 7px 0 #000" : t.dark ? "0 18px 40px -18px rgba(0,0,0,.9)" : "0 18px 40px -22px rgba(0,0,0,.4)",
+    "--an-edge": t.hardShadow && t.dark ? t.line : "#000",
+    "--an-shadow": t.hardShadow ? `4px 4px 0 ${t.dark ? t.line : "#000"}` : t.dark ? "0 10px 28px -16px rgba(0,0,0,.8)" : "0 1px 2px rgba(0,0,0,.05), 0 10px 28px -16px rgba(0,0,0,.28)",
+    "--an-shadow-lg": t.hardShadow ? `7px 7px 0 ${t.dark ? t.line : "#000"}` : t.dark ? "0 18px 40px -18px rgba(0,0,0,.9)" : "0 18px 40px -22px rgba(0,0,0,.4)",
   };
 }

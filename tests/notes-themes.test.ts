@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { NOTES_THEMES, cleanSettings, themeOf } from "../shared/ariseNotes";
+import { nightLook } from "../shared/notesThemes";
 
 const lum = (hex: string) => {
   const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
@@ -38,4 +39,15 @@ test("the iPhone app draws edge to edge, so the header stays put and covers the 
 test("the iPhone app's page reaches the screen edges, so headers sit below the clock", () => {
   const main = readFileSync(new URL("../client/src/main.tsx", import.meta.url), "utf8");
   assert.match(main, /isNotesApp\(\)\) \{\s*const vp/);
+});
+
+test("every look has a readable night mode", () => {
+  const lum = (hex: string) => { const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+  const ratio = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+  for (const t of NOTES_THEMES.filter((x) => x.id !== "classic")) {
+    const n = nightLook(t);
+    assert.ok(n.dark, `${t.id} is dark at night`);
+    for (const [fg, bg, min] of [[n.ink, n.bg, 7], [n.ink, n.card, 7], [n.muted, n.card, 4.5], [n.faint, n.card, 4.5], [n.onAccent, n.accent, 4.5], [n.accentInk, n.card, 4.5]] as const)
+      assert.ok(ratio(fg, bg) >= min, `${t.id}: ${fg} on ${bg} is ${ratio(fg, bg).toFixed(2)}`);
+  }
 });
