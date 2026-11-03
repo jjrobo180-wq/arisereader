@@ -45,7 +45,7 @@
 .hub-theme-punch .shadow-sm, .hub-theme-punch .shadow, .hub-theme-punch .shadow-md { box-shadow: 4px 4px 0 #000 !important; }
 .hub-theme-swiss .shadow-sm, .hub-theme-gazette .shadow-sm, .hub-theme-margin .shadow-sm, .hub-theme-console .shadow-sm { box-shadow: none !important; }
 .hub-theme-console .rounded-xl, .hub-theme-console .rounded-2xl, .hub-theme-console .rounded-3xl { border: 1px solid var(--an-line); }
-.hub-theme-frost .bg-white { background-color: color-mix(in srgb, var(--an-card) 72%, transparent) !important; backdrop-filter: blur(14px); }
+.hub-theme-frost [data-testid="home-grid"] .bg-white { background-color: color-mix(in srgb, var(--an-card) 72%, transparent) !important; backdrop-filter: blur(14px); }
 
 /* ——— Colors written straight into the screens ——— */
 .hub-look [class*="bg-[#292446]"], .hub-look [class*="bg-[#1d1a33]"], .hub-look [class*="bg-[#16152a]"], .hub-look [class*="bg-[#6e5ae0]"], .hub-look [class*="bg-[#6e5ce1]"], .hub-look [class*="bg-[#5948c8]"], .hub-look [class*="bg-[#7968e5]"], .hub-look [class*="bg-[#a38cfa]"] { background-color: var(--an-violet) !important; color: var(--an-on-accent) !important; border-color: transparent; }
@@ -68,6 +68,8 @@
 /* The menu */
 .hub-look [data-testid$="tab-bar"] { background: var(--an-card) !important; color: var(--an-ink) !important; border: var(--an-border) solid var(--an-line); --tw-ring-color: transparent !important; }
 .hub-look [data-testid$="tab-bar"] [class*="text-white"], .hub-look [data-testid$="tab-bar"] button { color: var(--an-ink) !important; }
+.hub-look [data-testid$="tab-bar"] button[class*="bg-"]:not([aria-current]) { background-color: var(--an-violet) !important; color: var(--an-on-accent) !important; }
+.hub-look [data-testid$="tab-bar"] svg { color: inherit; stroke: currentColor; }
 .hub-look [data-testid$="tab-bar"] [aria-current="page"], .hub-look [data-testid$="tab-bar"] [aria-pressed="true"] { background: var(--an-violet) !important; color: var(--an-on-accent) !important; }
 .hub-theme-swiss [data-testid$="tab-bar"], .hub-theme-margin [data-testid$="tab-bar"], .hub-theme-gazette [data-testid$="tab-bar"], .hub-theme-console [data-testid$="tab-bar"] { inset-inline: 0; max-width: none; border-width: 2px 0 0; box-shadow: none; border-radius: 0; bottom: 0 !important; }
 .hub-theme-punch [data-testid$="tab-bar"] { border: 3px solid #000; border-radius: 0; box-shadow: 5px 5px 0 #000; }
@@ -248,3 +250,12 @@
 .lk-agenda-deck .lk-date { flex-direction: row; gap: .35rem; width: auto; }
 .lk-agenda-deck .lk-date b { font-size: 2rem; }
 .lk-tasks-punch .lk-row[data-late] small { color: #000; }
+
+/* The top of Home sits inside the page here, not edge to edge. */
+.hub-look .an-l-hero-swiss { margin: 0; }
+.hub-look .an-l-hero-swiss .an-l-record { height: 11rem; }
+.hub-look .an-l-hero-swiss .an-l-record b { font-size: 4.6rem; }
+.hub-look .an-l-hero-swiss .an-l-secondary { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-columns: none; }
+/* The setup card keeps its icon readable and its button visible. */
+.hub-look .bg-white\/10 { background-color: transparent !important; }
+.hub-look .bg-\[\#a38cfa\] { background-color: var(--an-on-accent) !important; color: var(--an-violet) !important; }
