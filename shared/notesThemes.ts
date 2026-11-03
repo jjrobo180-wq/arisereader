@@ -1,6 +1,6 @@
 // Arise Notes looks: what a person can pick in Settings > Appearance. Each look is colors, type and
 // shape, set through the app's CSS variables, plus its own Home, recording and note designs (looks.tsx).
-export type NotesThemeId = "classic" | "studio" | "margin" | "bloom" | "timeline" | "console" | "swiss" | "cassette" | "frost" | "grove" | "gazette" | "punch" | "chatline" | "deck";
+export type NotesThemeId = "classic" | "studio" | "margin" | "bloom" | "timeline" | "console" | "swiss" | "cassette" | "frost" | "grove" | "gazette" | "punch" | "chatline" | "deck" | "tide";
 export type NotesTheme = {
   id: NotesThemeId; label: string; blurb: string; dark?: boolean;
   bg: string; card: string; line: string; ink: string; muted: string; faint: string;
@@ -24,11 +24,13 @@ export const NOTES_THEMES: NotesTheme[] = [
   { id: "punch", label: "Punch", blurb: "Loud colors and thick outlines.", bg: "#fff36b", card: "#ffffff", line: "#000000", ink: "#000000", muted: "#222222", faint: "#333333", accent: "#ff5ca8", accentInk: "#000000", accentSoft: "#ffe3f0", onAccent: "#000000", record: "#ff5ca8", onRecord: "#000000", font: '"Lexend", sans-serif', display: '"Lexend", sans-serif', fontUrl: g("family=Lexend:wght@400;600;800;900"), radius: 0, border: 3, hardShadow: true },
   { id: "chatline", label: "Chatline", blurb: "Clean and bright, like messages.", bg: "#f1f3f7", card: "#ffffff", line: "#d5d9e2", ink: "#171a21", muted: "#4c5361", faint: "#5f6675", accent: "#1457d2", accentInk: "#1457d2", accentSoft: "#e3ecfb", onAccent: "#ffffff", record: "#c92a20", onRecord: "#ffffff", font: '"Plus Jakarta Sans", sans-serif', display: '"Plus Jakarta Sans", sans-serif', fontUrl: g("family=Plus+Jakarta+Sans:wght@400;500;700;800"), radius: 20 },
   { id: "deck", label: "Deck", blurb: "Dark with bright mint accents.", dark: true, bg: "#20232b", card: "#2c3039", line: "#434854", ink: "#ffffff", muted: "#d6d9e0", faint: "#b9bdc7", accent: "#9de3d3", accentInk: "#9de3d3", accentSoft: "#2f4a47", onAccent: "#14161c", record: "#ff7a5c", onRecord: "#1e0802", font: '"Outfit", sans-serif', display: '"Outfit", sans-serif', fontUrl: g("family=Outfit:wght@400;500;700;800"), radius: 28 },
+  { id: "tide", label: "Tide", blurb: "One deep color and a running gauge of your days.", dark: true, bg: "#0b6677", card: "#0f7486", line: "#4aa3b4", ink: "#ffffff", muted: "#e6f6f9", faint: "#d9f1f5", accent: "#ffcf4a", accentInk: "#fff0b8", accentSoft: "#0a5564", onAccent: "#08303a", record: "#ff7a5c", onRecord: "#200802", font: SANS, display: SANS, radius: 14 },
 ];
 export const isThemeId = (v: unknown): v is NotesThemeId => NOTES_THEMES.some((t) => t.id === v);
 export const themeOf = (id: unknown): NotesTheme => NOTES_THEMES.find((t) => t.id === id) ?? NOTES_THEMES[0];
 type NightColors = Pick<NotesTheme, "bg" | "card" | "line" | "ink" | "muted" | "faint" | "accent" | "accentInk" | "accentSoft" | "onAccent">;
 const NIGHT_COLORS: Partial<Record<NotesThemeId, NightColors>> = {
+  tide: { bg: "#06161c", card: "#0c242c", line: "#1e4753", ink: "#e7f7fa", muted: "#a9cdd6", faint: "#93bac4", accent: "#ffcf4a", accentInk: "#ffdc7a", accentSoft: "#12333d", onAccent: "#08303a" },
   classic: { bg: "#14121f", card: "#1f1c2e", line: "#35314a", ink: "#f3f1fb", muted: "#c0bcd6", faint: "#aaa6c3", accent: "#9d8cff", accentInk: "#b8abff", accentSoft: "#2b2650", onAccent: "#120c2e" },
   margin: { bg: "#12141a", card: "#1b1e26", line: "#333845", ink: "#f2f3f6", muted: "#b6bac6", faint: "#a4a8b5", accent: "#8ea2ff", accentInk: "#aebcff", accentSoft: "#232a45", onAccent: "#0b0e1c" },
   bloom: { bg: "#17132e", card: "#241e45", line: "#3b3368", ink: "#f3f0ff", muted: "#c9c2e8", faint: "#b4acd8", accent: "#a08cff", accentInk: "#bbacff", accentSoft: "#2f2860", onAccent: "#120c2e" },
@@ -44,7 +46,7 @@ const nightCache = new Map<NotesThemeId, NotesTheme>();
 /** A look in night mode. Looks that are already dark stay as they are. */
 export function nightLook(t: NotesTheme): NotesTheme {
   const colors = NIGHT_COLORS[t.id];
-  if (t.dark || !colors) return t;
+  if (!colors) return t;
   let out = nightCache.get(t.id);
   if (!out) { out = { ...t, ...colors, dark: true }; nightCache.set(t.id, out); }
   return out;

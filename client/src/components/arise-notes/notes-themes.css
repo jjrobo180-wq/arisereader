@@ -362,3 +362,13 @@
 .an-night .an-l-list-frost { border-color: var(--an-line); }
 .an-night.an-theme-swiss .an-l-controls [data-testid="notes-stop"], .an-night.an-theme-frost .an-l-controls [data-testid="notes-stop"] { color: var(--an-bg); }
 .an-night.an-theme-timeline .an-l-controls [data-testid="notes-highlight"] { color: #0e2a2b !important; }
+
+/* Tide: the top bar joins the flood; records run against a gauge line. */
+.an-theme-tide { --an-hero: var(--an-bg) !important; --an-on-hero: var(--an-ink) !important; }
+.an-l-tidedate { display: flex; align-items: flex-end; gap: .8rem; color: var(--an-ink); }
+.an-l-tidedate b { font-size: 5.6rem; line-height: .82; font-weight: 800; letter-spacing: -.05em; }
+.an-l-tidedate span { font-size: 1.02rem; font-weight: 700; line-height: 1.25; }
+.an-themed .an-l-hero-tide .an-l-record { min-height: 4rem; border-radius: var(--an-radius); background: var(--an-violet) !important; color: var(--an-on-accent) !important; font-size: 1.25rem; font-weight: 800; box-shadow: none; }
+.an-l-hero-tide .an-l-secondary button { border-radius: var(--an-radius); background: var(--an-card); color: var(--an-ink); border: 0; }
+.an-l-list-tide { gap: 0; }
+.an-l-list-tide .an-l-note { border-left: 4px solid var(--an-violet); border-bottom: 1px solid var(--an-line); padding: .75rem .8rem; }
