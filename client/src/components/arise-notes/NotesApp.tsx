@@ -13,7 +13,7 @@ import { listLocalNotes, type LocalNote } from "./localNotes";
 import { listenForLinks, widgetAi, widgetPages } from "./widgetLinks";
 import { pagesSyncFor } from "./pages/pagesSync";
 import { Btn, IconBtn, Notice, Spinner, ToastHost, plural, shortDate, useToast } from "./ui";
-import { LookHomeHero, LookNoteList, activeLook } from "./looks";
+import { LookHomeHero, LookNoteList, LookTabBar, activeLook } from "./looks";
 import "./notes.css";
 import "./notes-themes.css";
 
@@ -252,6 +252,7 @@ const TAB_KEY = "arise-notes-tab";
 const lastTab = () => { try { return localStorage.getItem(TAB_KEY) === "pages" ? "pages" : "ai"; } catch { return "ai"; } };
 const rememberTab = (t: "ai" | "pages") => { try { localStorage.setItem(TAB_KEY, t); } catch { /* not kept */ } };
 export function TabBar({ ctx, on }: { ctx: AppCtx; on: "ai" | "pages" }) {
+  if (activeLook(ctx.me.settings)) return <LookTabBar on={on} initial={(ctx.me.user.name || "A").trim().charAt(0).toUpperCase()} home={() => ctx.go({ name: "home" })} notes={() => ctx.go({ name: "pages" })} record={() => ctx.go({ name: "record" })} settings={() => ctx.go({ name: "settings" })} />;
   const Tab = ({ id, icon, label }: { id: "ai" | "pages"; icon: ReactNode; label: string }) =>
     <button type="button" role="tab" aria-selected={on === id} onClick={() => ctx.go(id === "ai" ? { name: "home" } : { name: "pages" })} data-testid={`notes-tab-${id}`}
       className={`an-tabpill flex flex-1 items-center justify-center gap-2 rounded-full py-2.5 text-[13.5px] font-bold ${on === id ? "bg-[var(--an-ink)] text-white shadow-[0_8px_18px_-8px_rgba(20,19,31,.7)]" : "text-[var(--an-muted)] hover:text-[var(--an-ink)]"}`}>
@@ -288,15 +289,15 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
   const exit = ctx.mode === "embedded" && onExit;
   const look = activeLook(ctx.me.settings);
   return <>
-    <TopBar ctx={ctx} back={exit ? onExit : undefined} title={exit ? <span className="flex items-center gap-2"><Logo size={26} />Arise Notes</span> : undefined}
+    {(!look || exit) && <TopBar ctx={ctx} back={exit ? onExit : undefined} title={exit ? <span className="flex items-center gap-2"><Logo size={26} />Arise Notes</span> : undefined}
       right={<>
         <IconBtn label="Ask your notes" onClick={() => ctx.go({ name: "ask" })}><MessageCircle className="h-5 w-5" /></IconBtn>
         <IconBtn label="Split screen with your to-do list" className="an-extra hidden md:grid" onClick={() => openSplit(ctx.mode, ctx.hub === "work" ? "workhub" : "tasks")}><Columns2 className="h-5 w-5" /></IconBtn>
         <IconBtn label="Settings" onClick={() => ctx.go({ name: "settings" })}><Settings className="h-5 w-5" /></IconBtn>
-      </>} />
+      </>} />}
     <main className="mx-auto max-w-5xl space-y-5 px-4 pb-24 pt-5 sm:px-5">
       {look ? <>
-        <LookHomeHero look={look} a={{ first, minutes: null, record: () => ctx.go({ name: "record" }), upload: () => ctx.go({ name: "upload" }), memo: () => ctx.go({ name: "memo" }), ask: () => ctx.go({ name: "ask" }), memoLocked: !ctx.me.features.memo }} />
+        <LookHomeHero look={look} a={{ first, minutes: <MinutesPill ctx={ctx} />, record: () => ctx.go({ name: "record" }), upload: () => ctx.go({ name: "upload" }), memo: () => ctx.go({ name: "memo" }), ask: () => ctx.go({ name: "ask" }), memoLocked: !ctx.me.features.memo }} />
       <MinutesBanner ctx={ctx} />
       {!ctx.me.services.speech && <Notice tone="warn">Speech to text isn't switched on for this site yet, so recordings are saved but can't be written down.</Notice>}
 

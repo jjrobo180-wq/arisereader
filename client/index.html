@@ -54,6 +54,8 @@
         if (appTitle) appTitle.setAttribute("content", "Arise To Duo");
         var manifest = document.querySelector('link[rel="manifest"]');
         if (manifest) manifest.setAttribute("href", "/todo.webmanifest");
+        var touchIcon = document.querySelector('link[rel="apple-touch-icon"]');
+        if (touchIcon) touchIcon.setAttribute("href", "/todo-apple-touch-icon.png?v=paper1");
       }
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
