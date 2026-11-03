@@ -42,6 +42,10 @@ export type FitData = {
   vacation?: Vacation;
   /** The rest of a workout saved part-way through, to finish later (shared/fitVacation.ts). */
   splitLeft?: SplitLeft;
+  /** The Arise Fit apps they've added and the ones on the tab bar (shared/fitApps.ts). */
+  apps?: FitApps;
+  /** Interval timers they've made (shared/fitTimers.ts). */
+  timers?: IntervalTimer[];
 };
 
 import { DIET_BY_ID, cleanFasting, type Fasting } from "./fitNutrition";
@@ -49,6 +53,8 @@ import { cleanRuns, type Run } from "./fitRun";
 import { cleanGym, type MyGym } from "./fitGym";
 import { cleanSleep, type Sleep } from "./fitSleep";
 import { cleanSplit, cleanVacation, type SplitLeft, type Vacation } from "./fitVacation";
+import { cleanApps, type FitApps } from "./fitApps";
+import { cleanTimers, type IntervalTimer } from "./fitTimers";
 
 export const LIMITS = { workouts: 3000, foods: 20000, routines: 60, weights: 3000, recent: 60, bytes: 2_500_000 };
 
@@ -111,6 +117,10 @@ export function cleanFit(raw: any): FitData {
   if (splitLeft) d.splitLeft = splitLeft;
   const runs = cleanRuns(raw.runs);
   if (runs.length) d.runs = runs;
+  const apps = cleanApps(raw.apps);
+  if (apps) d.apps = apps;
+  const timers = cleanTimers(raw.timers);
+  if (timers.length) d.timers = timers;
   return d;
 }
 

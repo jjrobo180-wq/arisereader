@@ -26,13 +26,14 @@ test("motion: entrances, fills, shine, scan, rest sheet and route draw, off for 
   assert.match(read("FitRun.tsx"), /className: "fit-route"/);
 });
 
-test("tabs: Today, Train, Food, Fast, Run, with a sliding highlight; Progress opens from Today", () => {
+test("tabs: Today, the apps you pin (Train, Food and Run to start) and Apps, with a sliding highlight", () => {
   const app = read("FitApp.tsx");
-  assert.match(app, /\["fast", "Fast", Timer\], \["run", "Run", Route\]/);
+  assert.match(app, /\[\["today", "Today", Home\], \.\.\.tabIds\.map/);
+  assert.match(app, /\["apps", "Apps", LayoutGrid\]\]/);
   assert.match(app, /transition: "left \.35s/);
-  assert.match(app, /<FastingSheet inline/);
-  assert.match(app, /<OutdoorHub inline/);
-  assert.match(app, /fit-open-progress/);
+  assert.match(app, /<FastingSheet inline=\{inline\}/);
+  assert.match(app, /<OutdoorHub inline=\{inline\}/);
+  assert.match(app, /case "progress": return <ProgressSheet inline=\{inline\}/);
   assert.match(app, /key=\{tab\} className="fit-in"/);
 });
 
