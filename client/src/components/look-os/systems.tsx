@@ -135,7 +135,7 @@ export function SystemHome(p: SysProps) {
     </div>;
     // A modern PC: a start screen with pinned apps and recommendations.
     case "workstation": return <div className="sys-desk sys-desk-workstation">
-      <section className="sys-start"><button type="button" className="sys-search" onClick={() => p.go("tasks")}><Ico n="search" size={18} />Search your tasks, events and notes</button>
+      <section className="sys-start"><button type="button" className="sys-search" onClick={() => p.go("tasks")}><Ico n="search" size={18} />Search</button>
         <header><b>Pinned</b></header><div className="sys-pinned">{icons(["tasks", "calendar", "notes", "apps", "add", "you"], 40)}</div>
         <header><b>Recommended</b></header>
         <div className="sys-recs">{p.open.slice(0, 2).map((t) => <button key={t.id} type="button" onClick={() => p.openTask(t.id)}><Ico n="tasks" size={20} /><span><b>{t.title}</b><small>{t.dueLabel || "Task"}</small></span></button>)}

@@ -63,7 +63,7 @@
 
 /* ─── Pocket: a phone home screen ─── */
 .los-pocket .los-body { background: radial-gradient(120% 60% at 0% 0%, #cfe1ff 0%, transparent 60%), radial-gradient(120% 70% at 100% 30%, #ffd9e8 0%, transparent 55%), var(--an-bg); }
-.los-pocket.los-dock-dark .los-body, .los-pocket[style*="--an-bg: #000000"] .los-body { background: radial-gradient(120% 60% at 0% 0%, #0d2147 0%, transparent 60%), radial-gradient(120% 70% at 100% 30%, #3a1027 0%, transparent 55%), var(--an-bg); }
+.los-pocket.los-isdark .los-body { background: radial-gradient(120% 60% at 0% 0%, #0d2147 0%, transparent 60%), radial-gradient(120% 70% at 100% 30%, #3a1027 0%, transparent 55%), var(--an-bg); }
 .los-pocket .los-topbar { background: transparent; }
 .sys-pocket { padding: .5rem 1.1rem 1rem; }
 .sys-widgets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
@@ -113,7 +113,7 @@
 .los-desktop .los-topbar { height: 2.2rem; background: color-mix(in srgb, var(--an-card) 72%, transparent); backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6); font-size: .85rem; border-bottom: .5px solid var(--an-line); }
 .los-desktop .los-topbar b { font-size: .9rem; }
 .los-desktop .los-body { background: radial-gradient(130% 80% at 80% 0%, #ffb28a 0%, transparent 50%), radial-gradient(120% 90% at 0% 100%, #6c63ff 0%, transparent 55%), linear-gradient(180deg, #ffd6b8, #9f8cff 60%, #5b4bd8); padding-bottom: 7rem; }
-.los-desktop[style*="--an-bg: #1e1e1e"] .los-body { background: radial-gradient(130% 80% at 80% 0%, #6b2c2c 0%, transparent 50%), radial-gradient(120% 90% at 0% 100%, #1f2a6b 0%, transparent 55%), linear-gradient(180deg, #2a1d2f, #141632); }
+.los-desktop.los-isdark .los-body { background: radial-gradient(130% 80% at 80% 0%, #6b2c2c 0%, transparent 50%), radial-gradient(120% 90% at 0% 100%, #1f2a6b 0%, transparent 55%), linear-gradient(180deg, #2a1d2f, #141632); }
 .sys-win-desktop { border-radius: 12px; box-shadow: 0 0 0 .5px rgba(0,0,0,.25), 0 22px 50px -18px rgba(0,0,0,.55); overflow: hidden; }
 .sys-win-desktop .sys-titlebar { min-height: 2.1rem; justify-content: center; position: relative; background: color-mix(in srgb, var(--an-card) 90%, var(--an-line)); border-bottom: .5px solid var(--an-line); }
 .sys-win-desktop .sys-titlebar b { flex: none; max-width: 70%; text-align: center; font-weight: 600; color: var(--an-muted); }
@@ -136,7 +136,7 @@
 /* ─── Millennium: blue taskbar, green start, glossy windows over a hill ─── */
 .los-millennium .los-topbar { background: linear-gradient(180deg, #0997ff 0%, #0053ee 8%, #0050ee 40%, #06f 88%, #0053ee 94%, #003dd7); color: #fff; font-family: var(--an-serif); text-shadow: 1px 1px 0 #0f1089; }
 .los-millennium .los-body { background: radial-gradient(160% 60% at 30% 118%, #4c9a2a 0 48%, #6db33f 52%, transparent 53%), radial-gradient(140% 50% at 90% 125%, #3f8a22 0 52%, transparent 53%), linear-gradient(180deg, #2f6fe0 0%, #5c9cf5 40%, #a9d1ff 70%, #d8ecff 76%); background-attachment: local; }
-.los-millennium[style*="--an-bg: #141a26"] .los-body { background: radial-gradient(160% 60% at 30% 118%, #1d3d14 0 48%, #2b5520 52%, transparent 53%), linear-gradient(180deg, #050b1f, #10224d 60%, #1d3466); }
+.los-millennium.los-isdark .los-body { background: radial-gradient(160% 60% at 30% 118%, #1d3d14 0 48%, #2b5520 52%, transparent 53%), linear-gradient(180deg, #050b1f, #10224d 60%, #1d3466); }
 .sys-win-millennium { border-radius: 8px 8px 0 0; border: 3px solid #0831d9; border-top: 0; box-shadow: 4px 6px 14px rgba(0,0,0,.35); overflow: hidden; }
 .sys-win-millennium .sys-titlebar { min-height: 1.9rem; background: linear-gradient(180deg, #0997ff, #0053ee 10%, #0050ee 50%, #06f 85%, #0053ee 95%, #003dd7); color: #fff; font-family: var(--an-serif); text-shadow: 1px 1px 0 #0f1089; border-radius: 7px 7px 0 0; }
 .sys-win-millennium .sys-ctls button { width: 1.3rem; height: 1.3rem; border-radius: 3px; border: 1px solid #fff !important; background: linear-gradient(160deg, #3c8cff, #0e4fe0) !important; }
@@ -166,7 +166,7 @@
 /* ─── Workstation: a modern PC ─── */
 .los-workstation .los-topbar { background: transparent; }
 .los-workstation .los-body { background: radial-gradient(90% 60% at 30% 20%, #a9c9ff 0%, transparent 60%), radial-gradient(80% 70% at 85% 60%, #c7b7ff 0%, transparent 55%), radial-gradient(100% 80% at 40% 100%, #8fd4ff 0%, transparent 60%), #dfe8f5; }
-.los-workstation[style*="--an-bg: #202020"] .los-body { background: radial-gradient(90% 60% at 30% 20%, #16325e 0%, transparent 60%), radial-gradient(80% 70% at 85% 60%, #2c2060 0%, transparent 55%), #0f1218; }
+.los-workstation.los-isdark .los-body { background: radial-gradient(90% 60% at 30% 20%, #16325e 0%, transparent 60%), radial-gradient(80% 70% at 85% 60%, #2c2060 0%, transparent 55%), #0f1218; }
 .sys-start { padding: 1rem; border-radius: 10px; background: color-mix(in srgb, var(--an-card) 82%, transparent); backdrop-filter: blur(30px) saturate(1.6); -webkit-backdrop-filter: blur(30px) saturate(1.6); box-shadow: 0 0 0 1px color-mix(in srgb, var(--an-line) 70%, transparent), 0 24px 48px -20px rgba(0,0,0,.4); animation: sys-pop .3s ease-out; }
 .sys-search { display: flex !important; align-items: center; gap: .6rem; width: 100%; min-height: 2.5rem; padding: 0 .9rem !important; border-radius: 99px; background: var(--an-bg) !important; color: var(--an-muted) !important; box-shadow: inset 0 -1px 0 var(--an-violet); font-size: .85rem; }
 .sys-start header { margin: 1rem .2rem .5rem; font-size: .85rem; }
@@ -199,10 +199,10 @@
 
 /* ─── Retro 98: beveled gray, a teal desktop ─── */
 .los-retro { --b-hi: #ffffff; --b-lo: #808080; --b-dk: #000000; --b-mid: #dfdfdf; }
-.los-retro[style*="--an-bg: #101010"] { --b-hi: #6a6a6a; --b-lo: #000; --b-dk: #000; --b-mid: #3a3a3a; }
+.los-retro.los-isdark { --b-hi: #6a6a6a; --b-lo: #000; --b-dk: #000; --b-mid: #3a3a3a; }
 .los-retro .los-topbar { background: linear-gradient(90deg, #000080, #1084d0); color: #fff; font-family: var(--an-serif); }
 .los-retro .los-body { background: #008080; }
-.los-retro[style*="--an-bg: #101010"] .los-body { background: #003b3b; }
+.los-retro.los-isdark .los-body { background: #003b3b; }
 .sys-win-retro, .los-retro .los-app, .los-retro .los-pad > .lk-tasks, .sys-startmenu-retro { background: var(--an-card); box-shadow: inset -1px -1px var(--b-dk), inset 1px 1px var(--b-mid), inset -2px -2px var(--b-lo), inset 2px 2px var(--b-hi); padding: 3px; }
 .los-retro .los-app, .los-retro .los-pad > .lk-tasks { padding: .6rem; }
 .sys-win-retro .sys-titlebar { min-height: 1.6rem; padding: 0 2px 0 .4rem; background: linear-gradient(90deg, #000080, #1084d0); color: #fff; font-family: var(--an-serif); }
@@ -215,10 +215,10 @@
 .los-retro .sys-btn { min-height: 2rem; padding: 0 1rem !important; font-weight: 400; }
 .los-retro h1 { font-size: 1.3rem; }
 .sys-fieldset { margin: .8rem 0 0; padding: .5rem .7rem .7rem; border: 0; box-shadow: inset -1px -1px var(--b-hi), inset 1px 1px var(--b-lo), inset -2px -2px var(--b-lo), inset 2px 2px var(--b-hi); } .sys-fieldset legend { padding: 0 .3rem; font-size: .8rem; } .sys-fieldset p { margin: 0 0 .5rem; font-size: .85rem; }
-.sys-progress { height: 1.1rem; padding: 2px; box-shadow: inset -1px -1px var(--b-hi), inset 1px 1px var(--b-lo); background: var(--an-card); } .sys-progress i { display: block; height: 100%; background: repeating-linear-gradient(90deg, #000080 0 .55rem, transparent .55rem .7rem); }
+.sys-progress { height: 1.1rem; padding: 2px; box-shadow: inset -1px -1px var(--b-hi), inset 1px 1px var(--b-lo); background: var(--an-card); } .sys-progress i { display: block; height: 100%; background: repeating-linear-gradient(90deg, var(--an-violet) 0 .55rem, transparent .55rem .7rem); }
 .los-retro .lk-check i { border-radius: 0 !important; border: 0 !important; background: #fff !important; box-shadow: inset -1px -1px var(--b-hi), inset 1px 1px var(--b-lo), inset -2px -2px var(--b-mid), inset 2px 2px var(--b-dk); color: #000; }
 .los-retro .lk-check[aria-pressed="true"] i::after { content: "✓"; display: grid; place-items: center; height: 100%; font: 700 .9rem/1 Tahoma, sans-serif; color: #000; }
-.los-retro .sys-month [data-on]::before { border-radius: 0; background: #000080; }
+.los-retro .sys-month [data-on]::before { border-radius: 0; background: var(--an-violet); }
 .los-retro .sys-desk-icons .sys-appicon { border-radius: 0 !important; box-shadow: none; image-rendering: pixelated; }
 .los-dock.sys-dock-retro { background: var(--an-card); box-shadow: inset 0 1px var(--b-mid), inset 0 2px var(--b-hi); color: var(--an-ink); }
 .sys-dock-retro .sys-startbtn { display: flex !important; align-items: center; gap: .3rem; height: 2.3rem; padding: 0 .6rem !important; font-weight: 700; font-family: var(--an-serif); }
@@ -318,3 +318,13 @@
 /* In another app, every dock still sits along the bottom. */
 .los-dock-inapp.sys-dock-desktop, .los-dock-inapp.sys-dock-orbit { transform: translateX(-50%); }
 @media (prefers-reduced-motion: reduce) { .sys-blobs i, .sys-scan, .sys-neon-hero h1, .sys-win, .sys-start, .sys-startmenu { animation: none !important; } .sys-dock-desktop button { transition: none; } }
+
+/* Fits on a phone: taskbar buttons show their name only for the screen you're on. */
+.sys-dock-millennium .sys-taskbtns button:not([aria-current="page"]) span, .sys-dock-retro .sys-taskbtns button:not([aria-current="page"]) span { display: none; }
+.sys-dock-millennium .sys-taskbtns button:not([aria-current="page"]), .sys-dock-retro .sys-taskbtns button:not([aria-current="page"]) { width: 2.4rem; justify-content: center; padding: 0 !important; }
+@media (min-width: 640px) { .sys-dock-millennium .sys-taskbtns button span, .sys-dock-retro .sys-taskbtns button span { display: inline !important; } .sys-dock-millennium .sys-taskbtns button, .sys-dock-retro .sys-taskbtns button { width: auto !important; padding: 0 .55rem !important; } }
+.sys-dock-neon small { display: none; } .sys-dock-neon [aria-current="page"] small { display: block; }
+.los-ink .los-filter [aria-pressed="true"] { background: var(--an-ink); color: var(--an-bg); }
+.los-glass .los-filter [aria-pressed="true"] { background: rgba(255,255,255,.9); color: #0a1230; }
+.los-retro .los-filter [aria-pressed="true"] { color: var(--an-ink) !important; font-weight: 700; }
+.sys-search { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
