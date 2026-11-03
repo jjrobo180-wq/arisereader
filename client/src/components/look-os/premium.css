@@ -70,3 +70,6 @@
 .los .los-cal[class*="los-cal-"] { padding: 0; }
 .pv-quiet > button { padding: 0; text-align: left; }
 .pv-edit li button { padding: 0; font: inherit; text-align: left; }
+.los-dock.los-dock-arcade [aria-current="page"] { background: var(--an-violet); color: var(--an-on-accent); }
+.los-dock.los-dock-zen { left: 0; right: 0; bottom: 0; max-width: none; padding: .4rem 1.2rem max(.4rem, env(safe-area-inset-bottom)); background: var(--an-bg); border-top: 1px solid var(--an-line); }
+.los-dock.los-dock-aurora { background: color-mix(in srgb, var(--an-card) 92%, transparent); }
