@@ -140,7 +140,9 @@ const RULES = `Rules:
 - Work every problem out carefully yourself and check each answer (substitute it back, or estimate). Accuracy matters more than anything.
 - Write math in plain text a student can read: × ÷ − ² ³ √ π ≤ ≥, fractions as 3/4, mixed numbers as 1 1/2. No LaTeX, no markdown.
 - Short, warm, clear sentences for the student's grade. Never shame mistakes.
-- Typed answers must be short (a number, an expression, or a few words) so they can be checked.`;
+- Typed answers must be short (a number, an expression, or a few words) so they can be checked.
+- Every question stands on its own: every number, table or description a student needs is written IN the question. Never rely on a sheet, chart or picture the student can't see. If the sheet's problem depends on a table, copy the needed values into the question.
+- To change a mixed number to a fraction, multiply and add: 7 5/8 = (7 × 8 + 5)/8 = 61/8. Never push the digits together. Every "=" you write must be exactly true.`;
 
 /** What the AI is asked to do to build a prep set. */
 export function prepPrompt(ask: { title: string; testDate: string; grade: string }): string {

@@ -51,7 +51,7 @@ test("prep routes: make, open, practice, more, share with a class, and delete", 
   const sent: number[] = [];
   let asks = 0;
   registerMathPrepRoutes(app, auth, {
-    kv: memoryKV(), aiConfigured: () => true,
+    kv: memoryKV(), aiConfigured: () => true, skipCheck: true,
     askAI: async (a) => { asks++; return JSON.stringify(a.system.includes("NEW practice questions") ? { questions: [q(9), q(10)] } : reply); },
     studentsOf: async () => [{ id: 2 }, { id: 3 }], childrenOf: async () => [], notify: async (id) => { sent.push(id); },
   });
@@ -98,7 +98,7 @@ test("a good worksheet isn't turned down: a refused picture is read, then built 
   const run = async (answers: string[], body: any = { images: ["data:image/png;base64,iVBORw0KGgo="] }) => {
     const app = express(); app.use(express.json({ limit: "30mb" }));
     const seen: { system: string; text: string; images: string[] }[] = [];
-    registerMathPrepRoutes(app, ((req: any, _r: any, next: any) => { req.user = { id: 1, role: "teacher", displayName: "T" }; next(); }) as any, { kv: memoryKV(), aiConfigured: () => true, askAI: async (a) => { seen.push(a); const x = answers[seen.length - 1]; if (x === undefined) throw new Error("no more"); return x; } });
+    registerMathPrepRoutes(app, ((req: any, _r: any, next: any) => { req.user = { id: 1, role: "teacher", displayName: "T" }; next(); }) as any, { kv: memoryKV(), aiConfigured: () => true, skipCheck: true, askAI: async (a) => { seen.push(a); const x = answers[seen.length - 1]; if (x === undefined) throw new Error("no more"); return x; } });
     const server = app.listen(0);
     try { const r = await fetch(`http://127.0.0.1:${(server.address() as AddressInfo).port}/api/math/prep`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); return { status: r.status, body: await r.json(), seen }; }
     finally { server.close(); }
@@ -119,4 +119,18 @@ test("a good worksheet isn't turned down: a refused picture is read, then built 
   assert.equal(cleanReading({ hasMath: false, problems: ["12 x 4"] }).found, true, "numbers on the page beat a wrong no");
   const typed = await run([JSON.stringify(reply)], { text: "fractions" });
   assert.equal(typed.seen.length, 1, "no picture, nothing extra");
+});
+
+test("the built route checks questions before anyone sees them, and shows nothing if the check can't run", async () => {
+  const run = async (solver: (text: string) => unknown) => {
+    const app = express(); app.use(express.json({ limit: "30mb" }));
+    registerMathPrepRoutes(app, ((req: any, _r: any, next: any) => { req.user = { id: 1, role: "teacher", displayName: "T" }; next(); }) as any, { kv: memoryKV(), aiConfigured: () => true, askAI: async (a) => { if (a.system.includes("checking math")) return JSON.stringify(solver(a.text)); if (a.system.includes("fixing")) return JSON.stringify({ questions: [] }); return JSON.stringify(reply); } });
+    const server = app.listen(0);
+    try { const r = await fetch(`http://127.0.0.1:${(server.address() as AddressInfo).port}/api/math/prep`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: "doubles" }) }); return { status: r.status, body: await r.json() }; }
+    finally { server.close(); }
+  };
+  const bad = await run((text) => ({ results: JSON.parse(text).map((x: any) => ({ id: x.id, solvable: false, why: "missing" })) }));
+  assert.equal(bad.status, 502, "nothing passed, nothing shown");
+  const down = await run(() => "not json at all");
+  assert.equal(down.status, 502, "an unusable check shows nothing either");
 });
