@@ -361,3 +361,4 @@
 .an-night .an-l-list-punch .an-l-note { background: var(--an-card); }
 .an-night .an-l-list-frost { border-color: var(--an-line); }
 .an-night.an-theme-swiss .an-l-controls [data-testid="notes-stop"], .an-night.an-theme-frost .an-l-controls [data-testid="notes-stop"] { color: var(--an-bg); }
+.an-night.an-theme-timeline .an-l-controls [data-testid="notes-highlight"] { color: #0e2a2b !important; }

@@ -233,3 +233,5 @@
 .los-dock-dark.los-dock-margin, .los-dock-dark.los-dock-grove { border-top-color: var(--an-line); }
 .los-dock-dark.los-dock-margin [aria-current="page"] { color: var(--an-violet-ink); box-shadow: inset 0 3px 0 var(--an-violet-ink); }
 .los-dock-dark.los-dock-gazette [aria-current="page"] { color: var(--an-violet-ink); }
+.los-dock-dark.los-dock-frost button { background: var(--an-card); backdrop-filter: none; box-shadow: 0 0 0 1px var(--an-line), 0 6px 16px rgba(0,0,0,.45); }
+.los-dock-dark.los-dock-frost [aria-current="page"] { background: var(--an-violet); color: var(--an-on-accent); }
