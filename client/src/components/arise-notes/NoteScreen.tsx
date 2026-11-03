@@ -165,14 +165,14 @@ function SummaryTab({ ctx, note, busy, summarize, jump, openPlanner, openIep, tr
   return <div className="space-y-4">
     {translated && <Notice action={<Btn kind="soft" onClick={clearTranslated}>Show the original</Btn>}>Showing the summary in {translated.language}.</Notice>}
     {note.stale && note.mine && !translated && <Notice action={<Btn kind="soft" busy={busy === "summary"} onClick={() => void summarize(undefined, true)}>Update summary</Btn>}>The transcript changed since this summary was written.</Notice>}
-    <Section title="Summary" icon={<Sparkles className="h-4 w-4" />} right={<IconBtn label={reading ? "Stop reading" : "Read aloud"} onClick={() => void read()}>{reading ? <X className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}</IconBtn>}>
+    <Section title="Summary" className="an-sec-summary" icon={<Sparkles className="h-4 w-4" />} right={<IconBtn label={reading ? "Stop reading" : "Read aloud"} onClick={() => void read()}>{reading ? <X className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}</IconBtn>}>
       <p className="an-read text-[16px] leading-relaxed">{s.summary}</p>
     </Section>
-    {s.highlights.length > 0 && <Section title="What you marked" icon={<Star className="h-4 w-4" />}><List items={s.highlights} jump={jump} icon={<Star className="h-3.5 w-3.5 fill-current text-[#e0a100]" />} /></Section>}
+    {s.highlights.length > 0 && <Section title="What you marked" className="an-sec-marked" icon={<Star className="h-4 w-4" />}><List items={s.highlights} jump={jump} icon={<Star className="h-3.5 w-3.5 fill-current text-[#e0a100]" />} /></Section>}
     {s.keyPoints.length > 0 && <Section title="Key points"><List items={s.keyPoints} jump={jump} /></Section>}
     {s.sections.map((sec) => <Section key={sec.heading} title={sec.heading} className="an-extra"><List items={sec.items} jump={jump} /></Section>)}
     {s.decisions.length > 0 && <Section title="Decisions"><List items={s.decisions} jump={jump} icon={<Check className="h-3.5 w-3.5" />} /></Section>}
-    {s.actions.length > 0 && <Section title="Action items" icon={<Check className="h-4 w-4" />} right={note.mine && open > 0 ? <Btn kind="primary" onClick={openPlanner} data-testid="notes-to-planner">{ctx.me.features.planner ? "" : <Lock className="h-4 w-4" />}Add to planner</Btn> : note.actions.length && !open ? <span className="text-[12px] font-semibold text-[var(--an-green)]">All in your planner</span> : null}>
+    {s.actions.length > 0 && <Section title="Action items" className="an-sec-actions" icon={<Check className="h-4 w-4" />} right={note.mine && open > 0 ? <Btn kind="primary" onClick={openPlanner} data-testid="notes-to-planner">{ctx.me.features.planner ? "" : <Lock className="h-4 w-4" />}Add to planner</Btn> : note.actions.length && !open ? <span className="text-[12px] font-semibold text-[var(--an-green)]">All in your planner</span> : null}>
       <ul className="an-read space-y-2">{s.actions.map((a, i) => {
         const sent = note.actions.find((x) => x.text === a.what)?.sentTo;
         return <li key={i} className="flex gap-3 rounded-xl px-1 py-1 text-[15px]">
@@ -242,7 +242,7 @@ function TranscriptTab({ note, focusT, jump, onChanged, patch, canPlay }: { note
       {speakers.length > 0 && note.mine && <Btn kind="plain" onClick={() => setNames(true)}>Rename speakers</Btn>}
     </div>
     {ql && <p className="text-[13px] text-[var(--an-muted)]" aria-live="polite">{shown.length} line{shown.length === 1 ? "" : "s"} found</p>}
-    <div ref={box} className="an-card an-read divide-y divide-[var(--an-line)]">
+    <div ref={box} className="an-card an-read an-sec-transcript divide-y divide-[var(--an-line)]">
       {shown.map(({ s, i }) => {
         const starred = note.highlights.some((h) => h >= s.start - 20 && h <= s.end + 5);
         const who = speakerName(s.speaker, note.speakers);
