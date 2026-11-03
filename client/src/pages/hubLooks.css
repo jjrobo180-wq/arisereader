@@ -282,3 +282,4 @@ html[data-hub-look] [data-testid="hub-todo-switch"] a[aria-current="page"] { bac
 .lk-tasks-tide small { color: var(--an-ink) !important; }
 .hub-look-dark .text-red-700, .hub-look-dark .text-red-600 { color: #ffa3a3 !important; }
 .hub-look-dark .hover\:bg-red-50:hover { background-color: color-mix(in srgb, #e11d48 18%, var(--an-card)) !important; }
+.hub-look-dark .text-amber-700, .hub-look-dark .text-amber-800 { color: #ffd98a !important; }
