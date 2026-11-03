@@ -37,7 +37,9 @@
 .los .lk-agenda { display: none; }
 .los-alerts { position: fixed; top: calc(env(safe-area-inset-top) + .5rem); left: .75rem; right: .75rem; z-index: 46; max-height: 60dvh; overflow-y: auto; }
 .los-alerts:empty { display: none; }
-.los-ghost { position: fixed !important; top: 0; left: 0; right: 0; visibility: hidden; pointer-events: none; }
+.los-ghost { position: fixed !important; top: 0; left: 0; right: 0; visibility: hidden; pointer-events: none; z-index: 47; backdrop-filter: none !important; background: transparent !important; border: 0 !important; }
+/* The bell stays in the top bar, next to the Work/Life switch. */
+.los-ghost [data-testid="notification-bell"] { visibility: visible; pointer-events: auto; position: fixed; top: calc(env(safe-area-inset-top) + .35rem); right: 7.7rem; }
 .los-sheettop { display: flex; flex-wrap: wrap; gap: .5rem; padding-bottom: .5rem; }
 .los-sheettop > :not(button) { flex-basis: 100%; }
 .los-sheettop button { display: inline-flex; width: auto; border-bottom: 0; }
