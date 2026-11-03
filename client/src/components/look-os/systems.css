@@ -328,3 +328,4 @@
 .los-glass .los-filter [aria-pressed="true"] { background: rgba(255,255,255,.9); color: #0a1230; }
 .los-retro .los-filter [aria-pressed="true"] { color: var(--an-ink) !important; font-weight: 700; }
 .sys-search { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 420px) { .sys-dock-retro .sys-tray time { display: none; } .sys-dock-retro .sys-startbtn { padding: 0 .45rem !important; } }
