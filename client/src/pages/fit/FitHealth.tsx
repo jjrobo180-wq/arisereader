@@ -51,7 +51,7 @@ export function HealthSheet({ data, update, onClose }: { data: FitData; update: 
     <div className="mt-1 rounded-[14px] p-4" style={{ background: `linear-gradient(150deg, ${C.tint}, ${C.card})` }}>
       <HeartPulse className="h-8 w-8" style={{ color: "#ff375f" }} />
       <p className="mt-2 text-[24px] leading-none" style={display}>{on ? "Connected" : "Connect Apple Health"}</p>
-      <p className="mt-1 text-[14px] leading-snug" style={{ color: C.steel }}>Reads your steps, active calories, heart rate and weigh-ins. Saves your workouts' calories, run distances and weight back to Health.</p>
+      <p className="mt-1 text-[14px] leading-snug" style={{ color: C.steel }}>Reads your steps, active calories, sleep (with deep and REM from an Apple Watch), heart rate and weigh-ins. Saves your workouts' calories, run distances, mindful minutes and weight back to Health.</p>
     </div>
     {!on ? <Btn className="mt-4 w-full" onClick={connect} disabled={busy} testId="fit-health-connect">{busy ? "Connecting…" : "Connect"}</Btn>
       : <div className="mt-4 grid grid-cols-2 gap-2"><Btn onClick={sync} disabled={busy}><RefreshCw className="h-4 w-4" />{busy ? "Syncing…" : "Sync now"}</Btn><Btn kind="soft" onClick={() => { disconnectHealth(); setOn(false); setMsg("Disconnected. To remove access fully: Settings → Health → Data Access & Devices → Arise Fit."); }}>Disconnect</Btn></div>}
