@@ -192,7 +192,7 @@ const withClasses = async (p, look) => {
   } catch { /* none */ } }, look);
   await sample(p, "/hub");
 };
-for (const look of ["classic", "studio"]) {
+for (const look of ["classic", "studio", "punch", "tide", "hush", "gazette"]) {
   lookJobs.push(() => shot(`classes-${look}`, (p) => withClasses(p, look)));
   lookJobs.push(() => shot(`classes-add-${look}`, async (p) => { await withClasses(p, look); await p.frameLocator("#f").getByTestId("class-add").first().click(); await wait(p, 700); }));
   lookJobs.push(() => shot(`classes-delete-${look}`, async (p) => { await withClasses(p, look); await p.frameLocator("#f").getByTestId("class-delete").first().click(); await wait(p, 700); }));
