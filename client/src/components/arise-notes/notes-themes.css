@@ -34,7 +34,7 @@
 .an-themed [class*="bg-[#f5a524]"] { color: #1b1200 !important; }
 .an-themed .bg-black\/\[\.045\], .an-themed .bg-black\/\[\.03\], .an-themed .bg-black\/5, .an-themed .bg-black\/10 { background: var(--an-violet-soft) !important; }
 /* Outlined looks: stronger edges on the things people press. */
-.an-theme-punch .an-btn, .an-theme-punch .an-chip, .an-theme-punch .an-input, .an-theme-punch .an-round-btn { border: 3px solid #000 !important; font-weight: 800; }
+.an-theme-punch .an-btn, .an-theme-punch .an-chip, .an-theme-punch .an-input, .an-theme-punch .an-round-btn { border: 3px solid var(--an-edge, #000) !important; font-weight: 800; }
 .an-theme-punch .an-btn:active { transform: translate(2px, 2px); box-shadow: none; }
 .an-theme-console .an-btn, .an-theme-console .an-chip { border: 1px solid var(--an-violet); }
 .an-theme-swiss .an-btn, .an-theme-gazette .an-btn { border: 1px solid var(--an-ink); }
@@ -103,8 +103,8 @@
 .an-l-hero-gazette .an-l-record { font-family: var(--an-serif); box-shadow: none; }
 .an-l-hero-gazette .an-l-secondary button { background: none; border-color: var(--an-ink); }
 .an-l-hero-punch h1 { font-size: 1.65rem; font-weight: 900; }
-.an-l-hero-punch .an-l-record { min-height: 9rem; border: 4px solid #000; font-size: 3.2rem; font-weight: 900; letter-spacing: -.03em; box-shadow: 7px 7px 0 #000; margin-bottom: .6rem; }
-.an-l-hero-punch .an-l-secondary button { border: 3px solid #000; box-shadow: 4px 4px 0 #000; font-size: .8rem; font-weight: 800; }
+.an-l-hero-punch .an-l-record { min-height: 9rem; border: 4px solid var(--an-edge, #000); font-size: 3.2rem; font-weight: 900; letter-spacing: -.03em; box-shadow: 7px 7px 0 var(--an-edge, #000); margin-bottom: .6rem; }
+.an-l-hero-punch .an-l-secondary button { border: 3px solid var(--an-edge, #000); box-shadow: 4px 4px 0 var(--an-edge, #000); font-size: .8rem; font-weight: 800; }
 .an-l-hero-punch .an-l-secondary button:nth-child(1) { background: #6ee7f9; color: #000; }
 .an-l-hero-punch .an-l-secondary button:nth-child(2) { background: #a7f36b; color: #000; }
 .an-l-hero-chatline h1 { font-size: 1.35rem; }
@@ -137,7 +137,7 @@
 .an-l-list-bloom .an-l-note { padding: .85rem 1rem; background: var(--an-card); border-radius: 22px; }
 .an-l-list-frost { padding: .4rem 1rem; background: color-mix(in srgb, var(--an-card) 75%, transparent); border: 1px solid #fff; border-radius: 26px; }
 .an-l-list-frost li + li { border-top: 1px solid var(--an-line); }
-.an-l-list-punch .an-l-note { padding: .7rem .8rem; background: #fff; border: 3px solid #000; }
+.an-l-list-punch .an-l-note { padding: .7rem .8rem; background: #fff; border: 3px solid var(--an-edge, #000); }
 .an-l-list-punch .an-l-title { font-weight: 800; }
 .an-l-list-timeline { position: relative; gap: .7rem; }
 .an-l-list-timeline::before { content: ""; position: absolute; left: .4rem; top: .5rem; bottom: .5rem; width: 2px; background: var(--an-line); }
@@ -183,7 +183,7 @@
 .an-l-rec-swiss, .an-l-rec-punch, .an-l-rec-deck, .an-l-rec-timeline { padding: 1.3rem; background: var(--an-coral); color: var(--an-on-record); }
 .an-l-rec-timeline { background: var(--an-violet); color: var(--an-on-accent); border-radius: 0 0 32px 32px; }
 .an-l-rec-swiss .an-l-clock { font-size: 5.6rem; font-weight: 900; letter-spacing: -.07em; margin-top: 2rem; }
-.an-l-rec-punch { border: 4px solid #000; box-shadow: 7px 7px 0 #000; }
+.an-l-rec-punch { border: 4px solid var(--an-edge, #000); box-shadow: 7px 7px 0 var(--an-edge, #000); }
 .an-l-rec-punch .an-l-clock { font-size: 4.6rem; font-weight: 900; }
 .an-l-rec-deck { border-radius: 28px; }
 .an-l-rec-deck .an-l-clock { font-size: 4.6rem; }
@@ -219,7 +219,7 @@
 .an-theme-margin [aria-label="Note"] [aria-selected="true"], .an-theme-studio [aria-label="Note"] [aria-selected="true"], .an-theme-grove [aria-label="Note"] [aria-selected="true"], .an-theme-gazette [aria-label="Note"] [aria-selected="true"], .an-theme-console [aria-label="Note"] [aria-selected="true"] { color: var(--an-ink) !important; box-shadow: inset 0 -3px 0 var(--an-violet-ink); }
 /* Transcript lines in Chatline read as messages. */
 .an-theme-chatline .an-read > p { padding: .6rem .8rem; border-radius: 16px 16px 16px 4px; background: var(--an-bg); }
-.an-theme-punch .an-card { box-shadow: 4px 4px 0 #000; }
+.an-theme-punch .an-card { box-shadow: 4px 4px 0 var(--an-edge, #000); }
 
 /* ——— Each look's recording buttons and note tabs ——— */
 .an-themed .an-l-recsec { padding: 0; align-items: stretch; background: none !important; border: 0 !important; box-shadow: none; }
@@ -254,7 +254,7 @@
 .an-theme-gazette .an-l-controls .an-btn { border-radius: 0; }
 .an-theme-gazette .an-l-controls [data-testid="notes-highlight"] { background: #f4d35e !important; color: #1a1712 !important; }
 .an-theme-punch .an-l-controls { padding: 0 5px 5px 0; gap: .6rem !important; }
-.an-theme-punch .an-l-controls .an-btn { min-height: 4rem; font-size: .75rem; text-transform: uppercase; box-shadow: 4px 4px 0 #000; }
+.an-theme-punch .an-l-controls .an-btn { min-height: 4rem; font-size: .75rem; text-transform: uppercase; box-shadow: 4px 4px 0 var(--an-edge, #000); }
 .an-theme-punch .an-l-controls [data-testid="notes-pause"] { background: #6ee7f9 !important; color: #000; }
 .an-theme-punch .an-l-controls [data-testid="notes-highlight"] { background: #a7f36b !important; color: #000 !important; }
 .an-theme-punch .an-l-controls [data-testid="notes-stop"] { background: #000; color: #fff; box-shadow: 4px 4px 0 #ff5ca8; }
@@ -353,3 +353,12 @@
 .an-notebar { background: var(--an-card); color: var(--an-ink); border-bottom: 1px solid var(--an-line); }
 .an-notebar button, .an-notebar button span { color: var(--an-ink) !important; background-color: transparent; }
 .an-notebar button[aria-pressed="true"] { background-color: var(--an-violet-soft); }
+
+/* Night: the plain paper follows the dark look, so a note isn't a bright white page. Chosen paper colors stay. */
+.an-night [data-paper="paper"] { background-color: var(--an-card) !important; color: var(--an-ink) !important; color-scheme: dark; }
+
+/* Night: fixed light colors give way to the dark look. */
+.an-night .an-l-list-punch .an-l-note { background: var(--an-card); }
+.an-night .an-l-list-frost { border-color: var(--an-line); }
+.an-night.an-theme-swiss .an-l-controls [data-testid="notes-stop"], .an-night.an-theme-frost .an-l-controls [data-testid="notes-stop"] { color: var(--an-bg); }
+.an-night.an-theme-timeline .an-l-controls [data-testid="notes-highlight"] { color: #0e2a2b !important; }

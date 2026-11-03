@@ -1522,25 +1522,6 @@ function TeacherHubPage() {
           {customize && <CustomizeSheet eyebrow="WorkHub" storageKey="work-customize-tab" initialTab={customizeTab} dark="#020617" testId="customize-layout"
             onClose={() => { setCustomize(false); setCustomizeTab(undefined); }}
             tabs={[
-              { id: "layout", label: "Layout", icon: <PanelLeft />, content: <>
-                <SameBothHubs testId="hub-same-both" />
-                <CustomizeGroup title="Menu on your phone" help="Where it sits, and how it closes.">
-                  <div role="radiogroup" aria-label="Where the menu sits" className="mb-3 flex flex-wrap gap-2">
-                    {MENU_SIDES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuSide === o.id} onClick={() => { setLayout({ ...layout, menuSide: o.id }); setRail(true); }} data-testid={`menu-side-${o.id}`}
-                      className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold ${layout.menuSide === o.id ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>{o.label}</button>)}
-                  </div>
-                  {layout.menuSide === "tabs" ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600" data-testid="menu-tabs-help">A bar floats along the bottom of the screen: Home, Tasks, the + button to add anything, Apps for every section, and You for your account and settings.</p>
-                    : layout.menuSide === "drawer" ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">A round button at the bottom of the screen opens every section as app icons, with a search box. Swipe it up or tap it; swipe down or tap outside to close.</p> : <div role="radiogroup" aria-label="How the menu closes" className="grid grid-cols-1 gap-2">
-                    {MENU_CLOSES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuClose === o.id} onClick={() => { setLayout({ ...layout, menuClose: o.id }); setRail(true); }} data-testid={`menu-close-${o.id}`}
-                      className={`flex min-h-11 items-start gap-3 rounded-xl border px-3 py-2 text-left text-sm ${layout.menuClose === o.id ? "border-slate-950 bg-slate-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}>
-                      <span className={`mt-0.5 inline-flex h-4 w-4 shrink-0 rounded-full border-2 ${layout.menuClose === o.id ? "border-[5px] border-slate-950" : "border-slate-300"}`} aria-hidden />
-                      <span><span className="block font-semibold text-slate-900">{o.label}</span><span className="block text-xs text-slate-500">{o.detail}</span></span>
-                    </button>)}
-                  </div>}
-                </CustomizeGroup>
-                <DeskSidePicker layout={layout} setLayout={setLayout} dark="#020617" />
-                <FolderEditor layout={layout} setLayout={setLayout} makeId={id} items={menu.filter((m) => m.id !== "home").map((m) => ({ id: m.id, label: groupLabel(m.id, visible) }))} />
-              </> },
               { id: "look", label: "Look", icon: <Palette />, content: <>
                 <CustomizeGroup title="Day or night" help="Night mode is easier on the eyes after dark.">
                   <div role="radiogroup" aria-label="Day or night" className="flex flex-wrap gap-2">
@@ -1568,26 +1549,6 @@ function TeacherHubPage() {
                 </CustomizeGroup>
                 <ThemePicker layout={layout} setLayout={setLayout} dark="#020617" />
               </> },
-              { id: "home", label: "Home screen", icon: <LayoutGrid />, content: <CustomizeGroup title="Home screen" help="Turn parts on or off and move them up or down. The picture box shows a photo of your choice; tap Style on it to add one.">
-                  <ul className="space-y-1.5" aria-label="Parts of Home">
-                    {layout.home.map((id, i) => {
-                      const on = !layout.homeHidden.includes(id);
-                      // A pinned App Store app (pin:<id>) is listed by its own name; it is not one of the built-in parts.
-                      const label = HOME_SECTIONS.find((x) => x.id === id)?.label ?? (isPinId(id) ? (myKits.find((d) => d.id === unpinId(id))?.name ?? myNotesApps.find((p) => p.id === unpinId(id))?.name) : undefined) ?? id;
-                      return (
-                        <li key={id} className={`flex min-h-11 items-center gap-2 rounded-xl border px-2 ${on ? "border-slate-200 bg-white" : "border-dashed border-slate-200 bg-slate-50"}`} data-testid={`home-part-${id}`}>
-                          <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-3 px-1 text-sm">
-                            <input type="checkbox" className="h-5 w-5 shrink-0" checked={on} onChange={(e) => setLayout(showSection(layout, id, e.target.checked))} />
-                            <span className={on ? "font-medium text-slate-900" : "text-slate-500"}>{label}</span>
-                          </label>
-                          <button type="button" onClick={() => setLayout(moveSection(layout, id, -1))} disabled={i === 0} aria-label={`Move ${label} up`} className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30"><ChevronUp className="h-4 w-4" /></button>
-                          <button type="button" onClick={() => setLayout(moveSection(layout, id, 1))} disabled={i === layout.home.length - 1} aria-label={`Move ${label} down`} className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30"><ChevronDown className="h-4 w-4" /></button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  <button type="button" onClick={() => setLayout({ ...layout, home: HOME_SECTIONS.map((x) => x.id), homeHidden: (workspace as any).widgetsOn ? ["picture"] : ["picture", "widgets"], homeSize: {} })} className="mt-2 min-h-11 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4">Reset Home to the usual layout</button>
-              </CustomizeGroup> },
               { id: "tabs", label: "Tabs", icon: <ListChecks />, content: <CustomizeGroup title="Tabs" help="Hide anything you do not use. Hiding a tab does not delete its records. To reorder the menu, drag an item in it (or use its arrows on hover).">
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {cleanGroupOrder(workspace.groupOrder).map((id) => HUB_GROUPS.find((g) => g.id === id)!)
@@ -1615,6 +1576,25 @@ function TeacherHubPage() {
               </div>
               </CustomizeGroup> },
               { id: "duo", label: "Duo & split screen", icon: <Columns2 />, content: <DuoControls canWork onClose={() => { setCustomize(false); setCustomizeTab(undefined); }} dark="#020617" /> },
+              { id: "layout", label: "Layout", icon: <PanelLeft />, content: <>
+                <SameBothHubs testId="hub-same-both" />
+                <CustomizeGroup title="Menu on your phone" help="Where it sits, and how it closes.">
+                  <div role="radiogroup" aria-label="Where the menu sits" className="mb-3 flex flex-wrap gap-2">
+                    {MENU_SIDES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuSide === o.id} onClick={() => { setLayout({ ...layout, menuSide: o.id }); setRail(true); }} data-testid={`menu-side-${o.id}`}
+                      className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold ${layout.menuSide === o.id ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>{o.label}</button>)}
+                  </div>
+                  {layout.menuSide === "tabs" ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600" data-testid="menu-tabs-help">A bar floats along the bottom of the screen: Home, Tasks, the + button to add anything, Apps for every section, and You for your account and settings.</p>
+                    : layout.menuSide === "drawer" ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">A round button at the bottom of the screen opens every section as app icons, with a search box. Swipe it up or tap it; swipe down or tap outside to close.</p> : <div role="radiogroup" aria-label="How the menu closes" className="grid grid-cols-1 gap-2">
+                    {MENU_CLOSES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuClose === o.id} onClick={() => { setLayout({ ...layout, menuClose: o.id }); setRail(true); }} data-testid={`menu-close-${o.id}`}
+                      className={`flex min-h-11 items-start gap-3 rounded-xl border px-3 py-2 text-left text-sm ${layout.menuClose === o.id ? "border-slate-950 bg-slate-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}>
+                      <span className={`mt-0.5 inline-flex h-4 w-4 shrink-0 rounded-full border-2 ${layout.menuClose === o.id ? "border-[5px] border-slate-950" : "border-slate-300"}`} aria-hidden />
+                      <span><span className="block font-semibold text-slate-900">{o.label}</span><span className="block text-xs text-slate-500">{o.detail}</span></span>
+                    </button>)}
+                  </div>}
+                </CustomizeGroup>
+                <DeskSidePicker layout={layout} setLayout={setLayout} dark="#020617" />
+                <FolderEditor layout={layout} setLayout={setLayout} makeId={id} items={menu.filter((m) => m.id !== "home").map((m) => ({ id: m.id, label: groupLabel(m.id, visible) }))} />
+              </> },
               { id: "more", label: "Plan & data", icon: <Sparkles />, content: <>
                 <PlanCard hub="work" hubApps={appsIn("work", workspace)} />
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -1742,9 +1722,6 @@ function TeacherHubPage() {
               <WidgetBoard items={(workspace as any).widgetItems} makeId={id} accent="bg-slate-950"
                 setItems={(update) => setWorkspace((prev) => ({ ...prev, widgetItems: update(cleanWidgets((prev as any).widgetItems)) }))} />
                   ) : null,
-                  notifications: (
-              <HubNotifySettings token={token} workspace={workspace} setWorkspace={setWorkspace} />
-                  ),
                   profile: (
               <Card title="Workspace profile" collapseKey="home-profile">
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">

@@ -1154,6 +1154,16 @@ export default function AriseTodo() {
     {customizing && <CustomizeSheet eyebrow="LifeHub" storageKey="life-customize-tab" initialTab={customizeTab} testId="life-customize-panel"
       onClose={() => { setCustomizing(false); setCustomizeTab(undefined); }}
       tabs={[
+        { id: "look", label: "Look", icon: <Palette />, content: <>
+          <CustomizeGroup title="Day or night" help="Night mode is easier on the eyes after dark.">
+            <div role="radiogroup" aria-label="Day or night" className="flex flex-wrap gap-2">
+              {([[false, "Day", <Sun key="d" size={16} />], [true, "Night", <Moon key="n" size={16} />]] as const).map(([value, label, icon]) => <button key={label} type="button" role="radio" aria-checked={night === value} onClick={() => { if (night !== value) toggleNight(); }}
+                className={`inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-bold ring-1 ${night === value ? "bg-[#292446] text-white ring-[#292446]" : "bg-white text-slate-600 ring-slate-200"}`}>{icon}{label}</button>)}
+            </div>
+          </CustomizeGroup>
+          <ThemePicker layout={layout} setLayout={setLayout} />
+        </> },
+        { id: "duo", label: "Duo & split screen", icon: <Columns2 />, content: <div data-testid="life-duo-choice"><DuoControls canWork={user.role === "teacher" || !!user.isAdmin} onClose={() => { setCustomizing(false); setCustomizeTab(undefined); }} /></div> },
         { id: "layout", label: "Layout", icon: <PanelLeft />, content: <>
           <SameBothHubs testId="life-same-both" />
           <CustomizeGroup title="Menu on your phone" help="Where it sits, and how it closes." testId="life-customize-phone-menu">
@@ -1174,30 +1184,6 @@ export default function AriseTodo() {
           <DeskSidePicker layout={layout} setLayout={setLayout} />
           <FolderEditor layout={layout} setLayout={setLayout} makeId={makeId} items={sections.filter((x) => x !== "home").map((x) => ({ id: x, label: SECTION_INFO[x].label }))} />
         </> },
-        { id: "look", label: "Look", icon: <Palette />, content: <>
-          <CustomizeGroup title="Day or night" help="Night mode is easier on the eyes after dark.">
-            <div role="radiogroup" aria-label="Day or night" className="flex flex-wrap gap-2">
-              {([[false, "Day", <Sun key="d" size={16} />], [true, "Night", <Moon key="n" size={16} />]] as const).map(([value, label, icon]) => <button key={label} type="button" role="radio" aria-checked={night === value} onClick={() => { if (night !== value) toggleNight(); }}
-                className={`inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-bold ring-1 ${night === value ? "bg-[#292446] text-white ring-[#292446]" : "bg-white text-slate-600 ring-slate-200"}`}>{icon}{label}</button>)}
-            </div>
-          </CustomizeGroup>
-          <ThemePicker layout={layout} setLayout={setLayout} />
-        </> },
-        { id: "home", label: "Home screen", icon: <LayoutGridIcon />, content: <CustomizeGroup title="Home screen" help="Turn parts on or off, move them, and pick a size. You can also press and hold Home itself to drag things around.">
-          <ul className="space-y-1.5" aria-label="Parts of Home">
-            {layout.home.map((id, i) => {
-              const on = !layout.homeHidden.includes(id), part = LIFE_PARTS.find((x) => x.id === id) ?? { id, label: pinnableApps.find((p) => pinId(p.id) === id)?.name ?? id }, sz = sizeOf(layout, id);
-              return <li key={id} className={`flex min-h-11 flex-wrap items-center gap-2 rounded-xl border px-2 py-1 ${on ? "border-slate-200 bg-white" : "border-dashed border-slate-200 bg-slate-50"}`} data-testid={`life-home-part-${id}`}>
-                <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-3 px-1 text-sm"><input type="checkbox" className="h-5 w-5 shrink-0" checked={on} onChange={(e) => setLayout(showSection(layout, id, e.target.checked))} /><span className={on ? "font-semibold text-slate-900" : "text-slate-500"}>{part.label}</span></label>
-                <span className="flex rounded-full bg-slate-100 p-0.5" role="radiogroup" aria-label={`Size of ${part.label}`}>{HOME_SIZES.map((z) => <button key={z.id} type="button" role="radio" aria-checked={sz === z.id} aria-label={z.label} onClick={() => setLayout(resizeSection(layout, id, z.id))} className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold ${sz === z.id ? "bg-[#292446] text-white" : "text-slate-600"}`}>{z.short}</button>)}</span>
-                <button type="button" onClick={() => setLayout(moveSection(layout, id, -1))} disabled={i === 0} aria-label={`Move ${part.label} up`} className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30"><ChevronUp size={16} /></button>
-                <button type="button" onClick={() => setLayout(moveSection(layout, id, 1))} disabled={i === layout.home.length - 1} aria-label={`Move ${part.label} down`} className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30"><ChevronDown size={16} /></button>
-              </li>;
-            })}
-          </ul>
-          <button type="button" onClick={() => setLayout({ ...layout, home: LIFE_PARTS.map((x) => x.id), homeHidden: family.widgets.board ? [] : ["widgets"], homeSize: {} })} className="mt-2 min-h-11 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4">Reset Home to the usual layout</button>
-        </CustomizeGroup> },
-        { id: "duo", label: "Duo & split screen", icon: <Columns2 />, content: <div data-testid="life-duo-choice"><DuoControls canWork={user.role === "teacher" || !!user.isAdmin} onClose={() => { setCustomizing(false); setCustomizeTab(undefined); }} /></div> },
         { id: "more", label: "Plan & more", icon: <Sparkles />, content: <>
           <PlanCard hub="life" hubApps={appsIn("life", data)} />
           <CustomizeGroup title="More settings">
@@ -1281,7 +1267,7 @@ export default function AriseTodo() {
       banner={<>{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}<SupportBanner />{family.widgets.stickies && <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{null}</StickyBoard>}</>} screen={shown as OsScreen} go={osGo} openApps={osApps} add={osAdd} tasks={osTasks} days={osDays} off={osOff} onYou={() => setYouOpen(true)}
       toggle={(id) => { const task = data.tasks.find((t) => t.id === id); if (task) toggleDone(task); }} openTask={(id) => { const task = data.tasks.find((t) => t.id === id); if (task) setEditing({ ...task }); }}
       notes={[...family.notes].sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt.localeCompare(a.updatedAt))} lockedApps={family.lock?.apps}
-      shortcuts={phoneItems.filter((i) => !["home", "tasks", "calendar", "notes"].includes(i.id)).slice(0, 4).map((i) => ({ id: i.id, label: i.label, onClick: i.onClick }))}
+      shortcuts={phoneItems.filter((i) => !["home", "tasks", "calendar", "notes", "notifications", "linked", "family"].includes(i.id)).slice(0, 4).map((i) => ({ id: i.id, label: i.label, onClick: i.onClick }))}
       content={<LockedApp locked={appLocked(family.lock, shown)} name={openAppName}>{shown === "calendar" || shown === "notes" ? familyContent : null}</LockedApp>} />}
     {osOn && !osCore && hubLook.look && <LookDock inApp look={hubLook.look} screen={null} go={osGo} openApps={osApps} add={osAdd} off={osOff} you={() => setYouOpen(true)} initial={(osFirst || "Y").charAt(0).toUpperCase()} />}
     {osOn && youOpen && hubLook.look && <LookYou look={hubLook.look} onClose={() => setYouOpen(false)} top={<>{(user.role === "parent" || user.isAdmin) && <SupportButton isAdmin={user.isAdmin} />}<HubTrialNote trial={trial} which="life" upgradeHref="#/billing" /></>}

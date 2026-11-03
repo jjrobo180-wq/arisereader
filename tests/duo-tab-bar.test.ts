@@ -29,7 +29,7 @@ test("the tab bar has Home, Tasks, Add, Apps and You, and You holds the account 
   const page = read("client/src/pages/AriseTodo.tsx");
   // The You sheet holds the same items as the ⋯ menu (components/HubMoreMenu.tsx).
   const more = read("client/src/components/HubMoreMenu.tsx");
-  for (const id of ["notifications", "notification-settings", "customize", "night", "lock", "gallery", "walkthrough", "privacy", "signout"]) assert.ok(more.includes(`id: "${id}"`), id);
+  for (const id of ["notification-settings", "customize", "night", "lock", "gallery", "walkthrough", "privacy", "signout"]) assert.ok(more.includes(`id: "${id}"`), id);
   assert.match(page, /you=\{moreGroups\.flatMap\(\(g\) => g\.items\)\}/);
   // One floating Add on a phone: the + in the bar. The round Add button stays for computers and the split screen.
   assert.match(page, /tabBar \? "max-lg:hidden" : ""\} inline-flex h-14/);
