@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type R
 import { themeVars, type NotesTheme } from "@shared/notesThemes";
 import { LookTaskList, type AgendaDay, type LookTask } from "@/components/HubLook";
 import { LockedApp, useLock } from "@/components/lock/PrivacyLock";
+import { PREMIUM_LOOKS, PremiumCal, PremiumHome } from "./premium";
 import "./lookOS.css";
 
 export type OsScreen = "home" | "tasks" | "calendar" | "notes";
@@ -31,6 +32,11 @@ const WORDS: Partial<Record<string, Partial<Record<NavId, string>>>> = {
   swiss: { home: "01", tasks: "02", add: "+", calendar: "03", notes: "04", apps: "05", you: "06" },
   cassette: { home: "PLAY", tasks: "TRK", add: "REC", calendar: "A/B", notes: "NOTE", apps: "MODE", you: "EJECT" },
   punch: { home: "HOME", tasks: "TASKS", add: "ADD!", calendar: "DATES", notes: "NOTES", apps: "APPS", you: "ME" },
+  hush: { home: "home", tasks: "tasks", add: "+", calendar: "days", notes: "notes", apps: "more", you: "you" },
+  atelier: { home: "Edit", tasks: "List", add: "+", calendar: "Dates", notes: "Notes", apps: "All", you: "You" },
+  blueprint: { home: "A-01", tasks: "A-02", add: "+ADD", calendar: "A-03", notes: "A-04", apps: "A-05", you: "A-06" },
+  arcade: { home: "HOME", tasks: "QUEST", add: "+", calendar: "MAP", notes: "LOG", apps: "ITEMS", you: "ME" },
+  typewriter: { home: "H", tasks: "T", add: "+", calendar: "C", notes: "N", apps: "A", you: "Y" },
   grove: { home: "Today", tasks: "Tasks", add: "Add", calendar: "Days", notes: "Notes", apps: "More", you: "You" },
 };
 const LABEL: Record<NavId, string> = { home: "Home", tasks: "Tasks", add: "Add", calendar: "Calendar", notes: "Notes", apps: "Apps", you: "You" };
@@ -53,6 +59,7 @@ export function LookDock({ look, screen, go, openApps, add, you, initial, off = 
 const items = (d: AgendaDay) => d.items;
 const Item = ({ x }: { x: AgendaDay["items"][number] }) => <span className="los-item"><em>{x.time}</em>{x.title}</span>;
 function CalendarWidget({ look, days, go, big }: { look: NotesTheme; days: AgendaDay[]; go: () => void; big?: boolean }) {
+  if (PREMIUM_LOOKS.has(look.id)) return <button type="button" className={`los-cal los-cal-${look.id}`} onClick={go} data-testid="los-calendar"><PremiumCal look={look} days={days} big={big} /></button>;
   const today = days[0];
   const busy = days.filter((d) => items(d).length);
   const week = days.slice(0, 7);
@@ -124,6 +131,7 @@ function Home(p: OsProps) {
   const notes = <NotesWidget notes={p.notes} go={() => p.go("notes")} />;
   const list = <LookTaskList look={p.look} tasks={open.slice(0, 5)} onToggle={p.toggle} onOpen={p.openTask} />;
   const count = `${open.length} open`;
+  if (PREMIUM_LOOKS.has(p.look.id)) return <PremiumHome look={p.look} name={p.name} dateLabel={p.dateLabel} days={p.days} tasks={p.tasks} open={open} toggle={p.toggle} openTask={p.openTask} goTasks={() => p.go("tasks")} goCalendar={() => p.go("calendar")} hi={hi} cal={cal} list={list} notes={notes} />;
   switch (p.look.id) {
     case "studio": return <><header className="los-hero"><small>{p.dateLabel}</small><h1>{next ? next.title : "All clear"}</h1><p>{next ? "Next up" : hi + first}</p>{next && <button type="button" onClick={() => p.toggle(next.id)}>Mark done</button>}</header><div className="los-pad">{cal}<h2>Queue · {open.length}</h2><LookTaskList look={{ ...p.look, id: "margin" }} tasks={open.slice(1, 5)} onToggle={p.toggle} onOpen={p.openTask} />{notes}</div></>;
     case "margin": return <div className="los-page"><small className="los-date">{p.dateLabel}</small><h1>{hi}{first}.</h1><h2>This week</h2>{cal}<h2>To do</h2>{list}<h2>Notes</h2>{notes}</div>;

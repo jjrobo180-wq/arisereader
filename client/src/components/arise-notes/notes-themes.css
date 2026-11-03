@@ -372,3 +372,73 @@
 .an-l-hero-tide .an-l-secondary button { border-radius: var(--an-radius); background: var(--an-card); color: var(--an-ink); border: 0; }
 .an-l-list-tide { gap: 0; }
 .an-l-list-tide .an-l-note { border-left: 4px solid var(--an-violet); border-bottom: 1px solid var(--an-line); padding: .75rem .8rem; }
+
+/* Moving parts. Motion runs only while recording, and stops for anyone who asked for less motion. */
+@keyframes an-spin { to { transform: rotate(360deg); } }
+@keyframes an-tape { to { background-position: 28px 0; } }
+@keyframes an-drift { 50% { transform: translate(14%, 12%) scale(1.3); } }
+@keyframes an-ripple { from { transform: scale(.45); opacity: .9; } to { transform: scale(1.25); opacity: 0; } }
+@keyframes an-blink { 50% { opacity: .15; } }
+@keyframes an-film { to { background-position: -56px 0; } }
+.an-l-recbars i { transition: height .18s ease-out; }
+/* Cassette: spinning reels with tape running between them, wound from one spool to the other. */
+.an-l-tape > div { position: relative; }
+.an-l-tape i { position: relative; z-index: 1; width: var(--spool, 3.2rem); height: var(--spool, 3.2rem); border: 0; background: radial-gradient(circle, var(--an-bg) 0 28%, transparent 29%), repeating-conic-gradient(var(--an-ink) 0 28deg, color-mix(in srgb, var(--an-ink) 70%, transparent) 28deg 60deg); transition: width 1s linear, height 1s linear; }
+.an-l-tape b { position: absolute; left: 2.5rem; right: 2.5rem; bottom: .55rem; height: 3px; background: repeating-linear-gradient(90deg, var(--an-ink) 0 10px, transparent 10px 14px); }
+.an-l-tape i { animation: an-spin 6s linear infinite; }
+.an-l-tape[data-live] i { animation-duration: 1.8s; } .an-l-tape[data-live] b { animation: an-tape .9s linear infinite; }
+.an-l-rec .an-l-tape:not([data-live]) i { animation-play-state: paused; }
+.an-l-livedot { display: inline-block; width: .7em; height: .7em; margin-right: .4em; border-radius: 50%; background: var(--an-coral); animation: an-blink 1.2s steps(2) infinite; }
+.an-l-rec-swiss .an-l-recbars i, .an-l-rec-punch .an-l-recbars i, .an-l-rec-deck .an-l-recbars i, .an-l-rec-timeline .an-l-recbars i { background: currentColor; }
+/* The ten premium looks: the color floods the top, and the action is the accent. */
+.an-theme-vinyl, .an-theme-hush, .an-theme-aurora, .an-theme-atelier, .an-theme-blueprint, .an-theme-arcade, .an-theme-typewriter, .an-theme-darkroom, .an-theme-zen, .an-theme-cockpit { --an-hero: var(--an-bg) !important; --an-on-hero: var(--an-ink) !important; }
+.an-themed [class*="an-l-hero-"] .an-l-record { background: var(--an-hero-action, var(--an-violet)); color: var(--an-on-accent); }
+.an-themed .an-l-hero-vinyl .an-l-record, .an-themed .an-l-hero-hush .an-l-record, .an-themed .an-l-hero-aurora .an-l-record, .an-themed .an-l-hero-atelier .an-l-record, .an-themed .an-l-hero-blueprint .an-l-record, .an-themed .an-l-hero-arcade .an-l-record, .an-themed .an-l-hero-typewriter .an-l-record, .an-themed .an-l-hero-darkroom .an-l-record, .an-themed .an-l-hero-zen .an-l-record, .an-themed .an-l-hero-cockpit .an-l-record { min-height: 3.8rem; background: var(--an-violet) !important; color: var(--an-on-accent) !important; box-shadow: none; font-size: 1.15rem; font-weight: 700; }
+.an-l-eyebrow { font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--an-violet-ink); }
+/* Vinyl */
+.an-l-turntable { position: relative; width: 12rem; height: 12rem; margin: 0 auto .6rem; }
+.an-l-record-disc { width: 100%; height: 100%; display: grid; place-items: center; border-radius: 50%; background: repeating-radial-gradient(circle, #0b0908 0 2px, #1d1714 2px 4px); box-shadow: 0 14px 30px rgba(0,0,0,.55), inset 0 0 0 1px #2d2420; animation: an-spin 3.6s linear infinite; }
+.an-l-record-disc span { display: grid; place-items: center; width: 4.2rem; height: 4.2rem; border-radius: 50%; background: var(--an-violet); color: var(--an-on-accent); font-weight: 800; }
+.an-l-turntable > i { position: absolute; top: -.3rem; right: .5rem; width: 4px; height: 7.5rem; border-radius: 2px; background: linear-gradient(#e7dfd2, #8e8476); transform-origin: top; transform: rotate(14deg); transition: transform .6s; }
+.an-l-turntable[data-live] > i { transform: rotate(25deg); }
+.an-l-rec .an-l-turntable:not([data-live]) .an-l-record-disc { animation-play-state: paused; }
+.an-l-list-vinyl .an-l-note { border-bottom: 1px solid var(--an-line); padding: .8rem 0; } .an-l-hero-vinyl h1 { text-align: center; }
+/* Hush */
+.an-l-hero-hush { padding-top: 12vh; } .an-l-hero-hush h1 { font-size: 3rem; font-weight: 300; }
+.an-l-hero-hush .an-l-secondary button { border: 0; background: none; color: var(--an-muted); font-weight: 400; }
+.an-l-list-hush .an-l-note { padding: 1rem 0; border-bottom: 1px solid var(--an-line); background: none; }
+.an-l-rec-hush .an-l-clock { font-weight: 200; font-size: 5rem; } .an-l-hushline { height: 1px; margin-top: 1.4rem; background: var(--an-ink); transition: transform .12s linear; }
+/* Aurora */
+.an-l-hero-aurora, .an-l-rec-aurora { position: relative; isolation: isolate; }
+.an-l-sky { position: absolute; inset: -2rem -1rem auto; height: 16rem; z-index: -1; overflow: hidden; pointer-events: none; }
+.an-l-sky i { position: absolute; width: 65%; aspect-ratio: 1; border-radius: 50%; filter: blur(44px); opacity: calc(.45 + var(--lvl, 0) * .5); animation: an-drift 11s ease-in-out infinite; }
+.an-l-sky i:first-child { left: -12%; top: -25%; background: #2ff0c0; } .an-l-sky i:last-child { right: -12%; top: 0; background: #8a5cff; animation-duration: 15s; animation-direction: reverse; }
+.an-l-hero-aurora h1 { margin-top: 4.5rem; } .an-l-rec-aurora { padding-top: 6rem; }
+.an-l-list-aurora .an-l-note { margin-bottom: .5rem; padding: .85rem; border-radius: 20px; background: color-mix(in srgb, var(--an-card) 78%, transparent); }
+/* Atelier */
+.an-l-hero-atelier h1 { font-size: 3rem; font-weight: 500; line-height: 1; }
+.an-l-list-atelier .an-l-note { padding: 1rem 0; border-bottom: 1px solid var(--an-line); } .an-l-list-atelier { border-top: 1px solid var(--an-violet); }
+.an-l-list-atelier b, .an-l-list-atelier h2, .an-l-list-atelier h3 { font-family: var(--an-serif); font-size: 1.3rem; font-weight: 500; }
+.an-l-rec-atelier .an-l-clock { font-weight: 500; font-size: 5rem; } .an-l-rec-atelier .an-l-recbars i { background: var(--an-violet); width: 1px; flex: none; }
+/* Blueprint */
+.an-theme-blueprint.an-root, .an-theme-blueprint .an-l-hero-blueprint { background-image: linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px); background-size: 1.5rem 1.5rem; }
+.an-l-list-blueprint .an-l-note { margin-top: -1px; padding: .7rem; border: 1px solid var(--an-line); } .an-l-rec-blueprint .an-l-recbars { background: linear-gradient(transparent calc(50% - .5px), var(--an-line) 0 calc(50% + .5px), transparent 0); } .an-l-rec-blueprint .an-l-recbars i { background: var(--an-violet); border-radius: 0; }
+/* Arcade */
+.an-l-hero-arcade h1 { font-size: 1.5rem; line-height: 1.4; color: var(--an-violet); } .an-themed .an-l-hero-arcade .an-l-record { font-family: var(--an-serif) !important; font-size: .9rem; border-bottom: 5px solid rgba(0,0,0,.4); }
+.an-l-list-arcade .an-l-note { margin-bottom: 4px; padding: .7rem; background: var(--an-card); box-shadow: inset 0 0 0 2px var(--an-line); }
+.an-l-eq { display: flex; justify-content: center; gap: 3px; margin-top: 1rem; } .an-l-eq span { display: flex; flex-direction: column-reverse; gap: 2px; } .an-l-eq i { width: 1rem; height: .45rem; background: var(--an-line); } .an-l-eq i[data-on] { background: var(--an-violet); } .an-l-rec-arcade .an-l-clock { font-size: 2rem; }
+/* Typewriter */
+.an-l-hero-typewriter h1 { font-size: 2rem; } .an-l-list-typewriter .an-l-note { padding: .9rem 0; border-bottom: 1px dashed var(--an-line); }
+.an-l-carriage { position: relative; display: flex; align-items: center; height: 1.6rem; margin: 1rem 0 0; border-bottom: 1px solid var(--an-ink); } .an-l-carriage span { height: 3px; background: repeating-linear-gradient(90deg, var(--an-ink) 0 6px, transparent 6px 9px); transition: width 1s steps(3); } .an-l-carriage i { width: .55rem; height: 1.1rem; background: var(--an-violet); } .an-l-carriage[data-live] i { animation: an-blink 1s steps(2) infinite; }
+/* Darkroom */
+.an-l-safelight { height: 7rem; margin: -1rem -1rem -2rem; background: radial-gradient(closest-side, rgba(255,50,30,.6), transparent); }
+.an-l-list-darkroom .an-l-note { margin-bottom: 5px; padding: .75rem; background: var(--an-card); border-left: 5px dotted var(--an-bg); }
+.an-l-reel { height: 5rem; margin-top: 1rem; background: radial-gradient(circle, var(--an-bg) 3px, transparent 3.5px) 0 3px / 14px 12px repeat-x, radial-gradient(circle, var(--an-bg) 3px, transparent 3.5px) 0 calc(100% - 3px) / 14px 12px repeat-x, repeating-linear-gradient(90deg, var(--an-card) 0 50px, #050101 50px 56px); } .an-l-reel[data-live] { animation: an-film 1.4s linear infinite; }
+/* Zen */
+.an-l-ripples { position: relative; width: 8rem; height: 8rem; margin: 0 auto; } .an-l-ripples > i { position: absolute; inset: 0; border: 1px solid var(--an-violet); border-radius: 50%; animation: an-ripple 6s ease-out infinite; } .an-l-ripples > i:nth-child(2) { animation-delay: 2s; } .an-l-ripples > i:nth-child(3) { animation-delay: 4s; }
+.an-l-rippleclock { width: 15rem; height: 15rem; display: grid; place-items: center; } .an-l-rippleclock:not([data-live]) > i { animation-play-state: paused; } .an-l-rippleclock .an-l-clock { margin: 0; font-size: 3rem; font-weight: 500; }
+.an-l-hero-zen { text-align: center; } .an-l-hero-zen h1 { font-size: 2.6rem; font-weight: 500; } .an-l-list-zen .an-l-note { padding: 1rem .2rem; border-bottom: 1px solid var(--an-line); }
+/* Cockpit */
+.an-l-needle { position: relative; width: 13rem; height: 7rem; margin: 0 auto; overflow: hidden; border-radius: 13rem 13rem 0 0; background: repeating-conic-gradient(from -90deg at 50% 100%, var(--an-line) 0 2deg, transparent 2deg 18deg), var(--an-card); } .an-l-needle i { position: absolute; left: calc(50% - 2px); bottom: 0; width: 4px; height: 92%; border-radius: 2px; background: var(--an-violet); transform-origin: bottom; transform: rotate(var(--a)); transition: transform .15s ease-out; }
+.an-l-list-cockpit .an-l-note { margin-bottom: 4px; padding: .75rem; border-radius: 8px; background: var(--an-card); } .an-l-rec-cockpit .an-l-clock { color: var(--an-violet); }
+@media (prefers-reduced-motion: reduce) { .an-l-tape i, .an-l-tape b, .an-l-record-disc, .an-l-sky i, .an-l-ripples > i, .an-l-reel, .an-l-carriage i, .an-l-livedot { animation: none !important; } }

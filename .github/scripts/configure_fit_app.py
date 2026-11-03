@@ -37,8 +37,8 @@ KEYS = {
         "CFBundleDisplayName": "Arise Fit",
         "NSCameraUsageDescription": "Arise Fit uses the camera to scan a food's barcode, to take a photo of your meal so it can estimate the calories, to check your exercise form, and to take progress photos you choose to send your trainer. Form check video stays on your iPhone.",
         "NSLocationWhenInUseUsageDescription": "Arise Fit uses your location to map and measure your outdoor runs, walks and hikes, and to find trails, gyms and healthy places to eat near you.",
-        "NSHealthShareUsageDescription": "Arise Fit reads your steps, weight, workouts and active calories from Apple Health to show your progress, and to share them with your trainer only if you choose to.",
-        "NSHealthUpdateUsageDescription": "Arise Fit saves your workouts, runs, weight and nutrition to Apple Health.",
+        "NSHealthShareUsageDescription": "Arise Fit reads your steps, sleep, heart rate, weight, workouts and active calories from Apple Health to show your progress, sleep score and readiness, and to share them with your trainer only if you choose to.",
+        "NSHealthUpdateUsageDescription": "Arise Fit saves your workouts, runs, weight, nutrition and mindful minutes to Apple Health.",
         "NSPhotoLibraryUsageDescription": "Arise Fit lets you choose a photo of your meal so it can estimate the calories, or a progress photo or picture to send your trainer.",
     },
     "talk": {

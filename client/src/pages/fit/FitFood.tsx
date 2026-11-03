@@ -253,7 +253,7 @@ export function FoodTab({ token, data, update, say, snap, onRecipes, onEatOut }:
         <span className="ml-1 text-[13px] font-semibold tabular-nums" style={{ color: C.dim }}>{points ? `${kp} pts` : `${Math.round(k)} cal`}</span></span>}>{m.label}</Title>
         <Card className="!p-2">
           {list.map((f) => <div key={f.id} className="fit-slide flex items-center gap-2 px-2 py-2" style={{ borderBottom: `1px solid ${C.line}` }}>
-            <div className="min-w-0 flex-1"><p className="truncate text-[15px] font-medium">{f.name}</p><p className="text-[12px]" style={{ color: C.dim }}>{f.servings !== 1 ? `${f.servings} × ` : ""}{f.serving || "serving"}</p></div>
+            <div className="min-w-0 flex-1"><p className="truncate text-[15px] font-medium">{f.name}</p><p className="text-[12px]" style={{ color: C.dim }}>{f.serving ? `${f.servings !== 1 ? `${f.servings} × ` : ""}${f.serving}` : `${f.servings} serving${f.servings === 1 ? "" : "s"}`} · P {Math.round(f.p * f.servings)} · C {Math.round(f.c * f.servings)} · F {Math.round(f.f * f.servings)}</p></div>
             <span className="text-right text-[15px] font-semibold tabular-nums">{points ? <>{pointsOf({ kcal: f.kcal * f.servings, p: f.p * f.servings, c: f.c * f.servings, f: f.f * f.servings })}<span className="text-[11px] font-normal" style={{ color: C.dim }}> pts</span></> : Math.round(f.kcal * f.servings)}</span>
             <button type="button" onClick={() => update((d) => ({ ...d, foods: d.foods.filter((x) => x.id !== f.id) }))} aria-label={`Remove ${f.name}`} className="grid h-9 w-9 place-items-center" style={{ color: C.dim }}><Trash2 className="h-4 w-4" /></button>
           </div>)}
