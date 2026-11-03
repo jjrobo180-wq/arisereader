@@ -160,6 +160,13 @@ await shot("podplus-could-save", async (p) => {
 await shot("podplus-privacy", async (p) => { await p.goto(`${P}/privacy/`); await wait(p, 500); });
 await shot("podplus-support-dark", async (p) => { await p.goto(`${P}/support/`); await wait(p, 500); }, { dark: true });
 
+// Each look is its own system: its main screens in the real app, on the sample profile.
+const LOOKS = ["studio", "margin", "bloom", "timeline", "console", "swiss", "cassette", "frost", "grove", "gazette", "punch", "chatline", "deck"];
+const withLook = async (p, id, hash) => { await p.addInitScript((look) => { try { localStorage.setItem("arise-shared-look", JSON.stringify({ theme: look })); } catch { /* none */ } }, id); await sample(p, hash); };
+for (const id of LOOKS) for (const [name, hash] of [["home", "/lifehub?pane=home"], ["tasks", "/lifehub?pane=tasks"], ["calendar", "/lifehub?go=calendar"], ["notes", "/lifehub?go=notes"], ["app", "/lifehub?go=grocery"]])
+  await shot(`look-${id}-${name}`, (p) => withLook(p, id, hash));
+for (const nav of ["you", "add", "apps"]) await shot(`look-studio-${nav}`, async (p) => { await withLook(p, "studio", "/lifehub?pane=home"); await p.frameLocator("#f").locator(`[data-nav="${nav}"]`).click(); await wait(p, 800); });
+
 await browser.close();
 console.log(results.join("\n"));
 await writeFile(`${out}/results.txt`, results.join("\n") + "\n");
