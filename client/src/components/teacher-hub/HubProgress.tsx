@@ -15,8 +15,8 @@ import { blockName, cleanPart, cleanTeacher, placeText, schoolBlocks } from "@sh
 import { BulkMinutesModal, ClassFields, MinutesPick, knownTeachers, type BulkStart } from "./HubMinutesBulk";
 import { PUSH_IN, QUICK_MINUTES, knownName, minuteNames, savedText, schoolDay, withPlans, type BulkResult } from "@shared/hubMinutesBulk";
 import { MINUTE_SUBJECTS, NO_SUBJECT, cleanSubject, logSubject } from "@shared/hubSubjects";
-import { classSavedText, type ClassResult } from "@shared/hubClassMinutes";
-import { ClassMinutesModal, ClassMinutesView } from "./HubClassMinutes";
+import { addToClass, classSavedText, deleteClass, restorePlans, type ClassGroup, type ClassResult } from "@shared/hubClassMinutes";
+import { AddToClassModal, ClassMinutesModal, ClassMinutesView, DeleteClassModal } from "./HubClassMinutes";
 import { PushInNotesView } from "./HubPushInNotes";
 
 type Setter = Dispatch<SetStateAction<Workspace>>;
@@ -196,7 +196,11 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today, tok
   const [bulk, setBulk] = useState<BulkStart | null>(null);
   /** What the last save for several students did, shown for a few seconds. */
   const [saved, setSaved] = useState("");
-  useEffect(() => { if (!saved) return; const timer = setTimeout(() => setSaved(""), 7000); return () => clearTimeout(timer); }, [saved]);
+  /** The plans a deleted class had, so the delete can be taken back while the message shows. */
+  const [undoPlans, setUndoPlans] = useState<ServicePlan[] | null>(null);
+  const [classAdd, setClassAdd] = useState<string | null>(null);
+  const [classDelete, setClassDelete] = useState<string | null>(null);
+  useEffect(() => { if (!saved) return; const timer = setTimeout(() => { setSaved(""); setUndoPlans(null); }, undoPlans ? 15000 : 7000); return () => clearTimeout(timer); }, [saved, undoPlans]);
   const [plan, setPlan] = useState<PlanDraft | null>(null);
   const [look, setLookState] = useState<MinutesLook>(readLook);
   const [settingBlocks, setSettingBlocks] = useState(false);
@@ -266,12 +270,27 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today, tok
       serviceLogs: result.logs.length ? [...w.serviceLogs, ...result.logs.map((session) => ({ id: makeId(), ...session }))] : w.serviceLogs,
       services: result.plans.length ? withPlans(w.services, result.plans, makeId, today, optional) : w.services,
     }));
+    setUndoPlans(null);
     setSaved(savedText(result));
     setBulk(null);
+  }
+  function addStudentsToClass(group: ClassGroup, names: string[]) {
+    setWorkspace((w) => ({ ...w, services: addToClass(w.services, group, names, makeId, weekStart(today)) }));
+    setUndoPlans(null);
+    setSaved(`${names.length} ${names.length === 1 ? "student" : "students"} added to ${[group.title, group.label].filter(Boolean).join(" · ")}.`);
+    setClassAdd(null);
+  }
+  function removeClass(group: ClassGroup, removeMinutes: boolean) {
+    const ids = new Set(group.students.map((s) => s.planId));
+    setUndoPlans(workspace.services.filter((p) => ids.has(p.id)));
+    setWorkspace((w) => ({ ...w, services: deleteClass(w.services, group, removeMinutes) }));
+    setSaved(`${[group.title, group.label].filter(Boolean).join(" · ")} deleted.`);
+    setClassDelete(null);
   }
   /** From the class pop-up: a session for each ticked student, and "Student absent" for the ones unticked. */
   function saveClass(result: ClassResult, title: string) {
     if (result.logs.length) setWorkspace((w) => ({ ...w, serviceLogs: [...w.serviceLogs, ...result.logs.map((session) => ({ id: makeId(), ...session }))] }));
+    setUndoPlans(null);
     setSaved(classSavedText(result, title));
     setClassOpen(null);
   }
@@ -325,10 +344,12 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today, tok
             ))}
           </div>
         </div>
-        {saved && <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900" role="status" data-testid="minutes-saved">{saved}</p>}
+        {saved && <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900" role="status" data-testid="minutes-saved">{saved}{undoPlans && <button type="button" className="ml-2 min-h-9 font-bold underline" data-testid="class-delete-undo" onClick={() => { const back = undoPlans; setWorkspace((w) => ({ ...w, services: restorePlans(w.services, back) })); setUndoPlans(null); setSaved("Class put back."); }}>Undo</button>}</p>}
       </Card>
 
-      {look === "class" && <ClassMinutesView workspace={workspace} today={today} onOpen={setClassOpen} onNotes={(key) => { setNotesClass(key); setLook("notes"); }} />}
+      {look === "class" && <ClassMinutesView workspace={workspace} today={today} onOpen={setClassOpen} onNotes={(key) => { setNotesClass(key); setLook("notes"); }} onAdd={setClassAdd} onDelete={setClassDelete} />}
+      {classAdd && <AddToClassModal workspace={workspace} today={today} groupKey={classAdd} onSave={addStudentsToClass} onClose={() => setClassAdd(null)} />}
+      {classDelete && <DeleteClassModal workspace={workspace} today={today} groupKey={classDelete} onDelete={removeClass} onClose={() => setClassDelete(null)} />}
       {look === "notes" && <PushInNotesView workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} today={today} token={token} classKey={notesClass} onClassKey={setNotesClass} />}
       {classOpen && <ClassMinutesModal workspace={workspace} today={today} groupKey={classOpen} onSave={saveClass} onClose={() => setClassOpen(null)} />}
       {look === "week" && <MinutesWeekView workspace={workspace} today={today} onLog={logItems} onEdit={editLog} onAdd={addFrom} onPlan={(planId) => { const p = plans.find((x) => x.id === planId); if (p) editPlan(p); }} onBlocks={() => setSettingBlocks(true)} onMove={(planId, block) => setWorkspace((w) => ({ ...w, services: setPlanBlock(w.services, planId, block) }))} />}
