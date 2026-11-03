@@ -1,6 +1,6 @@
 // The designs behind Settings > Appearance: each look's own Home, recording display and note heading.
 // Everything still does the same work as the Classic screens; only the arrangement changes.
-import { useEffect, useState, type ReactNode } from "react";
+import { type CSSProperties, useEffect, useState, type ReactNode } from "react";
 import { fmtClock, nightLook, templateOf, themeOf, type NotesTheme, type NotesSettings } from "@shared/ariseNotes";
 import type { ListNote } from "./api";
 
@@ -43,6 +43,16 @@ export function LookHomeHero({ look, a }: { look: NotesTheme; a: HomeActions }) 
       case "gazette": return <><header className="an-l-masthead"><h1>The Arise Notes</h1><p>{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p></header>{rec("Start a new story: Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
       case "punch": return <><h1>ARISE NOTES</h1>{rec("RECORD")}<Secondary a={a} labels={["UPLOAD", "MEMO", "ASK"]} /></>;
       case "chatline": return <><h1>Ask your notes</h1><button type="button" className="an-l-bubble-me" onClick={a.ask} data-testid="notes-ask-bar">What did I promise Maya’s mom?</button><div className="an-l-chatbar"><button type="button" onClick={a.ask}>Ask anything</button>{rec("Record")}</div><Secondary a={a} ask={false} /></>;
+      case "vinyl": return <><div aria-hidden className="an-l-turntable"><div className="an-l-record-disc"><span>A</span></div><i /></div><h1>Drop the needle.</h1>{rec("Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
+      case "hush": return <><h1>Listen.</h1>{rec("Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
+      case "aurora": return <><div aria-hidden className="an-l-sky"><i /><i /></div><h1>Say it under the lights.</h1>{rec("Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
+      case "atelier": return <><small className="an-l-eyebrow">The notebook</small><h1>Every word, tailored.</h1>{rec("Begin recording")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
+      case "blueprint": return <><small className="an-l-eyebrow">Sheet A-01 / New capture</small><h1>Draft the meeting.</h1>{rec("[ Record ]")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
+      case "arcade": return <><h1>PRESS START</h1>{rec("REC ●")}<Secondary a={a} labels={["UPLOAD", "MEMO", "ASK"]} /></>;
+      case "typewriter": return <><h1>Type it up for me.</h1>{rec("Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
+      case "darkroom": return <><div aria-hidden className="an-l-safelight" /><h1>Let it develop.</h1>{rec("Expose: Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
+      case "zen": return <><div aria-hidden className="an-l-ripples"><i /><i /><i /></div><h1>Only listen.</h1>{rec("Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
+      case "cockpit": return <><small className="an-l-eyebrow">Voice recorder armed</small><h1>Ready when you are.</h1>{rec("Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
       case "tide": return <><div className="an-l-tidedate"><b>{new Date().getDate()}</b><span>{new Date().toLocaleDateString(undefined, { weekday: "long" })}<br />{new Date().toLocaleDateString(undefined, { month: "long" })}</span></div>{rec("Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
       case "deck": return <><h1>Your deck</h1>{rec("Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
       default: return null;
@@ -94,11 +104,20 @@ export function LookRecordArt({ look, secs, paused, finishing, level }: { look: 
   const bars = <div aria-hidden className="an-l-recbars">{Array.from({ length: 28 }, (_, i) => <i key={i} style={{ height: live ? Math.max(6, Math.max(level, .35) * 86 * (.4 + .6 * Math.abs(Math.sin(i * 1.7 + secs)))) : 6 }} />)}</div>;
   const inner = (() => {
     switch (look.id) {
-      case "cassette": return <>{clock}<div aria-hidden className="an-l-tape"><span>Side A</span><div><i style={{ transform: `rotate(${secs * 30}deg)` }} /><i style={{ transform: `rotate(${secs * 30}deg)` }} /></div></div></>;
+      // The reels turn and the tape winds across from one to the other as the recording runs.
+      case "cassette": { const wound = Math.min(secs / 2700, 1); return <>{clock}<div aria-hidden className="an-l-tape" data-live={live ? "1" : undefined}><span>Side A</span><div><i style={{ "--spool": `${3.6 - wound * 1.4}rem` } as CSSProperties} /><b /><i style={{ "--spool": `${2.2 + wound * 1.4}rem` } as CSSProperties} /></div></div></>; }
+      case "vinyl": return <>{clock}<div aria-hidden className="an-l-turntable" data-live={live ? "1" : undefined}><div className="an-l-record-disc"><span>A</span></div><i /></div></>;
+      case "aurora": return <><div aria-hidden className="an-l-sky" data-live={live ? "1" : undefined} style={{ "--lvl": level } as CSSProperties}><i /><i /></div>{clock}</>;
+      case "hush": return <>{clock}<div aria-hidden className="an-l-hushline" style={{ transform: `scaleX(${live ? Math.max(level, .06) : .02})` }} /></>;
+      case "arcade": return <>{clock}<div aria-hidden className="an-l-eq">{Array.from({ length: 12 }, (_, i) => { const n = live ? Math.round(Math.max(level, .25) * 8 * (.4 + .6 * Math.abs(Math.sin(i * 1.3 + secs)))) : 0; return <span key={i}>{Array.from({ length: 8 }, (_, j) => <i key={j} data-on={j < n || undefined} />)}</span>; })}</div></>;
+      case "typewriter": return <>{clock}<p aria-hidden className="an-l-carriage" data-live={live ? "1" : undefined}><span style={{ width: `${(secs % 30) * 3.2}%` }} /><i /></p></>;
+      case "darkroom": return <>{clock}<div aria-hidden className="an-l-reel" data-live={live ? "1" : undefined} /></>;
+      case "zen": return <div className="an-l-ripples an-l-rippleclock" data-live={live ? "1" : undefined}><i /><i /><i />{clock}</div>;
+      case "cockpit": return <><div aria-hidden className="an-l-needle" style={{ "--a": `${-115 + (live ? Math.max(level, .08) : 0) * 230}deg` } as CSSProperties}><i /></div>{clock}</>;
+      case "gazette": return <>{clock}<h2><span className="an-l-livedot" />Live from the meeting</h2></>;
+      case "swiss": case "punch": case "deck": case "timeline": return <>{clock}{bars}</>;
       case "bloom": case "grove": return <div className="an-l-ring"><div style={{ transform: `scale(${live ? 1 + (secs % 2) * .08 : .92})` }}>{clock}</div></div>;
       case "console": return <>{clock}<p aria-hidden className="an-l-ascii">{live ? Array.from({ length: 24 }, (_, i) => "▁▂▃▅▇▆▄▂"[(i * 3 + secs) % 8]).join("") : "▁".repeat(24)}</p></>;
-      case "gazette": return <>{clock}<h2>Live from the meeting</h2></>;
-      case "swiss": case "punch": case "deck": case "timeline": return clock;
       default: return <>{clock}{bars}</>;
     }
   })();
