@@ -54,10 +54,10 @@ export default function TrainerApp() {
       </div>}
     </main>
     <nav aria-label="Arise Trainer" className="fixed inset-x-3 z-[40] mx-auto flex max-w-md items-center rounded-[14px] p-1.5" style={{ bottom: "max(12px, env(safe-area-inset-bottom))", background: C.nav, backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", boxShadow: `${C.navShadow}, inset 0 0 0 1px ${C.navBorder}` }}>
-      <span aria-hidden className="absolute bottom-1.5 top-1.5 rounded-[10px]" style={{ width: `calc((100% - 12px) / ${tabs.length})`, left: `calc(6px + ${at} * (100% - 12px) / ${tabs.length})`, background: "linear-gradient(180deg, rgba(255,90,31,.24), rgba(255,90,31,.08))", boxShadow: "inset 0 -2px 0 #ff5a1f", transition: "left .35s cubic-bezier(.2,.9,.2,1)" }} />
+      <span aria-hidden className="absolute bottom-1.5 top-1.5 rounded-[10px]" style={{ width: `calc((100% - 12px) / ${tabs.length})`, left: `calc(6px + ${at} * (100% - 12px) / ${tabs.length})`, background: "linear-gradient(180deg, rgba(var(--fit-accent-rgb),.24), rgba(var(--fit-accent-rgb),.08))", boxShadow: "inset 0 -2px 0 var(--fit-accent)", transition: "left .35s cubic-bezier(.2,.9,.2,1)" }} />
       {tabs.map(([id, label, Icon, badge]) => <button key={id} type="button" onClick={() => setTab(id)} aria-current={tab === id ? "page" : undefined} data-testid={`tr-tab-${id}`}
         className="relative flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 rounded-[10px] text-[11px] uppercase tracking-[.06em] transition-colors" style={{ fontFamily: display.fontFamily, fontWeight: 800, color: tab === id ? C.lime : C.dim }}>
-        <Icon className="h-[22px] w-[22px]" />{label}{badge > 0 && <span className="fit-pop absolute right-[18%] top-1 grid h-5 min-w-5 place-items-center rounded-full px-1 text-[11px]" style={{ background: C.lime, color: "#0b0b0c" }}>{badge}</span>}</button>)}
+        <Icon className="h-[22px] w-[22px]" />{label}{badge > 0 && <span className="fit-pop absolute right-[18%] top-1 grid h-5 min-w-5 place-items-center rounded-full px-1 text-[11px]" style={{ background: C.lime, color: "var(--fit-on-accent)" }}>{badge}</span>}</button>)}
     </nav>
     {open && data && <ClientSheet token={token} me={me} linkId={open.id} name={open.name} lib={data.library} saveLib={saveLib} quick={quick} onClose={() => { setOpen(null); reload(); }} />}
     <div role="status" aria-live="polite" className={`pointer-events-none fixed left-1/2 z-[95] -translate-x-1/2 rounded-full px-4 py-2.5 text-[14px] font-semibold shadow-xl transition ${toast ? "opacity-100" : "opacity-0"}`} style={{ top: "max(16px, env(safe-area-inset-top))", background: C.text, color: C.bg }}>{toast}</div>
@@ -74,8 +74,8 @@ function ClientRowCard({ c, onOpen, k, pick }: { c: ClientRow; onOpen: () => voi
     <div className="flex items-center gap-3">
       {pick && <button type="button" onClick={pick.toggle} aria-pressed={pick.on} aria-label={`Select ${c.name}`} className="shrink-0" style={{ color: pick.on ? C.lime : C.dim }}>{pick.on ? <CheckSquare className="h-6 w-6" /> : <Square className="h-6 w-6" />}</button>}
       <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-        {c.status === "active" ? <Ring value={pct ?? 0} goal={100} size={50} stroke={5}><span className="text-[13px] font-bold">{pct ?? "–"}</span></Ring> : <span className="grid h-[50px] w-[50px] shrink-0 place-items-center rounded-full" style={{ background: C.lime, color: "#0b0b0c" }}><Plus className="h-6 w-6" /></span>}
-        <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="truncate text-[20px] leading-none" style={display}>{c.name}</span>{c.unread > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full px-1 text-[11px] font-bold" style={{ background: C.lime, color: "#0b0b0c" }}>{c.unread}</span>}</span>
+        {c.status === "active" ? <Ring value={pct ?? 0} goal={100} size={50} stroke={5}><span className="text-[13px] font-bold">{pct ?? "–"}</span></Ring> : <span className="grid h-[50px] w-[50px] shrink-0 place-items-center rounded-full" style={{ background: C.lime, color: "var(--fit-on-accent)" }}><Plus className="h-6 w-6" /></span>}
+        <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="truncate text-[20px] leading-none" style={display}>{c.name}</span>{c.unread > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full px-1 text-[11px] font-bold" style={{ background: C.lime, color: "var(--fit-on-accent)" }}>{c.unread}</span>}</span>
           <span className="block truncate text-[12px]" style={{ color: C.dim }}>{c.status === "requested" ? "Wants you to coach them · tap to accept" : [c.phase, c.lastWorkout ? `trained ${ago(c.lastWorkout)} ago` : "no workouts yet", c.nextAppt ? `next ${when(c.nextAppt)}` : ""].filter(Boolean).join(" · ")}</span>
           {c.tags.length > 0 && <span className="mt-1 flex gap-1">{c.tags.slice(0, 3).map((t) => <span key={t} className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: C.card2 }}>{t}</span>)}</span>}</span>
         <ChevronRight className="h-5 w-5 shrink-0" style={{ color: C.dim }} />
@@ -93,8 +93,8 @@ function Clients({ data, token, onOpen, say, goBusiness }: { data: TrainerHome; 
     .sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "recent" ? (b.lastWorkout ?? "").localeCompare(a.lastWorkout ?? "") : (b.unread - a.unread) || ((a.compliance.pct ?? 101) - (b.compliance.pct ?? 101)));
   const hour = new Date().getHours();
   return <div>
-    <Header kicker={`${hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"}, ${data.profile.name.split(" ")[0] || "coach"}`} title="Clients" right={active.length > 1 ? <button type="button" onClick={() => { setPicking(!picking); setPicked([]); }} className="h-10 rounded-full px-3 text-[13px] font-semibold" style={{ background: picking ? C.lime : C.card, color: picking ? "#0b0b0c" : C.text }}>{picking ? "Done" : "Select"}</button> : undefined} />
-    {!data.listed && <Card onClick={goBusiness} className="fit-shine mb-3 !p-4" style={{ background: "linear-gradient(150deg, #ff5a1f, #b8360a)", color: "#0b0b0c" }} testId="tr-get-listed">
+    <Header kicker={`${hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"}, ${data.profile.name.split(" ")[0] || "coach"}`} title="Clients" right={active.length > 1 ? <button type="button" onClick={() => { setPicking(!picking); setPicked([]); }} className="h-10 rounded-full px-3 text-[13px] font-semibold" style={{ background: picking ? C.lime : C.card, color: picking ? "var(--fit-on-accent)" : C.text }}>{picking ? "Done" : "Select"}</button> : undefined} />
+    {!data.listed && <Card onClick={goBusiness} className="fit-shine mb-3 !p-4" style={{ background: "linear-gradient(150deg, var(--fit-accent), var(--fit-accent-deep))", color: "var(--fit-on-accent)" }} testId="tr-get-listed">
       <p className="text-[24px] leading-none" style={display}>Get listed in Arise Fit</p><p className="mt-1 text-[13px] font-semibold">{data.problems.length ? `Finish your profile: ${data.problems[0].toLowerCase()}.` : `Go live in the trainer directory. ${data.price.trialDays} days free, then ${money(data.price.cents)}/month.`}</p></Card>}
     <div className="grid grid-cols-3 gap-2 text-center">{([[data.clients.filter((c) => c.status === "active").length, "clients"], [reqs.length, "requests"], [data.reviews.length ? data.reviews.reduce((t, r) => t + r.stars, 0) / data.reviews.length : 0, "rating"]] as const).map(([v, l], k) => <Card key={l} className="!px-1 !py-3" style={stagger(k, 0.06)}><p className="text-[28px] leading-none" style={display}>{l === "rating" ? (v ? v.toFixed(1) : "—") : v}</p><p className="mt-1 text-[11px] uppercase" style={{ color: C.dim }}>{l}</p></Card>)}</div>
     {reqs.length > 0 && <><Title>New requests</Title><div className="space-y-2">{reqs.map((c, k) => <ClientRowCard key={c.id} c={c} k={k} onOpen={() => onOpen(c)} />)}</div></>}
@@ -127,7 +127,7 @@ function InboxTab({ data, onOpen }: { data: TrainerHome; onOpen: (c: ClientRow) 
       <div className="flex items-center gap-3"><MessageCircle className="h-6 w-6 shrink-0" style={{ color: c.unread ? C.lime : C.dim }} />
         <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><p className="truncate text-[18px] leading-none" style={display}>{c.name}</p>{c.last && <span className="ml-auto shrink-0 text-[11px]" style={{ color: C.dim }}>{ago(c.last.at)}</span>}</div>
           <p className={`truncate text-[13px] ${c.unread ? "font-semibold" : ""}`} style={{ color: c.unread ? C.text : C.dim }}>{c.last ? `${c.last.from === c.clientId ? "" : "You: "}${c.last.body || "Photo"}` : "New request"}</p></div>
-        {c.unread > 0 && <span className="grid h-6 min-w-6 place-items-center rounded-full px-1.5 text-[12px] font-bold" style={{ background: C.lime, color: "#0b0b0c" }}>{c.unread}</span>}</div></Card>)}</div>
+        {c.unread > 0 && <span className="grid h-6 min-w-6 place-items-center rounded-full px-1.5 text-[12px] font-bold" style={{ background: C.lime, color: "var(--fit-on-accent)" }}>{c.unread}</span>}</div></Card>)}</div>
       : <p className="px-1 text-[14px]" style={{ color: C.dim }}>Messages from your clients show up here.</p>}
   </div>;
 }
@@ -143,7 +143,7 @@ function Schedule({ token, data, onOpen }: { token: string | null; data: Trainer
   const byDay = useMemo(() => { const m = new Map<string, NonNullable<typeof all>>(); for (const a of all ?? []) { const k = new Date(a.at).toDateString(); m.set(k, [...(m.get(k) ?? []), a]); } return [...m.entries()]; }, [all]);
   return <div>
     <Header title="Schedule" />
-    {!all ? <p className="px-1" style={{ color: C.dim }}>Loading…</p> : byDay.length ? byDay.map(([d, list]) => <div key={d}><Title>{shortDate(list[0].at)}</Title><div className="space-y-2">{list.map((a, k) => <Card key={k} onClick={() => onOpen(a.c)} className="!p-3" style={a.requested ? { boxShadow: "inset 0 0 0 1px #ff5a1f" } : undefined}>
+    {!all ? <p className="px-1" style={{ color: C.dim }}>Loading…</p> : byDay.length ? byDay.map(([d, list]) => <div key={d}><Title>{shortDate(list[0].at)}</Title><div className="space-y-2">{list.map((a, k) => <Card key={k} onClick={() => onOpen(a.c)} className="!p-3" style={a.requested ? { boxShadow: "inset 0 0 0 1px var(--fit-accent)" } : undefined}>
       <div className="flex items-center gap-3"><span className="w-16 shrink-0 text-[18px] leading-none" style={display}>{new Date(a.at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</span>
         <div className="min-w-0 flex-1"><p className="truncate font-semibold">{a.c.name}</p><p className="truncate text-[12px]" style={{ color: C.dim }}>{MODE_LABEL[a.mode]} · {a.mins} min{a.place ? ` · ${a.place}` : ""}{a.requested ? " · requested" : ""}</p></div></div></Card>)}</div></div>)
       : <p className="px-1 text-[14px]" style={{ color: C.dim }}>No sessions booked. Book one from a client's Sessions.</p>}
@@ -230,7 +230,7 @@ function ListingEditor({ token, initial, onClose, onSaved }: { token: string | n
   const setPrice = (i: number, p: Partial<Price>) => set({ prices: t.prices.map((x, k) => (k === i ? { ...x, ...p } : x)) });
   const toggle = <K extends "modes" | "specialties">(k: K, v: string) => set({ [k]: (t[k] as string[]).includes(v) ? (t[k] as string[]).filter((x) => x !== v) : [...(t[k] as string[]), v] } as Partial<TrainerProfile>);
   const save = async () => { setBusy(true); setErr(""); try { await put(token, "/trainer/profile", { profile: cleanTrainer(t) }); onSaved(); } catch (e: any) { setErr(e.message); } finally { setBusy(false); } };
-  const pill = (on: boolean) => (on ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2, color: C.text });
+  const pill = (on: boolean) => (on ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card2, color: C.text });
   return <Sheet title="Your listing" onClose={onClose} testId="tr-listing" right={<Btn className="!min-h-10 !px-3 !text-[15px]" disabled={busy} onClick={save} testId="tr-listing-save">Save</Btn>}>
     <div className="space-y-4">
       <div className="flex items-center gap-4"><Avatar t={t} size={84} />
@@ -260,7 +260,7 @@ function ListingEditor({ token, initial, onClose, onSaved }: { token: string | n
       <Title>Contact and links</Title>
       {([["website", "Website", "yourgym.com"], ["bookingUrl", "Booking link (Calendly, Mindbody…)", "https://"], ["payUrl", "Payment link (Stripe, PayPal, Venmo…)", "https://"], ["instagram", "Instagram", "@handle"], ["email", "Email", "you@email.com"], ["phone", "Phone", "(555) 555-5555"]] as const).map(([k, l, ph]) => <Field key={k} label={l}><input value={t[k]} onChange={(e) => set({ [k]: e.target.value } as Partial<TrainerProfile>)} placeholder={ph} className={inputCls} style={inputStyle} /></Field>)}
       <Field label="Welcome message (sent when you accept a client)"><textarea value={t.welcome} onChange={(e) => set({ welcome: e.target.value.slice(0, 600) })} rows={3} placeholder="Welcome aboard! First, answer your check-in…" className="w-full rounded-[12px] p-3 text-[17px] outline-none" style={inputStyle} /></Field>
-      <label className="flex items-center gap-3 rounded-[12px] p-3" style={{ background: C.card }}><input type="checkbox" checked={t.accepting} onChange={(e) => set({ accepting: e.target.checked })} className="h-6 w-6 accent-[#ff5a1f]" /><span className="font-semibold">Taking new clients</span></label>
+      <label className="flex items-center gap-3 rounded-[12px] p-3" style={{ background: C.card }}><input type="checkbox" checked={t.accepting} onChange={(e) => set({ accepting: e.target.checked })} className="h-6 w-6 accent-[var(--fit-accent)]" /><span className="font-semibold">Taking new clients</span></label>
     </div>
     {err && <p className="mt-3 text-[14px]" style={{ color: C.red }}>{err}</p>}
     <Btn className="mt-6 w-full" disabled={busy} onClick={save}>Save listing</Btn>

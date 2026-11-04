@@ -3,11 +3,12 @@
 // Tapping a card opens a pop-up with everyone ticked; untick whoever did not show up, and one save logs
 // the rest and marks the unticked ones absent. The rules are in shared/hubClassMinutes.ts.
 import { useMemo, useState } from "react";
-import { Check, ChevronRight, NotebookPen, UserX, Users } from "lucide-react";
+import { Check, ChevronRight, NotebookPen, Trash2, UserPlus, UserX, Users } from "lucide-react";
 import { schoolBlocks } from "@shared/hubBlocks";
 import { friendlyDate } from "@shared/hubDates";
 import { countedPlan, optionalDays } from "@shared/hubProgress";
-import { ABSENT_REASON, classGroups, classLogs, startPicks, waiting, type ClassGroup, type ClassResult } from "@shared/hubClassMinutes";
+import { ABSENT_REASON, classCandidates, classGroups, classLogs, startPicks, waiting, type ClassGroup, type ClassResult } from "@shared/hubClassMinutes";
+import { cleanName, minuteNames } from "@shared/hubMinutesBulk";
 import { cleanPushInNotes, noteKey } from "@shared/pushIn";
 import type { Workspace } from "@shared/teacherHub";
 import { Empty, Field, GhostButton, Labeled, PrimaryButton } from "./ui";
@@ -17,7 +18,7 @@ import { MinutesPick } from "./HubMinutesBulk";
 const people = (n: number) => `${n} ${n === 1 ? "student" : "students"}`;
 
 /** The classes the teacher sees today, as cards to tap. */
-export function ClassMinutesView({ workspace, today, onOpen, onNotes }: { workspace: Workspace; today: string; onOpen: (key: string) => void; /** Opens the class's notes (the "Class notes" look). */ onNotes?: (key: string) => void }) {
+export function ClassMinutesView({ workspace, today, onOpen, onNotes, onAdd, onDelete }: { workspace: Workspace; today: string; onOpen: (key: string) => void; /** Opens the class's notes (the "Class notes" look). */ onNotes?: (key: string) => void; onAdd?: (key: string) => void; onDelete?: (key: string) => void }) {
   const groups = useClassGroups(workspace, today);
   const blocks = useMemo(() => schoolBlocks(workspace), [workspace.minuteBlocks]);
   const noteCounts = useMemo(() => {
@@ -50,10 +51,59 @@ export function ClassMinutesView({ workspace, today, onOpen, onNotes }: { worksp
                 <NotebookPen className="h-4 w-4" aria-hidden /> Class notes{notes > 0 && <span className="rounded-full bg-slate-900/10 px-2 text-xs">{notes}</span>}
               </button>
             )}
+            {(onAdd || onDelete) && <div className={`grid grid-cols-2 border-t ${done ? "border-emerald-200" : "border-slate-100"}`}>
+              {onAdd && <button type="button" onClick={() => onAdd(g.key)} data-testid="class-add" aria-label={`Add students to ${[g.title, g.label].filter(Boolean).join(", ")}`} className="flex min-h-11 items-center gap-2 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"><UserPlus className="h-4 w-4" aria-hidden /> Add students</button>}
+              {onDelete && <button type="button" onClick={() => onDelete(g.key)} data-testid="class-delete" aria-label={`Delete ${[g.title, g.label].filter(Boolean).join(", ")}`} className="flex min-h-11 items-center gap-2 border-l border-inherit px-4 text-sm font-semibold text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4" aria-hidden /> Delete class</button>}
+            </div>}
           </div>
         );
       })}
     </div>
+  );
+}
+
+/** Adds students to a class already made. They get the same service, days and minutes as the class. */
+export function AddToClassModal({ workspace, today, groupKey, onSave, onClose }: { workspace: Workspace; today: string; groupKey: string; onSave: (group: ClassGroup, names: string[]) => void; onClose: () => void }) {
+  const groups = useClassGroups(workspace, today);
+  const group = groups.find((g) => g.key === groupKey);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [typed, setTyped] = useState<string[]>([]);
+  const [name, setName] = useState("");
+  if (!group) return <HubModal title="Class" size="sm" onClose={onClose}><p className="text-sm text-slate-600">This class isn't here any more.</p></HubModal>;
+  const model = group.students[0];
+  const list = classCandidates(minuteNames(workspace, typed), group, model.kind, groups);
+  const toggle = (n: string) => setPicked((p) => (p.includes(n) ? p.filter((x) => x !== n) : [...p, n]));
+  const addTyped = () => { const n = cleanName(name); if (!n) return; if (!group.students.some((s) => s.student.toLowerCase() === n.toLowerCase())) { setTyped((t) => [...t, n]); setPicked((p) => (p.includes(n) ? p : [...p, n])); } setName(""); };
+  const title = [group.title, group.label].filter(Boolean).join(" · ");
+  return (
+    <HubModal title={`Add students to ${title}`} size="sm" onClose={onClose}
+      footer={<div className="flex flex-wrap gap-2"><span data-testid="class-add-save"><PrimaryButton onClick={() => onSave(group, picked)} disabled={!picked.length}>{picked.length ? `Add ${people(picked.length)}` : "Add students"}</PrimaryButton></span><GhostButton onClick={onClose}>Cancel</GhostButton></div>}>
+      <div className="grid grid-cols-1 gap-3" data-testid="class-add-modal">
+        <p className="text-sm text-slate-600">They get the same service, days and minutes as {model.student}: {model.kind}{model.subject ? `, ${model.subject}` : ""}. You can change anyone's minutes later under By student.</p>
+        <div className="flex gap-2"><input className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm" aria-label="Student's name" placeholder="Type a name not listed" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTyped(); } }} /><GhostButton onClick={addTyped}>Add name</GhostButton></div>
+        {list.length ? <ul className="space-y-2" aria-label="Students to add">{list.map((c) => { const on = picked.includes(c.name); return <li key={c.name}><button type="button" role="checkbox" aria-checked={on} onClick={() => toggle(c.name)} data-testid="class-add-student" className={`flex min-h-12 w-full items-center gap-3 rounded-2xl border px-3 text-left text-sm ${on ? "border-slate-950 bg-white" : "border-slate-200 bg-slate-50"}`}>
+          <span className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border-2 ${on ? "border-slate-950 bg-slate-950 text-white" : "border-slate-300 bg-white"}`} aria-hidden>{on && <Check className="h-4 w-4" />}</span>
+          <span className="min-w-0 flex-1"><span className="block truncate font-semibold text-slate-950">{c.name}</span>{c.movesFrom && <span className="block truncate text-xs font-medium text-amber-700">Moves here from {c.movesFrom}</span>}</span>
+        </button></li>; })}</ul> : <p className="text-sm text-slate-500">Everyone on your list is already in this class. Type a name above to add someone new.</p>}
+      </div>
+    </HubModal>
+  );
+}
+
+/** Confirms deleting a class. Its students and logged minutes stay unless asked otherwise. */
+export function DeleteClassModal({ workspace, today, groupKey, onDelete, onClose }: { workspace: Workspace; today: string; groupKey: string; onDelete: (group: ClassGroup, removeMinutes: boolean) => void; onClose: () => void }) {
+  const group = useClassGroups(workspace, today).find((g) => g.key === groupKey);
+  const [removeMinutes, setRemoveMinutes] = useState(false);
+  if (!group) return <HubModal title="Class" size="sm" onClose={onClose}><p className="text-sm text-slate-600">This class isn't here any more.</p></HubModal>;
+  const title = [group.title, group.label].filter(Boolean).join(" · ");
+  return (
+    <HubModal title={`Delete ${title}?`} size="sm" onClose={onClose}
+      footer={<div className="flex flex-wrap gap-2"><button type="button" onClick={() => onDelete(group, removeMinutes)} data-testid="class-delete-confirm" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-red-700 px-4 text-sm font-semibold text-white hover:bg-red-800"><Trash2 className="h-4 w-4" aria-hidden /> Delete class</button><GhostButton onClick={onClose}>Cancel</GhostButton></div>}>
+      <div className="grid grid-cols-1 gap-3 text-sm text-slate-700" data-testid="class-delete-modal">
+        <p>The class comes off this page. Its students stay on your list, and minutes already logged are kept.</p>
+        <label className="flex min-h-11 items-center gap-3 font-medium"><input type="checkbox" className="h-5 w-5" checked={removeMinutes} onChange={(e) => setRemoveMinutes(e.target.checked)} data-testid="class-delete-minutes" />Also remove their required minutes for this class</label>
+      </div>
+    </HubModal>
   );
 }
 

@@ -87,7 +87,7 @@ import NotesKitApp from "@/components/plugin-kit/NotesKitApp";
 import { LEARNING_APPS, LearningIcon, openLearning, useLearningAccess } from "@/components/hub-pieces/LearningApps";
 import { PlanCard, UpgradeHost, appsBlocked, appsFull, openUpgrade, useTodoPlan } from "@/components/hub-pieces/TodoPlan";
 import { appsIn, countsAsApp } from "@shared/todoPlan";
-import { cleanFamily, cleanSectionOrder, emptyFamily, FAMILY_SECTIONS, isCurrentFamily, isOn, orderedToggleable, TOGGLEABLE, ADD_ON_SECTIONS, type Family, type FamilySection } from "@shared/familyHub";
+import { addDays, eventsOn, cleanFamily, cleanSectionOrder, emptyFamily, FAMILY_SECTIONS, isCurrentFamily, isOn, orderedToggleable, TOGGLEABLE, ADD_ON_SECTIONS, type Family, type FamilySection } from "@shared/familyHub";
 import FamilyHome from "@/components/family-hub/FamilyHome";
 import Chores from "@/components/family-hub/Chores";
 import Behavior from "@/components/family-hub/Behavior";
@@ -128,7 +128,7 @@ import CustomizeSheet, { CustomizeGroup } from "@/components/CustomizeSheet";
 import DuoControls, { DuoHeaderButton } from "@/components/DuoControls";
 import { LayoutGrid as LayoutGridIcon, PanelLeft, Palette } from "lucide-react";
 import { PhoneMenu, usePhoneMenu, type PhoneMenuItem } from "@/components/family-hub/PhoneMenu";
-import { PhoneTabBar } from "@/components/family-hub/PhoneTabBar";
+import { OPEN_APPS_EVENT, PhoneTabBar } from "@/components/family-hub/PhoneTabBar";
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
 import { foldMenu } from "@shared/hubLayout";
 import { hubThemeOf } from "@shared/appThemes";
@@ -143,7 +143,6 @@ import { HubChat } from "@/components/HubChat";
 import { HOME_SIZES, MENU_CLOSES, MENU_SIDES, moveSection, pinId, resizeSection, showSection, sizeOf } from "@shared/hubLayout";
 import { LIFE_PARTS, cleanLifeLayout, type LifeLayout } from "@shared/lifeLayout";
 import HubSwitch from "@/components/HubSwitch";
-import { SupportBanner, SupportButton, SupportMenuItem } from "@/components/SupportArise";
 
 import HeaderShortcut from "@/components/HeaderShortcut";
 import HubMark from "@/components/HubMark";
@@ -154,6 +153,9 @@ import { useLifeHubTrial } from "@/components/TodoGate";
 const Reader = lazy(() => import("@/components/family-hub/Reader"));
 import "./todoNight.css";
 import "./hubThemes.css";
+import { HubWaiting } from "@/lib/hubBackdrop";
+import { LookTaskList, useHubLook } from "@/components/HubLook";
+import { LookDock, LookOS, LookYou, type OsScreen } from "@/components/look-os/LookOS";
 import "./ariseDuo.css";
 import { inDuoPane, useAriseDuo, type DuoChoice } from "@/lib/useAriseDuo";
 import "@/components/teacher-hub/darkPalette.css";
@@ -768,16 +770,19 @@ export default function AriseTodo() {
   // shared/appThemes.ts's HubTheme.homeLayout) — "cards" (today's) for Classic/Sunrise/Forest,
   // a dense tap-chip wrap for Tile/Candy, bracketed text lines for Old Computer, and a quiet
   // thin-divider list for Minimalist.
+  const hubLook = useHubLook(layout.theme, night);
   const taskLayout = hubThemeOf(layout.theme).homeLayout ?? "cards";
   // The Tile theme is a Windows-Phone start screen: every app is a tile on Home, so there is no menu strip beside it.
   const tileMode = taskLayout === "tiles";
-  const phone = usePhoneMenu(tileMode ? "drawer" : layout.menuSide, layout.menuClose);
+  const phone = usePhoneMenu(tileMode || hubLook.look ? "drawer" : layout.menuSide, layout.menuClose);
   // Arise To Duo: the iPhone Duo's inner screen gets two panes that meet at the fold (see useAriseDuo).
   const duo = useAriseDuo();
   /** The floating tab bar on a phone (Customize → Menu on your phone → Tab bar, the default). Not in the
    *  Duo's book view or inside a split-screen pane, which have their own controls; there the app drawer stands in. */
-  const tabBar = !tileMode && layout.menuSide === "tabs" && duo.mode !== "book" && !inDuoPane();
-  const phoneSide = tileMode ? "drawer" : layout.menuSide === "tabs" && !tabBar ? "drawer" : layout.menuSide;
+  /** A look runs as its own system, everywhere but the Duo's book view and split-screen panes. */
+  const osOn = !!hubLook.look && duo.mode !== "book" && !inDuoPane();
+  const tabBar = osOn || (!tileMode && layout.menuSide === "tabs" && duo.mode !== "book" && !inDuoPane());
+  const phoneSide = osOn ? "tabs" : tileMode ? "drawer" : layout.menuSide === "tabs" && !tabBar ? "drawer" : layout.menuSide;
   const [youOpen, setYouOpen] = useState(false);
   useEffect(() => {
     const before = document.title;
@@ -785,7 +790,7 @@ export default function AriseTodo() {
     return () => { document.title = before; };
   }, []);
   // The menu on a computer (Customize). Tasks keeps the full sidebar so its lists stay at hand.
-  const dsk = shown === "tasks" ? "left" : tileMode ? "drawer" : layout.deskSide;
+  const dsk = osOn ? "drawer" : shown === "tasks" ? "left" : tileMode ? "drawer" : layout.deskSide;
   const deskAside = dsk === "drawer" ? "lg:hidden"
     : dsk === "top" ? "lg:sticky lg:top-16 lg:z-30 lg:block lg:w-full"
     : dsk === "compact" ? "lg:sticky lg:top-16 lg:flex lg:h-[calc(100vh-4rem)] lg:w-[76px] lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r"
@@ -970,8 +975,9 @@ export default function AriseTodo() {
 
   // Signed-out visitors always use the unified sign-in and account creation page.
   if (!user) return <Redirect to="/signin" replace />;
+  if (!sync.loaded && !sync.error) return <HubWaiting label="Opening your tasks…" />;
   if (!sync.loaded) return <div className="flex min-h-screen flex-col items-center justify-center gap-5 bg-[#f6f7fc] px-4 text-center text-slate-800">
-    {sync.error ? <><CloudOff size={40} className="text-rose-500" /><h1 className="text-2xl font-black">We couldn't open your saved LifeHub lists.</h1><p className="max-w-md text-sm text-slate-600">{sync.error}</p><button onClick={sync.retry} className={buttonClass + " bg-violet-700 px-6 text-white"}><RefreshCw size={17} /> Try again</button><button onClick={() => void signOut()} className="text-sm font-bold text-slate-500">Switch account</button></> : <><RefreshCw className="animate-spin text-violet-600" size={34} /><p className="text-sm font-semibold text-slate-600">Opening your tasks from your account…</p></>}
+    <CloudOff size={40} className="text-rose-500" /><h1 className="text-2xl font-black">We couldn't open your saved LifeHub lists.</h1><p className="max-w-md text-sm text-slate-600">{sync.error}</p><button onClick={sync.retry} className={buttonClass + " bg-violet-700 px-6 text-white"}><RefreshCw size={17} /> Try again</button><button onClick={() => void signOut()} className="text-sm font-bold text-slate-500">Switch account</button>
   </div>;
   const saveStatus = sync.view.kind === "saved" ? "Saved to account" : sync.view.kind === "waiting" ? "Saving soon…" : sync.view.kind === "saving" ? "Saving to cloud…" : sync.view.kind === "retrying" ? "Waiting for connection…" : "Needs your attention";
 
@@ -996,11 +1002,6 @@ export default function AriseTodo() {
           {!has && dsk !== "compact" && <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: a.soft, color: a.color }}>Add-on</span>}
         </button>;
       })}
-      <SupportMenuItem isAdmin={user.isAdmin} testId="life-support"
-        className={`flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-3 text-left text-sm font-bold text-rose-700 transition hover:bg-rose-50 ${dsk === "top" ? "" : "w-full"} ${dsk === "compact" ? "justify-center" : ""}`}>
-        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-rose-600 text-white shadow-sm"><HeartNav className="h-4 w-4 fill-current" /></span>
-        <span className={`min-w-0 flex-1 truncate ${dsk === "compact" ? "sr-only" : ""}`}>Support A.R.I.S.E.</span>
-      </SupportMenuItem>
     </div>
   </div>;
   /** One sidebar renderer for built-in navigation and installed App Store sections.
@@ -1059,7 +1060,26 @@ export default function AriseTodo() {
     gallery: () => setStore(true), privacy: () => setPrivacy(true), signOut: () => void signOut(),
     extra: [{ id: "family", label: "Family & settings", detail: "People, linked children and sections", icon: <Users />, onClick: () => { closeApps(); goSection("family"); } }],
   });
-  return <PrivacyLockProvider lock={family.lock} setLock={(lock) => setFamily((f) => ({ ...f, lock }))} apps={lockableApps} settings={lockSettings} onSettings={setLockSettings}><div className={`min-h-screen bg-[#f6f7fc] text-slate-900 ${night ? "todo-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""}`}>
+  const inOtherApp = !!notesAppOpen || !!sheetsAppOpen || driveOpen || dropOpen || !!kitOpen;
+  const osCore = osOn && !inOtherApp && (["home", "tasks", "calendar", "notes"] as FamilySection[]).includes(shown);
+  const osGo = (s: OsScreen) => { closeApps(); setStore(false); setAddMenu(false); goSection(s); };
+  const osAdd = (title?: string) => { if (title) setEditing({ ...emptyTask(data.lists[0].id), title: title.slice(0, 200) }); else setAddMenu((v) => !v); };
+  const osOff = (["calendar", "notes"] as const).filter((s) => !sections.includes(s));
+  const osApps = () => window.dispatchEvent(new Event(OPEN_APPS_EVENT));
+  const osFirst = (user.displayName || "").split(" ")[0];
+  const osDays = Array.from({ length: 35 }, (_, n) => {
+    const date = addDays(currentDay, n), d = new Date(`${date}T12:00:00`);
+    return { date, weekday: d.toLocaleDateString(undefined, { weekday: "short" }), day: String(d.getDate()), month: d.toLocaleDateString(undefined, { month: "short" }),
+      items: [...eventsOn(family, date).map((e) => ({ id: e.id, time: e.time, title: e.title })), ...data.tasks.filter((t) => !t.done && t.due === date).map((t) => ({ id: t.id, time: t.time, title: t.title }))] };
+  });
+  const osTasks = data.tasks.map((task) => { const list = data.lists.find((row) => row.id === task.listId); return { id: task.id, title: task.title, done: task.done, due: task.due, late: !task.done && !!task.due && task.due < currentDay, dueLabel: task.due ? prettyDate(task.due) : "", listName: list?.name ?? "", color: list?.color ?? "", assignee: task.assignee ?? "", notes: task.notes ?? "" }; });
+  // The bell: in the header, or in the themed top bar beside the Work/Life switch.
+  const lifeBell = <NotificationBell
+            extraItems={lifeAlerts(family, calendarTasks, currentDay, Date.now(), pillsDue)}
+            onNavigate={(type) => { if (type.startsWith("life:")) setSection(type.slice(5) as FamilySection); else navigate(user.isAdmin ? "/admin" : "/profile"); }}
+            onSettings={() => setSection("notifications")}
+            triggerClassName={`relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 ${shown === "notifications" ? "bg-[#292446] text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`} />;
+  return <PrivacyLockProvider lock={family.lock} setLock={(lock) => setFamily((f) => ({ ...f, lock }))} apps={lockableApps} settings={lockSettings} onSettings={setLockSettings}><div style={hubLook.style} className={`min-h-screen bg-[#f6f7fc] text-slate-900 ${night && !hubLook.look ? "todo-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""} ${hubLook.className}`}>
     <UpgradeHost hub="life" />
     {/* After the tour: the coach on the real hub (hold a widget, switch hubs, the App Gallery). */}
     <HubCoach userId={user.id} hub="life" />
@@ -1136,6 +1156,16 @@ export default function AriseTodo() {
     {customizing && <CustomizeSheet eyebrow="LifeHub" storageKey="life-customize-tab" initialTab={customizeTab} testId="life-customize-panel"
       onClose={() => { setCustomizing(false); setCustomizeTab(undefined); }}
       tabs={[
+        { id: "look", label: "Look", icon: <Palette />, content: <>
+          <CustomizeGroup title="Day or night" help="Night mode is easier on the eyes after dark.">
+            <div role="radiogroup" aria-label="Day or night" className="flex flex-wrap gap-2">
+              {([[false, "Day", <Sun key="d" size={16} />], [true, "Night", <Moon key="n" size={16} />]] as const).map(([value, label, icon]) => <button key={label} type="button" role="radio" aria-checked={night === value} onClick={() => { if (night !== value) toggleNight(); }}
+                className={`inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-bold ring-1 ${night === value ? "bg-[#292446] text-white ring-[#292446]" : "bg-white text-slate-600 ring-slate-200"}`}>{icon}{label}</button>)}
+            </div>
+          </CustomizeGroup>
+          <ThemePicker layout={layout} setLayout={setLayout} />
+        </> },
+        { id: "duo", label: "Duo & split screen", icon: <Columns2 />, content: <div data-testid="life-duo-choice"><DuoControls canWork={user.role === "teacher" || !!user.isAdmin} onClose={() => { setCustomizing(false); setCustomizeTab(undefined); }} /></div> },
         { id: "layout", label: "Layout", icon: <PanelLeft />, content: <>
           <SameBothHubs testId="life-same-both" />
           <CustomizeGroup title="Menu on your phone" help="Where it sits, and how it closes." testId="life-customize-phone-menu">
@@ -1156,30 +1186,6 @@ export default function AriseTodo() {
           <DeskSidePicker layout={layout} setLayout={setLayout} />
           <FolderEditor layout={layout} setLayout={setLayout} makeId={makeId} items={sections.filter((x) => x !== "home").map((x) => ({ id: x, label: SECTION_INFO[x].label }))} />
         </> },
-        { id: "look", label: "Look", icon: <Palette />, content: <>
-          <CustomizeGroup title="Day or night" help="Night mode is easier on the eyes after dark.">
-            <div role="radiogroup" aria-label="Day or night" className="flex flex-wrap gap-2">
-              {([[false, "Day", <Sun key="d" size={16} />], [true, "Night", <Moon key="n" size={16} />]] as const).map(([value, label, icon]) => <button key={label} type="button" role="radio" aria-checked={night === value} onClick={() => { if (night !== value) toggleNight(); }}
-                className={`inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-bold ring-1 ${night === value ? "bg-[#292446] text-white ring-[#292446]" : "bg-white text-slate-600 ring-slate-200"}`}>{icon}{label}</button>)}
-            </div>
-          </CustomizeGroup>
-          <ThemePicker layout={layout} setLayout={setLayout} />
-        </> },
-        { id: "home", label: "Home screen", icon: <LayoutGridIcon />, content: <CustomizeGroup title="Home screen" help="Turn parts on or off, move them, and pick a size. You can also press and hold Home itself to drag things around.">
-          <ul className="space-y-1.5" aria-label="Parts of Home">
-            {layout.home.map((id, i) => {
-              const on = !layout.homeHidden.includes(id), part = LIFE_PARTS.find((x) => x.id === id) ?? { id, label: pinnableApps.find((p) => pinId(p.id) === id)?.name ?? id }, sz = sizeOf(layout, id);
-              return <li key={id} className={`flex min-h-11 flex-wrap items-center gap-2 rounded-xl border px-2 py-1 ${on ? "border-slate-200 bg-white" : "border-dashed border-slate-200 bg-slate-50"}`} data-testid={`life-home-part-${id}`}>
-                <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-3 px-1 text-sm"><input type="checkbox" className="h-5 w-5 shrink-0" checked={on} onChange={(e) => setLayout(showSection(layout, id, e.target.checked))} /><span className={on ? "font-semibold text-slate-900" : "text-slate-500"}>{part.label}</span></label>
-                <span className="flex rounded-full bg-slate-100 p-0.5" role="radiogroup" aria-label={`Size of ${part.label}`}>{HOME_SIZES.map((z) => <button key={z.id} type="button" role="radio" aria-checked={sz === z.id} aria-label={z.label} onClick={() => setLayout(resizeSection(layout, id, z.id))} className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold ${sz === z.id ? "bg-[#292446] text-white" : "text-slate-600"}`}>{z.short}</button>)}</span>
-                <button type="button" onClick={() => setLayout(moveSection(layout, id, -1))} disabled={i === 0} aria-label={`Move ${part.label} up`} className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30"><ChevronUp size={16} /></button>
-                <button type="button" onClick={() => setLayout(moveSection(layout, id, 1))} disabled={i === layout.home.length - 1} aria-label={`Move ${part.label} down`} className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30"><ChevronDown size={16} /></button>
-              </li>;
-            })}
-          </ul>
-          <button type="button" onClick={() => setLayout({ ...layout, home: LIFE_PARTS.map((x) => x.id), homeHidden: family.widgets.board ? [] : ["widgets"], homeSize: {} })} className="mt-2 min-h-11 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4">Reset Home to the usual layout</button>
-        </CustomizeGroup> },
-        { id: "duo", label: "Duo & split screen", icon: <Columns2 />, content: <div data-testid="life-duo-choice"><DuoControls canWork={user.role === "teacher" || !!user.isAdmin} onClose={() => { setCustomizing(false); setCustomizeTab(undefined); }} /></div> },
         { id: "more", label: "Plan & more", icon: <Sparkles />, content: <>
           <PlanCard hub="life" hubApps={appsIn("life", data)} />
           <CustomizeGroup title="More settings">
@@ -1193,7 +1199,7 @@ export default function AriseTodo() {
         </> },
       ]} />}
     {/* The same header as WorkHub: the hub on the left, everything you do to it on the right. */}
-    <header className="sticky top-0 z-40 h-16 border-b border-[#e4e6f0] bg-white/95 backdrop-blur" data-testid="life-header">
+    <header className={`${osCore ? "los-ghost" : "sticky top-0 z-40"} h-16 border-b border-[#e4e6f0] bg-white/95 backdrop-blur`} data-testid="life-header">
       <div className="flex h-full items-center justify-between gap-2 px-3 sm:gap-4 sm:px-5 lg:px-6">
         <button type="button" onClick={() => setSection("home")} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="LifeHub home">
           <span className="flex h-8 w-8 shrink-0 overflow-hidden rounded-xl shadow-[0_5px_14px_#6d5ce72b]"><HubMark tone="life" className="h-full w-full" /></span>
@@ -1201,7 +1207,6 @@ export default function AriseTodo() {
         </button>
         <div className="flex shrink-0 items-center gap-2">
           <DuoHeaderButton onOpen={() => { setCustomizeTab("duo"); setCustomizing(true); }} />
-          {(user.role === "parent" || user.isAdmin) && <SupportButton isAdmin={user.isAdmin} />}
           {(user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
           <div className={layout.shortcut ? "contents" : "hidden sm:contents duo:hidden"}>
           {/* Not in the iPhone app: the app is the real thing, no Shortcut. */}{!isNativeApp() && <HeaderShortcut shortcut={layout.shortcut} choices={phoneItems} say={setMessage}
@@ -1209,11 +1214,7 @@ export default function AriseTodo() {
           </div>
           <HubSearchButton onOpen={() => setSearching(true)} />
           <span role="status" className={`hidden items-center gap-2 rounded-full px-3 py-2 text-xs font-bold sm:inline-flex ${sync.view.kind === "saved" ? "bg-emerald-50 text-emerald-700" : sync.view.kind === "blocked" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"} duo:hidden`}>{sync.view.kind === "saved" ? <Cloud size={14} /> : sync.view.kind === "blocked" ? <AlertCircle size={14} /> : <RefreshCw size={14} />}{saveStatus}</span>
-          <NotificationBell
-            extraItems={lifeAlerts(family, calendarTasks, currentDay, Date.now(), pillsDue)}
-            onNavigate={(type) => { if (type.startsWith("life:")) setSection(type.slice(5) as FamilySection); else navigate(user.isAdmin ? "/admin" : "/profile"); }}
-            onSettings={() => setSection("notifications")}
-            triggerClassName={`relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 ${shown === "notifications" ? "bg-[#292446] text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`} />
+          {!osCore && lifeBell}
           <LockButton className="hidden sm:inline-flex duo:hidden" />
           <HubMoreMenu testId="life-more" open={more} setOpen={setMore} groups={moreGroups}
             buttonClass="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
@@ -1226,7 +1227,7 @@ export default function AriseTodo() {
     {privacy && <AccountPrivacy onClose={() => setPrivacy(false)} />}
     {/* One floating button that adds anything, mirroring WorkHub. It sits clear of the phone menu
         when that menu is along the bottom or the right, so it never covers the menu's own buttons. */}
-    <div ref={addRef} className={`fixed z-50 lg:bottom-[max(1.25rem,env(safe-area-inset-bottom))] lg:right-4 ${tabBar ? "max-lg:bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] max-lg:left-1/2 max-lg:right-auto" : layout.menuSide === "bottom" && phone.open ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${tabBar ? "lg:left-auto" : layout.menuSide === "right" && phone.open ? "right-[88px]" : "right-4"}`}>
+    <div ref={addRef} className={`${osOn && hubLook.look ? "hidden " : ""}fixed z-50 lg:bottom-[max(1.25rem,env(safe-area-inset-bottom))] lg:right-4 ${tabBar ? "max-lg:bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] max-lg:left-1/2 max-lg:right-auto" : layout.menuSide === "bottom" && phone.open ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${tabBar ? "lg:left-auto" : layout.menuSide === "right" && phone.open ? "right-[88px]" : "right-4"}`}>
       {addMenu && (
         <div role="menu" aria-label="Add to your To Do" data-testid="life-add-menu"
           className={`absolute bottom-[calc(100%+0.6rem)] right-0 w-60 ${tabBar ? "max-lg:bottom-0 max-lg:right-auto max-lg:-translate-x-1/2" : ""} overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl`}>
@@ -1259,7 +1260,16 @@ export default function AriseTodo() {
         <Plus className={`h-5 w-5 transition-transform ${addMenu ? "rotate-45" : ""}`} size={20} /> Add
       </button>
     </div>
-    {tabBar && <PhoneTabBar name={user.displayName || user.username || ""}
+    {osCore && hubLook.look && <LookOS bell={lifeBell} hubName="LifeHub" hubSwitch={(user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) ? <HubSwitch current="todo" night={night} /> : null} look={hubLook.look} name={osFirst} dateLabel={new Date(`${currentDay}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+      banner={<>{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{family.widgets.stickies && <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{null}</StickyBoard>}</>} screen={shown as OsScreen} go={osGo} openApps={osApps} add={osAdd} tasks={osTasks} days={osDays} off={osOff} onYou={() => setYouOpen(true)}
+      toggle={(id) => { const task = data.tasks.find((t) => t.id === id); if (task) toggleDone(task); }} openTask={(id) => { const task = data.tasks.find((t) => t.id === id); if (task) setEditing({ ...task }); }}
+      notes={[...family.notes].sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt.localeCompare(a.updatedAt))} lockedApps={family.lock?.apps}
+      shortcuts={phoneItems.filter((i) => !["home", "tasks", "calendar", "notes", "notifications", "linked", "family"].includes(i.id)).slice(0, 4).map((i) => ({ id: i.id, label: i.label, onClick: i.onClick }))}
+      content={<LockedApp locked={appLocked(family.lock, shown)} name={openAppName}>{shown === "calendar" || shown === "notes" ? familyContent : null}</LockedApp>} />}
+    {osOn && !osCore && hubLook.look && <LookDock inApp look={hubLook.look} screen={null} go={osGo} openApps={osApps} add={osAdd} off={osOff} you={() => setYouOpen(true)} initial={(osFirst || "Y").charAt(0).toUpperCase()} />}
+    {osOn && youOpen && hubLook.look && <LookYou look={hubLook.look} onClose={() => setYouOpen(false)} top={<><HubTrialNote trial={trial} which="life" upgradeHref="#/billing" /></>}
+      items={[{ id: "search", label: "Search", detail: "Everything in LifeHub", onClick: () => setSearching(true) }, { id: "duo", label: "Duo & split screen", onClick: () => { setCustomizeTab("duo"); setCustomizing(true); } }, ...moreGroups.flatMap((g) => g.items)]} />}
+    {tabBar && !osOn && <PhoneTabBar name={user.displayName || user.username || ""}
       home={shown === "home" && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && !store} tasks={shown === "tasks" && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && !store}
       addOpen={addMenu} onAdd={() => setAddMenu((v) => !v)}
       onHome={() => { closeApps(); setStore(false); setAddMenu(false); goSection("home"); }}
@@ -1277,7 +1287,7 @@ export default function AriseTodo() {
 
         </nav>
         {(installedSections.length > 0 || pinnableApps.length > 0 || installedOffice.length > 0 || myKits.length > 0) && <div className={`hidden px-3 pb-1 pt-3 lg:block duo-book:block ${dsk === "top" ? "lg:border-t lg:border-slate-100" : ""}`} data-testid="lifehub-my-apps">
-          <p className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">My apps</p>
+          <p className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">My apps</p>
           <div className={`space-y-0.5 ${dsk === "top" ? "lg:flex lg:flex-wrap lg:items-center lg:gap-1" : ""}`}>
             {renderSectionItems(installedSections, false)}
             {myNotesApps.map((p) => (
@@ -1315,11 +1325,11 @@ export default function AriseTodo() {
         </div>}
         <div className={`hidden px-3 pt-2 duo-book:block ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}><button type="button" onClick={() => setStore(true)} className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 transition hover:border-violet-300 hover:bg-violet-50 hover:text-[#5f4dc8]" data-testid="lifehub-plugin-store"><ShoppingBag size={18} />App Gallery</button></div>
         {shown === "tasks" && <>
-        <div className="hidden px-6 pb-3 pt-7 lg:block duo-book:block duo-book:pt-5"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-400">Tasks</span></div>
+        <div className="hidden px-6 pb-3 pt-7 lg:block duo-book:block duo-book:pt-5"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-500">Tasks</span></div>
         <div className="flex gap-1 overflow-x-auto border-t border-slate-100 px-4 pb-4 pt-3 lg:block lg:space-y-1 lg:border-t-0 lg:px-3 lg:pb-0 lg:pt-0 duo-book:block duo-book:space-y-1 duo-book:border-t-0 duo-book:px-3 duo-book:pb-0 duo-book:pt-0 duo-stack:flex-wrap duo-stack:overflow-visible">
           {viewTabs.map(tab => { const Icon = tab.icon; return <button key={tab.id} onClick={() => setView(tab.id)} className={`flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm lg:w-full duo-book:min-h-11 duo-book:w-full ${view === tab.id ? "bg-[#eeeafe] text-[#5f4dc8]" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}><Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span>{tab.title}</span><span className="ml-auto rounded-lg px-1.5 text-xs font-semibold opacity-65">{tab.count}</span></button>; })}
         </div>
-        <div className="hidden px-6 pb-3 pt-8 lg:flex lg:items-center lg:justify-between duo-book:flex duo-book:items-center duo-book:justify-between duo-book:pt-6"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-400">My lists</span><button onClick={() => setAddingList(true)} className="rounded-lg p-1.5 text-slate-400 hover:bg-violet-50 hover:text-violet-700" title="New list" aria-label="New list"><FolderPlus size={18} /></button></div>
+        <div className="hidden px-6 pb-3 pt-8 lg:flex lg:items-center lg:justify-between duo-book:flex duo-book:items-center duo-book:justify-between duo-book:pt-6"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-500">My lists</span><button onClick={() => setAddingList(true)} className="rounded-lg p-1.5 text-slate-400 hover:bg-violet-50 hover:text-violet-700" title="New list" aria-label="New list"><FolderPlus size={18} /></button></div>
         <div className="flex gap-2 overflow-x-auto px-4 pb-4 lg:block lg:space-y-0.5 lg:px-3 duo-book:block duo-book:space-y-0.5 duo-book:px-3 duo-stack:flex-wrap duo-stack:overflow-visible">
           <button onClick={() => setSelectedList("all")} className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold lg:flex lg:min-h-10 lg:w-full lg:items-center lg:gap-3 duo-book:flex duo-book:min-h-11 duo-book:w-full duo-book:items-center duo-book:gap-3 ${selectedList === "all" ? "bg-[#f4f2ff] text-[#6c5cce]" : "text-slate-500 hover:bg-slate-50"}`}><Circle size={12} className="hidden lg:block duo-book:block" />Everything</button>
           {data.lists.map(list => <button key={list.id} onClick={() => setSelectedList(list.id)} className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold lg:min-h-10 lg:w-full duo-book:min-h-11 duo-book:w-full ${selectedList === list.id ? "bg-[#f4f2ff] text-[#6c5cce]" : "text-slate-500 hover:bg-slate-50"}`}><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: list.color }} /><span className="max-w-32 truncate">{list.name}</span><span className="ml-auto hidden text-xs opacity-60 lg:inline duo-book:inline">{countFor(list.id)}</span></button>)}
@@ -1354,6 +1364,7 @@ export default function AriseTodo() {
             <button onClick={openAdd} className="hidden min-h-11 items-center gap-2 rounded-xl bg-[#705de0] px-5 text-sm font-bold text-white shadow-[0_8px_24px_#705de02b] hover:bg-[#604bd4] lg:inline-flex"><Plus size={18} /> New task</button>
           </header>}
 
+          <div className={osCore ? "los-alerts" : "contents"}>
           {sync.view.kind === "retrying" && <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800"><CloudOff size={18} /> Connection interrupted. Your changes are kept on this device and will be retried. <button className="underline" onClick={sync.retry}>Retry now</button></div>}
           {sync.view.kind === "blocked" && <section className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800" role="alert">
             <div className="flex items-center gap-2"><AlertCircle size={18} /><strong>{sync.view.block === "conflict" ? "Tasks changed on another device" : "Cloud save needs attention"}</strong></div>
@@ -1372,6 +1383,7 @@ export default function AriseTodo() {
             <div className="mt-3 flex flex-wrap gap-2"><button onClick={importOldTasks} className={buttonClass + " bg-indigo-700 text-white"}>Add old tasks to my account</button><button onClick={dismissLegacy} className={buttonClass + " bg-white text-indigo-700 ring-1 ring-indigo-200"}>Not now</button></div>
           </section>}
 
+          </div>
           <SnoozeBar />
           {message && <div role="status" className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-[600] w-[min(92vw,440px)] -translate-x-1/2 rounded-2xl bg-[#292446] px-4 py-3 text-center text-sm font-semibold text-white shadow-[0_18px_40px_#16152a40]">{message}</div>}
           <div className="mt-4"><HubTrialNote trial={trial} which="life" upgradeHref="#/billing" onUpgrade={user.role === "parent" ? () => { setSection("reader"); window.setTimeout(() => document.getElementById("parent-plans")?.scrollIntoView({ behavior: "smooth" }), 600); } : undefined} /></div>
@@ -1412,8 +1424,8 @@ export default function AriseTodo() {
             </div>
             <KitPlugin key={kitOpen} def={kitDef(kitOpen)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
           </div>}
-          {!notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{shown === "home" && <div className="mb-4"><SupportBanner /></div>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
-          {!notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown === "tasks" && <>
+          {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
+          {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown === "tasks" && <>
 
           {/* The four counts are in the tabs on a phone, so the cards show from a tablet up. */}
           <div className="mt-7 hidden grid-cols-2 gap-3 md:grid md:grid-cols-4 duo-book:mt-0 duo-book:grid duo-book:grid-cols-4 duo-book:gap-2 duo-stack:grid-cols-4">
@@ -1436,11 +1448,13 @@ export default function AriseTodo() {
                 {members.map(m => <button key={m.id} onClick={() => setMemberFilter(memberFilter === m.name ? "" : m.name)} aria-pressed={memberFilter === m.name} className="inline-flex min-h-9 items-center gap-1.5 rounded-xl px-2.5 text-xs font-bold ring-1 bg-white text-slate-600 ring-slate-200" style={memberFilter === m.name ? { background: m.color, color: "#fff", boxShadow: `0 0 0 1px ${m.color}` } : undefined}><span>{m.emoji || "🙂"}</span>{m.name}<span className="opacity-70">{active.filter(t => t.assignee.trim().toLowerCase() === m.name.toLowerCase()).length}</span></button>)}
               </div>}
               <div className="relative mt-5"><Search size={17} className="pointer-events-none absolute left-3 top-3.5 text-slate-400" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tasks, notes, or names" aria-label="Search tasks" className={inputClass + " pl-10"} /></div>
-              <div className={
+              {hubLook.look && <LookTaskList look={hubLook.look} tasks={filtered.map((task) => { const list = data.lists.find((row) => row.id === task.listId); return { id: task.id, title: task.title, done: task.done, due: task.due, late: !task.done && !!task.due && task.due < currentDay, dueLabel: task.due ? prettyDate(task.due) : "", listName: list?.name ?? "", color: list?.color ?? "", assignee: task.assignee ?? "", notes: task.notes ?? "" }; })}
+                onToggle={(id) => { const task = filtered.find((t) => t.id === id); if (task) toggleDone(task); }} onOpen={(id) => { const task = filtered.find((t) => t.id === id); if (task) setEditing({ ...task }); }} />}
+              <div className={hubLook.look ? "hidden" :
                 taskLayout === "terminal" ? "mt-5 space-y-0 border border-current/30 font-mono" :
                 taskLayout === "tiles" ? "mt-5 flex flex-wrap gap-2" :
                 // Like the iPhone's Reminders: one list, rows split by hairlines.
-                "mt-4 divide-y divide-[#efeff5] overflow-hidden rounded-2xl border border-[#ececf3] bg-white"
+                "hub-tasklist mt-4 divide-y divide-[#efeff5] overflow-hidden rounded-2xl border border-[#ececf3] bg-white"
               }>
                 {filtered.map(task => {
                   const list = data.lists.find(row => row.id === task.listId);
@@ -1448,7 +1462,7 @@ export default function AriseTodo() {
                   const rowClass =
                     taskLayout === "terminal" ? "group flex min-w-0 items-start gap-3 border-b border-current/20 p-2.5 last:border-b-0" :
                     taskLayout === "tiles" ? "group relative flex min-w-0 items-start gap-3 overflow-hidden rounded-none border-2 border-black bg-white p-3 pl-4 sm:p-3.5 sm:pl-5" :
-                    "group flex min-w-0 items-start gap-3 bg-white px-3 py-3 transition active:bg-slate-50 hover:bg-[#fcfbff] sm:px-4";
+                    "hub-taskrow group flex min-w-0 items-start gap-3 bg-white px-3 py-3 transition active:bg-slate-50 hover:bg-[#fcfbff] sm:px-4";
                   return <div key={task.id} className={rowClass}>
                     {taskLayout === "tiles" && <span aria-hidden="true" className="absolute inset-y-0 left-0 w-2" style={{ background: list?.color || tileColorOf(task.id) }} />}
                     {taskLayout === "terminal"

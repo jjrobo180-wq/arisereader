@@ -30,7 +30,7 @@ const isControl = (el: EventTarget | null) => el instanceof HTMLElement && !!el.
 const GRID = "grid grid-cols-6 gap-3 sm:grid-cols-8 sm:gap-5 md:grid-cols-10 xl:grid-cols-12";
 const SPAN: Record<HomeSize, string> = { small: "col-span-2", medium: "col-span-full", large: "col-span-full" };
 /** The picture on each part's small tile. */
-const PART_ICON: Record<HomeSection, LucideIcon> = { day: Sun, widgets: AlarmClock, stats: LayoutGrid, picture: ImageIcon, agenda: ListChecks, add: WandSparkles, calendar: CalendarDays, meetings: Users, todo: CheckSquare, notifications: Bell, profile: School };
+const PART_ICON: Record<HomeSection, LucideIcon> = { day: Sun, widgets: AlarmClock, stats: LayoutGrid, picture: ImageIcon, agenda: ListChecks, add: WandSparkles, calendar: CalendarDays, meetings: Users, todo: CheckSquare, profile: School };
 /** One part of a hub's Home: its name and the picture on its small tile. */
 export type HomePart = { id: string; label: string; icon?: LucideIcon };
 /** WorkHub's parts of Home. */

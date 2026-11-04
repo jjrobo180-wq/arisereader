@@ -9,7 +9,7 @@ import { setAccount } from "../client/src/lib/accountStorage";
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { applySignal, cleanEarshot, emptyEarshot, type Earshot, type PodEpisode, type Signal } from "@shared/earshot";
-import { Check, Loader2, Mail, X } from "lucide-react";
+import { ArrowDownToLine, Check, Info, Loader2, Mail, X } from "lucide-react";
 import { LIGHT_SHEETS_CSS, Player, Setup, useTheme, type NowPlaying, type PlayerControl } from "../client/src/components/family-hub/earshot/EarshotPlayer";
 import { LIGHT_CSS } from "../client/src/components/family-hub/earshot/EarshotSocial";
 import { Home } from "./Home";
@@ -83,7 +83,7 @@ function App() {
     if (n.settings.adMode !== "off") setTimeout(() => setJoinOpen(true), 0);
     return { ...n, settings: { ...n.settings, adMode: e.settings.adMode } };
   }), [pro]);
-  const say = useCallback((m: string) => { setToast(m); if (toastT.current) clearTimeout(toastT.current); toastT.current = setTimeout(() => setToast(""), 2600); }, []);
+  const say = useCallback((m: string) => { setToast(m); if (toastT.current) clearTimeout(toastT.current); toastT.current = setTimeout(() => setToast(""), Math.min(5000, 2600 + Math.max(0, m.length - 40) * 40)); }, []);
   const setNickname = useCallback((n: string) => { setNicknameState(n); write("podscroll.name", n); }, []);
 
   const api = useCallback(async (path: string, init?: { method?: string; body?: unknown }) => {
@@ -229,7 +229,23 @@ function App() {
     {welcome && !authMode && <Welcome key={pro ? "in" : "out"} api={api} signedIn={pro} onSignedIn={(token, mail) => { setSession(token); setEmailState(mail); write("podscroll.email", mail); setAccount(mail); }}
       onEmail={() => setAuthMode("signin")} onPush={() => startPodPush(api, followIds, true)} onDone={finishWelcome} />}
     {authMode && !pro && <AuthScreen api={api} dark={!day} start={authMode} onClose={() => setAuthMode(null)} onDone={(token, mail) => { setSession(token); setEmailState(mail); write("podscroll.email", mail); setAuthMode(null); say("You're signed in. Ads get skipped now."); setAccount(mail); }} />}
-    <div role="status" aria-live="polite" className={`pointer-events-none fixed bottom-[calc(24px+env(safe-area-inset-bottom,0px))] left-1/2 z-[80] max-w-[calc(100%-32px)] -translate-x-1/2 rounded-full bg-white px-4 py-2.5 text-center text-sm font-bold text-[#120e14] shadow-xl transition ${toast ? "opacity-100" : "translate-y-3 opacity-0"}`}>{toast}</div>
+    {/* Messages: a small card that sits above the tab bar (it used to be a big white oval on top of it).
+        The first sentence is the headline, anything after it a quieter second line. */}
+    <div role="status" aria-live="polite" className={`pointer-events-none fixed bottom-[calc(108px+env(safe-area-inset-bottom,0px))] left-1/2 z-[80] w-max max-w-[min(92vw,400px)] -translate-x-1/2 transition duration-300 ${toast ? "opacity-100" : "translate-y-2 opacity-0"}`}>
+      {toast && (() => {
+        const cut = toast.search(/[.!?]\s/);
+        const head = cut > 0 ? toast.slice(0, cut + 1) : toast;
+        const rest = cut > 0 ? toast.slice(cut + 2) : "";
+        const Icon = /^download/i.test(toast) ? ArrowDownToLine : /couldn|can't|failed|error|no /i.test(head) ? Info : Check;
+        return <div className={`flex items-center gap-3 rounded-2xl px-3.5 py-2.5 shadow-[0_12px_40px_rgba(0,0,0,.35)] backdrop-blur-xl ${day ? "border border-black/[.06] bg-white/95 text-[#0f0f0f]" : "border border-white/10 bg-[#1f1f22]/95 text-white"}`}>
+          <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${day ? "bg-[#f2f2f2] text-[#0f0f0f]" : "bg-white/10 text-white"}`}><Icon size={16} strokeWidth={2.4} /></span>
+          <span className="min-w-0 text-left leading-tight">
+            <span className="block text-[13.5px] font-semibold">{head}</span>
+            {rest && <span className={`mt-0.5 block text-xs ${day ? "text-[#606060]" : "text-white/65"}`}>{rest}</span>}
+          </span>
+        </div>;
+      })()}
+    </div>
   </>;
 }
 

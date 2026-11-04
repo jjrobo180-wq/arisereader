@@ -111,6 +111,7 @@ import { registerMeetingPollRoutes } from "./meetingPoll";
 import { registerAriseSocialRoutes, type ConnectInvite, type SocialUser } from "./ariseSocial";
 import { registerAriseMathRoutes } from "./ariseMath";
 import { registerMathPhotoRoutes } from "./ariseMathPhoto";
+import { registerMathPrepRoutes } from "./ariseMathPrep";
 import { registerClassBehaviorRoutes } from "./classBehavior";
 import { registerClassGoalRoutes } from "./classGoals";
 import { registerAriseHistoryRoutes } from "./ariseHistory";
@@ -2030,6 +2031,15 @@ export async function registerRoutes(
   });
   // Arise Math "Snap a problem": photo or typed problem → step-by-step help without the answer. See server/ariseMathPhoto.ts.
   registerMathPhotoRoutes(app, authMiddleware, { gradeOf: async (id) => (await studentGrades())[String(id)] || null });
+  // Arise Math "Test Prep": practice sheets or a lesson name → lessons and practice for an upcoming test. See server/ariseMathPrep.ts.
+  registerMathPrepRoutes(app, authMiddleware, {
+    kv: supabaseKV(getAdminSupabase),
+    gradeOf: async (id) => (await studentGrades())[String(id)] || null,
+    studentsOf: async (teacherId) => (await storage.getTeacherStudents(teacherId)).map((s: any) => ({ id: Number(s.id) })),
+    childrenOf: (parentId) => getParentStudentIds(parentId),
+    nameOf: async (id) => { const u: any = await storage.getUser(id); return String(u?.displayName || u?.display_name || u?.username || ""); },
+    notify: (id, message) => notifyUser(id, message),
+  });
   // Class behavior (WorkHub's Behavior tab): points, hall passes, and what parents see. See server/classBehavior.ts.
   registerClassBehaviorRoutes(app, authMiddleware, {
     directory: {
@@ -2410,7 +2420,9 @@ export async function registerRoutes(
   // Auth routes
   app.post("/api/register", async (req, res) => {
     try {
-      const { username, password, displayName, isEyeGazeUser, gradeLevel } = req.body;
+      const { password, displayName, isEyeGazeUser, gradeLevel } = req.body;
+      // A space typed after a username would make the account impossible to sign in to.
+      const username = typeof req.body.username === "string" ? req.body.username.trim() : req.body.username;
       let { teacherId, schoolId } = req.body;
       if (!username || !password || !displayName) {
         return res.status(400).json({ message: "All fields are required" });
@@ -2661,7 +2673,9 @@ export async function registerRoutes(
   // code emailed to it and is let in at once; the admin only steps in if that email can't be sent.
   app.post("/api/auth/register-teacher", async (req, res) => {
     try {
-      const { username, password, displayName, email, schoolId, gradeLevel, gradesTaught } = req.body;
+      const { password, displayName, email, schoolId, gradeLevel, gradesTaught } = req.body;
+      // A space typed after a username would make the account impossible to sign in to.
+      const username = typeof req.body.username === "string" ? req.body.username.trim() : req.body.username;
       if (!username || !password || !displayName) {
         return res.status(400).json({ message: "All fields are required" });
       }

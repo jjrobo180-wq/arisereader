@@ -101,7 +101,7 @@ export function SmartWorkoutCard({ data, list, onStart, testId = "fit-smart" }: 
 }
 
 function OptionsSheet({ opts, hasGym, onChange, onClose }: { opts: Opts; hasGym: boolean; onChange: (o: Opts) => void; onClose: () => void }) {
-  const pill = (on: boolean) => (on ? { background: C.lime, color: "#0b0b0c" } : { background: C.card, color: C.text, boxShadow: `inset 0 0 0 1px ${C.line}` });
+  const pill = (on: boolean) => (on ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card, color: C.text, boxShadow: `inset 0 0 0 1px ${C.line}` });
   return <Sheet title="Workout options" onClose={onClose} testId="fit-smart-sheet">
     <Title>Time</Title>
     <div className="grid grid-cols-4 gap-2">{[30, 45, 60, 75].map((m) => <button key={m} type="button" onClick={() => onChange({ ...opts, mins: m })} className="h-14 rounded-[12px] text-[20px]" style={{ ...display, ...pill(opts.mins === m) }}>{m}<span className="ml-0.5 text-[12px]">min</span></button>)}</div>

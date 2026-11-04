@@ -799,7 +799,9 @@ async function manageSocial(forUserId){
   location.href = r.url;
 }
 /** Sends people to the main site to sign up or sign in, and back here afterwards. */
-function goSignIn(path){ try { sessionStorage.setItem('arise_return_to', '/social/'); } catch {} location.href = path; }
+/** The main site's sign-in and sign-up screens live behind its hash router ("/#/signin"), so "/" or
+ *  "/register" would open the A.R.I.S.E. Reader front page instead. It brings people back here after. */
+function goSignIn(path){ try { sessionStorage.setItem('arise_return_to', '/social/'); } catch {} const p = String(path || '/'); location.href = p.startsWith('/#') ? p : '/#' + (p === '/' ? '/signin' : p); }
 
 /* ================= STATE ================= */
 let CAT = null;                 // catalog: careers, quests, roadmap...

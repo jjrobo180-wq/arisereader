@@ -28,6 +28,8 @@ export function useDeepLinks(handle: (l: FitLink) => void) {
     if (!isNativeApp()) return;
     nativeCall(/^App$/, "App", "getLaunchUrl").then((r: any) => run(r?.url)).catch(() => {});
     void nativeListen("App", "appUrlOpen", (e: any) => run(e?.url));
+    // A tapped reminder (the morning sleep check-in, wind down) carries its link.
+    void nativeListen("LocalNotifications", "localNotificationActionPerformed", (e: any) => run(e?.notification?.extra?.url));
   }, []);
 }
 

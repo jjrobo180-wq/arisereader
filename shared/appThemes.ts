@@ -6,8 +6,11 @@
 // (via a data attribute, see useHubTheme in the client), never on the whole document, so switching
 // a hub's theme never touches the Reader site's own colors or any other hub's.
 
+import { NOTES_THEMES, type NotesTheme } from "./notesThemes";
+
 export type HubThemeId =
-  | "classic" | "tile" | "crt";
+  | "classic" | "tile" | "crt"
+  | "studio" | "margin" | "bloom" | "timeline" | "console" | "swiss" | "cassette" | "frost" | "grove" | "gazette" | "punch" | "chatline" | "deck" | "tide" | "vinyl" | "hush" | "aurora" | "atelier" | "blueprint" | "arcade" | "typewriter" | "darkroom" | "zen" | "cockpit" | "pocket" | "glass" | "desktop" | "millennium" | "workstation" | "retro" | "monolith" | "ink" | "neon" | "orbit" | "spinner" | "bubbles" | "lava" | "marbles" | "synth" | "jelly" | "orrery" | "dial" | "ferro" | "slots";
 
 export type HubTheme = {
   id: HubThemeId;
@@ -32,6 +35,8 @@ export type HubTheme = {
    *  Adding a new structural variant means adding its id here and teaching HomeParts to render
    *  it — the layout logic itself (drag, reorder, resize, hide) never changes per variant. */
   homeLayout?: "cards" | "tiles" | "terminal";
+  /** The Arise Notes look this theme shares its colors, type and designs with (hub-looks.css, HubLookHero). */
+  look?: NotesTheme;
 };
 
 export const HUB_THEMES: HubTheme[] = [
@@ -61,6 +66,12 @@ export const HUB_THEMES: HubTheme[] = [
     },
     radius: "sharp", shadow: "hard", font: "mono", homeLayout: "terminal",
   },
+  // The same looks people can pick in Arise Notes.
+  ...NOTES_THEMES.filter((t) => t.id !== "classic").map((t): HubTheme => ({
+    id: t.id as HubThemeId, name: t.label, tagline: t.blurb, swatch: [t.bg, t.accent, t.record], vars: {}, look: t,
+    radius: t.radius === 0 ? "sharp" : t.radius > 20 ? "round" : "normal", shadow: t.hardShadow ? "hard" : "soft",
+    font: t.id === "console" ? "mono" : "system", homeLayout: t.id === "console" ? "terminal" : "cards",
+  })),
 ];
 
 export const DEFAULT_HUB_THEME: HubThemeId = "classic";

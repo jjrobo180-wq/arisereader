@@ -164,13 +164,13 @@ export function PlanSheet({ data, update, onClose }: { data: FitData; update: Up
     <Title>Track by</Title>
     <div className="grid grid-cols-2 gap-2">
       {([["calories", "Calories", `${fmtNum(g.kcal)} a day plus macros`], ["points", "Arise Points", `${pointsBudget(g)} points a day`]] as const).map(([id, l, sub]) => <button key={id} type="button" onClick={() => update((d) => ({ ...d, profile: { ...d.profile, trackMode: id === "points" ? "points" : undefined } }))} aria-pressed={(id === "points") === points}
-        className="rounded-[10px] p-3 text-left" style={(id === "points") === points ? { background: "linear-gradient(180deg, rgba(255,90,31,.25), rgba(255,90,31,.08))", boxShadow: "inset 0 0 0 1px #ff5a1f" } : { background: C.card }} data-testid={`fit-mode-${id}`}>
+        className="rounded-[10px] p-3 text-left" style={(id === "points") === points ? { background: "linear-gradient(180deg, rgba(var(--fit-accent-rgb),.25), rgba(var(--fit-accent-rgb),.08))", boxShadow: "inset 0 0 0 1px var(--fit-accent)" } : { background: C.card }} data-testid={`fit-mode-${id}`}>
         <span className="block text-[20px] leading-none" style={display}>{l}</span><span className="mt-1 block text-[12px]" style={{ color: C.dim }}>{sub}</span></button>)}
     </div>
     <p className="mt-2 px-1 text-[12px] leading-snug" style={{ color: C.dim }}>Arise Points: every food gets a score from its calories, fat and protein. Lean protein scores low, fatty and sugary food scores high. Stay under your daily points.</p>
     <Title>Plan</Title>
     <div className="space-y-2">{DIET_PLANS.map((d) => { const on = (data.profile.dietPlan ?? "balanced") === d.id; return <button key={d.id} type="button" onClick={() => choose(d.id)} aria-pressed={on}
-      className="w-full rounded-[12px] p-4 text-left" style={on ? { background: "linear-gradient(180deg, rgba(255,90,31,.22), rgba(255,90,31,.06))", boxShadow: "inset 0 0 0 1px #ff5a1f" } : { background: C.card }} data-testid={`fit-diet-${d.id}`}>
+      className="w-full rounded-[12px] p-4 text-left" style={on ? { background: "linear-gradient(180deg, rgba(var(--fit-accent-rgb),.22), rgba(var(--fit-accent-rgb),.06))", boxShadow: "inset 0 0 0 1px var(--fit-accent)" } : { background: C.card }} data-testid={`fit-diet-${d.id}`}>
       <span className="flex items-center justify-between gap-2"><span className="text-[22px] leading-none" style={display}>{d.name}</span>{on && <Check className="h-5 w-5" style={{ color: C.lime }} />}</span>
       <span className="mt-1 block text-[14px] leading-snug" style={{ color: C.steel }}>{d.blurb}</span>
       <span className="mt-2 flex gap-3 text-[12px] font-semibold tabular-nums" style={{ color: C.dim }}><span>Protein {d.split.p}%</span><span>Carbs {d.split.c}%</span><span>Fat {d.split.f}%</span>{d.carbCap !== undefined && <span>≤{d.carbCap} g carbs</span>}</span>
@@ -222,7 +222,7 @@ export function FoodTab({ token, data, update, say, snap, onRecipes, onEatOut }:
       <button type="button" onClick={() => shift(1)} disabled={today} aria-label="Next day" className="grid h-11 w-11 place-items-center rounded-full disabled:opacity-30" style={{ background: C.card }}><ChevronRight className="h-5 w-5" /></button>
     </div>
     {today && <div className="mt-3 grid grid-cols-[1.4fr_1fr] gap-2">
-      <button type="button" onClick={() => setAdding({ meal: nowMeal, start: "ai" })} className="fit-shine flex min-h-[78px] items-center gap-3 rounded-[14px] px-4 text-left transition-transform active:scale-[.98]" style={{ background: "linear-gradient(150deg, #ff5a1f, #b8360a)", color: "#0b0b0c" }} data-testid="fit-snap-meal">
+      <button type="button" onClick={() => setAdding({ meal: nowMeal, start: "ai" })} className="fit-shine flex min-h-[78px] items-center gap-3 rounded-[14px] px-4 text-left transition-transform active:scale-[.98]" style={{ background: "linear-gradient(150deg, var(--fit-accent), var(--fit-accent-deep))", color: "var(--fit-on-accent)" }} data-testid="fit-snap-meal">
         <Camera className="h-7 w-7 shrink-0" /><span><span className="block text-[26px] leading-none" style={display}>Snap a meal</span><span className="text-[12px] font-semibold">AI counts it for you</span></span></button>
       <button type="button" onClick={() => setAdding({ meal: nowMeal, start: "scan" })} className="flex min-h-[78px] items-center gap-2 rounded-[14px] px-3 text-left transition-transform active:scale-[.98]" style={{ background: C.card2 }} data-testid="fit-scan-quick">
         <ScanLine className="h-6 w-6 shrink-0" style={{ color: C.lime }} /><span className="text-[18px] leading-none" style={display}>Scan barcode</span></button>
@@ -253,7 +253,7 @@ export function FoodTab({ token, data, update, say, snap, onRecipes, onEatOut }:
         <span className="ml-1 text-[13px] font-semibold tabular-nums" style={{ color: C.dim }}>{points ? `${kp} pts` : `${Math.round(k)} cal`}</span></span>}>{m.label}</Title>
         <Card className="!p-2">
           {list.map((f) => <div key={f.id} className="fit-slide flex items-center gap-2 px-2 py-2" style={{ borderBottom: `1px solid ${C.line}` }}>
-            <div className="min-w-0 flex-1"><p className="truncate text-[15px] font-medium">{f.name}</p><p className="text-[12px]" style={{ color: C.dim }}>{f.servings !== 1 ? `${f.servings} × ` : ""}{f.serving || "serving"}</p></div>
+            <div className="min-w-0 flex-1"><p className="truncate text-[15px] font-medium">{f.name}</p><p className="text-[12px]" style={{ color: C.dim }}>{f.serving ? `${f.servings !== 1 ? `${f.servings} × ` : ""}${f.serving}` : `${f.servings} serving${f.servings === 1 ? "" : "s"}`} · P {Math.round(f.p * f.servings)} · C {Math.round(f.c * f.servings)} · F {Math.round(f.f * f.servings)}</p></div>
             <span className="text-right text-[15px] font-semibold tabular-nums">{points ? <>{pointsOf({ kcal: f.kcal * f.servings, p: f.p * f.servings, c: f.c * f.servings, f: f.f * f.servings })}<span className="text-[11px] font-normal" style={{ color: C.dim }}> pts</span></> : Math.round(f.kcal * f.servings)}</span>
             <button type="button" onClick={() => update((d) => ({ ...d, foods: d.foods.filter((x) => x.id !== f.id) }))} aria-label={`Remove ${f.name}`} className="grid h-9 w-9 place-items-center" style={{ color: C.dim }}><Trash2 className="h-4 w-4" /></button>
           </div>)}

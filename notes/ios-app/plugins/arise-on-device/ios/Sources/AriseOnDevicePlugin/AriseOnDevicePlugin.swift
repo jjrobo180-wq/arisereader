@@ -11,6 +11,7 @@
 //     (the locked notes' key: client/src/components/arise-notes/pages/pagesLock.ts)
 //   widgetSave({ json })          the Home Screen widgets' list of notes (titles and short previews only),
 //     through the App Group group.<bundle id> (notes/ios-app/widgets/NotesWidgets.swift)
+//   setBackdrop({ color })        colors the areas behind the status bar and Home indicator
 //   readHandwriting({ image })    -> { text }  Apple Vision text recognition, on the iPhone, so
 //     handwritten notes can be searched
 import Foundation
@@ -40,7 +41,8 @@ public class AriseOnDevicePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "secretRemove", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "secretHas", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "readHandwriting", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "widgetSave", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "widgetSave", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setBackdrop", returnType: CAPPluginReturnPromise)
     ]
 
     /// Running recognitions, kept so they aren't released before they finish.
@@ -287,6 +289,25 @@ public class AriseOnDevicePlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     // ─── Widgets ────────────────────────────────────────────────────────────
+    /// Colors the areas around the page (behind the status bar and the Home indicator) to match the look.
+    @objc func setBackdrop(_ call: CAPPluginCall) {
+        let hex = (call.getString("color") ?? "").trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        guard hex.count == 6, let value = UInt32(hex, radix: 16) else { call.reject("Use a color like #2b2320."); return }
+        let color = UIColor(red: CGFloat((value >> 16) & 255) / 255, green: CGFloat((value >> 8) & 255) / 255, blue: CGFloat(value & 255) / 255, alpha: 1)
+        DispatchQueue.main.async { [weak self] in
+            guard let webView = self?.bridge?.webView else { call.reject("The app isn't ready."); return }
+            webView.isOpaque = false
+            webView.backgroundColor = color
+            webView.scrollView.backgroundColor = color
+            webView.scrollView.bounces = false
+            webView.scrollView.alwaysBounceVertical = false
+            webView.underPageBackgroundColor = color
+            webView.superview?.backgroundColor = color
+            self?.bridge?.viewController?.view.backgroundColor = color
+            call.resolve()
+        }
+    }
+
     @objc func widgetSave(_ call: CAPPluginCall) {
         guard let json = call.getString("json"), let data = json.data(using: .utf8), data.count < 200_000 else { call.reject("Nothing to show."); return }
         let group = "group." + (Bundle.main.bundleIdentifier ?? "com.arisereader.notes")

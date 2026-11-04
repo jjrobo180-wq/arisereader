@@ -160,6 +160,67 @@ await shot("podplus-could-save", async (p) => {
 await shot("podplus-privacy", async (p) => { await p.goto(`${P}/privacy/`); await wait(p, 500); });
 await shot("podplus-support-dark", async (p) => { await p.goto(`${P}/support/`); await wait(p, 500); }, { dark: true });
 
+// Each look is its own system: its main screens in the real app, on the sample profile.
+// LOOKS_ONLY=a,b limits the run to those looks (and their night and start-menu screens).
+const ALL_LOOKS = ["vinyl", "hush", "aurora", "atelier", "blueprint", "arcade", "typewriter", "darkroom", "zen", "cockpit", "pocket", "glass", "desktop", "millennium", "workstation", "retro", "monolith", "ink", "neon", "orbit", "spinner", "bubbles", "lava", "marbles", "synth", "jelly", "orrery", "dial", "ferro", "slots"];
+const ONLY = process.env.LOOKS_ONLY ? new Set(process.env.LOOKS_ONLY.split(",")) : null;
+// By default, the ten newest looks (set LOOKS_ONLY for others).
+const LOOKS = ONLY ? ALL_LOOKS.filter((l) => ONLY.has(l)) : ALL_LOOKS.slice(-10);
+const withLook = async (p, id, hash) => { await p.addInitScript((look) => { try { sessionStorage.setItem("arise-sample:arise-shared-look", JSON.stringify({ theme: look })); } catch { /* none */ } }, id); await sample(p, hash); };
+const inBatches = async (jobs, size = 6) => { for (let i = 0; i < jobs.length; i += size) await Promise.all(jobs.slice(i, i + size).map((j) => j())); };
+const lookJobs = [];
+for (const id of LOOKS) {
+  for (const [name, hash] of [["home", "/lifehub?pane=home"], ["tasks", "/lifehub?pane=tasks"], ["calendar", "/lifehub?go=calendar"], ["notes", "/lifehub?go=notes"], ["app", "/lifehub?go=notifications"]])
+    lookJobs.push(() => shot(`look-${id}-${name}`, (p) => withLook(p, id, hash)));
+  lookJobs.push(() => shot(`look-work-${id}-home`, (p) => withLook(p, id, "/hub")));
+  for (const nav of ["tasks", "calendar", "notes"]) lookJobs.push(() => shot(`look-work-${id}-${nav}`, async (p) => { await withLook(p, id, "/hub"); await p.frameLocator("#f").locator(`[data-nav="${nav}"]`).click(); await wait(p, 1200); }));
+}
+for (const nav of ["you", "add", "apps"]) lookJobs.push(() => shot(`look-studio-${nav}`, async (p) => { await withLook(p, "studio", "/lifehub?pane=home"); await p.frameLocator("#f").locator(`[data-nav="${nav}"]`).click(); await wait(p, 800); }));
+for (const id of ["studio", "frost"]) { lookJobs.push(() => shot(`look-work-${id}-add`, async (p) => { await withLook(p, id, "/hub"); await p.frameLocator("#f").locator('[data-nav="add"]').click(); await wait(p, 800); })); lookJobs.push(() => shot(`look-work-${id}-apps`, async (p) => { await withLook(p, id, "/hub"); await p.frameLocator("#f").locator('[data-nav="apps"]').click(); await wait(p, 800); })); }
+// Night mode, on the looks that are light by day.
+const nightOf = async (p, id, hash) => { await p.addInitScript(() => { try { for (const k of ["arise-todo-night", "arise-hub-night"]) sessionStorage.setItem(`arise-sample:${k}`, "1"); } catch { /* none */ } }); await withLook(p, id, hash); };
+// The taskbar looks' start menus, and Arise Notes in each new look.
+for (const id of ["millennium", "workstation", "retro"].filter((l) => LOOKS.includes(l))) lookJobs.push(() => shot(`look-${id}-start`, async (p) => { await withLook(p, id, "/lifehub?pane=home"); await p.frameLocator("#f").getByTestId("sys-start").click(); await wait(p, 800); }));
+for (const id of ["pocket", "glass", "desktop", "millennium", "workstation", "retro", "monolith", "ink", "neon", "orbit"].filter((l) => LOOKS.includes(l))) lookJobs.push(() => shot(`look-${id}-ainotes`, (p) => withLook(p, id, "/arise-notes")));
+for (const id of ["spinner", "bubbles", "lava", "marbles", "synth", "jelly", "orrery", "dial", "ferro", "slots"].filter((l) => LOOKS.includes(l))) lookJobs.push(() => shot(`look-${id}-ainotes`, (p) => withLook(p, id, "/arise-notes")));
+// Arise Notes in the newest looks, from its real components (script/notesLooksPreview.tsx).
+for (const id of LOOKS) for (const [name, qs] of [["notes-home", "view=home"], ["notes-rec", "view=rec"], ["notes-night", "view=home&night=1"]])
+  lookJobs.push(() => shot(`look-${id}-${name}`, async (p) => { await p.goto(`${A}/notes-looks/?look=${id}&${qs}`); await wait(p, 1500); }));
+// The interactive looks, mid-play: a flick, a pop, a turn, a key, a pull.
+const playWith = (id, name, act) => LOOKS.includes(id) && lookJobs.push(() => shot(`look-${id}-${name}`, async (p) => { await withLook(p, id, "/lifehub?pane=home"); const f = p.frameLocator("#f"); await act(p, f); }));
+const drag = async (p, f, sel, path) => { const b = await f.locator(sel).first().boundingBox(); if (!b) return; const cx = b.x + b.width / 2, cy = b.y + b.height / 2; await p.mouse.move(cx + path[0][0] * b.width / 2, cy + path[0][1] * b.height / 2); await p.mouse.down(); for (const [x, y] of path.slice(1)) await p.mouse.move(cx + x * b.width / 2, cy + y * b.height / 2, { steps: 4 }); await p.mouse.up(); };
+const arc = Array.from({ length: 9 }, (_, i) => [Math.cos(-Math.PI / 2 + i * .35) * .8, Math.sin(-Math.PI / 2 + i * .35) * .8]);
+playWith("spinner", "spin", async (p, f) => { await drag(p, f, ".ty-spinner", arc); await wait(p, 300); });
+playWith("bubbles", "pop", async (p, f) => { for (const i of [13, 14, 15]) await f.locator(".ty-bubble").nth(i).dispatchEvent("pointerdown"); await wait(p, 500); });
+playWith("dial", "turn", async (p, f) => { await drag(p, f, ".ty-dialwrap", arc.slice(0, 5)); await wait(p, 400); });
+playWith("synth", "key", async (p, f) => { await f.locator(".ty-keys button").nth(3).dispatchEvent("pointerdown"); await wait(p, 120); });
+playWith("slots", "pull", async (p, f) => { await f.getByTestId("ty-lever").click(); await wait(p, 1800); });
+playWith("orrery", "day", async (p, f) => { await f.locator(".ty-orrery-days button").nth(2).click(); await wait(p, 500); });
+playWith("marbles", "shake", async (p, f) => { await drag(p, f, ".ty-jar", [[-.6, 0], [.6, -.2], [-.6, .2], [.6, 0]]); await wait(p, 200); });
+for (const id of ["bubbles", "jelly", "dial", "hush", "atelier", "typewriter", "zen", "pocket", "desktop", "millennium", "workstation", "retro", "ink"].filter((l) => LOOKS.includes(l))) {
+  for (const [name, hash] of [["home", "/lifehub?pane=home"], ["tasks", "/lifehub?pane=tasks"], ["calendar", "/lifehub?go=calendar"], ["app", "/lifehub?go=notifications"], ["work", "/hub"]])
+    lookJobs.push(() => shot(`night-${id}-${name}`, (p) => nightOf(p, id, hash)));
+  lookJobs.push(() => shot(`night-${id}-bell`, async (p) => { await nightOf(p, id, "/lifehub?pane=home"); await p.frameLocator("#f").getByTestId("notification-bell").click(); await wait(p, 900); }));
+  lookJobs.push(() => shot(`night-${id}-you`, async (p) => { await nightOf(p, id, "/lifehub?pane=home"); await p.frameLocator("#f").locator('[data-nav="you"]').click(); await wait(p, 800); }));
+}
+for (const mode of ["light", "dark"]) lookJobs.push(() => shot(`fit-tide-${mode}`, async (p) => { await p.addInitScript((m) => { try { sessionStorage.setItem("arise-sample:arise-fit-palette", "tide"); sessionStorage.setItem("arise-sample:arise-fit-theme", m); } catch { /* none */ } }, mode); await sample(p, "/fit"); }));
+// The Minutes page's classes, with students in two classes.
+const withClasses = async (p, look) => {
+  await p.addInitScript((id) => { try {
+    const plan = (pid, student, block) => ({ id: pid, student, kind: "Push-in", minutesPerWeek: 60, days: { Mon: 30, Wed: 30 }, block, teacher: "Ms. Lee", subject: "Reading", since: "2026-09-01" });
+    sessionStorage.setItem("arise-sample:workspace:work", JSON.stringify({ updatedAt: new Date().toISOString(), workspace: { version: 1, students: [{ id: "s1", name: "Amy Fox" }, { id: "s2", name: "Ben Ray" }, { id: "s3", name: "Cal Moss" }], minuteBlocks: [{ id: "b1", name: "Block 1" }, { id: "b2", name: "Block 2" }], services: [plan("a", "Amy Fox", "b1"), plan("c", "Cal Moss", "b2")], layout: { theme: id } } }));
+    sessionStorage.setItem("arise-sample:arise-hub-minutes-look", "class"); sessionStorage.setItem("workhub_last_tab_-4242", "minutes"); sessionStorage.setItem("arise-sample:workhub_last_tab_-4242", "minutes");
+    sessionStorage.setItem("arise-sample:arise-shared-look", JSON.stringify({ theme: id }));
+  } catch { /* none */ } }, look);
+  await sample(p, "/hub");
+};
+for (const look of ["classic", "studio", "punch", "tide", "hush", "gazette"]) {
+  lookJobs.push(() => shot(`classes-${look}`, (p) => withClasses(p, look)));
+  lookJobs.push(() => shot(`classes-add-${look}`, async (p) => { await withClasses(p, look); await p.frameLocator("#f").getByTestId("class-add").first().click(); await wait(p, 700); }));
+  lookJobs.push(() => shot(`classes-delete-${look}`, async (p) => { await withClasses(p, look); await p.frameLocator("#f").getByTestId("class-delete").first().click(); await wait(p, 700); }));
+}
+await inBatches(lookJobs);
+
 await browser.close();
 console.log(results.join("\n"));
 await writeFile(`${out}/results.txt`, results.join("\n") + "\n");

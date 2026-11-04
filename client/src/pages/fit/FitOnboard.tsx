@@ -58,16 +58,16 @@ const ONB_CSS = `
 function Choice({ on, onClick, title, sub, icon, testId }: { on: boolean; onClick: () => void; title: string; sub?: string; icon?: ReactNode; testId?: string }) {
   return <button type="button" onClick={() => { haptic("light"); onClick(); }} aria-pressed={on} data-testid={testId}
     className="flex w-full items-center gap-3 rounded-[14px] p-3.5 text-left transition-transform active:scale-[.985]"
-    style={on ? { background: "linear-gradient(180deg, rgba(255,90,31,.22), rgba(255,90,31,.08))", boxShadow: `inset 0 0 0 2px ${C.lime}` } : { background: C.card, boxShadow: `inset 0 0 0 1px ${C.line}` }}>
-    {icon && <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px]" style={{ background: on ? C.lime : C.card2, color: on ? "#0b0b0c" : C.text }}>{icon}</span>}
+    style={on ? { background: "linear-gradient(180deg, rgba(var(--fit-accent-rgb),.22), rgba(var(--fit-accent-rgb),.08))", boxShadow: `inset 0 0 0 2px ${C.lime}` } : { background: C.card, boxShadow: `inset 0 0 0 1px ${C.line}` }}>
+    {icon && <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px]" style={{ background: on ? C.lime : C.card2, color: on ? "var(--fit-on-accent)" : C.text }}>{icon}</span>}
     <span className="min-w-0 flex-1"><span className="block text-[17px] font-bold leading-tight">{title}</span>{sub && <span className="mt-0.5 block text-[13px] leading-snug" style={{ color: C.dim }}>{sub}</span>}</span>
-    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full transition-all" style={on ? { background: C.lime, color: "#0b0b0c" } : { boxShadow: `inset 0 0 0 2px ${C.line}` }}>{on && <Check className="h-4 w-4" strokeWidth={3} />}</span>
+    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full transition-all" style={on ? { background: C.lime, color: "var(--fit-on-accent)" } : { boxShadow: `inset 0 0 0 2px ${C.line}` }}>{on && <Check className="h-4 w-4" strokeWidth={3} />}</span>
   </button>;
 }
 
 const Seg = <T extends string>({ items, value, onChange, testId }: { items: readonly (readonly [T, string])[]; value: T; onChange: (v: T) => void; testId?: string }) =>
   <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }} data-testid={testId}>
-    {items.map(([v, l]) => <button key={v} type="button" aria-pressed={value === v} onClick={() => { haptic("light"); onChange(v); }} className="h-12 rounded-[12px] px-2 text-[15px] font-bold transition-transform active:scale-95" style={value === v ? { background: C.lime, color: "#0b0b0c" } : { background: C.card, color: C.text, boxShadow: `inset 0 0 0 1px ${C.line}` }}>{l}</button>)}
+    {items.map(([v, l]) => <button key={v} type="button" aria-pressed={value === v} onClick={() => { haptic("light"); onChange(v); }} className="h-12 rounded-[12px] px-2 text-[15px] font-bold transition-transform active:scale-95" style={value === v ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card, color: C.text, boxShadow: `inset 0 0 0 1px ${C.line}` }}>{l}</button>)}
   </div>;
 
 const Label = ({ children }: { children: ReactNode }) => <span className="mb-1.5 block text-[13px] font-semibold" style={{ color: C.dim }}>{children}</span>;
@@ -227,7 +227,7 @@ function Welcome() {
     <div className="relative grid h-44 w-44 place-items-center">
       <span className="ob-pulse absolute inset-0 rounded-full" style={{ background: C.lime, opacity: 0.25 }} />
       <span className="ob-pulse absolute inset-0 rounded-full" style={{ background: C.lime, opacity: 0.25, animationDelay: "1.2s" }} />
-      <span className="ob-pop relative"><span className="ob-float grid h-28 w-28 place-items-center rounded-[32px]" style={{ background: `linear-gradient(145deg, ${C.lime}, #ff8a3d)`, boxShadow: "0 24px 50px -16px rgba(255,90,31,.8)" }}><Dumbbell className="h-14 w-14" style={{ color: "#0b0b0c" }} /></span></span>
+      <span className="ob-pop relative"><span className="ob-float grid h-28 w-28 place-items-center rounded-[32px]" style={{ background: `linear-gradient(145deg, ${C.lime}, var(--fit-accent-hi))`, boxShadow: "0 24px 50px -16px rgba(var(--fit-accent-rgb),.8)" }}><Dumbbell className="h-14 w-14" style={{ color: "var(--fit-on-accent)" }} /></span></span>
     </div>
     <h1 className="mt-8 text-[54px] leading-[.9]" style={display}>Welcome to<br /><span style={{ color: C.lime }}>Arise Fit</span></h1>
   </div>;
@@ -274,7 +274,7 @@ function Access({ update }: { update: Update }) {
   const row = (icon: ReactNode, t: string, s: string, st: Perm, go: () => void, id: string) => <div className="flex items-center gap-3 rounded-[14px] p-3.5" style={{ background: C.card }}>
     <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px]" style={{ background: C.card2 }}>{icon}</span>
     <span className="min-w-0 flex-1"><span className="block text-[16px] font-bold leading-tight">{t}</span><span className="mt-0.5 block text-[13px] leading-snug" style={{ color: C.dim }}>{s}</span></span>
-    <button type="button" onClick={go} disabled={!native || st === "busy" || st === "ok"} className="h-10 shrink-0 rounded-full px-4 text-[14px] font-bold disabled:opacity-60" style={st === "ok" ? { background: C.green, color: "#fff" } : { background: C.lime, color: "#0b0b0c" }} data-testid={`fit-allow-${id}`}>{st === "ok" ? "On" : st === "busy" ? "…" : st === "err" ? "Retry" : "Allow"}</button>
+    <button type="button" onClick={go} disabled={!native || st === "busy" || st === "ok"} className="h-10 shrink-0 rounded-full px-4 text-[14px] font-bold disabled:opacity-60" style={st === "ok" ? { background: C.green, color: "#fff" } : { background: C.lime, color: "var(--fit-on-accent)" }} data-testid={`fit-allow-${id}`}>{st === "ok" ? "On" : st === "busy" ? "…" : st === "err" ? "Retry" : "Allow"}</button>
   </div>;
   return <div className="mt-4 space-y-2.5">
     <p className="text-[14px]" style={{ color: C.dim }}>{native ? "Optional, and you can change any of these in iPhone Settings." : "These work in the Arise Fit iPhone app. You can skip them here."}</p>
@@ -301,17 +301,19 @@ const SLIDES: Slide[] = [
     art: <div className="relative h-full w-full">{["🥑", "🍗", "🍚", "🥦"].map((e, k) => <span key={k} className="ob-drop absolute text-[44px]" style={{ left: `${18 + k * 20}%`, top: `${20 + (k % 2) * 28}%`, animationDelay: `${k * 0.35}s` }}>{e}</span>)}</div> },
   { title: "Eat out without guessing", line: "Healthier picks at chains and places near you, ranked to fit what's left in your day.", tip: "Food → Eat out. Pick Match goals.", tint: "#3b82f6",
     art: <div className="relative grid h-full place-items-center"><span className="ob-pulse absolute h-24 w-24 rounded-full bg-white/40" /><span className="ob-pulse absolute h-24 w-24 rounded-full bg-white/40" style={{ animationDelay: "1.2s" }} /><MapPin className="ob-float relative h-16 w-16 text-white" fill="rgba(255,255,255,.3)" /></div> },
-  { title: "Fasting made simple", line: "Pick 12:12 up to 20:4, start the clock and get an alert when the fast is done.", tip: "Fast tab → Start fast.", tint: "#8b5cf6",
+  { title: "Fasting made simple", line: "Pick 12:12 up to 20:4, start the clock and get an alert when the fast is done.", tip: "Fasting → Start fast.", tint: "#8b5cf6",
     art: <div className="relative grid h-full place-items-center"><svg viewBox="0 0 200 200" className="absolute h-[88%] -rotate-90"><Ring2 pct={0.66} color="#fff" r={80} w={12} /></svg><Timer className="h-14 w-14 text-white" /></div> },
-  { title: "Run, walk, hike", line: "GPS routes with pace and distance, trails near you, saved to Apple Health.", tip: "Run tab → Start.", tint: "#10b981",
+  { title: "Run, walk, hike", line: "GPS routes with pace and distance, trails near you, saved to Apple Health.", tip: "Run → Start.", tint: "#10b981",
     art: <svg viewBox="0 0 200 200" className="h-full w-full"><path d="M20 160 C 50 90, 80 170, 110 100 S 160 60, 182 36" fill="none" stroke="#fff" strokeWidth="7" strokeLinecap="round" className="ob-draw" style={{ ["--len" as any]: 320 }} /><circle cx="182" cy="36" r="9" fill="#fff" className="ob-pop" /></svg> },
-  { title: "Sleep, steps and recovery", line: "Apple Health fills in steps and weigh-ins. Your body map shows what's recovered and ready to train.", tip: "Today → Sleep and Progress.", tint: "#6366f1",
+  { title: "Sleep, steps and recovery", line: "Sleep comes in from Apple Health, your bedtime schedule or one tap, with a score every night. Readiness says when to push and when to rest.", tip: "Today → Sleep or Readiness.", tint: "#6366f1",
     art: <div className="relative grid h-full place-items-center"><Moon className="ob-float h-20 w-20 text-white" fill="rgba(255,255,255,.25)" />{[[22, 24], [72, 18], [80, 62], [16, 66]].map(([x, y], k) => <Sparkles key={k} className="ob-pulse absolute h-5 w-5 text-white" style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${k * 0.5}s` }} />)}</div> },
-  { title: "Coach, circles and buddies", line: "Ask the AI coach, train with friends and keep each other honest.", tip: "Today → Coach.", tint: "#ec4899",
+  { title: "Coach, circles and buddies", line: "Work with a real trainer, train with friends and keep each other honest.", tip: "Apps → Coach or Friends.", tint: "#ec4899",
     art: <div className="flex h-full flex-col justify-center gap-3 px-4">{[["How's my week?", "self-end bg-white text-[#111]"], ["3 workouts, protein on target. Add a walk tomorrow.", "self-start bg-white/25 text-white"], ["On it 💪", "self-end bg-white text-[#111]"]].map(([t, c], k) => <span key={k} className={`ob-bubble max-w-[78%] rounded-[16px] px-3 py-2 text-[14px] font-semibold ${c}`} style={{ animationDelay: `${k * 0.9}s` }}>{t}</span>)}</div> },
+  { title: "Make it yours", line: "Add apps like Yoga, Breathe, Mobility, Intervals and Water, and pin your favorites to the tab bar.", tip: "Apps tab → Get more apps.", tint: "#a855f7",
+    art: <div className="grid h-full grid-cols-3 place-content-center gap-3 px-5">{["#c084fc", "#5eead4", "#86efac", "#fb7185", "#60a5fa", "#818cf8"].map((c, k) => <span key={k} className="ob-pop grid h-16 place-items-center rounded-[18px]" style={{ background: `linear-gradient(145deg, ${c}, rgba(0,0,0,.25))`, boxShadow: "inset 0 1px 0 rgba(255,255,255,.4)", animationDelay: `${k * 0.12}s` }}>{[Sparkles, Activity, Users, Flame, Route, Check].map((I, j) => j === k ? <I key={j} className="h-7 w-7 text-white" /> : null)}</span>)}</div> },
   { title: "Widgets, Siri and shortcuts", line: "Add Arise Fit widgets to your Home and Lock Screen, or say \"Hey Siri, log water\".", tip: "Long-press your Home Screen → +.", tint: "#0ea5e9",
     art: <div className="grid h-full grid-cols-2 place-content-center gap-3 px-6">{[Flame, Activity, Users, Route].map((I, k) => <span key={k} className="ob-pop grid h-20 place-items-center rounded-[20px] bg-white/25" style={{ animationDelay: `${k * 0.15}s` }}><I className="h-8 w-8 text-white" /></span>)}</div> },
-  { title: "You're all set", line: "That's the tour. Tap the gear any time for your goals, units, reminders and more.", tip: "Settings → How Arise Fit works replays this.", tint: "#ff5a1f",
+  { title: "You're all set", line: "That's the tour. Tap the gear any time for your goals, apps, units, reminders and more.", tip: "Settings → How Arise Fit works replays this.", tint: "#ff5a1f",
     art: <div className="grid h-full place-items-center"><span className="ob-pop grid h-28 w-28 place-items-center rounded-full bg-white"><Check className="h-16 w-16" style={{ color: "#ff5a1f" }} strokeWidth={3.5} /></span></div> },
 ];
 const SLIDE_MS = 6000;

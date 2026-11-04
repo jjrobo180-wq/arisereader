@@ -143,7 +143,7 @@ export default function PageScreen({ ctx, id, onBack }: { ctx: AppCtx; id: strin
   const meta = sync.meta(page.id);
   const trashed = !!(meta?.deletedAt ?? page.deletedAt);
 
-  return <div className="flex h-full min-h-0 flex-col" style={{ background: lookStyle(look).background as string }} data-testid="pages-note">
+  return <div className="flex h-full min-h-0 flex-col" data-paper={look.theme} style={{ background: lookStyle(look).background as string }} data-testid="pages-note">
     {/* Top bar */}
     <header className="an-noprint an-notehead sticky top-0 z-30 flex items-center gap-1 px-2 pt-[env(safe-area-inset-top)]">
       <IconBtn label="Back to notes" onClick={back}><ChevronLeft className="h-6 w-6" /></IconBtn>
@@ -235,7 +235,7 @@ function TextBody({ content, look, edit, onSketch, onAiNote }: { content: PageCo
   const { toolbar, page } = useRichEditor({
     startHtml: content.html, resetKey: "page", onChange: (html) => { if (!filled.current) { filled.current = true; return; } if (html !== content.html) edit({ html }); },
     placeholder: "Start writing…", testId: "pages-rich", label: "Note", pageClassName: "min-h-[60vh] ![color:inherit] ![font-size:inherit] ![line-height:inherit] [font-family:inherit] pb-40",
-    toolbarClassName: "bg-white/85 backdrop-blur-xl",
+    toolbarClassName: "bg-transparent",
   });
   const fileIn = useRef<HTMLInputElement>(null);
   const addImage = async (f: File | undefined) => {
@@ -246,7 +246,7 @@ function TextBody({ content, look, edit, onSketch, onAiNote }: { content: PageCo
   const addTable = () => insertHtml(`<table style="border-collapse: collapse; width: 100%">${Array.from({ length: 3 }, (_, r) => `<tr>${Array.from({ length: 3 }, () => `<${r ? "td" : "th"} style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left"><br></${r ? "td" : "th"}>`).join("")}</tr>`).join("")}</table><p><br></p>`);
   const style = lookStyle(look);
   return <>
-    <div className="an-noprint an-notehead sticky top-[calc(env(safe-area-inset-top)+3.5rem)] z-20 flex items-center">
+    <div className="an-noprint an-notebar z-20 flex items-center">
       <div className="min-w-0 flex-1">{toolbar}</div>
       <div className="flex shrink-0 items-center gap-0.5 border-l border-black/5 px-1">
         <IconBtn label="Add a picture" onClick={() => fileIn.current?.click()}><ImageIcon className="h-[18px] w-[18px]" /></IconBtn>
@@ -256,7 +256,7 @@ function TextBody({ content, look, edit, onSketch, onAiNote }: { content: PageCo
       </div>
       <input ref={fileIn} type="file" accept="image/*" className="sr-only" onChange={(e) => { void addImage(e.target.files?.[0]); e.target.value = ""; }} />
     </div>
-    <div className="min-h-0 flex-1 overflow-y-auto" style={style}>
+    <div className="min-h-0 flex-1 overflow-y-auto" data-paper={look.theme} style={style}>
       <div className={`mx-auto px-6 pb-10 pt-7 sm:px-10 ${look.wide ? "max-w-none" : "max-w-[760px]"}`}>
         <input className="an-bare an-doc-title w-full bg-transparent text-[34px] leading-[1.1] outline-none placeholder:opacity-30" style={{ fontFamily: style.fontFamily, color: "inherit" }}
           value={content.title} onChange={(e) => edit({ title: e.target.value.slice(0, 140) })} placeholder="Title" aria-label="Title" data-testid="pages-title" />
