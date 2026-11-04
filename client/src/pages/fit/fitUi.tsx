@@ -8,8 +8,8 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { createPortal } from "react-dom";
 import { Check, Moon, Smartphone, Sun, X } from "lucide-react";
 import { hasNativePlugin, isNativeApp, nativeCall } from "@/lib/nativeApp";
-import { PALETTES, PALETTE_IDS, mix, paletteTokens, type PaletteId } from "./fitThemes";
-export { PALETTES, PALETTE_IDS, paletteTokens, type PaletteId };
+import { LAYOUTS, LAYOUT_IDS, PALETTES, PALETTE_IDS, mix, paletteTokens, type LayoutId, type PaletteId } from "./fitThemes";
+export { LAYOUTS, LAYOUT_IDS, PALETTES, PALETTE_IDS, paletteTokens, type LayoutId, type PaletteId };
 
 const TOKENS = {
   light: {
@@ -35,6 +35,18 @@ const vars = (t: Record<string, string>) => Object.entries(t).map(([k, x]) => `-
 // is showing, so the rest of the site keeps its own once you leave.
 const BASE_CSS = `:root{${vars(TOKENS.light)}}[data-fit-theme="light"]{color-scheme:light}[data-fit-theme="dark"]{${vars(TOKENS.dark)};color-scheme:dark}`;
 
+// ——— Layouts: type, shape and surfaces (fitThemes.ts), set on the page while Arise Fit shows ————————————
+const RADII = [6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24];
+/** Tailwind's rounded-[Npx] corners, scaled by the layout (Athletic keeps them as they are). */
+const ROUND_CSS = RADII.map((n) => `[data-fit-layout] .rounded-\\[${n}px\\]{border-radius:calc(${n}px * var(--fit-rk))}`).join("");
+const glowFor = (bg: string, plain: boolean) => plain ? `linear-gradient(${bg}, ${bg})` : `radial-gradient(130% 42% at 50% -8%, color-mix(in srgb, var(--fit-accent) 16%, ${bg}) 0%, ${bg} 64%)`;
+const LAYOUT_CSS = `:root{--fit-display:${LAYOUTS.athletic.display};--fit-font:${LAYOUTS.athletic.body};--fit-display-w:800;--fit-display-case:uppercase;--fit-display-ls:.01em;--fit-rk:1;--fit-btn-font:var(--fit-display);--fit-btn-case:uppercase;--fit-btn-size:18px;--fit-num:var(--fit-display)}`
+  + LAYOUT_IDS.filter((id) => id !== "athletic").map((id) => { const L = LAYOUTS[id], plain = id === "zen" || id === "pro";
+    const head = `[data-fit-layout="${id}"]{--fit-display:${L.display};--fit-font:${L.body};--fit-display-w:${L.weight};--fit-display-case:${L.upper ? "uppercase" : "none"};--fit-display-ls:${L.tracking};--fit-rk:${L.round};--fit-btn-font:var(--fit-font);--fit-btn-case:none;--fit-btn-size:16px;--fit-num:${id === "pro" ? "'JetBrains Mono', ui-monospace, monospace" : "var(--fit-display)"}}`;
+    const mode = (m: "light" | "dark") => { const b = L[m]; return Object.keys(b).length ? `[data-fit-layout="${id}"][data-fit-theme="${m}"]{${vars(b as Record<string, string>)}${b.bg ? `;--fit-glow:${glowFor(b.bg, plain)}` : ""}}` : ""; };
+    return head + mode("light") + mode("dark"); }).join("")
+  + ROUND_CSS;
+
 // The color themes (accents per mode, worked-out glows) live in fitThemes.ts.
 /** Dark's true-black version (for OLED screens): black behind, near-black cards. */
 const BLACK = { bg: "#000000", card: "#0e0f11", "card-bg": "linear-gradient(180deg, #15161a, #0e0f11)", card2: "#1a1c20", gap: "#0e0f11", body: "#1c1e22", muscle: "#2e3238",
@@ -44,7 +56,8 @@ export const THEME_CSS = BASE_CSS + PALETTE_IDS.map((id) =>
   `[data-fit-theme="dark"][data-fit-palette="${id}"]{${vars(paletteTokens(id, "dark"))}}` +
   `[data-fit-theme="dark"][data-fit-black="1"][data-fit-palette="${id}"]{${vars({ ...BLACK, ...paletteTokens(id, "dark", true) })}}`).join("")
   // Before a theme is set (or on pages without one), Ember's extras are the defaults.
-  + `:root{${vars(paletteTokens("ember", "light"))}}[data-fit-theme="dark"]{${vars(paletteTokens("ember", "dark"))}}`;
+  + `:root{${vars(paletteTokens("ember", "light"))}}[data-fit-theme="dark"]{${vars(paletteTokens("ember", "dark"))}}`
+  + LAYOUT_CSS;
 
 // "lime" is the accent's old name (it was lime green); every screen uses it, so it keeps the name.
 export const C = { bg: v("bg"), card: v("card"), card2: v("card2"), line: v("line"), text: v("text"), dim: v("dim"), lime: v("accent"), orange: v("amber"), blue: v("blue"), pink: v("pink"), red: v("red"), steel: v("steel"), green: v("green"), track: v("track"), emberSoft: v("ember-soft"), tint: v("tint"), body: v("body"), muscle: v("muscle"), gap: v("gap"), nav: v("nav"), navBorder: v("nav-border"), navShadow: v("nav-shadow"), ink: "var(--fit-on-accent)", deep: "var(--fit-accent-deep)", hi: "var(--fit-accent-hi)" };
@@ -52,9 +65,11 @@ export const C = { bg: v("bg"), card: v("card"), card2: v("card2"), line: v("lin
 export const accentA = (a: number) => `rgba(var(--fit-accent-rgb),${a})`;
 /** The glow behind every screen (soft peach in Light, ember in Dark). */
 export const glowBg = v("glow");
-export const font = { fontFamily: "'Barlow', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif" };
+export const font = { fontFamily: "var(--fit-font)" };
 /** Headings: heavy, condensed, upper case. */
-export const display: React.CSSProperties = { fontFamily: "'Barlow Condensed', 'Oswald', 'Arial Narrow', 'Helvetica Neue', sans-serif", fontWeight: 800, textTransform: "uppercase", letterSpacing: ".01em" };
+export const display: React.CSSProperties = { fontFamily: "var(--fit-display)", fontWeight: "var(--fit-display-w)" as React.CSSProperties["fontWeight"], textTransform: "var(--fit-display-case)" as React.CSSProperties["textTransform"], letterSpacing: "var(--fit-display-ls)" };
+/** Big numbers: the heading face, or mono in Pro. */
+export const numFont: React.CSSProperties = { ...display, fontFamily: "var(--fit-num)" };
 
 // ——— Theme ——————————————————————————————————————————————————————————————————————————————————————
 export type ThemeChoice = "light" | "dark" | "auto";
@@ -76,12 +91,33 @@ export function applyTheme() {
   document.documentElement.setAttribute("data-fit-theme", t);
   document.documentElement.setAttribute("data-fit-palette", paletteChoice());
   document.documentElement.setAttribute("data-fit-black", trueBlack() ? "1" : "0");
+  if (layoutsOn) { const l = layoutChoice(); document.documentElement.setAttribute("data-fit-layout", l); loadFonts(LAYOUTS[l].fonts); }
   if (statusBarAdjustable()) void nativeCall(/statusbar/i, "StatusBar", "setStyle", { style: t === "light" ? "LIGHT" : "DARK" }).catch(() => {});
   try { window.dispatchEvent(new Event("fit-theme")); } catch { /* old browser */ }
 }
 export function setThemeChoice(c: ThemeChoice) { try { localStorage.setItem(THEME_KEY, c); } catch { /* private mode */ } applyTheme(); }
 const PALETTE_KEY = "arise-fit-palette", BLACK_KEY = "arise-fit-black";
 export const paletteChoice = (): PaletteId => { try { const x = localStorage.getItem(PALETTE_KEY) as PaletteId | null; return x && x in PALETTES ? x : "ember"; } catch { return "ember"; } };
+const LAYOUT_KEY = "arise-fit-layout";
+/** Layouts are Arise Fit's (Arise Trainer shares these styles but keeps its own look). */
+let layoutsOn = false;
+export const layoutChoice = (): LayoutId => { try { const x = localStorage.getItem(LAYOUT_KEY) as LayoutId | null; return x && x in LAYOUTS ? x : "athletic"; } catch { return "athletic"; } };
+/** A new layout also brings the color theme it was drawn with (the color can be changed after). */
+export function setLayout(l: LayoutId) { try { localStorage.setItem(LAYOUT_KEY, l); localStorage.setItem(PALETTE_KEY, LAYOUTS[l].palette); } catch { /* private mode */ } applyTheme(); }
+function loadFonts(href: string) {
+  if (typeof document === "undefined" || document.querySelector(`link[data-fit-fonts="${CSS.escape(href)}"]`)) return;
+  const l = document.createElement("link"); l.rel = "stylesheet"; l.href = href; l.setAttribute("data-fit-fonts", href); document.head.appendChild(l);
+}
+/** Arise Fit turns its layouts on while it's showing (and off when you leave). */
+export function useFitLayout(): LayoutId {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    layoutsOn = true; applyTheme();
+    const on = () => tick((n) => n + 1); window.addEventListener("fit-theme", on);
+    return () => { window.removeEventListener("fit-theme", on); layoutsOn = false; document.documentElement.removeAttribute("data-fit-layout"); };
+  }, []);
+  return layoutChoice();
+}
 export const trueBlack = (): boolean => { try { return localStorage.getItem(BLACK_KEY) === "1"; } catch { return false; } };
 export function setPalette(p: PaletteId) { try { localStorage.setItem(PALETTE_KEY, p); } catch { /* private mode */ } applyTheme(); }
 export function setTrueBlack(on: boolean) { try { localStorage.setItem(BLACK_KEY, on ? "1" : "0"); } catch { /* private mode */ } applyTheme(); }
@@ -206,7 +242,7 @@ export function Title({ children, right }: { children: ReactNode; right?: ReactN
 
 export function Btn({ children, onClick, kind = "primary", className = "", disabled, testId, type = "button" }: { children: ReactNode; onClick?: () => void; kind?: "primary" | "ghost" | "soft" | "danger"; className?: string; disabled?: boolean; testId?: string; type?: "button" | "submit" }) {
   const st = kind === "primary" ? { background: C.lime, color: "var(--fit-on-accent)" } : kind === "soft" ? { background: C.card2, color: C.text } : kind === "danger" ? { background: "rgba(255,77,77,.14)", color: C.red } : { background: "transparent", color: C.lime };
-  return <button type={type} onClick={onClick} disabled={disabled} data-testid={testId} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-[10px] px-5 text-[18px] uppercase tracking-[.04em] transition active:scale-[.97] disabled:opacity-40 ${className}`} style={{ ...st, fontFamily: display.fontFamily, fontWeight: 800 }}>{children}</button>;
+  return <button type={type} onClick={onClick} disabled={disabled} data-testid={testId} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-[10px] px-5 tracking-[.04em] transition active:scale-[.97] disabled:opacity-40 ${className}`} style={{ ...st, fontFamily: "var(--fit-btn-font)", fontSize: "var(--fit-btn-size)", textTransform: "var(--fit-btn-case)" as React.CSSProperties["textTransform"], fontWeight: 800 }}>{children}</button>;
 }
 
 /** A ring that fills as a number approaches its goal. */
