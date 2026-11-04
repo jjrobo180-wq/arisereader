@@ -223,3 +223,34 @@ test("moments move between a copy with stitched-in ads and show time (the ad-fre
   assert.equal(copyToShow(123, []), 123);
   assert.equal(showToCopy(123, []), 123);
 });
+
+test("with room to spare, the whole episode is read along ahead of the listener (pieces read before are skipped)", async () => {
+  const { readWhole, roomToRead } = await import("../server/podcastPlay");
+  const show = frames(60000, 7); // about 26 minutes: three 10-minute pieces
+  const dir0 = mkdtempSync(join(tmpdir(), "earshot-clean-test-"));
+  const player = createPlayer({ dir: dir0, download: fakeNet(join2(show), join2(show), new Map()) as any, key: Buffer.alloc(32, 7) });
+  try {
+    const s = player.open({ sid: "readreadreadread01", voter: "u7", episodeId: "44", showId: "11", url: "https://host.example/ep.mp3", ua: "AppleCoreMedia/1.0", ip: "" });
+    for (let t = 0; t < 300 && !s.ads.final; t++) await sleep(20);
+    ok(s.ads.final, "compared");
+    const asked: number[] = [];
+    let hour = 0;
+    const dir: any = {
+      contentChunks: async () => [{ chunk: -1, source: "ai" }, { chunk: 1, source: "ai" }],
+      contentTranscript: async (_show: string, _ep: string, chunk: number, src: any) => { asked.push(chunk); const a = await src.extract(chunk * 600, chunk * 600 + 5); ok(a.audio.size > 0, "audio for the piece"); hour += 10; return { source: "ai", chunk, segments: [], ads: [], chapters: [], chunkSecs: 600, more: true }; },
+      minutesLastHour: () => hour, budgetLeft: () => 800, perDay: 900, hourCap: () => 40, paid: () => false,
+    };
+    // Free plan: only the quiet half of the hour's allowance (20 of 40 minutes).
+    assert.equal(await readWhole(player, dir, s), 2);
+    assert.deepEqual(asked, [0, 2], "the pieces nobody read yet, in order");
+    asked.length = 0; hour = 25;
+    assert.equal(roomToRead(dir), false);
+    assert.equal(await readWhole(player, dir, s), 0, "no room: nothing read");
+    // A paid plan: the whole hour's allowance.
+    dir.paid = () => true; dir.hourCap = () => 1200;
+    ok(roomToRead(dir), "paid: room");
+    // Out of the day's allowance (a quarter is kept for listeners): no.
+    dir.budgetLeft = () => 100;
+    assert.equal(roomToRead(dir), false);
+  } finally { player.stop(); rmSync(dir0, { recursive: true, force: true }); }
+});

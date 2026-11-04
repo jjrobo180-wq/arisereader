@@ -202,10 +202,27 @@ export interface DirectoryOptions {
 
 /** OpenAI said no: out of credit ("quota"), or too many at once ("busy", tried again after a moment). */
 let lastSaid = 0;
+// Groq's own limits, as its answers state them: many times higher on a paid plan, which lets every
+// episode be read in full ahead of time (podcastPlay's readAhead) instead of only around the listener.
+let groqLimits = { tpm: 0, audio: 0 };
+let saidPaid = false;
+function noteLimits(res: Response, what: string) {
+  if (!what.startsWith("groq")) return;
+  const tpm = Number(res.headers.get("x-ratelimit-limit-tokens")) || 0, audio = Number(res.headers.get("x-ratelimit-limit-audio-seconds")) || 0;
+  if (what === "groq ai" && tpm) groqLimits = { ...groqLimits, tpm };
+  if (what === "groq transcribe" && audio) groqLimits = { ...groqLimits, audio };
+  if (!saidPaid && aiPaid()) { saidPaid = true; console.log(`[earshot] AI on a paid plan (Groq ${groqLimits.tpm || "?"} tokens/min, ${groqLimits.audio || "?"} audio s/h${hasDeepgram() ? ", Deepgram" : ""}): episodes are read in full ahead of time`); }
+}
+/** Paid capacity for reading episodes: a paid Groq plan (seen in its limits), Deepgram, or EARSHOT_AI_PAID=1. */
+export const aiPaid = () => process.env.EARSHOT_AI_PAID === "1" || hasDeepgram() || groqLimits.tpm >= 50_000 || groqLimits.audio >= 50_000;
+/** Minutes of audio an hour that reading ahead of listeners may use (what listeners ask for comes first):
+ *  Groq's free plan takes 2 hours of audio an hour; a paid one over 100. */
+export const aiHourCap = () => Number(process.env.EARSHOT_AI_MINUTES_PER_HOUR) || (aiPaid() ? 1200 : 40);
+
 async function openAiCall(send: () => Promise<Response>, what: string): Promise<Response> {
   for (let tryNo = 0; ; tryNo++) {
     const res = await send();
-    if (res.ok) return res;
+    if (res.ok) { noteLimits(res, what); return res; }
     const body: any = await res.json().catch(() => null);
     const code = String(body?.error?.code || body?.error?.type || "");
     if (res.status === 429 && Date.now() - lastSaid > 5 * 60_000) { lastSaid = Date.now(); console.warn(`[earshot] OpenAI ${what} 429: ${code} ${String(body?.error?.message || "").slice(0, 300)} | limit-requests=${res.headers.get("x-ratelimit-limit-requests")} remaining-requests=${res.headers.get("x-ratelimit-remaining-requests")} reset=${res.headers.get("x-ratelimit-reset-requests")}`); }
@@ -341,7 +358,8 @@ export function createDirectory(options: DirectoryOptions = {}) {
     catch (e: any) { if (e?.message !== "busy") throw e; await new Promise((r) => setTimeout(r, 4_000)); return transcribeNow(...args); }
   };
   const aiOn = options.aiOn ?? (() => !!(process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY));
-  const perDay = options.minutesPerDay ?? (Number(process.env.EARSHOT_AI_MINUTES_PER_DAY) || 900);
+  // Minutes of audio a day for read along: 15 hours on the free plan, 50 on a paid one (about $2 a day at most).
+  const perDayNow = () => options.minutesPerDay ?? (Number(process.env.EARSHOT_AI_MINUTES_PER_DAY) || (aiPaid() ? 3000 : 900));
 
   // Memory caches in front of the database (the server has 512 MB): every entry is also kept in the
   // database, so a smaller memory cache only means an occasional extra database read. Transcript
@@ -428,7 +446,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
   const hourLog: { at: number; min: number }[] = [];
   const spend = (min: number) => { minutesToday += min; hourLog.push({ at: Date.now(), min }); while (hourLog.length && Date.now() - hourLog[0].at > 3600_000) hourLog.shift(); };
   const minutesLastHour = () => hourLog.filter((x) => Date.now() - x.at <= 3600_000).reduce((t, x) => t + x.min, 0);
-  const budgetLeft = () => { const d = new Date().toISOString().slice(0, 10); if (d !== dayKey) { dayKey = d; minutesToday = 0; } return perDay - minutesToday; };
+  const budgetLeft = () => { const d = new Date().toISOString().slice(0, 10); if (d !== dayKey) { dayKey = d; minutesToday = 0; } return perDayNow() - minutesToday; };
 
   async function findEpisode(showId: string, episodeId: string) {
     const l = await loadShow(showId);
@@ -873,6 +891,6 @@ export function createDirectory(options: DirectoryOptions = {}) {
     return adSpotChunks((await profiles.peek(showId))?.value ?? null, secs, TX_CHUNK_SECS, max);
   }
 
-  return { aiFind, pool, loadShow, loadGenreShows, searches, apple, warm, addEpisodes, transcript, contentTranscript, contentChunks, copyPieceAds, foundAds, learnMark, profiles, idle, budgetLeft, minutesLastHour, perDay, cutRange, moment, keepMomentAudio, likelyAdChunks };
+  return { aiFind, pool, loadShow, loadGenreShows, searches, apple, warm, addEpisodes, transcript, contentTranscript, contentChunks, copyPieceAds, foundAds, learnMark, profiles, idle, budgetLeft, minutesLastHour, get perDay() { return perDayNow(); }, hourCap: aiHourCap, paid: aiPaid, cutRange, moment, keepMomentAudio, likelyAdChunks };
 }
 export type Directory = ReturnType<typeof createDirectory>;
