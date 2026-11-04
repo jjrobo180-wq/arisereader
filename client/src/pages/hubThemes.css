@@ -12,7 +12,7 @@
 .hub-theme-tile .bg-\[\#f6f7fc\], .hub-theme-tile .bg-\[\#f9fafc\], .hub-theme-tile .bg-slate-50,
 .hub-theme-tile .bg-slate-50\/60, .hub-theme-tile .bg-slate-50\/70, .hub-theme-tile .bg-slate-100, .hub-theme-tile .bg-slate-100\/60 { background-color: #0a0a0a; }
 .hub-theme-tile .bg-white, .hub-theme-tile .hover\:bg-white:hover { background-color: #141414; color: #ffffff; }
-.hub-theme-tile .bg-\[\#292446\] { background-color: #00a2e8; }
+.hub-theme-tile .bg-\[\#292446\] { background-color: #0072ac; }
 .hub-theme-tile .bg-\[\#7968e5\] { background-color: #f2600c; }
 .hub-theme-tile .border-slate-100, .hub-theme-tile .border-slate-200, .hub-theme-tile .border-slate-300,
 .hub-theme-tile .border-\[\#e7e8f0\], .hub-theme-tile .border-\[\#e7e8ef\], .hub-theme-tile .border-\[\#ececf3\], .hub-theme-tile .border-\[\#e4e6f0\] { border-color: #000000; }
@@ -92,3 +92,8 @@
 .hub-theme-crt .bg-teal-700, .hub-theme-crt .bg-teal-600 { background-color: #1f4d1f; color: #33ff33; }
 .hub-theme-tile .text-teal-700, .hub-theme-tile .text-teal-800 { color: #4cc3f5; }
 .hub-theme-crt .text-teal-700, .hub-theme-crt .text-teal-800 { color: #33ff33; }
+/* Screen-size versions of the light colors (WorkHub's side menu is md:bg-white): white with white text before. */
+.hub-theme-tile .sm\:bg-white, .hub-theme-tile .md\:bg-white, .hub-theme-tile .lg\:bg-white { background-color: #141414; }
+.hub-theme-crt .sm\:bg-white, .hub-theme-crt .md\:bg-white, .hub-theme-crt .lg\:bg-white { background-color: #0d140d; }
+.hub-theme-tile .md\:border-slate-200, .hub-theme-tile .md\:border-\[\#e4e6f0\] { border-color: #000000; }
+.hub-theme-crt .md\:border-slate-200, .hub-theme-crt .md\:border-\[\#e4e6f0\] { border-color: #1f4d1f; }
