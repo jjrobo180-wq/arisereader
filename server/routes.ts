@@ -91,6 +91,7 @@ import { GENRES as PODCAST_GENRES } from "../shared/earshot";
 import { supabaseAdStore } from "./podcastAds";
 import { startCopyDiagnostics } from "./podcastCopies";
 import { createPlayer as createPodcastPlayer, startPlayDiagnostics } from "./podcastPlay";
+import { createCleaner as createPodcastCleaner, supabaseCleanStore } from "./podcastClean";
 import { createAdLibrary } from "./podcastAdLibrary";
 import { registerPassLockRoutes } from "./passLock";
 import { registerProfileLinkRoutes } from "./profileLinks";
@@ -1665,9 +1666,15 @@ export async function registerRoutes(
   startCopyDiagnostics(supabaseKV(getAdminSupabase));
   // Playback through the server (one for both apps): stitched-in ads found in each listener's own copy.
   const podcastPlayer = createPodcastPlayer({ library: createAdLibrary(supabaseKV(getAdminSupabase)) });
+  // Ad-free copies (server/podcastClean.ts): once a listener's copy is compared, its show audio with the
+  // stitched-in ads cut out is kept in storage, and everyone plays that file straight from there.
+  if (process.env.EARSHOT_CLEAN !== "0") createPodcastCleaner({ player: podcastPlayer, kv: supabaseKV(getAdminSupabase), store: supabaseCleanStore(getAdminSupabase),
+    // Copies are kept 7 days: the daily sweep looks at every one.
+    listAll: async () => { const { data } = await getAdminSupabase().from("podcast_cache").select("value").like("key", "clean:%").neq("key", "clean:blocked").limit(20000); return (data ?? []).map((r: any) => r.value); } });
   startPlayDiagnostics(supabaseKV(getAdminSupabase), podcastPlayer, podcasts);
   // New episodes of followed and top shows checked for ads before anyone plays them, with the AI allowance left over at night.
-  if (process.env.EARSHOT_PRECHECK === "1") startPodcastPrechecks({ kv: supabaseKV(getAdminSupabase), player: podcastPlayer, dir: podcasts,
+  // On by EARSHOT_PRECHECK=1, and by itself once the AI is on a paid plan (EARSHOT_PRECHECK=0 keeps it off).
+  if (process.env.EARSHOT_PRECHECK !== "0") startPodcastPrechecks({ kv: supabaseKV(getAdminSupabase), player: podcastPlayer, dir: podcasts, enabled: () => process.env.EARSHOT_PRECHECK === "1" || podcasts.paid(),
     topShows: async () => { const lists = await Promise.all(PODCAST_GENRES.slice(0, 12).map((g) => podcasts.loadGenreShows(g.id).catch(() => []))); const out: string[] = []; for (let i = 0; i < 4; i++) for (const l of lists) if (l[i]) out.push(l[i].id); return out; } });
   registerEarshotRoutes(app, authMiddleware, { store: supabaseEarshotStore(getAdminSupabase), directory: podcasts, adStore: podcastAds, player: podcastPlayer, socialDb: getAdminSupabase });
   registerPodscrollRoutes(app, supabaseEarshotStore(getAdminSupabase, "podscroll"), undefined, podcasts, podcastAds, podcastPlayer, getAdminSupabase, { sendEmail: (to, subject, html) => sendEmail(to, subject, html) });

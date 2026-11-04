@@ -532,3 +532,24 @@ export function learnFromMark(p: ShowProfile, segs: TxSegment[], ad: { s: number
   next.sponsors = top(next.sponsors, 40); next.leadins = top(next.leadins, 30);
   return next;
 }
+
+// ---------------------------------------------------------------------------
+// Show time: a copy's time with its stitched-in ads taken out
+// ---------------------------------------------------------------------------
+// An episode's ad-free copy (server/podcastClean.ts) plays show time ("content time" on the server):
+// a copy as the host sent it, with the stitched-in ads the server found for sure cut out. These move a
+// moment between the two, the way the server does (podcastPlay contentOf), so the player can change
+// from one to the other without losing its place.
+const stitched = (ads: PlayAd[]) => ads.filter((a) => a.kind === "dai" && a.sure && a.e > a.s).sort((p, q) => p.s - q.s);
+/** A moment in a copy (with its stitched-in ads) as show time; inside an ad, where the show picks up after it. */
+export function copyToShow(x: number, ads: PlayAd[]): number {
+  let cut = 0;
+  for (const a of stitched(ads)) { if (a.s >= x) break; cut += Math.min(x, a.e) - a.s; }
+  return Math.max(0, x - cut);
+}
+/** A moment of show time in a copy with these stitched-in ads (the copy's time, after any ad that starts there). */
+export function showToCopy(ct: number, ads: PlayAd[]): number {
+  let x = Math.max(0, ct);
+  for (const a of stitched(ads)) { if (a.s <= x + 1e-6) x += a.e - a.s; else break; }
+  return x;
+}

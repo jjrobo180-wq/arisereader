@@ -24,6 +24,19 @@ if (isFitApp() || isReaderApp() || isNotesApp()) {
 }
 if (isReaderApp()) document.documentElement.classList.add("reader-app");
 
+// Arise Notes and Arise Fit felt zoomed in on iPhone: everything was drawn about 10% too large next to
+// Apple's own apps. On phones the page is laid out on a slightly wider screen and shown a little smaller
+// (safe areas and full-height screens still work, since this changes the viewport, not the pixels).
+if (isFitApp() || isNotesApp()) {
+  const shortSide = Math.min(window.screen.width, window.screen.height);
+  if (shortSide > 0 && shortSide < 700) {
+    const scale = 0.9;
+    const vp = document.querySelector('meta[name="viewport"]');
+    vp?.setAttribute("content", `width=${Math.round(shortSide / scale)}, initial-scale=${scale}, minimum-scale=${scale}, maximum-scale=${scale}, user-scalable=no, viewport-fit=cover`);
+    document.documentElement.classList.add("native-zoomed-out");
+  }
+}
+
 // Sound on tablets: the first tap unlocks game sounds and voice lines (lib/mediaUnlock.ts).
 installMediaUnlock();
 // Spoken lines everywhere use the AI voice, through the one unlocked player.

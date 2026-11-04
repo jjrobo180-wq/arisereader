@@ -80,7 +80,7 @@ async function askAiForGear(image: string, mode: "machine" | "gym"): Promise<Gea
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "gpt-4.1", temperature: 0.1, max_tokens: 400, response_format: { type: "json_object" },
+    body: JSON.stringify({ model: "gpt-4.1-mini", temperature: 0.1, max_tokens: 400, response_format: { type: "json_object" },
       messages: [{ role: "system", content: IDENTIFY_PROMPT(mode) }, { role: "user", content: [{ type: "text", text: mode === "machine" ? "What is this machine?" : "What equipment is here?" }, { type: "image_url", image_url: { url: image, detail: "low" } }] }] }),
     signal: AbortSignal.timeout(40_000),
   });
@@ -280,9 +280,19 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
   const cache = new Map<string, { at: number; body: any }>();
   // Trails barely change: answers are kept a day, and two people asking at once share one fetch.
   const inflight = new Map<string, Promise<any>>();
+  // Stale-while-revalidate: an answer under a day old is served as is; an older one (up to two weeks) is
+  // served at once and refreshed in the background, so places, gyms and trails open instantly.
+  const FRESH_MS = 24 * 3600_000, STALE_MS = 14 * 24 * 3600_000;
   const cached = async (key: string, make: () => Promise<any>) => {
     const hit = cache.get(key);
-    if (hit && Date.now() - hit.at < 24 * 3600_000) return hit.body;
+    const age = hit ? Date.now() - hit.at : Infinity;
+    if (hit && age < FRESH_MS) return hit.body;
+    const run = () => {
+      let q = inflight.get(key);
+      if (!q) { q = make().then((b) => { cache.set(key, { at: Date.now(), body: b }); return b; }).finally(() => inflight.delete(key)); inflight.set(key, q); }
+      return q;
+    };
+    if (hit && age < STALE_MS) { void run().catch(() => { /* keep the older answer */ }); return hit.body; }
     let p = inflight.get(key);
     if (!p) { p = make().finally(() => inflight.delete(key)); inflight.set(key, p); }
     const body = await p;

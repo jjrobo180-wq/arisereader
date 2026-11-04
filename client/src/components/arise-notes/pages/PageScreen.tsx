@@ -20,6 +20,7 @@ import { exportInkImage, exportInkPdf, exportMarkdown, exportText, exportWord, p
 import { lockContent, unlockContent } from "./pagesLock";
 import { AppearanceSheet, ColorDots, ForgotSheet, SYNC_WORDS, UnlockSheet, VaultSheet, loadPageFont, lookStyle, usePages, useUnlocked } from "./pagesUi";
 import { drafts } from "./drafts";
+import { useAppearance } from "../appearance";
 
 type Panel = "" | "more" | "look" | "folder" | "ai" | "versions" | "export" | "unlock" | "vault" | "forgot" | "sketch" | "ainote" | "info";
 
@@ -28,6 +29,7 @@ export default function PageScreen({ ctx, id, onBack }: { ctx: AppCtx; id: strin
   const say = useToast();
   const { sync, settings, metas, state } = usePages(userId);
   const key = useUnlocked(settings.vault);
+  const appearance = useAppearance();
   const [page, setPage] = useState<Page | null | undefined>(undefined);
   const [content, setContent] = useState<(PageContent & { inkText?: string }) | null>(null);
   const [resetKey, setResetKey] = useState(0);
@@ -138,7 +140,10 @@ export default function PageScreen({ ctx, id, onBack }: { ctx: AppCtx; id: strin
   if (page === undefined) return <div className="grid h-full place-items-center"><Spinner /></div>;
   if (!page) return <div className="mx-auto max-w-md p-6"><Notice tone="bad" action={<Btn kind="primary" onClick={onBack}>Back to notes</Btn>}>That note isn't here. It may have been deleted on another device.</Notice></div>;
 
-  const look = content?.look ?? page.content.look ?? DEFAULT_LOOK;
+  // The typing screen follows Light / Dark / Auto: the plain white paper turns charcoal in dark mode (the
+  // saved note keeps its own paper; other papers you picked on purpose stay as they are).
+  const savedLook = content?.look ?? page.content.look ?? DEFAULT_LOOK;
+  const look = appearance.dark && savedLook.theme === "paper" ? { ...savedLook, theme: "charcoal" as const } : savedLook;
   const title = content?.title ?? "";
   const meta = sync.meta(page.id);
   const trashed = !!(meta?.deletedAt ?? page.deletedAt);
@@ -161,7 +166,7 @@ export default function PageScreen({ ctx, id, onBack }: { ctx: AppCtx; id: strin
           : <Spinner />}
 
     {/* Sheets */}
-    {panel === "look" && content && <AppearanceSheet look={look} onChange={(l) => edit({ look: l })} onClose={() => setPanel("")} onDefault={() => { sync.saveSettings({ ...settings, prefs: { ...settings.prefs, look } }); say("New notes will look like this."); }} />}
+    {panel === "look" && content && <AppearanceSheet look={savedLook} onChange={(l) => edit({ look: l })} onClose={() => setPanel("")} onDefault={() => { sync.saveSettings({ ...settings, prefs: { ...settings.prefs, look } }); say("New notes will look like this."); }} />}
     {panel === "more" && <MoreSheet page={page} meta={meta} content={content} words={content && page.kind === "text" ? wordCount(content.html).words : 0}
       folders={settings.folders} onClose={() => setPanel("")} setMeta={setMeta} open={setPanel}
       onLock={() => void lockNote()} onUnlockNote={unlockNote}
@@ -303,9 +308,9 @@ function InkBody({ content, pencilOnly, edit, onPencilOnly, title }: { content: 
       onAddPage={(paper) => change([...content.ink, blankInkPage(paper, content.ink[content.ink.length - 1]?.tint ?? "paper")])}
       onAddPhoto={() => photoIn.current?.click()} />
     <input ref={photoIn} type="file" accept="image/*" className="sr-only" onChange={(e) => { void addPhotoPage(e.target.files?.[0]); e.target.value = ""; }} />
-    <div className="min-h-0 flex-1 overflow-auto bg-[#ecebf3] px-3 py-5 sm:px-6" data-testid="pages-ink">
+    <div className="min-h-0 flex-1 overflow-auto bg-[var(--an-bg)] px-3 py-5 sm:px-6" data-testid="pages-ink">
       <div className="mx-auto" style={{ width: `min(100%, ${Math.round(820 * zoom)}px)`, minWidth: zoom > 1 ? `${Math.round(820 * zoom)}px` : undefined }}>
-        <input className="an-bare an-doc-title mb-3 w-full bg-transparent text-[28px] text-[#1b1a26] outline-none placeholder:text-[#9a98ab]" value={content.title} onChange={(e) => edit({ title: e.target.value.slice(0, 140) })} placeholder="Title" aria-label="Title" data-testid="pages-title" />
+        <input className="an-bare an-doc-title mb-3 w-full bg-transparent text-[28px] text-[var(--an-ink)] outline-none placeholder:text-[var(--an-faint)]" value={content.title} onChange={(e) => edit({ title: e.target.value.slice(0, 140) })} placeholder="Title" aria-label="Title" data-testid="pages-title" />
         <div className="space-y-5">{content.ink.map((p, i) => <div key={p.id}>
           <InkCanvas page={p} tools={tools} pencilOnly={pencilOnly} label={`${title || "Note"}, page ${i + 1}`} onChange={(np) => setPage(i, np)} onPen={() => { if (!pencilOnly) onPencilOnly(true); }} />
           <div className="mt-1.5 flex items-center justify-between text-[12px] text-[#6b6880]">

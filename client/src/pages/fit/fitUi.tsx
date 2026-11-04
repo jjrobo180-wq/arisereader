@@ -142,20 +142,25 @@ export function ThemePicker({ testId = "fit-theme" }: { testId?: string }) {
   const [choice, shown, setChoice] = useFitTheme();
   const pal = paletteChoice(), black = trueBlack();
   const opts: [ThemeChoice, string, typeof Sun][] = [["light", "Light", Sun], ["dark", "Dark", Moon], ["auto", "Auto", Smartphone]];
-  const lightTop = paletteTokens(pal, "light")["glow-tint"], darkTop = paletteTokens(pal, "dark", black)["glow-tint"], darkBg = black ? "#000000" : "#15171b";
-  const preview = (id: ThemeChoice) => id === "light" ? `linear-gradient(180deg,${lightTop},#f2f2f4)` : id === "dark" ? `linear-gradient(180deg,${darkTop},${darkBg})` : `linear-gradient(90deg,#f2f2f4 50%,${darkBg} 50%)`;
   return <>
-    <div className="grid grid-cols-3 gap-2" data-testid={testId}>{opts.map(([id, label, Icon]) => <button key={id} type="button" onClick={() => { setChoice(id); haptic("light"); }} aria-pressed={choice === id} className="overflow-hidden rounded-[14px] text-left transition-transform active:scale-[.97]" style={{ background: C.card, boxShadow: choice === id ? `inset 0 0 0 2px ${C.lime}, ${cardStyle.boxShadow}` : `inset 0 0 0 1px ${C.line}` }} data-testid={`${testId}-${id}`}>
-      <span className="block h-14" style={{ background: preview(id) }}><span className="m-2 block h-3 w-10 rounded-full" style={{ background: PALETTES[pal][id === "dark" ? "dark" : "light"][0] }} /></span>
-      <span className="flex items-center gap-1.5 px-2.5 py-2 text-[14px] font-semibold"><Icon className="h-4 w-4" />{label}</span></button>)}</div>
+    {/* Light / Dark / Auto: one segmented control. */}
+    <div className="flex rounded-[14px] p-1" style={{ background: C.card2 }} role="radiogroup" aria-label="Appearance" data-testid={testId}>
+      {opts.map(([id, label, Icon]) => <button key={id} type="button" role="radio" aria-checked={choice === id} onClick={() => { setChoice(id); haptic("light"); }}
+        className="flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[11px] text-[14px] font-semibold transition-colors"
+        style={choice === id ? { background: C.card, color: C.text, boxShadow: v("card-shadow") } : { color: C.dim }}><Icon className="h-4 w-4" />{label}</button>)}
+    </div>
     <p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>Auto follows your iPhone's light or dark setting.</p>
-    <p className="mb-2 mt-4 px-1 text-[13px] font-semibold" style={{ color: C.dim }}>Color theme</p>
-    <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Color theme" data-testid={`${testId}-colors`}>{PALETTE_IDS.map((id) => { const [a, on] = PALETTES[id][shown]; const sel = id === pal;
-      return <button key={id} type="button" role="radio" aria-checked={sel} onClick={() => { setPalette(id); haptic("light"); }} className="flex items-center gap-2 rounded-[12px] px-2.5 py-2.5 text-left transition-transform active:scale-[.97]" style={{ background: C.card, boxShadow: sel ? `inset 0 0 0 2px ${a}` : `inset 0 0 0 1px ${C.line}` }} data-testid={`${testId}-color-${id}`}>
-        <span aria-hidden className="grid h-7 w-7 shrink-0 place-items-center rounded-full" style={{ background: `linear-gradient(145deg, ${mix(a, "#ffffff", 0.22)}, ${a} 55%, ${mix(a, "#000000", 0.35)})`, color: on }}>{sel && <Check className="h-4 w-4" strokeWidth={3} />}</span>
-        <span className="truncate text-[14px] font-semibold">{PALETTES[id].name}</span></button>; })}</div>
-    <button type="button" role="switch" aria-checked={black} onClick={() => { setTrueBlack(!black); haptic("light"); }} className="mt-2 flex w-full items-center gap-3 rounded-[12px] px-3.5 py-3 text-left" style={{ background: C.card, boxShadow: `inset 0 0 0 1px ${C.line}` }} data-testid={`${testId}-black`}>
-      <span className="min-w-0 flex-1"><span className="block text-[15px] font-semibold">True black in Dark</span><span className="block text-[12px]" style={{ color: C.dim }}>Pure black behind everything. Easier on battery on iPhone OLED screens.</span></span>
+    <p className="mb-2.5 mt-5 px-1 text-[13px] font-semibold" style={{ color: C.dim }}>Color</p>
+    {/* Colors: a round swatch over its name, three to a row, so every name fits. */}
+    <div className="grid grid-cols-3 gap-2.5" role="radiogroup" aria-label="Color theme" data-testid={`${testId}-colors`}>{PALETTE_IDS.map((id) => {
+      const [a, on] = PALETTES[id][shown]; const sel = id === pal;
+      return <button key={id} type="button" role="radio" aria-checked={sel} onClick={() => { setPalette(id); haptic("light"); }}
+        className="flex flex-col items-center gap-2 rounded-[16px] px-2 pb-3 pt-3.5 transition-transform active:scale-[.97]"
+        style={{ background: C.card, boxShadow: sel ? `inset 0 0 0 2px ${a}` : `inset 0 0 0 1px ${C.line}` }}>
+        <span aria-hidden className="grid h-11 w-11 place-items-center rounded-full" style={{ background: `linear-gradient(145deg, ${mix(a, "#ffffff", 0.22)}, ${a} 55%, ${mix(a, "#000000", 0.35)})`, color: on, boxShadow: `0 6px 14px -6px ${a}` }}>{sel && <Check className="h-5 w-5" strokeWidth={3} />}</span>
+        <span className="w-full truncate text-center text-[13px] font-semibold leading-none">{PALETTES[id].name}</span></button>; })}</div>
+    <button type="button" role="switch" aria-checked={black} onClick={() => { setTrueBlack(!black); haptic("light"); }} className="mt-3 flex w-full items-center gap-3 rounded-[14px] px-3.5 py-3 text-left" style={{ background: C.card, boxShadow: `inset 0 0 0 1px ${C.line}` }}>
+      <span className="min-w-0 flex-1"><span className="block text-[15px] font-semibold">True black in Dark</span><span className="block text-[12px] leading-snug" style={{ color: C.dim }}>Pure black behind everything. Easier on battery on iPhone OLED screens.</span></span>
       <span aria-hidden className="relative h-[30px] w-[50px] shrink-0 rounded-full transition-colors duration-200" style={{ background: black ? C.lime : C.card2 }}><span className="absolute top-[3px] h-6 w-6 rounded-full bg-white shadow transition-all duration-200" style={{ left: black ? 23 : 3 }} /></span></button>
   </>;
 }

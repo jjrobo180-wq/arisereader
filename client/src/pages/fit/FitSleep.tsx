@@ -15,6 +15,7 @@ import { Btn, C, Card, Field, Ring, Sheet, Title, display, fmtNum, haptic, input
 import { applySleepReminders, connectHealth, healthConnected, readSleepHealth } from "./fitNative";
 import { isNativeApp } from "@/lib/nativeApp";
 import type { Update } from "./fitStore";
+import { SleepLab } from "./FitSleepLab";
 
 export const hm = (h: number) => `${Math.floor(h)}h ${String(Math.round((h % 1) * 60) % 60).padStart(2, "0")}m`;
 const clock = (t: number) => new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
@@ -23,7 +24,7 @@ const longDay = (k: string) => new Date(`${k}T12:00:00`).toLocaleDateString([], 
 const pad = (n: number) => String(n).padStart(2, "0");
 const toInput = (t: number) => { const d = new Date(t); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
 const STAGE = { deep: { name: "Deep", color: "#4338ca" }, rem: { name: "REM", color: "#8b5cf6" }, core: { name: "Core", color: "#60a5fa" }, awake: { name: "Awake", color: "#f59e0b" } } as const;
-const SRC_ICON: Record<SleepSource, typeof Moon> = { health: Watch, schedule: Clock, phone: Smartphone, button: Moon, manual: Pencil };
+const SRC_ICON: Record<SleepSource, typeof Moon> = { health: Watch, schedule: Clock, phone: Smartphone, button: Moon, manual: Pencil, pillow: Bed };
 
 /** A time of day ("23:10") on the night that ends the morning of `wakeDay`: bed the evening before when it's later than the wake time. */
 export function nightFrom(wakeDay: string, bedHHMM: string, wakeHHMM: string) {
@@ -252,6 +253,8 @@ export function SleepSheet({ data, update, onClose, say, inline, onBreathe }: { 
           </div>
           {syncing && <p className="mt-2 text-center text-[12px]" style={{ color: C.dim }}>Checking Apple Health…</p>}
         </Card>}
+
+    <SleepLab data={data} update={update} say={say} />
 
     {/* How it's tracked, at a glance. */}
     <Ways data={data} update={update} say={say} compact onOpen={() => setSheet("ways")} onSchedule={() => setSheet("schedule")} />
