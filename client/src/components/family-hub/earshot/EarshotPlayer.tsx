@@ -696,6 +696,12 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
    *  page may shape its sound (crossOrigin). A player whose sound already goes through the boost can't
    *  play audio from other sites (it would be silent), so it is swapped for a fresh one first. */
   const setAudioSrc = (a: HTMLAudioElement, ep: PodEpisode, via: string | null): HTMLAudioElement => {
+    a = pointAt(a, ep, via);
+    // Loading a new source puts the speed back to the default rate: the listener's speed is the default.
+    try { a.defaultPlaybackRate = esRef.current.settings.speed || 1; a.playbackRate = esRef.current.settings.speed || 1; } catch { /* not supported */ }
+    return a;
+  };
+  const pointAt = (a: HTMLAudioElement, ep: PodEpisode, via: string | null): HTMLAudioElement => {
     // Downloaded (Pod+): play the copy on this device. It's this page's own, so Voice boost still works.
     const saved = offlineAudio()?.url(episodeKey(ep.id));
     if (saved) {
@@ -1232,7 +1238,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const activeEpId = items[active]?.ep?.id, nextEpId = items[active + 1]?.ep?.id;
   useEffect(() => { if (activeEpId && cur.current?.dataset.ep !== activeEpId) activate(active, unlockedRef.current); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeEpId]);
   useEffect(() => { const n = items[active + 1]?.ep; if (n && cur.current) playerFor(n, [cur.current]); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [nextEpId]);
-  useEffect(() => { if (cur.current) cur.current.playbackRate = es.settings.speed; }, [es.settings.speed]);
+  useEffect(() => { players.current.forEach((a) => { try { a.defaultPlaybackRate = es.settings.speed || 1; } catch { /* not supported */ } }); if (cur.current) cur.current.playbackRate = es.settings.speed; }, [es.settings.speed]);
   useEffect(() => { const save = () => { const it = itemsRef.current[activeRef.current]; if (it?.ep && !it.key.startsWith("nr-") && cur.current?.dataset.ep === it.ep.id && lining.current?.ep !== it.ep.id) saveSpot(it.ep, cur.current.currentTime, cur.current.duration, whereIn(cur.current, it.ep.id)); };
     // Leaving the app (iPhone doesn't always send pagehide) saves it too.
     const hidden = () => { if (document.visibilityState === "hidden") save(); };
