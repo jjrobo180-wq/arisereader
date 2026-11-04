@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900" width="600" height="900">
+<rect width="600" height="900" fill="#0b3a6b"/>
+<svg x="0" y="96" width="600" height="572" viewBox="460 0 680 900" preserveAspectRatio="xMidYMid slice"><rect x="0" y="0" width="1600" height="900" fill="#d0ebff" /><path d="M0 650Q800 560 1600 650V900H0Z" fill="#2f9e44" /><path d="M600 900L800 680L1000 900Z" fill="#c08552" /><path d="M600 180L700 140H900L1000 180L1080 300L1000 340L980 300V620H620V300L600 340L520 300Z" fill="#ffffff" stroke="#1c4f9c" stroke-width="10"/><path d="M740 140Q800 200 860 140" fill="none" stroke="#1c4f9c" stroke-width="10"/><text x="800" y="500" font-family="'Arial Black',Arial,sans-serif" font-weight="900" font-size="220" fill="#1c4f9c" text-anchor="middle">42</text><path d="M470 160Q470 200 510 200Q470 200 470 240Q470 200 430 200Q470 200 470 160Z" fill="#fab005" /><path d="M1140 440Q1140 470 1170 470Q1140 470 1140 500Q1140 470 1110 470Q1140 470 1140 440Z" fill="#fab005" /></svg>
+<rect width="600" height="96" fill="#ffffff"/>
+<text x="30" y="66" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#0b3a6b" letter-spacing="-1">ARISE<tspan fill="#1971c2"> NEWS</tspan></text>
+<text x="570" y="44" font-family="Arial,sans-serif" font-weight="700" font-size="16" fill="#0b3a6b" text-anchor="end">ISSUE 2</text>
+<text x="570" y="68" font-family="Arial,sans-serif" font-weight="700" font-size="16" fill="#1971c2" text-anchor="end">BIOGRAPHY</text>
+<rect y="668" width="600" height="232" fill="#0b3a6b"/>
+<rect x="30" y="686" width="120" height="8" fill="#1971c2"/>
+<text x="30" y="732" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#ffffff">Jackie Robinson</text>
+<text x="30" y="788" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#ffffff">and the Number</text>
+<text x="30" y="844" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#ffffff">42</text>
+<text x="570" y="690" font-family="Arial,sans-serif" font-weight="800" font-size="20" fill="#ffffff" text-anchor="end">5 PTS</text>
+</svg>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900" width="600" height="900">
+<rect width="600" height="900" fill="#7b2a00"/>
+<svg x="0" y="96" width="600" height="628" viewBox="460 0 680 900" preserveAspectRatio="xMidYMid slice"><rect x="0" y="0" width="1600" height="900" fill="#d3f9d8" /><path d="M0 700Q800 600 1600 700V900H0Z" fill="#c08552" /><path d="M200 420C600 360 900 380 1200 560" fill="none" stroke="#ffffff" stroke-width="10" stroke-dasharray="8 22" stroke-linecap="round"/><circle cx="1220" cy="570" r="22" fill="#fff" opacity=".5"/><circle cx="800" cy="420" r="140" fill="#ffffff" stroke="#ced4da" stroke-width="6"/><path d="M700 320Q760 420 700 520M900 320Q840 420 900 520" fill="none" stroke="#e03131" stroke-width="7"/><path d="M712 340l18 -8M888 340l-18 -8" fill="none" stroke="#e03131" stroke-width="4"/><path d="M718.7317678784632 370l18 -8M881.2682321215368 370l-18 -8" fill="none" stroke="#e03131" stroke-width="4"/><path d="M719.2743794146055 400l18 -8M880.7256205853945 400l-18 -8" fill="none" stroke="#e03131" stroke-width="4"/><path d="M713.128960064479 430l18 -8M886.871039935521 430l-18 -8" fill="none" stroke="#e03131" stroke-width="4"/><path d="M705.9455800375366 460l18 -8M894.0544199624634 460l-18 -8" fill="none" stroke="#e03131" stroke-width="4"/><path d="M704.3286058026949 490l18 -8M895.6713941973051 490l-18 -8" fill="none" stroke="#e03131" stroke-width="4"/><path d="M600 300A230 230 0 0 1 1000 300" fill="none" stroke="#2b8a3e" stroke-width="14" stroke-linecap="round"/><polygon points="1000,270 1030,320 975,320" fill="#2b8a3e" /></svg>
+<rect width="600" height="96" fill="#ffffff"/>
+<text x="30" y="66" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#7b2a00" letter-spacing="-1">ARISE<tspan fill="#e8590c"> NEWS</tspan></text>
+<text x="570" y="44" font-family="Arial,sans-serif" font-weight="700" font-size="16" fill="#7b2a00" text-anchor="end">ISSUE 2</text>
+<text x="570" y="68" font-family="Arial,sans-serif" font-weight="700" font-size="16" fill="#e8590c" text-anchor="end">SPORTS</text>
+<rect y="724" width="600" height="176" fill="#7b2a00"/>
+<rect x="30" y="742" width="120" height="8" fill="#e8590c"/>
+<text x="30" y="788" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#ffffff">How Does a</text>
+<text x="30" y="844" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#ffffff">Curveball Curve?</text>
+<text x="570" y="746" font-family="Arial,sans-serif" font-weight="800" font-size="20" fill="#ffffff" text-anchor="end">5 PTS</text>
+</svg>

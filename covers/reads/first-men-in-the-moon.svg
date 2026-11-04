@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b0c2a"/><stop offset="1" stop-color="#2a2d6a"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<circle cx="70" cy="230" r="2.6" fill="#fff" opacity=".85"/><circle cx="120" cy="280" r="2.6" fill="#fff" opacity=".85"/><circle cx="330" cy="330" r="2.6" fill="#fff" opacity=".85"/><circle cx="90" cy="360" r="2.6" fill="#fff" opacity=".85"/><circle cx="260" cy="220" r="2.6" fill="#fff" opacity=".85"/><circle cx="350" cy="410" r="2.6" fill="#fff" opacity=".85"/><path d="M0 500 Q200 460 400 500 V600 H0Z" fill="#495057"/><circle cx="90" cy="520" r="16" fill="#343a40"/><circle cx="300" cy="505" r="12" fill="#343a40"/><circle cx="200" cy="350" r="70" fill="#adb5bd"/><circle cx="200" cy="350" r="70" fill="none" stroke="#fff" stroke-width="3" opacity=".5"/><path d="M150 310 q30 -30 70 -24" stroke="#fff" stroke-width="8" fill="none" opacity=".5"/><circle cx="320" cy="240" r="22" fill="#4dabf7"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">The First Men</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">in the Moon</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">H. G. WELLS</text>
+</svg>

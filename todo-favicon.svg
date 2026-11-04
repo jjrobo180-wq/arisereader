@@ -1,0 +1,10 @@
+<!-- A.R.I.S.E. mark — scales to any size. Ink #15131f, violet #7c4dff. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <defs><clipPath id="ariseTile"><rect width="96" height="96" rx="22"/></clipPath></defs>
+  <g clip-path="url(#ariseTile)">
+    <rect width="48" height="96" fill="#15131f"/>
+    <rect x="48" width="48" height="96" fill="#7c4dff"/>
+    <rect x="14" y="32" width="42" height="12" rx="6" fill="#ffffff"/>
+    <rect x="14" y="52" width="68" height="12" rx="6" fill="#ffffff"/>
+  </g>
+</svg>

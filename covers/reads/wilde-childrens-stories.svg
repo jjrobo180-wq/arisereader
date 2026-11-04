@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22223b"/><stop offset="1" stop-color="#4a4e69"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<circle cx="70" cy="230" r="2.6" fill="#fff" opacity=".85"/><circle cx="120" cy="280" r="2.6" fill="#fff" opacity=".85"/><circle cx="330" cy="330" r="2.6" fill="#fff" opacity=".85"/><circle cx="90" cy="360" r="2.6" fill="#fff" opacity=".85"/><circle cx="260" cy="220" r="2.6" fill="#fff" opacity=".85"/><circle cx="350" cy="410" r="2.6" fill="#fff" opacity=".85"/><path d="M0 480 Q120 455 220 470 T400 462 V600 H0Z" fill="#121222"/><circle cx="160" cy="380" r="46" fill="#e9c46a"/><path d="M140 430 h40 v40 h-40z" fill="#e9c46a"/><path d="M250 300 l40 -10 l-20 14 l40 4 l-44 12 l20 22 l-30 -16 z" fill="#212529"/><circle cx="150" cy="372" r="5" fill="#4dabf7"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">The Happy</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Prince and</text><text x="200" y="166" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Other Stories</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">OSCAR WILDE</text>
+</svg>

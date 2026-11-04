@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#344e41"/><stop offset="1" stop-color="#a3b18a"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<circle cx="300" cy="250" r="42" fill="#fff4c2"/><path d="M0 480 Q120 455 220 470 T400 462 V600 H0Z" fill="#1b2a22"/><path d="M150 470 l6-60 q-6-20 10-30 h70 q20 -4 28 -26 l8 -26 l14 6 l-8 30 q-4 24 -26 34 l-4 72 h-10 l-2-52 h-50 l-6 52z" fill="#bc6c25"/><path d="M268 330 l-8-30 m8 30 l14-30 m-22 4 l-12-10 m26 2 l14-10" stroke="#bc6c25" stroke-width="5" fill="none"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Bambi</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">FELIX SALTEN</text>
+</svg>

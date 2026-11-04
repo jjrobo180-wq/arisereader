@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3d5a80"/><stop offset="1" stop-color="#98c1d9"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<circle cx="320" cy="240" r="30" fill="#fff4c2"/><path d="M0 470 L100 300 L170 400 L240 280 L400 470 V600 H0Z" fill="#1f2f45"/><path d="M240 280 l30 50 l-20 -6 l-14 14 l-20 -12z M100 300 l22 36 l-14 -4 l-10 10 l-16 -8z" fill="#fff"/><path d="M40 520 Q130 470 200 488 T360 520" stroke="#e0fbfc" stroke-width="12" fill="none" opacity=".8"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Cornelli</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">JOHANNA SPYRI</text>
+</svg>

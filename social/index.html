@@ -1,0 +1,1795 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>A.R.I.S.E. Connect</title>
+<meta name="description" content="A.R.I.S.E. Connect: a safe, LinkedIn-style career network where K–12 students take short career courses, earn certificates and explore trades, the military, teaching, health care, tech and college paths, with their teachers and parents.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+html{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+
+/* Layout: the A.R.I.S.E. family. Light To-Do surfaces (off-white page, white cards, soft blue shadows, teal-blue-purple gradient, Manrope + DM Sans) with A.R.I.S.E. Reader's deep plum for course banners and the certificate moment. Light on purpose, like arisetodo.com. */
+:root{
+  --bg:#F9FAFC; --surface:#FFFFFF; --surface-2:#F2F5FC; --ink:#1C2238; --ink-2:#4A556F; --ink-3:#69738C; --line:#E9EDF5; --line-2:#DCE4F0;
+  --blue:#5169ED; --teal:#11B9AF; --purple:#8B64E9;
+  --plum:#0E0D18; --plum-card:#1B1A2C; --plum-line:rgba(255,255,255,.1); --violet:#9B4DEE; --cyan:#06B6D4;
+  --primary:#5169ED; --primary-ink:#FFFFFF; --primary-soft:#EEF1FE;
+  --gold:#11B9AF; --gold-soft:#E4F8F3; --gold-ink:#0D3D4B; --lav:#8B64E9;
+  --good:#12A27A; --good-soft:#E4F8F3; --bad:#E5484D; --bad-soft:#FDECEC;
+  --grad:linear-gradient(115deg,#10B9AF 0%,#5279ED 53%,#9363E7 100%);
+  --grad-reader:linear-gradient(135deg,#7C3AED 0%,#C026D3 52%,#06B6D4 100%);
+  --paper:#FFFFFF; --paper-ink:#1C2238; --paper-line:#D6DDF0; --seal:#5169ED; --seal-dot:#11B9AF;
+  --f-trades:#F0703A; --f-eng:#4F72E8; --f-film:#E5484D; --f-music:#D946A8; --f-health:#12A27A; --f-tech:#0EA5C6; --f-biz:#65A30D; --f-food:#D97706; --f-sports:#9333EA; --f-air:#0369A1; --f-games:#7C3AED; --f-law:#B45309;
+  --font-display:Manrope,"DM Sans",system-ui,sans-serif;
+  --font-body:"DM Sans",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:20px; --shadow:0 24px 65px rgba(33,53,97,.10),0 2px 10px rgba(33,53,97,.035); --shadow-sm:0 4px 14px rgba(35,62,101,.05);
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;
+  background:radial-gradient(520px 380px at 78% 120px,#E7E8FF 0%,transparent 70%),radial-gradient(520px 420px at 15% 420px,#EAFAF8 0%,transparent 70%),var(--bg);background-repeat:no-repeat;background-color:var(--bg)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
+::selection{background:#C8F4EF;color:#0D3D4B}
+h1,h2,h3{font-family:var(--font-display);font-weight:800;line-height:1.1;text-wrap:balance;margin:0;letter-spacing:-.03em}
+p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid #749AF1;outline-offset:3px;border-radius:10px}
+.wrap{max-width:1160px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.mono{font-family:var(--font-mono);font-size:.74rem;letter-spacing:.02em}
+.eyebrow{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#52617C}
+.muted{color:var(--ink-3)}
+.grad-text{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* App bar */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:rgba(249,250,252,.83);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-bottom:1px solid rgba(229,234,242,.8)}
+.top .wrap{display:flex;align-items:center;gap:10px 26px;flex-wrap:wrap;padding-block:14px}
+.brand{display:inline-flex;align-items:center;gap:11px;background:none;border:0;padding:0;cursor:pointer;font-family:var(--font-display);font-weight:800;font-size:19px;letter-spacing:-.9px;color:var(--ink);white-space:nowrap}
+.brand svg{width:36px;height:36px;flex:none}
+.brand .period{color:var(--teal)}
+.brand .brand-sub{color:#7C87A0;font-weight:700}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tab{border:0;background:none;padding:8px 14px;border-radius:12px;cursor:pointer;font-weight:700;font-size:14px;color:#5B657B}
+.tab:hover{color:var(--blue)}
+.tab[aria-current="true"]{background:var(--primary-soft);color:var(--blue)}
+.stats{margin-left:auto;display:flex;gap:8px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:12px;font-weight:800;font-size:.84rem;font-variant-numeric:tabular-nums;background:var(--surface);border:1px solid var(--line);color:var(--ink);box-shadow:var(--shadow-sm)}
+.pill.gold svg{color:var(--purple)}
+.pill.teal{background:var(--gold-soft);border-color:#C8EFE6;color:#0D6E66}
+@media (max-width:680px){.stats{margin-left:0;order:3}.tabs{order:4;width:100%}}
+
+main{padding-block:40px 90px}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;border:1px solid transparent;border-radius:14px;padding:13px 21px;font-weight:800;font-size:15px;letter-spacing:-.1px;cursor:pointer;color:#fff;background:linear-gradient(110deg,#16B4BB,#5478E9 61%,#8665E8);box-shadow:0 10px 23px rgba(76,106,223,.20);transition:transform .2s,box-shadow .2s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 15px 28px rgba(76,106,223,.27)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+.btn.ghost{background:#fff;color:#35415E;border-color:#E4E9F3;box-shadow:var(--shadow-sm)}
+.btn.goldbtn{background:var(--grad-reader);box-shadow:0 12px 26px rgba(124,58,237,.25)}
+.btn.small{padding:9px 15px;font-size:.88rem;border-radius:12px}
+.linkbtn{background:none;border:0;padding:0;color:var(--blue);font-weight:800;cursor:pointer}
+.linkbtn:hover{text-decoration:underline;text-underline-offset:3px}
+
+/* Hero */
+.hero{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:44px;align-items:center;margin-bottom:72px;position:relative}
+.hero::after{content:"";position:absolute;right:-120px;top:-40px;width:520px;height:520px;border:1px solid #D0D5F5;border-radius:50%;opacity:.45;pointer-events:none;z-index:-1}
+.hero .eyebrow{display:inline-flex;align-items:center;gap:9px}
+.hero .eyebrow::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--teal);box-shadow:0 0 0 4px #D6F5F1}
+.hero h1{font-size:clamp(2.6rem,5.3vw,4.4rem);letter-spacing:-.05em;line-height:1.08;margin-top:18px}
+.hero h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero .lede{margin-top:20px;font-size:1.12rem;color:var(--ink-2);max-width:54ch}
+.compass{margin-top:28px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;box-shadow:var(--shadow)}
+.compass p{font-family:var(--font-display);font-weight:800;margin-bottom:12px;letter-spacing:-.02em}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid #E4E9F3;background:#fff;border-radius:999px;padding:7px 14px;cursor:pointer;font-weight:700;font-size:.9rem;color:#35415E}
+.chip:hover{border-color:#C8D3EC;color:var(--blue)}
+.chip[aria-pressed="true"]{background:var(--primary-soft);border-color:#C3CCFA;color:var(--blue)}
+.hero-cert{max-width:440px;justify-self:center;width:100%;transform:rotate(1deg)}
+@media (max-width:880px){.hero{grid-template-columns:1fr}.hero::after{display:none}.hero-cert{transform:none}}
+
+/* Catalog */
+.cat-head{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:16px;margin-bottom:18px}
+.cat-head h2{font-size:clamp(1.9rem,3.6vw,2.8rem);letter-spacing:-.045em}
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:28px}
+.seg{display:flex;flex-wrap:wrap;gap:6px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:5px}
+.seg button{border:0;background:none;padding:7px 12px;border-radius:10px;cursor:pointer;font-weight:700;font-size:.86rem;color:#5B657B}
+.seg button:hover{color:var(--blue)}
+.seg button[aria-pressed="true"]{background:var(--primary-soft);color:var(--blue)}
+.select,.search{border:1px solid var(--line);background:#fff;border-radius:12px;padding:9px 12px;font-weight:700;font-size:.88rem;color:var(--ink)}
+.search{min-width:0;width:240px;max-width:100%}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:22px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:0;display:flex;flex-direction:column;cursor:pointer;text-align:left;box-shadow:var(--shadow-sm);transition:transform .2s,box-shadow .2s;position:relative;overflow:hidden;color:var(--ink)}
+.card:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+.card .banner{padding:18px 20px;display:flex;align-items:center;gap:14px;background:color-mix(in srgb,var(--fc) 9%,#fff);border-bottom:1px solid color-mix(in srgb,var(--fc) 16%,#fff)}
+.card .body{padding:16px 20px 20px;display:flex;flex-direction:column;gap:11px;flex:1}
+.ico{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;flex:none;color:#fff;background:var(--fc);box-shadow:0 8px 18px -8px var(--fc)}
+.ico svg{width:24px;height:24px}
+.card .banner .eyebrow{color:color-mix(in srgb,var(--fc) 80%,#1C2238)}
+.card h3{font-size:1.25rem;letter-spacing:-.03em}
+.card .blurb{color:var(--ink-2);font-size:.95rem;flex:1;line-height:1.55}
+.meta{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.86rem;color:var(--ink-3);font-variant-numeric:tabular-nums;font-weight:500}
+.meta b{color:var(--ink);font-weight:800}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-size:.74rem;font-weight:700;padding:3px 9px;border-radius:8px;background:var(--surface-2);color:#52617C}
+.badge-match{position:absolute;top:14px;right:14px;font-size:.72rem;font-weight:800;padding:4px 10px;border-radius:999px;background:#fff;color:var(--blue);border:1px solid #C3CCFA;z-index:1}
+.bar{height:7px;border-radius:99px;background:var(--surface-2);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--grad);border-radius:99px}
+.earned{display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:.86rem;color:var(--purple);background:#F0EAFF;border-radius:10px;padding:4px 10px;align-self:flex-start}
+.empty{padding:30px;border:1px dashed var(--line-2);border-radius:var(--r);text-align:center;color:var(--ink-3);background:#fff}
+
+/* Course page: Reader plum banner */
+.back{margin-bottom:22px}
+.course-hero{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:32px;align-items:start;border-radius:28px;padding:clamp(22px,4vw,42px);color:#F8F9FC;
+  background:radial-gradient(420px 280px at 0 0,color-mix(in srgb,var(--fc) 34%,transparent),transparent 75%),radial-gradient(380px 300px at 100% 100%,rgba(124,58,237,.32),transparent 75%),var(--plum);box-shadow:0 30px 70px -30px rgba(14,13,24,.55)}
+.course-hero .ico{box-shadow:none}
+.course-hero .eyebrow{color:#A5F3FC}
+.course-hero .mono,.course-hero .muted{color:#AAB3CB}
+.course-hero h1{font-size:clamp(2.1rem,4.6vw,3.3rem);margin:14px 0 12px;letter-spacing:-.045em;color:#fff}
+.course-hero .lede{color:#CBD5E1;font-size:1.08rem;max-width:60ch}
+.course-hero .meta{color:#AAB3CB}
+.course-hero .meta b{color:#fff}
+.course-hero .btn{background:#fff;color:#020617;box-shadow:0 20px 40px -18px rgba(0,0,0,.8)}
+.course-hero .btn.goldbtn{background:var(--grad-reader);color:#fff}
+.course-hero .panel{background:var(--plum-card);border-color:var(--plum-line);box-shadow:none;color:#E2E8F0}
+.course-hero .checks svg{color:#6EE7B7}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px;box-shadow:var(--shadow-sm)}
+.panel h3{font-size:1.1rem;margin-bottom:14px}
+.checks{list-style:none;padding:0;margin:0;display:grid;gap:11px}
+.checks li{display:flex;gap:11px;align-items:flex-start}
+.checks svg{flex:none;width:18px;height:18px;margin-top:3px;color:var(--good)}
+.meta svg{width:13px;height:13px;vertical-align:-2px;margin-right:2px}
+.lessons{list-style:none;padding:0;margin:0;display:grid;gap:12px}
+.lesson-row{display:flex;align-items:center;gap:15px;padding:15px 18px;background:#fff;border:1px solid var(--line);border-radius:16px;cursor:pointer;width:100%;text-align:left;box-shadow:var(--shadow-sm);transition:transform .2s,box-shadow .2s;color:var(--ink)}
+.lesson-row:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.num{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;font-weight:800;background:var(--surface-2);color:#52617C;flex:none;font-variant-numeric:tabular-nums}
+.num.done{background:var(--grad);color:#fff}
+.lesson-row .t{flex:1;min-width:0}
+.lesson-row .t b{display:block;font-weight:800}
+.section{margin-top:48px}
+.section > h2{font-size:1.7rem;margin-bottom:18px;letter-spacing:-.04em}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px}
+.kv{display:grid;gap:12px;color:var(--ink-2)}
+.kv div{display:grid;gap:6px}
+@media (max-width:880px){.course-hero{grid-template-columns:1fr}}
+
+/* Lesson */
+.lesson-layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:36px;align-items:start}
+.side{position:sticky;top:calc(env(safe-area-inset-top,0px) + 96px);display:grid;gap:6px;background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:10px;box-shadow:var(--shadow-sm)}
+.side button{display:flex;gap:11px;align-items:center;background:none;border:0;padding:8px;border-radius:12px;cursor:pointer;text-align:left;font-weight:700;color:#5B657B;font-size:.94rem}
+.side button:hover{color:var(--blue)}
+.side button[aria-current="true"]{background:var(--primary-soft);color:var(--blue)}
+.side .num{width:28px;height:28px;font-size:.82rem;border-radius:9px}
+.article{max-width:740px;display:grid;gap:32px}
+.article h1{font-size:clamp(2rem,4.2vw,2.9rem);letter-spacing:-.045em}
+.reading{display:grid;gap:15px;font-size:1.08rem;max-width:65ch;color:var(--ink-2);line-height:1.7}
+.terms{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+.term{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px 16px;box-shadow:var(--shadow-sm)}
+.term b{display:block;font-family:var(--font-display);font-weight:800;letter-spacing:-.02em}
+.term span{font-size:.9rem;color:var(--ink-3)}
+.block-title{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.block-title h2{font-size:1.4rem;letter-spacing:-.035em}
+.step-label{font-size:11px;font-weight:800;letter-spacing:1.4px;padding:5px 10px;border-radius:8px;background:var(--gold-soft);color:#0D6E66}
+.tryit{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:22px;box-shadow:var(--shadow-sm);color:var(--ink-2)}
+.q{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:20px;display:grid;gap:13px;box-shadow:var(--shadow-sm)}
+.q > b{font-family:var(--font-display);font-size:1.06rem;font-weight:800;letter-spacing:-.02em}
+.opts{display:grid;gap:8px}
+.opt{display:flex;gap:12px;align-items:center;text-align:left;padding:11px 14px;border-radius:13px;border:1px solid #E4E9F3;background:var(--bg);cursor:pointer;font-weight:600;color:#35415E}
+.opt:hover:not(:disabled){border-color:#C3CCFA;background:#F7F9FF}
+.opt:disabled{cursor:default}
+.opt.right{border-color:#9BE3CF;background:var(--good-soft);color:#0B5E47}
+.opt.wrong{border-color:#F5C2C4;background:var(--bad-soft);text-decoration:line-through;text-decoration-color:var(--bad);color:#8A3A3D}
+.opt .k{font-family:var(--font-display);font-size:.8rem;font-weight:800;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:#fff;border:1px solid var(--line);flex:none}
+.feedback{font-size:.94rem;padding:11px 14px;border-radius:12px}
+.feedback.ok{background:var(--good-soft);color:#0B5E47}
+.feedback.no{background:var(--bad-soft);color:#8A3A3D}
+.finish{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:18px 22px;border-radius:22px;font-weight:700;
+  border:1.5px solid transparent;background:linear-gradient(#fff,#fff) padding-box,var(--grad) border-box;box-shadow:var(--shadow)}
+@media (max-width:880px){.lesson-layout{grid-template-columns:1fr}.side{position:static;grid-auto-flow:column;grid-auto-columns:max-content;overflow-x:auto}}
+
+/* Activities */
+.act-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;align-items:center}
+.field{display:grid;gap:7px}
+.field label{font-weight:800;font-size:.9rem;display:flex;justify-content:space-between;font-variant-numeric:tabular-nums;color:var(--ink)}
+.field input[type=range]{width:100%;accent-color:var(--blue)}
+.field input[type=number]{border:1px solid var(--line-2);background:var(--bg);border-radius:12px;padding:9px 12px;width:100%;font-weight:700}
+.readout{font-family:var(--font-display);font-size:2rem;font-weight:800;letter-spacing:-.04em;font-variant-numeric:tabular-nums;color:var(--ink)}
+.bulb{display:grid;place-items:center;gap:8px;text-align:center}
+.beat{overflow-x:auto}
+.beat table{border-collapse:separate;border-spacing:4px;min-width:560px}
+.beat th{font-size:.8rem;text-align:left;padding-right:8px;font-weight:800;color:var(--ink-3)}
+.beat td button{width:28px;height:28px;border-radius:8px;border:1px solid var(--line-2);background:#fff;cursor:pointer;display:block}
+.beat td.bar1 button{background:var(--surface-2)}
+.beat td button[aria-pressed="true"]{background:var(--f-music);border-color:var(--f-music)}
+.beat td.now button{outline:2px solid var(--teal);outline-offset:1px}
+.beat-ctrl{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:16px}
+.profit-out{display:grid;gap:8px;font-variant-numeric:tabular-nums;font-weight:700;color:var(--ink)}
+.profit-out div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding-bottom:8px}
+
+/* Certificate */
+.cert{background:var(--paper);color:var(--paper-ink);border-radius:16px;padding:12px;border:1px solid var(--line);box-shadow:0 40px 80px rgba(46,60,113,.15),0 3px 10px rgba(40,65,102,.04)}
+.cert-inner{border-radius:10px;border:1.5px solid var(--paper-line);padding:clamp(18px,4vw,34px);text-align:center;display:grid;gap:10px;position:relative;
+  background:radial-gradient(240px 140px at 100% 0,#F0EAFF,transparent 70%),radial-gradient(240px 140px at 0 100%,#E4F8F3,transparent 70%),#fff}
+.cert-inner::before{content:"";position:absolute;inset:0 0 auto;height:5px;border-radius:10px 10px 0 0;background:var(--grad)}
+.cert .issuer{font-family:var(--font-display);font-size:.82rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--seal)}
+.cert .ctype{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--ink-3);font-weight:800}
+.cert .who{font-family:var(--font-display);font-size:clamp(1.6rem,3.6vw,2.3rem);font-weight:800;letter-spacing:-.04em;border-bottom:1.5px solid var(--paper-line);padding-bottom:6px;margin:4px auto 0;min-width:60%;overflow-wrap:anywhere}
+.cert .what{font-size:.98rem;color:var(--ink-2)}
+.cert .course{font-family:var(--font-display);font-size:clamp(1.2rem,2.6vw,1.55rem);font-weight:800;letter-spacing:-.03em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.cert .foot{display:flex;justify-content:space-between;align-items:end;gap:12px;margin-top:10px;text-align:left;font-size:.8rem;color:var(--ink-3);flex-wrap:wrap}
+.cert .foot b{color:var(--ink)}
+.cert .seal{width:74px;height:74px;flex:none}
+.cert-small .cert-inner{padding:22px 20px 20px}
+.cert-small .seal{width:54px;height:54px}
+.cert-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:28px}
+.cert-tile{display:grid;gap:14px}
+.cert-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.namebox{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:28px}
+.namebox input{border:1px solid var(--line-2);background:#fff;border-radius:12px;padding:10px 14px;width:260px;max-width:100%;font-weight:700}
+.copied{font-size:.88rem;color:var(--good);font-weight:800}
+
+
+/* ===== Social network shell (LinkedIn-style) ===== */
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.sub{display:block;color:var(--ink-3);font-size:.86rem;line-height:1.4}
+.sub.small,.small{font-size:.78rem}
+.center{text-align:center}
+.ink{color:var(--ink)}
+.top .bar-row{display:flex;align-items:center;gap:14px;flex-wrap:nowrap;padding-block:6px}
+.brand .brand-text{display:inline}
+.searchbox{position:relative;display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:0 12px;flex:0 1 300px;min-width:0;color:var(--ink-3)}
+.searchbox input{border:0;background:none;outline:none;padding:9px 0;width:100%;min-width:0;font-size:.92rem;color:var(--ink)}
+.searchbox:focus-within{border-color:#C3CCFA;background:#fff}
+.gresults{position:absolute;top:calc(100% + 8px);left:0;width:min(380px,calc(100vw - 32px));background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:8px;z-index:40;display:grid;gap:2px}
+.gresults .gr-h{font-size:11px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--ink-3);padding:8px 10px 4px}
+.gresults button{display:flex;align-items:center;gap:10px;text-align:left;border:0;background:none;padding:8px 10px;border-radius:10px;cursor:pointer;color:var(--ink)}
+.gresults button:hover{background:var(--surface-2)}
+.nav{display:flex;margin-left:auto;gap:2px}
+.nav button{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:76px;padding:8px 6px 6px;border:0;background:none;cursor:pointer;color:#5B657B;font-size:12px;font-weight:700;border-bottom:2px solid transparent}
+.nav button:hover{color:var(--ink)}
+.nav button[aria-current="true"]{color:var(--ink);border-image:var(--grad) 1;border-bottom:2px solid}
+.nav #me-av{display:block;line-height:0}
+.nbadge{position:absolute;top:4px;left:calc(50% + 4px);min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:#E5484D;color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center;border:2px solid var(--bg)}
+@media (max-width:900px){.brand .brand-text{display:none}.nav button{min-width:56px}}
+@media (max-width:640px){.gresults{position:fixed;left:16px;right:16px;width:auto;top:calc(env(safe-area-inset-top,0px) + 64px)}.top .bar-row{flex-wrap:wrap}.searchbox{flex:1 1 auto}.nav{width:100%;justify-content:space-between;margin:0}.nav button{min-width:0;flex:1;font-size:11px}}
+
+.av{display:inline-grid;place-items:center;border-radius:50%;color:#fff;font-family:var(--font-display);font-weight:800;flex:none;background:var(--av);letter-spacing:-.02em}
+.av.org{border-radius:12px}
+.av svg{width:55%;height:55%}
+.av-s{width:32px;height:32px;font-size:.72rem}
+.av-m{width:48px;height:48px;font-size:1rem}
+.av-l{width:72px;height:72px;font-size:1.5rem;border:3px solid #fff}
+.av-xl{width:136px;height:136px;font-size:2.9rem;border:5px solid #fff}
+.av-btn{border:0;background:none;padding:0;cursor:pointer;line-height:0;border-radius:50%}
+.name-link{border:0;background:none;padding:0;cursor:pointer;font-weight:800;color:var(--ink);text-align:left;font-size:.98rem}
+.name-link:hover{color:var(--blue);text-decoration:underline;text-underline-offset:2px}
+.name-link.big{font-family:var(--font-display);font-size:1.12rem;letter-spacing:-.02em}
+.role{display:inline-block;margin-left:8px;font-size:.68rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:6px;background:var(--primary-soft);color:var(--blue);vertical-align:middle;font-family:var(--font-body)}
+.role.partner{background:#F0EAFF;color:#6D4BD8}
+.icon-btn{border:0;background:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;cursor:pointer;color:var(--ink-3);flex:none}
+.icon-btn:hover{background:var(--surface-2);color:var(--ink)}
+.linkbtn.quiet{color:var(--ink-3);font-weight:600;font-size:.84rem}
+
+.layout3{display:grid;grid-template-columns:230px minmax(0,1fr) 300px;gap:22px;align-items:start}
+.layout2{display:grid;grid-template-columns:260px minmax(0,1fr);gap:22px;align-items:start}
+.layout2.rev{grid-template-columns:minmax(0,1fr) 300px}
+@media (max-width:1080px){.layout3{grid-template-columns:230px minmax(0,1fr)}.layout3 .rail-r{grid-column:2}}
+@media (max-width:820px){.layout3,.layout2,.layout2.rev{grid-template-columns:1fr}.layout3 .rail-r{grid-column:auto}}
+.rail-l,.rail-r,.stack,.feed{display:grid;gap:14px;min-width:0}
+.rail-l{position:sticky;top:calc(env(safe-area-inset-top,0px) + 86px)}
+@media (max-width:820px){.rail-l{position:static}}
+.box{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow-sm);min-width:0}
+.pad{padding:22px}
+.pad-s{padding:16px;display:grid;gap:12px}
+.box-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.box-head.flat{padding:0 0 14px;border:0}
+.box-head h2{font-size:1.15rem;letter-spacing:-.03em}
+.rail-h{font-size:1rem;letter-spacing:-.02em}
+.safety{display:flex;gap:8px;align-items:flex-start;font-size:.8rem;color:var(--ink-3);padding:0 6px;line-height:1.45}
+.safety svg{flex:none;margin-top:2px;color:var(--teal)}
+
+.mini-profile{overflow:hidden;text-align:center;display:grid;justify-items:center;padding-bottom:0}
+.mini-banner{height:62px;width:100%;background:var(--grad)}
+.mini-profile .av-btn{margin-top:-36px}
+.mini-profile .name-link{margin-top:8px}
+.mini-profile p{padding:2px 16px 14px}
+.mini-stats{width:100%;border-top:1px solid var(--line);display:grid}
+.mini-stats button{display:flex;justify-content:space-between;align-items:center;gap:8px;border:0;background:none;padding:9px 16px;font-size:.82rem;color:var(--ink-3);cursor:pointer;text-align:left;font-weight:600}
+.mini-stats button:hover{background:var(--surface-2)}
+.mini-stats b{color:var(--blue);font-variant-numeric:tabular-nums}
+.mini-course{display:flex;gap:11px;align-items:center;border:0;background:none;padding:6px;margin:-6px;border-radius:12px;cursor:pointer;text-align:left;color:var(--ink);width:calc(100% + 12px)}
+.mini-course:hover{background:var(--surface-2)}
+.mini-course > span:last-child{display:grid;gap:3px;min-width:0;flex:1}
+.mini-course b{font-size:.92rem;line-height:1.25}
+.ico.sm{width:38px;height:38px;border-radius:11px}
+.ico.sm svg{width:19px;height:19px}
+
+.composer{padding:16px;display:grid;gap:12px}
+.composer-row{display:flex;gap:12px;align-items:flex-start}
+.composer textarea{flex:1;min-width:0;border:1px solid var(--line-2);border-radius:14px;padding:12px 14px;resize:vertical;background:var(--bg);font-size:.95rem;line-height:1.5}
+.composer textarea:focus{outline:none;border-color:#C3CCFA;background:#fff}
+.composer-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding-left:60px}
+.composer-tools .sub{display:inline-flex;align-items:center;gap:5px;margin-right:auto}
+.composer-tools .select{max-width:100%}
+@media (max-width:520px){.composer-tools{padding-left:0}}
+
+.post{padding:16px 18px 6px;display:grid;gap:12px}
+.post-context{font-size:.8rem;color:var(--ink-3);display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--line);padding-bottom:10px;font-weight:600}
+.post-head{display:flex;gap:12px;align-items:flex-start}
+.post-head .who{flex:1;min-width:0}
+.post-head .sub{font-size:.8rem;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.post-text{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.98rem;color:#26304a}
+.attach{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:14px;align-items:center;border:1px solid var(--line);border-radius:16px;padding:12px;background:linear-gradient(110deg,color-mix(in srgb,var(--fc) 8%,#fff),#fff 60%)}
+.attach-art{width:84px;height:84px;border-radius:12px;background:#fff;border:1px solid var(--line);display:grid;place-items:center;align-content:center;gap:2px;font-size:.62rem;font-weight:800;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;text-align:center;padding:4px}
+.attach-art .seal{width:46px;height:46px}
+.attach-body{display:grid;gap:2px;min-width:0}
+.attach-body b{font-family:var(--font-display);font-size:1.06rem;letter-spacing:-.02em}
+@media (max-width:560px){.attach{grid-template-columns:auto minmax(0,1fr)}.attach .btn{grid-column:1/-1}}
+.quoted{border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:grid;gap:8px;background:var(--bg)}
+.quoted-head{display:flex;align-items:center;gap:8px}
+.quoted p{font-size:.92rem;color:var(--ink-2)}
+.post-stats{display:flex;justify-content:space-between;align-items:center;font-size:.82rem;color:var(--ink-3);font-variant-numeric:tabular-nums;border-bottom:1px solid var(--line);padding-bottom:8px}
+.cheer-dot{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--grad);color:#fff;vertical-align:-4px}
+.post-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.post-actions button{display:flex;align-items:center;justify-content:center;gap:7px;border:0;background:none;padding:10px 6px;border-radius:10px;cursor:pointer;font-weight:700;font-size:.9rem;color:#5B657B}
+.post-actions button:hover{background:var(--surface-2);color:var(--ink)}
+.post-actions button[aria-pressed="true"]{color:var(--blue)}
+.post-actions button[aria-pressed="true"] svg{fill:color-mix(in srgb,var(--blue) 18%,transparent)}
+.comments{display:grid;gap:12px;padding:6px 0 14px}
+.c-form{display:flex;gap:10px;align-items:center}
+.c-form input{flex:1;min-width:0;border:1px solid var(--line-2);border-radius:999px;padding:9px 14px;background:var(--bg)}
+.comment{display:flex;gap:10px;align-items:flex-start}
+.c-bubble{background:var(--surface-2);border-radius:4px 14px 14px 14px;padding:10px 12px;flex:1;min-width:0}
+.c-bubble .name-link{font-size:.88rem}
+.c-bubble .sub{font-size:.74rem}
+.c-bubble p{font-size:.92rem;margin-top:4px;overflow-wrap:anywhere}
+.post.reported{padding:16px 18px;display:flex;gap:12px;align-items:center;justify-content:space-between;color:var(--ink-3);font-size:.9rem}
+.post.reported p{display:flex;gap:8px;align-items:center}
+
+.suggest{display:flex;gap:10px;align-items:flex-start}
+.suggest .who{display:grid;gap:4px;min-width:0;justify-items:start}
+.suggest .btn{margin-top:4px}
+.trend{list-style:none;margin:0;padding:0;display:grid;gap:2px;counter-reset:t}
+.trend li button{display:grid;border:0;background:none;padding:7px 8px 7px 34px;border-radius:10px;cursor:pointer;text-align:left;width:100%;position:relative;color:var(--ink)}
+.trend li button::before{counter-increment:t;content:counter(t);position:absolute;left:8px;top:8px;font-family:var(--font-display);font-weight:800;color:var(--ink-3)}
+.trend li button:hover{background:var(--surface-2)}
+
+.manage{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.manage li{display:flex;justify-content:space-between;gap:12px;font-size:.9rem;color:var(--ink-2)}
+.manage b{text-align:right}
+.invite{display:flex;gap:12px;align-items:center;padding:14px 20px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.invite:last-child{border-bottom:0}
+.invite .who{flex:1;min-width:180px;display:grid}
+.invite-actions{display:flex;gap:8px}
+.empty-in{padding:18px 20px;color:var(--ink-3)}
+/* admin: add students to Connect */
+.adm-bar{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) auto;gap:10px;align-items:end;padding:16px 20px;border-bottom:1px solid var(--line)}
+@media (max-width:760px){.adm-bar{grid-template-columns:1fr}}
+.adm-bar label{display:grid;gap:6px;font-size:.8rem;font-weight:800;color:var(--ink-3)}
+.adm-bar input{border:1px solid var(--line-2);background:#fff;border-radius:12px;padding:9px 12px;font-weight:600;font-size:.9rem;width:100%;color:var(--ink)}
+.adm-row{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 20px;border-bottom:1px solid var(--line)}
+.adm-row:last-child{border-bottom:0}
+.adm-row input[type=checkbox]{width:20px;height:20px;accent-color:var(--blue)}
+.adm-row .who{display:grid;min-width:0}
+.adm-row .who b{overflow-wrap:anywhere}
+.adm-row .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+@media (max-width:620px){.adm-row{grid-template-columns:auto auto minmax(0,1fr)}.adm-row .acts{grid-column:1/-1;justify-content:flex-start}}
+.added-pill{font-size:.74rem;font-weight:800;padding:3px 9px;border-radius:999px;background:color-mix(in srgb,var(--green,#12A27A) 14%,#fff);color:#0d7a5c}
+.my-path{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:16px 20px;margin-bottom:18px;border-radius:18px;background:linear-gradient(120deg,#EEF1FF,#F4EEFF);border:1px solid #DCE2FB}
+.my-path .who{flex:1;min-width:200px;display:grid;gap:2px}
+.my-path .who b{font-size:1.1rem}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
+.pcard{overflow:hidden;display:grid;justify-items:center;text-align:center;padding-bottom:14px;gap:8px;box-shadow:none}
+.pcard-banner{height:56px;width:100%;background:linear-gradient(120deg,color-mix(in srgb,var(--pc) 70%,#fff),color-mix(in srgb,var(--pc) 25%,#fff))}
+.pcard .av-btn{margin-top:-36px}
+.pcard-body{display:grid;gap:4px;padding:0 12px;flex:1;align-content:start}
+.pcard-body p{font-size:.82rem}
+
+.learn-hero{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:28px;align-items:stretch;margin-bottom:8px}
+.learn-hero h1{font-size:clamp(2.2rem,4.6vw,3.5rem);letter-spacing:-.05em;margin-top:12px}
+.learn-hero h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.learn-hero .lede{margin-top:14px;font-size:1.06rem;color:var(--ink-2);max-width:56ch}
+.learn-stats{display:flex;flex-wrap:wrap;gap:18px;margin-top:18px;color:var(--ink-3);font-size:.92rem}
+.learn-stats b{font-family:var(--font-display);font-size:1.3rem;color:var(--ink);margin-right:4px}
+.continue{background:#fff;border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:18px;display:grid;gap:14px;align-content:start}
+@media (max-width:860px){.learn-hero{grid-template-columns:1fr}}
+.paths{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}
+.path{display:grid;gap:6px;text-align:left;padding:18px;cursor:pointer;color:var(--ink);transition:transform .2s,box-shadow .2s}
+.path:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.path.on{border-color:#C3CCFA;background:linear-gradient(#fff,#fff) padding-box,var(--grad) border-box;border:1.5px solid transparent}
+.path b{font-family:var(--font-display);font-size:1.08rem;letter-spacing:-.02em;margin-top:6px}
+.path-icons{display:flex;gap:6px}
+.interest-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:-12px 0 24px}
+.interest-row .sub{display:inline;margin-right:4px;font-weight:700}
+.field-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 20px}
+.field-row .sub{display:inline;margin-right:4px;font-weight:700}
+
+.profile-top{overflow:hidden}
+.p-banner{height:170px;background:linear-gradient(120deg,color-mix(in srgb,var(--pc) 80%,#10B9AF),color-mix(in srgb,var(--pc) 70%,#9363E7));position:relative}
+.p-banner.me{background:var(--grad)}
+.p-banner::after{content:"";position:absolute;inset:0;background:radial-gradient(300px 160px at 85% 20%,rgba(255,255,255,.28),transparent 70%)}
+.p-main{padding:0 24px 22px;display:grid;grid-template-columns:auto;gap:12px}
+.p-main .av-xl{margin-top:-72px;position:relative}
+.p-id h1{font-size:clamp(1.6rem,3vw,2.1rem);letter-spacing:-.04em}
+.p-headline{font-size:1.06rem;color:var(--ink-2);margin:4px 0 6px}
+.p-id .sub{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.p-actions{display:flex;flex-wrap:wrap;gap:10px}
+.open-to{margin:0 24px 22px;padding:14px 16px;border-radius:14px;background:var(--gold-soft);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;color:#0D4F4A}
+.open-to span{grid-column:1;font-size:.92rem}
+.open-to .linkbtn{grid-row:1/3;grid-column:2;align-self:center}
+.sec-h{font-size:1.2rem;letter-spacing:-.03em;margin-bottom:12px}
+.box-head.flat .sec-h{margin:0}
+.about{color:var(--ink-2);white-space:pre-wrap;overflow-wrap:anywhere}
+.act-row{display:grid;gap:4px;text-align:left;border:0;border-top:1px solid var(--line);background:none;padding:12px 0;cursor:pointer;width:100%;color:var(--ink)}
+.act-row:first-of-type{border-top:0;padding-top:0}
+.act-row .tag{justify-self:start}
+.cert-rows,.skills,.clubs{list-style:none;margin:0;padding:0;display:grid}
+.cert-rows li{display:flex;gap:14px;padding:14px 0;border-top:1px solid var(--line);align-items:flex-start}
+.cert-rows li:first-child{border-top:0;padding-top:0}
+.cert-rows li > div{display:grid;gap:3px;justify-items:start}
+.cert-rows .btn{margin-top:6px}
+.skills li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.skills li:first-child{border-top:0;padding-top:0}
+.clubs li{display:flex;gap:14px;align-items:center;padding:10px 0}
+.club-ico{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;background:var(--surface-2);font-family:var(--font-display);font-weight:800;color:var(--ink-2);flex:none}
+.club-ico.school{background:var(--grad);color:#fff}
+
+.notif{display:flex;gap:14px;align-items:center;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:16px 20px;cursor:pointer;color:var(--ink);font-size:.95rem}
+.notif:last-child{border-bottom:0}
+.notif:hover{background:var(--bg)}
+.notif.new{background:#F2F5FF}
+.notif .n-text{flex:1;min-width:0}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:60;background:var(--ink);color:#fff;padding:12px 18px;border-radius:14px;font-weight:700;font-size:.92rem;box-shadow:0 20px 40px -16px rgba(28,34,56,.5);max-width:calc(100vw - 32px)}
+.foot-note{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:center;font-size:.84rem;color:var(--ink-3);padding-block:0 40px}
+main{padding-block:28px 40px}
+
+.modal.light{background:#fff;color:var(--ink);border:1px solid var(--line);box-shadow:var(--shadow);text-align:left}
+.modal.light h2{color:var(--ink);font-size:1.6rem}
+.modal.light .eyebrow{color:#52617C}
+.modal.light .btn.ghost{background:#fff;color:#35415E;border-color:#E4E9F3}
+.modal.light textarea{width:100%;border:1px solid var(--line-2);border-radius:10px;padding:8px}
+.modal-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.modal.light .modal-actions{justify-content:flex-end}
+.edit-form{display:grid;gap:14px}
+.edit-form input,.edit-form textarea{border:1px solid var(--line-2);background:var(--bg);border-radius:12px;padding:10px 12px;width:100%;font-weight:500}
+.edit-form .field label{justify-content:flex-start}
+
+/* Modal: Reader plum moment */
+.overlay{position:fixed;inset:0;background:rgba(28,34,56,.45);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:grid;place-items:center;z-index:50;padding:max(16px,env(safe-area-inset-left,0px))}
+.modal{border:2px solid transparent;background:radial-gradient(360px 220px at 50% 0,rgba(124,58,237,.35),transparent 70%) padding-box,linear-gradient(var(--plum),var(--plum)) padding-box,var(--grad-reader) border-box;color:#F8F9FC;border-radius:28px;padding:30px;max-width:520px;width:100%;display:grid;gap:18px;text-align:center;max-height:90vh;overflow:auto;box-shadow:0 44px 96px -40px rgba(147,72,239,.75)}
+.modal h2{font-size:2.1rem;letter-spacing:-.045em;color:#fff}
+.modal .eyebrow{color:#A5F3FC}
+.modal .pill{justify-self:center}
+.modal .btn.ghost{background:rgba(255,255,255,.06);color:#fff;border-color:rgba(255,255,255,.2)}
+.demo-note{font-size:.88rem;color:var(--ink-3);display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:36px}
+h1[style]{font-size:clamp(2.1rem,4.4vw,3rem)!important;letter-spacing:-.045em}
+@keyframes rise{from{transform:translateY(12px);opacity:.5}to{transform:none;opacity:1}}
+.modal{animation:rise .3s ease}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ===== Connect-only pieces, in the same style as the rest of the page ===== */
+:root{
+  --build:#F0703A; --serve:#4F72E8; --teach:#8B64E9; --heal:#E5484D; --help:#D946A8;
+  --create:#11B9AF; --tech:#0EA5C6; --nature:#2F9E57; --fly:#B98A12; --perform:#C026D3; --sun:#F29A14; --leaf:#12A27A; --coral:#E5484D;
+}
+a{color:var(--blue)}
+.top .bar-row{min-height:60px}
+.brand{text-decoration:none}
+.top-actions{margin-left:auto;display:flex;gap:8px}
+.nav .me-wrap{position:relative;display:flex}
+.nav .me-wrap > button{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:64px;padding:8px 6px 6px;border:0;background:none;cursor:pointer;color:#5B657B;font-size:12px;font-weight:700;border-bottom:2px solid transparent;border-left:1px solid var(--line)}
+.nav .me-wrap > button[aria-current="true"]{color:var(--ink);border-image:var(--grad) 1;border-bottom:2px solid}
+.nav button svg{width:22px;height:22px}
+.menu{position:absolute;right:0;top:calc(100% + 8px);background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:6px;min-width:250px;z-index:50}
+.menu .who{display:flex;gap:10px;align-items:center;padding:10px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.menu .who b{display:block}.menu .who span{font-size:.8rem;color:var(--ink-3)}
+.menu a,.menu button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;padding:10px 12px;border-radius:10px;text-decoration:none;color:var(--ink);font-weight:700;font-size:.9rem;text-align:left;cursor:pointer}
+.menu a:hover,.menu button:hover{background:var(--surface-2)}
+.menu svg{width:18px;height:18px;color:var(--ink-3)}
+@media (max-width:640px){.nav{overflow-x:auto}.nav .me-wrap > button{border-left:0}.menu{right:0;position:fixed;top:auto;left:16px;right:16px}}
+.verified{display:inline-grid;place-items:center;width:17px;height:17px;border-radius:50%;background:var(--grad);color:#fff;vertical-align:-3px}
+.verified svg{width:11px;height:11px;stroke-width:3.2}
+.av-btn{display:inline-block}
+.mini-profile .name-link{display:block;text-align:center}
+.mini-course[aria-current="true"]{background:var(--surface-2)}
+.ico svg{stroke:currentColor}
+.ico.lg{width:72px;height:72px;border-radius:20px}.ico.lg svg{width:34px;height:34px}
+.pillinput{flex:1;border:1px solid var(--line-2);border-radius:14px;padding:13px 14px;background:var(--bg);color:var(--ink-3);font-weight:600;text-align:left;cursor:pointer}
+.pillinput:hover{border-color:#C3CCFA;background:#fff}
+.composer-opts{display:flex;justify-content:space-around;flex-wrap:wrap;gap:4px;padding-left:60px}
+.composer-opts button{display:flex;align-items:center;gap:8px;border:0;background:none;padding:8px 12px;border-radius:10px;font-weight:700;color:#5B657B;cursor:pointer}
+.composer-opts button:hover{background:var(--surface-2);color:var(--ink)}
+.composer-opts svg{width:19px;height:19px}
+.composer-opts button:nth-child(1) svg{color:var(--sun)}.composer-opts button:nth-child(2) svg{color:var(--teal)}.composer-opts button:nth-child(3) svg{color:var(--blue)}
+@media (max-width:520px){.composer-opts{padding-left:0}}
+.composer .two,.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.field > span{font-weight:800;font-size:.86rem}
+.select,.field select,.field input[type=text],.field input[type=date],.formgrid select{border:1px solid var(--line-2);background:#fff;border-radius:12px;padding:9px 12px;font-weight:600;font-size:.9rem;width:100%;color:var(--ink)}
+.composer-tools .sub{display:inline-flex;align-items:center;gap:6px}
+.composer-tools .sub svg,.p-id .sub svg,.post-head .sub svg,.open-to svg{width:13px;height:13px}
+.post-head .name{display:flex;align-items:center;flex-wrap:wrap;gap:4px;font-weight:800}
+.post.pending{outline:1.5px dashed var(--line-2);outline-offset:-1px}
+.pendbar{display:flex;gap:8px;align-items:center;margin-bottom:12px;padding:10px 12px;border-radius:12px;background:#FFF4E0;color:#7A4B00;font-size:.88rem;font-weight:700}
+.pendbar.back{background:var(--surface-2);color:var(--ink-2)}
+.pendbar svg{width:16px;height:16px;flex:none}
+.cheer-dot svg{width:11px;height:11px}
+.post-actions{grid-template-columns:repeat(4,1fr)}
+.post-actions svg{width:18px;height:18px}
+.safety svg{width:15px;height:15px}
+.attach-art .ico{width:46px;height:46px;box-shadow:none}
+.icon-btn svg{width:20px;height:20px}
+.icon-btn .small{font-size:.7rem;font-weight:800;color:var(--bad)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row.end{justify-content:flex-end}.row.between{justify-content:space-between}
+.stack{display:grid;gap:14px}
+.page{display:grid;gap:18px}
+.page.narrow{max-width:760px;margin:0 auto}
+.page-h{font-size:clamp(1.7rem,3.4vw,2.4rem);letter-spacing:-.045em}
+.empty{padding:28px;text-align:center;color:var(--ink-3);background:#fff;border:1px dashed var(--line-2);border-radius:18px}
+.skeleton{height:110px;border-radius:18px;background:linear-gradient(90deg,#fff 0%,var(--surface-2) 50%,#fff 100%);background-size:200% 100%;animation:shimmer 1.2s infinite linear}
+@keyframes shimmer{to{background-position:-200% 0}}
+.notice{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:16px;background:var(--primary-soft);color:var(--ink);font-size:.92rem}
+.notice svg{width:20px;height:20px;color:var(--blue);flex:none;margin-top:1px}
+.chip.on,.chip[aria-pressed="true"]{background:var(--primary-soft);border-color:#C3CCFA;color:var(--blue)}
+.chip.wait{background:#FFF4E0;border-color:#F8D8A0;color:#7A4B00}
+.chip svg{width:14px;height:14px;vertical-align:-2px}
+.btn.ok{background:var(--good);box-shadow:none}
+.btn svg{width:17px;height:17px}
+.badge-match svg{width:12px;height:12px;vertical-align:-2px}
+.earned svg{width:15px;height:15px}
+.goldbtn svg{width:16px;height:16px}
+.spin{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:center}
+.spin-window{font-family:var(--font-display);font-weight:800;font-size:clamp(1.5rem,3.4vw,2rem);letter-spacing:-.04em;min-height:1.3em;margin:4px 0}
+.spin-window.rolling{color:var(--ink-3)}
+.grid.wide{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+.quest{display:grid;gap:12px;align-content:start}
+.steps{display:grid;gap:2px}
+.step{display:flex;gap:10px;align-items:flex-start;border:0;background:none;border-radius:10px;padding:7px 6px;text-align:left;font-size:.92rem;color:var(--ink);cursor:pointer;width:100%}
+.step:hover:not(:disabled){background:var(--surface-2)}
+.step:disabled,div.step{cursor:default}
+.box-check{width:22px;height:22px;border-radius:7px;border:2px solid var(--line-2);flex:none;display:grid;place-items:center;margin-top:1px}
+.step[aria-pressed="true"] .box-check{background:var(--grad);border-color:transparent;color:#fff}
+.step[aria-pressed="true"] > span:last-child{color:var(--ink-3)}
+.box-check svg{width:13px;height:13px;stroke-width:3}
+.xp{font-size:.76rem;font-weight:800;color:#0D6E66;background:var(--gold-soft);border-radius:999px;padding:3px 10px;white-space:nowrap}
+.event{display:grid;grid-template-columns:60px minmax(0,1fr);gap:14px;padding:16px 0;border-top:1px solid var(--line)}
+.event:first-of-type{border-top:0;padding-top:4px}
+.date{text-align:center;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#fff;align-self:start;width:56px;flex:none}
+.date .m{font-size:.66rem;font-weight:800;letter-spacing:.06em;background:var(--grad);color:#fff;padding:3px 0}
+.date .d{font-family:var(--font-display);font-weight:800;font-size:1.4rem;line-height:1.25}
+.date .w{font-size:.66rem;color:var(--ink-3);font-weight:700;padding-bottom:4px}
+.event .who{display:grid;gap:2px;min-width:0}
+.formgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.modal.career{padding:0;max-width:640px;text-align:left;gap:0;overflow:auto}
+.m-banner{height:110px;background:linear-gradient(115deg,var(--fc),color-mix(in srgb,var(--fc) 30%,#fff));position:relative;border-radius:22px 22px 0 0}
+.m-banner .x{position:absolute;top:12px;right:12px;background:rgba(255,255,255,.9)}
+.m-top{padding:0 24px;display:grid;gap:4px;justify-items:start}
+.m-top .ico.lg{margin-top:-36px;border:4px solid #fff}
+.m-top h2{font-size:1.7rem;color:var(--ink);margin-top:6px}
+.m-body{padding:16px 24px 24px;display:grid;gap:18px}
+.modal-actions.start{justify-content:flex-start}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.fact{background:var(--surface-2);border-radius:12px;padding:10px 12px}
+.fact b{display:block;font-size:.92rem}.fact span{font-size:.72rem;font-weight:800;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em}
+.startnow{display:grid;gap:4px;margin-top:8px}
+.startnow div{display:grid;grid-template-columns:48px minmax(0,1fr);gap:10px;font-size:.9rem;align-items:baseline;padding:8px 12px;border-radius:12px;color:var(--ink-2)}
+.startnow div b{font-size:.76rem}
+.startnow div.me{background:var(--primary-soft);color:var(--ink)}.startnow div.me b{color:var(--blue)}
+.stamps{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px}
+.stamp{border-radius:14px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;border:1px dashed var(--line-2);color:var(--ink-3);font-size:.76rem;font-weight:700;padding:12px 8px;background:transparent;line-height:1.2;cursor:pointer}
+.stamp.got{border:1px solid var(--line);color:var(--ink);background:#fff}
+.stamp:not(.got) .ico{box-shadow:none;color:var(--ink-3)}
+.cbars{display:grid;gap:10px}
+.cbar{display:grid;grid-template-columns:120px minmax(0,1fr) 22px;gap:10px;align-items:center;font-size:.84rem;font-weight:700}
+.cbar .bar{display:block}.cbar .tnum{text-align:right;color:var(--ink-3)}
+.badge{display:inline-flex;gap:6px;align-items:center;border-radius:999px;padding:5px 12px;font-weight:800;font-size:.8rem;background:var(--gold-soft);color:#0D6E66}
+.badge svg{width:14px;height:14px}
+.badge.locked{background:var(--surface-2);color:var(--ink-3)}
+.table-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:600px;font-size:.9rem}
+th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink-3);background:var(--surface-2)}
+td.tnum,th.tnum{text-align:right}
+tr:last-child td{border-bottom:0}
+.road{display:grid}
+.road-g{display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;position:relative;padding-bottom:10px}
+.road-g::before{content:"";position:absolute;left:21px;top:44px;bottom:0;width:2px;background:var(--line)}
+.road-g:last-child::before{display:none}
+.road-g .gnum{width:44px;height:44px;border-radius:14px;background:var(--surface-2);display:grid;place-items:center;font-family:var(--font-display);font-weight:800;color:var(--ink-3)}
+.road-g.now .gnum{background:var(--grad);color:#fff}
+.sch{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.sch:first-child{border-top:0}
+.sch .who{display:grid}
+.statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:16px}
+.statgrid div{background:var(--surface-2);border-radius:14px;padding:12px 14px}
+.statgrid b{display:block;font-family:var(--font-display);font-size:1.4rem;font-weight:800}
+.statgrid span{font-size:.78rem;color:var(--ink-3);font-weight:700}
+.starter{padding:12px 14px;border-radius:14px;background:var(--surface-2);font-size:.94rem}
+.checkline{display:flex;gap:10px;align-items:center;padding:6px 0}
+.checkline svg{width:18px;height:18px;color:var(--good);flex:none}
+.needs-ok{border:1.5px solid transparent;background:linear-gradient(#fff,#fff) padding-box,var(--grad) border-box}
+.approval{display:grid;gap:10px;padding:16px 20px;border-top:1px solid var(--line)}
+.approval .post-head{padding:0}
+.approval .tag{justify-self:start}
+.center-page{max-width:560px;margin:40px auto}
+.box.center{text-align:center;justify-items:center}
+.lock-ico{width:64px;height:64px;border-radius:20px;background:var(--grad);color:#fff;display:grid;place-items:center}
+.lock-ico svg{width:30px;height:30px}
+.land{margin-top:8px}
+.join{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
+.points{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:28px}
+.pt{display:flex;gap:8px;align-items:center;font-weight:800}
+.pt svg{width:18px;height:18px;color:var(--good)}
+.hero-cert{transform:rotate(1.5deg)}
+.checks svg{stroke:currentColor}
+.bar{display:block}
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:90}
+@media (max-width:820px){.spin{grid-template-columns:1fr}}
+.article,.side{min-width:0}
+.article{grid-template-columns:minmax(0,1fr)}
+.article > section{min-width:0}
+@media (max-width:860px){.lesson-layout{grid-template-columns:minmax(0,1fr)}}
+.terms,.tryit,.reading{min-width:0}
+
+
+/* Videos (shared/connectVideos.ts): a poster that turns into the YouTube player when pressed. */
+.vid-wrap{margin:0;display:grid;gap:10px;min-width:0}
+.vid{position:relative;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#0B0D18}
+.vid .poster{position:absolute;inset:0;display:block;width:100%;height:100%;padding:0;border:0;background:none;cursor:pointer}
+.vid .poster:focus-visible{outline:3px solid var(--blue);outline-offset:-3px}
+.vid img{width:100%;height:100%;object-fit:cover;display:block}
+.vid .play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:68px;height:68px;border-radius:50%;background:rgba(10,12,24,.72);color:#fff;display:grid;place-items:center;transition:transform .15s ease}
+.vid .play svg{width:30px;height:30px;margin-left:4px;fill:currentColor}
+.vid .poster:hover .play{transform:translate(-50%,-50%) scale(1.08)}
+.vid iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.vid-cap{display:grid;gap:3px;font-size:.92rem;line-height:1.4}
+.vid-cap .sub a{color:var(--blue);font-weight:700}
+.star-tag{display:inline-flex;align-items:center;gap:6px;justify-self:start;font-size:.78rem;font-weight:800;color:#8A4B00;background:#FFF1D6;border:1px solid #F5D08A;border-radius:999px;padding:3px 10px}
+.star-tag svg{width:14px;height:14px;fill:currentColor}
+.stars-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,270px),1fr));gap:18px}
+/* Learn with a star: courses organized by the celebrity who teaches them */
+.star-course-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:18px}
+.star-course{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;border-radius:18px;overflow:hidden;background:var(--card,#fff);border:1px solid color-mix(in srgb,var(--fc) 30%,transparent);box-shadow:0 6px 18px rgba(16,24,40,.08);transition:transform .15s,box-shadow .15s}
+.star-course:hover,.star-course:focus-visible{transform:translateY(-3px);box-shadow:0 12px 28px rgba(16,24,40,.16)}
+.star-course:focus-visible{outline:3px solid var(--fc);outline-offset:2px}
+.sc-photo{position:relative;display:block;aspect-ratio:16/10;background:linear-gradient(125deg,color-mix(in srgb,var(--fc) 55%,#19243e),#1b2540)}
+.sc-photo img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 40%}
+.sc-photo::after{content:"";position:absolute;inset:40% 0 0;background:linear-gradient(transparent,rgba(12,20,38,.88));pointer-events:none}
+.sc-name{position:absolute;z-index:1;left:14px;right:12px;bottom:10px;color:#fff;font-size:1.25rem;font-weight:900;line-height:1.15;text-shadow:0 1px 6px rgba(0,0,0,.6)}
+.sc-field{position:absolute;z-index:1;top:10px;left:10px;display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(12,20,38,.72);color:#fff;font-size:.72rem;font-weight:800;letter-spacing:.02em}
+.sc-body{display:flex;flex-direction:column;gap:5px;padding:12px 14px 14px}
+.sc-role{font-size:.8rem;color:var(--muted,#5b6475);line-height:1.35}
+.sc-course{font-size:.98rem;line-height:1.3}
+.sc-meta{font-size:.78rem;font-weight:700;color:var(--muted,#5b6475)}
+.star-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;box-shadow:var(--shadow-sm);display:grid;gap:10px;align-content:start;min-width:0}
+.star-card .btn{justify-self:start}
+.stars-grid.one{grid-template-columns:1fr}
+.try-it{display:grid;gap:2px;border-radius:12px;padding:10px 12px;background:color-mix(in oklab,var(--fc,#5169ED) 10%,var(--surface));border-left:4px solid var(--fc,#5169ED);font-size:.9rem}
+.try-it b{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:color-mix(in oklab,var(--fc,#5169ED) 75%,var(--ink,#111))}
+.star-foot{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.star-foot:empty{display:none}
+.star-foot .seen{font-size:.76rem;font-weight:800;color:#0f8a5f}
+.with-star{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;font-weight:800;color:#8A4B00}
+.with-star svg{width:14px;height:14px;fill:currentColor}
+.career-vid{display:grid;gap:8px}
+.lesson-star-thumb{width:112px;height:70px;object-fit:cover;object-position:center;border-radius:10px;flex-shrink:0;background:#192333}@media(max-width:520px){.lesson-star-thumb{width:84px;height:58px}}/* Celebrity video stills on the main Connect course selection cards. */
+.course-celeb-hero{height:190px;position:relative;overflow:hidden;background:linear-gradient(125deg,color-mix(in srgb,var(--fc) 50%,#19243e),#1b2540)}
+.course-celeb-hero img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 42%}
+.course-celeb-hero::after{content:"";position:absolute;inset:35% 0 0;background:linear-gradient(transparent,rgba(12,20,38,.83));pointer-events:none}
+.course-celeb-chip{position:absolute;z-index:1;bottom:13px;left:15px;right:12px;display:flex;align-items:center;gap:7px;color:#fff;font-size:.9rem;font-weight:800;line-height:1.35;text-shadow:0 1px 5px rgba(0,0,0,.65)}
+.course-celeb-chip svg{height:16px;width:16px;flex:none;fill:#ffd66b;color:#ffd66b}
+.course-celeb-hero.no-thumb{height:78px}
+.course-celeb-hero.no-thumb::after{display:none}
+@media(max-width:520px){.course-celeb-hero{height:168px}.course-celeb-hero.no-thumb{height:68px}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap bar-row">
+  <a class="brand" href="/social/" aria-label="A.R.I.S.E. Connect home"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#10C8B3"/><stop offset=".5" stop-color="#527BED"/><stop offset="1" stop-color="#955FE5"/></linearGradient></defs><rect x="1" y="1" width="62" height="62" rx="18" fill="url(#lg)"/><path d="M10 26 32 16l22 10-22 10z" fill="none" stroke="#fff" stroke-width="4.5" stroke-linejoin="round"/><path d="M20 31v10c0 3.5 5.5 6 12 6s12-2.5 12-6V31M54 26v12" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="brand-text">A.R.I.S.E<span class="period">.</span> <span class="brand-sub">Connect</span></span></a>
+  <label class="searchbox" id="searchWrap" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="q" type="search" placeholder="Search careers" aria-label="Search careers" autocomplete="off"></label>
+  <nav class="nav" id="nav" aria-label="Main"></nav>
+</div></header>
+<main class="wrap" id="root"></main>
+<div id="modalRoot"></div>
+<canvas id="confetti"></canvas>
+<script>
+/* ================= ICONS ================= */
+const I = {
+  build:'<path d="M14.7 6.3a4 4 0 0 0-5.4 5.1L3 17.7 6.3 21l6.3-6.3a4 4 0 0 0 5.1-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>',
+  serve:'<path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/>',
+  teach:'<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5"/><path d="M8 7h7"/><path d="M8 11h5"/>',
+  heal:'<path d="M20.8 8.6a5 5 0 0 0-8.8-3.2A5 5 0 0 0 3.2 8.6c0 5.4 8.8 11.4 8.8 11.4s8.8-6 8.8-11.4z"/><path d="M7 12h3l1.5-3 2 5 1.5-2H17"/>',
+  help:'<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M15 14.5c3 0 6 1.8 6 5.5"/>',
+  create:'<path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.9 1.6-1.7 0-1.4-1.2-1.6-1.2-2.8 0-1 .8-1.5 1.8-1.5H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="15" cy="7.5" r="1"/>',
+  tech:'<path d="M8 8l-4 4 4 4"/><path d="M16 8l4 4-4 4"/><path d="M14 5l-4 14"/>',
+  nature:'<path d="M5 19c0-8 5-13 15-14-1 10-6 15-14 15"/><path d="M5 19l7-7"/>',
+  perform:'<path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3a3 3 0 0 1-3 4"/><path d="M7 5H4a3 3 0 0 0 3 4"/>',
+  gamepad:'<rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 10.5v4"/><path d="M5 12.5h4"/><circle cx="15.5" cy="11.5" r="1"/><circle cx="18" cy="14" r="1"/>',
+  tv:'<rect x="3" y="4" width="18" height="13" rx="3"/><path d="M10 8l5 2.5-5 2.5z"/><path d="M8 21h8"/>',
+  fly:'<path d="M12 15l-3-3c1.5-5 5-8 10-8 0 5-3 8.5-8 10z"/><path d="M9 12l-4 1 2-4 4-1"/><path d="M12 15l-1 4 4-2 1-4"/><circle cx="15" cy="9" r="1.5"/>',
+  feed:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/>',
+  explore:'<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>',
+  quest:'<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>',
+  event:'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/>',
+  passport:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>',
+  paths:'<path d="M6 21V11a4 4 0 0 1 4-4h8"/><path d="M15 4l3 3-3 3"/><path d="M6 11a4 4 0 0 0-4-4"/>',
+  shield:'<path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/>',
+  check:'<path d="M5 12l5 5 9-10"/>',
+  inbox:'<path d="M3 13h5l1.5 3h5l1.5-3h5"/><path d="M5 5h14l2 8v6H3v-6z"/>',
+  class:'<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2 20c0-3 2.7-5 6-5s6 2 6 5"/><path d="M14 15.3c.6-.2 1.3-.3 2-.3 3.3 0 6 2 6 5"/>',
+  heart:'<path d="M20.8 8.6a5 5 0 0 0-8.8-3.2A5 5 0 0 0 3.2 8.6c0 5.4 8.8 11.4 8.8 11.4s8.8-6 8.8-11.4z"/>',
+  star:'<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+  play:'<path d="M7 4.5v15l13-7.5z"/>',
+  chef:'<path d="M7 14.5V20h10v-5.5"/><path d="M7 14.5a4 4 0 0 1-1.6-7.6A4.5 4.5 0 0 1 12 4a4.5 4.5 0 0 1 6.6 2.9A4 4 0 0 1 17 14.5z"/><path d="M7 17h10"/>',
+  ball:'<circle cx="12" cy="12" r="9"/><path d="M3.5 9.5c3 1.4 6.2 1.4 9 0s6-1.4 8 0"/><path d="M3.5 14.5c3-1.4 6.2-1.4 9 0s6 1.4 8 0"/><path d="M12 3v18"/>',
+  plane:'<path d="M10.5 21l1.5-6-7-1.5V11l7 1V5.5a1.5 1.5 0 0 1 3 0V12l7-1v2.5L15 15l1.5 6-3-1.5z"/>',
+  book:'<path d="M2 5h7a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H2z"/><path d="M22 5h-7a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h8z"/>',
+  plus:'<path d="M12 5v14"/><path d="M5 12h14"/>',
+  x:'<path d="M6 6l12 12"/><path d="M18 6L6 18"/>',
+  lock:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18"/>',
+  users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M18 14.3c2.1.7 3.5 2.6 3.5 5.7"/>',
+  fist:'<path d="M7 11V7a1.5 1.5 0 0 1 3 0v3"/><path d="M10 10V6a1.5 1.5 0 0 1 3 0v4"/><path d="M13 10V7a1.5 1.5 0 0 1 3 0v4"/><path d="M16 11V9a1.5 1.5 0 0 1 3 0v4c0 4.4-3 8-7 8-3 0-5-2-6-4l-1.5-3a1.5 1.5 0 0 1 2.6-1.5L7 14"/>',
+  same:'<circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/>',
+  ask:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14"/><path d="M12 17h.01"/>',
+  bolt:'<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+  trash:'<path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/>',
+  out:'<path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4"/><path d="M6 12h10"/>',
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>',
+  learn:'<path d="M2 9 12 4l10 5-10 5z"/><path d="M6 11v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/>',
+  truss:'<path d="M2 19h20M4 19l4-9 4 9 4-9 4 9M8 10h8"/>',
+  clap:'<rect x="3" y="10" width="18" height="11" rx="1.5"/><path d="M3 10 4.5 4.5 20 3l.9 5.5M8.5 4.1 7 9.6M13.5 3.6 12 9.4M18 3.2l-1.5 5.9"/>',
+  music:'<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+  pulse:'<path d="M2 12h4l2.5-6 5 12 2.5-6h6"/>',
+  code:'<path d="M8 6 2 12l6 6M16 6l6 6-6 6M14 4l-4 16"/>',
+  flame:'<path d="M12 2c3 4 6.5 7 6.5 11.5a6.5 6.5 0 0 1-13 0C5.5 10 8 8 9 5.5c1 2.2 2.2 3.4 3.5 3.6C12.8 6.5 11.5 4.5 12 2z"/>',
+  chart:'<path d="M3 3v18h18M7 15l4-4 3 3 6-7"/>',
+  scale:'<path d="M12 3v18M7 21h10M4 7h16M7 7l-3 7a3 3 0 0 0 6 0zM17 7l-3 7a3 3 0 0 0 6 0z"/>'
+};
+const svg = (k, extra='') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${I[k]||''}</svg>`;
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const cc = k => `var(--${k})`;
+
+/* ================= SIGN-IN + API ================= */
+function sessionToken(){
+  try {
+    const raw = document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('arise_session='));
+    if (!raw) return null;
+    const bin = atob(raw.slice('arise_session='.length));
+    let data; try { data = JSON.parse(decodeURIComponent(escape(bin))); } catch { data = JSON.parse(bin); }
+    return data && data.token ? String(data.token) : null;
+  } catch { return null; }
+}
+class ApiError extends Error { constructor(msg, code, body){ super(msg); this.code = code; this.body = body; } }
+async function api(path, opts = {}){
+  const headers = { 'Content-Type':'application/json' };
+  const t = sessionToken(); if (t) headers.Authorization = `Bearer ${t}`;
+  let res;
+  try { res = await fetch('/api/social' + path, { method: opts.method || 'GET', headers, body: opts.body ? JSON.stringify(opts.body) : undefined, cache:'no-store' }); }
+  catch { throw new ApiError('Can’t reach A.R.I.S.E. Connect. Check your connection and try again.', 0); }
+  let body = null; try { body = await res.json(); } catch {}
+  if (!res.ok) throw new ApiError(body?.message || 'Something went wrong. Please try again.', res.status, body);
+  return body;
+}
+async function apiAt(fullPath, opts = {}){
+  const headers = { 'Content-Type':'application/json' };
+  const t = sessionToken(); if (t) headers.Authorization = `Bearer ${t}`;
+  let res;
+  try { res = await fetch(fullPath, { method: opts.method || 'GET', headers, body: opts.body ? JSON.stringify(opts.body) : undefined, cache:'no-store' }); }
+  catch { throw new ApiError('Can’t reach A.R.I.S.E. Connect. Check your connection and try again.', 0); }
+  let body = null; try { body = await res.json(); } catch {}
+  if (!res.ok) throw new ApiError(body?.message || 'Something went wrong. Please try again.', res.status, body);
+  return body;
+}
+/** Opens Stripe's checkout page to add A.R.I.S.E. Connect for yourself, or (parents) for a child. */
+async function buySocial(forUserId){
+  const r = await apiAt('/api/billing/addon-checkout', { method:'POST', body:{ product: role()==='teacher' ? 'social' : 'bundle', returnPath:'/social/' } });
+  location.href = r.url;
+}
+async function manageSocial(forUserId){
+  const r = await apiAt('/api/billing/addon-portal', { method:'POST', body:{ product: role()==='teacher' ? 'social' : 'bundle', returnPath:'/social/' } });
+  location.href = r.url;
+}
+/** Sends people to the main site to sign up or sign in, and back here afterwards. */
+/** The main site's sign-in and sign-up screens live behind its hash router ("/#/signin"), so "/" or
+ *  "/register" would open the A.R.I.S.E. Reader front page instead. It brings people back here after. */
+function goSignIn(path){ try { sessionStorage.setItem('arise_return_to', '/social/'); } catch {} const p = String(path || '/'); location.href = p.startsWith('/#') ? p : '/#' + (p === '/' ? '/signin' : p); }
+
+/* ================= STATE ================= */
+let CAT = null;                 // catalog: careers, quests, roadmap...
+let ME = null;                  // /me response
+let PLAN = null;                // /api/addons: the Learning Bundle, its trial and prices
+const S = { tab:'stars', sfield:'all', starf:'all', interests:new Set(), lfield:'all', lpath:null, course:null, lesson:null, answers:{}, filterC:'all', filterP:'all', q:'', composeOpen:false, feed:null, approvals:null, accessRequests:null, events:null, children:null, childId:null, classInfo:null, menu:false, confirmDelete:null, adm:null, admPick:new Set(), admPath:'', admQ:'', admShow:'all' };
+const C = id => CAT.careers.find(c => c.id === id);
+const role = () => ME?.user.role || 'guest';
+const P = () => ME?.profile;
+const young = b => b === 'k2' || b === 'g35';
+function bandNow(){ if (role()==='student') return ME.user.band; if (role()==='parent'){ const k = currentChild(); return k ? k.band : 'g68'; } return 'g912'; }
+function currentChild(){ const kids = S.children || []; return kids.find(k => k.id === S.childId) || kids[0] || null; }
+/* ================= SHARED BITS ================= */
+const BADGE_NAMES = {'first-quest':'First Quest','five-collected':'5 Collected','four-clusters':'4 Career Areas','week-streak':'7-Day Streak','first-certificate':'First Certificate'};
+const AV_COLORS = ['#5169ED','#11B9AF','#8B64E9','#F0703A','#12A27A','#D946A8','#0EA5C6','#E5484D'];
+const avColor = name => { let h=0; for(const ch of String(name)) h=(h*31+ch.charCodeAt(0))%997; return AV_COLORS[h%AV_COLORS.length]; };
+const initials = n => String(n).replace(/^(Ms\.|Mr\.|Mrs\.|Dr\.)\s*/,'').split(/\s+/).filter(Boolean).map(w=>w[0]).join('').replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase() || '?';
+const av = (n, size, me) => `<span class="av av-${size||'m'}" style="--av:${me?'var(--grad)':avColor(n)}" aria-hidden="true">${esc(initials(n))}</span>`;
+/** A colored icon tile. k: an icon name; color: a CSS color (career area or course field). */
+const tile = (k, color, size) => `<span class="ico${size?' '+size:''}" style="--fc:${color}">${svg(k)}</span>`;
+const clusterColor = k => `var(--${k})`;
+const tick = `<span class="verified" title="Verified teacher">${svg('check')}</span>`;
+const fmtDate = d => { const x=new Date(d+'T12:00:00'); return {m:x.toLocaleString('en-US',{month:'short'}).toUpperCase(), d:x.getDate(), w:x.toLocaleString('en-US',{weekday:'short'})}; };
+function ago(iso){ const s=(Date.now()-Date.parse(iso))/1000; if(s<60) return 'Just now'; if(s<3600) return Math.floor(s/60)+'m'; if(s<86400) return Math.floor(s/3600)+'h'; if(s<604800) return Math.floor(s/86400)+'d'; return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+function topClusters(profile, n){ const m={}; [...profile.collected,...profile.saved].forEach(id=>{const c=C(id); if(c) m[c.c]=(m[c.c]||0)+1;}); return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,n).map(x=>CAT.clusters[x[0]].name); }
+function careerOfTheDay(){ const d = ME?.today || new Date().toISOString().slice(0,10); let h=0; for(const ch of d) h=(h*33+ch.charCodeAt(0))%9973; return CAT.careers[h % CAT.careers.length]; }
+let toastT;
+function toast(msg){ document.querySelectorAll('.toast').forEach(t=>t.remove()); const t=document.createElement('div'); t.className='toast'; t.setAttribute('role','status'); t.textContent=msg; document.body.appendChild(t); clearTimeout(toastT); toastT=setTimeout(()=>t.remove(),3000); }
+const fail = e => toast(e?.message || 'Something went wrong. Please try again.');
+function headline(){
+  const u = ME.user;
+  if (u.role==='student'){ const tops = topClusters(P(),2); return `${u.grade?`Grade ${u.grade}`:'Student'}${u.teacherName?` · ${u.teacherName}’s class`:''}${tops.length?` · Into ${tops.join(' and ')}`:''}`; }
+  return u.role==='teacher' ? 'Teacher' : u.role==='parent' ? 'Parent' : 'Admin';
+}
+const roleLine = headline;
+function safetyNote(){ return `<p class="safety">${svg('shield')}<span>A.R.I.S.E. Connect is a closed class space. Only classmates and teachers see posts, every student post is approved by a teacher first, and there are no private messages.</span></p>`; }
+
+/* ================= TOP BAR ================= */
+function tabs(){
+  const r = role();
+  if (ME && r==='student' && ME.approvalStatus!=='approved') return [];
+  if (ME && !ME.access && r!=='teacher') return [];
+  if (r==='teacher' && !ME.access) return [['approvals','Approvals','inbox']];
+  if (r==='student') return [['stars','Stars','tv'],['feed','Home','feed'],['explore','Explore','explore'],['quests','Quests','quest'],['events','Events','event']].concat(young(ME.user.band)?[]:[['paths','Paths','paths']]);
+  if (r==='teacher') return [['stars','Stars','tv'],['feed','Home','feed'],['approvals','Approvals','inbox'],['class','My Class','class'],['events','Events','event'],['explore','Explore','explore']];
+  if (r==='admin') return [['stars','Stars','tv'],['feed','Home','feed'],['students','Add students','class'],['approvals','Approvals','inbox'],['explore','Explore','explore']];
+  if (r==='parent') return [['stars','Stars','tv'],['family','Home','feed'],['explore','Explore','explore'],['paths','Paths','paths']];
+  return [];
+}
+function badgeFor(id){ return id==='approvals' ? (S.approvals?.length||0)+(S.accessRequests?.length||0) : 0; }
+function renderChrome(){
+  const t = tabs();
+  if (t.length && !t.find(x=>x[0]===S.tab) && S.tab!=='profile') S.tab = t[0][0];
+  document.getElementById('searchWrap').hidden = !CAT || !ME || !ME.access || (role()==='student' && ME.approvalStatus!=='approved');
+  const nav = document.getElementById('nav');
+  if (!ME) { nav.innerHTML = `<div class="top-actions"><button class="btn ghost small" data-act="signin">Log in</button><button class="btn small" data-act="join">Join now</button></div>`; return; }
+  nav.innerHTML = t.map(([id,l,ic])=>{const n=badgeFor(id);return `<button data-act="tab" data-v="${id}" aria-current="${S.tab===id}">${svg(ic)}<span>${l}</span>${n?`<b class="nbadge">${n}</b>`:''}</button>`}).join('')
+    + `<div class="me-wrap"><button data-act="menu" aria-current="${S.tab==='profile'}" aria-expanded="${S.menu}">${av(ME.user.name,'s',true)}<span>Me</span></button>
+      ${S.menu?`<div class="menu" role="menu"><div class="who">${av(ME.user.name,'m',true)}<div><b>${esc(ME.user.name)}</b><span>${esc(headline())}</span></div></div>
+        ${role()==='student'&&ME.access?`<button data-act="tab" data-v="profile">${svg('passport')}View my profile</button>`:''}
+        ${PLAN && PLAN.apps && ((role()==='teacher' && PLAN.apps.social.paidByYou) || (role()==='parent' && PLAN.bundle && PLAN.bundle.paidByYou)) ? `<button data-act="manage">${svg('star')}Manage billing</button>` : ''}
+        <a href="/">${svg('book')}Open A.R.I.S.E. Reader</a></div>`:''}</div>`;
+}
+
+/* ================= SIGNED-OUT LANDING ================= */
+function landingHTML(){
+  const sample = ['chef','progamer','athlete','gamedesigner','astronaut','electrician','musician','nurse'].map(C).filter(Boolean);
+  return `<section class="learn-hero land">
+      <div><div class="eyebrow">Career courses · Certificates · A closed class community</div>
+        <h1>Learn from the stars. <em>Try a career</em> before you pick one.</h1>
+        <p class="lede" style="margin-bottom:10px">Watch Gordon Ramsay cook, Ninja talk about going pro, Shigeru Miyamoto design Mario, Steph Curry, Simone Biles and Chris Hadfield in space. Every career and course comes with videos from famous people who do it.</p>
+        <p class="lede">A.R.I.S.E. Connect is like LinkedIn and LinkedIn Learning for students. Take short career courses, earn certificates for your profile, explore every path from apprenticeships to college, and celebrate wins with your class. Every student post is approved by a teacher, and there are no private messages.</p>
+        <div class="join"><button class="btn" data-act="join">${svg('plus')}Sign up as a student</button><button class="btn ghost" data-act="go" data-v="/parent-signup">${svg('heart')}I’m a parent or guardian</button><button class="btn ghost" data-act="go" data-v="/teacher-signup">${svg('teach')}I’m a teacher</button></div>
+        <p class="sub small" style="margin-top:10px">Families can get Connect with Math and History in the $10/month Learning Bundle covering up to three children. Teachers can add Connect separately. A.R.I.S.E. Reader and To-Do stay free. Already have an account? <a href="/" data-act="signin">Log in</a>.</p></div>
+      <div class="hero-cert">${CAT.courses?certificateHTML(CAT.courses.find(c=>c.id==='musc')||CAT.courses[0], null, 'Your name', true):''}</div>
+    </section>
+    <div class="points">${[['Closed class community','Only your classmates and teachers see posts. No student searching or follow requests.'],['No private messages','Students can’t message anyone, and no one can message them.'],['Teacher approval','Teachers approve students for Connect and approve every student post.'],['Every path counts','Apprenticeships, military, community college, certificates and four-year college, side by side.']].map(([t,d])=>`<div class="box pad-s"><b class="pt">${svg('check')}${t}</b><p class="sub">${d}</p></div>`).join('')}</div>
+    ${STARS&&STARS.filter(starOk).length?`<section class="section"><div class="cat-head"><h2>Learn from the stars</h2><span class="muted">Tap a video to watch. No account needed.</span></div>
+      <div class="stars-grid">${oneEach(STARS.filter(starOk)).slice(0,9).map(v=>starCardHTML(v,'land')).join('')}</div></section>`:''}
+    <section class="section"><div class="cat-head"><h2>Look around first</h2><span class="muted">Tap any career to see what the job is like.</span></div>
+      <div class="grid">${sample.map(careerCard).join('')}</div></section>`;
+}
+function joinHTML(){
+  const u = ME.user;
+  return `<div class="center-page"><div class="box pad stack"><div class="eyebrow">A.R.I.S.E. Connect · 30-day free trial</div>
+    <h1>Hi ${esc(u.name.split(' ')[0])}, your free trial has ended.</h1>
+    <p class="sub">A teacher can add A.R.I.S.E. Connect for the whole class for $7 a month, or a family can get it with Arise History and Arise Math in the $10 Learning Bundle.</p>
+    <div><a class="btn ghost" href="/">Back to A.R.I.S.E. Reader</a></div></div></div>
+    <section class="section"><div class="cat-head"><h2>Look around</h2><span class="muted">Careers are free to browse.</span></div><div class="grid">${CAT.careers.slice(0,8).map(careerCard).join('')}</div></section>`;
+}
+
+/* ================= LEFT + RIGHT RAILS ================= */
+function leftHTML(){
+  const r = role();
+  if (r==='student'){
+    const p = P(), u = ME.user;
+    const inprog = (CAT.courses||[]).filter(c => lessonsDone(c)>0 && !certOf(c.id)).slice(0,2);
+    return `<div class="box mini-profile"><div class="mini-banner"></div>
+        <button class="av-btn" data-act="tab" data-v="profile">${av(u.name,'l',true)}</button>
+        <button class="name-link big" data-act="tab" data-v="profile">${esc(u.name)}</button>
+        <p class="sub center">${esc(headline())}</p>
+        <div class="mini-stats">
+          <button data-act="tab" data-v="profile"><span>Certificates</span><b>${(p.certificates||[]).length}</b></button>
+          <button data-act="tab" data-v="profile"><span>Careers collected</span><b>${p.collected.length}</b></button>
+          <button data-act="tab" data-v="profile"><span>Level ${p.level+1} · ${esc(p.levelName)}</span><b>${p.xp} XP</b></button>
+          <button data-act="tab" data-v="quests"><span>Day streak</span><b>${p.streak}</b></button>
+        </div></div>
+      <div class="box pad-s"><div class="eyebrow">Keep learning</div>
+        ${inprog.map(c=>`<button class="mini-course" data-act="course" data-id="${c.id}">${tile(c.icon,fieldColor(c.field),'sm')}<span><b>${esc(c.title)}</b><span class="sub">${lessonsDone(c)} of ${c.lessons.length} lessons</span><span class="bar"><i style="width:${lessonsDone(c)/c.lessons.length*100}%"></i></span></span></button>`).join('') || `<p class="sub">Nothing in progress. Pick a course in Learning.</p><button class="linkbtn" data-act="tab" data-v="stars">Browse courses →</button>`}
+      </div>`;
+  }
+  if (r==='teacher' || r==='admin'){
+    const ci = S.classInfo;
+    return `<div class="box mini-profile"><div class="mini-banner"></div>${av(ME.user.name,'l',true)}
+        <span class="name-link big">${esc(ME.user.name)} ${tick}</span><p class="sub center">${r==='admin'?'Admin':'Teacher'}</p>
+        <div class="mini-stats">
+          <button data-act="tab" data-v="approvals"><span>Waiting for approval</span><b>${S.approvals===null && S.accessRequests===null ? '–' : (S.approvals?.length||0)+(S.accessRequests?.length||0)}</b></button>
+          ${ci?`<button data-act="tab" data-v="class"><span>Students</span><b>${ci.totals.students}</b></button><button data-act="tab" data-v="class"><span>Active this week</span><b>${ci.totals.activeWeek}</b></button>`:''}
+        </div></div>`;
+  }
+  if (r==='parent'){
+    const kids = S.children || [];
+    return `<div class="box pad-s"><h3 class="rail-h">Your family</h3>${kids.map(k=>`<button class="mini-course" data-act="child" data-id="${k.id}" ${currentChild()?.id===k.id?'aria-current="true"':''}>${av(k.name,'s')}<span><b>${esc(k.name)}</b></span></button>`).join('') || '<p class="sub">No children linked yet.</p>'}
+      <a class="btn ghost small" href="/parent-dashboard">Link a child</a></div>`;
+  }
+  return '';
+}
+function railHTML(){
+  const c = careerOfTheDay();
+  const recs = (CAT.courses||[]).filter(x => role()!=='student' || (!certOf(x.id) && lessonsDone(x)===0)).slice(0,3);
+  let html = `<div class="box pad-s"><h3 class="rail-h">Courses for you</h3>
+      ${recs.map(x=>`<button class="mini-course" data-act="course" data-id="${x.id}">${tile(x.icon,fieldColor(x.field),'sm')}<span><b>${esc(x.title)}</b><span class="sub">${esc(CAT.courseFields[x.field])} · ${x.minutes} min · +${CAT.xp.course} XP</span></span></button>`).join('')}
+      <button class="linkbtn" data-act="tab" data-v="stars">Browse all courses →</button></div>
+    <div class="box pad-s"><h3 class="rail-h">Career spotlight</h3><button class="mini-course" data-act="open" data-id="${c.id}">${tile(c.c,clusterColor(c.c),'sm')}<span><b>${esc(c.name)}</b><span class="sub">${esc(young(bandNow())?c.kid:(c.teen.match(/^[^.]*\./)||[c.teen])[0])}</span></span></button></div>`;
+  const up = (role()==='parent' ? (currentChild()?.events||[]) : (S.events||[]))[0];
+  if (up){ const d=fmtDate(up.date); html += `<div class="box pad-s"><h3 class="rail-h">Next up</h3><div class="suggest"><div class="date"><div class="m">${d.m}</div><div class="d">${d.d}</div></div><div class="who"><b>${esc(up.title)}</b><span class="sub">${esc([up.time,up.format].filter(Boolean).join(' · '))}</span></div></div></div>`; }
+  return html + safetyNote();
+}
+
+/* ================= FEED ================= */
+const RX = [['respect','Respect','fist'],['same','Same','same'],['how','How?','ask'],['big','Big','bolt']];
+function postHTML(p){
+  const staff = p.authorRole==='teacher'||p.authorRole==='admin';
+  let attach = '';
+  if (p.course) { const c = course(p.course.id); attach = `<div class="attach" style="--fc:${fieldColor(p.course.field)}"><div class="attach-art">${SEAL}<span>${esc(CAT.courseFields[p.course.field]||'')}</span></div><div class="attach-body"><div class="eyebrow">Certificate · A.R.I.S.E. Connect</div><b>${esc(p.course.title)}</b><span class="sub">${esc(p.course.code)}${c?` · ${c.lessons.length} lessons · ${c.minutes} min`:''}</span></div>${c?`<button class="btn ghost small" data-act="course" data-id="${c.id}">View course</button>`:''}</div>`; }
+  else if (p.quest) attach = `<div class="attach" style="--fc:${clusterColor(p.quest.c)}"><div class="attach-art">${tile('quest',clusterColor(p.quest.c))}<span>Quest</span></div><div class="attach-body"><div class="eyebrow">Quest cleared</div><b>${esc(p.quest.title)}</b><span class="sub">${esc(CAT.clusters[p.quest.c]?.name||'')}</span></div></div>`;
+  else if (p.career) attach = `<div class="attach" style="--fc:${clusterColor(p.career.c)}"><div class="attach-art">${tile(p.career.c,clusterColor(p.career.c))}<span>Career</span></div><div class="attach-body"><div class="eyebrow">Career</div><b>${esc(p.career.name)}</b><span class="sub">${esc(CAT.clusters[p.career.c]?.name||'')}</span></div><button class="btn ghost small" data-act="open" data-id="${p.career.id}">Open</button></div>`;
+  const total = RX.reduce((t,[k])=>t+(p.reactions[k]||0),0);
+  const del = p.canDelete ? `<button class="icon-btn" data-act="delpost" data-id="${p.id}" aria-label="Delete post" title="Delete post">${S.confirmDelete===p.id?'<span class="small">Tap again</span>':svg('trash')}</button>` : '';
+  let foot;
+  if (p.status==='pending') foot = `<div class="pendbar">${svg('info')}Only you can see this until your teacher approves it.</div>`;
+  else if (p.status==='rejected') foot = `<div class="pendbar back">${svg('info')}Your teacher sent this back. You can delete it and try again.</div>`;
+  else foot = `<div class="post-stats"><span>${total?`<span class="cheer-dot">${svg('fist')}</span> ${total}`:'Be the first to react'}</span><span>${p.scope==='school'?'Whole school':'Class'}</span></div>
+    ${role()==='parent'?'':`<div class="post-actions">${RX.map(([k,l,i])=>`<button data-act="react" data-id="${p.id}" data-v="${k}" aria-pressed="${p.myReaction===k}">${svg(i)}<span>${l}</span></button>`).join('')}</div>`}`;
+  return `<article class="box post ${p.status==='pending'?'pending':''}">
+    <header class="post-head">${av(p.author,'m',p.mine)}<div class="who"><b class="name">${esc(p.author)}${staff?'<span class="role">Teacher</span>':''}</b><span class="sub">${staff?'Teacher':'Student'} · ${p.scope==='school'?'Whole school':'Class'}</span><span class="sub">${ago(p.createdAt)} · ${svg('shield')} Class space</span></div>${del}</header>
+    ${p.body?`<p class="post-text">${esc(p.body)}</p>`:''}${attach}${foot}</article>`;
+}
+function composer(){
+  const u = ME.user;
+  if (!u.canPost) return `<div class="notice">${svg('info')}<div><b>${esc(u.postBlock||'Posting isn’t open yet.')}</b><br><span class="sub">You can still take courses, explore careers and do quests.</span></div></div>`;
+  const yb = role()==='student' && young(u.band);
+  if (!S.composeOpen) return `<div class="box composer"><div class="composer-row">${av(u.name,'m',true)}<button class="pillinput" data-act="compose">${yb?'Share something with your class':role()==='student'?'Share what you learned, a project, or a certificate…':'Share something with your class'}</button></div>
+    ${role()==='student'?`<div class="composer-opts"><button data-act="compose">${svg('quest')}Quest win</button><button data-act="tab" data-v="stars">${svg('learn')}Certificate</button><button data-act="tab" data-v="explore">${svg('explore')}Career</button></div>`:''}</div>`;
+  if (yb) return `<div class="box composer"><div class="composer-row">${av(u.name,'m',true)}<b>Share with your class</b></div>
+      <div class="two"><label class="field"><span>Pick a sentence</span><select id="cStart" class="select">${CAT.starters.map((s,i)=>`<option value="${i}">${esc(s)}…</option>`).join('')}</select></label>
+      <label class="field"><span>Pick a job</span><select id="cCareer" class="select">${CAT.careers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></label></div>
+      <div class="composer-tools"><span class="sub">${svg('shield')} ${esc(u.teacherName||'Your teacher')} checks posts first</span><button class="btn ghost small" data-act="compose">Cancel</button><button class="btn small" data-act="post">Post</button></div></div>`;
+  const done = role()==='student' ? CAT.quests[u.band].filter(q=>P().quests[q.id]==='done') : [];
+  const certs = role()==='student' ? (P().certificates||[]) : [];
+  return `<div class="box composer"><div class="composer-row">${av(u.name,'m',true)}<textarea id="cText" rows="3" maxlength="${CAT.limits.postLength}" placeholder="${role()==='student'?'What did you try? What surprised you?':'Share news, a career fact, or a shout-out'}"></textarea></div>
+    ${role()==='student'?`<div class="two"><label class="field"><span>Attach a certificate</span><select id="cCourse" class="select"><option value="">${certs.length?'None':'Earn a certificate to share it'}</option>${certs.map(x=>`<option value="${x.id}">${esc(course(x.id)?.title||x.id)}</option>`).join('')}</select></label>
+      <label class="field"><span>Attach a finished quest</span><select id="cQuest" class="select"><option value="">None</option>${done.map(q=>`<option value="${q.id}">${esc(q.title)}</option>`).join('')}</select></label></div>`:''}
+    <div class="composer-tools"><span class="sub">${svg('shield')} ${role()==='student'?'Your teacher approves posts first · first name and last initial only':'Teacher posts go live right away'}</span><button class="btn ghost small" data-act="compose">Cancel</button><button class="btn small" data-act="post">Post</button></div></div>`;
+}
+function viewFeed(){
+  const posts = S.feed;
+  const emptyMsg = role()==='student' ? (ME.user.canPost ? 'Nothing here yet. Finish a course or a quest and be the first to share it.' : 'Your class feed shows up here once you’re in a class.') : 'No posts yet. Say hello to your class.';
+  return `<div class="layout3"><aside class="rail-l">${leftHTML()}</aside>
+    <section class="feed">${composer()}${posts===null?'<div class="skeleton"></div><div class="skeleton"></div>': posts.length? posts.map(postHTML).join('') : `<div class="box empty">${emptyMsg}</div>`}</section>
+    <aside class="rail-r">${railHTML()}</aside></div>`;
+}
+
+/* ================= EXPLORE ================= */
+function careerCard(c){
+  const collected = role()==='student' && P() && P().collected.includes(c.id);
+  return `<button class="card" data-act="open" data-id="${c.id}" style="--fc:${clusterColor(c.c)}">
+    ${collected?`<span class="badge-match">${svg('check')} Collected</span>`:''}
+    <div class="banner">${tile(c.c,clusterColor(c.c))}<div><div class="eyebrow">${esc(CAT.clusters[c.c].name)}</div></div></div>
+    <div class="body"><h3>${esc(c.name)}</h3><p class="blurb">${esc(young(bandNow())?c.kid:(c.teen.match(/^[^.]*\./)||[c.teen])[0])}</p>
+    <div class="tags">${c.paths.slice(0,3).map(p=>`<span class="tag">${esc(p)}</span>`).join('')}</div></div></button>`;
+}
+function viewExplore(){
+  const pathsAll = ['Apprenticeship','Trade school','Military','2-year','4-year','Certificate','On the job'];
+  const q = S.q.trim().toLowerCase();
+  const list = CAT.careers.filter(c => (S.filterC==='all'||c.c===S.filterC) && (S.filterP==='all'||c.paths.includes(S.filterP)) && (!q || (c.name+' '+CAT.clusters[c.c].name).toLowerCase().includes(q)));
+  const p = P(); const spun = role()==='student' && p.spun && p.spun.day===ME.today ? C(p.spun.career) : null;
+  const spin = role()==='student' ? `<div class="box pad spin"><div><div class="eyebrow">Career of the day</div><div class="spin-window" id="spinWin">${spun?esc(spun.name):'Spin to find today’s career'}</div>
+      <p class="sub">${spun?'Open it, read up, and add it to your collection. New spin tomorrow.':`+${CAT.xp.spin} XP for your first spin each day.`}</p></div>
+      <button class="btn" data-act="${spun?'open':'spin'}" ${spun?`data-id="${spun.id}"`:''}>${spun?'Open':'Spin'}</button></div>` : '';
+  return `<div class="page">${spin}
+    <div class="cat-head"><div><h1 class="page-h">Every path counts</h1><p class="sub">${CAT.careers.length} careers. College is one path; here are the rest too.${q?` Showing results for “${esc(S.q)}”.`:''}</p></div></div>
+    <div class="filters"><div class="seg"><button data-act="fc" data-v="all" aria-pressed="${S.filterC==='all'}">All areas</button>${Object.entries(CAT.clusters).map(([k,v])=>`<button data-act="fc" data-v="${k}" aria-pressed="${S.filterC===k}">${esc(v.name)}</button>`).join('')}</div></div>
+    ${young(bandNow())?'':`<div class="interest-row"><span class="sub">How you get there:</span><button class="chip" data-act="fp" data-v="all" aria-pressed="${S.filterP==='all'}">Any</button>${pathsAll.map(x=>`<button class="chip" data-act="fp" data-v="${x}" aria-pressed="${S.filterP===x}">${x}</button>`).join('')}</div>`}
+    <div class="grid">${list.map(careerCard).join('') || '<div class="empty" style="grid-column:1/-1">No careers match. Try “All areas” or “Any”.</div>'}</div></div>`;
+}
+function careerModal(id){
+  const c = C(id), cl = CAT.clusters[c.c], band = bandNow(), yb = young(band);
+  const order = [['k2','K–2'],['g35','3–5'],['g68','6–8'],['g912','9–12']];
+  const student = role()==='student';
+  const saved = student && P().saved.includes(id), got = student && P().collected.includes(id);
+  const actions = !ME ? `<button class="btn" data-act="join">${svg('plus')}Sign up to collect careers</button>`
+    : student ? `${got?`<span class="chip on">${svg('check')}In your collection</span>`:`<button class="btn" data-act="collect" data-id="${id}">${svg('plus')}Add to collection · +${CAT.xp.collect} XP</button>`}
+      <button class="btn ghost" data-act="save" data-id="${id}">${svg('heart')}${saved?'Saved':'Save'}</button>` : '';
+  return `<div class="overlay" data-act="close"><div class="modal light career" role="dialog" aria-modal="true" aria-labelledby="mt" data-stop style="--fc:${clusterColor(c.c)}">
+    <div class="m-banner"><button class="icon-btn x" data-act="close" aria-label="Close">${svg('x')}</button></div>
+    <div class="m-top">${tile(c.c,clusterColor(c.c),'lg')}<h2 id="mt">${esc(c.name)}</h2><span class="sub">${esc(cl.name)}${yb||!c.soc?'':` · SOC ${esc(c.soc)}`}</span></div>
+    <div class="m-body">
+      ${actions?`<div class="modal-actions start">${actions}</div>`:''}
+      <p>${esc(yb?c.kid:c.teen)}</p>
+      ${starsFor(id).length?`<div class="career-vid"><h3 class="rail-h">Watch the pros</h3><div class="stars-grid one">${starsFor(id).map(v=>starCardHTML(v,'career',{noCareer:true})).join('')}</div></div>`:''}
+      <div class="facts"><div class="fact"><span>Training</span><b>${esc(c.train)}</b></div>${yb?'':`<div class="fact"><span>Typical pay</span><b>${c.pay?`About $${c.pay}k a year`:'Varies a lot'}</b></div>`}<div class="fact"><span>Ways in</span><b>${esc(c.paths.join(' · '))}</b></div></div>
+      <div><h3 class="rail-h">Tools you’d use</h3><div class="tags" style="margin-top:8px">${c.tools.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div></div>
+      <div><h3 class="rail-h">Start now</h3><div class="startnow">${order.map(([k,l])=>`<div class="${k===band&&ME?'me':''}"><b>${l}</b><span>${esc(cl.start[k])}</span></div>`).join('')}</div></div>
+      ${yb?'':`<p class="sub small">Pay is an approximate U.S. median from the Bureau of Labor Statistics (May 2024). It varies by state and experience.</p>`}
+    </div></div></div>`;
+}
+
+/* ================= QUESTS ================= */
+function viewQuests(){
+  const qs = CAT.quests[ME.user.band], p = P();
+  const doneN = qs.filter(q=>p.quests[q.id]==='done').length;
+  return `<div class="page"><div class="cat-head"><div><h1 class="page-h">Your quests</h1><p class="sub">Real things you do off the screen. Check off the steps, then share it with your class.</p></div><span class="tag">${doneN} of ${qs.length} done</span></div>
+  <div class="grid wide">${qs.map(q=>{
+    const st = p.quests[q.id]; const done = st==='done'; const steps = Array.isArray(st) ? st : q.steps.map(()=>false);
+    const all = done || steps.every(Boolean);
+    return `<div class="box pad quest" style="--fc:${clusterColor(q.c)}">
+      <div class="suggest">${tile(q.c,clusterColor(q.c),'sm')}<div class="who"><b>${esc(q.title)}</b><span class="sub">${esc(CAT.clusters[q.c].name)}</span></div><span class="xp">+${q.xp} XP</span></div>
+      <div class="steps">${q.steps.map((s,i)=>{const on=done||!!steps[i]; return `<button class="step" data-act="step" data-id="${q.id}" data-i="${i}" aria-pressed="${on}" ${done?'disabled':''}><span class="box-check">${on?svg('check'):''}</span><span>${esc(s)}</span></button>`}).join('')}</div>
+      <div class="row">${done?`<span class="chip on">${svg('check')}Complete</span>${young(ME.user.band)||!ME.user.canPost?'':`<button class="btn ghost small" data-act="sharequest" data-id="${q.id}">Share it</button>`}`
+        : `${q.reader?`<a class="btn ghost small" href="/library">${svg('book')}Open Reader</a>`:''}<button class="btn small" data-act="complete" data-id="${q.id}" ${all?'':'disabled'}>Complete quest</button>`}</div>
+    </div>`}).join('')}</div></div>`;
+}
+
+/* ================= EVENTS ================= */
+const FORMATS = ['In class','Live video','Field trip','After school','Families · In person'];
+function eventRow(e, action){
+  const d = fmtDate(e.date);
+  return `<div class="event"><div class="date"><div class="m">${d.m}</div><div class="d">${d.d}</div><div class="w">${d.w}</div></div>
+    <div class="who"><b>${esc(e.title)}</b>${e.host?`<span class="sub">${esc(e.host)} · Teacher</span>`:''}
+    <div class="tags" style="margin-top:8px">${e.time?`<span class="tag">${esc(e.time)}</span>`:''}${e.format?`<span class="tag">${esc(e.format)}</span>`:''}${CAT.clusters[e.cluster]?`<span class="tag">${esc(CAT.clusters[e.cluster].name)}</span>`:''}<span class="tag">${e.scope==='school'?'Whole school':'Class'}</span></div>
+    <div class="row" style="margin-top:10px">${action}<span class="sub">${e.going} of ${e.seats} spots taken</span></div></div></div>`;
+}
+function viewEvents(){
+  const r = role(); const evs = S.events;
+  const host = r==='teacher' ? `<div class="box pad stack"><h2 class="sec-h">Host an event</h2>
+    <div class="formgrid">
+      <label class="field"><span>Title</span><input type="text" id="evT" maxlength="${CAT.limits.eventTitle}" placeholder="Shadow a Welder Day"></label>
+      <label class="field"><span>Date</span><input type="date" id="evD" min="${ME.today}" value="${ME.today}"></label>
+      <label class="field"><span>Time</span><input type="text" id="evTime" maxlength="20" placeholder="10:00 AM"></label>
+      <label class="field"><span>Career area</span><select id="evC">${Object.entries(CAT.clusters).map(([k,v])=>`<option value="${k}">${esc(v.name)}</option>`).join('')}</select></label>
+      <label class="field"><span>Format</span><select id="evF">${FORMATS.map(f=>`<option>${f}</option>`).join('')}</select></label>
+      <label class="field"><span>Spots</span><input type="text" id="evS" inputmode="numeric" value="30"></label>
+      <label class="field"><span>For</span><select id="evScope"><option value="class">My class</option><option value="school">My whole school</option></select></label>
+    </div><div class="row end"><button class="btn" data-act="host">${svg('plus')}Publish event</button></div></div>` : '';
+  let list;
+  if (evs===null) list = '<div class="skeleton"></div>';
+  else if (!evs.length) list = `<p class="sub">${r==='teacher'?'No upcoming events yet. Host one above.':'No upcoming events yet. Your teacher will post them here.'}</p>`;
+  else list = evs.map(e=>{
+    let action = '';
+    if (r==='student'){
+      const yb = young(ME.user.band), st = e.myStatus, full = e.going>=e.seats && st!=='going';
+      if (st==='going') action = `<button class="btn ok small" data-act="rsvp" data-id="${e.id}" data-v="leave">${svg('check')}Going</button>`;
+      else if (st==='requested') action = `<span class="chip wait">Waiting for your grown-up</span>`;
+      else action = `<button class="btn ghost small" data-act="rsvp" data-id="${e.id}" data-v="join" ${full?'disabled':''}>${full?'Full':yb?'Ask my grown-up':'Attend'}</button>`;
+    } else if (e.mine || r==='admin') action = `<button class="btn ghost small" data-act="delevent" data-id="${e.id}">${S.confirmDelete===e.id?'Tap again to cancel event':'Cancel event'}</button>`;
+    return eventRow(e, action);
+  }).join('');
+  return `<div class="layout2 rev"><section class="stack">${host}<div class="box pad"><div class="box-head flat"><div><h2 class="sec-h">Upcoming events</h2><p class="sub">Hosted by verified teachers for their class or school.</p></div></div>${list}</div></section><aside class="rail-r">${railHTML()}</aside></div>`;
+}
+
+/* ================= PROFILE ================= */
+function viewProfile(){
+  const u = ME.user, p = P(), yb = young(u.band);
+  const done = CAT.quests[u.band].filter(q=>p.quests[q.id]==='done');
+  const tops = topClusters(p,2);
+  const certs = p.certificates||[];
+  const skills = [...new Set(certs.flatMap(x=>CAT.courseSkills[x.id]||[]))];
+  const byC = Object.keys(CAT.clusters).map(x=>({k:x, n:p.collected.filter(id=>C(id)?.c===x).length})).sort((a,b)=>b.n-a.n);
+  const max = Math.max(1, ...byC.map(x=>x.n));
+  return `<div class="layout2 rev"><section class="stack">
+    <div class="box profile-top"><div class="p-banner me"></div><div class="p-main">${av(u.name,'xl',true)}
+      <div class="p-id"><h1>${esc(u.name)}</h1><p class="p-headline">${esc(headline())}</p>
+        <p class="sub">${esc(CAT.bands[u.band].crew)} · Level ${p.level+1} ${esc(p.levelName)} · ${p.xp} XP · ${p.streak}-day streak</p>
+        <p class="sub">${svg('shield')} Visible to your class only</p></div>
+      <div class="p-actions"><button class="btn" data-act="tab" data-v="stars">${svg('plus')}Add a certificate</button><button class="btn ghost" data-act="tab" data-v="explore">Explore careers</button></div></div>
+      ${yb?'':`<div class="open-to"><b>Open to</b><span>${tops.length?`Job shadows and summer programs in ${esc(tops.join(' and '))}`:'Job shadows, summer programs and club invites'}</span></div>`}</div>
+    <div class="box pad"><div class="box-head flat"><h2 class="sec-h">Licenses &amp; certifications</h2><button class="icon-btn" data-act="tab" data-v="stars" aria-label="Earn a certificate">${svg('plus')}</button></div>
+      ${certs.length?`<ul class="cert-rows">${certs.map(x=>{const c=course(x.id); if(!c) return ''; return `<li>${tile(c.icon,fieldColor(c.field))}<div><b>${esc(c.title)}</b><span class="sub">A.R.I.S.E. Connect · ${esc(CAT.courseFields[c.field])}</span><span class="sub small">Issued ${esc(longDate(x.date))} · Credential ID <span class="mono">${esc(x.code)}</span></span><button class="btn ghost small" data-act="credential" data-id="${c.id}">Show credential</button></div></li>`}).join('')}</ul>`:'<p class="sub">Finish a course in Learning to earn your first certificate.</p>'}</div>
+    ${skills.length?`<div class="box pad"><h2 class="sec-h">Skills</h2><ul class="skills">${skills.map(k=>`<li><div><b>${esc(k)}</b><span class="sub small">From A.R.I.S.E. Connect courses</span></div></li>`).join('')}</ul></div>`:''}
+    <div class="box pad"><h2 class="sec-h">Quests completed</h2>${done.length?`<ul class="clubs">${done.map(q=>`<li>${tile(q.c,clusterColor(q.c),'sm')}<div><b>${esc(q.title)}</b><span class="sub">${esc(CAT.clusters[q.c].name)} · +${q.xp} XP</span></div></li>`).join('')}</ul>`:`<p class="sub">No quests finished yet. <a href="#" data-act="tab" data-v="quests">Start one</a>.</p>`}</div>
+    <div class="box pad"><div class="box-head flat"><h2 class="sec-h">Careers explored</h2><span class="sub">${p.collected.length} of ${CAT.careers.length}</span></div>
+      <div class="stamps">${CAT.careers.map(c=>{const got=p.collected.includes(c.id);return `<button class="stamp ${got?'got':''}" data-act="open" data-id="${c.id}">${tile(got?c.c:'lock',got?clusterColor(c.c):'var(--line-2)','sm')}<span>${esc(c.name)}</span></button>`}).join('')}</div></div>
+    <div class="two">
+      <div class="box pad"><h2 class="sec-h">Interests</h2><div class="cbars">${byC.slice(0,5).map(x=>`<div class="cbar"><span>${esc(CAT.clusters[x.k].name)}</span><span class="bar"><i style="width:${x.n/max*100}%;background:${clusterColor(x.k)}"></i></span><span class="tnum">${x.n}</span></div>`).join('')}</div></div>
+      <div class="box pad"><h2 class="sec-h">Badges</h2><div class="tags">${Object.entries(BADGE_NAMES).map(([id,n])=>{const on=p.badges.includes(id);return `<span class="badge ${on?'':'locked'}">${svg(on?'star':'lock')}${n}</span>`}).join('')}</div></div>
+    </div>
+    <div class="box pad"><h2 class="sec-h">Education</h2><ul class="clubs"><li><span class="club-ico school">${esc((u.teacherName||'C')[0])}</span><div><b>${u.teacherName?`${esc(u.teacherName)}’s class`:'Your class'}</b><span class="sub">${u.grade?`Grade ${esc(u.grade)}`:'Student'}</span></div></li></ul></div>
+  </section><aside class="rail-r">${railHTML()}</aside></div>`;
+}
+
+/* ================= PATHS ================= */
+function viewPaths(){
+  const student = role()==='student';
+  const grade = student ? parseInt(String(ME.user.grade||'').replace(/\D/g,''),10) : (currentChild() ? parseInt(String(currentChild().grade||'').replace(/\D/g,''),10) : NaN);
+  const rows = [
+    ['4-year college','4 years','~$11.6k/yr tuition (public, in-state)','Some, through work-study','Teacher, engineer, nurse (BSN)'],
+    ['Community college','2 years','~$4k/yr tuition','Often, part-time','Nurse (ADN), dental hygienist, vet tech'],
+    ['Apprenticeship','3–5 years','Usually little or none','Yes, paid from day one','Electrician, plumber, carpenter'],
+    ['Military','4+ year commitment','None; you are paid','Yes, plus training','Mechanic, medic, cyber, pilot'],
+    ['Trade / certificate','Weeks to 2 years','Varies widely','Sometimes','Welder, HVAC, EMT, stylist'],
+    ['Start working','Right away','None','Yes','Line cook, farm hand, retail management']
+  ];
+  const road = student ? CAT.roadmap.filter(r=>!Number.isFinite(grade) || r.g>=Math.max(6,grade-1)) : CAT.roadmap;
+  return `<div class="page"><div class="box pad"><h1 class="page-h">Six ways to launch</h1><p class="sub" style="margin-bottom:14px">None of these is the “backup plan.” Compare them side by side.</p>
+  <div class="table-wrap"><table><thead><tr><th>Path</th><th>Time</th><th>Cost</th><th>Earn while you learn?</th><th>Examples</th></tr></thead>
+  <tbody>${rows.map(r=>`<tr><td><b>${r[0]}</b></td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td class="muted">${r[4]}</td></tr>`).join('')}</tbody></table></div>
+  <p class="sub small" style="margin-top:10px">Tuition figures are approximate national averages (College Board, 2024–25). Check your local schools.</p></div>
+  <div class="two">
+    <div class="box pad"><h2 class="sec-h">${student?'Your roadmap':'Grade-by-grade roadmap'}</h2><div class="road">${road.map(r=>`<div class="road-g ${r.g===grade?'now':''}"><span class="gnum">${r.g}</span><div class="steps">${r.items.map((it,i)=>{const key=r.g+'-'+i, on=student && P().road.includes(key); return student?`<button class="step" data-act="road" data-v="${key}" aria-pressed="${on}"><span class="box-check">${on?svg('check'):''}</span><span>${esc(it)}</span></button>`:`<div class="step"><span class="box-check"></span><span>${esc(it)}</span></div>`}).join('')}</div></div>`).join('')}</div></div>
+    <div class="box pad"><h2 class="sec-h">Scholarships and aid</h2><p class="sub" style="margin-bottom:8px">Deadlines change every year, so check each program’s site.</p>
+      <div>${CAT.scholarships.map(s=>`<div class="sch">${tile('star','var(--sun)','sm')}<div class="who"><b>${esc(s.name)}</b><span class="sub">${esc(s.for)}</span></div><a class="btn ghost small" href="${esc(s.url)}" target="_blank" rel="noopener">Visit</a></div>`).join('')}</div></div>
+  </div></div>`;
+}
+
+/* ================= PARENT ================= */
+function viewFamily(){
+  const kids = S.children;
+  let main;
+  if (kids===null) main = '<div class="skeleton"></div>';
+  else if (!kids.length) main = `<div class="box pad stack"><h1 class="page-h">Link your child to get started</h1><p class="sub">Once your child’s A.R.I.S.E. Reader account is linked to yours, you’ll see their certificates, careers, quests and events here.</p><div><a class="btn" href="/parent-dashboard">Go to your parent dashboard</a></div></div>`;
+  else {
+    const k = currentChild(), p = k.profile;
+    const byC = Object.keys(CAT.clusters).map(x=>({k:x, n:p.collected.filter(id=>C(id)?.c===x).length + p.saved.filter(id=>C(id)?.c===x).length})).sort((a,b)=>b.n-a.n).slice(0,4);
+    const max = Math.max(1,...byC.map(x=>x.n));
+    const last = C(p.collected[p.collected.length-1]);
+    const starters = [
+      last ? `“You added ${last.name} to your collection. What part of that job sounded fun, and what sounded hard?”` : `“If you could try any job for one day, what would it be?”`,
+      `“If you could shadow any grown-up for one day, who would it be?”`,
+      young(k.band)?`“What do you want to build, fix, or help with when you grow up?”`:`“Which path in the comparison surprised you most?”`
+    ];
+    const reqs = k.events.filter(e=>e.status==='requested');
+    const certs = p.certificates||[];
+    main = `${kids.length>1?`<div class="interest-row">${kids.map(c=>`<button class="chip" data-act="child" data-id="${c.id}" aria-pressed="${c.id===k.id}">${esc(c.name)}</button>`).join('')}</div>`:''}
+    <div class="box pad"><div class="eyebrow">${esc(k.firstName)}’s progress</div><h1 class="page-h" style="margin-top:6px">${esc(k.firstName)} has earned ${certs.length} certificate${certs.length===1?'':'s'} and explored ${p.collected.length} career${p.collected.length===1?'':'s'}.</h1>
+      <div class="statgrid"><div><b>${certs.length}</b><span>Certificates</span></div><div><b>${p.xp}</b><span>Total XP</span></div><div><b>${Object.values(p.quests).filter(q=>q==='done').length}</b><span>Quests done</span></div><div><b>Level ${p.level+1}</b><span>${esc(p.levelName)}</span></div></div>
+      ${k.hasClass?'':`<div class="notice" style="margin-top:14px">${svg('info')}<span>${esc(k.firstName)} isn’t in an approved class yet, so posting and events are closed for now. Courses and everything else work.</span></div>`}</div>
+    ${certs.length?`<div class="box pad"><h2 class="sec-h">Certificates</h2><ul class="cert-rows">${certs.map(x=>{const c=course(x.id); if(!c) return ''; return `<li>${tile(c.icon,fieldColor(c.field))}<div><b>${esc(c.title)}</b><span class="sub small">Issued ${esc(longDate(x.date))} · Credential ID <span class="mono">${esc(x.code)}</span></span></div></li>`}).join('')}</ul></div>`:''}
+    ${reqs.length?`<div class="box pad stack needs-ok"><h2 class="sec-h">Needs your OK</h2>${reqs.map(e=>`<div class="row between"><span>${esc(k.firstName)} wants to go to <b>${esc(e.title)}</b></span><div class="row"><button class="btn ghost small" data-act="prsvp" data-id="${e.id}" data-v="leave">No thanks</button><button class="btn small" data-act="prsvp" data-id="${e.id}" data-v="approve">Approve</button></div></div>`).join('')}</div>`:''}
+    <div class="two">
+      <div class="box pad"><h2 class="sec-h">Where ${esc(k.firstName)} is leaning</h2>${p.collected.length+p.saved.length?`<div class="cbars">${byC.map(x=>`<div class="cbar"><span>${esc(CAT.clusters[x.k].name)}</span><span class="bar"><i style="width:${x.n/max*100}%;background:${clusterColor(x.k)}"></i></span><span class="tnum">${x.n}</span></div>`).join('')}</div>`:'<p class="sub">Nothing collected yet. This fills in as they explore.</p>'}</div>
+      <div class="box pad stack"><h2 class="sec-h">Dinner-table starters</h2>${starters.map(s=>`<div class="starter">${esc(s)}</div>`).join('')}</div>
+    </div>
+    <div class="box pad"><h2 class="sec-h">Events for ${esc(k.firstName)}</h2>${k.events.length?k.events.map(e=>eventRow(e, e.status==='going'?`<span class="chip on">Going</span><button class="btn ghost small" data-act="prsvp" data-id="${e.id}" data-v="leave">Remove</button>`:e.status==='requested'?`<button class="btn small" data-act="prsvp" data-id="${e.id}" data-v="approve">Approve</button>`:`<button class="btn ghost small" data-act="prsvp" data-id="${e.id}" data-v="join">Sign ${esc(k.firstName)} up</button>`)).join(''):'<p class="sub">No upcoming events.</p>'}</div>
+    <div class="box pad"><h2 class="sec-h">Privacy and safety</h2>
+      <p class="sub" style="margin-bottom:8px">Who can see ${esc(k.firstName)}’s posts: <b class="ink">Approved class only</b></p>
+      ${['No private messages between kids, or between kids and adults','Every post is approved by the student’s own teacher first','Students show first name and last initial only'].map(t=>`<div class="checkline">${svg('check')}<span>${t}</span></div>`).join('')}</div>`;
+  }
+  return `<div class="layout3"><aside class="rail-l">${leftHTML()}</aside><section class="feed">${main}</section><aside class="rail-r">${railHTML()}</aside></div>`;
+}
+
+/* ================= TEACHER ================= */
+function viewApprovals(){
+  const list = S.approvals, requests = S.accessRequests;
+  const entry = role()==='teacher' ? `<div class="box"><div class="box-head"><div><h2>Student Connect access requests</h2><p class="sub">Students can’t enter A.R.I.S.E. Connect until you approve them here. This is separate from A.R.I.S.E. Reader class approval.</p></div></div>
+    ${requests===null?'<div class="skeleton"></div>':requests.length?requests.map(p=>`<div class="invite">${av(p.name,'m')}<div class="who"><b>${esc(p.name)}</b><span class="sub">Wants to join A.R.I.S.E. Connect</span></div><div class="invite-actions"><button class="btn ghost small" data-act="review-access" data-id="${p.id}" data-v="deny">Deny</button><button class="btn small" data-act="review-access" data-id="${p.id}" data-v="approve">Approve access</button></div></div>`).join(''):'<p class="empty-in">No student access requests waiting.</p>'}</div>` : '';
+  if (!ME.access) return `<div class="page narrow">${entry}</div>`;
+  return `<div class="layout2 rev"><section class="stack">${entry}<div class="box"><div class="box-head"><div><h2>Post approvals</h2><p class="sub">Your students’ posts wait here until you approve them. Nobody else sees them before that.</p></div><span class="sub">${list?list.length:0} waiting</span></div>
+  ${list===null?'<div class="skeleton"></div>':list.length?list.map(p=>`<div class="approval"><div class="post-head">${av(p.author,'m')}<div class="who"><b>${esc(p.author)}</b><span class="sub">${p.scope==='school'?'Wants to share with the whole school':'Post to class'} · ${ago(p.createdAt)}</span></div></div>
+    ${p.body?`<p class="post-text">${esc(p.body)}</p>`:''}${p.course?`<span class="tag">Certificate: ${esc(p.course.title)}</span>`:''}${p.quest?`<span class="tag">Quest: ${esc(p.quest.title)}</span>`:''}
+    <div class="row"><button class="btn small" data-act="review" data-id="${p.id}" data-v="approve">${svg('check')}Approve</button><button class="btn ghost small" data-act="review" data-id="${p.id}" data-v="reject">Send back</button></div></div>`).join('')
+  : '<p class="empty-in">You’re all caught up on posts.</p>'}</div></section><aside class="rail-r">${railHTML()}</aside></div>`;
+}
+/* ================= ADMIN: ADD STUDENTS ================= */
+function pathTitle(id){ return (CAT.learningPaths.find(p=>p.id===id)||{}).title || ''; }
+function pathOptions(sel, none){ return `<option value="">${esc(none)}</option>${CAT.learningPaths.map(p=>`<option value="${esc(p.id)}" ${p.id===sel?'selected':''}>${esc(p.title)}</option>`).join('')}`; }
+function viewAdminStudents(){
+  const d = S.adm;
+  const head = `<div class="box pad"><div class="eyebrow">Admin</div><h1 class="page-h" style="margin-top:6px">Add students to A.R.I.S.E. Connect</h1>
+    <p class="sub" style="margin-top:8px">Pick students, choose a career path for them if you like, and add them. Each student gets a notification in their A.R.I.S.E. Reader bell. When they tap it, Connect opens already signed in, on the career path you picked. Added students don’t need a teacher’s Connect approval or a paid plan. Their posts still go to their own teacher first.</p></div>`;
+  if (!d) return `<div class="page">${head}<div class="skeleton"></div></div>`;
+  const q = S.admQ.trim().toLowerCase();
+  const list = d.students.filter(s => (S.admShow==='all' || (S.admShow==='added') === s.added) && (!q || [s.name, s.username, s.teacherName||'', s.grade||''].join(' ').toLowerCase().includes(q)));
+  const picked = [...S.admPick].filter(id => d.students.some(s=>s.id===id));
+  const allOn = list.length && list.every(s=>S.admPick.has(s.id));
+  const nAdded = d.students.filter(s=>s.added).length;
+  return `<div class="page">${head}
+  <div class="box">
+    <div class="adm-bar">
+      <label>Find students<input type="search" id="admQ" value="${esc(S.admQ)}" placeholder="Name, username, teacher or grade" autocomplete="off"></label>
+      <label>Career path for the students you pick<select class="select" id="admPath">${pathOptions(S.admPath,'Let them choose')}</select></label>
+      <button class="btn" data-act="adm-add" ${picked.length?'':'disabled'}>${svg('plus')}Add ${picked.length||''} & notify</button>
+    </div>
+    <div class="box-head"><div class="seg" role="group" aria-label="Show"><button data-act="adm-show" data-v="all" aria-pressed="${S.admShow==='all'}">All students</button><button data-act="adm-show" data-v="added" aria-pressed="${S.admShow==='added'}">In Connect · ${nAdded}</button><button data-act="adm-show" data-v="not" aria-pressed="${S.admShow==='not'}">Not added</button></div>
+      <button class="linkbtn" data-act="adm-all">${allOn?'Clear selection':`Select all ${list.length}`}</button></div>
+    ${list.length ? list.map(s=>`<div class="adm-row">
+      <input type="checkbox" data-act="adm-pick" data-id="${s.id}" ${S.admPick.has(s.id)?'checked':''} aria-label="Pick ${esc(s.name)}">
+      ${av(s.name,'s')}
+      <div class="who"><b>${esc(s.name)}</b><span class="sub small">${[s.username&&'@'+s.username, s.grade&&('Grade '+s.grade), s.teacherName?('Class: '+s.teacherName):'No class yet'].filter(Boolean).map(esc).join(' · ')}</span>
+        ${s.added?`<span class="row" style="gap:6px;margin-top:4px"><span class="added-pill">In Connect</span><span class="sub small">${s.pathId?esc(pathTitle(s.pathId)):'Choosing their own path'}</span></span>`:''}</div>
+      <div class="acts">${s.added?`<select class="select" style="width:auto" data-act="adm-setpath" data-id="${s.id}" aria-label="Career path for ${esc(s.name)}">${pathOptions(s.pathId,'Let them choose')}</select><button class="btn ghost small" data-act="adm-remove" data-id="${s.id}">Remove</button>`:`<button class="btn ghost small" data-act="adm-one" data-id="${s.id}">Add & notify</button>`}</div>
+    </div>`).join('') : `<p class="empty-in">${d.students.length?'No students match.':'No student accounts yet.'}</p>`}
+  </div></div>`;
+}
+async function loadAdminStudents(){ try { S.adm = await api('/admin/students'); } catch (e) { if (e.code===401) return signedOut(); fail(e); S.adm = { students: [], paths: [] }; } if (S.tab==='students') renderMain(); }
+async function adminAdd(ids, pathId){
+  const r = await api('/admin/invite',{method:'POST',body:{studentIds:ids, pathId: pathId||null}});
+  toast(r.added ? `Added ${r.added} student${r.added===1?'':'s'} and sent ${r.added===1?'a notification':'notifications'}` : 'Nobody was added');
+  S.admPick = new Set(); await loadAdminStudents();
+}
+/** A student's career path, picked by an admin: shown at the top of Stars. */
+function myPathHTML(){
+  if (role()!=='student' || !ME.assignedPath) return '';
+  const p = CAT.learningPaths.find(x=>x.id===ME.assignedPath.id); if (!p) return '';
+  const next = p.courses.map(course).filter(Boolean).find(c=>!certOf(c.id));
+  const n = p.courses.filter(id=>certOf(id)).length;
+  return `<div class="my-path"><span class="path-icons">${p.courses.slice(0,4).map(id=>{const c=course(id);return c?tile(c.icon,fieldColor(c.field),'sm'):''}).join('')}</span>
+    <div class="who"><span class="eyebrow">Your career path</span><b>${esc(p.title)}</b><span class="sub">${esc(p.blurb)} · ${n} of ${p.courses.length} certificates</span></div>
+    ${next?`<button class="btn" data-act="course" data-id="${next.id}">${lessonsDone(next)?'Keep going':'Start'}: ${esc(next.title)}</button>`:`<span class="added-pill">Path complete!</span>`}
+    <button class="btn ghost small" data-act="mypath" data-v="${p.id}">See all ${p.courses.length} courses</button></div>`;
+}
+function viewClass(){
+  const ci = S.classInfo;
+  if (!ci) return '<div class="page"><div class="skeleton"></div></div>';
+  const counts = Object.entries(ci.clusters).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const max = Math.max(1, ...counts.map(x=>x[1]));
+  const certs = ci.students.reduce((t,s)=>t+(s.certificates||0),0);
+  return `<div class="page"><div class="box pad"><div class="eyebrow">Your class</div><h1 class="page-h" style="margin-top:6px">${ci.totals.students} student${ci.totals.students===1?'':'s'} · ${certs} certificate${certs===1?'':'s'} · ${ci.totals.questsDone} quest${ci.totals.questsDone===1?'':'s'} done</h1>
+    <div class="statgrid"><div><b>${ci.totals.activeWeek}</b><span>Active this week</span></div><div><b>${ci.totals.pending}</b><span>Waiting for you</span></div><div><b>${(S.events||[]).length}</b><span>Upcoming events</span></div></div>
+    ${ci.totals.pending?`<button class="btn" style="margin-top:14px" data-act="tab" data-v="approvals">Review ${ci.totals.pending} post${ci.totals.pending>1?'s':''}</button>`:''}</div>
+  <div class="box pad"><h2 class="sec-h">Students</h2>${ci.students.length?`<div class="table-wrap"><table><thead><tr><th>Student</th><th class="tnum">Certificates</th><th class="tnum">Level</th><th class="tnum">Careers</th><th class="tnum">Quests</th><th class="tnum">Streak</th></tr></thead><tbody>${ci.students.map(s=>`<tr><td><span class="row">${av(s.name,'s')}${esc(s.name)}</span></td><td class="tnum">${s.certificates||0}</td><td class="tnum">${s.level}</td><td class="tnum">${s.collected}</td><td class="tnum">${s.questsDone}</td><td class="tnum">${s.streak}</td></tr>`).join('')}</tbody></table></div>`:'<p class="sub">Students appear here once you’ve approved them in A.R.I.S.E. Reader.</p>'}</div>
+  <div class="box pad"><h2 class="sec-h">What your class is exploring</h2>${counts.length?`<div class="cbars">${counts.map(([k,n])=>`<div class="cbar"><span>${esc(CAT.clusters[k]?.name||k)}</span><span class="bar"><i style="width:${n/max*100}%;background:${clusterColor(k)}"></i></span><span class="tnum">${n}</span></div>`).join('')}</div><p class="sub small" style="margin-top:10px">Careers your students have collected. Handy for picking your next guest speaker.</p>`:'<p class="sub">Nothing collected yet. Share the link <b>arisereader.com/social</b> with your class.</p>'}</div></div>`;
+}
+
+/* ================= STUDENT CONNECT LOCK ================= */
+function connectLockHTML(){
+  const status = ME.approvalStatus, teacher = ME.user.teacherName;
+  const head = status==='pending' ? 'Waiting for your teacher' : status==='needs_class' ? 'Connect needs a teacher' : status==='denied' ? 'Access not approved yet' : 'Ask to join A.R.I.S.E. Connect';
+  const detail = status==='pending' ? `Your request was sent to ${esc(teacher||'your teacher')}. You can use Connect once they approve it.`
+    : status==='needs_class' ? 'First, join a teacher’s class in A.R.I.S.E. Reader and get approved there.'
+    : status==='denied' ? 'Your teacher has not approved Connect access. You can send another request.'
+    : `Send a request to ${esc(teacher||'your teacher')} to unlock A.R.I.S.E. Connect.`;
+  return `<div class="center-page"><div class="box pad stack center"><span class="lock-ico">${svg('lock')}</span><div class="eyebrow">A.R.I.S.E. Connect</div><h1 class="page-h">${head}</h1><p class="sub">${detail}</p>
+  ${status==='not_requested'||status==='denied'?'<div><button class="btn" data-act="request-access">Request teacher approval</button></div>':''}
+  <div><a class="btn ghost" href="/">Back to A.R.I.S.E. Reader</a></div></div></div>`;
+}
+
+/* ================= LEARNING: career courses + certificates ================= */
+const FIELD_VAR = { trades:'--f-trades', eng:'--f-eng', film:'--f-film', music:'--f-music', health:'--f-health', tech:'--f-tech', biz:'--f-biz', food:'--f-food', sports:'--f-sports', air:'--f-air', games:'--f-games', law:'--f-law' };
+const fieldColor = f => `var(${FIELD_VAR[f]||'--blue'})`;
+const course = id => (CAT.courses||[]).find(c => c.id === id);
+const myCourse = id => (P()?.courses||{})[id] || null;
+const lessonsDone = c => { const m = myCourse(c.id); return m ? m.lessons.filter(Boolean).length : 0; };
+const certOf = id => (P()?.certificates||[]).find(x => x.id === id) || null;
+const SEAL = `<svg class="seal" viewBox="0 0 100 100" aria-hidden="true"><g fill="#5169ED">${Array.from({length:16},(_,i)=>`<path d="M50 4 56 18 44 18Z" transform="rotate(${i*22.5} 50 50)"/>`).join('')}</g><circle cx="50" cy="50" r="34" fill="#5169ED"/><circle cx="50" cy="50" r="28" fill="none" stroke="#fff" stroke-width="2" opacity=".85"/><path d="M36 60 50 36l14 24" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="50" cy="57" r="4" fill="#11B9AF"/></svg>`;
+function longDate(d){ return new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}); }
+function certificateHTML(c, cert, name, small){
+  const qs = c.lessons.reduce((a,l)=>a+l.quiz.length,0);
+  return `<div class="cert ${small?'cert-small':''}"><div class="cert-inner">
+    <div class="issuer">A.R.I.S.E. Connect</div><div class="ctype">Certificate of Completion</div>
+    <div class="who">${esc(name)}</div><p class="what">has completed the career course</p>
+    <div class="course">${esc(c.title)}</div>
+    <p class="what" style="font-size:.88rem">${esc(CAT.courseFields[c.field])} · ${c.lessons.length} lessons · ${c.minutes} minutes · ${qs} quiz questions passed</p>
+    <div class="foot"><div><b>${cert?longDate(cert.date):longDate(ME?.today||new Date().toISOString().slice(0,10))}</b><br><span class="mono">${cert?esc(cert.code):'AC-PREVIEW'}</span></div>${SEAL}</div>
+  </div></div>`;
+}
+/** Select the actual celebrity video that supplies the course's cover still.
+ * Match the visible celebrity name to this video, including when a backup is needed.
+ */
+const courseFeaturedVideo = c => (c.stars||[]).find(okVid) || c.lessons.map(lessonVid).find(Boolean) || null;
+function courseCard(c){
+  const student = role()==='student', n = student ? lessonsDone(c) : 0, done = student && !!certOf(c.id), total = c.lessons.length;
+  const match = S.interests.size && c.interests.some(i=>S.interests.has(i));
+  const featured = courseFeaturedVideo(c);
+  return `<button class="card" data-act="course" data-id="${c.id}" style="--fc:${fieldColor(c.field)}">
+    ${match?'<span class="badge-match">Matches you</span>':''}
+    <div class="banner">${tile(c.icon,fieldColor(c.field))}<div><div class="eyebrow">${esc(CAT.courseFields[c.field])}</div><div class="mono">${esc(c.code)}</div></div></div>
+    ${featured?`<div class="course-celeb-hero">
+      <img src="https://i.ytimg.com/vi/${featured.id}/hqdefault.jpg" alt="Video still featuring ${esc(featured.star)}" loading="lazy" decoding="async" onerror="this.parentElement.classList.add('no-thumb');this.remove()">
+      <span class="course-celeb-chip">${svg('star')} Learn with ${esc(featured.star)}</span>
+    </div>`:''}
+    <div class="body"><h3>${esc(c.title)}</h3><p class="blurb">${esc(c.blurb)}</p>
+    <div class="meta"><span><b>${total}</b> lessons</span><span><b>${c.minutes}</b> min</span><span><b>+${CAT.xp.course}</b> XP</span>${c.lessons.some(l=>lessonVid(l))?`<span>${svg('play')} Videos</span>`:''}</div>
+    ${featured?`<span class="with-star">${svg('star')}With ${esc(featured.star)}</span>`:''}
+    <div class="tags">${c.paths.map(p=>`<span class="tag">${esc(CAT.coursePaths[p])}</span>`).join('')}</div>
+    ${done?`<span class="earned">${svg('star')} Certificate earned</span>`:n?`<div><div class="meta" style="margin-bottom:6px"><span>${n} of ${total} lessons done</span></div><div class="bar"><i style="width:${n/total*100}%"></i></div></div>`:''}</div></button>`;
+}
+const INTERESTS=[{id:"build",label:"Building things"},{id:"how",label:"Figuring out how things work"},{id:"music",label:"Music"},{id:"stories",label:"Movies & stories"},{id:"help",label:"Helping people"},{id:"computers",label:"Computers & games"},{id:"money",label:"Business ideas"},{id:"food",label:"Food & cooking"},{id:"sports",label:"Sports"},{id:"space",label:"Planes & space"}];
+
+
+/* ================= LEARN WITH A STAR: the first lessons kids see, organized by the celebrity ================= */
+const STAR_FIELD_ORDER = ['music','food','games','film','sports','biz','trades','eng','air','health'];
+const starRank = c => { const i = STAR_FIELD_ORDER.indexOf(c.field); return i < 0 ? 99 : i; };
+function starCourseCard(c){
+  const student = role()==='student', n = student ? lessonsDone(c) : 0, done = student && !!certOf(c.id), total = c.lessons.length;
+  const v = courseFeaturedVideo(c);
+  return `<button class="star-course" data-act="course" data-id="${c.id}" style="--fc:${fieldColor(c.field)}" aria-label="Learn with ${esc(c.star.name)}: ${esc(c.title)}">
+    <span class="sc-photo">${v?`<img src="https://i.ytimg.com/vi/${v.id}/hqdefault.jpg" alt="" loading="lazy" decoding="async" onerror="this.remove()">`:''}
+      <span class="sc-field">${svg(c.icon)}${esc(CAT.courseFields[c.field])}</span>
+      <span class="sc-name">${esc(c.star.name)}</span></span>
+    <span class="sc-body"><span class="sc-role">${esc(c.star.role)}</span><b class="sc-course">${esc(c.title)}</b>
+      <span class="sc-meta">${total} lessons · ${c.minutes} min${c.lessons.some(l=>lessonVid(l))?' · Star videos':''}</span>
+      ${done?`<span class="earned">${svg('star')} Certificate earned</span>`:n?`<span class="bar"><i style="width:${n/total*100}%"></i></span><span class="sc-meta">${n} of ${total} lessons done</span>`:''}</span></button>`;
+}
+function viewByStar(){
+  const all = CAT.courses.filter(c => c.star).sort((a,b) => starRank(a)-starRank(b));
+  if (!all.length) return '';
+  const fields = STAR_FIELD_ORDER.filter(f => all.some(c => c.field===f));
+  const q = S.q.trim().toLowerCase();
+  const list = all.filter(c => (S.starf==='all' || c.field===S.starf) && (!q || [c.star.name, c.star.role, c.title].join(' ').toLowerCase().includes(q)));
+  const lessons = all.reduce((n,c) => n + c.lessons.length, 0);
+  return `<section class="section" aria-labelledby="by-star-h"><div class="cat-head"><h2 id="by-star-h">Learn with a star</h2><span class="muted">${all.length} stars · ${lessons} lessons · pick who you want to learn from</span></div>
+    <div class="field-row" role="group" aria-label="Pick a kind of star"><button class="chip" data-act="starf" data-v="all" aria-pressed="${S.starf==='all'}">All stars</button>${fields.map(f=>`<button class="chip" data-act="starf" data-v="${f}" aria-pressed="${S.starf===f}">${esc(CAT.courseFields[f])} (${all.filter(c=>c.field===f).length})</button>`).join('')}</div>
+    ${list.length?`<div class="star-course-grid">${list.map(starCourseCard).join('')}</div>`:'<div class="empty">No stars match. Try “All stars”.</div>'}
+  </section>`;
+}
+
+/* ================= STARS: every career, from famous people who do it ================= */
+function viewStars(){
+  if (S.lesson!=null && S.course) return viewLesson();
+  if (S.course) return viewCourse();
+  if (STARS===null) return '<div class="skeleton"></div><div class="skeleton"></div>';
+  const all = STARS.filter(starOk);
+  const q = S.q.trim().toLowerCase();
+  const list = all.filter(v => {
+    const cs = v.careers.map(C).filter(Boolean);
+    if (S.sfield!=='all' && !cs.some(c => c.c===S.sfield)) return false;
+    return !q || [v.star, v.known, v.title, v.ytTitle||'', ...cs.map(c => c.name)].join(' ').toLowerCase().includes(q);
+  });
+  const areas = Object.entries(CAT.clusters).filter(([k]) => all.some(v => v.careers.some(id => C(id)?.c===k)));
+  const rows = CAT.careers.map(c => ({ c, vids: list.filter(v => v.careers[0]===c.id) })).filter(r => r.vids.length).sort((a,b)=>watchRank(a.c.id)-watchRank(b.c.id));
+  const student = role()==='student';
+  const watched = student ? (P()?.watched||[]).length : 0;
+  const inprog = student ? CAT.courses.filter(c => lessonsDone(c)>0 && !certOf(c.id)) : [];
+  return `${myPathHTML()}<section class="learn-hero">
+    <div><div class="eyebrow">A.R.I.S.E. Connect Stars</div>
+      <h1>Learn from <em>the stars.</em></h1>
+      <p class="lede">Pick a star and learn from them: Taylor Swift on songwriting, Quincy Jones and Pharrell on producing, Hans Zimmer on movie music, Gordon Ramsay in the kitchen, Shigeru Miyamoto designing Mario, Steph Curry, Spielberg, Chris Hadfield in space and more. Each lesson has a star video, a short reading, key words and a quick check. ${student?'Finish a course to earn a certificate for your profile.':'Students pass each lesson’s quick check to earn a certificate.'}</p>
+      ${student?`<div class="learn-stats"><span><b>${(P().certificates||[]).length}</b> certificates</span><span><b>${inprog.length}</b> in progress</span><span><b>${watched}</b> star videos watched</span></div>`:`<div class="learn-stats"><span><b>${CAT.courses.filter(c=>c.star).length}</b> stars teaching</span><span><b>${CAT.courses.reduce((n,c)=>n+c.lessons.length,0)}</b> lessons</span><span><b>${all.length}</b> more star videos</span></div>`}
+    </div>
+    <div class="continue"><div class="eyebrow">${student&&inprog.length?'Continue learning':'Start with a star'}</div>
+      ${(student&&inprog.length?inprog:['s-taylor','s-gordon','s-miyamoto'].map(course).filter(Boolean)).slice(0,3).map(c=>`<button class="mini-course" data-act="course" data-id="${c.id}">${tile(c.icon,fieldColor(c.field),'sm')}<span><b>${esc(c.title)}</b><span class="sub">${student&&inprog.length?`Lesson ${Math.min(lessonsDone(c)+1,c.lessons.length)} of ${c.lessons.length}`:c.star?`With ${esc(c.star.name)}`:c.stars&&c.stars[0]?`With ${esc(c.stars[0].star)}`:esc(CAT.courseFields[c.field])}</span></span></button>`).join('')}
+    </div></section>
+  ${viewByStar()}
+  ${viewLearn(true)}
+  <section class="section"><div class="cat-head"><h2>More from the stars</h2><span class="muted">Short videos for every career, each with one thing to try</span></div></section>
+  <div class="filters"><div class="seg" role="group" aria-label="Career area"><button data-act="sfield" data-v="all" aria-pressed="${S.sfield==='all'}">All</button>${areas.map(([k,v])=>`<button data-act="sfield" data-v="${k}" aria-pressed="${S.sfield===k}">${esc(v.name)}</button>`).join('')}</div></div>
+  ${rows.length ? rows.map(({c, vids}) => `<section class="section" id="stars-${c.id}" style="--fc:${clusterColor(c.c)}"><div class="cat-head"><h2 style="display:flex;align-items:center;gap:12px">${tile(c.c,clusterColor(c.c))}${esc(c.name)}</h2><button class="btn ghost" data-act="open" data-id="${c.id}">About the job</button></div>
+      <div class="stars-grid">${vids.map(v=>starCardHTML(v,'stars',{noCareer:true})).join('')}</div></section>`).join('') : '<div class="box pad">No videos match. Try “All” or a different search.</div>'}
+  <p class="sub small" style="text-align:center;margin:8px 0 24px">Videos play from YouTube in privacy-enhanced mode. Every one is of a famous or well-known person.</p>`;
+}
+async function loadStars(){
+  try { const r = await api('/videos'); STARS = Array.isArray(r.videos) ? r.videos : []; HIDDEN = new Set(Array.isArray(r.hidden) ? r.hidden : []); }
+  catch { STARS = []; }
+  render();
+}
+
+/* ================= VIDEOS ================= */
+/* A poster (YouTube's thumbnail) that turns into the player when pressed, so a page of videos loads
+   fast and nothing plays by itself. Played through youtube-nocookie.com; "Watch on YouTube" is
+   always there for schools that block embedded players. key tells two copies of one video apart. */
+const PLAYING = new Set();
+/* Videos YouTube says are gone or can't be embedded (GET /api/social/videos); skipped everywhere. */
+let HIDDEN = new Set();
+let STARS = null;               // every career star video (shared/ariseConnectVideos.ts), checked against YouTube
+const okVid = v => v && /^[A-Za-z0-9_-]{11}$/.test(v.id||'') && !HIDDEN.has(v.id);
+/** A lesson's star video, or its backup if YouTube removed the first. */
+const lessonVid = l => [l.video, ...(l.backups||[])].find(okVid) || null;
+/** K–5 (and anyone not signed in) only see star videos marked for all ages. */
+const starOk = v => okVid(v) && (v.ages==='all' || (ME && !young(bandNow())));
+const starsFor = careerId => (STARS||[]).filter(v => v.careers.includes(careerId) && starOk(v));
+/** A career star video in the same card style as course videos: player, caption, try-this, career link. */
+const asVid = v => ({ id:v.id, title:v.ytTitle||v.title, by:v.channel||'YouTube', star:v.star, role:v.known });
+function starCardHTML(v, key, opts={}){
+  const seen = role()==='student' && (P()?.watched||[]).includes(v.id);
+  const c = C(v.careers[0]);
+  return `<div class="star-card">${videoHTML(asVid(v), key)}
+    <div class="try-it"><b>Try this</b><span>${esc(v.try)}</span></div>
+    <div class="star-foot">${opts.noCareer||!c?'':`<button class="btn ghost" data-act="open" data-id="${c.id}">${tile(c.c,clusterColor(c.c),'sm')}${esc(c.name)}</button>`}${seen?'<span class="seen">✓ Watched</span>':''}${v.ages==='teen'?'<span class="tag">Grades 6–12</span>':''}</div></div>`;
+}
+const WATCH_FIRST = ['chef','progamer','gamedesigner','athlete','creator','astronaut','musician','actor','softdev','entrepreneur','scientist','pilot'];
+const watchRank = id => { const i = WATCH_FIRST.indexOf(id); return i < 0 ? 100 + CAT.careers.findIndex(c => c.id === id) : i; };
+/** One video per star: a quick tour of who's on Connect. */
+const oneEach = list => { const seen = new Set(); return [...list].sort((a,b)=>watchRank(a.careers[0])-watchRank(b.careers[0])).filter(v => !seen.has(v.star) && seen.add(v.star)); };
+function vidFrame(v){ return `<iframe src="https://www.youtube-nocookie.com/embed/${v.id}?autoplay=1&rel=0&modestbranding=1&playsinline=1" title="${esc(v.title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`; }
+function videoHTML(v, key, opts={}){
+  if (!okVid(v)) return '';
+  const k = `${key}:${v.id}`;
+  return `<figure class="vid-wrap">
+    <div class="vid" data-vid="${v.id}">${PLAYING.has(k) ? vidFrame(v) : `<button class="poster" data-act="playvid" data-id="${v.id}" data-v="${esc(k)}" aria-label="Play video: ${esc(v.title)}"><img src="https://i.ytimg.com/vi/${v.id}/hqdefault.jpg" alt="" loading="lazy"><span class="play">${svg('play')}</span></button>`}</div>
+    ${opts.noCaption?'':`<figcaption class="vid-cap">${v.star?`<span class="star-tag">${svg('star')}${esc(v.star)}</span>`:''}<b>${esc(v.title)}</b><span class="sub">${v.role?esc(v.role)+' · ':''}${esc(v.by)} · <a href="https://www.youtube.com/watch?v=${v.id}" target="_blank" rel="noopener">Watch on YouTube</a></span></figcaption>`}
+  </figure>`;
+}
+/* Every celebrity video across the courses, once each, with the course it belongs to. */
+function allStars(){ const seen=new Set(), out=[]; (CAT.courses||[]).forEach(c=>(c.stars||[]).forEach(v=>{ if(!seen.has(v.id)&&okVid(v)){ seen.add(v.id); out.push({v,c}); } })); return out; }
+function viewLearn(bare){
+  if (S.lesson!=null && S.course) return viewLesson();
+  if (S.course) return viewCourse();
+  const student = role()==='student';
+  const lp = S.lpath ? CAT.learningPaths.find(p=>p.id===S.lpath) : null;
+  let list = CAT.courses.filter(c => (S.lfield==='all'||c.field===S.lfield) && (!lp || lp.courses.includes(c.id)));
+  if (bare && !lp) list = list.filter(c => !c.star);
+  if (S.interests.size) list = [...list].sort((a,b)=>(b.interests.some(i=>S.interests.has(i))?1:0)-(a.interests.some(i=>S.interests.has(i))?1:0));
+  const inprog = student ? CAT.courses.filter(c => lessonsDone(c)>0 && !certOf(c.id)) : [];
+  const first = esc((ME.user.name||'').split(' ')[0] || 'there');
+  const sections = `<section class="section"><div class="cat-head"><h2>Career paths</h2><span class="muted">Groups of courses that go together</span></div>
+    <div class="paths">${CAT.learningPaths.map(p=>{const n=student?p.courses.filter(id=>certOf(id)).length:0;return `<button class="box path${S.lpath===p.id?' on':''}" data-act="lpath" data-v="${p.id}" aria-pressed="${S.lpath===p.id}">
+      <span class="path-icons">${p.courses.slice(0,5).map(id=>{const c=course(id);return tile(c.icon,fieldColor(c.field),'sm')}).join('')}</span>
+      <b>${esc(p.title)}</b><span class="sub">${esc(p.blurb)}</span>
+      ${student?`<span class="sub small">${n} of ${p.courses.length} certificates</span><span class="bar"><i style="width:${n/p.courses.length*100}%"></i></span>`:`<span class="sub small">${p.courses.length} courses</span>`}</button>`}).join('')}</div></section>
+  <section class="section"><div class="cat-head"><h2>${lp?esc(lp.title):'More career courses'}</h2><span class="muted">${list.length} course${list.length===1?'':'s'}${lp?` · <button class="linkbtn" data-act="lpath" data-v="">Show all courses</button>`:''}</span></div>
+    <div class="field-row" role="group" aria-label="Pick a career field"><span class="sub">Pick a field:</span><button class="chip" data-act="lfield" data-v="all" aria-pressed="${S.lfield==='all'}">All courses</button>${Object.entries(CAT.courseFields).map(([k,v])=>`<button class="chip" data-act="lfield" data-v="${k}" aria-pressed="${S.lfield===k}">${esc(v)}</button>`).join('')}</div>
+    ${list.length?`<div class="grid">${list.map(courseCard).join('')}</div>`:'<div class="empty">No courses match. Try “All”.</div>'}
+  </section>`;
+  if (bare) return sections;
+  return `<section class="learn-hero">
+    <div><div class="eyebrow">A.R.I.S.E. Connect Learning</div>
+      <h1>${student?`Hi ${first}, `:''}<em>try a career</em> before you pick one.</h1>
+      <p class="lede">Short courses with videos from real pros and stars: the trades, engineering, film, music, healthcare, tech, business, cooking, sports, and aviation and space. ${student?'Every course ends with a certificate for your profile.':'Students pass each lesson’s quick check to earn a certificate. You can preview every lesson.'}</p>
+      ${student?`<div class="learn-stats"><span><b>${(P().certificates||[]).length}</b> certificates</span><span><b>${inprog.length}</b> in progress</span><span><b>${P().xp}</b> XP</span></div>`:''}
+    </div>
+    <div class="continue"><div class="eyebrow">${student&&inprog.length?'Continue learning':student?'Start here':'Popular courses'}</div>
+      ${(student&&inprog.length?inprog:CAT.courses.filter(c=>!student||!certOf(c.id))).slice(0,3).map(c=>`<button class="mini-course" data-act="course" data-id="${c.id}">${tile(c.icon,fieldColor(c.field),'sm')}<span><b>${esc(c.title)}</b><span class="sub">${student&&inprog.length?`Lesson ${Math.min(lessonsDone(c)+1,c.lessons.length)} of ${c.lessons.length}`:`${esc(CAT.courseFields[c.field])} · ${c.minutes} min`}</span>${student&&inprog.length?`<span class="bar"><i style="width:${lessonsDone(c)/c.lessons.length*100}%"></i></span>`:''}</span></button>`).join('') || '<p class="sub">Start any course below.</p>'}
+    </div></section>
+  ${allStars().length?`<section class="section" aria-labelledby="stars-h"><div class="cat-head"><h2 id="stars-h">Learn from the stars</h2><span class="muted">Famous people talk about the work they love</span></div>
+    <div class="stars-grid">${allStars().slice(0,6).map(({v,c})=>`<div class="star-card">${videoHTML(v,'home')}<button class="btn ghost" data-act="course" data-id="${c.id}">${tile(c.icon,fieldColor(c.field),'sm')}Take ${esc(c.title)}</button></div>`).join('')}</div></section>`:''}
+  <section class="section"><div class="cat-head"><h2>Career paths</h2><span class="muted">Groups of courses that go together</span></div>
+    <div class="paths">${CAT.learningPaths.map(p=>{const n=student?p.courses.filter(id=>certOf(id)).length:0;return `<button class="box path${S.lpath===p.id?' on':''}" data-act="lpath" data-v="${p.id}" aria-pressed="${S.lpath===p.id}">
+      <span class="path-icons">${p.courses.slice(0,5).map(id=>{const c=course(id);return tile(c.icon,fieldColor(c.field),'sm')}).join('')}</span>
+      <b>${esc(p.title)}</b><span class="sub">${esc(p.blurb)}</span>
+      ${student?`<span class="sub small">${n} of ${p.courses.length} certificates</span><span class="bar"><i style="width:${n/p.courses.length*100}%"></i></span>`:`<span class="sub small">${p.courses.length} courses</span>`}</button>`}).join('')}</div></section>
+  <section class="section"><div class="cat-head"><h2>${lp?esc(lp.title):'Star lessons'}</h2><span class="muted">${list.length} course${list.length===1?'':'s'}${lp?` · <button class="linkbtn" data-act="lpath" data-v="">Show all courses</button>`:''}</span></div>
+    <div class="field-row" role="group" aria-label="Pick a career field"><span class="sub">Pick a field:</span><button class="chip" data-act="lfield" data-v="all" aria-pressed="${S.lfield==='all'}">All courses</button>${Object.entries(CAT.courseFields).map(([k,v])=>`<button class="chip" data-act="lfield" data-v="${k}" aria-pressed="${S.lfield===k}">${esc(v)}</button>`).join('')}</div>
+    ${list.length?`<div class="grid">${list.map(courseCard).join('')}</div>`:'<div class="empty">No courses match. Try “All”.</div>'}
+  </section>`;
+}
+function viewCourse(){
+  const c = course(S.course); if (!c) { S.course=null; return viewLearn(); }
+  const student = role()==='student', cert = student && certOf(c.id), m = student ? myCourse(c.id) : null;
+  const n = student ? lessonsDone(c) : 0, next = m ? m.lessons.findIndex(x=>!x) : 0;
+  const cta = cert ? `<button class="btn goldbtn" data-act="credential" data-id="${c.id}">${svg('star')} View certificate</button>`
+    : `<button class="btn" data-act="lesson" data-v="${next<0?0:next}">${!student?'Preview lessons':n?`Continue lesson ${next+1}`:'Start course'}</button>`;
+  return `<div class="back"><button class="linkbtn" data-act="learnhome">← All star lessons</button></div>
+  <section class="course-hero" style="--fc:${fieldColor(c.field)}">
+    <div>
+      <div style="display:flex;gap:12px;align-items:center">${tile(c.icon,fieldColor(c.field))}<div><div class="eyebrow">${esc(CAT.courseFields[c.field])}</div><div class="mono muted">${esc(c.code)}</div></div></div>
+      <h1>${esc(c.title)}</h1><p class="lede">${esc(c.blurb)}</p>
+      <div class="meta" style="margin:16px 0 20px"><span><b>${c.lessons.length}</b> lessons</span><span><b>${c.minutes}</b> minutes</span><span><b>+${CAT.xp.course}</b> XP</span><span>Certificate on completion</span></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">${cta}${n&&!cert?`<span class="muted">${n} of ${c.lessons.length} done</span>`:''}</div>
+    </div>
+    <div class="panel"><h3>What you'll learn</h3><ul class="checks">${c.learn.map(l=>`<li>${svg('check')}<span>${esc(l)}</span></li>`).join('')}</ul></div>
+  </section>
+  <section class="section"><h2>Lessons</h2>
+    <ol class="lessons">${c.lessons.map((l,i)=>{const d=m&&m.lessons[i];return `<li><button class="lesson-row" data-act="lesson" data-v="${i}">${lessonVid(l)?`<img class="lesson-star-thumb" src="https://i.ytimg.com/vi/${lessonVid(l).id}/hqdefault.jpg" alt="Video still featuring ${esc(lessonVid(l).star)}" loading="lazy" decoding="async" onerror="this.remove()">`:''}<span class="num ${d?'done':''}">${d?svg('check'):i+1}</span><span class="t"><b>${esc(l.title)}</b><span class="muted" style="font-size:.9rem">${l.minutes} min${lessonVid(l)?` · Video with ${esc(lessonVid(l).star)}`:''} · ${l.quiz.length} quick-check questions${l.activity?' · interactive':''}</span></span><span class="muted" aria-hidden="true">→</span></button></li>`}).join('')}</ol>
+  </section>
+  ${(c.stars||[]).filter(okVid).length?`<section class="section" aria-labelledby="spot-h"><h2 id="spot-h">Star spotlight</h2><p class="muted" style="margin:-6px 0 16px">Famous people who do this work, or fight for it.</p>
+    <div class="stars-grid">${c.stars.filter(okVid).map(v=>`<div class="star-card">${videoHTML(v,'course')}</div>`).join('')}</div></section>`:''}
+  <section class="section"><h2>Career snapshot</h2><div class="two">
+    <div class="panel kv"><div><span class="eyebrow">Jobs this leads toward</span><span>${c.careers.map(esc).join(' · ')}</span></div></div>
+    <div class="panel kv"><div><span class="eyebrow">Ways in</span><span>${c.paths.map(p=>esc(CAT.coursePaths[p])).join(' · ')}</span></div></div>
+    <div class="panel kv"><div><span class="eyebrow">School subjects that help</span><span>${c.subjects.map(esc).join(' · ')}</span></div></div>
+  </div></section>`;
+}
+function viewLesson(){
+  const c = course(S.course), i = S.lesson, l = c.lessons[i], student = role()==='student';
+  const m = student ? myCourse(c.id) : null, passed = !!(m && m.lessons[i]);
+  const A = S.answers, allRight = l.quiz.every((_,qi)=>A[qi]&&A[qi].right), last = i===c.lessons.length-1;
+  let step = 1;
+  return `<div class="back"><button class="linkbtn" data-act="course" data-id="${c.id}">← ${esc(c.title)}</button></div>
+  <div class="lesson-layout">
+    <nav class="side" aria-label="Lessons">${c.lessons.map((x,k)=>{const d=m&&m.lessons[k];return `<button data-act="lesson" data-v="${k}" aria-current="${k===i}"><span class="num ${d?'done':''}">${d?svg('check'):k+1}</span>${esc(x.title)}</button>`}).join('')}</nav>
+    <article class="article">
+      <header><div class="mono muted">${esc(c.code)} · Lesson ${i+1} of ${c.lessons.length} · ${l.minutes} min</div><h1 style="margin-top:8px">${esc(l.title)}</h1></header>
+      ${lessonVid(l)?`<section><div class="block-title"><span class="step-label">STEP ${step++}</span><h2>Watch</h2></div>${videoHTML(lessonVid(l),'lesson')}</section>`:''}
+      <section><div class="block-title"><span class="step-label">STEP ${step++}</span><h2>Read</h2></div><div class="reading">${l.body.map(p=>`<p>${esc(p)}</p>`).join('')}</div></section>
+      <section><div class="block-title"><span class="step-label">KEY TERMS</span></div><div class="terms">${l.terms.map(t=>`<div class="term"><b>${esc(t[0])}</b><span>${esc(t[1])}</span></div>`).join('')}</div></section>
+      ${l.activity||l.tryIt?`<section><div class="block-title"><span class="step-label">STEP ${step++}</span><h2>Try it</h2></div><div class="tryit">${l.activity?activityHTML(l.activity):`<p>${esc(l.tryIt)}</p>`}</div></section>`:''}
+      <section><div class="block-title"><span class="step-label">STEP ${step++}</span><h2>Quick check</h2></div><div style="display:grid;gap:14px">${l.quiz.map((q,qi)=>qHTML(q,qi,passed?{tried:[q.a],right:true}:A[qi])).join('')}</div></section>
+      <div class="finish"><span>${passed?'You passed this lesson.':!student?'Preview: students answer these to earn the certificate.':allRight?'All correct. Nice work.':'Answer every question correctly to finish.'}</span>
+        ${student&&!passed?`<button class="btn" data-act="finishlesson" ${allRight?'':'disabled'}>${last?'Finish course':'Next lesson →'}</button>`:!last?`<button class="btn" data-act="lesson" data-v="${i+1}">Next lesson →</button>`:`<button class="btn ghost" data-act="course" data-id="${c.id}">Back to course</button>`}</div>
+    </article></div>`;
+}
+function qHTML(q,qi,a){
+  const picked = a ? a.tried : [], solved = a && a.right;
+  return `<div class="q"><b>${qi+1}. ${esc(q.q)}</b><div class="opts">${q.o.map((o,oi)=>{const cls=picked.includes(oi)?(oi===q.a?'right':'wrong'):'';return `<button class="opt ${cls}" data-act="answer" data-q="${qi}" data-o="${oi}" ${solved||picked.includes(oi)?'disabled':''}><span class="k">${'ABCD'[oi]}</span>${esc(o)}</button>`}).join('')}</div>
+    ${a?(solved?`<div class="feedback ok"><b>Correct.</b> ${esc(q.why)}</div>`:`<div class="feedback no"><b>Not quite.</b> Try another answer.</div>`):''}</div>`;
+}
+function activityHTML(k){
+  if (k==='ohm') return `<p style="margin-bottom:14px">Move the sliders and watch the current change. Real electricians check these numbers with a multimeter.</p>
+   <div class="act-grid"><div style="display:grid;gap:14px">
+      <div class="field"><label for="ohm-v">Voltage <span id="ohm-vv">12 V</span></label><input type="range" id="ohm-v" min="1" max="24" value="12"></div>
+      <div class="field"><label for="ohm-r">Resistance <span id="ohm-rv">4 Ω</span></label><input type="range" id="ohm-r" min="1" max="20" value="4"></div></div>
+    <div class="bulb"><svg width="90" height="110" viewBox="0 0 90 110" aria-hidden="true"><circle id="glow" cx="45" cy="42" r="40" fill="#11B9AF" opacity=".3"/><circle cx="45" cy="42" r="26" fill="#fff" stroke="#4A556F" stroke-width="2.5"/><path d="M36 46q9-14 18 0" fill="none" stroke="#11B9AF" stroke-width="3"/><rect x="33" y="70" width="24" height="18" rx="3" fill="#4A556F"/></svg>
+      <div><div class="readout" id="ohm-a">3.00 A</div><div class="mono muted">amps = volts ÷ ohms</div></div></div></div>`;
+  if (k==='beat'){ const rows=[["kick","Kick"],["snare","Snare"],["hat","Hi-hat"]];
+    return `<div class="beat"><table><tbody><tr><th></th>${Array.from({length:16},(_,i)=>`<th style="text-align:center;font-family:var(--font-mono);font-size:.7rem">${i%4===0?i/4+1:''}</th>`).join('')}</tr>
+      ${rows.map(([k2,lab])=>`<tr><th>${lab}</th>${Array.from({length:16},(_,i)=>`<td class="${Math.floor(i/4)%2===0?'bar1':''}" data-col="${i}"><button aria-label="${lab} step ${i+1}" data-act="beatcell" data-v="${k2}" data-i="${i}" aria-pressed="${BEAT[k2][i]}"></button></td>`).join('')}</tr>`).join('')}</tbody></table></div>
+    <div class="beat-ctrl"><button class="btn small" data-act="beatplay" id="beat-play">${beatTimer?'■ Stop':'▶ Play'}</button>
+      <div class="field" style="min-width:200px;flex:1;max-width:320px"><label for="bpm">Tempo <span id="bpm-v">${BPM} BPM</span></label><input type="range" id="bpm" min="70" max="140" value="${BPM}"></div>
+      <button class="btn ghost small" data-act="beatclear">Clear</button></div>`; }
+  if (k==='profit') return `<p style="margin-bottom:14px">Example idea: custom T-shirts for a school club. Change any number.</p>
+   <div class="act-grid"><div style="display:grid;gap:12px;grid-template-columns:1fr 1fr">
+      <div class="field"><label for="p-price">Price each ($)</label><input type="number" id="p-price" value="15" min="0"></div>
+      <div class="field"><label for="p-qty">Number sold</label><input type="number" id="p-qty" value="20" min="0"></div>
+      <div class="field"><label for="p-unit">Cost each ($)</label><input type="number" id="p-unit" value="6" min="0"></div>
+      <div class="field"><label for="p-setup">Setup cost ($)</label><input type="number" id="p-setup" value="60" min="0"></div></div>
+    <div class="profit-out" id="p-out"></div></div>`;
+  return '';
+}
+function wireActivity(){
+  const v = document.getElementById('ohm-v');
+  if (v){ const r=document.getElementById('ohm-r'); const up=()=>{const a=v.value/r.value; document.getElementById('ohm-vv').textContent=v.value+' V'; document.getElementById('ohm-rv').textContent=r.value+' Ω'; document.getElementById('ohm-a').textContent=a.toFixed(2)+' A'; document.getElementById('glow').setAttribute('opacity',Math.min(.95,.08+a/12).toFixed(2));}; v.oninput=up; r.oninput=up; up(); }
+  const pp = document.getElementById('p-price');
+  if (pp){ const ids=['p-price','p-qty','p-unit','p-setup']; const up=()=>{const [pr,q,u,s]=ids.map(i=>Math.max(0,parseFloat(document.getElementById(i).value)||0)); const rev=pr*q, cost=u*q+s, pro=rev-cost; const $=n=>(n<0?'−$':'$')+Math.abs(n).toLocaleString('en-US',{maximumFractionDigits:2});
+    document.getElementById('p-out').innerHTML=`<div><span>Revenue</span><b>${$(rev)}</b></div><div><span>Total costs</span><b>${$(cost)}</b></div><div style="border:0"><span class="readout" style="font-size:1rem;align-self:center">${pro>=0?'Profit':'Loss'}</span><span class="readout" style="color:${pro>=0?'var(--good)':'var(--bad)'}">${$(pro)}</span></div><p class="muted" style="font-size:.88rem">Break-even point: ${pr>u?Math.ceil(s/(pr-u))+' shirts':'raise your price above the cost of each shirt'}</p>`;}; ids.forEach(i=>document.getElementById(i).oninput=up); up(); }
+  const b = document.getElementById('bpm'); if (b) b.oninput = () => { BPM=+b.value; document.getElementById('bpm-v').textContent=BPM+' BPM'; if (beatTimer) startBeat(); };
+}
+/* beat maker (sound starts only after a tap) */
+let BEAT = {kick:[],snare:[],hat:[]}, BPM = 92, stepNow = -1, beatTimer = null, AC = null, NOISE = null;
+(function resetBeat(){ const z=()=>Array(16).fill(false); BEAT={kick:z(),snare:z(),hat:z()}; [0,8,10].forEach(i=>BEAT.kick[i]=true); [4,12].forEach(i=>BEAT.snare[i]=true); for(let i=0;i<16;i+=2) BEAT.hat[i]=true; })();
+function audio(){ if(!AC){ const Ctx=window.AudioContext||window.webkitAudioContext; if(!Ctx) return null; AC=new Ctx(); const b=AC.createBuffer(1,AC.sampleRate,AC.sampleRate); const d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; NOISE=b; } if(AC.state==='suspended') AC.resume(); return AC; }
+function kick(t){ const o=AC.createOscillator(), g=AC.createGain(); o.frequency.setValueAtTime(150,t); o.frequency.exponentialRampToValueAtTime(45,t+.15); g.gain.setValueAtTime(.9,t); g.gain.exponentialRampToValueAtTime(.001,t+.3); o.connect(g).connect(AC.destination); o.start(t); o.stop(t+.31); }
+function noise(t,freq,len,vol){ const s=AC.createBufferSource(), f=AC.createBiquadFilter(), g=AC.createGain(); s.buffer=NOISE; f.type='highpass'; f.frequency.value=freq; g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.001,t+len); s.connect(f).connect(g).connect(AC.destination); s.start(t); s.stop(t+len+.01); }
+function beatTick(){ stepNow=(stepNow+1)%16; const t=AC.currentTime+.02; if(BEAT.kick[stepNow]) kick(t); if(BEAT.snare[stepNow]) noise(t,1400,.18,.5); if(BEAT.hat[stepNow]) noise(t,7000,.05,.22); document.querySelectorAll('.beat td').forEach(td=>td.classList.toggle('now', +td.dataset.col===stepNow)); }
+function startBeat(){ if(!audio()) return; stopBeat(); stepNow=-1; beatTimer=setInterval(beatTick, 60000/BPM/4); const b=document.getElementById('beat-play'); if(b) b.textContent='■ Stop'; }
+function stopBeat(){ if(beatTimer){ clearInterval(beatTimer); beatTimer=null; } document.querySelectorAll('.beat td.now').forEach(td=>td.classList.remove('now')); const b=document.getElementById('beat-play'); if(b) b.textContent='▶ Play'; }
+
+/* certificate pop-ups */
+let htmlModal = null;
+function openHTML(html, cls){ htmlModal = html; modalId = null; document.getElementById('modalRoot').innerHTML = `<div class="overlay" data-act="close"><div class="modal ${cls||''}" role="dialog" aria-modal="true" aria-labelledby="mt" data-stop>${html}</div></div>`; document.querySelector('.modal button')?.focus(); }
+function credentialModal(id, fresh){
+  const c = course(id), cert = certOf(id);
+  const share = ME.user.canPost ? `<button class="btn goldbtn" data-act="sharecert" data-id="${id}">${svg('users')} Share with my class</button>` : '';
+  if (fresh) { openHTML(`<div class="eyebrow">Course complete</div><h2 id="mt">You earned a certificate!</h2>${certificateHTML(c, cert, ME.user.name, true)}
+      <span class="pill teal">+${CAT.xp.course} XP · added to your profile</span>
+      <div class="modal-actions">${share}<button class="btn ghost" data-act="tab" data-v="profile">View my profile</button></div>
+      ${ME.user.canPost?`<p class="sub" style="color:#AAB3CB">${esc(ME.user.teacherName||'Your teacher')} checks posts before your class sees them.</p>`:''}`, ''); burst(); return; }
+  openHTML(`<div class="eyebrow">Credential</div><h2 id="mt">${esc(c.title)}</h2>${certificateHTML(c, cert, ME.user.name, true)}
+    <p class="sub">Credential ID <b class="ink mono">${esc(cert.code)}</b>. Show it to a teacher, counselor or program.</p>
+    <div class="modal-actions">${share}<button class="btn ghost" data-act="close">Close</button></div>`, 'light');
+}
+
+/* ================= RENDER ================= */
+const VIEWS = { students:viewAdminStudents, stars:viewStars, learn:viewStars, feed:viewFeed, explore:viewExplore, quests:viewQuests, events:viewEvents, profile:viewProfile, paths:viewPaths, family:viewFamily, approvals:viewApprovals, class:viewClass };
+function render(){
+  renderChrome();
+  const root = document.getElementById('root');
+  if (!CAT) { root.innerHTML = `<div class="center-page"><div class="skeleton"></div></div>`; return; }
+  if (!ME) { root.innerHTML = landingHTML(); return; }
+  if (role()==='student' && ME.approvalStatus!=='approved') { root.innerHTML = connectLockHTML(); return; }
+  if (!ME.access && role()!=='teacher') { root.innerHTML = joinHTML(); return; }
+  if (!ME.access && role()==='teacher') { root.innerHTML = viewApprovals(); return; }
+  root.innerHTML = (VIEWS[S.tab]||viewFeed)();
+  afterMain();
+}
+function renderMain(){ if (!ME || !CAT || (role()==='student' && ME.approvalStatus!=='approved') || !ME.access) return render(); document.getElementById('root').innerHTML = (VIEWS[S.tab]||viewFeed)(); afterMain(); }
+function afterMain(){ if (!document.querySelector('.beat')) stopBeat(); wireActivity(); }
+let modalId = null;
+function openModal(id){ modalId=id; htmlModal=null; document.getElementById('modalRoot').innerHTML = careerModal(id); document.querySelector('.modal .x')?.focus(); }
+function closeModal(){ modalId=null; htmlModal=null; document.getElementById('modalRoot').innerHTML=''; }
+function refreshModal(){ if(modalId) document.getElementById('modalRoot').innerHTML = careerModal(modalId); }
+function centerMessage(title, body, action){ renderChrome(); document.getElementById('root').innerHTML = `<div class="center-page"><div class="box pad stack center"><h2>${esc(title)}</h2><p class="sub">${esc(body)}</p>${action||''}</div></div>`; }
+
+/* ================= DATA LOADING ================= */
+async function load(what){
+  try {
+    if (what==='feed') { S.feed = (await api('/feed')).posts; }
+    if (what==='approvals') { S.approvals = (await api('/approvals')).posts; }
+    if (what==='accessRequests') { S.accessRequests = (await api('/access/requests')).requests; }
+    if (what==='events') { S.events = (await api('/events')).events; }
+    if (what==='children') { S.children = (await api('/children')).children; if (!S.childId && S.children[0]) S.childId = S.children[0].id; }
+    if (what==='class') { S.classInfo = await api('/class'); }
+  } catch (e) { if (e.code===401) return signedOut(); if (e.code===402) { ME.access = false; await loadPlan(); return render(); } if (e.body?.code==='connect_teacher_approval_required') { ME.approvalStatus = e.body.approvalStatus; return render(); } fail(e); }
+  render();
+}
+async function loadPlan(){ try { PLAN = await apiAt('/api/addons'); } catch { PLAN = null; } }
+function loadForRole(){
+  const r = role();
+  if (r==='student' && ME.approvalStatus!=='approved') return;
+  if (r==='teacher') load('accessRequests');
+  if (!ME.access) return;
+  if (r==='parent') return load('children');
+  load('feed'); load('events');
+  if (r==='teacher' || r==='admin') load('approvals');
+  if (r==='teacher') load('class');
+}
+function signedOut(){ ME = null; render(); }
+function setProfile(p){ if (ME && p) ME.profile = p; }
+
+/* ================= ACTIONS ================= */
+document.addEventListener('input', e=>{ if (e.target.id==='admQ'){ S.admQ=e.target.value; const pos=e.target.selectionStart; renderMain(); const box=document.getElementById('admQ'); if(box){ box.focus(); try{ box.setSelectionRange(pos,pos); }catch{} } } });
+document.addEventListener('change', async e=>{
+  if (e.target.id==='admPath') { S.admPath = e.target.value; return; }
+  if (e.target.dataset && e.target.dataset.act==='adm-setpath') {
+    // Changing an added student's path sends them a "your path changed" note.
+    try { await api('/admin/invite',{method:'POST',body:{studentIds:[Number(e.target.dataset.id)], pathId:e.target.value||null}}); toast('Career path updated · student notified'); await loadAdminStudents(); } catch (err) { fail(err); }
+  }
+});
+document.getElementById('q').addEventListener('input', e=>{ S.q = e.target.value; if (S.tab==='stars') return renderMain(); if (S.tab!=='explore'){ S.tab='explore'; render(); const q=document.getElementById('q'); q.focus(); } else renderMain(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ if(modalId||htmlModal) closeModal(); if(S.menu){ S.menu=false; renderChrome(); } } });
+
+document.addEventListener('click', async e=>{
+  const el = e.target.closest('[data-act]');
+  if (S.menu && !e.target.closest('.menu') && !(el && el.dataset.act==='menu')) { S.menu=false; renderChrome(); }
+  if (!el) return;
+  if (el.dataset.act==='close' && e.target.closest('[data-stop]') && !e.target.closest('.x')) return;
+  if (el.tagName==='A' && el.dataset.act) e.preventDefault();
+  const a = el.dataset.act, v = el.dataset.v, id = el.dataset.id;
+  if (a!=='delpost' && a!=='delevent') S.confirmDelete = null;
+  try {
+    switch(a){
+      case 'join': goSignIn('/register'); break;
+      case 'signin': goSignIn('/'); break;
+      case 'go': goSignIn(v); break;
+      case 'menu': S.menu = !S.menu; renderChrome(); break;
+      case 'buy': el.disabled = true; await buySocial(id ? Number(id) : null).finally(()=>{ el.disabled = false; }); break;
+      case 'manage': await manageSocial(id ? Number(id) : null); break;
+      case 'tab': if (v==='stars' && S.tab!=='stars') { S.course=null; S.lesson=null; } S.tab=v; S.menu=false; closeModal(); render(); window.scrollTo(0,0); if (v==='class') load('class'); if (v==='students') loadAdminStudents(); if (v==='approvals') { if (role()==='teacher') load('accessRequests'); if (ME.access) load('approvals'); } break;
+       case 'request-access': { el.disabled = true; const r = await api('/access/request',{method:'POST'}).finally(()=>{el.disabled=false;}); ME.approvalStatus = r.approvalStatus; toast('Request sent to your teacher'); render(); break; }
+       case 'review-access': { el.disabled = true; await api(`/access/requests/${encodeURIComponent(id)}/review`,{method:'POST',body:{decision:v}}); S.accessRequests = (S.accessRequests||[]).filter(p=>String(p.id)!==String(id)); toast(v==='approve'?'Student approved for Connect':'Request denied'); render(); break; }
+      case 'fc': S.filterC=v; renderMain(); break;
+      case 'adm-pick': { const n=Number(id); S.admPick.has(n)?S.admPick.delete(n):S.admPick.add(n); const y=window.scrollY; renderMain(); window.scrollTo(0,y); break; }
+      case 'adm-all': { const d=S.adm; if(!d) break; const q=S.admQ.trim().toLowerCase(); const list=d.students.filter(s => (S.admShow==='all' || (S.admShow==='added') === s.added) && (!q || [s.name, s.username, s.teacherName||'', s.grade||''].join(' ').toLowerCase().includes(q))); const allOn=list.length && list.every(s=>S.admPick.has(s.id)); list.forEach(s=>allOn?S.admPick.delete(s.id):S.admPick.add(s.id)); renderMain(); break; }
+      case 'adm-show': S.admShow=v; renderMain(); break;
+      case 'adm-add': el.disabled=true; await adminAdd([...S.admPick], S.admPath).finally(()=>{ el.disabled=false; }); break;
+      case 'adm-one': el.disabled=true; await adminAdd([Number(id)], S.admPath).finally(()=>{ el.disabled=false; }); break;
+      case 'adm-remove': { el.disabled=true; await api(`/admin/invite/${encodeURIComponent(id)}`,{method:'DELETE'}).finally(()=>{ el.disabled=false; }); toast('Removed from Connect'); await loadAdminStudents(); break; }
+      case 'learnhome': S.course=null; S.lesson=null; renderMain(); window.scrollTo(0,0); break;
+      case 'lfield': S.lfield=v; renderMain(); break;
+      case 'starf': S.starf=v; renderMain(); break;
+      case 'interest': S.interests.has(v)?S.interests.delete(v):S.interests.add(v); { const y=window.scrollY; renderMain(); window.scrollTo(0,y); } break;
+      case 'lpath': S.lpath=v||null; renderMain(); break;
+      case 'mypath': { S.lpath=v; S.lfield='all'; renderMain(); const h=[...document.querySelectorAll('.cat-head h2')].find(x=>x.textContent===pathTitle(v)); h?.scrollIntoView({behavior:'smooth',block:'start'}); break; }
+      case 'course': closeModal(); S.tab='stars'; S.course=id; S.lesson=null; render(); window.scrollTo(0,0); break;
+      case 'lesson': S.lesson=Number(v); S.answers={}; renderMain(); window.scrollTo(0,0); break;
+      case 'answer': { const c=course(S.course), q=c.lessons[S.lesson].quiz[Number(el.dataset.q)], qi=Number(el.dataset.q), oi=Number(el.dataset.o); const a=S.answers[qi]||{tried:[],right:false}; a.tried.push(oi); if(oi===q.a) a.right=true; S.answers[qi]=a; const y=window.scrollY; renderMain(); window.scrollTo(0,y); break; }
+      case 'finishlesson': {
+        const c=course(S.course), i=S.lesson, quiz=c.lessons[i].quiz;
+        el.disabled = true;
+        const r = await api(`/courses/${encodeURIComponent(c.id)}/lessons/${i}`,{method:'POST',body:{answers: quiz.map((q,qi)=>S.answers[qi]&&S.answers[qi].right?q.a:-1)}}).finally(()=>{ el.disabled=false; });
+        setProfile(r.profile); S.answers={};
+        if (r.certificate && r.gained) { S.lesson=null; render(); credentialModal(c.id, true); break; }
+        const next = myCourse(c.id).lessons.findIndex(x=>!x);
+        toast('Lesson passed');
+        S.lesson = next>=0 ? next : null; render(); window.scrollTo(0,0); break;
+      }
+      case 'credential': credentialModal(id, false); break;
+      case 'sharecert': { el.disabled=true; const r = await api('/posts',{method:'POST',body:{courseId:id, text:`I just earned my ${course(id).title} certificate on A.R.I.S.E. Connect!`}}).finally(()=>{ el.disabled=false; }); closeModal(); S.feed=[r.post, ...(S.feed||[])]; S.tab='feed'; toast(r.post.status==='pending'?'Sent to your teacher for a quick check':'Posted'); render(); window.scrollTo(0,0); break; }
+      case 'beatcell': { BEAT[v][Number(el.dataset.i)] = !BEAT[v][Number(el.dataset.i)]; el.setAttribute('aria-pressed', BEAT[v][Number(el.dataset.i)]); break; }
+      case 'beatplay': beatTimer ? stopBeat() : startBeat(); break;
+      case 'beatclear': Object.keys(BEAT).forEach(k=>BEAT[k].fill(false)); document.querySelectorAll('[data-act="beatcell"]').forEach(b=>b.setAttribute('aria-pressed','false')); break;
+      case 'fp': S.filterP=v; renderMain(); break;
+      case 'open': openModal(id); break;
+      case 'playvid': {
+        const box = el.closest('.vid'); const v = { id, title: el.getAttribute('aria-label').replace(/^Play video: /,'') }; if (!box || !okVid(v)) break; PLAYING.add(el.dataset.v); box.innerHTML = vidFrame(v);
+        // Watching a career star video counts once for XP.
+        if (role()==='student' && ME?.access && (STARS||[]).some(x=>x.id===id) && !(P()?.watched||[]).includes(id)) {
+          try { const r = await api('/watch',{method:'POST',body:{videoId:id}}); setProfile(r.profile); if (r.gained) toast(`+${r.gained} XP · Learned from ${(STARS.find(x=>x.id===id)||{}).star||'a star'}`); } catch {}
+        }
+        break;
+      }
+      case 'sfield': S.sfield=v; renderMain(); break;
+      case 'starjump': { S.tab='stars'; S.sfield='all'; render(); document.getElementById('stars-'+id)?.scrollIntoView({behavior:'smooth',block:'start'}); break; }
+      case 'close': closeModal(); break;
+      case 'child': S.childId = Number(id); render(); break;
+      case 'compose': S.composeOpen=!S.composeOpen; renderMain(); if(S.composeOpen) (document.getElementById('cText')||document.getElementById('cStart'))?.focus(); break;
+      case 'collect': { el.disabled = true; const r = await api('/collect',{method:'POST',body:{careerId:id}}); setProfile(r.profile); if (r.gained){ toast(`+${r.gained} XP · Added to your collection`); burst(); } refreshModal(); render(); break; }
+      case 'save': { const r = await api('/save',{method:'POST',body:{careerId:id}}); setProfile(r.profile); toast(r.profile.saved.includes(id)?'Saved':'Removed from saved'); refreshModal(); render(); break; }
+      case 'spin': await spin(); break;
+      case 'step': { const r = await api(`/quests/${encodeURIComponent(id)}/step`,{method:'POST',body:{step:Number(el.dataset.i)}}); setProfile(r.profile); renderMain(); break; }
+      case 'complete': { el.disabled = true; const r = await api(`/quests/${encodeURIComponent(id)}/complete`,{method:'POST'}); setProfile(r.profile); if (r.gained){ toast(`+${r.gained} XP · Quest complete`); burst(); } render(); break; }
+      case 'road': { const r = await api('/roadmap',{method:'POST',body:{key:v}}); setProfile(r.profile); renderMain(); break; }
+      case 'post': {
+        const body = {};
+        if (role()==='student' && young(ME.user.band)) { body.starter = Number(document.getElementById('cStart').value); body.careerId = document.getElementById('cCareer').value; }
+        else { body.text = document.getElementById('cText').value; const q = document.getElementById('cQuest'); if (q && q.value) body.questId = q.value; const cs = document.getElementById('cCourse'); if (cs && cs.value) body.courseId = cs.value; const sc = document.getElementById('cScope'); if (sc) body.scope = sc.value; }
+        el.disabled = true;
+        const r = await api('/posts',{method:'POST',body}).finally(()=>{ el.disabled=false; });
+        S.composeOpen = false; S.feed = [r.post, ...(S.feed||[])];
+        toast(r.post.status==='pending' ? 'Sent to your teacher for a quick check' : 'Posted');
+        renderMain(); break;
+      }
+      case 'sharequest': { const r = await api('/posts',{method:'POST',body:{questId:id}}); S.feed = [r.post, ...(S.feed||[])]; toast('Sent to your teacher for a quick check'); S.tab='feed'; render(); window.scrollTo(0,0); break; }
+      case 'delpost': {
+        if (S.confirmDelete!==id){ S.confirmDelete=id; renderMain(); break; }
+        await api(`/posts/${id}`,{method:'DELETE'}); S.confirmDelete=null;
+        S.feed = (S.feed||[]).filter(p=>p.id!==id); toast('Post deleted'); renderMain(); break;
+      }
+      case 'react': {
+        const p = (S.feed||[]).find(x=>x.id===id); if (!p) break;
+        const r = await api(`/posts/${id}/react`,{method:'POST',body:{kind: p.myReaction===v ? null : v}});
+        S.feed = S.feed.map(x=>x.id===id ? r.post : x); renderMain(); break;
+      }
+      case 'review': {
+        await api(`/posts/${id}/review`,{method:'POST',body:{decision:v}});
+        S.approvals = (S.approvals||[]).filter(p=>p.id!==id);
+        toast(v==='approve'?'Approved. It’s live for the class.':'Sent back');
+        render(); if (v==='approve') load('feed'); if (S.classInfo) load('class'); break;
+      }
+      case 'host': {
+        const body = { title:document.getElementById('evT').value, date:document.getElementById('evD').value, time:document.getElementById('evTime').value, cluster:document.getElementById('evC').value, format:document.getElementById('evF').value, seats:Number(document.getElementById('evS').value)||30, scope:document.getElementById('evScope').value };
+        el.disabled = true;
+        const r = await api('/events',{method:'POST',body}).finally(()=>{ el.disabled=false; });
+        S.events = [...(S.events||[]), r.event].sort((x,y)=>x.date.localeCompare(y.date));
+        toast('Event published'); render(); break;
+      }
+      case 'delevent': {
+        if (S.confirmDelete!==id){ S.confirmDelete=id; renderMain(); break; }
+        await api(`/events/${id}`,{method:'DELETE'}); S.confirmDelete=null;
+        S.events = (S.events||[]).filter(x=>x.id!==id); toast('Event cancelled'); render(); break;
+      }
+      case 'rsvp': {
+        const r = await api(`/events/${id}/rsvp`,{method:'POST',body:{action:v}});
+        S.events = S.events.map(x=>x.id===id ? {...x, ...r.event} : x);
+        toast(r.event.myStatus==='requested' ? 'Sent to your grown-up' : r.event.myStatus==='going' ? 'You’re going' : 'Removed');
+        render(); break;
+      }
+      case 'prsvp': {
+        const k = currentChild();
+        const r = await api(`/events/${id}/rsvp`,{method:'POST',body:{action:v, studentId:k.id}});
+        k.events = k.events.map(x=>x.id===id ? {...x, going:r.event.going, status:r.event.myStatus} : x);
+        toast(r.event.myStatus==='going' ? `${k.firstName} is going` : 'Updated'); render(); break;
+      }
+      case 'scope': {
+        const k = currentChild();
+        await api(`/children/${k.id}/settings`,{method:'PUT',body:{postScope:v}});
+        k.profile.postScope = v; toast(v==='school'?'Posts can be seen by the whole school':'Posts stay in the class'); render(); break;
+      }
+    }
+  } catch (err) { if (err.code===401) return signedOut(); fail(err); renderMain(); }
+});
+
+async function spin(){
+  const win=document.getElementById('spinWin'); const btn=document.querySelector('[data-act="spin"]'); if(!win||!btn) return;
+  btn.disabled=true; win.classList.add('rolling');
+  const req = api('/spin',{method:'POST'});
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let n=0; const total=reduce?1:16;
+  await new Promise(done=>{ const tickF=()=>{ n++; win.textContent = CAT.careers[Math.floor(Math.random()*CAT.careers.length)].name; if(n<total) setTimeout(tickF, 40+n*9); else done(); }; tickF(); });
+  const r = await req;
+  setProfile(r.profile);
+  if (r.gained) toast(`+${r.gained} XP · Daily spin`);
+  render(); openModal(r.career);
+}
+function burst(){
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const cv=document.getElementById('confetti'), ctx=cv.getContext('2d'); cv.width=innerWidth; cv.height=innerHeight;
+  const cols=['#3f3bd6','#6d4fd8','#ffb23f','#ef5a45','#1e9e62'];
+  const ps=Array.from({length:70},()=>({x:innerWidth/2,y:innerHeight*0.45,vx:(Math.random()-.5)*14,vy:-Math.random()*12-4,s:Math.random()*6+4,c:cols[Math.floor(Math.random()*cols.length)]}));
+  let f=0; (function loop(){ ctx.clearRect(0,0,cv.width,cv.height); ps.forEach(p=>{p.vy+=.35;p.x+=p.vx;p.y+=p.vy;ctx.fillStyle=p.c;ctx.beginPath();ctx.arc(p.x,p.y,p.s/2,0,Math.PI*2);ctx.fill();}); if(++f<80) requestAnimationFrame(loop); else ctx.clearRect(0,0,cv.width,cv.height); })();
+}
+
+/* ================= START ================= */
+(async function start(){
+  render();
+  try { CAT = await api('/catalog'); }
+  catch (e) { return centerMessage('A.R.I.S.E. Connect can’t load right now', e.message || 'Please try again in a minute.', '<button class="btn primary" style="margin-top:16px" onclick="location.reload()">Try again</button>'); }
+  loadStars();
+  if (!sessionToken()) return render();
+  try { ME = await api('/me'); }
+  catch (e) {
+    if (e.code===401) { ME = null; return render(); }
+    if (e.body && e.body.setup) return centerMessage('Almost ready', 'A.R.I.S.E. Connect is still being set up. Please check back soon.');
+    return centerMessage('A.R.I.S.E. Connect can’t load right now', e.message, '<button class="btn primary" style="margin-top:16px" onclick="location.reload()">Try again</button>');
+  }
+  await loadPlan();
+  S.tab = 'stars';
+  if (role()==='student' && ME.assignedPath) S.lpath = ME.assignedPath.id;
+  render();
+  // Opened from the "You're in A.R.I.S.E. Connect!" notification in A.R.I.S.E. Reader.
+  if (/[?&]welcome=1/.test(location.search)) {
+    try { history.replaceState(null, '', location.pathname); } catch {}
+    if (role()==='student' && ME.approvalStatus==='approved') toast(ME.assignedPath ? `Welcome! Your career path: ${ME.assignedPath.title}` : 'Welcome to A.R.I.S.E. Connect!');
+  }
+  if (ME.access || role()==='teacher') loadForRole();
+})();
+</script>
+
+<script src="/addons/addon-bar.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900" width="600" height="900">
+<rect width="600" height="900" fill="#0b3a6b"/>
+<svg x="0" y="96" width="600" height="572" viewBox="460 0 680 900" preserveAspectRatio="xMidYMid slice"><rect x="0" y="0" width="1600" height="900" fill="#d0ebff" /><circle cx="800" cy="450" r="220" fill="#1971c2" /></svg>
+<rect width="600" height="96" fill="#ffffff"/>
+<text x="30" y="66" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#0b3a6b" letter-spacing="-1">ARISE<tspan fill="#1971c2"> NEWS</tspan></text>
+<text x="570" y="44" font-family="Arial,sans-serif" font-weight="700" font-size="16" fill="#0b3a6b" text-anchor="end">ISSUE 2</text>
+<text x="570" y="68" font-family="Arial,sans-serif" font-weight="700" font-size="16" fill="#1971c2" text-anchor="end">BIOGRAPHY</text>
+<rect y="668" width="600" height="232" fill="#0b3a6b"/>
+<rect x="30" y="686" width="120" height="8" fill="#1971c2"/>
+<text x="30" y="732" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#ffffff">Shohei Ohtani:</text>
+<text x="30" y="788" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#ffffff">The Star Who</text>
+<text x="30" y="844" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#ffffff">Pitches and Hits</text>
+<text x="570" y="690" font-family="Arial,sans-serif" font-weight="800" font-size="20" fill="#ffffff" text-anchor="end">5 PTS</text>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2d6a9f"/><stop offset="1" stop-color="#9ccbe8"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<path d="M0 480 Q120 455 220 470 T400 462 V600 H0Z" fill="#16324f"/><path d="M70 300 q60-20 120 0" stroke="#fff" stroke-opacity=".35" stroke-width="3" fill="none"/><g transform="rotate(-12 220 320)"><path d="M120 320 h190 q20 0 20 10 t-20 10 h-190z" fill="#c1121f"/><path d="M200 322 l-30-60 h22 l40 60z M200 338 l-30 60 h22 l40-60z" fill="#c1121f"/><path d="M130 322 l-16-30 h14 l18 30z" fill="#c1121f"/></g>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">The Great</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Airport</text><text x="200" y="166" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Mystery</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">FRANKLIN W. DIXON</text>
+</svg>

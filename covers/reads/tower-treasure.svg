@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c2541"/><stop offset="1" stop-color="#3a506b"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<circle cx="300" cy="250" r="42" fill="#fff4c2"/><path d="M0 480 Q120 455 220 470 T400 462 V600 H0Z" fill="#0b132b"/><path d="M110 470 V360 l60-50 l60 50 V470z" fill="#0b132b"/><path d="M200 320 v-34 h16 v48z" fill="#0b132b"/><rect x="140" y="380" width="20" height="26" fill="#ffd43b"/><rect x="185" y="380" width="20" height="26" fill="#ffd43b" opacity=".5"/><path d="M262 470 l14-90 l14 90z M300 470 l10-60 l10 60z" fill="#0b132b"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">The Tower</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Treasure</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">FRANKLIN W. DIXON</text>
+</svg>

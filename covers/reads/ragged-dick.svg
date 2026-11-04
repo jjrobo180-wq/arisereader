@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b2d42"/><stop offset="1" stop-color="#8d99ae"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<circle cx="300" cy="250" r="34" fill="#ffd166" opacity=".9"/><path d="M40 480 V380 h40 V340 h30 V400 h40 V310 h36 V380 h40 V350 h34 V300 h30 V400 h40 V480z" fill="#14151f"/><rect x="55" y="400" width="8" height="10" fill="#ffd43b" opacity=".8"/><rect x="122" y="420" width="8" height="10" fill="#ffd43b" opacity=".8"/><rect x="162" y="330" width="8" height="10" fill="#ffd43b" opacity=".8"/><rect x="170" y="360" width="8" height="10" fill="#ffd43b" opacity=".8"/><rect x="240" y="370" width="8" height="10" fill="#ffd43b" opacity=".8"/><rect x="285" y="320" width="8" height="10" fill="#ffd43b" opacity=".8"/><rect x="290" y="350" width="8" height="10" fill="#ffd43b" opacity=".8"/><rect x="330" y="420" width="8" height="10" fill="#ffd43b" opacity=".8"/><path d="M0 480 H400 V600 H0Z" fill="#14151f"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Ragged Dick</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">HORATIO ALGER JR.</text>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a4c1e"/><stop offset="1" stop-color="#c9a227"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<path d="M0 480 Q120 455 220 470 T400 462 V600 H0Z" fill="#3d2a0d"/><path d="M120 470 l40-90 l40 90z M210 470 l50-120 l50 120z" fill="#e8b04a" opacity=".7"/><path d="M200 260 a60 60 0 0 1 0 120z" fill="#1d3557"/><path d="M200 280 a40 40 0 0 1 0 80z" fill="none" stroke="#fff" stroke-width="3"/><circle cx="320" cy="250" r="30" fill="#ffd43b"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">The Story of</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">the Amulet</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">E. NESBIT</text>
+</svg>

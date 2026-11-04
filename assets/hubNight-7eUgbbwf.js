@@ -1,0 +1,1 @@
+/* empty css                  */function t(){try{return localStorage.getItem("arise-todo-night")==="1"||localStorage.getItem("arise-hub-night")==="1"}catch{return!1}}const o=()=>t()?"todo-night":"";export{o as h};

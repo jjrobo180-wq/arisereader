@@ -1,0 +1,1 @@
+:root[data-duo=book]{--duo-left: 50vw}@supports (width: env(viewport-segment-width 0 0,1px)){:root[data-duo=book]{--duo-left: env(viewport-segment-width 0 0, 50vw)}}

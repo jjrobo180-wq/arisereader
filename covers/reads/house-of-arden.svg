@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#283618"/><stop offset="1" stop-color="#606c38"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<circle cx="310" cy="240" r="34" fill="#fff4c2"/><path d="M0 480 Q120 455 220 470 T400 462 V600 H0Z" fill="#141b0c"/><ellipse cx="200" cy="430" rx="70" ry="38" fill="#f8f9fa"/><path d="M266 426 q30 -4 34 10 q-20 8 -34 2z" fill="#f8f9fa"/><circle cx="262" cy="420" r="3" fill="#212529"/><path d="M150 462 l-8 12 M180 466 l-4 12 M230 466 l4 12" stroke="#f8f9fa" stroke-width="5"/><path d="M90 470 V380 h20 v-12 h14 v12 h14 v-12 h14 v12 h20 V470" fill="#141b0c"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">The House of</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Arden</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">E. NESBIT</text>
+</svg>

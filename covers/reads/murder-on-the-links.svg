@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b4332"/><stop offset="1" stop-color="#2d6a4f"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<circle cx="310" cy="240" r="30" fill="#fff4c2"/><path d="M0 460 Q200 430 400 460 V600 H0Z" fill="#081c15"/><path d="M180 470 V300" stroke="#fff" stroke-width="5"/><path d="M184 300 l60 20 l-60 20z" fill="#e63946"/><ellipse cx="180" cy="474" rx="22" ry="6" fill="#000" opacity=".4"/><circle cx="240" cy="480" r="8" fill="#fff"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">The Murder on</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">the Links</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">AGATHA CHRISTIE</text>
+</svg>

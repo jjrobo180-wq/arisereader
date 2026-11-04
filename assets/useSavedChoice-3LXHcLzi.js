@@ -1,0 +1,1 @@
+import{r as s}from"./aiVoice-D53U2ArK.js";const o="arise-choice:";function l(t,r,c){try{const e=localStorage.getItem(o+t);if(e!==null&&(!c||c.includes(e)))return e}catch{}return r}function f(t,r,c){const[e,u]=s.useState(()=>l(t,r,c)),n=s.useCallback(a=>{u(a);try{localStorage.setItem(o+t,a)}catch{}},[t]);return[e,n]}export{f as u};

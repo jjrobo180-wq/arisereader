@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1f1d1b"/><stop offset="1" stop-color="#4a4036"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<path d="M0 480 Q120 455 220 470 T400 462 V600 H0Z" fill="#0f0e0d"/><circle cx="185" cy="330" r="62" fill="none" stroke="#c9a227" stroke-width="14"/><circle cx="185" cy="330" r="55" fill="#fff" opacity=".12"/><path d="M230 375 L300 445" stroke="#c9a227" stroke-width="20" stroke-linecap="round"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="32" font-weight="700" fill="#fff" text-anchor="middle">The</text><text x="200" y="116" font-family="Georgia,serif" font-size="32" font-weight="700" fill="#fff" text-anchor="middle">Adventures of</text><text x="200" y="154" font-family="Georgia,serif" font-size="32" font-weight="700" fill="#fff" text-anchor="middle">Sherlock</text><text x="200" y="192" font-family="Georgia,serif" font-size="32" font-weight="700" fill="#fff" text-anchor="middle">Holmes</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">ARTHUR CONAN DOYLE</text>
+</svg>

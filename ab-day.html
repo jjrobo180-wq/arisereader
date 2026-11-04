@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A or B day?</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0f766e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="A/B Day">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<style>
+  :root { color-scheme: light dark; --bg:#f0fdfa; --card:#fff; --ink:#0f172a; --mute:#475569; --a:#0f766e; --b:#7c3aed; --line:#e2e8f0; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0b1220; --card:#111c30; --ink:#f1f5f9; --mute:#a8b3c5; --a:#2dd4bf; --b:#c4b5fd; --line:#22304a; } }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; min-height:100dvh; background:var(--bg); color:var(--ink); font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif; display:flex; flex-direction:column; align-items:center; padding:max(20px,env(safe-area-inset-top)) 16px max(20px,env(safe-area-inset-bottom)); }
+  main { width:100%; max-width:440px; }
+  .today { background:var(--card); border:1px solid var(--line); border-radius:28px; padding:28px 20px 22px; text-align:center; }
+  .label { font-size:14px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--mute); }
+  .big { font-size:min(46vw,190px); line-height:1; font-weight:900; margin:6px 0 2px; }
+  .big.A { color:var(--a); } .big.B { color:var(--b); } .big.none { color:var(--mute); font-size:56px; padding:46px 0; }
+  .sub { font-size:18px; font-weight:600; }
+  .tomorrow { margin-top:12px; background:var(--card); border:1px solid var(--line); border-radius:20px; padding:14px 18px; display:flex; justify-content:space-between; align-items:center; font-weight:600; }
+  .pill { display:inline-grid; place-items:center; min-width:44px; height:44px; border-radius:14px; font-size:24px; font-weight:900; color:#fff; padding:0 8px; }
+  .pill.A { background:var(--a); } .pill.B { background:var(--b); } .pill.none { background:var(--line); color:var(--mute); font-size:16px; }
+  @media (prefers-color-scheme: dark) { .pill.A, .pill.B { color:#0b1220; } }
+  h2 { font-size:13px; letter-spacing:.08em; text-transform:uppercase; color:var(--mute); margin:22px 4px 8px; }
+  .week { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
+  .wd { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:10px 0; text-align:center; }
+  .wd.now { outline:3px solid var(--a); }
+  .wd small { display:block; color:var(--mute); font-weight:600; font-size:12px; }
+  .wd b { display:block; font-size:30px; line-height:1.15; }
+  .wd b.A { color:var(--a); } .wd b.B { color:var(--b); } .wd b.none { color:var(--mute); }
+  .wd span { font-size:12px; color:var(--mute); }
+  details { margin-top:22px; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:12px 16px; color:var(--mute); font-size:15px; }
+  summary { font-weight:700; color:var(--ink); min-height:32px; cursor:pointer; }
+  ol { padding-left:20px; margin:8px 0 0; } li { margin:6px 0; }
+  .end { margin-top:12px; text-align:center; color:var(--mute); font-size:14px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="today" id="today" aria-live="polite"></div>
+  <div class="tomorrow" id="next"></div>
+  <h2>This week</h2>
+  <div class="week" id="week"></div>
+  <div class="end" id="end"></div>
+  <details>
+    <summary>Put this on your home screen</summary>
+    <ol>
+      <li><b>iPhone:</b> tap Share, then “Add to Home Screen”.</li>
+      <li><b>Android:</b> tap the ⋮ menu, then “Add to Home screen”.</li>
+      <li>Open it from your home screen any time. It always shows today.</li>
+      <li>For a real widget on iPhone, use “Home screen widget” in your Arise Hub calendar: it gives you a one-minute set-up.</li>
+    </ol>
+  </details>
+</main>
+<script>
+var DAYS = {"2026-08-13":"A","2026-08-14":"B","2026-08-17":"A","2026-08-18":"B","2026-08-19":"A","2026-08-20":"B","2026-08-21":"A","2026-08-24":"B","2026-08-25":"A","2026-08-26":"B","2026-08-27":"A","2026-08-28":"B","2026-08-31":"A","2026-09-01":"B","2026-09-02":"B","2026-09-03":"A","2026-09-04":"B","2026-09-08":"A","2026-09-09":"B","2026-09-10":"A","2026-09-11":"B","2026-09-14":"A","2026-09-15":"B","2026-09-16":"A","2026-09-17":"B","2026-09-18":"A","2026-09-21":"B","2026-09-22":"A","2026-09-23":"B","2026-09-24":"A","2026-09-28":"B","2026-10-01":"A","2026-10-02":"B","2026-10-05":"A","2026-10-06":"B","2026-10-07":"A","2026-10-15":"B","2026-10-16":"A","2026-10-19":"B","2026-10-20":"A","2026-10-21":"B","2026-10-22":"A","2026-10-23":"B","2026-10-26":"A","2026-10-27":"B","2026-10-28":"A","2026-10-29":"B","2026-11-02":"A","2026-11-03":"B","2026-11-04":"A","2026-11-05":"B","2026-11-06":"A","2026-11-09":"B","2026-11-10":"A","2026-11-11":"B","2026-11-12":"A","2026-11-13":"B","2026-11-16":"A","2026-11-17":"B","2026-11-18":"A","2026-11-19":"B","2026-11-20":"A","2026-11-30":"B","2026-12-01":"A","2026-12-02":"B","2026-12-03":"A","2026-12-04":"B","2026-12-07":"A","2026-12-10":"B","2026-12-11":"A","2026-12-14":"B","2026-12-15":"A","2026-12-16":"B","2026-12-17":"A","2027-01-05":"A","2027-01-06":"B","2027-01-07":"A","2027-01-08":"B","2027-01-11":"A","2027-01-12":"B","2027-01-13":"A","2027-01-14":"B","2027-01-15":"A","2027-01-19":"B","2027-01-20":"A","2027-01-21":"B","2027-01-22":"A","2027-01-25":"B","2027-01-26":"A","2027-01-27":"B","2027-01-28":"A","2027-01-29":"B","2027-02-01":"A","2027-02-02":"B","2027-02-04":"A","2027-02-05":"B","2027-02-08":"A","2027-02-09":"B","2027-02-10":"A","2027-02-11":"B","2027-02-12":"A","2027-02-18":"A","2027-02-19":"B","2027-02-22":"A","2027-02-23":"B","2027-02-24":"A","2027-02-25":"B","2027-03-01":"A","2027-03-02":"B","2027-03-03":"A","2027-03-04":"B","2027-03-05":"A","2027-03-08":"B","2027-03-09":"A","2027-03-10":"B","2027-03-11":"A","2027-03-12":"B","2027-03-15":"A","2027-03-16":"B","2027-03-17":"A","2027-03-18":"B","2027-03-19":"A","2027-03-22":"B","2027-03-23":"A","2027-03-24":"B","2027-03-25":"A","2027-03-26":"B","2027-04-05":"A","2027-04-06":"B","2027-04-07":"A","2027-04-08":"B","2027-04-09":"A","2027-04-12":"B","2027-04-13":"A","2027-04-15":"B","2027-04-16":"A","2027-04-19":"B","2027-04-20":"A","2027-04-21":"B","2027-04-22":"A","2027-04-23":"B","2027-04-26":"A","2027-04-27":"B","2027-04-28":"A","2027-04-29":"B","2027-04-30":"A","2027-05-03":"B","2027-05-04":"A","2027-05-05":"B","2027-05-06":"A","2027-05-07":"B","2027-05-10":"A","2027-05-11":"B","2027-05-12":"A","2027-05-13":"A","2027-05-14":"B","2027-05-17":"A","2027-05-18":"B","2027-05-19":"A","2027-05-20":"B","2027-05-21":"A","2027-05-25":"A","2027-05-26":"B","2027-05-27":"B"};
+function pad(n){return String(n).padStart(2,"0");}
+function key(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());}
+function add(d,n){var x=new Date(d.getFullYear(),d.getMonth(),d.getDate()+n,12);return x;}
+var WD=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], LONG=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"], MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+var keys=Object.keys(DAYS).sort();
+function render(){
+  var now=new Date(), t=key(now), L=DAYS[t];
+  var el=document.getElementById("today");
+  el.innerHTML='<div class="label">Today · '+LONG[now.getDay()]+', '+MON[now.getMonth()]+' '+now.getDate()+'</div>'+
+    (L?'<div class="big '+L+'">'+L+'</div><div class="sub">'+L+' Day</div>':'<div class="big none">No A/B day</div><div class="sub">'+(now.getDay()%6===0?'Weekend':'No letter on the school calendar')+'</div>');
+  var nx=keys.filter(function(k){return k>t;})[0];
+  var nb=document.getElementById("next");
+  if(nx){var p=nx.split("-"),d=new Date(+p[0],+p[1]-1,+p[2],12);var tom=nx===key(add(now,1));
+    nb.innerHTML='<span>'+(tom?'Tomorrow':'Next: '+WD[d.getDay()]+', '+MON[d.getMonth()]+' '+d.getDate())+'</span><span class="pill '+DAYS[nx]+'">'+DAYS[nx]+'</span>';}
+  else nb.innerHTML='<span>No more A/B days listed</span>';
+  // Monday to Friday of this week (on a weekend, next week).
+  var dow=now.getDay(), mon=add(now, dow===0?1:dow===6?2:1-dow), w="";
+  for(var i=0;i<5;i++){var d=add(mon,i),k=key(d),l=DAYS[k];
+    w+='<div class="wd'+(k===t?' now':'')+'"><small>'+WD[d.getDay()]+'</small><b class="'+(l||'none')+'">'+(l||'–')+'</b><span>'+MON[d.getMonth()]+' '+d.getDate()+'</span></div>';}
+  document.getElementById("week").innerHTML=w;
+  document.getElementById("end").textContent=keys.length&&t>keys[keys.length-1]?"This schedule ended on "+keys[keys.length-1]+".":"";
+}
+render();
+// Keep it right after midnight and when the phone wakes the page.
+setInterval(render,60000);
+document.addEventListener("visibilitychange",function(){if(!document.hidden)render();});
+</script>
+</body>
+</html>

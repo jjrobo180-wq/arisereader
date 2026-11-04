@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff4e6"/><stop offset="1" stop-color="#ffe8cc"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<ellipse cx="200" cy="420" rx="70" ry="62" fill="#a9825a"/>
+<circle cx="200" cy="330" r="46" fill="#b88f63"/>
+<ellipse cx="178" cy="262" rx="14" ry="44" fill="#b88f63" transform="rotate(-12 178 262)"/><ellipse cx="222" cy="262" rx="14" ry="44" fill="#b88f63" transform="rotate(12 222 262)"/>
+<ellipse cx="178" cy="262" rx="7" ry="32" fill="#f3c6b8" transform="rotate(-12 178 262)"/><ellipse cx="222" cy="262" rx="7" ry="32" fill="#f3c6b8" transform="rotate(12 222 262)"/>
+<circle cx="184" cy="326" r="5" fill="#3b2a1a"/><circle cx="216" cy="326" r="5" fill="#3b2a1a"/><ellipse cx="200" cy="342" rx="6" ry="4" fill="#d6336c"/>
+<circle cx="150" cy="420" r="9" fill="#fff" opacity=".6"/><circle cx="246" cy="440" r="12" fill="#fff" opacity=".5"/>
+<path d="M60 520 q20-30 40 0 q20-30 40 0 M260 520 q20-30 40 0 q20-30 40 0" stroke="#2f9e44" stroke-width="5" fill="none"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#c0a080" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#5c3d1e" text-anchor="middle">The Velveteen</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#5c3d1e" text-anchor="middle">Rabbit</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#5c3d1e" fill-opacity=".85" text-anchor="middle">MARGERY WILLIAMS</text>
+</svg>

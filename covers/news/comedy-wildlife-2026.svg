@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900" width="600" height="900">
+<rect width="600" height="900" fill="#7a3c00"/>
+<svg x="0" y="96" width="600" height="572" viewBox="460 0 680 900" preserveAspectRatio="xMidYMid slice"><rect x="0" y="0" width="1600" height="900" fill="#fff3d6" /><circle cx="1300" cy="160" r="90" fill="#ffe066" /><path d="M0 700Q400 620 800 690T1600 660V900H0Z" fill="#9bc46b" /><g transform="translate(760 520)"><ellipse cx="0" cy="40" rx="190" ry="110" fill="#7a4e2d"/><rect x="-120" y="120" width="30" height="170" fill="#6a4226" /><rect x="-60" y="120" width="30" height="170" fill="#6a4226" /><rect x="80" y="120" width="30" height="170" fill="#6a4226" /><rect x="140" y="120" width="30" height="170" fill="#6a4226" /><path d="M150 -20Q230 -60 300 -10Q330 30 300 70Q240 90 190 50Z" fill="#7a4e2d" /><circle cx="290" cy="40" r="10" fill="#3b2414" /><circle cx="250" cy="-10" r="9" fill="#1b1b1b" /><path d="M190 -40Q160 -150 90 -170Q140 -120 120 -90Q80 -160 30 -150Q90 -110 160 -50Z" fill="#c9a46a" /><path d="M240 -50Q280 -160 360 -170Q310 -120 330 -90Q370 -160 420 -150Q360 -110 280 -45Z" fill="#c9a46a" /></g><circle cx="1100" cy="540" r="30" fill="#ffffff" opacity=".9"/><circle cx="1150" cy="500" r="22" fill="#ffffff" opacity=".9"/><circle cx="1190" cy="560" r="18" fill="#ffffff" opacity=".9"/><circle cx="1140" cy="580" r="14" fill="#ffffff" opacity=".9"/><circle cx="1220" cy="520" r="12" fill="#ffffff" opacity=".9"/><path d="M1060 470l40 -40M1080 600l50 30M1240 470l30 -50" fill="none" stroke="#555" stroke-width="6" stroke-linecap="round"/></svg>
+<rect width="600" height="96" fill="#ffffff"/>
+<text x="30" y="66" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#7a3c00" letter-spacing="-1">ARISE<tspan fill="#e2780c"> NEWS</tspan></text>
+<text x="570" y="44" font-family="Arial,sans-serif" font-weight="700" font-size="16" fill="#7a3c00" text-anchor="end">ISSUE 2</text>
+<text x="570" y="68" font-family="Arial,sans-serif" font-weight="700" font-size="16" fill="#e2780c" text-anchor="end">ANIMALS</text>
+<rect y="668" width="600" height="232" fill="#7a3c00"/>
+<rect x="30" y="686" width="120" height="8" fill="#e2780c"/>
+<text x="30" y="732" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#ffffff">A Sneezing Moose</text>
+<text x="30" y="788" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#ffffff">and Other Funny</text>
+<text x="30" y="844" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#ffffff">Animal Photos</text>
+<text x="570" y="690" font-family="Arial,sans-serif" font-weight="800" font-size="20" fill="#ffffff" text-anchor="end">5 PTS</text>
+</svg>

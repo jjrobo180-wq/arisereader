@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a1423"/><stop offset="1" stop-color="#3d314a"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<path d="M60 250 q60 -30 120 0 q60 -30 120 0 q40 0 50 30 h-320 q0 -30 30 -30z" fill="#868e96" opacity=".6"/><path d="M220 280 l-40 80 h30 l-30 80 l70 -100 h-32 l30 -60z" fill="#ffd43b"/><path d="M0 480 Q120 455 220 470 T400 462 V600 H0Z" fill="#0c0910"/><path d="M260 480 V390 h40 V480z M250 390 h60 v-12 h-60z" fill="#0c0910"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Frankenstein</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">MARY SHELLEY</text>
+</svg>

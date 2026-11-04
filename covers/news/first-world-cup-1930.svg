@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900" width="600" height="900">
+<rect width="600" height="900" fill="#0b4a1c"/>
+<svg x="0" y="96" width="600" height="540" viewBox="460 0 680 900" preserveAspectRatio="xMidYMid slice"><rect x="0" y="0" width="1600" height="900" fill="#e7f5ff" /><circle cx="1200" cy="200" r="90" fill="#ffe066" /><path d="M0 640Q200 610 400 640T800 640T1200 640T1600 640V900H0Z" fill="#4dabf7" /><path d="M0 700Q200 670 400 700T800 700T1200 700T1600 700V900H0Z" fill="#1c7ed6" /><path d="M480 600H1120L1060 690H540Z" fill="#212529" /><rect x="540" y="520" width="520" height="80" fill="#f8f9fa" /><circle cx="580" cy="560" r="12" fill="#74c0fc" /><circle cx="644" cy="560" r="12" fill="#74c0fc" /><circle cx="708" cy="560" r="12" fill="#74c0fc" /><circle cx="772" cy="560" r="12" fill="#74c0fc" /><circle cx="836" cy="560" r="12" fill="#74c0fc" /><circle cx="900" cy="560" r="12" fill="#74c0fc" /><circle cx="964" cy="560" r="12" fill="#74c0fc" /><circle cx="1028" cy="560" r="12" fill="#74c0fc" /><rect x="630" y="420" width="60" height="100" fill="#e8590c" /><rect x="630" y="420" width="60" height="22" fill="#212529" /><rect x="770" y="420" width="60" height="100" fill="#e8590c" /><rect x="770" y="420" width="60" height="22" fill="#212529" /><rect x="910" y="420" width="60" height="100" fill="#e8590c" /><rect x="910" y="420" width="60" height="22" fill="#212529" /><path d="M640 400Q600 340 640 300M780 400Q740 330 790 280" fill="none" stroke="#adb5bd" stroke-width="16" stroke-linecap="round" opacity=".7"/><circle cx="1000" cy="495" r="24" fill="#a0522d" /><path d="M980 495H1020M1000 472V518" fill="none" stroke="#6b3a1f" stroke-width="4"/></svg>
+<rect width="600" height="96" fill="#ffffff"/>
+<text x="30" y="66" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#0b4a1c" letter-spacing="-1">ARISE<tspan fill="#2b8a3e"> NEWS</tspan></text>
+<text x="570" y="44" font-family="Arial,sans-serif" font-weight="700" font-size="16" fill="#0b4a1c" text-anchor="end">ISSUE 2</text>
+<text x="570" y="68" font-family="Arial,sans-serif" font-weight="700" font-size="16" fill="#2b8a3e" text-anchor="end">SOCCER</text>
+<rect y="636" width="600" height="264" fill="#0b4a1c"/>
+<rect x="30" y="654" width="120" height="8" fill="#2b8a3e"/>
+<text x="30" y="700" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="44" fill="#ffffff">The First World</text>
+<text x="30" y="750" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="44" fill="#ffffff">Cup: 13 Teams</text>
+<text x="30" y="800" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="44" fill="#ffffff">and a Long Boat</text>
+<text x="30" y="850" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="44" fill="#ffffff">Ride</text>
+<text x="570" y="658" font-family="Arial,sans-serif" font-weight="800" font-size="20" fill="#ffffff" text-anchor="end">5 PTS</text>
+</svg>

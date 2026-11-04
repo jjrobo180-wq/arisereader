@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#10221f"/><stop offset="1" stop-color="#2c3e2b"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<path d="M0 440 Q120 400 220 430 T400 410 V600 H0Z" fill="#0b1513"/>
+<rect x="250" y="300" width="70" height="90" fill="#08100e"/><path d="M240 300 l45-40 l45 40z" fill="#08100e"/><rect x="276" y="330" width="14" height="18" fill="#ffd43b"/>
+<path d="M60 430 q20-50 70-50 q30 0 50 20 l30-8 l6 14 l-20 14 q4 20-10 30 l-10 36 h-12 l4-34 h-60 l-12 34 h-12 l8-40z" fill="#050a09"/>
+<circle cx="200" cy="404" r="4" fill="#b2f2bb"/><circle cx="210" cy="402" r="4" fill="#b2f2bb"/>
+<path d="M0 470 q100-20 200 0 t200 0" stroke="#dee2e6" stroke-opacity=".25" stroke-width="22" fill="none"/>
+<circle cx="80" cy="190" r="34" fill="#e9ecef" opacity=".85"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">The Hound</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">of the</text><text x="200" y="166" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Baskervilles</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">ARTHUR CONAN DOYLE</text>
+</svg>

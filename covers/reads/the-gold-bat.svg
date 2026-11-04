@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#14213d"/><stop offset="1" stop-color="#2b4c7e"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<path d="M0 470 H400 V600 H0Z" fill="#0b1426"/><g transform="rotate(30 200 360)"><rect x="188" y="250" width="24" height="70" rx="6" fill="#8d5524"/><path d="M180 320 h40 l6 150 q-26 16 -52 0z" fill="#ffd43b"/></g><circle cx="270" cy="440" r="14" fill="#e03131"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">The Gold Bat</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">P. G. WODEHOUSE</text>
+</svg>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f63ff"/><stop offset="1" stop-color="#5b2fe0"/></linearGradient>
+    <linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#ece6ff"/></linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <circle cx="820" cy="190" r="260" fill="#ffffff" opacity=".08"/>
+  <!-- open book -->
+  <path d="M512 330 C 430 270, 300 250, 190 270 L 190 720 C 300 700, 430 720, 512 780 Z" fill="url(#pg)"/>
+  <path d="M512 330 C 594 270, 724 250, 834 270 L 834 720 C 724 700, 594 720, 512 780 Z" fill="#ffffff"/>
+  <path d="M512 330 L 512 780" stroke="#5b2fe0" stroke-width="14" stroke-linecap="round" opacity=".35"/>
+  <!-- lines of text -->
+  <g stroke="#7c4dff" stroke-width="26" stroke-linecap="round" opacity=".55">
+    <path d="M262 380 C 330 372, 390 380, 450 404"/><path d="M262 460 C 330 452, 390 460, 450 484"/><path d="M262 540 C 330 532, 390 540, 450 564"/>
+    <path d="M574 404 C 634 380, 694 372, 762 380"/><path d="M574 484 C 634 460, 694 452, 762 460"/>
+  </g>
+  <!-- the A.R.I.S.E. ink bar as a bookmark -->
+  <path d="M650 250 L 730 250 L 730 470 L 690 430 L 650 470 Z" fill="#15131f"/>
+</svg>

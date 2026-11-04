@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a5a40"/><stop offset="1" stop-color="#a3b18a"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<path d="M0 480 Q120 455 220 470 T400 462 V600 H0Z" fill="#1b2a1e"/><path d="M200 260 q30 -10 50 10" stroke="#2f9e44" stroke-width="6" fill="none"/><path d="M230 262 q30 -20 50 0 q-20 20 -50 0z" fill="#2f9e44"/><circle cx="180" cy="290" r="16" fill="#7b2cbf"/><circle cx="212" cy="290" r="16" fill="#7b2cbf"/><circle cx="244" cy="290" r="16" fill="#7b2cbf"/><circle cx="196" cy="318" r="16" fill="#7b2cbf"/><circle cx="228" cy="318" r="16" fill="#7b2cbf"/><circle cx="212" cy="346" r="16" fill="#7b2cbf"/><path d="M120 470 l20 -50 l14 30 l14 -30 l14 50z" fill="#1b2a1e"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Aesop&#x27;s</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Fables</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">AESOP</text>
+</svg>

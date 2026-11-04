@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7b2cbf"/><stop offset="1" stop-color="#c77dff"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<path d="M0 490 Q200 470 400 490 V600 H0Z" fill="#3c096c"/><path d="M90 490 V380 l20.0 -40 l20.0 40 V490z" fill="#2f9e44"/><path d="M140 490 V330 l24.0 -48 l24.0 48 V490z" fill="#37b24d"/><path d="M196 490 V300 l26.0 -52 l26.0 52 V490z" fill="#40c057"/><path d="M256 490 V340 l22.0 -44 l22.0 44 V490z" fill="#2f9e44"/><path d="M306 490 V390 l18.0 -36 l18.0 36 V490z" fill="#37b24d"/><path d="M70 528 Q200 484 330 528" stroke="#ffd43b" stroke-width="10" fill="none"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">The Patchwork</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Girl of Oz</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">L. FRANK BAUM</text>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d3557"/><stop offset="1" stop-color="#457b9d"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<circle cx="300" cy="250" r="42" fill="#fff4c2"/><path d="M0 470 L400 440 V600 H0Z" fill="#0d1b2a"/><path d="M110 440 l30-36 h90 l34 36 h20 v26 h-190 v-26z" fill="#e63946"/><circle cx="150" cy="470" r="16" fill="#111"/><circle cx="255" cy="468" r="16" fill="#111"/><path d="M150 410 h36 v28 h-50z M196 410 h30 l24 28 h-54z" fill="#fff" opacity=".6"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">The Shore</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Road Mystery</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">FRANKLIN W. DIXON</text>
+</svg>

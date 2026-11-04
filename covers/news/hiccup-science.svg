@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900" width="600" height="900">
+<rect width="600" height="900" fill="#7a4500"/>
+<svg x="0" y="96" width="600" height="628" viewBox="460 0 680 900" preserveAspectRatio="xMidYMid slice"><rect x="0" y="0" width="1600" height="900" fill="#e5dbff" /><circle cx="220" cy="140" r="16" fill="#ffffff" opacity=".6"/><circle cx="370" cy="180" r="24" fill="#ffffff" opacity=".6"/><circle cx="520" cy="220" r="32" fill="#ffffff" opacity=".6"/><circle cx="670" cy="140" r="16" fill="#ffffff" opacity=".6"/><circle cx="820" cy="180" r="24" fill="#ffffff" opacity=".6"/><circle cx="970" cy="220" r="32" fill="#ffffff" opacity=".6"/><circle cx="1120" cy="140" r="16" fill="#ffffff" opacity=".6"/><circle cx="1270" cy="180" r="24" fill="#ffffff" opacity=".6"/><circle cx="1420" cy="220" r="32" fill="#ffffff" opacity=".6"/><path d="M790 230V380" fill="none" stroke="#f783ac" stroke-width="26" stroke-linecap="round"/><path d="M770 360C640 330 560 440 580 580C600 660 700 650 760 600Z" fill="#ff8787" /><path d="M830 360C960 330 1040 440 1020 580C1000 660 900 650 840 600Z" fill="#ff8787" /><path d="M520 700Q800 560 1080 700" fill="none" stroke="#e8590c" stroke-width="30" stroke-linecap="round"/><path d="M560 760Q800 640 1040 760" fill="none" stroke="#e8590c" stroke-width="10" stroke-dasharray="10 18" stroke-linecap="round" opacity=".6"/><text x="1140" y="300" font-family="'Arial Black',Arial,sans-serif" font-weight="900" font-size="110" fill="#7048e8" transform="rotate(-10 1140 300)">HIC!</text></svg>
+<rect width="600" height="96" fill="#ffffff"/>
+<text x="30" y="66" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#7a4500" letter-spacing="-1">ARISE<tspan fill="#f08c00"> NEWS</tspan></text>
+<text x="570" y="44" font-family="Arial,sans-serif" font-weight="700" font-size="16" fill="#7a4500" text-anchor="end">ISSUE 2</text>
+<text x="570" y="68" font-family="Arial,sans-serif" font-weight="700" font-size="16" fill="#f08c00" text-anchor="end">FUN FACTS</text>
+<rect y="724" width="600" height="176" fill="#7a4500"/>
+<rect x="30" y="742" width="120" height="8" fill="#f08c00"/>
+<text x="30" y="788" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#ffffff">Hic! What Are</text>
+<text x="30" y="844" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#ffffff">Hiccups, Anyway?</text>
+<text x="570" y="746" font-family="Arial,sans-serif" font-weight="800" font-size="20" fill="#ffffff" text-anchor="end">5 PTS</text>
+</svg>

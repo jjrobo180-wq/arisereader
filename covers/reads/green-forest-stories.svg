@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b4332"/><stop offset="1" stop-color="#40916c"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<circle cx="320" cy="240" r="30" fill="#fff4c2"/><path d="M0 480 Q120 455 220 470 T400 462 V600 H0Z" fill="#081c15"/><path d="M40 470 l30 -140 l30 140z" fill="#081c15"/><path d="M90 470 l40 -190 l40 190z" fill="#74c69d"/><path d="M160 470 l36 -160 l36 160z" fill="#081c15"/><path d="M230 470 l44 -210 l44 210z" fill="#74c69d"/><path d="M310 470 l32 -150 l32 150z" fill="#081c15"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Green Forest</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Stories</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">THORNTON W. BURGESS</text>
+</svg>

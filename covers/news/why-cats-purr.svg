@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900" width="600" height="900">
+<rect width="600" height="900" fill="#7a4500"/>
+<svg x="0" y="96" width="600" height="628" viewBox="460 0 680 900" preserveAspectRatio="xMidYMid slice"><rect x="0" y="0" width="1600" height="900" fill="#fff9db" /><rect x="0" y="640" width="1600" height="260" fill="#e9c46a" /><ellipse cx="800" cy="700" rx="440" ry="90" fill="#f4a261"/><ellipse cx="800" cy="580" rx="300" ry="160" fill="#868e96"/><path d="M520 620Q470 520 560 470" fill="none" stroke="#868e96" stroke-width="60" stroke-linecap="round"/><circle cx="1000" cy="520" r="110" fill="#868e96" /><polygon points="920,450 940,360 990,430" fill="#868e96" /><polygon points="1020,430 1070,360 1090,450" fill="#868e96" /><polygon points="935,430 948,385 975,425" fill="#f783ac" /><polygon points="1035,425 1065,385 1075,430" fill="#f783ac" /><path d="M950 520q20 16 40 0M1030 520q20 16 40 0" fill="none" stroke="#343a40" stroke-width="7" stroke-linecap="round"/><polygon points="1000,548 990,538 1010,538" fill="#f783ac" /><path d="M1140 440q16 30 0 60q-16 30 0 60" fill="none" stroke="#f08c00" stroke-width="7" stroke-linecap="round" opacity="1"/><path d="M1174 430q16 30 0 60q-16 30 0 60" fill="none" stroke="#f08c00" stroke-width="7" stroke-linecap="round" opacity="0.75"/><path d="M1208 420q16 30 0 60q-16 30 0 60" fill="none" stroke="#f08c00" stroke-width="7" stroke-linecap="round" opacity="0.5"/><text x="1240" y="330" font-family="'Arial Black',Arial,sans-serif" font-size="56" fill="#f08c00">prrr</text></svg>
+<rect width="600" height="96" fill="#ffffff"/>
+<text x="30" y="66" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#7a4500" letter-spacing="-1">ARISE<tspan fill="#f08c00"> NEWS</tspan></text>
+<text x="570" y="44" font-family="Arial,sans-serif" font-weight="700" font-size="16" fill="#7a4500" text-anchor="end">ISSUE 2</text>
+<text x="570" y="68" font-family="Arial,sans-serif" font-weight="700" font-size="16" fill="#f08c00" text-anchor="end">FUN FACTS</text>
+<rect y="724" width="600" height="176" fill="#7a4500"/>
+<rect x="30" y="742" width="120" height="8" fill="#f08c00"/>
+<text x="30" y="788" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#ffffff">The Mystery of</text>
+<text x="30" y="844" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#ffffff">the Purr</text>
+<text x="570" y="746" font-family="Arial,sans-serif" font-weight="800" font-size="20" fill="#ffffff" text-anchor="end">5 PTS</text>
+</svg>

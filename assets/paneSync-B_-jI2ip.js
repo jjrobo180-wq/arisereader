@@ -1,0 +1,1 @@
+const t=(e,a)=>`arise-saved:${e}:${a??"me"}`;function c(e,a){try{const n=new BroadcastChannel(t(e,a));n.postMessage(Date.now()),n.close()}catch{}}function s(e,a,n){let o=null;try{o=new BroadcastChannel(t(e,a)),o.onmessage=()=>n()}catch{o=null}return window.addEventListener("focus",n),()=>{o?.close(),window.removeEventListener("focus",n)}}export{c as a,s as o};

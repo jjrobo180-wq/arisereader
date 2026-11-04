@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a189a"/><stop offset="1" stop-color="#ff9e00"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<circle cx="310" cy="230" r="32" fill="#fff4c2"/><path d="M0 480 Q120 455 220 470 T400 462 V600 H0Z" fill="#3c096c"/><path d="M120 470 V380 h160 V470z" fill="#3c096c"/><path d="M160 380 q40 -80 80 0z" fill="#3c096c"/><path d="M200 300 v-20" stroke="#3c096c" stroke-width="4"/><path d="M110 380 q15 -40 30 0z M260 380 q15 -40 30 0z" fill="#3c096c"/><path d="M186 470 v-40 q14 -20 28 0 v40z" fill="#ffd43b" opacity=".7"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Hindu Tales</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">from the</text><text x="200" y="166" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Sanskrit</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">S. M. MITRA</text>
+</svg>

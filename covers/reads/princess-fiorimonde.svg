@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3d1a4a"/><stop offset="1" stop-color="#7a3e7f"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<path d="M0 480 Q120 455 220 470 T400 462 V600 H0Z" fill="#220e2a"/><path d="M95 290 Q200 420 305 290" stroke="#fff" stroke-opacity=".4" stroke-width="2" fill="none"/><circle cx="303.3" cy="330.9" r="13" fill="#ff6b6b"/><circle cx="291.4" cy="350.1" r="13" fill="#ffd43b"/><circle cx="274.2" cy="366.4" r="13" fill="#69db7c"/><circle cx="252.8" cy="378.9" r="13" fill="#4dabf7"/><circle cx="228.4" cy="387.0" r="13" fill="#da77f2"/><circle cx="202.3" cy="390.0" r="13" fill="#ffa94d"/><circle cx="176.1" cy="387.8" r="13" fill="#fff"/><circle cx="151.2" cy="380.7" r="13" fill="#ff6b6b"/><circle cx="129.2" cy="368.9" r="13" fill="#ffd43b"/><circle cx="111.2" cy="353.1" r="13" fill="#69db7c"/><circle cx="98.3" cy="334.3" r="13" fill="#4dabf7"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">The Necklace</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">of Princess</text><text x="200" y="166" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Fiorimonde</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">MARY DE MORGAN</text>
+</svg>

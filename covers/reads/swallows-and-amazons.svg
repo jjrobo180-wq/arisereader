@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d4e89"/><stop offset="1" stop-color="#7fb7be"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<circle cx="80" cy="240" r="28" fill="#fff4c2"/><path d="M0 450 q50-14 100 0 t100 0 t100 0 t100 0 V600 H0Z" fill="#0f2c4f"/><path d="M200 260 v170" stroke="#fff" stroke-width="5"/><path d="M206 270 q70 70 60 150 h-60z" fill="#fff"/><path d="M194 300 q-50 60 -40 120 h40z" fill="#e63946"/><path d="M130 430 h150 l-24 26 h-104z" fill="#8d5524"/><path d="M300 360 q20-40 50-30 q-10 30 -50 30z" fill="#0f2c4f" opacity=".7"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Swallows and</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Amazons</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">ARTHUR RANSOME</text>
+</svg>

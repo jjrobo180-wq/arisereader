@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2c2a5a"/><stop offset="1" stop-color="#7b6fb0"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<circle cx="70" cy="230" r="2.6" fill="#fff" opacity=".85"/><circle cx="120" cy="280" r="2.6" fill="#fff" opacity=".85"/><circle cx="330" cy="330" r="2.6" fill="#fff" opacity=".85"/><circle cx="90" cy="360" r="2.6" fill="#fff" opacity=".85"/><circle cx="260" cy="220" r="2.6" fill="#fff" opacity=".85"/><circle cx="350" cy="410" r="2.6" fill="#fff" opacity=".85"/><path d="M290 220 a40 40 0 1 0 30 60 a32 32 0 1 1 -30 -60z" fill="#ffe066"/><path d="M0 480 Q120 455 220 470 T400 462 V600 H0Z" fill="#1b1838"/><path d="M200 330 l8 20 l22 2 l-17 14 l6 22 l-19 -12 l-19 12 l6 -22 l-17 -14 l22 -2z" fill="#ffe066"/><path d="M120 470 q-6-50 10-70 q14 20 8 70z M270 470 q-6-60 12-80 q14 26 6 80z" fill="#1b1838"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="32" font-weight="700" fill="#fff" text-anchor="middle">The Light</text><text x="200" y="116" font-family="Georgia,serif" font-size="32" font-weight="700" fill="#fff" text-anchor="middle">Princess and</text><text x="200" y="154" font-family="Georgia,serif" font-size="32" font-weight="700" fill="#fff" text-anchor="middle">Other Fairy</text><text x="200" y="192" font-family="Georgia,serif" font-size="32" font-weight="700" fill="#fff" text-anchor="middle">Tales</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">GEORGE MACDONALD</text>
+</svg>

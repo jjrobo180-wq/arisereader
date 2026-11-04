@@ -1,0 +1,1 @@
+const i={title:60,how:200,quizGoal:200},n=/^\d{4}-\d{2}-\d{2}$/;function r(t){if(typeof t!="string"||!n.test(t))return!1;const e=Date.parse(`${t}T00:00:00Z`);return Number.isFinite(e)&&new Date(e).toISOString().slice(0,10)===t}function o(t){return!t||!r(t)?"":new Date(`${t}T12:00:00Z`).toLocaleDateString("en-US",{month:"short",day:"numeric",timeZone:"UTC"})}export{i as P,o as p};

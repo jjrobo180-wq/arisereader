@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a2a3a"/><stop offset="1" stop-color="#a25c6e"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<path d="M0 480 Q120 455 220 470 T400 462 V600 H0Z" fill="#2e131c"/><ellipse cx="200" cy="420" rx="110" ry="54" fill="#e64980"/><ellipse cx="200" cy="404" rx="100" ry="40" fill="#fff" opacity=".15"/><path d="M150 400 l-20-90 M200 390 l0-100 M250 400 l26-86" stroke="#dee2e6" stroke-width="4"/><circle cx="130" cy="308" r="9" fill="#ffd43b"/><circle cx="200" cy="288" r="11" fill="#212529"/><circle cx="276" cy="312" r="9" fill="#e64980"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">On a</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Pincushion</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">MARY DE MORGAN</text>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a1f1d"/><stop offset="1" stop-color="#6d4c41"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<path d="M0 480 Q120 455 220 470 T400 462 V600 H0Z" fill="#1c0f0e"/><path d="M110 470 V370 l90 -70 l90 70 V470z" fill="#c0392b"/><path d="M100 376 l100 -80 l100 80" stroke="#5c1a1a" stroke-width="10" fill="none"/><rect x="135" y="390" width="26" height="28" fill="#fff8e1"/><rect x="240" y="390" width="26" height="28" fill="#fff8e1"/><rect x="188" y="420" width="24" height="50" fill="#5c1a1a"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">The Red House</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Mystery</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">A. A. MILNE</text>
+</svg>
