@@ -3,7 +3,9 @@
 import { type CSSProperties, useEffect, useState, type ReactNode } from "react";
 import { fmtClock, nightLook, templateOf, themeOf, type NotesTheme, type NotesSettings } from "@shared/ariseNotes";
 import type { ListNote } from "./api";
+import { BubbleWrap, Ferro, Jelly, LavaLamp, MarbleJar, Orrery, RadioDial, Slots, Spinner, SynthKeys } from "@/components/look-os/toys";
 import "./notes-systems.css";
+import "./notes-play.css";
 
 /** The look to draw, or null for Classic. High contrast always uses the Classic layout. */
 export function activeLook(settings?: NotesSettings | null): NotesTheme | null {
@@ -26,6 +28,10 @@ function Secondary({ a, labels = ["Upload", "Voice memo", "Ask"], ask = true }: 
   </div>;
 }
 const AskBar = ({ a, text = "Ask or search your notes" }: { a: HomeActions; text?: string }) => <button type="button" className="an-l-askbar" onClick={a.ask} data-testid="notes-ask-bar">{text}</button>;
+
+// For the interactive looks' toys on Home.
+const PROMPTS = ["Today's three wins", "A plan for tomorrow", "Everything on my mind", "What I learned this week", "Questions for my next meeting", "An idea worth keeping"].map((title, i) => ({ id: String(i), title }));
+const week = () => Array.from({ length: 7 }, (_, i) => ({ label: new Date(Date.now() + i * 864e5).toLocaleDateString(undefined, { weekday: "short" }), count: 0 }));
 
 /** The top of Home: the title, Record, Upload, Voice memo and Ask, arranged for the look. */
 export function LookHomeHero({ look, a }: { look: NotesTheme; a: HomeActions }) {
@@ -67,6 +73,17 @@ export function LookHomeHero({ look, a }: { look: NotesTheme; a: HomeActions }) 
       case "ink": return <><small className="an-s-folio">New page</small><h1>What shall we write down?</h1>{rec("Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
       case "neon": return <><small className="an-s-hud">// VOICE.CAPTURE — STANDBY</small><h1 data-text="RECORD">RECORD</h1>{rec("● INITIATE")}<Secondary a={a} labels={["UPLOAD", "MEMO", "ASK"]} /></>;
       case "orbit": return <><h1>Notes</h1><div className="an-s-orbitrec">{rec(<><MicIcon size={34} /><small>Record</small></>, "an-s-roundrec")}</div><Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
+      // The ten interactive looks: a toy to play with while you think, and every way in still a button.
+      case "spinner": return <><h1>{a.first ? `Spin it, ${a.first}.` : "Spin it."}</h1><div className="an-p-stage"><Spinner size={230} center={<MicIcon size={22} />} arms={[{ label: "record", value: "●", onOpen: a.record }, { label: "upload", value: "↑", onOpen: a.upload }, { label: "ask", value: "?", onOpen: a.ask }]} /></div><p className="an-p-hint">Flick to spin. Tap an arm to start.</p>{rec("Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
+      case "bubbles": return <><h1>Pop. Talk. Done.</h1><div className="an-p-stage"><BubbleWrap items={[]} /></div>{rec("Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
+      case "lava": return <><div className="an-p-lavarow"><LavaLamp count={4} /><div><h1>Let it flow.</h1><p className="an-p-hint">Touch the lamp to warm it up.</p></div></div>{rec("Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
+      case "marbles": return <><h1>Shake out a thought.</h1><div className="an-p-stage"><MarbleJar items={[]} height={170} /></div>{rec("Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
+      case "synth": return <><small className="an-l-eyebrow">▶ Ready to record</small><h1>Hit record.</h1><SynthKeys />{rec("● Rec")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
+      case "jelly": return <><h1>{a.first ? `Squish one, ${a.first}.` : "Squish one."}</h1><div className="an-p-jellies"><Jelly label="record" value="●" color="#ff4f8b" pitch={1} onOpen={a.record} /><Jelly label="upload" value="↑" color="#8b7bff" pitch={1.25} onOpen={a.upload} /><Jelly label={a.memoLocked ? "memo · basic" : "memo"} value="♪" color="#38d6a8" pitch={1.5} onOpen={a.memo} /><Jelly label="ask" value="?" color="#ffb347" pitch={.8} onOpen={a.ask} /></div>{rec("Record")}</>;
+      case "orrery": return <><small className="an-l-eyebrow">The week, in orbit</small><h1>Capture the moment.</h1><div className="an-p-stage"><Orrery size={230} days={week()} /></div>{rec("Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
+      case "dial": { const go = [a.record, a.upload, a.memo, a.ask]; return <><h1>Tune in.</h1><RadioDial items={["Record", "Upload", "Memo", "Ask"]} onSelect={(i) => go[i]()} /><p className="an-p-hint">Turn the knob, then press the middle.</p>{rec("Record")}</>; }
+      case "ferro": return <><h1>Speak to it.</h1><div className="an-p-stage"><Ferro size={220}><MicIcon size={26} /></Ferro></div><p className="an-p-hint">Move your finger near it.</p>{rec("Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
+      case "slots": return <><h1>Feeling lucky?</h1><Slots items={PROMPTS} /><p className="an-p-hint">Pull the lever for something to record.</p>{rec("Record")}<Secondary a={a} labels={["Upload", "Memo", "Ask"]} /></>;
       default: return null;
     }
   })();
@@ -110,7 +127,7 @@ export function LookNoteList({ look, notes, onOpen }: { look: NotesTheme; notes:
 
 /** The timer while recording, drawn for the look. */
 export function LookRecordArt({ look, secs, paused, finishing, level }: { look: NotesTheme; secs: number; paused: boolean; finishing: boolean; level: number }) {
-  const live = !paused && !finishing;
+  const live = !paused && !finishing, e = live ? Math.max(level, .08) : 0;
   const status = finishing ? "Finishing" : paused ? "Paused" : look.id === "grove" ? "Listening" : "Recording";
   const clock = <div className="an-l-clock" aria-label={`${fmtClock(secs)} recorded`}>{fmtClock(secs)}</div>;
   const bars = <div aria-hidden className="an-l-recbars">{Array.from({ length: 28 }, (_, i) => <i key={i} style={{ height: live ? Math.max(6, Math.max(level, .35) * 86 * (.4 + .6 * Math.abs(Math.sin(i * 1.7 + secs)))) : 6 }} />)}</div>;
@@ -137,6 +154,17 @@ export function LookRecordArt({ look, secs, paused, finishing, level }: { look: 
       case "ink": return <>{clock}<p className="an-s-inkstatus">{live ? "Listening. Write-up when you stop." : status}</p></>;
       case "neon": return <>{clock}<div aria-hidden className="an-s-neonbars">{Array.from({ length: 16 }, (_, i) => <i key={i} style={{ height: live ? `${Math.max(8, Math.max(level, .2) * 100 * Math.abs(Math.sin(i * 1.4 + secs)))}%` : "8%" }} />)}</div></>;
       case "console": return <>{clock}<p aria-hidden className="an-l-ascii">{live ? Array.from({ length: 24 }, (_, i) => "▁▂▃▅▇▆▄▂"[(i * 3 + secs) % 8]).join("") : "▁".repeat(24)}</p></>;
+      // The interactive looks: the toy moves with your voice while it records.
+      case "spinner": return <>{clock}<div aria-hidden className="an-p-art"><Spinner size={210} energy={e} center={<MicIcon size={20} />} arms={[]} /></div></>;
+      case "bubbles": return <>{clock}<div aria-hidden className="an-p-art"><BubbleWrap items={[]} energy={e} /></div></>;
+      case "lava": return <div className="an-p-lavarow an-p-artrow"><LavaLamp count={6} energy={e} />{clock}</div>;
+      case "marbles": return <>{clock}<div aria-hidden className="an-p-art"><MarbleJar items={[]} energy={e} height={190} /></div></>;
+      case "synth": return <>{clock}<div aria-hidden className="an-p-art"><SynthKeys energy={e} /></div></>;
+      case "jelly": return <>{clock}<div aria-hidden className="an-p-art an-p-onejelly"><Jelly label={status.toLowerCase()} value="●" color="#ff4f8b" energy={e} /></div></>;
+      case "orrery": return <>{clock}<div aria-hidden className="an-p-art"><Orrery size={230} energy={e} days={week()} /></div></>;
+      case "dial": return <>{clock}<div aria-hidden className="an-p-art"><RadioDial items={["Low", "Talk", "Loud", "Peak"]} energy={e} /></div></>;
+      case "ferro": return <>{clock}<div aria-hidden className="an-p-art"><Ferro size={220} energy={e} /></div></>;
+      case "slots": return <>{clock}<div aria-hidden className="an-p-art"><Slots items={[]} energy={e} /></div></>;
       default: return <>{clock}{bars}</>;
     }
   })();

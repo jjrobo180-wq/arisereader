@@ -26,7 +26,7 @@ const P: Record<string, string> = {
   notes: "M6 3h9l4 4v14H6zM9 12h6M9 16h6M9 8h3", apps: "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z", add: "M12 5v14M5 12h14",
   you: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c1.5-4 4.5-6 8-6s6.5 2 8 6", search: "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4", spark: "M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2z",
 };
-const Ico = ({ n, size = 22, w = 2 }: { n: keyof typeof P | string; size?: number; w?: number }) => <svg aria-hidden width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w} strokeLinecap="round" strokeLinejoin="round"><path d={P[n] ?? P.spark} /></svg>;
+export const Ico = ({ n, size = 22, w = 2 }: { n: keyof typeof P | string; size?: number; w?: number }) => <svg aria-hidden width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w} strokeLinecap="round" strokeLinejoin="round"><path d={P[n] ?? P.spark} /></svg>;
 const NAV: { id: "home" | "tasks" | "add" | "calendar" | "notes" | "apps" | "you"; label: string }[] = [
   { id: "home", label: "Home" }, { id: "tasks", label: "Tasks" }, { id: "add", label: "Add" }, { id: "calendar", label: "Calendar" }, { id: "notes", label: "Notes" }, { id: "apps", label: "Apps" }, { id: "you", label: "You" },
 ];
@@ -43,7 +43,7 @@ function useClock() { const [t, setT] = useState(clockNow()); useEffect(() => { 
 
 // ─── Calendars ───
 const busy = (days: AgendaDay[]) => days.filter((d) => d.items.length);
-function Month({ days, cls }: { days: AgendaDay[]; cls: string }) {
+export function Month({ days, cls }: { days: AgendaDay[]; cls: string }) {
   const today = days[0]; if (!today) return null;
   const first = new Date(`${today.date}T12:00:00`), start = new Date(first.getFullYear(), first.getMonth(), 1), total = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
   const has = new Set(days.filter((d) => d.items.length).map((d) => Number(d.day)));
@@ -51,7 +51,7 @@ function Month({ days, cls }: { days: AgendaDay[]; cls: string }) {
     <div className="sys-dow">{["S", "M", "T", "W", "T", "F", "S"].map((d, i) => <span key={i}>{d}</span>)}</div>
     <div className="sys-grid">{Array.from({ length: start.getDay() }, (_, i) => <span key={`b${i}`} />)}{Array.from({ length: total }, (_, i) => <span key={i} data-on={i + 1 === Number(today.day) || undefined} data-busy={has.has(i + 1) || undefined}>{i + 1}</span>)}</div></div>;
 }
-const Agenda = ({ days, limit, cls = "" }: { days: AgendaDay[]; limit: number; cls?: string }) => {
+export const Agenda = ({ days, limit, cls = "" }: { days: AgendaDay[]; limit: number; cls?: string }) => {
   const list = busy(days).flatMap((d) => d.items.map((x) => ({ d, x }))).slice(0, limit);
   return <ul className={`sys-agenda ${cls}`}>{list.map(({ d, x }) => <li key={d.date + x.id}><small>{d.weekday} {d.day}{x.time ? ` · ${x.time}` : ""}</small><b>{x.title}</b></li>)}{!list.length && <li className="sys-none">Nothing coming up.</li>}</ul>;
 };
