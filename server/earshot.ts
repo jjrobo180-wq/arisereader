@@ -25,7 +25,8 @@ import { aiSpeech } from "./groqVoice";
 import { TOPICS, genreSearchTerms, topicPlaylist } from "../shared/earshotTopics";
 import { crowdFor, memoryAdStore, registerAdRoutes, type AdStore } from "./podcastAds";
 import { copyTranscript, registerPlayRoutes, sameHostAudio, startOpenings, type Player } from "./podcastPlay";
-import { cleanerOf, registerCleanRoutes } from "./podcastClean";
+import { cleanerOf, createPrecleaner, registerCleanRoutes, registerPrepareRoute, type Precleaner } from "./podcastClean";
+const precleaners = new WeakMap<object, Precleaner>();
 import { registerSocialRoutes } from "./podcastSocial";
 import { registerCreatorRoutes } from "./podcastCreators";
 import { topShowsService } from "./podcastTop";
@@ -545,6 +546,21 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     // Ad-free copies kept in storage (server/podcastClean.ts), played straight from there.
     const cleaner = cleanerOf(player);
     if (cleaner) registerCleanRoutes(app, authMiddleware, { prefix: P, cleaner, cleanId: cleanPodId });
+    const audioFor = async (showId: string, episodeId: string, sent?: string) => {
+      const recent = (await dir.loadShow(showId)).episodes;
+      const hit = recent.find((e) => e.id === episodeId);
+      if (hit) return hit.audio;
+      const older = (await archiveOf(showId).catch(() => null))?.episodes ?? [];
+      const found = older.find((e) => e.id === episodeId);
+      if (found) return found.audio;
+      return sameHostAudio(sent, [...recent, ...older]);
+    };
+    // Episodes about to be seen are made ready before anyone plays them (one queue for both apps).
+    if (cleaner) {
+      let pre = precleaners.get(player);
+      if (!pre) { pre = createPrecleaner({ player, cleaner, dir }); precleaners.set(player, pre); }
+      registerPrepareRoute(app, authMiddleware, { prefix: P, pre, cleanId: cleanPodId, voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, audioFor });
+    }
     registerPlayRoutes(app, authMiddleware, {
       prefix: P, player, dir, crowd: (ep) => crowdFor(adStore, ep), cleanId: cleanPodId, clientIp,
       voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`,
