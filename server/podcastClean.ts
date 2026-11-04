@@ -124,6 +124,8 @@ export interface CleanStore {
   put(path: string, data: Buffer): Promise<void>;
   /** A signed address players can stream (and seek in) for `secs` seconds. */
   sign(path: string, secs: number): Promise<string>;
+  /** Deletes a kept file (quietly). */
+  remove?(path: string): Promise<void>;
 }
 export const CLEAN_BUCKET = "podcast-clean";
 
@@ -137,6 +139,7 @@ export function supabaseCleanStore(getDb: () => any, bucket = CLEAN_BUCKET): Cle
       if (error && /bucket not found|not found/i.test(String(error.message || error))) { made = null; await ensure(); ({ error } = await up()); }
       if (error) throw new Error(`storage: ${String(error.message || error).slice(0, 160)}`);
     },
+    async remove(path) { try { await getDb().storage.from(bucket).remove([path]); } catch { /* tried again by the next sweep */ } },
     async sign(path, secs) {
       const { data, error } = await getDb().storage.from(bucket).createSignedUrl(path, secs);
       if (error || !data?.signedUrl) throw new Error(`storage: ${String(error?.message || "no address").slice(0, 160)}`);
@@ -147,7 +150,7 @@ export function supabaseCleanStore(getDb: () => any, bucket = CLEAN_BUCKET): Cle
 
 export function memoryCleanStore(base = "https://storage.example/clean/"): CleanStore & { files: Map<string, Buffer> } {
   const files = new Map<string, Buffer>();
-  return { files, async put(path, data) { files.set(path, Buffer.from(data)); }, async sign(path, secs) { if (!files.has(path)) throw new Error("not found"); return `${base}${path}?exp=${secs}`; } };
+  return { files, async put(path, data) { files.set(path, Buffer.from(data)); }, async remove(path) { files.delete(path); }, async sign(path, secs) { if (!files.has(path)) throw new Error("not found"); return `${base}${path}?exp=${secs}`; } };
 }
 
 // ---------------------------------------------------------------------------
@@ -186,8 +189,31 @@ const attached = new WeakMap<object, Cleaner>();
 /** The cleaner working with this player (set up once in server/routes.ts). */
 export const cleanerOf = (player: object | undefined | null): Cleaner | undefined => (player ? attached.get(player) : undefined);
 
-export function createCleaner(o: { player: Player; kv: KVLike; store: CleanStore; now?: () => number; minSecs?: number; quiet?: boolean }) {
+// Kept only a short while: an ad-free copy is let go 7 days after it was made (made again if someone
+// plays the episode later), and none is made or served for a show (or episode) that asked us not to.
+export const CLEAN_KEEP_MS = 7 * 24 * 3600_000;
+/** Shows and episodes that asked not to have ad-free copies (podcast_cache "clean:blocked"). */
+export type CleanBlocked = { shows?: string[]; episodes?: string[] };
+
+export function createCleaner(o: { player: Player; kv: KVLike; store: CleanStore; now?: () => number; minSecs?: number; quiet?: boolean; keepMs?: number;
+  /** Every kept copy's info (for the daily sweep of copies past their time). */
+  listAll?: () => Promise<CleanInfo[]> }) {
   const now = o.now ?? Date.now;
+  const keepMs = o.keepMs ?? CLEAN_KEEP_MS;
+  let blocked: { at: number; shows: Set<string>; episodes: Set<string> } = { at: 0, shows: new Set(), episodes: new Set() };
+  async function blockedNow() {
+    if (now() - blocked.at < 5 * 60_000) return blocked;
+    const v = (await o.kv.get("clean:blocked").catch(() => null))?.value as CleanBlocked | undefined;
+    blocked = { at: now(), shows: new Set((v?.shows ?? []).map(String)), episodes: new Set((v?.episodes ?? []).map(String)) };
+    return blocked;
+  }
+  const isBlocked = async (episodeId: string, showId?: string) => { const b = await blockedNow(); return b.episodes.has(episodeId) || (!!showId && b.shows.has(showId)); };
+  /** Lets a copy go: its file deleted and it forgotten. */
+  async function drop(i: CleanInfo) {
+    if (i.path) await o.store.remove?.(i.path);
+    remember(i.episodeId, null);
+    await o.kv.set(`clean:${i.episodeId}`, { v: 0, stage: "gone", episodeId: i.episodeId, at: now() }).catch(() => {});
+  }
   const minSecs = o.minSecs ?? 45;
   const mem = new Map<string, { info: CleanInfo | null; at: number }>();
   const signed = new Map<string, { url: string; exp: number }>();
@@ -205,7 +231,9 @@ export function createCleaner(o: { player: Player; kv: KVLike; store: CleanStore
     const m = mem.get(episodeId);
     if (m && now() - m.at < (m.info?.stage === "ready" ? 30 * 60_000 : 20_000)) return m.info;
     const v = (await o.kv.get(`clean:${episodeId}`).catch(() => null))?.value as CleanInfo | undefined;
-    const got = v && v.v === 1 && (v.stage === "ready" || v.stage === "failed") ? v : null;
+    let got = v && v.v === 1 && (v.stage === "ready" || v.stage === "failed") ? v : null;
+    // Past its time, or its show asked us not to: let go.
+    if (got?.stage === "ready" && (now() - got.at > keepMs || (await isBlocked(episodeId, got.showId)))) { void drop(got); got = null; }
     remember(episodeId, got);
     return got;
   }
@@ -236,8 +264,7 @@ export function createCleaner(o: { player: Player; kv: KVLike; store: CleanStore
     // Only from a copy whose stitched-in ads are known for sure.
     if ((s.ads?.how !== "diff" && s.ads?.how !== "same") || !(s.ads?.compared >= 1)) return;
     if (building.has(s.episodeId) || queue.some((q) => q.episodeId === s.episodeId)) return;
-    queue.push(s);
-    void pump();
+    void isBlocked(String(s.episodeId), String(s.showId || "")).then((no) => { if (no || queue.some((q) => q.episodeId === s.episodeId)) return; queue.push(s); void pump(); });
   }
   async function pump() {
     if (running) return;
@@ -305,7 +332,19 @@ export function createCleaner(o: { player: Player; kv: KVLike; store: CleanStore
     } finally { s.streams--; building.delete(id); }
   }
 
-  const cleaner = { info, url, ready, offer, isBuilding: (id: string) => building.has(id) || queue.some((q) => q.episodeId === id), idle: () => !running && !queue.length };
+  // Once a day: copies past their time are deleted (any not looked up since).
+  async function sweep() {
+    if (!o.listAll) return 0;
+    let n = 0;
+    for (const i of await o.listAll().catch(() => [] as CleanInfo[])) {
+      if (i?.stage !== "ready") continue;
+      if (now() - i.at > keepMs || (await isBlocked(i.episodeId, i.showId))) { await drop(i); n++; }
+    }
+    if (n) log(`[earshot] ad-free copies let go: ${n}`);
+    return n;
+  }
+  if (o.listAll) { const t = setInterval(() => { void sweep(); }, 24 * 3600_000); (t as any).unref?.(); setTimeout(() => { void sweep(); }, 60_000).unref?.(); }
+  const cleaner = { info, url, ready, offer, sweep, isBlocked, isBuilding: (id: string) => building.has(id) || queue.some((q) => q.episodeId === id), idle: () => !running && !queue.length };
   o.player.setOnFinal((s) => offer(s));
   o.player.setCleanSource(async (episodeId) => {
     const i = await info(episodeId);

@@ -6,7 +6,7 @@ import type { Express } from "express";
 import { clientAddress, createAttemptLimiter, waitWords } from "./attemptLimiter";
 
 export type SupportMessage = { app: "Arise To Duo" | "Pod+"; name: string; email: string; topic: string; message: string };
-export const SUPPORT_TOPICS = ["Question", "Something isn't working", "Report a post or person", "Delete my account or data", "Privacy", "Other"] as const;
+export const SUPPORT_TOPICS = ["Question", "Something isn't working", "Report a post or person", "Delete my account or data", "Privacy", "Copyright or takedown request", "Other"] as const;
 
 const text = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/[\u0000-\u0008\u000b-\u001f]/g, "").trim().slice(0, max) : "");
 const EMAIL = /^[^\s@<>()[\],;:"]+@[^\s@<>()[\],;:"]+\.[^\s@<>()[\],;:"]{2,}$/;
