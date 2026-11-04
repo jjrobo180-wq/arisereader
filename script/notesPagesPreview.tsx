@@ -13,17 +13,17 @@ import "@/components/arise-notes/notes-themes.css";
 
 const q = new URLSearchParams(location.search), USER = 7;
 const ago = (h: number) => new Date(Date.now() - h * 3600e3).toISOString();
-const FOLDERS = [{ id: "f-work", name: "Work", color: "#0ea5e9", icon: "📁", sort: 0 }, { id: "f-school", name: "School", color: "#10b981", icon: "📁", sort: 1 }, { id: "f-home", name: "Home", color: "#f59e0b", icon: "📁", sort: 2 }];
+const FOLDERS = [{ id: "0f1c2d3e-0000-4000-8000-000000000001", name: "Work", color: "#0ea5e9", icon: "📁", sort: 0 }, { id: "0f1c2d3e-0000-4000-8000-000000000002", name: "School", color: "#10b981", icon: "📁", sort: 1 }, { id: "0f1c2d3e-0000-4000-8000-000000000003", name: "Home", color: "#f59e0b", icon: "📁", sort: 2 }];
 const page = (id: string, title: string, preview: string, h: number, folderId = "", extra: Partial<Page> = {}): Page => ({ id, kind: "text", folderId, color: "", pinned: false, tags: [], locked: false,
   content: { title, html: `<p>${preview}</p>`, ink: [], look: DEFAULT_LOOK }, cipher: null, preview, search: "", rev: 1, createdAt: ago(h + 2), updatedAt: ago(h), deletedAt: null, ...extra });
 const PAGES = [
-  page("p1", "Q4 planning", "Budget review moves to Thursday. Maya owns the hiring plan; finance needs numbers by the 15th.", 1, "f-work", { pinned: true }),
-  page("p2", "Parent-teacher conference", "Reading is up two levels. Practice fractions at home, 15 minutes a night.", 3, "f-school"),
-  page("p3", "Groceries", "Oat milk, spinach, eggs, rice, lemons, coffee beans", 5, "f-home"),
-  page("p4", "Interview notes: design lead", "Strong portfolio, clear on research. Follow up on team size and timeline.", 26, "f-work"),
-  page("p5", "Sketch: kitchen layout", "Handwritten note", 30, "f-home", { kind: "ink" }),
-  page("p6", "Book ideas", "A lighthouse keeper who records the weather for forty years.", 52),
-  page("p7", "Passwords and codes", "Locked", 70, "", { locked: true }),
+  page("1a2b3c4d-0000-4000-8000-000000000001", "Q4 planning", "Budget review moves to Thursday. Maya owns the hiring plan; finance needs numbers by the 15th.", 1, "0f1c2d3e-0000-4000-8000-000000000001", { pinned: true }),
+  page("1a2b3c4d-0000-4000-8000-000000000002", "Parent-teacher conference", "Reading is up two levels. Practice fractions at home, 15 minutes a night.", 3, "0f1c2d3e-0000-4000-8000-000000000002"),
+  page("1a2b3c4d-0000-4000-8000-000000000003", "Groceries", "Oat milk, spinach, eggs, rice, lemons, coffee beans", 5, "0f1c2d3e-0000-4000-8000-000000000003"),
+  page("1a2b3c4d-0000-4000-8000-000000000004", "Interview notes: design lead", "Strong portfolio, clear on research. Follow up on team size and timeline.", 26, "0f1c2d3e-0000-4000-8000-000000000001"),
+  page("1a2b3c4d-0000-4000-8000-000000000005", "Sketch: kitchen layout", "Handwritten note", 30, "0f1c2d3e-0000-4000-8000-000000000003", { kind: "ink" }),
+  page("1a2b3c4d-0000-4000-8000-000000000006", "Book ideas", "A lighthouse keeper who records the weather for forty years.", 52),
+  page("1a2b3c4d-0000-4000-8000-000000000007", "Passwords and codes", "Locked", 70, "", { locked: true }),
 ];
 
 async function seed() {
