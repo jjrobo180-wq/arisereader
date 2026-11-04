@@ -135,6 +135,12 @@ type Session = {
   fileChapters?: { s: number; e: number; label: string }[];
   /** Its exact ads have been added to the library; known ads it had were counted. */
   learned?: boolean; taught?: boolean; counted?: boolean;
+  /** An ad-free copy kept in storage (server/podcastClean.ts), read so ads found later by reading along
+   *  can be placed in it: never compared with other copies, its time is content time. */
+  clean?: boolean;
+  /** An ad-free copy's ads found before it was made (in content time: long breaks, the file's own ad
+   *  chapters, known ads), kept with it. */
+  cleanAds?: PlayAd[];
 };
 /** Reads one stretch of a copy (transcribed and checked for ads, kept for everyone by its fingerprint);
  *  its ads in seconds from the stretch's start. */
@@ -163,6 +169,13 @@ const round2 = (x: number) => Math.round(x * 100) / 100;
 /** Ad breaks found by comparing longer than this are offered, not skipped by themselves. */
 const MAX_SURE_AD = 8 * 60;
 
+/** The session id of an episode's ad-free copy (server/podcastClean.ts): the same for every listener,
+ *  so whatever is read along in it (and every ad placed in it) is shared. */
+export const cleanSidOf = (episodeId: string) => { const id = String(episodeId || "").replace(/\D/g, "").slice(0, 20); return id ? `cl${id}`.padEnd(16, "_") : ""; };
+export const isCleanSid = (sid: string, episodeId?: string) => /^cl\d{1,20}_*$/.test(sid || "") && (episodeId === undefined || sid === cleanSidOf(episodeId));
+/** Opens an ad-free copy's session when it's asked for (after a restart, say): its address in storage. */
+export type CleanSource = (episodeId: string) => Promise<{ url: string; showId?: string; ads?: PlayAd[] } | null>;
+
 export function createPlayer(o: PlayOptions = {}) {
   const dir = o.dir ?? join(tmpdir(), "earshot-play");
   try { rmSync(dir, { recursive: true, force: true }); } catch { /* fresh start */ }
@@ -178,7 +191,8 @@ export function createPlayer(o: PlayOptions = {}) {
   const now = o.now ?? Date.now;
 
   const sessions = new Map<string, Session>();
-  let onFinal: ((s: Session) => void) | null = null;
+  const onFinal: ((s: Session) => void)[] = [];
+  let cleanSource: CleanSource | null = null;
   const episodes = new Map<string, EpisodeRefs>();
 
   // ---- disk and memory ----
@@ -234,7 +248,7 @@ export function createPlayer(o: PlayOptions = {}) {
           const next = pending.values().next().value as Session;
           pending.delete(next);
           if (sessions.has(next.id)) { await analyze(next); if (sessions.has(next.id)) blend(next); }
-          if (next.ads.final && next.copy.scanner.count && !next.opening && onFinal) { next.opening = "running"; onFinal(next); }
+          if (next.ads.final && next.copy.scanner.count && !next.opening && onFinal.length) { next.opening = "running"; for (const f of onFinal) { try { f(next); } catch (e: any) { console.warn("[earshot] final:", e?.message || e); } } }
         }
       } finally { running = false; }
     });
@@ -246,7 +260,7 @@ export function createPlayer(o: PlayOptions = {}) {
     const e = episodes.get(s.episodeId);
     const out: { id: string; sc: Mp3Scanner; done: boolean }[] = [];
     for (const r of e?.refs ?? []) if (!r.copy.err && r.copy.scanner.count) out.push({ id: `r:${r.agent}`, sc: r.copy.scanner, done: r.copy.done });
-    sessions.forEach((o) => { if (o !== s && o.episodeId === s.episodeId && o.copy.done && !o.copy.err && o.copy.scanner.count) out.push({ id: `s:${o.id}`, sc: o.copy.scanner, done: true }); });
+    sessions.forEach((o) => { if (o !== s && !o.clean && o.episodeId === s.episodeId && o.copy.done && !o.copy.err && o.copy.scanner.count) out.push({ id: `s:${o.id}`, sc: o.copy.scanner, done: true }); });
     return out.slice(0, 5);
   }
 
@@ -256,6 +270,11 @@ export function createPlayer(o: PlayOptions = {}) {
     if (!X.count) {
       // No MP3 frames: not an MP3 (once well past any cover art at the start), or it didn't download.
       if (s.copy.done || s.copy.bytes > X.tagEnd + 512 * 1024) s.ads = { ...s.ads, ready: true, final: true, how: s.copy.err ? "failed" : "notmp3" };
+      return;
+    }
+    // An ad-free copy: nothing to compare (it's the show already, its stitched-in ads cut out).
+    if (s.clean) {
+      if (s.copy.done) s.ads = { ...s.ads, ready: true, final: true, how: "same", dur: round2(X.time) };
       return;
     }
     const comps = comparisons(s);
@@ -360,7 +379,7 @@ export function createPlayer(o: PlayOptions = {}) {
     const ready = s.ads.ready || (add.length > 0 && (s.copy.done || X.time >= 240));
     s.ads = { ...s.ads, ads, startAt, ready };
     // The library learns ads found exactly: by comparing, by header shape, or ads it already knew.
-    if (s.copy.done && !s.learned && (s.ads.final || s.ads.how === "noref")) {
+    if (s.copy.done && !s.learned && !s.clean && (s.ads.final || s.ads.how === "noref")) {
       s.learned = true;
       const n = (k: string) => add.filter((a) => a.kind === k).length;
       console.log(`[earshot] one-copy ads ${s.episodeId}: ${n("splice")} seam, ${n("known")} known, ${n("chapter")} chapter (beyond ${dai.length} by comparing, ${s.ads.how})`);
@@ -576,7 +595,7 @@ export function createPlayer(o: PlayOptions = {}) {
   }
 
   // ---- sessions ----
-  function open(o: { sid: string; voter: string; episodeId: string; showId: string; url: string; ua: string; ip: string }) {
+  function open(o: { sid: string; voter: string; episodeId: string; showId: string; url: string; ua: string; ip: string; clean?: boolean }) {
     let s = sessions.get(o.sid);
     if (s) { s.touched = now(); return s; }
     // A listener's oldest copies make room for new ones (never one used in the last few minutes: it may be
@@ -587,11 +606,12 @@ export function createPlayer(o: PlayOptions = {}) {
     s = {
       id: o.sid, voter: o.voter, episodeId: o.episodeId, showId: o.showId, url: o.url,
       created: now(), touched: now(), streams: 0, file: join(dir, `${o.sid}.mp3`), copy: new LiveCopy(), abort: new AbortController(),
-      ads: { ready: false, final: false, ads: [], how: "pending", compared: 0 }, headTried: -1e9, analyzedWith: "",
+      ads: o.clean ? { ready: true, final: false, ads: [], how: "pending", compared: 0 } : { ready: false, final: false, ads: [], how: "pending", compared: 0 }, headTried: -1e9, analyzedWith: "",
+      clean: o.clean || undefined,
     };
     sessions.set(o.sid, s);
     const sess = s;
-    refsFor(o.episodeId, o.url);
+    if (!o.clean) refsFor(o.episodeId, o.url);
     startCopy(download, o.url, { ua: o.ua || "Mozilla/5.0", forwardedFor: o.ip || undefined, file: s.file, signal: s.abort.signal, maxBytes: maxCopy }, s.copy, () => schedule(sess));
     tidy();
     return s;
@@ -626,6 +646,8 @@ export function createPlayer(o: PlayOptions = {}) {
   const close = (sid: string) => { const s = sessions.get(sid); if (s) dropSession(s); };
   /** A time in a session's copy as content time; inside a stitched-in ad, the show's edge next to it. */
   function toContent(sid: string, episodeId: string, x: number, side: "start" | "end"): number | null {
+    // An ad-free copy is content time itself (loaded or not).
+    if (isCleanSid(sid, episodeId)) return Number.isFinite(x) ? Math.max(0, x) : null;
     const s = sessions.get(sid);
     if (!s || s.episodeId !== episodeId || !s.copy.done || !s.ads.final) return null;
     const { pieces } = contentOf(s);
@@ -640,13 +662,42 @@ export function createPlayer(o: PlayOptions = {}) {
   /** A clip of what this listener heard: [a, b) seconds of their own copy, cut on MP3 frames. Only their
    *  own session for that episode, and only once the copy has arrived that far. */
   async function clipOf(sid: string, voter: string, episodeId: string, a: number, b: number): Promise<Blob | null> {
-    const s = sessions.get(sid);
-    if (!s || s.voter !== voter || s.episodeId !== episodeId || !(b > a)) return null;
+    const s = isCleanSid(sid, episodeId) ? await ensureClean(sid, episodeId) : sessions.get(sid);
+    if (!s || (s.voter !== voter && !s.clean) || s.episodeId !== episodeId || !(b > a)) return null;
     const X = s.copy.scanner;
+    if (s.clean) await s.copy.until(() => s.copy.done || !!s.copy.err || X.timeOf(X.count) >= b, 20_000);
     if (!X.count || X.timeOf(X.count) < b - 0.05) return null;
     return extractCopy(s, Math.max(0, a), b);
   }
-  return { setOnFinal: (f: (s: Session) => void) => { onFinal = f; }, sessions, episodes, open, close, pipe, schedule, tidy, key, contentOf, extract, inCopy, transcriptAds, readGaps, uncovered, toContent, fromContent, clipOf, checkToken: (t: string) => checkPlayToken(key, t, now()), token: (voter: string) => makePlayToken(key, voter, now()), stop: () => { clearInterval(timer); sessions.forEach(dropSession); episodes.forEach(dropEpisode); } };
+  /** An episode's ad-free copy as a session (opened from storage when it isn't here: after a restart,
+   *  or let go while idle). null when the episode has none, or for any other session id. */
+  const cleanOpening = new Map<string, Promise<Session | null>>();
+  async function ensureClean(sid: string, episodeId: string, showId = ""): Promise<Session | null> {
+    if (!isCleanSid(sid, episodeId)) return null;
+    const have = sessions.get(sid);
+    if (have) { have.touched = now(); return have; }
+    if (!cleanSource) return null;
+    let p = cleanOpening.get(sid);
+    if (!p) {
+      const src = cleanSource;
+      p = src(episodeId).then((c) => {
+        if (!c?.url) return null;
+        const got = sessions.get(sid) ?? open({ sid, voter: "clean", episodeId, showId: c.showId || showId, url: c.url, ua: "AriseEarshotBot/1.0 (ad-free copy)", ip: "", clean: true });
+        got.cleanAds = (c.ads ?? []).slice(0, 200);
+        return got;
+      })
+        .catch(() => null).finally(() => { cleanOpening.delete(sid); });
+      cleanOpening.set(sid, p);
+    }
+    return p;
+  }
+  /** Content time in session `sid`'s copy, the session opened (an ad-free copy) if need be. */
+  const sessionFor = async (sid: string, episodeId: string, showId = "") => (isCleanSid(sid, episodeId) ? ensureClean(sid, episodeId, showId) : sessions.get(sid) ?? null);
+  /** The ad-free copies' sessions read their copy from here (server/podcastClean.ts). */
+  const setCleanSource = (f: CleanSource | null) => { cleanSource = f; };
+  /** The session's file and its content pieces (the frames of its show audio), for making an ad-free copy. */
+  const contentFrames = (s: Session) => ({ file: s.file, scanner: s.copy.scanner, written: s.copy.written, pieces: contentOf(s).pieces, total: contentOf(s).total });
+  return { setOnFinal: (f: (s: Session) => void) => { onFinal.push(f); }, setCleanSource, ensureClean, sessionFor, contentFrames, sessions, episodes, open, close, pipe, schedule, tidy, key, contentOf, extract, inCopy, transcriptAds, readGaps, uncovered, toContent, fromContent, clipOf, checkToken: (t: string) => checkPlayToken(key, t, now()), token: (voter: string) => makePlayToken(key, voter, now()), stop: () => { clearInterval(timer); sessions.forEach(dropSession); episodes.forEach(dropEpisode); } };
 }
 export type Player = ReturnType<typeof createPlayer>;
 
@@ -738,7 +789,7 @@ export async function checkLikelyAds(player: Player, dir: Pick<Directory, "conte
 }
 
 export async function copyTranscript(player: Player, dir: Pick<Directory, "contentTranscript">, sid: string, showId: string, episodeId: string, chunk: number): Promise<TranscriptChunk | null> {
-  const s = player.sessions.get(sid);
+  const s = await player.sessionFor(sid, episodeId, showId);
   if (!s || s.episodeId !== episodeId || s.copy.err) return null;
   // Its ads must be known first (they're left out of the show audio); comparing takes seconds.
   await s.copy.until(() => s.copy.done && s.ads.final, 25_000);
@@ -787,7 +838,14 @@ export function registerPlayRoutes(app: any, auth: any, d: PlayRouteDeps) {
     const sid = String(req.params.sid || "");
     if (!SID.test(sid)) return res.status(404).end();
     let s = player.sessions.get(sid);
+    // Ad-free copies play straight from storage, never through here.
+    if (isCleanSid(sid) || s?.clean) return res.status(404).end();
     if (!s) {
+      // Asked to carry on partway through a copy this server doesn't have (it restarted, or let the copy
+      // go): a new copy can have other ads stitched in, so its bytes would land somewhere else in the
+      // show. Say so (the player picks up at the same moment of the show instead).
+      const from = /^bytes=(\d+)-/.exec(String(req.headers.range || "").trim());
+      if (from && Number(from[1]) > 0) return res.status(410).end();
       const voter = player.checkToken(String(req.query?.k || ""));
       const episodeId = d.cleanId(req.query?.e), showId = d.cleanId(req.query?.s);
       if (!voter || !episodeId || !showId) return res.status(403).end();
@@ -827,7 +885,14 @@ export function registerPlayRoutes(app: any, auth: any, d: PlayRouteDeps) {
 
   /** What's known about the ads in this session's copy (polled while it's compared). */
   app.get(`${P}/play/:sid/ads`, auth, async (req: any, res: any) => {
-    const s = player.sessions.get(String(req.params.sid || ""));
+    const sid = String(req.params.sid || "");
+    let s = player.sessions.get(sid);
+    // An ad-free copy's session is opened again when it isn't here (after a restart, say).
+    const epq = d.cleanId(req.query?.e);
+    if (!s && epq && isCleanSid(sid, epq)) {
+      if (tooMany(`clean:${d.voterOf(req)}`)) return res.status(429).json({ message: "Slow down a little." });
+      s = (await player.ensureClean(sid, epq, d.cleanId(req.query?.s))) ?? undefined;
+    }
     res.set("Cache-Control", "no-store");
     if (!s) return res.json({ ready: true, final: true, gone: true, ads: [], how: "failed", compared: 0 });
     s.touched = Date.now();
@@ -850,8 +915,9 @@ export function registerPlayRoutes(app: any, auth: any, d: PlayRouteDeps) {
     // Ads another finder already covers are left out (stitched-in ones first).
     const out: PlayAd[] = [];
     const covered = (a: PlayAd) => out.some((o) => (o.kind === "intro") === (a.kind === "intro") && Math.min(o.e, a.e) - Math.max(o.s, a.s) > 0.5 * (a.e - a.s));
-    for (const a of [...s.ads.ads, ...extra.filter((x) => x.kind === "user"), ...extra.filter((x) => x.kind !== "user")]) if (!covered(a)) out.push(a);
-    res.json({ ...s.ads, pending: s.opening === "running" || !!s.gaps?.running, ads: out.sort((x, y) => x.s - y.s) });
+    for (const a of [...(s.cleanAds ?? []), ...s.ads.ads, ...extra.filter((x) => x.kind === "user"), ...extra.filter((x) => x.kind !== "user")]) if (!covered(a)) out.push(a);
+    // An ad-free copy still loading here: its own ads aren't placed yet, so ask again soon.
+    res.json({ ...s.ads, pending: s.opening === "running" || !!s.gaps?.running || (!!s.clean && !s.copy.done && !s.copy.err), clean: s.clean ? true : undefined, ads: out.sort((x, y) => x.s - y.s) });
   });
 }
 

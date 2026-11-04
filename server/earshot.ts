@@ -25,6 +25,7 @@ import { aiSpeech } from "./groqVoice";
 import { TOPICS, genreSearchTerms, topicPlaylist } from "../shared/earshotTopics";
 import { crowdFor, memoryAdStore, registerAdRoutes, type AdStore } from "./podcastAds";
 import { copyTranscript, registerPlayRoutes, sameHostAudio, startOpenings, type Player } from "./podcastPlay";
+import { cleanerOf, registerCleanRoutes } from "./podcastClean";
 import { registerSocialRoutes } from "./podcastSocial";
 import { registerCreatorRoutes } from "./podcastCreators";
 import { topShowsService } from "./podcastTop";
@@ -541,6 +542,9 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
   });
   if (player) {
     if (!openingsStarted.has(player)) { openingsStarted.add(player); startOpenings(player, dir); }
+    // Ad-free copies kept in storage (server/podcastClean.ts), played straight from there.
+    const cleaner = cleanerOf(player);
+    if (cleaner) registerCleanRoutes(app, authMiddleware, { prefix: P, cleaner, cleanId: cleanPodId });
     registerPlayRoutes(app, authMiddleware, {
       prefix: P, player, dir, crowd: (ep) => crowdFor(adStore, ep), cleanId: cleanPodId, clientIp,
       voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`,
