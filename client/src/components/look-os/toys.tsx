@@ -113,7 +113,7 @@ export function MarbleJar({ items, onTap, energy, height = 280 }: { items: { id:
   const g = useRef({ x: 0, y: 900 }), drag = useRef<{ x: number; y: number; t: number } | null>(null);
   useEffect(() => {
     const n = Math.max(3, Math.min(18, items.length || 6));
-    balls.current = Array.from({ length: n }, (_, i) => ({ x: 60 + (i % 5) * 34, y: 30 + Math.floor(i / 5) * 30, vx: 0, vy: 0, r: 15, c: items[i]?.color && /^#/.test(items[i].color!) ? items[i].color! : MARBLE[i % MARBLE.length], id: items[i]?.id }));
+    balls.current = Array.from({ length: n }, (_, i) => ({ x: 50 + (i % 5) * 40, y: 30 + Math.floor(i / 5) * 30, vx: 0, vy: 0, r: n > 12 ? 15 : 19, c: items[i]?.color && /^#/.test(items[i].color!) ? items[i].color! : MARBLE[i % MARBLE.length], id: items[i]?.id }));
   }, [items.map((i) => i.id).join()]); // eslint-disable-line react-hooks/exhaustive-deps
   // Tilting the phone tips the jar (where the browser shares it without asking).
   useEffect(() => {
@@ -212,7 +212,7 @@ export function Orrery({ days, onDay, energy, size = 300 }: { days: { label: str
     if (!sys.current) return;
     sys.current.style.transform = `rotate(${x.a}rad)`;
     const ps = sys.current.querySelectorAll<SVGGElement>("[data-planet]");
-    ps.forEach((p, i) => { const sp = 1.4 / (i + 1.2); p.style.transform = `rotate(${x.t * sp + i * 0.9}rad)`; });
+    ps.forEach((p, i) => { const sp = 1.4 / (i + 1.2); p.style.transform = `rotate(${x.t * sp + i * 2.4}rad)`; });
   });
   const down = (e: RPointerEvent) => { const x = s.current; x.drag = true; x.last = angleAt(e, el.current!); x.lastT = performance.now(); x.moved = 0; (e.target as Element).setPointerCapture?.(e.pointerId); };
   const move = (e: RPointerEvent) => { const x = s.current; if (!x.drag) return; const a = angleAt(e, el.current!), d = wrap(a - x.last), t = performance.now(); x.a += d; x.moved += Math.abs(d); x.v = d / Math.max(0.008, (t - x.lastT) / 1000); x.last = a; x.lastT = t; if (Math.abs(d) > 0.05) buzz("tick"); };

@@ -29,7 +29,7 @@
 .ty-lava:active svg { filter: drop-shadow(0 0 40px rgba(255,138,61,.75)) drop-shadow(0 24px 24px rgba(0,0,0,.55)); }
 .ty-lavalabel { position: absolute; bottom: 1.2rem; font-weight: 800; color: #2a0c00; font-size: .75rem; }
 
-.ty-jar { display: block; width: 100%; max-width: 22rem; margin-inline: auto; cursor: grab; border-radius: 26px; }
+.ty-jar { display: block; width: 100%; max-width: 19rem; margin-inline: auto; cursor: grab; border-radius: 26px; }
 
 .ty-synth { position: relative; display: grid; gap: .6rem; margin: .4rem 1rem; padding: 1rem .9rem .9rem; border-radius: var(--an-radius); overflow: hidden; isolation: isolate;
   background: linear-gradient(180deg, #1a0833 0%, #2d0b4a 55%, #12061f 100%); box-shadow: inset 0 0 0 1px rgba(255,63,164,.35), 0 24px 50px -24px rgba(255,63,164,.55); }

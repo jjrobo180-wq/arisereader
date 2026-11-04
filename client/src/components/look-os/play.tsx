@@ -73,7 +73,7 @@ export function PlayHome(p: PlayProps) {
     case "orrery": return <div className="pl pl-orrery">{head()}
       <div className="pl-stage"><Orrery days={p.days.slice(0, 7).map((d) => ({ label: `${d.weekday} ${d.day}`, count: d.items.length, title: d.items.map((x) => x.title).join(", ") }))} /></div>
       <p className="pl-hint">Today is the sun; each planet is a day this week. Spin the system.</p>{pad(nextCard(), p.list, p.cal)}</div>;
-    case "dial": { const items: [string, () => void][] = [["Tasks", () => p.go("tasks")], ["Calendar", () => p.go("calendar")], ["Notes", () => p.go("notes")], ["Apps", p.openApps], ["New task", () => p.add()], ["You", p.onYou]];
+    case "dial": { const items: [string, () => void][] = [["Tasks", () => p.go("tasks")], ["Days", () => p.go("calendar")], ["Notes", () => p.go("notes")], ["Apps", p.openApps], ["Add", () => p.add()], ["You", p.onYou]];
       return <div className="pl pl-dial">{head()}<RadioDial items={items.map((x) => x[0])} onSelect={(i) => items[i][1]()} /><p className="pl-hint">Turn the knob to a station, then press the middle.</p>{pad(nextCard(), p.cal, p.list)}</div>; }
     case "ferro": return <div className="pl pl-ferro">{head()}
       <div className="pl-stage"><Ferro onTap={() => p.go("tasks")}><b>{p.open.length}</b><small>open</small></Ferro></div>

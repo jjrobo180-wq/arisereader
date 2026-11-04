@@ -183,6 +183,9 @@ const nightOf = async (p, id, hash) => { await p.addInitScript(() => { try { for
 for (const id of ["millennium", "workstation", "retro"].filter((l) => LOOKS.includes(l))) lookJobs.push(() => shot(`look-${id}-start`, async (p) => { await withLook(p, id, "/lifehub?pane=home"); await p.frameLocator("#f").getByTestId("sys-start").click(); await wait(p, 800); }));
 for (const id of ["pocket", "glass", "desktop", "millennium", "workstation", "retro", "monolith", "ink", "neon", "orbit"].filter((l) => LOOKS.includes(l))) lookJobs.push(() => shot(`look-${id}-ainotes`, (p) => withLook(p, id, "/arise-notes")));
 for (const id of ["spinner", "bubbles", "lava", "marbles", "synth", "jelly", "orrery", "dial", "ferro", "slots"].filter((l) => LOOKS.includes(l))) lookJobs.push(() => shot(`look-${id}-ainotes`, (p) => withLook(p, id, "/arise-notes")));
+// Arise Notes in the newest looks, from its real components (script/notesLooksPreview.tsx).
+for (const id of LOOKS) for (const [name, qs] of [["notes-home", "view=home"], ["notes-rec", "view=rec"], ["notes-night", "view=home&night=1"]])
+  lookJobs.push(() => shot(`look-${id}-${name}`, async (p) => { await p.goto(`${A}/notes-looks/?look=${id}&${qs}`); await wait(p, 1500); }));
 // The interactive looks, mid-play: a flick, a pop, a turn, a key, a pull.
 const playWith = (id, name, act) => LOOKS.includes(id) && lookJobs.push(() => shot(`look-${id}-${name}`, async (p) => { await withLook(p, id, "/lifehub?pane=home"); const f = p.frameLocator("#f"); await act(p, f); }));
 const drag = async (p, f, sel, path) => { const b = await f.locator(sel).first().boundingBox(); if (!b) return; const cx = b.x + b.width / 2, cy = b.y + b.height / 2; await p.mouse.move(cx + path[0][0] * b.width / 2, cy + path[0][1] * b.height / 2); await p.mouse.down(); for (const [x, y] of path.slice(1)) await p.mouse.move(cx + x * b.width / 2, cy + y * b.height / 2, { steps: 4 }); await p.mouse.up(); };
