@@ -6,6 +6,7 @@ import { LookTaskList, type AgendaDay, type LookTask } from "@/components/HubLoo
 import { LockedApp, useLock } from "@/components/lock/PrivacyLock";
 import { PREMIUM_LOOKS, PremiumCal, PremiumHome } from "./premium";
 import { DESKTOP_LOOKS, SYSTEM_LOOKS, SystemCal, SystemDock, SystemHome, SystemWindow } from "./systems";
+import { PLAY_LOOKS, PlayCal, PlayDock, PlayHome } from "./play";
 import "./lookOS.css";
 
 export type OsScreen = "home" | "tasks" | "calendar" | "notes";
@@ -44,6 +45,7 @@ const LABEL: Record<NavId, string> = { home: "Home", tasks: "Tasks", add: "Add",
 
 /** Each system's way of getting around. Also used when another app is open. */
 export function LookDock({ look, screen, go, openApps, add, you, initial, off = [], inApp = false }: { look: NotesTheme; screen: OsScreen | null; go: (s: OsScreen) => void; openApps: () => void; add: (title?: string) => void; you: () => void; initial: string; off?: OsScreen[]; inApp?: boolean }) {
+  if (PLAY_LOOKS.has(look.id)) return <PlayDock look={look} screen={screen} go={go} openApps={openApps} add={add} you={you} initial={initial} off={off} inApp={inApp} />;
   if (SYSTEM_LOOKS.has(look.id)) return <SystemDock look={look} screen={screen} go={go} openApps={openApps} add={add} you={you} initial={initial} off={off} inApp={inApp} />;
   const words = WORDS[look.id];
   const textNav = !!words;
@@ -61,6 +63,7 @@ export function LookDock({ look, screen, go, openApps, add, you, initial, off = 
 const items = (d: AgendaDay) => d.items;
 const Item = ({ x }: { x: AgendaDay["items"][number] }) => <span className="los-item"><em>{x.time}</em>{x.title}</span>;
 function CalendarWidget({ look, days, go, big }: { look: NotesTheme; days: AgendaDay[]; go: () => void; big?: boolean }) {
+  if (PLAY_LOOKS.has(look.id)) return <button type="button" className={`los-cal los-cal-${look.id}`} onClick={go} data-testid="los-calendar"><PlayCal look={look} days={days} big={big} /></button>;
   if (SYSTEM_LOOKS.has(look.id)) return <button type="button" className={`los-cal los-cal-${look.id}`} onClick={go} data-testid="los-calendar"><SystemCal look={look} days={days} big={big} /></button>;
   if (PREMIUM_LOOKS.has(look.id)) return <button type="button" className={`los-cal los-cal-${look.id}`} onClick={go} data-testid="los-calendar"><PremiumCal look={look} days={days} big={big} /></button>;
   const today = days[0];
@@ -134,6 +137,7 @@ function Home(p: OsProps) {
   const notes = <NotesWidget notes={p.notes} go={() => p.go("notes")} />;
   const list = <LookTaskList look={p.look} tasks={open.slice(0, 5)} onToggle={p.toggle} onOpen={p.openTask} />;
   const count = `${open.length} open`;
+  if (PLAY_LOOKS.has(p.look.id)) return <PlayHome look={p.look} name={p.name} dateLabel={p.dateLabel} hi={hi} days={p.days} tasks={p.tasks} open={open} notes={p.notes} toggle={p.toggle} openTask={p.openTask} go={p.go} openApps={p.openApps} add={p.add} onYou={p.onYou} cal={cal} list={list} />;
   if (SYSTEM_LOOKS.has(p.look.id)) return <SystemHome look={p.look} name={p.name} dateLabel={p.dateLabel} hi={hi} days={p.days} tasks={p.tasks} open={open} notes={p.notes} toggle={p.toggle} openTask={p.openTask} go={p.go} openApps={p.openApps} add={p.add} onYou={p.onYou} cal={cal} list={list} />;
   if (PREMIUM_LOOKS.has(p.look.id)) return <PremiumHome look={p.look} name={p.name} dateLabel={p.dateLabel} days={p.days} tasks={p.tasks} open={open} toggle={p.toggle} openTask={p.openTask} goTasks={() => p.go("tasks")} goCalendar={() => p.go("calendar")} hi={hi} cal={cal} list={list} notes={notes} />;
   switch (p.look.id) {
@@ -193,7 +197,7 @@ export function LookOS(p0: OsProps) {
   const taskScreen = <div className="los-pad"><header className="los-title"><h1>Tasks</h1></header><div className="los-filter" role="group" aria-label="Show">{chips.map((f) => <button key={f} type="button" aria-pressed={filter === f} onClick={() => setFilter(f)}>{f}</button>)}</div>{shown.length ? <LookTaskList look={p.look} tasks={shown} onToggle={p.toggle} onOpen={p.openTask} /> : <p className="los-none">Nothing here.</p>}</div>;
   // The computer looks open each screen in a window on the desktop.
   const win = (title: string, node: ReactNode) => DESKTOP_LOOKS.has(p.look.id) ? <div className="sys-desk"><SystemWindow look={p.look} title={title} onClose={() => p.go("home")}>{node}</SystemWindow></div> : node;
-  return <div style={themeVars(p.look) as CSSProperties} className={`los los-${p.look.id}${SYSTEM_LOOKS.has(p.look.id) ? " los-sys" : ""}${p.look.dark ? " los-isdark" : ""}`} data-screen={p.screen} data-testid="look-os">
+  return <div style={themeVars(p.look) as CSSProperties} className={`los los-${p.look.id}${SYSTEM_LOOKS.has(p.look.id) ? " los-sys" : ""}${PLAY_LOOKS.has(p.look.id) ? " los-play" : ""}${p.look.dark ? " los-isdark" : ""}`} data-screen={p.screen} data-testid="look-os">
     <header className="los-topbar"><b>{p.look.id === "console" ? `~/${p.hubName.toLowerCase()}` : p.hubName}</b>{p.hubSwitch}</header>
     <div className="los-body">
       {p.look.id === "gazette" && p.screen !== "home" && <div className="los-paper"><header><h1>The Daily Duo</h1><small>{p.dateLabel}</small></header></div>}

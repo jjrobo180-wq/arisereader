@@ -162,7 +162,7 @@ await shot("podplus-support-dark", async (p) => { await p.goto(`${P}/support/`);
 
 // Each look is its own system: its main screens in the real app, on the sample profile.
 // LOOKS_ONLY=a,b limits the run to those looks (and their night and start-menu screens).
-const ALL_LOOKS = ["vinyl", "hush", "aurora", "atelier", "blueprint", "arcade", "typewriter", "darkroom", "zen", "cockpit", "pocket", "glass", "desktop", "millennium", "workstation", "retro", "monolith", "ink", "neon", "orbit"];
+const ALL_LOOKS = ["vinyl", "hush", "aurora", "atelier", "blueprint", "arcade", "typewriter", "darkroom", "zen", "cockpit", "pocket", "glass", "desktop", "millennium", "workstation", "retro", "monolith", "ink", "neon", "orbit", "spinner", "bubbles", "lava", "marbles", "synth", "jelly", "orrery", "dial", "ferro", "slots"];
 const ONLY = process.env.LOOKS_ONLY ? new Set(process.env.LOOKS_ONLY.split(",")) : null;
 // By default, the ten newest looks (set LOOKS_ONLY for others).
 const LOOKS = ONLY ? ALL_LOOKS.filter((l) => ONLY.has(l)) : ALL_LOOKS.slice(-10);
@@ -182,7 +182,19 @@ const nightOf = async (p, id, hash) => { await p.addInitScript(() => { try { for
 // The taskbar looks' start menus, and Arise Notes in each new look.
 for (const id of ["millennium", "workstation", "retro"].filter((l) => LOOKS.includes(l))) lookJobs.push(() => shot(`look-${id}-start`, async (p) => { await withLook(p, id, "/lifehub?pane=home"); await p.frameLocator("#f").getByTestId("sys-start").click(); await wait(p, 800); }));
 for (const id of ["pocket", "glass", "desktop", "millennium", "workstation", "retro", "monolith", "ink", "neon", "orbit"].filter((l) => LOOKS.includes(l))) lookJobs.push(() => shot(`look-${id}-ainotes`, (p) => withLook(p, id, "/arise-notes")));
-for (const id of ["hush", "atelier", "typewriter", "zen", "pocket", "desktop", "millennium", "workstation", "retro", "ink"].filter((l) => LOOKS.includes(l))) {
+for (const id of ["spinner", "bubbles", "lava", "marbles", "synth", "jelly", "orrery", "dial", "ferro", "slots"].filter((l) => LOOKS.includes(l))) lookJobs.push(() => shot(`look-${id}-ainotes`, (p) => withLook(p, id, "/arise-notes")));
+// The interactive looks, mid-play: a flick, a pop, a turn, a key, a pull.
+const playWith = (id, name, act) => LOOKS.includes(id) && lookJobs.push(() => shot(`look-${id}-${name}`, async (p) => { await withLook(p, id, "/lifehub?pane=home"); const f = p.frameLocator("#f"); await act(p, f); }));
+const drag = async (p, f, sel, path) => { const b = await f.locator(sel).first().boundingBox(); if (!b) return; const cx = b.x + b.width / 2, cy = b.y + b.height / 2; await p.mouse.move(cx + path[0][0] * b.width / 2, cy + path[0][1] * b.height / 2); await p.mouse.down(); for (const [x, y] of path.slice(1)) await p.mouse.move(cx + x * b.width / 2, cy + y * b.height / 2, { steps: 4 }); await p.mouse.up(); };
+const arc = Array.from({ length: 9 }, (_, i) => [Math.cos(-Math.PI / 2 + i * .35) * .8, Math.sin(-Math.PI / 2 + i * .35) * .8]);
+playWith("spinner", "spin", async (p, f) => { await drag(p, f, ".ty-spinner", arc); await wait(p, 300); });
+playWith("bubbles", "pop", async (p, f) => { for (const i of [13, 14, 15]) await f.locator(".ty-bubble").nth(i).dispatchEvent("pointerdown"); await wait(p, 500); });
+playWith("dial", "turn", async (p, f) => { await drag(p, f, ".ty-dialwrap", arc.slice(0, 5)); await wait(p, 400); });
+playWith("synth", "key", async (p, f) => { await f.locator(".ty-keys button").nth(3).dispatchEvent("pointerdown"); await wait(p, 120); });
+playWith("slots", "pull", async (p, f) => { await f.getByTestId("ty-lever").click(); await wait(p, 1800); });
+playWith("orrery", "day", async (p, f) => { await f.locator(".ty-orrery-days button").nth(2).click(); await wait(p, 500); });
+playWith("marbles", "shake", async (p, f) => { await drag(p, f, ".ty-jar", [[-.6, 0], [.6, -.2], [-.6, .2], [.6, 0]]); await wait(p, 200); });
+for (const id of ["bubbles", "jelly", "dial", "hush", "atelier", "typewriter", "zen", "pocket", "desktop", "millennium", "workstation", "retro", "ink"].filter((l) => LOOKS.includes(l))) {
   for (const [name, hash] of [["home", "/lifehub?pane=home"], ["tasks", "/lifehub?pane=tasks"], ["calendar", "/lifehub?go=calendar"], ["app", "/lifehub?go=notifications"], ["work", "/hub"]])
     lookJobs.push(() => shot(`night-${id}-${name}`, (p) => nightOf(p, id, hash)));
   lookJobs.push(() => shot(`night-${id}-bell`, async (p) => { await nightOf(p, id, "/lifehub?pane=home"); await p.frameLocator("#f").getByTestId("notification-bell").click(); await wait(p, 900); }));
