@@ -206,15 +206,12 @@ test("the Reader opens the hub in a new tab, signs out to arisereader.com, and h
   assert.match(read("shared/lifeLayout.ts"), /\{ menuSide: "tabs", menuClose: "button", homeHidden: \["widgets"\] \}/);
 });
 
-test("the donation banner can't be closed and shows in both hubs and the Reader; Support is in every sidebar", () => {
+test("the donation banner can't be closed and shows in the Reader; Arise To Duo's hubs have no Support", () => {
   const support = read("client/src/components/SupportArise.tsx");
   const banner = support.slice(support.indexOf("export function SupportBanner"), support.indexOf("export function SupportMenuItem"));
   assert.doesNotMatch(banner, /support-banner-close|localStorage/, "no close button, nothing remembered");
-  assert.match(read("client/src/pages/TeacherHub.tsx"), /\{tab === "overview" && \(\n\s*<>\n\s*<SupportBanner \/>/);
-  assert.match(read("client/src/pages/TeacherHub.tsx"), /<SupportMenuItem isAdmin=\{!!user\?\.isAdmin\} testId="hub-support"/);
-  const life = read("client/src/pages/AriseTodo.tsx");
-  assert.match(life, /\{shown === "home" && <div className="mb-4"><SupportBanner \/><\/div>\}/, "every LifeHub account, not just parents");
-  assert.match(life, /<SupportMenuItem isAdmin=\{user\.isAdmin\} testId="life-support"/);
+  // November 2026: the owner asked for Support (and its heart) to come off Arise To Duo's desktop.
+  for (const hub of ["client/src/pages/TeacherHub.tsx", "client/src/pages/AriseTodo.tsx"]) assert.doesNotMatch(read(hub), /SupportBanner|SupportMenuItem|SupportButton/, hub);
   const reader = read("client/src/pages/TeacherReader.tsx");
   assert.match(reader, /<SupportBanner dark \/>/);
   assert.match(reader, /testId="reader-support"/);
