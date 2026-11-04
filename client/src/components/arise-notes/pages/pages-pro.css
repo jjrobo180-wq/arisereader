@@ -94,3 +94,4 @@
 .an-pro .an-l-bar button[aria-current="page"] { background: color-mix(in srgb, var(--an-ink) 9%, transparent) !important; color: var(--an-ink) !important; }
 .an-pro .an-l-avatar { background: var(--an-ink) !important; color: var(--an-bg) !important; }
 .an-pro .an-tabbar > div { background: color-mix(in srgb, var(--an-ink) 7%, transparent) !important; }
+.an-pro .an-primary { box-shadow: 0 6px 16px -10px rgba(0,0,0,.45); }
