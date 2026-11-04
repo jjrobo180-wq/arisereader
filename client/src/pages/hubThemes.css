@@ -97,3 +97,6 @@
 .hub-theme-crt .sm\:bg-white, .hub-theme-crt .md\:bg-white, .hub-theme-crt .lg\:bg-white { background-color: #0d140d; }
 .hub-theme-tile .md\:border-slate-200, .hub-theme-tile .md\:border-\[\#e4e6f0\] { border-color: #000000; }
 .hub-theme-crt .md\:border-slate-200, .hub-theme-crt .md\:border-\[\#e4e6f0\] { border-color: #1f4d1f; }
+/* The bell's count badge: square and inside the button on these themes (it poked out above it). */
+.hub-theme-tile [data-testid="notification-bell"] > span { border-radius: 0; background: #f2600c; right: 2px; top: 2px; --tw-ring-shadow: 0 0 #0000; box-shadow: none; }
+.hub-theme-crt [data-testid="notification-bell"] > span { border-radius: 0; background: #33ff33; color: #001400; right: 2px; top: 2px; --tw-ring-shadow: 0 0 #0000; box-shadow: none; }
