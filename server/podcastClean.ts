@@ -16,7 +16,7 @@
 import { promises as fsp } from "node:fs";
 import { copyToCt, frameHeader, type ContentPiece } from "../shared/earshotAudio";
 import type { PlayAd } from "../shared/earshotAds";
-import { cleanSidOf, type Player } from "./podcastPlay";
+import { cleanSidOf, readWhole, type Player } from "./podcastPlay";
 
 // ---------------------------------------------------------------------------
 // Writing the MP3
@@ -333,5 +333,89 @@ export function registerCleanRoutes(app: any, auth: any, d: { prefix: string; cl
       if (!r) return res.json({ ready: false, building: d.cleaner.isBuilding(id) });
       res.json({ ready: true, ...r });
     } catch { res.json({ ready: false }); }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Made before anyone presses play
+// ---------------------------------------------------------------------------
+
+/** Episodes about to be seen (the next ones in the swipe feed, the home page's lists) are fetched the
+ *  way a listener's phone would, compared, made into ad-free copies and read along in full, so even the
+ *  first listener hears no ads. Two at a time; each episode once (a copy made already is skipped). */
+export function createPrecleaner(o: {
+  player: Player; cleaner: Cleaner; dir?: any;
+  listenerUa?: string; atOnce?: number; maxQueue?: number;
+  /** How long one episode may take (download, compare, read along). */
+  maxMs?: number;
+}) {
+  const ua = o.listenerUa ?? "AppleCoreMedia/1.0.0.22A3354 (iPhone; U; CPU OS 18_0 like Mac OS X; en_us)";
+  const atOnce = o.atOnce ?? 2, maxQueue = o.maxQueue ?? 40, maxMs = o.maxMs ?? 6 * 60_000;
+  const queue: { episodeId: string; showId: string; url: string }[] = [];
+  const seen = new Map<string, number>();
+  let running = 0;
+  const stats = { made: 0, skipped: 0 };
+  const pump = () => {
+    while (running < atOnce && queue.length) {
+      const job = queue.shift()!;
+      running++;
+      void run(job).catch((e: any) => console.warn("[earshot] pre-clean:", e?.message || e)).finally(() => { running--; pump(); });
+    }
+  };
+  async function run(job: { episodeId: string; showId: string; url: string }) {
+    if ((await o.cleaner.info(job.episodeId))?.stage === "ready" || o.cleaner.isBuilding(job.episodeId)) { stats.skipped++; return; }
+    // A listener already has it open: their copy is made into the ad-free one.
+    if (Array.from(o.player.sessions.values()).some((x: any) => x.episodeId === job.episodeId && !x.clean)) { stats.skipped++; return; }
+    const sid = `prep${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+    const s: any = o.player.open({ sid, voter: "prep", episodeId: job.episodeId, showId: job.showId, url: job.url, ua, ip: "" });
+    const t0 = Date.now();
+    try {
+      while (Date.now() - t0 < maxMs && !s.ads.final && !s.copy.err && o.player.sessions.has(sid)) { s.touched = Date.now(); await s.copy.wait(1000); }
+      if (!s.ads.final || !s.copy.done) return;
+      // The opening is read right after comparing (and the ad-free copy made); then the rest of it.
+      while (Date.now() - t0 < maxMs && s.opening !== "done" && o.player.sessions.has(sid)) { s.touched = Date.now(); await new Promise((r) => setTimeout(r, 1000)); }
+      if (o.dir && o.player.sessions.has(sid)) await readWhole(o.player, o.dir, s).catch(() => 0);
+      for (let i = 0; i < 30 && o.cleaner.isBuilding(job.episodeId); i++) await new Promise((r) => setTimeout(r, 1000));
+      stats.made++;
+    } finally { o.player.close(sid); }
+  }
+  /** Asks for these episodes to be made ready; returns how many were queued. */
+  function want(list: { episodeId: string; showId: string; url: string }[]): number {
+    let n = 0;
+    const now = Date.now();
+    for (const j of list) {
+      if (!j.episodeId || !j.url || queue.length >= maxQueue) continue;
+      if (now - (seen.get(j.episodeId) ?? 0) < 6 * 3600_000) continue;
+      seen.set(j.episodeId, now);
+      if (seen.size > 5000) seen.delete(seen.keys().next().value as string);
+      queue.push(j); n++;
+    }
+    pump();
+    return n;
+  }
+  return { want, stats, busy: () => running + queue.length };
+}
+export type Precleaner = ReturnType<typeof createPrecleaner>;
+
+/** POST <prefix>/clean/prepare {episodes: [{id, showId, audio}]}: up to 8 episodes about to be seen,
+ *  made ready before anyone plays them (their addresses are checked against the show's own lists). */
+export function registerPrepareRoute(app: any, auth: any, d: { prefix: string; pre: Precleaner; cleanId: (v: unknown) => string; voterOf: (req: any) => string;
+  audioFor: (showId: string, episodeId: string, sent?: string) => Promise<string | null> }) {
+  const asked = new Map<string, number[]>();
+  app.post(`${d.prefix}/clean/prepare`, auth, async (req: any, res: any) => {
+    const voter = d.voterOf(req), t = Date.now();
+    const list = (asked.get(voter) ?? []).filter((x) => t - x < 3600_000);
+    if (list.length >= 120) return res.json({ queued: 0 });
+    list.push(t); asked.set(voter, list);
+    if (asked.size > 5000) asked.clear();
+    const items = (Array.isArray(req.body?.episodes) ? req.body.episodes : []).slice(0, 8);
+    const jobs: { episodeId: string; showId: string; url: string }[] = [];
+    for (const it of items) {
+      const episodeId = d.cleanId(it?.id), showId = d.cleanId(it?.showId);
+      if (!episodeId || !showId) continue;
+      const url = await d.audioFor(showId, episodeId, typeof it?.audio === "string" ? it.audio.slice(0, 1500) : "").catch(() => null);
+      if (url && !/\.(m4a|mp4|aac|m4b|ogg|opus|wav|flac|webm)(\?|$)/i.test(url)) jobs.push({ episodeId, showId, url });
+    }
+    res.json({ queued: d.pre.want(jobs) });
   });
 }

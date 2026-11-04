@@ -16,7 +16,7 @@ import { NewsStationsView, RadioBar, RadioView, type Station } from "./Radio";
 import { NEWS_RADIO_ID, NEWS_RADIO_NAME } from "../client/src/components/family-hub/earshot/newsRadio";
 import { MusicBar, MusicView, type Listening } from "./Music";
 import { AudiobookBar, AudiobooksView, BookPage, type Reading } from "./Audiobooks";
-import type { NowPlaying } from "../client/src/components/family-hub/earshot/EarshotPlayer";
+import { prepareClean, setPrepareApi, type NowPlaying } from "../client/src/components/family-hub/earshot/EarshotPlayer";
 import { PartyRoom } from "./Party";
 import { artIn } from "./art";
 import { SearchPage } from "./Search";
@@ -451,6 +451,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     return () => clearInterval(t);
   }, [searching, narrow]);
   // Browse here; listen in the swipe feed, starting on the episode you picked.
+  // Episodes shown here are made ad-free before they're tapped (EarshotPlayer prepareClean).
+  useEffect(() => { setPrepareApi(api); }, [api]);
   const openEp = useCallback((e: PodEpisode, next?: PodEpisode[]) => {
     // A tap teaches the feed too (a small nudge toward that show's genre).
     const g = (e as { genre?: string }).genre || showGenre.current.get(e.showId);
@@ -817,6 +819,8 @@ const MoreCtx = createContext<((e: PodEpisode) => void) | null>(null);
 const HiddenCtx = createContext<{ shows: Set<string>; eps: Set<string> }>({ shows: new Set(), eps: new Set() });
 
 function Grid({ list, onOpen }: { list: PodEpisode[]; onOpen: (e: PodEpisode) => void }) {
+  // The first ones shown are made ad-free before they're tapped.
+  useEffect(() => { prepareClean(list.slice(0, 6)); }, [list]);
   const onMore = useContext(MoreCtx);
   const hidden = useContext(HiddenCtx);
   return <div className="grid gap-x-3.5 gap-y-7 pt-3 [grid-template-columns:repeat(auto-fill,minmax(min(180px,calc(50%_-_7px)),1fr))]">

@@ -169,6 +169,19 @@ const cleanAsking = new Map<string, Promise<CleanCopy | null>>();
 const isCleanSid = (sid: string | undefined) => !!sid && /^cl\d{1,20}_*$/.test(sid);
 /** The ad-free copy's shared session id (the same as the server's cleanSidOf). */
 const cleanSidFor = (episodeId: string) => { const d = String(episodeId || "").replace(/\D/g, "").slice(0, 20); return d ? `cl${d}`.padEnd(16, "_") : ""; };
+/** Episodes about to be seen are made ad-free before anyone plays them (server/podcastClean.ts
+ *  createPrecleaner): asked for once per page, a few at a time. The home page asks too. */
+type PrepApi = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
+let prepApi: PrepApi | null = null;
+const prepAsked = new Set<string>();
+export function setPrepareApi(api: PrepApi | null) { prepApi = api; }
+export function prepareClean(eps: (PodEpisode | null | undefined)[], api: PrepApi | null = prepApi) {
+  if (!api) return;
+  const list = eps.filter((e): e is PodEpisode => !!e?.id && !!e.audio && !prepAsked.has(e.id) && throughServer(e.audio) && !OWN_EPISODE.test(e.id) && !cleanKnown.get(e.id)?.copy).slice(0, 8);
+  if (!list.length) return;
+  for (const e of list) prepAsked.add(e.id);
+  void api("/api/earshot/clean/prepare", { method: "POST", body: { episodes: list.map((e) => ({ id: e.id, showId: e.showId, audio: e.audio })) } }).catch(() => { for (const e of list) prepAsked.delete(e.id); });
+}
 /** The play token too: an episode started before a new player had one played straight from the host, ads and all. */
 let sharedTok: { token: string; exp: number; audio: string } | null = null;
 const newSid = () => { const a = new Uint8Array(16); crypto.getRandomValues(a); return Array.from(a, (b) => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"[b & 63]).join(""); };
@@ -1218,6 +1231,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     // Whether this one and the next few have ad-free copies: those then play from storage (one loaded
     // ahead changes over at once).
     for (const x of itemsRef.current.slice(i, i + 4)) { const e2 = x.ep; if (e2 && !x.live) void askClean(e2).then((c) => { if (c) cleanArrived(e2); }); }
+    // The ones after that are made ad-free now, before they're reached.
+    prepareClean(itemsRef.current.slice(i + 2, i + 8).filter((x) => !x.live).map((x) => x.ep), api);
     // Covers for the next few are fetched now, so they're there the moment you swipe.
     itemsRef.current.slice(i + 1, i + 4).forEach((x) => { const img = new Image(); img.src = x.ep?.art || x.show.art; });
     if ("mediaSession" in navigator) {

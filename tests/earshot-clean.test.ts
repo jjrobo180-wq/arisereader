@@ -254,3 +254,25 @@ test("with room to spare, the whole episode is read along ahead of the listener 
     assert.equal(roomToRead(dir), false);
   } finally { player.stop(); rmSync(dir0, { recursive: true, force: true }); }
 });
+
+test("episodes about to be seen are made ad-free before anyone plays them", async () => {
+  const { createPrecleaner } = await import("../server/podcastClean");
+  const show = frames(6000, 11);
+  const listener = join2([...frames(600, 12), ...show]);
+  const dir0 = mkdtempSync(join(tmpdir(), "earshot-clean-test-"));
+  const store = memoryCleanStore(), kv = memoryKV();
+  const player = createPlayer({ dir: dir0, download: fakeNet(listener, join2(show), store.files) as any, key: Buffer.alloc(32, 7) });
+  const cleaner = createCleaner({ player, kv, store, quiet: true });
+  // The opening is read right after comparing, as on the server (here a reader that finds nothing).
+  const { startOpenings } = await import("../server/podcastPlay");
+  startOpenings(player, { contentTranscript: async () => ({ source: "none", segments: [], ads: [], chapters: [], chunk: -1, chunkSecs: 150, more: false }) as any });
+  const pre = createPrecleaner({ player, cleaner, maxMs: 20_000 });
+  try {
+    assert.equal(pre.want([{ episodeId: "55", showId: "11", url: "https://host.example/ep.mp3" }]), 1);
+    assert.equal(pre.want([{ episodeId: "55", showId: "11", url: "https://host.example/ep.mp3" }]), 0, "asked once");
+    for (let t = 0; t < 400 && kv.m.get("clean:55")?.stage !== "ready"; t++) await sleep(20);
+    assert.equal(kv.m.get("clean:55")?.stage, "ready");
+    for (let t = 0; t < 200 && pre.busy(); t++) await sleep(20);
+    ok(!Array.from(player.sessions.keys()).some((k) => k.startsWith("prep")), "its copy is let go");
+  } finally { player.stop(); rmSync(dir0, { recursive: true, force: true }); }
+});
