@@ -116,7 +116,7 @@
 .los-desktop.los-isdark .los-body { background: radial-gradient(130% 80% at 80% 0%, #6b2c2c 0%, transparent 50%), radial-gradient(120% 90% at 0% 100%, #1f2a6b 0%, transparent 55%), linear-gradient(180deg, #2a1d2f, #141632); }
 .sys-win-desktop { border-radius: 12px; box-shadow: 0 0 0 .5px rgba(0,0,0,.25), 0 22px 50px -18px rgba(0,0,0,.55); overflow: hidden; }
 .sys-win-desktop .sys-titlebar { min-height: 2.1rem; justify-content: center; position: relative; background: color-mix(in srgb, var(--an-card) 90%, var(--an-line)); border-bottom: .5px solid var(--an-line); }
-.sys-win-desktop .sys-titlebar b { flex: none; max-width: 70%; text-align: center; font-weight: 600; color: var(--an-muted); }
+.sys-win-desktop .sys-titlebar b { flex: none; max-width: 70%; text-align: center; font-weight: 600; color: color-mix(in srgb, var(--an-ink) 80%, var(--an-card)); }
 .sys-lights { position: absolute; left: .7rem; display: flex; gap: .45rem; } .sys-lights button { width: .8rem !important; height: .8rem; border-radius: 50%; padding: 0 !important; }
 .sys-l-close { background: #ff5f57 !important; } .sys-l-min { background: #febc2e !important; } .sys-l-zoom { background: #28c840 !important; }
 .sys-desk-hi { font-size: 1.7rem; font-weight: 800; letter-spacing: -.02em; }

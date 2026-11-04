@@ -271,3 +271,5 @@
 @media (min-width: 900px) { .los-tide-days, .los-tide-hero { max-width: 46rem; margin-inline: auto; } }
 .los-depth { border: 1px solid var(--an-line); }
 .los-tide-gauge { border-left: 1px solid var(--an-line); }
+/* The "install the app" tip sat on top of the dock in every look: in a look it shows under the top bar. */
+html[data-hub-look] [data-testid="welcome-bar"] { top: calc(env(safe-area-inset-top) + 3.7rem); bottom: auto; padding-bottom: 0; }

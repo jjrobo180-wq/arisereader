@@ -1629,7 +1629,7 @@ function TeacherHubPage() {
                   day: (() => {
                     const hour = new Date().getHours();
                     const hello = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-                    const first = user.displayName.split(" ")[0];
+                    const first = (user.displayName || "").split(" ")[0];
                     return <header className="flex flex-wrap items-start justify-between gap-4" data-testid="home-greeting">
                       <div><p className="mb-1.5 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7] sm:mb-2">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
                         <h1 className="text-2xl font-black tracking-tight text-[#232139] sm:text-4xl">{hello}{first ? `, ${first}` : ""}<span className="text-[#7866e1]">.</span></h1>
@@ -1655,7 +1655,7 @@ function TeacherHubPage() {
                     </div>;
                   })(),
                   picture: (
-              <WorkspaceBanner workspace={workspace} setWorkspace={setWorkspace} firstName={user.displayName.split(" ")[0]} stats={isTabOn("caseload", visible, !!user.isAdmin) ? [{ label: "Students", value: workspace.students.length }, { label: "Open to-dos", value: openTasks }, { label: "Meetings ahead", value: upcomingMeetings.length }] : [{ label: "Open to-dos", value: openTasks }, { label: "Notes", value: workspace.notes.length }, { label: "Events", value: workspace.events.length }]} />
+              <WorkspaceBanner workspace={workspace} setWorkspace={setWorkspace} firstName={(user.displayName || "").split(" ")[0]} stats={isTabOn("caseload", visible, !!user.isAdmin) ? [{ label: "Students", value: workspace.students.length }, { label: "Open to-dos", value: openTasks }, { label: "Meetings ahead", value: upcomingMeetings.length }] : [{ label: "Open to-dos", value: openTasks }, { label: "Notes", value: workspace.notes.length }, { label: "Events", value: workspace.events.length }]} />
                   ),
                   agenda: (
               <HubAgenda workspace={workspace} onOpenCalendar={() => setTab("calendar")} onOpenMeetings={() => setTab("iep")} />
@@ -1776,7 +1776,7 @@ function TeacherHubPage() {
       {notifyOpen && <HubModal title="Notification settings" onClose={() => setNotifyOpen(false)} closeOnBackdrop size="lg"><HubNotifySettings token={token} workspace={workspace} setWorkspace={setWorkspace} inModal /></HubModal>}
       {briefOpen && canUseHub && loaded && !loadError && <DailyBrief hub="work" brief={buildWorkBrief(workspace, TODAY(), new Date().getHours(), (user.displayName || "").split(" ")[0])} onClose={() => setBriefOpen(false)} onOpen={(t) => goTab(t as HubTab)} tint="from-teal-900 via-teal-700 to-amber-500" />}
       {canUseHub && loaded && !loadError && !needsPlan && (
-        <div ref={addRef} className={`fixed z-50 md:bottom-[max(1.25rem,env(safe-area-inset-bottom))] md:right-4 ${tabBar ? "max-md:bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] max-md:left-1/2 max-md:right-auto md:left-auto" : side === "bottom" && menuOpen ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${tabBar ? "" : side === "right" && menuOpen ? "right-[88px]" : "right-4"}`}>
+        <div ref={addRef} className={`${osOn ? "hidden " : ""}fixed z-50 md:bottom-[max(1.25rem,env(safe-area-inset-bottom))] md:right-4 ${tabBar ? "max-md:bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] max-md:left-1/2 max-md:right-auto md:left-auto" : side === "bottom" && menuOpen ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${tabBar ? "" : side === "right" && menuOpen ? "right-[88px]" : "right-4"}`}>
           {addMenu && (
             <div role="menu" aria-label="Add to your Hub" data-testid="quick-add-menu"
               className={`absolute bottom-[calc(100%+0.6rem)] right-0 w-60 ${tabBar ? "max-md:bottom-0 max-md:right-auto max-md:-translate-x-1/2" : ""} overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl`}>

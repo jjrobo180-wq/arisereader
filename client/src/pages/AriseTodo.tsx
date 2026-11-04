@@ -1227,7 +1227,7 @@ export default function AriseTodo() {
     {privacy && <AccountPrivacy onClose={() => setPrivacy(false)} />}
     {/* One floating button that adds anything, mirroring WorkHub. It sits clear of the phone menu
         when that menu is along the bottom or the right, so it never covers the menu's own buttons. */}
-    <div ref={addRef} className={`fixed z-50 lg:bottom-[max(1.25rem,env(safe-area-inset-bottom))] lg:right-4 ${tabBar ? "max-lg:bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] max-lg:left-1/2 max-lg:right-auto" : layout.menuSide === "bottom" && phone.open ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${tabBar ? "lg:left-auto" : layout.menuSide === "right" && phone.open ? "right-[88px]" : "right-4"}`}>
+    <div ref={addRef} className={`${osOn && hubLook.look ? "hidden " : ""}fixed z-50 lg:bottom-[max(1.25rem,env(safe-area-inset-bottom))] lg:right-4 ${tabBar ? "max-lg:bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] max-lg:left-1/2 max-lg:right-auto" : layout.menuSide === "bottom" && phone.open ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${tabBar ? "lg:left-auto" : layout.menuSide === "right" && phone.open ? "right-[88px]" : "right-4"}`}>
       {addMenu && (
         <div role="menu" aria-label="Add to your To Do" data-testid="life-add-menu"
           className={`absolute bottom-[calc(100%+0.6rem)] right-0 w-60 ${tabBar ? "max-lg:bottom-0 max-lg:right-auto max-lg:-translate-x-1/2" : ""} overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl`}>

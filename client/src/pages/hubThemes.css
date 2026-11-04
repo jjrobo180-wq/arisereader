@@ -76,3 +76,19 @@
 .hub-theme-crt .text-\[\#6c5cce\], .hub-theme-crt .text-\[\#606060\], .hub-theme-crt .text-\[\#5f4dc8\], .hub-theme-crt .text-\[\#536471\], .hub-theme-crt .text-\[\#9a3412\], .hub-theme-crt .text-\[\#7a6a62\], .hub-theme-crt .text-\[\#715fe3\] { color: #33ff33; }
 .hub-theme-crt .bg-\[\#f7f9fa\], .hub-theme-crt .bg-\[\#fcfbff\], .hub-theme-crt .bg-\[\#f6f7fc\], .hub-theme-crt .bg-\[\#f4f2ff\], .hub-theme-crt .bg-\[\#f2f2f2\], .hub-theme-crt .bg-\[\#fff4ec\], .hub-theme-crt .bg-\[\#fbfaf6\], .hub-theme-crt .bg-\[\#f4f1ff\], .hub-theme-crt .bg-\[\#f2f4f6\], .hub-theme-crt .bg-\[\#f0f2f4\] { background-color: #0d140d; }
 .hub-theme-crt .border-\[\#e7e8f0\], .hub-theme-crt .border-\[\#ececf3\], .hub-theme-crt .border-\[\#e7e8ef\], .hub-theme-crt .border-\[\#e4e6f0\] { border-color: #1f4d1f; }
+/* "Set up your family": the small line and the button were unreadable on Tile's blue and Old Computer's black. */
+.hub-theme-tile .bg-\[\#292446\] .text-slate-300 { color: #e6f6ff; }
+.hub-theme-tile .bg-\[\#a38cfa\] { background-color: #f2600c; }
+.hub-theme-crt .bg-\[\#292446\] .text-slate-300 { color: #2fd62f; }
+.hub-theme-crt .bg-\[\#a38cfa\] { background-color: #1f4d1f; border: 1px solid #33ff33; }
+
+/* The hub root itself carries a light background class (WorkHub: bg-slate-100), which beat the theme's
+   own background, so WorkHub stayed light in Tile and Old Computer. Two classes win now. */
+.hub-theme-tile.bg-slate-100, .hub-theme-tile.bg-\[\#f6f7fc\] { background-color: #0a0a0a; color: #ffffff; }
+.hub-theme-crt.bg-slate-100, .hub-theme-crt.bg-\[\#f6f7fc\] { background-color: #0a0f0a; color: #33ff33; }
+.hub-theme-tile .text-slate-950, .hub-theme-tile.text-slate-950, .hub-theme-tile.text-slate-900 { color: #ffffff; }
+.hub-theme-crt .text-slate-950, .hub-theme-crt.text-slate-950, .hub-theme-crt.text-slate-900 { color: #33ff33; }
+.hub-theme-tile .bg-teal-700, .hub-theme-tile .bg-teal-600 { background-color: #f2600c; }
+.hub-theme-crt .bg-teal-700, .hub-theme-crt .bg-teal-600 { background-color: #1f4d1f; color: #33ff33; }
+.hub-theme-tile .text-teal-700, .hub-theme-tile .text-teal-800 { color: #4cc3f5; }
+.hub-theme-crt .text-teal-700, .hub-theme-crt .text-teal-800 { color: #33ff33; }
