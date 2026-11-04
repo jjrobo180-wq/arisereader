@@ -338,6 +338,19 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
     } catch (e: any) { console.error("[fit] places", e?.message); res.status(503).json({ message: "Place search isn't reachable right now." }); }
   });
 
+  // ——— Follow-along videos: embeddable YouTube results for a class (needs YOUTUBE_API_KEY) ———————
+  app.get("/api/fit/videos", authMiddleware, async (req: any, res) => {
+    const q = String(req.query.q ?? "").trim().slice(0, 100);
+    if (q.length < 3) return res.status(400).json({ message: "What class?" });
+    const key = process.env.YOUTUBE_API_KEY;
+    if (!key) return res.status(503).json({ code: "videos_off", message: "Videos aren't switched on for this server yet." });
+    try {
+      const data: any = await cached(`yt:${q.toLowerCase()}`, () => fetchJson(`https://www.googleapis.com/youtube/v3/search?${new URLSearchParams({ part: "snippet", type: "video", videoEmbeddable: "true", videoSyndicated: "true", safeSearch: "strict", maxResults: "8", q, key })}`));
+      const videos = (Array.isArray(data?.items) ? data.items : []).map((it: any) => ({ id: String(it?.id?.videoId || ""), title: String(it?.snippet?.title || "").slice(0, 120), channel: String(it?.snippet?.channelTitle || "").slice(0, 60), thumb: String(it?.snippet?.thumbnails?.medium?.url || "") })).filter((v: any) => /^[\w-]{11}$/.test(v.id));
+      res.json({ videos });
+    } catch (e: any) { console.error("[fit] videos", e?.message); res.status(503).json({ message: "Videos aren't reachable right now." }); }
+  });
+
   // ——— Near me: gyms and healthy food —————————————————————————————————————————————————————————————
   // Kept for a day per grid cell. How busy a gym is right now comes from people's own reports.
   const reports = new Map<string, { level: BusyLevel; at: number; by: string }[]>();

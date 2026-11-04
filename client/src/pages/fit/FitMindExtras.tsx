@@ -2,10 +2,11 @@
 // tap counter for people who just want to count breaths, mantras or rounds. Everything here draws on a solid
 // full-screen background so it is always easy to read.
 import { useEffect, useRef, useState } from "react";
-import { Minus, Pause, Play, Plus, RotateCcw, Video, X } from "lucide-react";
+import { Loader2, Minus, Pause, Play, Plus, RotateCcw, Video, X } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 import { dayKey, uid, type FitData } from "@shared/fit";
-import { Btn, C, Layer, Title, display, fmtDur, font, glowBg, haptic } from "./fitUi";
-import type { Update } from "./fitStore";
+import { Btn, C, Layer, Sheet, Title, display, fmtDur, font, glowBg, haptic } from "./fitUi";
+import { fitApi, type Update } from "./fitStore";
 
 const yt = (q: string) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
 
@@ -27,19 +28,44 @@ const MIND_CLIPS: Clip[] = [
   { title: "Yoga nidra", sub: "Deep rest, lying down", q: "yoga nidra 20 minutes" },
 ];
 
-/** Follow-along classes: each opens YouTube's results for it, so there are always fresh videos to pick from. */
+type Vid = { id: string; title: string; channel: string; thumb: string };
+
+/** Follow-along classes. Tap one and it plays right here (YouTube's embedded player), with more of the same underneath. */
 export function FollowAlong({ kind }: { kind: "yoga" | "mind" }) {
   const clips = kind === "yoga" ? YOGA_CLIPS : MIND_CLIPS;
+  const { token } = useAuth();
+  const [open, setOpen] = useState<Clip | null>(null);
+  const [list, setList] = useState<Vid[] | null>(null);
+  const [pick, setPick] = useState(0);
+  const [err, setErr] = useState("");
+  const show = (c: Clip) => {
+    haptic("light"); setOpen(c); setList(null); setPick(0); setErr("");
+    fitApi<{ videos: Vid[] }>(token, `/videos?${new URLSearchParams({ q: c.q })}`)
+      .then((r) => { setList(r.videos); if (!r.videos.length) setErr("No videos found for this one."); })
+      .catch((e) => setErr(e.message));
+  };
+  const cur = list?.[pick];
   return <>
     <Title>{kind === "yoga" ? "Yoga videos" : "Meditation videos"}</Title>
     <div className="grid grid-cols-2 gap-2" data-testid={`fit-${kind}-videos`}>
-      {clips.map((c, i) => <a key={c.title} href={yt(c.q)} target="_blank" rel="noopener noreferrer" onClick={() => haptic("light")}
-        className="fit-in flex min-h-[92px] flex-col justify-between rounded-[14px] p-3 active:scale-[.98]" style={{ background: C.card, color: C.text, animationDelay: `${i * 30}ms`, boxShadow: `inset 0 0 0 1px ${C.line}` }}>
+      {clips.map((c, i) => <button key={c.title} type="button" onClick={() => show(c)}
+        className="fit-in flex min-h-[92px] flex-col justify-between rounded-[14px] p-3 text-left active:scale-[.98]" style={{ background: C.card, color: C.text, animationDelay: `${i * 30}ms`, boxShadow: `inset 0 0 0 1px ${C.line}` }}>
         <span className="grid h-7 w-7 place-items-center rounded-full" style={{ background: C.card2 }}><Video className="h-3.5 w-3.5" style={{ color: C.lime }} /></span>
         <span><span className="block text-[15px] font-semibold leading-tight">{c.title}</span><span className="mt-0.5 block text-[11.5px] leading-snug" style={{ color: C.dim }}>{c.sub}</span></span>
-      </a>)}
+      </button>)}
     </div>
-    <p className="mt-2 px-1 text-[11.5px]" style={{ color: C.dim }}>Videos open on YouTube and belong to their creators.</p>
+    <p className="mt-2 px-1 text-[11.5px]" style={{ color: C.dim }}>Videos play from YouTube and belong to their creators.</p>
+    {open && <Sheet title={open.title} onClose={() => setOpen(null)} testId="fit-video-sheet">
+      {cur ? <div className="overflow-hidden rounded-[16px]" style={{ background: "#000", aspectRatio: "16 / 9" }}>
+        <iframe key={cur.id} title={cur.title} src={`https://www.youtube-nocookie.com/embed/${cur.id}?playsinline=1&rel=0&modestbranding=1`} className="h-full w-full" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
+      </div> : !err && <div className="grid place-items-center rounded-[16px]" style={{ background: C.card, aspectRatio: "16 / 9" }}><Loader2 className="h-6 w-6 animate-spin" style={{ color: C.dim }} /></div>}
+      {cur && <p className="mt-2 px-1 text-[14px] font-semibold leading-snug">{cur.title}<span className="block text-[12px] font-normal" style={{ color: C.dim }}>{cur.channel}</span></p>}
+      {err && <div className="rounded-[16px] p-4 text-[14px]" style={{ background: C.card, color: C.dim }}>{err}<a href={yt(open.q)} target="_blank" rel="noopener noreferrer" className="mt-2 block font-semibold underline" style={{ color: C.text }}>Search YouTube instead</a></div>}
+      {list && list.length > 1 && <div className="mt-4 space-y-2">{list.map((v, k) => k === pick ? null : <button key={v.id} type="button" onClick={() => { haptic("light"); setPick(k); }} className="flex w-full items-center gap-3 rounded-[14px] p-2 text-left active:scale-[.985]" style={{ background: C.card }}>
+        {v.thumb ? <img src={v.thumb} alt="" loading="lazy" className="h-[54px] w-24 shrink-0 rounded-[10px] object-cover" /> : <span className="h-[54px] w-24 shrink-0 rounded-[10px]" style={{ background: C.card2 }} />}
+        <span className="min-w-0"><span className="line-clamp-2 block text-[13.5px] font-semibold leading-tight">{v.title}</span><span className="block truncate text-[11.5px]" style={{ color: C.dim }}>{v.channel}</span></span>
+      </button>)}</div>}
+    </Sheet>}
   </>;
 }
 
