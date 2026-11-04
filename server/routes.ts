@@ -1668,7 +1668,9 @@ export async function registerRoutes(
   const podcastPlayer = createPodcastPlayer({ library: createAdLibrary(supabaseKV(getAdminSupabase)) });
   // Ad-free copies (server/podcastClean.ts): once a listener's copy is compared, its show audio with the
   // stitched-in ads cut out is kept in storage, and everyone plays that file straight from there.
-  if (process.env.EARSHOT_CLEAN !== "0") createPodcastCleaner({ player: podcastPlayer, kv: supabaseKV(getAdminSupabase), store: supabaseCleanStore(getAdminSupabase) });
+  if (process.env.EARSHOT_CLEAN !== "0") createPodcastCleaner({ player: podcastPlayer, kv: supabaseKV(getAdminSupabase), store: supabaseCleanStore(getAdminSupabase),
+    // Copies are kept 7 days: the daily sweep looks at every one.
+    listAll: async () => { const { data } = await getAdminSupabase().from("podcast_cache").select("value").like("key", "clean:%").neq("key", "clean:blocked").limit(20000); return (data ?? []).map((r: any) => r.value); } });
   startPlayDiagnostics(supabaseKV(getAdminSupabase), podcastPlayer, podcasts);
   // New episodes of followed and top shows checked for ads before anyone plays them, with the AI allowance left over at night.
   // On by EARSHOT_PRECHECK=1, and by itself once the AI is on a paid plan (EARSHOT_PRECHECK=0 keeps it off).

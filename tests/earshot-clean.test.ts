@@ -276,3 +276,30 @@ test("episodes about to be seen are made ad-free before anyone plays them", asyn
     ok(!Array.from(player.sessions.keys()).some((k) => k.startsWith("prep")), "its copy is let go");
   } finally { player.stop(); rmSync(dir0, { recursive: true, force: true }); }
 });
+
+test("ad-free copies are let go after 7 days, and never made or served for a show that asked us not to", async () => {
+  const show = frames(6000, 21);
+  const dir0 = mkdtempSync(join(tmpdir(), "earshot-clean-test-"));
+  const store = memoryCleanStore(), kv = memoryKV();
+  let t = Date.now();
+  const player = createPlayer({ dir: dir0, download: fakeNet(join2([...frames(500, 22), ...show]), join2(show), store.files) as any, key: Buffer.alloc(32, 7) });
+  const cleaner = createCleaner({ player, kv, store, quiet: true, now: () => t, listAll: async () => Array.from(kv.m.entries()).filter(([k]) => k.startsWith("clean:") && k !== "clean:blocked").map(([, v]) => v) });
+  try {
+    player.open({ sid: "keepkeepkeepkeep01", voter: "u7", episodeId: "66", showId: "11", url: "https://host.example/ep.mp3", ua: "AppleCoreMedia/1.0", ip: "" });
+    for (let i = 0; i < 300 && kv.m.get("clean:66")?.stage !== "ready"; i++) await sleep(20);
+    ok(await cleaner.ready("66"), "ready");
+    // Eight days on: the sweep deletes it, and it's no longer served.
+    t += 8 * 24 * 3600_000;
+    assert.equal(await cleaner.sweep(), 1);
+    assert.equal(store.files.size, 0);
+    assert.equal(await cleaner.ready("66"), null);
+    // A show that asked not to: no copy made.
+    await kv.set("clean:blocked", { shows: ["12"] });
+    t += 10 * 60_000;
+    player.open({ sid: "blockblockblock001", voter: "u7", episodeId: "67", showId: "12", url: "https://host.example/ep.mp3", ua: "AppleCoreMedia/1.0", ip: "" });
+    for (let i = 0; i < 150 && !player.sessions.get("blockblockblock001")?.ads.final; i++) await sleep(20);
+    await sleep(200);
+    assert.equal(kv.m.get("clean:67"), undefined);
+    ok(await cleaner.isBlocked("67", "12"), "blocked");
+  } finally { player.stop(); rmSync(dir0, { recursive: true, force: true }); }
+});
