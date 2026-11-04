@@ -198,8 +198,8 @@
 .los-punch .los-month [data-on] { background: #ff5ca8; color: #000; border: 2px solid var(--an-edge, #000); }
 /* Chatline */
 .los-chat { display: flex; flex-direction: column; gap: .5rem; min-height: 100%; padding: calc(0px + 1rem) .9rem 1rem; }
-.los-them, .los-bubbles p { align-self: flex-start; max-width: 85%; margin: 0; padding: .7rem .95rem !important; border-radius: 20px 20px 20px 4px; background: var(--an-card) !important; }
-.los-bubbles { display: flex; flex-direction: column; gap: .5rem; }
+.los-them, .los-chatbubbles p { align-self: flex-start; max-width: 85%; margin: 0; padding: .7rem .95rem !important; border-radius: 20px 20px 20px 4px; background: var(--an-card) !important; }
+.los-chatbubbles { display: flex; flex-direction: column; gap: .5rem; }
 .los-chat .los-cal { margin: 0; }
 .los-replies { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .4rem; }
 .los-replies button { min-height: 2.75rem; padding: 0 .95rem !important; border-radius: 999px; background: var(--an-violet) !important; color: var(--an-on-accent) !important; font-weight: 700; }

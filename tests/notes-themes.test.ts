@@ -12,7 +12,7 @@ const lum = (hex: string) => {
 };
 const ratio = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
 
-test("there are 34 looks plus Classic", () => assert.equal(NOTES_THEMES.length, 35));
+test("there are 44 looks plus Classic", () => assert.equal(NOTES_THEMES.length, 45));
 for (const t of NOTES_THEMES) test(`${t.label} text is readable`, () => {
   for (const [name, fg, bg] of [["ink/bg", t.ink, t.bg], ["ink/card", t.ink, t.card], ["muted/bg", t.muted, t.bg], ["muted/card", t.muted, t.card], ["faint/card", t.faint, t.card], ["accent ink/card", t.accentInk, t.card], ["accent ink/soft", t.accentInk, t.accentSoft], ["on accent", t.onAccent, t.accent], ["on record", t.onRecord, t.record]] as const)
     assert.ok(ratio(fg, bg) >= 4.5, `${t.id} ${name}: ${ratio(fg, bg).toFixed(2)}`);
@@ -78,4 +78,39 @@ test("the ten system looks are whole systems in Duo and Notes: Home, calendar, g
   }
   // E-Ink holds still.
   assert.match(css, /\.los-ink, \.los-ink \* \{ animation: none !important; transition: none !important; \}/);
+});
+
+test("the ten interactive looks move, sound and buzz, in Duo and Notes", () => {
+  const ids = ["spinner", "bubbles", "lava", "marbles", "synth", "jelly", "orrery", "dial", "ferro", "slots"];
+  const read = (f: string) => readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
+  const playTsx = read("client/src/components/look-os/play.tsx"), css = read("client/src/components/look-os/play.css");
+  const toys = read("client/src/components/look-os/toys.tsx"), feel = read("client/src/components/look-os/feel.ts");
+  const notes = read("client/src/components/arise-notes/looks.tsx"), ncss = read("client/src/components/arise-notes/notes-play.css");
+  const os = read("client/src/components/look-os/LookOS.tsx");
+  assert.match(os, /PLAY_LOOKS\.has\(look\.id\)\) return <PlayDock/);
+  assert.match(os, /PLAY_LOOKS\.has\(p\.look\.id\)\) return <PlayHome/);
+  assert.match(os, /PLAY_LOOKS\.has\(look\.id\)\) return <button type="button" className=\{`los-cal[^>]*><PlayCal/);
+  for (const id of ids) {
+    assert.ok(NOTES_THEMES.some((t) => t.id === id), `${id} is a look`);
+    assert.match(playTsx, new RegExp(`case "${id}"`), `${id} has its own Duo Home`);
+    assert.match(css, new RegExp(`pl-dock-${id}`), `${id} has its own dock`);
+    assert.match(css, new RegExp(`\\.los-${id} \\.los-body`), `${id} has its own surface`);
+    assert.match(notes, new RegExp(`case "${id}"`), `${id} has its own Notes Home and recording`);
+    assert.match(ncss, new RegExp(`an-theme-${id} \\.an-l-bar`), `${id} has its own Notes tab bar`);
+    assert.match(ncss, new RegExp(`an-l-list-${id}`), `${id} has its own notes list`);
+  }
+  // Taps you can feel on the iPhone, sounds made on the spot, and both can be turned off.
+  assert.match(feel, /nativeCall\(\/haptics\/i, "Haptics", "impact"/);
+  assert.match(feel, /navigator\.vibrate/);
+  assert.match(feel, /createOscillator/);
+  assert.match(feel, /arise-play-sound/);
+  assert.match(feel, /arise-play-haptics/);
+  assert.match(playTsx, /<FeelToggle \/>/);
+  for (const toy of ["Spinner", "BubbleWrap", "LavaLamp", "MarbleJar", "SynthKeys", "Jelly", "Orrery", "RadioDial", "Ferro", "Slots"]) assert.match(toys, new RegExp(`export function ${toy}\\(`), `${toy} exists`);
+  assert.equal((toys.match(/buzz\(/g) ?? []).length >= 20, true, "toys buzz");
+  // The haptics plugin is in both iPhone apps.
+  for (const f of ["arisetodo/ios-app/package.json", "notes/ios-app/package.json"]) assert.match(read(f), /@capacitor\/haptics/, f);
+  // Original designs: no company names in what people see; motion stops when asked.
+  for (const t of NOTES_THEMES.filter((x) => ids.includes(x.id))) for (const word of ["Windows", "Microsoft", "Apple", "iPhone"]) assert.ok(!`${t.label} ${t.blurb}`.includes(word), `${t.id} doesn't say ${word}`);
+  assert.match(read("client/src/components/look-os/toys.css"), /prefers-reduced-motion: reduce/);
 });
