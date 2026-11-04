@@ -12,7 +12,9 @@ test("Pod+ without Membership: ads sat through are counted as time it could have
   const card = read("client/src/components/family-hub/earshot/EarshotListen.tsx");
   assert.match(card, /of ads you could've skipped this week/);
   assert.match(card, /if \(notMember\) return <CouldSaveCard/);
-  assert.match(read("podscroll/Home.tsx"), /<HoursBackCard light member=\{pro\} onJoin=\{onJoin\}/);
+  // Pod+ skips ads for everyone now (no membership needed), so its Hours back card is always the
+  // member's one: never "what you could have saved".
+  assert.match(read("podscroll/Home.tsx"), /<HoursBackCard light member onJoin=\{onJoin\}/);
 });
 
 test("a new student's first password: the kept session is forgotten so the app moves on at once", () => {

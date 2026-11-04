@@ -27,6 +27,7 @@ import Randomizer from "@/components/family-hub/Randomizer";
 import Relationships from "@/components/family-hub/Relationships";
 import Dictionary from "@/components/family-hub/Dictionary";
 import LinkPage from "@/components/family-hub/LinkPage";
+import DuoSetup, { duoSetupDone } from "@/components/DuoSetup";
 import LifePlanApp, { PLAN_FOCUS_KEY } from "@/components/family-hub/LifePlanApp";
 import LinkedProfiles from "@/components/family-hub/LinkedProfiles";
 import { linksApi } from "@/lib/profileLinks";
@@ -161,6 +162,7 @@ import { inDuoPane, useAriseDuo, type DuoChoice } from "@/lib/useAriseDuo";
 import "@/components/teacher-hub/darkPalette.css";
 import AccountPrivacy from "@/components/AccountPrivacy";
 import { isNativeApp } from "@/lib/nativeApp";
+import { isSampleMode } from "@/lib/sampleMode";
 import { REMINDERS_CHANGED, installReminderTaps, scheduleNativeReminders } from "@/lib/nativeReminders";
 
 type Priority = "low" | "normal" | "high";
@@ -765,6 +767,7 @@ export default function AriseTodo() {
   const myKits = (family.kitInstalled ?? []).map((k) => kitDef(k)).filter((d): d is NonNullable<ReturnType<typeof kitDef>> => !!d);
   const pinnableApps = [...pinnableNotes, ...pinnableSheets, ...(drivePlugin ? [drivePlugin] : []), ...(dropPlugin ? [dropPlugin] : [])];
   const layout = withSharedLook(cleanLifeLayout(family.layout, pinnableApps.map((p) => p.id)));
+  const [setupOpen, setSetupOpen] = useState(() => isNativeApp() && !isSampleMode() && !duoSetupDone(user.id));
   const setLayout = (next: LifeLayout) => { rememberLook(next); setFamily((f) => ({ ...f, layout: next })); window.dispatchEvent(new Event(SHARED_LOOK_EVENT)); };
   // The current theme's structural feel, reused for the task list's row style below (see
   // shared/appThemes.ts's HubTheme.homeLayout) — "cards" (today's) for Classic/Sunrise/Forest,
@@ -1083,9 +1086,10 @@ export default function AriseTodo() {
     <UpgradeHost hub="life" />
     {/* After the tour: the coach on the real hub (hold a widget, switch hubs, the App Gallery). */}
     <HubCoach userId={user.id} hub="life" />
-    <AppWalkthrough userId={user.id} hub="life" arise={user.role === "teacher" || user.role === "parent"}
+    {setupOpen && <DuoSetup userId={user.id} layout={layout} setLayout={setLayout} plugins={pluginsFor("life", { teacher: user.role === "teacher" || !!user.isAdmin, arise: user.role === "teacher" || user.role === "parent" || !!user.isAdmin })} setFamily={setFamily as any} onClose={() => setSetupOpen(false)} />}
+    {!setupOpen && <AppWalkthrough userId={user.id} hub="life" arise={user.role === "teacher" || user.role === "parent"}
       onGallery={() => setStore(true)} onCustomize={(t) => { setCustomizeTab(t); setCustomizing(true); }} onNotificationSettings={() => { closeApps(); goSection("notifications"); }}
-      onConnectCalendar={async () => { const list = await readIphoneEvents(); setFamily((f) => withPhoneEvents(f, list, makeId)); return Math.min(list.length, 1000); }} />
+      onConnectCalendar={async () => { const list = await readIphoneEvents(); setFamily((f) => withPhoneEvents(f, list, makeId)); return Math.min(list.length, 1000); }} />}
     {store && <PluginStore
       hub="life"
       initialOpen={storeOpenApp ?? undefined}

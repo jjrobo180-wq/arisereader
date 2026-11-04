@@ -4,6 +4,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { Fingerprint, KeyRound, Lock } from "lucide-react";
 import { PAGE_COLORS, PAGE_FONTS, PAGE_FONT_IDS, PAPER_THEMES, PAPER_THEME_IDS, type Folder, type PageLook, type PageMeta, type PageSettings, type Vault } from "@shared/arisePages";
 import { Btn, Notice, Sheet, Toggle } from "../ui";
+import { useAppearance } from "../appearance";
 import { pagesSyncFor, type PagesSync, type SyncState } from "./pagesSync";
 import { currentKey, faceIdAvailable, faceIdForget, faceIdLoad, faceIdSave, makeVault, onLockChange, openText, rememberKey, unlockVault } from "./pagesLock";
 
@@ -54,6 +55,7 @@ export function AppearanceSheet({ look, onChange, onClose, onDefault }: { look: 
   const set = (p: Partial<PageLook>) => onChange({ ...look, ...p });
   return <Sheet title="Appearance" onClose={onClose}>
     <div className="space-y-5" data-testid="pages-appearance">
+      <AppearanceSwitch />
       <section>
         <h3 className="mb-2 text-[14px] font-bold">Paper</h3>
         <div className="grid grid-cols-4 gap-2">{PAPER_THEME_IDS.map((id) => { const t = PAPER_THEMES[id]; return <button key={id} type="button" aria-pressed={look.theme === id} onClick={() => set({ theme: id })}
@@ -81,22 +83,33 @@ export function AppearanceSheet({ look, onChange, onClose, onDefault }: { look: 
   </Sheet>;
 }
 
+/** Light / Dark / Auto for the whole Notes tab and the typing screen. */
+export function AppearanceSwitch() {
+  const { mode, set } = useAppearance();
+  return <section>
+    <h3 className="mb-2 text-[14px] font-bold">Appearance</h3>
+    <div className="flex rounded-xl bg-[color-mix(in_srgb,var(--an-ink)_8%,transparent)] p-1" role="radiogroup" aria-label="Light or dark">
+      {(["auto", "light", "dark"] as const).map((m) => <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => set(m)} data-testid={`pages-appearance-${m}`}
+        className={`flex-1 rounded-lg py-2 text-[14px] font-semibold transition ${mode === m ? "bg-[var(--an-card)] text-[var(--an-ink)] shadow-sm" : "text-[var(--an-muted)]"}`}>{m === "auto" ? "Auto" : m === "light" ? "Light" : "Dark"}</button>)}
+    </div>
+    <p className="mt-1.5 text-[12px] text-[var(--an-muted)]">Auto follows your phone's light or dark mode.</p>
+  </section>;
+}
+
 export function ColorDots({ value, onChange }: { value: string; onChange: (c: string) => void }) {
   return <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Color">{PAGE_COLORS.map((c) => <button key={c || "none"} type="button" role="radio" aria-checked={value === c} aria-label={c || "No color"} onClick={() => onChange(c)}
     className={`grid h-8 w-8 place-items-center rounded-full border ${value === c ? "ring-2 ring-[var(--an-violet)] ring-offset-2" : ""}`} style={{ background: c || "#fff", borderColor: c ? c : "var(--an-line)" }}>{!c && <span className="h-0.5 w-4 rotate-45 bg-[var(--an-faint)]" />}</button>)}</div>;
 }
 
 // ─── Folders ─────────────────────────────────────────────────────────────────
-const FOLDER_EMOJI = ["📁", "📚", "🍎", "💼", "🏠", "✨", "🧠", "🎨", "🗓️", "💡", "❤️", "🌱"];
 export function FolderSheet({ folder, onSave, onDelete, onClose }: { folder: Folder | null; onSave: (f: { name: string; color: string; icon: string }) => void; onDelete?: () => void; onClose: () => void }) {
   const [name, setName] = useState(folder?.name ?? "");
   const [color, setColor] = useState(folder?.color ?? "#6a55dc");
-  const [icon, setIcon] = useState(folder?.icon ?? "📁");
+  const icon = folder?.icon ?? "📁";
   return <Sheet title={folder ? "Edit folder" : "New folder"} onClose={onClose}>
     <div className="space-y-4">
       <input className="an-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Folder name" maxLength={40} autoFocus data-testid="pages-folder-name" />
-      <div className="flex flex-wrap gap-2">{FOLDER_EMOJI.map((e) => <button key={e} type="button" aria-pressed={icon === e} onClick={() => setIcon(e)} className={`grid h-10 w-10 place-items-center rounded-xl text-[20px] ${icon === e ? "bg-[var(--an-violet-soft)] ring-2 ring-[var(--an-violet)]" : "bg-slate-50"}`}>{e}</button>)}</div>
-      <ColorDots value={color} onChange={(c) => setColor(c || "#64748b")} />
+      <div><p className="mb-2 text-[13px] font-semibold text-[var(--an-muted)]">Folder color</p><ColorDots value={color} onChange={(c) => setColor(c || "#64748b")} /></div>
       <div className="flex gap-2">
         {onDelete && <Btn kind="danger" onClick={onDelete}>Delete folder</Btn>}
         <Btn kind="primary" className="flex-1" disabled={!name.trim()} onClick={() => onSave({ name: name.trim(), color, icon })} data-testid="pages-folder-save">{folder ? "Save" : "Create"}</Btn>

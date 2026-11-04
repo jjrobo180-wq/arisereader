@@ -5,7 +5,7 @@
 
 export type FitAppId =
   | "train" | "food" | "fast" | "run" | "sleep" | "yoga" | "mind" | "hiit" | "c25k" | "mobility" | "water" | "steps"
-  | "recovery" | "progress" | "coach" | "friends" | "gyms" | "recipes" | "eat" | "travel" | "form" | "scan";
+  | "recovery" | "progress" | "coach" | "friends" | "gyms" | "recipes" | "eat" | "travel" | "form" | "scan" | "sounds" | "counter" | "pillow";
 export type FitAppCategory = "train" | "mind" | "nutrition" | "health" | "out" | "social";
 export type FitApp = {
   id: FitAppId; name: string; blurb: string; category: FitAppCategory;
@@ -36,6 +36,9 @@ export const FIT_APPS: FitApp[] = [
   { id: "yoga", name: "Yoga", blurb: "Guided flows for mornings, recovery, flexibility and bedtime, with a pose for every step.", category: "mind", icon: "Flower2", tile: ["#c084fc", "#7e22ce"], tab: true },
   { id: "mind", name: "Breathe", blurb: "Box breathing, 4-7-8, calm-down and focus sessions, plus guided meditation.", category: "mind", icon: "Wind", tile: ["#5eead4", "#0f766e"], tab: true },
   { id: "mobility", name: "Mobility", blurb: "Stretch routines for hips, back, shoulders and desk days, timed for you.", category: "mind", icon: "PersonStanding", tile: ["#86efac", "#15803d"], tab: true },
+  { id: "pillow", name: "Pillow tracking", blurb: "Phone under your pillow measures your sleep and wakes you in your lightest moment.", category: "health", icon: "Bed", tile: ["#a5b4fc", "#4338ca"], tab: false, plus: true },
+  { id: "sounds", name: "Sleep sounds", blurb: "Rain, ocean, fan and noise that fade out on a timer.", category: "health", icon: "Waves", tile: ["#7dd3fc", "#1e3a8a"], tab: false, plus: true },
+  { id: "counter", name: "Counter & timer", blurb: "Tap to count breaths, rounds or mantras, or sit with a quiet timer and bell.", category: "mind", icon: "CircleDot", tile: ["#fda4af", "#9f1239"], tab: false },
   { id: "sleep", name: "Sleep", blurb: "Tracked from Apple Health, your bedtime schedule or one tap, with a nightly sleep score.", category: "health", icon: "Moon", tile: ["#818cf8", "#3730a3"], tab: true },
   { id: "recovery", name: "Recovery", blurb: "Today's readiness from your sleep and training, and a map of which muscles are fresh.", category: "health", icon: "HeartPulse", tile: ["#f87171", "#b91c1c"], tab: true },
   { id: "steps", name: "Steps", blurb: "Daily steps from Apple Health, your goal and your week.", category: "health", icon: "Footprints", tile: ["#4ade80", "#166534"], tab: true },
