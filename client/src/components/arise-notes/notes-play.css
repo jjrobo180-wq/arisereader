@@ -93,7 +93,6 @@
 .an-l-list-dial { gap: .5rem; } .an-l-list-dial .an-l-note { padding: .85rem 1rem; border-radius: 10px; background: #fffaf0; box-shadow: inset 0 0 0 1px var(--an-line), 0 2px 0 var(--an-line); }
 .an-theme-dial .an-l-bar { border-radius: 16px; background: linear-gradient(180deg, #7a4f29, #4a2d14); border-color: #2a1a0b; color: #e9d6ae; }
 .an-theme-dial .an-l-bar [aria-current="page"] { background: radial-gradient(circle at 35% 30%, #fffaf0, #e9d6ae 70%); color: #3a2410; }
-.an-night.an-theme-dial .an-l-list-dial .an-l-note { background: var(--an-card); }
 
 /* Ferro */
 .an-theme-ferro { background: radial-gradient(50% 25% at 50% 20%, rgba(255,255,255,.08), transparent 70%), var(--an-bg); }
@@ -119,3 +118,12 @@
 .an-l-rec-synth .an-l-clock { background: linear-gradient(180deg, #ffe066, #ff3fa4); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .an-l-rec-orrery .an-l-clock, .an-l-rec-slots .an-l-clock { color: var(--an-violet); }
 .an-l-rec-lava .an-l-clock { margin: 0; }
+
+/* Night: Bubbles, Jelly and Dial go dark. */
+.an-night.an-theme-bubbles { background: radial-gradient(circle at 12% 6%, rgba(94,234,212,.25) 0 9px, transparent 10px), radial-gradient(circle at 88% 18%, rgba(94,234,212,.18) 0 6px, transparent 7px), linear-gradient(180deg, #0b2a27, var(--an-bg) 40%); }
+.an-night.an-theme-jelly { background: radial-gradient(circle at 10% 0%, rgba(255,111,165,.22), transparent 40%), radial-gradient(circle at 100% 30%, rgba(139,123,255,.2), transparent 40%), var(--an-bg); }
+.an-night.an-theme-dial { background: radial-gradient(70% 30% at 50% 0%, rgba(255,200,90,.12), transparent 70%), var(--an-bg); }
+.an-night .an-l-list-bubbles .an-l-note, .an-night .an-l-list-jelly .an-l-note, .an-night .an-l-list-dial .an-l-note { background: var(--an-card); box-shadow: inset 0 0 0 1px var(--an-line); }
+.an-night .an-l-hero-bubbles .an-l-secondary button { background: var(--an-card); color: var(--an-ink); box-shadow: inset 0 0 0 1px var(--an-line); }
+.an-night .an-l-hero-bubbles .ty-wrap { background: linear-gradient(160deg, rgba(255,255,255,.1), rgba(255,255,255,.03)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); }
+.an-night.an-theme-bubbles .an-l-bar, .an-night.an-theme-jelly .an-l-bar { background: var(--an-card); border-color: var(--an-line); color: var(--an-muted); }

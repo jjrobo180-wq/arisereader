@@ -204,3 +204,14 @@
 @media (prefers-reduced-motion: reduce) {
   .pl { animation: none !important; }
 }
+
+/* Night: the light looks (Bubbles, Jelly, Dial) go dark, keeping their shapes and accents. */
+.los-bubbles.los-isdark .los-body { background: radial-gradient(circle at 12% 9%, rgba(94,234,212,.25) 0 9px, transparent 10px), radial-gradient(circle at 88% 22%, rgba(94,234,212,.18) 0 6px, transparent 7px), radial-gradient(circle at 76% 64%, rgba(94,234,212,.12) 0 14px, transparent 15px), linear-gradient(180deg, #0b2a27, var(--an-bg) 40%); }
+.los-jelly.los-isdark .los-body { background: radial-gradient(circle at 10% 0%, rgba(255,111,165,.22), transparent 40%), radial-gradient(circle at 100% 30%, rgba(139,123,255,.2), transparent 40%), radial-gradient(circle at 30% 100%, rgba(56,214,168,.14), transparent 45%), var(--an-bg); }
+.los-dial.los-isdark .los-body { background: radial-gradient(70% 30% at 50% 0%, rgba(255,200,90,.12), transparent 70%), repeating-linear-gradient(0deg, rgba(255,220,150,.03) 0 1px, transparent 1px 4px), var(--an-bg); }
+.los-isdark.los-bubbles .pl-pad .los-cal, .los-isdark.los-bubbles .lk-tasks, .los-isdark.los-bubbles .pl-notes, .los-isdark.los-bubbles .pl-next,
+.los-isdark.los-jelly .pl-next, .los-isdark.los-jelly .pl-pad .los-cal, .los-isdark.los-jelly .lk-tasks,
+.los-isdark.los-dial .pl-next, .los-isdark.los-dial .pl-pad .los-cal, .los-isdark.los-dial .lk-tasks { background: var(--an-card) !important; box-shadow: inset 0 0 0 1px var(--an-line), 0 14px 30px -20px rgba(0,0,0,.8) !important; }
+.los-isdark.los-bubbles .ty-wrap { background: linear-gradient(160deg, rgba(255,255,255,.1), rgba(255,255,255,.03)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); }
+.los-isdark.los-bubbles .ty-bubble { filter: brightness(.85) saturate(1.1); }
+.los-isdark .pl-dock-bubbles, .los-isdark .pl-dock-jelly { background: color-mix(in srgb, var(--an-card) 92%, transparent) !important; color: var(--an-muted) !important; box-shadow: inset 0 0 0 1px var(--an-line), 0 16px 36px -14px rgba(0,0,0,.8) !important; }
