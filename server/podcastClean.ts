@@ -66,7 +66,9 @@ export function xingFrame(first: Uint8Array, frames: number, audioBytes: number,
 /** One MP3 of the given byte ranges of a copy (each starts and ends on a frame): only whole audio
  *  frames, in order. Tags, stray bytes and encoder info frames between them are left out, and a Xing
  *  frame describing this file goes first. null when there's no audio or it's too big. */
-export async function writeCleanMp3(read: ByteReader, ranges: [number, number][], maxBytes = 450 * 1024 * 1024): Promise<{ data: Buffer; frames: number; secs: number } | null> {
+// 200 MB is over three hours at 128 kbps. Bigger copies aren't made (the server holds the file while
+// writing it, and stays well inside its memory); they play through the server as before.
+export async function writeCleanMp3(read: ByteReader, ranges: [number, number][], maxBytes = 200 * 1024 * 1024): Promise<{ data: Buffer; frames: number; secs: number } | null> {
   const total = ranges.reduce((a, r) => a + Math.max(0, r[1] - r[0]), 0);
   if (!total || total > maxBytes) return null;
   // The info frame is written in front of the audio at the end (its size is known only then).
