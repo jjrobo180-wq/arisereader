@@ -833,7 +833,10 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     let q = plays.current.get(ep.id);
     if (!q || q.sid !== sid) {
       if (q?.timer) clearTimeout(q.timer);
-      q = { sid, showId: ep.showId, ads: { ready: true, final: false, ads, how: "same", compared: 0, clean: true }, polls: 0, timer: null, used: Date.now(), clean: true };
+      // Ads still at its very start (a pre-roll that was part of the file): it starts after them.
+      let at = 0;
+      for (const x of ownAds(ads).slice().sort((m, n) => m.s - n.s)) { if (x.sure && x.s <= at + 1 && x.e - x.s <= 8 * 60) at = Math.max(at, x.e); else if (x.s > at + 1) break; }
+      q = { sid, showId: ep.showId, ads: { ready: true, final: false, ads, how: "same", compared: 0, clean: true, startAt: at >= 4 && at <= 600 ? at : undefined }, polls: 0, timer: null, used: Date.now(), clean: true };
       plays.current.set(ep.id, q); pollPlay(ep.id);
     }
     q.used = Date.now();
@@ -871,7 +874,19 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const smoothSkip = (a: HTMLAudioElement, ad: PlayAd, epId: string, fadeOut = true) => {
     // Never jump into the last seconds of what's really there (a bad ad guess ended the episode on
     // the spot, and Play then did the same jump again), and never in an episode set to play straight.
-    if (plainPlay.current.has(epId) || !safeTo(a, ad.e)) return;
+    if (plainPlay.current.has(epId)) return;
+    if (!safeTo(a, ad.e)) {
+      // An ad that runs to the very end (the post-roll), found in the audio itself or marked by
+      // listeners: the episode is over where it starts.
+      const D = a.duration;
+      const tail = Number.isFinite(D) && D > 0 && ad.e >= D - 15 && ad.s > 60 && safeTo(a, ad.s) && (ad.kind === "dai" || ad.kind === "known" || ad.kind === "chapter" || ad.kind === "splice" || ad.kind === "user");
+      if (!tail || skipping.current) return;
+      skipping.current = true;
+      setSkipped({ ad, epId }); addSaved(D - ad.s, false);
+      try { a.currentTime = D; } catch { /* not seekable */ }
+      setTimeout(() => { skipping.current = false; }, 1500);
+      return;
+    }
     if (skipping.current) return; skipping.current = true;
     const land = () => {
       // Playing a copy with ads in it and the ad-free copy is ready: carry on in that one, right after this ad.
