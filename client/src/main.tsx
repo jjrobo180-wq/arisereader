@@ -122,6 +122,14 @@ watchKeyboard();
 
 // Real photos on every A.R.I.S.E. Original cover (client/src/lib/readPhotos.ts).
 // Loaded after the page starts: it carries every story's details, which the first screen doesn't need.
+// A screen's stylesheet pulls its font from Google Fonts. When that is blocked (a school or work
+// network, an ad blocker, no internet for a moment) the browser reports the whole stylesheet as
+// failed, and the screen's code stopped there: LifeHub showed "Something went wrong". Carry on
+// without it instead — the screen just uses the fallback font. (A failed script still counts.)
+window.addEventListener("vite:preloadError", (event) => {
+  const message = String((event as Event & { payload?: { message?: string } }).payload?.message || "");
+  if (/preload CSS/i.test(message)) event.preventDefault();
+});
 createRoot(document.getElementById("root")!).render(<App />);
 void import("./lib/readPhotos").then((m) => m.installReadPhotos()).catch(() => { /* covers keep their drawings */ });
 // Live updates: this copy of the app started and drew its first screen (otherwise the iPhone app goes

@@ -1,6 +1,7 @@
 // Arise To Duo and WorkHub with an Arise Notes look: the hub root's colors and fonts, the areas around
 // the page on the iPhone, and each look's own top of Home. Classic, Tile and Old Computer add nothing.
 import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
+import { rememberHubBackdrop } from "@/lib/hubBackdrop";
 import { hubThemeOf } from "@shared/appThemes";
 import { nightLook, themeVars, type NotesTheme } from "@shared/notesThemes";
 import { isNativeApp, nativeCall } from "@/lib/nativeApp";
@@ -24,6 +25,11 @@ export function useHubLook(themeId: unknown, night: boolean): { look: NotesTheme
   const sent = useRef(false);
   useEffect(() => { publishLook(look); return () => publishLook(null); }, [look]);
   useEffect(() => { if (look) loadFont(look.fontUrl); }, [look]);
+  // Remembered so a hub that is still arriving shows this background, not a white flash (lib/hubBackdrop).
+  useEffect(() => {
+    const plain = hubThemeOf(themeId).vars["--hub-bg"];
+    rememberHubBackdrop(look ? look.bg : plain ?? (night ? "#14121f" : "#f6f7fc"), look ? !!look.dark : !!plain || night);
+  }, [look, themeId, night]);
   useEffect(() => {
     const html = document.documentElement, body = document.body;
     const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
