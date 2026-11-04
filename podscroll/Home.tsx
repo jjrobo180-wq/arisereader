@@ -487,7 +487,6 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
           ))}
         </div>
         <button onClick={() => onOpenFeed()} className="hidden h-9 items-center gap-2 rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2] md:inline-flex"><Sparkles size={17} strokeWidth={1.8} />Swipe feed</button>
-        {!pro && <button onClick={onJoin} className="hidden h-9 items-center rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white hover:bg-[#272727] lg:inline-flex">Go ad-free</button>}
         {!pro
           ? <button onClick={onSignIn} aria-label="Sign in" className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[#d3d3d3] px-2 text-sm font-medium text-[#065fd4] hover:bg-[#def1ff] min-[420px]:px-3"><UserCircle size={19} strokeWidth={1.8} /><span className="hidden min-[420px]:inline">Sign in</span></button>
           : <span className="relative">
@@ -558,10 +557,10 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       {navItem("Account & privacy", <ShieldCheck size={22} strokeWidth={1.8} />, false, () => setPrivacyOpen(true))}
       <div className="my-3 h-px bg-[#e5e5e5]" />
       {pro
-        ? <p className="mx-3 text-sm text-[#606060]"><b className="text-[#0f0f0f]">Pod+ Member.</b> Ads get skipped, and your show can earn.</p>
+        ? <p className="mx-3 text-sm text-[#606060]"><b className="text-[#0f0f0f]">Pod+ Member.</b> Your show can earn, and your place is kept on every device.</p>
         : <div className="mx-1 rounded-xl border border-[#e5e5e5] p-3">
           <p className="text-sm font-semibold">Pod+ Membership</p>
-          <p className="mt-1 text-[13px] leading-snug text-[#606060]">Listening is free. Members skip the ads and get paid for their own show.</p>
+          <p className="mt-1 text-[13px] leading-snug text-[#606060]">Listening is free, with no ads for everyone. Members get paid for their own show.</p>
           <button onClick={onJoin} className="mt-3 h-9 w-full rounded-full bg-[#0f0f0f] text-sm font-semibold text-white hover:bg-[#272727]">Become a member</button>
         </div>}
   </>;
@@ -656,12 +655,12 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
         <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[.18em] text-[#ff8a3d]">Pod+ Membership</p>
-            <h2 className="mt-2 text-[26px] font-bold leading-tight tracking-tight sm:text-[30px]">Hear the show, not the ads.</h2>
+            <h2 className="mt-2 text-[26px] font-bold leading-tight tracking-tight sm:text-[30px]">Make your show pay.</h2>
             <ul className="mt-3 grid gap-x-6 gap-y-1.5 text-[14px] text-white/80 sm:grid-cols-2">
-              <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />Ads skipped for you, automatically</li>
               <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />Get paid for your own show</li>
               <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />Your place saved on every device</li>
-              <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />Listening stays free either way</li>
+              <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />Your Pod Modes and likes everywhere</li>
+              <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />No ads for anyone, member or not</li>
             </ul>
           </div>
           <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
@@ -673,7 +672,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
 
       {!topic && chip !== "all" && <TopShows shows={topShows} onShow={openShowLatest} label={`Top in ${GENRE[chip]?.name ?? ""}`} note="Everything below stays unranked." />}
 
-      {chip === "all" && es.settings.hoursBack && <div className="mb-5"><HoursBackCard light member={pro} onJoin={onJoin} onHide={() => { update((e) => ({ ...e, settings: { ...e.settings, hoursBack: false } })); say("Hours back is hidden. Turn it on again in Settings."); }} /></div>}
+      {chip === "all" && es.settings.hoursBack && <div className="mb-5"><HoursBackCard light member onJoin={onJoin} onHide={() => { update((e) => ({ ...e, settings: { ...e.settings, hoursBack: false } })); say("Hours back is hidden. Turn it on again in Settings."); }} /></div>}
       {chip === "all" && <ModesRow es={es} update={update} onOpen={(m) => go({ kind: "mode", id: m.id })} onNew={() => setNewMode(true)} onDrive={() => onOpenFeed(undefined, undefined, { id: "__drive", index: 0 })} onNews={() => go({ kind: "now" })} onNewsRadio={() => onOpenFeed(undefined, undefined, { id: NEWS_RADIO_ID, index: 0 })} onNewsStations={() => go({ kind: "newsstations" })} />}
 
 

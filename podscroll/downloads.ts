@@ -78,6 +78,10 @@ async function fetchAudio(direct: string, relay: () => Promise<string>, onPct: (
     if (!r.ok) { const b = await r.json().catch(() => null); throw Object.assign(new Error(b?.message || "Couldn't download that. Try again."), { status: r.status }); }
     res = r;
   }
+  return readAll(res, onPct);
+}
+/** A response's body as one blob, saying how far along it is. */
+async function readAll(res: Response, onPct: (p: number) => void): Promise<Blob> {
   const total = Number(res.headers.get("content-length") || 0);
   const type = res.headers.get("content-type") || "audio/mpeg";
   if (!res.body) { const b = await res.blob(); onPct(1); return b; }
@@ -127,9 +131,16 @@ export function installDownloads(opts: { api: Api; apiBase: string; isMember: ()
     const stop = new AbortController(); running.set(key, stop);
     setState(key, { status: "saving", pct: 0 });
     try {
-      const blob = await fetchAudio(ep.audio, async () => `${opts.apiBase}/api/podscroll/download?u=${encodeURIComponent(ep.audio!)}&k=${encodeURIComponent(await getPass())}`, (pct) => setState(key, { status: "saving", pct }), stop.signal);
+      // Its ad-free copy when it has one (server/podcastClean.ts): the download has no ads in it either.
+      const clean = await opts.api(`/api/earshot/clean/${ep.id}?s=${ep.showId}`).catch(() => null);
+      let blob: Blob | null = null, isClean = false;
+      if (clean?.ready && typeof clean.url === "string") {
+        try { const r = await fetch(clean.url, { mode: "cors", credentials: "omit", signal: stop.signal }); if (r.ok) { blob = await readAll(r, (pct) => setState(key, { status: "saving", pct })); isClean = true; } }
+        catch (e: any) { if (e?.name === "AbortError") throw e; }
+      }
+      if (!blob) blob = await fetchAudio(ep.audio, async () => `${opts.apiBase}/api/podscroll/download?u=${encodeURIComponent(ep.audio!)}&k=${encodeURIComponent(await getPass())}`, (pct) => setState(key, { status: "saving", pct }), stop.signal);
       await saveFile(key, blob);
-      await saveItem({ kind: "episode", id: key, ep, bytes: blob.size, savedAt: Date.now() });
+      await saveItem({ kind: "episode", id: key, ep, bytes: blob.size, savedAt: Date.now(), ...(isClean ? { clean: true } : {}) });
       setState(key, null);
       opts.say("Downloaded. It plays without a connection, in Library → Downloads.");
     } catch (e) { await dropFile(key); fail(key, e); }
@@ -183,6 +194,7 @@ export function installDownloads(opts: { api: Api; apiBase: string; isMember: ()
     savedBook: (id: string) => BookDetail | null;
   } = {
     url: (key) => urls.get(key) || null,
+    isClean: (key) => { const it = items.get(key); return it?.kind === "episode" && !!it.clean; },
     state,
     saveEpisode,
     remove,

@@ -91,6 +91,7 @@ import { GENRES as PODCAST_GENRES } from "../shared/earshot";
 import { supabaseAdStore } from "./podcastAds";
 import { startCopyDiagnostics } from "./podcastCopies";
 import { createPlayer as createPodcastPlayer, startPlayDiagnostics } from "./podcastPlay";
+import { createCleaner as createPodcastCleaner, supabaseCleanStore } from "./podcastClean";
 import { createAdLibrary } from "./podcastAdLibrary";
 import { registerPassLockRoutes } from "./passLock";
 import { registerProfileLinkRoutes } from "./profileLinks";
@@ -1665,6 +1666,9 @@ export async function registerRoutes(
   startCopyDiagnostics(supabaseKV(getAdminSupabase));
   // Playback through the server (one for both apps): stitched-in ads found in each listener's own copy.
   const podcastPlayer = createPodcastPlayer({ library: createAdLibrary(supabaseKV(getAdminSupabase)) });
+  // Ad-free copies (server/podcastClean.ts): once a listener's copy is compared, its show audio with the
+  // stitched-in ads cut out is kept in storage, and everyone plays that file straight from there.
+  if (process.env.EARSHOT_CLEAN !== "0") createPodcastCleaner({ player: podcastPlayer, kv: supabaseKV(getAdminSupabase), store: supabaseCleanStore(getAdminSupabase) });
   startPlayDiagnostics(supabaseKV(getAdminSupabase), podcastPlayer, podcasts);
   // New episodes of followed and top shows checked for ads before anyone plays them, with the AI allowance left over at night.
   if (process.env.EARSHOT_PRECHECK === "1") startPodcastPrechecks({ kv: supabaseKV(getAdminSupabase), player: podcastPlayer, dir: podcasts,
