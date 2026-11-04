@@ -17,6 +17,7 @@ export type OsProps = {
   /** The full Calendar or Notes app, for adding and editing. */
   content?: ReactNode; onYou: () => void;
   /** The hub's name and its Work/Life switch, always at the top. */ hubName: string; hubSwitch: ReactNode;
+  /** The notification bell, in the top bar beside the switch (in the bar's own row, so it can never cover "Work"). */ bell?: ReactNode;
   /** Shown at the bottom of Home: invitations and the hub's standing banner. */ banner?: ReactNode;
   /** Main apps turned off in the App Gallery, which leave the dock. */ off?: OsScreen[];
   /** Apps behind the passcode, whose details stay off Home until it is entered. */ lockedApps?: string[];
@@ -194,7 +195,7 @@ export function LookOS(p0: OsProps) {
   // The computer looks open each screen in a window on the desktop.
   const win = (title: string, node: ReactNode) => DESKTOP_LOOKS.has(p.look.id) ? <div className="sys-desk"><SystemWindow look={p.look} title={title} onClose={() => p.go("home")}>{node}</SystemWindow></div> : node;
   return <div style={themeVars(p.look) as CSSProperties} className={`los los-${p.look.id}${SYSTEM_LOOKS.has(p.look.id) ? " los-sys" : ""}${p.look.dark ? " los-isdark" : ""}`} data-screen={p.screen} data-testid="look-os">
-    <header className="los-topbar"><b>{p.look.id === "console" ? `~/${p.hubName.toLowerCase()}` : p.hubName}</b>{p.hubSwitch}</header>
+    <header className="los-topbar"><b>{p.look.id === "console" ? `~/${p.hubName.toLowerCase()}` : p.hubName}</b><div className="los-topright">{p.bell}{p.hubSwitch}</div></header>
     <div className="los-body">
       {p.look.id === "gazette" && p.screen !== "home" && <div className="los-paper"><header><h1>The Daily Duo</h1><small>{p.dateLabel}</small></header></div>}
       {p.screen === "home" && <><Home {...p} />{p.banner && <div className="los-banner">{p.banner}</div>}</>}
