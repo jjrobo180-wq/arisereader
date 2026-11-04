@@ -231,7 +231,7 @@ export function createCleaner(o: { player: Player; kv: KVLike; store: CleanStore
 
   /** A copy that was just compared: made into the episode's ad-free copy, unless it has one. */
   function offer(s: Sess) {
-    if (!s || s.clean || s.voter === "diag") return;
+    if (!s || s.clean) return;
     if (!s.copy?.done || s.copy.err || !s.copy.scanner?.count) return;
     // Only from a copy whose stitched-in ads are known for sure.
     if ((s.ads?.how !== "diff" && s.ads?.how !== "same") || !(s.ads?.compared >= 1)) return;
