@@ -350,7 +350,7 @@ function MoreSheet({ page, meta, content, words, folders, onClose, setMeta, open
       <div className="flex items-center justify-between gap-3"><span className="text-[14px] font-bold">Color</span><ColorDots value={meta?.color ?? page.color} onChange={(c) => setMeta({ color: c })} /></div>
       <label className="flex items-center justify-between gap-3 text-[14px] font-bold">Folder
         <select className="an-input !w-auto !min-h-10" value={meta?.folderId ?? page.folderId} onChange={(e) => { setMeta({ folderId: e.target.value }); say(e.target.value ? "Moved." : "Moved to All notes."); }} data-testid="pages-move">
-          <option value="">No folder</option>{folders.map((f) => <option key={f.id} value={f.id}>{f.icon} {f.name}</option>)}
+          <option value="">No folder</option>{folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
         </select>
       </label>
       <div className="divide-y divide-[var(--an-line)] rounded-2xl border border-[var(--an-line)]">

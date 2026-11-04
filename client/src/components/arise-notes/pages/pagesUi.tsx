@@ -87,16 +87,14 @@ export function ColorDots({ value, onChange }: { value: string; onChange: (c: st
 }
 
 // ─── Folders ─────────────────────────────────────────────────────────────────
-const FOLDER_EMOJI = ["📁", "📚", "🍎", "💼", "🏠", "✨", "🧠", "🎨", "🗓️", "💡", "❤️", "🌱"];
 export function FolderSheet({ folder, onSave, onDelete, onClose }: { folder: Folder | null; onSave: (f: { name: string; color: string; icon: string }) => void; onDelete?: () => void; onClose: () => void }) {
   const [name, setName] = useState(folder?.name ?? "");
   const [color, setColor] = useState(folder?.color ?? "#6a55dc");
-  const [icon, setIcon] = useState(folder?.icon ?? "📁");
+  const icon = folder?.icon ?? "📁";
   return <Sheet title={folder ? "Edit folder" : "New folder"} onClose={onClose}>
     <div className="space-y-4">
       <input className="an-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Folder name" maxLength={40} autoFocus data-testid="pages-folder-name" />
-      <div className="flex flex-wrap gap-2">{FOLDER_EMOJI.map((e) => <button key={e} type="button" aria-pressed={icon === e} onClick={() => setIcon(e)} className={`grid h-10 w-10 place-items-center rounded-xl text-[20px] ${icon === e ? "bg-[var(--an-violet-soft)] ring-2 ring-[var(--an-violet)]" : "bg-slate-50"}`}>{e}</button>)}</div>
-      <ColorDots value={color} onChange={(c) => setColor(c || "#64748b")} />
+      <div><p className="mb-2 text-[13px] font-semibold text-[var(--an-muted)]">Folder color</p><ColorDots value={color} onChange={(c) => setColor(c || "#64748b")} /></div>
       <div className="flex gap-2">
         {onDelete && <Btn kind="danger" onClick={onDelete}>Delete folder</Btn>}
         <Btn kind="primary" className="flex-1" disabled={!name.trim()} onClick={() => onSave({ name: name.trim(), color, icon })} data-testid="pages-folder-save">{folder ? "Save" : "Create"}</Btn>

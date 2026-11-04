@@ -8,6 +8,8 @@ on:
       - '.github/workflows/app-store-screens.yml'
       - 'script/appStoreScreens.mjs'
       - 'script/notesLooksPreview.*'
+      - 'script/notesPagesPreview.*'
+      - 'client/src/components/arise-notes/pages/**'
 permissions:
   contents: write
 jobs:
@@ -30,6 +32,9 @@ jobs:
           mkdir -p dist/public/notes-looks
           npx esbuild script/notesLooksPreview.tsx --bundle --format=esm --jsx=automatic --loader:.css=css --define:process.env.NODE_ENV='"production"' --alias:@=./client/src --alias:@shared=./shared --outfile=dist/public/notes-looks/main.js
           cp script/notesLooksPreview.html dist/public/notes-looks/index.html
+          mkdir -p dist/public/notes-pages
+          npx esbuild script/notesPagesPreview.tsx --bundle --format=esm --jsx=automatic --loader:.css=css --define:process.env.NODE_ENV='"production"' --alias:@=./client/src --alias:@shared=./shared --outfile=dist/public/notes-pages/main.js
+          cp script/notesLooksPreview.html dist/public/notes-pages/index.html
       - name: Install a browser
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.56.1

@@ -153,11 +153,15 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   useEffect(() => { if (s?.font === "dyslexic") loadLexend(); }, [s?.font]);
   // High contrast is an accessibility need, so it always wins over a look.
   const look = s?.night ? nightLook(themeOf(s?.theme)) : themeOf(s?.theme);
-  const themed = !s?.contrast && (look.id !== "classic" || !!s?.night);
+  // The Notes tab (typed and handwritten notes) always has a plain, professional look: neutral surfaces,
+  // the system's own type and real folders. Dark when the look or night mode is dark.
+  const pro = (route.name === "pages" || route.name === "page") && !s?.contrast;
+  const proDark = pro && (!!s?.night || (look.id !== "classic" && !!look.dark));
+  const themed = !pro && !s?.contrast && (look.id !== "classic" || !!s?.night);
   useEffect(() => { if (themed) loadThemeFont(look.fontUrl); }, [themed, look.fontUrl]);
   // The areas around the page (behind the status bar and Home indicator) match the look.
-  const backdrop = s?.contrast ? "#ffffff" : themed ? look.bg : "#f5f4fb";
-  const darkBackdrop = themed && !!look.dark;
+  const backdrop = s?.contrast ? "#ffffff" : pro ? (proDark ? "#0f0f11" : "#f2f2f7") : themed ? look.bg : "#f5f4fb";
+  const darkBackdrop = pro ? proDark : themed && !!look.dark;
   useEffect(() => {
     const html = document.documentElement, body = document.body;
     const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
@@ -175,7 +179,7 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
     }
     return () => { html.style.background = before[0] ?? ""; body.style.background = before[1] ?? ""; if (meta && before[2]) meta.content = before[2]; html.style.overscrollBehavior = overscroll[0]; body.style.overscrollBehavior = overscroll[1]; };
   }, [backdrop, darkBackdrop]);
-  const rootClass = ["an-root min-h-[100dvh]", s?.font === "dyslexic" && "an-dyslexic", s?.simple && "an-simple", s?.contrast && "an-contrast", s?.night && !s?.contrast && "an-night", s?.large && "an-large", themed && "an-themed", themed && `an-theme-${look.id}`].filter(Boolean).join(" ");
+  const rootClass = ["an-root min-h-[100dvh]", s?.font === "dyslexic" && "an-dyslexic", s?.simple && "an-simple", s?.contrast && "an-contrast", s?.night && !s?.contrast && !pro && "an-night", s?.large && "an-large", pro && "an-pro", proDark && "an-pro-dark", themed && "an-themed", themed && `an-theme-${look.id}`].filter(Boolean).join(" ");
   const rootStyle = themed ? themeVars(look) as CSSProperties : undefined;
 
   if (!me) {
