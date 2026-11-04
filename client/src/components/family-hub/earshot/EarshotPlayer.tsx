@@ -1214,12 +1214,17 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   }, [esRef, standalone]);
   const activateRef = useRef(activate); activateRef.current = activate;
   // While a copy with ads in it plays (its ad-free copy not ready yet), ask now and then: once it is,
-  // the player changes over at its next ad, pause or hiccup.
+  // the player changes over at its next ad, pause or hiccup. The next episode, loaded ahead, too: it
+  // changes over before it's reached.
   useEffect(() => {
     const iv = setInterval(() => {
-      const a = cur.current; const it = itemsRef.current[activeRef.current]; const ep = it?.ep;
-      if (!a || !ep || it?.live || a.dataset.ep !== ep.id || a.dataset.clean === "1" || !a.dataset.sid || cleanOff.current.has(ep.id)) return;
-      void askClean(ep).then((c) => { if (c) cleanArrived(ep); });
+      for (const k of [0, 1]) {
+        const it = itemsRef.current[activeRef.current + k]; const ep = it?.ep;
+        if (!ep || it?.live || cleanOff.current.has(ep.id)) continue;
+        const a = players.current.find((x) => x.dataset.ep === ep.id);
+        if (!a || a.dataset.clean === "1" || !a.dataset.sid) continue;
+        void askClean(ep).then((c) => { if (c) cleanArrived(ep); });
+      }
     }, 20_000);
     return () => clearInterval(iv);
     // eslint-disable-next-line react-hooks/exhaustive-deps
