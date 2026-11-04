@@ -432,6 +432,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   const [side, setSide] = useState(true);
   // The slide-out menu (phones and tablets; on wide screens the menu button shows/hides the side panel).
   const [drawer, setDrawer] = useState(false);
+  // While the menu is open the page behind it stays put (on iPhone it scrolled and dragged along).
+  useEffect(() => { if (!drawer) return; const b = document.body.style, o = b.overflow; b.overflow = "hidden"; return () => { b.overflow = o; }; }, [drawer]);
   useEffect(() => { if (!drawer) return; const k = (e: KeyboardEvent) => { if (e.key === "Escape") setDrawer(false); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [drawer]);
   const toggleMenu = () => { if (typeof matchMedia === "function" && matchMedia("(min-width: 1024px)").matches) setSide((x) => !x); else setDrawer((d) => !d); };
   const [q, setQ] = useState(view.kind === "search" ? view.q : "");
@@ -690,9 +692,10 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     {dark && <style>{DARK_CSS}</style>}
     {header}
     {drawer && <div className="fixed inset-0 z-[65]" role="dialog" aria-modal="true" aria-label="Menu">
-      <div className="ps-fade absolute inset-0 bg-black/45" onClick={() => setDrawer(false)} />
-      <nav aria-label="Menu" className="ps-slide absolute inset-y-0 left-0 flex w-[290px] max-w-[85vw] flex-col gap-0.5 overflow-y-auto bg-white px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[calc(env(safe-area-inset-top,0px)+0.5rem)] shadow-2xl">
-        <div className="mb-2 flex h-12 items-center justify-between pl-2">
+      <div className="ps-fade absolute inset-0 touch-none bg-black/45" onClick={() => setDrawer(false)} />
+      <nav aria-label="Menu" className="ps-slide absolute inset-y-0 left-0 flex w-[290px] max-w-[85vw] touch-pan-y flex-col gap-0.5 overflow-y-auto overflow-x-hidden overscroll-contain bg-white px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-0 shadow-2xl">
+        {/* Stays at the top while the list scrolls, so items never slide up under the clock. */}
+        <div className="sticky top-0 z-10 -mx-3 mb-2 flex shrink-0 items-center justify-between bg-white pb-1 pl-5 pr-3 pt-[calc(env(safe-area-inset-top,0px)+0.5rem)]">
           <span className="inline-flex items-center gap-1.5"><svg width="30" height="21" viewBox="0 0 30 21" aria-hidden="true"><rect width="30" height="21" rx="6" fill="#ff6a1f" /><rect x="8" y="7.5" width="2.4" height="6" rx="1.2" fill="#fff" /><rect x="12.2" y="4.5" width="2.4" height="12" rx="1.2" fill="#fff" /><rect x="16.4" y="6.5" width="2.4" height="8" rx="1.2" fill="#fff" /><rect x="20.6" y="8.5" width="2.4" height="4" rx="1.2" fill="#fff" /></svg><span className="text-[19px] font-bold tracking-[-0.04em]">Pod+</span></span>
           <button onClick={() => setDrawer(false)} aria-label="Close menu" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><X size={22} /></button>
         </div>
