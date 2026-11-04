@@ -229,6 +229,7 @@ body.big .prompt{font-size:clamp(2.4rem,8vw,3.7rem)} body.big .prompt.long{font-
 .answer input{flex:1 1 170px;max-width:300px;font-weight:800;font-size:1.7rem;padding:8px 16px;border:2px solid var(--line-2);border-radius:14px;font-variant-numeric:tabular-nums}
 .answer input.is-bad{border-color:var(--coral);animation:shake .35s}
 @keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.choices.wordy{grid-template-columns:minmax(0,1fr)!important}.choices.wordy button{min-height:52px;height:auto;padding:10px 14px;font-size:1rem;line-height:1.3;text-align:left}
 .keypad{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;max-width:430px}
 .keypad button{min-height:46px;font-weight:800;font-size:1.15rem;background:var(--card-2);border:1px solid var(--line);border-radius:12px}
 .keypad button:active{background:var(--primary-soft)}
@@ -584,7 +585,9 @@ async function apiAt(fullPath, opts = {}){
 }
 const api = (path, opts) => apiAt('/api/math' + path, opts);
 /** Sends people to the main site to sign up or sign in, and back here afterwards. */
-function goSignIn(path){ try { sessionStorage.setItem('arise_return_to', '/math/'); } catch {} location.href = path; }
+/** The main site's sign-in and sign-up screens live behind its hash router ("/#/signin"), so "/" or
+ *  "/register" would open the A.R.I.S.E. Reader front page instead. It brings people back here after. */
+function goSignIn(path){ try { sessionStorage.setItem('arise_return_to', '/math/'); } catch {} const p = String(path || '/'); location.href = p.startsWith('/#') ? p : '/#' + (p === '/' ? '/signin' : p); }
 const store = { get(k){ try { return JSON.parse(sessionStorage.getItem(k)||'null'); } catch { return null; } }, set(k,v){ try { v==null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, JSON.stringify(v)); } catch {} } };
 const keep = { get(k, d){ try { return JSON.parse(localStorage.getItem(k)||'null') ?? d; } catch { return d; } }, set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
 
@@ -826,12 +829,12 @@ function answerHTML(it){
   if (useChoices){
     const names={'<':'less than','=':'equal to','>':'greater than'};
     const right = c => it.done && it.answer!=null && (it.kind==='choice' ? c.v===it.answer : Number(c.v)===Number(it.answer));
-    return `<div class="choices">${it.choices.map(c=>{ const bad=it.wrong.includes(c.v), good=right(c);
+    return `<div class="choices ${it.choices.some(c=>String(c.label).length>12)?'wordy':''}">${it.choices.map(c=>{ const bad=it.wrong.includes(c.v), good=right(c);
       return `<button type="button" data-act="pick" data-v="${esc(c.v)}" class="${good?'is-good':bad?'is-bad':''}" ${it.done||bad?'disabled':''} aria-label="${esc(names[c.label]||c.label)}">${esc(c.label)}</button>`; }).join('')}</div>`;
   }
-  const keys=['1','2','3','4','5','6','7','8','9','0','−','/','.','⌫','Clear'];
+  const keys=['1','2','3','4','5','6','7','8','9','0','−','/','.','⌫','Space','Clear'];
   return `<form class="answer" id="ansForm" autocomplete="off"><label for="ans" class="sr">Your answer</label><input id="ans" inputmode="none" placeholder="?" spellcheck="false" class="${S.run.bad?'is-bad':''}" ${it.done?'disabled':''} value="${it.done&&it.answer!=null?esc(it.answerLabel||fmtV(it.answer)):''}"><button class="btn primary lg" type="submit" ${it.done||S.run.busy?'disabled':''}>Check</button></form>
-    ${it.done?'':`<div class="keypad" aria-label="Number pad">${keys.map(k=>`<button type="button" data-act="key" data-v="${k}" class="${k==='Clear'?'wide':''}" aria-label="${k==='⌫'?'Delete':k==='−'?'Minus':k}">${k}</button>`).join('')}</div>`}`;
+    ${it.done?'':`<div class="keypad" aria-label="Number pad">${keys.map(k=>`<button type="button" data-act="key" data-v="${k}" class="${k==='Clear'||k==='Space'?'wide':''}" aria-label="${k==='⌫'?'Delete':k==='−'?'Minus':k}">${k}</button>`).join('')}</div>`}`;
 }
 function runnerHTML(){
   const s = S.run.session, it = s.item, sk = SK(it.skill);
@@ -841,7 +844,7 @@ function runnerHTML(){
     <div class="cover run-head"><div class="run-top"><button class="btn sm glass" data-act="quit">${svg('x')}Leave quiz</button><span class="run-pts tnum">${s.points} pts</span></div>
       <div class="run-title"><b>${esc(s.title)}</b><span>Question ${s.i+1} of ${s.n}</span></div><div class="pips">${pips}</div></div>
     <div class="run-body">
-      <div class="row between"><div class="row" style="gap:8px"><span class="chip cl" style="--c:${cc(sk.c)}">${esc(sk.name)}</span><span class="small muted">${sk.std?'CCSS '+esc(sk.std):''}</span></div>
+      <div class="row between"><div class="row" style="gap:8px"><span class="chip cl" style="--c:${cc(sk.c)}">${esc(it.topic||sk.name)}</span><span class="small muted">${sk.std?'CCSS '+esc(sk.std):''}</span></div>
         <div class="row" style="gap:6px">${canSpeak?`<button class="btn sm" data-act="speak">${svg('speaker')}Read aloud</button>`:''}${it.kind==='num'?`<button class="btn sm" data-act="a11y" data-v="choices" aria-pressed="${!!P().a11y.choices}">${svg('eye')}Picture choices</button>`:''}</div></div>
       <p class="ask">${esc(it.ask)}</p>
       <div class="prompt ${it.long?'long':''}">${it.prompt}</div>
@@ -852,7 +855,7 @@ function runnerHTML(){
       <div class="hints"><button class="btn" data-act="hint" ${shown>=it.stepsTotal||S.run.busy?'disabled':''}>${shown>=it.stepsTotal?'All steps shown':shown?`Next step (${shown+1} of ${it.stepsTotal})`:'Show a hint'}</button>
         ${shown?`<ol class="steps">${it.steps.map(x=>`<li>${x}</li>`).join('')}</ol>`:''}
         ${it.skill!=='custom'&&CAT.learn?.[it.skill]?`<details class="bigidea"><summary>${svg('info')}Big idea</summary><p>${esc(LEARN_OF(it.skill).idea)}</p><p class="small"><b>Remember:</b> ${esc(LEARN_OF(it.skill).remember)}</p></details>`:''}</div>
-    </div></div>`;
+    </div></div>${it.videos?.length?videoCardHTML('cur', null, it.topic, it.videos):''}`;
 }
 function resultsHTML(){
   const { result:r, session:s } = S.result, first = ME.user.name.split(' ')[0];
@@ -1074,10 +1077,10 @@ function modeHTML(){
       <div class="row" style="gap:8px;flex-wrap:wrap">${L.flip?`<button class="btn primary lg" data-act="mknew">${svg('check')}I knew it</button><button class="btn lg" data-act="magain">Practice it again</button>`:`<button class="btn primary lg" data-act="mflip" id="mFlip">Flip the card</button>`}</div>`;
     else if (L.mode==='speed') body = `${modeQ(p)}${modeChoices(p, { done:false, wrong:[] })}${L.last?`<p class="feedback ${L.last.c}" role="status">${esc(L.last.t)}</p>`:''}`;
     else {
-      const keys=['1','2','3','4','5','6','7','8','9','0','−','/','.','⌫','Clear'];
+      const keys=['1','2','3','4','5','6','7','8','9','0','−','/','.','⌫','Space','Clear'];
       const ans = p.kind==='choice' ? modeChoices(p, L)
         : `<form class="answer" id="mForm" autocomplete="off"><label for="mAns" class="sr">Your answer</label><input id="mAns" inputmode="none" placeholder="?" spellcheck="false" class="${L.missed?'is-bad':''}" ${L.done?'disabled':''} value="${esc(L.done?(L.missed?L.typed:p.answerLabel):'')}"><button class="btn primary lg" type="submit" ${L.done?'disabled':''}>Check</button></form>
-          ${L.done?'':`<div class="keypad" aria-label="Number pad">${keys.map(k=>`<button type="button" data-act="mkey" data-v="${k}" class="${k==='Clear'?'wide':''}" aria-label="${k==='⌫'?'Delete':k==='−'?'Minus':k}">${k}</button>`).join('')}</div>`}`;
+          ${L.done?'':`<div class="keypad" aria-label="Number pad">${keys.map(k=>`<button type="button" data-act="mkey" data-v="${k}" class="${k==='Clear'||k==='Space'?'wide':''}" aria-label="${k==='⌫'?'Delete':k==='−'?'Minus':k}">${k}</button>`).join('')}</div>`}`;
       body = `${modeQ(p)}${ans}${L.fb?`<p class="feedback ${L.fb.c}" role="status">${esc(L.fb.t)}</p>`:''}
         ${L.missed?`<div class="hintbox"><span class="eyebrow">How to solve it</span><ol class="steps">${p.steps.map(x=>`<li>${x}</li>`).join('')}</ol></div>`:''}
         ${L.done?`<div><button class="btn primary lg" data-act="mnext" id="mNext">Next question</button></div>`:''}`;
@@ -1246,7 +1249,7 @@ function gameBodyHTML(){
       <div class="streak streak-card" aria-label="Current streak: ${G.streak}">${Array.from({length:10},(_,i)=>`<i class="${i<Math.min(G.streak,10)?'on':''}"></i>`).join('')}</div>
       <p class="small muted tnum">${G.streak} in a row${mult>1?` · ×${mult} points`:''}</p>
       <form class="answer" id="gForm" autocomplete="off"><label for="gAns" class="sr">Your answer</label><input id="gAns" inputmode="none" placeholder="?" autofocus spellcheck="false"><button class="btn primary lg" type="submit">Check</button></form>
-      <div class="keypad" aria-label="Number pad">${keys.map(k=>`<button type="button" data-act="gkey" data-v="${k}" class="${k==='Clear'?'wide':''}" aria-label="${k==='⌫'?'Delete':k==='−'?'Minus':k}">${k}</button>`).join('')}</div>
+      <div class="keypad" aria-label="Number pad">${keys.map(k=>`<button type="button" data-act="gkey" data-v="${k}" class="${k==='Clear'||k==='Space'?'wide':''}" aria-label="${k==='⌫'?'Delete':k==='−'?'Minus':k}">${k}</button>`).join('')}</div>
       <p class="${G.last?`feedback ${G.last.c}`:'small muted'}" role="status">${G.last?esc(G.last.t):'Type the answer and hit Check.'}</p>${quit}</div>`;
   }
   return `<div class="card stack">${top('True or False?', `${G.score}`, `${G.miss} missed`)}
@@ -1319,6 +1322,20 @@ async function studentModal(id){
 }
 
 /* ================= TEACHER: ASSIGN ================= */
+/* A published curriculum, lesson by lesson: try it, read every question, assign it. */
+function curriculumCardHTML(){
+  const C = S.curriculum;
+  if (C === undefined) { S.curriculum = null; api('/curriculum').then(r=>{ S.curriculum=r.lessons; render(); }).catch(()=>{ S.curriculum=[]; render(); }); }
+  if (!C) return `<div class="card"><h2>Curriculum</h2><p class="small muted">Loading…</p></div>`;
+  if (!C.length) return '';
+  return `<div class="card stack" data-testid="curriculum"><div><h2>Curriculum</h2><p class="small muted">Lesson-based practice with new questions, steps, hints and a video lesson.</p></div>
+    ${C.map(l=>`<div class="stack" style="gap:10px;padding-top:12px;border-top:1px solid var(--line)">
+      <div><span class="small muted">Grade ${l.grade} · Unit ${l.unit}: ${esc(l.unitTitle)}</span><h3 style="margin:2px 0 4px;font-size:1.05rem">Lesson ${l.lesson}: ${esc(l.title)}</h3><p class="small muted">${esc(l.goal)}</p></div>
+      <div class="grid two"><label class="f">Questions<select id="curN-${l.id}"><option>5</option><option>10</option></select></label><label class="f">Due<input type="date" id="curDue-${l.id}" value="${plus(2)}" min="${plus(0)}"></label></div>
+      <div class="row" style="flex-wrap:wrap;gap:8px"><button class="btn primary" data-act="curassign" data-v="${l.id}">${svg('plus')}Assign to class</button><button class="btn outline" data-act="curtry" data-v="${l.id}">${svg('play')}Try it yourself</button></div>
+      <details><summary class="small"><b>See all ${l.questions.length} questions and answers</b></summary><ol class="stack" style="gap:12px;padding-left:20px;margin-top:10px">${l.questions.map(q=>`<li><p>${esc(q.q)}</p>${q.choices?`<ul class="small muted" style="padding-left:16px">${q.choices.map(c=>`<li>${esc(c)}</li>`).join('')}</ul>`:''}<p class="small"><b>Answer:</b> ${esc(String(q.answerLabel))}</p><details><summary class="small">Steps</summary><ol class="small" style="padding-left:18px">${q.steps.map(x=>`<li>${esc(x)}</li>`).join('')}</ol></details></li>`).join('')}</ol></details>
+      <p class="small muted">${esc(l.credit)} <a href="${esc(l.sourceUrl)}" target="_blank" rel="noopener noreferrer">The lesson</a></p></div>`).join('')}</div>`;
+}
 function assignHTML(){
   const asg = S.assign, d = S.drafts, b = S.cls?.settings.band || 'g35';
   return `<div class="card"><h1>Assign practice</h1><p class="muted" style="margin-top:4px">Assignments show up first on each student’s Practice page, and they get a notification.</p></div>
@@ -1327,6 +1344,7 @@ function assignHTML(){
       <label class="f">Questions<select id="aN"><option>5</option><option>10</option></select></label>
       <label class="f">Due<input type="date" id="aDue" value="${plus(2)}" min="${plus(0)}"></label></div>
       <div><button class="btn primary" data-act="assign">${svg('plus')}Assign to class</button></div></div>
+    ${curriculumCardHTML()}
     ${worksheetCardHTML()}
     <div class="card"><div class="card-h"><h2>Assigned</h2><span class="small muted tnum">${asg?asg.length:''}</span></div>
       ${asg==null?'<p class="small muted">Loading…</p>':asg.length?asg.map(a=>`<div class="assign">${op(a.skill)}<div><b>${esc(a.title)}</b><span class="small muted">${a.n} questions · Due ${fmtDue(a.due)} · ${a.done} of ${a.classSize} finished</span></div><button class="btn sm" data-act="unassign" data-v="${a.id}">Remove</button></div>`).join(''):'<p class="small muted">Nothing assigned yet.</p>'}</div>
@@ -1463,6 +1481,8 @@ function mainHTML(){
     return meHTML();
   }
   if (isStaff()){
+    if (S.run) return runnerHTML();
+    if (S.result) return resultsHTML();
     if (S.tab==='class') return classHTML();
     if (S.tab==='assign') return assignHTML();
     if (S.tab==='live') return liveHTML();
@@ -1523,13 +1543,13 @@ document.addEventListener('click', async e=>{
     case 'mflip': S.lesson.flip=true; render(); setTimeout(()=>document.querySelector('[data-act="mknew"]')?.focus({preventScroll:true}),0); return;
     case 'mknew': S.lesson.known++; return modeNext();
     case 'magain': { const L=S.lesson; if (L.again<10){ L.again++; L.set.push(curP()); } return modeNext(); }
-    case 'mkey': { const inp=document.getElementById('mAns'); if(!inp) return; if(v==='⌫') inp.value=inp.value.slice(0,-1); else if(v==='Clear') inp.value=''; else inp.value+=v; inp.classList.remove('is-bad'); return; }
+    case 'mkey': { const inp=document.getElementById('mAns'); if(!inp) return; if(v==='⌫') inp.value=inp.value.slice(0,-1); else if(v==='Clear') inp.value=''; else inp.value+=(v==='Space'?' ':v); inp.classList.remove('is-bad'); return; }
     case 'cograde': S.coGrade = v; S.wsPick = null; return render();
     case 'worksheet': return openWorksheet(v==='each');
     case 'wsall': case 'wsnone': document.querySelectorAll('.wsSkill').forEach(b=>{ b.checked = act==='wsall'; }); return;
     case 'quit': S.run=null; store.set('arise_math_run', null); return render();
     case 'pick': return submitAnswer(v);
-    case 'key': { const inp=document.getElementById('ans'); if(!inp) return; if(v==='⌫') inp.value=inp.value.slice(0,-1); else if(v==='Clear') inp.value=''; else inp.value+=v; inp.classList.remove('is-bad'); return; }
+    case 'key': { const inp=document.getElementById('ans'); if(!inp) return; if(v==='⌫') inp.value=inp.value.slice(0,-1); else if(v==='Clear') inp.value=''; else inp.value+=(v==='Space'?' ':v); inp.classList.remove('is-bad'); return; }
     case 'hint': { const r = await quizCall('/hint'); if (r){ S.run.session=r.session; S.run.bad=false; render(); } return; }
     case 'next': return nextQuestion();
     case 'speak': return speakText(S.run.session.item.ask+'. '+plainOf(S.run.session.item));
@@ -1546,7 +1566,7 @@ document.addEventListener('click', async e=>{
     case 'mflipcard': return flipCard(v);
     case 'balloon': return popBalloon(el, v);
     case 'tf': return tfAnswer(v);
-    case 'gkey': { const inp=document.getElementById('gAns'); if(!inp) return; if(v==='⌫') inp.value=inp.value.slice(0,-1); else if(v==='Clear') inp.value=''; else inp.value+=v; inp.classList.remove('is-bad'); return; }
+    case 'gkey': { const inp=document.getElementById('gAns'); if(!inp) return; if(v==='⌫') inp.value=inp.value.slice(0,-1); else if(v==='Clear') inp.value=''; else inp.value+=(v==='Space'?' ':v); inp.classList.remove('is-bad'); return; }
     case 'tile': return tapTile(v);
     case 'moretime': try { const r = await apiAt('/api/club-play/request-more-time', { method:'POST', body:{ minutes:10 } }); toast(r.message || 'Request sent.'); if (playAccess) playAccess.timeRequestStatus='pending'; render(); } catch(err){ toast(err.message); } return;
     case 'joinlive': {
@@ -1567,6 +1587,16 @@ document.addEventListener('click', async e=>{
         await api('/assignments', { method:'POST', body:{ skill, n, due, questions: skill==='custom' ? S.drafts : undefined } });
         if (skill==='custom'){ S.drafts=[]; keep.set('arise_math_drafts', []); }
         toast('Assigned. Your students will see it on their Practice page.'); S.assign=null; render(); return loadFor('assign');
+      } catch(err){ return toast(err.message); } }
+    case 'curassign': {
+      try {
+        await api('/assignments', { method:'POST', body:{ skill:v, n:+document.getElementById('curN-'+v).value, due:document.getElementById('curDue-'+v).value } });
+        toast('Assigned. Your students will see it on their Practice page.'); S.assign=null; render(); return loadFor('assign');
+      } catch(err){ return toast(err.message); } }
+    case 'curtry': {
+      try {
+        const r = await api('/quizzes', { method:'POST', body:{ type:'curriculum', lesson:v, n:+document.getElementById('curN-'+v).value } });
+        S.run = { session:r.session, fb:null, bad:false }; S.result=null; S.vids = S.vids || {}; S.vids.cur = { i:0, playing:false }; render(); window.scrollTo({top:0}); return;
       } catch(err){ return toast(err.message); } }
     case 'unassign': try { await api(`/assignments/${v}`, { method:'DELETE' }); S.assign=S.assign.filter(a=>a.id!==v); render(); } catch(err){ toast(err.message); } return;
     case 'addq': {
@@ -1779,8 +1809,8 @@ function videosOf(skill){ const t = CAT?.videos?.skills?.[skill]; return (t && C
 const ytThumb = id => `https://i.ytimg.com/vi/${encodeURIComponent(id)}/hqdefault.jpg`;
 const ytSearch = q => 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q);
 /** The video player for one skill (or a search link when there is no skill). `key` keeps its own state. */
-function videoCardHTML(key, skill, search){
-  const vids = skill ? videosOf(skill) : [];
+function videoCardHTML(key, skill, search, given){
+  const vids = given || (skill ? videosOf(skill) : []);
   S.vids = S.vids || {}; const st = S.vids[key] || (S.vids[key] = { i:0, playing:false });
   const more = `<a class="btn sm" href="${ytSearch(search || (SK(skill).name + ' math lesson for kids'))}" target="_blank" rel="noopener noreferrer">${svg('play')}More videos on YouTube</a>`;
   if (!vids.length) return `<div class="card"><div class="card-h"><h2>Watch a lesson</h2></div><p class="small muted" style="margin-bottom:10px">Find a short video lesson on this topic.</p>${more}</div>`;
@@ -1794,7 +1824,7 @@ function videoCardHTML(key, skill, search){
 }
 function paintVideo(key){
   const el = document.getElementById('vid-'+key);
-  const html = key==='lesson' ? videoCardHTML('lesson', S.lesson?.skill) : videoCardHTML('snap', S.snap?.reply?.skill, S.snap?.reply?.videoSearch);
+  const html = key==='cur' ? videoCardHTML('cur', null, S.run?.session.item.topic, S.run?.session.item.videos) : key==='lesson' ? videoCardHTML('lesson', S.lesson?.skill) : videoCardHTML('snap', S.snap?.reply?.skill, S.snap?.reply?.videoSearch);
   if (!el) return render();
   const t = document.createElement('div'); t.innerHTML = html; el.replaceWith(t.firstElementChild);
 }
@@ -2085,9 +2115,9 @@ function prepHTML(){
 
 function prepListHTML(){
   const R = P0(), staff = R.share === 'class', parent = R.share === 'child';
-  const intro = staff ? 'Add your test’s study guide, practice sheet or standard. Get lessons and practice, then send it to your class.'
-    : parent ? 'Add the practice sheet or the lesson your child is being tested on. Get lessons and practice, then send it to your child.'
-    : 'Got a test coming up? Add photos of your practice sheets or type the lesson name. You’ll get how-to lessons and practice questions with every step.';
+  const intro = staff ? 'Add a picture of your test’s study guide or practice sheet. We’ll figure out the type of problems, make lessons and practice, and you can send it to your class.'
+    : parent ? 'Add a picture of the practice sheet. We’ll figure out the type of problems, make lessons and practice, and you can send it to your child.'
+    : 'Got a test coming up? Add a picture of your practice sheet. We’ll figure out the type of problems and make how-to lessons and practice with every step.';
   const cards = R.list.map(s => {
     const p = s.progress, pct = p.total ? Math.round(p.done/p.total*100) : 0, when = untilWords(s.testDate);
     return `<button class="prep-card" data-act="prepopen" data-v="${esc(s.id)}">
@@ -2226,7 +2256,7 @@ async function prepGo(){
   F.testDate = document.getElementById('prepDate')?.value || '';
   F.grade = document.getElementById('prepGrade')?.value || F.grade || '';
   F.text = document.getElementById('prepText')?.value.trim() || '';
-  if (!F.images.length && !F.text) { R.err = 'Add photos of the practice sheet, or type the lesson name or standard.'; return render(); }
+  if (!F.images.length && !F.text) { R.err = 'Add a picture of the practice sheet.'; return render(); }
   R.err = null; R.busy = 'Making your practice…'; render(); window.scrollTo({top:0});
   try {
     const r = await api('/prep', { method:'POST', body:{ title:F.title, testDate:F.testDate, grade:F.grade, text:F.text, images:F.images } });

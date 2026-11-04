@@ -43,10 +43,10 @@ test("closing the Home banner hides it for a month, then it comes back", () => {
   assert.equal(supportBannerVisible(closed, Date.parse(closed) + SUPPORT_BANNER_SNOOZE_DAYS * day), true);
 });
 
-test("parents see the button and banner in LifeHub and the Reader; the home page has the strip, section and pop-up", () => {
+test("parents see the button and banner in the Reader (not in Arise To Duo's hubs); the home page has the strip, section and pop-up", () => {
+  // November 2026: the owner asked for Support (and its heart) to come off Arise To Duo's desktop.
   const life = readFileSync(new URL("../client/src/pages/AriseTodo.tsx", import.meta.url), "utf8");
-  assert.match(life, /user\.role === "parent" \|\| user\.isAdmin\) && <SupportButton/);
-  assert.match(life, /shown === "home" && <div className="mb-4"><SupportBanner \/>/);
+  assert.doesNotMatch(life, /SupportButton|SupportBanner|SupportMenuItem/);
   const reader = readFileSync(new URL("../client/src/pages/TeacherReader.tsx", import.meta.url), "utf8");
   assert.match(reader, /<SupportButton/);
   const landing = readFileSync(new URL("../client/public/reader-landing.html", import.meta.url), "utf8");

@@ -190,7 +190,7 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
   });
   return <div className="space-y-4 sm:space-y-6">
     {!family.members.length && !tileMode && <section className="flex flex-col gap-4 rounded-[1.5rem] bg-[#292446] p-5 text-white sm:flex-row sm:items-center">
-      <span className="rounded-2xl bg-white/10 p-3 text-[#bcb2ff]"><UserPlus size={26} /></span>
+      <span className="self-start rounded-2xl bg-white/10 p-3 text-[#bcb2ff] sm:self-auto"><UserPlus size={26} /></span>
       <div className="min-w-0 flex-1"><p className="text-lg font-black">Set up your family</p><p className="mt-1 text-sm text-slate-300">Add each person once. Then you can assign tasks and chores, track stars, and let everyone vote.</p></div>
       <button onClick={() => go("family")} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#a38cfa] px-5 text-sm font-bold text-[#1d1838] hover:bg-[#b6a4ff]">Add your family <ChevronRight size={16} /></button>
     </section>}

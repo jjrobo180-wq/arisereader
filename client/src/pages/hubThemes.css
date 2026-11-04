@@ -12,7 +12,7 @@
 .hub-theme-tile .bg-\[\#f6f7fc\], .hub-theme-tile .bg-\[\#f9fafc\], .hub-theme-tile .bg-slate-50,
 .hub-theme-tile .bg-slate-50\/60, .hub-theme-tile .bg-slate-50\/70, .hub-theme-tile .bg-slate-100, .hub-theme-tile .bg-slate-100\/60 { background-color: #0a0a0a; }
 .hub-theme-tile .bg-white, .hub-theme-tile .hover\:bg-white:hover { background-color: #141414; color: #ffffff; }
-.hub-theme-tile .bg-\[\#292446\] { background-color: #00a2e8; }
+.hub-theme-tile .bg-\[\#292446\] { background-color: #0072ac; }
 .hub-theme-tile .bg-\[\#7968e5\] { background-color: #f2600c; }
 .hub-theme-tile .border-slate-100, .hub-theme-tile .border-slate-200, .hub-theme-tile .border-slate-300,
 .hub-theme-tile .border-\[\#e7e8f0\], .hub-theme-tile .border-\[\#e7e8ef\], .hub-theme-tile .border-\[\#ececf3\], .hub-theme-tile .border-\[\#e4e6f0\] { border-color: #000000; }
@@ -61,3 +61,39 @@
   background: repeating-linear-gradient(0deg, rgba(0,0,0,0.12) 0px, rgba(0,0,0,0.12) 1px, transparent 1px, transparent 3px);
   mix-blend-mode: multiply;
 }
+
+
+/* ───── Hard-coded hub colors (text-[#232139], bg-[#f4f2ff]...) were left as they are on Tile and Old
+   Computer, so headings like "Good evening", "Agenda" and "Today" were dark text on the dark page.
+   Generated from every such color the hub screens use: text too dark to read on the page → the
+   theme's text or accent; pale boxes → its surface; pale borders → its border. Bright status
+   colors (red, orange, yellow highlights) stay as they are. ───── */
+.hub-theme-tile .text-\[\#111013\], .hub-theme-tile .text-\[\#232139\], .hub-theme-tile .text-\[\#120e14\], .hub-theme-tile .text-\[\#0e0d10\], .hub-theme-tile .text-\[\#2a2235\], .hub-theme-tile .text-\[\#0f1419\], .hub-theme-tile .text-\[\#2d2555\], .hub-theme-tile .text-\[\#242238\], .hub-theme-tile .text-\[\#0f0f0f\], .hub-theme-tile .text-\[\#292446\], .hub-theme-tile .text-\[\#3b2f8f\], .hub-theme-tile .text-\[\#2b2620\], .hub-theme-tile .text-\[\#1d1a33\], .hub-theme-tile .text-\[\#1d1838\] { color: #ffffff; }
+.hub-theme-tile .text-\[\#6c5cce\], .hub-theme-tile .text-\[\#606060\], .hub-theme-tile .text-\[\#5f4dc8\], .hub-theme-tile .text-\[\#536471\], .hub-theme-tile .text-\[\#9a3412\], .hub-theme-tile .text-\[\#7a6a62\], .hub-theme-tile .text-\[\#715fe3\] { color: #4cc3f5; }
+.hub-theme-tile .bg-\[\#f7f9fa\], .hub-theme-tile .bg-\[\#fcfbff\], .hub-theme-tile .bg-\[\#f6f7fc\], .hub-theme-tile .bg-\[\#f4f2ff\], .hub-theme-tile .bg-\[\#f2f2f2\], .hub-theme-tile .bg-\[\#fff4ec\], .hub-theme-tile .bg-\[\#fbfaf6\], .hub-theme-tile .bg-\[\#f4f1ff\], .hub-theme-tile .bg-\[\#f2f4f6\], .hub-theme-tile .bg-\[\#f0f2f4\] { background-color: #141414; }
+.hub-theme-tile .border-\[\#e7e8f0\], .hub-theme-tile .border-\[\#ececf3\], .hub-theme-tile .border-\[\#e7e8ef\], .hub-theme-tile .border-\[\#e4e6f0\] { border-color: #000000; }
+.hub-theme-crt .text-\[\#111013\], .hub-theme-crt .text-\[\#232139\], .hub-theme-crt .text-\[\#120e14\], .hub-theme-crt .text-\[\#0e0d10\], .hub-theme-crt .text-\[\#2a2235\], .hub-theme-crt .text-\[\#0f1419\], .hub-theme-crt .text-\[\#2d2555\], .hub-theme-crt .text-\[\#242238\], .hub-theme-crt .text-\[\#0f0f0f\], .hub-theme-crt .text-\[\#292446\], .hub-theme-crt .text-\[\#3b2f8f\], .hub-theme-crt .text-\[\#2b2620\], .hub-theme-crt .text-\[\#1d1a33\], .hub-theme-crt .text-\[\#1d1838\] { color: #33ff33; }
+.hub-theme-crt .text-\[\#6c5cce\], .hub-theme-crt .text-\[\#606060\], .hub-theme-crt .text-\[\#5f4dc8\], .hub-theme-crt .text-\[\#536471\], .hub-theme-crt .text-\[\#9a3412\], .hub-theme-crt .text-\[\#7a6a62\], .hub-theme-crt .text-\[\#715fe3\] { color: #33ff33; }
+.hub-theme-crt .bg-\[\#f7f9fa\], .hub-theme-crt .bg-\[\#fcfbff\], .hub-theme-crt .bg-\[\#f6f7fc\], .hub-theme-crt .bg-\[\#f4f2ff\], .hub-theme-crt .bg-\[\#f2f2f2\], .hub-theme-crt .bg-\[\#fff4ec\], .hub-theme-crt .bg-\[\#fbfaf6\], .hub-theme-crt .bg-\[\#f4f1ff\], .hub-theme-crt .bg-\[\#f2f4f6\], .hub-theme-crt .bg-\[\#f0f2f4\] { background-color: #0d140d; }
+.hub-theme-crt .border-\[\#e7e8f0\], .hub-theme-crt .border-\[\#ececf3\], .hub-theme-crt .border-\[\#e7e8ef\], .hub-theme-crt .border-\[\#e4e6f0\] { border-color: #1f4d1f; }
+/* "Set up your family": the small line and the button were unreadable on Tile's blue and Old Computer's black. */
+.hub-theme-tile .bg-\[\#292446\] .text-slate-300 { color: #e6f6ff; }
+.hub-theme-tile .bg-\[\#a38cfa\] { background-color: #f2600c; }
+.hub-theme-crt .bg-\[\#292446\] .text-slate-300 { color: #2fd62f; }
+.hub-theme-crt .bg-\[\#a38cfa\] { background-color: #1f4d1f; border: 1px solid #33ff33; }
+
+/* The hub root itself carries a light background class (WorkHub: bg-slate-100), which beat the theme's
+   own background, so WorkHub stayed light in Tile and Old Computer. Two classes win now. */
+.hub-theme-tile.bg-slate-100, .hub-theme-tile.bg-\[\#f6f7fc\] { background-color: #0a0a0a; color: #ffffff; }
+.hub-theme-crt.bg-slate-100, .hub-theme-crt.bg-\[\#f6f7fc\] { background-color: #0a0f0a; color: #33ff33; }
+.hub-theme-tile .text-slate-950, .hub-theme-tile.text-slate-950, .hub-theme-tile.text-slate-900 { color: #ffffff; }
+.hub-theme-crt .text-slate-950, .hub-theme-crt.text-slate-950, .hub-theme-crt.text-slate-900 { color: #33ff33; }
+.hub-theme-tile .bg-teal-700, .hub-theme-tile .bg-teal-600 { background-color: #f2600c; }
+.hub-theme-crt .bg-teal-700, .hub-theme-crt .bg-teal-600 { background-color: #1f4d1f; color: #33ff33; }
+.hub-theme-tile .text-teal-700, .hub-theme-tile .text-teal-800 { color: #4cc3f5; }
+.hub-theme-crt .text-teal-700, .hub-theme-crt .text-teal-800 { color: #33ff33; }
+/* Screen-size versions of the light colors (WorkHub's side menu is md:bg-white): white with white text before. */
+.hub-theme-tile .sm\:bg-white, .hub-theme-tile .md\:bg-white, .hub-theme-tile .lg\:bg-white { background-color: #141414; }
+.hub-theme-crt .sm\:bg-white, .hub-theme-crt .md\:bg-white, .hub-theme-crt .lg\:bg-white { background-color: #0d140d; }
+.hub-theme-tile .md\:border-slate-200, .hub-theme-tile .md\:border-\[\#e4e6f0\] { border-color: #000000; }
+.hub-theme-crt .md\:border-slate-200, .hub-theme-crt .md\:border-\[\#e4e6f0\] { border-color: #1f4d1f; }

@@ -115,9 +115,9 @@ export function cleanTopic(v: any): PrepTopic | null {
 /** Turns the AI's JSON into a prep set, or says why it couldn't make one. */
 export function cleanPrepReply(raw: unknown, ask: { title: string; testDate: string; grade: string }): PrepResult {
   const r: any = raw && typeof raw === "object" ? raw : {};
-  if (r.notMath || r.not_math) return { notMath: clip(r.notMath || r.not_math, 240) || "That doesn't look like math for a test. Add a photo of the practice sheet, or type the lesson or standard." };
+  if (r.notMath || r.not_math) return { notMath: NO_MATH_FOUND };
   const topics = (Array.isArray(r.topics) ? r.topics : []).slice(0, PREP_LIMITS.topics).map(cleanTopic).filter(Boolean) as PrepTopic[];
-  if (!topics.length) return { notMath: "I couldn't find math to practice there. Try a clearer photo of the sheet, or type the lesson name or standard." };
+  if (!topics.length) return { notMath: NO_MATH_FOUND };
   return {
     set: {
       title: ask.title || clip(r.title, PREP_LIMITS.title) || topics.map((t) => t.name).slice(0, 2).join(" & "),
@@ -140,7 +140,9 @@ const RULES = `Rules:
 - Work every problem out carefully yourself and check each answer (substitute it back, or estimate). Accuracy matters more than anything.
 - Write math in plain text a student can read: × ÷ − ² ³ √ π ≤ ≥, fractions as 3/4, mixed numbers as 1 1/2. No LaTeX, no markdown.
 - Short, warm, clear sentences for the student's grade. Never shame mistakes.
-- Typed answers must be short (a number, an expression, or a few words) so they can be checked.`;
+- Typed answers must be short (a number, an expression, or a few words) so they can be checked.
+- Every question stands on its own: every number, table or description a student needs is written IN the question. Never rely on a sheet, chart or picture the student can't see. If the sheet's problem depends on a table, copy the needed values into the question.
+- To change a mixed number to a fraction, multiply and add: 7 5/8 = (7 × 8 + 5)/8 = 61/8. Never push the digits together. Every "=" you write must be exactly true.`;
 
 /** What the AI is asked to do to build a prep set. */
 export function prepPrompt(ask: { title: string; testDate: string; grade: string }): string {
@@ -149,7 +151,9 @@ You are given what the test covers: photos or screenshots of practice sheets, wo
 
 Reply with one JSON object and nothing else.
 
-If there is no math to practice (a selfie, a random picture, an unreadable image, or something that isn't math schoolwork), reply {"notMath":"<one friendly sentence asking for a clear photo of the sheet, or the lesson or standard typed in>"}. Never describe people in a picture.
+A picture is all you need. Work out for yourself what type of problems these are; never ask for the lesson name or the standard.
+Read every picture closely, even if it is rotated, sideways, tilted, shadowed, cropped, handwritten, a screenshot, a page of a textbook or a test, or only partly legible. If ANY numbers, equations, shapes, graphs, tables, measurements or word problems are visible, it IS math: build the practice from what you can read and make your best call on the rest. Directions in another language still count.
+Reply {"notMath":true} ONLY when you are certain there is no math anywhere in the pictures and no topic was typed (a selfie, a pet, a landscape). Never describe people in a picture.
 
 Otherwise reply:
 {
@@ -176,6 +180,37 @@ How to build it:
 - Every question has every solution step and its answer.
 ${RULES}`;
 }
+
+/** A second, closer look at pictures the first try couldn't use: only read them, nothing else to get wrong. */
+export function readPrompt(): string {
+  return `You read math schoolwork from pictures. Reply with one JSON object and nothing else:
+{ "hasMath": true or false, "types": ["each type of problem, like 'solving two-step equations'"], "gradeGuess": "K or 1–12, or ''", "problems": ["each problem as written, in plain text"] }
+The pictures may be rotated, sideways, tilted, shadowed, cropped, handwritten or partly legible: turn them in your mind and read everything you can. Copy what you can read and make your best guess at the rest. Numbers, equations, shapes, graphs, tables, measurements or word problems all count as math. "hasMath" is false only when there is certainly no math in any picture. Never describe people.`;
+}
+
+export type PrepReading = { found: boolean; types: string[]; problems: string[]; grade: string };
+/** What the closer look found. Anything that reads like math counts, whatever "hasMath" says. */
+export function cleanReading(raw: unknown): PrepReading {
+  const r: any = raw && typeof raw === "object" ? raw : {};
+  const list = (v: unknown, n: number, each: number) => (Array.isArray(v) ? v : []).map((x) => clip(x, each)).filter(Boolean).slice(0, n);
+  const types = list(r.types, PREP_LIMITS.topics, 120), problems = list(r.problems, 40, 300);
+  const grade = /^(K|[1-9]|1[0-2])$/.test(String(r.gradeGuess ?? "").trim()) ? String(r.gradeGuess).trim() : "";
+  return { found: r.hasMath === true || problems.some((p) => /\d/.test(p)), types, problems, grade };
+}
+
+/** The request built from a closer look, smaller so a long sheet can't run out of room. */
+export function readingText(reading: PrepReading): string {
+  return `The student's sheet has been read for you.
+Types of problems: ${reading.types.join("; ") || "work these out from the problems"}
+Problems on the sheet:
+${reading.problems.map((p) => `- ${p}`).join("\n")}
+Build the practice now. Keep it to at most 3 topics with 4 questions each.`;
+}
+
+/** Said only after two looks found no math. */
+export const NO_MATH_FOUND = "I looked closely twice and couldn’t find any math in that picture. Try another picture of the page.";
+/** Said when the math was read but the practice couldn't be built. Never blames the picture. */
+export const COULD_NOT_BUILD = "I can read your sheet, but building the practice didn’t finish. Tap Build again.";
 
 /** What the AI is asked to do for "more questions" on one topic. */
 export function morePrompt(topic: Pick<PrepTopic, "name" | "standard" | "summary">, have: string[], grade: string): string {

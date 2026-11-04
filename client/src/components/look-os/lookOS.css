@@ -38,8 +38,11 @@
 .los-alerts { position: fixed; top: calc(env(safe-area-inset-top) + .5rem); left: .75rem; right: .75rem; z-index: 46; max-height: 60dvh; overflow-y: auto; }
 .los-alerts:empty { display: none; }
 .los-ghost { position: fixed !important; top: 0; left: 0; right: 0; visibility: hidden; pointer-events: none; z-index: 47; backdrop-filter: none !important; background: transparent !important; border: 0 !important; }
-/* The bell stays in the top bar, next to the Work/Life switch. */
-.los-ghost [data-testid="notification-bell"] { visibility: visible; pointer-events: auto; position: fixed; top: calc(env(safe-area-inset-top) + .35rem); right: 7.7rem; }
+/* The bell sits in the top bar's own row beside the Work/Life switch. (It used to float at a fixed
+   distance from the right edge, which landed on top of "Work" whenever the switch showed its labels.) */
+.los-topright { flex: none; display: flex; align-items: center; gap: .5rem; min-width: 0; }
+.los-topright [data-testid="notification-bell"] { width: 2.5rem; height: 2.5rem; min-width: 2.5rem; min-height: 2.5rem; padding: 0; background: var(--an-card) !important; color: var(--an-ink) !important; border: 1px solid var(--an-line) !important; border-radius: var(--an-radius, .75rem) !important; }
+.los-topright [data-testid="notification-bell"] > span { right: -.3rem; top: -.3rem; }
 .los-sheettop { display: flex; flex-wrap: wrap; gap: .5rem; padding-bottom: .5rem; }
 .los-sheettop > :not(button) { flex-basis: 100%; }
 .los-sheettop button { display: inline-flex; width: auto; border-bottom: 0; }
@@ -195,8 +198,8 @@
 .los-punch .los-month [data-on] { background: #ff5ca8; color: #000; border: 2px solid var(--an-edge, #000); }
 /* Chatline */
 .los-chat { display: flex; flex-direction: column; gap: .5rem; min-height: 100%; padding: calc(0px + 1rem) .9rem 1rem; }
-.los-them, .los-bubbles p { align-self: flex-start; max-width: 85%; margin: 0; padding: .7rem .95rem !important; border-radius: 20px 20px 20px 4px; background: var(--an-card) !important; }
-.los-bubbles { display: flex; flex-direction: column; gap: .5rem; }
+.los-them, .los-chatbubbles p { align-self: flex-start; max-width: 85%; margin: 0; padding: .7rem .95rem !important; border-radius: 20px 20px 20px 4px; background: var(--an-card) !important; }
+.los-chatbubbles { display: flex; flex-direction: column; gap: .5rem; }
 .los-chat .los-cal { margin: 0; }
 .los-replies { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .4rem; }
 .los-replies button { min-height: 2.75rem; padding: 0 .95rem !important; border-radius: 999px; background: var(--an-violet) !important; color: var(--an-on-accent) !important; font-weight: 700; }
@@ -268,3 +271,5 @@
 @media (min-width: 900px) { .los-tide-days, .los-tide-hero { max-width: 46rem; margin-inline: auto; } }
 .los-depth { border: 1px solid var(--an-line); }
 .los-tide-gauge { border-left: 1px solid var(--an-line); }
+/* The "install the app" tip sat on top of the dock in every look: in a look it shows under the top bar. */
+html[data-hub-look] [data-testid="welcome-bar"] { top: calc(env(safe-area-inset-top) + 3.7rem); bottom: auto; padding-bottom: 0; }
