@@ -3,7 +3,7 @@ name: Build web app for a visual check
 # can be opened in a browser (with a made-up account) and screenshotted theme by theme.
 on:
   push:
-    branches: ['audit/merged']
+    branches: ['audit-merged']
 permissions:
   contents: write
 jobs:
