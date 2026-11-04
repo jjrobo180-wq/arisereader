@@ -152,3 +152,8 @@ textarea.an-input { padding: .7rem .9rem; line-height: 1.5; }
 @media print {
   .an-noprint { display: none !important; }
 }
+
+/* Compact, Apple Notes-like proportions: smaller chips and folder pills */
+.an-chip { height: 1.8rem; padding: 0 .65rem; font-size: .76rem; }
+.an-btn { min-height: 2.5rem; font-size: .9rem; }
+.an-card { border-radius: 16px; }

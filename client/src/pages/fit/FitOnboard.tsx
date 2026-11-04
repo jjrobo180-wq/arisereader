@@ -6,7 +6,7 @@ import { Activity, Apple, Bell, Check, ChevronLeft, ChevronRight, Dumbbell, Flam
 import { dayKey, fromKg, toKg, type FitData, type Goal, type Profile, type Units } from "@shared/fit";
 import { DIET_BY_ID, DIET_PLANS } from "@shared/fitNutrition";
 import { GYM_BY_ID, GYM_TYPES } from "@shared/fitGym";
-import { PACES, cmToFtIn, defaultPace, finishDate, ftInToCm, goalWeightFits, planFor, weeksToGoal } from "@shared/fitOnboard";
+import { FEATURE_CHOICES, PACES, appsForFeatures, cmToFtIn, defaultPace, finishDate, ftInToCm, goalWeightFits, planFor, weeksToGoal } from "@shared/fitOnboard";
 import type { Update } from "./fitStore";
 import { latestKg } from "./FitFood";
 import { Btn, C, Layer, display, font, glowBg, haptic, inputCls, inputStyle } from "./fitUi";
@@ -14,8 +14,8 @@ import { applyReminders, canUseNative, connectHealth, healthConnected, readHealt
 import { mergeWeights } from "./FitHealth";
 import { keepPlace, locate } from "./FitRun";
 
-type StepId = "welcome" | "goal" | "body" | "target" | "activity" | "diet" | "gym" | "track" | "plan" | "access" | "tour";
-const ORDER: StepId[] = ["welcome", "goal", "body", "target", "activity", "diet", "gym", "track", "plan", "access", "tour"];
+type StepId = "welcome" | "goal" | "features" | "body" | "target" | "activity" | "diet" | "gym" | "track" | "plan" | "access" | "tour";
+const ORDER: StepId[] = ["welcome", "goal", "features", "body", "target", "activity", "diet", "gym", "track", "plan", "access", "tour"];
 
 /** A number that climbs to its value, for the plan reveal. */
 function useCount(to: number, ms = 900) {
@@ -92,8 +92,10 @@ export function Onboarding({ data, update, onDone, edit = false }: { data: FitDa
   const [diet, setDiet] = useState(p.dietPlan ?? "");
   const [gymType, setGymType] = useState(p.gym?.type ?? "");
   const [track, setTrack] = useState<"calories" | "points">(p.trackMode ?? "calories");
+  // What they want from the app (first-open setup): sets up the Apps list and the tab bar.
+  const [picked, setPicked] = useState<string[]>([]);
 
-  const steps = ORDER.filter((s) => !(s === "target" && goal === "maintain") && !(edit && (s === "welcome" || s === "access" || s === "tour")));
+  const steps = ORDER.filter((s) => !(s === "target" && goal === "maintain") && !(edit && (s === "welcome" || s === "features" || s === "access" || s === "tour")));
   const [i, setI] = useState(0);
   const step = steps[Math.min(i, steps.length - 1)];
   const last = i >= steps.length - 1;
@@ -116,7 +118,7 @@ export function Onboarding({ data, update, onDone, edit = false }: { data: FitDa
         goalKg: goal !== "maintain" && goalKg > 0 ? Math.round(goalKg * 10) / 10 : undefined, pace: goal !== "maintain" ? effPace : undefined,
         ...(dp ? { dietPlan: dp.id, macroSplit: dp.split } : {}), ...(gt && (d.profile.gym?.type !== gt.id) ? { gym: { type: gt.id, gear: [...gt.gear] } } : {}),
         ...(changedGoal || !edit ? { kcalGoal: undefined } : {}) };
-      return { ...d, onboarded: true, profile, weights: curKg > 0 && Number(weight) > 0 ? [...d.weights.filter((x) => x.date !== dayKey()), { date: dayKey(), kg: Math.round(curKg * 10) / 10 }] : d.weights };
+      return { ...d, onboarded: true, ...(!edit && picked.length ? { apps: appsForFeatures(picked) } : {}), profile, weights: curKg > 0 && Number(weight) > 0 ? [...d.weights.filter((x) => x.date !== dayKey()), { date: dayKey(), kg: Math.round(curKg * 10) / 10 }] : d.weights };
     });
   };
   const finish = () => { commit(); haptic("success"); onDone(); };
@@ -134,7 +136,7 @@ export function Onboarding({ data, update, onDone, edit = false }: { data: FitDa
   };
   const back = () => { if (i > 0) setI((n) => n - 1); };
 
-  const title: Record<StepId, string> = { welcome: "", goal: "What's your goal?", body: "About you", target: "Your target", activity: "How active are you?", diet: "How do you eat?", gym: "Where do you train?", track: "How do you want to track food?", plan: "Your plan", access: "Connect your phone", tour: "" };
+  const title: Record<StepId, string> = { welcome: "", goal: "What's your goal?", features: "What do you want from Arise Fit?", body: "About you", target: "Your target", activity: "How active are you?", diet: "How do you eat?", gym: "Where do you train?", track: "How do you want to track food?", plan: "Your plan", access: "Connect your phone", tour: "" };
 
   if (step === "tour") return <Layer><style>{ONB_CSS}</style><FeatureTour onClose={finish} /></Layer>;
 
@@ -154,6 +156,11 @@ export function Onboarding({ data, update, onDone, edit = false }: { data: FitDa
           <Choice on={goal === "lose"} onClick={() => setGoal("lose")} icon={<Flame className="h-5 w-5" />} title="Lose fat" sub="A calorie deficit, protein high, lifting to keep muscle." testId="fit-goal-lose" />
           <Choice on={goal === "maintain"} onClick={() => setGoal("maintain")} icon={<Target className="h-5 w-5" />} title="Stay where I am" sub="Eat at maintenance and train for strength and energy." testId="fit-goal-maintain" />
           <Choice on={goal === "gain"} onClick={() => setGoal("gain")} icon={<Dumbbell className="h-5 w-5" />} title="Build muscle" sub="A small surplus with heavy training." testId="fit-goal-gain" />
+        </div>}
+
+        {step === "features" && <div className="mt-4 space-y-2.5" data-testid="fit-setup-features">
+          <p className="text-[14px]" style={{ color: C.dim }}>Pick everything you'd like. We'll set up your apps and tab bar around it, and you can add more any time.</p>
+          {FEATURE_CHOICES.map((f) => <Choice key={f.id} on={picked.includes(f.id)} onClick={() => setPicked((x) => x.includes(f.id) ? x.filter((y) => y !== f.id) : [...x, f.id])} title={f.title} sub={f.sub} testId={`fit-feature-${f.id}`} />)}
         </div>}
 
         {step === "body" && <div className="mt-5 space-y-4">

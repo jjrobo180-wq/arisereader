@@ -3,7 +3,8 @@
 // your notes, Voice memo, and Settings (plan and minutes, family, privacy, accessibility).
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { NoteTypeIcon } from "./NoteIcon";
-import { ArrowRight, ChevronLeft, Columns2, Folder, Loader2, Lock, Mic, MessageCircle, NotebookPen, Search, Settings, Sparkles, Upload, Users, Zap } from "lucide-react";
+import { ArrowRight, AudioLines, ChevronLeft, Columns2, Folder, Loader2, Lock, Mic, MessageCircle, Pencil, Search, Settings, Sparkles, Upload, Users, Zap } from "lucide-react";
+import { useAppearance } from "./appearance";
 import { useAuth } from "@/context/AuthContext";
 import { startApplePush } from "@/lib/applePush";
 import { isNotesApp, nativeCall } from "@/lib/nativeApp";
@@ -156,7 +157,9 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   // The Notes tab (typed and handwritten notes) always has a plain, professional look: neutral surfaces,
   // the system's own type and real folders. Dark when the look or night mode is dark.
   const pro = (route.name === "pages" || route.name === "page") && !s?.contrast;
-  const proDark = pro && (!!s?.night || (look.id !== "classic" && !!look.dark));
+  // Light / Dark / Auto (Auto follows the phone). Light and Dark are a deliberate choice, so they win over the look.
+  const appearance = useAppearance();
+  const proDark = pro && (appearance.mode === "dark" ? true : appearance.mode === "light" ? false : appearance.dark || !!s?.night || (look.id !== "classic" && !!look.dark));
   const themed = !pro && !s?.contrast && (look.id !== "classic" || !!s?.night);
   useEffect(() => { if (themed) loadThemeFont(look.fontUrl); }, [themed, look.fontUrl]);
   // The areas around the page (behind the status bar and Home indicator) match the look.
@@ -263,8 +266,8 @@ export function TabBar({ ctx, on }: { ctx: AppCtx; on: "ai" | "pages" }) {
       {icon}{label}</button>;
   return <nav role="tablist" aria-label="Arise Notes" className="an-noprint an-tabbar fixed inset-x-0 bottom-0 z-40 px-5 pb-[max(.6rem,env(safe-area-inset-bottom))] pt-2.5" data-testid="notes-tabs">
     <div className="mx-auto flex max-w-xs gap-1 rounded-full bg-black/[.045] p-1">
-      <Tab id="ai" icon={<Sparkles className="h-[17px] w-[17px]" />} label="AI Notes" />
-      <Tab id="pages" icon={<NotebookPen className="h-[17px] w-[17px]" />} label="Notes" />
+      <Tab id="ai" icon={<AudioLines className="h-[17px] w-[17px]" />} label="AI Notes" />
+      <Tab id="pages" icon={<Pencil className="h-[17px] w-[17px]" />} label="Notes" />
     </div>
   </nav>;
 }
@@ -299,7 +302,7 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
         <IconBtn label="Split screen with your to-do list" className="an-extra hidden md:grid" onClick={() => openSplit(ctx.mode, ctx.hub === "work" ? "workhub" : "tasks")}><Columns2 className="h-5 w-5" /></IconBtn>
         <IconBtn label="Settings" onClick={() => ctx.go({ name: "settings" })}><Settings className="h-5 w-5" /></IconBtn>
       </>} />}
-    <main className="mx-auto max-w-5xl space-y-5 px-4 pb-24 pt-5 sm:px-5">
+    <main className="mx-auto max-w-5xl space-y-4 px-4 pb-24 pt-4 sm:px-5">
       {look ? <>
         <LookHomeHero look={look} a={{ first, minutes: <MinutesPill ctx={ctx} />, record: () => ctx.go({ name: "record" }), upload: () => ctx.go({ name: "upload" }), memo: () => ctx.go({ name: "memo" }), ask: () => ctx.go({ name: "ask" }), memoLocked: !ctx.me.features.memo }} />
       <MinutesBanner ctx={ctx} />
@@ -309,16 +312,16 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-[13px] font-semibold uppercase tracking-wider text-[var(--an-violet)]">Arise Notes</p>
-          <h1 className="mt-0.5 text-[28px] font-extrabold leading-tight tracking-[-.02em] sm:text-[32px]">{first ? `Hi, ${first}.` : "Your notes"} What are we capturing?</h1>
+          <h1 className="mt-0.5 text-[24px] font-extrabold leading-tight tracking-[-.02em] sm:text-[28px]">{first ? `Hi, ${first}.` : "Your notes"} What are we capturing?</h1>
         </div>
       </div>
       <MinutesBanner ctx={ctx} />
       {!ctx.me.services.speech && <Notice tone="warn">Speech to text isn't switched on for this site yet, so recordings are saved but can't be written down.</Notice>}
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <BigAction tone="record" icon={<Mic className="h-7 w-7" />} title="Record" text="A meeting, class or visit, live." onClick={() => ctx.go({ name: "record" })} testId="notes-record" />
-        <BigAction tone="violet" icon={<Upload className="h-7 w-7" />} title="Upload" text="Audio or video, up to 2 hours." onClick={() => ctx.go({ name: "upload" })} testId="notes-upload" />
-        <BigAction tone="amber" icon={<Zap className="h-7 w-7" />} title="Voice memo" text="Say it once, get a to-do." onClick={() => ctx.go({ name: "memo" })} locked={!ctx.me.features.memo} testId="notes-memo" />
+        <BigAction tone="record" icon={<Mic className="h-5 w-5" />} title="Record" text="A meeting, class or visit, live." onClick={() => ctx.go({ name: "record" })} testId="notes-record" />
+        <BigAction tone="violet" icon={<Upload className="h-5 w-5" />} title="Upload" text="Audio or video, up to 2 hours." onClick={() => ctx.go({ name: "upload" })} testId="notes-upload" />
+        <BigAction tone="amber" icon={<Zap className="h-5 w-5" />} title="Voice memo" text="Say it once, get a to-do." onClick={() => ctx.go({ name: "memo" })} locked={!ctx.me.features.memo} testId="notes-memo" />
       </div>
 
       <button type="button" onClick={() => ctx.go({ name: "ask" })} className="an-card flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:border-[var(--an-violet)]" data-testid="notes-ask-bar">
@@ -331,7 +334,7 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
 
       <section aria-labelledby="notes-heading" className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 id="notes-heading" className="mr-auto text-[18px] font-bold tracking-tight">Your notes</h2>
+          <h2 id="notes-heading" className="mr-auto text-[16px] font-bold tracking-tight">Your notes</h2>
           <label className="relative w-full sm:w-72">
             <span className="sr-only">Search notes</span>
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--an-faint)]" aria-hidden />
@@ -357,7 +360,7 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
             </button>
           </li>)}</ul>
         </div>}
-        {notes === null ? <Spinner /> : shown.length ? (look ? <LookNoteList look={look} notes={shown} onOpen={(n) => ctx.go({ name: "note", id: n.id })} /> : <ul className="grid gap-3 md:grid-cols-2">{shown.map((n) => <NoteCard key={n.id} n={n} onOpen={() => ctx.go({ name: "note", id: n.id })} />)}</ul>)
+        {notes === null ? <Spinner /> : shown.length ? (look ? <LookNoteList look={look} notes={shown} onOpen={(n) => ctx.go({ name: "note", id: n.id })} /> : <ul className="grid gap-2 md:grid-cols-2">{shown.map((n) => <NoteCard key={n.id} n={n} onOpen={() => ctx.go({ name: "note", id: n.id })} />)}</ul>)
           : q ? <p className="an-card px-5 py-8 text-center text-[15px] text-[var(--an-muted)]">Nothing matched “{q}”.</p>
             : <EmptyNotes ctx={ctx} />}
       </section>
@@ -368,9 +371,9 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
 
 function BigAction({ tone, icon, title, text, onClick, locked, testId }: { tone: "record" | "violet" | "amber"; icon: ReactNode; title: string; text: string; onClick: () => void; locked?: boolean; testId: string }) {
   const bg = tone === "record" ? "bg-[var(--an-coral)] text-white" : tone === "violet" ? "bg-[var(--an-violet)] text-white" : "bg-[#f5a524] text-white";
-  return <button type="button" onClick={onClick} data-testid={testId} className="an-card group flex items-center gap-4 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-28px_rgba(40,30,120,.6)] sm:flex-col sm:items-start sm:p-5">
-    <span className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl ${bg}`}>{icon}</span>
-    <span className="min-w-0"><span className="flex items-center gap-2 text-[18px] font-bold">{title}{locked && <span className="rounded-full bg-[var(--an-amber-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--an-amber)]">Basic</span>}</span><span className="mt-0.5 block text-[14px] text-[var(--an-muted)]">{text}</span></span>
+  return <button type="button" onClick={onClick} data-testid={testId} className="an-card group flex items-center gap-3 p-3 text-left transition hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-28px_rgba(40,30,120,.6)] sm:flex-col sm:items-start sm:p-4">
+    <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-[14px] ${bg}`}>{icon}</span>
+    <span className="min-w-0"><span className="flex items-center gap-2 text-[16px] font-bold">{title}{locked && <span className="rounded-full bg-[var(--an-amber-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--an-amber)]">Basic</span>}</span><span className="mt-0.5 block text-[13px] text-[var(--an-muted)]">{text}</span></span>
   </button>;
 }
 
@@ -384,12 +387,12 @@ function NoteCard({ n, onOpen }: { n: ListNote; onOpen: () => void }) {
   const st = STATUS[n.status];
   const t = templateOf(n.template);
   return <li>
-    <button type="button" onClick={onOpen} className="an-card flex h-full w-full gap-3 p-4 text-left transition hover:border-[var(--an-violet)]" data-testid="notes-card">
-      <span aria-hidden className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--an-violet-soft)] text-[var(--an-violet)]"><NoteTypeIcon id={n.source === "memo" ? "memo" : t.id} className="h-5 w-5" /></span>
+    <button type="button" onClick={onOpen} className="an-card flex h-full w-full gap-3 p-3 text-left transition hover:border-[var(--an-violet)]" data-testid="notes-card">
+      <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-[var(--an-violet-soft)] text-[var(--an-violet)]"><NoteTypeIcon id={n.source === "memo" ? "memo" : t.id} className="h-[18px] w-[18px]" /></span>
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2"><span className="truncate text-[16px] font-bold">{n.title || "Untitled note"}</span>{st && <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${st.tone}`}>{st.text}</span>}</span>
+        <span className="flex items-center gap-2"><span className="truncate text-[15px] font-semibold">{n.title || "Untitled note"}</span>{st && <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${st.tone}`}>{st.text}</span>}</span>
         <span className="mt-0.5 block text-[13px] text-[var(--an-muted)]">{shortDate(n.createdAt)}{n.durationSecs ? ` · ${fmtClock(n.durationSecs)}` : ""} · {n.source === "memo" ? "Voice memo" : t.label}{n.by ? ` · ${n.by}` : ""}</span>
-        {n.gist && <span className="an-extra mt-1.5 line-clamp-2 block text-[14px] leading-snug text-[#3d3a52]">{n.gist}</span>}
+        {n.gist && <span className="an-extra mt-1 line-clamp-1 block text-[13px] leading-snug text-[var(--an-muted)]">{n.gist}</span>}
         {(n.actions > 0 || n.folder) && <span className="an-extra mt-2 flex flex-wrap gap-1.5">{n.actions > 0 && <span className="rounded-full bg-[var(--an-green-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--an-green)]">{plural(n.actions, "to-do")}</span>}{n.folder && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">{n.folder}</span>}</span>}
       </span>
     </button>

@@ -79,7 +79,7 @@ export function SessionPlayer({ session, onClose, onDone }: { session: Session; 
   const next = session.phases[i + 1];
   const breathScale = p.kind === "breathe-in" ? 1 : p.kind === "breathe-out" ? 0.45 : p.kind === "hold" ? (session.phases[i - 1]?.kind === "breathe-in" ? 1 : 0.45) : 0.7;
 
-  if (finished) return <Layer><div className="fixed inset-0 z-[90] flex flex-col items-center justify-center px-6 text-center" style={{ backgroundColor: C.bg, backgroundImage: `radial-gradient(90% 60% at 50% 20%, ${C.emberSoft}, transparent)`, color: C.text, ...font, isolation: "isolate" }} data-testid="fit-session-done">
+  if (finished) return <Layer><div className="fixed inset-0 z-[120] flex flex-col items-center justify-center px-6 text-center" style={{ backgroundColor: C.bg, backgroundImage: `radial-gradient(90% 60% at 50% 20%, ${C.emberSoft}, transparent)`, color: C.text, ...font, isolation: "isolate" }} data-testid="fit-session-done">
     <div className="grid h-24 w-24 place-items-center rounded-full" style={{ background: C.lime }}><Trophy className="h-12 w-12" style={{ color: "var(--fit-on-accent)" }} /></div>
     <h1 className="mt-6 text-[44px] leading-none" style={display}>Done.</h1>
     <p className="mt-2 text-[16px]" style={{ color: C.steel }}>{session.name}</p>
@@ -91,7 +91,8 @@ export function SessionPlayer({ session, onClose, onDone }: { session: Session; 
     <button type="button" onClick={onClose} className="mt-3 h-11 text-[15px]" style={{ color: C.dim }}>Close without saving</button>
   </div></Layer>;
 
-  return <Layer><div className="fixed inset-0 z-[90] flex flex-col" style={{ backgroundColor: C.bg, backgroundImage: `radial-gradient(110% 70% at 50% 30%, ${color}26, transparent 70%)`, color: C.text, ...font, isolation: "isolate" }} data-testid="fit-session">
+  // A solid page color under everything (never see-through), the soft glow over it, and the words on a card.
+  return <Layer><div className="fixed inset-0 z-[120] flex flex-col" style={{ backgroundColor: C.bg, backgroundImage: `radial-gradient(110% 70% at 50% 30%, ${color}26, transparent 70%), linear-gradient(${C.bg}, ${C.bg})`, color: C.text, ...font, isolation: "isolate", height: "100dvh", opacity: 1 }} data-testid="fit-session">
     <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
       <button type="button" onClick={() => { if (window.confirm("End this session?")) onClose(); }} aria-label="End session" className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card }}><X className="h-5 w-5" /></button>
       <div className="min-w-0 flex-1 text-center"><p className="truncate text-[17px]" style={display}>{session.name}</p><p className="text-[12px] tabular-nums" style={{ color: C.dim }}>{fmtDur(elapsed)} / {fmtDur(total)}</p></div>

@@ -2,7 +2,7 @@
 // #/fit on the website). Tabs: Today, up to three apps you pin (Train, Food and Run to start) and Apps,
 // where you add and arrange the rest (FitApps.tsx, shared/fitApps.ts). Data:
 // fitStore.ts → server/fit.ts. The look and motion follow the Arise Fit prototype (fitUi.tsx).
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Check, Crown, ChevronRight, Droplets, Footprints, HeartPulse, Flame, Home, LayoutGrid, LogOut, Mic, Moon, Play, Scale, Settings, ShieldCheck, Timer, Trophy } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import AccountPrivacy from "@/components/AccountPrivacy";
@@ -15,10 +15,12 @@ import { SmartWorkoutCard, smartWorkoutNow } from "./FitSmart";
 import { CircleSheet } from "./FitCircle";
 import { BuddySheet } from "./FitBuddy";
 import { PlusProvider, usePlus } from "./FitPlus";
-import { EatOut, NearbyGyms, RecipesSheet } from "./FitNearby";
+import { EatOut, NearbyGyms, RecipesSheet, prefetchNearby } from "./FitNearby";
 import { SiriSheet, useDeepLinks, type SiriAction } from "./FitSiri";
 import { ScanMachine } from "./FitGym";
 import { programArt } from "./fitArt";
+import { SoundsScreen, PillowTracker } from "./FitSleepLab";
+import { CounterScreen } from "./FitMindExtras";
 import { SleepCheckIn, SleepSheet, sleepLine, useSleepAuto, type SleepGuess } from "./FitSleep";
 import { AppsTab, APP_ICONS, FriendsApp, GuidedApp, RecoveryApp, StepsApp, WaterApp, YourAppsRow } from "./FitApps";
 import { FormCheck } from "./FitForm";
@@ -45,7 +47,7 @@ import { TipCard } from "./FitVideo";
 
 type Tab = "today" | "apps" | FitAppId;
 /** Sheets that open over any tab (from Today, Siri or a link). */
-type Over = "" | "vacation" | "circle" | "buddy" | "gyms" | "eat" | "recipes" | "siri" | "scan";
+type Over = "" | "sounds" | "counter" | "pillow" | "vacation" | "circle" | "buddy" | "gyms" | "eat" | "recipes" | "siri" | "scan";
 
 /** Ticks once a second while `on` (live timers on Today). */
 function useClock(on: boolean) {
@@ -302,6 +304,7 @@ export default function FitApp() {
 
 function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: string) => void }) {
   const { user, token } = useAuth();
+  useEffect(() => { prefetchNearby(token); }, [token]);
   const { data, update, loaded, saving } = useFitData(token);
   useFitFonts();
   const layout = useFitLayout();
@@ -343,9 +346,32 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
     const next = nextProgramDay(prog, data.program.done);
     setActive(startWorkout({ name: `${prog.name}: ${next.day.name}`, programId: prog.id, dayId: next.day.id, exercises: planned(data, next.day.items, list) }));
   };
-  const go = (t: Tab) => { if (t !== tab) { haptic("light"); setTab(t); setSnap(false); document.getElementById("fit-main")?.scrollTo({ top: 0 }); } };
+  // Where you came from, so Back (and a swipe from the edge) returns to the screen before this one, not
+  // always to Today. Opening a screen pushes the one you were on; closing pops it.
+  const trail = useRef<Tab[]>([]);
+  const go = (t: Tab, back = false) => {
+    if (t === tab) return;
+    haptic("light");
+    if (!back) trail.current = [...trail.current.filter((x) => x !== t), tab].slice(-12);
+    setTab(t); setSnap(false); document.getElementById("fit-main")?.scrollTo({ top: 0 });
+  };
+  const goBack = () => {
+    let to = trail.current.pop();
+    while (to && to !== "today" && to !== "apps" && !tabIds.includes(to)) to = trail.current.pop();
+    go(to ?? "today", true);
+  };
+  // iPhone swipe-back / browser back: one entry in the history while a screen other than Today is open.
+  useEffect(() => {
+    if (tab === "today") return;
+    window.history.pushState({ fitTab: tab }, "");
+    const onPop = () => goBack();
+    window.addEventListener("popstate", onPop, { once: true });
+    return () => window.removeEventListener("popstate", onPop);
+  }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
   /** Opens an app: its tab when it's on the tab bar, otherwise over whatever's showing. */
   const openApp = (id: FitAppId) => {
+    if (id === "sounds" || id === "pillow") { if (!plus) { ask("sleep-lab"); return; } setOverRaw(id); return; }
+    if (id === "counter") { setOverRaw("counter"); return; }
     if (id === "gyms" || id === "eat" || id === "recipes" || id === "scan") { setOver(id); return; }
     if (id === "travel") { setOver("vacation"); return; }
     if (id === "coach") { setCoach(true); return; }
@@ -409,7 +435,7 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
       <div key={tab} className="fit-in">
         {tab === "today" && <TodayTab layout={layout} data={data} update={update} onApp={openApp} onAllApps={() => go("apps")} onStartProgram={startProgram} onSettings={() => setSettings(true)} onCoach={() => setCoach(true)} onStart={startNow} onOver={setOver} token={token} user={first} list={list} sleepGuess={sleepAuto.guess} onSkipSleep={sleepAuto.skip} say={say} />}
         {tab === "apps" && <AppsTab data={data} update={update} say={say} onOpen={openApp} />}
-        {tab !== "today" && tab !== "apps" && screen(tab, true, () => go("today"))}
+        {tab !== "today" && tab !== "apps" && screen(tab, true, goBack)}
       </div>
       {saving === "offline" && <p className="mt-6 text-center text-[12px]" style={{ color: C.dim }}>Offline: changes are kept on this phone and will save when you're back online.</p>}
     </main>
@@ -434,6 +460,9 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
     {over === "eat" && <EatOut data={data} update={update} say={say} onClose={() => setOver("")} />}
     {over === "recipes" && <RecipesSheet data={data} update={update} say={say} onClose={() => setOver("")} />}
     {over === "siri" && <SiriSheet onClose={() => setOver("")} />}
+    {over === "sounds" && <SoundsScreen onClose={() => setOver("")} />}
+    {over === "pillow" && <PillowTracker data={data} update={update} say={say} onClose={() => setOver("")} />}
+    {over === "counter" && <CounterScreen kind="mind" update={update} say={say} onClose={() => setOver("")} />}
     {over === "scan" && <ScanMachine data={data} update={update} onClose={() => setOver("")} />}
     {account && <Layer><div className="fixed inset-0 z-[90]"><AccountPrivacy onClose={() => setAccount(false)} /></div></Layer>}
   </div></PointsModeCtx.Provider>;

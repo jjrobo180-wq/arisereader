@@ -12,7 +12,7 @@ import type { AppCtx } from "../NotesApp";
 import PageScreen from "./PageScreen";
 import { drafts } from "./drafts";
 import { lockNow } from "./pagesLock";
-import { FolderSheet, SYNC_WORDS, VaultSheet, usePages, useUnlocked } from "./pagesUi";
+import { AppearanceSwitch, FolderSheet, SYNC_WORDS, VaultSheet, usePages, useUnlocked } from "./pagesUi";
 import { newPageId } from "./pagesSync";
 import { groupNotes } from "./pagesGroups";
 import "./pages-pro.css";
@@ -206,7 +206,8 @@ function FolderRow({ on, icon, tint, label, count, onClick, onEdit, testId }: { 
 
 function PageCard({ m, i, grid, on, folder, trash, onOpen, onRestore, onForever }: { m: PageMeta; i: number; grid: boolean; on: boolean; folder?: Folder; trash: boolean; onOpen: () => void; onRestore: () => void; onForever: () => void }) {
   const look = cleanLook(m.content?.look ?? DEFAULT_LOOK);
-  const paper = PAPER_THEMES[look.theme];
+  const dark = useAppearance().dark;
+  const paper = PAPER_THEMES[dark && look.theme === "paper" ? "charcoal" : look.theme];
   const title = pageTitle(m as any);
   const meta = <span className="flex items-center gap-1.5 text-[12px] text-[var(--an-muted)]">{m.pinned && <Pin className="h-3 w-3" aria-label="Pinned" />}{m.locked && <Lock className="h-3 w-3" aria-label="Locked" />}{shortDate(m.updatedAt)}{folder && <span className="truncate">· {folder.name}</span>}</span>;
   const preview = m.locked ? "Locked" : m.preview || (m.kind === "ink" ? "Handwritten note" : "No text yet");
@@ -251,6 +252,7 @@ function NotesSettingsSheet({ ctx, onClose, onVault }: { ctx: AppCtx; onClose: (
   const setP = (x: Partial<typeof p>) => sync.saveSettings({ ...settings, prefs: { ...p, ...x } });
   return <Sheet title="Notes settings" onClose={onClose}>
     <div className="space-y-4">
+      <AppearanceSwitch />
       <label className="flex items-center justify-between gap-3 text-[15px] font-bold">Sort by
         <select className="an-input !w-auto !min-h-10" value={p.sort} onChange={(e) => setP({ sort: e.target.value as typeof p.sort })}><option value="edited">Last edited</option><option value="created">Date created</option><option value="title">Title</option></select></label>
       <Toggle on={p.pencilOnly} onChange={(v) => setP({ pencilOnly: v })} label="Pencil only" hint="On an iPad, only the Apple Pencil draws; your finger scrolls. Turns on by itself the first time you use a Pencil." />
