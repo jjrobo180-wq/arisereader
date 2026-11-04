@@ -24,7 +24,7 @@
 .ty-bubble[data-popped]::after { content: ""; position: absolute; inset: 30%; border-radius: 40%; border: 1.5px dashed rgba(15,118,110,.35); transform: rotate(18deg); }
 .ty-wrap[data-live] .ty-bubble { animation-duration: calc(1.6s - var(--e) * 1.2s); }
 
-.ty-lava { display: grid !important; place-items: center; position: relative; padding: 0 !important; -webkit-tap-highlight-color: transparent; }
+.ty-lava { display: grid !important; place-items: center; position: relative; padding: 0 !important; background: none !important; border: 0 !important; box-shadow: none !important; -webkit-tap-highlight-color: transparent; }
 .ty-lava svg { width: 7.8rem; height: auto; filter: drop-shadow(0 0 24px rgba(255,138,61,.45)) drop-shadow(0 24px 24px rgba(0,0,0,.55)); }
 .ty-lava:active svg { filter: drop-shadow(0 0 40px rgba(255,138,61,.75)) drop-shadow(0 24px 24px rgba(0,0,0,.55)); }
 .ty-lavalabel { position: absolute; bottom: 1.2rem; font-weight: 800; color: #2a0c00; font-size: .75rem; }
@@ -87,7 +87,7 @@
 .ty-reel-main .ty-land { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-family: var(--an-font); font-size: .95rem; font-weight: 800; overflow-wrap: anywhere; }
 .ty-strip { position: absolute; top: 0; left: 0; right: 0; display: grid; animation: ty-reel .32s linear infinite; filter: blur(1.2px); }
 .ty-strip b { display: grid; place-items: center; height: 2.6rem; font-family: var(--an-serif); font-size: 1.8rem; }
-.ty-lever { position: absolute !important; right: -2.6rem; top: 1.2rem; width: 2.4rem; height: 7.4rem; padding: 0 !important; }
+.ty-lever { background: none !important; border: 0 !important; position: absolute !important; right: -2.6rem; top: 1.2rem; width: 2.4rem; height: 7.4rem; padding: 0 !important; }
 .ty-lever::before { content: ""; position: absolute; left: .3rem; bottom: 0; width: 1.4rem; height: 2.2rem; border-radius: 8px 8px 4px 4px; background: linear-gradient(90deg, #8c8c8c, #f0f0f0 45%, #7a7a7a); }
 .ty-lever i { position: absolute; left: .85rem; bottom: 1.6rem; width: .35rem; height: 5rem; border-radius: 4px; background: linear-gradient(90deg, #9a9a9a, #fff, #8a8a8a); transform-origin: 50% 100%; transition: transform .3s cubic-bezier(.3,1.6,.5,1); }
 .ty-lever i::before { content: ""; position: absolute; left: 50%; top: -.9rem; width: 1.6rem; height: 1.6rem; margin-left: -.8rem; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffb3b3, #ff4d4d 45%, #8e0b0b); box-shadow: 0 4px 10px rgba(0,0,0,.5); }

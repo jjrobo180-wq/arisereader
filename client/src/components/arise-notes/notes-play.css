@@ -12,13 +12,16 @@
 .an-p-art .ty-synth, .an-p-art .ty-radio { width: 100%; margin-inline: 0; box-sizing: border-box; }
 .an-p-art .ty-slots { width: calc(100% - 3.4rem); box-sizing: border-box; margin-right: 3.2rem; margin-left: 0; }
 .an-p-art .ty-arm { display: none; }
-.an-p-onejelly .ty-jelly { width: 11rem; }
-.an-themed [class*="an-l-hero-"] .ty-synth, .an-themed [class*="an-l-hero-"] .ty-radio { margin-inline: 0; }
-.an-themed [class*="an-l-hero-"] .ty-slots { margin-left: 0; }
-.an-themed [class*="an-l-hero-"] .ty-bubble, .an-themed [class*="an-l-hero-"] .ty-jelly, .an-themed [class*="an-l-hero-"] .ty-keys button, .an-themed [class*="an-l-hero-"] .ty-select, .an-themed [class*="an-l-hero-"] .ty-orrery-days button { border: 0; font: inherit; cursor: pointer; }
-.an-themed [class*="an-l-hero-"] .ty-lava, .an-themed [class*="an-l-hero-"] .ty-lever { border: 0; background: none; cursor: pointer; }
-.an-themed [class*="an-l-hero-"] .ty-jelly b { font-family: var(--an-serif); }
-.an-themed [class*="an-l-hero-"] .ty-select { font-family: var(--an-serif); }
+.an-p-onejelly { margin-top: 2.4rem; } .an-p-onejelly .ty-jelly { width: 10rem; }
+.an-p-art .ty-orrery-days, .an-p-art .ty-orrery-pick { display: none; }
+.an-l-hero-bubbles .ty-wrap { max-width: 19rem; margin-inline: auto; }
+.an-themed .ty-synth, .an-themed .ty-radio { margin-inline: 0; }
+.an-themed .ty-slots { margin-left: 0; }
+.an-themed .ty-bubble, .an-themed .ty-jelly, .an-themed .ty-keys button, .an-themed .ty-select, .an-themed .ty-orrery-days button { border: 0; font: inherit; cursor: pointer; }
+.an-themed .ty-orrery-days button { background: none; color: var(--an-muted); } .an-themed .ty-orrery-days [aria-pressed="true"] { background: var(--an-violet); color: var(--an-on-accent); }
+.an-themed .ty-lava, .an-themed .ty-lever { border: 0; background: none; cursor: pointer; }
+.an-themed .ty-jelly b { font-family: var(--an-serif); }
+.an-themed .ty-select { font-family: var(--an-serif); }
 
 /* Spinner */
 .an-theme-spinner { background: radial-gradient(70% 40% at 50% 14%, rgba(61,245,255,.16), transparent 70%), repeating-radial-gradient(circle at 50% 18%, rgba(255,255,255,.018) 0 2px, transparent 2px 5px), var(--an-bg); }
