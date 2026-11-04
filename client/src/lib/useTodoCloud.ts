@@ -4,11 +4,27 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateA
 import { API_BASE } from "@/lib/queryClient";
 import { HubSaver, type SaveView } from "@/lib/hubSaver";
 import { announceSaved, onOtherCopySaved } from "@/lib/paneSync";
-import { recallHub, rememberHub } from "@/lib/hubMemory";
+import { markHubOpen, prefetchHub, recallHub, rememberHub } from "@/lib/hubMemory";
 
 const api = `${API_BASE}/api/arise-todo/workspace`;
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 const backupKey = (id: number) => `arise-todo-draft-v2:${id}`;
+
+/** LifeHub's copy, fetched in the background while WorkHub is open, so switching over is instant.
+ *  Not when this device holds changes that never reached the account: then LifeHub opens the normal
+ *  way, which offers to bring them back. */
+export function prefetchLifeHub(userId: number | undefined, token: string | null): Promise<void> {
+  return prefetchHub<object>("todo", userId, async () => {
+    if (!token || !userId) return null;
+    try { const raw = localStorage.getItem(backupKey(userId)); if (raw && JSON.parse(raw)?.dirty === true) return null; } catch { return null; }
+    const response = await fetch(api, { headers: auth(token), cache: "no-store" });
+    if (!response.ok) return null;
+    const body = await response.json().catch(() => null);
+    const remote = body?.workspace;
+    if (!remote || typeof remote !== "object" || Array.isArray(remote)) return null;
+    return { workspace: remote, updatedAt: typeof body?.updatedAt === "string" ? body.updatedAt : null };
+  });
+}
 
 export function useTodoCloud<W extends object>({
   userId, token, blank, isValid,
@@ -51,9 +67,12 @@ export function useTodoCloud<W extends object>({
       return;
     }
     let cancelled = false;
+    markHubOpen("todo", userId, true);
     // Coming back from WorkHub (or anywhere else on this page): show the copy kept in memory at
-    // once, and catch up with the server in the background — no loading screen.
-    const memo = recallHub<W>("todo", userId);
+    // once, and catch up with the server in the background — no loading screen. (A copy fetched
+    // ahead of time is checked like one from the server.)
+    const remembered = recallHub<W>("todo", userId);
+    const memo = remembered && isValid(remembered.workspace) && isValid(remembered.saved) ? remembered : null;
     setError("");
     setRecovery(null);
     if (memo) {
@@ -133,6 +152,7 @@ export function useTodoCloud<W extends object>({
     })();
     return () => {
       cancelled = true;
+      markHubOpen("todo", userId, false);
       const instance = saver.current;
       saver.current = null;
       if (!instance) return;

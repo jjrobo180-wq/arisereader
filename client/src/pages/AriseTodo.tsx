@@ -143,7 +143,6 @@ import { HubChat } from "@/components/HubChat";
 import { HOME_SIZES, MENU_CLOSES, MENU_SIDES, moveSection, pinId, resizeSection, showSection, sizeOf } from "@shared/hubLayout";
 import { LIFE_PARTS, cleanLifeLayout, type LifeLayout } from "@shared/lifeLayout";
 import HubSwitch from "@/components/HubSwitch";
-import { SupportBanner, SupportButton, SupportMenuItem } from "@/components/SupportArise";
 
 import HeaderShortcut from "@/components/HeaderShortcut";
 import HubMark from "@/components/HubMark";
@@ -154,6 +153,7 @@ import { useLifeHubTrial } from "@/components/TodoGate";
 const Reader = lazy(() => import("@/components/family-hub/Reader"));
 import "./todoNight.css";
 import "./hubThemes.css";
+import { HubWaiting } from "@/lib/hubBackdrop";
 import { LookTaskList, useHubLook } from "@/components/HubLook";
 import { LookDock, LookOS, LookYou, type OsScreen } from "@/components/look-os/LookOS";
 import "./ariseDuo.css";
@@ -975,8 +975,9 @@ export default function AriseTodo() {
 
   // Signed-out visitors always use the unified sign-in and account creation page.
   if (!user) return <Redirect to="/signin" replace />;
+  if (!sync.loaded && !sync.error) return <HubWaiting label="Opening your tasks…" />;
   if (!sync.loaded) return <div className="flex min-h-screen flex-col items-center justify-center gap-5 bg-[#f6f7fc] px-4 text-center text-slate-800">
-    {sync.error ? <><CloudOff size={40} className="text-rose-500" /><h1 className="text-2xl font-black">We couldn't open your saved LifeHub lists.</h1><p className="max-w-md text-sm text-slate-600">{sync.error}</p><button onClick={sync.retry} className={buttonClass + " bg-violet-700 px-6 text-white"}><RefreshCw size={17} /> Try again</button><button onClick={() => void signOut()} className="text-sm font-bold text-slate-500">Switch account</button></> : <><RefreshCw className="animate-spin text-violet-600" size={34} /><p className="text-sm font-semibold text-slate-600">Opening your tasks from your account…</p></>}
+    <CloudOff size={40} className="text-rose-500" /><h1 className="text-2xl font-black">We couldn't open your saved LifeHub lists.</h1><p className="max-w-md text-sm text-slate-600">{sync.error}</p><button onClick={sync.retry} className={buttonClass + " bg-violet-700 px-6 text-white"}><RefreshCw size={17} /> Try again</button><button onClick={() => void signOut()} className="text-sm font-bold text-slate-500">Switch account</button>
   </div>;
   const saveStatus = sync.view.kind === "saved" ? "Saved to account" : sync.view.kind === "waiting" ? "Saving soon…" : sync.view.kind === "saving" ? "Saving to cloud…" : sync.view.kind === "retrying" ? "Waiting for connection…" : "Needs your attention";
 
@@ -1001,11 +1002,6 @@ export default function AriseTodo() {
           {!has && dsk !== "compact" && <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: a.soft, color: a.color }}>Add-on</span>}
         </button>;
       })}
-      <SupportMenuItem isAdmin={user.isAdmin} testId="life-support"
-        className={`flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-3 text-left text-sm font-bold text-rose-700 transition hover:bg-rose-50 ${dsk === "top" ? "" : "w-full"} ${dsk === "compact" ? "justify-center" : ""}`}>
-        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-rose-600 text-white shadow-sm"><HeartNav className="h-4 w-4 fill-current" /></span>
-        <span className={`min-w-0 flex-1 truncate ${dsk === "compact" ? "sr-only" : ""}`}>Support A.R.I.S.E.</span>
-      </SupportMenuItem>
     </div>
   </div>;
   /** One sidebar renderer for built-in navigation and installed App Store sections.
@@ -1205,7 +1201,6 @@ export default function AriseTodo() {
         </button>
         <div className="flex shrink-0 items-center gap-2">
           <DuoHeaderButton onOpen={() => { setCustomizeTab("duo"); setCustomizing(true); }} />
-          {!osOn && (user.role === "parent" || user.isAdmin) && <SupportButton isAdmin={user.isAdmin} />}
           {(user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
           <div className={layout.shortcut ? "contents" : "hidden sm:contents duo:hidden"}>
           {/* Not in the iPhone app: the app is the real thing, no Shortcut. */}{!isNativeApp() && <HeaderShortcut shortcut={layout.shortcut} choices={phoneItems} say={setMessage}
@@ -1264,13 +1259,13 @@ export default function AriseTodo() {
       </button>
     </div>
     {osCore && hubLook.look && <LookOS hubName="LifeHub" hubSwitch={(user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) ? <HubSwitch current="todo" night={night} /> : null} look={hubLook.look} name={osFirst} dateLabel={new Date(`${currentDay}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
-      banner={<>{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}<SupportBanner />{family.widgets.stickies && <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{null}</StickyBoard>}</>} screen={shown as OsScreen} go={osGo} openApps={osApps} add={osAdd} tasks={osTasks} days={osDays} off={osOff} onYou={() => setYouOpen(true)}
+      banner={<>{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{family.widgets.stickies && <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{null}</StickyBoard>}</>} screen={shown as OsScreen} go={osGo} openApps={osApps} add={osAdd} tasks={osTasks} days={osDays} off={osOff} onYou={() => setYouOpen(true)}
       toggle={(id) => { const task = data.tasks.find((t) => t.id === id); if (task) toggleDone(task); }} openTask={(id) => { const task = data.tasks.find((t) => t.id === id); if (task) setEditing({ ...task }); }}
       notes={[...family.notes].sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt.localeCompare(a.updatedAt))} lockedApps={family.lock?.apps}
       shortcuts={phoneItems.filter((i) => !["home", "tasks", "calendar", "notes", "notifications", "linked", "family"].includes(i.id)).slice(0, 4).map((i) => ({ id: i.id, label: i.label, onClick: i.onClick }))}
       content={<LockedApp locked={appLocked(family.lock, shown)} name={openAppName}>{shown === "calendar" || shown === "notes" ? familyContent : null}</LockedApp>} />}
     {osOn && !osCore && hubLook.look && <LookDock inApp look={hubLook.look} screen={null} go={osGo} openApps={osApps} add={osAdd} off={osOff} you={() => setYouOpen(true)} initial={(osFirst || "Y").charAt(0).toUpperCase()} />}
-    {osOn && youOpen && hubLook.look && <LookYou look={hubLook.look} onClose={() => setYouOpen(false)} top={<>{(user.role === "parent" || user.isAdmin) && <SupportButton isAdmin={user.isAdmin} />}<HubTrialNote trial={trial} which="life" upgradeHref="#/billing" /></>}
+    {osOn && youOpen && hubLook.look && <LookYou look={hubLook.look} onClose={() => setYouOpen(false)} top={<><HubTrialNote trial={trial} which="life" upgradeHref="#/billing" /></>}
       items={[{ id: "search", label: "Search", detail: "Everything in LifeHub", onClick: () => setSearching(true) }, { id: "duo", label: "Duo & split screen", onClick: () => { setCustomizeTab("duo"); setCustomizing(true); } }, ...moreGroups.flatMap((g) => g.items)]} />}
     {tabBar && !osOn && <PhoneTabBar name={user.displayName || user.username || ""}
       home={shown === "home" && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && !store} tasks={shown === "tasks" && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && !store}
@@ -1427,7 +1422,7 @@ export default function AriseTodo() {
             </div>
             <KitPlugin key={kitOpen} def={kitDef(kitOpen)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
           </div>}
-          {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{shown === "home" && <div className="mb-4"><SupportBanner /></div>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
+          {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
           {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown === "tasks" && <>
 
           {/* The four counts are in the tabs on a phone, so the cards show from a tablet up. */}

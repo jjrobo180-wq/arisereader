@@ -11,7 +11,7 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateA
 import { API_BASE } from "@/lib/queryClient";
 import { HubSaver, type SaveView } from "@/lib/hubSaver";
 import { announceSaved, onOtherCopySaved } from "@/lib/paneSync";
-import { recallHub, rememberHub } from "@/lib/hubMemory";
+import { markHubOpen, prefetchHub, recallHub, rememberHub } from "@/lib/hubMemory";
 import { HUB_REQUIRED } from "@shared/plans";
 import { workspaceBytes } from "@shared/hubSave";
 import { emptyWorkspace, normalizeWorkspace, type Workspace } from "@shared/teacherHub";
@@ -48,6 +48,18 @@ function workspaceFrom(data: any): Workspace {
     throw new Error("Arise WorkHub sent back something unexpected, so nothing was opened or changed. Try again in a moment.");
   }
   return normalizeWorkspace(data.workspace);
+}
+
+/** WorkHub's copy, fetched in the background while LifeHub is open, so switching over is instant. */
+export function prefetchWorkHub(userId: number | undefined, token: string | null): Promise<void> {
+  return prefetchHub<Workspace>("work", userId, async () => {
+    if (!token) return null;
+    const r = await fetch(`${API_BASE}/api/teacher-hub/workspace`, { headers: authHeaders(token), cache: "no-store" });
+    if (!r.ok) return null;
+    const data = await r.json().catch(() => null);
+    const start = workspaceFrom(data);
+    return { workspace: start, updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : null, extra: { seats: typeof data.seats === "number" ? data.seats : null } };
+  });
 }
 
 export function useHubWorkspace({ enabled, token, userId }: { enabled: boolean; token: string | null; userId?: number }): HubSync {
@@ -97,6 +109,7 @@ export function useHubWorkspace({ enabled, token, userId }: { enabled: boolean; 
     if (!enabled || !token) return;
     let cancelled = false;
     const live = () => !cancelled;
+    markHubOpen("work", userId, true);
     setLoadError("");
     setNeedsPlan(false);
     // Coming back from LifeHub (or anywhere else on this page): show the copy kept in memory at once
@@ -118,7 +131,7 @@ export function useHubWorkspace({ enabled, token, userId }: { enabled: boolean; 
         saver.current.change(memo.pending ? workspaceRef.current : memo.workspace);
         window.setTimeout(() => { if (!cancelled) { lastCheck.current = 0; void checkRef.current(); } }, 60);
       })();
-      return () => { cancelled = true; leave(); };
+      return () => { cancelled = true; leave(); markHubOpen("work", userId, false); };
     }
     setLoaded(false);
     fetch(`${API_BASE}/api/teacher-hub/workspace`, { headers: authHeaders(token), cache: "no-store" })
@@ -145,7 +158,7 @@ export function useHubWorkspace({ enabled, token, userId }: { enabled: boolean; 
         setLoadError(err?.message || "Could not load Arise WorkHub.");
         setLoaded(true);
       });
-    return () => { cancelled = true; leave(); };
+    return () => { cancelled = true; leave(); markHubOpen("work", userId, false); };
   }, [enabled, token, userId, round]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Every change goes to the saver — once a real copy is showing. (On an instant open the saver can

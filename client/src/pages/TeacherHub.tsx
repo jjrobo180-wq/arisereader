@@ -8,7 +8,6 @@ import DuoControls, { DuoHeaderButton } from "@/components/DuoControls";
 import { Bell, Columns2, LayoutGrid, PanelLeft, Palette } from "lucide-react";
 import { hubThemeOf } from "@shared/appThemes";
 import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/HubSearch";
-import { SupportBanner, SupportMenuItem } from "@/components/SupportArise";
 import { STORE_KIND } from "@shared/hubSearch";
 import { DailyBrief, useMorningBrief } from "@/components/DailyBrief";
 import { buildWorkBrief } from "@shared/dailyBrief";
@@ -98,6 +97,7 @@ import { cleanGroupOrder, HUB_GROUPS, SUB_LABELS, groupLabel, groupOf, groupTabs
 import "@/components/teacher-hub/hubNight.css";
 import "./hubThemes.css";
 import { useHubLook } from "@/components/HubLook";
+import { HubWaiting } from "@/lib/hubBackdrop";
 import { LookDock, LookOS, LookYou, type OsScreen } from "@/components/look-os/LookOS";
 import { addDays } from "@shared/familyHub";
 import { calendarEvents } from "@shared/hubHidden";
@@ -835,16 +835,7 @@ function TeacherHubPage() {
     );
   }
 
-  if (!loaded) {
-    return (
-      <div className="min-h-screen bg-slate-100 px-5 py-16">
-        <div className="mx-auto flex max-w-xl items-center justify-center gap-3 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
-          <span className="text-sm font-medium text-slate-700">Opening your Arise WorkHub…</span>
-        </div>
-      </div>
-    );
-  }
+  if (!loaded) return <HubWaiting label="Opening your Arise WorkHub…" fallbackBg="#f1f5f9" />;
 
   // After the free month: only the A.R.I.S.E. Reader tools stay (the rest of WorkHub is kept, but locked).
   if (needsPlan) return <ReaderOnly signOut={signOut} isAdmin={!!user.isAdmin} />;
@@ -1355,14 +1346,6 @@ function TeacherHubPage() {
                     </div>
                   );
                 })}
-                <div className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
-                  <SupportMenuItem isAdmin={!!user?.isAdmin} testId="hub-support"
-                    className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold text-rose-700 transition md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2.5 md:px-3 md:py-1.5 md:text-left md:text-sm md:hover:bg-rose-50`}>
-                    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-rose-600 text-white"><Heart className="h-4 w-4 fill-current" /></span>
-                    <span className={`${MENU_LABEL} md:hidden`}>Support</span>
-                    <span className={`hidden truncate md:inline ${deskCompact ? "md:sr-only" : ""}`}>Support A.R.I.S.E.</span>
-                  </SupportMenuItem>
-                </div>
               </Fragment>;
               const renderSidebarGroups = (groups: typeof menu, keepFolders: boolean) => foldMenu(groups, keepFolders ? layout.folders : [])
                 .filter((entry) => entry.kind === "item" || entry.items.length > 0 || entry.folder.items.length === 0)
@@ -1635,7 +1618,6 @@ function TeacherHubPage() {
           {!osCore && <LockedApp locked={tab !== "overview" && appLocked(workspace.lock, tab)} name={TAB_META.find((m) => m.id === tab)?.label || "This screen"}>
           {tab === "overview" && (
             <>
-              <SupportBanner />
               {(() => {
                 // Home in the teacher's order. Press and hold (or Edit Home) to arrange it right here; Customize sets the same order.
                 // Widened past Record<HomeSection, ...> below so a pinned Kit plugin or Notes app (see pinId) can add its own entry.
@@ -1827,7 +1809,7 @@ function TeacherHubPage() {
         </div>
       )}
       {osCore && hubLook.look && <LookOS hubName="WorkHub" hubSwitch={<HubSwitch current="hub" night={night} />} look={hubLook.look} name={osFirst} dateLabel={new Date(`${osToday}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
-        banner={<SupportBanner />} screen={osTab!} go={osGo} openApps={osApps} add={osAdd} tasks={osTasks} days={osDays} notes={osNotes} shortcuts={osShortcuts} off={osOff} lockedApps={workspace.lock?.apps} onYou={() => setYouOpen(true)}
+        screen={osTab!} go={osGo} openApps={osApps} add={osAdd} tasks={osTasks} days={osDays} notes={osNotes} shortcuts={osShortcuts} off={osOff} lockedApps={workspace.lock?.apps} onYou={() => setYouOpen(true)}
         toggle={(tid) => setWorkspace((p) => ({ ...p, tasks: toggleTask(p.tasks, tid, TODAY()).tasks }))} openTask={setHomeTask}
         content={<LockedApp locked={appLocked(workspace.lock, tab)} name={TAB_META.find((m) => m.id === tab)?.label || "This screen"}>{tab === "calendar" ? <HubCalendarTab workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} onReminderAdded={(items) => reminderAdded(items)} /> : tab === "notes" ? <HubNotes key={notesKey} workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} /> : null}</LockedApp>} />}
       {osReady && !osCore && hubLook.look && <LookDock inApp look={hubLook.look} screen={null} go={osGo} openApps={osApps} add={osAdd} off={osOff} you={() => setYouOpen(true)} initial={(osFirst || "Y").charAt(0).toUpperCase()} />}
