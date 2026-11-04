@@ -32,8 +32,8 @@ jobs:
           mkdir -p dist/public/notes-looks
           npx esbuild script/notesLooksPreview.tsx --bundle --format=esm --jsx=automatic --loader:.css=css --define:process.env.NODE_ENV='"production"' --alias:@=./client/src --alias:@shared=./shared --outfile=dist/public/notes-looks/main.js
           # The app's own stylesheet (its utility classes) goes in too, as in the app.
-          CSS=$(ls dist/public/assets/index-*.css 2>/dev/null | head -1 | sed 's#^dist/public##')
-          sed "s#<link rel=\"stylesheet\" href=\"./main.css\">#<link rel=\"stylesheet\" href=\"$CSS\"><link rel=\"stylesheet\" href=\"./main.css\">#" script/notesLooksPreview.html > dist/public/notes-looks/index.html
+          CSS=$(grep -o 'href="[^"]*\.css"' dist/public/index.html | sed 's/^href=//; s/"//g' | sed 's#.*#<link rel=\"stylesheet\" href=\"&\">#' | tr -d '\n')
+          sed "s#<link rel=\"stylesheet\" href=\"./main.css\">#$CSS<link rel=\"stylesheet\" href=\"./main.css\">#" script/notesLooksPreview.html > dist/public/notes-looks/index.html
           mkdir -p dist/public/notes-pages
           npx esbuild script/notesPagesPreview.tsx --bundle --format=esm --jsx=automatic --loader:.css=css --define:process.env.NODE_ENV='"production"' --alias:@=./client/src --alias:@shared=./shared --outfile=dist/public/notes-pages/main.js
           cp dist/public/notes-looks/index.html dist/public/notes-pages/index.html
