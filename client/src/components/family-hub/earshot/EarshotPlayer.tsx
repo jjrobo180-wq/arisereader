@@ -925,9 +925,10 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
   useEffect(() => () => { plays.current.forEach((p) => { if (p.timer) clearTimeout(p.timer); }); }, []);
 
-  /** Pod+ skips every ad found in this very copy by itself, sure or not (Undo brings any one back);
-   *  only a spot listeners merely skip past is left as an offer. */
-  const ownAds = (list: PlayAd[]): PlayAd[] => (standalone ? list.map((x) => (!x.sure && x.kind !== "crowd" ? { ...x, sure: true } : x)) : list);
+  /** Pod+ skips every ad found in this very copy by itself, sure or not (Undo brings any one back).
+   *  Left as an offer: a spot listeners merely skip past, and a seam with weak signs on one side
+   *  (often the show's own edit, not an ad). */
+  const ownAds = (list: PlayAd[]): PlayAd[] => (standalone ? list.map((x) => (!x.sure && x.kind !== "crowd" && x.kind !== "splice" ? { ...x, sure: true } : x)) : list);
   /** Where an episode starts: the top when it's set to play straight through, otherwise where it was
    *  left off (in the time of the copy about to play) or past a long intro. */
   const startFor = (ep: PodEpisode, clean: boolean, via = true): number => {
