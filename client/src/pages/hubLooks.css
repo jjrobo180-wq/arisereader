@@ -265,11 +265,6 @@
 /* Menus and drawers stay solid over the page. */
 .hub-look [role="menu"] { background: var(--an-card) !important; color: var(--an-ink); }
 /* Notifications take each look's colors, type, corners and shadow. */
-html[data-hub-look] .hub-notif { background: var(--an-card) !important; color: var(--an-ink) !important; font-family: var(--an-font); border: var(--an-border, 1px) solid var(--an-line) !important; border-radius: var(--an-radius) !important; box-shadow: var(--an-shadow, 0 20px 50px rgba(0,0,0,.3)) !important; --tw-ring-shadow: 0 0 #0000; }
-html[data-hub-look] .hub-notif * { color: inherit !important; border-color: var(--an-line) !important; }
-html[data-hub-look] .hub-notif [class*="bg-"]:not(button) { background-color: var(--an-violet-soft) !important; }
-html[data-hub-look] .hub-notif a, html[data-hub-look] .hub-notif [class*="text-amber"], html[data-hub-look] .hub-notif [class*="text-orange"] { color: var(--an-violet-ink) !important; }
-html[data-hub-look] .hub-notif [class*="text-slate"], html[data-hub-look] .hub-notif [class*="text-white/"] { color: var(--an-muted) !important; }
 .hub-look [class*="text-violet"], .hub-look [class*="text-indigo"] { color: var(--an-violet-ink) !important; }
 
 /* The Work/Life switch matches the look in every hub and on every screen. */
