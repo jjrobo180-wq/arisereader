@@ -8,6 +8,8 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { onNotificationsRefresh, relativeTime, sessionToken } from "@/lib/notifications";
+import { notifSkin, notifWords } from "@/components/notifSkins";
+import "@/components/notifSkins.css";
 import { CONNECT_INVITE_URL, type FeedCategory, type FeedItem, type FeedResponse } from "@shared/notifications";
 import { addDismissals, cleanKeys, dismissedKeys, isLocalKey, parseDismissals, type Dismissal } from "@shared/notificationDismiss";
 
@@ -280,24 +282,28 @@ export function NotificationBell({
     if (await markSeen(keys, true)) setOpen(false);
   };
 
+  // Dressed for the hub's theme (notifSkins.ts / notifSkins.css), read each time the panel shows.
+  const skin = open ? notifSkin() : "";
+  const words = notifWords(skin);
+
   const renderItem = (item: FeedItem) => {
     const style = CATEGORY_STYLE[item.category] || CATEGORY_STYLE.info;
     const Icon = style.icon;
     const linked = item.kind === "action" ? !!item.target && !!onNavigate : true;
     return (
-      <li key={item.key} className="group flex items-stretch border-b border-white/[.06] last:border-b-0">
+      <li key={item.key} className="nf-row group flex items-stretch" data-cat={item.category} data-kind={item.kind}>
         <button
           type="button"
           onClick={() => openItem(item)}
-          className="flex min-w-0 flex-1 items-start gap-3 px-3 py-3 text-left transition hover:bg-white/[.04] focus-visible:bg-white/[.06] focus-visible:outline-none"
+          className="nf-main flex min-w-0 flex-1 items-start gap-3 px-3 py-3 text-left transition focus-visible:outline-none"
         >
-          <span className={`mt-0.5 grid grid-cols-1 h-9 w-9 shrink-0 place-items-center rounded-xl ${style.tone}`}><Icon className="h-4 w-4" /></span>
+          <span className={`nf-icon mt-0.5 grid grid-cols-1 h-9 w-9 shrink-0 place-items-center ${skin ? "" : style.tone}`}><Icon className="h-4 w-4" /></span>
           <span className="min-w-0 flex-1">
             <span className="flex items-start gap-2">
-              <span className="min-w-0 flex-1 text-[13px] font-bold leading-snug text-[#f5f3ff] [overflow-wrap:anywhere]">{item.title}</span>
-              <span className="shrink-0 pt-0.5 text-[11px] font-semibold text-[#c4c0dc]">{relativeTime(item.createdAt)}</span>
+              <span className="nf-title min-w-0 flex-1 text-[13px] font-bold leading-snug [overflow-wrap:anywhere]">{item.title}</span>
+              <span className="nf-time shrink-0 pt-0.5 text-[11px] font-semibold">{relativeTime(item.createdAt)}</span>
             </span>
-            {item.body && <span className="mt-0.5 line-clamp-2 block text-xs leading-5 text-[#c4c0dc] [overflow-wrap:anywhere]">{item.body}</span>}
+            {item.body && <span className="nf-body mt-0.5 line-clamp-2 block text-xs leading-5 [overflow-wrap:anywhere]">{item.body}</span>}
             {quizLink(item.target) && (
               <span className="mt-1.5 inline-flex items-center gap-0.5 rounded-full bg-emerald-400/15 px-2 py-0.5 text-[11px] font-black text-emerald-300">Take the quiz <ChevronRight className="h-3 w-3" /></span>
             )}
@@ -305,14 +311,14 @@ export function NotificationBell({
               <span className="mt-1.5 inline-flex items-center gap-0.5 rounded-full bg-sky-400/15 px-2 py-0.5 text-[11px] font-black text-sky-300">Open A.R.I.S.E. Connect <ChevronRight className="h-3 w-3" /></span>
             )}
             {item.kind === "action" && linked && (
-              <span className="mt-1 inline-flex items-center gap-0.5 text-[11px] font-bold text-[#fb923c]">Open <ChevronRight className="h-3 w-3" /></span>
+              <span className="nf-open mt-1 inline-flex items-center gap-0.5 text-[11px] font-bold">{words.open} <ChevronRight className="h-3 w-3" /></span>
             )}
           </span>
         </button>
         <button
           type="button"
           onClick={() => void markSeen([item.key])}
-          className="grid grid-cols-1 w-11 shrink-0 place-items-center text-[#c4c0dc] transition hover:bg-white/[.05] hover:text-[#ffffff]"
+          className="nf-x grid grid-cols-1 w-11 shrink-0 place-items-center transition"
           aria-label={item.kind === "action" ? `Dismiss: ${item.title}` : `Mark as read: ${item.title}`}
           title={item.kind === "action" ? "Dismiss" : "Mark as read"}
         >
@@ -324,10 +330,10 @@ export function NotificationBell({
 
   const section = (label: string, list: FeedItem[], dot: string, extra?: ReactNode) => (
     <section aria-label={label}>
-      <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-white/[.08] bg-[#151326]/95 px-3 py-2 backdrop-blur">
-        <span className={`h-2 w-2 rounded-full ${dot}`} />
-        <span className="text-[11px] font-black uppercase tracking-[.14em] text-[#c4c0dc]">{label}</span>
-        <span className="text-[11px] font-bold text-[#c4c0dc]">· {list.length}</span>
+      <div className="nf-sec sticky top-0 z-10 flex items-center gap-2 px-3 py-2">
+        <span className={`nf-dot h-2 w-2 ${skin ? "" : dot}`} data-sec={dot.includes("fuchsia") ? "needs" : "upd"} />
+        <span className="nf-label text-[11px] font-black uppercase tracking-[.14em]">{label}</span>
+        <span className="nf-count text-[11px] font-bold">· {list.length}</span>
         <span className="ml-auto">{extra}</span>
       </div>
       <ul>{list.map(renderItem)}</ul>
@@ -340,21 +346,22 @@ export function NotificationBell({
       role="dialog"
       aria-label="Notifications"
       style={position.mobile ? { top: position.top, left: 8, right: 8 } : { top: position.top, right: position.right, width: 420 }}
-      className="hub-notif fixed z-[10000] flex max-h-[min(78vh,640px)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#151326] text-[#f5f3ff] shadow-[0_28px_90px_rgba(0,0,0,.55)] ring-1 ring-violet-400/10"
+      className="hub-notif fixed z-[10000] flex max-h-[min(78vh,640px)] flex-col overflow-hidden"
+      data-skin={skin || "plain"}
     >
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/[.06] to-cyan-400/[.07] px-4 py-3">
+      <div className="nf-head flex shrink-0 items-center justify-between gap-3 px-4 py-3">
         <div className="min-w-0">
-          <p className="text-sm font-black text-[#f5f3ff]">Notifications</p>
-          <p className="mt-0.5 text-xs text-[#c4c0dc]">
+          <p className="nf-h text-sm font-black">{words.title}</p>
+          <p className="nf-sub mt-0.5 text-xs">
             {!loaded ? "Checking…" : badge === 0 ? "Nothing new" : [actions.length && `${actions.length} need${actions.length === 1 ? "s" : ""} you`, updates.length && `${updates.length} update${updates.length === 1 ? "" : "s"}`].filter(Boolean).join(" · ")}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          <button type="button" onClick={() => void load()} className="grid grid-cols-1 h-8 w-8 place-items-center rounded-lg text-[#c4c0dc] hover:bg-white/[.07] hover:text-[#ffffff]" aria-label="Check for new notifications" title="Check now">
+          <button type="button" onClick={() => void load()} className="nf-btn grid grid-cols-1 h-8 w-8 place-items-center" aria-label="Check for new notifications" title="Check now">
             <RefreshCw className="h-3.5 w-3.5" />
           </button>
           {items.length > 0 && (
-            <button type="button" onClick={() => void clearAll()} className="rounded-lg px-2 py-1.5 text-xs font-bold text-[#c4c0dc] hover:bg-white/[.07] hover:text-[#ffffff]">Clear all</button>
+            <button type="button" onClick={() => void clearAll()} className="nf-btn px-2 py-1.5 text-xs font-bold">{words.clear}</button>
           )}
         </div>
       </div>
@@ -366,33 +373,33 @@ export function NotificationBell({
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto overscroll-contain">
+      <div className="nf-list flex-1 overflow-y-auto overscroll-contain">
         {!loaded ? (
-          <p className="py-10 text-center text-sm text-[#c4c0dc]">Checking notifications…</p>
+          <p className="nf-sub py-10 text-center text-sm">Checking notifications…</p>
         ) : items.length === 0 ? (
           <div className="px-5 py-10 text-center">
-            <div className="mx-auto grid grid-cols-1 h-12 w-12 place-items-center rounded-full bg-cyan-500/10 text-cyan-300"><CheckCircle2 className="h-6 w-6" /></div>
-            <p className="mt-3 text-sm font-black text-[#f5f3ff]">You're all caught up</p>
-            <p className="mt-1 text-xs text-[#c4c0dc]">New tasks and updates show up here.</p>
+            <div className="nf-icon nf-empty-icon mx-auto grid grid-cols-1 h-12 w-12 place-items-center"><CheckCircle2 className="h-6 w-6" /></div>
+            <p className="nf-h mt-3 text-sm font-black">{words.empty}</p>
+            {words.emptySub && <p className="nf-sub mt-1 text-xs">{words.emptySub}</p>}
           </div>
         ) : (
           <>
-            {actions.length > 0 && section("Needs you", actions, "bg-fuchsia-400")}
-            {updates.length > 0 && section("Updates", updates, "bg-cyan-400", (
-              <button type="button" onClick={() => void markSeen(updates.map((u) => u.key))} className="text-[11px] font-bold text-[#c4c0dc] hover:text-[#ffffff]">Mark all read</button>
+            {actions.length > 0 && section(words.needs, actions, "bg-fuchsia-400")}
+            {updates.length > 0 && section(words.updates, updates, "bg-cyan-400", (
+              <button type="button" onClick={() => void markSeen(updates.map((u) => u.key))} className="nf-btn text-[11px] font-bold">{words.markRead}</button>
             ))}
           </>
         )}
       </div>
 
       {onSettings && (
-        <button type="button" onClick={() => { setOpen(false); onSettings(); }} className="flex min-h-11 shrink-0 items-center justify-between gap-2 border-t border-white/10 bg-white/[.03] px-4 text-left text-xs font-bold text-[#e6e3f7] hover:bg-white/[.07]" data-testid="notification-settings-link">
-          Notification settings <ChevronRight className="h-4 w-4" />
+        <button type="button" onClick={() => { setOpen(false); onSettings(); }} className="nf-foot nf-settings flex min-h-11 shrink-0 items-center justify-between gap-2 px-4 text-left text-xs font-bold" data-testid="notification-settings-link">
+          {words.settings} <ChevronRight className="h-4 w-4" />
         </button>
       )}
       {actions.length > 0 && (
-        <p className="shrink-0 border-t border-white/10 bg-white/[.03] px-4 py-2 text-[11px] leading-4 text-[#c4c0dc]">
-          Tasks clear by themselves once they're done. Use × to hide one for now.
+        <p className="nf-foot nf-hint shrink-0 px-4 py-2 text-[11px] leading-4">
+          {words.hint}
         </p>
       )}
     </div>

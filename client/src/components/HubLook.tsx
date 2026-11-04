@@ -25,6 +25,12 @@ export function useHubLook(themeId: unknown, night: boolean): { look: NotesTheme
   const sent = useRef(false);
   useEffect(() => { publishLook(look); return () => publishLook(null); }, [look]);
   useEffect(() => { if (look) loadFont(look.fontUrl); }, [look]);
+  // The hub's theme on the page, for pop-ups that open outside the hub (the notification panel dresses for it).
+  useEffect(() => {
+    const d = document.documentElement.dataset;
+    d.hubTheme = hubThemeOf(themeId).id; d.hubNight = night ? "1" : "0";
+    return () => { delete d.hubTheme; delete d.hubNight; };
+  }, [themeId, night]);
   // Remembered so a hub that is still arriving shows this background, not a white flash (lib/hubBackdrop).
   useEffect(() => {
     const plain = hubThemeOf(themeId).vars["--hub-bg"];
