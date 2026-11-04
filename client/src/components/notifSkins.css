@@ -175,3 +175,6 @@
 
 @keyframes nf-blink { 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .hub-notif * { animation: none !important; } }
+
+/* The bell's count in each look's own accent (it was the same pink everywhere). */
+html[data-hub-look] [data-testid="notification-bell"] > span { background: var(--an-violet); color: var(--an-on-accent); --tw-ring-color: var(--an-bg); border-radius: max(var(--an-radius), 4px); }
