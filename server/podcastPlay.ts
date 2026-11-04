@@ -17,7 +17,7 @@ import { tmpdir } from "node:os";
 import { createHmac, hkdfSync, timingSafeEqual } from "node:crypto";
 import { Mp3Scanner, alignCopies, contentPieces, copyToCt, coverage, ctToCopy, findKeys, keyAt, unmatched, type ContentPiece, type Span } from "../shared/earshotAudio";
 import type { PlayAd } from "../shared/earshotAds";
-import type { AdRange, TranscriptChunk } from "../shared/earshot";
+import { TX_CHUNK_SECS, type AdRange, type TranscriptChunk } from "../shared/earshot";
 import { chapterAdsIn, id3Chapters, seamTimes, spliceAds } from "../shared/earshotSplice";
 import { fetchCopy } from "./podcastCopies";
 import type { AdLibrary } from "./podcastAdLibrary";
@@ -747,9 +747,20 @@ export function parseRange(header: string | undefined, total: number): { start: 
 /** Right after a copy is compared, its opening (first 2.5 minutes) is transcribed and read for ads
  *  (host-read sponsors, the show's own pitches) so they're skipped before they play. Two at a time;
  *  made once per episode for everyone. */
-export function startOpenings(player: Player, dir: Pick<Directory, "contentTranscript"> & Partial<Pick<Directory, "contentChunks" | "copyPieceAds" | "likelyAdChunks" | "budgetLeft" | "perDay">>) {
+export function startOpenings(player: Player, dir: Pick<Directory, "contentTranscript"> & Partial<Pick<Directory, "contentChunks" | "copyPieceAds" | "likelyAdChunks" | "budgetLeft" | "perDay" | "minutesLastHour" | "hourCap" | "paid">>) {
   const queue: any[] = [];
   let running = 0;
+  // Then the rest of the episode (two episodes at a time), once per episode for everyone.
+  const ahead: any[] = [];
+  let reading = 0;
+  const pumpAhead = () => {
+    while (reading < 2 && ahead.length) {
+      const s = ahead.shift();
+      if (!player.sessions.has(s.id)) continue;
+      reading++;
+      void readWhole(player, dir, s).catch((e: any) => console.warn("[earshot] read ahead:", e?.message || e)).finally(() => { reading--; pumpAhead(); });
+    }
+  };
   const pump = () => {
     while (running < 2 && queue.length) {
       const s = queue.shift();
@@ -761,10 +772,11 @@ export function startOpenings(player: Player, dir: Pick<Directory, "contentTrans
           // Then whatever in this copy the pieces don't have (its own ads at the start, mostly).
           if (!dir.contentChunks || !dir.copyPieceAds || !player.sessions.has(s.id)) return;
           // Busy hour for speech-to-text: leave it for the parts listeners are playing.
-          if (!hasDeepgram() && (dir as any).minutesLastHour && (dir as any).minutesLastHour() > 40) return;
+          if (dir.minutesLastHour && dir.minutesLastHour() > hourCapOf(dir)) return;
           const reader = dir.copyPieceAds;
           await player.readGaps(s, await dir.contentChunks(s.episodeId), (fp, audio, secs) => reader(s.showId, s.episodeId, fp, audio, secs));
           await checkLikelyAds(player, dir, s);
+          if (!ahead.some((x) => x.episodeId === s.episodeId)) { ahead.push(s); pumpAhead(); }
         })
         .catch((e: any) => console.warn("[earshot] opening:", e?.message || e))
         .finally(() => { s.opening = "done"; running--; pump(); });
@@ -776,14 +788,46 @@ export function startOpenings(player: Player, dir: Pick<Directory, "contentTrans
 /** Then the parts of the episode where this show's ad breaks usually are (learned from its earlier
  *  episodes), so they're known before the listener gets there. Only while there's plenty of the
  *  day's allowance left (a quarter is kept for listeners), and only for a listener still here. */
-export async function checkLikelyAds(player: Player, dir: Pick<Directory, "contentTranscript"> & Partial<Pick<Directory, "likelyAdChunks" | "budgetLeft" | "perDay">>, s: any, reserve = 0.25) {
+/** Minutes of audio an hour reading ahead may use: Groq's free plan takes 2 hours of audio an hour, a paid
+ *  plan (or Deepgram) far more (podcastDirectory aiHourCap). */
+const hourCapOf = (dir: Partial<Pick<Directory, "hourCap">>) => (dir.hourCap ? dir.hourCap() : hasDeepgram() ? 1200 : 40);
+/** Room to read ahead of listeners right now: under the hour's cap (on the free plan only its quiet
+ *  half, so listeners' own requests always have room) and with a quarter of the day's allowance kept. */
+export function roomToRead(dir: Partial<Pick<Directory, "minutesLastHour" | "budgetLeft" | "perDay" | "hourCap" | "paid">>): boolean {
+  const cap = hourCapOf(dir), paid = dir.paid ? dir.paid() : hasDeepgram();
+  if (dir.minutesLastHour && dir.minutesLastHour() > (paid ? cap : cap / 2)) return false;
+  return !(dir.budgetLeft && dir.perDay && dir.budgetLeft() < dir.perDay * 0.25);
+}
+/** The whole episode read along, piece by piece in order (pieces read already, for anyone, are skipped),
+ *  so every host-read sponsor is found before a listener gets there, not only those near where they are.
+ *  Stops when the copy is let go or there's no room (it picks up again with the next listener). */
+export async function readWhole(player: Player, dir: Pick<Directory, "contentTranscript"> & Partial<Pick<Directory, "contentChunks" | "minutesLastHour" | "budgetLeft" | "perDay" | "hourCap" | "paid">>, s: any, max = 24): Promise<number> {
+  if (!dir.contentChunks || !player.sessions.has(s.id) || !s.copy?.done || !s.ads?.final) return 0;
+  const { total } = player.contentOf(s);
+  const chunks = Math.min(max, Math.max(1, Math.ceil(total / TX_CHUNK_SECS - 0.01)));
+  const have = new Set((await dir.contentChunks(s.episodeId)).filter((c) => c.source !== "none").map((c) => c.chunk));
+  let read = 0;
+  for (let c = 0; c < chunks; c++) {
+    if (have.has(c)) continue;
+    if (!player.sessions.has(s.id) || !roomToRead(dir)) break;
+    s.touched = Date.now();
+    const got = await dir.contentTranscript(s.showId, s.episodeId, c, { secs: total, extract: (from, to) => player.extract(s, from, to) }).catch(() => null);
+    // Turned away (busy, out of allowance): try again with a later listener.
+    if (!got || (got.source === "none" && (got as any).retry)) break;
+    if (got.source !== "none") read++;
+  }
+  if (read) console.log(`[earshot] read ahead ${s.episodeId}: ${read} more piece${read === 1 ? "" : "s"} of ${chunks}`);
+  return read;
+}
+
+export async function checkLikelyAds(player: Player, dir: Pick<Directory, "contentTranscript"> & Partial<Pick<Directory, "likelyAdChunks" | "budgetLeft" | "perDay" | "minutesLastHour" | "hourCap">>, s: any, reserve = 0.25) {
   if (!dir.likelyAdChunks || !player.sessions.has(s.id)) return;
   const { total } = player.contentOf(s);
   for (const chunk of await dir.likelyAdChunks(s.showId, total)) {
     if (!player.sessions.has(s.id)) return;
     if (dir.budgetLeft && dir.perDay && dir.budgetLeft() < dir.perDay * reserve) return;
     // Groq's free speech-to-text takes 2 hours of audio an hour: what listeners are playing comes first.
-    if (!hasDeepgram() && (dir as any).minutesLastHour && (dir as any).minutesLastHour() > 40) return;
+    if (dir.minutesLastHour && dir.minutesLastHour() > hourCapOf(dir)) return;
     await dir.contentTranscript(s.showId, s.episodeId, chunk, { secs: total, extract: (from, to) => player.extract(s, from, to) }).catch(() => null);
   }
 }
