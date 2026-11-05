@@ -257,6 +257,8 @@ export type Workspace = {
   minuteBlocks?: SchoolBlock[];
   /** The school days that are optional: nothing is due on them, they are only for extra minutes. Not set means Wednesday. See shared/hubProgress.ts. */
   minuteOptionalDays?: string[];
+  /** The case manager lets the others at their school see their minutes, view only (see shared/hubMinutesDay.ts). */
+  minutesShared?: boolean;
   /** How the teacher arranged the Hub in Customize (see shared/hubLayout.ts): the phone menu and Home. */
   layout?: import("./hubLayout").HubLayout;
   /** Which phone reminders to send, and when (see shared/hubNotify.ts). Not set means the defaults. */
