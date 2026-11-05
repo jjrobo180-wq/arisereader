@@ -346,8 +346,10 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
   app.get("/api/fit/videos", authMiddleware, async (req: any, res) => {
     const q = String(req.query.q ?? "").trim().slice(0, 100);
     if (q.length < 3) return res.status(400).json({ message: "What class?" });
-    const key = process.env.YOUTUBE_API_KEY;
-    if (!key) return res.status(503).json({ code: "videos_off", message: "Videos aren't switched on for this server yet." });
+    // The key comes from the server's environment, or from the settings table (key "fit:youtube-key"),
+    // so it can be added without touching the hosting dashboard.
+    const key = process.env.YOUTUBE_API_KEY || (await kv.get("fit:youtube-key").catch(() => null) as string | null) || "";
+    if (!key) return res.status(503).json({ code: "videos_off", message: "Videos are coming soon." });
     try {
       const data: any = await cached(`yt:${q.toLowerCase()}`, () => fetchJson(`https://www.googleapis.com/youtube/v3/search?${new URLSearchParams({ part: "snippet", type: "video", videoEmbeddable: "true", videoSyndicated: "true", safeSearch: "strict", maxResults: "8", q, key })}`));
       const videos = (Array.isArray(data?.items) ? data.items : []).map((it: any) => ({ id: String(it?.id?.videoId || ""), title: String(it?.snippet?.title || "").slice(0, 120), channel: String(it?.snippet?.channelTitle || "").slice(0, 60), thumb: String(it?.snippet?.thumbnails?.medium?.url || "") })).filter((v: any) => /^[\w-]{11}$/.test(v.id));
