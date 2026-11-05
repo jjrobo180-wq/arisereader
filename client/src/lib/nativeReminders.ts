@@ -41,7 +41,21 @@ export function setNativeSound(on: boolean): void {
   window.dispatchEvent(new Event(REMINDERS_CHANGED)); // schedules again with, or without, the sound
 }
 /** Spread into a scheduled notification to give it the sound (or nothing, when sound is off). */
-export const soundField = (): { sound?: string } => (nativeSoundOn() ? { sound: CHIME } : {});
+export const soundField = (): { sound?: string } => (nativeSoundOn() ? { sound: nativeSoundFile() } : {});
+
+/** The sounds in the app (arisetodo/ios-app/sounds/*.wav, all copied in by add-sound.py). */
+export const REMINDER_SOUNDS = [
+  { file: CHIME, name: "Chime" }, { file: "arise-bell.wav", name: "Bell" }, { file: "arise-glass.wav", name: "Glass" },
+  { file: "arise-marimba.wav", name: "Marimba" }, { file: "arise-pulse.wav", name: "Pulse" }, { file: "arise-soft.wav", name: "Soft" },
+] as const;
+const SOUND_NAME_KEY = "arise_native_sound_file";
+/** The one picked in Settings, or the chime. */
+export const nativeSoundFile = (): string => { const v = store.get(SOUND_NAME_KEY); return REMINDER_SOUNDS.some((x) => x.file === v) ? (v as string) : CHIME; };
+export function setNativeSoundFile(file: string): void {
+  if (!REMINDER_SOUNDS.some((x) => x.file === file)) return;
+  store.set(SOUND_NAME_KEY, file);
+  window.dispatchEvent(new Event(REMINDERS_CHANGED)); // every reminder is scheduled again with the new sound
+}
 
 /** True in an app build that can schedule notifications. */
 export const nativeRemindersAvailable = (): boolean => hasNativePlugin(PLUGIN);

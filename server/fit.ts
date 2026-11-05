@@ -57,14 +57,15 @@ async function askAiForMenu(ask: MenuAsk): Promise<MenuPick[]> {
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "gpt-4.1-mini", temperature: 0.4, max_tokens: 700, response_format: { type: "json_object" },
+    body: JSON.stringify({ model: "gpt-4.1-mini", temperature: 0.4, max_tokens: 1400, response_format: { type: "json_object" },
       messages: [{ role: "system", content: MENU_PROMPT }, { role: "user", content: menuUserText(ask) }] }),
     signal: AbortSignal.timeout(30_000),
   });
   if (res.status === 429) throw new Error("busy");
   if (!res.ok) throw new Error(`status ${res.status}`);
   const body: any = await res.json();
-  try { return cleanMenuPicks(JSON.parse(body?.choices?.[0]?.message?.content || "{}")); } catch { return []; }
+  const text = String(body?.choices?.[0]?.message?.content || "");
+  try { return cleanMenuPicks(JSON.parse(text)); } catch { console.error("[fit] menu: unreadable AI answer", text.slice(0, 200)); return []; }
 }
 
 export type GearAnswer = { gear: string[]; name: string; note: string };
@@ -80,7 +81,7 @@ async function askAiForGear(image: string, mode: "machine" | "gym"): Promise<Gea
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "gpt-4.1", temperature: 0.1, max_tokens: 400, response_format: { type: "json_object" },
+    body: JSON.stringify({ model: "gpt-4.1-mini", temperature: 0.1, max_tokens: 400, response_format: { type: "json_object" },
       messages: [{ role: "system", content: IDENTIFY_PROMPT(mode) }, { role: "user", content: [{ type: "text", text: mode === "machine" ? "What is this machine?" : "What equipment is here?" }, { type: "image_url", image_url: { url: image, detail: "low" } }] }] }),
     signal: AbortSignal.timeout(40_000),
   });
@@ -207,8 +208,11 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
     const goal = ({ lose: "lose fat", maintain: "stay fit", gain: "build muscle" } as any)[req.body?.goal] ?? "stay fit";
     const left = req.body?.left ?? {};
     try {
-      const picks = await menu({ place, cuisine: clean(req.body?.cuisine, 40), goal, diet: clean(req.body?.diet, 40) || "balanced", mode: req.body?.mode === "points" ? "points" : "calories", wants: clean(req.body?.wants, 160),
-        left: { kcal: n(left.kcal, 6000), p: n(left.p, 400), c: n(left.c, 800), f: n(left.f, 400) } });
+      const askFor = { place, cuisine: clean(req.body?.cuisine, 40), goal, diet: clean(req.body?.diet, 40) || "balanced", mode: (req.body?.mode === "points" ? "points" : "calories") as "points" | "calories", wants: clean(req.body?.wants, 160),
+        left: { kcal: n(left.kcal, 6000), p: n(left.p, 400), c: n(left.c, 800), f: n(left.f, 400) } };
+      let picks = await menu(askFor);
+      // A small local place the AI doesn't know: ask again for the typical dishes of its kind of food.
+      if (!picks.length) picks = await menu({ ...askFor, place: `a typical ${askFor.cuisine || "American"} restaurant (the person is at "${place}")` });
       return picks.length ? res.json({ picks }) : res.status(422).json({ message: "Couldn't come up with picks for that place. Try the chain's name or a cuisine." });
     } catch (e: any) { return res.status(503).json({ message: e?.message === "busy" ? "The AI is busy. Try again in a minute." : "Couldn't look that up right now. Try again in a minute." }); }
   });
@@ -280,9 +284,19 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
   const cache = new Map<string, { at: number; body: any }>();
   // Trails barely change: answers are kept a day, and two people asking at once share one fetch.
   const inflight = new Map<string, Promise<any>>();
+  // Stale-while-revalidate: an answer under a day old is served as is; an older one (up to two weeks) is
+  // served at once and refreshed in the background, so places, gyms and trails open instantly.
+  const FRESH_MS = 24 * 3600_000, STALE_MS = 14 * 24 * 3600_000;
   const cached = async (key: string, make: () => Promise<any>) => {
     const hit = cache.get(key);
-    if (hit && Date.now() - hit.at < 24 * 3600_000) return hit.body;
+    const age = hit ? Date.now() - hit.at : Infinity;
+    if (hit && age < FRESH_MS) return hit.body;
+    const run = () => {
+      let q = inflight.get(key);
+      if (!q) { q = make().then((b) => { cache.set(key, { at: Date.now(), body: b }); return b; }).finally(() => inflight.delete(key)); inflight.set(key, q); }
+      return q;
+    };
+    if (hit && age < STALE_MS) { void run().catch(() => { /* keep the older answer */ }); return hit.body; }
     let p = inflight.get(key);
     if (!p) { p = make().finally(() => inflight.delete(key)); inflight.set(key, p); }
     const body = await p;
@@ -326,6 +340,21 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
       const hit = Array.isArray(list) ? list[0] : null;
       res.json(hit ? { place: { lat: Number(hit.lat), lng: Number(hit.lon), label: String(hit.display_name || q).split(",").slice(0, 2).join(",").trim() } } : { place: null });
     } catch (e: any) { console.error("[fit] places", e?.message); res.status(503).json({ message: "Place search isn't reachable right now." }); }
+  });
+
+  // ——— Follow-along videos: embeddable YouTube results for a class (needs YOUTUBE_API_KEY) ———————
+  app.get("/api/fit/videos", authMiddleware, async (req: any, res) => {
+    const q = String(req.query.q ?? "").trim().slice(0, 100);
+    if (q.length < 3) return res.status(400).json({ message: "What class?" });
+    // The key comes from the server's environment, or from the settings table (key "fit:youtube-key"),
+    // so it can be added without touching the hosting dashboard.
+    const key = process.env.YOUTUBE_API_KEY || (await kv.get("fit:youtube-key").catch(() => null) as string | null) || "";
+    if (!key) return res.status(503).json({ code: "videos_off", message: "Videos are coming soon." });
+    try {
+      const data: any = await cached(`yt:${q.toLowerCase()}`, () => fetchJson(`https://www.googleapis.com/youtube/v3/search?${new URLSearchParams({ part: "snippet", type: "video", videoEmbeddable: "true", videoSyndicated: "true", safeSearch: "strict", maxResults: "8", q, key })}`));
+      const videos = (Array.isArray(data?.items) ? data.items : []).map((it: any) => ({ id: String(it?.id?.videoId || ""), title: String(it?.snippet?.title || "").slice(0, 120), channel: String(it?.snippet?.channelTitle || "").slice(0, 60), thumb: String(it?.snippet?.thumbnails?.medium?.url || "") })).filter((v: any) => /^[\w-]{11}$/.test(v.id));
+      res.json({ videos });
+    } catch (e: any) { console.error("[fit] videos", e?.message); res.status(503).json({ message: "Videos aren't reachable right now." }); }
   });
 
   // ——— Near me: gyms and healthy food —————————————————————————————————————————————————————————————

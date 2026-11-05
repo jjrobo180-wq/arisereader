@@ -27,6 +27,8 @@ import Randomizer from "@/components/family-hub/Randomizer";
 import Relationships from "@/components/family-hub/Relationships";
 import Dictionary from "@/components/family-hub/Dictionary";
 import LinkPage from "@/components/family-hub/LinkPage";
+import DuoSetup, { duoSetupDone } from "@/components/DuoSetup";
+import { useNativeBackdrop } from "@/lib/nativeBackdrop";
 import LifePlanApp, { PLAN_FOCUS_KEY } from "@/components/family-hub/LifePlanApp";
 import LinkedProfiles from "@/components/family-hub/LinkedProfiles";
 import { linksApi } from "@/lib/profileLinks";
@@ -86,7 +88,7 @@ import { cleanDriveFiles } from "@shared/driveApp";
 import NotesKitApp from "@/components/plugin-kit/NotesKitApp";
 import { LEARNING_APPS, LearningIcon, openLearning, useLearningAccess } from "@/components/hub-pieces/LearningApps";
 import { PlanCard, UpgradeHost, appsBlocked, appsFull, openUpgrade, useTodoPlan } from "@/components/hub-pieces/TodoPlan";
-import { appsIn, countsAsApp } from "@shared/todoPlan";
+import { appsIn, countsAsApp, FREE_APPS } from "@shared/todoPlan";
 import { addDays, eventsOn, cleanFamily, cleanSectionOrder, emptyFamily, FAMILY_SECTIONS, isCurrentFamily, isOn, orderedToggleable, TOGGLEABLE, ADD_ON_SECTIONS, type Family, type FamilySection } from "@shared/familyHub";
 import FamilyHome from "@/components/family-hub/FamilyHome";
 import Chores from "@/components/family-hub/Chores";
@@ -161,6 +163,7 @@ import { inDuoPane, useAriseDuo, type DuoChoice } from "@/lib/useAriseDuo";
 import "@/components/teacher-hub/darkPalette.css";
 import AccountPrivacy from "@/components/AccountPrivacy";
 import { isNativeApp } from "@/lib/nativeApp";
+import { isSampleMode } from "@/lib/sampleMode";
 import { REMINDERS_CHANGED, installReminderTaps, scheduleNativeReminders } from "@/lib/nativeReminders";
 
 type Priority = "low" | "normal" | "high";
@@ -765,12 +768,15 @@ export default function AriseTodo() {
   const myKits = (family.kitInstalled ?? []).map((k) => kitDef(k)).filter((d): d is NonNullable<ReturnType<typeof kitDef>> => !!d);
   const pinnableApps = [...pinnableNotes, ...pinnableSheets, ...(drivePlugin ? [drivePlugin] : []), ...(dropPlugin ? [dropPlugin] : [])];
   const layout = withSharedLook(cleanLifeLayout(family.layout, pinnableApps.map((p) => p.id)));
+  const [setupOpen, setSetupOpen] = useState(() => !!user && isNativeApp() && !isSampleMode() && !duoSetupDone(user.id));
   const setLayout = (next: LifeLayout) => { rememberLook(next); setFamily((f) => ({ ...f, layout: next })); window.dispatchEvent(new Event(SHARED_LOOK_EVENT)); };
   // The current theme's structural feel, reused for the task list's row style below (see
   // shared/appThemes.ts's HubTheme.homeLayout) — "cards" (today's) for Classic/Sunrise/Forest,
   // a dense tap-chip wrap for Tile/Candy, bracketed text lines for Old Computer, and a quiet
   // thin-divider list for Minimalist.
   const hubLook = useHubLook(layout.theme, night);
+  const hubRootRef = useRef<HTMLDivElement | null>(null);
+  useNativeBackdrop(hubRootRef, [night, layout.theme, hubLook.look?.id, setupOpen]);
   const taskLayout = hubThemeOf(layout.theme).homeLayout ?? "cards";
   // The Tile theme is a Windows-Phone start screen: every app is a tile on Home, so there is no menu strip beside it.
   const tileMode = taskLayout === "tiles";
@@ -1079,13 +1085,14 @@ export default function AriseTodo() {
             onNavigate={(type) => { if (type.startsWith("life:")) setSection(type.slice(5) as FamilySection); else navigate(user.isAdmin ? "/admin" : "/profile"); }}
             onSettings={() => setSection("notifications")}
             triggerClassName={`relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 ${shown === "notifications" ? "bg-[#292446] text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`} />;
-  return <PrivacyLockProvider lock={family.lock} setLock={(lock) => setFamily((f) => ({ ...f, lock }))} apps={lockableApps} settings={lockSettings} onSettings={setLockSettings}><div style={hubLook.style} className={`min-h-screen bg-[#f6f7fc] text-slate-900 ${night && !hubLook.look ? "todo-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""} ${hubLook.className}`}>
+  return <PrivacyLockProvider lock={family.lock} setLock={(lock) => setFamily((f) => ({ ...f, lock }))} apps={lockableApps} settings={lockSettings} onSettings={setLockSettings}><div ref={hubRootRef} style={hubLook.style} className={`min-h-screen bg-[#f6f7fc] text-slate-900 ${night && !hubLook.look ? "todo-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""} ${hubLook.className}`}>
     <UpgradeHost hub="life" />
     {/* After the tour: the coach on the real hub (hold a widget, switch hubs, the App Gallery). */}
     <HubCoach userId={user.id} hub="life" />
-    <AppWalkthrough userId={user.id} hub="life" arise={user.role === "teacher" || user.role === "parent"}
+    {setupOpen && <DuoSetup userId={user.id} layout={layout} setLayout={setLayout} plugins={pluginsFor("life", { teacher: user.role === "teacher" || !!user.isAdmin, arise: user.role === "teacher" || user.role === "parent" || !!user.isAdmin })} setFamily={setFamily as any} unlimited={!!todoPlan?.unlimited} room={Math.max(0, (todoPlan?.apps.limit ?? FREE_APPS) - appsIn("life", data) - (todoPlan?.apps.work ?? 0))} lifeplanOn={isOn("lifeplan", family)} onClose={() => setSetupOpen(false)} />}
+    {!setupOpen && <AppWalkthrough userId={user.id} hub="life" arise={user.role === "teacher" || user.role === "parent"}
       onGallery={() => setStore(true)} onCustomize={(t) => { setCustomizeTab(t); setCustomizing(true); }} onNotificationSettings={() => { closeApps(); goSection("notifications"); }}
-      onConnectCalendar={async () => { const list = await readIphoneEvents(); setFamily((f) => withPhoneEvents(f, list, makeId)); return Math.min(list.length, 1000); }} />
+      onConnectCalendar={async () => { const list = await readIphoneEvents(); setFamily((f) => withPhoneEvents(f, list, makeId)); return Math.min(list.length, 1000); }} />}
     {store && <PluginStore
       hub="life"
       initialOpen={storeOpenApp ?? undefined}

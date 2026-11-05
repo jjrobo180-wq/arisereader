@@ -186,6 +186,10 @@ for (const id of ["spinner", "bubbles", "lava", "marbles", "synth", "jelly", "or
 // Arise Notes in the newest looks, from its real components (script/notesLooksPreview.tsx).
 for (const id of LOOKS) for (const [name, qs] of [["notes-home", "view=home"], ["notes-rec", "view=rec"], ["notes-night", "view=home&night=1"]])
   lookJobs.push(() => shot(`look-${id}-${name}`, async (p) => { await p.goto(`${A}/notes-looks/?look=${id}&${qs}`); await wait(p, 1500); }));
+// Arise Notes' Notes tab: folders and notes in its professional look, light and dark, under any look.
+for (const [name, qs] of [["folders", "pane=folders"], ["list", "pane=list"], ["grid", "pane=list&view=grid"], ["folders-dark", "pane=folders&dark=1&look=neon"], ["list-dark", "pane=list&dark=1&look=neon"], ["folders-bubbles", "pane=folders&look=bubbles"]])
+  lookJobs.push(() => shot(`notes-pages-${name}`, async (p) => { await p.goto(`${A}/notes-pages/?${qs}`); await wait(p, 1800); }));
+lookJobs.push(() => shot("notes-pages-new-folder", async (p) => { await p.goto(`${A}/notes-pages/?pane=folders`); await wait(p, 1500); await p.getByTestId("pages-new-folder").click(); await wait(p, 600); }));
 // The interactive looks, mid-play: a flick, a pop, a turn, a key, a pull.
 const playWith = (id, name, act) => LOOKS.includes(id) && lookJobs.push(() => shot(`look-${id}-${name}`, async (p) => { await withLook(p, id, "/lifehub?pane=home"); const f = p.frameLocator("#f"); await act(p, f); }));
 const drag = async (p, f, sel, path) => { const b = await f.locator(sel).first().boundingBox(); if (!b) return; const cx = b.x + b.width / 2, cy = b.y + b.height / 2; await p.mouse.move(cx + path[0][0] * b.width / 2, cy + path[0][1] * b.height / 2); await p.mouse.down(); for (const [x, y] of path.slice(1)) await p.mouse.move(cx + x * b.width / 2, cy + y * b.height / 2, { steps: 4 }); await p.mouse.up(); };

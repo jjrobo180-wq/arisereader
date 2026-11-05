@@ -92,7 +92,10 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
 
   useEffect(() => { watchForLimits(); }, []);
   useEffect(() => {
-    const open = (e: Event) => { setNote(""); setReason(((e as CustomEvent).detail?.reason as Reason) || "plan"); };
+    const open = (e: Event) => {
+      // Never interrupt the first-run setup or the tour with a sales box.
+      if (typeof document !== "undefined" && document.querySelector("[data-backdrop-hold], [data-testid=\"app-walkthrough\"]")) return;
+      setNote(""); setReason(((e as CustomEvent).detail?.reason as Reason) || "plan"); };
     window.addEventListener(OPEN, open);
     return () => window.removeEventListener(OPEN, open);
   }, []);

@@ -48,6 +48,9 @@ test("pre-checks only spend spare allowance, most-wanted shows first", () => {
   assert.equal(spareMinutes(new Date("2026-10-27T15:00:00Z"), 900, 900), 0);
   assert.equal(spareMinutes(new Date("2026-10-27T07:00:00Z"), 900, 900), 450);
   assert.equal(spareMinutes(new Date("2026-10-27T22:00:00Z"), 900, 300), 210);
+  // A paid AI plan: any hour, a quarter of the day's allowance kept for listeners.
+  assert.equal(spareMinutes(new Date("2026-10-27T15:00:00Z"), 3000, 3000, true), 2250);
+  assert.equal(spareMinutes(new Date("2026-10-27T15:00:00Z"), 3000, 500, true), 0);
   const now = Date.now();
   assert.deepEqual(pickShows({ a: { n: 1, at: now }, b: { n: 5, at: now }, old: { n: 9, at: now - 40 * 864e5 } }, ["c", "a"], now), ["b", "a", "c"]);
 });

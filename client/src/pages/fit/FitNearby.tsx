@@ -91,6 +91,18 @@ function useNearby(kind: NearbyKind) {
   return { list, crowd, setCrowd, busy, bar, token };
 }
 
+/** Warm the caches for the last-used place so Gyms and Eat open with results already on screen. */
+export function prefetchNearby(token: string | null | undefined) {
+  const p = lastPlace(); if (!p) return;
+  (["gyms", "food"] as NearbyKind[]).forEach((kind, i) => window.setTimeout(() => {
+    const ck = `arise-fit-near:${kind}:${nearbyCell(kind, p.ll[0], p.ll[1]).join(",")}`;
+    try { const v = JSON.parse(localStorage.getItem(ck) || "null"); if (v?.r && Date.now() - v.at < 6 * 36e5) return; } catch { /* refetch */ }
+    fitApi<any>(token as any, `/nearby?${new URLSearchParams({ kind, lat: String(p.ll[0]), lng: String(p.ll[1]) })}`)
+      .then((r) => { try { localStorage.setItem(ck, JSON.stringify({ at: Date.now(), r })); } catch { /* storage full */ } })
+      .catch(() => { /* the screen fetches it itself */ });
+  }, 800 + i * 600));
+}
+
 // ——— Gyms near me ———————————————————————————————————————————————————————————————————————————————
 export function NearbyGyms({ data, update, onClose, say }: { data: FitData; update: Update; onClose: () => void; say: (m: string) => void }) {
   const { list, crowd, setCrowd, busy, bar, token } = useNearby("gyms");
