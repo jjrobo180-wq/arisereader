@@ -67,6 +67,21 @@ if ("serviceWorker" in navigator && window.location.protocol === "https:") {
   window.addEventListener("load", () => { navigator.serviceWorker.register("/sw.js").catch(() => {}); });
 }
 
+// In the iPhone apps, iOS closes an app in the background to free memory, so coming back starts it over.
+// The screen you were on is kept (for 12 hours) and opened again, so it feels like you never left.
+// (The open app, tab and typed text come back through lib/useStayOnRefresh.)
+if (window.location.protocol === "capacitor:") {
+  const LAST = "arise-last-hash", LAST_AT = "arise-last-hash-at";
+  try {
+    const h = window.location.hash;
+    const saved = localStorage.getItem(LAST) || "", at = Number(localStorage.getItem(LAST_AT)) || 0;
+    if ((!h || h === "#/" || h === "#/signin") && /^#\/[\w\-\/?=&.%]*$/.test(saved) && !/^#\/(signin|join|admin-handoff)/.test(saved) && Date.now() - at < 12 * 3600_000) window.location.hash = saved;
+  } catch { /* nothing kept */ }
+  window.addEventListener("hashchange", () => {
+    try { const h = window.location.hash; if (h && h !== "#/") { localStorage.setItem(LAST, h); localStorage.setItem(LAST_AT, String(Date.now())); } } catch { /* fine */ }
+  });
+}
+
 if (!window.location.hash) {
   window.location.hash = "#/";
 }
