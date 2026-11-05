@@ -10,11 +10,12 @@ const scenes = read("client/src/components/tour/TourScenes.tsx");
 test("every tour page has an animated scene", () => {
   const ids = (src: string) => [...src.matchAll(/\{ id: "([a-z]+)"/g)].map((m) => m[1]);
   const walk = read("client/src/components/AppWalkthrough.tsx");
-  for (const id of ids(walk.slice(0, walk.indexOf("function NativeTour")))) assert.match(scenes, new RegExp(`case "${id}": return <Todo`), `To Duo: ${id}`);
+  // To Duo's tour is drawn over the real app (a ring on the real button), not a picture of it.
+  assert.match(walk, /function LiveTour/);
+  assert.doesNotMatch(walk, /<TodoScene/);
   for (const id of ids(read("client/src/components/ReaderFirstRun.tsx"))) assert.match(scenes, new RegExp(`case "${id}": return <(Reader|Educator)`), `Reader: ${id}`);
   const pod = read("podscroll/Welcome.tsx");
   for (const id of ids(pod)) assert.match(scenes, new RegExp(`case "${id}": return <Pod`), `Pod+: ${id}`);
-  assert.match(walk, /<TodoScene id=\{step\.id\} \/>/);
   assert.match(read("client/src/components/ReaderFirstRun.tsx"), /<ReaderScene id=\{step\.id\} \/>/);
   assert.match(pod, /<PodScene id=\{step\.id\} \/>/);
 });

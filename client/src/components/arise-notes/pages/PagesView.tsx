@@ -16,6 +16,7 @@ import { AppearanceSwitch, FolderSheet, SYNC_WORDS, VaultSheet, usePages, useUnl
 import { newPageId } from "./pagesSync";
 import { groupNotes } from "./pagesGroups";
 import "./pages-pro.css";
+import { useAppearance } from "../appearance";
 
 type Filter = { kind: "all" } | { kind: "pinned" } | { kind: "folder"; id: string } | { kind: "tag"; tag: string } | { kind: "locked" } | { kind: "ink" } | { kind: "trash" };
 const FKEY = "arise-pages-filter", PKEY = "arise-pages-pane";
