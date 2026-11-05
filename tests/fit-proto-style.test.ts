@@ -39,7 +39,7 @@ test("tabs: Today, the apps you pin (Train, Food and Run to start) and Apps, wit
 
 test("finishing a workout shows the trophy screen", () => {
   const t = read("FitTrain.tsx");
-  assert.match(t, /fit-pop grid h-\[104px\]/);
+  assert.match(t, /fit-pop grid h-\[84px\]/);
   assert.match(t, />Done\.</);
   assert.match(t, /Back to today/);
 });

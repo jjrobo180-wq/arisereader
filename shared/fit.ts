@@ -8,7 +8,9 @@ export type Goal = "lose" | "maintain" | "gain";
 export type Meal = "breakfast" | "lunch" | "dinner" | "snack";
 export type FitSet = { reps: number; weight: number; done: boolean; warm?: boolean; rpe?: number };
 export type FitExercise = { exId: string; name: string; sets: FitSet[]; rest?: number; target?: string; note?: string };
-export type Workout = { id: string; date: string; name: string; programId?: string; dayId?: string; secs: number; exercises: FitExercise[]; note?: string };
+export type Workout = { id: string; date: string; name: string; programId?: string; dayId?: string; secs: number; exercises: FitExercise[]; note?: string;
+  /** The pre-workout check-in (shared/fitReadyMode.ts): readiness then, food, caffeine, warm-up, and whether Ready Mode adjusted it. */
+  check?: { ready: number; food: "meal" | "snack" | "fasted"; stim: "none" | "coffee" | "preworkout"; stretched: boolean; adapted: boolean } };
 export type Routine = { id: string; name: string; exercises: { exId: string; name: string; sets: number; reps: string; rest: number }[] };
 export type FoodEntry = { id: string; date: string; meal: Meal; name: string; kcal: number; p: number; c: number; f: number; servings: number; serving?: string };
 /** A meal saved to add again in one tap (MyFitnessPal's "My Meals"). */
@@ -94,6 +96,7 @@ export function cleanFit(raw: any): FitData {
   d.workouts = (Array.isArray(raw.workouts) ? raw.workouts : []).slice(-LIMITS.workouts).filter((w: any) => w && w.id && w.date).map((w: any): Workout => ({
     id: str(w.id, 40), date: str(w.date, 30), name: str(w.name, 80) || "Workout", ...(w.programId ? { programId: str(w.programId, 40) } : {}), ...(w.dayId ? { dayId: str(w.dayId, 40) } : {}),
     secs: num(w.secs, 0, 86400), exercises: (Array.isArray(w.exercises) ? w.exercises : []).slice(0, 40).map(ex), ...(w.note ? { note: str(w.note, 500) } : {}),
+    ...(w.check && typeof w.check === "object" ? { check: { ready: num(w.check.ready, 0, 100), food: (["meal", "snack", "fasted"].includes(w.check.food) ? w.check.food : "snack"), stim: (["none", "coffee", "preworkout"].includes(w.check.stim) ? w.check.stim : "none"), stretched: !!w.check.stretched, adapted: !!w.check.adapted } } : {}),
   }));
   d.routines = (Array.isArray(raw.routines) ? raw.routines : []).slice(0, LIMITS.routines).map((r: any): Routine => ({ id: str(r?.id, 40), name: str(r?.name, 60) || "Routine",
     exercises: (Array.isArray(r?.exercises) ? r.exercises : []).slice(0, 30).map((e: any) => ({ exId: str(e?.exId, 80), name: str(e?.name, 80), sets: num(e?.sets, 1, 20, 3), reps: str(e?.reps, 12) || "8-12", rest: num(e?.rest, 0, 900, 90) })) }));
