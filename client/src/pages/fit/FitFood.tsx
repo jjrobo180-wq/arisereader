@@ -8,6 +8,7 @@ import { dayKey, goals, uid, type FitData, type FoodEntry, type Meal, type Saved
 import type { FoundFood } from "@shared/foodLookup";
 import { estimateMeal, lookupBarcode, searchFoods, shrinkPhoto } from "@/lib/foodLookup";
 import { canUseCamera, scanWithCamera } from "@/lib/barcodeScanner";
+import { FitGrade, GradeCard } from "./FitGrade";
 import { PlusTag } from "./FitPlus";
 import { DIET_BY_ID, DIET_PLANS, amountText, pointsBudget, pointsOf } from "@shared/fitNutrition";
 import type { Update } from "./fitStore";
@@ -186,6 +187,7 @@ const OZ = 29.5735;
 export function FoodTab({ token, data, update, say, snap, onRecipes, onEatOut }: { token: string | null; data: FitData; update: Update; say: (m: string) => void; snap?: boolean; onRecipes?: () => void; onEatOut?: () => void }) {
   const [date, setDate] = useState(dayKey());
   // snap: opened by Siri ("Log my meal"), straight to the camera.
+  const [grading, setGrading] = useState(false);
   const [adding, setAdding] = useState<{ meal: Meal; start?: AddTab } | null>(() => (snap ? { meal: (() => { const h = new Date().getHours(); return h < 10 ? "breakfast" : h < 15 ? "lunch" : h < 21 ? "dinner" : "snack"; })(), start: "ai" } : null));
   const [plan, setPlan] = useState(false);
   const [report, setReport] = useState(false);
@@ -227,6 +229,8 @@ export function FoodTab({ token, data, update, say, snap, onRecipes, onEatOut }:
       <button type="button" onClick={() => setAdding({ meal: nowMeal, start: "scan" })} className="flex min-h-[78px] items-center gap-2 rounded-[14px] px-3 text-left transition-transform active:scale-[.98]" style={{ background: C.card2 }} data-testid="fit-scan-quick">
         <ScanLine className="h-6 w-6 shrink-0" style={{ color: C.lime }} /><span className="text-[18px] leading-none" style={display}>Scan barcode</span></button>
     </div>}
+    {today && <GradeCard onOpen={() => setGrading(true)} />}
+    {grading && <FitGrade onClose={() => setGrading(false)} />}
     <Card className="mt-3 flex items-center gap-4 !p-4">
       {points
         ? <Ring value={used} goal={budget} size={112} stroke={11}><div><p className="text-[30px] leading-none" style={display}>{Math.abs(budget - used)}</p><p className="mt-1 text-[11px]" style={{ color: C.dim }}>points {used > budget ? "over" : "left"}</p></div></Ring>
