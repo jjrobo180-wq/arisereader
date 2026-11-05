@@ -1,0 +1,20 @@
+name: A.R.I.S.E. Fit smoke checks
+on:
+  push:
+    branches: [feat/arise-fit-standalone-foundation]
+    paths: ['arise-fit/**', '.github/workflows/arise-fit-smoke.yml']
+  pull_request:
+    paths: ['arise-fit/**', '.github/workflows/arise-fit-smoke.yml']
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate app syntax
+        run: node --check arise-fit/app.js
+      - name: Verify core interactions
+        run: node --test arise-fit/smoke.test.mjs
