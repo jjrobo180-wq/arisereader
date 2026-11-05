@@ -31,7 +31,7 @@ import DuoSetup, { duoSetupDone } from "@/components/DuoSetup";
 import { useNativeBackdrop } from "@/lib/nativeBackdrop";
 import LifePlanApp, { PLAN_FOCUS_KEY } from "@/components/family-hub/LifePlanApp";
 import LinkedProfiles from "@/components/family-hub/LinkedProfiles";
-import { linksApi } from "@/lib/profileLinks";
+import { JOIN_PENDING_KEY, linksApi } from "@/lib/profileLinks";
 import StickyBoard, { ADD_STICKY_EVENT } from "@/components/family-hub/StickyBoard";
 import KitPlugin from "@/components/plugin-kit/KitPlugin";
 import { LIFE_VIEWS } from "@/components/family-hub/lifeApps";
@@ -404,6 +404,12 @@ export default function AriseTodo() {
     window.addEventListener("hashchange", open);
     return () => window.removeEventListener("hashchange", open);
   }, []);
+  // A join link opened while signed out waits in storage; once they're in, take them back to accept it.
+  useEffect(() => {
+    if (!user) return;
+    let t = ""; try { t = localStorage.getItem(JOIN_PENDING_KEY) || ""; } catch { /* none */ }
+    if (/^[a-f0-9]{44}$/.test(t)) navigate(`/join/${t}`);
+  }, [user?.id]);
   // A tapped reminder opens "#/lifehub?go=<section>[&view=today]" (shared/todoReminders.ts goUrl):
   // straight to the screen it's about, then the address is tidied so a refresh doesn't do it again.
   useEffect(() => {
@@ -416,7 +422,7 @@ export default function AriseTodo() {
       if ((FAMILY_SECTIONS as readonly string[]).includes(go)) {
         closeApps();
         // An Accountability invite or nudge: the app is turned on for them if it wasn't yet.
-        if (go === "accountability") setFamily((f) => (f.sections.accountability ? f : { ...f, sections: { ...f.sections, accountability: true } }));
+        if (go === "accountability" || go === "linked") setFamily((f) => (f.sections[go] ? f : { ...f, sections: { ...f.sections, [go]: true } }));
         setSection(go as FamilySection);
         const v = params.get("view");
         if (go === "tasks" && (v === "today" || v === "upcoming" || v === "all")) setView(v);
