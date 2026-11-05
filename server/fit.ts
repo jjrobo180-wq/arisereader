@@ -26,7 +26,8 @@ import type { Express, RequestHandler } from "express";
 import { CATALOG, LIMITS, cleanFit, type CatalogExercise } from "../shared/fit";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { TRAIL_KM, trailCell, trailGeometryQuery, trailsQuery } from "../shared/fitRun";
-import { GEAR_PROMPT_LIST, cleanGearIds } from "../shared/fitGym";
+import { GEAR_PROMPT_LIST, cleanGearIds, gearFromText } from "../shared/fitGym";
+import { BACKUPS, findBackup } from "./aiProvider";
 import { NEARBY, REPORT_MS, crowdNow, foodQuery, gymsQuery, nearbyCell, type BusyLevel } from "../shared/fitNearby";
 import { digestForAi } from "../shared/fitInsights";
 import { cleanRecipe, type Recipe } from "../shared/fitRecipes";
@@ -103,62 +104,90 @@ export function visionMissedImage(note: string): boolean {
   return /(?:no|without|missing|didn['’]t receive|couldn['’]t access|cannot (?:see|view|access)|can['’]t (?:see|view|access)|wasn['’]t sent|was not sent)[^.!?]{0,90}(?:image|photo|picture)|(?:image|photo|picture)[^.!?]{0,65}(?:not (?:provided|attached|received|available|visible)|wasn['’]t (?:provided|attached|received)|was not (?:provided|attached|received))/i.test(note);
 }
 
-function cleanVisionAnswer(text: string): GearAnswer {
-  let parsed: any = {};
-  try { parsed = JSON.parse(text); } catch { parsed = {}; }
-  return { gear: cleanGearIds(parsed.gear), name: String(parsed.name || "").slice(0, 80), note: String(parsed.note || "").slice(0, 200) };
+/** A photo has to go to a vision model, never to the site-wide text-only chat fallback.
+ * installGrok() can replace OPENAI_API_KEY with "routed-to-grok"; that placeholder
+ * is not a usable Responses API key. Choose a provider with real credentials. */
+type VisionTarget = { provider: "openai" | "xai" | "groq"; url: string; model: string; key: string; api: "responses" | "chat" };
+
+export function fitVisionTargets(env: Record<string, string | undefined> = process.env): VisionTarget[] {
+  const result: VisionTarget[] = [];
+  const realOpenAI = (env.OPENAI_API_KEY || "").trim();
+  if (env.USE_OPENAI === "1" && realOpenAI && realOpenAI !== "routed-to-grok")
+    result.push({ provider: "openai", url: "https://api.openai.com/v1/responses", model: env.FIT_VISION_OPENAI_MODEL || "gpt-4.1-mini", key: realOpenAI, api: "responses" });
+  const backup = findBackup(env);
+  const keyFor = (names: readonly string[], kind: "grok" | "groq") => names.map((name) => (env[name] || "").trim()).find(Boolean) || (backup?.kind === kind ? backup.key : "");
+  const xaiKey = keyFor(BACKUPS.grok.keys, "grok");
+  const groqKey = keyFor(BACKUPS.groq.keys, "groq");
+  if (xaiKey) result.push({ provider: "xai", url: "https://api.x.ai/v1/responses", model: env.FIT_VISION_XAI_MODEL || "grok-4.7", key: xaiKey, api: "responses" });
+  if (groqKey) result.push({ provider: "groq", url: "https://api.groq.com/openai/v1/chat/completions", model: env.FIT_VISION_GROQ_MODEL || "qwen/qwen3.8-27b", key: groqKey, api: "chat" });
+  // If there is no site-wide chat fallback, a real OpenAI key may be the only credential.
+  if (!result.length && realOpenAI && realOpenAI !== "routed-to-grok")
+    result.push({ provider: "openai", url: "https://api.openai.com/v1/responses", model: env.FIT_VISION_OPENAI_MODEL || "gpt-4.1-mini", key: realOpenAI, api: "responses" });
+  return result;
 }
 
-export async function askAiForGear(image: string, mode: "machine" | "gym"): Promise<GearAnswer> {
-  const instruction = IDENTIFY_PROMPT(mode);
-  const question = mode === "machine" ? "Identify the equipment shown in the attached photo." : "List the gym equipment visible in the attached photo.";
-  const headers = { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" };
-  // The high-detail image matters for machines whose identifying features are small.
-  const chat = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST", headers,
-    body: JSON.stringify({
-      model: "gpt-4.1-mini", temperature: 0.1, max_tokens: 500, response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: instruction },
-        { role: "user", content: [
-          { type: "text", text: question },
-          { type: "image_url", image_url: { url: image, detail: "high" } },
-        ] },
-      ],
-    }),
-    signal: AbortSignal.timeout(40_000),
-  });
-  if (chat.status === 429) throw new Error("busy");
-  if (!chat.ok) throw new Error(`status ${chat.status}`);
-  const body: any = await chat.json();
-  const first = cleanVisionAnswer(String(body?.choices?.[0]?.message?.content || "{}"));
-  if (!visionMissedImage(first.note)) return first;
+function cleanVisionAnswer(text: string): GearAnswer | null {
+  let parsed: any;
+  try { parsed = JSON.parse(text.trim().replace(/^```(?:json)?\s*|\s*```$/g, "")); } catch { return null; }
+  if (!parsed || typeof parsed !== "object" || (!Array.isArray(parsed.gear) && typeof parsed.name !== "string")) return null;
+  const name = String(parsed.name || "").slice(0, 80);
+  const gear = cleanGearIds(parsed.gear);
+  const recognized = gearFromText(name);
+  if (recognized && !gear.includes(recognized.id)) gear.unshift(recognized.id);
+  return { gear, name, note: String(parsed.note || "").slice(0, 200) };
+}
 
-  // Some vision replies falsely claim that no image was sent despite receiving
-  // a valid data URL. Retry once through the independent Responses image-input
-  // format, rather than showing that bogus explanation to the person.
-  const retry = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST", headers,
-    body: JSON.stringify({
-      model: "gpt-4.1-mini", max_output_tokens: 500,
-      instructions: instruction,
-      input: [{ role: "user", content: [
-        { type: "input_text", text: question + " Use the image attached to this message." },
-        { type: "input_image", image_url: image, detail: "high" },
+function visionText(body: any, api: VisionTarget["api"]): string {
+  if (api === "chat") return String(body?.choices?.[0]?.message?.content || "");
+  if (typeof body?.output_text === "string") return body.output_text;
+  return (Array.isArray(body?.output) ? body.output.flatMap((item: any) => item.content || [])
+    .filter((part: any) => part.type === "output_text").map((part: any) => String(part.text || "")).join("\n") : "");
+}
+
+export async function askAiForGear(image: string, mode: "machine" | "gym", options?: { env?: Record<string, string | undefined>; fetcher?: typeof fetch }): Promise<GearAnswer> {
+  const instruction = IDENTIFY_PROMPT(mode);
+  const question = mode === "machine" ? "Identify the piece of gym equipment visibly pictured. Use the photo, not assumptions. Return its matching gear id."
+    : "List every visible piece of gym equipment in this photo by its matching gear id.";
+  const targets = fitVisionTargets(options?.env ?? process.env);
+  if (!targets.length) throw new Error("vision_not_configured");
+  const send = options?.fetcher ?? fetch;
+  let gotBusy = false, gotAuth = false;
+  for (const target of targets) {
+    const body = target.api === "chat" ? {
+      model: target.model, max_completion_tokens: 900, response_format: { type: "json_object" },
+      messages: [{ role: "system", content: instruction }, { role: "user", content: [
+        { type: "text", text: question }, { type: "image_url", image_url: { url: image, detail: "high" } },
       ] }],
-      text: { format: { type: "json_object" } },
-    }),
-    signal: AbortSignal.timeout(40_000),
-  });
-  if (retry.status === 429) throw new Error("busy");
-  if (!retry.ok) throw new Error(`vision status ${retry.status}`);
-  const recovered: any = await retry.json();
-  const responseText = typeof recovered.output_text === "string" ? recovered.output_text
-    : (Array.isArray(recovered.output) ? recovered.output.flatMap((item: any) => item.content || [])
-      .filter((item: any) => item.type === "output_text").map((item: any) => item.text || "").join("\n") : "");
-  const second = cleanVisionAnswer(responseText);
-  if (visionMissedImage(second.note)) throw new Error("vision_missing");
-  return second;
+    } : {
+      model: target.model, max_output_tokens: 650, store: false, instructions: instruction,
+      input: [{ role: "user", content: [
+        { type: "input_text", text: question }, { type: "input_image", image_url: image, detail: "high" },
+      ] }], text: { format: { type: "json_object" } },
+    };
+    try {
+      // Calls bypass the global OpenAI-chat rewrite: xAI/Groq get their own
+      // documented image-input formats, not a text-only chat model.
+      const res = await send(target.url, { method: "POST", headers: {
+        Authorization: "Bearer " + target.key, "Content-Type": "application/json",
+      }, body: JSON.stringify(body), signal: AbortSignal.timeout(35_000) });
+      if (!res.ok) {
+        gotBusy ||= res.status === 429;
+        gotAuth ||= res.status === 401 || res.status === 403;
+        console.warn("[fit][vision]", target.provider, "HTTP", res.status); // No images, tokens or response bodies logged.
+        continue;
+      }
+      const data: any = await res.json();
+      const parsed = cleanVisionAnswer(visionText(data, target.api));
+      if (!parsed || visionMissedImage(parsed.note)) {
+        console.warn("[fit][vision]", target.provider, "missing or invalid visual answer");
+        continue;
+      }
+      return parsed;
+    } catch (e: any) {
+      console.warn("[fit][vision]", target.provider, "request failed", e?.name === "TimeoutError" ? "timeout" : "network error");
+    }
+  }
+  throw new Error(gotBusy ? "busy" : gotAuth ? "vision_auth" : "vision_unavailable");
 }
 
 export type FitStore = { get(userId: number): Promise<unknown | null>; set(userId: number, data: unknown): Promise<void> };
@@ -321,7 +350,7 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
       if (visionMissedImage(result.note)) return res.status(502).json({ message: "The scanner could not read that photo. Retake it with the whole machine in view, or pick from the list." });
       return res.json(result);
     }
-    catch (error: any) { return res.status(503).json({ message: error?.message === "busy" ? "The AI is busy. Try again in a minute." : "The photo couldn't be read. Retake it or pick the machine from the list." }); }
+    catch (error: any) { return res.status(503).json({ message: error?.message === "busy" ? "The scanner is busy. Try again shortly." : error?.message === "vision_not_configured" || error?.message === "vision_auth" ? "Machine photo scanning is temporarily unavailable on the server. Try again later or pick from the list." : "The scanner couldn't analyze this photo right now. Please try again." }); }
   });
   const saves = createAttemptLimiter({ max: 600, windowMs: 10 * 60_000 });
   const fetchJson = opts.fetchJson ?? (async (url: string) => {
