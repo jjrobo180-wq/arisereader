@@ -1,4 +1,4 @@
-// Subscriptions (a Plugin Store add-on): streaming, apps, gym and the rest, with what they cost
+// Subscriptions (a Plugin Gallery add-on): streaming, apps, gym and the rest, with what they cost
 // each month and year, and which renew soon.
 import { useState, type FormEvent } from "react";
 import { CreditCard, Trash2 } from "lucide-react";

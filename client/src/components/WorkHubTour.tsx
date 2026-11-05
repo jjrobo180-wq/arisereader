@@ -54,7 +54,7 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
       targets: [
         { sel: '[data-testid="hub-menu-arise"]', label: "A.R.I.S.E. Reader" },
         { sel: '[data-testid="hub-rail-show"]', label: "Open your menu", note: "Your menu is tucked away. Tap this tab to open it." },
-        { sel: '[data-testid="hub-tab-apps"]', label: "Apps", note: "Tap Apps to see every section." },
+        { sel: '[data-testid="hub-tab-apps"]', label: "Plugins", note: "Tap Plugins to see every section." },
       ],
     },
     {
@@ -99,7 +99,7 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
       teacherOnly: true,
       body: "Everything else for your class sits under A.R.I.S.E. Reader too: Scenes, Parents, Quizzes & grading, Game time, Prizes and Reading records.",
       open: { tab: "reader" },
-      targets: [{ sel: '[data-tour="hub-menu"]', label: "Your menu" }, { sel: '[data-testid="hub-tab-apps"]', label: "Apps" }],
+      targets: [{ sel: '[data-tour="hub-menu"]', label: "Your menu" }, { sel: '[data-testid="hub-tab-apps"]', label: "Plugins" }],
     },
     {
       title: "Arise Learning",
@@ -109,7 +109,7 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
         { sel: '[data-testid="hub-learning-heading"]', label: "Arise Learning" },
         { sel: '[data-testid="hub-learning-math"]', label: "Arise Learning" },
         { sel: '[data-testid="hub-rail-show"]', label: "Open your menu", note: "Your menu is tucked away. Tap this tab to open it." },
-        { sel: '[data-testid="hub-tab-apps"]', label: "Apps", note: "Tap Apps to see every section." },
+        { sel: '[data-testid="hub-tab-apps"]', label: "Plugins", note: "Tap Plugins to see every section." },
       ],
     },
     {
@@ -123,11 +123,11 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
       ],
     },
     {
-      title: "App Gallery",
+      title: "Plugin Gallery",
       body: "Add extra tools to your WorkHub, like behavior points, attendance, a gradebook and notes. Everything there is optional.",
       targets: [
-        { sel: '[data-testid="hub-plugin-store"]', label: "App Gallery" },
-        { sel: '[data-testid="hub-menu-app-store"]', label: "App Gallery" },
+        { sel: '[data-testid="hub-plugin-store"]', label: "Plugin Gallery" },
+        { sel: '[data-testid="hub-menu-app-store"]', label: "Plugin Gallery" },
       ],
     },
     {
@@ -210,13 +210,13 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
       ],
     },
     {
-      title: "App Gallery",
+      title: "Plugin Gallery",
       body: "Add extra tools, like a calendar, groceries, money, notes and more. Everything there is optional.",
       targets: [
-        { sel: '[data-testid="lifehub-plugin-store-header"]', label: "App Gallery" },
-        { sel: '[data-testid="lifehub-plugin-store"]', label: "App Gallery" },
-        { sel: '[data-testid="life-menu-app-store"]', label: "App Gallery" },
-        { sel: '[data-testid="life-tab-apps"]', label: "Apps", note: "App Gallery is in Apps." },
+        { sel: '[data-testid="lifehub-plugin-store-header"]', label: "Plugin Gallery" },
+        { sel: '[data-testid="lifehub-plugin-store"]', label: "Plugin Gallery" },
+        { sel: '[data-testid="life-menu-app-store"]', label: "Plugin Gallery" },
+        { sel: '[data-testid="life-tab-apps"]', label: "Plugins", note: "Plugin Gallery is in Plugins." },
       ],
     },
     {

@@ -17,6 +17,9 @@ async function call<T>(token: string | null, path: string, init: RequestInit = {
 export const linksApi = (token: string | null) => ({
   list: () => call<LinksState>(token, "/api/profile-links"),
   invite: (email: string, nickname: string, grants: Grants) => call<{ link: MyLink }>(token, "/api/profile-links", { method: "POST", body: JSON.stringify({ email, nickname, grants }) }).then((r) => r.link),
+  makeLink: (nickname: string, grants?: Grants) => call<{ token: string; link: MyLink }>(token, "/api/profile-links/link", { method: "POST", body: JSON.stringify({ nickname, ...(grants ? { grants } : {}) }) }),
+  peekJoin: (joinToken: string) => call<{ ownerName: string; you: boolean }>(token, `/api/profile-links/join/${encodeURIComponent(joinToken)}`),
+  join: (joinToken: string) => call<{ ok: true; ownerId: number; ownerName: string }>(token, `/api/profile-links/join/${encodeURIComponent(joinToken)}`, { method: "POST", body: "{}" }),
   update: (id: string, patch: { grants?: Grants; nickname?: string }) => call<{ link: MyLink }>(token, `/api/profile-links/${id}`, { method: "PUT", body: JSON.stringify(patch) }).then((r) => r.link),
   remove: (id: string) => call<{ ok: true }>(token, `/api/profile-links/${id}`, { method: "DELETE" }),
   ask: (email: string, nickname: string, grants: Grants) => call<{ ok: true }>(token, "/api/profile-links/ask", { method: "POST", body: JSON.stringify({ email, nickname, grants }) }),
@@ -29,3 +32,9 @@ export const linksApi = (token: string | null) => ({
 
 /** Where a shared premium app opens: the apps page with the owner's id, which shows their copy. */
 export const sharedAppHref = (appId: string, ownerId: number) => `#/pro?app=${encodeURIComponent(appId)}&owner=${ownerId}&hub=life`;
+
+/** The address to send. The page at /join/<token> moves on to the app. */
+export const joinUrl = (token: string, origin = typeof window !== "undefined" && window.location.protocol.startsWith("http") ? window.location.origin : "https://arisetodo.com") => `${origin}/join/${token}`;
+
+/** Where a join link waits while the person signs in or makes an account. */
+export const JOIN_PENDING_KEY = "arise-join-token";

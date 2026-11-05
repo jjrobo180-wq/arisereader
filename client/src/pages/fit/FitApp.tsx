@@ -263,8 +263,8 @@ function SettingsSheet({ data, update, say, onClose, onGoals, onTour, onAccount,
   const g = goals(data.profile, latestKg(data));
   const [kcal, setKcal] = useState(data.profile.kcalGoal ? String(data.profile.kcalGoal) : "");
   return <Sheet title="Settings" onClose={onClose}>
-    <Title>Your apps</Title>
-    <Card onClick={onApps} className="!p-4" testId="fit-settings-apps"><div className="flex items-center gap-3"><LayoutGrid className="h-5 w-5" style={{ color: C.lime }} /><span className="min-w-0 flex-1"><span className="block font-semibold">Apps and tab bar</span><span className="block text-[13px]" style={{ color: C.dim }}>{appsOf(data.apps).added.length} apps added · {appsOf(data.apps).tabs.map((id) => FIT_APP_BY_ID.get(id)?.name).join(", ") || "nothing pinned"}</span></span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
+    <Title>Your app plugins</Title>
+    <Card onClick={onApps} className="!p-4" testId="fit-settings-apps"><div className="flex items-center gap-3"><LayoutGrid className="h-5 w-5" style={{ color: C.lime }} /><span className="min-w-0 flex-1"><span className="block font-semibold">App plugins and tab bar</span><span className="block text-[13px]" style={{ color: C.dim }}>{appsOf(data.apps).added.length} app plugins added · {appsOf(data.apps).tabs.map((id) => FIT_APP_BY_ID.get(id)?.name).join(", ") || "nothing pinned"}</span></span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
     <Title>Layout</Title>
     <LayoutsSetting />
     <Title>Appearance</Title>
@@ -429,7 +429,7 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
     else setOver(a === "scan" ? "scan" : a === "gyms" ? "gyms" : a === "recipes" ? "recipes" : "circle");
   }, [pending, loaded, plusLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
   const first = String(user?.displayName || "").trim().split(/\s+/)[0] || "";
-  const tabs: [Tab, string, typeof Home][] = [["today", "Today", Home], ...tabIds.map((id): [Tab, string, typeof Home] => { const a = FIT_APP_BY_ID.get(id)!; return [id, TAB_LABEL[id] ?? a.name, APP_ICONS[a.icon] ?? LayoutGrid]; }), ["apps", "Apps", LayoutGrid]];
+  const tabs: [Tab, string, typeof Home][] = [["today", "Today", Home], ...tabIds.map((id): [Tab, string, typeof Home] => { const a = FIT_APP_BY_ID.get(id)!; return [id, TAB_LABEL[id] ?? a.name, APP_ICONS[a.icon] ?? LayoutGrid]; }), ["apps", "Plugins", LayoutGrid]];
   const startNow = (a: NonNullable<ReturnType<typeof readActive>>) => { setCoach(false); setActive(a); };
 
   /** One app's screen: as a tab (inline) or a sheet over everything. */

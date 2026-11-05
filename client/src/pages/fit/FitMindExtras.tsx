@@ -7,6 +7,8 @@ import { useAuth } from "@/context/AuthContext";
 import { dayKey, uid, type FitData } from "@shared/fit";
 import { Btn, C, Layer, Sheet, Title, display, fmtDur, font, glowBg, haptic } from "./fitUi";
 import { fitApi, type Update } from "./fitStore";
+import { videoPlayerUrl } from "@shared/fitVideos";
+import { isNativeApp, nativeAppInfo } from "@/lib/nativeApp";
 
 const yt = (q: string) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
 
@@ -57,7 +59,7 @@ export function FollowAlong({ kind }: { kind: "yoga" | "mind" }) {
     <p className="mt-2 px-1 text-[11.5px]" style={{ color: C.dim }}>Videos play from YouTube and belong to their creators.</p>
     {open && <Sheet title={open.title} onClose={() => setOpen(null)} testId="fit-video-sheet">
       {cur ? <div className="overflow-hidden rounded-[16px]" style={{ background: "#000", aspectRatio: "16 / 9" }}>
-        <iframe key={cur.id} title={cur.title} src={`https://www.youtube-nocookie.com/embed/${cur.id}?playsinline=1&rel=0&modestbranding=1`} className="h-full w-full" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
+        <iframe key={cur.id} title={cur.title} src={videoPlayerUrl(cur.id, isNativeApp() ? nativeAppInfo().api : window.location.origin)} className="h-full w-full" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-presentation" />
       </div> : !err && <div className="grid place-items-center rounded-[16px]" style={{ background: C.card, aspectRatio: "16 / 9" }}><Loader2 className="h-6 w-6 animate-spin" style={{ color: C.dim }} /></div>}
       {cur && <p className="mt-2 px-1 text-[14px] font-semibold leading-snug">{cur.title}<span className="block text-[12px] font-normal" style={{ color: C.dim }}>{cur.channel}</span></p>}
       {err && <div className="rounded-[16px] p-4 text-[14px]" style={{ background: C.card, color: C.dim }}>{err}<a href={yt(open.q)} target="_blank" rel="noopener noreferrer" className="mt-2 block font-semibold underline" style={{ color: C.text }}>Search YouTube instead</a></div>}

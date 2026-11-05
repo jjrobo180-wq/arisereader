@@ -1,4 +1,4 @@
-// The Plugin Kit: 400 plugins described as data and drawn by one set of tools, so the Plugin Store can
+// The Plugin Kit: 400 plugins described as data and drawn by one set of tools, so the Plugin Gallery can
 // offer many of them without a hand-built screen each. Five kinds of tool:
 //  - list:      records with a few fields (text, number, date, choice…), optional stages, totals,
 //               due dates and a random pick.
@@ -8,7 +8,7 @@
 //  - cards:     ideas, tips, jokes or questions: one for today, shuffle, browse and save favorites.
 //  - calc:      a small calculator.
 // LifeHub's kit plugins are menu sections (their ids are in FAMILY_SECTIONS); WorkHub's open from
-// the Plugin Store. Records are saved with the hub (family.kit in LifeHub, workspace.kitRecords in
+// the Plugin Gallery. Records are saved with the hub (family.kit in LifeHub, workspace.kitRecords in
 // WorkHub) and cleaned by cleanKit. The tools are client/src/components/plugin-kit/KitPlugin.tsx.
 
 export type KitField = { key: string; label: string; type?: "text" | "number" | "money" | "date" | "time" | "select" | "phone" | "url"; options?: string[]; placeholder?: string };

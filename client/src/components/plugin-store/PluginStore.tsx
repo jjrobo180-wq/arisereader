@@ -44,7 +44,7 @@ export const ICONS: Record<string, LucideIcon> = {
 };
 
 /** The store's name, as people see it everywhere. */
-export const STORE_NAME = "App Gallery";
+export const STORE_NAME = "Plugin Gallery";
 
 /**
  * Scrolls to a connection's setup box once the hub has drawn it (the tab or section opens first),
@@ -110,7 +110,7 @@ type AppAccess = Partial<Record<"history" | "math" | "social", boolean>>;
 
 export type PluginStoreProps = {
   hub: PluginHub;
-  /** Open straight on one app's page (search's "In the App Store" results). */
+  /** Open straight on one app's page (search's "In the Plugin Gallery" results). */
   initialOpen?: string;
   /** Teachers (and admins) have both hubs and see the teacher-only apps. */
   teacher: boolean;
@@ -252,7 +252,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
   /** Adds (or removes) every plugin in a template at once, each exactly as toggle() would on its own. */
   const toggleTemplate = (t: HubTemplate, on: boolean) => {
     for (const p of templatePlugins(t)) onToggle(p, on);
-    setNote(on ? `${t.name}: every app in it was added to your ${HUB_NAME[hub]}.` : `${t.name} was removed. Nothing in it was deleted: add it back any time.`);
+    setNote(on ? `${t.name}: every plugin in it was added to your ${HUB_NAME[hub]}.` : `${t.name} was removed. Nothing in it was deleted: add it back any time.`);
   };
 
   const switchHub = () => {
@@ -274,7 +274,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
     const size = big ? "min-h-12 px-5 text-[15px]" : "h-8 w-[4.75rem] px-2 text-[13px]";
     const base = `inline-flex shrink-0 items-center justify-center gap-1 rounded-full font-bold transition-all active:scale-[.96] active:opacity-80 ${ring} ${size}`;
     const t = p.target;
-    // On a coloured card (the App of the day) every button is white with dark words, like the App Store's.
+    // On a coloured card (the Plugin of the day) every button is white with dark words, like the App Store's.
     const solid = onColor ? "bg-white text-[#111111] shadow-[0_6px_16px_-8px_rgba(0,0,0,.45)]" : solidBtn;
     const quiet = onColor ? "bg-white/20 text-white" : quietBtn;
     if (t.kind === "app") {
@@ -358,7 +358,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
   /** Rows fill the width evenly: one column on a phone, two on a tablet, three on a computer. */
   const rows = (list: Plugin[]) => <ul className="grid grid-cols-[minmax(0,1fr)] gap-x-8 sm:grid-cols-2 lg:grid-cols-3">{list.map(row)}</ul>;
 
-  /** The App of the day: a wide card in the app's own colour. The label, icon, words and button all
+  /** The Plugin of the day: a wide card in the app's own colour. The label, icon, words and button all
    *  share one left edge, and the card's height comes from its padding, so nothing is ever clipped. */
   const spotlightCard = (p: Plugin) => {
     const deep = mix(p.color, "#000000", 0.42);
@@ -367,7 +367,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
       style={{ background: `linear-gradient(145deg, ${mix(p.color, "#ffffff", 0.12)}, ${p.color} 45%, ${deep})` }}
       data-testid="plugin-spotlight">
       <span className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-2xl" aria-hidden />
-      <span className="relative text-[11px] font-bold uppercase tracking-[.14em] text-white/75">App of the day</span>
+      <span className="relative text-[11px] font-bold uppercase tracking-[.14em] text-white/75">Plugin of the day</span>
       <span className="relative mt-4 flex items-center gap-4">
         <span className="rounded-[1.5rem] bg-white/15 p-1 shadow-[0_10px_24px_-12px_rgba(0,0,0,.5)]"><Tile p={p} size="xl" /></span>
         <span className="min-w-0 flex-1">
@@ -420,7 +420,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
           <span className="sr-only">Search apps</span>
           <Search className="pointer-events-none absolute left-3 top-[1.1rem] h-[18px] w-[18px] text-[var(--s-faint)]" />
           {/* 16px text, so an iPhone doesn't zoom the page when the box is tapped. */}
-          <input value={query} onChange={(e) => setQuery(e.target.value)} type="search" enterKeyHint="search" placeholder={`Search ${appCount.toLocaleString()} ${HUB_NAME[hub]} apps`}
+          <input value={query} onChange={(e) => setQuery(e.target.value)} type="search" enterKeyHint="search" placeholder={`Search ${appCount.toLocaleString()} ${HUB_NAME[hub]} plugins`}
             className={`h-11 w-full rounded-xl border-0 bg-[var(--s-raised)] pl-10 pr-3 text-base text-[var(--s-text)] outline-none placeholder:text-[var(--s-faint)] ${ring}`}
             data-testid="plugin-search" />
         </label>
@@ -438,7 +438,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
       <div className="mx-auto max-w-[1100px] px-5 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-5 sm:px-8">
         <div className="space-y-9">
           {browsing && spotlight && <section aria-labelledby="ps-spotlight">
-            <h2 id="ps-spotlight" className="sr-only">App of the day</h2>
+            <h2 id="ps-spotlight" className="sr-only">Plugin of the day</h2>
             {spotlightCard(spotlight)}
           </section>}
 
@@ -449,7 +449,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
 
           {view === "templates" && <section aria-live="polite">
             <h2 className={`mb-1 ${heading}`}>Build a new hub</h2>
-            <p className="mb-4 max-w-md text-sm text-[var(--s-sub)]">Each one adds a ready-made set of apps in a single tap. Add just the ones you want afterward, or remove any of them the same way you would on their own.</p>
+            <p className="mb-4 max-w-md text-sm text-[var(--s-sub)]">Each one adds a ready-made set of plugins in a single tap. Add just the ones you want afterward, or remove any of them the same way you would on their own.</p>
             <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">{templates.map((t) => <li key={t.id}>{templateCard(t)}</li>)}</ul>
           </section>}
 
@@ -473,7 +473,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
                   ? rows(shown)
                   : <div className="mt-3 rounded-[1.4rem] bg-[var(--s-surface)] p-10 text-center ring-1 ring-[var(--s-line)]">
                       <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--s-raised)] text-[var(--s-accent-text)]"><Search className="h-5 w-5" /></span>
-                      <p className="text-[15px] font-semibold text-[var(--s-text)]">{view === "installed" ? "Nothing added here yet." : "No apps match that."}</p>
+                      <p className="text-[15px] font-semibold text-[var(--s-text)]">{view === "installed" ? "Nothing added here yet." : "No plugins match that."}</p>
                       <p className="mt-1 text-sm text-[var(--s-sub)]">{view === "installed" ? "Tap All to add your first one." : "Try another word, or tap All."}</p>
                     </div>}
               </section>)}
@@ -553,7 +553,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
             <ul className="space-y-2 rounded-2xl bg-[var(--s-raised)] p-4">{plugins.map((p) => <li key={p.id} className="flex items-center gap-2.5 text-[15px] text-[var(--s-text)]">
               <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${isInstalled(p) ? soft : quiet}`}>{isInstalled(p) && <Check className="h-3.5 w-3.5" />}</span>{p.name}
             </li>)}</ul>
-            <p className="rounded-xl bg-[var(--s-raised)] p-3 text-xs text-[var(--s-sub)]">Adding it adds every app above at once. Removing it only hides them from your menu, and you can always add any one of them back on its own afterward.</p>
+            <p className="rounded-xl bg-[var(--s-raised)] p-3 text-xs text-[var(--s-sub)]">Adding it adds every plugin above at once. Removing it only hides them from your menu, and you can always add any one of them back on its own afterward.</p>
             <div className="flex flex-wrap gap-2 border-t border-[var(--s-line)] pt-5">
               {have === plugins.length
                 ? <button type="button" onClick={() => toggleTemplate(openTemplate, false)} className={`inline-flex min-h-12 items-center gap-1.5 rounded-full px-5 text-[15px] font-bold ${quiet} ${ring}`} data-testid="template-remove">Remove all</button>

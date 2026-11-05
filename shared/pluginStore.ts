@@ -1,4 +1,4 @@
-// The Arise Plugin Store: everything a person can add to their Arise WorkHub or Arise LifeHub.
+// The Arise Plugin Gallery: everything a person can add to their Arise WorkHub or Arise LifeHub.
 //
 // A plugin is one of four kinds:
 //  - "tab":        a WorkHub tab. Adding it switches the tab on (workspace.visibleTabs).
@@ -284,7 +284,7 @@ export const PLUGINS: readonly Plugin[] = [
     description: "Your own WorkHub address: forward any email to it and it becomes something to do.",
     features: ["Your own forwarding address", "Works from any email app", "Shows up in Email and Tasks"] },
   // Para Team (pages/ParaTeam.tsx): a teacher's shared space with their paras and 1:1s. Added from
-  // the App Gallery like anything else, by the teacher or by a para joining a team.
+  // the Plugin Gallery like anything else, by the teacher or by a para joining a team.
   { id: "work-para-team", hub: "work", name: "Para Team", tagline: "Your paras and 1:1s, all in one place", category: "Planning", icon: "HeartHandshake", color: "#0f766e",
     target: { kind: "officeApp", id: "work-para-team", href: "#/para-team" },
     description: "A shared space for a teacher and their paraprofessionals: schedules, student notes and messages, so everyone knows the plan.",
@@ -580,7 +580,7 @@ const CROSS_PLUGINS: readonly Plugin[] = [...KIT_DEFS.map(crossKitPlugin), ...CR
  *  the lookups defined above can call it without depending on declaration order. */
 const allPlugins = (): readonly Plugin[] => [...PLUGINS, ...CROSS_PLUGINS];
 
-/** The App Gallery shows one app for one job (October 2026): where several did the same thing, the
+/** The Plugin Gallery shows one app for one job (October 2026): where several did the same thing, the
  *  one kept is named for what it does (a "Calorie counter", not "Food & fitness" or "Apple Health"),
  *  and the others leave the gallery. Anyone who added one of them still has it; nothing is deleted. */
 export const GALLERY_MERGES: { keep: string; name?: string; tagline?: string; drop: string[] }[] = [
@@ -813,14 +813,44 @@ export function connectionNeeds(p: Plugin): Plugin | null {
     ("section" in t.needs && q.target.kind === "section" && q.target.section === t.needs.section))) ?? null;
 }
 
-/** Search by name, tagline, category and features. */
+/** Words in a text, lowercased, for whole-word and word-start matching. */
+const wordsOf = (t: string): string[] => t.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+/** "fitness" -> "fit", "workouts" -> "workout": so a plural or "-ness" still finds the plain word. */
+const stem = (w: string): string => w.length > 4 ? w.replace(/(ness|ing|es|s)$/, "") : w;
+
+/** How well one search word fits one plugin. 0 = no match. Name and category count far more than the small print. */
+function wordScore(p: Plugin, w: string): number {
+  const st = stem(w);
+  const hit = (text: string, exact: number, start: number): number => {
+    const ws = wordsOf(text);
+    if (ws.some((x) => x === w || x === st)) return exact;
+    if (ws.some((x) => x.startsWith(w) || (st.length >= 3 && x.startsWith(st)))) return start;
+    return 0;
+  };
+  return Math.max(
+    hit(p.name, 100, 80),
+    hit(p.category, 70, 60),
+    hit(p.tagline, 40, 30),
+    ...p.features.map((f) => hit(f, 12, 8)),
+    hit(p.description, 4, 3),
+  );
+}
+
+/**
+ * Search by name, category, tagline and features, best match first. Words match the start of a word, never the
+ * middle of one ("fit" finds Fitness, not "benefit"). Every word must match. The fine print (features and the
+ * long description) only fills in when nothing matches by name, category or tagline, so "fitness" shows the
+ * fitness apps rather than everything that mentions it once.
+ */
 export function searchPlugins(list: readonly Plugin[], query: string): Plugin[] {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (!words.length) return [...list];
-  return list.filter((p) => {
-    const text = [p.name, p.tagline, p.category, p.description, ...p.features].join(" ").toLowerCase();
-    return words.every((w) => text.includes(w));
-  });
+  const scored = list.map((p, i) => {
+    const each = words.map((w) => wordScore(p, w));
+    return { p, i, ok: each.every((n) => n > 0), score: each.reduce((a, n) => a + n, 0), strong: each.every((n) => n >= 30) };
+  }).filter((r) => r.ok);
+  const strong = scored.filter((r) => r.strong);
+  return (strong.length ? strong : scored).sort((x, y) => y.score - x.score || x.i - y.i).map((r) => r.p);
 }
 
 /** The session-storage key that opens the store when a hub loads (used to switch hubs from inside the store). */

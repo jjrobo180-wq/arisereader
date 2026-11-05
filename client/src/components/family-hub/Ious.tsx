@@ -1,4 +1,4 @@
-// IOUs (a Plugin Store add-on): who owes you, who you owe, and settling up.
+// IOUs (a Plugin Gallery add-on): who owes you, who you owe, and settling up.
 import { useState, type FormEvent } from "react";
 import { Check, HandCoins, Trash2 } from "lucide-react";
 import { Empty, PageHead, Panel, danger, inputClass, primary, type SectionProps } from "./ui";

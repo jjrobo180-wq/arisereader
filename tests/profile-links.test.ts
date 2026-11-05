@@ -162,3 +162,35 @@ test("the people picker can show every app that can be shared", () => {
   const ui = readFileSync("client/src/components/family-hub/LinkedProfiles.tsx", "utf8");
   assert.match(ui, /Show all \{apps\.length\} apps/); assert.match(ui, /Ask to see theirs/);
 });
+
+test("fullGrants shares every app for editing and every life page as view-only", async () => {
+  const { fullGrants, isJoinLinkEmail, JOIN_LINK_EMAIL } = await import("../shared/profileLinks");
+  const g = fullGrants();
+  assert.ok(Object.keys(g).length > 0);
+  assert.ok(Object.values(g).every((v) => v === "view" || v === "edit"));
+  assert.ok(Object.values(g).some((v) => v === "edit"));
+  assert.equal(isJoinLinkEmail(`join-1${JOIN_LINK_EMAIL}`), true);
+  assert.equal(isJoinLinkEmail("a@b.com"), false);
+});
+
+test("one link: owner makes it, wife joins once, gets Potty Training; stranger and owner can't reuse it", async () => {
+  const { call } = setup();
+  await call("PUT", "/api/app-data/:app", 1, { params: { app: "pro-potty" }, body: { data: { kids: ["Mia"] } } });
+  const made = await call("POST", "/api/profile-links/link", 1, { body: { nickname: "Wife" } });
+  assert.equal(made.status, 200);
+  const t = made.body.token as string;
+  assert.match(t, /^[a-f0-9]{44}$/);
+  // Before joining: no access.
+  assert.equal((await call("GET", "/api/app-data/:app", 2, { params: { app: "pro-potty" }, query: { owner: "1" } })).status, 403);
+  // The owner can't join their own link.
+  assert.notEqual((await call("POST", "/api/profile-links/join/:token", 1, { params: { token: t } })).status, 200);
+  const peek = await call("GET", "/api/profile-links/join/:token", 2, { params: { token: t } });
+  assert.equal(peek.status, 200);
+  assert.equal(peek.body.ownerName, "Jordan Rivera");
+  assert.equal((await call("POST", "/api/profile-links/join/:token", 2, { params: { token: t } })).status, 200);
+  const got = await call("GET", "/api/app-data/:app", 2, { params: { app: "pro-potty" }, query: { owner: "1" } });
+  assert.equal(got.status, 200);
+  // The link is spent.
+  assert.equal((await call("POST", "/api/profile-links/join/:token", 3, { params: { token: t } })).status, 404);
+  assert.equal((await call("GET", "/api/profile-links/join/:token", 3, { params: { token: "nope" } })).status, 404);
+});
