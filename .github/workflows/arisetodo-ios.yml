@@ -4,12 +4,16 @@ on:
   pull_request:
     paths:
       - 'arisetodo/ios-app/**'
+      - 'client/src/**'
+      - 'client/index.html'
       - '.github/workflows/arisetodo-ios.yml'
       - '.github/scripts/adopt_uiscene.py'
   push:
     branches: [master]
     paths:
       - 'arisetodo/ios-app/**'
+      - 'client/src/**'
+      - 'client/index.html'
       - '.github/workflows/arisetodo-ios.yml'
       - '.github/scripts/adopt_uiscene.py'
 jobs:

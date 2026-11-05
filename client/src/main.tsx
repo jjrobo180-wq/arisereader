@@ -24,10 +24,10 @@ if (isFitApp() || isReaderApp() || isNotesApp()) {
 }
 if (isReaderApp()) document.documentElement.classList.add("reader-app");
 
-// Arise Notes and Arise Fit felt zoomed in on iPhone: everything was drawn about 10% too large next to
-// Apple's own apps. On phones the page is laid out on a slightly wider screen and shown a little smaller
-// (safe areas and full-height screens still work, since this changes the viewport, not the pixels).
-if (isFitApp() || isNotesApp()) {
+// Keep Notes at the physical iPhone viewport width. A custom initial-scale=0.9
+// made focus/keyboard geometry inconsistent with WKWebView's visual viewport.
+// Arise Fit retains its independent intentional compact layout.
+if (isFitApp()) {
   const shortSide = Math.min(window.screen.width, window.screen.height);
   if (shortSide > 0 && shortSide < 700) {
     const scale = 0.9;
@@ -82,19 +82,9 @@ if (window.location.protocol === "capacitor:") {
   });
 }
 
-// iPhone zooms in when you tap a text box whose text is under 16px, and doesn't zoom back out. Text boxes
-// are 16px on phones (index.css), and as a backstop the zoom is put back to 1 whenever typing ends.
-{
-  const meta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
-  const base = meta?.content || "width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover";
-  const reset = () => {
-    if (!meta || !(window.visualViewport && window.visualViewport.scale > 1.01)) return;
-    meta.content = `${base.replace(/,?\s*(initial|maximum)-scale=[\d.]+/g, "")}, initial-scale=1, maximum-scale=1`;
-    window.setTimeout(() => { meta.content = base; }, 300);
-  };
-  document.addEventListener("focusout", (e) => { const t = e.target as HTMLElement | null; if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) window.setTimeout(reset, 60); }, true);
-}
-
+// iPhone keyboard focus must never mutate viewport meta: changing scale on blur
+// can leave WKWebView visually zoomed with no way to recover. All editable fields
+// use at least 16px on iPhone (index.css), including contenteditable controls.
 if (!window.location.hash) {
   window.location.hash = "#/";
 }

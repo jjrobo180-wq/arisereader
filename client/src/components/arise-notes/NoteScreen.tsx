@@ -108,7 +108,7 @@ export default function NoteScreen({ ctx, id, at }: { ctx: AppCtx; id: string; a
     {sheet === "title" && <TitleSheet note={note} onClose={() => setSheet("")} onSave={async (title) => { await patch({ title }); setSheet(""); }} />}
     {sheet === "template" && <Sheet title="Summary style" onClose={() => setSheet("")}>
       <div className="grid grid-cols-2 gap-2">{me.templates.map((x) => <button key={x.id} type="button" onClick={() => { if (!x.allowed) { ctx.go({ name: "settings", tab: "plan" }); return; } setSheet(""); void summarize(x.id, true); }} className={`flex min-h-[72px] flex-col items-start gap-1 rounded-2xl border p-3 text-left ${note.template === x.id ? "border-[var(--an-violet)] bg-[var(--an-violet-soft)]" : "border-[var(--an-line)]"}`}>
-        <span className="text-[14px] font-bold"><span aria-hidden>{x.emoji}</span> {x.label}{!x.allowed && <Lock className="ml-1 inline h-3.5 w-3.5 text-[var(--an-amber)]" aria-label="Needs a paid plan" />}</span><span className="text-[12px] text-[var(--an-muted)]">{x.blurb}</span></button>)}</div>
+        <span className="text-[14px] font-bold"><NoteTypeIcon id={x.id} className="mr-1.5 inline h-[18px] w-[18px] align-[-3px] text-[var(--an-violet)]" />{x.label}{!x.allowed && <Lock className="ml-1 inline h-3.5 w-3.5 text-[var(--an-amber)]" aria-label="Needs a paid plan" />}</span><span className="text-[12px] text-[var(--an-muted)]">{x.blurb}</span></button>)}</div>
       <p className="mt-3 text-[13px] text-[var(--an-muted)]">Changing it writes the summary again in the new style. Your transcript stays the same.</p>
     </Sheet>}
     {sheet === "planner" && <PlannerSheet ctx={ctx} note={note} onClose={() => setSheet("")} onDone={(n) => setNote(n)} />}
