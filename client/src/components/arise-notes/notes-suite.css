@@ -1,0 +1,100 @@
+/* ── The Suite: Paper, Midnight, Folio, Nordic, Carbon ─────────────────────────────────────────────
+   Five quiet, professional looks in the spirit of a classic notes app. Large titles, a search field,
+   grouped inset lists with hairlines, a clean writing page, and one restrained accent color.
+   Unlike the other looks they carry on into the Notes tab and the writing page (NotesApp.tsx sets
+   .an-suite and the look's colors as --sx-* on every screen). */
+
+/* Home and every themed screen: the page color runs under the status bar (no colored block). */
+.an-root.an-suite { --an-hero: var(--an-bg) !important; --an-on-hero: var(--an-ink) !important; }
+.an-root.an-suite.an-themed header.sticky { background: color-mix(in srgb, var(--an-bg) 88%, transparent) !important; color: var(--an-ink); backdrop-filter: saturate(180%) blur(20px) !important; -webkit-backdrop-filter: saturate(180%) blur(20px) !important; }
+.an-root.an-suite.an-themed header.sticky .an-icon-btn, .an-root.an-suite.an-themed header.sticky button { color: var(--an-violet-ink) !important; }
+
+/* Home: date, a large title, search, three quiet actions */
+.an-root.an-suite .an-l-hero { gap: .85rem; padding-bottom: .4rem; }
+.an-x-top small { display: block; font-size: .8rem; font-weight: 600; letter-spacing: .01em; color: var(--an-muted); }
+.an-root.an-suite .an-x-top h1 { margin: .15rem 0 0; font-family: var(--an-serif); font-size: 2.15rem; font-weight: 750; letter-spacing: -.025em; line-height: 1.05; color: var(--an-ink); }
+.an-suite-folio .an-x-top h1 { font-weight: 600; letter-spacing: -.01em; font-size: 2.3rem; }
+.an-suite-carbon .an-x-top h1 { font-weight: 650; letter-spacing: -.045em; }
+.an-root.an-suite .an-x-search { display: flex; align-items: center; gap: .5rem; min-height: 2.6rem; padding: 0 .75rem; border: 0; border-radius: 11px; background: color-mix(in srgb, var(--an-ink) 7%, var(--an-bg)); color: var(--an-muted); font-size: 1rem; font-weight: 400; box-shadow: none; }
+.an-root.an-suite .an-x-search svg { flex: none; opacity: .8; }
+.an-x-actions { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: .5rem; }
+.an-root.an-suite .an-x-actions > button { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; min-height: 2.9rem; padding: 0 .7rem; border: 0; border-radius: 12px; background: var(--an-card); color: var(--an-ink); font-size: .95rem; font-weight: 600; box-shadow: 0 0 0 .5px var(--an-line), 0 1px 2px rgba(0,0,0,.04); }
+.an-root.an-suite .an-x-actions > button svg { color: var(--an-violet-ink); }
+.an-root.an-suite .an-x-actions > .an-l-record { background: var(--an-violet) !important; color: var(--an-on-accent) !important; box-shadow: none; font-size: .98rem; font-weight: 650; min-height: 2.9rem; }
+.an-x-recdot { width: .62rem; height: .62rem; border-radius: 50%; background: var(--an-coral); box-shadow: 0 0 0 2px color-mix(in srgb, var(--an-on-accent) 85%, transparent); }
+.an-root.an-suite .an-x-actions > button:active { transform: scale(.98); opacity: .85; }
+.an-root.an-suite .an-l-minutes { color: var(--an-muted); font-weight: 600; }
+
+/* The notes list: sections and inset groups with hairlines */
+.an-x-list { display: grid; gap: .2rem; }
+.an-x-sec { margin: 0; padding: 1rem .25rem .45rem; font-size: 1.15rem; font-weight: 700; letter-spacing: -.01em; color: var(--an-ink); font-family: var(--an-serif); }
+.an-root.an-suite .an-x-group { list-style: none; margin: 0; padding: 0; border-radius: 12px; background: var(--an-card); overflow: hidden; box-shadow: 0 0 0 .5px var(--an-line), 0 1px 2px rgba(0,0,0,.03); }
+.an-suite-dark .an-x-group, .an-night .an-x-group { box-shadow: 0 0 0 .5px var(--an-line) !important; }
+.an-x-group > li { position: relative; }
+.an-x-group > li + li::before { content: ""; position: absolute; top: 0; left: 1rem; right: 0; height: .5px; background: var(--an-line); }
+.an-root.an-suite .an-x-row { display: flex; align-items: center; gap: .6rem; width: 100%; min-height: 3.9rem; padding: .62rem .9rem .62rem 1rem; border: 0; border-radius: 0; background: none; color: var(--an-ink); text-align: left; box-shadow: none; }
+.an-root.an-suite .an-x-row:active { background: color-mix(in srgb, var(--an-ink) 7%, transparent); }
+.an-x-main { flex: 1; min-width: 0; }
+.an-x-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1rem; font-weight: 650; letter-spacing: -.01em; line-height: 1.3; }
+.an-x-title em { font-style: normal; font-weight: 500; color: var(--an-violet-ink); }
+.an-x-line { display: flex; gap: .55rem; margin-top: .12rem; font-size: .86rem; line-height: 1.35; }
+.an-x-line time { flex: none; color: var(--an-ink); opacity: .72; font-variant-numeric: tabular-nums; }
+.an-x-line span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--an-muted); }
+.an-x-len { flex: none; font-size: .8rem; font-variant-numeric: tabular-nums; color: var(--an-muted); }
+.an-x-chev { flex: none; color: var(--an-faint); opacity: .7; }
+.an-suite-folio .an-x-title { font-family: var(--an-serif); font-size: 1.08rem; font-weight: 600; letter-spacing: 0; }
+
+/* Recording: a large, light clock and a fine waveform */
+.an-root.an-suite .an-l-rec .an-l-status { font-size: .85rem; font-weight: 600; letter-spacing: .02em; color: var(--an-coral); }
+.an-root.an-suite .an-l-rec .an-l-clock { font-family: var(--an-font); font-size: 4.4rem; font-weight: 300; letter-spacing: -.04em; color: var(--an-ink); }
+.an-x-wave { display: flex; align-items: center; justify-content: center; gap: 3px; height: 4.5rem; margin: 1rem auto 0; max-width: 22rem; }
+.an-x-wave i { flex: 1; height: 100%; max-width: 4px; border-radius: 2px; background: var(--an-violet); transform-origin: center; transition: transform .12s linear; }
+.an-suite-paper .an-x-wave i { background: var(--an-coral); }
+
+/* A recorded note's title: the date small and centered above, then a large bold title */
+.an-root.an-suite .an-x-notetitle p { margin: 0 0 .6rem; text-align: center; font-size: .78rem; font-weight: 500; color: var(--an-muted); }
+.an-root.an-suite .an-x-notetitle h1 { font-family: var(--an-serif); font-size: 1.95rem; font-weight: 750; letter-spacing: -.02em; line-height: 1.12; color: var(--an-ink); }
+.an-suite-folio .an-x-notetitle h1 { font-weight: 600; letter-spacing: -.005em; }
+
+/* The bar at the bottom: a flat, frosted toolbar across the screen with a hairline on top */
+.an-root.an-suite .an-l-bar { left: 0; right: 0; transform: none; width: auto; bottom: 0; padding: .25rem max(.75rem, env(safe-area-inset-right)) max(.45rem, env(safe-area-inset-bottom)) max(.75rem, env(safe-area-inset-left)); border: 0 !important; border-top: .5px solid var(--an-line) !important; border-radius: 0 !important; background: color-mix(in srgb, var(--an-bg) 84%, transparent) !important; backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); color: var(--an-faint) !important; box-shadow: none !important; }
+.an-root.an-suite .an-l-bar button { min-height: 2.9rem; border-radius: 10px !important; background: none !important; color: inherit; }
+.an-root.an-suite .an-l-bar button[aria-current="page"] { color: var(--an-violet-ink) !important; background: none !important; }
+.an-root.an-suite .an-l-bar [data-testid="notes-tab-record"] { color: var(--an-violet-ink) !important; }
+.an-root.an-suite .an-l-avatar { background: var(--an-ink) !important; color: var(--an-bg) !important; }
+
+/* ── The Notes tab and the writing page take the look's colors ── */
+.an-root.an-root.an-pro.an-suite {
+  --an-bg: var(--sx-bg) !important; --an-card: var(--sx-card) !important; --an-line: var(--sx-line) !important;
+  --an-ink: var(--sx-ink) !important; --an-muted: var(--sx-muted) !important; --an-faint: var(--sx-faint) !important;
+  --an-violet: var(--sx-violet) !important; --an-violet-ink: var(--sx-violet-ink) !important; --an-violet-soft: var(--sx-violet-soft) !important; --an-on-accent: var(--sx-on-accent) !important;
+  --an-coral: var(--sx-coral) !important; --an-coral-soft: var(--sx-coral-soft) !important;
+  --an-font: var(--sx-font); --an-serif: var(--sx-serif);
+  --pp-accent: var(--sx-violet-ink); --pp-accent-2: var(--sx-violet-ink); --pp-icon: var(--sx-violet-ink); --pp-row-on: var(--sx-violet-soft);
+  font-family: var(--sx-font) !important; color-scheme: light;
+}
+.an-root.an-root.an-pro.an-suite.an-suite-dark { color-scheme: dark; }
+.an-root.an-pro.an-suite .pp-title, .an-root.an-pro.an-suite .pp-section { font-family: var(--sx-serif) !important; }
+.an-suite-folio.an-pro .pp-title { font-weight: 600 !important; letter-spacing: -.01em !important; }
+.an-root.an-pro.an-suite .pp-compose { color: var(--sx-on-accent) !important; background: var(--sx-violet) !important; box-shadow: 0 10px 24px -10px rgba(0,0,0,.45) !important; }
+.an-root.an-pro.an-suite .pp-quick { background: var(--an-card); box-shadow: 0 0 0 .5px var(--an-line); }
+.an-root.an-pro.an-suite .pp-row-icon { color: var(--sx-violet-ink); background: var(--sx-violet-soft); }
+.an-root.an-pro.an-suite .pp-row-marks { color: var(--sx-violet-ink); }
+.an-root.an-pro.an-suite .pp-tag[aria-pressed="true"] { background: var(--sx-violet); color: var(--sx-on-accent); }
+.an-root.an-pro.an-suite .pp-undo button { color: var(--sx-violet-ink); }
+.an-root.an-pro.an-suite .pp-swipe-pin, .an-root.an-pro.an-suite .pp-swipe-pin-left { background: var(--sx-violet); color: var(--sx-on-accent); }
+.an-root.an-pro.an-suite .an-search input { background: color-mix(in srgb, var(--an-ink) 7%, var(--an-bg)) !important; color: var(--an-ink) !important; }
+.an-root.an-pro.an-suite.an-suite-dark .an-input, .an-root.an-pro.an-suite.an-suite-dark .an-card, .an-root.an-pro.an-suite.an-suite-dark .bg-white { background: var(--an-card) !important; color: var(--an-ink) !important; border-color: var(--an-line) !important; }
+
+/* The writing page: the plain paper becomes the look's own page (papers picked on purpose stay). */
+.an-root.an-suite [data-paper="paper"], .an-root.an-suite [data-paper="charcoal"] { background-color: var(--an-card) !important; color: var(--an-ink) !important; }
+.an-root.an-suite.an-suite-dark [data-paper="paper"], .an-root.an-suite.an-suite-dark [data-paper="charcoal"] { color-scheme: dark; }
+.an-root.an-suite .an-doc-title { font-family: var(--sx-serif, var(--an-serif)) !important; font-weight: 750; letter-spacing: -.025em; }
+.an-suite-folio .an-doc-title { font-weight: 600 !important; letter-spacing: -.01em !important; }
+.an-root.an-suite [data-paper="paper"] [data-testid="pages-rich-body"], .an-root.an-suite [data-paper="charcoal"] [data-testid="pages-rich-body"] { caret-color: var(--an-violet-ink); }
+.an-root.an-suite [data-testid="pages-rich-body"] a { color: var(--an-violet-ink) !important; }
+.an-root.an-suite [data-testid="pages-rich-body"] th, .an-root.an-suite [data-testid="pages-rich-body"] td { border-color: var(--an-line) !important; }
+.an-root.an-suite .an-notehead, .an-root.an-suite .an-notebar { background: color-mix(in srgb, var(--an-card) 88%, transparent) !important; color: var(--an-ink) !important; border-color: var(--an-line) !important; backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); }
+.an-root.an-suite .an-notehead button, .an-root.an-suite .an-notebar button { color: var(--an-violet-ink); }
+.an-root.an-suite .an-notebar .border-black\/5 { border-color: var(--an-line) !important; }
+.an-root.an-suite ::selection { background: color-mix(in srgb, var(--an-violet) 32%, transparent); }

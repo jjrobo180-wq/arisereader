@@ -82,9 +82,17 @@ if (window.location.protocol === "capacitor:") {
   });
 }
 
-// iPhone keyboard focus must never mutate viewport meta: changing scale on blur
-// can leave WKWebView visually zoomed with no way to recover. All editable fields
-// use at least 16px on iPhone (index.css), including contenteditable controls.
+// No zoom, anywhere: index.html fixes the page at scale 1 (maximum-scale=1, user-scalable=no), which
+// stops iPhone zooming in when a text box is tapped. The iPhone apps also hold the web view at 1
+// natively (AriseZoomLock / NotesZoomLock). The meta is never changed at run time (except Fit's fixed
+// compact scale, set once at start), and fields stay at 16px+ on phones as a third guard.
+// A gesture zoom is also cancelled for good measure in browsers that still allow it.
+{
+  const stop = (e: Event) => e.preventDefault();
+  document.addEventListener("gesturestart", stop, { passive: false });
+  document.addEventListener("gesturechange", stop, { passive: false });
+  document.addEventListener("touchmove", (e) => { if ((e as TouchEvent).touches.length > 1) e.preventDefault(); }, { passive: false });
+}
 if (!window.location.hash) {
   window.location.hash = "#/";
 }
