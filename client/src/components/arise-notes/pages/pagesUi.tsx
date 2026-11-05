@@ -55,7 +55,6 @@ export function AppearanceSheet({ look, onChange, onClose, onDefault }: { look: 
   const set = (p: Partial<PageLook>) => onChange({ ...look, ...p });
   return <Sheet title="Appearance" onClose={onClose}>
     <div className="space-y-5" data-testid="pages-appearance">
-      <AppearanceSwitch />
       <section>
         <h3 className="mb-2 text-[14px] font-bold">Paper</h3>
         <div className="grid grid-cols-4 gap-2">{PAPER_THEME_IDS.map((id) => { const t = PAPER_THEMES[id]; return <button key={id} type="button" aria-pressed={look.theme === id} onClick={() => set({ theme: id })}
@@ -83,16 +82,16 @@ export function AppearanceSheet({ look, onChange, onClose, onDefault }: { look: 
   </Sheet>;
 }
 
-/** Light / Dark / Auto for the whole Notes tab and the typing screen. */
+/** Auto / Day / Night for the whole of Arise Notes, the writing page included. */
 export function AppearanceSwitch() {
   const { mode, set } = useAppearance();
   return <section>
     <h3 className="mb-2 text-[14px] font-bold">Appearance</h3>
-    <div className="flex rounded-xl bg-[color-mix(in_srgb,var(--an-ink)_8%,transparent)] p-1" role="radiogroup" aria-label="Light or dark">
+    <div className="flex rounded-xl bg-[color-mix(in_srgb,var(--an-ink)_8%,transparent)] p-1" role="radiogroup" aria-label="Auto, day or night">
       {(["auto", "light", "dark"] as const).map((m) => <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => set(m)} data-testid={`pages-appearance-${m}`}
-        className={`flex-1 rounded-lg py-2 text-[14px] font-semibold transition ${mode === m ? "bg-[var(--an-card)] text-[var(--an-ink)] shadow-sm" : "text-[var(--an-muted)]"}`}>{m === "auto" ? "Auto" : m === "light" ? "Light" : "Dark"}</button>)}
+        className={`flex-1 rounded-lg py-2 text-[14px] font-semibold transition ${mode === m ? "bg-[var(--an-card)] text-[var(--an-ink)] shadow-sm" : "text-[var(--an-muted)]"}`}>{m === "auto" ? "Auto" : m === "light" ? "Day" : "Night"}</button>)}
     </div>
-    <p className="mt-1.5 text-[12px] text-[var(--an-muted)]">Auto follows your phone's light or dark mode.</p>
+    <p className="mt-1.5 text-[12px] text-[var(--an-muted)]">Auto switches between day and night with your phone. It changes the whole app, including the page you write on.</p>
   </section>;
 }
 

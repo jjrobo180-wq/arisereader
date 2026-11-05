@@ -12,7 +12,7 @@ import type { AppCtx } from "../NotesApp";
 import PageScreen from "./PageScreen";
 import { drafts } from "./drafts";
 import { lockNow } from "./pagesLock";
-import { AppearanceSwitch, FolderSheet, SYNC_WORDS, VaultSheet, usePages, useUnlocked } from "./pagesUi";
+import { FolderSheet, SYNC_WORDS, VaultSheet, usePages, useUnlocked } from "./pagesUi";
 import { newPageId } from "./pagesSync";
 import { groupNotes } from "./pagesGroups";
 import "./pages-pro.css";
@@ -253,7 +253,6 @@ function NotesSettingsSheet({ ctx, onClose, onVault }: { ctx: AppCtx; onClose: (
   const setP = (x: Partial<typeof p>) => sync.saveSettings({ ...settings, prefs: { ...p, ...x } });
   return <Sheet title="Notes settings" onClose={onClose}>
     <div className="space-y-4">
-      <AppearanceSwitch />
       <label className="flex items-center justify-between gap-3 text-[15px] font-bold">Sort by
         <select className="an-input !w-auto !min-h-10" value={p.sort} onChange={(e) => setP({ sort: e.target.value as typeof p.sort })}><option value="edited">Last edited</option><option value="created">Date created</option><option value="title">Title</option></select></label>
       <Toggle on={p.pencilOnly} onChange={(v) => setP({ pencilOnly: v })} label="Pencil only" hint="On an iPad, only the Apple Pencil draws; your finger scrolls. Turns on by itself the first time you use a Pencil." />

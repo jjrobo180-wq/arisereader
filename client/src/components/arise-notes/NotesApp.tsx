@@ -4,7 +4,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { NoteTypeIcon } from "./NoteIcon";
 import { ArrowRight, AudioLines, ChevronLeft, Columns2, Folder, Loader2, Lock, Mic, MessageCircle, Pencil, Search, Settings, Sparkles, Upload, Users, Zap } from "lucide-react";
-import { useAppearance } from "./appearance";
+import { hasAppearance, setAppearance, useAppearance } from "./appearance";
 import { useAuth } from "@/context/AuthContext";
 import { startApplePush } from "@/lib/applePush";
 import { isNotesApp, nativeCall } from "@/lib/nativeApp";
@@ -99,7 +99,7 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   // The Notes iPhone app: notifications (80% of the minutes used, out of minutes, and messages from
   // the rest of Arise to this account). iOS asks once.
   useEffect(() => { if (isNotesApp() && user) void startApplePush(true); }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [me, setMe] = useState<Me | null>(null);
+  const [meRaw, setMe] = useState<Me | null>(null);
   const [error, setError] = useState("");
   const [notes, setNotes] = useState<ListNote[] | null>(null);
   const [route, setRoute] = useState<Route>(() => {
@@ -150,6 +150,12 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   useEffect(() => { if (isNotesApp() && notes) widgetAi(notes); }, [notes]);
   useEffect(() => { if (isNotesApp() && user?.id) return pagesSyncFor(Number(user.id)).subscribe((snap) => widgetPages(snap.metas)); }, [user?.id]);
 
+  // Day / Night / Auto (Auto is the default and follows the phone). One answer for the whole app: the old
+  // "Night mode" switch used to color only some screens, so the writing area stayed white. Someone who had
+  // Night mode on keeps it as a Night choice the first time.
+  const appearance = useAppearance();
+  useEffect(() => { if (meRaw?.settings.night && !hasAppearance()) setAppearance("dark"); }, [meRaw?.settings.night]);
+  const me = useMemo(() => (meRaw ? { ...meRaw, settings: { ...meRaw.settings, night: appearance.dark } } : null), [meRaw, appearance.dark]);
   const s = me?.settings;
   useEffect(() => { if (s?.font === "dyslexic") loadLexend(); }, [s?.font]);
   // High contrast is an accessibility need, so it always wins over a look.
@@ -158,7 +164,6 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   // the system's own type and real folders. Dark when the look or night mode is dark.
   const pro = (route.name === "pages" || route.name === "page") && !s?.contrast;
   // Light / Dark / Auto (Auto follows the phone). Light and Dark are a deliberate choice, so they win over the look.
-  const appearance = useAppearance();
   const proDark = pro && (appearance.mode === "dark" ? true : appearance.mode === "light" ? false : appearance.dark || !!s?.night || (look.id !== "classic" && !!look.dark));
   const themed = !pro && !s?.contrast && (look.id !== "classic" || !!s?.night);
   useEffect(() => { if (themed) loadThemeFont(look.fontUrl); }, [themed, look.fontUrl]);
