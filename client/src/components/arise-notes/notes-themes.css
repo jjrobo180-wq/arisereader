@@ -442,3 +442,5 @@
 .an-l-needle { position: relative; width: 13rem; height: 7rem; margin: 0 auto; overflow: hidden; border-radius: 13rem 13rem 0 0; background: repeating-conic-gradient(from -90deg at 50% 100%, var(--an-line) 0 2deg, transparent 2deg 18deg), var(--an-card); } .an-l-needle i { position: absolute; left: calc(50% - 2px); bottom: 0; width: 4px; height: 92%; border-radius: 2px; background: var(--an-violet); transform-origin: bottom; transform: rotate(var(--a)); transition: transform .15s ease-out; }
 .an-l-list-cockpit .an-l-note { margin-bottom: 4px; padding: .75rem; border-radius: 8px; background: var(--an-card); } .an-l-rec-cockpit .an-l-clock { color: var(--an-violet); }
 @media (prefers-reduced-motion: reduce) { .an-l-tape i, .an-l-tape b, .an-l-record-disc, .an-l-sky i, .an-l-ripples > i, .an-l-reel, .an-l-carriage i, .an-l-livedot { animation: none !important; } }
+
+/* Editorial, Slate Pro, Graphite Pro and Linen use the existing shared theme variables. */
