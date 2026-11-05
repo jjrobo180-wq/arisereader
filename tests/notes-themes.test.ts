@@ -155,3 +155,10 @@ test("the five Suite looks restyle Home, the list, recording, the Notes tab and 
   for (const t of NOTES_THEMES.filter((x) => ["paper", "midnight", "folio", "nordic", "carbon"].includes(x.id)))
     for (const word of ["Apple", "iPhone", "iCloud"]) assert.ok(!`${t.label} ${t.blurb}`.includes(word), `${t.id} doesn't say ${word}`);
 });
+
+test("the Suite looks have their own To Duo home, calendar and bottom bar", () => {
+  const os = readFileSync("client/src/components/look-os/LookOS.tsx", "utf8");
+  const suite = readFileSync("client/src/components/look-os/suite.tsx", "utf8");
+  for (const id of ["paper", "midnight", "folio", "nordic", "carbon"]) assert.ok(suite.includes(`"${id}"`), id);
+  assert.ok(os.includes("<SuiteHome") && os.includes("<SuiteCal") && os.includes("los-dock-suite") && os.includes("los-suite"));
+});

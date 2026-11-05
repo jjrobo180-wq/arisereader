@@ -7,6 +7,7 @@ import { LockedApp, useLock } from "@/components/lock/PrivacyLock";
 import { PREMIUM_LOOKS, PremiumCal, PremiumHome } from "./premium";
 import { DESKTOP_LOOKS, SYSTEM_LOOKS, SystemCal, SystemDock, SystemHome, SystemWindow } from "./systems";
 import { PLAY_LOOKS, PlayCal, PlayDock, PlayHome } from "./play";
+import { SUITE_OS_LOOKS, SuiteCal, SuiteHome } from "./suite";
 import "./lookOS.css";
 
 export type OsScreen = "home" | "tasks" | "calendar" | "notes";
@@ -57,11 +58,13 @@ export function LookDock({ look, screen, go, openApps, add, you, initial, off = 
   if (SYSTEM_LOOKS.has(look.id)) return <SystemDock look={look} screen={screen} go={go} openApps={openApps} add={add} you={you} initial={initial} off={off} inApp={inApp} />;
   const words = WORDS[look.id];
   const textNav = !!words;
-  return <nav style={themeVars(look) as CSSProperties} className={`los-dock los-dock-${look.id}${look.dark ? " los-dock-dark" : ""}${inApp ? " los-dock-inapp" : ""}`} aria-label="Arise Duo" data-testid="los-dock">
+  const suite = SUITE_OS_LOOKS.has(look.id);
+  return <nav style={themeVars(look) as CSSProperties} className={`los-dock los-dock-${look.id}${suite ? " los-dock-suite" : ""}${look.dark ? " los-dock-dark" : ""}${inApp ? " los-dock-inapp" : ""}`} aria-label="Arise Duo" data-testid="los-dock">
     {NAV.filter((n) => !off.includes(n as OsScreen)).map((n) => {
       const act = n === "add" ? () => add() : n === "apps" ? openApps : n === "you" ? you : () => go(n as OsScreen);
       return <button key={n} type="button" data-nav={n} data-add-toggle={n === "add" || undefined} aria-label={LABEL[n]} aria-current={screen === n ? "page" : undefined} onClick={act}>
         {n === "you" && !textNav ? <span className="los-avatar">{initial}</span> : textNav ? <span>{words![n]}</span> : <I d={ICON[n]} />}
+        {suite && <small>{LABEL[n]}</small>}
       </button>;
     })}
   </nav>;
@@ -74,6 +77,7 @@ function CalendarWidget({ look, days, go, big }: { look: NotesTheme; days: Agend
   if (PLAY_LOOKS.has(look.id)) return <button type="button" className={`los-cal los-cal-${look.id}`} onClick={go} data-testid="los-calendar"><PlayCal look={look} days={days} big={big} /></button>;
   if (SYSTEM_LOOKS.has(look.id)) return <button type="button" className={`los-cal los-cal-${look.id}`} onClick={go} data-testid="los-calendar"><SystemCal look={look} days={days} big={big} /></button>;
   if (PREMIUM_LOOKS.has(look.id)) return <button type="button" className={`los-cal los-cal-${look.id}`} onClick={go} data-testid="los-calendar"><PremiumCal look={look} days={days} big={big} /></button>;
+  if (SUITE_OS_LOOKS.has(look.id)) return <button type="button" className={`los-cal los-cal-${look.id}`} onClick={go} data-testid="los-calendar"><SuiteCal look={look} days={days} big={big} /></button>;
   const today = days[0];
   const busy = days.filter((d) => items(d).length);
   const week = days.slice(0, 7);
@@ -148,6 +152,7 @@ function Home(p: OsProps) {
   if (PLAY_LOOKS.has(p.look.id)) return <PlayHome look={p.look} name={p.name} dateLabel={p.dateLabel} hi={hi} days={p.days} tasks={p.tasks} open={open} notes={p.notes} toggle={p.toggle} openTask={p.openTask} go={p.go} openApps={p.openApps} add={p.add} onYou={p.onYou} cal={cal} list={list} />;
   if (SYSTEM_LOOKS.has(p.look.id)) return <SystemHome look={p.look} name={p.name} dateLabel={p.dateLabel} hi={hi} days={p.days} tasks={p.tasks} open={open} notes={p.notes} toggle={p.toggle} openTask={p.openTask} go={p.go} openApps={p.openApps} add={p.add} onYou={p.onYou} cal={cal} list={list} />;
   if (PREMIUM_LOOKS.has(p.look.id)) return <PremiumHome look={p.look} name={p.name} dateLabel={p.dateLabel} days={p.days} tasks={p.tasks} open={open} toggle={p.toggle} openTask={p.openTask} goTasks={() => p.go("tasks")} goCalendar={() => p.go("calendar")} hi={hi} cal={cal} list={list} notes={notes} />;
+  if (SUITE_OS_LOOKS.has(p.look.id)) return <SuiteHome look={p.look} name={p.name} dateLabel={p.dateLabel} days={p.days} tasks={p.tasks} open={open} hi={hi} goTasks={() => p.go("tasks")} goCalendar={() => p.go("calendar")} list={open.length ? list : null} cal={cal} notes={notes} hasShortcuts={p.shortcuts.length > 0} shortcuts={<Shortcuts list={p.shortcuts} />} />;
   switch (p.look.id) {
     case "studio": return <><header className="los-hero"><small>{p.dateLabel}</small><h1>{next ? next.title : "All clear"}</h1><p>{next ? "Next up" : hi + first}</p>{next && <button type="button" onClick={() => p.toggle(next.id)}>Mark done</button>}</header><div className="los-pad">{cal}<h2>Queue · {open.length}</h2><LookTaskList look={{ ...p.look, id: "margin" }} tasks={open.slice(1, 5)} onToggle={p.toggle} onOpen={p.openTask} />{notes}</div></>;
     case "margin": return <div className="los-page"><small className="los-date">{p.dateLabel}</small><h1>{hi}{first}.</h1><h2>This week</h2>{cal}<h2>To do</h2>{list}<h2>Notes</h2>{notes}</div>;
@@ -219,7 +224,7 @@ export function LookOS(p0: OsProps) {
   const taskScreen = <div className="los-pad"><header className="los-title"><h1>Tasks</h1></header><div className="los-filter" role="group" aria-label="Show">{chips.map((f) => <button key={f} type="button" aria-pressed={filter === f} onClick={() => setFilter(f)}>{f}</button>)}</div>{shown.length ? <LookTaskList look={p.look} tasks={shown} onToggle={p.toggle} onOpen={p.openTask} /> : <p className="los-none">Nothing here.</p>}</div>;
   // The computer looks open each screen in a window on the desktop.
   const win = (title: string, node: ReactNode) => DESKTOP_LOOKS.has(p.look.id) ? <div className="sys-desk"><SystemWindow look={p.look} title={title} onClose={() => p.go("home")}>{node}</SystemWindow></div> : node;
-  return <div style={themeVars(p.look) as CSSProperties} className={`los los-${p.look.id}${SYSTEM_LOOKS.has(p.look.id) ? " los-sys" : ""}${PLAY_LOOKS.has(p.look.id) ? " los-play" : ""}${p.look.dark ? " los-isdark" : ""}`} data-screen={p.screen} data-testid="look-os">
+  return <div style={themeVars(p.look) as CSSProperties} className={`los los-${p.look.id}${SYSTEM_LOOKS.has(p.look.id) ? " los-sys" : ""}${PLAY_LOOKS.has(p.look.id) ? " los-play" : ""}${SUITE_OS_LOOKS.has(p.look.id) ? " los-suite" : ""}${p.look.dark ? " los-isdark" : ""}`} data-screen={p.screen} data-testid="look-os">
     <header className="los-topbar"><b>{p.look.id === "console" ? `~/${p.hubName.toLowerCase()}` : p.hubName}</b><div className="los-topright">{p.bell}{p.hubSwitch}</div></header>
     <div className="los-body">
       {p.look.id === "gazette" && p.screen !== "home" && <div className="los-paper"><header><h1>The Daily Duo</h1><small>{p.dateLabel}</small></header></div>}
