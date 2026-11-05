@@ -8,6 +8,7 @@
 // Its colours come from one palette, in day or night, so the hub's night mode can't half-darken it.
 import { isNativeApp } from "@/lib/nativeApp";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { Rocket, Podcast as PodcastTile3, BadgeCheck as BadgeCheckTile4 } from "lucide-react";
 import { BookCopy as BookCopyTile, FileClock as FileClockTile, FileText as FileTextTile, Presentation as PresentationTile, QrCode as QrCodeTile, Table as TableTile, Contact as ContactTile } from "lucide-react";
 import {
@@ -225,7 +226,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
     };
   }, []);
 
-  useEffect(() => { if (!note) return; const t = setTimeout(() => setNote(""), 3500); return () => clearTimeout(t); }, [note]);
+  useEffect(() => { if (!note) return; const t = setTimeout(() => setNote(""), 2400); return () => clearTimeout(t); }, [note]);
   // Changing what's shown starts the list at the top.
   useEffect(() => { listRef.current?.scrollTo({ top: 0 }); }, [view, category]);
 
@@ -399,7 +400,9 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
   const chip = (on: boolean) => `inline-flex h-8 shrink-0 items-center rounded-full px-3.5 text-[13px] font-semibold transition-colors ${ring} ${on ? "bg-[var(--s-chip-on)] text-[var(--s-chip-on-text)]" : "bg-[var(--s-raised)] text-[var(--s-text)]"}`;
   const heading = "text-[22px] font-bold leading-tight tracking-[-.01em] text-[var(--s-text)]";
 
-  return <div ref={dialogRef} tabIndex={-1} className="fixed inset-0 z-[80] flex flex-col bg-[var(--s-bg)] text-[var(--s-text)] outline-none" style={vars} role="dialog" aria-modal="true" aria-label={`Arise ${STORE_NAME} for ${HUB_NAME[hub]}`} data-testid="plugin-store">
+  // Rendered on the page itself, outside the hub, so the hub's theme (a dark look, night mode) can't
+  // repaint its own light and night colors (that left dark words on dark boxes).
+  return createPortal(<div ref={dialogRef} tabIndex={-1} className="fixed inset-0 z-[80] flex flex-col bg-[var(--s-bg)] text-[var(--s-text)] outline-none" style={vars} role="dialog" aria-modal="true" aria-label={`Arise ${STORE_NAME} for ${HUB_NAME[hub]}`} data-testid="plugin-store" data-plugin-store>
     {/* A plain header like the App Store's: a large title on the page colour, then search. */}
     <header className="shrink-0 border-b border-[var(--s-line)] bg-[var(--s-bg)]/95 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
       <div className="mx-auto max-w-[1100px] px-5 sm:px-8">
@@ -491,7 +494,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
         {notesApp && runningNotesApp && <NotesKitApp key={running} name={runningNotesApp.name} blurb={runningNotesApp.description} notes={notesApp.notes[running] ?? []} setNotes={(update) => notesApp.setNotes(running, update)} makeId={notesApp.makeId} say={setNote} />}
       </div></div>
     </div>}
-    {note && <div role="status" className="pointer-events-none fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[90] flex justify-center px-4"><p className="max-w-md rounded-2xl px-4 py-3 text-sm font-semibold shadow-xl" style={{ background: night ? "#f8fafc" : "#15141d", color: night ? "#15141d" : "#ffffff" }}>{note}</p></div>}
+    {note && <div role="status" className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)+.75rem)] z-[90] flex justify-center px-4"><p className="max-w-md rounded-2xl px-4 py-3 text-sm font-semibold shadow-xl" style={{ background: night ? "#f8fafc" : "#15141d", color: night ? "#15141d" : "#ffffff" }}>{note}</p></div>}
 
     {open && <div className="fixed inset-0 kb-sheet z-[85] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-6" onClick={() => setOpenId(null)}>
       <div role="dialog" aria-modal="true" aria-label={open.name} onClick={(e) => e.stopPropagation()}
@@ -563,5 +566,5 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
         </div>
       </div>;
     })()}
-  </div>;
+  </div>, document.body);
 }
