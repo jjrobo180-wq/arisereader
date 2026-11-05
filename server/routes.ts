@@ -1745,7 +1745,17 @@ export async function registerRoutes(
     },
   });
   // Arise WorkHub, the paid add-on: only teachers with a Arise WorkHub plan can open it.
-  registerTeacherHubRoutes(app, authMiddleware, { hubAccess: (user) => plans.hubAccess(user as any) });
+  registerTeacherHubRoutes(app, authMiddleware, {
+    hubAccess: (user) => plans.hubAccess(user as any),
+    // The other teachers at the same school, for seeing the minutes they chose to share.
+    colleagues: async (user) => {
+      const schoolId = Number((user as any)?.school_id ?? (user as any)?.schoolId ?? 0);
+      if (!schoolId) return [];
+      const { data, error } = await getAdminSupabase().from("users").select("id, username, display_name, role").eq("school_id", schoolId).eq("role", "teacher").is("archived_at", null).neq("id", Number(user.id)).limit(200);
+      if (error) throw new Error(error.message);
+      return (data || []).map((u: any) => ({ id: Number(u.id), name: String(u.display_name || u.username || "Case manager") }));
+    },
+  });
   // Adding to the Hub from AI, photos, files, pasted text and connected calendars.
   registerTeacherHubImportRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   // The Lesson Planner's AI helper: ideas, full plans, standards, worksheets, slides, units and reteaches.

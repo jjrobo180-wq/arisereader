@@ -12,6 +12,7 @@ import type { Express, RequestHandler } from "express";
 import { HUB_REQUIRED, hubMessage, type HubAccess } from "../shared/plans";
 import { HUB_CONFLICT, HUB_SEATS_FULL, MAX_WORKSPACE_BYTES, sameInstant } from "../shared/hubSave";
 import { calendarEvents } from "../shared/hubHidden";
+import { sharedMinutes, type Colleague } from "../shared/hubMinutesDay";
 
 type HubUser = { id?: number; role?: string; isAdmin?: boolean };
 
@@ -20,6 +21,8 @@ export type TeacherHubDeps = {
   hubAccess(user: HubUser): Promise<HubAccess>;
   /** Where workspaces are kept. Tests give their own. */
   store?: WorkspaceStore;
+  /** The other teachers at this person's school (never this person). Empty when they have no school. */
+  colleagues?(user: HubUser & { school_id?: unknown }): Promise<{ id: number; name: string }[]>;
 };
 
 /** A saved workspace and the moment it was saved. */
@@ -178,6 +181,27 @@ export function registerTeacherHubRoutes(app: Express, authMiddleware: RequestHa
   const store = deps.store ?? createSupabaseWorkspaceStore();
   // The day a teacher's copy was last kept, so a busy day costs one write, not one per save.
   const backedUp = new Map<number, string>();
+
+  // The minutes of the other case managers at the same school, view only: just the ones who chose to
+  // share them (Minutes → Edit → "Let case managers at my school see my minutes").
+  app.get("/api/teacher-hub/colleagues/minutes", authMiddleware, async (req: any, res) => {
+    const hub = await access(req, res);
+    if (!hub) return;
+    res.set("Cache-Control", "no-store");
+    if (!deps.colleagues) return res.json({ colleagues: [], school: false });
+    try {
+      const people = (await deps.colleagues(req.user)).filter((p) => Number(p.id) !== Number(req.user.id)).slice(0, 60);
+      const rows = await Promise.all(people.map(async (p) => ({ p, row: await store.get(Number(p.id)).catch(() => null) })));
+      const colleagues: Colleague[] = rows.flatMap(({ p, row }) => {
+        const minutes = sharedMinutes(row?.workspace, today());
+        return minutes ? [{ id: Number(p.id), name: String(p.name || "Case manager").slice(0, 80), minutes }] : [];
+      }).sort((a, b) => a.name.localeCompare(b.name));
+      return res.json({ colleagues, school: !!Number(req.user.school_id || 0) });
+    } catch (error: any) {
+      console.error("[teacher-hub] failed to load colleagues' minutes", error?.message);
+      return res.status(500).json({ message: "Could not load the other case managers' minutes." });
+    }
+  });
 
   app.get("/api/teacher-hub/workspace", authMiddleware, async (req: any, res) => {
     const hub = await access(req, res);
