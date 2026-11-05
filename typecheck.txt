@@ -1,0 +1,58 @@
+client/src/pages/fit/FitApp.tsx(221,33): error TS2802: Type 'MapIterator<[string, Best]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/pages/fit/FitApps.tsx(255,233): error TS2802: Type 'MapIterator<[string, string]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/pages/fit/FitForm.tsx(231,21): error TS2802: Type 'MapIterator<[string, number]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/pages/fit/FitForm.tsx(246,200): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/pages/fit/FitGym.tsx(65,24): error TS2802: Type 'FileList' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/pages/fit/FitGym.tsx(70,34): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/pages/fit/FitGym.tsx(70,40): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/pages/fit/FitGym.tsx(71,20): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/pages/fit/FitGym.tsx(78,42): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/pages/fit/FitGym.tsx(111,59): error TS2307: Cannot find module 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/+esm' or its corresponding type declarations.
+client/src/pages/fit/FitMealPrep.tsx(115,29): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/pages/fit/FitSession.tsx(71,37): error TS2802: Type 'SetIterator<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/pages/fit/FitTrain.tsx(70,112): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/pages/trainer/TrainerApp.tsx(90,20): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/pages/trainer/TrainerApp.tsx(143,206): error TS2802: Type 'MapIterator<[string, { c: ClientRow; at: string; mins: number; mode: Mode; place: string; requested?: boolean | undefined; }[]]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/pages/trainer/TrainerApp.tsx(146,202): error TS7006: Parameter 'a' implicitly has an 'any' type.
+client/src/pages/trainer/TrainerApp.tsx(146,205): error TS7006: Parameter 'k' implicitly has an 'any' type.
+client/src/pages/trainer/TrainerApp.tsx(148,155): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Record<Mode, string>'.
+client/src/pages/trainer/TrainerClient.tsx(65,33): error TS2802: Type 'MapIterator<[string, Best]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/fit.ts(253,45): error TS2802: Type 'MapIterator<{ date: string; kg: number; }>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/fitApps.ts(68,36): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/fitCircle.ts(17,39): error TS2802: Type 'string' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/fitCircle.ts(52,19): error TS2802: Type 'MapIterator<[string, Best]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/fitDebrief.ts(35,32): error TS2802: Type 'MapIterator<[string, number]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/fitForm.ts(169,131): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+shared/fitForm.ts(186,36): error TS18048: 'v' is possibly 'undefined'.
+shared/fitForm.ts(186,48): error TS18048: 'v' is possibly 'undefined'.
+shared/fitForm.ts(187,34): error TS18048: 'v' is possibly 'undefined'.
+shared/fitForm.ts(187,44): error TS18048: 'v' is possibly 'undefined'.
+shared/fitForm.ts(190,43): error TS18048: 'v' is possibly 'undefined'.
+shared/fitForm.ts(190,57): error TS18048: 'v' is possibly 'undefined'.
+shared/fitForm.ts(195,36): error TS18048: 'v' is possibly 'undefined'.
+shared/fitForm.ts(195,40): error TS2532: Object is possibly 'undefined'.
+shared/fitForm.ts(195,51): error TS18048: 'v' is possibly 'undefined'.
+shared/fitForm.ts(195,55): error TS2532: Object is possibly 'undefined'.
+shared/fitGym.ts(153,20): error TS2802: Type 'Set<unknown>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/fitGym.ts(182,61): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/fitInsights.ts(62,22): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/fitInsights.ts(106,37): error TS2802: Type 'MapIterator<[string, { name: string; pts: { t: number; est: number; weight: number; reps: number; date: string; }[]; }]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/fitInsights.ts(107,32): error TS7006: Parameter 'b' implicitly has an 'any' type.
+shared/fitInsights.ts(107,35): error TS7006: Parameter 'p' implicitly has an 'any' type.
+shared/fitInsights.ts(108,42): error TS7006: Parameter 'p' implicitly has an 'any' type.
+shared/fitInsights.ts(109,31): error TS7006: Parameter 'p' implicitly has an 'any' type.
+shared/fitInsights.ts(114,19): error TS2802: Type 'MapIterator<{ name: string; pts: { t: number; est: number; weight: number; reps: number; date: string; }[]; }>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/fitInsights.ts(125,38): error TS2802: Type 'MapIterator<{ s7: number; s30: number; }>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/fitInsights.ts(126,37): error TS2802: Type 'MapIterator<[string, { s7: number; s30: number; }]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/fitInsights.ts(157,42): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/fitInsights.ts(195,21): error TS2802: Type 'MapIterator<[string, number]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/fitMealPrep.ts(91,14): error TS2802: Type 'MapIterator<{ name: string; n: number; serving?: string | undefined; }>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/fitOnboard.ts(73,21): error TS2802: Type 'Set<FitAppId>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/fitOnboard.ts(74,20): error TS2802: Type 'Set<FitAppId>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/fitRecovery.ts(100,34): error TS2802: Type 'Set<T>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/fitRecovery.ts(107,50): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Recovery'.
+shared/fitRecovery.ts(107,73): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Recovery'.
+shared/fitRecovery.ts(184,35): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Record<BodyPart, string>'.
+shared/fitRecovery.ts(184,65): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Recovery'.
+shared/fitRecovery.ts(187,56): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Record<BodyPart, string>'.
+shared/fitSleep.ts(42,22): error TS2802: Type 'MapIterator<SleepNight>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.

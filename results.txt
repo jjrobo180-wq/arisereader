@@ -1,0 +1,45 @@
+ok   today
+ok   today-dark
+ok   train
+ok   food
+ok   settings
+FAIL progress: locator.click: Timeout 30000ms exceeded.
+ok   sleep
+ok   apps
+ok   apps-dark
+FAIL apps-edit: locator.click: Timeout 30000ms exceeded.
+ok   store
+FAIL yoga: locator.click: Timeout 30000ms exceeded.
+FAIL breathe: locator.click: Timeout 30000ms exceeded.
+FAIL water: locator.click: Timeout 30000ms exceeded.
+FAIL recovery: locator.click: Timeout 30000ms exceeded.
+FAIL fast: locator.click: Timeout 30000ms exceeded.
+ok   sleep-ways
+ok   sleep-dark
+ok   sleep-checkin
+ok   sleep-checkin-schedule
+ok   run
+ok   hiit-player
+ok   toast
+ok   tip-player
+ok   layout-athletic
+ok   layout-athletic-dark
+ok   layout-athletic-train
+ok   layout-athletic-food
+ok   layout-studio
+ok   layout-studio-dark
+ok   layout-studio-train
+ok   layout-studio-food
+ok   layout-bloom
+ok   layout-bloom-dark
+ok   layout-bloom-train
+ok   layout-bloom-food
+ok   layout-pro
+ok   layout-pro-dark
+ok   layout-pro-train
+ok   layout-pro-food
+ok   layout-zen
+ok   layout-zen-dark
+ok   layout-zen-train
+ok   layout-zen-food
+ok   layout-picker
