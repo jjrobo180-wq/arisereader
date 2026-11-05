@@ -170,7 +170,7 @@ function TodayTab({ layout, data, update, onApp, onAllApps, onStartProgram, onSe
     <p className="mt-4 px-1 text-center text-[12px]" style={{ color: C.dim }}>{DIET_BY_ID.get(data.profile.dietPlan ?? "balanced")?.name} nutrition plan · change it in Food</p>
     {watch && tip && <ExerciseDetail ex={tip} data={data} onClose={() => setWatch(false)} />}
     {asking && <FitAsk token={token} onClose={() => setAsking(false)} />}
-    {analysis && insights && <ProPlusAnalysis i={insights} onClose={() => setAnalysis(false)} onAsk={() => { setAnalysis(false); setAsking(true); }} />}
+    {analysis && insights && <ProPlusAnalysis i={insights} data={data} onClose={() => setAnalysis(false)} onAsk={() => { setAnalysis(false); setAsking(true); }} />}
   </>;
   // Each layout arranges the same pieces its own way.
   const body = layout === "studio" ? <>{checkin}<StudioTrio v={v} open={open} />{heroTabs}{heroCard}{week}<div className="mt-3 grid grid-cols-2 gap-2.5">{sleepGlance}{fastGlance}</div>{extras}{tipCard}</>

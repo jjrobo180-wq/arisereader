@@ -5,6 +5,8 @@ import { useState, type ReactNode } from "react";
 import { BarChart3, ChevronRight, Sparkles } from "lucide-react";
 import { fromKg } from "@shared/fit";
 import { findings, type Insights } from "@shared/fitInsights";
+import { OverallStats } from "./FitStats";
+import type { FitData } from "@shared/fit";
 import { C, Sheet, cardStyle, display, fmtNum, haptic } from "./fitUi";
 
 type Open = (id: "recovery" | "sleep" | "water" | "food" | "fast" | "train") => void;
@@ -188,7 +190,7 @@ const Box = ({ title, children }: { title: string; children: ReactNode }) => <di
 const Row = ({ k, v }: { k: string; v: ReactNode }) => <div className="flex items-baseline justify-between gap-3 py-1.5 text-[14px]" style={{ borderBottom: `1px solid ${C.line}` }}><span style={{ color: C.dim }}>{k}</span><span className="text-right font-semibold tabular-nums" style={mono}>{v}</span></div>;
 
 /** Deep analysis: the charts behind the numbers, and what they mean. */
-export function ProPlusAnalysis({ i, onClose, onAsk }: { i: Insights; onClose: () => void; onAsk: () => void }) {
+export function ProPlusAnalysis({ i, data, onClose, onAsk }: { i: Insights; data: FitData; onClose: () => void; onAsk: () => void }) {
   const [tab, setTab] = useState<Tab>("training");
   const t = i.train, u = i.units, labels = t.weeks.map((w) => w.label);
   const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -203,6 +205,7 @@ export function ProPlusAnalysis({ i, onClose, onAsk }: { i: Insights; onClose: (
     </div>
 
     {tab === "training" && <>
+      <OverallStats data={data} />
       <Box title="Workouts per week · 12 weeks"><Bars ys={t.weeks.map((w) => w.count)} labels={labels} goal={i.program ? undefined : 3} /></Box>
       <Box title={`Volume per week · ${u}`}><Bars ys={t.weeks.map((w) => w.volume)} labels={labels} /></Box>
       <Box title="Minutes per week"><Bars ys={t.weeks.map((w) => w.mins)} labels={labels} /></Box>
