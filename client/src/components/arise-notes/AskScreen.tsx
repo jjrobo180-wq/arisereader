@@ -33,7 +33,7 @@ export default function AskScreen({ ctx }: { ctx: AppCtx }) {
   });
   return <>
     <TopBar ctx={ctx} title="Ask your notes" back={() => ctx.go({ name: "home" })} />
-    <main className="mx-auto flex min-h-[calc(100dvh-3.5rem)] max-w-3xl flex-col px-4 pb-6 pt-5 sm:px-5">
+    <main className="mx-auto flex max-w-3xl flex-col px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-5 sm:px-5">
       {!ctx.me.features.ask ? <Notice tone="warn" action={<Btn kind="primary" onClick={() => ctx.go({ name: "settings", tab: "plan" })}>See plans</Btn>}>Ask your notes comes with Arise Notes Basic: ask anything you've recorded and get the answer with the note and minute it came from.</Notice> : <>
         <div className="flex-1 space-y-5" aria-live="polite">
           {!turns.length && <div className="pt-6 text-center">
@@ -51,7 +51,7 @@ export default function AskScreen({ ctx }: { ctx: AppCtx }) {
           </div>)}
           <div ref={end} />
         </div>
-        <form onSubmit={(e) => { e.preventDefault(); void ask(q); }} className="sticky bottom-[max(.75rem,env(safe-area-inset-bottom))] mt-4 flex gap-2 rounded-2xl bg-white p-2 shadow-lg ring-1 ring-[var(--an-line)]">
+        <form onSubmit={(e) => { e.preventDefault(); void ask(q); }} className="fixed inset-x-3 bottom-[calc(.75rem+env(safe-area-inset-bottom))] z-30 mx-auto flex max-w-3xl gap-2 rounded-2xl bg-white p-2 shadow-lg ring-1 ring-[var(--an-line)]" data-testid="notes-ask-bar">
           <input className="an-input border-0 focus:shadow-none" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask a question about your notes" aria-label="Your question" maxLength={500} data-testid="notes-ask-input" />
           <Btn kind="primary" type="submit" busy={busy} disabled={q.trim().length < 3} aria-label="Ask"><Send className="h-4 w-4" /></Btn>
         </form>
