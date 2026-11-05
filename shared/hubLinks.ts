@@ -33,6 +33,8 @@ export type GoalQuiz = {
   results?: GoalQuizResult[];
   /** Scores already turned into goal data points, so each is added once. */
   recorded?: string[];
+  /** The code in the link that lets students take it on their own device (shared/hubIep.ts). Not set: no link. */
+  share?: string;
 };
 export type GoalQuizQuestion = { prompt: string; options: string[]; correct: number };
 export type GoalQuizResult = { attemptId: string; score: number; total: number; completedAt: string };
