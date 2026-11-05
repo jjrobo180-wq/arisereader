@@ -88,7 +88,7 @@ export default function AppWalkthrough({ userId, hub, arise, onGallery, onCustom
   const step = steps[Math.min(i, steps.length - 1)];
   const last = i >= steps.length - 1;
 
-  return <div className="kb-sheet fixed inset-0 z-[700] flex items-end justify-center bg-slate-950/50 p-3 sm:items-center" role="dialog" aria-modal="true" aria-label="How to use Arise To Duo" data-testid="app-walkthrough">
+  return <div className="kb-sheet fixed inset-0 z-[700] flex items-end justify-center bg-slate-950/50 p-3 sm:items-center" data-light-island role="dialog" aria-modal="true" aria-label="How to use Arise To Duo" data-testid="app-walkthrough">
     <div className="w-full max-w-md overflow-hidden rounded-[1.75rem] bg-white text-slate-900 shadow-2xl">
       <div className="flex items-center justify-between px-4 pt-4">
         <div className="flex gap-1.5" aria-label={`Step ${i + 1} of ${steps.length}`}>{steps.map((s, k) => <span key={s.id} className={`h-1.5 rounded-full transition-all ${k === i ? "w-5 bg-slate-900" : "w-1.5 bg-slate-300"}`} />)}</div>
@@ -169,7 +169,7 @@ function LiveTour({ step, i, count, last, next, back, onClose, font }: { step: S
   }, []);
   const pad = 8;
   const high = rect && rect.top < window.innerHeight / 2; // the lit thing is in the top half: card goes below
-  return <div className="fixed inset-0 z-[700]" style={{ ...font, touchAction: "none" }} role="dialog" aria-modal="true" aria-label="How to use Arise To Duo" data-testid="app-walkthrough"
+  return <div className="fixed inset-0 z-[700]" style={{ ...font, touchAction: "none" }} data-light-island role="dialog" aria-modal="true" aria-label="How to use Arise To Duo" data-testid="app-walkthrough"
     onTouchStart={(e) => { touch.current = e.touches[0]?.clientX ?? null; }}
     onTouchEnd={(e) => { const x = touch.current; touch.current = null; if (x == null) return; const dx = (e.changedTouches[0]?.clientX ?? x) - x; if (dx < -60) next(); else if (dx > 60) back(); }}>
     {rect
@@ -221,7 +221,7 @@ function IphoneSetup({ hub, font, shell, primary, onConnectCalendar, onDone, don
       go: async () => { await connectAppleReminders(); } },
   ];
   const shown = rows.filter((r) => r.show);
-  return <div className={shell} style={font} role="dialog" aria-modal="true" aria-label="Set up your iPhone" data-testid="native-notify-ask">
+  return <div className={shell} style={font} data-light-island role="dialog" aria-modal="true" aria-label="Set up your iPhone" data-testid="native-notify-ask">
     <div className="mx-auto flex w-full max-w-md min-h-0 flex-1 flex-col px-6">
       <div className="flex min-h-0 flex-1 flex-col justify-center overflow-y-auto py-6">
         <div className="text-center">

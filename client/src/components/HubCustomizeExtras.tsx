@@ -2,7 +2,7 @@
 // folder that opens with a tap, like folders of apps on a phone), and the hub's visual theme. Used
 // in WorkHub's and LifeHub's Customize.
 import { useState } from "react";
-import { Folder, FolderPlus, Trash2 } from "lucide-react";
+import { Check, Folder, FolderPlus, Trash2 } from "lucide-react";
 import { DESK_SIDES, FOLDER_LIMIT, setTheme, type AnyLayout, type MenuFolder } from "@shared/hubLayout";
 import { HUB_THEMES } from "@shared/appThemes";
 
@@ -10,15 +10,19 @@ export function ThemePicker<L extends AnyLayout>({ layout, setLayout, dark = "#2
   return <section>
     <h3 className="text-sm font-black text-slate-900">Theme</h3>
     <p className="mb-3 mt-1 text-sm text-slate-500">A different look for your whole hub. Extreme customization is the whole point — try a few.</p>
+    <p className="mb-3 text-sm font-bold" style={{ color: "#7c5cff" }} data-testid="hub-theme-now">Using now: {(HUB_THEMES.find((t) => t.id === (layout.theme || "classic")) ?? HUB_THEMES[0]).name}</p>
     <div role="radiogroup" aria-label="Hub theme" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
       {HUB_THEMES.map((t) => {
         const on = (layout.theme || "classic") === t.id;
         return <button key={t.id} type="button" role="radio" aria-checked={on} onClick={() => setLayout(setTheme(layout, t.id))} data-testid={`hub-theme-${t.id}`}
-          className={`flex min-h-14 items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm ${on ? "bg-slate-50" : "border-slate-200 bg-white"}`} style={on ? { borderColor: dark } : undefined}>
+          className={`relative flex min-h-14 items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm ${on ? "" : "border-slate-200 bg-white"}`}
+          // The one in use: a thick violet outline, a violet wash and a "Current" check, so it stands out on every theme, light or dark.
+          style={on ? { borderColor: "#7c5cff", boxShadow: "0 0 0 2px #7c5cff, 0 8px 22px -10px rgba(124,92,255,.7)", background: "rgba(124,92,255,.14)" } : undefined}>
           <span className="flex shrink-0 overflow-hidden rounded-lg ring-1 ring-black/5" aria-hidden>
             {t.swatch.map((c, i) => <span key={i} style={{ background: c }} className="h-7 w-3" />)}
           </span>
-          <span><span className="block font-bold text-slate-900">{t.name}</span><span className="block text-xs text-slate-500">{t.tagline}</span></span>
+          <span className="min-w-0 flex-1"><span className="block font-bold text-slate-900">{t.name}</span><span className="block text-xs text-slate-500">{t.tagline}</span></span>
+          {on && <span className="inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-black text-white" style={{ background: "#7c5cff" }} data-testid="hub-theme-current"><Check className="h-3.5 w-3.5" strokeWidth={3} />Current</span>}
         </button>;
       })}
     </div>

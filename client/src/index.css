@@ -318,3 +318,26 @@ html, body, button, a, input, select, textarea, [role="button"] { touch-action: 
 @media (pointer: coarse) {
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]), textarea, select { font-size: max(16px, 1rem) !important; }
 }
+
+/* ── Readable on every theme ──────────────────────────────────────────────────────────────────────
+   1. Light islands: setup screens and the tour are designed light, with their own dark text. Dark
+      themes and night mode must not darken their backgrounds (that left dark words on dark). The
+      selectors are long on purpose, to outrank every theme's !important rules. */
+html body [data-light-island], html body [data-light-island] .bg-white, html body [data-light-island] .bg-white\/95, html body [data-light-island] .bg-white\/90,
+html body [data-light-island] .bg-slate-50, html body [data-light-island] [class*="bg-[#f"] { color-scheme: light; }
+html body [data-light-island] .bg-white, html body [data-light-island] .bg-white\/95, html body [data-light-island] .bg-white\/90 { background-color: #ffffff !important; }
+html body [data-light-island] .bg-slate-50 { background-color: #f8fafc !important; }
+html body [data-light-island] .bg-\[\#f6f5fb\] { background-color: #f6f5fb !important; }
+html body [data-light-island] .bg-\[\#f6f7fc\] { background-color: #f6f7fc !important; }
+html body [data-light-island] .bg-\[\#f4f3f8\] { background-color: #f4f3f8 !important; }
+html body [data-light-island] .bg-\[\#ebeaf2\] { background-color: #ebeaf2 !important; }
+html body [data-light-island] [class*="text-[#1"], html body [data-light-island] .text-slate-900, html body [data-light-island] .text-slate-800, html body [data-light-island] .text-slate-950 { color: #111018 !important; }
+html body [data-light-island] [class*="text-[#5"], html body [data-light-island] [class*="text-[#6"], html body [data-light-island] [class*="text-[#7"], html body [data-light-island] .text-slate-500, html body [data-light-island] .text-slate-600 { color: #5d5a6b !important; }
+html body [data-light-island] h1, html body [data-light-island] h2, html body [data-light-island] h3 { color: #111018 !important; }
+html body [data-light-island] .text-white { color: #ffffff !important; }
+
+/* 2. Every dark theme and night mode: fixed dark text becomes the theme's text color, and fixed light
+      backgrounds become its card color, so a word is never dark-on-dark (or light-on-light). */
+.hub-look [class*="text-[#0"]:not([data-light-island] *), .hub-look [class*="text-[#1"]:not([data-light-island] *), .hub-look [class*="text-[#2"]:not([data-light-island] *), .hub-look [class*="text-[#3"]:not([data-light-island] *) { color: var(--an-ink) !important; }
+.hub-look [class*="bg-[#f"]:not([data-light-island] *):not([data-light-island]), .hub-look [class*="bg-[#e"]:not([data-light-island] *):not([data-light-island]) { background-color: var(--an-card) !important; }
+.hub-night [class*="bg-[#f"]:not([data-light-island] *):not([data-light-island]), .hub-night [class*="bg-[#e"]:not([data-light-island] *):not([data-light-island]) { background-color: #111a2e !important; }
