@@ -9676,7 +9676,7 @@ Important:
   // Any spoken line in the apps (Daily brief, games, stories, poems, the Bookstore, the Sleep app,
   // Pod+): a real AI voice, made once and kept (voice-cache). Signed in or not (the Pod+ app and the
   // public pages have no Arise sign-in), so it is limited by address and by length instead.
-  const sayVoices = new Set(["hannah", "autumn", "diana", "austin", "daniel", "troy"]);
+  const sayVoices = new Set(["hannah", "autumn", "diana", "austin", "daniel", "troy", "calm"]);
   const sayLimit = createAttemptLimiter({ max: 240, windowMs: 10 * 60_000 });
   const sayMade = new Map<string, Promise<{ audio: Buffer; type: string }>>();
   app.options("/api/voice/say", (req, res) => {

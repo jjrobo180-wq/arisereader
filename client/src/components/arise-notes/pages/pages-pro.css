@@ -107,3 +107,42 @@
 .an-pro-dark .an-tabpill[aria-selected="true"] { background: #f2f2f7; color: #111; }
 .an-pro-dark [data-testid="pages-rich-body"] a { color: #6aa0f8; }
 .an-pro-dark [data-testid="pages-rich-body"] th, .an-pro-dark [data-testid="pages-rich-body"] td { border-color: #3a3a3f !important; }
+
+/* ── Premium list (v2): richer rows, elevated cards, a glowing new-note button, swipe actions ── */
+.an-pro { --pp-accent-2: #7c5cff; }
+.an-pro .pp-title { font-size: 2.15rem; font-weight: 800; letter-spacing: -.035em; }
+.an-pro .an-search input { height: 2.85rem !important; font-size: 16px; }
+.an-pro .pp-quick { height: 2.25rem; padding: 0 .95rem; border-radius: 999px; box-shadow: none; background: color-mix(in srgb, var(--pp-accent) 11%, var(--an-card)); color: var(--an-ink); }
+.an-pro .pp-section { padding: 1.35rem .2rem .5rem; font-size: .74rem; letter-spacing: .09em; }
+.an-pro .pp-rows { border-radius: 16px; }
+.an-pro .pp-rows > li + li::before { left: 3.85rem; }
+.an-pro .pp-row { gap: .8rem; padding: .7rem .95rem; min-height: 4.1rem; background: var(--an-card); }
+.pp-row-icon { display: grid; flex: none; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 10px; color: var(--pp-accent); background: color-mix(in srgb, var(--pp-accent) 13%, transparent); }
+.pp-row-icon svg { width: 1.05rem; height: 1.05rem; stroke-width: 2; }
+.pp-row-icon[data-kind="ink"] { color: #c2410c; background: color-mix(in srgb, #f97316 15%, transparent); }
+.pp-row-icon[data-kind="lock"] { color: #6d28d9; background: color-mix(in srgb, #8b5cf6 15%, transparent); }
+.an-pro .pp-row-title { font-size: 1rem; font-weight: 650; }
+.an-pro .pp-row-line { margin-top: .15rem; font-size: .85rem; }
+.an-pro .pp-row-date { opacity: .6; }
+.an-pro .pp-row-marks { color: #f59e0b; }
+.an-pro .an-masonry { gap: .75rem; }
+.an-pro .pp-card { border-radius: 18px; box-shadow: 0 0 0 .5px var(--an-line), 0 10px 26px -18px rgba(0,0,0,.35); }
+.an-pro-dark .pp-card { box-shadow: 0 0 0 .5px var(--an-line), 0 12px 28px -18px rgba(0,0,0,.9); }
+.an-pro .pp-card-paper { height: 8rem; padding: .85rem .9rem; font-size: .82rem; border-bottom: 0; -webkit-mask-image: linear-gradient(180deg, #000 72%, transparent); mask-image: linear-gradient(180deg, #000 72%, transparent); }
+.an-pro .pp-card-foot { padding: .45rem .9rem .8rem; }
+.an-pro .pp-card-title { font-size: .98rem; font-weight: 700; }
+.an-pro .pp-compose { width: 3.5rem; height: 3.5rem; color: #fff !important; background: linear-gradient(145deg, var(--pp-accent), var(--pp-accent-2)) !important; box-shadow: 0 12px 28px -10px color-mix(in srgb, var(--pp-accent) 75%, transparent); }
+
+/* Swipe actions */
+.pp-swipe { position: relative; overflow: hidden; touch-action: pan-y; }
+.pp-swipe-top { position: relative; z-index: 1; background: var(--an-card); will-change: transform; }
+.pp-swipe-under { position: absolute; inset: 0; display: flex; align-items: stretch; }
+.pp-swipe-under button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .2rem; font-size: .72rem; font-weight: 650; color: #fff; }
+.pp-swipe-under svg { width: 1.2rem; height: 1.2rem; }
+.pp-swipe-pin { width: 76px; background: #f59e0b; }
+.pp-swipe-pin-left { width: 96px; background: #f59e0b; transition: opacity .15s; }
+.pp-swipe-del { background: #ef4444; transition: width .12s; }
+
+/* Undo after a swipe-delete */
+.pp-undo { position: fixed; left: 1rem; right: 1rem; bottom: calc(env(safe-area-inset-bottom) + 5.7rem); z-index: 40; display: flex; align-items: center; gap: .75rem; max-width: 28rem; margin: 0 auto; padding: .8rem 1rem; border-radius: 14px; background: #1c1c1e; color: #f2f2f7; font-size: .92rem; box-shadow: 0 14px 30px -12px rgba(0,0,0,.5); }
+.pp-undo button { font-weight: 700; color: #7aaaf9; }
