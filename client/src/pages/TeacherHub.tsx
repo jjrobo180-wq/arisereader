@@ -1,4 +1,5 @@
 import { EmailWords, ForwardingCard, OPEN_EMAIL_EVENT, openHubEmail, useHubInbox } from "@/components/teacher-hub/HubInbox";
+import { PICTURE_ART } from "@/lib/pictureArt";
 import { useParaTeamAutoAdd } from "@/lib/paraTeam";
 import { markEmailRead } from "@shared/hubInbox";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
@@ -1740,7 +1741,21 @@ function TeacherHubPage() {
                     toasts.show(plugin.target.kind === "widget" ? "Widgets added to Home." : `${plugin.name} added to your menu.`, []);
                   } }));
                 // LifeHub's Home look (see hubLifeLook.css): soft white cards on the same ground.
-                return <div className="hub-home-life"><HomeParts parts={part} layout={layout} onChange={setLayout} widgets={{ items: (workspace as any).widgetItems, makeId: id, setItems: (update) => setWorkspace((prev) => ({ ...prev, widgetItems: update(cleanWidgets((prev as any).widgetItems)) })) }} plugins={quick} onOpenStore={() => setStore(true)} catalog={[...WORK_PARTS, ...pinnedCatalog]} accent="bg-[#292446]" homeLayout={hubThemeOf(layout.theme).homeLayout} /></div>;
+                // The Tiles look: each part's tile shows what's in it, live (the Picture box shows the picture).
+                const openT = workspace.tasks.filter((t) => !t.done), todayKey = new Date().toISOString().slice(0, 10);
+                const dueT = openT.filter((t) => t.dueDate && t.dueDate <= todayKey);
+                const nextM = workspace.meetings.filter((m) => !(m as any).done && m.date >= todayKey).sort((a, b) => (a.date + (a.time ?? "")).localeCompare(b.date + (b.time ?? "")))[0];
+                const bannerImg = (workspace.profile as any)?.banner?.image as string | undefined;
+                const partLive: Record<string, { faces?: { big?: string; text: string }[]; photos?: string[] }> = {
+                  picture: { photos: bannerImg ? [bannerImg] : PICTURE_ART },
+                  day: { faces: [{ big: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), text: new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }) }] },
+                  stats: { faces: [{ big: String(openT.length), text: openT.length === 1 ? "open task" : "open tasks" }, { big: String(workspace.students.length), text: workspace.students.length === 1 ? "student" : "students" }] },
+                  todo: { faces: [{ big: String(openT.length), text: "to do" }, ...(dueT.length ? [{ big: String(dueT.length), text: "due today or late" }] : []), ...openT.slice(0, 2).map((t) => ({ text: t.title }))] },
+                  agenda: { faces: [{ big: String(dueT.length), text: dueT.length ? `due today: ${dueT[0].title}` : "nothing due today" }] },
+                  calendar: { faces: [{ big: String(new Date().getDate()), text: new Date().toLocaleDateString(undefined, { weekday: "long", month: "long" }) }] },
+                  meetings: { faces: nextM ? [{ big: new Date(`${nextM.date}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }), text: `${nextM.type} · ${nextM.student}` }] : [{ text: "No meetings coming up" }] },
+                };
+                return <div className="hub-home-life"><HomeParts parts={part} partLive={partLive} layout={layout} onChange={setLayout} widgets={{ items: (workspace as any).widgetItems, makeId: id, setItems: (update) => setWorkspace((prev) => ({ ...prev, widgetItems: update(cleanWidgets((prev as any).widgetItems)) })) }} plugins={quick} onOpenStore={() => setStore(true)} catalog={[...WORK_PARTS, ...pinnedCatalog]} accent="bg-[#292446]" homeLayout={hubThemeOf(layout.theme).homeLayout} /></div>;
               })()}
             </>
           )}
@@ -2275,14 +2290,23 @@ function Tasks({ workspace, setWorkspace, remove, makeId, toast }: SectionProps 
       {/* Views and lists: a column on a computer, two scrolling rows on a phone. */}
       <nav aria-label="To-do views and lists" className="min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-2 lg:self-start lg:p-3">
         <p className="hidden px-3 pb-2 pt-1 text-[11px] font-black uppercase tracking-[.16em] text-slate-500 lg:block">Tasks</p>
-        <div className="flex gap-1 overflow-x-auto lg:block lg:space-y-1">
-          {TASK_VIEWS.map((v) => <button key={v} type="button" onClick={() => setView(v)} aria-pressed={view === v} className={navBtn(view === v)} data-testid={`task-view-${v}`}>{VIEW_INFO[v].icon}<span>{VIEW_INFO[v].title}</span><span className="ml-auto rounded-lg px-1.5 text-xs font-semibold opacity-65">{views[v]}</span></button>)}
+        {/* Phone: the five views as one even row of tiles. Computer: a column. */}
+        <div className="grid grid-cols-5 gap-1 lg:hidden" data-testid="task-views-phone">
+          {TASK_VIEWS.map((v) => <button key={v} type="button" onClick={() => setView(v)} aria-pressed={view === v} data-testid={`task-view-${v}`}
+            className={`flex min-w-0 flex-col items-center gap-0.5 rounded-2xl px-0.5 py-2 transition ${view === v ? "bg-[#6e5ae0] text-white shadow-[0_6px_16px_#6e5ae040]" : "text-slate-500 active:bg-slate-50"}`}>
+            <span className="[&>svg]:h-[18px] [&>svg]:w-[18px]">{VIEW_INFO[v].icon}</span>
+            <span className={`text-[17px] font-black leading-none tabular-nums ${view === v ? "text-white" : "text-slate-800"}`}>{views[v]}</span>
+            <span className="w-full truncate text-center text-[10.5px] font-bold">{v === "all" ? "All" : v === "completed" ? "Done" : VIEW_INFO[v].title}</span>
+          </button>)}
         </div>
-        <div className="mt-2 flex items-center justify-between px-3 pb-1 pt-3 lg:pt-5"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-500">My lists</span><button type="button" onClick={() => setAddingList(true)} className="rounded-lg p-1.5 text-slate-400 hover:bg-violet-50 hover:text-violet-700" title="New list" aria-label="New list"><FolderPlus className="h-[18px] w-[18px]" /></button></div>
-        <div className="flex gap-1 overflow-x-auto lg:block lg:space-y-0.5">
-          <button type="button" onClick={() => setListPick("all")} className={`flex min-h-10 shrink-0 items-center gap-3 rounded-xl px-4 text-sm font-bold lg:w-full ${listId === "all" ? "bg-[#f4f2ff] text-[#6c5cce]" : "text-slate-500 hover:bg-slate-50"}`}><Circle className="hidden h-3 w-3 lg:block" />Everything</button>
-          {lists.map((l) => <button key={l.id} type="button" onClick={() => setListPick(l.id)} className={`flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-4 text-sm font-bold lg:w-full ${listId === l.id ? "bg-[#f4f2ff] text-[#6c5cce]" : "text-slate-500 hover:bg-slate-50"}`}><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: l.color }} /><span className="max-w-32 truncate">{l.name}</span><span className="ml-auto hidden text-xs opacity-60 lg:inline">{kept.filter((t) => !t.done && t.listId === l.id).length}</span></button>)}
-          {!addingList && <button type="button" onClick={() => setAddingList(true)} className="flex min-h-10 shrink-0 items-center gap-1 rounded-xl border border-dashed border-slate-300 px-3 text-xs font-bold text-slate-500 lg:hidden"><Plus className="h-3.5 w-3.5" /> List</button>}
+        <div className="hidden lg:block lg:space-y-1">
+          {TASK_VIEWS.map((v) => <button key={v} type="button" onClick={() => setView(v)} aria-pressed={view === v} className={navBtn(view === v)}>{VIEW_INFO[v].icon}<span>{VIEW_INFO[v].title}</span><span className="ml-auto rounded-lg px-1.5 text-xs font-semibold opacity-65">{views[v]}</span></button>)}
+        </div>
+        <div className="mt-1 flex items-center justify-between border-t border-slate-100 px-2 pb-1.5 pt-3 lg:mt-2 lg:border-0 lg:px-3 lg:pt-5"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-400">My lists</span><button type="button" onClick={() => setAddingList(true)} className="hidden lg:inline-flex rounded-lg p-1.5 text-slate-400 hover:bg-violet-50 hover:text-violet-700" title="New list" aria-label="New list"><FolderPlus className="h-[18px] w-[18px]" /></button></div>
+        <div className="-mx-2 flex gap-1.5 overflow-x-auto px-2 pb-1 [scrollbar-width:none] lg:mx-0 lg:block lg:space-y-0.5 lg:px-0 lg:pb-0">
+          <button type="button" onClick={() => setListPick("all")} className={`flex min-h-9 shrink-0 items-center gap-3 rounded-full px-3.5 text-[13px] font-bold ring-1 lg:min-h-10 lg:w-full lg:rounded-xl lg:px-4 lg:text-sm lg:ring-0 ${listId === "all" ? "bg-[#f4f2ff] text-[#6c5cce] ring-[#d9d2fb]" : "text-slate-600 ring-slate-200 hover:bg-slate-50"}`}><Circle className="hidden h-3 w-3 lg:block" />Everything</button>
+          {lists.map((l) => <button key={l.id} type="button" onClick={() => setListPick(l.id)} className={`flex min-h-9 shrink-0 items-center gap-2 rounded-full px-3.5 text-[13px] font-bold ring-1 lg:min-h-10 lg:w-full lg:rounded-xl lg:px-4 lg:text-sm lg:ring-0 ${listId === l.id ? "bg-[#f4f2ff] text-[#6c5cce] ring-[#d9d2fb]" : "text-slate-600 ring-slate-200 hover:bg-slate-50"}`}><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: l.color }} /><span className="max-w-32 truncate">{l.name}</span><span className="ml-auto hidden text-xs opacity-60 lg:inline">{kept.filter((t) => !t.done && t.listId === l.id).length}</span></button>)}
+          {!addingList && <button type="button" onClick={() => setAddingList(true)} className="flex min-h-9 shrink-0 items-center gap-1 rounded-full bg-slate-50 px-3.5 text-[13px] font-bold text-violet-700 ring-1 ring-slate-200 lg:hidden"><Plus className="h-3.5 w-3.5" /> New list</button>}
         </div>
         {addingList && <form onSubmit={addList} className="mt-2 flex gap-2 px-1"><input className="min-h-10 min-w-0 flex-1 rounded-xl border border-slate-200 px-3 text-sm" value={newList} autoFocus maxLength={60} onChange={(e) => setNewList(e.target.value)} placeholder="List name (IEP paperwork, Copies…)" aria-label="New list name" /><button type="submit" className="rounded-xl bg-[#705ee2] px-3 text-white" aria-label="Save list"><Check className="h-[18px] w-[18px]" /></button><button type="button" onClick={() => { setAddingList(false); setNewList(""); }} className="rounded-xl bg-slate-100 px-2 text-slate-500" aria-label="Cancel list"><X className="h-[18px] w-[18px]" /></button></form>}
       </nav>

@@ -15,6 +15,7 @@ import { SessionPlayer } from "./FitSession";
 import { OutdoorHub } from "./FitRun";
 import { FormCheck } from "./FitForm";
 import { OverallStats } from "./FitStats";
+import { ReadyCheck } from "./FitReady";
 import { RestTimer, restFullPref, restSounds, setRestFullPref, useRestSounds } from "./FitRest";
 import { formLiftFor } from "@shared/fitForm";
 import { prescription } from "@shared/fitRecovery";
@@ -126,7 +127,8 @@ export function Library({ list, data, onClose, onPick, title = "Exercises" }: { 
 
 /** `pausedMs`: time spent paused so far; `pausedAt`: when the current pause began (unset while going).
  *  Both are saved with the workout, so a pause survives closing the app. */
-type Active = { id: string; name: string; started: number; programId?: string; dayId?: string; /** 2 and up when this is the rest of a workout that was split (shared/fitVacation.ts). */ part?: number; exercises: FitExercise[]; pausedMs?: number; pausedAt?: number | null };
+type Active = { id: string; name: string; started: number; programId?: string; dayId?: string; /** 2 and up when this is the rest of a workout that was split (shared/fitVacation.ts). */ part?: number; exercises: FitExercise[]; pausedMs?: number; pausedAt?: number | null;
+  /** The pre-workout check-in, once answered or skipped (FitReady.tsx). */ checked?: boolean; check?: Workout["check"] };
 /** Seconds of actual workout: from the start, leaving out any time paused. */
 export const workoutSecs = (a: Pick<Active, "started" | "pausedMs" | "pausedAt">, now: number) => Math.max(0, ((a.pausedAt ?? now) - a.started - (a.pausedMs ?? 0)) / 1000);
 export const readActive = (): Active | null => { try { return JSON.parse(localStorage.getItem(ACTIVE) || "null"); } catch { return null; } };
@@ -145,6 +147,45 @@ export function planned(data: FitData, items: { exId: string; name?: string; set
 }
 
 export function startWorkout(a: Omit<Active, "id" | "started">): Active { const w = { ...a, id: uid(), started: Date.now() }; saveActive(w); return w; }
+
+/** The after-workout report: right after finishing, and again any time from History. */
+export function WorkoutReport({ w, prs, data, update, onClose, closeLabel = "Done" }: { w: Workout; prs: ReturnType<typeof newRecords>; data: FitData; update: Update; onClose: () => void; closeLabel?: string }) {
+  const saved = data.workouts.find((x) => x.id === w.id)?.note ?? w.note ?? "";
+  const saveNote = (v: string) => { const t = v.trim().slice(0, 500); update((d) => ({ ...d, workouts: d.workouts.map((x) => (x.id === w.id ? { ...x, ...(t ? { note: t } : { note: undefined }) } : x)) })); };
+  const { plus, ask } = usePlus();
+  const u = data.profile.units;
+  const vol = w.exercises.reduce((t, e) => t + e.sets.reduce((x, s) => x + s.reps * s.weight, 0), 0);
+  const top = prs[0];
+  const c = w.check;
+  return <Layer><div className="fixed inset-0 z-[80] flex flex-col overflow-y-auto px-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-[max(20px,env(safe-area-inset-top))]" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} role="dialog" aria-modal="true" aria-label="Workout report" data-testid="fit-summary">
+    <div className="flex flex-col items-center pt-4 text-center">
+      <div className="fit-pop grid h-[84px] w-[84px] place-items-center rounded-full" style={{ background: C.lime, boxShadow: "0 0 50px rgba(var(--fit-accent-rgb),.5)" }}><Trophy className="h-[42px] w-[42px]" style={{ color: "var(--fit-on-accent)" }} /></div>
+      <h2 className="fit-in mt-4 text-[52px] leading-none" style={{ ...display, animationDelay: ".2s" }}>Done.</h2>
+      <p className="fit-in mt-1.5 text-[15px]" style={{ color: C.steel, animationDelay: ".3s" }}>{top ? `New record: ${top.name} ${fmtNum(top.value)} ${u}` : w.name}</p>
+      <p className="text-[12.5px]" style={{ color: C.dim }}>{new Date(w.date).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}</p>
+      <div className="mt-4 grid w-full grid-cols-3 gap-2 text-center">
+        <Card className="!p-3" style={stagger(0, 0, 0.4)}><p className="text-[26px] leading-none tabular-nums" style={display}>{fmtDur(w.secs)}</p><p className="mt-1 text-[11px] uppercase" style={{ color: C.dim }}>Time</p></Card>
+        <Card className="!p-3" style={stagger(0, 0, 0.48)}><p className="text-[26px] leading-none tabular-nums" style={display}>{fmtNum(vol)}</p><p className="mt-1 text-[11px] uppercase" style={{ color: C.dim }}>{u} lifted</p></Card>
+        <Card className="!p-3" style={stagger(0, 0, 0.56)}><p className="text-[26px] leading-none tabular-nums" style={display}>{w.exercises.reduce((t, e) => t + e.sets.length, 0)}</p><p className="mt-1 text-[11px] uppercase" style={{ color: C.dim }}>Sets</p></Card>
+      </div>
+      {c && <div className="mt-2 flex w-full flex-wrap justify-center gap-1.5 text-[12px] font-semibold" data-testid="fit-summary-check">
+        <span className="rounded-full px-2.5 py-1" style={{ background: C.card2 }}>Ready {c.ready}</span>
+        {c.adapted && <span className="rounded-full px-2.5 py-1" style={{ background: C.tint, color: C.lime }}>Ready Mode</span>}
+        <span className="rounded-full px-2.5 py-1" style={{ background: C.card2 }}>{c.food === "meal" ? "After a meal" : c.food === "snack" ? "After a snack" : "Fasted"}</span>
+        {c.stim !== "none" && <span className="rounded-full px-2.5 py-1" style={{ background: C.card2 }}>{c.stim === "coffee" ? "Coffee" : "Pre-workout"}</span>}
+        {c.stretched && <span className="rounded-full px-2.5 py-1" style={{ background: C.card2 }}>Warmed up</span>}
+      </div>}
+    </div>
+    <Title>How did it go?</Title>
+    <textarea defaultValue={saved} maxLength={500} rows={3} placeholder="Notes for next time: what felt strong, what hurt, weights to change…" className="w-full rounded-[12px] p-3 text-[16px] outline-none" style={inputStyle} aria-label="Workout notes" onBlur={(e) => saveNote(e.target.value)} data-testid="fit-workout-note" />
+    {prs.length > 0 && <><Title>New records</Title><div className="space-y-2">{prs.map((p, k) => <Card key={p.exId + p.kind} className="flex items-center gap-3 !p-3" style={stagger(k, 0.08, 0.6)}><Trophy className="h-6 w-6" style={{ color: C.orange }} />
+      <div><p className="font-semibold">{p.name}</p><p className="text-[13px]" style={{ color: C.dim }}>{p.kind === "e1rm" ? `Est. 1-rep max ${fmtNum(p.value)} ${u}` : p.kind === "weight" ? `Heaviest ${fmtNum(p.value)} ${u}` : `Most volume ${fmtNum(p.value)} ${u}`}</p></div></Card>)}</div></>}
+    {plus ? <Debrief w={w} data={data} /> : <Card className="mt-6 !p-4" onClick={() => ask("debrief")} testId="fit-debrief-locked">
+      <p className="text-[20px] leading-none" style={display}>Your after-workout report<PlusTag /></p>
+      <p className="mt-1.5 text-[14px]" style={{ color: C.steel }}>See when you'll be sore, how much protein and carbs to eat and by when, water, and facts on creatine and pre-workout.</p></Card>}
+    <Btn onClick={onClose} className="mt-8 w-full !min-h-[52px] !text-[19px]" testId="fit-summary-done">{closeLabel}</Btn>
+  </div></Layer>;
+}
 
 export function LiveWorkout({ active, setActive, data, update, list, say }: { active: Active; setActive: (a: Active | null) => void; data: FitData; update: Update; list: LibraryExercise[]; say: (m: string) => void }) {
   const { plus, ask } = usePlus();
@@ -214,7 +255,7 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
   const finish = () => {
     const exercises = active.exercises.map((e) => ({ ...e, sets: e.sets.filter((s) => s.done) })).filter((e) => e.sets.length);
     if (!exercises.length) { if (window.confirm("No sets are checked off. Discard this workout?")) { saveActive(null); setActive(null); } return; }
-    const w: Workout = { id: active.id, date: new Date(active.started).toISOString(), name: (active.part ?? 1) > 1 ? `${active.name.replace(/ \(part \d+\)$/, "")} (part ${active.part})` : active.name, ...(active.programId ? { programId: active.programId, dayId: active.dayId } : {}), secs: Math.round(workoutSecs(active, Date.now())), exercises };
+    const w: Workout = { id: active.id, date: new Date(active.started).toISOString(), name: (active.part ?? 1) > 1 ? `${active.name.replace(/ \(part \d+\)$/, "")} (part ${active.part})` : active.name, ...(active.programId ? { programId: active.programId, dayId: active.dayId } : {}), ...(active.check ? { check: active.check } : {}), secs: Math.round(workoutSecs(active, Date.now())), exercises };
     const prs = newRecords(data.workouts, w);
     saveToHealth("calories", Math.round((w.secs / 60) * 6), new Date(active.started));
     update((d) => ({ ...d, workouts: [...d.workouts, w], ...(d.program && active.programId === d.program.id && active.dayId ? { program: { ...d.program, done: [...d.program.done, `${active.dayId}@${w.date.slice(0, 10)}`] } } : {}) }));
@@ -235,28 +276,11 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
     saveActive(null); setActive(null); haptic("success");
     say(`Part ${part} saved. The rest is waiting on Today.`);
   };
-  if (done) {
-    const vol = done.w.exercises.reduce((t, e) => t + e.sets.reduce((x, s) => x + s.reps * s.weight, 0), 0);
-    const top = done.prs[0];
-    return <Layer><div className="fixed inset-0 z-[80] flex flex-col overflow-y-auto px-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} role="dialog" aria-modal="true" aria-label="Workout complete" data-testid="fit-summary">
-      <div className="flex min-h-[62vh] flex-col items-center justify-center text-center">
-        <div className="fit-pop grid h-[104px] w-[104px] place-items-center rounded-full" style={{ background: C.lime, boxShadow: "0 0 60px rgba(var(--fit-accent-rgb),.5)" }}><Trophy className="h-[52px] w-[52px]" style={{ color: "var(--fit-on-accent)" }} /></div>
-        <h2 className="fit-in mt-6 text-[56px] leading-none" style={{ ...display, animationDelay: ".2s" }}>Done.</h2>
-        <p className="fit-in mt-2 text-[15px]" style={{ color: C.steel, animationDelay: ".3s" }}>{top ? `New record: ${top.name} ${fmtNum(top.value)} ${u}` : done.w.name}</p>
-        <div className="mt-6 grid w-full grid-cols-3 gap-2 text-center">
-          <Card className="!p-3" style={stagger(0, 0, 0.4)}><p className="text-[26px] leading-none tabular-nums" style={display}>{fmtDur(done.w.secs)}</p><p className="mt-1 text-[11px] uppercase" style={{ color: C.dim }}>Time</p></Card>
-          <Card className="!p-3" style={stagger(0, 0, 0.48)}><p className="text-[26px] leading-none tabular-nums" style={display}>{fmtNum(vol)}</p><p className="mt-1 text-[11px] uppercase" style={{ color: C.dim }}>{u} lifted</p></Card>
-          <Card className="!p-3" style={stagger(0, 0, 0.56)}><p className="text-[26px] leading-none tabular-nums" style={display}>{done.w.exercises.reduce((t, e) => t + e.sets.length, 0)}</p><p className="mt-1 text-[11px] uppercase" style={{ color: C.dim }}>Sets</p></Card>
-        </div>
-      </div>
-      {done.prs.length > 0 && <><Title>New records</Title><div className="space-y-2">{done.prs.map((p, k) => <Card key={p.exId + p.kind} className="flex items-center gap-3 !p-3" style={stagger(k, 0.08, 0.6)}><Trophy className="h-6 w-6" style={{ color: C.orange }} />
-        <div><p className="font-semibold">{p.name}</p><p className="text-[13px]" style={{ color: C.dim }}>{p.kind === "e1rm" ? `Est. 1-rep max ${fmtNum(p.value)} ${u}` : p.kind === "weight" ? `Heaviest ${fmtNum(p.value)} ${u}` : `Most volume ${fmtNum(p.value)} ${u}`}</p></div></Card>)}</div></>}
-      {plus ? <Debrief w={done.w} data={data} /> : <Card className="mt-6 !p-4" onClick={() => ask("debrief")} testId="fit-debrief-locked">
-        <p className="text-[20px] leading-none" style={display}>Your after-workout report<PlusTag /></p>
-        <p className="mt-1.5 text-[14px]" style={{ color: C.steel }}>See when you'll be sore, how much protein and carbs to eat and by when, water, and facts on creatine and pre-workout.</p></Card>}
-      <Btn onClick={() => setActive(null)} className="mt-8 w-full !min-h-[52px] !text-[19px]" testId="fit-summary-done">Back to today</Btn>
-    </div></Layer>;
-  }
+  if (done) return <WorkoutReport w={done.w} prs={done.prs} data={data} update={update} onClose={() => setActive(null)} closeLabel="Back to today" />;
+  // Before the first set: readiness, Ready Mode, warm-up and the food check-in (once per workout).
+  if (!active.checked && !active.exercises.some((e) => e.sets.some((x) => x.done))) return <Layer><ReadyCheck data={data} name={active.name} exercises={active.exercises}
+    onStart={(exercises, c) => set((a) => ({ ...a, exercises, checked: true, check: c, started: Date.now(), pausedMs: 0, pausedAt: null }))}
+    onSkip={() => set((a) => ({ ...a, checked: true }))} /></Layer>;
   const allSets = active.exercises.reduce((t, e) => t + e.sets.length, 0);
   const doneSets = active.exercises.reduce((t, e) => t + e.sets.filter((s) => s.done).length, 0);
   return <Layer><div className="fit-sheet fixed inset-0 z-[70] flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} data-testid="fit-live">
@@ -469,6 +493,7 @@ export function TrainTab({ data, update, list, onStart, say, onCoach, onGyms }: 
   const [prog, setProg] = useState<Program | null>(null);
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [past, setPast] = useState<Workout | null>(null);
+  const [report, setReport] = useState<Workout | null>(null);
   const [watch, setWatch] = useState<LibraryExercise | null>(null);
   const [group, setGroup] = useState<(typeof FORM_GROUPS)[number]["id"]>("big");
   const [body, setBody] = useState(false);
@@ -553,10 +578,13 @@ export function TrainTab({ data, update, list, onStart, say, onCoach, onGyms }: 
     {routine && <RoutineEditor routine={routine} list={list} data={data} onClose={() => setRoutine(null)}
       onSave={(r) => { update((d) => ({ ...d, routines: d.routines.some((x) => x.id === r.id) ? d.routines.map((x) => (x.id === r.id ? r : x)) : [...d.routines, r] })); setRoutine(null); say("Routine saved."); }}
       onDelete={data.routines.some((x) => x.id === routine.id) ? () => { update((d) => ({ ...d, routines: d.routines.filter((x) => x.id !== routine.id) })); setRoutine(null); } : undefined} />}
+    {report && <WorkoutReport w={report} prs={newRecords(data.workouts.filter((x) => Date.parse(x.date) < Date.parse(report.date)), report)} data={data} update={update} onClose={() => setReport(null)} />}
     {past && <Sheet title={past.name} onClose={() => setPast(null)}>
       <p className="mt-1 text-center text-[13px]" style={{ color: C.dim }}>{new Date(past.date).toLocaleString(undefined, { weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })} · {fmtDur(past.secs)}</p>
+      {past.note && <Card className="mt-3 !p-3"><p className="text-[12px] font-semibold uppercase tracking-[.1em]" style={{ color: C.dim }}>Your notes</p><p className="mt-1 whitespace-pre-wrap text-[15px]">{past.note}</p></Card>}
       <div className="mt-4 space-y-2">{past.exercises.map((e, i) => <Card key={i} className="!p-3"><p className="font-semibold" style={{ color: C.lime }}>{e.name}</p>
         <p className="mt-1 text-[14px]" style={{ color: C.dim }}>{e.sets.map((s) => `${fmtNum(s.weight)} ${data.profile.units} × ${s.reps}`).join("  ·  ")}</p></Card>)}</div>
+      {past.exercises.length > 0 && <Btn className="mt-4 w-full" onClick={() => { setReport(past); setPast(null); }} testId="fit-past-report"><Trophy className="h-5 w-5" />See the workout report</Btn>}
       <Btn kind="soft" className="mt-4 w-full" onClick={() => { onStart(startWorkout({ name: past.name, exercises: past.exercises.map((e) => ({ ...e, sets: e.sets.map((s) => ({ ...s, done: false })) })) })); setPast(null); }}><Flame className="h-5 w-5" />Do this workout again</Btn>
       <button type="button" onClick={() => { if (window.confirm("Delete this workout from your history?")) { update((d) => ({ ...d, workouts: d.workouts.filter((x) => x.id !== past.id) })); setPast(null); } }} className="mt-4 h-12 w-full text-[15px] font-semibold" style={{ color: C.red }}>Delete workout</button>
     </Sheet>}

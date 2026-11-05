@@ -119,7 +119,9 @@ type Drag = {
   last: string | null;
 };
 
-export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugins = [], onOpenStore, catalog = WORK_PARTS, accent = "bg-slate-950", homeLayout = "cards", leadTiles, appTiles, widgets }: {
+export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugins = [], onOpenStore, catalog = WORK_PARTS, accent = "bg-slate-950", homeLayout = "cards", leadTiles, appTiles, widgets, partLive }: {
+  /** In the Tiles look: what each part's tile shows live (facts it flips between, or pictures). */
+  partLive?: Record<string, { faces?: LiveFace[]; photos?: string[] }>;
   /** Each part's content. null is a part with nothing to show right now: it is left out of Home, and shown as its tile while editing. */
   parts: Record<string, ReactNode | null>; layout: L; onChange: (next: L) => void;
   /** The hub's parts of Home, for their names and tile pictures. */
@@ -180,7 +182,7 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
   const label = (id: string) => (isWidgetHomeId(id) ? kit.nameOf(widgetIdOf(id)) : catalog.find((p) => p.id === id)?.label ?? id);
   const gridClass = LAYOUT_GRID[homeLayout], spanOf = LAYOUT_SPAN[homeLayout], capOf = LAYOUT_CAP[homeLayout];
   const partOf = (id: string): HomePart => (isWidgetHomeId(id) ? { id, label: label(id), icon: AlarmClock } : catalog.find((p) => p.id === id) ?? { id, label: id });
-  const tileOf = (id: string) => <PartTile part={partOf(id)} accent={accent} layout={homeLayout} size={sizeHere(id)} />;
+  const tileOf = (id: string) => <PartTile part={partOf(id)} accent={accent} layout={homeLayout} size={sizeHere(id)} live={partLive?.[id]} />;
   // "tiles" (Windows-Phone-style) always shows every part as a tile that opens in a pop-up, not
   // just the "small"-sized ones cards mode reserves tiles for — that dense tap-grid is the look.
   const alwaysTile = TILE_LAYOUTS.includes(homeLayout);
@@ -368,7 +370,7 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
           {arranged(shown.length).map((t, i) => tileBtn(t, t.size ?? startSize(shown.length + i)))}
           {!shown.length && !leads.length && !apps.length && <p className="col-span-full py-4 text-sm text-slate-500">Everything on Home is hidden.</p>}
         </div>)}
-        <div className="flex flex-wrap justify-center gap-2">
+        <div className="mt-5 flex flex-wrap justify-center gap-3 pb-2">
           {widgetsOn && kit.items.length > 0 && <button type="button" onClick={kit.openGallery} disabled={kit.full} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95 disabled:opacity-50" data-testid="widget-add"><Plus className="h-4 w-4" /> Widget</button>}
           <button type="button" onClick={() => setEditing(true)} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95" data-testid="home-edit">Edit Home</button>
         </div>
@@ -475,7 +477,7 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
  *  differently per Home layout (see HubHomeLayout) — "cards" is the original app-icon tile,
  *  "tiles" is a solid flat color block with the label pinned bottom-left (Windows-Phone live
  *  tile), "terminal" drops the picture tile entirely for a bracketed text line, CRT-menu style. */
-function PartTile({ part, accent, layout = "cards", size = "small" }: { part: HomePart; accent: string; layout?: HubHomeLayout; size?: HomeSize }) {
+function PartTile({ part, accent, layout = "cards", size = "small", live }: { part: HomePart; accent: string; layout?: HubHomeLayout; size?: HomeSize; live?: { faces?: LiveFace[]; photos?: string[] } }) {
   const Icon = part.icon ?? Puzzle;
   if (layout === "terminal") {
     return (
@@ -485,7 +487,7 @@ function PartTile({ part, accent, layout = "cards", size = "small" }: { part: Ho
       </span>
     );
   }
-  if (layout === "tiles") return <TileFace label={part.label} icon={<Icon strokeWidth={1.75} />} color={tileColorOf(part.id)} size={size} />;
+  if (layout === "tiles") return <TileFace label={part.label} icon={<Icon strokeWidth={1.75} />} color={tileColorOf(part.id)} size={size} faces={live?.faces} photos={live?.photos} />;
   return (
     <span className="flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-[1.6rem] border border-slate-200 bg-white p-2 text-center shadow-sm">
       <span className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-sm sm:h-14 sm:w-14 ${accent}`}><Icon className="h-6 w-6 sm:h-7 sm:w-7" /></span>
