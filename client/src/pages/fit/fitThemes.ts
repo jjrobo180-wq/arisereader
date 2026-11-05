@@ -48,7 +48,7 @@ export function paletteTokens(id: PaletteId, mode: "light" | "dark", black = fal
 // A layout is the whole shape of the app, not just its colors: its typefaces, how round everything is,
 // its cards, how Today is arranged (FitLayouts.tsx) and the tab bar. The color theme (above) still sets
 // the accent on top; picking a layout also picks the color theme it was drawn with (it can be changed).
-export type LayoutId = "athletic" | "studio" | "bloom" | "pro" | "zen";
+export type LayoutId = "athletic" | "studio" | "bloom" | "pro" | "proplus" | "zen";
 type Base = Partial<Record<"bg" | "card" | "card-bg" | "card-shadow" | "card2" | "line" | "text" | "dim" | "steel" | "track" | "nav" | "nav-border" | "nav-shadow" | "gap" | "body" | "muscle", string>>;
 export type FitLayout = {
   name: string; blurb: string; palette: PaletteId;
@@ -76,6 +76,11 @@ export const LAYOUTS: Record<LayoutId, FitLayout> = {
     light: { bg: "#f6f0fc", card: "#ffffff", "card-bg": "linear-gradient(180deg, #ffffff, #fdfaff)", "card-shadow": "0 2px 0 rgba(140,90,200,.06), 0 16px 30px -14px rgba(140,90,200,.35)", card2: "#efe5fa", line: "rgba(100,60,150,.10)", text: "#2e2440", dim: "#6d5f85", steel: "#54476b", track: "rgba(100,60,150,.10)", nav: "rgba(255,255,255,.94)", "nav-border": "rgba(100,60,150,.08)", "nav-shadow": "0 16px 36px -10px rgba(140,90,200,.45)", gap: "#ffffff", body: "#ece2f8", muscle: "#d9c8ee" },
     dark: { bg: "#18132a", card: "#251d3b", "card-bg": "linear-gradient(180deg, #2b2244, #251d3b)", "card-shadow": "inset 0 1px 0 rgba(240,225,255,.07), 0 14px 30px -14px rgba(0,0,0,.7)", card2: "#30264c", line: "rgba(230,215,255,.12)", text: "#f6f0ff", dim: "#b9aad6", steel: "#ddd2f0", track: "rgba(230,215,255,.12)", nav: "rgba(37,29,59,.95)", gap: "#251d3b", body: "#30264c", muscle: "#463a68" } },
   pro: { name: "Pro", blurb: "A dashboard: dense tiles, sharp corners and numbers in mono.", palette: "volt",
+    display: "'Space Grotesk', 'Inter', system-ui, sans-serif", body: "'Inter', -apple-system, system-ui, sans-serif", fonts: `${GF}Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700`,
+    weight: 700, upper: false, tracking: "-.02em", round: 0.45,
+    light: { bg: "#eef0f3", card: "#ffffff", "card-bg": "#ffffff", "card-shadow": "0 0 0 1px rgba(17,19,24,.08)", line: "rgba(17,19,24,.10)", nav: "rgba(255,255,255,.97)", "nav-shadow": "0 -1px 0 rgba(17,19,24,.08)" },
+    dark: { bg: "#0d0f12", card: "#15181d", "card-bg": "#15181d", "card-shadow": "0 0 0 1px rgba(255,255,255,.07)", card2: "#1d2127", line: "rgba(255,255,255,.08)", nav: "rgba(13,15,18,.97)", "nav-shadow": "0 -1px 0 rgba(255,255,255,.07)", gap: "#15181d", body: "#1d2127", muscle: "#2c3139" } },
+  proplus: { name: "Pro+", blurb: "Every stat on Home, deep analysis and forecasts. Fit+.", palette: "gold",
     display: "'Space Grotesk', 'Inter', system-ui, sans-serif", body: "'Inter', -apple-system, system-ui, sans-serif", fonts: `${GF}Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700`,
     weight: 700, upper: false, tracking: "-.02em", round: 0.45,
     light: { bg: "#eef0f3", card: "#ffffff", "card-bg": "#ffffff", "card-shadow": "0 0 0 1px rgba(17,19,24,.08)", line: "rgba(17,19,24,.10)", nav: "rgba(255,255,255,.97)", "nav-shadow": "0 -1px 0 rgba(17,19,24,.08)" },
