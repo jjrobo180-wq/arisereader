@@ -115,6 +115,8 @@ export async function sayAI(text: string, opts: SayOptions = {}): Promise<boolea
         a.onerror = () => resolve(false);
         a.pause();
         a.src = url;
+        // Slowing down must never lower the pitch: that is what makes a voice sound thick and off.
+        try { (a as any).preservesPitch = true; (a as any).webkitPreservesPitch = true; } catch { /* default */ }
         a.playbackRate = opts.rate || 1;
         a.play().then(() => { if (!started) { started = true; opts.onStart?.(); } opts.onPart?.(i, pieces[i]); }, () => resolve(false));
       });

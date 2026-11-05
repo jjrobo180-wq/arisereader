@@ -11,16 +11,16 @@ import { Btn, C, Card, accentNow, display, fmtDur, font, Layer } from "./fitUi";
 const KIND_COLOR: Record<Phase["kind"], string> = { warm: "#ffb020", work: "accent", rest: "#4d9fff", cool: "#8d939b", pose: "accent", "breathe-in": "#4d9fff", hold: "#b9c0c8", "breathe-out": "accent", still: "#b9c0c8" };
 const BREATH = new Set<Phase["kind"]>(["breathe-in", "hold", "breathe-out"]);
 
-// Two coaches: the upbeat one for HIIT and running, and a slow, low, steady one for yoga, meditation
-// and mobility (a hype voice saying "In!" over a breathing exercise is the wrong energy).
+// Two coaches: the upbeat one for HIIT and running, and a soft, warm woman's voice for yoga, meditation
+// and mobility, like a studio instructor (a hype voice saying "In!" over a breathing exercise is the wrong energy).
 const COACH = "troy" as const;
-const CALM = "daniel" as const;
+const CALM = "autumn" as const;
 const CALM_KINDS = new Set(["yoga", "meditation", "mobility"]);
 const coachFor = (s: Session) => (CALM_KINDS.has(s.category) ? CALM : COACH);
 function say(text: string, s: Session) {
   stopAiVoice();
   const calm = CALM_KINDS.has(s.category);
-  void sayAI(text, { voice: coachFor(s), rate: calm ? 0.9 : 1 }).catch(() => { /* no voice reachable: the screen still shows everything */ });
+  void sayAI(text, { voice: coachFor(s), rate: calm ? 0.95 : 1 }).catch(() => { /* no voice reachable: the screen still shows everything */ });
 }
 let audio: AudioContext | null = null;
 function beep(high = false, soft = false) {
