@@ -195,6 +195,7 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
       <button onClick={() => go("family")} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#a38cfa] px-5 text-sm font-bold text-[#1d1838] hover:bg-[#b6a4ff]">Add your family <ChevronRight size={16} /></button>
     </section>}
     <HomeParts parts={part} layout={layout} onChange={(next) => setFamily((f) => ({ ...f, layout: next }))} widgets={{ items: family.widgetBoard, makeId, setItems: (update) => setFamily((f) => ({ ...f, widgetBoard: update(cleanWidgets(f.widgetBoard)) })) }} catalog={[...CATALOG, ...pinnedCatalog]} accent="bg-[#292446]" homeLayout={hubThemeOf(layout.theme).homeLayout}
-      leadTiles={tileMode ? startLeads : undefined} appTiles={tileMode ? liveApps : undefined} />
+      leadTiles={tileMode ? startLeads : undefined} appTiles={tileMode ? liveApps : undefined}
+      partLive={tileMode ? { greeting: { faces: [{ big: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), text: new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }) }] }, stats: { faces: faces.tasks }, agenda: { faces: faces.calendar }, chores: { faces: faces.chores }, bills: { faces: faces.money } } : undefined} />
   </div>;
 }
