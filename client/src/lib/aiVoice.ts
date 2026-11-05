@@ -6,7 +6,7 @@
 //
 // No "@/" imports here: Pod+ (podscroll/) uses this file too.
 
-export type AiVoiceName = "hannah" | "autumn" | "diana" | "austin" | "daniel" | "troy";
+export type AiVoiceName = "hannah" | "autumn" | "diana" | "austin" | "daniel" | "troy" | "calm";
 export type SayOptions = {
   voice?: AiVoiceName;
   /** Playback speed (1 = normal). */ rate?: number;
