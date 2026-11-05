@@ -263,7 +263,7 @@ test("class notes ride along in the saved workspace, and a teacher with only not
 
 test("the Minutes tab has a Class notes look, remembered, and each class card opens its notes", () => {
   const tab = read("client/src/components/teacher-hub/HubProgress.tsx");
-  assert.match(tab, /\["notes", "Class notes"\]/);
+  assert.match(tab, /\["notes", "Notes"\]/);
   assert.match(tab, /v === "notes"/);
   assert.match(tab, /<PushInNotesView[^>]*classKey=\{notesClass\}/);
   assert.match(tab, /onNotes=\{\(key\) => \{ setNotesClass\(key\); setLook\("notes"\)/);
