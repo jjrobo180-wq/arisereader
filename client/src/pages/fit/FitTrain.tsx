@@ -149,7 +149,9 @@ export function planned(data: FitData, items: { exId: string; name?: string; set
 export function startWorkout(a: Omit<Active, "id" | "started">): Active { const w = { ...a, id: uid(), started: Date.now() }; saveActive(w); return w; }
 
 /** The after-workout report: right after finishing, and again any time from History. */
-export function WorkoutReport({ w, prs, data, onClose, closeLabel = "Done" }: { w: Workout; prs: ReturnType<typeof newRecords>; data: FitData; onClose: () => void; closeLabel?: string }) {
+export function WorkoutReport({ w, prs, data, update, onClose, closeLabel = "Done" }: { w: Workout; prs: ReturnType<typeof newRecords>; data: FitData; update: Update; onClose: () => void; closeLabel?: string }) {
+  const saved = data.workouts.find((x) => x.id === w.id)?.note ?? w.note ?? "";
+  const saveNote = (v: string) => { const t = v.trim().slice(0, 500); update((d) => ({ ...d, workouts: d.workouts.map((x) => (x.id === w.id ? { ...x, ...(t ? { note: t } : { note: undefined }) } : x)) })); };
   const { plus, ask } = usePlus();
   const u = data.profile.units;
   const vol = w.exercises.reduce((t, e) => t + e.sets.reduce((x, s) => x + s.reps * s.weight, 0), 0);
@@ -174,6 +176,8 @@ export function WorkoutReport({ w, prs, data, onClose, closeLabel = "Done" }: { 
         {c.stretched && <span className="rounded-full px-2.5 py-1" style={{ background: C.card2 }}>Warmed up</span>}
       </div>}
     </div>
+    <Title>How did it go?</Title>
+    <textarea defaultValue={saved} maxLength={500} rows={3} placeholder="Notes for next time: what felt strong, what hurt, weights to change…" className="w-full rounded-[12px] p-3 text-[16px] outline-none" style={inputStyle} aria-label="Workout notes" onBlur={(e) => saveNote(e.target.value)} data-testid="fit-workout-note" />
     {prs.length > 0 && <><Title>New records</Title><div className="space-y-2">{prs.map((p, k) => <Card key={p.exId + p.kind} className="flex items-center gap-3 !p-3" style={stagger(k, 0.08, 0.6)}><Trophy className="h-6 w-6" style={{ color: C.orange }} />
       <div><p className="font-semibold">{p.name}</p><p className="text-[13px]" style={{ color: C.dim }}>{p.kind === "e1rm" ? `Est. 1-rep max ${fmtNum(p.value)} ${u}` : p.kind === "weight" ? `Heaviest ${fmtNum(p.value)} ${u}` : `Most volume ${fmtNum(p.value)} ${u}`}</p></div></Card>)}</div></>}
     {plus ? <Debrief w={w} data={data} /> : <Card className="mt-6 !p-4" onClick={() => ask("debrief")} testId="fit-debrief-locked">
@@ -272,7 +276,7 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
     saveActive(null); setActive(null); haptic("success");
     say(`Part ${part} saved. The rest is waiting on Today.`);
   };
-  if (done) return <WorkoutReport w={done.w} prs={done.prs} data={data} onClose={() => setActive(null)} closeLabel="Back to today" />;
+  if (done) return <WorkoutReport w={done.w} prs={done.prs} data={data} update={update} onClose={() => setActive(null)} closeLabel="Back to today" />;
   // Before the first set: readiness, Ready Mode, warm-up and the food check-in (once per workout).
   if (!active.checked && !active.exercises.some((e) => e.sets.some((x) => x.done))) return <Layer><ReadyCheck data={data} name={active.name} exercises={active.exercises}
     onStart={(exercises, c) => set((a) => ({ ...a, exercises, checked: true, check: c, started: Date.now(), pausedMs: 0, pausedAt: null }))}
@@ -574,9 +578,10 @@ export function TrainTab({ data, update, list, onStart, say, onCoach, onGyms }: 
     {routine && <RoutineEditor routine={routine} list={list} data={data} onClose={() => setRoutine(null)}
       onSave={(r) => { update((d) => ({ ...d, routines: d.routines.some((x) => x.id === r.id) ? d.routines.map((x) => (x.id === r.id ? r : x)) : [...d.routines, r] })); setRoutine(null); say("Routine saved."); }}
       onDelete={data.routines.some((x) => x.id === routine.id) ? () => { update((d) => ({ ...d, routines: d.routines.filter((x) => x.id !== routine.id) })); setRoutine(null); } : undefined} />}
-    {report && <WorkoutReport w={report} prs={newRecords(data.workouts.filter((x) => Date.parse(x.date) < Date.parse(report.date)), report)} data={data} onClose={() => setReport(null)} />}
+    {report && <WorkoutReport w={report} prs={newRecords(data.workouts.filter((x) => Date.parse(x.date) < Date.parse(report.date)), report)} data={data} update={update} onClose={() => setReport(null)} />}
     {past && <Sheet title={past.name} onClose={() => setPast(null)}>
       <p className="mt-1 text-center text-[13px]" style={{ color: C.dim }}>{new Date(past.date).toLocaleString(undefined, { weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })} · {fmtDur(past.secs)}</p>
+      {past.note && <Card className="mt-3 !p-3"><p className="text-[12px] font-semibold uppercase tracking-[.1em]" style={{ color: C.dim }}>Your notes</p><p className="mt-1 whitespace-pre-wrap text-[15px]">{past.note}</p></Card>}
       <div className="mt-4 space-y-2">{past.exercises.map((e, i) => <Card key={i} className="!p-3"><p className="font-semibold" style={{ color: C.lime }}>{e.name}</p>
         <p className="mt-1 text-[14px]" style={{ color: C.dim }}>{e.sets.map((s) => `${fmtNum(s.weight)} ${data.profile.units} × ${s.reps}`).join("  ·  ")}</p></Card>)}</div>
       {past.exercises.length > 0 && <Btn className="mt-4 w-full" onClick={() => { setReport(past); setPast(null); }} testId="fit-past-report"><Trophy className="h-5 w-5" />See the workout report</Btn>}
