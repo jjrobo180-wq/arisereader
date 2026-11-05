@@ -224,7 +224,6 @@ export default function DuoSetup({ userId, layout, setLayout, plugins, setFamily
           <span className="grid h-20 w-20 place-items-center rounded-[22px] bg-[#111018] text-white"><Check className="h-10 w-10" strokeWidth={3} /></span>
           <h1 className="mt-6 text-[28px] font-bold leading-tight tracking-[-.02em]">You're all set</h1>
           <p className="mt-3 max-w-[21rem] text-[15.5px] leading-[1.45] text-[#5d5a6b]">{picked.length ? `${picked.length} ${picked.length === 1 ? "app is" : "apps are"} added. ` : ""}{made ? "Your routine reminders will notify you. " : ""}New themes arrive every month, and hundreds more apps are in the App Gallery.</p>
-          <p className="mt-3 max-w-[21rem] text-[14px] leading-snug text-[#77748a]">Love it? Arise To Duo is on the App Store, so friends and family can get it too.</p>
         </div>}
       </div>
 
