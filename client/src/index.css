@@ -312,5 +312,4 @@ html, body, button, a, input, select, textarea, [role="button"] { touch-action: 
     overscroll-behavior-y: contain;
   }
   html { scroll-behavior: auto; -webkit-text-size-adjust: 100%; }
-  img, video { content-visibility: auto; }
 }

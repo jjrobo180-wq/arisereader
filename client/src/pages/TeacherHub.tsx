@@ -327,7 +327,7 @@ function ReaderOnly({ signOut, isAdmin }: { signOut: () => void; isAdmin: boolea
   const [tab, setTab] = useState<ReaderTab>(() => { try { return readerTabFor(sessionStorage.getItem("teacher_dashboard_tab")); } catch { return "reader"; } });
   return (
     <div className="min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950">
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-3 px-4 py-3 md:px-6">
           <div className="min-w-0"><div className="text-xs font-bold uppercase tracking-[.22em] text-slate-500">Arise</div><div className="truncate text-lg font-bold tracking-tight sm:text-xl">WorkHub</div></div>
           <div className="flex shrink-0 items-center gap-2">
@@ -1092,7 +1092,7 @@ function TeacherHubPage() {
         onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "tab" in at) setTab(at.tab); if (p.target.kind === "widget") setTab("overview"); if (p.target.kind === "brief") setBriefOpen(true); if (p.target.kind === "sheetsApp") { closeApps(); setSheetsAppOpen(p.target.id); } if (p.target.kind === "officeApp") { closeApps(); window.location.hash = p.target.href; } if (p.target.kind === "driveApp") { closeApps(); setDriveOpen(true); } if (p.target.kind === "dropApp") { closeApps(); setDropOpen(true); } setStore(false); if (p.target.kind === "assistant") toasts.show("Tap the ✦ button at the bottom right to chat.", []); if (p.target.kind === "assistantPro") window.location.hash = "#/billing"; }}
         onClose={() => { setStore(false); setStoreOpenApp(null); }}
       />}
-      <header className={`${osCore ? "los-ghost" : "sticky top-0 z-40"} border-b border-slate-200 bg-white/95 backdrop-blur`}>
+      <header className={`${osCore ? "los-ghost" : "sticky top-0 z-40"} border-b border-slate-200 bg-white`}>
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3 md:px-6">
           <a href="#/workhub" onClick={(e) => { e.preventDefault(); setTab("overview"); }} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="WorkHub home" title="WorkHub home">
             <span className="flex h-7 w-7 shrink-0 overflow-hidden rounded-lg sm:h-8 sm:w-8"><HubMark tone="work" className="h-full w-full" /></span>
@@ -1238,7 +1238,7 @@ function TeacherHubPage() {
             </div>
           </div>
         )}
-        <aside data-tour="hub-menu" className={`fixed z-30 min-w-0 transition-transform duration-200 ${asidePhone} border-slate-200 bg-white/95 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur md:sticky md:left-auto md:right-auto md:w-auto md:translate-x-0 md:translate-y-0 md:border-0 md:px-0 md:pt-0 md:inset-x-auto md:bottom-auto md:z-30 md:border-0 md:bg-transparent md:p-0 ${deskAside}`} aria-hidden={menuOpen ? undefined : true}>
+        <aside data-tour="hub-menu" className={`fixed z-30 min-w-0 transition-transform duration-200 ${asidePhone} border-slate-200 bg-white pb-[max(0.5rem,env(safe-area-inset-bottom))] md:sticky md:left-auto md:right-auto md:w-auto md:translate-x-0 md:translate-y-0 md:border-0 md:px-0 md:pt-0 md:inset-x-auto md:bottom-auto md:z-30 md:border-0 md:bg-transparent md:p-0 ${deskAside}`} aria-hidden={menuOpen ? undefined : true}>
           <div className={`flex ${listPhone} [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${deskList}`}>
             {canHide && <button type="button" onClick={() => setRail(false)} aria-label="Hide menu" className={`flex min-h-11 ${across ? "min-w-11 px-2" : "w-full"} shrink-0 flex-col items-center justify-center rounded-xl text-[10px] font-semibold text-slate-500 hover:bg-slate-100 md:hidden`} data-testid="hub-rail-hide">{side === "top" ? <ChevronUp className="h-5 w-5" /> : side === "bottom" ? <ChevronDown className="h-5 w-5" /> : side === "right" ? <RailShow className="h-5 w-5" /> : <RailHide className="h-5 w-5" />}Hide</button>}
             <div className={`hidden px-3 py-3 ${deskTop || deskCompact ? "" : "md:block"}`}>

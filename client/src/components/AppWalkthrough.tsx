@@ -154,14 +154,22 @@ function LiveTour({ step, i, count, last, next, back, onClose, font }: { step: S
       const el = sel ? Array.from(document.querySelectorAll<HTMLElement>(sel)).find((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; }) : null;
       setRect(el ? el.getBoundingClientRect() : null);
     };
+    // The tour never needs a scroll: a target that is off screen is brought into view once, then the page holds still.
+    const target = sel ? Array.from(document.querySelectorAll<HTMLElement>(sel)).find((e) => e.getBoundingClientRect().width > 0) : null;
+    if (target) { const r = target.getBoundingClientRect(); if (r.top < 0 || r.bottom > window.innerHeight) target.scrollIntoView({ block: "center" }); }
     measure();
     const t = window.setInterval(measure, 400);
     window.addEventListener("resize", measure);
     return () => { window.clearInterval(t); window.removeEventListener("resize", measure); };
   }, [step.id]);
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
   const pad = 8;
   const high = rect && rect.top < window.innerHeight / 2; // the lit thing is in the top half: card goes below
-  return <div className="fixed inset-0 z-[700]" style={font} role="dialog" aria-modal="true" aria-label="How to use Arise To Duo" data-testid="app-walkthrough"
+  return <div className="fixed inset-0 z-[700]" style={{ ...font, touchAction: "none" }} role="dialog" aria-modal="true" aria-label="How to use Arise To Duo" data-testid="app-walkthrough"
     onTouchStart={(e) => { touch.current = e.touches[0]?.clientX ?? null; }}
     onTouchEnd={(e) => { const x = touch.current; touch.current = null; if (x == null) return; const dx = (e.changedTouches[0]?.clientX ?? x) - x; if (dx < -60) next(); else if (dx > 60) back(); }}>
     {rect
