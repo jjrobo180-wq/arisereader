@@ -1,4 +1,4 @@
-// Daily quote (a Plugin Store add-on): a motivational quote for each day, more on tap, and favorites.
+// Daily quote (a Plugin Gallery add-on): a motivational quote for each day, more on tap, and favorites.
 import { useState } from "react";
 import { Copy, Heart, Quote, Shuffle } from "lucide-react";
 import { QUOTES, forDay, type MotivationQuote } from "@shared/lifePlugins";

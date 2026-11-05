@@ -823,7 +823,7 @@ export default function AriseTodo() {
     const dw = (d: string) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "");
     // Apps: everything in the menu (sections and installed apps), with their icons, like a phone's search.
     for (const it of phoneItems) out.push({ id: `s-${it.id}`, kind: "Section", title: it.label, icon: it.icon, color: it.color, open: it.onClick });
-    // Apps not added yet: under "In the Plugin Store", opening straight on that app's page.
+    // Apps not added yet: under "In the Plugin Gallery", opening straight on that app's page.
     for (const p of pluginsFor("life", { teacher: user.role === "teacher" || !!user.isAdmin, arise: user.role === "teacher" || user.role === "parent" || !!user.isAdmin })) {
       if (!isAddable(p) || lifeInstalled(p, family, family.notesInstalled, family.sheetsInstalled)) continue;
       const Icon = STORE_ICONS[p.icon] ?? kitIcon(p.icon);
