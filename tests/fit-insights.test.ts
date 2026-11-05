@@ -55,3 +55,21 @@ test("the AI digest carries lifts and stays a sensible size", () => {
   assert.match(t, /FORECAST/);
   assert.ok(t.length < 9001);
 });
+
+test("overall statistics: weekly buckets for 1M, monthly for 1Y, last one marked as still going", async () => {
+  const { statBuckets, statMetrics } = await import("../shared/fitInsights");
+  const d = sample();
+  const m = statBuckets(d.workouts, "1M", NOW);
+  assert.equal(m.length, 5);
+  assert.equal(m[m.length - 1].partial, true);
+  assert.equal(m.reduce((a, b) => a + b.workouts, 0), 7); // all 7 lifts are within 5 weeks; yoga left out
+  const y = statBuckets(d.workouts, "1Y", NOW);
+  assert.equal(y.length, 12);
+  const all = statBuckets(d.workouts, "All", NOW);
+  assert.ok(all.length >= 1);
+  const metrics = statMetrics(m, "lb");
+  assert.equal(metrics.length, 6);
+  assert.match(metrics[0].headline, /min avg/);
+  assert.ok(metrics.every((x) => x.values.length === m.length && x.values.every(Number.isFinite)));
+  assert.equal(statMetrics(statBuckets([], "3M", NOW), "kg")[1].headline, "0 kg");
+});

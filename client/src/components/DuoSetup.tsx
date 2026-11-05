@@ -26,7 +26,9 @@ const SETUP_STYLE = {
   "--an-border": "rgba(17,16,24,.1)", "--an-coral": "#e0465f", "--an-shadow": "none",
 } as CSSProperties;
 
-const DONE_KEY = (id: number | string) => `arise-duo-setup-v1:${id}`;
+// v2: the new setup (day mode, one screen, app descriptions) goes out once to every To Duo account,
+// including people who finished the first one.
+const DONE_KEY = (id: number | string) => `arise-duo-setup-v2:${id}`;
 export const duoSetupDone = (id: number | string) => { try { return localStorage.getItem(DONE_KEY(id)) === "1"; } catch { return true; } };
 
 /** Six looks to start from; the rest are in Customize. */

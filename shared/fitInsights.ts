@@ -262,3 +262,51 @@ export function findings(i: Insights): string[] {
   if (i.water.daysHit7 >= 5) out.push(`You hit your water goal ${i.water.daysHit7} days out of 7.`);
   return out.slice(0, 8);
 }
+
+// ── Overall statistics over a time range (the graphs on Train and in Pro+) ─────────────────────────────
+export type StatRange = "1M" | "3M" | "6M" | "1Y" | "All";
+export type StatBucket = { start: string; label: string; workouts: number; mins: number; volume: number; sets: number; reps: number; partial: boolean };
+export type StatMetric = { id: "duration" | "volume" | "sets" | "reps" | "repsPerSet" | "workouts"; title: string; headline: string; values: number[]; trend: "up" | "down" | "flat" };
+
+/** Workouts grouped into weeks (1M, 3M, 6M) or months (1Y, All), oldest first; the last one is still going. */
+export function statBuckets(workouts: Workout[], range: StatRange, now = new Date()): StatBucket[] {
+  const lifts = workouts.filter(isLift);
+  const weekly = range === "1M" || range === "3M" || range === "6M";
+  const first = lifts.length ? new Date(Math.min(...lifts.map((w) => Date.parse(w.date)))) : now;
+  const startOf = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); if (weekly) x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); else x.setDate(1); return x; };
+  const step = (d: Date) => { const x = new Date(d); if (weekly) x.setDate(x.getDate() + 7); else x.setMonth(x.getMonth() + 1); return x; };
+  const back = range === "1M" ? 4 : range === "3M" ? 12 : range === "6M" ? 25 : range === "1Y" ? 11 : null;
+  let s = startOf(now);
+  if (back != null) { for (let n = 0; n < back; n++) { if (weekly) s.setDate(s.getDate() - 7); else s.setMonth(s.getMonth() - 1); } }
+  else s = startOf(first);
+  const out: StatBucket[] = [];
+  for (let b = s; b.getTime() <= now.getTime() && out.length < 240; b = step(b)) {
+    const e = step(b);
+    const inB = lifts.filter((w) => { const t = Date.parse(w.date); return t >= b.getTime() && t < e.getTime(); });
+    const ds = inB.flatMap(doneSets);
+    out.push({ start: dayKey(b), label: b.toLocaleDateString(undefined, weekly ? { month: "short", day: "numeric" } : { month: "short", year: "2-digit" }),
+      workouts: inB.length, mins: Math.round(sum(inB.map((w) => w.secs)) / 60), volume: Math.round(sum(inB.map(volumeOf))), sets: ds.length, reps: sum(ds.map((x) => x.reps)), partial: e.getTime() > now.getTime() });
+  }
+  return out;
+}
+
+/** The six graphs: what each shows, its headline number and which way it's heading. */
+export function statMetrics(buckets: StatBucket[], units: "lb" | "kg"): StatMetric[] {
+  const done = buckets.filter((b) => !b.partial);
+  const dir = (ys: number[]): StatMetric["trend"] => { const k = slope(ys), m = avg(ys) || 1; return Math.abs(k / m) < 0.02 ? "flat" : k > 0 ? "up" : "down"; };
+  const totalW = sum(buckets.map((b) => b.workouts));
+  const perWo = (f: (b: StatBucket) => number) => buckets.map((b) => (b.workouts ? f(b) / b.workouts : 0));
+  const weeks = buckets.length && buckets[0].start ? Math.max(1, (Date.now() - parse(buckets[0].start).getTime()) / (7 * DAY)) : 1;
+  const avgDur = totalW ? Math.round(sum(buckets.map((b) => b.mins)) / totalW) : 0;
+  const totalSets = sum(buckets.map((b) => b.sets)), totalReps = sum(buckets.map((b) => b.reps));
+  const rps = buckets.map((b) => (b.sets ? r1(b.reps / b.sets) : 0));
+  const tr = (ys: number[]) => dir(ys.slice(0, done.length).filter((_, n) => buckets[n].workouts > 0));
+  return [
+    { id: "duration", title: "Workout duration", headline: `${avgDur} min avg`, values: perWo((b) => b.mins).map(Math.round), trend: tr(perWo((b) => b.mins)) },
+    { id: "volume", title: "Volume", headline: `${Math.round(sum(buckets.map((b) => b.volume))).toLocaleString()} ${units}`, values: buckets.map((b) => b.volume), trend: tr(buckets.map((b) => b.volume)) },
+    { id: "sets", title: "Total sets", headline: totalSets.toLocaleString(), values: buckets.map((b) => b.sets), trend: tr(buckets.map((b) => b.sets)) },
+    { id: "reps", title: "Total reps", headline: totalReps.toLocaleString(), values: buckets.map((b) => b.reps), trend: tr(buckets.map((b) => b.reps)) },
+    { id: "repsPerSet", title: "Reps per set", headline: `${totalSets ? r1(totalReps / totalSets) : 0} avg`, values: rps, trend: tr(rps) },
+    { id: "workouts", title: "Number of workouts", headline: `${r1(totalW / weeks)} per week`, values: buckets.map((b) => b.workouts), trend: tr(buckets.map((b) => b.workouts)) },
+  ];
+}
