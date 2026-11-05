@@ -1201,6 +1201,10 @@ export default function AriseTodo() {
         </> },
         { id: "more", label: "Plan & more", icon: <Sparkles />, content: <>
           <PlanCard hub="life" hubApps={appsIn("life", data)} />
+          <CustomizeGroup title="Saving & backup" help="Everything saves to your account by itself and stays the same on every device you sign in on. Changes made offline go up as soon as you're back online.">
+            <input ref={fileInput} type="file" accept=".json,application/json" className="hidden" onChange={event => void importData(event)} aria-label="Restore LifeHub backup" />
+            <div className="flex flex-wrap gap-2"><button onClick={exportData} className={buttonClass + " border border-slate-200 bg-slate-50 text-slate-700"}><Download size={16} /> Back up</button><button onClick={() => fileInput.current?.click()} className={buttonClass + " border border-slate-200 bg-slate-50 text-slate-700"}><FileUp size={16} /> Restore</button></div>
+          </CustomizeGroup>
           <CustomizeGroup title="More settings">
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button type="button" onClick={() => { setCustomizing(false); setStore(true); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#292446] px-4 text-sm font-bold text-white"><ShoppingBag size={16} /> Plugin Gallery</button>
@@ -1522,12 +1526,6 @@ export default function AriseTodo() {
               <section className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5 duo-book:hidden">
                 <div className="flex items-center justify-between"><h3 className="text-sm font-extrabold">Coming up next</h3><CalendarDays size={17} className="text-violet-500" /></div>
                 {upcoming.length ? <div className="mt-4 space-y-3">{upcoming.slice(0, 5).map(task => <button key={task.id} onClick={() => setEditing({ ...task })} className="flex w-full items-center justify-between gap-3 border-b border-slate-100 pb-3 text-left last:border-b-0 last:pb-0"><span className="min-w-0 truncate text-xs font-semibold text-slate-700">{task.title}</span><span className="shrink-0 text-[11px] font-bold text-violet-600">{prettyDate(task.due)}</span></button>)}</div> : <p className="mt-3 text-xs leading-5 text-slate-500">Your calendar is clear for now.</p>}
-              </section>
-              <section className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5">
-                <div className="flex items-center gap-2"><ShieldCheck size={18} className="text-emerald-600" /><h3 className="text-sm font-extrabold">Your tasks, your account</h3></div>
-                <p className="mt-2 text-xs leading-5 text-slate-500">Everything is saved to your signed-in A.R.I.S.E. account and syncs between your devices. A safety copy stays in this browser if your connection drops. Family members are names on your account, not separate logins.</p>
-                <input ref={fileInput} type="file" accept=".json,application/json" className="hidden" onChange={event => void importData(event)} aria-label="Restore LifeHub backup" />
-                <div className="mt-4 flex flex-wrap gap-2"><button onClick={exportData} className={buttonClass + " border border-slate-200 bg-slate-50 text-slate-700"}><Download size={16} /> Back up</button><button onClick={() => fileInput.current?.click()} className={buttonClass + " border border-slate-200 bg-slate-50 text-slate-700"}><FileUp size={16} /> Restore</button></div>
               </section>
               <EmailForwardCard token={token} />
               <button onClick={goToSiteHome} className="flex min-h-10 items-center gap-2 text-xs font-semibold text-slate-500 hover:text-violet-700 lg:hidden"><ArrowLeft size={14} /> {onTodoSite ? "Arise To Duo" : "A.R.I.S.E. Reader"}</button>

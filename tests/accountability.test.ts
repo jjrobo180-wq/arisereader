@@ -86,7 +86,7 @@ test("the nudge pass sends once per interval and marks it", async () => {
 test("it's in the To Duo Plugin Gallery and opens from a notification", () => {
   assert.match(readFileSync(new URL("../shared/pluginStore.ts", import.meta.url), "utf8"), /id: "life-accountability".*target: section\("accountability"\)/);
   assert.match(readFileSync(new URL("../client/src/components/family-hub/lifeApps.tsx", import.meta.url), "utf8"), /accountability: \(p\) => <Accountability/);
-  assert.match(readFileSync(new URL("../client/src/pages/AriseTodo.tsx", import.meta.url), "utf8"), /if \(go === "accountability"\) setFamily/);
+  assert.match(readFileSync(new URL("../client/src/pages/AriseTodo.tsx", import.meta.url), "utf8"), /if \(go === "accountability"( \|\| go === "linked")?\) setFamily/);
   assert.match(readFileSync(new URL("../server/routes.ts", import.meta.url), "utf8"), /"\/api\/accountability\/ai\/worksheet", "\/api\/accountability\/ai\/quiz"/);
 });
 

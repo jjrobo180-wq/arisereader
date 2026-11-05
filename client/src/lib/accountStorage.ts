@@ -62,5 +62,12 @@ export function setAccount(id: string | number | null | undefined): void {
   const was = state.who;
   state.who = next;
   // Signing out just stops using that account's things; signing in (as anyone) starts the page fresh.
-  if (next && typeof window !== "undefined") { if (was !== next) window.location.reload(); }
+  if (next && typeof window !== "undefined") {
+    if (was !== next) {
+      // A different account is a fresh start: nothing from the last one's open screens, chats or tours
+      // (kept in sessionStorage, which outlives the reload) carries over. Sample-mode keys stay.
+      if (was) { try { for (const k of Object.keys(sessionStorage)) if (!/^(arise_sample|sample)/i.test(k)) sessionStorage.removeItem(k); } catch { /* fine */ } }
+      window.location.reload();
+    }
+  }
 }
