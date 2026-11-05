@@ -12,10 +12,16 @@ const lum = (hex: string) => {
 };
 const ratio = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
 
-test("there are 44 looks plus Classic", () => assert.equal(NOTES_THEMES.length, 45));
+test("there are 48 looks plus Classic", () => assert.equal(NOTES_THEMES.length, 49));
 for (const t of NOTES_THEMES) test(`${t.label} text is readable`, () => {
   for (const [name, fg, bg] of [["ink/bg", t.ink, t.bg], ["ink/card", t.ink, t.card], ["muted/bg", t.muted, t.bg], ["muted/card", t.muted, t.card], ["faint/card", t.faint, t.card], ["accent ink/card", t.accentInk, t.card], ["accent ink/soft", t.accentInk, t.accentSoft], ["on accent", t.onAccent, t.accent], ["on record", t.onRecord, t.record]] as const)
     assert.ok(ratio(fg, bg) >= 4.5, `${t.id} ${name}: ${ratio(fg, bg).toFixed(2)}`);
+});
+test("the four professional looks appear alongside existing choices", () => {
+  for (const id of ["editorial", "slatepro", "graphitepro", "linenpro"]) {
+    assert.ok(NOTES_THEMES.some((t) => t.id === id));
+    assert.equal(cleanSettings({ theme: id }).theme, id);
+  }
 });
 test("a saved look is kept, and anything else means Classic", () => {
   assert.equal(cleanSettings({ theme: "deck" }).theme, "deck");
