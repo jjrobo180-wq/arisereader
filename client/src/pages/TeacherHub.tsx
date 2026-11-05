@@ -109,6 +109,7 @@ import "@/components/teacher-hub/darkPalette.css";
 import "@/components/teacher-hub/hubLifeLook.css";
 import { Stat as LifeStat } from "@/components/family-hub/ui";
 import { GoalsTab, MinutesTab } from "@/components/teacher-hub/HubProgress";
+import { IepPage } from "@/components/teacher-hub/HubIep";
 import WorkspaceBanner from "@/components/teacher-hub/HubBanner";
 import { HomeParts, WORK_PARTS, type HomePart } from "@/components/teacher-hub/HubHomeEdit";
 import { HOME_SECTIONS, MENU_CLOSES, MENU_SIDES, cleanLayout, isPinId, moveSection, pinId, showSection, unpinId, type HomeSection, type HubLayout } from "@shared/hubLayout";
@@ -208,7 +209,7 @@ const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
   { id: "caseload", label: "Caseload", icon: <Users className="h-4 w-4" /> },
   { id: "goals", label: "Goals", icon: <Target className="h-4 w-4" /> },
   { id: "minutes", label: "Minutes", icon: <Timer className="h-4 w-4" /> },
-  { id: "iep", label: "IEP & Meetings", icon: <CalendarDays className="h-4 w-4" /> },
+  { id: "iep", label: "IEP", icon: <CalendarDays className="h-4 w-4" /> },
   { id: "lessons", label: "Lessons", icon: <BookOpen className="h-4 w-4" /> },
   { id: "tasks", label: "Tasks", icon: <CheckSquare className="h-4 w-4" /> },
   { id: "notes", label: "Notes", icon: <StickyNote className="h-4 w-4" /> },
@@ -1770,7 +1771,11 @@ function TeacherHubPage() {
           {tab === "caseload" && <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} profileId={profileStudent} setProfileId={setProfileStudent} openTab={setTab} />}
           {tab === "goals" && <><HubGoalBoard workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} />{(isTabOn("caseload", visible, !!user.isAdmin) || workspace.goals.length > 0) && <GoalsTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} />}</>}
           {tab === "minutes" && <MinutesTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} token={token} />}
-          {tab === "iep" && <Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} studentOptions={studentOptions} token={token} makeId={id} account={{ name: cleanSenderName(String((user as any)?.displayName || (user as any)?.username || "")), email: String((user as any)?.email || "") }} />}
+          {tab === "iep" && <IepPage workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} token={token}
+            meetings={<Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} studentOptions={studentOptions} token={token} makeId={id} account={{ name: cleanSenderName(String((user as any)?.displayName || (user as any)?.username || "")), email: String((user as any)?.email || "") }} />}
+            caseload={(studentId, onPick) => <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} profileId={studentId} setProfileId={onPick} openTab={setTab} />}
+            goals={<><HubGoalBoard workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} /><GoalsTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} /></>}
+            minutes={<MinutesTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} token={token} />} />}
           {tab === "lessons" && <HubLessons workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} say={(text) => toasts.show(text, [])} />}
           {tab === "tasks" && <><Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} toast={(text, actions) => { toasts.show(text, actions); }} /><AppleRemindersCard token={token} check={checkApple} /></>}
           {tab === "notes" && <HubNotes key={notesKey} workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} />}

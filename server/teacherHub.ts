@@ -13,6 +13,9 @@ import { HUB_REQUIRED, hubMessage, type HubAccess } from "../shared/plans";
 import { HUB_CONFLICT, HUB_SEATS_FULL, MAX_WORKSPACE_BYTES, sameInstant } from "../shared/hubSave";
 import { calendarEvents } from "../shared/hubHidden";
 import { sharedMinutes, type Colleague } from "../shared/hubMinutesDay";
+import { isQuizShare, parseQuizCode, publicQuiz, scoreQuiz } from "../shared/hubIep";
+import { recordQuizScore } from "../shared/hubLinks";
+import { randomBytes, randomUUID } from "node:crypto";
 
 type HubUser = { id?: number; role?: string; isAdmin?: boolean };
 
@@ -181,6 +184,51 @@ export function registerTeacherHubRoutes(app: Express, authMiddleware: RequestHa
   const store = deps.store ?? createSupabaseWorkspaceStore();
   // The day a teacher's copy was last kept, so a busy day costs one write, not one per save.
   const backedUp = new Map<number, string>();
+
+  // ─── Goal quizzes sent to students as a link (no sign-in) ───
+  // Only a quiz the teacher turned the link on for can be opened, and only its questions are shown
+  // (never the answers or anything else in the WorkHub). A finished quiz is scored here.
+  const quizTries = new Map<string, number[]>();
+  const tooMany = (ip: string) => { const now = Date.now(), list = (quizTries.get(ip) || []).filter((t) => now - t < 3_600_000); list.push(now); quizTries.set(ip, list); if (quizTries.size > 5000) quizTries.clear(); return list.length > 40; };
+  const findQuiz = (workspace: any, share: string) => (Array.isArray(workspace?.goalQuizzes) ? workspace.goalQuizzes : []).find((q: any) => q && isQuizShare(q.share) && q.share === share && Array.isArray(q.questions) && q.questions.length);
+
+  app.get("/api/goal-quiz/:code", async (req: any, res) => {
+    res.set("Cache-Control", "no-store");
+    const code = parseQuizCode(String(req.params.code || ""));
+    if (!code) return res.status(404).json({ message: "This quiz link isn't right. Ask your teacher for a new one." });
+    try {
+      const row = await store.get(code.teacherId);
+      const quiz = findQuiz(row?.workspace, code.share);
+      if (!quiz) return res.status(404).json({ message: "This quiz isn't open any more. Ask your teacher for a new link." });
+      return res.json(publicQuiz(quiz));
+    } catch (error: any) {
+      console.error("[goal-quiz] open failed", error?.message);
+      return res.status(500).json({ message: "The quiz couldn't open. Try again in a moment." });
+    }
+  });
+
+  app.post("/api/goal-quiz/:code", async (req: any, res) => {
+    const code = parseQuizCode(String(req.params.code || ""));
+    if (!code) return res.status(404).json({ message: "This quiz link isn't right." });
+    if (tooMany(String(req.ip || "?"))) return res.status(429).json({ message: "Too many tries. Wait a little and try again." });
+    try {
+      // A save that races another one (the teacher saving at the same moment) reads again and tries again.
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const row = await store.get(code.teacherId);
+        const quiz = row && findQuiz(row.workspace, code.share);
+        if (!row || !quiz) return res.status(404).json({ message: "This quiz isn't open any more." });
+        const result = scoreQuiz(quiz, req.body?.answers);
+        if (!result) return res.status(400).json({ message: "Answer every question first." });
+        const next = recordQuizScore(row.workspace as any, quiz.id, { attemptId: randomUUID(), ...result, completedAt: new Date().toISOString() }, () => randomBytes(8).toString("hex"));
+        const saved = await store.save(code.teacherId, next as any, row.updatedAt || null);
+        if (saved) return res.json(result);
+      }
+      return res.status(409).json({ message: "Your teacher's WorkHub was busy. Tap Finish again." });
+    } catch (error: any) {
+      console.error("[goal-quiz] submit failed", error?.message);
+      return res.status(500).json({ message: "Your answers couldn't be sent. Try again." });
+    }
+  });
 
   // The minutes of the other case managers at the same school, view only: just the ones who chose to
   // share them (Minutes → Edit → "Let case managers at my school see my minutes").

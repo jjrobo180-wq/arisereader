@@ -145,8 +145,10 @@ function VisualNumbers({ v, onChange }: { v: NonNullable<WorksheetItem["visual"]
 }
 
 /** Make a worksheet on any topic, without making a lesson first. It can then be saved to a lesson. */
-export function WorksheetMaker({ token, state, className, lessons, onSave, onClose }: {
+export function WorksheetMaker({ token, state, className, lessons, onSave, onClose, start }: {
   token: string | null;
+  /** What the form starts with (a progress-monitoring probe for a goal, say). */
+  start?: Partial<{ topic: string; grade: string; subject: string; kind: string; count: number; level: string; notes: string }>;
   state: string;
   className: string;
   /** Lessons it can be saved to: id and a label. */
@@ -154,7 +156,7 @@ export function WorksheetMaker({ token, state, className, lessons, onSave, onClo
   onSave: (lessonId: string, ws: GenWorksheet) => void;
   onClose: () => void;
 }) {
-  const [f, setF] = useState({ topic: "", grade: "", subject: "Math", kind: "practice worksheet", count: 12, level: "on grade level", notes: "" });
+  const [f, setF] = useState({ topic: "", grade: "", subject: "Math", kind: "practice worksheet", count: 12, level: "on grade level", notes: "", ...start });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [ws, setWs] = useState<GenWorksheet | null>(null);
