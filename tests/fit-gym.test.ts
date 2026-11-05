@@ -110,7 +110,7 @@ test("the camera counts reps for the lifts it can see", () => {
 test("wired in: My gym and Scan on Train, swap and camera in a workout, debrief after, the paused screen is readable", () => {
   const train = readFileSync(new URL("../client/src/pages/fit/FitTrain.tsx", import.meta.url), "utf8");
   for (const id of ["fit-my-gym", "fit-scan-machine", "fit-live-swap-", "fit-live-cam-", "fit-live-scan"]) assert.ok(train.includes(id), id);
-  assert.match(train, /<Debrief w=\{done\.w\}/);
+  assert.match(train, /<Debrief w=\{w\}/); assert.match(train, /<WorkoutReport w=\{done\.w\}/);
   // The paused screen is dark in every theme, so its text must not use the theme's (dark in Light) text color.
   const paused = train.slice(train.indexOf('data-testid="fit-paused"') - 400, train.indexOf('data-testid="fit-paused-finish"'));
   assert.ok(!/color: C\.(text|dim|steel)/.test(paused), "paused screen uses light text");
