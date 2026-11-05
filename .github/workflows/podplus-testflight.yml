@@ -7,6 +7,8 @@ on:
     paths:
       - '.github/scripts/**'
       - '.github/workflows/podplus-testflight.yml'
+      - 'podscroll/**'
+      - 'client/src/hooks/useAutoHideHeader.ts'
 jobs:
   signed-archive:
     # GitHub's Xcode 27 image (Apple Silicon): builds with the iOS 27.1 SDK, for iPhone Duo.
