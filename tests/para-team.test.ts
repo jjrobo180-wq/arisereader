@@ -266,7 +266,7 @@ test("Para Team is reachable from WorkHub, LifeHub and the teacher Reader, and i
   assert.match(read("client/src/lib/paraTeam.ts"), /export const inviteLink = \(code: string\) => `\$\{TODO_APP\}#\/para-team\/join\/\$\{code\}`;/, "invites open on arisetodo.com, where paras can make a free account");
   const join = read("client/src/pages/ParaTeam.tsx");
   assert.match(join, /useEffect\(\(\) => \{ if \(user\) store\.set\(PENDING_JOIN_KEY, ""\); \}, \[user\]\);/, "a failed join can't loop");
-  // Para Team is in the App Gallery (not pre-installed): once added it shows under My apps in either hub.
+  // Para Team is in the Plugin Gallery (not pre-installed): once added it shows under My apps in either hub.
   const store = read("shared/pluginStore.ts");
   assert.match(store, /id: "work-para-team"[\s\S]*?href: "#\/para-team"/);
   assert.match(store, /id: "life-para-team"[\s\S]*?href: "#\/para-team"/);

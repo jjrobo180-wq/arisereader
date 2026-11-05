@@ -502,7 +502,7 @@ export function TrainTab({ data, update, list, onStart, say, onCoach, onGyms }: 
       <Btn kind="soft" className="!px-3 !text-[16px] whitespace-nowrap" onClick={() => setLib(true)} testId="fit-open-library"><Search className="h-5 w-5 shrink-0" />Exercises</Btn>
     </div>
     <Title>Programs</Title>
-    <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">{PROGRAMS.map((p) => <CoverCard key={p.id} art={programArt(p)} onClick={() => setProg(p)} className={`!w-[250px] shrink-0 snap-start ${data.program?.id === p.id ? "!ring-2 !ring-[var(--fit-accent)]" : ""}`} tall testId={`fit-program-${p.id}`}>
+    <div className="-mx-4 flex snap-x scroll-pl-4 gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">{PROGRAMS.map((p) => <CoverCard key={p.id} art={programArt(p)} onClick={() => setProg(p)} className={`!w-[250px] shrink-0 snap-start ${data.program?.id === p.id ? "!ring-2 !ring-[var(--fit-accent)]" : ""}`} tall testId={`fit-program-${p.id}`}>
       <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.14em]" style={{ color: C.lime }}>{p.level}{data.program?.id === p.id && <span className="rounded-full px-2 py-0.5 text-[10px]" style={{ background: C.lime, color: "var(--fit-on-accent)" }}>Current</span>}</span>
       <span className="mt-1 block text-[18px] font-bold leading-tight">{p.name}</span>
       <span className="mt-1 line-clamp-2 block text-[13px] leading-snug" style={{ color: C.steel }}>{p.blurb}</span>
@@ -510,7 +510,7 @@ export function TrainTab({ data, update, list, onStart, say, onCoach, onGyms }: 
     </CoverCard>)}</div>
     <Title right={<button type="button" onClick={() => setLib(true)} className="text-[14px] font-semibold" style={{ color: C.lime }}>See all</button>}>Form videos</Title>
     <Chips label="Video group" value={group} onChange={setGroup} items={FORM_GROUPS.map((g) => ({ id: g.id, label: g.label }))} />
-    <div className="-mx-4 mt-3 flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" data-testid="fit-form-videos">{FORM_GROUPS.find((g) => g.id === group)!.ids.filter((id) => videoFor(id) && find(id)).map((id) => <button key={id} type="button" onClick={() => setWatch(find(id)!)} className="w-[180px] shrink-0 snap-start text-left active:scale-[.98]" data-testid={`fit-form-${id}`}>
+    <div className="-mx-4 mt-3 flex snap-x scroll-pl-4 gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" data-testid="fit-form-videos">{FORM_GROUPS.find((g) => g.id === group)!.ids.filter((id) => videoFor(id) && find(id)).map((id) => <button key={id} type="button" onClick={() => setWatch(find(id)!)} className="w-[180px] shrink-0 snap-start text-left active:scale-[.98]" data-testid={`fit-form-${id}`}>
       <VideoThumb exId={id} className="aspect-video w-full rounded-[12px]" />
       <span className="mt-2 block truncate px-0.5 text-[14px] font-semibold">{find(id)!.name}</span>
       <span className="block truncate px-0.5 text-[12px] capitalize" style={{ color: C.dim }}>{find(id)!.muscle} · {find(id)!.equipment}</span>

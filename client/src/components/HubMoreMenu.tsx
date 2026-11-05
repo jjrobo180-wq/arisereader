@@ -28,7 +28,7 @@ export function hubMoreGroups(o: {
       { id: "customize", label: "Customize", detail: "Menu, Home, theme and split screen", icon: <Settings2 />, onClick: o.customize },
       { id: "night", label: o.night ? "Day mode" : "Night mode", icon: o.night ? <Sun /> : <Moon />, onClick: o.toggleNight },
       { id: "lock", label: "Passcode & locks", icon: <Lock />, onClick: o.lock },
-      { id: "gallery", label: "App Gallery", detail: "Add apps and connections", icon: <ShoppingBag />, onClick: o.gallery },
+      { id: "gallery", label: "Plugin Gallery", detail: "Add plugins and connections", icon: <ShoppingBag />, onClick: o.gallery },
       ...(o.extra ?? []),
     ] },
     { title: "Help & account", items: [

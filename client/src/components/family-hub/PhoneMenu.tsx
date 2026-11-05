@@ -122,7 +122,7 @@ export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 
     {!open && <button type="button" onClick={() => setRail(true)} aria-label="Show menu" data-testid="life-rail-show"
       className={`fixed z-30 inline-flex items-center justify-center border border-slate-200 bg-white text-slate-600 shadow-md lg:hidden ${tabPlace}`} style={side === "bottom" ? undefined : { top: side === "top" ? top : top + 12 }}>{showIcon}</button>}
     <nav aria-label="LifeHub menu" aria-hidden={open ? undefined : true} data-testid="life-phone-menu"
-      className={`fixed z-30 border-slate-200 bg-white/95 backdrop-blur transition-transform duration-200 lg:hidden ${place}`} style={side === "bottom" ? undefined : { top }}>
+      className={`fixed z-30 border-slate-200 bg-white transition-transform duration-200 lg:hidden ${place}`} style={side === "bottom" ? undefined : { top }}>
       <div className={`flex ${across ? "snap-x gap-1 overflow-x-auto" : "h-full touch-pan-y flex-col gap-1 overflow-y-auto overscroll-contain px-1 py-1.5"} [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}>
         {canHide && <button type="button" onClick={() => setRail(false)} aria-label="Hide menu" tabIndex={open ? 0 : -1} data-testid="life-rail-hide"
           className={`flex min-h-11 ${across ? "min-w-11 px-2" : "w-full"} shrink-0 flex-col items-center justify-center rounded-xl text-[10px] font-semibold text-slate-500 hover:bg-slate-100`}>{hideIcon}Hide</button>}

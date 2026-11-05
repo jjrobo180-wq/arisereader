@@ -128,7 +128,7 @@ function TabBar({ hub = "life", highlight }: { hub?: "life" | "work"; highlight?
     {highlight && <span className="ts-a" style={abs({ left: 6, top: 4, width: 32, height: 32, borderRadius: 99, background: "rgba(255,255,255,.16)", ...A("ts-tabs") })} />}
     {t("Home")}{t("Tasks")}
     <span style={{ width: 30, height: 30, margin: "0 3px", borderRadius: 99, background: hub === "work" ? WORK : LIFE, color: "#fff", display: "grid", placeItems: "center", fontSize: 18, fontWeight: 400 }}>+</span>
-    {t("Apps")}{t("You")}
+    {t("Plugins")}{t("You")}
   </div>;
 }
 
@@ -181,7 +181,7 @@ function TodoAdd() {
 function TodoGallery() {
   const tile = (n: string, c: string, e: string) => <div style={{ ...card, padding: "6px 7px", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4, minWidth: 0 }}><span style={{ width: 22, height: 22, flexShrink: 0, borderRadius: 7, background: c, display: "grid", placeItems: "center", fontSize: 11 }}>{e}</span><Txt s={8.5} w={700} style={{ overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{n}</Txt></div>;
   return <Phone>
-    <div style={abs({ top: 26, left: 12 })}><Txt s={17} w={800}>App Gallery</Txt></div>
+    <div style={abs({ top: 26, left: 12 })}><Txt s={17} w={800}>Plugin Gallery</Txt></div>
     <div style={abs({ top: 56, left: 10, right: 10, ...card, padding: 10, background: "linear-gradient(150deg,#fff,#f3f0ff)" })}>
       <div style={{ display: "flex", gap: 9, alignItems: "center" }}>
         <span style={{ width: 40, height: 40, borderRadius: 11, background: "linear-gradient(160deg,#4ade80,#15803d)", display: "grid", placeItems: "center", fontSize: 20 }}>💵</span>
@@ -260,7 +260,7 @@ function TodoSplit() {
 function TodoArise() {
   const row = (e: string, t: string, c: string) => <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600 }}><span style={{ width: 22, height: 22, borderRadius: 7, background: c, display: "grid", placeItems: "center", fontSize: 11 }}>{e}</span>{t}</div>;
   return <Phone>
-    <div style={abs({ top: 26, left: 12 })}><Txt s={17} w={800}>Apps</Txt></div>
+    <div style={abs({ top: 26, left: 12 })}><Txt s={17} w={800}>Plugins</Txt></div>
     <div style={abs({ top: 54, left: 10, right: 10, ...card, padding: 4 })}>
       {row("🏠", "Home", "#ede9fe")}
       <div className="ts-a" style={{ ...A("ts-slideup"), animationIterationCount: 1, animationDuration: ".8s" }}>{row("📖", "A.R.I.S.E. Reader", "#e0e7ff")}{row("➗", "Arise Math", "#dcfce7")}{row("🏛️", "Arise History", "#ffedd5")}{row("🔗", "Arise Connect", "#e0f2fe")}</div>
