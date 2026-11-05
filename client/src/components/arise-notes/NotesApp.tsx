@@ -356,7 +356,7 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
           <h3 className="flex items-center gap-1.5 text-[14px] font-bold text-[var(--an-violet-ink)]"><Lock className="h-4 w-4" aria-hidden />On this iPhone only</h3>
           <ul className="grid gap-3 md:grid-cols-2">{local.map((n) => <li key={n.id}>
             <button type="button" onClick={() => ctx.go({ name: "local", id: n.id })} className="an-card flex h-full w-full gap-3 p-4 text-left transition hover:border-[var(--an-violet)]" data-testid="notes-local-card">
-              <span aria-hidden className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--an-violet-soft)] text-[20px]">{templateOf(n.template).emoji}</span>
+              <span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--an-violet-soft)] text-[var(--an-violet)]"><NoteTypeIcon id={templateOf(n.template).id} className="h-5 w-5" /></span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-2"><span className="truncate text-[16px] font-bold">{n.title || "Untitled note"}</span><span className="shrink-0 rounded-full bg-[var(--an-violet-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--an-violet-ink)]">Strict</span></span>
                 <span className="mt-0.5 block text-[13px] text-[var(--an-muted)]">{shortDate(n.createdAt)}{n.durationSecs ? ` · ${fmtClock(n.durationSecs)}` : ""} · {templateOf(n.template).label}</span>

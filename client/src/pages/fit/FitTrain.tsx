@@ -176,8 +176,14 @@ export function WorkoutReport({ w, prs, data, update, onClose, closeLabel = "Don
         {c.stretched && <span className="rounded-full px-2.5 py-1" style={{ background: C.card2 }}>Warmed up</span>}
       </div>}
     </div>
-    <Title>How did it go?</Title>
-    <textarea defaultValue={saved} maxLength={500} rows={3} placeholder="Notes for next time: what felt strong, what hurt, weights to change…" className="w-full rounded-[12px] p-3 text-[16px] outline-none" style={inputStyle} aria-label="Workout notes" onBlur={(e) => saveNote(e.target.value)} data-testid="fit-workout-note" />
+    <section className="mt-8 mb-2" aria-label="Workout reflection" data-testid="fit-workout-reflection">
+      <h2 className="mb-3 px-1 text-[13px] tracking-[.16em]" style={{ ...display, color: C.dim }}>How did it go?</h2>
+      <textarea defaultValue={saved} maxLength={500} rows={4}
+        placeholder="What felt strong? Anything sore? Weights to change next time…"
+        className="block w-full min-h-[136px] resize-y rounded-[14px] border px-4 py-3.5 text-[16px] leading-[1.5] outline-none focus:ring-2"
+        style={{ ...inputStyle, height: 136, minHeight: 136, maxHeight: 280, borderColor: C.line, boxSizing: "border-box", WebkitAppearance: "none", overflowY: "auto" }}
+        aria-label="Workout notes" onBlur={(e) => saveNote(e.target.value)} data-testid="fit-workout-note" />
+    </section>
     {prs.length > 0 && <><Title>New records</Title><div className="space-y-2">{prs.map((p, k) => <Card key={p.exId + p.kind} className="flex items-center gap-3 !p-3" style={stagger(k, 0.08, 0.6)}><Trophy className="h-6 w-6" style={{ color: C.orange }} />
       <div><p className="font-semibold">{p.name}</p><p className="text-[13px]" style={{ color: C.dim }}>{p.kind === "e1rm" ? `Est. 1-rep max ${fmtNum(p.value)} ${u}` : p.kind === "weight" ? `Heaviest ${fmtNum(p.value)} ${u}` : `Most volume ${fmtNum(p.value)} ${u}`}</p></div></Card>)}</div></>}
     {plus ? <Debrief w={w} data={data} /> : <Card className="mt-6 !p-4" onClick={() => ask("debrief")} testId="fit-debrief-locked">

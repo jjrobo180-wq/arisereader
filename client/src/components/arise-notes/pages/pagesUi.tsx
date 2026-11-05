@@ -104,7 +104,7 @@ export function ColorDots({ value, onChange }: { value: string; onChange: (c: st
 export function FolderSheet({ folder, onSave, onDelete, onClose }: { folder: Folder | null; onSave: (f: { name: string; color: string; icon: string }) => void; onDelete?: () => void; onClose: () => void }) {
   const [name, setName] = useState(folder?.name ?? "");
   const [color, setColor] = useState(folder?.color ?? "#6a55dc");
-  const icon = folder?.icon ?? "📁";
+  const icon = folder?.icon ?? ""; // folder lists use their SVG icon; no emoji fallback
   return <Sheet title={folder ? "Edit folder" : "New folder"} onClose={onClose}>
     <div className="space-y-4">
       <input className="an-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Folder name" maxLength={40} autoFocus data-testid="pages-folder-name" />

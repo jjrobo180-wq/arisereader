@@ -186,12 +186,12 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
       {wide ? <>
         <aside className="hidden w-[260px] shrink-0 overflow-y-auto border-r border-[var(--an-line)] px-3 py-4 lg:block">{nav}</aside>
         <section className="w-[360px] shrink-0 border-r border-[var(--an-line)]">{list}</section>
-        <main className="min-w-0 flex-1">{editor ?? <div className="grid h-full place-items-center text-center text-[15px] text-[var(--an-muted)]"><div><div className="an-empty-stack"><i /><i /><i>✍️</i></div><p className="an-display text-[24px] text-[var(--an-ink)]">Choose a note</p><p className="mt-1">or start a new one.</p></div></div>}</main>
+        <main className="min-w-0 flex-1">{editor ?? <div className="grid h-full place-items-center text-center text-[15px] text-[var(--an-muted)]"><div><div className="an-empty-stack"><i /><i /><i><PenLine className="h-7 w-7" strokeWidth={1.8} /></i></div><p className="an-display text-[24px] text-[var(--an-ink)]">Choose a note</p><p className="mt-1">or start a new one.</p></div></div>}</main>
       </> : <main className="min-w-0 flex-1">{editor ?? (pane === "folders" ? folderScreen : list)}</main>}
     </div>
     {sheet === "new" && <Sheet title="New note" onClose={() => setSheet("")} wide>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" data-testid="pages-template-list">{PAGE_TEMPLATES.map((t) => <button key={t.id} type="button" onClick={() => create(t)} className="an-card flex items-center gap-3 p-3 text-left hover:border-[var(--an-violet)]">
-        <span className="text-[24px]" aria-hidden>{t.emoji}</span><span><span className="block text-[15px] font-bold">{t.name}</span><span className="text-[12px] text-[var(--an-muted)]">{t.kind === "ink" ? "Handwriting" : "Typed"}</span></span></button>)}</div>
+        <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--an-violet-soft)] text-[var(--an-violet)]">{t.kind === "ink" ? <PenLine className="h-5 w-5" strokeWidth={1.8} /> : t.id.includes("grid") ? <Grid2X2 className="h-5 w-5" strokeWidth={1.8} /> : t.id.includes("cornell") ? <LayoutTemplate className="h-5 w-5" strokeWidth={1.8} /> : <FileText className="h-5 w-5" strokeWidth={1.8} />}</span><span><span className="block text-[15px] font-bold">{t.name}</span><span className="text-[12px] text-[var(--an-muted)]">{t.kind === "ink" ? "Handwriting" : "Typed"}</span></span></button>)}</div>
     </Sheet>}
     {sheet === "folder" && <FolderSheet folder={editFolder} onClose={() => setSheet("")}
       onSave={(v) => { if (editFolder) saveFolders(settings.folders.map((f) => (f.id === editFolder.id ? { ...f, ...v } : f))); else { const f = { id: newPageId(), ...v, sort: settings.folders.length }; saveFolders([...settings.folders, f]); pick({ kind: "folder", id: f.id }); } setSheet(""); }}
@@ -253,7 +253,7 @@ function Empty({ filter, q, onNew }: { filter: Filter; q: string; onNew: () => v
   if (filter.kind === "trash") return <p className="px-3 py-16 text-center text-[15px] text-[var(--an-muted)]">Nothing in Recently Deleted.</p>;
   if (filter.kind === "locked") return <p className="px-3 py-16 text-center text-[15px] text-[var(--an-muted)]">No locked notes. Open a note, tap ⋯, then Lock note.</p>;
   return <div className="px-6 py-14 text-center an-lift">
-    <div aria-hidden className="an-empty-stack"><i /><i /><i>✍️</i></div>
+    <div aria-hidden className="an-empty-stack"><i /><i /><i><PenLine className="h-7 w-7" strokeWidth={1.8} /></i></div>
     <h3 className="an-display text-[26px]">{filter.kind === "all" ? "A fresh page" : "Nothing here yet"}</h3>
     <p className="mx-auto mt-2 max-w-xs text-[15px] leading-relaxed text-[var(--an-muted)]">Type, handwrite with your Apple Pencil, add pictures, checklists and tables. Everything syncs to your other devices.</p>
     <Btn kind="primary" className="mt-6 !min-h-12 !px-6" onClick={onNew}><Plus className="h-4 w-4" />Start writing</Btn>
