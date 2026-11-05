@@ -14,13 +14,13 @@ const BREATH = new Set<Phase["kind"]>(["breathe-in", "hold", "breathe-out"]);
 // Two coaches: the upbeat one for HIIT and running, and a soft, warm woman's voice for yoga, meditation
 // and mobility, like a studio instructor (a hype voice saying "In!" over a breathing exercise is the wrong energy).
 const COACH = "troy" as const;
-const CALM = "autumn" as const;
+const CALM = "calm" as const;
 const CALM_KINDS = new Set(["yoga", "meditation", "mobility"]);
 const coachFor = (s: Session) => (CALM_KINDS.has(s.category) ? CALM : COACH);
 function say(text: string, s: Session) {
   stopAiVoice();
   const calm = CALM_KINDS.has(s.category);
-  void sayAI(text, { voice: coachFor(s), rate: calm ? 0.95 : 1 }).catch(() => { /* no voice reachable: the screen still shows everything */ });
+  void sayAI(text, { voice: coachFor(s), rate: 1 }).catch(() => { /* no voice reachable: the screen still shows everything */ });
 }
 let audio: AudioContext | null = null;
 function beep(high = false, soft = false) {

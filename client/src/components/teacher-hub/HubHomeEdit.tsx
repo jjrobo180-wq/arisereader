@@ -368,7 +368,7 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
           {arranged(shown.length).map((t, i) => tileBtn(t, t.size ?? startSize(shown.length + i)))}
           {!shown.length && !leads.length && !apps.length && <p className="col-span-full py-4 text-sm text-slate-500">Everything on Home is hidden.</p>}
         </div>)}
-        <div className="flex flex-wrap justify-center gap-2">
+        <div className="mt-5 flex flex-wrap justify-center gap-3 pb-2">
           {widgetsOn && kit.items.length > 0 && <button type="button" onClick={kit.openGallery} disabled={kit.full} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95 disabled:opacity-50" data-testid="widget-add"><Plus className="h-4 w-4" /> Widget</button>}
           <button type="button" onClick={() => setEditing(true)} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95" data-testid="home-edit">Edit Home</button>
         </div>

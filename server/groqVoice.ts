@@ -65,8 +65,8 @@ export async function groqSpeech(text: string, voice: string): Promise<Speech> {
 // Every spoken line in the apps is a real AI voice, never the phone's built-in one. When Groq's
 // Orpheus voices can't answer (busy, used up for the hour, down), Deepgram's Aura voices say it
 // (DEEPGRAM_API_KEY, the same key used for listening), then OpenAI's when that is on.
-const AURA: Record<string, string> = { hannah: "aura-2-thalia-en", autumn: "aura-2-luna-en", diana: "aura-2-asteria-en", austin: "aura-2-apollo-en", daniel: "aura-2-orion-en", troy: "aura-2-zeus-en" };
-const OPENAI_VOICE: Record<string, string> = { hannah: "marin", autumn: "marin", diana: "coral", austin: "cedar", daniel: "cedar", troy: "ash" };
+const AURA: Record<string, string> = { calm: "aura-2-luna-en", hannah: "aura-2-thalia-en", autumn: "aura-2-luna-en", diana: "aura-2-asteria-en", austin: "aura-2-apollo-en", daniel: "aura-2-orion-en", troy: "aura-2-zeus-en" };
+const OPENAI_VOICE: Record<string, string> = { calm: "marin", hannah: "marin", autumn: "marin", diana: "coral", austin: "cedar", daniel: "cedar", troy: "ash" };
 const openAiVoiceOn = () => !!process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== "routed-to-grok";
 
 async function deepgramSpeech(text: string, voice: string): Promise<Speech> {
@@ -92,7 +92,7 @@ async function openAiSpeech(text: string, voice: string): Promise<Speech> {
   for (const part of speechChunks(text, 3800)) {
     const r = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST", headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "gpt-4o-mini-tts", voice: OPENAI_VOICE[voice] || "marin", input: part, response_format: "mp3" }), signal: AbortSignal.timeout(60_000),
+      body: JSON.stringify({ model: "gpt-4o-mini-tts", voice: OPENAI_VOICE[voice] || "marin", input: part, response_format: "mp3", ...(voice === "calm" ? { instructions: CALM_INSTRUCTIONS } : {}) }), signal: AbortSignal.timeout(60_000),
     });
     if (!r.ok) throw Object.assign(new Error(`openai speech ${r.status}`), { status: r.status });
     out.push(Buffer.from(await r.arrayBuffer()));
@@ -103,12 +103,17 @@ async function openAiSpeech(text: string, voice: string): Promise<Speech> {
 /** Is any AI voice set up on this server? */
 export const hasAiVoice = () => hasGroqVoice() || hasDeepgram() || openAiVoiceOn();
 
-/** A real AI voice saying `text`: Groq's Orpheus first, then Deepgram's Aura, then OpenAI's. */
+/** How the yoga, breathing and meditation coach speaks (OpenAI's voices follow spoken directions). */
+export const CALM_INSTRUCTIONS = "You are a warm, experienced female yoga and meditation teacher leading a class. Speak softly, slowly and gently, low and soothing, with natural pauses and a relaxed, unhurried breath in your voice. Never sound like an announcer or a robot; sound like a real person who is calm and kind. Short cues like 'Breathe in' are said slowly and tenderly.";
+
+/** A real AI voice saying `text`: Groq's Orpheus first, then Deepgram's Aura, then OpenAI's. The calm
+ *  coach ("calm") goes to OpenAI first, the one voice that can be directed to sound like a real teacher. */
 export async function aiSpeech(text: string, voice: string): Promise<Speech> {
   const tries: [string, () => Promise<Speech>][] = [];
-  if (hasGroqVoice()) tries.push(["groq", () => groqSpeech(text, voice)]);
+  if (voice === "calm" && openAiVoiceOn()) tries.push(["openai", () => openAiSpeech(text, voice)]);
+  if (hasGroqVoice()) tries.push(["groq", () => groqSpeech(text, voice === "calm" ? "autumn" : voice)]);
   if (hasDeepgram()) tries.push(["deepgram", () => deepgramSpeech(text, voice)]);
-  if (openAiVoiceOn()) tries.push(["openai", () => openAiSpeech(text, voice)]);
+  if (openAiVoiceOn() && voice !== "calm") tries.push(["openai", () => openAiSpeech(text, voice)]);
   if (!tries.length) throw new Error("no voice key");
   let last: any;
   for (const [name, run] of tries) {

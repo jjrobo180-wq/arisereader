@@ -4,6 +4,7 @@
 // folders, the list and the note sit side by side. New notes start from a blank page or a template (meeting, journal, Cornell, graph
 // paper…), in the look you chose for new notes.
 import { useEffect, useMemo, useState } from "react";
+import { SwipeItem } from "./SwipeItem";
 import { ChevronLeft, ChevronRight, FileText, Folder as FolderIcon, FolderPlus, Grid2X2, Hash, LayoutTemplate, List as ListIcon, Lock, LockOpen, MoreHorizontal, PenLine, Pin, Plus, RotateCcw, Search, Settings2, ShieldCheck, SquarePen, Trash2 } from "lucide-react";
 import { DEFAULT_LOOK, PAGE_TEMPLATES, PAPER_THEMES, TRASH_DAYS, blankInkPage, cleanLook, pageTitle, type Folder, type Page, type PageMeta, type PageTemplate } from "@shared/arisePages";
 import { api } from "../api";
@@ -65,6 +66,15 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
   }, [metas, live, filter, q, found, settings.prefs.sort]);
 
   const open = (id: string) => ctx.go({ name: "page", id });
+  // Swipe actions: delete (to Recently Deleted, with Undo) and pin.
+  const [undo, setUndo] = useState<{ id: string; title: string } | null>(null);
+  useEffect(() => { if (!undo) return; const t = window.setTimeout(() => setUndo(null), 5000); return () => window.clearTimeout(t); }, [undo]);
+  const trashNote = (m: PageMeta) => { sync.remove(m.id); setUndo({ id: m.id, title: pageTitle(m as any) }); };
+  const pinNote = async (m: PageMeta) => {
+    const p = sync.cached(m.id) ?? await sync.open(m.id).catch(() => null);
+    if (!p) { say("Open the note once to pin it."); return; }
+    sync.save({ ...p, pinned: !p.pinned }); say(p.pinned ? "Unpinned." : "Pinned to the top.");
+  };
   const create = (t: PageTemplate) => {
     const id = newPageId();
     const now = new Date().toISOString();
@@ -116,7 +126,7 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
   const by = settings.prefs.sort === "created" ? "createdAt" : "updatedAt";
   const sections = useMemo(() => (filter.kind === "trash" || q.trim() || settings.prefs.sort === "title" ? [{ label: "", items: shown }] : groupNotes(shown, by)), [shown, filter.kind, q, settings.prefs.sort, by]);
   const card = (m: PageMeta, i: number) => <PageCard key={m.id} m={m} i={i} grid={grid} on={openId === m.id} folder={folders.find((f) => f.id === m.folderId)} trash={filter.kind === "trash"}
-    onOpen={() => open(m.id)} onRestore={() => { sync.restore(m.id); say("Restored."); }} onForever={async () => { if (!window.confirm("Delete this note for good?")) return; await sync.forever([m.id]).catch((e) => say(e.message)); }} />;
+    onOpen={() => open(m.id)} onTrash={() => trashNote(m)} onPin={() => void pinNote(m)} onRestore={() => { sync.restore(m.id); say("Restored."); }} onForever={async () => { if (!window.confirm("Delete this note for good?")) return; await sync.forever([m.id]).catch((e) => say(e.message)); }} />;
 
   const list = <div className="relative flex h-full min-h-0 flex-col">
     <div className="space-y-3.5 px-4 pb-2 pt-[max(1rem,env(safe-area-inset-top))]">
@@ -148,6 +158,7 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
           <ul className={grid ? "an-masonry" : "pp-rows"} style={sec.label ? undefined : { marginTop: ".5rem" }}>{sec.items.map((m, i) => card(m, i))}</ul>
         </section>)}</div>}
     </div>
+    {undo && <div className="pp-undo" role="status" data-testid="pages-undo"><span className="min-w-0 flex-1 truncate">Deleted “{undo.title}”</span><button type="button" onClick={() => { sync.restore(undo.id); setUndo(null); say("Restored."); }}>Undo</button></div>}
     {filter.kind !== "trash" && <button type="button" className="pp-compose" style={wide ? { position: "absolute", right: "1rem", bottom: "1.25rem" } : undefined} onClick={() => create(PAGE_TEMPLATES[0])} data-testid="pages-new" aria-label="New note"><SquarePen className="h-6 w-6" /></button>}
   </div>;
 
@@ -205,7 +216,7 @@ function FolderRow({ on, icon, tint, label, count, onClick, onEdit, testId }: { 
   </li>;
 }
 
-function PageCard({ m, i, grid, on, folder, trash, onOpen, onRestore, onForever }: { m: PageMeta; i: number; grid: boolean; on: boolean; folder?: Folder; trash: boolean; onOpen: () => void; onRestore: () => void; onForever: () => void }) {
+function PageCard({ m, i, grid, on, folder, trash, onOpen, onTrash, onPin, onRestore, onForever }: { m: PageMeta; i: number; grid: boolean; on: boolean; folder?: Folder; trash: boolean; onOpen: () => void; onTrash: () => void; onPin: () => void; onRestore: () => void; onForever: () => void }) {
   const look = cleanLook(m.content?.look ?? DEFAULT_LOOK);
   const dark = useAppearance().dark;
   const paper = PAPER_THEMES[dark && look.theme === "paper" ? "charcoal" : look.theme];
@@ -217,22 +228,24 @@ function PageCard({ m, i, grid, on, folder, trash, onOpen, onRestore, onForever 
     <span className="min-w-0 flex-1"><span className="block truncate text-[15px] font-bold">{title}</span>{meta}</span>
     <IconBtn label="Restore" onClick={onRestore}><RotateCcw className="h-5 w-5" /></IconBtn><IconBtn label="Delete for good" onClick={onForever}><Trash2 className="h-5 w-5 text-[#c2283a]" /></IconBtn>
   </li>;
-  if (grid) return <li className="an-lift" style={delay}><button type="button" onClick={onOpen} data-testid="pages-card" className="pp-card" data-on={on}>
+  const kindIcon = m.locked ? <Lock /> : m.kind === "ink" ? <PenLine /> : <FileText />;
+  if (grid) return <li className="an-lift" style={delay}><SwipeItem pinned={m.pinned} onDelete={onTrash} onPin={onPin} radius={18}><button type="button" onClick={onOpen} data-testid="pages-card" className="pp-card" data-on={on}>
     <span className="pp-card-paper" style={{ background: paper.bg, color: paper.ink }}>
       {m.locked ? <span className="flex h-full items-center justify-center"><Lock className="h-6 w-6 opacity-40" /></span>
         : m.kind === "ink" ? <span className="flex items-start gap-1.5 opacity-75"><PenLine className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span className="line-clamp-5">{preview}</span></span>
         : <span className="line-clamp-6 opacity-85">{preview}</span>}
     </span>
     <span className="pp-card-foot"><span className="pp-card-title">{title}</span>{meta}</span>
-  </button></li>;
-  return <li className="an-lift" style={delay}><button type="button" onClick={onOpen} data-testid="pages-card" className="pp-row" data-on={on}>
+  </button></SwipeItem></li>;
+  return <li className="an-lift" style={delay}><SwipeItem pinned={m.pinned} onDelete={onTrash} onPin={onPin}><button type="button" onClick={onOpen} data-testid="pages-card" className="pp-row" data-on={on}>
+    <span className="pp-row-icon" data-kind={m.locked ? "lock" : m.kind} aria-hidden>{kindIcon}</span>
     <span className="min-w-0 flex-1">
       <span className="pp-row-title">{title}</span>
       <span className="pp-row-line"><span className="pp-row-date">{shortDate(m.updatedAt)}</span><span className="pp-row-preview">{preview}</span></span>
       {folder && <span className="pp-row-folder"><FolderIcon className="h-3 w-3" style={folder.color ? { color: folder.color } : undefined} />{folder.name}</span>}
     </span>
-    <span className="pp-row-marks" aria-hidden>{m.pinned && <Pin className="h-3.5 w-3.5" />}{m.locked && <Lock className="h-3.5 w-3.5" />}{m.kind === "ink" && <PenLine className="h-3.5 w-3.5" />}</span>
-  </button></li>;
+    <span className="pp-row-marks" aria-hidden>{m.pinned && <Pin className="h-3.5 w-3.5" />}</span>
+  </button></SwipeItem></li>;
 }
 
 function Empty({ filter, q, onNew }: { filter: Filter; q: string; onNew: () => void }) {
