@@ -29,7 +29,8 @@ export function usePhoneMenu(side: MenuSide, close: MenuClose) {
 }
 
 /** The phone menu itself. `top` is how far below the top of the screen it starts (under the header). */
-export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 65, folders = [], deskDrawer = false, hideLauncher = false }: {
+export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 65, folders = [], deskDrawer = false, hideLauncher = false, onFolders }: {
+  /** Saves folders made right in the drawer (press and hold an app, then tap another to group them). */ onFolders?: (next: MenuFolder[]) => void;
   items: PhoneMenuItem[]; side: MenuSide; close: MenuClose; open: boolean; setRail: (open: boolean) => void; afterPick: () => void; top?: number;
   /** Menu folders from Customize. */ folders?: MenuFolder[];
   /** The app drawer is also the menu on a computer. */ deskDrawer?: boolean;
@@ -42,6 +43,27 @@ export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 
   /** Inside the full app grid, tapping a folder drills into its own grid; a back button returns to the top level. */
   const [gridFolder, setGridFolder] = useState<string | null>(null);
   const swipe = useRef<number | null>(null);
+  // Arranging, like the iPhone: press and hold any app to start; tap one app, then another, to put them
+  // in a folder (or tap a folder to add the app to it). Inside a folder, take apps out or rename it.
+  const [editing, setEditing] = useState(false);
+  const [held, setHeld] = useState<string | null>(null);
+  const holdTimer = useRef<number | null>(null);
+  const holdFired = useRef(false);
+  const startHold = () => { if (!onFolders) return; holdFired.current = false; if (holdTimer.current) window.clearTimeout(holdTimer.current); holdTimer.current = window.setTimeout(() => { holdFired.current = true; setEditing(true); try { navigator.vibrate?.(15); } catch { /* fine */ } }, 480); };
+  const endHold = () => { if (holdTimer.current) window.clearTimeout(holdTimer.current); holdTimer.current = null; };
+  const holdProps = { onPointerDown: startHold, onPointerUp: endHold, onPointerLeave: endHold, onPointerCancel: endHold, onContextMenu: (e: { preventDefault: () => void }) => e.preventDefault() };
+  const saveFolders = (next: MenuFolder[]) => onFolders?.(next.filter((f) => f.items.length > 0 || f.id === gridFolder));
+  const without = (fs: MenuFolder[], id: string) => fs.map((f) => ({ ...f, items: f.items.filter((x) => x !== id) }));
+  const tapInEdit = (id: string, folderId?: string) => {
+    if (folderId) { if (held) { saveFolders(without(folders, held).map((f) => (f.id === folderId ? { ...f, items: [...f.items, held] } : f))); setHeld(null); } else setGridFolder(folderId); return; }
+    if (!held) { setHeld(id); return; }
+    if (held === id) { setHeld(null); return; }
+    if (folders.length >= 12) { setHeld(null); return; }
+    const name = (window.prompt("Name this folder", "Folder") || "Folder").trim().slice(0, 30) || "Folder";
+    const nf: MenuFolder = { id: `f${Date.now().toString(36)}`, name, items: [held, id] };
+    saveFolders([...without(folders, held).map((f) => ({ ...f, items: f.items.filter((x) => x !== id) })), nf]);
+    setHeld(null);
+  };
   // The tab bar's Apps button opens this drawer.
   useEffect(() => {
     const show = () => setApps(true);
@@ -54,7 +76,7 @@ export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 
     const { overflow } = document.body.style;
     document.body.style.overflow = "hidden";
     document.addEventListener("keydown", esc);
-    return () => { document.removeEventListener("keydown", esc); document.body.style.overflow = overflow; setQuery(""); setGridFolder(null); };
+    return () => { document.removeEventListener("keydown", esc); document.body.style.overflow = overflow; setQuery(""); setGridFolder(null); setEditing(false); setHeld(null); };
   }, [apps]);
   const pick = (item: PhoneMenuItem) => { item.onClick(); afterPick(); };
   const across = side === "top" || side === "bottom";
@@ -88,16 +110,23 @@ export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={openFolder ? `Search ${openFolder.name}` : "Search"} aria-label="Search sections" tabIndex={apps ? 0 : -1} className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-slate-500" /></label>
             <button type="button" onClick={() => setApps(false)} aria-label="Close" tabIndex={apps ? 0 : -1} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
           </div>
-          {openFolder && !searching && <p className="-mt-1 px-4 pb-2 text-xs font-bold uppercase tracking-wide text-slate-400">{openFolder.name}</p>}
-          <ul id="life-apps-list" className="grid flex-1 grid-cols-4 content-start sm:grid-cols-6 gap-x-2 gap-y-5 overflow-y-auto overscroll-contain px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-1">
+          {editing && <div className="mx-4 mb-2 flex items-center gap-2 rounded-2xl bg-violet-50 px-3 py-2 text-[13px] text-violet-900" data-testid="life-apps-editing">
+            <span className="min-w-0 flex-1">{openFolder ? "Tap − to take an app out of this folder." : held ? `Now tap another app to make a folder, or a folder to add ${items.find((i) => i.id === held)?.label ?? "it"} to it.` : "Tap an app, then another, to put them in a folder."}</span>
+            <button type="button" onClick={() => { setEditing(false); setHeld(null); }} className="min-h-9 shrink-0 rounded-full bg-violet-700 px-4 text-sm font-bold text-white" data-testid="life-apps-done">Done</button></div>}
+          {openFolder && !searching && <div className="-mt-1 flex items-center gap-2 px-4 pb-2"><p className="text-xs font-bold uppercase tracking-wide text-slate-400">{openFolder.name}</p>
+            {onFolders && <button type="button" onClick={() => { const n = window.prompt("Rename folder", openFolder.name)?.trim(); if (n) onFolders(folders.map((f) => (f.id === openFolder.id ? { ...f, name: n.slice(0, 30) } : f))); }} className="text-xs font-bold text-violet-700">Rename</button>}
+            {onFolders && <button type="button" onClick={() => { onFolders(folders.filter((f) => f.id !== openFolder.id)); setGridFolder(null); }} className="text-xs font-bold text-rose-600">Remove folder</button>}</div>}
+          <ul id="life-apps-list" style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none", userSelect: "none" }} className="grid flex-1 grid-cols-4 content-start sm:grid-cols-6 gap-x-2 gap-y-5 overflow-y-auto overscroll-contain px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-1">
             {entries.map((entry) => entry.kind === "item" ? <li key={entry.item.id}>
-              <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { entry.item.onClick(); setApps(false); }} data-testid={`life-app-${entry.item.id}`} className="relative flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
+              <button type="button" tabIndex={apps ? 0 : -1} {...holdProps} onClick={() => { if (holdFired.current) { holdFired.current = false; return; } if (editing) { if (openFolder) return; tapInEdit(entry.item.id); return; } entry.item.onClick(); setApps(false); }} data-testid={`life-app-${entry.item.id}`}
+                className={`relative flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90 ${editing ? "arise-wiggle" : ""} ${held === entry.item.id ? "ring-4 ring-violet-400" : ""}`}>
+                {editing && openFolder && <span role="button" aria-label={`Take ${entry.item.label} out of the folder`} onClick={(e) => { e.stopPropagation(); saveFolders(without(folders, entry.item.id)); }} className="absolute left-1 top-0 z-10 grid h-6 w-6 place-items-center rounded-full bg-slate-700 text-[16px] font-bold leading-none text-white shadow">−</span>}
                 <span className={`inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] text-white shadow-sm [&_svg]:h-7 [&_svg]:w-7 [&_svg]:text-white ${entry.item.active ? "bg-[#7968e5]" : "bg-[#292446]"}`} style={entry.item.color && !entry.item.active ? { backgroundColor: entry.item.color } : undefined}>{entry.item.icon}</span>
                 {badge(entry.item.badge)}
                 <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">{entry.item.label}</span>
               </button>
             </li> : <li key={`folder-${entry.folder.id}`}>
-              <button type="button" tabIndex={apps ? 0 : -1} onClick={() => setGridFolder(entry.folder.id)} data-testid={`life-app-folder-${entry.folder.id}`} aria-label={`Open folder ${entry.folder.name}`} className="relative flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
+              <button type="button" tabIndex={apps ? 0 : -1} {...holdProps} onClick={() => { if (holdFired.current) { holdFired.current = false; return; } if (editing) { tapInEdit("", entry.folder.id); return; } setGridFolder(entry.folder.id); }} data-testid={`life-app-folder-${entry.folder.id}`} aria-label={`Open folder ${entry.folder.name}`} className="relative flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
                 <span className="grid h-14 w-14 grid-cols-2 gap-0.5 rounded-[1.1rem] bg-slate-200 p-2 shadow-sm">{Array.from({ length: 4 }, (_, i) => <span key={i} className="flex items-center justify-center rounded-[5px] bg-white text-slate-400 [&_svg]:h-3 [&_svg]:w-3">{entry.items[i]?.icon}</span>)}</span>
                 <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800"><Folder className="mr-0.5 -mt-0.5 inline h-2.5 w-2.5 text-slate-400" />{entry.folder.name}</span>
               </button>
