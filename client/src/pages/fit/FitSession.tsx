@@ -11,13 +11,29 @@ import { Btn, C, Card, accentNow, display, fmtDur, font, Layer } from "./fitUi";
 const KIND_COLOR: Record<Phase["kind"], string> = { warm: "#ffb020", work: "accent", rest: "#4d9fff", cool: "#8d939b", pose: "accent", "breathe-in": "#4d9fff", hold: "#b9c0c8", "breathe-out": "accent", still: "#b9c0c8" };
 const BREATH = new Set<Phase["kind"]>(["breathe-in", "hold", "breathe-out"]);
 
+// Two coaches: the upbeat one for HIIT and running, and a slow, low, steady one for yoga, meditation
+// and mobility (a hype voice saying "In!" over a breathing exercise is the wrong energy).
 const COACH = "troy" as const;
-function say(text: string) { stopAiVoice(); void sayAI(text, { voice: COACH }).catch(() => { /* no voice reachable: the screen still shows everything */ }); }
+const CALM = "daniel" as const;
+const CALM_KINDS = new Set(["yoga", "meditation", "mobility"]);
+const coachFor = (s: Session) => (CALM_KINDS.has(s.category) ? CALM : COACH);
+function say(text: string, s: Session) {
+  stopAiVoice();
+  const calm = CALM_KINDS.has(s.category);
+  void sayAI(text, { voice: coachFor(s), rate: calm ? 0.9 : 1 }).catch(() => { /* no voice reachable: the screen still shows everything */ });
+}
 let audio: AudioContext | null = null;
-function beep(high = false) {
+function beep(high = false, soft = false) {
   try {
     audio ??= new (window.AudioContext || (window as any).webkitAudioContext)();
     const o = audio.createOscillator(), g = audio.createGain();
+    const t = audio.currentTime;
+    if (soft) {
+      // A quiet bell for calm sessions: a sine that fades out instead of a buzzer.
+      o.type = "sine"; o.frequency.value = high ? 528 : 396;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.08, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
+      o.connect(g); g.connect(audio.destination); o.start(t); o.stop(t + 1.7); return;
+    }
     o.frequency.value = high ? 1320 : 880; o.type = "square"; g.gain.value = 0.06;
     o.connect(g); g.connect(audio.destination); o.start(); o.stop(audio.currentTime + (high ? 0.35 : 0.12));
   } catch { /* no sound */ }
@@ -25,9 +41,10 @@ function beep(high = false) {
 
 /** What's said when a phase starts. */
 function announce(p: Phase): string {
-  if (p.kind === "breathe-in") return "In";
-  if (p.kind === "breathe-out") return "Out";
-  if (p.kind === "hold") return "Hold";
+  // Breathing cues are said softly and in full, the way a teacher would, not barked as one word.
+  if (p.kind === "breathe-in") return "Breathe in... slowly.";
+  if (p.kind === "breathe-out") return "And let it go... all the way out.";
+  if (p.kind === "hold") return "Gently hold.";
   const parts = [p.name];
   if (p.speed) parts.push(`${p.speed} miles per hour`);
   if (p.incline) parts.push(`incline ${p.incline}`);
@@ -51,7 +68,7 @@ export function SessionPlayer({ session, onClose, onDone }: { session: Session; 
   const elapsed = session.phases.slice(0, i).reduce((t, x) => t + x.secs, 0) + (p.secs - leftMs / 1000);
 
   // Every line the coach will say, made ahead so each one plays the moment its phase starts.
-  useEffect(() => { for (const t of new Set(session.phases.map(announce)).values()) void preloadAiVoice(t, COACH).catch(() => {}); }, [session]);
+  useEffect(() => { for (const t of new Set(session.phases.map(announce)).values()) void preloadAiVoice(t, coachFor(session)).catch(() => {}); }, [session]);
   // Keep the screen on.
   useEffect(() => {
     let lock: any = null;
@@ -60,14 +77,14 @@ export function SessionPlayer({ session, onClose, onDone }: { session: Session; 
   }, []);
   useEffect(() => { if (finished) return; const t = window.setInterval(() => setNow(Date.now()), 200); return () => window.clearInterval(t); }, [finished]);
   // A new phase: speak it.
-  useEffect(() => { if (voice && !finished) say(announce(p)); navigator.vibrate?.(BREATH.has(p.kind) ? 20 : [120, 60, 120]); lastBeep.current = -1; }, [i]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (voice && !finished) say(announce(p), session); navigator.vibrate?.(BREATH.has(p.kind) ? 20 : [120, 60, 120]); lastBeep.current = -1; }, [i]); // eslint-disable-line react-hooks/exhaustive-deps
   // Countdown beeps, and moving on when the phase ends.
   useEffect(() => {
     if (pausedLeft !== null || finished) return;
-    if (!BREATH.has(p.kind) && p.secs >= 10 && left <= 3 && left >= 1 && lastBeep.current !== left) { lastBeep.current = left; beep(); }
+    if (!BREATH.has(p.kind) && p.secs >= 10 && left <= 3 && left >= 1 && lastBeep.current !== left) { lastBeep.current = left; if (!CALM_KINDS.has(session.category)) beep(); }
     if (leftMs <= 0) {
-      if (i + 1 >= session.phases.length) { setFinished(true); beep(true); if (voice) say("Session complete. Great work."); return; }
-      if (!BREATH.has(session.phases[i + 1].kind)) beep(true);
+      if (i + 1 >= session.phases.length) { setFinished(true); beep(true, CALM_KINDS.has(session.category)); if (voice) say(CALM_KINDS.has(session.category) ? "That's the end of your session. Take a moment before you move on." : "Session complete. Great work.", session); return; }
+      if (!BREATH.has(session.phases[i + 1].kind)) beep(true, CALM_KINDS.has(session.category));
       setI(i + 1); setEndAt(Date.now() + session.phases[i + 1].secs * 1000);
     }
   }, [now]); // eslint-disable-line react-hooks/exhaustive-deps
