@@ -302,3 +302,15 @@ html, body, button, a, input, select, textarea, [role="button"] { touch-action: 
 
 /* Loading circles that only show if a wait lasts more than a moment (lib/hubBackdrop.tsx). */
 @keyframes arise-fade-in { to { opacity: 1; } }
+
+/* Smoother, still-fast scrolling on touch screens (the iPhone apps and phone browsers).
+   Inner scroll areas keep their own momentum and stop at their edge instead of dragging the whole
+   page along (that hand-off is what made lists feel sticky), and taps never wait for a double-tap. */
+@media (hover: none) and (pointer: coarse) {
+  .overflow-y-auto, .overflow-auto, [class*="overflow-y-scroll"] {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+  html { scroll-behavior: auto; -webkit-text-size-adjust: 100%; }
+  img, video { content-visibility: auto; }
+}
