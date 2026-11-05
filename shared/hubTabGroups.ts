@@ -52,7 +52,7 @@ export const SUB_LABELS: Partial<Record<HubTab, string>> = {
 };
 
 /** A group's name when only one of its tabs shows. */
-const ALONE: Partial<Record<HubTab, string>> = { iep: "IEP & Meetings", schedules: "Schedules" };
+const ALONE: Partial<Record<HubTab, string>> = { iep: "IEP", schedules: "Schedules" };
 
 export function groupOf(tab: HubTab) {
   return HUB_GROUPS.find((g) => g.tabs.includes(tab)) ?? HUB_GROUPS[0];
