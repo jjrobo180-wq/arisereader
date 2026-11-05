@@ -1548,14 +1548,14 @@ export async function registerRoutes(
       const [before, otherSaved] = await Promise.all([savedHub(hub, Number(user.id)), savedHub(other, Number(user.id))]);
       const otherApps = appsIn(other, otherSaved);
       if (growsPastFree(appsIn(hub, before) + otherApps, mine + otherApps)) {
-        return res.status(402).json({ code: APPS_FULL, limit: FREE_APPS, message: `The free plan includes up to ${FREE_APPS} apps from the App Store. Remove one, or get Unlimited ($${UNLIMITED_MONTHLY_CENTS / 100} a month) for every app and AI.` });
+        return res.status(402).json({ code: APPS_FULL, limit: FREE_APPS, message: `The free plan includes up to ${FREE_APPS} plugins from the Plugin Store. Remove one, or get Unlimited ($${UNLIMITED_MONTHLY_CENTS / 100} a month) for every app and AI.` });
       }
       next();
     } catch (error: any) {
       // Never bypass subscription enforcement because Stripe or the database is slow:
       // the existing saved hub stays untouched and the person can retry safely.
       console.error("[todo-plan] Could not verify app allowance:", error?.message);
-      return res.status(503).json({ message: "Could not verify your App Store allowance. Please try again." });
+      return res.status(503).json({ message: "Could not verify your Plugin Store allowance. Please try again." });
     }
   });
   /** Free or Unlimited, apps added in each hub, and this month's AI, for the hubs' plan card and upgrade box. */

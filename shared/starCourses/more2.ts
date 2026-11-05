@@ -207,7 +207,7 @@ starCourse({
     { t: "A team behind the camera", m: 8, v: ["zDWxyxj7cR0", "IXEewFEDieU"],
       b: ["MrBeast's videos are made by a big team: producers who plan challenges, camera operators, editors, set builders and safety staff.",
         "Video editors are some of the most important people. They choose every cut and make the story move.",
-        "Many creators start editing their own videos with free apps and later edit for others."],
+        "Many creators start editing their own videos with free plugins and later edit for others."],
       k: [["Video editor", "Cuts and arranges footage into a story"], ["Producer", "Plans and manages a video project"]],
       q: [Q("Who chooses every cut in a video?", ["The video editor", "The audience", "The thumbnail", "The phone"], 0, "Editors shape the story."),
           Q("How can you practice editing now?", ["With free editing apps", "You can't", "Only in college", "By watching TV"], 0, "Free apps are a great start.")] },

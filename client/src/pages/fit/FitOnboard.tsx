@@ -159,7 +159,7 @@ export function Onboarding({ data, update, onDone, edit = false }: { data: FitDa
         </div>}
 
         {step === "features" && <div className="mt-4 space-y-2.5" data-testid="fit-setup-features">
-          <p className="text-[14px]" style={{ color: C.dim }}>Pick everything you'd like. We'll set up your apps and tab bar around it, and you can add more any time.</p>
+          <p className="text-[14px]" style={{ color: C.dim }}>Pick everything you'd like. We'll set up your app plugins and tab bar around it, and you can add more any time.</p>
           {FEATURE_CHOICES.map((f) => <Choice key={f.id} on={picked.includes(f.id)} onClick={() => setPicked((x) => x.includes(f.id) ? x.filter((y) => y !== f.id) : [...x, f.id])} title={f.title} sub={f.sub} testId={`fit-feature-${f.id}`} />)}
         </div>}
 
@@ -314,13 +314,13 @@ const SLIDES: Slide[] = [
     art: <svg viewBox="0 0 200 200" className="h-full w-full"><path d="M20 160 C 50 90, 80 170, 110 100 S 160 60, 182 36" fill="none" stroke="#fff" strokeWidth="7" strokeLinecap="round" className="ob-draw" style={{ ["--len" as any]: 320 }} /><circle cx="182" cy="36" r="9" fill="#fff" className="ob-pop" /></svg> },
   { title: "Sleep, steps and recovery", line: "Sleep comes in from Apple Health, your bedtime schedule or one tap, with a score every night. Readiness says when to push and when to rest.", tip: "Today → Sleep or Readiness.", tint: "#6366f1",
     art: <div className="relative grid h-full place-items-center"><Moon className="ob-float h-20 w-20 text-white" fill="rgba(255,255,255,.25)" />{[[22, 24], [72, 18], [80, 62], [16, 66]].map(([x, y], k) => <Sparkles key={k} className="ob-pulse absolute h-5 w-5 text-white" style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${k * 0.5}s` }} />)}</div> },
-  { title: "Coach, circles and buddies", line: "Work with a real trainer, train with friends and keep each other honest.", tip: "Apps → Coach or Friends.", tint: "#ec4899",
+  { title: "Coach, circles and buddies", line: "Work with a real trainer, train with friends and keep each other honest.", tip: "Plugins → Coach or Friends.", tint: "#ec4899",
     art: <div className="flex h-full flex-col justify-center gap-3 px-4">{[["How's my week?", "self-end bg-white text-[#111]"], ["3 workouts, protein on target. Add a walk tomorrow.", "self-start bg-white/25 text-white"], ["On it 💪", "self-end bg-white text-[#111]"]].map(([t, c], k) => <span key={k} className={`ob-bubble max-w-[78%] rounded-[16px] px-3 py-2 text-[14px] font-semibold ${c}`} style={{ animationDelay: `${k * 0.9}s` }}>{t}</span>)}</div> },
-  { title: "Make it yours", line: "Add apps like Yoga, Breathe, Mobility, Intervals and Water, and pin your favorites to the tab bar.", tip: "Apps tab → Get more apps.", tint: "#a855f7",
+  { title: "Make it yours", line: "Add app plugins like Yoga, Breathe, Mobility, Intervals and Water, and pin your favorites to the tab bar.", tip: "Plugins tab → Get more app plugins.", tint: "#a855f7",
     art: <div className="grid h-full grid-cols-3 place-content-center gap-3 px-5">{["#c084fc", "#5eead4", "#86efac", "#fb7185", "#60a5fa", "#818cf8"].map((c, k) => <span key={k} className="ob-pop grid h-16 place-items-center rounded-[18px]" style={{ background: `linear-gradient(145deg, ${c}, rgba(0,0,0,.25))`, boxShadow: "inset 0 1px 0 rgba(255,255,255,.4)", animationDelay: `${k * 0.12}s` }}>{[Sparkles, Activity, Users, Flame, Route, Check].map((I, j) => j === k ? <I key={j} className="h-7 w-7 text-white" /> : null)}</span>)}</div> },
   { title: "Widgets, Siri and shortcuts", line: "Add Arise Fit widgets to your Home and Lock Screen, or say \"Hey Siri, log water\".", tip: "Long-press your Home Screen → +.", tint: "#0ea5e9",
     art: <div className="grid h-full grid-cols-2 place-content-center gap-3 px-6">{[Flame, Activity, Users, Route].map((I, k) => <span key={k} className="ob-pop grid h-20 place-items-center rounded-[20px] bg-white/25" style={{ animationDelay: `${k * 0.15}s` }}><I className="h-8 w-8 text-white" /></span>)}</div> },
-  { title: "You're all set", line: "That's the tour. Tap the gear any time for your goals, apps, units, reminders and more.", tip: "Settings → How Arise Fit works replays this.", tint: "#ff5a1f",
+  { title: "You're all set", line: "That's the tour. Tap the gear any time for your goals, app plugins, units, reminders and more.", tip: "Settings → How Arise Fit works replays this.", tint: "#ff5a1f",
     art: <div className="grid h-full place-items-center"><span className="ob-pop grid h-28 w-28 place-items-center rounded-full bg-white"><Check className="h-16 w-16" style={{ color: "#ff5a1f" }} strokeWidth={3.5} /></span></div> },
 ];
 const SLIDE_MS = 6000;

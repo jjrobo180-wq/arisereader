@@ -30,7 +30,7 @@ test("Getting started is replaced by the first-run walkthrough in both hubs (Oct
   assert.ok(!pluginsFor("work", { teacher: true }).some((p) => p.name === "Getting started"));
   for (const page of ["../client/src/pages/AriseTodo.tsx", "../client/src/pages/TeacherHub.tsx"]) assert.match(readFileSync(new URL(page, import.meta.url), "utf8"), /<AppWalkthrough userId=\{user\.id\} hub="(life|work)"/);
   const w = readFileSync(new URL("../client/src/components/AppWalkthrough.tsx", import.meta.url), "utf8");
-  for (const part of ["Getting around", "Add anything with +", "Only the apps you want", "Make it yours", "Bring in your iPhone", "Reminders on your phone", "split screen", "looksLikeDuoInner"]) assert.ok(w.includes(part), part);
+  for (const part of ["Getting around", "Add anything with +", "Only the plugins you want", "Make it yours", "Bring in your iPhone", "Reminders on your phone", "split screen", "looksLikeDuoInner"]) assert.ok(w.includes(part), part);
 });
 
 test("the page has the picker, checklist, features, customizing and a remove button", () => {
