@@ -8,7 +8,7 @@ import { hasAppearance, setAppearance, useAppearance } from "./appearance";
 import { useAuth } from "@/context/AuthContext";
 import { startApplePush } from "@/lib/applePush";
 import { isNotesApp, nativeCall } from "@/lib/nativeApp";
-import { NOTES_PLANS, dayWords, fmtClock, nightLook, templateOf, themeOf, themeVars } from "@shared/ariseNotes";
+import { NOTES_PLANS, SUITE_LOOKS, dayWords, fmtClock, nightLook, templateOf, themeOf, themeVars } from "@shared/ariseNotes";
 import { notesApi, setNotesToken, type ListNote, type Me } from "./api";
 import { listLocalNotes, type LocalNote } from "./localNotes";
 import { listenForLinks, widgetAi, widgetPages } from "./widgetLinks";
@@ -77,6 +77,8 @@ const loadLexend = () => {
   document.head.appendChild(l);
 };
 const loadedFonts = new Set<string>();
+/** A Suite look's colors and type for the Notes tab, as --sx-* (notes-suite.css hands them to the screens). */
+const suiteVars = (t: ReturnType<typeof themeOf>): CSSProperties => Object.fromEntries(Object.entries(themeVars(t)).map(([k, v]) => [k.replace("--an-", "--sx-"), v])) as CSSProperties;
 const loadThemeFont = (href?: string) => {
   if (!href || loadedFonts.has(href) || typeof document === "undefined") return;
   loadedFonts.add(href);
@@ -164,11 +166,14 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   // the system's own type and real folders. Dark when the look or night mode is dark.
   const pro = (route.name === "pages" || route.name === "page") && !s?.contrast;
   // Light / Dark / Auto (Auto follows the phone). Light and Dark are a deliberate choice, so they win over the look.
-  const proDark = pro && (appearance.mode === "dark" ? true : appearance.mode === "light" ? false : appearance.dark || !!s?.night || (look.id !== "classic" && !!look.dark));
+  // The Suite looks (Paper, Midnight, Folio, Nordic, Carbon) carry on into the Notes tab and the writing
+  // page: their colors and type replace the neutral ones there (notes-suite.css).
+  const suite = SUITE_LOOKS.has(look.id) && !s?.contrast;
+  const proDark = pro && (suite ? !!look.dark : appearance.mode === "dark" ? true : appearance.mode === "light" ? false : appearance.dark || !!s?.night || (look.id !== "classic" && !!look.dark));
   const themed = !pro && !s?.contrast && (look.id !== "classic" || !!s?.night);
-  useEffect(() => { if (themed) loadThemeFont(look.fontUrl); }, [themed, look.fontUrl]);
+  useEffect(() => { if (themed || suite) loadThemeFont(look.fontUrl); }, [themed, suite, look.fontUrl]);
   // The areas around the page (behind the status bar and Home indicator) match the look.
-  const backdrop = s?.contrast ? "#ffffff" : pro ? (proDark ? "#0f0f11" : "#f2f2f7") : themed ? look.bg : "#f5f4fb";
+  const backdrop = s?.contrast ? "#ffffff" : suite ? look.bg : pro ? (proDark ? "#0f0f11" : "#f2f2f7") : themed ? look.bg : "#f5f4fb";
   const darkBackdrop = pro ? proDark : themed && !!look.dark;
   useEffect(() => {
     const html = document.documentElement, body = document.body;
@@ -187,8 +192,8 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
     }
     return () => { html.style.background = before[0] ?? ""; body.style.background = before[1] ?? ""; if (meta && before[2]) meta.content = before[2]; html.style.overscrollBehavior = overscroll[0]; body.style.overscrollBehavior = overscroll[1]; };
   }, [backdrop, darkBackdrop]);
-  const rootClass = ["an-root min-h-[100dvh]", s?.font === "dyslexic" && "an-dyslexic", s?.simple && "an-simple", s?.contrast && "an-contrast", s?.night && !s?.contrast && !pro && "an-night", s?.large && "an-large", pro && "an-pro", proDark && "an-pro-dark", themed && "an-themed", themed && `an-theme-${look.id}`].filter(Boolean).join(" ");
-  const rootStyle = themed ? themeVars(look) as CSSProperties : undefined;
+  const rootClass = ["an-root min-h-[100dvh]", s?.font === "dyslexic" && "an-dyslexic", s?.simple && "an-simple", s?.contrast && "an-contrast", s?.night && !s?.contrast && !pro && "an-night", s?.large && "an-large", pro && "an-pro", proDark && "an-pro-dark", themed && "an-themed", themed && `an-theme-${look.id}`, suite && "an-suite", suite && `an-suite-${look.id}`, suite && look.dark && "an-suite-dark"].filter(Boolean).join(" ");
+  const rootStyle = themed ? themeVars(look) as CSSProperties : suite ? suiteVars(look) : undefined;
 
   if (!me) {
     return <div className={rootClass}>
