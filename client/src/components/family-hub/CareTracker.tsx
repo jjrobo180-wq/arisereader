@@ -1,4 +1,4 @@
-// Home upkeep, Plant care, Car care and Pet care (Plugin Store add-ons): things that need doing
+// Home upkeep, Plant care, Car care and Pet care (Plugin Gallery add-ons): things that need doing
 // every so often. Each shows when it's due, and checking it off starts the clock again.
 import { useState, type FormEvent } from "react";
 import { Car, Check, Flower2, Home, PawPrint, Sparkles, Stethoscope, Trash2 } from "lucide-react";

@@ -1,4 +1,4 @@
-// Arise LifeHub: what the Plugin Store's add-on sections need beyond saved data. The verse of the
+// Arise LifeHub: what the Plugin Gallery's add-on sections need beyond saved data. The verse of the
 // day (King James Version, public domain), the daily quote, journal prompts, grocery aisles, and
 // the readers for the live feeds (Today in history, What's trending, Bible passages) that
 // server/lifehubPlugins.ts fetches.

@@ -1,4 +1,4 @@
-// Sticky notes (a Plugin Store add-on): notes you can put anywhere on the LifeHub Home screen.
+// Sticky notes (a Plugin Gallery add-on): notes you can put anywhere on the LifeHub Home screen.
 // Drag a note by its top strip. Where it sits is saved as a share of the width (so it stays put on
 // a phone or a big screen) and a distance down the page.
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";

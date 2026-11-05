@@ -1,4 +1,4 @@
-// The Arise Plugin Store: everything a person can add to their Arise WorkHub or Arise LifeHub.
+// The Arise Plugin Gallery: everything a person can add to their Arise WorkHub or Arise LifeHub.
 //
 // A plugin is one of four kinds:
 //  - "tab":        a WorkHub tab. Adding it switches the tab on (workspace.visibleTabs).

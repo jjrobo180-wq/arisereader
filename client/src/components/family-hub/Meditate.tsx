@@ -1,4 +1,4 @@
-// Meditate (a Plugin Store add-on): guided breathing with a circle to follow, a quiet timer with
+// Meditate (a Plugin Gallery add-on): guided breathing with a circle to follow, a quiet timer with
 // a soft bell, and a log of minutes so a streak can grow.
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play, Square, Wind } from "lucide-react";

@@ -1,4 +1,4 @@
-// Loads one of the LifeHub Plugin Store feeds from the server (server/lifehubPlugins.ts).
+// Loads one of the LifeHub Plugin Gallery feeds from the server (server/lifehubPlugins.ts).
 import { useEffect, useState } from "react";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";

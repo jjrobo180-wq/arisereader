@@ -432,7 +432,7 @@ function TeacherHubPage() {
   const [notesKey, setNotesKey] = useState(0);
   // The Arise App Store. It opens straight away when the person switched here from LifeHub's store.
   const [store, setStore] = useState(() => { try { const on = sessionStorage.getItem(OPEN_STORE_KEY) === "1"; sessionStorage.removeItem(OPEN_STORE_KEY); return on; } catch { return false; } });
-  /** An app to open the App Store on (search's "In the Plugin Store" results). */
+  /** An app to open the App Store on (search's "In the Plugin Gallery" results). */
   const [storeOpenApp, setStoreOpenApp] = useState<string | null>(null);
   // On a phone the header keeps the essentials, and the rest sits under "More".
   const [more, setMore] = useState(false);
@@ -959,7 +959,7 @@ function TeacherHubPage() {
     // Installed apps are Apps too (not a separate "Plugins" group), with their icons and colours.
     for (const d of myKits) { const Icon = kitIcon(d.icon); out.push({ id: `kit-${d.id}`, kind: "App", title: d.name, sub: d.tagline, icon: <Icon />, color: d.color, open: () => openKit(d.id) }); }
     for (const p of myNotesApps) out.push({ id: `notes-app-${p.id}`, kind: "App", title: p.name, icon: <StickyNote />, color: p.color, open: () => openNotesApp(p.id) });
-    // Apps not added yet: under "In the Plugin Store", opening straight on that app's page.
+    // Apps not added yet: under "In the Plugin Gallery", opening straight on that app's page.
     for (const p of pluginsFor("work", { teacher: user.role === "teacher" || !!user.isAdmin, arise: user.role === "teacher" || user.role === "parent" || !!user.isAdmin })) {
       if (!isAddable(p) || workInstalled(p, workspace.visibleTabs, (workspace as any).kitInstalled, !!(workspace as any).aiChat, !!(workspace as any).widgetsOn, (workspace as any).notesInstalled, !!(workspace as any).briefOff, (workspace as any).sheetsInstalled, !!(workspace as any).driveInstalled, !!(workspace as any).dropInstalled)) continue;
       const Icon = STORE_ICONS[p.icon] ?? kitIcon(p.icon);

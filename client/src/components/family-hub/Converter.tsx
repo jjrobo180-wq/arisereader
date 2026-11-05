@@ -1,4 +1,4 @@
-// Unit converter (a Plugin Store add-on): cooking, length, weight, temperature, speed and area.
+// Unit converter (a Plugin Gallery add-on): cooking, length, weight, temperature, speed and area.
 import { useState } from "react";
 import { ArrowLeftRight } from "lucide-react";
 import { UNITS, convertUnit } from "@shared/lifePlugins";

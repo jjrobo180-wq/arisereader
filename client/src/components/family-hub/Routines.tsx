@@ -1,4 +1,4 @@
-// Routines (a Plugin Store add-on): morning, bedtime or any checklist that starts fresh each day.
+// Routines (a Plugin Gallery add-on): morning, bedtime or any checklist that starts fresh each day.
 // Great for kids getting ready for school.
 import { useState } from "react";
 import { Check, ListChecks, Plus, RotateCcw, Trash2, X } from "lucide-react";

@@ -1,4 +1,4 @@
-// Allowance (a Plugin Store add-on): each kid's balance, money in (allowance, chores, gifts)
+// Allowance (a Plugin Gallery add-on): each kid's balance, money in (allowance, chores, gifts)
 // and money out (spending), so they can see their savings grow.
 import { useState } from "react";
 import { Coins, Minus, Plus, Trash2 } from "lucide-react";

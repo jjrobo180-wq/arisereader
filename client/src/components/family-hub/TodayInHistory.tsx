@@ -1,4 +1,4 @@
-// Today in history (a Plugin Store add-on): what happened on this day, who was born, and the
+// Today in history (a Plugin Gallery add-on): what happened on this day, who was born, and the
 // day's observances, from Wikipedia. Pick any other day too.
 import { useState } from "react";
 import { ExternalLink, History, RefreshCw } from "lucide-react";
