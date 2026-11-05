@@ -137,3 +137,15 @@ test("the Notes tab looks serious and professional in every look, with real fold
   assert.match(view, /data-testid="pages-folder-edit"/);
   assert.match(view, /className="pp-row"/);
 });
+
+test("professional themes have distinct layouts for home, archive, recording and note headers", () => {
+  const looks = readFileSync(new URL("../client/src/components/arise-notes/looks.tsx", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../client/src/components/arise-notes/notes-themes.css", import.meta.url), "utf8");
+  for (const id of ["editorial", "slatepro", "graphitepro", "linenpro"]) {
+    assert.match(looks, new RegExp('case "' + id + '": return'));
+    assert.ok(css.includes("an-l-hero-" + id), id + " has distinct home styling");
+    assert.ok(css.includes("an-pro-notes-" + id), id + " has distinct note card styling");
+    assert.ok(css.includes("an-pro-record-art-" + id), id + " has distinct recording styling");
+    assert.ok(css.includes("an-l-notetitle-" + id), id + " has distinct note typography");
+  }
+});
