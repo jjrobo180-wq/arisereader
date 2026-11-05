@@ -136,7 +136,7 @@ export default function DuoSetup({ userId, layout, setLayout, plugins, setFamily
   // What the big button at the bottom says and does on each page.
   const primary: { text: string; run: () => void; disabled?: boolean } =
     step === "day" && !made ? { text: "Skip the routine", run: next }
-    : step === "apps" ? { text: picked.length ? `Add ${picked.length} ${picked.length === 1 ? "app" : "apps"}` : "Skip for now", run: next }
+    : step === "apps" ? { text: picked.length ? `Add ${picked.length} ${picked.length === 1 ? "plugin" : "plugins"}` : "Skip for now", run: next }
     : step === "done" ? { text: "Show me around", run: next }
     : { text: "Continue", run: next };
 
@@ -193,21 +193,21 @@ export default function DuoSetup({ userId, layout, setLayout, plugins, setFamily
           <div className="grid grid-cols-7 gap-1.5" role="group" aria-label="Work days">{DAYS.map((l, d) => { const on = workDays.includes(d); return <button key={d} type="button" aria-pressed={on} aria-label={DAY_NAMES[d]} onClick={() => setWorkDays(toggle(workDays, d).sort())}
             className={`h-10 min-w-0 rounded-xl text-[14px] font-bold ${on ? "bg-[#111018] text-white" : "bg-[#f4f3f8] text-[#77748a]"}`}>{l}</button>; })}</div>
           {made ? <p role="status" className="mt-5 rounded-2xl bg-emerald-50 px-4 py-3 text-[14px] font-semibold text-emerald-800" data-testid="setup-built"><Check className="mr-1 inline h-4 w-4" strokeWidth={3} />Your routine is ready. Reminders repeat every day.{note && <span className="mt-1 block font-normal text-emerald-900">{note}</span>}</p>
-            : routineBlocked ? <p className="mt-5 rounded-2xl bg-amber-50 px-4 py-3 text-[14px] text-amber-900">Your free plan's 3 apps are in use, and the routine needs one. Unlimited makes room for everything.</p>
+            : routineBlocked ? <p className="mt-5 rounded-2xl bg-amber-50 px-4 py-3 text-[14px] text-amber-900">Your free plan's 3 plugins are in use, and the routine needs one. Unlimited makes room for everything.</p>
             : !focuses.length && !vision.trim() ? <p className="mt-5 text-center text-[13.5px] text-[#77748a]">Go back and pick at least one goal to build a routine.</p>
             : <div className="mt-5 space-y-2">
               {unlimited && <textarea value={vision} onChange={(e) => setVision(e.target.value)} maxLength={600} rows={2} placeholder="Optional: tell the AI about the life you want." aria-label="The life you want" className="block w-full resize-none rounded-2xl bg-[#f4f3f8] p-3 text-[15px] text-[#111018] placeholder:text-[#8e8ba0]" data-testid="setup-vision" />}
               <button type="button" disabled={busy} onClick={() => void build(unlimited)} className="flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-[#5b4fe0] text-[16px] font-semibold text-white disabled:opacity-60" data-testid="setup-build">
                 {busy ? <><Loader2 className="h-5 w-5 animate-spin" />Building…</> : unlimited ? <><Sparkles className="h-5 w-5" />Build my routine with AI</> : "Make my routine"}
               </button>
-              {!unlimited && <p className="text-center text-[12.5px] text-[#77748a]">Uses 1 of your 3 free apps (AI Reminders).{" "}Building it with AI is part of Unlimited.</p>}
+              {!unlimited && <p className="text-center text-[12.5px] text-[#77748a]">Uses 1 of your 3 free plugins (AI Reminders).{" "}Building it with AI is part of Unlimited.</p>}
               {note && <p role="status" className="px-1 text-[13px] text-[#5d5a6b]">{note}</p>}
             </div>}
         </>}
 
         {step === "apps" && <>
-          {head("Choose your first apps", <>Here are favorites to start with. There are <b className="font-semibold text-[#111018]">500+ apps</b> in the App Gallery whenever you want more.</>)}
-          {!unlimited && <p className="mt-3 rounded-xl bg-[#f4f2ff] px-3 py-2 text-center text-[12.5px] text-[#3f35c9]" data-testid="setup-free-note">{canPick > 0 ? `Free includes 3 apps. Pick up to ${canPick} now.` : "Your 3 free apps are in use."} Unlimited unlocks all of them.</p>}
+          {head("Choose your first plugins", <>Here are favorites to start with. There are <b className="font-semibold text-[#111018]">500+ plugins</b> in the Plugin Gallery whenever you want more.</>)}
+          {!unlimited && <p className="mt-3 rounded-xl bg-[#f4f2ff] px-3 py-2 text-center text-[12.5px] text-[#3f35c9]" data-testid="setup-free-note">{canPick > 0 ? `Free includes 3 plugins. Pick up to ${canPick} now.` : "Your 3 free plugins are in use."} Unlimited unlocks all of them.</p>}
           <div className="mt-3 grid grid-cols-2 gap-2" data-testid="setup-apps">
             {starters.map(({ id, emoji, p }) => { const on = picked.includes(id); const full = !on && picked.length >= canPick; return <button key={id} type="button" aria-pressed={on} disabled={full} onClick={() => setPicked(toggle(picked, id))} data-testid={`setup-app-${id}`}
               className={`flex min-w-0 items-start gap-2.5 rounded-2xl border p-2.5 text-left transition active:scale-[.98] disabled:opacity-40 ${on ? "border-[#5b4fe0] bg-[#f4f2ff]" : "border-black/10 bg-white"}`}>
@@ -223,7 +223,7 @@ export default function DuoSetup({ userId, layout, setLayout, plugins, setFamily
         {step === "done" && <div className="flex min-h-full flex-col items-center justify-center text-center">
           <span className="grid h-20 w-20 place-items-center rounded-[22px] bg-[#111018] text-white"><Check className="h-10 w-10" strokeWidth={3} /></span>
           <h1 className="mt-6 text-[28px] font-bold leading-tight tracking-[-.02em]">You're all set</h1>
-          <p className="mt-3 max-w-[21rem] text-[15.5px] leading-[1.45] text-[#5d5a6b]">{picked.length ? `${picked.length} ${picked.length === 1 ? "app is" : "apps are"} added. ` : ""}{made ? "Your routine reminders will notify you. " : ""}New themes arrive every month, and hundreds more apps are in the App Gallery.</p>
+          <p className="mt-3 max-w-[21rem] text-[15.5px] leading-[1.45] text-[#5d5a6b]">{picked.length ? `${picked.length} ${picked.length === 1 ? "plugin is" : "plugins are"} added. ` : ""}{made ? "Your routine reminders will notify you. " : ""}New themes arrive every month, and hundreds more apps are in the Plugin Gallery.</p>
         </div>}
       </div>
 

@@ -38,7 +38,7 @@ export function PhoneTabBar({ home, tasks, addOpen, onHome, onTasks, onAdd, name
         className={`mx-1 inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${work ? "bg-teal-600" : "bg-[#7968e5]"} text-white shadow-md transition active:scale-90`}>
         <Plus className={`h-6 w-6 transition-transform ${addOpen ? "rotate-45" : ""}`} />
       </button>
-      <button type="button" onClick={() => window.dispatchEvent(new Event(OPEN_APPS_EVENT))} className={tab(false)} data-testid={id("tab-apps")}><LayoutGrid className="h-[22px] w-[22px]" />Apps</button>
+      <button type="button" onClick={() => window.dispatchEvent(new Event(OPEN_APPS_EVENT))} className={tab(false)} data-testid={id("tab-apps")}><LayoutGrid className="h-[22px] w-[22px]" />Plugins</button>
       <button type="button" onClick={() => setYouOpen(true)} aria-haspopup="dialog" aria-expanded={youOpen} className={tab(youOpen)} data-testid={id("tab-you")}>
         <span className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white text-[11px] font-black text-[#1d1a33]">{initial}</span>You
       </button>

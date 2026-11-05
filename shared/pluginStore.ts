@@ -284,7 +284,7 @@ export const PLUGINS: readonly Plugin[] = [
     description: "Your own WorkHub address: forward any email to it and it becomes something to do.",
     features: ["Your own forwarding address", "Works from any email app", "Shows up in Email and Tasks"] },
   // Para Team (pages/ParaTeam.tsx): a teacher's shared space with their paras and 1:1s. Added from
-  // the App Gallery like anything else, by the teacher or by a para joining a team.
+  // the Plugin Gallery like anything else, by the teacher or by a para joining a team.
   { id: "work-para-team", hub: "work", name: "Para Team", tagline: "Your paras and 1:1s, all in one place", category: "Planning", icon: "HeartHandshake", color: "#0f766e",
     target: { kind: "officeApp", id: "work-para-team", href: "#/para-team" },
     description: "A shared space for a teacher and their paraprofessionals: schedules, student notes and messages, so everyone knows the plan.",
@@ -580,7 +580,7 @@ const CROSS_PLUGINS: readonly Plugin[] = [...KIT_DEFS.map(crossKitPlugin), ...CR
  *  the lookups defined above can call it without depending on declaration order. */
 const allPlugins = (): readonly Plugin[] => [...PLUGINS, ...CROSS_PLUGINS];
 
-/** The App Gallery shows one app for one job (October 2026): where several did the same thing, the
+/** The Plugin Gallery shows one app for one job (October 2026): where several did the same thing, the
  *  one kept is named for what it does (a "Calorie counter", not "Food & fitness" or "Apple Health"),
  *  and the others leave the gallery. Anyone who added one of them still has it; nothing is deleted. */
 export const GALLERY_MERGES: { keep: string; name?: string; tagline?: string; drop: string[] }[] = [
