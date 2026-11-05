@@ -1,4 +1,4 @@
-// Recipe box (a Plugin Store add-on): the family's recipes in one place, with a one-tap way to put
+// Recipe box (a Plugin Gallery add-on): the family's recipes in one place, with a one-tap way to put
 // a recipe's ingredients on the Grocery list.
 import { useState } from "react";
 import { ChefHat, Clock, Pencil, Search, ShoppingCart, Trash2, Users } from "lucide-react";

@@ -56,12 +56,12 @@ export default function AppWalkthrough({ userId, hub, arise, onGallery, onCustom
     { id: "welcome", icon: <Sparkles />, tint: "#6e5ae0", title: "Welcome to Arise To Duo",
       body: <>Two hubs in one app: <b>LifeHub</b> for you and your family, and <b>WorkHub</b> for work. Switch between them with the two buttons at the top. This quick tour shows you around.</> },
     { id: "tabs", icon: <LayoutGrid />, tint: "#1d1a33", title: "Getting around",
-      body: <>On a phone, the bar at the bottom has <b>Home</b>, <b>Tasks</b>, the <b>+</b> button, <b>Apps</b> (every section, with search) and <b>You</b> (your account and settings). On a bigger screen, the same things are in the menu on the side.</> },
+      body: <>On a phone, the bar at the bottom has <b>Home</b>, <b>Tasks</b>, the <b>+</b> button, <b>Plugins</b> (every section, with search) and <b>You</b> (your account and settings). On a bigger screen, the same things are in the menu on the side.</> },
     { id: "add", icon: <Plus />, tint: "#7968e5", title: "Add anything with +",
       body: <>Tap <b>+</b> from any screen to add a task, a list, an event, a note and more. Type a day or time in a task, like “dentist tomorrow 3pm”, and it's set for you. In {hub === "work" ? "WorkHub" : "LifeHub"} you can also paste or snap a photo and let AI sort it into tasks and events.</> },
-    { id: "gallery", icon: <LayoutGrid />, tint: "#0f766e", title: "Only the apps you want",
-      body: <>Your <b>Calorie counter</b> is already in. Open the <b>App Gallery</b> to add more, like habits, a budget, meal planning or notes. Remove anything later; nothing you saved is lost.</>,
-      action: { label: "Open the App Gallery", run: () => { close(); onGallery(); } } },
+    { id: "gallery", icon: <LayoutGrid />, tint: "#0f766e", title: "Only the plugins you want",
+      body: <>Your <b>Calorie counter</b> is already in. Open the <b>Plugin Gallery</b> to add more, like habits, a budget, meal planning or notes. Remove anything later; nothing you saved is lost.</>,
+      action: { label: "Open the Plugin Gallery", run: () => { close(); onGallery(); } } },
     { id: "customize", icon: <MoreHorizontal />, tint: "#334155", title: "Make it yours",
       body: <>Press and hold any widget on Home to move it. The <b>⋯</b> menu at the top has notifications and every setting. <b>Customize</b> changes the menu (tab bar, side menu or app drawer), what's on Home and in what order, the theme and night mode. Both hubs start with the same settings; you can set each one its own way in Customize.</>,
       action: { label: "Open Customize", run: () => { close(); onCustomize("layout"); } } },
@@ -154,14 +154,22 @@ function LiveTour({ step, i, count, last, next, back, onClose, font }: { step: S
       const el = sel ? Array.from(document.querySelectorAll<HTMLElement>(sel)).find((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; }) : null;
       setRect(el ? el.getBoundingClientRect() : null);
     };
+    // The tour never needs a scroll: a target that is off screen is brought into view once, then the page holds still.
+    const target = sel ? Array.from(document.querySelectorAll<HTMLElement>(sel)).find((e) => e.getBoundingClientRect().width > 0) : null;
+    if (target) { const r = target.getBoundingClientRect(); if (r.top < 0 || r.bottom > window.innerHeight) target.scrollIntoView({ block: "center" }); }
     measure();
     const t = window.setInterval(measure, 400);
     window.addEventListener("resize", measure);
     return () => { window.clearInterval(t); window.removeEventListener("resize", measure); };
   }, [step.id]);
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
   const pad = 8;
   const high = rect && rect.top < window.innerHeight / 2; // the lit thing is in the top half: card goes below
-  return <div className="fixed inset-0 z-[700]" style={font} role="dialog" aria-modal="true" aria-label="How to use Arise To Duo" data-testid="app-walkthrough"
+  return <div className="fixed inset-0 z-[700]" style={{ ...font, touchAction: "none" }} role="dialog" aria-modal="true" aria-label="How to use Arise To Duo" data-testid="app-walkthrough"
     onTouchStart={(e) => { touch.current = e.touches[0]?.clientX ?? null; }}
     onTouchEnd={(e) => { const x = touch.current; touch.current = null; if (x == null) return; const dx = (e.changedTouches[0]?.clientX ?? x) - x; if (dx < -60) next(); else if (dx > 60) back(); }}>
     {rect

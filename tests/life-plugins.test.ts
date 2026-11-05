@@ -1,4 +1,4 @@
-// The eight LifeHub plugins from the Plugin Store: off until added, data kept safely, feeds read right.
+// The eight LifeHub plugins from the Plugin Gallery: off until added, data kept safely, feeds read right.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { ADD_ON_SECTIONS, TOGGLEABLE, cleanFamily, emptyFamily, isCurrentFamily, isOn } from "../shared/familyHub";

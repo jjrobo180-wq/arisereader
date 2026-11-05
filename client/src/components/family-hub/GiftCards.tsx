@@ -1,4 +1,4 @@
-// Gift cards (a Plugin Store add-on): what's left on each card and when it runs out, so none go to waste.
+// Gift cards (a Plugin Gallery add-on): what's left on each card and when it runs out, so none go to waste.
 import { useState, type FormEvent } from "react";
 import { CreditCard, Trash2 } from "lucide-react";
 import { daysUntil } from "@shared/lifePlugins";

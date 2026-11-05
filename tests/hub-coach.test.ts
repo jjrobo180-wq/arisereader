@@ -1,5 +1,5 @@
 // The in-hub coach that carries on after the Arise To Duo app's full-screen tour
-// (components/HubCoach.tsx): hold a widget, drag it, switch hubs, then Apps → App Gallery.
+// (components/HubCoach.tsx): hold a widget, drag it, switch hubs, then Apps → Plugin Gallery.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -14,8 +14,8 @@ test("the coach walks through the real hub, one gesture at a time", () => {
   assert.match(c, /hub-jiggle/, "moves on when Home wiggles");
   assert.match(c, /hub-todo-switch/, "switch between WorkHub and LifeHub");
   assert.match(c, /tab-apps/, "then Apps");
-  assert.match(c, /hub-app-store|life-app-app-store/, "then the App Gallery");
-  assert.match(c, /plugin-store/, "done when the App Gallery opens");
+  assert.match(c, /hub-app-store|life-app-app-store/, "then the Plugin Gallery");
+  assert.match(c, /plugin-store/, "done when the Plugin Gallery opens");
   assert.match(c, /data-testid="hub-coach-skip"/, "Skip is always there");
   assert.match(c, /prefers-reduced-motion/);
 });

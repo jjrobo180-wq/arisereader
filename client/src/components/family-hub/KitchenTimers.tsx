@@ -1,4 +1,4 @@
-// Kitchen timers (a Plugin Store add-on): run several named timers at once (pasta, oven, laundry),
+// Kitchen timers (a Plugin Gallery add-on): run several named timers at once (pasta, oven, laundry),
 // each with an alarm when it's done.
 import { useEffect, useRef, useState } from "react";
 import { BellRing, Pause, Play, Plus, Timer, X } from "lucide-react";

@@ -1,4 +1,4 @@
-// The Arise Plugin Store: the catalog matches the hubs, and adding or removing a plugin only
+// The Arise Plugin Gallery: the catalog matches the hubs, and adding or removing a plugin only
 // switches what shows (never deletes anything).
 import test from "node:test";
 import assert from "node:assert/strict";

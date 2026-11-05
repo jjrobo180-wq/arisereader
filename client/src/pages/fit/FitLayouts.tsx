@@ -136,18 +136,18 @@ export function ZenRows({ v, open }: { v: DayVals; open: Open }) {
 // ——— The picker (Settings → Appearance) ———————————————————————————————————————————————————————————
 /** Five layouts, each previewed in its own type, corners and colors. */
 export function LayoutPicker({ value, mode }: { value: LayoutId; mode: "light" | "dark" }) {
-  return <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Layout" data-testid="fit-layouts">
+  return <div className="flex flex-col gap-2.5" role="radiogroup" aria-label="Layout" data-testid="fit-layouts">
     {LAYOUT_IDS.map((id) => { const L = LAYOUTS[id], b = { ...(mode === "dark" ? { bg: "#15171b", card: "#202329", text: "#f6f5f2", dim: "#a6acb5" } : { bg: "#f2f2f4", card: "#ffffff", text: "#111318", dim: "#6b717c" }), ...L[mode] }, sel = id === value;
       const r = (n: number) => Math.round(n * L.round), acc = PALETTES[L.palette][mode][0];
-      return <button key={id} type="button" role="radio" aria-checked={sel} onClick={() => { setLayout(id); haptic("medium"); }} className={`overflow-hidden rounded-[14px] text-left transition-transform active:scale-[.97] ${id === "athletic" ? "col-span-2" : ""}`} style={{ background: C.card, boxShadow: sel ? `inset 0 0 0 2px ${C.lime}` : `inset 0 0 0 1px ${C.line}` }} data-testid={`fit-layout-${id}`}>
-        <span className="relative block h-[104px] overflow-hidden" style={{ background: b.bg, color: b.text }} aria-hidden>
-          <span className="absolute left-3 top-2.5 text-[19px] leading-none" style={{ fontFamily: L.display, fontWeight: L.weight, textTransform: L.upper ? "uppercase" : "none", letterSpacing: L.tracking }}>Good morning</span>
-          <span className="absolute left-3 right-3 top-9 flex h-9 items-center gap-2 px-2" style={{ background: b.card, borderRadius: r(10), boxShadow: id === "zen" ? `inset 0 -1px 0 ${b.dim}55` : "0 4px 12px -6px rgba(0,0,0,.3)" }}>
+      return <button key={id} type="button" role="radio" aria-checked={sel} onClick={() => { setLayout(id); haptic("medium"); }} className="flex min-h-[108px] w-full items-stretch overflow-hidden rounded-[14px] text-left transition-transform active:scale-[.98]" style={{ background: C.card, boxShadow: sel ? `inset 0 0 0 2px ${C.lime}` : `inset 0 0 0 1px ${C.line}` }} data-testid={`fit-layout-${id}`}>
+        <span className="relative block w-[136px] shrink-0 overflow-hidden" style={{ background: b.bg, color: b.text }} aria-hidden>
+          <span className="absolute left-3 top-2.5 text-[16px] leading-none" style={{ fontFamily: L.display, fontWeight: L.weight, textTransform: L.upper ? "uppercase" : "none", letterSpacing: L.tracking }}>Good morning</span>
+          <span className="absolute left-2.5 right-2.5 top-9 flex h-9 items-center gap-1.5 px-2" style={{ background: b.card, borderRadius: r(10), boxShadow: id === "zen" ? `inset 0 -1px 0 ${b.dim}55` : "0 4px 12px -6px rgba(0,0,0,.3)" }}>
             <span className="h-5 w-5 shrink-0 rounded-full" style={{ boxShadow: `inset 0 0 0 3px ${acc}` }} />
-            <span className="h-2 flex-1 rounded-full" style={{ background: `${b.dim}44` }} /><span className="h-5 w-10" style={{ background: acc, borderRadius: r(6) }} /></span>
+            <span className="h-2 flex-1 rounded-full" style={{ background: `${b.dim}44` }} /><span className="h-5 w-7" style={{ background: acc, borderRadius: r(6) }} /></span>
           <span className="absolute bottom-2 left-1/2 flex h-5 w-[70%] -translate-x-1/2 items-center justify-around" style={{ background: b.card, borderRadius: id === "pro" || id === "zen" ? 2 : 99, boxShadow: "0 2px 8px -4px rgba(0,0,0,.35)" }}>{[0, 1, 2, 3].map((k) => <i key={k} className="block h-1.5 w-1.5 rounded-full" style={{ background: k === 0 ? acc : `${b.dim}77` }} />)}</span>
         </span>
-        <span className="block px-3 py-2.5"><span className="flex items-center gap-1.5 text-[15px] font-semibold">{sel && <Check className="h-4 w-4" style={{ color: C.lime }} strokeWidth={3} />}{L.name}</span><span className="mt-0.5 block text-[12px] leading-snug" style={{ color: C.dim }}>{L.blurb}</span></span>
+        <span className="flex min-w-0 flex-1 flex-col justify-center px-3.5 py-3"><span className="flex items-center justify-between gap-2 text-[16px] font-semibold">{L.name}{sel && <Check className="h-4 w-4 shrink-0" style={{ color: C.lime }} strokeWidth={3} />}</span><span className="mt-1 block text-[12.5px] leading-snug" style={{ color: C.dim }}>{L.blurb}</span></span>
       </button>; })}
   </div>;
 }

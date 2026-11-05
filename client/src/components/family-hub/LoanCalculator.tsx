@@ -1,4 +1,4 @@
-// Loan calculator (a Plugin Store add-on): the monthly payment and total interest for a car loan,
+// Loan calculator (a Plugin Gallery add-on): the monthly payment and total interest for a car loan,
 // a mortgage or any loan, and how much paying extra each month saves.
 import { useState } from "react";
 import { loanPayment } from "@shared/lifePlugins";

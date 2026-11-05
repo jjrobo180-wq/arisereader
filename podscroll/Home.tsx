@@ -11,7 +11,7 @@ import { ImportView } from "./Import";
 import { ArrowDownToLine } from "lucide-react";
 import { Briefcase, GraduationCap } from "lucide-react";
 import { AccountSheet } from "./Account";
-import { Bell, BookOpen, Check, LogOut, PlusCircle, ShieldCheck, Zap, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, Monitor, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Music as MusicIcon, Search, Sparkles, ThumbsUp, Users, X, Pause, Play } from "lucide-react";
+import { Bell, BookOpen, Check, LogOut, PlusCircle, ShieldCheck, Zap, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, Monitor, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Music as MusicIcon, Search, Sparkles, GalleryVertical, ThumbsUp, Users, X, Pause, Play } from "lucide-react";
 import { NewsStationsView, RadioBar, RadioView, type Station } from "./Radio";
 import { NEWS_RADIO_ID, NEWS_RADIO_NAME } from "../client/src/components/family-hub/earshot/newsRadio";
 import { MusicBar, MusicView, type Listening } from "./Music";
@@ -488,7 +488,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
               className={`flex h-8 items-center justify-center gap-1 rounded-full px-2.5 text-[12px] font-semibold transition-colors ${theme === value ? "bg-[#ff6a1f] text-white" : "text-[#606060] hover:bg-[#f2f2f2]"}`}><Icon size={15} strokeWidth={1.9} /><span>{label}</span></button>
           ))}
         </div>
-        <button onClick={() => onOpenFeed()} className="hidden h-9 items-center gap-2 rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2] md:inline-flex"><Sparkles size={17} strokeWidth={1.8} />Swipe feed</button>
+        <button onClick={() => onOpenFeed()} className="hidden h-9 items-center gap-2 rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2] md:inline-flex"><GalleryVertical size={17} strokeWidth={1.8} />Swipe feed</button>
         {!pro
           ? <button onClick={onSignIn} aria-label="Sign in" className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[#d3d3d3] px-2 text-sm font-medium text-[#065fd4] hover:bg-[#def1ff] min-[420px]:px-3"><UserCircle size={19} strokeWidth={1.8} /><span className="hidden min-[420px]:inline">Sign in</span></button>
           : <span className="relative">
@@ -512,7 +512,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   );
   const menuBody = <>
       {navItem("Home", <HomeIcon size={22} strokeWidth={1.8} />, view.kind === "home", () => { setChip("all"); go({ kind: "home" }); })}
-      {navItem("Swipe feed",<Sparkles size={22} strokeWidth={1.8} />, false, () => onOpenFeed())}
+      {navItem("Swipe feed",<GalleryVertical size={22} strokeWidth={1.8} />, false, () => onOpenFeed())}
       {navItem("Open Mic", <Mic size={22} strokeWidth={1.8} />, false, () => onOpenFeed(undefined, "openmic"))}
       {navItem("Social", <MessageCircle size={22} strokeWidth={1.8} />, false, () => onOpenFeed(undefined, "social"))}
       {navItem("Radio", <RadioIcon size={22} strokeWidth={1.8} />, view.kind === "radio", () => go({ kind: "radio" }))}
@@ -723,11 +723,11 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       style={{ bottom: `calc(env(safe-area-inset-bottom, 0px) + ${station || reading || listening || nowPod ? "5.25rem" : "0.75rem"})` }}>
       {([
         ["home", "Home", <HomeIcon key="h" size={24} strokeWidth={1.9} />, view.kind === "home" && !tabSheet, () => { setTabSheet(null); setChip("all"); go({ kind: "home" }); }],
-        ["feed", "Swipe feed", <Sparkles key="f" size={24} strokeWidth={1.9} />, false, () => { setTabSheet(null); onOpenFeed(); }],
+        ["feed", "Swipe feed", <GalleryVertical key="f" size={24} strokeWidth={1.9} />, false, () => { setTabSheet(null); onOpenFeed(); }],
         ["create", "Create", <PlusCircle key="c" size={28} strokeWidth={1.7} />, tabSheet === "create", () => setTabSheet((t) => (t === "create" ? null : "create"))],
         ["you", "You", pro && email ? <span key="y" className="grid h-8 w-8 place-items-center rounded-full bg-[#ff6a1f] text-sm font-bold">{email.slice(0, 1).toUpperCase()}</span> : <UserCircle key="y" size={26} strokeWidth={1.8} />, tabSheet === "you", () => setTabSheet((t) => (t === "you" ? null : "you"))],
       ] as const).map(([id, label, icon, on, act]) => <button key={id} type="button" onClick={act} aria-label={label} aria-pressed={on} data-testid={`pod-tab-${id}`}
-        className={`flex h-12 flex-1 items-center justify-center rounded-full transition ${on ? "bg-white/15" : "active:bg-white/10"}`}>{icon}</button>)}
+        className={`flex h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-full transition ${on ? "bg-white/15" : "active:bg-white/10"}`}>{icon}<span className="text-[10px] font-semibold leading-none text-white/80">{id === "feed" ? "Swipe" : label}</span></button>)}
     </nav>}
     {tabSheet && <div role="dialog" aria-modal="true" aria-label={tabSheet === "create" ? "Create" : "You"} onClick={(e) => { if (e.target === e.currentTarget) setTabSheet(null); }}
       className="fixed inset-0 z-[44] flex items-end bg-black/40 px-3 lg:hidden" style={{ paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + ${station || reading || listening || nowPod ? "10rem" : "5.5rem"})` }}>

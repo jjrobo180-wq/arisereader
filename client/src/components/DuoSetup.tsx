@@ -1,37 +1,66 @@
-// Arise To Duo's first-run setup (Nov 2026): before the tour, a short set of full-screen pages that
-// actually set the app up: pick a theme, pick your first apps (the popular ~20 of 500+), and build a
-// daily routine of recurring reminders (presets, or the AI Reminders planner) from when you sleep and
-// work. Everything it does uses the app's own pieces: the hub theme (shared/appThemes.ts), plugins
-// (shared/pluginStore.ts) and the life plan that AI Reminders already sends notifications from.
-import { useMemo, useState, type ReactNode } from "react";
+// Arise To Duo's first-run setup (Nov 2026): full-screen pages that actually set the app up, before the
+// tour. Pick a look, pick goals, tell it your day (a routine of repeating reminders is made from it), then
+// pick your first apps. It always draws in day mode (on the page body, outside the hub's night mode and
+// theme), each page fits on one screen, and nothing slides sideways. It respects Free's 3 apps: the
+// routine's AI Reminders counts as one, and building with AI is offered only on Unlimited.
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { ArrowLeft, Check, Loader2, Sparkles } from "lucide-react";
 import { HUB_THEMES } from "@shared/appThemes";
 import { setTheme, type AnyLayout } from "@shared/hubLayout";
-import { isAddable, setLifePlugin, type Plugin } from "@shared/pluginStore";
-import { PLAN_FOCUSES, builtinPlan, cleanLifePlan, cleanPlanRequest, clock12, type PlanFocus, type PlanRequest } from "@shared/lifePlan";
+import { setLifePlugin, type Plugin } from "@shared/pluginStore";
+import { PLAN_FOCUSES, builtinPlan, cleanLifePlan, cleanPlanRequest, type LifePlan, type PlanFocus, type PlanRequest } from "@shared/lifePlan";
 import type { Family } from "@shared/familyHub";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
+import { BACKDROP_REFRESH, sendBackdrop } from "@/lib/nativeBackdrop";
+
+/** Day mode, whatever the hub looks like: the page body can carry a theme's classes (so pop-ups match the
+ *  hub), and their rules read these variables, so setting them here keeps every page of setup light. */
+const SYSTEM_FONT = "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif";
+const SETUP_STYLE = {
+  fontFamily: SYSTEM_FONT, colorScheme: "light", background: "#ffffff", color: "#111018",
+  "--an-card": "#ffffff", "--an-card2": "#f4f3f8", "--an-ink": "#111018", "--an-muted": "#8e8ba0", "--an-line": "rgba(17,16,24,.1)",
+  "--an-bg": "#ffffff", "--an-radius": "16px", "--an-serif": SYSTEM_FONT, "--an-font": SYSTEM_FONT, "--an-accent": "#5b4fe0",
+  "--an-violet": "#5b4fe0", "--an-violet-ink": "#3f35c9", "--an-violet-soft": "#f4f2ff", "--an-on-accent": "#ffffff", "--an-edge": "rgba(17,16,24,.1)",
+  "--an-border": "rgba(17,16,24,.1)", "--an-coral": "#e0465f", "--an-shadow": "none",
+} as CSSProperties;
 
 const DONE_KEY = (id: number | string) => `arise-duo-setup-v1:${id}`;
 export const duoSetupDone = (id: number | string) => { try { return localStorage.getItem(DONE_KEY(id)) === "1"; } catch { return true; } };
 
+/** Six looks to start from; the rest are in Customize. */
+const STARTER_THEMES = ["classic", "studio", "bloom", "frost", "aurora", "zen"];
+/** Everyday apps most people want first, in this order. */
+const STARTER_APPS: { id: string; emoji: string }[] = [
+  { id: "life-health", emoji: "🥗" }, { id: "life-habits", emoji: "✅" }, { id: "life-money", emoji: "💵" },
+  { id: "life-grocery", emoji: "🛒" }, { id: "life-meals", emoji: "🍽️" }, { id: "life-journal", emoji: "📔" },
+  { id: "life-workouts", emoji: "💪" }, { id: "life-sleep", emoji: "😴" },
+  { id: "life-meditate", emoji: "🧘" }, { id: "life-kit-water-log", emoji: "💧" },
+];
 /** Quick starts: each one is a handful of the planner's focuses. */
 const PRESETS: { id: string; name: string; blurb: string; focuses: PlanFocus[] }[] = [
-  { id: "life", name: "A better overall life", blurb: "Sleep, food, movement, calm and family, every day", focuses: ["sleep", "eat", "move", "calm", "water", "family"] },
-  { id: "success", name: "A more successful life", blurb: "Focus, learning, money and habits that compound", focuses: ["organized", "career", "read", "money", "move", "sleep"] },
-  { id: "fit", name: "Get fit", blurb: "Workouts, water, good food and recovery", focuses: ["move", "weight", "eat", "water", "sleep"] },
-  { id: "calm", name: "Calm & faith", blurb: "Quiet time, prayer, gratitude and rest", focuses: ["faith", "calm", "sleep", "family"] },
+  { id: "life", name: "A better life", blurb: "Sleep, food, movement and calm", focuses: ["sleep", "eat", "move", "calm", "water", "family"] },
+  { id: "success", name: "More success", blurb: "Focus, learning and money", focuses: ["organized", "career", "read", "money", "move", "sleep"] },
+  { id: "fit", name: "Get fit", blurb: "Workouts, water and good food", focuses: ["move", "weight", "eat", "water", "sleep"] },
+  { id: "calm", name: "Calm & rest", blurb: "Quiet time, sleep and family", focuses: ["calm", "sleep", "family", "read"] },
 ];
+/** Faith isn't offered in setup; it's still in AI Reminders for anyone who wants it. */
+const FOCUSES = PLAN_FOCUSES.filter((f) => f.id !== "faith");
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
-const STEPS = ["theme", "apps", "routine", "done"] as const;
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const STEPS = ["theme", "goals", "day", "apps", "done"] as const;
 type StepId = (typeof STEPS)[number];
 
-export default function DuoSetup({ userId, layout, setLayout, plugins, setFamily, onClose }: {
+export default function DuoSetup({ userId, layout, setLayout, plugins, setFamily, unlimited, room, lifeplanOn, onClose }: {
   userId: number | string;
   layout: AnyLayout; setLayout: (l: any) => void;
   /** Every plugin LifeHub can add (pluginsFor("life", …)). */
-  plugins: Plugin[]; setFamily: (fn: (f: Family) => Family) => void; onClose: () => void;
+  plugins: Plugin[]; setFamily: (fn: (f: Family) => Family) => void;
+  /** On Unlimited: every app and AI. */ unlimited: boolean;
+  /** How many more apps a free account can add right now (ignored on Unlimited). */ room: number;
+  /** AI Reminders is already on (then the routine takes no extra app). */ lifeplanOn: boolean;
+  onClose: () => void;
 }) {
   const { token } = useAuth();
   const [i, setI] = useState(0);
@@ -45,36 +74,38 @@ export default function DuoSetup({ userId, layout, setLayout, plugins, setFamily
   const [vision, setVision] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
-  const [made, setMade] = useState<"" | "ai" | "preset">("");
+  const [made, setMade] = useState(false);
   const step: StepId = STEPS[i];
 
-  // The popular ones first (featured), then the rest in the store's order, 20 in all.
-  const top = useMemo(() => {
-    const ok = plugins.filter((p) => isAddable(p) && p.id !== "life-lifeplan");
-    return [...ok.filter((p) => p.featured), ...ok.filter((p) => !p.featured)].slice(0, 20);
-  }, [plugins]);
-  const total = plugins.filter(isAddable).length;
+  // Day mode while it's open: the strips behind the clock and Home indicator go white too.
+  useEffect(() => { sendBackdrop("#ffffff"); return () => { window.dispatchEvent(new Event(BACKDROP_REFRESH)); }; }, []);
+
+  const byId = useMemo(() => new Map(plugins.map((p) => [p.id, p])), [plugins]);
+  const starters = STARTER_APPS.map((a) => ({ ...a, p: byId.get(a.id) })).filter((a): a is { id: string; emoji: string; p: Plugin } => !!a.p);
+  const themes = STARTER_THEMES.map((id) => HUB_THEMES.find((t) => t.id === id)).filter((t): t is (typeof HUB_THEMES)[number] => !!t);
+  const routineSlot = made && !lifeplanOn ? 1 : 0;
+  const canPick = unlimited ? Infinity : Math.max(0, room - routineSlot);
+  const routineBlocked = !unlimited && !lifeplanOn && room <= 0;
 
   const finish = () => { try { localStorage.setItem(DONE_KEY(userId), "1"); } catch { /* shown again next time */ } onClose(); };
   const toggle = <T,>(list: T[], x: T) => (list.includes(x) ? list.filter((y) => y !== x) : [...list, x]);
-  const next = () => { if (step === "apps") applyApps(); if (i >= STEPS.length - 1) finish(); else setI(i + 1); };
-  const applyApps = () => {
-    if (!picked.length) return;
-    const chosen = plugins.filter((p) => picked.includes(p.id));
-    setFamily((f) => chosen.reduce((acc, p) => setLifePlugin(acc, p, true), f));
+  const back = () => setI((x) => Math.max(0, x - 1));
+  const next = () => {
+    if (step === "apps" && picked.length) {
+      const chosen = picked.map((id) => byId.get(id)).filter((p): p is Plugin => !!p);
+      setFamily((f) => chosen.reduce((acc, p) => setLifePlugin(acc, p, true), f));
+    }
+    if (i >= STEPS.length - 1) finish(); else setI(i + 1);
   };
 
-  const request = (): PlanRequest => cleanPlanRequest({
-    vision, focuses, wake, bed, workDays,
-    busy: [{ label: "Work", from: workFrom, to: workTo, days: workDays }],
-  });
-  const save = (plan: ReturnType<typeof builtinPlan>, how: "ai" | "preset") => {
-    const lifeplan = plugins.find((p) => p.id === "life-lifeplan");
+  const request = (): PlanRequest => cleanPlanRequest({ vision, focuses, wake, bed, workDays, busy: [{ label: "Work", from: workFrom, to: workTo, days: workDays }] });
+  const save = (plan: LifePlan) => {
+    const lifeplan = byId.get("life-lifeplan");
     setFamily((f) => { const withApp = lifeplan ? setLifePlugin(f, lifeplan, true) : f; return { ...withApp, lifePlan: plan }; });
-    setMade(how); setNote("");
+    setMade(true);
   };
   const build = async (useAi: boolean) => {
-    if (busy || (!focuses.length && !vision.trim())) return;
+    if (busy || routineBlocked || (!focuses.length && !vision.trim())) return;
     setBusy(true); setNote("");
     const req = request();
     try {
@@ -82,96 +113,125 @@ export default function DuoSetup({ userId, layout, setLayout, plugins, setFamily
         const res = await fetch(`${API_BASE}/api/life-plan/build`, { method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(req) });
         const body: any = await res.json().catch(() => null);
         const built = res.ok ? cleanLifePlan(body?.plan) : undefined;
-        if (built) { save({ ...built, madeBy: "ai" } as any, "ai"); return; }
-        setNote("The AI is busy, so your routine was built from the preset instead.");
+        if (built) { save({ ...built, madeBy: "ai" } as LifePlan); return; }
+        setNote("The AI is busy, so your routine was made from your choices instead.");
       }
-      save(builtinPlan(req), "preset");
+      save(builtinPlan(req));
     } catch {
-      save(builtinPlan(req), "preset");
-      setNote("No connection to the AI, so your routine was built from the preset instead.");
+      save(builtinPlan(req));
+      setNote("Couldn't reach the AI, so your routine was made from your choices instead.");
     } finally { setBusy(false); }
   };
 
-  const font = { fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif" };
   const head = (title: string, sub: ReactNode) => <div className="text-center">
-    <h1 className="text-[28px] font-bold leading-tight tracking-[-.02em] [text-wrap:balance]">{title}</h1>
-    <p className="mx-auto mt-2 max-w-[21rem] text-[15px] leading-snug text-[#6b6879] [text-wrap:balance]">{sub}</p>
+    <h1 className="text-[26px] font-bold leading-tight tracking-[-.02em] text-[#111018] [text-wrap:balance]">{title}</h1>
+    <p className="mx-auto mt-1.5 max-w-[22rem] text-[14.5px] leading-snug text-[#5d5a6b] [text-wrap:balance]">{sub}</p>
   </div>;
-  const chip = (on: boolean) => `inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3.5 text-[14px] font-semibold transition active:scale-95 ${on ? "border-[#5b4fe0] bg-[#5b4fe0] text-white" : "border-black/10 bg-white text-[#111018]"}`;
-  const field = "mt-1 h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-[16px] font-semibold text-[#111018]";
+  const label = (t: string) => <p className="mb-2 mt-4 px-1 text-[12px] font-bold uppercase tracking-wide text-[#77748a]">{t}</p>;
+  const timeRow = (name: string, value: string, set: (v: string) => void, last = false) => <label className={`flex min-h-[50px] items-center justify-between gap-3 px-4 ${last ? "" : "border-b border-black/[.06]"}`}>
+    <span className="text-[16px] text-[#111018]">{name}</span>
+    <input type="time" value={value} onChange={(e) => e.target.value && set(e.target.value)} className="duo-time" aria-label={name} />
+  </label>;
 
-  return <div className="fixed inset-0 z-[710] flex flex-col bg-white pb-[max(16px,env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] text-[#111018]" style={font} role="dialog" aria-modal="true" aria-label="Set up Arise To Duo" data-testid="duo-setup">
+  // What the big button at the bottom says and does on each page.
+  const primary: { text: string; run: () => void; disabled?: boolean } =
+    step === "day" && !made ? { text: "Skip the routine", run: next }
+    : step === "apps" ? { text: picked.length ? `Add ${picked.length} ${picked.length === 1 ? "plugin" : "plugins"}` : "Skip for now", run: next }
+    : step === "done" ? { text: "Show me around", run: next }
+    : { text: "Continue", run: next };
+
+  const page = <div data-backdrop-hold className="fixed inset-0 z-[710] flex flex-col overflow-hidden bg-white pb-[max(14px,env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] text-[#111018] [color-scheme:light]"
+    style={SETUP_STYLE} role="dialog" aria-modal="true" aria-label="Set up Arise To Duo" data-testid="duo-setup">
+    <style>{`
+      .duo-time { -webkit-appearance: none; appearance: none; display: block; box-sizing: border-box; width: 7.25rem; min-width: 0; height: 36px; padding: 0 10px; border: 0; border-radius: 10px; background: #ebeaf2; color: #111018; font: 600 16px/36px -apple-system, BlinkMacSystemFont, system-ui, sans-serif; text-align: center; }
+      .duo-time::-webkit-date-and-time-value { text-align: center; }
+      .duo-time::-webkit-calendar-picker-indicator { display: none; }
+    `}</style>
     <div className="mx-auto flex w-full max-w-md min-h-0 flex-1 flex-col">
       <div className="flex h-12 shrink-0 items-center justify-between px-3">
-        {i > 0 && step !== "done" ? <button type="button" onClick={() => setI(i - 1)} className="grid h-11 w-11 place-items-center rounded-full text-[#6b6879]" aria-label="Back"><ArrowLeft className="h-5 w-5" /></button> : <span className="h-11 w-11" />}
+        {i > 0 && step !== "done" ? <button type="button" onClick={back} className="grid h-11 w-11 place-items-center rounded-full text-[#5d5a6b] active:bg-black/5" aria-label="Back"><ArrowLeft className="h-5 w-5" /></button> : <span className="h-11 w-11" />}
         <div className="flex gap-1.5" aria-label={`Step ${i + 1} of ${STEPS.length}`}>{STEPS.map((s, k) => <span key={s} className={`h-1.5 rounded-full transition-all ${k === i ? "w-6 bg-[#111018]" : "w-1.5 bg-black/15"}`} />)}</div>
-        {step !== "done" ? <button type="button" onClick={finish} className="h-11 px-2 text-[16px] font-medium text-[#6b6879]" data-testid="duo-setup-skip">Skip</button> : <span className="h-11 w-11" />}
+        {step !== "done" ? <button type="button" onClick={finish} className="h-11 w-11 text-[15px] font-medium text-[#5d5a6b]" data-testid="duo-setup-skip">Skip</button> : <span className="h-11 w-11" />}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-4 pt-2" key={step}>
+      {/* Only up and down, never sideways; each page is laid out to fit without scrolling. */}
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-5 pb-3 pt-1" key={step}>
         {step === "theme" && <>
-          {head("Pick your look", <>Arise To Duo is the only app with themes like this. <b className="font-semibold text-[#111018]">New themes arrive every month</b>, and you can change yours any time in Customize.</>)}
+          {head("Pick your look", <>Arise To Duo is the only app with themes like these. <b className="font-semibold text-[#111018]">New ones arrive every month</b>, and you can change yours any time.</>)}
           <div role="radiogroup" aria-label="Theme" className="mt-5 grid grid-cols-2 gap-2.5">
-            {HUB_THEMES.map((t) => { const on = (layout.theme || "classic") === t.id; return <button key={t.id} type="button" role="radio" aria-checked={on} onClick={() => setLayout(setTheme(layout, t.id))} data-testid={`setup-theme-${t.id}`}
-              className={`rounded-2xl border p-2.5 text-left transition active:scale-[.98] ${on ? "border-[#5b4fe0] bg-[#f4f2ff] ring-2 ring-[#5b4fe0]/30" : "border-black/10 bg-white"}`}>
-              <span className="flex h-10 overflow-hidden rounded-lg ring-1 ring-black/5" aria-hidden>{t.swatch.map((c, k) => <span key={k} className="flex-1" style={{ background: c }} />)}</span>
-              <span className="mt-2 flex items-center justify-between gap-1 text-[14px] font-bold leading-tight">{t.name}{on && <Check className="h-4 w-4 text-[#5b4fe0]" strokeWidth={3} />}</span>
-              <span className="block text-[11.5px] leading-snug text-[#6b6879]">{t.tagline}</span>
+            {themes.map((t) => { const on = (layout.theme || "classic") === t.id; return <button key={t.id} type="button" role="radio" aria-checked={on} onClick={() => setLayout(setTheme(layout, t.id))} data-testid={`setup-theme-${t.id}`}
+              className={`min-w-0 rounded-2xl border p-2.5 text-left transition active:scale-[.98] ${on ? "border-[#5b4fe0] bg-[#f4f2ff] ring-2 ring-[#5b4fe0]/25" : "border-black/10 bg-white"}`}>
+              <span className="flex h-12 overflow-hidden rounded-[10px] ring-1 ring-black/5" aria-hidden>{t.swatch.map((c, k) => <span key={k} className="flex-1" style={{ background: c }} />)}</span>
+              <span className="mt-2 flex items-center justify-between gap-1 text-[15px] font-bold leading-tight">{t.name}{on && <Check className="h-4 w-4 shrink-0 text-[#5b4fe0]" strokeWidth={3} />}</span>
+              <span className="mt-0.5 block text-[12px] leading-snug text-[#5d5a6b]">{t.tagline}</span>
             </button>; })}
           </div>
+          <p className="mt-3 text-center text-[13px] text-[#77748a]">{HUB_THEMES.length - themes.length} more in ⋯ → Customize</p>
+        </>}
+
+        {step === "goals" && <>
+          {head("What do you want more of?", "Pick a starting point, then add or remove anything. Your reminders are built around it.")}
+          <div className="mt-4 grid grid-cols-2 gap-2" data-testid="setup-presets">{PRESETS.map((p) => { const on = p.focuses.every((f) => focuses.includes(f)); return <button key={p.id} type="button" aria-pressed={on} onClick={() => setFocuses(on ? focuses.filter((f) => !p.focuses.includes(f)) : [...new Set([...focuses, ...p.focuses])])} data-testid={`setup-preset-${p.id}`}
+            className={`min-w-0 rounded-2xl border px-3 py-2.5 text-left transition active:scale-[.98] ${on ? "border-[#5b4fe0] bg-[#f4f2ff]" : "border-black/10 bg-white"}`}>
+            <span className="flex items-center justify-between gap-1 text-[15px] font-bold leading-tight">{p.name}{on && <Check className="h-4 w-4 shrink-0 text-[#5b4fe0]" strokeWidth={3} />}</span>
+            <span className="mt-0.5 block text-[12px] leading-snug text-[#5d5a6b]">{p.blurb}</span>
+          </button>; })}</div>
+          {label("Build in")}
+          <div className="flex flex-wrap gap-2" data-testid="setup-focuses">{FOCUSES.map((f) => { const on = focuses.includes(f.id); return <button key={f.id} type="button" aria-pressed={on} onClick={() => setFocuses(toggle(focuses, f.id))}
+            className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-[13.5px] font-semibold transition active:scale-95 ${on ? "border-[#5b4fe0] bg-[#5b4fe0] text-white" : "border-black/10 bg-white text-[#111018]"}`}><span aria-hidden>{f.emoji}</span>{f.label}</button>; })}</div>
+        </>}
+
+        {step === "day" && <>
+          {head("Tell us your day", "Reminders go off at the right times, every day, as notifications.")}
+          <div className="mt-4 overflow-hidden rounded-2xl bg-[#f4f3f8]">
+            {timeRow("Wake up", wake, setWake)}
+            {timeRow("Bedtime", bed, setBed)}
+            {timeRow("Work starts", workFrom, setWorkFrom)}
+            {timeRow("Work ends", workTo, setWorkTo, true)}
+          </div>
+          {label("Work days")}
+          <div className="grid grid-cols-7 gap-1.5" role="group" aria-label="Work days">{DAYS.map((l, d) => { const on = workDays.includes(d); return <button key={d} type="button" aria-pressed={on} aria-label={DAY_NAMES[d]} onClick={() => setWorkDays(toggle(workDays, d).sort())}
+            className={`h-10 min-w-0 rounded-xl text-[14px] font-bold ${on ? "bg-[#111018] text-white" : "bg-[#f4f3f8] text-[#77748a]"}`}>{l}</button>; })}</div>
+          {made ? <p role="status" className="mt-5 rounded-2xl bg-emerald-50 px-4 py-3 text-[14px] font-semibold text-emerald-800" data-testid="setup-built"><Check className="mr-1 inline h-4 w-4" strokeWidth={3} />Your routine is ready. Reminders repeat every day.{note && <span className="mt-1 block font-normal text-emerald-900">{note}</span>}</p>
+            : routineBlocked ? <p className="mt-5 rounded-2xl bg-amber-50 px-4 py-3 text-[14px] text-amber-900">Your free plan's 3 plugins are in use, and the routine needs one. Unlimited makes room for everything.</p>
+            : !focuses.length && !vision.trim() ? <p className="mt-5 text-center text-[13.5px] text-[#77748a]">Go back and pick at least one goal to build a routine.</p>
+            : <div className="mt-5 space-y-2">
+              {unlimited && <textarea value={vision} onChange={(e) => setVision(e.target.value)} maxLength={600} rows={2} placeholder="Optional: tell the AI about the life you want." aria-label="The life you want" className="block w-full resize-none rounded-2xl bg-[#f4f3f8] p-3 text-[15px] text-[#111018] placeholder:text-[#8e8ba0]" data-testid="setup-vision" />}
+              <button type="button" disabled={busy} onClick={() => void build(unlimited)} className="flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-[#5b4fe0] text-[16px] font-semibold text-white disabled:opacity-60" data-testid="setup-build">
+                {busy ? <><Loader2 className="h-5 w-5 animate-spin" />Building…</> : unlimited ? <><Sparkles className="h-5 w-5" />Build my routine with AI</> : "Make my routine"}
+              </button>
+              {!unlimited && <p className="text-center text-[12.5px] text-[#77748a]">Uses 1 of your 3 free plugins (AI Reminders).{" "}Building it with AI is part of Unlimited.</p>}
+              {note && <p role="status" className="px-1 text-[13px] text-[#5d5a6b]">{note}</p>}
+            </div>}
         </>}
 
         {step === "apps" && <>
-          {head("Choose your first apps", <>Here are the 20 most popular. There are <b className="font-semibold text-[#111018]">{total > 500 ? `${total}` : "500+"} apps</b> in the App Gallery whenever you want more.</>)}
-          <div className="mt-5 grid grid-cols-2 gap-2.5" data-testid="setup-apps">
-            {top.map((p) => { const on = picked.includes(p.id); return <button key={p.id} type="button" aria-pressed={on} onClick={() => setPicked(toggle(picked, p.id))} data-testid={`setup-app-${p.id}`}
-              className={`flex items-center gap-2.5 rounded-2xl border p-2.5 text-left transition active:scale-[.98] ${on ? "border-[#5b4fe0] bg-[#f4f2ff]" : "border-black/10 bg-white"}`}>
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-[15px] font-black text-white" style={{ background: p.color }} aria-hidden>{p.name.slice(0, 1)}</span>
-              <span className="min-w-0 flex-1"><span className="block truncate text-[14px] font-bold leading-tight">{p.name}</span><span className="block truncate text-[11.5px] text-[#6b6879]">{p.category}</span></span>
-              {on && <Check className="h-4 w-4 shrink-0 text-[#5b4fe0]" strokeWidth={3} />}
+          {head("Choose your first plugins", <>Here are favorites to start with. There are <b className="font-semibold text-[#111018]">500+ plugins</b> in the Plugin Gallery whenever you want more.</>)}
+          {!unlimited && <p className="mt-3 rounded-xl bg-[#f4f2ff] px-3 py-2 text-center text-[12.5px] text-[#3f35c9]" data-testid="setup-free-note">{canPick > 0 ? `Free includes 3 plugins. Pick up to ${canPick} now.` : "Your 3 free plugins are in use."} Unlimited unlocks all of them.</p>}
+          <div className="mt-3 grid grid-cols-2 gap-2" data-testid="setup-apps">
+            {starters.map(({ id, emoji, p }) => { const on = picked.includes(id); const full = !on && picked.length >= canPick; return <button key={id} type="button" aria-pressed={on} disabled={full} onClick={() => setPicked(toggle(picked, id))} data-testid={`setup-app-${id}`}
+              className={`flex min-w-0 items-start gap-2.5 rounded-2xl border p-2.5 text-left transition active:scale-[.98] disabled:opacity-40 ${on ? "border-[#5b4fe0] bg-[#f4f2ff]" : "border-black/10 bg-white"}`}>
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-[19px]" style={{ background: `${p.color}22` }} aria-hidden>{emoji}</span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-start justify-between gap-1 text-[14px] font-bold leading-tight">{p.name}{on && <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#5b4fe0]" strokeWidth={3} />}</span>
+                <span className="mt-0.5 block text-[11.5px] leading-snug text-[#5d5a6b]">{p.tagline}</span>
+              </span>
             </button>; })}
           </div>
-        </>}
-
-        {step === "routine" && <>
-          {head("Build your routine", "Pick a goal, tell us your day, and your reminders are set up to repeat and notify you.")}
-          <p className="mb-2 mt-5 text-[13px] font-bold uppercase tracking-wide text-[#6b6879]">Start with a preset</p>
-          <div className="space-y-2" data-testid="setup-presets">{PRESETS.map((p) => { const on = p.focuses.every((f) => focuses.includes(f)); return <button key={p.id} type="button" aria-pressed={on} onClick={() => setFocuses(on ? focuses.filter((f) => !p.focuses.includes(f)) : [...new Set([...focuses, ...p.focuses])])} data-testid={`setup-preset-${p.id}`}
-            className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition active:scale-[.99] ${on ? "border-[#5b4fe0] bg-[#f4f2ff]" : "border-black/10 bg-white"}`}>
-            <span className="min-w-0 flex-1"><span className="block text-[15px] font-bold">{p.name}</span><span className="block text-[12.5px] text-[#6b6879]">{p.blurb}</span></span>
-            {on && <Check className="h-5 w-5 shrink-0 text-[#5b4fe0]" strokeWidth={3} />}
-          </button>; })}</div>
-          <p className="mb-2 mt-5 text-[13px] font-bold uppercase tracking-wide text-[#6b6879]">What to build in</p>
-          <div className="flex flex-wrap gap-2" data-testid="setup-focuses">{PLAN_FOCUSES.map((f) => <button key={f.id} type="button" aria-pressed={focuses.includes(f.id)} onClick={() => setFocuses(toggle(focuses, f.id))} className={chip(focuses.includes(f.id))}><span aria-hidden>{f.emoji}</span>{f.label}</button>)}</div>
-          <p className="mb-2 mt-5 text-[13px] font-bold uppercase tracking-wide text-[#6b6879]">Your day</p>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="text-[12px] font-bold text-[#6b6879]">I wake up<input type="time" value={wake} onChange={(e) => setWake(e.target.value)} className={field} /></label>
-            <label className="text-[12px] font-bold text-[#6b6879]">I go to bed<input type="time" value={bed} onChange={(e) => setBed(e.target.value)} className={field} /></label>
-            <label className="text-[12px] font-bold text-[#6b6879]">Work starts<input type="time" value={workFrom} onChange={(e) => setWorkFrom(e.target.value)} className={field} /></label>
-            <label className="text-[12px] font-bold text-[#6b6879]">Work ends<input type="time" value={workTo} onChange={(e) => setWorkTo(e.target.value)} className={field} /></label>
-          </div>
-          <div className="mt-3 flex gap-1" role="group" aria-label="Work days">{DAYS.map((l, d) => <button key={d} type="button" aria-pressed={workDays.includes(d)} onClick={() => setWorkDays(toggle(workDays, d).sort())} className={`h-10 flex-1 rounded-xl text-[14px] font-bold ${workDays.includes(d) ? "bg-[#111018] text-white" : "bg-[#f1f0f7] text-[#6b6879]"}`}>{l}</button>)}</div>
-          <textarea value={vision} onChange={(e) => setVision(e.target.value)} maxLength={600} rows={3} placeholder="Optional: tell the AI about the life you want, in your own words." aria-label="The life you want" className="mt-4 w-full rounded-xl border border-black/10 p-3 text-[15px]" data-testid="setup-vision" />
-          {made ? <p role="status" className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-[14px] font-semibold text-emerald-800" data-testid="setup-built"><Check className="mr-1 inline h-4 w-4" strokeWidth={3} />Your routine is ready: reminders from {clock12(wake)} to {clock12(bed)}, repeating every day.{note && <span className="mt-1 block font-normal text-emerald-900">{note}</span>}</p>
-            : <div className="mt-4 space-y-2">
-              <button type="button" disabled={busy || (!focuses.length && !vision.trim())} onClick={() => void build(true)} className="flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-[#5b4fe0] text-[16px] font-semibold text-white disabled:opacity-50" data-testid="setup-build-ai">{busy ? <><Loader2 className="h-5 w-5 animate-spin" />Building…</> : <><Sparkles className="h-5 w-5" />Build my routine with AI</>}</button>
-              <button type="button" disabled={busy || !focuses.length} onClick={() => void build(false)} className="h-11 w-full rounded-2xl bg-[#f1f0f7] text-[15px] font-semibold text-[#3f35c9] disabled:opacity-50" data-testid="setup-build-preset">Use the preset without AI</button>
-              {note && <p role="status" className="px-1 text-[13px] text-[#6b6879]">{note}</p>}
-            </div>}
         </>}
 
         {step === "done" && <div className="flex min-h-full flex-col items-center justify-center text-center">
           <span className="grid h-20 w-20 place-items-center rounded-[22px] bg-[#111018] text-white"><Check className="h-10 w-10" strokeWidth={3} /></span>
-          <h1 className="mt-6 text-[30px] font-bold leading-tight tracking-[-.02em]">You're set up</h1>
-          <p className="mt-3 max-w-[21rem] text-[16px] leading-[1.45] text-[#6b6879]">{picked.length ? `${picked.length} ${picked.length === 1 ? "app is" : "apps are"} added. ` : ""}{made ? "Your routine reminders will notify you. " : ""}Find hundreds more apps in the App Gallery, and new themes every month. Arise To Duo is on the App Store, so your friends and family can get it too.</p>
+          <h1 className="mt-6 text-[28px] font-bold leading-tight tracking-[-.02em]">You're all set</h1>
+          <p className="mt-3 max-w-[21rem] text-[15.5px] leading-[1.45] text-[#5d5a6b]">{picked.length ? `${picked.length} ${picked.length === 1 ? "plugin is" : "plugins are"} added. ` : ""}{made ? "Your routine reminders will notify you. " : ""}New themes arrive every month, and hundreds more apps are in the Plugin Gallery.</p>
         </div>}
       </div>
 
-      <div className="shrink-0 px-5 pt-3">
-        <button type="button" onClick={next} className="flex h-[54px] w-full items-center justify-center rounded-2xl bg-[#111018] text-[17px] font-semibold text-white active:opacity-85" data-testid="duo-setup-next">
-          {step === "done" ? "Show me around" : step === "apps" && picked.length ? `Add ${picked.length} and continue` : step === "routine" && !made ? "Skip for now" : "Continue"}
-        </button>
+      <div className="shrink-0 px-5 pt-2">
+        <button type="button" onClick={primary.run} disabled={primary.disabled} className={`flex h-[52px] w-full items-center justify-center rounded-2xl text-[16px] font-semibold active:opacity-85 ${step === "day" && !made ? "bg-transparent text-[#5d5a6b]" : "bg-[#111018] text-white"}`} data-testid="duo-setup-next">{primary.text}</button>
       </div>
     </div>
   </div>;
+  // On the page body, outside the hub, so the hub's night mode and theme never restyle it.
+  return createPortal(page, document.body);
 }
