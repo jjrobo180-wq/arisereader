@@ -8,7 +8,7 @@
 // Everything found is kept, so the first listener gets the ads skipped from the first second.
 import type { KV } from "./podcastDirectory";
 import type { Directory } from "./podcastDirectory";
-import type { Player } from "./podcastPlay";
+import { readWhole, type Player } from "./podcastPlay";
 import { aiStrained } from "./podcastDirectory";
 import { TX_CHUNK_SECS } from "../shared/earshot";
 
@@ -16,8 +16,10 @@ const SHOWS_KEY = "pc:shows";
 const doneKey = (episodeId: string) => `pc:done:${episodeId}`;
 type Tally = Record<string, { n: number; at: number }>;
 
-/** How much of the day's allowance pre-checks may use now (minutes), keeping the rest for listeners. */
-export function spareMinutes(now: Date, perDay: number, left: number): number {
+/** How much of the day's allowance pre-checks may use now (minutes), keeping the rest for listeners.
+ *  On a paid plan, any hour, keeping a quarter of the day's allowance. */
+export function spareMinutes(now: Date, perDay: number, left: number, paid = false): number {
+  if (paid) return Math.max(0, left - perDay * 0.25);
   const h = now.getUTCHours();
   // 1am-7am US Eastern: few people listening, and the day's allowance is barely touched.
   if (h >= 5 && h < 11) return Math.max(0, left - perDay * 0.5);
@@ -39,8 +41,10 @@ export function noteShows(ids: string[], weight = 1) { noteImpl?.(ids, weight); 
 
 export function startPrechecks(o: {
   kv: KV; player: Player;
-  dir: Pick<Directory, "loadShow" | "contentTranscript" | "budgetLeft" | "perDay" | "likelyAdChunks" | "idle"> & Partial<Pick<Directory, "minutesLastHour">>;
+  dir: Pick<Directory, "loadShow" | "contentTranscript" | "budgetLeft" | "perDay" | "likelyAdChunks" | "idle"> & Partial<Pick<Directory, "minutesLastHour" | "contentChunks" | "hourCap" | "paid">>;
   topShows: () => Promise<string[]>;
+  /** Whether pre-checks run now (they're switched on, or there's paid AI capacity for them). */
+  enabled?: () => boolean;
   listenerUa?: string; everyMs?: number; perRun?: number; now?: () => Date;
 }) {
   const ua = o.listenerUa ?? "AppleCoreMedia/1.0.0.22A3354 (iPhone; U; CPU OS 18_0 like Mac OS X; en_us)";
@@ -60,6 +64,8 @@ export function startPrechecks(o: {
   const save = async () => { if (dirty && tally) { dirty = false; await o.kv.set(SHOWS_KEY, tally).catch(() => {}); } };
 
   let busy = false, cursor = 0;
+  const paid = () => !!o.dir.paid?.();
+  const hourCap = () => (paid() ? o.dir.hourCap?.() ?? 1200 : 45);
   const stats = { checked: 0, at: "" };
   async function checkEpisode(showId: string, ep: { id: string; audio: string }) {
     const sid = `pre${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
@@ -70,12 +76,14 @@ export function startPrechecks(o: {
       while (Date.now() - t0 < 5 * 60_000 && !s.ads.final && !s.copy.err) { s.touched = Date.now(); await s.copy.wait(1000); }
       if (!s.ads.final || !s.copy.done) return;
       while (Date.now() - t0 < 15 * 60_000 && s.opening !== "done" && o.player.sessions.has(sid)) { s.touched = Date.now(); await new Promise((r) => setTimeout(r, 2000)); }
+      // With paid capacity, the whole episode is read (so every host-read sponsor is known before anyone plays it).
+      if (paid()) { await readWhole(o.player, o.dir, s); stats.checked++; return; }
       // A show with no ad spots learned yet: read the whole episode once, so the next ones know where to look.
       const { total } = o.player.contentOf(s);
       if (!(await o.dir.likelyAdChunks(showId, total)).length) {
         const chunks = Math.min(8, Math.max(1, Math.ceil(total / TX_CHUNK_SECS - 0.01)));
         for (let c = 1; c < chunks; c++) {
-          if (!o.player.sessions.has(sid) || aiStrained() || (o.dir.minutesLastHour?.() ?? 0) > 45 || spareMinutes(now(), o.dir.perDay, o.dir.budgetLeft()) < TX_CHUNK_SECS / 60) break;
+          if (!o.player.sessions.has(sid) || aiStrained() || (o.dir.minutesLastHour?.() ?? 0) > 45 || spareMinutes(now(), o.dir.perDay, o.dir.budgetLeft(), paid()) < TX_CHUNK_SECS / 60) break;
           s.touched = Date.now();
           await o.dir.contentTranscript(showId, ep.id, c, { secs: total, extract: (from, to) => o.player.extract(s, from, to) }).catch(() => null);
         }
@@ -93,7 +101,8 @@ export function startPrechecks(o: {
       for (let n = 0; n < perRun; n++) {
         // Room for one episode's opening and a couple of its ad spots, and the AI isn't straining.
         // Listeners come first: not while they've used much of this hour's speech-to-text.
-        if (spareMinutes(now(), o.dir.perDay, o.dir.budgetLeft()) < 25 || aiStrained() || !o.dir.idle() || (o.dir.minutesLastHour?.() ?? 0) > 45) return;
+        if (o.enabled && !o.enabled()) return;
+        if (spareMinutes(now(), o.dir.perDay, o.dir.budgetLeft(), paid()) < 25 || (aiStrained() && !paid()) || !o.dir.idle() || (o.dir.minutesLastHour?.() ?? 0) > hourCap()) return;
         const shows = pickShows(await load(), await o.topShows().catch(() => []));
         if (!shows.length) return;
         let did = false;

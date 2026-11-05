@@ -12,7 +12,6 @@ import { iphoneCalendarAvailable } from "@/lib/nativeCalendar";
 import { looksLikeDuoInner, useAriseDuo } from "@/lib/useAriseDuo";
 import { isNativeApp } from "@/lib/nativeApp";
 import { isSampleMode } from "@/lib/sampleMode";
-import { SceneFit, TodoScene } from "@/components/tour/TourScenes";
 import { nativeRemindersAvailable, nativeRemindersOn, turnOnNativeReminders } from "@/lib/nativeReminders";
 
 const DONE_KEY = (id: number | string) => `arise-walkthrough-v1:${id}`;
@@ -132,23 +131,53 @@ function NativeTour({ steps, hub, onClose, setupOnly, onConnectCalendar }: { ste
   if (asking) return <IphoneSetup hub={hub} font={font} shell={shell} primary={primary} onConnectCalendar={onConnectCalendar}
     onDone={() => (setupOnly ? onClose() : setAsking(false))} doneLabel={setupOnly ? "Done" : "Continue"} />;
 
-  return <div className={shell} style={font} role="dialog" aria-modal="true" aria-label="How to use Arise To Duo" data-testid="app-walkthrough"
+  return <LiveTour step={step} i={i} count={pages.length} last={last} next={next} back={back} onClose={onClose} font={font} />;
+}
+
+/** Where on the real screen each step points. The tour is drawn over the real app, not a picture of it. */
+const TARGETS: Record<string, string> = {
+  tabs: '[data-testid$="tab-apps"], [data-testid="life-apps-open"]',
+  add: '[data-testid="life-add-button"], [data-testid="hub-add-button"]',
+  gallery: '[data-testid$="tab-apps"], [data-testid="life-apps-open"]',
+  customize: '[data-testid="hub-more-menu"], [data-testid="life-more-menu"]',
+  split: '[data-testid="hub-todo-switch"]',
+};
+
+/** The iPhone tour on the live app: the real hub stays visible behind, the thing being explained is lit
+ *  with a ring, and a short card sits at the thumb. Swipe or tap to move on. */
+function LiveTour({ step, i, count, last, next, back, onClose, font }: { step: Step; i: number; count: number; last: boolean; next: () => void; back: () => void; onClose: () => void; font: CSSProperties }) {
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  const touch = useRef<number | null>(null);
+  useEffect(() => {
+    const sel = TARGETS[step.id];
+    const measure = () => {
+      const el = sel ? Array.from(document.querySelectorAll<HTMLElement>(sel)).find((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; }) : null;
+      setRect(el ? el.getBoundingClientRect() : null);
+    };
+    measure();
+    const t = window.setInterval(measure, 400);
+    window.addEventListener("resize", measure);
+    return () => { window.clearInterval(t); window.removeEventListener("resize", measure); };
+  }, [step.id]);
+  const pad = 8;
+  const high = rect && rect.top < window.innerHeight / 2; // the lit thing is in the top half: card goes below
+  return <div className="fixed inset-0 z-[700]" style={font} role="dialog" aria-modal="true" aria-label="How to use Arise To Duo" data-testid="app-walkthrough"
     onTouchStart={(e) => { touch.current = e.touches[0]?.clientX ?? null; }}
-    onTouchEnd={(e) => { const x = touch.current; touch.current = null; if (x == null) return; const dx = (e.changedTouches[0]?.clientX ?? x) - x; if (dx < -50) next(); else if (dx > 50) back(); }}>
-    <div className="mx-auto flex w-full max-w-md min-h-0 flex-1 flex-col">
-      <div className="flex h-12 shrink-0 items-center justify-end px-4">
-        {!last && <button type="button" onClick={onClose} className="h-11 px-2 text-[16px] font-medium text-[#6b6879]" data-testid="walkthrough-skip">Skip</button>}
+    onTouchEnd={(e) => { const x = touch.current; touch.current = null; if (x == null) return; const dx = (e.changedTouches[0]?.clientX ?? x) - x; if (dx < -60) next(); else if (dx > 60) back(); }}>
+    {rect
+      ? <div aria-hidden className="pointer-events-none fixed rounded-2xl transition-all duration-300" style={{ left: rect.left - pad, top: rect.top - pad, width: rect.width + pad * 2, height: rect.height + pad * 2, boxShadow: "0 0 0 9999px rgba(17,16,24,.62), 0 0 0 3px #fff" }} />
+      : <div aria-hidden className="fixed inset-0 bg-[#111018]/60" />}
+    <div key={step.id} className={`fixed inset-x-0 mx-auto w-[min(92vw,26rem)] rounded-[24px] bg-white p-5 text-[#111018] shadow-[0_24px_60px_rgba(0,0,0,.35)] ${high ? "top-[max(7rem,calc(env(safe-area-inset-top)+6rem))]" : "bottom-[max(16px,env(safe-area-inset-bottom))]"}`}>
+      <div className="flex items-center justify-between">
+        <div className="flex gap-1.5" aria-label={`Page ${i + 1} of ${count}`}>{Array.from({ length: count }, (_, k) => <span key={k} className={`h-1.5 rounded-full transition-all ${k === i ? "w-5 bg-[#111018]" : "w-1.5 bg-black/15"}`} />)}</div>
+        {!last && <button type="button" onClick={onClose} className="h-9 px-1 text-[15px] font-medium text-[#6b6879]" data-testid="walkthrough-skip">Skip</button>}
       </div>
-      <div data-scene-col key={step.id} className="flex min-h-0 flex-1 flex-col items-center justify-center px-8 text-center">
-        {/* The step acted out on a small phone with the app's real screens (tour/TourScenes.tsx). */}
-        <div className="mb-6"><SceneFit reserve={step.action ? 520 : 470}><TodoScene id={step.id} /></SceneFit></div>
-        <h1 className="text-[28px] font-bold leading-tight tracking-[-.02em] [text-wrap:balance]">{step.title}</h1>
-        <p className="mt-3 max-w-[21rem] text-[16px] leading-[1.45] text-[#6b6879] [&_b]:font-semibold [&_b]:text-[#111018]">{step.body}</p>
-        {step.action && <button type="button" onClick={() => void step.action!.run()} className="mt-6 inline-flex h-11 items-center rounded-full bg-[#f1f0f7] px-5 text-[15px] font-semibold text-[#3f35c9] active:opacity-80" data-testid={`walkthrough-action-${step.id}`}>{step.action.label}</button>}
-      </div>
-      <div className="shrink-0 px-6 pt-4">
-        <div className="mb-5 flex justify-center gap-2" aria-label={`Page ${i + 1} of ${pages.length}`}>{pages.map((s, k) => <span key={s.id} className={`h-2 rounded-full transition-all duration-300 ${k === i ? "w-6 bg-[#111018]" : "w-2 bg-[#d6d4df]"}`} />)}</div>
-        <button type="button" onClick={next} className={`${primary} bg-[#111018]`} data-testid="walkthrough-next">{last ? "Get started" : "Continue"}</button>
+      <h1 className="mt-3 text-[22px] font-bold leading-tight tracking-[-.01em]">{step.title}</h1>
+      <p className="mt-1.5 text-[15px] leading-[1.45] text-[#6b6879] [&_b]:font-semibold [&_b]:text-[#111018]">{step.body}</p>
+      {step.action && <button type="button" onClick={() => void step.action!.run()} className="mt-3 inline-flex h-10 items-center rounded-full bg-[#f1f0f7] px-4 text-[14px] font-semibold text-[#3f35c9] active:opacity-80">{step.action.label}</button>}
+      <div className="mt-4 flex gap-2">
+        {i > 0 && <button type="button" onClick={back} className="h-12 rounded-2xl bg-[#f1f0f7] px-5 text-[16px] font-semibold">Back</button>}
+        <button type="button" onClick={next} className="h-12 flex-1 rounded-2xl bg-[#111018] text-[16px] font-semibold text-white active:opacity-85" data-testid="walkthrough-next">{last ? "Get started" : "Continue"}</button>
       </div>
     </div>
   </div>;

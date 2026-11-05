@@ -6,7 +6,7 @@
 // are kept apart. A night in progress is kept as `asleepAt` until you tap "I'm awake".
 const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-export type SleepSource = "health" | "schedule" | "phone" | "button" | "manual";
+export type SleepSource = "health" | "schedule" | "phone" | "button" | "manual" | "pillow";
 /** Minutes in each stage (from Apple Health). `core` is Apple's light sleep. */
 export type SleepStages = { deep: number; rem: number; core: number; awake: number };
 export type SleepNight = { date: string; bed: number; wake: number; q?: number; src?: SleepSource; stages?: SleepStages;
@@ -23,7 +23,7 @@ export type Sleep = { goalH: number; nights: SleepNight[]; asleepAt?: number; na
 
 export const SLEEP_MAX = 400;
 const MIN_MS = 30 * 60_000, MAX_MS = 20 * 3_600_000;
-const SOURCES: SleepSource[] = ["health", "schedule", "phone", "button", "manual"];
+const SOURCES: SleepSource[] = ["health", "schedule", "phone", "button", "manual", "pillow"];
 const num = (v: unknown, lo: number, hi: number, d = 0) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
 const hhmm = (v: unknown) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(String(v)) ? String(v) : "");
 
@@ -181,4 +181,4 @@ export function healthNight(samples: { state: string; start: number; end: number
   return { bed, wake, stages: hasStages ? { deep: r(stages.deep), rem: r(stages.rem), core: r(stages.core), awake: r(stages.awake) } : { deep: 0, rem: 0, core: 0, awake: 0 }, asleepMin: r(asleep) };
 }
 
-export const SOURCE_NAME: Record<SleepSource, string> = { health: "Apple Health", schedule: "Your schedule", phone: "Phone down", button: "Sleep button", manual: "Logged by hand" };
+export const SOURCE_NAME: Record<SleepSource, string> = { health: "Apple Health", schedule: "Your schedule", phone: "Phone down", button: "Sleep button", manual: "Logged by hand", pillow: "Pillow tracking" };

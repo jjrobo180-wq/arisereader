@@ -114,3 +114,20 @@ test("the ten interactive looks move, sound and buzz, in Duo and Notes", () => {
   for (const t of NOTES_THEMES.filter((x) => ids.includes(x.id))) for (const word of ["Windows", "Microsoft", "Apple", "iPhone"]) assert.ok(!`${t.label} ${t.blurb}`.includes(word), `${t.id} doesn't say ${word}`);
   assert.match(read("client/src/components/look-os/toys.css"), /prefers-reduced-motion: reduce/);
 });
+
+test("the Notes tab looks serious and professional in every look, with real folders", () => {
+  const read = (f: string) => readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
+  const app = read("client/src/components/arise-notes/NotesApp.tsx"), view = read("client/src/components/arise-notes/pages/PagesView.tsx"), css = read("client/src/components/arise-notes/pages/pages-pro.css");
+  // The look's colors, fonts and shapes stay out of the Notes tab; it's neutral light or dark.
+  assert.match(app, /const pro = \(route\.name === "pages" \|\| route\.name === "page"\) && !s\?\.contrast;/);
+  assert.match(app, /const themed = !pro && /);
+  assert.match(css, /\.an-root\.an-pro \{[^}]*--an-bg: #f2f2f7 !important/);
+  assert.match(css, /\.an-root\.an-pro\.an-pro-dark \{/);
+  assert.match(css, /\.an-pro \.an-l-bar \{/);
+  // A folder list first on a phone, with your own folders, edit, counts and a way back.
+  assert.match(view, /data-testid="pages-folder-screen"/);
+  assert.match(view, /<h3>My folders<\/h3>/);
+  assert.match(view, /data-testid="pages-back-folders"/);
+  assert.match(view, /data-testid="pages-folder-edit"/);
+  assert.match(view, /className="pp-row"/);
+});

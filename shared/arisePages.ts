@@ -26,7 +26,7 @@ export const INK_W = 1000;
 export const INK_H = 1414; // A4/Letter-ish portrait
 
 // ─── Look ────────────────────────────────────────────────────────────────────
-export type PaperTheme = "paper" | "cream" | "sepia" | "mint" | "rose" | "sky" | "graphite" | "midnight";
+export type PaperTheme = "paper" | "cream" | "sepia" | "mint" | "rose" | "sky" | "graphite" | "midnight" | "charcoal";
 export const PAPER_THEMES: Record<PaperTheme, { name: string; bg: string; ink: string; muted: string; line: string; dark: boolean }> = {
   paper: { name: "Paper", bg: "#ffffff", ink: "#1b1a26", muted: "#6b6880", line: "#e7e4f2", dark: false },
   cream: { name: "Cream", bg: "#fbf7ec", ink: "#2b2516", muted: "#7a6f55", line: "#ece3cc", dark: false },
@@ -36,6 +36,7 @@ export const PAPER_THEMES: Record<PaperTheme, { name: string; bg: string; ink: s
   sky: { name: "Sky", bg: "#eef5fd", ink: "#14263b", muted: "#55708f", line: "#d6e6f8", dark: false },
   graphite: { name: "Graphite", bg: "#26262b", ink: "#ececf1", muted: "#a3a3ad", line: "#3a3a41", dark: true },
   midnight: { name: "Midnight", bg: "#141a2e", ink: "#e8ecf8", muted: "#9aa5c4", line: "#26304d", dark: true },
+  charcoal: { name: "Charcoal", bg: "#1c1c1e", ink: "#f2f2f7", muted: "#a1a1a8", line: "#2c2c2e", dark: true },
 };
 export const PAPER_THEME_IDS = Object.keys(PAPER_THEMES) as PaperTheme[];
 

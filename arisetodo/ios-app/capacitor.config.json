@@ -33,6 +33,8 @@
     }
   },
   "ios": {
-    "contentInset": "automatic"
-  }
+    "contentInset": "automatic",
+    "backgroundColor": "#f6f7fc"
+  },
+  "backgroundColor": "#f6f7fc"
 }

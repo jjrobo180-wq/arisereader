@@ -16,7 +16,7 @@ import { NewsStationsView, RadioBar, RadioView, type Station } from "./Radio";
 import { NEWS_RADIO_ID, NEWS_RADIO_NAME } from "../client/src/components/family-hub/earshot/newsRadio";
 import { MusicBar, MusicView, type Listening } from "./Music";
 import { AudiobookBar, AudiobooksView, BookPage, type Reading } from "./Audiobooks";
-import type { NowPlaying } from "../client/src/components/family-hub/earshot/EarshotPlayer";
+import { prepareClean, setPrepareApi, type NowPlaying } from "../client/src/components/family-hub/earshot/EarshotPlayer";
 import { PartyRoom } from "./Party";
 import { artIn } from "./art";
 import { SearchPage } from "./Search";
@@ -432,6 +432,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   const [side, setSide] = useState(true);
   // The slide-out menu (phones and tablets; on wide screens the menu button shows/hides the side panel).
   const [drawer, setDrawer] = useState(false);
+  // While the menu is open the page behind it stays put (on iPhone it scrolled and dragged along).
+  useEffect(() => { if (!drawer) return; const b = document.body.style, o = b.overflow; b.overflow = "hidden"; return () => { b.overflow = o; }; }, [drawer]);
   useEffect(() => { if (!drawer) return; const k = (e: KeyboardEvent) => { if (e.key === "Escape") setDrawer(false); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [drawer]);
   const toggleMenu = () => { if (typeof matchMedia === "function" && matchMedia("(min-width: 1024px)").matches) setSide((x) => !x); else setDrawer((d) => !d); };
   const [q, setQ] = useState(view.kind === "search" ? view.q : "");
@@ -449,6 +451,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     return () => clearInterval(t);
   }, [searching, narrow]);
   // Browse here; listen in the swipe feed, starting on the episode you picked.
+  // Episodes shown here are made ad-free before they're tapped (EarshotPlayer prepareClean).
+  useEffect(() => { setPrepareApi(api); }, [api]);
   const openEp = useCallback((e: PodEpisode, next?: PodEpisode[]) => {
     // A tap teaches the feed too (a small nudge toward that show's genre).
     const g = (e as { genre?: string }).genre || showGenre.current.get(e.showId);
@@ -485,7 +489,6 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
           ))}
         </div>
         <button onClick={() => onOpenFeed()} className="hidden h-9 items-center gap-2 rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2] md:inline-flex"><Sparkles size={17} strokeWidth={1.8} />Swipe feed</button>
-        {!pro && <button onClick={onJoin} className="hidden h-9 items-center rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white hover:bg-[#272727] lg:inline-flex">Go ad-free</button>}
         {!pro
           ? <button onClick={onSignIn} aria-label="Sign in" className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[#d3d3d3] px-2 text-sm font-medium text-[#065fd4] hover:bg-[#def1ff] min-[420px]:px-3"><UserCircle size={19} strokeWidth={1.8} /><span className="hidden min-[420px]:inline">Sign in</span></button>
           : <span className="relative">
@@ -556,10 +559,10 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       {navItem("Account & privacy", <ShieldCheck size={22} strokeWidth={1.8} />, false, () => setPrivacyOpen(true))}
       <div className="my-3 h-px bg-[#e5e5e5]" />
       {pro
-        ? <p className="mx-3 text-sm text-[#606060]"><b className="text-[#0f0f0f]">Pod+ Member.</b> Ads get skipped, and your show can earn.</p>
+        ? <p className="mx-3 text-sm text-[#606060]"><b className="text-[#0f0f0f]">Pod+ Member.</b> Your show can earn, and your place is kept on every device.</p>
         : <div className="mx-1 rounded-xl border border-[#e5e5e5] p-3">
           <p className="text-sm font-semibold">Pod+ Membership</p>
-          <p className="mt-1 text-[13px] leading-snug text-[#606060]">Listening is free. Members skip the ads and get paid for their own show.</p>
+          <p className="mt-1 text-[13px] leading-snug text-[#606060]">Listening is free, with no ads for everyone. Members get paid for their own show.</p>
           <button onClick={onJoin} className="mt-3 h-9 w-full rounded-full bg-[#0f0f0f] text-sm font-semibold text-white hover:bg-[#272727]">Become a member</button>
         </div>}
   </>;
@@ -654,12 +657,12 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
         <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[.18em] text-[#ff8a3d]">Pod+ Membership</p>
-            <h2 className="mt-2 text-[26px] font-bold leading-tight tracking-tight sm:text-[30px]">Hear the show, not the ads.</h2>
+            <h2 className="mt-2 text-[26px] font-bold leading-tight tracking-tight sm:text-[30px]">Make your show pay.</h2>
             <ul className="mt-3 grid gap-x-6 gap-y-1.5 text-[14px] text-white/80 sm:grid-cols-2">
-              <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />Ads skipped for you, automatically</li>
               <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />Get paid for your own show</li>
               <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />Your place saved on every device</li>
-              <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />Listening stays free either way</li>
+              <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />Your Pod Modes and likes everywhere</li>
+              <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />No ads for anyone, member or not</li>
             </ul>
           </div>
           <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
@@ -671,7 +674,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
 
       {!topic && chip !== "all" && <TopShows shows={topShows} onShow={openShowLatest} label={`Top in ${GENRE[chip]?.name ?? ""}`} note="Everything below stays unranked." />}
 
-      {chip === "all" && es.settings.hoursBack && <div className="mb-5"><HoursBackCard light member={pro} onJoin={onJoin} onHide={() => { update((e) => ({ ...e, settings: { ...e.settings, hoursBack: false } })); say("Hours back is hidden. Turn it on again in Settings."); }} /></div>}
+      {chip === "all" && es.settings.hoursBack && <div className="mb-5"><HoursBackCard light member onJoin={onJoin} onHide={() => { update((e) => ({ ...e, settings: { ...e.settings, hoursBack: false } })); say("Hours back is hidden. Turn it on again in Settings."); }} /></div>}
       {chip === "all" && <ModesRow es={es} update={update} onOpen={(m) => go({ kind: "mode", id: m.id })} onNew={() => setNewMode(true)} onDrive={() => onOpenFeed(undefined, undefined, { id: "__drive", index: 0 })} onNews={() => go({ kind: "now" })} onNewsRadio={() => onOpenFeed(undefined, undefined, { id: NEWS_RADIO_ID, index: 0 })} onNewsStations={() => go({ kind: "newsstations" })} />}
 
 
@@ -690,9 +693,10 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     {dark && <style>{DARK_CSS}</style>}
     {header}
     {drawer && <div className="fixed inset-0 z-[65]" role="dialog" aria-modal="true" aria-label="Menu">
-      <div className="ps-fade absolute inset-0 bg-black/45" onClick={() => setDrawer(false)} />
-      <nav aria-label="Menu" className="ps-slide absolute inset-y-0 left-0 flex w-[290px] max-w-[85vw] flex-col gap-0.5 overflow-y-auto bg-white px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[calc(env(safe-area-inset-top,0px)+0.5rem)] shadow-2xl">
-        <div className="mb-2 flex h-12 items-center justify-between pl-2">
+      <div className="ps-fade absolute inset-0 touch-none bg-black/45" onClick={() => setDrawer(false)} />
+      <nav aria-label="Menu" className="ps-slide absolute inset-y-0 left-0 flex w-[290px] max-w-[85vw] touch-pan-y flex-col gap-0.5 overflow-y-auto overflow-x-hidden overscroll-contain bg-white px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-0 shadow-2xl">
+        {/* Stays at the top while the list scrolls, so items never slide up under the clock. */}
+        <div className="sticky top-0 z-10 -mx-3 mb-2 flex shrink-0 items-center justify-between bg-white pb-1 pl-5 pr-3 pt-[calc(env(safe-area-inset-top,0px)+0.5rem)]">
           <span className="inline-flex items-center gap-1.5"><svg width="30" height="21" viewBox="0 0 30 21" aria-hidden="true"><rect width="30" height="21" rx="6" fill="#ff6a1f" /><rect x="8" y="7.5" width="2.4" height="6" rx="1.2" fill="#fff" /><rect x="12.2" y="4.5" width="2.4" height="12" rx="1.2" fill="#fff" /><rect x="16.4" y="6.5" width="2.4" height="8" rx="1.2" fill="#fff" /><rect x="20.6" y="8.5" width="2.4" height="4" rx="1.2" fill="#fff" /></svg><span className="text-[19px] font-bold tracking-[-0.04em]">Pod+</span></span>
           <button onClick={() => setDrawer(false)} aria-label="Close menu" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><X size={22} /></button>
         </div>
@@ -815,6 +819,8 @@ const MoreCtx = createContext<((e: PodEpisode) => void) | null>(null);
 const HiddenCtx = createContext<{ shows: Set<string>; eps: Set<string> }>({ shows: new Set(), eps: new Set() });
 
 function Grid({ list, onOpen }: { list: PodEpisode[]; onOpen: (e: PodEpisode) => void }) {
+  // The first ones shown are made ad-free before they're tapped.
+  useEffect(() => { prepareClean(list.slice(0, 6)); }, [list]);
   const onMore = useContext(MoreCtx);
   const hidden = useContext(HiddenCtx);
   return <div className="grid gap-x-3.5 gap-y-7 pt-3 [grid-template-columns:repeat(auto-fill,minmax(min(180px,calc(50%_-_7px)),1fr))]">

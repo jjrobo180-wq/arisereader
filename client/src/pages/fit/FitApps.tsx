@@ -4,8 +4,8 @@
 // Sleep and the rest are the screens they always were (FitApp.tsx opens them).
 import { useMemo, useState } from "react";
 import {
-  Apple, BarChart3, Check, ChefHat, ChevronDown, ChevronLeft, ChevronRight, Droplets, Dumbbell, Flower2, Footprints, HeartPulse, LayoutGrid, MapPin, Medal, Minus, Moon, Pencil,
-  PersonStanding, Pin, PinOff, Plane, Play, Plus, Route, ScanFace, ScanLine, Search, Sparkles, Timer, Trash2, Undo2, UserCheck, Users, Utensils, Wind, X, Zap, type LucideIcon,
+  Apple, BarChart3, Bed, Check, ChefHat, CircleDot, ChevronDown, ChevronLeft, ChevronRight, Droplets, Dumbbell, Flower2, Footprints, HeartPulse, LayoutGrid, MapPin, Medal, Minus, Moon, Pencil,
+  PersonStanding, Pin, PinOff, Plane, Play, Plus, Route, ScanFace, ScanLine, Search, Sparkles, Timer, Trash2, Undo2, UserCheck, Users, Utensils, Waves, Wind, X, Zap, type LucideIcon,
 } from "lucide-react";
 import { dayKey, uid, type FitData } from "@shared/fit";
 import { FIT_APPS, FIT_APP_BY_ID, FIT_APP_CATEGORIES, TAB_MAX, addApp, appsOf, moveTab, removeApp, toggleTab, type FitApp, type FitAppId } from "@shared/fitApps";
@@ -16,6 +16,7 @@ import { BODY_PARTS, PART_NAME, recovery } from "@shared/fitRecovery";
 import { Btn, C, Card, Field, Ring, Sheet, Title, display, fmtDur, fmtNum, haptic, inputCls, inputStyle, stagger } from "./fitUi";
 import { CoverCard } from "./FitVideo";
 import { SessionPlayer } from "./FitSession";
+import { CounterCard, CounterScreen, FollowAlong } from "./FitMindExtras";
 import { logSession } from "./FitTrain";
 import { MiniBody, recColor } from "./FitBody";
 import { useHealth } from "./FitHealth";
@@ -27,7 +28,7 @@ import type { ArtKind } from "./fitArt";
 import type { Update } from "./fitStore";
 import { isNativeApp } from "@/lib/nativeApp";
 
-export const APP_ICONS: Record<string, LucideIcon> = { Apple, BarChart3, ChefHat, Droplets, Dumbbell, Flower2, Footprints, HeartPulse, MapPin, Medal, Moon, PersonStanding, Plane, Route, ScanFace, ScanLine, Timer, UserCheck, Users, Utensils, Wind, Zap };
+export const APP_ICONS: Record<string, LucideIcon> = { Apple, BarChart3, Bed, ChefHat, CircleDot, Droplets, Dumbbell, Flower2, Footprints, HeartPulse, MapPin, Medal, Moon, PersonStanding, Plane, Route, ScanFace, ScanLine, Timer, UserCheck, Users, Utensils, Waves, Wind, Zap };
 
 /** An app's icon: a rounded square in its own colors, like the Home Screen. */
 export function AppTile({ app, size = 56 }: { app: FitApp; size?: number }) {
@@ -82,6 +83,11 @@ export function AppsTab({ data, update, say, onOpen }: { data: FitData; update: 
         <button type="button" aria-label={`Move ${app.name} right`} disabled={i >= a.tabs.length - 1} onClick={() => set((x) => moveTab(x, id, 1))} className="grid h-7 w-7 place-items-center rounded-full disabled:opacity-25"><ChevronRight className="h-4 w-4" /></button></span>; })}</div>}
       <p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>{edit ? "Tap an app below to pin it to the tab bar or take it off. Use the arrows to change the order." : "Tap Edit to change it."}</p>
     </Card>
+
+    <button type="button" onClick={() => setStore(true)} className="fit-in fit-shine mt-4 flex w-full items-center gap-3 rounded-[16px] p-3.5 text-left active:scale-[.98]" style={{ background: `linear-gradient(150deg, ${C.lime}, ${C.deep})`, color: C.ink }} data-testid="fit-apps-store-top">
+      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[13px]" style={{ background: "rgba(255,255,255,.22)" }}><Plus className="h-6 w-6" /></span>
+      <span className="min-w-0 flex-1"><span className="block text-[20px] leading-none" style={display}>Add apps</span><span className="mt-1 block text-[12.5px] font-semibold opacity-80">{FIT_APPS.length - a.added.length} more to add · one tap each</span></span>
+      <ChevronRight className="h-5 w-5 shrink-0" /></button>
 
     <Title>Added</Title>
     {added.length ? <div className="grid grid-cols-4 gap-x-2 gap-y-4" data-testid="fit-apps-added">{added.map((app, i) => { const pinned = a.tabs.includes(app.id);
@@ -171,6 +177,7 @@ export function GuidedApp({ kind, data, update, say, inline, onClose }: { kind: 
   const [len, setLen] = useState<"all" | "short" | "mid" | "long">("all");
   const [playing, setPlaying] = useState<Session | null>(null);
   const [poses, setPoses] = useState(false);
+  const [counter, setCounter] = useState(false);
   const [timer, setTimer] = useState<IntervalTimer | null>(null);
   const prog = kind === "c25k" ? "c25k" : `session-${k.cat}`;
   const mine = data.workouts.filter((w) => w.programId === prog || (kind === "hiit" && w.programId === "session-timer"));
@@ -206,6 +213,8 @@ export function GuidedApp({ kind, data, update, say, inline, onClose }: { kind: 
     {kind === "mind" && <><Title>Breathe now</Title><div className="grid grid-cols-3 gap-2">{([["med-sigh", "Calm", "3 min"], ["med-box", "Box", "5 min"], ["med-478", "Sleep", "3 min"]] as const).map(([id, l, t]) => { const x = SESSION_BY_ID.get(id); return x ? <button key={id} type="button" onClick={() => setPlaying(x)} className="flex flex-col items-center gap-1 rounded-[14px] py-4 active:scale-95" style={{ background: "linear-gradient(160deg, rgba(45,212,191,.22), rgba(45,212,191,.06))", boxShadow: "inset 0 0 0 1px rgba(45,212,191,.35)" }}>
       <Wind className="h-6 w-6" style={{ color: "#2dd4bf" }} /><span className="text-[18px] leading-none" style={display}>{l}</span><span className="text-[11px]" style={{ color: C.dim }}>{t}</span></button> : null; })}</div></>}
 
+    {(kind === "yoga" || kind === "mind") && <CounterCard kind={kind} onOpen={() => setCounter(true)} />}
+
     {kind === "hiit" && <IntervalTimers data={data} update={update} onPlay={(t) => setPlaying(timerSession(t))} onEdit={setTimer} />}
 
     <Title right={kind !== "c25k" && <div className="flex gap-1 rounded-full p-0.5" style={{ background: C.card2 }}>{([["all", "All"], ["short", "<10"], ["mid", "10–20"], ["long", "20+"]] as const).map(([id, l]) => <button key={id} type="button" onClick={() => setLen(id)} aria-pressed={len === id} className="h-7 rounded-full px-2.5 text-[12px] font-semibold" style={len === id ? { background: C.card, color: C.text } : { color: C.dim }}>{l}</button>)}</div>}>{kind === "hiit" ? "Treadmill HIIT" : `All ${k.noun}`}</Title>
@@ -218,6 +227,8 @@ export function GuidedApp({ kind, data, update, say, inline, onClose }: { kind: 
       </div></Card>)}</div>
     {!filtered.length && <p className="px-1 text-[14px]" style={{ color: C.dim }}>Nothing that long. Try another length.</p>}
 
+    {(kind === "yoga" || kind === "mind") && <FollowAlong kind={kind} />}
+
     {kind === "yoga" && <><button type="button" onClick={() => setPoses(!poses)} className="mt-5 flex w-full items-center justify-between rounded-[12px] px-4 py-3.5 text-left" style={{ background: C.card }} aria-expanded={poses}><span className="text-[17px]" style={display}>Pose guide</span><ChevronDown className="h-5 w-5 transition-transform" style={{ transform: poses ? "rotate(180deg)" : "none", color: C.dim }} /></button>
       {poses && <PoseGuide list={list} />}</>}
 
@@ -225,6 +236,7 @@ export function GuidedApp({ kind, data, update, say, inline, onClose }: { kind: 
       <Check className="h-4 w-4 shrink-0" style={{ color: k.color }} /><span className="min-w-0 flex-1 truncate font-semibold">{w.name}</span>
       <span style={{ color: C.dim }}>{new Date(w.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })} · {Math.max(1, Math.round(w.secs / 60))} min</span></li>)}</ul></Card></>}
     {playing && <SessionPlayer session={playing} onClose={() => setPlaying(null)} onDone={(secs) => finish(playing, secs)} />}
+    {counter && (kind === "yoga" || kind === "mind") && <CounterScreen kind={kind} update={update} say={say} onClose={() => setCounter(false)} />}
     {timer && <TimerEditor timer={timer} update={update} onClose={() => setTimer(null)} onPlay={(t) => { setTimer(null); setPlaying(timerSession(t)); }} />}
   </Sheet>;
 }
