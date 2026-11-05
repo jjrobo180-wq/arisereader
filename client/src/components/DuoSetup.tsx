@@ -35,8 +35,8 @@ const STARTER_THEMES = ["classic", "studio", "bloom", "frost", "aurora", "zen"];
 const STARTER_APPS: { id: string; emoji: string }[] = [
   { id: "life-health", emoji: "🥗" }, { id: "life-habits", emoji: "✅" }, { id: "life-money", emoji: "💵" },
   { id: "life-grocery", emoji: "🛒" }, { id: "life-meals", emoji: "🍽️" }, { id: "life-journal", emoji: "📔" },
-  { id: "life-workouts", emoji: "💪" }, { id: "life-sleep", emoji: "😴" }, { id: "life-chores", emoji: "🧹" },
-  { id: "life-meditate", emoji: "🧘" }, { id: "life-pills", emoji: "💊" }, { id: "life-kit-water-log", emoji: "💧" },
+  { id: "life-workouts", emoji: "💪" }, { id: "life-sleep", emoji: "😴" },
+  { id: "life-meditate", emoji: "🧘" }, { id: "life-kit-water-log", emoji: "💧" },
 ];
 /** Quick starts: each one is a handful of the planner's focuses. */
 const PRESETS: { id: string; name: string; blurb: string; focuses: PlanFocus[] }[] = [
