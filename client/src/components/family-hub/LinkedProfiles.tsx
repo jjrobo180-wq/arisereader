@@ -9,7 +9,7 @@ import { kitIcon } from "@/components/plugin-kit/kitIcons";
 import { linksApi, sharedAppHref, type LinksState, type MyLink, type SharedLink } from "@/lib/profileLinks";
 import { SharedViewBody } from "@/pages/TodoShare";
 import { healthPeople } from "@shared/familyHealth";
-import { shareCatalog, type Access, type Grants, type ShareItem } from "@shared/profileLinks";
+import { isJoinLinkEmail, shareCatalog, type Access, type Grants, type ShareItem } from "@shared/profileLinks";
 import { Empty, Modal, PageHead, Panel, danger, inputClass, plain, primary, type SectionProps } from "./ui";
 
 const POPULAR = ["app:potty", "app:water", "app:sleep", "app:meds", "app:food", "app:appointments", "app:weight", "app:steps", "app:mood", "app:workouts"];
@@ -67,7 +67,7 @@ export default function LinkedProfiles({ family, say }: SectionProps) {
       <Panel title={`I share with · ${state.mine.length}`}>
         {state.mine.length ? <ul className="space-y-3">{state.mine.map((l) => <MySharing key={l.id} link={l} catalog={catalog}
           onSave={async (patch) => { try { const next = await api.update(l.id, patch); setState((s) => s && { ...s, mine: s.mine.map((x) => (x.id === l.id ? { ...x, ...next } : x)) }); } catch (e: any) { say(e.message); } }}
-          onRemove={() => { if (window.confirm(`Stop sharing with ${l.nickname || l.viewerName || l.email}? They'll lose access right away.`)) void act(() => api.remove(l.id), "Sharing stopped"); }} />)}</ul>
+          onRemove={() => { if (window.confirm(`Stop sharing with ${l.nickname || l.viewerName || (isJoinLinkEmail(l.email) ? "this person" : l.email)}? They'll lose access right away.`)) void act(() => api.remove(l.id), "Sharing stopped"); }} />)}</ul>
           : <Empty icon={<UserPlus />} title="You're not sharing with anyone">Tap “Link someone” to share Potty Training, the calendar and more.</Empty>}
       </Panel>
     </>}
@@ -153,12 +153,12 @@ function MySharing({ link, catalog, onSave, onRemove }: { link: MyLink; catalog:
   useEffect(() => setGrantsState(link.grants), [link.grants]);
   // Each change saves by itself a moment later, so toggling several things is one save.
   const setGrants = (g: Grants) => { setGrantsState(g); window.clearTimeout(timer.current); setSaving(true); timer.current = window.setTimeout(() => { void onSave({ grants: g }).finally(() => setSaving(false)); }, 600); };
-  const who = link.nickname || link.viewerName || link.email;
+  const who = link.nickname || link.viewerName || (isJoinLinkEmail(link.email) ? "Shared link" : link.email);
   return <li className="rounded-2xl border border-slate-200" data-testid={`my-link-${link.id}`}>
     <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-center gap-3 p-4 text-left">
       <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 font-black text-slate-600">{who.charAt(0).toUpperCase()}</span>
       <span className="min-w-0 flex-1"><span className="block truncate font-black text-slate-900">{who}</span>
-        <span className="block truncate text-xs text-slate-500">{link.status === "pending" ? `Invite sent to ${link.email} · waiting for them to accept` : `${link.viewerName || link.email} · linked`} · {count(grants)} shared</span></span>
+        <span className="block truncate text-xs text-slate-500">{link.status === "pending" ? (isJoinLinkEmail(link.email) ? "Link not opened yet · waiting for them to join" : `Invite sent to ${link.email} · waiting for them to accept`) : `${link.viewerName || link.email} · linked`} · {count(grants)} shared</span></span>
       {saving ? <Loader2 size={16} className="animate-spin text-slate-400" /> : <ChevronDown size={18} className={`text-slate-400 transition ${open ? "rotate-180" : ""}`} />}
     </button>
     {open && <div className="border-t border-slate-100 p-4">

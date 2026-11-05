@@ -35,6 +35,9 @@ export type ProfileLink = {
 };
 
 export const LINK_LIMITS = { perOwner: 20, nickname: 40 } as const;
+/** Links made by a join link have no email yet; they carry this ending instead. */
+export const JOIN_LINK_EMAIL = "@invite.arise.link";
+export const isJoinLinkEmail = (email: string) => email.endsWith(JOIN_LINK_EMAIL);
 
 /** LifeHub pages that can be shared (view only). `target` is the share-view target (shared/todoShare.ts). */
 export const LIFE_SHARES = [
@@ -118,3 +121,12 @@ export function accessFor(links: readonly ProfileLink[], viewerId: number, share
 
 /** Does this access allow what's being asked? Edit allows view. */
 export const allows = (have: Access | null, need: Access) => have === "edit" || (have === "view" && need === "view");
+
+/** Everything, at the most each thing allows: every premium app to Edit, every LifeHub page to View. */
+export function fullGrants(healthPeople: { id: string }[] = []): Grants {
+  const out: Grants = {};
+  for (const a of liveProApps()) out[appShareId(a.id)] = "edit";
+  for (const l of LIFE_SHARES) out[l.id] = "view";
+  for (const p of healthPeople) out[healthShareId(p.id)] = "view";
+  return out;
+}
