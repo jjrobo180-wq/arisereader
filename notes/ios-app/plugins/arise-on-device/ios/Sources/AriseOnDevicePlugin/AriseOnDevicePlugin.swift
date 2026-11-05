@@ -46,6 +46,8 @@ public class AriseOnDevicePlugin: CAPPlugin, CAPBridgedPlugin {
     ]
 
     /// Running recognitions, kept so they aren't released before they finish.
+    override public func load() { NotesZoomLock.install(on: bridge?.webView) }
+
     private var tasks: [String: SFSpeechRecognitionTask] = [:]
     private let lock = NSLock()
 

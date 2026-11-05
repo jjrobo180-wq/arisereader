@@ -1,11 +1,12 @@
 // The designs behind Settings > Appearance: each look's own Home, recording display and note heading.
 // Everything still does the same work as the Classic screens; only the arrangement changes.
 import { type CSSProperties, useEffect, useState, type ReactNode } from "react";
-import { fmtClock, nightLook, templateOf, themeOf, type NotesTheme, type NotesSettings } from "@shared/ariseNotes";
+import { SUITE_LOOKS, fmtClock, nightLook, templateOf, themeOf, type NotesTheme, type NotesSettings } from "@shared/ariseNotes";
 import type { ListNote } from "./api";
 import { BubbleWrap, Ferro, Jelly, LavaLamp, MarbleJar, Orrery, RadioDial, Slots, Spinner, SynthKeys } from "@/components/look-os/toys";
 import "./notes-systems.css";
 import "./notes-play.css";
+import "./notes-suite.css";
 
 /** The look to draw, or null for Classic. High contrast always uses the Classic layout. */
 export function activeLook(settings?: NotesSettings | null): NotesTheme | null {
@@ -38,6 +39,16 @@ export function LookHomeHero({ look, a }: { look: NotesTheme; a: HomeActions }) 
   const rec = (children: ReactNode, cls = "") => <button type="button" className={`an-l-record ${cls}`} onClick={a.record} data-testid="notes-record">{children}</button>;
   const body = (() => {
     switch (look.id) {
+      // The Suite: a large title, a search field, and three quiet actions. Like a well-made notes app.
+      case "paper": case "midnight": case "folio": case "nordic": case "carbon": return <>
+        <header className="an-x-top"><small>{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</small><h1>{look.id === "folio" ? "Notebook" : "Notes"}</h1></header>
+        <button type="button" className="an-l-askbar an-x-search" onClick={a.ask} data-testid="notes-ask-bar"><Svg size={17}><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></Svg><span>Search or ask your notes</span></button>
+        <div className="an-x-actions">
+          {rec(<><span className="an-x-recdot" aria-hidden />Record</>)}
+          <button type="button" onClick={a.upload} data-testid="notes-upload"><Svg size={18}><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 15v4h14v-4" /></Svg>Upload</button>
+          <button type="button" onClick={a.memo} data-testid="notes-memo"><MicIcon size={18} />Memo{a.memoLocked ? " · Basic" : ""}</button>
+        </div>
+      </>;
       case "studio": return <>{rec(<><span className="an-l-rectop"><b>Record</b><span className="an-l-recdot"><MicIcon /></span></span><Wave /><small>A meeting, class or visit, live.</small></>)}<Secondary a={a} ask={false} /><AskBar a={a} /></>;
       case "margin": return <><h1>What are we capturing?</h1><AskBar a={a} text="What did I promise Maya’s mom?" />{rec(<><MicIcon size={20} />Record</>)}<Secondary a={a} ask={false} /></>;
       case "bloom": return <><h1>{a.first ? `Hi, ${a.first}. ` : ""}What are we capturing?</h1><div className="an-l-tiles">{rec(<><span className="an-l-recdot"><MicIcon /></span><b>Record</b></>)}<button type="button" onClick={a.upload} data-testid="notes-upload">Upload</button><button type="button" className="an-l-memo" onClick={a.memo} data-testid="notes-memo">Voice memo{a.memoLocked ? " · Basic" : ""}</button></div><AskBar a={a} /></>;
@@ -109,9 +120,48 @@ function Row({ n, onOpen, color, lead }: { n: ListNote; onOpen: () => void; colo
 }
 
 /** The list of notes, arranged for the look. Deck shows one big card at a time. */
+/** The Suite's list: grouped by Today, Previous 7 Days, Previous 30 Days and by month, in quiet inset groups. */
+function SuiteList({ notes, onOpen }: { notes: ListNote[]; onOpen: (n: ListNote) => void }) {
+  const now = new Date(), start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const groupOf = (iso: string) => {
+    const t = +new Date(iso);
+    if (Number.isNaN(t)) return "Earlier";
+    if (t >= start) return "Today";
+    if (t >= start - 7 * 864e5) return "Previous 7 Days";
+    if (t >= start - 30 * 864e5) return "Previous 30 Days";
+    const d = new Date(t);
+    return d.toLocaleDateString(undefined, d.getFullYear() === now.getFullYear() ? { month: "long" } : { month: "long", year: "numeric" });
+  };
+  const when = (iso: string) => {
+    const d = new Date(iso);
+    if (Number.isNaN(+d)) return "";
+    if (+d >= start) return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    if (+d >= start - 7 * 864e5) return d.toLocaleDateString(undefined, { weekday: "long" });
+    return d.toLocaleDateString(undefined, { month: "numeric", day: "numeric", year: "2-digit" });
+  };
+  const groups: { name: string; items: ListNote[] }[] = [];
+  for (const n of notes) { const name = groupOf(n.createdAt); const g = groups.find((x) => x.name === name); if (g) g.items.push(n); else groups.push({ name, items: [n] }); }
+  return <div className="an-x-list">{groups.map((g) => <section key={g.name}>
+    <h3 className="an-x-sec">{g.name}</h3>
+    <ul className="an-l-list an-x-group">{g.items.map((n) => {
+      const kind = n.source === "memo" ? "Voice memo" : templateOf(n.template).label;
+      const line = n.gist || [kind, n.actions > 0 ? `${n.actions} to-do${n.actions === 1 ? "" : "s"}` : "", n.folder].filter(Boolean).join(" · ");
+      return <li key={n.id}><button type="button" className="an-l-note an-x-row" onClick={() => onOpen(n)} data-testid="notes-card">
+        <span className="an-x-main">
+          <span className="an-x-title">{n.title || "Untitled note"}{STATUS[n.status] ? <em> · {STATUS[n.status]}</em> : null}</span>
+          <span className="an-x-line"><time>{when(n.createdAt)}</time><span>{line}</span></span>
+        </span>
+        {n.durationSecs > 0 && <span className="an-x-len">{fmtClock(n.durationSecs)}</span>}
+        <svg aria-hidden className="an-x-chev" width="9" height="15" viewBox="0 0 9 15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m1.5 1.5 6 6-6 6" /></svg>
+      </button></li>;
+    })}</ul>
+  </section>)}</div>;
+}
+
 export function LookNoteList({ look, notes, onOpen }: { look: NotesTheme; notes: ListNote[]; onOpen: (n: ListNote) => void }) {
   const [i, setI] = useState(0);
   useEffect(() => { setI(0); }, [notes]);
+  if (SUITE_LOOKS.has(look.id)) return <SuiteList notes={notes} onOpen={onOpen} />;
   if (look.id === "deck") {
     const n = notes[Math.min(i, notes.length - 1)];
     const at = Math.min(i, notes.length - 1);
@@ -153,6 +203,7 @@ export function LookRecordArt({ look, secs, paused, finishing, level }: { look: 
       case "monolith": return <>{clock}<div aria-hidden className="an-s-goldline" style={{ transform: `scaleX(${live ? Math.max(level, .05) : .02})` }} /></>;
       case "ink": return <>{clock}<p className="an-s-inkstatus">{live ? "Listening. Write-up when you stop." : status}</p></>;
       case "neon": return <>{clock}<div aria-hidden className="an-s-neonbars">{Array.from({ length: 16 }, (_, i) => <i key={i} style={{ height: live ? `${Math.max(8, Math.max(level, .2) * 100 * Math.abs(Math.sin(i * 1.4 + secs)))}%` : "8%" }} />)}</div></>;
+      case "paper": case "midnight": case "folio": case "nordic": case "carbon": return <>{clock}<div aria-hidden className="an-x-wave">{Array.from({ length: 48 }, (_, i) => <i key={i} style={{ transform: `scaleY(${live ? Math.max(.06, Math.max(level, .2) * Math.abs(Math.sin(i * .55 + secs * 1.7))) : .06})` }} />)}</div></>;
       case "console": return <>{clock}<p aria-hidden className="an-l-ascii">{live ? Array.from({ length: 24 }, (_, i) => "▁▂▃▅▇▆▄▂"[(i * 3 + secs) % 8]).join("") : "▁".repeat(24)}</p></>;
       // The interactive looks: the toy moves with your voice while it records.
       case "spinner": return <>{clock}<div aria-hidden className="an-p-art"><Spinner size={210} energy={e} center={<MicIcon size={20} />} arms={[]} /></div></>;
@@ -173,6 +224,7 @@ export function LookRecordArt({ look, secs, paused, finishing, level }: { look: 
 
 /** The big title at the top of a note. */
 export function LookNoteTitle({ look, title, meta }: { look: NotesTheme; title: string; meta: string }) {
+  if (SUITE_LOOKS.has(look.id)) return <header className={`an-l-notetitle an-x-notetitle an-l-notetitle-${look.id}`}><p>{meta}</p><h1>{title}</h1></header>;
   return <header className={`an-l-notetitle an-l-notetitle-${look.id}`}><h1>{look.id === "console" ? title.toLowerCase().replace(/\s+/g, "_") : title}</h1><p>{meta}</p></header>;
 }
 
