@@ -6,6 +6,7 @@
 import type { Express, RequestHandler } from "express";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { fixFoodSpelling } from "../shared/foodSpelling";
+import { gradeFood, gradeOff, gradeProduct } from "../shared/productGrade";
 import { FOOD_AI_PROMPT, barcodeCandidates, cleanAiFoods, isBarcode, mergeFound, parseFdcFood, parseOffProduct, type FoundFood } from "../shared/foodLookup";
 
 const OFF_FIELDS = "product_name,generic_name,brands,serving_size,nutriments,code";
@@ -97,6 +98,55 @@ export function registerFoodLookupRoutes(app: Express, authMiddleware: RequestHa
       console.error("[food-lookup] barcode failed:", String(error?.message));
       return res.status(503).json({ message: "The food database can't be reached right now. Try again in a moment." });
     }
+  });
+
+  // Arise grades (shared/productGrade.ts): a barcode is looked up in Open Food Facts, then Open Beauty
+  // Facts, then Open Products Facts (cleaning and household), and graded by fixed rules.
+  const GRADE_FIELDS = "product_name,generic_name,brands,nutriscore_grade,nova_group,additives_tags,ingredients_text,ingredients_text_en,nutriments,categories_tags,labels_tags,image_front_small_url,code";
+  app.get("/api/arise-todo/grade/:code", authMiddleware, async (req: any, res) => {
+    const code = req.params.code;
+    if (!isBarcode(code)) return res.status(400).json({ message: "That doesn't look like a barcode number." });
+    if (limited(searchLimits, req, res)) return;
+    const dbs: [string, "food" | "beauty" | "products"][] = [["world.openfoodfacts.org", "food"], ["world.openbeautyfacts.org", "beauty"], ["world.openproductsfacts.org", "products"]];
+    let reached = false;
+    for (const candidate of barcodeCandidates(code)) for (const [host, db] of dbs) {
+      try {
+        const body = await getJson(`https://${host}/api/v2/product/${candidate}.json?fields=${GRADE_FIELDS}`, 8000, true);
+        reached = true;
+        if (body?.status !== 1 || !body.product) continue;
+        res.set("Cache-Control", "private, max-age=86400");
+        return res.json({ grade: gradeOff(body.product, db), code: candidate });
+      } catch (error: any) { console.error("[grade] lookup failed:", host, String(error?.message)); }
+    }
+    if (!reached) return res.status(503).json({ message: "The product databases can't be reached right now. Try again in a moment." });
+    return res.status(404).json({ message: "That product isn't in the databases yet. Snap a photo of its ingredients instead." });
+  });
+
+  // A photo of a label (or typed ingredients): the AI only reads the words on it; the grade is worked
+  // out by the same fixed rules.
+  app.post("/api/arise-todo/grade/label", authMiddleware, async (req: any, res) => {
+    const typed = typeof req.body?.text === "string" ? req.body.text.trim().slice(0, 4000) : "";
+    const image = typeof req.body?.image === "string" && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(req.body.image) && req.body.image.length < 3_000_000 ? req.body.image : null;
+    const kind = req.body?.kind === "product" ? "product" : "food";
+    if (!typed && !image) return res.status(400).json({ message: "Snap the ingredients or type them in." });
+    let read = { name: "", ingredients: typed, per100: undefined as any };
+    if (image) {
+      if (!process.env.OPENAI_API_KEY) return res.status(503).json({ message: "Reading labels isn't set up on this site yet. Type the ingredients instead." });
+      if (limited(aiLimits, req, res)) return;
+      try {
+        const r = await fetch("https://api.openai.com/v1/chat/completions", { method: "POST", headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ model: "gpt-4.1-mini", temperature: 0, max_tokens: 1200, response_format: { type: "json_object" }, messages: [
+            { role: "system", content: 'Copy the text from this product label exactly; do not judge it. Reply as JSON: {"name": product name or "", "ingredients": the full ingredients list as printed or "", "per100": null or {"kcal","sugars","satFat","salt","protein","fiber"} per 100 g/ml if a nutrition panel is shown (convert from per-serving using the serving size; salt = sodium g x 2.5)}.' },
+            { role: "user", content: [{ type: "text", text: "Read this label." }, { type: "image_url", image_url: { url: image, detail: "high" } }] }] }),
+          signal: AbortSignal.timeout(45_000) });
+        if (!r.ok) throw new Error(String(r.status));
+        const j: any = JSON.parse((await r.json())?.choices?.[0]?.message?.content || "{}");
+        const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : undefined);
+        read = { name: String(j?.name || "").slice(0, 120), ingredients: String(j?.ingredients || typed).slice(0, 4000), per100: j?.per100 && typeof j.per100 === "object" ? { kcal: num(j.per100.kcal), sugars: num(j.per100.sugars), satFat: num(j.per100.satFat), salt: num(j.per100.salt), protein: num(j.per100.protein), fiber: num(j.per100.fiber) } : undefined };
+      } catch { return res.status(503).json({ message: "Couldn't read that photo. Try a closer, sharper photo of the ingredients." }); }
+    }
+    const grade = kind === "product" ? gradeProduct({ name: read.name, ingredients: read.ingredients }) : gradeFood({ name: read.name, ingredients: read.ingredients, per100: read.per100 });
+    return res.json({ grade: { ...grade, name: read.name || (kind === "product" ? "This product" : "This food"), brand: "" } });
   });
 
   app.post("/api/arise-todo/food/estimate", authMiddleware, async (req: any, res) => {

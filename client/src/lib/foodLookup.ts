@@ -38,3 +38,16 @@ export function shrinkPhoto(file: File): Promise<string> {
     img.src = url;
   });
 }
+
+// ── Arise grades (server/foodLookup.ts, shared/productGrade.ts) ──
+import type { Grade } from "@shared/productGrade";
+export type GradeResult = Grade & { name: string; brand: string; image?: string };
+async function gradeCall<T>(token: string | null, path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE}/api/arise-todo/grade${path}`, { ...init, headers: { ...(init?.headers || {}), ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(init?.body ? { "Content-Type": "application/json" } : {}) } });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.message || "Grades can't be reached right now.");
+  return body as T;
+}
+export const gradeBarcode = (token: string | null, code: string) => gradeCall<{ grade: GradeResult }>(token, `/${encodeURIComponent(code)}`).then((b) => b.grade);
+export const gradeLabel = (token: string | null, kind: "food" | "product", body: { text?: string; image?: string | null }) =>
+  gradeCall<{ grade: GradeResult }>(token, "/label", { method: "POST", body: JSON.stringify({ kind, ...body }) }).then((b) => b.grade);
