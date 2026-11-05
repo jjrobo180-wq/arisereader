@@ -1,4 +1,4 @@
-// Link page (a Plugin Store add-on): your own page of links, like a link tree. Add your links, put them in
+// Link page (a Plugin Gallery add-on): your own page of links, like a link tree. Add your links, put them in
 // folders if you like, pick how the page looks (big buttons, or a directory of tiles grouped by folder), and
 // share it with a link anyone can open (no account needed). The same links show on Home as "My links".
 import { useState, type FormEvent } from "react";

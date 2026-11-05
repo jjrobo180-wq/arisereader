@@ -1,4 +1,4 @@
-// Tip & split (a Plugin Store add-on): the tip, the total, and what each person owes.
+// Tip & split (a Plugin Gallery add-on): the tip, the total, and what each person owes.
 import { useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { PageHead, Panel, inputClass, type SectionProps } from "./ui";

@@ -1,4 +1,4 @@
-// Mileage log (a Plugin Store add-on): business or volunteer miles with a running total and what
+// Mileage log (a Plugin Gallery add-on): business or volunteer miles with a running total and what
 // they're worth at your per-mile rate.
 import { useState, type FormEvent } from "react";
 import { Copy, Gauge, Trash2 } from "lucide-react";

@@ -20,7 +20,7 @@ export const FAMILY_SECTIONS = ["home", "tasks", "start", "goals", "chores", "ca
 export type FamilySection = typeof FAMILY_SECTIONS[number];
 /** Sections that can be switched off. Home, Tasks, Notifications and Family members always show. */
 export const TOGGLEABLE: readonly FamilySection[] = ["start", "goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", "accountability", ...KIT_LIFE_IDS];
-/** Sections added from the Plugin Store: off until the family adds them (the others start on).
+/** Sections added from the Plugin Gallery: off until the family adds them (the others start on).
  *  LifeHub comes with Tasks, Notes, Calendar, Home, Notifications and Settings; everything else,
  *  Goals, Chores and the rest included, is added from the App Store and counts towards the free
  *  plan's apps (shared/todoPlan.ts). Nothing is deleted by not having one: adding it back brings
@@ -132,7 +132,7 @@ export type Goal = {
   kind: "steps" | "number"; target: number; current: number; unit: string;
   milestones: { id: string; title: string; done: boolean }[]; done: boolean; createdAt: string; doneAt: string;
 };
-/* Plugin Store add-ons */
+/* Plugin Gallery add-ons */
 export type JournalEntry = { id: string; date: string; title: string; body: string; mood: string; createdAt: string };
 export type Countdown = { id: string; title: string; date: string; emoji: string; color: string };
 export type GroceryItem = { id: string; name: string; qty: string; aisle: string; checked: boolean; /** Estimated cost in dollars, 0 when unknown. */ price?: number };
@@ -177,8 +177,8 @@ export type GiftCard = { id: string; store: string; balance: number; expires: st
 export type Warranty = { id: string; item: string; store: string; bought: string; until: string; note: string };
 export type MileageTrip = { id: string; date: string; miles: number; purpose: string; route: string };
 export type MedicalCard = { id: string; person: string; bloodType: string; allergies: string; conditions: string; medications: string; doctor: string; insurance: string; notes: string };
-/** Plugin Store add-ons that live on another screen rather than in the menu. */
-/** Extras added from the Plugin Store: sticky notes on Home, and the AI assistant's chat button. */
+/** Plugin Gallery add-ons that live on another screen rather than in the menu. */
+/** Extras added from the Plugin Gallery: sticky notes on Home, and the AI assistant's chat button. */
 export type Widgets = { stickies: boolean; chat?: boolean; board?: boolean };
 /* News */
 export type NewsPrefs = { topics: string[]; place: string };
@@ -773,7 +773,7 @@ export const addDays = (s: string, n: number) => { const d = fromDay(s); d.setDa
 export const weekStart = (s: string) => addDays(s, -fromDay(s).getDay());
 export const monthKey = (s: string) => s.slice(0, 7);
 export const daysBetween = (a: string, b: string) => Math.round((fromDay(b).getTime() - fromDay(a).getTime()) / 86_400_000);
-/** Whether a section shows: the usual ones unless switched off, Plugin Store add-ons only once added. */
+/** Whether a section shows: the usual ones unless switched off, Plugin Gallery add-ons only once added. */
 export const isOn = (section: FamilySection, f: Pick<Family, "sections">) =>
   !TOGGLEABLE.includes(section) || (ADD_ON_SECTIONS.includes(section) ? f.sections[section] === true : f.sections[section] !== false);
 

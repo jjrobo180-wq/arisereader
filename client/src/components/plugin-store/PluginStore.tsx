@@ -110,7 +110,7 @@ type AppAccess = Partial<Record<"history" | "math" | "social", boolean>>;
 
 export type PluginStoreProps = {
   hub: PluginHub;
-  /** Open straight on one app's page (search's "In the Plugin Store" results). */
+  /** Open straight on one app's page (search's "In the Plugin Gallery" results). */
   initialOpen?: string;
   /** Teachers (and admins) have both hubs and see the teacher-only apps. */
   teacher: boolean;

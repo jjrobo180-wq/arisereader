@@ -1,4 +1,4 @@
-// Medical info (a Plugin Store add-on): a card for each person with allergies, conditions,
+// Medical info (a Plugin Gallery add-on): a card for each person with allergies, conditions,
 // medicines, blood type, doctor and insurance, ready for a doctor's visit or an emergency.
 import { useState } from "react";
 import { HeartPulse, Pencil, Printer, Trash2 } from "lucide-react";

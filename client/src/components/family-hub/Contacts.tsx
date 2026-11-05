@@ -1,4 +1,4 @@
-// Important contacts (a Plugin Store add-on): the doctor, the school, the plumber, the sitter.
+// Important contacts (a Plugin Gallery add-on): the doctor, the school, the plumber, the sitter.
 // Tap to call or email, and mark emergency contacts so they're always on top.
 import { useState, type FormEvent } from "react";
 import { Mail, Phone, Search, Siren, Star, Trash2, UserRound } from "lucide-react";

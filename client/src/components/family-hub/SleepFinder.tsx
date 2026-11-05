@@ -1,4 +1,4 @@
-// Sleep Finder (a Plugin Store add-on): asks what someone is into, recommends real sleep sounds,
+// Sleep Finder (a Plugin Gallery add-on): asks what someone is into, recommends real sleep sounds,
 // music, stories and podcasts with links, finds anything they describe (with AI when it's there),
 // and builds sleep playlists they can play through one item at a time. The picks and the link rules
 // live in shared/sleepFinder.ts.

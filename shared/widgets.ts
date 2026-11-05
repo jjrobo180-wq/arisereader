@@ -1,4 +1,4 @@
-// Widgets: a board of small live things on Home, added from the Plugin Store in WorkHub and LifeHub.
+// Widgets: a board of small live things on Home, added from the Plugin Gallery in WorkHub and LifeHub.
 // Clocks, calendars, countdowns, fun ones and focus tools, each in any theme and in three sizes.
 // This file is the catalog, the themes, the saved shape (cleaned like everything else) and the
 // time math, so it can all be tested. The screens are client/src/components/widgets/.

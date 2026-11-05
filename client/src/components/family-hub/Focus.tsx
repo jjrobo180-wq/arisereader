@@ -1,4 +1,4 @@
-// Focus timer (a Plugin Store add-on): work in focused blocks with short breaks (the Pomodoro
+// Focus timer (a Plugin Gallery add-on): work in focused blocks with short breaks (the Pomodoro
 // method), with a soft chime at each switch and a count of focused minutes.
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play, RotateCcw, SkipForward, Timer } from "lucide-react";
