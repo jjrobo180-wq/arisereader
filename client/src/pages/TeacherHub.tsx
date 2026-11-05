@@ -1,4 +1,5 @@
 import { EmailWords, ForwardingCard, OPEN_EMAIL_EVENT, openHubEmail, useHubInbox } from "@/components/teacher-hub/HubInbox";
+import { PICTURE_ART } from "@/lib/pictureArt";
 import { useParaTeamAutoAdd } from "@/lib/paraTeam";
 import { markEmailRead } from "@shared/hubInbox";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
@@ -1740,7 +1741,21 @@ function TeacherHubPage() {
                     toasts.show(plugin.target.kind === "widget" ? "Widgets added to Home." : `${plugin.name} added to your menu.`, []);
                   } }));
                 // LifeHub's Home look (see hubLifeLook.css): soft white cards on the same ground.
-                return <div className="hub-home-life"><HomeParts parts={part} layout={layout} onChange={setLayout} widgets={{ items: (workspace as any).widgetItems, makeId: id, setItems: (update) => setWorkspace((prev) => ({ ...prev, widgetItems: update(cleanWidgets((prev as any).widgetItems)) })) }} plugins={quick} onOpenStore={() => setStore(true)} catalog={[...WORK_PARTS, ...pinnedCatalog]} accent="bg-[#292446]" homeLayout={hubThemeOf(layout.theme).homeLayout} /></div>;
+                // The Tiles look: each part's tile shows what's in it, live (the Picture box shows the picture).
+                const openT = workspace.tasks.filter((t) => !t.done), todayKey = new Date().toISOString().slice(0, 10);
+                const dueT = openT.filter((t) => t.dueDate && t.dueDate <= todayKey);
+                const nextM = workspace.meetings.filter((m) => !(m as any).done && m.date >= todayKey).sort((a, b) => (a.date + (a.time ?? "")).localeCompare(b.date + (b.time ?? "")))[0];
+                const bannerImg = (workspace.profile as any)?.banner?.image as string | undefined;
+                const partLive: Record<string, { faces?: { big?: string; text: string }[]; photos?: string[] }> = {
+                  picture: { photos: bannerImg ? [bannerImg] : PICTURE_ART },
+                  day: { faces: [{ big: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), text: new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }) }] },
+                  stats: { faces: [{ big: String(openT.length), text: openT.length === 1 ? "open task" : "open tasks" }, { big: String(workspace.students.length), text: workspace.students.length === 1 ? "student" : "students" }] },
+                  todo: { faces: [{ big: String(openT.length), text: "to do" }, ...(dueT.length ? [{ big: String(dueT.length), text: "due today or late" }] : []), ...openT.slice(0, 2).map((t) => ({ text: t.title }))] },
+                  agenda: { faces: [{ big: String(dueT.length), text: dueT.length ? `due today: ${dueT[0].title}` : "nothing due today" }] },
+                  calendar: { faces: [{ big: String(new Date().getDate()), text: new Date().toLocaleDateString(undefined, { weekday: "long", month: "long" }) }] },
+                  meetings: { faces: nextM ? [{ big: new Date(`${nextM.date}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }), text: `${nextM.type} · ${nextM.student}` }] : [{ text: "No meetings coming up" }] },
+                };
+                return <div className="hub-home-life"><HomeParts parts={part} partLive={partLive} layout={layout} onChange={setLayout} widgets={{ items: (workspace as any).widgetItems, makeId: id, setItems: (update) => setWorkspace((prev) => ({ ...prev, widgetItems: update(cleanWidgets((prev as any).widgetItems)) })) }} plugins={quick} onOpenStore={() => setStore(true)} catalog={[...WORK_PARTS, ...pinnedCatalog]} accent="bg-[#292446]" homeLayout={hubThemeOf(layout.theme).homeLayout} /></div>;
               })()}
             </>
           )}
