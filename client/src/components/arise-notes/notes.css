@@ -157,3 +157,22 @@ textarea.an-input { padding: .7rem .9rem; line-height: 1.5; }
 .an-chip { height: 1.8rem; padding: 0 .65rem; font-size: .76rem; }
 .an-btn { min-height: 2.5rem; font-size: .9rem; }
 .an-card { border-radius: 16px; }
+
+/* ── Smooth scrolling ─────────────────────────────────────────────────────────────────────────
+   Live blur behind a bar that sits over a scrolling page makes the phone redraw the blur on every
+   frame of the scroll, which is what made scrolling stutter. Bars and cards are solid instead (the same
+   colors, a little more opaque), the glowing background blobs hold still, and the page gets its own
+   layer so scrolling is just sliding it. */
+.an-root .an-glass, .an-root .an-tabbar, .an-root .an-notehead, .an-root .an-l-bar, .an-root .an-s-pane, .an-root .an-l-list-glass .an-l-note, .an-root .an-l-rec-glass,
+.an-root .an-sheet-back, .an-root header.sticky {
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+}
+.an-root .an-glass { background: rgba(255,255,255,.94); }
+.an-root .an-tabbar, .an-root .an-notehead { background: rgba(255,255,255,.97); }
+.an-root.an-night .an-glass, .an-root.an-night .an-tabbar, .an-root.an-night .an-notehead { background: rgba(24,24,32,.97); }
+.an-root .an-s-blobs i, .an-root .an-l-sky i { animation: none !important; }
+.an-root .an-s-blobs, .an-root .an-tabbar { transform: translateZ(0); }
+.an-root { -webkit-overflow-scrolling: touch; }
+.an-root .an-lift { animation-duration: .25s; }
+/* The floating bar, now without blur, is nearly solid so the page doesn't show through it. */
+.an-root .an-l-bar { background-color: color-mix(in srgb, var(--an-card, #fff) 96%, transparent) !important; }
