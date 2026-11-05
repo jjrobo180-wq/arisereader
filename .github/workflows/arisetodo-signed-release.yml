@@ -1,5 +1,5 @@
 name: Arise To Duo signed iOS release candidate
-# Development beta validation only. Upload is a separate, explicitly approved release step.
+# Signed release; upload only for a commit explicitly marked [approved-testflight].
 on:
   workflow_dispatch:
   push:
