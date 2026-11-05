@@ -46,6 +46,13 @@ const LABEL: Record<NavId, string> = { home: "Home", tasks: "Tasks", add: "Add",
 
 /** Each system's way of getting around. Also used when another app is open. */
 export function LookDock({ look, screen, go, openApps, add, you, initial, off = [], inApp = false }: { look: NotesTheme; screen: OsScreen | null; go: (s: OsScreen) => void; openApps: () => void; add: (title?: string) => void; you: () => void; initial: string; off?: OsScreen[]; inApp?: boolean }) {
+  // The bar sits over a normal app here: stop the page's rubber-band bounce, which made it jump.
+  useEffect(() => {
+    if (!inApp) return;
+    const html = document.documentElement, body = document.body, was = [html.style.overscrollBehavior, body.style.overscrollBehavior];
+    html.style.overscrollBehavior = "none"; body.style.overscrollBehavior = "none";
+    return () => { html.style.overscrollBehavior = was[0]; body.style.overscrollBehavior = was[1]; };
+  }, [inApp]);
   if (PLAY_LOOKS.has(look.id)) return <PlayDock look={look} screen={screen} go={go} openApps={openApps} add={add} you={you} initial={initial} off={off} inApp={inApp} />;
   if (SYSTEM_LOOKS.has(look.id)) return <SystemDock look={look} screen={screen} go={go} openApps={openApps} add={add} you={you} initial={initial} off={off} inApp={inApp} />;
   const words = WORDS[look.id];
@@ -186,7 +193,21 @@ function Cards(p: OsProps) {
 }
 
 // ─── The whole system ───
+/** While a look's own screens are up, the regular page underneath must not move: it was still
+ *  scrollable, so a scroll moved it (its rows peeked in under the clock) and the bounce made the dock
+ *  jump. The look's screens scroll inside themselves (.los-body). */
+function useStillPage() {
+  useEffect(() => {
+    const html = document.documentElement, body = document.body, y = window.scrollY;
+    const was = { ho: html.style.overflow, hb: html.style.overscrollBehavior, bo: body.style.overflow, bb: body.style.overscrollBehavior, bp: body.style.position, bt: body.style.top, bw: body.style.width };
+    html.style.overflow = "hidden"; html.style.overscrollBehavior = "none";
+    body.style.overflow = "hidden"; body.style.overscrollBehavior = "none"; body.style.position = "fixed"; body.style.top = `-${y}px`; body.style.width = "100%";
+    return () => { html.style.overflow = was.ho; html.style.overscrollBehavior = was.hb; body.style.overflow = was.bo; body.style.overscrollBehavior = was.bb; body.style.position = was.bp; body.style.top = was.bt; body.style.width = was.bw; window.scrollTo(0, y); };
+  }, []);
+}
+
 export function LookOS(p0: OsProps) {
+  useStillPage();
   const lock = useLock();
   const locked = (id: string) => !!p0.lockedApps?.includes(id) && !!lock && !lock.unlocked;
   // Nothing from a locked app shows on Home or in a widget.
