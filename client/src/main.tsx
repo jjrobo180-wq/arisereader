@@ -82,6 +82,19 @@ if (window.location.protocol === "capacitor:") {
   });
 }
 
+// iPhone zooms in when you tap a text box whose text is under 16px, and doesn't zoom back out. Text boxes
+// are 16px on phones (index.css), and as a backstop the zoom is put back to 1 whenever typing ends.
+{
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
+  const base = meta?.content || "width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover";
+  const reset = () => {
+    if (!meta || !(window.visualViewport && window.visualViewport.scale > 1.01)) return;
+    meta.content = `${base.replace(/,?\s*(initial|maximum)-scale=[\d.]+/g, "")}, initial-scale=1, maximum-scale=1`;
+    window.setTimeout(() => { meta.content = base; }, 300);
+  };
+  document.addEventListener("focusout", (e) => { const t = e.target as HTMLElement | null; if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) window.setTimeout(reset, 60); }, true);
+}
+
 if (!window.location.hash) {
   window.location.hash = "#/";
 }

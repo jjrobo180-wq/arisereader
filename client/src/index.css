@@ -313,3 +313,8 @@ html, body, button, a, input, select, textarea, [role="button"] { touch-action: 
   }
   html { scroll-behavior: auto; -webkit-text-size-adjust: 100%; }
 }
+
+/* Phones: text boxes at 16px or more, so iPhone never zooms in when you tap one (and gets stuck). */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]), textarea, select { font-size: max(16px, 1rem) !important; }
+}
