@@ -209,7 +209,7 @@ export default function DuoSetup({ userId, layout, setLayout, plugins, setFamily
           {label("Work days")}
           <div className="grid grid-cols-7 gap-1.5" role="group" aria-label="Work days">{DAYS.map((l, d) => { const on = workDays.includes(d); return <button key={d} type="button" aria-pressed={on} aria-label={DAY_NAMES[d]} onClick={() => setWorkDays(toggle(workDays, d).sort())}
             className={`h-10 min-w-0 rounded-xl text-[14px] font-bold ${on ? "bg-[#111018] text-white" : "bg-[#f4f3f8] text-[#77748a]"}`}>{l}</button>; })}</div>
-          {made ? <p role="status" className="mt-5 rounded-2xl bg-emerald-50 px-4 py-3 text-[14px] font-semibold text-emerald-800" data-testid="setup-built"><Check className="mr-1 inline h-4 w-4" strokeWidth={3} />Your routine is ready. Reminders repeat every day.{note && <span className="mt-1 block font-normal text-emerald-900">{note}</span>}</p>
+          {made ? <p role="status" tabIndex={-1} className="mt-5 rounded-2xl border-0 bg-emerald-50 px-4 py-3 outline-none ring-0 [-webkit-tap-highlight-color:transparent] text-[14px] font-semibold text-emerald-800" data-testid="setup-built"><Check className="mr-1 inline h-4 w-4" strokeWidth={3} />Your routine is ready. Reminders repeat every day.{note && <span className="mt-1 block font-normal text-emerald-900">{note}</span>}</p>
             : routineBlocked ? <p className="mt-5 rounded-2xl bg-amber-50 px-4 py-3 text-[14px] text-amber-900">Your free plan's 3 plugins are in use, and the routine needs one. Unlimited makes room for everything.</p>
             : !focuses.length ? <p className="mt-5 text-center text-[13.5px] text-[#77748a]">Go back and pick at least one goal to build a routine.</p>
             : <div className="mt-5 space-y-2">
