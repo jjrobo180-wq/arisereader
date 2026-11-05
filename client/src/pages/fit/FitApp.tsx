@@ -43,6 +43,9 @@ import { DIET_BY_ID, fastingStatus, pointsBudget, pointsOf } from "@shared/fitNu
 import { videoOfTheDay } from "@shared/fitVideos";
 import { Bar, Btn, C, Card, Columns, Field, Ring, Sheet, Spark, StatusShade, Title, cardStyle, fmtDur, fmtNum, font, glowBg, haptic, inputCls, inputStyle, display, stagger, useFitFonts, Layer, ThemePicker, PointsModeCtx, useFitLayout, useFitTheme, layoutChoice, type LayoutId } from "./fitUi";
 import { BloomFlower, BloomRitual, FitNav, LayoutPicker, ProTiles, StudioTrio, ZenRows, type DayVals } from "./FitLayouts";
+import { AskFitCard, FitAsk } from "./FitAsk";
+import { ProPlusAnalysis, ProPlusBoard } from "./FitProPlus";
+import { computeInsights } from "@shared/fitInsights";
 import { TipCard } from "./FitVideo";
 
 type Tab = "today" | "apps" | FitAppId;
@@ -108,12 +111,16 @@ function TodayTab({ layout, data, update, onApp, onAllApps, onStartProgram, onSe
     streak: s, weekCount: new Set(trained.filter((w) => new Date(w.date) >= monday).map((w) => dayKey(new Date(w.date)))).size, trainedToday: trained.some((w) => dayKey(new Date(w.date)) === today),
   };
   const open = (id: "recovery" | "sleep" | "water" | "food" | "fast" | "train") => onApp(id);
+  const proLike = layout === "pro" || layout === "proplus";
+  const [asking, setAsking] = useState(false);
+  const [analysis, setAnalysis] = useState(false);
+  const insights = useMemo(() => (layout === "proplus" ? computeInsights(data) : null), [layout, data]);
   const greet = hour < 5 ? "Good night" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const buttons = <div className="flex shrink-0 items-center gap-2 pt-1">
     <PlusButton />
     <button type="button" onClick={onSettings} aria-label="Settings" className="grid h-11 w-11 place-items-center rounded-full" style={round} data-testid="fit-open-settings"><Settings className="h-5 w-5" /></button>
   </div>;
-  const header = layout === "pro"
+  const header = proLike
     ? <div className="flex items-center justify-between gap-3 px-1"><div className="min-w-0"><p className="text-[11px] font-semibold uppercase tracking-[.14em]" style={{ color: C.dim, fontFamily: "var(--fit-num)" }}>{date}</p><h1 className="mt-0.5 truncate text-[26px] leading-tight" style={display}>{greet}{user ? `, ${user}` : ""}</h1></div>{buttons}</div>
     : layout === "zen"
       ? <div className="flex items-start justify-between gap-3 px-1 pt-2"><div className="min-w-0"><p className="text-[13px]" style={{ color: C.dim }}>{date}</p><h1 className="mt-2 text-[44px] leading-[1.02]" style={display}>{greet}{user ? <>,<br />{user}.</> : "."}</h1></div>{buttons}</div>
@@ -126,7 +133,7 @@ function TodayTab({ layout, data, update, onApp, onAllApps, onStartProgram, onSe
     {([["program", prog.name], ["smart", "Built for you"]] as const).map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={hero === id} onClick={() => { setHero(id); haptic("light"); }} className="h-9 truncate rounded-[9px] px-2 text-[13px] font-semibold transition-colors" style={hero === id ? { background: C.card, color: C.text, boxShadow: cardStyle.boxShadow } : { color: C.dim }} data-testid={`fit-hero-${id}`}>{label}</button>)}
   </div>;
   const heroCard = <div className="mt-3">
-    {next && prog && hero === "program" ? <CoverCard art={programArt(prog)} tall={layout !== "pro"} className="fit-in" testId="fit-today-next">
+    {next && prog && hero === "program" ? <CoverCard art={programArt(prog)} tall={!proLike} className="fit-in" testId="fit-today-next">
       <span className="text-[12px] tracking-[.14em]" style={{ ...display, color: C.lime }}>Up next · {prog.name} · Week {next.week}</span>
       <span className="mt-0.5 block text-[32px] leading-none" style={display}>{next.day.name}</span>
       <span className="mt-1 block text-[14px]" style={{ color: C.dim }}>{next.day.items.length} exercises · about {Math.round(next.day.items.reduce((a, i) => a + i.sets * (i.rest + 45), 0) / 60)} min</span>
@@ -147,6 +154,7 @@ function TodayTab({ layout, data, update, onApp, onAllApps, onStartProgram, onSe
     <div className="min-w-0 flex-1 space-y-2.5"><Bar label="Protein" value={t.p} goal={g.p} color={C.pink} delay={0.3} /><Bar label="Carbs" value={t.c} goal={g.c} color={C.blue} delay={0.45} /><Bar label="Fat" value={t.f} goal={g.f} color={C.orange} delay={0.6} /></div>
   </Card>;
   const extras = <>
+    {layout !== "proplus" && <AskFitCard onOpen={() => setAsking(true)} />}
     {g.note && <p className="mt-2 px-1 text-[13px]" style={{ color: C.steel }} data-testid="fit-vacation-note">{g.note}</p>}
     <SplitCard data={data} update={update} onStart={onStart} />
     {data.vacation && <VacationCard data={data} onOpen={() => onOver("vacation")} />}
@@ -161,10 +169,13 @@ function TodayTab({ layout, data, update, onApp, onAllApps, onStartProgram, onSe
     <WeightCard data={data} update={update} />
     <p className="mt-4 px-1 text-center text-[12px]" style={{ color: C.dim }}>{DIET_BY_ID.get(data.profile.dietPlan ?? "balanced")?.name} nutrition plan · change it in Food</p>
     {watch && tip && <ExerciseDetail ex={tip} data={data} onClose={() => setWatch(false)} />}
+    {asking && <FitAsk token={token} onClose={() => setAsking(false)} />}
+    {analysis && insights && <ProPlusAnalysis i={insights} data={data} onClose={() => setAnalysis(false)} onAsk={() => { setAnalysis(false); setAsking(true); }} />}
   </>;
   // Each layout arranges the same pieces its own way.
   const body = layout === "studio" ? <>{checkin}<StudioTrio v={v} open={open} />{heroTabs}{heroCard}{week}<div className="mt-3 grid grid-cols-2 gap-2.5">{sleepGlance}{fastGlance}</div>{extras}{tipCard}</>
     : layout === "bloom" ? <>{checkin}<BloomFlower v={v} open={open} /><BloomRitual v={v} open={open} />{heroTabs}{heroCard}{week}{extras}{tipCard}</>
+    : layout === "proplus" && insights ? <>{checkin}<ProTiles v={v} open={open} /><ProPlusBoard i={insights} open={open} onAnalysis={() => setAnalysis(true)} onAsk={() => setAsking(true)} />{heroTabs}{heroCard}{week}{calories}{extras}{tipCard}</>
     : layout === "pro" ? <>{checkin}<ProTiles v={v} open={open} />{heroTabs}{heroCard}{week}{calories}{extras}{tipCard}</>
     : layout === "zen" ? <>{checkin}{heroTabs}{heroCard}<ZenRows v={v} open={open} />{week}{extras}{tipCard}</>
     : <>{week}{checkin}{heroTabs}{heroCard}{glanceAll}{calories}{extras}{tipCard}</>;
@@ -274,7 +285,8 @@ function SettingsSheet({ data, update, say, onClose, onGoals, onTour, onAccount,
 /** The five layouts, previewed in Light or Dark as the app is showing now. */
 function LayoutsSetting() {
   const [, shown] = useFitTheme();
-  return <><LayoutPicker value={layoutChoice()} mode={shown} /><p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>Each layout changes the type, shapes, Today and the tab bar. It also picks a matching color, which you can change below.</p></>;
+  const { plus, ask } = usePlus();
+  return <><LayoutPicker value={layoutChoice()} mode={shown} locked={(id) => id === "proplus" && !plus} onLocked={() => ask("pro-plus")} /><p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>Each layout changes the type, shapes, Today and the tab bar. It also picks a matching color, which you can change below.</p></>;
 }
 
 /** Today's header: the Fit+ crown (filled when you have it). */
@@ -307,7 +319,7 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
   useEffect(() => { prefetchNearby(token); }, [token]);
   const { data, update, loaded, saving } = useFitData(token);
   useFitFonts();
-  const layout = useFitLayout();
+  const chosenLayout = useFitLayout();
   const fetched = useLibrary(token);
   const list = fetched && fetched.length ? fetched : libraryFallback();
   const [tab, setTab] = useState<Tab>(readTab);
@@ -322,6 +334,8 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
   const [openEx, setOpenEx] = useState<ReturnType<typeof libraryFallback>[number] | null>(null);
   const [account, setAccount] = useState(false);
   const { plus, ask, loaded: plusLoaded } = usePlus();
+  // Pro+ is Fit+: without it (or once it ends) the app shows the plain Pro layout.
+  const layout = chosenLayout === "proplus" && !plus ? "pro" : chosenLayout;
   const [over, setOverRaw] = useState<Over>("");
   // Gyms near me and Eat out are Fit+.
   const setOver = (o: Over) => { if ((o === "gyms" || o === "eat") && !plus) { ask(o === "gyms" ? "gyms" : "eat-out"); return; } setOverRaw(o); };

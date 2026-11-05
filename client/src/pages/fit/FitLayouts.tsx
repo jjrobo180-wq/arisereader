@@ -38,14 +38,14 @@ export function FitNav({ layout, tabs, tab, go }: { layout: LayoutId; tabs: NavT
         </button>; })}
     </nav>;
   }
-  if (layout === "pro" || layout === "zen") {
+  if (layout === "pro" || layout === "proplus" || layout === "zen") {
     // Docked along the bottom edge. Pro: a line over the tab you're on. Zen: words only, underlined.
     return <nav aria-label="Arise Fit" className="fixed inset-x-0 bottom-0 z-[40] flex items-stretch px-1 pb-[max(4px,env(safe-area-inset-bottom))] pt-0.5" style={{ ...base, boxShadow: C.navShadow }} data-testid="fit-nav" data-layout={layout}>
-      {layout === "pro" && <span aria-hidden className="absolute top-0 h-[2px]" style={{ width: `calc((100% - 8px) / ${n})`, left: `calc(4px + ${at} * (100% - 8px) / ${n})`, background: C.lime, transition: "left .3s cubic-bezier(.2,.9,.2,1)" }} />}
+      {layout !== "zen" && <span aria-hidden className="absolute top-0 h-[2px]" style={{ width: `calc((100% - 8px) / ${n})`, left: `calc(4px + ${at} * (100% - 8px) / ${n})`, background: C.lime, transition: "left .3s cubic-bezier(.2,.9,.2,1)" }} />}
       {tabs.map(([id, label, Ic]) => { const on = id === tab;
         return <button key={id} type="button" onClick={press(id)} aria-current={on ? "page" : undefined} data-testid={`fit-tab-${id}`}
           className="flex min-h-[54px] min-w-0 flex-1 flex-col items-center justify-center gap-1" style={{ color: on ? C.text : C.dim }}>
-          {layout === "pro" && <Ic className="h-5 w-5" />}
+          {layout !== "zen" && <Ic className="h-5 w-5" />}
           <span className={`max-w-full truncate px-0.5 ${layout === "zen" ? "text-[13px]" : "text-[10.5px] font-semibold uppercase tracking-[.08em]"}`} style={layout === "zen" ? { fontWeight: on ? 600 : 400, textDecoration: on ? "underline" : "none", textUnderlineOffset: 6, textDecorationThickness: 1.5, textDecorationColor: "var(--fit-accent)" } : { fontFamily: "var(--fit-num)" }}>{label}</span>
         </button>; })}
     </nav>;
@@ -135,17 +135,17 @@ export function ZenRows({ v, open }: { v: DayVals; open: Open }) {
 
 // ——— The picker (Settings → Appearance) ———————————————————————————————————————————————————————————
 /** Five layouts, each previewed in its own type, corners and colors. */
-export function LayoutPicker({ value, mode }: { value: LayoutId; mode: "light" | "dark" }) {
+export function LayoutPicker({ value, mode, locked, onLocked }: { value: LayoutId; mode: "light" | "dark"; locked?: (id: LayoutId) => boolean; onLocked?: () => void }) {
   return <div className="flex flex-col gap-2.5" role="radiogroup" aria-label="Layout" data-testid="fit-layouts">
     {LAYOUT_IDS.map((id) => { const L = LAYOUTS[id], b = { ...(mode === "dark" ? { bg: "#15171b", card: "#202329", text: "#f6f5f2", dim: "#a6acb5" } : { bg: "#f2f2f4", card: "#ffffff", text: "#111318", dim: "#6b717c" }), ...L[mode] }, sel = id === value;
       const r = (n: number) => Math.round(n * L.round), acc = PALETTES[L.palette][mode][0];
-      return <button key={id} type="button" role="radio" aria-checked={sel} onClick={() => { setLayout(id); haptic("medium"); }} className="flex min-h-[108px] w-full items-stretch overflow-hidden rounded-[14px] text-left transition-transform active:scale-[.98]" style={{ background: C.card, boxShadow: sel ? `inset 0 0 0 2px ${C.lime}` : `inset 0 0 0 1px ${C.line}` }} data-testid={`fit-layout-${id}`}>
+      return <button key={id} type="button" role="radio" aria-checked={sel} onClick={() => { if (locked?.(id)) { onLocked?.(); return; } setLayout(id); haptic("medium"); }} className="flex min-h-[108px] w-full items-stretch overflow-hidden rounded-[14px] text-left transition-transform active:scale-[.98]" style={{ background: C.card, boxShadow: sel ? `inset 0 0 0 2px ${C.lime}` : `inset 0 0 0 1px ${C.line}` }} data-testid={`fit-layout-${id}`}>
         <span className="relative block w-[136px] shrink-0 overflow-hidden" style={{ background: b.bg, color: b.text }} aria-hidden>
           <span className="absolute left-3 top-2.5 text-[16px] leading-none" style={{ fontFamily: L.display, fontWeight: L.weight, textTransform: L.upper ? "uppercase" : "none", letterSpacing: L.tracking }}>Good morning</span>
           <span className="absolute left-2.5 right-2.5 top-9 flex h-9 items-center gap-1.5 px-2" style={{ background: b.card, borderRadius: r(10), boxShadow: id === "zen" ? `inset 0 -1px 0 ${b.dim}55` : "0 4px 12px -6px rgba(0,0,0,.3)" }}>
             <span className="h-5 w-5 shrink-0 rounded-full" style={{ boxShadow: `inset 0 0 0 3px ${acc}` }} />
             <span className="h-2 flex-1 rounded-full" style={{ background: `${b.dim}44` }} /><span className="h-5 w-7" style={{ background: acc, borderRadius: r(6) }} /></span>
-          <span className="absolute bottom-2 left-1/2 flex h-5 w-[70%] -translate-x-1/2 items-center justify-around" style={{ background: b.card, borderRadius: id === "pro" || id === "zen" ? 2 : 99, boxShadow: "0 2px 8px -4px rgba(0,0,0,.35)" }}>{[0, 1, 2, 3].map((k) => <i key={k} className="block h-1.5 w-1.5 rounded-full" style={{ background: k === 0 ? acc : `${b.dim}77` }} />)}</span>
+          <span className="absolute bottom-2 left-1/2 flex h-5 w-[70%] -translate-x-1/2 items-center justify-around" style={{ background: b.card, borderRadius: id === "pro" || id === "proplus" || id === "zen" ? 2 : 99, boxShadow: "0 2px 8px -4px rgba(0,0,0,.35)" }}>{[0, 1, 2, 3].map((k) => <i key={k} className="block h-1.5 w-1.5 rounded-full" style={{ background: k === 0 ? acc : `${b.dim}77` }} />)}</span>
         </span>
         <span className="flex min-w-0 flex-1 flex-col justify-center px-3.5 py-3"><span className="flex items-center justify-between gap-2 text-[16px] font-semibold">{L.name}{sel && <Check className="h-4 w-4 shrink-0" style={{ color: C.lime }} strokeWidth={3} />}</span><span className="mt-1 block text-[12.5px] leading-snug" style={{ color: C.dim }}>{L.blurb}</span></span>
       </button>; })}

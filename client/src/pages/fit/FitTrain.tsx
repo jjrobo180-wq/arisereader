@@ -14,6 +14,8 @@ import { programArt, type ArtKind } from "./fitArt";
 import { SessionPlayer } from "./FitSession";
 import { OutdoorHub } from "./FitRun";
 import { FormCheck } from "./FitForm";
+import { OverallStats } from "./FitStats";
+import { RestTimer, restFullPref, restSounds, setRestFullPref, useRestSounds } from "./FitRest";
 import { formLiftFor } from "@shared/fitForm";
 import { prescription } from "@shared/fitRecovery";
 import { Debrief, GymSheet, ScanMachine, SwapSheet } from "./FitGym";
@@ -148,7 +150,10 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
   const { plus, ask } = usePlus();
   const u: Units = data.profile.units;
   const [now, setNow] = useState(Date.now());
-  const [rest, setRest] = useState<{ until: number; total: number } | null>(null);
+  const [rest, setRestRaw] = useState<{ until: number; total: number } | null>(null);
+  const [restFull, setRestFull] = useState(restFullPref);
+  // Starting a rest opens the big timer (unless it was shrunk last time); stopping closes it.
+  const setRest: typeof setRestRaw = (v) => { if (typeof v !== "function" && v && !rest) { setRestFull(restFullPref()); restSounds.unlock(); } setRestRaw(v); };
   const [adding, setAdding] = useState(false);
   const [detail, setDetail] = useState<LibraryExercise | null>(null);
   const [plateFor, setPlateFor] = useState<number | null>(null);
@@ -169,6 +174,10 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
     set((a) => ({ ...a, pausedMs: (a.pausedMs ?? 0) + gap, pausedAt: null }));
     haptic("medium");
   };
+  useRestSounds(left, !!rest && !paused);
+  // At zero the big timer says "Go!" for a moment, then gets out of the way.
+  useEffect(() => { if (!rest || left > 0 || paused) return; const t = window.setTimeout(() => setRestRaw(null), 2200); return () => window.clearTimeout(t); }, [rest, left, paused]);
+  const nextUp = (() => { for (const e of active.exercises) { const k = e.sets.findIndex((x) => !x.done); if (k >= 0) return `${e.name} · set ${k + 1} of ${e.sets.length}${e.sets[k].weight ? ` · ${e.sets[k].weight} ${u}` : ""}`; } return "You're on your last set"; })();
   const buzzed = useRef(false);
   useEffect(() => { if (rest && left === 0 && !buzzed.current) { buzzed.current = true; navigator.vibrate?.([200, 100, 200]); say("Rest's over. Next set!"); } if (left > 0) buzzed.current = false; }, [left, rest, say]);
 
@@ -255,6 +264,7 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1"><input value={active.name} onChange={(e) => set((a) => ({ ...a, name: e.target.value.slice(0, 80) }))} aria-label="Workout name" className="w-full bg-transparent text-[30px] leading-none outline-none" style={display} />
           <p className="mt-1 flex items-center gap-1 text-[13px] tabular-nums" style={{ color: C.dim }}><Clock3 className="h-3.5 w-3.5" />{fmtDur(workoutSecs(active, now))}{paused ? " · paused" : ""} · {doneSets} of {allSets} sets</p></div>
+        <button type="button" onClick={() => { restSounds.unlock(); setRestFull(true); setRestFullPref(true); setRest({ until: Date.now() + 90_000, total: 90 }); }} aria-label="Start a rest timer" className="grid h-11 w-11 shrink-0 place-items-center rounded-full" style={{ background: C.card2 }} data-testid="fit-rest-start"><Timer className="h-5 w-5" /></button>
         <button type="button" onClick={paused ? resume : pause} aria-label={paused ? "Resume workout" : "Pause workout"} className="grid h-11 w-11 shrink-0 place-items-center rounded-full" style={{ background: C.card2 }} data-testid="fit-pause">{paused ? <Play className="ml-0.5 h-5 w-5" fill="currentColor" /> : <Pause className="h-5 w-5" fill="currentColor" />}</button>
         <Btn onClick={finish} testId="fit-finish">Finish</Btn>
       </div>
@@ -317,12 +327,15 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
       <p className="mt-3 text-[13px]" style={{ color: "rgba(255,255,255,.7)" }}>Resume</p>
       <button type="button" onClick={finish} className="mt-8 inline-flex min-h-12 items-center justify-center rounded-[10px] px-6 text-[18px] uppercase tracking-[.04em]" style={{ background: "rgba(255,255,255,.14)", color: "#ffffff", fontFamily: display.fontFamily, fontWeight: 800 }} data-testid="fit-paused-finish">Finish workout</button>
     </div>}
-    {rest && left > 0 && !paused && <div className="fit-up fixed inset-x-3 z-[75] rounded-[16px] p-3.5" style={{ bottom: "max(16px, env(safe-area-inset-bottom))", background: C.card2, boxShadow: "0 -10px 40px rgba(0,0,0,.6)" }} data-testid="fit-rest">
+    {rest && !paused && restFull && <RestTimer left={left} total={rest.total} next={nextUp}
+      onAdd={(d) => setRest((r) => r && { ...r, until: Math.max(Date.now() + 1000, r.until + d * 1000), total: Math.max(5, r.total + (d > 0 ? d : 0)) })}
+      onSet={(secs) => setRest({ until: Date.now() + secs * 1000, total: secs })} onStop={() => setRestRaw(null)} onMinimize={() => setRestFull(false)} />}
+    {rest && left > 0 && !paused && !restFull && <div className="fit-up fixed inset-x-3 z-[75] rounded-[16px] p-3.5" style={{ bottom: "max(16px, env(safe-area-inset-bottom))", background: C.card2, boxShadow: "0 -10px 40px rgba(0,0,0,.6)" }} data-testid="fit-rest" onClick={(e) => { if ((e.target as HTMLElement).closest("button")) return; setRestFull(true); setRestFullPref(true); }}>
       <div className="flex items-center gap-3"><Timer className="h-6 w-6" style={{ color: C.lime }} />
         <div className="min-w-0 flex-1"><p className="text-[12px] uppercase" style={{ color: C.dim }}>Rest</p><p className="text-[34px] leading-none tabular-nums" style={display}>{fmtDur(left)}</p></div>
         <Btn kind="soft" className="!min-h-10" onClick={() => setRest((r) => r && { ...r, until: r.until - 15000 })}>−15</Btn>
         <Btn kind="soft" className="!min-h-10" onClick={() => setRest((r) => r && { ...r, until: r.until + 15000, total: r.total + 15 })}>+15</Btn>
-        <Btn className="!min-h-10" onClick={() => setRest(null)}>Skip</Btn></div>
+        <Btn className="!min-h-10" onClick={() => setRestRaw(null)}>Skip</Btn></div>
       <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: C.track }}><div className="h-full rounded-full" style={{ width: `${(left / rest.total) * 100}%`, background: C.lime, transition: "width 1s linear" }} /></div>
     </div>}
     {adding && <Library list={list} data={data} title="Add exercise" onClose={() => setAdding(false)} onPick={(ex) => { set((a) => ({ ...a, exercises: [...a.exercises, ...planned(data, [{ exId: ex.id, name: ex.name, sets: 3, reps: ex.equipment === "bodyweight" ? "10-15" : "8-12", rest: 90 }], list)] })); setAdding(false); }} />}
@@ -520,6 +533,7 @@ export function TrainTab({ data, update, list, onStart, say, onCoach, onGyms }: 
       <button type="button" onClick={() => setRoutine(r)} className="min-w-0 flex-1 text-left"><p className="truncate font-semibold">{r.name}</p><p className="truncate text-[13px]" style={{ color: C.dim }}>{r.exercises.map((e) => e.name).join(", ")}</p></button>
       <Btn className="!min-h-10" onClick={() => onStart(startWorkout({ name: r.name, exercises: planned(data, r.exercises, list) }))}><Play className="h-4 w-4" /></Btn>
     </Card>)}</div> : <p className="px-1 text-[14px]" style={{ color: C.dim }}>Save the workouts you do often, and start them in one tap.</p>}
+    <OverallStats data={data} />
     <Title>History</Title>
     {data.workouts.length ? <div className="space-y-2">{data.workouts.slice(-20).reverse().map((w) => <Card key={w.id} onClick={() => (w.dayId && SESSION_BY_ID.has(w.dayId) && !w.exercises.length ? setPlaying(SESSION_BY_ID.get(w.dayId)!) : setPast(w))} className="!p-3">
       <div className="flex items-center gap-3"><History className="h-5 w-5 shrink-0" style={{ color: C.dim }} />
