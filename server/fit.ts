@@ -57,14 +57,15 @@ async function askAiForMenu(ask: MenuAsk): Promise<MenuPick[]> {
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "gpt-4.1-mini", temperature: 0.4, max_tokens: 700, response_format: { type: "json_object" },
+    body: JSON.stringify({ model: "gpt-4.1-mini", temperature: 0.4, max_tokens: 1400, response_format: { type: "json_object" },
       messages: [{ role: "system", content: MENU_PROMPT }, { role: "user", content: menuUserText(ask) }] }),
     signal: AbortSignal.timeout(30_000),
   });
   if (res.status === 429) throw new Error("busy");
   if (!res.ok) throw new Error(`status ${res.status}`);
   const body: any = await res.json();
-  try { return cleanMenuPicks(JSON.parse(body?.choices?.[0]?.message?.content || "{}")); } catch { return []; }
+  const text = String(body?.choices?.[0]?.message?.content || "");
+  try { return cleanMenuPicks(JSON.parse(text)); } catch { console.error("[fit] menu: unreadable AI answer", text.slice(0, 200)); return []; }
 }
 
 export type GearAnswer = { gear: string[]; name: string; note: string };
@@ -207,8 +208,11 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
     const goal = ({ lose: "lose fat", maintain: "stay fit", gain: "build muscle" } as any)[req.body?.goal] ?? "stay fit";
     const left = req.body?.left ?? {};
     try {
-      const picks = await menu({ place, cuisine: clean(req.body?.cuisine, 40), goal, diet: clean(req.body?.diet, 40) || "balanced", mode: req.body?.mode === "points" ? "points" : "calories", wants: clean(req.body?.wants, 160),
-        left: { kcal: n(left.kcal, 6000), p: n(left.p, 400), c: n(left.c, 800), f: n(left.f, 400) } });
+      const askFor = { place, cuisine: clean(req.body?.cuisine, 40), goal, diet: clean(req.body?.diet, 40) || "balanced", mode: (req.body?.mode === "points" ? "points" : "calories") as "points" | "calories", wants: clean(req.body?.wants, 160),
+        left: { kcal: n(left.kcal, 6000), p: n(left.p, 400), c: n(left.c, 800), f: n(left.f, 400) } };
+      let picks = await menu(askFor);
+      // A small local place the AI doesn't know: ask again for the typical dishes of its kind of food.
+      if (!picks.length) picks = await menu({ ...askFor, place: `a typical ${askFor.cuisine || "American"} restaurant (the person is at "${place}")` });
       return picks.length ? res.json({ picks }) : res.status(422).json({ message: "Couldn't come up with picks for that place. Try the chain's name or a cuisine." });
     } catch (e: any) { return res.status(503).json({ message: e?.message === "busy" ? "The AI is busy. Try again in a minute." : "Couldn't look that up right now. Try again in a minute." }); }
   });
@@ -342,8 +346,10 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
   app.get("/api/fit/videos", authMiddleware, async (req: any, res) => {
     const q = String(req.query.q ?? "").trim().slice(0, 100);
     if (q.length < 3) return res.status(400).json({ message: "What class?" });
-    const key = process.env.YOUTUBE_API_KEY;
-    if (!key) return res.status(503).json({ code: "videos_off", message: "Videos aren't switched on for this server yet." });
+    // The key comes from the server's environment, or from the settings table (key "fit:youtube-key"),
+    // so it can be added without touching the hosting dashboard.
+    const key = process.env.YOUTUBE_API_KEY || (await kv.get("fit:youtube-key").catch(() => null) as string | null) || "";
+    if (!key) return res.status(503).json({ code: "videos_off", message: "Videos are coming soon." });
     try {
       const data: any = await cached(`yt:${q.toLowerCase()}`, () => fetchJson(`https://www.googleapis.com/youtube/v3/search?${new URLSearchParams({ part: "snippet", type: "video", videoEmbeddable: "true", videoSyndicated: "true", safeSearch: "strict", maxResults: "8", q, key })}`));
       const videos = (Array.isArray(data?.items) ? data.items : []).map((it: any) => ({ id: String(it?.id?.videoId || ""), title: String(it?.snippet?.title || "").slice(0, 120), channel: String(it?.snippet?.channelTitle || "").slice(0, 60), thumb: String(it?.snippet?.thumbnails?.medium?.url || "") })).filter((v: any) => /^[\w-]{11}$/.test(v.id));
