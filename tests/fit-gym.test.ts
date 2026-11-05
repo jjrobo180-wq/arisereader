@@ -8,7 +8,7 @@ import { GEAR, GEAR_BY_ID, GYM_TYPES, canDo, cleanGearIds, cleanGym, exercisesOn
 import { alternatives, generateWorkout } from "../shared/fitRecovery";
 import { debrief, SUPPLEMENTS } from "../shared/fitDebrief";
 import { formLiftFor } from "../shared/fitForm";
-import { registerFitRoutes, visionMissedImage } from "../server/fit";
+import { askAiForGear, registerFitRoutes, visionMissedImage } from "../server/fit";
 
 const PF = GYM_TYPES.find((g) => g.id === "planet-fitness")!.gear;
 
@@ -102,6 +102,39 @@ test("machine vision detects and rejects bogus 'no image' replies", async () => 
   assert.equal(status, 502);
   assert.match(result.message, /retake|photo/i);
   assert.doesNotMatch(result.message, /no image was provided/i);
+});
+
+test("machine vision retries a falsely missing image through Responses with actual image bytes", async () => {
+  const original = globalThis.fetch;
+  const image = "data:image/jpeg;base64," + "AAECAwQFBgcICQ==".repeat(10);
+  const calls: string[] = [];
+  globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+    const path = String(url);
+    const body = JSON.parse(String(init?.body || "{}"));
+    calls.push(path);
+    assert.match(String(init?.headers && (init.headers as any).Authorization || ""), /^Bearer /);
+    if (path.endsWith("/chat/completions")) {
+      assert.equal(body.messages[1].content[1].image_url.url, image);
+      assert.equal(body.messages[1].content[1].image_url.detail, "high");
+      return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({
+        gear: [], name: "", note: "No image was provided, so the equipment cannot be identified.",
+      }) } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    assert.ok(path.endsWith("/responses"), path);
+    assert.equal(body.input[0].content[1].type, "input_image");
+    assert.equal(body.input[0].content[1].image_url, image);
+    assert.equal(body.input[0].content[1].detail, "high");
+    return new Response(JSON.stringify({ output: [{ content: [{ type: "output_text", text: JSON.stringify({
+      gear: ["leg-press"], name: "Leg press", note: "",
+    }) }] }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+  }) as typeof fetch;
+  try {
+    const answer = await askAiForGear(image, "machine");
+    assert.deepEqual(answer.gear, ["leg-press"]);
+    assert.deepEqual(calls.map((p) => p.slice(p.lastIndexOf("/"))), ["/completions", "/responses"]);
+  } finally {
+    globalThis.fetch = original;
+  }
 });
 
 test("iPhone photo preview and workout reflection cannot collapse into one-line controls", () => {
