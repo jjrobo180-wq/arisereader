@@ -10,7 +10,7 @@ import { NoteTemplatesButton } from "@/components/NoteTemplatePicker";
 import { useStayOnRefresh } from "@/lib/useStayOnRefresh";
 import FullNoteEditor from "@/components/notes/FullNoteEditor";
 import "@/components/notes/noteThemes.css";
-import { NotesThemePicker, useNotesTheme } from "@/components/notes/NotesThemePicker";
+
 import { LockBadge, useLock } from "@/components/lock/PrivacyLock";
 import { Empty, PageHead, Panel, confirmed, inputClass, primary, soft } from "@/components/family-hub/ui";
 
@@ -28,7 +28,7 @@ export type NotesKitAppProps = {
 
 export default function NotesKitApp({ name, blurb, notes, setNotes, makeId, say }: NotesKitAppProps) {
   const [query, setQuery] = useState("");
-  const [notesTheme, setNotesTheme] = useNotesTheme();
+  const [notesTheme, setNotesTheme] = useState<"editorial" | "slate" | "graphite" | "linen">("editorial");
   // Refreshing keeps the open one open (a locked one waits for the passcode again).
   const [openId, setOpenId] = useStayOnRefresh<string | null>(`kit-note-${name}`, null);
   const [editing, setEditing] = useState<Note | null>(() => { const n = openId ? notes.find((x) => x.id === openId) : undefined; return n && !n.locked ? { ...n } : null; });
@@ -51,7 +51,7 @@ export default function NotesKitApp({ name, blurb, notes, setNotes, makeId, say 
 
   return <div className="space-y-6" data-kit-view data-note-theme={notesTheme}>
     <PageHead eyebrow="Notes" title={name} blurb={blurb}
-      action={<div className="flex flex-wrap gap-2"><NotesThemePicker value={notesTheme} onChange={setNotesTheme} /><NoteTemplatesButton onPick={(t) => setEditing({ ...blank(t.title), body: t.body })} /><button onClick={() => setEditing(blank())} className={primary + " min-h-11 px-5"}><Plus size={18} /> New note</button></div>} />
+      action={<div className="flex flex-wrap gap-2"><label className="note-theme-picker">Appearance <select aria-label="Notes theme" value={notesTheme} onChange={(e) => setNotesTheme(e.target.value as typeof notesTheme)}>{(["editorial", "slate", "graphite", "linen"] as const).map((v) => <option key={v} value={v}>{v[0].toUpperCase() + v.slice(1)}</option>)}</select></label><NoteTemplatesButton onPick={(t) => setEditing({ ...blank(t.title), body: t.body })} /><button onClick={() => setEditing(blank())} className={primary + " min-h-11 px-5"}><Plus size={18} /> New note</button></div>} />
     {notes.length > 0 && <div className="relative max-w-md"><Search size={17} className="pointer-events-none absolute left-3 top-3.5 text-slate-400" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search notes" aria-label="Search notes" className={inputClass + " pl-10"} /></div>}
     {shown.length ? <div className="columns-1 gap-4 sm:columns-2 xl:columns-3 [&>*]:mb-4">
       {shown.map((n) => <article key={n.id} className="note-card group break-inside-avoid rounded-2xl border border-black/5 p-4 shadow-[0_3px_16px_#17152b0a]" style={{ background: n.color }}>
