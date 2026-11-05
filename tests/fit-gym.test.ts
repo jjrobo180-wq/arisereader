@@ -8,7 +8,7 @@ import { GEAR, GEAR_BY_ID, GYM_TYPES, canDo, cleanGearIds, cleanGym, exercisesOn
 import { alternatives, generateWorkout } from "../shared/fitRecovery";
 import { debrief, SUPPLEMENTS } from "../shared/fitDebrief";
 import { formLiftFor } from "../shared/fitForm";
-import { askAiForGear, registerFitRoutes, visionMissedImage } from "../server/fit";
+import { askAiForGear, fitVisionTargets, registerFitRoutes, visionMissedImage } from "../server/fit";
 
 const PF = GYM_TYPES.find((g) => g.id === "planet-fitness")!.gear;
 
@@ -104,37 +104,69 @@ test("machine vision detects and rejects bogus 'no image' replies", async () => 
   assert.doesNotMatch(result.message, /no image was provided/i);
 });
 
-test("machine vision retries a falsely missing image through Responses with actual image bytes", async () => {
-  const original = globalThis.fetch;
-  const image = "data:image/jpeg;base64," + "AAECAwQFBgcICQ==".repeat(10);
+test("photo scanner routes to real Groq vision model rather than fake OpenAI fallback key", async () => {
+  const env = { OPENAI_API_KEY: "routed-to-grok", GROQ_API_KEY: "gsk_test_key", USE_OPENAI: "0" };
+  const targets = fitVisionTargets(env);
+  assert.deepEqual(targets.map((t) => t.provider), ["groq"]);
+  assert.equal(targets[0].model, "qwen/qwen3.8-27b");
+  const image = "data:image/jpeg;base64," + "AQID".repeat(80);
+  let called = 0;
+  const answer = await askAiForGear(image, "machine", { env, fetcher: (async (url: any, init?: RequestInit) => {
+    called++;
+    assert.equal(String(url), "https://api.groq.com/openai/v1/chat/completions");
+    const request = JSON.parse(String(init?.body));
+    assert.equal(request.model, "qwen/qwen3.8-27b");
+    assert.equal(request.messages[1].content[1].image_url.url, image);
+    assert.equal(request.messages[1].content[1].image_url.detail, "high");
+    return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({
+      gear: ["treadmill"], name: "Treadmill", note: ""
+    }) } }] }), { status: 200 });
+  }) as typeof fetch });
+  assert.equal(called, 1);
+  assert.deepEqual(answer.gear, ["treadmill"]);
+});
+
+test("missing-image AI answer triggers fallback from Grok image API to Groq image API", async () => {
+  const env = { OPENAI_API_KEY: "routed-to-grok", XAI_API_KEY: "xai_test", GROQ_API_KEY: "gsk_test", USE_OPENAI: "0" };
+  const image = "data:image/jpeg;base64," + "AQID".repeat(80);
   const calls: string[] = [];
-  globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
-    const path = String(url);
-    const body = JSON.parse(String(init?.body || "{}"));
-    calls.push(path);
-    assert.match(String(init?.headers && (init.headers as any).Authorization || ""), /^Bearer /);
-    if (path.endsWith("/chat/completions")) {
-      assert.equal(body.messages[1].content[1].image_url.url, image);
-      assert.equal(body.messages[1].content[1].image_url.detail, "high");
-      return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({
-        gear: [], name: "", note: "No image was provided, so the equipment cannot be identified.",
-      }) } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+  const result = await askAiForGear(image, "machine", { env, fetcher: (async (url: any, init?: RequestInit) => {
+    const endpoint = String(url);
+    calls.push(endpoint);
+    const body = JSON.parse(String(init?.body));
+    if (endpoint.includes("api.x.ai")) {
+      assert.equal(body.model, "grok-4.7");
+      assert.equal(body.input[0].content[1].image_url, image);
+      assert.equal(body.input[0].content[1].type, "input_image");
+      assert.equal(body.store, false);
+      return new Response(JSON.stringify({ output: [{ content: [{ type: "output_text", text: JSON.stringify({
+        gear: [], name: "", note: "No image was provided, so the equipment cannot be identified."
+      }) }] }] }), { status: 200 });
     }
-    assert.ok(path.endsWith("/responses"), path);
-    assert.equal(body.input[0].content[1].type, "input_image");
+    assert.ok(endpoint.includes("api.groq.com"));
+    assert.equal(body.messages[1].content[1].image_url.url, image);
+    // Even when a provider returns the name but forgets the machine id, recover it.
+    return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({
+      gear: [], name: "Treadmill", note: "It is a treadmill."
+    }) } }] }), { status: 200 });
+  }) as typeof fetch });
+  assert.deepEqual(calls, ["https://api.x.ai/v1/responses", "https://api.groq.com/openai/v1/chat/completions"]);
+  assert.deepEqual(result.gear, ["treadmill"]);
+});
+
+test("OpenAI vision only uses a genuine key when explicitly configured", async () => {
+  const env = { OPENAI_API_KEY: "sk-real-key-in-test-only", USE_OPENAI: "1" };
+  assert.deepEqual(fitVisionTargets(env).map((t) => t.provider), ["openai"]);
+  const image = "data:image/jpeg;base64," + "AQID".repeat(80);
+  const answer = await askAiForGear(image, "machine", { env, fetcher: (async (url: any, init?: RequestInit) => {
+    assert.equal(String(url), "https://api.openai.com/v1/responses");
+    const body = JSON.parse(String(init?.body));
     assert.equal(body.input[0].content[1].image_url, image);
-    assert.equal(body.input[0].content[1].detail, "high");
     return new Response(JSON.stringify({ output: [{ content: [{ type: "output_text", text: JSON.stringify({
-      gear: ["leg-press"], name: "Leg press", note: "",
-    }) }] }] }), { status: 200, headers: { "Content-Type": "application/json" } });
-  }) as typeof fetch;
-  try {
-    const answer = await askAiForGear(image, "machine");
-    assert.deepEqual(answer.gear, ["leg-press"]);
-    assert.deepEqual(calls.map((p) => p.slice(p.lastIndexOf("/"))), ["/completions", "/responses"]);
-  } finally {
-    globalThis.fetch = original;
-  }
+      gear: ["treadmill"], name: "Treadmill", note: ""
+    }) }] }] }), { status: 200 });
+  }) as typeof fetch });
+  assert.deepEqual(answer.gear, ["treadmill"]);
 });
 
 test("iPhone photo preview and workout reflection cannot collapse into one-line controls", () => {
