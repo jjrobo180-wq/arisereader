@@ -13,6 +13,7 @@ import { localDay } from "./HubImport";
 import { HubModal } from "./HubModal";
 import { NoteTemplatesButton, type PickedTemplate } from "@/components/NoteTemplatePicker";
 import { useRichEditor } from "@/components/notes/useRichEditor";
+import "@/components/notes/noteThemes.css";
 import { cleanNoteHtml, noteStartHtml, noteTextOf } from "@shared/richNote";
 import { sanitizeHtml } from "@shared/office/docModel";
 
@@ -169,6 +170,7 @@ export function NoteCard({ note, onEdit, onDelete, onPin, onStudent }: { note: N
 }
 
 export default function HubNotes({ workspace, setWorkspace, remove, makeId }: { workspace: Workspace; setWorkspace: SetWorkspace; remove: (key: "notes", rowId: string) => void; makeId: () => string }) {
+  const [notesTheme, setNotesTheme] = useSavedChoice<"editorial" | "slate" | "graphite" | "linen">("arise-notes-theme", "editorial", ["editorial", "slate", "graphite", "linen"]);
   const students = useMemo(() => workspace.students.map((s) => s.name), [workspace.students]);
   const [form, setForm] = useState<NoteFields>(() => blank("student"));
   /** The new note open now (a number, so each new one starts fresh), or 0. */
@@ -185,11 +187,12 @@ export default function HubNotes({ workspace, setWorkspace, remove, makeId }: { 
   const shown = useMemo(() => arrangeNotes(workspace.notes, filter, search, student), [workspace.notes, filter, search, student]);
   const chip = (active: boolean) => `inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold ${active ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`;
   return (
-    <>
+    <div data-note-theme={notesTheme}>
       <section className="min-w-0">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-2">
           <h2 className="hub-card-title font-semibold text-slate-900">Notes</h2>
           <div className="flex flex-wrap items-center gap-2">
+            <label className="note-theme-picker">Appearance <select aria-label="Notes theme" value={notesTheme} onChange={(e) => setNotesTheme(e.target.value as typeof notesTheme)}>{(["editorial", "slate", "graphite", "linen"] as const).map((v) => <option key={v} value={v}>{v[0].toUpperCase() + v.slice(1)}</option>)}</select></label>
             <NoteTemplatesButton hub="work" className="rounded-full" onPick={(t) => { setForm(fromTemplate(t, student)); setAdding(Date.now()); }} />
             <button type="button" onClick={() => { setForm(blank("student", student)); setAdding(Date.now()); }} data-testid="add-card-add-note"
               className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-teal-600 px-4 text-sm font-semibold text-white transition hover:bg-teal-700">
@@ -223,6 +226,6 @@ export default function HubNotes({ workspace, setWorkspace, remove, makeId }: { 
       </Card>
       {adding && <NoteModal key={adding} start={form} students={students} setWorkspace={setWorkspace} makeId={makeId} onClose={() => setAdding(0)} />}
       {editing && <NoteModal key={editing.id} note={editing} students={students} setWorkspace={setWorkspace} makeId={makeId} onClose={() => setEditing(null)} />}
-    </>
+    </div>
   );
 }
