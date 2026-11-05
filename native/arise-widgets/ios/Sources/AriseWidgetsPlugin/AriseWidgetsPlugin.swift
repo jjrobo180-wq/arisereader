@@ -17,6 +17,8 @@ public class AriseWidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "setBackdrop", returnType: CAPPluginReturnPromise)
     ]
 
+    override public func load() { AriseZoomLock.install(on: bridge?.webView) }
+
     private var defaults: UserDefaults? { UserDefaults(suiteName: "group." + (Bundle.main.bundleIdentifier ?? "")) }
 
     /// Saves slots by their id (a slot sent again replaces the old one; others stay) and redraws the widgets.
