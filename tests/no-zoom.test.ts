@@ -5,13 +5,18 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
-const LOCK = /maximum-scale=1, user-scalable=no/;
+const LOCK = /minimum-scale=1, maximum-scale=1, user-scalable=no, shrink-to-fit=no/;
 
 test("app pages fix the viewport at scale 1", () => {
   for (const f of ["client/index.html", "podscroll/app/index.html", "podscroll/index.html"]) {
     const meta = read(f).match(/<meta name="viewport" content="([^"]*)"/)?.[1] ?? "";
     assert.match(meta, LOCK, f);
   }
+});
+
+test("the page can never be widened past the screen", () => {
+  assert.match(read("client/src/index.css"), /html, body, #root \{\s*max-width: 100%;\s*overflow-x: clip;/);
+  assert.match(read("client/src/components/arise-notes/notes-suite.css"), /\.an-x-list \{ display: grid; grid-template-columns: minmax\(0, 1fr\)/);
 });
 
 test("phones write in text boxes at 16px or more", () => {

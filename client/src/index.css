@@ -160,6 +160,12 @@
   body {
     overflow-x: clip;
   }
+  /* Nothing may be wider than the screen. A wide element used to make the iPhone widen the whole page, so the
+     bottom bar and the top bar ran off the right edge. The page is also fixed at its own width (index.html). */
+  html, body, #root {
+    max-width: 100%;
+    overflow-x: clip;
+  }
 
   /* iPhone Safari zooms the whole page in when a text box with writing smaller than 16px is tapped,
      and then the page slides sideways. On touch screens every field writes at 16px, so typing never

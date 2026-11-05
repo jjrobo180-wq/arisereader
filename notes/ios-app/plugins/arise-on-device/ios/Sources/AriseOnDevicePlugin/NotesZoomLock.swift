@@ -13,6 +13,8 @@ final class NotesZoomLock: NSObject {
             scroll.minimumZoomScale = 1
             scroll.maximumZoomScale = 1
             scroll.bouncesZoom = false
+            scroll.alwaysBounceHorizontal = false
+            scroll.showsHorizontalScrollIndicator = false
             scroll.pinchGestureRecognizer?.isEnabled = false
             watch = scroll.observe(\.zoomScale, options: [.new]) { view, _ in
                 guard abs(view.zoomScale - 1) > 0.001 else { return }
