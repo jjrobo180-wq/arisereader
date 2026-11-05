@@ -16,8 +16,15 @@ function bgImage(src: string, onLoad: () => void): HTMLImageElement | null {
   return img.complete && img.naturalWidth ? img : null;
 }
 
+/** Dark paper is showing: dark ink is drawn light, like Apple Notes in dark mode (the saved color doesn't change). */
+let darkPaper = false;
+const lum = (hex: string) => { const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim()); if (!m) return 1; const n = parseInt(m[1], 16); const c = [n >> 16, (n >> 8) & 255, n & 255].map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+/** The color to draw a stroke in on this paper: dark ink on dark paper turns light, so it can be read. */
+export const inkOnPaper = (c: string) => (darkPaper && lum(c) < 0.12 ? "#ececf1" : c);
+
 export function drawPaper(ctx: CanvasRenderingContext2D, page: InkPage, onBg: () => void = () => {}) {
   const t = PAPER_THEMES[page.tint] ?? PAPER_THEMES.paper;
+  darkPaper = lum(t.bg) < 0.2;
   ctx.fillStyle = t.bg;
   ctx.fillRect(0, 0, INK_W, INK_H);
   if (page.bg) {
@@ -71,8 +78,10 @@ export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke, selected = 
   if (!pts.length) return;
   ctx.save();
   ctx.lineCap = "round"; ctx.lineJoin = "round";
-  ctx.strokeStyle = s.c; ctx.fillStyle = s.c;
-  if (s.t === "hl") { ctx.globalAlpha = 0.38; ctx.globalCompositeOperation = "multiply"; ctx.lineCap = "butt"; }
+  const c = inkOnPaper(s.c);
+  ctx.strokeStyle = c; ctx.fillStyle = c;
+  // On dark paper "multiply" would make a highlighter invisible: it's drawn see-through instead.
+  if (s.t === "hl") { ctx.globalAlpha = darkPaper ? 0.32 : 0.38; ctx.globalCompositeOperation = darkPaper ? "source-over" : "multiply"; ctx.lineCap = "butt"; }
   else if (s.t === "pencil") ctx.globalAlpha = 0.82;
   if (selected) { ctx.shadowColor = "rgba(106, 85, 220, .9)"; ctx.shadowBlur = 8; }
   if (pts.length === 1) {

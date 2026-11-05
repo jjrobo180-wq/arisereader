@@ -349,7 +349,7 @@ function MoreSheet({ page, meta, content, words, folders, onClose, setMeta, open
   const say = useToast();
   const pinned = meta?.pinned ?? page.pinned;
   const Row = ({ icon, label, onClick, danger, testId }: { icon: React.ReactNode; label: string; onClick: () => void; danger?: boolean; testId?: string }) =>
-    <button type="button" onClick={onClick} data-testid={testId} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] font-semibold hover:bg-slate-50 ${danger ? "text-[#c2283a]" : ""}`}>{icon}{label}</button>;
+    <button type="button" onClick={onClick} data-testid={testId} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] font-semibold active:bg-[color-mix(in_srgb,var(--an-ink)_8%,transparent)] ${danger ? "text-[#c2283a]" : ""}`}>{icon}{label}</button>;
   return <Sheet title={pageTitle({ ...page, content: content ?? page.content })} onClose={onClose}>
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3"><span className="text-[14px] font-bold">Color</span><ColorDots value={meta?.color ?? page.color} onChange={(c) => setMeta({ color: c })} /></div>
