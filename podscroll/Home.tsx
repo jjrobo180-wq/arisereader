@@ -3,6 +3,7 @@
 // shows and episodes come from the same /api/podscroll routes the swipe feed uses (Apple Podcasts
 // through the Arise server). Follows, likes and Listen later come from the swipe feed's saved state.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useAutoHideHeader } from "../client/src/hooks/useAutoHideHeader";
 import { GENRE, GENRES, chooseEpisode, hiRes, isTeaser, pickNext, tasteOf, type Candidate, type PodMode, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal } from "@shared/earshot";
 import { Mic2 } from "lucide-react";
 import { StandupHub } from "./Standup";
@@ -432,6 +433,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   const [side, setSide] = useState(true);
   // The slide-out menu (phones and tablets; on wide screens the menu button shows/hides the side panel).
   const [drawer, setDrawer] = useState(false);
+  const headerHidden = useAutoHideHeader(visible && !drawer);
   // While the menu is open the page behind it stays put (on iPhone it scrolled and dragged along).
   useEffect(() => { if (!drawer) return; const b = document.body.style, o = b.overflow; b.overflow = "hidden"; return () => { b.overflow = o; }; }, [drawer]);
   useEffect(() => { if (!drawer) return; const k = (e: KeyboardEvent) => { if (e.key === "Escape") setDrawer(false); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [drawer]);
@@ -467,7 +469,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   }, [view, onOpenFeed]);
 
   const header = (
-    <header className="sticky top-0 z-30 bg-white pt-[env(safe-area-inset-top,0px)]">
+    <header className={`sticky top-0 z-30 bg-white pt-[env(safe-area-inset-top,0px)] transition-transform duration-300 ease-out motion-reduce:transition-none ${headerHidden ? "-translate-y-full lg:translate-y-0" : "translate-y-0"}`} data-testid="pod-header" data-header-hidden={headerHidden ? "true" : undefined}>
       <div className="flex h-14 items-center justify-between gap-3 px-3 sm:px-4">
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
         <button onClick={toggleMenu} aria-label="Menu" aria-expanded={drawer} className="-ml-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><Menu size={22} strokeWidth={1.8} /></button>

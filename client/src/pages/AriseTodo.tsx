@@ -147,6 +147,7 @@ import { LIFE_PARTS, cleanLifeLayout, type LifeLayout } from "@shared/lifeLayout
 import HubSwitch from "@/components/HubSwitch";
 
 import HeaderShortcut from "@/components/HeaderShortcut";
+import { useAutoHideHeader } from "@/hooks/useAutoHideHeader";
 import HubMark from "@/components/HubMark";
 import { HubTrialNote } from "@/components/HubTrialNote";
 import { useLifeHubTrial } from "@/components/TodoGate";
@@ -858,6 +859,7 @@ export default function AriseTodo() {
   };
   const [storeOpenApp, setStoreOpenApp] = useState<string | null>(null);
   const [more, setMore] = useState(false);
+  const headerHidden = useAutoHideHeader(!more && !searching && !customizing);
   const [privacy, setPrivacy] = useState(false);
   /** A Notes-app install (see shared/notesApp.ts; e.g. Work Notes, added from the App Store) open
    *  full-page, by its App Store plugin id. Not a FamilySection, so it sits alongside `section`. */
@@ -1216,7 +1218,7 @@ export default function AriseTodo() {
         </> },
       ]} />}
     {/* The same header as WorkHub: the hub on the left, everything you do to it on the right. */}
-    <header className={`${osCore ? "los-ghost" : "sticky top-0 z-40"} h-16 border-b border-[#e4e6f0] bg-white`} data-testid="life-header">
+    <header className={`${osCore ? "los-ghost" : "sticky top-0 z-40"} h-16 border-b border-[#e4e6f0] bg-white transition-transform duration-300 ease-out motion-reduce:transition-none ${!osCore && headerHidden ? "-translate-y-full lg:translate-y-0" : "translate-y-0"}`} data-testid="life-header" data-header-hidden={!osCore && headerHidden ? "true" : undefined}>
       <div className="flex h-full items-center justify-between gap-2 px-3 sm:gap-4 sm:px-5 lg:px-6">
         <button type="button" onClick={() => setSection("home")} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="LifeHub home">
           <span className="flex h-8 w-8 shrink-0 overflow-hidden rounded-xl shadow-[0_5px_14px_#6d5ce72b]"><HubMark tone="life" className="h-full w-full" /></span>

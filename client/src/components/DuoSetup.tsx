@@ -5,7 +5,7 @@
 // routine's AI Reminders counts as one, and building with AI is offered only on Unlimited.
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, Check, Loader2 } from "lucide-react";
+import { Apple, ArrowLeft, Check, Droplets, Dumbbell, Loader2, Moon, NotebookPen, Repeat2, ShoppingCart, UtensilsCrossed, Wallet, Wind, type LucideIcon } from "lucide-react";
 import { HUB_THEMES } from "@shared/appThemes";
 import { setTheme, type AnyLayout } from "@shared/hubLayout";
 import { setLifePlugin, type Plugin } from "@shared/pluginStore";
@@ -34,11 +34,12 @@ export const duoSetupDone = (id: number | string) => { try { return localStorage
 /** Twelve looks to start from; the rest are in Customize. */
 const STARTER_THEMES = ["classic", "studio", "bloom", "frost", "aurora", "zen", "tide", "grove", "glass", "cassette", "vinyl", "console"];
 /** Everyday apps most people want first, in this order. */
-const STARTER_APPS: { id: string; emoji: string }[] = [
-  { id: "life-health", emoji: "🥗" }, { id: "life-habits", emoji: "✅" }, { id: "life-money", emoji: "💵" },
-  { id: "life-grocery", emoji: "🛒" }, { id: "life-meals", emoji: "🍽️" }, { id: "life-journal", emoji: "📔" },
-  { id: "life-workouts", emoji: "💪" }, { id: "life-sleep", emoji: "😴" },
-  { id: "life-meditate", emoji: "🧘" }, { id: "life-kit-water-log", emoji: "💧" },
+const STARTER_APPS: { id: string; icon: LucideIcon }[] = [
+  { id: "life-health", icon: Apple }, { id: "life-habits", icon: Repeat2 },
+  { id: "life-money", icon: Wallet }, { id: "life-grocery", icon: ShoppingCart },
+  { id: "life-meals", icon: UtensilsCrossed }, { id: "life-journal", icon: NotebookPen },
+  { id: "life-workouts", icon: Dumbbell }, { id: "life-sleep", icon: Moon },
+  { id: "life-meditate", icon: Wind }, { id: "life-kit-water-log", icon: Droplets },
 ];
 /** Quick starts: each one is a handful of the planner's focuses. */
 const PRESETS: { id: string; name: string; blurb: string; focuses: PlanFocus[] }[] = [
@@ -89,7 +90,7 @@ export default function DuoSetup({ userId, layout, setLayout, plugins, setFamily
   useEffect(() => { sendBackdrop("#ffffff"); return () => { window.dispatchEvent(new Event(BACKDROP_REFRESH)); }; }, []);
 
   const byId = useMemo(() => new Map(plugins.map((p) => [p.id, p])), [plugins]);
-  const starters = STARTER_APPS.map((a) => ({ ...a, p: byId.get(a.id) })).filter((a): a is { id: string; emoji: string; p: Plugin } => !!a.p);
+  const starters = STARTER_APPS.map((a) => ({ ...a, p: byId.get(a.id) })).filter((a): a is { id: string; icon: LucideIcon; p: Plugin } => !!a.p);
   const themes = STARTER_THEMES.map((id) => HUB_THEMES.find((t) => t.id === id)).filter((t): t is (typeof HUB_THEMES)[number] => !!t);
   const routineSlot = made && !lifeplanOn ? 1 : 0;
   const canPick = unlimited ? Infinity : Math.max(0, room - routineSlot);
@@ -194,7 +195,7 @@ export default function DuoSetup({ userId, layout, setLayout, plugins, setFamily
           </button>; })}</div>
           {label("Build in")}
           <div className="flex flex-wrap gap-2" data-testid="setup-focuses">{FOCUSES.map((f) => { const on = focuses.includes(f.id); return <button key={f.id} type="button" aria-pressed={on} onClick={() => setFocuses(toggle(focuses, f.id))}
-            className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-[13.5px] font-semibold transition active:scale-95 ${on ? "border-[#5b4fe0] bg-[#5b4fe0] text-white" : "border-black/10 bg-white text-[#111018]"}`}><span aria-hidden>{f.emoji}</span>{f.label}</button>; })}</div>
+            className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-[13.5px] font-semibold transition active:scale-95 ${on ? "border-[#5b4fe0] bg-[#5b4fe0] text-white" : "border-black/10 bg-white text-[#111018]"}`}>{f.label}</button>; })}</div>
         </>}
 
         {step === "day" && <>
@@ -224,9 +225,9 @@ export default function DuoSetup({ userId, layout, setLayout, plugins, setFamily
           {head("Choose your first plugins", <>Here are favorites to start with. There are <b className="font-semibold text-[#111018]">500+ plugins</b> in the Plugin Gallery whenever you want more.</>)}
           {!unlimited && <p className="mt-3 rounded-xl bg-[#f4f2ff] px-3 py-2 text-center text-[12.5px] text-[#3f35c9]" data-testid="setup-free-note">{canPick > 0 ? `Free includes 3 plugins. Pick up to ${canPick} now.` : "Your 3 free plugins are in use."} Unlimited unlocks all of them.</p>}
           <div className="mt-3 grid grid-cols-2 gap-2" data-testid="setup-apps">
-            {starters.map(({ id, emoji, p }) => { const on = picked.includes(id); const full = !on && picked.length >= canPick; return <button key={id} type="button" aria-pressed={on} disabled={full} onClick={() => setPicked(toggle(picked, id))} data-testid={`setup-app-${id}`}
+            {starters.map(({ id, icon: Icon, p }) => { const on = picked.includes(id); const full = !on && picked.length >= canPick; return <button key={id} type="button" aria-pressed={on} disabled={full} onClick={() => setPicked(toggle(picked, id))} data-testid={`setup-app-${id}`}
               className={`flex min-w-0 items-start gap-2.5 rounded-2xl border p-2.5 text-left transition active:scale-[.98] disabled:opacity-40 ${on ? "border-[#5b4fe0] bg-[#f4f2ff]" : "border-black/10 bg-white"}`}>
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-[19px]" style={{ background: `${p.color}22` }} aria-hidden>{emoji}</span>
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl" style={{ background: `${p.color}18`, color: p.color }} aria-hidden="true"><Icon className="h-[21px] w-[21px]" strokeWidth={2} /></span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-start justify-between gap-1 text-[14px] font-bold leading-tight">{p.name}{on && <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#5b4fe0]" strokeWidth={3} />}</span>
                 <span className="mt-0.5 block text-[11.5px] leading-snug text-[#5d5a6b]">{p.tagline}</span>
