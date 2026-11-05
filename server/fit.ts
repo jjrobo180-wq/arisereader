@@ -13,6 +13,8 @@
 //   POST    /api/fit/busy      {place, level} "it's packed": shown to everyone for 90 minutes
 //   POST    /api/fit/recipe    {have, goal, left} the AI makes a recipe from what's in your kitchen
 //   POST    /api/fit/menu      {place, cuisine, goal, diet, mode, left, wants} the AI suggests what to order at a restaurant
+//   POST    /api/fit/ask       {question, history} the AI answers questions about their own past and future
+//                              workouts, food, sleep and body, from their saved data (shared/fitInsights.ts digestForAi)
 //   /api/fit/circle…           workout circles (server/fitCircle.ts)
 //   /api/fit/buddy…            workout buddies matched with a stranger (server/fitBuddy.ts)
 //   /api/fit/plus, /pass…      Arise Fit+ and guest passes (server/fitPass.ts)
@@ -26,6 +28,7 @@ import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { TRAIL_KM, trailCell, trailGeometryQuery, trailsQuery } from "../shared/fitRun";
 import { GEAR_PROMPT_LIST, cleanGearIds } from "../shared/fitGym";
 import { NEARBY, REPORT_MS, crowdNow, foodQuery, gymsQuery, nearbyCell, type BusyLevel } from "../shared/fitNearby";
+import { digestForAi } from "../shared/fitInsights";
 import { cleanRecipe, type Recipe } from "../shared/fitRecipes";
 import { MENU_PROMPT, cleanMenuPicks, menuUserText, type MenuAsk, type MenuPick } from "../shared/fitMenuAi";
 import { registerCircleRoutes, type CircleDeps } from "./fitCircle";
@@ -51,6 +54,24 @@ async function askAiForRecipe(ask: RecipeAsk): Promise<Recipe | null> {
   if (!res.ok) throw new Error(`status ${res.status}`);
   const body: any = await res.json();
   try { return cleanRecipe(JSON.parse(body?.choices?.[0]?.message?.content || "{}")); } catch { return null; }
+}
+
+
+export type AskTurn = { role: "user" | "assistant"; text: string };
+export const ASK_PROMPT = `You are Ask Fit, the data assistant inside the Arise Fit app. You answer one person's questions about THEIR OWN training, food, water, sleep and body, using only the numbers given below. You are not a doctor and not a trainer.
+Rules: use only the data given; never invent workouts, weights or dates. If the data doesn't show it, say so and say what to log. For questions about the future, use the trends and forecast lines, call them estimates from the recent trend, and never promise a result. Use the person's units. Be warm, plain and short (under 120 words unless they ask for more); bullets only for lists. Give a concrete next step when it helps. For pain, injury, medical or eating-disorder worries, suggest a doctor or a qualified trainer. Never give a diet below 1,200 calories a day.`;
+async function askAiAboutData(digest: string, question: string, history: AskTurn[]): Promise<string> {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "gpt-4.1-mini", temperature: 0.3, max_tokens: 500,
+      messages: [{ role: "system", content: `${ASK_PROMPT}\n\nTHEIR DATA:\n${digest}` }, ...history.map((h) => ({ role: h.role, content: h.text })), { role: "user", content: question }] }),
+    signal: AbortSignal.timeout(40_000),
+  });
+  if (res.status === 429) throw new Error("busy");
+  if (!res.ok) throw new Error(`status ${res.status}`);
+  const body: any = await res.json();
+  return String(body?.choices?.[0]?.message?.content ?? "").trim().slice(0, 2000);
 }
 
 async function askAiForMenu(ask: MenuAsk): Promise<MenuPick[]> {
@@ -166,7 +187,7 @@ export function mergeLibrary(wger: LibraryExercise[]): LibraryExercise[] {
   return out;
 }
 
-export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, opts: { store?: FitStore; fetchJson?: (url: string) => Promise<any>; overpass?: (query: string) => Promise<any>; identify?: (image: string, mode: "machine" | "gym") => Promise<GearAnswer>; recipe?: (ask: RecipeAsk) => Promise<Recipe | null>; menu?: (ask: MenuAsk) => Promise<MenuPick[]>; kv?: FitKv; nameOf?: CircleDeps["nameOf"]; notify?: CircleDeps["notify"]; ownPlus?: PassDeps["ownPlus"]; payment?: PassDeps["payment"] } = {}) {
+export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, opts: { store?: FitStore; fetchJson?: (url: string) => Promise<any>; overpass?: (query: string) => Promise<any>; identify?: (image: string, mode: "machine" | "gym") => Promise<GearAnswer>; recipe?: (ask: RecipeAsk) => Promise<Recipe | null>; menu?: (ask: MenuAsk) => Promise<MenuPick[]>; ask?: (digest: string, question: string, history: AskTurn[]) => Promise<string>; kv?: FitKv; nameOf?: CircleDeps["nameOf"]; notify?: CircleDeps["notify"]; ownPlus?: PassDeps["ownPlus"]; payment?: PassDeps["payment"] } = {}) {
   const store = opts.store ?? createSupabaseFitStore();
   const kv = opts.kv ?? createSupabaseKv();
   const circles = registerCircleRoutes(app, authMiddleware, { kv, getData: (id) => store.get(id), nameOf: opts.nameOf, notify: opts.notify });
@@ -215,6 +236,26 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
       if (!picks.length) picks = await menu({ ...askFor, place: `a typical ${askFor.cuisine || "American"} restaurant (the person is at "${place}")` });
       return picks.length ? res.json({ picks }) : res.status(422).json({ message: "Couldn't come up with picks for that place. Try the chain's name or a cuisine." });
     } catch (e: any) { return res.status(503).json({ message: e?.message === "busy" ? "The AI is busy. Try again in a minute." : "Couldn't look that up right now. Try again in a minute." }); }
+  });
+  const askData = opts.ask ?? (process.env.OPENAI_API_KEY ? askAiAboutData : null);
+  const asks = createAttemptLimiter({ max: 60, windowMs: 60 * 60_000 });
+  app.post("/api/fit/ask", authMiddleware, plus("Asking about your workouts"), async (req: any, res) => {
+    res.set?.("Cache-Control", "no-store");
+    if (!askData) return res.status(503).json({ message: "Ask Fit isn't set up on this site yet." });
+    const question = String(req.body?.question ?? "").replace(/\s+/g, " ").trim().slice(0, 400);
+    if (question.length < 2) return res.status(400).json({ message: "Type a question, like \"How was my month?\"" });
+    const key = String(req.user?.id);
+    const wait = asks.retryAfter(key);
+    if (wait) return res.status(429).json({ message: `That's a lot of questions for one hour. Try again in ${waitWords(wait)}.` });
+    asks.fail(key);
+    const history: AskTurn[] = (Array.isArray(req.body?.history) ? req.body.history : []).slice(-6)
+      .map((h: any) => ({ role: h?.role === "assistant" ? "assistant" : "user", text: String(h?.text ?? "").slice(0, 1200) } as AskTurn)).filter((h: AskTurn) => h.text);
+    try {
+      // Their numbers come from what's saved on the server, never from the request.
+      const data = cleanFit(await store.get(req.user.id));
+      const answer = await askData(digestForAi(data), question, history);
+      return answer ? res.json({ answer }) : res.status(422).json({ message: "I couldn't come up with an answer. Try asking it another way." });
+    } catch (e: any) { return res.status(503).json({ message: e?.message === "busy" ? "The AI is busy. Try again in a minute." : "Couldn't answer right now. Try again in a minute." }); }
   });
   const identify = opts.identify ?? (process.env.OPENAI_API_KEY ? askAiForGear : null);
   const looks = createAttemptLimiter({ max: 40, windowMs: 60 * 60_000 });

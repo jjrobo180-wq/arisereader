@@ -5,7 +5,7 @@
 // routine's AI Reminders counts as one, and building with AI is offered only on Unlimited.
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, Check, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, Check, Loader2 } from "lucide-react";
 import { HUB_THEMES } from "@shared/appThemes";
 import { setTheme, type AnyLayout } from "@shared/hubLayout";
 import { setLifePlugin, type Plugin } from "@shared/pluginStore";
@@ -26,11 +26,13 @@ const SETUP_STYLE = {
   "--an-border": "rgba(17,16,24,.1)", "--an-coral": "#e0465f", "--an-shadow": "none",
 } as CSSProperties;
 
-const DONE_KEY = (id: number | string) => `arise-duo-setup-v1:${id}`;
+// v2: the new setup (day mode, one screen, app descriptions) goes out once to every To Duo account,
+// including people who finished the first one.
+const DONE_KEY = (id: number | string) => `arise-duo-setup-v2:${id}`;
 export const duoSetupDone = (id: number | string) => { try { return localStorage.getItem(DONE_KEY(id)) === "1"; } catch { return true; } };
 
-/** Six looks to start from; the rest are in Customize. */
-const STARTER_THEMES = ["classic", "studio", "bloom", "frost", "aurora", "zen"];
+/** Twelve looks to start from; the rest are in Customize. */
+const STARTER_THEMES = ["classic", "studio", "bloom", "frost", "aurora", "zen", "tide", "grove", "glass", "cassette", "vinyl", "console"];
 /** Everyday apps most people want first, in this order. */
 const STARTER_APPS: { id: string; emoji: string }[] = [
   { id: "life-health", emoji: "🥗" }, { id: "life-habits", emoji: "✅" }, { id: "life-money", emoji: "💵" },
@@ -44,6 +46,12 @@ const PRESETS: { id: string; name: string; blurb: string; focuses: PlanFocus[] }
   { id: "success", name: "More success", blurb: "Focus, learning and money", focuses: ["organized", "career", "read", "money", "move", "sleep"] },
   { id: "fit", name: "Get fit", blurb: "Workouts, water and good food", focuses: ["move", "weight", "eat", "water", "sleep"] },
   { id: "calm", name: "Calm & rest", blurb: "Quiet time, sleep and family", focuses: ["calm", "sleep", "family", "read"] },
+  { id: "family", name: "Family first", blurb: "Kids, partner and dinners together", focuses: ["family", "kids", "partner", "cook", "organized"] },
+  { id: "mind", name: "Mind & mood", blurb: "Gratitude, journaling, less phone", focuses: ["gratitude", "journal", "screens", "calm", "outside"] },
+  { id: "mornings", name: "Productive days", blurb: "Mornings, focus and big goals", focuses: ["mornings", "organized", "career", "goals", "sleep"] },
+  { id: "health", name: "Health habits", blurb: "Meds, stretching, water and sleep", focuses: ["meds", "stretch", "water", "sleep", "eat"] },
+  { id: "home", name: "Home & money", blurb: "A calm home and a budget that works", focuses: ["home", "money", "cook", "organized"] },
+  { id: "me", name: "Me time", blurb: "Self-care, friends and creativity", focuses: ["selfcare", "friends", "create", "read", "outside"] },
 ];
 /** Faith isn't offered in setup; it's still in AI Reminders for anyone who wants it. */
 const FOCUSES = PLAN_FOCUSES.filter((f) => f.id !== "faith");
@@ -140,7 +148,15 @@ export default function DuoSetup({ userId, layout, setLayout, plugins, setFamily
     : step === "done" ? { text: "Show me around", run: next }
     : { text: "Continue", run: next };
 
-  const page = <div data-backdrop-hold className="fixed inset-0 z-[710] flex flex-col overflow-hidden bg-white pb-[max(14px,env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] text-[#111018] [color-scheme:light]"
+  // The app behind the setup must not move: lock its scrolling (iPhone scrolls the page behind a
+  // fixed screen otherwise) and put it back exactly where it was after.
+  useEffect(() => {
+    const html = document.documentElement, body = document.body, y = window.scrollY;
+    const before = { ho: html.style.overflow, bo: body.style.overflow, bp: body.style.position, bt: body.style.top, bw: body.style.width, bob: body.style.overscrollBehavior };
+    html.style.overflow = "hidden"; body.style.overflow = "hidden"; body.style.position = "fixed"; body.style.top = `-${y}px`; body.style.width = "100%"; body.style.overscrollBehavior = "none";
+    return () => { html.style.overflow = before.ho; body.style.overflow = before.bo; body.style.position = before.bp; body.style.top = before.bt; body.style.width = before.bw; body.style.overscrollBehavior = before.bob; window.scrollTo(0, y); };
+  }, []);
+  const page = <div data-backdrop-hold className="fixed inset-0 z-[9000] flex flex-col overflow-hidden bg-white pb-[max(14px,env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] text-[#111018] [color-scheme:light]"
     style={SETUP_STYLE} role="dialog" aria-modal="true" aria-label="Set up Arise To Duo" data-testid="duo-setup">
     <style>{`
       .duo-time { -webkit-appearance: none; appearance: none; display: block; box-sizing: border-box; width: 7.25rem; min-width: 0; height: 36px; padding: 0 10px; border: 0; border-radius: 10px; background: #ebeaf2; color: #111018; font: 600 16px/36px -apple-system, BlinkMacSystemFont, system-ui, sans-serif; text-align: center; }
@@ -194,13 +210,12 @@ export default function DuoSetup({ userId, layout, setLayout, plugins, setFamily
             className={`h-10 min-w-0 rounded-xl text-[14px] font-bold ${on ? "bg-[#111018] text-white" : "bg-[#f4f3f8] text-[#77748a]"}`}>{l}</button>; })}</div>
           {made ? <p role="status" className="mt-5 rounded-2xl bg-emerald-50 px-4 py-3 text-[14px] font-semibold text-emerald-800" data-testid="setup-built"><Check className="mr-1 inline h-4 w-4" strokeWidth={3} />Your routine is ready. Reminders repeat every day.{note && <span className="mt-1 block font-normal text-emerald-900">{note}</span>}</p>
             : routineBlocked ? <p className="mt-5 rounded-2xl bg-amber-50 px-4 py-3 text-[14px] text-amber-900">Your free plan's 3 plugins are in use, and the routine needs one. Unlimited makes room for everything.</p>
-            : !focuses.length && !vision.trim() ? <p className="mt-5 text-center text-[13.5px] text-[#77748a]">Go back and pick at least one goal to build a routine.</p>
+            : !focuses.length ? <p className="mt-5 text-center text-[13.5px] text-[#77748a]">Go back and pick at least one goal to build a routine.</p>
             : <div className="mt-5 space-y-2">
-              {unlimited && <textarea value={vision} onChange={(e) => setVision(e.target.value)} maxLength={600} rows={2} placeholder="Optional: tell the AI about the life you want." aria-label="The life you want" className="block w-full resize-none rounded-2xl bg-[#f4f3f8] p-3 text-[15px] text-[#111018] placeholder:text-[#8e8ba0]" data-testid="setup-vision" />}
-              <button type="button" disabled={busy} onClick={() => void build(unlimited)} className="flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-[#5b4fe0] text-[16px] font-semibold text-white disabled:opacity-60" data-testid="setup-build">
-                {busy ? <><Loader2 className="h-5 w-5 animate-spin" />Building…</> : unlimited ? <><Sparkles className="h-5 w-5" />Build my routine with AI</> : "Make my routine"}
+              <button type="button" disabled={busy} onClick={() => void build(false)} className="flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-[#5b4fe0] text-[16px] font-semibold text-white disabled:opacity-60" data-testid="setup-build">
+                {busy ? <><Loader2 className="h-5 w-5 animate-spin" />Building…</> : "Make my routine"}
               </button>
-              {!unlimited && <p className="text-center text-[12.5px] text-[#77748a]">Uses 1 of your 3 free plugins (AI Reminders).{" "}Building it with AI is part of Unlimited.</p>}
+              {!unlimited && <p className="text-center text-[12.5px] text-[#77748a]">Uses 1 of your 3 free plugins (Reminders).</p>}
               {note && <p role="status" className="px-1 text-[13px] text-[#5d5a6b]">{note}</p>}
             </div>}
         </>}

@@ -41,8 +41,8 @@ const RADII = [6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24];
 const ROUND_CSS = RADII.map((n) => `[data-fit-layout] .rounded-\\[${n}px\\]{border-radius:calc(${n}px * var(--fit-rk))}`).join("");
 const glowFor = (bg: string, plain: boolean) => plain ? `linear-gradient(${bg}, ${bg})` : `radial-gradient(130% 42% at 50% -8%, color-mix(in srgb, var(--fit-accent) 16%, ${bg}) 0%, ${bg} 64%)`;
 const LAYOUT_CSS = `:root{--fit-display:${LAYOUTS.athletic.display};--fit-font:${LAYOUTS.athletic.body};--fit-display-w:800;--fit-display-case:uppercase;--fit-display-ls:.01em;--fit-rk:1;--fit-btn-font:var(--fit-display);--fit-btn-case:uppercase;--fit-btn-size:18px;--fit-num:var(--fit-display)}`
-  + LAYOUT_IDS.filter((id) => id !== "athletic").map((id) => { const L = LAYOUTS[id], plain = id === "zen" || id === "pro";
-    const head = `[data-fit-layout="${id}"]{--fit-display:${L.display};--fit-font:${L.body};--fit-display-w:${L.weight};--fit-display-case:${L.upper ? "uppercase" : "none"};--fit-display-ls:${L.tracking};--fit-rk:${L.round};--fit-btn-font:var(--fit-font);--fit-btn-case:none;--fit-btn-size:16px;--fit-num:${id === "pro" ? "'JetBrains Mono', ui-monospace, monospace" : "var(--fit-display)"}}`;
+  + LAYOUT_IDS.filter((id) => id !== "athletic").map((id) => { const L = LAYOUTS[id], plain = id === "zen" || id === "pro" || id === "proplus";
+    const head = `[data-fit-layout="${id}"]{--fit-display:${L.display};--fit-font:${L.body};--fit-display-w:${L.weight};--fit-display-case:${L.upper ? "uppercase" : "none"};--fit-display-ls:${L.tracking};--fit-rk:${L.round};--fit-btn-font:var(--fit-font);--fit-btn-case:none;--fit-btn-size:16px;--fit-num:${id === "pro" || id === "proplus" ? "'JetBrains Mono', ui-monospace, monospace" : "var(--fit-display)"}}`;
     const mode = (m: "light" | "dark") => { const b = L[m]; return Object.keys(b).length ? `[data-fit-layout="${id}"][data-fit-theme="${m}"]{${vars(b as Record<string, string>)}${b.bg ? `;--fit-glow:${glowFor(b.bg, plain)}` : ""}}` : ""; };
     return head + mode("light") + mode("dark"); }).join("")
   + ROUND_CSS;

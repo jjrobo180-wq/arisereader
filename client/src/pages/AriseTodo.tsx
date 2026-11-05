@@ -774,7 +774,7 @@ export default function AriseTodo() {
   const myKits = (family.kitInstalled ?? []).map((k) => kitDef(k)).filter((d): d is NonNullable<ReturnType<typeof kitDef>> => !!d);
   const pinnableApps = [...pinnableNotes, ...pinnableSheets, ...(drivePlugin ? [drivePlugin] : []), ...(dropPlugin ? [dropPlugin] : [])];
   const layout = withSharedLook(cleanLifeLayout(family.layout, pinnableApps.map((p) => p.id)));
-  const [setupOpen, setSetupOpen] = useState(() => !!user && isNativeApp() && !isSampleMode() && !duoSetupDone(user.id));
+  const [setupOpen, setSetupOpen] = useState(() => !!user && !isSampleMode() && !duoSetupDone(user.id));
   const setLayout = (next: LifeLayout) => { rememberLook(next); setFamily((f) => ({ ...f, layout: next })); window.dispatchEvent(new Event(SHARED_LOOK_EVENT)); };
   // The current theme's structural feel, reused for the task list's row style below (see
   // shared/appThemes.ts's HubTheme.homeLayout) — "cards" (today's) for Classic/Sunrise/Forest,
