@@ -176,3 +176,9 @@ textarea.an-input { padding: .7rem .9rem; line-height: 1.5; }
 .an-root .an-lift { animation-duration: .25s; }
 /* The floating bar, now without blur, is nearly solid so the page doesn't show through it. */
 .an-root .an-l-bar { background-color: color-mix(in srgb, var(--an-card, #fff) 96%, transparent) !important; }
+
+/* Chips read in every look: the picked one is the accent with white words (never white on white). */
+.an-root .an-chip[aria-pressed="true"] { background: var(--an-violet) !important; color: #fff !important; border-color: var(--an-violet) !important; }
+.an-root.an-night .an-chip:not([aria-pressed="true"]), .an-root.an-pro-dark .an-chip:not([aria-pressed="true"]) { background: var(--an-card) !important; color: var(--an-ink) !important; border-color: var(--an-line) !important; }
+/* No row keeps a light "hover" fill after a tap on a phone (it stuck on white in dark mode). */
+@media (hover: none) { .an-root .hover\:bg-slate-50:hover, .an-root .hover\:bg-white:hover, .an-root .hover\:bg-slate-100:hover { background-color: transparent !important; } }

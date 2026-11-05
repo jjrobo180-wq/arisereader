@@ -151,7 +151,7 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
       {filter.kind === "trash" && <div className="flex items-center gap-2 text-[13px] text-[var(--an-muted)]"><span className="flex-1">Notes stay here {TRASH_DAYS} days, then they're deleted for good.</span>
         {shown.length > 0 && <Btn kind="danger" onClick={async () => { if (!window.confirm(`Delete ${shown.length} note${shown.length === 1 ? "" : "s"} for good? This can't be undone.`)) return; try { await sync.forever(shown.map((m) => m.id)); say("Deleted for good."); } catch (e: any) { say(e.message); } }}>Empty</Btn>}</div>}
     </div>
-    <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-44">
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-44" style={{ WebkitOverflowScrolling: "touch" }}>
       {state === "loading" && !metas.length ? <Spinner /> : shown.length === 0 ? <Empty filter={filter} q={q} onNew={() => create(PAGE_TEMPLATES[0])} />
         : <div data-testid="pages-list">{sections.map((sec) => <section key={sec.label || "all"}>
           {sec.label && <h3 className="pp-section">{sec.label}</h3>}
@@ -223,13 +223,12 @@ function PageCard({ m, i, grid, on, folder, trash, onOpen, onTrash, onPin, onRes
   const title = pageTitle(m as any);
   const meta = <span className="flex items-center gap-1.5 text-[12px] text-[var(--an-muted)]">{m.pinned && <Pin className="h-3 w-3" aria-label="Pinned" />}{m.locked && <Lock className="h-3 w-3" aria-label="Locked" />}{shortDate(m.updatedAt)}{folder && <span className="truncate">· {folder.name}</span>}</span>;
   const preview = m.locked ? "Locked" : m.preview || (m.kind === "ink" ? "Handwritten note" : "No text yet");
-  const delay = { animationDelay: `${Math.min(i, 8) * 40}ms` };
-  if (trash) return <li className="an-lift flex items-center gap-3 p-3" style={delay}>
+  if (trash) return <li className="flex items-center gap-3 p-3">
     <span className="min-w-0 flex-1"><span className="block truncate text-[15px] font-bold">{title}</span>{meta}</span>
     <IconBtn label="Restore" onClick={onRestore}><RotateCcw className="h-5 w-5" /></IconBtn><IconBtn label="Delete for good" onClick={onForever}><Trash2 className="h-5 w-5 text-[#c2283a]" /></IconBtn>
   </li>;
   const kindIcon = m.locked ? <Lock /> : m.kind === "ink" ? <PenLine /> : <FileText />;
-  if (grid) return <li className="an-lift" style={delay}><SwipeItem pinned={m.pinned} onDelete={onTrash} onPin={onPin} radius={18}><button type="button" onClick={onOpen} data-testid="pages-card" className="pp-card" data-on={on}>
+  if (grid) return <li><SwipeItem pinned={m.pinned} onDelete={onTrash} onPin={onPin} radius={18}><button type="button" onClick={onOpen} data-testid="pages-card" className="pp-card" data-on={on}>
     <span className="pp-card-paper" style={{ background: paper.bg, color: paper.ink }}>
       {m.locked ? <span className="flex h-full items-center justify-center"><Lock className="h-6 w-6 opacity-40" /></span>
         : m.kind === "ink" ? <span className="flex items-start gap-1.5 opacity-75"><PenLine className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span className="line-clamp-5">{preview}</span></span>
@@ -237,7 +236,7 @@ function PageCard({ m, i, grid, on, folder, trash, onOpen, onTrash, onPin, onRes
     </span>
     <span className="pp-card-foot"><span className="pp-card-title">{title}</span>{meta}</span>
   </button></SwipeItem></li>;
-  return <li className="an-lift" style={delay}><SwipeItem pinned={m.pinned} onDelete={onTrash} onPin={onPin}><button type="button" onClick={onOpen} data-testid="pages-card" className="pp-row" data-on={on}>
+  return <li><SwipeItem pinned={m.pinned} onDelete={onTrash} onPin={onPin}><button type="button" onClick={onOpen} data-testid="pages-card" className="pp-row" data-on={on}>
     <span className="pp-row-icon" data-kind={m.locked ? "lock" : m.kind} aria-hidden>{kindIcon}</span>
     <span className="min-w-0 flex-1">
       <span className="pp-row-title">{title}</span>

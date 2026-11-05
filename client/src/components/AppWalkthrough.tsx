@@ -12,6 +12,7 @@ import { iphoneCalendarAvailable } from "@/lib/nativeCalendar";
 import { looksLikeDuoInner, useAriseDuo } from "@/lib/useAriseDuo";
 import { isNativeApp } from "@/lib/nativeApp";
 import { isSampleMode } from "@/lib/sampleMode";
+import { TourArt } from "@/components/TourArt";
 import { nativeRemindersAvailable, nativeRemindersOn, turnOnNativeReminders } from "@/lib/nativeReminders";
 
 const DONE_KEY = (id: number | string) => `arise-walkthrough-v1:${id}`;
@@ -52,36 +53,36 @@ export default function AppWalkthrough({ userId, hub, arise, onGallery, onCustom
   if (!open) return null;
 
   const other = hub === "life" ? "WorkHub" : "LifeHub";
+  // One short line each: the animated picture (TourArt.tsx) does the explaining.
   const steps: Step[] = [
     { id: "welcome", icon: <Sparkles />, tint: "#6e5ae0", title: "Welcome to Arise To Duo",
-      body: <>Two hubs in one app: <b>LifeHub</b> for you and your family, and <b>WorkHub</b> for work. Switch between them with the two buttons at the top. This quick tour shows you around.</> },
-    { id: "tabs", icon: <LayoutGrid />, tint: "#1d1a33", title: "Getting around",
-      body: <>On a phone, the bar at the bottom has <b>Home</b>, <b>Tasks</b>, the <b>+</b> button, <b>Plugins</b> (every section, with search) and <b>You</b> (your account and settings). On a bigger screen, the same things are in the menu on the side.</> },
+      body: <>Two hubs, one app: <b>LifeHub</b> for home, <b>WorkHub</b> for work.</> },
+    { id: "tabs", icon: <LayoutGrid />, tint: "#4f46e5", title: "Getting around",
+      body: <>Home, Tasks, <b>+</b>, Plugins and You live in the bar at the bottom.</> },
     { id: "add", icon: <Plus />, tint: "#7968e5", title: "Add anything with +",
-      body: <>Tap <b>+</b> from any screen to add a task, a list, an event, a note and more. Type a day or time in a task, like “dentist tomorrow 3pm”, and it's set for you. In {hub === "work" ? "WorkHub" : "LifeHub"} you can also paste or snap a photo and let AI sort it into tasks and events.</> },
+      body: <>Just type it: “dentist tomorrow 3pm” sets the day and time for you.</> },
     { id: "gallery", icon: <LayoutGrid />, tint: "#0f766e", title: "Only the plugins you want",
-      body: <>Your <b>Calorie counter</b> is already in. Open the <b>Plugin Gallery</b> to add more, like habits, a budget, meal planning or notes. Remove anything later; nothing you saved is lost.</>,
+      body: <>Add habits, budgets, meals and more from the <b>Plugin Gallery</b>.</>,
       action: { label: "Open the Plugin Gallery", run: () => { close(); onGallery(); } } },
-    { id: "customize", icon: <MoreHorizontal />, tint: "#334155", title: "Make it yours",
-      body: <>Press and hold any widget on Home to move it. The <b>⋯</b> menu at the top has notifications and every setting. <b>Customize</b> changes the menu (tab bar, side menu or app drawer), what's on Home and in what order, the theme and night mode. Both hubs start with the same settings; you can set each one its own way in Customize.</>,
+    { id: "customize", icon: <MoreHorizontal />, tint: "#db2777", title: "Make it yours",
+      body: <>Hold anything on Home to move it. <b>Customize</b> changes themes and the menu.</>,
       action: { label: "Open Customize", run: () => { close(); onCustomize("layout"); } } },
     { id: "connect", icon: <CalendarDays />, tint: "#0284c7", title: "Bring in your iPhone",
-      body: <>{isNativeApp() ? "Connect" : "In the iPhone app, connect"} your <b>iPhone Calendar</b> and <b>Apple Reminders</b> and they show up here. The <b>Calorie counter</b> reads steps and workouts from Apple Health. Forward school email in and it becomes tasks.</> },
+      body: <>Your iPhone Calendar and Apple Reminders show up right here.</> },
     { id: "notify", icon: <Bell />, tint: "#e11d48", title: "Reminders on your phone",
-      body: <>Get a morning summary and a heads-up before tasks, events and bills, as notifications on your phone and in the bell at the top. One switch covers both hubs.</>,
+      body: <>A morning summary and a heads-up before anything's due.</>,
       action: isNativeApp() && nativeRemindersAvailable()
-        ? { label: nativeRemindersOn(hub) ? "Reminders are on" : "Turn on reminders", run: async () => { try { await turnOnNativeReminders(hub); setNote("Reminders are on."); } catch (e: any) { setNote(e?.message || "That didn't work. Try again from ⋯ → Notification settings."); } } }
+        ? { label: nativeRemindersOn(hub) ? "Reminders are on" : "Turn on reminders", run: async () => { try { await turnOnNativeReminders(hub); setNote("Reminders are on."); } catch (e: any) { setNote(e?.message || "That didn't work. Try again from ⋯ → Notifications."); } } }
         : { label: "Notification settings", run: () => { close(); onNotificationSettings(); } } },
     { id: "split", icon: <Columns2 />, tint: "#292446", title: isDuo ? "Your iPhone Duo: two at once" : "Split screen: two at once",
-      body: isDuo
-        ? <>Open your iPhone Duo flat and Arise To Duo spreads across the inner screen: the menu on one side, the page on the other. Tap the <b>Duo</b> button at the top for the <b>split screen</b>, with {hub === "life" ? "LifeHub" : "WorkHub"} and {other} side by side, each working on its own.</>
-        : <>No iPhone Duo needed: the <b>split screen</b> shows LifeHub and WorkHub together, one above the other on a phone or side by side on a wider screen, so you can check your calendar while you plan. Open it from ⋯ → Customize → <b>Duo & split screen</b>.</>,
+      body: isDuo ? <>Open it flat for two pages, or use split screen for both hubs.</> : <>See both hubs together with split screen, on any phone.</>,
       action: { label: "Try the split screen", run: () => { close(); navigate("/duo"); } } },
     ...(arise ? [{ id: "arise", icon: <Sparkles />, tint: "#6d28d9", title: "A.R.I.S.E. Reader and Arise Learning",
-      body: <>Because you came from A.R.I.S.E. Reader, Reader and Arise Learning (Math, History and Connect) are in your menu, right below Home.</> }] : []),
-    { id: "done", icon: <Search />, tint: "#6e5ae0", title: "You're all set",
-      body: <>Use the <b>search</b> at the top to find anything in your hub. You can see this tour again any time from <b>⋯ → How to use Arise To Duo</b>.</> },
+      body: <>Reader, Math, History and Connect are in your menu, below Home.</> }] : []),
+    { id: "done", icon: <Search />, tint: "#16a34a", title: "You're all set",
+      body: <>See this again any time: <b>⋯ → How to use Arise To Duo</b>.</> },
   ];
+  void other; void looksLikeDuoInner;
   // The iPhone app gets its own full-screen version: notifications first, then the same steps.
   if (isNativeApp()) return <NativeTour steps={steps} hub={hub} onClose={close} setupOnly={setupOnly} onConnectCalendar={onConnectCalendar} />;
 
@@ -95,7 +96,7 @@ export default function AppWalkthrough({ userId, hub, arise, onGallery, onCustom
         <button type="button" onClick={close} className="inline-flex h-10 items-center gap-1 rounded-full px-3 text-sm font-semibold text-slate-500 hover:bg-slate-100" data-testid="walkthrough-skip">Skip <X size={15} /></button>
       </div>
       <div className="px-6 pb-2 pt-5" key={step.id}>
-        <span className="grid h-14 w-14 place-items-center rounded-2xl text-white [&_svg]:h-7 [&_svg]:w-7" style={{ background: step.tint }}>{step.icon}</span>
+        <TourArt id={step.id} tint={step.tint} />
         <h2 className="mt-4 text-[22px] font-black leading-tight tracking-tight">{step.title}</h2>
         <p className="mt-2 text-[15px] leading-relaxed text-slate-600">{step.body}</p>
         {step.action && <button type="button" onClick={() => void step.action!.run()} className="mt-4 inline-flex min-h-11 items-center rounded-full bg-slate-100 px-4 text-sm font-bold text-slate-900 hover:bg-slate-200" data-testid={`walkthrough-action-${step.id}`}>{step.action.label}</button>}
@@ -180,6 +181,7 @@ function LiveTour({ step, i, count, last, next, back, onClose, font }: { step: S
         <div className="flex gap-1.5" aria-label={`Page ${i + 1} of ${count}`}>{Array.from({ length: count }, (_, k) => <span key={k} className={`h-1.5 rounded-full transition-all ${k === i ? "w-5 bg-[#111018]" : "w-1.5 bg-black/15"}`} />)}</div>
         {!last && <button type="button" onClick={onClose} className="h-9 px-1 text-[15px] font-medium text-[#6b6879]" data-testid="walkthrough-skip">Skip</button>}
       </div>
+      <div className="mt-3"><TourArt id={step.id} tint={step.tint} /></div>
       <h1 className="mt-3 text-[22px] font-bold leading-tight tracking-[-.01em]">{step.title}</h1>
       <p className="mt-1.5 text-[15px] leading-[1.45] text-[#6b6879] [&_b]:font-semibold [&_b]:text-[#111018]">{step.body}</p>
       {step.action && <button type="button" onClick={() => void step.action!.run()} className="mt-3 inline-flex h-10 items-center rounded-full bg-[#f1f0f7] px-4 text-[14px] font-semibold text-[#3f35c9] active:opacity-80">{step.action.label}</button>}
