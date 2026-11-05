@@ -85,12 +85,16 @@ test("POST /api/fit/menu asks the AI with what's left of the day", async () => {
   let asked: any = null;
   registerFitRoutes({ get: add("GET"), post: add("POST"), put: add("PUT") } as any, (_q: any, _s: any, n: any) => n(), {
     store: createMemoryFitStore(), kv: createMemoryKv(), ownPlus: async () => ({ live: true }),
-    menu: async (ask) => { asked = ask; return ask.place === "Nowhere" ? [] : [{ name: "Chicken fajitas, no tortilla", how: "Skip the rice", kcal: 480, p: 48, c: 22, f: 20 }]; },
+    menu: async (ask) => { asked = ask; return ask.place === "Nowhere" || ask.place.includes("Void") ? [] : [{ name: "Chicken fajitas, no tortilla", how: "Skip the rice", kcal: 480, p: 48, c: 22, f: 20 }]; },
   });
   const call = async (body: any) => { let status = 200, json: any = null; const res: any = { set() { return res; }, status(c: number) { status = c; return res; }, json(v: any) { json = v; return res; } }; await routes["POST /api/fit/menu"]({ user: { id: 7 }, body, query: {}, headers: {} }, res); return { status, json }; };
   assert.equal((await call({ place: "" })).status, 400);
   const ok = await call({ place: "Chili's", cuisine: "american", goal: "lose", mode: "points", wants: "high protein", left: { kcal: 700.4, p: 55, c: 60, f: 20 } });
   assert.equal(ok.json.picks[0].name, "Chicken fajitas, no tortilla");
   assert.deepEqual(asked, { place: "Chili's", cuisine: "american", goal: "lose fat", diet: "balanced", mode: "points", wants: "high protein", left: { kcal: 700, p: 55, c: 60, f: 20 } });
-  assert.equal((await call({ place: "Nowhere" })).status, 422);
+  // A place the AI doesn't know falls back to that kind of food instead of failing.
+  const unknown = await call({ place: "Nowhere", cuisine: "mexican" });
+  assert.equal(unknown.status, 200);
+  assert.match(asked.place, /typical mexican restaurant/);
+  assert.equal((await call({ place: "Void" })).status, 422);
 });
