@@ -26,7 +26,9 @@
 .an-root.an-suite .an-l-minutes { color: var(--an-muted); font-weight: 600; }
 
 /* The notes list: sections and inset groups with hairlines */
-.an-x-list { display: grid; gap: .2rem; }
+/* One column that can shrink: a long line of text must never make the list wider than the screen. */
+.an-x-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: .2rem; min-width: 0; max-width: 100%; }
+.an-x-list > section, .an-x-group, .an-x-group > li { min-width: 0; max-width: 100%; }
 .an-x-sec { margin: 0; padding: 1rem .25rem .45rem; font-size: 1.15rem; font-weight: 700; letter-spacing: -.01em; color: var(--an-ink); font-family: var(--an-serif); }
 .an-root.an-suite .an-x-group { list-style: none; margin: 0; padding: 0; border-radius: 12px; background: var(--an-card); overflow: hidden; box-shadow: 0 0 0 .5px var(--an-line), 0 1px 2px rgba(0,0,0,.03); }
 .an-suite-dark .an-x-group, .an-night .an-x-group { box-shadow: 0 0 0 .5px var(--an-line) !important; }
