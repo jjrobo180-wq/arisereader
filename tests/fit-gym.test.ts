@@ -8,7 +8,7 @@ import { GEAR, GEAR_BY_ID, GYM_TYPES, canDo, cleanGearIds, cleanGym, exercisesOn
 import { alternatives, generateWorkout } from "../shared/fitRecovery";
 import { debrief, SUPPLEMENTS } from "../shared/fitDebrief";
 import { formLiftFor } from "../shared/fitForm";
-import { registerFitRoutes } from "../server/fit";
+import { registerFitRoutes, visionMissedImage } from "../server/fit";
 
 const PF = GYM_TYPES.find((g) => g.id === "planet-fitness")!.gear;
 
@@ -79,6 +79,40 @@ test("the photo endpoint: one machine or a whole room, photos never kept", async
   assert.deepEqual((await call({ image: img, mode: "gym" })).json.gear, ["dumbbells", "bench"]);
   assert.equal((await call({ image: "not a photo" })).status, 400);
   assert.deepEqual(seen, ["machine", "gym"]);
+});
+
+test("machine vision detects and rejects bogus 'no image' replies", async () => {
+  assert.ok(visionMissedImage("No image was provided, so the equipment cannot be identified."));
+  assert.ok(visionMissedImage("The image was not provided."));
+  assert.ok(visionMissedImage("I can't see the photo."));
+  assert.equal(visionMissedImage("This is a seated row machine."), false);
+  assert.equal(visionMissedImage("No equipment was found in this room."), false);
+
+  const routes: Record<string, Function> = {};
+  const add = (method: string) => (path: string, ...handlers: Function[]) => { routes[`${method} ${path}`] = handlers[handlers.length - 1]; };
+  registerFitRoutes({ get: add("GET"), post: add("POST"), put: add("PUT") } as any, (_q: any, _s: any, next: any) => next(), {
+    store: { get: async () => null, set: async () => {} },
+    ownPlus: async () => ({ live: true }),
+    kv: (await import("../server/fitKv")).createMemoryKv(),
+    identify: async () => ({ gear: [], name: "", note: "No image was provided, so the equipment cannot be identified." }),
+  });
+  let status = 200; let result: any;
+  const res: any = { set() { return res; }, status(n: number) { status = n; return res; }, json(v: any) { result = v; return res; } };
+  await routes["POST /api/fit/identify"]({ user: { id: 74 }, body: { image: "data:image/jpeg;base64,AAAA", mode: "machine" } }, res);
+  assert.equal(status, 502);
+  assert.match(result.message, /retake|photo/i);
+  assert.doesNotMatch(result.message, /no image was provided/i);
+});
+
+test("iPhone photo preview and workout reflection cannot collapse into one-line controls", () => {
+  const gym = readFileSync(new URL("../client/src/pages/fit/FitGym.tsx", import.meta.url), "utf8");
+  const train = readFileSync(new URL("../client/src/pages/fit/FitTrain.tsx", import.meta.url), "utf8");
+  assert.match(gym, /onPrepared\?\.\(image\)/, "client checks photo data before sending and shows its preview");
+  assert.match(gym, /data-testid="fit-scan-photo"/);
+  assert.match(gym, /alt="Photo of the gym machine selected for identification"/);
+  assert.match(train, /data-testid="fit-workout-reflection"/);
+  assert.match(train, /data-testid="fit-workout-note"/);
+  assert.match(train, /minHeight: 136/, "notes field has minimum height on iPhone");
 });
 
 test("after a workout: soreness, refuel, water", () => {
