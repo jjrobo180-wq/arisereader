@@ -5,6 +5,7 @@
 // be written over), tries again by itself when the network drops, and says plainly what state
 // things are in. It knows nothing about React, so it can be tested on its own.
 import { HUB_CONFLICT, HUB_SEATS_FULL, retryDelay, type SaveBlock } from "@shared/hubSave";
+import { merge3 } from "@shared/mergeJson";
 
 export type SaveView =
   /** Everything is on the server. */
@@ -30,6 +31,12 @@ export type SaverDeps<W> = {
   clearTimer(handle: unknown): void;
   /** How long typing has to stop before a save goes out. */
   debounceMs?: number;
+  /** When another device saved first: fetches the newest copy so both devices' changes are merged and
+   *  saved by themselves (shared/mergeJson.ts), with no "which copy?" question. Without it, a conflict
+   *  waits for a choice as before. */
+  fetchLatest?(): Promise<{ workspace: W; updatedAt: string | null } | null>;
+  /** The merged copy, to show on the page. */
+  onMerged?(workspace: W): void;
 };
 
 function byteLength(text: string): number {
@@ -47,6 +54,7 @@ export class HubSaver<W> {
   private blocked: Extract<SaveView, { kind: "blocked" }> | null = null;
   private overwriteNext = false;
   private disposed = false;
+  private merges = 0;
 
   constructor(private deps: SaverDeps<W>, start: { workspace: W; updatedAt: string | null }) {
     this.latest = start.workspace;
@@ -194,6 +202,7 @@ export class HubSaver<W> {
       this.attempt = 0;
       this.blocked = null;
       this.overwriteNext = false;
+      this.merges = 0;
       this.deps.onSaved?.({ updatedAt: body.updatedAt, bytes: byteLength(json) });
       // More was typed while this one was on its way.
       if (JSON.stringify(this.latest) !== this.savedJson) {
@@ -203,6 +212,27 @@ export class HubSaver<W> {
         this.view({ kind: "saved" });
       }
       return;
+    }
+    if (status === 409 && body?.code === HUB_CONFLICT && this.deps.fetchLatest && this.merges < 5) {
+      // Another device saved first: take its copy, put this device's changes on top, and save again.
+      this.merges += 1;
+      try {
+        const newest = await this.deps.fetchLatest();
+        if (this.disposed) return;
+        if (newest) {
+          const merged = merge3(this.savedValue, this.latest, newest.workspace);
+          this.savedValue = newest.workspace;
+          this.savedJson = JSON.stringify(newest.workspace);
+          this.base = newest.updatedAt;
+          this.latest = merged;
+          this.blocked = null;
+          this.deps.onMerged?.(merged);
+          this.view({ kind: "waiting" });
+          this.schedule(30);
+          return;
+        }
+      } catch { /* no connection: try again shortly */ }
+      return this.tryAgain("Catching up with your other device.");
     }
     if (status === 409 && body?.code === HUB_CONFLICT) return this.stop("conflict", body?.message, typeof body?.updatedAt === "string" ? body.updatedAt : undefined);
     if (status === 409 && body?.code === HUB_SEATS_FULL) return this.stop("seats_full", body?.message);

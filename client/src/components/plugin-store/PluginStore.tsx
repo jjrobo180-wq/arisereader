@@ -414,7 +414,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
         </div>
         <div className="flex items-end justify-between gap-3 pb-3">
           <h1 className="text-[32px] font-bold leading-none tracking-[-.02em] text-[var(--s-text)] sm:text-[36px]">{STORE_NAME}</h1>
-          <span className="pb-1 text-[13px] font-medium text-[var(--s-faint)]" data-testid="store-app-count">{appCount.toLocaleString()} apps</span>
+          <span className="pb-1 text-[13px] font-medium text-[var(--s-faint)]" data-testid="store-app-count">{appCount.toLocaleString()} plugins</span>
         </div>
         <label className="relative block pb-3">
           <span className="sr-only">Search apps</span>
