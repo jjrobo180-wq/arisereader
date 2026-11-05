@@ -37,6 +37,28 @@ if (isFitApp()) {
   }
 }
 
+// iPhone apps: the page is exactly as wide as the screen. iPhone sometimes lays the page out wider than the
+// screen (about 7% on a phone) when something is too wide, and then the bars and cards run off the edge and the
+// page drags sideways. If that ever happens, the viewport is pinned to the screen's own width in pixels.
+if (window.location.protocol === "capacitor:" && !isFitApp()) {
+  const meta = () => document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
+  const original = meta()?.getAttribute("content") || "";
+  let waiting = false;
+  const pin = () => {
+    const m = meta();
+    if (!m || waiting) return;
+    const portrait = window.matchMedia("(orientation: portrait)").matches;
+    const wide = Math.min(window.screen.width, window.screen.height);
+    if (!portrait || wide < 280 || wide >= 700) { if (original && m.content !== original) m.content = original; return; }
+    if (Math.abs(window.innerWidth - wide) < 2) return;
+    waiting = true;
+    m.content = `width=${wide}, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, shrink-to-fit=no, viewport-fit=cover`;
+    setTimeout(() => { waiting = false; }, 400);
+  };
+  for (const ev of ["resize", "orientationchange", "load", "pageshow"]) window.addEventListener(ev, pin);
+  pin(); setTimeout(pin, 300); setTimeout(pin, 1500);
+}
+
 // Sound on tablets: the first tap unlocks game sounds and voice lines (lib/mediaUnlock.ts).
 installMediaUnlock();
 // Spoken lines everywhere use the AI voice, through the one unlocked player.
