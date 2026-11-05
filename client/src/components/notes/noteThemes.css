@@ -1,0 +1,15 @@
+/* Four restrained note themes. Scoped to Notes views, never the entire hub. */
+[data-note-theme] { --note-surface:#ffffff; --note-ink:#202724; --note-border:#e5e8e5; --note-accent:#526e66; color:var(--note-ink); transition:background-color .2s,color .2s; }
+[data-note-theme="editorial"] { --note-surface:#fffefa; --note-ink:#26312c; --note-border:#e5e8e0; --note-accent:#526e66; }
+[data-note-theme="slate"] { --note-surface:#f6f8fa; --note-ink:#263443; --note-border:#dce2e8; --note-accent:#425b77; }
+[data-note-theme="graphite"] { --note-surface:#252a31; --note-ink:#f1f3f5; --note-border:#424951; --note-accent:#a5bac7; }
+[data-note-theme="linen"] { --note-surface:#faf6ee; --note-ink:#3c342e; --note-border:#e6ddd1; --note-accent:#91745a; }
+[data-note-theme] .note-card { background:var(--note-surface)!important; border:1px solid var(--note-border)!important; border-radius:15px!important; box-shadow:0 3px 14px #00000008!important; transition:transform .18s ease,box-shadow .18s ease; }
+[data-note-theme] .note-card:hover { transform:translateY(-2px);box-shadow:0 8px 22px #00000012!important; }
+[data-note-theme] .note-card h3,[data-note-theme] .note-card .font-black { color:var(--note-ink)!important; font-weight:650!important;letter-spacing:-.025em; }
+[data-note-theme] .note-card p { color:var(--note-ink)!important;opacity:.78; }
+[data-note-theme] .note-card button { color:inherit; }
+[data-note-theme="graphite"] .note-card .text-slate-500,[data-note-theme="graphite"] .note-card .text-slate-600 {color:#b6c0c9!important}
+.note-theme-picker { display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:inherit; }
+.note-theme-picker select { min-height:42px;max-width:190px;border:1px solid var(--note-border,#e2e8f0);border-radius:11px;padding:0 12px;background:var(--note-surface,#fff);color:var(--note-ink,#1f2937);font:inherit; }
+@media(prefers-reduced-motion:reduce){[data-note-theme] .note-card{transition:none!important}}
