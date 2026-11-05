@@ -212,7 +212,7 @@ export const PROVIDER_CENTS_PER_MIN: Record<string, number> = {
 /** AI writing (summaries, answers): about half a dollar a million tokens, at four characters a token. */
 export const aiCents = (chars: number) => Math.round((chars / 4) * 0.00005 * 10_000) / 10_000;
 
-export { NOTES_THEMES, isThemeId, nightLook, themeOf, themeVars, type NotesTheme, type NotesThemeId } from "./notesThemes";
+export { NOTES_THEMES, SUITE_LOOKS, isThemeId, nightLook, themeOf, themeVars, type NotesTheme, type NotesThemeId } from "./notesThemes";
 import { isThemeId, type NotesThemeId } from "./notesThemes";
 
 // ─── Settings ─────────────────────────────────────────────────────────────────

@@ -12,7 +12,7 @@ const lum = (hex: string) => {
 };
 const ratio = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
 
-test("there are 48 looks plus Classic", () => assert.equal(NOTES_THEMES.length, 49));
+test("there are 53 looks plus Classic", () => assert.equal(NOTES_THEMES.length, 54));
 for (const t of NOTES_THEMES) test(`${t.label} text is readable`, () => {
   for (const [name, fg, bg] of [["ink/bg", t.ink, t.bg], ["ink/card", t.ink, t.card], ["muted/bg", t.muted, t.bg], ["muted/card", t.muted, t.card], ["faint/card", t.faint, t.card], ["accent ink/card", t.accentInk, t.card], ["accent ink/soft", t.accentInk, t.accentSoft], ["on accent", t.onAccent, t.accent], ["on record", t.onRecord, t.record]] as const)
     assert.ok(ratio(fg, bg) >= 4.5, `${t.id} ${name}: ${ratio(fg, bg).toFixed(2)}`);
@@ -136,4 +136,22 @@ test("the Notes tab looks serious and professional in every look, with real fold
   assert.match(view, /data-testid="pages-back-folders"/);
   assert.match(view, /data-testid="pages-folder-edit"/);
   assert.match(view, /className="pp-row"/);
+});
+
+test("the five Suite looks restyle Home, the list, recording, the Notes tab and the writing page", () => {
+  const read = (f: string) => readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
+  const looks = read("client/src/components/arise-notes/looks.tsx"), css = read("client/src/components/arise-notes/notes-suite.css"), app = read("client/src/components/arise-notes/NotesApp.tsx");
+  for (const id of ["paper", "midnight", "folio", "nordic", "carbon"]) {
+    assert.ok(NOTES_THEMES.some((t) => t.id === id), `${id} is a look`);
+    assert.equal(cleanSettings({ theme: id }).theme, id);
+    assert.match(looks, new RegExp(`case "${id}"`), `${id} has its own Home and recording`);
+  }
+  assert.match(looks, /if \(SUITE_LOOKS\.has\(look\.id\)\) return <SuiteList/);
+  assert.match(looks, /an-x-notetitle/);
+  assert.match(app, /suite && "an-suite"/);
+  assert.match(app, /suite \? suiteVars\(look\)/);
+  assert.match(css, /\.an-root\.an-root\.an-pro\.an-suite \{/);
+  assert.match(css, /\[data-paper="paper"\]/);
+  for (const t of NOTES_THEMES.filter((x) => ["paper", "midnight", "folio", "nordic", "carbon"].includes(x.id)))
+    for (const word of ["Apple", "iPhone", "iCloud"]) assert.ok(!`${t.label} ${t.blurb}`.includes(word), `${t.id} doesn't say ${word}`);
 });

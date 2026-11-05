@@ -3,7 +3,7 @@
 import { AppearanceSwitch } from "./pages/pagesUi";
 import { useEffect, useState } from "react";
 import { Check, Crown, Eye, LogOut, Shield, Trash2, Type, Users } from "lucide-react";
-import { NOTES_PLANS, NOTES_THEMES, dayWords, type NotesPlanId, type NotesProduct, type NotesSettings } from "@shared/ariseNotes";
+import { NOTES_PLANS, NOTES_THEMES, SUITE_LOOKS, dayWords, type NotesPlanId, type NotesProduct, type NotesSettings } from "@shared/ariseNotes";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { NATIVE_NO_PURCHASE, isNativeApp } from "@/lib/nativeApp";
@@ -217,8 +217,12 @@ function LookTab({ ctx }: { ctx: AppCtx }) {
   return <Section title="Choose your look">
     <p className="mb-3 text-[14px] text-[var(--an-muted)]">{s.contrast ? "High contrast is on, so it replaces your look until you turn it off in Accessibility." : "Pick the one you like. It changes right away and follows your account."}</p>
     <div className="mb-3 an-card rounded-2xl p-3" data-testid="notes-night"><AppearanceSwitch /></div>
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3" data-testid="notes-looks">
-      {NOTES_THEMES.map((t) => <button key={t.id} type="button" className="an-look" aria-pressed={s.theme === t.id} onClick={() => void save({ theme: t.id })} data-testid={`notes-look-${t.id}`}>
+    {/* The Suite first: quiet, professional looks that also restyle the Notes tab and the writing page. */}
+    {[{ name: "Professional", note: "Clean and minimal. These also change the Notes tab and the page you write on.", list: NOTES_THEMES.filter((t) => SUITE_LOOKS.has(t.id)) }, { name: "More looks", note: "", list: NOTES_THEMES.filter((t) => !SUITE_LOOKS.has(t.id)) }].map((grp) => <div key={grp.name} className="mb-5">
+    <h3 className="mb-1 text-[15px] font-bold">{grp.name}</h3>
+    {grp.note && <p className="mb-2.5 text-[13px] text-[var(--an-muted)]">{grp.note}</p>}
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3" data-testid={grp.name === "Professional" ? "notes-looks-suite" : "notes-looks"}>
+      {grp.list.map((t) => <button key={t.id} type="button" className="an-look" aria-pressed={s.theme === t.id} onClick={() => void save({ theme: t.id })} data-testid={`notes-look-${t.id}`}>
         <span aria-hidden className="an-look-preview" style={{ background: t.bg, borderRadius: Math.min(t.radius, 12) }}>
           <span style={{ width: "2.1rem", height: "1.5rem", background: t.card, border: `1px solid ${t.line}`, borderRadius: Math.min(t.radius, 8) }} />
           <span style={{ width: "1.5rem", height: "1.5rem", background: t.record, borderRadius: t.radius ? 999 : 0 }} />
@@ -227,6 +231,7 @@ function LookTab({ ctx }: { ctx: AppCtx }) {
         <span className="text-[12.5px] leading-snug text-[var(--an-muted)]">{t.blurb}</span>
       </button>)}
     </div>
+    </div>)}
   </Section>;
 }
 
