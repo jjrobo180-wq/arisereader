@@ -236,7 +236,7 @@ export const PLUGINS: readonly Plugin[] = [
   { id: "work-schedules", hub: "work", name: "Student schedules", tagline: "Who is where, and when", category: "Students & IEPs", icon: "Clock", color: "#9333ea", target: tab("schedules"),
     description: "Each student's week, so you always know where they are.",
     features: ["A week per student", "Times and places", "Fits with your minutes"] },
-  { id: "work-meetings", hub: "work", name: "IEP & Meetings", tagline: "Meetings, deadlines and the ten steps", category: "Students & IEPs", icon: "Handshake", color: "#c026d3", featured: true, target: tab("iep"),
+  { id: "work-meetings", hub: "work", name: "IEP", tagline: "Meetings, notes, accommodations, progress and minutes in one place", category: "Students & IEPs", icon: "Handshake", color: "#c026d3", featured: true, target: tab("iep"),
     description: "Plan every IEP meeting from first notice to signatures, with the deadline it has to beat and polls to find a time.",
     features: ["Ten-step meeting plan", "Deadline warnings", "Find a time with a poll", "Booked meetings go on your calendar"] },
   { id: "work-start", hub: "work", name: "Getting started", tagline: "A simple guide to everything in WorkHub", category: "Teaching tools", icon: "Rocket", color: "#0d9488", target: tab("start"),

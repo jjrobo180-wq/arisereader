@@ -7,7 +7,9 @@
 //   StudentQuizzes    a student's quizzes and scores on their profile
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { CheckCircle2, ClipboardCheck, Loader2, Pencil, Play, Printer, Sparkles, X } from "lucide-react";
+import { CheckCircle2, ClipboardCheck, Copy, Link2, Loader2, Pencil, Play, Printer, Share2, Sparkles, X } from "lucide-react";
+import { newQuizShare, quizLink } from "@shared/hubIep";
+import { useAuth } from "@/context/AuthContext";
 import { goalQuizzes, percentGoal, quizPercent, recordQuizScore, type GoalQuiz } from "@shared/hubLinks";
 import type { Goal, Workspace } from "@shared/teacherHub";
 import { API_BASE } from "@/lib/queryClient";
@@ -41,6 +43,8 @@ export function StudentQuizzes({ student, onMake, setWorkspace, makeId }: { stud
   const ctx = useHubLinks();
   const [giving, setGiving] = useState<GoalQuiz | null>(null);
   const [scoring, setScoring] = useState<GoalQuiz | null>(null);
+  const [linkFor, setLinkFor] = useState<string | null>(null);
+  const { user } = useAuth();
   if (!ctx) return null;
   const quizzes = goalQuizzes(ctx.workspace).filter((q) => fold(q.student) === fold(student));
   const save = (q: GoalQuiz, score: number, total: number) => setWorkspace((w) => recordQuizScore(w, q.id, { attemptId: newId(), score, total, completedAt: new Date().toISOString() }, makeId));
@@ -55,12 +59,14 @@ export function StudentQuizzes({ student, onMake, setWorkspace, makeId }: { stud
         <div className="mt-2 flex flex-wrap gap-2">
           {n > 0 && <button type="button" onClick={() => setGiving(q)} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-slate-900 px-3 text-sm font-semibold text-white" data-testid="give-quiz"><Play className="h-4 w-4" /> Give quiz</button>}
           <button type="button" onClick={() => setScoring(q)} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700"><Pencil className="h-4 w-4" /> Enter a score</button>
+          {n > 0 && user?.id && <button type="button" onClick={() => { if (!q.share) setWorkspace((w) => ({ ...w, goalQuizzes: goalQuizzes(w).map((x) => (x.id === q.id && !x.share ? { ...x, share: newQuizShare((k) => crypto.getRandomValues(new Uint8Array(k))) } : x)) } as Workspace)); setLinkFor(q.id); }} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700" data-testid="quiz-send-link"><Link2 className="h-4 w-4" /> Send link</button>}
           {n > 0 && <button type="button" onClick={() => printQuiz(q)} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700"><Printer className="h-4 w-4" /> Print</button>}
         </div>
       </li>;
     })}</ul> : <p className="text-sm text-slate-500">Make a short quiz from this student's goals. Give it here (it scores itself) or on paper, and the score goes on their profile and into goals measured in %.</p>}
     <GhostButton onClick={onMake}><Sparkles className="h-4 w-4" /> Make a goal quiz</GhostButton>
     {giving && <GiveGoalQuiz quiz={giving} onClose={() => setGiving(null)} onDone={(score, total) => { save(giving, score, total); }} />}
+    {linkFor && user?.id && (() => { const q = quizzes.find((x) => x.id === linkFor); return q ? <QuizLinkSheet quiz={q} teacherId={Number(user.id)} onOff={() => { setWorkspace((w) => ({ ...w, goalQuizzes: goalQuizzes(w).map((x) => { if (x.id !== q.id) return x; const { share: _off, ...rest } = x; return rest; }) } as Workspace)); setLinkFor(null); }} onClose={() => setLinkFor(null)} /> : null; })()}
     {scoring && <EnterQuizScore quiz={scoring} onClose={() => setScoring(null)} onSave={(score, total) => { save(scoring, score, total); setScoring(null); }} />}
   </div>;
 }
@@ -182,6 +188,23 @@ export function MakeGoalQuiz({ student, grade, goals, token, setWorkspace, onClo
       <label className="block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Questions</span>
         <Select value={String(count)} onChange={(e) => setCount(Number(e.target.value))} aria-label="How many questions">{[4, 5, 6, 8, 10].map((n) => <option key={n} value={n}>{n} questions</option>)}</Select></label>
       {error && <p className="text-sm font-semibold text-red-700" role="alert">{error}</p>}
+    </div>
+  </HubModal>;
+}
+
+/** The link for a student to take a quiz on their own device, to copy or share. Turning it off makes old links stop working. */
+function QuizLinkSheet({ quiz, teacherId, onOff, onClose }: { quiz: GoalQuiz; teacherId: number; onOff: () => void; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  if (!quiz.share) return <HubModal title="Quiz link" size="sm" onClose={onClose}><p className="flex items-center gap-2 text-sm text-slate-600"><Loader2 className="h-4 w-4 animate-spin" /> Making the link…</p></HubModal>;
+  const link = quizLink(window.location.origin, teacherId, quiz.share);
+  const copy = async () => { try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* not allowed */ } };
+  const share = async () => { try { await (navigator as any).share({ title: quiz.title, text: `Your quiz: ${quiz.title}`, url: link }); } catch { /* closed */ } };
+  return <HubModal title="Send this quiz" size="sm" onClose={onClose}
+    footer={<div className="flex flex-wrap gap-2"><PrimaryButton onClick={() => void copy()}>{copied ? <><CheckCircle2 className="h-4 w-4" /> Copied</> : <><Copy className="h-4 w-4" /> Copy link</>}</PrimaryButton>{typeof (navigator as any).share === "function" && <GhostButton onClick={() => void share()}><Share2 className="h-4 w-4" /> Share</GhostButton>}<button type="button" onClick={onOff} className="ml-auto min-h-11 rounded-xl px-3 text-sm font-semibold text-red-700 hover:bg-red-50" data-testid="quiz-link-off">Turn link off</button></div>}>
+    <div className="space-y-3" data-testid="quiz-link-sheet">
+      <p className="text-sm text-slate-600">Send this to {quiz.student.split(" ")[0]} by email, text or your class page. They open it on any device, no sign-in. When they finish, the score shows up here and in the goals measured in %.</p>
+      <p className="break-all rounded-xl bg-slate-50 px-3 py-2 font-mono text-xs text-slate-800 ring-1 ring-slate-200">{link}</p>
+      <p className="text-xs text-slate-500">They see the questions and their score, never the answer key.</p>
     </div>
   </HubModal>;
 }

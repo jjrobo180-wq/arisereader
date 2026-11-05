@@ -76,7 +76,7 @@ export type ScheduleEntry = { id: string; student: string; day: string; start: s
 /** One reading of how a student is doing on a goal. */
 export type GoalPoint = { id: string; date: string; value: number; note: string };
 /** An IEP goal tracked over time. `up` means a higher number is better (accuracy); `down` means lower is better (outbursts a week). */
-export type Goal = { id: string; /** Things it is linked to (shared/hubLinks.ts). */ links?: import("./hubLinks").HubLink[]; student: string; area: string; text: string; baseline: number; target: number; unit: string; direction: "up" | "down"; startDate: string; targetDate: string; points: GoalPoint[] };
+export type Goal = { id: string; /** How often progress is checked, in days (shared/hubIep.ts). Not set means every 14 days. */ checkEvery?: number; /** Things it is linked to (shared/hubLinks.ts). */ links?: import("./hubLinks").HubLink[]; student: string; area: string; text: string; baseline: number; target: number; unit: string; direction: "up" | "down"; startDate: string; targetDate: string; points: GoalPoint[] };
 /** Minutes of a service a student's IEP requires each week. */
 export type ServicePlan = {
   id: string; student: string; kind: string;
@@ -257,6 +257,10 @@ export type Workspace = {
   minuteBlocks?: SchoolBlock[];
   /** The school days that are optional: nothing is due on them, they are only for extra minutes. Not set means Wednesday. See shared/hubProgress.ts. */
   minuteOptionalDays?: string[];
+  /** Notes from IEP, reevaluation and other meetings, and push-in and pull-out classes (shared/hubIep.ts). */
+  iepNotes?: import("./hubIep").IepNote[];
+  /** Files kept with progress checks: scanned worksheets, probes, work samples (shared/hubIep.ts). */
+  pmFiles?: import("./hubIep").PmFile[];
   /** The case manager lets the others at their school see their minutes, view only (see shared/hubMinutesDay.ts). */
   minutesShared?: boolean;
   /** How the teacher arranged the Hub in Customize (see shared/hubLayout.ts): the phone menu and Home. */
@@ -360,7 +364,7 @@ export function normalizeWorkspace(raw: any): Workspace {
       questions: (Array.isArray(q.questions) ? q.questions : []).filter((x: any) => x && typeof x.prompt === "string" && Array.isArray(x.options) && x.options.length === 4 && Number.isInteger(x.correct) && x.correct >= 0 && x.correct < 4)
         .slice(0, 15).map((x: any) => ({ prompt: x.prompt.slice(0, 400), options: x.options.map((o: unknown) => String(o).slice(0, 200)), correct: x.correct })),
       goalIds: Array.isArray(q.goalIds) ? q.goalIds.filter((x: unknown) => typeof x === "string").slice(0, 40) : [], createdAt: String(q.createdAt || ""),
-      recorded: Array.isArray(q.recorded) ? q.recorded.filter((x: unknown) => typeof x === "string").slice(-200) : [],
+      recorded: Array.isArray(q.recorded) ? q.recorded.filter((x: unknown) => typeof x === "string").slice(-200) : [], ...(typeof q.share === "string" && /^[A-Za-z0-9]{20,40}$/.test(q.share) ? { share: q.share } : {}),
       results: (Array.isArray(q.results) ? q.results : []).filter((r: any) => r && typeof r.attemptId === "string").slice(-50)
         .map((r: any) => ({ attemptId: r.attemptId.slice(0, 40), score: Number(r.score) || 0, total: Number(r.total) || 0, completedAt: String(r.completedAt || "").slice(0, 40) })) }))
     .slice(0, 300);
