@@ -56,57 +56,65 @@ export function YourAppsRow({ data, onOpen, onAll }: { data: FitData; onOpen: (i
 /** The Apps tab: what you've added, what's on the tab bar, and the way into the library. */
 export function AppsTab({ data, update, say, onOpen }: { data: FitData; update: Update; say: (m: string) => void; onOpen: (id: FitAppId) => void }) {
   const a = appsOf(data.apps);
-  const [edit, setEdit] = useState(false);
   const [store, setStore] = useState(false);
+  const [help, setHelp] = useState(() => { try { return localStorage.getItem("arise-fit-plugins-help") !== "off"; } catch { return true; } });
   const added = a.added.map((id) => FIT_APP_BY_ID.get(id)!).filter(Boolean);
   const set = (fn: (x: typeof a) => typeof a) => update((d) => ({ ...d, apps: fn(appsOf(d.apps)) }));
-  const notYet = FIT_APPS.filter((x) => !a.added.includes(x.id)).slice(0, 6);
-  return <Sheet inline title="App plugins" onClose={() => {}} testId="fit-apps"
-    right={<button type="button" onClick={() => { haptic("light"); setEdit(!edit); }} aria-pressed={edit} className="flex h-10 items-center gap-1.5 rounded-full px-4 text-[14px] font-semibold" style={edit ? { background: C.lime, color: C.ink } : { background: C.card, color: C.text }} data-testid="fit-apps-edit">{edit ? <><Check className="h-4 w-4" />Done</> : <><Pencil className="h-4 w-4" />Edit</>}</button>}>
-    <p className="-mt-1 mb-3 px-1 text-[14px]" style={{ color: C.dim }}>Make Arise Fit yours. Add the app plugins you use, and pin up to {TAB_MAX} to the tab bar.</p>
+  const notYet = FIT_APPS.filter((x) => !a.added.includes(x.id)).slice(0, 4);
+  const pin = (app: FitApp) => {
+    const was = a.tabs.includes(app.id), full = !was && a.tabs.length >= TAB_MAX;
+    set((x) => toggleTab(x, app.id)); haptic("light");
+    say(was ? `${app.name} is off your tab bar.` : full ? `${app.name} is on your tab bar, in place of ${FIT_APP_BY_ID.get(a.tabs[TAB_MAX - 1])?.name}.` : `${app.name} is on your tab bar.`);
+  };
+  const hideHelp = () => { setHelp(false); try { localStorage.setItem("arise-fit-plugins-help", "off"); } catch { /* fine */ } };
+  return <Sheet inline title="Plugins" onClose={() => {}} testId="fit-apps">
+    {/* What plugins are, in three steps (can be hidden once read). */}
+    {help ? <Card className="!p-4" testId="fit-apps-help">
+      <p className="text-[19px] leading-tight" style={display}>Plugins add tools to Arise Fit</p>
+      <p className="mt-1 text-[14px] leading-snug" style={{ color: C.dim }}>Yoga, Water, Steps, Intervals and more. Only add what you'll use: the app stays simple.</p>
+      <ol className="mt-3 space-y-2.5">{([[Plus, "Add a plugin", "Browse the list and tap Add."], [Play, "Open it", "Tap it in Your plugins below, or on Today."], [Pin, "Pin your favorites", `Turn on "Tab bar" to put up to ${TAB_MAX} at the bottom of the screen for one tap.`]] as const).map(([Ic, t, d], n) =>
+        <li key={t} className="flex items-start gap-3"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-full" style={{ background: C.tint, color: C.lime }}><Ic className="h-4 w-4" /></span>
+          <span className="min-w-0"><span className="block text-[15px] font-bold">{n + 1}. {t}</span><span className="block text-[13px]" style={{ color: C.dim }}>{d}</span></span></li>)}</ol>
+      <button type="button" onClick={hideHelp} className="mt-3 text-[13px] font-semibold" style={{ color: C.lime }}>Got it</button>
+    </Card> : <button type="button" onClick={() => setHelp(true)} className="mb-1 px-1 text-[13px] font-semibold" style={{ color: C.dim }}>What are plugins?</button>}
 
-    {/* The tab bar, as it will look. */}
-    <Card className="!p-3" testId="fit-apps-tabbar">
-      <p className="mb-2 px-1 text-[12px] tracking-[.14em]" style={{ ...display, color: C.dim }}>Your tab bar</p>
+    <Btn className="mt-3 w-full !min-h-[54px]" onClick={() => setStore(true)} testId="fit-apps-store"><LayoutGrid className="h-5 w-5" />Browse all {FIT_APPS.length} plugins</Btn>
+
+    {/* The tab bar as it is now. */}
+    <Card className="mt-4 !p-3" testId="fit-apps-tabbar">
+      <p className="mb-2 flex items-center justify-between px-1 text-[13px] font-semibold"><span>Your tab bar</span><span style={{ color: C.dim }}>{a.tabs.length} of {TAB_MAX} pinned</span></p>
       <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${TAB_MAX + 2}, minmax(0,1fr))` }}>
         <Slot label="Today" fixed />
         {Array.from({ length: TAB_MAX }, (_, i) => { const id = a.tabs[i]; const app = id ? FIT_APP_BY_ID.get(id) : undefined;
-          return app ? <div key={i} className="relative flex flex-col items-center gap-1 rounded-[12px] py-2" style={{ background: C.card2 }}>
-            <AppTile app={app} size={34} /><span className="w-full truncate px-1 text-center text-[11px] font-semibold">{app.name}</span>
-            {edit && <button type="button" aria-label={`Take ${app.name} off the tab bar`} onClick={() => set((x) => toggleTab(x, app.id))} className="absolute -right-1 -top-1.5 grid h-6 w-6 place-items-center rounded-full shadow" style={{ background: C.card, color: C.red, boxShadow: `0 0 0 1px ${C.line}` }} data-testid={`fit-tabbar-off-${app.id}`}><X className="h-3.5 w-3.5" /></button>}
-          </div> : <div key={i} className="grid place-items-center rounded-[12px] px-1 py-2 text-center text-[11px] font-semibold" style={{ boxShadow: `inset 0 0 0 1.5px ${C.line}`, color: C.dim, borderStyle: "dashed" }}>Empty<br />slot</div>; })}
+          return app ? <div key={i} className="flex flex-col items-center gap-1 rounded-[12px] py-2" style={{ background: C.card2 }}><AppTile app={app} size={30} /><span className="w-full truncate px-1 text-center text-[10.5px] font-semibold">{app.name}</span></div>
+            : <div key={i} className="grid place-items-center rounded-[12px] px-1 py-2 text-center text-[10.5px] font-semibold" style={{ boxShadow: `inset 0 0 0 1.5px ${C.line}`, color: C.dim }}>Free<br />spot</div>; })}
         <Slot label="Plugins" fixed />
       </div>
-      {edit && a.tabs.length > 1 && <div className="mt-2 flex flex-wrap items-center gap-1.5 px-1" aria-label="Order of the tab bar">{a.tabs.map((id, i) => { const app = FIT_APP_BY_ID.get(id)!; return <span key={id} className="flex items-center gap-0.5 rounded-full py-0.5 pl-1 pr-2 text-[12px] font-semibold" style={{ background: C.card2 }}>
+      {a.tabs.length > 1 && <div className="mt-2 flex flex-wrap items-center gap-1.5" aria-label="Change the order">{a.tabs.map((id, i) => { const app = FIT_APP_BY_ID.get(id)!; return <span key={id} className="flex items-center gap-0.5 rounded-full py-0.5 pl-1 pr-2 text-[12px] font-semibold" style={{ background: C.card2 }}>
         <button type="button" aria-label={`Move ${app.name} left`} disabled={i === 0} onClick={() => set((x) => moveTab(x, id, -1))} className="grid h-7 w-7 place-items-center rounded-full disabled:opacity-25"><ChevronLeft className="h-4 w-4" /></button>
         {app.name}
         <button type="button" aria-label={`Move ${app.name} right`} disabled={i >= a.tabs.length - 1} onClick={() => set((x) => moveTab(x, id, 1))} className="grid h-7 w-7 place-items-center rounded-full disabled:opacity-25"><ChevronRight className="h-4 w-4" /></button></span>; })}</div>}
-      <p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>{edit ? "Tap an app plugin below to pin it to the tab bar or take it off. Use the arrows to change the order." : "Tap Edit to change it."}</p>
     </Card>
 
-    <button type="button" onClick={() => setStore(true)} className="fit-in fit-shine mt-4 flex w-full items-center gap-3 rounded-[16px] p-3.5 text-left active:scale-[.98]" style={{ background: `linear-gradient(150deg, ${C.lime}, ${C.deep})`, color: C.ink }} data-testid="fit-apps-store-top">
-      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[13px]" style={{ background: "rgba(255,255,255,.22)" }}><Plus className="h-6 w-6" /></span>
-      <span className="min-w-0 flex-1"><span className="block text-[20px] leading-none" style={display}>Add app plugins</span><span className="mt-1 block text-[12.5px] font-semibold opacity-80">{FIT_APPS.length - a.added.length} more to add · one tap each</span></span>
-      <ChevronRight className="h-5 w-5 shrink-0" /></button>
+    <Title right={<span className="text-[13px]" style={{ color: C.dim }}>{added.length} added</span>}>Your plugins</Title>
+    {added.length ? <div className="space-y-2" data-testid="fit-apps-added">{added.map((app, i) => { const pinned = a.tabs.includes(app.id);
+      return <Card key={app.id} className="fit-in !p-3" style={stagger(i, 0.02)} testId={`fit-apps-${app.id}`}><div className="flex items-center gap-3">
+        <button type="button" onClick={() => onOpen(app.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left active:scale-[.99]" aria-label={`Open ${app.name}`}>
+          <AppTile app={app} size={46} />
+          <span className="min-w-0"><span className="block truncate text-[16px] font-bold">{app.name}</span><span className="block truncate text-[12.5px]" style={{ color: C.dim }}>{app.blurb}</span></span>
+        </button>
+        {app.tab && <button type="button" role="switch" aria-checked={pinned} onClick={() => pin(app)} className="flex shrink-0 flex-col items-center gap-0.5" data-testid={`fit-apps-pin-${app.id}`}>
+          <span className="relative h-6 w-10 rounded-full transition-colors" style={{ background: pinned ? C.lime : C.track }}><span className="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all" style={{ left: pinned ? 18 : 2 }} /></span>
+          <span className="text-[10px] font-semibold" style={{ color: C.dim }}>Tab bar</span></button>}
+      </div>
+        <div className="mt-2 flex gap-2 pl-[58px]">
+          <button type="button" onClick={() => onOpen(app.id)} className="h-8 rounded-full px-3.5 text-[13px] font-bold" style={{ background: C.lime, color: C.ink }}>Open</button>
+          <button type="button" onClick={() => { set((x) => removeApp(x, app.id)); say(`${app.name} removed. Add it back any time.`); }} className="h-8 rounded-full px-3.5 text-[13px] font-semibold" style={{ background: C.card2, color: C.dim }} data-testid={`fit-apps-remove-${app.id}`}>Remove</button>
+        </div></Card>; })}</div>
+      : <Card className="!p-4 text-center"><p className="text-[15px] font-semibold">No plugins yet</p><p className="mt-1 text-[13px]" style={{ color: C.dim }}>Tap "Browse all plugins" to add your first one.</p></Card>}
 
-    <Title>Added</Title>
-    {added.length ? <div className="grid grid-cols-4 gap-x-2 gap-y-4" data-testid="fit-apps-added">{added.map((app, i) => { const pinned = a.tabs.includes(app.id);
-      return <div key={app.id} className="fit-in relative flex flex-col items-center gap-1.5" style={stagger(i, 0.025)}>
-        <button type="button" onClick={() => (edit ? app.tab && set((x) => toggleTab(x, app.id)) : onOpen(app.id))} className={`flex flex-col items-center gap-1.5 active:scale-95 ${edit ? "fit-wiggle" : ""}`} aria-label={edit ? (app.tab ? `${pinned ? "Unpin" : "Pin"} ${app.name}` : app.name) : `Open ${app.name}`} data-testid={`fit-apps-open-${app.id}`}>
-          <AppTile app={app} size={60} /><span className="w-[72px] truncate text-center text-[12px] font-semibold">{app.name}</span></button>
-        {edit && <button type="button" onClick={() => set((x) => removeApp(x, app.id))} aria-label={`Remove ${app.name}`} className="absolute -left-0.5 -top-1.5 grid h-6 w-6 place-items-center rounded-full shadow" style={{ background: C.card, color: C.text, boxShadow: `0 0 0 1px ${C.line}` }} data-testid={`fit-apps-remove-${app.id}`}><Minus className="h-3.5 w-3.5" /></button>}
-        {edit && app.tab && <span aria-hidden className="absolute -right-0.5 -top-1.5 grid h-6 w-6 place-items-center rounded-full shadow" style={pinned ? { background: C.lime, color: C.ink } : { background: C.card, color: C.dim, boxShadow: `0 0 0 1px ${C.line}` }}>{pinned ? <Pin className="h-3.5 w-3.5" /> : <PinOff className="h-3.5 w-3.5" />}</span>}
-        {!edit && pinned && <span aria-hidden className="absolute right-1.5 top-0 h-2.5 w-2.5 rounded-full" style={{ background: C.lime, boxShadow: `0 0 0 2px ${C.bg}` }} />}
-      </div>; })}</div>
-      : <p className="px-1 text-[14px]" style={{ color: C.dim }}>No app plugins yet. Add some from the library.</p>}
-
-    <button type="button" onClick={() => setStore(true)} className="fit-in fit-shine mt-6 flex w-full items-center gap-4 rounded-[16px] p-4 text-left active:scale-[.98]" style={{ background: `linear-gradient(150deg, ${C.lime}, ${C.deep})`, color: C.ink }} data-testid="fit-apps-store">
-      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[14px]" style={{ background: "rgba(255,255,255,.22)" }}><LayoutGrid className="h-6 w-6" /></span>
-      <span className="min-w-0 flex-1"><span className="block text-[24px] leading-none" style={display}>Get more app plugins</span><span className="mt-1 block text-[13px] font-semibold opacity-80">{FIT_APPS.length} app plugins for training, mind, food and health</span></span>
-      <ChevronRight className="h-6 w-6 shrink-0" /></button>
-
-    {notYet.length > 0 && <><Title>You might like</Title>
-      <div className="space-y-2">{notYet.slice(0, 3).map((app) => <StoreRow key={app.id} app={app} added={false} pinned={false} onAdd={() => { set((x) => addApp(x, app.id)); haptic("success"); say(`${app.name} added.`); }} onOpen={() => onOpen(app.id)} />)}</div></>}
+    {notYet.length > 0 && <><Title>Suggested for you</Title>
+      <div className="space-y-2">{notYet.slice(0, 3).map((app) => <StoreRow key={app.id} app={app} added={false} pinned={false} onAdd={() => { set((x) => addApp(x, app.id)); haptic("success"); say(`${app.name} added. It's in Your plugins.`); }} onOpen={() => onOpen(app.id)} />)}</div></>}
     {store && <AppStore data={data} update={update} say={say} onClose={() => setStore(false)} onOpen={(id) => { setStore(false); onOpen(id); }} />}
   </Sheet>;
 }
@@ -130,9 +138,10 @@ export function AppStore({ data, update, say, onClose, onOpen }: { data: FitData
   const set = (fn: (x: typeof a) => typeof a) => update((d) => ({ ...d, apps: fn(appsOf(d.apps)) }));
   const hit = (x: FitApp) => !q.trim() || `${x.name} ${x.blurb}`.toLowerCase().includes(q.trim().toLowerCase());
   const featured: FitAppId[] = ["yoga", "mind", "sleep", "hiit"];
-  return <Sheet title="Arise Fit app plugins" onClose={onClose} testId="fit-store">
+  return <Sheet title="All plugins" onClose={onClose} testId="fit-store">
+    <p className="-mt-1 mb-2 px-1 text-[14px]" style={{ color: C.dim }}>Tap Add to put a plugin in Your plugins. Tap its picture to try it first.</p>
     <div className="relative mt-1"><Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2" style={{ color: C.dim }} />
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search app plugins" className={`${inputCls} pl-10`} style={inputStyle} aria-label="Search app plugins" data-testid="fit-store-search" /></div>
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search plugins" className={`${inputCls} pl-10`} style={inputStyle} aria-label="Search plugins" data-testid="fit-store-search" /></div>
     {!q && <div className="-mx-4 mt-3 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">{featured.map((id) => { const app = FIT_APP_BY_ID.get(id)!; const has = a.added.includes(id);
       return <button key={id} type="button" onClick={() => (has ? onOpen(id) : (set((x) => addApp(x, id)), haptic("success"), say(`${app.name} added.`)))} className="fit-in relative flex h-[150px] w-[230px] shrink-0 snap-start flex-col justify-end overflow-hidden rounded-[18px] p-4 text-left text-white active:scale-[.98]" style={{ background: `linear-gradient(150deg, ${app.tile[0]}, ${app.tile[1]})` }}>
         <span className="absolute right-3 top-3 opacity-90"><AppTile app={app} size={44} /></span>
@@ -144,10 +153,10 @@ export function AppStore({ data, update, say, onClose, onOpen }: { data: FitData
       </button>; })}</div>}
     {FIT_APP_CATEGORIES.map((cat) => { const list = FIT_APPS.filter((x) => x.category === cat.id && hit(x)); if (!list.length) return null;
       return <div key={cat.id}><Title>{cat.name}</Title><div className="space-y-2">{list.map((app) => <StoreRow key={app.id} app={app} added={a.added.includes(app.id)} pinned={a.tabs.includes(app.id)}
-        onAdd={() => { set((x) => addApp(x, app.id)); haptic("success"); say(`${app.name} added to your app plugins.`); }}
+        onAdd={() => { set((x) => addApp(x, app.id)); haptic("success"); say(`${app.name} added to Your plugins.`); }}
         onOpen={() => onOpen(app.id)}
         onPin={() => { const was = a.tabs.includes(app.id); const full = !was && a.tabs.length >= TAB_MAX; set((x) => toggleTab(x, app.id)); say(was ? `${app.name} is off the tab bar.` : full ? `${app.name} is on the tab bar, in place of ${FIT_APP_BY_ID.get(a.tabs[TAB_MAX - 1])?.name}.` : `${app.name} is on the tab bar.`); }} />)}</div></div>; })}
-    {FIT_APPS.every((x) => !hit(x)) && <p className="mt-6 text-center text-[14px]" style={{ color: C.dim }}>No app plugins match "{q}".</p>}
+    {FIT_APPS.every((x) => !hit(x)) && <p className="mt-6 text-center text-[14px]" style={{ color: C.dim }}>No plugins match "{q}".</p>}
   </Sheet>;
 }
 
