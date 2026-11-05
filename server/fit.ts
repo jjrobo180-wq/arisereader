@@ -109,7 +109,7 @@ function cleanVisionAnswer(text: string): GearAnswer {
   return { gear: cleanGearIds(parsed.gear), name: String(parsed.name || "").slice(0, 80), note: String(parsed.note || "").slice(0, 200) };
 }
 
-async function askAiForGear(image: string, mode: "machine" | "gym"): Promise<GearAnswer> {
+export async function askAiForGear(image: string, mode: "machine" | "gym"): Promise<GearAnswer> {
   const instruction = IDENTIFY_PROMPT(mode);
   const question = mode === "machine" ? "Identify the equipment shown in the attached photo." : "List the gym equipment visible in the attached photo.";
   const headers = { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" };
@@ -132,7 +132,7 @@ async function askAiForGear(image: string, mode: "machine" | "gym"): Promise<Gea
   if (!chat.ok) throw new Error(`status ${chat.status}`);
   const body: any = await chat.json();
   const first = cleanVisionAnswer(String(body?.choices?.[0]?.message?.content || "{}"));
-  if (first.gear.length || !visionMissedImage(first.note)) return first;
+  if (!visionMissedImage(first.note)) return first;
 
   // Some vision replies falsely claim that no image was sent despite receiving
   // a valid data URL. Retry once through the independent Responses image-input
