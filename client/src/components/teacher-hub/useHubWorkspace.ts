@@ -100,6 +100,14 @@ export function useHubWorkspace({ enabled, token, userId }: { enabled: boolean; 
       onSaved: ({ bytes: size }) => { if (isLive()) setBytes(size); announceSaved("workhub", userRef.current); },
       setTimer: (run, ms) => window.setTimeout(run, ms),
       clearTimer: (handle) => window.clearTimeout(handle as number),
+      // Two devices saved at once: both sets of changes are merged and saved, no "which copy?" question.
+      fetchLatest: async () => {
+        const r = await fetch(`${API_BASE}/api/teacher-hub/workspace`, { headers: authHeaders(tokenRef.current), cache: "no-store" });
+        const data = await r.json().catch(() => null);
+        if (!r.ok) throw new Error("not reached");
+        return { workspace: workspaceFrom(data), updatedAt: typeof data?.updatedAt === "string" ? data.updatedAt : null };
+      },
+      onMerged: (merged) => { if (isLive()) { const clean = normalizeWorkspace(merged); setWorkspace(clean); setBytes(workspaceBytes(clean)); } },
     },
     { workspace: start, updatedAt },
   ), []);

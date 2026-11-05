@@ -5,6 +5,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { HubSaver, type SaveView } from "@/lib/hubSaver";
 import { announceSaved, onOtherCopySaved } from "@/lib/paneSync";
 import { markHubOpen, prefetchHub, recallHub, rememberHub } from "@/lib/hubMemory";
+import { merge3 } from "@shared/mergeJson";
 
 const api = `${API_BASE}/api/arise-todo/workspace`;
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
@@ -54,7 +55,9 @@ export function useTodoCloud<W extends object>({
 
   const saveDraft = useCallback((current: W, dirty: boolean) => {
     if (!userRef.current) return;
-    try { localStorage.setItem(backupKey(userRef.current), JSON.stringify({ workspace: current, dirty })); } catch {}
+    // The copy last saved to the account goes with it, so changes made offline merge cleanly later.
+    const base = saver.current ? saver.current.saved : undefined;
+    try { localStorage.setItem(backupKey(userRef.current), JSON.stringify({ workspace: current, dirty, ...(dirty && base ? { base } : {}) })); } catch {}
   }, []);
 
   useEffect(() => {
@@ -101,6 +104,15 @@ export function useTodoCloud<W extends object>({
       setTimer: (fn, ms) => window.setTimeout(fn, ms),
       clearTimer: timer => window.clearTimeout(timer as number),
       debounceMs: 650,
+      // Two devices saved at once: merged by itself, never a "which copy?" question.
+      fetchLatest: async () => {
+        const res = await fetch(api, { headers: auth(tokenRef.current || ""), cache: "no-store" });
+        const body = await res.json().catch(() => null);
+        if (!res.ok) throw new Error("not reached");
+        const remote = body?.workspace === null ? blank() : body?.workspace;
+        return isValid(remote) ? { workspace: remote, updatedAt: typeof body?.updatedAt === "string" ? body.updatedAt : null } : null;
+      },
+      onMerged: merged => { if (!cancelled) { rawSetWorkspace(merged); saveDraft(merged, true); } },
     }, { workspace: start, updatedAt });
     (async () => {
       try {
@@ -129,21 +141,24 @@ export function useTodoCloud<W extends object>({
         saver.current?.dispose();
         const instance = makeSaver(remote, typeof body?.updatedAt === "string" ? body.updatedAt : null);
         saver.current = instance;
-        let unsavedCopy: W | null = null;
+        // Changes on this device that never reached the account (no signal, app closed) are merged
+        // with the account's copy and saved, by themselves: nothing to choose.
+        let merged: W | null = null;
         try {
           const raw = localStorage.getItem(backupKey(userId));
           if (raw) {
             const cached = JSON.parse(raw);
             if (cached?.dirty === true && isValid(cached.workspace) && JSON.stringify(cached.workspace) !== JSON.stringify(remote)) {
-              unsavedCopy = cached.workspace;
+              const m = merge3(isValid(cached.base) ? cached.base : undefined, cached.workspace, remote);
+              if (isValid(m)) merged = m;
             }
           }
         } catch {}
-        setRecovery(unsavedCopy);
-        rawSetWorkspace(remote);
-        if (!unsavedCopy) saveDraft(remote, false);
-        setView({ kind: "saved" });
+        setRecovery(null);
+        rawSetWorkspace(merged ?? remote);
+        setView({ kind: merged ? "waiting" : "saved" });
         setLoaded(true);
+        if (merged) { instance.change(merged); saveDraft(merged, true); } else saveDraft(remote, false);
       } catch (err: any) {
         if (cancelled) return;
         setError(err?.message || "Unable to load your saved tasks.");
