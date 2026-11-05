@@ -29,6 +29,7 @@ const TrainerApp = lazy(() => import("@/pages/trainer/TrainerApp"));
 const TrainersPage = lazy(() => import("@/pages/coach/TrainersPage"));
 const NotesApp = lazy(() => import("@/components/arise-notes/NotesApp"));
 const TalkApp = lazy(() => import("@/pages/talk/TalkApp"));
+const GoalQuizPage = lazy(() => import("@/pages/GoalQuizPage"));
 import { API_BASE } from "./lib/queryClient";
 import ProfileSetupOverlay from "./components/ProfileSetupOverlay";
 import EyeGazeSiteShell from "./components/EyeGazeSiteShell";
@@ -553,6 +554,8 @@ function AppRoutes() {
       <Route path="/trainers"><TrainersPage /></Route>
       {/* Arise Talk: the talking boards (no account needed). */}
       <Route path="/talk"><TalkApp /></Route>
+      {/* A goal quiz a teacher sent as a link: no sign-in (shared/hubIep.ts). */}
+      <Route path="/goal-quiz/:code"><GoalQuizPage /></Route>
       <Route path="/trainer">
         <ProtectedRoute><TrainerApp /></ProtectedRoute>
       </Route>
