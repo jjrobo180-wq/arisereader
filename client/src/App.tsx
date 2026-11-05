@@ -108,6 +108,7 @@ const AvatarWorld = lazyPage(() => import("./pages/AvatarWorld"));
 const Games = lazyPage(() => import("./pages/Games"));
 const MeetingPoll = lazyPage(() => import("./pages/MeetingPoll"));
 const TodoShare = lazyPage(() => import("./pages/TodoShare"));
+const JoinFamily = lazyPage(() => import("./pages/JoinFamily"));
 const DropReceive = lazyPage(() => import("./pages/DropReceive"));
 const TryIepWriter = lazyPage(() => import("./pages/TryIepWriter"));
 const DuoSplit = lazyPage(() => import("./pages/DuoSplit"));
@@ -590,6 +591,9 @@ function AppRoutes() {
       </Route>
       <Route path="/meet/:token">
         <MeetingPoll />
+      </Route>
+      <Route path="/join/:token">
+        <JoinFamily />
       </Route>
       <Route path="/share/:token">
         <TodoShare />

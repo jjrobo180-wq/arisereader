@@ -129,3 +129,14 @@ test("WorkHub's store lives in the main Hub screen, not the trial-ended screen",
   assert.ok(at > hub.indexOf("function TeacherHubPage()"), "inside TeacherHubPage");
   assert.ok(hub.slice(hub.indexOf("function ReaderOnly("), hub.indexOf("export default function TeacherHub()")).indexOf("PluginStore") === -1, "not in ReaderOnly");
 });
+
+test("search ranks by name and category and doesn't match mid-word", () => {
+  const life = pluginsFor("life", { teacher: false });
+  const fit = searchPlugins(life, "fitness");
+  const loose = life.filter((p) => [p.name, p.tagline, p.category, p.description, ...p.features].join(" ").toLowerCase().includes("fit"));
+  assert.ok(fit.length > 0 && fit.length <= loose.length);
+  assert.ok(fit.length < life.length / 3, `fitness should be tight, got ${fit.length} of ${life.length}`);
+  const first = fit[0]!;
+  assert.ok(/fit|health|workout|exercise|train/i.test([first.name, first.category, first.tagline].join(" ")), first.name);
+  assert.equal(searchPlugins(life, "").length, life.length);
+});

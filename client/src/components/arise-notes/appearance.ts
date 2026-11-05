@@ -9,6 +9,8 @@ const EVENT = "arise-notes-appearance";
 export function getAppearance(): Appearance {
   try { const v = localStorage.getItem(KEY); return v === "light" || v === "dark" ? v : "auto"; } catch { return "auto"; }
 }
+/** Has this device ever been given a choice? (Until then it is Auto.) */
+export function hasAppearance(): boolean { try { return localStorage.getItem(KEY) !== null; } catch { return false; } }
 export function setAppearance(v: Appearance) {
   try { localStorage.setItem(KEY, v); } catch { /* not kept */ }
   window.dispatchEvent(new Event(EVENT));
