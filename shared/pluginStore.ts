@@ -813,14 +813,44 @@ export function connectionNeeds(p: Plugin): Plugin | null {
     ("section" in t.needs && q.target.kind === "section" && q.target.section === t.needs.section))) ?? null;
 }
 
-/** Search by name, tagline, category and features. */
+/** Words in a text, lowercased, for whole-word and word-start matching. */
+const wordsOf = (t: string): string[] => t.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+/** "fitness" -> "fit", "workouts" -> "workout": so a plural or "-ness" still finds the plain word. */
+const stem = (w: string): string => w.length > 4 ? w.replace(/(ness|ing|es|s)$/, "") : w;
+
+/** How well one search word fits one plugin. 0 = no match. Name and category count far more than the small print. */
+function wordScore(p: Plugin, w: string): number {
+  const st = stem(w);
+  const hit = (text: string, exact: number, start: number): number => {
+    const ws = wordsOf(text);
+    if (ws.some((x) => x === w || x === st)) return exact;
+    if (ws.some((x) => x.startsWith(w) || (st.length >= 3 && x.startsWith(st)))) return start;
+    return 0;
+  };
+  return Math.max(
+    hit(p.name, 100, 80),
+    hit(p.category, 70, 60),
+    hit(p.tagline, 40, 30),
+    ...p.features.map((f) => hit(f, 12, 8)),
+    hit(p.description, 4, 3),
+  );
+}
+
+/**
+ * Search by name, category, tagline and features, best match first. Words match the start of a word, never the
+ * middle of one ("fit" finds Fitness, not "benefit"). Every word must match. The fine print (features and the
+ * long description) only fills in when nothing matches by name, category or tagline, so "fitness" shows the
+ * fitness apps rather than everything that mentions it once.
+ */
 export function searchPlugins(list: readonly Plugin[], query: string): Plugin[] {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (!words.length) return [...list];
-  return list.filter((p) => {
-    const text = [p.name, p.tagline, p.category, p.description, ...p.features].join(" ").toLowerCase();
-    return words.every((w) => text.includes(w));
-  });
+  const scored = list.map((p, i) => {
+    const each = words.map((w) => wordScore(p, w));
+    return { p, i, ok: each.every((n) => n > 0), score: each.reduce((a, n) => a + n, 0), strong: each.every((n) => n >= 30) };
+  }).filter((r) => r.ok);
+  const strong = scored.filter((r) => r.strong);
+  return (strong.length ? strong : scored).sort((x, y) => y.score - x.score || x.i - y.i).map((r) => r.p);
 }
 
 /** The session-storage key that opens the store when a hub loads (used to switch hubs from inside the store). */
