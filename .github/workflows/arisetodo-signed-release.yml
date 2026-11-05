@@ -8,7 +8,7 @@ on:
       - '.github/scripts/**'
       - '.github/workflows/arisetodo-signed-release.yml'
       - 'arisetodo/ios-app/**'
-      - 'client/src/main.tsx'
+      - 'client/src/**'
 jobs:
   signed-archive:
     # GitHub's Xcode 27 image (Apple Silicon): builds with the iOS 27.1 SDK, for iPhone Duo.
