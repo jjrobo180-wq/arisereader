@@ -8,6 +8,7 @@ import { Pin, Plus, Search, StickyNote } from "lucide-react";
 import { NOTE_COLORS, saveNotesAppNote, type Note } from "@shared/notesApp";
 import { NoteTemplatesButton } from "@/components/NoteTemplatePicker";
 import { useStayOnRefresh } from "@/lib/useStayOnRefresh";
+import { useSavedChoice } from "@/lib/useSavedChoice";
 import FullNoteEditor from "@/components/notes/FullNoteEditor";
 import "@/components/notes/noteThemes.css";
 
@@ -28,7 +29,7 @@ export type NotesKitAppProps = {
 
 export default function NotesKitApp({ name, blurb, notes, setNotes, makeId, say }: NotesKitAppProps) {
   const [query, setQuery] = useState("");
-  const [notesTheme, setNotesTheme] = useState<"editorial" | "slate" | "graphite" | "linen">("editorial");
+  const [notesTheme, setNotesTheme] = useSavedChoice<"editorial" | "slate" | "graphite" | "linen">("arise-notes-theme", "editorial", ["editorial", "slate", "graphite", "linen"]);
   // Refreshing keeps the open one open (a locked one waits for the passcode again).
   const [openId, setOpenId] = useStayOnRefresh<string | null>(`kit-note-${name}`, null);
   const [editing, setEditing] = useState<Note | null>(() => { const n = openId ? notes.find((x) => x.id === openId) : undefined; return n && !n.locked ? { ...n } : null; });
