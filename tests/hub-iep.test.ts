@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { accommodationList, accommodationText, cleanIepNotes, iepComingUp, iepReminders, newIepNote, newQuizShare, noteText, parseQuizCode, pmSheetHtml, pmStatus, publicQuiz, quizLink, scoreQuiz, NOTE_SECTIONS } from "../shared/hubIep";
+import { IEP_NOTE_KINDS, noteGroup, accommodationList, accommodationText, cleanIepNotes, iepComingUp, iepReminders, newIepNote, newQuizShare, noteText, parseQuizCode, pmSheetHtml, pmStatus, publicQuiz, quizLink, scoreQuiz, NOTE_SECTIONS } from "../shared/hubIep";
 import { dueHubReminders } from "../shared/hubReminders";
 import { normalizeWorkspace, type Goal } from "../shared/teacherHub";
 
@@ -72,8 +72,21 @@ test("quiz links: a code, no answers shown, scored on the server, kept through a
 
 test("the IEP page puts every part in one place, with the student picked at the top", () => {
   const page = read("client/src/components/teacher-hub/HubIep.tsx"), hub = read("client/src/pages/TeacherHub.tsx"), server = read("server/teacherHub.ts"), app = read("client/src/App.tsx");
-  for (const t of ['["overview", "Overview"]', '["meetings", "Meetings"]', '["notes", "Notes"]', '["profile", "Profile"]', '["accommodations", "Accommodations"]', '["progress", "Progress"]', '["minutes", "Minutes"]', 'data-testid="iep-student"', 'data-testid="iep-pm-upload"', 'data-testid="iep-pm-sheet"', 'data-testid="iep-pm-worksheet"', 'data-testid="iep-pm-quiz"', "<StudentQuizzes", "<MakeGoalQuiz"]) assert.ok(page.includes(t), t);
+  for (const t of ['type IepTab = "overview" | "meetings" | "notes"', 'key: "meetings", label: "Meetings"', 'key: "notes", label: "Notes"', 'key: "profile", label: "Profile"', 'key: "accommodations", label: "Accommodations"', 'key: "progress", label: "Progress"', 'key: "minutes", label: "Minutes"', 'data-testid="iep-folder"', 'data-testid="iep-note-picker"', 'data-testid="iep-student"', 'data-testid="iep-pm-upload"', 'data-testid="iep-pm-sheet"', 'data-testid="iep-pm-worksheet"', 'data-testid="iep-pm-quiz"', "<StudentQuizzes", "<MakeGoalQuiz"]) assert.ok(page.includes(t), t);
   assert.ok(hub.includes('{tab === "iep" && <IepPage'));
   assert.ok(server.includes('app.get("/api/goal-quiz/:code"') && server.includes('app.post("/api/goal-quiz/:code"') && server.includes("scoreQuiz(quiz, req.body?.answers)"));
   assert.ok(app.includes('<Route path="/goal-quiz/:code"><GoalQuizPage /></Route>'));
+});
+
+test("the IEP has one Notes tab for student, class and meeting notes, kept in one list", () => {
+  assert.ok(IEP_NOTE_KINDS.includes("Student note"));
+  assert.equal(noteGroup("Student note"), "student");
+  assert.equal(noteGroup("Push-in class"), "class");
+  assert.equal(noteGroup("Pull-out class"), "class");
+  assert.equal(noteGroup("Annual review"), "meeting");
+  const n = newIepNote("a", "Ava", "Student note", "2026-11-05");
+  assert.deepEqual(Object.keys(n.sections), ["What happened", "What I did", "Next steps"]);
+  assert.equal(cleanIepNotes([n])[0].kind, "Student note");
+  const page = read("client/src/components/teacher-hub/HubIep.tsx");
+  for (const part of ["function noteEntries(", "workspace.notes", "workspace.meetings", "workspace.pushInNotes", 'data-testid="iep-back"']) assert.ok(page.includes(part), part);
 });
