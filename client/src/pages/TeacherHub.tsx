@@ -1756,7 +1756,7 @@ function TeacherHubPage() {
             </>
           )}
 
-          {tab !== "overview" && tab !== "caseload" && !isReaderTab(tab) && tab !== "admin" && (
+          {tab !== "overview" && tab !== "caseload" && tab !== "calendar" && tab !== "notes" && tab !== "journal" && !isReaderTab(tab) && tab !== "admin" && (
             <HubPageHead tab={tab} title={TAB_META.find((m) => m.id === tab)?.label ?? groupLabel(group.id, visible)} workspace={workspace} />
           )}
 
