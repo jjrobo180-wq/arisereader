@@ -65,8 +65,8 @@
 .an-root.an-suite .an-l-bar [data-testid="notes-tab-record"] { color: var(--an-violet-ink) !important; }
 .an-root.an-suite .an-l-avatar { background: var(--an-ink) !important; color: var(--an-bg) !important; }
 
-/* ── The Notes tab and the writing page take the look's colors ── */
-.an-root.an-root.an-pro.an-suite {
+/* ── The Notes tab and the writing page take the look (Suite looks, and every other look via .an-prolook)'s colors ── */
+.an-root.an-root.an-pro:is(.an-suite, .an-prolook) {
   --an-bg: var(--sx-bg) !important; --an-card: var(--sx-card) !important; --an-line: var(--sx-line) !important;
   --an-ink: var(--sx-ink) !important; --an-muted: var(--sx-muted) !important; --an-faint: var(--sx-faint) !important;
   --an-violet: var(--sx-violet) !important; --an-violet-ink: var(--sx-violet-ink) !important; --an-violet-soft: var(--sx-violet-soft) !important; --an-on-accent: var(--sx-on-accent) !important;
@@ -75,28 +75,34 @@
   --pp-accent: var(--sx-violet-ink); --pp-accent-2: var(--sx-violet-ink); --pp-icon: var(--sx-violet-ink); --pp-row-on: var(--sx-violet-soft);
   font-family: var(--sx-font) !important; color-scheme: light;
 }
-.an-root.an-root.an-pro.an-suite.an-suite-dark { color-scheme: dark; }
-.an-root.an-pro.an-suite .pp-title, .an-root.an-pro.an-suite .pp-section { font-family: var(--sx-serif) !important; }
+.an-root.an-root.an-pro:is(.an-suite.an-suite-dark, .an-prolook.an-prolook-dark) { color-scheme: dark; }
+.an-root.an-pro:is(.an-suite, .an-prolook) .pp-title, .an-root.an-pro:is(.an-suite, .an-prolook) .pp-section { font-family: var(--sx-serif) !important; }
 .an-suite-folio.an-pro .pp-title { font-weight: 600 !important; letter-spacing: -.01em !important; }
-.an-root.an-pro.an-suite .pp-compose { color: var(--sx-on-accent) !important; background: var(--sx-violet) !important; box-shadow: 0 10px 24px -10px rgba(0,0,0,.45) !important; }
-.an-root.an-pro.an-suite .pp-quick { background: var(--an-card); box-shadow: 0 0 0 .5px var(--an-line); }
-.an-root.an-pro.an-suite .pp-row-icon { color: var(--sx-violet-ink); background: var(--sx-violet-soft); }
-.an-root.an-pro.an-suite .pp-row-marks { color: var(--sx-violet-ink); }
-.an-root.an-pro.an-suite .pp-tag[aria-pressed="true"] { background: var(--sx-violet); color: var(--sx-on-accent); }
-.an-root.an-pro.an-suite .pp-undo button { color: var(--sx-violet-ink); }
-.an-root.an-pro.an-suite .pp-swipe-pin, .an-root.an-pro.an-suite .pp-swipe-pin-left { background: var(--sx-violet); color: var(--sx-on-accent); }
-.an-root.an-pro.an-suite .an-search input { background: color-mix(in srgb, var(--an-ink) 7%, var(--an-bg)) !important; color: var(--an-ink) !important; }
-.an-root.an-pro.an-suite.an-suite-dark .an-input, .an-root.an-pro.an-suite.an-suite-dark .an-card, .an-root.an-pro.an-suite.an-suite-dark .bg-white { background: var(--an-card) !important; color: var(--an-ink) !important; border-color: var(--an-line) !important; }
+.an-root.an-pro:is(.an-suite, .an-prolook) .pp-compose { color: var(--sx-on-accent) !important; background: var(--sx-violet) !important; box-shadow: 0 10px 24px -10px rgba(0,0,0,.45) !important; }
+.an-root.an-pro:is(.an-suite, .an-prolook) .pp-quick { background: var(--an-card); box-shadow: 0 0 0 .5px var(--an-line); }
+.an-root.an-pro:is(.an-suite, .an-prolook) .pp-row-icon { color: var(--sx-violet-ink); background: var(--sx-violet-soft); }
+.an-root.an-pro:is(.an-suite, .an-prolook) .pp-row-marks { color: var(--sx-violet-ink); }
+.an-root.an-pro:is(.an-suite, .an-prolook) .pp-tag[aria-pressed="true"] { background: var(--sx-violet); color: var(--sx-on-accent); }
+.an-root.an-pro:is(.an-suite, .an-prolook) .pp-undo button { color: var(--sx-violet-ink); }
+.an-root.an-pro:is(.an-suite, .an-prolook) .pp-swipe-pin, .an-root.an-pro:is(.an-suite, .an-prolook) .pp-swipe-pin-left { background: var(--sx-violet); color: var(--sx-on-accent); }
+.an-root.an-pro:is(.an-suite, .an-prolook) .an-search input { background: color-mix(in srgb, var(--an-ink) 7%, var(--an-bg)) !important; color: var(--an-ink) !important; }
+.an-root.an-pro:is(.an-suite.an-suite-dark, .an-prolook.an-prolook-dark) .an-input, .an-root.an-pro:is(.an-suite.an-suite-dark, .an-prolook.an-prolook-dark) .an-card, .an-root.an-pro:is(.an-suite.an-suite-dark, .an-prolook.an-prolook-dark) .bg-white { background: var(--an-card) !important; color: var(--an-ink) !important; border-color: var(--an-line) !important; }
 
 /* The writing page: the plain paper becomes the look's own page (papers picked on purpose stay). */
-.an-root.an-suite [data-paper="paper"], .an-root.an-suite [data-paper="charcoal"] { background-color: var(--an-card) !important; color: var(--an-ink) !important; }
-.an-root.an-suite.an-suite-dark [data-paper="paper"], .an-root.an-suite.an-suite-dark [data-paper="charcoal"] { color-scheme: dark; }
-.an-root.an-suite .an-doc-title { font-family: var(--sx-serif, var(--an-serif)) !important; font-weight: 750; letter-spacing: -.025em; }
+.an-root:is(.an-suite, .an-prolook) [data-paper="paper"], .an-root:is(.an-suite, .an-prolook) [data-paper="charcoal"] { background-color: var(--an-card) !important; color: var(--an-ink) !important; }
+.an-root:is(.an-suite.an-suite-dark, .an-prolook.an-prolook-dark) [data-paper="paper"], .an-root:is(.an-suite.an-suite-dark, .an-prolook.an-prolook-dark) [data-paper="charcoal"] { color-scheme: dark; }
+.an-root:is(.an-suite, .an-prolook) .an-doc-title { font-family: var(--sx-serif, var(--an-serif)) !important; font-weight: 750; letter-spacing: -.025em; }
 .an-suite-folio .an-doc-title { font-weight: 600 !important; letter-spacing: -.01em !important; }
-.an-root.an-suite [data-paper="paper"] [data-testid="pages-rich-body"], .an-root.an-suite [data-paper="charcoal"] [data-testid="pages-rich-body"] { caret-color: var(--an-violet-ink); }
-.an-root.an-suite [data-testid="pages-rich-body"] a { color: var(--an-violet-ink) !important; }
-.an-root.an-suite [data-testid="pages-rich-body"] th, .an-root.an-suite [data-testid="pages-rich-body"] td { border-color: var(--an-line) !important; }
-.an-root.an-suite .an-notehead, .an-root.an-suite .an-notebar { background: color-mix(in srgb, var(--an-card) 88%, transparent) !important; color: var(--an-ink) !important; border-color: var(--an-line) !important; backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); }
-.an-root.an-suite .an-notehead button, .an-root.an-suite .an-notebar button { color: var(--an-violet-ink); }
-.an-root.an-suite .an-notebar .border-black\/5 { border-color: var(--an-line) !important; }
-.an-root.an-suite ::selection { background: color-mix(in srgb, var(--an-violet) 32%, transparent); }
+.an-root:is(.an-suite, .an-prolook) [data-paper="paper"] [data-testid="pages-rich-body"], .an-root:is(.an-suite, .an-prolook) [data-paper="charcoal"] [data-testid="pages-rich-body"] { caret-color: var(--an-violet-ink); }
+.an-root:is(.an-suite, .an-prolook) [data-testid="pages-rich-body"] a { color: var(--an-violet-ink) !important; }
+.an-root:is(.an-suite, .an-prolook) [data-testid="pages-rich-body"] th, .an-root:is(.an-suite, .an-prolook) [data-testid="pages-rich-body"] td { border-color: var(--an-line) !important; }
+.an-root:is(.an-suite, .an-prolook) .an-notehead, .an-root:is(.an-suite, .an-prolook) .an-notebar { background: color-mix(in srgb, var(--an-card) 88%, transparent) !important; color: var(--an-ink) !important; border-color: var(--an-line) !important; backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); }
+.an-root:is(.an-suite, .an-prolook) .an-notehead button, .an-root:is(.an-suite, .an-prolook) .an-notebar button { color: var(--an-violet-ink); }
+.an-root:is(.an-suite, .an-prolook) .an-notebar .border-black\/5 { border-color: var(--an-line) !important; }
+.an-root:is(.an-suite, .an-prolook) ::selection { background: color-mix(in srgb, var(--an-violet) 32%, transparent); }
+
+/* The Studio looks carry their type into the Notes tab: Billboard shouts, the rest use their display font. */
+.an-root.an-pro.an-prolook .pp-title, .an-root.an-pro.an-prolook .pp-section, .an-root.an-prolook .an-doc-title { font-family: var(--sx-serif) !important; }
+.an-root.an-pro.an-prolook.pl-billboard .pp-title, .an-root.an-prolook.pl-billboard .an-doc-title { text-transform: uppercase; font-weight: 800 !important; letter-spacing: -.03em !important; }
+.an-root.an-pro.an-prolook.pl-billboard .pp-group, .an-root.an-pro.an-prolook.pl-billboard .an-search input { border-radius: 0 !important; }
+.an-root.an-pro.an-prolook.pl-billboard .pp-group { box-shadow: 0 0 0 2px var(--an-ink) !important; }
