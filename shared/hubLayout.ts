@@ -1,7 +1,7 @@
 // Arise WorkHub: how a teacher arranges the Hub, chosen in Customize. Saved in the workspace, so it follows
 // them to every device: where the menu sits on a phone, how it closes, and what Home shows in what order
 // (including the picture box).
-import { DEFAULT_HUB_THEME, isHubThemeId, type HubThemeId } from "./appThemes";
+import { DEFAULT_HUB_THEME, HUB_THEME_REV, isHubThemeId, type HubThemeId } from "./appThemes";
 import { cleanShortcut, type HubShortcut } from "./hubShortcut";
 
 /** Where the menu sits on a phone. On a computer it is always the sidebar on the left. */
@@ -105,6 +105,8 @@ export type AnyLayout = {
   homeSize: Partial<Record<string, HomeSize>>;
   /** The hub's visual theme (see shared/appThemes.ts), chosen in Customize. */
   theme: HubThemeId;
+  /** Which round of "everyone starts on the new default theme" this layout has seen (HUB_THEME_REV). */
+  themeRev?: number;
   /** What the ⚡ button in the header opens (shared/hubShortcut.ts). Not set until the person picks something. */
   shortcut?: HubShortcut;
   /** 2 once the floating tab bar became the phone default (see cleanAnyLayout). */
@@ -125,7 +127,7 @@ export const widgetIdOf = (id: string): string => id.slice(2);
 /** WorkHub's layout. */
 export type HubLayout = AnyLayout & { home: HomeSection[]; homeHidden: HomeSection[]; homeSize: Partial<Record<HomeSection, HomeSize>> };
 
-export const DEFAULT_LAYOUT: HubLayout = { menuSide: "tabs", deskSide: "left", folders: [], menuClose: "button", home: HOME_SECTIONS.map((s) => s.id), homeHidden: ["picture", "widgets"], homeSize: {}, theme: DEFAULT_HUB_THEME };
+export const DEFAULT_LAYOUT: HubLayout = { menuSide: "tabs", deskSide: "left", folders: [], menuClose: "button", home: HOME_SECTIONS.map((s) => s.id), homeHidden: ["picture", "widgets"], homeSize: {}, theme: DEFAULT_HUB_THEME, themeRev: HUB_THEME_REV };
 
 /**
  * A saved layout made safe for a hub whose Home has these parts (in their usual order): known choices only, every part
@@ -162,9 +164,9 @@ export function cleanAnyLayout<Id extends string>(raw: unknown, parts: readonly 
   const homeSize: Partial<Record<Id, HomeSize>> = {};
   if (r.homeSize && typeof r.homeSize === "object") for (const [k, v] of Object.entries(r.homeSize)) if (isPart(k) && HOME_SIZES.some((z) => z.id === v)) homeSize[k] = v as HomeSize;
   const deskSide: DeskSide = DESK_SIDES.some((s) => s.id === r.deskSide) ? r.deskSide : "left";
-  const theme: HubThemeId = isHubThemeId(r.theme) ? r.theme : DEFAULT_HUB_THEME;
+  const theme: HubThemeId = r.themeRev === HUB_THEME_REV && isHubThemeId(r.theme) ? r.theme : DEFAULT_HUB_THEME;
   const shortcut = cleanShortcut(r.shortcut);
-  return { menuSide, deskSide, folders: cleanFolders(r.folders), menuClose, home, homeHidden, homeSize, theme, ...(shortcut ? { shortcut } : {}), menuV: 2 as const };
+  return { menuSide, deskSide, folders: cleanFolders(r.folders), menuClose, home, homeHidden, homeSize, theme, themeRev: HUB_THEME_REV, ...(shortcut ? { shortcut } : {}), menuV: 2 as const };
 }
 
 /** WorkHub's saved layout made safe. `pinnable`: installed Kit-plugin/Notes-app ids (see pinId) that may be pinned to Home. */
@@ -192,4 +194,4 @@ export const sizeOf = (layout: AnyLayout, id: string): HomeSize => layout.homeSi
 export const resizeSection = <L extends AnyLayout>(layout: L, id: string, size: HomeSize): L => ({ ...layout, homeSize: { ...layout.homeSize, [id]: size } });
 
 /** The layout with a new visual theme chosen (see shared/appThemes.ts). */
-export const setTheme = <L extends AnyLayout>(layout: L, theme: HubThemeId): L => ({ ...layout, theme });
+export const setTheme = <L extends AnyLayout>(layout: L, theme: HubThemeId): L => ({ ...layout, theme, themeRev: HUB_THEME_REV });
