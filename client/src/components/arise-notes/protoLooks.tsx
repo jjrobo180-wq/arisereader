@@ -6,28 +6,30 @@ import { type CSSProperties, type ReactNode } from "react";
 import { fmtClock, templateOf, type NotesTheme } from "@shared/ariseNotes";
 import type { ListNote } from "./api";
 import type { HomeActions } from "./looks";
+import { bespokeHero, BespokeList, bespokeBar } from "./protoLooks2";
 import "./protoLooks.css";
+import "./protoLooks2.css";
 
 export const hasArch = (look: NotesTheme | null | undefined): look is NotesTheme & { arch: string } => !!look?.arch;
 
-const Svg = ({ children, size = 22, w = 2.4 }: { children: ReactNode; size?: number; w?: number }) => <svg aria-hidden width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w} strokeLinecap="round" strokeLinejoin="round">{children}</svg>;
+export const Svg = ({ children, size = 22, w = 2.4 }: { children: ReactNode; size?: number; w?: number }) => <svg aria-hidden width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w} strokeLinecap="round" strokeLinejoin="round">{children}</svg>;
 export const IcMic = ({ size = 22 }: { size?: number }) => <Svg size={size}><rect x="9" y="3" width="6" height="12" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></Svg>;
 export const IcSearch = ({ size = 20 }: { size?: number }) => <Svg size={size}><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></Svg>;
 export const IcGear = ({ size = 20 }: { size?: number }) => <Svg size={size}><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1" /></Svg>;
 export const IcFlag = ({ size = 22 }: { size?: number }) => <Svg size={size}><path d="M5 3v18M5 4h12l-2 4 2 4H5" /></Svg>;
 const Stop = ({ size = 22 }: { size?: number }) => <svg aria-hidden width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>;
 
-const STATUS: Record<string, string> = { recording: "Recording", processing: "Writing down…", no_minutes: "Out of minutes", failed: "Needs a retry" };
-const dayWord = (iso: string) => {
+export const STATUS: Record<string, string> = { recording: "Recording", processing: "Writing down…", no_minutes: "Out of minutes", failed: "Needs a retry" };
+export const dayWord = (iso: string) => {
   const d = new Date(iso); if (Number.isNaN(+d)) return "";
   const t0 = new Date(); t0.setHours(0, 0, 0, 0);
   const diff = Math.round((+t0 - new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()) / 864e5);
   return diff <= 0 ? "Today" : diff === 1 ? "Yesterday" : diff < 7 ? d.toLocaleDateString(undefined, { weekday: "short" }) : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 };
-const mins = (n: ListNote) => (n.durationSecs > 0 ? `${Math.max(1, Math.round(n.durationSecs / 60))} min` : "");
-const kindOf = (n: ListNote) => (n.source === "memo" ? "Voice memo" : templateOf(n.template).label);
-const metaOf = (n: ListNote) => [dayWord(n.createdAt), mins(n)].filter(Boolean).join(" · ");
-const two = (i: number) => String(i + 1).padStart(2, "0");
+export const mins = (n: ListNote) => (n.durationSecs > 0 ? `${Math.max(1, Math.round(n.durationSecs / 60))} min` : "");
+export const kindOf = (n: ListNote) => (n.source === "memo" ? "Voice memo" : templateOf(n.template).label);
+export const metaOf = (n: ListNote) => [dayWord(n.createdAt), mins(n)].filter(Boolean).join(" · ");
+export const two = (i: number) => String(i + 1).padStart(2, "0");
 
 // ───────────────────────── Billboard ─────────────────────────
 function BillboardHero({ a }: { a: HomeActions }) {
@@ -63,24 +65,24 @@ function BillboardNoteTitle({ title, meta }: { title: string; meta: string }) {
 }
 
 // ───────────────────────── Shared pieces for the Studio arrangements ─────────────────────────
-const IconBtns = ({ a, plus }: { a: HomeActions; plus?: boolean }) => <span className="pl-icons">
+export const IconBtns = ({ a, plus }: { a: HomeActions; plus?: boolean }) => <span className="pl-icons">
   <button type="button" aria-label="Ask or search your notes" onClick={a.ask} data-testid="notes-ask-bar"><IcSearch /></button>
   {a.settings && <button type="button" aria-label="Settings" onClick={a.settings}><IcGear /></button>}
   {plus && null}
 </span>;
-const Chips = ({ a, ask = true }: { a: HomeActions; ask?: boolean }) => <div className="pl-chips">
+export const Chips = ({ a, ask = true }: { a: HomeActions; ask?: boolean }) => <div className="pl-chips">
   <button type="button" onClick={a.upload} data-testid="notes-upload">Upload</button>
   <button type="button" onClick={a.memo} data-testid="notes-memo">Voice memo{a.memoLocked ? " · Basic" : ""}</button>
   {ask && <button type="button" onClick={a.ask}>Ask</button>}
 </div>;
-const Head = ({ a, crumb, title, sub }: { a: HomeActions; crumb: string; title: string; sub?: string }) => <header className="pl-head">
+export const Head = ({ a, crumb, title, sub }: { a: HomeActions; crumb: string; title: string; sub?: string }) => <header className="pl-head">
   <div><span className="pl-kk">A.R.I.S.E. NOTES / {crumb}</span><h1>{title}</h1>{sub && <p>{sub}</p>}</div><IconBtns a={a} />
 </header>;
-const gist = (n: ListNote) => n.gist || [kindOf(n), n.actions > 0 ? `${n.actions} to-do${n.actions === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ");
-const label = (n: ListNote) => (n.folder || kindOf(n));
-const Title = ({ n }: { n: ListNote }) => <>{n.title || "Untitled note"}{STATUS[n.status] ? <em> · {STATUS[n.status]}</em> : null}</>;
+export const gist = (n: ListNote) => n.gist || [kindOf(n), n.actions > 0 ? `${n.actions} to-do${n.actions === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ");
+export const label = (n: ListNote) => (n.folder || kindOf(n));
+export const Title = ({ n }: { n: ListNote }) => <>{n.title || "Untitled note"}{STATUS[n.status] ? <em> · {STATUS[n.status]}</em> : null}</>;
 /** Two buttons along the bottom: Record, and the second action. */
-function Bar2({ record, second, secondLabel, on }: { record: () => void; second: () => void; secondLabel: string; on?: string }) {
+export function Bar2({ record, second, secondLabel, on }: { record: () => void; second: () => void; secondLabel: string; on?: string }) {
   return <nav aria-label="Arise Notes" className="an-noprint pl-bar2" data-testid="notes-tabs" data-on={on}>
     <button type="button" className="pl-b-out" onClick={record} data-testid="notes-tab-record"><IcMic size={18} />Record</button>
     <button type="button" className="pl-b-pri" onClick={second} data-testid="notes-tab-pages"><svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>{secondLabel}</button>
@@ -165,7 +167,7 @@ function StreamBar({ on, home, notes, record, settings }: { on: "ai" | "pages"; 
   </>;
 }
 /** The recording display shared by the Studio arrangements: a wave, rings, or a live-transcript header. */
-function StudioRecord({ style, secs, live, level, clock }: { style: string; secs: number; live: boolean; level: number; clock: string }) {
+export function StudioRecord({ style, secs, live, level, clock }: { style: string; secs: number; live: boolean; level: number; clock: string }) {
   const bars = Array.from({ length: 25 }, (_, i) => live ? Math.max(8, Math.max(level, .3) * 72 * (.3 + .7 * Math.abs(Math.sin(i * 1.7 + secs)))) : 8);
   if (style === "ring") return <><div className="pl-rings" aria-hidden><i /><i /><i /><span /></div><div className="pl-clock pl-clock-ring" aria-label={`${clock} recorded`}>{clock}</div></>;
   if (style === "tx") return <div className="pl-txhead"><span className="pl-clock-sm" aria-label={`${clock} recorded`}>● {clock}</span><span aria-hidden className="pl-minibars">{bars.slice(0, 12).map((h, i) => <i key={i} style={{ height: Math.max(4, h / 3) }} />)}</span></div>;
@@ -183,7 +185,7 @@ export function protoHero(look: NotesTheme, a: HomeActions): ReactNode {
     case "cons": return <ConsHero look={look} a={a} />;
     case "atlas": return <AtlasHero look={look} a={a} />;
     case "stream": return <StreamHero look={look} a={a} />;
-    default: return null;
+    default: return bespokeHero(look, a);
   }
 }
 /** The notes list. */
@@ -196,7 +198,7 @@ export function ProtoList({ look, notes, onOpen }: { look: NotesTheme; notes: Li
     case "cons": return <ConsList notes={notes} onOpen={onOpen} />;
     case "atlas": return <AtlasList notes={notes} onOpen={onOpen} />;
     case "stream": return <StreamList notes={notes} onOpen={onOpen} />;
-    default: return null;
+    default: return <BespokeList look={look} notes={notes} onOpen={onOpen} />;
   }
 }
 /** The bottom bar. */
@@ -206,7 +208,7 @@ export function ProtoTabBar({ look, on, record, notes, home, settings }: { look:
     case "stream": return <StreamBar on={on} home={home} notes={notes} record={record} settings={settings} />;
     case "index": case "chron": case "edit": case "cons": case "atlas":
       return on === "ai" ? <Bar2 record={record} second={notes} secondLabel="New note" on={on} /> : <Bar2 record={record} second={home} secondLabel="Home" on={on} />;
-    default: return null;
+    default: return bespokeBar(look, on, record, notes, home);
   }
 }
 /** The timer and meter while recording. */
@@ -215,18 +217,16 @@ export function protoRecordArt(look: NotesTheme, p: { secs: number; paused: bool
   const clock = fmtClock(p.secs);
   switch (look.arch) {
     case "billboard": return <BillboardRecord secs={p.secs} live={live} level={p.level} clock={clock} />;
-    case "index": case "chron": case "edit": case "cons": case "atlas": case "stream":
+    default:
       return <StudioRecord style={look.rec ?? "wave"} secs={p.secs} live={live} level={p.level} clock={clock} />;
-    default: return null;
   }
 }
 /** The big title at the top of a note. */
 export function ProtoNoteTitle({ look, title, meta }: { look: NotesTheme; title: string; meta: string }) {
   switch (look.arch) {
     case "billboard": return <BillboardNoteTitle title={title} meta={meta} />;
-    case "index": case "chron": case "edit": case "cons": case "atlas": case "stream":
+    default:
       return <header className="pl-note" style={look.ns ? { ["--pl-ns" as string]: `${look.ns}px` } : undefined}><p className="pl-kk">{meta}</p><h1>{title}</h1></header>;
-    default: return null;
   }
 }
 
@@ -240,13 +240,12 @@ export function ProtoHubHero({ look, date, greeting, primary, links }: { look: N
       <button type="button" className="pl-bb-hubmain" onClick={primary.onClick} data-testid="hub-look-primary"><IcMic size={24} />{primary.label}</button>
       <div className="pl-bb-sub">{links.slice(0, 3).map((l) => <button key={l.label} type="button" onClick={l.onClick}>{l.label}</button>)}</div>
     </>;
-    case "index": case "chron": case "edit": case "cons": case "atlas": case "stream": return <>
+    default: return <>
       <p className="pl-kk">{date}</p>
       <h1 className="pl-hubtitle">{greeting}</h1>
       <button type="button" className="pl-b-pri pl-hubmain" onClick={primary.onClick} data-testid="hub-look-primary"><IcMic size={20} />{primary.label}</button>
       <div className="pl-chips">{links.slice(0, 3).map((l) => <button key={l.label} type="button" onClick={l.onClick}>{l.label}</button>)}</div>
     </>;
-    default: return null;
   }
 }
 export type ProtoTask = { id: string; title: string; done: boolean; due: string; late: boolean; dueLabel: string; listName: string; color: string; assignee: string; notes: string };
@@ -256,11 +255,10 @@ export function ProtoTasks({ look, tasks, onToggle, onOpen }: { look: NotesTheme
       <button type="button" className="pl-bb-check" aria-pressed={t.done} aria-label={t.done ? `Reopen ${t.title}` : `Complete ${t.title}`} onClick={() => onToggle(t.id)}>{t.done ? "✓" : ""}</button>
       <button type="button" className="pl-bb-row" onClick={() => onOpen(t.id)}><span className="pl-bb-n">{two(i)}</span><span className="pl-bb-t"><b>{t.title}</b><small>{[t.late ? "Overdue" : "", t.dueLabel, t.listName, t.assignee].filter(Boolean).join(" · ")}</small></span></button>
     </li>)}</ol>;
-    case "index": case "chron": case "edit": case "cons": case "atlas": case "stream": return <ul className="pl-tasks">{tasks.map((t) => <li key={t.id} data-done={t.done || undefined} data-late={t.late || undefined}>
+    default: return <ul className="pl-tasks">{tasks.map((t) => <li key={t.id} data-done={t.done || undefined} data-late={t.late || undefined}>
       <button type="button" className="pl-check" aria-pressed={t.done} aria-label={t.done ? `Reopen ${t.title}` : `Complete ${t.title}`} onClick={() => onToggle(t.id)}>{t.done ? "✓" : ""}</button>
       <button type="button" className="pl-trow" onClick={() => onOpen(t.id)}><b>{t.title}</b><small>{[t.late ? "Overdue" : "", t.dueLabel, t.listName, t.assignee].filter(Boolean).join(" · ")}</small></button>
     </li>)}</ul>;
-    default: return null;
   }
 }
 export type ProtoAgendaDay = { date: string; weekday: string; day: string; month: string; items: { id: string; time: string; title: string }[] };
@@ -270,12 +268,11 @@ export function ProtoAgenda({ look, days, onPick }: { look: NotesTheme; days: Pr
       <span className="pl-bb-date"><small>{d.weekday}</small><b>{d.day}</b><small>{d.month}</small></span>
       <span className="pl-bb-items">{d.items.slice(0, 3).map((x) => <span key={x.id}><em>{x.time}</em>{x.title}</span>)}{d.items.length > 3 && <span><em /> +{d.items.length - 3} more</span>}</span>
     </button>)}</div>;
-    case "index": case "chron": case "edit": case "cons": case "atlas": case "stream": return <ul className="pl-agenda">{days.map((d) => <li key={d.date}><button type="button" onClick={() => onPick(d.date)}>
+    default: return <ul className="pl-agenda">{days.map((d) => <li key={d.date}><button type="button" onClick={() => onPick(d.date)}>
       <span className="pl-date"><small>{d.weekday}</small><b>{d.day}</b></span>
       <span className="pl-items">{d.items.slice(0, 3).map((x) => <span key={x.id}><em>{x.time}</em>{x.title}</span>)}{d.items.length > 3 && <span>+{d.items.length - 3} more</span>}</span>
     </button></li>)}</ul>;
-    default: return null;
   }
 }
-export const archClass = (look: NotesTheme | null | undefined) => (look?.arch ? ` pl pl-${look.arch}` : "");
+export const archClass = (look: NotesTheme | null | undefined) => (look?.arch ? ` pl pl-${look.arch}${look.arch === "billboard" ? "" : " pl-s"}${look.v ? ` pl-v-${look.v}` : ""}` : "");
 export type { CSSProperties };
