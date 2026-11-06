@@ -229,3 +229,11 @@
 .pl.pl-atlas .pl-card .pl-kk { color: var(--an-ink); opacity: 1; }
 .pl.pl-s .pl-tasks li[data-late] .pl-trow small { color: var(--an-ink); font-weight: 800; }
 .pl.hub-look.pl-billboard .pl-bb-tasks { margin: 0; }
+
+/* Billboard tasks in the hubs: smaller, so a whole task fits (they were too big to read at a glance). */
+.pl.pl-billboard .pl-bb-tasks .pl-bb-t b { font-size: 20px; line-height: 1.05; letter-spacing: -.015em; }
+.pl.pl-billboard .pl-bb-tasks .pl-bb-check { width: 36px; height: 36px; margin: 16px 0 16px 16px; }
+.pl.pl-billboard .pl-bb-tasks .pl-bb-row { padding: 14px 16px 14px 4px; gap: 10px; }
+.pl.pl-billboard .pl-bb-tasks .pl-bb-n { width: 22px; padding-top: 4px; }
+.pl.pl-billboard .pl-bb-items { font-size: 15px; }
+.pl.pl-billboard .pl-bb-hubtitle { font-size: clamp(2rem, 10vw, 2.6rem) !important; }
