@@ -298,3 +298,8 @@ html[data-hub-look] [data-testid="welcome-bar"] { top: calc(env(safe-area-inset-
 /* Studio looks inside the hubs: their agenda shows (Calendar was empty), and their pill buttons keep centered words. */
 .los .los-cal-studio .lk-agenda { display: block; }
 .los.stx .stx-bb-sub button, .los.stx .stx-chips button { display: inline-flex; align-items: center; justify-content: center; text-align: center; padding: 0 .75rem; }
+/* The To Duo app already insets its page away from the clock and the Home bar: no second gap. */
+.los.los-inset .los-topbar { padding-top: 0 !important; }
+.los.los-inset .los-dock { bottom: .6rem; }
+.los.los-inset .los-dock.los-dock-studiox, .los.los-inset .los-dock.los-dock-suite { bottom: 0; padding-bottom: .45rem !important; }
+.los.los-inset .los-body { padding-bottom: 5.5rem; }
