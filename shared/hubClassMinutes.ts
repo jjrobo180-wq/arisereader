@@ -194,3 +194,32 @@ export function restorePlans(services: ServicePlan[], before: ServicePlan[]): Se
   const here = new Set(services.map((p) => p.id));
   return [...services.map((p) => back.get(p.id) ?? p), ...before.filter((p) => !here.has(p.id))];
 }
+
+// ─── One student at a time (the class page) ───
+
+/** Where a class session is kept: the class's block, half and teacher, and the service's subject. */
+const placeOf = (group: Pick<ClassGroup, "block">, s: Pick<ClassStudent, "part" | "teacher" | "subject">) =>
+  ({ ...(group.block ? { block: group.block } : {}), ...(s.part ? { part: s.part } : {}), ...(s.teacher ? { teacher: s.teacher } : {}), ...(s.subject ? { subject: s.subject } : {}) });
+
+/** A session for one student of a class: the minutes given, or their usual minutes when none are given. Null when there are none. */
+export function studentLog(group: Pick<ClassGroup, "block">, s: ClassStudent, date: string, minutes?: number): Omit<ServiceLog, "id"> | null {
+  const session = sessionLog({ student: s.student, kind: s.kind, date, minutes: String(minutes ?? (s.minutes || "")) });
+  return session && session.minutes > 0 ? { ...session, ...placeOf(group, s) } : null;
+}
+
+/** "Student absent" for one student of a class on a day. */
+export const absentLog = (group: Pick<ClassGroup, "block">, s: ClassStudent, date: string): Omit<ServiceLog, "id"> =>
+  ({ student: s.student, date, kind: s.kind, minutes: 0, note: ABSENT_REASON, notMet: true, ...placeOf(group, s) });
+
+/** The sessions a student has on a day for one service (to change or take back from the class page). */
+export const dayLogs = (logs: ServiceLog[], s: Pick<ClassStudent, "student" | "kind">, date: string): ServiceLog[] =>
+  logs.filter((l) => fold(l.student) === fold(s.student) && l.kind === s.kind && l.date === date);
+
+/** Takes one student out of a class. They keep their required minutes, and minutes already logged are kept. */
+export function leaveClass(services: ServicePlan[], planId: string): ServicePlan[] {
+  return services.map((p) => {
+    if (p.id !== planId) return p;
+    const { block: _block, part: _part, teacher: _teacher, ...rest } = p;
+    return rest;
+  });
+}
