@@ -76,7 +76,7 @@ function useHubEvents(on: boolean, from: string, to: string) {
 const blankEvent = (date: string, calendarId: string, id: string): FamilyEvent =>
   ({ id, title: "", date, time: "", endTime: "", calendarId, memberIds: [], location: "", notes: "", repeat: "none" });
 
-export default function FamilyCalendar({ family, setFamily, today, makeId, say, tasks, onOpenTasks }: SectionProps & { tasks: CalendarTask[]; onOpenTasks: () => void }) {
+export default function FamilyCalendar({ family, setFamily, today, makeId, say, tasks, onOpenTasks, heading }: SectionProps & { tasks: CalendarTask[]; onOpenTasks: () => void; /** A title and line of its own, for a hub that isn't about a family (WorkHub). */ heading?: { title: string; blurb: string } }) {
   const { user } = useAuth();
   /** Teachers (and the admin) have a Arise WorkHub calendar to show. */
   const teacher = !!user && (user.role === "teacher" || !!user.isAdmin);
@@ -213,8 +213,8 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
   }) : [];
   return <div className="space-y-6">
     {look && <LookAgenda look={look} days={agenda} onPick={setPicked} />}
-    <PageHead eyebrow="Calendar" title="Family calendar" blurb="Everyone's practices, appointments and plans in one place. Switch calendars and people on or off to see just what you need."
-      action={<div className="flex flex-wrap items-center gap-2"><ShareButton target="calendar" title="Family calendar" say={say} /><button onClick={() => add()} className={primary + " min-h-11 px-5"}><Plus size={18} /> New event</button></div>} />
+    <PageHead eyebrow="Calendar" title={heading?.title ?? "Family calendar"} blurb={heading?.blurb ?? "Everyone's practices, appointments and plans in one place. Switch calendars and people on or off to see just what you need."}
+      action={<div className="flex flex-wrap items-center gap-2"><ShareButton target="calendar" title={heading?.title ?? "Family calendar"} say={say} /><button onClick={() => add()} className={primary + " min-h-11 px-5"}><Plus size={18} /> New event</button></div>} />
 
     <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[minmax(0,1fr)_340px]">
       <Panel className="self-start" title={first.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
