@@ -24,6 +24,9 @@ if (isFitApp() || isReaderApp() || isNotesApp()) {
   if (vp && !/viewport-fit/.test(vp.getAttribute("content") || "")) vp.setAttribute("content", `${vp.getAttribute("content")}, viewport-fit=cover`);
 }
 if (isReaderApp()) document.documentElement.classList.add("reader-app");
+// Arise Notes on the iPhone: a slightly smaller base size (index.css html.notes-app), so it feels like Apple's own
+// apps instead of zoomed in. The viewport itself is left alone (changing it caused stuck zoom while typing).
+if (isNotesApp()) document.documentElement.classList.add("notes-app");
 
 // Arise To Duo draws edge to edge (contentInset "never" in arisetodo/ios-app/capacitor.config.json): the hub's
 // header grows up behind the clock and its bottom bars reach the bottom edge (todo-app.css). An older build
