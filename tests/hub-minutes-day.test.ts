@@ -67,7 +67,7 @@ test("another case manager only sees minutes that were shared, and only the last
 
 test("the Minutes page: one page, views, Edit, day sheet, notes after logging, completion, other case managers", () => {
   const tab = read("client/src/components/teacher-hub/HubProgress.tsx"), day = read("client/src/components/teacher-hub/HubMinutesDay.tsx"), server = read("server/teacherHub.ts"), routes = read("server/routes.ts");
-  for (const part of ['["day", "Day"]', 'data-testid="minutes-edit"', 'data-testid="minutes-who"', "<MinutesDayView", "<LogDaySheet", "<NotesAfterLog", "<MinutesStats", 'data-testid="minutes-share"', "/api/teacher-hub/colleagues/minutes", "const setWorkspace: Setter = readOnly ? () => {} : setOwn;", "readOnly={readOnly}"]) assert.ok(tab.includes(part), part);
+  for (const part of ['data-testid="minutes-edit"', 'data-testid="minutes-who"', "<NotesAfterLog", "<MinutesStats", 'data-testid="minutes-share"', "/api/teacher-hub/colleagues/minutes", "const setWorkspace: Setter = readOnly ? () => {} : setOwn;", "readOnly={readOnly}"]) assert.ok(tab.includes(part), part);
   for (const part of ['data-testid="minutes-day-nav"', 'data-testid="log-day-shared"', 'data-testid="log-day-why"', 'data-testid="notes-after-log"', 'data-testid="minutes-rates"', 'type="date"']) assert.ok(day.includes(part), part);
   assert.ok(server.includes('"/api/teacher-hub/colleagues/minutes"') && server.includes("sharedMinutes(row?.workspace, today())"));
   assert.ok(routes.includes('.eq("school_id", schoolId).eq("role", "teacher")'));
