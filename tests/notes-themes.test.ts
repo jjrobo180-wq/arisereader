@@ -12,7 +12,7 @@ const lum = (hex: string) => {
 };
 const ratio = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
 
-test("there are 53 looks plus Classic", () => assert.equal(NOTES_THEMES.length, 54));
+test("there are 53 older looks plus Classic, and the Studio series on top", () => assert.equal(NOTES_THEMES.filter((t) => !t.id.startsWith("x-")).length, 54));
 for (const t of NOTES_THEMES) test(`${t.label} text is readable`, () => {
   for (const [name, fg, bg] of [["ink/bg", t.ink, t.bg], ["ink/card", t.ink, t.card], ["muted/bg", t.muted, t.bg], ["muted/card", t.muted, t.card], ["faint/card", t.faint, t.card], ["accent ink/card", t.accentInk, t.card], ["accent ink/soft", t.accentInk, t.accentSoft], ["on accent", t.onAccent, t.accent], ["on record", t.onRecord, t.record]] as const)
     assert.ok(ratio(fg, bg) >= 4.5, `${t.id} ${name}: ${ratio(fg, bg).toFixed(2)}`);
@@ -20,13 +20,16 @@ for (const t of NOTES_THEMES) test(`${t.label} text is readable`, () => {
 test("the four professional looks appear alongside existing choices", () => {
   for (const id of ["editorial", "slatepro", "graphitepro", "linenpro"]) {
     assert.ok(NOTES_THEMES.some((t) => t.id === id));
-    assert.equal(cleanSettings({ theme: id }).theme, id);
+    assert.equal(cleanSettings({ theme: id, themeRev: 1 }).theme, id);
   }
 });
 test("a saved look is kept, and anything else means Classic", () => {
-  assert.equal(cleanSettings({ theme: "deck" }).theme, "deck");
-  assert.equal(cleanSettings({ theme: "nope" }).theme, "classic");
-  assert.equal(cleanSettings({}).theme, "classic");
+  assert.equal(cleanSettings({ theme: "deck", themeRev: 1 }).theme, "deck");
+  assert.equal(cleanSettings({ theme: "nope", themeRev: 1 }).theme, "x-billboard");
+  assert.equal(cleanSettings({}).theme, "x-billboard");
+  // Everyone moves to Billboard once, old accounts included; after that their own pick is kept.
+  assert.equal(cleanSettings({ theme: "deck" }).theme, "x-billboard");
+  assert.equal(cleanSettings({ theme: "classic" }).theme, "x-billboard");
   assert.equal(themeOf("nope").id, "classic");
 });
 test("the areas around the page follow the look on the iPhone", () => {
@@ -143,7 +146,7 @@ test("the five Suite looks restyle Home, the list, recording, the Notes tab and 
   const looks = read("client/src/components/arise-notes/looks.tsx"), css = read("client/src/components/arise-notes/notes-suite.css"), app = read("client/src/components/arise-notes/NotesApp.tsx");
   for (const id of ["paper", "midnight", "folio", "nordic", "carbon"]) {
     assert.ok(NOTES_THEMES.some((t) => t.id === id), `${id} is a look`);
-    assert.equal(cleanSettings({ theme: id }).theme, id);
+    assert.equal(cleanSettings({ theme: id, themeRev: 1 }).theme, id);
     assert.match(looks, new RegExp(`case "${id}"`), `${id} has its own Home and recording`);
   }
   assert.match(looks, /if \(SUITE_LOOKS\.has\(look\.id\)\) return <SuiteList/);

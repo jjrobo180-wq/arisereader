@@ -231,6 +231,8 @@ export type NotesSettings = {
   night: boolean;
   /** The look picked in Settings > Appearance. */
   theme: NotesThemeId;
+  /** Which round of "everyone starts on the new default look" this account has seen (see THEME_REV). */
+  themeRev?: number;
   /** Ask "Let everyone know this meeting is being recorded" before each recording. */
   consent: boolean;
   template: NotesTemplateId;
@@ -239,7 +241,11 @@ export type NotesSettings = {
   /** Where action items go by default. */
   hub: "life" | "work";
 };
-export const DEFAULT_SETTINGS: NotesSettings = { audio: "delete", font: "standard", simple: false, contrast: false, large: false, night: false, theme: "classic", consent: true, template: "general", voice: "hannah", hub: "life" };
+/** The look everyone starts on: Billboard (November 2026). */
+export const DEFAULT_THEME: NotesThemeId = "x-billboard";
+/** Raised when the default look changes for everyone: an account that has not seen this round yet moves to the default once, then keeps whatever it picks. */
+export const THEME_REV = 1;
+export const DEFAULT_SETTINGS: NotesSettings = { audio: "delete", font: "standard", simple: false, contrast: false, large: false, night: false, theme: DEFAULT_THEME, themeRev: THEME_REV, consent: true, template: "general", voice: "hannah", hub: "life" };
 const VOICES = ["hannah", "autumn", "diana", "austin", "daniel", "troy"];
 export function cleanSettings(raw: unknown): NotesSettings {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
@@ -250,7 +256,8 @@ export function cleanSettings(raw: unknown): NotesSettings {
     contrast: r.contrast === true,
     night: r.night === true,
     large: r.large === true,
-    theme: isThemeId(r.theme) ? r.theme : "classic",
+    theme: r.themeRev === THEME_REV && isThemeId(r.theme) ? r.theme : DEFAULT_THEME,
+    themeRev: THEME_REV,
     consent: r.consent !== false,
     template: isTemplateId(r.template) ? r.template : "general",
     voice: typeof r.voice === "string" && VOICES.includes(r.voice) ? r.voice : "hannah",
