@@ -154,6 +154,7 @@ import { useLifeHubTrial } from "@/components/TodoGate";
 
 // The parents' A.R.I.S.E. Reader tab, built from LifeHub parts (loaded when opened).
 const Reader = lazy(() => import("@/components/family-hub/Reader"));
+const LifeTasksScreen = lazy(() => import("@/components/family-hub/LifeTasksScreen"));
 import "./todoNight.css";
 import "./hubThemes.css";
 import { HubWaiting } from "@/lib/hubBackdrop";
@@ -1343,29 +1344,6 @@ export default function AriseTodo() {
           </div>
         </div>}
         <div className={`hidden px-3 pt-2 duo-book:block ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}><button type="button" onClick={() => setStore(true)} className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 transition hover:border-violet-300 hover:bg-violet-50 hover:text-[#5f4dc8]" data-testid="lifehub-plugin-store"><ShoppingBag size={18} />Plugin Gallery</button></div>
-        {shown === "tasks" && <>
-        <div className="hidden px-6 pb-3 pt-7 lg:block duo-book:block duo-book:pt-5"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-500">Tasks</span></div>
-        <div className="flex gap-1 overflow-x-auto border-t border-slate-100 px-4 pb-4 pt-3 lg:block lg:space-y-1 lg:border-t-0 lg:px-3 lg:pb-0 lg:pt-0 duo-book:block duo-book:space-y-1 duo-book:border-t-0 duo-book:px-3 duo-book:pb-0 duo-book:pt-0 duo-stack:flex-wrap duo-stack:overflow-visible">
-          {viewTabs.map(tab => { const Icon = tab.icon; return <button key={tab.id} onClick={() => setView(tab.id)} className={`flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm lg:w-full duo-book:min-h-11 duo-book:w-full ${view === tab.id ? "bg-[#eeeafe] text-[#5f4dc8]" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}><Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span>{tab.title}</span><span className="ml-auto rounded-lg px-1.5 text-xs font-semibold opacity-65">{tab.count}</span></button>; })}
-        </div>
-        <div className="hidden px-6 pb-3 pt-8 lg:flex lg:items-center lg:justify-between duo-book:flex duo-book:items-center duo-book:justify-between duo-book:pt-6"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-500">My lists</span><button onClick={() => setAddingList(true)} className="rounded-lg p-1.5 text-slate-400 hover:bg-violet-50 hover:text-violet-700" title="New list" aria-label="New list"><FolderPlus size={18} /></button></div>
-        <div className="flex gap-2 overflow-x-auto px-4 pb-4 lg:block lg:space-y-0.5 lg:px-3 duo-book:block duo-book:space-y-0.5 duo-book:px-3 duo-stack:flex-wrap duo-stack:overflow-visible">
-          <button onClick={() => setSelectedList("all")} className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold lg:flex lg:min-h-10 lg:w-full lg:items-center lg:gap-3 duo-book:flex duo-book:min-h-11 duo-book:w-full duo-book:items-center duo-book:gap-3 ${selectedList === "all" ? "bg-[#f4f2ff] text-[#6c5cce]" : "text-slate-500 hover:bg-slate-50"}`}><Circle size={12} className="hidden lg:block duo-book:block" />Everything</button>
-          {data.lists.map(list => <button key={list.id} onClick={() => setSelectedList(list.id)} className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold lg:min-h-10 lg:w-full duo-book:min-h-11 duo-book:w-full ${selectedList === list.id ? "bg-[#f4f2ff] text-[#6c5cce]" : "text-slate-500 hover:bg-slate-50"}`}><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: list.color }} /><span className="max-w-32 truncate">{list.name}</span><span className="ml-auto hidden text-xs opacity-60 lg:inline duo-book:inline">{countFor(list.id)}</span></button>)}
-          <button onClick={() => setAddingList(true)} className="flex shrink-0 items-center gap-1 rounded-xl border border-dashed border-slate-300 px-3 py-2 text-xs font-bold text-slate-500 lg:hidden duo-book:hidden"><Plus size={14} /> List</button>
-        </div>
-        {addingList && <form onSubmit={createList} className="mx-4 mb-4 flex gap-2 lg:mx-5"><input className={inputClass + " min-w-0"} value={newListName} autoFocus maxLength={60} onChange={e => setNewListName(e.target.value)} placeholder="List name" aria-label="New list name" /><button type="submit" className="rounded-xl bg-[#705ee2] px-3 text-white" aria-label="Save list"><Check size={18} /></button><button type="button" onClick={() => { setAddingList(false); setNewListName(""); }} className="rounded-xl bg-slate-100 px-2 text-slate-500" aria-label="Cancel list"><X size={18} /></button></form>}
-        {duo.mode === "book" && <div className="space-y-3 px-3 pt-6" data-testid="duo-left-extras">
-          <section className="rounded-2xl bg-[#292446] p-4 text-white">
-            <div className="flex items-center justify-between gap-2"><span className="text-[11px] font-extrabold uppercase tracking-[.14em] text-[#bcb2ff]">Your progress</span><span className="text-xl font-black">{data.tasks.length ? Math.round(completed / data.tasks.length * 100) : 0}%</span></div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-[#a38cfa] transition-all" style={{ width: `${data.tasks.length ? completed / data.tasks.length * 100 : 0}%` }} /></div>
-          </section>
-          <section className="rounded-2xl border border-[#e7e8f0] bg-white p-4">
-            <div className="flex items-center justify-between"><h3 className="text-sm font-extrabold">Coming up next</h3><CalendarDays size={16} className="text-violet-500" /></div>
-            {upcoming.length ? <div className="mt-3 space-y-1">{upcoming.slice(0, 5).map(task => <button key={task.id} onClick={() => setEditing({ ...task })} className="flex min-h-10 w-full items-center justify-between gap-3 border-b border-slate-100 text-left last:border-b-0"><span className="min-w-0 truncate text-xs font-semibold text-slate-700">{task.title}</span><span className="shrink-0 text-[11px] font-bold text-violet-600">{prettyDate(task.due)}</span></button>)}</div> : <p className="mt-2 text-xs leading-5 text-slate-500">Your calendar is clear for now.</p>}
-          </section>
-        </div>}
-        </>}
         <div className={`mt-auto hidden px-5 pb-7 pt-6 ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}>
           <div className="rounded-2xl bg-[#f4f1ff] p-4">
             <div className="mb-2 inline-flex rounded-xl bg-white p-2 text-[#715fe3]"><Heart size={18} /></div>
@@ -1378,10 +1356,6 @@ export default function AriseTodo() {
 
       <main data-tour="life-content" className={`min-w-0 flex-1 px-3 pb-28 sm:pb-10 pt-4 sm:px-7 sm:pt-6 lg:px-9 lg:pt-10 xl:px-12 ${shown === "tasks" ? "duo-book:pt-4" : "duo:px-6"} duo-book:px-5 duo-book:pb-10 ${shown === "tasks" && layout.menuSide === "top" ? phone.pad.replace(/max-lg:pt-\S+/, "") : phone.pad}`}>
         <div className="mx-auto max-w-[1250px]">
-          {shown === "tasks" && <header className="mb-5 hidden flex-wrap items-start justify-between gap-4 lg:flex duo-book:hidden">
-            <div><p className="mb-2 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7]">Your everyday organizer</p><h1 className="text-3xl font-black tracking-tight text-[#232139] sm:text-4xl">Make room for what matters<span className="text-[#7866e1]">.</span></h1><p className="mt-2 text-sm leading-6 text-slate-500">One place to stay on top of life, work, and everything in between.</p></div>
-            <button onClick={openAdd} className="hidden min-h-11 items-center gap-2 rounded-xl bg-[#705de0] px-5 text-sm font-bold text-white shadow-[0_8px_24px_#705de02b] hover:bg-[#604bd4] lg:inline-flex"><Plus size={18} /> New task</button>
-          </header>}
 
           <div className={osCore ? "los-alerts" : "contents"}>
           {sync.view.kind === "retrying" && <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800"><CloudOff size={18} /> Connection interrupted. Your changes are kept on this device and will be retried. <button className="underline" onClick={sync.retry}>Retry now</button></div>}
@@ -1445,94 +1419,10 @@ export default function AriseTodo() {
           </div>}
           {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
           {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown === "tasks" && <>
-
-          {/* The four counts are in the tabs on a phone, so the cards show from a tablet up. */}
-          <div className="mt-7 hidden grid-cols-2 gap-3 md:grid md:grid-cols-4 duo-book:mt-0 duo-book:grid duo-book:grid-cols-4 duo-book:gap-2 duo-stack:grid-cols-4">
-            {[
-              { label: "Open tasks", count: active.length, icon: ListTodo, tint: "text-violet-600", bg: "bg-violet-50" },
-              { label: "Due today", count: active.filter(task => task.due === currentDay).length, icon: Sun, tint: "text-amber-600", bg: "bg-amber-50" },
-              { label: "Overdue", count: overdue.length, icon: Clock3, tint: "text-rose-600", bg: "bg-rose-50" },
-              { label: "Completed", count: completed, icon: CheckCircle2, tint: "text-emerald-600", bg: "bg-emerald-50" },
-            ].map(stat => { const Icon = stat.icon; return <div key={stat.label} className="rounded-2xl border border-[#e7e8ef] bg-white p-4 shadow-[0_3px_16px_#17152b08] sm:p-5 duo-book:p-3"><div className="mb-3 flex items-center justify-between duo-book:mb-1"><span className="text-xs font-bold text-slate-500 duo-book:text-[11px] duo-book:leading-4">{stat.label}</span><span className={`rounded-xl p-2 duo-book:hidden ${stat.bg} ${stat.tint}`}><Icon size={17} /></span></div><p className="text-3xl font-black text-[#242238] duo-book:text-2xl">{stat.count}</p></div>; })}
-          </div>
-
-          <div className="mt-1 grid grid-cols-1 gap-6 md:mt-7 xl:grid-cols-[minmax(0,1fr)_280px] duo-book:mt-4 duo-book:gap-4">
-            <section className="min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-6 duo-book:p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div><p className="text-[11px] font-extrabold uppercase tracking-[.15em] text-violet-600">{selectedName}</p><h2 className="mt-1 text-xl font-black">{viewTabs.find(tab => tab.id === view)?.title}</h2></div>
-                <div className="flex flex-wrap items-center gap-2"><ShareButton target={selectedList === "all" ? "tasks" : `tasks:${selectedList}`} title={selectedList === "all" ? "Our to-do lists" : selectedName} say={setMessage} label={selectedList === "all" ? "Share lists" : "Share list"} /><button onClick={openAdd} className={buttonClass + " bg-[#6e5ae0] text-white hover:bg-[#5948c8]"}><Plus size={17} /> Add task</button></div>
-              </div>
-              {members.length > 0 && <div className="mt-5 flex flex-wrap gap-1.5" role="group" aria-label="Show tasks for">
-                <button onClick={() => setMemberFilter("")} aria-pressed={!memberFilter} className={`min-h-9 rounded-xl px-3 text-xs font-bold ring-1 ${!memberFilter ? "bg-slate-800 text-white ring-slate-800" : "bg-white text-slate-500 ring-slate-200"}`}>Everyone</button>
-                {members.map(m => <button key={m.id} onClick={() => setMemberFilter(memberFilter === m.name ? "" : m.name)} aria-pressed={memberFilter === m.name} className="inline-flex min-h-9 items-center gap-1.5 rounded-xl px-2.5 text-xs font-bold ring-1 bg-white text-slate-600 ring-slate-200" style={memberFilter === m.name ? { background: m.color, color: "#fff", boxShadow: `0 0 0 1px ${m.color}` } : undefined}><span>{m.emoji || "🙂"}</span>{m.name}<span className="opacity-70">{active.filter(t => t.assignee.trim().toLowerCase() === m.name.toLowerCase()).length}</span></button>)}
-              </div>}
-              <div className="relative mt-5"><Search size={17} className="pointer-events-none absolute left-3 top-3.5 text-slate-400" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tasks, notes, or names" aria-label="Search tasks" className={inputClass + " pl-10"} /></div>
-              {hubLook.look && <LookTaskList look={hubLook.look} tasks={filtered.map((task) => { const list = data.lists.find((row) => row.id === task.listId); return { id: task.id, title: task.title, done: task.done, due: task.due, late: !task.done && !!task.due && task.due < currentDay, dueLabel: task.due ? prettyDate(task.due) : "", listName: list?.name ?? "", color: list?.color ?? "", assignee: task.assignee ?? "", notes: task.notes ?? "" }; })}
-                onToggle={(id) => { const task = filtered.find((t) => t.id === id); if (task) toggleDone(task); }} onOpen={(id) => { const task = filtered.find((t) => t.id === id); if (task) setEditing({ ...task }); }} />}
-              <div className={hubLook.look ? "hidden" :
-                taskLayout === "terminal" ? "mt-5 space-y-0 border border-current/30 font-mono" :
-                taskLayout === "tiles" ? "mt-5 flex flex-wrap gap-2" :
-                // Like the iPhone's Reminders: one list, rows split by hairlines.
-                "hub-tasklist mt-4 divide-y divide-[#efeff5] overflow-hidden rounded-2xl border border-[#ececf3] bg-white"
-              }>
-                {filtered.map(task => {
-                  const list = data.lists.find(row => row.id === task.listId);
-                  const late = !task.done && !!task.due && task.due < currentDay;
-                  const rowClass =
-                    taskLayout === "terminal" ? "group flex min-w-0 items-start gap-3 border-b border-current/20 p-2.5 last:border-b-0" :
-                    taskLayout === "tiles" ? "group relative flex min-w-0 items-start gap-3 overflow-hidden rounded-none border-2 border-black bg-white p-3 pl-4 sm:p-3.5 sm:pl-5" :
-                    "hub-taskrow group flex min-w-0 items-start gap-3 bg-white px-3 py-3 transition active:bg-slate-50 hover:bg-[#fcfbff] sm:px-4";
-                  return <div key={task.id} className={rowClass}>
-                    {taskLayout === "tiles" && <span aria-hidden="true" className="absolute inset-y-0 left-0 w-2" style={{ background: list?.color || tileColorOf(task.id) }} />}
-                    {taskLayout === "terminal"
-                      ? <button onClick={() => toggleDone(task)} aria-label={task.done ? `Reopen ${task.title}` : `Complete ${task.title}`} aria-pressed={task.done} className="mt-0.5 shrink-0 font-mono text-sm">[{task.done ? "x" : " "}]</button>
-                      : <button onClick={() => toggleDone(task)} aria-label={task.done ? `Reopen ${task.title}` : `Complete ${task.title}`} aria-pressed={task.done} className={`-m-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition`}><span className={`flex h-[22px] w-[22px] items-center justify-center rounded-full border-2 ${task.done ? "border-[#6e5ce1] bg-[#6e5ce1] text-white" : "border-slate-300 text-transparent hover:border-violet-500"}`}><Check size={13} strokeWidth={3} /></span></button>}
-                    <button onClick={() => setEditing({ ...task })} className="min-w-0 flex-1 text-left">
-                      <p className={`line-clamp-2 break-words text-[15px] font-semibold leading-snug ${task.done ? "text-slate-400 line-through" : "text-slate-800"}`}>{task.title}</p>
-                      {/* One line of notes; a forwarded email shows who it's from instead of its whole header. */}
-                      {task.notes && (() => { const first = task.notes.split("\n")[0].trim(); const from = first.startsWith("From: ") ? first.slice(6).replace(/<.*>/, "").trim() : ""; return first ? <p className="mt-0.5 truncate text-xs text-slate-500">{from ? <>From {from}</> : first}</p> : null; })()}
-                      <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11.5px] font-semibold empty:hidden">
-                        {list && <span className="inline-flex items-center text-slate-500"><span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ background: list.color }} />{list.name}</span>}
-                        {task.due && <span className={`inline-flex items-center gap-1 ${late ? "text-rose-600" : "text-slate-500"}`}><CalendarDays size={12} /> {late ? "Overdue · " : ""}{prettyDate(task.due)}{task.time ? ` · ${task.time}` : ""}</span>}
-                        {task.assignee && (() => { const m = memberByName(task.assignee); return m
-                          ? <span className="inline-flex items-center gap-1.5 rounded-lg px-1.5 py-0.5" style={{ background: m.color + "1f", color: m.color }}><Avatar member={m} size="sm" />{m.name}</span>
-                          : <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-blue-600"><Users size={12} /> {task.assignee}</span>; })()}
-                        {task.priority === "high" && <span className="text-orange-600">High priority</span>}
-                        {task.repeat !== "none" && <span className="inline-flex items-center gap-1 text-slate-400"><Repeat2 size={12} /> {task.repeat}</span>}
-                      </div>
-                    </button>
-                    {/* On a phone, tapping the task opens it (Archive and Delete are in there); on a computer these
-                        show when the pointer is over the row. The other looks keep them always. */}
-                    <div className={`shrink-0 items-center gap-0.5 ${taskLayout === "terminal" || taskLayout === "tiles" ? "flex" : "hidden sm:flex sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:focus-within:opacity-100"}`}>
-                      <button onClick={() => setEditing({ ...task })} aria-label={`Edit ${task.title}`} title="Edit" className="rounded-lg p-2 text-slate-400 transition hover:bg-violet-50 hover:text-violet-700"><Pencil size={16} /></button>
-                      {task.archived
-                        ? <button onClick={() => unarchiveTask(task)} aria-label={`Restore ${task.title} from archive`} title="Restore" className="rounded-lg p-2 text-slate-400 transition hover:bg-violet-50 hover:text-violet-700"><ArchiveRestore size={16} /></button>
-                        : <button onClick={() => archiveTask(task)} aria-label={`Archive ${task.title}`} title="Archive" className="rounded-lg p-2 text-slate-400 transition hover:bg-violet-50 hover:text-violet-700"><Archive size={16} /></button>}
-                      <button onClick={() => removeTask(task)} aria-label={`Delete ${task.title}`} title="Delete" className="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"><Trash2 size={16} /></button>
-                    </div>
-                  </div>;
-                })}
-                {!filtered.length && <div className="flex flex-col items-center px-4 py-12 text-center"><span className="rounded-2xl bg-violet-50 p-4 text-violet-600">{view === "archived" ? <Archive size={26} /> : <Sparkles size={26} />}</span><p className="mt-4 text-lg font-extrabold">{search ? "No matching tasks" : view === "completed" ? "Nothing completed yet" : view === "archived" ? "Nothing archived" : "A fresh start"}</p><p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">{search ? "Try another search." : view === "today" ? "No tasks due today or overdue. Enjoy the breathing room." : view === "upcoming" ? "Nothing scheduled ahead yet." : view === "completed" ? "Finished tasks will appear here." : view === "archived" ? "Tasks you archive are tucked away here, and can always be brought back." : "Add your first task and start planning your day."}</p>{view !== "archived" && <button onClick={openAdd} className={buttonClass + " mt-5 bg-violet-100 text-violet-700"}><Plus size={16} /> Add a task</button>}</div>}
-              </div>
-              {selectedList !== "all" && !DEFAULT_LISTS.some(list => list.id === selectedList) && <button onClick={() => { const list = data.lists.find(item => item.id === selectedList); if (list) removeList(list); }} className="mt-6 inline-flex items-center gap-2 text-xs font-semibold text-rose-500 hover:underline"><Trash2 size={14} /> Delete this custom list</button>}
-            </section>
-
-            <aside className="space-y-5">
-              <section className="rounded-[1.5rem] bg-[#292446] p-5 text-white shadow-[0_12px_24px_#2924461f] duo-book:hidden">
-                <div className="flex items-center gap-2 text-[#bcb2ff]"><Sparkles size={17} /><span className="text-[11px] font-extrabold uppercase tracking-[.14em]">Your progress</span></div>
-                <p className="mt-5 text-3xl font-black">{data.tasks.length ? Math.round(completed / data.tasks.length * 100) : 0}%</p>
-                <p className="mt-1 text-xs text-slate-300">of all tasks completed</p>
-                <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-[#a38cfa] transition-all" style={{ width: `${data.tasks.length ? completed / data.tasks.length * 100 : 0}%` }} /></div>
-                <p className="mt-4 text-xs font-medium leading-5 text-slate-300">Every little step counts. Keep going at your own pace.</p>
-              </section>
-              <section className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5 duo-book:hidden">
-                <div className="flex items-center justify-between"><h3 className="text-sm font-extrabold">Coming up next</h3><CalendarDays size={17} className="text-violet-500" /></div>
-                {upcoming.length ? <div className="mt-4 space-y-3">{upcoming.slice(0, 5).map(task => <button key={task.id} onClick={() => setEditing({ ...task })} className="flex w-full items-center justify-between gap-3 border-b border-slate-100 pb-3 text-left last:border-b-0 last:pb-0"><span className="min-w-0 truncate text-xs font-semibold text-slate-700">{task.title}</span><span className="shrink-0 text-[11px] font-bold text-violet-600">{prettyDate(task.due)}</span></button>)}</div> : <p className="mt-3 text-xs leading-5 text-slate-500">Your calendar is clear for now.</p>}
-              </section>
-              <EmailForwardCard token={token} />
-              <button onClick={goToSiteHome} className="flex min-h-10 items-center gap-2 text-xs font-semibold text-slate-500 hover:text-violet-700 lg:hidden"><ArrowLeft size={14} /> {onTodoSite ? "Arise To Duo" : "A.R.I.S.E. Reader"}</button>
-            </aside>
-          </div>
+            <Suspense fallback={<div className="grid min-h-[40vh] grid-cols-1 place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}>
+              <LifeTasksScreen data={data} setData={setData} makeId={makeId} say={setMessage} view={view} setView={setView} list={selectedList} setList={setSelectedList} />
+            </Suspense>
+            <div className="mt-5 max-w-xl"><EmailForwardCard token={token} /></div>
           </>}
           </LockedApp>
         </div>
