@@ -29,20 +29,11 @@ if (isReaderApp()) document.documentElement.classList.add("reader-app");
 if (isNotesApp()) document.documentElement.classList.add("notes-app");
 
 // Arise To Duo draws edge to edge (contentInset "never" in arisetodo/ios-app/capacitor.config.json): the hub's
-// header grows up behind the clock and its bottom bars reach the bottom edge (todo-app.css). An older build
-// that still holds the page inside the screen's safe area is detected by its shorter page and left alone.
+// header grows up behind the clock and its bottom bars reach the bottom edge (todo-app.css).
 if (isNativeApp() && nativeFlavor() === "todo") {
   const html = document.documentElement;
   html.classList.add("todo-app");
-  const edge = () => {
-    const focused = document.activeElement && /input|textarea|select/i.test(document.activeElement.tagName);
-    if (focused) return; // the keyboard shortens the page; judge only without it
-    const scale = window.visualViewport?.scale || 1;
-    html.classList.toggle("todo-edge", window.screen.height - window.innerHeight * scale <= 40);
-  };
-  edge();
-  window.addEventListener("load", edge);
-  window.addEventListener("orientationchange", () => setTimeout(edge, 300));
+  html.classList.add("todo-edge"); // the app now always draws edge to edge (capacitor.config.json)
 }
 
 // Keep Notes at the physical iPhone viewport width. A custom initial-scale=0.9
