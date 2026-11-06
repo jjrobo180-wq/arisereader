@@ -196,6 +196,7 @@ import { HubEndedNote, HubTrialNote, useHubTrial } from "@/components/HubTrialNo
 import AccountPrivacy from "@/components/AccountPrivacy";
 import { isNativeApp } from "@/lib/nativeApp";
 import { REMINDERS_CHANGED, installReminderTaps, scheduleNativeReminders } from "@/lib/nativeReminders";
+import { lockPageScroll } from "@/lib/scrollLock";
 
 // Today where the teacher is (not in London: an evening in Denver is already tomorrow there).
 const TODAY = () => localDay();
@@ -455,10 +456,9 @@ function TeacherHubPage() {
   useEffect(() => {
     if (!apps) return;
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setApps(false); };
-    const { overflow } = document.body.style;
-    document.body.style.overflow = "hidden";
+    const unlock = lockPageScroll();
     document.addEventListener("keydown", esc);
-    return () => { document.removeEventListener("keydown", esc); document.body.style.overflow = overflow; setAppsQuery(""); setHubGridFolder(null); };
+    return () => { document.removeEventListener("keydown", esc); unlock(); setAppsQuery(""); setHubGridFolder(null); };
   }, [apps]);
   const appsSwipe = useRef<number | null>(null);
   // The tab bar's Apps button opens the app drawer.
