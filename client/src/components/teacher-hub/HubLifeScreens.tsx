@@ -34,7 +34,7 @@ export default function HubLifeScreen({ which, workspace, setWorkspace, today, m
     [workspace.tasks],
   );
   const common = { family, setFamily, today, makeId, say };
-  if (which === "notes") return <Notes {...common} />;
+  if (which === "notes") return <Notes {...common} heading={{ title: "My notes", blurb: "Student, class and meeting notes, plus codes, contacts and ideas. Pinned notes stay at the top." }} />;
   if (which === "journal") return <Journal {...common} />;
-  return <FamilyCalendar {...common} tasks={tasks} onOpenTasks={openTasks || (() => {})} />;
+  return <FamilyCalendar {...common} tasks={tasks} onOpenTasks={openTasks || (() => {})} heading={{ title: "My calendar", blurb: "Your meetings, classes and plans in one place. Switch calendars on or off to see just what you need." }} />;
 }
