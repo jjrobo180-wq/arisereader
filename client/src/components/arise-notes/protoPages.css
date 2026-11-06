@@ -67,7 +67,7 @@
 .an-root.an-pro.an-prolook.stx-v-outline .pp-rows > li { counter-increment: stx-n; }
 .an-root.an-pro.an-prolook.stx-v-outline .pp-row-icon { border-radius: 3px; width: 2.1rem; height: 1.6rem; background: var(--an-ink); color: var(--an-bg) !important; }
 .an-root.an-pro.an-prolook.stx-v-outline .pp-row-icon svg { display: none; }
-.an-root.an-pro.an-prolook.stx-v-outline .pp-row-icon::before { content: counter(stx-n, decimal-leading-zero); font: 700 11px/1 var(--an-font); }
+.an-root.an-pro.an-prolook.stx-v-outline .pp-row-icon::before { content: counter(stx-n, decimal-leading-zero); font: 700 0.6875rem/1 var(--an-font); }
 .an-root.an-pro.an-prolook.stx-v-cornell .pp-row-icon { display: none; }
 .an-root.an-pro.an-prolook.stx-sticky .pp-rows { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: transparent !important; box-shadow: none !important; overflow: visible; border: 0 !important; }
 .an-root.an-pro.an-prolook.stx-sticky .pp-rows > li + li::before { display: none; }
