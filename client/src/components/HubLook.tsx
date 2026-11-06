@@ -5,6 +5,7 @@ import { rememberHubBackdrop } from "@/lib/hubBackdrop";
 import { hubThemeOf } from "@shared/appThemes";
 import { nightLook, themeVars, type NotesTheme } from "@shared/notesThemes";
 import { isNativeApp, nativeCall } from "@/lib/nativeApp";
+import { ProtoAgenda, ProtoHubHero, ProtoTasks, archClass, hasArch } from "@/components/arise-notes/protoLooks";
 import "@/components/arise-notes/notes-themes.css";
 import "@/pages/hubLooks.css";
 
@@ -65,7 +66,7 @@ export function useHubLook(themeId: unknown, night: boolean): { look: NotesTheme
     }
     return undefined;
   }, [look, night]);
-  return look ? { look, className: `hub-look hub-theme-${look.id}${look.dark ? " hub-look-dark" : ""}`, style: themeVars(look) as CSSProperties } : { look: null, className: "" };
+  return look ? { look, className: `hub-look hub-theme-${look.id}${look.dark ? " hub-look-dark" : ""}${archClass(look)}`, style: themeVars(look) as CSSProperties } : { look: null, className: "" };
 }
 
 export type HubHeroLink = { label: string; onClick: () => void };
@@ -75,6 +76,7 @@ export function HubLookHero({ look, date, greeting, primary, links }: { look: No
   const main = (children: ReactNode, cls = "") => <button type="button" className={`an-l-record ${cls}`} onClick={primary.onClick} data-testid="hub-look-primary">{children}</button>;
   const rest = <div className="an-l-secondary">{links.slice(0, 3).map((l) => <button key={l.label} type="button" onClick={l.onClick}>{look.id === "console" ? `[ ${l.label.toLowerCase()} ]` : look.id === "punch" ? l.label.toUpperCase() : l.label}</button>)}</div>;
   const title = <h1>{greeting}</h1>;
+  if (hasArch(look)) return <section className={`an-l-hero an-l-hero-${look.id}`}><ProtoHubHero look={look} date={date} greeting={greeting} primary={primary} links={links} /></section>;
   const body = (() => {
     switch (look.id) {
       case "studio": return <>{main(<><span className="an-l-rectop"><b>Today</b></span><small>{primary.label}</small></>)}{title}{rest}</>;
@@ -116,6 +118,7 @@ export function LookTaskList({ look, tasks, onToggle, onOpen }: { look: NotesThe
   const open = tasks.filter((t) => !t.done);
   const wrap = (children: ReactNode) => <div className={`lk-tasks lk-tasks-${look.id}`} data-testid="look-task-list">{children}</div>;
   if (!tasks.length) return null;
+  if (hasArch(look)) return wrap(<ProtoTasks look={look} tasks={tasks} onToggle={onToggle} onOpen={onOpen} />);
   const plain = (rows: LookTask[]) => <ul>{rows.map((t) => <Row key={t.id} t={t} {...props} />)}</ul>;
   const groups = (key: (t: LookTask) => string) => { const m = new Map<string, LookTask[]>(); for (const t of tasks) { const k = key(t); m.set(k, [...(m.get(k) ?? []), t]); } return [...m]; };
   switch (look.id) {
@@ -139,6 +142,7 @@ export function LookTaskList({ look, tasks, onToggle, onOpen }: { look: NotesThe
 export type AgendaDay = { date: string; weekday: string; day: string; month: string; items: { id: string; time: string; title: string }[] };
 export function LookAgenda({ look, days, onPick }: { look: NotesTheme; days: AgendaDay[]; onPick: (date: string) => void }) {
   const shown = days.filter((d) => d.items.length).slice(0, 6);
+  if (hasArch(look)) return <section className={`lk-agenda lk-agenda-${look.id}`} data-testid="look-agenda"><h2>Coming up</h2>{shown.length ? <ProtoAgenda look={look} days={shown} onPick={onPick} /> : <p className="lk-none">Nothing in the next two weeks.</p>}</section>;
   return <section className={`lk-agenda lk-agenda-${look.id}`} data-testid="look-agenda">
     <h2>{look.id === "console" ? "$ upcoming" : look.id === "gazette" ? "The week ahead" : look.id === "cassette" ? "Up next on the tape" : "Coming up"}</h2>
     {shown.length ? <div className="lk-days">{shown.map((d) => <button type="button" key={d.date} className="lk-day" onClick={() => onPick(d.date)}>

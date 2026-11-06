@@ -4,6 +4,7 @@ import { type CSSProperties, useEffect, useState, type ReactNode } from "react";
 import { SUITE_LOOKS, fmtClock, nightLook, templateOf, themeOf, type NotesTheme, type NotesSettings } from "@shared/ariseNotes";
 import type { ListNote } from "./api";
 import { BubbleWrap, Ferro, Jelly, LavaLamp, MarbleJar, Orrery, RadioDial, Slots, Spinner, SynthKeys } from "@/components/look-os/toys";
+import { ProtoList, ProtoNoteTitle, ProtoTabBar, hasArch, protoHero, protoRecordArt } from "./protoLooks";
 import "./notes-systems.css";
 import "./notes-play.css";
 import "./notes-suite.css";
@@ -19,7 +20,7 @@ const MicIcon = ({ size }: { size?: number }) => <Svg size={size}><rect x="9" y=
 const WAVE = [8, 18, 12, 28, 40, 22, 14, 32, 44, 26, 10, 20, 36, 16, 30, 42, 24, 12, 34, 18, 8, 26, 38, 20, 14, 30, 22, 10, 16, 6];
 const Wave = () => <span aria-hidden className="an-l-wave">{WAVE.map((h, i) => <i key={i} style={{ height: h }} />)}</span>;
 
-export type HomeActions = { first: string; minutes: ReactNode; record: () => void; upload: () => void; memo: () => void; ask: () => void; memoLocked?: boolean };
+export type HomeActions = { first: string; minutes: ReactNode; record: () => void; upload: () => void; memo: () => void; ask: () => void; memoLocked?: boolean; count?: number; settings?: () => void; pages?: () => void };
 
 function Secondary({ a, labels = ["Upload", "Voice memo", "Ask"], ask = true }: { a: HomeActions; labels?: string[]; ask?: boolean }) {
   return <div className={`an-l-secondary${ask ? "" : " an-l-two"}`}>
@@ -37,6 +38,7 @@ const week = () => Array.from({ length: 7 }, (_, i) => ({ label: new Date(Date.n
 /** The top of Home: the title, Record, Upload, Voice memo and Ask, arranged for the look. */
 export function LookHomeHero({ look, a }: { look: NotesTheme; a: HomeActions }) {
   const rec = (children: ReactNode, cls = "") => <button type="button" className={`an-l-record ${cls}`} onClick={a.record} data-testid="notes-record">{children}</button>;
+  if (hasArch(look)) return <section className={`an-l-hero an-l-hero-${look.id}`}>{a.minutes && <div className="an-l-minutes">{a.minutes}</div>}{protoHero(look, a)}</section>;
   const body = (() => {
     switch (look.id) {
       // The Suite: a large title, a search field, and three quiet actions. Like a well-made notes app.
@@ -161,6 +163,7 @@ function SuiteList({ notes, onOpen }: { notes: ListNote[]; onOpen: (n: ListNote)
 export function LookNoteList({ look, notes, onOpen }: { look: NotesTheme; notes: ListNote[]; onOpen: (n: ListNote) => void }) {
   const [i, setI] = useState(0);
   useEffect(() => { setI(0); }, [notes]);
+  if (hasArch(look)) return <ProtoList look={look} notes={notes} onOpen={onOpen} />;
   if (SUITE_LOOKS.has(look.id)) return <SuiteList notes={notes} onOpen={onOpen} />;
   if (look.id === "deck") {
     const n = notes[Math.min(i, notes.length - 1)];
@@ -181,6 +184,7 @@ export function LookRecordArt({ look, secs, paused, finishing, level }: { look: 
   const status = finishing ? "Finishing" : paused ? "Paused" : look.id === "grove" ? "Listening" : "Recording";
   const clock = <div className="an-l-clock" aria-label={`${fmtClock(secs)} recorded`}>{fmtClock(secs)}</div>;
   const bars = <div aria-hidden className="an-l-recbars">{Array.from({ length: 28 }, (_, i) => <i key={i} style={{ height: live ? Math.max(6, Math.max(level, .35) * 86 * (.4 + .6 * Math.abs(Math.sin(i * 1.7 + secs)))) : 6 }} />)}</div>;
+  if (hasArch(look)) return <div className={`an-l-rec an-l-rec-${look.id}`}><p className="an-l-status">{status}</p>{protoRecordArt(look, { secs, paused, finishing, level })}</div>;
   const inner = (() => {
     switch (look.id) {
       // The reels turn and the tape winds across from one to the other as the recording runs.
@@ -224,12 +228,14 @@ export function LookRecordArt({ look, secs, paused, finishing, level }: { look: 
 
 /** The big title at the top of a note. */
 export function LookNoteTitle({ look, title, meta }: { look: NotesTheme; title: string; meta: string }) {
+  if (hasArch(look)) return <ProtoNoteTitle look={look} title={title} meta={meta} />;
   if (SUITE_LOOKS.has(look.id)) return <header className={`an-l-notetitle an-x-notetitle an-l-notetitle-${look.id}`}><p>{meta}</p><h1>{title}</h1></header>;
   return <header className={`an-l-notetitle an-l-notetitle-${look.id}`}><h1>{look.id === "console" ? title.toLowerCase().replace(/\s+/g, "_") : title}</h1><p>{meta}</p></header>;
 }
 
 /** The floating icon bar at the bottom: Home, Notes, Record and your settings. */
-export function LookTabBar({ on, initial, home, notes, record, settings }: { on: "ai" | "pages"; initial: string; home: () => void; notes: () => void; record: () => void; settings: () => void }) {
+export function LookTabBar({ look, on, initial, home, notes, record, settings }: { look?: NotesTheme | null; on: "ai" | "pages"; initial: string; home: () => void; notes: () => void; record: () => void; settings: () => void }) {
+  if (hasArch(look)) return <ProtoTabBar look={look} on={on} initial={initial} home={home} notes={notes} record={record} settings={settings} />;
   return <nav aria-label="Arise Notes" className="an-noprint an-l-bar" data-testid="notes-tabs">
     <button type="button" aria-label="Home" aria-current={on === "ai" ? "page" : undefined} onClick={home} data-testid="notes-tab-ai"><Svg size={25}><path d="M4 11.5 12 4l8 7.5V19a1 1 0 0 1-1 1h-4v-5H9v5H5a1 1 0 0 1-1-1z" /></Svg></button>
     <button type="button" aria-label="Notes" aria-current={on === "pages" ? "page" : undefined} onClick={notes} data-testid="notes-tab-pages"><Svg size={25}><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5zM15 5l4 4" /></Svg></button>
