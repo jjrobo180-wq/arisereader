@@ -261,12 +261,14 @@ test("class notes ride along in the saved workspace, and a teacher with only not
   assert.deepEqual(cleanPushInNotes(normalizeWorkspace({}).pushInNotes), []);
 });
 
-test("the Minutes tab has a Class notes look, remembered, and each class card opens its notes", () => {
+test("the Minutes tab opens on Main: each class opens its page, with the class note and every student's minutes and note", () => {
   const tab = read("client/src/components/teacher-hub/HubProgress.tsx");
-  assert.match(tab, /\["notes", "Notes"\]/);
-  assert.match(tab, /v === "notes"/);
-  assert.match(tab, /<PushInNotesView[^>]*classKey=\{notesClass\}/);
-  assert.match(tab, /onNotes=\{\(key\) => \{ setNotesClass\(key\); setLook\("notes"\)/);
+  assert.match(tab, /\[\["main", "Main"\], \["quick", "Quick log"\]\]/);
+  assert.match(tab, /<ClassBoard workspace=\{workspace\}/);
+  const board = read("client/src/components/teacher-hub/HubClassBoard.tsx");
+  for (const id of ["class-board", "board-class", "class-page", "class-note", "class-note-title", "class-note-taught", "class-note-more", "class-student-card", "class-student-log", "class-student-absent", "class-student-note", "class-student-remove", "class-add-students", "class-log-all"]) assert.ok(board.includes(`data-testid="${id}"`), id);
+  assert.match(board, /pushInNotes: upsertNote\(w\.pushInNotes, n\)/);
+  assert.match(board, /withEntry\(d, name, change, stamp\(\)\)/);
   const cards = read("client/src/components/teacher-hub/HubClassMinutes.tsx");
   assert.match(cards, /data-testid="class-notes"/);
   assert.match(cards, /data-testid="class-card"/);

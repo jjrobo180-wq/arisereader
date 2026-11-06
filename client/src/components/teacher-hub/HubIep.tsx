@@ -24,7 +24,7 @@ const APPS: { key: Exclude<IepTab, "overview">; label: string; blurb: string; ic
   { key: "profile", label: "Profile", blurb: "Who they are and their team", icon: <UserRound className="h-5 w-5" />, tint: "bg-sky-50 text-sky-700" },
   { key: "accommodations", label: "Accommodations", blurb: "What each student gets", icon: <ListChecks className="h-5 w-5" />, tint: "bg-emerald-50 text-emerald-700" },
   { key: "progress", label: "Progress", blurb: "Goals, scores and checks", icon: <TrendingUp className="h-5 w-5" />, tint: "bg-rose-50 text-rose-700" },
-  { key: "minutes", label: "Minutes", blurb: "Service minutes by day", icon: <Timer className="h-5 w-5" />, tint: "bg-slate-100 text-slate-700" },
+  { key: "minutes", label: "Minutes", blurb: "Classes, minutes and notes", icon: <Timer className="h-5 w-5" />, tint: "bg-slate-100 text-slate-700" },
 ];
 
 const panel = "rounded-3xl bg-white ring-1 ring-slate-200/70";

@@ -4,21 +4,21 @@ import { ItemConnections } from "./HubLinks";
 import { GoalQuizResults } from "./HubGoalQuiz";
 import { useEffect, useMemo, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import { Clock, Pencil, Plus, Trash2, Users } from "lucide-react";
-import { DAY_NAMES, GOAL_AREAS, SERVICE_KINDS, WEEK_DAYS, cleanDayGuide, countedPlan, goalProgress, guideDays, meetingDays, optionalDays, planFields, planText, serviceStatus, sessionLog, weekStart, withPoint, type DayStatus, type GoalStatus, type WeekDay } from "@shared/hubProgress";
+import { DAY_NAMES, GOAL_AREAS, SERVICE_KINDS, WEEK_DAYS, cleanDayGuide, countedPlan, goalProgress, guideDays, meetingDays, optionalDays, planFields, planText, sessionLog, weekStart, withPoint, type GoalStatus, type WeekDay } from "@shared/hubProgress";
 import { friendlyDate } from "@shared/hubDates";
 import type { Goal, ServiceLog, ServicePlan, Workspace } from "@shared/teacherHub";
 import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "./ui";
 import { HubModal } from "./HubModal";
 import { BlocksModal, MinutesWeekView, type LogStart } from "./HubMinutesWeek";
-import { NOT_MET_REASONS, blockLogs, notMetLogs, sessionBlockName, setPlanBlock, updateLog, type MinutesItem } from "@shared/hubMinutesWeek";
+import { NOT_MET_REASONS, blockLogs, notMetLogs, setPlanBlock, updateLog, type MinutesItem } from "@shared/hubMinutesWeek";
 import { blockName, cleanPart, cleanTeacher, placeText, schoolBlocks } from "@shared/hubBlocks";
 import { BulkMinutesModal, ClassFields, MinutesPick, knownTeachers, type BulkStart } from "./HubMinutesBulk";
-import { PUSH_IN, QUICK_MINUTES, knownName, minuteNames, savedText, schoolDay, withPlans, type BulkResult } from "@shared/hubMinutesBulk";
-import { MINUTE_SUBJECTS, NO_SUBJECT, cleanSubject, logSubject } from "@shared/hubSubjects";
-import { addToClass, classSavedText, deleteClass, restorePlans, type ClassGroup, type ClassResult } from "@shared/hubClassMinutes";
-import { AddToClassModal, ClassMinutesModal, ClassMinutesView, DeleteClassModal } from "./HubClassMinutes";
-import { PushInNotesView } from "./HubPushInNotes";
-import { DayNav, LogDaySheet, MinutesDayView, MinutesStats, NotesAfterLog, dayTitle } from "./HubMinutesDay";
+import { PUSH_IN, knownName, minuteNames, savedText, schoolDay, withPlans, type BulkResult } from "@shared/hubMinutesBulk";
+import { MINUTE_SUBJECTS, cleanSubject } from "@shared/hubSubjects";
+import { addToClass, deleteClass, restorePlans, type ClassGroup } from "@shared/hubClassMinutes";
+import { AddToClassModal, DeleteClassModal } from "./HubClassMinutes";
+import { ClassBoard } from "./HubClassBoard";
+import { MinutesStats, NotesAfterLog } from "./HubMinutesDay";
 import { completion, withNotes, type Colleague } from "@shared/hubMinutesDay";
 import { minutesWeek } from "@shared/hubMinutesWeek";
 import { API_BASE } from "@/lib/queryClient";
@@ -28,7 +28,6 @@ type Setter = Dispatch<SetStateAction<Workspace>>;
 type Props = { workspace: Workspace; setWorkspace: Setter; remove: (key: keyof Workspace, id: string) => void; makeId: () => string; today: string };
 
 const num = (v: string) => (v.trim() === "" || !Number.isFinite(Number(v)) ? null : Number(v));
-const pillCls = (on: boolean) => `inline-flex min-h-9 items-center gap-1 rounded-full px-3 text-xs font-semibold ${on ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`;
 const chipCls = (on: boolean) => `inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold ${on ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`;
 const STATUS: Record<GoalStatus, { word: string; cls: string }> = {
   met: { word: "Goal met", cls: "bg-emerald-100 text-emerald-800" },
@@ -176,27 +175,20 @@ type LogDraft = {
   scope: "one" | "block" | "day";
   others?: LogStart["others"];
 };
-/** The ways to look at the minutes on the one page: one day block by block, the week as a grid, one row per student, each class, and the class notes. */
-type MinutesLook = "day" | "class" | "week" | "students" | "notes";
-const LOOKS: [MinutesLook, string][] = [["day", "Day"], ["week", "Week"], ["students", "Students"], ["class", "Classes"], ["notes", "Notes"]];
-const readLook = (): MinutesLook => { try { const v = localStorage.getItem("arise-hub-minutes-look"); return v === "students" || v === "class" || v === "notes" || v === "week" ? v : "day"; } catch { return "day"; } };
-/** Another case manager's minutes are only looked at: these looks work on them. */
-const VIEW_ONLY_LOOKS: MinutesLook[] = ["day", "week", "students"];
+/**
+ * Two ways to look at the minutes. Main: the day's classes; tap one to mark each student's minutes, how they did, a note
+ * for each and a note for the class, and to add or take out students. Quick log: the week as a grid, one tap a block.
+ */
+type MinutesLook = "main" | "quick";
+const LOOKS: [MinutesLook, string][] = [["main", "Main"], ["quick", "Quick log"]];
+const readLook = (): MinutesLook => { try { return localStorage.getItem("arise-hub-minutes-look") === "quick" ? "quick" : "main"; } catch { return "main"; } };
+/** Another case manager's minutes are only looked at: the Quick log works on them (the Main view writes class notes). */
+const VIEW_ONLY_LOOKS: MinutesLook[] = ["quick"];
 /** A plan being set: counted by the day (a day guide) or by the week. */
 type PlanDraft = { /** A name is being typed, for a student who is not on the list. */ other?: boolean; id: string | null; student: string; kind: string; mode: "days" | "week"; perWeek: string; days: WeekDay[]; perDay: string; /** The block this service is in ("" for none). */ block: string; /** The half of the block ("" for the whole block), and whose class is pushed in to. */ part: string; teacher: string; /** The subject ("" for none). */ subject: string };
 
 /** The choice in a list of students that opens a box to type a name that is not on the list. */
 const OTHER_NAME = "__another_name__";
-const DAY_LOOK: Record<DayStatus["state"], string> = {
-  "not met": "border-slate-200 bg-slate-100 text-slate-600",
-  done: "border-emerald-200 bg-emerald-50 text-emerald-900",
-  "made up": "border-emerald-200 bg-emerald-50 text-emerald-900",
-  short: "border-amber-200 bg-amber-50 text-amber-900",
-  today: "border-teal-500 bg-white text-slate-900",
-  ahead: "border-slate-200 bg-white text-slate-600",
-  extra: "border-sky-200 bg-sky-100 text-sky-800",
-};
-const dayWords = (d: DayStatus) => (d.state === "not met" ? "did not meet" : d.state === "extra" ? `+${d.done} extra` : d.state === "done" ? `${d.done} done` : d.state === "made up" ? `${d.done} of ${d.planned}, made up` : d.state === "short" ? `${d.done} of ${d.planned}` : d.state === "today" ? `${d.done ? `${d.done} of ` : ""}${d.planned} today` : `${d.planned}`);
 
 export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: removeOwn, makeId, today, token = null }: Props & { /** For reading a screenshot into the students to tick. */ token?: string | null }) {
   // ── Another case manager's minutes, view only ──
@@ -221,10 +213,7 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
       setColleagueState("");
     } catch { setColleagueState("error"); }
   }
-  /** The day on the Day look, and the sheet that logs it. */
-  const [date, setDate] = useState(today);
   const [editing, setEditing] = useState(false);
-  const [daySheet, setDaySheet] = useState<{ focus?: string } | null>(null);
   /** Sessions just logged with one tap, so a note can be added to them right away. */
   const [justLogged, setJustLogged] = useState<string[]>([]);
   const [noting, setNoting] = useState(false);
@@ -241,14 +230,8 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
   useEffect(() => { if (!saved) return; const timer = setTimeout(() => { setSaved(""); setUndoPlans(null); }, undoPlans ? 15000 : 7000); return () => clearTimeout(timer); }, [saved, undoPlans]);
   const [plan, setPlan] = useState<PlanDraft | null>(null);
   const [lookChosen, setLookState] = useState<MinutesLook>(readLook);
-  const look: MinutesLook = readOnly && !VIEW_ONLY_LOOKS.includes(lookChosen) ? "day" : lookChosen;
+  const look: MinutesLook = readOnly && !VIEW_ONLY_LOOKS.includes(lookChosen) ? "quick" : lookChosen;
   const [settingBlocks, setSettingBlocks] = useState(false);
-  /** The class whose pop-up is open (By class). */
-  const [classOpen, setClassOpen] = useState<string | null>(null);
-  /** The class whose notes are shown in Class notes (its key, or "" for every class). */
-  const [notesClass, setNotesClass] = useState("");
-  /** The subject shown in By student ("" for every subject). */
-  const [subjectShown, setSubjectShown] = useState("");
   const blocks = useMemo(() => schoolBlocks(workspace), [workspace.minuteBlocks]);
   const setLook = (v: MinutesLook) => { setLookState(v); try { localStorage.setItem("arise-hub-minutes-look", v); } catch { /* the choice just isn't remembered */ } };
   // A student does not have to be on the caseload to be given minutes: a name can be typed, and is on the list from then on.
@@ -258,28 +241,9 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
   const meeting = meetingDays(optional);
   // Each plan as it counts: an optional day asks for nothing.
   const plans = workspace.services.map((p) => countedPlan(p, optional)).sort((a, b) => a.student.localeCompare(b.student) || a.kind.localeCompare(b.kind));
-  const subjects = [...MINUTE_SUBJECTS.filter((x) => plans.some((p) => cleanSubject(p.subject) === x)), ...(plans.some((p) => !cleanSubject(p.subject)) && plans.some((p) => cleanSubject(p.subject)) ? [NO_SUBJECT] : [])];
-  const shown = subjectShown && subjects.includes(subjectShown) ? plans.filter((p) => (cleanSubject(p.subject) || NO_SUBJECT) === subjectShown) : plans;
-  const recent = [...workspace.serviceLogs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 25);
-  const dayWeek = useMemo(() => minutesWeek(workspace.services, workspace.serviceLogs, blocks, date, today, optional), [workspace.services, workspace.serviceLogs, blocks, date, today, optional]);
-  const statsDate = look === "day" ? date : today;
-  const statsWeek = useMemo(() => (statsDate === date ? dayWeek : minutesWeek(workspace.services, workspace.serviceLogs, blocks, statsDate, today, optional)), [dayWeek, statsDate, date, workspace.services, workspace.serviceLogs, blocks, today, optional]);
-  const stats = useMemo(() => completion(statsWeek, statsDate, workspace.services, workspace.serviceLogs, today, optional), [statsWeek, statsDate, workspace.services, workspace.serviceLogs, today, optional]);
+  const statsWeek = useMemo(() => minutesWeek(workspace.services, workspace.serviceLogs, blocks, today, today, optional), [workspace.services, workspace.serviceLogs, blocks, today, optional]);
+  const stats = useMemo(() => completion(statsWeek, today, workspace.services, workspace.serviceLogs, today, optional), [statsWeek, workspace.services, workspace.serviceLogs, today, optional]);
 
-  /** Logs minutes for today with one tap. The session goes in the plan's block. */
-  function quick(p: ServicePlan, minutes: number) {
-    const session = sessionLog({ student: p.student, kind: p.kind, date: today, minutes });
-    if (!session || readOnly) return;
-    const id = makeId();
-    setWorkspace((w) => ({ ...w, serviceLogs: [...w.serviceLogs, { id, ...session }] }));
-    setJustLogged([id]);
-  }
-  /** Opens the log pop-up for one plan, with its usual minutes filled in. */
-  function logFor(p: ServicePlan) {
-    const guide = cleanDayGuide(p.days);
-    const usual = guideDays(p).length ? String(Object.values(guide)[0] ?? "") : "";
-    setLog({ ...newLog(), student: p.student, kind: p.kind, minutes: usual });
-  }
   const logReady = log && !log.notMet ? sessionLog({ ...log, date: log.date || today }) : null;
   /** "Did not meet": a record for the student in the pop-up, or for everyone still waiting in the block or on the day that was tapped. */
   const notMet = !log || !log.notMet ? [] : notMetLogs(
@@ -306,24 +270,6 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
     if (!sessions.length || readOnly) return;
     setWorkspace((w) => ({ ...w, serviceLogs: [...w.serviceLogs, ...sessions] }));
     setJustLogged(sessions.map((x) => x.id));
-  }
-  /** From the Day look: the usual minutes with one tap, for a session due, missed, or wanted any day this week. */
-  function quickItems(items: MinutesItem[]) {
-    const dueOrMissed = items.filter((x) => x.state !== "any day");
-    const anyDay = items.filter((x) => x.state === "any day").flatMap((x) => { const session = sessionLog({ student: x.student, kind: x.kind, date: x.date, minutes: x.minutes }); return session ? [{ ...session, ...(x.block ? { block: x.block } : {}) }] : []; });
-    const sessions = [...blockLogs(dueOrMissed), ...anyDay].map((session) => ({ id: makeId(), ...session }));
-    if (!sessions.length || readOnly) return;
-    setWorkspace((w) => ({ ...w, serviceLogs: [...w.serviceLogs, ...sessions] }));
-    setJustLogged(sessions.map((x) => x.id));
-  }
-  /** From "Log the day": every session in it, with its notes. */
-  function saveDay(logs: Omit<ServiceLog, "id">[]) {
-    if (readOnly) return;
-    // Nobody is marked "did not meet" twice for the same day.
-    setWorkspace((w) => ({ ...w, serviceLogs: [...w.serviceLogs, ...logs.filter((made) => !(made.notMet && w.serviceLogs.some((l) => l.notMet && l.student === made.student && l.kind === made.kind && l.date === made.date))).map((made) => ({ id: makeId(), ...made }))] }));
-    setSaved(`Saved ${logs.length} for ${dayTitle(date)}.`);
-    setUndoPlans(null);
-    setDaySheet(null);
   }
   /** From the block grid: the log pop-up for the student that was tapped, to type other minutes or to say they did not meet. */
   function logFrom(from: LogStart) {
@@ -352,13 +298,6 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
     setWorkspace((w) => ({ ...w, services: deleteClass(w.services, group, removeMinutes) }));
     setSaved(`${[group.title, group.label].filter(Boolean).join(" · ")} deleted.`);
     setClassDelete(null);
-  }
-  /** From the class pop-up: a session for each ticked student, and "Student absent" for the ones unticked. */
-  function saveClass(result: ClassResult, title: string) {
-    if (result.logs.length) setWorkspace((w) => ({ ...w, serviceLogs: [...w.serviceLogs, ...result.logs.map((session) => ({ id: makeId(), ...session }))] }));
-    setUndoPlans(null);
-    setSaved(classSavedText(result, title));
-    setClassOpen(null);
   }
   /**
    * Add in the block grid. For a student that was tapped: the log pop-up. For a block on a meeting day: the pop-up that puts
@@ -421,14 +360,13 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
         </div>
         {colleague && <p className="flex items-center gap-2 rounded-2xl bg-slate-100 px-3 py-2 text-sm text-slate-700" data-testid="minutes-view-only"><Eye className="h-4 w-4 shrink-0" /> {colleague.name}'s students · view only</p>}
 
-        <div role="tablist" aria-label="How to look at the minutes" className="flex gap-0.5 overflow-x-auto rounded-full bg-slate-100 p-0.5" data-testid="minutes-look">
+        <div role="tablist" aria-label="How to look at the minutes" className="flex gap-1 rounded-2xl bg-slate-100 p-1" data-testid="minutes-look">
           {LOOKS.filter(([key]) => !readOnly || VIEW_ONLY_LOOKS.includes(key)).map(([key, label]) => (
-            <button key={key} type="button" role="tab" aria-selected={look === key} onClick={() => setLook(key)} className={`min-h-9 flex-1 whitespace-nowrap rounded-full px-2.5 text-[13px] font-semibold ${look === key ? "bg-white text-slate-950 shadow-sm" : "text-slate-500"}`}>{label}</button>
+            <button key={key} type="button" role="tab" aria-selected={look === key} onClick={() => setLook(key)} className={`min-h-11 flex-1 whitespace-nowrap rounded-xl px-3 text-sm font-bold transition ${look === key ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}>{label}</button>
           ))}
         </div>
 
-        {look === "day" && <DayNav date={date} today={today} onDate={setDate} />}
-        {(look === "day" || look === "students") && <MinutesStats {...stats} />}
+        {look === "quick" && <MinutesStats {...stats} />}
 
         {editing && !readOnly && (
           <div className="grid gap-2 rounded-2xl bg-white p-3 ring-1 ring-slate-200/70" data-testid="minutes-edit-panel">
@@ -455,70 +393,16 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
         )}
       </section>
 
-      {look === "day" && <MinutesDayView week={dayWeek} date={date} readOnly={readOnly} onQuick={quickItems} onOpen={(key) => setDaySheet({ focus: key })} onEdit={editLog} onLogAll={() => setDaySheet({})} />}
-      {look === "day" && !readOnly && !plans.length && <Empty>No required minutes set yet. Tap Edit, then “Set required minutes” or “Add several students”. They show up here on the days they are due.</Empty>}
-      {daySheet && !readOnly && <LogDaySheet week={dayWeek} date={date} today={today} names={names} focus={daySheet.focus} onDate={setDate} onSave={saveDay} onClose={() => setDaySheet(null)} />}
+      {look === "main" && <ClassBoard workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} today={today} token={token} say={setSaved}
+        onOther={logFrom} onEditLog={editLog} onAddStudents={setClassAdd} onDeleteClass={setClassDelete} onSetup={() => setEditing(true)}
+        onEditPlan={(planId) => { const p = plans.find((x) => x.id === planId); if (p) editPlan(p); }} />}
       {noting && <NotesAfterLog logs={own.serviceLogs.filter((l) => justLogged.includes(l.id))} onClose={() => { setNoting(false); setJustLogged([]); }} onSave={(notes, shared) => { setOwn((w) => ({ ...w, serviceLogs: withNotes(w.serviceLogs, notes, shared) })); setNoting(false); setJustLogged([]); setSaved("Notes saved."); }} />}
-
-      {look === "class" && <ClassMinutesView workspace={workspace} today={today} onOpen={setClassOpen} onNotes={(key) => { setNotesClass(key); setLook("notes"); }} onAdd={setClassAdd} onDelete={setClassDelete} />}
       {classAdd && <AddToClassModal workspace={workspace} today={today} groupKey={classAdd} onSave={addStudentsToClass} onClose={() => setClassAdd(null)} />}
       {classDelete && <DeleteClassModal workspace={workspace} today={today} groupKey={classDelete} onDelete={removeClass} onClose={() => setClassDelete(null)} />}
-      {look === "notes" && <PushInNotesView workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} today={today} token={token} classKey={notesClass} onClassKey={setNotesClass} />}
-      {classOpen && <ClassMinutesModal workspace={workspace} today={today} groupKey={classOpen} onSave={saveClass} onClose={() => setClassOpen(null)} />}
-      {look === "week" && <MinutesWeekView workspace={workspace} today={today} readOnly={readOnly} onLog={logItems} onEdit={editLog} onAdd={addFrom} onPlan={(planId) => { const p = plans.find((x) => x.id === planId); if (p) editPlan(p); }} onBlocks={() => setSettingBlocks(true)} onMove={(planId, block) => setWorkspace((w) => ({ ...w, services: setPlanBlock(w.services, planId, block) }))} />}
-      {look === "week" && !plans.length && <Empty>No required minutes set yet. Tap Edit, then “Set required minutes” to add a student's push-in or pull-out time and block, or “Add several students” to set a whole block at once (you can tick them from a screenshot). They show up in that block on the days they are due.</Empty>}
+      {look === "quick" && <MinutesWeekView workspace={workspace} today={today} readOnly={readOnly} onLog={logItems} onEdit={editLog} onAdd={addFrom} onPlan={(planId) => { const p = plans.find((x) => x.id === planId); if (p) editPlan(p); }} onBlocks={() => setSettingBlocks(true)} onMove={(planId, block) => setWorkspace((w) => ({ ...w, services: setPlanBlock(w.services, planId, block) }))} />}
+      {look === "quick" && !plans.length && <Empty>No required minutes set yet. Tap Edit, then “Set required minutes” to add a student's push-in or pull-out time and block, or “Add several students” to set a whole block at once (you can tick them from a screenshot). They show up in that block on the days they are due.</Empty>}
       {bulk && <BulkMinutesModal workspace={workspace} today={today} token={token} start={bulk} onSave={saveBulk} onClose={() => setBulk(null)} />}
       {settingBlocks && <BlocksModal blocks={blocks} optional={optional} makeId={makeId} onClose={() => setSettingBlocks(false)} onSave={(next, days) => { setWorkspace((w) => ({ ...w, minuteBlocks: next, minuteOptionalDays: days })); setSettingBlocks(false); }} />}
-
-      {look === "students" && subjects.length > 1 && (
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Show minutes for" data-testid="minutes-subjects">
-          {["", ...subjects].map((x) => <button key={x || "all"} type="button" aria-pressed={(subjectShown && subjects.includes(subjectShown) ? subjectShown : "") === x} className={chipCls((subjectShown && subjects.includes(subjectShown) ? subjectShown : "") === x)} onClick={() => setSubjectShown(x)}>{x || "All subjects"}</button>)}
-        </div>
-      )}
-      {look === "students" && (plans.length ? (
-        <ul className="divide-y divide-slate-100 overflow-hidden rounded-3xl bg-white ring-1 ring-slate-200/70" data-testid="minutes-students">
-          {shown.map((p) => {
-            const s = serviceStatus(p, workspace.serviceLogs, today);
-            return (
-              <li key={p.id} className="px-4 py-3.5">
-                <div className="flex items-start gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-[15px] font-semibold text-slate-900">{p.student}</div>
-                    <p className="truncate text-xs text-slate-500" data-testid="plan-text">{[cleanSubject(p.subject), p.kind].filter(Boolean).join(" · ")} · {planText(p, placeText(blocks, p))}</p>
-                  </div>
-                  <div className="shrink-0 text-right"><div className="text-[15px] font-semibold tabular-nums text-slate-900">{s.thisWeek}<span className="font-normal text-slate-400">/{s.required}</span></div><div className={`text-xs font-semibold ${s.remaining ? "text-slate-500" : "text-emerald-700"}`}>{s.remaining ? `${s.remaining} left` : "Done"}</div></div>
-                  {editing && !readOnly && <button type="button" aria-label={`Change minutes for ${p.student}`} className="-mr-2 -mt-1 inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100" onClick={() => editPlan(p)}><Pencil className="h-4 w-4" /></button>}
-                </div>
-                <div className="mt-2"><Bar percent={s.percent} label={`${p.student} minutes this week`} tone={s.remaining ? "bg-slate-900" : "bg-emerald-500"} /></div>
-                {s.days.length > 0 && (
-                  <ul className="mt-2 flex flex-wrap gap-1" aria-label={`${p.student}: this week day by day`} data-testid="minutes-days">
-                    {s.days.map((d) => <li key={d.day} className={`rounded-md border px-1.5 py-0.5 text-[11px] font-semibold ${DAY_LOOK[d.state]}`} title={`${DAY_NAMES[d.day]}: ${dayWords(d)}`}>{d.day} <span className="font-medium">{dayWords(d)}</span></li>)}
-                  </ul>
-                )}
-                {s.extra > 0 && <p className="mt-1.5 text-xs text-slate-500">{s.extra} extra min on a day outside the guide. It counts toward the week, and that day is never expected again.</p>}
-                {s.owed > 0 && <p className="mt-1.5 text-xs font-medium text-amber-800" data-testid="minutes-owed">{s.owed} min short over the last 4 weeks (make-up owed)</p>}
-                {!readOnly && (
-                  <div className="mt-2.5 flex flex-wrap gap-1.5" role="group" aria-label={`Log minutes for ${p.student} today`}>
-                    {s.plannedToday > 0 && s.days.some((d) => d.date === today && d.state === "today") && <button type="button" className={pillCls(true)} onClick={() => quick(p, s.plannedToday)} data-testid="minutes-today">+{s.plannedToday} min today</button>}
-                    {QUICK_MINUTES.map((m) => <button key={m} type="button" className={pillCls(false)} onClick={() => quick(p, m)}>+{m}</button>)}
-                    <button type="button" className={pillCls(false)} onClick={() => logFor(p)} data-testid="minutes-other"><Clock className="h-3.5 w-3.5" /> Other</button>
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      ) : <Empty>{readOnly ? "No required minutes here." : "No required minutes set yet. Tap Edit, then “Set required minutes” to add a student's push-in or pull-out time."}</Empty>)}
-
-      {look === "students" && <Card title="Recent minutes">
-        {recent.length ? <ul className="space-y-2">{recent.map((l) => (
-          <li key={l.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 text-sm">
-            <div className="min-w-0 flex-1"><div className="font-medium">{l.student} · {[logSubject(l, workspace.services), l.kind].filter(Boolean).join(" · ")}</div><div className="text-xs text-slate-500">{friendlyDate(l.date, today)}{sessionBlockName(l, workspace.services, blocks) ? ` · ${sessionBlockName(l, workspace.services, blocks)}` : ""}{l.note ? ` · ${l.note}` : ""}</div></div>
-            <strong className={`shrink-0 ${l.notMet ? "text-slate-500" : ""}`}>{l.notMet ? "Did not meet" : `${l.minutes} min`}</strong>
-            {!readOnly && <button type="button" aria-label={l.notMet ? `Delete "did not meet" for ${l.student}` : `Delete ${l.minutes} minutes for ${l.student}`} className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("serviceLogs", l.id)}><Trash2 className="h-4 w-4" /></button>}
-          </li>
-        ))}</ul> : <Empty>Minutes you log show up here.</Empty>}
-      </Card>}
 
       {log && (() => {
         const everyone = !log.id && log.notMet && log.scope !== "one";
