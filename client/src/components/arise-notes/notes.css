@@ -182,3 +182,6 @@ textarea.an-input { padding: .7rem .9rem; line-height: 1.5; }
 .an-root.an-night .an-chip:not([aria-pressed="true"]), .an-root.an-pro-dark .an-chip:not([aria-pressed="true"]) { background: var(--an-card) !important; color: var(--an-ink) !important; border-color: var(--an-line) !important; }
 /* No row keeps a light "hover" fill after a tap on a phone (it stuck on white in dark mode). */
 @media (hover: none) { .an-root .hover\:bg-slate-50:hover, .an-root .hover\:bg-white:hover, .an-root .hover\:bg-slate-100:hover { background-color: transparent !important; } }
+
+/* The look previews draw no status-bar strip (it showed as a dark band across the top). */
+.an-root.pl-preview::before { display: none; }

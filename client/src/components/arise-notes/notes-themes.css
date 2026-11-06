@@ -342,9 +342,9 @@
 .an-themed .an-l-hero .an-l-tiles .an-l-record { background: var(--an-on-hero); color: var(--an-hero); }
 .an-themed .an-l-hero .an-l-tiles .an-l-recdot { background: var(--an-hero); color: var(--an-on-hero); }
 /* ——— The floating icon bar ——— */
-.an-l-bar { position: fixed; left: 50%; bottom: max(.75rem, env(safe-area-inset-bottom)); z-index: 40; transform: translateX(-50%); display: grid; grid-template-columns: repeat(4, 1fr); align-items: center; width: min(calc(100% - 2.5rem), 24rem); padding: .4rem; border-radius: 999px; background: #121212; color: #fff; border: 1px solid #2c2c2c; box-shadow: 0 12px 30px rgba(0,0,0,.35); }
+.an-l-bar { position: fixed; left: 50%; bottom: max(.75rem, env(safe-area-inset-bottom)); z-index: 40; transform: translateX(-50%); display: grid; grid-template-columns: repeat(4, 1fr); align-items: center; width: min(calc(100% - 2.5rem), 24rem); padding: .4rem; border-radius: 999px; background: #121212; color: var(--an-ink, #fff); border: 1px solid #2c2c2c; box-shadow: 0 12px 30px rgba(0,0,0,.35); }
 .an-l-bar button { display: grid; place-items: center; min-height: 3.2rem; border: 0; border-radius: 999px; background: none; color: inherit; cursor: pointer; }
-.an-l-bar button[aria-current="page"] { background: #383838; }
+.an-l-bar button[aria-current="page"] { background: color-mix(in srgb, currentColor 16%, transparent); }
 .an-l-avatar { display: grid; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: 50%; background: var(--an-coral); color: var(--an-on-record); font-weight: 800; }
 .an-themed .an-l-hero-margin .an-l-askbar { color: inherit; border-bottom-color: currentColor; }
 .an-themed .an-l-hero-frost .an-l-secondary button { background: var(--an-card); color: var(--an-ink); border-color: transparent; }

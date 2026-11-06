@@ -1,3 +1,4 @@
+import { useAutoHideHeader } from "@/hooks/useAutoHideHeader";
 import { EmailWords, ForwardingCard, OPEN_EMAIL_EVENT, openHubEmail, useHubInbox } from "@/components/teacher-hub/HubInbox";
 import { PICTURE_ART } from "@/lib/pictureArt";
 import { useParaTeamAutoAdd } from "@/lib/paraTeam";
@@ -174,7 +175,7 @@ import { HUB_ACCENTS, DEFAULT_ACCENT, cleanAccent, deepenAccent } from "@shared/
 import { textOn } from "@shared/hubPins";
 import AppleRemindersCard, { useAppleInbox } from "@/components/teacher-hub/HubApple";
 import PollAnswers, { usePollAnswers } from "@/components/teacher-hub/HubPollBell";
-import { AddEventModal, CalendarPanel, useCalendarRefresh } from "@/components/teacher-hub/HubCalendar";
+import { AddEventModal, useCalendarRefresh } from "@/components/teacher-hub/HubCalendar";
 import { addQuickItems, quickAddedMessage, type QuickItems } from "@shared/hubQuickAdd";
 import { addEmailToTasks, arrangeEmails, emailCounts, emailTask, toggleEmailFlag, type EmailFilter } from "@shared/hubEmails";
 import PinBanners, { PinButton } from "@/components/teacher-hub/HubPins";
@@ -638,6 +639,7 @@ function TeacherHubPage() {
   const setLayout = (next: HubLayout) => { rememberLook(next); setWorkspace((p) => ({ ...p, layout: next })); window.dispatchEvent(new Event(SHARED_LOOK_EVENT)); };
   /** A look runs as its own system, everywhere but the Duo's book view and split-screen panes. */
   const osOn = !!hubLook.look && duo.mode !== "book" && !inDuoPane();
+  const workHeaderHidden = useAutoHideHeader(true);
   const side = osOn ? "tabs" : layout.menuSide;
   /** The menu runs across the screen (top or bottom) instead of down a side. */
   const across = side === "top" || side === "bottom";
@@ -1089,7 +1091,8 @@ function TeacherHubPage() {
         onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "tab" in at) setTab(at.tab); if (p.target.kind === "widget") setTab("overview"); if (p.target.kind === "brief") setBriefOpen(true); if (p.target.kind === "sheetsApp") { closeApps(); setSheetsAppOpen(p.target.id); } if (p.target.kind === "officeApp") { closeApps(); window.location.hash = p.target.href; } if (p.target.kind === "driveApp") { closeApps(); setDriveOpen(true); } if (p.target.kind === "dropApp") { closeApps(); setDropOpen(true); } setStore(false); if (p.target.kind === "assistant") toasts.show("Tap the ✦ button at the bottom right to chat.", []); if (p.target.kind === "assistantPro") window.location.hash = "#/billing"; }}
         onClose={() => { setStore(false); setStoreOpenApp(null); }}
       />}
-      <header className={`${osCore ? "los-ghost" : "sticky top-0 z-40"} border-b border-slate-200 bg-white`}>
+      {/* Blends into the page (no white bar or line), and slides away as you scroll down on a phone. */}
+      <header className={`${osCore ? "los-ghost" : "sticky top-0 z-40"} bg-slate-100 py-1 transition-transform duration-300 ease-out motion-reduce:transition-none ${!osCore && workHeaderHidden ? "-translate-y-full lg:translate-y-0" : "translate-y-0"}`} data-header-hidden={!osCore && workHeaderHidden ? "true" : undefined}>
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3 md:px-6">
           <a href="#/workhub" onClick={(e) => { e.preventDefault(); setTab("overview"); }} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="WorkHub home" title="WorkHub home">
             <span className="flex h-7 w-7 shrink-0 overflow-hidden rounded-lg sm:h-8 sm:w-8"><HubMark tone="work" className="h-full w-full" /></span>
@@ -1672,7 +1675,8 @@ function TeacherHubPage() {
               </Card>
                   ),
                   calendar: (
-              <CalendarPanel workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} title="Your calendar" onReminderAdded={reminderAdded} agendaToday collapseKey="home-calendar" />
+              // The same calendar as the Calendar tab (Home still showed the older one).
+              <div data-testid="home-calendar"><HubLifeScreen which="calendar" workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(text) => toasts.show(text, [])} openTasks={() => setTab("tasks")} /></div>
                   ),
                   meetings: (
               <Card title="Upcoming IEP / reevaluation meetings" collapseKey="home-meetings">

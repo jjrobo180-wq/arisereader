@@ -281,3 +281,14 @@ html[data-hub-look] [data-testid="welcome-bar"] { top: calc(env(safe-area-inset-
 /* The dock floats over the page, and a see-through one let the words under it show through, so it couldn't be read.
    An opaque layer in the page's own colour sits under whatever tint the look gives it. */
 .los-dock::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--an-bg, #fff); pointer-events: none; }
+
+/* The Studio looks (x-…): a pinned bottom dock, a Home and an agenda in their own colors. */
+.los-dock-studiox { left: .75rem; right: .75rem; bottom: max(.75rem, env(safe-area-inset-bottom)); padding: .35rem; border-radius: calc(var(--an-radius) + 10px); background: var(--an-card); color: var(--an-ink); box-shadow: 0 0 0 1px var(--an-line), 0 12px 30px rgba(0,0,0,.28); }
+.los-dock-studiox [aria-current="page"] { background: var(--an-violet); color: var(--an-on-accent); border-radius: calc(var(--an-radius) + 6px); }
+.los-dock-studiox.pl-billboard { left: 0; right: 0; bottom: 0; border-radius: 0; padding: .35rem .5rem calc(env(safe-area-inset-bottom) + .35rem); background: var(--an-bg); box-shadow: none; border-top: 2px solid var(--an-ink); }
+.los-dock-studiox.pl-billboard [aria-current="page"] { border-radius: 0; }
+.los-studio-home .an-l-hero { margin: 0 0 1rem; padding: 0; background: none; color: var(--an-ink); }
+.los-studio-h { margin: 1.4rem 0 .5rem; font: 800 13px/1 var(--an-font); letter-spacing: .1em; text-transform: uppercase; color: var(--an-muted); }
+.los-studio-none { color: var(--an-muted); font-size: 15px; }
+.los-cal-studio { display: block; width: 100%; margin-top: 1rem; }
+.los-cal-studio .lk-agenda h2 { margin: 0 0 .5rem; font: 800 13px/1 var(--an-font); letter-spacing: .1em; text-transform: uppercase; color: var(--an-muted); }

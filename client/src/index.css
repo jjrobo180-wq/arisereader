@@ -1071,3 +1071,7 @@ html body [data-light-island] .text-white { color: #ffffff !important; }
 @keyframes arise-wiggle { 0%,100% { transform: rotate(-1.6deg); } 50% { transform: rotate(1.6deg); } }
 .arise-wiggle { animation: arise-wiggle .28s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .arise-wiggle { animation: none; } }
+
+/* Date and time fields never push a screen wider than the phone (iOS gives them a wide built-in size). */
+input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"] { min-width: 0; max-width: 100%; -webkit-appearance: none; appearance: none; }
+input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-date-and-time-value, input[type="datetime-local"]::-webkit-date-and-time-value { text-align: left; min-height: 1.4em; }
