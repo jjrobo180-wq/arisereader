@@ -1,12 +1,17 @@
 // Arise Notes looks: what a person can pick in Settings > Appearance. Each look is colors, type and
 // shape, set through the app's CSS variables, plus its own Home, recording and note designs (looks.tsx).
-export type NotesThemeId = "classic" | "studio" | "margin" | "bloom" | "timeline" | "console" | "swiss" | "cassette" | "frost" | "grove" | "gazette" | "punch" | "chatline" | "deck" | "tide" | "vinyl" | "hush" | "aurora" | "atelier" | "blueprint" | "arcade" | "typewriter" | "darkroom" | "zen" | "cockpit" | "pocket" | "glass" | "desktop" | "millennium" | "workstation" | "retro" | "monolith" | "ink" | "neon" | "orbit" | "spinner" | "bubbles" | "lava" | "marbles" | "synth" | "jelly" | "orrery" | "dial" | "ferro" | "slots" | "editorial" | "slatepro" | "graphitepro" | "linenpro" | "paper" | "midnight" | "folio" | "nordic" | "carbon";
+export type NotesThemeId = "classic" | "studio" | "margin" | "bloom" | "timeline" | "console" | "swiss" | "cassette" | "frost" | "grove" | "gazette" | "punch" | "chatline" | "deck" | "tide" | "vinyl" | "hush" | "aurora" | "atelier" | "blueprint" | "arcade" | "typewriter" | "darkroom" | "zen" | "cockpit" | "pocket" | "glass" | "desktop" | "millennium" | "workstation" | "retro" | "monolith" | "ink" | "neon" | "orbit" | "spinner" | "bubbles" | "lava" | "marbles" | "synth" | "jelly" | "orrery" | "dial" | "ferro" | "slots" | "editorial" | "slatepro" | "graphitepro" | "linenpro" | "paper" | "midnight" | "folio" | "nordic" | "carbon" | `x-${string}`;
 export type NotesTheme = {
   id: NotesThemeId; label: string; blurb: string; dark?: boolean;
   bg: string; card: string; line: string; ink: string; muted: string; faint: string;
   accent: string; accentInk: string; accentSoft: string; onAccent: string; record: string; onRecord: string;
   font: string; display: string; fontUrl?: string; radius: number; border?: number; hardShadow?: boolean;
+  /** Studio series: which arrangement draws Home, the list and recording (protoLooks.tsx), and which group it shows under. */
+  arch?: string; group?: string;
+  /** Studio series: the colors at night, when the look is light. */
+  night?: Pick<NotesTheme, "bg" | "card" | "line" | "ink" | "muted" | "faint" | "accent" | "accentInk" | "accentSoft" | "onAccent">;
 };
+import { PROTO_LOOKS } from "./protoLooks";
 const SANS = '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
 const g = (families: string) => `https://fonts.googleapis.com/css2?${families}&display=swap`;
 export const NOTES_THEMES: NotesTheme[] = [
@@ -68,6 +73,8 @@ export const NOTES_THEMES: NotesTheme[] = [
   { id: "folio", label: "Folio", blurb: "Warm paper and a fine serif title, like a leather notebook.", bg: "#f7f4ee", card: "#fffdf9", line: "#e6dfd2", ink: "#23201b", muted: "#5a5348", faint: "#6a6357", accent: "#23201b", accentInk: "#7a5a22", accentSoft: "#efe7d8", onAccent: "#fffdf9", record: "#a3392b", onRecord: "#ffffff", font: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif', display: '"Newsreader", ui-serif, "New York", Georgia, serif', fontUrl: g("family=Newsreader:opsz,wght@6..72,500;6..72,600;6..72,700&family=Inter:wght@400;500;600;700"), radius: 10 },
   { id: "nordic", label: "Nordic", blurb: "Cool gray, crisp lines and calm steel blue.", bg: "#eef1f4", card: "#ffffff", line: "#dce2e9", ink: "#15202b", muted: "#475566", faint: "#586677", accent: "#2f6db5", accentInk: "#24599a", accentSoft: "#e2ecf8", onAccent: "#ffffff", record: "#c43c3c", onRecord: "#ffffff", font: '"Inter Tight", "Inter", system-ui, sans-serif', display: '"Inter Tight", "Inter", system-ui, sans-serif', fontUrl: g("family=Inter+Tight:wght@400;500;600;700;800"), radius: 14 },
   { id: "carbon", label: "Carbon", blurb: "Matte black and white. Nothing extra.", dark: true, bg: "#111111", card: "#1b1b1b", line: "#2f2f2f", ink: "#fafafa", muted: "#bdbdbd", faint: "#a3a3a3", accent: "#fafafa", accentInk: "#fafafa", accentSoft: "#262626", onAccent: "#111111", record: "#ff5a4f", onRecord: "#1a0000", font: '"Geist", "Inter", system-ui, sans-serif', display: '"Geist", "Inter", system-ui, sans-serif', fontUrl: g("family=Geist:wght@400;500;600;700;800"), radius: 10 },
+  // The Studio series (protoLooks.ts): whole new arrangements, not just colors.
+  ...PROTO_LOOKS,
 ];
 /** The Suite looks: they also restyle the Notes tab and the writing page. */
 export const SUITE_LOOKS: ReadonlySet<NotesThemeId> = new Set<NotesThemeId>(["paper", "midnight", "folio", "nordic", "carbon"]);
@@ -109,7 +116,7 @@ const NIGHT_COLORS: Partial<Record<NotesThemeId, NightColors>> = {
 const nightCache = new Map<NotesThemeId, NotesTheme>();
 /** A look in night mode. Looks that are already dark stay as they are. */
 export function nightLook(t: NotesTheme): NotesTheme {
-  const colors = NIGHT_COLORS[t.id];
+  const colors = NIGHT_COLORS[t.id] ?? t.night;
   if (!colors) return t;
   let out = nightCache.get(t.id);
   if (!out) { out = { ...t, ...colors, dark: true }; nightCache.set(t.id, out); }

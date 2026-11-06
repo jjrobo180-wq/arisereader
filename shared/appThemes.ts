@@ -10,7 +10,7 @@ import { NOTES_THEMES, type NotesTheme } from "./notesThemes";
 
 export type HubThemeId =
   | "classic" | "tile" | "crt"
-  | "studio" | "margin" | "bloom" | "timeline" | "console" | "swiss" | "cassette" | "frost" | "grove" | "gazette" | "punch" | "chatline" | "deck" | "tide" | "vinyl" | "hush" | "aurora" | "atelier" | "blueprint" | "arcade" | "typewriter" | "darkroom" | "zen" | "cockpit" | "pocket" | "glass" | "desktop" | "millennium" | "workstation" | "retro" | "monolith" | "ink" | "neon" | "orbit" | "spinner" | "bubbles" | "lava" | "marbles" | "synth" | "jelly" | "orrery" | "dial" | "ferro" | "slots";
+  | "studio" | "margin" | "bloom" | "timeline" | "console" | "swiss" | "cassette" | "frost" | "grove" | "gazette" | "punch" | "chatline" | "deck" | "tide" | "vinyl" | "hush" | "aurora" | "atelier" | "blueprint" | "arcade" | "typewriter" | "darkroom" | "zen" | "cockpit" | "pocket" | "glass" | "desktop" | "millennium" | "workstation" | "retro" | "monolith" | "ink" | "neon" | "orbit" | "spinner" | "bubbles" | "lava" | "marbles" | "synth" | "jelly" | "orrery" | "dial" | "ferro" | "slots" | `x-${string}`;
 
 export type HubTheme = {
   id: HubThemeId;
@@ -74,7 +74,10 @@ export const HUB_THEMES: HubTheme[] = [
   })),
 ];
 
-export const DEFAULT_HUB_THEME: HubThemeId = "classic";
+/** The theme everyone starts on: Billboard (November 2026). */
+export const DEFAULT_HUB_THEME: HubThemeId = "x-billboard";
+/** Raised when the default changes for everyone (see THEME_REV in ariseNotes.ts): a saved layout that has not seen this round moves to the default once. */
+export const HUB_THEME_REV = 1;
 
 export const isHubThemeId = (v: unknown): v is HubThemeId => HUB_THEMES.some((t) => t.id === v);
 export const hubThemeOf = (id: unknown): HubTheme => HUB_THEMES.find((t) => t.id === id) ?? HUB_THEMES[0];

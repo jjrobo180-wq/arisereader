@@ -1,0 +1,87 @@
+/* The Studio series: the arrangements in protoLooks.tsx, dressed with each look's variables
+   (shared/notesThemes.ts sets --an-*). One block per arrangement, named .pl-<arch>. */
+
+.pl { --an-accent: var(--an-violet); }
+
+/* ═════════ Billboard: huge type, hard lines, one loud yellow ═════════ */
+.pl-billboard { --bb-line: var(--an-ink); }
+.pl-billboard.an-root::before { background: var(--an-bg); }
+.pl-billboard header.sticky, .an-themed.pl-billboard header.sticky { background: var(--an-bg) !important; color: var(--an-ink) !important; border-bottom: 2px solid var(--an-ink) !important; }
+.pl-billboard header.sticky .an-icon-btn, .pl-billboard header.sticky button { color: var(--an-ink) !important; }
+.pl-billboard header.sticky h1, .pl-billboard header.sticky [class*="font-"] { text-transform: uppercase; letter-spacing: .08em; font-size: 12px; font-weight: 800; color: var(--an-accent) !important; }
+.an-themed.pl-billboard .an-l-hero { margin: -1.25rem -1rem 0; padding: calc(env(safe-area-inset-top) + 1rem) 1.25rem .5rem; background: var(--an-bg); color: var(--an-ink); gap: 0; }
+.pl-billboard .an-l-minutes { align-self: flex-start; color: var(--an-muted); }
+.pl-billboard .pl-bb-top { display: flex; align-items: center; justify-content: space-between; padding: .25rem 0 .5rem; }
+.pl-billboard .pl-bb-top b { color: var(--an-accent); font-size: 12px; font-weight: 800; letter-spacing: .1em; }
+.pl-billboard .pl-bb-top span { display: flex; gap: .4rem; }
+.pl-billboard .pl-bb-top button { display: grid; place-items: center; width: 44px; height: 44px; border: 2px solid var(--an-ink); border-radius: 999px; background: none; color: var(--an-ink); }
+.pl-billboard .pl-bb-sub { display: flex; gap: .5rem; padding: .35rem 0 .9rem; }
+.pl-billboard .pl-bb-sub button { flex: 1; min-height: 44px; border: 2px solid var(--an-ink); border-radius: 999px; background: none; color: var(--an-ink); font: 800 12px/1 var(--an-font); letter-spacing: .08em; text-transform: uppercase; }
+.pl-billboard .pl-bb-sub button:active { background: var(--an-accent); color: var(--an-on-accent); border-color: var(--an-accent); }
+.pl-billboard #notes-heading { display: none; }
+.pl-billboard .an-search input { border: 2px solid var(--an-ink) !important; border-radius: 0 !important; background: var(--an-bg) !important; }
+.pl-billboard .an-chip { border: 2px solid var(--an-ink); border-radius: 999px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; font-size: 12px; }
+.pl-billboard .an-chip[aria-pressed="true"] { background: var(--an-accent); color: var(--an-on-accent); border-color: var(--an-accent); }
+
+.pl-billboard .pl-bb-list { list-style: none; margin: 0 -1rem; padding: 0; border-bottom: 2px solid var(--an-ink); }
+.pl-billboard .pl-bb-row { display: flex; gap: 14px; width: 100%; padding: 16px 20px; border: 0; border-top: 2px solid var(--an-ink); background: none; color: var(--an-ink); text-align: left; cursor: pointer; min-height: 88px; }
+.pl-billboard .pl-bb-row:active { background: var(--an-accent); color: var(--an-on-accent); }
+.pl-billboard .pl-bb-n { width: 30px; flex: none; padding-top: 6px; color: var(--an-accent); font-size: 12px; font-weight: 800; letter-spacing: .1em; }
+.pl-billboard .pl-bb-row:active .pl-bb-n, .pl-billboard .pl-bb-row:active small { color: inherit; }
+.pl-billboard .pl-bb-t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pl-billboard .pl-bb-t b { font-size: 30px; line-height: .95; font-weight: 800; letter-spacing: -.03em; text-transform: uppercase; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pl-billboard .pl-bb-t b em { font-style: normal; font-size: 12px; letter-spacing: .06em; color: var(--an-accent); }
+.pl-billboard .pl-bb-t small { margin-top: 6px; font-size: 14px; color: var(--an-muted); }
+
+.pl-billboard .pl-bb-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: flex; border-top: 2px solid var(--an-ink); background: var(--an-bg); padding-bottom: env(safe-area-inset-bottom); }
+.pl-billboard .pl-bb-bar button { min-height: 84px; border: 0; font: 800 16px/1 var(--an-font); text-transform: uppercase; letter-spacing: -.01em; cursor: pointer; }
+.pl-billboard .pl-bb-rec { flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px; background: var(--an-accent); color: var(--an-on-accent); font-size: 20px !important; }
+.pl-billboard .pl-bb-alt { width: 120px; border-left: 2px solid var(--an-ink) !important; background: var(--an-bg); color: var(--an-ink); }
+.pl-billboard main { padding-bottom: 8rem; }
+
+/* Recording: the whole panel goes yellow, with a giant stacked clock. */
+.pl-billboard .an-l-recsec { background: var(--an-accent) !important; color: var(--an-on-accent) !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; margin-inline: -1rem; padding: 1.5rem 1.25rem 1.75rem; align-items: stretch !important; text-align: left !important; }
+.pl-billboard .an-l-recsec * { color: inherit !important; }
+.pl-billboard .an-l-rec { align-items: stretch; }
+.pl-billboard .an-l-status { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.pl-billboard .an-l-status::before { content: "● REC · "; }
+.pl-billboard .pl-bb-clock { margin-top: 1rem; font-size: clamp(5rem, 30vw, 7.4rem); line-height: .95; font-weight: 800; letter-spacing: -.03em; text-transform: uppercase; font-variant-numeric: tabular-nums; }
+.pl-billboard .pl-bb-bars { display: flex; align-items: center; gap: 4px; height: 118px; margin: 1.4rem 0 .6rem; }
+.pl-billboard .pl-bb-bars i { flex: 1; min-width: 0; max-width: 6px; border-radius: 2px; background: var(--an-on-accent); transition: height .12s; }
+.pl-billboard .an-l-recsec > p { border-top: 2px solid currentColor; padding-top: .7rem; margin-top: .9rem !important; font-size: 1.05rem; font-weight: 700; }
+.pl-billboard .an-l-controls { display: grid; width: calc(100% + 2.5rem); max-width: none; grid-template-columns: 1fr 1fr 1.3fr; gap: 0; margin: 1.2rem -1.25rem -1.75rem !important; border-top: 2px solid var(--an-on-accent); }
+.pl-billboard .an-l-controls .an-btn { min-height: 76px; border: 0 !important; border-left: 2px solid var(--an-on-accent) !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; font-weight: 800; text-transform: uppercase; justify-content: center; }
+.pl-billboard .an-l-controls .an-btn:first-child { border-left: 0 !important; }
+.pl-billboard .an-l-controls .an-btn:last-child { background: var(--an-on-accent) !important; color: var(--an-accent) !important; font-size: 1.1rem; }
+.pl-billboard .an-l-controls .an-btn:last-child * { color: var(--an-accent) !important; }
+
+/* A note: a tiny yellow date line over a huge title. */
+.pl-billboard .pl-bb-note { padding: .5rem 0 .25rem; }
+.pl-billboard .pl-bb-note p { margin: 0 0 .6rem; color: var(--an-accent); font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.pl-billboard .pl-bb-note h1 { margin: 0; font-family: var(--an-serif); font-size: clamp(2.6rem, 13vw, 3.4rem); line-height: .95; font-weight: 800; letter-spacing: -.03em; text-transform: uppercase; color: var(--an-ink); overflow-wrap: anywhere; }
+
+/* To Duo and WorkHub */
+.hub-look.pl-billboard .an-l-hero { padding-bottom: 1rem; }
+.pl-billboard .pl-bb-eyebrow { margin: 0; color: var(--an-accent); font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.pl-billboard .pl-bb-hubtitle { font-size: clamp(2.6rem, 14vw, 3.6rem) !important; line-height: .92 !important; text-transform: uppercase; letter-spacing: -.035em !important; margin: .35rem 0 1rem !important; overflow-wrap: anywhere; }
+.pl-billboard .pl-bb-hubmain { display: flex; align-items: center; justify-content: center; gap: .6rem; min-height: 72px; width: 100%; border: 0; background: var(--an-accent); color: var(--an-on-accent); font: 800 20px/1 var(--an-font); text-transform: uppercase; cursor: pointer; }
+.hub-look.pl-billboard .lk-tasks { margin: 0 -1rem; }
+.pl-billboard .pl-bb-tasks li { display: flex; align-items: stretch; border-top: 2px solid var(--an-ink); }
+.pl-billboard .pl-bb-tasks li:first-child { border-top: 0; }
+.pl-billboard .pl-bb-tasks .pl-bb-row { border-top: 0; flex: 1; padding-left: 6px; }
+.pl-billboard .pl-bb-check { flex: none; width: 52px; margin: 18px 0 18px 20px; align-self: flex-start; height: 52px; border: 2px solid var(--an-ink); border-radius: 999px; background: none; color: var(--an-on-accent); font-weight: 800; font-size: 20px; cursor: pointer; }
+.pl-billboard .pl-bb-check[aria-pressed="true"] { background: var(--an-accent); border-color: var(--an-accent); }
+.pl-billboard .pl-bb-tasks li[data-done] .pl-bb-t b { text-decoration: line-through; opacity: .55; }
+.pl-billboard .pl-bb-tasks li[data-late] .pl-bb-t small { color: var(--an-accent); font-weight: 800; }
+.pl-billboard .pl-bb-agenda { display: flex; flex-direction: column; margin: 0 -1rem; }
+.pl-billboard .pl-bb-day { display: flex; gap: 14px; padding: 14px 20px; border: 0; border-top: 2px solid var(--an-ink); background: none; color: var(--an-ink); text-align: left; cursor: pointer; }
+.pl-billboard .pl-bb-date { width: 64px; flex: none; display: flex; flex-direction: column; align-items: center; padding: 6px 0; background: var(--an-accent); color: var(--an-on-accent); }
+.pl-billboard .pl-bb-date small { font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.pl-billboard .pl-bb-date b { font-size: 26px; line-height: 1; font-weight: 800; }
+.pl-billboard .pl-bb-items { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-weight: 800; text-transform: uppercase; letter-spacing: -.01em; font-size: 17px; }
+.pl-billboard .pl-bb-items em { font-style: normal; margin-right: .5rem; color: var(--an-accent); font-size: 12px; letter-spacing: .08em; }
+
+/* The preview in the picker: three small screens, scaled down */
+.pl-preview { position: relative; width: 390px; height: 760px; overflow: hidden; border-radius: 34px; transform-origin: top left; }
+.pl-preview .an-l-bar, .pl-preview .pl-bb-bar { position: absolute; }
+.pl-preview main { padding-bottom: 7rem; }
