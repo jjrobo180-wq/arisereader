@@ -1075,3 +1075,7 @@ html body [data-light-island] .text-white { color: #ffffff !important; }
 /* Date and time fields never push a screen wider than the phone (iOS gives them a wide built-in size). */
 input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"] { min-width: 0; max-width: 100%; -webkit-appearance: none; appearance: none; }
 input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-date-and-time-value, input[type="datetime-local"]::-webkit-date-and-time-value { text-align: left; min-height: 1.4em; }
+
+/* Arise Notes on the iPhone (main.tsx): everything a touch smaller (about 91%), like Apple's own apps.
+   Text boxes stay 16px (above), so typing never zooms. */
+html.notes-app { font-size: 14.5px; }

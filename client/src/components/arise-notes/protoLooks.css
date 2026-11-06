@@ -8,34 +8,34 @@
 .stx.stx-billboard.an-root::before { background: var(--an-bg); }
 .stx.stx-billboard header.sticky, .stx.an-themed.stx-billboard header.sticky { background: var(--an-bg) !important; color: var(--an-ink) !important; border-bottom: 2px solid var(--an-ink) !important; }
 .stx.stx-billboard header.sticky .an-icon-btn, .stx.stx-billboard header.sticky button { color: var(--an-ink) !important; }
-.stx.stx-billboard header.sticky h1, .stx.stx-billboard header.sticky [class*="font-"] { text-transform: uppercase; letter-spacing: .08em; font-size: 12px; font-weight: 800; color: var(--an-accent) !important; }
+.stx.stx-billboard header.sticky h1, .stx.stx-billboard header.sticky [class*="font-"] { text-transform: uppercase; letter-spacing: .08em; font-size: 0.75rem; font-weight: 800; color: var(--an-accent) !important; }
 .stx.an-themed.stx-billboard .an-l-hero { margin: -1.25rem -1rem 0; padding: calc(env(safe-area-inset-top) + 1rem) 1.25rem .5rem; background: var(--an-bg); color: var(--an-ink); gap: 0; }
 .stx.stx-billboard .an-l-minutes { align-self: flex-start; color: var(--an-muted); }
 .stx.stx-billboard .stx-bb-top { display: flex; align-items: center; justify-content: space-between; padding: .25rem 0 .5rem; }
-.stx.stx-billboard .stx-bb-top b { color: var(--an-accent); font-size: 12px; font-weight: 800; letter-spacing: .1em; }
+.stx.stx-billboard .stx-bb-top b { color: var(--an-accent); font-size: 0.75rem; font-weight: 800; letter-spacing: .1em; }
 .stx.stx-billboard .stx-bb-top span { display: flex; gap: .4rem; }
 .stx.stx-billboard .stx-bb-top button { display: grid; place-items: center; width: 44px; height: 44px; border: 2px solid var(--an-ink); border-radius: 999px; background: none; color: var(--an-ink); }
 .stx.stx-billboard .stx-bb-sub { display: flex; gap: .5rem; padding: .35rem 0 .9rem; }
-.stx.stx-billboard .stx-bb-sub button { flex: 1; min-height: 44px; border: 2px solid var(--an-ink); border-radius: 999px; background: none; color: var(--an-ink); font: 800 12px/1 var(--an-font); letter-spacing: .08em; text-transform: uppercase; }
+.stx.stx-billboard .stx-bb-sub button { flex: 1; min-height: 44px; border: 2px solid var(--an-ink); border-radius: 999px; background: none; color: var(--an-ink); font: 800 0.75rem/1 var(--an-font); letter-spacing: .08em; text-transform: uppercase; }
 .stx.stx-billboard .stx-bb-sub button:active { background: var(--an-accent); color: var(--an-on-accent); border-color: var(--an-accent); }
 .stx.stx-billboard #notes-heading { display: none; }
 .stx.stx-billboard .an-search input { border: 2px solid var(--an-ink) !important; border-radius: 0 !important; background: var(--an-bg) !important; }
-.stx.stx-billboard .an-chip { border: 2px solid var(--an-ink); border-radius: 999px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; font-size: 12px; }
+.stx.stx-billboard .an-chip { border: 2px solid var(--an-ink); border-radius: 999px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; font-size: 0.75rem; }
 .stx.stx-billboard .an-chip[aria-pressed="true"] { background: var(--an-accent); color: var(--an-on-accent); border-color: var(--an-accent); }
 
 .stx.stx-billboard .stx-bb-list { list-style: none; margin: 0 -1rem; padding: 0; border-bottom: 2px solid var(--an-ink); }
 .stx.stx-billboard .stx-bb-row { display: flex; gap: 14px; width: 100%; padding: 16px 20px; border: 0; border-top: 2px solid var(--an-ink); background: none; color: var(--an-ink); text-align: left; cursor: pointer; min-height: 88px; }
 .stx.stx-billboard .stx-bb-row:active { background: var(--an-accent); color: var(--an-on-accent); }
-.stx.stx-billboard .stx-bb-n { width: 30px; flex: none; padding-top: 6px; color: var(--an-accent); font-size: 12px; font-weight: 800; letter-spacing: .1em; }
+.stx.stx-billboard .stx-bb-n { width: 30px; flex: none; padding-top: 6px; color: var(--an-accent); font-size: 0.75rem; font-weight: 800; letter-spacing: .1em; }
 .stx.stx-billboard .stx-bb-row:active .stx-bb-n, .stx.stx-billboard .stx-bb-row:active small { color: inherit; }
 .stx.stx-billboard .stx-bb-t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.stx.stx-billboard .stx-bb-t b { font-size: 30px; line-height: .95; font-weight: 800; letter-spacing: -.03em; text-transform: uppercase; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.stx.stx-billboard .stx-bb-t b em { font-style: normal; font-size: 12px; letter-spacing: .06em; color: var(--an-accent); }
-.stx.stx-billboard .stx-bb-t small { margin-top: 6px; font-size: 14px; color: var(--an-muted); }
+.stx.stx-billboard .stx-bb-t b { font-size: 1.875rem; line-height: .95; font-weight: 800; letter-spacing: -.03em; text-transform: uppercase; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.stx.stx-billboard .stx-bb-t b em { font-style: normal; font-size: 0.75rem; letter-spacing: .06em; color: var(--an-accent); }
+.stx.stx-billboard .stx-bb-t small { margin-top: 6px; font-size: 0.875rem; color: var(--an-muted); }
 
 .stx.stx-billboard .stx-bb-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: flex; border-top: 2px solid var(--an-ink); background: var(--an-bg); padding-bottom: env(safe-area-inset-bottom); }
-.stx.stx-billboard .stx-bb-bar button { min-height: 84px; border: 0; font: 800 16px/1 var(--an-font); text-transform: uppercase; letter-spacing: -.01em; cursor: pointer; }
-.stx.stx-billboard .stx-bb-rec { flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px; background: var(--an-accent); color: var(--an-on-accent); font-size: 20px !important; }
+.stx.stx-billboard .stx-bb-bar button { min-height: 84px; border: 0; font: 800 1rem/1 var(--an-font); text-transform: uppercase; letter-spacing: -.01em; cursor: pointer; }
+.stx.stx-billboard .stx-bb-rec { flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px; background: var(--an-accent); color: var(--an-on-accent); font-size: 1.25rem !important; }
 .stx.stx-billboard .stx-bb-alt { width: 120px; border-left: 2px solid var(--an-ink) !important; background: var(--an-bg); color: var(--an-ink); }
 .stx.stx-billboard:not(.an-pro) main { padding-bottom: 8rem; }
 
@@ -43,7 +43,7 @@
 .stx.stx-billboard .an-l-recsec { background: var(--an-accent) !important; color: var(--an-on-accent) !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; margin-inline: -1rem; padding: 1.5rem 1.25rem 1.75rem; align-items: stretch !important; text-align: left !important; }
 .stx.stx-billboard .an-l-recsec * { color: inherit !important; }
 .stx.stx-billboard .an-l-rec { align-items: stretch; }
-.stx.stx-billboard .an-l-status { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.stx.stx-billboard .an-l-status { font-size: 0.75rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .stx.stx-billboard .an-l-status::before { content: "● REC · "; }
 .stx.stx-billboard .stx-bb-clock { margin-top: 1rem; font-size: clamp(5rem, 30vw, 7.4rem); line-height: .95; font-weight: 800; letter-spacing: -.03em; text-transform: uppercase; font-variant-numeric: tabular-nums; }
 .stx.stx-billboard .stx-bb-bars { display: flex; align-items: center; gap: 4px; height: 118px; margin: 1.4rem 0 .6rem; }
@@ -57,29 +57,29 @@
 
 /* A note: a tiny yellow date line over a huge title. */
 .stx.stx-billboard .stx-bb-note { padding: .5rem 0 .25rem; }
-.stx.stx-billboard .stx-bb-note p { margin: 0 0 .6rem; color: var(--an-accent); font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.stx.stx-billboard .stx-bb-note p { margin: 0 0 .6rem; color: var(--an-accent); font-size: 0.75rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .stx.stx-billboard .stx-bb-note h1 { margin: 0; font-family: var(--an-serif); font-size: clamp(2.6rem, 13vw, 3.4rem); line-height: .95; font-weight: 800; letter-spacing: -.03em; text-transform: uppercase; color: var(--an-ink); overflow-wrap: anywhere; }
 
 /* To Duo and WorkHub */
 .stx.hub-look.stx-billboard .an-l-hero { padding-bottom: 1rem; }
-.stx.stx-billboard .stx-bb-eyebrow { margin: 0; color: var(--an-accent); font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.stx.stx-billboard .stx-bb-eyebrow { margin: 0; color: var(--an-accent); font-size: 0.75rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .stx.stx-billboard .stx-bb-hubtitle { font-size: clamp(2.6rem, 14vw, 3.6rem) !important; line-height: .92 !important; text-transform: uppercase; letter-spacing: -.035em !important; margin: .35rem 0 1rem !important; overflow-wrap: anywhere; }
-.stx.stx-billboard .stx-bb-hubmain { display: flex; align-items: center; justify-content: center; gap: .6rem; min-height: 72px; width: 100%; border: 0; background: var(--an-accent); color: var(--an-on-accent); font: 800 20px/1 var(--an-font); text-transform: uppercase; cursor: pointer; }
+.stx.stx-billboard .stx-bb-hubmain { display: flex; align-items: center; justify-content: center; gap: .6rem; min-height: 72px; width: 100%; border: 0; background: var(--an-accent); color: var(--an-on-accent); font: 800 1.25rem/1 var(--an-font); text-transform: uppercase; cursor: pointer; }
 .stx.hub-look.stx-billboard .lk-tasks { margin: 0 -1rem; }
 .stx.stx-billboard .stx-bb-tasks li { display: flex; align-items: stretch; border-top: 2px solid var(--an-ink); }
 .stx.stx-billboard .stx-bb-tasks li:first-child { border-top: 0; }
 .stx.stx-billboard .stx-bb-tasks .stx-bb-row { border-top: 0; flex: 1; padding-left: 6px; }
-.stx.stx-billboard .stx-bb-check { flex: none; width: 52px; margin: 18px 0 18px 20px; align-self: flex-start; height: 52px; border: 2px solid var(--an-ink); border-radius: 999px; background: none; color: var(--an-on-accent); font-weight: 800; font-size: 20px; cursor: pointer; }
+.stx.stx-billboard .stx-bb-check { flex: none; width: 52px; margin: 18px 0 18px 20px; align-self: flex-start; height: 52px; border: 2px solid var(--an-ink); border-radius: 999px; background: none; color: var(--an-on-accent); font-weight: 800; font-size: 1.25rem; cursor: pointer; }
 .stx.stx-billboard .stx-bb-check[aria-pressed="true"] { background: var(--an-accent); border-color: var(--an-accent); }
 .stx.stx-billboard .stx-bb-tasks li[data-done] .stx-bb-t b { text-decoration: line-through; opacity: .55; }
 .stx.stx-billboard .stx-bb-tasks li[data-late] .stx-bb-t small { color: var(--an-accent); font-weight: 800; }
 .stx.stx-billboard .stx-bb-agenda { display: flex; flex-direction: column; margin: 0 -1rem; }
 .stx.stx-billboard .stx-bb-day { display: flex; gap: 14px; padding: 14px 20px; border: 0; border-top: 2px solid var(--an-ink); background: none; color: var(--an-ink); text-align: left; cursor: pointer; }
 .stx.stx-billboard .stx-bb-date { width: 64px; flex: none; display: flex; flex-direction: column; align-items: center; padding: 6px 0; background: var(--an-accent); color: var(--an-on-accent); }
-.stx.stx-billboard .stx-bb-date small { font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
-.stx.stx-billboard .stx-bb-date b { font-size: 26px; line-height: 1; font-weight: 800; }
-.stx.stx-billboard .stx-bb-items { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-weight: 800; text-transform: uppercase; letter-spacing: -.01em; font-size: 17px; }
-.stx.stx-billboard .stx-bb-items em { font-style: normal; margin-right: .5rem; color: var(--an-accent); font-size: 12px; letter-spacing: .08em; }
+.stx.stx-billboard .stx-bb-date small { font-size: 0.625rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.stx.stx-billboard .stx-bb-date b { font-size: 1.625rem; line-height: 1; font-weight: 800; }
+.stx.stx-billboard .stx-bb-items { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-weight: 800; text-transform: uppercase; letter-spacing: -.01em; font-size: 1.0625rem; }
+.stx.stx-billboard .stx-bb-items em { font-style: normal; margin-right: .5rem; color: var(--an-accent); font-size: 0.75rem; letter-spacing: .08em; }
 
 /* ═════════ The six grid arrangements: Index, Chronicle, Editorial, Field Notes, Atlas, Stream ═════════ */
 .stx.stx-s.an-root::before, .stx.stx-index.an-root::before, .stx.stx-chron.an-root::before, .stx.stx-edit.an-root::before, .stx.stx-cons.an-root::before, .stx.stx-atlas.an-root::before, .stx.stx-stream.an-root::before { background: var(--an-bg); }
@@ -88,35 +88,35 @@
 .stx.stx-s #notes-heading, .stx.stx-index #notes-heading, .stx.stx-chron #notes-heading, .stx.stx-edit #notes-heading, .stx.stx-cons #notes-heading, .stx.stx-atlas #notes-heading, .stx.stx-stream #notes-heading { display: none; }
 .stx.an-root.stx-s .an-l-hero, .stx.an-root.stx-index .an-l-hero, .stx.an-root.stx-chron .an-l-hero, .stx.an-root.stx-edit .an-l-hero, .stx.an-root.stx-cons .an-l-hero, .stx.an-root.stx-atlas .an-l-hero, .stx.an-root.stx-stream .an-l-hero { margin: -1.25rem -1rem 0; padding: calc(env(safe-area-inset-top) + 1rem) 1.25rem .25rem; background: var(--an-bg); color: var(--an-ink); gap: 0; }
 .stx.stx-s .an-l-minutes, .stx.stx-index .an-l-minutes, .stx.stx-chron .an-l-minutes, .stx.stx-edit .an-l-minutes, .stx.stx-cons .an-l-minutes, .stx.stx-atlas .an-l-minutes, .stx.stx-stream .an-l-minutes { align-self: flex-start; color: var(--an-muted); margin-bottom: .5rem; }
-.stx.stx-s .stx-kk, .stx.stx-index .stx-kk, .stx.stx-chron .stx-kk, .stx.stx-edit .stx-kk, .stx.stx-cons .stx-kk, .stx.stx-atlas .stx-kk, .stx.stx-stream .stx-kk { display: block; font: 700 11px/1.2 var(--an-font); letter-spacing: .12em; text-transform: uppercase; color: var(--an-muted); }
+.stx.stx-s .stx-kk, .stx.stx-index .stx-kk, .stx.stx-chron .stx-kk, .stx.stx-edit .stx-kk, .stx.stx-cons .stx-kk, .stx.stx-atlas .stx-kk, .stx.stx-stream .stx-kk { display: block; font: 700 0.6875rem/1.2 var(--an-font); letter-spacing: .12em; text-transform: uppercase; color: var(--an-muted); }
 .stx.stx-s .stx-label, .stx.stx-index .stx-label, .stx.stx-chron .stx-label, .stx.stx-edit .stx-label, .stx.stx-cons .stx-label, .stx.stx-atlas .stx-label, .stx.stx-stream .stx-label { padding: 1.1rem 0 .4rem; }
 .stx.stx-s .stx-head, .stx.stx-index .stx-head, .stx.stx-chron .stx-head, .stx.stx-edit .stx-head, .stx.stx-cons .stx-head, .stx.stx-atlas .stx-head, .stx.stx-stream .stx-head { display: flex; justify-content: space-between; align-items: flex-start; gap: .5rem; padding-top: .25rem; }
-.stx.stx-s .stx-head h1, .stx.stx-index .stx-head h1, .stx.stx-chron .stx-head h1, .stx.stx-edit .stx-head h1, .stx.stx-cons .stx-head h1, .stx.stx-atlas .stx-head h1, .stx.stx-stream .stx-head h1 { margin: .5rem 0 0; font-family: var(--an-serif); font-size: 38px; line-height: 1; letter-spacing: -.02em; font-weight: 700; color: var(--an-ink); }
-.stx.stx-s .stx-head p, .stx.stx-index .stx-head p, .stx.stx-chron .stx-head p, .stx.stx-edit .stx-head p, .stx.stx-cons .stx-head p, .stx.stx-atlas .stx-head p, .stx.stx-stream .stx-head p { margin: .5rem 0 0; font-size: 14px; color: var(--an-muted); }
+.stx.stx-s .stx-head h1, .stx.stx-index .stx-head h1, .stx.stx-chron .stx-head h1, .stx.stx-edit .stx-head h1, .stx.stx-cons .stx-head h1, .stx.stx-atlas .stx-head h1, .stx.stx-stream .stx-head h1 { margin: .5rem 0 0; font-family: var(--an-serif); font-size: 2.375rem; line-height: 1; letter-spacing: -.02em; font-weight: 700; color: var(--an-ink); }
+.stx.stx-s .stx-head p, .stx.stx-index .stx-head p, .stx.stx-chron .stx-head p, .stx.stx-edit .stx-head p, .stx.stx-cons .stx-head p, .stx.stx-atlas .stx-head p, .stx.stx-stream .stx-head p { margin: .5rem 0 0; font-size: 0.875rem; color: var(--an-muted); }
 .stx.stx-s .stx-top, .stx.stx-index .stx-top, .stx.stx-chron .stx-top, .stx.stx-edit .stx-top, .stx.stx-cons .stx-top, .stx.stx-atlas .stx-top, .stx.stx-stream .stx-top { display: flex; justify-content: space-between; align-items: center; }
 .stx.stx-s .stx-icons, .stx.stx-index .stx-icons, .stx.stx-chron .stx-icons, .stx.stx-edit .stx-icons, .stx.stx-cons .stx-icons, .stx.stx-atlas .stx-icons, .stx.stx-stream .stx-icons { display: flex; margin-right: -10px; }
 .stx.stx-s .stx-icons button, .stx.stx-index .stx-icons button, .stx.stx-chron .stx-icons button, .stx.stx-edit .stx-icons button, .stx.stx-cons .stx-icons button, .stx.stx-atlas .stx-icons button, .stx.stx-stream .stx-icons button { display: grid; place-items: center; width: 44px; height: 44px; border: 0; background: none; color: var(--an-ink); }
 .stx.stx-s .stx-chips, .stx.stx-index .stx-chips, .stx.stx-chron .stx-chips, .stx.stx-edit .stx-chips, .stx.stx-cons .stx-chips, .stx.stx-atlas .stx-chips, .stx.stx-stream .stx-chips { display: flex; flex-wrap: wrap; gap: .45rem; padding: .9rem 0 .2rem; }
-.stx.stx-s .stx-chips button, .stx.stx-index .stx-chips button, .stx.stx-chron .stx-chips button, .stx.stx-edit .stx-chips button, .stx.stx-cons .stx-chips button, .stx.stx-atlas .stx-chips button, .stx.stx-stream .stx-chips button { min-height: 38px; padding: 0 15px; border-radius: 999px; border: 1px solid var(--an-line); background: var(--an-card); color: var(--an-ink); font: 600 13px/1 var(--an-font); }
+.stx.stx-s .stx-chips button, .stx.stx-index .stx-chips button, .stx.stx-chron .stx-chips button, .stx.stx-edit .stx-chips button, .stx.stx-cons .stx-chips button, .stx.stx-atlas .stx-chips button, .stx.stx-stream .stx-chips button { min-height: 38px; padding: 0 15px; border-radius: 999px; border: 1px solid var(--an-line); background: var(--an-card); color: var(--an-ink); font: 600 0.8125rem/1 var(--an-font); }
 .stx.stx-s .stx-chips button:first-child, .stx.stx-index .stx-chips button:first-child, .stx.stx-chron .stx-chips button:first-child, .stx.stx-edit .stx-chips button:first-child, .stx.stx-cons .stx-chips button:first-child, .stx.stx-atlas .stx-chips button:first-child, .stx.stx-stream .stx-chips button:first-child { background: var(--an-violet); color: var(--an-on-accent); border-color: var(--an-violet); }
 .stx.stx-s .stx-btns, .stx.stx-index .stx-btns, .stx.stx-chron .stx-btns, .stx.stx-edit .stx-btns, .stx.stx-cons .stx-btns, .stx.stx-atlas .stx-btns, .stx.stx-stream .stx-btns { display: flex; flex-wrap: wrap; gap: .5rem; padding: 1.1rem 0 .2rem; }
-.stx.stx-s .stx-b-pri, .stx.stx-index .stx-b-pri, .stx.stx-chron .stx-b-pri, .stx.stx-edit .stx-b-pri, .stx.stx-cons .stx-b-pri, .stx.stx-atlas .stx-b-pri, .stx.stx-stream .stx-b-pri, .stx.stx-index .stx-b-out, .stx.stx-chron .stx-b-out, .stx.stx-edit .stx-b-out, .stx.stx-cons .stx-b-out, .stx.stx-atlas .stx-b-out, .stx.stx-stream .stx-b-out { min-height: 48px; padding: 0 20px; border-radius: var(--an-radius); display: inline-flex; align-items: center; justify-content: center; gap: 8px; font: 700 15px/1 var(--an-font); border: 1px solid var(--an-line); background: var(--an-card); color: var(--an-ink); cursor: pointer; }
+.stx.stx-s .stx-b-pri, .stx.stx-index .stx-b-pri, .stx.stx-chron .stx-b-pri, .stx.stx-edit .stx-b-pri, .stx.stx-cons .stx-b-pri, .stx.stx-atlas .stx-b-pri, .stx.stx-stream .stx-b-pri, .stx.stx-index .stx-b-out, .stx.stx-chron .stx-b-out, .stx.stx-edit .stx-b-out, .stx.stx-cons .stx-b-out, .stx.stx-atlas .stx-b-out, .stx.stx-stream .stx-b-out { min-height: 48px; padding: 0 20px; border-radius: var(--an-radius); display: inline-flex; align-items: center; justify-content: center; gap: 8px; font: 700 0.9375rem/1 var(--an-font); border: 1px solid var(--an-line); background: var(--an-card); color: var(--an-ink); cursor: pointer; }
 .stx.stx-s .stx-b-pri, .stx.stx-index .stx-b-pri, .stx.stx-chron .stx-b-pri, .stx.stx-edit .stx-b-pri, .stx.stx-cons .stx-b-pri, .stx.stx-atlas .stx-b-pri, .stx.stx-stream .stx-b-pri { background: var(--an-violet); color: var(--an-on-accent); border-color: var(--an-violet); }
-.stx.stx-s .stx-hl, .stx.stx-index .stx-hl, .stx.stx-chron .stx-hl, .stx.stx-edit .stx-hl, .stx.stx-cons .stx-hl, .stx.stx-atlas .stx-hl, .stx.stx-stream .stx-hl { margin: .6rem 0 0; font-family: var(--an-serif); font-size: var(--pl-hs, 52px); line-height: .98; letter-spacing: -.025em; font-weight: 600; color: var(--an-ink); overflow-wrap: anywhere; }
-.stx.stx-s .stx-ix-g, .stx.stx-index .stx-ix-g, .stx.stx-chron .stx-ix-g, .stx.stx-edit .stx-ix-g, .stx.stx-cons .stx-ix-g, .stx.stx-atlas .stx-ix-g, .stx.stx-stream .stx-ix-g { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13.5px; line-height: 1.4; color: var(--an-muted); }
-.stx.stx-s small, .stx.stx-index small, .stx.stx-chron small, .stx.stx-edit small, .stx.stx-cons small, .stx.stx-atlas small, .stx.stx-stream small { color: var(--an-muted); font-size: 12px; }
+.stx.stx-s .stx-hl, .stx.stx-index .stx-hl, .stx.stx-chron .stx-hl, .stx.stx-edit .stx-hl, .stx.stx-cons .stx-hl, .stx.stx-atlas .stx-hl, .stx.stx-stream .stx-hl { margin: .6rem 0 0; font-family: var(--an-serif); font-size: var(--pl-hs, 3.25rem); line-height: .98; letter-spacing: -.025em; font-weight: 600; color: var(--an-ink); overflow-wrap: anywhere; }
+.stx.stx-s .stx-ix-g, .stx.stx-index .stx-ix-g, .stx.stx-chron .stx-ix-g, .stx.stx-edit .stx-ix-g, .stx.stx-cons .stx-ix-g, .stx.stx-atlas .stx-ix-g, .stx.stx-stream .stx-ix-g { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.8438rem; line-height: 1.4; color: var(--an-muted); }
+.stx.stx-s small, .stx.stx-index small, .stx.stx-chron small, .stx.stx-edit small, .stx.stx-cons small, .stx.stx-atlas small, .stx.stx-stream small { color: var(--an-muted); font-size: 0.75rem; }
 .stx.stx-s .an-search input, .stx.stx-index .an-search input, .stx.stx-chron .an-search input, .stx.stx-edit .an-search input, .stx.stx-cons .an-search input, .stx.stx-atlas .an-search input, .stx.stx-stream .an-search input { border-radius: var(--an-radius) !important; background: var(--an-card) !important; }
 .stx.stx-s .an-chip, .stx.stx-index .an-chip, .stx.stx-chron .an-chip, .stx.stx-edit .an-chip, .stx.stx-cons .an-chip, .stx.stx-atlas .an-chip, .stx.stx-stream .an-chip { border-radius: 999px; }
 .stx.stx-s .an-chip[aria-pressed="true"], .stx.stx-index .an-chip[aria-pressed="true"], .stx.stx-chron .an-chip[aria-pressed="true"], .stx.stx-edit .an-chip[aria-pressed="true"], .stx.stx-cons .an-chip[aria-pressed="true"], .stx.stx-atlas .an-chip[aria-pressed="true"], .stx.stx-stream .an-chip[aria-pressed="true"] { background: var(--an-violet); color: var(--an-on-accent); border-color: var(--an-violet); }
 .stx.stx-s:not(.an-pro) main, .stx.stx-index:not(.an-pro) main, .stx.stx-chron:not(.an-pro) main, .stx.stx-edit:not(.an-pro) main, .stx.stx-cons:not(.an-pro) main, .stx.stx-atlas:not(.an-pro) main, .stx.stx-stream:not(.an-pro) main { padding-bottom: 8rem; }
 /* Bottom bar: Record and one more */
 .stx.stx-s .stx-bar2, .stx.stx-index .stx-bar2, .stx.stx-chron .stx-bar2, .stx.stx-edit .stx-bar2, .stx.stx-cons .stx-bar2, .stx.stx-atlas .stx-bar2, .stx.stx-stream .stx-bar2 { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: flex; gap: 10px; padding: 14px 18px calc(env(safe-area-inset-bottom) + 14px); background: var(--an-bg); border-top: 1px solid var(--an-line); }
-.stx.stx-s .stx-bar2 button, .stx.stx-index .stx-bar2 button, .stx.stx-chron .stx-bar2 button, .stx.stx-edit .stx-bar2 button, .stx.stx-cons .stx-bar2 button, .stx.stx-atlas .stx-bar2 button, .stx.stx-stream .stx-bar2 button { flex: 1; min-height: 52px; border-radius: var(--an-radius); display: flex; align-items: center; justify-content: center; gap: 8px; font: 700 15px/1 var(--an-font); cursor: pointer; }
+.stx.stx-s .stx-bar2 button, .stx.stx-index .stx-bar2 button, .stx.stx-chron .stx-bar2 button, .stx.stx-edit .stx-bar2 button, .stx.stx-cons .stx-bar2 button, .stx.stx-atlas .stx-bar2 button, .stx.stx-stream .stx-bar2 button { flex: 1; min-height: 52px; border-radius: var(--an-radius); display: flex; align-items: center; justify-content: center; gap: 8px; font: 700 0.9375rem/1 var(--an-font); cursor: pointer; }
 .stx.stx-s .stx-bar2 .stx-b-out, .stx.stx-index .stx-bar2 .stx-b-out, .stx.stx-chron .stx-bar2 .stx-b-out, .stx.stx-edit .stx-bar2 .stx-b-out, .stx.stx-cons .stx-bar2 .stx-b-out, .stx.stx-atlas .stx-bar2 .stx-b-out, .stx.stx-stream .stx-bar2 .stx-b-out { background: var(--an-card); color: var(--an-ink); border: 1px solid var(--an-line); }
 .stx.stx-s .stx-bar2 .stx-b-pri, .stx.stx-index .stx-bar2 .stx-b-pri, .stx.stx-chron .stx-bar2 .stx-b-pri, .stx.stx-edit .stx-bar2 .stx-b-pri, .stx.stx-cons .stx-bar2 .stx-b-pri, .stx.stx-atlas .stx-bar2 .stx-b-pri, .stx.stx-stream .stx-bar2 .stx-b-pri { background: var(--an-violet); color: var(--an-on-accent); border: 1px solid var(--an-violet); }
 /* A note's heading */
 .stx.stx-s .stx-note, .stx.stx-index .stx-note, .stx.stx-chron .stx-note, .stx.stx-edit .stx-note, .stx.stx-cons .stx-note, .stx.stx-atlas .stx-note, .stx.stx-stream .stx-note { padding: .5rem 0 .25rem; }
-.stx.stx-s .stx-note h1, .stx.stx-index .stx-note h1, .stx.stx-chron .stx-note h1, .stx.stx-edit .stx-note h1, .stx.stx-cons .stx-note h1, .stx.stx-atlas .stx-note h1, .stx.stx-stream .stx-note h1 { margin: .5rem 0 0; font-family: var(--an-serif); font-size: var(--pl-ns, 40px); line-height: 1.02; letter-spacing: -.03em; font-weight: 700; color: var(--an-ink); }
+.stx.stx-s .stx-note h1, .stx.stx-index .stx-note h1, .stx.stx-chron .stx-note h1, .stx.stx-edit .stx-note h1, .stx.stx-cons .stx-note h1, .stx.stx-atlas .stx-note h1, .stx.stx-stream .stx-note h1 { margin: .5rem 0 0; font-family: var(--an-serif); font-size: var(--pl-ns, 2.5rem); line-height: 1.02; letter-spacing: -.03em; font-weight: 700; color: var(--an-ink); }
 /* Recording */
 .stx.stx-s .an-l-recsec, .stx.stx-index .an-l-recsec, .stx.stx-chron .an-l-recsec, .stx.stx-edit .an-l-recsec, .stx.stx-cons .an-l-recsec, .stx.stx-atlas .an-l-recsec, .stx.stx-stream .an-l-recsec { background: var(--an-bg) !important; color: var(--an-ink) !important; border: 0 !important; box-shadow: none !important; border-radius: 0 !important; }
 .stx.stx-s .stx-clock, .stx.stx-index .stx-clock, .stx.stx-chron .stx-clock, .stx.stx-edit .stx-clock, .stx.stx-cons .stx-clock, .stx.stx-atlas .stx-clock, .stx.stx-stream .stx-clock { margin-top: 1.5rem; text-align: center; font-family: var(--an-serif); font-size: clamp(4.4rem, 24vw, 5.8rem); line-height: 1; letter-spacing: -.05em; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -131,7 +131,7 @@
 .stx.stx-s .stx-rings span, .stx.stx-index .stx-rings span, .stx.stx-chron .stx-rings span, .stx.stx-edit .stx-rings span, .stx.stx-cons .stx-rings span, .stx.stx-atlas .stx-rings span, .stx.stx-stream .stx-rings span { width: 104px; height: 104px; background: var(--an-violet); }
 .stx.stx-s .stx-clock-ring, .stx.stx-index .stx-clock-ring, .stx.stx-chron .stx-clock-ring, .stx.stx-edit .stx-clock-ring, .stx.stx-cons .stx-clock-ring, .stx.stx-atlas .stx-clock-ring, .stx.stx-stream .stx-clock-ring { }
 .stx.stx-s .stx-txhead, .stx.stx-index .stx-txhead, .stx.stx-chron .stx-txhead, .stx.stx-edit .stx-txhead, .stx.stx-cons .stx-txhead, .stx.stx-atlas .stx-txhead, .stx.stx-stream .stx-txhead { display: flex; align-items: center; justify-content: space-between; padding: .75rem 0; }
-.stx.stx-s .stx-clock-sm, .stx.stx-index .stx-clock-sm, .stx.stx-chron .stx-clock-sm, .stx.stx-edit .stx-clock-sm, .stx.stx-cons .stx-clock-sm, .stx.stx-atlas .stx-clock-sm, .stx.stx-stream .stx-clock-sm { font: 700 12px/1 var(--an-font); letter-spacing: .12em; color: var(--an-violet); font-variant-numeric: tabular-nums; }
+.stx.stx-s .stx-clock-sm, .stx.stx-index .stx-clock-sm, .stx.stx-chron .stx-clock-sm, .stx.stx-edit .stx-clock-sm, .stx.stx-cons .stx-clock-sm, .stx.stx-atlas .stx-clock-sm, .stx.stx-stream .stx-clock-sm { font: 700 0.75rem/1 var(--an-font); letter-spacing: .12em; color: var(--an-violet); font-variant-numeric: tabular-nums; }
 .stx.stx-s .stx-minibars, .stx.stx-index .stx-minibars, .stx.stx-chron .stx-minibars, .stx.stx-edit .stx-minibars, .stx.stx-cons .stx-minibars, .stx.stx-atlas .stx-minibars, .stx.stx-stream .stx-minibars { display: flex; gap: 3px; align-items: center; height: 26px; }
 .stx.stx-s .stx-minibars i, .stx.stx-index .stx-minibars i, .stx.stx-chron .stx-minibars i, .stx.stx-edit .stx-minibars i, .stx.stx-cons .stx-minibars i, .stx.stx-atlas .stx-minibars i, .stx.stx-stream .stx-minibars i { width: 3px; border-radius: 2px; background: var(--an-violet); }
 
@@ -139,8 +139,8 @@
 .stx.stx-index .stx-ix, .stx.stx-chron .stx-ix, .stx.stx-atlas .stx-ix { list-style: none; margin: 0 -1rem; padding: 0; }
 .stx.stx-index .stx-ix-row, .stx.stx-atlas .stx-ix-row { display: flex; flex-direction: column; gap: 3px; width: 100%; padding: 14px 20px; border: 0; border-bottom: 1px solid var(--an-line); border-left: 3px solid transparent; background: none; color: var(--an-ink); text-align: left; }
 .stx.stx-index .stx-ix-row[data-pin], .stx.stx-atlas .stx-ix-row[data-pin] { border-left-color: var(--an-violet); }
-.stx.stx-index .stx-ix-row b, .stx.stx-atlas .stx-ix-row b { font: 700 19px/1.15 var(--an-serif); letter-spacing: -.01em; overflow-wrap: anywhere; }
-.stx.stx-index .stx-ix-row b em, .stx.stx-atlas .stx-ix-row b em { font: 600 11px/1 var(--an-font); letter-spacing: .06em; color: var(--an-violet-ink); }
+.stx.stx-index .stx-ix-row b, .stx.stx-atlas .stx-ix-row b { font: 700 1.1875rem/1.15 var(--an-serif); letter-spacing: -.01em; overflow-wrap: anywhere; }
+.stx.stx-index .stx-ix-row b em, .stx.stx-atlas .stx-ix-row b em { font: 600 0.6875rem/1 var(--an-font); letter-spacing: .06em; color: var(--an-violet-ink); }
 
 /* Chronicle: a week, then a timeline */
 .stx.stx-chron .stx-week { display: flex; gap: 6px; list-style: none; padding: 0; margin: 0; }
@@ -148,76 +148,76 @@
 .stx.stx-chron .stx-week li[data-on] { background: var(--an-violet); color: var(--an-on-accent); border-color: var(--an-violet); }
 .stx.stx-chron .stx-week li[data-on] small { color: inherit; }
 .stx.stx-chron .stx-week li[data-has]:not([data-on])::after { content: ""; position: absolute; bottom: 7px; width: 5px; height: 5px; border-radius: 50%; background: var(--an-violet); }
-.stx.stx-chron .stx-week small { font-size: 11px; font-weight: 600; }
-.stx.stx-chron .stx-week b { font-size: 17px; font-weight: 700; }
+.stx.stx-chron .stx-week small { font-size: 0.6875rem; font-weight: 600; }
+.stx.stx-chron .stx-week b { font-size: 1.0625rem; font-weight: 700; }
 .stx.stx-chron .stx-tl { list-style: none; margin: 0; padding: 0; position: relative; }
 .stx.stx-chron .stx-tl::before { content: ""; position: absolute; left: 5px; top: 8px; bottom: 8px; width: 2px; background: var(--an-line); }
 .stx.stx-chron .stx-tl li { position: relative; padding-left: 28px; }
 .stx.stx-chron .stx-tl li::before { content: ""; position: absolute; left: 0; top: 20px; width: 12px; height: 12px; border-radius: 50%; background: var(--an-violet); }
 .stx.stx-chron .stx-tl button { display: flex; flex-direction: column; gap: 3px; width: 100%; padding: 12px 0; border: 0; background: none; color: var(--an-ink); text-align: left; }
-.stx.stx-chron .stx-tl b { font: 700 18px/1.15 var(--an-serif); letter-spacing: -.01em; overflow-wrap: anywhere; }
-.stx.stx-chron .stx-tl b em { font: 600 11px/1 var(--an-font); color: var(--an-violet-ink); }
+.stx.stx-chron .stx-tl b { font: 700 1.125rem/1.15 var(--an-serif); letter-spacing: -.01em; overflow-wrap: anywhere; }
+.stx.stx-chron .stx-tl b em { font: 600 0.6875rem/1 var(--an-font); color: var(--an-violet-ink); }
 
 /* Editorial: one line, then titles */
-.stx.stx-edit .stx-hl { font-size: var(--pl-hs, 56px); margin: 1.2rem 0 0; }
+.stx.stx-edit .stx-hl { font-size: var(--pl-hs, 3.5rem); margin: 1.2rem 0 0; }
 .stx.stx-edit .stx-btns .stx-b-pri { padding-right: 16px; }
 .stx.stx-edit .stx-ed { list-style: none; margin: 0 -1rem; padding: 0; }
 .stx.stx-edit .stx-ed button { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; width: 100%; padding: 13px 20px; border: 0; border-bottom: 1px solid var(--an-line); background: none; color: var(--an-ink); text-align: left; }
-.stx.stx-edit .stx-ed b { font: 600 20px/1.2 var(--an-serif); overflow-wrap: anywhere; }
-.stx.stx-edit .stx-ed b em { font: 600 11px/1 var(--an-font); color: var(--an-violet-ink); }
+.stx.stx-edit .stx-ed b { font: 600 1.25rem/1.2 var(--an-serif); overflow-wrap: anywhere; }
+.stx.stx-edit .stx-ed b em { font: 600 0.6875rem/1 var(--an-font); color: var(--an-violet-ink); }
 .stx.stx-edit .stx-ed small { white-space: nowrap; }
 
 /* Field Notes: a console and a grid of records */
-.stx.stx-cons .stx-hl { font-size: var(--pl-hs, 34px); text-transform: uppercase; letter-spacing: -.01em; }
+.stx.stx-cons .stx-hl { font-size: var(--pl-hs, 2.125rem); text-transform: uppercase; letter-spacing: -.01em; }
 .stx.stx-cons .stx-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .stx.stx-cons .stx-grid button { display: flex; flex-direction: column; gap: 4px; width: 100%; height: 100%; padding: 14px; border: 1px solid var(--an-line); border-radius: var(--an-radius); background: var(--an-card); color: var(--an-ink); text-align: left; }
-.stx.stx-cons .stx-grid b { font: 700 16px/1.15 var(--an-serif); overflow-wrap: anywhere; }
-.stx.stx-cons .stx-grid b em { font-style: normal; font-size: 10px; color: var(--an-violet-ink); }
+.stx.stx-cons .stx-grid b { font: 700 1rem/1.15 var(--an-serif); overflow-wrap: anywhere; }
+.stx.stx-cons .stx-grid b em { font-style: normal; font-size: 0.625rem; color: var(--an-violet-ink); }
 .stx.stx-cons .stx-new button { align-items: center; justify-content: center; border-style: dashed; color: var(--an-violet-ink); font-weight: 700; min-height: 96px; }
 
 /* Atlas: an overview card and tiles */
 .stx.stx-atlas .stx-card { margin-top: 1.2rem; padding: 22px; border: 1px solid var(--an-line); border-radius: var(--an-radius); background: linear-gradient(145deg, color-mix(in srgb, var(--an-violet) 22%, var(--an-card)), var(--an-card)); }
-.stx.stx-atlas .stx-card .stx-hl { font-size: var(--pl-hs, 34px); margin-top: .5rem; }
+.stx.stx-atlas .stx-card .stx-hl { font-size: var(--pl-hs, 2.125rem); margin-top: .5rem; }
 .stx.stx-atlas .stx-btns { padding-top: 1rem; }
-.stx.stx-atlas .stx-h2 { margin: 1.4rem 0 .6rem; font: 700 19px/1 var(--an-serif); }
+.stx.stx-atlas .stx-h2 { margin: 1.4rem 0 .6rem; font: 700 1.1875rem/1 var(--an-serif); }
 .stx.stx-atlas .stx-tiles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .stx.stx-atlas .stx-tiles button { display: flex; flex-direction: column; justify-content: space-between; gap: 14px; width: 100%; min-height: 112px; padding: 16px; border: 1px solid var(--an-line); border-radius: var(--an-radius); background: var(--an-card); color: var(--an-ink); text-align: left; }
 .stx.stx-atlas .stx-tile-i { color: var(--an-violet-ink); }
-.stx.stx-atlas .stx-tiles b { display: block; font: 700 17px/1.1 var(--an-serif); }
+.stx.stx-atlas .stx-tiles b { display: block; font: 700 1.0625rem/1.1 var(--an-serif); }
 
 /* Stream: a big line, a dotted stream and a round button */
-.stx.stx-stream .stx-hl { font-size: var(--pl-hs, 56px); margin-top: 1.4rem; }
+.stx.stx-stream .stx-hl { font-size: var(--pl-hs, 3.5rem); margin-top: 1.4rem; }
 .stx.stx-stream .stx-ink { color: var(--an-ink); }
 .stx.stx-stream .stx-st { list-style: none; margin: 1rem 0 0; padding: 0; position: relative; }
 .stx.stx-stream .stx-st::before { content: ""; position: absolute; left: 5px; top: 10px; bottom: 10px; border-left: 2px dotted var(--an-line); }
 .stx.stx-stream .stx-st li { position: relative; padding-left: 28px; }
 .stx.stx-stream .stx-st li::before { content: ""; position: absolute; left: 0; top: 20px; width: 12px; height: 12px; border-radius: 50%; background: var(--an-violet); }
 .stx.stx-stream .stx-st button { display: flex; flex-direction: column; gap: 3px; width: 100%; padding: 10px 0 14px; border: 0; background: none; color: var(--an-ink); text-align: left; }
-.stx.stx-stream .stx-st b { font: 700 21px/1.15 var(--an-serif); letter-spacing: -.015em; overflow-wrap: anywhere; }
-.stx.stx-stream .stx-st b em { font: 600 11px/1 var(--an-font); color: var(--an-violet-ink); }
+.stx.stx-stream .stx-st b { font: 700 1.3125rem/1.15 var(--an-serif); letter-spacing: -.015em; overflow-wrap: anywhere; }
+.stx.stx-stream .stx-st b em { font: 600 0.6875rem/1 var(--an-font); color: var(--an-violet-ink); }
 .stx.stx-stream .stx-tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: flex; padding: 8px 8px calc(env(safe-area-inset-bottom) + 8px); background: var(--an-bg); border-top: 1px solid var(--an-line); }
-.stx.stx-stream .stx-tabs button { flex: 1; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 0; background: none; color: var(--an-muted); font: 500 11px/1 var(--an-font); }
+.stx.stx-stream .stx-tabs button { flex: 1; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 0; background: none; color: var(--an-muted); font: 500 0.6875rem/1 var(--an-font); }
 .stx.stx-stream .stx-tabs button[aria-current="page"] { color: var(--an-ink); font-weight: 700; }
 .stx.stx-stream .stx-fab { position: fixed; right: 20px; bottom: calc(env(safe-area-inset-bottom) + 84px); z-index: 41; width: 62px; height: 62px; border-radius: 50%; border: 0; background: var(--an-violet); color: var(--an-on-accent); display: grid; place-items: center; box-shadow: 0 10px 24px -8px rgba(0,0,0,.45); }
 
 /* To Duo and WorkHub for the grid arrangements */
 .stx.stx-s .stx-hubtitle, .stx.stx-index .stx-hubtitle, .stx.stx-chron .stx-hubtitle, .stx.stx-edit .stx-hubtitle, .stx.stx-cons .stx-hubtitle, .stx.stx-atlas .stx-hubtitle, .stx.stx-stream .stx-hubtitle { margin: .5rem 0 1rem; font-family: var(--an-serif); font-size: clamp(2.2rem, 11vw, 3rem); line-height: 1; letter-spacing: -.025em; font-weight: 700; color: var(--an-ink); }
-.stx.stx-s .stx-hubmain, .stx.stx-index .stx-hubmain, .stx.stx-chron .stx-hubmain, .stx.stx-edit .stx-hubmain, .stx.stx-cons .stx-hubmain, .stx.stx-atlas .stx-hubmain, .stx.stx-stream .stx-hubmain { width: 100%; min-height: 60px; font-size: 17px; }
+.stx.stx-s .stx-hubmain, .stx.stx-index .stx-hubmain, .stx.stx-chron .stx-hubmain, .stx.stx-edit .stx-hubmain, .stx.stx-cons .stx-hubmain, .stx.stx-atlas .stx-hubmain, .stx.stx-stream .stx-hubmain { width: 100%; min-height: 60px; font-size: 1.0625rem; }
 .stx.stx-s .stx-tasks, .stx.stx-index .stx-tasks, .stx.stx-chron .stx-tasks, .stx.stx-edit .stx-tasks, .stx.stx-cons .stx-tasks, .stx.stx-atlas .stx-tasks, .stx.stx-stream .stx-tasks { list-style: none; margin: 0; padding: 0; }
 .stx.stx-s .stx-tasks li, .stx.stx-index .stx-tasks li, .stx.stx-chron .stx-tasks li, .stx.stx-edit .stx-tasks li, .stx.stx-cons .stx-tasks li, .stx.stx-atlas .stx-tasks li, .stx.stx-stream .stx-tasks li { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--an-line); }
 .stx.stx-s .stx-check, .stx.stx-index .stx-check, .stx.stx-chron .stx-check, .stx.stx-edit .stx-check, .stx.stx-cons .stx-check, .stx.stx-atlas .stx-check, .stx.stx-stream .stx-check { flex: none; width: 30px; height: 30px; margin-top: 2px; border: 2px solid var(--an-violet); border-radius: calc(var(--an-radius) / 2 + 4px); background: none; color: var(--an-on-accent); font-weight: 800; }
 .stx.stx-s .stx-check[aria-pressed="true"], .stx.stx-index .stx-check[aria-pressed="true"], .stx.stx-chron .stx-check[aria-pressed="true"], .stx.stx-edit .stx-check[aria-pressed="true"], .stx.stx-cons .stx-check[aria-pressed="true"], .stx.stx-atlas .stx-check[aria-pressed="true"], .stx.stx-stream .stx-check[aria-pressed="true"] { background: var(--an-violet); }
 .stx.stx-s .stx-trow, .stx.stx-index .stx-trow, .stx.stx-chron .stx-trow, .stx.stx-edit .stx-trow, .stx.stx-cons .stx-trow, .stx.stx-atlas .stx-trow, .stx.stx-stream .stx-trow { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; border: 0; background: none; padding: 0; color: var(--an-ink); text-align: left; }
-.stx.stx-s .stx-trow b, .stx.stx-index .stx-trow b, .stx.stx-chron .stx-trow b, .stx.stx-edit .stx-trow b, .stx.stx-cons .stx-trow b, .stx.stx-atlas .stx-trow b, .stx.stx-stream .stx-trow b { font: 700 17px/1.2 var(--an-serif); overflow-wrap: anywhere; }
+.stx.stx-s .stx-trow b, .stx.stx-index .stx-trow b, .stx.stx-chron .stx-trow b, .stx.stx-edit .stx-trow b, .stx.stx-cons .stx-trow b, .stx.stx-atlas .stx-trow b, .stx.stx-stream .stx-trow b { font: 700 1.0625rem/1.2 var(--an-serif); overflow-wrap: anywhere; }
 .stx.stx-s .stx-tasks li[data-done] .stx-trow b, .stx.stx-index .stx-tasks li[data-done] .stx-trow b, .stx.stx-chron .stx-tasks li[data-done] .stx-trow b, .stx.stx-edit .stx-tasks li[data-done] .stx-trow b, .stx.stx-cons .stx-tasks li[data-done] .stx-trow b, .stx.stx-atlas .stx-tasks li[data-done] .stx-trow b, .stx.stx-stream .stx-tasks li[data-done] .stx-trow b { text-decoration: line-through; opacity: .55; }
 .stx.stx-s .stx-tasks li[data-late] .stx-trow small, .stx.stx-index .stx-tasks li[data-late] .stx-trow small, .stx.stx-chron .stx-tasks li[data-late] .stx-trow small, .stx.stx-edit .stx-tasks li[data-late] .stx-trow small, .stx.stx-cons .stx-tasks li[data-late] .stx-trow small, .stx.stx-atlas .stx-tasks li[data-late] .stx-trow small, .stx.stx-stream .stx-tasks li[data-late] .stx-trow small { color: var(--an-violet-ink); font-weight: 700; }
 .stx.stx-s .stx-agenda, .stx.stx-index .stx-agenda, .stx.stx-chron .stx-agenda, .stx.stx-edit .stx-agenda, .stx.stx-cons .stx-agenda, .stx.stx-atlas .stx-agenda, .stx.stx-stream .stx-agenda { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .stx.stx-s .stx-agenda button, .stx.stx-index .stx-agenda button, .stx.stx-chron .stx-agenda button, .stx.stx-edit .stx-agenda button, .stx.stx-cons .stx-agenda button, .stx.stx-atlas .stx-agenda button, .stx.stx-stream .stx-agenda button { display: flex; gap: 14px; width: 100%; padding: 12px; border: 1px solid var(--an-line); border-radius: var(--an-radius); background: var(--an-card); color: var(--an-ink); text-align: left; }
 .stx.stx-s .stx-date, .stx.stx-index .stx-date, .stx.stx-chron .stx-date, .stx.stx-edit .stx-date, .stx.stx-cons .stx-date, .stx.stx-atlas .stx-date, .stx.stx-stream .stx-date { width: 52px; flex: none; display: flex; flex-direction: column; align-items: center; padding: 6px 0; border-radius: calc(var(--an-radius) / 2); background: var(--an-violet); color: var(--an-on-accent); }
-.stx.stx-s .stx-date small, .stx.stx-index .stx-date small, .stx.stx-chron .stx-date small, .stx.stx-edit .stx-date small, .stx.stx-cons .stx-date small, .stx.stx-atlas .stx-date small, .stx.stx-stream .stx-date small { color: inherit; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
-.stx.stx-s .stx-date b, .stx.stx-index .stx-date b, .stx.stx-chron .stx-date b, .stx.stx-edit .stx-date b, .stx.stx-cons .stx-date b, .stx.stx-atlas .stx-date b, .stx.stx-stream .stx-date b { font-size: 22px; line-height: 1; font-weight: 700; }
-.stx.stx-s .stx-items, .stx.stx-index .stx-items, .stx.stx-chron .stx-items, .stx.stx-edit .stx-items, .stx.stx-cons .stx-items, .stx.stx-atlas .stx-items, .stx.stx-stream .stx-items { display: flex; flex-direction: column; gap: 4px; min-width: 0; font: 600 15px/1.2 var(--an-font); }
-.stx.stx-s .stx-items em, .stx.stx-index .stx-items em, .stx.stx-chron .stx-items em, .stx.stx-edit .stx-items em, .stx.stx-cons .stx-items em, .stx.stx-atlas .stx-items em, .stx.stx-stream .stx-items em { font-style: normal; margin-right: .5rem; color: var(--an-violet-ink); font-size: 12px; }
+.stx.stx-s .stx-date small, .stx.stx-index .stx-date small, .stx.stx-chron .stx-date small, .stx.stx-edit .stx-date small, .stx.stx-cons .stx-date small, .stx.stx-atlas .stx-date small, .stx.stx-stream .stx-date small { color: inherit; font-size: 0.625rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.stx.stx-s .stx-date b, .stx.stx-index .stx-date b, .stx.stx-chron .stx-date b, .stx.stx-edit .stx-date b, .stx.stx-cons .stx-date b, .stx.stx-atlas .stx-date b, .stx.stx-stream .stx-date b { font-size: 1.375rem; line-height: 1; font-weight: 700; }
+.stx.stx-s .stx-items, .stx.stx-index .stx-items, .stx.stx-chron .stx-items, .stx.stx-edit .stx-items, .stx.stx-cons .stx-items, .stx.stx-atlas .stx-items, .stx.stx-stream .stx-items { display: flex; flex-direction: column; gap: 4px; min-width: 0; font: 600 0.9375rem/1.2 var(--an-font); }
+.stx.stx-s .stx-items em, .stx.stx-index .stx-items em, .stx.stx-chron .stx-items em, .stx.stx-edit .stx-items em, .stx.stx-cons .stx-items em, .stx.stx-atlas .stx-items em, .stx.stx-stream .stx-items em { font-style: normal; margin-right: .5rem; color: var(--an-violet-ink); font-size: 0.75rem; }
 
 /* The preview in the picker: three small screens, scaled down */
 .stx.stx-preview { position: relative; width: 390px; height: 760px; overflow: hidden; border-radius: 34px; transform-origin: top left; }
@@ -231,9 +231,9 @@
 .stx.hub-look.stx-billboard .stx-bb-tasks { margin: 0; }
 
 /* Billboard tasks in the hubs: smaller, so a whole task fits (they were too big to read at a glance). */
-.stx.stx-billboard .stx-bb-tasks .stx-bb-t b { font-size: 20px; line-height: 1.05; letter-spacing: -.015em; }
+.stx.stx-billboard .stx-bb-tasks .stx-bb-t b { font-size: 1.25rem; line-height: 1.05; letter-spacing: -.015em; }
 .stx.stx-billboard .stx-bb-tasks .stx-bb-check { width: 36px; height: 36px; margin: 16px 0 16px 16px; }
 .stx.stx-billboard .stx-bb-tasks .stx-bb-row { padding: 14px 16px 14px 4px; gap: 10px; }
 .stx.stx-billboard .stx-bb-tasks .stx-bb-n { width: 22px; padding-top: 4px; }
-.stx.stx-billboard .stx-bb-items { font-size: 15px; }
+.stx.stx-billboard .stx-bb-items { font-size: 0.9375rem; }
 .stx.stx-billboard .stx-bb-hubtitle { font-size: clamp(2rem, 10vw, 2.6rem) !important; }
