@@ -46,7 +46,7 @@ test("archiving, lists and the list a to-do is saved on", () => {
 });
 
 test("sorts, views and lists are remembered, and the phone app drawer has every added app", () => {
-  const page = readFileSync("client/src/pages/TeacherHub.tsx", "utf8");
+  const page = readFileSync("client/src/pages/TeacherHub.tsx", "utf8") + readFileSync("client/src/components/teacher-hub/HubTasks.tsx", "utf8");
   for (const key of ['"hub-tasks-sort"', '"hub-tasks-view"', '"hub-tasks-list"', '"hub-email-filter"']) assert.ok(page.includes(key), key);
   assert.ok(readFileSync("client/src/components/teacher-hub/HubBehavior.tsx", "utf8").includes('"hub-behavior-sort"'));
   assert.ok(readFileSync("client/src/pages/Library.tsx", "utf8").includes('"library-sort"'));

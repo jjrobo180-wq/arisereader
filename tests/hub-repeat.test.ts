@@ -164,7 +164,7 @@ test("to-dos: notes, and clearing finished ones with a way back", () => {
 });
 
 test("the screens carry all of it, Home included", () => {
-  const cal = read("client/src/components/teacher-hub/HubCalendar.tsx"), page = read("client/src/pages/TeacherHub.tsx"), modal = read("client/src/components/teacher-hub/HubTaskEdit.tsx"), poll = read("client/src/components/teacher-hub/HubMeetingPoll.tsx");
+  const cal = read("client/src/components/teacher-hub/HubCalendar.tsx"), page = read("client/src/pages/TeacherHub.tsx") + read("client/src/components/teacher-hub/HubTasks.tsx"), modal = read("client/src/components/teacher-hub/HubTaskEdit.tsx"), poll = read("client/src/components/teacher-hub/HubMeetingPoll.tsx");
   for (const part of ['data-testid="event-repeat"', "EVENT_REPEATS.map", 'data-testid="event-hide"', 'data-testid="hidden-events"', "Every one with this name", "Just this one", "All of them", "calendarEvents(workspace, span.from, span.to)", 'aria-label="Previous day"', 'aria-label="Next day"', "moveOccurrence(p, seriesId, date, to, () => newId)"]) assert.ok(cal.includes(part), part);
   assert.ok(!/openRanges\(workday, workspace\.events/.test(cal), "free time is worked out without hidden events and with repeating ones");
   // Meeting times are kept off everything booked, read through the same calendarEvents (shared/hubBusy.ts).

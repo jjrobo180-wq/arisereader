@@ -555,7 +555,7 @@ test("the new ways to add things are wired into the server and the Hub page", ()
   // the bigger request sizes are set before the site's general one
   assert.ok(index.indexOf('app.use("/api/teacher-hub/workspace", express.json({ limit: "6mb" }))') > 0);
   assert.ok(index.indexOf('app.use("/api/teacher-hub/import", express.json({ limit: "24mb" }))') < index.indexOf("app.use(\n  express.json({"));
-  for (const part of ["<HubImport ", "<HubCalendarTab ", "useCalendarRefresh(", 'data-testid="hub-add-with-ai"', "mergeHubImport(", "cleanHubImport(items, TODAY())"]) assert.ok(page.includes(part), part);
+  for (const part of ["<HubImport ", "<HubLifeScreen which=\"calendar\" ", "useCalendarRefresh(", 'data-testid="hub-add-with-ai"', "mergeHubImport(", "cleanHubImport(items, TODAY())"]) assert.ok(page.includes(part), part);
   assert.ok(page.includes('{ id: "calendar", label: "Calendar"'));
   // nothing a teacher sends is written to the logs
   for (const line of server.split("\n").filter((l) => l.includes("console."))) assert.ok(/response\.status|error\?\.name/.test(line), line.trim());

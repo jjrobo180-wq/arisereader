@@ -6,7 +6,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormE
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
 import CustomizeSheet, { CustomizeGroup } from "@/components/CustomizeSheet";
 import DuoControls, { DuoHeaderButton } from "@/components/DuoControls";
-import { Bell, Columns2, LayoutGrid, PanelLeft, Palette } from "lucide-react";
+import { NotebookPen, Bell, Columns2, LayoutGrid, PanelLeft, Palette } from "lucide-react";
 import { hubThemeOf } from "@shared/appThemes";
 import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/HubSearch";
 import { STORE_KIND } from "@shared/hubSearch";
@@ -127,6 +127,7 @@ import { BottomStack, useToasts, type ToastAction } from "@/components/teacher-h
 import { ConflictDialog, HubDataPanel, SaveBadge, SaveNotice, SizeNotice, downloadHubCopy } from "@/components/teacher-hub/HubSaveUI";
 import { useHubWorkspace } from "@/components/teacher-hub/useHubWorkspace";
 import HubSetupBanner from "@/components/teacher-hub/HubSetupBanner";
+import { Tasks, TaskRow, NewChip } from "@/components/teacher-hub/HubTasks";
 import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "@/components/teacher-hub/ui";
 import HubMeetingPolls, { type PollStart } from "@/components/teacher-hub/HubMeetingPoll";
 import HubQuickAddStudent from "@/components/teacher-hub/HubQuickAddStudent";
@@ -154,7 +155,7 @@ import SnoozeBar from "@/components/SnoozeBar";
 import { startingRole } from "@shared/gettingStarted";
 import { LockButton, LockedApp, PrivacyLockProvider } from "@/components/lock/PrivacyLock";
 import { appLocked } from "@shared/privacyLock";
-import HubNotes from "@/components/teacher-hub/HubNotes";
+import HubLifeScreen from "@/components/teacher-hub/HubLifeScreens";
 import StudentProfileView from "@/components/teacher-hub/HubStudentProfile";
 import HubAgenda from "@/components/teacher-hub/HubAgenda";
 import HubPageHead from "@/components/teacher-hub/HubPageHead";
@@ -173,7 +174,7 @@ import { HUB_ACCENTS, DEFAULT_ACCENT, cleanAccent, deepenAccent } from "@shared/
 import { textOn } from "@shared/hubPins";
 import AppleRemindersCard, { useAppleInbox } from "@/components/teacher-hub/HubApple";
 import PollAnswers, { usePollAnswers } from "@/components/teacher-hub/HubPollBell";
-import HubCalendarTab, { AddEventModal, CalendarPanel, useCalendarRefresh } from "@/components/teacher-hub/HubCalendar";
+import { AddEventModal, CalendarPanel, useCalendarRefresh } from "@/components/teacher-hub/HubCalendar";
 import { addQuickItems, quickAddedMessage, type QuickItems } from "@shared/hubQuickAdd";
 import { addEmailToTasks, arrangeEmails, emailCounts, emailTask, toggleEmailFlag, type EmailFilter } from "@shared/hubEmails";
 import PinBanners, { PinButton } from "@/components/teacher-hub/HubPins";
@@ -213,6 +214,7 @@ const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
   { id: "lessons", label: "Lessons", icon: <BookOpen className="h-4 w-4" /> },
   { id: "tasks", label: "Tasks", icon: <CheckSquare className="h-4 w-4" /> },
   { id: "notes", label: "Notes", icon: <StickyNote className="h-4 w-4" /> },
+  { id: "journal", label: "Journal", icon: <NotebookPen className="h-4 w-4" /> },
   { id: "reader", label: "Overview", icon: <BookHeart className="h-4 w-4" /> },
   { id: "readerLive", label: "Live quiz", icon: <Trophy className="h-4 w-4" /> },
   { id: "readerScenes", label: "Scenes", icon: <Clapperboard className="h-4 w-4" /> },
@@ -238,7 +240,7 @@ const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
 const GROUP_ICON: Record<HubGroupId, ReactNode> = {
   start: <Rocket className="h-4 w-4" />,
   schedules: <Clock3 className="h-4 w-4" />, goals: <Target className="h-4 w-4" />, minutes: <Timer className="h-4 w-4" />,
-  notes: <StickyNote className="h-4 w-4" />, lessons: <BookOpen className="h-4 w-4" />, gradebook: <GraduationCap className="h-4 w-4" />,
+  notes: <StickyNote className="h-4 w-4" />, journal: <NotebookPen className="h-4 w-4" />, lessons: <BookOpen className="h-4 w-4" />, gradebook: <GraduationCap className="h-4 w-4" />,
   attendance: <ClipboardCheck className="h-4 w-4" />, parents: <MessageSquare className="h-4 w-4" />, email: <Mail className="h-4 w-4" />,
   home: <Home className="h-4 w-4" />, calendar: <Calendar className="h-4 w-4" />, caseload: <Users className="h-4 w-4" />,
   iep: <CalendarDays className="h-4 w-4" />, tasks: <CheckSquare className="h-4 w-4" />,
@@ -359,13 +361,6 @@ function ReaderOnly({ signOut, isAdmin }: { signOut: () => void; isAdmin: boolea
 
 /** An App Store app's own icon (a cloud and sun for Standby, a moon for Sleep Studio…), not a generic sparkle. */
 function OfficeAppIcon({ icon, className }: { icon: string; className?: string }) { const Icon = STORE_ICONS[icon] ?? Sparkles; return <Icon className={className} />; }
-
-/** "Julian Sikora + 2 more" for a to-do's links (the things still there). */
-function linkSummary(workspace: Workspace, links: HubLink[]): string {
-  const names = links.map((l) => resolveLink(workspace, l)?.label).filter(Boolean) as string[];
-  if (!names.length) return "Linked";
-  return names.length > 1 ? `${names[0].slice(0, 28)} + ${names.length - 1} more` : names[0].slice(0, 40);
-}
 
 /** What "Read with AI" asks about a document: goals first, then everything else worth keeping. */
 const READ_DOC_ASK = "Read this document. Pull out each student's IEP goals (the goal in its own words, the baseline, the target, the unit and the dates), any progress-monitoring or meeting dates as reminders or meetings, and anything else worth keeping in my Hub.";
@@ -1767,7 +1762,7 @@ function TeacherHubPage() {
 
           {false && tab === "start" && <GettingStarted hub="work" startRole={startingRole(user, "work")} canOpen={guideCanOpen} onOpen={guideOpen}
             onRemove={() => { setWorkspace((p) => ({ ...p, visibleTabs: { ...p.visibleTabs, start: false } })); setTab("overview"); toasts.show("Getting started removed. Add it back any time from the Plugin Gallery.", [{ label: "Open Plugin Gallery", run: () => setStore(true) }]); }} />}
-          {tab === "calendar" && <HubCalendarTab workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} onReminderAdded={reminderAdded} />}
+          {tab === "calendar" && <HubLifeScreen which="calendar" workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(text) => toasts.show(text, [])} openTasks={() => setTab("tasks")} />}
           {tab === "caseload" && <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} profileId={profileStudent} setProfileId={setProfileStudent} openTab={setTab} />}
           {tab === "goals" && <><HubGoalBoard workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} />{(isTabOn("caseload", visible, !!user.isAdmin) || workspace.goals.length > 0) && <GoalsTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} />}</>}
           {tab === "minutes" && <MinutesTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} token={token} />}
@@ -1778,7 +1773,8 @@ function TeacherHubPage() {
             minutes={<MinutesTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} token={token} />} />}
           {tab === "lessons" && <HubLessons workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} say={(text) => toasts.show(text, [])} />}
           {tab === "tasks" && <><Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} toast={(text, actions) => { toasts.show(text, actions); }} /><AppleRemindersCard token={token} check={checkApple} /></>}
-          {tab === "notes" && <HubNotes key={notesKey} workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} />}
+          {tab === "notes" && <HubLifeScreen key={notesKey} which="notes" workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(text) => toasts.show(text, [])} />}
+          {tab === "journal" && <HubLifeScreen which="journal" workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(text) => toasts.show(text, [])} />}
           {tab === "admin" && user.isAdmin && adminSection === "updates" && <WhatsNew embedded />}
           {tab === "admin" && user.isAdmin && adminSection !== "updates" && <AdminTab night={night} section={adminSection} onSection={setAdminSection} settingsPart={adminSettings} onSettingsPart={setAdminSettings} settingsInSidebar={!deskDrawer} />}
           {tab === "arise" && <Arise workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
@@ -1837,7 +1833,7 @@ function TeacherHubPage() {
       {osCore && hubLook.look && <LookOS bell={workBell} hubName="WorkHub" hubSwitch={<HubSwitch current="hub" night={night} />} look={hubLook.look} name={osFirst} dateLabel={new Date(`${osToday}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
         screen={osTab!} go={osGo} openApps={osApps} add={osAdd} tasks={osTasks} days={osDays} notes={osNotes} shortcuts={osShortcuts} off={osOff} lockedApps={workspace.lock?.apps} onYou={() => setYouOpen(true)}
         toggle={(tid) => setWorkspace((p) => ({ ...p, tasks: toggleTask(p.tasks, tid, TODAY()).tasks }))} openTask={setHomeTask}
-        content={<LockedApp locked={appLocked(workspace.lock, tab)} name={TAB_META.find((m) => m.id === tab)?.label || "This screen"}>{tab === "calendar" ? <HubCalendarTab workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} onReminderAdded={(items) => reminderAdded(items)} /> : tab === "notes" ? <HubNotes key={notesKey} workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} /> : null}</LockedApp>} />}
+        content={<LockedApp locked={appLocked(workspace.lock, tab)} name={TAB_META.find((m) => m.id === tab)?.label || "This screen"}>{tab === "calendar" ? <HubLifeScreen which="calendar" workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(text) => toasts.show(text, [])} openTasks={() => setTab("tasks")} /> : tab === "notes" ? <HubLifeScreen key={notesKey} which="notes" workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(text) => toasts.show(text, [])} /> : tab === "journal" ? <HubLifeScreen which="journal" workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(text) => toasts.show(text, [])} /> : null}</LockedApp>} />}
       {osReady && !osCore && hubLook.look && <LookDock inApp look={hubLook.look} screen={null} go={osGo} openApps={osApps} add={osAdd} off={osOff} you={() => setYouOpen(true)} initial={(osFirst || "Y").charAt(0).toUpperCase()} />}
       {osReady && youOpen && hubLook.look && <LookYou look={hubLook.look} onClose={() => setYouOpen(false)} top={<><HubTrialNote trial={trial} which="work" upgradeHref="#/billing" /></>}
         items={[{ id: "search", label: "Search", detail: "Everything in WorkHub", onClick: () => setSearching(true) }, ...moreGroups.flatMap((g) => g.items)]} />}
@@ -1861,55 +1857,6 @@ function TeacherHubPage() {
 }
 
 /** One to-do, the same on every screen: check it off, tap it to change it, pin it, delete it. */
-function TaskRow({ task, today, workspace, setWorkspace, makeId, onToggle, onEdit, onDelete, list, onArchive }: { task: Task; today: string; workspace: Workspace; setWorkspace: SectionProps["setWorkspace"]; makeId: () => string; onToggle: (task: Task) => void; onEdit: (task: Task) => void; onDelete: (task: Task) => void; list?: { name: string; color: string }; onArchive?: (task: Task, archived: boolean) => void }) {
-  const email = task.emailId ? workspace.emails.find((e) => e.id === task.emailId) : undefined;
-  return (
-    <li className="group flex min-w-0 flex-wrap items-start gap-x-3 gap-y-1 rounded-2xl border border-[#ececf3] bg-white p-3 transition hover:border-violet-200 hover:bg-[#fcfbff] sm:gap-y-2 sm:p-4" data-testid="task-row">
-      <label className={`relative mt-0.5 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-lg border-2 transition ${task.done ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300 text-transparent hover:border-violet-500"}`}>
-        <input type="checkbox" className="absolute inset-0 cursor-pointer opacity-0" aria-label={`Done: ${task.title}`} checked={task.done} onChange={() => onToggle(task)} />
-        <Check className="h-[15px] w-[15px]" />
-      </label>
-      <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onEdit(task)} aria-label={`Edit ${task.title}`} data-testid="task-edit">
-        <div className={task.done ? "text-sm font-bold text-slate-400 line-through [overflow-wrap:anywhere] sm:text-base" : "text-sm font-bold text-slate-800 [overflow-wrap:anywhere] sm:text-base"}>{email?.unread && !task.done && <NewChip />}{task.priority === "high" && <Flag className="mr-1 inline h-4 w-4 text-red-500" aria-label="Important" />}{task.title}</div>
-        {email?.message && !task.done ? (
-          <>
-            <p className="mt-0.5 text-xs font-medium text-slate-600 [overflow-wrap:anywhere]" data-testid="task-email-from">{[email.from && `From ${email.from}`, email.sent && `Sent ${email.sent}`].filter(Boolean).join(" · ")}</p>
-            <p className="mt-0.5 line-clamp-2 whitespace-pre-wrap text-xs text-slate-500 [overflow-wrap:anywhere] sm:line-clamp-3" data-testid="task-email-message">{email.message.replace(/<https?:\/\/[^\s<>]+>/g, "").replace(/\n{2,}/g, "\n").trim()}</p>
-          </>
-        ) : task.notes && <p className="mt-0.5 line-clamp-2 whitespace-pre-wrap text-xs text-slate-500 [overflow-wrap:anywhere]" data-testid="task-notes">{task.notes}</p>}
-        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-slate-500">
-          {list && <span className="rounded-lg bg-slate-50 px-2 py-1 text-slate-500"><span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ background: list.color }} />{list.name}</span>}
-          {task.priority === "high" && !task.done && <span className="rounded-lg bg-orange-50 px-2 py-1 text-orange-600">High priority</span>}
-          {!task.done && <DueChip date={task.dueDate} time={task.dueTime} today={today} />}
-          {task.done && task.dueDate && <span>Was due {friendlyDate(task.dueDate, today)}{task.dueTime ? ` · ${clock12(task.dueTime)}` : ""}</span>}
-          {!task.dueDate && !task.done && <span>No due date</span>}
-          {task.recurring && <span className="inline-flex items-center gap-1"><Repeat className="h-3.5 w-3.5" />{task.recurring}</span>}
-          {task.emailId && <span className="inline-flex items-center gap-1" data-testid="task-from-email"><Mail className="h-3.5 w-3.5" />From an email</span>}
-          {(task.links?.length ?? 0) > 0 && <span className="inline-flex items-center gap-1 rounded-lg bg-teal-50 px-2 py-1 text-teal-800" data-testid="task-links"><Link2 className="h-3.5 w-3.5" />{linkSummary(workspace, task.links!)}</span>}
-          {task.lastDone && <span>Last done {friendlyDate(task.lastDone, today)}</span>}
-          <span className="inline-flex items-center gap-1 font-medium text-teal-700"><Pencil className="h-3.5 w-3.5" />Edit</span>
-        </div>
-      </button>
-      {/* On a phone these sit on their own line under the to-do, so the words get the full width. */}
-      <div className={email ? "flex basis-full items-center gap-3 pl-9 sm:contents" : "contents"}>
-        {email && (
-          <div className="min-w-0 sm:order-last sm:basis-full sm:pl-9">
-            <button type="button" onClick={() => openHubEmail(email.id)} aria-label={`Open the email: ${email.subject || task.title}`} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50 px-3 text-sm font-semibold text-teal-800 hover:bg-teal-100" data-testid="task-open-email"><Mail className="h-4 w-4" />Open the email</button>
-          </div>
-        )}
-        <span className="ml-auto sm:hidden" aria-hidden="true" />
-        <PinButton workspace={workspace} setWorkspace={setWorkspace} kind="task" refId={task.id} title={task.title} makeId={makeId} />
-        {onArchive && <button type="button" aria-label={task.archived ? `Restore ${task.title} from archive` : `Archive ${task.title}`} title={task.archived ? "Restore" : "Archive"} className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-violet-50 hover:text-violet-700" onClick={() => onArchive(task, !task.archived)}>{task.archived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}</button>}
-        <button type="button" aria-label={`Delete ${task.title}`} className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => onDelete(task)}><Trash2 className="h-4 w-4" /></button>
-      </div>
-    </li>
-  );
-}
-
-/** Marks a forwarded email that hasn't been opened yet. */
-function NewChip() {
-  return <span className="mr-1.5 inline-flex items-center rounded-full bg-teal-600 px-2 py-0.5 align-middle text-[11px] font-bold uppercase tracking-wide text-white" data-testid="email-new">New</span>;
-}
 
 function QuickAdd({ icon, title, detail, onClick }: { icon: ReactNode; title: string; detail: string; onClick: () => void }) {
   return (
@@ -2213,170 +2160,6 @@ function Meetings({ workspace, setWorkspace, remove, seats, studentOptions, toke
       </HubModal>}
       <HubMeetingPolls token={token} workspace={workspace} setWorkspace={setWorkspace} seats={seats} makeId={makeId} start={pollStart} onStarted={() => setPollStart(null)} account={account} wizard={wizard} setWizard={setWizard} studentOptions={studentOptions} />
     </>
-  );
-}
-
-const DUE_STYLE: Record<DueState, string> = { none: "bg-slate-100 text-slate-500", overdue: "bg-red-100 text-red-700", today: "bg-amber-100 text-amber-800", soon: "bg-sky-100 text-sky-800", later: "bg-slate-100 text-slate-600" };
-
-function DueChip({ date, time, today }: { date: string; time?: string; today: string }) {
-  if (!date) return null;
-  const state = dueState(date, today);
-  return <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${DUE_STYLE[state]}`}>{state === "overdue" ? "Overdue · " : ""}{friendlyDate(date, today)}{time ? ` · ${clock12(time)}` : ""}</span>;
-}
-
-function Tasks({ workspace, setWorkspace, remove, makeId, toast }: SectionProps & { makeId: () => string; toast: (text: string, actions?: ToastAction[]) => void }) {
-  // Laid out like LifeHub's to-do lists: views (All, Today, Upcoming, Completed, Archived) and the
-  // teacher's own coloured lists down the side, numbers across the top, progress and what's next
-  // beside the list. The view, the list and the sort picked are remembered until changed.
-  const today = TODAY();
-  const lists = cleanTaskLists(workspace.taskLists);
-  const [view, setView] = useSavedChoice<TaskView>("hub-tasks-view", "all", TASK_VIEWS);
-  const [listPick, setListPick] = useSavedChoice<string>("hub-tasks-list", "all");
-  const listId = listPick === "all" || lists.some((l) => l.id === listPick) ? listPick : "all";
-  const [sort, setSort] = useSavedChoice<TaskSort>("hub-tasks-sort", "due", TASK_SORTS.map((o) => o.id));
-  const [search, setSearch] = useState("");
-  const [quick, setQuick] = useState("");
-  const [addingList, setAddingList] = useState(false);
-  const [newList, setNewList] = useState("");
-  /** The to-do open in the pop-up: `id: null` is a new one. */
-  const [editing, setEditing] = useState<{ id: string | null } | null>(null);
-  const counts = taskCounts(workspace.tasks, today);
-  const views = viewCounts(workspace.tasks, listId, today);
-  const shown = useMemo(() => viewTasks(workspace.tasks, view, listId, sort, today, search), [workspace.tasks, view, listId, sort, today, search]);
-  const kept = workspace.tasks.filter((t) => !t.archived);
-  const done = kept.filter((t) => t.done).length;
-  const upcoming = kept.filter((t) => !t.done && t.dueDate && t.dueDate > today).sort((a, b) => `${a.dueDate}${a.dueTime || ""}`.localeCompare(`${b.dueDate}${b.dueTime || ""}`));
-  const listName = listId === "all" ? "Everything" : lists.find((l) => l.id === listId)?.name || "Everything";
-  const VIEW_INFO: Record<TaskView, { title: string; icon: ReactNode }> = {
-    all: { title: "All tasks", icon: <ListTodo className="h-4 w-4" /> },
-    today: { title: "Today", icon: <Sun className="h-4 w-4" /> },
-    upcoming: { title: "Upcoming", icon: <CalendarDays className="h-4 w-4" /> },
-    completed: { title: "Completed", icon: <CheckCircle2 className="h-4 w-4" /> },
-    archived: { title: "Archived", icon: <Archive className="h-4 w-4" /> },
-  };
-
-  function quickAdd(e: FormEvent) {
-    e.preventDefault();
-    const title = quick.trim();
-    if (!title) return;
-    setWorkspace((p) => ({ ...p, tasks: [...p.tasks, { id: id(), title, dueDate: view === "today" ? today : "", recurring: "", done: false, ...(listId !== "all" ? { listId } : {}) }] }));
-    setQuick("");
-  }
-  function addList(e: FormEvent) {
-    e.preventDefault();
-    const name = newList.trim().slice(0, 60);
-    if (!name) return;
-    const list = { id: makeId(), name, color: TASK_LIST_COLORS[lists.length % TASK_LIST_COLORS.length] };
-    setWorkspace((p) => ({ ...p, taskLists: [...cleanTaskLists(p.taskLists), list] }));
-    setListPick(list.id);
-    setNewList(""); setAddingList(false);
-  }
-  function deleteList(listToGo: { id: string; name: string }) {
-    if (!confirm(`Delete the list "${listToGo.name}"? Its to-dos stay, on no list.`)) return;
-    setWorkspace((p) => removeTaskList(p, listToGo.id));
-    setListPick("all");
-  }
-  const archive = (task: Task, on: boolean) => {
-    setWorkspace((p) => ({ ...p, tasks: archiveTask(p.tasks, task.id, on) }));
-    toast(on ? `Archived "${task.title}".` : `Brought back "${task.title}".`, [{ label: "Undo", run: () => setWorkspace((p) => ({ ...p, tasks: archiveTask(p.tasks, task.id, !on) })) }]);
-  };
-  const toggle = taskChecker(() => workspace.tasks, setWorkspace, toast);
-  /** Takes every finished to-do off the list, with Undo. */
-  function clearFinished() {
-    const { cleared } = clearDone(workspace.tasks);
-    if (!cleared.length) return;
-    setWorkspace((p) => ({ ...p, tasks: clearDone(p.tasks).tasks }));
-    toast(`Cleared ${cleared.length} finished ${cleared.length === 1 ? "to-do" : "to-dos"}.`, [{ label: "Undo", run: () => setWorkspace((p) => ({ ...p, tasks: restoreTasks(p.tasks, cleared) })) }]);
-  }
-  const navBtn = (active: boolean) => `flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:px-4 sm:text-sm lg:w-full ${active ? "bg-[#eeeafe] text-[#5f4dc8]" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`;
-
-  return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[13.5rem_minmax(0,1fr)]" data-testid="hub-todo">
-      {/* Views and lists: a column on a computer, two scrolling rows on a phone. */}
-      <nav aria-label="To-do views and lists" className="min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-2 lg:self-start lg:p-3">
-        <p className="hidden px-3 pb-2 pt-1 text-[11px] font-black uppercase tracking-[.16em] text-slate-500 lg:block">Tasks</p>
-        {/* Phone: the five views as one even row of tiles. Computer: a column. */}
-        <div className="grid grid-cols-5 gap-1 lg:hidden" data-testid="task-views-phone">
-          {TASK_VIEWS.map((v) => <button key={v} type="button" onClick={() => setView(v)} aria-pressed={view === v} data-testid={`task-view-${v}`}
-            className={`flex min-w-0 flex-col items-center gap-0.5 rounded-2xl px-0.5 py-2 transition ${view === v ? "bg-[#6e5ae0] text-white shadow-[0_6px_16px_#6e5ae040]" : "text-slate-500 active:bg-slate-50"}`}>
-            <span className="[&>svg]:h-[18px] [&>svg]:w-[18px]">{VIEW_INFO[v].icon}</span>
-            <span className={`text-[17px] font-black leading-none tabular-nums ${view === v ? "text-white" : "text-slate-800"}`}>{views[v]}</span>
-            <span className="w-full truncate text-center text-[10.5px] font-bold">{v === "all" ? "All" : v === "completed" ? "Done" : VIEW_INFO[v].title}</span>
-          </button>)}
-        </div>
-        <div className="hidden lg:block lg:space-y-1">
-          {TASK_VIEWS.map((v) => <button key={v} type="button" onClick={() => setView(v)} aria-pressed={view === v} className={navBtn(view === v)}>{VIEW_INFO[v].icon}<span>{VIEW_INFO[v].title}</span><span className="ml-auto rounded-lg px-1.5 text-xs font-semibold opacity-65">{views[v]}</span></button>)}
-        </div>
-        <div className="mt-1 flex items-center justify-between border-t border-slate-100 px-2 pb-1.5 pt-3 lg:mt-2 lg:border-0 lg:px-3 lg:pt-5"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-400">My lists</span><button type="button" onClick={() => setAddingList(true)} className="hidden lg:inline-flex rounded-lg p-1.5 text-slate-400 hover:bg-violet-50 hover:text-violet-700" title="New list" aria-label="New list"><FolderPlus className="h-[18px] w-[18px]" /></button></div>
-        <div className="-mx-2 flex gap-1.5 overflow-x-auto px-2 pb-1 [scrollbar-width:none] lg:mx-0 lg:block lg:space-y-0.5 lg:px-0 lg:pb-0">
-          <button type="button" onClick={() => setListPick("all")} className={`flex min-h-9 shrink-0 items-center gap-3 rounded-full px-3.5 text-[13px] font-bold ring-1 lg:min-h-10 lg:w-full lg:rounded-xl lg:px-4 lg:text-sm lg:ring-0 ${listId === "all" ? "bg-[#f4f2ff] text-[#6c5cce] ring-[#d9d2fb]" : "text-slate-600 ring-slate-200 hover:bg-slate-50"}`}><Circle className="hidden h-3 w-3 lg:block" />Everything</button>
-          {lists.map((l) => <button key={l.id} type="button" onClick={() => setListPick(l.id)} className={`flex min-h-9 shrink-0 items-center gap-2 rounded-full px-3.5 text-[13px] font-bold ring-1 lg:min-h-10 lg:w-full lg:rounded-xl lg:px-4 lg:text-sm lg:ring-0 ${listId === l.id ? "bg-[#f4f2ff] text-[#6c5cce] ring-[#d9d2fb]" : "text-slate-600 ring-slate-200 hover:bg-slate-50"}`}><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: l.color }} /><span className="max-w-32 truncate">{l.name}</span><span className="ml-auto hidden text-xs opacity-60 lg:inline">{kept.filter((t) => !t.done && t.listId === l.id).length}</span></button>)}
-          {!addingList && <button type="button" onClick={() => setAddingList(true)} className="flex min-h-9 shrink-0 items-center gap-1 rounded-full bg-slate-50 px-3.5 text-[13px] font-bold text-violet-700 ring-1 ring-slate-200 lg:hidden"><Plus className="h-3.5 w-3.5" /> New list</button>}
-        </div>
-        {addingList && <form onSubmit={addList} className="mt-2 flex gap-2 px-1"><input className="min-h-10 min-w-0 flex-1 rounded-xl border border-slate-200 px-3 text-sm" value={newList} autoFocus maxLength={60} onChange={(e) => setNewList(e.target.value)} placeholder="List name (IEP paperwork, Copies…)" aria-label="New list name" /><button type="submit" className="rounded-xl bg-[#705ee2] px-3 text-white" aria-label="Save list"><Check className="h-[18px] w-[18px]" /></button><button type="button" onClick={() => { setAddingList(false); setNewList(""); }} className="rounded-xl bg-slate-100 px-2 text-slate-500" aria-label="Cancel list"><X className="h-[18px] w-[18px]" /></button></form>}
-      </nav>
-
-      <div className="min-w-0">
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4" data-testid="task-alerts">
-          {[
-            { label: "Open tasks", count: counts.open, icon: <ListTodo className="h-[17px] w-[17px]" />, tint: "text-violet-600 bg-violet-50", go: "all" as TaskView },
-            { label: "Due today", count: counts.today, icon: <Sun className="h-[17px] w-[17px]" />, tint: "text-amber-600 bg-amber-50", go: "today" as TaskView },
-            { label: "Overdue", count: counts.overdue, icon: <Clock3 className="h-[17px] w-[17px]" />, tint: "text-rose-600 bg-rose-50", go: "today" as TaskView },
-            { label: "Completed", count: done, icon: <CheckCircle2 className="h-[17px] w-[17px]" />, tint: "text-emerald-600 bg-emerald-50", go: "completed" as TaskView },
-          ].map((s) => <button key={s.label} type="button" onClick={() => setView(s.go)} className="rounded-2xl border border-[#e7e8ef] bg-white p-4 text-left shadow-[0_3px_16px_#17152b08] transition hover:border-violet-200 sm:p-5"><div className="mb-3 flex items-center justify-between"><span className="text-xs font-bold text-slate-500">{s.label}</span><span className={`rounded-xl p-2 ${s.tint}`}>{s.icon}</span></div><p className="text-3xl font-black text-[#242238]">{s.count}</p></button>)}
-        </div>
-
-        <div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_260px]">
-          <section className="min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><p className="text-[11px] font-extrabold uppercase tracking-[.15em] text-violet-600">{listName}</p><h2 className="mt-1 text-xl font-black text-slate-900">{VIEW_INFO[view].title}</h2></div>
-              <button type="button" onClick={() => setEditing({ id: null })} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#6e5ae0] px-4 text-sm font-bold text-white hover:bg-[#5948c8]"><Plus className="h-[17px] w-[17px]" /> Add task</button>
-            </div>
-            {view !== "completed" && view !== "archived" && (
-              <form onSubmit={quickAdd} className="mt-5 flex gap-2">
-                <Field placeholder={`Add a to-do${listId !== "all" ? ` to ${listName}` : ""} and press Enter`} aria-label="Quick add a to-do" value={quick} onChange={(e) => setQuick(e.target.value)} />
-<button type="button" onClick={() => setEditing({ id: null })} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" aria-label="More options: due date, time, notes, repeat" title="Add a due date, time, notes or repeat" data-testid="tasks-quick-more"><MoreHorizontal className="h-4 w-4" /> More</button>
-                <PrimaryButton type="submit" disabled={!quick.trim()}>Add</PrimaryButton>
-              </form>
-            )}
-            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_14rem]">
-              <div className="relative"><Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" /><Field type="search" placeholder="Search tasks and notes" aria-label="Search to-dos" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
-              <Select aria-label="Sort to-dos" value={sort} onChange={(e) => setSort(e.target.value as TaskSort)}>{TASK_SORTS.map((o) => <option key={o.id} value={o.id}>Sort: {o.label}</option>)}</Select>
-            </div>
-            {shown.length ? <ul className="mt-5 space-y-2">{shown.map((task) => (
-              <TaskRow key={task.id} task={task} today={today} workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} onToggle={toggle} onEdit={(t) => setEditing({ id: t.id })} onDelete={(t) => remove("tasks", t.id)} list={lists.find((l) => l.id === task.listId)} onArchive={archive} />
-            ))}</ul> : (
-              <div className="mt-5 flex flex-col items-center rounded-2xl border border-dashed border-slate-200 px-4 py-12 text-center">
-                <span className="rounded-2xl bg-violet-50 p-4 text-violet-600">{view === "archived" ? <Archive className="h-[26px] w-[26px]" /> : <Sparkles className="h-[26px] w-[26px]" />}</span>
-                <p className="mt-4 text-lg font-extrabold text-slate-900">{search ? "No matching tasks" : view === "completed" ? "Nothing completed yet" : view === "archived" ? "Nothing archived" : "A fresh start"}</p>
-                <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">{search ? "Try another search." : view === "today" ? "No tasks due today or overdue. Enjoy the breathing room." : view === "upcoming" ? "Nothing scheduled ahead yet." : view === "completed" ? "Finished tasks will appear here." : view === "archived" ? "Tasks you archive are tucked away here, and can always be brought back." : "Add your first task and start planning your day."}</p>
-              </div>
-            )}
-            {view === "completed" && counts.done > 0 && !search.trim() && (
-              <div className="mt-3 text-center"><button type="button" onClick={clearFinished} className="min-h-11 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4" data-testid="clear-done">Clear all {counts.done} finished</button></div>
-            )}
-            {(view === "all" || view === "today") && !search.trim() && <RecentlyDone tasks={workspace.tasks} onUndo={(taskId) => setWorkspace((p) => ({ ...p, tasks: undoTask(p.tasks, taskId, Date.now()) }))} />}
-            {listId !== "all" && <button type="button" onClick={() => { const l = lists.find((x) => x.id === listId); if (l) deleteList(l); }} className="mt-6 inline-flex items-center gap-2 text-xs font-semibold text-rose-500 hover:underline"><Trash2 className="h-3.5 w-3.5" /> Delete this list</button>}
-          </section>
-
-          <aside className="space-y-5">
-            <section className="rounded-[1.5rem] bg-[#292446] p-5 text-white shadow-[0_12px_24px_#2924461f]">
-              <div className="flex items-center gap-2 text-[#bcb2ff]"><Sparkles className="h-[17px] w-[17px]" /><span className="text-[11px] font-extrabold uppercase tracking-[.14em]">Your progress</span></div>
-              <p className="mt-5 text-3xl font-black">{kept.length ? Math.round((done / kept.length) * 100) : 0}%</p>
-              <p className="mt-1 text-xs text-slate-300">of all tasks completed</p>
-              <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-[#a38cfa] transition-all" style={{ width: `${kept.length ? (done / kept.length) * 100 : 0}%` }} /></div>
-              <p className="mt-4 text-xs font-medium leading-5 text-slate-300">Every little step counts. Keep going at your own pace.</p>
-            </section>
-            <section className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5">
-              <div className="flex items-center justify-between"><h3 className="text-sm font-extrabold text-slate-900">Coming up next</h3><CalendarDays className="h-[17px] w-[17px] text-violet-500" /></div>
-              {upcoming.length ? <div className="mt-4 space-y-3">{upcoming.slice(0, 5).map((task) => <button key={task.id} type="button" onClick={() => setEditing({ id: task.id })} className="flex w-full items-center justify-between gap-3 border-b border-slate-100 pb-3 text-left last:border-b-0 last:pb-0"><span className="min-w-0 truncate text-xs font-semibold text-slate-700">{task.title}</span><span className="shrink-0 text-[11px] font-bold text-violet-600">{friendlyDate(task.dueDate, today)}</span></button>)}</div> : <p className="mt-3 text-xs leading-5 text-slate-500">Your calendar is clear for now.</p>}
-            </section>
-          </aside>
-        </div>
-      </div>
-      {editing && <TaskModal task={editing.id ? workspace.tasks.find((t) => t.id === editing.id) || null : null} startTitle={quick} today={today} lists={lists} startList={listId === "all" ? "" : listId}
-        onSave={(fields) => { setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, editing.id, fields, id) })); if (!editing.id) setQuick(""); }} onClose={() => setEditing(null)} onDelete={editing.id ? () => remove("tasks", editing.id!) : undefined} />}
-    </div>
   );
 }
 
