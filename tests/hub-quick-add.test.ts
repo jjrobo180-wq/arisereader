@@ -75,8 +75,8 @@ test("the teacher is told where it went", () => {
 });
 
 test("the pop-up on every screen offers the reminder", () => {
-  const popUp = read("client/src/components/teacher-hub/HubCalendar.tsx"), page = read("client/src/pages/TeacherHub.tsx");
+  const popUp = read("client/src/components/teacher-hub/HubCalendar.tsx"), page = read("client/src/pages/TeacherHub.tsx") + read("client/src/components/teacher-hub/HubTasks.tsx");
   for (const part of ['data-testid="quick-add-kind"', '["reminder", "Reminder", Bell]', 'data-testid="quick-add-also-remind"', "Also add it to Reminders & to-dos", "quickItems(form)", "onAdd={addQuick}"]) assert.ok(popUp.includes(part), part);
   for (const part of ['data-testid="quick-add-event"', "addQuickItems(p, items, id)", 'run: () => setTab("tasks")', "onReminderAdded={reminderAdded}"]) assert.ok(page.includes(part), part);
-  assert.equal(page.split("onReminderAdded={reminderAdded}").length - 1, 2, "the calendar on Home and on the Calendar tab both say where a reminder went");
+  assert.equal(page.split("onReminderAdded={reminderAdded}").length - 1, 1, "the calendar on Home says where a reminder went (the Calendar tab is LifeHub's screen)");
 });
