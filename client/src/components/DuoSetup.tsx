@@ -32,7 +32,7 @@ const DONE_KEY = (id: number | string) => `arise-duo-setup-v2:${id}`;
 export const duoSetupDone = (id: number | string) => { try { return localStorage.getItem(DONE_KEY(id)) === "1"; } catch { return true; } };
 
 /** Twelve looks to start from; the rest are in Customize. */
-const STARTER_THEMES = ["x-billboard", "classic", "studio", "bloom", "frost", "aurora", "zen", "tide", "grove", "glass", "cassette", "vinyl", "console"];
+const STARTER_THEMES = ["classic", "studio", "bloom", "frost", "aurora", "zen", "tide", "grove", "glass", "cassette", "vinyl", "console"];
 /** Everyday apps most people want first, in this order. */
 const STARTER_APPS: { id: string; icon: LucideIcon }[] = [
   { id: "life-health", icon: Apple }, { id: "life-habits", icon: Repeat2 },
@@ -176,7 +176,7 @@ export default function DuoSetup({ userId, layout, setLayout, plugins, setFamily
         {step === "theme" && <>
           {head("Pick your look", <>Arise To Duo is the only app with themes like these. <b className="font-semibold text-[#111018]">New ones arrive every month</b>, and you can change yours any time.</>)}
           <div role="radiogroup" aria-label="Theme" className="mt-5 grid grid-cols-2 gap-2.5">
-            {themes.map((t) => { const on = (layout.theme || "x-billboard") === t.id; return <button key={t.id} type="button" role="radio" aria-checked={on} onClick={() => setLayout(setTheme(layout, t.id))} data-testid={`setup-theme-${t.id}`}
+            {themes.map((t) => { const on = (layout.theme || "classic") === t.id; return <button key={t.id} type="button" role="radio" aria-checked={on} onClick={() => setLayout(setTheme(layout, t.id))} data-testid={`setup-theme-${t.id}`}
               className={`min-w-0 rounded-2xl border p-2.5 text-left transition active:scale-[.98] ${on ? "border-[#5b4fe0] bg-[#f4f2ff] ring-2 ring-[#5b4fe0]/25" : "border-black/10 bg-white"}`}>
               <span className="flex h-12 overflow-hidden rounded-[10px] ring-1 ring-black/5" aria-hidden>{t.swatch.map((c, k) => <span key={k} className="flex-1" style={{ background: c }} />)}</span>
               <span className="mt-2 flex items-center justify-between gap-1 text-[15px] font-bold leading-tight">{t.name}{on && <Check className="h-4 w-4 shrink-0 text-[#5b4fe0]" strokeWidth={3} />}</span>

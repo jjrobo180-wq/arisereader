@@ -3,14 +3,13 @@
 // Customize. Kept on this device; each hub still saves its own layout too, so turning the switch off
 // keeps whatever each hub had last.
 
-import { HUB_THEME_REV } from "@shared/appThemes";
 const SAME_KEY = "arise-same-both-hubs";
 const NIGHT_KEY = "arise-night";
 const LOOK_KEY = "arise-shared-look";
 const OLD_NIGHT = { life: "arise-todo-night", work: "arise-hub-night" } as const;
 export type Hub = keyof typeof OLD_NIGHT;
 const LOOK_PARTS = ["theme", "menuSide", "deskSide", "menuClose"] as const;
-type Look = Partial<Record<(typeof LOOK_PARTS)[number], string>> & { rev?: number };
+type Look = Partial<Record<(typeof LOOK_PARTS)[number], string>>;
 export const SHARED_LOOK_EVENT = "arise:shared-look";
 
 const get = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -36,13 +35,13 @@ export function withSharedLook<T extends object>(layout: T): T {
   let look: Look = {};
   try { look = JSON.parse(get(LOOK_KEY) || "{}") || {}; } catch { look = {}; }
   const out: any = { ...layout };
-  for (const k of LOOK_PARTS) if (typeof look[k] === "string" && k in out && (k !== "theme" || look.rev === HUB_THEME_REV)) out[k] = look[k];
+  for (const k of LOOK_PARTS) if (typeof look[k] === "string" && k in out) out[k] = look[k];
   return out;
 }
 /** Remembers a hub's look for the other hub (when they're shared). */
 export function rememberLook(layout: object) {
   if (!sameBothHubs()) return;
-  const l: any = layout, look: Look = { rev: HUB_THEME_REV };
+  const l: any = layout, look: Look = {};
   for (const k of LOOK_PARTS) if (typeof l[k] === "string") look[k] = l[k];
   set(LOOK_KEY, JSON.stringify(look));
 }

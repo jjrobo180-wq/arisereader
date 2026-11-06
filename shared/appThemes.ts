@@ -74,10 +74,7 @@ export const HUB_THEMES: HubTheme[] = [
   })),
 ];
 
-/** The theme everyone starts on: Billboard (November 2026). */
-export const DEFAULT_HUB_THEME: HubThemeId = "x-billboard";
-/** Raised when the default changes for everyone (see THEME_REV in ariseNotes.ts): a saved layout that has not seen this round moves to the default once. */
-export const HUB_THEME_REV = 1;
+export const DEFAULT_HUB_THEME: HubThemeId = "classic";
 
 export const isHubThemeId = (v: unknown): v is HubThemeId => HUB_THEMES.some((t) => t.id === v);
 export const hubThemeOf = (id: unknown): HubTheme => HUB_THEMES.find((t) => t.id === id) ?? HUB_THEMES[0];
