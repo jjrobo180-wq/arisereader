@@ -361,7 +361,7 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
         {frame(<div className={gridClass} data-testid="home-grid">
           {leads.map((t) => tileBtn(t, t.size ?? "large"))}
           {shown.map((id) => (
-            <div key={id} {...holdProps} className={`${spanHere(id)} min-w-0${fill}`} data-home-part={id}>
+            <div key={id} {...holdProps} className={`${spanHere(id)} min-w-0${fill}`} data-home-part={id} data-home-widget={widgetOf(id) ? "" : undefined}>
               {alwaysTile || (sizeHere(id) === "small" && !widgetOf(id))
                 ? <button type="button" onClick={() => setOpened(id)} className={`w-full transition active:scale-95${fill}`} aria-label={`Open ${label(id)}`} data-testid={`home-tile-${id}`}>{tileOf(id)}</button>
                 : widgetOf(id) ? contentOf(id) : <div className={capOf[sizeOf(layout, id)]}>{contentOf(id)}</div>}

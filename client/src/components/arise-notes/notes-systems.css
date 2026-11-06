@@ -137,3 +137,6 @@
 .an-l-rec-orbit .an-s-ringfill { stroke: var(--an-coral); stroke-width: 10; } .an-l-rec-orbit .an-s-ringtrack { stroke: #2a0a12; stroke-width: 10; }
 
 @media (prefers-reduced-motion: reduce) { .an-s-blobs i, .an-l-hero-neon h1, .an-l-hero-orbit .an-s-roundrec { animation: none !important; } }
+
+/* At night the Y2K list sits on the night card, not on white (the words were white on white). */
+.an-night .an-l-list-millennium { background: var(--an-card); border-color: var(--an-line); }

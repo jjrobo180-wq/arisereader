@@ -5,6 +5,7 @@ import { rememberHubBackdrop } from "@/lib/hubBackdrop";
 import { hubThemeOf } from "@shared/appThemes";
 import { nightLook, themeVars, type NotesTheme } from "@shared/notesThemes";
 import { isNativeApp, nativeCall } from "@/lib/nativeApp";
+import { useContrastGuard } from "@/lib/contrastGuard";
 import { ProtoAgenda, ProtoHubHero, ProtoTasks, archClass, hasArch } from "@/components/arise-notes/protoLooks";
 import "@/components/arise-notes/notes-themes.css";
 import "@/pages/hubLooks.css";
@@ -66,6 +67,7 @@ export function useHubLook(themeId: unknown, night: boolean): { look: NotesTheme
     }
     return undefined;
   }, [look, night]);
+  useContrastGuard(true, `${look?.id ?? "plain"}|${night}`, look ? [look.ink, look.bg] : []);
   return look ? { look, className: `hub-look hub-theme-${look.id}${look.dark ? " hub-look-dark" : ""}${archClass(look)}`, style: themeVars(look) as CSSProperties } : { look: null, className: "" };
 }
 

@@ -14,7 +14,9 @@ const PF = GYM_TYPES.find((g) => g.id === "planet-fitness")!.gear;
 
 test("every exercise's equipment is real gear, and most gear has exercises", () => {
   for (const e of CATALOG) for (const way of needsOf(e.id)) for (const g of way) assert.ok(GEAR_BY_ID.has(g), `${e.id} needs ${g}`);
-  assert.ok(GEAR.filter((g) => exercisesOn(g.id).length).length >= GEAR.length - 2);
+  // Accessories a photo can name (ball, roller, mat) help with warm-ups and core; they need no exercise of their own.
+  const ACCESSORY = new Set(["stability-ball", "foam-roller", "yoga-mat"]);
+  assert.ok(GEAR.filter((g) => ACCESSORY.has(g.id) || exercisesOn(g.id).length).length >= GEAR.length - 2);
   assert.equal(new Set(GEAR.map((g) => g.id)).size, GEAR.length);
   for (const g of GEAR) assert.ok(g.how.length >= 2 && g.avoid.length >= 1, g.id);
 });

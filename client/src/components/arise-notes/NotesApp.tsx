@@ -16,6 +16,7 @@ import { pagesSyncFor } from "./pages/pagesSync";
 import { Btn, IconBtn, Notice, Spinner, ToastHost, plural, shortDate, useToast } from "./ui";
 import { LookHomeHero, LookNoteList, LookTabBar, activeLook } from "./looks";
 import { archClass } from "./protoLooks";
+import { useContrastGuard } from "@/lib/contrastGuard";
 import "./notes.css";
 import "./notes-themes.css";
 
@@ -195,6 +196,8 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   }, [backdrop, darkBackdrop]);
   const rootClass = ["an-root min-h-[100dvh]", s?.font === "dyslexic" && "an-dyslexic", s?.simple && "an-simple", s?.contrast && "an-contrast", s?.night && !s?.contrast && !pro && "an-night", s?.large && "an-large", pro && "an-pro", proDark && "an-pro-dark", themed && "an-themed", themed && `an-theme-${look.id}${archClass(look)}`, suite && "an-suite", suite && `an-suite-${look.id}`, suite && look.dark && "an-suite-dark"].filter(Boolean).join(" ");
   const rootStyle = themed ? themeVars(look) as CSSProperties : suite ? suiteVars(look) : undefined;
+  // The safety net: any words that end up the same color as what is behind them are switched to one that reads.
+  useContrastGuard(true, `${rootClass}|${route.name}`, themed || suite ? [look.ink, look.bg] : []);
 
   if (!me) {
     return <div className={rootClass}>
