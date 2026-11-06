@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { saveTask } from "../shared/hubTasks";
 
-const hub = readFileSync(new URL("../client/src/pages/TeacherHub.tsx", import.meta.url), "utf8");
+const hub = readFileSync(new URL("../client/src/pages/TeacherHub.tsx", import.meta.url), "utf8") + readFileSync(new URL("../client/src/components/teacher-hub/HubTasks.tsx", import.meta.url), "utf8");
 
 test("both WorkHub quick adds have a More button that opens the full form with what was typed", () => {
   assert.match(hub, /onClick=\{\(\) => setHomeTask\(NEW_TASK\)\}[^\n]*data-testid="home-task-more"/);

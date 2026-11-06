@@ -21,12 +21,14 @@ test("a task can be archived and restored, and archive hides it from every other
 });
 
 test("the task list has a direct delete, edit and archive action on every row, not just inside the editor", () => {
+  // LifeHub's Tasks screen is WorkHub's (components/teacher-hub/HubTasks.tsx), whose rows carry every action.
   const life = read("client/src/pages/AriseTodo.tsx");
-  const row = life.slice(life.indexOf("filtered.map(task =>"), life.indexOf("filtered.length"));
-  assert.match(row, /onClick=\{\(\) => setEditing\(\{ \.\.\.task \}\)\}.*aria-label=\{`Edit \$\{task\.title\}`\}/, "edit");
-  assert.match(row, /onClick=\{\(\) => archiveTask\(task\)\}.*aria-label=\{`Archive \$\{task\.title\}`\}/, "archive");
-  assert.match(row, /onClick=\{\(\) => unarchiveTask\(task\)\}.*aria-label=\{`Restore \$\{task\.title\} from archive`\}/, "unarchive");
-  assert.match(row, /onClick=\{\(\) => removeTask\(task\)\}.*aria-label=\{`Delete \$\{task\.title\}`\}/, "delete");
+  assert.match(life, /<LifeTasksScreen /);
+  const row = read("client/src/components/teacher-hub/HubTasks.tsx");
+  assert.match(row, /aria-label=\{`Edit \$\{task\.title\}`\}/, "edit");
+  assert.match(row, /Archive \$\{task\.title\}/, "archive");
+  assert.match(row, /Restore \$\{task\.title\} from archive/, "unarchive");
+  assert.match(row, /aria-label=\{`Delete \$\{task\.title\}`\}/, "delete");
 });
 
 test("an \"Archived\" tab sits alongside All/Today/Upcoming/Completed", () => {
