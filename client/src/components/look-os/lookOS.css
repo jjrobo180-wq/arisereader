@@ -277,3 +277,7 @@ html[data-hub-look] [data-testid="welcome-bar"] { top: calc(env(safe-area-inset-
 /* The dock holds still: its own layer, and no bounce behind it. */
 .los-dock { will-change: transform; -webkit-backface-visibility: hidden; backface-visibility: hidden; }
 .los-body { -webkit-overflow-scrolling: touch; }
+
+/* The dock floats over the page, and a see-through one let the words under it show through, so it couldn't be read.
+   An opaque layer in the page's own colour sits under whatever tint the look gives it. */
+.los-dock::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--an-bg, #fff); pointer-events: none; }
