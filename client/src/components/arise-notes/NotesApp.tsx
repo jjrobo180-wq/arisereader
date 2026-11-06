@@ -178,7 +178,7 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   const themed = !pro && !s?.contrast && (look.id !== "classic" || !!s?.night);
   useEffect(() => { if (themed || suite || proLook) loadThemeFont(look.fontUrl); }, [themed, suite, proLook, look.fontUrl]);
   // The areas around the page (behind the status bar and Home indicator) match the look.
-  const backdrop = s?.contrast ? "#ffffff" : suite || proLook ? look.bg : pro ? (proDark ? "#0f0f11" : "#f2f2f7") : themed ? look.bg : "#f5f4fb";
+  const backdrop = s?.contrast ? "#ffffff" : proLook && route.name === "page" ? look.card : suite || proLook ? look.bg : pro ? (proDark ? "#0f0f11" : "#f2f2f7") : themed ? look.bg : "#f5f4fb";
   const darkBackdrop = pro ? proDark : themed && !!look.dark;
   useEffect(() => {
     const html = document.documentElement, body = document.body;
