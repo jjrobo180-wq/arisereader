@@ -171,11 +171,14 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   // The Suite looks (Paper, Midnight, Folio, Nordic, Carbon) carry on into the Notes tab and the writing
   // page: their colors and type replace the neutral ones there (notes-suite.css).
   const suite = SUITE_LOOKS.has(look.id) && !s?.contrast;
-  const proDark = pro && (suite ? !!look.dark : appearance.mode === "dark" ? true : appearance.mode === "light" ? false : appearance.dark || !!s?.night || (look.id !== "classic" && !!look.dark));
+  // Every other look dresses the Notes tab and the writing page too (they stayed plain gray and white,
+  // though the look's preview shows its colors everywhere).
+  const proLook = pro && !suite && !s?.contrast && (look.id !== "classic" || !!s?.night);
+  const proDark = pro && (suite || proLook ? !!look.dark : appearance.mode === "dark" ? true : appearance.mode === "light" ? false : appearance.dark || !!s?.night || (look.id !== "classic" && !!look.dark));
   const themed = !pro && !s?.contrast && (look.id !== "classic" || !!s?.night);
-  useEffect(() => { if (themed || suite) loadThemeFont(look.fontUrl); }, [themed, suite, look.fontUrl]);
+  useEffect(() => { if (themed || suite || proLook) loadThemeFont(look.fontUrl); }, [themed, suite, proLook, look.fontUrl]);
   // The areas around the page (behind the status bar and Home indicator) match the look.
-  const backdrop = s?.contrast ? "#ffffff" : suite ? look.bg : pro ? (proDark ? "#0f0f11" : "#f2f2f7") : themed ? look.bg : "#f5f4fb";
+  const backdrop = s?.contrast ? "#ffffff" : suite || proLook ? look.bg : pro ? (proDark ? "#0f0f11" : "#f2f2f7") : themed ? look.bg : "#f5f4fb";
   const darkBackdrop = pro ? proDark : themed && !!look.dark;
   useEffect(() => {
     const html = document.documentElement, body = document.body;
@@ -194,10 +197,10 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
     }
     return () => { html.style.background = before[0] ?? ""; body.style.background = before[1] ?? ""; if (meta && before[2]) meta.content = before[2]; html.style.overscrollBehavior = overscroll[0]; body.style.overscrollBehavior = overscroll[1]; };
   }, [backdrop, darkBackdrop]);
-  const rootClass = ["an-root min-h-[100dvh]", s?.font === "dyslexic" && "an-dyslexic", s?.simple && "an-simple", s?.contrast && "an-contrast", s?.night && !s?.contrast && !pro && "an-night", s?.large && "an-large", pro && "an-pro", proDark && "an-pro-dark", themed && "an-themed", themed && `an-theme-${look.id}${archClass(look)}`, suite && "an-suite", suite && `an-suite-${look.id}`, suite && look.dark && "an-suite-dark"].filter(Boolean).join(" ");
-  const rootStyle = themed ? themeVars(look) as CSSProperties : suite ? suiteVars(look) : undefined;
+  const rootClass = ["an-root min-h-[100dvh]", s?.font === "dyslexic" && "an-dyslexic", s?.simple && "an-simple", s?.contrast && "an-contrast", s?.night && !s?.contrast && !pro && "an-night", s?.large && "an-large", pro && "an-pro", proDark && "an-pro-dark", themed && "an-themed", themed && `an-theme-${look.id}${archClass(look)}`, suite && "an-suite", suite && `an-suite-${look.id}`, suite && look.dark && "an-suite-dark", proLook && `an-prolook${archClass(look)}`, proLook && look.dark && "an-prolook-dark"].filter(Boolean).join(" ");
+  const rootStyle = themed ? themeVars(look) as CSSProperties : suite || proLook ? suiteVars(look) : undefined;
   // The safety net: any words that end up the same color as what is behind them are switched to one that reads.
-  useContrastGuard(true, `${rootClass}|${route.name}`, themed || suite ? [look.ink, look.bg] : []);
+  useContrastGuard(true, `${rootClass}|${route.name}`, themed || suite || proLook ? [look.ink, look.bg] : []);
 
   if (!me) {
     return <div className={rootClass}>

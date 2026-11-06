@@ -152,8 +152,8 @@ test("the five Suite looks restyle Home, the list, recording, the Notes tab and 
   assert.match(looks, /if \(SUITE_LOOKS\.has\(look\.id\)\) return <SuiteList/);
   assert.match(looks, /an-x-notetitle/);
   assert.match(app, /suite && "an-suite"/);
-  assert.match(app, /suite \? suiteVars\(look\)/);
-  assert.match(css, /\.an-root\.an-root\.an-pro\.an-suite \{/);
+  assert.match(app, /suite \|\| proLook \? suiteVars\(look\)/, "Suite looks and every other look color the Notes tab");
+  assert.match(css, /\.an-root\.an-root\.an-pro:is\(\.an-suite, \.an-prolook\) \{/);
   assert.match(css, /\[data-paper="paper"\]/);
   for (const t of NOTES_THEMES.filter((x) => ["paper", "midnight", "folio", "nordic", "carbon"].includes(x.id)))
     for (const word of ["Apple", "iPhone", "iCloud"]) assert.ok(!`${t.label} ${t.blurb}`.includes(word), `${t.id} doesn't say ${word}`);
