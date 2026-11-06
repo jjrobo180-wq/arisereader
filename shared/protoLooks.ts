@@ -22,16 +22,18 @@ export type ProtoSpec = {
   /** Display and body font families (Google Fonts names). */
   fd: string; fb: string; dark?: boolean; radius: number; border?: number; hard?: boolean;
   /** Which recording display (wave, ring, tx) and the Home headline / sizes, for the Studio arrangements. */
-  rec?: string; hl?: string; hs?: number; ns?: number;
+  rec?: string; hl?: string; hs?: number; ns?: number; v?: string;
   onAccent?: string; record?: string; onRecord?: string; accentInk?: string; accentSoft?: string;
 };
 
 const GENERIC = "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif";
 const SERIFS = new Set(["Newsreader", "Fraunces", "Playfair Display", "Instrument Serif", "DM Serif Display", "Lora"]);
-const MONOS = new Set(["JetBrains Mono", "IBM Plex Mono", "Space Mono"]);
-const SINGLE = new Set(["Instrument Serif", "DM Serif Display"]);
+const MONOS = new Set(["JetBrains Mono", "IBM Plex Mono", "Space Mono", "Courier Prime", "Special Elite"]);
+const SINGLE = new Set(["Instrument Serif", "DM Serif Display", "Gochi Hand", "Special Elite"]);
 const stack = (f: string) => `"${f}", ${SERIFS.has(f) ? "Georgia, 'Times New Roman', serif" : MONOS.has(f) ? "ui-monospace, 'SF Mono', Menlo, monospace" : GENERIC}`;
-const fontUrl = (...fs: string[]) => `https://fonts.googleapis.com/css2?${[...new Set(fs)].map((f) => `family=${f.replace(/ /g, "+")}${SINGLE.has(f) ? "" : ":wght@400;500;600;700;800"}`).join("&")}&display=swap`;
+/** Weights a family really has: Google answers 400 to the whole request if one is missing. */
+const WEIGHTS: Record<string, string> = { "Space Grotesk": "400;500;600;700", "IBM Plex Mono": "400;500;600;700", "IBM Plex Sans": "400;500;600;700", "Space Mono": "400;700", "Courier Prime": "400;700", Caveat: "400;500;600;700", Lora: "400;500;600;700", "Familjen Grotesk": "400;500;600;700" };
+const fontUrl = (...fs: string[]) => `https://fonts.googleapis.com/css2?${[...new Set(fs)].map((f) => `family=${f.replace(/ /g, "+")}${SINGLE.has(f) ? "" : `:wght@${WEIGHTS[f] ?? "400;500;600;700;800"}`}`).join("&")}&display=swap`;
 
 /** The colors this look uses at night: dark ones as they are, light ones turned over. */
 function nightOf(t: ProtoSpec): NonNullable<NotesTheme["night"]> {
@@ -46,9 +48,11 @@ export function protoLook(t: ProtoSpec): NotesTheme {
   const accent = t.accent, onAccent = t.onAccent && contrast(t.onAccent, accent) >= 4.5 ? t.onAccent : readable(accent);
   const record = t.record ?? accent, onRecord = t.onRecord ?? readable(record);
   const muted = reach(t.muted, t.card, t.ink, 4.6), mutedBg = reach(muted, t.bg, t.ink, 4.6);
-  const accentSoft = t.accentSoft ?? mix(accent, t.card, dark ? 0.78 : 0.84);
+  let accentSoft = t.accentSoft ?? mix(accent, t.card, dark ? 0.78 : 0.84);
+  // Keep the soft tint close enough to the card that the accent text on it stays readable.
+  for (let i = 0; i < 6 && !t.accentSoft && contrast(reach(accent, t.card, t.ink, 4.6), accentSoft) < 4.6; i++) accentSoft = mix(accentSoft, t.card, 0.3);
   const out: NotesTheme = {
-    id: t.id as NotesTheme["id"], label: t.label, blurb: t.blurb, dark, arch: t.arch, group: t.group, rec: t.rec, hl: t.hl, hs: t.hs, ns: t.ns,
+    id: t.id as NotesTheme["id"], label: t.label, blurb: t.blurb, dark, arch: t.arch, group: t.group, rec: t.rec, hl: t.hl, hs: t.hs, ns: t.ns, v: t.v,
     bg: t.bg, card: t.card, line: t.line, ink: t.ink, muted: mutedBg, faint: mutedBg,
     accent, accentInk: t.accentInk ?? reach(reach(accent, t.card, t.ink, 4.6), accentSoft, t.ink, 4.6), accentSoft, onAccent, record, onRecord,
     font: stack(t.fb), display: stack(t.fd), fontUrl: fontUrl(t.fd, t.fb), radius: t.radius, border: t.border, hardShadow: t.hard,
@@ -61,6 +65,9 @@ export function protoLook(t: ProtoSpec): NotesTheme {
 // Billboard: huge type, hard lines, one loud yellow. The default for everyone.
 export const PROTO_SPECS: ProtoSpec[] = [
   { id: "x-billboard", label: "Billboard", blurb: "Huge type, hard lines and one loud yellow. Impossible to miss.", arch: "billboard", group: "loud", bg: "#111111", card: "#1c1c1b", ink: "#f5f5f0", muted: "#d2d2ca", line: "#f5f5f0", accent: "#f2e14b", onAccent: "#111111", fd: "Archivo", fb: "Archivo", radius: 0, border: 2 },
+  { id: "x-billboard-cobalt", label: "Billboard Cobalt", blurb: "The same huge type on white, with one electric cobalt.", arch: "billboard", group: "loud", bg: "#ffffff", card: "#f1f3fa", ink: "#0b0f1a", muted: "#4b5368", line: "#0b0f1a", accent: "#1537e8", onAccent: "#ffffff", fd: "Archivo", fb: "Archivo", radius: 0, border: 2 },
+  { id: "x-billboard-signal", label: "Billboard Signal", blurb: "Huge type on warm paper, with a signal red.", arch: "billboard", group: "loud", bg: "#f3efe4", card: "#e9e3d2", ink: "#16130e", muted: "#5a5446", line: "#16130e", accent: "#c8321a", onAccent: "#ffffff", fd: "Archivo", fb: "Archivo", radius: 0, border: 2 },
+  { id: "x-billboard-forest", label: "Billboard Forest", blurb: "Huge type on deep forest green, with one mint highlight.", arch: "billboard", group: "loud", bg: "#0f2a1d", card: "#173826", ink: "#eaf3ec", muted: "#b4cdbb", line: "#eaf3ec", accent: "#b9f5c8", onAccent: "#0f2a1d", fd: "Archivo", fb: "Archivo", radius: 0, border: 2 },
   { id: "x-index-graphite", label: "Graphite Index", blurb: "A precise index of every note, in graphite and white. Calm and exact.", arch: "index", rec: "wave", group: "pro", bg: "#0F1012", card: "#1A1B1F", ink: "#F2F2F4", muted: "#8E8F98", line: "#2A2B31", accent: "#F2F2F4", onAccent: "#101113", fd: "Inter", fb: "Inter", radius: 14 },
   { id: "x-index-lime", label: "Lime Index", blurb: "Black index rows with one sharp lime accent. Fast to scan.", arch: "index", rec: "tx", group: "dark", bg: "#0B0D0A", card: "#151A13", ink: "#EFF5E6", muted: "#8A9680", line: "#232B1F", accent: "#D4FF4F", onAccent: "#101808", fd: "Space Grotesk", fb: "Space Grotesk", radius: 10 },
   { id: "x-index-paper", label: "Paper Index", blurb: "A ruled, serif index on warm paper. Like a library card file.", arch: "index", rec: "wave", group: "calm", bg: "#F6F3EC", card: "#FFFFFF", ink: "#1D1B16", muted: "#7A7568", line: "#DDD7C9", accent: "#1D1B16", onAccent: "#FFFFFF", fd: "Newsreader", fb: "Inter", radius: 2 },
@@ -82,6 +89,19 @@ export const PROTO_SPECS: ProtoSpec[] = [
   { id: "x-stream-cobalt", label: "Stream Cobalt", blurb: "A flowing list in cobalt, with room for ideas.", arch: "stream", rec: "wave", group: "pro", bg: "#F5F8FF", card: "#FFFFFF", ink: "#16264A", muted: "#6F7FA6", line: "#DCE5F8", accent: "#2F5FD0", onAccent: "#FFFFFF", fd: "Archivo", fb: "Archivo", radius: 22, hl: "Make room for ideas." },
   { id: "x-stream-neon", label: "Stream Neon", blurb: "Graphite and hot pink. Keeps it flowing.", arch: "stream", rec: "tx", group: "dark", bg: "#101114", card: "#1B1C21", ink: "#F4F4F6", muted: "#8B8C96", line: "#2A2B32", accent: "#FF4F8B", onAccent: "#FFFFFF", fd: "Syne", fb: "Inter", radius: 22, hl: "Keep it flowing." },
   { id: "x-atlas-sage", label: "Command Sage", blurb: "A calm dark command centre in sage green.", arch: "atlas", rec: "wave", group: "dark", bg: "#14181A", card: "#1D2326", ink: "#EEF2EE", muted: "#8B9A94", line: "#2B3337", accent: "#DDE8DD", onAccent: "#101414", fd: "Inter", fb: "Inter", radius: 14, hl: "Ready when you are." },
+  { id: "x-cabinet", label: "Cabinet", blurb: "Folders and a big round record button. Tidy, bright and friendly.", arch: "rows", group: "pro", bg: "#F5F7FB", card: "#FFFFFF", ink: "#14213D", muted: "#4A5675", line: "#E3E8F2", accent: "#2F4BD8", onAccent: "#FFFFFF", fd: "Inter", fb: "Inter", radius: 14, v: "cabinet", record: "#D6342C", onRecord: "#ffffff" },
+  { id: "x-threadline", label: "Threadline", blurb: "Conversation-style rows with round initials, in calm green.", arch: "rows", group: "calm", bg: "#F4F7F5", card: "#FFFFFF", ink: "#12261D", muted: "#46594F", line: "#D5DED8", accent: "#0E7A55", onAccent: "#FFFFFF", fd: "Plus Jakarta Sans", fb: "Plus Jakarta Sans", radius: 16, v: "thread" },
+  { id: "x-maison", label: "Maison", blurb: "Quiet serif titles and bronze lines on warm white, like a gallery.", arch: "rows", group: "calm", bg: "#FBFAF7", card: "#FFFFFF", ink: "#1D1B18", muted: "#6B665D", line: "#E5E1D8", accent: "#8A6A3D", onAccent: "#FFFFFF", fd: "Newsreader", fb: "Inter", radius: 4, v: "atelier" },
+  { id: "x-obsidian", label: "Obsidian", blurb: "Black glass with a single gold line. Dark, sharp and expensive.", arch: "rows", group: "dark", bg: "#0C0D10", card: "#16181D", ink: "#ECEDEF", muted: "#9A9FA9", line: "#23262C", accent: "#D8B56A", onAccent: "#17120A", fd: "Inter Tight", fb: "Inter", radius: 12, v: "graphite" },
+  { id: "x-helvetic", label: "Helvetic", blurb: "Swiss grid: white, black rules and one blue.", arch: "rows", group: "structure", bg: "#FFFFFF", card: "#EDEEF2", ink: "#0A0A0A", muted: "#5C5F66", line: "#E3E4E8", accent: "#2347F5", onAccent: "#FFFFFF", fd: "Inter Tight", fb: "Inter", radius: 0, v: "swiss" },
+  { id: "x-outliner", label: "Outliner", blurb: "Numbered outline rows in a code-editor font.", arch: "rows", group: "structure", bg: "#EEF0F5", card: "#FFFFFF", ink: "#1B1F2A", muted: "#5A6376", line: "#C9CEDA", accent: "#E5432E", onAccent: "#FFFFFF", fd: "IBM Plex Mono", fb: "IBM Plex Sans", radius: 2, v: "outline" },
+  { id: "x-cornell", label: "Cornell", blurb: "Study-paper cards with a serif title, inspired by Cornell notes.", arch: "rows", group: "calm", bg: "#F2F0E6", card: "#FFFFFF", ink: "#22262F", muted: "#5E6473", line: "#C9D3E6", accent: "#1F4478", onAccent: "#FFFFFF", fd: "Source Serif 4", fb: "Inter", radius: 12, v: "cornell" },
+  { id: "x-nightshift", label: "Nightshift", blurb: "One big record button, then your day on a dark timeline.", arch: "timeline", group: "dark", bg: "#0E1116", card: "#1A1F29", ink: "#F2F4F8", muted: "#9AA3B2", line: "#262C38", accent: "#FF5A4F", onAccent: "#0E1116", fd: "Space Grotesk", fb: "Space Grotesk", radius: 14, record: "#FF5A4F", onRecord: "#0E1116" },
+  { id: "x-corkboard", label: "Corkboard", blurb: "Sticky notes pinned to a dotted green board, in handwriting.", arch: "wall", group: "tactile", bg: "#2C4B3F", card: "#243F34", ink: "#F6F0E0", muted: "#CFE3D8", line: "#3D5F51", accent: "#FFE27A", onAccent: "#2A2418", fd: "Caveat", fb: "Inter", radius: 4 },
+  { id: "x-swatch", label: "Swatch", blurb: "A bento of bright tiles and colour-coded note cards.", arch: "tiles", group: "play", bg: "#FFFDF8", card: "#FFFFFF", ink: "#1B1B2F", muted: "#4A4A63", line: "#EADFC9", accent: "#5B3FD9", onAccent: "#FFFFFF", fd: "DM Sans", fb: "DM Sans", radius: 20 },
+  { id: "x-spiral", label: "Spiral", blurb: "Notebooks on a shelf with coloured covers. Start a page and record.", arch: "shelf", group: "tactile", bg: "#FAF7F0", card: "#FFFFFF", ink: "#1C2433", muted: "#5B6478", line: "#DDD5C2", accent: "#8A3B2B", onAccent: "#FFFFFF", fd: "Lora", fb: "Inter", radius: 8 },
+  { id: "x-stickies", label: "Stickies", blurb: "A grid of coloured sticky notes in marker handwriting.", arch: "sticky", group: "play", bg: "#F4F1EA", card: "#FFFFFF", ink: "#1D1B16", muted: "#5B564A", line: "#DDD7C9", accent: "#FF4F8B", onAccent: "#1D1B16", fd: "Gochi Hand", fb: "Inter", radius: 6, v: "grid" },
+  { id: "x-peel-pad", label: "Peel Pad", blurb: "A lavender desk with a stack of sticky notes to peel off.", arch: "sticky", group: "play", bg: "#9A9AE8", card: "#C9C9F5", ink: "#14142B", muted: "#2E2E66", line: "#7F7FD0", accent: "#FFE45C", onAccent: "#1D1B16", fd: "Gochi Hand", fb: "Inter", radius: 6, v: "pad" },
 ];
 export const PROTO_LOOKS: NotesTheme[] = PROTO_SPECS.map(protoLook);
 export const PROTO_IDS = PROTO_SPECS.map((s) => s.id);
