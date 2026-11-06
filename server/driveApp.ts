@@ -13,7 +13,11 @@ import { randomUUID } from "node:crypto";
 import { FREE_STORAGE_BYTES } from "@shared/driveApp";
 
 const BUCKET = "life-drive-photos";
-const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20MB per file
+/** Small files can still come through this server (the old route). */
+const MAX_FILE_BYTES = 20 * 1024 * 1024;
+/** Big files go straight from the phone or computer to storage with a signed upload link, so the
+ *  server's 20 MB body cap no longer applies. 5 GB a file; the account's storage space still applies. */
+export const MAX_DIRECT_BYTES = 5 * 1024 * 1024 * 1024;
 
 /** What Drive stores. It began as photos only, which is why a PDF or a Word document — the things
  *  a teacher most wants somewhere safe — bounced off it. Everyday document, image, audio and
@@ -46,11 +50,15 @@ export type DriveDeps = {
 let bucketReady: Promise<void> | null = null;
 function ensureBucket(adminDb: any) {
   bucketReady ??= adminDb.storage
-    .createBucket(BUCKET, { public: false, allowedMimeTypes: Object.keys(ALLOWED), fileSizeLimit: "20MB" })
-    .then(({ error }: { error: any }) => {
+    .createBucket(BUCKET, { public: false, fileSizeLimit: MAX_DIRECT_BYTES })
+    .then(async ({ error }: { error: any }) => {
       if (error && !/already exists|duplicate/i.test(error.message || "")) {
         console.error(`[drive-app] could not create the "${BUCKET}" bucket (carrying on, it may already exist):`, error.message || error);
       }
+      // A bucket made earlier was capped at 20 MB and to a list of types: lift both, so big videos
+      // and any kind of file can be kept. (The project's own upload cap in Supabase still applies.)
+      const { error: upd } = await adminDb.storage.updateBucket(BUCKET, { public: false, fileSizeLimit: MAX_DIRECT_BYTES, allowedMimeTypes: null });
+      if (upd) console.error(`[drive-app] could not raise the "${BUCKET}" size limit:`, upd.message || upd);
     })
     .catch((error: any) => { console.error(`[drive-app] bucket check failed (carrying on):`, error?.message || error); });
   return bucketReady;
@@ -111,6 +119,54 @@ export function registerDriveAppRoutes(app: Express, authMiddleware: RequestHand
     } catch (error: any) {
       console.error("[drive-app] upload failed:", error?.message || error);
       res.status(500).json({ message: "Could not upload that file. Try again." });
+    }
+  });
+
+  // A signed link to send one file straight to storage (any size up to MAX_DIRECT_BYTES, any kind),
+  // after checking it fits the account's space. The phone or computer then uploads to that link
+  // itself, with progress, and records the file once it has landed.
+  app.post("/api/lifehub/drive/upload-url", authMiddleware, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ message: "Sign in required." });
+      const size = Number(req.body?.size) || 0;
+      const sentName = String(req.body?.name || "file").slice(0, 120);
+      const sentType = String(req.body?.type || "").split(";")[0].toLowerCase().slice(0, 100);
+      if (!(size > 0)) return res.status(400).json({ message: "That file is empty. Please choose it again." });
+      if (size > MAX_DIRECT_BYTES) return res.status(413).json({ message: "Keep each Drive file under 5 GB." });
+      const usedSoFar = Number(req.body?.usedBytes) || 0;
+      const limit = await deps.storageLimitFor(userId).catch(() => FREE_STORAGE_BYTES);
+      if (usedSoFar + size > limit) return res.status(413).json({ message: "You're out of Drive storage. Free up space or add more storage in Billing.", code: "drive_storage_full" });
+      const adminDb = deps.getAdminSupabase();
+      await ensureBucket(adminDb);
+      const fromName = (sentName.match(/\.([A-Za-z0-9]{1,8})$/)?.[1] || "").toLowerCase();
+      const ext = ALLOWED[sentType] || fromName || "bin";
+      const name = sentName.slice(0, 80).replace(/[^\w.\- ]+/g, "") || "file";
+      const id = randomUUID();
+      const path = `${userId}/${Date.now()}-${id}.${ext}`;
+      const { data, error } = await adminDb.storage.from(BUCKET).createSignedUploadUrl(path);
+      if (error || !data?.signedUrl) throw error || new Error("no signed url");
+      const EXT_TYPE = Object.fromEntries(Object.entries(ALLOWED).map(([type, e]) => [e, type]));
+      const contentType = sentType || EXT_TYPE[ext] || "application/octet-stream";
+      res.json({ id, path, name, size, contentType, signedUrl: data.signedUrl, uploadedAt: new Date().toISOString() });
+    } catch (error: any) {
+      console.error("[drive-app] upload link failed:", error?.message || error);
+      res.status(500).json({ message: "Could not start that upload. Try again." });
+    }
+  });
+
+  // A short-lived link that downloads a file under its own name (Download in the viewer).
+  app.post("/api/lifehub/drive/download", authMiddleware, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      const path = String(req.body?.path || "");
+      if (!userId || !path.startsWith(`${userId}/`)) return res.status(403).json({ message: "That file does not belong to this account." });
+      const name = String(req.body?.name || "").slice(0, 120) || undefined;
+      const { data, error } = await deps.getAdminSupabase().storage.from(BUCKET).createSignedUrl(path, 3600, { download: name || true });
+      if (error) throw error;
+      res.json({ url: data?.signedUrl || null });
+    } catch {
+      res.status(500).json({ message: "Could not download that file. Try again." });
     }
   });
 
