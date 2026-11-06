@@ -28,7 +28,7 @@ export type SectionProps = {
   say: (message: string) => void;
 };
 
-export const inputClass = "w-full min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100";
+export const inputClass = "block w-full min-w-0 max-w-full min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100";
 export const buttonClass = "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-500 disabled:cursor-not-allowed disabled:opacity-50";
 export const primary = buttonClass + " bg-[#6e5ae0] text-white hover:bg-[#5948c8]";
 export const soft = buttonClass + " bg-violet-50 text-violet-700 hover:bg-violet-100";
@@ -83,11 +83,37 @@ export function Modal({ title, eyebrow = "Family Hub", onClose, children, wide }
     return () => window.removeEventListener("keydown", key);
   }, [onClose]);
   return <div className="fixed inset-0 kb-sheet z-[500] flex items-end justify-center bg-[#16152a]/65 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-    <div role="dialog" aria-modal="true" aria-label={title} className={`max-h-[94dvh] w-full overflow-y-auto overscroll-contain rounded-t-[1.5rem] bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-[1.5rem] sm:p-7 ${wide ? "sm:max-w-2xl" : "sm:max-w-lg"}`}>
+    <div role="dialog" aria-modal="true" aria-label={title} className={`max-h-[94dvh] w-full min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain rounded-t-[1.5rem] bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-[1.5rem] sm:p-7 ${wide ? "sm:max-w-2xl" : "sm:max-w-lg"}`}>
       <div className="mb-5 flex items-center justify-between gap-3"><div className="min-w-0"><p className="text-xs font-bold uppercase tracking-[.15em] text-violet-600">{eyebrow}</p><h2 className="mt-1 text-xl font-black">{title}</h2></div><button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={20} /></button></div>
       {children}
     </div>
   </div>;
+}
+
+// ─── Grouped form rows: one rounded card per group, a label on the left and the value on the right ───
+export function FormGroup({ title, children, className = "" }: { title?: string; children: ReactNode; className?: string }) {
+  return <div className={`min-w-0 ${className}`}>
+    {title && <p className="mb-1.5 px-1 text-[11px] font-black uppercase tracking-[.12em] text-slate-500">{title}</p>}
+    <div className="divide-y divide-slate-200/80 overflow-hidden rounded-2xl bg-slate-50 ring-1 ring-slate-200/80">{children}</div>
+  </div>;
+}
+export function FormRow({ label, icon, children, stack }: { label: string; icon?: ReactNode; children: ReactNode; stack?: boolean }) {
+  return <label className={`flex min-h-[3.25rem] min-w-0 gap-3 px-4 ${stack ? "flex-col justify-center py-3" : "items-center"}`}>
+    <span className="flex shrink-0 items-center gap-2.5 text-[15px] font-semibold text-slate-700">{icon && <span className="grid h-7 w-7 place-items-center rounded-lg bg-violet-100 text-violet-700" aria-hidden>{icon}</span>}{label}</span>
+    <span className={`min-w-0 flex-1 ${stack ? "" : "flex justify-end"}`}>{children}</span>
+  </label>;
+}
+/** A borderless field for inside a FormRow. */
+export const rowInput = "w-full min-w-0 appearance-none border-0 bg-transparent p-0 text-right text-[15px] font-semibold text-slate-900 outline-none placeholder:font-medium placeholder:text-slate-400";
+export const rowSelect = rowInput + " cursor-pointer pr-1 [text-align-last:right]";
+/** Date and time as a tidy chip; the phone's own picker opens on tap (no stretched empty box). */
+export function PickField({ type, value, onChange, label, empty = "Add", disabled, required }: { type: "date" | "time"; value: string; onChange: (v: string) => void; label: string; empty?: string; disabled?: boolean; required?: boolean }) {
+  const shown = !value ? empty : type === "time" ? clock12(value) : new Date(`${value}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+  return <span className={`relative inline-flex max-w-full ${disabled ? "opacity-45" : ""}`}>
+    <span className={`truncate rounded-lg px-2.5 py-1.5 text-[15px] font-semibold ${value ? "bg-white text-slate-900 ring-1 ring-slate-200" : "text-violet-700"}`}>{shown}</span>
+    <input type={type} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} required={required} aria-label={label}
+      className="absolute inset-0 h-full w-full min-w-0 cursor-pointer appearance-none opacity-0 disabled:cursor-default" />
+  </span>;
 }
 
 export function Label({ text, children, className = "" }: { text: string; children: ReactNode; className?: string }) {

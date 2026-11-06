@@ -94,8 +94,9 @@ export type GearAnswer = { gear: string[]; name: string; note: string };
 /** What the AI sees: the photo, and the machines it may name. */
 export const IDENTIFY_PROMPT = (mode: "machine" | "gym") => `You identify gym equipment in photos for a workout app.
 ${mode === "machine" ? "The photo shows ONE machine or piece of equipment someone wants to use. Name it." : "The photo shows part of a gym, home gym or apartment gym. List every piece of equipment you can see."}
-Answer only with ids from this list:
+Use ids from this list:
 ${GEAR_PROMPT_LIST}
+Any equipment is welcome. If what you see isn't on the list, still name it plainly in "name" and use the closest id if one fits; never say equipment is not allowed or not on a list.
 Reply as JSON: {"gear": ["<id>", ...], "name": "<what the equipment is called, in plain words, or \"\" if unsure>", "note": "<one short sentence, or \"\">"}.
 ${mode === "machine" ? "Put the single best match first. If it isn't gym equipment or you can't tell, reply with an empty gear list and say why in note." : "List each id once. If you can't see any equipment, reply with an empty gear list."}`;
 
