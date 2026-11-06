@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as KeyEvent, type ReactNode } from "react";
 import { CornerDownLeft, Search, X } from "lucide-react";
 import { APP_KINDS, STORE_KIND, groupResults, searchHub, type SearchEntry } from "@shared/hubSearch";
+import { lockPageScroll } from "@/lib/scrollLock";
 
 /** One thing search can find. Apps show their icon (and colour) like on a phone. */
 export type HubSearchEntry = SearchEntry & { open: () => void; icon?: ReactNode; color?: string };
@@ -42,8 +43,7 @@ export function HubSearch({ entries, onClose, hubName, accent = "bg-slate-950" }
   useEffect(() => { setAt(0); setOpened([]); }, [typed]);
   useEffect(() => {
     box.current?.focus();
-    const { overflow } = document.body.style; document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = overflow; };
+    return lockPageScroll();
   }, []);
   useEffect(() => { list.current?.querySelector(`[data-i="${at}"]`)?.scrollIntoView({ block: "nearest" }); }, [at]);
   const go = (e?: HubSearchEntry) => { if (!e) return; onClose(); e.open(); };

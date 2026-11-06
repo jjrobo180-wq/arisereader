@@ -4,6 +4,7 @@
 import { useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { lockPageScroll } from "@/lib/scrollLock";
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -27,16 +28,7 @@ export function HubModal({
   closeRef.current = onClose;
 
   // The page behind stops scrolling while this is open (iPhone included).
-  useEffect(() => {
-    const { overflow, paddingRight } = document.body.style;
-    const gap = window.innerWidth - document.documentElement.clientWidth;
-    document.body.style.overflow = "hidden";
-    if (gap > 0) document.body.style.paddingRight = `${gap}px`;
-    return () => {
-      document.body.style.overflow = overflow;
-      document.body.style.paddingRight = paddingRight;
-    };
-  }, []);
+  useEffect(() => lockPageScroll(), []);
 
   // Focus goes in, and back to where it was.
   useEffect(() => {
