@@ -106,3 +106,5 @@
 .an-root.an-pro.an-prolook.stx-billboard .pp-title, .an-root.an-prolook.stx-billboard .an-doc-title { text-transform: uppercase; font-weight: 800 !important; letter-spacing: -.03em !important; }
 .an-root.an-pro.an-prolook.stx-billboard .pp-group, .an-root.an-pro.an-prolook.stx-billboard .an-search input { border-radius: 0 !important; }
 .an-root.an-pro.an-prolook.stx-billboard .pp-group { box-shadow: 0 0 0 2px var(--an-ink) !important; }
+/* The writing page fills the screen in the look's page color, down to the bottom edge. */
+.an-root.an-pro:is(.an-suite, .an-prolook):has([data-testid="pages-note"]) { background: var(--an-card) !important; }

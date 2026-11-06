@@ -37,7 +37,7 @@
 .stx.stx-billboard .stx-bb-bar button { min-height: 84px; border: 0; font: 800 16px/1 var(--an-font); text-transform: uppercase; letter-spacing: -.01em; cursor: pointer; }
 .stx.stx-billboard .stx-bb-rec { flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px; background: var(--an-accent); color: var(--an-on-accent); font-size: 20px !important; }
 .stx.stx-billboard .stx-bb-alt { width: 120px; border-left: 2px solid var(--an-ink) !important; background: var(--an-bg); color: var(--an-ink); }
-.stx.stx-billboard main { padding-bottom: 8rem; }
+.stx.stx-billboard:not(.an-pro) main { padding-bottom: 8rem; }
 
 /* Recording: the whole panel goes yellow, with a giant stacked clock. */
 .stx.stx-billboard .an-l-recsec { background: var(--an-accent) !important; color: var(--an-on-accent) !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; margin-inline: -1rem; padding: 1.5rem 1.25rem 1.75rem; align-items: stretch !important; text-align: left !important; }
@@ -108,7 +108,7 @@
 .stx.stx-s .an-search input, .stx.stx-index .an-search input, .stx.stx-chron .an-search input, .stx.stx-edit .an-search input, .stx.stx-cons .an-search input, .stx.stx-atlas .an-search input, .stx.stx-stream .an-search input { border-radius: var(--an-radius) !important; background: var(--an-card) !important; }
 .stx.stx-s .an-chip, .stx.stx-index .an-chip, .stx.stx-chron .an-chip, .stx.stx-edit .an-chip, .stx.stx-cons .an-chip, .stx.stx-atlas .an-chip, .stx.stx-stream .an-chip { border-radius: 999px; }
 .stx.stx-s .an-chip[aria-pressed="true"], .stx.stx-index .an-chip[aria-pressed="true"], .stx.stx-chron .an-chip[aria-pressed="true"], .stx.stx-edit .an-chip[aria-pressed="true"], .stx.stx-cons .an-chip[aria-pressed="true"], .stx.stx-atlas .an-chip[aria-pressed="true"], .stx.stx-stream .an-chip[aria-pressed="true"] { background: var(--an-violet); color: var(--an-on-accent); border-color: var(--an-violet); }
-.stx.stx-s main, .stx.stx-index main, .stx.stx-chron main, .stx.stx-edit main, .stx.stx-cons main, .stx.stx-atlas main, .stx.stx-stream main { padding-bottom: 8rem; }
+.stx.stx-s:not(.an-pro) main, .stx.stx-index:not(.an-pro) main, .stx.stx-chron:not(.an-pro) main, .stx.stx-edit:not(.an-pro) main, .stx.stx-cons:not(.an-pro) main, .stx.stx-atlas:not(.an-pro) main, .stx.stx-stream:not(.an-pro) main { padding-bottom: 8rem; }
 /* Bottom bar: Record and one more */
 .stx.stx-s .stx-bar2, .stx.stx-index .stx-bar2, .stx.stx-chron .stx-bar2, .stx.stx-edit .stx-bar2, .stx.stx-cons .stx-bar2, .stx.stx-atlas .stx-bar2, .stx.stx-stream .stx-bar2 { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: flex; gap: 10px; padding: 14px 18px calc(env(safe-area-inset-bottom) + 14px); background: var(--an-bg); border-top: 1px solid var(--an-line); }
 .stx.stx-s .stx-bar2 button, .stx.stx-index .stx-bar2 button, .stx.stx-chron .stx-bar2 button, .stx.stx-edit .stx-bar2 button, .stx.stx-cons .stx-bar2 button, .stx.stx-atlas .stx-bar2 button, .stx.stx-stream .stx-bar2 button { flex: 1; min-height: 52px; border-radius: var(--an-radius); display: flex; align-items: center; justify-content: center; gap: 8px; font: 700 15px/1 var(--an-font); cursor: pointer; }
