@@ -386,7 +386,7 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
     <div className={`space-y-5${isTiles ? " hub-start" : ""}`} data-testid="home-editing">
       {isTiles && <style>{START_CSS}</style>}
       <style>{`@keyframes hub-jiggle{0%{transform:rotate(-.4deg)}50%{transform:rotate(.4deg)}100%{transform:rotate(-.4deg)}}@media (prefers-reduced-motion:reduce){.hub-jiggle{animation:none!important}}`}</style>
-      <div className="sticky top-[72px] z-30 flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/95 px-4 py-2 shadow-lg backdrop-blur">
+      <div className="sticky top-[calc(72px+var(--sat,0px))] z-30 flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/95 px-4 py-2 shadow-lg backdrop-blur">
         <p className="min-w-0 text-sm text-slate-600">{isTiles ? "Hold a tile and drag it · tap an app to open it" : "Hold a part and drag it"} · <X className="inline h-3.5 w-3.5" /> removes · S M L resizes</p>
         <span className="flex shrink-0 items-center gap-2">
           <button type="button" onClick={() => setEditing(false)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white transition active:scale-95" data-testid="home-edit-done"><Check className="h-4 w-4" /> Done</button>
