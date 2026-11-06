@@ -5,7 +5,7 @@ import { isTabOn, type HubTab } from "./teacherHub";
 
 export type HubGroupId =
   | "home" | "start" | "arise" | "records" | "admin" | "calendar" | "schedules" | "caseload" | "iep" | "goals" | "minutes"
-  | "tasks" | "notes" | "lessons" | "gradebook" | "behavior" | "attendance" | "parents" | "email";
+  | "tasks" | "notes" | "journal" | "lessons" | "gradebook" | "behavior" | "attendance" | "parents" | "email";
 
 export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonly HubTab[] }[] = [
   { id: "home", label: "Home", tabs: ["overview"] },
@@ -28,6 +28,7 @@ export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonl
   { id: "minutes", label: "Minutes", tabs: ["minutes"] },
   { id: "tasks", label: "Tasks", tabs: ["tasks"] },
   { id: "notes", label: "Notes", tabs: ["notes"] },
+  { id: "journal", label: "Journal", tabs: ["journal"] },
   { id: "lessons", label: "Lessons", tabs: ["lessons"] },
   { id: "gradebook", label: "Gradebook", tabs: ["gradebook"] },
   { id: "behavior", label: "Behavior", tabs: ["behavior"] },
@@ -43,7 +44,7 @@ export const SUB_LABELS: Partial<Record<HubTab, string>> = {
   start: "Getting started", calendar: "Calendar", schedules: "Student schedules",
   iep: "Meetings",
   goals: "Goals", minutes: "Minutes",
-  tasks: "Tasks", notes: "Notes",
+  tasks: "Tasks", notes: "Notes", journal: "Journal",
   lessons: "Lessons", gradebook: "Gradebook",
   behavior: "Behavior", attendance: "Attendance",
   parents: "Parents", email: "Email",

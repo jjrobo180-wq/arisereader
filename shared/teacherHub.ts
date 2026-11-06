@@ -192,7 +192,7 @@ export type IepGuide = {
 };
 
 export const HUB_TABS = [
-  "overview", "start", "calendar", "caseload", "goals", "minutes", "iep", "lessons", "tasks", "notes", "arise", "behavior", "attendance", "gradebook", "parents", "schedules", "email", "reader", "admin",
+  "overview", "start", "calendar", "caseload", "goals", "minutes", "iep", "lessons", "tasks", "notes", "journal", "arise", "behavior", "attendance", "gradebook", "parents", "schedules", "email", "reader", "admin",
   "readerStudents", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes", "readerLive", "readerScenes",
   "readerAdvisory", "readerCatalog",
 ] as const;
@@ -200,7 +200,7 @@ export type HubTab = (typeof HUB_TABS)[number];
 
 /** The WorkHub screens every account comes with, free and never counted against the App Store's
  *  free apps: Home, Calendar, Tasks and Notes. Everything else is added from the App Store. */
-export const WORK_BUILT_IN_TABS: readonly HubTab[] = ["overview", "start", "calendar", "tasks", "notes", "goals"];
+export const WORK_BUILT_IN_TABS: readonly HubTab[] = ["overview", "start", "calendar", "tasks", "notes", "journal", "goals"];
 
 /** WorkHub screens added from the App Store. Off until the teacher adds one, and each counts
  *  towards the free plan's apps (shared/todoPlan.ts), the same way a LifeHub add-on section does.
@@ -285,6 +285,10 @@ export type Workspace = {
   goalQuizzes?: import("./hubLinks").GoalQuiz[];
   /** IEPs being written in the IEP Writer, one per student meeting (shared/iepWriter). */
   iepDrafts?: import("./iepWriter").IepDraft[];
+  /** The Journal (the same one LifeHub has, shared/familyHub.ts). */
+  journal?: import("./familyHub").JournalEntry[];
+  /** Calendars made on the Calendar screen that are not the Work calendar or a linked one. */
+  extraCalendars?: import("./familyHub").FamilyCalendar[];
 };
 export type TaskList = { id: string; name: string; color: string };
 
