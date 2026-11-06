@@ -7,6 +7,7 @@ import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Folder, L
 import { foldMenu, type MenuClose, type MenuEntry, type MenuFolder, type MenuSide } from "@shared/hubLayout";
 import { inDuoPane } from "@/lib/useAriseDuo";
 import { OPEN_APPS_EVENT } from "./PhoneTabBar";
+import { lockPageScroll } from "@/lib/scrollLock";
 
 export type PhoneMenuItem = { id: string; label: string; icon: ReactNode; active: boolean; badge?: number; color?: string; onClick: () => void };
 
@@ -73,10 +74,9 @@ export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 
   useEffect(() => {
     if (!apps) return;
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setApps(false); };
-    const { overflow } = document.body.style;
-    document.body.style.overflow = "hidden";
+    const unlock = lockPageScroll();
     document.addEventListener("keydown", esc);
-    return () => { document.removeEventListener("keydown", esc); document.body.style.overflow = overflow; setQuery(""); setGridFolder(null); setEditing(false); setHeld(null); };
+    return () => { document.removeEventListener("keydown", esc); unlock(); setQuery(""); setGridFolder(null); setEditing(false); setHeld(null); };
   }, [apps]);
   const pick = (item: PhoneMenuItem) => { item.onClick(); afterPick(); };
   const across = side === "top" || side === "bottom";

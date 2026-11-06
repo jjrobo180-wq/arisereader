@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, Copy, Printer, Square, Sun, Volume2, X } from "lucide-react";
 import { briefText, type Brief } from "@shared/dailyBrief";
 import { sayAI, stopAiVoice } from "@/lib/aiVoice";
+import { lockPageScroll } from "@/lib/scrollLock";
 
 const autoKey = (hub: string) => `arise-brief-auto-${hub}`;
 const seenKey = (hub: string) => `arise-brief-seen-${hub}`;
@@ -35,8 +36,8 @@ export function DailyBrief({ brief, hub, onClose, onOpen, tint = "from-[#2b2a8f]
   useEffect(() => {
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", esc);
-    const { overflow } = document.body.style; document.body.style.overflow = "hidden";
-    return () => { document.removeEventListener("keydown", esc); document.body.style.overflow = overflow; stopAiVoice(); };
+    const unlock = lockPageScroll();
+    return () => { document.removeEventListener("keydown", esc); unlock(); stopAiVoice(); };
   }, [onClose]);
   const [voiceNote, setVoiceNote] = useState("");
   // Read in an AI voice (lib/aiVoice.ts), never the phone's robot voice.

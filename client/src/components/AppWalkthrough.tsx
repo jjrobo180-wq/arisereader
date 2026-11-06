@@ -14,6 +14,7 @@ import { isNativeApp } from "@/lib/nativeApp";
 import { isSampleMode } from "@/lib/sampleMode";
 import { TourArt } from "@/components/TourArt";
 import { nativeRemindersAvailable, nativeRemindersOn, turnOnNativeReminders } from "@/lib/nativeReminders";
+import { lockPageScroll } from "@/lib/scrollLock";
 
 const DONE_KEY = (id: number | string) => `arise-walkthrough-v1:${id}`;
 type Step = { id: string; icon: ReactNode; tint: string; title: string; body: ReactNode; action?: { label: string; run: () => void | Promise<void> } };
@@ -164,9 +165,7 @@ function LiveTour({ step, i, count, last, next, back, onClose, font }: { step: S
     return () => { window.clearInterval(t); window.removeEventListener("resize", measure); };
   }, [step.id]);
   useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
+    return lockPageScroll();
   }, []);
   const pad = 8;
   const high = rect && rect.top < window.innerHeight / 2; // the lit thing is in the top half: card goes below
