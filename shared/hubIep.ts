@@ -6,11 +6,12 @@ import type { Goal, Student, Workspace } from "./teacherHub";
 
 // ─── Meeting notes ───────────────────────────────────────────────────────────
 
-export const IEP_NOTE_KINDS = ["IEP meeting", "Annual review", "Reevaluation", "Amendment", "Eligibility", "Parent conference", "Push-in class", "Pull-out class", "Other"] as const;
+export const IEP_NOTE_KINDS = ["Student note", "IEP meeting", "Annual review", "Reevaluation", "Amendment", "Eligibility", "Parent conference", "Push-in class", "Pull-out class", "Other"] as const;
 export type IepNoteKind = (typeof IEP_NOTE_KINDS)[number];
 
 /** The sections each kind of note starts with. Anything can be left blank. */
 export const NOTE_SECTIONS: Record<IepNoteKind, string[]> = {
+  "Student note": ["What happened", "What I did", "Next steps"],
   "IEP meeting": ["Who attended", "Strengths and present levels", "Parent and student input", "Goals reviewed or added", "Accommodations and modifications", "Services and minutes", "Decisions", "Next steps"],
   "Annual review": ["Who attended", "Progress on last year's goals", "Present levels", "Parent and student input", "New goals", "Accommodations", "Services and minutes", "Next steps"],
   Reevaluation: ["Who attended", "Reason for reevaluation", "Assessments given", "Results", "Eligibility decision", "Parent input", "Next steps"],
@@ -21,6 +22,10 @@ export const NOTE_SECTIONS: Record<IepNoteKind, string[]> = {
   "Pull-out class": ["Group", "Skill worked on", "How the students did", "Data collected", "Next time"],
   Other: ["Notes"],
 };
+
+/** Which of the three kinds of notes a note is: about a student, about a class, or about a meeting. */
+export type NoteGroup = "student" | "class" | "meeting";
+export const noteGroup = (kind: IepNoteKind): NoteGroup => (kind === "Student note" ? "student" : kind === "Push-in class" || kind === "Pull-out class" ? "class" : "meeting");
 
 export type IepNote = {
   id: string; student: string; kind: IepNoteKind; date: string;
