@@ -89,3 +89,59 @@
 .pl-v-pad .pl-notes { grid-template-columns: 1fr; }
 .pl-v-pad .pl-notes button { min-height: 0; transform: none; }
 .pl-preview .pl-pinbar, .pl-preview .pl-cab { position: absolute; }
+
+/* Strips: full-width colour bands with a sound-wave texture */
+.pl-s .pl-acc { color: var(--an-violet-ink); }
+.pl-stripl { list-style: none; margin: 1rem -1rem 0; padding: 0; }
+.pl-stripl button { display: flex; flex-direction: column; justify-content: flex-end; gap: 4px; width: 100%; min-height: 96px; padding: 14px 20px; border: 0; color: #17140f; text-align: left; background-image: repeating-linear-gradient(90deg, rgba(0,0,0,.22) 0 2px, transparent 2px 5px); background-size: 40% 38%; background-repeat: no-repeat; background-position: right 14px top 14px; }
+.pl-stripl .pl-kk { color: inherit; opacity: .75; } .pl-stripl b { font: 700 24px/1.05 var(--an-serif); letter-spacing: -.02em; overflow-wrap: anywhere; }
+.pl-stripl li:nth-child(6n+1) button { background-color: #ff5b3a; } .pl-stripl li:nth-child(6n+2) button { background-color: #ffc02e; }
+.pl-stripl li:nth-child(6n+3) button { background-color: #16a394; } .pl-stripl li:nth-child(6n+4) button { background-color: #b79cff; }
+.pl-stripl li:nth-child(6n+5) button { background-color: #17140f; color: #fff; } .pl-stripl li:nth-child(6n) button { background-color: #ff9cc8; }
+
+/* Receipts: paper slips on a grey desk */
+.pl-slips { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 16px 12px; }
+.pl-slips li:nth-child(even) { margin-top: 28px; }
+.pl-slips button { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 14px 12px 18px; border: 0; background: #fbfaf4; color: #1a1a1a; text-align: center; font-family: var(--an-font); box-shadow: 1px 6px 12px -6px rgba(0,0,0,.45); clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), 94% 100%, 88% calc(100% - 6px), 82% 100%, 76% calc(100% - 6px), 70% 100%, 64% calc(100% - 6px), 58% 100%, 52% calc(100% - 6px), 46% 100%, 40% calc(100% - 6px), 34% 100%, 28% calc(100% - 6px), 22% 100%, 16% calc(100% - 6px), 10% 100%, 4% calc(100% - 6px), 0 100%); }
+.pl-slips li:nth-child(odd) button { transform: rotate(-3deg); } .pl-slips li:nth-child(even) button { transform: rotate(2.5deg); }
+.pl-slips small { color: #5a5646; letter-spacing: .06em; } .pl-slips b { font: 700 16px/1.1 var(--an-serif); text-transform: uppercase; padding-bottom: 8px; border-bottom: 1px dashed #1a1a1a; overflow-wrap: anywhere; }
+.pl-slips span { font-size: 12px; line-height: 1.3; text-align: left; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.pl-printbar .pl-pin { background: #e8452c; color: #fff; border-radius: 4px; font-family: var(--an-serif); letter-spacing: .08em; } .pl-printbar .pl-pin svg { color: #fff; }
+.pl-printbar .pl-pin-alt { background: #1a1a1a; color: #fbfaf4; border-radius: 4px; font-family: var(--an-serif); }
+
+/* Deck: one big card, then the rest */
+.pl-deckcard { position: relative; display: flex; flex-direction: column; gap: 8px; width: 100%; margin-top: 1rem; padding: 20px; border: 0; border-radius: 28px; background: var(--an-violet); color: var(--an-on-accent); text-align: left; }
+.pl-deckcard .pl-kk, .pl-deckcard .pl-ix-g { color: inherit; opacity: .8; }
+.pl-deckcard strong { font: 800 clamp(5rem, 28vw, 7rem)/.85 var(--an-serif); letter-spacing: -.05em; }
+.pl-deckcard b { font: 700 28px/1.05 var(--an-serif); letter-spacing: -.02em; overflow-wrap: anywhere; }
+.pl-deckrows { list-style: none; margin: .8rem 0 0; padding: 0; }
+.pl-deckrows button { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; width: 100%; padding: 14px 4px; border: 0; border-bottom: 1px solid var(--an-line); background: none; color: var(--an-ink); text-align: left; }
+.pl-deckrows b { font: 700 18px/1.15 var(--an-serif); }
+
+/* Tape rack: cassettes on a tan shelf */
+.pl-tapes { list-style: none; margin: 1rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.pl-tapes button { display: flex; flex-direction: column; gap: 12px; width: 100%; padding: 12px; border: 0; border-radius: 12px; color: #2a1d12; text-align: left; box-shadow: 0 5px 0 rgba(0,0,0,.25); }
+.pl-tapes li:nth-child(4n+1) button { background: #e85d3f; } .pl-tapes li:nth-child(4n+2) button { background: #2e6fd8; }
+.pl-tapes li:nth-child(4n+3) button { background: #f2b632; } .pl-tapes li:nth-child(4n) button { background: #3e9a6b; }
+.pl-label-w { display: block; padding: 8px 12px; border-radius: 6px; background: #f6efdc; color: #2a1d12; }
+.pl-label-w b { display: block; font: 700 22px/1.1 var(--an-serif); overflow-wrap: anywhere; } .pl-label-w small { color: #5a4a35; font-size: 12px; }
+.pl-reels { display: flex; align-items: center; justify-content: space-between; padding: 0 14px 4px; }
+.pl-reels i { width: 30px; height: 30px; border-radius: 50%; background: #f6efdc; border: 6px solid #1a1410; box-sizing: border-box; }
+.pl-reels em { width: 46%; height: 24px; border-radius: 4px; background: rgba(0,0,0,.55); }
+
+/* Chronograph: a dial for the record button, a dotted day */
+.pl-dialface { position: relative; width: 250px; height: 250px; margin: 1.4rem auto .4rem; }
+.pl-dialface::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: repeating-conic-gradient(var(--an-muted) 0 .7deg, transparent .7deg 6deg); -webkit-mask: radial-gradient(circle, transparent 0 104px, #000 105px 125px, transparent 126px); mask: radial-gradient(circle, transparent 0 104px, #000 105px 125px, transparent 126px); }
+.pl-dialface button { position: absolute; left: 50%; top: 50%; width: 116px; height: 116px; margin: -58px 0 0 -58px; border: 0; border-radius: 50%; background: var(--an-coral); color: var(--an-on-record); display: grid; place-items: center; box-shadow: 0 0 0 14px color-mix(in srgb, var(--an-coral) 22%, transparent); }
+.pl-dialface .pl-pill { position: absolute; width: 30px; height: 14px; border-radius: 99px; } .pl-p1 { left: 8px; top: 70px; background: var(--an-coral); transform: rotate(80deg); } .pl-p2 { right: 12px; top: 108px; background: var(--an-violet); transform: rotate(-35deg); } .pl-p3 { left: 62px; bottom: 6px; background: #5ce1e6; transform: rotate(-25deg); }
+.pl-dots { list-style: none; margin: .6rem 0 0; padding: 0; }
+.pl-dots button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 4px; border: 0; border-top: 1px solid var(--an-line); background: none; color: var(--an-ink); text-align: left; }
+.pl-dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--an-coral); flex: none; } .pl-dots li:nth-child(3n+2) i { background: #5ce1e6; } .pl-dots li:nth-child(3n) i { background: var(--an-violet); }
+.pl-dots b { flex: 1; font: 600 16px/1.2 var(--an-font); }
+
+/* Evening Paper */
+.pl-greet { font-size: 32px; font-weight: 500; line-height: 1.12; padding-top: .4rem; }
+.pl-askdark { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 50px; margin-top: .6rem; border: 0; border-radius: var(--an-radius); background: var(--an-ink); color: var(--an-bg); font: 700 15px/1 var(--an-font); }
+.pl-paperl { list-style: none; margin: 0; padding: 0; }
+.pl-paperl button { display: flex; flex-direction: column; gap: 3px; width: 100%; padding: 12px 0; border: 0; border-bottom: 1px solid var(--an-line); background: none; color: var(--an-ink); text-align: left; }
+.pl-paperl b { font: 500 19px/1.2 var(--an-serif); overflow-wrap: anywhere; }
