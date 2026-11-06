@@ -15,6 +15,7 @@ import { listenForLinks, widgetAi, widgetPages } from "./widgetLinks";
 import { pagesSyncFor } from "./pages/pagesSync";
 import { Btn, IconBtn, Notice, Spinner, ToastHost, plural, shortDate, useToast } from "./ui";
 import { LookHomeHero, LookNoteList, LookTabBar, activeLook } from "./looks";
+import { archClass } from "./protoLooks";
 import "./notes.css";
 import "./notes-themes.css";
 
@@ -192,7 +193,7 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
     }
     return () => { html.style.background = before[0] ?? ""; body.style.background = before[1] ?? ""; if (meta && before[2]) meta.content = before[2]; html.style.overscrollBehavior = overscroll[0]; body.style.overscrollBehavior = overscroll[1]; };
   }, [backdrop, darkBackdrop]);
-  const rootClass = ["an-root min-h-[100dvh]", s?.font === "dyslexic" && "an-dyslexic", s?.simple && "an-simple", s?.contrast && "an-contrast", s?.night && !s?.contrast && !pro && "an-night", s?.large && "an-large", pro && "an-pro", proDark && "an-pro-dark", themed && "an-themed", themed && `an-theme-${look.id}`, suite && "an-suite", suite && `an-suite-${look.id}`, suite && look.dark && "an-suite-dark"].filter(Boolean).join(" ");
+  const rootClass = ["an-root min-h-[100dvh]", s?.font === "dyslexic" && "an-dyslexic", s?.simple && "an-simple", s?.contrast && "an-contrast", s?.night && !s?.contrast && !pro && "an-night", s?.large && "an-large", pro && "an-pro", proDark && "an-pro-dark", themed && "an-themed", themed && `an-theme-${look.id}${archClass(look)}`, suite && "an-suite", suite && `an-suite-${look.id}`, suite && look.dark && "an-suite-dark"].filter(Boolean).join(" ");
   const rootStyle = themed ? themeVars(look) as CSSProperties : suite ? suiteVars(look) : undefined;
 
   if (!me) {
@@ -269,7 +270,7 @@ const TAB_KEY = "arise-notes-tab";
 const lastTab = () => { try { return localStorage.getItem(TAB_KEY) === "pages" ? "pages" : "ai"; } catch { return "ai"; } };
 const rememberTab = (t: "ai" | "pages") => { try { localStorage.setItem(TAB_KEY, t); } catch { /* not kept */ } };
 export function TabBar({ ctx, on }: { ctx: AppCtx; on: "ai" | "pages" }) {
-  if (activeLook(ctx.me.settings)) return <LookTabBar on={on} initial={(ctx.me.user.name || "A").trim().charAt(0).toUpperCase()} home={() => ctx.go({ name: "home" })} notes={() => ctx.go({ name: "pages" })} record={() => ctx.go({ name: "record" })} settings={() => ctx.go({ name: "settings" })} />;
+  if (activeLook(ctx.me.settings)) return <LookTabBar look={activeLook(ctx.me.settings)} on={on} initial={(ctx.me.user.name || "A").trim().charAt(0).toUpperCase()} home={() => ctx.go({ name: "home" })} notes={() => ctx.go({ name: "pages" })} record={() => ctx.go({ name: "record" })} settings={() => ctx.go({ name: "settings" })} />;
   const Tab = ({ id, icon, label }: { id: "ai" | "pages"; icon: ReactNode; label: string }) =>
     <button type="button" role="tab" aria-selected={on === id} onClick={() => ctx.go(id === "ai" ? { name: "home" } : { name: "pages" })} data-testid={`notes-tab-${id}`}
       className={`an-tabpill flex flex-1 items-center justify-center gap-2 rounded-full py-2.5 text-[13.5px] font-bold ${on === id ? "bg-[var(--an-ink)] text-white shadow-[0_8px_18px_-8px_rgba(20,19,31,.7)]" : "text-[var(--an-muted)] hover:text-[var(--an-ink)]"}`}>
@@ -314,7 +315,7 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
       </>} />}
     <main className="mx-auto max-w-5xl space-y-4 px-4 pb-24 pt-4 sm:px-5">
       {look ? <>
-        <LookHomeHero look={look} a={{ first, minutes: <MinutesPill ctx={ctx} />, record: () => ctx.go({ name: "record" }), upload: () => ctx.go({ name: "upload" }), memo: () => ctx.go({ name: "memo" }), ask: () => ctx.go({ name: "ask" }), memoLocked: !ctx.me.features.memo }} />
+        <LookHomeHero look={look} a={{ first, minutes: <MinutesPill ctx={ctx} />, record: () => ctx.go({ name: "record" }), upload: () => ctx.go({ name: "upload" }), memo: () => ctx.go({ name: "memo" }), ask: () => ctx.go({ name: "ask" }), memoLocked: !ctx.me.features.memo, count: all.length, settings: () => ctx.go({ name: "settings" }), pages: () => ctx.go({ name: "pages" }) }} />
       <MinutesBanner ctx={ctx} />
       {!ctx.me.services.speech && <Notice tone="warn">Speech to text isn't switched on for this site yet, so recordings are saved but can't be written down.</Notice>}
 
