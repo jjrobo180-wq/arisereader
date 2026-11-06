@@ -103,6 +103,6 @@
 
 /* The Studio looks carry their type into the Notes tab: Billboard shouts, the rest use their display font. */
 .an-root.an-pro.an-prolook .pp-title, .an-root.an-pro.an-prolook .pp-section, .an-root.an-prolook .an-doc-title { font-family: var(--sx-serif) !important; }
-.an-root.an-pro.an-prolook.pl-billboard .pp-title, .an-root.an-prolook.pl-billboard .an-doc-title { text-transform: uppercase; font-weight: 800 !important; letter-spacing: -.03em !important; }
-.an-root.an-pro.an-prolook.pl-billboard .pp-group, .an-root.an-pro.an-prolook.pl-billboard .an-search input { border-radius: 0 !important; }
-.an-root.an-pro.an-prolook.pl-billboard .pp-group { box-shadow: 0 0 0 2px var(--an-ink) !important; }
+.an-root.an-pro.an-prolook.stx-billboard .pp-title, .an-root.an-prolook.stx-billboard .an-doc-title { text-transform: uppercase; font-weight: 800 !important; letter-spacing: -.03em !important; }
+.an-root.an-pro.an-prolook.stx-billboard .pp-group, .an-root.an-pro.an-prolook.stx-billboard .an-search input { border-radius: 0 !important; }
+.an-root.an-pro.an-prolook.stx-billboard .pp-group { box-shadow: 0 0 0 2px var(--an-ink) !important; }
