@@ -53,6 +53,33 @@ export function bespokeHero(look: NotesTheme, a: HomeActions): ReactNode {
       <div className="pl-top"><h1 className="pl-rows-h">{look.v === "pad" ? "Sticky pad" : "Stickies"}</h1><Round a={a} /></div>
       <Actions a={a} />
     </>;
+    case "strips": return <>
+      <div className="pl-top"><h1 className="pl-rows-h">Strips</h1><Round a={a} /></div>
+      <Actions a={a} />
+    </>;
+    case "receipt": return <>
+      <div className="pl-top"><span className="pl-kk">ARISE NOTES · {new Date().toLocaleDateString(undefined, { weekday: "short", month: "numeric", day: "numeric" }).toUpperCase()}</span><Round a={a} /></div>
+      <Actions a={a} />
+    </>;
+    case "deck": return <>
+      <div className="pl-top"><span className="pl-kk">NOTES · {a.count ?? 0}</span><Round a={a} /></div>
+      <Actions a={a} />
+    </>;
+    case "cassette": return <>
+      <div className="pl-top"><h1 className="pl-rows-h">My tapes</h1><Round a={a} /></div>
+      <Actions a={a} />
+    </>;
+    case "dial": return <>
+      <div className="pl-top"><span className="pl-kk">{today.toUpperCase()}</span><span className="pl-kk pl-acc">{a.count ?? 0} CAPTURES</span></div>
+      <div className="pl-dialface" aria-hidden="false"><button type="button" onClick={a.record} data-testid="notes-record" aria-label="Record"><IcMic size={44} /></button><i className="pl-pill pl-p1" /><i className="pl-pill pl-p2" /><i className="pl-pill pl-p3" /></div>
+      <Actions a={a} />
+    </>;
+    case "paper": return <>
+      <h1 className="pl-rows-h pl-greet">{new Date().getHours() < 12 ? "Good morning," : new Date().getHours() < 18 ? "Good afternoon," : "Good evening,"}<br />welcome back.</h1>
+      <button type="button" className="pl-search" onClick={a.ask} data-testid="notes-ask-bar"><IcSearch size={18} />Search every note</button>
+      <button type="button" className="pl-askdark" onClick={a.ask}><Svg size={18}><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" /></Svg>Ask your notes anything</button>
+      <div className="pl-chips"><button type="button" onClick={a.upload} data-testid="notes-upload">Upload</button><button type="button" onClick={a.memo} data-testid="notes-memo">Voice memo{a.memoLocked ? " · Basic" : ""}</button></div>
+    </>;
     default: return null;
   }
 }
@@ -79,6 +106,19 @@ export function BespokeList({ look, notes, onOpen }: { look: NotesTheme; notes: 
       </>;
     }
     case "sticky": return <ul className="pl-notes">{notes.map((n) => <li key={n.id}><button type="button" onClick={() => onOpen(n)} data-testid="notes-card"><b><Title n={n} /></b><span>{gist(n)}</span><small>{dayWord(n.createdAt)}</small></button></li>)}</ul>;
+    case "strips": return <ul className="pl-stripl">{notes.map((n) => <li key={n.id}><button type="button" onClick={() => onOpen(n)} data-testid="notes-card"><span className="pl-kk">{label(n)} · {mins(n) || dayWord(n.createdAt)}</span><b><Title n={n} /></b></button></li>)}</ul>;
+    case "receipt": return <ul className="pl-slips">{notes.map((n) => <li key={n.id}><button type="button" onClick={() => onOpen(n)} data-testid="notes-card"><small>{label(n).toUpperCase()} · {mins(n) || dayWord(n.createdAt)}</small><b><Title n={n} /></b><span>{gist(n)}</span></button></li>)}</ul>;
+    case "deck": {
+      const [first, ...rest] = notes;
+      return <>{first && <button type="button" className="pl-deckcard" onClick={() => onOpen(first)} data-testid="notes-card"><span className="pl-kk">{dayWord(first.createdAt)} · {label(first)} · {mins(first) || "note"}</span><strong aria-hidden>{String(notes.length).padStart(2, "0")}</strong><b><Title n={first} /></b><span className="pl-ix-g">{gist(first)}</span></button>}
+        <ul className="pl-deckrows">{rest.map((n) => <li key={n.id}><button type="button" onClick={() => onOpen(n)} data-testid="notes-card"><b><Title n={n} /></b><small>{metaOf(n)}</small></button></li>)}</ul></>;
+    }
+    case "cassette": return <ul className="pl-tapes">{notes.map((n) => <li key={n.id}><button type="button" onClick={() => onOpen(n)} data-testid="notes-card"><span className="pl-label-w"><b><Title n={n} /></b><small>{metaOf(n)} · side A</small></span><span className="pl-reels" aria-hidden><i /><em /><i /></span></button></li>)}</ul>;
+    case "dial": return <ul className="pl-dots">{notes.map((n) => <li key={n.id}><button type="button" onClick={() => onOpen(n)} data-testid="notes-card"><i aria-hidden /><b><Title n={n} /></b><small>{new Date(n.createdAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</small></button></li>)}</ul>;
+    case "paper": {
+      const groups: [string, ListNote[]][] = []; for (const n of notes) { const k = dayWord(n.createdAt); const g = groups.find((x) => x[0] === k); if (g) g[1].push(n); else groups.push([k, [n]]); }
+      return <>{groups.map(([k, list]) => <section key={k}><div className="pl-kk pl-label">{k}</div><ul className="pl-paperl">{list.map((n) => <li key={n.id}><button type="button" onClick={() => onOpen(n)} data-testid="notes-card"><span className="pl-kk pl-acc">{label(n)} · {mins(n) || dayWord(n.createdAt)}</span><b><Title n={n} /></b><span className="pl-ix-g">{gist(n)}</span></button></li>)}</ul></section>)}</>;
+    }
     default: return null;
   }
 }
@@ -89,6 +129,10 @@ export function bespokeBar(look: NotesTheme, on: "ai" | "pages", record: () => v
     case "wall": return <nav aria-label="Arise Notes" className="an-noprint pl-pinbar" data-testid="notes-tabs">
       <button type="button" className="pl-pin" onClick={record} data-testid="notes-tab-record"><IcMic size={20} />Pin a new note</button>
       {on === "ai" ? <button type="button" className="pl-pin-alt" onClick={notes} data-testid="notes-tab-pages">Notes</button> : <button type="button" className="pl-pin-alt" onClick={home} data-testid="notes-tab-ai">Home</button>}
+    </nav>;
+    case "receipt": return <nav aria-label="Arise Notes" className="an-noprint pl-pinbar pl-printbar" data-testid="notes-tabs">
+      <button type="button" className="pl-pin" onClick={record} data-testid="notes-tab-record"><IcMic size={20} />PRINT NEW</button>
+      {on === "ai" ? <button type="button" className="pl-pin-alt" onClick={notes} data-testid="notes-tab-pages">NOTES</button> : <button type="button" className="pl-pin-alt" onClick={home} data-testid="notes-tab-ai">HOME</button>}
     </nav>;
     case "shelf": return <nav aria-label="Arise Notes" className="an-noprint pl-bar2 pl-bar1" data-testid="notes-tabs">
       <button type="button" className="pl-b-pri" onClick={record} data-testid="notes-tab-record"><IcMic size={18} />Start a page and record</button>
