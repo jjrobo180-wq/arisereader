@@ -13,6 +13,7 @@ import { sanitizeHtml, wordCount } from "@shared/office/docModel";
 import { cleanNoteHtml, noteStartHtml, noteTextOf } from "@shared/richNote";
 import type { Note } from "@shared/familyHub";
 import { useRichEditor } from "./useRichEditor";
+import { lockPageScroll } from "@/lib/scrollLock";
 
 export type FullNoteEditorProps = {
   note: Note;
@@ -77,7 +78,7 @@ export default function FullNoteEditor({ note, colors, onSave, onClose, onDelete
   }, [title, color, pinned, locked]);
   useEffect(() => { if (!note.title && !note.body) window.setTimeout(() => document.getElementById("full-note-title")?.focus(), 30); }, [note.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Behind the editor nothing scrolls.
-  useEffect(() => { const old = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { document.body.style.overflow = old; }; }, []);
+  useEffect(() => lockPageScroll(), []);
   const done = () => { flush(); onClose(); };
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if (e.key === "Escape" && !document.querySelector("[data-office-float]")) { e.preventDefault(); done(); } };

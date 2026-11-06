@@ -11,6 +11,7 @@ import {
   PAGE_SIZES, PLAN_FILTERS, PLAN_FILTER_LABEL, ROLE_FILTERS, ROLE_LABEL, SORTS, SORT_LABEL, TRIAL_CHOICES,
   type Overview, type Person, type PersonSort, type PlanFilter, type RoleFilter,
 } from "@shared/todoAdmin";
+import { lockPageScroll } from "@/lib/scrollLock";
 
 type ListData = { rows: Person[]; page: number; pages: number; total: number; counts: Record<PlanFilter, number>; moneyAvailable: boolean };
 type Payment = { id: string; at: string; cents: number; refundedCents: number; description: string };
@@ -170,10 +171,9 @@ function PersonSheet({ id, onClose, onChanged }: { id: number; onClose: () => vo
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", key);
-    const before = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlock = lockPageScroll();
     closeRef.current?.focus();
-    return () => { window.removeEventListener("keydown", key); document.body.style.overflow = before; };
+    return () => { window.removeEventListener("keydown", key); unlock(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function act(what: string, path: string, body: unknown, ok: string, confirmText?: string) {
