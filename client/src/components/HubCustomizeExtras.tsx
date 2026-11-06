@@ -11,8 +11,8 @@ export function ThemePicker<L extends AnyLayout>({ layout, setLayout, dark = "#2
   return <section>
     <h3 className="text-sm font-black text-slate-900">Theme</h3>
     <p className="mb-3 mt-1 text-sm text-slate-500">A different look for your whole hub. Extreme customization is the whole point — try a few.</p>
-    <p className="mb-3 text-sm font-bold" style={{ color: "#7c5cff" }} data-testid="hub-theme-now">Using now: {(HUB_THEMES.find((t) => t.id === (layout.theme || "x-billboard")) ?? HUB_THEMES[0]).name}</p>
-    <LookPicker current={layout.theme || "x-billboard"} onPick={(id) => setLayout(setTheme(layout, id as HubThemeId))} testPrefix="hub-theme" plain={HUB_THEMES.filter((t) => !t.look && t.id !== "classic").map((t) => ({ id: t.id, name: t.name, blurb: t.tagline, swatch: t.swatch }))} accent="#7c5cff" />
+    <p className="mb-3 text-sm font-bold" style={{ color: "#7c5cff" }} data-testid="hub-theme-now">Using now: {(HUB_THEMES.find((t) => t.id === (layout.theme || "classic")) ?? HUB_THEMES[0]).name}</p>
+    <LookPicker current={layout.theme || "classic"} onPick={(id) => setLayout(setTheme(layout, id as HubThemeId))} testPrefix="hub-theme" plain={HUB_THEMES.filter((t) => !t.look && t.id !== "classic").map((t) => ({ id: t.id, name: t.name, blurb: t.tagline, swatch: t.swatch }))} accent="#7c5cff" />
   </section>;
 }
 
