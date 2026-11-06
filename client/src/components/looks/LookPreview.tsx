@@ -33,7 +33,7 @@ export const PREVIEW_SCREENS: { id: Screen; label: string }[] = [{ id: "home", l
 function Screen({ look, screen, scale }: { look: NotesTheme; screen: Screen; scale: number }) {
   const vars = themeVars(look) as CSSProperties;
   const classic = look.id === "classic";
-  const cls = `an-root an-themed an-theme-${look.id}${archClass(look)} pl-preview`;
+  const cls = `an-root an-themed an-theme-${look.id}${archClass(look)} stx-preview`;
   const frame: CSSProperties = { ...vars, position: "relative", width: 390, height: 760, overflow: "hidden", borderRadius: 34, transformOrigin: "top left", transform: `scale(${scale})`, background: look.bg, color: look.ink, border: `1px solid ${look.line}` };
   return <div style={{ width: 390 * scale, height: 760 * scale, flex: "none" }} aria-hidden>
     <div className={cls} style={frame}>
