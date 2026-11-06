@@ -1,6 +1,6 @@
 import "./lib/accountStorageBoot";
 import "./lib/sampleBoot";
-import { isFitApp, isNotesApp, isReaderApp, markAppReadyWhenDrawn, nativeAppInfo } from "./lib/nativeApp";
+import { isFitApp, isNativeApp, isNotesApp, isReaderApp, markAppReadyWhenDrawn, nativeAppInfo, nativeFlavor } from "./lib/nativeApp";
 import { allowPopups } from "./lib/popupSupport";
 import { createRoot } from "react-dom/client";
 import App from "./App";
@@ -8,6 +8,7 @@ import "./index.css";
 import "./login-mobile-fix.css";
 import "./keyboard-inset.css";
 import "./reader-app.css";
+import "./todo-app.css";
 import { watchKeyboard } from "./lib/keyboardInset";
 import { installDuoPaneBridge } from "./lib/duoPaneBridge";
 import { installMediaUnlock, voiceElement } from "./lib/mediaUnlock";
@@ -23,6 +24,23 @@ if (isFitApp() || isReaderApp() || isNotesApp()) {
   if (vp && !/viewport-fit/.test(vp.getAttribute("content") || "")) vp.setAttribute("content", `${vp.getAttribute("content")}, viewport-fit=cover`);
 }
 if (isReaderApp()) document.documentElement.classList.add("reader-app");
+
+// Arise To Duo draws edge to edge (contentInset "never" in arisetodo/ios-app/capacitor.config.json): the hub's
+// header grows up behind the clock and its bottom bars reach the bottom edge (todo-app.css). An older build
+// that still holds the page inside the screen's safe area is detected by its shorter page and left alone.
+if (isNativeApp() && nativeFlavor() === "todo") {
+  const html = document.documentElement;
+  html.classList.add("todo-app");
+  const edge = () => {
+    const focused = document.activeElement && /input|textarea|select/i.test(document.activeElement.tagName);
+    if (focused) return; // the keyboard shortens the page; judge only without it
+    const scale = window.visualViewport?.scale || 1;
+    html.classList.toggle("todo-edge", window.screen.height - window.innerHeight * scale <= 40);
+  };
+  edge();
+  window.addEventListener("load", edge);
+  window.addEventListener("orientationchange", () => setTimeout(edge, 300));
+}
 
 // Keep Notes at the physical iPhone viewport width. A custom initial-scale=0.9
 // made focus/keyboard geometry inconsistent with WKWebView's visual viewport.
