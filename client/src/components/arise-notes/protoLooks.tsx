@@ -9,6 +9,7 @@ import type { HomeActions } from "./looks";
 import { bespokeHero, BespokeList, bespokeBar } from "./protoLooks2";
 import "./protoLooks.css";
 import "./protoLooks2.css";
+import "./protoPages.css";
 
 export const hasArch = (look: NotesTheme | null | undefined): look is NotesTheme & { arch: string } => !!look?.arch;
 
