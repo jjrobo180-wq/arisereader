@@ -329,7 +329,7 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
         <FormGroup title="Details">
           <FormRow label="Calendar" icon={<CalendarDays size={15} />}><select value={editing.calendarId} onChange={(e) => setEditing({ ...editing, calendarId: e.target.value })} className={rowSelect}>{family.calendars.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></FormRow>
           <FormRow label="Where" icon={<MapPin size={15} />}><input maxLength={160} value={editing.location} onChange={(e) => setEditing({ ...editing, location: e.target.value })} className={rowInput} placeholder="Add a place" /></FormRow>
-          <FormRow label="Notes" icon={<StickyNote size={15} />} stack><textarea rows={2} maxLength={1000} value={editing.notes} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} className={rowInput + " resize-none text-left font-medium"} placeholder="Bring shin guards and water" /></FormRow>
+          <FormRow label="Notes" icon={<StickyNote size={15} />} stack><textarea rows={2} maxLength={1000} value={editing.notes} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} className={rowInput.replace("text-right", "text-left") + " resize-none font-medium"} placeholder="Bring shin guards and water" /></FormRow>
         </FormGroup>
         <div className="min-w-0"><p className="mb-1.5 px-1 text-[11px] font-black uppercase tracking-[.12em] text-slate-500">Who's going</p><MemberPicker members={family.members} value={editing.memberIds} onChange={(ids) => setEditing({ ...editing, memberIds: ids })} multi /></div>
         <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
