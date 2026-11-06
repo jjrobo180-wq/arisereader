@@ -14,6 +14,7 @@ import type { Family } from "@shared/familyHub";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { BACKDROP_REFRESH, sendBackdrop } from "@/lib/nativeBackdrop";
+import { lockPageScroll } from "@/lib/scrollLock";
 
 /** Day mode, whatever the hub looks like: the page body can carry a theme's classes (so pop-ups match the
  *  hub), and their rules read these variables, so setting them here keeps every page of setup light. */
@@ -152,10 +153,7 @@ export default function DuoSetup({ userId, layout, setLayout, plugins, setFamily
   // The app behind the setup must not move: lock its scrolling (iPhone scrolls the page behind a
   // fixed screen otherwise) and put it back exactly where it was after.
   useEffect(() => {
-    const html = document.documentElement, body = document.body, y = window.scrollY;
-    const before = { ho: html.style.overflow, bo: body.style.overflow, bp: body.style.position, bt: body.style.top, bw: body.style.width, bob: body.style.overscrollBehavior };
-    html.style.overflow = "hidden"; body.style.overflow = "hidden"; body.style.position = "fixed"; body.style.top = `-${y}px`; body.style.width = "100%"; body.style.overscrollBehavior = "none";
-    return () => { html.style.overflow = before.ho; body.style.overflow = before.bo; body.style.position = before.bp; body.style.top = before.bt; body.style.width = before.bw; body.style.overscrollBehavior = before.bob; window.scrollTo(0, y); };
+    return lockPageScroll({ fixed: true });
   }, []);
   const page = <div data-backdrop-hold className="fixed inset-0 z-[9000] flex flex-col overflow-hidden bg-white pb-[max(14px,env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] text-[#111018] [color-scheme:light]"
     style={SETUP_STYLE} data-light-island role="dialog" aria-modal="true" aria-label="Set up Arise To Duo" data-testid="duo-setup">

@@ -29,6 +29,7 @@ import { ProgramLinks } from "./HubReader";
 import AddStudentsModal from "./AddStudentsModal";
 import ViewAllStudents from "./ViewAllStudents";
 import BookCatalog from "./BookCatalog";
+import { lockPageScroll } from "@/lib/scrollLock";
 
 const LiveQuizPage = lazy(() => import("@/pages/LiveQuiz"));
 const ScenesPage = lazy(() => import("@/pages/TeacherScenes"));
@@ -46,9 +47,8 @@ function StudentPopup({ pop, onClose }: { pop: StudentPop; onClose: () => void }
   useEffect(() => {
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", esc);
-    const { overflow } = document.body.style;
-    document.body.style.overflow = "hidden";
-    return () => { window.removeEventListener("keydown", esc); document.body.style.overflow = overflow; };
+    const unlock = lockPageScroll();
+    return () => { window.removeEventListener("keydown", esc); unlock(); };
   }, [onClose]);
   const id = String(pop.id);
   return <div className="fixed inset-0 z-[80] flex items-start justify-center bg-black/65 p-2 backdrop-blur-sm sm:p-6" onClick={onClose} data-testid="student-popup">

@@ -11,6 +11,7 @@ import { DESKTOP_LOOKS, SYSTEM_LOOKS, SystemCal, SystemDock, SystemHome, SystemW
 import { PLAY_LOOKS, PlayCal, PlayDock, PlayHome } from "./play";
 import { SUITE_OS_LOOKS, SuiteCal, SuiteHome } from "./suite";
 import "./lookOS.css";
+import { lockPageScroll } from "@/lib/scrollLock";
 
 export type OsScreen = "home" | "tasks" | "calendar" | "notes";
 export type OsMenuItem = { id: string; label: string; detail?: string; icon?: ReactNode; danger?: boolean; onClick: () => void };
@@ -216,13 +217,7 @@ function Cards(p: OsProps) {
  *  scrollable, so a scroll moved it (its rows peeked in under the clock) and the bounce made the dock
  *  jump. The look's screens scroll inside themselves (.los-body). */
 function useStillPage() {
-  useEffect(() => {
-    const html = document.documentElement, body = document.body, y = window.scrollY;
-    const was = { ho: html.style.overflow, hb: html.style.overscrollBehavior, bo: body.style.overflow, bb: body.style.overscrollBehavior, bp: body.style.position, bt: body.style.top, bw: body.style.width };
-    html.style.overflow = "hidden"; html.style.overscrollBehavior = "none";
-    body.style.overflow = "hidden"; body.style.overscrollBehavior = "none"; body.style.position = "fixed"; body.style.top = `-${y}px`; body.style.width = "100%";
-    return () => { html.style.overflow = was.ho; html.style.overscrollBehavior = was.hb; body.style.overflow = was.bo; body.style.overscrollBehavior = was.bb; body.style.position = was.bp; body.style.top = was.bt; body.style.width = was.bw; window.scrollTo(0, y); };
-  }, []);
+  useEffect(() => lockPageScroll({ fixed: true }), []);
 }
 
 /** The phone's strips above and below the page take the look's own color, so the top and bottom bars
