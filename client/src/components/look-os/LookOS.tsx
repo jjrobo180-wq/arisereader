@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type R
 import { themeVars, type NotesTheme } from "@shared/notesThemes";
 import { HubLookHero, LookAgenda, LookTaskList, type AgendaDay, type LookTask } from "@/components/HubLook";
 import { archClass, hasArch } from "@/components/arise-notes/protoLooks";
+import { BACKDROP_REFRESH, sendBackdrop } from "@/lib/nativeBackdrop";
 import { LockedApp, useLock } from "@/components/lock/PrivacyLock";
 import { PREMIUM_LOOKS, PremiumCal, PremiumHome } from "./premium";
 import { DESKTOP_LOOKS, SYSTEM_LOOKS, SystemCal, SystemDock, SystemHome, SystemWindow } from "./systems";
@@ -224,8 +225,20 @@ function useStillPage() {
   }, []);
 }
 
+/** The phone's strips above and below the page take the look's own color, so the top and bottom bars
+ *  run to the edges of the screen (they showed the hub's gray in some looks). */
+function useLookBackdrop(bg: string) {
+  useEffect(() => {
+    const html = document.documentElement, body = document.body, was = [html.style.backgroundColor, body.style.backgroundColor];
+    html.style.backgroundColor = bg; body.style.backgroundColor = bg;
+    sendBackdrop(bg.toLowerCase());
+    return () => { html.style.backgroundColor = was[0]; body.style.backgroundColor = was[1]; window.dispatchEvent(new Event(BACKDROP_REFRESH)); };
+  }, [bg]);
+}
+
 export function LookOS(p0: OsProps) {
   useStillPage();
+  useLookBackdrop(p0.look.bg);
   const lock = useLock();
   const locked = (id: string) => !!p0.lockedApps?.includes(id) && !!lock && !lock.unlocked;
   // Nothing from a locked app shows on Home or in a widget.
@@ -237,7 +250,7 @@ export function LookOS(p0: OsProps) {
   const taskScreen = <div className="los-pad"><header className="los-title"><h1>Tasks</h1></header><div className="los-filter" role="group" aria-label="Show">{chips.map((f) => <button key={f} type="button" aria-pressed={filter === f} onClick={() => setFilter(f)}>{f}</button>)}</div>{shown.length ? <LookTaskList look={p.look} tasks={shown} onToggle={p.toggle} onOpen={p.openTask} /> : <p className="los-none">Nothing here.</p>}</div>;
   // The computer looks open each screen in a window on the desktop.
   const win = (title: string, node: ReactNode) => DESKTOP_LOOKS.has(p.look.id) ? <div className="sys-desk"><SystemWindow look={p.look} title={title} onClose={() => p.go("home")}>{node}</SystemWindow></div> : node;
-  return <div style={themeVars(p.look) as CSSProperties} className={`los los-${p.look.id}${archClass(p.look)}${SYSTEM_LOOKS.has(p.look.id) ? " los-sys" : ""}${PLAY_LOOKS.has(p.look.id) ? " los-play" : ""}${SUITE_OS_LOOKS.has(p.look.id) ? " los-suite" : ""}${p.look.dark ? " los-isdark" : ""}`} data-screen={p.screen} data-testid="look-os">
+  return <div data-backdrop-hold="" style={themeVars(p.look) as CSSProperties} className={`los los-${p.look.id}${archClass(p.look)}${SYSTEM_LOOKS.has(p.look.id) ? " los-sys" : ""}${PLAY_LOOKS.has(p.look.id) ? " los-play" : ""}${SUITE_OS_LOOKS.has(p.look.id) ? " los-suite" : ""}${p.look.dark ? " los-isdark" : ""}`} data-screen={p.screen} data-testid="look-os">
     <header className="los-topbar"><b>{p.look.id === "console" ? `~/${p.hubName.toLowerCase()}` : p.hubName}</b><div className="los-topright">{p.bell}{p.hubSwitch}</div></header>
     <div className="los-body">
       {p.look.id === "gazette" && p.screen !== "home" && <div className="los-paper"><header><h1>The Daily Duo</h1><small>{p.dateLabel}</small></header></div>}
