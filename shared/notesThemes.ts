@@ -7,7 +7,7 @@ export type NotesTheme = {
   accent: string; accentInk: string; accentSoft: string; onAccent: string; record: string; onRecord: string;
   font: string; display: string; fontUrl?: string; radius: number; border?: number; hardShadow?: boolean;
   /** Studio series: which arrangement draws Home, the list and recording (protoLooks.tsx), and which group it shows under. */
-  arch?: string; group?: string;
+  arch?: string; group?: string; rec?: string; hl?: string; hs?: number; ns?: number;
   /** Studio series: the colors at night, when the look is light. */
   night?: Pick<NotesTheme, "bg" | "card" | "line" | "ink" | "muted" | "faint" | "accent" | "accentInk" | "accentSoft" | "onAccent">;
 };

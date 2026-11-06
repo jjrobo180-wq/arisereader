@@ -62,11 +62,127 @@ function BillboardNoteTitle({ title, meta }: { title: string; meta: string }) {
   return <header className="pl-bb-note"><p>{meta}</p><h1>{title}</h1></header>;
 }
 
+// ───────────────────────── Shared pieces for the Studio arrangements ─────────────────────────
+const IconBtns = ({ a, plus }: { a: HomeActions; plus?: boolean }) => <span className="pl-icons">
+  <button type="button" aria-label="Ask or search your notes" onClick={a.ask} data-testid="notes-ask-bar"><IcSearch /></button>
+  {a.settings && <button type="button" aria-label="Settings" onClick={a.settings}><IcGear /></button>}
+  {plus && null}
+</span>;
+const Chips = ({ a, ask = true }: { a: HomeActions; ask?: boolean }) => <div className="pl-chips">
+  <button type="button" onClick={a.upload} data-testid="notes-upload">Upload</button>
+  <button type="button" onClick={a.memo} data-testid="notes-memo">Voice memo{a.memoLocked ? " · Basic" : ""}</button>
+  {ask && <button type="button" onClick={a.ask}>Ask</button>}
+</div>;
+const Head = ({ a, crumb, title, sub }: { a: HomeActions; crumb: string; title: string; sub?: string }) => <header className="pl-head">
+  <div><span className="pl-kk">A.R.I.S.E. NOTES / {crumb}</span><h1>{title}</h1>{sub && <p>{sub}</p>}</div><IconBtns a={a} />
+</header>;
+const gist = (n: ListNote) => n.gist || [kindOf(n), n.actions > 0 ? `${n.actions} to-do${n.actions === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ");
+const label = (n: ListNote) => (n.folder || kindOf(n));
+const Title = ({ n }: { n: ListNote }) => <>{n.title || "Untitled note"}{STATUS[n.status] ? <em> · {STATUS[n.status]}</em> : null}</>;
+/** Two buttons along the bottom: Record, and the second action. */
+function Bar2({ record, second, secondLabel, on }: { record: () => void; second: () => void; secondLabel: string; on?: string }) {
+  return <nav aria-label="Arise Notes" className="an-noprint pl-bar2" data-testid="notes-tabs" data-on={on}>
+    <button type="button" className="pl-b-out" onClick={record} data-testid="notes-tab-record"><IcMic size={18} />Record</button>
+    <button type="button" className="pl-b-pri" onClick={second} data-testid="notes-tab-pages"><svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>{secondLabel}</button>
+  </nav>;
+}
+const sameDay = (iso: string, d: Date) => { const x = new Date(iso); return x.getFullYear() === d.getFullYear() && x.getMonth() === d.getMonth() && x.getDate() === d.getDate(); };
+const hsOf = (look: NotesTheme): CSSProperties | undefined => (look.hs ? ({ ["--pl-hs" as string]: `${look.hs}px` } as CSSProperties) : undefined);
+
+// Index: a precise list, each note a ruled row with its group, title and first lines.
+function IndexHero({ a }: { a: HomeActions }) { return <><Head a={a} crumb="INDEX" title="Index" sub="A precise workspace for every note" /><Chips a={a} /><div className="pl-kk pl-label">Document index</div></>; }
+function IndexList({ notes, onOpen }: { notes: ListNote[]; onOpen: (n: ListNote) => void }) {
+  return <ul className="pl-ix">{notes.map((n) => <li key={n.id}><button type="button" className="pl-ix-row" onClick={() => onOpen(n)} data-testid="notes-card">
+    <span className="pl-kk">{label(n)}</span><b><Title n={n} /></b><span className="pl-ix-g">{gist(n)}</span><small>{metaOf(n)}</small>
+  </button></li>)}</ul>;
+}
+// Chronicle: a week strip, then your notes down a timeline.
+function ChronHero({ a }: { a: HomeActions }) { return <><Head a={a} crumb="CHRONICLE" title="Chronicle" sub="Your ideas, over time" /><Chips a={a} /></>; }
+function ChronList({ notes, onOpen }: { notes: ListNote[]; onOpen: (n: ListNote) => void }) {
+  const today = new Date();
+  const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(today); d.setDate(today.getDate() - 2 + i); return d; });
+  return <>
+    <div className="pl-kk pl-label">{today.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</div>
+    <ol className="pl-week" aria-label="This week">{days.map((d, i) => <li key={i} data-on={i === 2 || undefined} data-has={notes.some((n) => sameDay(n.createdAt, d)) || undefined}><small>{d.toLocaleDateString(undefined, { weekday: "narrow" })}</small><b>{d.getDate()}</b></li>)}</ol>
+    <div className="pl-kk pl-label">Your timeline</div>
+    <ul className="pl-tl">{notes.map((n) => <li key={n.id}><button type="button" onClick={() => onOpen(n)} data-testid="notes-card"><span className="pl-kk">{label(n)}</span><b><Title n={n} /></b><span className="pl-ix-g">{gist(n)}</span><small>{metaOf(n)}</small></button></li>)}</ul>
+  </>;
+}
+// Editorial: one headline, then your writing as a plain list of titles.
+function EditHero({ look, a }: { look: NotesTheme; a: HomeActions }) {
+  return <><div className="pl-top"><span className="pl-kk">A.R.I.S.E. NOTES</span><IconBtns a={a} /></div>
+    <h1 className="pl-hl" style={hsOf(look)}>{look.hl}</h1>
+    <div className="pl-btns"><button type="button" className="pl-b-pri" onClick={a.pages ?? a.record}>Start writing <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17 17 7M8 7h9v9" /></svg></button><button type="button" className="pl-b-out" onClick={a.upload} data-testid="notes-upload">Upload</button><button type="button" className="pl-b-out" onClick={a.memo} data-testid="notes-memo">Memo{a.memoLocked ? " · Basic" : ""}</button></div>
+    <div className="pl-kk pl-label">Your writing</div></>;
+}
+function EditList({ notes, onOpen }: { notes: ListNote[]; onOpen: (n: ListNote) => void }) {
+  return <ul className="pl-ed">{notes.map((n) => <li key={n.id}><button type="button" onClick={() => onOpen(n)} data-testid="notes-card"><b><Title n={n} /></b><small>{dayWord(n.createdAt)}</small></button></li>)}</ul>;
+}
+// Field Notes: a status console with a grid of records.
+function ConsHero({ look, a }: { look: NotesTheme; a: HomeActions }) {
+  return <><Head a={a} crumb="FIELD NOTES" title="FIELD / NOTES" sub="CAPTURE SYSTEM — ACTIVE" />
+    <div className="pl-kk pl-label">System status / online</div><h1 className="pl-hl" style={hsOf(look)}>{look.hl}</h1>
+    <div className="pl-btns"><button type="button" className="pl-b-pri" onClick={a.record} data-testid="notes-record"><IcMic size={16} />CAPTURE</button><button type="button" className="pl-b-out" onClick={a.memo} data-testid="notes-memo">VOICE{a.memoLocked ? " · BASIC" : ""}</button><button type="button" className="pl-b-out" onClick={a.pages ?? a.ask}>INDEX</button></div>
+    <div className="pl-kk pl-label">Latest records / {String(a.count ?? 0).padStart(3, "0")}</div></>;
+}
+function ConsList({ notes, onOpen, onUpload }: { notes: ListNote[]; onOpen: (n: ListNote) => void; onUpload?: () => void }) {
+  return <ul className="pl-grid">{notes.map((n) => <li key={n.id}><button type="button" onClick={() => onOpen(n)} data-testid="notes-card"><span className="pl-kk">{label(n)}</span><b><Title n={n} /></b><span className="pl-ix-g">{gist(n)}</span><small>{metaOf(n)}</small></button></li>)}
+    {onUpload && <li className="pl-new"><button type="button" onClick={onUpload}>+ New record</button></li>}</ul>;
+}
+// Atlas: an overview card, collections as tiles, then what's recent.
+function AtlasHero({ look, a }: { look: NotesTheme; a: HomeActions }) {
+  return <><Head a={a} crumb="ATLAS" title="Atlas" sub="Your ideas, organized" />
+    <div className="pl-card"><span className="pl-kk">Workspace overview</span><h2 className="pl-hl" style={hsOf(look)}>{look.hl?.replace(/^\d+ notes\./, `${a.count ?? 0} notes.`)}</h2><div className="pl-btns"><button type="button" className="pl-b-pri" onClick={a.record} data-testid="notes-record">Record</button><button type="button" className="pl-b-out" onClick={a.upload} data-testid="notes-upload">Upload</button><button type="button" className="pl-b-out" onClick={a.memo} data-testid="notes-memo">Memo{a.memoLocked ? " · Basic" : ""}</button></div></div></>;
+}
+function AtlasList({ notes, onOpen }: { notes: ListNote[]; onOpen: (n: ListNote) => void }) {
+  const groups = new Map<string, ListNote[]>();
+  for (const n of notes) { const k = n.folder || kindOf(n); groups.set(k, [...(groups.get(k) ?? []), n]); }
+  const tiles = [...groups].slice(0, 4);
+  return <>
+    <h2 className="pl-h2">Collections</h2>
+    <ul className="pl-tiles">{tiles.map(([k, list]) => <li key={k}><button type="button" onClick={() => onOpen(list[0])}><span aria-hidden className="pl-tile-i"><IcMic size={22} /></span><b>{k}</b><small>{list.length} note{list.length === 1 ? "" : "s"}</small></button></li>)}</ul>
+    <div className="pl-kk pl-label">Recent</div>
+    <ul className="pl-ix">{notes.slice(0, 6).map((n) => <li key={n.id}><button type="button" className="pl-ix-row" onClick={() => onOpen(n)} data-testid="notes-card"><b><Title n={n} /></b><small>{metaOf(n)}</small></button></li>)}</ul>
+  </>;
+}
+// Stream: one big line, then a stream of notes down a dotted rule.
+function StreamHero({ look, a }: { look: NotesTheme; a: HomeActions }) {
+  return <><div className="pl-top"><span className="pl-kk pl-ink">A.R.I.S.E. / NOTES</span><IconBtns a={a} /></div><h1 className="pl-hl" style={hsOf(look)}>{look.hl}</h1><Chips a={a} /></>;
+}
+function StreamList({ notes, onOpen }: { notes: ListNote[]; onOpen: (n: ListNote) => void }) {
+  return <ul className="pl-st">{notes.map((n) => <li key={n.id}><button type="button" onClick={() => onOpen(n)} data-testid="notes-card"><b><Title n={n} /></b><span className="pl-ix-g">{gist(n)}</span><span className="pl-kk">{label(n)} · {dayWord(n.createdAt)}</span></button></li>)}</ul>;
+}
+function StreamBar({ on, home, notes, record, settings }: { on: "ai" | "pages"; home: () => void; notes: () => void; record: () => void; settings: () => void }) {
+  const Tab = ({ cur, onClick, icon, text, tid }: { cur?: boolean; onClick: () => void; icon: ReactNode; text: string; tid: string }) => <button type="button" aria-current={cur ? "page" : undefined} onClick={onClick} data-testid={tid}>{icon}<span>{text}</span></button>;
+  return <>
+    <button type="button" className="pl-fab" aria-label="New recording" onClick={record} data-testid="notes-tab-record"><svg aria-hidden width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg></button>
+    <nav aria-label="Arise Notes" className="an-noprint pl-tabs" data-testid="notes-tabs">
+      <Tab cur={on === "ai"} onClick={home} tid="notes-tab-ai" text="Home" icon={<Svg size={20} w={2}><path d="M4 11.5 12 4l8 7.5V19a1 1 0 0 1-1 1h-4v-5H9v5H5a1 1 0 0 1-1-1z" /></Svg>} />
+      <Tab cur={on === "pages"} onClick={notes} tid="notes-tab-pages" text="Notes" icon={<Svg size={20} w={2}><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" /></Svg>} />
+      <Tab onClick={record} tid="notes-tab-rec" text="Record" icon={<IcMic size={20} />} />
+      <Tab onClick={settings} tid="notes-tab-settings" text="Settings" icon={<IcGear size={20} />} />
+    </nav>
+  </>;
+}
+/** The recording display shared by the Studio arrangements: a wave, rings, or a live-transcript header. */
+function StudioRecord({ style, secs, live, level, clock }: { style: string; secs: number; live: boolean; level: number; clock: string }) {
+  const bars = Array.from({ length: 25 }, (_, i) => live ? Math.max(8, Math.max(level, .3) * 72 * (.3 + .7 * Math.abs(Math.sin(i * 1.7 + secs)))) : 8);
+  if (style === "ring") return <><div className="pl-rings" aria-hidden><i /><i /><i /><span /></div><div className="pl-clock pl-clock-ring" aria-label={`${clock} recorded`}>{clock}</div></>;
+  if (style === "tx") return <div className="pl-txhead"><span className="pl-clock-sm" aria-label={`${clock} recorded`}>● {clock}</span><span aria-hidden className="pl-minibars">{bars.slice(0, 12).map((h, i) => <i key={i} style={{ height: Math.max(4, h / 3) }} />)}</span></div>;
+  return <><div className="pl-clock" aria-label={`${clock} recorded`}>{clock}</div><div aria-hidden className="pl-wavebars">{bars.map((h, i) => <i key={i} data-hot={i > 14 || undefined} style={{ height: h }} />)}</div></>;
+}
+
 // ───────────────────────── The pieces the app calls ─────────────────────────
 /** The top of Home. */
 export function protoHero(look: NotesTheme, a: HomeActions): ReactNode {
   switch (look.arch) {
     case "billboard": return <BillboardHero a={a} />;
+    case "index": return <IndexHero a={a} />;
+    case "chron": return <ChronHero a={a} />;
+    case "edit": return <EditHero look={look} a={a} />;
+    case "cons": return <ConsHero look={look} a={a} />;
+    case "atlas": return <AtlasHero look={look} a={a} />;
+    case "stream": return <StreamHero look={look} a={a} />;
     default: return null;
   }
 }
@@ -74,13 +190,22 @@ export function protoHero(look: NotesTheme, a: HomeActions): ReactNode {
 export function ProtoList({ look, notes, onOpen }: { look: NotesTheme; notes: ListNote[]; onOpen: (n: ListNote) => void }) {
   switch (look.arch) {
     case "billboard": return <BillboardList notes={notes} onOpen={onOpen} />;
+    case "index": return <IndexList notes={notes} onOpen={onOpen} />;
+    case "chron": return <ChronList notes={notes} onOpen={onOpen} />;
+    case "edit": return <EditList notes={notes} onOpen={onOpen} />;
+    case "cons": return <ConsList notes={notes} onOpen={onOpen} />;
+    case "atlas": return <AtlasList notes={notes} onOpen={onOpen} />;
+    case "stream": return <StreamList notes={notes} onOpen={onOpen} />;
     default: return null;
   }
 }
 /** The bottom bar. */
-export function ProtoTabBar({ look, on, record, notes, home }: { look: NotesTheme; on: "ai" | "pages"; initial: string; home: () => void; notes: () => void; record: () => void; settings: () => void }) {
+export function ProtoTabBar({ look, on, record, notes, home, settings }: { look: NotesTheme; on: "ai" | "pages"; initial: string; home: () => void; notes: () => void; record: () => void; settings: () => void }) {
   switch (look.arch) {
     case "billboard": return <BillboardBar on={on} record={record} notes={notes} home={home} />;
+    case "stream": return <StreamBar on={on} home={home} notes={notes} record={record} settings={settings} />;
+    case "index": case "chron": case "edit": case "cons": case "atlas":
+      return on === "ai" ? <Bar2 record={record} second={notes} secondLabel="New note" on={on} /> : <Bar2 record={record} second={home} secondLabel="Home" on={on} />;
     default: return null;
   }
 }
@@ -90,6 +215,8 @@ export function protoRecordArt(look: NotesTheme, p: { secs: number; paused: bool
   const clock = fmtClock(p.secs);
   switch (look.arch) {
     case "billboard": return <BillboardRecord secs={p.secs} live={live} level={p.level} clock={clock} />;
+    case "index": case "chron": case "edit": case "cons": case "atlas": case "stream":
+      return <StudioRecord style={look.rec ?? "wave"} secs={p.secs} live={live} level={p.level} clock={clock} />;
     default: return null;
   }
 }
@@ -97,6 +224,8 @@ export function protoRecordArt(look: NotesTheme, p: { secs: number; paused: bool
 export function ProtoNoteTitle({ look, title, meta }: { look: NotesTheme; title: string; meta: string }) {
   switch (look.arch) {
     case "billboard": return <BillboardNoteTitle title={title} meta={meta} />;
+    case "index": case "chron": case "edit": case "cons": case "atlas": case "stream":
+      return <header className="pl-note" style={look.ns ? { ["--pl-ns" as string]: `${look.ns}px` } : undefined}><p className="pl-kk">{meta}</p><h1>{title}</h1></header>;
     default: return null;
   }
 }
@@ -111,6 +240,12 @@ export function ProtoHubHero({ look, date, greeting, primary, links }: { look: N
       <button type="button" className="pl-bb-hubmain" onClick={primary.onClick} data-testid="hub-look-primary"><IcMic size={24} />{primary.label}</button>
       <div className="pl-bb-sub">{links.slice(0, 3).map((l) => <button key={l.label} type="button" onClick={l.onClick}>{l.label}</button>)}</div>
     </>;
+    case "index": case "chron": case "edit": case "cons": case "atlas": case "stream": return <>
+      <p className="pl-kk">{date}</p>
+      <h1 className="pl-hubtitle">{greeting}</h1>
+      <button type="button" className="pl-b-pri pl-hubmain" onClick={primary.onClick} data-testid="hub-look-primary"><IcMic size={20} />{primary.label}</button>
+      <div className="pl-chips">{links.slice(0, 3).map((l) => <button key={l.label} type="button" onClick={l.onClick}>{l.label}</button>)}</div>
+    </>;
     default: return null;
   }
 }
@@ -121,6 +256,10 @@ export function ProtoTasks({ look, tasks, onToggle, onOpen }: { look: NotesTheme
       <button type="button" className="pl-bb-check" aria-pressed={t.done} aria-label={t.done ? `Reopen ${t.title}` : `Complete ${t.title}`} onClick={() => onToggle(t.id)}>{t.done ? "✓" : ""}</button>
       <button type="button" className="pl-bb-row" onClick={() => onOpen(t.id)}><span className="pl-bb-n">{two(i)}</span><span className="pl-bb-t"><b>{t.title}</b><small>{[t.late ? "Overdue" : "", t.dueLabel, t.listName, t.assignee].filter(Boolean).join(" · ")}</small></span></button>
     </li>)}</ol>;
+    case "index": case "chron": case "edit": case "cons": case "atlas": case "stream": return <ul className="pl-tasks">{tasks.map((t) => <li key={t.id} data-done={t.done || undefined} data-late={t.late || undefined}>
+      <button type="button" className="pl-check" aria-pressed={t.done} aria-label={t.done ? `Reopen ${t.title}` : `Complete ${t.title}`} onClick={() => onToggle(t.id)}>{t.done ? "✓" : ""}</button>
+      <button type="button" className="pl-trow" onClick={() => onOpen(t.id)}><b>{t.title}</b><small>{[t.late ? "Overdue" : "", t.dueLabel, t.listName, t.assignee].filter(Boolean).join(" · ")}</small></button>
+    </li>)}</ul>;
     default: return null;
   }
 }
@@ -131,6 +270,10 @@ export function ProtoAgenda({ look, days, onPick }: { look: NotesTheme; days: Pr
       <span className="pl-bb-date"><small>{d.weekday}</small><b>{d.day}</b><small>{d.month}</small></span>
       <span className="pl-bb-items">{d.items.slice(0, 3).map((x) => <span key={x.id}><em>{x.time}</em>{x.title}</span>)}{d.items.length > 3 && <span><em /> +{d.items.length - 3} more</span>}</span>
     </button>)}</div>;
+    case "index": case "chron": case "edit": case "cons": case "atlas": case "stream": return <ul className="pl-agenda">{days.map((d) => <li key={d.date}><button type="button" onClick={() => onPick(d.date)}>
+      <span className="pl-date"><small>{d.weekday}</small><b>{d.day}</b></span>
+      <span className="pl-items">{d.items.slice(0, 3).map((x) => <span key={x.id}><em>{x.time}</em>{x.title}</span>)}{d.items.length > 3 && <span>+{d.items.length - 3} more</span>}</span>
+    </button></li>)}</ul>;
     default: return null;
   }
 }

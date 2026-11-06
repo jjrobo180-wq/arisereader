@@ -81,7 +81,146 @@
 .pl-billboard .pl-bb-items { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-weight: 800; text-transform: uppercase; letter-spacing: -.01em; font-size: 17px; }
 .pl-billboard .pl-bb-items em { font-style: normal; margin-right: .5rem; color: var(--an-accent); font-size: 12px; letter-spacing: .08em; }
 
+/* ═════════ The six grid arrangements: Index, Chronicle, Editorial, Field Notes, Atlas, Stream ═════════ */
+.pl-index.an-root::before, .pl-chron.an-root::before, .pl-edit.an-root::before, .pl-cons.an-root::before, .pl-atlas.an-root::before, .pl-stream.an-root::before { background: var(--an-bg); }
+.pl-index header.sticky, .pl-chron header.sticky, .pl-edit header.sticky, .pl-cons header.sticky, .pl-atlas header.sticky, .pl-stream header.sticky { background: var(--an-bg) !important; color: var(--an-ink) !important; border-bottom: 1px solid var(--an-line) !important; }
+.pl-index header.sticky button, .pl-chron header.sticky button, .pl-edit header.sticky button, .pl-cons header.sticky button, .pl-atlas header.sticky button, .pl-stream header.sticky button, .pl-chron header.sticky .an-icon-btn, .pl-edit header.sticky .an-icon-btn, .pl-cons header.sticky .an-icon-btn, .pl-atlas header.sticky .an-icon-btn, .pl-stream header.sticky .an-icon-btn { color: var(--an-ink) !important; }
+.pl-index #notes-heading, .pl-chron #notes-heading, .pl-edit #notes-heading, .pl-cons #notes-heading, .pl-atlas #notes-heading, .pl-stream #notes-heading { display: none; }
+.pl-index .an-l-hero, .pl-chron .an-l-hero, .pl-edit .an-l-hero, .pl-cons .an-l-hero, .pl-atlas .an-l-hero, .pl-stream .an-l-hero { margin: -1.25rem -1rem 0; padding: calc(env(safe-area-inset-top) + 1rem) 1.25rem .25rem; background: var(--an-bg); color: var(--an-ink); gap: 0; }
+.pl-index .an-l-minutes, .pl-chron .an-l-minutes, .pl-edit .an-l-minutes, .pl-cons .an-l-minutes, .pl-atlas .an-l-minutes, .pl-stream .an-l-minutes { align-self: flex-start; color: var(--an-muted); margin-bottom: .5rem; }
+.pl-index .pl-kk, .pl-chron .pl-kk, .pl-edit .pl-kk, .pl-cons .pl-kk, .pl-atlas .pl-kk, .pl-stream .pl-kk { display: block; font: 700 11px/1.2 var(--an-font); letter-spacing: .12em; text-transform: uppercase; color: var(--an-muted); }
+.pl-index .pl-label, .pl-chron .pl-label, .pl-edit .pl-label, .pl-cons .pl-label, .pl-atlas .pl-label, .pl-stream .pl-label { padding: 1.1rem 0 .4rem; }
+.pl-index .pl-head, .pl-chron .pl-head, .pl-edit .pl-head, .pl-cons .pl-head, .pl-atlas .pl-head, .pl-stream .pl-head { display: flex; justify-content: space-between; align-items: flex-start; gap: .5rem; padding-top: .25rem; }
+.pl-index .pl-head h1, .pl-chron .pl-head h1, .pl-edit .pl-head h1, .pl-cons .pl-head h1, .pl-atlas .pl-head h1, .pl-stream .pl-head h1 { margin: .5rem 0 0; font-family: var(--an-serif); font-size: 38px; line-height: 1; letter-spacing: -.02em; font-weight: 700; color: var(--an-ink); }
+.pl-index .pl-head p, .pl-chron .pl-head p, .pl-edit .pl-head p, .pl-cons .pl-head p, .pl-atlas .pl-head p, .pl-stream .pl-head p { margin: .5rem 0 0; font-size: 14px; color: var(--an-muted); }
+.pl-index .pl-top, .pl-chron .pl-top, .pl-edit .pl-top, .pl-cons .pl-top, .pl-atlas .pl-top, .pl-stream .pl-top { display: flex; justify-content: space-between; align-items: center; }
+.pl-index .pl-icons, .pl-chron .pl-icons, .pl-edit .pl-icons, .pl-cons .pl-icons, .pl-atlas .pl-icons, .pl-stream .pl-icons { display: flex; margin-right: -10px; }
+.pl-index .pl-icons button, .pl-chron .pl-icons button, .pl-edit .pl-icons button, .pl-cons .pl-icons button, .pl-atlas .pl-icons button, .pl-stream .pl-icons button { display: grid; place-items: center; width: 44px; height: 44px; border: 0; background: none; color: var(--an-ink); }
+.pl-index .pl-chips, .pl-chron .pl-chips, .pl-edit .pl-chips, .pl-cons .pl-chips, .pl-atlas .pl-chips, .pl-stream .pl-chips { display: flex; flex-wrap: wrap; gap: .45rem; padding: .9rem 0 .2rem; }
+.pl-index .pl-chips button, .pl-chron .pl-chips button, .pl-edit .pl-chips button, .pl-cons .pl-chips button, .pl-atlas .pl-chips button, .pl-stream .pl-chips button { min-height: 38px; padding: 0 15px; border-radius: 999px; border: 1px solid var(--an-line); background: var(--an-card); color: var(--an-ink); font: 600 13px/1 var(--an-font); }
+.pl-index .pl-chips button:first-child, .pl-chron .pl-chips button:first-child, .pl-edit .pl-chips button:first-child, .pl-cons .pl-chips button:first-child, .pl-atlas .pl-chips button:first-child, .pl-stream .pl-chips button:first-child { background: var(--an-violet); color: var(--an-on-accent); border-color: var(--an-violet); }
+.pl-index .pl-btns, .pl-chron .pl-btns, .pl-edit .pl-btns, .pl-cons .pl-btns, .pl-atlas .pl-btns, .pl-stream .pl-btns { display: flex; flex-wrap: wrap; gap: .5rem; padding: 1.1rem 0 .2rem; }
+.pl-index .pl-b-pri, .pl-chron .pl-b-pri, .pl-edit .pl-b-pri, .pl-cons .pl-b-pri, .pl-atlas .pl-b-pri, .pl-stream .pl-b-pri, .pl-index .pl-b-out, .pl-chron .pl-b-out, .pl-edit .pl-b-out, .pl-cons .pl-b-out, .pl-atlas .pl-b-out, .pl-stream .pl-b-out { min-height: 48px; padding: 0 20px; border-radius: var(--an-radius); display: inline-flex; align-items: center; justify-content: center; gap: 8px; font: 700 15px/1 var(--an-font); border: 1px solid var(--an-line); background: var(--an-card); color: var(--an-ink); cursor: pointer; }
+.pl-index .pl-b-pri, .pl-chron .pl-b-pri, .pl-edit .pl-b-pri, .pl-cons .pl-b-pri, .pl-atlas .pl-b-pri, .pl-stream .pl-b-pri { background: var(--an-violet); color: var(--an-on-accent); border-color: var(--an-violet); }
+.pl-index .pl-hl, .pl-chron .pl-hl, .pl-edit .pl-hl, .pl-cons .pl-hl, .pl-atlas .pl-hl, .pl-stream .pl-hl { margin: .6rem 0 0; font-family: var(--an-serif); font-size: var(--pl-hs, 52px); line-height: .98; letter-spacing: -.025em; font-weight: 600; color: var(--an-ink); overflow-wrap: anywhere; }
+.pl-index .pl-ix-g, .pl-chron .pl-ix-g, .pl-edit .pl-ix-g, .pl-cons .pl-ix-g, .pl-atlas .pl-ix-g, .pl-stream .pl-ix-g { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13.5px; line-height: 1.4; color: var(--an-muted); }
+.pl-index small, .pl-chron small, .pl-edit small, .pl-cons small, .pl-atlas small, .pl-stream small { color: var(--an-muted); font-size: 12px; }
+.pl-index .an-search input, .pl-chron .an-search input, .pl-edit .an-search input, .pl-cons .an-search input, .pl-atlas .an-search input, .pl-stream .an-search input { border-radius: var(--an-radius) !important; background: var(--an-card) !important; }
+.pl-index .an-chip, .pl-chron .an-chip, .pl-edit .an-chip, .pl-cons .an-chip, .pl-atlas .an-chip, .pl-stream .an-chip { border-radius: 999px; }
+.pl-index .an-chip[aria-pressed="true"], .pl-chron .an-chip[aria-pressed="true"], .pl-edit .an-chip[aria-pressed="true"], .pl-cons .an-chip[aria-pressed="true"], .pl-atlas .an-chip[aria-pressed="true"], .pl-stream .an-chip[aria-pressed="true"] { background: var(--an-violet); color: var(--an-on-accent); border-color: var(--an-violet); }
+.pl-index main, .pl-chron main, .pl-edit main, .pl-cons main, .pl-atlas main, .pl-stream main { padding-bottom: 8rem; }
+/* Bottom bar: Record and one more */
+.pl-index .pl-bar2, .pl-chron .pl-bar2, .pl-edit .pl-bar2, .pl-cons .pl-bar2, .pl-atlas .pl-bar2, .pl-stream .pl-bar2 { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: flex; gap: 10px; padding: 14px 18px calc(env(safe-area-inset-bottom) + 14px); background: var(--an-bg); border-top: 1px solid var(--an-line); }
+.pl-index .pl-bar2 button, .pl-chron .pl-bar2 button, .pl-edit .pl-bar2 button, .pl-cons .pl-bar2 button, .pl-atlas .pl-bar2 button, .pl-stream .pl-bar2 button { flex: 1; min-height: 52px; border-radius: var(--an-radius); display: flex; align-items: center; justify-content: center; gap: 8px; font: 700 15px/1 var(--an-font); cursor: pointer; }
+.pl-index .pl-bar2 .pl-b-out, .pl-chron .pl-bar2 .pl-b-out, .pl-edit .pl-bar2 .pl-b-out, .pl-cons .pl-bar2 .pl-b-out, .pl-atlas .pl-bar2 .pl-b-out, .pl-stream .pl-bar2 .pl-b-out { background: var(--an-card); color: var(--an-ink); border: 1px solid var(--an-line); }
+.pl-index .pl-bar2 .pl-b-pri, .pl-chron .pl-bar2 .pl-b-pri, .pl-edit .pl-bar2 .pl-b-pri, .pl-cons .pl-bar2 .pl-b-pri, .pl-atlas .pl-bar2 .pl-b-pri, .pl-stream .pl-bar2 .pl-b-pri { background: var(--an-violet); color: var(--an-on-accent); border: 1px solid var(--an-violet); }
+/* A note's heading */
+.pl-index .pl-note, .pl-chron .pl-note, .pl-edit .pl-note, .pl-cons .pl-note, .pl-atlas .pl-note, .pl-stream .pl-note { padding: .5rem 0 .25rem; }
+.pl-index .pl-note h1, .pl-chron .pl-note h1, .pl-edit .pl-note h1, .pl-cons .pl-note h1, .pl-atlas .pl-note h1, .pl-stream .pl-note h1 { margin: .5rem 0 0; font-family: var(--an-serif); font-size: var(--pl-ns, 40px); line-height: 1.02; letter-spacing: -.03em; font-weight: 700; color: var(--an-ink); }
+/* Recording */
+.pl-index .an-l-recsec, .pl-chron .an-l-recsec, .pl-edit .an-l-recsec, .pl-cons .an-l-recsec, .pl-atlas .an-l-recsec, .pl-stream .an-l-recsec { background: var(--an-bg) !important; color: var(--an-ink) !important; border: 0 !important; box-shadow: none !important; border-radius: 0 !important; }
+.pl-index .pl-clock, .pl-chron .pl-clock, .pl-edit .pl-clock, .pl-cons .pl-clock, .pl-atlas .pl-clock, .pl-stream .pl-clock { margin-top: 1.5rem; text-align: center; font-family: var(--an-serif); font-size: clamp(4.4rem, 24vw, 5.8rem); line-height: 1; letter-spacing: -.05em; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pl-index .pl-wavebars, .pl-chron .pl-wavebars, .pl-edit .pl-wavebars, .pl-cons .pl-wavebars, .pl-atlas .pl-wavebars, .pl-stream .pl-wavebars { display: flex; align-items: center; gap: 4px; height: 90px; margin: 1.6rem 0 .5rem; }
+.pl-index .pl-wavebars i, .pl-chron .pl-wavebars i, .pl-edit .pl-wavebars i, .pl-cons .pl-wavebars i, .pl-atlas .pl-wavebars i, .pl-stream .pl-wavebars i { flex: 1; min-width: 0; border-radius: 3px; background: var(--an-muted); opacity: .5; transition: height .12s; }
+.pl-index .pl-wavebars i[data-hot], .pl-chron .pl-wavebars i[data-hot], .pl-edit .pl-wavebars i[data-hot], .pl-cons .pl-wavebars i[data-hot], .pl-atlas .pl-wavebars i[data-hot], .pl-stream .pl-wavebars i[data-hot] { background: var(--an-violet); opacity: 1; }
+.pl-index .pl-rings, .pl-chron .pl-rings, .pl-edit .pl-rings, .pl-cons .pl-rings, .pl-atlas .pl-rings, .pl-stream .pl-rings { position: relative; height: 270px; margin: 1rem 0 0; }
+.pl-index .pl-rings i, .pl-chron .pl-rings i, .pl-edit .pl-rings i, .pl-cons .pl-rings i, .pl-atlas .pl-rings i, .pl-stream .pl-rings i, .pl-index .pl-rings span, .pl-chron .pl-rings span, .pl-edit .pl-rings span, .pl-cons .pl-rings span, .pl-atlas .pl-rings span, .pl-stream .pl-rings span { position: absolute; left: 50%; top: 50%; border-radius: 50%; transform: translate(-50%, -50%); }
+.pl-index .pl-rings i:nth-child(1), .pl-chron .pl-rings i:nth-child(1), .pl-edit .pl-rings i:nth-child(1), .pl-cons .pl-rings i:nth-child(1), .pl-atlas .pl-rings i:nth-child(1), .pl-stream .pl-rings i:nth-child(1) { width: 260px; height: 260px; border: 2px solid color-mix(in srgb, var(--an-violet) 15%, transparent); }
+.pl-index .pl-rings i:nth-child(2), .pl-chron .pl-rings i:nth-child(2), .pl-edit .pl-rings i:nth-child(2), .pl-cons .pl-rings i:nth-child(2), .pl-atlas .pl-rings i:nth-child(2), .pl-stream .pl-rings i:nth-child(2) { width: 204px; height: 204px; border: 2px solid color-mix(in srgb, var(--an-violet) 28%, transparent); }
+.pl-index .pl-rings i:nth-child(3), .pl-chron .pl-rings i:nth-child(3), .pl-edit .pl-rings i:nth-child(3), .pl-cons .pl-rings i:nth-child(3), .pl-atlas .pl-rings i:nth-child(3), .pl-stream .pl-rings i:nth-child(3) { width: 148px; height: 148px; border: 2px solid color-mix(in srgb, var(--an-violet) 50%, transparent); }
+.pl-index .pl-rings span, .pl-chron .pl-rings span, .pl-edit .pl-rings span, .pl-cons .pl-rings span, .pl-atlas .pl-rings span, .pl-stream .pl-rings span { width: 104px; height: 104px; background: var(--an-violet); }
+.pl-index .pl-clock-ring, .pl-chron .pl-clock-ring, .pl-edit .pl-clock-ring, .pl-cons .pl-clock-ring, .pl-atlas .pl-clock-ring, .pl-stream .pl-clock-ring { }
+.pl-index .pl-txhead, .pl-chron .pl-txhead, .pl-edit .pl-txhead, .pl-cons .pl-txhead, .pl-atlas .pl-txhead, .pl-stream .pl-txhead { display: flex; align-items: center; justify-content: space-between; padding: .75rem 0; }
+.pl-index .pl-clock-sm, .pl-chron .pl-clock-sm, .pl-edit .pl-clock-sm, .pl-cons .pl-clock-sm, .pl-atlas .pl-clock-sm, .pl-stream .pl-clock-sm { font: 700 12px/1 var(--an-font); letter-spacing: .12em; color: var(--an-violet); font-variant-numeric: tabular-nums; }
+.pl-index .pl-minibars, .pl-chron .pl-minibars, .pl-edit .pl-minibars, .pl-cons .pl-minibars, .pl-atlas .pl-minibars, .pl-stream .pl-minibars { display: flex; gap: 3px; align-items: center; height: 26px; }
+.pl-index .pl-minibars i, .pl-chron .pl-minibars i, .pl-edit .pl-minibars i, .pl-cons .pl-minibars i, .pl-atlas .pl-minibars i, .pl-stream .pl-minibars i { width: 3px; border-radius: 2px; background: var(--an-violet); }
+
+/* Index: a ruled list of rows */
+.pl-index .pl-ix, .pl-chron .pl-ix, .pl-atlas .pl-ix { list-style: none; margin: 0 -1rem; padding: 0; }
+.pl-index .pl-ix-row, .pl-atlas .pl-ix-row { display: flex; flex-direction: column; gap: 3px; width: 100%; padding: 14px 20px; border: 0; border-bottom: 1px solid var(--an-line); border-left: 3px solid transparent; background: none; color: var(--an-ink); text-align: left; }
+.pl-index .pl-ix-row[data-pin], .pl-atlas .pl-ix-row[data-pin] { border-left-color: var(--an-violet); }
+.pl-index .pl-ix-row b, .pl-atlas .pl-ix-row b { font: 700 19px/1.15 var(--an-serif); letter-spacing: -.01em; overflow-wrap: anywhere; }
+.pl-index .pl-ix-row b em, .pl-atlas .pl-ix-row b em { font: 600 11px/1 var(--an-font); letter-spacing: .06em; color: var(--an-violet-ink); }
+
+/* Chronicle: a week, then a timeline */
+.pl-chron .pl-week { display: flex; gap: 6px; list-style: none; padding: 0; margin: 0; }
+.pl-chron .pl-week li { flex: 1; height: 62px; border-radius: var(--an-radius); border: 1px solid var(--an-line); background: var(--an-card); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; position: relative; }
+.pl-chron .pl-week li[data-on] { background: var(--an-violet); color: var(--an-on-accent); border-color: var(--an-violet); }
+.pl-chron .pl-week li[data-on] small { color: inherit; }
+.pl-chron .pl-week li[data-has]:not([data-on])::after { content: ""; position: absolute; bottom: 7px; width: 5px; height: 5px; border-radius: 50%; background: var(--an-violet); }
+.pl-chron .pl-week small { font-size: 11px; font-weight: 600; }
+.pl-chron .pl-week b { font-size: 17px; font-weight: 700; }
+.pl-chron .pl-tl { list-style: none; margin: 0; padding: 0; position: relative; }
+.pl-chron .pl-tl::before { content: ""; position: absolute; left: 5px; top: 8px; bottom: 8px; width: 2px; background: var(--an-line); }
+.pl-chron .pl-tl li { position: relative; padding-left: 28px; }
+.pl-chron .pl-tl li::before { content: ""; position: absolute; left: 0; top: 20px; width: 12px; height: 12px; border-radius: 50%; background: var(--an-violet); }
+.pl-chron .pl-tl button { display: flex; flex-direction: column; gap: 3px; width: 100%; padding: 12px 0; border: 0; background: none; color: var(--an-ink); text-align: left; }
+.pl-chron .pl-tl b { font: 700 18px/1.15 var(--an-serif); letter-spacing: -.01em; overflow-wrap: anywhere; }
+.pl-chron .pl-tl b em { font: 600 11px/1 var(--an-font); color: var(--an-violet-ink); }
+
+/* Editorial: one line, then titles */
+.pl-edit .pl-hl { font-size: var(--pl-hs, 56px); margin: 1.2rem 0 0; }
+.pl-edit .pl-btns .pl-b-pri { padding-right: 16px; }
+.pl-edit .pl-ed { list-style: none; margin: 0 -1rem; padding: 0; }
+.pl-edit .pl-ed button { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; width: 100%; padding: 13px 20px; border: 0; border-bottom: 1px solid var(--an-line); background: none; color: var(--an-ink); text-align: left; }
+.pl-edit .pl-ed b { font: 600 20px/1.2 var(--an-serif); overflow-wrap: anywhere; }
+.pl-edit .pl-ed b em { font: 600 11px/1 var(--an-font); color: var(--an-violet-ink); }
+.pl-edit .pl-ed small { white-space: nowrap; }
+
+/* Field Notes: a console and a grid of records */
+.pl-cons .pl-hl { font-size: var(--pl-hs, 34px); text-transform: uppercase; letter-spacing: -.01em; }
+.pl-cons .pl-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pl-cons .pl-grid button { display: flex; flex-direction: column; gap: 4px; width: 100%; height: 100%; padding: 14px; border: 1px solid var(--an-line); border-radius: var(--an-radius); background: var(--an-card); color: var(--an-ink); text-align: left; }
+.pl-cons .pl-grid b { font: 700 16px/1.15 var(--an-serif); overflow-wrap: anywhere; }
+.pl-cons .pl-grid b em { font-style: normal; font-size: 10px; color: var(--an-violet-ink); }
+.pl-cons .pl-new button { align-items: center; justify-content: center; border-style: dashed; color: var(--an-violet-ink); font-weight: 700; min-height: 96px; }
+
+/* Atlas: an overview card and tiles */
+.pl-atlas .pl-card { margin-top: 1.2rem; padding: 22px; border: 1px solid var(--an-line); border-radius: var(--an-radius); background: linear-gradient(145deg, color-mix(in srgb, var(--an-violet) 22%, var(--an-card)), var(--an-card)); }
+.pl-atlas .pl-card .pl-hl { font-size: var(--pl-hs, 34px); margin-top: .5rem; }
+.pl-atlas .pl-btns { padding-top: 1rem; }
+.pl-atlas .pl-h2 { margin: 1.4rem 0 .6rem; font: 700 19px/1 var(--an-serif); }
+.pl-atlas .pl-tiles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pl-atlas .pl-tiles button { display: flex; flex-direction: column; justify-content: space-between; gap: 14px; width: 100%; min-height: 112px; padding: 16px; border: 1px solid var(--an-line); border-radius: var(--an-radius); background: var(--an-card); color: var(--an-ink); text-align: left; }
+.pl-atlas .pl-tile-i { color: var(--an-violet-ink); }
+.pl-atlas .pl-tiles b { display: block; font: 700 17px/1.1 var(--an-serif); }
+
+/* Stream: a big line, a dotted stream and a round button */
+.pl-stream .pl-hl { font-size: var(--pl-hs, 56px); margin-top: 1.4rem; }
+.pl-stream .pl-ink { color: var(--an-ink); }
+.pl-stream .pl-st { list-style: none; margin: 1rem 0 0; padding: 0; position: relative; }
+.pl-stream .pl-st::before { content: ""; position: absolute; left: 5px; top: 10px; bottom: 10px; border-left: 2px dotted var(--an-line); }
+.pl-stream .pl-st li { position: relative; padding-left: 28px; }
+.pl-stream .pl-st li::before { content: ""; position: absolute; left: 0; top: 20px; width: 12px; height: 12px; border-radius: 50%; background: var(--an-violet); }
+.pl-stream .pl-st button { display: flex; flex-direction: column; gap: 3px; width: 100%; padding: 10px 0 14px; border: 0; background: none; color: var(--an-ink); text-align: left; }
+.pl-stream .pl-st b { font: 700 21px/1.15 var(--an-serif); letter-spacing: -.015em; overflow-wrap: anywhere; }
+.pl-stream .pl-st b em { font: 600 11px/1 var(--an-font); color: var(--an-violet-ink); }
+.pl-stream .pl-tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: flex; padding: 8px 8px calc(env(safe-area-inset-bottom) + 8px); background: var(--an-bg); border-top: 1px solid var(--an-line); }
+.pl-stream .pl-tabs button { flex: 1; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 0; background: none; color: var(--an-muted); font: 500 11px/1 var(--an-font); }
+.pl-stream .pl-tabs button[aria-current="page"] { color: var(--an-ink); font-weight: 700; }
+.pl-stream .pl-fab { position: fixed; right: 20px; bottom: calc(env(safe-area-inset-bottom) + 84px); z-index: 41; width: 62px; height: 62px; border-radius: 50%; border: 0; background: var(--an-violet); color: var(--an-on-accent); display: grid; place-items: center; box-shadow: 0 10px 24px -8px rgba(0,0,0,.45); }
+
+/* To Duo and WorkHub for the grid arrangements */
+.pl-index .pl-hubtitle, .pl-chron .pl-hubtitle, .pl-edit .pl-hubtitle, .pl-cons .pl-hubtitle, .pl-atlas .pl-hubtitle, .pl-stream .pl-hubtitle { margin: .5rem 0 1rem; font-family: var(--an-serif); font-size: clamp(2.2rem, 11vw, 3rem); line-height: 1; letter-spacing: -.025em; font-weight: 700; color: var(--an-ink); }
+.pl-index .pl-hubmain, .pl-chron .pl-hubmain, .pl-edit .pl-hubmain, .pl-cons .pl-hubmain, .pl-atlas .pl-hubmain, .pl-stream .pl-hubmain { width: 100%; min-height: 60px; font-size: 17px; }
+.pl-index .pl-tasks, .pl-chron .pl-tasks, .pl-edit .pl-tasks, .pl-cons .pl-tasks, .pl-atlas .pl-tasks, .pl-stream .pl-tasks { list-style: none; margin: 0; padding: 0; }
+.pl-index .pl-tasks li, .pl-chron .pl-tasks li, .pl-edit .pl-tasks li, .pl-cons .pl-tasks li, .pl-atlas .pl-tasks li, .pl-stream .pl-tasks li { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--an-line); }
+.pl-index .pl-check, .pl-chron .pl-check, .pl-edit .pl-check, .pl-cons .pl-check, .pl-atlas .pl-check, .pl-stream .pl-check { flex: none; width: 30px; height: 30px; margin-top: 2px; border: 2px solid var(--an-violet); border-radius: calc(var(--an-radius) / 2 + 4px); background: none; color: var(--an-on-accent); font-weight: 800; }
+.pl-index .pl-check[aria-pressed="true"], .pl-chron .pl-check[aria-pressed="true"], .pl-edit .pl-check[aria-pressed="true"], .pl-cons .pl-check[aria-pressed="true"], .pl-atlas .pl-check[aria-pressed="true"], .pl-stream .pl-check[aria-pressed="true"] { background: var(--an-violet); }
+.pl-index .pl-trow, .pl-chron .pl-trow, .pl-edit .pl-trow, .pl-cons .pl-trow, .pl-atlas .pl-trow, .pl-stream .pl-trow { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; border: 0; background: none; padding: 0; color: var(--an-ink); text-align: left; }
+.pl-index .pl-trow b, .pl-chron .pl-trow b, .pl-edit .pl-trow b, .pl-cons .pl-trow b, .pl-atlas .pl-trow b, .pl-stream .pl-trow b { font: 700 17px/1.2 var(--an-serif); overflow-wrap: anywhere; }
+.pl-index .pl-tasks li[data-done] .pl-trow b, .pl-chron .pl-tasks li[data-done] .pl-trow b, .pl-edit .pl-tasks li[data-done] .pl-trow b, .pl-cons .pl-tasks li[data-done] .pl-trow b, .pl-atlas .pl-tasks li[data-done] .pl-trow b, .pl-stream .pl-tasks li[data-done] .pl-trow b { text-decoration: line-through; opacity: .55; }
+.pl-index .pl-tasks li[data-late] .pl-trow small, .pl-chron .pl-tasks li[data-late] .pl-trow small, .pl-edit .pl-tasks li[data-late] .pl-trow small, .pl-cons .pl-tasks li[data-late] .pl-trow small, .pl-atlas .pl-tasks li[data-late] .pl-trow small, .pl-stream .pl-tasks li[data-late] .pl-trow small { color: var(--an-violet-ink); font-weight: 700; }
+.pl-index .pl-agenda, .pl-chron .pl-agenda, .pl-edit .pl-agenda, .pl-cons .pl-agenda, .pl-atlas .pl-agenda, .pl-stream .pl-agenda { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.pl-index .pl-agenda button, .pl-chron .pl-agenda button, .pl-edit .pl-agenda button, .pl-cons .pl-agenda button, .pl-atlas .pl-agenda button, .pl-stream .pl-agenda button { display: flex; gap: 14px; width: 100%; padding: 12px; border: 1px solid var(--an-line); border-radius: var(--an-radius); background: var(--an-card); color: var(--an-ink); text-align: left; }
+.pl-index .pl-date, .pl-chron .pl-date, .pl-edit .pl-date, .pl-cons .pl-date, .pl-atlas .pl-date, .pl-stream .pl-date { width: 52px; flex: none; display: flex; flex-direction: column; align-items: center; padding: 6px 0; border-radius: calc(var(--an-radius) / 2); background: var(--an-violet); color: var(--an-on-accent); }
+.pl-index .pl-date small, .pl-chron .pl-date small, .pl-edit .pl-date small, .pl-cons .pl-date small, .pl-atlas .pl-date small, .pl-stream .pl-date small { color: inherit; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.pl-index .pl-date b, .pl-chron .pl-date b, .pl-edit .pl-date b, .pl-cons .pl-date b, .pl-atlas .pl-date b, .pl-stream .pl-date b { font-size: 22px; line-height: 1; font-weight: 700; }
+.pl-index .pl-items, .pl-chron .pl-items, .pl-edit .pl-items, .pl-cons .pl-items, .pl-atlas .pl-items, .pl-stream .pl-items { display: flex; flex-direction: column; gap: 4px; min-width: 0; font: 600 15px/1.2 var(--an-font); }
+.pl-index .pl-items em, .pl-chron .pl-items em, .pl-edit .pl-items em, .pl-cons .pl-items em, .pl-atlas .pl-items em, .pl-stream .pl-items em { font-style: normal; margin-right: .5rem; color: var(--an-violet-ink); font-size: 12px; }
+
 /* The preview in the picker: three small screens, scaled down */
 .pl-preview { position: relative; width: 390px; height: 760px; overflow: hidden; border-radius: 34px; transform-origin: top left; }
-.pl-preview .an-l-bar, .pl-preview .pl-bb-bar { position: absolute; }
+.pl-preview .an-l-bar, .pl-preview .pl-bb-bar, .pl-preview .pl-bar2, .pl-preview .pl-tabs { position: absolute; }
+.pl-preview .pl-fab { position: absolute; bottom: 84px; }
 .pl-preview main { padding-bottom: 7rem; }
