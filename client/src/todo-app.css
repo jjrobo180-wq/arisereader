@@ -1,7 +1,7 @@
 /* Arise To Duo on the iPhone (html.todo-app, main.tsx) draws edge to edge: the page runs under the clock and
    the Home bar. html.todo-edge is set only when the page really fills the screen (a newer build); an older
    build that still keeps the page inside the safe area gets none of this, so nothing doubles. */
-html.todo-edge { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+html.todo-edge { --sat: max(env(safe-area-inset-top, 0px), 44px); --sab: env(safe-area-inset-bottom, 0px); }
 /* The hub's own header grows up behind the clock: its color reaches the top of the screen, its buttons stay below it. */
 html.todo-edge header.sticky.top-0:not([role="dialog"] *):not(.fixed *):not(.an-root *) { box-sizing: content-box; padding-top: var(--sat); }
 /* A strip in the page's color sits behind the clock, so nothing scrolls under the time when the header slides away. */
