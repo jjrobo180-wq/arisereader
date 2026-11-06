@@ -290,7 +290,7 @@ function ProgressFace({ t, now }: { t: WidgetTheme; now: Date }) {
 function WorkdayFace({ t, item, now, size }: { t: WidgetTheme; item: WidgetItem; now: Date; size: WidgetSize }) {
   const s = workdayState(now, item.start, item.end);
   const hm = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m} min`);
-  const head = s.state === "during" ? `${hm(s.left)} left` : s.state === "before" ? `Starts in ${hm(s.until)}` : s.state === "after" ? "Done for today 🎉" : "Set the start and end";
+  const head = s.state === "during" ? `${hm(s.left)} left` : s.state === "before" ? `Starts in ${hm(s.until)}` : s.state === "after" ? "Done for today" : "Set the start and end";
   return (
     <div className="flex h-full flex-col justify-center gap-2">
       <div className="flex items-baseline justify-between gap-2"><p className="truncate text-sm font-bold">{item.label || "Work day"}</p><Sub t={t}>{Math.round(s.frac * 100)}%</Sub></div>

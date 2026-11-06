@@ -203,7 +203,8 @@ export function ScanMachine({ data, update, onClose, onUse, useLabel }: { data: 
       const ids = [...r.gear, ...(gearFromText(r.name) ? [gearFromText(r.name)!.id] : [])];
       const g = ids.map((id) => GEAR_BY_ID.get(id)).find(Boolean) ?? null;
       if (g) { setGear(g); setAlso(r.gear.filter((id) => id !== g.id).slice(0, 3)); haptic("success"); }
-      else setNote(r.note || "Couldn't identify that machine. Retake the photo showing the entire machine, or pick it from the list.");
+      // Never pass on an AI note that calls equipment "not allowed": say what it is, or ask for a clearer photo.
+      else setNote(r.name ? `That looks like ${r.name.replace(/\.$/, "")}. It isn't in the machine guide yet, so pick the closest one from the list below.` : "Couldn't tell what that is. Retake the photo showing all of it, or pick it from the list.");
     } catch (e: any) { if (isPlusError(e)) ask("photo-scan"); else setNote(e?.message || "The photo couldn't be read. Retake it or pick the machine from the list."); }
     finally { setBusy(false); if (photo.current) photo.current.value = ""; }
   };

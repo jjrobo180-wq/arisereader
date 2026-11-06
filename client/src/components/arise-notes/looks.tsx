@@ -1,10 +1,10 @@
 // The designs behind Settings > Appearance: each look's own Home, recording display and note heading.
 // Everything still does the same work as the Classic screens; only the arrangement changes.
 import { type CSSProperties, useEffect, useState, type ReactNode } from "react";
-import { SUITE_LOOKS, fmtClock, nightLook, templateOf, themeOf, type NotesTheme, type NotesSettings } from "@shared/ariseNotes";
+import { SUITE_LOOKS, fmtClock, nightLook, templateOf, themeOf, themeVars, type NotesTheme, type NotesSettings } from "@shared/ariseNotes";
 import type { ListNote } from "./api";
 import { BubbleWrap, Ferro, Jelly, LavaLamp, MarbleJar, Orrery, RadioDial, Slots, Spinner, SynthKeys } from "@/components/look-os/toys";
-import { ProtoList, ProtoNoteTitle, ProtoTabBar, hasArch, protoHero, protoRecordArt } from "./protoLooks";
+import { ProtoList, ProtoNoteTitle, ProtoTabBar, archClass, hasArch, protoHero, protoRecordArt } from "./protoLooks";
 import "./notes-systems.css";
 import "./notes-play.css";
 import "./notes-suite.css";
@@ -235,7 +235,9 @@ export function LookNoteTitle({ look, title, meta }: { look: NotesTheme; title: 
 
 /** The floating icon bar at the bottom: Home, Notes, Record and your settings. */
 export function LookTabBar({ look, on, initial, home, notes, record, settings }: { look?: NotesTheme | null; on: "ai" | "pages"; initial: string; home: () => void; notes: () => void; record: () => void; settings: () => void }) {
-  if (hasArch(look)) return <ProtoTabBar look={look} on={on} initial={initial} home={home} notes={notes} record={record} settings={settings} />;
+  // Carries its own look, so it is dressed and pinned to the bottom on every screen, including the
+  // Notes tab, which uses the plain page colors (without this the bar lost its styling there and vanished).
+  if (hasArch(look)) return <div className={`pl-barscope${archClass(look)}`} style={themeVars(look) as CSSProperties}><ProtoTabBar look={look} on={on} initial={initial} home={home} notes={notes} record={record} settings={settings} /></div>;
   return <nav aria-label="Arise Notes" className="an-noprint an-l-bar" data-testid="notes-tabs">
     <button type="button" aria-label="Home" aria-current={on === "ai" ? "page" : undefined} onClick={home} data-testid="notes-tab-ai"><Svg size={25}><path d="M4 11.5 12 4l8 7.5V19a1 1 0 0 1-1 1h-4v-5H9v5H5a1 1 0 0 1-1-1z" /></Svg></button>
     <button type="button" aria-label="Notes" aria-current={on === "pages" ? "page" : undefined} onClick={notes} data-testid="notes-tab-pages"><Svg size={25}><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5zM15 5l4 4" /></Svg></button>

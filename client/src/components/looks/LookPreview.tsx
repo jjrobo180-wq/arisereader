@@ -1,6 +1,6 @@
 // A live preview of a look: its real Home, a note and the recording screen, drawn with the same
 // pieces the apps use and scaled down. Nothing here can change anything; it is only for looking.
-import { useEffect, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { themeVars, type NotesTheme } from "@shared/notesThemes";
 import type { ListNote } from "@/components/arise-notes/api";
 import { LookHomeHero, LookNoteList, LookNoteTitle, LookRecordArt, LookTabBar } from "@/components/arise-notes/looks";
@@ -34,7 +34,7 @@ function Screen({ look, screen, scale }: { look: NotesTheme; screen: Screen; sca
   const vars = themeVars(look) as CSSProperties;
   const classic = look.id === "classic";
   const cls = `an-root an-themed an-theme-${look.id}${archClass(look)} pl-preview`;
-  const frame: CSSProperties = { ...vars, transform: `scale(${scale})`, background: look.bg, color: look.ink, border: `1px solid ${look.line}` };
+  const frame: CSSProperties = { ...vars, position: "relative", width: 390, height: 760, overflow: "hidden", borderRadius: 34, transformOrigin: "top left", transform: `scale(${scale})`, background: look.bg, color: look.ink, border: `1px solid ${look.line}` };
   return <div style={{ width: 390 * scale, height: 760 * scale, flex: "none" }} aria-hidden>
     <div className={cls} style={frame}>
       {screen === "home" && <>
@@ -64,13 +64,30 @@ function Screen({ look, screen, scale }: { look: NotesTheme; screen: Screen; sca
   </div>;
 }
 
-/** The three screens side by side (they scroll sideways on a phone). */
-export default function LookPreview({ look, scale = 0.56 }: { look: NotesTheme; scale?: number }) {
+/** One screen at a time, as big as the space allows, with tabs for Home, a note and recording
+ *  (three small screens side by side came out squished and cut off). */
+export default function LookPreview({ look, scale }: { look: NotesTheme; scale?: number }) {
   useEffect(() => { loadFont(look.fontUrl); }, [look]);
-  return <div className="an-scroll flex gap-3 overflow-x-auto pb-2" style={{ scrollSnapType: "x mandatory" }} data-testid="look-preview">
-    {PREVIEW_SCREENS.map((s) => <figure key={s.id} className="m-0 flex-none" style={{ scrollSnapAlign: "start" }}>
-      <Screen look={look} screen={s.id} scale={scale} />
-      <figcaption className="mt-1 text-center text-[12px] font-bold opacity-70">{s.label}</figcaption>
-    </figure>)}
+  const [at, setAt] = useState<Screen>("home");
+  const box = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState(0.8);
+  useEffect(() => {
+    const el = box.current;
+    const measure = () => {
+      const w = el?.clientWidth || 340, h = typeof window === "undefined" ? 800 : window.innerHeight;
+      setFit(Math.max(0.5, Math.min(1, (Math.min(w, 380) - 4) / 390, (h * 0.6) / 760)));
+    };
+    measure();
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure); ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const s = scale ?? fit;
+  return <div ref={box} data-testid="look-preview">
+    <div role="tablist" aria-label="Preview screens" className="mb-3 flex justify-center gap-1.5">
+      {PREVIEW_SCREENS.map((x) => <button key={x.id} type="button" role="tab" aria-selected={at === x.id} onClick={() => setAt(x.id)}
+        className="min-h-10 rounded-full px-4 text-[14px] font-bold" style={at === x.id ? { background: "#0f172a", color: "#ffffff" } : { background: "#f1f5f9", color: "#334155" }}>{x.label}</button>)}
+    </div>
+    <div className="flex justify-center"><Screen look={look} screen={at} scale={s} /></div>
   </div>;
 }

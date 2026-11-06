@@ -2,12 +2,12 @@
 // and switchable layers for tasks, bills and trips. Teachers can also switch on their
 // Arise WorkHub calendar: its events are read live from the Hub and shown here, read-only.
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { CalendarDays, Check, ChevronLeft, ChevronRight, ExternalLink, GraduationCap, Link2, MapPin, Plane, Plus, Receipt, RefreshCw, Repeat2, Trash2, Users } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock, ExternalLink, GraduationCap, Link2, MapPin, Plane, Plus, Receipt, RefreshCw, Repeat, Repeat2, StickyNote, Trash2, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { LookAgenda, useActiveLook } from "@/components/HubLook";
 import { MEMBER_COLORS, addDays, billDue, eventsOn, fromDay, toDay, type FamilyEvent, type EventRepeat } from "@shared/familyHub";
-import { Avatar, Label, MemberPicker, Modal, PageHead, Panel, Toggle, clock12, confirmed, danger, inputClass, memberOf, plain, primary, shortDate, type SectionProps } from "./ui";
+import { Avatar, FormGroup, FormRow, Label, MemberPicker, Modal, PageHead, Panel, PickField, Toggle, clock12, rowInput, rowSelect, confirmed, danger, inputClass, memberOf, plain, primary, shortDate, type SectionProps } from "./ui";
 import { ShareButton } from "./ShareLink";
 import { addToIphoneCalendar, inIphoneApp, readIphoneEvents, type PhoneEvent } from "@/lib/nativeCalendar";
 import { isNativeApp } from "@/lib/nativeApp";
@@ -317,20 +317,21 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
     </div>
 
     {editing && <Modal title={family.events.some((e) => e.id === editing.id) ? "Edit event" : "New event"} onClose={() => setEditing(null)}>
-      <form onSubmit={save} className="space-y-4">
-        <Label text="What"><input autoFocus required maxLength={120} value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} className={inputClass} placeholder="Soccer practice" /></Label>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Label text="Date"><input type="date" required value={editing.date} onChange={(e) => setEditing({ ...editing, date: e.target.value })} className={inputClass} /></Label>
-          <Label text="Starts"><input type="time" value={editing.time} onChange={(e) => setEditing({ ...editing, time: e.target.value })} className={inputClass} /></Label>
-          <Label text="Ends"><input type="time" disabled={!editing.time} value={editing.endTime} onChange={(e) => setEditing({ ...editing, endTime: e.target.value })} className={inputClass} /></Label>
-        </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Label text="Calendar"><select value={editing.calendarId} onChange={(e) => setEditing({ ...editing, calendarId: e.target.value })} className={inputClass}>{family.calendars.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Label>
-          <Label text="Repeats"><select value={editing.repeat} onChange={(e) => setEditing({ ...editing, repeat: e.target.value as EventRepeat })} className={inputClass}><option value="none">Does not repeat</option><option value="weekly">Every week</option><option value="monthly">Every month</option><option value="yearly">Every year (birthdays)</option></select></Label>
-        </div>
-        <div><p className="mb-1.5 text-xs font-bold text-slate-600">Who's going</p><MemberPicker members={family.members} value={editing.memberIds} onChange={(ids) => setEditing({ ...editing, memberIds: ids })} multi /></div>
-        <Label text="Where (optional)"><input maxLength={160} value={editing.location} onChange={(e) => setEditing({ ...editing, location: e.target.value })} className={inputClass} placeholder="Field 3, Central Park" /></Label>
-        <Label text="Notes (optional)"><textarea rows={2} maxLength={1000} value={editing.notes} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} className={inputClass + " py-3"} placeholder="Bring shin guards and water" /></Label>
+      <form onSubmit={save} className="min-w-0 space-y-5">
+        <input autoFocus required maxLength={120} value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} aria-label="What"
+          className="block w-full min-w-0 border-0 border-b-2 border-slate-200 bg-transparent px-1 pb-2 text-[22px] font-black text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-violet-500" placeholder="What's happening?" />
+        <FormGroup title="When">
+          <FormRow label="Date" icon={<CalendarDays size={15} />}><PickField type="date" required label="Date" value={editing.date} onChange={(v) => setEditing({ ...editing, date: v })} /></FormRow>
+          <FormRow label="Starts" icon={<Clock size={15} />}><PickField type="time" label="Starts" empty="All day" value={editing.time} onChange={(v) => setEditing({ ...editing, time: v })} /></FormRow>
+          <FormRow label="Ends" icon={<Clock size={15} />}><PickField type="time" label="Ends" empty={editing.time ? "Add" : "—"} disabled={!editing.time} value={editing.endTime} onChange={(v) => setEditing({ ...editing, endTime: v })} /></FormRow>
+          <FormRow label="Repeats" icon={<Repeat size={15} />}><select value={editing.repeat} onChange={(e) => setEditing({ ...editing, repeat: e.target.value as EventRepeat })} className={rowSelect}><option value="none">Never</option><option value="weekly">Every week</option><option value="monthly">Every month</option><option value="yearly">Every year (birthdays)</option></select></FormRow>
+        </FormGroup>
+        <FormGroup title="Details">
+          <FormRow label="Calendar" icon={<CalendarDays size={15} />}><select value={editing.calendarId} onChange={(e) => setEditing({ ...editing, calendarId: e.target.value })} className={rowSelect}>{family.calendars.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></FormRow>
+          <FormRow label="Where" icon={<MapPin size={15} />}><input maxLength={160} value={editing.location} onChange={(e) => setEditing({ ...editing, location: e.target.value })} className={rowInput} placeholder="Add a place" /></FormRow>
+          <FormRow label="Notes" icon={<StickyNote size={15} />} stack><textarea rows={2} maxLength={1000} value={editing.notes} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} className={rowInput + " resize-none text-left font-medium"} placeholder="Bring shin guards and water" /></FormRow>
+        </FormGroup>
+        <div className="min-w-0"><p className="mb-1.5 px-1 text-[11px] font-black uppercase tracking-[.12em] text-slate-500">Who's going</p><MemberPicker members={family.members} value={editing.memberIds} onChange={(ids) => setEditing({ ...editing, memberIds: ids })} multi /></div>
         <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
           <button type="submit" className={primary + " flex-1 px-5"}><Check size={17} /> Save event</button>
           <button type="button" onClick={() => setEditing(null)} className={plain}>Cancel</button>
