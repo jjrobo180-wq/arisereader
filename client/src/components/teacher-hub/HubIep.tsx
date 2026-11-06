@@ -3,12 +3,12 @@
 // accommodations, progress monitoring and minutes. Pick one student at the top to see just theirs.
 // The rules are in shared/hubIep.ts.
 import { useMemo, useRef, useState, type ReactNode } from "react";
-import { AlertCircle, CalendarClock, Check, ChevronDown, Copy, FileText, Paperclip, Plus, Printer, Sparkles, Trash2, Upload, X } from "lucide-react";
-import { CHECK_CHOICES, COMMON_ACCOMMODATIONS, IEP_NOTE_KINDS, accommodationList, accommodationText, checkEvery, cleanIepNotes, cleanPmFiles, iepComingUp, newIepNote, noteText, pmSheetHtml, pmStatus, type IepNote, type IepNoteKind, type PmFile, type PmState } from "@shared/hubIep";
+import { AlertCircle, CalendarClock, Check, ChevronDown, ChevronLeft, Copy, ListChecks, NotebookPen, Timer, TrendingUp, UserRound, FileText, Paperclip, Plus, Printer, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { CHECK_CHOICES, COMMON_ACCOMMODATIONS, accommodationList, accommodationText, checkEvery, cleanIepNotes, cleanPmFiles, iepComingUp, newIepNote, noteGroup, noteText, pmSheetHtml, pmStatus, type IepNote, type IepNoteKind, type NoteGroup, type PmFile, type PmState } from "@shared/hubIep";
 import { friendlyDate } from "@shared/hubDates";
 import { goalProgress, withPoint } from "@shared/hubProgress";
 import { cleanDriveFiles, driveBytesUsed } from "@shared/driveApp";
-import type { Goal, Workspace } from "@shared/teacherHub";
+import type { Goal, Meeting, NoteItem, Workspace } from "@shared/teacherHub";
 import { API_BASE } from "@/lib/queryClient";
 import { HubModal } from "./HubModal";
 import { GhostButton, PrimaryButton } from "./ui";
@@ -17,8 +17,15 @@ import { WorksheetMaker } from "./HubWorksheet";
 
 type Setter = React.Dispatch<React.SetStateAction<Workspace>>;
 export type IepTab = "overview" | "meetings" | "notes" | "profile" | "accommodations" | "progress" | "minutes";
-const TABS: [IepTab, string][] = [["overview", "Overview"], ["meetings", "Meetings"], ["notes", "Notes"], ["profile", "Profile"], ["accommodations", "Accommodations"], ["progress", "Progress"], ["minutes", "Minutes"]];
-const readTab = (): IepTab => { try { const v = localStorage.getItem("arise-iep-tab") as IepTab; return TABS.some(([k]) => k === v) ? v : "overview"; } catch { return "overview"; } };
+/** The parts of an IEP, as a folder of small apps: the home page shows one tile for each, and inside any of them the others are one tap away. */
+const APPS: { key: Exclude<IepTab, "overview">; label: string; blurb: string; icon: ReactNode; tint: string }[] = [
+  { key: "meetings", label: "Meetings", blurb: "Plan and run IEP meetings", icon: <CalendarClock className="h-5 w-5" />, tint: "bg-violet-50 text-violet-700" },
+  { key: "notes", label: "Notes", blurb: "Student, class and meeting notes", icon: <NotebookPen className="h-5 w-5" />, tint: "bg-amber-50 text-amber-700" },
+  { key: "profile", label: "Profile", blurb: "Who they are and their team", icon: <UserRound className="h-5 w-5" />, tint: "bg-sky-50 text-sky-700" },
+  { key: "accommodations", label: "Accommodations", blurb: "What each student gets", icon: <ListChecks className="h-5 w-5" />, tint: "bg-emerald-50 text-emerald-700" },
+  { key: "progress", label: "Progress", blurb: "Goals, scores and checks", icon: <TrendingUp className="h-5 w-5" />, tint: "bg-rose-50 text-rose-700" },
+  { key: "minutes", label: "Minutes", blurb: "Service minutes by day", icon: <Timer className="h-5 w-5" />, tint: "bg-slate-100 text-slate-700" },
+];
 
 const panel = "rounded-3xl bg-white ring-1 ring-slate-200/70";
 const h3 = "text-[11px] font-semibold uppercase tracking-[.08em] text-slate-500";
@@ -43,18 +50,19 @@ export function IepPage({ workspace, setWorkspace, makeId, today, token, meeting
   /** The Minutes page. */
   minutes: ReactNode;
 }) {
-  const [tab, setTabState] = useState<IepTab>(readTab);
-  const setTab = (t: IepTab) => { setTabState(t); try { localStorage.setItem("arise-iep-tab", t); } catch { /* not remembered */ } };
+  const [tab, setTab] = useState<IepTab>("overview");
   const [studentId, setStudentId] = useState<string | null>(null);
   const [pickOpen, setPickOpen] = useState(false);
   const student = workspace.students.find((s) => s.id === studentId) ?? null;
   const name = student?.name ?? "";
   const mine = <T extends { student: string }>(list: T[]) => (student ? list.filter((x) => x.student === name) : list);
+  const app = APPS.find((a) => a.key === tab);
 
   return (
     <div className="grid gap-3" data-testid="iep-page">
       <div className="flex items-center gap-2">
-        <h2 className="min-w-0 flex-1 truncate text-[26px] font-semibold tracking-tight text-slate-950">IEP</h2>
+        {app && <button type="button" onClick={() => setTab("overview")} aria-label="Back to the IEP folder" className="-ml-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100" data-testid="iep-back"><ChevronLeft className="h-5 w-5" /></button>}
+        <h2 className="min-w-0 flex-1 truncate text-[26px] font-semibold tracking-tight text-slate-950">{app ? <><span className="text-slate-400">IEP · </span>{app.label}</> : "IEP"}</h2>
         <div className="relative">
           <button type="button" onClick={() => setPickOpen((o) => !o)} aria-expanded={pickOpen} className="inline-flex min-h-10 max-w-[13rem] items-center gap-1 rounded-full bg-slate-100 px-3 text-sm font-semibold text-slate-800 hover:bg-slate-200" data-testid="iep-student">
             <span className="truncate">{student ? student.name : "All students"}</span><ChevronDown className="h-4 w-4 shrink-0" />
@@ -68,13 +76,15 @@ export function IepPage({ workspace, setWorkspace, makeId, today, token, meeting
           )}
         </div>
       </div>
-      <div role="tablist" aria-label="IEP" className="-mx-1 flex gap-0.5 overflow-x-auto px-1 pb-0.5" data-testid="iep-tabs">
-        {TABS.map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)} className={`min-h-9 shrink-0 whitespace-nowrap rounded-full px-3.5 text-[13px] font-semibold ${tab === key ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100"}`}>{label}</button>)}
-      </div>
+      {app && (
+        <div role="tablist" aria-label="IEP" className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-0.5" data-testid="iep-tabs">
+          {APPS.map((a) => <button key={a.key} type="button" role="tab" aria-selected={tab === a.key} onClick={() => setTab(a.key)} className={`inline-flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[13px] font-semibold ${tab === a.key ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100"}`}>{a.label}</button>)}
+        </div>
+      )}
 
       {tab === "overview" && <Overview workspace={workspace} today={today} studentName={name} onPick={(id) => setStudentId(id)} go={setTab} />}
       {tab === "meetings" && meetings}
-      {tab === "notes" && <NotesTab workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} today={today} student={name} />}
+      {tab === "notes" && <NotesTab workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} today={today} student={name} go={setTab} />}
       {tab === "profile" && caseload(studentId, setStudentId)}
       {tab === "accommodations" && <Accommodations workspace={workspace} setWorkspace={setWorkspace} studentId={studentId} onPick={setStudentId} />}
       {tab === "progress" && <Progress workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} today={today} token={token} goals={mine(workspace.goals)} student={student} />}
@@ -84,15 +94,39 @@ export function IepPage({ workspace, setWorkspace, makeId, today, token, meeting
   );
 }
 
-// ─── Overview ────────────────────────────────────────────────────────────────
+// ─── The folder: one tile for each part of an IEP ────────────────────────────
 
 function Overview({ workspace, today, studentName, onPick, go }: { workspace: Workspace; today: string; studentName: string; onPick: (id: string | null) => void; go: (t: IepTab) => void }) {
   const due = useMemo(() => iepComingUp(workspace, today).filter((d) => !studentName || d.student === studentName), [workspace.students, workspace.goals, workspace.meetings, today, studentName]);
   const students = studentName ? workspace.students.filter((s) => s.name === studentName) : [...workspace.students].sort((a, b) => a.name.localeCompare(b.name));
   const notes = cleanIepNotes(workspace.iepNotes);
   const KIND_TAB: Record<string, IepTab> = { iep: "meetings", reeval: "meetings", meeting: "meetings", check: "progress" };
+  const own = <T extends { student: string }>(list: T[]) => (studentName ? list.filter((x) => x.student === studentName) : list);
+  const goalsHere = own(workspace.goals);
+  const late = goalsHere.filter((g) => pmStatus(g, today).state === "overdue").length;
+  const soon = goalsHere.filter((g) => pmStatus(g, today).state === "due soon").length;
+  const noteCount = noteEntries(workspace, studentName).length;
+  const accCount = students.reduce((n, s) => n + accommodationList(s.accommodations).length, 0);
+  const upcomingMeetings = own(workspace.meetings).filter((m) => !m.done && m.date >= today).length;
+  const badge: Record<string, { text: string; hot?: boolean }> = {
+    meetings: { text: upcomingMeetings ? `${upcomingMeetings} coming up` : "None coming up" },
+    notes: { text: `${noteCount} note${noteCount === 1 ? "" : "s"}` },
+    profile: { text: studentName ? "Open profile" : `${students.length} student${students.length === 1 ? "" : "s"}` },
+    accommodations: { text: `${accCount} listed` },
+    progress: late ? { text: `${late} check${late === 1 ? "" : "s"} late`, hot: true } : soon ? { text: `${soon} due soon`, hot: true } : { text: `${goalsHere.length} goal${goalsHere.length === 1 ? "" : "s"}` },
+    minutes: { text: "This week" },
+  };
   return (
     <>
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3" data-testid="iep-folder">
+        {APPS.map((a) => (
+          <button key={a.key} type="button" onClick={() => go(a.key)} className={`${panel} flex flex-col items-start gap-3 p-4 text-left transition hover:ring-slate-300 active:scale-[.99]`} data-testid={`iep-tile-${a.key}`}>
+            <span className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl ${a.tint}`}>{a.icon}</span>
+            <span className="min-w-0"><span className="block text-[15px] font-semibold text-slate-950">{a.label}</span><span className="mt-0.5 block text-xs leading-4 text-slate-500">{a.blurb}</span></span>
+            <span className={`mt-auto rounded-full px-2 py-0.5 text-[11px] font-semibold ${badge[a.key].hot ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-600"}`}>{badge[a.key].text}</span>
+          </button>
+        ))}
+      </div>
       <section className={panel} data-testid="iep-coming-up">
         <div className="px-4 pt-4"><h3 className={h3}>Coming up</h3></div>
         {due.length ? <ul className="mx-2 divide-y divide-slate-100 pb-2">{due.slice(0, 12).map((d) => (
@@ -107,16 +141,16 @@ function Overview({ workspace, today, studentName, onPick, go }: { workspace: Wo
         <div className="px-4 pt-4"><h3 className={h3}>{studentName ? "Student" : `Caseload · ${students.length}`}</h3></div>
         {students.length ? <ul className="mx-2 divide-y divide-slate-100 pb-2">{students.map((s) => {
           const g = workspace.goals.filter((x) => x.student === s.name);
-          const late = g.filter((x) => pmStatus(x, today).state === "overdue").length;
+          const lateS = g.filter((x) => pmStatus(x, today).state === "overdue").length;
           const acc = accommodationList(s.accommodations).length;
           const last = notes.filter((n) => n.student === s.name).sort((a, b) => b.date.localeCompare(a.date))[0];
-          return <li key={s.id}><button type="button" onClick={() => onPick(s.id)} className="flex w-full items-center gap-3 px-2 py-3 text-left" data-testid="iep-student-row">
+          return <li key={s.id}><button type="button" onClick={() => onPick(studentName === s.name ? null : s.id)} className="flex w-full items-center gap-3 px-2 py-3 text-left" data-testid="iep-student-row">
             <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">{s.name.split(" ").map((p) => p[0]).slice(0, 2).join("")}</span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[15px] font-medium text-slate-900">{s.name}{s.grade ? <span className="font-normal text-slate-500"> · Grade {s.grade}</span> : null}</span>
               <span className="block truncate text-xs text-slate-500">{[s.iepDate && `IEP ${friendlyDate(s.iepDate, today)}`, s.reevalDate && `Re-eval ${friendlyDate(s.reevalDate, today)}`, `${g.length} goal${g.length === 1 ? "" : "s"}`, `${acc} accommodation${acc === 1 ? "" : "s"}`, last && `last note ${friendlyDate(last.date, today)}`].filter(Boolean).join(" · ")}</span>
             </span>
-            {late > 0 && <span className="shrink-0 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">{late} check{late === 1 ? "" : "s"} late</span>}
+            {lateS > 0 && <span className="shrink-0 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">{lateS} check{lateS === 1 ? "" : "s"} late</span>}
           </button></li>;
         })}</ul> : <p className="px-4 pb-4 pt-2 text-sm text-slate-500">Add students on the Profile tab.</p>}
       </section>
@@ -124,33 +158,108 @@ function Overview({ workspace, today, studentName, onPick, go }: { workspace: Wo
   );
 }
 
-// ─── Notes ───────────────────────────────────────────────────────────────────
+// ─── Notes: one place for student, class and meeting notes ───────────────────
 
-function NotesTab({ workspace, setWorkspace, makeId, today, student }: { workspace: Workspace; setWorkspace: Setter; makeId: () => string; today: string; student: string }) {
-  const notes = useMemo(() => cleanIepNotes(workspace.iepNotes).filter((n) => !student || n.student === student).sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt)), [workspace.iepNotes, student]);
-  const [kind, setKind] = useState<IepNoteKind | "">("");
+type NoteEntry = { key: string; group: NoteGroup; title: string; student: string; date: string; text: string; open: () => void };
+type NoteSource = { kind: "iep"; note: IepNote } | { kind: "work"; note: NoteItem } | { kind: "meeting"; meeting: Meeting } | { kind: "pushin"; id: string };
+type Entry = NoteEntry & { src: NoteSource };
+
+/** Every note about the student (or all students), from every place notes are kept, newest first. */
+function noteEntries(workspace: Workspace, student: string): Entry[] {
+  const out: Entry[] = [];
+  const noop = () => {};
+  for (const n of cleanIepNotes(workspace.iepNotes)) if (!student || n.student === student) out.push({ key: `i${n.id}`, group: noteGroup(n.kind), title: n.kind, student: n.student, date: n.date, text: Object.values(n.sections).find((v) => v.trim()) || "", open: noop, src: { kind: "iep", note: n } });
+  for (const n of workspace.notes || []) if (n.student && (!student || n.student === student || n.students?.includes(student))) out.push({ key: `w${n.id}`, group: "student", title: n.title || n.type || "Note", student: n.student, date: n.date || "", text: n.body || "", open: noop, src: { kind: "work", note: n } });
+  for (const m of workspace.meetings || []) if (m.notes?.trim() && (!student || m.student === student)) out.push({ key: `m${m.id}`, group: "meeting", title: `${m.type} notes`, student: m.student, date: m.date || "", text: m.notes, open: noop, src: { kind: "meeting", meeting: m } });
+  for (const p of (workspace.pushInNotes || []) as any[]) {
+    if (!p || typeof p.id !== "string") continue;
+    const kids: string[] = Array.isArray(p.students) ? p.students.map((x: any) => String(x?.student || "")).filter(Boolean) : [];
+    if (student && !kids.includes(student)) continue;
+    out.push({ key: `p${p.id}`, group: "class", title: String(p.title || p.subject || "Push-in class"), student: kids.slice(0, 2).join(", ") + (kids.length > 2 ? ` +${kids.length - 2}` : ""), date: String(p.date || ""), text: String(p.taught || ""), open: noop, src: { kind: "pushin", id: p.id } });
+  }
+  return out.sort((a, b) => b.date.localeCompare(a.date));
+}
+
+const GROUP_LABEL: Record<NoteGroup, string> = { student: "Student", class: "Class", meeting: "Meeting" };
+const GROUP_TINT: Record<NoteGroup, string> = { student: "bg-amber-50 text-amber-800", class: "bg-sky-50 text-sky-800", meeting: "bg-violet-50 text-violet-800" };
+const NEW_CHOICES: { group: NoteGroup; label: string; blurb: string; kinds: IepNoteKind[] }[] = [
+  { group: "student", label: "About a student", blurb: "What happened, what you did, what is next", kinds: ["Student note"] },
+  { group: "class", label: "About a class", blurb: "A push-in or pull-out session", kinds: ["Push-in class", "Pull-out class"] },
+  { group: "meeting", label: "About a meeting", blurb: "IEP, review, reevaluation, parents…", kinds: ["IEP meeting", "Annual review", "Reevaluation", "Amendment", "Eligibility", "Parent conference", "Other"] },
+];
+
+function NotesTab({ workspace, setWorkspace, makeId, today, student, go }: { workspace: Workspace; setWorkspace: Setter; makeId: () => string; today: string; student: string; go: (t: IepTab) => void }) {
+  const entries = useMemo(() => noteEntries(workspace, student), [workspace.iepNotes, workspace.notes, workspace.meetings, workspace.pushInNotes, student]);
+  const [group, setGroup] = useState<NoteGroup | "">("");
+  const [search, setSearch] = useState("");
+  const [picking, setPicking] = useState(false);
   const [editing, setEditing] = useState<IepNote | null>(null);
-  const shown = kind ? notes.filter((n) => n.kind === kind) : notes;
-  const kinds = IEP_NOTE_KINDS.filter((k) => notes.some((n) => n.kind === k));
+  const [editingWork, setEditingWork] = useState<NoteItem | null>(null);
+  const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
+  const q = search.trim().toLowerCase();
+  const shown = entries.filter((e) => (!group || e.group === group) && (!q || `${e.title} ${e.student} ${e.text}`.toLowerCase().includes(q)));
+  const count = (g: NoteGroup) => entries.filter((e) => e.group === g).length;
   const save = (n: IepNote) => setWorkspace((w) => { const list = cleanIepNotes(w.iepNotes); const next = { ...n, updatedAt: new Date().toISOString() }; return { ...w, iepNotes: list.some((x) => x.id === n.id) ? list.map((x) => (x.id === n.id ? next : x)) : [next, ...list] }; });
+  const start = (kind: IepNoteKind) => { setPicking(false); setEditing(newIepNote(makeId(), student || workspace.students[0]?.name || "", kind, today)); };
+  const open = (e: Entry) => {
+    if (e.src.kind === "iep") setEditing(e.src.note);
+    else if (e.src.kind === "work") setEditingWork(e.src.note);
+    else if (e.src.kind === "meeting") setEditingMeeting(e.src.meeting);
+    else go("minutes");
+  };
   return (
     <>
       <section className={panel} data-testid="iep-notes">
-        <div className="flex items-center justify-between gap-2 px-4 pt-4"><h3 className={h3}>Meeting and class notes</h3></div>
-        <div className="flex gap-1.5 overflow-x-auto px-4 pb-1 pt-3">
-          {IEP_NOTE_KINDS.map((k) => <button key={k} type="button" className={pill(false)} onClick={() => setEditing(newIepNote(makeId(), student || workspace.students[0]?.name || "", k, today))} data-testid="iep-note-new"><Plus className="h-3.5 w-3.5" />{k}</button>)}
+        <div className="flex items-center justify-between gap-2 px-4 pt-4">
+          <h3 className={h3}>All notes{student ? ` · ${student}` : ""}</h3>
+          <button type="button" onClick={() => setPicking(true)} className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-slate-950 px-4 text-sm font-semibold text-white" data-testid="iep-note-new"><Plus className="h-4 w-4" />New note</button>
         </div>
-        {kinds.length > 1 && <div className="flex gap-1.5 overflow-x-auto px-4 pt-2"><button type="button" className={pill(!kind)} onClick={() => setKind("")}>All</button>{kinds.map((k) => <button key={k} type="button" className={pill(kind === k)} onClick={() => setKind(k)}>{k}</button>)}</div>}
-        {shown.length ? <ul className="mx-2 mt-2 divide-y divide-slate-100 pb-2">{shown.map((n) => {
-          const first = Object.values(n.sections).find((v) => v.trim()) || "No notes yet";
-          return <li key={n.id}><button type="button" onClick={() => setEditing(n)} className="block w-full px-2 py-3 text-left">
-            <span className="flex items-baseline justify-between gap-2"><span className="truncate text-[15px] font-medium text-slate-900">{n.kind}{n.student && !student ? ` · ${n.student}` : ""}</span><span className="shrink-0 text-xs text-slate-500">{n.date ? friendlyDate(n.date, today) : ""}</span></span>
-            <span className="mt-0.5 line-clamp-2 block text-sm text-slate-500">{first}</span>
-          </button></li>;
-        })}</ul> : <p className="px-4 pb-5 pt-3 text-sm text-slate-500">No notes yet. Pick the kind above to start one. Each kind comes with the headings you need.</p>}
+        <div className="flex gap-1.5 overflow-x-auto px-4 pb-1 pt-3">
+          <button type="button" className={pill(!group)} onClick={() => setGroup("")}>All {entries.length}</button>
+          {(["student", "class", "meeting"] as NoteGroup[]).map((g) => <button key={g} type="button" className={pill(group === g)} onClick={() => setGroup(group === g ? "" : g)}>{GROUP_LABEL[g]} {count(g)}</button>)}
+        </div>
+        {entries.length > 4 && <div className="px-4 pt-2"><input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search notes" aria-label="Search notes" className="min-h-10 w-full rounded-xl border border-slate-200 px-3 text-base sm:text-sm" /></div>}
+        {shown.length ? <ul className="mx-2 mt-2 divide-y divide-slate-100 pb-2">{shown.map((e) => (
+          <li key={e.key}><button type="button" onClick={() => open(e)} className="block w-full px-2 py-3 text-left" data-testid="iep-note-row">
+            <span className="flex items-center gap-2"><span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${GROUP_TINT[e.group]}`}>{GROUP_LABEL[e.group]}</span><span className="min-w-0 flex-1 truncate text-[15px] font-medium text-slate-900">{e.title}{e.student && !student ? ` · ${e.student}` : ""}</span><span className="shrink-0 text-xs text-slate-500">{e.date ? friendlyDate(e.date, today) : ""}</span></span>
+            {e.text && <span className="mt-0.5 line-clamp-2 block text-sm text-slate-500">{e.text}</span>}
+            {e.src.kind === "pushin" && <span className="mt-0.5 block text-xs font-semibold text-sky-700">Opens in Minutes</span>}
+          </button></li>
+        ))}</ul> : <p className="px-4 pb-5 pt-3 text-sm text-slate-500">{entries.length ? "No notes match." : "No notes yet. Tap New note and pick what it is about. Every note about a student, a class or a meeting shows up here."}</p>}
       </section>
+      {picking && (
+        <HubModal title="New note" size="md" onClose={() => setPicking(false)}>
+          <div className="grid gap-3" data-testid="iep-note-picker">
+            {NEW_CHOICES.map((c) => (
+              <div key={c.group} className="rounded-2xl p-3 ring-1 ring-slate-200">
+                <div className="flex items-center gap-2"><span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${GROUP_TINT[c.group]}`}>{GROUP_LABEL[c.group]}</span><span className="text-[15px] font-semibold text-slate-900">{c.label}</span></div>
+                <p className="mt-0.5 text-xs text-slate-500">{c.blurb}</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">{c.kinds.map((k) => <button key={k} type="button" className={pill(false)} onClick={() => start(k)} data-testid="iep-note-kind">{k}</button>)}</div>
+              </div>
+            ))}
+          </div>
+        </HubModal>
+      )}
       {editing && <NoteEditor note={editing} students={workspace.students.map((s) => s.name)} meetings={workspace.meetings} onSave={(n) => { save(n); setEditing(null); }} onDelete={() => { setWorkspace((w) => ({ ...w, iepNotes: cleanIepNotes(w.iepNotes).filter((x) => x.id !== editing.id) })); setEditing(null); }} onClose={() => setEditing(null)} />}
+      {editingWork && <TextNoteEditor title={editingWork.title || editingWork.type || "Note"} initial={editingWork.body || ""} label="Note"
+        onSave={(text) => { setWorkspace((w) => ({ ...w, notes: w.notes.map((x) => (x.id === editingWork.id ? { ...x, body: text, updatedAt: new Date().toISOString() } : x)) })); setEditingWork(null); }}
+        onDelete={() => { setWorkspace((w) => ({ ...w, notes: w.notes.filter((x) => x.id !== editingWork.id) })); setEditingWork(null); }} onClose={() => setEditingWork(null)} />}
+      {editingMeeting && <TextNoteEditor title={`${editingMeeting.type}${editingMeeting.student ? ` · ${editingMeeting.student}` : ""}`} initial={editingMeeting.notes || ""} label="Meeting notes"
+        onSave={(text) => { setWorkspace((w) => ({ ...w, meetings: w.meetings.map((x) => (x.id === editingMeeting.id ? { ...x, notes: text } : x)) })); setEditingMeeting(null); }} onClose={() => setEditingMeeting(null)} />}
     </>
+  );
+}
+
+/** A note that is one block of text: a student note written on the Notes screen, or a meeting's own notes. */
+function TextNoteEditor({ title, initial, label, onSave, onDelete, onClose }: { title: string; initial: string; label: string; onSave: (text: string) => void; onDelete?: () => void; onClose: () => void }) {
+  const [text, setText] = useState(initial);
+  return (
+    <HubModal title={title} size="lg" onClose={onClose}
+      footer={<div className="flex flex-wrap items-center gap-2"><PrimaryButton onClick={() => onSave(text)}>Save</PrimaryButton><GhostButton onClick={onClose}>Cancel</GhostButton>{onDelete && <button type="button" onClick={onDelete} className="ml-auto inline-flex min-h-10 items-center gap-1 rounded-full px-3 text-xs font-semibold text-red-700 hover:bg-red-50"><Trash2 className="h-3.5 w-3.5" />Delete</button>}</div>}>
+      <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">{label}
+        <textarea data-autofocus value={text} onChange={(e) => setText(e.target.value)} rows={10} className="mt-1 w-full resize-y rounded-xl border border-slate-200 px-3 py-2 text-base font-normal normal-case tracking-normal text-slate-900 sm:text-sm" />
+      </label>
+    </HubModal>
   );
 }
 
