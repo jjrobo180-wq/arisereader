@@ -76,7 +76,7 @@ export function SoundsScreen({ onClose }: { onClose: () => void }) {
   }, [id, timer]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { stop.current?.(); }, []);
   return <Layer><div className="fixed inset-0 z-[95] flex flex-col" style={{ backgroundColor: C.bg, backgroundImage: glowBg, color: C.text, ...font }} role="dialog" aria-modal="true" aria-label="Sleep sounds" data-testid="fit-sleep-sounds">
-    <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
+    <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,var(--sat,env(safe-area-inset-top,0px)))]">
       <button type="button" onClick={onClose} aria-label="Close" className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card }}><X className="h-5 w-5" /></button>
       <h1 className="min-w-0 flex-1 text-center text-[22px]" style={display}>Sleep sounds</h1><span className="w-11" />
     </div>
@@ -213,7 +213,7 @@ export function PillowTracker({ data, update, say, onClose }: { data: FitData; u
   </div></Layer>;
 
   return <Layer><div className="fixed inset-0 z-[95] flex flex-col" style={{ backgroundColor: C.bg, backgroundImage: glowBg, color: C.text, ...font }} role="dialog" aria-modal="true" aria-label="Pillow tracking" data-testid="fit-pillow">
-    <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
+    <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,var(--sat,env(safe-area-inset-top,0px)))]">
       <button type="button" onClick={onClose} aria-label="Close" className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card }}><X className="h-5 w-5" /></button>
       <h1 className="min-w-0 flex-1 text-center text-[22px]" style={display}>Pillow tracking</h1><span className="w-11" />
     </div>
