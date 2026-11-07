@@ -203,6 +203,7 @@ export default function BudgetSetup({ family, today, makeId, onDone, onClose }: 
           </div>}
         </li>)}</ul>
         <button type="button" onClick={() => setBills((all) => [...all, { id: makeId(), name: "New bill", on: true, amount: "", day: "1", split: false, day2: "15", amount2: "", category: "", autopay: false, paid: [] }])} className={plain}><Plus size={16} /> Add another bill</button>
+        {bills.some((b) => !b.on && family.bills.some((x) => x.id === b.id)) && <p className="rounded-2xl bg-amber-50 p-4 text-sm font-semibold text-amber-900">Turned off: {bills.filter((b) => !b.on && family.bills.some((x) => x.id === b.id)).map((b) => b.name).join(", ")}. These will be removed from your bills.</p>}
         <p className="rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-900">Bills: {money(billTotal)} a month · leaves {money(monthly - billTotal)}</p>
       </div>;
       case "Spending": return <div className="space-y-3">
