@@ -96,3 +96,14 @@ test("Arise Fit and Arise Reader use their phone's own clock space; the apps iOS
   const { deviceTopInset } = await import("../client/src/lib/deviceInsets");
   assert.equal(Math.round((deviceTopInset(402, 874)! / 0.9) * 10) / 10, 68.9);
 });
+
+test("Pod+ clears its phone's own clock space too", async () => {
+  const { readFileSync } = await import("node:fs");
+  const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+  assert.match(read("podscroll/main.tsx"), /classList\.add\("pod-native"\); applyDeviceTopInset\(\);/);
+  assert.match(read("podscroll/styles.css"), /html\.pod-native \{ --sat: max\(env\(safe-area-inset-top, 0px\), var\(--sat-device, 0px\)\); \}/);
+  for (const f of ["Home", "Welcome", "Account", "Auth", "main"]) {
+    const src = read(`podscroll/${f}.tsx`).replace(/var\(--sat,env\(safe-area-inset-top,0px\)\)/g, "");
+    assert.deepEqual(src.match(/env\(safe-area-inset-top[^)]*\)/g) ?? [], [], f);
+  }
+});
