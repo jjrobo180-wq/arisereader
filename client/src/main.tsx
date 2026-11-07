@@ -36,21 +36,16 @@ if (isNativeApp() && nativeFlavor() === "todo") {
   html.classList.add("todo-app");
   html.classList.add("todo-edge"); // the app now always draws edge to edge (capacitor.config.json)
 }
-// Arise To Duo on a phone: everything a touch smaller (93%), so more fits on screen. Set once, here, and locked
-// (minimum = maximum = 93%, no user scaling), so nothing can zoom it: not a tapped text box, not the keyboard
-// coming up, not a double tap. It used to be set each time a hub opened (nativeBackdrop.ts) without the lock,
-// while the pin below put it back to 100% whenever the screen changed size (the keyboard counts), so the page
-// jumped in every time a text box was tapped. device-width keeps it filling the screen when the phone turns.
-const TODO_SCALE = 0.93;
+// Arise To Duo on a phone: everything a touch smaller, so more fits on screen. Done with the type size
+// (html.todo-compact in todo-app.css: 93.75%), never with the viewport. Any viewport below 100% (even locked at 93%)
+// draws a 16px text box at about 15px, and iPhone zooms the page in when one is tapped. At 100% it has nothing to zoom to.
 const todoCompact = isNativeApp() && nativeFlavor() === "todo" && (() => {
   const shortSide = Math.min(window.screen.width, window.screen.height);
   return shortSide > 0 && shortSide < 700;
 })();
-if (todoCompact) {
-  document.querySelector('meta[name="viewport"]')?.setAttribute("content", `width=device-width, initial-scale=${TODO_SCALE}, minimum-scale=${TODO_SCALE}, maximum-scale=${TODO_SCALE}, user-scalable=no, shrink-to-fit=no, viewport-fit=cover`);
-}
+if (todoCompact) document.documentElement.classList.add("todo-compact");
 // The clock's real height on this iPhone (lib/deviceInsets.ts): a Dynamic Island needs about 60px, not 44.
-if (isNativeApp() && nativeFlavor() === "todo") applyDeviceTopInset(todoCompact ? TODO_SCALE : 1);
+if (isNativeApp() && nativeFlavor() === "todo") applyDeviceTopInset();
 if (isNotesApp()) applyDeviceTopInset();
 // Arise Reader draws edge to edge too (reader/ios-app/capacitor.config.json), so it gets its phone's own clock space.
 // The Educator, Trainer, Talk and Eye Gazer apps let iOS inset the page ("automatic"), so the system already does this.
@@ -74,7 +69,7 @@ if (isFitApp()) {
 // screen, the bars and cards run off the edge and the page drags sideways, so the viewport is pinned to the
 // screen's own width in pixels. Arise Fit and Arise To Duo are left out: their page is meant to be wider than
 // the screen (laid out at 90% / 93%), and pinning it is exactly what made To Duo jump to 100% while typing.
-if (window.location.protocol === "capacitor:" && !isFitApp() && !todoCompact) {
+if (window.location.protocol === "capacitor:" && !isFitApp()) {
   const meta = () => document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
   const original = meta()?.getAttribute("content") || "";
   let waiting = false;
