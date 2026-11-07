@@ -105,7 +105,7 @@ export const BUNDLES: Bundle[] = [
     description: "Plan the week, tap once to put what you need on your shopping list, and shop with one clean checklist. Your recipes live right here too. Add a pantry, freezer or kitchen timers if you want them.",
     features: ["Plan the week in a glance", "One-tap shopping list from your plan or a recipe", "A clean, sorted checklist", "Recipes, pantry, freezer and timers if you want them"],
     pickerTitle: "Extras for your kitchen", pickerIntro: "Shop, Plan and Recipes are always here. Add anything else you would use.",
-    fixed: ["grocery", "meals", "recipes"],
+    fixed: ["meals", "grocery", "recipes"],
     groups: [
       { title: "Add to your kitchen", members: [
         { id: "timers", label: "Timers", detail: "Run several kitchen timers at once" },
