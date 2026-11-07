@@ -223,7 +223,6 @@
 /* You */
 .los-sheetback { position: fixed; inset: 0; z-index: 60; display: flex; align-items: flex-end; background: rgba(0,0,0,.45); }
 .los-sheet { width: 100%; max-height: 85dvh; overflow-y: auto; padding: 1rem 1rem max(1rem, env(safe-area-inset-bottom)); border-radius: var(--an-radius) var(--an-radius) 0 0; background: var(--an-card); color: var(--an-ink); }
-.los-sheet button { display: block; width: 100%; min-height: 3.2rem; padding: .5rem .3rem; border-bottom: 1px solid var(--an-line); }
 .los-sheet small { display: block; color: var(--an-muted); }
 .los-sheet [data-danger] b { color: var(--an-coral); }
 .los-close { text-align: right !important; font-weight: 700; color: var(--an-violet-ink) !important; }
@@ -334,4 +333,64 @@ html.todo-app .los .los-topbar { padding-top: max(var(--sat, env(safe-area-inset
      with its words lined up with the page below. */
   .los-body > .los-hero, .los-body > .los-tape { max-width: none; margin-inline: 0; padding-left: max(1.5rem, calc((100% - 1500px) / 2 + 1.5rem)); padding-right: max(1.5rem, calc((100% - 1500px) / 2 + 1.5rem)); }
   :is(.los-bloom, .los-frost)[data-screen="home"] .los-body > .los-hero { max-width: none; padding-left: max(1rem, calc((100% - 52rem) / 2 + 1rem)); padding-right: max(1rem, calc((100% - 52rem) / 2 + 1rem)); }
+}
+
+/* The hub's add menu while a look is on: the round button is the dock's +, so only the menu shows, centered above the dock.
+   (The whole box was hidden, so + and "Add a task" opened a menu nobody could see.) */
+.los-addwrap { left: 50% !important; right: auto !important; top: auto !important; bottom: calc(env(safe-area-inset-bottom, 0px) + 5.75rem) !important; transform: translateX(-50%); }
+.los-addwrap > button { display: none !important; }
+.los-addwrap > [role="menu"] { position: static !important; transform: none !important; }
+
+/* The You menu: a bottom sheet on a phone, a card in the corner on a computer. Rows in a rounded group, words on the left. */
+.los-sheet { font-family: var(--an-font); }
+.los-sheet button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; text-align: left; text-transform: none; letter-spacing: normal; }
+.los-you-head { display: flex; align-items: center; justify-content: space-between; padding: .25rem .25rem .75rem; }
+.los-you-head b { font: 800 1.25rem/1 var(--an-serif); }
+.los-sheet .los-close { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 999px; background: color-mix(in srgb, var(--an-ink) 8%, transparent); }
+.los-sheet .los-close svg, .los-you-row svg { width: 1.1rem; height: 1.1rem; }
+.los-you-group { overflow: hidden; margin-bottom: .75rem; border: 1px solid var(--an-line); border-radius: min(var(--an-radius), 18px); background: var(--an-bg); }
+.los-sheet .los-you-row { display: flex; align-items: center; gap: .75rem; width: 100%; min-height: 3.4rem; padding: .6rem 1rem; border-bottom: 1px solid var(--an-line); }
+.los-sheet .los-you-row:last-child { border-bottom: 0; }
+.los-sheet .los-you-row:hover { background: color-mix(in srgb, var(--an-ink) 5%, transparent); }
+.los-you-row > span { flex: 1; min-width: 0; }
+.los-you-row b { display: block; font-size: .98rem; font-weight: 700; }
+.los-you-row small { display: block; margin-top: .1rem; font-size: .8rem; color: var(--an-muted); }
+.los-you-row svg { flex: none; color: var(--an-muted); }
+.los-you-row[data-danger] b { color: var(--an-coral); }
+@media (min-width: 900px) {
+  .los-sheetback { align-items: flex-start; justify-content: flex-end; padding: 4.5rem 1.25rem 1.25rem; background: rgba(0,0,0,.3); }
+  .los-sheet { width: 24rem; max-height: calc(100dvh - 6rem); padding: 1rem; border-radius: min(var(--an-radius), 22px); box-shadow: 0 24px 60px -20px rgba(0,0,0,.6); border: 1px solid var(--an-line); }
+}
+
+/* ─── On a computer the dock is a sidebar, as a desktop app has (it was the phone's bottom bar). Every look keeps its
+   colors: the rail is the look's card color, the page it's on is beside it. The computer looks (Desktop, Workstation,
+   Millennium, Retro) keep their own taskbars. ─── */
+@media (min-width: 1100px) {
+  .los:has(> .los-dock:not(.sys-dock-desktop):not(.sys-dock-workstation):not(.sys-dock-millennium):not(.sys-dock-retro)) { padding-left: 14.5rem; }
+  html:has(.los-dock-inapp:not(.sys-dock-desktop):not(.sys-dock-workstation):not(.sys-dock-millennium):not(.sys-dock-retro)) body { padding-left: 14.5rem; }
+  .los-dock.los-dock:not(.sys-dock-desktop):not(.sys-dock-workstation):not(.sys-dock-millennium):not(.sys-dock-retro) {
+    position: fixed !important; inset: 0 auto 0 0 !important; top: 0 !important; bottom: 0 !important; left: 0 !important; right: auto !important; width: 14.5rem !important; max-width: none !important; height: auto !important;
+    margin: 0 !important; padding: 5rem .75rem 1.25rem !important; transform: none !important; border-radius: 0 !important; border: 0 !important; border-right: 1px solid var(--an-line) !important;
+    display: flex !important; flex-direction: column !important; align-items: stretch !important; justify-content: flex-start !important; gap: .25rem !important;
+    background: var(--an-card) !important; background-image: none !important; color: var(--an-ink) !important; box-shadow: none !important; backdrop-filter: none !important; font-family: var(--an-font) !important;
+  }
+  .los-dock.los-dock:not(.sys-dock-desktop):not(.sys-dock-workstation):not(.sys-dock-millennium):not(.sys-dock-retro)::before { display: none !important; }
+  .los-dock.los-dock:not(.sys-dock-desktop):not(.sys-dock-workstation):not(.sys-dock-millennium):not(.sys-dock-retro) > button {
+    flex: none !important; display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: flex-start !important; gap: .8rem !important; width: 100% !important; height: auto !important; min-height: 2.85rem !important;
+    aspect-ratio: auto !important; margin: 0 !important; padding: 0 .9rem !important; border: 0 !important; border-radius: min(var(--an-radius), 14px) !important; transform: none !important;
+    background: none !important; color: var(--an-ink) !important; box-shadow: none !important; font: 600 .95rem var(--an-font) !important; letter-spacing: normal !important; text-transform: none !important;
+  }
+  .los-dock.los-dock:not(.sys-dock-desktop):not(.sys-dock-workstation):not(.sys-dock-millennium):not(.sys-dock-retro) > button:hover { background: color-mix(in srgb, var(--an-ink) 8%, transparent) !important; }
+  .los-dock.los-dock:not(.sys-dock-desktop):not(.sys-dock-workstation):not(.sys-dock-millennium):not(.sys-dock-retro) > button[aria-current="page"] { background: var(--an-violet) !important; color: var(--an-on-accent) !important; }
+  .los-dock.los-dock:not(.sys-dock-desktop):not(.sys-dock-workstation):not(.sys-dock-millennium):not(.sys-dock-retro) > button[data-nav="add"] { order: -1; margin-bottom: .6rem !important; justify-content: center !important; background: var(--an-violet) !important; color: var(--an-on-accent) !important; }
+  .los-dock.los-dock:not(.sys-dock-desktop):not(.sys-dock-workstation):not(.sys-dock-millennium):not(.sys-dock-retro) > button[data-nav="you"] { margin-top: auto !important; }
+  .los-dock.los-dock:not(.sys-dock-desktop):not(.sys-dock-workstation):not(.sys-dock-millennium):not(.sys-dock-retro) > button > :not(svg):not(.los-avatar):not(.pl-avatar) { display: none !important; }
+  .los-dock.los-dock:not(.sys-dock-desktop):not(.sys-dock-workstation):not(.sys-dock-millennium):not(.sys-dock-retro) > button svg { width: 1.2rem !important; height: 1.2rem !important; flex: none; }
+  .los-dock.los-dock:not(.sys-dock-desktop):not(.sys-dock-workstation):not(.sys-dock-millennium):not(.sys-dock-retro) > button .los-avatar, .los-dock.los-dock:not(.sys-dock-desktop):not(.sys-dock-workstation):not(.sys-dock-millennium):not(.sys-dock-retro) > button .pl-avatar { width: 1.9rem !important; height: 1.9rem !important; font-size: .8rem !important; flex: none; }
+  .los-dock.los-dock:not(.sys-dock-desktop):not(.sys-dock-workstation):not(.sys-dock-millennium):not(.sys-dock-retro) > button::after { content: attr(aria-label); }
+  .los-dock.los-dock:not(.sys-dock-desktop):not(.sys-dock-workstation):not(.sys-dock-millennium):not(.sys-dock-retro) > button[data-nav="add"]::after { content: "New"; }
+  /* The page no longer needs room at the bottom for a dock. */
+  .los:has(> .los-dock:not(.sys-dock-desktop):not(.sys-dock-workstation):not(.sys-dock-millennium):not(.sys-dock-retro)) .los-body { padding-bottom: 2rem !important; }
+  /* The add menu opens beside the rail's New button. */
+  .los-addwrap { left: 15.5rem !important; transform: none !important; top: 5rem !important; bottom: auto !important; }
 }

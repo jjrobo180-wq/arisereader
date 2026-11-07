@@ -3,7 +3,7 @@
 .hub-look { background: var(--an-bg) !important; color: var(--an-ink) !important; font-family: var(--an-font); }
 .hub-look h1, .hub-look h2 { font-family: var(--an-serif); }
 .hub-look .bg-white, .hub-look .bg-white\/95, .hub-look .bg-white\/90, .hub-look .bg-white\/80, .hub-look .bg-white\/70, .hub-look .bg-slate-50, .hub-look .bg-slate-50\/60, .hub-look .bg-slate-50\/70, .hub-look .bg-\[\#f9fafc\], .hub-look .hover\:bg-white:hover, .hub-look .hover\:bg-slate-50:hover, .hub-look .hover\:bg-\[\#fcfbff\]:hover { background-color: var(--an-card) !important; }
-.hub-look .bg-\[\#f6f7fc\], .hub-look .bg-slate-100, .hub-look .bg-slate-100\/60, .hub-look .hover\:bg-slate-100:hover { background-color: var(--an-bg) !important; }
+.hub-look .bg-\[\#f6f7fc\], .hub-look .bg-slate-100, .hub-look .bg-slate-100\/60 { background-color: var(--an-bg) !important; }
 .hub-look .bg-\[\#292446\], .hub-look .bg-slate-950, .hub-look .bg-slate-900, .hub-look .bg-violet-700, .hub-look .bg-violet-600, .hub-look .bg-\[\#7968e5\], .hub-look .bg-\[\#a38cfa\] { background-color: var(--an-violet) !important; color: var(--an-on-accent) !important; }
 .hub-look .bg-\[\#292446\] *, .hub-look .bg-slate-950 *, .hub-look .bg-violet-700 * { color: inherit; }
 .hub-look .bg-violet-50, .hub-look .bg-violet-100, .hub-look .bg-indigo-50 { background-color: var(--an-violet-soft) !important; }
@@ -285,3 +285,8 @@ html[data-hub-look] [data-testid="hub-todo-switch"] a[aria-current="page"] { bac
 .hub-look:not(.hub-look-dark) .text-emerald-700, .hub-look:not(.hub-look-dark) .text-emerald-800 { color: color-mix(in srgb, #047857 55%, var(--an-ink)) !important; }
 .hub-look:not(.hub-look-dark) .text-rose-700, .hub-look:not(.hub-look-dark) .text-rose-600 { color: color-mix(in srgb, #be123c 55%, var(--an-ink)) !important; }
 .hub-look:not(.hub-look-dark) .text-amber-800, .hub-look:not(.hub-look-dark) .text-amber-700 { color: color-mix(in srgb, #92400e 55%, var(--an-ink)) !important; }
+
+/* Side panels with a background only on a computer (Customize's section list) take the look's card color too,
+   and a hovered row is a light wash of the ink, so its words stay readable (it went the page color: black on black). */
+.hub-look .sm\:bg-slate-50\/60, .hub-look .sm\:bg-slate-50, .hub-look .md\:bg-slate-50, .hub-look .lg\:bg-slate-50 { background-color: var(--an-card) !important; }
+.hub-look .hover\:bg-slate-100:hover, .hub-look .hover\:bg-slate-50:hover { background-color: color-mix(in srgb, var(--an-ink) 9%, var(--an-card)) !important; color: var(--an-ink) !important; }
