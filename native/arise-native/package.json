@@ -1,0 +1,14 @@
+{
+  "name": "arise-native",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Native SwiftUI screens for the iPhone app (Tasks first), shown over the web app.",
+  "main": "index.js",
+  "files": ["Package.swift", "ios/Sources", "index.js"],
+  "capacitor": {
+    "ios": { "src": "ios" }
+  },
+  "peerDependencies": {
+    "@capacitor/core": ">=8.0.0"
+  }
+}
