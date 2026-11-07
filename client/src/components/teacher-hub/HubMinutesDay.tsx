@@ -170,7 +170,7 @@ export function LogDaySheet({ week, date, today, names, focus, onDate, onSave, o
   return (
     <HubModal title="Log minutes" size="md" onClose={onClose}
       footer={<div className="flex gap-2"><PrimaryButton onClick={() => onSave(logs)} disabled={!logs.length}>{logs.length ? `Save ${logs.length}` : "Save"}</PrimaryButton><GhostButton onClick={onClose}>Cancel</GhostButton></div>}>
-      <div className="grid gap-4" data-testid="log-day-sheet">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4" data-testid="log-day-sheet">
         <div className="-mx-1 flex items-center gap-1">
           <button type="button" className={navBtn} onClick={() => onDate(addDays(date, -1))} aria-label="Day before"><ChevronLeft className="h-5 w-5" /></button>
           <label className="relative min-w-0 flex-1 cursor-pointer text-center">
@@ -258,7 +258,7 @@ export function NotesAfterLog({ logs, onSave, onClose }: { logs: ServiceLog[]; o
   return (
     <HubModal title={logs.length === 1 ? `Note for ${logs[0].student}` : `Notes for ${logs.length} students`} size="sm" onClose={onClose}
       footer={<div className="flex gap-2"><PrimaryButton disabled={!ready} onClick={() => onSave(each ? notes : Object.fromEntries(logs.map((l) => [l.id, ""])), each ? "" : shared)}>Save note{logs.length > 1 ? "s" : ""}</PrimaryButton><GhostButton onClick={onClose}>Skip</GhostButton></div>}>
-      <div className="grid gap-3" data-testid="notes-after-log">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-3" data-testid="notes-after-log">
         {logs.length > 1 && (
           <div className="flex rounded-full bg-slate-100 p-0.5 text-sm font-semibold" role="tablist" aria-label="Who the note is for">
             <button type="button" role="tab" aria-selected={!each} onClick={() => setEach(false)} className={`min-h-10 flex-1 rounded-full ${!each ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}>One note for all</button>

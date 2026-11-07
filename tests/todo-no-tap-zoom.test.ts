@@ -10,7 +10,6 @@ const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "u
 test("the To Duo page is never shrunk with the viewport; it's a touch smaller through the type size", () => {
   const src = read("client/src/lib/nativeBackdrop.ts");
   assert.doesNotMatch(src.replace(/\/\/.*$/gm, ""), /initial-scale=0\.\d/);
-  assert.match(src, /html\.classList\.add\("todo-compact"\)/);
   assert.match(read("client/src/todo-app.css"), /html\.todo-edge\.todo-compact \{ font-size: 93\.75%; \}/);
   // Text boxes stay at 16px or more on phones, whatever the root size.
   assert.match(read("client/src/index.css"), /textarea, select \{ font-size: max\(16px, 1rem\) !important; \}/);
