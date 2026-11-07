@@ -29,7 +29,7 @@ export default function KitchenShop({ family, setFamily, makeId, say }: SectionP
       <button type="submit" disabled={!text.trim()} className="shrink-0 rounded-xl bg-[#6e5ae0] px-4 text-sm font-bold text-white disabled:opacity-40">Add</button>
     </form>
     {total > 0 && <p className="px-1 text-sm font-bold text-slate-500">Estimated total <span className="text-slate-900">${total.toFixed(2)}</span></p>}
-    {open.length === 0 && <p className="py-10 text-center text-sm text-slate-400">{done.length ? "All done. Enjoy!" : "Nothing on your list."}</p>}
+    {open.length === 0 && <p className="py-10 text-center text-sm text-slate-400">{done.length ? "All done. Enjoy!" : "Nothing on your list. Use Plan to pick meals and build it for you."}</p>}
     {aisles.map((a) => <section key={a}>
       <h3 className="mb-1 px-1 text-[11px] font-black uppercase tracking-[.14em] text-slate-400">{a}</h3>
       <ul className="divide-y divide-slate-100 rounded-2xl bg-white ring-1 ring-slate-200/70">{open.filter((i) => (i.aisle || "Other") === a).map((i) => <li key={i.id} className="flex items-center gap-3 px-3 py-2.5">
