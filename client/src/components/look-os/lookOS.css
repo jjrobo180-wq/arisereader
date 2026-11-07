@@ -301,3 +301,26 @@ html[data-hub-look] [data-testid="welcome-bar"] { top: calc(env(safe-area-inset-
 /* The To Duo iPhone app draws edge to edge: the look's top bar always clears the clock (never less than 44px,
    in case the phone reports no safe area), and the dock sits above the Home bar. */
 html.todo-app .los .los-topbar { padding-top: max(env(safe-area-inset-top, 0px), 44px) !important; }
+
+/* ─── On a computer: the looks use the screen's width (they were a 46rem phone column in the middle). ─── */
+@media (min-width: 1100px) {
+  .los-body > * { max-width: 64rem; }
+  .los-tide-days, .los-tide-hero { max-width: 64rem; }
+  /* These grow with the width (a month of circles, square widgets, one big card): a little narrower so they stay in proportion. */
+  .los-bloom .los-body > *, .los-punch .los-body > *, .los-deck .los-body > *, .los-pocket .los-body > * { max-width: 50rem; }
+  /* Studio looks: Home is a dashboard. The greeting across the top, to do on the left, calendar and notes on the right. */
+  .los.stx .los-body > .los-studio-home { max-width: 80rem; padding: 1.75rem 3rem 2rem; }
+  .los-studio-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 0 3.5rem; align-items: start; }
+  .los-studio-side > .los-cal-studio:first-child { margin-top: 1.4rem; }
+  .los-studio-home .an-l-hero { max-width: 44rem; }
+  .los.stx .los-body > .los-pad:not(.los-studio-home) { max-width: 68rem; padding-inline: 3rem; }
+  /* Pro looks: two columns too (up next | this week, notes | quick links), not rows across the whole screen. */
+  .los-suite .los-body > .sx-home { max-width: 80rem; margin-inline: auto; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.6rem 3rem; padding: 1.75rem 3rem 2rem; align-items: start; }
+  .los-suite .los-body > .sx-home > .sx-top { grid-column: 1 / -1; }
+  .los-suite .los-body > .los-pad { max-width: 68rem; margin-inline: auto; padding-inline: 3rem; }
+  /* Docks that run the full width keep their buttons together in the middle, not spread to the screen's edges. */
+  .los-dock-studiox, .los-dock.los-dock-suite, .los-dock.los-dock-hush, .los-dock.los-dock-atelier, .los-dock.los-dock-darkroom, .los-dock.los-dock-zen,
+  .los-dock-swiss, .los-dock-gazette, .los-dock-margin, .los-dock-console, .los-dock-grove, .los-dock-tide {
+    padding-left: max(1rem, calc((100% - 46rem) / 2)) !important; padding-right: max(1rem, calc((100% - 46rem) / 2)) !important;
+  }
+}
