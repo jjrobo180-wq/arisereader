@@ -21,7 +21,7 @@ export type IepTab = "overview" | "meetings" | "notes" | "profile" | "accommodat
 const APPS: { key: Exclude<IepTab, "overview">; label: string; blurb: string; icon: ReactNode; tint: string }[] = [
   { key: "meetings", label: "Meetings", blurb: "Plan and run IEP meetings", icon: <CalendarClock className="h-5 w-5" />, tint: "bg-violet-50 text-violet-700" },
   { key: "notes", label: "Notes", blurb: "Student, class and meeting notes", icon: <NotebookPen className="h-5 w-5" />, tint: "bg-amber-50 text-amber-700" },
-  { key: "profile", label: "Profile", blurb: "Who they are and their team", icon: <UserRound className="h-5 w-5" />, tint: "bg-sky-50 text-sky-700" },
+  { key: "profile", label: "Caseload", blurb: "Every student, their profile and team", icon: <UserRound className="h-5 w-5" />, tint: "bg-sky-50 text-sky-700" },
   { key: "accommodations", label: "Accommodations", blurb: "What each student gets", icon: <ListChecks className="h-5 w-5" />, tint: "bg-emerald-50 text-emerald-700" },
   { key: "progress", label: "Progress", blurb: "Goals, scores and checks", icon: <TrendingUp className="h-5 w-5" />, tint: "bg-rose-50 text-rose-700" },
   { key: "minutes", label: "Minutes", blurb: "Classes, minutes and notes", icon: <Timer className="h-5 w-5" />, tint: "bg-slate-100 text-slate-700" },
@@ -39,7 +39,7 @@ const PM_LOOK: Record<PmState, { word: string; cls: string }> = {
 const daysWords = (n: number) => (n === 0 ? "today" : n === 1 ? "tomorrow" : n === -1 ? "yesterday" : n < 0 ? `${-n} days ago` : `in ${n} days`);
 function printHtml(html: string) { const w = window.open("", "_blank"); if (!w) return; w.document.open(); w.document.write(html); w.document.close(); }
 
-export function IepPage({ workspace, setWorkspace, makeId, today, token, meetings, caseload, goals, minutes }: {
+export function IepPage({ workspace, setWorkspace, makeId, today, token, meetings, caseload, goals, minutes, start = "overview", startStudent = null }: {
   workspace: Workspace; setWorkspace: Setter; makeId: () => string; today: string; token: string | null;
   /** The meeting timeline and its step-by-step guide. */
   meetings: ReactNode;
@@ -49,9 +49,12 @@ export function IepPage({ workspace, setWorkspace, makeId, today, token, meeting
   goals: ReactNode;
   /** The Minutes page. */
   minutes: ReactNode;
+  /** The part to open first (the old Caseload and Minutes links land here). */
+  start?: IepTab;
+  startStudent?: string | null;
 }) {
-  const [tab, setTab] = useState<IepTab>("overview");
-  const [studentId, setStudentId] = useState<string | null>(null);
+  const [tab, setTab] = useState<IepTab>(start);
+  const [studentId, setStudentId] = useState<string | null>(startStudent);
   const [pickOpen, setPickOpen] = useState(false);
   const student = workspace.students.find((s) => s.id === studentId) ?? null;
   const name = student?.name ?? "";
@@ -152,7 +155,7 @@ function Overview({ workspace, today, studentName, onPick, go }: { workspace: Wo
             </span>
             {lateS > 0 && <span className="shrink-0 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">{lateS} check{lateS === 1 ? "" : "s"} late</span>}
           </button></li>;
-        })}</ul> : <p className="px-4 pb-4 pt-2 text-sm text-slate-500">Add students on the Profile tab.</p>}
+        })}</ul> : <p className="px-4 pb-4 pt-2 text-sm text-slate-500">Add students on the Caseload tab.</p>}
       </section>
     </>
   );
@@ -310,7 +313,7 @@ function Accommodations({ workspace, setWorkspace, studentId, onPick }: { worksp
           <li key={s.id}><button type="button" onClick={() => onPick(s.id)} className="block w-full px-2 py-3 text-left">
             <span className="block text-[15px] font-medium text-slate-900">{s.name}</span>
             <span className="mt-1 flex flex-wrap gap-1">{acc.length ? acc.slice(0, 6).map((a) => <span key={a} className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-600">{a}</span>) : <span className="text-xs text-slate-400">None yet · tap to add</span>}{acc.length > 6 && <span className="text-[11px] text-slate-500">+{acc.length - 6}</span>}</span>
-          </button></li>); })}</ul> : <p className="px-4 pb-4 pt-2 text-sm text-slate-500">Add students on the Profile tab first.</p>}
+          </button></li>); })}</ul> : <p className="px-4 pb-4 pt-2 text-sm text-slate-500">Add students on the Caseload tab first.</p>}
       </section>
     );
   }

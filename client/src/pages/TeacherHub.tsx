@@ -241,10 +241,10 @@ const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
 /** The icon for each place in the menu (see shared/hubTabGroups.ts for which tabs share a place). */
 const GROUP_ICON: Record<HubGroupId, ReactNode> = {
   start: <Rocket className="h-4 w-4" />,
-  schedules: <Clock3 className="h-4 w-4" />, goals: <Target className="h-4 w-4" />, minutes: <Timer className="h-4 w-4" />,
+  schedules: <Clock3 className="h-4 w-4" />, goals: <Target className="h-4 w-4" />,
   notes: <StickyNote className="h-4 w-4" />, journal: <NotebookPen className="h-4 w-4" />, lessons: <BookOpen className="h-4 w-4" />, gradebook: <GraduationCap className="h-4 w-4" />,
   attendance: <ClipboardCheck className="h-4 w-4" />, parents: <MessageSquare className="h-4 w-4" />, email: <Mail className="h-4 w-4" />,
-  home: <Home className="h-4 w-4" />, calendar: <Calendar className="h-4 w-4" />, caseload: <Users className="h-4 w-4" />,
+  home: <Home className="h-4 w-4" />, calendar: <Calendar className="h-4 w-4" />,
   iep: <CalendarDays className="h-4 w-4" />, tasks: <CheckSquare className="h-4 w-4" />,
   behavior: <Sparkles className="h-4 w-4" />,
   arise: <BookHeart className="h-4 w-4" />,
@@ -934,6 +934,8 @@ function TeacherHubPage() {
       closeApps();
       return;
     }
+    // A LifeHub app's notice (Accountability: a partner did something, or asked for something) opens it in LifeHub.
+    if (type.startsWith("life:")) { navigate(`/lifehub?go=${encodeURIComponent(type.slice(5))}`); return; }
     // Anything else is the account's own (the Reader's approvals, quizzes, messages), or the admin's.
     if (user?.isAdmin) { try { sessionStorage.setItem("admin_notif", JSON.stringify({ type, id: 0 })); } catch { /* fine */ } navigate("/admin"); return; }
     if (readerNeedsPremium) { window.location.href = appHref("/billing"); return; }
@@ -1594,7 +1596,7 @@ function TeacherHubPage() {
               </> },
             ]} />}
 
-          {subTabs.length > 1 && (
+          {subTabs.length > 1 && group.id !== "iep" && (
             // On desktop the sidebar lists every A.R.I.S.E. Reader sub-tab, and under Admin console
             // its sections and Settings' parts, so this dropdown would only repeat them there. It
             // earns its keep on phones, and on desktop only in the drawer layout, which has no
@@ -1760,17 +1762,15 @@ function TeacherHubPage() {
             </>
           )}
 
-          {tab !== "overview" && tab !== "caseload" && tab !== "calendar" && tab !== "notes" && tab !== "journal" && !isReaderTab(tab) && tab !== "admin" && (
+          {tab !== "overview" && tab !== "caseload" && tab !== "minutes" && tab !== "calendar" && tab !== "notes" && tab !== "journal" && !isReaderTab(tab) && tab !== "admin" && (
             <HubPageHead tab={tab} title={TAB_META.find((m) => m.id === tab)?.label ?? groupLabel(group.id, visible)} workspace={workspace} />
           )}
 
           {false && tab === "start" && <GettingStarted hub="work" startRole={startingRole(user, "work")} canOpen={guideCanOpen} onOpen={guideOpen}
             onRemove={() => { setWorkspace((p) => ({ ...p, visibleTabs: { ...p.visibleTabs, start: false } })); setTab("overview"); toasts.show("Getting started removed. Add it back any time from the Plugin Gallery.", [{ label: "Open Plugin Gallery", run: () => setStore(true) }]); }} />}
           {tab === "calendar" && <HubLifeScreen which="calendar" workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(text) => toasts.show(text, [])} openTasks={() => setTab("tasks")} />}
-          {tab === "caseload" && <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} profileId={profileStudent} setProfileId={setProfileStudent} openTab={setTab} />}
           {tab === "goals" && <><HubGoalBoard workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} />{(isTabOn("caseload", visible, !!user.isAdmin) || workspace.goals.length > 0) && <GoalsTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} />}</>}
-          {tab === "minutes" && <MinutesTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} token={token} />}
-          {tab === "iep" && <IepPage workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} token={token}
+          {(tab === "iep" || tab === "caseload" || tab === "minutes") && <IepPage key={tab} start={tab === "caseload" ? "profile" : tab === "minutes" ? "minutes" : "overview"} startStudent={tab === "caseload" ? profileStudent : null} workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} token={token}
             meetings={<Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} studentOptions={studentOptions} token={token} makeId={id} account={{ name: cleanSenderName(String((user as any)?.displayName || (user as any)?.username || "")), email: String((user as any)?.email || "") }} />}
             caseload={(studentId, onPick) => <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} profileId={studentId} setProfileId={onPick} openTab={setTab} />}
             goals={<><HubGoalBoard workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} /><GoalsTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} /></>}

@@ -139,8 +139,10 @@ let tapsInstalled = false;
 export function installReminderTaps(): void {
   if (tapsInstalled || !isNativeApp()) return;
   tapsInstalled = true;
-  // Already allowed before: sign this iPhone up with the server again (the token can change).
-  if (nativeRemindersOn("life") || nativeRemindersOn("work")) void startApplePush(false);
+  // Sign this iPhone up with the server again (the token can change) whenever iOS already allows notifications,
+  // not only when reminders are on: messages, shares and Accountability ("she did it") come from the server.
+  // Nothing is asked here; startApplePush(false) only goes ahead if notifications are already allowed.
+  void startApplePush(false);
   try {
     void nativeListen("LocalNotifications", "localNotificationActionPerformed", (e: any) => {
       const url = String(e?.notification?.extra?.url || "");

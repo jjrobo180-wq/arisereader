@@ -42,11 +42,14 @@ export function notesFromFamily(prev: NoteItem[], next: Note[], today: string): 
 // ─── Calendar ────────────────────────────────────────────────────────────────
 
 /** Linked calendars and the teacher's own, as LifeHub calendars. Other people's calendars stay in their own screen. */
-export function calendarsToFamily(w: Pick<Workspace, "calendars"> & { extraCalendars?: FamilyCalendar[] }): FamilyCalendar[] {
+export function calendarsToFamily(w: Pick<Workspace, "calendars"> & { extraCalendars?: FamilyCalendar[]; hiddenCalendars?: string[] }): FamilyCalendar[] {
+  // The Work calendar and linked ones keep their on/off in hiddenCalendars: they were always made "on" here,
+  // so switching one off on the Calendar screen never stuck.
+  const hidden = new Set(w.hiddenCalendars || []);
   return [
-    { id: WORK_CALENDAR_ID, name: "Work", color: WORK_COLOR, show: true },
+    { id: WORK_CALENDAR_ID, name: "Work", color: WORK_COLOR, show: !hidden.has(WORK_CALENDAR_ID) },
     ...(w.extraCalendars || []),
-    ...(w.calendars || []).filter((c) => !isOthers(c)).map((c, i): FamilyCalendar => ({ id: c.id, name: c.name, color: ["#7566e8", "#619ee6", "#f59e72", "#db77ac", "#e5b04f"][i % 5], show: true, url: c.url, syncedAt: c.syncedAt })),
+    ...(w.calendars || []).filter((c) => !isOthers(c)).map((c, i): FamilyCalendar => ({ id: c.id, name: c.name, color: ["#7566e8", "#619ee6", "#f59e72", "#db77ac", "#e5b04f"][i % 5], show: !hidden.has(c.id), url: c.url, syncedAt: c.syncedAt })),
   ];
 }
 
@@ -81,7 +84,9 @@ export function calendarFromFamily(w: Workspace & { extraCalendars?: FamilyCalen
   const linkedOld = new Map((w.calendars || []).map((c) => [c.id, c]));
   const linked = next.calendars.filter((c) => c.url).map((c) => ({ ...(linkedOld.get(c.id) ?? {}), id: c.id, name: c.name, url: c.url!, syncedAt: c.syncedAt || linkedOld.get(c.id)?.syncedAt || "" }));
   const extra = next.calendars.filter((c) => !c.url && c.id !== WORK_CALENDAR_ID);
-  return { ...w, events: [...kept, ...events], calendars: [...theirs, ...linked], extraCalendars: extra };
+  // Which of the Work and linked calendars are switched off (the others keep their own "show").
+  const hiddenCalendars = next.calendars.filter((c) => c.show === false && (!!c.url || c.id === WORK_CALENDAR_ID)).map((c) => c.id);
+  return { ...w, events: [...kept, ...events], calendars: [...theirs, ...linked], extraCalendars: extra, hiddenCalendars };
 }
 
 // ─── Journal ─────────────────────────────────────────────────────────────────

@@ -20,9 +20,11 @@ export function isHidden(event: Pick<HubEvent, "title" | "date" | "start">, rule
  * by day, hidden ones left out. Use this everywhere the calendar is read. Events on other people's
  * calendars are never in it (shared/hubOthers.ts has those): they are not the teacher's to go to.
  */
-export function calendarEvents(workspace: Pick<Workspace, "events" | "hiddenEvents"> & { calendars?: HubCalendar[] }, from: string, to: string): HubEvent[] {
+export function calendarEvents(workspace: Pick<Workspace, "events" | "hiddenEvents"> & { calendars?: HubCalendar[]; hiddenCalendars?: string[] }, from: string, to: string): HubEvent[] {
   const theirs = new Set((workspace.calendars || []).filter(isOthers).map((c) => c.id));
-  const mine = theirs.size ? (workspace.events || []).filter((e) => !e.calendarId || !theirs.has(e.calendarId)) : workspace.events || [];
+  // Calendars switched off on the Calendar screen (the Work calendar is "work", shared/hubSwap.ts) stay out too.
+  const off = new Set(workspace.hiddenCalendars || []);
+  const mine = (workspace.events || []).filter((e) => !(e.calendarId && theirs.has(e.calendarId)) && !off.has(e.calendarId || "work"));
   const all = expandEvents(mine, from, to);
   const rules = workspace.hiddenEvents;
   return rules?.length ? all.filter((e) => !isHidden(e, rules)) : all;
