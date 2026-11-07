@@ -97,6 +97,19 @@ test("Arise Notes inside a hub: the top bar with Back clears the clock and the l
   assert.match(read("client/src/components/arise-notes/notes-themes.css"), /\.an-root \.an-under-bar \.an-l-hero \{ padding-top: 1rem !important; \}/);
 });
 
+test("the clock's space is this iPhone's own: 59-62px with a Dynamic Island, where 44px put the island over the bell", async () => {
+  const { deviceTopInset } = await import("../client/src/lib/deviceInsets");
+  assert.equal(deviceTopInset(402, 874), 62); // iPhone 16 Pro
+  assert.equal(deviceTopInset(874, 402), 62); // turned sideways, same phone
+  assert.equal(deviceTopInset(393, 852), 59); // iPhone 15
+  assert.equal(deviceTopInset(390, 844), 47); // iPhone 13
+  assert.equal(deviceTopInset(375, 667), 20); // iPhone SE
+  assert.equal(deviceTopInset(410, 900), 62); // a tall phone that isn't on the list yet
+  assert.equal(deviceTopInset(1024, 1366), null); // an iPad keeps the safe area it reports
+  const main = read("client/src/main.tsx");
+  assert.match(main, /if \(isNativeApp\(\) && \(nativeFlavor\(\) === "todo" \|\| isNotesApp\(\)\)\) applyDeviceTopInset\(\);/);
+});
+
 test("no look's top bar is shorter than its bell (the Desktop look's slim bar pushed the bell up under the clock)", () => {
   const bell = /\.los-topright \[data-testid="notification-bell"\] \{ width: [\d.]+rem; height: ([\d.]+)rem;/.exec(read("client/src/components/look-os/lookOS.css"))?.[1];
   assert.ok(bell, "the bell's height");
@@ -110,8 +123,8 @@ test("no look's top bar is shorter than its bell (the Desktop look's slim bar pu
 });
 
 test("the Arise Notes iPhone app keeps the clock's space like Arise To Duo", () => {
-  assert.match(read("client/src/index.css"), /html\.notes-app \{ --sat: max\(env\(safe-area-inset-top, 0px\), 44px\); \}/);
-  assert.match(read("client/src/todo-app.css"), /html\.todo-edge \{ --sat: max\(env\(safe-area-inset-top, 0px\), 44px\);/);
+  assert.match(read("client/src/index.css"), /html\.notes-app \{ --sat: max\(env\(safe-area-inset-top, 0px\), var\(--sat-device, 44px\)\); \}/);
+  assert.match(read("client/src/todo-app.css"), /html\.todo-edge \{ --sat: max\(env\(safe-area-inset-top, 0px\), var\(--sat-device, 44px\)\);/);
 });
 
 test("the Plugin Gallery keeps one design in every look (the body carries the look's classes for pop-ups)", () => {

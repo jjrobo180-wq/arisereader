@@ -1,0 +1,32 @@
+/* The App Gallery and the apps in Arise Notes (NotesApps.tsx), in the look's colors (--an-*). */
+.an-root .na-hero { border-radius: min(var(--an-radius, 22px), 26px); background: var(--an-violet); color: var(--an-on-accent); }
+.an-root .na-h2 { margin: 0 0 .55rem; padding: 0 .25rem; font: 700 12px/1.2 var(--an-font); letter-spacing: .12em; text-transform: uppercase; color: var(--an-muted); }
+.an-root .na-tool { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; flex: none; border: 0; border-radius: .7rem; background: none; color: inherit; opacity: .7; cursor: pointer; }
+.an-root .na-tool:hover, .an-root .na-tool[aria-pressed="true"] { opacity: 1; background: color-mix(in srgb, currentColor 12%, transparent); }
+.an-root .na-tool:disabled { opacity: .3; cursor: default; }
+
+/* Sticky Notes: square paper notes in a handwriting-like hand. */
+.an-root .na-sticky { position: relative; display: flex; flex-direction: column; min-height: 11rem; padding: .85rem .85rem .5rem; border-radius: 4px; color: #1d1b16; box-shadow: 0 10px 18px -12px rgba(0,0,0,.55); }
+.an-root .na-sticky textarea { flex: 1; min-height: 7rem; width: 100%; resize: none; border: 0; background: transparent; color: inherit; outline: none; font: 400 1.125rem/1.3 "Gochi Hand", "Marker Felt", "Bradley Hand", "Segoe Print", "Comic Sans MS", cursive; }
+.an-root .na-sticky textarea::placeholder { color: rgba(29,27,22,.45); }
+.an-root .na-sticky-bar { display: flex; align-items: center; gap: .3rem; padding-top: .35rem; border-top: 1px solid rgba(29,27,22,.12); color: #1d1b16; }
+.an-root .na-sticky .na-tool { width: 1.9rem; height: 1.9rem; }
+.an-root .na-dot { width: .95rem; height: .95rem; flex: none; padding: 0; border: 1.5px solid rgba(29,27,22,.35); border-radius: 999px; cursor: pointer; }
+.an-root .na-dot[aria-pressed="true"] { border-color: #1d1b16; box-shadow: 0 0 0 2px rgba(29,27,22,.25); }
+.an-root .na-sticky-pin { position: absolute; top: -.35rem; left: 50%; width: .8rem; height: .8rem; margin-left: -.4rem; border-radius: 999px; background: #d6342c; box-shadow: 0 2px 3px rgba(0,0,0,.4); }
+@media (max-width: 420px) { .an-root .na-sticky .na-dot:nth-of-type(n+5) { display: none; } }
+
+/* Whiteboard */
+.an-root .na-swatch { width: 1.75rem; height: 1.75rem; flex: none; padding: 0; border: 2px solid var(--an-card); border-radius: 999px; box-shadow: 0 0 0 1px var(--an-line); cursor: pointer; }
+.an-root .na-swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--an-ink); }
+.an-root .na-toolbar { color: var(--an-ink); }
+.an-root .na-canvas { touch-action: none; cursor: crosshair; }
+
+/* Flashcards: a big card that turns over. */
+.an-root .na-card { display: flex; flex-direction: column; justify-content: center; width: 100%; min-height: 16rem; padding: 1.75rem 1.5rem; border: 1px solid var(--an-line); border-radius: min(var(--an-radius, 24px), 28px); background: var(--an-card); color: var(--an-ink); text-align: center; box-shadow: var(--an-shadow, 0 18px 40px -26px rgba(0,0,0,.45)); cursor: pointer; transition: transform .25s ease, background .25s ease; }
+.an-root .na-card-back { background: var(--an-violet); color: var(--an-on-accent); border-color: var(--an-violet); }
+.an-root .na-card:active { transform: scale(.985); }
+@media (prefers-reduced-motion: reduce) { .an-root .na-card { transition: none; } }
+
+/* The Office editors keep their own light page inside a dark look. */
+.an-root .na-office { color-scheme: light; }
