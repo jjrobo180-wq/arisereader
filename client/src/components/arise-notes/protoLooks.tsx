@@ -7,6 +7,7 @@ import { fmtClock, templateOf, type NotesTheme } from "@shared/ariseNotes";
 import type { ListNote } from "./api";
 import type { HomeActions } from "./looks";
 import { bespokeHero, BespokeList, bespokeBar } from "./protoLooks2";
+import { ArchList, archHubHero, dayItems, taskItems } from "./protoHub";
 import "./protoLooks.css";
 import "./protoLooks2.css";
 import "./protoPages.css";
@@ -232,8 +233,10 @@ export function ProtoNoteTitle({ look, title, meta }: { look: NotesTheme; title:
 }
 
 // ───────────────────────── To Duo and WorkHub ─────────────────────────
+// Billboard's own pieces are here; every other arrangement draws the hubs in protoHub.tsx, the way it draws Notes.
 export type ProtoHubLink = { label: string; onClick: () => void };
-export function ProtoHubHero({ look, date, greeting, primary, links }: { look: NotesTheme; date: string; greeting: string; primary: ProtoHubLink; links: ProtoHubLink[] }): ReactNode {
+export function ProtoHubHero({ look, date, greeting, primary, links, open, today, hubName }: { look: NotesTheme; date: string; greeting: string; primary: ProtoHubLink; links: ProtoHubLink[]; open?: number; today?: number; hubName?: string }): ReactNode {
+  if (look.arch !== "billboard") return archHubHero({ look, date, greeting, primary, links, open, today, hubName });
   switch (look.arch) {
     case "billboard": return <>
       <p className="stx-bb-eyebrow">{date}</p>
@@ -251,6 +254,7 @@ export function ProtoHubHero({ look, date, greeting, primary, links }: { look: N
 }
 export type ProtoTask = { id: string; title: string; done: boolean; due: string; late: boolean; dueLabel: string; listName: string; color: string; assignee: string; notes: string };
 export function ProtoTasks({ look, tasks, onToggle, onOpen }: { look: NotesTheme; tasks: ProtoTask[]; onToggle: (id: string) => void; onOpen: (id: string) => void }): ReactNode {
+  if (look.arch !== "billboard") return <ArchList look={look} kind="tasks" items={taskItems(tasks, onToggle, onOpen)} />;
   switch (look.arch) {
     case "billboard": return <ol className="stx-bb-list stx-bb-tasks">{tasks.map((t, i) => <li key={t.id} data-done={t.done || undefined} data-late={t.late || undefined}>
       <button type="button" className="stx-bb-check" aria-pressed={t.done} aria-label={t.done ? `Reopen ${t.title}` : `Complete ${t.title}`} onClick={() => onToggle(t.id)}>{t.done ? "✓" : ""}</button>
@@ -264,6 +268,7 @@ export function ProtoTasks({ look, tasks, onToggle, onOpen }: { look: NotesTheme
 }
 export type ProtoAgendaDay = { date: string; weekday: string; day: string; month: string; items: { id: string; time: string; title: string }[] };
 export function ProtoAgenda({ look, days, onPick }: { look: NotesTheme; days: ProtoAgendaDay[]; onPick: (date: string) => void }): ReactNode {
+  if (look.arch !== "billboard") return <ArchList look={look} kind="days" items={dayItems(days, onPick)} />;
   switch (look.arch) {
     case "billboard": return <div className="stx-bb-agenda">{days.map((d) => <button type="button" key={d.date} className="stx-bb-day" onClick={() => onPick(d.date)}>
       <span className="stx-bb-date"><small>{d.weekday}</small><b>{d.day}</b><small>{d.month}</small></span>
