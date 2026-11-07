@@ -117,3 +117,16 @@ test("the screens: setup asks who's eating, prices come from the store with your
   assert.doesNotMatch(read("server/routes.ts"), /mealCost/);
   for (const f of ["KitchenPlan.tsx", "kitchen/DishEditor.tsx", "kitchen/DishPicker.tsx", "kitchen/ProductChooser.tsx", "kitchen/kit.tsx"]) assert.doesNotMatch(read(`client/src/components/family-hub/${f}`), /\p{Extended_Pictographic}/u, f);
 });
+
+test("Add meals takes several dishes at once, each on every picked day", () => {
+  const ui = read("client/src/components/family-hub/kitchen/DishPicker.tsx");
+  assert.match(ui, /const \[picked, setPicked\] = useState<string\[\]>\(\[\]\)/);
+  assert.match(ui, /for \(const id of picked\)[\s\S]{0,200}for \(const d of days\)/);
+  assert.doesNotMatch(ui, /setDish\(/);
+});
+
+test("the same person twice is merged, and their meals go with them", () => {
+  const k = cleanKitchen({ setup: true, people: [{ id: "a", name: "Me", portion: 1 }, { id: "b", name: "Vanessa", portion: 1 }, { id: "c", name: "vanessa ", portion: 1 }], week: { "mon:dinner": [{ id: "x", dish: "tacos", people: ["a", "c"] }] } });
+  assert.deepEqual(k.people.map((p) => p.name), ["Me", "Vanessa"]);
+  assert.deepEqual(k.week["mon:dinner"][0].people, ["a", "b"]);
+});
