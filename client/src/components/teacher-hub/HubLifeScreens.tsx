@@ -22,7 +22,7 @@ export default function HubLifeScreen({ which, workspace, setWorkspace, today, m
     () => familyFromWorkspace(workspace),
     // Only what these screens show: a change anywhere else in the workspace doesn't rebuild it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [workspace.notes, workspace.journal, workspace.calendars, workspace.extraCalendars, workspace.events, workspace.hiddenEvents],
+    [workspace.notes, workspace.journal, workspace.calendars, workspace.extraCalendars, workspace.hiddenCalendars, workspace.events, workspace.hiddenEvents],
   );
   const setFamily = (update: (f: Family) => Family) =>
     setWorkspace((prev) => {

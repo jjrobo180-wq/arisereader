@@ -74,6 +74,7 @@ import { registerTalkRoutes } from "./talk";
 import { registerBrowserRoutes } from "./browserCheck";
 import { registerLifePlanRoutes } from "./lifePlan";
 import { registerAccountabilityRoutes, startAccountabilityTicker } from "./accountability";
+import { ACCOUNTABILITY_BELL_TYPE } from "../shared/notifications";
 import { registerOtaRoutes } from "./ota";
 import { registerSleepFinderRoutes } from "./sleepFinder";
 import { podscrollAllowed, registerEarshotRoutes, registerPodscrollRoutes, supabaseEarshotStore } from "./earshot";
@@ -1627,7 +1628,16 @@ export async function registerRoutes(
   // Accountability (an Arise To Duo app): shared to-dos with nudges until done, proof, AI worksheets and quizzes.
   const acctDeps = {
     db: () => getAdminSupabase(),
-    push: (userId: number, message: { title: string; body: string; url?: string; tag?: string }) => notifyUser(userId, message, "todo"),
+    // Each one also goes in the notification bell (both hubs, every device), so it's there even on a phone or
+    // computer that never signed up for pushes: they only reached iPhones whose app had reminders on.
+    // The automatic nudges ("still to do") stay pushes only, so the bell isn't filled with them.
+    push: (userId: number, message: { title: string; body: string; url?: string; tag?: string }) => {
+      if (!String(message.tag || "").startsWith("acct-nudge-")) void (async () => {
+        const { error } = await supabase.from("notifications").insert({ user_id: userId, type: ACCOUNTABILITY_BELL_TYPE, title: message.title.slice(0, 200), message: message.body.slice(0, 500) });
+        if (error) console.error("[accountability] bell:", error.message);
+      })();
+      return notifyUser(userId, message, "todo");
+    },
     nameOf: async (id: number) => { const u: any = await storage.getUser(id); return String(u?.displayName || u?.display_name || "").trim().split(/\s+/)[0] || ""; },
   };
   registerAccountabilityRoutes(app, authMiddleware, acctDeps);

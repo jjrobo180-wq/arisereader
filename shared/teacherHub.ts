@@ -289,6 +289,8 @@ export type Workspace = {
   journal?: import("./familyHub").JournalEntry[];
   /** Calendars made on the Calendar screen that are not the Work calendar or a linked one. */
   extraCalendars?: import("./familyHub").FamilyCalendar[];
+  /** The Work calendar and linked calendars switched off on the Calendar screen (shared/hubSwap.ts). */
+  hiddenCalendars?: string[];
 };
 export type TaskList = { id: string; name: string; color: string };
 

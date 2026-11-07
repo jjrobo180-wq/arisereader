@@ -72,8 +72,8 @@ test("quiz links: a code, no answers shown, scored on the server, kept through a
 
 test("the IEP page puts every part in one place, with the student picked at the top", () => {
   const page = read("client/src/components/teacher-hub/HubIep.tsx"), hub = read("client/src/pages/TeacherHub.tsx"), server = read("server/teacherHub.ts"), app = read("client/src/App.tsx");
-  for (const t of ['type IepTab = "overview" | "meetings" | "notes"', 'key: "meetings", label: "Meetings"', 'key: "notes", label: "Notes"', 'key: "profile", label: "Profile"', 'key: "accommodations", label: "Accommodations"', 'key: "progress", label: "Progress"', 'key: "minutes", label: "Minutes"', 'data-testid="iep-folder"', 'data-testid="iep-note-picker"', 'data-testid="iep-student"', 'data-testid="iep-pm-upload"', 'data-testid="iep-pm-sheet"', 'data-testid="iep-pm-worksheet"', 'data-testid="iep-pm-quiz"', "<StudentQuizzes", "<MakeGoalQuiz"]) assert.ok(page.includes(t), t);
-  assert.ok(hub.includes('{tab === "iep" && <IepPage'));
+  for (const t of ['type IepTab = "overview" | "meetings" | "notes"', 'key: "meetings", label: "Meetings"', 'key: "notes", label: "Notes"', 'key: "profile", label: "Caseload"', 'key: "accommodations", label: "Accommodations"', 'key: "progress", label: "Progress"', 'key: "minutes", label: "Minutes"', 'data-testid="iep-folder"', 'data-testid="iep-note-picker"', 'data-testid="iep-student"', 'data-testid="iep-pm-upload"', 'data-testid="iep-pm-sheet"', 'data-testid="iep-pm-worksheet"', 'data-testid="iep-pm-quiz"', "<StudentQuizzes", "<MakeGoalQuiz"]) assert.ok(page.includes(t), t);
+  assert.ok(hub.includes('{(tab === "iep" || tab === "caseload" || tab === "minutes") && <IepPage'));
   assert.ok(server.includes('app.get("/api/goal-quiz/:code"') && server.includes('app.post("/api/goal-quiz/:code"') && server.includes("scoreQuiz(quiz, req.body?.answers)"));
   assert.ok(app.includes('<Route path="/goal-quiz/:code"><GoalQuizPage /></Route>'));
 });
