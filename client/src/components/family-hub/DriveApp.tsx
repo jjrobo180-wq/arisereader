@@ -372,7 +372,7 @@ function Viewer({ f, url, ensure, close, prev, next, many, star, rename, move, r
   const Act = ({ label, onClick, children, danger }: { label: string; onClick: () => void; children: ReactNode; danger?: boolean }) =>
     <button type="button" onClick={onClick} className={`flex min-w-[4.2rem] flex-col items-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-bold ${danger ? "text-rose-300 hover:bg-rose-500/15" : "text-white/85 hover:bg-white/10"}`}>{children}{label}</button>;
   return <div className="fixed inset-0 z-[80] flex flex-col bg-[#0b0a14] text-white" role="dialog" aria-modal="true" aria-label={f.name} data-testid="drive-viewer">
-    <div className="flex items-center gap-2 px-3 pb-2 pt-[max(.75rem,env(safe-area-inset-top))]">
+    <div className="flex items-center gap-2 px-3 pb-2 pt-[max(.75rem,var(--sat,env(safe-area-inset-top,0px)))]">
       <button type="button" onClick={close} aria-label="Close" className="grid h-11 w-11 place-items-center rounded-full hover:bg-white/10"><X className="h-5 w-5" /></button>
       <div className="min-w-0 flex-1"><p className="truncate text-[15px] font-bold">{f.name}</p><p className="truncate text-xs text-white/55">{look.label} · {formatBytes(f.size)}{f.folder ? ` · ${f.folder}` : ""}</p></div>
       <button type="button" onClick={star} aria-label={f.starred ? "Unstar" : "Star"} className="grid h-11 w-11 place-items-center rounded-full hover:bg-white/10"><Star className={`h-5 w-5 ${f.starred ? "fill-amber-400 text-amber-400" : ""}`} /></button>

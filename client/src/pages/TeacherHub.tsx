@@ -1141,7 +1141,7 @@ function TeacherHubPage() {
           <div className={`fixed inset-0 z-[70] ${drawerMenu ? "" : "max-md:hidden"} ${deskDrawer ? "" : "md:hidden"} ${apps ? "" : "pointer-events-none"}`} aria-hidden={!apps}>
             <div className={`absolute inset-0 bg-slate-950/30 transition-opacity duration-200 ${apps ? "opacity-100" : "opacity-0"}`} onClick={() => setApps(false)} />
             <div role="dialog" aria-modal="true" aria-label="All sections" data-testid="hub-apps"
-              className={`absolute inset-x-0 bottom-0 top-[max(2.5rem,env(safe-area-inset-top))] mx-auto flex max-w-3xl flex-col rounded-t-[2rem] md:top-16 bg-white shadow-2xl transition-transform duration-300 ease-out ${apps ? "translate-y-0" : "translate-y-full"}`}
+              className={`absolute inset-x-0 bottom-0 top-[max(2.5rem,var(--sat,env(safe-area-inset-top,0px)))] mx-auto flex max-w-3xl flex-col rounded-t-[2rem] md:top-16 bg-white shadow-2xl transition-transform duration-300 ease-out ${apps ? "translate-y-0" : "translate-y-full"}`}
               onTouchStart={(e) => { appsSwipe.current = e.touches[0].clientY; }}
               onTouchEnd={(e) => { const from = appsSwipe.current; appsSwipe.current = null; const list = document.getElementById("hub-apps-list"); if (from !== null && e.changedTouches[0].clientY - from > 90 && (!list || list.scrollTop <= 0)) setApps(false); }}>
               <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-slate-300" aria-hidden />

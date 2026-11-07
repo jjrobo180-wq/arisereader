@@ -237,7 +237,7 @@ export function Logo({ size = 36 }: { size?: number }) {
 }
 
 export function TopBar({ ctx, title, back, right }: { ctx: AppCtx; title?: ReactNode; back?: () => void; right?: ReactNode }) {
-  return <header className="an-noprint sticky top-0 z-30 border-b border-[var(--an-line)] bg-[color-mix(in_srgb,var(--an-bg)_88%,transparent)] pt-[env(safe-area-inset-top)] backdrop-blur-xl">
+  return <header className="an-noprint sticky top-0 z-30 border-b border-[var(--an-line)] bg-[color-mix(in_srgb,var(--an-bg)_88%,transparent)] pt-[var(--sat,env(safe-area-inset-top,0px))] backdrop-blur-xl">
     <div className="mx-auto flex h-14 max-w-5xl items-center gap-2 px-3 sm:px-5">
       {back ? <IconBtn label="Back" onClick={back}><ChevronLeft className="h-6 w-6" /></IconBtn> : <Logo size={34} />}
       <div className="min-w-0 flex-1 truncate text-[17px] font-bold tracking-tight">{title ?? "Arise Notes"}</div>
@@ -320,7 +320,8 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
         <IconBtn label="Split screen with your to-do list" className="an-extra hidden md:grid" onClick={() => openSplit(ctx.mode, ctx.hub === "work" ? "workhub" : "tasks")}><Columns2 className="h-5 w-5" /></IconBtn>
         <IconBtn label="Menu" onClick={() => ctx.go({ name: "settings" })}><LayoutGrid className="h-5 w-5" /></IconBtn>
       </>} />}
-    <main className="mx-auto max-w-5xl space-y-4 px-4 pb-24 pt-4 sm:px-5">
+    {/* Under the top bar (Notes inside a hub, with a look) the look's hero doesn't add the clock's space again. */}
+    <main className={`mx-auto max-w-5xl space-y-4 px-4 pb-24 pt-4 sm:px-5 ${look && exit ? "an-under-bar" : ""}`}>
       {look ? <>
         <LookHomeHero look={look} a={{ first, minutes: <MinutesPill ctx={ctx} />, record: () => ctx.go({ name: "record" }), upload: () => ctx.go({ name: "upload" }), memo: () => ctx.go({ name: "memo" }), ask: () => ctx.go({ name: "ask" }), memoLocked: !ctx.me.features.memo, count: all.length, settings: () => ctx.go({ name: "settings" }), pages: () => ctx.go({ name: "pages" }) }} />
       <MinutesBanner ctx={ctx} />

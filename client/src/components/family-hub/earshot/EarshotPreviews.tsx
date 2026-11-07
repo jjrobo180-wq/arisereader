@@ -99,7 +99,7 @@ export function Previews({ picks: given, source, episodes, onClose, onPlay, onSh
           <div aria-hidden className="absolute -inset-[20%] bg-cover bg-center opacity-70 blur-3xl" style={{ backgroundImage: Math.abs(i - active) < 3 ? `url("${hiRes(art, 300)}")` : undefined }} />
           <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/90" />
           <button type="button" onClick={toggle} aria-label={playing ? "Pause" : "Play"} className="absolute inset-0 z-[1]" />
-          <div className="pointer-events-none relative z-[2] flex h-full flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[calc(env(safe-area-inset-top,0px)+4.5rem)]">
+          <div className="pointer-events-none relative z-[2] flex h-full flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[calc(var(--sat,env(safe-area-inset-top,0px))+4.5rem)]">
             <div className="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
               {Math.abs(i - active) < 3 && <img src={hiRes(art, 600)} alt="" referrerPolicy="no-referrer" className={`aspect-square w-[min(62vw,280px,38svh)] rounded-2xl object-cover shadow-[0_30px_80px_rgba(0,0,0,.6)] transition-transform duration-700 ${on && playing ? "scale-100" : "scale-[.92]"}`} />}
               <p className="mt-6 text-xs font-semibold uppercase tracking-[.18em] text-white/60">{LABEL[k]}</p>
@@ -123,7 +123,7 @@ export function Previews({ picks: given, source, episodes, onClose, onPlay, onSh
         </section>;
       })}
     </div>
-    <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center gap-3 px-3 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)]">
+    <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center gap-3 px-3 pt-[calc(var(--sat,env(safe-area-inset-top,0px))+0.75rem)]">
       <button type="button" onClick={() => { audio.pause(); onClose(); }} aria-label="Back to Explore" className="pointer-events-auto grid h-10 w-10 place-items-center rounded-full bg-black/40 backdrop-blur"><ChevronLeft size={22} /></button>
       <b className="text-base">Previews</b>
       <span className="ml-auto mr-1 text-xs tabular-nums text-white/50">{active + 1} / {picks.length}</span>

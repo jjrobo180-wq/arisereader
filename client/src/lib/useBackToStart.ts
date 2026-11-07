@@ -1,6 +1,7 @@
 // The Windows start screen's "back": while an app is open on top of Home, the phone's back button or
 // edge swipe (and the on-screen Start button) return to Home instead of leaving the whole site.
 import { useCallback, useEffect, useRef } from "react";
+import { inAppBack } from "./inAppBack";
 
 /** `away` is true while something other than Home is showing. `goHome` shows Home. Returns the function the Start button calls. */
 export function useBackToStart(away: boolean, goHome: () => void): () => void {
@@ -17,7 +18,7 @@ export function useBackToStart(away: boolean, goHome: () => void): () => void {
   // Home reached some other way (the drawer, a tile): forget the step so the next app pushes a fresh one.
   useEffect(() => { if (!away) pushed.current = false; }, [away]);
   return useCallback(() => {
-    if (pushed.current) window.history.back(); // popstate then calls goHome
+    if (pushed.current) inAppBack(); // popstate then calls goHome
     else home.current();
   }, []);
 }
