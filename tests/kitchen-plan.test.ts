@@ -3,13 +3,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { DISHES, SLOTS, WEEK_DAYS, autoFill, cellKey, dishesFor, planForBudget, shoppingFrom, totalOf } from "../shared/mealCatalog";
+import { DISHES, SLOTS, WEEK_DAYS, autoFill, cellKey, dishesFor, planForBudget, shoppingFrom, takeoutFrom, takeoutTotal, totalOf } from "../shared/mealCatalog";
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
 test("every meal type has plenty of dishes with unique ids", () => {
   assert.equal(new Set(DISHES.map((d) => d.id)).size, DISHES.length);
-  for (const s of SLOTS) assert.ok(DISHES.filter((d) => d.slot === s.id).length >= 7, s.id);
+  for (const s of SLOTS) assert.ok(DISHES.filter((d) => d.slot === s.id).length >= 15, s.id);
 });
 
 test("dishes sort by popularity, health, calories, speed and price", () => {
@@ -55,5 +55,39 @@ test("the Plan page is the wizard and the AI price check has its own route", () 
   assert.match(read("client/src/components/family-hub/BundleApp.tsx"), /id === "meals"\) return <KitchenPlan/);
   assert.match(read("server/mealCost.ts"), /app\.post\("\/api\/arise-todo\/meal\/price", authMiddleware/);
   assert.match(read("server/routes.ts"), /registerMealCostRoutes\(app, authMiddleware\)/);
-  assert.match(read("client/src/components/family-hub/KitchenPlan.tsx"), /Plan from a budget/);
+  assert.match(read("client/src/components/family-hub/KitchenPlan.tsx"), /plan from a weekly budget/);
+});
+
+test("a dish can have its own ingredients, a brand, or be takeout instead", () => {
+  const week = autoFill({ "d-spag": 2 });
+  const plain = shoppingFrom(week, 4);
+  assert.ok(plain.some((l) => l.name === "Spaghetti"));
+  const custom = { "d-spag": { items: [["Gluten-free spaghetti", "1 box", 4.5, "Barilla"], ["Ground turkey", "1 lb", 4.5]] as [string, string, number, string?][] } };
+  const own = shoppingFrom(week, 4, { custom });
+  assert.ok(own.some((l) => l.name === "Gluten-free spaghetti" && l.brand === "Barilla"));
+  assert.ok(!own.some((l) => l.name === "Ground beef"));
+  const out = { "d-spag": { takeout: { place: "Olive Garden", price: 48 } } };
+  assert.deepEqual(shoppingFrom(week, 4, { custom: out }), []);
+  const t = takeoutFrom(week, { custom: out });
+  assert.equal(t.length, 1);
+  assert.equal(t[0].meals, 2);
+  assert.equal(takeoutTotal(t), 96);
+});
+
+test("a person's own dish works in the week and the list", () => {
+  const extra = [{ id: "u-1", slot: "dinner" as const, name: "Grandma's stew", kcal: 0, minutes: 0, tags: [], pop: 0, items: [] }];
+  const custom = { "u-1": { items: [["Beef chuck", "2 lb", 14]] as [string, string, number][] } };
+  const lines = shoppingFrom({ "mon:dinner": "u-1" }, 4, { custom, extra });
+  assert.deepEqual(lines.map((l) => [l.name, l.price]), [["Beef chuck", 14]]);
+});
+
+test("the AI price check sends the person's sign-in, which was why it failed before", () => {
+  const ui = read("client/src/components/family-hub/KitchenPlan.tsx");
+  assert.match(ui, /Authorization: `Bearer \$\{token\}`/);
+  assert.match(ui, /body\?\.message \|\|/);
+});
+
+test("the Kitchen tabs and the plan's steps read differently, so the menu isn't confusing", () => {
+  assert.match(read("client/src/components/family-hub/BundleApp.tsx"), /"Shopping list"/);
+  assert.match(read("client/src/components/family-hub/KitchenPlan.tsx"), /Step \{step\} of 3/);
 });
