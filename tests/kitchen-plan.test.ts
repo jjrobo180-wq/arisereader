@@ -21,13 +21,24 @@ test("dishes sort by popularity, health, calories, speed and price", () => {
 });
 
 test("a week becomes one shopping list: repeated ingredients are one line, and the total adds up", () => {
-  const week = autoFill({ breakfast: [], lunch: [], dinner: ["d-tacos", "d-spag"], snack: [], dessert: [] });
+  const week = autoFill({ "d-tacos": 4, "d-spag": 3 });
   assert.equal(Object.keys(week).length, 7);
   const lines = shoppingFrom(week, 4);
   assert.equal(lines.filter((l) => l.name === "Ground beef").length, 1);
   assert.ok(lines.find((l) => l.name === "Ground beef")!.meals === 7);
   assert.ok(totalOf(lines) > 0);
   assert.ok(totalOf(shoppingFrom(week, 8)) > totalOf(shoppingFrom(week, 2)));
+});
+
+test("one dish can be on several days, and days left over stay empty", () => {
+  const week = autoFill({ "d-pizza": 3 });
+  assert.deepEqual(Object.values(week), ["d-pizza", "d-pizza", "d-pizza"]);
+  assert.equal(Object.keys(autoFill({ "d-pizza": 9 })).length, 7);
+});
+
+test("no emojis in the planner", () => {
+  const src = read("client/src/components/family-hub/KitchenPlan.tsx") + read("shared/mealCatalog.ts");
+  assert.doesNotMatch(src, /\p{Extended_Pictographic}/u);
 });
 
 test("working backwards from a weekly total stays under it when it can", () => {
@@ -44,5 +55,5 @@ test("the Plan page is the wizard and the AI price check has its own route", () 
   assert.match(read("client/src/components/family-hub/BundleApp.tsx"), /id === "meals"\) return <KitchenPlan/);
   assert.match(read("server/mealCost.ts"), /app\.post\("\/api\/arise-todo\/meal\/price", authMiddleware/);
   assert.match(read("server/routes.ts"), /registerMealCostRoutes\(app, authMiddleware\)/);
-  assert.match(read("client/src/components/family-hub/KitchenPlan.tsx"), /Start from a budget/);
+  assert.match(read("client/src/components/family-hub/KitchenPlan.tsx"), /Plan from a budget/);
 });

@@ -52,7 +52,7 @@ export default function BundleApp({ bundleId, ...p }: SectionProps & { bundleId:
     </a>}
     <div className="flex items-center gap-2">
       <div className="no-scrollbar flex min-w-0 flex-1 gap-1.5 overflow-x-auto" role="tablist" aria-label={bundle.name}>
-        {pages.map((id) => <button key={id} type="button" role="tab" aria-selected={id === current} onClick={() => setTab(id)} className={`shrink-0 rounded-full px-3.5 py-2 text-sm font-bold transition ${id === current ? "bg-[#6e5ae0] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>{tabLabel(id)}</button>)}
+        {pages.map((id) => <button key={id} type="button" role="tab" aria-selected={id === current} onClick={() => setTab(id)} className={`shrink-0 rounded-full px-3.5 py-2 text-sm font-bold transition ${id === current ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>{tabLabel(id)}</button>)}
       </div>
       <button type="button" onClick={open} aria-label={`${bundle.name} settings`} data-testid="bundle-settings" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"><Settings2 size={17} /></button>
     </div>
