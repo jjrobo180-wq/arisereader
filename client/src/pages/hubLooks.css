@@ -63,6 +63,14 @@
 .hub-look-dark .text-amber-500, .hub-look-dark .text-amber-600, .hub-look-dark .text-orange-600 { color: #ffc969 !important; }
 .hub-look-dark .text-emerald-500, .hub-look-dark .text-emerald-600, .hub-look-dark .text-emerald-700, .hub-look-dark .text-emerald-800, .hub-look-dark .text-emerald-900, .hub-look-dark .text-green-600, .hub-look-dark .text-green-700, .hub-look-dark .text-green-800, .hub-look-dark .text-teal-600, .hub-look-dark .text-teal-700 { color: #7de2b8 !important; }
 .hub-look-dark .text-sky-600, .hub-look-dark .text-blue-600 { color: #9ad0ff !important; }
+/* Tide is one mid-deep teal, not near-black: its red and green words go a step lighter, and its tinted boxes
+   mix with the deeper page color, so a warning or an amount reads on it (the safety net turned them black). */
+.hub-theme-tide .text-rose-500, .hub-theme-tide .text-rose-600, .hub-theme-tide .text-rose-700, .hub-theme-tide .text-rose-800 { color: #ffe8e8 !important; }
+.hub-theme-tide .text-emerald-500, .hub-theme-tide .text-emerald-600, .hub-theme-tide .text-emerald-700, .hub-theme-tide .text-emerald-800, .hub-theme-tide .text-emerald-900, .hub-theme-tide .text-green-600, .hub-theme-tide .text-green-700 { color: #c2f7df !important; }
+.hub-theme-tide .text-amber-500, .hub-theme-tide .text-amber-600, .hub-theme-tide .text-amber-700 { color: #ffe8bd !important; }
+.hub-theme-tide .bg-rose-50, .hub-theme-tide .bg-rose-100 { background-color: color-mix(in srgb, #e11d48 24%, var(--an-bg)) !important; }
+.hub-theme-tide .bg-amber-50, .hub-theme-tide .bg-amber-100 { background-color: color-mix(in srgb, #f59e0b 22%, var(--an-bg)) !important; }
+.hub-theme-tide .bg-emerald-50, .hub-theme-tide .bg-emerald-100 { background-color: color-mix(in srgb, #10b981 22%, var(--an-bg)) !important; }
 /* Sticky notes keep their own color only in looks that are built for it; elsewhere they follow the look. */
 .hub-look .note-card { background: var(--an-card) !important; color: var(--an-ink); }
 /* The menu */
