@@ -30,12 +30,13 @@ export function usePhoneMenu(side: MenuSide, close: MenuClose) {
 }
 
 /** The phone menu itself. `top` is how far below the top of the screen it starts (under the header). */
-export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 65, folders = [], deskDrawer = false, hideLauncher = false, onFolders }: {
+export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 65, folders = [], deskDrawer = false, hideLauncher = false, hideTab = false, onFolders }: {
   /** Saves folders made right in the drawer (press and hold an app, then tap another to group them). */ onFolders?: (next: MenuFolder[]) => void;
   items: PhoneMenuItem[]; side: MenuSide; close: MenuClose; open: boolean; setRail: (open: boolean) => void; afterPick: () => void; top?: number;
   /** Menu folders from Customize. */ folders?: MenuFolder[];
   /** The app drawer is also the menu on a computer. */ deskDrawer?: boolean;
   /** Leaves out the round button that opens the drawer (Home's start screen already shows every app). */ hideLauncher?: boolean;
+  /** Leaves out the little "show menu" tab on the screen's edge (a look's own dock already has every button; the tab covered the page). */ hideTab?: boolean;
 }) {
   const [openFolders, setOpenFolders] = useState<string[]>([]);
   const toggleFolder = (id: string) => setOpenFolders((x) => (x.includes(id) ? x.filter((y) => y !== id) : [...x, id]));
@@ -148,7 +149,7 @@ export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 
 
   return <>
     {drawer}
-    {!open && <button type="button" onClick={() => setRail(true)} aria-label="Show menu" data-testid="life-rail-show"
+    {!open && !hideTab && <button type="button" onClick={() => setRail(true)} aria-label="Show menu" data-testid="life-rail-show"
       className={`fixed z-30 inline-flex items-center justify-center border border-slate-200 bg-white text-slate-600 shadow-md lg:hidden ${tabPlace}`} style={side === "bottom" ? undefined : { top: side === "top" ? top : top + 12 }}>{showIcon}</button>}
     <nav aria-label="LifeHub menu" aria-hidden={open ? undefined : true} data-testid="life-phone-menu"
       className={`fixed z-30 border-slate-200 bg-white transition-transform duration-200 lg:hidden ${place}`} style={side === "bottom" ? undefined : { top }}>
