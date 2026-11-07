@@ -146,7 +146,7 @@ import { HubMoreMenu, hubMoreGroups, openNotificationBell } from "@/components/H
 import SameBothHubs from "@/components/SameBothHubs";
 import AppWalkthrough from "@/components/AppWalkthrough";
 import HubCoach from "@/components/HubCoach";
-import { SHARED_LOOK_EVENT, readNight, rememberLook, withSharedLook, writeNight } from "@/lib/sharedLook";
+import { SHARED_LOOK_EVENT, readNight, stampLook, withNight, withSharedLook, writeNight } from "@/lib/sharedLook";
 import { boardGoals } from "@shared/hubGoalBoard";
 import { HubLinkProvider, ItemConnections } from "@/components/teacher-hub/HubLinks";
 import { API_BASE } from "@/lib/queryClient";
@@ -475,7 +475,7 @@ function TeacherHubPage() {
   // Night mode: the choice is remembered on this phone or computer.
   // Night mode is shared with LifeHub until "Same settings in both hubs" is turned off (lib/sharedLook.ts).
   const [night, setNight] = useState(() => readNight("work"));
-  function toggleNight() { setNight((v) => { writeNight("work", !v); return !v; }); }
+  function toggleNight() { const on = !night; writeNight("work", on); setNight(on); setWorkspace((p) => ({ ...p, layout: withNight((p.layout || {}) as HubLayout, on) })); }
   const [, setLookTick] = useState(0);
   useEffect(() => { const f = () => { setNight(readNight("work")); setLookTick((x) => x + 1); }; window.addEventListener(SHARED_LOOK_EVENT, f); window.addEventListener("storage", f); return () => { window.removeEventListener(SHARED_LOOK_EVENT, f); window.removeEventListener("storage", f); }; }, []);
   // "Add with AI": the panel that reads pasted text, photos and files into the Hub.
@@ -632,11 +632,11 @@ function TeacherHubPage() {
   // How the teacher arranged the Hub (Customize): where the phone menu sits, how it closes, and what Home shows.
   // Every added Kit plugin and Notes app may be pinned to Home as its own tile (myKits/myNotesApps, just above).
   const pinnableApps = [...myKits.map((d) => d.id), ...myNotesApps.map((p) => p.id)];
-  const layout = withSharedLook(cleanLayout(workspace.layout, pinnableApps));
+  const layout = withSharedLook(cleanLayout(workspace.layout, pinnableApps), "work");
   const hubLook = useHubLook(layout.theme, night);
   const hubRootRef = useRef<HTMLDivElement | null>(null);
   useNativeBackdrop(hubRootRef, [night, layout.theme, hubLook.look?.id]);
-  const setLayout = (next: HubLayout) => { rememberLook(next); setWorkspace((p) => ({ ...p, layout: next })); window.dispatchEvent(new Event(SHARED_LOOK_EVENT)); };
+  const setLayout = (next: HubLayout) => { const stamped = stampLook(layout, next); setWorkspace((p) => ({ ...p, layout: stamped })); window.dispatchEvent(new Event(SHARED_LOOK_EVENT)); };
   /** A look runs as its own system, everywhere but the Duo's book view and split-screen panes. */
   const osOn = !!hubLook.look && duo.mode !== "book" && !inDuoPane();
   const workHeaderHidden = useAutoHideHeader(true);
