@@ -26,7 +26,7 @@ export default function KitchenShop({ family, setFamily, makeId, say }: SectionP
   return <div className="space-y-5" data-testid="kitchen-shop">
     <form onSubmit={add} className="flex gap-2">
       <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Add to your list (milk, eggs, bread)" className={`${inputClass} flex-1`} aria-label="Add to your list" />
-      <button type="submit" disabled={!text.trim()} className="shrink-0 rounded-xl bg-[#6e5ae0] px-4 text-sm font-bold text-white disabled:opacity-40">Add</button>
+      <button type="submit" disabled={!text.trim()} className="shrink-0 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white disabled:opacity-30">Add</button>
     </form>
     {total > 0 && <p className="px-1 text-sm font-bold text-slate-500">Estimated total <span className="text-slate-900">${total.toFixed(2)}</span></p>}
     {open.length === 0 && <p className="py-10 text-center text-sm text-slate-400">{done.length ? "All done. Enjoy!" : "Nothing on your list. Use Plan to pick meals and build it for you."}</p>}
