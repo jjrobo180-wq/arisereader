@@ -90,6 +90,10 @@ export function foldMenu<T extends { id: string }>(items: T[], folders: MenuFold
 
 /** What every hub's layout has: where the phone menu sits, how it closes, and Home's parts in order, hidden and sized. */
 export type AnyLayout = {
+  /** When the theme, menu or night mode was last picked (any device): the newest choice wins everywhere. */
+  lookAt?: string;
+  /** Night mode, kept with the account so the phone and the computer agree. */
+  night?: boolean;
   menuSide: MenuSide;
   /** Where the menu sits on a computer. */
   deskSide: DeskSide;
@@ -164,7 +168,9 @@ export function cleanAnyLayout<Id extends string>(raw: unknown, parts: readonly 
   const deskSide: DeskSide = DESK_SIDES.some((s) => s.id === r.deskSide) ? r.deskSide : "left";
   const theme: HubThemeId = isHubThemeId(r.theme) ? r.theme : DEFAULT_HUB_THEME;
   const shortcut = cleanShortcut(r.shortcut);
-  return { menuSide, deskSide, folders: cleanFolders(r.folders), menuClose, home, homeHidden, homeSize, theme, ...(shortcut ? { shortcut } : {}), menuV: 2 as const };
+  const lookAt = typeof r.lookAt === "string" && r.lookAt.length <= 40 && !Number.isNaN(Date.parse(r.lookAt)) ? r.lookAt : "";
+  return { menuSide, deskSide, folders: cleanFolders(r.folders), menuClose, home, homeHidden, homeSize, theme, ...(shortcut ? { shortcut } : {}), menuV: 2 as const,
+    ...(lookAt ? { lookAt } : {}), ...(typeof r.night === "boolean" ? { night: r.night } : {}) };
 }
 
 /** WorkHub's saved layout made safe. `pinnable`: installed Kit-plugin/Notes-app ids (see pinId) that may be pinned to Home. */
