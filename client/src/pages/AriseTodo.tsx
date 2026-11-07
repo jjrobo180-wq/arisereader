@@ -167,6 +167,7 @@ import { inDuoPane, useAriseDuo, type DuoChoice } from "@/lib/useAriseDuo";
 import "@/components/teacher-hub/darkPalette.css";
 import AccountPrivacy from "@/components/AccountPrivacy";
 import { isNativeApp } from "@/lib/nativeApp";
+import { nativeTasksAvailable, openNativeTasks, takeNativeTaskActions, tasksPayload, updateNativeTasks } from "@/lib/nativeTasks";
 import { isSampleMode } from "@/lib/sampleMode";
 import { REMINDERS_CHANGED, installReminderTaps, scheduleNativeReminders } from "@/lib/nativeReminders";
 
@@ -828,6 +829,30 @@ export default function AriseTodo() {
     setSection(id as FamilySection);
     window.scrollTo({ top: 0 });
   };
+  // The iPhone app's Tasks tab is a native screen over the web app (native/arise-native). Everything it does comes back as
+  // actions applied here; without the plugin (the website, an older app) the web Tasks screen is used.
+  const nativeTasksOpen = useRef(false);
+  const latest = useRef({ data, toggleDone });
+  latest.current = { data, toggleDone };
+  useEffect(() => {
+    if (shown !== "tasks" || nativeTasksOpen.current || !nativeTasksAvailable()) return;
+    nativeTasksOpen.current = true;
+    let timer: ReturnType<typeof setInterval> | undefined;
+    void (async () => {
+      const ok = await openNativeTasks(tasksPayload(latest.current.data));
+      if (!ok) { nativeTasksOpen.current = false; return; }
+      timer = setInterval(async () => {
+        for (const a of await takeNativeTaskActions()) {
+          if (a.type === "toggle") { const t = latest.current.data.tasks.find((x) => x.id === a.id); if (t) latest.current.toggleDone(t); }
+          else if (a.type === "delete") setData((p) => ({ ...p, tasks: p.tasks.filter((x) => x.id !== a.id) }));
+          else if (a.type === "add") setData((p) => ({ ...p, tasks: [...p.tasks, { id: makeId(), title: a.title, notes: "", listId: a.listId || p.lists[0]?.id || "", assignee: "", due: a.due, time: "", priority: "normal", repeat: "none", done: false, createdAt: new Date().toISOString() } as Task] }));
+          else if (a.type === "closed") { if (timer) clearInterval(timer); timer = undefined; nativeTasksOpen.current = false; goSection("home"); }
+        }
+      }, 400);
+    })();
+    return () => { if (timer) clearInterval(timer); };
+  }, [shown]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (nativeTasksOpen.current) updateNativeTasks(tasksPayload(data)); }, [data.tasks, data.lists]);
   // Built when search opens (it uses the menu, defined further down), so it never runs before that exists.
   const buildSearchEntries = (): HubSearchEntry[] => {
     if (!searching) return [];
