@@ -129,7 +129,7 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
     onOpen={() => open(m.id)} onTrash={() => trashNote(m)} onPin={() => void pinNote(m)} onRestore={() => { sync.restore(m.id); say("Restored."); }} onForever={async () => { if (!window.confirm("Delete this note for good?")) return; await sync.forever([m.id]).catch((e) => say(e.message)); }} />;
 
   const list = <div className="relative flex h-full min-h-0 flex-col">
-    <div className="space-y-3.5 px-4 pb-2 pt-[max(1rem,env(safe-area-inset-top))]">
+    <div className="space-y-3.5 px-4 pb-2 pt-[max(1rem,var(--sat,env(safe-area-inset-top,0px)))]">
       <div className="flex items-end gap-2">
         <div className="min-w-0 flex-1">
           {!wide && <button type="button" className="pp-back" onClick={() => setPane("folders")} data-testid="pages-back-folders"><ChevronLeft className="h-5 w-5" />Folders</button>}
@@ -164,7 +164,7 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
 
   /** The phone's first screen: your folders, with search across every note. */
   const folderScreen = <div className="relative flex h-full min-h-0 flex-col" data-testid="pages-folder-screen">
-    <div className="space-y-3 px-4 pb-2 pt-[max(1rem,env(safe-area-inset-top))]">
+    <div className="space-y-3 px-4 pb-2 pt-[max(1rem,var(--sat,env(safe-area-inset-top,0px)))]">
       <div className="flex items-end gap-2">
         <div className="min-w-0 flex-1"><h2 className="pp-title">Notes</h2><p className="pp-sub">{live.length} {live.length === 1 ? "note" : "notes"} · {folders.length} {folders.length === 1 ? "folder" : "folders"}</p></div>
         <button type="button" className="an-round-btn" aria-label="Notes settings" onClick={() => setSheet("settings")}><Settings2 className="h-[18px] w-[18px]" /></button>

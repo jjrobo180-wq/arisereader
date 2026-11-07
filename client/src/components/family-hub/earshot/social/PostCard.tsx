@@ -161,7 +161,7 @@ export function Lightbox({ media, start, onClose }: { media: Media[]; start: num
   const m = media[i];
   return <Layer><div className="fade absolute inset-0 z-[90] flex items-center justify-center bg-black/95" onClick={onClose} role="dialog" aria-label="Photo"
     onTouchStart={(e) => { touch.current = e.touches[0].clientX; }} onTouchEnd={(e) => { if (touch.current == null) return; const dx = e.changedTouches[0].clientX - touch.current; touch.current = null; if (dx < -50) setI((n) => Math.min(media.length - 1, n + 1)); if (dx > 50) setI((n) => Math.max(0, n - 1)); }}>
-    <button type="button" onClick={onClose} aria-label="Close" className="absolute left-3 top-[max(.75rem,env(safe-area-inset-top))] z-10 grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white"><X size={22} /></button>
+    <button type="button" onClick={onClose} aria-label="Close" className="absolute left-3 top-[max(.75rem,var(--sat,env(safe-area-inset-top,0px)))] z-10 grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white"><X size={22} /></button>
     {m.type === "video" ? <video src={m.url} controls autoPlay playsInline className="max-h-full max-w-full" onClick={(e) => e.stopPropagation()} />
       : <img src={m.url} alt={m.alt || ""} className="max-h-full max-w-full object-contain" onClick={(e) => e.stopPropagation()} />}
     {i > 0 && <button type="button" onClick={(e) => { e.stopPropagation(); setI(i - 1); }} aria-label="Previous" className="absolute left-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white"><ChevronLeft size={22} /></button>}

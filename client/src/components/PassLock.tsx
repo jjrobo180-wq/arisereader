@@ -55,7 +55,7 @@ export function LockScreen({ gate, title, onLeave, onForgot }: { gate: PassGate;
   const u = useUnlock(gate);
   return createPortal(
     <div className="fixed inset-0 z-[650] flex flex-col items-center justify-center overflow-y-auto bg-gradient-to-b from-violet-50 to-slate-100 px-4 py-8" role="dialog" aria-modal="true" aria-label={`${title} is locked`} data-testid="lock-screen">
-      <button type="button" onClick={onLeave} className="absolute left-3 top-3 inline-flex min-h-11 items-center gap-1 rounded-xl px-3 text-sm font-bold text-violet-700 hover:bg-white" style={{ top: "max(0.75rem, env(safe-area-inset-top))" }}>← Back</button>
+      <button type="button" onClick={onLeave} className="absolute left-3 top-3 inline-flex min-h-11 items-center gap-1 rounded-xl px-3 text-sm font-bold text-violet-700 hover:bg-white" style={{ top: "max(0.75rem, var(--sat, env(safe-area-inset-top, 0px)))" }}>← Back</button>
       <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-600 text-white shadow-lg"><Lock size={26} /></span>
       <h2 className="mt-4 text-center text-xl font-black text-slate-900">{title} is locked</h2>
       <p className="mb-5 mt-1 text-center text-sm text-slate-600">Enter your passcode</p>

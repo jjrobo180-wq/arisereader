@@ -509,7 +509,7 @@ function KidQuiz({ quiz, onClose, onFinish }: { quiz: Quiz; onClose: () => void;
     setPicked(k); setAnswers((a) => ({ ...a, [q.id]: String(k) }));
     setTimeout(() => { setPicked(null); setI((x) => x + 1); }, k === q.answer ? 900 : 1500);
   };
-  return <div className="fixed inset-0 z-[600] flex flex-col bg-gradient-to-b from-[#fff7ed] to-[#eef2ff] pb-[env(safe-area-inset-bottom)] pt-[max(env(safe-area-inset-top),12px)]" data-testid="acct-kid">
+  return <div className="fixed inset-0 z-[600] flex flex-col bg-gradient-to-b from-[#fff7ed] to-[#eef2ff] pb-[env(safe-area-inset-bottom)] pt-[max(var(--sat,env(safe-area-inset-top,0px)),12px)]" data-testid="acct-kid">
     <div className="flex items-center gap-3 px-4"><button type="button" onClick={onClose} aria-label="Close the quiz" className="grid h-11 w-11 place-items-center rounded-full bg-white text-slate-500 shadow"><ChevronLeft /></button>
       <div className="flex flex-1 gap-1.5">{quiz.questions.map((x, k) => <span key={x.id} className={`h-2.5 flex-1 rounded-full ${k < i ? (Number(answers[x.id]) === x.answer ? "bg-emerald-400" : "bg-rose-300") : k === i ? "bg-orange-400" : "bg-white"}`} />)}</div></div>
     {!done ? <div className="flex flex-1 flex-col items-center justify-center gap-6 px-5 text-center">

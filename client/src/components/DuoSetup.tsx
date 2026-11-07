@@ -155,7 +155,7 @@ export default function DuoSetup({ userId, layout, setLayout, plugins, setFamily
   useEffect(() => {
     return lockPageScroll({ fixed: true });
   }, []);
-  const page = <div data-backdrop-hold className="fixed inset-0 z-[9000] flex flex-col overflow-hidden bg-white pb-[max(14px,env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] text-[#111018] [color-scheme:light]"
+  const page = <div data-backdrop-hold className="fixed inset-0 z-[9000] flex flex-col overflow-hidden bg-white pb-[max(14px,env(safe-area-inset-bottom))] pt-[var(--sat,env(safe-area-inset-top,0px))] text-[#111018] [color-scheme:light]"
     style={SETUP_STYLE} data-light-island role="dialog" aria-modal="true" aria-label="Set up Arise To Duo" data-testid="duo-setup">
     <style>{`
       .duo-time { -webkit-appearance: none; appearance: none; display: block; box-sizing: border-box; width: 7.25rem; min-width: 0; height: 36px; padding: 0 10px; border: 0; border-radius: 10px; background: #ebeaf2; color: #111018; font: 600 16px/36px -apple-system, BlinkMacSystemFont, system-ui, sans-serif; text-align: center; }
