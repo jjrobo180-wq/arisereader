@@ -242,6 +242,6 @@ export function LookTabBar({ look, on, initial, home, notes, record, settings }:
     <button type="button" aria-label="Home" aria-current={on === "ai" ? "page" : undefined} onClick={home} data-testid="notes-tab-ai"><Svg size={25}><path d="M4 11.5 12 4l8 7.5V19a1 1 0 0 1-1 1h-4v-5H9v5H5a1 1 0 0 1-1-1z" /></Svg></button>
     <button type="button" aria-label="Notes" aria-current={on === "pages" ? "page" : undefined} onClick={notes} data-testid="notes-tab-pages"><Svg size={25}><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5zM15 5l4 4" /></Svg></button>
     <button type="button" aria-label="Record" onClick={record} data-testid="notes-tab-record"><Svg size={27}><circle cx="12" cy="12" r="9" /><path d="M12 8v8M8 12h8" /></Svg></button>
-    <button type="button" aria-label="Settings" onClick={settings} data-testid="notes-tab-settings"><span className="an-l-avatar">{initial}</span></button>
+    <button type="button" aria-label="Menu" onClick={settings} data-testid="notes-tab-settings"><span className="an-l-avatar">{initial}</span></button>
   </nav>;
 }

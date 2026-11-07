@@ -3,7 +3,7 @@
 // your notes, Voice memo, and Settings (plan and minutes, family, privacy, accessibility).
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { NoteTypeIcon } from "./NoteIcon";
-import { ArrowRight, AudioLines, ChevronLeft, Columns2, Folder, Loader2, Lock, Mic, MessageCircle, Pencil, Search, Settings, Sparkles, Upload, Users, Zap } from "lucide-react";
+import { ArrowRight, AudioLines, ChevronLeft, Columns2, Folder, LayoutGrid, Loader2, Lock, Mic, MessageCircle, Pencil, Search, Settings, Sparkles, Upload, Users, Zap } from "lucide-react";
 import { hasAppearance, setAppearance, useAppearance } from "./appearance";
 import { useAuth } from "@/context/AuthContext";
 import { startApplePush } from "@/lib/applePush";
@@ -282,9 +282,10 @@ export function TabBar({ ctx, on }: { ctx: AppCtx; on: "ai" | "pages" }) {
       className={`an-tabpill flex flex-1 items-center justify-center gap-2 rounded-full py-2.5 text-[13.5px] font-bold ${on === id ? "bg-[var(--an-ink)] text-white shadow-[0_8px_18px_-8px_rgba(20,19,31,.7)]" : "text-[var(--an-muted)] hover:text-[var(--an-ink)]"}`}>
       {icon}{label}</button>;
   return <nav role="tablist" aria-label="Arise Notes" className="an-noprint an-tabbar fixed inset-x-0 bottom-0 z-40 px-5 pb-[max(.6rem,env(safe-area-inset-bottom))] pt-2.5" data-testid="notes-tabs">
-    <div className="mx-auto flex max-w-xs gap-1 rounded-full bg-black/[.045] p-1">
+    <div className="mx-auto flex max-w-sm gap-1 rounded-full bg-black/[.045] p-1">
       <Tab id="ai" icon={<AudioLines className="h-[17px] w-[17px]" />} label="AI Notes" />
       <Tab id="pages" icon={<Pencil className="h-[17px] w-[17px]" />} label="Notes" />
+      <button type="button" onClick={() => ctx.go({ name: "settings" })} aria-label="Menu" data-testid="notes-tab-menu" className="an-tabpill flex items-center justify-center gap-2 rounded-full px-3.5 py-2.5 text-[13.5px] font-bold text-[var(--an-muted)] hover:text-[var(--an-ink)]"><LayoutGrid className="h-[17px] w-[17px]" />Menu</button>
     </div>
   </nav>;
 }
@@ -317,7 +318,7 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
       right={<>
         <IconBtn label="Ask your notes" onClick={() => ctx.go({ name: "ask" })}><MessageCircle className="h-5 w-5" /></IconBtn>
         <IconBtn label="Split screen with your to-do list" className="an-extra hidden md:grid" onClick={() => openSplit(ctx.mode, ctx.hub === "work" ? "workhub" : "tasks")}><Columns2 className="h-5 w-5" /></IconBtn>
-        <IconBtn label="Settings" onClick={() => ctx.go({ name: "settings" })}><Settings className="h-5 w-5" /></IconBtn>
+        <IconBtn label="Menu" onClick={() => ctx.go({ name: "settings" })}><LayoutGrid className="h-5 w-5" /></IconBtn>
       </>} />}
     <main className="mx-auto max-w-5xl space-y-4 px-4 pb-24 pt-4 sm:px-5">
       {look ? <>
