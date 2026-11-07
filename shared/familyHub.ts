@@ -2,6 +2,7 @@
 // One sanitizer (cleanFamily) is shared by the page and the server, so whatever is stored
 // always has the same safe shape, and old workspaces without family data simply get an empty hub.
 
+import { cleanMoney, cleanParts, emptyMoney, type MoneyPlan } from "./moneyPlan";
 import { cleanLifeLayout, type LifeLayout } from "./lifeLayout";
 import { cleanLifePlan, type LifePlan } from "./lifePlan";
 import { cleanSpreadsheets, type Spreadsheet } from "./sheetsApp";
@@ -81,7 +82,8 @@ export type Poll = {
   id: string; question: string; kind: PollKind; options: { id: string; label: string }[];
   votes: Record<string, string>; closed: boolean; createdAt: string; closesOn: string;
 };
-export type Bill = { id: string; name: string; amount: number; dueDay: number; category: string; autopay: boolean; paid: string[] };
+export type Bill = { id: string; name: string; amount: number; dueDay: number; category: string; autopay: boolean; paid: string[];
+  /** Paid in parts (half the rent on the 1st, half on the 15th): see shared/moneyPlan.ts. */ parts?: { day: number; amount: number }[] };
 export type BudgetCategory = { id: string; name: string; limit: number };
 export type Expense = { id: string; categoryId: string; amount: number; date: string; note: string };
 export type Note = { id: string; title: string; body: string; color: string; pinned: boolean; updatedAt: string; /** Formatted version from the full-screen editor (shared/richNote.ts); body stays the plain text. */ html?: string; /** Needs the hub passcode to open (shared/privacyLock.ts). */ locked?: boolean };
@@ -206,6 +208,8 @@ export type Family = {
   budget: BudgetCategory[];
   expenses: Expense[];
   income: number;
+  /** The Budget app's plan: how you get paid, income, bill payments and goals (shared/moneyPlan.ts). */
+  money: MoneyPlan;
   notes: Note[];
   health: Health;
   cycleLogs: CycleLog[];
@@ -326,7 +330,7 @@ export const emptyFamily = (): Family => ({
   members: [], sections: { health: true }, sectionOrder: [...TOGGLEABLE], layers: { tasks: true, bills: true, trips: true, chores: false, hub: false }, chorePointsCount: true,
   chores: [], choreDone: [], behavior: [], rewards: DEFAULT_REWARDS.map((r) => ({ ...r })), redemptions: [],
   calendars: DEFAULT_CALENDARS.map((c) => ({ ...c })), events: [], trips: [], polls: [],
-  bills: [], budget: DEFAULT_BUDGET.map((b) => ({ ...b })), expenses: [], income: 0, notes: [], health: emptyHealth(), cycleLogs: [], pills: [], pillDoses: [], moods: [], goals: [], news: { topics: ["top", "local", "NATION"], place: "" },
+  bills: [], budget: DEFAULT_BUDGET.map((b) => ({ ...b })), expenses: [], income: 0, money: emptyMoney(), notes: [], health: emptyHealth(), cycleLogs: [], pills: [], pillDoses: [], moods: [], goals: [], news: { topics: ["top", "local", "NATION"], place: "" },
   notify: defaultNotify(),
   journal: [], countdowns: [], groceries: [], savedVerses: [], meditations: [], savedQuotes: [],
   widgets: { stickies: false }, stickies: [], randomLists: [], savedWords: [], browserMarks: [], linkPage: { title: "", bio: "", links: [] },
@@ -487,7 +491,8 @@ export function cleanFamily(input: unknown): Family {
     bills: rows(raw.bills, LIMITS.bills, (r) => {
       const name = str(r.name, 80).trim();
       const paid = Array.isArray(r.paid) ? [...new Set(r.paid.filter((m: unknown) => typeof m === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(m)))].slice(-120) as string[] : [];
-      return name ? { id: id(r.id), name, amount: num(r.amount, 0, 10_000_000), dueDay: int(r.dueDay, 1, 31, 1), category: str(r.category, 40), autopay: bool(r.autopay), paid } : null;
+      const parts = cleanParts(r.parts);
+      return name ? { id: id(r.id), name, amount: num(r.amount, 0, 10_000_000), dueDay: int(r.dueDay, 1, 31, 1), category: str(r.category, 40), autopay: bool(r.autopay), paid, ...(parts ? { parts } : {}) } : null;
     }),
     budget,
     expenses: rows(raw.expenses, LIMITS.expenses, (r) => {
@@ -495,6 +500,7 @@ export function cleanFamily(input: unknown): Family {
       return date ? { id: id(r.id), categoryId: id(r.categoryId), amount: num(r.amount, 0, 10_000_000), date, note: str(r.note, 120) } : null;
     }, true),
     income: num(raw.income, 0, 100_000_000),
+    money: cleanMoney(raw.money),
     notes: rows(raw.notes, LIMITS.notes, (r) => {
       const title = str(r.title, 120);
       const body = str(r.body, 5000);
