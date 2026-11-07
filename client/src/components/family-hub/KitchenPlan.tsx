@@ -1,222 +1,204 @@
-// Kitchen > Plan, in three steps: 1 Dishes (tap round tiles; each dish opens its ingredients so you can add, take away,
-// swap or pick a brand, or switch it to takeout), 2 Week (which dish on which day), 3 Ingredients (the editable list and total).
+// Kitchen > Plan (November 2026). Who's eating, what each person eats each day, and one exact grocery list:
+// real products and package sizes, how much is left over, ways to share and save. Saved with the family, so
+// everyone in the family sees the same plan. The math lives in shared/kitchen.ts.
 import { useEffect, useMemo, useState } from "react";
-import { guessAisle } from "@shared/lifePlugins";
-import { DAY_NAME, DISHES, SLOTS, SORTS, TAKEOUT_PLACES, WEEK_DAYS, autoFill, cellKey, countsOf, dishById, dishCost, dishesFor, itemsOf, planForBudget, round2, shoppingFrom, takeoutFrom, takeoutGuess, takeoutTotal, totalOf, type Custom, type Dish, type DishEdit, type DishSlot, type ShopLine, type SortKey, type Week } from "@shared/mealCatalog";
-import { API_BASE } from "@/lib/queryClient";
+import { DAY_LABEL, K_SLOTS, PORTIONS, WEEK, amountText, buyText, cell, dishOf, emptyKitchen, money, peopleIn, removeMeal, takeoutOf, tips, totals, type KDay, type Kitchen, type KMeal, type KSlot } from "@shared/kitchen";
 import { useAuth } from "@/context/AuthContext";
+import { findStores, storePrices, storeStatus, type StoreLocation } from "@/lib/kitchenStore";
+import { guessAisle } from "@shared/lifePlugins";
 import { Modal, type SectionProps } from "./ui";
+import DishEditor from "./kitchen/DishEditor";
+import DishPicker from "./kitchen/DishPicker";
+import ProductChooser from "./kitchen/ProductChooser";
+import { Card, Segmented, btn, chip, field, ghost, label, link } from "./kitchen/kit";
 
-const KEY = "arise-kitchen-plan-v3";
-type Draft = { counts: Record<string, number>; week: Week; people: number; edits: Record<string, Partial<ShopLine>>; budget: string; custom: Custom; own: Dish[] };
-const blank = (): Draft => ({ counts: {}, week: {}, people: 4, edits: {}, budget: "", custom: {}, own: [] });
-const load = (): Draft => { try { return { ...blank(), ...JSON.parse(localStorage.getItem(KEY) || "{}") }; } catch { return blank(); } };
-const $ = (n: number) => `$${(Number.isFinite(n) ? n : 0).toFixed(2)}`;
-const btn = "inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-5 py-3.5 text-sm font-semibold tracking-wide text-white transition hover:bg-slate-800 disabled:opacity-30";
-const ghost = "inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 hover:border-slate-900";
-const link = "text-sm font-medium text-slate-500 underline-offset-4 hover:text-slate-900 hover:underline";
-const label = "text-[11px] font-semibold uppercase tracking-[.16em] text-slate-400";
-const field = "min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-900";
-const STEP_TITLE = ["Pick your dishes", "Put them on your week", "Your ingredients"];
-const STEP_HELP = ["Tap a dish to choose it. Choose it for more than one day if you like. Tap Ingredients to change what goes in it or switch it to takeout.", "Choose a dish for each day, or leave a day empty.", "Change any item, brand, amount or price, then add it to your shopping list."];
+type View = "week" | "groceries" | "people";
+const PLAN_TAG = "kp-";
+const SLOT_ONE: Record<KSlot, string> = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snack: "Snack", dessert: "Dessert" };
 
-export default function KitchenPlan({ setFamily, makeId, say }: SectionProps) {
+export default function KitchenPlan({ family, setFamily, makeId, say }: SectionProps) {
   const { token } = useAuth();
-  const [d, setD] = useState<Draft>(load);
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [slot, setSlot] = useState<DishSlot>("dinner");
-  const [sort, setSort] = useState<SortKey>("popular");
-  const [search, setSearch] = useState("");
-  const [budgetOpen, setBudgetOpen] = useState(false);
+  const k: Kitchen = family.kitchen ?? emptyKitchen();
+  const setK = (fn: (k: Kitchen) => Kitchen) => setFamily((f) => ({ ...f, kitchen: fn(f.kitchen ?? emptyKitchen()) }));
+  const [view, setView] = useState<View>("week");
+  const [picker, setPicker] = useState<{ day: KDay; slot: KSlot } | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
-  const [adding, setAdding] = useState("");
-  const [checking, setChecking] = useState(false);
-  useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch { /* not kept */ } }, [d]);
-  const patch = (p: Partial<Draft>) => setD((x) => ({ ...x, ...p }));
-  const ctx = { custom: d.custom, extra: d.own };
-  const find = (id: string) => dishById(id, d.own);
+  const [product, setProduct] = useState<string | null>(null);
+  const [meal, setMeal] = useState<{ key: string; meal: KMeal } | null>(null);
+  const [connected, setConnected] = useState(false);
+  const [allTips, setAllTips] = useState(false);
+  useEffect(() => { void storeStatus(token).then(setConnected); }, [token]);
 
-  const listFor = (s: DishSlot, so: SortKey, q = "") => [...dishesFor(s, so, q), ...d.own.filter((x) => x.slot === s && (!q || x.name.toLowerCase().includes(q.toLowerCase())))];
-  const slotCount = (s: DishSlot) => [...DISHES, ...d.own].filter((x) => x.slot === s).reduce((a, x) => a + (d.counts[x.id] ?? 0), 0);
-  const meals = SLOTS.reduce((a, s) => a + slotCount(s.id), 0);
-  const setCount = (id: string, n: number) => { const counts = { ...d.counts }; if (n <= 0) delete counts[id]; else counts[id] = Math.min(7, n); patch({ counts, week: {} }); };
-  const lines: ShopLine[] = useMemo(() => shoppingFrom(d.week, d.people, ctx).map((l) => ({ ...l, ...(d.edits[l.key] ?? {}) })), [d.week, d.people, d.edits, d.custom, d.own]); // eslint-disable-line react-hooks/exhaustive-deps
-  const takeouts = useMemo(() => takeoutFrom(d.week, ctx), [d.week, d.custom, d.own]); // eslint-disable-line react-hooks/exhaustive-deps
-  const total = round2(totalOf(lines) + takeoutTotal(takeouts));
-  const edit = (key: string, p: Partial<ShopLine>) => patch({ edits: { ...d.edits, [key]: { ...(d.edits[key] ?? {}), ...p } } });
-  const budget = Number(d.budget);
-  const setEdit = (id: string, next: DishEdit | null) => { const custom = { ...d.custom }; if (!next || (!next.items && !next.takeout)) delete custom[id]; else custom[id] = next; patch({ custom, week: {}, edits: {} }); };
-  const goWeek = () => { patch({ week: autoFill(d.counts), edits: {} }); setStep(2); };
+  const t = useMemo(() => totals(k), [k]);
+  const ideas = useMemo(() => tips(k), [k]);
+  const lineNeed = (group: string) => t.lines.find((l) => l.group.id === group)?.need ?? 0;
 
-  const fromBudget = () => {
-    if (!Number.isFinite(budget) || budget < 10) { say("Enter a weekly amount, such as 120."); return; }
-    const slots = SLOTS.filter((s) => s.id === "breakfast" || s.id === "lunch" || s.id === "dinner" || slotCount(s.id) > 0).map((s) => s.id);
-    const week = planForBudget(budget, slots, d.people, sort);
-    patch({ week, counts: countsOf(week), edits: {}, custom: {} });
-    const cost = totalOf(shoppingFrom(week, d.people));
-    say(cost > budget ? `The lowest-cost week is ${$(cost)}, a little over ${$(budget)}.` : `Planned a week for about ${$(cost)}.`);
-    setStep(3);
-  };
-  const askAi = async () => {
-    setChecking(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/arise-todo/meal/price`, { method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ items: lines.map((l) => ({ key: l.key, name: l.name, qty: l.qty, brand: l.brand })) }) });
-      const body = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(body?.message || "The price check can't be reached right now.");
-      const prices = (body?.prices ?? []) as { key: string; price: number }[];
-      if (!prices.length) throw new Error("No prices came back. Try again.");
-      const edits = { ...d.edits }; for (const p of prices) edits[p.key] = { ...(edits[p.key] ?? {}), price: p.price };
-      patch({ edits }); say("Prices updated.");
-    } catch (e: any) { say(String(e?.message || "The price check failed.")); }
-    setChecking(false);
-  };
-  const makeList = () => {
-    const mine = lines.filter((l) => l.name.trim());
-    setFamily((f) => {
-      const have = new Set(f.groceries.filter((g) => !g.checked).map((g) => g.name.toLowerCase()));
-      const fresh = mine.filter((l) => !have.has(`${l.brand ? l.brand + " " : ""}${l.name}`.toLowerCase()));
-      return { ...f, groceries: [...f.groceries, ...fresh.map((l) => { const name = `${l.brand ? l.brand + " " : ""}${l.name}`.slice(0, 80); return { id: makeId(), name, qty: l.qty.slice(0, 20), aisle: guessAisle(l.name), checked: false, price: round2(l.price) }; })] };
-    });
-    say(`${mine.length} items added to your shopping list.`);
-  };
-  const addOwn = () => {
-    const name = adding.trim(); if (!name) return;
-    const dish: Dish = { id: `u-${makeId()}`, slot, name: name.slice(0, 60), kcal: 0, minutes: 0, tags: [], pop: 0, items: [] };
-    patch({ own: [...d.own, dish], counts: { ...d.counts, [dish.id]: 1 }, week: {} }); setAdding(""); setEditing(dish.id);
-  };
+  if (!k.setup) return <Setup k={k} setK={setK} family={family} connected={connected} token={token} makeId={makeId} />;
 
-  const stepper = (n: number, set: (v: number) => void, name: string) => <div className="flex items-center gap-2.5">
-    <button type="button" aria-label={`Fewer days of ${name}`} onClick={() => set(n - 1)} className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 text-base text-slate-600 hover:border-slate-900">&minus;</button>
-    <span className="w-14 text-center text-sm font-semibold tabular-nums text-slate-900">{n} {n === 1 ? "day" : "days"}</span>
-    <button type="button" aria-label={`More days of ${name}`} onClick={() => set(n + 1)} className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 text-base text-slate-600 hover:border-slate-900">+</button>
-  </div>;
-
-  const shownDishes = listFor(slot, sort, search.trim());
-  const editDish = editing ? find(editing) : undefined;
-  const editState = editing ? d.custom[editing] : undefined;
-
+  const planned = Object.values(k.week).reduce((a, m) => a + m.length, 0);
   return <div className="w-full max-w-3xl space-y-6" data-testid="kitchen-plan">
-    <header className="space-y-2">
-      <div className="flex gap-1.5" aria-label={`Step ${step} of 3`}>{[1, 2, 3].map((n) => <button key={n} type="button" aria-label={`Go to step ${n}`} onClick={() => (n === 2 ? goWeek() : setStep(n as 1 | 3))} className={`h-1 flex-1 rounded-full ${n <= step ? "bg-slate-900" : "bg-slate-200"}`} />)}</div>
-      <p className={label}>Step {step} of 3</p>
-      <h2 className="text-2xl font-semibold tracking-tight text-slate-900">{STEP_TITLE[step - 1]}</h2>
-      <p className="text-sm leading-relaxed text-slate-500">{STEP_HELP[step - 1]}</p>
-    </header>
+    <div className="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <p className={label}>This week</p>
+        <p className="text-4xl font-semibold tracking-tight tabular-nums text-slate-900" data-testid="plan-total">{money(t.total)}</p>
+        <p className="mt-1 text-sm text-slate-500">{money(t.groceries)} groceries{t.takeout ? ` · ${money(t.takeout)} takeout` : ""}</p>
+      </div>
+      {k.people.length > 1 && <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">{k.people.map((p) => <span key={p.id} className="text-slate-500">{p.name} <span className="font-semibold tabular-nums text-slate-900">{money(t.share[p.id] ?? 0)}</span></span>)}</div>}
+    </div>
+    <Segmented label="Kitchen plan" value={view} onChange={setView} options={[{ id: "week", label: "Week" }, { id: "groceries", label: `Groceries${t.lines.filter((l) => !l.have).length ? ` (${t.lines.filter((l) => !l.have).length})` : ""}` }, { id: "people", label: "People & store" }]} />
 
-    {step === 1 && <>
-      <div className="grid grid-cols-5 gap-1 rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Meal">
-        {SLOTS.map((s) => <button key={s.id} type="button" role="tab" aria-selected={slot === s.id} onClick={() => setSlot(s.id)} className={`rounded-lg px-1 py-2 text-xs font-semibold transition sm:text-sm ${slot === s.id ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}>{s.label}{slotCount(s.id) > 0 && <span className="ml-1 text-slate-900">{slotCount(s.id)}</span>}</button>)}
-      </div>
-      <div className="flex items-center gap-2">
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search dishes" aria-label="Search dishes" className={`${field} flex-1`} />
-        <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label="Sort dishes" className={`${field} shrink-0`}>{SORTS.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</select>
-      </div>
-      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-        {shownDishes.map((x) => { const n = d.counts[x.id] ?? 0; const cu = d.custom[x.id]; return <div key={x.id} className={`rounded-2xl border p-3.5 transition ${n ? "border-slate-900 bg-white ring-1 ring-slate-900" : "border-slate-200 bg-white hover:border-slate-400"}`}>
-          <button type="button" onClick={() => setCount(x.id, n ? 0 : 1)} aria-pressed={n > 0} className="flex w-full items-start gap-3 text-left">
-            <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 text-xs ${n ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 text-transparent"}`}>&#10003;</span>
-            <span className="min-w-0"><span className="block text-[15px] font-semibold leading-tight text-slate-900">{x.name}</span>
-              <span className="mt-0.5 block text-xs text-slate-400">{x.kcal ? `${x.kcal} cal · ${x.minutes} min · ` : ""}{x.items.length ? `about ${$(dishCost(x))}` : "your own dish"}</span></span>
-          </button>
-          {n > 0 && <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
-            {stepper(n, (v) => setCount(x.id, v), x.name)}
-            <button type="button" onClick={() => setEditing(x.id)} className="text-sm font-semibold text-slate-900 underline underline-offset-4">{cu?.takeout ? "Takeout" : cu?.items ? "Edited" : "Ingredients"}</button>
-          </div>}
-        </div>; })}
-        {shownDishes.length === 0 && <p className="col-span-full py-8 text-center text-sm text-slate-400">No dishes match. Add your own below.</p>}
-      </div>
-      <div className="flex gap-2">
-        <input value={adding} onChange={(e) => setAdding(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addOwn(); }} placeholder={`Add your own ${SLOTS.find((s) => s.id === slot)!.label.toLowerCase().replace(/s$/, "")}`} aria-label="Your own dish" className={`${field} flex-1`} />
-        <button type="button" onClick={addOwn} disabled={!adding.trim()} className={`${ghost} disabled:opacity-30`}>Add</button>
-      </div>
-      <button type="button" onClick={() => setBudgetOpen((o) => !o)} className={link} aria-expanded={budgetOpen}>Or plan from a weekly budget</button>
-      {budgetOpen && <div className="flex gap-2 rounded-xl border border-slate-200 p-3">
-        <div className="flex min-w-0 flex-1 items-center rounded-lg border border-slate-200 px-3"><span className="text-slate-400">$</span><input value={d.budget} onChange={(e) => patch({ budget: e.target.value.replace(/[^\d.]/g, "") })} inputMode="decimal" placeholder="Weekly food total" aria-label="Weekly food budget" className="w-full min-w-0 bg-transparent py-2.5 pl-1.5 text-sm outline-none" /></div>
-        <button type="button" onClick={fromBudget} className="shrink-0 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white">Build week</button>
-      </div>}
-      <button type="button" disabled={!meals} onClick={goWeek} className={btn}>Continue &middot; {meals} {meals === 1 ? "meal" : "meals"}</button>
-    </>}
-
-    {step === 2 && <>
-      {SLOTS.filter((s) => slotCount(s.id) > 0).map((s) => <section key={s.id}>
-        <h3 className={`${label} mb-1`}>{s.label}</h3>
-        <ul className="divide-y divide-slate-100 border-y border-slate-100">{WEEK_DAYS.map((day) => <li key={day} className="flex items-center gap-4 py-2.5">
-          <span className="w-24 shrink-0 text-sm font-medium text-slate-500">{DAY_NAME[day]}</span>
-          <select value={d.week[cellKey(day, s.id)] ?? ""} onChange={(e) => { const week = { ...d.week }; if (e.target.value) week[cellKey(day, s.id)] = e.target.value; else delete week[cellKey(day, s.id)]; patch({ week, edits: {} }); }} className={`${field} flex-1`} aria-label={`${s.label} on ${DAY_NAME[day]}`}>
-            <option value="">None</option>
-            {listFor(s.id, "popular").filter((x) => (d.counts[x.id] ?? 0) > 0).map((x) => <option key={x.id} value={x.id}>{x.name}{d.custom[x.id]?.takeout ? " (takeout)" : ""}</option>)}
-          </select>
-        </li>)}</ul>
-      </section>)}
-      <div className="grid grid-cols-[auto_1fr] gap-2"><button type="button" onClick={() => setStep(1)} className={ghost}>Back</button><button type="button" onClick={() => setStep(3)} className={btn}>Continue to ingredients</button></div>
-    </>}
-
-    {step === 3 && <>
-      <div className="flex items-end justify-between border-b border-slate-200 pb-5">
-        <div>
-          <p className={label}>Estimated for the week</p>
-          <p className="mt-1 text-4xl font-semibold tracking-tight tabular-nums text-slate-900" data-testid="plan-total">{$(total)}</p>
-          {budget > 0 && <p className="mt-1 text-xs text-slate-500">{total <= budget ? `${$(budget - total)} under your ${$(budget)} budget` : `${$(total - budget)} over your ${$(budget)} budget`}</p>}
-        </div>
-        <div className="text-right">
-          <p className={label}>People</p>
-          <div className="mt-1 flex items-center gap-3">
-            <button type="button" aria-label="Fewer people" onClick={() => patch({ people: Math.max(1, d.people - 1) })} className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 text-slate-600 hover:border-slate-900">&minus;</button>
-            <span className="w-4 text-center text-sm font-semibold tabular-nums">{d.people}</span>
-            <button type="button" aria-label="More people" onClick={() => patch({ people: Math.min(12, d.people + 1) })} className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 text-slate-600 hover:border-slate-900">+</button>
-          </div>
-        </div>
-      </div>
-      {takeouts.length > 0 && <section>
-        <h3 className={`${label} mb-1`}>Takeout</h3>
-        <ul className="divide-y divide-slate-100 border-y border-slate-100">{takeouts.map((t) => <li key={t.dishId} className="flex items-center justify-between gap-3 py-3 text-sm"><span className="min-w-0 truncate font-medium text-slate-900">{t.dish}<span className="font-normal text-slate-400"> &middot; {t.place || "takeout"}{t.meals > 1 ? `, ${t.meals} times` : ""}</span></span><span className="shrink-0 font-semibold tabular-nums">{$(t.price * t.meals)}</span></li>)}</ul>
+    {view === "week" && <>
+      {ideas.length > 0 && <section className="space-y-2" aria-label="Ways to save">
+        <p className={label}>Ways to save</p>
+        {(allTips ? ideas : ideas.slice(0, 2)).map((x) => <Card key={x.id} className="p-4">
+          <p className="text-sm leading-relaxed text-slate-700">{x.text}</p>
+          {x.kind === "bulk" && <button type="button" onClick={() => setK((y) => { const choice = { ...y.choice }; if (x.product) choice[x.group] = x.product; else delete choice[x.group]; return { ...y, choice }; })} className={`${link} mt-2`}>{x.button}</button>}
+          {x.kind === "leftover" && <button type="button" onClick={() => { setK((y) => ({ ...y, week: { ...y.week, [cell(x.day, x.slot)]: [...(y.week[cell(x.day, x.slot)] ?? []), { id: makeId(), dish: x.dish, people: x.people }] } })); say("Added."); }} className={`${link} mt-2`}>{x.button}</button>}
+        </Card>)}
+        {ideas.length > 2 && <button type="button" onClick={() => setAllTips((v) => !v)} className={link}>{allTips ? "Show fewer" : `${ideas.length - 2} more way${ideas.length - 2 === 1 ? "" : "s"} to save`}</button>}
       </section>}
-      <div className="flex items-center justify-between">
-        <h3 className={label}>Groceries</h3>
-        <button type="button" onClick={askAi} disabled={checking || !lines.length} className={`${link} disabled:opacity-40`}>{checking ? "Checking prices" : "Check prices with AI"}</button>
+      {planned === 0 && <Card className="p-6 text-center"><p className="text-sm text-slate-500">Nothing planned yet. Pick a day below and add a meal.</p></Card>}
+      <div className="space-y-3">
+        {WEEK.map((day) => { const meals = K_SLOTS.flatMap((s) => (k.week[cell(day, s.id)] ?? []).map((m) => ({ slot: s, m }))); return <Card key={day} className="p-4">
+          <div className="flex items-center justify-between"><h3 className="text-base font-semibold text-slate-900">{DAY_LABEL[day]}</h3><button type="button" onClick={() => setPicker({ day, slot: "dinner" })} className={link}>Add meal</button></div>
+          {meals.length > 0 && <ul className="mt-2 divide-y divide-slate-100">{meals.map(({ slot, m }) => { const d = dishOf(k, m.dish); const who = peopleIn(k, m); const out = takeoutOf(k, m.dish); return <li key={m.id}>
+            <button type="button" onClick={() => setMeal({ key: cell(day, slot.id), meal: m })} className="flex w-full items-center gap-3 py-2.5 text-left">
+              <span className="w-20 shrink-0 text-xs font-semibold uppercase tracking-wider text-slate-400">{SLOT_ONE[slot.id]}</span>
+              <span className="min-w-0 flex-1"><span className="block truncate text-[15px] font-medium text-slate-900">{d?.name ?? "Removed dish"}</span>
+                <span className="block truncate text-xs text-slate-500">{m.people.length && k.people.length > 1 ? who.map((p) => p.name).join(", ") : "Everyone"}{out ? ` · takeout${out.place ? ` from ${out.place}` : ""}` : ""}</span></span>
+              <span className="shrink-0 text-xs text-slate-400">Edit</span>
+            </button>
+          </li>; })}</ul>}
+        </Card>; })}
       </div>
-      <ul className="-mt-3 divide-y divide-slate-100 border-y border-slate-100">{lines.map((l) => <li key={l.key} className="space-y-1 py-3">
-        <div className="flex items-center gap-3">
-          <input value={l.name} onChange={(e) => edit(l.key, { name: e.target.value })} className="min-w-0 flex-1 bg-transparent text-[15px] font-medium text-slate-900 outline-none focus:underline" aria-label="Item" />
-          <div className="flex w-20 shrink-0 items-center justify-end text-sm font-semibold tabular-nums text-slate-900"><span className="text-slate-400">$</span><input value={Number.isFinite(l.price) ? String(l.price) : ""} onChange={(e) => edit(l.key, { price: Number(e.target.value.replace(/[^\d.]/g, "")) || 0 })} inputMode="decimal" className="w-14 bg-transparent text-right outline-none focus:underline" aria-label={`Price for ${l.name}`} /></div>
-        </div>
-        <div className="flex items-center gap-3 text-xs text-slate-500">
-          <input value={l.brand} onChange={(e) => edit(l.key, { brand: e.target.value })} placeholder="Brand or add-ins" className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-slate-300 focus:underline" aria-label="Brand" />
-          <input value={l.qty} onChange={(e) => edit(l.key, { qty: e.target.value })} className="w-28 shrink-0 bg-transparent text-right outline-none focus:underline" aria-label="Amount" />
-        </div>
-        {l.meals > 1 && <p className="text-[11px] text-slate-400">Used in {l.meals} meals</p>}
-      </li>)}</ul>
-      {lines.length === 0 && <p className="py-6 text-center text-sm text-slate-400">No groceries needed.</p>}
-      <div className="grid grid-cols-[auto_1fr] gap-2"><button type="button" onClick={() => setStep(2)} className={ghost}>Back</button><button type="button" disabled={!lines.length} onClick={makeList} className={btn} data-testid="plan-make-list">Add to shopping list</button></div>
+      {planned > 0 && <button type="button" onClick={() => setView("groceries")} className={`${btn} w-full`}>See the grocery list &middot; {money(t.total)}</button>}
     </>}
 
-    {editDish && <Modal title={editDish.name} eyebrow="Ingredients" onClose={() => setEditing(null)}>
-      <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1" role="tablist">
-        {(["Cook at home", "Takeout"] as const).map((m) => { const on = (m === "Takeout") === !!editState?.takeout; return <button key={m} type="button" role="tab" aria-selected={on} onClick={() => setEdit(editing!, m === "Takeout" ? { ...editState, takeout: editState?.takeout ?? { place: "", price: takeoutGuess(editDish.slot, d.people) } } : { ...editState, takeout: undefined })} className={`rounded-lg py-2 text-sm font-semibold ${on ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}>{m}</button>; })}
-      </div>
-      {editState?.takeout ? <div className="mt-5 space-y-4">
-        <label className="block"><span className={label}>Where from</span><input value={editState.takeout.place} onChange={(e) => setEdit(editing!, { ...editState, takeout: { ...editState.takeout!, place: e.target.value } })} placeholder="Restaurant name" className={`${field} mt-1.5 w-full`} /></label>
-        <div className="flex flex-wrap gap-1.5">{TAKEOUT_PLACES.map((p) => <button key={p} type="button" onClick={() => setEdit(editing!, { ...editState, takeout: { ...editState.takeout!, place: p } })} className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${editState.takeout!.place === p ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 text-slate-600"}`}>{p}</button>)}</div>
-        <label className="block"><span className={label}>Price for the meal</span><div className="mt-1.5 flex items-center rounded-lg border border-slate-200 px-3"><span className="text-slate-400">$</span><input value={String(editState.takeout.price)} inputMode="decimal" onChange={(e) => setEdit(editing!, { ...editState, takeout: { ...editState.takeout!, price: Number(e.target.value.replace(/[^\d.]/g, "")) || 0 } })} className="w-full bg-transparent py-2.5 pl-1.5 text-sm outline-none" /></div></label>
-        <p className="text-xs text-slate-400">Takeout counts toward your weekly total but isn't added to your shopping list.</p>
-      </div> : <div className="mt-5">
-        <ul className="divide-y divide-slate-100 border-y border-slate-100">{itemsOf(editDish, editState).map((it, i) => { const rows = itemsOf(editDish, editState); const set = (n: [string, string, number, string?][]) => setEdit(editing!, { ...editState, items: n }); return <li key={i} className="space-y-1.5 py-3">
-          <div className="flex items-center gap-2">
-            <input value={it[0]} onChange={(e) => set(rows.map((r, j) => (j === i ? [e.target.value, r[1], r[2], r[3]] : r)))} placeholder="Ingredient" aria-label="Ingredient" className={`${field} flex-1`} />
-            <button type="button" aria-label={`Remove ${it[0] || "ingredient"}`} onClick={() => set(rows.filter((_, j) => j !== i))} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-900">&times;</button>
-          </div>
-          <div className="flex gap-2">
-            <input value={it[3] ?? ""} onChange={(e) => set(rows.map((r, j) => (j === i ? [r[0], r[1], r[2], e.target.value] : r)))} placeholder="Brand" aria-label="Brand" className={`${field} min-w-0 flex-1 py-2 text-xs`} />
-            <input value={it[1]} onChange={(e) => set(rows.map((r, j) => (j === i ? [r[0], e.target.value, r[2], r[3]] : r)))} placeholder="Amount" aria-label="Amount" className={`${field} w-24 py-2 text-xs`} />
-            <input value={String(it[2])} inputMode="decimal" onChange={(e) => set(rows.map((r, j) => (j === i ? [r[0], r[1], Number(e.target.value.replace(/[^\d.]/g, "")) || 0, r[3]] : r)))} aria-label="Price" className={`${field} w-20 py-2 text-xs`} />
-          </div>
-        </li>; })}</ul>
-        <div className="mt-3 flex items-center justify-between">
-          <button type="button" onClick={() => setEdit(editing!, { ...editState, items: [...itemsOf(editDish, editState), ["", "1", 0]] })} className={ghost}>Add ingredient</button>
-          {editState?.items && editDish.items.length > 0 && <button type="button" onClick={() => setEdit(editing!, { ...editState, items: undefined })} className={link}>Reset to standard</button>}
-        </div>
-      </div>}
-      <button type="button" onClick={() => setEditing(null)} className={`${btn} mt-6`}>Done</button>
-    </Modal>}
+    {view === "groceries" && <Groceries k={k} setK={setK} t={t} token={token} connected={connected} onProduct={setProduct} say={say} send={() => {
+      const lines = t.lines.filter((l) => !l.have && l.packs > 0);
+      setFamily((f) => ({ ...f, groceries: [...f.groceries.filter((g) => !g.id.startsWith(PLAN_TAG) || g.checked), ...lines.map((l) => ({ id: `${PLAN_TAG}${makeId()}`, name: `${l.group.name}: ${buyText(l.buy)}`.slice(0, 80), qty: `${l.packs} pk`.slice(0, 20), aisle: guessAisle(l.group.name), checked: false, price: l.cost }))] }));
+      say(`${lines.length} items on your shopping list. Total ${money(t.groceries)}.`);
+    }} />}
+
+    {view === "people" && <People k={k} setK={setK} connected={connected} token={token} makeId={makeId} />}
+
+    {picker && <DishPicker k={k} setK={setK} day={picker.day} slot={picker.slot} makeId={makeId} onClose={() => setPicker(null)} onEdit={setEditing} />}
+    {meal && <MealSheet k={k} setK={setK} at={meal.key} meal={meal.meal} onClose={() => setMeal(null)} onEdit={(id) => setEditing(id)} />}
+    {editing && <DishEditor k={k} setK={setK} dishId={editing} onClose={() => setEditing(null)} onProduct={setProduct} />}
+    {product && <ProductChooser k={k} setK={setK} group={product} need={lineNeed(product)} token={token} connected={connected} makeId={makeId} onClose={() => setProduct(null)} />}
+  </div>;
+}
+
+/** One planned meal: who eats it, its ingredients, or take it off the day. */
+function MealSheet({ k, setK, at, meal, onClose, onEdit }: { k: Kitchen; setK: (fn: (k: Kitchen) => Kitchen) => void; at: string; meal: KMeal; onClose: () => void; onEdit: (id: string) => void }) {
+  const d = dishOf(k, meal.dish);
+  const live = (k.week[at] ?? []).find((m) => m.id === meal.id) ?? meal;
+  const [day, slot] = at.split(":") as [KDay, KSlot];
+  const setPeople = (people: string[]) => setK((x) => ({ ...x, week: { ...x.week, [at]: (x.week[at] ?? []).map((m) => (m.id === meal.id ? { ...m, people } : m)) } }));
+  const toggle = (id: string) => { const base = live.people.length ? live.people : k.people.map((p) => p.id); const next = base.includes(id) ? base.filter((x) => x !== id) : [...base, id]; setPeople(next.length === k.people.length ? [] : next); };
+  return <Modal title={d?.name ?? "Meal"} eyebrow={`${DAY_LABEL[day]} · ${K_SLOTS.find((s) => s.id === slot)?.label ?? ""}`} onClose={onClose}>
+    {k.people.length > 1 && <div><p className={label}>Who's eating</p>
+      <div className="mt-2 flex flex-wrap gap-1.5"><button type="button" onClick={() => setPeople([])} className={chip(!live.people.length)}>Everyone</button>
+        {k.people.map((p) => <button key={p.id} type="button" onClick={() => toggle(p.id)} className={chip(!live.people.length || live.people.includes(p.id))}>{p.name}</button>)}</div>
+      <p className="mt-2 text-xs text-slate-500">Someone eating something else? Take them off here and add their own meal to the same day.</p></div>}
+    <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <button type="button" onClick={() => { onClose(); onEdit(meal.dish); }} className={ghost}>Ingredients &amp; amounts</button>
+      <button type="button" onClick={() => { setK((x) => removeMeal(x, at, meal.id)); onClose(); }} className="inline-flex items-center justify-center rounded-xl border border-rose-200 px-4 py-2.5 text-sm font-semibold text-rose-600 hover:border-rose-400">Remove from {DAY_LABEL[day]}</button>
+    </div>
+    <button type="button" onClick={onClose} className={`${btn} mt-4 w-full`}>Done</button>
+  </Modal>;
+}
+
+function Groceries({ k, setK, t, token, connected, onProduct, send, say }: { k: Kitchen; setK: (fn: (k: Kitchen) => Kitchen) => void; t: ReturnType<typeof totals>; token: string | null; connected: boolean; onProduct: (g: string) => void; send: () => void; say: (m: string) => void }) {
+  const [busy, setBusy] = useState(false);
+  const buy = t.lines.filter((l) => !l.have), home = t.lines.filter((l) => l.have);
+  const storeIds = [...new Set(t.lines.flatMap((l) => l.buy.map((b) => b.product.storeId)).filter(Boolean) as string[])];
+  const refresh = async () => {
+    if (!k.store) return;
+    setBusy(true);
+    try {
+      const r = await storePrices(token, k.store.id, storeIds);
+      setK((x) => ({ ...x, products: x.products.map((p) => { const hit = r.prices.find((q) => q.storeId === p.storeId); return hit ? { ...p, price: hit.price, at: r.at } : p; }) }));
+      say(`Updated ${r.prices.length} price${r.prices.length === 1 ? "" : "s"} from King Soopers.`);
+    } catch (e: any) { say(String(e?.message || "Couldn't reach the store.")); }
+    setBusy(false);
+  };
+  const aisles = [...new Set(buy.map((l) => l.group.aisle))];
+  return <div className="space-y-6">
+    {connected && k.store && storeIds.length > 0 && <div className="flex items-center justify-between gap-3 text-sm"><span className="text-slate-500">Prices from {k.store.name}</span><button type="button" onClick={() => void refresh()} disabled={busy} className={link}>{busy ? "Updating" : "Update prices"}</button></div>}
+    {!connected && <p className="text-sm text-slate-500">Prices are estimates until King Soopers is connected. Tap any item to pick its brand and size or set your own price, and it stays that way.</p>}
+    {aisles.map((a) => <section key={a}>
+      <p className={`${label} mb-1`}>{a}</p>
+      <ul className="divide-y divide-slate-100 border-y border-slate-100">{buy.filter((l) => l.group.aisle === a).map((l) => <li key={l.group.id} className="flex items-start gap-3 py-3">
+        <button type="button" onClick={() => onProduct(l.group.id)} className="min-w-0 flex-1 text-left">
+          <span className="block text-[15px] font-semibold text-slate-900">{l.group.name}</span>
+          <span className="block text-sm text-slate-600">{buyText(l.buy) === l.group.name ? `${l.packs} from produce` : buyText(l.buy)}</span>
+          <span className="block text-xs text-slate-400">Need {amountText(l.need, l.group)}{l.left > 0.009 ? ` · ${amountText(l.left, l.group)} left over` : ""} &middot; {[...new Set(l.uses.map((u) => u.dish.name))].slice(0, 3).join(", ")}</span>
+        </button>
+        <div className="shrink-0 text-right"><span className="block text-[15px] font-semibold tabular-nums text-slate-900">{money(l.cost)}</span>
+          <button type="button" onClick={() => setK((x) => ({ ...x, have: { ...x.have, [l.group.id]: true } }))} className="text-[11px] text-slate-400 underline underline-offset-2 hover:text-slate-900">Have it</button></div>
+      </li>)}</ul>
+    </section>)}
+    {t.take.length > 0 && <section><p className={`${label} mb-1`}>Takeout</p>
+      <ul className="divide-y divide-slate-100 border-y border-slate-100">{t.take.map((x) => <li key={x.dish.id} className="flex items-center justify-between gap-3 py-3 text-sm"><span className="min-w-0"><span className="block font-semibold text-slate-900">{x.dish.name}</span><span className="block text-xs text-slate-500">{x.place || "Takeout"} · {x.servings} serving{x.servings === 1 ? "" : "s"} at {money(x.perPerson)}</span></span><span className="font-semibold tabular-nums">{money(x.cost)}</span></li>)}</ul></section>}
+    {home.length > 0 && <section><p className={`${label} mb-1`}>Already at home</p>
+      <ul className="flex flex-wrap gap-1.5">{home.map((l) => <li key={l.group.id}><button type="button" onClick={() => setK((x) => ({ ...x, have: { ...x.have, [l.group.id]: false } }))} className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-900" title="Tap if you need to buy it">{l.group.name} &middot; buy it</button></li>)}</ul>
+      <p className="mt-2 text-xs text-slate-400">Basics like oil, butter and spices start here. Tap one to add it to the list.</p></section>}
+    {buy.length === 0 && t.take.length === 0 && <p className="py-8 text-center text-sm text-slate-400">Plan a few meals and the list builds itself.</p>}
+    {buy.length > 0 && <div className="sticky bottom-3 rounded-2xl bg-slate-900 p-4 text-white shadow-lg">
+      <div className="flex items-center justify-between gap-3"><span><span className="block text-xs text-white/60">Groceries</span><span className="text-2xl font-semibold tabular-nums">{money(t.groceries)}</span></span>
+        <button type="button" onClick={send} className="rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-900">Send to shopping list</button></div>
+    </div>}
+  </div>;
+}
+
+function PeopleRows({ k, setK, makeId }: { k: Kitchen; setK: (fn: (k: Kitchen) => Kitchen) => void; makeId: () => string }) {
+  return <div className="space-y-2">
+    {k.people.map((p) => <div key={p.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 p-2.5">
+      <input value={p.name} onChange={(e) => setK((x) => ({ ...x, people: x.people.map((q) => (q.id === p.id ? { ...q, name: e.target.value.slice(0, 40) } : q)) }))} aria-label="Name" className={`${field} min-w-[8rem] flex-1`} />
+      <select value={String(PORTIONS.find((o) => o.value === p.portion)?.value ?? p.portion)} onChange={(e) => setK((x) => ({ ...x, people: x.people.map((q) => (q.id === p.id ? { ...q, portion: Number(e.target.value) } : q)) }))} aria-label={`${p.name}'s portion`} className={field}>
+        {PORTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        {!PORTIONS.some((o) => o.value === p.portion) && <option value={p.portion}>{p.portion}× portion</option>}
+      </select>
+      <button type="button" aria-label={`Remove ${p.name}`} onClick={() => setK((x) => ({ ...x, people: x.people.filter((q) => q.id !== p.id), week: Object.fromEntries(Object.entries(x.week).map(([key, ms]) => [key, ms.map((m) => ({ ...m, people: m.people.filter((id) => id !== p.id) }))])) }))} className="flex h-9 w-9 items-center justify-center rounded-full text-lg text-slate-400 hover:bg-slate-100 hover:text-slate-900">&times;</button>
+    </div>)}
+    <button type="button" onClick={() => setK((x) => ({ ...x, people: [...x.people, { id: `p-${makeId()}`, name: `Person ${x.people.length + 1}`, portion: 1 }] }))} className={ghost}>Add a person</button>
+  </div>;
+}
+
+function StorePicker({ k, setK, connected, token }: { k: Kitchen; setK: (fn: (k: Kitchen) => Kitchen) => void; connected: boolean; token: string | null }) {
+  const [zip, setZip] = useState(k.store?.zip ?? "");
+  const [stores, setStores] = useState<StoreLocation[] | null>(null);
+  const [err, setErr] = useState("");
+  if (!connected) return <p className="text-sm leading-relaxed text-slate-500">King Soopers isn't connected on the server yet, so prices are estimates for now. You can still pick any brand and set your own prices, and they'll stay put.</p>;
+  return <div className="space-y-2">
+    {k.store && <p className="text-sm text-slate-700">Your store: <span className="font-semibold">{k.store.name}</span></p>}
+    <div className="flex gap-2"><input value={zip} onChange={(e) => setZip(e.target.value.replace(/\D/g, "").slice(0, 5))} inputMode="numeric" placeholder="ZIP code" aria-label="ZIP code" className={`${field} w-32`} />
+      <button type="button" onClick={async () => { setErr(""); try { setStores(await findStores(token, zip)); } catch (e: any) { setErr(String(e?.message || "Couldn't find stores.")); } }} disabled={zip.length !== 5} className={ghost}>Find stores</button></div>
+    {err && <p className="text-sm text-rose-600">{err}</p>}
+    {stores && <ul className="divide-y divide-slate-100 border-y border-slate-100">{stores.length === 0 && <li className="py-3 text-sm text-slate-400">No stores near that ZIP.</li>}{stores.map((s) => <li key={s.id}><button type="button" onClick={() => { setK((x) => ({ ...x, store: { id: s.id, name: s.name, zip } })); setStores(null); }} className="flex w-full items-center justify-between gap-3 py-3 text-left"><span className="min-w-0"><span className="block truncate text-sm font-semibold text-slate-900">{s.name}</span><span className="block truncate text-xs text-slate-500">{s.address}</span></span><span className="text-xs font-semibold text-slate-500">{k.store?.id === s.id ? "Picked" : "Pick"}</span></button></li>)}</ul>}
+  </div>;
+}
+
+function People({ k, setK, connected, token, makeId }: { k: Kitchen; setK: (fn: (k: Kitchen) => Kitchen) => void; connected: boolean; token: string | null; makeId: () => string }) {
+  return <div className="space-y-8">
+    <section><p className={label}>Who's eating</p><p className="mb-3 mt-1 text-sm text-slate-500">Each person's portion sets how much of every dish they eat. Give someone their own amount of one thing (4 cookies, say) in that dish's ingredients.</p><PeopleRows k={k} setK={setK} makeId={makeId} /></section>
+    <section><p className={label}>Your store</p><div className="mt-2"><StorePicker k={k} setK={setK} connected={connected} token={token} /></div></section>
+    <section className="border-t border-slate-100 pt-4"><button type="button" onClick={() => setK((x) => ({ ...x, week: {} }))} className="text-sm font-semibold text-rose-600">Clear this week's meals</button></section>
+  </div>;
+}
+
+function Setup({ k, setK, family, connected, token, makeId }: { k: Kitchen; setK: (fn: (k: Kitchen) => Kitchen) => void; family: SectionProps["family"]; connected: boolean; token: string | null; makeId: () => string }) {
+  useEffect(() => {
+    if (k.people.length) return;
+    const fromFamily = family.members.map((m) => ({ id: `m-${m.id}`, name: m.name, portion: m.kind === "kid" ? 0.75 : 1 }));
+    setK((x) => ({ ...x, people: fromFamily.length ? fromFamily : [{ id: `p-${makeId()}`, name: "Me", portion: 1 }] }));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return <div className="w-full max-w-2xl space-y-8" data-testid="kitchen-setup">
+    <header><p className={label}>Kitchen setup</p><h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Who are you cooking for?</h2>
+      <p className="mt-2 text-sm leading-relaxed text-slate-500">The planner works out exactly how much of each product to buy from everyone's portions, so a child's plate costs less than an adult's and nothing is bought twice.</p></header>
+    <PeopleRows k={k} setK={setK} makeId={makeId} />
+    <section><p className={label}>Your store</p><div className="mt-2"><StorePicker k={k} setK={setK} connected={connected} token={token} /></div></section>
+    <button type="button" disabled={!k.people.length} onClick={() => setK((x) => ({ ...x, setup: true }))} className={`${btn} w-full`}>Start planning</button>
   </div>;
 }
