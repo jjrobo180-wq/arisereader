@@ -293,9 +293,7 @@ export const PLUGINS: readonly Plugin[] = [
   ...ARISE_APPS("work"),
 
   // ── Arise LifeHub ──────────────────────────────────────────────────────────
-  ...BUNDLES.filter((b) => b.id === "healthlite").map((b): Plugin => ({ id: `life-${b.id}`, hub: "life", name: b.name, tagline: b.tagline, category: b.category, icon: b.icon, color: b.color, featured: true, target: section(b.section), description: b.description, features: b.features })),
-  ...BUNDLES.filter((b) => b.id === "inspire").map((b): Plugin => ({ id: `life-${b.id}`, hub: "life", name: b.name, tagline: b.tagline, category: b.category, icon: b.icon, color: b.color, featured: true, target: section(b.section), description: b.description, features: b.features })),
-  ...BUNDLES.filter((b) => b.id === "kitchen").map((b): Plugin => ({ id: `life-${b.id}`, hub: "life", name: b.name, tagline: b.tagline, category: b.category, icon: b.icon, color: b.color, featured: true, target: section(b.section), description: b.description, features: b.features })),
+  ...BUNDLES.filter((b) => true).map((b): Plugin => ({ id: `life-${b.id}`, hub: "life", name: b.name, tagline: b.tagline, category: b.category, icon: b.icon, color: b.color, featured: true, target: section(b.section), description: b.description, features: b.features })),
   { id: "life-drive", hub: "life", name: "Drive", tagline: "Upload photos from your camera roll", category: "Premium", icon: "FolderOpen", color: "#2563eb", featured: true,
     description: "A simple photo drive for the family: upload pictures straight from a phone's camera roll or a computer, browse them in one place, and share what you need. 500MB free, with paid storage tiers for more room.",
     features: ["Upload from camera roll or files", "500MB free storage", "More space in Billing when you need it", "Private to your hub"], target: { kind: "driveApp" } },
