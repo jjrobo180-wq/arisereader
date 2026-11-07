@@ -1,93 +1,119 @@
-// Kitchen planner: pick dishes, match to days, shopping list with a total, plan from a budget (November 2026).
+// The Kitchen planner (November 2026): real products and package sizes, each person's own portion, exact math (the same
+// plan always gives the same total), shared ingredients, bulk savings, takeout, and King Soopers prices.
 // Run with: npx tsx --test tests/kitchen-plan.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { DISHES, SLOTS, WEEK_DAYS, autoFill, cellKey, dishesFor, planForBudget, shoppingFrom, takeoutFrom, takeoutTotal, totalOf } from "../shared/mealCatalog";
+import { K_DISHES, K_SLOTS, PRODUCTS, addMeal, amountText, bestBuy, cleanKitchen, deleteOwnDish, emptyKitchen, groupOf, shoppingLines, tips, totals, type Kitchen } from "../shared/kitchen";
+import { GROUPS, parseSize } from "../shared/kitchenProducts";
+import { mapKrogerLocation, mapKrogerProduct } from "../server/kroger";
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+const family = (): Kitchen => ({ ...emptyKitchen(), setup: true, people: [{ id: "j", name: "Jermaine", portion: 1 }, { id: "w", name: "Wife", portion: 1 }, { id: "d", name: "Daughter", portion: 0.5 }] });
+const line = (k: Kitchen, g: string) => shoppingLines(k).find((l) => l.group.id === g)!;
 
-test("every meal type has plenty of dishes with unique ids", () => {
-  assert.equal(new Set(DISHES.map((d) => d.id)).size, DISHES.length);
-  for (const s of SLOTS) assert.ok(DISHES.filter((d) => d.slot === s.id).length >= 15, s.id);
+test("the shelf is whole: every dish ingredient has products, every product a size and price", () => {
+  for (const d of K_DISHES) for (const p of d.parts) assert.ok(groupOf(p.group), `${d.id}: ${p.group}`);
+  for (const g of GROUPS) assert.ok(PRODUCTS.some((p) => p.group === g.id), g.id);
+  for (const p of PRODUCTS) assert.ok(p.size > 0 && p.price > 0 && p.label, p.id);
+  for (const s of K_SLOTS) assert.ok(K_DISHES.filter((d) => d.slot === s.id).length >= 15, s.id);
+  assert.ok(PRODUCTS.some((p) => p.brand === "Nestlé Toll House" && p.size === 24));
 });
 
-test("dishes sort by popularity, health, calories, speed and price", () => {
-  assert.equal(dishesFor("dinner", "popular")[0].pop, 10);
-  const kc = dishesFor("lunch", "calories").map((d) => d.kcal);
-  assert.deepEqual(kc, [...kc].sort((a, b) => a - b));
-  assert.ok(dishesFor("dinner", "quick").every((d) => d.minutes <= 20));
-  assert.ok(dishesFor("breakfast", "healthy")[0].tags.includes("healthy"));
+test("the math is exact and the same every time", () => {
+  let k = family();
+  k = addMeal(k, "mon", "dessert", "cookies", [], "a");
+  const l = line(k, "cookie-dough");
+  assert.equal(l.need, 2 + 2 + 1); // two cookies each, a half portion for the daughter
+  assert.equal(l.packs, 1);
+  assert.equal(l.left, 24 - 5);
+  assert.deepEqual(totals(k), totals(k));
 });
 
-test("a week becomes one shopping list: repeated ingredients are one line, and the total adds up", () => {
-  const week = autoFill({ "d-tacos": 4, "d-spag": 3 });
-  assert.equal(Object.keys(week).length, 7);
-  const lines = shoppingFrom(week, 4);
-  assert.equal(lines.filter((l) => l.name === "Ground beef").length, 1);
-  assert.ok(lines.find((l) => l.name === "Ground beef")!.meals === 7);
-  assert.ok(totalOf(lines) > 0);
-  assert.ok(totalOf(shoppingFrom(week, 8)) > totalOf(shoppingFrom(week, 2)));
+test("one person can have their own amount (4 cookies a day) and eat something else entirely", () => {
+  let k = family();
+  for (const d of ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const) k = addMeal(k, d, "dessert", "cookies", ["d"], `c-${d}`);
+  k = { ...k, servings: { d: { "cookies:cookie-dough": 4 } } };
+  assert.equal(line(k, "cookie-dough").need, 28);
+  assert.equal(line(k, "cookie-dough").packs > 0, true);
+  k = addMeal(k, "mon", "dinner", "tacos", ["j", "w"], "t");
+  k = addMeal(k, "mon", "dinner", "mac", ["d"], "m");
+  const t = totals(k);
+  assert.ok(t.share.d > 0 && t.share.j > 0);
+  assert.ok(!line(k, "ground-beef").uses.some((u) => u.person.id === "d"), "the daughter's mac has no beef");
 });
 
-test("one dish can be on several days, and days left over stay empty", () => {
-  const week = autoFill({ "d-pizza": 3 });
-  assert.deepEqual(Object.values(week), ["d-pizza", "d-pizza", "d-pizza"]);
-  assert.equal(Object.keys(autoFill({ "d-pizza": 9 })).length, 7);
+test("the cheapest mix of package sizes is bought, and your own pick is respected", () => {
+  const k = family();
+  const buy = bestBuy(k, "ground-beef", 54);
+  assert.equal(buy.reduce((a, b) => a + b.packs * b.product.size, 0) >= 54, true);
+  assert.ok(buy.some((b) => b.product.id === "beef-3lb"), "a family pack beats four 1 lb packs");
+  const mine = bestBuy({ ...k, choice: { "ground-beef": "beef-1lb" } }, "ground-beef", 54);
+  assert.deepEqual(mine.map((b) => [b.product.id, b.packs]), [["beef-1lb", 4]]);
 });
 
-test("no emojis in the planner", () => {
-  const src = read("client/src/components/family-hub/KitchenPlan.tsx") + read("shared/mealCatalog.ts");
-  assert.doesNotMatch(src, /\p{Extended_Pictographic}/u);
+test("ways to save: switch back to the best value, share one package, use up leftovers", () => {
+  let k = family();
+  k = addMeal(k, "mon", "dinner", "tacos", ["j"], "a");
+  k = addMeal(k, "tue", "dinner", "spaghetti", [], "b");
+  k = { ...k, choice: { "pasta-sauce": "rao-24" } };
+  const all = tips(k);
+  assert.ok(all.some((x) => x.kind === "bulk" && x.group === "pasta-sauce" && x.product === null && x.save > 0));
+  assert.ok(all.some((x) => x.kind === "shared" && /ground beef/i.test(x.text)));
 });
 
-test("working backwards from a weekly total stays under it when it can", () => {
-  for (const budget of [120, 180, 300]) {
-    const week = planForBudget(budget, ["breakfast", "lunch", "dinner"], 4);
-    assert.equal(Object.keys(week).length, 21);
-    assert.ok(totalOf(shoppingFrom(week, 4)) <= budget, `${budget}`);
-  }
-  const tiny = planForBudget(10, ["dinner"], 4);
-  assert.ok(tiny[cellKey(WEEK_DAYS[0], "dinner")]);
+test("staples start at home, takeout costs per person and buys nothing", () => {
+  let k = family();
+  k = addMeal(k, "mon", "dinner", "spaghetti", [], "a");
+  assert.equal(line(k, "garlic").have, true);
+  k = { ...k, have: { garlic: false } };
+  assert.equal(line(k, "garlic").have, false);
+  k = { ...k, edits: { spaghetti: { takeout: { place: "Olive Garden", perPerson: 18 } } } };
+  assert.equal(shoppingLines(k).length, 0);
+  assert.equal(totals(k).takeout, 54);
 });
 
-test("the Plan page is the wizard and the AI price check has its own route", () => {
-  assert.match(read("client/src/components/family-hub/BundleApp.tsx"), /id === "meals"\) return <KitchenPlan/);
-  assert.match(read("server/mealCost.ts"), /app\.post\("\/api\/arise-todo\/meal\/price", authMiddleware/);
-  assert.match(read("server/routes.ts"), /registerMealCostRoutes\(app, authMiddleware\)/);
-  assert.match(read("client/src/components/family-hub/KitchenPlan.tsx"), /plan from a weekly budget/);
+test("your own dish can be deleted, and it leaves every day it was on", () => {
+  let k = family();
+  k = { ...k, own: [{ id: "own-1", slot: "dinner", name: "Oops", kcal: 0, minutes: 0, tags: [], pop: 0, parts: [{ group: "rice", per: 2 }], own: true }] };
+  k = addMeal(k, "mon", "dinner", "own-1", [], "x");
+  k = addMeal(k, "tue", "dinner", "own-1", [], "y");
+  k = deleteOwnDish(k, "own-1");
+  assert.equal(k.own.length, 0);
+  assert.deepEqual(k.week, {});
 });
 
-test("a dish can have its own ingredients, a brand, or be takeout instead", () => {
-  const week = autoFill({ "d-spag": 2 });
-  const plain = shoppingFrom(week, 4);
-  assert.ok(plain.some((l) => l.name === "Spaghetti"));
-  const custom = { "d-spag": { items: [["Gluten-free spaghetti", "1 box", 4.5, "Barilla"], ["Ground turkey", "1 lb", 4.5]] as [string, string, number, string?][] } };
-  const own = shoppingFrom(week, 4, { custom });
-  assert.ok(own.some((l) => l.name === "Gluten-free spaghetti" && l.brand === "Barilla"));
-  assert.ok(!own.some((l) => l.name === "Ground beef"));
-  const out = { "d-spag": { takeout: { place: "Olive Garden", price: 48 } } };
-  assert.deepEqual(shoppingFrom(week, 4, { custom: out }), []);
-  const t = takeoutFrom(week, { custom: out });
-  assert.equal(t.length, 1);
-  assert.equal(t[0].meals, 2);
-  assert.equal(takeoutTotal(t), 96);
+test("the plan saves with the family and survives a round trip", () => {
+  let k = family();
+  k = addMeal(k, "mon", "dinner", "tacos", ["j"], "a");
+  k = { ...k, choice: { "cookie-dough": "tollhouse-24" }, prices: { "tollhouse-24": { price: 5.29, source: "you", at: "2026-11-07" } }, servings: { d: { "cookies:cookie-dough": 4 } } };
+  assert.deepEqual(cleanKitchen(JSON.parse(JSON.stringify(k))), k);
+  assert.deepEqual(cleanKitchen({ week: { "mon:dinner": [{ id: "z", dish: "not-a-dish", people: [] }] } }).week, {});
 });
 
-test("a person's own dish works in the week and the list", () => {
-  const extra = [{ id: "u-1", slot: "dinner" as const, name: "Grandma's stew", kcal: 0, minutes: 0, tags: [], pop: 0, items: [] }];
-  const custom = { "u-1": { items: [["Beef chuck", "2 lb", 14]] as [string, string, number][] } };
-  const lines = shoppingFrom({ "mon:dinner": "u-1" }, 4, { custom, extra });
-  assert.deepEqual(lines.map((l) => [l.name, l.price]), [["Beef chuck", 14]]);
+test("store sizes are read in the right unit", () => {
+  assert.equal(parseSize("16.5 oz", "oz"), 16.5);
+  assert.equal(parseSize("2 lb", "oz"), 32);
+  assert.equal(parseSize("1/2 gal", "floz"), 64);
+  assert.equal(parseSize("24 ct", "ct"), 24);
+  assert.equal(parseSize("16.5 oz", "ct"), null);
+  assert.equal(amountText(28, groupOf("cookie-dough")!), "28 cookies");
+  assert.equal(amountText(54, groupOf("ground-beef")!), "3.4 lb");
 });
 
-test("the AI price check sends the person's sign-in, which was why it failed before", () => {
+test("King Soopers products and stores are read from Kroger's API, sale prices included", () => {
+  const p = mapKrogerProduct({ productId: "0001", upc: "0001", brand: "Nestlé Toll House", description: "Chocolate Chip Cookie Dough", items: [{ size: "16.5 oz", price: { regular: 5.49, promo: 4.49 } }], images: [{ perspective: "front", sizes: [{ size: "medium", url: "https://x/img.jpg" }] }] });
+  assert.deepEqual(p && { price: p.price, regular: p.regular, sale: p.sale, label: p.label }, { price: 4.49, regular: 5.49, sale: true, label: "16.5 oz" });
+  assert.equal(mapKrogerProduct({ productId: "1", items: [{ size: "1 lb" }] }), null, "no price at that store");
+  assert.equal(mapKrogerLocation({ locationId: "62000006", name: "King Soopers - Aurora", address: { addressLine1: "1 Main", city: "Aurora", state: "CO", zipCode: "80014" } })?.zip, "80014");
+});
+
+test("the screens: setup asks who's eating, prices come from the store with your sign-in, no AI guessing", () => {
   const ui = read("client/src/components/family-hub/KitchenPlan.tsx");
-  assert.match(ui, /Authorization: `Bearer \$\{token\}`/);
-  assert.match(ui, /body\?\.message \|\|/);
-});
-
-test("the Kitchen tabs and the plan's steps read differently, so the menu isn't confusing", () => {
-  assert.match(read("client/src/components/family-hub/BundleApp.tsx"), /"Shopping list"/);
-  assert.match(read("client/src/components/family-hub/KitchenPlan.tsx"), /Step \{step\} of 3/);
+  assert.match(ui, /Who are you cooking for\?/);
+  assert.match(ui, /Ways to save/);
+  assert.match(read("client/src/lib/kitchenStore.ts"), /Authorization: `Bearer \$\{token\}`/);
+  assert.match(read("server/routes.ts"), /registerKrogerRoutes\(app, authMiddleware\)/);
+  assert.doesNotMatch(read("server/routes.ts"), /mealCost/);
+  for (const f of ["KitchenPlan.tsx", "kitchen/DishEditor.tsx", "kitchen/DishPicker.tsx", "kitchen/ProductChooser.tsx", "kitchen/kit.tsx"]) assert.doesNotMatch(read(`client/src/components/family-hub/${f}`), /\p{Extended_Pictographic}/u, f);
 });
