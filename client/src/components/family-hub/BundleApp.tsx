@@ -42,7 +42,7 @@ export default function BundleApp({ bundleId, ...p }: SectionProps & { bundleId:
     if (isKitLifeId(id) && kitDef(id)) return <KitPlugin key={id} def={kitDef(id)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={p.today} makeId={p.makeId} say={p.say} />;
     return null;
   };
-  const tabLabel = (id: FamilySection) => id === "grocery" ? "Shop" : id === "meals" ? "Plan" : labelOf(bundle, id);
+  const tabLabel = (id: FamilySection) => id === "grocery" ? "Shopping list" : id === "meals" ? "Plan" : id === "recipes" ? "Recipes" : labelOf(bundle, id);
 
   return <div className="space-y-4" data-testid={`bundle-${bundleId}`}>
     {bundle.promo && <a href={bundle.promo.href} target="_blank" rel="noreferrer" data-testid="bundle-promo" className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-500 px-4 py-3 text-white shadow-sm">
