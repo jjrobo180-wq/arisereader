@@ -31,12 +31,16 @@ const Figure = ({ label, value, sub, tone = "" }: { label: string; value: ReactN
   </div>;
 
 export default function Money({ family, setFamily, today, makeId, say }: SectionProps) {
-  const plan = family.money;
+  // Before setup, the monthly income typed into the old Budget page still counts (it showed $0 coming in).
+  const plan = useMemo(() => family.money.sources.length || !(family.income > 0) ? family.money
+    : { ...family.money, sources: [{ id: "legacy-income", name: "Monthly income", kind: "other" as const, frequency: "irregular" as const, amount: family.income, days: [], anchor: "" }] }, [family.money, family.income]);
   const bills = family.bills as PlanBill[];
   const [month, setMonth] = useState(() => today.slice(0, 7));
   const [tab, setTab] = useState<Tab>(() => { try { return (sessionStorage.getItem("budget-tab") as Tab) || "overview"; } catch { return "overview"; } });
   const go = (t: Tab) => { setTab(t); try { sessionStorage.setItem("budget-tab", t); } catch { /* not kept */ } };
   const [setup, setSetup] = useState(false);
+  /** What the budget was before the last setup, so it can be put back in one tap. */
+  const [undo, setUndo] = useState<Pick<typeof family, "money" | "bills" | "budget" | "income"> | null>(null);
   const [editBill, setEditBill] = useState<PlanBill | null>(null);
   const [paying, setPaying] = useState<{ bill: PlanBill; amount: number } | null>(null);
   const [income, setIncome] = useState<Partial<IncomeEntry> | null>(null);
@@ -63,7 +67,10 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
     say(`${money(amount)} paid toward ${b.name}`);
   };
   const unpay = (b: PlanBill) => { setFamily((f) => { const r = unpayBill(f.money, f.bills as PlanBill[], b.id, month); return { ...f, money: r.plan, bills: r.bills }; }); say(`${b.name} marked unpaid for ${label}`); };
-  const doneSetup = (r: SetupResult) => { setFamily((f) => ({ ...f, money: r.money, bills: r.bills, budget: r.budget, income: r.income })); setSetup(false); go("overview"); say("Your budget is ready"); };
+  const doneSetup = (r: SetupResult) => {
+    setUndo({ money: family.money, bills: family.bills, budget: family.budget, income: family.income });
+    setFamily((f) => ({ ...f, money: r.money, bills: r.bills, budget: r.budget, income: r.income })); setSetup(false); go("overview"); say("Your budget is ready");
+  };
   const addExpense = (e: FormEvent) => {
     e.preventDefault();
     const amount = Number(expense.amount);
@@ -348,6 +355,11 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
       <button type="button" onClick={() => setSetup(true)} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-5 text-sm font-black text-violet-700 hover:bg-white/90" data-testid="budget-start-button">Start <ChevronRight size={16} /></button>
     </section>}
 
+    {undo && <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-emerald-50 p-3.5 text-sm font-semibold text-emerald-900 ring-1 ring-emerald-200" data-testid="budget-undo">
+      <Check size={18} /><span className="min-w-0 flex-1">Your budget is set up.{undo.bills.length > bills.length ? ` ${undo.bills.length - bills.length} bill${undo.bills.length - bills.length === 1 ? " was" : "s were"} turned off.` : ""}</span>
+      <button type="button" onClick={() => { setFamily((f) => ({ ...f, ...undo })); setUndo(null); say("Put back the way it was"); }} className={plain}><Undo2 size={15} /> Undo setup</button>
+      <button type="button" onClick={() => setUndo(null)} className="text-xs font-bold text-emerald-800 underline">OK</button>
+    </div>}
     {summary}
     {alerts.length > 0 && <div className="flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-3.5 text-sm font-semibold text-rose-800" role="alert"><AlertCircle size={18} className="mt-0.5 shrink-0" /><div className="space-y-0.5">{alerts.map((a, i) => <p key={i}>{a}</p>)}</div></div>}
 
