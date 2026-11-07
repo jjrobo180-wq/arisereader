@@ -109,7 +109,7 @@ export function RunTracker({ data, update, onClose, say, trail }: { data: FitDat
   const path = points.map((p) => p.ll);
 
   return <Layer><div className="fit-sheet fixed inset-0 z-[85] flex flex-col" style={{ background: C.bg, color: C.text, ...font }} data-testid="fit-run">
-    <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
+    <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,var(--sat,env(safe-area-inset-top,0px)))]">
       <button type="button" onClick={() => { if (state === "ready" || window.confirm("Stop tracking? This run won't be saved.")) onClose(); }} className="h-11 rounded-full px-4 text-[15px] font-semibold" style={{ background: C.card }}>{state === "ready" ? "Close" : "Discard"}</button>
       <p className="min-w-0 flex-1 truncate text-center text-[20px]" style={display}>{trail ? trail.name : `Outdoor ${KIND_LABEL[kind]}`}</p>
       <span className="flex h-11 items-center gap-1 rounded-full px-3 text-[12px] font-semibold" style={{ background: C.card, color: acc !== null && acc <= 20 ? C.green : acc !== null && acc <= 35 ? C.orange : C.dim }}><Crosshair className="h-4 w-4" />{acc !== null ? `±${acc}m` : "GPS"}</span>

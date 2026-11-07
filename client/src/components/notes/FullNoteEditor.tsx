@@ -93,7 +93,7 @@ export default function FullNoteEditor({ note, colors, onSave, onClose, onDelete
   return createPortal(
     <div className="fixed inset-0 z-[700] flex flex-col" style={{ background: color }} role="dialog" aria-modal="true" aria-label={title || "Note"} data-testid="full-note">
       {/* Top bar */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-black/5 bg-white/70 px-2 pb-2 backdrop-blur sm:px-4" style={{ paddingTop: "max(0.5rem, env(safe-area-inset-top))" }}>
+      <div className="flex shrink-0 items-center gap-2 border-b border-black/5 bg-white/70 px-2 pb-2 backdrop-blur sm:px-4" style={{ paddingTop: "max(0.5rem, var(--sat, env(safe-area-inset-top, 0px)))" }}>
         <button type="button" onClick={done} className="inline-flex min-h-11 items-center gap-0.5 rounded-xl pl-1 pr-3 text-[15px] font-bold text-violet-700 hover:bg-violet-50" data-testid="full-note-done"><ChevronLeft size={22} /> Notes</button>
         <span className="min-w-0 flex-1 truncate text-center text-xs font-semibold text-slate-500" aria-live="polite">{status === "saving" ? "Saving…" : status === "saved" ? "Saved" : edited ? `Edited ${edited.toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : ""}</span>
         <button type="button" onClick={() => setPinned((p) => !p)} aria-pressed={pinned} title={pinned ? "Unpin" : pinLabel} aria-label={pinned ? "Unpin" : pinLabel} className={`inline-flex h-11 w-11 items-center justify-center rounded-xl hover:bg-black/5 ${pinned ? "text-violet-700" : "text-slate-500"}`}><Pin size={18} className={pinned ? "fill-current" : ""} /></button>

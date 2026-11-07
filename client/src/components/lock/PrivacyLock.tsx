@@ -103,7 +103,7 @@ function PasscodePad({ lock, title, sub, digits, onDone, onEntered, onForgot }: 
   const dots = free ? Math.max(4, code.length) : len;
   const key = "flex h-[72px] w-[72px] items-center justify-center rounded-full bg-white/10 text-3xl font-light text-white transition active:bg-white/30 hover:bg-white/15";
   return createPortal(<div role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-[900] flex flex-col items-center justify-center bg-slate-950/95 px-6 py-8 text-white backdrop-blur" data-testid="passcode-pad">
-    <button type="button" onClick={() => onDone(false)} aria-label="Cancel" className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))] inline-flex h-11 w-11 items-center justify-center rounded-full text-white/80 hover:bg-white/10"><X className="h-6 w-6" /></button>
+    <button type="button" onClick={() => onDone(false)} aria-label="Cancel" className="absolute right-4 top-[max(1rem,var(--sat,env(safe-area-inset-top,0px)))] inline-flex h-11 w-11 items-center justify-center rounded-full text-white/80 hover:bg-white/10"><X className="h-6 w-6" /></button>
     {forgot ? <ForgotPasscode onBack={() => setForgot(false)} onReset={() => { onForgot?.(); onDone(false); }} /> : <>
       <Lock className="mb-4 h-7 w-7 text-white/80" />
       <h2 className="text-lg font-semibold">{title}</h2>

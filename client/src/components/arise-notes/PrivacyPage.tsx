@@ -40,7 +40,7 @@ const SECTIONS: [string, string[]][] = [
 ];
 
 export default function PrivacyPage({ onBack }: { onBack?: () => void }) {
-  return <main className="mx-auto max-w-3xl px-4 pb-24 pt-[max(1rem,env(safe-area-inset-top))] sm:px-5">
+  return <main className="mx-auto max-w-3xl px-4 pb-24 pt-[max(1rem,var(--sat,env(safe-area-inset-top,0px)))] sm:px-5">
     {onBack && <button type="button" onClick={onBack} className="an-btn an-ghost -ml-2 mb-2"><ChevronLeft className="h-5 w-5" />Back</button>}
     <div className="an-card p-6 sm:p-8">
       <div className="flex items-center gap-3"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--an-violet-soft)] text-[var(--an-violet)]"><Shield className="h-6 w-6" aria-hidden /></span><div><h1 className="text-[24px] font-extrabold tracking-tight">Student data privacy</h1><p className="text-[14px] text-[var(--an-muted)]">Arise Notes · FERPA and COPPA</p></div></div>

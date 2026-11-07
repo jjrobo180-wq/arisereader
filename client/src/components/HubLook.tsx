@@ -74,11 +74,11 @@ export function useHubLook(themeId: unknown, night: boolean): { look: NotesTheme
 export type HubHeroLink = { label: string; onClick: () => void };
 
 /** The top of Home for a look: its title, the main action and up to three shortcuts. */
-export function HubLookHero({ look, date, greeting, primary, links }: { look: NotesTheme; date: string; greeting: string; primary: HubHeroLink; links: HubHeroLink[] }) {
+export function HubLookHero({ look, date, greeting, primary, links, open, today, hubName }: { look: NotesTheme; date: string; greeting: string; primary: HubHeroLink; links: HubHeroLink[]; open?: number; today?: number; hubName?: string }) {
   const main = (children: ReactNode, cls = "") => <button type="button" className={`an-l-record ${cls}`} onClick={primary.onClick} data-testid="hub-look-primary">{children}</button>;
   const rest = <div className="an-l-secondary">{links.slice(0, 3).map((l) => <button key={l.label} type="button" onClick={l.onClick}>{look.id === "console" ? `[ ${l.label.toLowerCase()} ]` : look.id === "punch" ? l.label.toUpperCase() : l.label}</button>)}</div>;
   const title = <h1>{greeting}</h1>;
-  if (hasArch(look)) return <section className={`an-l-hero an-l-hero-${look.id}`}><ProtoHubHero look={look} date={date} greeting={greeting} primary={primary} links={links} /></section>;
+  if (hasArch(look)) return <section className={`an-l-hero an-l-hero-${look.id} sh-hero`}><ProtoHubHero look={look} date={date} greeting={greeting} primary={primary} links={links} open={open} today={today} hubName={hubName} /></section>;
   const body = (() => {
     switch (look.id) {
       case "studio": return <>{main(<><span className="an-l-rectop"><b>Today</b></span><small>{primary.label}</small></>)}{title}{rest}</>;

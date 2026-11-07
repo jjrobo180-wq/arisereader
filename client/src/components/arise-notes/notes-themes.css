@@ -311,6 +311,8 @@
 .an-themed header.sticky { background: var(--an-hero) !important; color: var(--an-on-hero); border-color: transparent !important; backdrop-filter: none; -webkit-backdrop-filter: none; }
 .an-themed header.sticky .an-icon-btn, .an-themed header.sticky button { color: var(--an-on-hero) !important; }
 .an-themed .an-l-hero { margin: -1.25rem -1rem 0; padding: calc(var(--sat, env(safe-area-inset-top, 0px)) + 1rem) 1rem 1.25rem; background: var(--an-hero); color: var(--an-on-hero); }
+/* Inside a hub the top bar (with Back) already clears the clock, so the hero below it doesn't add that space twice. */
+.an-root .an-under-bar .an-l-hero { padding-top: 1rem !important; }
 .an-themed .an-l-hero h1 { color: inherit; }
 .an-themed .an-l-hero .an-l-record { background: var(--an-on-hero); color: var(--an-hero); border-color: transparent; box-shadow: none; }
 .an-l-minutes { align-self: flex-end; font-size: .8rem; font-weight: 700; }

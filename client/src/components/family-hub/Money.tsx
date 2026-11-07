@@ -1,17 +1,21 @@
 // Budget & bills. Built around how this person gets paid (see BudgetSetup and shared/moneyPlan.ts):
 // a plan by paycheck or by month, bills that can be split and paid a bit at a time (what's still owed carries over),
 // tips, gigs and bonuses logged as they come, spending against limits, goals, and insights.
+//
+// Look: the LifeHub's own page header and white cards, like every other section. One quiet summary card (no dark
+// banner), sentence-case labels, one accent color, green and red only where they mean money in or a problem, and
+// numbers in tabular figures so columns line up. Built from the class names the hub's looks and night mode recolor.
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import {
-  AlertCircle, ArrowDownRight, ArrowUpRight, Wallet, BarChart3, Check, ChevronLeft, ChevronRight, CircleDollarSign, Download,
-  HandCoins, LayoutGrid, Pencil, PiggyBank, Plus, Receipt, Repeat2, Settings2, ShoppingCart, Sparkles, Target, Trash2, Undo2,
+  AlertCircle, ArrowDownRight, ArrowUpRight, Wallet, Check, ChevronLeft, ChevronRight, CircleDollarSign, Download,
+  HandCoins, Pencil, PiggyBank, Plus, Receipt, Repeat2, RotateCcw, Settings2, Target, Trash2, Undo2,
 } from "lucide-react";
 import { fromDay, money, toDay, type Expense } from "@shared/familyHub";
 import {
   billStatus, byCategory, cents, expectedFrom, expectedIncome, FREQ_LABEL, goalProgress, monthCsv, monthPicture, monthsBack, payBill, payPeriods,
   paydays, paydaysToConfirm, receivedIn, safeToSpend, shiftMonth, tipWeeks, unpayBill, type Goal, type IncomeEntry, type IncomeSource, type PayFrequency, type PlanBill, type PlanStyle,
 } from "@shared/moneyPlan";
-import { Bar, Empty, Label, Modal, Panel, Toggle, confirmed, danger, inputClass, plain, primary, shortDate, soft, type SectionProps } from "./ui";
+import { Bar, Empty, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, inputClass, plain, primary, shortDate, soft, type SectionProps } from "./ui";
 import { ShareButton } from "./ShareLink";
 import BudgetSetup, { type SetupResult } from "./BudgetSetup";
 
@@ -22,13 +26,16 @@ const KIND_WORD: Record<IncomeEntry["kind"], string> = { pay: "Paycheck", tips: 
 const day = (d: string) => shortDate(d, { month: "short", day: "numeric" });
 const blankBill = (id: string): PlanBill => ({ id, name: "", amount: 0, dueDay: 1, category: "", autopay: false, paid: [] });
 
-/** A big number with a label, for the summary strip. */
-const Figure = ({ label, value, sub, tone = "" }: { label: string; value: ReactNode; sub?: ReactNode; tone?: string }) =>
-  <div className="min-w-0 rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/15">
-    <p className="text-[11px] font-bold uppercase tracking-[.12em] text-white/60">{label}</p>
-    <p className={`mt-1 truncate text-xl font-black tabular-nums sm:text-2xl ${tone}`}>{value}</p>
-    {sub && <p className="mt-0.5 truncate text-xs font-semibold text-white/65">{sub}</p>}
+/** One figure in the summary card: a plain label, the amount, and a line under it. Two to a row on a phone, four on a
+ *  computer, divided by hairlines; nothing is cut off (the line under it wraps). */
+const Figure = ({ label, value, sub, tone = "text-[#232139]", i }: { label: string; value: ReactNode; sub?: ReactNode; tone?: string; i: number }) =>
+  <div className={`min-w-0 border-slate-100 py-3.5 ${i % 2 ? "border-l pl-4" : "pr-4"} ${i > 1 ? "border-t" : ""} lg:border-t-0 ${i ? "lg:border-l lg:pl-5" : "lg:pl-0"} lg:pr-5`} data-testid="budget-figure">
+    <p className="text-[13px] font-medium text-slate-500">{label}</p>
+    <p className={`mt-1 text-xl font-semibold tabular-nums tracking-tight sm:text-[22px] ${tone}`}>{value}</p>
+    {sub && <div className="mt-0.5 text-xs leading-snug text-slate-500">{sub}</div>}
   </div>;
+/** The tabs: one segmented control, like the ones in the budget's own dialogs. */
+const tabClass = (on: boolean) => `inline-flex min-h-9 shrink-0 items-center justify-center rounded-lg px-3.5 text-sm font-semibold transition ${on ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"}`;
 
 export default function Money({ family, setFamily, today, makeId, say }: SectionProps) {
   // Before setup, the monthly income typed into the old Budget page still counts (it showed $0 coming in).
@@ -93,24 +100,26 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
   const headline = safe
     ? { label: `Safe to spend until ${day(safe.until)}`, value: safe.amount, note: `${safe.days} day${safe.days === 1 ? "" : "s"} · about ${money(Math.max(0, Math.floor(safe.amount / safe.days)))} a day` }
     : { label: isNow ? "Left to spend this month" : `Left in ${label}`, value: pic.leftover, note: isNow ? `${daysLeft} day${daysLeft === 1 ? "" : "s"} left · about ${money(Math.max(0, Math.floor(pic.leftover / Math.max(1, daysLeft))))} a day` : "" };
-  const summary = <section className="overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-[#1d1838] via-[#2b2360] to-[#3c2d86] p-5 text-white shadow-[0_24px_48px_-30px_rgba(29,24,56,.9)] sm:p-7" data-testid="budget-summary">
-    <div className="flex flex-wrap items-start justify-between gap-4">
+  // How much of the month's spending plan is used, for the thin bar under the headline.
+  const usedPct = pic.budgeted > 0 ? Math.min(100, Math.round((pic.spent / pic.budgeted) * 100)) : 0;
+  const summary = <section className="min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5 shadow-[0_8px_28px_#17152b08] sm:p-6" data-testid="budget-summary">
+    <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
       <div className="min-w-0">
-        <p className="text-[11px] font-bold uppercase tracking-[.16em] text-white/60">{headline.label}</p>
-        <p className={`mt-1 text-[2.6rem] font-black leading-none tracking-tight tabular-nums sm:text-6xl ${headline.value < 0 ? "text-rose-300" : ""}`} data-testid="budget-headline">{money(headline.value)}</p>
-        {headline.note && <p className="mt-2 text-sm font-semibold text-white/70">{headline.note}</p>}
+        <p className="text-sm font-medium text-slate-500">{headline.label}</p>
+        <p className={`mt-1.5 text-[2.5rem] font-bold leading-none tracking-tight tabular-nums sm:text-5xl ${headline.value < 0 ? "text-rose-600" : "text-[#232139]"}`} data-testid="budget-headline">{money(headline.value)}</p>
+        {headline.note && <p className="mt-2 text-sm text-slate-500">{headline.note}</p>}
       </div>
-      <div className="flex items-center gap-1.5 rounded-2xl bg-white/10 p-1 ring-1 ring-white/15">
-        <button type="button" onClick={() => shift(-1)} aria-label="Previous month" className="grid h-9 w-9 place-items-center rounded-xl hover:bg-white/10"><ChevronLeft size={17} /></button>
-        <button type="button" onClick={() => setMonth(today.slice(0, 7))} className="min-w-[8.5rem] rounded-xl px-2 text-center text-sm font-black">{label}</button>
-        <button type="button" onClick={() => shift(1)} aria-label="Next month" className="grid h-9 w-9 place-items-center rounded-xl hover:bg-white/10"><ChevronRight size={17} /></button>
+      <div className="flex items-center rounded-xl border border-slate-200 bg-white p-0.5" role="group" aria-label="Month">
+        <button type="button" onClick={() => shift(-1)} aria-label="Previous month" className="grid h-9 w-9 place-items-center rounded-lg text-slate-600 hover:bg-slate-50"><ChevronLeft size={18} /></button>
+        <button type="button" onClick={() => setMonth(today.slice(0, 7))} title={isNow ? undefined : "Back to this month"} className="min-w-[8.5rem] rounded-lg px-2 text-center text-sm font-semibold tabular-nums text-slate-900">{label}</button>
+        <button type="button" onClick={() => shift(1)} aria-label="Next month" className="grid h-9 w-9 place-items-center rounded-lg text-slate-600 hover:bg-slate-50"><ChevronRight size={18} /></button>
       </div>
     </div>
-    <div className="mt-5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-      <Figure label="Coming in" value={money(pic.income)} sub={pic.expected || pic.received ? `${money(pic.received)} of ${money(pic.income)} received` : "Add how you get paid"} tone="text-emerald-300" />
-      <Figure label="Bills" value={money(pic.billsLeft)} sub={`left of ${money(pic.billsOwed)}`} />
-      <Figure label="Spent" value={money(pic.spent)} sub={pic.budgeted ? `of ${money(pic.budgeted)} planned` : "this month"} />
-      <Figure label={pic.unplanned >= 0 ? "Not planned yet" : "Over-planned"} value={money(Math.abs(pic.unplanned))} sub={pic.goals ? `${money(pic.goals)} to goals` : "after bills, spending and goals"} tone={pic.unplanned < 0 ? "text-rose-300" : "text-violet-200"} />
+    <div className="mt-5 grid grid-cols-2 border-t border-slate-100 lg:grid-cols-4">
+      <Figure i={0} label="Coming in" value={money(pic.income)} sub={pic.expected || pic.received ? `${money(pic.received)} received so far` : "Add how you get paid"} tone="text-emerald-700" />
+      <Figure i={1} label="Bills left" value={money(pic.billsLeft)} sub={`of ${money(pic.billsOwed)} this month`} />
+      <Figure i={2} label="Spent" value={money(pic.spent)} sub={pic.budgeted ? <><span className="mb-1.5 mt-1 block max-w-[10rem]" role="img" aria-label={`${usedPct}% of planned spending used`}><Bar value={pic.spent} max={pic.budgeted} warn={pic.spent > pic.budgeted} /></span>{`of ${money(pic.budgeted)} planned`}</> : "this month"} tone={pic.budgeted && pic.spent > pic.budgeted ? "text-rose-600" : "text-[#232139]"} />
+      <Figure i={3} label={pic.unplanned >= 0 ? "Not planned yet" : "Over-planned"} value={money(Math.abs(pic.unplanned))} sub={pic.goals ? `after ${money(pic.goals)} to goals` : "after bills and spending"} tone={pic.unplanned < 0 ? "text-rose-600" : "text-[#232139]"} />
     </div>
   </section>;
 
@@ -125,65 +134,67 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
     setMoney((m) => ({ ...m, incomeLog: [...m.incomeLog, { id: makeId(), sourceId: s.id, date, amount: cents(amount), kind: "pay" as const, note: "" }].slice(-4000) }));
     say(`${money(amount)} from ${s.name} logged`);
   };
-  const checkIn = confirm.length > 0 && <section className="space-y-2" data-testid="budget-checkin">{confirm.slice(0, 3).map((c) => <div key={c.source.id + c.date} className="flex flex-wrap items-center gap-3 rounded-2xl bg-white p-3.5 ring-1 ring-emerald-200 shadow-sm">
-    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><Wallet size={18} /></span>
-    <span className="min-w-0 flex-1 text-sm"><b className="block text-slate-900">Did {c.source.name} pay you {money(c.source.amount)}?</b><span className="text-slate-500">Payday was {day(c.date)}</span></span>
-    <span className="flex flex-wrap gap-2">
+  const checkIn = confirm.length > 0 && <section className="space-y-2" data-testid="budget-checkin">{confirm.slice(0, 3).map((c) => <div key={c.source.id + c.date} className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#e7e8f0] bg-white p-3.5">
+    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-50 text-emerald-700"><Wallet size={18} /></span>
+    <span className="min-w-0 flex-1 text-sm"><span className="block font-semibold text-slate-900">Did {c.source.name} pay you {money(c.source.amount)}?</span><span className="text-slate-500">Payday was {day(c.date)}</span></span>
+    <span className="flex flex-wrap items-center gap-2">
       <button type="button" onClick={() => logPay(c.source, c.date, c.source.amount)} className={primary + " !min-h-9"} data-testid="budget-checkin-yes"><Check size={15} /> Yes</button>
       <button type="button" onClick={() => setIncome({ kind: "pay", sourceId: c.source.id, amount: c.source.amount, date: c.date })} className={plain + " !min-h-9"}>Different amount</button>
-      <button type="button" onClick={() => setNotYet((n) => [...n, `${c.source.id}|${c.date}`])} className="min-h-9 px-2 text-xs font-bold text-slate-500 underline">Not yet</button>
+      <button type="button" onClick={() => setNotYet((n) => [...n, `${c.source.id}|${c.date}`])} className="min-h-9 px-2 text-sm font-medium text-slate-500 hover:text-slate-700">Not yet</button>
     </span>
   </div>)}</section>;
 
   // ───────── Tabs ─────────
-  const TABS: [Tab, string, ReactNode][] = [["overview", "Overview", <LayoutGrid size={16} />], ...(plan.style === "paycheck" ? [["paychecks", "Paychecks", <Wallet size={16} />] as [Tab, string, ReactNode]] : []),
-    ["bills", "Bills", <Receipt size={16} />], ["spending", "Spending", <ShoppingCart size={16} />], ["income", "Income", <HandCoins size={16} />], ["goals", "Goals", <Target size={16} />], ["insights", "Insights", <BarChart3 size={16} />]];
+  const TABS: [Tab, string][] = [["overview", "Overview"], ...(plan.style === "paycheck" ? [["paychecks", "Paychecks"] as [Tab, string]] : []),
+    ["bills", "Bills"], ["spending", "Spending"], ["income", "Income"], ["goals", "Goals"], ["insights", "Insights"]];
   const shown: Tab = tab === "paychecks" && plan.style !== "paycheck" ? "overview" : tab;
 
   const billRow = ({ b, st }: (typeof billRows)[number], compact = false) => <li key={b.id} className="flex items-center gap-3 py-3" data-testid="budget-bill">
     <button type="button" onClick={() => (st.state === "paid" ? unpay(b) : pay(b, st.nextAmount || st.left))} aria-label={st.state === "paid" ? `Mark ${b.name} unpaid` : `Pay ${money(st.nextAmount || st.left)} toward ${b.name}`} aria-pressed={st.state === "paid"}
-      className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl border-2 transition ${st.state === "paid" ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300 text-transparent hover:border-violet-500 hover:text-violet-400"}`}><Check size={16} /></button>
+      className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 transition ${st.state === "paid" ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-300 text-transparent hover:border-[#6e5ae0] hover:text-[#6e5ae0]"}`}><Check size={15} strokeWidth={3} /></button>
     <button type="button" onClick={() => setEditBill({ ...b })} className="min-w-0 flex-1 text-left">
-      <span className={`block truncate text-[15px] font-bold ${st.state === "paid" ? "text-slate-400 line-through" : "text-slate-900"}`}>{b.name}</span>
-      <span className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] font-semibold">
-        <span className={`rounded-md px-1.5 py-0.5 ${STATE_STYLE[st.state]}`}>{STATE_WORD[st.state]}{st.state !== "paid" && st.nextDue ? ` ${day(st.nextDue)}` : ""}</span>
-        {b.parts && <span className="text-slate-500">{b.parts.map((p) => `${money(p.amount)} on the ${p.day}${["st", "nd", "rd"][((p.day + 90) % 100 - 10) % 10 - 1] || "th"}`).join(" + ")}</span>}
-        {st.carried > 0 && <span className="rounded-md bg-rose-50 px-1.5 py-0.5 text-rose-700">+{money(st.carried)} from last month</span>}
-        {b.autopay && <span className="inline-flex items-center gap-1 text-slate-500"><Repeat2 size={11} /> Autopay</span>}
+      <span className={`block truncate text-[15px] font-semibold ${st.state === "paid" ? "text-slate-400 line-through" : "text-slate-900"}`}>{b.name}</span>
+      <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-slate-500">
+        <span className={`rounded-md px-1.5 py-px text-xs font-semibold ${STATE_STYLE[st.state]}`}>{STATE_WORD[st.state]}{st.state !== "paid" && st.nextDue ? ` ${day(st.nextDue)}` : ""}</span>
+        {b.parts && <span>{b.parts.map((p) => `${money(p.amount)} on the ${p.day}${["st", "nd", "rd"][((p.day + 90) % 100 - 10) % 10 - 1] || "th"}`).join(" + ")}</span>}
+        {st.carried > 0 && <span className="rounded-md bg-rose-50 px-1.5 py-px text-xs font-semibold text-rose-600">+{money(st.carried)} from last month</span>}
+        {b.autopay && <span className="inline-flex items-center gap-1"><Repeat2 size={12} /> Autopay</span>}
       </span>
-      {st.state === "partial" || (st.paid > 0 && st.left > 0) ? <span className="mt-1.5 block max-w-xs"><Bar value={st.paid} max={st.owed} color="#0ea5e9" /></span> : null}
+      {st.state === "partial" || (st.paid > 0 && st.left > 0) ? <span className="mt-2 block max-w-xs"><Bar value={st.paid} max={st.owed} /></span> : null}
     </button>
-    <span className="text-right">
-      <span className="block text-[15px] font-black tabular-nums">{money(st.state === "paid" ? st.owed : st.left)}</span>
-      {st.paid > 0 && st.left > 0 && <span className="block text-[11px] font-semibold text-slate-500">{money(st.paid)} paid</span>}
+    <span className="shrink-0 text-right">
+      <span className="block text-[15px] font-semibold tabular-nums text-slate-900">{money(st.state === "paid" ? st.owed : st.left)}</span>
+      {st.paid > 0 && st.left > 0 && <span className="block text-xs text-slate-500">{money(st.paid)} paid</span>}
     </span>
-    {!compact && st.state !== "paid" && <button type="button" onClick={() => setPaying({ bill: b, amount: st.nextAmount || st.left })} className={soft + " !min-h-9 !px-2.5 !text-xs"}>Pay</button>}
+    {!compact && st.state !== "paid" && <button type="button" onClick={() => setPaying({ bill: b, amount: st.nextAmount || st.left })} className={soft + " !min-h-9 shrink-0 !px-3"}>Pay</button>}
   </li>;
 
   // Spending
   function catList(limit?: number) {
     const list = cats.filter((c) => c.limit > 0 || c.spent > 0).slice(0, limit ?? 99);
-    if (!list.length) return <p className="text-sm text-slate-500">No limits set yet. <button type="button" className="font-bold text-violet-700 underline" onClick={() => go("spending")}>Set them</button></p>;
-    return <ul className="space-y-3.5">{list.map((c) => {
+    if (!list.length) return <p className="text-sm text-slate-500">No limits set yet. <button type="button" className="font-semibold text-violet-700 hover:underline" onClick={() => go("spending")}>Set them</button></p>;
+    return <ul className="space-y-4">{list.map((c) => {
       const pct = c.limit ? c.spent / c.limit : 0;
       return <li key={c.id || "other"}>
-        <div className="mb-1.5 flex items-baseline gap-2 text-sm"><span className="min-w-0 flex-1 truncate font-bold">{c.name}</span>
-          <span className={`font-black tabular-nums ${pct > 1 ? "text-rose-600" : ""}`}>{money(c.spent)}</span>{c.limit > 0 && <span className="text-xs font-semibold text-slate-500">of {money(c.limit)}</span>}</div>
-        <Bar value={c.spent} max={c.limit || Math.max(c.spent, 1)} warn={pct > 1} color={pct > 0.9 ? "#f59e0b" : "#6e5ae0"} />
-        {c.limit > 0 && <p className="mt-1 text-[11px] font-semibold text-slate-500">{pct > 1 ? `${money(c.spent - c.limit)} over` : `${money(c.limit - c.spent)} left`}</p>}
+        <div className="mb-1.5 flex items-baseline gap-2 text-sm"><span className="min-w-0 flex-1 truncate font-medium text-slate-900">{c.name}</span>
+          <span className={`font-semibold tabular-nums ${pct > 1 ? "text-rose-600" : "text-slate-900"}`}>{money(c.spent)}</span>{c.limit > 0 && <span className="text-[13px] tabular-nums text-slate-500">of {money(c.limit)}</span>}</div>
+        <Bar value={c.spent} max={c.limit || Math.max(c.spent, 1)} warn={pct > 1} color={pct > 0.9 ? "#d97706" : "#6e5ae0"} />
+        {c.limit > 0 && <p className={`mt-1 text-xs ${pct > 1 ? "font-medium text-rose-600" : "text-slate-500"}`}>{pct > 1 ? `${money(c.spent - c.limit)} over` : `${money(c.limit - c.spent)} left`}</p>}
       </li>;
     })}</ul>;
   }
-  const spendFormEl = (wide: boolean) => <form onSubmit={addExpense} className={`grid grid-cols-2 gap-2 ${wide ? "sm:grid-cols-[110px_minmax(0,1fr)_minmax(0,1.2fr)_150px_auto]" : ""}`}>
+  // One row when the panel has the room (a tablet, or a computer before the tab splits into two columns);
+  // otherwise two to a row, so the category and note never squeeze down to nothing.
+  const spendFormEl = (wide: boolean) => <form onSubmit={addExpense} className={`grid grid-cols-2 gap-2 ${wide ? "sm:grid-cols-[110px_minmax(0,1fr)_minmax(0,1.2fr)_150px_auto] xl:grid-cols-2" : ""}`}>
     <input type="number" inputMode="decimal" min={0} step="0.01" value={expense.amount} onChange={(e) => setExpense({ ...expense, amount: e.target.value })} placeholder="$ 0.00" aria-label="Amount" className={inputClass} />
     <select value={expense.categoryId} onChange={(e) => setExpense({ ...expense, categoryId: e.target.value })} aria-label="Category" className={inputClass}>{family.budget.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}<option value="">Other</option></select>
-    <input value={expense.note} maxLength={120} onChange={(e) => setExpense({ ...expense, note: e.target.value })} placeholder="What for?" aria-label="Note" className={inputClass + ` col-span-2 ${wide ? "sm:col-span-1" : ""}`} />
+    <input value={expense.note} maxLength={120} onChange={(e) => setExpense({ ...expense, note: e.target.value })} placeholder="What for?" aria-label="Note" className={inputClass + ` col-span-2 ${wide ? "sm:col-span-1 xl:col-span-2" : ""}`} />
     <input type="date" value={expense.date} onChange={(e) => setExpense({ ...expense, date: e.target.value })} aria-label="Date" className={inputClass} />
     <button type="submit" className={primary}><Plus size={17} /> Add</button>
   </form>;
   const monthExpenses = family.expenses.filter((x) => x.date.startsWith(month)).sort((a, z) => z.date.localeCompare(a.date));
   const spending = <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-    <Panel eyebrow={label} title="Limits" right={<span className="text-sm font-black tabular-nums">{money(pic.spent)}<span className="font-semibold text-slate-500"> / {money(pic.budgeted)}</span></span>}>
+    <Panel title="Limits" right={<span className="text-sm font-semibold tabular-nums">{money(pic.spent)}<span className="font-semibold text-slate-500"> / {money(pic.budgeted)}</span></span>}>
       <ul className="space-y-4">{family.budget.map((c) => {
         const spent = cats.find((x) => x.id === c.id)?.spent || 0;
         return <li key={c.id}>
@@ -202,13 +213,13 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
         <button type="submit" className={primary} aria-label="Add category"><Plus size={17} /></button>
       </form>
     </Panel>
-    <Panel eyebrow="Spending" title={`Logged in ${label}`}>
+    <Panel title={`Spending in ${label}`}>
       {spendFormEl(true)}
       {monthExpenses.length ? <ul className="mt-4 divide-y divide-slate-100">{monthExpenses.slice(0, 80).map((x) => <li key={x.id} className="flex items-center gap-3 py-2.5 text-sm">
         <button type="button" onClick={() => setEditExpense({ ...x })} aria-label={`Edit ${x.note || "spending"}`} className="flex min-w-0 flex-1 items-center gap-3 text-left">
         <span className="w-14 shrink-0 text-xs font-bold text-slate-500">{day(x.date)}</span>
         <span className="min-w-0 flex-1 truncate"><span className="font-semibold">{x.note || family.budget.find((c) => c.id === x.categoryId)?.name || "Other"}</span>{x.note && <span className="text-xs text-slate-500"> · {family.budget.find((c) => c.id === x.categoryId)?.name || "Other"}</span>}</span>
-        <span className="font-black tabular-nums">{money(x.amount)}</span></button>
+        <span className="font-semibold tabular-nums">{money(x.amount)}</span></button>
         <button type="button" onClick={() => setFamily((f) => ({ ...f, expenses: f.expenses.filter((e) => e.id !== x.id) }))} className="rounded-lg p-1.5 text-slate-400 hover:text-rose-500" aria-label="Remove"><Trash2 size={14} /></button>
       </li>)}</ul> : <p className="mt-4 text-sm text-slate-500">Nothing logged for {label} yet.</p>}
     </Panel>
@@ -218,25 +229,25 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
   const overview = <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
     <div className="space-y-5">
       {checkIn}
-      <Panel eyebrow="Up next" title="Bills to pay" right={<button type="button" onClick={() => go("bills")} className={plain}>All bills</button>}>
-        {nextBills.length ? <ul className="divide-y divide-slate-100">{nextBills.map((r) => billRow(r))}</ul> : <p className="text-sm text-slate-500">{bills.length ? `Every bill is paid for ${label}. 🎉` : "No bills yet."}</p>}
+      <Panel title="Bills to pay" right={<button type="button" onClick={() => go("bills")} className={plain}>All bills</button>}>
+        {nextBills.length ? <ul className="divide-y divide-slate-100">{nextBills.map((r) => billRow(r))}</ul> : <p className="text-sm text-slate-500">{bills.length ? `Every bill is paid for ${label}.` : "No bills yet."}</p>}
       </Panel>
-      {plan.style === "paycheck" && periods.periods.length > 0 && <Panel eyebrow="By paycheck" title="Your checks this month" right={<button type="button" onClick={() => go("paychecks")} className={plain}>Plan</button>}>
-        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">{periods.periods.map((p) => <li key={p.start} className="rounded-2xl bg-slate-50 p-3.5 ring-1 ring-slate-200">
-          <p className="text-xs font-bold text-slate-500">{day(p.start)}{p.sources.every((s) => s.received) ? " · received" : ""}</p>
-          <p className="mt-0.5 text-lg font-black tabular-nums">{money(p.amount)}</p>
-          <p className="text-xs font-semibold text-slate-600">{money(p.billTotal)} bills · <span className={p.left < 0 ? "text-rose-600" : "text-emerald-700"}>{money(p.left)} left</span></p>
+      {plan.style === "paycheck" && periods.periods.length > 0 && <Panel title="Paychecks this month" right={<button type="button" onClick={() => go("paychecks")} className={plain}>Plan</button>}>
+        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">{periods.periods.map((p) => <li key={p.start} className="rounded-2xl bg-slate-50 p-3.5">
+          <p className="text-[13px] text-slate-500">{day(p.start)}{p.sources.every((s) => s.received) ? " · received" : ""}</p>
+          <p className="mt-0.5 text-lg font-semibold tabular-nums text-slate-900">{money(p.amount)}</p>
+          <p className="text-xs text-slate-500">{money(p.billTotal)} bills · <span className={`font-medium ${p.left < 0 ? "text-rose-600" : "text-emerald-700"}`}>{money(p.left)} left</span></p>
         </li>)}</ul>
       </Panel>}
     </div>
     <div className="space-y-5">
-      <Panel eyebrow="Quick add" title="Log spending">{spendFormEl(false)}</Panel>
-      <Panel eyebrow={label} title="Spending limits" right={<button type="button" onClick={() => go("spending")} className={plain}>All</button>}>{catList(4)}</Panel>
+      <Panel title="Log spending">{spendFormEl(false)}</Panel>
+      <Panel title="Spending limits" right={<button type="button" onClick={() => go("spending")} className={plain}>All</button>}>{catList(4)}</Panel>
     </div>
   </div>;
 
   // Bills
-  const billsTab = <Panel eyebrow={label} title="Bills" right={<div className="flex flex-wrap items-center gap-1.5"><ShareButton target="bills" title="Our bills" say={say} compact /><button type="button" onClick={() => setEditBill(blankBill(makeId()))} className={soft}><Plus size={16} /> Add bill</button></div>}>
+  const billsTab = <Panel title={`Bills for ${label}`} right={<div className="flex flex-wrap items-center gap-1.5"><ShareButton target="bills" title="Our bills" say={say} compact /><button type="button" onClick={() => setEditBill(blankBill(makeId()))} className={soft}><Plus size={16} /> Add bill</button></div>}>
     {bills.length ? <>
       <ul className="divide-y divide-slate-100">{billRows.map((r) => billRow(r))}</ul>
       <div className="mt-3 border-t border-slate-100 pt-3"><div className="mb-1.5 flex justify-between text-xs font-bold text-slate-600"><span>{money(pic.billsPaid)} paid</span><span>{money(pic.billsOwed)} this month</span></div><Bar value={pic.billsPaid} max={pic.billsOwed || 1} color="#22c55e" /></div>
@@ -248,23 +259,23 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
   const periodCard = (p: (typeof periods.periods)[number], before = false) => <section key={p.start} className="min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-5" data-testid="budget-period">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <p className="text-[11px] font-extrabold uppercase tracking-[.15em] text-violet-600">{before ? `Before ${day(addDay(p.end))}` : `${day(p.start)} – ${day(p.end)}`}</p>
-        <h3 className="mt-0.5 text-lg font-black">{before ? "Paid from last month's check" : p.sources.map((s) => s.name).join(" + ")}</h3>
+        <p className="text-[13px] font-medium text-slate-500">{before ? `Before ${day(addDay(p.end))}` : `${day(p.start)} – ${day(p.end)}`}</p>
+        <h3 className="mt-0.5 text-lg font-semibold text-slate-900">{before ? "Paid from last month's check" : p.sources.map((s) => s.name).join(" + ")}</h3>
       </div>
-      {!before && <div className="text-right"><p className="text-2xl font-black tabular-nums">{money(p.amount)}</p>
-        {p.sources.map((s) => s.received ? <p key={s.id} className="text-xs font-bold text-emerald-700"><Check size={12} className="inline" /> {s.name} received</p>
-          : <button key={s.id} type="button" onClick={() => setIncome({ kind: "pay", sourceId: s.id, amount: s.amount, date: s.date })} className="text-xs font-bold text-violet-700 underline">Got paid</button>)}</div>}
+      {!before && <div className="text-right"><p className="text-2xl font-semibold tabular-nums">{money(p.amount)}</p>
+        {p.sources.map((s) => s.received ? <p key={s.id} className="text-xs font-medium text-emerald-700"><Check size={12} className="inline" /> {s.name} received</p>
+          : <button key={s.id} type="button" onClick={() => setIncome({ kind: "pay", sourceId: s.id, amount: s.amount, date: s.date })} className="text-xs font-semibold text-violet-700 hover:underline">Mark as paid</button>)}</div>}
     </div>
     <ul className="mt-3 divide-y divide-slate-100">{p.bills.length ? p.bills.map((x, i) => <li key={x.bill.id + i} className="flex items-center gap-3 py-2.5 text-sm">
-      <button type="button" disabled={x.paid} onClick={() => pay(x.bill, x.amount)} aria-label={x.paid ? `${x.bill.name} paid` : `Pay ${money(x.amount)} toward ${x.bill.name}`} className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg border-2 ${x.paid ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300 text-transparent hover:border-violet-500"}`}><Check size={14} /></button>
-      <span className={`min-w-0 flex-1 truncate font-semibold ${x.paid ? "text-slate-400 line-through" : ""}`}>{x.bill.name}{x.bill.parts ? " (part)" : ""}</span>
-      <span className="text-xs font-semibold text-slate-500">{day(x.due)}</span>
-      <span className="w-20 text-right font-black tabular-nums">{money(x.amount)}</span>
+      <button type="button" disabled={x.paid} onClick={() => pay(x.bill, x.amount)} aria-label={x.paid ? `${x.bill.name} paid` : `Pay ${money(x.amount)} toward ${x.bill.name}`} className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 ${x.paid ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-300 text-transparent hover:border-[#6e5ae0]"}`}><Check size={14} strokeWidth={3} /></button>
+      <span className={`min-w-0 flex-1 truncate font-medium ${x.paid ? "text-slate-400 line-through" : "text-slate-900"}`}>{x.bill.name}{x.bill.parts ? " (part)" : ""}</span>
+      <span className="text-xs text-slate-500">{day(x.due)}</span>
+      <span className="w-20 text-right font-semibold tabular-nums">{money(x.amount)}</span>
     </li>) : <li className="py-2 text-sm text-slate-500">No bills due in this stretch.</li>}</ul>
-    {!before && <div className="mt-3 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 text-center text-xs font-bold">
-      <div><p className="text-slate-500">Bills</p><p className="text-base font-black tabular-nums">{money(p.billTotal)}</p></div>
-      <div><p className="text-slate-500">Goals</p><p className="text-base font-black tabular-nums">{money(p.goalTotal)}</p></div>
-      <div><p className="text-slate-500">To spend</p><p className={`text-base font-black tabular-nums ${p.left < 0 ? "text-rose-600" : "text-emerald-700"}`}>{money(p.left)}</p></div>
+    {!before && <div className="mt-3 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 text-center text-xs font-medium">
+      <div><p className="text-slate-500">Bills</p><p className="text-base font-semibold tabular-nums">{money(p.billTotal)}</p></div>
+      <div><p className="text-slate-500">Goals</p><p className="text-base font-semibold tabular-nums">{money(p.goalTotal)}</p></div>
+      <div><p className="text-slate-500">To spend</p><p className={`text-base font-semibold tabular-nums ${p.left < 0 ? "text-rose-600" : "text-emerald-700"}`}>{money(p.left)}</p></div>
     </div>}
   </section>;
   const addDay = (d: string) => { const x = fromDay(d); x.setDate(x.getDate() + 1); return toDay(x); };
@@ -281,34 +292,34 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
   const incomeTab = <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
     <div className="space-y-5">
       {checkIn}
-      <Panel eyebrow={label} title="Money in" right={<button type="button" onClick={() => setIncome({ kind: hasTips ? "tips" : "pay", date: today })} className={primary}><Plus size={16} /> Log income</button>}>
-        <div className="mb-4 grid grid-cols-2 gap-2">
-          <div className="rounded-2xl bg-emerald-50 p-3"><p className="text-xs font-bold text-emerald-800">Received</p><p className="text-xl font-black tabular-nums text-emerald-900">{money(receivedIn(plan, month))}</p></div>
-          <div className="rounded-2xl bg-slate-50 p-3"><p className="text-xs font-bold text-slate-600">Expected</p><p className="text-xl font-black tabular-nums">{money(expectedIncome(plan, month))}</p></div>
+      <Panel title={`Money in for ${label}`} right={<button type="button" onClick={() => setIncome({ kind: hasTips ? "tips" : "pay", date: today })} className={primary}><Plus size={16} /> Log income</button>}>
+        <div className="mb-3 grid grid-cols-2 border-y border-slate-100">
+          <Figure i={0} label="Received" value={money(receivedIn(plan, month))} tone="text-emerald-700" />
+          <Figure i={1} label="Expected" value={money(expectedIncome(plan, month))} />
         </div>
         {monthIncome.length ? <ul className="divide-y divide-slate-100">{monthIncome.map((e) => <li key={e.id} className="flex items-center gap-3 py-2.5 text-sm" data-testid="budget-income-row">
           <button type="button" onClick={() => setIncome({ ...e })} aria-label="Edit this income" className="flex min-w-0 flex-1 items-center gap-3 text-left">
-          <span className="w-14 shrink-0 text-xs font-bold text-slate-500">{day(e.date)}</span>
-          <span className="min-w-0 flex-1 truncate"><span className="font-semibold">{e.note || plan.sources.find((s) => s.id === e.sourceId)?.name || KIND_WORD[e.kind]}</span><span className="text-xs text-slate-500"> · {KIND_WORD[e.kind]}</span></span>
-          <span className="font-black tabular-nums text-emerald-700">+{money(e.amount)}</span></button>
+          <span className="w-14 shrink-0 text-xs tabular-nums text-slate-500">{day(e.date)}</span>
+          <span className="min-w-0 flex-1 truncate"><span className="font-medium text-slate-900">{e.note || plan.sources.find((s) => s.id === e.sourceId)?.name || KIND_WORD[e.kind]}</span><span className="text-xs text-slate-500"> · {KIND_WORD[e.kind]}</span></span>
+          <span className="font-semibold tabular-nums text-emerald-700">+{money(e.amount)}</span></button>
           <button type="button" onClick={() => { setMoney((m) => ({ ...m, incomeLog: m.incomeLog.filter((x) => x.id !== e.id) })); say("Removed"); }} className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600" aria-label={`Delete ${money(e.amount)} from ${day(e.date)}`} data-testid="budget-income-delete"><Trash2 size={15} /></button>
         </li>)}</ul> : <p className="text-sm text-slate-500">Nothing logged yet. Log paychecks, tips, gig pay and bonuses as they come in.</p>}
       </Panel>
     </div>
     <div className="space-y-5">
-      {hasTips && <Panel eyebrow="Tips" title="By week" right={<span className="text-right text-xs font-bold text-slate-600">This week <b className="text-base text-slate-900">{money(tw.weeks[tw.weeks.length - 1]?.total || 0)}</b>{tw.average > 0 && <><br />Usual week {money(tw.average)}</>}</span>}>
+      {hasTips && <Panel title="Tips by week" right={<span className="text-right text-xs text-slate-500">This week <b className="text-base font-semibold tabular-nums text-slate-900">{money(tw.weeks[tw.weeks.length - 1]?.total || 0)}</b>{tw.average > 0 && <><br />Usual week {money(tw.average)}</>}</span>}>
         <div className="flex items-end gap-2" role="img" aria-label={`Tips for the last ${tw.weeks.length} weeks`}>{tw.weeks.map((w, i) => <div key={w.start} className="flex flex-1 flex-col items-center gap-1">
-          <span className="text-[10px] font-bold tabular-nums text-slate-500">{w.total ? `$${Math.round(w.total)}` : ""}</span>
-          <span className="flex h-28 w-full items-end"><span className={`block w-full rounded-t-lg ${i === tw.weeks.length - 1 ? "bg-violet-600" : "bg-violet-300"}`} style={{ height: `${Math.max(3, (w.total / maxTip) * 100)}%` }} /></span>
-          <span className="text-[10px] font-semibold text-slate-500">{day(w.start)}</span>
+          <span className="text-[10px] font-medium tabular-nums text-slate-500">{w.total ? `$${Math.round(w.total)}` : ""}</span>
+          <span className="flex h-28 w-full items-end"><span className={`block w-full rounded-t-md ${i === tw.weeks.length - 1 ? "bg-[#6e5ae0]" : "bg-violet-200"}`} style={{ height: `${Math.max(3, (w.total / maxTip) * 100)}%` }} /></span>
+          <span className="text-[10px] text-slate-500">{day(w.start)}</span>
         </div>)}</div>
         <button type="button" onClick={() => setIncome({ kind: "tips", date: today })} className={soft + " mt-4 w-full"}><Plus size={16} /> Log tonight's tips</button>
       </Panel>}
-      <Panel eyebrow="How you get paid" title="Income sources" right={<button type="button" onClick={() => setSource({ id: makeId(), name: "", kind: "paycheck", frequency: "biweekly", amount: 0, days: [], anchor: today })} className={soft} data-testid="budget-source-add"><Plus size={15} /> Add</button>}>
+      <Panel title="Income sources" right={<button type="button" onClick={() => setSource({ id: makeId(), name: "", kind: "paycheck", frequency: "biweekly", amount: 0, days: [], anchor: today })} className={soft} data-testid="budget-source-add"><Plus size={15} /> Add</button>}>
         {family.money.sources.length ? <ul className="divide-y divide-slate-100">{family.money.sources.map((s) => <li key={s.id} className="flex items-center gap-3 py-3 text-sm" data-testid="budget-source">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-violet-50 text-violet-700">{s.kind === "tips" ? <HandCoins size={16} /> : s.kind === "paycheck" ? <Wallet size={16} /> : <CircleDollarSign size={16} />}</span>
-          <button type="button" onClick={() => setSource({ ...s })} className="min-w-0 flex-1 text-left"><span className="block truncate font-bold">{s.name}</span><span className="block text-xs text-slate-500">{sourceLine(s, month)}</span></button>
-          <span className="font-black tabular-nums">{money(expectedFrom(s, month))}</span>
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-violet-50 text-violet-700">{s.kind === "tips" ? <HandCoins size={16} /> : s.kind === "paycheck" ? <Wallet size={16} /> : <CircleDollarSign size={16} />}</span>
+          <button type="button" onClick={() => setSource({ ...s })} className="min-w-0 flex-1 text-left"><span className="block truncate font-semibold text-slate-900">{s.name}</span><span className="block text-xs text-slate-500">{sourceLine(s, month)}</span></button>
+          <span className="font-semibold tabular-nums">{money(expectedFrom(s, month))}</span>
           <button type="button" onClick={() => setSource({ ...s })} aria-label={`Edit ${s.name}`} className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-violet-50 hover:text-violet-700"><Pencil size={15} /></button>
           <button type="button" onClick={() => { if (confirmed(`Remove "${s.name}" from your income? Money already logged from it stays.`)) { setMoney((m) => ({ ...m, sources: m.sources.filter((x) => x.id !== s.id) })); say(`${s.name} removed`); } }} aria-label={`Remove ${s.name}`} className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600" data-testid="budget-source-delete"><Trash2 size={15} /></button>
         </li>)}</ul> : <p className="text-sm text-slate-500">{family.income > 0 ? `Using ${money(family.income)} a month from before. Add how you get paid for a real plan.` : "Add how you get paid: a paycheck, tips, gig money or anything else."}</p>}
@@ -323,14 +334,14 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
       const gp = goalProgress(plan, g, today);
       return <section key={g.id} className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5 shadow-[0_8px_28px_#17152b08]" data-testid="budget-goal">
         <div className="flex items-start gap-3">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-white" style={{ background: g.color }}>{g.kind === "debt" ? <Receipt size={19} /> : <PiggyBank size={19} />}</span>
-          <div className="min-w-0 flex-1"><p className="truncate text-base font-black">{g.name}</p><p className="text-xs font-semibold text-slate-500">{g.kind === "debt" ? "Paying off" : "Saving"}{g.monthly ? ` · ${money(g.monthly)} a month` : ""}</p></div>
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white" style={{ background: g.color }}>{g.kind === "debt" ? <Receipt size={19} /> : <PiggyBank size={19} />}</span>
+          <div className="min-w-0 flex-1"><p className="truncate text-base font-semibold text-slate-900">{g.name}</p><p className="text-[13px] text-slate-500">{g.kind === "debt" ? "Paying off" : "Saving"}{g.monthly ? ` · ${money(g.monthly)} a month` : ""}</p></div>
           <button type="button" onClick={() => setGoal({ ...g })} aria-label={`Edit ${g.name}`} className="rounded-lg p-1.5 text-slate-400 hover:text-violet-600"><Pencil size={15} /></button>
         </div>
-        <p className="mt-4 text-3xl font-black tabular-nums">{money(gp.saved)}<span className="text-base font-bold text-slate-500"> / {money(g.target)}</span></p>
-        <div className="mt-2"><Bar value={gp.saved} max={g.target || 1} color={g.color} /></div>
-        <p className="mt-2 text-xs font-semibold text-slate-600">{gp.percent}% · {gp.left ? `${money(gp.left)} to go` : "Done! 🎉"}{gp.finish && gp.left ? ` · done by ${fromDay(`${gp.finish}-01`).toLocaleDateString(undefined, { month: "short", year: "numeric" })}` : ""}</p>
-        {g.due && gp.left > 0 && <p className={`mt-1 text-xs font-bold ${gp.onTrack ? "text-emerald-700" : "text-amber-700"}`}>{gp.onTrack ? "On track" : `Needs ${money(gp.needed)} a month`} for {day(g.due)}</p>}
+        <p className="mt-4 text-[28px] font-semibold leading-none tabular-nums tracking-tight text-slate-900">{money(gp.saved)}<span className="text-base font-medium text-slate-500"> of {money(g.target)}</span></p>
+        <div className="mt-3"><Bar value={gp.saved} max={g.target || 1} color={g.color} /></div>
+        <p className="mt-2 text-xs text-slate-500">{gp.percent}% · {gp.left ? `${money(gp.left)} to go` : "Reached"}{gp.finish && gp.left ? ` · done by ${fromDay(`${gp.finish}-01`).toLocaleDateString(undefined, { month: "short", year: "numeric" })}` : ""}</p>
+        {g.due && gp.left > 0 && <p className={`mt-1 text-xs font-medium ${gp.onTrack ? "text-emerald-700" : "text-amber-700"}`}>{gp.onTrack ? "On track" : `Needs ${money(gp.needed)} a month`} for {day(g.due)}</p>}
         <div className="mt-4 flex gap-2"><button type="button" onClick={() => setMoving({ goal: g, out: false })} className={soft + " flex-1"}><ArrowUpRight size={15} /> {g.kind === "debt" ? "Pay" : "Add"}</button>
           <button type="button" onClick={() => setMoving({ goal: g, out: true })} className={plain}><ArrowDownRight size={15} /> {g.kind === "debt" ? "Undo" : "Take out"}</button></div>
       </section>;
@@ -343,56 +354,56 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
   const catsTotal = cats.reduce((t, c) => t + c.spent, 0) || 1;
   const PALETTE = ["#6e5ae0", "#0ea5e9", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#14b8a6", "#f97316"];
   const insights = <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-    <Panel eyebrow="Last 6 months" title="Money in vs out">
+    <Panel title={<>Money in and out <span className="text-sm font-normal text-slate-500">· last 6 months</span></>}>
       <div className="flex h-48 items-end gap-3" role="img" aria-label="Income and spending by month">{hist.map((h) => <div key={h.month} className="flex flex-1 flex-col items-center gap-1.5">
         <div className="flex h-40 w-full items-end justify-center gap-1">
-          <span className="w-1/2 max-w-[18px] rounded-t-md bg-emerald-500" style={{ height: `${(h.income / top) * 100}%` }} title={`In ${money(h.income)}`} />
-          <span className="w-1/2 max-w-[18px] rounded-t-md bg-violet-500" style={{ height: `${((h.spent + h.bills) / top) * 100}%` }} title={`Out ${money(h.spent + h.bills)}`} />
+          <span className="w-1/2 max-w-[18px] rounded-t-md bg-emerald-600" style={{ height: `${(h.income / top) * 100}%` }} title={`In ${money(h.income)}`} />
+          <span className="w-1/2 max-w-[18px] rounded-t-md bg-[#6e5ae0]" style={{ height: `${((h.spent + h.bills) / top) * 100}%` }} title={`Out ${money(h.spent + h.bills)}`} />
         </div>
-        <span className="text-[11px] font-bold text-slate-500">{fromDay(`${h.month}-01`).toLocaleDateString(undefined, { month: "short" })}</span>
+        <span className="text-[11px] text-slate-500">{fromDay(`${h.month}-01`).toLocaleDateString(undefined, { month: "short" })}</span>
       </div>)}</div>
-      <div className="mt-3 flex gap-4 text-xs font-bold text-slate-600"><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-emerald-500" /> Money in (logged)</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-violet-500" /> Bills + spending</span></div>
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600"><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-emerald-600" /> Money in (logged)</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-[#6e5ae0]" /> Bills + spending</span></div>
     </Panel>
-    <Panel eyebrow={label} title="Where it went">
+    <Panel title={`Where it went in ${label}`}>
       {cats.some((c) => c.spent > 0) ? <>
-        <div className="mb-4 flex h-4 overflow-hidden rounded-full">{cats.filter((c) => c.spent > 0).map((c, i) => <span key={c.id || "o"} style={{ width: `${(c.spent / catsTotal) * 100}%`, background: PALETTE[i % PALETTE.length] }} title={c.name} />)}</div>
-        <ul className="space-y-2">{cats.filter((c) => c.spent > 0).map((c, i) => <li key={c.id || "o"} className="flex items-center gap-2.5 text-sm"><i className="h-3 w-3 rounded" style={{ background: PALETTE[i % PALETTE.length] }} /><span className="flex-1 font-semibold">{c.name}</span><span className="text-xs font-bold text-slate-500">{Math.round((c.spent / catsTotal) * 100)}%</span><span className="w-20 text-right font-black tabular-nums">{money(c.spent)}</span></li>)}</ul>
+        <div className="mb-4 flex h-3 gap-0.5 overflow-hidden rounded-full">{cats.filter((c) => c.spent > 0).map((c, i) => <span key={c.id || "o"} style={{ width: `${(c.spent / catsTotal) * 100}%`, background: PALETTE[i % PALETTE.length] }} title={c.name} />)}</div>
+        <ul className="space-y-2">{cats.filter((c) => c.spent > 0).map((c, i) => <li key={c.id || "o"} className="flex items-center gap-2.5 text-sm"><i className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: PALETTE[i % PALETTE.length] }} /><span className="min-w-0 flex-1 truncate font-medium text-slate-900">{c.name}</span><span className="text-xs font-bold text-slate-500">{Math.round((c.spent / catsTotal) * 100)}%</span><span className="w-20 text-right font-semibold tabular-nums">{money(c.spent)}</span></li>)}</ul>
       </> : <p className="text-sm text-slate-500">Log some spending to see where your money goes.</p>}
     </Panel>
-    <Panel eyebrow="Your plan" title="How it adds up" className="xl:col-span-2">
+    <Panel title="How the plan adds up" className="xl:col-span-2">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">{[["Coming in", pic.income], ["Bills", pic.billsOwed], ["Spending limits", pic.budgeted], ["Goals", pic.goals], ["Cushion", plan.cushion]].map(([k, v]) =>
-        <div key={k as string} className="rounded-2xl bg-slate-50 p-3.5 ring-1 ring-slate-200"><p className="text-xs font-bold text-slate-600">{k}</p><p className="text-lg font-black tabular-nums">{money(v as number)}</p>{k !== "Coming in" && pic.income > 0 && <p className="text-[11px] font-semibold text-slate-500">{Math.round(((v as number) / pic.income) * 100)}% of income</p>}</div>)}</div>
+        <div key={k as string} className="rounded-2xl bg-slate-50 p-3.5"><p className="text-[13px] text-slate-500">{k}</p><p className="text-lg font-semibold tabular-nums">{money(v as number)}</p>{k !== "Coming in" && pic.income > 0 && <p className="text-[11px] font-semibold text-slate-500">{Math.round(((v as number) / pic.income) * 100)}% of income</p>}</div>)}</div>
       <button type="button" onClick={exportCsv} className={plain + " mt-4"}><Download size={15} /> Download {label} as a spreadsheet (CSV)</button>
     </Panel>
   </div>;
 
   return <div className="space-y-5" data-testid="budget-app">
-    <header className="flex flex-wrap items-end justify-between gap-3">
-      <div><p className="mb-1.5 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7]">Budget & bills</p><h1 className="text-3xl font-black tracking-tight text-[#232139] sm:text-4xl">Your money<span className="text-[#7866e1]">.</span></h1></div>
-      <div className="flex flex-wrap gap-2">
+    <PageHead eyebrow="Budget & bills" title="Your money" blurb={plan.setUp ? (plan.style === "paycheck" ? "Planned paycheck by paycheck: each check covers the bills due before the next one." : "Planned month by month: what's left after bills, spending limits and goals.") : "Bills, spending, income and goals in one place."}
+      action={<div className="flex flex-wrap gap-2">
         <button type="button" onClick={() => setIncome({ kind: plan.sources.some((s) => s.kind === "tips") ? "tips" : "pay", date: today })} className={soft}><HandCoins size={16} /> Log income</button>
         {plan.setUp ? <button type="button" onClick={() => setSettings(true)} className={plain} data-testid="budget-settings"><Settings2 size={16} /> Settings</button>
           : <button type="button" onClick={() => setSetup(true)} className={plain} data-testid="budget-redo"><Settings2 size={16} /> Set up</button>}
-      </div>
-    </header>
+      </div>} />
 
-    {!plan.setUp && <section className="flex flex-wrap items-center gap-4 rounded-[1.5rem] bg-gradient-to-r from-violet-600 to-indigo-600 p-5 text-white shadow-lg sm:p-6" data-testid="budget-start">
-      <span className="grid h-12 w-12 place-items-center rounded-2xl bg-white/15"><Sparkles size={22} /></span>
-      <div className="min-w-0 flex-1"><p className="text-lg font-black">Let's build a budget that fits how you get paid</p><p className="text-sm text-white/80">Paychecks, the 1st & 15th, tips, gigs, bonuses, rent paid in parts. A few questions, about 2 minutes.</p></div>
-      <button type="button" onClick={() => setSetup(true)} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-5 text-sm font-black text-violet-700 hover:bg-white/90" data-testid="budget-start-button">Start <ChevronRight size={16} /></button>
+    {!plan.setUp && <section className="flex flex-wrap items-center gap-4 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5 shadow-[0_8px_28px_#17152b08] sm:p-6" data-testid="budget-start">
+      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-violet-50 text-violet-700"><Wallet size={20} /></span>
+      <div className="min-w-0 flex-1"><p className="text-base font-semibold text-slate-900">Set up a budget around how you get paid</p><p className="mt-0.5 text-sm text-slate-500">Paychecks, the 1st and 15th, tips, gigs, bonuses and rent paid in parts. A few questions, about two minutes.</p></div>
+      <button type="button" onClick={() => setSetup(true)} className={primary + " px-5"} data-testid="budget-start-button">Start <ChevronRight size={16} /></button>
     </section>}
 
-    {undo && <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-emerald-50 p-3.5 text-sm font-semibold text-emerald-900 ring-1 ring-emerald-200" data-testid="budget-undo">
+    {undo && <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-emerald-50 p-3.5 text-sm font-medium text-emerald-900" data-testid="budget-undo">
       <Check size={18} /><span className="min-w-0 flex-1">Your budget is set up.{undo.bills.length > bills.length ? ` ${undo.bills.length - bills.length} bill${undo.bills.length - bills.length === 1 ? " was" : "s were"} turned off.` : ""}</span>
       <button type="button" onClick={() => { setFamily((f) => ({ ...f, ...undo })); setUndo(null); say("Put back the way it was"); }} className={plain}><Undo2 size={15} /> Undo setup</button>
-      <button type="button" onClick={() => setUndo(null)} className="text-xs font-bold text-emerald-800 underline">OK</button>
+      <button type="button" onClick={() => setUndo(null)} className="min-h-9 px-2 text-sm font-semibold text-emerald-800 hover:underline">OK</button>
     </div>}
     {summary}
-    {alerts.length > 0 && <div className="flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-3.5 text-sm font-semibold text-rose-800" role="alert"><AlertCircle size={18} className="mt-0.5 shrink-0" /><div className="space-y-0.5">{alerts.map((a, i) => <p key={i}>{a}</p>)}</div></div>}
+    {alerts.length > 0 && <div className="flex items-start gap-2.5 rounded-2xl bg-rose-50 p-3.5 text-sm font-medium text-rose-800" role="alert"><AlertCircle size={18} className="mt-0.5 shrink-0" /><div className="space-y-0.5">{alerts.map((a, i) => <p key={i}>{a}</p>)}</div></div>}
 
-    <nav className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]" role="tablist" aria-label="Budget">
-      {TABS.map(([id, name, icon]) => <button key={id} type="button" role="tab" aria-selected={shown === id} onClick={() => go(id)} data-testid={`budget-tab-${id}`}
-        className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-2xl px-4 text-sm font-bold transition ${shown === id ? "bg-[#232139] text-white shadow" : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"}`}>{icon}{name}</button>)}
+    {/* One segmented control; on a phone it scrolls sideways inside itself, never the page. */}
+    <nav className="-mx-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Budget">
+      <div className="inline-flex min-w-full gap-0.5 rounded-xl bg-slate-100 p-1 sm:min-w-0">
+        {TABS.map(([id, name]) => <button key={id} type="button" role="tab" aria-selected={shown === id} onClick={() => go(id)} data-testid={`budget-tab-${id}`} className={`${tabClass(shown === id)} flex-1 sm:flex-none`}>{name}</button>)}
+      </div>
     </nav>
 
     <div role="tabpanel">
@@ -485,9 +496,9 @@ function PayDialog({ bill, status, month, today, onPay, onUndo, onClose }: { bil
   return <Modal title={`Pay ${bill.name}`} eyebrow={month} onClose={onClose}>
     <form onSubmit={(e) => { e.preventDefault(); const n = Number(amount); if (n > 0) onPay(n, date); }} className="space-y-4">
       <div className="grid grid-cols-3 gap-2 rounded-2xl bg-slate-50 p-3 text-center text-xs font-bold ring-1 ring-slate-200">
-        <div><p className="text-slate-500">Owed</p><p className="text-base font-black tabular-nums">{money(status.owed)}</p></div>
-        <div><p className="text-slate-500">Paid</p><p className="text-base font-black tabular-nums text-emerald-700">{money(status.paid)}</p></div>
-        <div><p className="text-slate-500">Left</p><p className="text-base font-black tabular-nums">{money(status.left)}</p></div>
+        <div><p className="text-slate-500">Owed</p><p className="text-base font-semibold tabular-nums">{money(status.owed)}</p></div>
+        <div><p className="text-slate-500">Paid</p><p className="text-base font-semibold tabular-nums text-emerald-700">{money(status.paid)}</p></div>
+        <div><p className="text-slate-500">Left</p><p className="text-base font-semibold tabular-nums">{money(status.left)}</p></div>
       </div>
       {status.carried > 0 && <p className="text-xs font-semibold text-rose-700">Includes {money(status.carried)} still owed from last month.</p>}
       <div className="flex flex-wrap gap-2">{options.map((o) => <button key={o} type="button" onClick={() => setAmount(String(o))} className={`min-h-10 rounded-xl px-3 text-sm font-bold ${Number(amount) === o ? "bg-violet-600 text-white" : "bg-violet-50 text-violet-700"}`}>{o === status.left ? "All of it" : "This part"} · {money(o)}</button>)}</div>
@@ -610,7 +621,7 @@ function SettingsDialog({ style, cushion, onSave, onRedo, onClose }: { style: Pl
       <Label text="Cushion each month (kept aside for surprises)"><input type="number" min={0} step="0.01" value={c} onChange={(e) => setC(e.target.value)} className={inputClass} placeholder="$0" /></Label>
       <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
         <button type="submit" className={primary + " flex-1"}><Check size={17} /> Save</button>
-        <button type="button" onClick={onRedo} className={plain}><Sparkles size={15} /> Redo setup questions</button>
+        <button type="button" onClick={onRedo} className={plain}><RotateCcw size={15} /> Redo setup questions</button>
       </div>
     </form>
   </Modal>;

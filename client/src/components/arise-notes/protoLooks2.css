@@ -106,7 +106,7 @@
 .stx .stx-slips li:nth-child(odd) button { transform: rotate(-3deg); } .stx .stx-slips li:nth-child(even) button { transform: rotate(2.5deg); }
 .stx .stx-slips small { color: #5a5646; letter-spacing: .06em; } .stx .stx-slips b { font: 700 1rem/1.1 var(--an-serif); text-transform: uppercase; padding-bottom: 8px; border-bottom: 1px dashed #1a1a1a; overflow-wrap: anywhere; }
 .stx .stx-slips span { font-size: 0.75rem; line-height: 1.3; text-align: left; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.stx .stx-printbar .stx-pin { background: #e8452c; color: #fff; border-radius: 4px; font-family: var(--an-serif); letter-spacing: .08em; } .stx .stx-printbar .stx-pin svg { color: #fff; }
+.stx .stx-printbar .stx-pin { background: #d63c24; color: #fff; border-radius: 4px; font-family: var(--an-serif); letter-spacing: .08em; } .stx .stx-printbar .stx-pin svg { color: #fff; }
 .stx .stx-printbar .stx-pin-alt { background: #1a1a1a; color: #fbfaf4; border-radius: 4px; font-family: var(--an-serif); }
 
 /* Deck: one big card, then the rest */

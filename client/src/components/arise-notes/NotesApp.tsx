@@ -25,10 +25,14 @@ const UploadScreen = lazy(() => import("./UploadScreen"));
 const NoteScreen = lazy(() => import("./NoteScreen"));
 const AskScreen = lazy(() => import("./AskScreen"));
 const MemoScreen = lazy(() => import("./MemoScreen"));
+import { AppsStrip } from "./notesAppsCatalog";
 const SettingsScreen = lazy(() => import("./SettingsScreen"));
 const PrivacyPage = lazy(() => import("./PrivacyPage"));
 const LocalNoteScreen = lazy(() => import("./LocalNoteScreen"));
 const PagesView = lazy(() => import("./pages/PagesView"));
+// The App Gallery and its apps (Sticky Notes, Sheets, Slides, Docs, Flashcards, Checklists, Focus Timer, Whiteboard).
+const AppsScreen = lazy(() => import("./NotesApps").then((m) => ({ default: m.AppsScreen })));
+const AppScreen = lazy(() => import("./NotesApps").then((m) => ({ default: m.AppScreen })));
 
 export type Route =
   | { name: "home" } | { name: "record" } | { name: "upload" } | { name: "note"; id: string; t?: number } | { name: "ask" } | { name: "memo" }
@@ -36,7 +40,9 @@ export type Route =
   /** A Strict-mode note, kept only on this iPhone (localNotes.ts). */
   | { name: "local"; id: string }
   /** The Notes tab: typed and handwritten notes (pages/PagesView.tsx), and one of them open. */
-  | { name: "pages" } | { name: "page"; id: string };
+  | { name: "pages" } | { name: "page"; id: string }
+  /** The App Gallery, and one app from it open. */
+  | { name: "apps" } | { name: "app"; id: string };
 export type Go = (r: Route) => void;
 export type AppCtx = {
   me: Me;
@@ -64,10 +70,12 @@ function parseHash(h: string): Route {
     case "local": return p[1] ? { name: "local", id: p[1] } : { name: "home" };
     case "pages": return { name: "pages" };
     case "page": return p[1] ? { name: "page", id: p[1] } : { name: "pages" };
+    case "apps": return { name: "apps" };
+    case "app": return p[1] ? { name: "app", id: p[1] } : { name: "apps" };
     default: return { name: "home" };
   }
 }
-const hashOf = (r: Route) => r.name === "home" ? "#/" : r.name === "local" ? `#/local/${r.id}` : r.name === "page" ? `#/page/${r.id}` : r.name === "note" ? `#/note/${r.id}${r.t !== undefined ? `/${Math.round(r.t)}` : ""}` : r.name === "settings" ? `#/settings${r.tab ? `/${r.tab}` : ""}` : `#/${r.name}`;
+const hashOf = (r: Route) => r.name === "home" ? "#/" : r.name === "local" ? `#/local/${r.id}` : r.name === "page" ? `#/page/${r.id}` : r.name === "app" ? `#/app/${r.id}` : r.name === "note" ? `#/note/${r.id}${r.t !== undefined ? `/${Math.round(r.t)}` : ""}` : r.name === "settings" ? `#/settings${r.tab ? `/${r.tab}` : ""}` : `#/${r.name}`;
 
 let lexendLoaded = false;
 const loadLexend = () => {
@@ -220,6 +228,8 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
       case "local": return <LocalNoteScreen key={route.id} ctx={ctx} id={route.id} />;
       case "pages": return <PagesView ctx={ctx} openId={null} tabs={<TabBar ctx={ctx} on="pages" />} />;
       case "page": return <PagesView ctx={ctx} openId={route.id} tabs={<TabBar ctx={ctx} on="pages" />} />;
+      case "apps": return <AppsScreen ctx={ctx} />;
+      case "app": return <AppScreen key={route.id} ctx={ctx} id={route.id} />;
       default: return <><Home ctx={ctx} notes={notes} onExit={onExit} /><TabBar ctx={ctx} on="ai" /></>;
     }
   })();
@@ -237,7 +247,7 @@ export function Logo({ size = 36 }: { size?: number }) {
 }
 
 export function TopBar({ ctx, title, back, right }: { ctx: AppCtx; title?: ReactNode; back?: () => void; right?: ReactNode }) {
-  return <header className="an-noprint sticky top-0 z-30 border-b border-[var(--an-line)] bg-[color-mix(in_srgb,var(--an-bg)_88%,transparent)] pt-[env(safe-area-inset-top)] backdrop-blur-xl">
+  return <header className="an-noprint sticky top-0 z-30 border-b border-[var(--an-line)] bg-[color-mix(in_srgb,var(--an-bg)_88%,transparent)] pt-[var(--sat,env(safe-area-inset-top,0px))] backdrop-blur-xl">
     <div className="mx-auto flex h-14 max-w-5xl items-center gap-2 px-3 sm:px-5">
       {back ? <IconBtn label="Back" onClick={back}><ChevronLeft className="h-6 w-6" /></IconBtn> : <Logo size={34} />}
       <div className="min-w-0 flex-1 truncate text-[17px] font-bold tracking-tight">{title ?? "Arise Notes"}</div>
@@ -320,12 +330,13 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
         <IconBtn label="Split screen with your to-do list" className="an-extra hidden md:grid" onClick={() => openSplit(ctx.mode, ctx.hub === "work" ? "workhub" : "tasks")}><Columns2 className="h-5 w-5" /></IconBtn>
         <IconBtn label="Menu" onClick={() => ctx.go({ name: "settings" })}><LayoutGrid className="h-5 w-5" /></IconBtn>
       </>} />}
-    <main className="mx-auto max-w-5xl space-y-4 px-4 pb-24 pt-4 sm:px-5">
+    {/* Under the top bar (Notes inside a hub, with a look) the look's hero doesn't add the clock's space again. */}
+    <main className={`mx-auto max-w-5xl space-y-4 px-4 pb-24 pt-4 sm:px-5 ${look && exit ? "an-under-bar" : ""}`}>
       {look ? <>
         <LookHomeHero look={look} a={{ first, minutes: <MinutesPill ctx={ctx} />, record: () => ctx.go({ name: "record" }), upload: () => ctx.go({ name: "upload" }), memo: () => ctx.go({ name: "memo" }), ask: () => ctx.go({ name: "ask" }), memoLocked: !ctx.me.features.memo, count: all.length, settings: () => ctx.go({ name: "settings" }), pages: () => ctx.go({ name: "pages" }) }} />
       <MinutesBanner ctx={ctx} />
       {!ctx.me.services.speech && <Notice tone="warn">Speech to text isn't switched on for this site yet, so recordings are saved but can't be written down.</Notice>}
-
+      <AppsStrip ctx={ctx} />
       </> : <>
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-0 flex-1">
@@ -347,7 +358,7 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
         <span className="min-w-0 flex-1 truncate text-[15px] text-[var(--an-muted)]">Ask your notes: “What did I promise Maya's mom last month?”</span>
         <ArrowRight className="h-4 w-4 text-[var(--an-faint)]" aria-hidden />
       </button>
-
+      <AppsStrip ctx={ctx} />
       </>}
 
       <section aria-labelledby="notes-heading" className="space-y-3">

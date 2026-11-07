@@ -94,7 +94,7 @@
 .bs-reader.bs-sepia { --pg: #f4ecd8; --tx: #3b2f1e; --mu: #7a6a52; --ln: #e2d5b8; --hl: #f6dc8c; }
 .bs-reader.bs-night { --pg: #14141b; --tx: #e4e2ec; --mu: #9a97ad; --ln: #2a2a36; --hl: #3d3560; }
 .bs-progress { position: fixed; top: 0; left: 0; z-index: 3; height: 3px; background: #7048e8; transition: width .2s; }
-.bs-rbar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 6px; padding: max(8px, env(safe-area-inset-top)) 10px 8px; background: var(--pg); border-bottom: 1px solid var(--ln); }
+.bs-rbar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 6px; padding: max(8px, var(--sat, env(safe-area-inset-top, 0px))) 10px 8px; background: var(--pg); border-bottom: 1px solid var(--ln); }
 .bs-rbtn { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border: 0; border-radius: 12px; background: transparent; color: var(--tx); font-size: 17px; font-weight: 800; }
 .bs-rbtn svg { width: 22px; height: 22px; }
 .bs-rbtn[aria-expanded="true"] { background: color-mix(in srgb, var(--tx) 10%, transparent); }

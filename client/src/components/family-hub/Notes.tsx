@@ -6,6 +6,8 @@ import { NoteTemplatesButton } from "@/components/NoteTemplatePicker";
 import { useStayOnRefresh } from "@/lib/useStayOnRefresh";
 import FullNoteEditor from "@/components/notes/FullNoteEditor";
 import { LockBadge, useLock } from "@/components/lock/PrivacyLock";
+import { useActiveLook } from "@/components/HubLook";
+import { ArchList, noteItems } from "@/components/arise-notes/protoHub";
 import { Empty, PageHead, Panel, confirmed, inputClass, primary, soft, type SectionProps } from "./ui";
 
 const STARTERS = ["Grocery list", "Gift ideas", "School contacts", "Babysitter info", "Wi-Fi & codes", "Meal ideas"];
@@ -17,6 +19,7 @@ export default function Notes({ family, setFamily, makeId, say, heading }: Secti
   const [editing, setEditing] = useState<Note | null>(() => { const n = openId ? family.notes.find((x) => x.id === openId) : undefined; return n && !n.locked ? { ...n } : null; });
   useEffect(() => { setOpenId(editing?.id ?? null); }, [editing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const lock = useLock();
+  const look = useActiveLook();
   /** A locked note shows only its title until the passcode is entered. */
   const hidden = (n: Note) => !!n.locked && !!lock && !lock.unlocked;
   const open = async (n: Note) => { if (!hidden(n) || (lock && (await lock.ask(`Unlock “${n.title || "note"}”`)))) setEditing({ ...n }); };
@@ -37,7 +40,9 @@ export default function Notes({ family, setFamily, makeId, say, heading }: Secti
     <PageHead eyebrow="Notes" title={heading?.title ?? "Family notes"} blurb={heading?.blurb ?? "Everything you keep needing to look up: codes, contacts, lists and ideas. Pinned notes also show on Home."}
       action={<div className="flex flex-wrap gap-2"><NoteTemplatesButton hub="life" onPick={(t) => setEditing({ ...blank(t.title), body: t.body })} /><button onClick={() => setEditing(blank())} className={primary + " min-h-11 px-5"}><Plus size={18} /> New note</button></div>} />
     {family.notes.length > 0 && <div className="relative max-w-md"><Search size={17} className="pointer-events-none absolute left-3 top-3.5 text-slate-400" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search notes" aria-label="Search notes" className={inputClass + " pl-10"} /></div>}
-    {notes.length ? <div className="hub-notes columns-1 gap-4 sm:columns-2 xl:columns-3 [&>*]:mb-4">
+    {/* A Studio look draws the notes its own way (sticky notes, pins, slips, tapes…), as on its Home. */}
+    {notes.length && look?.arch ? <ArchList look={look} kind="notes" items={noteItems(notes.map((n) => ({ ...n, when: n.updatedAt, body: hidden(n) ? "" : n.body, locked: hidden(n) || n.locked })), (id) => { const n = notes.find((x) => x.id === id); if (n) void open(n); }, (id) => { const n = notes.find((x) => x.id === id); if (n) pin(n); })} />
+    : notes.length ? <div className="hub-notes columns-1 gap-4 sm:columns-2 xl:columns-3 [&>*]:mb-4">
       {notes.map((n) => <article key={n.id} className="note-card group break-inside-avoid rounded-2xl border border-black/5 p-4 shadow-[0_3px_16px_#17152b0a]" style={{ background: n.color }}>
         <div className="flex items-start gap-2">
           <button onClick={() => void open(n)} className="min-w-0 flex-1 text-left" data-locked={n.locked ? "" : undefined}>
