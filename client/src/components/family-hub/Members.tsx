@@ -94,6 +94,12 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   healthlite: { label: "Health Lite", detail: "Pick your health tools", icon: <HeartPulseIcon2 size={17} /> },
   inspire: { label: "Journal & Inspiration", detail: "Journal, quotes, gratitude", icon: <BookOpenIcon size={17} /> },
   kitchen: { label: "Kitchen", detail: "Shop, plan, cook", icon: <ChefHatIcon size={17} /> },
+  moneyhub: { label: "Money", detail: "Budget, bills, loans, savings", icon: <Wallet size={17} /> },
+  homehub: { label: "Home & Car", detail: "Upkeep, cleaning, plants, car", icon: <WrenchIcon size={17} /> },
+  datehub: { label: "Gifts & Dates", detail: "Birthdays, gifts, countdowns", icon: <CakeIcon size={17} /> },
+  dailyhub: { label: "Daily Reads", detail: "News, history, dictionary", icon: <BookOpenIcon size={17} /> },
+  listhub: { label: "Lists", detail: "Reading, watchlist, bucket list", icon: <BookOpenIcon size={17} /> },
+  focushub: { label: "Focus & Routines", detail: "Focus timer, clocks, routines", icon: <Wallet size={17} /> },
   // The Plugin Kit's LifeHub plugins (shared/pluginKit.ts).
   ...(Object.fromEntries(KIT_DEFS.filter((d) => d.hub === "life").map((d) => { const Icon = kitIcon(d.icon); return [d.id, { label: d.name, detail: d.tagline, icon: <Icon size={17} /> }]; })) as Record<KitLifeId, { label: string; detail: string; icon: ReactNode }>),
 };

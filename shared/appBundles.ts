@@ -5,7 +5,7 @@
 // everyone who already added one of them keeps it, now inside the new plugin.
 import type { FamilySection } from "./familyHub";
 
-export type BundleId = "healthlite" | "inspire" | "kitchen";
+export type BundleId = "healthlite" | "inspire" | "kitchen" | "moneyhub" | "homehub" | "datehub" | "dailyhub" | "listhub" | "focushub";
 export type BundleMember = { id: FamilySection; label?: string; detail?: string };
 export type Bundle = {
   id: BundleId;
@@ -125,6 +125,115 @@ export const BUNDLES: Bundle[] = [
         { id: "wine-list" as FamilySection, label: "Drinks we liked" },
         { id: "potluck" as FamilySection, label: "Potluck sign-up" },
         { id: "home-meals" as FamilySection, label: "Home-cooked meals" },
+      ] },
+    ],
+  },
+  {
+    id: "moneyhub", section: "moneyhub", name: "Money", category: "Money & home", icon: "Wallet", color: "#059669",
+    tagline: "Budget, bills, loans and savings in one place",
+    description: "All your money tools in one plugin. Pick the pages you want, like a budget, subscriptions, loans, IOUs, allowance, savings jars, gift cards or a tip calculator, and switch between them with one tap.",
+    features: ["Pick only the pages you need", "Budget, bills and subscriptions", "Loans, mortgage and IOUs", "Allowance, savings jars and gift cards"],
+    pickerTitle: "Pick your money tools", pickerIntro: "Choose what you want here. You can change this any time with the settings button.",
+    fixed: [],
+    groups: [
+      { title: "Everyday", members: [
+        { id: "money" as FamilySection, label: "Budget & bills" },
+        { id: "subscriptions" as FamilySection },
+        { id: "jars" as FamilySection },
+        { id: "tips" as FamilySection }
+      ] },
+      { title: "Owed & owing", members: [
+        { id: "loans" as FamilySection },
+        { id: "mortgage" as FamilySection },
+        { id: "ious" as FamilySection },
+        { id: "allowance" as FamilySection },
+        { id: "giftcards" as FamilySection }
+      ] },
+    ],
+  },
+  {
+    id: "homehub", section: "homehub", name: "Home & Car", category: "Money & home", icon: "Wrench", color: "#0ea5e9",
+    tagline: "Upkeep, cleaning, plants, car and warranties",
+    description: "Keep the house and the car running from one plugin. Pick upkeep reminders, a cleaning schedule, plant care, car tracking, mileage and warranties.",
+    features: ["Pick only the pages you need", "Upkeep and cleaning schedules", "Plants and car care", "Mileage and warranties"],
+    pickerTitle: "Pick your home tools", pickerIntro: "Choose what you want here. You can change this any time with the settings button.",
+    fixed: [],
+    groups: [
+      { title: "House", members: [
+        { id: "upkeep" as FamilySection },
+        { id: "cleaning" as FamilySection },
+        { id: "plants" as FamilySection }
+      ] },
+      { title: "Car & stuff", members: [
+        { id: "car" as FamilySection },
+        { id: "mileage" as FamilySection },
+        { id: "warranties" as FamilySection }
+      ] },
+    ],
+  },
+  {
+    id: "datehub", section: "datehub", name: "Gifts & Dates", category: "Family", icon: "Gift", color: "#ec4899",
+    tagline: "Birthdays, gift ideas, wishlists and countdowns",
+    description: "Never miss a birthday again. Pick birthdays, gift ideas, a wishlist and countdowns, all in one plugin.",
+    features: ["Pick only the pages you need", "Birthdays with reminders", "Gift ideas and wishlists", "Countdowns to big days"],
+    pickerTitle: "Pick your pages", pickerIntro: "Choose what you want here. You can change this any time with the settings button.",
+    fixed: [],
+    groups: [
+      { title: "Dates & gifts", members: [
+        { id: "birthdays" as FamilySection },
+        { id: "gifts" as FamilySection },
+        { id: "wishlist" as FamilySection },
+        { id: "countdowns" as FamilySection }
+      ] },
+    ],
+  },
+  {
+    id: "dailyhub", section: "dailyhub", name: "Daily Reads", category: "Everyday", icon: "Newspaper", color: "#475569",
+    tagline: "News, history, trending and the dictionary",
+    description: "A little to read every day in one plugin. Pick news, today in history, what is trending and a dictionary.",
+    features: ["Pick only the pages you need", "News and trending", "Today in history", "A dictionary"],
+    pickerTitle: "Pick your reads", pickerIntro: "Choose what you want here. You can change this any time with the settings button.",
+    fixed: [],
+    groups: [
+      { title: "Read", members: [
+        { id: "news" as FamilySection },
+        { id: "history" as FamilySection },
+        { id: "trending" as FamilySection },
+        { id: "dictionary" as FamilySection }
+      ] },
+    ],
+  },
+  {
+    id: "listhub", section: "listhub", name: "Lists", category: "Everyday", icon: "ListChecks", color: "#7c3aed",
+    tagline: "Reading list, watchlist, bucket list and learning",
+    description: "Every list in one plugin. Pick a reading list, a watchlist, a bucket list and things you want to learn.",
+    features: ["Pick only the pages you need", "Books and shows to watch", "A bucket list", "Things to learn"],
+    pickerTitle: "Pick your lists", pickerIntro: "Choose what you want here. You can change this any time with the settings button.",
+    fixed: [],
+    groups: [
+      { title: "Lists", members: [
+        { id: "reading" as FamilySection },
+        { id: "watchlist" as FamilySection },
+        { id: "bucket" as FamilySection },
+        { id: "learning" as FamilySection }
+      ] },
+    ],
+  },
+  {
+    id: "focushub", section: "focushub", name: "Focus & Routines", category: "Everyday", icon: "Timer", color: "#f59e0b",
+    tagline: "Focus timer, clocks, routines and milestones",
+    description: "Stay on track with one plugin. Pick a focus timer, a world clock, family routines and milestones.",
+    features: ["Pick only the pages you need", "A focus timer", "World clock", "Routines and milestones"],
+    pickerTitle: "Pick your pages", pickerIntro: "Choose what you want here. You can change this any time with the settings button.",
+    fixed: [],
+    groups: [
+      { title: "Focus", members: [
+        { id: "focus" as FamilySection },
+        { id: "clocks" as FamilySection }
+      ] },
+      { title: "Family", members: [
+        { id: "routines" as FamilySection },
+        { id: "milestones" as FamilySection }
       ] },
     ],
   },
