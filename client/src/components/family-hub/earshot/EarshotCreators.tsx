@@ -239,7 +239,7 @@ export function Studio({ api, say, onClose, onCreate, email, onSignOut }: { api:
   </div>;
 
   return <div className="absolute inset-0 z-50 overflow-y-auto bg-[#f7f9fa] pb-16 [scrollbar-width:none]" role="dialog" aria-label="Studio" style={{ color: INK }}>
-    <div className="sticky top-0 z-10 flex items-center gap-2 border-b bg-[#fff]/90 px-3 pb-2 pt-[calc(env(safe-area-inset-top,0px)+0.6rem)] backdrop-blur-xl" style={{ borderColor: LINE }}>
+    <div className="sticky top-0 z-10 flex items-center gap-2 border-b bg-[#fff]/90 px-3 pb-2 pt-[calc(var(--sat,env(safe-area-inset-top,0px))+0.6rem)] backdrop-blur-xl" style={{ borderColor: LINE }}>
       <button type="button" onClick={onClose} aria-label="Back" className="grid h-10 w-10 place-items-center rounded-full hover:bg-black/5"><ChevronLeft size={22} /></button>
       <b className="text-[19px]">Studio</b>
       <span className="ml-auto flex items-center gap-2">
@@ -536,7 +536,7 @@ export function LiveRoom({ api, wsBase, roomId, ticket: firstTicket, say, onClos
       <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/80" />
     </div>
 
-    <div className="relative flex h-full w-full max-w-[560px] flex-col px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(.75rem,env(safe-area-inset-top))]">
+    <div className="relative flex h-full w-full max-w-[560px] flex-col px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(.75rem,var(--sat,env(safe-area-inset-top,0px)))]">
       {/* Top bar */}
       <div className="flex items-center gap-2.5">
         {room ? <button type="button" onClick={() => room && onPerson?.(room.host.handle)} className="flex min-w-0 items-center gap-2.5 rounded-full bg-black/30 py-1 pl-1 pr-3 backdrop-blur">

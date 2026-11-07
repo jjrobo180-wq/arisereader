@@ -1,0 +1,30 @@
+/* The Plugin Gallery keeps one design in every look. It opens on the page body, and the body carries the look's
+   classes so pop-ups take the look's colors (HubLook.tsx); those rules repainted parts of the gallery: the
+   look's card color on the search box and on the Plugin of the day's button, the look's corners on every card
+   and row, and its display font on the headings. Here the gallery's own shapes, colors and type win. */
+[data-plugin-store] { font-family: 'Barlow', Arial, Helvetica, sans-serif; }
+.hub-look [data-plugin-store] h1, .hub-look [data-plugin-store] h2, .hub-look [data-plugin-store] h3 { font-family: inherit !important; }
+.hub-look [data-plugin-store] input { background-color: var(--s-raised) !important; color: var(--s-text) !important; border-color: transparent !important; }
+.hub-look [data-plugin-store] input::placeholder { color: var(--s-faint) !important; opacity: 1; }
+.hub-look [data-plugin-store] .bg-white { background-color: #ffffff !important; }
+.hub-look [data-plugin-store] .bg-white\/10 { background-color: rgb(255 255 255 / .1) !important; }
+.hub-look [data-plugin-store] .bg-white\/15 { background-color: rgb(255 255 255 / .15) !important; }
+.hub-look [data-plugin-store] .bg-white\/20 { background-color: rgb(255 255 255 / .2) !important; }
+.hub-look [data-plugin-store] .bg-white\/60 { background-color: rgb(255 255 255 / .6) !important; }
+/* (The class twice outranks the looks' "dark text becomes the look's ink" rule, which has the same weight otherwise.) */
+.hub-look [data-plugin-store] .text-\[\#111111\].text-\[\#111111\] { color: #111111 !important; }
+.hub-look [data-plugin-store] .rounded-xl { border-radius: .75rem !important; }
+.hub-look [data-plugin-store] .rounded-2xl { border-radius: 1rem !important; }
+.hub-look [data-plugin-store] .rounded-3xl { border-radius: 1.5rem !important; }
+.hub-look [data-plugin-store] .rounded-\[0\.95rem\] { border-radius: .95rem !important; }
+.hub-look [data-plugin-store] .rounded-\[1rem\] { border-radius: 1rem !important; }
+.hub-look [data-plugin-store] .rounded-\[1\.1rem\] { border-radius: 1.1rem !important; }
+.hub-look [data-plugin-store] .rounded-\[1\.25rem\] { border-radius: 1.25rem !important; }
+.hub-look [data-plugin-store] .rounded-\[1\.35rem\] { border-radius: 1.35rem !important; }
+.hub-look [data-plugin-store] .rounded-\[1\.4rem\] { border-radius: 1.4rem !important; }
+.hub-look [data-plugin-store] .rounded-\[1\.5rem\] { border-radius: 1.5rem !important; }
+.hub-look [data-plugin-store] .rounded-\[1\.6rem\] { border-radius: 1.6rem !important; }
+.hub-look [data-plugin-store] .rounded-\[1\.75rem\] { border-radius: 1.75rem !important; }
+/* Looks that draw a border round every rounded box (Punch, Console) leave the gallery's boxes as they are. */
+.hub-look [data-plugin-store] .rounded-xl:not(.border), .hub-look [data-plugin-store] .rounded-2xl:not(.border), .hub-look [data-plugin-store] .rounded-3xl:not(.border) { border-width: 0 !important; }
+.hub-look [data-plugin-store] .rounded-xl.border, .hub-look [data-plugin-store] .rounded-2xl.border, .hub-look [data-plugin-store] .rounded-3xl.border { border-width: 1px !important; border-color: var(--s-line) !important; }

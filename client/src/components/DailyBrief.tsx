@@ -53,7 +53,7 @@ export function DailyBrief({ brief, hub, onClose, onOpen, tint = "from-[#2b2a8f]
 
   return <div className="fixed inset-0 z-[680] overflow-y-auto bg-slate-100 print:static print:bg-white" role="dialog" aria-modal="true" aria-label="Daily brief" data-testid="daily-brief">
     {voiceNote && <p role="status" className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 z-[690] w-[min(92vw,420px)] -translate-x-1/2 rounded-xl bg-slate-900 px-4 py-2 text-center text-sm text-white print:hidden">{voiceNote}</p>}
-    <div className="mx-auto max-w-4xl px-3 pb-10 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pt-6">
+    <div className="mx-auto max-w-4xl px-3 pb-10 pt-[max(0.75rem,var(--sat,env(safe-area-inset-top,0px)))] sm:px-6 sm:pt-6">
       <div className="mb-3 flex items-center justify-between gap-2 print:hidden">
         <p className="inline-flex items-center gap-2 text-sm font-bold text-slate-600"><Sun className="h-4 w-4 text-amber-500" />Daily brief</p>
         <div className="flex gap-1.5">

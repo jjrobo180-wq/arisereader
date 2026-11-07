@@ -102,7 +102,7 @@ export function GiveGoalQuiz({ quiz, onClose, onDone }: { quiz: GoalQuiz; onClos
   };
   const q = qs[at];
   return createPortal(<div className="fixed inset-0 z-[780] flex flex-col bg-white text-slate-900" role="dialog" aria-modal="true" aria-label={quiz.title} data-testid="give-goal-quiz">
-    <div className="flex items-center gap-3 border-b border-slate-100 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+    <div className="flex items-center gap-3 border-b border-slate-100 px-4 pb-3 pt-[max(0.75rem,var(--sat,env(safe-area-inset-top,0px)))]">
       <span className="min-w-0 flex-1 truncate font-bold">{quiz.title}</span>
       {!finished && <span className="text-sm font-semibold text-slate-500">{at + 1} of {qs.length}</span>}
       <button type="button" onClick={onClose} aria-label="Close quiz" className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>

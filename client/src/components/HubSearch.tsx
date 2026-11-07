@@ -66,7 +66,7 @@ export function HubSearch({ entries, onClose, hubName, accent = "bg-slate-950" }
     </li>; };
   return <div className="fixed inset-0 z-[690] flex items-start justify-center bg-slate-950/40 p-0 sm:p-4 sm:pt-[10vh]" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
     <div role="dialog" aria-modal="true" aria-label={`Search ${hubName}`} data-testid="hub-search" className="flex h-[100dvh] w-full flex-col overflow-hidden bg-white shadow-2xl sm:h-auto sm:max-h-[75vh] sm:max-w-2xl sm:rounded-3xl">
-      <div className="flex items-center gap-2 border-b border-slate-100 px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] sm:p-3">
+      <div className="flex items-center gap-2 border-b border-slate-100 px-3 pb-2 pt-[max(0.5rem,var(--sat,env(safe-area-inset-top,0px)))] sm:p-3">
         <Search className="ml-1 h-5 w-5 shrink-0 text-slate-400" />
         <input ref={box} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={key} placeholder={`Search apps, notes, to-dos and more`} aria-label={`Search all of ${hubName}`} role="combobox" aria-expanded aria-controls="hub-search-list"
           className="min-h-12 min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-slate-400" />

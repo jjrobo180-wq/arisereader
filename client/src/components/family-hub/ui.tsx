@@ -47,11 +47,11 @@ export function Panel({ title, eyebrow, right, children, className = "", collaps
         {eyebrow && <p className="text-[11px] font-extrabold uppercase tracking-[.15em] text-violet-600">{eyebrow}</p>}
         {title && (folds ? (
           <button type="button" onClick={toggle} aria-expanded={!closed} title={closed ? "Show" : "Hide"} data-testid={`lifehub-fold-${collapseKey}`}
-            className="-ml-1.5 mt-0.5 flex min-h-11 items-center gap-1.5 rounded-xl px-1.5 text-left text-lg font-black text-[#232139] hover:bg-slate-50">
+            className="-ml-1.5 mt-0.5 flex min-h-11 items-center gap-1.5 rounded-xl px-1.5 text-left text-lg font-bold text-[#232139] hover:bg-slate-50">
             <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${closed ? "-rotate-90" : ""}`} />
             <span className="min-w-0 break-words">{title}</span>
           </button>
-        ) : <h2 className="mt-0.5 text-lg font-black text-[#232139]">{title}</h2>)}
+        ) : <h2 className="mt-0.5 text-lg font-bold text-[#232139]">{title}</h2>)}
       </div>
       {!(folds && closed) && right && <div className="flex flex-wrap items-center gap-2">{right}</div>}
     </div>}

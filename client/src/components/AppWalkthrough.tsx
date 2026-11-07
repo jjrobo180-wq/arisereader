@@ -127,7 +127,7 @@ function NativeTour({ steps, hub, onClose, setupOnly, onConnectCalendar }: { ste
   const back = () => setI((x) => Math.max(0, x - 1));
 
   const font = { fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif" };
-  const shell = "fixed inset-0 z-[700] flex flex-col bg-white pb-[max(16px,env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] text-[#111018]";
+  const shell = "fixed inset-0 z-[700] flex flex-col bg-white pb-[max(16px,env(safe-area-inset-bottom))] pt-[var(--sat,env(safe-area-inset-top,0px))] text-[#111018]";
   const primary = "flex h-[54px] w-full items-center justify-center gap-2 rounded-[16px] text-[17px] font-semibold text-white transition active:opacity-85 disabled:opacity-60";
 
   if (asking) return <IphoneSetup hub={hub} font={font} shell={shell} primary={primary} onConnectCalendar={onConnectCalendar}
@@ -175,7 +175,7 @@ function LiveTour({ step, i, count, last, next, back, onClose, font }: { step: S
     {rect
       ? <div aria-hidden className="pointer-events-none fixed rounded-2xl transition-all duration-300" style={{ left: rect.left - pad, top: rect.top - pad, width: rect.width + pad * 2, height: rect.height + pad * 2, boxShadow: "0 0 0 9999px rgba(17,16,24,.62), 0 0 0 3px #fff" }} />
       : <div aria-hidden className="fixed inset-0 bg-[#111018]/60" />}
-    <div key={step.id} className={`fixed inset-x-0 mx-auto w-[min(92vw,26rem)] rounded-[24px] bg-white p-5 text-[#111018] shadow-[0_24px_60px_rgba(0,0,0,.35)] ${high ? "top-[max(7rem,calc(env(safe-area-inset-top)+6rem))]" : "bottom-[max(16px,env(safe-area-inset-bottom))]"}`}>
+    <div key={step.id} className={`fixed inset-x-0 mx-auto w-[min(92vw,26rem)] rounded-[24px] bg-white p-5 text-[#111018] shadow-[0_24px_60px_rgba(0,0,0,.35)] ${high ? "top-[max(7rem,calc(var(--sat,env(safe-area-inset-top,0px))+6rem))]" : "bottom-[max(16px,env(safe-area-inset-bottom))]"}`}>
       <div className="flex items-center justify-between">
         <div className="flex gap-1.5" aria-label={`Page ${i + 1} of ${count}`}>{Array.from({ length: count }, (_, k) => <span key={k} className={`h-1.5 rounded-full transition-all ${k === i ? "w-5 bg-[#111018]" : "w-1.5 bg-black/15"}`} />)}</div>
         {!last && <button type="button" onClick={onClose} className="h-9 px-1 text-[15px] font-medium text-[#6b6879]" data-testid="walkthrough-skip">Skip</button>}

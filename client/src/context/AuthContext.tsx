@@ -9,6 +9,7 @@ import { isHubAccount } from "@/lib/hubs";
 import { clearSessionBackup, keepStorage, readSessionBackup, saveSessionBackup } from "@/lib/sessionBackup";
 import { SAMPLE_TOKEN, SAMPLE_USER, isSampleMode, resetSample } from "@/lib/sampleMode";
 import { setEyeGazeUser } from "@/lib/gazeDefaults";
+import { wasInAppBack } from "@/lib/inAppBack";
 
 interface AuthUser {
   id: number;
@@ -445,6 +446,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.dispatchEvent(new HashChangeEvent("hashchange"));
     };
     const browserBack = () => {
+      // The app closing one of its own screens (the Plugin Gallery's Back) is not the person leaving the sample.
+      if (wasInAppBack()) return;
       if (sessionStorage.getItem(SAMPLE_SESSION_KEY) === "true") exitSample();
     };
     window.addEventListener("arise-exit-sample", exitSample);
