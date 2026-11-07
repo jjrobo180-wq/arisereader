@@ -50,10 +50,11 @@ export function useNativeBackdrop(ref: RefObject<HTMLElement | null>, deps: unkn
     const before = [html.style.backgroundColor, body.style.backgroundColor];
     // No rubber-band past the page edge, so no strip of another colour shows when you scroll.
     const bounce = html.style.overscrollBehaviorY;
-    // Arise To Duo on the iPhone: everything a touch smaller, so more fits on screen.
-    const meta = document.querySelector('meta[name="viewport"]');
-    const metaBefore = meta?.getAttribute("content") ?? null;
-    if (meta && isNativeApp() && nativeFlavor() === "todo") meta.setAttribute("content", "width=device-width, initial-scale=0.93, maximum-scale=1");
+    // Arise To Duo on the iPhone: everything a touch smaller, so more fits on screen. This is done with the type size
+    // (html.todo-compact in todo-app.css), never by shrinking the viewport: at initial-scale=0.93 a 16px text box drew
+    // at about 15px, so iPhone zoomed the page in to 100% whenever you tapped one, and the zoom stuck.
+    const compact = isNativeApp() && nativeFlavor() === "todo";
+    if (compact) html.classList.add("todo-compact");
     html.style.overscrollBehaviorY = "none";
     let watched: HTMLElement | null = null;
     const watch = new MutationObserver(() => apply());
@@ -77,7 +78,7 @@ export function useNativeBackdrop(ref: RefObject<HTMLElement | null>, deps: unkn
       cancelAnimationFrame(raf); window.clearInterval(tick); watch.disconnect();
       window.removeEventListener(BACKDROP_REFRESH, apply);
       html.style.overscrollBehaviorY = bounce;
-      if (meta && metaBefore !== null) meta.setAttribute("content", metaBefore);
+      if (compact) html.classList.remove("todo-compact");
       html.style.backgroundColor = before[0]; body.style.backgroundColor = before[1];
     };
   }, deps); // eslint-disable-line react-hooks/exhaustive-deps
