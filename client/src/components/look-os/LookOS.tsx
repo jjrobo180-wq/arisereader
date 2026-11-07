@@ -158,11 +158,18 @@ function Home(p: OsProps) {
   if (hasArch(p.look)) return <div className="los-pad los-studio-home">
     <HubLookHero look={p.look} date={p.dateLabel} greeting={`${hi}${first}`} primary={{ label: "Add a task", onClick: () => p.add() }}
       links={[{ label: "Tasks", onClick: () => p.go("tasks") }, { label: "Calendar", onClick: () => p.go("calendar") }, { label: "Notes", onClick: () => p.go("notes") }]} />
-    <h2 className="los-studio-h">To do · {open.length}</h2>
-    {open.length ? list : <p className="los-studio-none">Nothing open. Add a task to get going.</p>}
-    {cal}
-    <h2 className="los-studio-h">Notes</h2>
-    {notes}
+    {/* Two columns on a computer (to do | calendar and notes); one after the other on a phone. */}
+    <div className="los-studio-grid">
+      <section className="los-studio-main" aria-label="To do">
+        <h2 className="los-studio-h">To do · {open.length}</h2>
+        {open.length ? list : <p className="los-studio-none">Nothing open. Add a task to get going.</p>}
+      </section>
+      <section className="los-studio-side" aria-label="Calendar and notes">
+        {cal}
+        <h2 className="los-studio-h">Notes</h2>
+        {notes}
+      </section>
+    </div>
   </div>;
   if (PLAY_LOOKS.has(p.look.id)) return <PlayHome look={p.look} name={p.name} dateLabel={p.dateLabel} hi={hi} days={p.days} tasks={p.tasks} open={open} notes={p.notes} toggle={p.toggle} openTask={p.openTask} go={p.go} openApps={p.openApps} add={p.add} onYou={p.onYou} cal={cal} list={list} />;
   if (SYSTEM_LOOKS.has(p.look.id)) return <SystemHome look={p.look} name={p.name} dateLabel={p.dateLabel} hi={hi} days={p.days} tasks={p.tasks} open={open} notes={p.notes} toggle={p.toggle} openTask={p.openTask} go={p.go} openApps={p.openApps} add={p.add} onYou={p.onYou} cal={cal} list={list} />;
