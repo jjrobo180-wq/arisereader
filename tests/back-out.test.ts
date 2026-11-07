@@ -107,7 +107,9 @@ test("the clock's space is this iPhone's own: 59-62px with a Dynamic Island, whe
   assert.equal(deviceTopInset(410, 900), 62); // a tall phone that isn't on the list yet
   assert.equal(deviceTopInset(1024, 1366), null); // an iPad keeps the safe area it reports
   const main = read("client/src/main.tsx");
-  assert.match(main, /if \(isNativeApp\(\) && \(nativeFlavor\(\) === "todo" \|\| isNotesApp\(\)\)\) applyDeviceTopInset\(\);/);
+  // To Duo's page rests at 93% on a phone, so its clock space is measured at that scale (main.tsx).
+  assert.match(main, /if \(isNativeApp\(\) && nativeFlavor\(\) === "todo"\) applyDeviceTopInset\(todoCompact \? TODO_SCALE : 1\);/);
+  assert.match(main, /if \(isNotesApp\(\)\) applyDeviceTopInset\(\);/);
 });
 
 test("no look's top bar is shorter than its bell (the Desktop look's slim bar pushed the bell up under the clock)", () => {

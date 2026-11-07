@@ -338,7 +338,7 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
 
   return (
     <>
-      <section className="grid gap-3" data-testid="minutes-page">
+      <section className="grid grid-cols-[minmax(0,1fr)] gap-3" data-testid="minutes-page">
         <div className="flex items-center gap-2">
           <h2 className="min-w-0 flex-1 truncate text-[26px] font-semibold tracking-tight text-slate-950">Minutes</h2>
           <div className="relative">
@@ -369,7 +369,7 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
         {look === "quick" && <MinutesStats {...stats} />}
 
         {editing && !readOnly && (
-          <div className="grid gap-2 rounded-2xl bg-white p-3 ring-1 ring-slate-200/70" data-testid="minutes-edit-panel">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-2 rounded-2xl bg-white p-3 ring-1 ring-slate-200/70" data-testid="minutes-edit-panel">
             <div className="flex flex-wrap gap-2">
               <GhostButton onClick={() => setPlan(newPlan())}><Plus className="h-4 w-4" /> Set required minutes</GhostButton>
               <span data-testid="minutes-several"><GhostButton onClick={() => setBulk({ mode: "plan", date: today, block: "" })}><Users className="h-4 w-4" /> Add several students</GhostButton></span>
