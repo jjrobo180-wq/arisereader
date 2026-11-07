@@ -2,8 +2,9 @@
 // tasks screens, all on the same real data. Other apps open inside it with its dock (LookDock).
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { themeVars, type NotesTheme } from "@shared/notesThemes";
-import { HubLookHero, LookAgenda, LookTaskList, type AgendaDay, type LookTask } from "@/components/HubLook";
-import { archClass, hasArch } from "@/components/arise-notes/protoLooks";
+import { LookAgenda, LookTaskList, type AgendaDay, type LookTask } from "@/components/HubLook";
+import { ProtoHubHero, archClass, hasArch } from "@/components/arise-notes/protoLooks";
+import { ArchList, archBoard, archLabels, dayItems, noteItems, taskItems } from "@/components/arise-notes/protoHub";
 import { BACKDROP_REFRESH, sendBackdrop } from "@/lib/nativeBackdrop";
 import { LockedApp, useLock } from "@/components/lock/PrivacyLock";
 import { PREMIUM_LOOKS, PremiumCal, PremiumHome } from "./premium";
@@ -19,7 +20,7 @@ export type OsProps = {
   look: NotesTheme; name: string; dateLabel: string; screen: OsScreen; go: (s: OsScreen) => void; openApps: () => void; add: (title?: string) => void;
   /** Opens a new task right away (Home's "Add a task"); without it, add() opens the add menu. */ addTask?: () => void;
   tasks: LookTask[]; toggle: (id: string) => void; openTask: (id: string) => void; days: AgendaDay[];
-  notes: { id: string; title: string; body: string; locked?: boolean }[]; shortcuts: { id: string; label: string; onClick: () => void }[];
+  notes: { id: string; title: string; body: string; locked?: boolean; pinned?: boolean; when?: string; updatedAt?: string }[]; shortcuts: { id: string; label: string; onClick: () => void }[];
   /** The full Calendar or Notes app, for adding and editing. */
   content?: ReactNode; onYou: () => void;
   /** The hub's name and its Work/Life switch, always at the top. */ hubName: string; hubSwitch: ReactNode;
@@ -47,6 +48,11 @@ const WORDS: Partial<Record<string, Partial<Record<NavId, string>>>> = {
   typewriter: { home: "H", tasks: "T", add: "+", calendar: "C", notes: "N", apps: "A", you: "Y" },
   grove: { home: "Today", tasks: "Tasks", add: "Add", calendar: "Days", notes: "Notes", apps: "More", you: "You" },
 };
+/** Studio looks whose bar is words, like their Notes screens: Receipts prints them, Field Notes logs them. */
+const ARCH_WORDS: Partial<Record<string, Partial<Record<NavId, string>>>> = {
+  receipt: { home: "HOME", tasks: "TASKS", add: "+", calendar: "CAL", notes: "NOTES", apps: "APPS", you: "ME" },
+  cons: { home: "HOME", tasks: "TASK", add: "+NEW", calendar: "CAL", notes: "LOG", apps: "SYS", you: "ME" },
+};
 const LABEL: Record<NavId, string> = { home: "Home", tasks: "Tasks", add: "Add", calendar: "Calendar", notes: "Notes", apps: "Apps", you: "You" };
 
 /** Each system's way of getting around. Also used when another app is open. */
@@ -60,7 +66,7 @@ export function LookDock({ look, screen, go, openApps, add, you, initial, off = 
   }, [inApp]);
   if (PLAY_LOOKS.has(look.id)) return <PlayDock look={look} screen={screen} go={go} openApps={openApps} add={add} you={you} initial={initial} off={off} inApp={inApp} />;
   if (SYSTEM_LOOKS.has(look.id)) return <SystemDock look={look} screen={screen} go={go} openApps={openApps} add={add} you={you} initial={initial} off={off} inApp={inApp} />;
-  const words = WORDS[look.id];
+  const words = WORDS[look.id] ?? (look.arch ? ARCH_WORDS[look.arch] : undefined);
   const textNav = !!words;
   const suite = SUITE_OS_LOOKS.has(look.id);
   return <nav style={themeVars(look) as CSSProperties} className={`los-dock los-dock-${look.id}${hasArch(look) ? ` los-dock-studiox${archClass(look)}` : ""}${suite ? " los-dock-suite" : ""}${look.dark ? " los-dock-dark" : ""}${inApp ? " los-dock-inapp" : ""}`} aria-label="Arise Duo" data-testid="los-dock">
@@ -155,23 +161,9 @@ function Home(p: OsProps) {
   const notes = <NotesWidget notes={p.notes} go={() => p.go("notes")} />;
   const list = <LookTaskList look={p.look} tasks={open.slice(0, 5)} onToggle={p.toggle} onOpen={p.openTask} />;
   const count = `${open.length} open`;
-  // The Studio looks: a full Home (it was blank, because no Home had been drawn for them here).
-  if (hasArch(p.look)) return <div className="los-pad los-studio-home">
-    <HubLookHero look={p.look} date={p.dateLabel} greeting={`${hi}${first}`} primary={{ label: "Add a task", onClick: () => (p.addTask ? p.addTask() : p.add()) }}
-      links={[{ label: "Tasks", onClick: () => p.go("tasks") }, { label: "Calendar", onClick: () => p.go("calendar") }, { label: "Notes", onClick: () => p.go("notes") }]} />
-    {/* Two columns on a computer (to do | calendar and notes); one after the other on a phone. */}
-    <div className="los-studio-grid">
-      <section className="los-studio-main" aria-label="To do">
-        <h2 className="los-studio-h">To do · {open.length}</h2>
-        {open.length ? list : <p className="los-studio-none">Nothing open. Add a task to get going.</p>}
-      </section>
-      <section className="los-studio-side" aria-label="Calendar and notes">
-        {cal}
-        <h2 className="los-studio-h">Notes</h2>
-        {notes}
-      </section>
-    </div>
-  </div>;
+  // The Studio looks: Home drawn the look's own way (Stickies a wall of sticky notes, Receipts paper slips, …),
+  // as it draws Arise Notes. They all shared one plain Home before.
+  if (hasArch(p.look)) return <StudioHome p={p} greeting={`${hi}${first}`} open={open} />;
   if (PLAY_LOOKS.has(p.look.id)) return <PlayHome look={p.look} name={p.name} dateLabel={p.dateLabel} hi={hi} days={p.days} tasks={p.tasks} open={open} notes={p.notes} toggle={p.toggle} openTask={p.openTask} go={p.go} openApps={p.openApps} add={p.add} onYou={p.onYou} cal={cal} list={list} />;
   if (SYSTEM_LOOKS.has(p.look.id)) return <SystemHome look={p.look} name={p.name} dateLabel={p.dateLabel} hi={hi} days={p.days} tasks={p.tasks} open={open} notes={p.notes} toggle={p.toggle} openTask={p.openTask} go={p.go} openApps={p.openApps} add={p.add} onYou={p.onYou} cal={cal} list={list} />;
   if (PREMIUM_LOOKS.has(p.look.id)) return <PremiumHome look={p.look} name={p.name} dateLabel={p.dateLabel} days={p.days} tasks={p.tasks} open={open} toggle={p.toggle} openTask={p.openTask} goTasks={() => p.go("tasks")} goCalendar={() => p.go("calendar")} hi={hi} cal={cal} list={list} notes={notes} />;
@@ -193,6 +185,42 @@ function Home(p: OsProps) {
     case "tide": return <><header className="los-tide-hero"><b>{p.days[0]?.day ?? new Date().getDate()}</b><span>{p.dateLabel}<small>{open.length ? `${open.length} open` : "All clear"}</small></span></header><div className="los-pad">{open.length > 0 && <LookTaskList look={p.look} tasks={open.slice(0, 3)} onToggle={p.toggle} onOpen={p.openTask} />}<NotesWidget notes={p.notes} go={() => p.go("notes")} count={2} /></div><TideAgenda days={p.days} go={() => p.go("calendar")} /></>;
     default: return null;
   }
+}
+
+/** Home for a Studio look: its own top, then what's to do, what's coming up and the latest notes, each drawn
+ *  the look's way. On a computer the board looks run each part across the page; the others put the days and
+ *  notes in a column beside the list. */
+function StudioHome({ p, greeting, open }: { p: OsProps; greeting: string; open: LookTask[] }) {
+  const board = archBoard(p.look);
+  const L = archLabels(p.look, open.length);
+  const addTask = () => (p.addTask ? p.addTask() : p.add());
+  const busy = p.days.filter((d) => d.items.length).slice(0, board ? 6 : 4);
+  const notes = p.notes.slice(0, board ? 6 : 4).map((n) => ({ ...n, when: n.when ?? n.updatedAt }));
+  const head = (label: string, more: string, go: () => void) => <div className="sh-labelrow"><h2 className="sh-label">{label}</h2><button type="button" className="sh-more" onClick={go}>{more}</button></div>;
+  return <div className={`los-pad sh-home sh-home-${p.look.arch}${board ? " sh-isboard" : ""}`} data-testid="studio-home">
+    <section className="an-l-hero sh-hero">{archHubHeroOrBillboard(p, greeting, open.length, addTask)}</section>
+    <div className="sh-grid">
+      <section className="sh-sec sh-sec-todo" aria-label="To do">
+        {head(L.todo, "All tasks", () => p.go("tasks"))}
+        {open.length || board ? <ArchList look={p.look} kind="tasks" items={taskItems(open.slice(0, board ? 8 : 6), p.toggle, p.openTask)} total={open.length} add={board ? { label: "Add a task", onClick: addTask } : undefined} />
+          : <><p className="sh-none">Nothing open. Add a task to get going.</p><button type="button" className="sh-addrow" onClick={addTask}>+ Add a task</button></>}
+      </section>
+      <section className="sh-sec sh-sec-days" aria-label="Coming up">
+        {head(L.days, "Calendar", () => p.go("calendar"))}
+        {busy.length ? <ArchList look={p.look} kind="days" items={dayItems(busy, () => p.go("calendar"))} /> : <p className="sh-none">Nothing in the next two weeks.</p>}
+      </section>
+      <section className="sh-sec sh-sec-notes" aria-label="Notes">
+        {head(L.notes, "All notes", () => p.go("notes"))}
+        {notes.length || board ? <ArchList look={p.look} kind="notes" items={noteItems(notes, () => p.go("notes"))} total={p.notes.length} add={board ? { label: "New note", onClick: () => p.go("notes") } : undefined} />
+          : <><p className="sh-none">No notes yet.</p><button type="button" className="sh-addrow" onClick={() => p.go("notes")}>+ New note</button></>}
+      </section>
+    </div>
+  </div>;
+}
+function archHubHeroOrBillboard(p: OsProps, greeting: string, open: number, addTask: () => void) {
+  const today = p.days[0]?.items.length ?? 0;
+  return <ProtoHubHero look={p.look} date={p.dateLabel} greeting={greeting} primary={{ label: "Add a task", onClick: addTask }}
+    links={[{ label: "Calendar", onClick: () => p.go("calendar") }, { label: "Notes", onClick: () => p.go("notes") }]} open={open} today={today} hubName={p.hubName} />;
 }
 
 function Terminal(p: OsProps) {

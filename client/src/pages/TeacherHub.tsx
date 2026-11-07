@@ -1023,7 +1023,7 @@ function TeacherHubPage() {
   const osLists = cleanTaskLists(workspace.taskLists);
   const osTasks = workspace.tasks.filter((t) => !t.archived).map((t) => { const list = osLists.find((l) => l.id === t.listId); return { id: t.id, title: t.title, done: t.done, due: t.dueDate, late: !t.done && !!t.dueDate && t.dueDate < osToday, dueLabel: t.dueDate ? new Date(`${t.dueDate}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "", listName: list?.name ?? "", color: list?.color ?? "", assignee: "", notes: t.notes ?? "" }; });
   // Notes about a student show only their title outside the Notes app, so nothing private sits on Home.
-  const osNotes = [...workspace.notes].sort((a, b) => (b.date || "").localeCompare(a.date || "")).map((n) => ({ id: n.id, title: n.title || n.type || "Note", body: n.student ? "" : n.body, locked: n.locked }));
+  const osNotes = [...workspace.notes].sort((a, b) => (b.date || "").localeCompare(a.date || "")).map((n) => ({ id: n.id, title: n.title || n.type || "Note", body: n.student ? "" : n.body, locked: n.locked, when: n.date }));
   const osShortcuts = (["caseload", "lessons", "iep", "goals"] as const).filter((t) => isTabOn(t, visible, !!user.isAdmin)).map((t) => ({ id: t, label: TAB_META.find((m) => m.id === t)?.label || t, onClick: () => goTab(t) }));
   // The bell: in the header, or in the themed top bar beside the Work/Life switch.
   const workBell = <NotificationBell
