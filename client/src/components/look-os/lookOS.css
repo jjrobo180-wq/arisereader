@@ -302,34 +302,31 @@ html[data-hub-look] [data-testid="welcome-bar"] { top: calc(env(safe-area-inset-
    in case the phone reports no safe area), and the dock sits above the Home bar. */
 html.todo-app .los .los-topbar { padding-top: max(env(safe-area-inset-top, 0px), 44px) !important; }
 
-/* ─── On a computer: the looks use the screen's width (they were a 46rem phone column in the middle). ─── */
-@media (min-width: 1100px) {
-  .los-body > * { max-width: 64rem; }
-  .los-tide-days, .los-tide-hero { max-width: 64rem; }
-  /* These grow with the width (a month of circles, square widgets, one big card): a little narrower so they stay in proportion. */
-  .los-bloom .los-body > *, .los-punch .los-body > *, .los-deck .los-body > *, .los-pocket .los-body > *, .los-frost .los-body > * { max-width: 50rem; }
+/* ─── On a computer: the looks fill the screen like the original To Duo look (up to 1500px, 1.5rem from the edges).
+   They were a phone column in the middle. ─── */
+@media (min-width: 900px) {
+  .los-body > * { max-width: 1500px; }
+  .los-body > .los-pad { padding-left: 1.5rem; padding-right: 1.5rem; }
+  .los-tide-days, .los-tide-hero { max-width: 1500px; }
+  /* Home in these grows with the width (a month of circles, square widgets, one big card), so it stays in proportion. */
+  :is(.los-bloom, .los-punch, .los-deck, .los-pocket, .los-frost)[data-screen="home"] .los-body > * { max-width: 52rem; }
+  /* Month grids and day circles grow with the width: kept to a sensible size, in the middle. */
+  .los-cal-bloom, .los-cal-punch, .los-cal-frost, .los-cal-tide { display: block; max-width: 52rem; margin-inline: auto; }
   /* Studio looks: Home is a dashboard. The greeting across the top, to do on the left, calendar and notes on the right. */
-  .los.stx .los-body > .los-studio-home { max-width: 80rem; padding: 1.75rem 3rem 2rem; }
+  .los.stx .los-body > .los-studio-home { padding: 1.75rem 1.5rem 2rem; }
   .los-studio-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 0 3.5rem; align-items: start; }
   .los-studio-side > .los-cal-studio:first-child { margin-top: 1.4rem; }
   .los-studio-home .an-l-hero { max-width: 44rem; }
-  .los.stx .los-body > .los-pad:not(.los-studio-home) { max-width: 68rem; padding-inline: 3rem; }
-  /* Pro looks: two columns too (up next | this week, notes | quick links), not rows across the whole screen. */
-  .los-suite .los-body > .sx-home { max-width: 80rem; margin-inline: auto; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.6rem 3rem; padding: 1.75rem 3rem 2rem; align-items: start; }
+  /* Pro looks: two columns (up next | this week, notes | quick links). */
+  .los-suite .los-body > .sx-home { margin-inline: auto; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.6rem 3rem; padding: 1.75rem 1.5rem 2rem; align-items: start; }
   .los-suite .los-body > .sx-home > .sx-top { grid-column: 1 / -1; }
-  .los-suite .los-body > .los-pad { max-width: 68rem; margin-inline: auto; padding-inline: 3rem; }
   /* Docks that run the full width keep their buttons together in the middle, not spread to the screen's edges. */
   .los-dock-studiox, .los-dock.los-dock-suite, .los-dock.los-dock-hush, .los-dock.los-dock-atelier, .los-dock.los-dock-darkroom, .los-dock.los-dock-zen,
   .los-dock-swiss, .los-dock-gazette, .los-dock-margin, .los-dock-console, .los-dock-grove, .los-dock-tide {
     padding-left: max(1rem, calc((100% - 46rem) / 2)) !important; padding-right: max(1rem, calc((100% - 46rem) / 2)) !important;
   }
-}
-/* The coloured banner under the top bar (Studio, Bloom, Timeline, Cassette, Swiss) runs edge to edge like the top bar,
-   with its words lined up with the page below. It was cut to the page's width, a coloured box floating in the middle. */
-@media (min-width: 900px) {
-  .los-body > .los-hero, .los-body > .los-tape { max-width: none; margin-inline: 0; padding-left: max(1rem, calc((100% - 46rem) / 2 + 1rem)); padding-right: max(1rem, calc((100% - 46rem) / 2 + 1rem)); }
-}
-@media (min-width: 1100px) {
-  .los-body > .los-hero, .los-body > .los-tape { padding-left: max(1rem, calc((100% - 64rem) / 2 + 1rem)); padding-right: max(1rem, calc((100% - 64rem) / 2 + 1rem)); }
-  .los-bloom .los-body > .los-hero { padding-left: calc((100% - 50rem) / 2 + 1rem); padding-right: calc((100% - 50rem) / 2 + 1rem); }
+  /* The coloured banner under the top bar (Studio, Bloom, Timeline, Cassette, Swiss) runs edge to edge like the top bar,
+     with its words lined up with the page below. */
+  .los-body > .los-hero, .los-body > .los-tape { max-width: none; margin-inline: 0; padding-left: max(1.5rem, calc((100% - 1500px) / 2 + 1.5rem)); padding-right: max(1.5rem, calc((100% - 1500px) / 2 + 1.5rem)); }
+  :is(.los-bloom, .los-frost)[data-screen="home"] .los-body > .los-hero { max-width: none; padding-left: max(1rem, calc((100% - 52rem) / 2 + 1rem)); padding-right: max(1rem, calc((100% - 52rem) / 2 + 1rem)); }
 }
