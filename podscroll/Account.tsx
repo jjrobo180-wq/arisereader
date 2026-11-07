@@ -33,7 +33,7 @@ export function AccountSheet({ api, email, signedIn, onClose, say }: { api: Api;
   };
   const row = "flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-[15px] font-medium hover:bg-[#f2f2f2]";
   return <div role="dialog" aria-modal="true" aria-labelledby="acct-title" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    className="fixed inset-0 z-[90] flex items-end justify-center bg-black/50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] sm:items-center">
+    className="fixed inset-0 z-[90] flex items-end justify-center bg-black/50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[var(--sat,env(safe-area-inset-top,0px))] sm:items-center">
     <div className="relative max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-[24px] bg-white p-5 text-[#0f0f0f] shadow-2xl">
       <button type="button" onClick={onClose} aria-label="Close" className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full text-[#606060] hover:bg-[#f2f2f2]"><X size={20} /></button>
       <h2 id="acct-title" className="pr-10 text-xl font-bold">Account & privacy</h2>

@@ -142,7 +142,7 @@ export function Onboarding({ data, update, onDone, edit = false }: { data: FitDa
 
   return <Layer><style>{ONB_CSS}</style>
     <div className="fixed inset-0 z-[80] flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} role="dialog" aria-modal="true" aria-label="Set up Arise Fit" data-testid="fit-setup">
-      <div className="shrink-0 px-4 pt-[max(12px,env(safe-area-inset-top))]">
+      <div className="shrink-0 px-4 pt-[max(12px,var(--sat,env(safe-area-inset-top,0px)))]">
         <div className="flex items-center gap-2">
           <button type="button" onClick={back} aria-label="Back" disabled={i === 0} className="grid h-10 w-10 place-items-center rounded-full transition-opacity" style={{ background: C.card, opacity: i === 0 ? 0 : 1 }}><ChevronLeft className="h-5 w-5" /></button>
           <div className="flex min-w-0 flex-1 gap-1" aria-hidden>{steps.map((s, k) => <span key={s} className="h-1.5 flex-1 rounded-full transition-colors duration-500" style={{ background: k <= i ? C.lime : C.track }} />)}</div>
@@ -341,7 +341,7 @@ export function FeatureTour({ onClose }: { onClose: () => void }) {
   return <div className="fixed inset-0 z-[90] flex flex-col text-white" style={{ background: `linear-gradient(165deg, ${s.tint} 0%, #14110f 88%)`, transition: "background .6s", ...font }} role="dialog" aria-modal="true" aria-label="How Arise Fit works" data-testid="fit-tour">
     <style>{ONB_CSS}</style>
     {orb("rgba(255,255,255,.5)", "220px", "-60px", "8%")}{orb("rgba(255,255,255,.35)", "260px", "60%", "58%", "1.5s")}
-    <div className="relative z-[2] flex gap-1.5 px-4 pt-[max(14px,env(safe-area-inset-top))]" aria-hidden>
+    <div className="relative z-[2] flex gap-1.5 px-4 pt-[max(14px,var(--sat,env(safe-area-inset-top,0px)))]" aria-hidden>
       {SLIDES.map((_, n) => <span key={n} className="h-[3px] flex-1 overflow-hidden rounded-full bg-white/25">{n < k ? <span className="block h-full w-full bg-white" /> : n === k ? <span key={`${k}-${hold}`} className="ob-bar block h-full bg-white" style={{ animationDuration: `${SLIDE_MS}ms`, animationPlayState: hold ? "paused" : "running"}} /> : null}</span>)}
     </div>
     <div className="relative z-[2] flex items-center justify-between px-4 pt-3">
