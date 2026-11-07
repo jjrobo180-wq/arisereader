@@ -3,7 +3,7 @@
 .an-root.an-themed { background: var(--an-bg); font-family: var(--an-font); }
 .an-themed ::selection { background: color-mix(in srgb, var(--an-violet) 30%, transparent); }
 .an-themed .an-card, .an-themed .an-rows, .an-themed .an-paper, .an-themed .an-round-btn, .an-themed .bg-white, .an-themed .an-plain, .an-themed .an-input, .an-themed .an-search input, .an-themed .bg-slate-50, .an-themed .bg-slate-100 { background: var(--an-card) !important; color: var(--an-ink); }
-.an-themed .an-card, .an-themed .an-rows, .an-themed .an-paper { border: var(--an-border) solid var(--an-line) !important; border-radius: var(--an-radius); box-shadow: var(--an-shadow); }
+.an-themed .an-card, .an-themed .an-rows, .an-themed .an-paper { border: var(--an-border) solid var(--an-line) !important; border-radius: min(var(--an-radius), 28px); box-shadow: var(--an-shadow); }
 .an-themed .an-rows > li + li { border-top: 1px solid var(--an-line); }
 .an-themed .an-btn, .an-themed .an-input { border-radius: min(var(--an-radius), 16px); }
 .an-themed .an-plain, .an-themed .an-input { border: var(--an-border) solid var(--an-line); }
@@ -310,7 +310,7 @@
 .an-themed.an-root::before { background: var(--an-hero); }
 .an-themed header.sticky { background: var(--an-hero) !important; color: var(--an-on-hero); border-color: transparent !important; backdrop-filter: none; -webkit-backdrop-filter: none; }
 .an-themed header.sticky .an-icon-btn, .an-themed header.sticky button { color: var(--an-on-hero) !important; }
-.an-themed .an-l-hero { margin: -1.25rem -1rem 0; padding: calc(env(safe-area-inset-top) + 1rem) 1rem 1.25rem; background: var(--an-hero); color: var(--an-on-hero); }
+.an-themed .an-l-hero { margin: -1.25rem -1rem 0; padding: calc(var(--sat, env(safe-area-inset-top, 0px)) + 1rem) 1rem 1.25rem; background: var(--an-hero); color: var(--an-on-hero); }
 .an-themed .an-l-hero h1 { color: inherit; }
 .an-themed .an-l-hero .an-l-record { background: var(--an-on-hero); color: var(--an-hero); border-color: transparent; box-shadow: none; }
 .an-l-minutes { align-self: flex-end; font-size: .8rem; font-weight: 700; }

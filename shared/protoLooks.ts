@@ -39,7 +39,10 @@ const fontUrl = (...fs: string[]) => `https://fonts.googleapis.com/css2?${[...ne
 function nightOf(t: ProtoSpec): NonNullable<NotesTheme["night"]> {
   const bg = mix(t.ink, "#000000", 0.9), card = mix(bg, "#ffffff", 0.07), ink = mix(t.bg, "#ffffff", 0.92);
   const muted = reach(mix(ink, bg, 0.3), card, "#ffffff", 4.6);
-  const accent = contrast(t.accent, card) >= 4.5 ? t.accent : mix(t.accent, "#ffffff", 0.45);
+  // A black (or near-grey) accent turned halfway to white became a muddy mid-grey button with dark words on it.
+  // A colorless accent goes to the night ink instead (crisp light buttons); a colored one is lightened as before.
+  const sat = (() => { const h = t.accent.replace("#", ""); const c = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)); return Math.max(...c) - Math.min(...c); })();
+  const accent = contrast(t.accent, card) >= 4.5 ? t.accent : sat < 40 ? ink : mix(t.accent, "#ffffff", 0.45);
   return { bg, card, line: mix(bg, "#ffffff", 0.2), ink, muted, faint: muted, accent, accentInk: reach(accent, card, "#ffffff", 4.6), accentSoft: mix(accent, card, 0.8), onAccent: readable(accent) };
 }
 
