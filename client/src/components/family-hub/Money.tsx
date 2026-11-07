@@ -9,7 +9,7 @@ import {
 import { fromDay, money, toDay, type Expense } from "@shared/familyHub";
 import {
   billStatus, byCategory, cents, expectedFrom, expectedIncome, FREQ_LABEL, goalProgress, monthCsv, monthPicture, monthsBack, payBill, payPeriods,
-  paydays, receivedIn, safeToSpend, shiftMonth, tipWeeks, unpayBill, type Goal, type IncomeEntry, type PlanBill,
+  paydays, paydaysToConfirm, receivedIn, safeToSpend, shiftMonth, tipWeeks, unpayBill, type Goal, type IncomeEntry, type IncomeSource, type PayFrequency, type PlanBill, type PlanStyle,
 } from "@shared/moneyPlan";
 import { Bar, Empty, Label, Modal, Panel, Toggle, confirmed, danger, inputClass, plain, primary, shortDate, soft, type SectionProps } from "./ui";
 import { ShareButton } from "./ShareLink";
@@ -44,6 +44,10 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
   const [editBill, setEditBill] = useState<PlanBill | null>(null);
   const [paying, setPaying] = useState<{ bill: PlanBill; amount: number } | null>(null);
   const [income, setIncome] = useState<Partial<IncomeEntry> | null>(null);
+  const [source, setSource] = useState<IncomeSource | null>(null);
+  const [editExpense, setEditExpense] = useState<Expense | null>(null);
+  const [settings, setSettings] = useState(false);
+  const [notYet, setNotYet] = useState<string[]>([]);
   const [goal, setGoal] = useState<Goal | null>(null);
   const [moving, setMoving] = useState<{ goal: Goal; out: boolean } | null>(null);
   const [expense, setExpense] = useState({ amount: "", categoryId: family.budget[0]?.id || "", note: "", date: today });
@@ -103,7 +107,7 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
       </div>
     </div>
     <div className="mt-5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-      <Figure label="Coming in" value={money(pic.income)} sub={pic.received ? `${money(pic.received)} received so far` : pic.expected ? "Expected" : "Add how you get paid"} tone="text-emerald-300" />
+      <Figure label="Coming in" value={money(pic.income)} sub={pic.expected || pic.received ? `${money(pic.received)} of ${money(pic.income)} received` : "Add how you get paid"} tone="text-emerald-300" />
       <Figure label="Bills" value={money(pic.billsLeft)} sub={`left of ${money(pic.billsOwed)}`} />
       <Figure label="Spent" value={money(pic.spent)} sub={pic.budgeted ? `of ${money(pic.budgeted)} planned` : "this month"} />
       <Figure label={pic.unplanned >= 0 ? "Not planned yet" : "Over-planned"} value={money(Math.abs(pic.unplanned))} sub={pic.goals ? `${money(pic.goals)} to goals` : "after bills, spending and goals"} tone={pic.unplanned < 0 ? "text-rose-300" : "text-violet-200"} />
@@ -114,6 +118,22 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
     ...(pic.late ? [<span key="late">{pic.late === 1 ? "1 bill is" : `${pic.late} bills are`} past due. <button type="button" className="underline" onClick={() => go("bills")}>See bills</button></span>] : []),
     ...(over.length ? [<span key="over">Over the limit: {over.map((c) => c.name).join(", ")}.</span>] : []),
   ];
+
+  // Paydays that have come: did the money land? One tap logs it.
+  const confirm = isNow ? paydaysToConfirm(plan, month, today).filter((c) => !notYet.includes(`${c.source.id}|${c.date}`)) : [];
+  const logPay = (s: IncomeSource, date: string, amount: number) => {
+    setMoney((m) => ({ ...m, incomeLog: [...m.incomeLog, { id: makeId(), sourceId: s.id, date, amount: cents(amount), kind: "pay" as const, note: "" }].slice(-4000) }));
+    say(`${money(amount)} from ${s.name} logged`);
+  };
+  const checkIn = confirm.length > 0 && <section className="space-y-2" data-testid="budget-checkin">{confirm.slice(0, 3).map((c) => <div key={c.source.id + c.date} className="flex flex-wrap items-center gap-3 rounded-2xl bg-white p-3.5 ring-1 ring-emerald-200 shadow-sm">
+    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><Wallet size={18} /></span>
+    <span className="min-w-0 flex-1 text-sm"><b className="block text-slate-900">Did {c.source.name} pay you {money(c.source.amount)}?</b><span className="text-slate-500">Payday was {day(c.date)}</span></span>
+    <span className="flex flex-wrap gap-2">
+      <button type="button" onClick={() => logPay(c.source, c.date, c.source.amount)} className={primary + " !min-h-9"} data-testid="budget-checkin-yes"><Check size={15} /> Yes</button>
+      <button type="button" onClick={() => setIncome({ kind: "pay", sourceId: c.source.id, amount: c.source.amount, date: c.date })} className={plain + " !min-h-9"}>Different amount</button>
+      <button type="button" onClick={() => setNotYet((n) => [...n, `${c.source.id}|${c.date}`])} className="min-h-9 px-2 text-xs font-bold text-slate-500 underline">Not yet</button>
+    </span>
+  </div>)}</section>;
 
   // ───────── Tabs ─────────
   const TABS: [Tab, string, ReactNode][] = [["overview", "Overview", <LayoutGrid size={16} />], ...(plan.style === "paycheck" ? [["paychecks", "Paychecks", <Wallet size={16} />] as [Tab, string, ReactNode]] : []),
@@ -167,7 +187,7 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
       <ul className="space-y-4">{family.budget.map((c) => {
         const spent = cats.find((x) => x.id === c.id)?.spent || 0;
         return <li key={c.id}>
-          <div className="mb-1.5 flex items-center gap-2 text-sm"><span className="min-w-0 flex-1 truncate font-bold">{c.name}</span>
+          <div className="mb-1.5 flex items-center gap-2 text-sm"><input value={c.name} maxLength={40} onChange={(e) => setFamily((f) => ({ ...f, budget: f.budget.map((x) => (x.id === c.id ? { ...x, name: e.target.value } : x)) }))} onBlur={(e) => { if (!e.target.value.trim()) setFamily((f) => ({ ...f, budget: f.budget.map((x) => (x.id === c.id ? { ...x, name: "Untitled" } : x)) })); }} aria-label={`Rename ${c.name}`} className="min-w-0 flex-1 truncate rounded-lg bg-transparent px-1 py-1 font-bold outline-none hover:bg-slate-50 focus:bg-white focus:ring-2 focus:ring-violet-200" />
             <span className={`text-xs font-bold tabular-nums ${c.limit && spent > c.limit ? "text-rose-600" : "text-slate-600"}`}>{money(spent)} of</span>
             <span className="relative w-24"><span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">$</span>
               <input type="number" min={0} value={c.limit || ""} placeholder="limit" onChange={(e) => setFamily((f) => ({ ...f, budget: f.budget.map((x) => (x.id === c.id ? { ...x, limit: Math.max(0, Number(e.target.value) || 0) } : x)) }))} aria-label={`${c.name} monthly limit`} className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-5 pr-2 text-right text-xs font-bold text-slate-700 focus:border-violet-400 focus:outline-none" /></span>
@@ -185,9 +205,10 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
     <Panel eyebrow="Spending" title={`Logged in ${label}`}>
       {spendFormEl(true)}
       {monthExpenses.length ? <ul className="mt-4 divide-y divide-slate-100">{monthExpenses.slice(0, 80).map((x) => <li key={x.id} className="flex items-center gap-3 py-2.5 text-sm">
+        <button type="button" onClick={() => setEditExpense({ ...x })} aria-label={`Edit ${x.note || "spending"}`} className="flex min-w-0 flex-1 items-center gap-3 text-left">
         <span className="w-14 shrink-0 text-xs font-bold text-slate-500">{day(x.date)}</span>
         <span className="min-w-0 flex-1 truncate"><span className="font-semibold">{x.note || family.budget.find((c) => c.id === x.categoryId)?.name || "Other"}</span>{x.note && <span className="text-xs text-slate-500"> · {family.budget.find((c) => c.id === x.categoryId)?.name || "Other"}</span>}</span>
-        <span className="font-black tabular-nums">{money(x.amount)}</span>
+        <span className="font-black tabular-nums">{money(x.amount)}</span></button>
         <button type="button" onClick={() => setFamily((f) => ({ ...f, expenses: f.expenses.filter((e) => e.id !== x.id) }))} className="rounded-lg p-1.5 text-slate-400 hover:text-rose-500" aria-label="Remove"><Trash2 size={14} /></button>
       </li>)}</ul> : <p className="mt-4 text-sm text-slate-500">Nothing logged for {label} yet.</p>}
     </Panel>
@@ -196,6 +217,7 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
   const nextBills = billRows.filter((r) => r.st.state !== "paid").slice(0, 5);
   const overview = <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
     <div className="space-y-5">
+      {checkIn}
       <Panel eyebrow="Up next" title="Bills to pay" right={<button type="button" onClick={() => go("bills")} className={plain}>All bills</button>}>
         {nextBills.length ? <ul className="divide-y divide-slate-100">{nextBills.map((r) => billRow(r))}</ul> : <p className="text-sm text-slate-500">{bills.length ? `Every bill is paid for ${label}. 🎉` : "No bills yet."}</p>}
       </Panel>
@@ -258,16 +280,18 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
   const maxTip = Math.max(1, ...tw.weeks.map((w) => w.total));
   const incomeTab = <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
     <div className="space-y-5">
+      {checkIn}
       <Panel eyebrow={label} title="Money in" right={<button type="button" onClick={() => setIncome({ kind: hasTips ? "tips" : "pay", date: today })} className={primary}><Plus size={16} /> Log income</button>}>
         <div className="mb-4 grid grid-cols-2 gap-2">
           <div className="rounded-2xl bg-emerald-50 p-3"><p className="text-xs font-bold text-emerald-800">Received</p><p className="text-xl font-black tabular-nums text-emerald-900">{money(receivedIn(plan, month))}</p></div>
           <div className="rounded-2xl bg-slate-50 p-3"><p className="text-xs font-bold text-slate-600">Expected</p><p className="text-xl font-black tabular-nums">{money(expectedIncome(plan, month))}</p></div>
         </div>
-        {monthIncome.length ? <ul className="divide-y divide-slate-100">{monthIncome.map((e) => <li key={e.id} className="flex items-center gap-3 py-2.5 text-sm">
+        {monthIncome.length ? <ul className="divide-y divide-slate-100">{monthIncome.map((e) => <li key={e.id} className="flex items-center gap-3 py-2.5 text-sm" data-testid="budget-income-row">
+          <button type="button" onClick={() => setIncome({ ...e })} aria-label="Edit this income" className="flex min-w-0 flex-1 items-center gap-3 text-left">
           <span className="w-14 shrink-0 text-xs font-bold text-slate-500">{day(e.date)}</span>
           <span className="min-w-0 flex-1 truncate"><span className="font-semibold">{e.note || plan.sources.find((s) => s.id === e.sourceId)?.name || KIND_WORD[e.kind]}</span><span className="text-xs text-slate-500"> · {KIND_WORD[e.kind]}</span></span>
-          <span className="font-black tabular-nums text-emerald-700">+{money(e.amount)}</span>
-          <button type="button" onClick={() => setMoney((m) => ({ ...m, incomeLog: m.incomeLog.filter((x) => x.id !== e.id) }))} className="rounded-lg p-1.5 text-slate-400 hover:text-rose-500" aria-label="Remove"><Trash2 size={14} /></button>
+          <span className="font-black tabular-nums text-emerald-700">+{money(e.amount)}</span></button>
+          <button type="button" onClick={() => { setMoney((m) => ({ ...m, incomeLog: m.incomeLog.filter((x) => x.id !== e.id) })); say("Removed"); }} className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600" aria-label={`Delete ${money(e.amount)} from ${day(e.date)}`} data-testid="budget-income-delete"><Trash2 size={15} /></button>
         </li>)}</ul> : <p className="text-sm text-slate-500">Nothing logged yet. Log paychecks, tips, gig pay and bonuses as they come in.</p>}
       </Panel>
     </div>
@@ -280,12 +304,14 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
         </div>)}</div>
         <button type="button" onClick={() => setIncome({ kind: "tips", date: today })} className={soft + " mt-4 w-full"}><Plus size={16} /> Log tonight's tips</button>
       </Panel>}
-      <Panel eyebrow="How you get paid" title="Income" right={<button type="button" onClick={() => setSetup(true)} className={plain}><Pencil size={15} /> Change</button>}>
-        {plan.sources.length ? <ul className="divide-y divide-slate-100">{plan.sources.map((s) => <li key={s.id} className="flex items-center gap-3 py-3 text-sm">
+      <Panel eyebrow="How you get paid" title="Income sources" right={<button type="button" onClick={() => setSource({ id: makeId(), name: "", kind: "paycheck", frequency: "biweekly", amount: 0, days: [], anchor: today })} className={soft} data-testid="budget-source-add"><Plus size={15} /> Add</button>}>
+        {family.money.sources.length ? <ul className="divide-y divide-slate-100">{family.money.sources.map((s) => <li key={s.id} className="flex items-center gap-3 py-3 text-sm" data-testid="budget-source">
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-violet-50 text-violet-700">{s.kind === "tips" ? <HandCoins size={16} /> : s.kind === "paycheck" ? <Wallet size={16} /> : <CircleDollarSign size={16} />}</span>
-          <span className="min-w-0 flex-1"><span className="block truncate font-bold">{s.name}</span><span className="block text-xs text-slate-500">{s.kind === "paycheck" ? `${FREQ_LABEL[s.frequency]} · ${money(s.amount)} a check${paydays(s, month).length ? ` · ${paydays(s, month).map(day).join(", ")}` : ""}` : s.kind === "tips" ? `About ${money(s.amount)} a week` : `About ${money(s.amount)} a month`}</span></span>
+          <button type="button" onClick={() => setSource({ ...s })} className="min-w-0 flex-1 text-left"><span className="block truncate font-bold">{s.name}</span><span className="block text-xs text-slate-500">{sourceLine(s, month)}</span></button>
           <span className="font-black tabular-nums">{money(expectedFrom(s, month))}</span>
-        </li>)}</ul> : <p className="text-sm text-slate-500">Not set up yet.</p>}
+          <button type="button" onClick={() => setSource({ ...s })} aria-label={`Edit ${s.name}`} className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-violet-50 hover:text-violet-700"><Pencil size={15} /></button>
+          <button type="button" onClick={() => { if (confirmed(`Remove "${s.name}" from your income? Money already logged from it stays.`)) { setMoney((m) => ({ ...m, sources: m.sources.filter((x) => x.id !== s.id) })); say(`${s.name} removed`); } }} aria-label={`Remove ${s.name}`} className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600" data-testid="budget-source-delete"><Trash2 size={15} /></button>
+        </li>)}</ul> : <p className="text-sm text-slate-500">{family.income > 0 ? `Using ${money(family.income)} a month from before. Add how you get paid for a real plan.` : "Add how you get paid: a paycheck, tips, gig money or anything else."}</p>}
       </Panel>
     </div>
   </div>;
@@ -345,7 +371,8 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
       <div><p className="mb-1.5 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7]">Budget & bills</p><h1 className="text-3xl font-black tracking-tight text-[#232139] sm:text-4xl">Your money<span className="text-[#7866e1]">.</span></h1></div>
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={() => setIncome({ kind: plan.sources.some((s) => s.kind === "tips") ? "tips" : "pay", date: today })} className={soft}><HandCoins size={16} /> Log income</button>
-        <button type="button" onClick={() => setSetup(true)} className={plain} data-testid="budget-redo"><Settings2 size={16} /> {plan.setUp ? "Redo setup" : "Set up"}</button>
+        {plan.setUp ? <button type="button" onClick={() => setSettings(true)} className={plain} data-testid="budget-settings"><Settings2 size={16} /> Settings</button>
+          : <button type="button" onClick={() => setSetup(true)} className={plain} data-testid="budget-redo"><Settings2 size={16} /> Set up</button>}
       </div>
     </header>
 
@@ -384,12 +411,22 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
       onDelete={(b) => { if (confirmed(`Delete the bill "${b.name}"?`)) { setFamily((f) => ({ ...f, bills: f.bills.filter((x) => x.id !== b.id), money: { ...f.money, payments: f.money.payments.filter((p) => p.billId !== b.id) } })); setEditBill(null); } }} />}
     {paying && <PayDialog bill={paying.bill} status={billStatus(plan, paying.bill, month, ref)} month={label} today={today} onClose={() => setPaying(null)}
       onPay={(amount, date) => { pay(paying.bill, amount, date); setPaying(null); }} onUndo={() => { unpay(paying.bill); setPaying(null); }} />}
-    {income && <IncomeDialog start={income} sources={plan.sources} goals={plan.goals} today={today} onClose={() => setIncome(null)}
+    {income && <IncomeDialog start={income} sources={family.money.sources} goals={plan.goals} today={today} onClose={() => setIncome(null)}
+      onDelete={income.id ? () => { setMoney((m) => ({ ...m, incomeLog: m.incomeLog.filter((x) => x.id !== income.id) })); setIncome(null); say("Removed"); } : undefined}
       onSave={(e, toGoal) => {
-        setMoney((m) => ({ ...m, incomeLog: [...m.incomeLog, { id: makeId(), sourceId: e.sourceId || "", date: e.date, amount: cents(e.amount), kind: e.kind, note: e.note }].slice(-4000),
+        const row = { id: income.id || makeId(), sourceId: e.sourceId || "", date: e.date, amount: cents(e.amount), kind: e.kind, note: e.note };
+        setMoney((m) => ({ ...m, incomeLog: (m.incomeLog.some((x) => x.id === row.id) ? m.incomeLog.map((x) => (x.id === row.id ? row : x)) : [...m.incomeLog, row]).slice(-4000),
           goalMoves: toGoal ? [...m.goalMoves, { id: makeId(), goalId: toGoal.goalId, amount: cents(toGoal.amount), date: e.date }] : m.goalMoves }));
-        setIncome(null); say(`${money(e.amount)} logged${toGoal ? `, ${money(toGoal.amount)} to ${plan.goals.find((g) => g.id === toGoal.goalId)?.name}` : ""}`);
+        setIncome(null); say(`${money(e.amount)} ${income.id ? "saved" : "logged"}${toGoal ? `, ${money(toGoal.amount)} to ${plan.goals.find((g) => g.id === toGoal.goalId)?.name}` : ""}`);
       }} />}
+    {source && <SourceEditor start={source} isNew={!family.money.sources.some((x) => x.id === source.id)} month={month} onClose={() => setSource(null)}
+      onSave={(s2) => { setMoney((m) => ({ ...m, setUp: true, sources: m.sources.some((x) => x.id === s2.id) ? m.sources.map((x) => (x.id === s2.id ? s2 : x)) : [...m.sources, s2] })); setSource(null); say(`${s2.name} saved`); }}
+      onDelete={(s2) => { if (confirmed(`Remove "${s2.name}" from your income? Money already logged from it stays.`)) { setMoney((m) => ({ ...m, sources: m.sources.filter((x) => x.id !== s2.id) })); setSource(null); } }} />}
+    {editExpense && <ExpenseEditor start={editExpense} categories={family.budget} onClose={() => setEditExpense(null)}
+      onSave={(x) => { setFamily((f) => ({ ...f, expenses: f.expenses.map((e) => (e.id === x.id ? x : e)) })); setEditExpense(null); say("Saved"); }}
+      onDelete={(x) => { setFamily((f) => ({ ...f, expenses: f.expenses.filter((e) => e.id !== x.id) })); setEditExpense(null); say("Removed"); }} />}
+    {settings && <SettingsDialog style={plan.style} cushion={plan.cushion} onClose={() => setSettings(false)} onRedo={() => { setSettings(false); setSetup(true); }}
+      onSave={(style, cushion) => { setMoney((m) => ({ ...m, style, cushion })); setSettings(false); say("Settings saved"); }} />}
     {goal && <GoalEditor goal={goal} isNew={!plan.goals.some((g) => g.id === goal.id)} onClose={() => setGoal(null)}
       onSave={(g) => { setMoney((m) => ({ ...m, goals: m.goals.some((x) => x.id === g.id) ? m.goals.map((x) => (x.id === g.id ? g : x)) : [...m.goals, g] })); setGoal(null); say("Goal saved"); }}
       onDelete={(g) => { if (confirmed(`Delete the goal "${g.name}"?`)) { setMoney((m) => ({ ...m, goals: m.goals.filter((x) => x.id !== g.id), goalMoves: m.goalMoves.filter((x) => x.goalId !== g.id) })); setGoal(null); } }} />}
@@ -467,16 +504,18 @@ function PayDialog({ bill, status, month, today, onPay, onUndo, onClose }: { bil
   </Modal>;
 }
 
-function IncomeDialog({ start, sources, goals, today, onSave, onClose }: { start: Partial<IncomeEntry>; sources: { id: string; name: string; kind: string; amount: number }[]; goals: Goal[]; today: string;
-  onSave: (e: { kind: IncomeEntry["kind"]; sourceId?: string; amount: number; date: string; note: string }, toGoal: { goalId: string; amount: number } | null) => void; onClose: () => void }) {
+function IncomeDialog({ start, sources, goals, today, onSave, onDelete, onClose }: { start: Partial<IncomeEntry>; sources: IncomeSource[]; goals: Goal[]; today: string;
+  onSave: (e: { kind: IncomeEntry["kind"]; sourceId?: string; amount: number; date: string; note: string }, toGoal: { goalId: string; amount: number } | null) => void; onDelete?: () => void; onClose: () => void }) {
+  const editing = !!start.id;
   const [kind, setKind] = useState<IncomeEntry["kind"]>(start.kind || "pay");
   const [sourceId, setSourceId] = useState(start.sourceId || sources.find((s) => s.kind === (kind === "pay" ? "paycheck" : kind))?.id || "");
   const [amount, setAmount] = useState(start.amount ? String(start.amount) : "");
   const [date, setDate] = useState(start.date || today);
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState(start.note || "");
   const [goalId, setGoalId] = useState("");
   const [goalAmount, setGoalAmount] = useState("");
-  return <Modal title="Log income" eyebrow="Budget" onClose={onClose}>
+  const scheduled = sources.filter((s) => s.kind !== "tips");
+  return <Modal title={editing ? "Edit income" : "Log income"} eyebrow="Budget" onClose={onClose}>
     <form onSubmit={(e) => { e.preventDefault(); const n = Number(amount); if (!(n > 0)) return; onSave({ kind, sourceId, amount: n, date, note: note.trim().slice(0, 120) }, goalId && Number(goalAmount) > 0 ? { goalId, amount: Number(goalAmount) } : null); }} className="space-y-4">
       <div className="grid grid-cols-4 gap-1.5 rounded-2xl bg-slate-100 p-1">{(["pay", "tips", "bonus", "other"] as const).map((k) => <button key={k} type="button" aria-pressed={kind === k} onClick={() => { setKind(k); setSourceId(sources.find((s) => s.kind === (k === "pay" ? "paycheck" : k))?.id || ""); }}
         className={`min-h-10 rounded-xl text-sm font-bold ${kind === k ? "bg-white text-slate-900 shadow" : "text-slate-600"}`}>{KIND_WORD[k]}</button>)}</div>
@@ -484,16 +523,95 @@ function IncomeDialog({ start, sources, goals, today, onSave, onClose }: { start
         <Label text="Amount"><input autoFocus type="number" inputMode="decimal" min={0} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className={inputClass} placeholder="$" /></Label>
         <Label text="Date"><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputClass} /></Label>
       </div>
-      {kind === "pay" && sources.some((s) => s.kind === "paycheck") && <Label text="From"><select value={sourceId} onChange={(e) => setSourceId(e.target.value)} className={inputClass}>{sources.filter((s) => s.kind === "paycheck").map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}<option value="">Other</option></select></Label>}
+      {(kind === "pay" || kind === "other") && scheduled.length > 0 && <Label text="From"><select value={sourceId} onChange={(e) => setSourceId(e.target.value)} className={inputClass}>{scheduled.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}<option value="">Somewhere else</option></select></Label>}
       <Label text="Note (optional)"><input value={note} maxLength={120} onChange={(e) => setNote(e.target.value)} className={inputClass} placeholder={kind === "tips" ? "Friday double" : kind === "bonus" ? "Holiday bonus" : ""} /></Label>
-      {goals.length > 0 && (kind === "bonus" || kind === "tips" || kind === "other") && <div className="space-y-2 rounded-2xl bg-emerald-50 p-3">
+      {!editing && goals.length > 0 && (kind === "bonus" || kind === "tips" || kind === "other") && <div className="space-y-2 rounded-2xl bg-emerald-50 p-3">
         <p className="text-sm font-bold text-emerald-900">Put some toward a goal? (optional)</p>
         <div className="grid grid-cols-2 gap-2">
           <select value={goalId} onChange={(e) => setGoalId(e.target.value)} aria-label="Goal" className={inputClass}><option value="">No</option>{goals.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select>
           <input type="number" min={0} step="0.01" value={goalAmount} onChange={(e) => setGoalAmount(e.target.value)} aria-label="Amount to goal" placeholder="$" className={inputClass} disabled={!goalId} />
         </div>
       </div>}
-      <button type="submit" className={primary + " w-full"}><Check size={17} /> Save</button>
+      <div className="flex gap-2"><button type="submit" className={primary + " flex-1"}><Check size={17} /> Save</button>
+        {onDelete && <button type="button" onClick={onDelete} className={danger} aria-label="Delete this income" data-testid="budget-income-dialog-delete"><Trash2 size={17} /> Delete</button>}</div>
+    </form>
+  </Modal>;
+}
+
+/** How a source pays, in words: "Every 2 weeks · $1,100 a check · Nov 6, Nov 20". */
+function sourceLine(s: IncomeSource, month: string) {
+  const days = paydays(s, month);
+  if (s.kind === "tips") return `Tips · about ${money(s.amount)} a week`;
+  if (s.frequency === "irregular") return `Changes · about ${money(s.amount)} a month`;
+  return `${FREQ_LABEL[s.frequency]} · ${money(s.amount)} ${s.kind === "paycheck" ? "a check" : "each time"}${days.length ? ` · ${days.map(day).join(", ")}` : s.frequency === "weekly" || s.frequency === "biweekly" ? " · add a payday" : ""}`;
+}
+
+const SOURCE_KINDS: [IncomeSource["kind"], string][] = [["paycheck", "Paycheck"], ["tips", "Tips"], ["gig", "Gigs / shifts"], ["other", "Other money"]];
+function SourceEditor({ start, isNew, month, onSave, onDelete, onClose }: { start: IncomeSource; isNew: boolean; month: string; onSave: (s: IncomeSource) => void; onDelete: (s: IncomeSource) => void; onClose: () => void }) {
+  const [s, setS] = useState(start);
+  const [amount, setAmount] = useState(start.amount ? String(start.amount) : "");
+  const set = (p: Partial<IncomeSource>) => setS((x) => ({ ...x, ...p }));
+  const freq = (f: PayFrequency) => set({ frequency: f, days: f === "semimonthly" ? (s.days.length === 2 ? s.days : [1, 15]) : f === "monthly" ? [s.days[0] || 1] : [] });
+  const isTips = s.kind === "tips";
+  const fixed = !isTips && s.frequency !== "irregular";
+  const preview = { ...s, amount: Number(amount) || 0 };
+  return <Modal title={isNew ? "Add income" : `Edit ${start.name || "income"}`} eyebrow="How you get paid" onClose={onClose}>
+    <form onSubmit={(e) => { e.preventDefault(); if (!s.name.trim()) return; onSave({ ...s, name: s.name.trim().slice(0, 60), amount: Math.max(0, Number(amount) || 0), anchor: s.anchor || "" }); }} className="space-y-4" data-testid="budget-source-editor">
+      <div className="grid grid-cols-2 gap-1.5 rounded-2xl bg-slate-100 p-1 sm:grid-cols-4">{SOURCE_KINDS.map(([k, w]) => <button key={k} type="button" aria-pressed={s.kind === k}
+        onClick={() => set({ kind: k, frequency: k === "tips" || k === "gig" ? "irregular" : s.frequency === "irregular" ? (k === "paycheck" ? "biweekly" : "monthly") : s.frequency, days: k === "other" && s.frequency === "irregular" ? [1] : s.days })}
+        className={`min-h-10 rounded-xl text-sm font-bold ${s.kind === k ? "bg-white text-slate-900 shadow" : "text-slate-600"}`}>{w}</button>)}</div>
+      <Label text="Name"><input autoFocus required maxLength={60} value={s.name} onChange={(e) => set({ name: e.target.value })} className={inputClass} placeholder={isTips ? "Tips" : s.kind === "paycheck" ? "My job" : s.kind === "gig" ? "DoorDash" : "Child support"} /></Label>
+      {!isTips && <Label text="How often does it come?">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{(["weekly", "biweekly", "semimonthly", "monthly", "irregular"] as PayFrequency[]).map((f) =>
+          <button key={f} type="button" aria-pressed={s.frequency === f} onClick={() => freq(f)} className={`min-h-10 rounded-xl px-2 text-sm font-bold ${s.frequency === f ? "bg-violet-600 text-white" : "bg-white text-slate-700 ring-1 ring-slate-200"}`}>{f === "semimonthly" ? "Twice a month" : FREQ_LABEL[f]}</button>)}</div>
+      </Label>}
+      <div className="grid grid-cols-2 gap-3">
+        <Label text={isTips ? "A normal week of tips" : fixed ? (s.kind === "paycheck" ? "Take-home each check" : "Each time") : "A usual (slow) month"}><input type="number" inputMode="decimal" min={0} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className={inputClass} placeholder="$" /></Label>
+        {(s.frequency === "weekly" || s.frequency === "biweekly") && !isTips && <Label text="A payday (any one)"><input type="date" value={s.anchor} onChange={(e) => set({ anchor: e.target.value })} className={inputClass} /></Label>}
+        {s.frequency === "monthly" && !isTips && <Label text="Day of the month"><input type="number" min={1} max={31} value={s.days[0] ?? 1} onChange={(e) => set({ days: [Math.min(31, Math.max(1, Math.round(Number(e.target.value)) || 1))] })} className={inputClass} /></Label>}
+        {s.frequency === "semimonthly" && !isTips && <Label text="Which days?"><div className="flex items-center gap-2">
+          <input type="number" min={1} max={31} value={s.days[0] ?? 1} onChange={(e) => set({ days: [Math.round(Number(e.target.value)) || 1, s.days[1] ?? 15] })} className={inputClass} aria-label="First day" /><span className="text-slate-400">&</span>
+          <input type="number" min={1} max={31} value={s.days[1] ?? 15} onChange={(e) => set({ days: [s.days[0] ?? 1, Math.round(Number(e.target.value)) || 15] })} className={inputClass} aria-label="Second day" /></div></Label>}
+      </div>
+      {Number(amount) > 0 && <p className="rounded-xl bg-emerald-50 px-3 py-2.5 text-sm font-bold text-emerald-900">About {money(expectedFrom(preview, month))} this month{paydays(preview, month).length ? ` · ${paydays(preview, month).map(day).join(", ")}` : ""}</p>}
+      <div className="flex gap-2 border-t border-slate-100 pt-4">
+        <button type="submit" className={primary + " flex-1"}><Check size={17} /> Save</button>
+        {!isNew && <button type="button" onClick={() => onDelete(s)} className={danger} aria-label={`Remove ${s.name}`}><Trash2 size={17} /> Remove</button>}
+      </div>
+    </form>
+  </Modal>;
+}
+
+function ExpenseEditor({ start, categories, onSave, onDelete, onClose }: { start: Expense; categories: { id: string; name: string }[]; onSave: (x: Expense) => void; onDelete: (x: Expense) => void; onClose: () => void }) {
+  const [x, setX] = useState(start);
+  const [amount, setAmount] = useState(String(start.amount));
+  return <Modal title="Edit spending" eyebrow="Budget" onClose={onClose}>
+    <form onSubmit={(e) => { e.preventDefault(); const n = Number(amount); if (n > 0 && x.date) onSave({ ...x, amount: cents(n), note: x.note.trim().slice(0, 120) }); }} className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <Label text="Amount"><input autoFocus type="number" inputMode="decimal" min={0} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className={inputClass} /></Label>
+        <Label text="Date"><input type="date" value={x.date} onChange={(e) => setX({ ...x, date: e.target.value })} className={inputClass} /></Label>
+      </div>
+      <Label text="Category"><select value={x.categoryId} onChange={(e) => setX({ ...x, categoryId: e.target.value })} className={inputClass}>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}<option value="">Other</option></select></Label>
+      <Label text="What for?"><input value={x.note} maxLength={120} onChange={(e) => setX({ ...x, note: e.target.value })} className={inputClass} /></Label>
+      <div className="flex gap-2"><button type="submit" className={primary + " flex-1"}><Check size={17} /> Save</button><button type="button" onClick={() => onDelete(x)} className={danger}><Trash2 size={17} /> Delete</button></div>
+    </form>
+  </Modal>;
+}
+
+function SettingsDialog({ style, cushion, onSave, onRedo, onClose }: { style: PlanStyle; cushion: number; onSave: (style: PlanStyle, cushion: number) => void; onRedo: () => void; onClose: () => void }) {
+  const [st, setSt] = useState(style);
+  const [c, setC] = useState(cushion ? String(cushion) : "");
+  return <Modal title="Budget settings" eyebrow="Budget" onClose={onClose}>
+    <form onSubmit={(e) => { e.preventDefault(); onSave(st, Math.max(0, Number(c) || 0)); }} className="space-y-4" data-testid="budget-settings-dialog">
+      <Label text="Plan">
+        <div className="grid grid-cols-2 gap-1.5 rounded-2xl bg-slate-100 p-1">{(["paycheck", "monthly"] as PlanStyle[]).map((k) => <button key={k} type="button" aria-pressed={st === k} onClick={() => setSt(k)} className={`min-h-10 rounded-xl text-sm font-bold ${st === k ? "bg-white text-slate-900 shadow" : "text-slate-600"}`}>{k === "paycheck" ? "By paycheck" : "By month"}</button>)}</div>
+      </Label>
+      <p className="-mt-2 text-xs leading-5 text-slate-500">{st === "paycheck" ? "Each check pays the bills due before the next one, and the top shows what's safe to spend until payday." : "One plan for the month: what's left to spend after bills, limits and goals."}</p>
+      <Label text="Cushion each month (kept aside for surprises)"><input type="number" min={0} step="0.01" value={c} onChange={(e) => setC(e.target.value)} className={inputClass} placeholder="$0" /></Label>
+      <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+        <button type="submit" className={primary + " flex-1"}><Check size={17} /> Save</button>
+        <button type="button" onClick={onRedo} className={plain}><Sparkles size={15} /> Redo setup questions</button>
+      </div>
     </form>
   </Modal>;
 }

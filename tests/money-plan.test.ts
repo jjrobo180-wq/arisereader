@@ -16,6 +16,8 @@ test("paydays: 1st & 15th, every 2 weeks from a known payday, weekly, monthly; t
   assert.equal(paydays(src({ frequency: "weekly", anchor: "2026-11-06" }), "2026-10").length, 5);
   assert.deepEqual(paydays(src({ frequency: "monthly", days: [31] }), "2026-11"), ["2026-11-30"]);
   assert.deepEqual(paydays(src({ kind: "tips", frequency: "irregular" }), "2026-11"), []);
+  assert.deepEqual(paydays(src({ kind: "other", frequency: "monthly", days: [5] }), "2026-11"), ["2026-11-05"], "other money on a set day (child support, a school check)");
+  assert.deepEqual(paydays(src({ kind: "gig", frequency: "irregular" }), "2026-11"), []);
 });
 
 test("expected income: checks in the month, tips by the week, gigs by the month", () => {
@@ -96,4 +98,14 @@ test("saved data: the plan and split bills survive cleaning, junk is dropped, ol
   assert.equal(old.money.setUp, false);
   assert.equal(cleanParts([{ day: 1, amount: 10 }]), undefined, "one part is just the bill");
   assert.equal(cleanMoney("junk").sources.length, 0);
+});
+
+test("paydays that have come and aren't logged ask to be confirmed", async () => {
+  const { paydaysToConfirm } = await import("../shared/moneyPlan");
+  const p = plan({ sources: [{ id: "job", name: "Job", kind: "paycheck", frequency: "semimonthly", amount: 1400, days: [1, 15], anchor: "" }],
+    incomeLog: [] });
+  assert.deepEqual(paydaysToConfirm(p, "2026-11", "2026-11-16").map((x) => x.date), ["2026-11-01", "2026-11-15"]);
+  const logged = { ...p, incomeLog: [{ id: "x", sourceId: "job", date: "2026-11-01", amount: 1400, kind: "pay" as const, note: "" }] };
+  assert.deepEqual(paydaysToConfirm(logged, "2026-11", "2026-11-16").map((x) => x.date), ["2026-11-15"]);
+  assert.deepEqual(paydaysToConfirm(logged, "2026-11", "2026-11-10").length, 0);
 });
