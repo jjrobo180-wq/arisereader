@@ -100,7 +100,7 @@ export const FREQ_LABEL: Record<PayFrequency, string> = { weekly: "Every week", 
 /** The days a source pays in a month (none for income that comes whenever: tips, gigs). */
 export function paydays(s: IncomeSource, month: string): string[] {
   const first = `${month}-01`, last = onDay(month, 31);
-  if (s.kind !== "paycheck" || s.frequency === "irregular") return [];
+  if (s.kind === "tips" || s.frequency === "irregular") return [];
   if (s.frequency === "semimonthly") return (s.days.length ? s.days : [1, 15]).map((d) => onDay(month, d));
   if (s.frequency === "monthly") return [onDay(month, s.days[0] ?? 1)];
   const step = s.frequency === "weekly" ? 7 : 14;
@@ -116,7 +116,7 @@ export function paydays(s: IncomeSource, month: string): string[] {
 /** What a source usually brings in a month (tips: a usual week, times 52 weeks over 12 months). */
 export function expectedFrom(s: IncomeSource, month: string): number {
   if (s.kind === "tips") return cents((s.amount * 52) / 12);
-  if (s.kind !== "paycheck" || s.frequency === "irregular") return s.amount;
+  if (s.frequency === "irregular") return s.amount;
   return cents(paydays(s, month).length * s.amount);
 }
 export const expectedIncome = (plan: MoneyPlan, month: string) => cents(plan.sources.reduce((t, s) => t + expectedFrom(s, month), 0));
@@ -302,4 +302,10 @@ export function monthCsv(plan: MoneyPlan, bills: PlanBill[], expenses: Expense[]
   for (const p of plan.payments.filter((x) => x.month === month)) lines.push([p.date, "Bill", q(bills.find((b) => b.id === p.billId)?.name || "Bill"), q(bills.find((b) => b.id === p.billId)?.category || ""), (-p.amount).toFixed(2)].join(","));
   for (const e of expenses.filter((x) => x.date.startsWith(month))) lines.push([e.date, "Spending", q(e.note), q(budget.find((c) => c.id === e.categoryId)?.name || "Other"), (-e.amount).toFixed(2)].join(","));
   return lines.sort((a, b) => (a.startsWith("Date") ? -1 : b.startsWith("Date") ? 1 : a.localeCompare(b))).join("\n");
+}
+
+/** Paydays this month that have come (on or before today) and aren't logged yet: "Did you get paid?". */
+export function paydaysToConfirm(plan: MoneyPlan, month: string, today: string) {
+  return plan.sources.flatMap((s) => paydays(s, month).filter((d) => d <= today && !loggedPay(plan, s.id, d)).map((date) => ({ source: s, date })))
+    .sort((a, b) => a.date.localeCompare(b.date));
 }
