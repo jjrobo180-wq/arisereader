@@ -91,6 +91,9 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   accountability: { label: "Accountability", detail: "Ask each other, get nudged, check it off with proof", icon: <BadgeCheckIcon4 size={17} /> },
   medical: { label: "Medical info", detail: "Allergies, medicines, blood type", icon: <HeartPulseIcon2 size={17} /> },
   browser: { label: "Browser", detail: "Browse, bookmark and save pages as tasks", icon: <GlobeIcon2 size={17} /> },
+  healthlite: { label: "Health Lite", detail: "Pick your health tools", icon: <HeartPulseIcon2 size={17} /> },
+  inspire: { label: "Journal & Inspiration", detail: "Journal, quotes, gratitude", icon: <BookOpenIcon size={17} /> },
+  kitchen: { label: "Kitchen", detail: "Shop, plan, cook", icon: <ChefHatIcon size={17} /> },
   // The Plugin Kit's LifeHub plugins (shared/pluginKit.ts).
   ...(Object.fromEntries(KIT_DEFS.filter((d) => d.hub === "life").map((d) => { const Icon = kitIcon(d.icon); return [d.id, { label: d.name, detail: d.tagline, icon: <Icon size={17} /> }]; })) as Record<KitLifeId, { label: string; detail: string; icon: ReactNode }>),
 };

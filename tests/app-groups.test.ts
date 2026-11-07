@@ -11,15 +11,15 @@ test("every grouped id is a real section and in only one group", () => {
   }
 });
 test("a group collapses to one tile at its first app that is on", () => {
-  const on = ["home", "tasks", "pills", "mood", "grocery", "recipes", "bible"];
-  assert.deepEqual(collapseGroups(on, on), ["home", "tasks", "pills", "grocery", "bible"]);
-  assert.equal(leadOf("mood", on), "pills");
-  assert.equal(groupLabel("pills", on, "Medications"), "Health");
-  assert.deepEqual(groupMembers("recipes", on), ["grocery", "recipes"]);
+  const on = ["home", "tasks", "subscriptions", "money", "history", "news"];
+  assert.deepEqual(collapseGroups(on, on), ["home", "tasks", "money", "news"]);
+  assert.equal(leadOf("money", on), "money");
+  assert.equal(groupLabel("money", on, "Budget & bills"), "Money");
+  assert.deepEqual(groupMembers("history", on), ["news", "history"]);
 });
 test("a lone app in a group stays a plain app", () => {
-  const on = ["home", "bible"];
+  const on = ["home", "history"];
   assert.deepEqual(collapseGroups(on, on), on);
-  assert.equal(groupLabel("bible", on, "Bible"), "Bible");
-  assert.equal(leadOf("bible", on), "bible");
+  assert.equal(groupLabel("history", on, "Today in history"), "Today in history");
+  assert.equal(leadOf("history", on), "history");
 });

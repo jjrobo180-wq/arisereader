@@ -88,6 +88,7 @@ import { cleanDriveFiles } from "@shared/driveApp";
 import NotesKitApp from "@/components/plugin-kit/NotesKitApp";
 import { LEARNING_APPS, LearningIcon, openLearning, useLearningAccess } from "@/components/hub-pieces/LearningApps";
 import { PlanCard, UpgradeHost, appsBlocked, appsFull, openUpgrade, useTodoPlan } from "@/components/hub-pieces/TodoPlan";
+import { parentOf } from "@shared/appBundles";
 import { appsIn, countsAsApp, FREE_APPS } from "@shared/todoPlan";
 import { addDays, eventsOn, cleanFamily, cleanSectionOrder, emptyFamily, FAMILY_SECTIONS, isCurrentFamily, isOn, orderedToggleable, TOGGLEABLE, ADD_ON_SECTIONS, type Family, type FamilySection } from "@shared/familyHub";
 import FamilyHome from "@/components/family-hub/FamilyHome";
@@ -286,6 +287,7 @@ const SECTION_ICONS: Record<FamilySection, typeof Home> = {
   randomizer: Shuffle, relationships: HeartHandshake, dictionary: BookOpenText, links: Link2, lifeplan: Sparkles, linked: Users,
   habits: RepeatNav, gratitude: HeartNav, focus: TimerNav, bucket: MountainNav, recipes: ChefHatNav, meals: UtensilsCrossedNav, upkeep: WrenchNav, plants: Flower2Nav, birthdays: CakeNav, gifts: GiftNav, pets: PawPrintNav, contacts: PhoneNav, subscriptions: CreditCardNav, jars: PiggyBankNav, tips: CalculatorNav, reading: BookOpenNav, watchlist: TvNav, weather: CloudSunNav, convert: ArrowLeftRightNav, car: CarNav,
   wishlist: HeartNav2, restaurants: UtensilsNav2, learning: GraduationCapNav2, projects: HammerNav2, loans: HandshakeNav2, cleaning: SparklesNav2, checkups: StethoscopeNav2, sleep: MoonNav2, sleepfinder: ListMusicNav3, earshot: PodcastNav3, workouts: DumbbellNav2, routines: ListChecksNav2, milestones: StarNav2, ious: HandCoinsNav2, allowance: CoinsNav2, giftcards: CreditCardNav2, warranties: ShieldCheckNav2, mileage: GaugeNav2, mortgage: LandmarkNav2, clocks: GlobeNav2, timers: TimerNav2, medical: HeartPulseNav2, browser: GlobeNav2, accountability: BadgeCheckNav4,
+  healthlite: HeartPulseNav2, inspire: NotebookPen, kitchen: ChefHatNav,
   ...(Object.fromEntries(KIT_DEFS.filter((d) => d.hub === "life").map((d) => [d.id, kitIcon(d.icon)])) as Record<KitLifeId, typeof Home>),
 };
 // Home, Reader, Tasks, Notifications and Family & settings stay put; everything between
@@ -724,7 +726,7 @@ export default function AriseTodo() {
   const memberByName = (name: string) => members.find(m => m.name.toLowerCase() === name.trim().toLowerCase());
   // The A.R.I.S.E. Reader tab is the parent portal, so only parents have it.
   // Getting started was replaced by the first-run walkthrough (components/AppWalkthrough.tsx).
-  const sections = sectionOrderFor(family).filter(id => id !== "start" && isOn(id, family) && (id !== "reader" || user?.role === "parent"));
+  const sections = sectionOrderFor(family).filter(id => id !== "start" && !(parentOf(id) && isOn(parentOf(id) as FamilySection, family)) && isOn(id, family) && (id !== "reader" || user?.role === "parent"));
   const installedSections = sections.filter((id) => ADD_ON_SECTIONS.includes(id));
   const builtInSections = sections.filter((id) => !ADD_ON_SECTIONS.includes(id));
   // Dragging (or, on a phone, the arrows) a menu item reorders it right where it sits.
@@ -746,7 +748,7 @@ export default function AriseTodo() {
     return { ...f, sectionOrder: current };
   });
   const trial = useLifeHubTrial();
-  const shown: FamilySection = sections.includes(section) ? section : "home";
+  const shown: FamilySection = sections.includes(section) ? section : (parentOf(section) && sections.includes(parentOf(section) as FamilySection)) ? (parentOf(section) as FamilySection) : "home";
   // Doses still to take today show on the Pills tab.
   const pillsDue = dosesOn(family, currentDay).filter((d) => !d.status).length;
   // Linked profiles: invites waiting for this person to accept, shown as a badge and a note on Home.
