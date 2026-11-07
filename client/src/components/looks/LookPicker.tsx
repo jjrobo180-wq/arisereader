@@ -3,6 +3,7 @@
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { Check, X } from "lucide-react";
 import { LOOK_GROUPS, groupedLooks, type LookInfo } from "@shared/lookCatalog";
+import { familyOf } from "@shared/lookFamilies";
 
 const LookPreview = lazy(() => import("./LookPreview"));
 
@@ -17,7 +18,8 @@ function Swatch({ colors, className = "h-12" }: { colors: string[]; className?: 
   return <span className={`flex overflow-hidden rounded-[10px] ${className}`} style={{ boxShadow: `0 0 0 1px ${C.line}` }} aria-hidden>{colors.map((c, i) => <span key={i} className="flex-1" style={{ background: c }} />)}</span>;
 }
 
-function Sheet({ info, plain, on, onUse, onClose, accent }: { info?: LookInfo; plain?: PlainTheme; on: boolean; onUse: () => void; onClose: () => void; accent: string }) {
+function Sheet({ info, plain, on, onUse, onClose, accent, variants = [], onVariant }: { info?: LookInfo; plain?: PlainTheme; on: boolean; onUse: () => void; onClose: () => void; accent: string;
+  /** The colors this design comes in (one look each); picking one previews it. */ variants?: { id: string; color: string; bg: string; dot: string; on: boolean }[]; onVariant?: (id: string) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
@@ -26,7 +28,8 @@ function Sheet({ info, plain, on, onUse, onClose, accent }: { info?: LookInfo; p
     window.addEventListener("keydown", key);
     return () => { window.removeEventListener("keydown", key); prev?.focus?.(); };
   }, [onClose]);
-  const name = info?.name ?? plain!.name, blurb = info?.blurb ?? plain!.blurb, swatch = info?.swatch ?? plain!.swatch;
+  const fam = info ? familyOf(info.id) : undefined;
+  const name = fam?.name ?? info?.name ?? plain!.name, blurb = fam?.blurb ?? info?.blurb ?? plain!.blurb, swatch = info?.swatch ?? plain!.swatch;
   const group = info ? LOOK_GROUPS.find((g) => g.id === info.group)?.name : "Special";
   return <div className="kb-sheet fixed inset-0 z-[90] flex items-end justify-center bg-black/55 sm:items-center" onClick={onClose} data-testid="look-sheet">
     <div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`${name} preview`} onClick={(e) => e.stopPropagation()}
@@ -39,6 +42,11 @@ function Sheet({ info, plain, on, onUse, onClose, accent }: { info?: LookInfo; p
         </div>
         <button type="button" aria-label="Close preview" onClick={onClose} className="grid h-11 w-11 flex-none place-items-center rounded-full" style={{ background: "#f1f5f9", color: "#334155" }}><X className="h-5 w-5" /></button>
       </div>
+      {variants.length > 1 && <div className="flex flex-wrap gap-2 px-5 pb-3" role="radiogroup" aria-label="Color" data-testid="look-variants">
+        {variants.map((v) => <button key={v.id} type="button" role="radio" aria-checked={v.on} onClick={() => onVariant?.(v.id)} data-testid={`look-variant-${v.id}`}
+          className="inline-flex min-h-10 items-center gap-2 rounded-full border px-3 text-[14px] font-bold" style={{ borderColor: v.on ? accent : "#cbd5e1", boxShadow: v.on ? `0 0 0 2px ${accent}` : undefined, color: "#0f172a", background: "#ffffff" }}>
+          <span className="h-5 w-5 rounded-full" style={{ background: `linear-gradient(135deg, ${v.bg} 50%, ${v.dot} 50%)`, boxShadow: "0 0 0 1px rgba(15,23,42,.2)" }} aria-hidden />{v.color}</button>)}
+      </div>}
       <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-3">
         {info ? <Suspense fallback={<div className="grid h-60 place-items-center text-sm" style={{ color: "#475569" }}>Drawing the preview…</div>}><LookPreview look={info.look} /></Suspense>
           : <div className="py-3"><Swatch colors={swatch} className="h-24" /><p className="mt-3 text-[13px]" style={{ color: "#475569" }}>This one restyles the hub itself. Pick it to see it everywhere.</p></div>}
@@ -56,8 +64,28 @@ export default function LookPicker({ current, onPick, plain = [], accent = "#5b4
   const [open, setOpen] = useState<string | null>(null);
   const find = (id: string) => groups.flatMap((g) => g.items).find((l) => l.id === id);
   const openInfo = open ? find(open) : undefined, openPlain = open ? plain.find((p) => p.id === open) : undefined;
+  const all = groups.flatMap((g) => g.items);
+  const curFam = familyOf(current);
+  /** A family shows once (where its first color sits), as its current color if that's yours. */
+  const shownIn = (list: LookInfo[]) => {
+    const seen = new Set<string>(); const out: LookInfo[] = [];
+    for (const l of list) {
+      const fam = familyOf(l.id);
+      if (!fam) { out.push(l); continue; }
+      if (seen.has(fam.id) || all.find((x) => familyOf(x.id)?.id === fam.id)?.id !== l.id) continue;
+      seen.add(fam.id);
+      out.push(curFam?.id === fam.id ? (find(current) ?? l) : l);
+    }
+    return out;
+  };
+  const variantsOf = (id: string) => {
+    const fam = familyOf(id); if (!fam) return [];
+    return fam.variants.map((v) => { const l = find(v.id); return l ? { id: v.id, color: v.color, bg: l.look.bg, dot: l.look.accent, on: v.id === open } : null; }).filter(Boolean) as { id: string; color: string; bg: string; dot: string; on: boolean }[];
+  };
   const card = (id: string, name: string, blurb: string, swatch: string[]) => {
-    const on = current === id;
+    const fam = familyOf(id);
+    const on = current === id || (!!fam && curFam?.id === fam.id);
+    if (fam) { name = fam.name; blurb = `${fam.variants.length} colors · ${fam.blurb}`; }
     return <button key={id} type="button" aria-pressed={on} onClick={() => setOpen(id)} data-testid={`${testPrefix}-${id}`}
       className="flex min-w-0 flex-col rounded-2xl border p-2.5 text-left transition active:scale-[.98]" style={{ background: C.card, color: C.ink, borderColor: on ? accent : C.line, boxShadow: on ? `0 0 0 2px ${accent}` : undefined }}>
       <Swatch colors={swatch} />
@@ -70,13 +98,13 @@ export default function LookPicker({ current, onPick, plain = [], accent = "#5b4
       const list = hideClassic ? items.filter((l) => l.id !== "classic") : items;
       if (!list.length) return null;
       return <section key={group.id} aria-labelledby={`${testPrefix}-g-${group.id}`}>
-        <h3 id={`${testPrefix}-g-${group.id}`} className="text-[16px] font-black" style={{ color: C.ink }}>{group.name} <span className="text-[12px] font-semibold" style={{ color: C.muted }}>· {list.length}</span></h3>
+        <h3 id={`${testPrefix}-g-${group.id}`} className="text-[16px] font-black" style={{ color: C.ink }}>{group.name} <span className="text-[12px] font-semibold" style={{ color: C.muted }}>· {shownIn(list).length}</span></h3>
         <p className="mb-2.5 text-[13px]" style={{ color: C.muted }}>{group.note}</p>
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">{list.map((l) => card(l.id, l.name, l.blurb, l.swatch))}</div>
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">{shownIn(list).map((l) => card(l.id, l.name, l.blurb, l.swatch))}</div>
       </section>;
     })}
     {plain.length > 0 && <section><h3 className="text-[16px] font-black" style={{ color: C.ink }}>Just for the hubs</h3><p className="mb-2.5 text-[13px]" style={{ color: C.muted }}>Whole-hub styles that change how Home is laid out.</p>
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">{plain.map((p) => card(p.id, p.name, p.blurb, p.swatch))}</div></section>}
-    {(openInfo || openPlain) && <Sheet info={openInfo} plain={openPlain} on={current === open} accent={accent} onUse={() => onPick(open!)} onClose={() => setOpen(null)} />}
+    {(openInfo || openPlain) && <Sheet key={open ? familyOf(open)?.id ?? open : ""} info={openInfo} plain={openPlain} on={current === open} accent={accent} onUse={() => onPick(open!)} onClose={() => setOpen(null)} variants={open ? variantsOf(open) : []} onVariant={setOpen} />}
   </div>;
 }

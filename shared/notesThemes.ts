@@ -11,7 +11,7 @@ export type NotesTheme = {
   /** Studio series: the colors at night, when the look is light. */
   night?: Pick<NotesTheme, "bg" | "card" | "line" | "ink" | "muted" | "faint" | "accent" | "accentInk" | "accentSoft" | "onAccent">;
 };
-import { PROTO_LOOKS } from "./protoLooks";
+import { PROTO_LOOKS, contrast, mix } from "./protoLooks";
 const SANS = '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
 const g = (families: string) => `https://fonts.googleapis.com/css2?${families}&display=swap`;
 export const NOTES_THEMES: NotesTheme[] = [
@@ -116,7 +116,15 @@ const NIGHT_COLORS: Partial<Record<NotesThemeId, NightColors>> = {
 const nightCache = new Map<NotesThemeId, NotesTheme>();
 /** A look in night mode. Looks that are already dark stay as they are. */
 export function nightLook(t: NotesTheme): NotesTheme {
-  const colors = NIGHT_COLORS[t.id] ?? t.night;
+  const ok = (c: string) => /^#[0-9a-f]{6}$/i.test(c);
+  // An already-dark look goes deeper at night (near-black page and cards, the same accent), so night mode is a
+  // real change there too (it looked exactly the same as day).
+  const deeper = !NIGHT_COLORS[t.id] && !t.night && t.dark && ok(t.bg) && ok(t.card) && ok(t.line)
+    ? { bg: mix(t.bg, "#000000", 0.65), card: mix(t.card, "#000000", 0.5), line: mix(t.line, "#000000", 0.35),
+        ...(ok(t.ink) ? { ink: mix(t.ink, t.bg, 0.16) } : {}), ...(ok(t.muted) ? { muted: mix(t.muted, t.bg, 0.12) } : {}),
+        // The accent dims only as far as its own label stays readable.
+        ...(ok(t.accent) && ok(t.onAccent) ? (() => { for (const k of [0.22, 0.15, 0.08]) { const a = mix(t.accent, "#000000", k); if (contrast(a, t.onAccent) >= 4.6) return { accent: a }; } return {}; })() : {}) } : null;
+  const colors = NIGHT_COLORS[t.id] ?? t.night ?? deeper;
   if (!colors) return t;
   let out = nightCache.get(t.id);
   if (!out) { out = { ...t, ...colors, dark: true }; nightCache.set(t.id, out); }

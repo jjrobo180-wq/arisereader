@@ -120,7 +120,7 @@ import { HubMoreMenu, hubMoreGroups, openNotificationBell } from "@/components/H
 import SameBothHubs from "@/components/SameBothHubs";
 import AppWalkthrough from "@/components/AppWalkthrough";
 import HubCoach from "@/components/HubCoach";
-import { SHARED_LOOK_EVENT, readNight, rememberLook, withSharedLook, writeNight } from "@/lib/sharedLook";
+import { SHARED_LOOK_EVENT, readNight, stampLook, withNight, withSharedLook, writeNight } from "@/lib/sharedLook";
 import GettingStarted from "@/components/GettingStarted";
 import SnoozeBar from "@/components/SnoozeBar";
 import { startingRole } from "@shared/gettingStarted";
@@ -504,7 +504,7 @@ export default function AriseTodo() {
   // when the phone itself is set to dark mode; night mode is only on once someone switches it on.
   // Night mode is shared with WorkHub until "Same settings in both hubs" is turned off (lib/sharedLook.ts).
   const [night, setNight] = useState(() => readNight("life", NIGHT_KEY));
-  const toggleNight = () => setNight(on => { writeNight("life", !on, NIGHT_KEY); return !on; });
+  const toggleNight = () => { const on = !night; writeNight("life", on, NIGHT_KEY); setNight(on); setFamily((f) => ({ ...f, layout: withNight(f.layout as LifeLayout, on) })); };
   const [, setLookTick] = useState(0);
   useEffect(() => { const f = () => { setNight(readNight("life", NIGHT_KEY)); setLookTick((x) => x + 1); }; window.addEventListener(SHARED_LOOK_EVENT, f); window.addEventListener("storage", f); return () => { window.removeEventListener(SHARED_LOOK_EVENT, f); window.removeEventListener("storage", f); }; }, []);
   const [legacy, setLegacy] = useState<Data | null>(() => {
@@ -775,9 +775,9 @@ export default function AriseTodo() {
    *  the crossed-over ones; they open full-page like a Notes-app install. */
   const myKits = (family.kitInstalled ?? []).map((k) => kitDef(k)).filter((d): d is NonNullable<ReturnType<typeof kitDef>> => !!d);
   const pinnableApps = [...pinnableNotes, ...pinnableSheets, ...(drivePlugin ? [drivePlugin] : []), ...(dropPlugin ? [dropPlugin] : [])];
-  const layout = withSharedLook(cleanLifeLayout(family.layout, pinnableApps.map((p) => p.id)));
+  const layout = withSharedLook(cleanLifeLayout(family.layout, pinnableApps.map((p) => p.id)), "life");
   const [setupOpen, setSetupOpen] = useState(() => !!user && !isSampleMode() && !duoSetupDone(user.id));
-  const setLayout = (next: LifeLayout) => { rememberLook(next); setFamily((f) => ({ ...f, layout: next })); window.dispatchEvent(new Event(SHARED_LOOK_EVENT)); };
+  const setLayout = (next: LifeLayout) => { const stamped = stampLook(layout, next); setFamily((f) => ({ ...f, layout: stamped })); window.dispatchEvent(new Event(SHARED_LOOK_EVENT)); };
   // The current theme's structural feel, reused for the task list's row style below (see
   // shared/appThemes.ts's HubTheme.homeLayout) — "cards" (today's) for Classic/Sunrise/Forest,
   // a dense tap-chip wrap for Tile/Candy, bracketed text lines for Old Computer, and a quiet
