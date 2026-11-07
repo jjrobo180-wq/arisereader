@@ -150,7 +150,7 @@ export default function PageScreen({ ctx, id, onBack }: { ctx: AppCtx; id: strin
 
   return <div className="flex h-full min-h-0 flex-col" data-paper={look.theme} style={{ background: lookStyle(look).background as string }} data-testid="pages-note">
     {/* Top bar */}
-    <header className="an-noprint an-notehead sticky top-0 z-30 flex items-center gap-1 px-2 pt-[env(safe-area-inset-top)]">
+    <header className="an-noprint an-notehead sticky top-0 z-30 flex items-center gap-1 px-2 pt-[var(--sat,env(safe-area-inset-top,0px))]">
       <IconBtn label="Back to notes" onClick={back}><ChevronLeft className="h-6 w-6" /></IconBtn>
       <span className="min-w-0 flex-1 truncate text-[13px] text-[var(--an-muted)]">{page.locked && !content ? "Locked" : SYNC_WORDS[state]}</span>
       {content && <IconBtn label="Appearance" onClick={() => setPanel("look")}><Palette className="h-5 w-5" /></IconBtn>}

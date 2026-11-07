@@ -10,6 +10,8 @@ import {
   type AcctTask, type Checkin, type Proof, type ProofKind, type Quiz, type Repeat, type Space, type TaskKind, type Worksheet, type WsItem,
 } from "@shared/accountability";
 import { publishWidgets } from "@/lib/widgets";
+import { isNativeApp } from "@/lib/nativeApp";
+import { startApplePush } from "@/lib/applePush";
 import type { SectionProps } from "./ui";
 
 const TEAL = "#0d9488";
@@ -79,6 +81,10 @@ export default function Accountability({ say }: SectionProps) {
   useEffect(() => { void load(); const t = setInterval(() => { if (document.visibilityState === "visible") void load(); }, 30_000); const f = () => { if (document.visibilityState === "visible") void load(); }; document.addEventListener("visibilitychange", f); return () => { clearInterval(t); document.removeEventListener("visibilitychange", f); }; }, [load]);
 
   const space = data?.spaces.find((s) => s.id === spaceId) ?? data?.spaces[0] ?? null;
+  // Sharing with someone: the iPhone app signs up for notifications (asking iOS the first time), so "she did it",
+  // "he asked you" and approvals arrive. It only did that when reminders were on, so most phones never heard.
+  const sharing = !!data?.spaces.some((s) => s.members.length > 1);
+  useEffect(() => { if (sharing && isNativeApp()) void startApplePush(true); }, [sharing]);
   useEffect(() => { if (space && space.id !== spaceId) setSpaceId(space.id); if (space) { try { localStorage.setItem(SPACE_KEY, space.id); } catch { /* fine */ } } }, [space?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const today = localNow(Date.now(), TZ).day;
   const nowMin = localNow(Date.now(), TZ).minutes;
@@ -509,7 +515,7 @@ function KidQuiz({ quiz, onClose, onFinish }: { quiz: Quiz; onClose: () => void;
     setPicked(k); setAnswers((a) => ({ ...a, [q.id]: String(k) }));
     setTimeout(() => { setPicked(null); setI((x) => x + 1); }, k === q.answer ? 900 : 1500);
   };
-  return <div className="fixed inset-0 z-[600] flex flex-col bg-gradient-to-b from-[#fff7ed] to-[#eef2ff] pb-[env(safe-area-inset-bottom)] pt-[max(env(safe-area-inset-top),12px)]" data-testid="acct-kid">
+  return <div className="fixed inset-0 z-[600] flex flex-col bg-gradient-to-b from-[#fff7ed] to-[#eef2ff] pb-[env(safe-area-inset-bottom)] pt-[max(var(--sat,env(safe-area-inset-top,0px)),12px)]" data-testid="acct-kid">
     <div className="flex items-center gap-3 px-4"><button type="button" onClick={onClose} aria-label="Close the quiz" className="grid h-11 w-11 place-items-center rounded-full bg-white text-slate-500 shadow"><ChevronLeft /></button>
       <div className="flex flex-1 gap-1.5">{quiz.questions.map((x, k) => <span key={x.id} className={`h-2.5 flex-1 rounded-full ${k < i ? (Number(answers[x.id]) === x.answer ? "bg-emerald-400" : "bg-rose-300") : k === i ? "bg-orange-400" : "bg-white"}`} />)}</div></div>
     {!done ? <div className="flex flex-1 flex-col items-center justify-center gap-6 px-5 text-center">

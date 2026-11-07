@@ -29,7 +29,7 @@ export function ReadyCheck({ data, name, exercises, onStart, onSkip }: { data: F
   const warm = SESSION_BY_ID.get(warmupFor(exercises));
   const R = 52, c = 2 * Math.PI * R, col = colorOf(plan.score);
   const go = () => { haptic("success"); onStart(adapt ? plan.exercises : exercises, { food, stim, stretched, ready: plan.score, adapted: adapt }); };
-  return <div className="fit-up fixed inset-0 z-[76] overflow-y-auto px-4 pb-[max(20px,env(safe-area-inset-bottom))] pt-[max(14px,env(safe-area-inset-top))]" style={{ background: C.bg, color: C.text }} role="dialog" aria-label="Before you start" data-testid="fit-ready-check">
+  return <div className="fit-up fixed inset-0 z-[76] overflow-y-auto px-4 pb-[max(20px,env(safe-area-inset-bottom))] pt-[max(14px,var(--sat,env(safe-area-inset-top,0px)))]" style={{ background: C.bg, color: C.text }} role="dialog" aria-label="Before you start" data-testid="fit-ready-check">
     <div className="flex items-center justify-between">
       <p className="text-[13px] font-semibold uppercase tracking-[.14em]" style={{ color: C.dim }}>Before you start</p>
       <button type="button" onClick={onSkip} aria-label="Skip the check-in" className="grid h-10 w-10 place-items-center rounded-full" style={{ background: C.card2 }}><X className="h-5 w-5" /></button>

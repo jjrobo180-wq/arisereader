@@ -59,7 +59,7 @@ export function TipCard({ exId, testId = "fit-tip" }: { exId: string; testId?: s
       </span>
     </button>
     {open && <Layer><div className="fixed inset-0 z-[96] flex flex-col bg-black" role="dialog" aria-modal="true" aria-label={v.title} data-testid={`${testId}-player`}>
-      <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,env(safe-area-inset-top))] text-white">
+      <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,var(--sat,env(safe-area-inset-top,0px)))] text-white">
         <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="grid h-11 w-11 place-items-center rounded-full bg-white/15"><X className="h-5 w-5" /></button>
         <p className="min-w-0 flex-1 truncate text-center text-[15px] font-semibold">{v.title}</p><span className="w-11" />
       </div>

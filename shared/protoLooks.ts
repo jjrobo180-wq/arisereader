@@ -57,7 +57,7 @@ export function protoLook(t: ProtoSpec): NotesTheme {
   const out: NotesTheme = {
     id: t.id as NotesTheme["id"], label: t.label, blurb: t.blurb, dark, arch: t.arch, group: t.group, rec: t.rec, hl: t.hl, hs: t.hs, ns: t.ns, v: t.v,
     bg: t.bg, card: t.card, line: t.line, ink: t.ink, muted: mutedBg, faint: mutedBg,
-    accent, accentInk: t.accentInk ?? reach(reach(accent, t.card, t.ink, 4.6), accentSoft, t.ink, 4.6), accentSoft, onAccent, record, onRecord,
+    accent, accentInk: t.accentInk ?? reach(reach(reach(accent, t.card, t.ink, 4.6), accentSoft, t.ink, 4.6), t.bg, t.ink, 4.6), accentSoft, onAccent, record, onRecord,
     font: stack(t.fb), display: stack(t.fd), fontUrl: fontUrl(t.fd, t.fb), radius: t.radius, border: t.border, hardShadow: t.hard,
   };
   if (!dark) out.night = nightOf(t);

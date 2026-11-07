@@ -169,7 +169,7 @@ export function ThemePicker({ testId = "fit-theme" }: { testId?: string }) {
 export function StatusShade() {
   const [, shown] = useFitTheme();
   if (!isNativeApp() || statusBarAdjustable() || shown !== "light") return null;
-  return <Layer><div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-[300]" style={{ height: "env(safe-area-inset-top)", background: "#111318" }} /></Layer>;
+  return <Layer><div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-[300]" style={{ height: "var(--sat,env(safe-area-inset-top,0px))", background: "#111318" }} /></Layer>;
 }
 
 /** A light tap on iPhone (set checked, workout started, tab changed). Nothing elsewhere. */
@@ -400,7 +400,7 @@ export function Sheet({ title, onClose, children, testId, right, inline }: { tit
     {children}
   </div>;
   return <Layer><div className="fit-sheet fixed inset-0 z-[80] flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} role="dialog" aria-modal="true" aria-label={title} data-testid={testId}>
-    <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
+    <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,var(--sat,env(safe-area-inset-top,0px)))]">
       <button type="button" onClick={onClose} aria-label="Close" className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card, boxShadow: v("card-shadow") }}><X className="h-5 w-5" /></button>
       <h1 className="min-w-0 flex-1 truncate text-center text-[22px]" style={display}>{title}</h1>
       <div className="flex min-w-11 justify-end">{right}</div>

@@ -134,7 +134,7 @@ export function CounterScreen({ kind, update, say, onClose }: { kind: "yoga" | "
   const pct = mode === "count" ? (target ? Math.min(1, n / target) : 0) : 1 - left / (mins * 60);
   const R = 118, L = 2 * Math.PI * R;
   return <Layer><div className="fixed inset-0 z-[95] flex flex-col" style={{ backgroundColor: C.bg, backgroundImage: glowBg, color: C.text, ...font }} role="dialog" aria-modal="true" aria-label="Counter and timer" data-testid="fit-counter">
-    <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
+    <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,var(--sat,env(safe-area-inset-top,0px)))]">
       <button type="button" onClick={onClose} aria-label="Close" className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card }}><X className="h-5 w-5" /></button>
       <div className="flex flex-1 justify-center"><div className="flex rounded-full p-0.5" style={{ background: C.card2 }}>{([["count", "Counter"], ["timer", "Timer"]] as const).map(([id, l]) =>
         <button key={id} type="button" onClick={() => { setMode(id); setRunning(false); }} aria-pressed={mode === id} className="h-9 rounded-full px-5 text-[14px] font-semibold" style={mode === id ? { background: C.lime, color: "var(--fit-on-accent)" } : { color: C.dim }}>{l}</button>)}</div></div>

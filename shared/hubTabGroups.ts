@@ -4,7 +4,7 @@
 import { isTabOn, type HubTab } from "./teacherHub";
 
 export type HubGroupId =
-  | "home" | "start" | "arise" | "records" | "admin" | "calendar" | "schedules" | "caseload" | "iep" | "goals" | "minutes"
+  | "home" | "start" | "arise" | "records" | "admin" | "calendar" | "schedules" | "iep" | "goals"
   | "tasks" | "notes" | "journal" | "lessons" | "gradebook" | "behavior" | "attendance" | "parents" | "email";
 
 export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonly HubTab[] }[] = [
@@ -22,10 +22,10 @@ export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonl
   // Everything else stands on its own, so the menu names the screen you are going to.
   { id: "calendar", label: "Calendar", tabs: ["calendar"] },
   { id: "schedules", label: "Student schedules", tabs: ["schedules"] },
-  { id: "caseload", label: "Caseload", tabs: ["caseload"] },
-  { id: "iep", label: "Meetings", tabs: ["iep"] },
+  // IEP is one place in the menu: meetings, notes, accommodations and progress on its own page, with the
+  // Caseload and Minutes screens opened from inside it (they used to be separate menu items).
+  { id: "iep", label: "IEP", tabs: ["iep", "caseload", "minutes"] },
   { id: "goals", label: "Goals", tabs: ["goals"] },
-  { id: "minutes", label: "Minutes", tabs: ["minutes"] },
   { id: "tasks", label: "Tasks", tabs: ["tasks"] },
   { id: "notes", label: "Notes", tabs: ["notes"] },
   { id: "journal", label: "Journal", tabs: ["journal"] },
@@ -42,8 +42,8 @@ export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonl
 /** What a tab is called on the row of buttons inside its group. */
 export const SUB_LABELS: Partial<Record<HubTab, string>> = {
   start: "Getting started", calendar: "Calendar", schedules: "Student schedules",
-  iep: "Meetings",
-  goals: "Goals", minutes: "Minutes",
+  iep: "IEP", caseload: "Caseload", minutes: "Minutes",
+  goals: "Goals",
   tasks: "Tasks", notes: "Notes", journal: "Journal",
   lessons: "Lessons", gradebook: "Gradebook",
   behavior: "Behavior", attendance: "Attendance",
@@ -53,7 +53,7 @@ export const SUB_LABELS: Partial<Record<HubTab, string>> = {
 };
 
 /** A group's name when only one of its tabs shows. */
-const ALONE: Partial<Record<HubTab, string>> = { iep: "IEP", schedules: "Schedules" };
+const ALONE: Partial<Record<HubTab, string>> = { iep: "IEP", caseload: "IEP", minutes: "IEP", schedules: "Schedules" };
 
 export function groupOf(tab: HubTab) {
   return HUB_GROUPS.find((g) => g.tabs.includes(tab)) ?? HUB_GROUPS[0];

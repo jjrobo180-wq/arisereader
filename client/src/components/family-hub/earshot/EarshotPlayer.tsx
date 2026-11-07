@@ -1984,7 +1984,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   // other tabs (pad), the notices and the sheets.
   // Room for the iPhone's notch and home bar. With the mini player showing, the mini player takes the
   // home bar's room itself (counting it twice left a gap between the page's bottom bar and it).
-  const pad = (n: ReactNode) => standalone ? <div className={`box-border h-full pt-[env(safe-area-inset-top,0px)] ${mini || tab === "social" ? "" : "pb-[env(safe-area-inset-bottom,0px)]"}`} style={{ ["--ps-safe-b" as string]: mini ? "0px" : "env(safe-area-inset-bottom, 0px)" }}>{n}</div> : n;
+  const pad = (n: ReactNode) => standalone ? <div className={`box-border h-full pt-[var(--sat,env(safe-area-inset-top,0px))] ${mini || tab === "social" ? "" : "pb-[env(safe-area-inset-bottom,0px)]"}`} style={{ ["--ps-safe-b" as string]: mini ? "0px" : "env(safe-area-inset-bottom, 0px)" }}>{n}</div> : n;
   // Social, Explore and Library are white pages; the player and its sheets stay dark.
   const page = tab === "openmic" || tab === "social" || tab === "explore" || tab === "library";
   const light = page && day;
@@ -2009,10 +2009,10 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     ? <div className={`ps-light h-full ${miniPad}`} style={siteFont}><style>{LIGHT_CSS}</style>{pad(n)}</div>
     : <div className={`h-full ${site ? "bg-[#0f0f0f]" : "bg-[#120e14]"} ${miniPad}`} style={siteFont}>{pad(n)}</div>;
   const chip = light ? "bg-black/[.05] text-[#0f1419]" : "bg-black/45";
-  const below = standalone ? "top-[calc(4rem+env(safe-area-inset-top,0px))]" : "top-16";
+  const below = standalone ? "top-[calc(4rem+var(--sat,env(safe-area-inset-top,0px)))]" : "top-16";
   return <div ref={shellRef} className={`${shell} flex flex-col overflow-hidden ${light ? "bg-white" : standalone && !page ? "bg-transparent" : site ? "bg-[#0f0f0f]" : "bg-[#120e14]"} text-white shadow-2xl`}>
     {site
-      ? <header className={`absolute inset-x-0 top-0 z-20 flex items-center gap-2 px-3 ${standalone ? "pt-[env(safe-area-inset-top,0px)]" : ""} ${light ? "bg-white text-[#0f0f0f]" : "bg-[#0f0f0f] text-[#f1f1f1]"}`} style={siteFont}>
+      ? <header className={`absolute inset-x-0 top-0 z-20 flex items-center gap-2 px-3 ${standalone ? "pt-[var(--sat,env(safe-area-inset-top,0px))]" : ""} ${light ? "bg-white text-[#0f0f0f]" : "bg-[#0f0f0f] text-[#f1f1f1]"}`} style={siteFont}>
         <div className="flex h-14 w-full items-center gap-2">
           <button type="button" onClick={onHome} className={`inline-flex h-10 flex-none items-center gap-1 rounded-full pl-2 pr-4 text-sm font-medium ${light ? "hover:bg-[#f2f2f2]" : "hover:bg-[#272727]"}`}><ChevronLeft size={20} />Home</button>
           <h1 className="min-w-0 flex-1 truncate text-lg font-semibold">{TAB_NAMES[tab]}</h1>
@@ -2022,7 +2022,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
           </>}
         </div>
       </header>
-      : <header className={`absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-2 px-3 ${standalone ? "pt-[calc(env(safe-area-inset-top,0px)+0.75rem)]" : "pt-3"}`}>
+      : <header className={`absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-2 px-3 ${standalone ? "pt-[calc(var(--sat,env(safe-area-inset-top,0px))+0.75rem)]" : "pt-3"}`}>
       <div className="flex min-w-0 items-center gap-2">
       {onHome && <button type="button" aria-label="Back to home" onClick={onHome} className={`grid h-9 w-9 flex-none place-items-center rounded-full ${chip} backdrop-blur ${light ? "" : "text-white"}`}><ChevronLeft size={20} /></button>}
       {genreMode && tab === "foryou"
@@ -2262,7 +2262,7 @@ function Card(p: CardProps) {
       <div className="ps-art absolute inset-x-0 top-0 mx-auto aspect-square w-full max-w-[62svh] overflow-hidden">
         <img src={hiRes(art, 1200)} onError={artFallback(art)} alt={`${item.show.name} cover art`} referrerPolicy="no-referrer" loading={p.i < 3 ? "eager" : "lazy"} decoding="async" className="es-m h-full w-full bg-white/5 object-cover" style={{ animation: p.playing ? "esDrift 40s ease-in-out infinite alternate" : "none", transform: p.playing ? undefined : "scale(1.06)", transition: "transform 1.4s ease-out" }} />
         <span aria-hidden className="es-m pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/15 to-transparent" style={{ animation: p.playing ? "esSheen 11s ease-in-out infinite" : "none", opacity: 0 }} />
-        <div className="absolute inset-x-0 top-0 h-[calc(7rem+env(safe-area-inset-top,0px))] bg-gradient-to-b from-black/45 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-[calc(7rem+var(--sat,env(safe-area-inset-top,0px)))] bg-gradient-to-b from-black/45 to-transparent" />
       </div>
       <button type="button" onClick={onTap} aria-label={p.playing ? "Pause. Double tap to like." : "Play. Double tap to like."} className="absolute inset-0 z-[1] cursor-pointer" />
       {hearts.map((h) => <Heart key={h.id} className="pointer-events-none absolute z-[5] -ml-12 -mt-12 h-24 w-24 animate-ping fill-rose-500 text-rose-500" style={{ left: h.x, top: h.y, animationIterationCount: 1 }} />)}
@@ -2621,7 +2621,7 @@ function ReadAlong({ ep, art, tx, time, dur, playing, onSeek, onToggle, onBack, 
     <div aria-hidden className="absolute -inset-[30%] bg-cover bg-center opacity-80 blur-3xl" style={{ backgroundImage: `url("${hiRes(art, 300)}")` }} />
     <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/45 to-black/70" />
 
-    <header className="relative z-[1] flex items-center gap-3 px-4 pb-2 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)]">
+    <header className="relative z-[1] flex items-center gap-3 px-4 pb-2 pt-[calc(var(--sat,env(safe-area-inset-top,0px))+0.75rem)]">
       <button type="button" onClick={onClose} aria-label="Close read along" className="grid h-10 w-10 flex-none place-items-center rounded-full bg-white/10 backdrop-blur"><ChevronDown size={22} /></button>
       <img src={hiRes(art, 120)} alt="" referrerPolicy="no-referrer" className="h-10 w-10 flex-none rounded-lg object-cover" />
       <div className="min-w-0 flex-1"><p className="truncate text-[14px] font-semibold leading-tight">{ep.title}</p><p className="truncate text-[12px] text-white/60">{ep.show}</p></div>
@@ -2926,7 +2926,7 @@ function LiveNews({ ep, next, playing, unlocked, onToggle, onMinimize, onLeave }
     <style>{"@keyframes ln-pulse{0%,100%{opacity:1}50%{opacity:.35}}@keyframes ln-bar{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}@keyframes ln-tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}"}</style>
     {ep.art && <img src={ep.art} alt="" aria-hidden referrerPolicy="no-referrer" className="pointer-events-none absolute inset-0 h-full w-full scale-125 object-cover opacity-25 blur-3xl" />}
     <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/80" />
-    <header className="relative z-[1] flex items-center justify-between gap-3 px-4 pt-[max(env(safe-area-inset-top),14px)]">
+    <header className="relative z-[1] flex items-center justify-between gap-3 px-4 pt-[max(var(--sat,env(safe-area-inset-top,0px)),14px)]">
       <span className="flex min-w-0 items-center gap-2"><PodMark /><span className="truncate text-[17px] font-bold tracking-[-0.03em]">Pod+ <span className="font-semibold text-white/70">Live News</span></span></span>
       <span className="flex flex-none items-center gap-2">
         <span className="flex items-center gap-1.5 rounded-md bg-[#e5172f] px-2 py-1 text-[12px] font-extrabold tracking-[.12em]" data-testid="pod-live-badge"><span className="h-2 w-2 rounded-full bg-white" style={{ animation: "ln-pulse 1.4s ease-in-out infinite" }} />LIVE</span>

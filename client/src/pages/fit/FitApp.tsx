@@ -22,6 +22,7 @@ import { programArt } from "./fitArt";
 import { SoundsScreen, PillowTracker } from "./FitSleepLab";
 import { CounterScreen } from "./FitMindExtras";
 import { SleepCheckIn, SleepSheet, sleepLine, useSleepAuto, type SleepGuess } from "./FitSleep";
+import { MedsApp, PeriodApp } from "./FitTrackers";
 import { AppsTab, APP_ICONS, FriendsApp, GuidedApp, RecoveryApp, StepsApp, WaterApp, YourAppsRow } from "./FitApps";
 import { FormCheck } from "./FitForm";
 import { FIT_APP_BY_ID, appsOf, type FitAppId } from "@shared/fitApps";
@@ -438,6 +439,8 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
     else if (a === "sleep") openApp("sleep");
     else if (a === "yoga") openApp("yoga");
     else if (a === "breathe") openApp("mind");
+    else if (a === "meds") openApp("meds");
+    else if (a === "period") openApp("period");
     else if (a === "run") openApp("run");
     else if (a === "meal") { setSnap(true); openApp("food"); }
     else setOver(a === "scan" ? "scan" : a === "gyms" ? "gyms" : a === "recipes" ? "recipes" : "circle");
@@ -457,6 +460,8 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
       case "yoga": case "mobility": case "hiit": case "c25k": return <GuidedApp kind={id} inline={inline} data={data} update={update} say={say} onClose={close} />;
       case "mind": return <GuidedApp kind="mind" inline={inline} data={data} update={update} say={say} onClose={close} />;
       case "water": return <WaterApp inline={inline} data={data} update={update} say={say} onClose={close} />;
+      case "meds": return <MedsApp inline={inline} data={data} update={update} say={say} onClose={close} />;
+      case "period": return <PeriodApp inline={inline} data={data} update={update} say={say} onClose={close} />;
       case "steps": return <StepsApp inline={inline} data={data} update={update} say={say} onClose={close} />;
       case "recovery": return <RecoveryApp inline={inline} data={data} onClose={close} onBodyMap={() => setBody(true)} onSleep={() => openApp("sleep")} onYoga={() => openApp("yoga")} />;
       case "progress": return <ProgressSheet inline={inline} data={data} update={update} list={list} onClose={close} onSettings={() => setSettings(true)} />;
@@ -466,7 +471,7 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
   };
   return <PointsModeCtx.Provider value={data.profile.trackMode === "points"}><div className="fixed inset-0 flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} data-testid="fit-app">
     <StatusShade />
-    <main id="fit-main" className="min-h-0 flex-1 overflow-y-auto px-4 pb-28 pt-[max(14px,env(safe-area-inset-top))]">
+    <main id="fit-main" className="min-h-0 flex-1 overflow-y-auto px-4 pb-28 pt-[max(14px,var(--sat,env(safe-area-inset-top,0px)))]">
       {/* key={tab}: each tab's screen re-mounts, so it slides up into place and its rings and bars fill. */}
       <div key={tab} className="fit-in">
         {tab === "today" && <TodayTab layout={layout} data={data} update={update} onApp={openApp} onAllApps={() => go("apps")} onStartProgram={startProgram} onSettings={() => setSettings(true)} onCoach={() => setCoach(true)} onStart={startNow} onOver={setOver} token={token} user={first} list={list} sleepGuess={sleepAuto.guess} onSkipSleep={sleepAuto.skip} say={say} />}
@@ -477,7 +482,7 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
     </main>
     {/* The clock and the island sit over a soft band of the page's color, so nothing scrolls under them
         unreadably; and the tab bar has a fade under it, so the page doesn't peek out below it. */}
-    <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-[39]" style={{ height: "calc(env(safe-area-inset-top) + 12px)", backgroundColor: C.bg, backgroundImage: glowBg, backgroundSize: "100% 100dvh", backgroundRepeat: "no-repeat", WebkitMaskImage: "linear-gradient(#000 calc(100% - 12px), transparent)", maskImage: "linear-gradient(#000 calc(100% - 12px), transparent)" }} data-testid="fit-top-shade" />
+    <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-[39]" style={{ height: "calc(var(--sat,env(safe-area-inset-top,0px)) + 12px)", backgroundColor: C.bg, backgroundImage: glowBg, backgroundSize: "100% 100dvh", backgroundRepeat: "no-repeat", WebkitMaskImage: "linear-gradient(#000 calc(100% - 12px), transparent)", maskImage: "linear-gradient(#000 calc(100% - 12px), transparent)" }} data-testid="fit-top-shade" />
     <div aria-hidden className="pointer-events-none fixed inset-x-0 bottom-0 z-[39]" style={{ height: "calc(env(safe-area-inset-bottom) + 96px)", background: `linear-gradient(transparent, ${C.bg} 62%)` }} />
     <FitNav layout={layout} tabs={tabs} tab={tab} go={(id) => go(id as Tab)} />
     {app && screen(app, false, () => setApp(null))}
@@ -505,7 +510,7 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
 }
 
 /** Short tab bar names where an app's name is long. */
-const TAB_LABEL: Partial<Record<FitAppId, string>> = { c25k: "5K", hiit: "HIIT", progress: "Stats", recovery: "Ready" };
+const TAB_LABEL: Partial<Record<FitAppId, string>> = { c25k: "5K", hiit: "HIIT", progress: "Stats", recovery: "Ready", meds: "Meds", period: "Period" };
 const TAB_KEY = "arise-fit-tab";
 /** The tab you were on (Today when the app's been away a while). */
 function readTab(): Tab { try { const t = localStorage.getItem(TAB_KEY); return (t as Tab) || "today"; } catch { return "today"; } }

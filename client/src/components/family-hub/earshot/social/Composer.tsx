@@ -80,7 +80,7 @@ export function Composer({ ctx, quote, onClose, onPosted }: { ctx: SCtx; quote?:
 
   return <Layer><div className="sx-compose-backdrop fade" style={{ background: "var(--overlay)" }} onClick={onClose}>
     <div role="dialog" aria-modal="true" aria-label={quote ? "Quote post" : "New post"} onClick={(e) => e.stopPropagation()} className="sx-compose-dialog rise bg flex w-full flex-col">
-      <div className="sx-compose-header flex flex-none items-center justify-between px-3 pb-2 pt-[max(.6rem,env(safe-area-inset-top))]">
+      <div className="sx-compose-header flex flex-none items-center justify-between px-3 pb-2 pt-[max(.6rem,var(--sat,env(safe-area-inset-top,0px)))]">
         <button type="button" onClick={onClose} className="hov min-h-9 rounded-full px-3 text-[16px]">Cancel</button>
         <button type="button" onClick={post} disabled={!can} className="bg-accent inline-flex min-h-9 items-center gap-1.5 rounded-full px-5 text-[15px] font-bold disabled:opacity-40">{busy && <Loader2 size={15} className="animate-spin" />}{quote && !text.trim() ? "Repost" : "Post"}</button>
       </div>

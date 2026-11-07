@@ -167,3 +167,24 @@ export async function scheduleRefuel(at: number, body: string): Promise<boolean>
     return true;
   } catch { return false; }
 }
+
+/** Phone reminders for the Medicine tracker: one at each dose time on each day it's taken (ids 10000–10600,
+ *  so setting them again replaces the old ones). Nothing happens off the iPhone app. */
+export async function applyMedReminders(meds: { name: string; dose: string; times: string[]; days: number[]; remind: boolean }[]): Promise<boolean> {
+  if (!isNativeApp()) return false;
+  try {
+    const perm = await notes("requestPermissions");
+    if (perm?.display && perm.display !== "granted") return false;
+    await notes("cancel", { notifications: Array.from({ length: 600 }, (_, i) => ({ id: 10000 + i })) });
+    const list: any[] = [];
+    meds.slice(0, 20).forEach((m, mi) => {
+      if (!m.remind) return;
+      m.times.slice(0, 4).forEach((t, ti) => {
+        const [hour, minute] = t.split(":").map(Number);
+        m.days.forEach((d) => list.push({ id: 10000 + (mi * 4 + ti) * 7 + d, title: "Time for your medicine", body: `${m.name}${m.dose ? ` · ${m.dose}` : ""}. Tap to tick it off.`, schedule: { on: { weekday: d + 1, hour, minute }, allowWhileIdle: true }, extra: { url: "arisefit://do/meds" } }));
+      });
+    });
+    if (list.length) await notes("schedule", { notifications: list });
+    return true;
+  } catch { return false; }
+}

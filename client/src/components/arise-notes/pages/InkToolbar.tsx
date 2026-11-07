@@ -31,7 +31,7 @@ export default function InkToolbar({ tools, setTools, canUndo, canRedo, onUndo, 
   const colors = hl ? HL_COLORS : INK_COLORS;
   const current = hl ? tools.hlColor : tools.color;
   const btn = (on: boolean) => `grid h-10 w-10 shrink-0 place-items-center rounded-xl transition ${on ? "bg-[var(--an-violet)] text-white shadow" : "text-[#3d3a52] hover:bg-black/5"}`;
-  return <div className={`an-noprint ${compact ? "" : "sticky top-[calc(env(safe-area-inset-top)+3.5rem)] z-20 border-b border-black/5 bg-white/90 backdrop-blur-xl"}`} data-testid="pages-ink-tools">
+  return <div className={`an-noprint ${compact ? "" : "sticky top-[calc(var(--sat,env(safe-area-inset-top,0px))+3.5rem)] z-20 border-b border-black/5 bg-white/90 backdrop-blur-xl"}`} data-testid="pages-ink-tools">
     <div className="flex items-center gap-1 overflow-x-auto px-2 py-1.5 [scrollbar-width:none]" role="toolbar" aria-label="Handwriting tools">
       <button type="button" className={btn(false)} disabled={!canUndo} aria-label="Undo" onClick={onUndo}><Undo2 className={`h-5 w-5 ${canUndo ? "" : "opacity-30"}`} /></button>
       <button type="button" className={btn(false)} disabled={!canRedo} aria-label="Redo" onClick={onRedo}><Redo2 className={`h-5 w-5 ${canRedo ? "" : "opacity-30"}`} /></button>

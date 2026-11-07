@@ -469,7 +469,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   }, [view, onOpenFeed]);
 
   const header = (
-    <header className={`sticky top-0 z-30 bg-white pt-[env(safe-area-inset-top,0px)] transition-transform duration-300 ease-out motion-reduce:transition-none ${headerHidden ? "-translate-y-full lg:translate-y-0" : "translate-y-0"}`} data-testid="pod-header" data-header-hidden={headerHidden ? "true" : undefined}>
+    <header className={`sticky top-0 z-30 bg-white pt-[var(--sat,env(safe-area-inset-top,0px))] transition-transform duration-300 ease-out motion-reduce:transition-none ${headerHidden ? "-translate-y-full lg:translate-y-0" : "translate-y-0"}`} data-testid="pod-header" data-header-hidden={headerHidden ? "true" : undefined}>
       <div className="flex h-14 items-center justify-between gap-3 px-3 sm:px-4">
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
         <button onClick={toggleMenu} aria-label="Menu" aria-expanded={drawer} className="-ml-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><Menu size={22} strokeWidth={1.8} /></button>
@@ -569,7 +569,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
         </div>}
   </>;
   const sidebar = side && view.kind !== "watch" && (
-    <nav aria-label="Library" className="sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] hidden max-h-[calc(100vh-56px-env(safe-area-inset-top,0px))] w-[240px] shrink-0 flex-col gap-0.5 overflow-y-auto p-3 lg:flex">
+    <nav aria-label="Library" className="sticky top-[calc(3.5rem+var(--sat,env(safe-area-inset-top,0px)))] hidden max-h-[calc(100vh-56px-var(--sat,env(safe-area-inset-top,0px)))] w-[240px] shrink-0 flex-col gap-0.5 overflow-y-auto p-3 lg:flex">
       {menuBody}
     </nav>
   );
@@ -698,7 +698,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       <div className="ps-fade absolute inset-0 touch-none bg-black/45" onClick={() => setDrawer(false)} />
       <nav aria-label="Menu" className="ps-slide absolute inset-y-0 left-0 flex w-[290px] max-w-[85vw] touch-pan-y flex-col gap-0.5 overflow-y-auto overflow-x-hidden overscroll-contain bg-white px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-0 shadow-2xl">
         {/* Stays at the top while the list scrolls, so items never slide up under the clock. */}
-        <div className="sticky top-0 z-10 -mx-3 mb-2 flex shrink-0 items-center justify-between bg-white pb-1 pl-5 pr-3 pt-[calc(env(safe-area-inset-top,0px)+0.5rem)]">
+        <div className="sticky top-0 z-10 -mx-3 mb-2 flex shrink-0 items-center justify-between bg-white pb-1 pl-5 pr-3 pt-[calc(var(--sat,env(safe-area-inset-top,0px))+0.5rem)]">
           <span className="inline-flex items-center gap-1.5"><svg width="30" height="21" viewBox="0 0 30 21" aria-hidden="true"><rect width="30" height="21" rx="6" fill="#ff6a1f" /><rect x="8" y="7.5" width="2.4" height="6" rx="1.2" fill="#fff" /><rect x="12.2" y="4.5" width="2.4" height="12" rx="1.2" fill="#fff" /><rect x="16.4" y="6.5" width="2.4" height="8" rx="1.2" fill="#fff" /><rect x="20.6" y="8.5" width="2.4" height="4" rx="1.2" fill="#fff" /></svg><span className="text-[19px] font-bold tracking-[-0.04em]">Pod+</span></span>
           <button onClick={() => setDrawer(false)} aria-label="Close menu" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><X size={22} /></button>
         </div>

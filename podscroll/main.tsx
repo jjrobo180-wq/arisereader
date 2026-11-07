@@ -17,11 +17,14 @@ import { AuthScreen } from "./Auth";
 import { Welcome, WELCOME_KEY } from "./Welcome";
 import { OPEN_EVENT, podPushAllowed, startPodPush, syncPodPush } from "./applePush";
 import { isNativeApp, markAppReadyWhenDrawn } from "../client/src/lib/nativeApp";
+import { applyDeviceTopInset } from "../client/src/lib/deviceInsets";
 import { publishWidgets } from "../client/src/lib/widgets";
 import { podWidgetSlots } from "../client/src/lib/podWidgets";
 import { subscribeWiki, wikiState } from "./wikiPlayer";
 import { downloads, installDownloads } from "./downloads";
 import "./styles.css";
+// Pod+ draws edge to edge: the top of every screen clears this iPhone's own clock space (lib/deviceInsets.ts).
+if (isNativeApp()) { document.documentElement.classList.add("pod-native"); applyDeviceTopInset(); }
 import { configureAiVoice } from "../client/src/lib/aiVoice";
 
 // The shared social screens read this to link to Pod+'s own policies and support (social/Rules.tsx).
@@ -254,7 +257,7 @@ function SignUpGate({ api, onDone, onClose }: { api: (path: string, init?: { met
   const ask = () => { setBusy(true); setErr(""); api("/api/earshot/account/code", { method: "POST", body: { email: email.trim() } }).then(() => setSent(true)).catch((e) => setErr(e.message)).finally(() => setBusy(false)); };
   const check = () => { setBusy(true); setErr(""); api("/api/earshot/account/verify", { method: "POST", body: { email: email.trim(), code } }).then((b) => onDone(b.token)).catch((e) => setErr(e.message)).finally(() => setBusy(false)); };
   const input = "min-h-12 w-full rounded-2xl border border-white/15 bg-white/[.07] px-4 text-base text-white outline-none placeholder:text-white/35 focus:border-[#ff8a3d]";
-  return <div role="dialog" aria-modal="true" aria-labelledby="gate-title" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} className="fixed inset-0 z-[90] flex items-end justify-center bg-black/70 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] backdrop-blur-md sm:items-center">
+  return <div role="dialog" aria-modal="true" aria-labelledby="gate-title" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} className="fixed inset-0 z-[90] flex items-end justify-center bg-black/70 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[var(--sat,env(safe-area-inset-top,0px))] backdrop-blur-md sm:items-center">
     <div className="relative w-full max-w-md rounded-[28px] bg-[#1d1720] p-6 text-white shadow-2xl ring-1 ring-white/10">
       <button type="button" onClick={onClose} aria-label="Close" className="absolute right-3 top-3 inline-flex h-10 w-10 items-center justify-center rounded-full text-white/60 hover:bg-white/10 hover:text-white"><X size={20} /></button>
       <p className="text-xs font-bold uppercase tracking-[.18em] text-[#ff8a3d]">Pod+ Membership</p>

@@ -4,7 +4,7 @@
 // Sleep and the rest are the screens they always were (FitApp.tsx opens them).
 import { useMemo, useState } from "react";
 import {
-  Apple, BarChart3, Bed, Check, ChefHat, CircleDot, ChevronDown, ChevronLeft, ChevronRight, Droplets, Dumbbell, Flower2, Footprints, HeartPulse, LayoutGrid, MapPin, Medal, Minus, Moon, Pencil,
+  Apple, BarChart3, Bed, CalendarHeart, Pill, Check, ChefHat, CircleDot, ChevronDown, ChevronLeft, ChevronRight, Droplets, Dumbbell, Flower2, Footprints, HeartPulse, LayoutGrid, MapPin, Medal, Minus, Moon, Pencil,
   PersonStanding, Pin, PinOff, Plane, Play, Plus, Route, ScanFace, ScanLine, Search, Sparkles, Timer, Trash2, Undo2, UserCheck, Users, Utensils, Waves, Wind, X, Zap, type LucideIcon,
 } from "lucide-react";
 import { dayKey, uid, type FitData } from "@shared/fit";
@@ -28,7 +28,7 @@ import type { ArtKind } from "./fitArt";
 import type { Update } from "./fitStore";
 import { isNativeApp } from "@/lib/nativeApp";
 
-export const APP_ICONS: Record<string, LucideIcon> = { Apple, BarChart3, Bed, ChefHat, CircleDot, Droplets, Dumbbell, Flower2, Footprints, HeartPulse, MapPin, Medal, Moon, PersonStanding, Plane, Route, ScanFace, ScanLine, Timer, UserCheck, Users, Utensils, Waves, Wind, Zap };
+export const APP_ICONS: Record<string, LucideIcon> = { Apple, BarChart3, Bed, CalendarHeart, Pill, ChefHat, CircleDot, Droplets, Dumbbell, Flower2, Footprints, HeartPulse, MapPin, Medal, Moon, PersonStanding, Plane, Route, ScanFace, ScanLine, Timer, UserCheck, Users, Utensils, Waves, Wind, Zap };
 
 /** An app's icon: a rounded square in its own colors, like the Home Screen. */
 export function AppTile({ app, size = 56 }: { app: FitApp; size?: number }) {

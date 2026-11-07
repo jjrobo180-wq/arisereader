@@ -5,7 +5,7 @@
 
 export type FitAppId =
   | "train" | "food" | "fast" | "run" | "sleep" | "yoga" | "mind" | "hiit" | "c25k" | "mobility" | "water" | "steps"
-  | "recovery" | "progress" | "coach" | "friends" | "gyms" | "recipes" | "eat" | "travel" | "form" | "scan" | "sounds" | "counter" | "pillow";
+  | "recovery" | "progress" | "coach" | "friends" | "gyms" | "recipes" | "eat" | "travel" | "form" | "scan" | "sounds" | "counter" | "pillow" | "meds" | "period";
 export type FitAppCategory = "train" | "mind" | "nutrition" | "health" | "out" | "social";
 export type FitApp = {
   id: FitAppId; name: string; blurb: string; category: FitAppCategory;
@@ -40,6 +40,8 @@ export const FIT_APPS: FitApp[] = [
   { id: "sounds", name: "Sleep sounds", blurb: "Rain, ocean, fan and noise that fade out on a timer.", category: "health", icon: "Waves", tile: ["#7dd3fc", "#1e3a8a"], tab: false, plus: true },
   { id: "counter", name: "Counter & timer", blurb: "Tap to count breaths, rounds or mantras, or sit with a quiet timer and bell.", category: "mind", icon: "CircleDot", tile: ["#fda4af", "#9f1239"], tab: false },
   { id: "sleep", name: "Sleep", blurb: "Tracked from Apple Health, your bedtime schedule or one tap, with a nightly sleep score.", category: "health", icon: "Moon", tile: ["#818cf8", "#3730a3"], tab: true },
+  { id: "meds", name: "Medicine tracker", blurb: "Medicines and vitamins with dose reminders, today's doses to tick off and a heads-up before they run out.", category: "health", icon: "Pill", tile: ["#2dd4bf", "#0f766e"], tab: true },
+  { id: "period", name: "Period tracker", blurb: "Log your period and symptoms, see your cycle day and when the next period and fertile window are likely.", category: "health", icon: "CalendarHeart", tile: ["#f472b6", "#be185d"], tab: true },
   { id: "recovery", name: "Recovery", blurb: "Today's readiness from your sleep and training, and a map of which muscles are fresh.", category: "health", icon: "HeartPulse", tile: ["#f87171", "#b91c1c"], tab: true },
   { id: "steps", name: "Steps", blurb: "Daily steps from Apple Health, your goal and your week.", category: "health", icon: "Footprints", tile: ["#4ade80", "#166534"], tab: true },
   { id: "water", name: "Water", blurb: "Log glasses and bottles in a tap and see how close you are to your goal.", category: "health", icon: "Droplets", tile: ["#60a5fa", "#1d4ed8"], tab: true },

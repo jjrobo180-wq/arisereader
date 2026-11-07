@@ -110,7 +110,7 @@ export function SessionPlayer({ session, onClose, onDone }: { session: Session; 
 
   // A solid page color under everything (never see-through), the soft glow over it, and the words on a card.
   return <Layer><div className="fixed inset-0 z-[120] flex flex-col" style={{ backgroundColor: C.bg, backgroundImage: `radial-gradient(110% 70% at 50% 30%, ${color}26, transparent 70%), linear-gradient(${C.bg}, ${C.bg})`, color: C.text, ...font, isolation: "isolate", height: "100dvh", opacity: 1 }} data-testid="fit-session">
-    <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
+    <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,var(--sat,env(safe-area-inset-top,0px)))]">
       <button type="button" onClick={() => { if (window.confirm("End this session?")) onClose(); }} aria-label="End session" className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card }}><X className="h-5 w-5" /></button>
       <div className="min-w-0 flex-1 text-center"><p className="truncate text-[17px]" style={display}>{session.name}</p><p className="text-[12px] tabular-nums" style={{ color: C.dim }}>{fmtDur(elapsed)} / {fmtDur(total)}</p></div>
       <button type="button" onClick={() => { setVoice((v) => !v); stopAiVoice(); }} aria-label={voice ? "Mute voice" : "Turn voice on"} aria-pressed={voice} className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card }}>{voice ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}</button>

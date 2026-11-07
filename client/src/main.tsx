@@ -10,6 +10,7 @@ import "./keyboard-inset.css";
 import "./reader-app.css";
 import "./todo-app.css";
 import { watchKeyboard } from "./lib/keyboardInset";
+import { applyDeviceTopInset } from "./lib/deviceInsets";
 import { installDuoPaneBridge } from "./lib/duoPaneBridge";
 import { installMediaUnlock, voiceElement } from "./lib/mediaUnlock";
 import { configureAiVoice } from "@/lib/aiVoice";
@@ -35,6 +36,11 @@ if (isNativeApp() && nativeFlavor() === "todo") {
   html.classList.add("todo-app");
   html.classList.add("todo-edge"); // the app now always draws edge to edge (capacitor.config.json)
 }
+// The clock's real height on this iPhone (lib/deviceInsets.ts): a Dynamic Island needs about 60px, not 44.
+if (isNativeApp() && (nativeFlavor() === "todo" || isNotesApp())) applyDeviceTopInset();
+// Arise Reader draws edge to edge too (reader/ios-app/capacitor.config.json), so it gets its phone's own clock space.
+// The Educator, Trainer, Talk and Eye Gazer apps let iOS inset the page ("automatic"), so the system already does this.
+if (isNativeApp() && nativeFlavor() === "reader") applyDeviceTopInset();
 
 // Keep Notes at the physical iPhone viewport width. A custom initial-scale=0.9
 // made focus/keyboard geometry inconsistent with WKWebView's visual viewport.
@@ -45,7 +51,8 @@ if (isFitApp()) {
     const scale = 0.9;
     const vp = document.querySelector('meta[name="viewport"]');
     vp?.setAttribute("content", `width=${Math.round(shortSide / scale)}, initial-scale=${scale}, minimum-scale=${scale}, maximum-scale=${scale}, user-scalable=no, viewport-fit=cover`);
-    document.documentElement.classList.add("native-zoomed-out");
+    document.documentElement.classList.add("native-zoomed-out", "fit-app");
+    applyDeviceTopInset(scale);
   }
 }
 

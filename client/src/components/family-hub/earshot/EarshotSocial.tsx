@@ -328,7 +328,7 @@ export function PersonPage({ handle, ctx, patch, onEdit, onClose, row }: { handl
   const list = which === "posts" ? posts.filter((p) => p.kind !== "bookmark") : posts.filter((p) => (which === "clips" ? p.kind === "clip" : p.kind === which));
   return <div className="absolute inset-0 z-40 overflow-y-auto bg-black pb-14 [scrollbar-width:none]" role="dialog" aria-label={`@${handle}`}>
     <div className="ps-dark relative h-32 bg-[#2a2d32]">
-      <button type="button" onClick={onClose} aria-label="Back" className="absolute left-3 top-[max(.75rem,env(safe-area-inset-top))] grid h-10 w-10 place-items-center rounded-full bg-black/40 backdrop-blur"><ChevronLeft size={22} /></button>
+      <button type="button" onClick={onClose} aria-label="Back" className="absolute left-3 top-[max(.75rem,var(--sat,env(safe-area-inset-top,0px)))] grid h-10 w-10 place-items-center rounded-full bg-black/40 backdrop-blur"><ChevronLeft size={22} /></button>
     </div>
     <div className="px-5 pb-4">
       {!data && !err && <Loader2 className="mx-auto mt-6 animate-spin" />}
