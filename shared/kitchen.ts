@@ -57,7 +57,11 @@ const cleanProduct = (v: unknown): KProduct | null => {
 
 export function cleanKitchen(raw: unknown): Kitchen {
   const r = o(raw);
-  const people = (Array.isArray(r.people) ? r.people : []).slice(0, 12).map((p: unknown) => ({ id: s(o(p).id, 60), name: s(o(p).name, 40).trim(), portion: n(o(p).portion, 0.1, 4, 1) })).filter((p: KPerson) => p.id && p.name);
+  const rawPeople = (Array.isArray(r.people) ? r.people : []).slice(0, 12).map((p: unknown) => ({ id: s(o(p).id, 60), name: s(o(p).name, 40).trim(), portion: n(o(p).portion, 0.1, 4, 1) })).filter((p: KPerson) => p.id && p.name);
+  // The same person twice (a name in the family list twice, or added again by hand) is one person: their meals move to the first.
+  const sameAs = new Map<string, string>();
+  const people: KPerson[] = [];
+  for (const p of rawPeople as KPerson[]) { const twin = people.find((q) => q.id === p.id || q.name.trim().toLowerCase() === p.name.trim().toLowerCase()); if (twin) sameAs.set(p.id, twin.id); else people.push(p); }
   const own = (Array.isArray(r.own) ? r.own : []).slice(0, 100).map((d: unknown): KDish | null => {
     const x = o(d); const id = s(x.id, 80), name = s(x.name, 80).trim();
     return id && name && isSlot(x.slot) ? { id, slot: x.slot, name, kcal: n(x.kcal, 0, 5000), minutes: n(x.minutes, 0, 1440), tags: [], pop: 0, parts: cleanParts(x.parts), own: true } : null;
@@ -66,7 +70,7 @@ export function cleanKitchen(raw: unknown): Kitchen {
   const week: Record<string, KMeal[]> = {};
   for (const day of WEEK) for (const sl of K_SLOTS) {
     const key = cell(day, sl.id);
-    const meals = (Array.isArray(o(r.week)[key]) ? o(r.week)[key] : []).slice(0, 8).map((m: unknown) => ({ id: s(o(m).id, 60), dish: s(o(m).dish, 80), people: (Array.isArray(o(m).people) ? o(m).people : []).slice(0, 12).map((x: unknown) => s(x, 60)).filter(Boolean) })).filter((m: KMeal) => m.id && dishIds.has(m.dish));
+    const meals = (Array.isArray(o(r.week)[key]) ? o(r.week)[key] : []).slice(0, 8).map((m: unknown) => ({ id: s(o(m).id, 60), dish: s(o(m).dish, 80), people: [...new Set((Array.isArray(o(m).people) ? o(m).people : []).slice(0, 12).map((x: unknown) => s(x, 60)).filter(Boolean).map((x: string) => sameAs.get(x) ?? x))] as string[] })).filter((m: KMeal) => m.id && dishIds.has(m.dish));
     if (meals.length) week[key] = meals;
   }
   const products = (Array.isArray(r.products) ? r.products : []).slice(0, 400).map(cleanProduct).filter(Boolean) as KProduct[];

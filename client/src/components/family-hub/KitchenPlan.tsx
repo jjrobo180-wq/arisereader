@@ -191,7 +191,9 @@ function People({ k, setK, connected, token, makeId }: { k: Kitchen; setK: (fn: 
 function Setup({ k, setK, family, connected, token, makeId }: { k: Kitchen; setK: (fn: (k: Kitchen) => Kitchen) => void; family: SectionProps["family"]; connected: boolean; token: string | null; makeId: () => string }) {
   useEffect(() => {
     if (k.people.length) return;
-    const fromFamily = family.members.map((m) => ({ id: `m-${m.id}`, name: m.name, portion: m.kind === "kid" ? 0.75 : 1 }));
+    // One row per person: a name that appears twice in the family list (a linked profile and a member, say) is added once.
+    const seen = new Set<string>();
+    const fromFamily = family.members.filter((m) => { const key = m.name.trim().toLowerCase(); if (!key || seen.has(key)) return false; seen.add(key); return true; }).map((m) => ({ id: `m-${m.id}`, name: m.name.trim(), portion: m.kind === "kid" ? 0.75 : 1 }));
     setK((x) => ({ ...x, people: fromFamily.length ? fromFamily : [{ id: `p-${makeId()}`, name: "Me", portion: 1 }] }));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return <div className="w-full max-w-2xl space-y-8" data-testid="kitchen-setup">

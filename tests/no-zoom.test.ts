@@ -31,7 +31,7 @@ test("the iPhone apps hold the web view at zoom 1 natively", () => {
   for (const f of ["native/arise-widgets/ios/Sources/AriseWidgetsPlugin/AriseZoomLock.swift", "notes/ios-app/plugins/arise-on-device/ios/Sources/AriseOnDevicePlugin/NotesZoomLock.swift"]) {
     const s = read(f);
     assert.match(s, /maximumZoomScale = 1/);
-    assert.match(s, /view\.zoomScale > 1\.001/);
+    assert.match(s, /view\.zoomScale > own \+ 0\.001/);
     assert.match(s, /setZoomScale\(/);
     assert.ok(!/minimumZoomScale = 1/.test(s), "the page's own fit-to-screen scale is left alone");
   }
