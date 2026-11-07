@@ -17,6 +17,7 @@ export type OsScreen = "home" | "tasks" | "calendar" | "notes";
 export type OsMenuItem = { id: string; label: string; detail?: string; icon?: ReactNode; danger?: boolean; onClick: () => void };
 export type OsProps = {
   look: NotesTheme; name: string; dateLabel: string; screen: OsScreen; go: (s: OsScreen) => void; openApps: () => void; add: (title?: string) => void;
+  /** Opens a new task right away (Home's "Add a task"); without it, add() opens the add menu. */ addTask?: () => void;
   tasks: LookTask[]; toggle: (id: string) => void; openTask: (id: string) => void; days: AgendaDay[];
   notes: { id: string; title: string; body: string; locked?: boolean }[]; shortcuts: { id: string; label: string; onClick: () => void }[];
   /** The full Calendar or Notes app, for adding and editing. */
@@ -156,7 +157,7 @@ function Home(p: OsProps) {
   const count = `${open.length} open`;
   // The Studio looks: a full Home (it was blank, because no Home had been drawn for them here).
   if (hasArch(p.look)) return <div className="los-pad los-studio-home">
-    <HubLookHero look={p.look} date={p.dateLabel} greeting={`${hi}${first}`} primary={{ label: "Add a task", onClick: () => p.add() }}
+    <HubLookHero look={p.look} date={p.dateLabel} greeting={`${hi}${first}`} primary={{ label: "Add a task", onClick: () => (p.addTask ? p.addTask() : p.add()) }}
       links={[{ label: "Tasks", onClick: () => p.go("tasks") }, { label: "Calendar", onClick: () => p.go("calendar") }, { label: "Notes", onClick: () => p.go("notes") }]} />
     {/* Two columns on a computer (to do | calendar and notes); one after the other on a phone. */}
     <div className="los-studio-grid">
@@ -265,5 +266,17 @@ export function LookOS(p0: OsProps) {
   </div>;
 }
 export function LookYou({ look, items: list, top, onClose }: { look: NotesTheme; items: OsMenuItem[]; top?: ReactNode; onClose: () => void }) {
-  return <div style={themeVars(look) as CSSProperties} className="los-sheetback" onClick={onClose}><div role="dialog" aria-modal="true" aria-label="You" className="los-sheet" onClick={(e) => e.stopPropagation()}><button type="button" className="los-close" onClick={onClose}>Close</button>{top && <div className="los-sheettop">{top}</div>}{list.map((m) => <button key={m.id} type="button" data-danger={m.danger || undefined} onClick={() => { onClose(); m.onClick(); }}><b>{m.label}</b>{m.detail && <small>{m.detail}</small>}</button>)}</div></div>;
+  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [onClose]);
+  const main = list.filter((m) => !m.danger), out = list.filter((m) => m.danger);
+  const row = (m: OsMenuItem) => <button key={m.id} type="button" className="los-you-row" data-danger={m.danger || undefined} onClick={() => { onClose(); m.onClick(); }}>
+    <span><b>{m.label}</b>{m.detail && <small>{m.detail}</small>}</span><I d="M9 6l6 6-6 6" /></button>;
+  return <div style={themeVars(look) as CSSProperties} className="los-sheetback" onClick={onClose}>
+    <div role="dialog" aria-modal="true" aria-label="You" className="los-sheet" onClick={(e) => e.stopPropagation()}>
+      <div className="los-you-head"><b>Menu</b><button type="button" className="los-close" onClick={onClose} aria-label="Close"><I d="M6 6l12 12M18 6L6 18" /></button></div>
+      {top && <div className="los-sheettop">{top}</div>}
+      <div className="los-you-group">{main.map(row)}</div>
+      {out.length > 0 && <div className="los-you-group">{out.map(row)}</div>}
+    </div>
+  </div>;
 }
+
