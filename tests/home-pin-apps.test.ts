@@ -79,7 +79,8 @@ test("LifeHub wires pinned Notes apps into Home the same way", () => {
   const life = read("client/src/pages/AriseTodo.tsx");
   assert.match(life, /openNotesApp=\{setNotesAppOpen\}/, "FamilyHome is given a way to open a pinned Notes app");
   const home = read("client/src/components/family-hub/FamilyHome.tsx");
-  assert.match(home, /const layout = cleanLifeLayout\(family\.layout, myNotesApps\.map\(\(p\) => p\.id\)\);/);
+  // Wrapped in the shared look (tests/tile-lifehub.test.ts), the pinned apps still go through cleanLifeLayout.
+  assert.match(home, /const layout = withSharedLook\(cleanLifeLayout\(family\.layout, myNotesApps\.map\(\(p\) => p\.id\)\), "life"\);/);
   assert.match(home, /for \(const p of myNotesApps\) part\[pinId\(p\.id\)\] = \(/);
   assert.match(home, /onClick=\{\(\) => openNotesApp\(p\.id\)\}/);
   assert.match(home, /catalog=\{\[\.\.\.CATALOG, \.\.\.pinnedCatalog\]\}/);

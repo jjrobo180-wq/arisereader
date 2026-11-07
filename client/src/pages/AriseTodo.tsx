@@ -804,8 +804,9 @@ export default function AriseTodo() {
     document.title = "Arise To Duo";
     return () => { document.title = before; };
   }, []);
-  // The menu on a computer (Customize). Tasks keeps the full sidebar so its lists stay at hand.
-  const dsk = osOn ? "drawer" : shown === "tasks" ? "left" : tileMode ? "drawer" : layout.deskSide;
+  // The menu on a computer (Customize). Tasks keeps the full sidebar so its lists stay at hand. The Tile theme
+  // keeps it too, as WorkHub does: the start screen's tiles sit beside the menu (it was hidden, so LifeHub had none).
+  const dsk = osOn ? "drawer" : shown === "tasks" ? "left" : layout.deskSide;
   const deskAside = dsk === "drawer" ? "lg:hidden"
     : dsk === "top" ? "lg:sticky lg:top-16 lg:z-30 lg:block lg:w-full"
     : dsk === "compact" ? "lg:sticky lg:top-16 lg:flex lg:h-[calc(100vh-4rem)] lg:w-[76px] lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r"
@@ -1305,8 +1306,9 @@ export default function AriseTodo() {
       youOpen={youOpen} setYouOpen={(open) => { setYouOpen(open); if (open) setAddMenu(false); }}
       you={moreGroups.flatMap((g) => g.items)} />}
     {briefOpen && <DailyBrief hub="life" brief={buildLifeBrief(family, data.tasks, currentDay, new Date().getHours(), (user.displayName || "").split(" ")[0])} onClose={() => setBriefOpen(false)} onOpen={goSection} />}
+    {/* On a computer the menu beside the page has Home, so the Start button is for phones and tablets. */}
     {awayFromStart && <button type="button" onClick={backToStart} aria-label="Back to Start" data-testid="life-start-back"
-      className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-4 z-40 inline-flex h-14 items-center gap-1.5 rounded-full bg-[#292446] pl-4 pr-5 text-sm font-extrabold text-white shadow-xl transition active:scale-90"><ArrowLeft className="h-5 w-5" /> Start</button>}
+      className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-4 z-40 lg:hidden inline-flex h-14 items-center gap-1.5 rounded-full bg-[#292446] pl-4 pr-5 text-sm font-extrabold text-white shadow-xl transition active:scale-90"><ArrowLeft className="h-5 w-5" /> Start</button>}
     {duo.mode !== "book" && <PhoneMenu items={phoneItems} side={phoneSide} hideTab={osOn} hideLauncher={tileMode && !awayFromStart} close={layout.menuClose} open={phone.open} setRail={phone.setRail} afterPick={phone.afterPick} top={64} folders={layout.folders} onFolders={(next) => setLayout({ ...layout, folders: next })} deskDrawer={dsk === "drawer"} />}
     <div className={`flex min-h-[calc(100vh-4rem)] w-full flex-col ${dsk === "top" ? "" : dsk === "right" ? "lg:flex-row-reverse" : "lg:flex-row"} duo-book:flex-row`}>
       <aside className={`w-full border-b border-[#e4e6f0] bg-white lg:[&>*]:shrink-0 ${shown === "tasks" ? (layout.menuSide === "bottom" || layout.menuSide === "tabs" ? "" : phone.pad) : "max-lg:hidden"} ${deskAside} duo-book:sticky duo-book:top-16 duo-book:flex duo-book:h-[calc(100dvh-4rem)] duo-book:w-[var(--duo-left)] duo-book:shrink-0 duo-book:flex-col duo-book:overflow-y-auto duo-book:border-b-0 duo-book:border-r duo-book:p-0 duo-book:pb-10 duo-book:[&>*]:shrink-0`} data-testid="life-side">

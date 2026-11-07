@@ -5,6 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { HomeParts, type HomePart, type StartTile } from "@/components/teacher-hub/HubHomeEdit";
 import { HomeLinks } from "./LinkDirectory";
 import { LIFE_PARTS, cleanLifeLayout, type LifePart } from "@shared/lifeLayout";
+import { withSharedLook } from "@/lib/sharedLook";
 import { pinId } from "@shared/hubLayout";
 import { addDays, billDue, billState, choreDoneOn, choreDueOn, choreOwner, daysBetween, eventsOn, isOn, money, starBalance, tally, toggleChore, type FamilySection } from "@shared/familyHub";
 import { notesAppPlugin, type Plugin } from "@shared/pluginStore";
@@ -51,7 +52,10 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
 
   /** Installed Notes apps (LifeHub Notes/Work Notes cross-installed from the Store) this family can pin to Home. */
   const myNotesApps = (family.notesInstalled ?? []).map((id) => notesAppPlugin("life", id)).filter((p): p is Plugin => !!p);
-  const layout = cleanLifeLayout(family.layout, myNotesApps.map((p) => p.id));
+  // The look the whole hub is showing, which can come from the other hub (lib/sharedLook.ts). Home read only
+  // this hub's saved one, so after Tile was picked in WorkHub the hub hid its menu for Tile's start screen
+  // while Home still drew the ordinary page, without the app tiles: no way to get anywhere.
+  const layout = withSharedLook(cleanLifeLayout(family.layout, myNotesApps.map((p) => p.id)), "life");
   // Widened past Record<LifePart, ...> below so a pinned Notes app (see pinId) can add its own entry.
   const look = useActiveLook();
   const part: Record<string, ReactNode | null> = {
