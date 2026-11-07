@@ -726,7 +726,7 @@ export default function AriseTodo() {
   const memberByName = (name: string) => members.find(m => m.name.toLowerCase() === name.trim().toLowerCase());
   // The A.R.I.S.E. Reader tab is the parent portal, so only parents have it.
   // Getting started was replaced by the first-run walkthrough (components/AppWalkthrough.tsx).
-  const sections = sectionOrderFor(family).filter(id => id !== "start" && !(parentOf(id) && isOn(parentOf(id) as FamilySection, family)) && isOn(id, family) && (id !== "reader" || user?.role === "parent"));
+  const sections = sectionOrderFor(family).filter(id => id !== "start" && !parentOf(id) && isOn(id, family) && (id !== "reader" || user?.role === "parent"));
   const installedSections = sections.filter((id) => ADD_ON_SECTIONS.includes(id));
   const builtInSections = sections.filter((id) => !ADD_ON_SECTIONS.includes(id));
   // Dragging (or, on a phone, the arrows) a menu item reorders it right where it sits.
