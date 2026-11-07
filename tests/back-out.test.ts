@@ -97,6 +97,18 @@ test("Arise Notes inside a hub: the top bar with Back clears the clock and the l
   assert.match(read("client/src/components/arise-notes/notes-themes.css"), /\.an-root \.an-under-bar \.an-l-hero \{ padding-top: 1rem !important; \}/);
 });
 
+test("no look's top bar is shorter than its bell (the Desktop look's slim bar pushed the bell up under the clock)", () => {
+  const bell = /\.los-topright \[data-testid="notification-bell"\] \{ width: [\d.]+rem; height: ([\d.]+)rem;/.exec(read("client/src/components/look-os/lookOS.css"))?.[1];
+  assert.ok(bell, "the bell's height");
+  const dir = "client/src/components/look-os/";
+  for (const f of ["lookOS.css", "systems.css", "play.css", "premium.css", "suite.css", "toys.css"]) {
+    for (const m of read(dir + f).matchAll(/\.los-topbar \{[^}]*?\bheight: ([\d.]+)rem/g)) {
+      assert.ok(Number(m[1]) >= Number(bell), `${f}: a top bar of ${m[1]}rem holds a ${bell}rem bell`);
+    }
+  }
+  assert.match(read(dir + "systems.css"), /\.los-desktop \.los-topbar \{ height: 2\.75rem;/);
+});
+
 test("the Arise Notes iPhone app keeps the clock's space like Arise To Duo", () => {
   assert.match(read("client/src/index.css"), /html\.notes-app \{ --sat: max\(env\(safe-area-inset-top, 0px\), 44px\); \}/);
   assert.match(read("client/src/todo-app.css"), /html\.todo-edge \{ --sat: max\(env\(safe-area-inset-top, 0px\), 44px\);/);
