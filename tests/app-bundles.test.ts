@@ -27,5 +27,5 @@ test("Health Lite promotes Arise Fit and the picker opens on first use", () => {
   const ui = read("client/src/components/family-hub/BundleApp.tsx");
   assert.match(ui, /data-testid="bundle-promo"/);
   assert.match(ui, /useState\(!asked && bundle\.fixed\.length === 0\)/);
-  assert.match(read("client/src/pages/AriseTodo.tsx"), /parentOf\(id\) && isOn\(parentOf\(id\) as FamilySection, family\)/);
+  assert.match(read("client/src/pages/AriseTodo.tsx"), /!parentOf\(id\) && isOn\(id, family\)/);
 });
