@@ -2,7 +2,7 @@
 // (including deleting everything), accessibility, and defaults.
 import { AppearanceSwitch } from "./pages/pagesUi";
 import { useEffect, useState } from "react";
-import { AudioLines, Check, ChevronRight, Crown, Eye, Home as HomeIcon, LayoutGrid, LogOut, Mic, Palette, Pencil, Shield, Sparkles, Trash2, Type, Upload, Users } from "lucide-react";
+import { AudioLines, Blocks, Check, ChevronRight, Crown, Eye, Home as HomeIcon, LayoutGrid, LogOut, Mic, Palette, Pencil, Shield, Sparkles, Trash2, Type, Upload, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import { NOTES_PLANS, NOTES_THEMES, SUITE_LOOKS, dayWords, type NotesPlanId, type NotesProduct, type NotesSettings } from "@shared/ariseNotes";
 import { useAuth } from "@/context/AuthContext";
@@ -14,6 +14,7 @@ import { PrivacyPicker, defaultPrivacy, rememberPrivacy, useOnDevice } from "./p
 import { Btn, Notice, Section, Spinner, Toggle, useToast } from "./ui";
 import { TopBar, openSplit, type AppCtx } from "./NotesApp";
 import LookPicker from "@/components/looks/LookPicker";
+import { AppIcon, NOTES_APPS, useNotesApps } from "./notesAppsCatalog";
 
 type Tab = "plan" | "look" | "family" | "privacy" | "access";
 const money = (c: number) => `$${(c / 100).toFixed(2)}`;
@@ -47,6 +48,17 @@ function Row({ icon, label, detail, onClick, danger, testId }: { icon: ReactNode
     <span className="min-w-0 flex-1"><span className="block text-[15.5px] font-semibold" style={{ color: danger ? "var(--an-coral)" : "var(--an-ink)" }}>{label}</span>{detail && <span className="block truncate text-[13px]" style={{ color: "var(--an-muted)" }}>{detail}</span>}</span>
     <ChevronRight className="h-5 w-5 shrink-0" style={{ color: "var(--an-muted)" }} aria-hidden />
   </button>;
+}
+/** The App Gallery and the apps you've added (notesAppsCatalog.tsx). */
+function AppsGroup({ ctx }: { ctx: AppCtx }) {
+  const { installed } = useNotesApps();
+  const mine = NOTES_APPS.filter((a) => installed.includes(a.id));
+  return <Group title="Apps">
+    <Row icon={<Blocks />} label="App Gallery" detail="Sticky notes, Sheets, Slides, flashcards and more" onClick={() => ctx.go({ name: "apps" })} testId="notes-menu-apps" />
+    {mine.map((a) => <button key={a.id} type="button" onClick={() => ctx.go({ name: "app", id: a.id })} className="flex min-h-[3.75rem] w-full items-center gap-3.5 px-4 py-2.5 text-left transition hover:bg-[color-mix(in_srgb,var(--an-ink)_5%,transparent)]">
+      <AppIcon app={a} size={36} /><span className="min-w-0 flex-1"><span className="block text-[15.5px] font-semibold" style={{ color: "var(--an-ink)" }}>{a.name}</span><span className="block truncate text-[13px]" style={{ color: "var(--an-muted)" }}>{a.tagline}</span></span>
+      <ChevronRight className="h-5 w-5 shrink-0" style={{ color: "var(--an-muted)" }} aria-hidden /></button>)}
+  </Group>;
 }
 const Group = ({ title, children }: { title: string; children: ReactNode }) => <section>
   <h2 className="mb-2 px-1 text-[12px] font-bold uppercase tracking-[.12em]" style={{ color: "var(--an-muted)" }}>{title}</h2>
@@ -93,6 +105,7 @@ function MenuHome({ ctx }: { ctx: AppCtx }) {
         <Row icon={<Shield />} label="Privacy & data" detail="Audio, recording reminders, delete everything" onClick={() => ctx.go({ name: "settings", tab: "privacy" })} />
         <Row icon={<Shield />} label="Student data privacy" detail="FERPA and COPPA" onClick={() => ctx.go({ name: "privacy" })} />
       </Group>
+      <AppsGroup ctx={ctx} />
       <Group title="More">
         <Row icon={<LayoutGrid />} label="Open Arise To Duo" detail="Notes beside your to-dos" onClick={() => openSplit(ctx.mode)} />
         {ctx.mode === "standalone" && <Row icon={<LogOut />} label="Sign out" danger onClick={() => { logout(); window.location.hash = "#/"; }} testId="notes-sign-out" />}
