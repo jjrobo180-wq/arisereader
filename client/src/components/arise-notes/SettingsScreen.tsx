@@ -2,7 +2,8 @@
 // (including deleting everything), accessibility, and defaults.
 import { AppearanceSwitch } from "./pages/pagesUi";
 import { useEffect, useState } from "react";
-import { Check, Crown, Eye, LogOut, Shield, Trash2, Type, Users } from "lucide-react";
+import { AudioLines, Check, ChevronRight, Crown, Eye, Home as HomeIcon, LayoutGrid, LogOut, Mic, Palette, Pencil, Shield, Sparkles, Trash2, Type, Upload, Users } from "lucide-react";
+import type { ReactNode } from "react";
 import { NOTES_PLANS, NOTES_THEMES, SUITE_LOOKS, dayWords, type NotesPlanId, type NotesProduct, type NotesSettings } from "@shared/ariseNotes";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
@@ -11,7 +12,7 @@ import { notesApi, type Billing } from "./api";
 import { removeAllLocalNotes } from "./localNotes";
 import { PrivacyPicker, defaultPrivacy, rememberPrivacy, useOnDevice } from "./privacyMode";
 import { Btn, Notice, Section, Spinner, Toggle, useToast } from "./ui";
-import { TopBar, type AppCtx } from "./NotesApp";
+import { TopBar, openSplit, type AppCtx } from "./NotesApp";
 import LookPicker from "@/components/looks/LookPicker";
 
 type Tab = "plan" | "look" | "family" | "privacy" | "access";
@@ -23,33 +24,81 @@ const FEATURES: Record<NotesPlanId, string[]> = {
   family: ["2,000 minutes shared by up to 4 people", "Plus features for everyone", "Share notes with the family"],
 };
 
-export default function SettingsScreen({ ctx, tab: start }: { ctx: AppCtx; tab?: Tab }) {
-  const [tab, setTab] = useState<Tab>(start ?? "plan");
-  const tabs: [Tab, string][] = [["plan", "Plan & minutes"], ["look", "Appearance"], ["family", "Family"], ["privacy", "Privacy"], ["access", "Accessibility"]];
+const TITLES: Record<Tab, string> = { plan: "Plan & minutes", look: "Appearance", family: "Family", privacy: "Privacy & data", access: "Accessibility" };
+
+/** Settings is the app's menu: you and your minutes, every place in Notes, and each setting on its own page. */
+export default function SettingsScreen({ ctx, tab }: { ctx: AppCtx; tab?: Tab }) {
+  if (!tab) return <MenuHome ctx={ctx} />;
   return <>
-    <TopBar ctx={ctx} title="Settings" back={() => ctx.go({ name: "home" })} />
-    <main className="mx-auto max-w-3xl space-y-4 px-4 pb-24 pt-4 sm:px-5">
-      <div role="tablist" className="an-scroll -mx-1 flex gap-2 overflow-x-auto px-1">{tabs.map(([k, label]) => <button key={k} role="tab" type="button" aria-selected={tab === k} aria-pressed={tab === k} className="an-chip" onClick={() => setTab(k)}>{label}</button>)}</div>
+    <TopBar ctx={ctx} title={TITLES[tab]} back={() => ctx.go({ name: "settings" })} />
+    <main className="mx-auto max-w-3xl space-y-4 px-4 pb-28 pt-4 sm:px-5" data-testid={`notes-settings-${tab}`}>
       {tab === "plan" && <PlanTab ctx={ctx} />}
       {tab === "family" && <FamilyTab ctx={ctx} />}
       {tab === "privacy" && <PrivacyTab ctx={ctx} />}
       {tab === "look" && <LookTab ctx={ctx} />}
       {tab === "access" && <AccessTab ctx={ctx} />}
-      {ctx.mode === "standalone" && <SignOut ctx={ctx} />}
     </main>
   </>;
 }
 
-// The Notes app on its own (the iPhone app and /notes/) signs out here. Inside Arise To Duo, To Duo's
-// own sign-out is used. Signing out also stops notifications to this phone (AuthContext.logout).
-function SignOut({ ctx }: { ctx: AppCtx }) {
+function Row({ icon, label, detail, onClick, danger, testId }: { icon: ReactNode; label: string; detail?: string; onClick: () => void; danger?: boolean; testId?: string }) {
+  return <button type="button" onClick={onClick} data-testid={testId} className="flex min-h-[3.75rem] w-full items-center gap-3.5 px-4 py-2.5 text-left transition hover:bg-[color-mix(in_srgb,var(--an-ink)_5%,transparent)]">
+    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl [&>svg]:h-[18px] [&>svg]:w-[18px]" style={{ background: danger ? "var(--an-coral-soft)" : "var(--an-violet-soft)", color: danger ? "var(--an-coral)" : "var(--an-violet-ink)" }}>{icon}</span>
+    <span className="min-w-0 flex-1"><span className="block text-[15.5px] font-semibold" style={{ color: danger ? "var(--an-coral)" : "var(--an-ink)" }}>{label}</span>{detail && <span className="block truncate text-[13px]" style={{ color: "var(--an-muted)" }}>{detail}</span>}</span>
+    <ChevronRight className="h-5 w-5 shrink-0" style={{ color: "var(--an-muted)" }} aria-hidden />
+  </button>;
+}
+const Group = ({ title, children }: { title: string; children: ReactNode }) => <section>
+  <h2 className="mb-2 px-1 text-[12px] font-bold uppercase tracking-[.12em]" style={{ color: "var(--an-muted)" }}>{title}</h2>
+  <div className="divide-y divide-[var(--an-line)] overflow-hidden border border-[var(--an-line)] bg-[var(--an-card)]" style={{ borderRadius: "min(var(--an-radius, 18px), 22px)" }}>{children}</div>
+</section>;
+
+function MenuHome({ ctx }: { ctx: AppCtx }) {
   const { logout } = useAuth();
-  return <Section title="Account" icon={<LogOut className="h-4 w-4" />}>
-    <div className="flex flex-wrap items-center gap-3">
-      <p className="min-w-0 flex-1 text-[14px] text-[var(--an-muted)]">Signed in as <b className="text-[var(--an-ink)]">{ctx.me.user.name || "you"}</b>.</p>
-      <Btn kind="soft" onClick={() => { logout(); window.location.hash = "#/"; }} data-testid="notes-sign-out"><LogOut className="h-4 w-4" />Sign out</Btn>
-    </div>
-  </Section>;
+  const u = ctx.me.usage, s = ctx.me.settings;
+  const name = ctx.me.user.name || "You";
+  const pct = Math.min(100, u.pct);
+  const look = NOTES_THEMES.find((t) => t.id === s.theme);
+  const quick: [string, ReactNode, () => void][] = [
+    ["Record", <Mic key="r" />, () => ctx.go({ name: "record" })], ["Upload", <Upload key="u" />, () => ctx.go({ name: "upload" })],
+    ["Voice memo", <AudioLines key="m" />, () => ctx.go({ name: "memo" })], ["Ask AI", <Sparkles key="a" />, () => ctx.go({ name: "ask" })],
+    ["Notes", <Pencil key="n" />, () => ctx.go({ name: "pages" })], ["Recordings", <HomeIcon key="h" />, () => ctx.go({ name: "home" })],
+  ];
+  return <>
+    <TopBar ctx={ctx} title="Menu" back={() => ctx.go({ name: "home" })} />
+    <main className="mx-auto max-w-3xl space-y-6 px-4 pb-28 pt-4 sm:px-5" data-testid="notes-menu">
+      <section className="overflow-hidden p-5 sm:p-6" style={{ background: "var(--an-violet)", color: "var(--an-on-accent)", borderRadius: "min(var(--an-radius, 22px), 26px)" }}>
+        <div className="flex items-center gap-3.5">
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full text-[22px] font-black" style={{ background: "color-mix(in srgb, var(--an-on-accent) 18%, transparent)" }}>{name.trim().charAt(0).toUpperCase()}</span>
+          <div className="min-w-0 flex-1"><p className="truncate text-[20px] font-extrabold leading-tight">{name}</p><p className="text-[14px] font-semibold opacity-80">{ctx.me.planName}{u.pooled ? " · family minutes" : ""}</p></div>
+          <button type="button" onClick={() => ctx.go({ name: "settings", tab: "plan" })} className="rounded-full px-3.5 py-2 text-[13px] font-bold" style={{ background: "var(--an-on-accent)", color: "var(--an-violet)" }}>Plan</button>
+        </div>
+        <div className="mt-5 flex items-end justify-between gap-3"><div><p className="text-[36px] font-black leading-none tabular-nums">{u.left.toLocaleString("en-US")}</p><p className="mt-1 text-[13px] font-semibold opacity-80">minutes left · starts again {dayWords(u.resetOn)}</p></div><p className="text-[13px] font-bold opacity-80">{u.used.toLocaleString("en-US")} of {u.allowance.toLocaleString("en-US")} used</p></div>
+        <div className="mt-3 h-2.5 overflow-hidden rounded-full" style={{ background: "color-mix(in srgb, var(--an-on-accent) 22%, transparent)" }}><div className="h-full rounded-full" style={{ width: `${pct}%`, background: "var(--an-on-accent)" }} /></div>
+      </section>
+
+      <section aria-label="Go to" className="grid grid-cols-3 gap-2.5 sm:grid-cols-6">
+        {quick.map(([label, icon, go]) => <button key={label} type="button" onClick={go} data-testid={`notes-menu-${label.toLowerCase().replace(/\s+/g, "-")}`}
+          className="flex min-h-[5.5rem] flex-col items-center justify-center gap-2 border border-[var(--an-line)] bg-[var(--an-card)] px-1 text-[13px] font-bold transition hover:-translate-y-0.5" style={{ borderRadius: "min(var(--an-radius, 18px), 20px)", color: "var(--an-ink)" }}>
+          <span className="grid h-10 w-10 place-items-center rounded-full [&>svg]:h-5 [&>svg]:w-5" style={{ background: "var(--an-violet-soft)", color: "var(--an-violet-ink)" }}>{icon}</span>{label}</button>)}
+      </section>
+
+      <Group title="Make it yours">
+        <Row icon={<Palette />} label="Appearance" detail={s.contrast ? "High contrast is on" : `Look: ${look?.label ?? "Classic"} · night mode`} onClick={() => ctx.go({ name: "settings", tab: "look" })} testId="notes-menu-look" />
+        <Row icon={<Eye />} label="Accessibility" detail="Font, simple text, read-aloud voice, defaults" onClick={() => ctx.go({ name: "settings", tab: "access" })} testId="notes-menu-access" />
+      </Group>
+      <Group title="Account">
+        <Row icon={<Crown />} label="Plan & minutes" detail={`${ctx.me.planName} · ${u.left.toLocaleString("en-US")} minutes left`} onClick={() => ctx.go({ name: "settings", tab: "plan" })} testId="notes-menu-plan" />
+        <Row icon={<Users />} label="Family" detail={ctx.me.family ? `${ctx.me.family.people.length} people` : "Share minutes with up to 4 people"} onClick={() => ctx.go({ name: "settings", tab: "family" })} />
+        <Row icon={<Shield />} label="Privacy & data" detail="Audio, recording reminders, delete everything" onClick={() => ctx.go({ name: "settings", tab: "privacy" })} />
+        <Row icon={<Shield />} label="Student data privacy" detail="FERPA and COPPA" onClick={() => ctx.go({ name: "privacy" })} />
+      </Group>
+      <Group title="More">
+        <Row icon={<LayoutGrid />} label="Open Arise To Duo" detail="Notes beside your to-dos" onClick={() => openSplit(ctx.mode)} />
+        {ctx.mode === "standalone" && <Row icon={<LogOut />} label="Sign out" danger onClick={() => { logout(); window.location.hash = "#/"; }} testId="notes-sign-out" />}
+      </Group>
+    </main>
+  </>;
 }
 
 // The Notes iPhone app: the privacy mode new recordings start in (each recording can change it).
