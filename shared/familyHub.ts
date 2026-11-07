@@ -2,6 +2,7 @@
 // One sanitizer (cleanFamily) is shared by the page and the server, so whatever is stored
 // always has the same safe shape, and old workspaces without family data simply get an empty hub.
 
+import { cleanKitchen, emptyKitchen, type Kitchen } from "./kitchen";
 import { cleanMoney, cleanParts, emptyMoney, type MoneyPlan } from "./moneyPlan";
 import { cleanLifeLayout, type LifeLayout } from "./lifeLayout";
 import { cleanLifePlan, type LifePlan } from "./lifePlan";
@@ -304,6 +305,8 @@ export type Family = {
   briefOff?: boolean;
   /** Bundled plugins (shared/appBundles.ts) whose "Pick your tools" box has been answered. */
   bundleSet?: Record<string, boolean>;
+  /** Kitchen > Plan: who eats what this week, product picks and prices (shared/kitchen.ts). */
+  kitchen?: Kitchen;
 };
 
 export const MEMBER_COLORS = ["#7566e8", "#f59e72", "#36b6a5", "#619ee6", "#db77ac", "#e5b04f", "#5fb35b", "#e0645a"];
@@ -340,7 +343,7 @@ export const emptyFamily = (): Family => ({
   habits: [], gratitude: [], focusLog: [], recipes: [], meals: [], care: [], birthdays: [], contacts: [], subscriptions: [], jars: [], collections: [], weather: { place: "", unit: "F" },
   sleep: [], sleepApp: emptySleepApp(), sleepFinder: emptySleepFinder(), earshot: emptyEarshot(), workouts: [], routines: [], milestones: [], ious: [], allowance: [], giftCards: [], warranties: [], mileage: [], mileageRate: 0.7, clocks: [], medical: [], kit: [], kitInstalled: [],
   notesInstalled: [], notesApps: {}, lock: null,
-  sheetsInstalled: [], sheets: {}, driveInstalled: false, drive: [], dropInstalled: false, briefOff: false, bundleSet: {},
+  sheetsInstalled: [], sheets: {}, driveInstalled: false, drive: [], dropInstalled: false, briefOff: false, bundleSet: {}, kitchen: emptyKitchen(),
 });
 
 /* ---------------- sanitizing ---------------- */
@@ -714,6 +717,7 @@ export function cleanFamily(input: unknown): Family {
     driveInstalled: bool(raw.driveInstalled, false),
     dropInstalled: bool(raw.dropInstalled, false),
     briefOff: bool(raw.briefOff, false),
+    kitchen: cleanKitchen(raw.kitchen),
     bundleSet: Object.fromEntries(Object.entries(obj(raw.bundleSet) || {}).filter(([k, v]) => BUNDLE_BY_SECTION.has(k) && v === true)),
     drive: cleanDriveFiles(raw.drive),
   };
