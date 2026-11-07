@@ -9,6 +9,7 @@ import type { FamilySection } from "@shared/familyHub";
 import { LIFE_VIEWS } from "./lifeApps";
 import { SECTION_INFO } from "./Members";
 import KitchenShop from "./KitchenShop";
+import KitchenPlan from "./KitchenPlan";
 import { Modal, plain, primary, type SectionProps } from "./ui";
 
 const labelOf = (bundle: NonNullable<ReturnType<typeof bundleOf>>, id: FamilySection) => memberInfo(bundle, id)?.label ?? SECTION_INFO[id]?.label ?? id;
@@ -36,6 +37,7 @@ export default function BundleApp({ bundleId, ...p }: SectionProps & { bundleId:
   const current = tab && pages.includes(tab) ? tab : pages[0] ?? null;
   const body = (id: FamilySection): ReactNode => {
     if (id === "grocery") return <KitchenShop {...p} />;
+    if (id === "meals") return <KitchenPlan {...p} />;
     if (LIFE_VIEWS[id]) return LIFE_VIEWS[id]!(p);
     if (isKitLifeId(id) && kitDef(id)) return <KitPlugin key={id} def={kitDef(id)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={p.today} makeId={p.makeId} say={p.say} />;
     return null;
