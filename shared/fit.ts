@@ -48,6 +48,10 @@ export type FitData = {
   apps?: FitApps;
   /** Interval timers they've made (shared/fitTimers.ts). */
   timers?: IntervalTimer[];
+  /** Medicines and vitamins, their doses and the log (shared/fitMeds.ts). */
+  meds?: Meds;
+  /** Period tracker: logged days (shared/fitCycle.ts). */
+  cycle?: FitCycle;
   /** Foods starred to add again in one tap. */
   favFoods?: Omit<FoodEntry, "id" | "date" | "meal">[];
   /** A note for the day's eating, by date. */
@@ -65,6 +69,8 @@ import { cleanSleep, type Sleep } from "./fitSleep";
 import { cleanSplit, cleanVacation, type SplitLeft, type Vacation } from "./fitVacation";
 import { cleanApps, type FitApps } from "./fitApps";
 import { cleanTimers, type IntervalTimer } from "./fitTimers";
+import { cleanMeds, type Meds } from "./fitMeds";
+import { cleanCycle, type FitCycle } from "./fitCycle";
 
 export const LIMITS = { workouts: 3000, foods: 20000, routines: 60, weights: 3000, recent: 60, bytes: 2_500_000 };
 
@@ -136,6 +142,10 @@ export function cleanFit(raw: any): FitData {
   if (apps) d.apps = apps;
   const timers = cleanTimers(raw.timers);
   if (timers.length) d.timers = timers;
+  const meds = cleanMeds(raw.meds);
+  if (meds) d.meds = meds;
+  const cycle = cleanCycle(raw.cycle);
+  if (cycle) d.cycle = cycle;
   return d;
 }
 

@@ -46,7 +46,7 @@ export function RestTimer({ left, total, next, onAdd, onSet, onStop, onMinimize 
 }) {
   const R = 132, S = 300, c = 2 * Math.PI * R, pct = total ? Math.max(0, Math.min(1, left / total)) : 0;
   const over = left <= 0;
-  return <div className="fit-up fixed inset-0 z-[78] flex flex-col items-center px-5" style={{ background: C.bg, color: C.text, paddingTop: "max(14px, env(safe-area-inset-top))", paddingBottom: "max(18px, env(safe-area-inset-bottom))" }} role="dialog" aria-label="Rest timer" data-testid="fit-rest-full">
+  return <div className="fit-up fixed inset-0 z-[78] flex flex-col items-center px-5" style={{ background: C.bg, color: C.text, paddingTop: "max(14px, var(--sat,env(safe-area-inset-top,0px)))", paddingBottom: "max(18px, env(safe-area-inset-bottom))" }} role="dialog" aria-label="Rest timer" data-testid="fit-rest-full">
     <div className="flex w-full items-center justify-between">
       <button type="button" onClick={() => { setRestFullPref(false); onMinimize(); }} aria-label="Make the timer small" className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card2 }}><ChevronDown className="h-5 w-5" /></button>
       <p className="text-[13px] font-semibold uppercase tracking-[.16em]" style={{ color: C.dim }}>Rest between sets</p>

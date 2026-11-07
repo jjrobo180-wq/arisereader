@@ -14,6 +14,7 @@
 // devices like any other change. The store page is client/src/components/plugin-store/PluginStore.tsx.
 
 import { isTabOn, type HubTab } from "./teacherHub";
+import { BUNDLES, BUNDLE_PARENT, BUNDLE_BY_SECTION, bundleMembers } from "./appBundles";
 import { isOn, type Family, type FamilySection } from "./familyHub";
 import { KIT_DEFS, type KitDef } from "./pluginKit";
 import { showSection } from "./hubLayout";
@@ -292,6 +293,9 @@ export const PLUGINS: readonly Plugin[] = [
   ...ARISE_APPS("work"),
 
   // ── Arise LifeHub ──────────────────────────────────────────────────────────
+  ...BUNDLES.filter((b) => b.id === "healthlite").map((b): Plugin => ({ id: `life-${b.id}`, hub: "life", name: b.name, tagline: b.tagline, category: b.category, icon: b.icon, color: b.color, featured: true, target: section(b.section), description: b.description, features: b.features })),
+  ...BUNDLES.filter((b) => b.id === "inspire").map((b): Plugin => ({ id: `life-${b.id}`, hub: "life", name: b.name, tagline: b.tagline, category: b.category, icon: b.icon, color: b.color, featured: true, target: section(b.section), description: b.description, features: b.features })),
+  ...BUNDLES.filter((b) => b.id === "kitchen").map((b): Plugin => ({ id: `life-${b.id}`, hub: "life", name: b.name, tagline: b.tagline, category: b.category, icon: b.icon, color: b.color, featured: true, target: section(b.section), description: b.description, features: b.features })),
   { id: "life-drive", hub: "life", name: "Drive", tagline: "Upload photos from your camera roll", category: "Premium", icon: "FolderOpen", color: "#2563eb", featured: true,
     description: "A simple photo drive for the family: upload pictures straight from a phone's camera roll or a computer, browse them in one place, and share what you need. 500MB free, with paid storage tiers for more room.",
     features: ["Upload from camera roll or files", "500MB free storage", "More space in Billing when you need it", "Private to your hub"], target: { kind: "driveApp" } },
@@ -635,7 +639,7 @@ const TEACHER_CHECKLIST = /\b(IEP|504|teach|teacher|student|class|classroom|scho
  *  parents who came from A.R.I.S.E. Reader (`arise`). */
 export function pluginsFor(hub: PluginHub, opts: { teacher: boolean; arise?: boolean }): Plugin[] {
   const arise = opts.arise ?? opts.teacher;
-  const mine = (p: Plugin) => p.hub === hub && (!p.teacherOnly || opts.teacher) && !DROPPED.has(p.name) && (p.category !== "Arise apps" || arise);
+  const mine = (p: Plugin) => p.hub === hub && (!p.teacherOnly || opts.teacher) && !DROPPED.has(p.name) && !(hub === "life" && p.target.kind === "section" && BUNDLE_PARENT.has(p.target.section)) && (p.category !== "Arise apps" || arise);
   const shown = (p: Plugin): Plugin => {
     const m = RENAMED.get(p.name);
     let out = m ? { ...p, name: m.name || p.name, tagline: m.tagline || p.tagline } : p;
@@ -778,7 +782,12 @@ export function setLifePlugin<F extends Pick<Family, "sections" | "layers"> & Pa
   if (t.kind === "widget" && t.widget === "board") return { ...family, widgets: { ...(family.widgets ?? { stickies: false }), board: on }, layout: showSection(cleanLifeLayout(family.layout), "widgets", on) };
   if (t.kind === "widget") return { ...family, widgets: { ...(family.widgets ?? { stickies: false }), [t.widget]: on } };
   if (t.kind === "assistant") return { ...family, widgets: { ...(family.widgets ?? { stickies: false }), chat: on } };
-  if (t.kind === "section") return { ...family, sections: { ...family.sections, [t.section]: on } };
+  if (t.kind === "section") {
+    const bundle = BUNDLE_BY_SECTION.get(t.section);
+    // Removing a bundled plugin takes its pages off with it (their saved records stay, as with any plugin).
+    if (bundle && !on) return { ...family, sections: { ...family.sections, ...Object.fromEntries(bundleMembers(bundle).map((m) => [m, false])), [t.section]: false } };
+    return { ...family, sections: { ...family.sections, [t.section]: on } };
+  }
   if (t.kind === "driveApp") return { ...family, driveInstalled: on };
   if (t.kind === "dropApp") return { ...family, dropInstalled: on };
   if (t.kind === "layer") {

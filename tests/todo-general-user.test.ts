@@ -35,8 +35,9 @@ test("one app for one job in the Plugin Gallery", () => {
     assert.ok(!names.has("Apple Health") && !names.has("Getting started"));
   }
   const life = pluginsFor("life", { teacher: false });
-  assert.ok(life.some((p) => p.name === "Calorie counter" && /Apple Health/.test(p.tagline)));
-  assert.ok(life.some((p) => p.name === "Medications") && life.some((p) => p.name === "Mood tracker"));
+  // The health tools are pages inside one Health Lite plugin now (shared/appBundles.ts).
+  assert.ok(life.some((p) => p.name === "Health Lite"));
+  assert.ok(!life.some((p) => p.name === "Calorie counter" || p.name === "Medications" || p.name === "Mood tracker"));
   assert.match(read("client/src/components/family-hub/Members.tsx"), /health: \{ label: "Calorie counter"/);
 });
 

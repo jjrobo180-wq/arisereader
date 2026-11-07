@@ -157,7 +157,7 @@ export function WorkoutReport({ w, prs, data, update, onClose, closeLabel = "Don
   const vol = w.exercises.reduce((t, e) => t + e.sets.reduce((x, s) => x + s.reps * s.weight, 0), 0);
   const top = prs[0];
   const c = w.check;
-  return <Layer><div className="fixed inset-0 z-[80] flex flex-col overflow-y-auto px-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-[max(20px,env(safe-area-inset-top))]" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} role="dialog" aria-modal="true" aria-label="Workout report" data-testid="fit-summary">
+  return <Layer><div className="fixed inset-0 z-[80] flex flex-col overflow-y-auto px-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-[max(20px,var(--sat,env(safe-area-inset-top,0px)))]" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} role="dialog" aria-modal="true" aria-label="Workout report" data-testid="fit-summary">
     <div className="flex flex-col items-center pt-4 text-center">
       <div className="fit-pop grid h-[84px] w-[84px] place-items-center rounded-full" style={{ background: C.lime, boxShadow: "0 0 50px rgba(var(--fit-accent-rgb),.5)" }}><Trophy className="h-[42px] w-[42px]" style={{ color: "var(--fit-on-accent)" }} /></div>
       <h2 className="fit-in mt-4 text-[52px] leading-none" style={{ ...display, animationDelay: ".2s" }}>Done.</h2>
@@ -290,7 +290,7 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
   const allSets = active.exercises.reduce((t, e) => t + e.sets.length, 0);
   const doneSets = active.exercises.reduce((t, e) => t + e.sets.filter((s) => s.done).length, 0);
   return <Layer><div className="fit-sheet fixed inset-0 z-[70] flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} data-testid="fit-live">
-    <div className="shrink-0 px-4 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
+    <div className="shrink-0 px-4 pb-2 pt-[max(10px,var(--sat,env(safe-area-inset-top,0px)))]">
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1"><input value={active.name} onChange={(e) => set((a) => ({ ...a, name: e.target.value.slice(0, 80) }))} aria-label="Workout name" className="w-full bg-transparent text-[30px] leading-none outline-none" style={display} />
           <p className="mt-1 flex items-center gap-1 text-[13px] tabular-nums" style={{ color: C.dim }}><Clock3 className="h-3.5 w-3.5" />{fmtDur(workoutSecs(active, now))}{paused ? " · paused" : ""} · {doneSets} of {allSets} sets</p></div>
