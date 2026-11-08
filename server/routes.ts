@@ -1645,6 +1645,13 @@ export async function registerRoutes(
       return notifyUser(userId, message, "todo");
     },
     nameOf: async (id: number) => { const u: any = await storage.getUser(id); return String(u?.displayName || u?.display_name || "").trim().split(/\s+/)[0] || ""; },
+    // The same devices notifyUser(…, "todo") sends to: every iPhone app ("apns:…"), and browsers with LifeHub reminders on.
+    devices: async (id: number) => {
+      const { data, error } = await supabase.from("push_subscriptions").select("endpoint, todo").eq("user_id", id);
+      if (error) throw error;
+      const rows = (data || []) as { endpoint: string; todo: boolean | null }[];
+      return { apple: rows.filter((r) => String(r.endpoint).startsWith("apns:")).length, web: rows.filter((r) => !String(r.endpoint).startsWith("apns:") && r.todo === true).length };
+    },
   };
   registerAccountabilityRoutes(app, authMiddleware, acctDeps);
   if (process.env.NODE_ENV !== "test") startAccountabilityTicker(acctDeps);

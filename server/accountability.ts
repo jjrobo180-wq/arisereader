@@ -8,7 +8,8 @@ import { randomUUID } from "node:crypto";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import {
   LIMITS, QUIZ_PROMPT, WORKSHEET_PROMPT, aiUserMessage, cleanAiAsk, cleanAnswers, cleanCode, cleanDoneAlready, cleanQuiz, cleanTask, cleanWorksheet, dueOn,
-  inviteCode, isDone, localNow, newId, nudgeNow, nudgeText, scoreQuiz, type AcctTask, type Checkin, type Member, type Proof, type Space,
+  inviteCode, isDone, localNow, missedNow, missedText, newId, nudgeNow, nudgeText, scoreQuiz, cleanNotify, wantsAlert,
+  type AcctTask, type Checkin, type Member, type NotifyKind, type Proof, type Space,
 } from "../shared/accountability";
 import { goUrl } from "../shared/todoReminders";
 
@@ -21,8 +22,12 @@ export type AccountabilityDeps = {
   ask?: Ask;
   aiReady?: () => boolean;
   nameOf: (userId: number) => Promise<string>;
+  /** How many of this person's devices a notification would reach (Settings › Notifications status). */
+  devices?: (userId: number) => Promise<{ apple: number; web: number }>;
   now?: () => number;
 };
+/** A member as the server sees them: with their own notification settings (never sent to the others). */
+type MemberRow = Member & { notify: unknown };
 
 const BUCKET = "accountability-proof";
 const PROOF_TYPES: Record<string, { ext: string; kind: Proof["type"]; maxMb: number }> = {
@@ -66,6 +71,7 @@ export function registerAccountabilityRoutes(app: Express, authMiddleware: Reque
   const joins = createAttemptLimiter({ max: 20, windowMs: 3600_000, now });
   const pokes = createAttemptLimiter({ max: 30, windowMs: 3600_000, now });
   const ais = createAttemptLimiter({ max: 30, windowMs: 3600_000, now });
+  const tests = createAttemptLimiter({ max: 12, windowMs: 3600_000, now });
 
   const me = (req: any, res: any): number | null => {
     const id = Number(req.user?.id);
@@ -84,15 +90,15 @@ export function registerAccountabilityRoutes(app: Express, authMiddleware: Reque
     if (error) throw error;
     return (data || []).map((r: any) => r.space_id);
   };
-  const membersOf = async (spaceIds: string[]): Promise<Map<string, Member[]>> => {
-    const out = new Map<string, Member[]>();
+  const membersOf = async (spaceIds: string[]): Promise<Map<string, MemberRow[]>> => {
+    const out = new Map<string, MemberRow[]>();
     if (!spaceIds.length) return out;
-    const { data, error } = await db().from("acct_members").select("space_id, user_id, name, role, tz").in("space_id", spaceIds);
+    const { data, error } = await db().from("acct_members").select("space_id, user_id, name, role, tz, notify").in("space_id", spaceIds);
     if (error) throw error;
-    for (const r of data || []) out.set(r.space_id, [...(out.get(r.space_id) || []), { userId: r.user_id, name: r.name || "", role: r.role === "owner" ? "owner" : "member", tz: r.tz || "" }]);
+    for (const r of data || []) out.set(r.space_id, [...(out.get(r.space_id) || []), { userId: r.user_id, name: r.name || "", role: r.role === "owner" ? "owner" : "member", tz: r.tz || "", notify: r.notify ?? {} } as MemberRow]);
     return out;
   };
-  const memberOf = async (userId: number, spaceId: string): Promise<Member[] | null> => {
+  const memberOf = async (userId: number, spaceId: string): Promise<MemberRow[] | null> => {
     const m = (await membersOf([spaceId])).get(spaceId) || [];
     return m.some((x) => x.userId === userId) ? m : null;
   };
@@ -102,6 +108,13 @@ export function registerAccountabilityRoutes(app: Express, authMiddleware: Reque
     return data ? rowToTask(data) : null;
   };
   const nameIn = (members: Member[], userId: number) => members.find((m) => m.userId === userId)?.name || "Your partner";
+  /** Sends to one member of the space, if they want this kind of alert. Never throws. */
+  const tell = (members: MemberRow[], userId: number, kind: NotifyKind, message: { title: string; body: string; url?: string; tag?: string }): Promise<number> => {
+    const m = members.find((x) => x.userId === userId);
+    if (!m || !wantsAlert(m.notify, kind)) return Promise.resolve(0);
+    return deps.push(userId, message).catch(() => 0);
+  };
+  const publicMember = ({ notify: _n, ...m }: MemberRow): Member => m;
 
   /** Everything for this person: their spaces, members, tasks, and the last 60 days of check-ins. */
   app.get("/api/accountability", authMiddleware, async (req: any, res) => {
@@ -119,8 +132,9 @@ export function registerAccountabilityRoutes(app: Express, authMiddleware: Reque
         db().from("acct_checkins").select("*").in("space_id", ids).gte("day", new Date(now() - 62 * 86_400_000).toISOString().slice(0, 10)).order("at", { ascending: false }).limit(5000),
       ]);
       if (e1 || e2 || e3) throw e1 || e2 || e3;
-      const out: Space[] = (spaces || []).map((s: any) => ({ id: s.id, name: s.name, code: s.code, createdBy: s.created_by, members: members.get(s.id) || [] }));
-      res.json({ me: userId, spaces: out, tasks: (tasks || []).map(rowToTask), checkins: (checks || []).map(rowToCheckin) });
+      const out: Space[] = (spaces || []).map((s: any) => ({ id: s.id, name: s.name, code: s.code, createdBy: s.created_by, members: (members.get(s.id) || []).map(publicMember) }));
+      const myNotify = Object.fromEntries((spaces || []).map((s: any) => [s.id, cleanNotify((members.get(s.id) || []).find((m) => m.userId === userId)?.notify)]));
+      res.json({ me: userId, spaces: out, myNotify, tasks: (tasks || []).map(rowToTask), checkins: (checks || []).map(rowToCheckin) });
     } catch (e) { fail(res, e, "load"); }
   });
 
@@ -158,7 +172,7 @@ export function registerAccountabilityRoutes(app: Express, authMiddleware: Reque
       const myName = String(req.body?.myName || "").trim().slice(0, LIMITS.name) || (await deps.nameOf(userId)) || "Partner";
       const { error: e2 } = await db().from("acct_members").insert({ space_id: space.id, user_id: userId, name: myName, role: "member", tz: TZ(req.body?.tz) || "" });
       if (e2) throw e2;
-      for (const m of members) void deps.push(m.userId, { title: `${myName} joined ${space.name}`, body: "You can ask each other for things now.", url: goUrl("accountability"), tag: `acct-join-${space.id}` }).catch(() => {});
+      for (const m of members) void tell(members, m.userId, "changes", { title: `${myName} joined ${space.name}`, body: "You can ask each other for things now.", url: goUrl("accountability"), tag: `acct-join-${space.id}` });
       res.json({ ok: true, id: space.id });
     } catch (e) { fail(res, e, "join"); }
   });
@@ -197,9 +211,13 @@ export function registerAccountabilityRoutes(app: Express, authMiddleware: Reque
         const paths = (files || []).flatMap((r: any) => (r.data?.proof || []).map((p: Proof) => p.path)).filter(Boolean);
         if (paths.length) await db().storage.from(BUCKET).remove(paths).catch?.(() => {});
         await db().from("acct_spaces").delete().eq("id", id);
-      } else if (members.find((m) => m.userId === userId)?.role === "owner") {
-        const next = members.find((m) => m.userId !== userId)!;
-        await db().from("acct_members").update({ role: "owner" }).eq("space_id", id).eq("user_id", next.userId);
+      } else {
+        if (members.find((m) => m.userId === userId)?.role === "owner") {
+          const next = members.find((m) => m.userId !== userId)!;
+          await db().from("acct_members").update({ role: "owner" }).eq("space_id", id).eq("user_id", next.userId);
+        }
+        const who = nameIn(members, userId);
+        for (const m of members) if (m.userId !== userId) void tell(members, m.userId, "changes", { title: `${who} left the space`, body: "Their tasks stay here. Invite them again any time.", url: goUrl("accountability"), tag: `acct-leave-${id}-${userId}` });
       }
       res.json({ ok: true });
     } catch (e) { fail(res, e, "leave"); }
@@ -219,6 +237,17 @@ export function registerAccountabilityRoutes(app: Express, authMiddleware: Reque
       if (existing) {
         const { error } = await db().from("acct_tasks").update({ data: t, assignee: t.assignee, updated_at: new Date(now()).toISOString() }).eq("id", existing.id);
         if (error) throw error;
+        // The other person on it hears about the change (and a new assignee, that it's theirs now).
+        const who = nameIn(members, userId);
+        const told = new Set<number>([userId]);
+        if (t.assignee !== existing.assignee && !told.has(t.assignee)) {
+          told.add(t.assignee);
+          void tell(members, t.assignee, "asked", { title: `${who} asked: ${t.title}`, body: `Now yours · by ${t.due}.`, url: URL_FOR(existing.id), tag: `acct-new-${existing.id}` });
+        }
+        for (const other of [existing.assignee, existing.createdBy, t.assignee]) if (!told.has(other)) {
+          told.add(other);
+          void tell(members, other, "changes", { title: `✏️ ${who} changed: ${t.title}`, body: t.title !== existing.title ? `Was “${existing.title}”. Now by ${t.due}.` : `By ${t.due} · ${t.repeat.every === "once" ? "once" : t.repeat.every}.`, url: URL_FOR(existing.id), tag: `acct-edit-${existing.id}` });
+        }
         return res.json({ ok: true, id: existing.id });
       }
       const { count } = await db().from("acct_tasks").select("id", { count: "exact", head: true }).eq("space_id", spaceId).eq("archived", false);
@@ -228,7 +257,7 @@ export function registerAccountabilityRoutes(app: Express, authMiddleware: Reque
       if (error) throw error;
       if (t.assignee !== userId) {
         const asker = nameIn(members, userId);
-        void deps.push(t.assignee, { title: `${asker} asked: ${t.title}`, body: `${t.kind === "worksheet" ? "A worksheet" : t.kind === "quiz" ? "A quiz for your little one" : "A new to-do"} · ${t.repeat.every === "once" ? "once" : t.repeat.every === "daily" ? "every day" : t.repeat.every === "weekdays" ? "weekdays" : "weekly"}, by ${t.due}.`, url: URL_FOR(id), tag: `acct-new-${id}` }).catch(() => {});
+        void tell(members, t.assignee, "asked", { title: `${asker} asked: ${t.title}`, body: `${t.kind === "worksheet" ? "A worksheet" : t.kind === "quiz" ? "A quiz for your little one" : "A new to-do"} · ${t.repeat.every === "once" ? "once" : t.repeat.every === "daily" ? "every day" : t.repeat.every === "weekdays" ? "weekdays" : "weekly"}, by ${t.due}.`, url: URL_FOR(id), tag: `acct-new-${id}` });
       }
       res.json({ ok: true, id });
     } catch (e) { fail(res, e, "task save"); }
@@ -245,6 +274,9 @@ export function registerAccountabilityRoutes(app: Express, authMiddleware: Reque
       if (t.createdBy !== userId && t.assignee !== userId) return res.status(403).json({ message: "Only the person who asked can remove this." });
       const { error } = await db().from("acct_tasks").update({ archived: true }).eq("id", t.id);
       if (error) throw error;
+      const members = (await memberOf(userId, t.spaceId)) || [];
+      const other = t.createdBy === userId ? t.assignee : t.createdBy;
+      if (other !== userId) void tell(members, other, "changes", { title: `🗑 ${nameIn(members, userId)} removed: ${t.title}`, body: "It's off the list. Nothing more to do for it.", url: goUrl("accountability"), tag: `acct-del-${t.id}` });
       res.json({ ok: true });
     } catch (e) { fail(res, e, "task remove"); }
   });
@@ -311,7 +343,7 @@ export function registerAccountabilityRoutes(app: Express, authMiddleware: Reque
       const who = nameIn(members, userId);
       const extra = score ? ` · ${score.right}/${score.total} right` : proof.length ? ` · ${proof.some((p) => p.type === "video") ? "video" : "photo"} attached` : "";
       for (const m of members) if (m.userId !== userId && (m.userId === t.createdBy || t.createdBy === userId)) {
-        void deps.push(m.userId, { title: `✓ ${who} did it: ${t.title}`, body: `${status === "done" ? "Tap to look and approve." : "Checked off."}${extra}`, url: URL_FOR(t.id), tag: `acct-done-${t.id}-${day}` }).catch(() => {});
+        void tell(members, m.userId, "done", { title: `✓ ${who} did it: ${t.title}`, body: `${status === "done" ? "Tap to look and approve." : "Checked off."}${extra}`, url: URL_FOR(t.id), tag: `acct-done-${t.id}-${day}` });
       }
       res.json({ ok: true, id, status, score });
     } catch (e) { fail(res, e, "check-in"); }
@@ -346,7 +378,7 @@ export function registerAccountabilityRoutes(app: Express, authMiddleware: Reque
       if (e2) throw e2;
       const who = nameIn(members, userId);
       const kind = proof.some((p) => p.type === "video") ? "video" : "photo";
-      for (const m of others) void deps.push(m.userId, { title: `✓ ${who} did it: ${asked.title}`, body: `${kind === "video" ? "Video" : "Photo"} attached. Tap to look and approve.`, url: URL_FOR(taskId), tag: `acct-done-${taskId}-${asked.day}` }).catch(() => {});
+      for (const m of others) void tell(members, m.userId, "done", { title: `✓ ${who} did it: ${asked.title}`, body: `${kind === "video" ? "Video" : "Photo"} attached. Tap to look and approve.`, url: URL_FOR(taskId), tag: `acct-done-${taskId}-${asked.day}` });
       res.json({ ok: true, id: checkId, taskId, status });
     } catch (e) { fail(res, e, "done already"); }
   });
@@ -371,9 +403,9 @@ export function registerAccountabilityRoutes(app: Express, authMiddleware: Reque
       // A redo starts the nudges again.
       if (status === "redo") await db().from("acct_nudges").delete().eq("task_id", t.id).eq("day", c.day);
       const who = nameIn(members, userId);
-      void deps.push(c.by, status === "approved"
+      void tell(members, c.by, "reviews", status === "approved"
         ? { title: `⭐ ${who} approved: ${t.title}`, body: feedback || "Great job!", url: URL_FOR(t.id), tag: `acct-ok-${c.id}` }
-        : { title: `↺ ${who} asked for a redo: ${t.title}`, body: feedback || "Take another look.", url: URL_FOR(t.id), tag: `acct-redo-${c.id}` }).catch(() => {});
+        : { title: `↺ ${who} asked for a redo: ${t.title}`, body: feedback || "Take another look.", url: URL_FOR(t.id), tag: `acct-redo-${c.id}` });
       res.json({ ok: true });
     } catch (e) { fail(res, e, "review"); }
   });
@@ -387,9 +419,60 @@ export function registerAccountabilityRoutes(app: Express, authMiddleware: Reque
       const members = t ? await memberOf(userId, t.spaceId) : null;
       if (!t || !members) return res.status(404).json({ message: "That task is gone." });
       if (t.assignee === userId) return res.status(400).json({ message: "That one's yours." });
+      if (!wantsAlert(members.find((m) => m.userId === t.assignee)?.notify, "pokes")) return res.json({ ok: true, sent: 0, off: true });
       const sent = await deps.push(t.assignee, { title: `👋 ${nameIn(members, userId)}: ${t.title}`, body: String(req.body?.message || "").slice(0, 200) || "Just checking in on this one.", url: URL_FOR(t.id), tag: `acct-poke-${t.id}` });
       res.json({ ok: true, sent });
     } catch (e) { fail(res, e, "poke"); }
+  });
+
+  /** Your own notification settings for a space. Body { notify: { asked: true, missed: false, … } }. */
+  app.put("/api/accountability/spaces/:id/notify", authMiddleware, async (req: any, res) => {
+    const userId = me(req, res); if (userId == null) return;
+    if (limited(writes, String(userId), res)) return;
+    try {
+      const id = String(req.params.id);
+      if (!(await memberOf(userId, id))) return res.status(404).json({ message: "That space isn't yours." });
+      const notify = cleanNotify(req.body?.notify);
+      const { error } = await db().from("acct_members").update({ notify }).eq("space_id", id).eq("user_id", userId);
+      if (error) throw error;
+      res.json({ ok: true, notify });
+    } catch (e) { fail(res, e, "notify settings"); }
+  });
+
+  /** Who in the space will actually get alerts: how many devices each person has notifications on for,
+   *  and whether they've turned any kind off. Counts only, never the devices themselves. */
+  app.get("/api/accountability/spaces/:id/notify-status", authMiddleware, async (req: any, res) => {
+    const userId = me(req, res); if (userId == null) return;
+    try {
+      const members = await memberOf(userId, String(req.params.id));
+      if (!members) return res.status(404).json({ message: "That space isn't yours." });
+      const people = await Promise.all(members.map(async (m) => {
+        const d = deps.devices ? await deps.devices(m.userId).catch(() => null) : null;
+        const prefs = cleanNotify(m.notify);
+        return { userId: m.userId, name: m.name, apple: d?.apple ?? 0, web: d?.web ?? 0, known: !!d, off: Object.entries(prefs).filter(([, v]) => !v).map(([k]) => k) };
+      }));
+      res.set("Cache-Control", "no-store").json({ people });
+    } catch (e) { fail(res, e, "notify status"); }
+  });
+
+  /** A real test notification to everyone in the space (you too), so you can see it arrive on each
+   *  phone. Answers with how many devices each person's test reached. */
+  app.post("/api/accountability/spaces/:id/test", authMiddleware, async (req: any, res) => {
+    const userId = me(req, res); if (userId == null) return;
+    if (limited(tests, String(userId), res)) return;
+    try {
+      const id = String(req.params.id);
+      const members = await memberOf(userId, id);
+      if (!members) return res.status(404).json({ message: "That space isn't yours." });
+      const who = nameIn(members, userId);
+      const results = await Promise.all(members.map(async (m) => ({
+        userId: m.userId, name: m.name,
+        delivered: await deps.push(m.userId, m.userId === userId
+          ? { title: "🔔 Accountability test", body: "Notifications work on this device. Your partner got one too.", url: goUrl("accountability"), tag: `acct-test-${id}-${m.userId}` }
+          : { title: `🔔 Test from ${who}`, body: `${who} is checking that Accountability alerts reach you. You're all set!`, url: goUrl("accountability"), tag: `acct-test-${id}-${m.userId}` }).catch(() => 0),
+      })));
+      res.json({ ok: true, results });
+    } catch (e) { fail(res, e, "notify test"); }
   });
 
   /** The AI makes a worksheet or a quiz (metered like every AI call in server/routes.ts). The app
@@ -413,39 +496,58 @@ export function registerAccountabilityRoutes(app: Express, authMiddleware: Reque
   });
 }
 
-// ---- nudges: every minute, the assignee of anything due and not done hears about it again ----
+// ---- every minute: nudges for the assignee of anything due and not done, and a one-time alert to
+// the one who asked when a deadline passes without it being done ----
 
 export async function sendDueAccountabilityNudges(deps: Pick<AccountabilityDeps, "db" | "push" | "now">): Promise<number> {
   const db = deps.db(); const nowMs = (deps.now ?? Date.now)();
   const { data: rows, error } = await db.from("acct_tasks").select("*").eq("archived", false).limit(5000);
   if (error) throw error;
-  const tasks = (rows || []).map(rowToTask).filter((t: AcctTask) => t.nag > 0);
+  // Nudges need a nag interval; missed-deadline alerts need someone else to have asked.
+  const tasks = (rows || []).map(rowToTask).filter((t: AcctTask) => t.nag > 0 || t.createdBy !== t.assignee);
   if (!tasks.length) return 0;
   const spaceIds = Array.from(new Set(tasks.map((t: AcctTask) => t.spaceId)));
-  const { data: mrows } = await db.from("acct_members").select("space_id, user_id, name, tz").in("space_id", spaceIds);
-  const members = (mrows || []) as { space_id: string; user_id: number; name: string; tz: string }[];
+  const { data: mrows } = await db.from("acct_members").select("space_id, user_id, name, tz, notify").in("space_id", spaceIds);
+  const members = (mrows || []) as { space_id: string; user_id: number; name: string; tz: string; notify?: unknown }[];
+  const member = (spaceId: string, userId: number) => members.find((m) => m.space_id === spaceId && m.user_id === userId);
   const tzOf = (userId: number) => members.find((m) => m.user_id === userId && m.tz)?.tz || "America/Denver";
   const days = new Set<string>(); const localByTask = new Map<string, { day: string; minutes: number }>();
   for (const t of tasks) { const l = localNow(nowMs, tzOf(t.assignee)); localByTask.set(t.id, l); days.add(l.day); }
-  const due = tasks.filter((t: AcctTask) => dueOn(t, localByTask.get(t.id)!.day));
+  // Only tasks whose people are still in the space.
+  const due = tasks.filter((t: AcctTask) => dueOn(t, localByTask.get(t.id)!.day) && member(t.spaceId, t.assignee));
   if (!due.length) return 0;
   const ids = due.map((t: AcctTask) => t.id);
-  const [{ data: crows }, { data: nrows }] = await Promise.all([
+  const [{ data: crows }, { data: nrows }, { data: arows }] = await Promise.all([
     db.from("acct_checkins").select("task_id, day, data").in("task_id", ids).in("day", Array.from(days)),
     db.from("acct_nudges").select("task_id, day, n, last_at").in("task_id", ids).in("day", Array.from(days)),
+    db.from("acct_alerts").select("task_id, day, kind").in("task_id", ids).in("day", Array.from(days)),
   ]);
   let sent = 0;
   for (const t of due) {
     const l = localByTask.get(t.id)!;
     const c = (crows || []).find((r: any) => r.task_id === t.id && r.day === l.day);
+    const done = isDone(c ? { status: c.data?.status } as Checkin : null);
+    const assignee = member(t.spaceId, t.assignee)!;
+    const asker = member(t.spaceId, t.createdBy);
+
+    // The nudge to the one doing it.
     const n = (nrows || []).find((r: any) => r.task_id === t.id && r.day === l.day);
     const last = n ? { at: Date.parse(n.last_at), n: n.n } : null;
-    if (!nudgeNow(t, isDone(c ? { status: c.data?.status } as Checkin : null), l, last, nowMs)) continue;
-    const asker = members.find((m) => m.space_id === t.spaceId && m.user_id === t.createdBy)?.name || "";
-    const text = nudgeText(t, t.createdBy === t.assignee ? "" : asker, last?.n ?? 0);
-    // Marked first, so a slow send can't make the next minute's pass send it twice.
-    await db.from("acct_nudges").upsert({ task_id: t.id, day: l.day, n: (last?.n ?? 0) + 1, last_at: new Date(nowMs).toISOString() });
-    try { if (await deps.push(t.assignee, { ...text, url: URL_FOR(t.id), tag: `acct-nudge-${t.id}` })) sent++; } catch { /* next time */ }
+    if (wantsAlert(assignee.notify, "reminders") && nudgeNow(t, done, l, last, nowMs)) {
+      const text = nudgeText(t, t.createdBy === t.assignee ? "" : asker?.name || "", last?.n ?? 0);
+      // Marked first, so a slow send can't make the next minute's pass send it twice.
+      await db.from("acct_nudges").upsert({ task_id: t.id, day: l.day, n: (last?.n ?? 0) + 1, last_at: new Date(nowMs).toISOString() });
+      try { if (await deps.push(t.assignee, { ...text, url: URL_FOR(t.id), tag: `acct-nudge-${t.id}` })) sent++; } catch { /* next time */ }
+    }
+
+    // The heads-up to the one who asked, once.
+    if (asker && missedNow(t, done, l, nowMs) && !(arows || []).some((r: any) => r.task_id === t.id && r.day === l.day && r.kind === "missed")) {
+      const { error: e } = await db.from("acct_alerts").upsert({ task_id: t.id, day: l.day, kind: "missed", at: new Date(nowMs).toISOString() });
+      if (e) { console.error("[accountability] missed mark:", e.message); continue; }
+      if (wantsAlert(asker.notify, "missed")) {
+        try { if (await deps.push(t.createdBy, { ...missedText(t, assignee.name), url: URL_FOR(t.id), tag: `acct-missed-${t.id}-${l.day}` })) sent++; } catch { /* sent once only */ }
+      }
+    }
   }
   return sent;
 }

@@ -304,3 +304,41 @@ export function inviteCode(rand = Math.random): string {
   return Array.from({ length: 6 }, () => A[Math.floor(rand() * A.length)]).join("");
 }
 export const cleanCode = (v: unknown) => str(v, 20).toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+// ---- notifications: who hears about what ----
+
+/** The kinds of alert someone in a space can get. Each person turns these on or off for themselves. */
+export type NotifyKind = "asked" | "reminders" | "pokes" | "done" | "missed" | "reviews" | "changes";
+export type NotifyPrefs = Record<NotifyKind, boolean>;
+export const NOTIFY_KINDS: { kind: NotifyKind; label: string; detail: string }[] = [
+  { kind: "asked", label: "Someone asks me for something", detail: "A new to-do, worksheet or quiz for you" },
+  { kind: "reminders", label: "Reminders for my to-dos", detail: "Every so often after it's due, until it's done" },
+  { kind: "pokes", label: "Nudges from my partner", detail: "When they tap 👋 on something of yours" },
+  { kind: "done", label: "They finished something", detail: "Checked off, with their photo, video or score" },
+  { kind: "missed", label: "They missed a deadline", detail: "Once, 30 minutes after it was due" },
+  { kind: "reviews", label: "My work is checked", detail: "Approved ⭐ or sent back for a redo" },
+  { kind: "changes", label: "Changes in the space", detail: "Tasks changed or removed, people joining or leaving" },
+];
+/** Everything's on until a person turns it off. */
+export function cleanNotify(v: unknown): NotifyPrefs {
+  const o = v && typeof v === "object" ? (v as Record<string, unknown>) : {};
+  return Object.fromEntries(NOTIFY_KINDS.map(({ kind }) => [kind, o[kind] !== false])) as NotifyPrefs;
+}
+export const wantsAlert = (prefs: unknown, kind: NotifyKind) => cleanNotify(prefs)[kind];
+
+/** How long after the due time the one who asked hears that it wasn't done. */
+export const MISSED_AFTER_MIN = 30;
+/** Should the one who asked hear that this wasn't done? Asked of someone else, due today, still not
+ *  done half an hour after its time, and the task already existed back when it was due (one asked
+ *  for at 4pm "by 3pm" isn't missed). Sent once per task and day (acct_alerts). */
+export function missedNow(t: AcctTask, done: boolean, local: { day: string; minutes: number }, nowMs: number): boolean {
+  if (t.archived || done || t.createdBy === t.assignee || !dueOn(t, local.day)) return false;
+  const late = local.minutes - minutesOf(t.due);
+  if (late < MISSED_AFTER_MIN) return false;
+  const made = Date.parse(t.createdAt || "");
+  return !Number.isFinite(made) || made <= nowMs - late * 60_000;
+}
+export function missedText(t: AcctTask, assigneeName: string): { title: string; body: string } {
+  const who = assigneeName || "Your partner";
+  return { title: `⏰ ${who} missed: ${t.title}`, body: `It was due by ${timeWords(t.due)} and isn't checked off yet. Tap to nudge them.` };
+}
