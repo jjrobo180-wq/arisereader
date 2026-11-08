@@ -1790,6 +1790,20 @@ export async function registerRoutes(
     getSetting: (key) => storage.getSetting(key), upsertSetting: (key, value) => storage.upsertSetting(key, value),
     getUser: (id) => storage.getUser(id), lifeHub: (ownerId) => savedHub("life", ownerId),
     // Accountability turned on for a linked person: the two share an Accountability space (server/accountability.ts).
+    lifeWorkspace: {
+      read: async (ownerId) => {
+        const { data, error } = await getAdminSupabase().from("arise_todo_workspaces").select("workspace, updated_at").eq("user_id", ownerId).maybeSingle();
+        if (error) throw error;
+        return data ? { workspace: data.workspace, updatedAt: String(data.updated_at) } : null;
+      },
+      // The same rule as the owner's own saves (server/ariseTodo.ts): only if nobody saved since. Their devices merge it in.
+      write: async (ownerId, workspace, base) => {
+        const now = new Date(Math.max(Date.now(), Date.parse(base) + 1 || 0)).toISOString();
+        const { data, error } = await getAdminSupabase().from("arise_todo_workspaces").update({ workspace, updated_at: now }).eq("user_id", ownerId).eq("updated_at", base).select("updated_at").maybeSingle();
+        if (error) throw error;
+        return data ? String(data.updated_at) : null;
+      },
+    },
     knows: async (a, b) => {
       const { data } = await getAdminSupabase().from("acct_members").select("space_id, user_id").in("user_id", [a, b]);
       const mine = new Set((data || []).filter((r: any) => r.user_id === a).map((r: any) => r.space_id));

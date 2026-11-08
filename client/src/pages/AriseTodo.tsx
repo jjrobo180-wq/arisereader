@@ -35,6 +35,7 @@ import { JOIN_PENDING_KEY, linksApi } from "@/lib/profileLinks";
 import StickyBoard, { ADD_STICKY_EVENT } from "@/components/family-hub/StickyBoard";
 import KitPlugin from "@/components/plugin-kit/KitPlugin";
 import { LIFE_VIEWS } from "@/components/family-hub/lifeApps";
+import { useSharedApp } from "@/components/family-hub/SharedApp";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
 import { KIT_DEFS, isKitLifeId, kitDef, type KitLifeId } from "@shared/pluginKit";
 import Allowance from "@/components/family-hub/Allowance";
@@ -990,6 +991,10 @@ export default function AriseTodo() {
   const makeId = uid;
   const calendarTasks = data.tasks.map(task => ({ id: task.id, title: task.title, due: task.due, time: task.time, assignee: task.assignee, done: task.done }));
   const common = { family, setFamily, today: currentDay, makeId, say: setMessage };
+  // Shared apps (components/family-hub/SharedApp.tsx): a Share button on each app, and when someone shares
+  // this app with you, their copy (to use together, or look at) in place of yours if you choose it.
+  const sharedApp = useSharedApp(shown, common);
+  const appProps = sharedApp.props ?? common;
   // Widgets (Home Screen and Lock Screen): agenda, to-dos, bills, goals, notes, countdowns, email and weather.
   const weatherFeed = useLifeFeed<Forecast>(family.weather.place ? `/api/lifehub/weather?place=${encodeURIComponent(family.weather.place)}&unit=${family.weather.unit}` : null, 0);
   // Worked out once typing or tapping pauses (not on every keystroke), so the page never waits on it.
@@ -1044,11 +1049,11 @@ export default function AriseTodo() {
   const familyContent: ReactNode = shown === "home" ? <FamilyHome {...common} tasks={calendarTasks} go={setSection} name={(user?.displayName || "").split(" ")[0]} onToggleTask={id => { const task = data.tasks.find(row => row.id === id); if (task) toggleDone(task); }} openNotesApp={setNotesAppOpen} appTiles={phoneItems.filter((i) => i.id !== "home").map((i) => ({ id: `app-${i.id}`, label: i.label, icon: i.icon, color: i.color, badge: i.badge, onClick: i.onClick }))} />
     : false && shown === "start" ? <GettingStarted hub="life" startRole={startingRole(user, "life")} canOpen={guideCanOpen} onOpen={guideOpen}
         onRemove={() => { setFamily((f) => ({ ...f, sections: { ...f.sections, start: false } })); setSection("home"); setMessage("Getting started removed. Add it back any time from the Plugin Gallery."); }} />
-    : shown === "calendar" ? <FamilyCalendar {...common} tasks={calendarTasks} onOpenTasks={() => { setSection("tasks"); setView("today"); }} />
+    : shown === "calendar" ? <FamilyCalendar {...appProps} tasks={calendarTasks} onOpenTasks={() => { setSection("tasks"); setView("today"); }} />
     : shown === "reader" ? <Suspense fallback={<div className="grid grid-cols-1 min-h-[40vh] place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}><Reader say={setMessage} night={night} /></Suspense>
     : shown === "lifeplan" ? <LifePlanApp {...common} go={setSection} openStore={() => setStore(true)} />
     : shown === "browser" ? <Browser {...common} onAddTask={(title, url) => setEditing({ ...emptyTask(data.lists[0].id), title: title.slice(0, 200), notes: url })} />
-    : LIFE_VIEWS[shown] ? LIFE_VIEWS[shown]!(common)
+    : LIFE_VIEWS[shown] ? LIFE_VIEWS[shown]!(appProps)
     : isKitLifeId(shown) && kitDef(shown) ? <KitPlugin key={shown} def={kitDef(shown)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
     : null;
 
@@ -1485,7 +1490,7 @@ export default function AriseTodo() {
             </div>
             <KitPlugin key={kitOpen} def={kitDef(kitOpen)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
           </div>}
-          {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{appGroupStrip}{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
+          {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{appGroupStrip}{shown !== "home" && shown !== "linked" && shown !== "family" && sharedApp.bar}{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
           {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown === "tasks" && <>
             <Suspense fallback={<div className="grid min-h-[40vh] grid-cols-1 place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}>
               <LifeTasksScreen data={data} setData={setData} makeId={makeId} say={setMessage} view={view} setView={setView} list={selectedList} setList={setSelectedList} />

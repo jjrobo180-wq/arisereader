@@ -9,17 +9,20 @@ import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { SharedLinks } from "./ShareLink";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
-import { joinUrl, linksApi, sharedAppHref, type LinksState, type MyLink, type SharedLink } from "@/lib/profileLinks";
+import { joinUrl, linksApi, setSharedChoice, sharedAppHref, type LinksState, type MyLink, type SharedLink } from "@/lib/profileLinks";
+import { sharedAppById } from "@shared/sharedApps";
 import { sendLink } from "@/lib/todoShares";
 import { SharedViewBody } from "@/pages/TodoShare";
 import { healthPeople } from "@shared/familyHealth";
-import { ACCOUNTABILITY_SHARE, fullGrants, isJoinLinkEmail, shareCatalog, type Access, type Grants, type ShareItem } from "@shared/profileLinks";
+import { ACCOUNTABILITY_SHARE, partnerGrants, isJoinLinkEmail, shareCatalog, type Access, type Grants, type ShareItem } from "@shared/profileLinks";
 import type { Family } from "@shared/familyHub";
 import { Empty, Modal, PageHead, Panel, danger, inputClass, plain, primary, stickyFoot, type SectionProps } from "./ui";
 
+/** The LifeHub apps families share most, shown first. */
+const LIFE_POPULAR = ["life:calendar", "life:bills", "life:meals", "life:grocery", "life:tasks", "life:chores", "life:moneyhub", "life:trips", "life:goals", "life:pets", "life:birthdays", "life:contacts"];
 const POPULAR = [ACCOUNTABILITY_SHARE, "app:potty", "app:water", "app:sleep", "app:meds", "app:food", "app:appointments", "app:weight", "app:steps", "app:mood", "app:workouts"];
 const PRESETS: { label: string; blurb: string; grants: (people: { id: string }[]) => Grants }[] = [
-  { label: "Partner or spouse", blurb: "Everything: Accountability together, every app and page", grants: (people) => fullGrants(people) },
+  { label: "Partner or spouse", blurb: "Everything together: Accountability, bills, kitchen, calendar and every app", grants: (people) => partnerGrants(people) },
   { label: "Co-parent", blurb: "Logs potty trips, sees the family calendar and to-dos", grants: () => ({ [ACCOUNTABILITY_SHARE]: "edit", "app:potty": "edit", "app:meds": "edit", "app:appointments": "edit", "life:calendar": "view", "life:tasks": "view", "life:chores": "view" }) },
   { label: "Grandparent", blurb: "Sees how potty training and the week are going", grants: () => ({ "app:potty": "view", "life:calendar": "view", "life:goals": "view" }) },
   { label: "Sitter or daycare", blurb: "Logs potty trips while the child is with them", grants: () => ({ "app:potty": "edit", "life:calendar": "view" }) },
@@ -27,10 +30,10 @@ const PRESETS: { label: string; blurb: string; grants: (people: { id: string }[]
 const count = (g: Grants) => Object.keys(g).length;
 
 /** One person on the Sharing page, however you're connected: a link either way, an invite, or an Accountability space. */
-type Person = { key: string; userId?: number; name: string; mine?: MyLink; theirs?: SharedLink; spaces: string[] };
-type AcctSpaces = { me: number; spaces: { id: string; name: string; members: { userId: number; name: string }[] }[] };
+export type Person = { key: string; userId?: number; name: string; mine?: MyLink; theirs?: SharedLink; spaces: string[] };
+export type AcctSpaces = { me: number; spaces: { id: string; name: string; members: { userId: number; name: string }[] }[] };
 
-function gatherPeople(state: LinksState | null, acct: AcctSpaces | null): Person[] {
+export function gatherPeople(state: LinksState | null, acct: AcctSpaces | null): Person[] {
   const out = new Map<string, Person>();
   const get = (key: string, name: string, userId?: number) => { let p = out.get(key); if (!p) { p = { key, userId, name, spaces: [] }; out.set(key, p); } if (!p.name && name) p.name = name; return p; };
   for (const l of state?.mine ?? []) {
@@ -51,7 +54,12 @@ export default function LinkedProfiles({ family, say }: SectionProps) {
   const [state, setState] = useState<LinksState | null>(null);
   const [acct, setAcct] = useState<AcctSpaces | null>(null);
   const [error, setError] = useState("");
-  const [adding, setAdding] = useState<null | { grants?: Grants }>(() => (/[?&]add=accountability/.test(window.location.hash) ? { grants: { [ACCOUNTABILITY_SHARE]: "edit" } } : null));
+  // Opened to add someone for one thing: Accountability (its Invite) or an app (its Share button: add=life:bills…).
+  const [adding, setAdding] = useState<null | { grants?: Grants }>(() => {
+    const m = /[?&]add=([\w:.-]+)/.exec(window.location.hash); if (!m) return null;
+    const id = decodeURIComponent(m[1]);
+    return { grants: id === "accountability" ? { [ACCOUNTABILITY_SHARE]: "edit" } : { [id]: "edit" } };
+  });
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [viewing, setViewing] = useState<{ owner: SharedLink; item: ShareItem } | null>(null);
   const people = useMemo(() => healthPeople(family, user?.displayName?.split(" ")[0] || "Me").map((m) => ({ id: m.id, name: m.name })), [family, user?.displayName]);
@@ -154,6 +162,9 @@ function PersonModal({ person, catalog, api, say, onClose, onChanged, onOpenLife
           const badge = <span className={`ml-auto inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${item.kind === "together" ? "bg-teal-100 text-teal-800" : access === "edit" ? "bg-emerald-100 text-emerald-800" : "bg-sky-100 text-sky-800"}`}>{item.kind === "together" ? <><Users size={11} /> Together</> : access === "edit" ? <><Pencil size={11} /> Edit</> : <><Eye size={11} /> View</>}</span>;
           const cls = "flex min-h-14 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 text-left hover:bg-slate-50";
           if (item.kind === "together") return <a key={item.id} href="#/lifehub?go=accountability" className={cls}><ItemIcon item={item} /><span className="min-w-0 truncate text-sm font-bold">{item.label}</span>{badge}</a>;
+          // A LifeHub app: opens the app itself, showing their copy (SharedApp.tsx).
+          const live = sharedAppById(item.id);
+          if (live) return <a key={item.id} href={`#/lifehub?go=${live.section}`} onClick={() => setSharedChoice(live.section, String(person.theirs!.ownerId))} className={cls} data-testid={`shared-open-${item.id}`}><ItemIcon item={item} /><span className="min-w-0 truncate text-sm font-bold">{item.label}</span>{badge}</a>;
           return item.kind === "app"
             ? <a key={item.id} href={sharedAppHref(item.id.slice(4), person.theirs!.ownerId)} className={cls} data-testid={`shared-open-${item.id}`}><ItemIcon item={item} /><span className="min-w-0 truncate text-sm font-bold">{item.label}</span>{badge}</a>
             : <button key={item.id} type="button" onClick={() => onOpenLife(item)} className={cls}><ItemIcon item={item} /><span className="min-w-0 truncate text-sm font-bold">{item.label}</span>{badge}</button>;
@@ -179,13 +190,15 @@ function ItemIcon({ item }: { item: ShareItem }) {
   return <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white" style={{ background: item.color || "#64748b" }} aria-hidden><Icon size={17} /></span>;
 }
 
-/** Off / View / Edit for each thing. LifeHub pages stop at View. */
+/** Off / View / Edit for each thing: premium apps, then every LifeHub app (Edit: one copy you both use). */
 function GrantPicker({ grants, setGrants, catalog }: { grants: Grants; setGrants: (g: Grants) => void; catalog: ShareItem[] }) {
   const [query, setQuery] = useState("");
   const [all, setAll] = useState(false);
   const q = query.trim().toLowerCase();
   const apps = catalog.filter((c) => c.kind === "app" || c.kind === "together");
-  const life = catalog.filter((c) => c.kind === "life");
+  const [allLife, setAllLife] = useState(false);
+  const lifeAll = catalog.filter((c) => c.kind === "life" && (!q || c.label.toLowerCase().includes(q)));
+  const life = q || allLife ? lifeAll : lifeAll.filter((c) => LIFE_POPULAR.includes(c.id) || grants[c.id]).sort((a, b) => LIFE_POPULAR.indexOf(a.id) - LIFE_POPULAR.indexOf(b.id));
   const shownApps = q ? apps.filter((a) => a.label.toLowerCase().includes(q)) : all ? apps : apps.filter((a) => POPULAR.includes(a.id) || grants[a.id]).sort((a, b) => POPULAR.indexOf(a.id) - POPULAR.indexOf(b.id));
   const set = (id: string, v: Access | null) => { const next = { ...grants }; if (v) next[id] = v; else delete next[id]; setGrants(next); };
   const row = (item: ShareItem) => {
@@ -201,14 +214,15 @@ function GrantPicker({ grants, setGrants, catalog }: { grants: Grants; setGrants
   return <div className="space-y-4">
     <section>
       <h4 className="text-xs font-extrabold uppercase tracking-[.14em] text-slate-400">Apps</h4>
-      <div className="relative mt-2"><Search size={15} className="pointer-events-none absolute left-3 top-3 text-slate-400" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={`Find any of ${apps.length} apps`} aria-label="Find an app" className={inputClass + " h-10 min-h-10 pl-9"} /></div>
+      <div className="relative mt-2"><Search size={15} className="pointer-events-none absolute left-3 top-3 text-slate-400" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={`Find any of ${apps.length + catalog.filter((c) => c.kind === "life").length} apps`} aria-label="Find an app" className={inputClass + " h-10 min-h-10 pl-9"} /></div>
       <ul className="divide-y divide-slate-100">{shownApps.map(row)}</ul>
       {!q && apps.length > shownApps.length && <button type="button" onClick={() => setAll(true)} className="mt-1 w-full rounded-xl py-2 text-sm font-bold text-violet-700 hover:bg-violet-50" data-testid="grant-show-all">Show all {apps.length} apps</button>}
       {q && !shownApps.length && <p className="py-3 text-sm text-slate-500">No app matches “{query}”.</p>}
     </section>
     <section>
-      <h4 className="text-xs font-extrabold uppercase tracking-[.14em] text-slate-400">LifeHub pages <span className="font-semibold normal-case tracking-normal text-slate-400">(view only)</span></h4>
-      <ul className="divide-y divide-slate-100">{life.map(row)}</ul>
+      <h4 className="text-xs font-extrabold uppercase tracking-[.14em] text-slate-400">LifeHub apps <span className="font-semibold normal-case tracking-normal text-slate-400">(Edit: one copy you both use)</span></h4>
+      <ul className="divide-y divide-slate-100" data-testid="grant-life">{life.map(row)}</ul>
+      {!q && !allLife && lifeAll.length > life.length && <button type="button" onClick={() => setAllLife(true)} className="mt-1 w-full rounded-xl py-2 text-sm font-bold text-violet-700 hover:bg-violet-50" data-testid="grant-show-all-life">Show all {lifeAll.length} LifeHub apps</button>}
     </section>
   </div>;
 }

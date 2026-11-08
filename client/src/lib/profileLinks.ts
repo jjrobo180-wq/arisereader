@@ -29,6 +29,9 @@ export const linksApi = (token: string | null) => ({
   decline: (id: string) => call<{ ok: true }>(token, `/api/profile-links/requests/${id}/decline`, { method: "POST", body: "{}" }),
   accept: (ownerId: number, id: string) => call<{ ok: true }>(token, `/api/profile-links/from/${ownerId}/${id}/accept`, { method: "POST" }),
   leave: (ownerId: number, id: string) => call<{ ok: true }>(token, `/api/profile-links/from/${ownerId}/${id}/leave`, { method: "POST" }),
+  /** A LifeHub app someone shares with you: their copy of it (shared/sharedApps.ts). */
+  appGet: (ownerId: number, section: string) => call<{ access: "view" | "edit"; owner: string; members: any[]; slice: Record<string, unknown>; updatedAt: string | null }>(token, `/api/profile-links/from/${ownerId}/app/${encodeURIComponent(section)}`),
+  appPut: (ownerId: number, section: string, slice: Record<string, unknown>) => call<{ ok: true; updatedAt: string; slice: Record<string, unknown> }>(token, `/api/profile-links/from/${ownerId}/app/${encodeURIComponent(section)}`, { method: "PUT", body: JSON.stringify({ slice }) }),
   lifeView: (ownerId: number, item: string, today: string) => call<{ view: any; today: string; owner: string }>(token, `/api/profile-links/from/${ownerId}/life/${encodeURIComponent(item)}?today=${today}`),
 });
 
@@ -40,3 +43,8 @@ export const joinUrl = (token: string, origin = typeof window !== "undefined" &&
 
 /** Where a join link waits while the person signs in or makes an account. */
 export const JOIN_PENDING_KEY = "arise-join-token";
+
+/** Which copy of a shared LifeHub app this person uses on this device: someone's (their id) or their own. */
+const CHOICE = (section: string) => `arise-shared-app:${section}`;
+export const sharedChoice = (section: string): string | null => { try { return localStorage.getItem(CHOICE(section)); } catch { return null; } };
+export const setSharedChoice = (section: string, v: string | null) => { try { if (v) localStorage.setItem(CHOICE(section), v); else localStorage.removeItem(CHOICE(section)); } catch { /* fine */ } window.dispatchEvent(new Event("arise-shared-choice")); };

@@ -10,7 +10,7 @@ import LinkedProfiles, { LinkSomeoneModal } from "@/components/family-hub/Linked
 import { emptyFamily } from "@shared/familyHub";
 
 const q = new URLSearchParams(location.search);
-const kind = (q.get("kind") === "sheet" || q.get("kind") === "slides" ? q.get("kind") : "doc") as keyof typeof OFFICE_KINDS;
+const kind = (["sheet", "slides", "design"].includes(q.get("kind") || "") ? q.get("kind") : "doc") as keyof typeof OFFICE_KINDS;
 const config = OFFICE_KINDS[kind];
 const tpl = config.templates[0];
 const now = new Date().toISOString();

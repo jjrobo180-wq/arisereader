@@ -34,8 +34,8 @@ function setup(onActive?: (link: any) => Promise<void>) {
   return { call, files, settings };
 }
 
-test("only known things can be shared, and LifeHub pages are never more than View", () => {
-  assert.deepEqual(cleanGrants({ "app:potty": "edit", "app:not-real": "edit", "life:calendar": "edit", "life:health:me": "view", junk: "view", "app:water": "owner" }), { "app:potty": "edit", "life:calendar": "view", "life:health:me": "view" });
+test("only known things can be shared; LifeHub apps can be Edit (used together), to-do lists and health stay View", () => {
+  assert.deepEqual(cleanGrants({ "app:potty": "edit", "app:not-real": "edit", "life:calendar": "edit", "life:tasks": "edit", "life:health:me": "edit", junk: "view", "app:water": "owner" }), { "app:potty": "edit", "life:calendar": "edit", "life:tasks": "view", "life:health:me": "view" });
   assert.equal(appIdFromKey("pro-potty"), "potty");
   assert.equal(appIdFromKey("premium-studio-v1"), null);
   assert.equal(shareCatalog().find((c) => c.kind === "app")!.id, "app:potty");
@@ -136,7 +136,7 @@ test("ask to see theirs: the person who keeps the data approves, and only then c
   const theirs = await call("GET", "/api/profile-links", 2);
   assert.equal(theirs.body.requests.length, 1);
   assert.equal(theirs.body.requests[0].fromName, "Jordan Rivera");
-  assert.deepEqual(theirs.body.requests[0].grants, { "app:potty": "edit", "life:calendar": "view" });
+  assert.deepEqual(theirs.body.requests[0].grants, { "app:potty": "edit", "life:calendar": "edit" });
   assert.equal((await call("GET", "/api/profile-links", 3)).body.requests.length, 0, "a stranger sees no one's requests");
   assert.equal((await call("POST", "/api/profile-links/requests/:id/approve", 3, { params: { id: theirs.body.requests[0].id } })).status, 404, "only the person it was sent to can answer");
   // She shares just Potty Training, and only to view: the approver can narrow what was asked, never widen it.
@@ -268,4 +268,63 @@ test("share with someone you're already together with (an Accountability space),
   await call("POST", "/api/profile-links/person", 1, { userId: 2, grants: { "app:potty": "view" } });
   assert.equal((await call("GET", "/api/profile-links", 1)).body.mine.length, 1);
   assert.equal((await call("POST", "/api/profile-links/person", 1, { userId: 3, grants: { "app:potty": "edit" } })).status, 403, "not someone you know here");
+});
+
+test("every LifeHub app can be shared to use together (Edit) or to look at: bills, kitchen and the rest", async () => {
+  const { SHARED_APPS, sharedAppFor, pickParts, applyParts, mergeSlices } = await import("../shared/sharedApps");
+  const { partnerGrants } = await import("../shared/profileLinks");
+  const { emptyFamily, cleanFamily } = await import("../shared/familyHub");
+  assert.ok(SHARED_APPS.length >= 60, `${SHARED_APPS.length} apps`);
+  assert.equal(sharedAppFor("money")!.id, "life:bills", "Bills keeps its old id");
+  assert.equal(sharedAppFor("kitchen")!.id, "life:meals", "Kitchen keeps the meal plan's old id");
+  for (const k of ["groceries", "meals", "recipes", "kitchen"]) assert.ok(sharedAppFor("kitchen")!.parts.some((p) => p.key === k), `kitchen has ${k}`);
+  const cat = shareCatalog();
+  assert.ok(cat.find((c) => c.id === "life:bills")!.editable);
+  assert.deepEqual(cleanGrants({ "life:bills": "edit", "life:meals": "edit", "life:tasks": "edit" }), { "life:bills": "edit", "life:meals": "edit", "life:tasks": "view" });
+  const pg = partnerGrants();
+  assert.equal(pg["life:bills"], "edit"); assert.equal(pg["life:journal"], undefined, "personal apps aren't in 'everything'");
+  // Only that app's part of the family is read and written; pets share care items of their kind only.
+  const fam = cleanFamily({ ...emptyFamily(), care: [{ id: "c1", kind: "pets", group: "", name: "Biscuit", everyDays: 30, lastDone: "", notes: "" }, { id: "c2", kind: "plants", group: "", name: "Fern", everyDays: 7, lastDone: "", notes: "" }] });
+  const pets = sharedAppFor("pets")!;
+  assert.deepEqual((pickParts(fam, pets.parts).care as any[]).map((c) => c.name), ["Biscuit"]);
+  const after = applyParts(fam, pets.parts, { care: [{ id: "c3", kind: "pets", group: "", name: "Luna", everyDays: 30, lastDone: "", notes: "" }] });
+  assert.deepEqual(after.care.map((c) => c.name).sort(), ["Fern", "Luna"], "the plant isn't touched");
+  const merged = mergeSlices({ bills: [{ id: "a" }] }, { bills: [{ id: "a" }, { id: "b" }] }, sharedAppFor("money")!.parts);
+  assert.deepEqual((merged.bills as any[]).map((b) => b.id), ["a", "b"]);
+});
+
+test("a partner opens the owner's app, and with Edit saves only that app back into the owner's LifeHub", async () => {
+  const { sharedAppFor } = await import("../shared/sharedApps");
+  const { emptyFamily } = await import("../shared/familyHub");
+  const settings = new Map<string, string>(); const routes: Record<string, Function> = {};
+  const add = (m: string) => (path: string, ...h: Function[]) => { routes[`${m} ${path}`] = h[h.length - 1]; };
+  const app: any = { get: add("GET"), post: add("POST"), put: add("PUT"), delete: add("DELETE") };
+  let saved: any = { workspace: { version: 2, lists: [], tasks: [], family: { ...emptyFamily(), bills: [{ id: "b1", name: "Rent", amount: 1200, due: 1, category: "Home", paid: [] }], journal: [{ id: "j1", date: "2026-11-01", title: "Private", body: "private", mood: "", createdAt: "2026-11-01T00:00:00Z" }] } }, updatedAt: "2026-11-08T00:00:00.000Z" };
+  registerProfileLinkRoutes(app, ((_q: any, _s: any, n: any) => n()) as any, {
+    getSetting: async (k) => settings.get(k) ?? "", upsertSetting: async (k, v) => { settings.set(k, v); },
+    getUser: async (id) => USERS[id] ?? null, lifeHub: async () => saved.workspace,
+    knows: async () => true,
+    lifeWorkspace: { read: async () => saved, write: async (_o, ws, base) => { if (base !== saved.updatedAt) return null; saved = { workspace: ws, updatedAt: new Date(Date.parse(base) + 1000).toISOString() }; return saved.updatedAt; } },
+  });
+  const call = async (m: string, path: string, who: number, body: any = {}, params: any = {}) => {
+    let status = 200, out: any = null;
+    const res: any = { status(c: number) { status = c; return res; }, json(b: any) { out = b; return res; }, set() { return res; } };
+    await routes[`${m} ${path}`]({ user: USERS[who], body, params, query: {} }, res);
+    return { status, body: out };
+  };
+  const P = { owner: "1", section: "money" };
+  assert.equal((await call("GET", "/api/profile-links/from/:owner/app/:section", 2, {}, P)).status, 403, "nothing before sharing");
+  await call("POST", "/api/profile-links/person", 1, { userId: 2, grants: { "life:bills": "view" } });
+  const got = await call("GET", "/api/profile-links/from/:owner/app/:section", 2, {}, P);
+  assert.equal(got.status, 200); assert.equal(got.body.access, "view"); assert.equal(got.body.slice.bills[0].name, "Rent");
+  assert.equal(got.body.slice.journal, undefined, "only that app");
+  assert.equal((await call("PUT", "/api/profile-links/from/:owner/app/:section", 2, { slice: { bills: [] } }, P)).status, 403, "view can't save");
+  await call("POST", "/api/profile-links/person", 1, { userId: 2, grants: { "life:bills": "edit" } });
+  const bills = [...got.body.slice.bills, { id: "b2", name: "Internet", amount: 60, due: 15, category: "Home", paid: [] }];
+  const put = await call("PUT", "/api/profile-links/from/:owner/app/:section", 2, { slice: { ...got.body.slice, bills, journal: [] } }, P);
+  assert.equal(put.status, 200);
+  assert.deepEqual(saved.workspace.family.bills.map((b: any) => b.name), ["Rent", "Internet"]);
+  assert.equal(saved.workspace.family.journal.length, 1, "parts outside the app can't be touched, even if sent");
+  assert.equal((await call("GET", "/api/profile-links/from/:owner/app/:section", 3, {}, P)).status, 403, "strangers can't");
+  assert.ok(sharedAppFor("money"));
 });

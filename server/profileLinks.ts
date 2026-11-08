@@ -19,6 +19,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { JOIN_LINK_EMAIL, LINK_LIMITS, LIFE_SHARES, fullGrants, accessFor, allows, appIdFromKey, appShareId, cleanGrants, cleanLinks, isHealthShareId, normalEmail, type Access, type ProfileLink } from "../shared/profileLinks";
 import { parseTarget, sharedView } from "../shared/todoShare";
+import { applyParts, pickParts, sharedAppFor } from "../shared/sharedApps";
+import { cleanFamily, emptyFamily } from "../shared/familyHub";
 
 export type ProfileLinkDeps = {
   getSetting: (key: string) => Promise<string | null | undefined>;
@@ -32,6 +34,12 @@ export type ProfileLinkDeps = {
   /** Whether two people already know each other here (they share an Accountability space): then one can start
    *  sharing with the other straight from the Sharing page, without typing an email. */
   knows?: (a: number, b: number) => Promise<boolean>;
+  /** The owner's whole LifeHub, to read one shared app out of it and write that app back (only that app). */
+  lifeWorkspace?: {
+    read: (ownerId: number) => Promise<{ workspace: any; updatedAt: string } | null>;
+    /** Saves if nobody else saved since `base`; null when someone did (then it's read again and retried). */
+    write: (ownerId: number, workspace: any, base: string) => Promise<string | null>;
+  };
   now?: () => number;
 };
 
@@ -401,6 +409,45 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
   };
   app.post("/api/profile-links/from/:owner/:id/accept", authMiddleware, respond("accept"));
   app.post("/api/profile-links/from/:owner/:id/leave", authMiddleware, respond("leave"));
+
+  // ─── A shared LifeHub app: the partner opens the owner's copy, and with Edit changes it ───
+  const appAccess = async (req: any, res: any) => {
+    const u = me(req);
+    const ownerId = Number(req.params.owner);
+    const shared = sharedAppFor(String(req.params.section || ""));
+    if (!u) { res.status(401).json({ message: "Sign in first." }); return null; }
+    if (!shared || !Number.isInteger(ownerId) || ownerId <= 0) { res.status(400).json({ message: "Unknown app." }); return null; }
+    if (!deps.lifeWorkspace) { res.status(503).json({ message: "Shared apps aren't available right now." }); return null; }
+    const access = accessFor(await ownerLinks(ownerId), u.id, shared.id);
+    if (!allows(access, "view")) { res.status(403).json({ message: "This isn't shared with you (any more)." }); return null; }
+    return { u, ownerId, shared, access: access! };
+  };
+  app.get("/api/profile-links/from/:owner/app/:section", authMiddleware, async (req: any, res) => {
+    const a = await appAccess(req, res); if (!a) return;
+    try {
+      const row = await deps.lifeWorkspace!.read(a.ownerId);
+      const family = cleanFamily(row?.workspace?.family ?? emptyFamily());
+      res.set("Cache-Control", "no-store").json({ access: a.access, owner: await nameOf(a.ownerId), members: family.members, slice: pickParts(family, a.shared.parts), updatedAt: row?.updatedAt || null });
+    } catch (e: any) { console.error("[profile-links] app read:", e?.message); res.status(500).json({ message: "This app couldn't be opened. Try again." }); }
+  });
+  /** Body { slice }: the app's data as the partner left it. Only that app's parts are written. */
+  app.put("/api/profile-links/from/:owner/app/:section", authMiddleware, async (req: any, res) => {
+    const a = await appAccess(req, res); if (!a) return;
+    if (!allows(a.access, "edit")) return res.status(403).json({ message: "You can look at this, but not change it." });
+    const slice = req.body?.slice;
+    if (!slice || typeof slice !== "object" || Array.isArray(slice)) return res.status(400).json({ message: "Nothing to save." });
+    if (Buffer.byteLength(JSON.stringify(slice), "utf8") > 2_000_000) return res.status(413).json({ message: "That's too much to save at once." });
+    try {
+      for (let tries = 0; tries < 4; tries++) {
+        const row = await deps.lifeWorkspace!.read(a.ownerId);
+        if (!row?.workspace) return res.status(404).json({ message: "Their LifeHub isn't set up yet." });
+        const family = cleanFamily(applyParts(cleanFamily(row.workspace.family ?? emptyFamily()), a.shared.parts, slice));
+        const saved = await deps.lifeWorkspace!.write(a.ownerId, { ...row.workspace, family }, row.updatedAt);
+        if (saved) return res.json({ ok: true, updatedAt: saved, slice: pickParts(family, a.shared.parts) });
+      }
+      res.status(409).json({ message: "They're changing it right now. Try again in a moment." });
+    } catch (e: any) { console.error("[profile-links] app write:", e?.message); res.status(500).json({ message: "Couldn't save. Try again." }); }
+  });
 
   app.get("/api/profile-links/from/:owner/life/:item", authMiddleware, async (req: any, res) => {
     const u = me(req);
