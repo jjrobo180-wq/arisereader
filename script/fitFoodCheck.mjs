@@ -52,7 +52,7 @@ for (const [label, engine, opts] of [["iphone-safari", webkit, devices["iPhone 1
     await page.waitForTimeout(6000);
     await page.screenshot({ path: `screens/fit-${label}-1-today.png` });
     // 1) Food from Today's calories card.
-    if (!(await tap(page.getByTestId("fit-today-calories"), "the calories card on Today"))) {
+    if (!(await tap(page.getByTestId("fit-today-log-food"), "Log food on Today"))) {
       await tap(page.getByRole("button", { name: /plugins/i }).last(), "Plugins tab");
       await page.waitForTimeout(800);
       await tap(page.getByRole("button", { name: /^food/i }).first(), "Food in Plugins");

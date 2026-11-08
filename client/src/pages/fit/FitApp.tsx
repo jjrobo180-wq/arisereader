@@ -3,7 +3,7 @@
 // where you add and arrange the rest (FitApps.tsx, shared/fitApps.ts). Data:
 // fitStore.ts → server/fit.ts. The look and motion follow the Arise Fit prototype (fitUi.tsx).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Bell, Check, Crown, ChevronRight, Droplets, Footprints, HeartPulse, Flame, Home, LayoutGrid, LogOut, Mic, Moon, Play, Scale, Settings, ShieldCheck, Timer, Trophy } from "lucide-react";
+import { Bell, Check, Crown, ChevronRight, Utensils, Plus, Droplets, Footprints, HeartPulse, Flame, Home, LayoutGrid, LogOut, Mic, Moon, Play, Scale, Settings, ShieldCheck, Timer, Trophy } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import AccountPrivacy from "@/components/AccountPrivacy";
 import { goToSignIn } from "@/lib/hubs";
@@ -166,6 +166,13 @@ function TodayTab({ layout, data, update, onApp, onAllApps, onStartProgram, onSe
   const tipCard = tip && <><Title right={<button type="button" onClick={() => setWatch(true)} className="text-[14px] font-semibold" style={{ color: C.lime }}>Cues</button>}>Form tip of the day</Title>
     <TipCard exId={tip.id} testId="fit-today-tip" /></>;
   const week = <WeekStrip data={data} streak={s} />;
+  // Logging a meal is one tap from the top of Today, in every layout, whether or not Food is on the tab bar.
+  const logFood = <button type="button" onClick={() => onApp("food")} className="mt-3 flex min-h-[64px] w-full items-center gap-3 rounded-[16px] px-4 text-left transition-transform active:scale-[.98]" style={{ background: "linear-gradient(150deg, var(--fit-accent), var(--fit-accent-deep))", color: "var(--fit-on-accent)" }} data-testid="fit-today-log-food">
+    <Utensils className="h-6 w-6 shrink-0" />
+    <span className="min-w-0 flex-1"><span className="block text-[19px] leading-tight" style={display}>Log food</span>
+      <span className="block truncate text-[12.5px] opacity-90">{points ? `${Math.max(0, budget - used)} points left today` : `${fmtNum(Math.max(0, g.kcal - t.kcal))} cal left today`} · search, scan, photo or quick add</span></span>
+    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full" style={{ background: "rgba(255,255,255,.22)" }}><Plus className="h-5 w-5" /></span>
+  </button>;
   const checkin = sleepGuess && <SleepCheckIn guess={sleepGuess} data={data} update={update} say={say} onSkip={onSkipSleep} />;
   const footer = <>
     <WeightCard data={data} update={update} />
@@ -175,12 +182,12 @@ function TodayTab({ layout, data, update, onApp, onAllApps, onStartProgram, onSe
     {analysis && insights && <ProPlusAnalysis i={insights} data={data} onClose={() => setAnalysis(false)} onAsk={() => { setAnalysis(false); setAsking(true); }} />}
   </>;
   // Each layout arranges the same pieces its own way.
-  const body = layout === "studio" ? <>{checkin}<StudioTrio v={v} open={open} />{heroTabs}{heroCard}{week}<div className="mt-3 grid grid-cols-2 gap-2.5">{sleepGlance}{fastGlance}</div>{extras}{tipCard}</>
-    : layout === "bloom" ? <>{checkin}<BloomFlower v={v} open={open} /><BloomRitual v={v} open={open} />{heroTabs}{heroCard}{week}{extras}{tipCard}</>
-    : layout === "proplus" && insights ? <>{checkin}<ProTiles v={v} open={open} /><ProPlusBoard i={insights} open={open} onAnalysis={() => setAnalysis(true)} onAsk={() => setAsking(true)} />{heroTabs}{heroCard}{week}{calories}{extras}{tipCard}</>
-    : layout === "pro" ? <>{checkin}<ProTiles v={v} open={open} />{heroTabs}{heroCard}{week}{calories}{extras}{tipCard}</>
-    : layout === "zen" ? <>{checkin}{heroTabs}{heroCard}<ZenRows v={v} open={open} />{week}{extras}{tipCard}</>
-    : <>{week}{checkin}{heroTabs}{heroCard}{glanceAll}{calories}{extras}{tipCard}</>;
+  const body = layout === "studio" ? <>{checkin}{logFood}<StudioTrio v={v} open={open} />{heroTabs}{heroCard}{week}<div className="mt-3 grid grid-cols-2 gap-2.5">{sleepGlance}{fastGlance}</div>{extras}{tipCard}</>
+    : layout === "bloom" ? <>{checkin}{logFood}<BloomFlower v={v} open={open} /><BloomRitual v={v} open={open} />{heroTabs}{heroCard}{week}{extras}{tipCard}</>
+    : layout === "proplus" && insights ? <>{checkin}{logFood}<ProTiles v={v} open={open} /><ProPlusBoard i={insights} open={open} onAnalysis={() => setAnalysis(true)} onAsk={() => setAsking(true)} />{heroTabs}{heroCard}{week}{calories}{extras}{tipCard}</>
+    : layout === "pro" ? <>{checkin}{logFood}<ProTiles v={v} open={open} />{heroTabs}{heroCard}{week}{calories}{extras}{tipCard}</>
+    : layout === "zen" ? <>{checkin}{logFood}{heroTabs}{heroCard}<ZenRows v={v} open={open} />{week}{extras}{tipCard}</>
+    : <>{week}{checkin}{logFood}{heroTabs}{heroCard}{glanceAll}{calories}{extras}{tipCard}</>;
   return <div data-layout={layout}>{header}{body}{footer}</div>;
 }
 

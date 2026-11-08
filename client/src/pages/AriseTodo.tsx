@@ -170,7 +170,7 @@ import { inDuoPane, useAriseDuo, type DuoChoice } from "@/lib/useAriseDuo";
 import "@/components/teacher-hub/darkPalette.css";
 import AccountPrivacy from "@/components/AccountPrivacy";
 import { isNativeApp } from "@/lib/nativeApp";
-import { nativeTasksAvailable, openNativeTasks, takeNativeTaskActions, tasksPayload, updateNativeTasks } from "@/lib/nativeTasks";
+import { closeNativeTasks, nativeTasksAvailable, nativeTasksPluginThere, openNativeTasks, takeNativeTaskActions, tasksPayload, updateNativeTasks } from "@/lib/nativeTasks";
 import { isSampleMode } from "@/lib/sampleMode";
 import { REMINDERS_CHANGED, installReminderTaps, scheduleNativeReminders } from "@/lib/nativeReminders";
 
@@ -857,6 +857,30 @@ export default function AriseTodo() {
     return () => { if (timer) clearInterval(timer); };
   }, [shown]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (nativeTasksOpen.current) updateNativeTasks(tasksPayload(data)); }, [data.tasks, data.lists]);
+  // With the native screen off: one opened by older web code stays over the app after a live update reloads the web
+  // code, and nothing reads its taps any more (ticks and new to-dos went nowhere). Whatever was done there is applied
+  // here, then it's closed, when the hub opens and each time the app comes back to the front.
+  useEffect(() => {
+    if (!user || !sync.loaded || sync.recovery || nativeTasksAvailable() || !nativeTasksPluginThere()) return;
+    let busy = false;
+    const sweep = async () => {
+      if (busy || nativeTasksOpen.current) return;
+      busy = true;
+      try {
+        const actions = await takeNativeTaskActions();
+        for (const a of actions) {
+          if (a.type === "toggle") { const t = latest.current.data.tasks.find((x) => x.id === a.id); if (t) latest.current.toggleDone(t); }
+          else if (a.type === "delete") setData((p) => ({ ...p, tasks: p.tasks.filter((x) => x.id !== a.id) }));
+          else if (a.type === "add") setData((p) => ({ ...p, tasks: [...p.tasks, { id: makeId(), title: a.title, notes: "", listId: a.listId || p.lists[0]?.id || "", assignee: "", due: a.due, time: "", priority: "normal", repeat: "none", done: false, createdAt: new Date().toISOString() } as Task] }));
+        }
+        await closeNativeTasks();
+      } finally { busy = false; }
+    };
+    void sweep();
+    const back = () => { if (document.visibilityState === "visible") void sweep(); };
+    document.addEventListener("visibilitychange", back);
+    return () => document.removeEventListener("visibilitychange", back);
+  }, [user, sync.loaded, sync.recovery]); // eslint-disable-line react-hooks/exhaustive-deps
   // Built when search opens (it uses the menu, defined further down), so it never runs before that exists.
   const buildSearchEntries = (): HubSearchEntry[] => {
     if (!searching) return [];
