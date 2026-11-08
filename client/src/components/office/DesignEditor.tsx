@@ -615,7 +615,7 @@ function MagicPanel({ token, design, say, onUse }: { token: string | null; desig
 
 // ─── Dialogs ───
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
-  return <div className="fixed inset-0 z-[1100] flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+  return <div className="fixed inset-0 kb-sheet z-[1100] flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
     <div role="dialog" aria-modal="true" aria-label={title} className="max-h-[90dvh] w-full overflow-y-auto rounded-t-3xl bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:max-w-md sm:rounded-3xl">
       <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-black">{title}</h2><button type="button" onClick={onClose} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-full bg-slate-100"><X size={17} /></button></div>
       {children}
