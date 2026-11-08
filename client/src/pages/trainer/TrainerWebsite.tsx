@@ -76,7 +76,7 @@ export function WebsiteCard({ token, profile, reviews, say }: { token: string | 
 function LeadSheet({ lead: l, invite, onClose, onStatus, onRemove }: { lead: Lead; invite: string; onClose: () => void; onStatus: (s: LeadStatus) => void; onRemove: () => void }) {
   const first = l.name.split(" ")[0];
   return <Sheet title={l.name} onClose={onClose} testId="tr-lead">
-    <p className="text-[13px]" style={{ color: C.dim }}>From your {l.source === "site" ? "website" : "marketplace"} · {new Date(l.at).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>
+    <p className="text-[13px]" style={{ color: C.dim }}>{l.source === "import" ? "Imported" : `From your ${l.source === "site" ? "website" : "marketplace"}`} · {new Date(l.at).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>
     {l.goal && <p className="mt-3 text-[15px]"><span style={{ color: C.dim }}>Goal: </span><b>{l.goal}</b></p>}
     {l.message && <p className="mt-3 whitespace-pre-wrap rounded-[12px] p-3 text-[16px] leading-relaxed" style={{ background: C.card2 }}>{l.message}</p>}
     <div className="mt-4 grid gap-2">

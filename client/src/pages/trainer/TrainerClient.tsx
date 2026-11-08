@@ -9,10 +9,12 @@ import { Chat } from "../coach/CoachUi";
 import { coachApi, dayKeyOf, post, put, shortDate, usePoll, when, type ClientDetail } from "../coach/coachApi";
 import { Btn, C, Card, Chips, Columns, Field, Ring, Sheet, Spark, Title, display, fmtDur, fmtNum, inputCls, inputStyle, stagger } from "../fit/fitUi";
 import { DEFAULT_FORM, FormBuilder, WorkoutBuilder, newId } from "./TrainerBuilder";
+import { PlanTools } from "./TrainerCopilot";
+import { TrainerFormChecks } from "../coach/FormCheck";
 
-type Tab = "overview" | "calendar" | "habits" | "nutrition" | "checkins" | "chat" | "sessions" | "photos" | "notes";
+type Tab = "overview" | "calendar" | "habits" | "nutrition" | "checkins" | "chat" | "form" | "sessions" | "photos" | "notes";
 const TABS: { id: Tab; label: string }[] = [
-  { id: "overview", label: "Overview" }, { id: "calendar", label: "Calendar" }, { id: "chat", label: "Chat" }, { id: "habits", label: "Habits & goals" }, { id: "nutrition", label: "Nutrition" },
+  { id: "overview", label: "Overview" }, { id: "calendar", label: "Calendar" }, { id: "chat", label: "Chat" }, { id: "form", label: "Form" }, { id: "habits", label: "Habits & goals" }, { id: "nutrition", label: "Nutrition" },
   { id: "checkins", label: "Check-ins" }, { id: "sessions", label: "Sessions" }, { id: "photos", label: "Photos" }, { id: "notes", label: "Notes" },
 ];
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -35,8 +37,10 @@ export function ClientSheet({ token, me, linkId, name, lib, saveLib, onClose, qu
     <Chips label="Section" value={tab} onChange={setTab} items={TABS} />
     <div key={tab} className="fit-in mt-4">
       {tab === "overview" && <Overview d={data} />}
+      {tab === "calendar" && data.status === "active" && <PlanTools token={token} linkId={linkId} name={name} say={say} onApplied={(assigned) => setData((d) => (d ? { ...d, coaching: { ...d.coaching, assigned } } : d))} />}
       {tab === "calendar" && <Calendar c={data.coaching} lib={lib} save={save} saveLib={saveLib} token={token} say={say} name={name} />}
       {tab === "chat" && <Chat token={token} linkId={linkId} me={me} other={name} quick={quick} disabled={data.status !== "active"} />}
+      {tab === "form" && <TrainerFormChecks token={token} linkId={linkId} name={name} say={say} />}
       {tab === "habits" && <Habits c={data.coaching} save={save} side={data.clientSide} />}
       {tab === "nutrition" && <Nutrition d={data} save={save} />}
       {tab === "checkins" && <Checkins d={data} lib={lib} save={save} saveLib={saveLib} />}

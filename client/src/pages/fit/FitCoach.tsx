@@ -8,6 +8,7 @@ import { ALL_CONSENT, CONSENT_LABEL, MODE_LABEL, checkinDue, type Assigned, type
 import { dayKey, type FitData } from "@shared/fit";
 import { Avatar, Chat, Directory, Stars, TrainerPage } from "../coach/CoachUi";
 import { MyGroups } from "../coach/Groups";
+import { ClientFormChecks } from "../coach/FormCheck";
 import { coachApi, dayKeyOf, post, put, shortDate, shrinkImage, usePoll, when, type MyLink } from "../coach/coachApi";
 import { useHealth } from "./FitHealth";
 import { startApplePush } from "@/lib/applePush";
@@ -143,7 +144,7 @@ export function CoachScreen({ token, me, data, update, list, onStart, onClose }:
   </Sheet>;
 }
 
-type HubTab = "plan" | "chat" | "groups" | "sessions" | "progress" | "sharing";
+type HubTab = "plan" | "chat" | "form" | "groups" | "sessions" | "progress" | "sharing";
 
 function Hub({ token, me, link, data, update, list, onStart, reload, onListing }: { token: string | null; me: number; link: MyLink; data: FitData; update: Update; list: LibraryExercise[]; onStart: StartFn; reload: () => void; onListing: () => void }) {
   const t = link.trainer!;
@@ -160,7 +161,7 @@ function Hub({ token, me, link, data, update, list, onStart, reload, onListing }
     const pick = (o: Record<string, number>) => Object.fromEntries(Object.entries(o).sort().slice(-14));
     void put(token, `/links/${link.id}/client`, { health: { steps: pick(health.steps), active: pick(health.active) } }).catch(() => {});
   }, [health, link.id, link.consent.health, token]);
-  const tabs: { id: HubTab; label: string }[] = [{ id: "plan", label: "Plan" }, { id: "chat", label: link.unread ? `Chat · ${link.unread}` : "Chat" }, { id: "groups", label: "Groups" }, { id: "sessions", label: "Sessions" }, { id: "progress", label: "Photos" }, { id: "sharing", label: "Sharing" }];
+  const tabs: { id: HubTab; label: string }[] = [{ id: "plan", label: "Plan" }, { id: "chat", label: link.unread ? `Chat · ${link.unread}` : "Chat" }, { id: "form", label: "Form" }, { id: "groups", label: "Groups" }, { id: "sessions", label: "Sessions" }, { id: "progress", label: "Photos" }, { id: "sharing", label: "Sharing" }];
   return <div>
     <button type="button" onClick={onListing} className="fit-in flex w-full items-center gap-3 text-left"><Avatar t={t} size={60} />
       <span className="min-w-0 flex-1"><span className="block truncate text-[28px] leading-none" style={display}>{t.name}</span><span className="block truncate text-[13px]" style={{ color: C.dim }}>{link.coaching.phase || t.headline}</span></span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></button>
@@ -168,6 +169,7 @@ function Hub({ token, me, link, data, update, list, onStart, reload, onListing }
     <div key={tab} className="fit-in mt-4">
       {tab === "plan" && <PlanTab token={token} link={link} side={side} saveSide={saveSide} data={data} update={update} list={list} onStart={onStart} />}
       {tab === "chat" && <Chat token={token} linkId={link.id} me={me} other={t.name.split(" ")[0]} />}
+      {tab === "form" && <ClientFormChecks token={token} linkId={link.id} trainer={t.name.split(" ")[0]} say={say} />}
       {tab === "groups" && <MyGroups token={token} trainerId={t.id} say={say} />}
       {tab === "sessions" && <Sessions token={token} link={link} reload={reload} />}
       {tab === "progress" && <Photos link={link} side={side} saveSide={saveSide} />}
