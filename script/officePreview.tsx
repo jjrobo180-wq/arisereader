@@ -37,6 +37,14 @@ if (q.get("screen") === "sharing") {
   createRoot(document.getElementById("root")!).render(<AuthProvider><div className="min-h-screen bg-slate-50 p-4"><LinkedProfiles family={emptyFamily()} say={() => {}} {...({} as any)} /></div></AuthProvider>);
 } else if (q.get("screen") === "link") {
   createRoot(document.getElementById("root")!).render(<AuthProvider><div className="min-h-screen bg-slate-100" /><LinkSomeoneModal family={emptyFamily()} say={() => {}} onClose={() => {}} title={q.get("title") || "Link someone"} /></AuthProvider>);
+} else if (kind === "design" && q.get("open") !== "1") {
+  // Arise Design's home as Arise Notes shows it (no white sheet), in a light or a dark look (?look=dark).
+  const dark = q.get("look") === "dark";
+  const vars = (dark ? { "--an-bg": "#14121f", "--an-card": "#1d1b2b", "--an-ink": "#f4f3fb", "--an-muted": "#a19fb8", "--an-line": "#2e2b42" } : { "--an-bg": "#f7f6fb", "--an-card": "#ffffff", "--an-ink": "#1c1a2e", "--an-muted": "#6b6880", "--an-line": "#e7e5f0" }) as any;
+  createRoot(document.getElementById("root")!).render(<AuthProvider><div className="min-h-screen" style={{ ...vars, background: "var(--an-bg)", color: "var(--an-ink)" }}>
+    <div className="flex h-14 items-center gap-3 px-4 font-bold" style={{ background: "var(--an-card)", borderBottom: "1px solid var(--an-line)" }}>‹ Arise Design</div>
+    <main className="mx-auto max-w-6xl px-4 pb-28 pt-4"><OfficeApp config={config} /></main>
+  </div></AuthProvider>);
 } else createRoot(document.getElementById("root")!).render(<AuthProvider>
   <div className="flex min-h-screen bg-slate-100">
     <aside className="hidden w-60 shrink-0 bg-[#1e1b4b] p-4 text-sm font-bold text-white/80 md:block">Arise To Duo<br /><br />Tasks<br />Calendar<br />{config.title}</aside>

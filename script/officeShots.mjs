@@ -33,6 +33,19 @@ for (const [size, opts] of Object.entries(sizes)) for (const kind of ["doc", "sh
   } catch (e) { note(`FAIL ${name}: ${e?.message || e}`); }
   await limit(ctx.close(), 10000, "close").catch(() => {});
 }
+// Arise Design's home in Arise Notes, light and dark, top and scrolled to the templates.
+for (const [name, size, look, scroll] of [["phone-design-home-light", "phone", "light", 0], ["phone-design-home-dark", "phone", "dark", 0], ["phone-design-home-dark-templates", "phone", "dark", 900], ["laptop-design-home-light", "laptop", "light", 0]]) {
+  const ctx = await browser.newContext(sizes[size]); const page = await ctx.newPage(); page.setDefaultTimeout(15000); const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e?.message || e)));
+  try {
+    await limit(page.goto(`http://localhost:4180/office-preview/?kind=design&open=0&look=${look}`, { waitUntil: "domcontentloaded" }), 30000, "open"); await page.waitForTimeout(3500);
+    if (scroll) { await page.evaluate((y) => window.scrollTo(0, y), scroll); await page.waitForTimeout(800); }
+    const wide = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+    await limit(page.screenshot({ path: `screens/${name}.png`, timeout: 20000 }), 30000, "screenshot");
+    note(`ok   ${name}${wide ? "  SIDEWAYS SCROLL" : ""}${errors.length ? `  errors: ${errors.slice(0, 2).join(" | ")}` : ""}`);
+  } catch (e) { note(`FAIL ${name}: ${e?.message || e}`); }
+  await limit(ctx.close(), 10000, "close").catch(() => {});
+}
 // Arise Design: the panels and a selected text box, on a phone and a laptop.
 for (const [name, opts, steps] of [
   ["phone-design-templates", sizes.phone, ["tab:templates"]], ["phone-design-elements", sizes.phone, ["tab:elements"]], ["phone-design-text-selected", sizes.phone, ["text"]],
