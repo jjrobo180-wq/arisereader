@@ -96,8 +96,8 @@ def age():
     BOOLS = {"advertising", "gambling", "healthOrWellnessTopics", "lootBox", "messagingAndChat", "parentalControls", "ageAssurance",
              "unrestrictedWebAccess", "userGeneratedContent", "seventeenPlus"}
     for k, v in decl["attributes"].items():
-        if k in ("kidsAgeBand",):
-            continue
+        if k in ("kidsAgeBand",) or "url" in k.lower() or "uri" in k.lower():
+            continue  # links (like a developer age-rating page) are left blank
         if k in ("ageRatingOverride", "ageRatingOverrideV2", "koreaAgeRatingOverride"):
             attrs[k] = "NONE"
         elif k in BOOLS or isinstance(v, bool):
@@ -112,9 +112,16 @@ def age():
         except RuntimeError as e:
             import re
             m = re.search(r"attribute '(\w+)'. Expected a (\w+)", str(e))
-            if not m:
-                raise
-            attrs[m.group(1)] = False if m.group(2) == "BOOLEAN" else "NONE"
+            if m:
+                attrs[m.group(1)] = False if m.group(2) == "BOOLEAN" else "NONE"
+                continue
+            # A value Apple won't take at all (a link field, say): that question is left out.
+            p = re.search(r'"pointer"\s*:\s*"/data/attributes/(\w+)"', str(e))
+            if p and p.group(1) in attrs:
+                print(f"    leaving out {p.group(1)}: {str(e)[:160]}")
+                attrs.pop(p.group(1))
+                continue
+            raise
     raise RuntimeError("age rating: too many corrections")
 step("age rating answers (4+: no mature content; teacher and student messages)", age)
 
