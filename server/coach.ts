@@ -47,6 +47,7 @@ import { registerCoachGroupRoutes } from "./coachGroups";
 import { clientFacts, draftFor, flags as copilotFlags, progress as progressPlan, reflow as reflowPlan, score as copilotScore } from "../shared/coachCopilot";
 import { checkinDue } from "../shared/coach";
 import { clientsCsv, importClients, importWorkouts } from "../shared/coachImport";
+import { cleanNeed, matchTrainers } from "../shared/coachMatch";
 import { FORM_LIMITS, VIDEO_TYPES, VOICE_TYPES, cleanFeedback, filePathOk, type FormCheck } from "../shared/coachFormCheck";
 import { CATALOG } from "../shared/fit";
 import { cleanPlanWorkout as cleanWorkoutForAi } from "../shared/coach";
@@ -818,6 +819,24 @@ Order exercises sensibly (big compound lifts first). Respect injuries or limits 
     if (!fc) throw new Refused("That video was removed.", 404);
     if (req.body?.remove) { await kv.set(fcKey(l.id), list.filter((c) => c.id !== fc.id)); void files.remove([fc.video, fc.feedback?.voice ?? ""].filter(Boolean)).catch(() => {}); return { ok: true }; }
     return { check: fc };
+  }));
+
+  // ── Smart matching (shared/coachMatch.ts): six answers in, the best three trainers out, with reasons ──────
+  const matchAi = createAttemptLimiter({ max: 20, windowMs: 24 * 60 * 60_000 });
+  app.post("/api/coach/match", auth, wrap(async (req) => {
+    const need = cleanNeed(req.body?.need);
+    if (!cache || now() - cache.at >= 60_000) {
+      const [rows, ratings] = await Promise.all([store.listed(new Date(now()).toISOString()), store.allRatings()]);
+      cache = { at: now(), list: await Promise.all(rows.filter((t) => !listingProblems(t.profile).length).map((t) => publicOf(t, ratings))) };
+    }
+    const matches = matchTrainers(cache.list, need, 3).map((m) => ({ ...m, why: "" }));
+    const who = Number(req.user?.id) || 0;
+    if (req.body?.ai === true && who && matches.length && allow(matchAi, `m:${who}`)) {
+      const out = await callAi(`You help someone choose a personal trainer. For each trainer write "why": one or two warm, specific sentences on why they fit this person, using only the facts given (never invent results, credentials or prices). No emojis. Reply JSON {"why":[{"id","why"}]}.`,
+        JSON.stringify({ person: { goal: need.goal, level: need.level, ways: need.modes, perWeek: need.perWeek, notes: need.notes }, trainers: matches.map((m) => ({ id: m.trainer.id, name: m.trainer.name, headline: m.trainer.headline, bio: m.trainer.bio.slice(0, 600), specialties: m.trainer.specialties, years: m.trainer.years, reasons: m.reasons })) })).catch(() => "{}");
+      try { const by = new Map<number, string>((JSON.parse(out)?.why ?? []).map((x: any) => [Number(x.id), String(x.why ?? "").trim().slice(0, 300)])); for (const m of matches) m.why = by.get(m.trainer.id) ?? ""; } catch { /* reasons are enough */ }
+    }
+    return { need, matches, total: cache.list.length };
   }));
 
   // Groups: pages, chat and challenges (server/coachGroups.ts).

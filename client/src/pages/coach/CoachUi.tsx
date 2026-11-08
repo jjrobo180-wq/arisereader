@@ -46,7 +46,7 @@ export function TrainerCard({ t, onOpen, k = 0 }: { t: PublicTrainer; onOpen: ()
 }
 
 /** Search, filters and sorting over the listed trainers. */
-export function Directory({ onOpen, intro }: { onOpen: (t: PublicTrainer) => void; intro?: React.ReactNode }) {
+export function Directory({ onOpen, intro, after }: { onOpen: (t: PublicTrainer) => void; intro?: React.ReactNode; after?: React.ReactNode }) {
   const { data, err } = usePoll(() => coachApi<{ trainers: PublicTrainer[] }>(null, "/trainers").then((r) => r.trainers), [], 0);
   const [f, setF] = useState<Filter>({});
   const [sort, setSort] = useState<Sort>("best");
@@ -55,6 +55,7 @@ export function Directory({ onOpen, intro }: { onOpen: (t: PublicTrainer) => voi
   const count = [f.state, f.specialty, f.maxCents, f.minStars, f.accepting].filter(Boolean).length;
   return <div data-testid="coach-directory">
     {intro}
+    {after}
     <div className="relative mt-3"><Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2" style={{ color: C.dim }} />
       <input value={f.q ?? ""} onChange={(e) => setF({ ...f, q: e.target.value })} placeholder="Name, specialty, city" className={`${inputCls} pl-10`} style={inputStyle} aria-label="Search trainers" data-testid="coach-search" /></div>
     <div className="mt-3"><Chips label="How you train" value={(f.mode ?? "") as Mode | ""} onChange={(m) => setF({ ...f, mode: m })} items={[{ id: "" as const, label: "Any way" }, ...MODES.map((m) => ({ id: m, label: MODE_LABEL[m] }))]} /></div>
