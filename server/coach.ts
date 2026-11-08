@@ -48,6 +48,7 @@ import { clientFacts, draftFor, flags as copilotFlags, progress as progressPlan,
 import { checkinDue } from "../shared/coach";
 import { clientsCsv, importClients, importWorkouts } from "../shared/coachImport";
 import { cleanNeed, matchTrainers } from "../shared/coachMatch";
+import { brandManifest, cleanBrand, emptyBrand } from "../shared/coachBrand";
 import { PLATFORM_FEE_PCT, feeCents, payKind, payLabel, payable, totals as payTotals, type Payment } from "../shared/coachPay";
 import { MARKET, cleanReply, forTrainer, isOpen, requestTitle, trainerFits, whoToTell, type MarketRequest } from "../shared/coachMarket";
 import { FORM_LIMITS, VIDEO_TYPES, VOICE_TYPES, cleanFeedback, filePathOk, type FormCheck } from "../shared/coachFormCheck";
@@ -1029,6 +1030,40 @@ Order exercises sensibly (big compound lifts first). Respect injuries or limits 
     void notify(tid, { title: "You were hired", body: `${r.name.split(" ")[0]} picked you from the marketplace. Say hi and send their first plan.`, url: "#/trainer", tag: `mk-${r.id}` });
     return { linkId: link.id, status: link.status };
   }));
+
+  // ── Branded coaching (shared/coachBrand.ts): the trainer's name, logo and color in Arise Fit, and their own web app ──
+  const brandKey = (t: number) => `coach-brand:${t}`;
+  const brandOf = async (t: number) => cleanBrand((await kv.get(brandKey(t))) ?? emptyBrand());
+  app.get("/api/coach/trainer/brand", auth, wrap(async (req) => {
+    const id = me(req); const t = await store.trainer(id);
+    const slug = siteSlug(t?.profile.name || "", id);
+    return { brand: await brandOf(id), url: `${SITE}/#/c/${slug}`, slug };
+  }));
+  app.put("/api/coach/trainer/brand", auth, wrap(async (req) => {
+    const id = me(req); const b = cleanBrand(req.body?.brand);
+    if (b.on && !b.appName) throw new Refused("Give your app a name first.");
+    await kv.set(brandKey(id), b);
+    return { brand: b };
+  }));
+  /** Public: what clients' apps need to show the brand (only when it's switched on). */
+  app.get("/api/coach/brand/:tid", wrap(async (req) => {
+    const tid = Number(req.params.tid) || idFromSlug(String(req.params.tid)) || 0;
+    const t = tid ? await store.trainer(tid) : null; const b = tid ? await brandOf(tid) : null;
+    if (!t || !b?.on) throw new Refused("No brand here.", 404);
+    return { trainerId: tid, name: t.profile.name, photo: t.profile.photo, brand: b, invite: inviteCode(tid) };
+  }));
+  app.get("/api/coach/brand/:tid/icon", async (req: any, res: any) => {
+    const b = await brandOf(Number(req.params.tid) || 0).catch(() => null);
+    const m = b?.on && /^data:(image\/(?:png|jpeg));base64,(.+)$/.exec(b.logo);
+    if (!m) return res.status(404).end();
+    res.setHeader("Content-Type", m[1]); res.setHeader("Cache-Control", "public, max-age=3600"); res.end(Buffer.from(m[2], "base64"));
+  });
+  app.get("/api/coach/brand/:tid/manifest.webmanifest", async (req: any, res: any) => {
+    const tid = Number(req.params.tid) || 0; const t = tid ? await store.trainer(tid).catch(() => null) : null; const b = tid ? await brandOf(tid).catch(() => null) : null;
+    if (!t || !b?.on) return res.status(404).end();
+    res.setHeader("Content-Type", "application/manifest+json");
+    res.end(JSON.stringify(brandManifest(b, t.profile.name, `${SITE}/api/coach/brand/${tid}/icon`, `/#/c/${siteSlug(t.profile.name, tid)}`)));
+  });
 
   // Groups: pages, chat and challenges (server/coachGroups.ts).
   registerCoachGroupRoutes(app, auth, { store, kv, now, me, wrap, first, notify, refuse: (m, status) => new Refused(m, status) });

@@ -21,6 +21,7 @@ import { CopilotCard } from "./TrainerCopilot";
 import { MoveCard } from "./TrainerMove";
 import { MarketCard } from "../coach/Market";
 import { PayoutsCard } from "../coach/Pay";
+import { BrandCard } from "../coach/Brand";
 
 type Tab = "clients" | "inbox" | "schedule" | "library" | "business";
 
@@ -210,6 +211,7 @@ function Business({ data, token, reload, say }: { data: TrainerHome; token: stri
       <div className="min-w-0 flex-1"><p className="truncate text-[24px] leading-none" style={display}>{data.profile.name || "Your name"}</p><p className="truncate text-[13px]" style={{ color: C.dim }}>{data.profile.headline || "Add a headline"}</p></div></div>
       <div className="mt-3 grid grid-cols-2 gap-2"><Btn kind="soft" className="!text-[15px]" onClick={() => setEdit(true)} testId="tr-edit-listing">Edit listing</Btn><Btn kind="soft" className="!text-[15px]" onClick={() => setPreview(true)}>Preview</Btn></div></Card>
     <WebsiteCard token={token} profile={data.profile} reviews={data.reviews} say={say} />
+    <BrandCard token={token} name={data.profile.name} say={say} />
     <Title>Directory listing</Title>
     <Card className="!p-4" testId="tr-plan">
       {data.listed ? <><p className="flex items-center gap-2 text-[22px] leading-none" style={display}><BadgeCheck className="h-6 w-6" style={{ color: C.lime }} />Live in Arise Fit</p>

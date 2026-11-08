@@ -12,6 +12,7 @@ import { ClientFormChecks } from "../coach/FormCheck";
 import { MatchCard, MatchSheet } from "../coach/Match";
 import { MyRequests } from "../coach/Market";
 import { PayTrainer } from "../coach/Pay";
+import { BrandMark, forgetBrand, useTrainerBrand } from "../coach/Brand";
 import { coachApi, dayKeyOf, post, put, shortDate, shrinkImage, usePoll, when, type MyLink } from "../coach/coachApi";
 import { useHealth } from "./FitHealth";
 import { startApplePush } from "@/lib/applePush";
@@ -51,12 +52,15 @@ export function CoachCard({ token, data, list, onStart, onOpen }: { token: strin
   useMarkDone(token, links, data, reload);
   const active = (links ?? []).find((l) => l.status === "active" && l.trainer);
   const pending = (links ?? []).find((l) => l.status === "requested" && l.trainer);
+  // No trainer any more: their brand goes too.
+  useEffect(() => { if (links && !active) forgetBrand(); }, [links, active]);
+  const brand = useTrainerBrand(links && !active ? -1 : active?.trainer?.id ?? null);
   if (active) {
     const t = active.trainer!; const today = todayOf(active);
     return <Card className="!p-3.5" testId="fit-coach-card">
       <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 text-left">
-        <Avatar t={t} size={48} />
-        <span className="min-w-0 flex-1"><span className="block text-[11px] tracking-[.14em]" style={{ ...display, color: C.lime }}>Your trainer</span><span className="block truncate text-[22px] leading-none" style={display}>{t.name}</span>
+        {brand ? <BrandMark b={brand.brand} size={48} /> : <Avatar t={t} size={48} />}
+        <span className="min-w-0 flex-1"><span className="block text-[11px] tracking-[.14em]" style={{ ...display, color: C.lime }}>{brand ? brand.brand.appName : "Your trainer"}</span><span className="block truncate text-[22px] leading-none" style={display}>{t.name}</span>
           <span className="block truncate text-[12px]" style={{ color: C.dim }}>{active.unread ? `${active.unread} new ${active.unread === 1 ? "message" : "messages"}` : active.last ? active.last.body || "Photo" : "Say hi"}</span></span>
         {active.unread > 0 && <span className="fit-pop grid h-7 min-w-7 place-items-center rounded-full px-2 text-[13px] font-bold" style={{ background: C.lime, color: "var(--fit-on-accent)" }}>{active.unread}</span>}
         <ChevronRight className="h-5 w-5" style={{ color: C.dim }} />
