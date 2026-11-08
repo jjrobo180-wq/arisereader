@@ -3,7 +3,7 @@
 // task and quick-adds one, and checks each is saved to the server (a PUT of the workspace). Run by duo-tasks-check.yml.
 import { readFile, stat, mkdir, writeFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
-import { chromium, devices } from "playwright";
+import { chromium, webkit, devices } from "playwright";
 
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".woff2": "font/woff2", ".webmanifest": "application/manifest+json" };
 const workspace0 = JSON.parse(await readFile("script/fixtures/duo-workspace.json", "utf8"));
@@ -13,8 +13,8 @@ await mkdir("screens", { recursive: true });
 const out = [];
 const note = (s) => { out.push(s); console.log(s); };
 
-for (const [label, opts] of [["phone", devices["iPhone 14"]], ["desktop", { viewport: { width: 1366, height: 860 } }]]) {
-  const browser = await chromium.launch();
+for (const [label, engine, opts] of [["iphone-safari", webkit, devices["iPhone 14"]], ["phone-chrome", chromium, devices["Pixel 7"]], ["desktop", chromium, { viewport: { width: 1366, height: 860 } }]]) {
+  const browser = await engine.launch();
   const ctx = await browser.newContext(opts);
   let saved = structuredClone(workspace0), updatedAt = "2026-11-08T16:23:15.371Z";
   const puts = [];
@@ -50,7 +50,7 @@ for (const [label, opts] of [["phone", devices["iPhone 14"]], ["desktop", { view
   page.on("console", (m) => { if (m.type() === "error" && !/Failed to load resource/.test(m.text())) errors.push(m.text().slice(0, 200)); });
   const session = Buffer.from(JSON.stringify({ user, token: "test-token" })).toString("base64");
   await ctx.addCookies([{ name: "arise_session", value: session, domain: "arisetodo.com", path: "/" }]);
-  await page.addInitScript((s) => { try { localStorage.setItem("arise_session_backup", s); localStorage.setItem("arise-todo-section", "tasks"); } catch {} }, session);
+  await page.addInitScript((s) => { try { localStorage.setItem("arise_session_backup", s); localStorage.setItem("arise-todo-section", "tasks"); localStorage.setItem("arise-walkthrough-v1:1", "1"); for (const r of ["admin", "parent", "teacher", "personal", "life", "work"]) localStorage.setItem(`arise_todo_tour_v2_seen_1_${r}`, "true"); } catch {} }, session);
   try {
     await page.goto("https://arisetodo.com/app#/lifehub", { waitUntil: "domcontentloaded", timeout: 30000 });
     await page.waitForTimeout(6000);
@@ -59,20 +59,24 @@ for (const [label, opts] of [["phone", devices["iPhone 14"]], ["desktop", { view
     await page.screenshot({ path: `screens/${label}-1-tasks.png` });
     const boxes = page.locator('input[type="checkbox"][aria-label^="Done:"]');
     note(`${label}: ${await boxes.count()} task checkboxes on screen`);
-    const before = puts.length;
     const first = boxes.first();
-    const was = await first.isChecked().catch(() => null);
-    await first.click({ force: true, timeout: 8000 }).catch((e) => note(`${label}: click failed: ${e.message.split("\n")[0]}`));
-    await page.waitForTimeout(4000);
-    const now = await first.isChecked().catch(() => null);
-    note(`${label}: tick -> checkbox ${was} → ${now}; saves sent: ${puts.length - before}`);
-    // What's on top of the checkbox where it was clicked (something covering the screen?).
+    const id = await first.getAttribute("aria-label");
+    await first.scrollIntoViewIfNeeded().catch(() => {});
+    await page.waitForTimeout(500);
     const box = await first.boundingBox().catch(() => null);
-    if (box) note(`${label}: on top at the checkbox: ${await page.evaluate(({ x, y }) => { const el = document.elementFromPoint(x, y); return el ? `${el.tagName}.${String(el.className).slice(0, 80)} ${el.getAttribute("aria-label") || ""}` : "nothing"; }, { x: box.x + box.width / 2, y: box.y + box.height / 2 })}`);
+    if (box) note(`${label}: on top at the checkbox before tapping: ${await page.evaluate(({ x, y }) => { const el = document.elementFromPoint(x, y); return el ? `${el.tagName}.${String(el.className).slice(0, 90)} ${el.getAttribute("aria-label") || ""}` : "nothing"; }, { x: box.x + box.width / 2, y: box.y + box.height / 2 })}`);
+    const before = puts.length;
+    const openBefore = (saved.tasks || []).filter((t) => !t.done).length;
+    if (box) { if (label === "desktop") await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2); else await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2); }
+    await page.waitForTimeout(4000);
+    const openAfter = (saved.tasks || []).filter((t) => !t.done).length;
+    note(`${label}: tap ${id} -> saves sent: ${puts.length - before}; open tasks saved ${openBefore} → ${openAfter} (${openAfter < openBefore ? "TICKED OK" : "NOT TICKED"})`);
+    await page.screenshot({ path: `screens/${label}-1b-ticked.png` });
     const quick = page.getByLabel("Quick add a to-do");
     if (await quick.isVisible().catch(() => false)) {
       const b2 = puts.length;
-      await quick.fill("Check from the test"); await quick.press("Enter"); await page.waitForTimeout(4000);
+      await quick.scrollIntoViewIfNeeded().catch(() => {}); await quick.tap?.().catch(() => {}); await quick.click({ timeout: 5000 }).catch((e) => note(`${label}: quick add box can't be tapped: ${e.message.split("\n")[0]}`));
+      await page.keyboard.type("Check from the test"); await page.keyboard.press("Enter"); await page.waitForTimeout(4000);
       const last = puts[puts.length - 1]?.workspace?.tasks || [];
       note(`${label}: quick add -> saves sent: ${puts.length - b2}; saved has it: ${last.some((t) => t.title === "Check from the test")}`);
     } else note(`${label}: no quick-add box visible`);
