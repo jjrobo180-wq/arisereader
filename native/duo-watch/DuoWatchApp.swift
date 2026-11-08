@@ -241,7 +241,11 @@ struct DuoWatchHome: View {
             .sheet(isPresented: $adding) { DuoAddTask(h: h) }
         }
         .tint(duoViolet)
-        .onAppear { if let s = UserDefaults.standard.string(forKey: "duoHub"), s == "work" || s == "life" { hub = s } }
+        .onAppear {
+            if let s = UserDefaults.standard.string(forKey: "duoHub"), s == "work" || s == "life" { hub = s }
+            // The simulator screenshots: the made-up day, even if the app opened before it was set.
+            if UserDefaults.standard.bool(forKey: "watchSample") && link.payload.isEmpty { link.preview(duoWatchSample()) }
+        }
     }
 
     /** Life | Work, like the switch at the top of the phone app. */
