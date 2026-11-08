@@ -208,8 +208,8 @@ private func addDays(_ day: String, _ n: Int) -> String {
 /** A card that lifts a little when the remote is on it, like a focused tile anywhere on Apple TV. */
 struct DuoLift: ButtonStyle {
     var radius: CGFloat = 30
-    func makeBody(configuration: Configuration) -> some View { Body(configuration: configuration, radius: radius) }
-    private struct Body: View {
+    func makeBody(configuration: Configuration) -> some View { Look(configuration: configuration, radius: radius) }
+    private struct Look: View {
         let configuration: Configuration
         let radius: CGFloat
         @Environment(\.isFocused) private var focused
@@ -343,8 +343,8 @@ struct DuoTabBar: View {
 
 struct DuoTabStyle: ButtonStyle {
     let active: Bool
-    func makeBody(configuration: Configuration) -> some View { Body(configuration: configuration, active: active) }
-    private struct Body: View {
+    func makeBody(configuration: Configuration) -> some View { Look(configuration: configuration, active: active) }
+    private struct Look: View {
         let configuration: Configuration
         let active: Bool
         @Environment(\.isFocused) private var focused
