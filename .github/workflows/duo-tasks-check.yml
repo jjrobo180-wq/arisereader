@@ -1,0 +1,50 @@
+name: Arise To Duo Tasks check (tick and add, in a browser)
+# The built app, signed in with a workspace shaped like a real one; ticks and adds a task and checks each is saved.
+# Screenshots and results go to the duo-tasks-check branch.
+on:
+  workflow_dispatch:
+    inputs:
+      plan:
+        description: "unlimited or free"
+        default: unlimited
+  push:
+    branches: [master]
+    paths:
+      - 'client/src/pages/AriseTodo.tsx'
+      - 'client/src/components/family-hub/LifeTasksScreen.tsx'
+      - 'client/src/components/teacher-hub/HubTasks.tsx'
+      - 'client/src/lib/useTodoCloud.ts'
+      - 'shared/hubSwap.ts'
+      - 'script/duoTasksCheck.mjs'
+      - '.github/workflows/duo-tasks-check.yml'
+permissions:
+  contents: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx vite build
+      - name: Install a browser
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Tick and add
+        timeout-minutes: 10
+        env:
+          PLAN: ${{ github.event.inputs.plan || 'unlimited' }}
+        run: node script/duoTasksCheck.mjs
+      - name: Save to the duo-tasks-check branch
+        if: always()
+        working-directory: screens
+        run: |
+          git init -q -b duo-tasks-check
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com add -A
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -qm "Duo tasks check ${GITHUB_SHA::7}" || exit 0
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" duo-tasks-check
