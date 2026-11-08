@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { SchoolPicker, schoolFields, type SchoolChoice } from "@/components/SchoolPicker";
 import { TEACHER_CONFIRM_KEY, checkSchoolEmail } from "@shared/schoolEmail";
 import { PLANS, usd } from "@shared/plans";
+import { SignupShell, lightStyles } from "@/components/SignupShell";
 
 const waitingUsername = () => { try { return (sessionStorage.getItem(TEACHER_CONFIRM_KEY) || "").trim().toLowerCase(); } catch { return ""; } };
 
@@ -110,10 +111,7 @@ export default function TeacherSignup() {
   };
 
   return (
-    <main style={styles.page}>
-      <section style={styles.panel} aria-labelledby="teacher-signup-title">
-        <div style={styles.brand}>A.R.I.S.E. READER</div>
-        <h1 id="teacher-signup-title" style={styles.title}>Teacher Sign Up</h1>
+    <SignupShell eyebrow="For teachers" title={<>Teacher <span className="text-violet-700">Sign Up</span></>} titleId="teacher-signup-title" intro="Set up your class in a few minutes with your school email.">
 
         {step === "done" && (
           <>
@@ -162,7 +160,7 @@ export default function TeacherSignup() {
           <form onSubmit={handleSubmit} style={styles.form}>
             <div style={styles.infoBox}>
               <Info size={22} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} />
-              <span>Sign up with your <strong>school email</strong> (ending in .edu, .net, .org or .us). We&apos;ll email you a 6-digit code to confirm it, and then your account is open right away. No waiting for approval. Arise WorkHub and Arise LifeHub (Arise To Duo) are free from day one, on every plan. The Class plan — A.R.I.S.E. Reader, Math, History and Connect, all included — starts at {usd(PLANS.teacher.monthlyCents)}/month for your students — no trial on anything.</span>
+              <span>Sign up with your <strong>school email</strong> (ending in .edu, .net, .org or .us). We&apos;ll email you a 6-digit code to confirm it, and then your account is open right away. No waiting for approval. Arise WorkHub and Arise LifeHub (Arise To Duo) are free from day one, on every plan. The Class plan is {usd(PLANS.teacher.monthlyCents)}/month and covers A.R.I.S.E. Reader for up to {PLANS.teacher.studentsPerBlock} students.</span>
             </div>
             <Field id="teacher-display-name" label="Display Name" value={displayName} onChange={setDisplayName} autoComplete="name" />
             <Field id="teacher-username" label="Username" value={username} onChange={setUsername} autoComplete="username" />
@@ -200,9 +198,9 @@ export default function TeacherSignup() {
                         fontSize: 15,
                         fontWeight: 800,
                         borderRadius: 10,
-                        border: `2px solid ${isSelected ? bandColor : "hsl(0 0% 25%)"}`,
-                        background: isSelected ? bandColor : "hsl(0 0% 12%)",
-                        color: isSelected ? "#fff" : "hsl(0 0% 65%)",
+                        border: `2px solid ${isSelected ? bandColor : "#dfe2ee"}`,
+                        background: isSelected ? bandColor : "#fff",
+                        color: isSelected ? "#fff" : "#475569",
                         cursor: "pointer",
                         transition: "all 0.15s ease",
                       }}
@@ -229,8 +227,8 @@ export default function TeacherSignup() {
                     <span key={b} style={{
                       display: "inline-flex", alignItems: "center", gap: 4,
                       fontSize: 12, padding: "2px 8px", borderRadius: 6,
-                      background: count > 0 ? colors[b] + "30" : "hsl(0 0% 12%)",
-                      color: count > 0 ? colors[b] : "hsl(0 0% 45%)",
+                      background: count > 0 ? colors[b].replace(")", " / .14)") : "#f1f5f9",
+                      color: count > 0 ? colors[b] : "#64748b",
                       fontWeight: 600,
                     }}>
                       <span style={{ width: 8, height: 8, borderRadius: "50%", background: colors[b], display: "inline-block" }} />
@@ -239,7 +237,7 @@ export default function TeacherSignup() {
                   );
                 })}
               </div>
-              <p style={{ fontSize: 13, color: "hsl(0 0% 60%)", marginTop: 6 }}>Tap each grade you teach. Colors show grade bands. Students select their grade at signup to find their teacher.</p>
+              <p style={{ fontSize: 13, color: "#64748b", marginTop: 6 }}>Tap each grade you teach. Colors show grade bands. Students select their grade at signup to find their teacher.</p>
             </div>
             {error && <div style={styles.error} role="alert" data-testid="text-teacher-signup-error">{error}</div>}
             <button type="submit" disabled={loading} style={{ ...styles.primaryButton, opacity: loading ? 0.7 : 1 }} data-testid="button-request-teacher-account">
@@ -251,8 +249,7 @@ export default function TeacherSignup() {
         <button type="button" onClick={() => navigate("/signin")} style={styles.backButton} data-testid="link-back-to-login">
           <ArrowLeft size={18} aria-hidden="true" /> Back to Login
         </button>
-      </section>
-    </main>
+    </SignupShell>
   );
 }
 
@@ -260,90 +257,4 @@ function Field({ id, label, value, onChange, type = "text", autoComplete }: { id
   return <label htmlFor={id} style={styles.label}>{label}<input id={id} type={type} value={value} onChange={(event) => onChange(event.target.value)} required autoComplete={autoComplete} style={styles.input} data-testid={`input-${id}`} /></label>;
 }
 
-const styles: Record<string, React.CSSProperties> = {
-  page: {
-    minHeight: "100vh",
-    display: "grid",
-    placeItems: "center",
-    background: "radial-gradient(circle at 10% 0%, rgba(124,58,237,.24), transparent 28%), radial-gradient(circle at 90% 8%, rgba(6,182,212,.16), transparent 26%), radial-gradient(circle at 52% 45%, rgba(217,70,239,.08), transparent 35%), #0b0a16",
-    color: "#f8fafc",
-    padding: "24px",
-    fontFamily: "'Barlow', system-ui, sans-serif",
-  },
-  panel: {
-    width: "100%",
-    maxWidth: 560,
-    background: "linear-gradient(145deg, rgba(24,19,43,.98), rgba(15,18,35,.98))",
-    border: "1px solid rgba(255,255,255,.10)",
-    borderRadius: 28,
-    padding: "clamp(24px, 5vw, 42px)",
-    boxShadow: "0 28px 80px rgba(0,0,0,.32), 0 0 0 1px rgba(124,58,237,.05)",
-  },
-  brand: {
-    background: "linear-gradient(90deg,#8b5cf6,#d946ef,#22d3ee)",
-    WebkitBackgroundClip: "text",
-    backgroundClip: "text",
-    color: "transparent",
-    letterSpacing: "0.16em",
-    fontSize: 13,
-    fontWeight: 900,
-    textAlign: "center",
-  },
-  title: {
-    background: "linear-gradient(90deg,#ffffff 0%,#ddd6fe 45%,#a5f3fc 100%)",
-    WebkitBackgroundClip: "text",
-    backgroundClip: "text",
-    color: "transparent",
-    fontSize: "clamp(30px, 5vw, 40px)",
-    lineHeight: 1.08,
-    margin: "12px 0 30px",
-    textAlign: "center",
-    fontWeight: 900,
-    letterSpacing: "-0.035em",
-  },
-  form: { display: "grid", gap: 18 },
-  label: { display: "grid", gap: 8, color: "#e2e8f0", fontWeight: 750, fontSize: 15 },
-  input: {
-    width: "100%",
-    boxSizing: "border-box",
-    background: "#0f0d1d",
-    border: "1px solid rgba(255,255,255,.12)",
-    borderRadius: 14,
-    color: "white",
-    fontSize: 16,
-    minHeight: 50,
-    padding: "11px 13px",
-    outlineColor: "#8b5cf6",
-  },
-  infoBox: {
-    display: "flex",
-    gap: 12,
-    background: "linear-gradient(90deg, rgba(124,58,237,.14), rgba(217,70,239,.10), rgba(6,182,212,.10))",
-    border: "1px solid rgba(167,139,250,.26)",
-    borderRadius: 16,
-    color: "#dbeafe",
-    fontSize: 15,
-    lineHeight: 1.5,
-    padding: 16,
-  },
-  primaryButton: {
-    display: "inline-flex",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 9,
-    minHeight: 52,
-    border: 0,
-    borderRadius: 14,
-    background: "linear-gradient(90deg,#7c3aed 0%,#c026d3 52%,#06b6d4 100%)",
-    color: "white",
-    cursor: "pointer",
-    fontSize: 16,
-    fontWeight: 900,
-    boxShadow: "0 14px 32px rgba(124,58,237,.22)",
-  },
-  error: { borderRadius: 12, padding: 12, background: "rgba(239,68,68,.12)", border: "1px solid rgba(248,113,113,.35)", color: "#fecaca" },
-  note: { borderRadius: 12, padding: 12, background: "rgba(6,182,212,.10)", border: "1px solid rgba(34,211,238,.30)", color: "#cffafe" },
-  linkButton: { justifySelf: "center", color: "#c4b5fd", background: "transparent", border: 0, cursor: "pointer", fontSize: 15, fontWeight: 750, minHeight: 44, padding: "0 12px", textDecoration: "underline" },
-  success: { display: "flex", alignItems: "flex-start", gap: 12, background: "rgba(6,182,212,.10)", border: "1px solid rgba(34,211,238,.30)", borderRadius: 14, color: "#cffafe", fontSize: 16, lineHeight: 1.5, padding: 18, marginBottom: 24 },
-  backButton: { display: "inline-flex", alignItems: "center", gap: 8, color: "#c4b5fd", background: "transparent", border: 0, cursor: "pointer", fontSize: 15, fontWeight: 750, marginTop: 26, padding: 0 },
-};
+const styles = lightStyles;
