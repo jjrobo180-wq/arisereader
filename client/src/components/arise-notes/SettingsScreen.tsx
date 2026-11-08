@@ -8,7 +8,7 @@ import { NOTES_PLANS, NOTES_THEMES, SUITE_LOOKS, dayWords, type NotesPlanId, typ
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { NATIVE_NO_PURCHASE, isNativeApp } from "@/lib/nativeApp";
-import { notesApi, type Billing } from "./api";
+import { api, notesApi, type Billing } from "./api";
 import { removeAllLocalNotes } from "./localNotes";
 import { PrivacyPicker, defaultPrivacy, rememberPrivacy, useOnDevice } from "./privacyMode";
 import { Btn, Notice, Section, Spinner, Toggle, useToast } from "./ui";
@@ -168,6 +168,8 @@ function PlanTab({ ctx }: { ctx: AppCtx }) {
     {native ? <Notice>{NATIVE_NO_PURCHASE}</Notice> : !bill ? <Spinner /> : <>
       {bill.canBuy && !bill.payment && <Notice tone="warn">Paid plans aren't open on this site yet.</Notice>}
       {bill.given && <Notice>Your plan was set up for you{bill.endsAt ? ` until ${new Date(bill.endsAt).toLocaleDateString()}` : ""}.</Notice>}
+      {!bill.paidOnline && <AllAccessCard ctx={ctx} bill={bill} returnPath={returnPath} />}
+      {bill.paidOnline && <>
       <div className="flex items-center justify-center gap-2 text-[14px]"><span>Plus billed</span><button type="button" className="an-chip" aria-pressed={!yearly} onClick={() => setYearly(false)}>Monthly</button><button type="button" className="an-chip" aria-pressed={yearly} onClick={() => setYearly(true)}>Yearly · save 17%</button></div>
       <div className="grid gap-3 sm:grid-cols-2">
         {(["free", "basic", "plus", "family"] as NotesPlanId[]).map((id) => {
@@ -185,9 +187,39 @@ function PlanTab({ ctx }: { ctx: AppCtx }) {
       </div>
       {bill.canManage && <Btn kind="plain" className="w-full" busy={busy === "portal"} onClick={() => void manage()}>Manage billing, receipts or cancel</Btn>}
       <p className="text-center text-[12px] text-[var(--an-faint)]">Payments by Stripe. Changing plans takes effect right away; the difference is charged or credited.</p>
+      </>}
     </>}
     {admin && <Section title="Heavy users this month (admin)"><table className="w-full text-left text-[13px]"><thead><tr className="text-[var(--an-muted)]"><th>Account</th><th>Minutes</th><th>Jobs</th><th>Est. cost</th></tr></thead><tbody>{admin.map((r, i) => <tr key={i} className="border-t border-[var(--an-line)]"><td className="py-1.5">{r.name}</td><td>{r.minutes}</td><td>{r.jobs}</td><td>${(r.costCents / 100).toFixed(2)}</td></tr>)}</tbody></table>{!admin.length && <p className="text-[13px] text-[var(--an-muted)]">No usage yet this month.</p>}</Section>}
   </div>;
+}
+
+// New Notes plans are sold as Arise All Access ($10 a month: Notes Plus, To Duo Unlimited, Fit+ and
+// ad-free Pod+). People already paying for a Notes plan keep theirs and change it above.
+type AllAccess = { live: boolean; admin: boolean; priceCents: number; payment: boolean; endsAt: string | null; cancelAtPeriodEnd: boolean; canManage: boolean; canBuy: boolean };
+function AllAccessCard({ ctx, bill, returnPath }: { ctx: AppCtx; bill: Billing; returnPath: string }) {
+  const say = useToast();
+  const [all, setAll] = useState<AllAccess | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { api<AllAccess>("all-access").then(setAll).catch(() => setAll(null)); }, []);
+  const go = async (path: string) => {
+    setBusy(true);
+    try { const r = await api<{ url: string }>(path, { body: { returnPath } }); window.location.assign(r.url); }
+    catch (e: any) { say(e.message); setBusy(false); }
+  };
+  const price = money(all?.priceCents ?? 1000);
+  const perks = ["Arise Notes Plus: 1,500 minutes a month, every AI feature", "Arise To Duo Unlimited: every plugin and AI", "Arise Fit+, with a free guest pass for a friend", "Ad-free listening in Pod+"];
+  return <section className="an-card border-[var(--an-violet)] p-5" data-testid="notes-all-access">
+    <div className="flex items-center gap-2"><h3 className="text-[18px] font-bold">Arise All Access</h3>{all?.live && <span className="ml-auto rounded-full bg-[var(--an-green-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--an-green)]">Your plan</span>}</div>
+    <div className="mt-1 text-[24px] font-extrabold">{price}/mo</div>
+    <ul className="mt-3 space-y-1.5">{perks.map((f) => <li key={f} className="flex gap-2 text-[14px]"><Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--an-green)]" aria-hidden />{f}</li>)}</ul>
+    {all?.live
+      ? (all.canManage ? <Btn kind="plain" className="mt-4 w-full" busy={busy} onClick={() => void go("all-access/portal")}>Manage billing, receipts or cancel</Btn>
+        : <p className="mt-4 text-[13px] text-[var(--an-muted)]">{all.admin ? "The admin account always has All Access." : "All Access is on your account."}</p>)
+      : bill.canBuy && bill.payment
+        ? <Btn kind="primary" className="mt-4 w-full" busy={busy} onClick={() => void go("all-access/checkout")} data-testid="notes-buy-all-access">Get All Access · {price} a month</Btn>
+        : null}
+    <p className="mt-3 text-[12px] text-[var(--an-faint)]">One plan for every Arise app. Cancel any time. Payments by Stripe.{ctx.me.plan === "free" ? " The free plan stays free." : ""}</p>
+  </section>;
 }
 
 function FamilyTab({ ctx }: { ctx: AppCtx }) {

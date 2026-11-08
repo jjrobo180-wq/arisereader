@@ -127,3 +127,15 @@ test("the Stripe key alone says whether payments are live or test", () => {
   assert.equal(stripeMode(""), "unset");
   assert.equal(stripeMode(undefined), "unset");
 });
+
+import { PLAN_KINDS, isAddonKind, priceOf } from "../shared/plans";
+test("Arise All Access: one $10 monthly plan that includes To Duo Unlimited", () => {
+  assert.ok(PLAN_KINDS.includes("all_access"));
+  assert.equal(isAddonKind("all_access"), true);
+  assert.deepEqual({ cents: priceOf("all_access").cents, interval: priceOf("all_access").interval }, { cents: 1000, interval: "month" });
+  const person = { id: 10, role: "todo", username: "mia" } as any;
+  const now = Date.parse("2026-11-08T12:00:00Z");
+  const grant = (over: any = {}) => ({ kind: "all_access", ownerId: 10, source: "stripe", status: "active", seats: 1, endsAt: "2026-12-08T12:00:00.000Z", updatedAt: "2026-11-08T12:00:00.000Z", ...over });
+  assert.equal(todoUnlimitedFor(person, { allAccess: grant() as any }, now).via, "all-access");
+  assert.equal(todoUnlimitedFor(person, { allAccess: grant({ status: "canceled", endsAt: "2026-11-01T00:00:00.000Z" }) as any }, now).unlimited, false, "an ended plan unlocks nothing");
+});

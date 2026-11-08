@@ -172,6 +172,9 @@ export interface EarshotOptions {
   player?: Player;
   /** The database for social (profiles, posts, uploads; server/podcastSocial.ts). */
   socialDb?: () => any;
+  /** Ad-free listening (ads found and skipped) is part of Arise All Access: is this listener on it?
+   *  Without it, episodes play straight from the show's host, ads and all. */
+  adFree?: (req: any) => Promise<boolean>;
 }
 let sharedAdStore: AdStore | null = null;
 const nowServices = new WeakMap<object, ReturnType<typeof nowNewsService>>();
@@ -191,6 +194,21 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
   registerImportRoutes(app, authMiddleware, P, { apple: (url) => dir.apple(url), cached: importCache() });
 
   const uid = (req: any) => String(req.user?.id ?? "");
+  /** Signed in, and on All Access (ad-free listening). Others get a polite "not on this plan" answer
+   *  that the player reads as "play straight from the host". */
+  const adFreeAuth = (req: any, res: any, next: any) => authMiddleware(req, res, async (err?: any) => {
+    if (err) return next(err);
+    if (!options.adFree) return next();
+    let ok = false;
+    try { ok = await options.adFree(req); } catch { ok = false; }
+    if (ok) return next();
+    res.set("Cache-Control", "no-store");
+    const path = String(req.path || req.url || "");
+    if (/\/play-token$/.test(path)) return res.json({ adFree: false });
+    if (/\/clean\/prepare$/.test(path)) return res.json({ ok: true, adFree: false });
+    if (/\/clean\//.test(path)) return res.json({ ready: false, adFree: false });
+    return res.json({ ready: true, final: true, ads: [], adFree: false });
+  });
   const isStudent = (req: any) => req.user?.role === "student";
   const isAdmin = (req: any) => !!(req.user?.isAdmin || req.user?.is_admin || req.user?.role === "admin");
   /** Explicit podcasts only for adults who switched them on. */
@@ -545,7 +563,7 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     if (!openingsStarted.has(player)) { openingsStarted.add(player); startOpenings(player, dir); }
     // Ad-free copies kept in storage (server/podcastClean.ts), played straight from there.
     const cleaner = cleanerOf(player);
-    if (cleaner) registerCleanRoutes(app, authMiddleware, { prefix: P, cleaner, cleanId: cleanPodId });
+    if (cleaner) registerCleanRoutes(app, adFreeAuth, { prefix: P, cleaner, cleanId: cleanPodId });
     const audioFor = async (showId: string, episodeId: string, sent?: string) => {
       const recent = (await dir.loadShow(showId)).episodes;
       const hit = recent.find((e) => e.id === episodeId);
@@ -559,9 +577,9 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     if (cleaner) {
       let pre = precleaners.get(player);
       if (!pre) { pre = createPrecleaner({ player, cleaner, dir }); precleaners.set(player, pre); }
-      registerPrepareRoute(app, authMiddleware, { prefix: P, pre, cleanId: cleanPodId, voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, audioFor });
+      registerPrepareRoute(app, adFreeAuth, { prefix: P, pre, cleanId: cleanPodId, voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, audioFor });
     }
-    registerPlayRoutes(app, authMiddleware, {
+    registerPlayRoutes(app, adFreeAuth, {
       prefix: P, player, dir, crowd: (ep) => crowdFor(adStore, ep), cleanId: cleanPodId, clientIp,
       voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`,
       // The show's newest 25 first, then its 200 newest (an older episode, like a series' first), then
@@ -674,7 +692,7 @@ export function podscrollAllowed(origin: string, extra: string[] = []): boolean 
 /** The visitor's address as Render's proxy saw it (the last X-Forwarded-For entry is the one it added). */
 const clientIp = (req: any) => { const f = String(req.headers["x-forwarded-for"] || "").split(",").map((x) => x.trim()).filter(Boolean); return f[f.length - 1] || String(req.socket?.remoteAddress || ""); };
 
-export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetcher?: Fetcher, directory?: Directory, adStore?: AdStore, player?: Player, socialDb?: () => any, more: { sendEmail?: (to: string, subject: string, html: string) => Promise<{ sent: boolean; error?: string }> } = {}) {
+export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetcher?: Fetcher, directory?: Directory, adStore?: AdStore, player?: Player, socialDb?: () => any, more: { sendEmail?: (to: string, subject: string, html: string) => Promise<{ sent: boolean; error?: string }>; adFree?: (req: any) => Promise<boolean> } = {}) {
   const extra = String(process.env.PODSCROLL_ORIGINS || "").split(",").map((x) => x.trim()).filter(Boolean);
   const perIp = createAttemptLimiter({ max: 900, windowMs: 10 * 60_000 });
   app.use("/api/podscroll", (req: any, res: any, next: any) => {
@@ -743,7 +761,7 @@ export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetch
   registerClipsRoutes(app, gate, socialDb ? { kv: supabaseKV(socialDb) } : {});
   // Study Pod+ and Meeting Pod (server/podcastStudio.ts): the person's own notes, turned into a podcast or a meeting summary.
   registerStudioRoutes(app, gate, { ask: openAiJson, speak: (text, voice) => aiSpeech(text, voice), transcribe: openAiTranscribe, ...(socialDb ? { blobs: supabaseBlobs(socialDb) } : {}) });
-  registerEarshotRoutes(app, gate, { store, fetcher, directory, adStore, player, socialDb, prefix: "/api/podscroll" });
+  registerEarshotRoutes(app, gate, { store, fetcher, directory, adStore, player, socialDb, prefix: "/api/podscroll", adFree: more.adFree });
   // New-episode notifications for the Pod+ iPhone app (server/podPush.ts).
   if (socialDb) {
     const dir = directory ?? (fetcher ? createDirectory({ fetcher }) : (sharedDirectory ??= createDirectory()));
