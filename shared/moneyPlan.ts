@@ -18,6 +18,8 @@ export type IncomeSource = {
   anchor: string;
 };
 export type IncomeEntry = { id: string; sourceId: string; date: string; amount: number; kind: "pay" | "tips" | "bonus" | "other"; note: string };
+/** Money you already have on hand (cash, checking, a jar): counted in what's left to spend. */
+export type OnHand = { id: string; name: string; amount: number };
 export type BillPayment = { id: string; billId: string; month: string; amount: number; date: string };
 export type GoalKind = "save" | "debt";
 export type Goal = { id: string; name: string; kind: GoalKind; target: number; start: number; due: string; monthly: number; color: string };
@@ -25,7 +27,7 @@ export type GoalMove = { id: string; goalId: string; amount: number; date: strin
 export type PlanStyle = "paycheck" | "monthly";
 export type MoneyPlan = {
   setUp: boolean; who: "me" | "two" | "family"; style: PlanStyle;
-  sources: IncomeSource[]; incomeLog: IncomeEntry[]; payments: BillPayment[]; goals: Goal[]; goalMoves: GoalMove[];
+  sources: IncomeSource[]; onHand: OnHand[]; incomeLog: IncomeEntry[]; payments: BillPayment[]; goals: Goal[]; goalMoves: GoalMove[];
   /** Kept aside each month before anything else, so a slow month doesn't break the plan. */
   cushion: number;
 };
@@ -33,8 +35,8 @@ export type MoneyPlan = {
 export type BillPart = { day: number; amount: number };
 export type PlanBill = Bill & { parts?: BillPart[] };
 
-export const MONEY_LIMITS = { sources: 12, incomeLog: 4000, payments: 6000, goals: 30, goalMoves: 4000 };
-export const emptyMoney = (): MoneyPlan => ({ setUp: false, who: "me", style: "monthly", sources: [], incomeLog: [], payments: [], goals: [], goalMoves: [], cushion: 0 });
+export const MONEY_LIMITS = { sources: 12, onHand: 12, incomeLog: 4000, payments: 6000, goals: 30, goalMoves: 4000 };
+export const emptyMoney = (): MoneyPlan => ({ setUp: false, who: "me", style: "monthly", sources: [], onHand: [], incomeLog: [], payments: [], goals: [], goalMoves: [], cushion: 0 });
 
 // ─── small helpers (own copies, so familyHub.ts can import this file) ───
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -75,6 +77,10 @@ export function cleanMoney(raw: unknown): MoneyPlan {
       const frequency = oneOf(s.frequency, FREQ, "monthly");
       const days = Array.isArray(s.days) ? [...new Set(s.days.map((d: unknown) => Math.round(num(d, 1, 31, 0))).filter((d: number) => d >= 1))].sort((a, b) => a - b).slice(0, 2) as number[] : [];
       return { id: str(s.id, 100), name, kind: oneOf(s.kind, ["paycheck", "tips", "gig", "other"] as const, "paycheck"), frequency, amount: num(s.amount, 0, 10_000_000), days, anchor: isDay(s.anchor) ? s.anchor : "" };
+    }),
+    onHand: rows(r.onHand, MONEY_LIMITS.onHand, (o) => {
+      const name = str(o.name, 60).trim();
+      return name && num(o.amount, 0, 100_000_000) > 0 ? { id: str(o.id, 100), name, amount: cents(num(o.amount, 0, 100_000_000)) } : null;
     }),
     incomeLog: rows(r.incomeLog, MONEY_LIMITS.incomeLog, (e) => isDay(e.date) && num(e.amount, 0, 10_000_000) > 0
       ? { id: str(e.id, 100), sourceId: str(e.sourceId, 100), date: e.date, amount: cents(num(e.amount, 0, 10_000_000)), kind: oneOf(e.kind, ["pay", "tips", "bonus", "other"] as const, "pay"), note: str(e.note, 120) } : null),
@@ -120,6 +126,7 @@ export function expectedFrom(s: IncomeSource, month: string): number {
   return cents(paydays(s, month).length * s.amount);
 }
 export const expectedIncome = (plan: MoneyPlan, month: string) => cents(plan.sources.reduce((t, s) => t + expectedFrom(s, month), 0));
+export const onHandTotal = (plan: MoneyPlan) => cents(plan.onHand.reduce((t, o) => t + o.amount, 0));
 export const receivedIn = (plan: MoneyPlan, month: string) => cents(plan.incomeLog.filter((e) => e.date.startsWith(month)).reduce((t, e) => t + e.amount, 0));
 /** A source's paycheck on a day, if it was logged (so it shows as received). */
 export const loggedPay = (plan: MoneyPlan, sourceId: string, date: string) => plan.incomeLog.find((e) => e.sourceId === sourceId && e.date === date && e.kind === "pay");
@@ -234,12 +241,13 @@ export function monthPicture(plan: MoneyPlan, bills: PlanBill[], expenses: Expen
   // Income to plan with: what's expected, or what's come in if that's more (a big tip week, a bonus).
   const income = Math.max(expected, received);
   const planned = cents(billsOwed + budgeted + goals + plan.cushion);
+  const onHand = onHandTotal(plan);
   return {
-    expected, received, income, billsOwed, billsPaid, billsLeft, spent, budgeted, goals, planned,
+    expected, received, income, onHand, billsOwed, billsPaid, billsLeft, spent, budgeted, goals, planned,
     /** Not given a job yet: income minus bills, spending budgets, goals and the cushion. Negative means over-planned. */
-    unplanned: cents(income - planned),
+    unplanned: cents(income + onHand - planned),
     /** What's actually left this month after bills and spending so far. */
-    leftover: cents(income - billsOwed - spent - goals),
+    leftover: cents(income + onHand - billsOwed - spent - goals),
     late: statuses.filter((s) => s.state === "late").length,
   };
 }
@@ -252,7 +260,7 @@ export function safeToSpend(plan: MoneyPlan, bills: PlanBill[], expenses: Expens
   // Tips, gig pay, bonuses and other money logged since this check came in add to what's safe to spend.
   const extra = cents(plan.incomeLog.filter((e) => e.kind !== "pay" && e.date >= now.start && e.date <= today).reduce((t, e) => t + e.amount, 0));
   const nextDay = addDaysTo(now.end, 1);
-  return { amount: cents(now.amount + extra - now.billTotal - now.goalTotal - spent), spent, extra, until: nextDay, days: Math.max(1, daysApart(today, nextDay)), period: now };
+  return { amount: cents(now.amount + extra + onHandTotal(plan) - now.billTotal - now.goalTotal - spent), spent, extra, until: nextDay, days: Math.max(1, daysApart(today, nextDay)), period: now };
 }
 
 // ─── Goals ───
