@@ -179,7 +179,7 @@ jobs:
           set -uo pipefail
           # The watch app has an App ID of its own (registered here the first time); the TV app is the
           # same App ID as the iPhone app (one App Store listing) with a tvOS profile.
-          SEED_PROFILE="$RUNNER_TEMP/profile.mobileprovision" CREATE_APP_ID="Pod+ Watch" python3 .github/scripts/apple_signing.py com.arisereader.podplus.watchkitapp "$RUNNER_TEMP/watch.mobileprovision"
+          SEED_PROFILE="$RUNNER_TEMP/profile.mobileprovision" CREATE_APP_ID="PodPlus Watch" python3 .github/scripts/apple_signing.py com.arisereader.podplus.watchkitapp "$RUNNER_TEMP/watch.mobileprovision"
           python3 .github/scripts/add_tvos_platform.py com.arisereader.podplus
           SEED_PROFILE="$RUNNER_TEMP/profile.mobileprovision" PROFILE_TYPE=TVOS_APP_STORE python3 .github/scripts/apple_signing.py com.arisereader.podplus "$RUNNER_TEMP/tv.mobileprovision"
           for kind in watch tv; do
