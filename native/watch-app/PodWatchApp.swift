@@ -345,6 +345,7 @@ struct PWCard: View {
                     .animation(.easeOut(duration: 0.5), value: engine.playing)
                 Text(ep.title).font(.system(size: 14, weight: .bold)).lineLimit(2).multilineTextAlignment(.center)
                 Text(ep.show).font(.system(size: 12)).foregroundStyle(.white.opacity(0.65)).lineLimit(1)
+                if mine, let m = engine.message { Text(m).font(.system(size: 11, weight: .semibold)).foregroundStyle(PW.accent).multilineTextAlignment(.center).lineLimit(3) }
                 // The progress bar, ads in yellow.
                 GeometryReader { g in
                     ZStack(alignment: .leading) {

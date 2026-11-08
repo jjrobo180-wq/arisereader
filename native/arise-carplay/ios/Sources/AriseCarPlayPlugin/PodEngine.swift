@@ -130,6 +130,13 @@ public final class PodEngine: ObservableObject {
             let (url, startAt) = await resolve(ep, station: station, from: from)
             guard run == me else { return }
             guard let url = url else { message = "This episode can't play right now."; loading = false; playing = false; return }
+            // On the watch, sound only plays once watchOS has given the app headphones (it asks which ones):
+            // playing before that answer came back is what crashed Pod+ on a real Apple Watch.
+            guard await sessionReady() else {
+                guard run == me else { return }
+                message = "Connect Bluetooth headphones to your watch, then tap play."; loading = false; playing = false; return
+            }
+            guard run == me else { return }
             let item = AVPlayerItem(asset: AVURLAsset(url: url))
             item.preferredForwardBufferDuration = 30
             watch(item, me: me)
@@ -252,8 +259,13 @@ public final class PodEngine: ObservableObject {
             if onStation { playStation() } else { start(queue.isEmpty ? [ep] : queue, at: index, from: position > 0 ? position : nil) }
             return
         }
-        activateSession(); onStart?()
-        player.playImmediately(atRate: current?.isLive == true && !onStation ? 1 : rate)
+        let me = run
+        Task {
+            guard await sessionReady() else { message = "Connect Bluetooth headphones to your watch, then tap play."; return }
+            guard run == me else { return }
+            onStart?()
+            player.playImmediately(atRate: current?.isLive == true && !onStation ? 1 : rate)
+        }
     }
     public func toggle() { playing ? pause() : resume() }
     public func stop() { pause(); player.replaceCurrentItem(with: nil); run = UUID(); playing = false }
@@ -269,7 +281,7 @@ public final class PodEngine: ObservableObject {
         skipped = skipped.filter { key in ads.first(where: { $0.key == key }).map { $0.s < to } ?? true }
         position = to
         player.seek(to: CMTime(seconds: to, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
-            MainActor.assumeIsolated { self?.saveSpot(); self?.updateInfo(force: true) }
+            Self.onMain { self?.saveSpot(); self?.updateInfo(force: true) }
         }
     }
     public func setRate(_ r: Float) {
@@ -288,40 +300,70 @@ public final class PodEngine: ObservableObject {
     // MARK: Sound, the lock screen and the car's buttons
 
     private func activateSession() {
-        #if os(watchOS)
-        // The watch plays through Bluetooth headphones; iOS asks which ones the first time.
-        let s = AVAudioSession.sharedInstance()
-        try? s.setCategory(.playback, mode: .spokenAudio, policy: .longFormAudio)
-        s.activate(options: []) { _, _ in }
-        #else
+        #if !os(watchOS)
         let s = AVAudioSession.sharedInstance()
         try? s.setCategory(.playback, mode: .spokenAudio, policy: .longFormAudio)
         try? s.setActive(true)
         #endif
     }
 
+    #if os(watchOS)
+    private var sessionActive = false
+    #endif
+
+    /** Whether sound can play now. On the watch this waits for watchOS to hand over Bluetooth headphones
+     *  (it shows its own picker the first time); its answer arrives on another thread, so it's handed back
+     *  here without touching anything of the player's from there. */
+    private func sessionReady() async -> Bool {
+        #if os(watchOS)
+        if sessionActive { return true }
+        let ok = await Self.activateWatchSession()
+        sessionActive = ok
+        return ok
+        #else
+        activateSession()
+        return true
+        #endif
+    }
+
+    #if os(watchOS)
+    nonisolated private static func activateWatchSession() async -> Bool {
+        let s = AVAudioSession.sharedInstance()
+        do { try s.setCategory(.playback, mode: .spokenAudio, policy: .longFormAudio) } catch { return false }
+        return await withCheckedContinuation { (done: CheckedContinuation<Bool, Never>) in
+            s.activate(options: []) { ok, _ in done.resume(returning: ok) }
+        }
+    }
+    #endif
+
+    /** Runs `work` on the main thread: the lock screen's, car's and watch's buttons don't always call from it,
+     *  and MainActor.assumeIsolated stops the app when they don't. */
+    nonisolated private static func onMain(_ work: @escaping @MainActor () -> Void) {
+        if Thread.isMainThread { MainActor.assumeIsolated { work() } } else { DispatchQueue.main.async { work() } }
+    }
+
     private func setUpCommands() {
         guard !commandsReady else { return }
         commandsReady = true
         let c = MPRemoteCommandCenter.shared()
-        c.playCommand.addTarget { [weak self] _ in MainActor.assumeIsolated { self?.resume() }; return .success }
-        c.pauseCommand.addTarget { [weak self] _ in MainActor.assumeIsolated { self?.pause() }; return .success }
-        c.togglePlayPauseCommand.addTarget { [weak self] _ in MainActor.assumeIsolated { self?.toggle() }; return .success }
+        c.playCommand.addTarget { [weak self] _ in Self.onMain { self?.resume() }; return .success }
+        c.pauseCommand.addTarget { [weak self] _ in Self.onMain { self?.pause() }; return .success }
+        c.togglePlayPauseCommand.addTarget { [weak self] _ in Self.onMain { self?.toggle() }; return .success }
         c.skipForwardCommand.preferredIntervals = [30]
-        c.skipForwardCommand.addTarget { [weak self] _ in MainActor.assumeIsolated { self?.skip(30) }; return .success }
+        c.skipForwardCommand.addTarget { [weak self] _ in Self.onMain { self?.skip(30) }; return .success }
         c.skipBackwardCommand.preferredIntervals = [15]
-        c.skipBackwardCommand.addTarget { [weak self] _ in MainActor.assumeIsolated { self?.skip(-15) }; return .success }
-        c.nextTrackCommand.addTarget { [weak self] _ in MainActor.assumeIsolated { self?.next() }; return .success }
-        c.previousTrackCommand.addTarget { [weak self] _ in MainActor.assumeIsolated { self?.previous() }; return .success }
+        c.skipBackwardCommand.addTarget { [weak self] _ in Self.onMain { self?.skip(-15) }; return .success }
+        c.nextTrackCommand.addTarget { [weak self] _ in Self.onMain { self?.next() }; return .success }
+        c.previousTrackCommand.addTarget { [weak self] _ in Self.onMain { self?.previous() }; return .success }
         c.changePlaybackPositionCommand.addTarget { [weak self] e in
             guard let e = e as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
-            MainActor.assumeIsolated { self?.seek(to: e.positionTime) }
+            let t = e.positionTime; Self.onMain { self?.seek(to: t) }
             return .success
         }
         c.changePlaybackRateCommand.supportedPlaybackRates = Self.rates.map { NSNumber(value: $0) }
         c.changePlaybackRateCommand.addTarget { [weak self] e in
             guard let e = e as? MPChangePlaybackRateCommandEvent else { return .commandFailed }
-            MainActor.assumeIsolated { self?.setRate(e.playbackRate) }
+            let r = e.playbackRate; Self.onMain { self?.setRate(r) }
             return .success
         }
     }
@@ -363,8 +405,7 @@ public final class PodEngine: ObservableObject {
         Task {
             guard let (data, _) = try? await URLSession.shared.data(from: url) else { return }
             #if canImport(UIKit)
-            guard let image = UIImage(data: data) else { return }
-            let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+            guard let artwork = Self.artwork(data) else { return }
             guard art?.url == urlString else { return }
             art = (urlString, artwork)
             updateInfo(force: true)
@@ -372,6 +413,16 @@ public final class PodEngine: ObservableObject {
         }
     }
 }
+
+#if canImport(UIKit)
+extension PodEngine {
+    /** Made outside the main actor: the system asks for the picture from its own thread. */
+    nonisolated static func artwork(_ data: Data) -> MPMediaItemArtwork? {
+        guard let image = UIImage(data: data) else { return nil }
+        return MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+    }
+}
+#endif
 
 /// Cover art at a sensible size (Apple's art addresses can be asked for any size).
 public enum PodArt {
