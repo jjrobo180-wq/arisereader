@@ -42,7 +42,7 @@ jobs:
       - name: Screenshots
         working-directory: ${{ runner.temp }}/p
         run: |
-          set -uo pipefail
+          set +e
           mkdir -p out
           pick() { xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin); print(next((x['udid'] for k,g in sorted(d['devices'].items(), reverse=True) if '$1' in k for x in g), ''))"; }
           TV=$(pick tvOS); W=$(pick watchOS)
@@ -51,14 +51,12 @@ jobs:
             xcrun simctl boot "$TV"; xcrun simctl bootstatus "$TV" -b
             xcrun simctl install "$TV" d/Build/Products/Debug-appletvsimulator/PodPlusTV.app
             shoot() { xcrun simctl terminate "$TV" com.arisereader.podplus 2>/dev/null; xcrun simctl launch "$TV" com.arisereader.podplus "${@:2}"; sleep 22; xcrun simctl io "$TV" screenshot "out/tv-$1.png"; }
-            xcrun simctl ui "$TV" appearance light || true
-            shoot 1-home-light
+            shoot 1-home-light -podtvLook light
             shoot 2-swipe -podtvSwipe YES
-            shoot 3-swipe-start -podtvTab 1
-            shoot 4-radio -podtvTab 2
-            shoot 5-library -podtvTab 3
-            xcrun simctl ui "$TV" appearance dark || true
-            shoot 6-home-dark
+            shoot 3-swipe-start -podtvTab 1 -podtvLook light
+            shoot 4-radio -podtvTab 2 -podtvLook light
+            shoot 5-library -podtvTab 3 -podtvLook light
+            shoot 6-home-dark -podtvLook dark
             xcrun simctl shutdown "$TV" || true
           fi
           if [[ -n "$W" ]]; then

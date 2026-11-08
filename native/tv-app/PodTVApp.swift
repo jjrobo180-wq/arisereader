@@ -16,6 +16,8 @@ struct PodTVApp: App {
     var body: some Scene {
         WindowGroup {
             PodTVRoot().environmentObject(model)
+                // For screenshots: `-podtvLook dark|light` (otherwise the Apple TV's own setting).
+                .preferredColorScheme(UserDefaults.standard.string(forKey: "podtvLook") == "dark" ? .dark : UserDefaults.standard.string(forKey: "podtvLook") == "light" ? .light : nil)
         }
     }
 }
