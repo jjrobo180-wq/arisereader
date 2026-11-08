@@ -131,6 +131,8 @@ export type LessonClass = {
   /** The days it meets ("Mon".."Fri"). Empty means every school day. */
   days: string[];
   room: string;
+  /** Who teaches it (the class's teacher, for a push-in or co-taught class). */
+  teacher?: string;
   students: string[];
 };
 
@@ -192,6 +194,7 @@ export function cleanClass(raw: any): LessonClass | null {
     color: oneOf(raw.color, CLASS_COLORS, "teal"),
     days: strings(raw.days, 5, 3).filter((d) => (WEEKDAYS as readonly string[]).includes(d)),
     room: line(raw.room, 40),
+    teacher: line(raw.teacher, 80),
     students: strings(raw.students, LIMITS.rosterPerClass, 80),
   };
 }

@@ -1,7 +1,7 @@
 // Upload: an audio or video file (MP3, M4A, WAV, WebM, MP4, MOV…), up to 2 hours or 500 MB. The file
 // is cut into pieces on the device (audioSplit.ts), a few are written down at once, and the note
 // opens with its summary when they're all done.
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FileUp, RefreshCw, Upload } from "lucide-react";
 import { DIARIZE_PIECE_SECS, NOTES_UPLOAD_MAX_BYTES, fmtClock, type NotesTemplateId, type Segment } from "@shared/ariseNotes";
 import { localDay, notesApi, NotesError, type FullNote, type PieceReply } from "./api";
@@ -13,6 +13,7 @@ import { newLocalId, saveLocalNote, type LocalNote } from "./localNotes";
 import { SpeakersToggle, TemplatePicker } from "./pickers";
 import { Btn, Notice, Section, useToast, minutesText } from "./ui";
 import { TopBar, type AppCtx } from "./NotesApp";
+import { doneWithWatchRecording, takeWatchRecording, watchRecordingsWaiting } from "./watchRecordings";
 
 const ACCEPT = "audio/*,video/mp4,video/quicktime,video/webm,.mp3,.m4a,.wav,.webm,.mp4,.mov,.ogg,.oga,.opus,.flac,.aac,.3gp";
 const mb = (n: number) => `${(n / 1024 / 1024).toFixed(n > 100 * 1024 * 1024 ? 0 : 1)} MB`;
@@ -43,6 +44,21 @@ export default function UploadScreen({ ctx }: { ctx: AppCtx }) {
   const heard = useRef<Segment[]>([]);
   const maxSecs = privacy === "strict" ? 2 * 3600 : me.usage.maxSecs;
   const diarize = privacy === "standard" && speakers && me.features.speakers && me.services.speakers;
+  // A meeting recorded on the Apple Watch: it's picked here and written down without any taps.
+  const [fromWatch, setFromWatch] = useState(false);
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    const r = takeWatchRecording();
+    if (!r) return;
+    setFromWatch(true);
+    setTitle(r.title);
+    void choose(r.file).then(() => doneWithWatchRecording(r));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!fromWatch || autoStarted.current || !plan || reading || problem || phase !== "pick") return;
+    autoStarted.current = true;
+    void start();
+  }, [fromWatch, plan, reading, problem, phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const choose = async (f: File | null | undefined, sp = speakers, mode: PrivacyLevel = privacy) => {
     if (!f) return;
@@ -142,6 +158,7 @@ export default function UploadScreen({ ctx }: { ctx: AppCtx }) {
     ctx.refreshNotes();
     void ctx.refreshMe();
     ctx.go({ name: "note", id: n.id });
+    if (watchRecordingsWaiting()) say(`${watchRecordingsWaiting()} more recording${watchRecordingsWaiting() === 1 ? "" : "s"} from your watch. Open Upload to write ${watchRecordingsWaiting() === 1 ? "it" : "them"} down.`);
   };
 
   const retry = async () => {
@@ -161,7 +178,8 @@ export default function UploadScreen({ ctx }: { ctx: AppCtx }) {
       <main className="mx-auto max-w-2xl space-y-4 px-4 pb-24 pt-8 sm:px-5">
         <section className="an-card px-5 py-8 text-center" aria-live="polite">
           <div className="mx-auto grid h-20 w-20 place-items-center rounded-3xl bg-[var(--an-violet-soft)] text-[var(--an-violet-ink)]"><RefreshCw className="h-9 w-9 animate-spin" aria-hidden /></div>
-          <h1 className="mt-4 text-[20px] font-bold">{file?.name}</h1>
+          <h1 className="mt-4 text-[20px] font-bold">{fromWatch ? title : file?.name}</h1>
+          {fromWatch && <p className="mt-1 text-[13px] font-semibold text-[var(--an-violet-ink)]" data-testid="notes-from-watch">Recorded on your Apple Watch</p>}
           <p className="mt-1 text-[14px] text-[var(--an-muted)]">{step}</p>
           <div className="mx-auto mt-5 h-3 max-w-md overflow-hidden rounded-full bg-[var(--an-violet-soft)]" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}><div className="h-full rounded-full bg-[var(--an-violet)] transition-all" style={{ width: `${phase === "finishing" ? 100 : pct}%` }} /></div>
           <p className="mt-2 text-[13px] text-[var(--an-faint)]">{progress.done} of {progress.total || plan?.count} parts · {progress.lines} lines so far</p>

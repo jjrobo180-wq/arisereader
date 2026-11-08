@@ -33,3 +33,6 @@ body { margin: 0; background: transparent; color: #fff; font-family: ui-sans-ser
 @media (pointer: coarse) {
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]), textarea, select { font-size: max(16px, 1rem) !important; }
 }
+
+/* The phone's own clock space (lib/deviceInsets.ts), where the web view reports no safe area at the top. */
+html.pod-native { --sat: max(env(safe-area-inset-top, 0px), var(--sat-device, 0px)); }

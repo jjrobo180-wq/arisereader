@@ -11,7 +11,7 @@ import { YOUTUBE_CHANNEL_OPTIONS, normalizeYoutubeChannels, youtubeChannelAllowe
 import { normalizeEyeGazeBackground } from "../shared/eyeGazeAppearance";
 import type { Express } from "express";
 import type { Server } from "node:http";
-import { storage } from "./storage";
+import { storage, setReaderMessageListener } from "./storage";
 // Cache-bust: force server restart to pick up new DB entries
 import { seedData } from "./storage";
 import { clearCache, AlreadySubmittedError } from "./storage";
@@ -65,15 +65,20 @@ import { createSupabasePagesStore } from "./arisePagesStore";
 import { registerAriseTodoRoutes } from "./ariseTodo";
 import { registerWhatsNewRoutes } from "./whatsNew";
 import { registerAdminHandoffRoutes } from "./adminHandoff";
+import { registerTvLinkRoutes } from "./tvLink";
+import { readWorkspace as readTodoWorkspace, updateWorkspace as updateTodoWorkspace } from "./ariseTodo";
+import { applyLifeTv, applyWorkTv } from "../shared/tvActions";
 import { registerClientErrorRoutes } from "./clientErrors";
 import { registerTodoShareRoutes } from "./todoShare";
 import { registerFoodLookupRoutes } from "./foodLookup";
+import { registerKrogerRoutes } from "./kroger";
 import { registerFitRoutes } from "./fit";
 import { registerCoachRoutes } from "./coach";
 import { registerTalkRoutes } from "./talk";
 import { registerBrowserRoutes } from "./browserCheck";
 import { registerLifePlanRoutes } from "./lifePlan";
-import { registerAccountabilityRoutes, startAccountabilityTicker } from "./accountability";
+import { ensureSharedSpace, registerAccountabilityRoutes, startAccountabilityTicker } from "./accountability";
+import { ACCOUNTABILITY_SHARE } from "../shared/profileLinks";
 import { ACCOUNTABILITY_BELL_TYPE } from "../shared/notifications";
 import { registerOtaRoutes } from "./ota";
 import { registerSleepFinderRoutes } from "./sleepFinder";
@@ -1509,6 +1514,33 @@ export async function registerRoutes(
     "todo_required", "Arise LifeHub is an add-on for parents ($10 a month) and comes with Arise WorkHub for teachers.",
   ));
   registerAdminHandoffRoutes(app, authMiddleware);
+  // Apple TV sign-in with a code, and the TV's summary of the family hub (server/tvLink.ts).
+  const tvId = () => `tv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  registerTvLinkRoutes(app, authMiddleware, {
+    createSession: (id) => storage.createSession(id), readWorkspace: readTodoWorkspace, readWorkWorkspace: (id) => createSupabaseWorkspaceStore().get(id),
+    // To-dos and chores checked off or added on the Apple TV, saved like the phone saves (only over the copy read).
+    changeLife: async (userId, a, day) => {
+      let failed: string | null = null;
+      const r = await updateTodoWorkspace(userId, (ws) => {
+        const out = applyLifeTv(ws, a, day, new Date().toISOString(), tvId);
+        if ("error" in out) { failed = out.error; return null; }
+        return { workspace: out.workspace, result: { created: out.created, message: out.message } };
+      });
+      if (failed) return { ok: false as const, message: failed };
+      return r ? { ok: true as const, ...r } : null;
+    },
+    changeWork: async (userId, a, day) => {
+      const store = createSupabaseWorkspaceStore();
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const row = await store.get(userId);
+        if (!row) return { ok: false as const, message: "Your WorkHub isn't set up yet." };
+        const out = applyWorkTv(JSON.parse(JSON.stringify(row.workspace)), a, day, new Date().toISOString(), tvId);
+        if ("error" in out) return { ok: false as const, message: out.error };
+        if (await store.save(userId, out.workspace, row.updatedAt)) return { ok: true as const, created: out.created, message: out.message };
+      }
+      return null;
+    },
+  });
   registerClientErrorRoutes(app);
   // Arise To Duo Free and the $5 upgrade (shared/todoPlan.ts). These run before the routes they
   // guard. Free has no AI, and up to 3 App Store apps across WorkHub and LifeHub: a save that would
@@ -1602,6 +1634,7 @@ export async function registerRoutes(
     ownerName: async (id) => { const owner: any = await storage.getUser(id); return String(owner?.displayName || owner?.display_name || "").trim().split(/\s+/)[0] || ""; },
   });
   registerFoodLookupRoutes(app, authMiddleware);
+  registerKrogerRoutes(app, authMiddleware);
   registerFitRoutes(app, authMiddleware, {
     nameOf: async (id) => { const u: any = await storage.getUser(id).catch(() => null); return String(u?.displayName || u?.display_name || u?.username || "").trim().split(/\s+/)[0] || ""; },
     // Arise Fit+: the account's own plan (server/plans.ts); guest passes are worked out in server/fitPass.ts.
@@ -1639,6 +1672,13 @@ export async function registerRoutes(
       return notifyUser(userId, message, "todo");
     },
     nameOf: async (id: number) => { const u: any = await storage.getUser(id); return String(u?.displayName || u?.display_name || "").trim().split(/\s+/)[0] || ""; },
+    // The same devices notifyUser(…, "todo") sends to: every iPhone app ("apns:…"), and browsers with LifeHub reminders on.
+    devices: async (id: number) => {
+      const { data, error } = await supabase.from("push_subscriptions").select("endpoint, todo").eq("user_id", id);
+      if (error) throw error;
+      const rows = (data || []) as { endpoint: string; todo: boolean | null }[];
+      return { apple: rows.filter((r) => String(r.endpoint).startsWith("apns:")).length, web: rows.filter((r) => !String(r.endpoint).startsWith("apns:") && r.todo === true).length };
+    },
   };
   registerAccountabilityRoutes(app, authMiddleware, acctDeps);
   if (process.env.NODE_ENV !== "test") startAccountabilityTicker(acctDeps);
@@ -1775,9 +1815,35 @@ export async function registerRoutes(
   const profileLinks = registerProfileLinkRoutes(app, authMiddleware, {
     getSetting: (key) => storage.getSetting(key), upsertSetting: (key, value) => storage.upsertSetting(key, value),
     getUser: (id) => storage.getUser(id), lifeHub: (ownerId) => savedHub("life", ownerId),
+    // Accountability turned on for a linked person: the two share an Accountability space (server/accountability.ts).
+    lifeWorkspace: {
+      read: async (ownerId) => {
+        const { data, error } = await getAdminSupabase().from("arise_todo_workspaces").select("workspace, updated_at").eq("user_id", ownerId).maybeSingle();
+        if (error) throw error;
+        return data ? { workspace: data.workspace, updatedAt: String(data.updated_at) } : null;
+      },
+      // The same rule as the owner's own saves (server/ariseTodo.ts): only if nobody saved since. Their devices merge it in.
+      write: async (ownerId, workspace, base) => {
+        const now = new Date(Math.max(Date.now(), Date.parse(base) + 1 || 0)).toISOString();
+        const { data, error } = await getAdminSupabase().from("arise_todo_workspaces").update({ workspace, updated_at: now }).eq("user_id", ownerId).eq("updated_at", base).select("updated_at").maybeSingle();
+        if (error) throw error;
+        return data ? String(data.updated_at) : null;
+      },
+    },
+    knows: async (a, b) => {
+      const { data } = await getAdminSupabase().from("acct_members").select("space_id, user_id").in("user_id", [a, b]);
+      const mine = new Set((data || []).filter((r: any) => r.user_id === a).map((r: any) => r.space_id));
+      return (data || []).some((r: any) => r.user_id === b && mine.has(r.space_id));
+    },
+    onActive: async (link) => { if (link.grants[ACCOUNTABILITY_SHARE] && link.viewerId) await ensureSharedSpace(acctDeps, link.ownerId, link.viewerId); },
   });
   registerUserDocRoutes(app, authMiddleware, userDocStore, undefined, profileLinks.canUseApp);
   // Health Nudges (a premium app) sends phone notifications from the settings it saved with the person's app data.
+  // A.R.I.S.E. Reader app: a message to a reader (from their teacher, being added to a class, a reward) is also a
+  // notification on their iPhone. Its link opens the inbox (Library.tsx reads ?inbox=1).
+  setReaderMessageListener((userId, senderType, text) => {
+    void notifyUser(userId, { title: senderType === "teacher" ? "A message from your teacher" : "A.R.I.S.E. Reader", body: text.replace(/\s+/g, " ").slice(0, 170), url: "/#/library?inbox=1", tag: "reader-message" }).catch(() => {});
+  });
   setNudgeSource(async (userId) => {
     const raw = await userDocStore.read(`${userId}/apps/pro-health-nudges.json`);
     if (!raw) return null;

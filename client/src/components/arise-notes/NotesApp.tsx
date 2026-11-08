@@ -3,6 +3,7 @@
 // your notes, Voice memo, and Settings (plan and minutes, family, privacy, accessibility).
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { NoteTypeIcon } from "./NoteIcon";
+import { NotesDock } from "./NotesDock";
 import { ArrowRight, AudioLines, ChevronLeft, Columns2, Folder, LayoutGrid, Loader2, Lock, Mic, MessageCircle, Pencil, Search, Settings, Sparkles, Upload, Users, Zap } from "lucide-react";
 import { hasAppearance, setAppearance, useAppearance } from "./appearance";
 import { useAuth } from "@/context/AuthContext";
@@ -12,9 +13,12 @@ import { NOTES_PLANS, SUITE_LOOKS, dayWords, fmtClock, nightLook, templateOf, th
 import { notesApi, setNotesToken, type ListNote, type Me } from "./api";
 import { listLocalNotes, type LocalNote } from "./localNotes";
 import { listenForLinks, widgetAi, widgetPages } from "./widgetLinks";
-import { pagesSyncFor } from "./pages/pagesSync";
+import { newPageId, pagesSyncFor } from "./pages/pagesSync";
+import { DEFAULT_LOOK } from "@shared/arisePages";
+import { publishWatch, removeWatchFile, watchActions, watchFile } from "@/lib/watch";
+import { queueWatchRecording } from "./watchRecordings";
 import { Btn, IconBtn, Notice, Spinner, ToastHost, plural, shortDate, useToast } from "./ui";
-import { LookHomeHero, LookNoteList, LookTabBar, activeLook } from "./looks";
+import { LookHomeHero, LookNoteList, activeLook } from "./looks";
 import { archClass } from "./protoLooks";
 import { useContrastGuard } from "@/lib/contrastGuard";
 import "./notes.css";
@@ -161,6 +165,51 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   useEffect(() => { listenForLinks(go); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (isNotesApp() && notes) widgetAi(notes); }, [notes]);
   useEffect(() => { if (isNotesApp() && user?.id) return pagesSyncFor(Number(user.id)).subscribe((snap) => widgetPages(snap.metas)); }, [user?.id]);
+  // Apple Watch (native/notes-watch): your latest notes to read, and new ones dictated on the watch.
+  useEffect(() => {
+    if (!isNotesApp() || !user?.id) return;
+    let meetings: { id: string; title: string; text: string; at: string }[] = [];
+    let pages: { id: string; title: string; text: string; at: string }[] = [];
+    const send = () => publishWatch({ pages, meetings });
+    meetings = (notes ?? []).slice(0, 15).map((n) => ({ id: n.id, title: (n.title || "Meeting").slice(0, 80), text: (n.gist || "").slice(0, 600), at: n.createdAt }));
+    const stop = pagesSyncFor(Number(user.id)).subscribe((snap) => {
+      pages = snap.metas.filter((m) => !m.deletedAt && !m.locked).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 25)
+        .map((m) => ({ id: m.id, title: (m.title || "Note").slice(0, 80), text: (m.preview || "").slice(0, 600), at: m.updatedAt }));
+      send();
+    });
+    return stop;
+  }, [user?.id, notes]);
+  useEffect(() => {
+    if (!isNotesApp() || !user?.id) return;
+    return watchActions((actions) => {
+      const sync = pagesSyncFor(Number(user.id));
+      // Meetings recorded on the watch: written down like an uploaded recording (UploadScreen picks them up).
+      const recs = actions.filter((a) => a.type === "recording" && typeof a.path === "string");
+      if (recs.length) {
+        void (async () => {
+          let got = 0;
+          for (const a of recs) {
+            const blob = await watchFile(a.path as string);
+            if (!blob) continue;
+            const at = new Date(Number(a.at) || Date.now());
+            const title = typeof a.title === "string" && a.title.trim() ? a.title.trim().slice(0, 140) : `Meeting ${at.toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${at.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+            queueWatchRecording({ file: new File([blob], `${title.replace(/[^\w .-]+/g, " ").trim() || "Watch recording"}.m4a`, { type: blob.type || "audio/mp4" }), title, path: a.path as string });
+            got++;
+          }
+          if (got) go({ name: "upload" });
+        })();
+      }
+      for (const a of actions) {
+        if (a.type !== "add" || typeof a.text !== "string" || !a.text.trim()) continue;
+        const text = a.text.trim().slice(0, 5000), now = new Date(a.at || Date.now()).toISOString();
+        const esc = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const title = text.split(/[.!?\n]/)[0].slice(0, 60);
+        sync.save({ id: newPageId(), kind: "text", folderId: "", color: "", pinned: false, tags: ["watch"], locked: false,
+          content: { title, html: `<p>${esc}</p>`, ink: [], look: DEFAULT_LOOK }, cipher: null,
+          preview: text.replace(/\s+/g, " ").slice(0, 240), search: "", rev: 0, createdAt: now, updatedAt: now, deletedAt: null });
+      }
+    });
+  }, [user?.id]);
 
   // Day / Night / Auto (Auto is the default and follows the phone). One answer for the whole app: the old
   // "Night mode" switch used to color only some screens, so the writing area stayed white. Someone who had
@@ -285,19 +334,13 @@ export function openSplit(mode: "standalone" | "embedded", right: "tasks" | "cal
 const TAB_KEY = "arise-notes-tab";
 const lastTab = () => { try { return localStorage.getItem(TAB_KEY) === "pages" ? "pages" : "ai"; } catch { return "ai"; } };
 const rememberTab = (t: "ai" | "pages") => { try { localStorage.setItem(TAB_KEY, t); } catch { /* not kept */ } };
-export function TabBar({ ctx, on }: { ctx: AppCtx; on: "ai" | "pages" }) {
-  if (activeLook(ctx.me.settings)) return <LookTabBar look={activeLook(ctx.me.settings)} on={on} initial={(ctx.me.user.name || "A").trim().charAt(0).toUpperCase()} home={() => ctx.go({ name: "home" })} notes={() => ctx.go({ name: "pages" })} record={() => ctx.go({ name: "record" })} settings={() => ctx.go({ name: "settings" })} />;
-  const Tab = ({ id, icon, label }: { id: "ai" | "pages"; icon: ReactNode; label: string }) =>
-    <button type="button" role="tab" aria-selected={on === id} onClick={() => ctx.go(id === "ai" ? { name: "home" } : { name: "pages" })} data-testid={`notes-tab-${id}`}
-      className={`an-tabpill flex flex-1 items-center justify-center gap-2 rounded-full py-2.5 text-[13.5px] font-bold ${on === id ? "bg-[var(--an-ink)] text-white shadow-[0_8px_18px_-8px_rgba(20,19,31,.7)]" : "text-[var(--an-muted)] hover:text-[var(--an-ink)]"}`}>
-      {icon}{label}</button>;
-  return <nav role="tablist" aria-label="Arise Notes" className="an-noprint an-tabbar fixed inset-x-0 bottom-0 z-40 px-5 pb-[max(.6rem,env(safe-area-inset-bottom))] pt-2.5" data-testid="notes-tabs">
-    <div className="mx-auto flex max-w-sm gap-1 rounded-full bg-black/[.045] p-1">
-      <Tab id="ai" icon={<AudioLines className="h-[17px] w-[17px]" />} label="AI Notes" />
-      <Tab id="pages" icon={<Pencil className="h-[17px] w-[17px]" />} label="Notes" />
-      <button type="button" onClick={() => ctx.go({ name: "settings" })} aria-label="Menu" data-testid="notes-tab-menu" className="an-tabpill flex items-center justify-center gap-2 rounded-full px-3.5 py-2.5 text-[13.5px] font-bold text-[var(--an-muted)] hover:text-[var(--an-ink)]"><LayoutGrid className="h-[17px] w-[17px]" />Menu</button>
-    </div>
-  </nav>;
+export function TabBar({ ctx, on }: { ctx: AppCtx; on: "ai" | "pages" | "ask" | "menu" }) {
+  // One bar in every look: Arise To Duo's floating pill (NotesDock.tsx). The look still colors the + button.
+  return <NotesDock on={on} initial={(ctx.me.user.name || "A").trim().charAt(0).toUpperCase()} go={{
+    home: () => ctx.go({ name: "home" }), notes: () => ctx.go({ name: "pages" }), record: () => ctx.go({ name: "record" }), upload: () => ctx.go({ name: "upload" }),
+    memo: () => ctx.go({ name: "memo" }), ask: () => ctx.go({ name: "ask" }), menu: () => ctx.go({ name: "settings" }),
+    newNote: () => { try { sessionStorage.setItem("arise-notes-new", "1"); } catch { /* the list opens without the sheet */ } ctx.go({ name: "pages" }); window.dispatchEvent(new Event("arise-notes-new")); },
+  }} />;
 }
 
 // ─── Home ────────────────────────────────────────────────────────────────────

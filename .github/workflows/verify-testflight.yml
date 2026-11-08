@@ -75,9 +75,13 @@ jobs:
                       if not apps:
                           results[bundle] = {"state": "APP_RECORD_NOT_FOUND"}
                           continue
-                      builds = get("builds", {"filter[app]": apps[0]["id"], "sort": "-uploadedDate", "limit": "3"})["data"]
+                      res = get("builds", {"filter[app]": apps[0]["id"], "sort": "-uploadedDate", "limit": "6", "include": "preReleaseVersion"})
+                      builds = res["data"]
+                      # Which device each build is for (the iPhone and Apple TV apps share a listing and a build number).
+                      plat = {x["id"]: x["attributes"].get("platform", "") for x in res.get("included", []) if x["type"] == "preReleaseVersions"}
+                      for x in builds: x["attributes"]["platform"] = plat.get(((x.get("relationships") or {}).get("preReleaseVersion") or {}).get("data", {}).get("id", ""), "")
                       results[bundle] = {"state": builds[0]["attributes"]["processingState"] if builds else "NO_BUILDS",
-                                         "latest": [{"build": x["attributes"]["version"], "uploaded": x["attributes"]["uploadedDate"], "state": x["attributes"]["processingState"]} for x in builds]}
+                                         "latest": [{"build": x["attributes"]["version"], "platform": x["attributes"]["platform"], "uploaded": x["attributes"]["uploadedDate"], "state": x["attributes"]["processingState"]} for x in builds]}
                   print(json.dumps(results), flush=True)
                   pathlib.Path(os.environ["RUNNER_TEMP"], "testflight-status.json").write_text(json.dumps(results, indent=2))
               finally:

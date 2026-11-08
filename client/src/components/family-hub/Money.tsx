@@ -12,8 +12,8 @@ import {
 } from "lucide-react";
 import { fromDay, money, toDay, type Expense } from "@shared/familyHub";
 import {
-  billStatus, byCategory, cents, expectedFrom, expectedIncome, FREQ_LABEL, goalProgress, monthCsv, monthPicture, monthsBack, payBill, payPeriods,
-  paydays, paydaysToConfirm, receivedIn, safeToSpend, shiftMonth, tipWeeks, unpayBill, type Goal, type IncomeEntry, type IncomeSource, type PayFrequency, type PlanBill, type PlanStyle,
+  billStatus, byCategory, cents, expectedFrom, expectedIncome, FREQ_LABEL, goalProgress, monthCsv, onHandTotal, monthPicture, monthsBack, payBill, payPeriods,
+  paydays, paydaysToConfirm, receivedIn, safeToSpend, shiftMonth, tipWeeks, unpayBill, type Goal, type IncomeEntry, type IncomeSource, type OnHand, type PayFrequency, type PlanBill, type PlanStyle,
 } from "@shared/moneyPlan";
 import { Bar, Empty, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, inputClass, plain, primary, shortDate, soft, type SectionProps } from "./ui";
 import { ShareButton } from "./ShareLink";
@@ -52,6 +52,7 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
   const [paying, setPaying] = useState<{ bill: PlanBill; amount: number } | null>(null);
   const [income, setIncome] = useState<Partial<IncomeEntry> | null>(null);
   const [source, setSource] = useState<IncomeSource | null>(null);
+  const [held, setHeld] = useState<OnHand | null>(null);
   const [editExpense, setEditExpense] = useState<Expense | null>(null);
   const [settings, setSettings] = useState(false);
   const [notYet, setNotYet] = useState<string[]>([]);
@@ -292,7 +293,7 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
   const incomeTab = <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
     <div className="space-y-5">
       {checkIn}
-      <Panel title={`Money in for ${label}`} right={<button type="button" onClick={() => setIncome({ kind: hasTips ? "tips" : "pay", date: today })} className={primary}><Plus size={16} /> Log income</button>}>
+      <Panel title={`Income for ${label}`} right={<button type="button" onClick={() => setIncome({ kind: hasTips ? "tips" : "pay", date: today })} className={primary}><Plus size={16} /> Log income</button>}>
         <div className="mb-3 grid grid-cols-2 border-y border-slate-100">
           <Figure i={0} label="Received" value={money(receivedIn(plan, month))} tone="text-emerald-700" />
           <Figure i={1} label="Expected" value={money(expectedIncome(plan, month))} />
@@ -323,6 +324,19 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
           <button type="button" onClick={() => setSource({ ...s })} aria-label={`Edit ${s.name}`} className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-violet-50 hover:text-violet-700"><Pencil size={15} /></button>
           <button type="button" onClick={() => { if (confirmed(`Remove "${s.name}" from your income? Money already logged from it stays.`)) { setMoney((m) => ({ ...m, sources: m.sources.filter((x) => x.id !== s.id) })); say(`${s.name} removed`); } }} aria-label={`Remove ${s.name}`} className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600" data-testid="budget-source-delete"><Trash2 size={15} /></button>
         </li>)}</ul> : <p className="text-sm text-slate-500">{family.income > 0 ? `Using ${money(family.income)} a month from before. Add how you get paid for a real plan.` : "Add how you get paid: a paycheck, tips, gig money or anything else."}</p>}
+        <div className="mt-5 border-t border-slate-100 pt-4" data-testid="money-in">
+          <div className="flex items-center justify-between gap-3">
+            <div><h3 className="text-sm font-semibold text-slate-900">Money in</h3><p className="text-xs text-slate-500">Money you already have: cash, checking, savings you can spend. It counts toward what's left.</p></div>
+            <button type="button" onClick={() => setHeld({ id: makeId(), name: "", amount: 0 })} className={soft} data-testid="money-in-add"><Plus size={15} /> Add</button>
+          </div>
+          {plan.onHand.length > 0 && <ul className="mt-2 divide-y divide-slate-100">{plan.onHand.map((o) => <li key={o.id} className="flex items-center gap-3 py-2.5 text-sm" data-testid="money-in-row">
+            <button type="button" onClick={() => setHeld({ ...o })} className="min-w-0 flex-1 truncate text-left font-semibold text-slate-900">{o.name}</button>
+            <span className="font-semibold tabular-nums text-emerald-700">{money(o.amount)}</span>
+            <button type="button" onClick={() => setHeld({ ...o })} aria-label={`Edit ${o.name}`} className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-violet-50 hover:text-violet-700"><Pencil size={15} /></button>
+            <button type="button" onClick={() => { setMoney((m) => ({ ...m, onHand: m.onHand.filter((x) => x.id !== o.id) })); say(`${o.name} removed`); }} aria-label={`Remove ${o.name}`} className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 size={15} /></button>
+          </li>)}</ul>}
+          {plan.onHand.length > 0 && <p className="mt-2 flex justify-between text-sm font-semibold text-slate-900"><span>Total on hand</span><span className="tabular-nums" data-testid="money-in-total">{money(onHandTotal(plan))}</span></p>}
+        </div>
       </Panel>
     </div>
   </div>;
@@ -430,6 +444,8 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
           goalMoves: toGoal ? [...m.goalMoves, { id: makeId(), goalId: toGoal.goalId, amount: cents(toGoal.amount), date: e.date }] : m.goalMoves }));
         setIncome(null); say(`${money(e.amount)} ${income.id ? "saved" : "logged"}${toGoal ? `, ${money(toGoal.amount)} to ${plan.goals.find((g) => g.id === toGoal.goalId)?.name}` : ""}`);
       }} />}
+    {held && <OnHandDialog start={held} onClose={() => setHeld(null)}
+      onSave={(o) => { setMoney((m) => ({ ...m, onHand: (m.onHand.some((x) => x.id === o.id) ? m.onHand.map((x) => (x.id === o.id ? o : x)) : [...m.onHand, o]).slice(0, 12) })); setHeld(null); say(`${o.name} saved`); }} />}
     {source && <SourceEditor start={source} isNew={!family.money.sources.some((x) => x.id === source.id)} month={month} onClose={() => setSource(null)}
       onSave={(s2) => { setMoney((m) => ({ ...m, setUp: true, sources: m.sources.some((x) => x.id === s2.id) ? m.sources.map((x) => (x.id === s2.id ? s2 : x)) : [...m.sources, s2] })); setSource(null); say(`${s2.name} saved`); }}
       onDelete={(s2) => { if (confirmed(`Remove "${s2.name}" from your income? Money already logged from it stays.`)) { setMoney((m) => ({ ...m, sources: m.sources.filter((x) => x.id !== s2.id) })); setSource(null); } }} />}
@@ -649,6 +665,18 @@ function GoalEditor({ goal, isNew, onSave, onDelete, onClose }: { goal: Goal; is
   </Modal>;
 }
 
+function OnHandDialog({ start, onSave, onClose }: { start: OnHand; onSave: (o: OnHand) => void; onClose: () => void }) {
+  const [name, setName] = useState(start.name);
+  const [v, setV] = useState(start.amount ? String(start.amount) : "");
+  const n = Number(v);
+  return <Modal title="Money in" eyebrow="Income" onClose={onClose}>
+    <form onSubmit={(e) => { e.preventDefault(); if (name.trim() && n > 0) onSave({ id: start.id, name: name.trim(), amount: cents(n) }); }} className="space-y-4">
+      <Label text="Where is it?"><input autoFocus value={name} onChange={(e) => setName(e.target.value)} maxLength={60} className={inputClass} placeholder="Cash, checking, jar" data-testid="money-in-name" /></Label>
+      <Label text="How much"><input type="number" inputMode="decimal" min={0} step="0.01" value={v} onChange={(e) => setV(e.target.value)} className={inputClass} placeholder="$" data-testid="money-in-amount" /></Label>
+      <button type="submit" disabled={!name.trim() || !(n > 0)} className={primary + " w-full disabled:opacity-40"} data-testid="money-in-save"><Check size={17} /> Save</button>
+    </form>
+  </Modal>;
+}
 function AmountDialog({ title, start, onSave, onClose }: { title: string; start: number; onSave: (n: number) => void; onClose: () => void }) {
   const [v, setV] = useState(start ? String(start) : "");
   return <Modal title={title} eyebrow="Goals" onClose={onClose}>

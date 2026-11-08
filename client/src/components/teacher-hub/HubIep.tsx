@@ -62,7 +62,7 @@ export function IepPage({ workspace, setWorkspace, makeId, today, token, meeting
   const app = APPS.find((a) => a.key === tab);
 
   return (
-    <div className="grid gap-3" data-testid="iep-page">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-3" data-testid="iep-page">
       <div className="flex items-center gap-2">
         {app && <button type="button" onClick={() => setTab("overview")} aria-label="Back to the IEP folder" className="-ml-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100" data-testid="iep-back"><ChevronLeft className="h-5 w-5" /></button>}
         <h2 className="min-w-0 flex-1 truncate text-[26px] font-semibold tracking-tight text-slate-950">{app ? <><span className="text-slate-400">IEP · </span>{app.label}</> : "IEP"}</h2>
@@ -232,7 +232,7 @@ function NotesTab({ workspace, setWorkspace, makeId, today, student, go }: { wor
       </section>
       {picking && (
         <HubModal title="New note" size="md" onClose={() => setPicking(false)}>
-          <div className="grid gap-3" data-testid="iep-note-picker">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-3" data-testid="iep-note-picker">
             {NEW_CHOICES.map((c) => (
               <div key={c.group} className="rounded-2xl p-3 ring-1 ring-slate-200">
                 <div className="flex items-center gap-2"><span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${GROUP_TINT[c.group]}`}>{GROUP_LABEL[c.group]}</span><span className="text-[15px] font-semibold text-slate-900">{c.label}</span></div>
@@ -276,7 +276,7 @@ function NoteEditor({ note, students, meetings, onSave, onDelete, onClose }: { n
   return (
     <HubModal title={n.kind} size="lg" onClose={onClose}
       footer={<div className="flex flex-wrap items-center gap-2"><PrimaryButton onClick={() => onSave(n)}>Save</PrimaryButton><GhostButton onClick={onClose}>Cancel</GhostButton><button type="button" onClick={() => void copy()} className={pill(false)}>{copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}{copied ? "Copied" : "Copy"}</button><button type="button" onClick={print} className={pill(false)}><Printer className="h-3.5 w-3.5" />Print</button><button type="button" onClick={onDelete} className="ml-auto inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4" /> Delete</button></div>}>
-      <div className="grid gap-3" data-testid="iep-note-editor">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-3" data-testid="iep-note-editor">
         <div className="grid grid-cols-2 gap-2">
           <label className="text-xs font-semibold text-slate-500">Student<select value={n.student} onChange={(e) => setN({ ...n, student: e.target.value })} className="mt-1 block min-h-10 w-full rounded-xl border border-slate-200 bg-white px-2 text-base font-normal text-slate-900 sm:text-sm"><option value="">No student</option>{[...new Set([...students, n.student].filter(Boolean))].map((s) => <option key={s}>{s}</option>)}</select></label>
           <label className="text-xs font-semibold text-slate-500">Date<input type="date" value={n.date} onChange={(e) => setN({ ...n, date: e.target.value })} className="mt-1 block min-h-10 w-full rounded-xl border border-slate-200 bg-white px-2 text-base font-normal text-slate-900 sm:text-sm" /></label>
@@ -426,7 +426,7 @@ function Progress({ workspace, setWorkspace, makeId, today, token, goals, studen
       {score && (() => { const g = workspace.goals.find((x) => x.id === score.goalId); if (!g) return null; return (
         <HubModal title={`Score · ${g.student}`} size="sm" onClose={() => setScore(null)}
           footer={<div className="flex gap-2"><PrimaryButton disabled={!Number.isFinite(value) || score.value.trim() === ""} onClick={() => { setWorkspace((w) => ({ ...w, goals: w.goals.map((x) => (x.id === g.id ? withPoint(x, { id: makeId(), date: score.date || today, value, note: score.note.trim() }) : x)) })); setScore(null); }}>Save</PrimaryButton><GhostButton onClick={() => setScore(null)}>Cancel</GhostButton></div>}>
-          <div className="grid gap-3" data-testid="iep-pm-score-form">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-3" data-testid="iep-pm-score-form">
             <p className="text-sm text-slate-600">{g.text}</p>
             <label className="text-xs font-semibold text-slate-500">Score{g.unit ? ` (${g.unit})` : ""}<input data-autofocus type="number" inputMode="decimal" step="any" value={score.value} onChange={(e) => setScore({ ...score, value: e.target.value })} className="mt-1 block min-h-11 w-full rounded-xl border border-slate-200 px-3 text-base text-slate-900" /></label>
             <label className="text-xs font-semibold text-slate-500">Date<input type="date" value={score.date} onChange={(e) => setScore({ ...score, date: e.target.value })} className="mt-1 block min-h-11 w-full rounded-xl border border-slate-200 px-3 text-base text-slate-900" /></label>

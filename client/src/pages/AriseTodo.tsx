@@ -35,6 +35,7 @@ import { JOIN_PENDING_KEY, linksApi } from "@/lib/profileLinks";
 import StickyBoard, { ADD_STICKY_EVENT } from "@/components/family-hub/StickyBoard";
 import KitPlugin from "@/components/plugin-kit/KitPlugin";
 import { LIFE_VIEWS } from "@/components/family-hub/lifeApps";
+import { useSharedApp } from "@/components/family-hub/SharedApp";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
 import { KIT_DEFS, isKitLifeId, kitDef, type KitLifeId } from "@shared/pluginKit";
 import Allowance from "@/components/family-hub/Allowance";
@@ -88,8 +89,9 @@ import { cleanDriveFiles } from "@shared/driveApp";
 import NotesKitApp from "@/components/plugin-kit/NotesKitApp";
 import { LEARNING_APPS, LearningIcon, openLearning, useLearningAccess } from "@/components/hub-pieces/LearningApps";
 import { PlanCard, UpgradeHost, appsBlocked, appsFull, openUpgrade, useTodoPlan } from "@/components/hub-pieces/TodoPlan";
+import { parentOf } from "@shared/appBundles";
 import { appsIn, countsAsApp, FREE_APPS } from "@shared/todoPlan";
-import { addDays, eventsOn, cleanFamily, cleanSectionOrder, emptyFamily, FAMILY_SECTIONS, isCurrentFamily, isOn, orderedToggleable, TOGGLEABLE, ADD_ON_SECTIONS, type Family, type FamilySection } from "@shared/familyHub";
+import { addDays, eventsOn, choreDoneOn, choreDueOn, choreOwner, toggleChore, cleanFamily, cleanSectionOrder, emptyFamily, FAMILY_SECTIONS, isCurrentFamily, isOn, orderedToggleable, TOGGLEABLE, ADD_ON_SECTIONS, type Family, type FamilySection } from "@shared/familyHub";
 import FamilyHome from "@/components/family-hub/FamilyHome";
 import Chores from "@/components/family-hub/Chores";
 import Behavior from "@/components/family-hub/Behavior";
@@ -113,6 +115,8 @@ import { EmailForwardCard, useEmailInbox } from "@/components/family-hub/EmailFo
 import { useLifeFeed } from "@/components/family-hub/useLifeFeed";
 import type { Forecast } from "@shared/lifePlugins";
 import { publishWidgets } from "@/lib/widgets";
+import { publishWatchPart, watchActions } from "@/lib/watch";
+import { applyLifeWatch, lifeWatchPart } from "@shared/watchDuo";
 import { duoWidgetSlots } from "@/lib/duoWidgets";
 import Members, { SECTION_INFO } from "@/components/family-hub/Members";
 import { collapseGroups, groupLabel, groupMembers, groupOf, leadOf } from "@shared/appGroups";
@@ -166,6 +170,7 @@ import { inDuoPane, useAriseDuo, type DuoChoice } from "@/lib/useAriseDuo";
 import "@/components/teacher-hub/darkPalette.css";
 import AccountPrivacy from "@/components/AccountPrivacy";
 import { isNativeApp } from "@/lib/nativeApp";
+import { closeNativeTasks, nativeTasksAvailable, nativeTasksPluginThere, openNativeTasks, takeNativeTaskActions, tasksPayload, updateNativeTasks } from "@/lib/nativeTasks";
 import { isSampleMode } from "@/lib/sampleMode";
 import { REMINDERS_CHANGED, installReminderTaps, scheduleNativeReminders } from "@/lib/nativeReminders";
 
@@ -286,6 +291,7 @@ const SECTION_ICONS: Record<FamilySection, typeof Home> = {
   randomizer: Shuffle, relationships: HeartHandshake, dictionary: BookOpenText, links: Link2, lifeplan: Sparkles, linked: Users,
   habits: RepeatNav, gratitude: HeartNav, focus: TimerNav, bucket: MountainNav, recipes: ChefHatNav, meals: UtensilsCrossedNav, upkeep: WrenchNav, plants: Flower2Nav, birthdays: CakeNav, gifts: GiftNav, pets: PawPrintNav, contacts: PhoneNav, subscriptions: CreditCardNav, jars: PiggyBankNav, tips: CalculatorNav, reading: BookOpenNav, watchlist: TvNav, weather: CloudSunNav, convert: ArrowLeftRightNav, car: CarNav,
   wishlist: HeartNav2, restaurants: UtensilsNav2, learning: GraduationCapNav2, projects: HammerNav2, loans: HandshakeNav2, cleaning: SparklesNav2, checkups: StethoscopeNav2, sleep: MoonNav2, sleepfinder: ListMusicNav3, earshot: PodcastNav3, workouts: DumbbellNav2, routines: ListChecksNav2, milestones: StarNav2, ious: HandCoinsNav2, allowance: CoinsNav2, giftcards: CreditCardNav2, warranties: ShieldCheckNav2, mileage: GaugeNav2, mortgage: LandmarkNav2, clocks: GlobeNav2, timers: TimerNav2, medical: HeartPulseNav2, browser: GlobeNav2, accountability: BadgeCheckNav4,
+  healthlite: HeartPulseNav2, inspire: NotebookPen, kitchen: ChefHatNav, moneyhub: Wallet, homehub: WrenchNav, datehub: CakeNav, dailyhub: Newspaper, listhub: ListTodo, focushub: TimerNav,
   ...(Object.fromEntries(KIT_DEFS.filter((d) => d.hub === "life").map((d) => [d.id, kitIcon(d.icon)])) as Record<KitLifeId, typeof Home>),
 };
 // Home, Reader, Tasks, Notifications and Family & settings stay put; everything between
@@ -724,9 +730,10 @@ export default function AriseTodo() {
   const memberByName = (name: string) => members.find(m => m.name.toLowerCase() === name.trim().toLowerCase());
   // The A.R.I.S.E. Reader tab is the parent portal, so only parents have it.
   // Getting started was replaced by the first-run walkthrough (components/AppWalkthrough.tsx).
-  const sections = sectionOrderFor(family).filter(id => id !== "start" && isOn(id, family) && (id !== "reader" || user?.role === "parent"));
+  const sections = sectionOrderFor(family).filter(id => id !== "start" && !parentOf(id) && isOn(id, family) && (id !== "reader" || user?.role === "parent"));
   const installedSections = sections.filter((id) => ADD_ON_SECTIONS.includes(id));
-  const builtInSections = sections.filter((id) => !ADD_ON_SECTIONS.includes(id));
+  // Sharing ("linked") opens from Settings (the You sheet and Family & settings), not from the app list.
+  const builtInSections = sections.filter((id) => !ADD_ON_SECTIONS.includes(id) && id !== "linked");
   // Dragging (or, on a phone, the arrows) a menu item reorders it right where it sits.
   // Home, Reader, Tasks, Notifications and Family & settings stay put.
   const moveSectionBy = (id: FamilySection, dir: -1 | 1) => setFamily((f) => {
@@ -746,7 +753,7 @@ export default function AriseTodo() {
     return { ...f, sectionOrder: current };
   });
   const trial = useLifeHubTrial();
-  const shown: FamilySection = sections.includes(section) ? section : "home";
+  const shown: FamilySection = sections.includes(section) ? section : (parentOf(section) && sections.includes(parentOf(section) as FamilySection)) ? (parentOf(section) as FamilySection) : "home";
   // Doses still to take today show on the Pills tab.
   const pillsDue = dosesOn(family, currentDay).filter((d) => !d.status).length;
   // Linked profiles: invites waiting for this person to accept, shown as a badge and a note on Home.
@@ -826,6 +833,54 @@ export default function AriseTodo() {
     setSection(id as FamilySection);
     window.scrollTo({ top: 0 });
   };
+  // The iPhone app's Tasks tab is a native screen over the web app (native/arise-native). Everything it does comes back as
+  // actions applied here; without the plugin (the website, an older app) the web Tasks screen is used.
+  const nativeTasksOpen = useRef(false);
+  const latest = useRef({ data, toggleDone });
+  latest.current = { data, toggleDone };
+  useEffect(() => {
+    if (shown !== "tasks" || nativeTasksOpen.current || !nativeTasksAvailable()) return;
+    nativeTasksOpen.current = true;
+    let timer: ReturnType<typeof setInterval> | undefined;
+    void (async () => {
+      const ok = await openNativeTasks(tasksPayload(latest.current.data));
+      if (!ok) { nativeTasksOpen.current = false; return; }
+      timer = setInterval(async () => {
+        for (const a of await takeNativeTaskActions()) {
+          if (a.type === "toggle") { const t = latest.current.data.tasks.find((x) => x.id === a.id); if (t) latest.current.toggleDone(t); }
+          else if (a.type === "delete") setData((p) => ({ ...p, tasks: p.tasks.filter((x) => x.id !== a.id) }));
+          else if (a.type === "add") setData((p) => ({ ...p, tasks: [...p.tasks, { id: makeId(), title: a.title, notes: "", listId: a.listId || p.lists[0]?.id || "", assignee: "", due: a.due, time: "", priority: "normal", repeat: "none", done: false, createdAt: new Date().toISOString() } as Task] }));
+          else if (a.type === "closed") { if (timer) clearInterval(timer); timer = undefined; nativeTasksOpen.current = false; goSection("home"); }
+        }
+      }, 400);
+    })();
+    return () => { if (timer) clearInterval(timer); };
+  }, [shown]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (nativeTasksOpen.current) updateNativeTasks(tasksPayload(data)); }, [data.tasks, data.lists]);
+  // With the native screen off: one opened by older web code stays over the app after a live update reloads the web
+  // code, and nothing reads its taps any more (ticks and new to-dos went nowhere). Whatever was done there is applied
+  // here, then it's closed, when the hub opens and each time the app comes back to the front.
+  useEffect(() => {
+    if (!user || !sync.loaded || sync.recovery || nativeTasksAvailable() || !nativeTasksPluginThere()) return;
+    let busy = false;
+    const sweep = async () => {
+      if (busy || nativeTasksOpen.current) return;
+      busy = true;
+      try {
+        const actions = await takeNativeTaskActions();
+        for (const a of actions) {
+          if (a.type === "toggle") { const t = latest.current.data.tasks.find((x) => x.id === a.id); if (t) latest.current.toggleDone(t); }
+          else if (a.type === "delete") setData((p) => ({ ...p, tasks: p.tasks.filter((x) => x.id !== a.id) }));
+          else if (a.type === "add") setData((p) => ({ ...p, tasks: [...p.tasks, { id: makeId(), title: a.title, notes: "", listId: a.listId || p.lists[0]?.id || "", assignee: "", due: a.due, time: "", priority: "normal", repeat: "none", done: false, createdAt: new Date().toISOString() } as Task] }));
+        }
+        await closeNativeTasks();
+      } finally { busy = false; }
+    };
+    void sweep();
+    const back = () => { if (document.visibilityState === "visible") void sweep(); };
+    document.addEventListener("visibilitychange", back);
+    return () => document.removeEventListener("visibilitychange", back);
+  }, [user, sync.loaded, sync.recovery]); // eslint-disable-line react-hooks/exhaustive-deps
   // Built when search opens (it uses the menu, defined further down), so it never runs before that exists.
   const buildSearchEntries = (): HubSearchEntry[] => {
     if (!searching) return [];
@@ -960,12 +1015,41 @@ export default function AriseTodo() {
   const makeId = uid;
   const calendarTasks = data.tasks.map(task => ({ id: task.id, title: task.title, due: task.due, time: task.time, assignee: task.assignee, done: task.done }));
   const common = { family, setFamily, today: currentDay, makeId, say: setMessage };
+  // Shared apps (components/family-hub/SharedApp.tsx): a Share button on each app, and when someone shares
+  // this app with you, their copy (to use together, or look at) in place of yours if you choose it.
+  const sharedApp = useSharedApp(shown, common);
+  const appProps = sharedApp.props ?? common;
   // Widgets (Home Screen and Lock Screen): agenda, to-dos, bills, goals, notes, countdowns, email and weather.
   const weatherFeed = useLifeFeed<Forecast>(family.weather.place ? `/api/lifehub/weather?place=${encodeURIComponent(family.weather.place)}&unit=${family.weather.unit}` : null, 0);
+  // Worked out once typing or tapping pauses (not on every keystroke), so the page never waits on it.
   useEffect(() => {
-    const listName = (id: string) => data.lists.find(l => l.id === id)?.name;
-    publishWidgets(duoWidgetSlots(family, data.tasks.filter(t => !t.archived).map(t => ({ id: t.id, title: t.title, due: t.due, time: t.time, done: t.done, listName: listName(t.listId) })), currentDay, weatherFeed.data ?? null));
+    const t = window.setTimeout(() => {
+      const listName = (id: string) => data.lists.find(l => l.id === id)?.name;
+      publishWidgets(duoWidgetSlots(family, data.tasks.filter(t => !t.archived).map(t => ({ id: t.id, title: t.title, due: t.due, time: t.time, done: t.done, listName: listName(t.listId) })), currentDay, weatherFeed.data ?? null));
+    }, 1500);
+    return () => window.clearTimeout(t);
   }, [family, data.tasks, data.lists, currentDay, weatherFeed.data]);
+  // Apple Watch (native/duo-watch): the Life side of the watch (tasks, calendar, chores, groceries, habits,
+  // medicine, bills and money, meals, countdowns, notes); what's done there comes back here (shared/watchDuo.ts).
+  useEffect(() => {
+    const t = window.setTimeout(() => publishWatchPart("life", lifeWatchPart(family, data.tasks, data.lists, currentDay), currentDay, (user?.displayName || "").split(" ")[0]), 800);
+    return () => window.clearTimeout(t);
+  }, [data.tasks, data.lists, currentDay, family, user?.displayName]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!user) return;
+    return watchActions((actions) => {
+      for (const a of actions) {
+        if (a.type === "toggle" && typeof a.id === "string") { const t = latest.current.data.tasks.find((x) => x.id === a.id); if (t) latest.current.toggleDone(t); }
+        else if (a.type === "add" && typeof a.title === "string" && a.title.trim()) {
+          const title = a.title.trim().slice(0, 300), due = typeof a.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(a.due) ? a.due : "";
+          setData((p) => ({ ...p, tasks: [...p.tasks, { id: makeId(), title, notes: "", listId: p.lists[0]?.id || "", assignee: "", due, time: "", priority: "normal", repeat: "none", done: false, createdAt: new Date().toISOString() } as Task] }));
+        }
+      }
+      // Chores, groceries, habits, medicine and bills.
+      const rest = actions.filter((a) => a.type !== "toggle" && a.type !== "add");
+      if (rest.length) setFamily((f) => applyLifeWatch(f, rest, today(), makeId));
+    }, "life");
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Where the Getting started page's buttons go (components/GettingStarted.tsx).
   const guideCanOpen = (t: string) => ["customize", "store", "search", "passcode", "notifications"].includes(t)
     || (t === "reader" ? sections.includes("reader") : (FAMILY_SECTIONS as readonly string[]).includes(t) && t !== "start");
@@ -989,11 +1073,11 @@ export default function AriseTodo() {
   const familyContent: ReactNode = shown === "home" ? <FamilyHome {...common} tasks={calendarTasks} go={setSection} name={(user?.displayName || "").split(" ")[0]} onToggleTask={id => { const task = data.tasks.find(row => row.id === id); if (task) toggleDone(task); }} openNotesApp={setNotesAppOpen} appTiles={phoneItems.filter((i) => i.id !== "home").map((i) => ({ id: `app-${i.id}`, label: i.label, icon: i.icon, color: i.color, badge: i.badge, onClick: i.onClick }))} />
     : false && shown === "start" ? <GettingStarted hub="life" startRole={startingRole(user, "life")} canOpen={guideCanOpen} onOpen={guideOpen}
         onRemove={() => { setFamily((f) => ({ ...f, sections: { ...f.sections, start: false } })); setSection("home"); setMessage("Getting started removed. Add it back any time from the Plugin Gallery."); }} />
-    : shown === "calendar" ? <FamilyCalendar {...common} tasks={calendarTasks} onOpenTasks={() => { setSection("tasks"); setView("today"); }} />
+    : shown === "calendar" ? <FamilyCalendar {...appProps} tasks={calendarTasks} onOpenTasks={() => { setSection("tasks"); setView("today"); }} />
     : shown === "reader" ? <Suspense fallback={<div className="grid grid-cols-1 min-h-[40vh] place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}><Reader say={setMessage} night={night} /></Suspense>
     : shown === "lifeplan" ? <LifePlanApp {...common} go={setSection} openStore={() => setStore(true)} />
     : shown === "browser" ? <Browser {...common} onAddTask={(title, url) => setEditing({ ...emptyTask(data.lists[0].id), title: title.slice(0, 200), notes: url })} />
-    : LIFE_VIEWS[shown] ? LIFE_VIEWS[shown]!(common)
+    : LIFE_VIEWS[shown] ? LIFE_VIEWS[shown]!(appProps)
     : isKitLifeId(shown) && kitDef(shown) ? <KitPlugin key={shown} def={kitDef(shown)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
     : null;
 
@@ -1082,7 +1166,10 @@ export default function AriseTodo() {
     notificationSettings: () => { closeApps(); goSection("notifications"); },
     customize: () => setCustomizing(true), night, toggleNight, lock: () => setLockSettings(true),
     gallery: () => setStore(true), privacy: () => setPrivacy(true), signOut: () => void signOut(),
-    extra: [{ id: "family", label: "Family & settings", detail: "People, linked children and sections", icon: <Users />, onClick: () => { closeApps(); goSection("family"); } }],
+    extra: [
+      { id: "sharing", label: "Sharing", detail: "Everyone you share with, and what", icon: <Users />, onClick: () => { closeApps(); goSection("linked"); } },
+      { id: "family", label: "Family & settings", detail: "People, linked children and sections", icon: <Users />, onClick: () => { closeApps(); goSection("family"); } },
+    ],
   });
   const inOtherApp = !!notesAppOpen || !!sheetsAppOpen || driveOpen || dropOpen || !!kitOpen;
   const osCore = osOn && !inOtherApp && (["home", "tasks", "calendar", "notes"] as FamilySection[]).includes(shown);
@@ -1427,7 +1514,7 @@ export default function AriseTodo() {
             </div>
             <KitPlugin key={kitOpen} def={kitDef(kitOpen)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
           </div>}
-          {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{appGroupStrip}{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
+          {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{appGroupStrip}{shown !== "home" && shown !== "linked" && shown !== "family" && sharedApp.bar}{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
           {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown === "tasks" && <>
             <Suspense fallback={<div className="grid min-h-[40vh] grid-cols-1 place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}>
               <LifeTasksScreen data={data} setData={setData} makeId={makeId} say={setMessage} view={view} setView={setView} list={selectedList} setList={setSelectedList} />

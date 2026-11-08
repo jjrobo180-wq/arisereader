@@ -3,7 +3,7 @@
 // right now, in day, night and every theme, or the app shows a pale band on a dark hub. This reads the
 // hub's real background color off the page and sends it, along with light or dark status bar text.
 import { useEffect, type RefObject } from "react";
-import { isNativeApp, nativeCall, nativeFlavor } from "@/lib/nativeApp";
+import { isNativeApp, nativeCall } from "@/lib/nativeApp";
 
 export const BACKDROP_REFRESH = "arise-backdrop:refresh";
 
@@ -50,10 +50,9 @@ export function useNativeBackdrop(ref: RefObject<HTMLElement | null>, deps: unkn
     const before = [html.style.backgroundColor, body.style.backgroundColor];
     // No rubber-band past the page edge, so no strip of another colour shows when you scroll.
     const bounce = html.style.overscrollBehaviorY;
-    // Arise To Duo on the iPhone: everything a touch smaller, so more fits on screen.
-    const meta = document.querySelector('meta[name="viewport"]');
-    const metaBefore = meta?.getAttribute("content") ?? null;
-    if (meta && isNativeApp() && nativeFlavor() === "todo") meta.setAttribute("content", "width=device-width, initial-scale=0.93, maximum-scale=1");
+    // The viewport is never touched here. Arise To Duo's "a touch smaller" scale is set once at start, locked
+    // (main.tsx): changing it each time the hub opened, while main.tsx put it back to 100% whenever the screen
+    // changed size (the keyboard coming up counts), made the page jump in every time a text box was tapped.
     html.style.overscrollBehaviorY = "none";
     let watched: HTMLElement | null = null;
     const watch = new MutationObserver(() => apply());
@@ -65,19 +64,27 @@ export function useNativeBackdrop(ref: RefObject<HTMLElement | null>, deps: unkn
       if (document.querySelector("[data-backdrop-hold]")) return;
       const hex = solidBackground(el);
       if (!hex) return;
+      if (hex === shown) return;
+      shown = hex;
       html.style.backgroundColor = hex;
       body.style.backgroundColor = hex;
       sendBackdrop(hex);
     }
+    let shown = "";
     const raf = requestAnimationFrame(apply);
-    // Catches the hub appearing after loading, and theme styles or fonts settling. Cheap: a repeat is skipped.
-    const tick = window.setInterval(apply, 1000);
-    window.addEventListener(BACKDROP_REFRESH, apply);
+    // Catches the hub appearing after loading, and theme styles or fonts settling — only for the first
+    // few seconds. Checking every second forever made the phone re-work the page's styles each second
+    // (a small stutter while scrolling or typing); after that, a change of class or style on the hub
+    // and BACKDROP_REFRESH are what bring it up to date.
+    let ticks = 0;
+    const tick = window.setInterval(() => { apply(); if (++ticks >= 6 && ref.current) window.clearInterval(tick); }, 1000);
+    // Something else painted the strips (a full-screen setup page, a look): paint them again.
+    const refresh = () => { shown = ""; apply(); };
+    window.addEventListener(BACKDROP_REFRESH, refresh);
     return () => {
       cancelAnimationFrame(raf); window.clearInterval(tick); watch.disconnect();
-      window.removeEventListener(BACKDROP_REFRESH, apply);
+      window.removeEventListener(BACKDROP_REFRESH, refresh);
       html.style.overscrollBehaviorY = bounce;
-      if (meta && metaBefore !== null) meta.setAttribute("content", metaBefore);
       html.style.backgroundColor = before[0]; body.style.backgroundColor = before[1];
     };
   }, deps); // eslint-disable-line react-hooks/exhaustive-deps

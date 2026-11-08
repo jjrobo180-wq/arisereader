@@ -15,8 +15,8 @@ import { blockName, cleanPart, cleanTeacher, placeText, schoolBlocks } from "@sh
 import { BulkMinutesModal, ClassFields, MinutesPick, knownTeachers, type BulkStart } from "./HubMinutesBulk";
 import { PUSH_IN, knownName, minuteNames, savedText, schoolDay, withPlans, type BulkResult } from "@shared/hubMinutesBulk";
 import { MINUTE_SUBJECTS, cleanSubject } from "@shared/hubSubjects";
-import { addToClass, deleteClass, restorePlans, type ClassGroup } from "@shared/hubClassMinutes";
-import { AddToClassModal, DeleteClassModal } from "./HubClassMinutes";
+import { addToClass, createClass, deleteClass, editClass, restorePlans, type ClassGroup } from "@shared/hubClassMinutes";
+import { AddToClassModal, ClassFormModal, DeleteClassModal, type ClassForm } from "./HubClassMinutes";
 import { ClassBoard } from "./HubClassBoard";
 import { MinutesStats, NotesAfterLog } from "./HubMinutesDay";
 import { completion, withNotes, type Colleague } from "@shared/hubMinutesDay";
@@ -227,6 +227,19 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
   const [undoPlans, setUndoPlans] = useState<ServicePlan[] | null>(null);
   const [classAdd, setClassAdd] = useState<string | null>(null);
   const [classDelete, setClassDelete] = useState<string | null>(null);
+  /** The class form: "" for a new class, a key to change that class, null when closed. */
+  const [classForm, setClassForm] = useState<string | null>(null);
+  function saveClassForm(form: ClassForm, group: ClassGroup | null) {
+    if (group) {
+      setWorkspace((w) => ({ ...w, services: editClass(w.services, group, form) }));
+      setSaved("Class changed.");
+    } else {
+      setWorkspace((w) => ({ ...w, services: createClass(w.services, form.names, { ...form, minutesPerWeek: Number(form.perWeek) || 0 }, makeId, weekStart(today)) }));
+      setSaved(`Class added with ${form.names.length} ${form.names.length === 1 ? "student" : "students"}.`);
+    }
+    setUndoPlans(null);
+    setClassForm(null);
+  }
   useEffect(() => { if (!saved) return; const timer = setTimeout(() => { setSaved(""); setUndoPlans(null); }, undoPlans ? 15000 : 7000); return () => clearTimeout(timer); }, [saved, undoPlans]);
   const [plan, setPlan] = useState<PlanDraft | null>(null);
   const [lookChosen, setLookState] = useState<MinutesLook>(readLook);
@@ -338,7 +351,7 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
 
   return (
     <>
-      <section className="grid gap-3" data-testid="minutes-page">
+      <section className="grid grid-cols-[minmax(0,1fr)] gap-3" data-testid="minutes-page">
         <div className="flex items-center gap-2">
           <h2 className="min-w-0 flex-1 truncate text-[26px] font-semibold tracking-tight text-slate-950">Minutes</h2>
           <div className="relative">
@@ -369,7 +382,7 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
         {look === "quick" && <MinutesStats {...stats} />}
 
         {editing && !readOnly && (
-          <div className="grid gap-2 rounded-2xl bg-white p-3 ring-1 ring-slate-200/70" data-testid="minutes-edit-panel">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-2 rounded-2xl bg-white p-3 ring-1 ring-slate-200/70" data-testid="minutes-edit-panel">
             <div className="flex flex-wrap gap-2">
               <GhostButton onClick={() => setPlan(newPlan())}><Plus className="h-4 w-4" /> Set required minutes</GhostButton>
               <span data-testid="minutes-several"><GhostButton onClick={() => setBulk({ mode: "plan", date: today, block: "" })}><Users className="h-4 w-4" /> Add several students</GhostButton></span>
@@ -394,9 +407,10 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
       </section>
 
       {look === "main" && <ClassBoard workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} today={today} token={token} say={setSaved}
-        onOther={logFrom} onEditLog={editLog} onAddStudents={setClassAdd} onDeleteClass={setClassDelete} onSetup={() => setEditing(true)}
+        onOther={logFrom} onEditLog={editLog} onAddStudents={setClassAdd} onDeleteClass={setClassDelete} onEditClass={(k) => setClassForm(k ?? "")} onSetup={() => setEditing(true)}
         onEditPlan={(planId) => { const p = plans.find((x) => x.id === planId); if (p) editPlan(p); }} />}
       {noting && <NotesAfterLog logs={own.serviceLogs.filter((l) => justLogged.includes(l.id))} onClose={() => { setNoting(false); setJustLogged([]); }} onSave={(notes, shared) => { setOwn((w) => ({ ...w, serviceLogs: withNotes(w.serviceLogs, notes, shared) })); setNoting(false); setJustLogged([]); setSaved("Notes saved."); }} />}
+      {classForm !== null && <ClassFormModal workspace={workspace} today={today} groupKey={classForm || null} onSave={saveClassForm} onClose={() => setClassForm(null)} />}
       {classAdd && <AddToClassModal workspace={workspace} today={today} groupKey={classAdd} onSave={addStudentsToClass} onClose={() => setClassAdd(null)} />}
       {classDelete && <DeleteClassModal workspace={workspace} today={today} groupKey={classDelete} onDelete={removeClass} onClose={() => setClassDelete(null)} />}
       {look === "quick" && <MinutesWeekView workspace={workspace} today={today} readOnly={readOnly} onLog={logItems} onEdit={editLog} onAdd={addFrom} onPlan={(planId) => { const p = plans.find((x) => x.id === planId); if (p) editPlan(p); }} onBlocks={() => setSettingBlocks(true)} onMove={(planId, block) => setWorkspace((w) => ({ ...w, services: setPlanBlock(w.services, planId, block) }))} />}
@@ -455,7 +469,7 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
             <Labeled label="Student"><Select value={plan.other ? OTHER_NAME : plan.student} onChange={(e) => setPlan(e.target.value === OTHER_NAME ? { ...plan, other: true, student: "" } : { ...plan, other: false, student: e.target.value })} required aria-label="Student"><option value="">Choose student</option>{[...new Set([...names, plan.other ? "" : plan.student].filter(Boolean))].map((n) => <option key={n}>{n}</option>)}<option value={OTHER_NAME}>Another name…</option></Select></Labeled>
             {plan.other && <Labeled label="Student's name"><Field value={plan.student} onChange={(e) => setPlan({ ...plan, student: e.target.value })} maxLength={80} autoCapitalize="words" placeholder="Type the name" aria-label="Student's name" data-testid="plan-other-name" /></Labeled>}
             <Labeled label="Kind"><Select value={plan.kind} onChange={(e) => setPlan({ ...plan, kind: e.target.value })} aria-label="Kind">{SERVICE_KINDS.map((k) => <option key={k}>{k}</option>)}</Select></Labeled>
-            <Labeled label="Subject"><Select value={plan.subject} onChange={(e) => setPlan({ ...plan, subject: e.target.value })} aria-label="Subject" data-testid="plan-subject"><option value="">No subject</option>{MINUTE_SUBJECTS.map((x) => <option key={x}>{x}</option>)}</Select></Labeled>
+            <Labeled label="Subject"><Field list="plan-subjects" value={plan.subject} maxLength={40} onChange={(e) => setPlan({ ...plan, subject: e.target.value })} placeholder="Reading, Science, anything" aria-label="Subject" data-testid="plan-subject" /><datalist id="plan-subjects">{MINUTE_SUBJECTS.map((x) => <option key={x} value={x} />)}</datalist></Labeled>
             <Labeled label="Block"><Select value={plan.block} onChange={(e) => setPlan({ ...plan, block: e.target.value })} aria-label="Block"><option value="">No block</option>{blocks.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Select></Labeled>
             <ClassFields hasBlock={!!plan.block} pushIn={plan.kind === PUSH_IN} part={plan.part} teacher={plan.teacher} known={knownTeachers(workspace)} onChange={(changes) => setPlan({ ...plan, ...changes })} />
             <div role="tablist" aria-label="How the minutes are counted" className="flex gap-1 rounded-2xl bg-slate-100 p-1" data-testid="plan-mode">

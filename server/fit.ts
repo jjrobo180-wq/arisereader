@@ -22,6 +22,7 @@
 //   The phone can't call Overpass and Nominatim itself: they refuse requests that don't identify the
 //   app, and Overpass's main server is often too busy. The server asks with Arise Fit's name, tries
 //   the other public Overpass servers when one fails, and remembers answers for an hour.
+import { registerFitTvRoutes } from "./fitTv";
 import type { Express, RequestHandler } from "express";
 import { CATALOG, LIMITS, cleanFit, type CatalogExercise } from "../shared/fit";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
@@ -359,6 +360,9 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
     if (!r.ok) throw new Error(`status ${r.status}`);
     return r.json();
   });
+
+  // Arise Fit for Apple TV (server/fitTv.ts).
+  registerFitTvRoutes(app, authMiddleware, store);
 
   app.get("/api/fit/data", authMiddleware, async (req: any, res) => {
     try { res.set("Cache-Control", "no-store"); res.json({ data: cleanFit(await store.get(Number(req.user.id))) }); }

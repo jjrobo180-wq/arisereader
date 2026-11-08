@@ -561,10 +561,10 @@ function StudentsView({ lessons, classes, classId, onOpen, onReteach, onPickClas
 
 // ─── Classes & periods ──────────────────────────────────────────────────────
 
-function ClassesManager({ classes, setClasses, caseload, blocks, makeId, lessons, onClose }: {
-  classes: LessonClass[]; setClasses: (fn: (all: LessonClass[]) => LessonClass[]) => void; caseload: string[]; blocks: ReturnType<typeof schoolBlocks>; makeId: () => string; lessons: LessonPlan[]; onClose: () => void;
+export function ClassesManager({ classes, setClasses, caseload, blocks, makeId, lessons, onClose, initialId }: {
+  initialId?: string; classes: LessonClass[]; setClasses: (fn: (all: LessonClass[]) => LessonClass[]) => void; caseload: string[]; blocks: ReturnType<typeof schoolBlocks>; makeId: () => string; lessons: LessonPlan[]; onClose: () => void;
 }) {
-  const [editId, setEditId] = useState<string | null>(classes[0]?.id || null);
+  const [editId, setEditId] = useState<string | null>(initialId || classes[0]?.id || null);
   const [paste, setPaste] = useState("");
   const [typed, setTyped] = useState("");
   const editing = classes.find((c) => c.id === editId);
@@ -573,7 +573,7 @@ function ClassesManager({ classes, setClasses, caseload, blocks, makeId, lessons
     const used = new Set(classes.map((c) => c.color));
     const color = CLASS_COLORS.find((c) => !used.has(c)) || "teal";
     const freeBlock = blocks.find((b) => !classes.some((c) => c.block === b.id));
-    const c: LessonClass = { id: makeId(), name: freeBlock ? `${freeBlock.name}` : `Class ${classes.length + 1}`, block: freeBlock?.id || "", subject: "", grade: "", color, days: [], room: "", students: [] };
+    const c: LessonClass = { id: makeId(), name: freeBlock ? `${freeBlock.name}` : `Class ${classes.length + 1}`, block: freeBlock?.id || "", subject: "", grade: "", color, days: [], room: "", teacher: "", students: [] };
     setClasses((all) => [...all, c]);
     setEditId(c.id);
   }
@@ -598,7 +598,8 @@ function ClassesManager({ classes, setClasses, caseload, blocks, makeId, lessons
               <label className="text-xs font-semibold text-slate-500 sm:col-span-2">Name<input value={editing.name} onChange={(e) => update({ name: e.target.value })} placeholder="e.g. Period 2 – 7th Grade ELA" className="mt-1 block min-h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-normal text-slate-900" /></label>
               <label className="text-xs font-semibold text-slate-500">Block / period<select value={editing.block} onChange={(e) => update({ block: e.target.value })} className="mt-1 block min-h-10 w-full rounded-xl border border-slate-200 bg-white px-2 text-sm font-normal text-slate-900"><option value="">None</option>{blocks.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
               <label className="text-xs font-semibold text-slate-500">Room<input value={editing.room} onChange={(e) => update({ room: e.target.value })} className="mt-1 block min-h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-normal text-slate-900" /></label>
-              <label className="text-xs font-semibold text-slate-500">Subject<select value={editing.subject} onChange={(e) => update({ subject: e.target.value })} className="mt-1 block min-h-10 w-full rounded-xl border border-slate-200 bg-white px-2 text-sm font-normal text-slate-900"><option value="">Pick one</option>{LESSON_SUBJECTS.map((s) => <option key={s}>{s}</option>)}</select></label>
+              <label className="text-xs font-semibold text-slate-500">Subject<input list="class-subjects" value={editing.subject} onChange={(e) => update({ subject: e.target.value })} placeholder="Pick or type your own" className="mt-1 block min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-normal text-slate-900" /><datalist id="class-subjects">{LESSON_SUBJECTS.map((s) => <option key={s} value={s} />)}</datalist></label>
+              <label className="text-xs font-semibold text-slate-500">Teacher<input value={editing.teacher || ""} onChange={(e) => update({ teacher: e.target.value })} placeholder="e.g. Ms. Lee" className="mt-1 block min-h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-normal text-slate-900" /></label>
               <label className="text-xs font-semibold text-slate-500">Grade<select value={editing.grade} onChange={(e) => update({ grade: e.target.value })} className="mt-1 block min-h-10 w-full rounded-xl border border-slate-200 bg-white px-2 text-sm font-normal text-slate-900"><option value="">Pick one</option>{GRADES.map((g) => <option key={g} value={g}>Grade {g}</option>)}<option value="Mixed">Mixed grades</option></select></label>
             </div>
             <div>

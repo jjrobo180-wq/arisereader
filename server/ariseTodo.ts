@@ -55,7 +55,7 @@ function validateWorkspace(input: unknown): input is Record<string, any> {
   return true;
 }
 
-async function readWorkspace(userId: number) {
+export async function readWorkspace(userId: number) {
   const { data, error } = await getAdminSupabase().from(TABLE).select("workspace, updated_at")
     .eq("user_id", userId).maybeSingle();
   if (error) throw error;
@@ -73,6 +73,29 @@ function rejectPreview(req: any, res: any): boolean {
 
 /** What the sign-up needs to confirm an email, handed in from routes.ts so the rules here can be
  *  tested on their own. The 6-digit code machinery is the teacher sign-up's, reused as it is. */
+/**
+ * Changes the saved LifeHub workspace from the server (the Apple TV checking off a task): read, change, and save
+ * only over that same copy, tried again if a phone saved in between. Phones see it on their next refresh.
+ * Returns what `change` returned, or null if there's no workspace or it couldn't be saved.
+ */
+export async function updateWorkspace<T>(userId: number, change: (ws: Record<string, any>) => { workspace: Record<string, any>; result: T } | null): Promise<T | null> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const row = await readWorkspace(userId);
+    if (!row || !validateWorkspace(row.workspace)) return null;
+    const out = change(JSON.parse(JSON.stringify(row.workspace)));
+    if (!out) return null;
+    if (!validateWorkspace(out.workspace)) return null;
+    if (out.workspace.version === 2) out.workspace.family = cleanFamily(out.workspace.family);
+    if (Buffer.byteLength(JSON.stringify(out.workspace), "utf8") > MAX_BYTES) return null;
+    const now = new Date(Math.max(Date.now(), Date.parse(row.updatedAt) + 1 || 0)).toISOString();
+    const { data, error } = await getAdminSupabase().from(TABLE).update({ workspace: out.workspace, updated_at: now })
+      .eq("user_id", userId).eq("updated_at", row.updatedAt).select("updated_at").maybeSingle();
+    if (error) throw error;
+    if (data) return out.result;
+  }
+  return null;
+}
+
 export type TodoSignupDeps = {
   codes: { issue(userId: number): Promise<{ ok: true; code: string } | { ok: false; why: "wait"; waitSeconds: number } | { ok: false; why: "limit" }>;
     check(userId: number, typed: unknown): Promise<"ok" | "wrong" | "expired" | "locked" | "none">;
