@@ -66,7 +66,8 @@ import { registerAriseTodoRoutes } from "./ariseTodo";
 import { registerWhatsNewRoutes } from "./whatsNew";
 import { registerAdminHandoffRoutes } from "./adminHandoff";
 import { registerTvLinkRoutes } from "./tvLink";
-import { readWorkspace as readTodoWorkspace } from "./ariseTodo";
+import { readWorkspace as readTodoWorkspace, updateWorkspace as updateTodoWorkspace } from "./ariseTodo";
+import { applyLifeTv, applyWorkTv } from "../shared/tvActions";
 import { registerClientErrorRoutes } from "./clientErrors";
 import { registerTodoShareRoutes } from "./todoShare";
 import { registerFoodLookupRoutes } from "./foodLookup";
@@ -1514,7 +1515,32 @@ export async function registerRoutes(
   ));
   registerAdminHandoffRoutes(app, authMiddleware);
   // Apple TV sign-in with a code, and the TV's summary of the family hub (server/tvLink.ts).
-  registerTvLinkRoutes(app, authMiddleware, { createSession: (id) => storage.createSession(id), readWorkspace: readTodoWorkspace, readWorkWorkspace: (id) => createSupabaseWorkspaceStore().get(id) });
+  const tvId = () => `tv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  registerTvLinkRoutes(app, authMiddleware, {
+    createSession: (id) => storage.createSession(id), readWorkspace: readTodoWorkspace, readWorkWorkspace: (id) => createSupabaseWorkspaceStore().get(id),
+    // To-dos and chores checked off or added on the Apple TV, saved like the phone saves (only over the copy read).
+    changeLife: async (userId, a, day) => {
+      let failed: string | null = null;
+      const r = await updateTodoWorkspace(userId, (ws) => {
+        const out = applyLifeTv(ws, a, day, new Date().toISOString(), tvId);
+        if ("error" in out) { failed = out.error; return null; }
+        return { workspace: out.workspace, result: { created: out.created, message: out.message } };
+      });
+      if (failed) return { ok: false as const, message: failed };
+      return r ? { ok: true as const, ...r } : null;
+    },
+    changeWork: async (userId, a, day) => {
+      const store = createSupabaseWorkspaceStore();
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const row = await store.get(userId);
+        if (!row) return { ok: false as const, message: "Your WorkHub isn't set up yet." };
+        const out = applyWorkTv(JSON.parse(JSON.stringify(row.workspace)), a, day, new Date().toISOString(), tvId);
+        if ("error" in out) return { ok: false as const, message: out.error };
+        if (await store.save(userId, out.workspace, row.updatedAt)) return { ok: true as const, created: out.created, message: out.message };
+      }
+      return null;
+    },
+  });
   registerClientErrorRoutes(app);
   // Arise To Duo Free and the $5 upgrade (shared/todoPlan.ts). These run before the routes they
   // guard. Free has no AI, and up to 3 App Store apps across WorkHub and LifeHub: a save that would

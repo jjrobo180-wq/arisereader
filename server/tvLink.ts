@@ -15,6 +15,7 @@
 import { randomBytes, randomInt } from "node:crypto";
 import type { Express, Response } from "express";
 import { repeatDates } from "../shared/hubRepeat";
+import { readTvAction, type TvAction } from "../shared/tvActions";
 import { billDue, billState, choreDoneOn, choreDueOn, choreOwner, cleanFamily, daysBetween, eventsOn, isOn, money, starBalance, tally, type Family, type Goal, type Poll } from "../shared/familyHub";
 
 type Auth = (req: any, res: Response, next: any) => unknown;
@@ -28,6 +29,9 @@ export function registerTvLinkRoutes(app: Express, auth: Auth, deps: {
   readWorkspace: (userId: number) => Promise<{ workspace: any } | null>;
   /** The teacher's Arise WorkHub (teacher_hub_workspaces), for the TV's Work side. */
   readWorkWorkspace?: (userId: number) => Promise<{ workspace: any } | null>;
+  /** Checking off and adding to-dos from the TV (server/ariseTodo.ts updateWorkspace, WorkHub's store). */
+  changeLife?: (userId: number, a: TvAction, day: string) => Promise<{ ok: true; created?: string; message: string } | { ok: false; message: string } | null>;
+  changeWork?: (userId: number, a: TvAction, day: string) => Promise<{ ok: true; created?: string; message: string } | { ok: false; message: string } | null>;
   now?: () => number;
 }): void {
   const now = deps.now ?? Date.now;
@@ -89,6 +93,28 @@ export function registerTvLinkRoutes(app: Express, auth: Auth, deps: {
       res.status(503).json({ message: "Your WorkHub isn't reachable right now." });
     }
   });
+
+  // The TV checks off a to-do (or a chore) or adds one: POST { action: "toggle", id } | { action: "add", title, due }
+  // | { action: "chore", id }, with ?day=. The answer says what happened, and the TV loads its summary again.
+  const act = (path: string, pick: "changeLife" | "changeWork", what: string) => app.post(path, auth, async (req: any, res) => {
+    noCache(res);
+    const change = deps[pick];
+    const a = readTvAction(req.body);
+    if (!change) return res.status(404).json({ message: `${what} can't be changed from the TV yet.` });
+    if (!a) return res.status(400).json({ message: "That isn't something the TV can do." });
+    if (pick === "changeWork" && !(req.user?.role === "teacher" || req.user?.isAdmin)) return res.status(403).json({ message: "WorkHub is for teachers." });
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query?.day ?? req.body?.day)) ? String(req.query?.day ?? req.body?.day) : new Date().toISOString().slice(0, 10);
+    try {
+      const r = await change(Number(req.user.id), a, day);
+      if (!r) return res.status(409).json({ message: "Your list changed on another device. Try again in a moment." });
+      if (!r.ok) return res.status(404).json({ message: r.message });
+      res.json({ ok: true, created: r.created ?? null, message: r.message });
+    } catch {
+      res.status(503).json({ message: `${what} isn't reachable right now. Nothing was changed.` });
+    }
+  });
+  act("/api/arise-todo/tv/act", "changeLife", "Your family hub");
+  act("/api/tv/work/act", "changeWork", "Your WorkHub");
 
   app.get("/api/arise-todo/tv", auth, async (req: any, res) => {
     noCache(res);

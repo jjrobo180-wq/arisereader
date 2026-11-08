@@ -5,6 +5,8 @@
 // Signing in takes a code: the TV shows one (and a QR code that opens the page with it filled in), and you
 // type it at arisetodo.com/tv on a phone or computer that's signed in (server/tvLink.ts). The TV keeps its
 // own session in the keychain.
+// To-dos are checked off (or back on) with a click, chores too, and new to-dos added with the keyboard,
+// dictation or an iPhone (POST /api/arise-todo/tv/act and /api/tv/work/act, shared/tvActions.ts), each with Undo.
 import SwiftUI
 import UIKit
 import Security
@@ -136,6 +138,12 @@ final class DuoTVModel: ObservableObject {
         didSet { UserDefaults.standard.set(hub.rawValue, forKey: "duoHub") }
     }
     @Published var weather: DuoWeather?
+    /** Checked off on the TV, shown checked until the next load takes them off the list. */
+    @Published var checked: Set<String> = []
+    /** Chores checked (or unchecked) on the TV, until the next load has them. */
+    @Published var choresFlipped: Set<String> = []
+    /** "Done: Call the dentist", with Undo, along the bottom for a few seconds. */
+    @Published var toast: DuoToast?
     private var poll: String?
 
     /** What the screens show: the family's LifeHub, or the teacher's WorkHub laid out the same way. */
@@ -176,6 +184,70 @@ final class DuoTVModel: ObservableObject {
             self.error = "Can't reach Arise Duo. Check the TV's internet connection."
         }
         _ = await workPart
+    }
+
+    /** Sends a change to the server (the hub that's showing), then loads again. Returns what the server said. */
+    @discardableResult
+    func act(_ body: [String: Any]) async -> (created: String?, message: String)? {
+        guard let token else { return nil }
+        if Self.sample { return (nil, "Saved") }
+        let path = hub == .work ? "/api/tv/work/act" : "/api/arise-todo/tv/act"
+        var req = URLRequest(url: duoAPI.appending(path: path).appending(queryItems: [URLQueryItem(name: "day", value: Self.today())]))
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        do {
+            let (data, res) = try await URLSession.shared.data(for: req)
+            let status = (res as? HTTPURLResponse)?.statusCode ?? 0
+            if status == 401 { signOut(); return nil }
+            let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+            guard status == 200 else { toast = DuoToast(text: json["message"] as? String ?? "That didn't save. Try again."); return nil }
+            return (json["created"] as? String, json["message"] as? String ?? "Saved")
+        } catch {
+            toast = DuoToast(text: "Can't reach Arise Duo. Check the TV's internet connection.")
+            return nil
+        }
+    }
+
+    /** Checks a to-do off, with Undo. */
+    func toggle(_ t: DuoTVSummary.Task) async {
+        if checked.contains(t.id) { return }
+        checked.insert(t.id)
+        guard let r = await act(["action": "toggle", "id": t.id]) else { checked.remove(t.id); return }
+        toast = DuoToast(text: r.message, undo: { [weak self] in
+            guard let self else { return }
+            var body: [String: Any] = ["action": "toggle", "id": t.id]
+            if let c = r.created { body["undoCreated"] = c }
+            if await self.act(body) != nil { self.checked.remove(t.id); self.toast = DuoToast(text: "Back on the list: \(t.title)"); await self.load() }
+        })
+        await load()
+    }
+
+    func chore(_ c: DuoTVSummary.Chore) async {
+        choresFlipped.formSymmetricDifference([c.id])
+        guard let r = await act(["action": "chore", "id": c.id]) else { choresFlipped.formSymmetricDifference([c.id]); return }
+        toast = DuoToast(text: r.message + (c.done ? " (not done)" : " ✓"), undo: { [weak self] in
+            guard let self else { return }
+            if await self.act(["action": "chore", "id": c.id]) != nil { self.toast = nil; await self.load() }
+        })
+        await load()
+        choresFlipped.remove(c.id)
+    }
+
+    func add(_ title: String, due: String) async -> Bool {
+        guard let r = await act(["action": "add", "title": title, "due": due]) else { return false }
+        var undo: (@MainActor () async -> Void)? = nil
+        if let id = r.created {
+            undo = { [weak self] in
+                guard let self else { return }
+                // Undo an add: check it off right away (it leaves the list; it's in Done on the phone).
+                if await self.act(["action": "toggle", "id": id]) != nil { self.toast = nil; await self.load() }
+            }
+        }
+        toast = DuoToast(text: r.message, undo: undo)
+        await load()
+        return true
     }
 
     /** The teacher's WorkHub; nothing (and no Work switch) for anyone else. */
@@ -360,9 +432,13 @@ struct DuoTVRoot: View {
             }
             .focusSection()
             .id(model.hub)
-            DuoTabBar(tab: $tab, hub: $model.hub, workAvailable: model.workAvailable, initial: String((model.summary?.name ?? "").prefix(1)).uppercased())
-                .focusSection()
-                .padding(.bottom, 30)
+            VStack(spacing: 18) {
+                if let t = model.toast { DuoToastBar(toast: t).transition(.move(edge: .bottom).combined(with: .opacity)).focusSection() }
+                DuoTabBar(tab: $tab, hub: $model.hub, workAvailable: model.workAvailable, initial: String((model.summary?.name ?? "").prefix(1)).uppercased())
+                    .focusSection()
+            }
+            .padding(.bottom, 30)
+            .animation(.snappy, value: model.toast?.id)
         }
         .task { await model.load() }
         .onReceive(refresh) { _ in Task { await model.load() } }
@@ -527,7 +603,10 @@ struct DuoTVHome: View {
             if events.isEmpty && due.isEmpty { DuoEmpty(text: "A clear day. Nothing scheduled and no tasks due.") }
             VStack(spacing: 14) {
                 ForEach(events.prefix(6)) { e in DuoEventRow(e: e) }
-                ForEach(due) { t in DuoTaskRow(t: t, today: s.day) }
+                ForEach(due) { t in
+                    Button { Task { await model.toggle(t) } } label: { DuoTaskRow(t: t, today: s.day, done: model.checked.contains(t.id)) }
+                        .buttonStyle(DuoLift(radius: 18))
+                }
             }
         }
     }
@@ -536,17 +615,21 @@ struct DuoTVHome: View {
         DuoPanel(eyebrow: "Chores", title: s.choresLeft > 0 ? "\(s.choresLeft) left today" : "All chores done! 🎉") {
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
                 ForEach(s.chores.prefix(12)) { c in
-                    HStack(spacing: 14) {
-                        DuoCheck(done: c.done)
-                        Text(c.title).font(.system(size: 24, weight: .semibold)).strikethrough(c.done)
-                            .foregroundStyle(c.done ? Color(hex: "#065f46") : Duo.ink).lineLimit(1)
-                        Spacer(minLength: 4)
-                        if !c.who.isEmpty { DuoAvatar(person: DuoPerson(name: c.who, emoji: c.emoji, color: c.color), size: 40) }
-                        else { Text("Anyone").font(.system(size: 18, weight: .bold)).foregroundStyle(Duo.faint) }
+                    let done = c.done != model.choresFlipped.contains(c.id)
+                    Button { Task { await model.chore(c) } } label: {
+                        HStack(spacing: 14) {
+                            DuoCheck(done: done)
+                            Text(c.title).font(.system(size: 24, weight: .semibold)).strikethrough(done)
+                                .foregroundStyle(done ? Color(hex: "#065f46") : Duo.ink).lineLimit(1)
+                            Spacer(minLength: 4)
+                            if !c.who.isEmpty { DuoAvatar(person: DuoPerson(name: c.who, emoji: c.emoji, color: c.color), size: 40) }
+                            else { Text("Anyone").font(.system(size: 18, weight: .bold)).foregroundStyle(Duo.faint) }
+                        }
+                        .padding(16)
+                        .background(done ? Color(hex: "#ecfdf5") : .white, in: RoundedRectangle(cornerRadius: 18))
+                        .overlay(RoundedRectangle(cornerRadius: 18).stroke(done ? Color(hex: "#a7f3d0") : Color(hex: "#f1f5f9"), lineWidth: 2))
                     }
-                    .padding(16)
-                    .background(c.done ? Color(hex: "#ecfdf5") : .white, in: RoundedRectangle(cornerRadius: 18))
-                    .overlay(RoundedRectangle(cornerRadius: 18).stroke(c.done ? Color(hex: "#a7f3d0") : Color(hex: "#f1f5f9"), lineWidth: 2))
+                    .buttonStyle(DuoLift(radius: 18))
                 }
             }
         }
@@ -740,6 +823,7 @@ struct DuoTaskRow: View {
     let t: DuoTVSummary.Task
     let today: String
     var showList = false
+    var done = false
     private var when: String {
         let day: String = t.due.isEmpty ? "Anytime" : t.due == today ? "Today" : prettyDay(t.due, .dateTime.weekday(.abbreviated).month(.abbreviated).day())
         if t.time.isEmpty { return day }
@@ -749,9 +833,9 @@ struct DuoTaskRow: View {
     var body: some View {
         let overdue = !t.due.isEmpty && t.due < today
         HStack(spacing: 18) {
-            DuoCheck()
+            DuoCheck(done: done)
             VStack(alignment: .leading, spacing: 2) {
-                Text(t.title).font(.system(size: 24, weight: .semibold)).foregroundStyle(Duo.ink).lineLimit(2)
+                Text(t.title).font(.system(size: 24, weight: .semibold)).strikethrough(done).foregroundStyle(done ? Duo.muted : Duo.ink).lineLimit(2)
                 HStack(spacing: 0) {
                     if overdue { Text("Overdue · \(shortDay(t.due))").foregroundStyle(Duo.rose) }
                     else { Text(when).foregroundStyle(Duo.muted) }
@@ -769,11 +853,79 @@ struct DuoTaskRow: View {
     }
 }
 
+struct DuoToast: Identifiable {
+    let id = UUID()
+    let text: String
+    var undo: (@MainActor () async -> Void)? = nil
+}
+
+/** Along the bottom, above the tab bar: what just happened, with Undo. Goes away after a few seconds. */
+struct DuoToastBar: View {
+    @EnvironmentObject var model: DuoTVModel
+    let toast: DuoToast
+    var body: some View {
+        HStack(spacing: 24) {
+            Image(systemName: "checkmark.circle.fill").font(.system(size: 30)).foregroundStyle(Duo.green)
+            Text(toast.text).font(.system(size: 26, weight: .semibold)).foregroundStyle(.white).lineLimit(1)
+            if let undo = toast.undo {
+                Button { Task { await undo() } } label: { Text("Undo").font(.system(size: 24, weight: .bold)).padding(.horizontal, 22).padding(.vertical, 8) }
+                    .buttonStyle(.card)
+            }
+        }
+        .padding(.horizontal, 30).padding(.vertical, 16)
+        .background(Duo.bar, in: Capsule())
+        .task(id: toast.id) {
+            try? await Task.sleep(nanoseconds: 6_000_000_000)
+            if model.toast?.id == toast.id { withAnimation { model.toast = nil } }
+        }
+    }
+}
+
+/** A new to-do: typed with the remote, dictated (hold the mic button), or typed on an iPhone nearby. */
+struct DuoTVAdd: View {
+    @EnvironmentObject var model: DuoTVModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var title = ""
+    @State private var when = 0
+    @State private var saving = false
+    var body: some View {
+        VStack(alignment: .leading, spacing: 30) {
+            Text(model.hub == .work ? "New work to-do" : "New task").font(.system(size: 52, weight: .black)).foregroundStyle(Duo.ink)
+            TextField("What needs doing?", text: $title)
+                .font(.system(size: 30))
+                .submitLabel(.done)
+            HStack(spacing: 20) {
+                ForEach(Array(["Today", "Tomorrow", "Anytime"].enumerated()), id: \.offset) { i, name in
+                    Button { when = i } label: {
+                        Label(name, systemImage: when == i ? "checkmark.circle.fill" : "circle").font(.system(size: 26, weight: .semibold)).padding(.horizontal, 10)
+                    }
+                }
+            }
+            HStack(spacing: 20) {
+                Button {
+                    let t = title.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !t.isEmpty, !saving else { return }
+                    saving = true
+                    let today = DuoTVModel.today()
+                    let due = when == 2 ? "" : when == 1 ? addDays(today, 1) : today
+                    Task { if await model.add(t, due: due) { dismiss() }; saving = false }
+                } label: { Label(saving ? "Adding..." : "Add", systemImage: "plus").font(.system(size: 28, weight: .bold)).padding(.horizontal, 30) }
+                .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || saving)
+                Button("Cancel") { dismiss() }.font(.system(size: 26))
+            }
+            Text("Tip: press the microphone button on the remote to say it, or type it on your iPhone when it asks.").font(.system(size: 20)).foregroundStyle(Duo.muted)
+        }
+        .padding(80)
+        .frame(maxWidth: 1100)
+    }
+}
+
 // MARK: - Tasks (components/family-hub/LifeTasksScreen.tsx)
 
 struct DuoTVTasks: View {
     @EnvironmentObject var model: DuoTVModel
     @State private var list: String? = nil
+    @State private var adding = false
 
     var body: some View {
         ScrollView {
@@ -783,6 +935,14 @@ struct DuoTVTasks: View {
                     (Text("Tasks").foregroundStyle(Duo.ink) + Text(".").foregroundStyle(Duo.violet)).font(.system(size: 76, weight: .black))
                 }
                 if let s = model.shown {
+                    HStack(spacing: 20) {
+                        Button { adding = true } label: {
+                            Label(model.hub == .work ? "Add a work to-do" : "Add a task", systemImage: "plus.circle.fill").font(.system(size: 26, weight: .bold)).foregroundStyle(.white)
+                                .padding(.horizontal, 26).padding(.vertical, 14).background(Duo.violet, in: Capsule())
+                        }
+                        .buttonStyle(DuoLift(radius: 40))
+                        Text("Click a task to check it off.").font(.system(size: 22, weight: .semibold)).foregroundStyle(Duo.muted)
+                    }
                     chips(s)
                     let shown = s.tasks.filter { list == nil || $0.listId == list }
                     let overdue = shown.filter { !$0.due.isEmpty && $0.due < s.day }
@@ -800,18 +960,20 @@ struct DuoTVTasks: View {
                         DuoPanel(eyebrow: "Chores", title: s.choresLeft > 0 ? "\(s.choresLeft) left today" : "All chores done! 🎉") {
                             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 14), count: 3), spacing: 14) {
                                 ForEach(s.chores) { c in
-                                    Button { } label: {
+                                    let done = c.done != model.choresFlipped.contains(c.id)
+                                    Button { Task { await model.chore(c) } } label: {
                                         HStack(spacing: 14) {
-                                            DuoCheck(done: c.done)
-                                            Text(c.title).font(.system(size: 24, weight: .semibold)).strikethrough(c.done).foregroundStyle(Duo.ink).lineLimit(1)
+                                            DuoCheck(done: done)
+                                            Text(c.title).font(.system(size: 24, weight: .semibold)).strikethrough(done).foregroundStyle(Duo.ink).lineLimit(1)
                                             Spacer(minLength: 4)
                                             if !c.who.isEmpty { DuoAvatar(person: DuoPerson(name: c.who, emoji: c.emoji, color: c.color), size: 40) }
                                             if c.points > 0 { Text("+\(c.points) ⭐").font(.system(size: 18, weight: .bold)).foregroundStyle(Color(hex: "#d97706")) }
                                         }
                                         .padding(16)
-                                        .background(c.done ? Color(hex: "#ecfdf5") : .white, in: RoundedRectangle(cornerRadius: 18))
+                                        .background(done ? Color(hex: "#ecfdf5") : .white, in: RoundedRectangle(cornerRadius: 18))
                                     }
                                     .buttonStyle(DuoLift(radius: 18))
+                                    .accessibilityLabel("\(c.title), \(done ? "done" : "not done")")
                                 }
                             }
                         }
@@ -821,6 +983,7 @@ struct DuoTVTasks: View {
             .padding(.horizontal, 90).padding(.top, 50).padding(.bottom, 200)
         }
         .scrollClipDisabled()
+        .sheet(isPresented: $adding) { DuoTVAdd().environmentObject(model) }
     }
 
     private func chips(_ s: DuoTVSummary) -> some View {
@@ -856,7 +1019,9 @@ struct DuoTVTasks: View {
                     Text("\(items.count)").font(.system(size: 22, weight: .black)).foregroundStyle(Duo.muted)
                 }
                 ForEach(items) { t in
-                    Button { } label: { DuoTaskRow(t: t, today: today, showList: list == nil) }.buttonStyle(DuoLift(radius: 18))
+                    Button { Task { await model.toggle(t) } } label: { DuoTaskRow(t: t, today: today, showList: list == nil, done: model.checked.contains(t.id)) }
+                        .buttonStyle(DuoLift(radius: 18))
+                        .accessibilityHint("Checks it off")
                 }
             }
             .frame(maxWidth: .infinity, alignment: .topLeading)
