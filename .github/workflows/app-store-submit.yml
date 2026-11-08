@@ -1,0 +1,40 @@
+name: App Store submit
+# Sends an app's latest TestFlight build to App Review for the App Store.
+#   check  (default) reads the App Store listing and says what's ready and what's missing. Changes nothing.
+#   submit makes the version if it isn't there, picks the newest processed build, and submits it for review.
+# App privacy answers, the price and some agreements can only be set on the App Store Connect website;
+# the check says when those block a submission.
+on:
+  workflow_dispatch:
+    inputs:
+      bundle:
+        description: Bundle id (com.arisereader.reader, ...)
+        required: true
+        default: com.arisereader.reader
+      mode:
+        description: check or submit
+        required: true
+        default: check
+      version:
+        description: Version number for the App Store (blank = the build's own)
+        required: false
+        default: ""
+  push:
+    branches: [master]
+    paths: ['.github/workflows/app-store-submit.yml', '.github/scripts/app_store_submit.py']
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: app-store
+    steps:
+      - uses: actions/checkout@v4
+      - name: App Store
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          BUNDLE: ${{ github.event.inputs.bundle || 'com.arisereader.reader' }}
+          MODE: ${{ github.event.inputs.mode || 'check' }}
+          VERSION: ${{ github.event.inputs.version || '' }}
+        run: python3 .github/scripts/app_store_submit.py
