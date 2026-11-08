@@ -125,7 +125,7 @@ final class FitTVModel: ObservableObject {
 
     /** -fitSample YES (the simulator screenshots): made-up numbers, no account. */
     static let sample = UserDefaults.standard.bool(forKey: "fitSample")
-    static func today() -> String { let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: Date()) }
+    nonisolated static func today() -> String { let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: Date()) }
 
     var timers: [FitSession] { me?.timers.isEmpty == false ? me!.timers : FitSession.presetTimers }
 

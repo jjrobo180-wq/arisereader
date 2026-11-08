@@ -142,7 +142,7 @@ final class DuoTVModel: ObservableObject {
     var shown: DuoTVSummary? { hub == .work ? work?.asSummary : summary }
     var workAvailable: Bool { work != nil }
 
-    static func today() -> String { let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: Date()) }
+    nonisolated static func today() -> String { let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: Date()) }
 
     /** Launched with -duoSample YES (the simulator screenshots in companions-sim.yml): a made-up family, no account. */
     static let sample = UserDefaults.standard.bool(forKey: "duoSample")
