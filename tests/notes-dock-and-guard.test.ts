@@ -49,3 +49,12 @@ test("New note is a labelled button in the list header, well above the bottom ba
   const view = readFileSync(new URL("../client/src/components/arise-notes/pages/PagesView.tsx", import.meta.url), "utf8");
   assert.match(view, /data-testid="pages-new-quick"><SquarePen[^>]*\/>New note<\/button>/);
 });
+
+test("an open note can fill the whole page on a tablet and shrink back", () => {
+  const rd = (p: string) => readFileSync(new URL(`../client/src/components/arise-notes/pages/${p}`, import.meta.url), "utf8");
+  assert.match(rd("PageScreen.tsx"), /Fill the whole page/);
+  assert.match(rd("PageScreen.tsx"), /Shrink back to the list/);
+  const v = rd("PagesView.tsx");
+  assert.match(v, /!\(full && openId\) && <aside/);
+  assert.match(v, /!\(full && openId\) && <section/);
+});

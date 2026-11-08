@@ -2,7 +2,7 @@
 // handwritten (pages you write on with the Apple Pencil). It saves itself as you go, syncs, and can be
 // locked with the notes password. Menu: appearance, pin, colour, folder, lock, AI, versions, export.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Clock, Copy, Download, FileText, Image as ImageIcon, Lock, LockOpen, MoreHorizontal, Palette, PenLine, Pin, PinOff, Sparkles, Table2, Trash2, Wand2 } from "lucide-react";
+import { ChevronLeft, Maximize2, Minimize2, Clock, Copy, Download, FileText, Image as ImageIcon, Lock, LockOpen, MoreHorizontal, Palette, PenLine, Pin, PinOff, Sparkles, Table2, Trash2, Wand2 } from "lucide-react";
 import { DEFAULT_LOOK, blankInkPage, pageTitle, textOfHtml, type InkPage, type Page, type PageContent, type PageLook, type PageMeta } from "@shared/arisePages";
 import { noteHtml as aiNoteHtml } from "@shared/ariseNotes";
 import { wordCount } from "@shared/office/docModel";
@@ -24,7 +24,7 @@ import { useAppearance } from "../appearance";
 
 type Panel = "" | "more" | "look" | "folder" | "ai" | "versions" | "export" | "unlock" | "vault" | "forgot" | "sketch" | "ainote" | "info";
 
-export default function PageScreen({ ctx, id, onBack }: { ctx: AppCtx; id: string; onBack: () => void }) {
+export default function PageScreen({ ctx, id, onBack, expanded, onExpand }: { ctx: AppCtx; id: string; onBack: () => void; expanded?: boolean; onExpand?: () => void }) {
   const userId = ctx.me.user.id;
   const say = useToast();
   const { sync, settings, metas, state } = usePages(userId);
@@ -153,6 +153,7 @@ export default function PageScreen({ ctx, id, onBack }: { ctx: AppCtx; id: strin
     <header className="an-noprint an-notehead sticky top-0 z-30 flex items-center gap-1 px-2 pt-[var(--sat,env(safe-area-inset-top,0px))]">
       <IconBtn label="Back to notes" onClick={back}><ChevronLeft className="h-6 w-6" /></IconBtn>
       <span className="min-w-0 flex-1 truncate text-[13px] text-[var(--an-muted)]">{page.locked && !content ? "Locked" : SYNC_WORDS[state]}</span>
+      {onExpand && <IconBtn label={expanded ? "Shrink back to the list" : "Fill the whole page"} onClick={onExpand}>{expanded ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}</IconBtn>}
       {content && <IconBtn label="Appearance" onClick={() => setPanel("look")}><Palette className="h-5 w-5" /></IconBtn>}
       {content && page.kind === "text" && <IconBtn label="AI tools" onClick={() => setPanel("ai")}><Sparkles className="h-5 w-5" /></IconBtn>}
       <IconBtn label="More" onClick={() => setPanel("more")}><MoreHorizontal className="h-5 w-5" /></IconBtn>

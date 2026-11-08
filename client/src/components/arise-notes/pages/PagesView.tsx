@@ -48,6 +48,7 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
     return () => window.removeEventListener("arise-notes-new", f);
   }, []);
   // The folder column on a tablet always starts at its top (no half-hidden first row).
+  const [full, setFull] = useState(false);
   const sideRef = useRef<HTMLElement>(null);
   useEffect(() => { if (sideRef.current) sideRef.current.scrollTop = 0; }, [wide, filter.kind]);
 
@@ -190,14 +191,14 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
     <button type="button" className="pp-compose" onClick={() => create(PAGE_TEMPLATES[0])} data-testid="pages-new" aria-label="New note"><SquarePen className="h-6 w-6" /></button>
   </div>;
 
-  const editor = openId ? <PageScreen key={openId} ctx={ctx} id={openId} onBack={() => ctx.go({ name: "pages" })} /> : null;
+  const editor = openId ? <PageScreen key={openId} ctx={ctx} id={openId} onBack={() => { setFull(false); ctx.go({ name: "pages" }); }} expanded={wide && full} onExpand={wide ? () => setFull((v) => !v) : undefined} /> : null;
 
   return <div className="flex h-[100dvh] min-h-0 flex-col" data-testid="pages-view">
-    {(!openId || wide) && tabs}
+    {(!openId || wide) && !(wide && full && openId) && tabs}
     <div className="flex min-h-0 flex-1">
       {wide ? <>
-        <aside ref={sideRef} style={{ overscrollBehavior: "contain" }} className="hidden w-[260px] shrink-0 overflow-y-auto border-r border-[var(--an-line)] px-3 py-4 lg:block">{nav}</aside>
-        <section className="w-[360px] shrink-0 border-r border-[var(--an-line)]">{list}</section>
+        {!(full && openId) && <aside ref={sideRef} style={{ overscrollBehavior: "contain" }} className="hidden w-[260px] shrink-0 overflow-y-auto border-r border-[var(--an-line)] px-3 py-4 lg:block">{nav}</aside>}
+        {!(full && openId) && <section className="w-[360px] shrink-0 border-r border-[var(--an-line)]">{list}</section>}
         <main className="min-w-0 flex-1">{editor ?? <div className="grid h-full place-items-center text-center text-[15px] text-[var(--an-muted)]"><div><div className="an-empty-stack"><i /><i /><i><PenLine className="h-7 w-7" strokeWidth={1.8} /></i></div><p className="an-display text-[24px] text-[var(--an-ink)]">Choose a note</p><p className="mt-1">or start a new one.</p><Btn kind="primary" className="mt-5 !min-h-12 !px-6" onClick={() => create(PAGE_TEMPLATES[0])} data-testid="pages-new-empty"><Plus className="h-4 w-4" />New note</Btn></div></div>}</main>
       </> : <main className="min-w-0 flex-1">{editor ?? (pane === "folders" ? folderScreen : list)}</main>}
     </div>
