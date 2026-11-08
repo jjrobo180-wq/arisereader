@@ -31,7 +31,7 @@ for (const [label, engine, opts] of [["iphone-safari", webkit, devices["iPhone 1
       if (req.method() !== "GET") return json({ ok: true });
       return json({});
     }
-    if (url.hostname !== "arise.test") return route.abort();
+    if (url.hostname !== "example.com") return route.abort();
     let p = normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, "");
     if (p === "/") p = "/index.html";
     for (const f of [join("dist/public", p), "dist/public/index.html"]) {
@@ -44,11 +44,11 @@ for (const [label, engine, opts] of [["iphone-safari", webkit, devices["iPhone 1
   page.on("pageerror", (e) => errors.push(String(e?.message || e).slice(0, 200)));
   page.on("console", (m) => { if (m.type() === "error") errors.push(`console: ${m.text().slice(0, 600)}`); });
   const session = Buffer.from(JSON.stringify({ user, token: "test-token" })).toString("base64");
-  await ctx.addCookies([{ name: "arise_session", value: session, domain: "arise.test", path: "/" }]);
+  await ctx.addCookies([{ name: "arise_session", value: session, domain: "example.com", path: "/" }]);
   await page.addInitScript((s) => { try { localStorage.setItem("arise_session_backup", s); } catch {} }, session);
   const tap = async (loc, what) => { try { await loc.scrollIntoViewIfNeeded({ timeout: 4000 }); await loc.tap({ timeout: 6000 }); return true; } catch (e) { await note(`${label}: can't tap ${what}: ${e.message.split("\n")[0]}`); return false; } };
   try {
-    await page.goto("https://arise.test/#/fit", { waitUntil: "domcontentloaded", timeout: 30000 });
+    await page.goto("https://example.com/#/fit", { waitUntil: "domcontentloaded", timeout: 30000 });
     await page.waitForTimeout(6000);
     await page.screenshot({ path: `screens/fit-${label}-1-today.png` });
     // 1) Food from Today's calories card.
