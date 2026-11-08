@@ -34,6 +34,18 @@ for (const [size, opts] of Object.entries(sizes)) for (const kind of ["doc", "sh
   await limit(ctx.close(), 10000, "close").catch(() => {});
 }
 // Arise To Duo's "Link someone": top, and scrolled to the very bottom (the Send bar must cover the list's end).
+for (const [name, after] of [["phone-sharing", "sharing"], ["phone-sharing-person", "person"]]) {
+  const ctx = await browser.newContext(sizes.phone); const page = await ctx.newPage(); page.setDefaultTimeout(15000); const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e?.message || e)));
+  try {
+    await limit(page.goto("http://localhost:4180/office-preview/?screen=sharing", { waitUntil: "domcontentloaded" }), 30000, "open"); await page.waitForTimeout(2500);
+    const people = await page.getByTestId("sharing-person").allInnerTexts().catch(() => []);
+    if (after === "person") { await page.getByTestId("sharing-person").filter({ hasText: "Vanessa" }).click(); await page.waitForTimeout(600); }
+    await limit(page.screenshot({ path: `screens/${name}.png`, timeout: 20000 }), 30000, "screenshot");
+    note(`ok   ${name}  people: ${people.map((t) => t.replace(/\n/g, " / ")).join(" | ")}${errors.length ? `  errors: ${errors.slice(0, 2).join(" | ")}` : ""}`);
+  } catch (e) { note(`FAIL ${name}: ${e?.message || e}`); }
+  await limit(ctx.close(), 10000, "close").catch(() => {});
+}
 for (const [name, after] of [["phone-link-top", null], ["phone-link-bottom", "bottom"], ["phone-link-all-apps", "all"]]) {
   const ctx = await browser.newContext(sizes.phone); const page = await ctx.newPage(); page.setDefaultTimeout(15000); const errors = [];
   page.on("pageerror", (e) => errors.push(String(e?.message || e)));

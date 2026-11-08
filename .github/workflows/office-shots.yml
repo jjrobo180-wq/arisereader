@@ -9,6 +9,8 @@ on:
       - 'client/src/components/office/**'
       - 'client/src/components/family-hub/LinkedProfiles.tsx'
       - 'client/src/components/family-hub/ui.tsx'
+      - 'client/src/components/family-hub/ShareLink.tsx'
+      - 'client/src/components/family-hub/Accountability.tsx'
       - 'script/officePreview.tsx'
       - 'script/officeShots.mjs'
       - '.github/workflows/office-shots.yml'

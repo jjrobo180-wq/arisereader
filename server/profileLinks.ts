@@ -29,6 +29,9 @@ export type ProfileLinkDeps = {
   /** A link is in use (accepted, joined, approved, or changed while in use): things done together, like
    *  Accountability, are set up for the two of them. Never blocks the answer; failures are only logged. */
   onActive?: (link: ProfileLink) => Promise<void>;
+  /** Whether two people already know each other here (they share an Accountability space): then one can start
+   *  sharing with the other straight from the Sharing page, without typing an email. */
+  knows?: (a: number, b: number) => Promise<boolean>;
   now?: () => number;
 };
 
@@ -106,7 +109,7 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
     if (!u) return res.status(401).json({ message: "Sign in first." });
     try {
       const [mine, theirs] = await Promise.all([ownerLinks(u.id), sharedWith(u)]);
-      const mineOut = await Promise.all(mine.map(async (l) => ({ id: l.id, email: l.email, nickname: l.nickname, status: l.status, grants: l.grants, viewerName: l.viewerId ? await nameOf(l.viewerId) : "", createdAt: l.createdAt })));
+      const mineOut = await Promise.all(mine.map(async (l) => ({ id: l.id, email: l.email, nickname: l.nickname, status: l.status, grants: l.grants, viewerId: l.viewerId ?? null, viewerName: l.viewerId ? await nameOf(l.viewerId) : "", createdAt: l.createdAt })));
       const withMe = await Promise.all(theirs.map(async (l) => ({ id: l.id, ownerId: l.ownerId, ownerName: await nameOf(l.ownerId), status: l.status, grants: l.grants })));
       const requests = await Promise.all((u.email ? await readAsks(u.email) : []).filter((r) => r.fromId !== u.id).map(async (r) => ({ id: r.id, fromId: r.fromId, fromName: await nameOf(r.fromId), nickname: r.nickname, grants: r.grants, createdAt: r.createdAt })));
       res.set("Cache-Control", "no-store");
@@ -244,6 +247,36 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
       res.json({ link: { id: updated.id, email: updated.email, nickname: updated.nickname, status: updated.status, grants: updated.grants } });
     } catch {
       res.status(500).json({ message: "Couldn't save. Try again." });
+    }
+  });
+
+  /** Share with someone you're already together with (an Accountability space): by their account, no invite to
+   *  accept, since you're already connected. Body { userId, nickname?, grants }. Changes the link if there is one. */
+  app.post("/api/profile-links/person", authMiddleware, async (req: any, res) => {
+    const u = me(req);
+    if (!u) return res.status(401).json({ message: "Sign in first." });
+    const other = Number(req.body?.userId);
+    if (!Number.isInteger(other) || other <= 0 || other === u.id) return res.status(400).json({ message: "Who is this for?" });
+    try {
+      if (!deps.knows || !(await deps.knows(u.id, other))) return res.status(403).json({ message: "Invite them by email or with a link first." });
+      const them = await deps.getUser(other).catch(() => null);
+      if (!them) return res.status(404).json({ message: "That account isn't there any more." });
+      const grants = cleanGrants(req.body?.grants);
+      const link = await withLock(ownerKey(u.id), async () => {
+        const links = await ownerLinks(u.id);
+        const at = links.findIndex((l) => l.viewerId === other);
+        const nickname = typeof req.body?.nickname === "string" ? req.body.nickname.trim().slice(0, LINK_LIMITS.nickname) : "";
+        if (at >= 0) links[at] = { ...links[at], grants, status: "active", ...(nickname ? { nickname } : {}), updatedAt: iso() };
+        else if (links.length >= LINK_LIMITS.perOwner) throw Object.assign(new Error(`You can link up to ${LINK_LIMITS.perOwner} people. Remove one first.`), { status: 409 });
+        else links.push({ id: randomUUID().replace(/-/g, "").slice(0, 20), ownerId: u.id, email: normalEmail(them.email) || `user${other}@linked.invalid`, viewerId: other, nickname, status: "active", grants, createdAt: iso(), updatedAt: iso() });
+        await saveOwnerLinks(u.id, links);
+        return links.find((l) => l.viewerId === other)!;
+      });
+      await editIds(viewerKey(other), (ids) => [...ids, u.id]);
+      await activated(link);
+      res.json({ link: { id: link.id, email: link.email, nickname: link.nickname, status: link.status, grants: link.grants, viewerName: String(them.displayName || "").trim().split(/\s+/)[0] || "", createdAt: link.createdAt } });
+    } catch (error: any) {
+      res.status(error?.status || 500).json({ message: error?.status ? error.message : "Couldn't save. Try again." });
     }
   });
 

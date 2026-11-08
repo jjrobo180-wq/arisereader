@@ -1790,6 +1790,11 @@ export async function registerRoutes(
     getSetting: (key) => storage.getSetting(key), upsertSetting: (key, value) => storage.upsertSetting(key, value),
     getUser: (id) => storage.getUser(id), lifeHub: (ownerId) => savedHub("life", ownerId),
     // Accountability turned on for a linked person: the two share an Accountability space (server/accountability.ts).
+    knows: async (a, b) => {
+      const { data } = await getAdminSupabase().from("acct_members").select("space_id, user_id").in("user_id", [a, b]);
+      const mine = new Set((data || []).filter((r: any) => r.user_id === a).map((r: any) => r.space_id));
+      return (data || []).some((r: any) => r.user_id === b && mine.has(r.space_id));
+    },
     onActive: async (link) => { if (link.grants[ACCOUNTABILITY_SHARE] && link.viewerId) await ensureSharedSpace(acctDeps, link.ownerId, link.viewerId); },
   });
   registerUserDocRoutes(app, authMiddleware, userDocStore, undefined, profileLinks.canUseApp);

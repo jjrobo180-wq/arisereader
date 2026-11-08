@@ -731,7 +731,8 @@ export default function AriseTodo() {
   // Getting started was replaced by the first-run walkthrough (components/AppWalkthrough.tsx).
   const sections = sectionOrderFor(family).filter(id => id !== "start" && !parentOf(id) && isOn(id, family) && (id !== "reader" || user?.role === "parent"));
   const installedSections = sections.filter((id) => ADD_ON_SECTIONS.includes(id));
-  const builtInSections = sections.filter((id) => !ADD_ON_SECTIONS.includes(id));
+  // Sharing ("linked") opens from Settings (the You sheet and Family & settings), not from the app list.
+  const builtInSections = sections.filter((id) => !ADD_ON_SECTIONS.includes(id) && id !== "linked");
   // Dragging (or, on a phone, the arrows) a menu item reorders it right where it sits.
   // Home, Reader, Tasks, Notifications and Family & settings stay put.
   const moveSectionBy = (id: FamilySection, dir: -1 | 1) => setFamily((f) => {
@@ -1136,7 +1137,10 @@ export default function AriseTodo() {
     notificationSettings: () => { closeApps(); goSection("notifications"); },
     customize: () => setCustomizing(true), night, toggleNight, lock: () => setLockSettings(true),
     gallery: () => setStore(true), privacy: () => setPrivacy(true), signOut: () => void signOut(),
-    extra: [{ id: "family", label: "Family & settings", detail: "People, linked children and sections", icon: <Users />, onClick: () => { closeApps(); goSection("family"); } }],
+    extra: [
+      { id: "sharing", label: "Sharing", detail: "Everyone you share with, and what", icon: <Users />, onClick: () => { closeApps(); goSection("linked"); } },
+      { id: "family", label: "Family & settings", detail: "People, linked children and sections", icon: <Users />, onClick: () => { closeApps(); goSection("family"); } },
+    ],
   });
   const inOtherApp = !!notesAppOpen || !!sheetsAppOpen || driveOpen || dropOpen || !!kitOpen;
   const osCore = osOn && !inOtherApp && (["home", "tasks", "calendar", "notes"] as FamilySection[]).includes(shown);

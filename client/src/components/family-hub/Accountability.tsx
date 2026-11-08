@@ -13,8 +13,6 @@ import { publishWidgets } from "@/lib/widgets";
 import { isNativeApp } from "@/lib/nativeApp";
 import { startApplePush } from "@/lib/applePush";
 import TodoNotifications from "./TodoNotifications";
-import { LinkSomeoneModal } from "./LinkedProfiles";
-import { ACCOUNTABILITY_SHARE } from "@shared/profileLinks";
 import type { SectionProps } from "./ui";
 
 const TEAL = "#0d9488";
@@ -68,7 +66,7 @@ function Chips<T extends string | number>({ value, options, onChange }: { value:
 const Lbl = ({ t, children }: { t: string; children: ReactNode }) => <div className="space-y-1.5"><p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">{t}</p>{children}</div>;
 
 // ---------------- the app ----------------
-export default function Accountability({ say, family }: SectionProps) {
+export default function Accountability({ say }: SectionProps) {
   const api = useApi();
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState("");
@@ -117,6 +115,9 @@ export default function Accountability({ say, family }: SectionProps) {
     if (t) { setSpaceId(t.spaceId); setSheet(t.assignee === data.me && !isDone(checkinFor(data.checkins, t.id, today)) ? { kind: "do", task: t } : { kind: "task", task: t }); }
   }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Inviting happens on the one Sharing page (Settings), with "Add someone" open and Accountability on: once they
+  // accept, the two of you share a space (server/accountability.ts ensureSharedSpace).
+  const inviteOnSharing = () => { window.location.hash = "#/lifehub?go=linked&add=accountability"; };
   const act = async (fn: () => Promise<unknown>, done?: string) => { try { await fn(); if (done) say(done); await load(); return true; } catch (e: any) { say(e.message); return false; } };
 
   if (!data) return <div className="grid min-h-[50vh] place-items-center text-slate-500">{error ? <div className="text-center"><p className="font-bold">{error}</p><button type="button" onClick={() => void load()} className={`${ghostBtn} mt-3`}>Try again</button></div> : <Loader2 className="animate-spin" />}</div>;
@@ -133,7 +134,7 @@ export default function Accountability({ say, family }: SectionProps) {
       <button type="button" onClick={() => setSheet({ kind: "start" })} className="rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-teal-300" data-testid="acct-start"><Plus className="text-teal-600" /><p className="mt-3 font-black">Start a space</p><p className="text-sm text-slate-500">Then invite your partner</p></button>
       <button type="button" onClick={() => setSheet({ kind: "join" })} className="rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-teal-300" data-testid="acct-join"><Users className="text-violet-600" /><p className="mt-3 font-black">I have an invite code</p><p className="text-sm text-slate-500">Join someone's space</p></button>
     </div>
-    {sheet?.kind === "start" && <StartSheet onClose={() => setSheet(null)} onDone={async (name, myName) => { const ok = await act(async () => { const r = await api<{ id: string }>("/spaces", { method: "POST", body: { name, myName, tz: TZ } }); setSpaceId(r.id); }); if (ok) setSheet({ kind: "invite" }); }} />}
+    {sheet?.kind === "start" && <StartSheet onClose={() => setSheet(null)} onDone={async (name, myName) => { const ok = await act(async () => { const r = await api<{ id: string }>("/spaces", { method: "POST", body: { name, myName, tz: TZ } }); setSpaceId(r.id); }); if (ok) inviteOnSharing(); }} />}
     {sheet?.kind === "join" && <JoinSheet code={sheet.code} onClose={() => setSheet(null)} onDone={async (code, myName) => { const ok = await act(async () => { const r = await api<{ id: string }>("/join", { method: "POST", body: { code, myName, tz: TZ } }); setSpaceId(r.id); }, "You're in!"); if (ok) setSheet(null); }} />}
   </div>;
 
@@ -153,7 +154,7 @@ export default function Accountability({ say, family }: SectionProps) {
           <div className="mt-3 flex -space-x-2">{space.members.map((m) => <Avatar key={m.userId} name={m.name} color={colorOf(space, m.userId)} size={32} />)}</div></div>
         <div className="flex shrink-0 gap-2">
           <button type="button" onClick={() => setSheet({ kind: "notify" })} aria-label="Notifications" className="grid h-10 w-10 place-items-center rounded-full bg-white/15 backdrop-blur hover:bg-white/25" data-testid="acct-notify"><Bell size={17} /></button>
-          <button type="button" onClick={() => setSheet({ kind: "invite" })} className="flex min-h-10 items-center gap-1.5 rounded-full bg-white/15 px-3.5 text-sm font-bold backdrop-blur hover:bg-white/25" data-testid="acct-invite"><Share2 size={15} />Invite</button>
+          <button type="button" onClick={() => inviteOnSharing()} className="flex min-h-10 items-center gap-1.5 rounded-full bg-white/15 px-3.5 text-sm font-bold backdrop-blur hover:bg-white/25" data-testid="acct-invite"><Share2 size={15} />Invite</button>
         </div>
       </div>
       {data.spaces.length > 1 && <div className="relative mt-4 flex gap-2 overflow-x-auto [scrollbar-width:none]">{data.spaces.map((s) => <button key={s.id} type="button" onClick={() => setSpaceId(s.id)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${s.id === space.id ? "bg-white text-teal-800" : "bg-white/15 text-white"}`}>{s.name}</button>)}<button type="button" onClick={() => setSheet({ kind: "start" })} className="shrink-0 rounded-full bg-white/15 px-3 py-1.5 text-xs font-bold">+ New</button></div>}
@@ -193,10 +194,8 @@ export default function Accountability({ say, family }: SectionProps) {
 
 
     {sheet?.kind === "notify" && <NotifySheet space={space} me={me} prefs={data.myNotify?.[space.id] ?? cleanNotify({})} api={api} say={say} onClose={() => setSheet(null)} onSaved={() => void load()} />}
-    {/* Inviting is the same "Link someone" as everywhere in Arise To Duo, with Accountability turned on: once they
-        accept, the two of you share a space (server/accountability.ts ensureSharedSpace). */}
-    {sheet?.kind === "invite" && <LinkSomeoneModal family={family} say={say} title="Invite to Accountability" initialGrants={{ [ACCOUNTABILITY_SHARE]: "edit" }} onClose={() => { setSheet(null); void load(); }} />}
-    {sheet?.kind === "start" && <StartSheet onClose={() => setSheet(null)} onDone={async (name, myName) => { const ok = await act(async () => { const r = await api<{ id: string }>("/spaces", { method: "POST", body: { name, myName, tz: TZ } }); setSpaceId(r.id); }); if (ok) setSheet({ kind: "invite" }); }} />}
+
+    {sheet?.kind === "start" && <StartSheet onClose={() => setSheet(null)} onDone={async (name, myName) => { const ok = await act(async () => { const r = await api<{ id: string }>("/spaces", { method: "POST", body: { name, myName, tz: TZ } }); setSpaceId(r.id); }); if (ok) inviteOnSharing(); }} />}
     {sheet?.kind === "join" && <JoinSheet code={sheet.code} onClose={() => setSheet(null)} onDone={async (code, myName) => { const ok = await act(async () => { const r = await api<{ id: string }>("/join", { method: "POST", body: { code, myName, tz: TZ } }); setSpaceId(r.id); }, "You're in!"); if (ok) setSheet(null); }} />}
     {(sheet?.kind === "new" || sheet?.kind === "edit") && <TaskEditor space={space} me={me} task={sheet.kind === "edit" ? sheet.task : null} api={api} say={say} onClose={() => setSheet(null)}
       onSave={async (task) => { const ok = await act(() => sheet.kind === "edit" ? api(`/tasks/${sheet.task.id}`, { method: "PUT", body: { task } }) : api("/tasks", { method: "POST", body: { spaceId: space.id, task } }), sheet.kind === "edit" ? "Saved." : task.assignee === me ? "Added." : `Sent to ${nameOf(task.assignee)}. They'll be reminded until it's done.`); if (ok) setSheet(null); }} />}
