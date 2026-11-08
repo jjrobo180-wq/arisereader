@@ -45,3 +45,17 @@ test("every permission a game asks for has its sentence, or iOS closes the app",
   assert.match(readFileSync("client/src/pages/AnimalSplashGame.tsx", "utf8"), /SpeechRecognition/);
   for (const k of ["NSSpeechRecognitionUsageDescription", "NSMicrophoneUsageDescription", "NSCameraUsageDescription"]) assert.match(plist, new RegExp(`"${k}"`), k);
 });
+
+test("in the apps, games asking for full screen don't crash the iPad (WebKit full screen is never asked for)", async () => {
+  const { installNoFullscreen } = await import("../client/src/lib/noFullscreen");
+  let asked = 0;
+  class El { requestFullscreen() { asked++; return Promise.resolve(); } }
+  class Doc { exitFullscreen() { asked++; return Promise.resolve(); } }
+  installNoFullscreen({ Element: El as any, Document: Doc as any });
+  await (new El() as any).requestFullscreen();
+  await (new El() as any).webkitRequestFullscreen();
+  await (new Doc() as any).exitFullscreen();
+  assert.equal(asked, 0);
+  const main = readFileSync(new URL("../client/src/main.tsx", import.meta.url), "utf8");
+  assert.match(main, /if \(isNativeApp\(\)\) installNoFullscreen\(\);/);
+});

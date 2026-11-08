@@ -12,6 +12,7 @@ import "./todo-app.css";
 import { watchKeyboard } from "./lib/keyboardInset";
 import { applyDeviceTopInset } from "./lib/deviceInsets";
 import { startReaderNative } from "./lib/readerNative";
+import { installNoFullscreen } from "./lib/noFullscreen";
 import { installDuoPaneBridge } from "./lib/duoPaneBridge";
 import { installMediaUnlock, voiceElement } from "./lib/mediaUnlock";
 import { configureAiVoice } from "@/lib/aiVoice";
@@ -21,6 +22,11 @@ import { API_BASE } from "@/lib/queryClient";
 // viewport-fit=cover the page stops short of the home indicator and env(safe-area-inset-*) reads 0, so titles
 // sit under the Dynamic Island and the tab bar floats above a gray strip.
 // The A.R.I.S.E. Reader app draws edge to edge too (reader-app.css keeps headers below the clock), and so does Arise Notes.
+// In the iPhone and iPad apps the page already fills the screen, and asking WebKit for full screen on top
+// (the games, slides, the stand-by clock) crashed the app on iPad: WebKit moves the page to its own window,
+// which the app's view controllers don't allow (Arise Eye Gazer, a crash report from an iPad, November 2026).
+// So in the apps, full screen does nothing and says it worked.
+if (isNativeApp()) installNoFullscreen();
 if (isFitApp() || isReaderApp() || isNotesApp()) {
   const vp = document.querySelector('meta[name="viewport"]');
   if (vp && !/viewport-fit/.test(vp.getAttribute("content") || "")) vp.setAttribute("content", `${vp.getAttribute("content")}, viewport-fit=cover`);
