@@ -44,6 +44,8 @@ import { cleanLead, cleanLeads, cleanSite, emptySite, idFromSlug, siteSlug, type
 import { createSupabaseKv, type FitKv } from "./fitKv";
 import { createAttemptLimiter } from "./attemptLimiter";
 import { registerCoachGroupRoutes } from "./coachGroups";
+import { clientFacts, draftFor, flags as copilotFlags, progress as progressPlan, reflow as reflowPlan, score as copilotScore } from "../shared/coachCopilot";
+import { checkinDue } from "../shared/coach";
 import { CATALOG } from "../shared/fit";
 import { cleanPlanWorkout as cleanWorkoutForAi } from "../shared/coach";
 
@@ -631,6 +633,57 @@ Order exercises sensibly (big compound lifts first). Respect injuries or limits 
     cache = null;
     return { ok: true };
   }));
+
+  // ── Coach Copilot (shared/coachCopilot.ts): who needs you this week, with a drafted message each ─────────────
+  /** Arise Fit data trimmed to what this client agreed to share. */
+  const sharedFit = (fit: FitData | null, c: Consent): FitData | null => (fit ? { ...fit, workouts: c.workouts ? fit.workouts : [], weights: c.body ? fit.weights : [], foods: c.food ? fit.foods : [] } : null);
+  const copilotAi = createAttemptLimiter({ max: 12, windowMs: 24 * 60 * 60_000 });
+  app.get("/api/coach/trainer/copilot", auth, wrap(async (req) => {
+    const id = me(req); const at = new Date(now());
+    const links = (await store.linksOf("trainer", id)).filter((l) => l.status === "active");
+    const unread = await store.unread(links.map((l) => l.id), id);
+    let items = await Promise.all(links.map(async (l) => {
+      const fit = sharedFit(await fitData(l.clientId).catch(() => null), l.consent);
+      const name = await first(l.clientId);
+      const f = clientFacts({ name, coaching: l.coaching, side: l.clientSide, fit, unread: unread[l.id]?.count ?? 0, kcalTarget: l.consent.profile ? snapshot(fit, l.consent, name, l.createdAt, at).profile?.kcal ?? null : null, checkinDue: checkinDue(l.coaching, l.clientSide, at), sharesWorkouts: l.consent.workouts }, at);
+      const fl = copilotFlags(f);
+      return { linkId: l.id, clientId: l.clientId, name, facts: f, flags: fl, draft: draftFor(f, fl), score: copilotScore(fl), summary: "" };
+    }));
+    items.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+    let ai = false;
+    if (req.query?.ai === "1" && items.length) {
+      if (!allow(copilotAi, `cp:${id}`)) throw new Refused("Copilot has written a lot today. The plain version still updates.", 429);
+      const t = await store.trainer(id);
+      const top = items.slice(0, 30);
+      const out = await callAi(`You help a personal trainer run their week. For each client you get facts and flags. Write: "summary" (one short plain sentence a busy coach can scan) and "draft" (a warm, specific text message from the coach, 1-3 sentences, first name only, no emojis, no hashtags, never invent numbers or events that aren't in the facts). Coach's name: ${t?.profile.name || "the coach"}. Reply JSON {"clients":[{"linkId","summary","draft"}]}.`,
+        JSON.stringify(top.map((x) => ({ linkId: x.linkId, name: x.name.split(" ")[0], flags: x.flags.map((f) => f.text), facts: { workouts: `${x.facts.workoutsDone}/${x.facts.workoutsDue}`, habits: `${x.facts.habitsDone}/${x.facts.habitsDue}`, daysSinceWorkout: x.facts.daysSinceWorkout, foodDaysLogged: x.facts.foodDays, newBests: x.facts.newPRs } })))).catch(() => "{}");
+      try {
+        const byId = new Map<string, { summary?: string; draft?: string }>((JSON.parse(out)?.clients ?? []).map((c: any) => [String(c.linkId), c]));
+        items = items.map((x) => { const c = byId.get(x.linkId); const sum = typeof c?.summary === "string" ? c.summary.trim().slice(0, 200) : ""; const dr = typeof c?.draft === "string" ? c.draft.trim().slice(0, 600) : ""; if (sum || dr) ai = true; return { ...x, summary: sum, draft: dr || x.draft }; });
+      } catch { /* the plain drafts stand */ }
+    }
+    const count = (lv: string) => items.filter((x) => x.flags.some((f) => f.level === lv)).length;
+    return { at: at.toISOString(), ai, totals: { urgent: count("urgent"), watch: count("watch"), win: count("win"), clients: items.length }, items };
+  }));
+  /** Plan tools: preview, then apply. "reflow" moves missed workouts forward; "progress" writes next targets. */
+  const planTool = (kind: "reflow" | "progress") => wrap(async (req) => {
+    const { l } = await linkFor(req, "trainer");
+    const raw = await fitData(l.clientId).catch(() => null);
+    const fit = sharedFit(raw, l.consent);
+    const at = new Date(now());
+    const days = Array.isArray(req.body?.days) ? req.body.days.map(Number).filter((d: number) => d >= 0 && d <= 6) : [];
+    const r = kind === "reflow" ? reflowPlan(l.coaching, fit?.workouts, at, { days }) : progressPlan(l.coaching, fit?.workouts, raw?.profile.units ?? "lb", at);
+    const changes = "moves" in r ? r.moves : r.bumps;
+    if (req.body?.apply === true && changes.length) {
+      await store.saveLink(touch({ ...l, coaching: { ...l.coaching, assigned: r.assigned } }));
+      void notify(l.clientId, kind === "reflow"
+        ? { title: "Your plan was updated", body: `Your trainer moved ${changes.length} missed ${changes.length === 1 ? "workout" : "workouts"} to the coming days.`, url: "#/fit", tag: `coach-${l.id}` }
+        : { title: "New targets from your trainer", body: "Your next workouts have new weight and rep targets based on your last sessions.", url: "#/fit", tag: `coach-${l.id}` });
+    }
+    return { changes, applied: req.body?.apply === true && changes.length > 0, ...(req.body?.apply === true ? { assigned: r.assigned } : {}) };
+  });
+  app.post("/api/coach/links/:id/reflow", auth, planTool("reflow"));
+  app.post("/api/coach/links/:id/progress", auth, planTool("progress"));
 
   // Groups: pages, chat and challenges (server/coachGroups.ts).
   registerCoachGroupRoutes(app, auth, { store, kv, now, me, wrap, first, notify, refuse: (m, status) => new Refused(m, status) });

@@ -9,6 +9,7 @@ import { Chat } from "../coach/CoachUi";
 import { coachApi, dayKeyOf, post, put, shortDate, usePoll, when, type ClientDetail } from "../coach/coachApi";
 import { Btn, C, Card, Chips, Columns, Field, Ring, Sheet, Spark, Title, display, fmtDur, fmtNum, inputCls, inputStyle, stagger } from "../fit/fitUi";
 import { DEFAULT_FORM, FormBuilder, WorkoutBuilder, newId } from "./TrainerBuilder";
+import { PlanTools } from "./TrainerCopilot";
 
 type Tab = "overview" | "calendar" | "habits" | "nutrition" | "checkins" | "chat" | "sessions" | "photos" | "notes";
 const TABS: { id: Tab; label: string }[] = [
@@ -35,6 +36,7 @@ export function ClientSheet({ token, me, linkId, name, lib, saveLib, onClose, qu
     <Chips label="Section" value={tab} onChange={setTab} items={TABS} />
     <div key={tab} className="fit-in mt-4">
       {tab === "overview" && <Overview d={data} />}
+      {tab === "calendar" && data.status === "active" && <PlanTools token={token} linkId={linkId} name={name} say={say} onApplied={(assigned) => setData((d) => (d ? { ...d, coaching: { ...d.coaching, assigned } } : d))} />}
       {tab === "calendar" && <Calendar c={data.coaching} lib={lib} save={save} saveLib={saveLib} token={token} say={say} name={name} />}
       {tab === "chat" && <Chat token={token} linkId={linkId} me={me} other={name} quick={quick} disabled={data.status !== "active"} />}
       {tab === "habits" && <Habits c={data.coaching} save={save} side={data.clientSide} />}
