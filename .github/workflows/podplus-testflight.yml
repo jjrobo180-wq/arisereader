@@ -2,6 +2,11 @@ name: Pod+ signed iOS beta validation
 # Development beta validation only. Upload is a separate, explicitly approved release step.
 on:
   workflow_dispatch:
+    inputs:
+      upload:
+        description: Send this build to TestFlight (the owner's approval)
+        type: boolean
+        default: false
   push:
     branches: [feat/podplus-ios-app-store-starter]
     paths:
@@ -265,7 +270,7 @@ jobs:
           retention-days: 3
       - name: Validate beta and perform explicitly approved TestFlight upload
         env:
-          APPROVED_UPLOAD: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[approved-testflight]') }}
+          APPROVED_UPLOAD: ${{ (github.event_name == 'push' && contains(github.event.head_commit.message, '[approved-testflight]')) || (github.event_name == 'workflow_dispatch' && inputs.upload) }}
           APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
@@ -291,7 +296,7 @@ jobs:
         continue-on-error: true
         working-directory: podscroll/ios-app
         env:
-          APPROVED_UPLOAD: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[approved-testflight]') }}
+          APPROVED_UPLOAD: ${{ (github.event_name == 'push' && contains(github.event.head_commit.message, '[approved-testflight]')) || (github.event_name == 'workflow_dispatch' && inputs.upload) }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
