@@ -164,7 +164,7 @@ test("the Fit TV app has the built-in timers before anyone signs in, a coach's v
   for (const wf of [".github/workflows/fit-ios.yml", ".github/workflows/companions-sim.yml"]) assert.match(read(wf), /--name FitTV [^\n]*native\/fit-tv\/timers\.json/, wf);
   const tv = read("native/fit-tv/FitTVApp.swift");
   assert.match(tv, /final class FitVoice/);
-  assert.match(tv, /AVSpeechSynthesizer\(\)/);
+  assert.match(tv, /final class FitVoice: NSObject, AVAudioPlayerDelegate/, "the AI voice, played from the server");
   assert.match(tv, /FitVoice\.shared\.say\("\\\(left\)", interrupt: true\)/, "counts down the last three seconds out loud");
   assert.match(tv, /Text\(clock\(left\)\)\.font\(\.system\(size: 210, weight: \.heavy/);
   assert.match(tv, /JSONSerialization\.data\(withJSONObject: \["app": "fit"\]\)/, "signs in with a TV code");
@@ -187,4 +187,17 @@ test("no number in the watch apps overflows a 32-bit Apple Watch (Series 8 and o
     // Nanoseconds made from plain Ints (the multiply happens before UInt64 sees it): crashes on a 32-bit watch.
     assert.doesNotMatch(read(f), /UInt64\(\([^)]*\)\s*\*\s*1_000_000_000\)/, f);
   }
+});
+
+test("Arise Fit on Apple TV: the AI coach voice (never the TV's robot voice) and each exercise's how-to video", async () => {
+  const { strengthSession } = await import("../server/fitTv");
+  const s = strengthSession("x", "Push day", "", [{ exId: "bench-press", sets: 2, reps: "8", rest: 60 }]);
+  const set = s.phases.find((p) => p.kind === "work")!;
+  assert.equal(set.video?.id, "4Y2ZdHCOXok");
+  const tv = read("native/fit-tv/FitTVApp.swift");
+  assert.match(tv, /\/api\/voice\/say/);
+  assert.match(tv, /"voice": "troy"/);
+  assert.doesNotMatch(tv, /AVSpeechSynthesizer|AVSpeechUtterance/);
+  assert.match(tv, /youtube:\/\/watch\//);
+  assert.match(tv, /FitVideoCard\(video: v, compact: true\)/);
 });

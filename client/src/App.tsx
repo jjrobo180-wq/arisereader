@@ -27,6 +27,7 @@ import { useState, useEffect, lazy, Suspense, type ComponentType } from "react";
 const FitApp = lazy(() => import("@/pages/fit/FitApp"));
 const TrainerApp = lazy(() => import("@/pages/trainer/TrainerApp"));
 const TrainersPage = lazy(() => import("@/pages/coach/TrainersPage"));
+const TrainerSitePage = lazy(() => import("@/pages/coach/TrainerSite"));
 const NotesApp = lazy(() => import("@/components/arise-notes/NotesApp"));
 const TalkApp = lazy(() => import("@/pages/talk/TalkApp"));
 const GoalQuizPage = lazy(() => import("@/pages/GoalQuizPage"));
@@ -556,6 +557,8 @@ function AppRoutes() {
       </Route>
       {/* Arise Coaching: the public trainer directory, and Arise Trainer for coaches. */}
       <Route path="/trainers"><TrainersPage /></Route>
+      {/* A trainer's own website, built in Arise Trainer (shared/coachSite.ts). No sign-in. */}
+      <Route path="/t/:slug"><TrainerSitePage /></Route>
       {/* Arise Talk: the talking boards (no account needed). */}
       <Route path="/talk"><TalkApp /></Route>
       {/* A goal quiz a teacher sent as a link: no sign-in (shared/hubIep.ts). */}
@@ -1012,7 +1015,8 @@ function AppRoutes() {
 // website too, so the site's side tabs (points, Avatar World) and pop-ups stay off them.
 const FULLSCREEN_GAME_ROUTES = ["/to-do", "/lifehub", "/games", "/study", "/paintball-arena", "/aurora-rally", "/skybound-sprint", "/twinlight-run", "/chime-of-aoren", "/present", "/tutorial/present", "/fit", "/trainer", "/trainers", "/talk"];
 function useFullscreenGameRoute() {
-  const read = () => FULLSCREEN_GAME_ROUTES.includes(window.location.hash.replace(/^#/, "").split("?")[0]);
+  // Trainer websites (#/t/<slug>) belong to the trainer: no Arise pop-ups or install prompts for their visitors.
+  const read = () => { const p = window.location.hash.replace(/^#/, "").split("?")[0]; return FULLSCREEN_GAME_ROUTES.includes(p) || p.startsWith("/t/"); };
   const [inGame, setInGame] = useState(read);
   useEffect(() => {
     const update = () => setInGame(read());

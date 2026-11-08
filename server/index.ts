@@ -210,6 +210,8 @@ app.use("/api/arise-todo/food/estimate", express.json({ limit: "4mb" }));
 // and the whole Fit diary, which passes 100 KB after a few months of food, workouts and runs.
 app.use("/api/fit/identify", express.json({ limit: "8mb" }));
 app.use("/api/fit/data", express.json({ limit: "5mb" }));
+// Trainer websites carry up to 8 photos (each under 400 KB, shared/coachSite.ts).
+app.use("/api/coach/trainer/site", express.json({ limit: "4mb" }));
 // Apple Health apps can send a couple of months of readings in one post.
 app.use("/api/arise-todo/apple-health/sync", express.json({ limit: "5mb" }));
 // An upload that big is only read for someone who is signed in: the sign-in is checked first, so a stranger can't make

@@ -151,7 +151,7 @@ export default function DesignHome({ config, onOpen, say: sayOut }: { config: Of
     {/* Sizes */}
     {!needle && <section>
       <H2 right={<button type="button" onClick={() => setAllSizes(!allSizes)} className="text-[13.5px] font-bold text-[var(--dz-accent)]">{allSizes ? "Fewer sizes" : "More sizes"}</button>}>Start from a size</H2>
-      <div className="-mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0" data-testid="office-starts">
+      <div className="-mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0" data-testid="office-starts">
         <button type="button" onClick={() => void create("Untitled design", config.blank())} disabled={!!busy} data-testid="office-new-blank"
           className="flex w-[92px] shrink-0 flex-col items-center gap-1.5 rounded-2xl px-1.5 py-3 text-center transition hover:bg-[var(--dz-soft)]">
           <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[var(--dz-accent)] text-white shadow-md"><Plus size={22} /></span>
