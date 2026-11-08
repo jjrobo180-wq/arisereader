@@ -9499,6 +9499,64 @@ Important:
     }
   });
 
+  // ---- Wren, the AI-voice talker inside Eye Gazer: saved to the child's Eye Gazer profile ----
+  const WREN_DOC_NAME = /^[A-Za-z0-9_-]{1,64}$/;
+  const WREN_DOC_MAX = 260_000;
+  const WREN_DOC_LIMIT = 600;
+  app.get('/api/eye-gaze/wren/:name', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      const name = String(req.params.name || '');
+      if (!WREN_DOC_NAME.test(name)) return res.status(400).json({ message: 'Unknown Wren document.' });
+      const { data, error } = await getAdminSupabase().from('eye_gaze_wren_docs')
+        .select('data').eq('student_id', child.id).eq('name', name).maybeSingle();
+      if (error) throw error;
+      res.set('Cache-Control', 'no-store').json(data ? { exists: true, data: data.data } : { exists: false });
+    } catch (error: any) {
+      console.error('[eye-gaze-wren] load:', error?.message);
+      res.status(503).json({ message: 'Could not load Wren right now.' });
+    }
+  });
+  app.put('/api/eye-gaze/wren/:name', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      const name = String(req.params.name || '');
+      const body = req.body?.data;
+      if (!WREN_DOC_NAME.test(name)) return res.status(400).json({ message: 'Unknown Wren document.' });
+      if (!body || typeof body !== 'object' || Array.isArray(body)) return res.status(400).json({ message: 'Nothing to save.' });
+      if (JSON.stringify(body).length > WREN_DOC_MAX) return res.status(413).json({ message: 'That is too large to save.' });
+      const admin = getAdminSupabase();
+      const { count } = await admin.from('eye_gaze_wren_docs').select('name', { count: 'exact', head: true }).eq('student_id', child.id);
+      if ((count || 0) >= WREN_DOC_LIMIT) {
+        const { data: existing } = await admin.from('eye_gaze_wren_docs').select('name').eq('student_id', child.id).eq('name', name).maybeSingle();
+        if (!existing) return res.status(413).json({ message: 'Wren is full. Remove some pictures first.' });
+      }
+      const { error } = await admin.from('eye_gaze_wren_docs')
+        .upsert({ student_id: child.id, name, data: body, updated_at: new Date().toISOString() }, { onConflict: 'student_id,name' });
+      if (error) throw error;
+      res.set('Cache-Control', 'no-store').json({ ok: true });
+    } catch (error: any) {
+      console.error('[eye-gaze-wren] save:', error?.message);
+      res.status(503).json({ message: 'Could not save Wren right now.' });
+    }
+  });
+  app.delete('/api/eye-gaze/wren/:name', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      const name = String(req.params.name || '');
+      if (!WREN_DOC_NAME.test(name)) return res.status(400).json({ message: 'Unknown Wren document.' });
+      const { error } = await getAdminSupabase().from('eye_gaze_wren_docs').delete().eq('student_id', child.id).eq('name', name);
+      if (error) throw error;
+      res.json({ ok: true });
+    } catch (error: any) {
+      console.error('[eye-gaze-wren] delete:', error?.message);
+      res.status(503).json({ message: 'Could not remove that from Wren right now.' });
+    }
+  });
+
   app.get('/api/eye-gaze/talker-state', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);

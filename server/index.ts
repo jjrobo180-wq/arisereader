@@ -152,6 +152,8 @@ declare module "http" {
 }
 
 app.use("/api/eye-gaze/talker-state", express.json({ limit: "2mb" }));
+// Wren documents: boards and settings, or one added picture (each under 260 KB).
+app.use("/api/eye-gaze/wren", express.json({ limit: "400kb" }));
 // Build Zone worlds can be a few hundred kilobytes once they're full of builds.
 app.use("/api/city/build", express.json({ limit: "600kb" }));
 
