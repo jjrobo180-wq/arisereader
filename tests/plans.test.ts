@@ -21,7 +21,7 @@ const on = { enforced: true, now: NOW };
 test("the prices are the ones on the pricing page", () => {
   assert.equal(usd(PLANS.teacher.monthlyCents), "$20");
   assert.equal(PLANS.teacher.studentsPerBlock, 99);
-  assert.equal(usd(PLANS.school.monthlyCents), "$100");
+  assert.equal(usd(PLANS.school.yearlyCents), "$600");
   assert.equal(PLANS.school.studentCap, 5000);
   assert.equal(PLANS.parentMaxChildren, 3);
   assert.equal(usd(1250), "$12.50");

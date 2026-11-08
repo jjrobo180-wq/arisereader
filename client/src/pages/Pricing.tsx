@@ -61,7 +61,7 @@ export default function Pricing() {
         <article className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm" data-testid="pricing-school">
           <p className="text-xs font-black uppercase tracking-widest text-sky-700">Schools<span className="ml-2 inline-block rounded-full bg-sky-100 text-sky-800 px-2.5 py-1 align-middle text-[11px] font-black uppercase tracking-wider">School discount</span></p>
           <h2 className="mt-3 text-2xl font-black">Whole School</h2>
-          <p className="mt-3 text-5xl font-black">{usd(PLANS.school.monthlyCents)} <span className="text-sm font-semibold text-slate-500">/ month</span></p>
+          <p className="mt-3 text-5xl font-black">{usd(PLANS.school.yearlyCents)} <span className="text-sm font-semibold text-slate-500">/ school year</span></p>
           <p className="mt-2 text-xs font-bold text-sky-700">Discounted school-wide price, our biggest savings per student.</p>
           <p className="mt-3 text-sm leading-6 text-slate-600">Every teacher and every student at your school, each teacher with their own account.</p>
           <ul className="mt-6 space-y-3 text-sm font-semibold"><li>✓ Unlimited teachers</li><li>✓ Up to {PLANS.school.studentCap.toLocaleString("en-US")} students</li><li>✓ Every book and quiz</li><li>✓ School-wide reports</li><li>✓ One bill for the whole school</li></ul>

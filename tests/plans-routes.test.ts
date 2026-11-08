@@ -274,8 +274,8 @@ test("checkout builds the right Stripe order", async (t) => {
   await call(50, "POST", "/api/billing/checkout", { kind: "school", blocks: 40 });
   f = calls.at(-1)!;
   assert.equal(f.form.get("line_items[0][quantity]"), "1");
-  assert.equal(f.form.get("line_items[0][price_data][unit_amount]"), "10000");
-  assert.equal(f.form.get("line_items[0][price_data][recurring][interval]"), "month");
+  assert.equal(f.form.get("line_items[0][price_data][unit_amount]"), "60000");
+  assert.equal(f.form.get("line_items[0][price_data][recurring][interval]"), "year");
   assert.equal(f.form.get("metadata[kind]"), "school");
   assert.equal(f.form.get("metadata[ownerId]"), "3", "the buyer's own school, never one named in the request");
 

@@ -58,7 +58,7 @@ export default function ReaderSubscribe() {
   const plans = [
     { who: "Families", price: usd(PLANS.bundle.familyMonthlyCents), what: `A parent and up to ${PLANS.parentMaxChildren} children` },
     { who: "Teachers", price: usd(PLANS.teacher.monthlyCents), what: `Teacher discount · up to ${PLANS.teacher.studentsPerBlock} students` },
-    { who: "Schools", price: usd(PLANS.school.monthlyCents), what: "School discount · every teacher and student" },
+    { who: "Schools", price: usd(PLANS.school.yearlyCents), per: "/yr", what: "School discount · every teacher and student" },
   ];
 
   return (
@@ -78,7 +78,7 @@ export default function ReaderSubscribe() {
               ? "Ask a parent to get the family plan, or ask your teacher to add you to their class. Then sign in again."
               : role === "parent"
                 ? `${usd(PLANS.bundle.familyMonthlyCents)} a month covers you and up to ${PLANS.parentMaxChildren} linked children: every book, quiz and reward.`
-                : `${usd(PLANS.teacher.monthlyCents)} a month covers up to ${PLANS.teacher.studentsPerBlock} students. A whole school is ${usd(PLANS.school.monthlyCents)} a month.`}
+                : `${usd(PLANS.teacher.monthlyCents)} a month covers up to ${PLANS.teacher.studentsPerBlock} students. A whole school is ${usd(PLANS.school.yearlyCents)} for the school year.`}
           </p>
           <ul className="mt-5 space-y-2.5 text-[15px] text-slate-200">
             {["Every book, story and quiz", "Points, badges, streaks and rewards", "Games and avatar worlds", "Teacher and parent dashboards"].map((t) => (
@@ -106,7 +106,7 @@ export default function ReaderSubscribe() {
           {plans.map((p) => (
             <div key={p.who} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{p.who}</p>
-              <p className="mt-1 text-xl font-black">{p.price}<span className="text-xs font-semibold text-slate-400">/mo</span></p>
+              <p className="mt-1 text-xl font-black">{p.price}<span className="text-xs font-semibold text-slate-400">{(p as any).per || "/mo"}</span></p>
               <p className="mt-1 text-xs leading-4 text-slate-400">{p.what}</p>
             </div>
           ))}

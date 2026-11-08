@@ -143,7 +143,7 @@ test("Premium checkout is unchanged", async () => {
   const s = await call("POST", "/api/billing/checkout", 51, { kind: "school" });
   assert.equal(s.status, 200, JSON.stringify(s.body));
   f = calls[1].form;
-  assert.deepEqual([f.get("line_items[0][quantity]"), f.get("line_items[0][price_data][unit_amount]"), f.get("line_items[0][price_data][recurring][interval]")], ["1", "10000", "month"]);
+  assert.deepEqual([f.get("line_items[0][quantity]"), f.get("line_items[0][price_data][unit_amount]"), f.get("line_items[0][price_data][recurring][interval]")], ["1", "60000", "year"]);
   const none = await call("POST", "/api/billing/checkout", 50, {});
   assert.equal(none.status, 200);
   assert.equal(calls.filter((c) => c.method === "POST").at(-1).form.get("metadata[kind]"), "teacher");

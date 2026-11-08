@@ -704,7 +704,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         enforced: await enforced(), premium: e.premium, via: e.via, seats: e.seats, endsAt: e.endsAt,
         payment: !!(await stripeKey()),
         reader: await readerAccess(user),
-        prices: { teacherMonthlyCents: PLANS.teacher.monthlyCents, studentsPerBlock: PLANS.teacher.studentsPerBlock, maxBlocks: PLANS.teacher.maxBlocks, schoolMonthlyCents: PLANS.school.monthlyCents, schoolStudentCap: PLANS.school.studentCap, familyMonthlyCents: PLANS.bundle.familyMonthlyCents },
+        prices: { teacherMonthlyCents: PLANS.teacher.monthlyCents, studentsPerBlock: PLANS.teacher.studentsPerBlock, maxBlocks: PLANS.teacher.maxBlocks, schoolYearlyCents: PLANS.school.yearlyCents, schoolStudentCap: PLANS.school.studentCap, familyMonthlyCents: PLANS.bundle.familyMonthlyCents },
       };
       if (user.role === "teacher" && !user.isAdmin) {
         const schoolId = schoolOf(user);

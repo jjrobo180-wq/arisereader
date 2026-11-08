@@ -14,7 +14,7 @@ export type PlanInfo = {
   endsAt: string | null;
   /** Can Premium be bought online right now? */
   payment: boolean;
-  prices: { teacherMonthlyCents: number; studentsPerBlock: number; maxBlocks: number; schoolMonthlyCents: number; schoolStudentCap: number; familyMonthlyCents: number };
+  prices: { teacherMonthlyCents: number; studentsPerBlock: number; maxBlocks: number; schoolYearlyCents: number; schoolStudentCap: number; familyMonthlyCents: number };
   /** A.R.I.S.E. Reader (paid since November 9, 2026): may this person use it, and why. */
   reader?: { access: boolean; via: string | null };
   /** Teachers only. */

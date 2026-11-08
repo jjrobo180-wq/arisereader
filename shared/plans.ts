@@ -28,8 +28,8 @@ export const PLANS = {
     maxBlocks: 50,
   },
   school: {
-    /** $100 a month for an entire school: every teacher and student there. */
-    monthlyCents: 10000,
+    /** $600 for a full school year: every teacher and student there. */
+    yearlyCents: 60000,
     studentCap: 5000,
   },
   /** Arise WorkHub, the add-on: the same prices as Premium, counted against the students in the teacher's Hub caseload. */
@@ -175,7 +175,7 @@ export const schoolKindOf = (kind: PlanKind): PlanKind => (isHubKind(kind) ? "hu
 export const teacherKindOf = (kind: PlanKind): PlanKind => (isHubKind(kind) ? "hub_teacher" : "teacher");
 /** Price and size of a plan, by kind. */
 export function priceOf(kind: PlanKind): { cents: number; interval: "month" | "year"; seats: (blocks: number) => number } {
-  if (kind === "school") return { cents: PLANS.school.monthlyCents, interval: "month", seats: () => PLANS.school.studentCap };
+  if (kind === "school") return { cents: PLANS.school.yearlyCents, interval: "year", seats: () => PLANS.school.studentCap };
   if (kind === "hub_school") return { cents: PLANS.hub.schoolYearlyCents, interval: "year", seats: () => PLANS.hub.schoolStudentCap };
   if (kind === "social") return { cents: PLANS.social.monthlyCents, interval: "month", seats: () => 1 };
   if (kind === "bundle_family") return { cents: PLANS.bundle.familyMonthlyCents, interval: "month", seats: () => 1 };
@@ -394,7 +394,7 @@ export type ReaderFacts = {
 /**
  * Can this person use A.R.I.S.E. Reader? From November 9, 2026 Reader is paid: $7 a month for a
  * family (the parent and up to 3 linked children), $20 a month per 99 students for a teacher, or
- * $100 a month for a whole school. Everyone who had an account before then keeps it free through the school year, and so do
+ * $600 a school year for a whole school. Everyone who had an account before then keeps it free through the school year, and so do
  * the students of a teacher who has it. Unlike Premium this does not wait for plan rules to be on.
  */
 export function readerAccessFor(person: (PlanPerson & { username?: string | null }) | null | undefined, facts: ReaderFacts): ReaderAccess {

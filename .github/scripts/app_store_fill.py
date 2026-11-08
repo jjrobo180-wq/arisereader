@@ -72,7 +72,7 @@ FOR EVERY KIND OF READER
 PLANS
 - Families: $7 a month for a parent and up to 3 children
 - Teachers: $20 a month for up to 99 students
-- Schools: $100 a month for every teacher and student
+- Schools: $600 a school year for every teacher and student
 Plans are bought on arisereader.com.
 
 Built by a teacher. Notifications let students know when their teacher sends a message, and a daily reminder keeps the reading streak going."""
@@ -230,7 +230,7 @@ if not os.environ.get("CONTACT_PHONE"):
 # App Review: the sample account, and the contact when given.
 def review():
     attrs = {"demoAccountRequired": True, "demoAccountName": demo_user, "demoAccountPassword": demo_pass,
-             "notes": "Sign in with the student account above (on the sign-in screen, choose Student). It's a sample account with full access, and it never appears on leaderboards. Notifications appear when a teacher sends the student a message; the daily reading reminder can be set on first sign-in. Plans (families $7/month, teachers $20/month, schools $100/month) are not sold in the app: an account without a plan sees a screen with a button that opens arisereader.com in Safari, which is why the app is offered on the United States App Store only."}
+             "notes": "Sign in with the student account above (on the sign-in screen, choose Student). It's a sample account with full access, and it never appears on leaderboards. Notifications appear when a teacher sends the student a message; the daily reading reminder can be set on first sign-in. Plans (families $7/month, teachers $20/month, schools $600/school year) are not sold in the app: an account without a plan sees a screen with a button that opens arisereader.com in Safari, which is why the app is offered on the United States App Store only."}
     for k, env in (("contactFirstName", "CONTACT_FIRST"), ("contactLastName", "CONTACT_LAST"), ("contactPhone", "CONTACT_PHONE"), ("contactEmail", "CONTACT_EMAIL")):
         if os.environ.get(env):
             attrs[k] = os.environ[env]
