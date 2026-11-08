@@ -39,6 +39,8 @@ import { AI_LIMIT, FAIR_USE, UNLIMITED_AI_PER_MONTH, UNLIMITED_MONTHLY_CENTS, UN
 export const READER_LOCKED = ["/api/books", "/api/student", "/api/custom-quizzes", "/api/reading-assessment", "/api/quiz-review", "/api/quiz-requests", "/api/instant-quiz", "/api/iarise-course", "/api/fyp", "/api/reading-profile", "/api/avatar-world", "/api/news/books", "/api/reads/books", "/api/leaderboard", "/api/parent", "/api/teacher"];
 export const READER_PLAN_REQUIRED = "reader_plan_required";
 
+const isEyeGazer = (u: any) => !!(u && (u.is_eye_gaze_user || u.isEyeGazeUser));
+
 type AnyUser = {
   id: number; username?: string; displayName?: string; role?: string; isAdmin?: boolean; email?: string | null;
   createdAt?: unknown; teacherId?: number | null; school_id?: number | null; schoolId?: number | null;
@@ -479,6 +481,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   };
   const entitlement = async (user: AnyUser | null | undefined): Promise<Entitlement> => {
     if (!user || !posInt(user.id)) return { premium: false, via: null, seats: null, endsAt: null };
+    // A.R.I.S.E. Eye Gazer is 100% free: an Eye Gazer has every extra.
+    if (isEyeGazer(user)) return { premium: true, via: "demo", seats: null, endsAt: null };
     const key = `${user.id}|${user.role || ""}|${user.isAdmin ? 1 : 0}`;
     const hit = cache.get(key);
     if (hit && now() - hit.at < CACHE_MS) return hit.value;
@@ -513,9 +517,13 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const p = { ...person(user), username: user.username };
       const facts: ReaderFacts = { now: now() };
       // Most people are existing accounts: no plan lookups for them.
-      const quick = readerAccessFor(p, facts);
+      const quick = isEyeGazer(user) ? { access: true, via: "sample" as const } : readerAccessFor(p, facts);
       let value = quick;
-      if (!quick.access) {
+      // A parent of an Eye Gazer child: Eye Gazer is free, so its parent tools are too.
+      if (!quick.access && user.role === "parent") {
+        for (const id of await linkedChildren(user)) { if (isEyeGazer(await deps.getUser(id))) { value = { access: true, via: "sample" }; break; } }
+      }
+      if (!value.access) {
         if (user.role === "teacher") {
           facts.teacherGrant = await current("teacher", user.id);
           facts.schoolGrant = await current("school", schoolOf(user));

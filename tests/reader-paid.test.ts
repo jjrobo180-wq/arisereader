@@ -63,3 +63,10 @@ test("a scholarship form on the pricing page, read in Admin", () => {
   assert.match(readFileSync("server/plans.ts", "utf8"), /app\.post\("\/api\/reader-scholarship"/);
   assert.match(readFileSync("client/src/pages/Admin.tsx", "utf8"), /<AdminScholarships \/>/);
 });
+
+test("Eye Gazer is 100% free: Eye Gazers have every extra and are never asked for a Reader plan", () => {
+  const src = readFileSync("server/plans.ts", "utf8");
+  assert.match(src, /if \(isEyeGazer\(user\)\) return \{ premium: true/);
+  assert.match(src, /isEyeGazer\(user\) \? \{ access: true/);
+  assert.match(src, /if \(isEyeGazer\(await deps\.getUser\(id\)\)\)/, "a parent of an Eye Gazer child");
+});
