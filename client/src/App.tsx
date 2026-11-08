@@ -183,6 +183,7 @@ const ReadingLevelUp = lazyPage(() => import("./pages/ReadingLevelUp"));
 const EyeGazeBuddyWorld = lazyPage(() => import("./pages/EyeGazeBuddyWorld"));
 const EyeGazeMyWorld = lazyPage(() => import("./pages/EyeGazeMyWorld"));
 const EyeGazeBuddy = lazyPage(() => import("./pages/EyeGazeBuddy"));
+const EyeGazeWren = lazyPage(() => import("./pages/EyeGazeWren"));
 const EyeGazeTalker = lazyPage(() => import("./pages/EyeGazeTalker"));
 const EyeGazeParentMode = lazyPage(() => import("./pages/EyeGazeParentMode"));
 const EyeGazeTV = lazyPage(() => import("./pages/EyeGazeTV"));
@@ -941,6 +942,10 @@ function AppRoutes() {
       <Route path="/eye-gaze-home">
         <ProtectedRoute><EyeGazeHome /></ProtectedRoute>
       </Route>
+      {/* Wren, the AI-voice talker, inside the Eye Gazer app (same grown-up permission as My Talker). */}
+      <Route path="/eye-gaze-wren">
+        {isEyeGazeStudent || user?.role === 'parent' ? <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-talker"><EyeGazeWren /></EyeGazeAccessGate></ProtectedRoute> : <Redirect to="/" replace />}
+      </Route>
       <Route path="/eye-gaze-buddy">
         <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-buddy"><EyeGazeBuddy /></EyeGazeAccessGate></ProtectedRoute>
       </Route>
@@ -1087,7 +1092,7 @@ function AppInner() {
       {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <AdvisoryChallengePopup onNavigate={(path) => { window.location.hash = path; }} />}
       {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <ClassTeachersPopup />}
-      {overlays && isStudent && !isAdminPreview && !isDemoStudent && <ParentConnectionBanner />}
+      {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <ParentConnectionBanner />}
       {overlays && !isAdminPreview && !isDemoStudent && !isEyeGazeStudent && <WelcomeGuide />}
       {overlays && !isAdminPreview && <InstallAppPrompt />}
       {overlays && !isAdminPreview && !isReaderApp() && (user?.role === "teacher" || user?.role === "parent" || user?.role === "todo" || user?.isAdmin) && <WorkHubTour />}

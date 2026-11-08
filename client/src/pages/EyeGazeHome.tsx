@@ -30,15 +30,16 @@ type HomeAction = {
 // Few, large, always in the same place: children (autistic children especially) find their way by where things
 // are, so the order never changes and each choice is one word with one picture.
 const ACTIONS: HomeAction[] = [
-  { title: "Talk", subtitle: "Say what I want", emoji: "🗣️", path: "/eye-gaze-talker", bg: "#e3f3ef", ink: "#1f6f65", primary: true },
-  { title: "Play", subtitle: "Fun games", emoji: "🎮", path: "/eye-gaze-games", bg: "#fdeedd", ink: "#a85d17", primary: true },
-  { title: "Learn", subtitle: "Lessons and books", emoji: "📚", path: "/eye-gaze-lessons", bg: "#e5edfb", ink: "#2f5fae", primary: true },
-  { title: "Life Skills", subtitle: "Every day steps", emoji: "🌟", path: "/eye-gaze-life-skills", bg: "#fbf3d6", ink: "#8a6a10", primary: true },
-  { title: "My World", subtitle: "My rooms and people", emoji: "🏠", path: "/my-world", bg: "#e6f4e2", ink: "#3c7a32", primary: true },
-  { title: "Shorts", subtitle: "Short videos", emoji: "📺", path: "/eye-gaze-tv", bg: "#eef0f4", ink: "#46506a", primary: false },
-  { title: "Flash Cards", subtitle: "See it, hear it", emoji: "🃏", path: "/eye-gaze-flashcards", bg: "#eef0f4", ink: "#46506a", primary: false },
-  { title: "My Buddy", subtitle: "My learning friend", emoji: "🐶", path: "/eye-gaze-buddy", bg: "#eef0f4", ink: "#46506a", primary: false },
-  { title: "My Stars", subtitle: "What I learned", emoji: "⭐", path: "/leaderboard", bg: "#eef0f4", ink: "#46506a", primary: false },
+  { title: "Talk", subtitle: "Say what I want", emoji: "🗣️", path: "/eye-gaze-talker", bg: "#ede9fe", ink: "#191b35", primary: true },
+  { title: "Play", subtitle: "Fun games", emoji: "🎮", path: "/eye-gaze-games", bg: "#ffedd5", ink: "#191b35", primary: true },
+  { title: "Learn", subtitle: "Lessons and books", emoji: "📚", path: "/eye-gaze-lessons", bg: "#e0f2fe", ink: "#191b35", primary: true },
+  { title: "Life Skills", subtitle: "Every day steps", emoji: "🌟", path: "/eye-gaze-life-skills", bg: "#fef3c7", ink: "#191b35", primary: true },
+  { title: "My World", subtitle: "My rooms and people", emoji: "🏠", path: "/my-world", bg: "#dcfce7", ink: "#191b35", primary: true },
+  { title: "Wren", subtitle: "My AI voice", emoji: "🐦", path: "/eye-gaze-wren", bg: "#fce7f3", ink: "#191b35", primary: true },
+  { title: "Shorts", subtitle: "Short videos", emoji: "📺", path: "/eye-gaze-tv", bg: "#f1f5f9", ink: "#191b35", primary: false },
+  { title: "Flash Cards", subtitle: "See it, hear it", emoji: "🃏", path: "/eye-gaze-flashcards", bg: "#f1f5f9", ink: "#191b35", primary: false },
+  { title: "My Buddy", subtitle: "My learning friend", emoji: "🐶", path: "/eye-gaze-buddy", bg: "#f1f5f9", ink: "#191b35", primary: false },
+  { title: "My Stars", subtitle: "What I learned", emoji: "⭐", path: "/leaderboard", bg: "#f1f5f9", ink: "#191b35", primary: false },
 ];
 
 /** Says the choice out loud with the app's natural AI voice (never the phone's robot voice), as it opens:
@@ -79,7 +80,8 @@ export default function EyeGazeHome() {
 
   const firstName = user?.displayName?.split(" ")[0] || user?.username || "Friend";
   const allowed = (path: string) => path === "/eye-gaze-games" ? (pathAllowed(path, controls) || pathAllowed("/library", controls))
-    : path === "/eye-gaze-lessons" ? pathAllowed("/library", controls) : pathAllowed(path, controls);
+    : path === "/eye-gaze-lessons" ? pathAllowed("/library", controls)
+    : path === "/eye-gaze-wren" ? pathAllowed("/eye-gaze-talker", controls) : pathAllowed(path, controls);
   const visible = ACTIONS.filter(action => allowed(action.path));
   const primary = visible.filter(action => action.primary);
   const more = visible.filter(action => !action.primary);
@@ -88,40 +90,41 @@ export default function EyeGazeHome() {
   return (
     <main className="mx-auto max-w-5xl space-y-6 px-4 pb-8 pt-5 sm:px-6">
       <QuizReadyBanner />
-      <section className="flex items-center gap-4 rounded-[28px] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,.04),0_8px_24px_rgba(31,38,51,.06)] sm:p-6">
-        <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-[#fff4d6] text-4xl sm:h-20 sm:w-20 sm:text-5xl" aria-hidden>😊</div>
+      <section className="flex items-center gap-4 rounded-[1.75rem] border border-[#e5e8f4] bg-white p-5 shadow-xl shadow-violet-100/60 sm:p-6">
+        <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-violet-100 text-4xl sm:h-20 sm:w-20 sm:text-5xl" aria-hidden>😊</div>
         <div className="min-w-0 flex-1">
-          <h1 className="text-[26px] font-extrabold leading-tight tracking-[-0.015em] text-[#1f2633] sm:text-4xl">{greeting()}, {firstName}!</h1>
-          <p className="mt-1 text-[17px] font-semibold text-[#6b7180] sm:text-xl">What do you want to do?</p>
-          {controls.enabled && <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#e3f3ef] px-3 py-1 text-xs font-bold text-[#1f6f65]">👨‍👩‍👧 A grown-up set up my choices</p>}
+          <p className="text-xs font-black uppercase tracking-[.22em] text-violet-700">Eye Gazer</p>
+          <h1 className="mt-1 text-[26px] font-black leading-tight tracking-tight text-[#191b35] sm:text-4xl">{greeting()}, <span className="text-violet-700">{firstName}!</span></h1>
+          <p className="mt-1 text-[17px] font-medium text-slate-600 sm:text-xl">What do you want to do?</p>
+          {controls.enabled && <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">👨‍👩‍👧 A grown-up set up my choices</p>}
         </div>
-        <button type="button" onClick={() => navigate("/leaderboard")} className="eg-press hidden flex-shrink-0 flex-col items-center rounded-2xl bg-[#fbf3d6] px-4 py-2.5 sm:flex" aria-label={`${stats.totalPoints} stars`}>
-          <span className="text-2xl font-extrabold text-[#8a6a10]">⭐ {stats.totalPoints}</span>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#a88a35]">Stars</span>
+        <button type="button" onClick={() => navigate("/leaderboard")} className="eg-press hidden flex-shrink-0 flex-col items-center rounded-2xl bg-violet-700 px-4 py-2.5 text-white shadow-lg shadow-violet-200 sm:flex" aria-label={`${stats.totalPoints} stars`}>
+          <span className="text-2xl font-extrabold">⭐ {stats.totalPoints}</span>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-violet-200">Stars</span>
         </button>
       </section>
 
       <section aria-label="Choices" className="grid grid-cols-2 gap-4 lg:grid-cols-6">
         {primary.map((action, i) => (
           <button key={action.path} type="button" onClick={() => open(action)}
-            className={"eg-press flex min-h-[176px] flex-col items-center justify-center rounded-[28px] p-4 text-center shadow-[0_1px_2px_rgba(0,0,0,.04)] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#2f8f83]/40 sm:min-h-[210px] " + (primary.length % 2 === 1 && i === primary.length - 1 ? "col-span-2 " : "") + (primary.length === 5 ? (i < 3 ? "lg:col-span-2" : "lg:col-span-3") : "lg:col-span-2")}
-            style={{ background: action.bg }}>
-            <span className="flex h-20 w-20 items-center justify-center rounded-full bg-white/80 text-[46px] sm:h-24 sm:w-24 sm:text-[54px]" aria-hidden>{action.emoji}</span>
-            <span className="mt-3 text-[24px] font-extrabold leading-tight sm:text-[28px]" style={{ color: action.ink }}>{action.title}</span>
-            <span className="mt-0.5 text-[14px] font-semibold text-[#6b7180] sm:text-base">{action.subtitle}</span>
+            className={"eg-press flex min-h-[176px] flex-col items-center justify-center rounded-[1.75rem] border border-[#e5e8f4] bg-white p-4 text-center shadow-sm hover:border-violet-300 hover:shadow-lg hover:shadow-violet-100 focus:outline-none focus-visible:ring-4 focus-visible:ring-violet-600/40 sm:min-h-[210px] " + (primary.length % 2 === 1 && i === primary.length - 1 ? "col-span-2 " : "") + (primary.length === 5 ? (i < 3 ? "lg:col-span-2" : "lg:col-span-3") : "lg:col-span-2")}
+            >
+            <span className="flex h-20 w-20 items-center justify-center rounded-full text-[46px] sm:h-24 sm:w-24 sm:text-[54px]" style={{ background: action.bg }} aria-hidden>{action.emoji}</span>
+            <span className="eg-title mt-3 text-[24px] font-extrabold leading-tight tracking-tight sm:text-[28px]" style={{ color: action.ink }}>{action.title}</span>
+            <span className="mt-0.5 text-[14px] font-medium text-slate-500 sm:text-base">{action.subtitle}</span>
           </button>
         ))}
       </section>
 
       {!!more.length && (
-        <section aria-label="More" className="rounded-[28px] bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,.04),0_8px_24px_rgba(31,38,51,.05)] sm:p-5">
-          <h2 className="mb-3 px-1 text-[15px] font-bold text-[#7a8090]">More</h2>
+        <section aria-label="More" className="rounded-[1.75rem] border border-[#e5e8f4] bg-white p-4 shadow-sm sm:p-5">
+          <h2 className="mb-3 px-1 text-xs font-black uppercase tracking-[.22em] text-violet-700">More</h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {more.map(action => (
-              <button key={action.path} type="button" onClick={() => open(action)} className="eg-press flex min-h-[108px] flex-col items-center justify-center rounded-[22px] p-3 text-center focus:outline-none focus-visible:ring-4 focus-visible:ring-[#2f8f83]/40" style={{ background: action.bg }}>
+              <button key={action.path} type="button" onClick={() => open(action)} className="eg-press flex min-h-[108px] flex-col items-center justify-center rounded-[1.25rem] border border-[#eef0f6] bg-[#fafaff] p-3 text-center hover:border-violet-300 focus:outline-none focus-visible:ring-4 focus-visible:ring-violet-600/40">
                 <span className="text-[36px]" aria-hidden>{action.emoji}</span>
                 <span className="mt-1 text-[17px] font-extrabold" style={{ color: action.ink }}>{action.title}</span>
-                <span className="text-[12.5px] font-semibold text-[#7a8090]">{action.subtitle}</span>
+                <span className="text-[12.5px] font-medium text-slate-500">{action.subtitle}</span>
               </button>
             ))}
           </div>
