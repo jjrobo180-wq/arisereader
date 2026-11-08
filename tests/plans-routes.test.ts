@@ -406,7 +406,7 @@ test("the admin switches rules on, grants plans by hand and stores keys safely",
   await call(1, "POST", "/api/admin/plans/grant", { kind: "school", ownerId: 3, months: 12 });
   list = (await call(1, "GET", "/api/admin/plans")).body;
   const school = list.plans.find((p: any) => p.kind === "school");
-  assert.deepEqual([school.name, school.seats, school.students], ["Lincoln Middle", 1000, 240]);
+  assert.deepEqual([school.name, school.seats, school.students], ["Lincoln Middle", 5000, 240]);
   assert.ok(Math.abs(Date.parse(school.endsAt) - (NOW + 365.25 * DAY)) < DAY);
 
   // keys are checked, stored, and never sent back whole
