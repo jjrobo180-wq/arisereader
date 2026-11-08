@@ -83,7 +83,7 @@ test("Arise Fit and Arise Reader use their phone's own clock space; the apps iOS
   const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
   const main = read("client/src/main.tsx");
   assert.match(main, /applyDeviceTopInset\(scale\);/);
-  assert.match(main, /nativeFlavor\(\) === "reader"\) applyDeviceTopInset\(\);/);
+  assert.match(main, /nativeFlavor\(\) === "reader"\) \{? ?applyDeviceTopInset\(\);/);
   assert.match(read("client/src/index.css"), /html\.fit-app \{ --sat: max\(env\(safe-area-inset-top, 0px\), var\(--sat-device, 0px\)\); \}/);
   assert.match(read("client/src/reader-app.css"), /--sat: max\(env\(safe-area-inset-top, 0px\), var\(--sat-device, 0px\)\);/);
   // No raw top inset is left in Fit: all of it goes through --sat.
