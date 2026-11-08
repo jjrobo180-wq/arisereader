@@ -64,17 +64,26 @@ export function useNativeBackdrop(ref: RefObject<HTMLElement | null>, deps: unkn
       if (document.querySelector("[data-backdrop-hold]")) return;
       const hex = solidBackground(el);
       if (!hex) return;
+      if (hex === shown) return;
+      shown = hex;
       html.style.backgroundColor = hex;
       body.style.backgroundColor = hex;
       sendBackdrop(hex);
     }
+    let shown = "";
     const raf = requestAnimationFrame(apply);
-    // Catches the hub appearing after loading, and theme styles or fonts settling. Cheap: a repeat is skipped.
-    const tick = window.setInterval(apply, 1000);
-    window.addEventListener(BACKDROP_REFRESH, apply);
+    // Catches the hub appearing after loading, and theme styles or fonts settling — only for the first
+    // few seconds. Checking every second forever made the phone re-work the page's styles each second
+    // (a small stutter while scrolling or typing); after that, a change of class or style on the hub
+    // and BACKDROP_REFRESH are what bring it up to date.
+    let ticks = 0;
+    const tick = window.setInterval(() => { apply(); if (++ticks >= 6 && ref.current) window.clearInterval(tick); }, 1000);
+    // Something else painted the strips (a full-screen setup page, a look): paint them again.
+    const refresh = () => { shown = ""; apply(); };
+    window.addEventListener(BACKDROP_REFRESH, refresh);
     return () => {
       cancelAnimationFrame(raf); window.clearInterval(tick); watch.disconnect();
-      window.removeEventListener(BACKDROP_REFRESH, apply);
+      window.removeEventListener(BACKDROP_REFRESH, refresh);
       html.style.overscrollBehaviorY = bounce;
       html.style.backgroundColor = before[0]; body.style.backgroundColor = before[1];
     };
