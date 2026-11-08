@@ -6,6 +6,7 @@ import { Check, Crown, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { NATIVE_NO_PURCHASE, isNativeApp } from "@/lib/nativeApp";
+import AllAccessOffer from "@/components/AllAccessOffer";
 
 type Status = { live: boolean; admin: boolean; priceCents: number; payment: boolean; endsAt: string | null; cancelAtPeriodEnd: boolean; canManage: boolean; canBuy: boolean; about?: string };
 
@@ -66,7 +67,7 @@ export default function AllAccessPage() {
                   <p className="text-sm text-slate-600">{s.admin ? "The admin account always has All Access." : s.endsAt ? `${s.cancelAtPeriodEnd ? "Ends" : "Renews"} ${date(s.endsAt)}.` : "On your account."}</p>
                   {s.canManage && !native && <button type="button" disabled={busy} onClick={() => void go("/api/all-access/portal")} className="mt-3 flex min-h-12 w-full items-center justify-center rounded-2xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50">{busy ? "Opening…" : "Manage billing"}</button>}
                 </>
-              : native ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">{NATIVE_NO_PURCHASE}</p>
+              : native ? <AllAccessOffer note={NATIVE_NO_PURCHASE} />
               : !s.canBuy ? <p className="text-sm text-slate-600">All Access is for adult accounts. Ask a parent or teacher about it.</p>
               : !s.payment ? <p className="text-sm text-slate-600">Payments aren't switched on for this site yet.</p>
               : <button type="button" disabled={busy} onClick={() => void go("/api/all-access/checkout")} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 text-sm font-bold text-white shadow-sm hover:bg-violet-700 disabled:opacity-60" data-testid="all-access-buy">{busy ? "Opening checkout…" : `Get All Access · ${price} a month`}</button>}

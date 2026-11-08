@@ -10,6 +10,7 @@ import { Check, Infinity as InfinityIcon, Sparkles, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { NATIVE_NO_PURCHASE, isNativeApp } from "@/lib/nativeApp";
+import AllAccessOffer from "@/components/AllAccessOffer";
 import { AI_LIMIT, APPS_FULL, FREE_APPS, growsPastFree } from "@shared/todoPlan";
 
 export type TodoPlan = {
@@ -173,7 +174,7 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
           <div className="mt-4">
             {isNativeApp()
               ? <div className="space-y-2">
-                  <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700" data-testid="todo-plan-native">{NATIVE_NO_PURCHASE}</p>
+                  <div data-testid="todo-plan-native"><AllAccessOffer note={NATIVE_NO_PURCHASE} /></div>
                   <button type="button" onClick={() => setReason(null)} className="flex min-h-12 w-full items-center justify-center rounded-2xl bg-slate-900 text-sm font-bold text-white">OK</button>
                 </div>
               : !plan

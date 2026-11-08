@@ -12,6 +12,7 @@ import { CODE_LEN, cleanCode } from "@shared/fitCircle";
 import { PASS_SWITCH_DAYS, PLUS_FEATURES, PLUS_NAME, PLUS_REQUIRED, freeStatus, passLink, type PlusFeature, type PlusStatus } from "@shared/fitPlus";
 import { fitApi } from "./fitStore";
 import { Btn, C, Card, Sheet, Title, display, haptic, inputCls, inputStyle } from "./fitUi";
+import AllAccessOffer from "@/components/AllAccessOffer";
 
 type Ctx = { status: PlusStatus; loaded: boolean; plus: boolean; reload: () => Promise<void>; ask: (f?: PlusFeature) => void };
 const PlusCtx = createContext<Ctx>({ status: freeStatus(), loaded: false, plus: false, reload: async () => {}, ask: () => {} });
@@ -107,7 +108,7 @@ export function PlusSheet({ status, feature, passCode, reload, say, onClose }: {
       <p className="mt-3 text-[12px]" style={{ color: C.dim }}>Workouts, programs, food, fasting, runs, recipes and your workout circle stay free.</p></Card>
 
     {!status.plus && (native
-      ? <p className="mt-3 px-1 text-[13px]" style={{ color: C.dim }}>{NATIVE_NO_PURCHASE}</p>
+      ? <AllAccessOffer className="mt-3" note={NATIVE_NO_PURCHASE} />
       : status.payment
         ? <Btn className="mt-4 w-full" onClick={() => void subscribe()} disabled={!!busy} testId="fit-plus-buy">{busy === "/billing/checkout" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Crown className="h-5 w-5" />}Get All Access · {status.price}</Btn>
         : <p className="mt-3 px-1 text-[13px]" style={{ color: C.dim }}>Payments aren't switched on for this site yet.</p>)}
