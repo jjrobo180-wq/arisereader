@@ -24,6 +24,7 @@ export type BoardProps = {
   onEditPlan: (planId: string) => void;
   onAddStudents: (key: string) => void;
   onDeleteClass: (key: string) => void;
+  onEditClass: (key: string | null) => void;
   /** Opens Edit, to set the first required minutes. */
   onSetup: () => void;
   say: (msg: string) => void;
@@ -109,13 +110,14 @@ export function ClassBoard(props: BoardProps) {
         {day !== today && <button type="button" onClick={() => setDay(today)} className="mt-3 rounded-full bg-white px-3.5 py-1.5 text-sm font-bold text-slate-950" data-testid="board-today">Back to today</button>}
       </section>
       <WeekStrip day={day} today={today} notes={notes} onDay={setDay} />
+      <button type="button" onClick={() => props.onEditClass(null)} className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-slate-950 px-4 text-sm font-bold text-white" data-testid="class-new"><Plus className="h-4 w-4" /> New class</button>
 
       {!groups.length ? (
         <div className="rounded-3xl border border-dashed border-slate-300 bg-white px-5 py-10 text-center">
           <Users className="mx-auto h-8 w-8 text-slate-400" aria-hidden />
           <p className="mt-2 text-base font-bold text-slate-900">No classes yet</p>
           <p className="mx-auto mt-1 max-w-sm text-sm text-slate-600">Add students to a block (and whose class you push in to). Each class then shows up here to mark minutes and keep notes.</p>
-          <button type="button" onClick={props.onSetup} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-2xl bg-slate-950 px-4 text-sm font-bold text-white"><Plus className="h-4 w-4" /> Set up classes</button>
+          <button type="button" onClick={() => props.onEditClass(null)} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-2xl bg-slate-950 px-4 text-sm font-bold text-white"><Plus className="h-4 w-4" /> Set up classes</button>
         </div>
       ) : (
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2" data-testid="board-classes">
@@ -162,7 +164,7 @@ export function ClassBoard(props: BoardProps) {
 }
 
 /** One class on one day. */
-function ClassPage({ workspace, setWorkspace, makeId, today, group, day, onDay, notes, blocks, onBack, onOpenNote, onOther, onEditLog, onEditPlan, onAddStudents, onDeleteClass, say }: BoardProps & {
+function ClassPage({ workspace, setWorkspace, makeId, today, group, day, onDay, notes, blocks, onBack, onOpenNote, onOther, onEditLog, onEditPlan, onAddStudents, onDeleteClass, onEditClass, say }: BoardProps & {
   group: ClassGroup; day: string; onDay: (d: string) => void; notes: PushInNote[]; blocks: ReturnType<typeof schoolBlocks>;
   onBack: () => void; onOpenNote: (note: PushInNote, isNew: boolean) => void;
 }) {
@@ -215,6 +217,7 @@ function ClassPage({ workspace, setWorkspace, makeId, today, group, day, onDay, 
           <button type="button" onClick={() => setMenu((m) => !m)} aria-expanded={menu} aria-label="Class options" className="grid h-11 w-11 place-items-center rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200" data-testid="class-menu"><MoreHorizontal className="h-5 w-5" /></button>
           {menu && <div className="absolute right-0 z-30 mt-1 w-56 overflow-hidden rounded-2xl bg-white py-1 shadow-xl ring-1 ring-slate-200" role="menu">
             <button type="button" role="menuitem" onClick={() => { setMenu(false); onAddStudents(group.key); }} className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold text-slate-800 hover:bg-slate-50"><UserPlus className="h-4 w-4" /> Add students</button>
+            <button type="button" role="menuitem" onClick={() => { setMenu(false); onEditClass(group.key); }} className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold text-slate-800 hover:bg-slate-50" data-testid="class-edit"><Pencil className="h-4 w-4" /> Edit class (teacher, subject, block)</button>
             <button type="button" role="menuitem" onClick={() => { setMenu(false); onDeleteClass(group.key); }} className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4" /> Delete class</button>
           </div>}
         </div>

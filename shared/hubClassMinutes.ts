@@ -223,3 +223,35 @@ export function leaveClass(services: ServicePlan[], planId: string): ServicePlan
     return rest;
   });
 }
+
+/** What a class's students share: where it is, whose it is, and what it is for. */
+export type ClassChange = { block?: string; part?: string; teacher?: string; subject?: string };
+
+/** Changes a class's block, half, teacher and subject for every student in it. Anything left empty is cleared. */
+export function editClass(services: ServicePlan[], group: ClassGroup, change: ClassChange): ServicePlan[] {
+  const ids = new Set(group.students.map((s) => s.planId));
+  const block = change.block || "", part = block ? cleanPart(change.part) : undefined;
+  const teacher = cleanTeacher(change.teacher), subject = cleanSubject(change.subject);
+  return services.map((p) => {
+    if (!ids.has(p.id)) return p;
+    const { block: _b, part: _p, teacher: _t, subject: _s, ...rest } = p;
+    return { ...rest, ...(block ? { block } : {}), ...(part ? { part } : {}), ...(teacher ? { teacher } : {}), ...(subject ? { subject } : {}) };
+  });
+}
+
+/** A new class: each name gets the service with the same place, teacher, subject and weekly minutes. A name that already has that kind of service moves into it. */
+export function createClass(services: ServicePlan[], names: string[], fields: ClassChange & { kind: string; minutesPerWeek: number }, makeId: () => string, since: string): ServicePlan[] {
+  const block = fields.block || "", part = block ? cleanPart(fields.part) : undefined;
+  const teacher = cleanTeacher(fields.teacher), subject = cleanSubject(fields.subject);
+  const place = { ...(block ? { block } : {}), ...(part ? { part } : {}), ...(teacher ? { teacher } : {}), ...(subject ? { subject } : {}) };
+  let next = services;
+  for (const raw of names) {
+    const student = raw.trim();
+    if (!student) continue;
+    const existing = next.find((p) => samePerson(p.student, student) && p.kind === fields.kind);
+    next = existing
+      ? next.map((p) => { if (p !== existing) return p; const { block: _b, part: _p, teacher: _t, subject: _s, ...rest } = p; return { ...rest, ...place }; })
+      : [...next, { id: makeId(), student, kind: fields.kind, minutesPerWeek: fields.minutesPerWeek, ...place, since }];
+  }
+  return next;
+}
