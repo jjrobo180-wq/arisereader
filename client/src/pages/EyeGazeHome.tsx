@@ -1,3 +1,4 @@
+import { sayAI } from "@/lib/aiVoice";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
@@ -40,16 +41,10 @@ const ACTIONS: HomeAction[] = [
   { title: "My Stars", subtitle: "What I learned", emoji: "⭐", path: "/leaderboard", bg: "#eef0f4", ink: "#46506a", primary: false },
 ];
 
-/** Says the choice out loud, gently, as it opens (children who don't read yet hear where they're going). */
+/** Says the choice out loud with the app's natural AI voice (never the phone's robot voice), as it opens:
+ *  children who don't read yet hear where they're going. Quietly does nothing when there's no voice. */
 function sayIt(text: string) {
-  try {
-    const synth = window.speechSynthesis;
-    if (!synth) return;
-    synth.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.rate = 0.95; u.pitch = 1.05; u.volume = 0.9;
-    synth.speak(u);
-  } catch { /* no voice: the picture and the word are enough */ }
+  void sayAI(text, { voice: "calm" }).catch(() => false);
 }
 
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; };
