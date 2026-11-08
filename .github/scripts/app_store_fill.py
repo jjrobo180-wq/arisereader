@@ -73,7 +73,7 @@ PLANS
 - Families: $7 a month for a parent and up to 3 children
 - Teachers: $20 a month for up to 99 students
 - Schools: $100 a month for every teacher and student
-Every plan includes A.R.I.S.E. Math, History and Connect. Plans are bought on arisereader.com.
+Plans are bought on arisereader.com.
 
 Built by a teacher. Notifications let students know when their teacher sends a message, and a daily reminder keeps the reading streak going."""
 KEYWORDS = "reading,books,quiz,kids,students,teacher,classroom,literacy,AR,rewards,library,read aloud"
