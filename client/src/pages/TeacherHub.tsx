@@ -92,6 +92,7 @@ import { addDays, dueState, friendlyDate, relativeDays, type DueState } from "@s
 import { TASK_LIST_COLORS, TASK_SORTS, TASK_VIEWS, archiveTask, arrangeTasks, cleanTaskLists, clearDone, removeTaskList, restoreTasks, saveTask, taskCounts, undoTask, viewCounts, viewTasks, type TaskFields, type TaskFilter, type TaskSort, type TaskView } from "@shared/hubTasks";
 import { useSavedChoice } from "@/lib/useSavedChoice";
 import HubLessons from "@/components/teacher-hub/HubLessons";
+import { HubClassesCard } from "@/components/teacher-hub/HubClassesCard";
 import HubGoalBoard from "@/components/teacher-hub/HubGoalBoard";
 import { cleanSenderName } from "@shared/hubMeetings";
 import { deadlineLabel, meetingDeadline } from "@shared/meetingDeadline";
@@ -591,6 +592,7 @@ function TeacherHubPage() {
     return () => window.removeEventListener(OPEN_EMAIL_EVENT, open);
   }, []);
 
+  const [classesOpen, setClassesOpen] = useState(false);
   const [quickEvent, setQuickEvent] = useState(false);
   /** The student whose profile is open on the Caseload tab. It stays open while the teacher looks at another tab and comes back. */
   const [profileStudent, setProfileStudent] = useStayOnRefresh<string | null>("work-student", null);
@@ -1026,7 +1028,7 @@ function TeacherHubPage() {
   const osTasks = workspace.tasks.filter((t) => !t.archived).map((t) => { const list = osLists.find((l) => l.id === t.listId); return { id: t.id, title: t.title, done: t.done, due: t.dueDate, late: !t.done && !!t.dueDate && t.dueDate < osToday, dueLabel: t.dueDate ? new Date(`${t.dueDate}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "", listName: list?.name ?? "", color: list?.color ?? "", assignee: "", notes: t.notes ?? "" }; });
   // Notes about a student show only their title outside the Notes app, so nothing private sits on Home.
   const osNotes = [...workspace.notes].sort((a, b) => (b.date || "").localeCompare(a.date || "")).map((n) => ({ id: n.id, title: n.title || n.type || "Note", body: n.student ? "" : n.body, locked: n.locked, when: n.date }));
-  const osShortcuts = (["caseload", "lessons", "iep", "goals"] as const).filter((t) => isTabOn(t, visible, !!user.isAdmin)).map((t) => ({ id: t, label: TAB_META.find((m) => m.id === t)?.label || t, onClick: () => goTab(t) }));
+  const osShortcuts = [{ id: "classes", label: "Classes", onClick: () => setClassesOpen(true) }, ...(["caseload", "lessons", "iep", "goals"] as const).filter((t) => isTabOn(t, visible, !!user.isAdmin)).map((t) => ({ id: t, label: TAB_META.find((m) => m.id === t)?.label || t, onClick: () => goTab(t) }))];
   // The bell: in the header, or in the themed top bar beside the Work/Life switch.
   const workBell = <NotificationBell
               extraItems={hubReady ? workAlerts(workspace, TODAY(), Date.now(), pollAnswers.unread, pollAnswers.replies.filter((r) => r.unread).map((r) => r.at).sort().pop() || "") : undefined}
@@ -1720,6 +1722,10 @@ function TeacherHubPage() {
                   <Field placeholder="Grade / band" value={workspace.profile.gradeBand} onChange={(e) => setWorkspace((p) => ({ ...p, profile: { ...p.profile, gradeBand: e.target.value } }))} />
                   <Field placeholder="Subject / role" value={workspace.profile.subject} onChange={(e) => setWorkspace((p) => ({ ...p, profile: { ...p.profile, subject: e.target.value } }))} />
                 </div>
+                <div className="mt-5 border-t border-slate-100 pt-4">
+                  <h3 className="mb-2 text-sm font-bold text-slate-900">Classes, subjects &amp; teachers</h3>
+                  <HubClassesCard workspace={workspace} setWorkspace={setWorkspace} makeId={id} />
+                </div>
               </Card>
                   ),
                 };
@@ -1796,6 +1802,7 @@ function TeacherHubPage() {
       {searching && <HubSearch entries={searchEntries} hubName="WorkHub" accent="bg-teal-700" onClose={() => setSearching(false)} />}
       {privacy && <AccountPrivacy onClose={() => setPrivacy(false)} />}
       {pollsOpen && <PollAnswers replies={pollAnswers.replies} markRead={pollAnswers.markRead} onClose={() => setPollsOpen(false)} onOpenMeetings={() => setTab("iep")} />}
+      {classesOpen && <HubModal title="Classes, subjects & teachers" size="lg" closeOnBackdrop onClose={() => setClassesOpen(false)}><HubClassesCard workspace={workspace} setWorkspace={setWorkspace} makeId={id} /></HubModal>}
       {notifyOpen && <HubModal title="Notification settings" onClose={() => setNotifyOpen(false)} closeOnBackdrop size="lg"><HubNotifySettings token={token} workspace={workspace} setWorkspace={setWorkspace} inModal /></HubModal>}
       {briefOpen && canUseHub && loaded && !loadError && <DailyBrief hub="work" brief={buildWorkBrief(workspace, TODAY(), new Date().getHours(), (user.displayName || "").split(" ")[0])} onClose={() => setBriefOpen(false)} onOpen={(t) => goTab(t as HubTab)} tint="from-teal-900 via-teal-700 to-amber-500" />}
       {canUseHub && loaded && !loadError && !needsPlan && (
