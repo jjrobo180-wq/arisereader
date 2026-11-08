@@ -15,7 +15,8 @@ import { listLocalNotes, type LocalNote } from "./localNotes";
 import { listenForLinks, widgetAi, widgetPages } from "./widgetLinks";
 import { newPageId, pagesSyncFor } from "./pages/pagesSync";
 import { DEFAULT_LOOK } from "@shared/arisePages";
-import { publishWatch, watchActions } from "@/lib/watch";
+import { publishWatch, removeWatchFile, watchActions, watchFile } from "@/lib/watch";
+import { queueWatchRecording } from "./watchRecordings";
 import { Btn, IconBtn, Notice, Spinner, ToastHost, plural, shortDate, useToast } from "./ui";
 import { LookHomeHero, LookNoteList, activeLook } from "./looks";
 import { archClass } from "./protoLooks";
@@ -182,6 +183,22 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
     if (!isNotesApp() || !user?.id) return;
     return watchActions((actions) => {
       const sync = pagesSyncFor(Number(user.id));
+      // Meetings recorded on the watch: written down like an uploaded recording (UploadScreen picks them up).
+      const recs = actions.filter((a) => a.type === "recording" && typeof a.path === "string");
+      if (recs.length) {
+        void (async () => {
+          let got = 0;
+          for (const a of recs) {
+            const blob = await watchFile(a.path as string);
+            if (!blob) continue;
+            const at = new Date(Number(a.at) || Date.now());
+            const title = typeof a.title === "string" && a.title.trim() ? a.title.trim().slice(0, 140) : `Meeting ${at.toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${at.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+            queueWatchRecording({ file: new File([blob], `${title.replace(/[^\w .-]+/g, " ").trim() || "Watch recording"}.m4a`, { type: blob.type || "audio/mp4" }), title, path: a.path as string });
+            got++;
+          }
+          if (got) go({ name: "upload" });
+        })();
+      }
       for (const a of actions) {
         if (a.type !== "add" || typeof a.text !== "string" || !a.text.trim()) continue;
         const text = a.text.trim().slice(0, 5000), now = new Date(a.at || Date.now()).toISOString();

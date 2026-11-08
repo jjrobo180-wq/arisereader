@@ -88,11 +88,14 @@ test("Arise Fit's TV and watch apps have every guided session to play", () => {
 });
 
 test("the Duo watch gets today's events and chores, and a chore checked off there is saved", () => {
+  // Moved into shared/watchDuo.ts (tests/watch-duo.test.ts covers the payload and every action).
   const app = read("client/src/pages/AriseTodo.tsx");
-  assert.match(app, /publishWatch\(\{ today: currentDay, name: [^\n]*, events, chores \}\);/);
-  assert.match(app, /else if \(a\.type === "chore" && typeof a\.id === "string"\) \{/);
-  assert.match(app, /return c && choreDueOn\(c, day\) \? toggleChore\(f, c, day, makeId\) : f;/);
-  assert.match(read("native/duo-watch/DuoWatchApp.swift"), /link\.send\(\["type": "chore", "id": c\.id\]\)/);
+  assert.match(app, /publishWatchPart\("life", lifeWatchPart\(family, data\.tasks, data\.lists, currentDay\)/);
+  assert.match(app, /setFamily\(\(f\) => applyLifeWatch\(f, rest, today\(\), makeId\)\)/);
+  const shared = read("shared/watchDuo.ts");
+  assert.match(shared, /a\.type === "chore" && id/);
+  assert.match(shared, /if \(c && choreDueOn\(c, today\)\) next = toggleChore\(next, c, today, makeId\);/);
+  assert.match(read("native/duo-watch/DuoWatchApp.swift"), /h\.flip\("chores", id: c\.id, type: "chore"\)/);
 });
 
 test("the Duo TV app reads the new summary fields as optional, so an older server still works", () => {

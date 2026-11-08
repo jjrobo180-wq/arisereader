@@ -114,7 +114,8 @@ import { EmailForwardCard, useEmailInbox } from "@/components/family-hub/EmailFo
 import { useLifeFeed } from "@/components/family-hub/useLifeFeed";
 import type { Forecast } from "@shared/lifePlugins";
 import { publishWidgets } from "@/lib/widgets";
-import { publishWatch, watchActions } from "@/lib/watch";
+import { publishWatchPart, watchActions } from "@/lib/watch";
+import { applyLifeWatch, lifeWatchPart } from "@shared/watchDuo";
 import { duoWidgetSlots } from "@/lib/duoWidgets";
 import Members, { SECTION_INFO } from "@/components/family-hub/Members";
 import { collapseGroups, groupLabel, groupMembers, groupOf, leadOf } from "@shared/appGroups";
@@ -998,17 +999,11 @@ export default function AriseTodo() {
     }, 1500);
     return () => window.clearTimeout(t);
   }, [family, data.tasks, data.lists, currentDay, weatherFeed.data]);
-  // Apple Watch (native/duo-watch): today's tasks and what's coming up; checked off or added on the watch.
+  // Apple Watch (native/duo-watch): the Life side of the watch (tasks, calendar, chores, groceries, habits,
+  // medicine, bills and money, meals, countdowns, notes); what's done there comes back here (shared/watchDuo.ts).
   useEffect(() => {
-    const listName = (id: string) => data.lists.find(l => l.id === id)?.name ?? "";
-    const open = data.tasks.filter(t => !t.archived);
-    const soon = open.filter(t => !t.done).sort((a, b) => (a.due || "9999").localeCompare(b.due || "9999")).slice(0, 60);
-    const doneToday = open.filter(t => t.done).slice(-15);
-    // Today's events and chores too (the watch shows them under the tasks and checks chores off).
-    const member = new Map(family.members.map((m) => [m.id, m]));
-    const events = isOn("calendar", family) ? [0, 1, 2].flatMap((n) => { const day = addDays(currentDay, n); return eventsOn(family, day, true).map((e) => ({ date: day, title: e.title.slice(0, 80), time: e.time || "", location: (e.location || "").slice(0, 60) })); }).slice(0, 20) : [];
-    const chores = isOn("chores", family) ? family.chores.filter((c) => choreDueOn(c, currentDay)).slice(0, 30).map((c) => { const who = member.get(choreOwner(c, currentDay)); return { id: c.id, title: c.title.slice(0, 80), who: who?.name || "", emoji: who?.emoji || "", points: c.points, done: !!choreDoneOn(family, c.id, currentDay) }; }) : [];
-    publishWatch({ today: currentDay, name: (user?.displayName || "").split(" ")[0], tasks: [...soon, ...doneToday].map(t => ({ id: t.id, title: t.title.slice(0, 120), due: t.due || "", time: t.time || "", done: !!t.done, list: listName(t.listId) })), events, chores });
+    const t = window.setTimeout(() => publishWatchPart("life", lifeWatchPart(family, data.tasks, data.lists, currentDay), currentDay, (user?.displayName || "").split(" ")[0]), 800);
+    return () => window.clearTimeout(t);
   }, [data.tasks, data.lists, currentDay, family, user?.displayName]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!user) return;
@@ -1019,12 +1014,11 @@ export default function AriseTodo() {
           const title = a.title.trim().slice(0, 300), due = typeof a.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(a.due) ? a.due : "";
           setData((p) => ({ ...p, tasks: [...p.tasks, { id: makeId(), title, notes: "", listId: p.lists[0]?.id || "", assignee: "", due, time: "", priority: "normal", repeat: "none", done: false, createdAt: new Date().toISOString() } as Task] }));
         }
-        else if (a.type === "chore" && typeof a.id === "string") {
-          // A chore checked off (or un-checked) on the watch, for today.
-          setFamily((f) => { const c = f.chores.find((x) => x.id === a.id); const day = today(); return c && choreDueOn(c, day) ? toggleChore(f, c, day, makeId) : f; });
-        }
       }
-    });
+      // Chores, groceries, habits, medicine and bills.
+      const rest = actions.filter((a) => a.type !== "toggle" && a.type !== "add");
+      if (rest.length) setFamily((f) => applyLifeWatch(f, rest, today(), makeId));
+    }, "life");
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Where the Getting started page's buttons go (components/GettingStarted.tsx).
   const guideCanOpen = (t: string) => ["customize", "store", "search", "passcode", "notifications"].includes(t)

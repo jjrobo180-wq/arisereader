@@ -126,6 +126,8 @@ import { addStudentWithTeam, draftHasAnyone, emptyTeamDraft, teamDraft, teamMemb
 import { StudentTeamFields, StudentTeamSummary } from "@/components/teacher-hub/HubStudentTeam";
 import { deleteRow, deleteStudentRecords, studentRecordCount, undoDelete, type Deleted } from "@shared/hubDelete";
 import { BottomStack, useToasts, type ToastAction } from "@/components/teacher-hub/HubToast";
+import { publishWatchPart, watchActions } from "@/lib/watch";
+import { applyWorkWatch, workWatchPart } from "@shared/watchDuo";
 import { ConflictDialog, HubDataPanel, SaveBadge, SaveNotice, SizeNotice, downloadHubCopy } from "@/components/teacher-hub/HubSaveUI";
 import { useHubWorkspace } from "@/components/teacher-hub/useHubWorkspace";
 import HubSetupBanner from "@/components/teacher-hub/HubSetupBanner";
@@ -598,6 +600,17 @@ function TeacherHubPage() {
   const [profileStudent, setProfileStudent] = useStayOnRefresh<string | null>("work-student", null);
   /** Checks a to-do off (or back on) and offers Undo for a few seconds. It can also be undone from "Done in the last day". */
   const checkTask = taskChecker(() => workspace.tasks, setWorkspace, (text, actions) => { toasts.show(text, actions); });
+  // Apple Watch (native/duo-watch): the Work side of the watch (to-dos, the week's calendar, notes); a to-do
+  // checked off or added there comes back here (shared/watchDuo.ts).
+  useEffect(() => {
+    if (!loaded || !user) return;
+    const t = window.setTimeout(() => publishWatchPart("work", workWatchPart(workspace, TODAY()), TODAY(), (user.displayName || "").split(" ")[0]), 1000);
+    return () => window.clearTimeout(t);
+  }, [workspace.tasks, workspace.events, workspace.notes, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!loaded || !user) return;
+    return watchActions((actions) => setWorkspace((p) => applyWorkWatch(p, actions, TODAY(), id)), "work");
+  }, [loaded, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const undoCheck = (taskId: string) => setWorkspace((p) => ({ ...p, tasks: undoTask(p.tasks, taskId, Date.now()) }));
   /** The to-do being changed from the To do card on Home. */
   const [homeTask, setHomeTask] = useStayOnRefresh<string | null>("work-home-task", null);

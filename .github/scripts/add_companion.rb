@@ -4,10 +4,12 @@
 #
 #   ruby add_companion.rb <App.xcodeproj> --kind watch|tv --name DuoWatch --display "Arise Duo"
 #        --host com.arisereader.arisetodo [--bundle <id>] --sources a.swift,b.swift [--resources x.json]
-#        [--icon icon-1024.png] [--embed] [--healthkit]
+#        [--icon icon-1024.png] [--embed] [--healthkit] [--mic]
 #
 #   watch  watchOS 10+, bundle id <host>.watchkitapp unless --bundle; --embed puts it inside the iPhone
 #          app (how a watch app ships). --healthkit adds Health (workouts) with its permission sentences.
+#          --mic adds the microphone (recording meetings) and background audio, so it keeps recording with
+#          the screen off.
 #   tv     tvOS 17+, the same bundle id as the iPhone app unless --bundle (one App Store listing). Its icon
 #          and Top Shelf come from native/tv-app/make_tv_assets.py --icon (run here when Pillow is there,
 #          otherwise a plain icon set is written so the build still works).
@@ -31,6 +33,7 @@ OptionParser.new do |o|
   o.on("--tv-assets DIR") { |v| opts[:tv_assets] = v }
   o.on("--embed") { opts[:embed] = true }
   o.on("--healthkit") { opts[:healthkit] = true }
+  o.on("--mic") { opts[:mic] = true }
 end.parse!(ARGV)
 %i[kind name display host].each { |k| abort "--#{k} is needed" unless opts[k] }
 watch = opts[:kind] == "watch"
@@ -105,6 +108,10 @@ if watch
     info["NSHealthShareUsageDescription"] = "#{opts[:display]} reads your heart rate and calories during a workout to show them on your watch."
     info["NSHealthUpdateUsageDescription"] = "#{opts[:display]} saves workouts you track on your watch to Apple Health."
     info["WKBackgroundModes"] = ["workout-processing"]
+  end
+  if opts[:mic]
+    info["NSMicrophoneUsageDescription"] = "#{opts[:display]} records your meetings so your iPhone can write them down and summarize them."
+    info["WKBackgroundModes"] = ((info["WKBackgroundModes"] || []) + ["audio"]).uniq
   end
 else
   info["UILaunchScreen"] = {}

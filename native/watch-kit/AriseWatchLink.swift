@@ -12,6 +12,8 @@ final class AriseWatchLink: NSObject, ObservableObject, WCSessionDelegate {
     @Published private(set) var payload: [String: Any] = [:]
     @Published private(set) var updated: Date?
     @Published private(set) var phoneNear = false
+    /** Files on their way to the phone (a recorded meeting), by file name. Kept until the phone has them. */
+    @Published private(set) var sending: [String] = []
     private let key = "arise.watch.payload"
 
     override init() {
@@ -51,6 +53,22 @@ final class AriseWatchLink: NSObject, ObservableObject, WCSessionDelegate {
         }
     }
 
+    /** Sends a file to the phone app (it arrives even if the phone is away now, once it's near again),
+     *  with `info` (["type": "recording", ...]) for the app. The file is deleted here once the phone has it. */
+    func sendFile(_ url: URL, info: [String: Any]) {
+        guard WCSession.isSupported() else { return }
+        var meta = info
+        meta["at"] = meta["at"] ?? Date().timeIntervalSince1970 * 1000
+        meta["file"] = url.lastPathComponent
+        WCSession.default.transferFile(url, metadata: meta)
+        if !sending.contains(url.lastPathComponent) { sending.append(url.lastPathComponent) }
+    }
+    /** Files still waiting to go (after the app was closed, the system keeps sending them). */
+    func refreshSending() {
+        guard WCSession.isSupported() else { return }
+        sending = WCSession.default.outstandingFileTransfers.map { $0.file.fileURL.lastPathComponent }
+    }
+
     /** Shows `obj` without the phone: only for the simulator screenshots (launched with -watchSample YES). */
     func preview(_ obj: [String: Any]) { payload = obj; updated = Date() }
 
@@ -75,10 +93,21 @@ final class AriseWatchLink: NSObject, ObservableObject, WCSessionDelegate {
             self.phoneNear = session.isReachable
             if let data = ctx["payload"] as? Data { self.store(data) }
             self.refresh()
+            self.refreshSending()
         }
     }
     nonisolated func sessionReachabilityDidChange(_ session: WCSession) {
         Task { @MainActor in self.phoneNear = session.isReachable; if session.isReachable { self.refresh() } }
+    }
+    nonisolated func session(_ session: WCSession, didFinish fileTransfer: WCSessionFileTransfer, error: Error?) {
+        let url = fileTransfer.file.fileURL
+        if error == nil { try? FileManager.default.removeItem(at: url) }
+        let failed = error != nil
+        Task { @MainActor in
+            self.sending.removeAll { $0 == url.lastPathComponent }
+            // Not delivered: tried again (the file is still here).
+            if failed, FileManager.default.fileExists(atPath: url.path), let meta = fileTransfer.file.metadata { self.sendFile(url, info: meta) }
+        }
     }
     nonisolated func session(_ session: WCSession, didReceiveApplicationContext ctx: [String: Any]) {
         if let data = ctx["payload"] as? Data { Task { @MainActor in self.store(data) } }

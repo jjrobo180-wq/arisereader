@@ -7,6 +7,7 @@
 //   publish({ payload })        -> {}
 //   takeActions()               -> { actions: [{ type, ...fields, at }] }
 //   status()                    -> { paired, installed, reachable }
+//   removeFile({ path })        -> {}   a file the watch sent (a recorded meeting), once the app has it
 import Foundation
 import Capacitor
 import WatchConnectivity
@@ -18,7 +19,8 @@ public class AriseWatchPlugin: CAPPlugin, CAPBridgedPlugin, WCSessionDelegate {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "publish", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "takeActions", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "status", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "status", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "removeFile", returnType: CAPPluginReturnPromise)
     ]
     private let pendingKey = "arise.watch.pending"
     private let payloadKey = "arise.watch.payload"
@@ -54,6 +56,22 @@ public class AriseWatchPlugin: CAPPlugin, CAPBridgedPlugin, WCSessionDelegate {
         call.resolve(["paired": s.isPaired, "installed": s.isWatchAppInstalled, "reachable": s.isReachable])
     }
 
+    /** Where files from the watch are kept until the app has taken them. */
+    private static var filesDir: URL {
+        let d = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0].appendingPathComponent("WatchFiles", isDirectory: true)
+        try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
+        return d
+    }
+
+    @objc func removeFile(_ call: CAPPluginCall) {
+        guard let path = call.getString("path") else { call.reject("path is needed"); return }
+        let url = URL(fileURLWithPath: path.replacingOccurrences(of: "file://", with: ""))
+        // Only files the watch sent.
+        guard url.standardizedFileURL.path.hasPrefix(Self.filesDir.standardizedFileURL.path) else { call.reject("not a watch file"); return }
+        try? FileManager.default.removeItem(at: url)
+        call.resolve()
+    }
+
     private func send(_ data: Data) {
         guard WCSession.isSupported() else { return }
         let s = WCSession.default
@@ -86,6 +104,18 @@ public class AriseWatchPlugin: CAPPlugin, CAPBridgedPlugin, WCSessionDelegate {
         if let data = UserDefaults.standard.data(forKey: payloadKey) { send(data) }
     }
     public func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) { received(userInfo) }
+    /** A file from the watch (a meeting recorded there): moved somewhere it lasts (the system deletes it after
+     *  this returns), and handed to the app as an action with where it is. */
+    public func session(_ session: WCSession, didReceive file: WCSessionFile) {
+        var meta = file.metadata ?? [:]
+        let name = (meta["file"] as? String).map { ($0 as NSString).lastPathComponent } ?? file.fileURL.lastPathComponent
+        let to = Self.filesDir.appendingPathComponent(name)
+        try? FileManager.default.removeItem(at: to)
+        guard (try? FileManager.default.moveItem(at: file.fileURL, to: to)) != nil else { return }
+        meta["type"] = meta["type"] ?? "file"
+        meta["path"] = to.path
+        received(["action": meta])
+    }
     public func session(_ session: WCSession, didReceiveMessage message: [String: Any]) { received(message) }
     public func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
         received(message)
