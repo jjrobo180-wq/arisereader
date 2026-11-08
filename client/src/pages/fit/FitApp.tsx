@@ -4,6 +4,7 @@
 // fitStore.ts → server/fit.ts. The look and motion follow the Arise Fit prototype (fitUi.tsx).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Check, Crown, ChevronRight, Utensils, Plus, Droplets, Footprints, HeartPulse, Flame, Home, LayoutGrid, LogOut, Mic, Moon, Play, Scale, Settings, ShieldCheck, Timer, Trophy } from "lucide-react";
+import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import AccountPrivacy from "@/components/AccountPrivacy";
 import { goToSignIn } from "@/lib/hubs";
@@ -338,6 +339,13 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
   const [tour, setTour] = useState(false);
   const [settings, setSettings] = useState(false);
   const [coach, setCoach] = useState(false);
+  // Back from paying a trainer by card (#/fit?paid=cs_…): record it and say so.
+  useEffect(() => {
+    const m = /[?&]paid=(cs_[A-Za-z0-9_]+)/.exec(window.location.href); if (!m || !token) return;
+    try { history.replaceState(null, "", `${window.location.pathname}${window.location.search}${window.location.hash.replace(/[?&]paid=[^&]*/, "").replace(/\?$/, "")}`); } catch { /* keep the address */ }
+    void fetch(`${API_BASE}/api/coach/pay/confirm`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ session: m[1] }) })
+      .then(async (r) => { const b = await r.json().catch(() => null); say(r.ok ? "Payment sent. Thank you!" : b?.message || "We couldn't confirm that payment yet."); }).catch(() => {});
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
   // A trainer's invite link (#/fit?coach=CODE): the join sheet opens once, and the address is cleaned so a reload doesn't repeat it.
   const [invite, setInvite] = useState<string | null>(() => { const m = /[?&]coach=([0-9a-z]{1,10}-[A-Za-z0-9_-]{10})/.exec(window.location.href); return m ? m[1] : null; });
   useEffect(() => { if (!invite) return; try { history.replaceState(null, "", `${window.location.pathname}${window.location.search}${window.location.hash.replace(/[?&]coach=[^&]*/, "").replace(/\?$/, "")}`); } catch { /* keep the address */ } }, []); // eslint-disable-line react-hooks/exhaustive-deps

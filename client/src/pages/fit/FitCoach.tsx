@@ -11,6 +11,7 @@ import { MyGroups } from "../coach/Groups";
 import { ClientFormChecks } from "../coach/FormCheck";
 import { MatchCard, MatchSheet } from "../coach/Match";
 import { MyRequests } from "../coach/Market";
+import { PayTrainer } from "../coach/Pay";
 import { coachApi, dayKeyOf, post, put, shortDate, shrinkImage, usePoll, when, type MyLink } from "../coach/coachApi";
 import { useHealth } from "./FitHealth";
 import { startApplePush } from "@/lib/applePush";
@@ -89,7 +90,7 @@ function RequestSheet({ token, t, onClose, onSent, initialMsg = "" }: { token: s
     <Field label="Message (optional)"><textarea value={msg} onChange={(e) => setMsg(e.target.value.slice(0, 1000))} rows={4} placeholder="Your goal, your schedule, any injuries…" className="mt-3 w-full rounded-[12px] p-3 text-[17px] outline-none" style={inputStyle} /></Field>
     {err && <p className="mt-2 text-[14px]" style={{ color: C.red }}>{err}</p>}
     <Btn className="mt-5 w-full" disabled={busy} onClick={async () => { setBusy(true); setErr(""); try { await post(token, "/request", { trainerId: t.id, consent, message: msg }); onSent(); } catch (e: any) { setErr(e.message); } finally { setBusy(false); } }} testId="fit-coach-send">Send request</Btn>
-    <p className="mt-3 text-center text-[12px]" style={{ color: C.dim }}>You pay {t.name.split(" ")[0]} directly for training. Arise doesn't take a cut.</p>
+    <p className="mt-3 text-center text-[12px]" style={{ color: C.dim }}>You pay {t.name.split(" ")[0]} for training, by card in the app or their own way.</p>
   </Sheet>;
 }
 
@@ -176,7 +177,7 @@ function Hub({ token, me, link, data, update, list, onStart, reload, onListing }
       <span className="min-w-0 flex-1"><span className="block truncate text-[28px] leading-none" style={display}>{t.name}</span><span className="block truncate text-[13px]" style={{ color: C.dim }}>{link.coaching.phase || t.headline}</span></span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></button>
     <div className="mt-4"><Chips label="Section" value={tab} onChange={setTab} items={tabs} /></div>
     <div key={tab} className="fit-in mt-4">
-      {tab === "plan" && <PlanTab token={token} link={link} side={side} saveSide={saveSide} data={data} update={update} list={list} onStart={onStart} />}
+      {tab === "plan" && <><PlanTab token={token} link={link} side={side} saveSide={saveSide} data={data} update={update} list={list} onStart={onStart} /><PayTrainer token={token} linkId={link.id} trainer={t.name.split(" ")[0]} say={say} /></>}
       {tab === "chat" && <Chat token={token} linkId={link.id} me={me} other={t.name.split(" ")[0]} />}
       {tab === "form" && <ClientFormChecks token={token} linkId={link.id} trainer={t.name.split(" ")[0]} say={say} />}
       {tab === "groups" && <MyGroups token={token} trainerId={t.id} say={say} />}

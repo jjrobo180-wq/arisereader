@@ -48,6 +48,7 @@ import { clientFacts, draftFor, flags as copilotFlags, progress as progressPlan,
 import { checkinDue } from "../shared/coach";
 import { clientsCsv, importClients, importWorkouts } from "../shared/coachImport";
 import { cleanNeed, matchTrainers } from "../shared/coachMatch";
+import { PLATFORM_FEE_PCT, feeCents, payKind, payLabel, payable, totals as payTotals, type Payment } from "../shared/coachPay";
 import { MARKET, cleanReply, forTrainer, isOpen, requestTitle, trainerFits, whoToTell, type MarketRequest } from "../shared/coachMarket";
 import { FORM_LIMITS, VIDEO_TYPES, VOICE_TYPES, cleanFeedback, filePathOk, type FormCheck } from "../shared/coachFormCheck";
 import { CATALOG } from "../shared/fit";
@@ -643,6 +644,122 @@ Order exercises sensibly (big compound lifts first). Respect injuries or limits 
     const p = await stripe("POST", "/billing_portal/sessions", { customer: t.stripeCustomer, return_url: `${back(req)}#/trainer` });
     return { url: p.url };
   }));
+  // ——— In-app payments (shared/coachPay.ts): Stripe Connect, the trainer's own account, a small Arise fee ———————
+  const connectKey = (t: number) => `coach-connect:${t}`, payKey = (l: string) => `coach-pay:${l}`;
+  type Connect = { account: string; ready: boolean; checked: number };
+  const connectOf = async (t: number): Promise<Connect | null> => { const v = await kv.get(connectKey(t)); return v?.account ? v : null; };
+  /** Asks Stripe whether the trainer can take card payments yet (cached for 10 minutes once ready). */
+  const connectReady = async (t: number): Promise<Connect | null> => {
+    const c = await connectOf(t); if (!c) return null;
+    if (c.ready && now() - c.checked < 10 * 60_000) return c;
+    const a = await stripe("GET", `/accounts/${encodeURIComponent(c.account)}`);
+    const next = { ...c, ready: !!(a?.charges_enabled && a?.payouts_enabled), checked: now() };
+    await kv.set(connectKey(t), next);
+    return next;
+  };
+  app.post("/api/coach/trainer/payouts/setup", auth, wrap(async (req) => {
+    const id = me(req); const t = await store.trainer(id);
+    if (!t?.profile.name) throw new Refused("Fill in your listing first (at least your name).");
+    let c = await connectOf(id);
+    if (!c) {
+      const a = await stripe("POST", "/accounts", { type: "express", country: "US", ...(t.profile.email || req.user?.email ? { email: t.profile.email || req.user?.email } : {}), business_type: "individual",
+        capabilities: { card_payments: { requested: true }, transfers: { requested: true } }, business_profile: { product_description: "Personal training and fitness coaching", mcc: "7997" }, metadata: { arise_trainer: String(id) } });
+      c = { account: String(a.id), ready: false, checked: 0 }; await kv.set(connectKey(id), c);
+    }
+    const base = back(req);
+    const link = await stripe("POST", "/account_links", { account: c.account, type: "account_onboarding", refresh_url: `${base}#/trainer?payouts=retry`, return_url: `${base}#/trainer?payouts=done` });
+    return { url: link.url };
+  }));
+  app.get("/api/coach/trainer/payouts", auth, wrap(async (req) => {
+    const id = me(req);
+    const configured = !!(await (deps.stripeKey?.() ?? Promise.resolve("")).catch(() => ""));
+    const c = configured ? await connectReady(id).catch(() => connectOf(id)) : null;
+    const links = (await store.linksOf("trainer", id)).filter((l) => l.status !== "declined");
+    const month = new Date(now()); month.setUTCDate(1); month.setUTCHours(0, 0, 0, 0);
+    const all: (Payment & { client: string; linkId: string })[] = [];
+    if (c) await Promise.all(links.map((l) => settle(l).catch(() => {})));
+    for (const l of links) { const v = await kv.get(payKey(l.id)); if (Array.isArray(v) && v.length) { const name = await first(l.clientId); for (const p of v) all.push({ ...p, client: name, linkId: l.id }); } }
+    all.sort((a, b) => b.at.localeCompare(a.at));
+    return { configured, started: !!c, ready: !!c?.ready, feePct: PLATFORM_FEE_PCT, month: payTotals(all, month.toISOString()), all: payTotals(all), recent: all.slice(0, 30) };
+  }));
+  app.post("/api/coach/trainer/payouts/dashboard", auth, wrap(async (req) => {
+    const c = await connectOf(me(req)); if (!c) throw new Refused("Set up payouts first.");
+    const l = await stripe("POST", `/accounts/${encodeURIComponent(c.account)}/login_links`, {});
+    return { url: l.url };
+  }));
+  /** What the client can pay for, in the trainer's own prices. */
+  app.get("/api/coach/links/:id/pay", auth, wrap(async (req) => {
+    const { l } = await linkFor(req, "either");
+    await settle(l).catch(() => {});
+    const t = await store.trainer(l.trainerId);
+    const c = await connectReady(l.trainerId).catch(() => null);
+    const v = await kv.get(payKey(l.id));
+    return { ready: !!c?.ready && l.status === "active", prices: (t?.profile.prices ?? []).filter(payable), payUrl: t?.profile.payUrl ?? "", payments: Array.isArray(v) ? v : [], feePct: PLATFORM_FEE_PCT };
+  }));
+  const payTries = createAttemptLimiter({ max: 20, windowMs: 60 * 60_000 });
+  app.post("/api/coach/links/:id/pay", auth, wrap(async (req) => {
+    const { l, id } = await linkFor(req, "client");
+    if (l.status !== "active") throw new Refused("This coaching has ended.", 403);
+    if (!allow(payTries, `pay:${id}`)) throw new Refused("Too many tries. Wait a little.", 429);
+    const t = await store.trainer(l.trainerId); const price = t?.profile.prices.find((p) => p.id === String(req.body?.priceId));
+    if (!t || !price || !payable(price)) throw new Refused("That price isn't available. Ask your trainer.");
+    const c = await connectReady(l.trainerId);
+    if (!c?.ready) throw new Refused(`${t.profile.name} isn't set up to take card payments in Arise yet.`, 409);
+    const kind = payKind(price); const base = back(req);
+    const meta = { arise_link: l.id, arise_price: price.id, arise_client: String(id) };
+    const name = `${payLabel(price)} with ${t.profile.name}`;
+    const session = await stripe("POST", "/checkout/sessions", {
+      mode: kind === "once" ? "payment" : "subscription", client_reference_id: String(id),
+      success_url: `${base}#/fit?paid={CHECKOUT_SESSION_ID}`, cancel_url: `${base}#/fit`, customer_email: req.user?.email || undefined,
+      line_items: { 0: { quantity: 1, price_data: { currency: "usd", unit_amount: price.cents, product_data: { name }, ...(kind === "once" ? {} : { recurring: { interval: kind === "monthly" ? "month" : "week" } }) } } },
+      ...(kind === "once"
+        ? { payment_intent_data: { application_fee_amount: feeCents(price.cents), transfer_data: { destination: c.account }, metadata: meta, description: name } }
+        : { subscription_data: { application_fee_percent: PLATFORM_FEE_PCT, transfer_data: { destination: c.account }, metadata: meta, description: name } }),
+      metadata: meta,
+    });
+    const pend: { sid: string; at: number }[] = (await kv.get(pendKey(l.id))) ?? [];
+    await kv.set(pendKey(l.id), [{ sid: String(session.id), at: now() }, ...pend].slice(0, 20));
+    return { url: session.url };
+  }));
+  /** Records a finished checkout once and tells the trainer. Returns the payment, or null if not paid (yet). */
+  const pendKey = (l: string) => `coach-paypend:${l}`;
+  async function record(s: any, l: LinkRow): Promise<Payment | null> {
+    if (s?.status !== "complete" || !(s?.payment_status === "paid" || s?.payment_status === "no_payment_required")) return null;
+    const sid = String(s.id);
+    const list: Payment[] = (await kv.get(payKey(l.id))) ?? [];
+    const had = list.find((p) => p.id === sid); if (had) return had;
+    const t = await store.trainer(l.trainerId); const price = t?.profile.prices.find((p) => p.id === s?.metadata?.arise_price);
+    const cents = Number(s?.amount_total) || price?.cents || 0;
+    const pay: Payment = { id: sid, at: new Date(now()).toISOString(), cents, fee: feeCents(cents), label: price ? payLabel(price) : "Training", kind: s?.mode === "subscription" ? (price?.per === "week" ? "weekly" : "monthly") : "once", status: "paid", ...(s?.subscription ? { sub: String(s.subscription) } : {}) };
+    await kv.set(payKey(l.id), [pay, ...list].slice(0, 500));
+    void notify(l.trainerId, { title: "Payment received", body: `${await first(l.clientId)} paid $${(cents / 100).toFixed(2)} for ${pay.label}.`, url: "#/trainer", tag: `pay-${sid}` });
+    return pay;
+  }
+  /** Checkouts started in the last two days that haven't been recorded: asks Stripe about each (so a payment made
+   *  in Safari from the iPhone app still shows up, with no webhook needed). */
+  async function settle(l: LinkRow) {
+    const pend: { sid: string; at: number }[] = (await kv.get(pendKey(l.id))) ?? [];
+    if (!pend.length) return;
+    const keep: typeof pend = [];
+    for (const p of pend) {
+      if (now() - p.at > 2 * 864e5) continue;
+      const s = await stripe("GET", `/checkout/sessions/${encodeURIComponent(p.sid)}`).catch(() => null);
+      if (s && (await record(s, l))) continue;
+      if (s?.status !== "expired") keep.push(p);
+    }
+    await kv.set(pendKey(l.id), keep);
+  }
+  app.post("/api/coach/pay/confirm", auth, wrap(async (req) => {
+    const id = me(req); const sid = String(req.body?.session || "");
+    if (!/^cs_[A-Za-z0-9_]{8,200}$/.test(sid)) throw new Refused("That payment wasn't found.");
+    const s = await stripe("GET", `/checkout/sessions/${sid}`);
+    if (String(s?.metadata?.arise_client) !== String(id)) throw new Refused("That payment belongs to someone else.", 403);
+    const l = await store.link(String(s?.metadata?.arise_link || "")); if (!l || l.clientId !== id) throw new Refused("That payment wasn't found.", 404);
+    const pay = await record(s, l);
+    if (!pay) throw new Refused("The payment hasn't gone through yet.", 409);
+    return { ok: true, payment: pay };
+  }));
+
   // The site owner can list a trainer for free for a while (a founding trainer, a friend, a test).
   app.post("/api/coach/admin/comp", auth, wrap(async (req) => {
     if (!deps.isAdmin?.(req)) throw new Refused("Only the site owner can do that.", 403);

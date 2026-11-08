@@ -20,6 +20,7 @@ import { TrainerGroups } from "../coach/Groups";
 import { CopilotCard } from "./TrainerCopilot";
 import { MoveCard } from "./TrainerMove";
 import { MarketCard } from "../coach/Market";
+import { PayoutsCard } from "../coach/Pay";
 
 type Tab = "clients" | "inbox" | "schedule" | "library" | "business";
 
@@ -215,11 +216,12 @@ function Business({ data, token, reload, say }: { data: TrainerHome; token: stri
         <p className="mt-1 text-[13px]" style={{ color: C.dim }}>Clients can find you, see your prices and ask you to coach them. {data.paidUntil ? `Paid through ${shortDate(data.paidUntil)}.` : ""}</p>
         {data.subscribed && !isNativeApp() && <Btn kind="soft" className="mt-3 w-full !text-[15px]" disabled={busy} onClick={() => go("/trainer/listing/manage")}>Card and billing</Btn>}</>
       : <><p className="text-[22px] leading-none" style={display}>Not listed yet</p>
-        <p className="mt-1 text-[14px]" style={{ color: C.steel }}>{money(data.price.cents)} a month to be in the Arise trainer directory and coach clients here. First {data.price.trialDays} days free, cancel any time. You keep 100% of what clients pay you.</p>
+        <p className="mt-1 text-[14px]" style={{ color: C.steel }}>{money(data.price.cents)} a month to be in the Arise trainer directory and coach clients here. First {data.price.trialDays} days free, cancel any time. Clients who pay you by card in the app: Arise keeps 1%. Your own payment links: you keep everything.</p>
         {data.problems.length > 0 && <ul className="mt-3 space-y-1">{data.problems.map((p) => <li key={p} className="text-[13px]" style={{ color: C.orange }}>• {p}</li>)}</ul>}
         {isNativeApp() ? <p className="mt-3 rounded-[10px] p-3 text-[13px]" style={{ background: C.card2, color: C.steel }}>Start your listing plan at arisetodo.com/#/trainer in a web browser. It shows up here right away.</p>
           : <Btn className="mt-3 w-full" disabled={busy || data.problems.length > 0 || !data.payments} onClick={() => go("/trainer/listing/checkout")} testId="tr-start-plan">{data.payments ? `Start ${data.price.trialDays}-day free trial` : "Payments open soon"}</Btn>}</>}
     </Card>
+    <PayoutsCard token={token} say={say} />
     <MoveCard token={token} say={say} />
     <Title>Reviews{data.reviews.length ? ` · ${(data.reviews.reduce((t, r) => t + r.stars, 0) / data.reviews.length).toFixed(1)}` : ""}</Title>
     {data.reviews.length ? <div className="space-y-2">{data.reviews.map((r) => <Card key={r.id} className="!p-3.5"><div className="flex items-center gap-2"><Stars value={r.stars} /><span className="text-[13px] font-semibold">{r.name}</span><span className="ml-auto text-[11px]" style={{ color: C.dim }}>{shortDate(r.date)}</span></div>
@@ -231,7 +233,7 @@ function Business({ data, token, reload, say }: { data: TrainerHome; token: stri
     <Title>Account</Title>
     <Card onClick={() => setAccount(true)} className="!p-4"><div className="flex items-center gap-3"><ShieldCheck className="h-5 w-5" style={{ color: C.dim }} /><span className="flex-1 font-semibold">Account & privacy</span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
     <Btn kind="danger" className="mt-2 w-full" onClick={() => { logout(); goToSignIn(); }}><LogOut className="h-5 w-5" />Sign out</Btn>
-    <p className="mt-6 text-center text-[11px] leading-relaxed" style={{ color: C.dim }}>Clients pay you directly through your own links. Client data comes from Arise Fit only with the client's permission and stops when they stop sharing. Keep it private.</p>
+    <p className="mt-6 text-center text-[11px] leading-relaxed" style={{ color: C.dim }}>Clients pay you by card in the app or through your own links. Client data comes from Arise Fit only with the client's permission and stops when they stop sharing. Keep it private.</p>
     {edit && <ListingEditor token={token} initial={data.profile} onClose={() => setEdit(false)} onSaved={() => { setEdit(false); reload(); say("Listing saved."); }} />}
     {preview && <TrainerPage id={pub.id} preview={{ trainer: pub, reviews: data.reviews }} onClose={() => setPreview(false)} />}
     {account && <Layer><div className="fixed inset-0 z-[90]"><AccountPrivacy onClose={() => setAccount(false)} /></div></Layer>}
