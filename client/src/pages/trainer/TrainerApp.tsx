@@ -16,6 +16,7 @@ import { ClientSheet } from "./TrainerClient";
 import { FormBuilder, OwnExerciseSheet, ProgramBuilder, WorkoutBuilder, newId } from "./TrainerBuilder";
 import { AiBuilderSheet, InviteSheet, TemplatesSheet } from "./TrainerTemplates";
 import { WebsiteCard } from "./TrainerWebsite";
+import { TrainerGroups } from "../coach/Groups";
 
 type Tab = "clients" | "inbox" | "schedule" | "library" | "business";
 
@@ -88,7 +89,7 @@ function ClientRowCard({ c, onOpen, k, pick }: { c: ClientRow; onOpen: () => voi
 
 function Clients({ data, token, onOpen, say, goBusiness }: { data: TrainerHome; token: string | null; onOpen: (c: ClientRow) => void; say: (m: string) => void; goBusiness: () => void }) {
   const [q, setQ] = useState(""); const [tag, setTag] = useState(""); const [sort, setSort] = useState<"attention" | "name" | "recent">("attention");
-  const [picking, setPicking] = useState(false); const [picked, setPicked] = useState<string[]>([]); const [cast, setCast] = useState(false); const [inviting, setInviting] = useState(false);
+  const [picking, setPicking] = useState(false); const [picked, setPicked] = useState<string[]>([]); const [cast, setCast] = useState(false); const [inviting, setInviting] = useState(false); const [seed, setSeed] = useState<number[] | null>(null);
   const tags = [...new Set(data.clients.flatMap((c) => c.tags))];
   const reqs = data.clients.filter((c) => c.status === "requested");
   const active = data.clients.filter((c) => c.status === "active" && (!q || c.name.toLowerCase().includes(q.toLowerCase())) && (!tag || c.tags.includes(tag)))
@@ -100,6 +101,7 @@ function Clients({ data, token, onOpen, say, goBusiness }: { data: TrainerHome; 
       <p className="text-[24px] leading-none" style={display}>Get listed in Arise Fit</p><p className="mt-1 text-[13px] font-semibold">{data.problems.length ? `Finish your profile: ${data.problems[0].toLowerCase()}.` : `Go live in the trainer directory. ${data.price.trialDays} days free, then ${money(data.price.cents)}/month.`}</p></Card>}
     <Btn className="mb-3 w-full" onClick={() => setInviting(true)} testId="tr-invite"><UserPlus className="h-5 w-5" />Invite a client</Btn>
     <div className="grid grid-cols-3 gap-2 text-center">{([[data.clients.filter((c) => c.status === "active").length, "clients"], [reqs.length, "requests"], [data.reviews.length ? data.reviews.reduce((t, r) => t + r.stars, 0) / data.reviews.length : 0, "rating"]] as const).map(([v, l], k) => <Card key={l} className="!px-1 !py-3" style={stagger(k, 0.06)}><p className="text-[28px] leading-none" style={display}>{l === "rating" ? (v ? v.toFixed(1) : "—") : v}</p><p className="mt-1 text-[11px] uppercase" style={{ color: C.dim }}>{l}</p></Card>)}</div>
+    <TrainerGroups token={token} clients={data.clients} say={say} seed={seed} onSeeded={() => setSeed(null)} />
     {reqs.length > 0 && <><Title>New requests</Title><div className="space-y-2">{reqs.map((c, k) => <ClientRowCard key={c.id} c={c} k={k} onOpen={() => onOpen(c)} />)}</div></>}
     <Title right={<select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} aria-label="Sort clients" className="h-8 rounded-[8px] px-2 text-[13px] outline-none" style={inputStyle}><option value="attention">Needs attention</option><option value="recent">Trained recently</option><option value="name">Name</option></select>}>Active</Title>
     {data.clients.some((c) => c.status === "active") && <div className="relative mb-2"><Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2" style={{ color: C.dim }} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search clients" className={`${inputCls} pl-10`} style={inputStyle} /></div>}
@@ -107,7 +109,8 @@ function Clients({ data, token, onOpen, say, goBusiness }: { data: TrainerHome; 
     {active.length ? <div className="space-y-2">{active.map((c, k) => <ClientRowCard key={c.id} c={c} k={k} onOpen={() => onOpen(c)} pick={picking ? { on: picked.includes(c.id), toggle: () => setPicked((p) => (p.includes(c.id) ? p.filter((x) => x !== c.id) : [...p, c.id])) } : undefined} />)}</div>
       : <Card className="text-center"><Users className="mx-auto h-8 w-8" style={{ color: C.dim }} /><p className="mt-2 text-[20px]" style={display}>No clients yet</p><p className="mt-1 text-[14px]" style={{ color: C.dim }}>Invite clients with your link, or get found in Arise Fit. Their workouts, food and health data come with them. No client limit.</p></Card>}
     {picking && picked.length > 0 && <Layer><div className="fit-up fixed inset-x-3 z-[45] flex gap-2 rounded-[14px] p-2" style={{ bottom: "calc(max(12px, env(safe-area-inset-bottom)) + 76px)", background: C.card2, boxShadow: "0 -10px 40px rgba(0,0,0,.6)" }}>
-      <Btn className="flex-1 !text-[15px]" onClick={() => setCast(true)} testId="tr-broadcast"><Megaphone className="h-4 w-4" />Message {picked.length}</Btn></div></Layer>}
+      <Btn className="flex-1 !text-[15px]" onClick={() => setCast(true)} testId="tr-broadcast"><Megaphone className="h-4 w-4" />Message {picked.length}</Btn>
+      <Btn kind="soft" className="flex-1 !text-[15px]" onClick={() => { setSeed(data.clients.filter((c) => picked.includes(c.id)).map((c) => c.clientId)); setPicking(false); setPicked([]); }} testId="tr-make-group"><Users className="h-4 w-4" />Make a group</Btn></div></Layer>}
     {inviting && <InviteSheet token={token} onClose={() => setInviting(false)} />}
     {cast && <Broadcast token={token} ids={picked} onClose={() => setCast(false)} onSent={(n) => { setCast(false); setPicking(false); setPicked([]); say(`Sent to ${n} ${n === 1 ? "client" : "clients"}.`); }} />}
   </div>;
