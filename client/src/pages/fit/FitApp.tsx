@@ -31,7 +31,8 @@ import { addNight, emptySleep } from "@shared/fitSleep";
 import { SplitCard, VacationCard, VacationSheet } from "./FitVacation";
 import { dayGoals } from "@shared/fitVacation";
 import { publishWidgets, watchWidgetActions } from "@/lib/widgets";
-import { applyFitTaps, fitWidgetSlots } from "@/lib/fitWidgets";
+import { publishWatch, watchActions } from "@/lib/watch";
+import { applyFitTaps, applyWatchActions, fitWidgetSlots } from "@/lib/fitWidgets";
 import { FoodTab, latestKg, totals } from "./FitFood";
 import { FeatureTour, Onboarding } from "./FitOnboard";
 import { CoverCard, VideoPlayer } from "./FitVideo";
@@ -355,6 +356,9 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
   // Widgets (Home Screen and Lock Screen): what they show, and taps on their buttons (a glass of water).
   useEffect(() => { if (loaded) publishWidgets(fitWidgetSlots(data, latestKg(data))); }, [loaded, data]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!loaded) return; return watchWidgetActions((taps) => update((d) => applyFitTaps(d, taps))); }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Apple Watch (native/fit-watch): today's numbers, water in a tap, and workouts tracked on the watch.
+  useEffect(() => { if (loaded) publishWatch({ slots: fitWidgetSlots(data, latestKg(data)).filter((s) => ["fit.calories", "fit.water", "fit.workouts", "fit.next", "fit.streak", "fit.protein"].includes(s.id)) }); }, [loaded, data]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!loaded) return; return watchActions((actions) => update((d) => applyWatchActions(d, actions))); }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { const was = document.documentElement.style.background; document.documentElement.style.background = C.bg; return () => { document.documentElement.style.background = was; }; }, []);
   const startProgram = () => {
     const prog = data.program ? PROGRAM_BY_ID.get(data.program.id) : undefined; if (!prog || !data.program) return;

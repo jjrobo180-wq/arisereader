@@ -55,7 +55,7 @@ function validateWorkspace(input: unknown): input is Record<string, any> {
   return true;
 }
 
-async function readWorkspace(userId: number) {
+export async function readWorkspace(userId: number) {
   const { data, error } = await getAdminSupabase().from(TABLE).select("workspace, updated_at")
     .eq("user_id", userId).maybeSingle();
   if (error) throw error;

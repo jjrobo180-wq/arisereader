@@ -1,12 +1,13 @@
-"""Makes Pod+ for Apple TV's icon and Top Shelf images (native/tv-app/Assets.xcassets) from the Pod+
-app icon. tvOS icons are layered (the parallax tilt): an opaque cream back and the Pod+ mark in front.
-    python3 native/tv-app/make_tv_assets.py"""
-import json, pathlib
+"""Makes an Apple TV app's icon and Top Shelf images from the app's 1024px icon. tvOS icons are layered
+(the parallax tilt): an opaque back in the icon's own background colour and the app's mark in front.
+    python3 native/tv-app/make_tv_assets.py                      (Pod+: native/tv-app/Assets.xcassets)
+    python3 native/tv-app/make_tv_assets.py <icon.png> <out.xcassets>"""
+import json, pathlib, sys
 from PIL import Image
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-OUT = ROOT / "native/tv-app/Assets.xcassets"
-ICON = Image.open(ROOT / "client/public/app-icons/podplus-1024.png").convert("RGB")
+OUT = pathlib.Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "native/tv-app/Assets.xcassets"
+ICON = Image.open(sys.argv[1] if len(sys.argv) > 1 else ROOT / "client/public/app-icons/podplus-1024.png").convert("RGB")
 CREAM = ICON.getpixel((512, 40))
 INFO = {"author": "xcode", "version": 1}
 
