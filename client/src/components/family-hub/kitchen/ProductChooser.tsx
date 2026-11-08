@@ -6,8 +6,10 @@ import { searchStore, type StoreProduct } from "@/lib/kitchenStore";
 import { Modal } from "../ui";
 import { Check, btn, field, ghost, label, link, priceSource, quiet } from "./kit";
 
-export default function ProductChooser({ k, setK, group, need, token, connected, makeId, onClose }: {
+export default function ProductChooser({ k, setK, group, need, token, connected, makeId, onClose, dishes = [], onDish }: {
   k: Kitchen; setK: (fn: (k: Kitchen) => Kitchen) => void; group: string; need: number; token: string | null; connected: boolean; makeId: () => string; onClose: () => void;
+  /** The dishes that use this ingredient, each with a way to change how much goes in it. */
+  dishes?: { id: string; name: string }[]; onDish?: (dishId: string) => void;
 }) {
   const g = groupOf(group)!;
   const shelf = productsFor(k, group);
@@ -45,8 +47,17 @@ export default function ProductChooser({ k, setK, group, need, token, connected,
     onClose();
   };
 
-  return <Modal title={g.name} eyebrow="What to buy" onClose={onClose}>
+  return <Modal title={g.name} eyebrow="Edit" onClose={onClose}>
     {need > 0 && <p className="mb-4 text-sm text-slate-500">This week needs {amountText(need, g)}.</p>}
+    {dishes.length > 0 && onDish && <section className="mb-6" data-testid="chooser-dishes">
+      <p className={label}>How much you need</p>
+      <p className="mt-1 text-sm text-slate-500">It adds up from the dishes below. Change how much goes in a dish and the list updates.</p>
+      <ul className="mt-2 divide-y divide-slate-100 border-y border-slate-100">{dishes.map((d) => <li key={d.id} className="flex items-center justify-between gap-3 py-2.5">
+        <span className="min-w-0 truncate text-sm font-medium text-slate-900">{d.name}</span>
+        <button type="button" onClick={() => onDish(d.id)} aria-label={`Edit ${g.name} in ${d.name}`} className={ghost}>Edit amount</button>
+      </li>)}</ul>
+    </section>}
+    <p className={`${label} mb-1`}>What to buy</p>
     <ul className="divide-y divide-slate-100 border-y border-slate-100">
       <li><button type="button" onClick={() => choose(null)} className="flex w-full items-center gap-3 py-3 text-left">
         <Check on={!picked} /><span className="min-w-0 flex-1"><span className="block text-[15px] font-semibold text-slate-900">Best value</span><span className="block text-xs text-slate-500">The planner picks the cheapest mix of sizes for what you need</span></span>

@@ -257,3 +257,13 @@ test("skipping a meal counts as planned, buys nothing, and never sits alongside 
   assert.match(ui, /Skipping this meal/);
   assert.match(read("client/src/components/family-hub/KitchenPlan.tsx"), /dishName\(k, m\.dish\)/);
 });
+
+test("the grocery list shows an Edit button on every item, and the edit sheet leads to the dishes' amounts", () => {
+  const ui = read("client/src/components/family-hub/KitchenPlan.tsx");
+  assert.match(ui, /data-testid=\{`edit-\$\{l\.group\.id\}`\}[^>]*>Edit<\/button>/);
+  assert.match(ui, /I have this/);
+  assert.match(ui, /onDish=\{\(id\) => \{ setProduct\(null\); setEditing\(id\); \}\}/);
+  const sheet = read("client/src/components/family-hub/kitchen/ProductChooser.tsx");
+  assert.match(sheet, /Edit amount/);
+  assert.match(sheet, /How much you need/);
+});

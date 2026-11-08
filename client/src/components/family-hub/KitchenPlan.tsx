@@ -19,6 +19,8 @@ type View = "week" | "groceries" | "inventory" | "people";
 /** What one bulk change replaced, so it can be put back. */
 type Undo = { text: string; week: Kitchen["week"]; stock: Kitchen["stock"] };
 const PLAN_TAG = "kp-";
+/** A small, clearly tappable button on a list row. */
+const rowBtn = "inline-flex min-h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900";
 const SLOT_ONE: Record<KSlot, string> = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snack: "Snack", dessert: "Dessert" };
 
 export default function KitchenPlan({ family, setFamily, makeId, say }: SectionProps) {
@@ -94,7 +96,7 @@ export default function KitchenPlan({ family, setFamily, makeId, say }: SectionP
               <span className="w-20 shrink-0 text-xs font-semibold uppercase tracking-wider text-slate-400">{SLOT_ONE[slot.id]}</span>
               <span className="min-w-0 flex-1"><span className="block truncate text-[15px] font-medium text-slate-900">{dishName(k, m.dish)}</span>
                 <span className="block truncate text-xs text-slate-500">{m.people.length && k.people.length > 1 ? who.map((p) => p.name).join(", ") : "Everyone"}{out ? ` · takeout${out.place ? ` from ${out.place}` : ""}` : ""}</span></span>
-              <span className="shrink-0 text-xs text-slate-400">Edit</span>
+              <span className="shrink-0 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700">Edit</span>
             </button>
           </li>; })}</ul>}
         </Card>; })}
@@ -119,7 +121,8 @@ export default function KitchenPlan({ family, setFamily, makeId, say }: SectionP
       onClear={(scope, cooked) => { const n = countMeals(k, scope); change(`Cleared ${n} meal${n === 1 ? "" : "s"}.`, (x) => clearMeals(cooked ? useUp(x, scope) : x, scope)); }} />}
     {meal && <MealSheet k={k} setK={setK} at={meal.key} meal={meal.meal} onClose={() => setMeal(null)} onEdit={(id) => setEditing(id)} />}
     {editing && <DishEditor k={k} setK={setK} dishId={editing} onClose={() => setEditing(null)} onProduct={setProduct} />}
-    {product && <ProductChooser k={k} setK={setK} group={product} need={lineNeed(product)} token={token} connected={connected} makeId={makeId} onClose={() => setProduct(null)} />}
+    {product && <ProductChooser k={k} setK={setK} group={product} need={lineNeed(product)} token={token} connected={connected} makeId={makeId} onClose={() => setProduct(null)}
+      dishes={[...new Map((t.lines.find((l) => l.group.id === product)?.uses ?? []).map((u) => [u.dish.id, { id: u.dish.id, name: u.dish.name }])).values()]} onDish={(id) => { setProduct(null); setEditing(id); }} />}
   </div>;
 }
 
@@ -136,7 +139,7 @@ function MealSheet({ k, setK, at, meal, onClose, onEdit }: { k: Kitchen; setK: (
         {k.people.map((p) => <button key={p.id} type="button" onClick={() => toggle(p.id)} className={chip(!live.people.length || live.people.includes(p.id))}>{p.name}</button>)}</div>
       <p className="mt-2 text-xs text-slate-500">Someone eating something else? Take them off here and add their own meal to the same day.</p></div>}
     <div className={`mt-6 grid grid-cols-1 gap-2 ${meal.dish === SKIP ? "" : "sm:grid-cols-2"}`}>
-      {meal.dish !== SKIP && <button type="button" onClick={() => { onClose(); onEdit(meal.dish); }} className={ghost}>Ingredients &amp; amounts</button>}
+      {meal.dish !== SKIP && <button type="button" onClick={() => { onClose(); onEdit(meal.dish); }} className={ghost}>Edit ingredients</button>}
       <button type="button" onClick={() => { setK((x) => removeMeal(x, at, meal.id)); onClose(); }} className="inline-flex items-center justify-center rounded-xl border border-rose-200 px-4 py-2.5 text-sm font-semibold text-rose-600 hover:border-rose-400">Remove from {DAY_LABEL[day]}</button>
     </div>
     <button type="button" onClick={onClose} className={`${btn} mt-4 w-full`}>Done</button>
@@ -160,17 +163,22 @@ function Groceries({ k, setK, t, token, connected, onProduct, send, onBought, sa
   const aisles = [...new Set(buy.map((l) => l.group.aisle))];
   return <div className="space-y-6">
     {connected && k.store && storeIds.length > 0 && <div className="flex items-center justify-between gap-3 text-sm"><span className="text-slate-500">Prices from {k.store.name}</span><button type="button" onClick={() => void refresh()} disabled={busy} className={link}>{busy ? "Updating" : "Update prices"}</button></div>}
-    {!connected && <p className="text-sm text-slate-500">Prices are estimates until King Soopers is connected. Tap any item to pick its brand and size or set your own price, and it stays that way.</p>}
+    <p className="text-sm text-slate-500">Tap <b className="font-semibold text-slate-700">Edit</b> on any item to change its brand, size, price or how much you need.{!connected && " Prices are estimates until King Soopers is connected."}</p>
     {aisles.map((a) => <section key={a}>
       <p className={`${label} mb-1`}>{a}</p>
-      <ul className="divide-y divide-slate-100 border-y border-slate-100">{buy.filter((l) => l.group.aisle === a).map((l) => <li key={l.group.id} className="flex items-start gap-3 py-3">
+      <ul className="divide-y divide-slate-100 border-y border-slate-100">{buy.filter((l) => l.group.aisle === a).map((l) => <li key={l.group.id} className="py-3" data-testid={`grocery-${l.group.id}`}>
+        <div className="flex items-start gap-3">
         <button type="button" onClick={() => onProduct(l.group.id)} className="min-w-0 flex-1 text-left">
           <span className="block text-[15px] font-semibold text-slate-900">{l.group.name}</span>
           <span className="block text-sm text-slate-600">{buyText(l.buy) === l.group.name ? `${l.packs} from produce` : buyText(l.buy)}</span>
           <span className="block text-xs text-slate-400">{l.uses.length ? `Need ${amountText(l.need, l.group)}` : `Keep at least ${amountText(l.keep, l.group)}`}{l.tracked ? ` · have ${amountText(l.onHand, l.group)}, buying ${amountText(l.short, l.group)}` : ""}{l.left > 0.009 ? ` · ${amountText(l.left, l.group)} left over` : ""}{l.uses.length ? ` · ${[...new Set(l.uses.map((u) => u.dish.name))].slice(0, 3).join(", ")}` : " · running low"}</span>
         </button>
-        <div className="shrink-0 text-right"><span className="block text-[15px] font-semibold tabular-nums text-slate-900">{money(l.cost)}</span>
-          <button type="button" onClick={() => setK((x) => (l.tracked ? setStock(x, l.group.id, l.need + l.keep) : { ...x, have: { ...x.have, [l.group.id]: true } }))} className="text-[11px] text-slate-400 underline underline-offset-2 hover:text-slate-900">Have it</button></div>
+        <span className="shrink-0 text-[15px] font-semibold tabular-nums text-slate-900">{money(l.cost)}</span>
+        </div>
+        <div className="mt-2 flex gap-2">
+          <button type="button" onClick={() => onProduct(l.group.id)} aria-label={`Edit ${l.group.name}`} data-testid={`edit-${l.group.id}`} className={rowBtn}>Edit</button>
+          <button type="button" onClick={() => setK((x) => (l.tracked ? setStock(x, l.group.id, l.need + l.keep) : { ...x, have: { ...x.have, [l.group.id]: true } }))} aria-label={`I already have ${l.group.name}`} className={rowBtn}>I have this</button>
+        </div>
       </li>)}</ul>
     </section>)}
     {t.take.length > 0 && <section><p className={`${label} mb-1`}>Takeout</p>
