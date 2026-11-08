@@ -5,7 +5,7 @@
 #
 #   ruby add_watch_tv.rb <App.xcodeproj> [--embed-watch]
 #
-#   PodPlusWatch  watchOS 9+, bundle id com.arisereader.podplus.watchkitapp, companion of the iPhone app.
+#   PodPlusWatch  watchOS 10+, bundle id com.arisereader.podplus.watchkitapp, companion of the iPhone app.
 #                 --embed-watch puts it inside the iPhone app (how a watch app ships); without it the
 #                 watch app is only built on its own (the simulator check builds it separately).
 #   PodPlusTV     tvOS 16+, bundle id com.arisereader.podplus (the same app on the App Store: one purchase,
@@ -107,7 +107,7 @@ end
 core_files = %w[PodCore.swift PodEngine.swift PodLink.swift].map { |f| File.join(core, f) }
 
 # --- Apple Watch ---
-watch = add.call("PodPlusWatch", :watchos, "9.0",
+watch = add.call("PodPlusWatch", :watchos, "10.0",
   core_files + [File.join(root, "native/watch-app/PodWatchApp.swift")],
   common.call("Pod+").merge(
     "WKApplication" => true,
@@ -118,7 +118,7 @@ watch = add.call("PodPlusWatch", :watchos, "9.0",
     "PRODUCT_BUNDLE_IDENTIFIER" => "#{host}.watchkitapp",
     "SDKROOT" => "watchos",
     "TARGETED_DEVICE_FAMILY" => "4",
-    "WATCHOS_DEPLOYMENT_TARGET" => "9.0",
+    "WATCHOS_DEPLOYMENT_TARGET" => "10.0",
     "SKIP_INSTALL" => "YES",
     "ASSETCATALOG_COMPILER_APPICON_NAME" => "AppIcon",
   })
