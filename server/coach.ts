@@ -48,6 +48,7 @@ import { clientFacts, draftFor, flags as copilotFlags, progress as progressPlan,
 import { checkinDue } from "../shared/coach";
 import { clientsCsv, importClients, importWorkouts } from "../shared/coachImport";
 import { cleanNeed, matchTrainers } from "../shared/coachMatch";
+import { MARKET, cleanReply, forTrainer, isOpen, requestTitle, trainerFits, whoToTell, type MarketRequest } from "../shared/coachMarket";
 import { FORM_LIMITS, VIDEO_TYPES, VOICE_TYPES, cleanFeedback, filePathOk, type FormCheck } from "../shared/coachFormCheck";
 import { CATALOG } from "../shared/fit";
 import { cleanPlanWorkout as cleanWorkoutForAi } from "../shared/coach";
@@ -837,6 +838,79 @@ Order exercises sensibly (big compound lifts first). Respect injuries or limits 
       try { const by = new Map<number, string>((JSON.parse(out)?.why ?? []).map((x: any) => [Number(x.id), String(x.why ?? "").trim().slice(0, 300)])); for (const m of matches) m.why = by.get(m.trainer.id) ?? ""; } catch { /* reasons are enough */ }
     }
     return { need, matches, total: cache.list.length };
+  }));
+
+  // ── The marketplace (shared/coachMarket.ts): clients post what they need, trainers reply, the client hires ───
+  const MKEY = "coach-market";
+  const listedPublic = async () => {
+    if (!cache || now() - cache.at >= 60_000) {
+      const [rows, ratings] = await Promise.all([store.listed(new Date(now()).toISOString()), store.allRatings()]);
+      cache = { at: now(), list: await Promise.all(rows.filter((t) => !listingProblems(t.profile).length).map((t) => publicOf(t, ratings))) };
+    }
+    return cache.list;
+  };
+  const market = async (): Promise<MarketRequest[]> => { const v = await kv.get(MKEY); return Array.isArray(v) ? v : []; };
+  /** Saves, dropping requests closed or expired for more than 30 days. */
+  const saveMarket = (list: MarketRequest[]) => kv.set(MKEY, list.filter((r) => now() - Date.parse(r.at) < (MARKET.days + 30) * 864e5).slice(0, MARKET.total));
+  const posts = createAttemptLimiter({ max: 6, windowMs: 24 * 60 * 60_000 });
+  app.post("/api/coach/market", auth, wrap(async (req) => {
+    const id = me(req); const need = cleanNeed(req.body?.need);
+    if (!need.goal && !need.notes) throw new Refused("Pick a goal or say what you need.");
+    const all = await market();
+    if (all.filter((r) => r.clientId === id && isOpen(r, now())).length >= MARKET.openPerClient) throw new Refused("You have 3 open requests. Close one or hire a trainer first.");
+    if (!allow(posts, `mk:${id}`)) throw new Refused("That's a lot of requests for one day.", 429);
+    const r: MarketRequest = { id: Math.random().toString(36).slice(2, 12), clientId: id, name: await first(id), at: new Date(now()).toISOString(), need, status: "open", hired: null, replies: [] };
+    await saveMarket([r, ...all]);
+    const tell = whoToTell(await listedPublic(), r);
+    for (const t of tell) void notify(t, { title: "New client request", body: `${r.name.split(" ")[0]} is looking for: ${requestTitle(need)}. Reply in Arise Trainer.`, url: "#/trainer", tag: `mk-${r.id}` });
+    return { request: r, told: tell.length };
+  }));
+  app.get("/api/coach/market/mine", auth, wrap(async (req) => {
+    const id = me(req); const list = (await market()).filter((r) => r.clientId === id);
+    const pubs = new Map((await listedPublic()).map((t) => [t.id, t]));
+    return { requests: list.map((r) => ({ ...r, open: isOpen(r, now()), replies: r.replies.map((x) => ({ ...x, trainer: pubs.get(x.trainerId) ?? null })).filter((x) => x.trainer) })) };
+  }));
+  app.put("/api/coach/market/:rid", auth, wrap(async (req) => {
+    const id = me(req); const all = await market(); const r = all.find((x) => x.id === req.params.rid);
+    if (!r || r.clientId !== id) throw new Refused("That request isn't there anymore.", 404);
+    await saveMarket(all.map((x) => (x.id === r.id ? { ...x, status: x.status === "hired" ? "hired" : "closed" } : x)));
+    return { ok: true };
+  }));
+  app.get("/api/coach/trainer/market", auth, wrap(async (req) => {
+    const id = me(req); const t = await store.trainer(id);
+    if (!t || !listedNow(t) || listingProblems(t.profile).length) return { requests: [], problem: "Get listed in Arise Fit to see and answer client requests." };
+    const pub = (await listedPublic()).find((x) => x.id === id);
+    const list = (await market()).filter((r) => r.clientId !== id && ((isOpen(r, now()) && pub && trainerFits(pub, r)) || r.replies.some((x) => x.trainerId === id)));
+    return { requests: list.map((r) => forTrainer(r, id)), problem: "" };
+  }));
+  app.post("/api/coach/trainer/market/:rid/reply", auth, wrap(async (req) => {
+    const id = me(req); const t = await store.trainer(id);
+    if (!t || !listedNow(t)) throw new Refused("Get listed in Arise Fit to answer requests.", 403);
+    const all = await market(); const r = all.find((x) => x.id === req.params.rid);
+    const pub = (await listedPublic()).find((x) => x.id === id);
+    if (!r || !isOpen(r, now()) || !pub || !trainerFits(pub, r)) throw new Refused("That request is closed.", 404);
+    const reply = cleanReply(req.body, id, new Date(now()).toISOString());
+    if (!reply) throw new Refused("Write a few words about how you'd help.");
+    const had = r.replies.some((x) => x.trainerId === id);
+    if (!had && r.replies.length >= MARKET.replies) throw new Refused("This request already has plenty of replies.", 409);
+    const next = { ...r, replies: had ? r.replies.map((x) => (x.trainerId === id ? reply : x)) : [...r.replies, reply] };
+    await saveMarket(all.map((x) => (x.id === r.id ? next : x)));
+    if (!had) void notify(r.clientId, { title: "A trainer replied", body: `${t.profile.name}: ${reply.message.slice(0, 120)}`, url: "#/fit", tag: `mk-${r.id}` });
+    return { request: forTrainer(next, id) };
+  }));
+  app.post("/api/coach/market/:rid/hire", auth, wrap(async (req) => {
+    const id = me(req); const all = await market(); const r = all.find((x) => x.id === req.params.rid);
+    if (!r || r.clientId !== id) throw new Refused("That request isn't there anymore.", 404);
+    const tid = Number(req.body?.trainerId);
+    if (!r.replies.some((x) => x.trainerId === tid)) throw new Refused("Pick a trainer who replied.");
+    const t = await store.trainer(tid);
+    if (!t || !listedNow(t)) throw new Refused("That trainer isn't listed right now.", 404);
+    const old = await store.linkBetween(tid, id); const stamp = new Date(now()).toISOString();
+    const link: LinkRow = old && (old.status === "active") ? old : { id: old?.id ?? uuid(), trainerId: tid, clientId: id, status: "active", consent: cleanConsent(req.body?.consent), coaching: old?.coaching ?? emptyCoaching(), clientSide: old?.clientSide ?? emptyClientSide(), createdAt: old?.createdAt ?? stamp, updatedAt: stamp };
+    if (link !== old) { await store.saveLink(link); if (t.profile.welcome) await store.addMessage(link.id, tid, t.profile.welcome); }
+    await saveMarket(all.map((x) => (x.id === r.id ? { ...x, status: "hired", hired: tid } : x)));
+    void notify(tid, { title: "You were hired", body: `${r.name.split(" ")[0]} picked you from the marketplace. Say hi and send their first plan.`, url: "#/trainer", tag: `mk-${r.id}` });
+    return { linkId: link.id, status: link.status };
   }));
 
   // Groups: pages, chat and challenges (server/coachGroups.ts).

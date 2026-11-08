@@ -10,6 +10,7 @@ import { Avatar, Chat, Directory, Stars, TrainerPage } from "../coach/CoachUi";
 import { MyGroups } from "../coach/Groups";
 import { ClientFormChecks } from "../coach/FormCheck";
 import { MatchCard, MatchSheet } from "../coach/Match";
+import { MyRequests } from "../coach/Market";
 import { coachApi, dayKeyOf, post, put, shortDate, shrinkImage, usePoll, when, type MyLink } from "../coach/coachApi";
 import { useHealth } from "./FitHealth";
 import { startApplePush } from "@/lib/applePush";
@@ -121,6 +122,9 @@ export function CoachScreen({ token, me, data, update, list, onStart, onClose }:
   const [asking, setAsking] = useState<PublicTrainer | null>(null);
   const [askMsg, setAskMsg] = useState("");
   const [matching, setMatching] = useState(false);
+  const [posted, setPosted] = useState(0);
+  const [note, setNote] = useState("");
+  const say = (m: string) => { setNote(m); window.setTimeout(() => setNote((x) => (x === m ? "" : x)), 2600); };
   const [browse, setBrowse] = useState(false);
   const mine = (links ?? []).filter((l) => l.trainer && (l.status === "active" || l.status === "requested"));
   const [pick, setPick] = useState<string>("");
@@ -132,13 +136,14 @@ export function CoachScreen({ token, me, data, update, list, onStart, onClose }:
     <p className="text-[12px] tracking-[.14em]" style={{ ...display, color: C.lime }}>Real people. No AI.</p>
     <p className="text-[28px] leading-none" style={display}>Find your trainer</p>
     <p className="mt-1 text-[14px]" style={{ color: C.steel }}>Certified coaches set their own prices for in-person, live-video or online training. Read reviews from their real clients, then ask one to coach you.</p>
-  </Card>} after={<div className="mt-3"><MatchCard onOpen={() => setMatching(true)} /></div>} />;
+  </Card>} after={<div className="mt-3"><MatchCard onOpen={() => setMatching(true)} /><MyRequests key={posted} token={token} onProfile={(t) => setOpen(t.id)} onHired={() => { setBrowse(false); reload(); }} /></div>} />;
   return <Sheet title={current && !browse ? "My trainer" : "Find a trainer"} onClose={onClose} testId="fit-coach" right={hasActive && <button type="button" onClick={() => setBrowse((b) => !b)} className="h-10 rounded-full px-3 text-[13px] font-semibold" style={{ background: C.card }}>{browse ? "My trainer" : "Browse"}</button>}>
     {mine.filter((l) => l.status === "requested").map((l) => <Card key={l.id} className="mb-3 flex items-center gap-3 !p-3"><Avatar t={l.trainer!} size={44} /><div className="min-w-0 flex-1"><p className="truncate font-semibold">Request sent to {l.trainer!.name}</p><p className="text-[12px]" style={{ color: C.dim }}>You'll get a notification when they accept.</p></div>
       <button type="button" onClick={async () => { if (window.confirm("Cancel this request?")) { await post(token, `/links/${l.id}/end`); reload(); } }} className="text-[13px] font-semibold" style={{ color: C.dim }}>Cancel</button></Card>)}
     {mine.filter((l) => l.status === "active").length > 1 && !browse && <div className="mb-3"><Chips label="Trainer" value={current?.id ?? ""} onChange={setPick} items={mine.filter((l) => l.status === "active").map((l) => ({ id: l.id, label: l.trainer!.name }))} /></div>}
     {current?.status === "active" && !browse ? <Hub key={current.id} token={token} me={me} link={current} data={data} update={update} list={list} onStart={onStart} reload={reload} onListing={() => setOpen(current.trainer!.id)} /> : findNew}
-    {matching && <MatchSheet token={token} onClose={() => setMatching(false)} onProfile={(t) => setOpen(t.id)} onAsk={(t, m) => { setAskMsg(m); setAsking(t); }} />}
+    {note && <div className="fit-up fixed inset-x-4 z-[130] mx-auto max-w-sm rounded-[14px] px-4 py-3 text-center text-[15px] font-semibold" style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)", background: C.text, color: C.bg }} role="status">{note}</div>}
+    {matching && <MatchSheet token={token} say={say} onPosted={() => setPosted((x) => x + 1)} onClose={() => setMatching(false)} onProfile={(t) => setOpen(t.id)} onAsk={(t, m) => { setAskMsg(m); setAsking(t); }} />}
     {open !== null && <TrainerPage id={open} onClose={() => setOpen(null)} action={(t) => {
       const l = (links ?? []).find((x) => x.trainer?.id === t.id && (x.status === "active" || x.status === "requested"));
       return l ? <Btn kind="soft" className="w-full" onClick={() => { setOpen(null); setBrowse(false); setPick(l.id); }}>{l.status === "active" ? "Go to my trainer" : "Request sent"}</Btn>

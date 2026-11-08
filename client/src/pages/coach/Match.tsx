@@ -6,6 +6,7 @@ import { MODES, MODE_BLURB, MODE_LABEL, US_STATES, type Mode, type PublicTrainer
 import { GOALS, emptyNeed, introMessage, type Match, type Need } from "@shared/coachMatch";
 import { post } from "./coachApi";
 import { Avatar, Stars } from "./CoachUi";
+import { PostRequest } from "./Market";
 import { Btn, C, Card, Field, Sheet, Title, display, inputCls, inputStyle } from "../fit/fitUi";
 
 const BUDGETS = [[0, "No limit"], [10000, "$100"], [20000, "$200"], [30000, "$300"], [50000, "$500"], [80000, "$800"]] as const;
@@ -19,7 +20,7 @@ export function MatchCard({ onOpen }: { onOpen: () => void }) {
   </Card>;
 }
 
-export function MatchSheet({ token, onClose, onProfile, onAsk }: { token: string | null; onClose: () => void; onProfile: (t: PublicTrainer) => void; onAsk: (t: PublicTrainer, message: string) => void }) {
+export function MatchSheet({ token, onClose, onProfile, onAsk, say = () => {}, onPosted = () => {} }: { token: string | null; onClose: () => void; onProfile: (t: PublicTrainer) => void; onAsk: (t: PublicTrainer, message: string) => void; say?: (m: string) => void; onPosted?: () => void }) {
   const [n, setN] = useState<Need>(() => { try { return { ...emptyNeed(), ...JSON.parse(localStorage.getItem("arise-fit-need") || "{}") }; } catch { return emptyNeed(); } });
   const [res, setRes] = useState<(Match & { why: string })[] | null>(null);
   const [busy, setBusy] = useState(false); const [err, setErr] = useState("");
@@ -61,6 +62,7 @@ export function MatchSheet({ token, onClose, onProfile, onAsk }: { token: string
         <div className="mt-3 grid grid-cols-2 gap-2"><Btn kind="soft" className="!text-[15px]" onClick={() => onProfile(t)}>Profile</Btn><Btn className="!text-[15px]" onClick={() => onAsk(t, introMessage(n, t.name.split(" ")[0]))} testId="match-ask">Ask to coach</Btn></div>
       </Card>; })}</div>
         : <Card className="text-center !p-5"><p className="text-[18px] font-bold">No trainer fits all of that yet</p><p className="mt-1 text-[14px]" style={{ color: C.dim }}>Try adding Online coaching (works from anywhere) or a higher budget. New trainers join every week.</p></Card>}
+      <div className="mt-4"><PostRequest token={token} need={n} say={say} onPosted={() => { onPosted(); onClose(); }} /></div>
       <Title>Not quite right?</Title>
       <Btn kind="soft" className="w-full" onClick={() => setRes(null)}>Change my answers</Btn>
     </div>}
