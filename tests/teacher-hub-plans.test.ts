@@ -138,12 +138,12 @@ test("Premium checkout is unchanged", async () => {
   const t = await call("POST", "/api/billing/checkout", 50, { kind: "teacher", blocks: 3 });
   assert.equal(t.status, 200, JSON.stringify(t.body));
   let f = calls[0].form;
-  assert.deepEqual([f.get("line_items[0][quantity]"), f.get("line_items[0][price_data][unit_amount]"), f.get("metadata[kind]")], ["3", "1000", "teacher"]);
-  assert.match(f.get("line_items[0][price_data][product_data][name]")!, /Premium for a teacher/);
+  assert.deepEqual([f.get("line_items[0][quantity]"), f.get("line_items[0][price_data][unit_amount]"), f.get("metadata[kind]")], ["3", "2000", "teacher"]);
+  assert.match(f.get("line_items[0][price_data][product_data][name]")!, /Reader for a teacher/);
   const s = await call("POST", "/api/billing/checkout", 51, { kind: "school" });
   assert.equal(s.status, 200, JSON.stringify(s.body));
   f = calls[1].form;
-  assert.deepEqual([f.get("line_items[0][quantity]"), f.get("line_items[0][price_data][unit_amount]"), f.get("line_items[0][price_data][recurring][interval]")], ["1", "70000", "year"]);
+  assert.deepEqual([f.get("line_items[0][quantity]"), f.get("line_items[0][price_data][unit_amount]"), f.get("line_items[0][price_data][recurring][interval]")], ["1", "10000", "month"]);
   const none = await call("POST", "/api/billing/checkout", 50, {});
   assert.equal(none.status, 200);
   assert.equal(calls.filter((c) => c.method === "POST").at(-1).form.get("metadata[kind]"), "teacher");

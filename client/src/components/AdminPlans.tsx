@@ -311,7 +311,7 @@ export default function AdminPlans() {
             <div className="space-y-3 pt-4 border-t border-border">
               <Label className="text-sm font-medium">Online payment (Stripe)</Label>
               <p className="text-sm text-muted-foreground">
-                Premium and Arise WorkHub are sold separately, each at {usd(PLANS.teacher.monthlyCents)} a month per {PLANS.teacher.studentsPerBlock} students for a teacher, or {usd(PLANS.school.yearlyCents)} a year for a school. Apart from a teacher's 30-day free trial, Arise WorkHub is never free, even at always-free schools or while plan rules are off. Payment stays closed until a Stripe secret key is set.
+                Premium and Arise WorkHub are sold separately, each at {usd(PLANS.teacher.monthlyCents)} a month per {PLANS.teacher.studentsPerBlock} students for a teacher, or {usd(PLANS.school.monthlyCents)} a month for a school. Apart from a teacher's 30-day free trial, Arise WorkHub is never free, even at always-free schools or while plan rules are off. Payment stays closed until a Stripe secret key is set.
               </p>
               {data.stripe.mode === "test" && (
                 <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-3 text-sm space-y-1" role="alert" data-testid="stripe-test-warning">
