@@ -45,7 +45,8 @@ public final class PodEngine: ObservableObject {
     private var statusWatch: AnyCancellable?
     private var stallWatch: AnyCancellable?
     private var adsTask: Task<Void, Never>?
-    private var ads: [PodAd] = []
+    /** The ads found in what's playing (where they start and end), for the progress bar's marks. */
+    @Published public private(set) var ads: [PodAd] = []
     private var skipped = Set<String>()
     private var clean = false
     private var lastSaved: Double = 0

@@ -44,11 +44,19 @@ public struct PodEp: Codable, Hashable, Identifiable {
     }
 }
 
+/** A show and its newest episodes, as the feed hands them out. */
+public struct PodPool: Hashable {
+    public var show: PodShowRef
+    public var rank: Int
+    public var episodes: [PodEp]
+}
+
 public struct PodShowRef: Codable, Hashable, Identifiable {
     public var id: String
     public var name: String
     public var author: String
     public var art: String
+    public init(id: String, name: String, author: String = "", art: String = "") { self.id = id; self.name = name; self.author = author; self.art = art }
     public init?(json: [String: Any]) {
         guard let id = PodJSON.str(json["id"]), !id.isEmpty else { return nil }
         self.id = id
@@ -359,6 +367,26 @@ public final class PodAPI {
     public func genreShows(_ genre: String) async throws -> [PodShowRef] {
         let b = try await json("/api/podscroll/genre/\(genre.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? genre)")
         return PodJSON.list(b["shows"]).compactMap { PodShowRef(json: $0) }
+    }
+    /** The shows for some genres, each with its newest episodes (the Pod+ home page and For You). */
+    public func feed(genres: [String]) async throws -> [String: [PodPool]] {
+        let g = genres.prefix(12).joined(separator: ",")
+        let b = try await json("/api/podscroll/feed?genres=\(g.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? g)")
+        var out: [String: [PodPool]] = [:]
+        for (k, v) in (b["pools"] as? [String: Any]) ?? [:] {
+            out[k] = PodJSON.list(v).compactMap { p in
+                guard let sj = p["show"] as? [String: Any], let show = PodShowRef(json: sj) else { return nil }
+                let eps = PodJSON.list(p["episodes"]).compactMap { e -> PodEp? in
+                    guard var ep = PodEp(json: e) else { return nil }
+                    if ep.art.isEmpty { ep.art = show.art }
+                    if ep.show.isEmpty { ep.show = show.name }
+                    if ep.showId.isEmpty { ep.showId = show.id }
+                    return ep
+                }
+                return PodPool(show: show, rank: Int(PodJSON.num(p["rank"]) ?? 0), episodes: eps)
+            }
+        }
+        return out
     }
     /** Up to the Minute News: news episodes from the last few hours, newest first. */
     public func news(hours: Int = 12) async throws -> [PodEp] {

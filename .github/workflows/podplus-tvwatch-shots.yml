@@ -1,0 +1,79 @@
+name: Pod+ Apple TV and Apple Watch screenshots
+# Builds Pod+ for Apple TV and Apple Watch for their simulators, opens them on real podcasts and saves
+# screenshots (home, swipe feed, the other tabs; light and dark on the TV) to the podplus-tvwatch-shots branch.
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - 'native/tv-app/**'
+      - 'native/watch-app/**'
+      - 'native/arise-carplay/ios/Sources/**'
+      - 'podscroll/ios-app/add_watch_tv.rb'
+      - '.github/workflows/podplus-tvwatch-shots.yml'
+permissions:
+  contents: write
+jobs:
+  shots:
+    runs-on: xcode-27
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use the newest Xcode 27
+        run: |
+          X=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | grep -viE 'beta|release_candidate|_rc' | sort -V | tail -1 || true)
+          if [[ -z "$X" ]]; then X=$(xcode-select -p | sed 's#/Contents/Developer$##'); fi
+          echo "DEVELOPER_DIR=$X/Contents/Developer" >> "$GITHUB_ENV"
+      - name: A stand-in project with Pod+ for Apple TV and Apple Watch
+        run: |
+          set -euo pipefail
+          ruby -rxcodeproj -e 'puts Xcodeproj::VERSION' 2>/dev/null || gem install xcodeproj --no-document --user-install
+          mkdir -p "$RUNNER_TEMP/p/App" && cd "$RUNNER_TEMP/p"
+          ruby -rxcodeproj -e 'p = Xcodeproj::Project.new("App.xcodeproj"); t = p.new_target(:application, "App", :ios, "16.0"); t.build_configurations.each { |c| c.build_settings["MARKETING_VERSION"] = "1.0"; c.build_settings["CURRENT_PROJECT_VERSION"] = "1" }; p.save'
+          ruby "$GITHUB_WORKSPACE/podscroll/ios-app/add_watch_tv.rb" App.xcodeproj
+      - name: Build both
+        working-directory: ${{ runner.temp }}/p
+        run: |
+          set -uo pipefail
+          ok=1
+          xcodebuild -project App.xcodeproj -scheme PodPlusTV -configuration Debug -sdk appletvsimulator -destination 'generic/platform=tvOS Simulator' -derivedDataPath d CODE_SIGNING_ALLOWED=NO build > tv.log 2>&1 || { ok=0; grep -E "error:" tv.log | head -40; }
+          xcodebuild -project App.xcodeproj -scheme PodPlusWatch -configuration Debug -sdk watchsimulator -destination 'generic/platform=watchOS Simulator' -derivedDataPath d CODE_SIGNING_ALLOWED=NO build > watch.log 2>&1 || { ok=0; grep -E "error:" watch.log | head -40; }
+          [[ $ok == 1 ]] || { echo "::error::Didn't compile"; exit 1; }
+      - name: Screenshots
+        working-directory: ${{ runner.temp }}/p
+        run: |
+          set -uo pipefail
+          mkdir -p out
+          pick() { xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin); print(next((x['udid'] for k,g in sorted(d['devices'].items(), reverse=True) if '$1' in k for x in g), ''))"; }
+          TV=$(pick tvOS); W=$(pick watchOS)
+          echo "TV $TV  Watch $W"
+          if [[ -n "$TV" ]]; then
+            xcrun simctl boot "$TV"; xcrun simctl bootstatus "$TV" -b
+            xcrun simctl install "$TV" d/Build/Products/Debug-appletvsimulator/PodPlusTV.app
+            shoot() { xcrun simctl terminate "$TV" com.arisereader.podplus 2>/dev/null; xcrun simctl launch "$TV" com.arisereader.podplus "${@:2}"; sleep 22; xcrun simctl io "$TV" screenshot "out/tv-$1.png"; }
+            xcrun simctl ui "$TV" appearance light || true
+            shoot 1-home-light
+            shoot 2-swipe -podtvSwipe YES
+            shoot 3-swipe-start -podtvTab 1
+            shoot 4-radio -podtvTab 2
+            shoot 5-library -podtvTab 3
+            xcrun simctl ui "$TV" appearance dark || true
+            shoot 6-home-dark
+            xcrun simctl shutdown "$TV" || true
+          fi
+          if [[ -n "$W" ]]; then
+            xcrun simctl boot "$W"; xcrun simctl bootstatus "$W" -b
+            xcrun simctl install "$W" d/Build/Products/Debug-watchsimulator/PodPlusWatch.app && {
+              xcrun simctl launch "$W" com.arisereader.podplus.watchkitapp; sleep 15; xcrun simctl io "$W" screenshot out/watch-1-home.png
+              xcrun simctl terminate "$W" com.arisereader.podplus.watchkitapp; xcrun simctl launch "$W" com.arisereader.podplus.watchkitapp -pwSwipe YES; sleep 22; xcrun simctl io "$W" screenshot out/watch-2-swipe.png
+            }
+          fi
+          ls -la out
+      - name: Save to the podplus-tvwatch-shots branch
+        if: always()
+        working-directory: ${{ runner.temp }}/p/out
+        run: |
+          git init -q && git checkout -q -b podplus-tvwatch-shots
+          git config user.name "github-actions" && git config user.email "actions@github.com"
+          git add -A && git commit -qm "Pod+ TV and Watch screenshots ${GITHUB_SHA::7}" || exit 0
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" podplus-tvwatch-shots

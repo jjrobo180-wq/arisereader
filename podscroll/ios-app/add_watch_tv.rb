@@ -124,7 +124,7 @@ watch = add.call("PodPlusWatch", :watchos, "10.0",
   })
 
 # --- Apple TV ---
-tv = add.call("PodPlusTV", :tvos, "16.0",
+tv = add.call("PodPlusTV", :tvos, "17.0",
   core_files.reject { |f| f.end_with?("PodLink.swift") } + [File.join(root, "native/tv-app/PodTVApp.swift")],
   common.call("Pod+").merge(
     "UIBackgroundModes" => ["audio"],
@@ -135,7 +135,7 @@ tv = add.call("PodPlusTV", :tvos, "16.0",
     "PRODUCT_BUNDLE_IDENTIFIER" => host,
     "SDKROOT" => "appletvos",
     "TARGETED_DEVICE_FAMILY" => "3",
-    "TVOS_DEPLOYMENT_TARGET" => "16.0",
+    "TVOS_DEPLOYMENT_TARGET" => "17.0",
     "ASSETCATALOG_COMPILER_APPICON_NAME" => "App Icon & Top Shelf Image",
   })
 # UILaunchScreen is a dictionary (an empty one: the system's plain launch screen).
