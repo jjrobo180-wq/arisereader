@@ -104,7 +104,18 @@ def age():
             attrs[k] = k == "messagingAndChat"
         else:
             attrs[k] = "NONE"
-    api(f"ageRatingDeclarations/{decl['id']}", {"data": {"type": "ageRatingDeclarations", "id": decl["id"], "attributes": attrs}}, method="PATCH")
+    # Apple adds questions over time: one sent with the wrong type is corrected from its answer and sent again.
+    for _ in range(12):
+        try:
+            api(f"ageRatingDeclarations/{decl['id']}", {"data": {"type": "ageRatingDeclarations", "id": decl["id"], "attributes": attrs}}, method="PATCH")
+            return
+        except RuntimeError as e:
+            import re
+            m = re.search(r"attribute '(\w+)'. Expected a (\w+)", str(e))
+            if not m:
+                raise
+            attrs[m.group(1)] = False if m.group(2) == "BOOLEAN" else "NONE"
+    raise RuntimeError("age rating: too many corrections")
 step("age rating answers (4+: no mature content; teacher and student messages)", age)
 
 # The version's App Store text.
@@ -136,8 +147,10 @@ def availability():
         r = q(url) if not url.startswith("https://") else api(url)
         terr += [t["id"] for t in r["data"]]
         url = r.get("links", {}).get("next")
-    api("appAvailabilities", {"data": {"type": "appAvailabilities", "attributes": {"availableInNewTerritories": True}, "relationships": {
-        "app": {"data": {"type": "apps", "id": APP}}, "availableTerritories": {"data": [{"type": "territories", "id": t} for t in terr]}}}})
+    refs = [f"${{t{i}}}" for i in range(len(terr))]
+    api("https://api.appstoreconnect.apple.com/v2/appAvailabilities", {"data": {"type": "appAvailabilities", "attributes": {"availableInNewTerritories": True}, "relationships": {
+        "app": {"data": {"type": "apps", "id": APP}}, "territoryAvailabilities": {"data": [{"type": "territoryAvailabilities", "id": r} for r in refs]}}},
+        "included": [{"type": "territoryAvailabilities", "id": r, "attributes": {"available": True}, "relationships": {"territory": {"data": {"type": "territories", "id": t}}}} for r, t in zip(refs, terr)]})
 step("available in every country", availability)
 
 # Third-party content: public-domain books (Project Gutenberg, Standard Ebooks), openly licensed lessons
@@ -182,7 +195,9 @@ def review():
         api(f"appStoreReviewDetails/{rd['id']}", {"data": {"type": "appStoreReviewDetails", "id": rd["id"], "attributes": attrs}}, method="PATCH")
     else:
         api("appStoreReviewDetails", {"data": {"type": "appStoreReviewDetails", "attributes": attrs, "relationships": {"appStoreVersion": {"data": {"type": "appStoreVersions", "id": VID}}}}})
-if demo_user:
+if demo_user and not os.environ.get("CONTACT_FIRST"):
+    print("SKIP App Review sign-in and contact: Apple needs the contact's name and phone with it")
+elif demo_user:
     step("App Review sign-in (sample account)" + (" and contact" if os.environ.get("CONTACT_PHONE") else ""), review)
 
 # Screenshots.
