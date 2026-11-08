@@ -96,11 +96,10 @@ def age():
     BOOLS = {"advertising", "gambling", "healthOrWellnessTopics", "lootBox", "messagingAndChat", "parentalControls", "ageAssurance",
              "unrestrictedWebAccess", "userGeneratedContent", "seventeenPlus"}
     for k, v in decl["attributes"].items():
-        if k in ("kidsAgeBand",) or "url" in k.lower() or "uri" in k.lower():
-            continue  # links (like a developer age-rating page) are left blank
-        if k in ("ageRatingOverride", "ageRatingOverrideV2", "koreaAgeRatingOverride"):
-            attrs[k] = "NONE"
-        elif k in BOOLS or isinstance(v, bool):
+        low = k.lower()
+        if k in ("kidsAgeBand",) or any(w in low for w in ("url", "uri", "override", "grac", "classification", "korea")):
+            continue  # links, rating overrides and Korea's rating number are left as they are (none)
+        if k in BOOLS or isinstance(v, bool):
             attrs[k] = k == "messagingAndChat"
         else:
             attrs[k] = "NONE"
@@ -108,6 +107,7 @@ def age():
     for _ in range(12):
         try:
             api(f"ageRatingDeclarations/{decl['id']}", {"data": {"type": "ageRatingDeclarations", "id": decl["id"], "attributes": attrs}}, method="PATCH")
+            print("     answers: " + ", ".join(f"{k}={v}" for k, v in sorted(attrs.items())))
             return
         except RuntimeError as e:
             import re
@@ -155,6 +155,12 @@ def availability():
         terr += [t["id"] for t in r["data"]]
         url = r.get("links", {}).get("next")
     refs = [f"${{t{i}}}" for i in range(len(terr))]
+    try:
+        q(f"apps/{APP}/appAvailabilityV2")
+        print("     already set: available in every country")
+        return
+    except RuntimeError:
+        pass
     api("https://api.appstoreconnect.apple.com/v2/appAvailabilities", {"data": {"type": "appAvailabilities", "attributes": {"availableInNewTerritories": True}, "relationships": {
         "app": {"data": {"type": "apps", "id": APP}}, "territoryAvailabilities": {"data": [{"type": "territoryAvailabilities", "id": r} for r in refs]}}},
         "included": [{"type": "territoryAvailabilities", "id": r, "attributes": {"available": True}, "relationships": {"territory": {"data": {"type": "territories", "id": t}}}} for r, t in zip(refs, terr)]})

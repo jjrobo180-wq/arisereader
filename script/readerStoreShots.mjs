@@ -44,6 +44,11 @@ for (const [kind, opts] of Object.entries(devices)) {
   await page.goto(`${SITE}/#/library`, { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(5000);
   await favorites();
+  // The 5-Minute Reads row set to Animals: the store shots carry no photos of real people.
+  async function animals() {
+    const chip = page.getByRole("button", { name: "Animals", exact: true }).first();
+    if (await chip.isVisible().catch(() => false)) { await chip.click().catch(() => {}); await page.waitForTimeout(2500); await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(500); }
+  }
   let n = 0;
   for (const [name, path] of pages) {
     try {
@@ -52,11 +57,13 @@ for (const [kind, opts] of Object.entries(devices)) {
         // A book: the first one in the Library.
         await page.goto(`${SITE}/#/library`, { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3500);
         await favorites();
+        await animals();
         const link = page.getByRole("button", { name: /Read & Quiz/i }).first();
         if (await link.isVisible().catch(() => false)) await link.click(); else { console.log(`skip ${kind} book: no Read & Quiz button`); continue; }
       }
       await page.waitForTimeout(5000);
       await favorites();
+      if (name === "library") await animals();
       n++;
       await page.screenshot({ path: `store-shots/${kind}-${n}.png` });
       console.log(`ok ${kind}-${n} ${name} ${page.url()}`);
