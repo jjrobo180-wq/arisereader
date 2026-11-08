@@ -79,7 +79,8 @@ if info:
             problems.append(f"No privacy policy URL ({la['locale']}).")
     try:
         age = q(f"appInfos/{info['id']}/ageRatingDeclaration")["data"]
-        unanswered = [k for k, v in age["attributes"].items() if v is None]
+        optional = ("kidsAgeBand", "gracRatingClassificationNumber", "developerAgeRatingInfoUrl", "ageRatingOverride", "ageRatingOverrideV2", "koreaAgeRatingOverride")
+        unanswered = [k for k, v in age["attributes"].items() if v is None and k not in optional]
         if unanswered:
             problems.append(f"Age rating questions not answered: {', '.join(unanswered[:8])}{'...' if len(unanswered) > 8 else ''}")
     except RuntimeError as e:
