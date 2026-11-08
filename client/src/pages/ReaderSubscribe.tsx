@@ -77,8 +77,8 @@ export default function ReaderSubscribe() {
             {role === "student"
               ? "Ask a parent to get the family plan, or ask your teacher to add you to their class. Then sign in again."
               : role === "parent"
-                ? `${usd(PLANS.bundle.familyMonthlyCents)} a month covers you and up to ${PLANS.parentMaxChildren} linked children: the reading library and quizzes, A.R.I.S.E. Math, History and Connect.`
-                : `${usd(PLANS.teacher.monthlyCents)} a month covers up to ${PLANS.teacher.studentsPerBlock} students, with Math, History and Connect included. A whole school is ${usd(PLANS.school.monthlyCents)} a month.`}
+                ? `${usd(PLANS.bundle.familyMonthlyCents)} a month covers you and up to ${PLANS.parentMaxChildren} linked children: every book, quiz and reward.`
+                : `${usd(PLANS.teacher.monthlyCents)} a month covers up to ${PLANS.teacher.studentsPerBlock} students. A whole school is ${usd(PLANS.school.monthlyCents)} a month.`}
           </p>
           <ul className="mt-5 space-y-2.5 text-[15px] text-slate-200">
             {["Every book, story and quiz", "Points, badges, streaks and rewards", "Games and avatar worlds", "Teacher and parent dashboards"].map((t) => (
