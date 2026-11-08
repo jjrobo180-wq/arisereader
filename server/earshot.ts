@@ -172,7 +172,17 @@ export interface EarshotOptions {
   player?: Player;
   /** The database for social (profiles, posts, uploads; server/podcastSocial.ts). */
   socialDb?: () => any;
+  /** Ad-free listening is part of Arise All Access (shared/allAccess.ts). Without this, everyone gets it. */
+  adFree?: AdFreeGate;
 }
+
+/** Who gets Pod+'s ad-free listening: plan = on All Access; minutesLeft = of the 20 shared hours; owner = the
+ *  Arise account that pays. `listened` counts a new episode (one not ad-free yet) once a month. */
+export type AdFreeGate = {
+  check: (req: any) => Promise<{ plan: boolean; minutesLeft: number; owner: number | null }>;
+  listened: (owner: number, episodeId: string, secs?: number) => Promise<void>;
+};
+export const ALL_ACCESS_NEEDED = "all_access_needed";
 let sharedAdStore: AdStore | null = null;
 const nowServices = new WeakMap<object, ReturnType<typeof nowNewsService>>();
 const stations = new WeakMap<object, ReturnType<typeof newsStation>>();
@@ -526,7 +536,7 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
   // Voters are "u<id>" on Arise (LifeHub) and "d<device>" on Podscroll, so both apps share one pool.
   const adStore = options.adStore ?? (sharedAdStore ??= memoryAdStore());
   const player = options.player;
-  registerAdRoutes(app, authMiddleware, { prefix: P, dir, store: adStore, voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, toContent: player ? (sid, ep, x, side) => player.toContent(sid, ep, x, side) : undefined });
+  registerAdRoutes(app, authMiddleware, { adFree: options.adFree, prefix: P, dir, store: adStore, voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, toContent: player ? (sid, ep, x, side) => player.toContent(sid, ep, x, side) : undefined });
   // Publishing, Studio and LivePod need a creator: anyone signed in to Arise, or on Pod+ someone
   // signed in with their email (server/podcastAccounts.ts; the gate below marks req.creator).
   const isCreator = (req: any) => (P === "/api/podscroll" ? !!req.creator : !isStudent(req));
@@ -545,7 +555,7 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     if (!openingsStarted.has(player)) { openingsStarted.add(player); startOpenings(player, dir); }
     // Ad-free copies kept in storage (server/podcastClean.ts), played straight from there.
     const cleaner = cleanerOf(player);
-    if (cleaner) registerCleanRoutes(app, authMiddleware, { prefix: P, cleaner, cleanId: cleanPodId });
+    if (cleaner) registerCleanRoutes(app, authMiddleware, { prefix: P, cleaner, cleanId: cleanPodId, adFree: options.adFree });
     const audioFor = async (showId: string, episodeId: string, sent?: string) => {
       const recent = (await dir.loadShow(showId)).episodes;
       const hit = recent.find((e) => e.id === episodeId);
@@ -559,10 +569,10 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     if (cleaner) {
       let pre = precleaners.get(player);
       if (!pre) { pre = createPrecleaner({ player, cleaner, dir }); precleaners.set(player, pre); }
-      registerPrepareRoute(app, authMiddleware, { prefix: P, pre, cleanId: cleanPodId, voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, audioFor });
+      registerPrepareRoute(app, authMiddleware, { prefix: P, pre, cleanId: cleanPodId, voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, audioFor, adFree: options.adFree });
     }
     registerPlayRoutes(app, authMiddleware, {
-      prefix: P, player, dir, crowd: (ep) => crowdFor(adStore, ep), cleanId: cleanPodId, clientIp,
+      prefix: P, player, dir, crowd: (ep) => crowdFor(adStore, ep), cleanId: cleanPodId, clientIp, adFree: options.adFree,
       voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`,
       // The show's newest 25 first, then its 200 newest (an older episode, like a series' first), then
       // the address the app sent, only when it's on the same host as this show's own episodes.
@@ -674,7 +684,15 @@ export function podscrollAllowed(origin: string, extra: string[] = []): boolean 
 /** The visitor's address as Render's proxy saw it (the last X-Forwarded-For entry is the one it added). */
 const clientIp = (req: any) => { const f = String(req.headers["x-forwarded-for"] || "").split(",").map((x) => x.trim()).filter(Boolean); return f[f.length - 1] || String(req.socket?.remoteAddress || ""); };
 
-export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetcher?: Fetcher, directory?: Directory, adStore?: AdStore, player?: Player, socialDb?: () => any, more: { sendEmail?: (to: string, subject: string, html: string) => Promise<{ sent: boolean; error?: string }> } = {}) {
+export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetcher?: Fetcher, directory?: Directory, adStore?: AdStore, player?: Player, socialDb?: () => any, more: { sendEmail?: (to: string, subject: string, html: string) => Promise<{ sent: boolean; error?: string }>;
+  /** Arise All Access (server/routes.ts): ad-free listening, Study Pod+ and audiobook AI for Arise accounts on it (found by the email
+   *  the Pod+ account signs in with). Without it, everyone gets everything (tests, and a server with no accounts). */
+  allAccess?: {
+    byEmail: (email: string) => Promise<{ plan: boolean; minutesLeft: number; owner: number | null }>;
+    listened: (owner: number, episodeId: string, secs?: number) => Promise<void>;
+    aiLeft: (owner: number) => Promise<number>;
+    countAi: (owner: number, n: number) => Promise<void>;
+  } } = {}) {
   const extra = String(process.env.PODSCROLL_ORIGINS || "").split(",").map((x) => x.trim()).filter(Boolean);
   const perIp = createAttemptLimiter({ max: 900, windowMs: 10 * 60_000 });
   app.use("/api/podscroll", (req: any, res: any, next: any) => {
@@ -708,6 +726,36 @@ export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetch
     }, () => next());
   };
   if (socialDb && sessions) registerPodscrollAccountRoutes(app, gate, { getDb: socialDb, sendEmail: more.sendEmail, sessions });
+  // Arise All Access: who has it here (a signed-in Pod+ account whose email has an Arise account on it).
+  const NONE = { plan: false, minutesLeft: 0, owner: null as number | null };
+  const adFree: AdFreeGate | undefined = more.allAccess ? {
+    check: async (req: any) => (req.creator?.email ? await more.allAccess!.byEmail(String(req.creator.email)).catch(() => NONE) : NONE),
+    listened: (owner, episodeId, secs) => more.allAccess!.listened(owner, episodeId, secs),
+  } : undefined;
+  app.get("/api/podscroll/all-access", gate, async (req: any, res: any) => {
+    res.set("Cache-Control", "no-store");
+    if (!adFree) return res.json({ enforced: false, plan: true, signedIn: !!req.creator });
+    const a = await adFree.check(req);
+    res.json({ enforced: true, signedIn: !!req.creator, plan: a.plan, minutesLeft: a.minutesLeft, aiLeft: a.plan && a.owner ? await more.allAccess!.aiLeft(a.owner).catch(() => 0) : 0 });
+  });
+  /** Study Pod+, Meeting Pod and the audiobooks' AI (recaps, questions) need All Access and count as AI requests. */
+  const podAi = (n: number): RequestHandler => (req: any, res: any, next: any) => {
+    if (!adFree) return next();
+    gate(req, res, async () => {
+      try {
+        const a = await adFree.check(req);
+        if (!a.plan || !a.owner) return res.status(402).json({ code: ALL_ACCESS_NEEDED, message: req.creator ? "This is part of Arise All Access ($10 a month for Pod+, Arise To Duo, Arise Fit and Arise Notes)." : "Sign in, then get Arise All Access to use this." });
+        if ((await more.allAccess!.aiLeft(a.owner)) < n) return res.status(402).json({ code: "all_access_ai", message: "You've used this month's AI requests in Arise All Access. They come back on the 1st." });
+        const owner = a.owner;
+        res.on("finish", () => { if (res.statusCode < 400) void more.allAccess!.countAi(owner, n).catch(() => {}); });
+        next();
+      } catch { next(); }
+    });
+  };
+  app.post("/api/podscroll/books/:id/recap", podAi(1));
+  app.post("/api/podscroll/books/:id/ask", podAi(1));
+  app.post(["/api/podscroll/studio/study", "/api/podscroll/studio/meeting", "/api/podscroll/studio/read"], podAi(3));
+  app.post(["/api/podscroll/studio/voice", "/api/podscroll/studio/transcribe"], podAi(5));
   // A tiny copy of an Apple cover, readable by the page (Apple's image server doesn't allow that
   // directly). Podscroll reads its colors to tint the strip iOS paints below a home-screen app, which
   // takes the page's color and can't show the art itself. Apple artwork only, 32 px, cached a day.
@@ -743,7 +791,7 @@ export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetch
   registerClipsRoutes(app, gate, socialDb ? { kv: supabaseKV(socialDb) } : {});
   // Study Pod+ and Meeting Pod (server/podcastStudio.ts): the person's own notes, turned into a podcast or a meeting summary.
   registerStudioRoutes(app, gate, { ask: openAiJson, speak: (text, voice) => aiSpeech(text, voice), transcribe: openAiTranscribe, ...(socialDb ? { blobs: supabaseBlobs(socialDb) } : {}) });
-  registerEarshotRoutes(app, gate, { store, fetcher, directory, adStore, player, socialDb, prefix: "/api/podscroll" });
+  registerEarshotRoutes(app, gate, { store, fetcher, directory, adStore, player, socialDb, prefix: "/api/podscroll", adFree });
   // New-episode notifications for the Pod+ iPhone app (server/podPush.ts).
   if (socialDb) {
     const dir = directory ?? (fetcher ? createDirectory({ fetcher }) : (sharedDirectory ??= createDirectory()));

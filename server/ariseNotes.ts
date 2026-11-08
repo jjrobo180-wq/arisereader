@@ -33,6 +33,10 @@ export type NotesDeps = {
   aiReady: () => boolean;
   /** The Notes plan this account itself has (from billing): free, basic, plus or family. */
   planOf: (userId: number, user?: User | null) => Promise<NotesPlanId>;
+  /** Arise All Access: the minutes left this month that can have speaker names (2 hours a month), and
+   *  counting what's used. Without these, speaker names follow the plan alone. */
+  speakerMinutesLeft?: (userId: number) => Promise<number>;
+  countSpeakerSecs?: (userId: number, secs: number) => Promise<unknown>;
   getUser: (id: number) => Promise<User | null | undefined>;
   /** Students under 13 only come in through a teacher or parent: a student account needs one of them. */
   studentAllowed?: (user: User) => Promise<boolean>;
@@ -44,7 +48,7 @@ export type NotesDeps = {
   now?: () => number;
 };
 
-type Ctx = { user: User; plan: NotesPlanId; poolId: number; pooled: boolean; me: AccountRow; pool: AccountRow; usage: UsageView; familyOwner: number | null };
+type Ctx = { user: User; plan: NotesPlanId; poolId: number; pooled: boolean; me: AccountRow; pool: AccountRow; usage: UsageView; familyOwner: number | null; speakers: boolean };
 
 const FEATURE_NAME: Record<NotesFeature, string> = {
   templates: "Meeting templates", export: "Exporting", share: "Share links", ask: "Ask your notes", memo: "Voice memo to task", planner: "Adding to your planner",
@@ -118,7 +122,9 @@ export function registerAriseNotesRoutes(app: Express, auth: RequestHandler, dep
     }
     const me = await account(user.id, plan);
     const pool = poolId === user.id ? me : await account(poolId, "family");
-    return { user, plan, poolId, pooled, me, pool, usage: usageView(pool, me, plan, pooled), familyOwner: familyOwner ?? null };
+    // All Access: speaker names for 2 hours a month (they cost far more to make); after that, plain transcripts.
+    const speakers = allows(plan, "speakers") && (plan !== "access" || !deps.speakerMinutesLeft || (await deps.speakerMinutesLeft(user.id).catch(() => 0)) > 0);
+    return { user, plan, poolId, pooled, me, pool, usage: usageView(pool, me, plan, pooled), familyOwner: familyOwner ?? null, speakers };
   };
 
   const need = (ctx: Ctx, f: NotesFeature, res: any) => {
@@ -207,7 +213,7 @@ export function registerAriseNotesRoutes(app: Express, auth: RequestHandler, dep
     }
     let heard;
     try {
-      heard = onPhone ? { lines: onPhone.lines, duration: onPhone.duration, provider: "on-device", diarized: false } : await deps.hear.hear({ audio, ext: piece.ext, mime: mime || MIME[piece.ext] || "", speakers: allows(ctx.plan, "speakers") && note.extras?.speakers !== false, prompt: WHISPER_HINT[note.template] });
+      heard = onPhone ? { lines: onPhone.lines, duration: onPhone.duration, provider: "on-device", diarized: false } : await deps.hear.hear({ audio, ext: piece.ext, mime: mime || MIME[piece.ext] || "", speakers: ctx.speakers && note.extras?.speakers !== false, prompt: WHISPER_HINT[note.template] });
     } catch (e: any) {
       console.error("[notes] speech to text:", e?.message);
       if (!piece.path) await store.putAudio(path, audio, MIME[piece.ext] || "audio/webm").catch(() => {});
@@ -234,6 +240,7 @@ export function registerAriseNotesRoutes(app: Express, auth: RequestHandler, dep
       status: statusFrom(pieces, fresh?.status ?? note.status),
       ...(heard.diarized ? { extras: { ...(fresh?.extras ?? note.extras), diarized: true } } : {}),
     });
+    if (heard.diarized && ctx.plan === "access" && deps.countSpeakerSecs) await deps.countSpeakerSecs(ctx.user.id, secs).catch(() => {});
     await warn(ctx, charged.poolUsed);
     const usage = usageView({ ...ctx.pool, used: charged.poolUsed }, { ...ctx.me, own: charged.ownUsed }, ctx.plan, ctx.pooled);
     return { ok: true as const, segments: segs, usage, minutes: charged.delta, provider: heard.provider, diarized: heard.diarized, secs: r2(secs) };
@@ -260,7 +267,7 @@ export function registerAriseNotesRoutes(app: Express, auth: RequestHandler, dep
         plan: ctx.plan, planName: NOTES_PLANS[ctx.plan].name, usage: ctx.usage, settings: ctx.me.settings, features,
         templates: NOTES_TEMPLATES.map((t) => ({ id: t.id, label: t.label, emoji: t.emoji, blurb: t.blurb, allowed: templateAllowed(ctx.plan, t.id) })),
         services: { speech: deps.hear.available(), speakers: deps.hear.speakersAvailable(), ai: deps.aiReady() },
-        limits: { pieceSecs: allows(ctx.plan, "speakers") && deps.hear.speakersAvailable() ? DIARIZE_PIECE_SECS : PIECE_SECS, pieceBytes: PIECE_MAX_BYTES, maxSecs: ctx.usage.maxSecs, memoSecs: MEMO_MAX_SECS },
+        limits: { pieceSecs: ctx.speakers && deps.hear.speakersAvailable() ? DIARIZE_PIECE_SECS : PIECE_SECS, pieceBytes: PIECE_MAX_BYTES, maxSecs: ctx.usage.maxSecs, memoSecs: MEMO_MAX_SECS },
         family,
       });
     } catch (e) { fail(res, e, "me"); }
@@ -319,9 +326,9 @@ export function registerAriseNotesRoutes(app: Express, auth: RequestHandler, dep
       const note = await store.createNote({
         ownerId: user.id, title: typed || cut(req.body?.defaultTitle, 140) || (source === "upload" ? "Uploaded recording" : "New recording"),
         template, source, status: source === "upload" ? "processing" : "recording", audioKeep: privateMode ? "delete" : ctx.me.settings.audio, folder: cut(req.body?.folder, 40),
-        extras: { autoTitle: !typed, speakers: !privateMode && allows(ctx.plan, "speakers") && req.body?.speakers !== false, ...(privateMode ? { privacy: "private" } : {}) },
+        extras: { autoTitle: !typed, speakers: !privateMode && ctx.speakers && req.body?.speakers !== false, ...(privateMode ? { privacy: "private" } : {}) },
       });
-      res.status(201).json({ note: await noteView(note, user), usage: ctx.usage, limits: { pieceSecs: allows(ctx.plan, "speakers") && deps.hear.speakersAvailable() && req.body?.speakers !== false ? DIARIZE_PIECE_SECS : PIECE_SECS, maxSecs: ctx.usage.maxSecs } });
+      res.status(201).json({ note: await noteView(note, user), usage: ctx.usage, limits: { pieceSecs: ctx.speakers && deps.hear.speakersAvailable() && req.body?.speakers !== false ? DIARIZE_PIECE_SECS : PIECE_SECS, maxSecs: ctx.usage.maxSecs } });
     } catch (e) { fail(res, e, "create"); }
   });
 
@@ -903,6 +910,23 @@ export function registerAriseNotesRoutes(app: Express, auth: RequestHandler, dep
       res.json({ since, people });
     } catch (e) { fail(res, e, "admin usage"); }
   });
+
+  // Arise All Access shares its 20 hours between Notes and new Pod+ ad-free episodes: Pod+ asks and counts here.
+  return {
+    /** Minutes this person has left this month (on their plan). */
+    async minutesLeft(userId: number): Promise<number> {
+      const user = await deps.getUser(userId);
+      if (!user) return 0;
+      return (await ctxOf({ ...user, id: Number(userId) } as User)).usage.left;
+    },
+    /** Counts minutes used outside Notes (a new Pod+ ad-free episode) against this month's allowance. */
+    async useMinutes(userId: number, minutes: number): Promise<void> {
+      const plan = await deps.planOf(userId, await deps.getUser(userId));
+      const a = await account(userId, plan);
+      const m = Math.max(0, Math.round(minutes));
+      await store.saveAccount({ ...a, used: a.used + m, own: a.own + m });
+    },
+  };
 }
 
 /** Audio kept for 30 days is deleted once the 30 days are up. */

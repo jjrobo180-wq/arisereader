@@ -117,6 +117,8 @@ export function registerAdRoutes(app: Express, authMiddleware: RequestHandler, o
   prefix: string; dir: Directory; store: AdStore; voterOf: (req: any) => string;
   /** A time in a session's copy as content time (playback through the server), or null. */
   toContent?: (sid: string, episodeId: string, x: number, side: "start" | "end") => number | null;
+  /** Skipping ads is part of Arise All Access: without it, no ads are listed (the episode plays as it is). */
+  adFree?: { check: (req: any) => Promise<{ plan: boolean }> };
 }) {
   const P = o.prefix;
   const marking = createAttemptLimiter({ max: 30, windowMs: 60 * 60_000 });
@@ -140,6 +142,7 @@ export function registerAdRoutes(app: Express, authMiddleware: RequestHandler, o
     if (!id) return res.status(400).json({ message: "That isn't an episode." });
     const voter = o.voterOf(req);
     if (limited(reads, voter, res, "requests")) return;
+    if (o.adFree && !(await o.adFree.check(req).catch(() => ({ plan: false }))).plan) { res.set("Cache-Control", "no-store"); return res.json({ ads: [], shared: true, plan: "all_access" }); }
     try { res.set("Cache-Control", "no-store"); res.json(await adsFor(o.dir, o.store, id, voter)); }
     catch (e) { down(res, e); }
   });

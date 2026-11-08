@@ -10,7 +10,7 @@
 
 // ─── Plans ────────────────────────────────────────────────────────────────────
 
-export type NotesPlanId = "free" | "basic" | "plus" | "family";
+export type NotesPlanId = "free" | "basic" | "plus" | "family" | "access";
 export type NotesPlan = {
   id: NotesPlanId;
   name: string;
@@ -40,6 +40,9 @@ export const NOTES_PLANS: Record<NotesPlanId, NotesPlan> = {
   basic: { id: "basic", name: "Basic", monthlyCents: 499, minutes: 600, maxSecs: 2 * 3600, rollover: false, speakers: false, iep: false, extras: true, people: 1, blurb: "10 hours a month and every tool except speaker labels." },
   plus: { id: "plus", name: "Plus", monthlyCents: 799, yearlyCents: 7999, minutes: 1500, maxSecs: 2 * 3600, rollover: true, speakers: true, iep: true, extras: true, people: 1, blurb: "25 hours a month, speaker labels, IEP mode and rollover." },
   family: { id: "family", name: "Family", monthlyCents: 999, minutes: 2000, maxSecs: 2 * 3600, rollover: true, speakers: true, iep: true, extras: true, people: 4, blurb: "2,000 minutes shared by up to 4 people, with everything in Plus." },
+  // Arise All Access (shared/allAccess.ts): Notes inside the $10 plan for all four apps. Its 20 hours are shared
+  // with new Pod+ ad-free episodes, and 2 of them can have speaker names.
+  access: { id: "access", name: "All Access", monthlyCents: 1000, minutes: 1200, maxSecs: 2 * 3600, rollover: false, speakers: true, iep: true, extras: true, people: 1, blurb: "20 hours a month (shared with new Pod+ ad-free episodes), speaker names for 2 of them, and every tool." },
 };
 export const NOTES_PLAN_IDS: readonly NotesPlanId[] = ["free", "basic", "plus", "family"];
 export const isNotesPlanId = (v: unknown): v is NotesPlanId => typeof v === "string" && (NOTES_PLAN_IDS as readonly string[]).includes(v);
@@ -76,7 +79,8 @@ export type NotesFeature =
 
 /** Free is summaries only; Basic is everything except speaker labels (and the Plus extras); Plus and Family have it all. */
 export function allows(plan: NotesPlanId, feature: NotesFeature): boolean {
-  if (feature === "speakers" || feature === "iep" || feature === "rollover") return plan === "plus" || plan === "family";
+  if (feature === "rollover") return plan === "plus" || plan === "family";
+  if (feature === "speakers" || feature === "iep") return plan === "plus" || plan === "family" || plan === "access";
   return plan !== "free";
 }
 /** The cheapest plan that has a feature. */

@@ -9,13 +9,15 @@ import { nameKey, registerAccountMergeRoutes, supabaseMergeDb, type Candidate } 
 import { registerDropAppRoutes } from "./dropApp";
 import { YOUTUBE_CHANNEL_OPTIONS, normalizeYoutubeChannels, youtubeChannelAllowed } from "../shared/youtubeChannels";
 import { normalizeEyeGazeBackground } from "../shared/eyeGazeAppearance";
-import type { Express } from "express";
+import type { Express, RequestHandler } from "express";
 import type { Server } from "node:http";
 import { storage, setReaderMessageListener } from "./storage";
 // Cache-bust: force server restart to pick up new DB entries
 import { seedData } from "./storage";
 import { clearCache, AlreadySubmittedError } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
+import { ALL_ACCESS_AI_PER_MONTH, ALL_ACCESS_AUDIO_MINUTES, ALL_ACCESS_MONTHLY_CENTS, ALL_ACCESS_NAME, aiLeft, podEpisodeMinutes, speakerMinutesLeft } from "../shared/allAccess";
+import { AI_LIMIT as AI_LIMIT_CODE } from "../shared/todoPlan";
 import { APPS_FULL, FAIR_USE, FREE_APPS, UNLIMITED_MONTHLY_CENTS, UNLIMITED_YEARLY_CENTS, UNLIMITED_YEARLY_OFFER, appsIn, growsPastFree } from "../shared/todoPlan";
 import { registerTimedCompetitionRoutes } from "./timedCompetition";
 import { registerHubInboxRoutes } from "./hubInbox";
@@ -1567,6 +1569,19 @@ export async function registerRoutes(
     if (appCounts.size > 5000) appCounts.delete(appCounts.keys().next().value!);
     return n;
   };
+  // Arise All Access: Fit's and Notes' AI count against the 1,000 requests a month shared by all four apps
+  // (Duo's go through plans.aiMeter, which counts them in the same place). Other plans aren't metered here.
+  const accessAiMeter = (n = 1): RequestHandler => async (req: any, res: any, next: any) => {
+    try {
+      const user = req.adminPreview && req.realUser ? req.realUser : req.user;
+      if (!user?.id || user.isAdmin || !(await plans.allAccessLive(Number(user.id)))) return next();
+      const usage = await plans.accessUsage(Number(user.id));
+      if (aiLeft(usage) < n) return res.status(402).json({ code: AI_LIMIT_CODE, message: `You've used this month's ${ALL_ACCESS_AI_PER_MONTH.toLocaleString("en-US")} AI requests in ${ALL_ACCESS_NAME}. They come back on the 1st.` });
+      res.on("finish", () => { if (res.statusCode < 400) void plans.countAccess(Number(user.id), { ai: n }).catch(() => {}); });
+      next();
+    } catch { next(); }
+  };
+  app.post(["/api/fit/recipe", "/api/fit/menu", "/api/fit/ask", "/api/fit/identify", "/api/notes/:id/summary", "/api/notes/:id/parent", "/api/notes/:id/translate", "/api/notes/:id/study", "/api/notes/:id/study/reader", "/api/notes/ask"], authMiddleware, accessAiMeter());
   app.post(["/api/teacher-hub/import", "/api/teacher-hub/import/minutes", "/api/hub-chat", "/api/arise-todo/food/estimate", "/api/life-plan/build", "/api/accountability/ai/worksheet", "/api/accountability/ai/quiz", "/api/sleep-finder/ask", "/api/comprehension/review/:id/suggest"], authMiddleware, plans.aiMeter);
   app.put(["/api/teacher-hub/workspace", "/api/arise-todo/workspace"], authMiddleware, async (req: any, res, next) => {
     try {
@@ -1694,8 +1709,11 @@ export async function registerRoutes(
   // Arise Notes, the AI note taker (server/ariseNotes.ts): its own app at /notes/ and an app inside
   // Arise To Duo. Record or upload, a transcript with times, AI summaries, minutes per plan.
   const notesStore = createSupabaseNotesStore(() => getAdminSupabase() as any);
-  registerAriseNotesRoutes(app, authMiddleware, {
+  const notesApi = registerAriseNotesRoutes(app, authMiddleware, {
     store: notesStore,
+    // Arise All Access: speaker names for 2 hours a month.
+    speakerMinutesLeft: async (userId) => speakerMinutesLeft(await plans.accessUsage(userId)),
+    countSpeakerSecs: (userId, secs) => plans.countAccess(userId, { speakerSecs: secs }),
     hear: createHearer(),
     ask: askSiteAi,
     aiReady: siteAiReady,
@@ -1735,8 +1753,58 @@ export async function registerRoutes(
   // On by EARSHOT_PRECHECK=1, and by itself once the AI is on a paid plan (EARSHOT_PRECHECK=0 keeps it off).
   if (process.env.EARSHOT_PRECHECK !== "0") startPodcastPrechecks({ kv: supabaseKV(getAdminSupabase), player: podcastPlayer, dir: podcasts, enabled: () => process.env.EARSHOT_PRECHECK === "1" || podcasts.paid(),
     topShows: async () => { const lists = await Promise.all(PODCAST_GENRES.slice(0, 12).map((g) => podcasts.loadGenreShows(g.id).catch(() => []))); const out: string[] = []; for (let i = 0; i < 4; i++) for (const l of lists) if (l[i]) out.push(l[i].id); return out; } });
-  registerEarshotRoutes(app, authMiddleware, { store: supabaseEarshotStore(getAdminSupabase), directory: podcasts, adStore: podcastAds, player: podcastPlayer, socialDb: getAdminSupabase });
-  registerPodscrollRoutes(app, supabaseEarshotStore(getAdminSupabase, "podscroll"), undefined, podcasts, podcastAds, podcastPlayer, getAdminSupabase, { sendEmail: (to, subject, html) => sendEmail(to, subject, html) });
+  // Ad-free Pod+ is part of Arise All Access: an Arise account (Pod+ finds it by the email it signs in with) on
+  // All Access, with minutes left of the 20 hours shared with Arise Notes. Episodes already ad-free cost nothing more.
+  const podAccessCache = new Map<string, { at: number; v: { plan: boolean; minutesLeft: number; owner: number | null } }>();
+  const podAccessFor = async (key: string, find: () => Promise<number | null>) => {
+    const hit = podAccessCache.get(key);
+    if (hit && Date.now() - hit.at < 90_000) return hit.v;
+    const owner = await find().catch(() => null);
+    const user: any = owner ? await storage.getUser(owner).catch(() => null) : null;
+    const plan = !!user && (!!user.isAdmin || (await plans.allAccessLive(owner!)));
+    const minutesLeft = !plan ? 0 : user.isAdmin ? 99_999 : await notesApi.minutesLeft(owner!).catch(() => 0);
+    const v = { plan, minutesLeft, owner: plan ? owner : null };
+    podAccessCache.set(key, { at: Date.now(), v });
+    if (podAccessCache.size > 5000) podAccessCache.delete(podAccessCache.keys().next().value!);
+    return v;
+  };
+  const accountByEmail = async (email: string): Promise<number | null> => {
+    const clean = String(email || "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) return null;
+    const { data, error } = await getAdminSupabase().from("users").select("id").ilike("email", clean).limit(1);
+    if (error) throw error;
+    return data?.[0]?.id ? Number(data[0].id) : null;
+  };
+  /** A new episode made ad-free for this person: counted once this month, for its length, against the 20 hours. */
+  const podListened = async (owner: number, episodeId: string, secs?: number) => {
+    const user: any = await storage.getUser(owner).catch(() => null);
+    if (!user || user.isAdmin) return;
+    if ((await plans.accessUsage(owner)).podEpisodes.includes(episodeId)) return;
+    await plans.countAccess(owner, { podEpisode: episodeId });
+    await notesApi.useMinutes(owner, podEpisodeMinutes(secs));
+    for (const [k, v] of podAccessCache) if (v.v.owner === owner) podAccessCache.delete(k);
+  };
+  registerEarshotRoutes(app, authMiddleware, { store: supabaseEarshotStore(getAdminSupabase), directory: podcasts, adStore: podcastAds, player: podcastPlayer, socialDb: getAdminSupabase,
+    adFree: { check: (req: any) => podAccessFor(`u${req.user?.id}`, async () => (Number(req.user?.id) > 0 ? Number(req.user.id) : null)), listened: podListened } });
+  registerPodscrollRoutes(app, supabaseEarshotStore(getAdminSupabase, "podscroll"), undefined, podcasts, podcastAds, podcastPlayer, getAdminSupabase, {
+    sendEmail: (to, subject, html) => sendEmail(to, subject, html),
+    allAccess: {
+      byEmail: (email) => podAccessFor(`e${String(email).toLowerCase()}`, () => accountByEmail(email)),
+      listened: podListened,
+      aiLeft: async (owner) => { const u: any = await storage.getUser(owner).catch(() => null); return u?.isAdmin ? 99_999 : aiLeft(await plans.accessUsage(owner)); },
+      countAi: async (owner, n) => { await plans.countAccess(owner, { ai: n }); },
+    },
+  });
+  // Arise All Access: the plan, and this month's AI and audio use, for the apps' plan screens.
+  app.get("/api/all-access/status", authMiddleware, async (req: any, res) => {
+    try {
+      const user = req.adminPreview && req.realUser ? req.realUser : req.user;
+      const view = await plans.allAccessView(user);
+      const audioLeft = view.live ? (user.isAdmin ? ALL_ACCESS_AUDIO_MINUTES : await notesApi.minutesLeft(Number(user.id)).catch(() => 0)) : 0;
+      res.set("Cache-Control", "no-store");
+      res.json({ ...view, name: ALL_ACCESS_NAME, priceCents: ALL_ACCESS_MONTHLY_CENTS, audio: { limit: ALL_ACCESS_AUDIO_MINUTES, left: Math.min(audioLeft, ALL_ACCESS_AUDIO_MINUTES) } });
+    } catch (e: any) { res.status(500).json({ message: "The plan couldn't be loaded. Try again." }); }
+  });
   // Contact us (server/supportContact.ts): Arise To Duo's and Pod+'s Support pages and apps.
   registerSupportRoutes(app, {
     deliver: async (m) => {

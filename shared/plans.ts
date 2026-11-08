@@ -18,6 +18,7 @@
 
 import { UNLIMITED_MONTHLY_CENTS, UNLIMITED_YEARLY_CENTS } from "./todoPrices";
 import { productPrice, type NotesProduct } from "./ariseNotes";
+import { ALL_ACCESS_MONTHLY_CENTS } from "./allAccess";
 
 export const PLANS = {
   teacher: {
@@ -140,8 +141,8 @@ export function clampBlocks(blocks: unknown): number {
  * What a plan is for. "teacher" and "school" are A.R.I.S.E. Premium;
  * "hub_teacher" and "hub_school" are the Arise WorkHub add-on.
  */
-export type PlanKind = "teacher" | "school" | "hub_teacher" | "hub_school" | "social" | "bundle_family" | "bundle_teacher" | "todo_family" | "math_class" | "history_class" | "social_class" | "ai_pro" | "storage_20gb" | "storage_100gb" | "storage_500gb" | "todo_unlimited" | "todo_unlimited_year" | "notes_basic" | "notes_plus" | "notes_plus_year" | "notes_family" | "fit_plus";
-export const PLAN_KINDS: readonly PlanKind[] = ["school", "teacher", "hub_school", "hub_teacher", "social", "bundle_family", "bundle_teacher", "todo_family", "math_class", "history_class", "social_class", "ai_pro", "storage_20gb", "storage_100gb", "storage_500gb", "todo_unlimited", "todo_unlimited_year", "notes_basic", "notes_plus", "notes_plus_year", "notes_family", "fit_plus"];
+export type PlanKind = "teacher" | "school" | "hub_teacher" | "hub_school" | "social" | "bundle_family" | "bundle_teacher" | "todo_family" | "math_class" | "history_class" | "social_class" | "ai_pro" | "storage_20gb" | "storage_100gb" | "storage_500gb" | "todo_unlimited" | "todo_unlimited_year" | "notes_basic" | "notes_plus" | "notes_plus_year" | "notes_family" | "fit_plus" | "all_access";
+export const PLAN_KINDS: readonly PlanKind[] = ["school", "teacher", "hub_school", "hub_teacher", "social", "bundle_family", "bundle_teacher", "todo_family", "math_class", "history_class", "social_class", "ai_pro", "storage_20gb", "storage_100gb", "storage_500gb", "todo_unlimited", "todo_unlimited_year", "notes_basic", "notes_plus", "notes_plus_year", "notes_family", "fit_plus", "all_access"];
 /** Arise Notes plans (shared/ariseNotes.ts), one per person (Family: the owner's). */
 export const NOTES_PLAN_KINDS: readonly PlanKind[] = ["notes_basic", "notes_plus", "notes_plus_year", "notes_family"];
 export const isNotesKind = (kind: PlanKind): boolean => (NOTES_PLAN_KINDS as readonly string[]).includes(kind);
@@ -166,7 +167,7 @@ export const appOfClassKind = (kind: PlanKind): AppId | null => (kind === "math_
 export const isClassAppKind = (kind: PlanKind) => appOfClassKind(kind) !== null;
 export const classAppCents = (app: AppId) => (app === "math" ? PLANS.classApps.mathCents : app === "history" ? PLANS.classApps.historyCents : PLANS.classApps.socialCents);
 /** Plans bought for one person (or one family, or one teacher's class), not sized in blocks of students. */
-export const isAddonKind = (kind: PlanKind) => kind === "social" || kind === "fit_plus" || kind === "bundle_family" || kind === "bundle_teacher" || kind === "todo_family" || kind === "todo_unlimited" || kind === "todo_unlimited_year" || kind === "ai_pro" || isStoragePlanKind(kind) || isClassAppKind(kind) || isNotesKind(kind);
+export const isAddonKind = (kind: PlanKind) => kind === "social" || kind === "fit_plus" || kind === "all_access" || kind === "bundle_family" || kind === "bundle_teacher" || kind === "todo_family" || kind === "todo_unlimited" || kind === "todo_unlimited_year" || kind === "ai_pro" || isStoragePlanKind(kind) || isClassAppKind(kind) || isNotesKind(kind);
 export const isPlanKind = (v: unknown): v is PlanKind => typeof v === "string" && (PLAN_KINDS as readonly string[]).includes(v);
 export const isSchoolKind = (kind: PlanKind) => kind === "school" || kind === "hub_school";
 export const isHubKind = (kind: PlanKind) => kind === "hub_teacher" || kind === "hub_school";
@@ -183,6 +184,7 @@ export function priceOf(kind: PlanKind): { cents: number; interval: "month" | "y
   if (kind === "todo_family") return { cents: PLANS.todo.familyMonthlyCents, interval: "month", seats: () => 1 };
   if (kind === "ai_pro") return { cents: PLANS.aiPro.monthlyCents, interval: "month", seats: () => 1 };
   if (kind === "fit_plus") return { cents: PLANS.fitPlus.monthlyCents, interval: "month", seats: () => 1 };
+  if (kind === "all_access") return { cents: ALL_ACCESS_MONTHLY_CENTS, interval: "month", seats: () => 1 };
   if (kind === "todo_unlimited") return { cents: UNLIMITED_MONTHLY_CENTS, interval: "month", seats: () => 1 };
   if (kind === "todo_unlimited_year") return { cents: UNLIMITED_YEARLY_CENTS, interval: "year", seats: () => 1 };
   { const p = notesProductOf(kind); if (p) { const price = productPrice(p); return { cents: price.cents, interval: price.interval, seats: () => (p === "family" ? 4 : 1) }; } }
@@ -542,11 +544,13 @@ export function todoAccessFor(person: PlanPerson | null | undefined, _facts: { n
  * Admins and sample accounts always are; anyone else needs a live Unlimited plan, or a LifeHub
  * plan bought before Unlimited existed.
  */
-export function todoUnlimitedFor(person: PlanPerson | null | undefined, grants: { unlimited?: PlanGrant | null; yearly?: PlanGrant | null; oldLifeHub?: PlanGrant | null; vip?: boolean }, now = Date.now()): { unlimited: boolean; via: "admin" | "demo" | "vip" | "plan" | "old-plan" | null; endsAt: string | null } {
+export function todoUnlimitedFor(person: PlanPerson | null | undefined, grants: { unlimited?: PlanGrant | null; yearly?: PlanGrant | null; oldLifeHub?: PlanGrant | null; allAccess?: PlanGrant | null; vip?: boolean }, now = Date.now()): { unlimited: boolean; via: "admin" | "demo" | "vip" | "plan" | "old-plan" | "all-access" | null; endsAt: string | null } {
   if (!person) return { unlimited: false, via: null, endsAt: null };
   if (person.isAdmin || person.role === "admin") return { unlimited: true, via: "admin", endsAt: null };
   if (isDemoAccount(person.username)) return { unlimited: true, via: "demo", endsAt: null };
   if (grants.vip) return { unlimited: true, via: "vip", endsAt: null };
+  const all = grants.allAccess;
+  if (all && all.kind === "all_access" && grantLive(all, now)) return { unlimited: true, via: "all-access", endsAt: all.endsAt ?? null };
   const g = grants.unlimited;
   if (g && g.kind === "todo_unlimited" && grantLive(g, now)) return { unlimited: true, via: "plan", endsAt: g.endsAt ?? null };
   const y = grants.yearly;

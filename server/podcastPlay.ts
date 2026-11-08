@@ -845,6 +845,8 @@ export async function copyTranscript(player: Player, dir: Pick<Directory, "conte
 }
 
 export type PlayRouteDeps = {
+  /** Ad-free listening through the server is part of Arise All Access (server/earshot.ts's AdFreeGate). */
+  adFree?: { check: (req: any) => Promise<{ plan: boolean; minutesLeft: number; owner: number | null }>; listened: (owner: number, episodeId: string, secs?: number) => Promise<void> };
   prefix: string;
   player: Player;
   /** Read-along pieces already made (their ads are placed in each copy). */
@@ -870,11 +872,20 @@ export function registerPlayRoutes(app: any, auth: any, d: PlayRouteDeps) {
     list.push(t); return false;
   };
 
-  /** A play token for this listener's audio addresses (an audio element can't send a login). */
-  app.get(`${P}/play-token`, auth, (req: any, res: any) => {
+  /** Whose All Access pays for a listener's new episodes (by the voter their play token was made for). */
+  const payer = new Map<string, number>();
+  /** A play token for this listener's audio addresses (an audio element can't send a login). Without
+   *  All Access (or with this month's 20 hours used), none: the player plays the host's own file, ads and all. */
+  app.get(`${P}/play-token`, auth, async (req: any, res: any) => {
     const voter = d.voterOf(req);
     if (!VOTER.test(voter)) return res.status(400).json({ message: "Reload and try again." });
     res.set("Cache-Control", "no-store");
+    if (d.adFree) {
+      const a = await d.adFree.check(req).catch(() => ({ plan: false, minutesLeft: 0, owner: null }));
+      if (!a.plan) return res.status(402).json({ code: "all_access_needed", message: "Ad-free listening is part of Arise All Access." });
+      if (a.minutesLeft <= 0) return res.status(402).json({ code: "all_access_minutes", message: "This month's 20 hours of new ad-free episodes are used. Episodes already ad-free still are; the rest play with their ads until the 1st." });
+      if (a.owner) { payer.set(voter, a.owner); if (payer.size > 20_000) payer.delete(payer.keys().next().value as string); }
+    }
     res.json({ ...player.token(voter), audio: `${P}/audio/` });
   });
 
@@ -900,6 +911,9 @@ export function registerPlayRoutes(app: any, auth: any, d: PlayRouteDeps) {
       try { url = await d.audioFor(showId, episodeId, typeof req.query?.u === "string" ? req.query.u.slice(0, 1500) : ""); } catch { url = null; }
       if (!url) return res.status(404).end();
       s = player.open({ sid, voter, episodeId, showId, url, ua: String(req.headers["user-agent"] || "").slice(0, 300), ip: d.clientIp(req) });
+      // A new episode made ad-free for an All Access listener: it counts once this month (its length when the player says).
+      const owner = payer.get(voter);
+      if (d.adFree && owner) void d.adFree.listened(owner, episodeId, Number(req.query?.d) || undefined).catch(() => {});
     }
     s.touched = Date.now();
     const copy = s.copy;

@@ -362,11 +362,14 @@ export function createCleaner(o: { player: Player; kv: KVLike; store: CleanStore
 
 /** GET <prefix>/clean/<episode>: the episode's ad-free copy, when it has one (the player then plays
  *  it straight from storage, with its session id for read along and the ads still in it). */
-export function registerCleanRoutes(app: any, auth: any, d: { prefix: string; cleaner: Cleaner; cleanId: (v: unknown) => string }) {
+export function registerCleanRoutes(app: any, auth: any, d: { prefix: string; cleaner: Cleaner; cleanId: (v: unknown) => string; adFree?: { check: (req: any) => Promise<{ plan: boolean }> } }) {
   app.get(`${d.prefix}/clean/:episodeId`, auth, async (req: any, res: any) => {
     const id = d.cleanId(req.params.episodeId);
     res.set("Cache-Control", "no-store");
     if (!id) return res.status(400).json({ message: "That isn't an episode." });
+    // Ad-free copies are part of Arise All Access (an episode already ad-free costs nothing more, so it
+    // never counts against the 20 hours).
+    if (d.adFree && !(await d.adFree.check(req).catch(() => ({ plan: false }))).plan) return res.json({ ready: false, plan: "all_access" });
     try {
       const r = await d.cleaner.ready(id);
       if (!r) return res.json({ ready: false, building: d.cleaner.isBuilding(id) });
@@ -439,9 +442,11 @@ export type Precleaner = ReturnType<typeof createPrecleaner>;
 /** POST <prefix>/clean/prepare {episodes: [{id, showId, audio}]}: up to 8 episodes about to be seen,
  *  made ready before anyone plays them (their addresses are checked against the show's own lists). */
 export function registerPrepareRoute(app: any, auth: any, d: { prefix: string; pre: Precleaner; cleanId: (v: unknown) => string; voterOf: (req: any) => string;
-  audioFor: (showId: string, episodeId: string, sent?: string) => Promise<string | null> }) {
+  audioFor: (showId: string, episodeId: string, sent?: string) => Promise<string | null>; adFree?: { check: (req: any) => Promise<{ plan: boolean; minutesLeft: number }> } }) {
   const asked = new Map<string, number[]>();
   app.post(`${d.prefix}/clean/prepare`, auth, async (req: any, res: any) => {
+    // Made ready ahead of time only for listeners with ad-free listening (and minutes left this month).
+    if (d.adFree) { const a = await d.adFree.check(req).catch(() => ({ plan: false, minutesLeft: 0 })); if (!a.plan || a.minutesLeft <= 0) return res.json({ queued: 0 }); }
     const voter = d.voterOf(req), t = Date.now();
     const list = (asked.get(voter) ?? []).filter((x) => t - x < 3600_000);
     if (list.length >= 120) return res.json({ queued: 0 });
