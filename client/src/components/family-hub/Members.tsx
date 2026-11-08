@@ -5,7 +5,9 @@ import { Share2, Apple, BookMarked, CalendarDays, Check, Droplets, History, Hour
 import { MEMBER_COLORS, isOn, orderedToggleable, type FamilySection, type Member } from "@shared/familyHub";
 import { Avatar, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, inputClass, plain, primary, type SectionProps } from "./ui";
 import { SharedLinks } from "./ShareLink";
-import ShareAccess from "./ShareAccess";
+import { LinkSomeoneModal } from "./LinkedProfiles";
+import { fullGrants } from "@shared/profileLinks";
+import { healthPeople } from "@shared/familyHealth";
 import { KIT_DEFS, type KitLifeId } from "@shared/pluginKit";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
 import { ListMusic as ListMusicIcon3, Podcast as PodcastIcon3 } from "lucide-react";
@@ -168,7 +170,8 @@ export default function Members({ family, setFamily, makeId, say }: SectionProps
       <SharedLinks say={say} />
     </div>
 
-    {sharing !== null && <ShareAccess name={sharing} onClose={() => setSharing(null)} say={say} />}
+    {/* The same "Link someone" as everywhere, set to everything and to sending a link (what this button always made). */}
+    {sharing !== null && <LinkSomeoneModal family={family} say={say} initialName={sharing} initialHow="link" initialGrants={fullGrants(healthPeople(family, "Me"))} onClose={() => setSharing(null)} />}
     {editing && <Modal title={family.members.some((m) => m.id === editing.id) ? `Edit ${editing.name || "person"}` : "Add a person"} onClose={() => setEditing(null)}>
       <form onSubmit={save} className="space-y-4">
         <div className="flex items-center gap-4"><Avatar member={{ ...editing, name: editing.name || "?" }} size="lg" />

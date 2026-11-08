@@ -26,6 +26,9 @@ export type ProfileLinkDeps = {
   getUser: (id: number) => Promise<{ id: number; displayName?: string; email?: string | null } | null | undefined>;
   /** The owner's saved LifeHub workspace, for shared LifeHub pages. */
   lifeHub: (ownerId: number) => Promise<unknown | null>;
+  /** A link is in use (accepted, joined, approved, or changed while in use): things done together, like
+   *  Accountability, are set up for the two of them. Never blocks the answer; failures are only logged. */
+  onActive?: (link: ProfileLink) => Promise<void>;
   now?: () => number;
 };
 
@@ -53,6 +56,10 @@ function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
 }
 
 export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestHandler, deps: ProfileLinkDeps) {
+  const activated = (link: ProfileLink | null | undefined) => {
+    if (!link || link.status !== "active" || !link.viewerId || !deps.onActive) return Promise.resolve();
+    return deps.onActive(link).catch((e: any) => console.error("[profile-links] together:", e?.message || e));
+  };
   const now = deps.now ?? Date.now;
   const iso = () => new Date(now()).toISOString();
   const readJson = async (key: string): Promise<unknown> => { const raw = await deps.getSetting(key); if (!raw) return null; try { return JSON.parse(raw); } catch { return null; } };
@@ -199,11 +206,12 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
         const idx = kept.findIndex((l) => l.id === found.link.id);
         kept[idx] = { ...kept[idx], viewerId: u.id, status: "active", updatedAt: iso() };
         await saveOwnerLinks(found.ownerId, kept);
-        return true;
+        return kept[idx];
       });
       if (!ok) return res.status(404).json({ message: "This link has already been used or turned off. Ask them to send a new one." });
       await deps.upsertSetting(joinKey(token), "");
       await editIds(viewerKey(u.id), (ids) => [...ids, found.ownerId]);
+      await activated(ok);
       res.json({ ok: true, ownerId: found.ownerId, ownerName: await nameOf(found.ownerId) });
     } catch {
       res.status(500).json({ message: "Couldn't join. Try again." });
@@ -232,6 +240,7 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
         return links[at];
       });
       if (!updated) return res.status(404).json({ message: "That link isn't there any more." });
+      await activated(updated);
       res.json({ link: { id: updated.id, email: updated.email, nickname: updated.nickname, status: updated.status, grants: updated.grants } });
     } catch {
       res.status(500).json({ message: "Couldn't save. Try again." });
@@ -304,14 +313,16 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
         const grants: Record<string, Access> = {};
         for (const [id, v] of Object.entries(chosen)) { const asked = ask.grants[id]; if (asked) grants[id] = asked === "view" || v === "view" ? "view" : "edit"; }
         if (!Object.keys(grants).length) return res.status(400).json({ message: "Pick at least one thing to share." });
-        await withLock(ownerKey(u.id), async () => {
+        const made = await withLock(ownerKey(u.id), async () => {
           const links = await ownerLinks(u.id);
           const at = links.findIndex((l) => l.viewerId === ask.fromId || (!!askerEmail && l.email === askerEmail));
           if (at >= 0) links[at] = { ...links[at], viewerId: ask.fromId, status: "active", grants: { ...links[at].grants, ...grants }, updatedAt: iso() };
           else if (links.length >= LINK_LIMITS.perOwner) throw Object.assign(new Error(`You can link up to ${LINK_LIMITS.perOwner} people.`), { status: 409 });
           else links.push({ id: randomUUID().replace(/-/g, "").slice(0, 20), ownerId: u.id, email: askerEmail || `user${ask.fromId}@linked.invalid`, viewerId: ask.fromId, nickname: ask.nickname, status: "active", grants, createdAt: iso(), updatedAt: iso() });
           await saveOwnerLinks(u.id, links);
+          return links.find((l) => l.viewerId === ask.fromId);
         });
+        await activated(made);
         await editIds(viewerKey(ask.fromId), (ids) => [...ids, u.id]);
       }
       res.json({ ok: true });
@@ -338,13 +349,14 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
           const idx = kept.findIndex((l) => l.id === req.params.id);
           kept[idx] = { ...kept[idx], viewerId: u.id, status: "active", updatedAt: iso() };
           await saveOwnerLinks(ownerId, kept);
+          return kept[idx];
         } else {
           await saveOwnerLinks(ownerId, links.filter((_, i) => i !== at));
         }
         return true;
       });
       if (!ok) return res.status(404).json({ message: "That invite isn't there any more." });
-      if (how === "accept") await editIds(viewerKey(u.id), (ids) => [...ids, ownerId]);
+      if (how === "accept") { await editIds(viewerKey(u.id), (ids) => [...ids, ownerId]); if (ok !== true) await activated(ok); }
       else {
         await editIds(viewerKey(u.id), (ids) => ids.filter((x) => x !== ownerId)).catch(() => {});
         if (u.email) await editIds(emailKey(u.email), (ids) => ids.filter((x) => x !== ownerId)).catch(() => {});

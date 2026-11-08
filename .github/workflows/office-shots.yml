@@ -7,6 +7,8 @@ on:
     branches: [master]
     paths:
       - 'client/src/components/office/**'
+      - 'client/src/components/family-hub/LinkedProfiles.tsx'
+      - 'client/src/components/family-hub/ui.tsx'
       - 'script/officePreview.tsx'
       - 'script/officeShots.mjs'
       - '.github/workflows/office-shots.yml'

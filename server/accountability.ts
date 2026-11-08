@@ -562,3 +562,49 @@ export function startAccountabilityTicker(deps: Pick<AccountabilityDeps, "db" | 
   timer.unref?.();
   return timer;
 }
+
+// ---- linked profiles: "Accountability" turned on for someone you link with ----
+
+/** Makes sure two people share an Accountability space: nothing to do if they already do; otherwise the
+ *  owner's space that has only them in it gets the other person, or a new space for the two is made.
+ *  Returns the space's id, and whether anything changed. The person added hears about it. */
+export async function ensureSharedSpace(
+  deps: Pick<AccountabilityDeps, "db" | "push" | "nameOf">,
+  ownerId: number, otherId: number, names: { owner?: string; other?: string } = {},
+): Promise<{ spaceId: string; changed: boolean }> {
+  const db = deps.db();
+  const { data: rows, error } = await db.from("acct_members").select("space_id, user_id").in("user_id", [ownerId, otherId]);
+  if (error) throw error;
+  const spacesOf = (id: number) => new Set((rows || []).filter((r: any) => r.user_id === id).map((r: any) => r.space_id as string));
+  const mine = spacesOf(ownerId), theirs = spacesOf(otherId);
+  const both = Array.from(mine).find((s) => theirs.has(s));
+  if (both) return { spaceId: both, changed: false };
+  const ownerName = (names.owner || (await deps.nameOf(ownerId)) || "Partner").slice(0, LIMITS.name);
+  const otherName = (names.other || (await deps.nameOf(otherId)) || "Partner").slice(0, LIMITS.name);
+  if (theirs.size >= LIMITS.spacesPerUser) throw new Error("They're in as many Accountability spaces as they can be.");
+  // The owner's space with only the owner in it (their own to-dos so far) becomes the shared one.
+  let spaceId = "";
+  if (mine.size) {
+    const { data: all } = await db.from("acct_members").select("space_id, user_id").in("space_id", Array.from(mine));
+    spaceId = Array.from(mine).find((s) => (all || []).filter((r: any) => r.space_id === s).length === 1) || "";
+  }
+  let spaceName = "";
+  if (!spaceId) {
+    if (mine.size >= LIMITS.spacesPerUser) throw new Error("You're in as many Accountability spaces as you can be.");
+    spaceId = newId(); spaceName = `${ownerName} & ${otherName}`.slice(0, LIMITS.spaceName);
+    let code = inviteCode();
+    for (let i = 0; i < 4; i++) { const { data } = await db.from("acct_spaces").select("id").eq("code", code).maybeSingle(); if (!data) break; code = inviteCode(); }
+    const { error: e1 } = await db.from("acct_spaces").insert({ id: spaceId, name: spaceName, code, created_by: ownerId });
+    if (e1) throw e1;
+    const { error: e2 } = await db.from("acct_members").insert({ space_id: spaceId, user_id: ownerId, name: ownerName, role: "owner", tz: "" });
+    if (e2) throw e2;
+  } else {
+    const { data: sp } = await db.from("acct_spaces").select("name").eq("id", spaceId).maybeSingle();
+    spaceName = sp?.name || "Accountability";
+  }
+  const { error: e3 } = await db.from("acct_members").insert({ space_id: spaceId, user_id: otherId, name: otherName, role: "member", tz: "" });
+  if (e3) throw e3;
+  void deps.push(otherId, { title: `${ownerName} shared Accountability with you`, body: `You're both in “${spaceName}” now. Ask each other for things.`, url: goUrl("accountability"), tag: `acct-join-${spaceId}` }).catch(() => 0);
+  void deps.push(ownerId, { title: `${otherName} joined ${spaceName}`, body: "You can ask each other for things now.", url: goUrl("accountability"), tag: `acct-join-${spaceId}` }).catch(() => 0);
+  return { spaceId, changed: true };
+}

@@ -2,7 +2,7 @@
 // you share with your partner or family. Ask for something once or on repeat, they're nudged until
 // it's done, and they check it off with a photo or video, an AI worksheet, or a quiz your child took.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { BadgeCheck, Bell, Camera, Check, ChevronLeft, ClipboardList, Copy, Hand, ListChecks, Loader2, Pencil, Plus, Printer, RotateCcw, Share2, Sparkles, Star, Trash2, Users, Video, X } from "lucide-react";
+import { BadgeCheck, Bell, Camera, Check, ChevronLeft, ClipboardList, Hand, ListChecks, Loader2, Pencil, Plus, Printer, RotateCcw, Share2, Sparkles, Star, Trash2, Users, Video, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import {
@@ -13,6 +13,8 @@ import { publishWidgets } from "@/lib/widgets";
 import { isNativeApp } from "@/lib/nativeApp";
 import { startApplePush } from "@/lib/applePush";
 import TodoNotifications from "./TodoNotifications";
+import { LinkSomeoneModal } from "./LinkedProfiles";
+import { ACCOUNTABILITY_SHARE } from "@shared/profileLinks";
 import type { SectionProps } from "./ui";
 
 const TEAL = "#0d9488";
@@ -66,7 +68,7 @@ function Chips<T extends string | number>({ value, options, onChange }: { value:
 const Lbl = ({ t, children }: { t: string; children: ReactNode }) => <div className="space-y-1.5"><p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">{t}</p>{children}</div>;
 
 // ---------------- the app ----------------
-export default function Accountability({ say }: SectionProps) {
+export default function Accountability({ say, family }: SectionProps) {
   const api = useApi();
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState("");
@@ -191,7 +193,9 @@ export default function Accountability({ say }: SectionProps) {
 
 
     {sheet?.kind === "notify" && <NotifySheet space={space} me={me} prefs={data.myNotify?.[space.id] ?? cleanNotify({})} api={api} say={say} onClose={() => setSheet(null)} onSaved={() => void load()} />}
-    {sheet?.kind === "invite" && <InviteSheet space={space} onClose={() => setSheet(null)} onNewCode={() => void act(() => api(`/spaces/${space.id}`, { method: "PATCH", body: { newCode: true } }), "New code made. The old one no longer works.")} say={say} />}
+    {/* Inviting is the same "Link someone" as everywhere in Arise To Duo, with Accountability turned on: once they
+        accept, the two of you share a space (server/accountability.ts ensureSharedSpace). */}
+    {sheet?.kind === "invite" && <LinkSomeoneModal family={family} say={say} title="Invite to Accountability" initialGrants={{ [ACCOUNTABILITY_SHARE]: "edit" }} onClose={() => { setSheet(null); void load(); }} />}
     {sheet?.kind === "start" && <StartSheet onClose={() => setSheet(null)} onDone={async (name, myName) => { const ok = await act(async () => { const r = await api<{ id: string }>("/spaces", { method: "POST", body: { name, myName, tz: TZ } }); setSpaceId(r.id); }); if (ok) setSheet({ kind: "invite" }); }} />}
     {sheet?.kind === "join" && <JoinSheet code={sheet.code} onClose={() => setSheet(null)} onDone={async (code, myName) => { const ok = await act(async () => { const r = await api<{ id: string }>("/join", { method: "POST", body: { code, myName, tz: TZ } }); setSpaceId(r.id); }, "You're in!"); if (ok) setSheet(null); }} />}
     {(sheet?.kind === "new" || sheet?.kind === "edit") && <TaskEditor space={space} me={me} task={sheet.kind === "edit" ? sheet.task : null} api={api} say={say} onClose={() => setSheet(null)}
@@ -339,19 +343,6 @@ function JoinSheet({ code: start, onClose, onDone }: { code?: string; onClose: (
     <button type="button" disabled={busy || code.replace(/\W/g, "").length < 6} onClick={async () => { setBusy(true); await onDone(code, me); setBusy(false); }} className={`${tealBtn} w-full`} data-testid="acct-join-go">{busy ? <Loader2 className="animate-spin" size={18} /> : <Users size={18} />}Join</button>
   </div></Sheet>;
 }
-function InviteSheet({ space, onClose, onNewCode, say }: { space: Space; onClose: () => void; onNewCode: () => void; say: (m: string) => void }) {
-  const link = `https://arisetodo.com/#/lifehub?go=accountability&join=${space.code}`;
-  const text = `Join me in “${space.name}” on Arise To Duo Accountability so we can keep each other on track. Open ${link} or enter code ${space.code} in Accountability.`;
-  const share = async () => { try { if (navigator.share) { await navigator.share({ title: "Join me on Accountability", text }); return; } } catch (e: any) { if (e?.name === "AbortError") return; } try { await navigator.clipboard.writeText(text); say("Invite copied. Paste it in a text."); } catch { say(`Your code is ${space.code}`); } };
-  return <Sheet title="Invite your partner" onClose={onClose}><div className="space-y-5 text-center" data-testid="acct-invite-sheet">
-    <p className="text-sm text-slate-500">They open Arise To Duo, go to Accountability and enter this code (or tap your link).</p>
-    <p className="rounded-3xl bg-gradient-to-br from-teal-50 to-violet-50 py-6 font-mono text-4xl font-black tracking-[.3em] text-slate-900" data-testid="acct-code-big">{space.code}</p>
-    <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => void share()} className={tealBtn}><Share2 size={17} />Send invite</button><button type="button" onClick={() => { navigator.clipboard?.writeText(space.code).then(() => say("Code copied."), () => say(space.code)); }} className={ghostBtn}><Copy size={17} />Copy code</button></div>
-    <div className="text-left"><p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-slate-500">In this space</p><div className="flex flex-wrap gap-2">{space.members.map((m) => <span key={m.userId} className="flex items-center gap-2 rounded-full bg-slate-100 py-1 pl-1 pr-3 text-sm font-bold"><Avatar name={m.name} color={colorOf(space, m.userId)} size={26} />{m.name}</span>)}</div></div>
-    <button type="button" onClick={onNewCode} className="text-xs font-bold text-slate-400 underline">Make a new code</button>
-  </div></Sheet>;
-}
-
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 function TaskEditor({ space, me, task, api, say, onClose, onSave }: { space: Space; me: number; task: AcctTask | null; api: ReturnType<typeof useApi>; say: (m: string) => void; onClose: () => void; onSave: (t: any) => Promise<void> }) {
   const other = space.members.find((m) => m.userId !== me)?.userId ?? me;

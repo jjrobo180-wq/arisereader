@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
 import type { AddressInfo } from "node:net";
-import { registerAccountabilityRoutes } from "../server/accountability";
+import { ensureSharedSpace, registerAccountabilityRoutes } from "../server/accountability";
 
 /** Enough of the Supabase query builder for these routes: select/eq/neq/in/gte/order/limit/maybeSingle, insert/update/upsert/delete. */
 function fakeDb() {
@@ -141,4 +141,27 @@ test("the test button reaches everyone in the space and says how many devices ea
     assert.deepEqual(pushes.map((p) => p.title), ["🔔 Accountability test", "🔔 Test from Jake"]);
     assert.equal((await call(3, "POST", `/spaces/${space.id}/test`, {})).status, 404, "only people in the space");
   } finally { close(); }
+});
+
+test("linking with Accountability on: one shared space, reusing yours when it's just you, never a second one", async () => {
+  const { db, tables } = fakeDb();
+  const pushes: any[] = [];
+  const deps = { db: () => db as any, push: async (to: number, m: any) => { pushes.push({ to, ...m }); return 1; }, nameOf: async (id: number) => (id === 1 ? "Jake" : id === 2 ? "Sam" : "Ana") };
+  // Jake has a space with only himself in it: Sam is added to it.
+  tables.acct_spaces = [{ id: "solo", name: "My to-dos", code: "ABC123", created_by: 1 }];
+  tables.acct_members = [{ space_id: "solo", user_id: 1, name: "Jake", role: "owner", tz: "" }];
+  const a = await ensureSharedSpace(deps, 1, 2);
+  assert.deepEqual(a, { spaceId: "solo", changed: true });
+  assert.deepEqual(tables.acct_members.filter((m) => m.space_id === "solo").map((m) => m.user_id).sort(), [1, 2]);
+  assert.ok(pushes.some((p) => p.to === 2 && /Jake shared Accountability with you/.test(p.title)));
+  // Again (they already share one, like a couple who joined with a code): nothing changes.
+  pushes.length = 0;
+  assert.deepEqual(await ensureSharedSpace(deps, 1, 2), { spaceId: "solo", changed: false });
+  assert.deepEqual(await ensureSharedSpace(deps, 2, 1), { spaceId: "solo", changed: false }, "either way round");
+  assert.equal(pushes.length, 0);
+  // Jake and Ana: Jake's only space is shared now, so a new one for the two of them is made.
+  const b = await ensureSharedSpace(deps, 1, 3);
+  assert.equal(b.changed, true); assert.notEqual(b.spaceId, "solo");
+  assert.equal(tables.acct_spaces.find((s) => s.id === b.spaceId)?.name, "Jake & Ana");
+  assert.deepEqual(tables.acct_members.filter((m) => m.space_id === b.spaceId).map((m) => [m.user_id, m.role]).sort(), [[1, "owner"], [3, "member"]]);
 });

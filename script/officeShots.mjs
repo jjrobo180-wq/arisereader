@@ -29,6 +29,23 @@ for (const [size, opts] of Object.entries(sizes)) for (const kind of ["doc", "sh
   } catch (e) { results.push(`FAIL ${name}: ${e?.message || e}`); }
   await ctx.close();
 }
+// Arise To Duo's "Link someone": top, and scrolled to the very bottom (the Send bar must cover the list's end).
+for (const [name, after] of [["phone-link-top", null], ["phone-link-bottom", "bottom"], ["phone-link-all-apps", "all"]]) {
+  const ctx = await browser.newContext(sizes.phone); const page = await ctx.newPage(); const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e?.message || e)));
+  try {
+    await page.goto("http://localhost:4180/office-preview/?screen=link"); await page.waitForTimeout(2500);
+    if (after === "all") { await page.getByTestId("grant-show-all").click(); await page.waitForTimeout(400); }
+    if (after) { await page.locator('[role="dialog"]').evaluate((d) => { d.scrollTop = d.scrollHeight; }); await page.waitForTimeout(500); }
+    const bar = await page.getByTestId("link-invite-send").boundingBox();
+    const dlg = await page.locator('[role="dialog"]').boundingBox();
+    const gap = bar && dlg ? Math.round(dlg.y + dlg.height - (bar.y + bar.height)) : -1;
+    const first = await page.locator('[data-testid^="grant-"]').first().innerText().catch(() => "");
+    await page.screenshot({ path: `screens/${name}.png` });
+    results.push(`ok   ${name}  space under the Send button ${gap}px  first app: ${first.split("\n")[0]}${errors.length ? `  errors: ${errors.slice(0, 2).join(" | ")}` : ""}`);
+  } catch (e) { results.push(`FAIL ${name}: ${e?.message || e}`); }
+  await ctx.close();
+}
 await browser.close();
 await writeFile("screens/results.txt", results.join("\n") + "\n");
 console.log(results.join("\n"));

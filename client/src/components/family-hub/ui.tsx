@@ -76,6 +76,10 @@ export function Empty({ icon, title, children, action }: { icon: ReactNode; titl
   </div>;
 }
 
+/** A button bar pinned to the bottom of a Modal while its content scrolls. It reaches the Modal's very bottom
+ *  edge (over the Modal's own padding), so nothing scrolling underneath shows below it. */
+export const stickyFoot = "sticky -bottom-[max(1.25rem,env(safe-area-inset-bottom))] z-10 -mx-5 flex gap-2 border-t border-slate-100 bg-white px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 sm:-bottom-7 sm:-mx-7 sm:px-7 sm:pb-7";
+
 export function Modal({ title, eyebrow = "Family Hub", onClose, children, wide }: { title: string; eyebrow?: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };

@@ -76,7 +76,8 @@ import { registerCoachRoutes } from "./coach";
 import { registerTalkRoutes } from "./talk";
 import { registerBrowserRoutes } from "./browserCheck";
 import { registerLifePlanRoutes } from "./lifePlan";
-import { registerAccountabilityRoutes, startAccountabilityTicker } from "./accountability";
+import { ensureSharedSpace, registerAccountabilityRoutes, startAccountabilityTicker } from "./accountability";
+import { ACCOUNTABILITY_SHARE } from "../shared/profileLinks";
 import { ACCOUNTABILITY_BELL_TYPE } from "../shared/notifications";
 import { registerOtaRoutes } from "./ota";
 import { registerSleepFinderRoutes } from "./sleepFinder";
@@ -1788,6 +1789,8 @@ export async function registerRoutes(
   const profileLinks = registerProfileLinkRoutes(app, authMiddleware, {
     getSetting: (key) => storage.getSetting(key), upsertSetting: (key, value) => storage.upsertSetting(key, value),
     getUser: (id) => storage.getUser(id), lifeHub: (ownerId) => savedHub("life", ownerId),
+    // Accountability turned on for a linked person: the two share an Accountability space (server/accountability.ts).
+    onActive: async (link) => { if (link.grants[ACCOUNTABILITY_SHARE] && link.viewerId) await ensureSharedSpace(acctDeps, link.ownerId, link.viewerId); },
   });
   registerUserDocRoutes(app, authMiddleware, userDocStore, undefined, profileLinks.canUseApp);
   // Health Nudges (a premium app) sends phone notifications from the settings it saved with the person's app data.

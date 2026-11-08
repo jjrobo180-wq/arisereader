@@ -11,7 +11,7 @@ const USERS: Record<number, { id: number; displayName: string; email: string }> 
   3: { id: 3, displayName: "Stranger", email: "stranger@example.com" },
 };
 
-function setup() {
+function setup(onActive?: (link: any) => Promise<void>) {
   const settings = new Map<string, string>();
   const files = new Map<string, string>();
   const routes: Record<string, Function> = {};
@@ -21,7 +21,7 @@ function setup() {
   const life = { family: { calendars: [], events: [{ id: "e1", title: "Swim lesson", date: "2026-10-19", time: "16:00" }] } };
   const links = registerProfileLinkRoutes(app, auth, {
     getSetting: async (k) => settings.get(k) ?? "", upsertSetting: async (k, v) => { settings.set(k, v); },
-    getUser: async (id) => USERS[id] ?? null, lifeHub: async () => life,
+    getUser: async (id) => USERS[id] ?? null, lifeHub: async () => life, onActive,
   });
   const store: DocStore = { read: async (p) => files.get(p) ?? null, write: async (p, b) => { files.set(p, b); }, remove: async () => {}, list: async () => [] };
   registerUserDocRoutes(app, auth, store, undefined, links.canUseApp);
@@ -38,7 +38,7 @@ test("only known things can be shared, and LifeHub pages are never more than Vie
   assert.deepEqual(cleanGrants({ "app:potty": "edit", "app:not-real": "edit", "life:calendar": "edit", "life:health:me": "view", junk: "view", "app:water": "owner" }), { "app:potty": "edit", "life:calendar": "view", "life:health:me": "view" });
   assert.equal(appIdFromKey("pro-potty"), "potty");
   assert.equal(appIdFromKey("premium-studio-v1"), null);
-  assert.equal(shareCatalog()[0].id, "app:potty");
+  assert.equal(shareCatalog().find((c) => c.kind === "app")!.id, "app:potty");
   assert.ok(shareCatalog([{ id: "me", name: "Me" }]).some((c) => c.id === "life:health:me" && !c.editable));
   assert.equal(allows("edit", "view"), true);
   assert.equal(allows("view", "edit"), false);
@@ -193,4 +193,42 @@ test("one link: owner makes it, wife joins once, gets Potty Training; stranger a
   // The link is spent.
   assert.equal((await call("POST", "/api/profile-links/join/:token", 3, { params: { token: t } })).status, 404);
   assert.equal((await call("GET", "/api/profile-links/join/:token", 3, { params: { token: "nope" } })).status, 404);
+});
+
+test("everything that can be shared is in the list: Accountability first (done together), and the meal plan", async () => {
+  const { ACCOUNTABILITY_SHARE, fullGrants } = await import("../shared/profileLinks");
+  const cat = shareCatalog();
+  assert.equal(cat[0].id, ACCOUNTABILITY_SHARE); assert.equal(cat[0].kind, "together"); assert.equal(cat[0].label, "Accountability");
+  assert.ok(cat.some((c) => c.id === "life:meals"));
+  // Every page a linked person can be shown (shared/todoShare.ts) is offered.
+  for (const id of ["life:calendar", "life:tasks", "life:chores", "life:goals", "life:bills", "life:trips", "life:links", "life:meals"]) assert.ok(cat.some((c) => c.id === id), id);
+  assert.deepEqual(cleanGrants({ [ACCOUNTABILITY_SHARE]: "view" }), { [ACCOUNTABILITY_SHARE]: "edit" }, "together is all or nothing");
+  assert.equal(fullGrants()[ACCOUNTABILITY_SHARE], "edit");
+});
+
+test("a link in use tells the server so things done together are set up: accept, join, approve and changes", async () => {
+  const { ACCOUNTABILITY_SHARE } = await import("../shared/profileLinks");
+  const seen: any[] = [];
+  const { call } = setup(async (l) => { seen.push([l.ownerId, l.viewerId, !!l.grants[ACCOUNTABILITY_SHARE]]); });
+  const inv = await call("POST", "/api/profile-links", 1, { body: { email: "grandma@example.com", grants: { [ACCOUNTABILITY_SHARE]: "edit" } } });
+  assert.equal(seen.length, 0, "nothing before they accept");
+  await call("PUT", "/api/profile-links/:id", 1, { params: { id: inv.body.link.id }, body: { grants: { [ACCOUNTABILITY_SHARE]: "edit", "app:potty": "view" } } });
+  assert.equal(seen.length, 0, "still pending");
+  await call("POST", "/api/profile-links/from/:owner/:id/accept", 2, { params: { owner: "1", id: inv.body.link.id } });
+  assert.deepEqual(seen, [[1, 2, true]]);
+  await call("PUT", "/api/profile-links/:id", 1, { params: { id: inv.body.link.id }, body: { grants: { "app:potty": "view" } } });
+  assert.deepEqual(seen[1], [1, 2, false]);
+  const made = await call("POST", "/api/profile-links/link", 1, { body: { nickname: "Wife", grants: { [ACCOUNTABILITY_SHARE]: "edit" } } });
+  await call("POST", "/api/profile-links/join/:token", 3, { params: { token: made.body.token } });
+  assert.deepEqual(seen[2], [1, 3, true]);
+});
+
+test("every 'Link someone' in Arise To Duo is the same screen (Linked profiles, Accountability, Family members)", () => {
+  const read = (f: string) => readFileSync(f, "utf8");
+  assert.match(read("client/src/components/family-hub/LinkedProfiles.tsx"), /export function LinkSomeoneModal/);
+  assert.match(read("client/src/components/family-hub/Accountability.tsx"), /<LinkSomeoneModal [^>]*initialGrants=\{\{ \[ACCOUNTABILITY_SHARE\]: "edit" \}\}/);
+  assert.match(read("client/src/components/family-hub/Members.tsx"), /<LinkSomeoneModal /);
+  assert.doesNotMatch(read("client/src/components/family-hub/LinkedProfiles.tsx"), /function InviteModal/);
+  // The button bar covers the bottom of the sheet, so the list never shows below it.
+  assert.match(read("client/src/components/family-hub/ui.tsx"), /export const stickyFoot = "sticky -bottom-/);
 });

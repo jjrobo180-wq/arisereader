@@ -6,6 +6,8 @@ import { createRoot } from "react-dom/client";
 import { AuthProvider } from "@/context/AuthContext";
 import OfficeApp from "@/components/office/OfficeApp";
 import { OFFICE_KINDS } from "@/components/office/officeKinds";
+import { LinkSomeoneModal } from "@/components/family-hub/LinkedProfiles";
+import { emptyFamily } from "@shared/familyHub";
 
 const q = new URLSearchParams(location.search);
 const kind = (q.get("kind") === "sheet" || q.get("kind") === "slides" ? q.get("kind") : "doc") as keyof typeof OFFICE_KINDS;
@@ -26,7 +28,10 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
 };
 try { if (q.get("open") === "1") sessionStorage.setItem(`arise-office-open:${config.kind}`, "sample-1"); else sessionStorage.removeItem(`arise-office-open:${config.kind}`); } catch { /* fine */ }
 
-createRoot(document.getElementById("root")!).render(<AuthProvider>
+// ?screen=link: Arise To Duo's "Link someone" screen instead (the same one Accountability's Invite opens).
+if (q.get("screen") === "link") {
+  createRoot(document.getElementById("root")!).render(<AuthProvider><div className="min-h-screen bg-slate-100" /><LinkSomeoneModal family={emptyFamily()} say={() => {}} onClose={() => {}} title={q.get("title") || "Link someone"} /></AuthProvider>);
+} else createRoot(document.getElementById("root")!).render(<AuthProvider>
   <div className="flex min-h-screen bg-slate-100">
     <aside className="hidden w-60 shrink-0 bg-[#1e1b4b] p-4 text-sm font-bold text-white/80 md:block">Arise To Duo<br /><br />Tasks<br />Calendar<br />{config.title}</aside>
     <main className="min-w-0 flex-1 p-3 sm:p-6"><section className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200 sm:p-5"><OfficeApp config={config} /></section></main>
