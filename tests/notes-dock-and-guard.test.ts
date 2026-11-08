@@ -34,3 +34,13 @@ test("Notes' apps are minimal: thin line icons in the look's color, hairline row
   assert.doesNotMatch(gallery, /Apps for your notes|na-hero/);
   assert.match(gallery, /border-b border-\[var\(--an-line\)\]/);
 });
+
+test("iPad notes: a New note button is always visible, the dock + works while Notes is open, swipe layer hidden at rest", () => {
+  const rd = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+  const view = rd("client/src/components/arise-notes/pages/PagesView.tsx");
+  assert.match(view, /wide && filter\.kind !== "trash" && <button[^>]*aria-label="New note"/);
+  assert.match(view, /addEventListener\("arise-notes-new"/);
+  assert.match(view, /pages-new-empty/);
+  assert.match(rd("client/src/components/arise-notes/NotesApp.tsx"), /dispatchEvent\(new Event\("arise-notes-new"\)\)/);
+  assert.match(rd("client/src/components/arise-notes/pages/SwipeItem.tsx"), /visibility: x === 0 && !anim \? "hidden"/);
+});

@@ -3,7 +3,7 @@
 // your folders; a folder shows its notes, and a note opens on its own. On an iPad or computer the
 // folders, the list and the note sit side by side. New notes start from a blank page or a template (meeting, journal, Cornell, graph
 // paper…), in the look you chose for new notes.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SwipeItem } from "./SwipeItem";
 import { ChevronLeft, ChevronRight, FileText, Folder as FolderIcon, FolderPlus, Grid2X2, Hash, LayoutTemplate, List as ListIcon, Lock, LockOpen, MoreHorizontal, PenLine, Pin, Plus, RotateCcw, Search, Settings2, ShieldCheck, SquarePen, Trash2 } from "lucide-react";
 import { DEFAULT_LOOK, PAGE_TEMPLATES, PAPER_THEMES, TRASH_DAYS, blankInkPage, cleanLook, pageTitle, type Folder, type Page, type PageMeta, type PageTemplate } from "@shared/arisePages";
@@ -41,6 +41,15 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
   const [wide, setWide] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1000);
   useEffect(() => { const f = () => setWide(window.innerWidth >= 1000); window.addEventListener("resize", f); return () => window.removeEventListener("resize", f); }, []);
   useEffect(() => { if (message) say(message); }, [message, say]);
+  // The dock's + > New note while Notes is already open: show the new-note sheet (it is only read on first open otherwise).
+  useEffect(() => {
+    const f = () => { try { if (sessionStorage.getItem("arise-notes-new") === "1") sessionStorage.removeItem("arise-notes-new"); } catch { /* fine */ } setSheet("new"); };
+    window.addEventListener("arise-notes-new", f);
+    return () => window.removeEventListener("arise-notes-new", f);
+  }, []);
+  // The folder column on a tablet always starts at its top (no half-hidden first row).
+  const sideRef = useRef<HTMLElement>(null);
+  useEffect(() => { if (sideRef.current) sideRef.current.scrollTop = 0; }, [wide, filter.kind]);
 
   // Search: titles and previews right away, then every word (and handwriting) from the server.
   useEffect(() => {
@@ -137,6 +146,7 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
           <h2 className="pp-title truncate" data-testid="pages-filter">{filterName}</h2>
           <p className="mt-1 text-[13px] text-[var(--an-muted)]" aria-live="polite">{shown.length} {shown.length === 1 ? "note" : "notes"}<span className="text-[var(--an-faint)]"> · {SYNC_WORDS[state]}</span></p>
         </div>
+        {wide && filter.kind !== "trash" && <button type="button" className="an-round-btn" aria-label="New note" onClick={() => create(PAGE_TEMPLATES[0])} data-testid="pages-new"><SquarePen className="h-[18px] w-[18px]" /></button>}
         {settings.vault && key && <button type="button" className="an-round-btn" aria-label="Lock locked notes now" onClick={() => { lockNow(); say("Locked notes are locked."); }}><LockOpen className="h-[18px] w-[18px]" /></button>}
         {!wide && <button type="button" className="an-round-btn" aria-label={grid ? "Show as a list" : "Show as cards"} onClick={() => sync.saveSettings({ ...settings, prefs: { ...settings.prefs, view: grid ? "list" : "grid" } })}>{grid ? <ListIcon className="h-[18px] w-[18px]" /> : <Grid2X2 className="h-[18px] w-[18px]" />}</button>}
         <button type="button" className="an-round-btn" aria-label="Notes settings" onClick={() => setSheet("settings")}><Settings2 className="h-[18px] w-[18px]" /></button>
@@ -160,7 +170,7 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
         </section>)}</div>}
     </div>
     {undo && <div className="pp-undo" role="status" data-testid="pages-undo"><span className="min-w-0 flex-1 truncate">Deleted “{undo.title}”</span><button type="button" onClick={() => { sync.restore(undo.id); setUndo(null); say("Restored."); }}>Undo</button></div>}
-    {filter.kind !== "trash" && <button type="button" className="pp-compose" style={wide ? { position: "absolute", right: "1rem", bottom: "1.25rem" } : undefined} onClick={() => create(PAGE_TEMPLATES[0])} data-testid="pages-new" aria-label="New note"><SquarePen className="h-6 w-6" /></button>}
+    {filter.kind !== "trash" && !wide && <button type="button" className="pp-compose" onClick={() => create(PAGE_TEMPLATES[0])} data-testid="pages-new" aria-label="New note"><SquarePen className="h-6 w-6" /></button>}
   </div>;
 
   /** The phone's first screen: your folders, with search across every note. */
@@ -185,9 +195,9 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
     {(!openId || wide) && tabs}
     <div className="flex min-h-0 flex-1">
       {wide ? <>
-        <aside className="hidden w-[260px] shrink-0 overflow-y-auto border-r border-[var(--an-line)] px-3 py-4 lg:block">{nav}</aside>
+        <aside ref={sideRef} style={{ overscrollBehavior: "contain" }} className="hidden w-[260px] shrink-0 overflow-y-auto border-r border-[var(--an-line)] px-3 py-4 lg:block">{nav}</aside>
         <section className="w-[360px] shrink-0 border-r border-[var(--an-line)]">{list}</section>
-        <main className="min-w-0 flex-1">{editor ?? <div className="grid h-full place-items-center text-center text-[15px] text-[var(--an-muted)]"><div><div className="an-empty-stack"><i /><i /><i><PenLine className="h-7 w-7" strokeWidth={1.8} /></i></div><p className="an-display text-[24px] text-[var(--an-ink)]">Choose a note</p><p className="mt-1">or start a new one.</p></div></div>}</main>
+        <main className="min-w-0 flex-1">{editor ?? <div className="grid h-full place-items-center text-center text-[15px] text-[var(--an-muted)]"><div><div className="an-empty-stack"><i /><i /><i><PenLine className="h-7 w-7" strokeWidth={1.8} /></i></div><p className="an-display text-[24px] text-[var(--an-ink)]">Choose a note</p><p className="mt-1">or start a new one.</p><Btn kind="primary" className="mt-5 !min-h-12 !px-6" onClick={() => create(PAGE_TEMPLATES[0])} data-testid="pages-new-empty"><Plus className="h-4 w-4" />New note</Btn></div></div>}</main>
       </> : <main className="min-w-0 flex-1">{editor ?? (pane === "folders" ? folderScreen : list)}</main>}
     </div>
     {sheet === "new" && <Sheet title="New note" onClose={() => setSheet("")} wide>
