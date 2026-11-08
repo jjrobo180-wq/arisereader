@@ -57,7 +57,10 @@ export function cleanSectionOrder(v: unknown): FamilySection[] {
 
 /** The toggleable sections in the family's chosen order, each paired with its fixed spot in the
  *  menu (the section right before it). Rendering splices this block in after that anchor. */
-export const orderedToggleable = (f: Pick<Family, "sectionOrder">): FamilySection[] => cleanSectionOrder(f.sectionOrder);
+/** Apps taken out of Arise To Duo: never shown or opened, nowhere to add them. What was saved in them
+ *  stays in the family's data. Earshot lives on as its own app, Pod+. */
+export const RETIRED_SECTIONS: readonly FamilySection[] = ["earshot"];
+export const orderedToggleable = (f: Pick<Family, "sectionOrder">): FamilySection[] => cleanSectionOrder(f.sectionOrder).filter((s) => !RETIRED_SECTIONS.includes(s));
 
 export type Member = { id: string; name: string; emoji: string; color: string; kind: "adult" | "kid" };
 export type Chore = { id: string; title: string; memberId: string; rotation: string[]; days: number[]; points: number };
@@ -789,6 +792,7 @@ export const monthKey = (s: string) => s.slice(0, 7);
 export const daysBetween = (a: string, b: string) => Math.round((fromDay(b).getTime() - fromDay(a).getTime()) / 86_400_000);
 /** Whether a section shows: the usual ones unless switched off, Plugin Gallery add-ons only once added. */
 export const isOn = (section: FamilySection, f: Pick<Family, "sections">): boolean => {
+  if (RETIRED_SECTIONS.includes(section)) return false;
   const bundle = BUNDLE_BY_SECTION.get(section);
   if (bundle) {
     // A bundled plugin (shared/appBundles.ts) is on once added, and for anyone who already had one of the old
