@@ -42,5 +42,5 @@ test("iPad notes: a New note button is always visible, the dock + works while No
   assert.match(view, /addEventListener\("arise-notes-new"/);
   assert.match(view, /pages-new-empty/);
   assert.match(rd("client/src/components/arise-notes/NotesApp.tsx"), /dispatchEvent\(new Event\("arise-notes-new"\)\)/);
-  assert.match(rd("client/src/components/arise-notes/pages/SwipeItem.tsx"), /visibility: x === 0 && !anim \? "hidden"/);
+  assert.match(rd("client/src/components/arise-notes/pages/SwipeItem.tsx"), /display: x === 0 && !anim \? "none"/);
 });

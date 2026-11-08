@@ -41,7 +41,7 @@ export function SwipeItem({ children, pinned, onDelete, onPin, disabled, radius 
 
   return <div className="pp-swipe" style={{ borderRadius: radius }} onClickCapture={(e) => { if (moved.current) { e.preventDefault(); e.stopPropagation(); moved.current = false; } else if (x !== 0) { e.preventDefault(); e.stopPropagation(); settle(0); } }}>
     {/* Behind, on the right: Pin and Delete. On the left: Pin. */}
-    <div className="pp-swipe-under" aria-hidden={x === 0} style={{ visibility: x === 0 && !anim ? "hidden" : "visible" }}>
+    <div className="pp-swipe-under" aria-hidden={x === 0} style={{ display: x === 0 && !anim ? "none" : "flex" }}>
       <button type="button" className="pp-swipe-pin-left" style={{ opacity: x > 8 ? 1 : 0 }} tabIndex={-1} onClick={() => { onPin(); settle(0); }}>{pinned ? <PinOff /> : <Pin />}<span>{pinned ? "Unpin" : "Pin"}</span></button>
       <span className="flex-1" />
       {!full && <button type="button" className="pp-swipe-pin" tabIndex={x < 0 ? 0 : -1} onClick={() => { onPin(); settle(0); }} aria-label={pinned ? "Unpin" : "Pin"}>{pinned ? <PinOff /> : <Pin />}<span>{pinned ? "Unpin" : "Pin"}</span></button>}
