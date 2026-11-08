@@ -50,18 +50,20 @@ export default function Pricing() {
           <button onClick={familyPlan} className="mt-7 w-full rounded-xl bg-violet-700 px-5 py-3 font-bold text-white" data-testid="pricing-get-family">Get the family plan</button>
         </article>
         <article className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm" data-testid="pricing-class">
-          <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Teachers</p>
+          <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Teachers<span className="ml-2 inline-block rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-1 align-middle text-[11px] font-black uppercase tracking-wider">Teacher discount</span></p>
           <h2 className="mt-3 text-2xl font-black">Class</h2>
           <p className="mt-3 text-5xl font-black">{perBlock} <span className="text-sm font-semibold text-slate-500">/ month</span></p>
-          <p className="mt-4 text-sm leading-6 text-slate-600">A.R.I.S.E. Reader for up to {block} students. Need more? Each extra {block} students is {perBlock} a month.</p>
+          <p className="mt-2 text-xs font-bold text-emerald-700">Discounted classroom price for educators, about 20¢ per student.</p>
+          <p className="mt-3 text-sm leading-6 text-slate-600">A.R.I.S.E. Reader for up to {block} students. Need more? Each extra {block} students is {perBlock} a month.</p>
           <ul className="mt-6 space-y-3 text-sm font-semibold"><li>✓ Every student covered by your plan</li><li>✓ Classroom dashboard &amp; reports</li><li>✓ Live class games &amp; class goals</li><li>✓ Custom quizzes for your books</li><li>✓ Parents of your students follow along</li></ul>
           <button onClick={teacherPlan} className="mt-7 w-full rounded-xl bg-emerald-700 px-5 py-3 font-bold text-white" data-testid="pricing-get-premium">Get the class plan</button>
         </article>
         <article className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm" data-testid="pricing-school">
-          <p className="text-xs font-black uppercase tracking-widest text-sky-700">Schools</p>
+          <p className="text-xs font-black uppercase tracking-widest text-sky-700">Schools<span className="ml-2 inline-block rounded-full bg-sky-100 text-sky-800 px-2.5 py-1 align-middle text-[11px] font-black uppercase tracking-wider">School discount</span></p>
           <h2 className="mt-3 text-2xl font-black">Whole School</h2>
           <p className="mt-3 text-5xl font-black">{usd(PLANS.school.monthlyCents)} <span className="text-sm font-semibold text-slate-500">/ month</span></p>
-          <p className="mt-4 text-sm leading-6 text-slate-600">Every teacher and every student at your school, each teacher with their own account.</p>
+          <p className="mt-2 text-xs font-bold text-sky-700">Discounted school-wide price, our biggest savings per student.</p>
+          <p className="mt-3 text-sm leading-6 text-slate-600">Every teacher and every student at your school, each teacher with their own account.</p>
           <ul className="mt-6 space-y-3 text-sm font-semibold"><li>✓ Unlimited teachers</li><li>✓ Up to {PLANS.school.studentCap.toLocaleString("en-US")} students</li><li>✓ Every book and quiz</li><li>✓ School-wide reports</li><li>✓ One bill for the whole school</li></ul>
           <button onClick={teacherPlan} className="mt-7 w-full rounded-xl bg-sky-700 px-5 py-3 font-bold text-white" data-testid="pricing-get-school">Get the school plan</button>
         </article>

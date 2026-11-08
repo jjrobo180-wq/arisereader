@@ -57,8 +57,8 @@ export default function ReaderSubscribe() {
 
   const plans = [
     { who: "Families", price: usd(PLANS.bundle.familyMonthlyCents), what: `A parent and up to ${PLANS.parentMaxChildren} children` },
-    { who: "Teachers", price: usd(PLANS.teacher.monthlyCents), what: `Up to ${PLANS.teacher.studentsPerBlock} students` },
-    { who: "Schools", price: usd(PLANS.school.monthlyCents), what: "Every teacher and student" },
+    { who: "Teachers", price: usd(PLANS.teacher.monthlyCents), what: `Teacher discount · up to ${PLANS.teacher.studentsPerBlock} students` },
+    { who: "Schools", price: usd(PLANS.school.monthlyCents), what: "School discount · every teacher and student" },
   ];
 
   return (
