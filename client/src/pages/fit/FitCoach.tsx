@@ -89,6 +89,27 @@ function RequestSheet({ token, t, onClose, onSent }: { token: string | null; t: 
   </Sheet>;
 }
 
+/** A trainer's invite link (#/fit?coach=CODE): see who it's from, choose what to share, and you're connected at once. */
+export function InviteJoinSheet({ token, code, onClose, onJoined }: { token: string | null; code: string; onClose: () => void; onJoined: () => void }) {
+  const [t, setT] = useState<{ name: string; photo: string; headline: string } | null>(null);
+  const [consent, setConsent] = useState<Consent>(ALL_CONSENT);
+  const [busy, setBusy] = useState(false); const [err, setErr] = useState("");
+  useEffect(() => { void coachApi<{ trainer: { name: string; photo: string; headline: string } }>(token, `/invite/${encodeURIComponent(code)}`).then((r) => setT(r.trainer)).catch((e) => setErr(e.message)); }, [token, code]);
+  const first = t?.name.split(" ")[0] || "your trainer";
+  return <Sheet title={t ? `Train with ${first}` : "Trainer invite"} onClose={onClose} testId="fit-coach-invite">
+    {!t ? <p className="mt-8 text-center text-[15px]" style={{ color: err ? C.red : C.dim }}>{err || "Opening your invite…"}</p> : <>
+      <Card className="mt-1 flex items-center gap-3 !p-3"><Avatar t={{ name: t.name, photo: t.photo } as PublicTrainer} size={52} /><div className="min-w-0"><p className="truncate text-[20px] leading-none" style={display}>{t.name}</p>{t.headline && <p className="truncate text-[13px]" style={{ color: C.dim }}>{t.headline}</p>}</div></Card>
+      <Title><ShieldCheck className="h-4 w-4" />What Arise Fit shares with {first}</Title>
+      <p className="-mt-1 mb-2 px-1 text-[13px]" style={{ color: C.dim }}>So you never type anything twice. Change it or stop sharing any time.</p>
+      <div className="space-y-2">{(Object.keys(CONSENT_LABEL) as (keyof Consent)[]).map((k) => <label key={k} className="flex items-center gap-3 rounded-[12px] p-3" style={{ background: C.card }}>
+        <span className="min-w-0 flex-1"><span className="block font-semibold">{CONSENT_LABEL[k][0]}</span><span className="block text-[12px]" style={{ color: C.dim }}>{CONSENT_LABEL[k][1]}</span></span>
+        <input type="checkbox" checked={consent[k]} onChange={(e) => setConsent({ ...consent, [k]: e.target.checked })} className="h-6 w-6 shrink-0 accent-[var(--fit-accent)]" /></label>)}</div>
+      {err && <p className="mt-2 text-[14px]" style={{ color: C.red }}>{err}</p>}
+      <Btn className="mt-5 w-full" disabled={busy} onClick={async () => { setBusy(true); setErr(""); try { await post(token, `/invite/${encodeURIComponent(code)}/join`, { consent }); onJoined(); } catch (e: any) { setErr(e.message); } finally { setBusy(false); } }} testId="fit-coach-join">Join {first}</Btn>
+    </>}
+  </Sheet>;
+}
+
 /** "Trainer" in Arise Fit: your trainer's hub, or the directory. */
 export function CoachScreen({ token, me, data, update, list, onStart, onClose }: { token: string | null; me: number; data: FitData; update: Update; list: LibraryExercise[]; onStart: StartFn; onClose: () => void }) {
   const { data: links, reload } = useCoach(token);
