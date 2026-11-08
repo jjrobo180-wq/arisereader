@@ -140,6 +140,33 @@ def availability():
         "app": {"data": {"type": "apps", "id": APP}}, "availableTerritories": {"data": [{"type": "territories", "id": t} for t in terr]}}}})
 step("available in every country", availability)
 
+# Third-party content: public-domain books (Project Gutenberg, Standard Ebooks), openly licensed lessons
+# (CC BY) and Open Library covers, all with the rights to use them.
+step("content rights: third-party content, with the rights to it", lambda: api(f"apps/{APP}", {"data": {"type": "apps", "id": APP, "attributes": {"contentRightsDeclaration": "USES_THIRD_PARTY_CONTENT"}}}, method="PATCH"))
+
+# The App Review contact: as given, or the one already saved on another of these apps.
+def borrowed_contact():
+    for other in q("apps", limit=50)["data"]:
+        if other["id"] == APP:
+            continue
+        for v in q(f"apps/{other['id']}/appStoreVersions", limit=5)["data"]:
+            try:
+                rd = q(f"appStoreVersions/{v['id']}/appStoreReviewDetail")["data"]
+            except RuntimeError:
+                continue
+            a = (rd or {}).get("attributes") or {}
+            if a.get("contactPhone") and a.get("contactFirstName"):
+                print(f"     contact found on {other['attributes']['name']}")
+                return a
+    return {}
+if not os.environ.get("CONTACT_PHONE"):
+    found = borrowed_contact()
+    for k, env in (("contactFirstName", "CONTACT_FIRST"), ("contactLastName", "CONTACT_LAST"), ("contactPhone", "CONTACT_PHONE"), ("contactEmail", "CONTACT_EMAIL")):
+        if found.get(k) and not os.environ.get(env):
+            os.environ[env] = found[k]
+    if not found:
+        print("     no App Review contact saved on any other app: a name and phone are still needed")
+
 # App Review: the sample account, and the contact when given.
 def review():
     attrs = {"demoAccountRequired": True, "demoAccountName": demo_user, "demoAccountPassword": demo_pass,
