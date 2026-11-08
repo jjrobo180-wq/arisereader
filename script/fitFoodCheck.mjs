@@ -23,6 +23,7 @@ for (const [label, engine, opts] of [["iphone-safari", webkit, devices["iPhone 1
     if (url.pathname.startsWith("/api/")) {
       const json = (b, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(b) });
       if (url.pathname === "/api/me") return json(user);
+      if (url.pathname === "/api/client-error") { await note(`${label}: CRASH REPORT ${String(req.postData() || "").slice(0, 1500)}`); return json({ ok: true }); }
       if (url.pathname === "/api/fit/data") { if (req.method() === "PUT") { const b = req.postDataJSON(); puts.push(b); saved = b.data; return json({ ok: true }); } return json({ data: saved }); }
       if (url.pathname === "/api/fit/exercises") return json({ exercises: [] });
       if (url.pathname === "/api/fit/plus") return json({ plus: false });
@@ -41,6 +42,7 @@ for (const [label, engine, opts] of [["iphone-safari", webkit, devices["iPhone 1
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e?.message || e).slice(0, 200)));
+  page.on("console", (m) => { if (m.type() === "error") errors.push(`console: ${m.text().slice(0, 600)}`); });
   const session = Buffer.from(JSON.stringify({ user, token: "test-token" })).toString("base64");
   await ctx.addCookies([{ name: "arise_session", value: session, domain: "arise.test", path: "/" }]);
   await page.addInitScript((s) => { try { localStorage.setItem("arise_session_backup", s); } catch {} }, session);
