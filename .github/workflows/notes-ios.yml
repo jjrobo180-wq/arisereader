@@ -79,6 +79,7 @@ jobs:
         run: |
           python3 ../../.github/scripts/configure_fit_app.py ios/App/App/Info.plist notes
           python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist
+          python3 ../../.github/scripts/ipad_universal.py ios/App/App/Info.plist
       - name: Import Apple signing certificate and provisioning profile
         shell: bash
         env:

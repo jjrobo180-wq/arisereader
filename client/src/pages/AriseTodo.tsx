@@ -989,9 +989,13 @@ export default function AriseTodo() {
   const common = { family, setFamily, today: currentDay, makeId, say: setMessage };
   // Widgets (Home Screen and Lock Screen): agenda, to-dos, bills, goals, notes, countdowns, email and weather.
   const weatherFeed = useLifeFeed<Forecast>(family.weather.place ? `/api/lifehub/weather?place=${encodeURIComponent(family.weather.place)}&unit=${family.weather.unit}` : null, 0);
+  // Worked out once typing or tapping pauses (not on every keystroke), so the page never waits on it.
   useEffect(() => {
-    const listName = (id: string) => data.lists.find(l => l.id === id)?.name;
-    publishWidgets(duoWidgetSlots(family, data.tasks.filter(t => !t.archived).map(t => ({ id: t.id, title: t.title, due: t.due, time: t.time, done: t.done, listName: listName(t.listId) })), currentDay, weatherFeed.data ?? null));
+    const t = window.setTimeout(() => {
+      const listName = (id: string) => data.lists.find(l => l.id === id)?.name;
+      publishWidgets(duoWidgetSlots(family, data.tasks.filter(t => !t.archived).map(t => ({ id: t.id, title: t.title, due: t.due, time: t.time, done: t.done, listName: listName(t.listId) })), currentDay, weatherFeed.data ?? null));
+    }, 1500);
+    return () => window.clearTimeout(t);
   }, [family, data.tasks, data.lists, currentDay, weatherFeed.data]);
   // Where the Getting started page's buttons go (components/GettingStarted.tsx).
   const guideCanOpen = (t: string) => ["customize", "store", "search", "passcode", "notifications"].includes(t)
