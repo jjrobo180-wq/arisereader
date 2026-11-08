@@ -2,10 +2,10 @@
 import PackageDescription
 
 let package = Package(
-    name: "AriseCarPlay",
+    name: "AriseCarplay",
     platforms: [.iOS(.v15)],
     products: [
-        .library(name: "AriseCarPlay", targets: ["AriseCarPlayPlugin"])
+        .library(name: "AriseCarplay", targets: ["AriseCarPlayPlugin"])
     ],
     dependencies: [
         .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", from: "8.0.0")
