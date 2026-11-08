@@ -9,7 +9,10 @@ type TaskIn = { id: string; title: string; due: string; time: string; done: bool
 type ListIn = { id: string; name: string };
 export type NativeTaskAction = { type: "toggle"; id: string } | { type: "delete"; id: string } | { type: "add"; title: string; due: string; listId: string } | { type: "closed" };
 
-export const nativeTasksAvailable = (): boolean => nativeFlavor() === "todo" && hasNativePlugin(PLUGIN);
+/** Off (November 2026): the native screen opened over the app every time a task was added, unthemed, and its Today
+ *  view left out tasks without a date, so it looked empty. The web Tasks screen is used until it's redone. */
+export const NATIVE_TASKS_ON = false;
+export const nativeTasksAvailable = (): boolean => NATIVE_TASKS_ON && nativeFlavor() === "todo" && hasNativePlugin(PLUGIN);
 
 /** What the native screen needs, and nothing more. */
 export function tasksPayload(data: { tasks: TaskIn[]; lists: ListIn[] }) {

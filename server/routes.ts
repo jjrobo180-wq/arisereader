@@ -65,6 +65,8 @@ import { createSupabasePagesStore } from "./arisePagesStore";
 import { registerAriseTodoRoutes } from "./ariseTodo";
 import { registerWhatsNewRoutes } from "./whatsNew";
 import { registerAdminHandoffRoutes } from "./adminHandoff";
+import { registerTvLinkRoutes } from "./tvLink";
+import { readWorkspace as readTodoWorkspace } from "./ariseTodo";
 import { registerClientErrorRoutes } from "./clientErrors";
 import { registerTodoShareRoutes } from "./todoShare";
 import { registerFoodLookupRoutes } from "./foodLookup";
@@ -1510,6 +1512,8 @@ export async function registerRoutes(
     "todo_required", "Arise LifeHub is an add-on for parents ($10 a month) and comes with Arise WorkHub for teachers.",
   ));
   registerAdminHandoffRoutes(app, authMiddleware);
+  // Apple TV sign-in with a code, and the TV's summary of the family hub (server/tvLink.ts).
+  registerTvLinkRoutes(app, authMiddleware, { createSession: (id) => storage.createSession(id), readWorkspace: readTodoWorkspace });
   registerClientErrorRoutes(app);
   // Arise To Duo Free and the $5 upgrade (shared/todoPlan.ts). These run before the routes they
   // guard. Free has no AI, and up to 3 App Store apps across WorkHub and LifeHub: a save that would

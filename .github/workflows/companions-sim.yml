@@ -1,0 +1,55 @@
+name: Apple Watch and Apple TV apps (simulator build)
+# Compiles the Arise companions on their simulators, without Apple signing: Arise Duo, Arise Fit and
+# Arise Notes for Apple Watch, and Arise Duo and Arise Fit for Apple TV. Each is added to a small
+# stand-in project with the same script the signed builds use (.github/scripts/add_companion.rb).
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - 'native/watch-kit/**'
+      - 'native/duo-watch/**'
+      - 'native/fit-watch/**'
+      - 'native/notes-watch/**'
+      - 'native/duo-tv/**'
+      - 'native/fit-tv/**'
+      - '.github/scripts/add_companion.rb'
+      - '.github/workflows/companions-sim.yml'
+jobs:
+  build:
+    runs-on: xcode-27
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use the newest Xcode 27
+        shell: bash
+        run: |
+          X=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | grep -viE 'beta|release_candidate|_rc' | sort -V | tail -1 || true)
+          if [[ -z "$X" ]]; then X=$(xcode-select -p | sed 's#/Contents/Developer$##'); fi
+          echo "DEVELOPER_DIR=$X/Contents/Developer" >> "$GITHUB_ENV"
+      - name: A stand-in project with the five companions
+        run: |
+          set -euo pipefail
+          ruby -rxcodeproj -e 'puts Xcodeproj::VERSION' 2>/dev/null || gem install xcodeproj --no-document --user-install
+          mkdir -p "$RUNNER_TEMP/c/App"
+          cd "$RUNNER_TEMP/c"
+          ruby -rxcodeproj -e 'p = Xcodeproj::Project.new("App.xcodeproj"); t = p.new_target(:application, "App", :ios, "16.0"); t.build_configurations.each { |c| c.build_settings["MARKETING_VERSION"] = "1.0"; c.build_settings["CURRENT_PROJECT_VERSION"] = "1" }; p.save'
+          S="$GITHUB_WORKSPACE/.github/scripts/add_companion.rb"
+          K=native/watch-kit/AriseWatchLink.swift
+          ruby "$S" App.xcodeproj --kind watch --name DuoWatch --display "Arise Duo" --host com.arisereader.arisetodo --sources "$K,native/duo-watch/DuoWatchApp.swift" --icon client/public/app-icons/todo-1024.png
+          ruby "$S" App.xcodeproj --kind watch --name FitWatch --display "Arise Fit" --host com.arisereader.fit --sources "$K,native/fit-watch/FitWatchApp.swift" --icon client/public/app-icons/fit-1024.png --healthkit
+          ruby "$S" App.xcodeproj --kind watch --name NotesWatch --display "Arise Notes" --host com.arisereader.notes --sources "$K,native/notes-watch/NotesWatchApp.swift" --icon client/public/app-icons/notes-1024.png
+          ruby "$S" App.xcodeproj --kind tv --name DuoTV --display "Arise Duo" --host com.arisereader.arisetodo --sources native/duo-tv/DuoTVApp.swift --tv-assets native/duo-tv/Assets.xcassets
+          ruby "$S" App.xcodeproj --kind tv --name FitTV --display "Arise Fit" --host com.arisereader.fit --sources native/fit-tv/FitTVApp.swift --resources native/fit-tv/sessions.json --tv-assets native/fit-tv/Assets.xcassets
+      - name: Compile each one
+        working-directory: ${{ runner.temp }}/c
+        run: |
+          set -uo pipefail
+          failed=""
+          for t in DuoWatch FitWatch NotesWatch; do
+            if xcodebuild -project App.xcodeproj -scheme "$t" -configuration Debug -sdk watchsimulator -destination 'generic/platform=watchOS Simulator' CODE_SIGNING_ALLOWED=NO build > "$t.log" 2>&1; then echo "::notice title=$t::compiled"; else failed="$failed $t"; grep -E "error:" "$t.log" | head -20; fi
+          done
+          for t in DuoTV FitTV; do
+            if xcodebuild -project App.xcodeproj -scheme "$t" -configuration Debug -sdk appletvsimulator -destination 'generic/platform=tvOS Simulator' CODE_SIGNING_ALLOWED=NO build > "$t.log" 2>&1; then echo "::notice title=$t::compiled"; else failed="$failed $t"; grep -E "error:" "$t.log" | head -20; fi
+          done
+          if [[ -n "$failed" ]]; then echo "::error::Didn't compile:$failed"; exit 1; fi

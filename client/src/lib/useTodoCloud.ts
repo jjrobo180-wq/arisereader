@@ -53,12 +53,33 @@ export function useTodoCloud<W extends object>({
   recoveryRef.current = recovery;
   const checkRef = useRef<() => Promise<void>>(async () => {});
 
-  const saveDraft = useCallback((current: W, dirty: boolean) => {
-    if (!userRef.current) return;
+  // The safety copy on this device. Writing it means turning the WHOLE hub (every task, note, recipe…)
+  // into text and storing it, which on a phone can take a noticeable moment; done on every keystroke it
+  // made typing and tapping stutter. So it is written once things go quiet (and at once when the app
+  // goes to the background or this page closes), with the newest copy and whether it's still unsaved.
+  const draft = useRef<{ current: W; dirty: boolean | null; timer: number | null; user: typeof userId }>({ current: undefined as unknown as W, dirty: null, timer: null, user: undefined as typeof userId });
+  const writeDraft = useCallback(() => {
+    const d = draft.current;
+    if (d.timer !== null) { window.clearTimeout(d.timer); d.timer = null; }
+    if (d.dirty === null || !d.user) return;
+    // Another account signed in meanwhile: its saver isn't this copy's, so keep the flag as it was.
+    const dirty = d.dirty || (d.user === userRef.current && !!saver.current?.hasUnsaved());
+    d.dirty = null;
     // The copy last saved to the account goes with it, so changes made offline merge cleanly later.
-    const base = saver.current ? saver.current.saved : undefined;
-    try { localStorage.setItem(backupKey(userRef.current), JSON.stringify({ workspace: current, dirty, ...(dirty && base ? { base } : {}) })); } catch {}
+    const base = saver.current && d.user === userRef.current ? saver.current.saved : undefined;
+    try { localStorage.setItem(backupKey(d.user), JSON.stringify({ workspace: d.current, dirty, ...(dirty && base ? { base } : {}) })); } catch {}
   }, []);
+  const saveDraft = useCallback((current: W, dirty: boolean, now = false) => {
+    if (!userRef.current) return;
+    const d = draft.current;
+    if (d.user && d.user !== userRef.current && d.dirty !== null) writeDraft();
+    d.current = current;
+    d.dirty = dirty;
+    d.user = userRef.current;
+    if (now) { writeDraft(); return; }
+    if (d.timer !== null) window.clearTimeout(d.timer);
+    d.timer = window.setTimeout(writeDraft, 1200);
+  }, [writeDraft]);
 
   useEffect(() => {
     if (!token || !userId) {
@@ -188,7 +209,8 @@ export function useTodoCloud<W extends object>({
   useEffect(() => {
     if (!loaded || recovery || !saver.current) return;
     saver.current.change(workspace);
-    saveDraft(workspace, saver.current.hasUnsaved());
+    // Changed since the last save to the account (hasUnsaved is asked again when the copy is written).
+    saveDraft(workspace, false);
   }, [workspace, loaded, recovery, saveDraft]);
 
   const check = useCallback(async () => {
@@ -214,7 +236,7 @@ export function useTodoCloud<W extends object>({
   checkRef.current = check;
 
   useEffect(() => {
-    const send = () => { void saver.current?.flush(); };
+    const send = () => { writeDraft(); void saver.current?.flush(); };
     const visibility = () => { if (document.visibilityState === "hidden") send(); else void check(); };
     const online = () => { saver.current?.retryNow(); void check(); };
     const beforeUnload = (event: BeforeUnloadEvent) => {
@@ -234,8 +256,9 @@ export function useTodoCloud<W extends object>({
       window.removeEventListener("online", online);
       window.removeEventListener("beforeunload", beforeUnload);
       window.clearInterval(timer);
+      writeDraft();
     };
-  }, [check]);
+  }, [check, writeDraft]);
 
   const setWorkspace: Dispatch<SetStateAction<W>> = useCallback(next => {
     rawSetWorkspace(previous => typeof next === "function"
