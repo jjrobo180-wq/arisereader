@@ -153,7 +153,11 @@ export function installReminderTaps(): void {
   } catch { /* no listener here */ }
 }
 
+/** What was last put on the phone for each kind (in this page's life), so an unchanged plan is left alone. */
+const lastPlan = new Map<ReminderKind, string>();
+
 async function cancelScheduled(kind: ReminderKind) {
+  lastPlan.delete(kind);
   let ids: number[] = [];
   try { ids = JSON.parse(store.get(idsKey(kind)) || "[]"); } catch { ids = []; }
   if (ids.length) await call("cancel", { notifications: ids.map((id) => ({ id })) }).catch(() => {});
@@ -165,11 +169,17 @@ export async function scheduleNativeReminders(kind: ReminderKind, workspace: unk
   if (!nativeRemindersOn(kind) || !nativeRemindersAvailable()) return 0;
   const now = Date.now();
   const plan = planReminders(kind, workspace, now + 60_000, zone()).slice(0, MOST_PER_KIND);
+  const notifications = plan.length ? nativeNotifications(kind, plan) : [];
+  // Same reminders as the ones already waiting on the phone (most edits don't touch them): nothing to
+  // redo. Cancelling and re-adding them all after every change made the app hitch a few seconds later.
+  const sig = JSON.stringify(notifications);
+  if (lastPlan.get(kind) === sig) return notifications.length;
   await cancelScheduled(kind);
-  if (!plan.length) return 0;
-  const notifications = nativeNotifications(kind, plan);
+  lastPlan.set(kind, "");
+  if (!notifications.length) { lastPlan.set(kind, sig); return 0; }
   await call("schedule", { notifications });
   store.set(idsKey(kind), JSON.stringify(notifications.map((n) => n.id)));
+  lastPlan.set(kind, sig);
   return notifications.length;
 }
 
@@ -180,6 +190,7 @@ export async function sendNativeTest(): Promise<void> {
 
 /** Signing out: every reminder scheduled on this iPhone is taken away, so the next account never sees the last one's. */
 export async function cancelAllNativeReminders(): Promise<void> {
+  lastPlan.clear();
   if (!nativeRemindersAvailable()) return;
   try {
     const pending = await nativeCall(PLUGIN, NAME, "getPending");

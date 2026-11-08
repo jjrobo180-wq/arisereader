@@ -12,7 +12,9 @@ import { NOTES_PLANS, SUITE_LOOKS, dayWords, fmtClock, nightLook, templateOf, th
 import { notesApi, setNotesToken, type ListNote, type Me } from "./api";
 import { listLocalNotes, type LocalNote } from "./localNotes";
 import { listenForLinks, widgetAi, widgetPages } from "./widgetLinks";
-import { pagesSyncFor } from "./pages/pagesSync";
+import { newPageId, pagesSyncFor } from "./pages/pagesSync";
+import { DEFAULT_LOOK } from "@shared/arisePages";
+import { publishWatch, watchActions } from "@/lib/watch";
 import { Btn, IconBtn, Notice, Spinner, ToastHost, plural, shortDate, useToast } from "./ui";
 import { LookHomeHero, LookNoteList, LookTabBar, activeLook } from "./looks";
 import { archClass } from "./protoLooks";
@@ -161,6 +163,35 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   useEffect(() => { listenForLinks(go); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (isNotesApp() && notes) widgetAi(notes); }, [notes]);
   useEffect(() => { if (isNotesApp() && user?.id) return pagesSyncFor(Number(user.id)).subscribe((snap) => widgetPages(snap.metas)); }, [user?.id]);
+  // Apple Watch (native/notes-watch): your latest notes to read, and new ones dictated on the watch.
+  useEffect(() => {
+    if (!isNotesApp() || !user?.id) return;
+    let meetings: { id: string; title: string; text: string; at: string }[] = [];
+    let pages: { id: string; title: string; text: string; at: string }[] = [];
+    const send = () => publishWatch({ pages, meetings });
+    meetings = (notes ?? []).slice(0, 15).map((n) => ({ id: n.id, title: (n.title || "Meeting").slice(0, 80), text: (n.gist || "").slice(0, 600), at: n.createdAt }));
+    const stop = pagesSyncFor(Number(user.id)).subscribe((snap) => {
+      pages = snap.metas.filter((m) => !m.deletedAt && !m.locked).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 25)
+        .map((m) => ({ id: m.id, title: (m.title || "Note").slice(0, 80), text: (m.preview || "").slice(0, 600), at: m.updatedAt }));
+      send();
+    });
+    return stop;
+  }, [user?.id, notes]);
+  useEffect(() => {
+    if (!isNotesApp() || !user?.id) return;
+    return watchActions((actions) => {
+      const sync = pagesSyncFor(Number(user.id));
+      for (const a of actions) {
+        if (a.type !== "add" || typeof a.text !== "string" || !a.text.trim()) continue;
+        const text = a.text.trim().slice(0, 5000), now = new Date(a.at || Date.now()).toISOString();
+        const esc = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const title = text.split(/[.!?\n]/)[0].slice(0, 60);
+        sync.save({ id: newPageId(), kind: "text", folderId: "", color: "", pinned: false, tags: ["watch"], locked: false,
+          content: { title, html: `<p>${esc}</p>`, ink: [], look: DEFAULT_LOOK }, cipher: null,
+          preview: text.replace(/\s+/g, " ").slice(0, 240), search: "", rev: 0, createdAt: now, updatedAt: now, deletedAt: null });
+      }
+    });
+  }, [user?.id]);
 
   // Day / Night / Auto (Auto is the default and follows the phone). One answer for the whole app: the old
   // "Night mode" switch used to color only some screens, so the writing area stayed white. Someone who had

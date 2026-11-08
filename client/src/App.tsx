@@ -113,6 +113,7 @@ const JoinFamily = lazyPage(() => import("./pages/JoinFamily"));
 const DropReceive = lazyPage(() => import("./pages/DropReceive"));
 const TryIepWriter = lazyPage(() => import("./pages/TryIepWriter"));
 const DuoSplit = lazyPage(() => import("./pages/DuoSplit"));
+const TvLink = lazyPage(() => import("./pages/TvLink"));
 const AriseCity = lazyPage(() => import("./pages/AriseCity"));
 const SmashRoom = lazyPage(() => import("./pages/play/SmashRoom"));
 const BuildZone = lazyPage(() => import("./pages/play/BuildZone"));
@@ -424,6 +425,9 @@ function AfterSignIn({ onReaderDomain, onTodoDomain }: { onReaderDomain: boolean
   // Signed in from a Para Team invite link: straight back to join that team.
   const paraJoin = pendingParaJoin();
   if (paraJoin && isHubAccount(user)) return <Redirect to={`/para-team/join/${paraJoin}`} replace />;
+  // Signed in to finish signing in an Apple TV (pages/TvLink.tsx): straight back to type the code.
+  const tvCode = (() => { try { const c = sessionStorage.getItem("tv_link_code"); sessionStorage.removeItem("tv_link_code"); return c; } catch { return null; } })();
+  if (tvCode !== null) return <Redirect to={`/tv${tvCode ? `?code=${encodeURIComponent(tvCode)}` : ""}`} replace />;
   if (isHubAccount(user)) {
     // A teacher who signs in on arisereader.com stays in A.R.I.S.E. Reader (the teacher Reader at
     // /reader), with a banner there that opens their WorkHub. On arisetodo.com they get the hub.
@@ -573,6 +577,9 @@ function AppRoutes() {
       </Route>
       <Route path="/saved">
         {isEyeGazeStudent ? <Redirect to="/library" replace /> : <ProtectedRoute><FypMyBooksPage /></ProtectedRoute>}
+      </Route>
+      <Route path="/tv">
+        <TvLink />
       </Route>
       <Route path="/signin">
         {user ? <AfterSignIn onReaderDomain={onReaderDomain} onTodoDomain={onTodoDomain} /> : isNativeApp() ? <NativeSignIn /> : <SignIn />}

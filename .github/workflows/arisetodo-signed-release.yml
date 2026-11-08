@@ -2,6 +2,11 @@ name: Arise To Duo signed iOS release candidate
 # Signed release; upload only for a commit explicitly marked [approved-testflight].
 on:
   workflow_dispatch:
+    inputs:
+      upload:
+        description: Send this build to TestFlight (the owner's approval)
+        type: boolean
+        default: false
   push:
     branches: [feat/arisetodo-ios-app-store-starter, feat/arisetodo-native-ios-foundation]
     paths:
@@ -9,6 +14,7 @@ on:
       - '.github/workflows/arisetodo-signed-release.yml'
       - 'arisetodo/ios-app/**'
       - 'client/src/**'
+      - 'native/**'
       - 'client/index.html'
 jobs:
   signed-archive:
@@ -80,6 +86,7 @@ jobs:
           python3 configure-ios.py ios/App/App/Info.plist
           python3 add-sound.py ios/App/App.xcodeproj/project.pbxproj ios/App/App
           python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist
+          python3 ../../.github/scripts/ipad_universal.py ios/App/App/Info.plist
       - name: Import Apple signing certificate and provisioning profile
         shell: bash
         env:
@@ -160,6 +167,28 @@ jobs:
             echo "::warning::The app's provisioning profile has no App Group. Building without widgets."
           fi
           if [[ -n "$USE_ENT" ]]; then echo "HEALTH_ENTITLEMENTS=CODE_SIGN_ENTITLEMENTS=App/App.entitlements" >> "$GITHUB_ENV"; else echo "HEALTH_ENTITLEMENTS=" >> "$GITHUB_ENV"; fi
+      - name: Profiles for the Apple Watch and Apple TV apps
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -uo pipefail
+          # The watch app has an App ID of its own (registered the first time); a TV app is the same App ID
+          # as the iPhone app (one App Store listing) with a tvOS profile.
+          SEED_PROFILE="$RUNNER_TEMP/profile.mobileprovision" CREATE_APP_ID="Arise Duo Watch" python3 .github/scripts/apple_signing.py com.arisereader.arisetodo.watchkitapp "$RUNNER_TEMP/watch.mobileprovision"
+          python3 .github/scripts/add_tvos_platform.py com.arisereader.arisetodo
+          SEED_PROFILE="$RUNNER_TEMP/profile.mobileprovision" PROFILE_TYPE=TVOS_APP_STORE python3 .github/scripts/apple_signing.py com.arisereader.arisetodo "$RUNNER_TEMP/tv.mobileprovision"
+          for kind in watch tv; do
+            f="$RUNNER_TEMP/$kind.mobileprovision"
+            [[ -s "$f" ]] || continue
+            if security cms -D -i "$f" > "$RUNNER_TEMP/$kind.plist" 2>/dev/null; then
+              cp "$f" "$HOME/Library/MobileDevice/Provisioning Profiles/$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/$kind.plist").mobileprovision"
+              echo "$(echo "$kind" | tr a-z A-Z)_PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/$kind.plist")" >> "$GITHUB_ENV"
+              echo "$kind: profile ready"
+            fi
+          done
+          [[ -s "$RUNNER_TEMP/watch.mobileprovision" ]] || echo "::warning title=Apple Watch::No App Store profile for the watch app. Building without it."
       - name: Add the widget extension (signed)
         if: env.WIDGETS == '1'
         working-directory: arisetodo/ios-app
@@ -172,6 +201,15 @@ jobs:
           ruby -rxcodeproj -e 'puts Xcodeproj::VERSION' || gem install xcodeproj --no-document --user-install
           export GEM_PATH="$(ruby -e 'puts Gem.user_dir'):$(ruby -e 'puts Gem.default_dir')"
           APP_PROFILE="$PROFILE_NAME" WIDGET_PROFILE="$WIDGET_PROFILE_NAME" ruby ../../.github/scripts/add_widget.rb ios/App/App.xcodeproj com.arisereader.arisetodo "$(cat widgets.json)" f5b400
+          # The Apple Watch app goes inside the iPhone app; the Apple TV app is archived on its own below.
+          if [[ -n "${WATCH_PROFILE_NAME:-}" ]]; then
+            (cd ../.. && COMPANION_PROFILE="$WATCH_PROFILE_NAME" ruby .github/scripts/add_companion.rb "$OLDPWD/ios/App/App.xcodeproj" --kind watch --name DuoWatch --display "Arise Duo" --host com.arisereader.arisetodo --sources native/watch-kit/AriseWatchLink.swift,native/duo-watch/DuoWatchApp.swift --icon client/public/app-icons/todo-1024.png --embed)
+            echo "WATCH_ADDED=1" >> "$GITHUB_ENV"
+          fi
+          if [[ -n "${TV_PROFILE_NAME:-}" ]]; then
+            (cd ../.. && COMPANION_PROFILE="$TV_PROFILE_NAME" ruby .github/scripts/add_companion.rb "$OLDPWD/ios/App/App.xcodeproj" --kind tv --name DuoTV --display "Arise Duo" --host com.arisereader.arisetodo --sources native/duo-tv/DuoTVApp.swift --tv-assets native/duo-tv/Assets.xcassets)
+            echo "TV_ADDED=1" >> "$GITHUB_ENV"
+          fi
       - name: Archive signed app with widgets
         if: env.WIDGETS == '1'
         working-directory: arisetodo/ios-app
@@ -218,6 +256,8 @@ jobs:
           }
           if os.environ.get("WIDGET_PROFILE_NAME"):
               options["provisioningProfiles"]["com.arisereader.arisetodo.widgets"] = os.environ["WIDGET_PROFILE_NAME"]
+          if os.environ.get("WATCH_ADDED") and os.environ.get("WATCH_PROFILE_NAME"):
+              options["provisioningProfiles"]["com.arisereader.arisetodo.watchkitapp"] = os.environ["WATCH_PROFILE_NAME"]
           with open(os.path.join(os.environ["RUNNER_TEMP"], "ExportOptions.plist"), "wb") as output:
               plistlib.dump(options, output)
           PY
@@ -238,7 +278,7 @@ jobs:
           retention-days: 3
       - name: Validate beta and perform explicitly approved TestFlight upload
         env:
-          APPROVED_UPLOAD: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[approved-testflight]') }}
+          APPROVED_UPLOAD: ${{ (github.event_name == 'push' && contains(github.event.head_commit.message, '[approved-testflight]')) || (github.event_name == 'workflow_dispatch' && inputs.upload) }}
           APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
@@ -258,6 +298,29 @@ jobs:
           xcrun altool --validate-app -f "${IPA[0]}" -t ios --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
           if [[ "$APPROVED_UPLOAD" == "true" ]]; then
             xcrun altool --upload-app -f "${IPA[0]}" -t ios --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+          fi
+      - name: Apple TV build (archive, validate, and upload with the same approval)
+        if: env.TV_ADDED == '1'
+        continue-on-error: true
+        working-directory: arisetodo/ios-app
+        env:
+          APPROVED_UPLOAD: ${{ (github.event_name == 'push' && contains(github.event.head_commit.message, '[approved-testflight]')) || (github.event_name == 'workflow_dispatch' && inputs.upload) }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme DuoTV -configuration Release -destination 'generic/platform=tvOS' -archivePath "$RUNNER_TEMP/DuoTV.xcarchive" archive
+          python3 - <<'PY'
+          import os, plistlib
+          with open(os.path.join(os.environ["RUNNER_TEMP"], "TVExportOptions.plist"), "wb") as f:
+              plistlib.dump({"method": "app-store-connect", "destination": "export", "signingStyle": "manual", "teamID": "6TYWWNKX6P",
+                             "provisioningProfiles": {"com.arisereader.arisetodo": os.environ["TV_PROFILE_NAME"]}}, f)
+          PY
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/DuoTV.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/TVExportOptions.plist" -exportPath "$RUNNER_TEMP/tv-export"
+          IPA=("$RUNNER_TEMP"/tv-export/*.ipa)
+          xcrun altool --validate-app -f "${IPA[0]}" -t appletvos --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+          if [[ "$APPROVED_UPLOAD" == "true" ]]; then
+            xcrun altool --upload-app -f "${IPA[0]}" -t appletvos --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
           fi
       - name: Remove temporary signing keychain
         if: always()
