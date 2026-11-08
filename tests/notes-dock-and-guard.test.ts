@@ -24,3 +24,13 @@ test("the readability check never runs while scrolling, waits two seconds betwee
   assert.match(g, /onScreenOnly && \(r\.bottom < -window\.innerHeight/);
   assert.match(g, /const blendCache = new WeakMap/);
 });
+
+test("Notes' apps are minimal: thin line icons in the look's color, hairline rows, no colored squares or big banner", () => {
+  const cat = read("client/src/components/arise-notes/notesAppsCatalog.tsx");
+  assert.match(cat, /color: "var\(--an-violet\)" \}\}>\{app\.icon\}/);
+  assert.doesNotMatch(cat, /linear-gradient/);
+  const all = read("client/src/components/arise-notes/NotesApps.tsx");
+  const gallery = all.slice(all.indexOf("export function AppsScreen"), all.indexOf("// ─── One app ───"));
+  assert.doesNotMatch(gallery, /Apps for your notes|na-hero/);
+  assert.match(gallery, /border-b border-\[var\(--an-line\)\]/);
+});

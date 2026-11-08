@@ -54,10 +54,8 @@ function AppsGroup({ ctx }: { ctx: AppCtx }) {
   const { installed } = useNotesApps();
   const mine = NOTES_APPS.filter((a) => installed.includes(a.id));
   return <Group title="Apps">
-    <Row icon={<Blocks />} label="App Gallery" detail="Sticky notes, Sheets, Slides, flashcards and more" onClick={() => ctx.go({ name: "apps" })} testId="notes-menu-apps" />
-    {mine.map((a) => <button key={a.id} type="button" onClick={() => ctx.go({ name: "app", id: a.id })} className="flex min-h-[3.75rem] w-full items-center gap-3.5 px-4 py-2.5 text-left transition hover:bg-[color-mix(in_srgb,var(--an-ink)_5%,transparent)]">
-      <AppIcon app={a} size={36} /><span className="min-w-0 flex-1"><span className="block text-[15.5px] font-semibold" style={{ color: "var(--an-ink)" }}>{a.name}</span><span className="block truncate text-[13px]" style={{ color: "var(--an-muted)" }}>{a.tagline}</span></span>
-      <ChevronRight className="h-5 w-5 shrink-0" style={{ color: "var(--an-muted)" }} aria-hidden /></button>)}
+    <Row icon={<Blocks />} label="All apps" detail="Add or remove apps" onClick={() => ctx.go({ name: "apps" })} testId="notes-menu-apps" />
+    {mine.map((a) => <Row key={a.id} icon={<AppIcon app={a} size={22} />} label={a.name.replace(/^A\.R\.I\.S\.E\. /, "")} detail={a.tagline} onClick={() => ctx.go({ name: "app", id: a.id })} />)}
   </Group>;
 }
 const Group = ({ title, children }: { title: string; children: ReactNode }) => <section>
