@@ -43,6 +43,7 @@ import { createHmac } from "node:crypto";
 import { cleanLead, cleanLeads, cleanSite, emptySite, idFromSlug, siteSlug, type Lead, type LeadStatus } from "../shared/coachSite";
 import { createSupabaseKv, type FitKv } from "./fitKv";
 import { createAttemptLimiter } from "./attemptLimiter";
+import { registerCoachGroupRoutes } from "./coachGroups";
 import { CATALOG } from "../shared/fit";
 import { cleanPlanWorkout as cleanWorkoutForAi } from "../shared/coach";
 
@@ -630,4 +631,7 @@ Order exercises sensibly (big compound lifts first). Respect injuries or limits 
     cache = null;
     return { ok: true };
   }));
+
+  // Groups: pages, chat and challenges (server/coachGroups.ts).
+  registerCoachGroupRoutes(app, auth, { store, kv, now, me, wrap, first, notify, refuse: (m, status) => new Refused(m, status) });
 }
