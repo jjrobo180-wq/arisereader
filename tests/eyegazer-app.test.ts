@@ -59,3 +59,21 @@ test("in the apps, games asking for full screen don't crash the iPad (WebKit ful
   const main = readFileSync(new URL("../client/src/main.tsx", import.meta.url), "utf8");
   assert.match(main, /if \(isNativeApp\(\)\) installNoFullscreen\(\);/);
 });
+
+test("the apps turn WebKit's element full screen off natively (games asking for it crashed Arise Eye Gazer)", () => {
+  const src = readFileSync(new URL("../.github/scripts/adopt_uiscene.py", import.meta.url), "utf8");
+  assert.match(src, /isElementFullscreenEnabled = false/);
+  assert.match(src, /import WebKit/);
+  assert.match(src, /func sceneDidBecomeActive\(_ scene: UIScene\) \{ NoElementFullscreen\.apply\(in: window\) \}/);
+  const stage = readFileSync(new URL("../client/src/components/eye-gaze/StageShell.tsx", import.meta.url), "utf8");
+  assert.match(stage, /useEffect\(\(\) => \{ if \(isNativeApp\(\)\) return; try \{ const el = document\.documentElement/);
+});
+
+test("Eye Gazer Home: five big one-word choices in a fixed order, and signing out asks a grown-up", () => {
+  const home = readFileSync(new URL("../client/src/pages/EyeGazeHome.tsx", import.meta.url), "utf8");
+  const titles = [...home.matchAll(/\{ title: "([^"]+)"[^}]*primary: true \}/g)].map((m) => m[1]);
+  assert.deepEqual(titles, ["Talk", "Play", "Learn", "Life Skills", "My World"]);
+  const shell = readFileSync(new URL("../client/src/components/EyeGazeSiteShell.tsx", import.meta.url), "utf8");
+  assert.match(shell, /window\.confirm\("Grown-ups: sign out of Arise Eye Gazer\?"\)/);
+  assert.match(shell, /prefers-reduced-motion/);
+});

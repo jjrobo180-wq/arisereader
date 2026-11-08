@@ -20,20 +20,39 @@ type HomeAction = {
   subtitle: string;
   emoji: string;
   path: string;
-  tone: string;
+  /** Soft background and a deeper ink for the label (calm, low-saturation colours). */
+  bg: string;
+  ink: string;
   primary: boolean;
 };
 
+// Few, large, always in the same place: children (autistic children especially) find their way by where things
+// are, so the order never changes and each choice is one word with one picture.
 const ACTIONS: HomeAction[] = [
-  { title: "My Talker", subtitle: "Talk, learn words, and communicate", emoji: "🗣️", path: "/eye-gaze-talker", tone: "from-teal-100 to-cyan-50 border-teal-200", primary: true },
-  { title: "Games", subtitle: "Play reading games and open lessons & books", emoji: "🎮", path: "/eye-gaze-games", tone: "from-amber-100 to-orange-50 border-amber-200", primary: true },
-  { title: "Life Skills", subtitle: "Practice everyday routines like potty training", emoji: "🌟", path: "/eye-gaze-life-skills", tone: "from-cyan-100 to-emerald-50 border-cyan-200", primary: true },
-  { title: "My World", subtitle: "Learn with familiar rooms, pictures & videos", emoji: "🏠", path: "/my-world", tone: "from-emerald-100 to-lime-50 border-emerald-200", primary: true },
-  { title: "A.R.I.S.E. Shorts", subtitle: "Learning Shorts picked for me", emoji: "📺", path: "/eye-gaze-tv", tone: "from-teal-50 to-emerald-50 border-teal-100", primary: false },
-  { title: "Flash Cards", subtitle: "Swipe, see it & hear it", emoji: "🃏", path: "/eye-gaze-flashcards", tone: "from-cyan-50 to-sky-50 border-cyan-100", primary: false },
-  { title: "My Buddy", subtitle: "Open my learning buddy", emoji: "🐶", path: "/eye-gaze-buddy", tone: "from-violet-50 to-fuchsia-50 border-violet-100", primary: false },
-  { title: "My Progress", subtitle: "See what I learned", emoji: "⭐", path: "/leaderboard", tone: "from-yellow-50 to-amber-50 border-yellow-100", primary: false },
+  { title: "Talk", subtitle: "Say what I want", emoji: "🗣️", path: "/eye-gaze-talker", bg: "#e3f3ef", ink: "#1f6f65", primary: true },
+  { title: "Play", subtitle: "Fun games", emoji: "🎮", path: "/eye-gaze-games", bg: "#fdeedd", ink: "#a85d17", primary: true },
+  { title: "Learn", subtitle: "Lessons and books", emoji: "📚", path: "/eye-gaze-lessons", bg: "#e5edfb", ink: "#2f5fae", primary: true },
+  { title: "Life Skills", subtitle: "Every day steps", emoji: "🌟", path: "/eye-gaze-life-skills", bg: "#fbf3d6", ink: "#8a6a10", primary: true },
+  { title: "My World", subtitle: "My rooms and people", emoji: "🏠", path: "/my-world", bg: "#e6f4e2", ink: "#3c7a32", primary: true },
+  { title: "Shorts", subtitle: "Short videos", emoji: "📺", path: "/eye-gaze-tv", bg: "#eef0f4", ink: "#46506a", primary: false },
+  { title: "Flash Cards", subtitle: "See it, hear it", emoji: "🃏", path: "/eye-gaze-flashcards", bg: "#eef0f4", ink: "#46506a", primary: false },
+  { title: "My Buddy", subtitle: "My learning friend", emoji: "🐶", path: "/eye-gaze-buddy", bg: "#eef0f4", ink: "#46506a", primary: false },
+  { title: "My Stars", subtitle: "What I learned", emoji: "⭐", path: "/leaderboard", bg: "#eef0f4", ink: "#46506a", primary: false },
 ];
+
+/** Says the choice out loud, gently, as it opens (children who don't read yet hear where they're going). */
+function sayIt(text: string) {
+  try {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.95; u.pitch = 1.05; u.volume = 0.9;
+    synth.speak(u);
+  } catch { /* no voice: the picture and the word are enough */ }
+}
+
+const greeting = () => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; };
 
 export default function EyeGazeHome() {
   const { user, token } = useAuth();
@@ -63,52 +82,51 @@ export default function EyeGazeHome() {
     })).catch(() => {});
   }, [token, user?.id, user?.totalPoints]);
 
-  const firstName = user?.displayName?.split(" ")[0] || user?.username || "Reader";
-  const visible = ACTIONS.filter(action => pathAllowed(action.path, controls) || (action.path === "/eye-gaze-games" && pathAllowed("/library", controls)));
+  const firstName = user?.displayName?.split(" ")[0] || user?.username || "Friend";
+  const allowed = (path: string) => path === "/eye-gaze-games" ? (pathAllowed(path, controls) || pathAllowed("/library", controls))
+    : path === "/eye-gaze-lessons" ? pathAllowed("/library", controls) : pathAllowed(path, controls);
+  const visible = ACTIONS.filter(action => allowed(action.path));
   const primary = visible.filter(action => action.primary);
   const more = visible.filter(action => !action.primary);
+  const open = (action: HomeAction) => { sayIt(action.title); navigate(action.path); };
 
   return (
-    <main className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
+    <main className="mx-auto max-w-5xl space-y-6 px-4 pb-8 pt-5 sm:px-6">
       <QuizReadyBanner />
-      <section className="rounded-[2rem] bg-gradient-to-r from-teal-100 via-emerald-50 to-amber-50 border border-sky-100 p-5 sm:p-7">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-5">
-          <div className="flex-1">
-            <p className="text-sm font-black uppercase tracking-widest text-blue-600">My Learning Home</p>
-            <h1 className="text-3xl sm:text-5xl font-black text-blue-950 mt-1">Hi, {firstName}! 👋</h1>
-            <p className="text-lg font-bold text-slate-600 mt-2">Choose one place to start. The main choices are first.</p>
-            {controls.enabled && <p className="mt-2 inline-block rounded-full bg-emerald-100 text-emerald-800 px-3 py-1 text-xs font-black">👨‍👩‍👧 Grown-up learning plan is on</p>}
-          </div>
-          <div className="grid grid-cols-3 gap-2 w-full lg:w-auto">
-            <div className="rounded-2xl bg-white px-4 py-3 text-center border border-sky-100"><div className="text-2xl font-black">{stats.totalPoints}</div><div className="text-[10px] font-black uppercase text-slate-400">Points</div></div>
-            <div className="rounded-2xl bg-white px-4 py-3 text-center border border-sky-100"><div className="text-2xl font-black">{stats.activities}</div><div className="text-[10px] font-black uppercase text-slate-400">Activities</div></div>
-            <div className="rounded-2xl bg-white px-4 py-3 text-center border border-sky-100"><div className="text-2xl font-black">{stats.rank ? "#" + stats.rank : "—"}</div><div className="text-[10px] font-black uppercase text-slate-400">Rank</div></div>
-          </div>
+      <section className="flex items-center gap-4 rounded-[28px] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,.04),0_8px_24px_rgba(31,38,51,.06)] sm:p-6">
+        <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-[#fff4d6] text-4xl sm:h-20 sm:w-20 sm:text-5xl" aria-hidden>😊</div>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-[26px] font-extrabold leading-tight tracking-[-0.015em] text-[#1f2633] sm:text-4xl">{greeting()}, {firstName}!</h1>
+          <p className="mt-1 text-[17px] font-semibold text-[#6b7180] sm:text-xl">What do you want to do?</p>
+          {controls.enabled && <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#e3f3ef] px-3 py-1 text-xs font-bold text-[#1f6f65]">👨‍👩‍👧 A grown-up set up my choices</p>}
         </div>
+        <button type="button" onClick={() => navigate("/leaderboard")} className="eg-press hidden flex-shrink-0 flex-col items-center rounded-2xl bg-[#fbf3d6] px-4 py-2.5 sm:flex" aria-label={`${stats.totalPoints} stars`}>
+          <span className="text-2xl font-extrabold text-[#8a6a10]">⭐ {stats.totalPoints}</span>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[#a88a35]">Stars</span>
+        </button>
       </section>
 
-      <section aria-label="Main choices">
-        <h2 className="text-sm font-black tracking-widest text-slate-500 mb-3">START HERE</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {primary.map(action => (
-            <button key={action.path} type="button" onClick={() => navigate(action.path)} className={"min-h-[185px] rounded-[2rem] border-2 bg-gradient-to-br " + action.tone + " p-5 text-left hover:-translate-y-1 hover:shadow-lg transition-all focus:outline-none focus:ring-4 focus:ring-blue-200"}>
-              <div className="text-5xl mb-3">{action.emoji}</div>
-              <div className="text-2xl sm:text-3xl font-black text-blue-950">{action.title}</div>
-              <div className="text-sm sm:text-base font-bold text-slate-600 mt-1">{action.subtitle}</div>
-            </button>
-          ))}
-        </div>
+      <section aria-label="Choices" className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+        {primary.map((action, i) => (
+          <button key={action.path} type="button" onClick={() => open(action)}
+            className={"eg-press flex min-h-[176px] flex-col items-center justify-center rounded-[28px] p-4 text-center shadow-[0_1px_2px_rgba(0,0,0,.04)] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#2f8f83]/40 sm:min-h-[210px] " + (primary.length % 2 === 1 && i === primary.length - 1 ? "col-span-2 lg:col-span-1" : "")}
+            style={{ background: action.bg }}>
+            <span className="flex h-20 w-20 items-center justify-center rounded-full bg-white/80 text-[46px] sm:h-24 sm:w-24 sm:text-[54px]" aria-hidden>{action.emoji}</span>
+            <span className="mt-3 text-[24px] font-extrabold leading-tight sm:text-[28px]" style={{ color: action.ink }}>{action.title}</span>
+            <span className="mt-0.5 text-[14px] font-semibold text-[#6b7180] sm:text-base">{action.subtitle}</span>
+          </button>
+        ))}
       </section>
 
       {!!more.length && (
-        <section className="rounded-[2rem] bg-white/80 border border-slate-100 p-4 sm:p-5">
-          <h2 className="text-sm font-black tracking-widest text-slate-500 mb-3">MORE</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <section aria-label="More" className="rounded-[28px] bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,.04),0_8px_24px_rgba(31,38,51,.05)] sm:p-5">
+          <h2 className="mb-3 px-1 text-[15px] font-bold text-[#7a8090]">More</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {more.map(action => (
-              <button key={action.path} type="button" onClick={() => navigate(action.path)} className={"min-h-[120px] rounded-3xl border-2 bg-gradient-to-br " + action.tone + " p-4 text-left hover:shadow-md transition-all focus:outline-none focus:ring-4 focus:ring-blue-200"}>
-                <div className="text-3xl mb-2">{action.emoji}</div>
-                <div className="text-lg font-black text-blue-950">{action.title}</div>
-                <div className="text-xs sm:text-sm font-bold text-slate-600 mt-1">{action.subtitle}</div>
+              <button key={action.path} type="button" onClick={() => open(action)} className="eg-press flex min-h-[108px] flex-col items-center justify-center rounded-[22px] p-3 text-center focus:outline-none focus-visible:ring-4 focus-visible:ring-[#2f8f83]/40" style={{ background: action.bg }}>
+                <span className="text-[36px]" aria-hidden>{action.emoji}</span>
+                <span className="mt-1 text-[17px] font-extrabold" style={{ color: action.ink }}>{action.title}</span>
+                <span className="text-[12.5px] font-semibold text-[#7a8090]">{action.subtitle}</span>
               </button>
             ))}
           </div>
