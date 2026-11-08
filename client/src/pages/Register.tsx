@@ -159,8 +159,8 @@ export default function Register({ independent = false }: { independent?: boolea
               )}
             </div>
 
-            {!independentStudent && <div className="space-y-2">
-              <Label htmlFor="teacher" className="font-bold text-[#191b35]">{byAdvisory ? "Advisory" : "Teacher"}</Label>
+            {!independentStudent && <div className="space-y-2 [&>label]:font-bold [&>label]:text-[#191b35]">
+              <Label htmlFor="teacher">{byAdvisory ? "Advisory" : "Teacher"}</Label>
               {byAdvisory && !teacherNotListed && <select id="teacher" value={selectedTeacherId} onChange={e => setSelectedTeacherId(e.target.value)} disabled={!selectedGrade} className="min-h-12 w-full rounded-xl border border-[#dfe2ee] bg-white p-3 text-sm text-[#191b35] disabled:opacity-50" data-testid="signup-advisory">
                 <option value="">{!selectedGrade ? "Select your grade first…" : "Choose your advisory…"}</option>
                 {gradeAdvisories.map((a) => <option key={a.id} value={`advisory:${a.id}`}>{a.name}{a.room ? ` · Room ${a.room}` : ""}</option>)}

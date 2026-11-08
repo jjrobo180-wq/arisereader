@@ -69,10 +69,10 @@ test("the apps turn WebKit's element full screen off natively (games asking for 
   assert.match(stage, /useEffect\(\(\) => \{ if \(isNativeApp\(\)\) return; try \{ const el = document\.documentElement/);
 });
 
-test("Eye Gazer Home: five big one-word choices in a fixed order, and signing out asks a grown-up", () => {
+test("Eye Gazer Home: six big one-word choices in a fixed order (Wren last), and signing out asks a grown-up", () => {
   const home = readFileSync(new URL("../client/src/pages/EyeGazeHome.tsx", import.meta.url), "utf8");
   const titles = [...home.matchAll(/\{ title: "([^"]+)"[^}]*primary: true \}/g)].map((m) => m[1]);
-  assert.deepEqual(titles, ["Talk", "Play", "Learn", "Life Skills", "My World"]);
+  assert.deepEqual(titles, ["Talk", "Play", "Learn", "Life Skills", "My World", "Wren"]);
   const shell = readFileSync(new URL("../client/src/components/EyeGazeSiteShell.tsx", import.meta.url), "utf8");
   assert.match(shell, /window\.confirm\("Grown-ups: sign out of Arise Eye Gazer\?"\)/);
   assert.match(shell, /prefers-reduced-motion/);
