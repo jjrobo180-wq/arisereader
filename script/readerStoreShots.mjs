@@ -59,6 +59,7 @@ for (const [kind, opts] of Object.entries(devices)) {
         await favorites();
         await animals();
         const link = page.getByRole("button", { name: /Read & Quiz/i }).first();
+        await link.waitFor({ state: "visible", timeout: 10000 }).catch(() => {});
         if (await link.isVisible().catch(() => false)) await link.click(); else { console.log(`skip ${kind} book: no Read & Quiz button`); continue; }
       }
       await page.waitForTimeout(5000);

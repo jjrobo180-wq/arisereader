@@ -185,6 +185,19 @@ def borrowed_contact():
                 print(f"     contact found on {other['attributes']['name']}")
                 return a
     return {}
+# The contact's name: the App Store Connect team member with that email, when it isn't given.
+if os.environ.get("CONTACT_EMAIL") and not os.environ.get("CONTACT_FIRST"):
+    try:
+        for u in q("users", limit=200)["data"]:
+            a = u["attributes"]
+            if (a.get("username") or "").lower() == os.environ["CONTACT_EMAIL"].lower() or (a.get("email") or "").lower() == os.environ["CONTACT_EMAIL"].lower():
+                os.environ["CONTACT_FIRST"], os.environ["CONTACT_LAST"] = a.get("firstName") or "", a.get("lastName") or ""
+                print(f"     contact name from the App Store Connect team: {a.get('firstName')} {a.get('lastName')}")
+                break
+        else:
+            print("     no App Store Connect team member with that email")
+    except RuntimeError as e:
+        print(f"     team members can't be read: {str(e)[:200]}")
 if not os.environ.get("CONTACT_PHONE"):
     found = borrowed_contact()
     for k, env in (("contactFirstName", "CONTACT_FIRST"), ("contactLastName", "CONTACT_LAST"), ("contactPhone", "CONTACT_PHONE"), ("contactEmail", "CONTACT_EMAIL")):
