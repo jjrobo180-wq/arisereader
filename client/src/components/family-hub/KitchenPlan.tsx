@@ -9,6 +9,7 @@ import { guessAisle } from "@shared/lifePlugins";
 import { Modal, type SectionProps } from "./ui";
 import DishEditor from "./kitchen/DishEditor";
 import ClearMeals from "./kitchen/ClearMeals";
+import PlanProgress from "./kitchen/PlanProgress";
 import Inventory from "./kitchen/Inventory";
 import WeekPlanner from "./kitchen/WeekPlanner";
 import ProductChooser from "./kitchen/ProductChooser";
@@ -72,6 +73,8 @@ export default function KitchenPlan({ family, setFamily, makeId, say }: SectionP
         </Card>)}
         {ideas.length > 2 && <button type="button" onClick={() => setAllTips((v) => !v)} className={link}>{allTips ? "Show fewer" : `${ideas.length - 2} more way${ideas.length - 2 === 1 ? "" : "s"} to save`}</button>}
       </section>}
+      <Card className="p-3"><p className={`${label} mb-1 px-1`}>Planned so far</p><PlanProgress people={k.people} week={k.week} />
+        <p className="px-1 pt-1 text-[11px] text-slate-400">Breakfast, lunch and dinner on all 7 days. Each person can have their own menu: tap Plan the week and pick a name.</p></Card>
       <div className="flex gap-2">
         <button type="button" onClick={() => setPlanner("mon")} className={`${btn} flex-1`} data-testid="plan-week">{planned ? "Edit the week" : "Plan the week"}</button>
         {planned > 0 && <button type="button" onClick={() => setClearing(true)} className={ghost} data-testid="clear-meals">Clear meals</button>}

@@ -310,6 +310,50 @@ export function setCells(k: Kitchen, cells: Record<string, KMeal[]>): Kitchen {
   return { ...k, week };
 }
 
+// ── Who eats what ──────────────────────────────────────────────────────────────────────────────────────────────
+// A meal belongs to the people on it ("people" empty means the whole family). Everyone can have their own menu: the same
+// dish for two people is one shared meal, a different dish for each is two. Progress counts breakfast, lunch and dinner
+// on all seven days, and a person's meal counts once something is on it for them.
+export const MAIN_SLOTS: KSlot[] = ["breakfast", "lunch", "dinner"];
+/** People as saved: a list that names the whole family is saved as empty (everyone). */
+export const normPeople = (ids: readonly string[], all: readonly string[]): string[] => { const set = all.filter((id) => ids.includes(id)); return set.length === 0 || set.length >= all.length ? [] : set; };
+export const eats = (m: KMeal, person: string) => !m.people.length || m.people.includes(person);
+/** Put a dish on a meal for these people (empty: everyone). The same dish already there just gets them added, so it never doubles. */
+export function addDish(list: KMeal[], dish: string, people: readonly string[], all: readonly string[], id: string): KMeal[] {
+  const who = people.length ? all.filter((p) => people.includes(p)) : [...all];
+  const have = list.find((m) => m.dish === dish);
+  if (!have) return [...list, { id, dish, people: normPeople(who, all) }];
+  const merged = [...new Set([...(have.people.length ? have.people : all), ...who])];
+  return list.map((m) => (m === have ? { ...m, people: normPeople(merged, all) } : m));
+}
+/** Take one person off their meals (or off just one meal): meals shared with others stay for the others, their own meals go. */
+export function dropPerson(list: KMeal[], person: string, all: readonly string[], mealId?: string): KMeal[] {
+  return list.flatMap((m) => {
+    if (!eats(m, person) || (mealId !== undefined && m.id !== mealId)) return [m];
+    const rest = (m.people.length ? m.people : all).filter((p) => p !== person);
+    return rest.length ? [{ ...m, people: normPeople(rest, all) }] : [];
+  });
+}
+export type KProgress = { done: number; of: number; pct: number };
+const pctOf = (done: number, of: number) => (of ? Math.round((done / of) * 100) : 0);
+/** How much of the week is planned, for each person and for the whole family. */
+export function planProgress(people: readonly KPerson[], week: Record<string, KMeal[]>): { all: KProgress; by: Record<string, KProgress> } {
+  const by: Record<string, KProgress> = {};
+  let done = 0, of = 0;
+  for (const p of people) {
+    let d = 0;
+    for (const day of WEEK) for (const s of MAIN_SLOTS) if ((week[cell(day, s)] ?? []).some((m) => eats(m, p.id))) d++;
+    const o = WEEK.length * MAIN_SLOTS.length;
+    by[p.id] = { done: d, of: o, pct: pctOf(d, o) }; done += d; of += o;
+  }
+  return { all: { done, of, pct: pctOf(done, of) }, by };
+}
+/** One day's breakfast, lunch and dinner: how many are set for one person (or, with null, for everyone at once). */
+export function dayProgress(people: readonly KPerson[], week: Record<string, KMeal[]>, day: KDay, who: string | null): { done: number; of: number } {
+  const set = (s: KSlot) => { const ms = week[cell(day, s)] ?? []; return who ? ms.some((m) => eats(m, who)) : people.length > 0 && people.every((p) => ms.some((m) => eats(m, p.id))); };
+  return { done: MAIN_SLOTS.filter(set).length, of: MAIN_SLOTS.length };
+}
+
 // ── Inventory ──────────────────────────────────────────────────────────────────────────────────────────────────
 const amountsOut = (m: Record<string, number>) => Object.fromEntries(Object.entries(m).map(([g, x]) => [g, r2(Math.max(0, x))]));
 /** Set how much of an ingredient is on hand. null stops counting it. */

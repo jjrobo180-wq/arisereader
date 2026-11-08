@@ -4,7 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { K_DISHES, K_SLOTS, PRODUCTS, WEEK, addMeal, amountText, bestBuy, cleanKitchen, clearMeals, countMeals, deleteOwnDish, duplicateCount, emptyKitchen, groupOf, removeDuplicates, setCells, setKeep, setStock, shoppingLines, stockUp, tips, totals, useUp, type Kitchen } from "../shared/kitchen";
+import { K_DISHES, K_SLOTS, PRODUCTS, WEEK, addDish, addMeal, amountText, bestBuy, cleanKitchen, clearMeals, countMeals, deleteOwnDish, dayProgress, dropPerson, duplicateCount, emptyKitchen, groupOf, normPeople, planProgress, removeDuplicates, setCells, setKeep, setStock, shoppingLines, stockUp, tips, totals, useUp, type Kitchen } from "../shared/kitchen";
 import { GROUPS, parseSize } from "../shared/kitchenProducts";
 import { mapKrogerLocation, mapKrogerProduct } from "../server/kroger";
 
@@ -115,7 +115,7 @@ test("the screens: setup asks who's eating, prices come from the store with your
   assert.match(read("client/src/lib/kitchenStore.ts"), /Authorization: `Bearer \$\{token\}`/);
   assert.match(read("server/routes.ts"), /registerKrogerRoutes\(app, authMiddleware\)/);
   assert.doesNotMatch(read("server/routes.ts"), /mealCost/);
-  for (const f of ["KitchenPlan.tsx", "kitchen/DishEditor.tsx", "kitchen/WeekPlanner.tsx", "kitchen/ClearMeals.tsx", "kitchen/Inventory.tsx", "kitchen/ProductChooser.tsx", "kitchen/kit.tsx"]) assert.doesNotMatch(read(`client/src/components/family-hub/${f}`), /\p{Extended_Pictographic}/u, f);
+  for (const f of ["KitchenPlan.tsx", "kitchen/DishEditor.tsx", "kitchen/WeekPlanner.tsx", "kitchen/PlanProgress.tsx", "kitchen/ClearMeals.tsx", "kitchen/Inventory.tsx", "kitchen/ProductChooser.tsx", "kitchen/kit.tsx"]) assert.doesNotMatch(read(`client/src/components/family-hub/${f}`), /\p{Extended_Pictographic}/u, f);
 });
 
 test("the week planner sets each meal for each day in one popup, and saving twice never doubles", () => {
@@ -193,4 +193,40 @@ test("the same person twice is merged, and their meals go with them", () => {
   const k = cleanKitchen({ setup: true, people: [{ id: "a", name: "Me", portion: 1 }, { id: "b", name: "Vanessa", portion: 1 }, { id: "c", name: "vanessa ", portion: 1 }], week: { "mon:dinner": [{ id: "x", dish: "tacos", people: ["a", "c"] }] } });
   assert.deepEqual(k.people.map((p) => p.name), ["Me", "Vanessa"]);
   assert.deepEqual(k.week["mon:dinner"][0].people, ["a", "b"]);
+});
+
+test("every person can have their own menu, or share a meal, and each person's planning shows a percentage", () => {
+  const all = ["j", "w", "d"];
+  let list = addDish([], "tacos", ["j"], all, "a");
+  list = addDish(list, "tacos", ["w"], all, "b");
+  assert.deepEqual(list.map((m) => [m.dish, m.people]), [["tacos", ["j", "w"]]], "the same dish for two people is one shared meal");
+  list = addDish(list, "tacos", ["d"], all, "c");
+  assert.deepEqual(list[0].people, [], "all three means everyone");
+  list = addDish(list, "mac", ["d"], all, "m");
+  assert.equal(list.length, 2);
+  assert.deepEqual(dropPerson(list, "w", all).map((m) => [m.dish, m.people]), [["tacos", ["j", "d"]], ["mac", ["d"]]], "taking one person off keeps it for the others");
+  assert.deepEqual(dropPerson(list, "d", all, "m").map((m) => m.dish), ["tacos"], "their own meal goes");
+  assert.deepEqual(normPeople(["j", "w", "d"], all), []);
+  // Progress: breakfast for everyone all week, lunch for Jermaine only.
+  let k = family();
+  for (const d of WEEK) { k = addMeal(k, d, "breakfast", "pancakes", [], `b-${d}`); k = addMeal(k, d, "lunch", "pbj", ["j"], `l-${d}`); }
+  const p = planProgress(k.people, k.week);
+  assert.deepEqual([p.by.j.pct, p.by.w.pct, p.by.d.pct], [67, 33, 33]);
+  assert.equal(p.all.pct, 44);
+  assert.equal(planProgress(k.people, {}).all.pct, 0);
+  k = addMeal(k, "mon", "dinner", "tacos", [], "t");
+  assert.deepEqual(dayProgress(k.people, k.week, "mon", null), { done: 2, of: 3 }, "lunch isn't set for everyone yet");
+  assert.deepEqual(dayProgress(k.people, k.week, "mon", "j"), { done: 3, of: 3 });
+  // Snacks and desserts don't hold the bar back.
+  k = addMeal(k, "mon", "snack", "apple-pb", [], "s");
+  assert.equal(planProgress(k.people, k.week).by.w.done, 8);
+});
+
+test("the planner shows a menu per person with a progress bar, and snacks and desserts are always there", () => {
+  const ui = read("client/src/components/family-hub/kitchen/WeekPlanner.tsx");
+  assert.match(ui, /Who's eating/);
+  assert.match(ui, /dropPerson\(/);
+  assert.match(ui, /<PlanProgress /);
+  assert.doesNotMatch(ui, /Add snacks & desserts|setExtras/);
+  assert.match(read("client/src/components/family-hub/KitchenPlan.tsx"), /<PlanProgress /);
 });
