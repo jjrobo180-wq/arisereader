@@ -22,6 +22,7 @@ import { publishWidgets } from "../client/src/lib/widgets";
 import { podWidgetSlots } from "../client/src/lib/podWidgets";
 import { subscribeWiki, wikiState } from "./wikiPlayer";
 import { downloads, installDownloads } from "./downloads";
+import { installCarPlay } from "./carplay";
 import "./styles.css";
 // Pod+ draws edge to edge: the top of every screen clears this iPhone's own clock space (lib/deviceInsets.ts).
 if (isNativeApp()) { document.documentElement.classList.add("pod-native"); applyDeviceTopInset(); }
@@ -122,6 +123,11 @@ function App() {
   }, [session, api, setSession]);
   // Audio comes through the server so smart ad skip can find the ads in this copy.
   const mediaUrl = useCallback((path: string) => API + path.replace(/^\/api\/earshot/, "/api/podscroll"), []);
+  // Pod+ in the car (CarPlay): the car gets the library and gives back where you got to (podscroll/carplay.ts).
+  const sessionRef = useRef(session); sessionRef.current = session;
+  const car = useRef<{ publish: () => void } | null>(null);
+  useEffect(() => { car.current = installCarPlay({ api: API, device: () => device, session: () => sessionRef.current, es: () => esRef.current }); }, [device]);
+  useEffect(() => { car.current?.publish(); }, [es, session]);
   // Downloads (Pod+ Membership): episodes and audiobooks kept on this device to play offline.
   const apiRef = useRef(api); apiRef.current = api;
   const proRef = useRef(pro); proRef.current = pro;

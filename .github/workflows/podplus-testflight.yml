@@ -66,6 +66,7 @@ jobs:
           npx cap sync ios
           python3 configure-ios.py ios/App/App/Info.plist
           python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist
+          python3 configure-carplay.py ios/App/App/Info.plist
       - name: Prepare beta icon and build number
         working-directory: podscroll/ios-app
         run: |
@@ -138,6 +139,15 @@ jobs:
             fi
           else
             echo "::warning::The app's provisioning profile has no App Group. Building without widgets."
+          fi
+          # CarPlay: Apple grants the CarPlay audio entitlement to the account on request
+          # (developer.apple.com/contact/carplay). Once the profile has it, the car's screens are on.
+          if /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.carplay-audio' "$RUNNER_TEMP/profile.plist" >/dev/null 2>&1; then
+            python3 podscroll/ios-app/configure-carplay.py podscroll/ios-app/ios/App/App/Info.plist --entitlements podscroll/ios-app/ios/App/App/App.entitlements
+            echo "SIGN_ENTITLEMENTS=CODE_SIGN_ENTITLEMENTS=App/App.entitlements" >> "$GITHUB_ENV"
+            echo "CarPlay: entitlement enabled"
+          else
+            echo "::warning title=CarPlay::The provisioning profile has no CarPlay audio entitlement yet. Pod+ won't show in cars until Apple grants it (developer.apple.com/contact/carplay) and the profile is made again."
           fi
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")

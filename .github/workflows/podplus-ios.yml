@@ -8,6 +8,7 @@ on:
       - 'client/src/components/family-hub/earshot/**'
       - '.github/workflows/podplus-ios.yml'
       - '.github/scripts/adopt_uiscene.py'
+      - 'native/arise-carplay/**'
   push:
     branches: [master]
     paths:
@@ -16,6 +17,7 @@ on:
       - 'client/src/components/family-hub/earshot/**'
       - '.github/workflows/podplus-ios.yml'
       - '.github/scripts/adopt_uiscene.py'
+      - 'native/arise-carplay/**'
 jobs:
   ios:
     # Xcode 27 (iOS 27 SDK), like the TestFlight builds, so this catches what only fails there
@@ -53,6 +55,7 @@ jobs:
           npx cap sync ios
           python3 configure-ios.py ios/App/App/Info.plist
           python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist
+          python3 configure-carplay.py ios/App/App/Info.plist
       - name: Compile iOS simulator app (no Apple signing required)
         working-directory: podscroll/ios-app
         run: |
