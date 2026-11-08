@@ -22,7 +22,7 @@ export const emptySite = (): SiteConfig => ({ published: false, template: "bold"
 
 export type LeadStatus = "new" | "contacted" | "won" | "lost";
 export const LEAD_STATUS: { id: LeadStatus; label: string }[] = [{ id: "new", label: "New" }, { id: "contacted", label: "Contacted" }, { id: "won", label: "Became a client" }, { id: "lost", label: "Not a fit" }];
-export type Lead = { id: string; at: string; name: string; email: string; phone: string; goal: string; message: string; source: "site" | "marketplace"; status: LeadStatus };
+export type Lead = { id: string; at: string; name: string; email: string; phone: string; goal: string; message: string; source: "site" | "marketplace" | "import"; status: LeadStatus; tags?: string[] };
 
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/\s+$/g, "").slice(0, max) : "");
 const arr = <T,>(v: unknown, max: number, f: (x: any) => T | null): T[] => (Array.isArray(v) ? v.slice(0, max).map(f).filter((x): x is T => x !== null) : []);
@@ -52,10 +52,11 @@ export function cleanLead(raw: unknown, at: string, source: Lead["source"] = "si
   if (!name || (!EMAIL.test(email) && phone.replace(/\D/g, "").length < 7)) return null;
   return { id: id(undefined), at, name, email: EMAIL.test(email) ? email : "", phone, goal: str(r.goal, 120), message: str(r.message, 2000), source, status: "new" };
 }
-export const cleanLeads = (raw: unknown): Lead[] => arr(raw, 500, (l) => {
+export const cleanLeads = (raw: unknown): Lead[] => arr(raw, 2000, (l) => {
   const x = l && typeof l === "object" ? l : {};
-  const c = cleanLead(x, str(x.at, 30) || new Date(0).toISOString(), x.source === "marketplace" ? "marketplace" : "site");
-  return c ? { ...c, id: id(x.id), status: LEAD_STATUS.some((s) => s.id === x.status) ? x.status : "new" } : null;
+  const c = cleanLead(x, str(x.at, 30) || new Date(0).toISOString(), x.source === "marketplace" || x.source === "import" ? x.source : "site");
+  const tags = Array.isArray(x.tags) ? x.tags.map((t: unknown) => str(t, 30)).filter(Boolean).slice(0, 5) : [];
+  return c ? { ...c, id: id(x.id), status: LEAD_STATUS.some((s) => s.id === x.status) ? x.status : "new", ...(tags.length ? { tags } : {}) } : null;
 });
 
 /** The site's address: the trainer's name, then their id (so no two trainers can collide, and no lookup table is needed). */

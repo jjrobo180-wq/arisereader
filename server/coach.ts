@@ -44,6 +44,10 @@ import { cleanLead, cleanLeads, cleanSite, emptySite, idFromSlug, siteSlug, type
 import { createSupabaseKv, type FitKv } from "./fitKv";
 import { createAttemptLimiter } from "./attemptLimiter";
 import { registerCoachGroupRoutes } from "./coachGroups";
+import { clientFacts, draftFor, flags as copilotFlags, progress as progressPlan, reflow as reflowPlan, score as copilotScore } from "../shared/coachCopilot";
+import { checkinDue } from "../shared/coach";
+import { clientsCsv, importClients, importWorkouts } from "../shared/coachImport";
+import { FORM_LIMITS, VIDEO_TYPES, VOICE_TYPES, cleanFeedback, filePathOk, type FormCheck } from "../shared/coachFormCheck";
 import { CATALOG } from "../shared/fit";
 import { cleanPlanWorkout as cleanWorkoutForAi } from "../shared/coach";
 
@@ -138,6 +142,18 @@ export function createSupabaseCoachStore(): CoachStore {
   };
 }
 
+export type CoachFiles = { uploadUrl(path: string): Promise<string>; viewUrls(paths: string[]): Promise<Record<string, string>>; remove(paths: string[]): Promise<void> };
+const FORM_BUCKET = "coach-form-checks";
+let formBucket: Promise<void> | null = null;
+export function createSupabaseCoachFiles(): CoachFiles {
+  const db = async () => { const c = (await import("./supabase")).getAdminSupabase(); formBucket ??= Promise.resolve(c.storage.createBucket(FORM_BUCKET, { public: false, fileSizeLimit: "100MB" })).then(() => {}).catch(() => {}); await formBucket; return c; };
+  return {
+    async uploadUrl(path) { const { data, error } = await (await db()).storage.from(FORM_BUCKET).createSignedUploadUrl(path); if (error || !data) throw error ?? new Error("no upload link"); return data.signedUrl; },
+    async viewUrls(paths) { if (!paths.length) return {}; const { data } = await (await db()).storage.from(FORM_BUCKET).createSignedUrls(paths, 3 * 3600); return Object.fromEntries((data ?? []).filter((x: any) => x.signedUrl && x.path).map((x: any) => [x.path, x.signedUrl])); },
+    async remove(paths) { if (paths.length) await (await db()).storage.from(FORM_BUCKET).remove(paths); },
+  };
+}
+
 export type CoachDeps = {
   store?: CoachStore;
   /** A person's Arise Fit data (fit_data), for what their trainer may see. */
@@ -146,6 +162,10 @@ export type CoachDeps = {
   nameOf?: (userId: number) => Promise<string>;
   notify?: (userId: number, m: { title: string; body: string; url: string; tag?: string }) => Promise<unknown>;
   stripeKey?: () => Promise<string>;
+  /** Private file storage for form-check videos and voice notes (Supabase Storage by default). */
+  files?: CoachFiles;
+  /** Sends an email (Resend, server/routes.ts). Left out, emailed invites are off and the app offers the link to copy. */
+  sendEmail?: (to: string, subject: string, html: string, options: { replyTo?: string; fromName?: string }) => Promise<{ sent: boolean; error?: string }>;
   fetch?: typeof fetch;
   appUrl?: string;
   /** Lets the site owner list a trainer for free (the free listing ends on its own). */
@@ -496,7 +516,7 @@ Order exercises sensibly (big compound lifts first). Respect injuries or limits 
     const lead = cleanLead(req.body, new Date(now()).toISOString());
     if (!lead) throw new Refused("Add your name and an email or phone number so the coach can reach you.");
     const leads = cleanLeads(await kv.get(leadsKey(id)));
-    await kv.set(leadsKey(id), [lead, ...leads].slice(0, 500));
+    await kv.set(leadsKey(id), [lead, ...leads].slice(0, 2000));
     void notify(id, { title: "New lead from your website", body: `${lead.name}${lead.goal ? ` · ${lead.goal}` : ""}${lead.message ? `: ${lead.message.slice(0, 100)}` : ""}`, url: "#/trainer", tag: `lead-${lead.id}` });
     return { ok: true };
   }));
@@ -630,6 +650,174 @@ Order exercises sensibly (big compound lifts first). Respect injuries or limits 
     await store.saveTrainer({ ...t, paidUntil: new Date(Math.max(now(), t.paidUntil ? Date.parse(t.paidUntil) : 0) + days * 864e5).toISOString() });
     cache = null;
     return { ok: true };
+  }));
+
+  // ── Coach Copilot (shared/coachCopilot.ts): who needs you this week, with a drafted message each ─────────────
+  /** Arise Fit data trimmed to what this client agreed to share. */
+  const sharedFit = (fit: FitData | null, c: Consent): FitData | null => (fit ? { ...fit, workouts: c.workouts ? fit.workouts : [], weights: c.body ? fit.weights : [], foods: c.food ? fit.foods : [] } : null);
+  const copilotAi = createAttemptLimiter({ max: 12, windowMs: 24 * 60 * 60_000 });
+  app.get("/api/coach/trainer/copilot", auth, wrap(async (req) => {
+    const id = me(req); const at = new Date(now());
+    const links = (await store.linksOf("trainer", id)).filter((l) => l.status === "active");
+    const unread = await store.unread(links.map((l) => l.id), id);
+    let items = await Promise.all(links.map(async (l) => {
+      const fit = sharedFit(await fitData(l.clientId).catch(() => null), l.consent);
+      const name = await first(l.clientId);
+      const f = clientFacts({ name, coaching: l.coaching, side: l.clientSide, fit, unread: unread[l.id]?.count ?? 0, kcalTarget: l.consent.profile ? snapshot(fit, l.consent, name, l.createdAt, at).profile?.kcal ?? null : null, checkinDue: checkinDue(l.coaching, l.clientSide, at), sharesWorkouts: l.consent.workouts }, at);
+      const fl = copilotFlags(f);
+      return { linkId: l.id, clientId: l.clientId, name, facts: f, flags: fl, draft: draftFor(f, fl), score: copilotScore(fl), summary: "" };
+    }));
+    items.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+    let ai = false;
+    if (req.query?.ai === "1" && items.length) {
+      if (!allow(copilotAi, `cp:${id}`)) throw new Refused("Copilot has written a lot today. The plain version still updates.", 429);
+      const t = await store.trainer(id);
+      const top = items.slice(0, 30);
+      const out = await callAi(`You help a personal trainer run their week. For each client you get facts and flags. Write: "summary" (one short plain sentence a busy coach can scan) and "draft" (a warm, specific text message from the coach, 1-3 sentences, first name only, no emojis, no hashtags, never invent numbers or events that aren't in the facts). Coach's name: ${t?.profile.name || "the coach"}. Reply JSON {"clients":[{"linkId","summary","draft"}]}.`,
+        JSON.stringify(top.map((x) => ({ linkId: x.linkId, name: x.name.split(" ")[0], flags: x.flags.map((f) => f.text), facts: { workouts: `${x.facts.workoutsDone}/${x.facts.workoutsDue}`, habits: `${x.facts.habitsDone}/${x.facts.habitsDue}`, daysSinceWorkout: x.facts.daysSinceWorkout, foodDaysLogged: x.facts.foodDays, newBests: x.facts.newPRs } })))).catch(() => "{}");
+      try {
+        const byId = new Map<string, { summary?: string; draft?: string }>((JSON.parse(out)?.clients ?? []).map((c: any) => [String(c.linkId), c]));
+        items = items.map((x) => { const c = byId.get(x.linkId); const sum = typeof c?.summary === "string" ? c.summary.trim().slice(0, 200) : ""; const dr = typeof c?.draft === "string" ? c.draft.trim().slice(0, 600) : ""; if (sum || dr) ai = true; return { ...x, summary: sum, draft: dr || x.draft }; });
+      } catch { /* the plain drafts stand */ }
+    }
+    const count = (lv: string) => items.filter((x) => x.flags.some((f) => f.level === lv)).length;
+    return { at: at.toISOString(), ai, totals: { urgent: count("urgent"), watch: count("watch"), win: count("win"), clients: items.length }, items };
+  }));
+  /** Plan tools: preview, then apply. "reflow" moves missed workouts forward; "progress" writes next targets. */
+  const planTool = (kind: "reflow" | "progress") => wrap(async (req) => {
+    const { l } = await linkFor(req, "trainer");
+    const raw = await fitData(l.clientId).catch(() => null);
+    const fit = sharedFit(raw, l.consent);
+    const at = new Date(now());
+    const days = Array.isArray(req.body?.days) ? req.body.days.map(Number).filter((d: number) => d >= 0 && d <= 6) : [];
+    const r = kind === "reflow" ? reflowPlan(l.coaching, fit?.workouts, at, { days }) : progressPlan(l.coaching, fit?.workouts, raw?.profile.units ?? "lb", at);
+    const changes = "moves" in r ? r.moves : r.bumps;
+    if (req.body?.apply === true && changes.length) {
+      await store.saveLink(touch({ ...l, coaching: { ...l.coaching, assigned: r.assigned } }));
+      void notify(l.clientId, kind === "reflow"
+        ? { title: "Your plan was updated", body: `Your trainer moved ${changes.length} missed ${changes.length === 1 ? "workout" : "workouts"} to the coming days.`, url: "#/fit", tag: `coach-${l.id}` }
+        : { title: "New targets from your trainer", body: "Your next workouts have new weight and rep targets based on your last sessions.", url: "#/fit", tag: `coach-${l.id}` });
+    }
+    return { changes, applied: req.body?.apply === true && changes.length > 0, ...(req.body?.apply === true ? { assigned: r.assigned } : {}) };
+  });
+  app.post("/api/coach/links/:id/reflow", auth, planTool("reflow"));
+  app.post("/api/coach/links/:id/progress", auth, planTool("progress"));
+
+  // ── Moving in and out (shared/coachImport.ts): import from Trainerize/TrueCoach/a spreadsheet, export everything ──
+  app.get("/api/coach/trainer/export", auth, wrap(async (req) => {
+    const id = me(req); const t = await store.trainer(id);
+    const links = (await store.linksOf("trainer", id)).filter((l) => l.status !== "declined");
+    const clients = await Promise.all(links.map(async (l) => ({ name: await first(l.clientId), status: l.status, since: l.createdAt, tags: l.coaching.tags, phase: l.coaching.phase ?? "", notes: l.coaching.notes,
+      plan: { assigned: l.coaching.assigned, habits: l.coaching.habits, goals: l.coaching.goals, nutrition: l.coaching.nutrition ?? null, checkin: l.coaching.checkin ?? null, appointments: l.coaching.appts },
+      checkins: l.clientSide.checkins, compliance: compliance(l.coaching, l.clientSide, undefined, new Date(now())) })));
+    const leads = cleanLeads(await kv.get(leadsKey(id)));
+    return { app: "Arise Trainer", exportedAt: new Date(now()).toISOString(), profile: t?.profile ?? null, library: (await store.library(id)) ?? emptyLibrary(), site: cleanSite((await kv.get(siteKey(id))) ?? emptySite()), leads, clients,
+      clientsCsv: clientsCsv(clients.map((c) => ({ ...c, workoutsPct: c.compliance.pct }))) };
+  }));
+  app.post("/api/coach/trainer/import/clients", auth, wrap(async (req) => {
+    const id = me(req);
+    const r = importClients(String(req.body?.csv ?? ""));
+    if (r.problem) throw new Refused(r.problem);
+    if (!r.clients.length) throw new Refused("No clients with a name and an email or phone were found.");
+    const leads = cleanLeads(await kv.get(leadsKey(id)));
+    const known = new Set(leads.flatMap((l) => [l.email, l.phone.replace(/\D/g, "")]).filter(Boolean));
+    const at = new Date(now()).toISOString();
+    const fresh = r.clients.filter((c) => !known.has(c.email) && !known.has(c.phone.replace(/\D/g, "")))
+      .map((c) => cleanLeads([{ name: c.name, email: c.email, phone: c.phone, message: c.note, goal: "", at, source: "import", status: "new", tags: c.tags }])[0]).filter(Boolean);
+    await kv.set(leadsKey(id), [...fresh, ...leads].slice(0, 2000));
+    return { added: fresh.length, already: r.clients.length - fresh.length, skipped: r.skipped, leads: [...fresh, ...leads] };
+  }));
+  app.post("/api/coach/trainer/import/workouts", auth, wrap(async (req) => {
+    const id = me(req); const lib = (await store.library(id)) ?? emptyLibrary();
+    const r = importWorkouts(String(req.body?.csv ?? ""), lib.exercises);
+    if (r.problem) throw new Refused(r.problem);
+    if (!r.workouts.length) throw new Refused("No workouts were found in that file.");
+    const names = new Set(lib.workouts.map((w) => w.name.toLowerCase()));
+    const workouts = r.workouts.map((w) => (names.has(w.name.toLowerCase()) ? { ...w, name: `${w.name} (imported)`.slice(0, 80) } : w));
+    const next = cleanLibrary({ ...lib, workouts: [...lib.workouts, ...workouts], exercises: [...lib.exercises, ...r.exercises] });
+    if (req.body?.apply === true) await store.saveLibrary(id, next);
+    return { workouts: workouts.map((w) => ({ name: w.name, exercises: w.items.length })), matched: r.matched, added: r.added, applied: req.body?.apply === true, ...(req.body?.apply === true ? { library: next } : {}) };
+  }));
+  const mailLimit = createAttemptLimiter({ max: 300, windowMs: 24 * 60 * 60_000 });
+  /** Emails the trainer's invite link to imported (or any) leads that have an email. */
+  app.post("/api/coach/trainer/import/invite", auth, wrap(async (req) => {
+    const id = me(req);
+    if (!deps.sendEmail) throw new Refused("Email isn't set up on this server. Copy your invite link instead.", 503);
+    const t = await store.trainer(id); const coach = t?.profile.name || (await first(id));
+    const wanted = new Set((Array.isArray(req.body?.leadIds) ? req.body.leadIds : []).map(String).slice(0, 300));
+    const leads = cleanLeads(await kv.get(leadsKey(id)));
+    const to = leads.filter((l) => wanted.has(l.id) && l.email);
+    const link = `${SITE}/#/fit?coach=${inviteCode(id)}`;
+    const note = String(req.body?.note ?? "").trim().slice(0, 600);
+    const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+    let sent = 0; const done = new Set<string>();
+    for (const l of to) {
+      if (!allow(mailLimit, `mail:${id}`)) break;
+      const html = `<p>Hi ${esc(l.name.split(" ")[0])},</p><p>${note ? esc(note).replace(/\n/g, "<br>") : `I'm moving my coaching to Arise. Your workouts, nutrition and our chat will live in the Arise Fit app from now on.`}</p><p><a href="${link}" style="display:inline-block;background:#ff5a1f;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:600">Join me in Arise Fit</a></p><p>See you there,<br>${esc(coach)}</p>`;
+      const r = await deps.sendEmail(l.email, `${coach} invited you to train in Arise Fit`, html, { fromName: coach, replyTo: t?.profile.email || undefined }).catch(() => ({ sent: false }));
+      if (r.sent) { sent++; done.add(l.id); }
+    }
+    const next = leads.map((l) => (done.has(l.id) && l.status === "new" ? { ...l, status: "contacted" as LeadStatus } : l));
+    await kv.set(leadsKey(id), next);
+    return { sent, skipped: wanted.size - sent, leads: next };
+  }));
+
+  // ── Video form checks (shared/coachFormCheck.ts): the client films a set, the trainer draws on it and replies ──
+  const files = deps.files ?? createSupabaseCoachFiles();
+  const fcKey = (linkId: string) => `coach-fc:${linkId}`;
+  const fcList = async (linkId: string): Promise<FormCheck[]> => { const v = await kv.get(fcKey(linkId)); return Array.isArray(v) ? v : []; };
+  const uploads = createAttemptLimiter({ max: 40, windowMs: 24 * 60 * 60_000 });
+  app.post("/api/coach/links/:id/form-checks/upload", auth, wrap(async (req) => {
+    const { l, id, role } = await linkFor(req, "either");
+    if (l.status !== "active") throw new Refused("This coaching has ended.", 403);
+    const kind = role === "client" ? "video" : "voice";
+    const type = String(req.body?.type ?? "").split(";")[0].toLowerCase();
+    const ext = (kind === "video" ? VIDEO_TYPES : VOICE_TYPES)[type];
+    if (!ext) throw new Refused(kind === "video" ? "Videos can be MP4, MOV or WebM." : "That voice note format isn't supported.");
+    const size = Number(req.body?.size) || 0; const max = (kind === "video" ? FORM_LIMITS.videoMb : FORM_LIMITS.voiceMb) * 1024 * 1024;
+    if (size <= 0 || size > max) throw new Refused(kind === "video" ? "Videos can be up to 100 MB. Trim it to just the set." : "That voice note is too long.");
+    if (!allow(uploads, `fc:${id}`)) throw new Refused("That's a lot of uploads today. Try again tomorrow.", 429);
+    const path = `${l.id}/${kind}-${now().toString(36)}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    return { url: await files.uploadUrl(path), path };
+  }));
+  app.post("/api/coach/links/:id/form-checks", auth, wrap(async (req) => {
+    const { l } = await linkFor(req, "client");
+    if (l.status !== "active") throw new Refused("This coaching has ended.", 403);
+    const video = req.body?.video;
+    if (!filePathOk(video, l.id) || !video.includes("/video-")) throw new Refused("Upload the video first.");
+    const list = await fcList(l.id);
+    const fc: FormCheck = { id: Math.random().toString(36).slice(2, 12), at: new Date(now()).toISOString(), exName: String(req.body?.exName ?? "").trim().slice(0, 80) || "A set", note: String(req.body?.note ?? "").trim().slice(0, 600), video, secs: Math.round(Math.min(FORM_LIMITS.videoSecs * 4, Math.max(0, Number(req.body?.secs) || 0)) * 10) / 10, status: "new", feedback: null };
+    const kept = [fc, ...list];
+    const gone = kept.slice(FORM_LIMITS.checks);
+    await kv.set(fcKey(l.id), kept.slice(0, FORM_LIMITS.checks));
+    if (gone.length) void files.remove(gone.flatMap((g) => [g.video, g.feedback?.voice ?? ""]).filter(Boolean)).catch(() => {});
+    void notify(l.trainerId, { title: "Form check", body: `${await first(l.clientId)} sent a video: ${fc.exName}${fc.note ? ` · ${fc.note.slice(0, 80)}` : ""}`, url: "#/trainer", tag: `fc-${fc.id}` });
+    return { check: fc };
+  }));
+  app.get("/api/coach/links/:id/form-checks", auth, wrap(async (req) => {
+    const { l } = await linkFor(req, "either");
+    const list = await fcList(l.id);
+    const urls = await files.viewUrls(list.flatMap((c) => [c.video, c.feedback?.voice ?? ""]).filter(Boolean)).catch(() => ({} as Record<string, string>));
+    return { checks: list.map((c) => ({ ...c, videoUrl: urls[c.video] ?? "", voiceUrl: c.feedback?.voice ? urls[c.feedback.voice] ?? "" : "" })) };
+  }));
+  app.post("/api/coach/links/:id/form-checks/:fid/feedback", auth, wrap(async (req) => {
+    const { l } = await linkFor(req, "trainer");
+    const list = await fcList(l.id); const fc = list.find((c) => c.id === req.params.fid);
+    if (!fc) throw new Refused("That video was removed.", 404);
+    const fb = cleanFeedback(req.body?.feedback, l.id, new Date(now()).toISOString(), fc.secs || 3600);
+    if (!fb.text && !fb.marks.length && !fb.voice) throw new Refused("Add a drawing, a note or a voice note first.");
+    if (fc.feedback?.voice && fc.feedback.voice !== fb.voice) void files.remove([fc.feedback.voice]).catch(() => {});
+    const next = { ...fc, status: "reviewed" as const, feedback: fb };
+    await kv.set(fcKey(l.id), list.map((c) => (c.id === fc.id ? next : c)));
+    void notify(l.clientId, { title: "Your trainer reviewed your form", body: `${fc.exName}: ${fb.text.slice(0, 100) || `${fb.marks.length} notes on your video`}`, url: "#/fit", tag: `fc-${fc.id}` });
+    return { check: next };
+  }));
+  app.put("/api/coach/links/:id/form-checks/:fid", auth, wrap(async (req) => {
+    const { l } = await linkFor(req, "either");
+    const list = await fcList(l.id); const fc = list.find((c) => c.id === req.params.fid);
+    if (!fc) throw new Refused("That video was removed.", 404);
+    if (req.body?.remove) { await kv.set(fcKey(l.id), list.filter((c) => c.id !== fc.id)); void files.remove([fc.video, fc.feedback?.voice ?? ""].filter(Boolean)).catch(() => {}); return { ok: true }; }
+    return { check: fc };
   }));
 
   // Groups: pages, chat and challenges (server/coachGroups.ts).

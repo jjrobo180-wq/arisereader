@@ -214,6 +214,8 @@ app.use("/api/fit/data", express.json({ limit: "5mb" }));
 app.use("/api/coach/trainer/site", express.json({ limit: "4mb" }));
 // Group posts can carry a photo (under 300 KB, shared/coachGroups.ts).
 app.use("/api/coach/groups", express.json({ limit: "1mb" }));
+// Importing a client list or workout spreadsheet (CSV, shared/coachImport.ts).
+app.use("/api/coach/trainer/import", express.json({ limit: "3mb" }));
 // Apple Health apps can send a couple of months of readings in one post.
 app.use("/api/arise-todo/apple-health/sync", express.json({ limit: "5mb" }));
 // An upload that big is only read for someone who is signed in: the sign-in is checked first, so a stranger can't make
