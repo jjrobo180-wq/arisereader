@@ -9,7 +9,7 @@ import { useAuth } from "@/context/AuthContext";
 import { docsApi, type DocEntry } from "@/lib/cloudDocs";
 import { SIZES, blankDesign, cleanDesign, type Design } from "@shared/office/designModel";
 import { TEMPLATES, TEMPLATE_CATEGORIES } from "@shared/office/designTemplates";
-import { DesignThumb } from "./designDom";
+import { DesignThumb, loadDesignFonts } from "./designDom";
 import { Floating, MenuList, pickFile, safeName, type MenuItem } from "./officeUi";
 import type { OfficeKind } from "./OfficeApp";
 
@@ -72,6 +72,10 @@ export default function DesignHome({ config, onOpen, say: sayOut }: { config: Of
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const say = (m: string) => { setMsg(m); sayOut?.(m); window.setTimeout(() => setMsg((x) => (x === m ? "" : x)), 3200); };
+
+  // The templates' own fonts (Bebas Neue, Poppins…), or their pictures fall back to plain type and the words collide.
+  const [, fontsReady] = useState(0);
+  useEffect(() => { loadDesignFonts(); void document.fonts?.ready.then(() => fontsReady((x) => x + 1)); }, []);
 
   const load = async () => {
     try { setErr(""); const [a, t] = await Promise.all([api.list("design"), api.list("design", true)]); setFiles(a); setTrash(t); }
@@ -149,18 +153,18 @@ export default function DesignHome({ config, onOpen, say: sayOut }: { config: Of
       <H2 right={<button type="button" onClick={() => setAllSizes(!allSizes)} className="text-[13.5px] font-bold text-[var(--dz-accent)]">{allSizes ? "Fewer sizes" : "More sizes"}</button>}>Start from a size</H2>
       <div className="-mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0" data-testid="office-starts">
         <button type="button" onClick={() => void create("Untitled design", config.blank())} disabled={!!busy} data-testid="office-new-blank"
-          className="flex w-[104px] shrink-0 flex-col items-center gap-1.5 rounded-2xl px-2 py-3 text-center transition hover:bg-[var(--dz-soft)]">
+          className="flex w-[92px] shrink-0 flex-col items-center gap-1.5 rounded-2xl px-1.5 py-3 text-center transition hover:bg-[var(--dz-soft)]">
           <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[var(--dz-accent)] text-white shadow-md"><Plus size={22} /></span>
           <span className="text-[13px] font-bold leading-tight">Blank</span>
         </button>
         {sizes.map((s) => <button key={s.id} type="button" onClick={() => void create(`Untitled ${s.name}`, blankDesign(s.id))} disabled={!!busy} data-testid={`office-start-${s.id}`}
-          className="flex w-[104px] shrink-0 flex-col items-center gap-1.5 rounded-2xl px-2 py-3 text-center transition hover:bg-[var(--dz-soft)]">
+          className="flex w-[92px] shrink-0 flex-col items-center gap-1.5 rounded-2xl px-1.5 py-3 text-center transition hover:bg-[var(--dz-soft)]">
           <SizeShape w={s.w} h={s.h} />
           <span className="text-[13px] font-bold leading-tight">{busy === `Untitled ${s.name}` ? "Starting…" : s.name}</span>
           <span className="text-[11px] leading-tight text-[var(--dz-muted)]">{s.unit || `${s.w} × ${s.h}`}</span>
         </button>)}
         <button type="button" onClick={() => void importOne()} disabled={!!busy} data-testid="office-import"
-          className="flex w-[104px] shrink-0 flex-col items-center gap-1.5 rounded-2xl px-2 py-3 text-center transition hover:bg-[var(--dz-soft)]">
+          className="flex w-[92px] shrink-0 flex-col items-center gap-1.5 rounded-2xl px-1.5 py-3 text-center transition hover:bg-[var(--dz-soft)]">
           <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[var(--dz-soft)] text-[var(--dz-accent)]"><ImagePlus size={21} /></span>
           <span className="text-[13px] font-bold leading-tight">{busy === "import" ? "Opening…" : "From a photo"}</span>
         </button>
@@ -169,8 +173,9 @@ export default function DesignHome({ config, onOpen, say: sayOut }: { config: Of
 
     {/* Your designs */}
     {(hasFiles || err) && <section>
-      <H2 right={<div className="flex gap-1">{(["recent", "starred", "trash"] as const).map((t) => <button key={t} type="button" onClick={() => setTab(t)} className={chip(tab === t)}>
-        {t === "recent" ? "Recent" : t === "starred" ? "Starred" : `Trash${trash.length ? ` ${trash.length}` : ""}`}</button>)}</div>}>Your designs</H2>
+      <H2>Your designs</H2>
+      <div className="-mt-1 mb-4 flex gap-1.5">{(["recent", "starred", "trash"] as const).map((t) => <button key={t} type="button" onClick={() => setTab(t)} className={chip(tab === t)}>
+        {t === "recent" ? "Recent" : t === "starred" ? "Starred" : `Trash${trash.length ? ` ${trash.length}` : ""}`}</button>)}</div>
       {err && <p className="mb-3 rounded-2xl bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-600">{err} <button type="button" className="underline" onClick={() => void load()}>Try again</button></p>}
       {files === null ? <p className="py-6 text-sm text-[var(--dz-muted)]">Loading your designs…</p>
         : mine.length === 0 ? <p className="rounded-2xl bg-[var(--dz-soft)] px-4 py-8 text-center text-sm text-[var(--dz-muted)]">{tab === "trash" ? "Trash is empty." : tab === "starred" ? "Star a design to keep it here." : needle ? "None of your designs match." : "Nothing yet."}</p>

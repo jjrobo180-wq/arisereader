@@ -307,7 +307,7 @@ function Studio({ doc, onBack }: { doc: Handle; onBack: () => void }) {
       <button type="button" onClick={undo} disabled={!past.current.length} aria-label="Undo" className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-slate-700 hover:bg-slate-100 disabled:text-slate-300"><Undo2 size={19} /></button>
       <button type="button" onClick={redo} disabled={!future.current.length} aria-label="Redo" className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-slate-700 hover:bg-slate-100 disabled:text-slate-300"><Redo2 size={19} /></button>
       <button type="button" onClick={() => setPanel("magic")} className="hidden h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-bold text-violet-700 hover:bg-violet-50 sm:inline-flex"><Wand2 size={16} />Magic</button>
-      <button type="button" onClick={() => { finishEdit(); setDialog("download"); }} aria-label="Download" className="ml-0.5 inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-violet-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-violet-700" data-testid="design-download"><Download size={17} /><span className="hidden min-[380px]:inline">Download</span></button>
+      <button type="button" onClick={() => { finishEdit(); setDialog("download"); }} aria-label="Download" className="ml-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center gap-1.5 rounded-full bg-violet-600 text-sm font-bold text-white shadow-sm hover:bg-violet-700 sm:w-auto sm:px-4" data-testid="design-download"><Download size={18} /><span className="hidden sm:inline">Download</span></button>
     </header>
 
     <div className="relative flex min-h-0 flex-1">
