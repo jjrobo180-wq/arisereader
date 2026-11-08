@@ -316,10 +316,10 @@ struct PWSwipe: View {
                 }
             }
         }
-        .navigationTitle(feed.title)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button { engine.cycleRate() } label: { Text(engine.rate == 1 ? "1×" : String(format: "%g×", engine.rate)).font(.system(size: 13, weight: .bold)) }
+                Button { engine.cycleRate() } label: { Text(engine.rate == 1 ? "1×" : String(format: "%g×", engine.rate)).font(.system(size: 13, weight: .bold)).foregroundStyle(.white) }
+                    .tint(.white.opacity(0.2))
             }
         }
     }
@@ -337,8 +337,9 @@ struct PWCard: View {
         ZStack {
             PWArt(url: ep.art, px: 120, radius: 0).scaleEffect(1.8).blur(radius: 28).opacity(0.75).ignoresSafeArea()
             LinearGradient(colors: [.black.opacity(0.1), .black.opacity(0.65)], startPoint: .top, endPoint: .bottom).ignoresSafeArea()
-            VStack(spacing: 6) {
-                PWArt(url: ep.art, px: 300, radius: 14).frame(width: 74, height: 74)
+            VStack(spacing: 5) {
+                Spacer(minLength: 22)
+                PWArt(url: ep.art, px: 300, radius: 14).frame(width: 66, height: 66)
                     .shadow(color: .black.opacity(0.6), radius: 10, y: 6)
                     .scaleEffect(mine && engine.playing ? 1 : 0.92)
                     .animation(.easeOut(duration: 0.5), value: engine.playing)

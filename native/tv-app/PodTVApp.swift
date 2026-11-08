@@ -281,7 +281,7 @@ struct PodTVSwipeStart: View {
         VStack(alignment: .leading, spacing: 50) {
             PodLogo()
             Text("Swipe feed").font(.system(size: 80, weight: .heavy)).foregroundStyle(Pod.ink)
-            Text("One show at a time, full screen. It starts playing by itself; swipe up or down on the remote for the next show.").font(.system(size: 30)).foregroundStyle(Pod.soft).frame(maxWidth: 1300, alignment: .leading)
+            Text("One show at a time, full screen. It starts playing by itself; swipe up or down on the remote for the next show.").font(.system(size: 30)).foregroundStyle(Pod.soft).lineLimit(3).fixedSize(horizontal: false, vertical: true).frame(maxWidth: 1500, alignment: .leading)
             HStack(spacing: 40) {
                 ForEach(PodTVSection.allCases) { s in
                     Button { model.openSection(s) } label: {
@@ -363,7 +363,8 @@ struct PodTicker: View {
         }
         .font(.system(size: 28, weight: .bold))
         .padding(.horizontal, 40).padding(.vertical, 24)
-        .background(Capsule().fill(Color(hex: 0x111013)))
+        .background(Capsule().fill(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.16, alpha: 1) : UIColor(red: 0.067, green: 0.063, blue: 0.075, alpha: 1) })))
+        .overlay(Capsule().stroke(Pod.line, lineWidth: 2))
     }
 }
 
@@ -947,9 +948,17 @@ struct PodTVRadio: View {
                                 ForEach(Array(row.episodes.enumerated()), id: \.element.id) { pair in
                                     Button { model.open(row.name, row.episodes, at: pair.offset) } label: {
                                         VStack(spacing: 14) {
-                                            PodArtView(url: pair.element.art, px: 300, radius: 110).frame(width: 220, height: 220).clipShape(Circle())
-                                                .overlay(Circle().stroke(Pod.line, lineWidth: 2))
-                                            Text(pair.element.show.isEmpty ? pair.element.title : pair.element.show).font(.system(size: 24, weight: .bold)).foregroundStyle(Pod.ink).lineLimit(2).multilineTextAlignment(.center)
+                                            ZStack {
+                                                Circle().fill(LinearGradient(colors: [row.color, row.color.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                                Image(systemName: "dot.radiowaves.left.and.right").font(.system(size: 64, weight: .semibold)).foregroundStyle(.white)
+                                                if !pair.element.art.isEmpty {
+                                                    AsyncImage(url: URL(string: pair.element.art)) { ph in if let img = ph.image { img.resizable().scaledToFill() } else { Color.clear } }
+                                                }
+                                            }
+                                            .frame(width: 220, height: 220).clipShape(Circle())
+                                            .overlay(Circle().stroke(Pod.line, lineWidth: 2))
+                                            Text(pair.element.title).font(.system(size: 24, weight: .bold)).foregroundStyle(Pod.ink).lineLimit(2).multilineTextAlignment(.center)
+                                            if !pair.element.show.isEmpty { Text(pair.element.show).font(.system(size: 20)).foregroundStyle(Pod.soft).lineLimit(1) }
                                         }
                                         .frame(width: 240)
                                     }.buttonStyle(PodLift())
