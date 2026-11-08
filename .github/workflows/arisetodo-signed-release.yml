@@ -20,7 +20,7 @@ jobs:
   signed-archive:
     # GitHub's Xcode 27 image (Apple Silicon): builds with the iOS 27.1 SDK, for iPhone Duo.
     runs-on: xcode-27
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - name: Use the newest Xcode 27 (the iOS 27.1 SDK makes the app fill the iPhone Duo's inner screen)
