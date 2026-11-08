@@ -16,6 +16,8 @@ on:
       - 'client/src/lib/useTodoCloud.ts'
       - 'shared/hubSwap.ts'
       - 'script/duoTasksCheck.mjs'
+      - 'script/fitFoodCheck.mjs'
+      - 'client/src/pages/fit/**'
       - '.github/workflows/duo-tasks-check.yml'
 permissions:
   contents: write
@@ -40,6 +42,9 @@ jobs:
         env:
           PLAN: ${{ github.event.inputs.plan || 'unlimited' }}
         run: node script/duoTasksCheck.mjs
+      - name: Arise Fit, log food
+        timeout-minutes: 10
+        run: node script/fitFoodCheck.mjs
       - name: Save to the duo-tasks-check branch
         if: always()
         working-directory: screens
