@@ -40,6 +40,8 @@ import {
 } from "../shared/coach";
 import { cleanFit, type FitData } from "../shared/fit";
 import { createHmac } from "node:crypto";
+import { cleanLead, cleanLeads, cleanSite, emptySite, idFromSlug, siteSlug, type Lead, type LeadStatus } from "../shared/coachSite";
+import { createSupabaseKv, type FitKv } from "./fitKv";
 import { createAttemptLimiter } from "./attemptLimiter";
 import { CATALOG } from "../shared/fit";
 import { cleanPlanWorkout as cleanWorkoutForAi } from "../shared/coach";
@@ -151,6 +153,8 @@ export type CoachDeps = {
   ai?: (system: string, user: string) => Promise<string>;
   /** Signs invite links, so a code can't be guessed or changed to another trainer's. */
   inviteSecret?: string;
+  /** Small JSON records (trainer websites and their leads). */
+  kv?: FitKv;
   now?: () => number;
 };
 
@@ -450,6 +454,69 @@ Order exercises sensibly (big compound lifts first). Respect injuries or limits 
     const pattern = week.length ? week : workouts.map((_: unknown, i: number) => ({ weekday: [1, 3, 5, 2, 4, 6, 0][i], workout: i })).slice(0, perWeek);
     const days = Array.from({ length: weeks }, (_, k) => pattern.map((d) => ({ day: k * 7 + d.weekday, workoutId: workouts[d.workout].id }))).flat().sort((a, c) => a.day - c.day);
     return { workouts, program: { id: uuid().slice(0, 12), name: String(out?.name || `${b.goal}: ${weeks} weeks`).slice(0, 80), weeks, ...(out?.note ? { note: String(out.note).slice(0, 600) } : {}), days } };
+  }));
+
+  // ── Trainer websites (shared/coachSite.ts) ──────────────────────────────────────────────────────────────
+  const kv = deps.kv ?? createSupabaseKv();
+  const siteKey = (id: number) => `coach-site:${id}`, leadsKey = (id: number) => `coach-leads:${id}`;
+  const siteUrl = (slug: string) => `${deps.appUrl ?? SITE}/#/t/${slug}`;
+  app.get("/api/coach/trainer/site", auth, wrap(async (req) => {
+    const id = me(req); const t = await store.trainer(id);
+    const site = cleanSite((await kv.get(siteKey(id))) ?? emptySite());
+    const slug = siteSlug(t?.profile.name || (await first(id)), id);
+    return { site, slug, url: siteUrl(slug) };
+  }));
+  app.put("/api/coach/trainer/site", auth, wrap(async (req) => {
+    const id = me(req); const site = cleanSite(req.body?.site);
+    const t = await store.trainer(id);
+    if (site.published && !(t?.profile.name)) throw new Refused("Add your name to your listing before you publish your site.");
+    await kv.set(siteKey(id), site);
+    return { site, url: siteUrl(siteSlug(t?.profile.name || "", id)) };
+  }));
+  app.get("/api/coach/site/:slug", wrap(async (req) => {
+    const id = idFromSlug(req.params.slug);
+    const t = id ? await store.trainer(id) : null;
+    const site = id ? cleanSite((await kv.get(siteKey(id))) ?? emptySite()) : null;
+    if (!id || !t || !site?.published) throw new Refused("This site isn't published.", 404);
+    const reviews = site.showReviews ? (await store.reviews(id)).map(({ clientId: _c, ...r }) => r).slice(0, 12) : []; // newest first
+    const p = t.profile;
+    return { site, slug: siteSlug(p.name, id), invite: inviteCode(id), reviews,
+      trainer: { id, name: p.name, headline: p.headline, bio: p.bio, photo: p.photo, specialties: p.specialties, certifications: p.certifications, years: p.years, languages: p.languages, city: p.city, state: p.state, modes: p.modes, prices: site.showPrices ? p.prices : [], instagram: p.instagram, bookingUrl: p.bookingUrl, accepting: p.accepting } };
+  }));
+  const leadLimit = createAttemptLimiter({ max: 5, windowMs: 60 * 60_000 });
+  app.post("/api/coach/site/:slug/lead", wrap(async (req) => {
+    const id = idFromSlug(req.params.slug);
+    const site = id ? cleanSite((await kv.get(siteKey(id))) ?? emptySite()) : null;
+    if (!id || !site?.published) throw new Refused("This site isn't published.", 404);
+    // A filled-in hidden field means a bot.
+    if (req.body?.website) return { ok: true };
+    const who = String(req.headers?.["x-forwarded-for"] ?? req.ip ?? "anon").split(",")[0].trim();
+    if (!allow(leadLimit, `lead:${id}:${who}`)) throw new Refused("Thanks! You've already sent a few messages. The coach will be in touch.", 429);
+    const lead = cleanLead(req.body, new Date(now()).toISOString());
+    if (!lead) throw new Refused("Add your name and an email or phone number so the coach can reach you.");
+    const leads = cleanLeads(await kv.get(leadsKey(id)));
+    await kv.set(leadsKey(id), [lead, ...leads].slice(0, 500));
+    void notify(id, { title: "New lead from your website", body: `${lead.name}${lead.goal ? ` · ${lead.goal}` : ""}${lead.message ? `: ${lead.message.slice(0, 100)}` : ""}`, url: "#/trainer", tag: `lead-${lead.id}` });
+    return { ok: true };
+  }));
+  app.get("/api/coach/trainer/leads", auth, wrap(async (req) => ({ leads: cleanLeads(await kv.get(leadsKey(me(req)))) })));
+  app.put("/api/coach/trainer/leads/:lid", auth, wrap(async (req) => {
+    const id = me(req); const leads = cleanLeads(await kv.get(leadsKey(id)));
+    const status = String(req.body?.status) as LeadStatus;
+    const next = req.body?.remove ? leads.filter((l: Lead) => l.id !== req.params.lid) : leads.map((l: Lead) => (l.id === req.params.lid && ["new", "contacted", "won", "lost"].includes(status) ? { ...l, status } : l));
+    await kv.set(leadsKey(id), next);
+    return { leads: next };
+  }));
+  app.post("/api/coach/trainer/site/ai", auth, wrap(async (req) => {
+    const id = me(req);
+    if (!allow(aiLimit, `ai:${id}`)) throw new Refused("That's a lot of AI drafts for one hour. Try again later.", 429);
+    const t = await store.trainer(id); const p = t?.profile;
+    if (!p?.name) throw new Refused("Fill in your listing first (at least your name and a few lines about you), then AI can write your site.");
+    const out = JSON.parse(await callAi(`You write warm, specific, professional website copy for an independent personal trainer. Never invent certifications, numbers, awards or client results. Plain English, no hype words like "ultimate" or "revolutionary". Reply with JSON: {"heroTitle": max 8 words, "heroSub": one sentence, "about": 2 short paragraphs in first person, "services": [{"title", "text": one or two sentences, "price": short text or ""}] (3-5), "faqs": [{"q","a"}] (4-6)}.`,
+      JSON.stringify({ name: p.name, headline: p.headline, bio: p.bio, specialties: p.specialties, certifications: p.certifications, years: p.years, city: p.city, state: p.state, modes: p.modes, prices: p.prices.map((x) => ({ label: x.label, mode: x.mode, dollars: x.cents / 100, per: x.per, sessions: x.sessions })), tone: String(req.body?.tone ?? "").slice(0, 60) })).catch(() => "{}"));
+    const draft = cleanSite({ ...emptySite(), ...out, services: (out?.services ?? []).map((x: any, i: number) => ({ ...x, id: `s${i}` })), faqs: (out?.faqs ?? []).map((x: any, i: number) => ({ ...x, id: `f${i}` })) });
+    if (!draft.heroTitle && !draft.about) throw new Refused("The AI didn't come back with usable copy. Try again.", 502);
+    return { draft: { heroTitle: draft.heroTitle, heroSub: draft.heroSub, about: draft.about, services: draft.services, faqs: draft.faqs } };
   }));
 
   const decide = (status: "active" | "declined") => wrap(async (req) => {
