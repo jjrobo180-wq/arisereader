@@ -2,7 +2,7 @@
 // (including deleting everything), accessibility, and defaults.
 import { AppearanceSwitch } from "./pages/pagesUi";
 import { useEffect, useState } from "react";
-import { AudioLines, Blocks, Check, ChevronRight, Crown, Eye, Home as HomeIcon, LayoutGrid, LogOut, Mic, Palette, Pencil, Shield, Sparkles, Trash2, Type, Upload, Users } from "lucide-react";
+import { AudioLines, Blocks, Check, ChevronRight, Crown, Eye, LayoutGrid, LogOut, Mic, Palette, Shield, Sparkles, Trash2, Type, Upload, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import { NOTES_PLANS, NOTES_THEMES, SUITE_LOOKS, dayWords, type NotesPlanId, type NotesProduct, type NotesSettings } from "@shared/ariseNotes";
 import { useAuth } from "@/context/AuthContext";
@@ -12,7 +12,7 @@ import { notesApi, type Billing } from "./api";
 import { removeAllLocalNotes } from "./localNotes";
 import { PrivacyPicker, defaultPrivacy, rememberPrivacy, useOnDevice } from "./privacyMode";
 import { Btn, Notice, Section, Spinner, Toggle, useToast } from "./ui";
-import { TopBar, openSplit, type AppCtx } from "./NotesApp";
+import { TabBar, TopBar, openSplit, type AppCtx } from "./NotesApp";
 import LookPicker from "@/components/looks/LookPicker";
 import { AppIcon, NOTES_APPS, useNotesApps } from "./notesAppsCatalog";
 
@@ -43,10 +43,10 @@ export default function SettingsScreen({ ctx, tab }: { ctx: AppCtx; tab?: Tab })
 }
 
 function Row({ icon, label, detail, onClick, danger, testId }: { icon: ReactNode; label: string; detail?: string; onClick: () => void; danger?: boolean; testId?: string }) {
-  return <button type="button" onClick={onClick} data-testid={testId} className="flex min-h-[3.75rem] w-full items-center gap-3.5 px-4 py-2.5 text-left transition hover:bg-[color-mix(in_srgb,var(--an-ink)_5%,transparent)]">
-    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl [&>svg]:h-[18px] [&>svg]:w-[18px]" style={{ background: danger ? "var(--an-coral-soft)" : "var(--an-violet-soft)", color: danger ? "var(--an-coral)" : "var(--an-violet-ink)" }}>{icon}</span>
-    <span className="min-w-0 flex-1"><span className="block text-[15.5px] font-semibold" style={{ color: danger ? "var(--an-coral)" : "var(--an-ink)" }}>{label}</span>{detail && <span className="block truncate text-[13px]" style={{ color: "var(--an-muted)" }}>{detail}</span>}</span>
-    <ChevronRight className="h-5 w-5 shrink-0" style={{ color: "var(--an-muted)" }} aria-hidden />
+  return <button type="button" onClick={onClick} data-testid={testId} className="flex min-h-[3.25rem] w-full items-center gap-3 px-4 py-2 text-left transition hover:bg-[color-mix(in_srgb,var(--an-ink)_4%,transparent)]">
+    <span className="grid h-7 w-7 shrink-0 place-items-center [&>svg]:h-[18px] [&>svg]:w-[18px]" style={{ color: danger ? "var(--an-coral)" : "var(--an-muted)" }}>{icon}</span>
+    <span className="min-w-0 flex-1"><span className="block text-[15px] font-semibold leading-tight" style={{ color: danger ? "var(--an-coral)" : "var(--an-ink)" }}>{label}</span>{detail && <span className="mt-0.5 block truncate text-[12.5px]" style={{ color: "var(--an-muted)" }}>{detail}</span>}</span>
+    <ChevronRight className="h-4 w-4 shrink-0 opacity-60" style={{ color: "var(--an-muted)" }} aria-hidden />
   </button>;
 }
 /** The App Gallery and the apps you've added (notesAppsCatalog.tsx). */
@@ -61,7 +61,7 @@ function AppsGroup({ ctx }: { ctx: AppCtx }) {
   </Group>;
 }
 const Group = ({ title, children }: { title: string; children: ReactNode }) => <section>
-  <h2 className="mb-2 px-1 text-[12px] font-bold uppercase tracking-[.12em]" style={{ color: "var(--an-muted)" }}>{title}</h2>
+  <h2 className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-[.16em]" style={{ color: "var(--an-muted)" }}>{title}</h2>
   <div className="divide-y divide-[var(--an-line)] overflow-hidden border border-[var(--an-line)] bg-[var(--an-card)]" style={{ borderRadius: "min(var(--an-radius, 18px), 22px)" }}>{children}</div>
 </section>;
 
@@ -73,36 +73,40 @@ function MenuHome({ ctx }: { ctx: AppCtx }) {
   const look = NOTES_THEMES.find((t) => t.id === s.theme);
   const quick: [string, ReactNode, () => void][] = [
     ["Record", <Mic key="r" />, () => ctx.go({ name: "record" })], ["Upload", <Upload key="u" />, () => ctx.go({ name: "upload" })],
-    ["Voice memo", <AudioLines key="m" />, () => ctx.go({ name: "memo" })], ["Ask AI", <Sparkles key="a" />, () => ctx.go({ name: "ask" })],
-    ["Notes", <Pencil key="n" />, () => ctx.go({ name: "pages" })], ["Recordings", <HomeIcon key="h" />, () => ctx.go({ name: "home" })],
+    ["Memo", <AudioLines key="m" />, () => ctx.go({ name: "memo" })], ["Ask AI", <Sparkles key="a" />, () => ctx.go({ name: "ask" })],
   ];
   return <>
-    <TopBar ctx={ctx} title="Menu" back={() => ctx.go({ name: "home" })} />
-    <main className="mx-auto max-w-3xl space-y-6 px-4 pb-28 pt-4 sm:px-5" data-testid="notes-menu">
-      <section className="overflow-hidden p-5 sm:p-6" style={{ background: "var(--an-violet)", color: "var(--an-on-accent)", borderRadius: "min(var(--an-radius, 22px), 26px)" }}>
-        <div className="flex items-center gap-3.5">
-          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full text-[22px] font-black" style={{ background: "color-mix(in srgb, var(--an-on-accent) 18%, transparent)" }}>{name.trim().charAt(0).toUpperCase()}</span>
-          <div className="min-w-0 flex-1"><p className="truncate text-[20px] font-extrabold leading-tight">{name}</p><p className="text-[14px] font-semibold opacity-80">{ctx.me.planName}{u.pooled ? " · family minutes" : ""}</p></div>
-          <button type="button" onClick={() => ctx.go({ name: "settings", tab: "plan" })} className="rounded-full px-3.5 py-2 text-[13px] font-bold" style={{ background: "var(--an-on-accent)", color: "var(--an-violet)" }}>Plan</button>
-        </div>
-        <div className="mt-5 flex items-end justify-between gap-3"><div><p className="text-[36px] font-black leading-none tabular-nums">{u.left.toLocaleString("en-US")}</p><p className="mt-1 text-[13px] font-semibold opacity-80">minutes left · starts again {dayWords(u.resetOn)}</p></div><p className="text-[13px] font-bold opacity-80">{u.used.toLocaleString("en-US")} of {u.allowance.toLocaleString("en-US")} used</p></div>
-        <div className="mt-3 h-2.5 overflow-hidden rounded-full" style={{ background: "color-mix(in srgb, var(--an-on-accent) 22%, transparent)" }}><div className="h-full rounded-full" style={{ width: `${pct}%`, background: "var(--an-on-accent)" }} /></div>
+    <TopBar ctx={ctx} title="You" />
+    <main className="mx-auto max-w-2xl space-y-7 px-4 pb-32 pt-5 sm:px-5" data-testid="notes-menu">
+      <section className="flex items-center gap-3.5">
+        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full text-[18px] font-black" style={{ background: "var(--an-violet)", color: "var(--an-on-accent)" }}>{name.trim().charAt(0).toUpperCase()}</span>
+        <div className="min-w-0 flex-1"><p className="truncate text-[19px] font-extrabold leading-tight tracking-tight" style={{ color: "var(--an-ink)" }}>{name}</p>
+          <p className="text-[13px]" style={{ color: "var(--an-muted)" }}>{ctx.me.planName}{u.pooled ? " · family minutes" : ""}</p></div>
       </section>
 
-      <section aria-label="Go to" className="grid grid-cols-3 gap-2.5 sm:grid-cols-6">
-        {quick.map(([label, icon, go]) => <button key={label} type="button" onClick={go} data-testid={`notes-menu-${label.toLowerCase().replace(/\s+/g, "-")}`}
-          className="flex min-h-[5.5rem] flex-col items-center justify-center gap-2 border border-[var(--an-line)] bg-[var(--an-card)] px-1 text-[13px] font-bold transition hover:-translate-y-0.5" style={{ borderRadius: "min(var(--an-radius, 18px), 20px)", color: "var(--an-ink)" }}>
-          <span className="grid h-10 w-10 place-items-center rounded-full [&>svg]:h-5 [&>svg]:w-5" style={{ background: "var(--an-violet-soft)", color: "var(--an-violet-ink)" }}>{icon}</span>{label}</button>)}
+      <button type="button" onClick={() => ctx.go({ name: "settings", tab: "plan" })} data-testid="notes-menu-minutes" className="block w-full border border-[var(--an-line)] bg-[var(--an-card)] p-4 text-left" style={{ borderRadius: "min(var(--an-radius, 16px), 18px)" }}>
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[.16em]" style={{ color: "var(--an-muted)" }}>Minutes this month</p>
+          <p className="text-[12.5px] font-semibold" style={{ color: "var(--an-violet)" }}>Plan</p>
+        </div>
+        <p className="mt-1.5 text-[26px] font-extrabold leading-none tabular-nums tracking-tight" style={{ color: "var(--an-ink)" }}>{u.left.toLocaleString("en-US")}<span className="ml-1.5 text-[13px] font-semibold" style={{ color: "var(--an-muted)" }}>left</span></p>
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full" style={{ background: "color-mix(in srgb, var(--an-ink) 9%, transparent)" }}><div className="h-full rounded-full" style={{ width: `${Math.max(pct, 1.5)}%`, background: "var(--an-violet)" }} /></div>
+        <p className="mt-2 text-[12px]" style={{ color: "var(--an-muted)" }}>{u.used.toLocaleString("en-US")} of {u.allowance.toLocaleString("en-US")} used · starts again {dayWords(u.resetOn)}</p>
+      </button>
+
+      <section aria-label="Quick actions" className="grid grid-cols-4 gap-2">
+        {quick.map(([label, icon, go]) => <button key={label} type="button" onClick={go} data-testid={`notes-menu-${label.toLowerCase().replace(/\s+/g, "-")}`} className="flex flex-col items-center gap-1.5 py-1 text-[12px] font-semibold transition active:scale-95" style={{ color: "var(--an-ink)" }}>
+          <span className="grid h-12 w-12 place-items-center rounded-full border border-[var(--an-line)] bg-[var(--an-card)] [&>svg]:h-5 [&>svg]:w-5" style={{ color: "var(--an-violet)" }}>{icon}</span>{label}</button>)}
       </section>
 
       <Group title="Make it yours">
-        <Row icon={<Palette />} label="Appearance" detail={s.contrast ? "High contrast is on" : `Look: ${look?.label ?? "Classic"} · night mode`} onClick={() => ctx.go({ name: "settings", tab: "look" })} testId="notes-menu-look" />
-        <Row icon={<Eye />} label="Accessibility" detail="Font, simple text, read-aloud voice, defaults" onClick={() => ctx.go({ name: "settings", tab: "access" })} testId="notes-menu-access" />
+        <Row icon={<Palette />} label="Appearance" detail={s.contrast ? "High contrast is on" : `${look?.label ?? "Classic"} look`} onClick={() => ctx.go({ name: "settings", tab: "look" })} testId="notes-menu-look" />
+        <Row icon={<Eye />} label="Accessibility" detail="Text size, simple text, read-aloud voice" onClick={() => ctx.go({ name: "settings", tab: "access" })} testId="notes-menu-access" />
       </Group>
       <Group title="Account">
-        <Row icon={<Crown />} label="Plan & minutes" detail={`${ctx.me.planName} · ${u.left.toLocaleString("en-US")} minutes left`} onClick={() => ctx.go({ name: "settings", tab: "plan" })} testId="notes-menu-plan" />
+        <Row icon={<Crown />} label="Plan & minutes" detail={ctx.me.planName} onClick={() => ctx.go({ name: "settings", tab: "plan" })} testId="notes-menu-plan" />
         <Row icon={<Users />} label="Family" detail={ctx.me.family ? `${ctx.me.family.people.length} people` : "Share minutes with up to 4 people"} onClick={() => ctx.go({ name: "settings", tab: "family" })} />
-        <Row icon={<Shield />} label="Privacy & data" detail="Audio, recording reminders, delete everything" onClick={() => ctx.go({ name: "settings", tab: "privacy" })} />
+        <Row icon={<Shield />} label="Privacy & data" detail="Audio, reminders, delete everything" onClick={() => ctx.go({ name: "settings", tab: "privacy" })} />
         <Row icon={<Shield />} label="Student data privacy" detail="FERPA and COPPA" onClick={() => ctx.go({ name: "privacy" })} />
       </Group>
       <AppsGroup ctx={ctx} />
@@ -111,6 +115,7 @@ function MenuHome({ ctx }: { ctx: AppCtx }) {
         {ctx.mode === "standalone" && <Row icon={<LogOut />} label="Sign out" danger onClick={() => { logout(); window.location.hash = "#/"; }} testId="notes-sign-out" />}
       </Group>
     </main>
+    <TabBar ctx={ctx} on="menu" />
   </>;
 }
 
