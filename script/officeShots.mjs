@@ -14,7 +14,7 @@ await new Promise((ok) => createServer(async (req, res) => {
 await mkdir("screens", { recursive: true });
 const browser = await chromium.launch();
 const results = [];
-const note = (line) => { note(line); console.log(line); };
+const note = (line) => { results.push(line); console.log(line); };
 /** Stops one screenshot after `ms`, so a page that hangs is reported by name instead of stalling the run. */
 const limit = (p, ms, what) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error(`${what}: no answer after ${ms / 1000}s`)), ms))]);
 const sizes = { phone: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, laptop: { viewport: { width: 1366, height: 860 }, deviceScaleFactor: 1 } };
