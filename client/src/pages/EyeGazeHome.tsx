@@ -106,10 +106,10 @@ export default function EyeGazeHome() {
         </button>
       </section>
 
-      <section aria-label="Choices" className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+      <section aria-label="Choices" className="grid grid-cols-2 gap-4 lg:grid-cols-6">
         {primary.map((action, i) => (
           <button key={action.path} type="button" onClick={() => open(action)}
-            className={"eg-press flex min-h-[176px] flex-col items-center justify-center rounded-[28px] p-4 text-center shadow-[0_1px_2px_rgba(0,0,0,.04)] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#2f8f83]/40 sm:min-h-[210px] " + (primary.length % 2 === 1 && i === primary.length - 1 ? "col-span-2 lg:col-span-1" : "")}
+            className={"eg-press flex min-h-[176px] flex-col items-center justify-center rounded-[28px] p-4 text-center shadow-[0_1px_2px_rgba(0,0,0,.04)] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#2f8f83]/40 sm:min-h-[210px] " + (primary.length % 2 === 1 && i === primary.length - 1 ? "col-span-2 " : "") + (primary.length === 5 ? (i < 3 ? "lg:col-span-2" : "lg:col-span-3") : "lg:col-span-2")}
             style={{ background: action.bg }}>
             <span className="flex h-20 w-20 items-center justify-center rounded-full bg-white/80 text-[46px] sm:h-24 sm:w-24 sm:text-[54px]" aria-hidden>{action.emoji}</span>
             <span className="mt-3 text-[24px] font-extrabold leading-tight sm:text-[28px]" style={{ color: action.ink }}>{action.title}</span>
