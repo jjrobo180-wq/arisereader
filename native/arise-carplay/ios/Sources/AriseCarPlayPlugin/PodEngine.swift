@@ -33,6 +33,10 @@ public final class PodEngine: ObservableObject {
 
     /** Called when this player starts something (the iPhone app pauses its own web player). */
     public var onStart: (() -> Void)?
+    /** An episode saved on this device (the watch's downloads): played from the file, with its ads, no network. */
+    public var localCopy: ((PodEp) -> (url: URL, clean: Bool, ads: [PodAd])?)?
+    /** Whether what's playing now comes from a downloaded file. */
+    @Published public private(set) var fromDownload = false
 
     public static let rates: [Float] = [1, 1.25, 1.5, 2]
 
@@ -141,8 +145,8 @@ public final class PodEngine: ObservableObject {
             item.preferredForwardBufferDuration = 30
             watch(item, me: me)
             player.replaceCurrentItem(with: item)
-            statusWatch = item.publisher(for: \.status).receive(on: DispatchQueue.main).sink { [weak self] status in
-                guard let self = self, self.run == me else { return }
+            statusWatch = item.publisher(for: \.status).receive(on: DispatchQueue.main).sink { [weak self, weak item] status in
+                guard let self = self, let item = item, self.run == me else { return }
                 if status == .readyToPlay {
                     self.statusWatch = nil
                     let d = item.duration.seconds
@@ -162,6 +166,13 @@ public final class PodEngine: ObservableObject {
     /** Where to play the episode from, and where in it to start. */
     private func resolve(_ ep: PodEp, station: Bool, from: Double?) async -> (URL?, Double) {
         let spot = store.spot(ep.id)
+        fromDownload = false
+        if !ep.isLive, !station, let local = localCopy?(ep) {
+            fromDownload = true
+            clean = local.clean
+            ads = local.ads
+            return (local.url, from ?? spot.map { $0.start(clean: local.clean) } ?? 0)
+        }
         if ep.isLive && !station { return (URL(string: ep.audio), 0) }
         if ep.isOwn || ep.showId.isEmpty { return (URL(string: ep.audio), from ?? spot.map { $0.start(clean: false) } ?? 0) }
         if !station, let c = await api.clean(ep) {
