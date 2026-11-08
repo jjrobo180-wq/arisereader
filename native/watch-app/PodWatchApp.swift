@@ -487,7 +487,7 @@ final class PodDownloads: NSObject, ObservableObject, URLSessionDownloadDelegate
         return URLSession(configuration: c, delegate: self, delegateQueue: nil)
     }()
 
-    private static var dir: URL {
+    nonisolated private static var dir: URL {
         let d = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("downloads", isDirectory: true)
         try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
         return d
