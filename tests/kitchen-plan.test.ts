@@ -4,7 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { K_DISHES, K_SLOTS, PRODUCTS, WEEK, addDish, addMeal, amountText, bestBuy, cleanKitchen, clearMeals, countMeals, deleteOwnDish, dayProgress, dropPerson, duplicateCount, emptyKitchen, groupOf, normPeople, planProgress, removeDuplicates, setCells, setKeep, setStock, shoppingLines, stockUp, tips, totals, useUp, type Kitchen } from "../shared/kitchen";
+import { K_DISHES, K_SLOTS, PRODUCTS, WEEK, SKIP, addDish, addMeal, amountText, bestBuy, cleanKitchen, clearMeals, countMeals, deleteOwnDish, dayProgress, dropPerson, duplicateCount, emptyKitchen, foodCount, groupOf, normPeople, planDish, planProgress, removeDuplicates, setCells, setKeep, setStock, shoppingLines, stockUp, tips, totals, useUp, type Kitchen } from "../shared/kitchen";
 import { GROUPS, parseSize } from "../shared/kitchenProducts";
 import { mapKrogerLocation, mapKrogerProduct } from "../server/kroger";
 
@@ -229,4 +229,31 @@ test("the planner shows a menu per person with a progress bar, and snacks and de
   assert.match(ui, /<PlanProgress /);
   assert.doesNotMatch(ui, /Add snacks & desserts|setExtras/);
   assert.match(read("client/src/components/family-hub/KitchenPlan.tsx"), /<PlanProgress /);
+});
+
+test("skipping a meal counts as planned, buys nothing, and never sits alongside real food for the same person", () => {
+  const all = ["j", "w", "d"];
+  // Wife skips lunch: she's off the shared lunch and on a skip.
+  let list = planDish([], "pbj", [], all, "a");
+  list = planDish(list, SKIP, ["w"], all, "b");
+  assert.deepEqual(list.map((m) => [m.dish, m.people]), [["pbj", ["j", "d"]], [SKIP, ["w"]]]);
+  // Changing her mind puts her back on real food and takes her off skipping.
+  list = planDish(list, "pbj", ["w"], all, "c");
+  assert.deepEqual(list.map((m) => [m.dish, m.people]), [["pbj", []]]);
+  // Everyone skipping clears the food.
+  assert.deepEqual(planDish(list, SKIP, [], all, "z").map((m) => [m.dish, m.people]), [[SKIP, []]]);
+  // Progress and shopping.
+  let k = family();
+  for (const d of WEEK) { k = addMeal(k, d, "breakfast", "pancakes", [], `b-${d}`); k = addMeal(k, d, "lunch", SKIP, ["w"], `s-${d}`); k = addMeal(k, d, "lunch", "pbj", ["j", "d"], `l-${d}`); }
+  const p = planProgress(k.people, k.week);
+  assert.deepEqual([p.by.j.pct, p.by.w.pct, p.by.d.pct], [67, 67, 67], "a skipped lunch counts as planned");
+  assert.equal(line(k, "bread").need, 7 * (2 + 1), "pb&j bread for Jermaine and the daughter only (2 and a half-portion 1); the wife's skipped lunch buys nothing");
+  assert.equal(foodCount(k.week), 7 * 2, "skips aren't counted as meals");
+  assert.equal(totals(k).groceries > 0, true);
+  // Saved safely.
+  assert.deepEqual(cleanKitchen(JSON.parse(JSON.stringify(k))), k);
+  // The screens.
+  const ui = read("client/src/components/family-hub/kitchen/WeekPlanner.tsx");
+  assert.match(ui, /Skipping this meal/);
+  assert.match(read("client/src/components/family-hub/KitchenPlan.tsx"), /dishName\(k, m\.dish\)/);
 });

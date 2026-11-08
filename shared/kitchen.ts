@@ -16,6 +16,8 @@ export type KDay = (typeof WEEK)[number];
 export const DAY_LABEL: Record<KDay, string> = { mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday", sun: "Sunday" };
 export const DAY_SHORT: Record<KDay, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 export const cell = (day: KDay, slot: KSlot) => `${day}:${slot}`;
+/** A meal a person is skipping: it counts as planned, uses no ingredients and buys nothing. */
+export const SKIP = "skip";
 
 export type KPerson = { id: string; name: string; /** 1 is a regular adult serving; 0.5 a small child's. */ portion: number };
 export type KMeal = { id: string; dish: string; /** Who eats it. Empty means everyone. */ people: string[] };
@@ -71,7 +73,7 @@ export function cleanKitchen(raw: unknown): Kitchen {
     const x = o(d); const id = s(x.id, 80), name = s(x.name, 80).trim();
     return id && name && isSlot(x.slot) ? { id, slot: x.slot, name, kcal: n(x.kcal, 0, 5000), minutes: n(x.minutes, 0, 1440), tags: [], pop: 0, parts: cleanParts(x.parts), own: true } : null;
   }).filter(Boolean) as KDish[];
-  const dishIds = new Set([...K_DISHES.map((d) => d.id), ...own.map((d) => d.id)]);
+  const dishIds = new Set([...K_DISHES.map((d) => d.id), ...own.map((d) => d.id), SKIP]);
   const week: Record<string, KMeal[]> = {};
   for (const day of WEEK) for (const sl of K_SLOTS) {
     const key = cell(day, sl.id);
@@ -97,6 +99,7 @@ export function cleanKitchen(raw: unknown): Kitchen {
 // ── Looking things up ──────────────────────────────────────────────────────────────────────────────────────────
 export const allDishes = (k: Kitchen) => [...K_DISHES, ...k.own];
 export const dishOf = (k: Kitchen, id: string) => K_DISHES.find((d) => d.id === id) ?? k.own.find((d) => d.id === id);
+export const dishName = (k: Kitchen, id: string) => (id === SKIP ? "Skipping" : dishOf(k, id)?.name ?? "Removed dish");
 export const partsOf = (k: Kitchen, d: KDish): KPart[] => k.edits[d.id]?.parts ?? d.parts;
 export const takeoutOf = (k: Kitchen, id: string) => k.edits[id]?.takeout;
 const priced = (k: Kitchen, p: KProduct): KProduct => { const x = k.prices[p.id]; return x ? { ...p, price: x.price, source: x.source, at: x.at } : p; };
@@ -328,12 +331,24 @@ export function addDish(list: KMeal[], dish: string, people: readonly string[], 
 }
 /** Take one person off their meals (or off just one meal): meals shared with others stay for the others, their own meals go. */
 export function dropPerson(list: KMeal[], person: string, all: readonly string[], mealId?: string): KMeal[] {
+  return dropFrom(list, person, all, (m) => mealId === undefined || m.id === mealId);
+}
+function dropFrom(list: KMeal[], person: string, all: readonly string[], which: (m: KMeal) => boolean): KMeal[] {
   return list.flatMap((m) => {
-    if (!eats(m, person) || (mealId !== undefined && m.id !== mealId)) return [m];
+    if (!eats(m, person) || !which(m)) return [m];
     const rest = (m.people.length ? m.people : all).filter((p) => p !== person);
     return rest.length ? [{ ...m, people: normPeople(rest, all) }] : [];
   });
 }
+/** Plan something on a meal for these people (empty: everyone). Real food takes them off "skipping", and skipping takes
+ *  them off whatever else was on that meal, so a person is never both. */
+export function planDish(list: KMeal[], dish: string, people: readonly string[], all: readonly string[], id: string): KMeal[] {
+  let out = list;
+  for (const p of people.length ? all.filter((x) => people.includes(x)) : all) out = dropFrom(out, p, all, (m) => (dish === SKIP ? m.dish !== SKIP : m.dish === SKIP));
+  return addDish(out, dish, people, all, id);
+}
+/** Meals that are real food (skipped meals left out). */
+export const foodCount = (week: Record<string, KMeal[]>) => Object.values(week).reduce((a, ms) => a + ms.filter((m) => m.dish !== SKIP).length, 0);
 export type KProgress = { done: number; of: number; pct: number };
 const pctOf = (done: number, of: number) => (of ? Math.round((done / of) * 100) : 0);
 /** How much of the week is planned, for each person and for the whole family. */

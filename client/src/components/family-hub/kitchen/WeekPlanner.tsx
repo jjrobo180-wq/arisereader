@@ -4,7 +4,7 @@
 // show how much of each person's week is planned. Nothing changes until Save, and Save sets each meal rather than adding
 // on top, so a meal can never be doubled. "Copy to every day" puts the same meal on all seven days.
 import { useEffect, useMemo, useState } from "react";
-import { DAY_LABEL, K_SLOTS, WEEK, addDish, allDishes, cell, dayProgress, dishOf, dropPerson, eats, money, servingCost, setCells, takeoutOf, type KDay, type Kitchen, type KMeal, type KSlot } from "@shared/kitchen";
+import { DAY_LABEL, K_SLOTS, MAIN_SLOTS, SKIP, WEEK, allDishes, cell, dayProgress, dishName, dropPerson, eats, foodCount, money, planDish, servingCost, setCells, takeoutOf, type KDay, type Kitchen, type KMeal, type KSlot } from "@shared/kitchen";
 import { Modal } from "../ui";
 import PlanProgress from "./PlanProgress";
 import { btn, chip, field, ghost, label, quiet } from "./kit";
@@ -26,10 +26,10 @@ export default function WeekPlanner({ k, setK, startDay, makeId, onClose, onSave
   useEffect(() => { if (startDay !== "mon") document.getElementById(`plan-${startDay}`)?.scrollIntoView({ block: "start" }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const changed = useMemo(() => Object.keys(draft).some((key) => JSON.stringify(draft[key] ?? []) !== JSON.stringify(k.week[key] ?? [])), [draft, k.week]);
-  const total = Object.values(draft).reduce((a, ms) => a + ms.length, 0);
+  const total = foodCount(draft);
   const shownIn = (key: string) => (who ? (draft[key] ?? []).filter((m) => eats(m, who)) : draft[key] ?? []);
 
-  const put = (key: string, dish: string, people: string[]) => setDraft((x) => ({ ...x, [key]: addDish(x[key] ?? [], dish, people, ids, makeId()) }));
+  const put = (key: string, dish: string, people: string[]) => setDraft((x) => ({ ...x, [key]: planDish(x[key] ?? [], dish, people, ids, makeId()) }));
   const take = (key: string, m: KMeal) => setDraft((x) => ({ ...x, [key]: who ? dropPerson(x[key] ?? [], who, ids, m.id) : (x[key] ?? []).filter((y) => y.id !== m.id) }));
   const copyToAll = (from: string, slot: KSlot) => setDraft((x) => {
     const src = (x[from] ?? []).filter((m) => !who || eats(m, who));
@@ -37,7 +37,7 @@ export default function WeekPlanner({ k, setK, startDay, makeId, onClose, onSave
     for (const d of WEEK) {
       const to = cell(d, slot); if (to === from) continue;
       let list = who ? dropPerson(x[to] ?? [], who, ids) : [];
-      for (const m of src) list = addDish(list, m.dish, who ? [who] : m.people, ids, makeId());
+      for (const m of src) list = planDish(list, m.dish, who ? [who] : m.people, ids, makeId());
       next[to] = list;
     }
     return next;
@@ -72,15 +72,15 @@ export default function WeekPlanner({ k, setK, startDay, makeId, onClose, onSave
             <div className="flex items-start gap-3">
               <span className="w-20 shrink-0 pt-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">{SLOT_ONE[slot]}</span>
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-                {meals.map((m) => { const name = dishOf(k, m.dish)?.name ?? "Removed dish"; const n = note(m); return <span key={m.id} className="inline-flex max-w-full items-center gap-1 rounded-full bg-slate-900 py-1 pl-3 pr-1 text-sm font-medium text-white">
-                  <span className="truncate">{name}{n && <span className="font-normal text-white/60"> · {n}</span>}</span>
-                  <button type="button" onClick={() => take(key, m)} aria-label={person ? `Take ${name} off ${person.name}'s ${SLOT_ONE[slot].toLowerCase()} on ${DAY_LABEL[day]}` : `Take ${name} off ${DAY_LABEL[day]} ${SLOT_ONE[slot].toLowerCase()}`} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white/70 hover:bg-white/20 hover:text-white">&times;</button>
+                {meals.map((m) => { const name = dishName(k, m.dish); const n = note(m); const skip = m.dish === SKIP; return <span key={m.id} className={`inline-flex max-w-full items-center gap-1 rounded-full py-1 pl-3 pr-1 text-sm font-medium ${skip ? "bg-slate-100 text-slate-700 ring-1 ring-slate-300" : "bg-slate-900 text-white"}`}>
+                  <span className="truncate">{name}{n && <span className={`font-normal ${skip ? "text-slate-500" : "text-white/60"}`}> · {n}</span>}</span>
+                  <button type="button" onClick={() => take(key, m)} aria-label={person ? `Take ${name} off ${person.name}'s ${SLOT_ONE[slot].toLowerCase()} on ${DAY_LABEL[day]}` : `Take ${name} off ${DAY_LABEL[day]} ${SLOT_ONE[slot].toLowerCase()}`} className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${skip ? "text-slate-500 hover:bg-slate-200 hover:text-slate-900" : "text-white/70 hover:bg-white/20 hover:text-white"}`}>&times;</button>
                 </span>; })}
                 <button type="button" onClick={() => setChoosing(open ? null : key)} aria-expanded={open} data-testid={`plan-add-${day}-${slot}`} className="rounded-full border border-dashed border-slate-300 px-3 py-1 text-sm font-medium text-slate-600 hover:border-slate-900 hover:text-slate-900">{open ? "Close" : meals.length ? "+ Another" : "+ Add"}</button>
                 {meals.length > 0 && !open && <button type="button" onClick={() => copyToAll(key, slot)} className="text-xs font-medium text-slate-400 underline underline-offset-2 hover:text-slate-900">Copy to every day</button>}
               </div>
             </div>
-            {open && <Chooser k={k} slot={slot} makeId={makeId} setK={setK} taken={meals.map((m) => m.dish)} initial={who ? [who] : []} onPick={(dish, people) => { put(key, dish, people); setChoosing(null); }} />}
+            {open && <Chooser k={k} slot={slot} canSkip={MAIN_SLOTS.includes(slot)} makeId={makeId} setK={setK} taken={meals.map((m) => m.dish)} initial={who ? [who] : []} onPick={(dish, people) => { put(key, dish, people); setChoosing(null); }} />}
           </div>; })}
         </div>
       </section>; })}
@@ -97,7 +97,7 @@ export default function WeekPlanner({ k, setK, startDay, makeId, onClose, onSave
 }
 
 /** The dishes for one meal: search, the most popular first, your own dishes on top, or make a new one. */
-function Chooser({ k, setK, slot, makeId, taken, initial, onPick }: { k: Kitchen; setK: (fn: (k: Kitchen) => Kitchen) => void; slot: KSlot; makeId: () => string; taken: string[]; /** Who's picked to start with (empty: everyone). */ initial: string[]; onPick: (dish: string, people: string[]) => void }) {
+function Chooser({ k, setK, slot, canSkip, makeId, taken, initial, onPick }: { k: Kitchen; canSkip: boolean; setK: (fn: (k: Kitchen) => Kitchen) => void; slot: KSlot; makeId: () => string; taken: string[]; /** Who's picked to start with (empty: everyone). */ initial: string[]; onPick: (dish: string, people: string[]) => void }) {
   const [q, setQ] = useState("");
   const [people, setPeople] = useState<string[]>(initial);
   const toggle = (id: string) => { const next = people.includes(id) ? people.filter((x) => x !== id) : [...people, id]; if (next.length) setPeople(next.length >= k.people.length ? [] : next); };
@@ -118,6 +118,7 @@ function Chooser({ k, setK, slot, makeId, taken, initial, onPick }: { k: Kitchen
     {k.people.length > 1 && <div className="mb-3"><p className={label}>Who's eating</p>
       <div className="mt-1.5 flex flex-wrap gap-1.5"><button type="button" aria-pressed={!people.length} onClick={() => setPeople([])} className={chip(!people.length)}>Everyone</button>
         {k.people.map((p) => <button key={p.id} type="button" aria-pressed={people.includes(p.id)} onClick={() => toggle(p.id)} className={chip(people.includes(p.id))}>{p.name}</button>)}</div></div>}
+    {canSkip && <button type="button" onClick={() => onPick(SKIP, people)} data-testid="skip-meal" className="mb-2 flex w-full items-center justify-between gap-2 rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-left hover:border-slate-900"><span className="text-sm font-medium text-slate-900">Skipping this meal</span><span className="text-[11px] text-slate-500">counts as planned, buys nothing</span></button>}
     <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (list[0] && q.trim()) onPick(list[0].id, people); else make(); } }} placeholder="Search, or type your own" aria-label={`Search ${SLOT_ONE[slot].toLowerCase()} dishes`} className={`${field} w-full`} />
     <ul className="mt-2 grid max-h-64 grid-cols-1 gap-1 overflow-y-auto sm:grid-cols-2">
       {shown.map((d) => { const t = takeoutOf(k, d.id); return <li key={d.id}><button type="button" onClick={() => onPick(d.id, people)} data-testid={`choose-${d.id}`} className="flex w-full items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 text-left ring-1 ring-slate-200 hover:ring-slate-900">

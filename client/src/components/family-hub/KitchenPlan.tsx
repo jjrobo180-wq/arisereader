@@ -2,7 +2,7 @@
 // real products and package sizes, how much is left over, ways to share and save. Saved with the family, so
 // everyone in the family sees the same plan. The math lives in shared/kitchen.ts.
 import { useEffect, useMemo, useState } from "react";
-import { DAY_LABEL, K_SLOTS, PORTIONS, WEEK, amountText, buyText, cell, clearMeals, countMeals, dishOf, duplicateCount, emptyKitchen, money, peopleIn, removeDuplicates, removeMeal, setStock, stockUp, takeoutOf, tips, totals, useUp, type KDay, type Kitchen, type KMeal, type KSlot } from "@shared/kitchen";
+import { DAY_LABEL, K_SLOTS, PORTIONS, WEEK, amountText, buyText, cell, clearMeals, countMeals, dishName, dishOf, duplicateCount, emptyKitchen, foodCount, money, peopleIn, removeDuplicates, removeMeal, SKIP, setStock, stockUp, takeoutOf, tips, totals, useUp, type KDay, type Kitchen, type KMeal, type KSlot } from "@shared/kitchen";
 import { useAuth } from "@/context/AuthContext";
 import { findStores, storePrices, storeStatus, type StoreLocation } from "@/lib/kitchenStore";
 import { guessAisle } from "@shared/lifePlugins";
@@ -47,7 +47,7 @@ export default function KitchenPlan({ family, setFamily, makeId, say }: SectionP
 
   if (!k.setup) return <Setup k={k} setK={setK} family={family} connected={connected} token={token} makeId={makeId} />;
 
-  const planned = Object.values(k.week).reduce((a, m) => a + m.length, 0);
+  const planned = foodCount(k.week);
   return <div className="w-full max-w-3xl space-y-6" data-testid="kitchen-plan">
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div>
@@ -92,7 +92,7 @@ export default function KitchenPlan({ family, setFamily, makeId, say }: SectionP
           {meals.length > 0 && <ul className="mt-2 divide-y divide-slate-100">{meals.map(({ slot, m }) => { const d = dishOf(k, m.dish); const who = peopleIn(k, m); const out = takeoutOf(k, m.dish); return <li key={m.id}>
             <button type="button" onClick={() => setMeal({ key: cell(day, slot.id), meal: m })} className="flex w-full items-center gap-3 py-2.5 text-left">
               <span className="w-20 shrink-0 text-xs font-semibold uppercase tracking-wider text-slate-400">{SLOT_ONE[slot.id]}</span>
-              <span className="min-w-0 flex-1"><span className="block truncate text-[15px] font-medium text-slate-900">{d?.name ?? "Removed dish"}</span>
+              <span className="min-w-0 flex-1"><span className="block truncate text-[15px] font-medium text-slate-900">{dishName(k, m.dish)}</span>
                 <span className="block truncate text-xs text-slate-500">{m.people.length && k.people.length > 1 ? who.map((p) => p.name).join(", ") : "Everyone"}{out ? ` · takeout${out.place ? ` from ${out.place}` : ""}` : ""}</span></span>
               <span className="shrink-0 text-xs text-slate-400">Edit</span>
             </button>
@@ -130,13 +130,13 @@ function MealSheet({ k, setK, at, meal, onClose, onEdit }: { k: Kitchen; setK: (
   const [day, slot] = at.split(":") as [KDay, KSlot];
   const setPeople = (people: string[]) => setK((x) => ({ ...x, week: { ...x.week, [at]: (x.week[at] ?? []).map((m) => (m.id === meal.id ? { ...m, people } : m)) } }));
   const toggle = (id: string) => { const base = live.people.length ? live.people : k.people.map((p) => p.id); const next = base.includes(id) ? base.filter((x) => x !== id) : [...base, id]; setPeople(next.length === k.people.length ? [] : next); };
-  return <Modal title={d?.name ?? "Meal"} eyebrow={`${DAY_LABEL[day]} · ${K_SLOTS.find((s) => s.id === slot)?.label ?? ""}`} onClose={onClose}>
+  return <Modal title={d ? d.name : meal.dish === SKIP ? "Skipping" : "Meal"} eyebrow={`${DAY_LABEL[day]} · ${K_SLOTS.find((s) => s.id === slot)?.label ?? ""}`} onClose={onClose}>
     {k.people.length > 1 && <div><p className={label}>Who's eating</p>
       <div className="mt-2 flex flex-wrap gap-1.5"><button type="button" onClick={() => setPeople([])} className={chip(!live.people.length)}>Everyone</button>
         {k.people.map((p) => <button key={p.id} type="button" onClick={() => toggle(p.id)} className={chip(!live.people.length || live.people.includes(p.id))}>{p.name}</button>)}</div>
       <p className="mt-2 text-xs text-slate-500">Someone eating something else? Take them off here and add their own meal to the same day.</p></div>}
-    <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2">
-      <button type="button" onClick={() => { onClose(); onEdit(meal.dish); }} className={ghost}>Ingredients &amp; amounts</button>
+    <div className={`mt-6 grid grid-cols-1 gap-2 ${meal.dish === SKIP ? "" : "sm:grid-cols-2"}`}>
+      {meal.dish !== SKIP && <button type="button" onClick={() => { onClose(); onEdit(meal.dish); }} className={ghost}>Ingredients &amp; amounts</button>}
       <button type="button" onClick={() => { setK((x) => removeMeal(x, at, meal.id)); onClose(); }} className="inline-flex items-center justify-center rounded-xl border border-rose-200 px-4 py-2.5 text-sm font-semibold text-rose-600 hover:border-rose-400">Remove from {DAY_LABEL[day]}</button>
     </div>
     <button type="button" onClick={onClose} className={`${btn} mt-4 w-full`}>Done</button>
