@@ -142,13 +142,14 @@ test("server: student accounts get clean podcasts and no comments", async () => 
   });
 });
 
-test("Earshot is wired into LifeHub and the App Store", () => {
+test("Earshot is out of Arise To Duo, with its saved data kept", () => {
   const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+  // Taken out of Arise To Duo (it's Pod+ now): no App Store entry, never on, even for families who had it. Their data stays.
   assert.ok(FAMILY_SECTIONS.includes("earshot")); assert.ok(ADD_ON_SECTIONS.includes("earshot"));
-  const p = PLUGINS.find((q) => q.id === "life-earshot")!;
-  assert.ok(p && p.target.kind === "section" && p.target.section === "earshot");
+  assert.equal(PLUGINS.find((q) => q.id === "life-earshot"), undefined);
   const f = emptyFamily();
-  assert.equal(isOn("earshot", f), false, "off until added");
+  assert.equal(isOn("earshot", f), false);
+  assert.equal(isOn("earshot", { ...f, sections: { ...f.sections, earshot: true } }), false, "hidden for families who had added it");
   assert.deepEqual(cleanFamily({ ...f, earshot: { setupDone: true, genres: ["news"] } }).earshot.genres, ["news"]);
   assert.match(read("client/src/components/family-hub/lifeApps.tsx"), /earshot: \(p\) => <Earshot/);
   assert.match(read("client/src/components/family-hub/Members.tsx"), /earshot: \{ label: "Earshot"/);

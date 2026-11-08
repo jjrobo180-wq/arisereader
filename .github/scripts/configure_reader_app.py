@@ -7,7 +7,7 @@ Run after `npx cap add ios && npx cap sync ios`.
   - Camera: taking a quiz without a proctor (the camera watches during the quiz) and the Beginners
     mirror for practising sounds. Microphone: Beginners (K-3) reading-aloud practice. Every permission
     needs a sentence saying why, or iOS stops the app when it's asked for.
-  - Educator: hands the push notification device token to the push plugin.
+  - Every flavor (students too): hands the push notification device token to the push plugin.
 """
 import os
 import plistlib
@@ -49,7 +49,7 @@ if os.path.exists(DELEGATE):
         open(DELEGATE, "w", encoding="utf-8").write(src)
         print("AppDelegate: audio mixes with other apps")
 
-if FLAVOR in ("educator", "eyegaze") and os.path.exists(DELEGATE):
+if FLAVOR in ("reader", "educator", "eyegaze") and os.path.exists(DELEGATE):
     src = open(DELEGATE, encoding="utf-8").read()
     if "didRegisterForRemoteNotificationsWithDeviceToken" not in src:
         end = src.rfind("}")

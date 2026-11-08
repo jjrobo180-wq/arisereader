@@ -1,4 +1,4 @@
-// Bible (a Plugin Store add-on): a verse for each day, look up any passage (King James Version),
+// Bible (a Plugin Gallery add-on): a verse for each day, look up any passage (King James Version),
 // and keep the verses that matter to you.
 import { useState, type FormEvent } from "react";
 import { BookMarked, Bookmark, Copy, RefreshCw, Search, Trash2 } from "lucide-react";

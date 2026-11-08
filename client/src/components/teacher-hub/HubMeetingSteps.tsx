@@ -15,6 +15,7 @@ import { clock12, type Meeting, type Workspace } from "@shared/teacherHub";
 import { Field, GhostButton, PrimaryButton, Select } from "./ui";
 import HubQuickAddStudent from "./HubQuickAddStudent";
 import GenEdCoverage from "./HubGenEdCoverage";
+import { lockPageScroll } from "@/lib/scrollLock";
 
 export type WizardState = { step: number; meetingId: string | null };
 type Setter = Dispatch<SetStateAction<Workspace>>;
@@ -54,9 +55,8 @@ export default function MeetingWizard({ workspace, setWorkspace, seats, makeId, 
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") setWizard(null); };
     window.addEventListener("keydown", key);
-    const before = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { window.removeEventListener("keydown", key); document.body.style.overflow = before; };
+    const unlock = lockPageScroll();
+    return () => { window.removeEventListener("keydown", key); unlock(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setPlan = (change: (p: ReturnType<typeof cleanPlan>) => ReturnType<typeof cleanPlan>, id = wizard.meetingId) => {

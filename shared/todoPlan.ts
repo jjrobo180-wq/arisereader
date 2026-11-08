@@ -14,6 +14,7 @@
 // they just can't add another until they're back under 3 or on Unlimited. The page and the server
 // both count with these functions, so they always agree.
 import { ADD_ON_SECTIONS, cleanFamily, isOn, type Family } from "./familyHub";
+import { parentOf } from "./appBundles";
 import { WORK_ADD_ON_TABS, isTabOn, type HubTab } from "./teacherHub";
 import { kitHub } from "./kitIndex";
 import { notesAppPlugin, officeAppPlugin, sheetsAppPlugin, type Plugin } from "./pluginStore";
@@ -39,7 +40,8 @@ export function lifeApps(workspace: unknown): string[] {
   const w: any = workspace && typeof workspace === "object" ? workspace : {};
   const family: Family = cleanFamily(w.family);
   return [
-    ...ADD_ON_SECTIONS.filter((id) => isOn(id, family)).map((id) => `section:${id}`),
+    // A bundled plugin (Health Lite, Kitchen…) is one app, however many pages it holds (shared/appBundles.ts).
+    ...ADD_ON_SECTIONS.filter((id) => !parentOf(id) && isOn(id, family)).map((id) => `section:${id}`),
     // The App Store also offers independent widgets, the AI toggle and a
     // WorkHub calendar layer. They count just like any other installed app.
     ...(family.widgets?.board ? ["widget:board"] : []),

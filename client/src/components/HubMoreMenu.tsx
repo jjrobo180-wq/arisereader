@@ -20,7 +20,6 @@ export function hubMoreGroups(o: {
 }): MoreGroup[] {
   return [
     { title: "Notifications", items: [
-      { id: "notifications", label: "Notifications", detail: "What's new and what's due", icon: <Bell />, onClick: o.openNotifications },
       { id: "notification-settings", label: "Notification settings", detail: "Reminders on this phone and in the app", icon: <BellRing />, onClick: o.notificationSettings },
       // In the iPhone app: the first-run setup again, for anything skipped then.
       ...(isNativeApp() ? [{ id: "iphone-setup", label: "iPhone connections", detail: "Notifications, Calendar and Reminders", icon: <Smartphone />, onClick: () => window.dispatchEvent(new Event(IPHONE_SETUP_EVENT)) }] : []),
@@ -29,7 +28,7 @@ export function hubMoreGroups(o: {
       { id: "customize", label: "Customize", detail: "Menu, Home, theme and split screen", icon: <Settings2 />, onClick: o.customize },
       { id: "night", label: o.night ? "Day mode" : "Night mode", icon: o.night ? <Sun /> : <Moon />, onClick: o.toggleNight },
       { id: "lock", label: "Passcode & locks", icon: <Lock />, onClick: o.lock },
-      { id: "gallery", label: "App Gallery", detail: "Add apps and connections", icon: <ShoppingBag />, onClick: o.gallery },
+      { id: "gallery", label: "Plugin Gallery", detail: "Add plugins and connections", icon: <ShoppingBag />, onClick: o.gallery },
       ...(o.extra ?? []),
     ] },
     { title: "Help & account", items: [

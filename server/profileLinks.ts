@@ -4,6 +4,9 @@
 //   POST   /api/profile-links                       invite { email, nickname?, grants }
 //   PUT    /api/profile-links/:id                   change what I share with them { grants?, nickname? }
 //   DELETE /api/profile-links/:id                   stop sharing with them
+//   POST   /api/profile-links/link                  make a one-use join link { nickname, grants? } (full access by default)
+//   POST   /api/profile-links/join/:token            open a join link while signed in: link my account to the owner
+//   GET    /api/profile-links/join/:token            who is sharing, before joining
 //   POST   /api/profile-links/from/:owner/:id/accept   accept an invite sent to my email
 //   POST   /api/profile-links/from/:owner/:id/leave    decline an invite, or stop seeing what they share
 //   GET    /api/profile-links/from/:owner/life/:item   one shared LifeHub page (view only)
@@ -14,7 +17,7 @@
 import type { Express, RequestHandler } from "express";
 import { createHash, randomUUID } from "node:crypto";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
-import { LINK_LIMITS, LIFE_SHARES, accessFor, allows, appIdFromKey, appShareId, cleanGrants, cleanLinks, isHealthShareId, normalEmail, type Access, type ProfileLink } from "../shared/profileLinks";
+import { JOIN_LINK_EMAIL, LINK_LIMITS, LIFE_SHARES, fullGrants, accessFor, allows, appIdFromKey, appShareId, cleanGrants, cleanLinks, isHealthShareId, normalEmail, type Access, type ProfileLink } from "../shared/profileLinks";
 import { parseTarget, sharedView } from "../shared/todoShare";
 
 export type ProfileLinkDeps = {
@@ -23,6 +26,9 @@ export type ProfileLinkDeps = {
   getUser: (id: number) => Promise<{ id: number; displayName?: string; email?: string | null } | null | undefined>;
   /** The owner's saved LifeHub workspace, for shared LifeHub pages. */
   lifeHub: (ownerId: number) => Promise<unknown | null>;
+  /** A link is in use (accepted, joined, approved, or changed while in use): things done together, like
+   *  Accountability, are set up for the two of them. Never blocks the answer; failures are only logged. */
+  onActive?: (link: ProfileLink) => Promise<void>;
   now?: () => number;
 };
 
@@ -34,6 +40,10 @@ const askKey = (email: string) => `profile_links_ask_${createHash("sha256").upda
 const asks = createAttemptLimiter({ max: 15, windowMs: 24 * 3600_000 });
 type Ask = { id: string; fromId: number; nickname: string; grants: Record<string, "view" | "edit">; createdAt: string };
 const invites = createAttemptLimiter({ max: 15, windowMs: 24 * 3600_000 });
+const joins = createAttemptLimiter({ max: 20, windowMs: 3600_000 });
+/** A join link works once, within two weeks. It is kept under the hash of the token, so a leaked database doesn't leak working links. */
+const joinKey = (token: string) => `profile_links_join_${createHash("sha256").update(token).digest("hex").slice(0, 40)}`;
+const JOIN_DAYS = 14;
 
 /** One lock per settings key, so two changes at once can't both rewrite the same list from the same old copy. */
 const locks = new Map<string, Promise<unknown>>();
@@ -46,6 +56,10 @@ function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
 }
 
 export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestHandler, deps: ProfileLinkDeps) {
+  const activated = (link: ProfileLink | null | undefined) => {
+    if (!link || link.status !== "active" || !link.viewerId || !deps.onActive) return Promise.resolve();
+    return deps.onActive(link).catch((e: any) => console.error("[profile-links] together:", e?.message || e));
+  };
   const now = deps.now ?? Date.now;
   const iso = () => new Date(now()).toISOString();
   const readJson = async (key: string): Promise<unknown> => { const raw = await deps.getSetting(key); if (!raw) return null; try { return JSON.parse(raw); } catch { return null; } };
@@ -128,6 +142,90 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
     }
   });
 
+  /** A link to send to someone (a wife, a husband, a grandparent): opening it while signed in links their account to
+   *  yours with the access you chose. Full access by default: every app (to edit) and every LifeHub page (to view). */
+  app.post("/api/profile-links/link", authMiddleware, async (req: any, res) => {
+    const u = me(req);
+    if (!u) return res.status(401).json({ message: "Sign in first." });
+    const wait = invites.retryAfter(`u${u.id}`);
+    if (wait > 0) return res.status(429).json({ message: `You've made a lot of links today. Try again in ${waitWords(wait)}.` });
+    try {
+      const token = randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "").slice(0, 12);
+      const grants = req.body?.grants && typeof req.body.grants === "object" ? cleanGrants(req.body.grants) : fullGrants();
+      const link = await withLock(ownerKey(u.id), async () => {
+        const links = await ownerLinks(u.id);
+        if (links.length >= LINK_LIMITS.perOwner) throw Object.assign(new Error(`You can link up to ${LINK_LIMITS.perOwner} people. Remove one first.`), { status: 409 });
+        const id = randomUUID().replace(/-/g, "").slice(0, 20);
+        const fresh: ProfileLink = { id, ownerId: u.id, email: `join-${id}${JOIN_LINK_EMAIL}`, nickname: String(req.body?.nickname || "").trim().replace(/[\u0000-\u001f]/g, " ").slice(0, LINK_LIMITS.nickname), status: "pending", grants, createdAt: iso(), updatedAt: iso() };
+        await saveOwnerLinks(u.id, [...links, fresh]);
+        return fresh;
+      });
+      await deps.upsertSetting(joinKey(token), JSON.stringify({ ownerId: u.id, linkId: link.id, createdAt: iso() }));
+      invites.fail(`u${u.id}`);
+      res.json({ token, link: { id: link.id, email: link.email, nickname: link.nickname, status: link.status, grants: link.grants, viewerName: "", createdAt: link.createdAt } });
+    } catch (error: any) {
+      res.status(error?.status || 500).json({ message: error?.status ? error.message : "The link couldn't be made. Try again." });
+    }
+  });
+
+  const findJoin = async (token: string) => {
+    if (!/^[a-f0-9]{44}$/.test(token)) return null;
+    const rec: any = await readJson(joinKey(token));
+    if (!rec || !Number.isInteger(rec.ownerId) || typeof rec.linkId !== "string") return null;
+    if (now() - Date.parse(rec.createdAt || "") > JOIN_DAYS * 86400_000) return null;
+    const link = (await ownerLinks(rec.ownerId)).find((l) => l.id === rec.linkId && l.status === "pending");
+    return link ? { ownerId: rec.ownerId as number, link } : null;
+  };
+
+  app.get("/api/profile-links/join/:token", authMiddleware, async (req: any, res) => {
+    const u = me(req);
+    if (!u) return res.status(401).json({ message: "Sign in first." });
+    const wait = joins.retryAfter(`u${u.id}`);
+    if (wait > 0) return res.status(429).json({ message: `Too many tries. Try again in ${waitWords(wait)}.` });
+    const found = await findJoin(String(req.params.token || "")).catch(() => null);
+    if (!found) { joins.fail(`u${u.id}`); return res.status(404).json({ message: "This link has already been used or turned off. Ask them to send a new one." }); }
+    res.json({ ownerName: await nameOf(found.ownerId), you: found.ownerId === u.id });
+  });
+
+  app.post("/api/profile-links/join/:token", authMiddleware, async (req: any, res) => {
+    const u = me(req);
+    if (!u) return res.status(401).json({ message: "Sign in first." });
+    const token = String(req.params.token || "");
+    const wait = joins.retryAfter(`u${u.id}`);
+    if (wait > 0) return res.status(429).json({ message: `Too many tries. Try again in ${waitWords(wait)}.` });
+    try {
+      const found = await findJoin(token);
+      if (!found) { joins.fail(`u${u.id}`); return res.status(404).json({ message: "This link has already been used or turned off. Ask them to send a new one." }); }
+      if (found.ownerId === u.id) return res.status(400).json({ message: "That's your own link. Send it to the other person." });
+      const ok = await withLock(ownerKey(found.ownerId), async () => {
+        const links = await ownerLinks(found.ownerId);
+        const at = links.findIndex((l) => l.id === found.link.id && l.status === "pending");
+        if (at < 0) return false;
+        // One link per person: an older link this person already had is replaced by the new one.
+        const kept = links.filter((l, i) => i === at || l.viewerId !== u.id);
+        const idx = kept.findIndex((l) => l.id === found.link.id);
+        kept[idx] = { ...kept[idx], viewerId: u.id, status: "active", updatedAt: iso() };
+        await saveOwnerLinks(found.ownerId, kept);
+        return kept[idx];
+      });
+      if (!ok) return res.status(404).json({ message: "This link has already been used or turned off. Ask them to send a new one." });
+      await deps.upsertSetting(joinKey(token), "");
+      await editIds(viewerKey(u.id), (ids) => [...ids, found.ownerId]);
+      await activated(ok);
+      res.json({ ok: true, ownerId: found.ownerId, ownerName: await nameOf(found.ownerId) });
+    } catch {
+      res.status(500).json({ message: "Couldn't join. Try again." });
+    }
+  });
+
+  /** The address people get: a bare page that moves on to the app (chat apps read it for a preview). */
+  app.get("/join/:token", (req, res) => {
+    const token = String(req.params.token || "");
+    const to = /^[a-f0-9]{44}$/.test(token) ? `/#/join/${token}` : "/";
+    res.set({ "Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer" });
+    res.type("html").send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Join on Arise To Duo</title><meta property="og:title" content="Join on Arise To Duo"><meta property="og:description" content="Someone is sharing their family apps with you."><script>location.replace(${JSON.stringify(to)});</script></head><body><p>Opening Arise To Duo…</p><p><a href="${to}">Tap here if it doesn't open</a></p></body></html>`);
+  });
+
   app.put("/api/profile-links/:id", authMiddleware, async (req: any, res) => {
     const u = me(req);
     if (!u) return res.status(401).json({ message: "Sign in first." });
@@ -142,6 +240,7 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
         return links[at];
       });
       if (!updated) return res.status(404).json({ message: "That link isn't there any more." });
+      await activated(updated);
       res.json({ link: { id: updated.id, email: updated.email, nickname: updated.nickname, status: updated.status, grants: updated.grants } });
     } catch {
       res.status(500).json({ message: "Couldn't save. Try again." });
@@ -214,14 +313,16 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
         const grants: Record<string, Access> = {};
         for (const [id, v] of Object.entries(chosen)) { const asked = ask.grants[id]; if (asked) grants[id] = asked === "view" || v === "view" ? "view" : "edit"; }
         if (!Object.keys(grants).length) return res.status(400).json({ message: "Pick at least one thing to share." });
-        await withLock(ownerKey(u.id), async () => {
+        const made = await withLock(ownerKey(u.id), async () => {
           const links = await ownerLinks(u.id);
           const at = links.findIndex((l) => l.viewerId === ask.fromId || (!!askerEmail && l.email === askerEmail));
           if (at >= 0) links[at] = { ...links[at], viewerId: ask.fromId, status: "active", grants: { ...links[at].grants, ...grants }, updatedAt: iso() };
           else if (links.length >= LINK_LIMITS.perOwner) throw Object.assign(new Error(`You can link up to ${LINK_LIMITS.perOwner} people.`), { status: 409 });
           else links.push({ id: randomUUID().replace(/-/g, "").slice(0, 20), ownerId: u.id, email: askerEmail || `user${ask.fromId}@linked.invalid`, viewerId: ask.fromId, nickname: ask.nickname, status: "active", grants, createdAt: iso(), updatedAt: iso() });
           await saveOwnerLinks(u.id, links);
+          return links.find((l) => l.viewerId === ask.fromId);
         });
+        await activated(made);
         await editIds(viewerKey(ask.fromId), (ids) => [...ids, u.id]);
       }
       res.json({ ok: true });
@@ -248,13 +349,14 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
           const idx = kept.findIndex((l) => l.id === req.params.id);
           kept[idx] = { ...kept[idx], viewerId: u.id, status: "active", updatedAt: iso() };
           await saveOwnerLinks(ownerId, kept);
+          return kept[idx];
         } else {
           await saveOwnerLinks(ownerId, links.filter((_, i) => i !== at));
         }
         return true;
       });
       if (!ok) return res.status(404).json({ message: "That invite isn't there any more." });
-      if (how === "accept") await editIds(viewerKey(u.id), (ids) => [...ids, ownerId]);
+      if (how === "accept") { await editIds(viewerKey(u.id), (ids) => [...ids, ownerId]); if (ok !== true) await activated(ok); }
       else {
         await editIds(viewerKey(u.id), (ids) => ids.filter((x) => x !== ownerId)).catch(() => {});
         if (u.email) await editIds(emailKey(u.email), (ids) => ids.filter((x) => x !== ownerId)).catch(() => {});

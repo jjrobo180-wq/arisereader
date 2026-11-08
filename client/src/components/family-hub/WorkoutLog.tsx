@@ -1,4 +1,4 @@
-// Workout log (a Plugin Store add-on): sets, reps and weight for each exercise, and your best so far.
+// Workout log (a Plugin Gallery add-on): sets, reps and weight for each exercise, and your best so far.
 import { useState, type FormEvent } from "react";
 import { Dumbbell, Trash2, Trophy } from "lucide-react";
 import type { Workout } from "@shared/familyHub";

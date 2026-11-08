@@ -7,6 +7,7 @@ import {
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
+import { lockPageScroll } from "@/lib/scrollLock";
 
 type SceneLabel = { name: string; x: number; y: number };
 type SceneQuestion = { id: string; prompt: string; options: string[]; correct: "A"|"B"|"C"|"D" };
@@ -88,7 +89,7 @@ export default function TeacherScenes() {
   };
 
   useEffect(()=>{if(!user)return;if(!authorized){navigate("/library");return;}void loadScenes();},[user?.id,authorized]);
-  useEffect(()=>{if(!presenterOpen&&!labelEditorOpen)return;const old=document.body.style.overflow;document.body.style.overflow="hidden";return()=>{document.body.style.overflow=old;};},[presenterOpen,labelEditorOpen]);
+  useEffect(()=>{if(!presenterOpen&&!labelEditorOpen)return;return lockPageScroll();},[presenterOpen,labelEditorOpen]);
   useEffect(()=>{
     if(!liveSession?.code||liveSession.status!=="live")return;
     const refresh=async()=>{try{setLiveSession(await request(`/api/scenes/live/${liveSession.code}`));}catch{}};

@@ -26,19 +26,20 @@ test("motion: entrances, fills, shine, scan, rest sheet and route draw, off for 
   assert.match(read("FitRun.tsx"), /className: "fit-route"/);
 });
 
-test("tabs: Today, Train, Food, Fast, Run, with a sliding highlight; Progress opens from Today", () => {
+test("tabs: Today, the apps you pin (Train, Food and Run to start) and Apps, with a sliding highlight", () => {
   const app = read("FitApp.tsx");
-  assert.match(app, /\["fast", "Fast", Timer\], \["run", "Run", Route\]/);
-  assert.match(app, /transition: "left \.35s/);
-  assert.match(app, /<FastingSheet inline/);
-  assert.match(app, /<OutdoorHub inline/);
-  assert.match(app, /fit-open-progress/);
+  assert.match(app, /\[\["today", "Today", Home\], \.\.\.tabIds\.map/);
+  assert.match(app, /\["apps", "Plugins", LayoutGrid\]\]/);
+  assert.match(read("FitLayouts.tsx"), /transition: "left \.35s/);
+  assert.match(app, /<FastingSheet inline=\{inline\}/);
+  assert.match(app, /<OutdoorHub inline=\{inline\}/);
+  assert.match(app, /case "progress": return <ProgressSheet inline=\{inline\}/);
   assert.match(app, /key=\{tab\} className="fit-in"/);
 });
 
 test("finishing a workout shows the trophy screen", () => {
   const t = read("FitTrain.tsx");
-  assert.match(t, /fit-pop grid h-\[104px\]/);
+  assert.match(t, /fit-pop grid h-\[84px\]/);
   assert.match(t, />Done\.</);
   assert.match(t, /Back to today/);
 });
@@ -83,4 +84,27 @@ test("full-screen views open on top of the whole app, never inside the scrolling
   assert.doesNotMatch(ui, /animation:fit(In|Slide|Sheet|Pop|Up) [^}]* both/);
   assert.match(read("FitTrain.tsx"), /return <Layer><div className="fit-sheet fixed inset-0 z-\[70\]/);
   assert.match(read("FitRun.tsx"), /return <Layer><div className="fit-sheet fixed inset-0 z-\[85\]/);
+});
+
+test("five whole layouts: type, corners, surfaces, Today and the tab bar change, not just the colors", () => {
+  const themes = read("fitThemes.ts"), ui = read("fitUi.tsx"), lay = read("FitLayouts.tsx"), app = read("FitApp.tsx");
+  for (const id of ["athletic", "studio", "bloom", "pro", "zen"]) assert.match(themes, new RegExp(`\\n  ${id}: \\{ name:`), id);
+  // Fonts, headings, buttons and corners are CSS variables the layout sets.
+  for (const v of ["--fit-display:", "--fit-font:", "--fit-display-case:", "--fit-rk:", "--fit-btn-font:"]) assert.ok(ui.includes(v), v);
+  assert.match(ui, /fontFamily: "var\(--fit-display\)"/);
+  assert.match(ui, /\[data-fit-layout\] \.rounded-/);
+  // Each layout has its own tab bar and its own Today.
+  for (const id of ["studio", "bloom", "pro", "zen"]) { assert.match(lay, new RegExp(`layout === "${id}"`), `${id} tab bar`); assert.match(app, new RegExp(`layout === "${id}" \\?`), `${id} Today`); }
+  for (const part of ["StudioTrio", "BloomFlower", "BloomRitual", "ProTiles", "ZenRows", "LayoutPicker"]) assert.match(lay, new RegExp(`export function ${part}\\(`), part);
+  assert.match(app, /<LayoutsSetting \/>/);
+  // Layouts only apply in Arise Fit (Arise Trainer shares these styles).
+  assert.match(ui, /if \(layoutsOn\)/);
+});
+
+test("nothing shows through or under: the interval player is solid, the clock has a band, messages sit above the tab bar", () => {
+  const session = read("FitSession.tsx"), app = read("FitApp.tsx");
+  assert.equal((session.match(/backgroundColor: C\.bg, backgroundImage:/g) ?? []).length, 2);
+  assert.match(app, /data-testid="fit-top-shade"/);
+  assert.match(app, /bottom: "calc\(max\(12px, env\(safe-area-inset-bottom\)\) \+ 76px\)"/);
+  assert.doesNotMatch(app, /top: "max\(16px, env\(safe-area-inset-top\)\)"/);
 });

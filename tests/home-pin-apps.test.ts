@@ -63,13 +63,13 @@ test("LifeHub's cleanLifeLayout accepts pinnable ids the same way WorkHub's clea
 test("cleanLayout with no pinnable argument at all behaves exactly as it always did (every existing call site)", () => {
   const layout = cleanLayout({});
   assert.ok(!layout.home.some((id) => isPinId(id)), "no pins appear unless a pinnable list is passed");
-  assert.equal(layout.home.length, 11, "the usual 11 built-in WorkHub Home parts, nothing more");
+  assert.equal(layout.home.length, 10, "the usual 10 built-in WorkHub Home parts, nothing more");
 });
 
 test("WorkHub wires pinned Kit plugins and Notes apps into Home: catalog, tiles and the open actions they reuse", () => {
   const hub = read("client/src/pages/TeacherHub.tsx");
   assert.match(hub, /const pinnableApps = \[\.\.\.myKits\.map\(\(d\) => d\.id\), \.\.\.myNotesApps\.map\(\(p\) => p\.id\)\];/);
-  assert.match(hub, /const layout = withSharedLook\(cleanLayout\(workspace\.layout, pinnableApps\)\);/);
+  assert.match(hub, /const layout = withSharedLook\(cleanLayout\(workspace\.layout, pinnableApps\), "work"\);/);
   assert.match(hub, /for \(const d of myKits\) part\[pinId\(d\.id\)\] = pinTile\(kitIcon\(d\.icon\), d\.color, d\.name, d\.tagline, \(\) => openKit\(d\.id\)\);/);
   assert.match(hub, /for \(const p of myNotesApps\) part\[pinId\(p\.id\)\] = pinTile\(StickyNote, p\.color, p\.name, p\.tagline, \(\) => openNotesApp\(p\.id\)\);/);
   assert.match(hub, /catalog=\{\[\.\.\.WORK_PARTS, \.\.\.pinnedCatalog\]\}/);
@@ -79,7 +79,8 @@ test("LifeHub wires pinned Notes apps into Home the same way", () => {
   const life = read("client/src/pages/AriseTodo.tsx");
   assert.match(life, /openNotesApp=\{setNotesAppOpen\}/, "FamilyHome is given a way to open a pinned Notes app");
   const home = read("client/src/components/family-hub/FamilyHome.tsx");
-  assert.match(home, /const layout = cleanLifeLayout\(family\.layout, myNotesApps\.map\(\(p\) => p\.id\)\);/);
+  // Wrapped in the shared look (tests/tile-lifehub.test.ts), the pinned apps still go through cleanLifeLayout.
+  assert.match(home, /const layout = withSharedLook\(cleanLifeLayout\(family\.layout, myNotesApps\.map\(\(p\) => p\.id\)\), "life"\);/);
   assert.match(home, /for \(const p of myNotesApps\) part\[pinId\(p\.id\)\] = \(/);
   assert.match(home, /onClick=\{\(\) => openNotesApp\(p\.id\)\}/);
   assert.match(home, /catalog=\{\[\.\.\.CATALOG, \.\.\.pinnedCatalog\]\}/);

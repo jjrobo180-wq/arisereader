@@ -1,4 +1,4 @@
-// World clock (a Plugin Store add-on): the time where family and friends live, and whether it's
+// World clock (a Plugin Gallery add-on): the time where family and friends live, and whether it's
 // a good time to call.
 import { useEffect, useState } from "react";
 import { Globe, X } from "lucide-react";

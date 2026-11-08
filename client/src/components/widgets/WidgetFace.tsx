@@ -273,16 +273,17 @@ function DayRingFace({ t, now }: { t: WidgetTheme; now: Date }) {
   return <Ring frac={p} t={t} label={`${Math.round(p * 100)}% of today has gone by`}><p className="text-xl font-black tabular-nums leading-none">{Math.round(p * 100)}%</p><p className="mt-0.5 text-[10px] font-bold" style={{ color: t.sub }}>{Math.floor(left / 60)}h {left % 60}m left</p></Ring>;
 }
 
-function Bar({ t, frac }: { t: WidgetTheme; frac: number }) {
-  return <div className="h-2.5 w-full overflow-hidden rounded-full" style={{ background: t.soft }}><div className="h-full rounded-full" style={{ width: `${Math.max(2, frac * 100)}%`, background: t.accent, boxShadow: t.glow ? `0 0 8px ${t.accent}` : "none" }} /></div>;
+function Bar({ t, frac, thin }: { t: WidgetTheme; frac: number; thin?: boolean }) {
+  return <div className={`${thin ? "h-1.5" : "h-2.5"} w-full overflow-hidden rounded-full`} style={{ background: t.soft }}><div className="h-full rounded-full" style={{ width: `${Math.max(2, frac * 100)}%`, background: t.accent, boxShadow: t.glow ? `0 0 8px ${t.accent}` : "none" }} /></div>;
 }
 
 function ProgressFace({ t, now }: { t: WidgetTheme; now: Date }) {
   const p = progressOf(now);
   const rows: [string, number][] = [["Today", p.day], ["This week", p.week], ["This month", p.month], [String(now.getFullYear()), p.year]];
   return (
-    <div className="flex h-full flex-col justify-center gap-2">
-      {rows.map(([k, v]) => <div key={k}><div className="mb-1 flex justify-between text-xs font-bold"><span>{k}</span><span className="tabular-nums" style={{ color: t.sub }}>{Math.floor(v * 100)}%</span></div><Bar t={t} frac={v} /></div>)}
+    // Four rows that fit a one-row tile (they were cut off top and bottom).
+    <div className="flex h-full flex-col justify-center gap-1">
+      {rows.map(([k, v]) => <div key={k}><div className="mb-0.5 flex justify-between text-[11px] font-bold leading-[14px]"><span>{k}</span><span className="tabular-nums" style={{ color: t.sub }}>{Math.floor(v * 100)}%</span></div><Bar t={t} frac={v} thin /></div>)}
     </div>
   );
 }
@@ -290,7 +291,7 @@ function ProgressFace({ t, now }: { t: WidgetTheme; now: Date }) {
 function WorkdayFace({ t, item, now, size }: { t: WidgetTheme; item: WidgetItem; now: Date; size: WidgetSize }) {
   const s = workdayState(now, item.start, item.end);
   const hm = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m} min`);
-  const head = s.state === "during" ? `${hm(s.left)} left` : s.state === "before" ? `Starts in ${hm(s.until)}` : s.state === "after" ? "Done for today 🎉" : "Set the start and end";
+  const head = s.state === "during" ? `${hm(s.left)} left` : s.state === "before" ? `Starts in ${hm(s.until)}` : s.state === "after" ? "Done for today" : "Set the start and end";
   return (
     <div className="flex h-full flex-col justify-center gap-2">
       <div className="flex items-baseline justify-between gap-2"><p className="truncate text-sm font-bold">{item.label || "Work day"}</p><Sub t={t}>{Math.round(s.frac * 100)}%</Sub></div>

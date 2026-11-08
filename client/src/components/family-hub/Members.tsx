@@ -1,10 +1,13 @@
 // Family & settings: who's in the family, and which parts of the hub are switched on.
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Rocket, BadgeCheck as BadgeCheckIcon4 } from "lucide-react";
-import { Apple, BookMarked, CalendarDays, Check, Droplets, History, Hourglass, NotebookPen, Pill, Newspaper, Quote, ShoppingCart, SmilePlus, Target, Pencil, Plane, Plus, Smile, Sparkles, StickyNote, Trash2, TrendingUp, UserPlus, Vote, Wallet, Wind, Shuffle, HeartHandshake, BookOpen, Link2, Users } from "lucide-react";
+import { Share2, Apple, BookMarked, CalendarDays, Check, Droplets, History, Hourglass, NotebookPen, Pill, Newspaper, Quote, ShoppingCart, SmilePlus, Target, Pencil, Plane, Plus, Smile, Sparkles, StickyNote, Trash2, TrendingUp, UserPlus, Vote, Wallet, Wind, Shuffle, HeartHandshake, BookOpen, Link2, Users } from "lucide-react";
 import { MEMBER_COLORS, isOn, orderedToggleable, type FamilySection, type Member } from "@shared/familyHub";
 import { Avatar, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, inputClass, plain, primary, type SectionProps } from "./ui";
 import { SharedLinks } from "./ShareLink";
+import { LinkSomeoneModal } from "./LinkedProfiles";
+import { fullGrants } from "@shared/profileLinks";
+import { healthPeople } from "@shared/familyHealth";
 import { KIT_DEFS, type KitLifeId } from "@shared/pluginKit";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
 import { ListMusic as ListMusicIcon3, Podcast as PodcastIcon3 } from "lucide-react";
@@ -90,6 +93,15 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   accountability: { label: "Accountability", detail: "Ask each other, get nudged, check it off with proof", icon: <BadgeCheckIcon4 size={17} /> },
   medical: { label: "Medical info", detail: "Allergies, medicines, blood type", icon: <HeartPulseIcon2 size={17} /> },
   browser: { label: "Browser", detail: "Browse, bookmark and save pages as tasks", icon: <GlobeIcon2 size={17} /> },
+  healthlite: { label: "Health Lite", detail: "Pick your health tools", icon: <HeartPulseIcon2 size={17} /> },
+  inspire: { label: "Journal & Inspiration", detail: "Journal, quotes, gratitude", icon: <BookOpenIcon size={17} /> },
+  kitchen: { label: "Kitchen", detail: "Shop, plan, cook", icon: <ChefHatIcon size={17} /> },
+  moneyhub: { label: "Money", detail: "Budget, bills, loans, savings", icon: <Wallet size={17} /> },
+  homehub: { label: "Home & Car", detail: "Upkeep, cleaning, plants, car", icon: <WrenchIcon size={17} /> },
+  datehub: { label: "Gifts & Dates", detail: "Birthdays, gifts, countdowns", icon: <CakeIcon size={17} /> },
+  dailyhub: { label: "Daily Reads", detail: "News, history, dictionary", icon: <BookOpenIcon size={17} /> },
+  listhub: { label: "Lists", detail: "Reading, watchlist, bucket list", icon: <BookOpenIcon size={17} /> },
+  focushub: { label: "Focus & Routines", detail: "Focus timer, clocks, routines", icon: <Wallet size={17} /> },
   // The Plugin Kit's LifeHub plugins (shared/pluginKit.ts).
   ...(Object.fromEntries(KIT_DEFS.filter((d) => d.hub === "life").map((d) => { const Icon = kitIcon(d.icon); return [d.id, { label: d.name, detail: d.tagline, icon: <Icon size={17} /> }]; })) as Record<KitLifeId, { label: string; detail: string; icon: ReactNode }>),
 };
@@ -97,6 +109,8 @@ const blank = (id: string, n: number): Member => ({ id, name: "", emoji: EMOJI[n
 
 export default function Members({ family, setFamily, makeId, say }: SectionProps) {
   const [editing, setEditing] = useState<Member | null>(null);
+  const [alsoShare, setAlsoShare] = useState(true);
+  const [sharing, setSharing] = useState<string | null>(null);
   const save = (e: FormEvent) => {
     e.preventDefault();
     if (!editing || !editing.name.trim()) return;
@@ -107,6 +121,8 @@ export default function Members({ family, setFamily, makeId, say }: SectionProps
     setFamily((f) => ({ ...f, members: isNew ? [...f.members, clean] : f.members.map((m) => (m.id === clean.id ? clean : m)) }));
     setEditing(null);
     say(isNew ? `${clean.name} added to the family` : "Saved");
+    // An adult added with "share my apps" ticked goes straight to the link to send them.
+    if (isNew && clean.kind === "adult" && alsoShare) setSharing(clean.name);
   };
   const remove = (m: Member) => {
     if (!confirmed(`Remove ${m.name}? Their chores become "anyone", and their votes are cleared. Past stars and logs are kept.`)) return;
@@ -125,7 +141,7 @@ export default function Members({ family, setFamily, makeId, say }: SectionProps
   return <div className="space-y-6">
     <PageHead eyebrow="Family & settings" title="Your family" blurb="Add everyone once, then assign tasks, chores, events and votes to them. Turn off any part of the hub you don't need." />
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-      <Panel eyebrow="People" title={`${family.members.length} in the family`} right={<button onClick={() => setEditing(blank(makeId(), family.members.length))} className={primary}><UserPlus size={16} /> Add person</button>}>
+      <Panel eyebrow="People" title={`${family.members.length} in the family`} right={<button onClick={() => { setAlsoShare(true); setEditing(blank(makeId(), family.members.length)); }} className={primary}><UserPlus size={16} /> Add person</button>}>
         {family.members.length ? <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">{family.members.map((m) => <li key={m.id}>
           <button onClick={() => setEditing({ ...m })} className="flex w-full items-center gap-3 rounded-2xl border border-slate-100 p-3 text-left transition hover:border-violet-200" style={{ background: m.color + "10" }}>
             <Avatar member={m} size="lg" /><span className="min-w-0 flex-1"><span className="block truncate font-black">{m.name}</span><span className="text-xs font-semibold text-slate-500">{m.kind === "kid" ? "Kid" : "Adult"}</span></span><Pencil size={15} className="text-slate-400" />
@@ -154,6 +170,8 @@ export default function Members({ family, setFamily, makeId, say }: SectionProps
       <SharedLinks say={say} />
     </div>
 
+    {/* The same "Link someone" as everywhere, set to everything and to sending a link (what this button always made). */}
+    {sharing !== null && <LinkSomeoneModal family={family} say={say} initialName={sharing} initialHow="link" initialGrants={fullGrants(healthPeople(family, "Me"))} onClose={() => setSharing(null)} />}
     {editing && <Modal title={family.members.some((m) => m.id === editing.id) ? `Edit ${editing.name || "person"}` : "Add a person"} onClose={() => setEditing(null)}>
       <form onSubmit={save} className="space-y-4">
         <div className="flex items-center gap-4"><Avatar member={{ ...editing, name: editing.name || "?" }} size="lg" />
@@ -162,6 +180,10 @@ export default function Members({ family, setFamily, makeId, say }: SectionProps
           <div className="inline-flex rounded-xl bg-slate-100 p-1 text-sm font-bold">{(["kid", "adult"] as const).map((k) => <button type="button" key={k} aria-pressed={editing.kind === k} onClick={() => setEditing({ ...editing, kind: k })} className={`min-h-10 rounded-lg px-5 ${editing.kind === k ? "bg-white text-violet-700 shadow-sm" : "text-slate-500"}`}>{k === "kid" ? "Kid" : "Adult"}</button>)}</div></div>
         <div><p className="mb-1.5 text-xs font-bold text-slate-600">Icon</p><div className="flex flex-wrap gap-1.5">{EMOJI.map((e) => <button type="button" key={e} aria-pressed={editing.emoji === e} onClick={() => setEditing({ ...editing, emoji: e })} className={`h-10 w-10 rounded-xl text-xl ${editing.emoji === e ? "bg-violet-100 ring-2 ring-violet-500" : "bg-slate-50 hover:bg-slate-100"}`}>{e}</button>)}</div></div>
         <div><p className="mb-1.5 text-xs font-bold text-slate-600">Color</p><div className="flex flex-wrap gap-2">{MEMBER_COLORS.map((c) => <button type="button" key={c} aria-pressed={editing.color === c} aria-label={`Color ${c}`} onClick={() => setEditing({ ...editing, color: c })} className={`h-9 w-9 rounded-full ${editing.color === c ? "ring-2 ring-slate-800 ring-offset-2" : ""}`} style={{ background: c }} />)}</div></div>
+        {editing.kind === "adult" && !family.members.some((m) => m.id === editing.id) && <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-violet-200 bg-violet-50 p-3 text-sm" data-testid="member-also-share">
+          <input type="checkbox" checked={alsoShare} onChange={(e) => setAlsoShare(e.target.checked)} className="mt-1 h-4 w-4 accent-violet-600" />
+          <span><span className="block font-bold text-slate-900">Also give them access to my apps</span><span className="text-slate-600">One link: they see Potty Training and everything else you use, and can log in it. You can stop any time.</span></span></label>}
+        {editing.kind === "adult" && family.members.some((m) => m.id === editing.id) && <button type="button" onClick={() => setSharing(editing.name)} className={plain + " w-full"} data-testid="member-share-access"><Share2 size={16} /> Share full access with {editing.name}</button>}
         <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
           <button type="submit" className={primary + " flex-1 px-5"}><Check size={17} /> Save</button>
           <button type="button" onClick={() => setEditing(null)} className={plain}>Cancel</button>

@@ -38,8 +38,15 @@ function Writer({ doc, id, onBack, onOpen }: { doc: DocHandle; id: string; onBac
   const content = doc.content;
   const ed = useRef<HTMLDivElement>(null);
   const savedRange = useRef<Range | null>(null);
-  const [zoomStr, setZoomStr] = useSavedChoice<string>("docs-zoom", "100");
-  const zoom = Math.max(50, Math.min(200, Number(zoomStr) || 100)) / 100;
+  // "fit": the page fills the width of the screen (the default, so a phone shows the whole page, readable).
+  const [zoomStr, setZoomStr] = useSavedChoice<string>("docs-zoom-v2", "fit");
+  const [fitW, setFitW] = useState(0);
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = scrollerRef.current; if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setFitW(el.clientWidth)); ro.observe(el); setFitW(el.clientWidth);
+    return () => ro.disconnect();
+  }, [doc.content ? 1 : 0]); // eslint-disable-line react-hooks/exhaustive-deps
   const [outline, setOutline] = useSavedChoice<"on" | "off">("docs-outline", "off", ["on", "off"]);
   const [, setTick] = useState(0);
   const [toast, setToast] = useState("");
@@ -259,7 +266,12 @@ function Writer({ doc, id, onBack, onOpen }: { doc: DocHandle; id: string; onBac
 
   const page = PAGE_PX[content.page.size];
   const pw = content.page.landscape ? page.h : page.w, ph = content.page.landscape ? page.w : page.h;
-  const margin = content.page.margin * 96;
+  // On a phone in "fit", the page is the width of the screen and the text wraps to it (like Google Docs on a
+  // phone): full size and readable, nothing to pinch. Bigger screens show the real page, scaled to fit.
+  const phone = zoomStr === "fit" && fitW > 0 && fitW < 700;
+  const zoom = phone ? 1 : zoomStr === "fit" ? (fitW ? Math.max(0.3, Math.min(1.5, (fitW - 48) / pw)) : 1) : Math.max(50, Math.min(200, Number(zoomStr) || 100)) / 100;
+  const viewW = phone ? Math.max(260, fitW - 8) : pw;
+  const margin = phone ? 18 : content.page.margin * 96;
   const [height, setHeight] = useState(ph);
   useEffect(() => {
     const el = ed.current; if (!el) return;
@@ -285,7 +297,7 @@ function Writer({ doc, id, onBack, onOpen }: { doc: DocHandle; id: string; onBac
     ] },
     { label: "View", items: (): MenuItem[] => [
       { label: "Show outline", checked: outline === "on", onClick: () => setOutline(outline === "on" ? "off" : "on") },
-      { label: "Zoom", sub: [50, 75, 90, 100, 125, 150, 200].map((n): MenuItem => ({ label: `${n}%`, checked: Math.round(zoom * 100) === n, onClick: () => setZoomStr(String(n)) })) },
+      { label: "Zoom", sub: [{ label: "Fit to screen", checked: zoomStr === "fit", onClick: () => setZoomStr("fit") } as MenuItem, ...[50, 75, 90, 100, 125, 150, 200].map((n): MenuItem => ({ label: `${n}%`, checked: zoomStr !== "fit" && Math.round(zoom * 100) === n, onClick: () => setZoomStr(String(n)) }))] },
     ] },
     { label: "Insert", items: (): MenuItem[] => [
       { label: "Image", icon: <ImageIcon size={14} />, onClick: () => void insertImage() }, { label: "Table", icon: <TableIcon size={14} />, onClick: () => { saveSel(); setDialog("table"); } },
@@ -309,7 +321,7 @@ function Writer({ doc, id, onBack, onOpen }: { doc: DocHandle; id: string; onBac
     ] },
   ];
 
-  return <div className="flex h-[calc(100dvh-8rem)] min-h-[520px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-sm" data-testid="docs-editor">
+  return <div className="flex h-full min-h-0 flex-col overflow-hidden bg-white text-slate-900" data-testid="docs-editor">
     <div className="flex items-start gap-2 px-2 pt-2 sm:px-3">
       <button type="button" onClick={async () => { flushHtml(); await doc.flush(); onBack(); }} aria-label="Back to files" title="Back to files" className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"><ArrowLeft size={18} /></button>
       <span className="mt-1 hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-600 text-white sm:inline-flex"><FileText size={18} /></span>
@@ -332,7 +344,7 @@ function Writer({ doc, id, onBack, onOpen }: { doc: DocHandle; id: string; onBac
         <Tool title="Undo" keys="Ctrl+Z" onClick={() => exec("undo")}><Undo2 size={16} /></Tool>
         <Tool title="Redo" keys="Ctrl+Y" onClick={() => exec("redo")}><Redo2 size={16} /></Tool>
         <Tool title="Print" keys="Ctrl+P" onClick={print}><Printer size={16} /></Tool>
-        <DropButton title="Zoom" label={<span className="text-[12px]">{Math.round(zoom * 100)}%</span>}>{(close) => <MenuList items={[50, 75, 90, 100, 125, 150, 200].map((n) => ({ label: `${n}%`, onClick: () => setZoomStr(String(n)) }))} onDone={close} />}</DropButton>
+        <DropButton title="Zoom" label={<span className="text-[12px]">{zoomStr === "fit" ? "Fit" : `${Math.round(zoom * 100)}%`}</span>}>{(close) => <MenuList items={[{ label: "Fit to screen", onClick: () => setZoomStr("fit") }, ...[50, 75, 90, 100, 125, 150, 200].map((n) => ({ label: `${n}%`, onClick: () => setZoomStr(String(n)) }))]} onDone={close} />}</DropButton>
         <ToolSep />
         <DropButton title="Styles" testId="docs-style" label={<span className="w-[92px] truncate text-left text-[12px]">{STYLES.find((s) => s.tag === state.block)?.label || "Normal text"}</span>}>{(close) => <div className="w-64 py-1">{STYLES.map((s) => <button key={s.tag} type="button" onClick={() => { setBlock(s.tag); close(); }} className={`block w-full px-3 py-1.5 text-left hover:bg-slate-100 ${s.cls} ${state.block === s.tag ? "bg-sky-50" : ""}`}>{s.label}</button>)}</div>}</DropButton>
         <ToolSep />
@@ -377,15 +389,15 @@ function Writer({ doc, id, onBack, onOpen }: { doc: DocHandle; id: string; onBac
         <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">Outline</p>
         {headings.length === 0 ? <p className="text-xs text-slate-500">Headings you add appear here.</p> : headings.map((h) => <button key={h.i} type="button" onClick={() => goHeading(h.i)} className="block w-full truncate rounded px-1.5 py-1 text-left hover:bg-slate-100" style={{ paddingLeft: 6 + (h.level - 1) * 12, fontWeight: h.level === 1 ? 700 : 400 }}>{h.text}</button>)}
       </aside>}
-      <div className="relative min-w-0 flex-1 overflow-auto bg-[#eef1f5] py-6" data-testid="docs-scroller">
-        <div className="mx-auto" style={{ width: pw * zoom }}>
-          <div className="relative origin-top-left bg-white shadow-[0_1px_3px_rgba(0,0,0,.15),0_8px_24px_rgba(0,0,0,.06)]" style={{ width: pw, minHeight: ph * pages, transform: `scale(${zoom})`, marginBottom: (zoom - 1) * ph * pages }}>
-            {Array.from({ length: pages - 1 }, (_, i) => <div key={i} className="pointer-events-none absolute inset-x-0 border-t-[10px] border-[#eef1f5]" style={{ top: ph * (i + 1) - 5 }}><span className="absolute right-2 top-0.5 text-[10px] text-slate-400">Page {i + 2}</span></div>)}
+      <div ref={scrollerRef} className={`relative min-w-0 flex-1 overflow-auto bg-[#eef1f5] ${phone ? "py-1" : "py-3 sm:py-6"}`} data-testid="docs-scroller">
+        <div className="mx-auto" style={{ width: viewW * zoom }}>
+          <div className="relative origin-top-left bg-white shadow-[0_1px_3px_rgba(0,0,0,.15),0_8px_24px_rgba(0,0,0,.06)]" style={{ width: viewW, minHeight: phone ? fitW * 1.2 : ph * pages, transform: zoom === 1 ? undefined : `scale(${zoom})`, marginBottom: (zoom - 1) * ph * pages }}>
+            {Array.from({ length: phone ? 0 : pages - 1 }, (_, i) => <div key={i} className="pointer-events-none absolute inset-x-0 border-t-[10px] border-[#eef1f5]" style={{ top: ph * (i + 1) - 5 }}><span className="absolute right-2 top-0.5 text-[10px] text-slate-400">Page {i + 2}</span></div>)}
             {content.header && <div className="absolute inset-x-0 top-0 px-[1in] pt-6 text-[11px] text-slate-500" style={{ paddingLeft: margin, paddingRight: margin }} dangerouslySetInnerHTML={{ __html: content.header }} />}
             <div ref={ed} contentEditable suppressContentEditableWarning spellCheck data-testid="docs-page" role="textbox" aria-multiline="true" aria-label="Document"
               onInput={changed} onKeyDown={onKeyDown} onPaste={onPaste} onClick={onClick} onBlur={() => { saveSel(); flushHtml(); }} onKeyUp={readState} onMouseUp={readState}
-              className="arise-doc min-h-full text-[11pt] leading-[1.5] text-slate-900 outline-none" style={{ padding: margin, minHeight: ph * pages, fontFamily: "Arial, sans-serif" }} />
-            {(content.footer || content.pageNumbers) && <div className="pointer-events-none absolute inset-x-0 text-[11px] text-slate-500" style={{ top: ph * pages - 40, paddingLeft: margin, paddingRight: margin }}><span dangerouslySetInnerHTML={{ __html: content.footer }} />{content.pageNumbers && <span className="float-right">Page {pages} of {pages}</span>}</div>}
+              className="arise-doc min-h-full text-[11pt] leading-[1.5] text-slate-900 outline-none" style={{ padding: margin, minHeight: phone ? fitW * 1.2 : ph * pages, fontFamily: "Arial, sans-serif" }} />
+            {!phone && (content.footer || content.pageNumbers) && <div className="pointer-events-none absolute inset-x-0 text-[11px] text-slate-500" style={{ top: ph * pages - 40, paddingLeft: margin, paddingRight: margin }}><span dangerouslySetInnerHTML={{ __html: content.footer }} />{content.pageNumbers && <span className="float-right">Page {pages} of {pages}</span>}</div>}
           </div>
         </div>
       </div>

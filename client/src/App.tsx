@@ -29,6 +29,7 @@ const TrainerApp = lazy(() => import("@/pages/trainer/TrainerApp"));
 const TrainersPage = lazy(() => import("@/pages/coach/TrainersPage"));
 const NotesApp = lazy(() => import("@/components/arise-notes/NotesApp"));
 const TalkApp = lazy(() => import("@/pages/talk/TalkApp"));
+const GoalQuizPage = lazy(() => import("@/pages/GoalQuizPage"));
 import { API_BASE } from "./lib/queryClient";
 import ProfileSetupOverlay from "./components/ProfileSetupOverlay";
 import EyeGazeSiteShell from "./components/EyeGazeSiteShell";
@@ -108,9 +109,11 @@ const AvatarWorld = lazyPage(() => import("./pages/AvatarWorld"));
 const Games = lazyPage(() => import("./pages/Games"));
 const MeetingPoll = lazyPage(() => import("./pages/MeetingPoll"));
 const TodoShare = lazyPage(() => import("./pages/TodoShare"));
+const JoinFamily = lazyPage(() => import("./pages/JoinFamily"));
 const DropReceive = lazyPage(() => import("./pages/DropReceive"));
 const TryIepWriter = lazyPage(() => import("./pages/TryIepWriter"));
 const DuoSplit = lazyPage(() => import("./pages/DuoSplit"));
+const TvLink = lazyPage(() => import("./pages/TvLink"));
 const AriseCity = lazyPage(() => import("./pages/AriseCity"));
 const SmashRoom = lazyPage(() => import("./pages/play/SmashRoom"));
 const BuildZone = lazyPage(() => import("./pages/play/BuildZone"));
@@ -144,6 +147,7 @@ const JoinParaTeam = lazyPage(() => import("./pages/ParaTeam").then((m) => ({ de
 // A.R.I.S.E. Reader for teachers and parents, on its own page outside both hubs (pages/AriseReader.tsx).
 const AriseReader = lazyPage(() => import("./pages/AriseReader"));
 import TodoGate from "@/components/TodoGate";
+import { HubWaiting } from "@/lib/hubBackdrop";
 import { ReaderAdminToTodoRedirect, ReaderToHubHandoff, TodoAdminHandoff } from "@/components/AdminDomainHandoff";
 import { READER_APP, goToReader, goToSignIn, hubPathFor, isHubAccount, isReaderPage } from "@/lib/hubs";
 import NativePlans from "@/components/NativePlans";
@@ -421,6 +425,9 @@ function AfterSignIn({ onReaderDomain, onTodoDomain }: { onReaderDomain: boolean
   // Signed in from a Para Team invite link: straight back to join that team.
   const paraJoin = pendingParaJoin();
   if (paraJoin && isHubAccount(user)) return <Redirect to={`/para-team/join/${paraJoin}`} replace />;
+  // Signed in to finish signing in an Apple TV (pages/TvLink.tsx): straight back to type the code.
+  const tvCode = (() => { try { const c = sessionStorage.getItem("tv_link_code"); sessionStorage.removeItem("tv_link_code"); return c; } catch { return null; } })();
+  if (tvCode !== null) return <Redirect to={`/tv${tvCode ? `?code=${encodeURIComponent(tvCode)}` : ""}`} replace />;
   if (isHubAccount(user)) {
     // A teacher who signs in on arisereader.com stays in A.R.I.S.E. Reader (the teacher Reader at
     // /reader), with a banner there that opens their WorkHub. On arisetodo.com they get the hub.
@@ -481,8 +488,15 @@ function TodoPublicHomeRedirect() {
   return <main className="min-h-screen bg-[#f9fafc] p-8 text-center"><a href={window.location.protocol === "capacitor:" ? "#/signin" : "/"} className="font-semibold text-indigo-700 underline">Open Arise To Duo</a></main>;
 }
 
+/** While a page's code arrives: the last hub's own background (never a white flash on a dark theme),
+ *  and a loading circle only if it takes more than a moment — a quick switch shows nothing at all. */
+function PageFallback({ path }: { path: string }) {
+  const hub = /^\/(workhub|teacher-hub|lifehub|to-do|duo)(\/|$)/.test(path);
+  return hub ? <HubWaiting /> : <div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" style={{ opacity: 0, animation: "spin 1s linear infinite, arise-fade-in .3s ease .6s forwards" }} /></div>;
+}
+
 function AppRoutes() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, token } = useAuth();
   // The routes below remount when the page changes. A page that redirects lands on another page that
   // often redirects too (a game → "/" → the hub); without a fresh mount React reused the first Redirect,
   // the next hop never ran, and the screen stayed blank.
@@ -496,21 +510,26 @@ function AppRoutes() {
   const onReaderDomain = domain === "arisereader.com" || domain === "www.arisereader.com" || isReaderApp();
   const onTodoDomain = domain === "arisetodo.com" || domain === "www.arisetodo.com" || (window.location.protocol === "capacitor:" && !isReaderApp());
   // An adult in one hub is a tap away from the other (and from the split screen): fetch both hubs'
-  // code while the page is idle, so switching between Arise WorkHub and Arise LifeHub is instant.
+  // code, and the other hub's saved copy, as soon as the page has loaded, so switching between
+  // Arise WorkHub and Arise LifeHub is instant — no white screen and no loading circle, even the
+  // first time. (The copy waits a moment more, so the hub being opened gets the connection first.)
   const hubAdult = isHubAccount(user);
-  // Not until the page being opened has finished loading (and its data has had time to arrive), and
-  // not at all on a slow or data-saving connection: the other hub then loads when it's opened.
+  const hubUserId = hubAdult ? user?.id : undefined;
   useEffect(() => {
     if (!hubAdult) return;
-    const conn = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
-    if (conn?.saveData || /(^|-)(2g|3g)$/.test(conn?.effectiveType || "")) return;
-    const run = () => { TeacherHub.preload(); AriseTodo.preload(); DuoSplit.preload(); };
-    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
-    let idle = 0, t = 0;
-    const later = () => { t = window.setTimeout(() => { if (w.requestIdleCallback) idle = w.requestIdleCallback(run, { timeout: 4000 }); else run(); }, 4000); };
+    let code = 0, copy = 0;
+    const run = () => {
+      TeacherHub.preload(); AriseTodo.preload(); DuoSplit.preload();
+      copy = window.setTimeout(() => {
+        if (!token || !hubUserId) return;
+        void import("@/components/teacher-hub/useHubWorkspace").then((m) => m.prefetchWorkHub(hubUserId, token)).catch(() => {});
+        void import("@/lib/useTodoCloud").then((m) => m.prefetchLifeHub(hubUserId, token)).catch(() => {});
+      }, 1500);
+    };
+    const later = () => { code = window.setTimeout(run, 300); };
     if (document.readyState === "complete") later(); else window.addEventListener("load", later, { once: true });
-    return () => { window.removeEventListener("load", later); window.clearTimeout(t); if (idle) w.cancelIdleCallback?.(idle); };
-  }, [hubAdult]);
+    return () => { window.removeEventListener("load", later); window.clearTimeout(code); window.clearTimeout(copy); };
+  }, [hubAdult, hubUserId, token]);
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-blue-50">
@@ -530,7 +549,7 @@ function AppRoutes() {
     return <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}><AriseReader /></Suspense>;
   }
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
+    <Suspense fallback={<PageFallback path={routePath} />}>
     <Switch key={routePath}>
       <Route path="/fit">
         <ProtectedRoute><FitApp /></ProtectedRoute>
@@ -539,6 +558,8 @@ function AppRoutes() {
       <Route path="/trainers"><TrainersPage /></Route>
       {/* Arise Talk: the talking boards (no account needed). */}
       <Route path="/talk"><TalkApp /></Route>
+      {/* A goal quiz a teacher sent as a link: no sign-in (shared/hubIep.ts). */}
+      <Route path="/goal-quiz/:code"><GoalQuizPage /></Route>
       <Route path="/trainer">
         <ProtectedRoute><TrainerApp /></ProtectedRoute>
       </Route>
@@ -556,6 +577,9 @@ function AppRoutes() {
       </Route>
       <Route path="/saved">
         {isEyeGazeStudent ? <Redirect to="/library" replace /> : <ProtectedRoute><FypMyBooksPage /></ProtectedRoute>}
+      </Route>
+      <Route path="/tv">
+        <TvLink />
       </Route>
       <Route path="/signin">
         {user ? <AfterSignIn onReaderDomain={onReaderDomain} onTodoDomain={onTodoDomain} /> : isNativeApp() ? <NativeSignIn /> : <SignIn />}
@@ -577,6 +601,9 @@ function AppRoutes() {
       </Route>
       <Route path="/meet/:token">
         <MeetingPoll />
+      </Route>
+      <Route path="/join/:token">
+        <JoinFamily />
       </Route>
       <Route path="/share/:token">
         <TodoShare />
@@ -981,7 +1008,9 @@ function AppRoutes() {
 }
 
 // Full-screen games need the whole screen: site tabs, banners and popups would cover their controls.
-const FULLSCREEN_GAME_ROUTES = ["/to-do", "/lifehub", "/games", "/study", "/paintball-arena", "/aurora-rally", "/skybound-sprint", "/twinlight-run", "/chime-of-aoren", "/present", "/tutorial/present"];
+// Arise Fit, Arise Trainer, the trainer directory and Arise Talk are whole apps of their own on the
+// website too, so the site's side tabs (points, Avatar World) and pop-ups stay off them.
+const FULLSCREEN_GAME_ROUTES = ["/to-do", "/lifehub", "/games", "/study", "/paintball-arena", "/aurora-rally", "/skybound-sprint", "/twinlight-run", "/chime-of-aoren", "/present", "/tutorial/present", "/fit", "/trainer", "/trainers", "/talk"];
 function useFullscreenGameRoute() {
   const read = () => FULLSCREEN_GAME_ROUTES.includes(window.location.hash.replace(/^#/, "").split("?")[0]);
   const [inGame, setInGame] = useState(read);

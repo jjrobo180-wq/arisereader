@@ -285,10 +285,11 @@ test("Siri and links: actions and invites, in the app and on the website", () =>
   assert.match(plist, /CFBundleURLSchemes": \["arisefit"\]/);
 });
 
-test("wired in: circle, Fit+, near me and recipes on Today, Siri in Settings, eat out in Food, gyms in Train", () => {
+test("wired in: circle and buddy in the Friends app, Fit+, near me and recipes as apps, Siri in Settings, eat out in Food, gyms in Train", () => {
   const read = (f: string) => readFileSync(new URL(`../client/src/pages/fit/${f}`, import.meta.url), "utf8");
   const app = read("FitApp.tsx");
-  for (const s of ["<CircleCard", "<CircleSheet", "<PlusProvider", "<NearbyGyms", "<EatOut", "<RecipesSheet", "<SiriSheet", "useDeepLinks(", "fit-open-siri", "smartWorkoutNow("]) assert.ok(app.includes(s), s);
+  for (const s of ["<FriendsApp", "<CircleSheet", "<PlusProvider", "<NearbyGyms", "<EatOut", "<RecipesSheet", "<SiriSheet", "useDeepLinks(", "fit-open-siri", "smartWorkoutNow("]) assert.ok(app.includes(s), s);
+  assert.ok(read("FitApps.tsx").includes("<CircleCard") && read("FitApps.tsx").includes("<BuddyCard"));
   assert.ok(read("FitFood.tsx").includes("fit-food-eat-out"));
   assert.ok(read("FitTrain.tsx").includes("fit-train-gyms"));
 });

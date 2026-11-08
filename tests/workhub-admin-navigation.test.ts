@@ -23,7 +23,7 @@ test("admin sidebar and opened tab use the same visibility rules", () => {
 
 test("admin opens Caseload and Meetings even when those app flags are false", () => {
   const visible = { ...defaultWorkspace, admin: true, caseload: false, iep: false };
-  assert.equal(openGroup("caseload", visible, {}, true), "caseload");
+  assert.equal(openGroup("iep", visible, { iep: "caseload" }, true), "caseload", "Caseload opens inside IEP");
   assert.equal(openGroup("iep", visible, {}, true), "iep");
   assert.equal(openGroup("goals", visible, {}, true), "goals");
   assert.equal(openGroup("admin", visible, {}, true), "admin");
@@ -31,7 +31,7 @@ test("admin opens Caseload and Meetings even when those app flags are false", ()
 
 test("regular teacher still cannot navigate to apps they have not installed", () => {
   const visible = { ...defaultWorkspace, admin: false };
-  assert.equal(openGroup("caseload", visible, {}, false), "overview");
+  assert.equal(openGroup("iep", visible, { iep: "caseload" }, false), "overview");
   assert.equal(openGroup("iep", visible, {}, false), "overview");
   assert.equal(openGroup("tasks", visible, {}, false), "tasks");
 });

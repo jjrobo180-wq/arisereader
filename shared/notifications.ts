@@ -71,7 +71,12 @@ const ALERT_CATEGORY: Record<string, FeedCategory> = {
 };
 
 /** The category and link of a stored notification, from its `type`. */
+/** A notice from Accountability (server/routes.ts): opens the Accountability app in LifeHub. */
+export const ACCOUNTABILITY_BELL_TYPE = "life:accountability";
+
 export function describeStoredType(type: unknown): { category: FeedCategory; target?: FeedTarget } {
+  // A LifeHub app's notice (life:<section>): the item opens that app. WorkHub's bell opens it in LifeHub.
+  if (/^life:[a-z-]{2,40}$/.test(String(type || ""))) return { category: "info", target: { type: String(type), id: 1 } };
   // A quiz the student asked for was approved: the item opens it (see shared/readyQuizzes.ts).
   const ready = parseReadyQuizType(type);
   if (ready) return { category: "quiz_ready", target: { type: ready.kind === "custom" ? "custom_quiz" : "quiz", id: ready.id } };

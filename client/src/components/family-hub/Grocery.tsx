@@ -1,4 +1,4 @@
-// Grocery list (a Plugin Store add-on): a shopping list that sorts itself by aisle.
+// Grocery list (a Plugin Gallery add-on): a shopping list that sorts itself by aisle.
 import { useState, type FormEvent } from "react";
 import { Check, Copy, ShoppingCart, Trash2, X } from "lucide-react";
 import { AISLES, guessAisle } from "@shared/lifePlugins";

@@ -7,7 +7,7 @@
 import { dueHubReminders, type HubReminder } from "@shared/hubReminders";
 import { dueTodoReminders } from "@shared/todoReminders";
 import type { Workspace } from "@shared/teacherHub";
-import { hasNativePlugin, isNativeApp, nativeCall, nativeListen } from "@/lib/nativeApp";
+import { hasNativePlugin, isNativeApp, nativeCall, nativeListen, notificationHash } from "@/lib/nativeApp";
 import { startApplePush, stopApplePush } from "@/lib/applePush";
 
 export type ReminderKind = "life" | "work";
@@ -41,7 +41,21 @@ export function setNativeSound(on: boolean): void {
   window.dispatchEvent(new Event(REMINDERS_CHANGED)); // schedules again with, or without, the sound
 }
 /** Spread into a scheduled notification to give it the sound (or nothing, when sound is off). */
-export const soundField = (): { sound?: string } => (nativeSoundOn() ? { sound: CHIME } : {});
+export const soundField = (): { sound?: string } => (nativeSoundOn() ? { sound: nativeSoundFile() } : {});
+
+/** The sounds in the app (arisetodo/ios-app/sounds/*.wav, all copied in by add-sound.py). */
+export const REMINDER_SOUNDS = [
+  { file: CHIME, name: "Chime" }, { file: "arise-bell.wav", name: "Bell" }, { file: "arise-glass.wav", name: "Glass" },
+  { file: "arise-marimba.wav", name: "Marimba" }, { file: "arise-pulse.wav", name: "Pulse" }, { file: "arise-soft.wav", name: "Soft" },
+] as const;
+const SOUND_NAME_KEY = "arise_native_sound_file";
+/** The one picked in Settings, or the chime. */
+export const nativeSoundFile = (): string => { const v = store.get(SOUND_NAME_KEY); return REMINDER_SOUNDS.some((x) => x.file === v) ? (v as string) : CHIME; };
+export function setNativeSoundFile(file: string): void {
+  if (!REMINDER_SOUNDS.some((x) => x.file === file)) return;
+  store.set(SOUND_NAME_KEY, file);
+  window.dispatchEvent(new Event(REMINDERS_CHANGED)); // every reminder is scheduled again with the new sound
+}
 
 /** True in an app build that can schedule notifications. */
 export const nativeRemindersAvailable = (): boolean => hasNativePlugin(PLUGIN);
@@ -125,19 +139,25 @@ let tapsInstalled = false;
 export function installReminderTaps(): void {
   if (tapsInstalled || !isNativeApp()) return;
   tapsInstalled = true;
-  // Already allowed before: sign this iPhone up with the server again (the token can change).
-  if (nativeRemindersOn("life") || nativeRemindersOn("work")) void startApplePush(false);
+  // Sign this iPhone up with the server again (the token can change) whenever iOS already allows notifications,
+  // not only when reminders are on: messages, shares and Accountability ("she did it") come from the server.
+  // Nothing is asked here; startApplePush(false) only goes ahead if notifications are already allowed.
+  void startApplePush(false);
   try {
     void nativeListen("LocalNotifications", "localNotificationActionPerformed", (e: any) => {
       const url = String(e?.notification?.extra?.url || "");
       if (!url) return;
-      if (url.startsWith("#")) window.location.hash = url.slice(1);
-      else if (url.startsWith("/")) window.location.hash = url;
+      const hash = notificationHash(url);
+      if (hash !== null) window.location.hash = hash;
     });
   } catch { /* no listener here */ }
 }
 
+/** What was last put on the phone for each kind (in this page's life), so an unchanged plan is left alone. */
+const lastPlan = new Map<ReminderKind, string>();
+
 async function cancelScheduled(kind: ReminderKind) {
+  lastPlan.delete(kind);
   let ids: number[] = [];
   try { ids = JSON.parse(store.get(idsKey(kind)) || "[]"); } catch { ids = []; }
   if (ids.length) await call("cancel", { notifications: ids.map((id) => ({ id })) }).catch(() => {});
@@ -149,11 +169,17 @@ export async function scheduleNativeReminders(kind: ReminderKind, workspace: unk
   if (!nativeRemindersOn(kind) || !nativeRemindersAvailable()) return 0;
   const now = Date.now();
   const plan = planReminders(kind, workspace, now + 60_000, zone()).slice(0, MOST_PER_KIND);
+  const notifications = plan.length ? nativeNotifications(kind, plan) : [];
+  // Same reminders as the ones already waiting on the phone (most edits don't touch them): nothing to
+  // redo. Cancelling and re-adding them all after every change made the app hitch a few seconds later.
+  const sig = JSON.stringify(notifications);
+  if (lastPlan.get(kind) === sig) return notifications.length;
   await cancelScheduled(kind);
-  if (!plan.length) return 0;
-  const notifications = nativeNotifications(kind, plan);
+  lastPlan.set(kind, "");
+  if (!notifications.length) { lastPlan.set(kind, sig); return 0; }
   await call("schedule", { notifications });
   store.set(idsKey(kind), JSON.stringify(notifications.map((n) => n.id)));
+  lastPlan.set(kind, sig);
   return notifications.length;
 }
 
@@ -164,6 +190,7 @@ export async function sendNativeTest(): Promise<void> {
 
 /** Signing out: every reminder scheduled on this iPhone is taken away, so the next account never sees the last one's. */
 export async function cancelAllNativeReminders(): Promise<void> {
+  lastPlan.clear();
   if (!nativeRemindersAvailable()) return;
   try {
     const pending = await nativeCall(PLUGIN, NAME, "getPending");

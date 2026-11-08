@@ -94,7 +94,7 @@ export default function Browser({ family, setFamily, makeId, say, onAddTask }: P
   return (
     <div data-testid="life-browser" data-size={shownSize}
       className={shownSize === "normal" ? "flex min-h-[calc(100dvh-9rem)] flex-col gap-3"
-        : `fixed bottom-0 right-0 top-0 z-[400] flex flex-col gap-2 bg-[#f6f7fc] p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] ${shownSize === "full" ? "left-0" : "border-l border-slate-200"}`}
+        : `fixed bottom-0 right-0 top-0 z-[400] flex flex-col gap-2 bg-[#f6f7fc] p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,var(--sat,env(safe-area-inset-top,0px)))] ${shownSize === "full" ? "left-0" : "border-l border-slate-200"}`}
       style={shownSize === "side" ? { width: "calc(100vw - var(--duo-left, 50vw))" } : undefined}>
       {noteOpen && shownSize === "normal" && <div className="flex items-start gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900" data-testid="browser-limited-note">
         <Sparkles className="mt-0.5 h-4 w-4 shrink-0" />

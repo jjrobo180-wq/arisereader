@@ -9,6 +9,10 @@ import { cleanPages, pointsForBook } from "../shared/bookPoints";
 import { EYE_GAZE_LESSONS, lessonRows } from "../shared/eyegaze/lessons";
 import { lessonsToHide, planQuestions, rowDiffers } from "./eyeGazeLessonSync";
 
+/** Set by the routes: tells a reader's phone about a new message (A.R.I.S.E. Reader app notifications). */
+let onReaderMessage: ((userId: number, senderType: string, text: string) => void) | null = null;
+export function setReaderMessageListener(f: typeof onReaderMessage) { onReaderMessage = f; }
+
 let bookQuizzes: any[] = [];
 
 // Retry wrapper for Supabase queries - handles intermittent connectivity failures
@@ -422,7 +426,11 @@ export class DatabaseStorage implements IStorage {
 
   async getUserByUsername(username: string) {
     const data = await fetchSingle(supabase.from("users").select("*").eq("username", username).maybeSingle());
-    return mapUser(data);
+    if (data) return mapUser(data);
+    // Some older accounts were saved with a space after the username. Sign-in trims what's typed, so
+    // without this they could never be found, whatever the password.
+    const spaced = await fetchSingle(supabase.from("users").select("*").eq("username", `${username} `).maybeSingle());
+    return mapUser(spaced);
   }
 
   async createUser(user: { username: string; password: string; displayName: string; isEyeGazeUser?: boolean; role?: string; teacherId?: number | null; directoryTeacherName?: string | null; approvedByTeacher?: boolean; accountApproved?: boolean; email?: string | null; schoolId?: number | null; studentNumber?: string | null; mustChangePassword?: boolean }) {
@@ -707,6 +715,8 @@ export class DatabaseStorage implements IStorage {
       }).select().maybeSingle()
     );
     if (!data) throw new Error("Failed to create message");
+    // A message to a reader (from their teacher, or the app): a notification on their phone too.
+    if (senderType !== "student") { try { onReaderMessage?.(userId, senderType, text); } catch { /* the message is saved either way */ } }
     return mapMessage(data);
   }
 

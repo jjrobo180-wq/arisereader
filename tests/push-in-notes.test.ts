@@ -70,7 +70,8 @@ test("bad data is dropped, not trusted", () => {
   assert.equal(notes.length, 1);
   const n = notes[0];
   assert.equal(n.part, undefined);
-  assert.equal(n.subject, "");
+  // A subject typed in (not on the list) is kept since classes can have their own subjects.
+  assert.equal(n.subject, "Basket weaving");
   assert.equal(n.title, "A lesson");
   assert.equal(n.taught, "5");
   assert.deepEqual(n.materials, []);
@@ -261,12 +262,14 @@ test("class notes ride along in the saved workspace, and a teacher with only not
   assert.deepEqual(cleanPushInNotes(normalizeWorkspace({}).pushInNotes), []);
 });
 
-test("the Minutes tab has a Class notes look, remembered, and each class card opens its notes", () => {
+test("the Minutes tab opens on Main: each class opens its page, with the class note and every student's minutes and note", () => {
   const tab = read("client/src/components/teacher-hub/HubProgress.tsx");
-  assert.match(tab, /\["notes", "Class notes"\]/);
-  assert.match(tab, /v === "notes"/);
-  assert.match(tab, /<PushInNotesView[^>]*classKey=\{notesClass\}/);
-  assert.match(tab, /onNotes=\{\(key\) => \{ setNotesClass\(key\); setLook\("notes"\)/);
+  assert.match(tab, /\[\["main", "Main"\], \["quick", "Quick log"\]\]/);
+  assert.match(tab, /<ClassBoard workspace=\{workspace\}/);
+  const board = read("client/src/components/teacher-hub/HubClassBoard.tsx");
+  for (const id of ["class-board", "board-class", "class-page", "class-note", "class-note-title", "class-note-taught", "class-note-more", "class-student-card", "class-student-log", "class-student-absent", "class-student-note", "class-student-remove", "class-add-students", "class-log-all"]) assert.ok(board.includes(`data-testid="${id}"`), id);
+  assert.match(board, /pushInNotes: upsertNote\(w\.pushInNotes, n\)/);
+  assert.match(board, /withEntry\(d, name, change, stamp\(\)\)/);
   const cards = read("client/src/components/teacher-hub/HubClassMinutes.tsx");
   assert.match(cards, /data-testid="class-notes"/);
   assert.match(cards, /data-testid="class-card"/);
@@ -302,4 +305,15 @@ test("a day's notes are the notes dated that day, each in its class, and a new o
   assert.deepEqual(day.map((n) => n.id), ["a", "c"]);
   assert.equal(noteKey(day[0], BLOCKS), lee.key);
   assert.equal(newNote(lee, "2026-10-14", "z", NOW).date, "2026-10-14");
+});
+
+test("a student's note keeps the space while it's being typed, and saving trims it", () => {
+  let n = withEntry(note(), "Ava", { note: "Needed " }, NOW);
+  assert.equal(n.students[0].note, "Needed ");
+  n = withEntry(n, "Ava", { note: "Needed help" }, NOW);
+  assert.equal(n.students[0].note, "Needed help");
+  n = withEntry(n, "Ava", { support: "Sentence " }, NOW);
+  assert.equal(n.students[0].support, "Sentence ");
+  assert.equal(n.students[0].note, "Needed help");
+  assert.equal(cleanPushInNote(withEntry(note(), "Ava", { note: "Needed " }, NOW))!.students[0].note, "Needed");
 });

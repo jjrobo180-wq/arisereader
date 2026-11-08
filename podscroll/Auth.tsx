@@ -1,6 +1,6 @@
 // Pod+ sign in, create account and forgot password. Accounts use an email and a password; email
 // codes prove the email is yours (creating an account, resetting a password, or signing in without
-// one). Listening never needs an account; it's the Pod+ Membership (ad skip, creator earnings).
+// one). Listening never needs an account (and has no ads for anyone); it's the Pod+ Membership (creator earnings).
 import { useState } from "react";
 import { Check, Eye, EyeOff, Loader2, X } from "lucide-react";
 import { APPLE_LOGO_PATH, appleSignInAvailable, askApple } from "../client/src/lib/appleSignIn";
@@ -58,7 +58,7 @@ export function AuthScreen({ api, onDone, onClose, dark, start = "signin" }: { a
   const titles: Record<Mode, string> = { signin: "Sign in", signup: "Create your account", forgot: "Reset your password", code: "Sign in with an email code" };
   const pwOk = password.length >= 8;
 
-  return <div role="dialog" aria-modal="true" aria-labelledby="ps-auth-title" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} className="fixed inset-0 z-[90] flex items-end justify-center bg-black/60 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] backdrop-blur-sm sm:items-center">
+  return <div role="dialog" aria-modal="true" aria-labelledby="ps-auth-title" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} className="fixed inset-0 z-[90] flex items-end justify-center bg-black/60 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[var(--sat,env(safe-area-inset-top,0px))] backdrop-blur-sm sm:items-center">
     <div className={`relative max-h-[92vh] w-full max-w-md overflow-y-auto rounded-3xl p-6 shadow-2xl ${C.card}`} style={{ fontFamily: "Roboto, Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" }}>
       <button type="button" onClick={onClose} aria-label="Close" className={`absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full ${C.hover}`}><X size={20} /></button>
       <p className="text-[11px] font-bold uppercase tracking-[.18em] text-[#ff6a1f]">Pod+</p>
@@ -74,7 +74,7 @@ export function AuthScreen({ api, onDone, onClose, dark, start = "signin" }: { a
       </div>}
 
       {mode === "signup" && !sent && <ul className={`mt-4 grid gap-1.5 text-sm ${C.sub}`}>
-        {["Listening stays free, no account needed", "Members skip ads and can get paid for their show", "Your Pod Modes, likes and place on every device"].map((t) => <li key={t} className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff6a1f]" />{t}</li>)}
+        {["Listening stays free and ad-free, no account needed", "Members can get paid for their show", "Your Pod Modes, likes and place on every device"].map((t) => <li key={t} className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff6a1f]" />{t}</li>)}
       </ul>}
 
       <form className="mt-5" onSubmit={(e) => {

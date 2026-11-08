@@ -66,7 +66,7 @@ test("the nudge pass sends once per interval and marks it", async () => {
   const rows: Record<string, any[]> = {
     acct_tasks: [{ id: t.id, space_id: "s1", data: t, assignee: 2, created_by: 1, archived: false, created_at: t.createdAt }],
     acct_members: [{ space_id: "s1", user_id: 1, name: "Dad", tz: "America/Denver" }, { space_id: "s1", user_id: 2, name: "Mom", tz: "America/Denver" }],
-    acct_checkins: [], acct_nudges: [],
+    acct_checkins: [], acct_nudges: [], acct_alerts: [],
   };
   const q = (table: string) => { const chain: any = { select: () => chain, eq: () => chain, in: () => chain, limit: () => chain, then: (f: any) => f({ data: rows[table], error: null }), upsert: async (r: any) => { rows[table] = rows[table].filter((x) => x.task_id !== r.task_id || x.day !== r.day).concat(r); return { error: null }; } }; return chain; };
   const sent: any[] = [];
@@ -74,19 +74,23 @@ test("the nudge pass sends once per interval and marks it", async () => {
   const at = Date.parse("2026-10-31T22:00:00Z"); // 4pm in Denver
   await sendDueAccountabilityNudges({ ...deps, now: () => at });
   await sendDueAccountabilityNudges({ ...deps, now: () => at + 10 * 60_000 });
+  // The nudge to Mom, and (an hour past 3pm) the one "missed" heads-up to Dad, who asked.
+  const missed = sent.filter(([, m]) => String(m.tag).startsWith("acct-missed-"));
+  assert.equal(missed.length, 1); assert.equal(missed[0][0], 1); assert.match(missed[0][1].title, /Mom missed: Teach the ABCs/);
+  sent.splice(0, sent.length, ...sent.filter(([, m]) => !String(m.tag).startsWith("acct-missed-")));
   assert.equal(sent.length, 1);
   assert.equal(sent[0][0], 2);
   assert.match(sent[0][1].title, /Teach the ABCs/);
   assert.match(sent[0][1].body, /Dad/);
   await sendDueAccountabilityNudges({ ...deps, now: () => at + 61 * 60_000 });
-  assert.equal(sent.length, 2);
+  assert.equal(sent.length, 2, "and the missed alert isn't sent again");
   assert.match(sent[1][1].title, /Still to do/);
 });
 
-test("it's in the To Duo App Gallery and opens from a notification", () => {
+test("it's in the To Duo Plugin Gallery and opens from a notification", () => {
   assert.match(readFileSync(new URL("../shared/pluginStore.ts", import.meta.url), "utf8"), /id: "life-accountability".*target: section\("accountability"\)/);
   assert.match(readFileSync(new URL("../client/src/components/family-hub/lifeApps.tsx", import.meta.url), "utf8"), /accountability: \(p\) => <Accountability/);
-  assert.match(readFileSync(new URL("../client/src/pages/AriseTodo.tsx", import.meta.url), "utf8"), /if \(go === "accountability"\) setFamily/);
+  assert.match(readFileSync(new URL("../client/src/pages/AriseTodo.tsx", import.meta.url), "utf8"), /if \(go === "accountability"( \|\| go === "linked")?\) setFamily/);
   assert.match(readFileSync(new URL("../server/routes.ts", import.meta.url), "utf8"), /"\/api\/accountability\/ai\/worksheet", "\/api\/accountability\/ai\/quiz"/);
 });
 
@@ -98,4 +102,42 @@ test("already done: what was done, today or up to a week back, never ahead", asy
   assert.equal(cleanDoneAlready({ title: "Laundry", day: "2026-11-05" }, "America/Denver", now)!.day, "2026-11-01", "not in the future");
   assert.equal(cleanDoneAlready({ title: "Laundry", day: "2026-09-01" }, "America/Denver", now)!.day, "2026-11-01", "not long ago");
   assert.equal(cleanDoneAlready({ title: "Laundry" }, "America/Denver", now)!.day, "2026-11-01");
+});
+
+test("missed deadlines: once, 30 minutes after, only when someone else asked and it already existed", async () => {
+  const { missedNow, MISSED_AFTER_MIN } = await import("../shared/accountability");
+  const t = task({ repeat: { every: "daily", days: [], date: "" } });
+  const day = "2026-10-31", now = Date.parse("2026-10-31T22:00:00Z");
+  assert.equal(MISSED_AFTER_MIN, 30);
+  assert.equal(missedNow(t, false, { day, minutes: 15 * 60 + 29 }, now), false);
+  assert.equal(missedNow(t, false, { day, minutes: 15 * 60 + 30 }, now), true);
+  assert.equal(missedNow(t, true, { day, minutes: 16 * 60 }, now), false, "done");
+  assert.equal(missedNow({ ...t, createdBy: 2 }, false, { day, minutes: 16 * 60 }, now), false, "your own to-do");
+  assert.equal(missedNow({ ...t, createdAt: "2026-10-31T21:50:00Z" }, false, { day, minutes: 16 * 60 }, now), false, "asked after it was due");
+});
+
+test("each person's own alert settings: everything on until turned off, and the pass respects them", async () => {
+  const { cleanNotify, wantsAlert } = await import("../shared/accountability");
+  assert.deepEqual(Object.values(cleanNotify(null)).every(Boolean), true);
+  assert.equal(wantsAlert({ missed: false }, "missed"), false);
+  assert.equal(wantsAlert({ missed: false }, "done"), true);
+  const t = task({ repeat: { every: "daily", days: [], date: "" }, nag: 60 });
+  const rows: Record<string, any[]> = {
+    acct_tasks: [{ id: t.id, space_id: "s1", data: t, assignee: 2, created_by: 1, archived: false, created_at: t.createdAt }],
+    acct_members: [{ space_id: "s1", user_id: 1, name: "Dad", tz: "America/Denver", notify: { missed: false } }, { space_id: "s1", user_id: 2, name: "Mom", tz: "America/Denver", notify: { reminders: false } }],
+    acct_checkins: [], acct_nudges: [], acct_alerts: [],
+  };
+  const q = (table: string) => { const chain: any = { select: () => chain, eq: () => chain, in: () => chain, limit: () => chain, then: (f: any) => f({ data: rows[table], error: null }), upsert: async (r: any) => { rows[table] = rows[table].concat(r); return { error: null }; } }; return chain; };
+  const sent: any[] = [];
+  await sendDueAccountabilityNudges({ db: () => ({ from: q, storage: { from: () => ({}) } }) as any, push: async (u: number, m: any) => { sent.push([u, m]); return 1; }, now: () => Date.parse("2026-10-31T22:00:00Z") });
+  assert.equal(sent.length, 0);
+  assert.equal(rows.acct_alerts.length, 1, "still marked, so turning it back on doesn't send an old one");
+});
+
+test("partners hear about changes, and there's a test button and per-person settings", () => {
+  const server = readFileSync(new URL("../server/accountability.ts", import.meta.url), "utf8");
+  for (const route of ["/spaces/:id/notify\"", "/spaces/:id/notify-status\"", "/spaces/:id/test\""]) assert.match(server, new RegExp(route.replace(/[/:]/g, (c) => "\\" + c)));
+  for (const tag of ["acct-edit-", "acct-del-", "acct-leave-", "acct-missed-"]) assert.ok(server.includes(tag), tag);
+  const ui = readFileSync(new URL("../client/src/components/family-hub/Accountability.tsx", import.meta.url), "utf8");
+  assert.match(ui, /data-testid="acct-test"/); assert.match(ui, /NOTIFY_KINDS\.map/);
 });

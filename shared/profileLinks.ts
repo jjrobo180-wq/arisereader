@@ -35,6 +35,9 @@ export type ProfileLink = {
 };
 
 export const LINK_LIMITS = { perOwner: 20, nickname: 40 } as const;
+/** Links made by a join link have no email yet; they carry this ending instead. */
+export const JOIN_LINK_EMAIL = "@invite.arise.link";
+export const isJoinLinkEmail = (email: string) => email.endsWith(JOIN_LINK_EMAIL);
 
 /** LifeHub pages that can be shared (view only). `target` is the share-view target (shared/todoShare.ts). */
 export const LIFE_SHARES = [
@@ -45,7 +48,11 @@ export const LIFE_SHARES = [
   { id: "life:bills", label: "Bills", emoji: "🧾", target: "bills" },
   { id: "life:trips", label: "Trips", emoji: "✈️", target: "trips" },
   { id: "life:links", label: "Link page", emoji: "🔗", target: "links" },
+  { id: "life:meals", label: "Meal plan", emoji: "🍽️", target: "meals" },
 ] as const;
+/** Accountability (server/accountability.ts) is done together, not looked at: turning it on puts the two of you
+ *  in one Accountability space (the one you already share, if you do), where you ask each other for things. */
+export const ACCOUNTABILITY_SHARE = "together:accountability";
 /** One person's food & fitness numbers (LifeHub's Health), by family-member id. */
 export const healthShareId = (memberId: string) => `life:health:${memberId}`;
 export const isHealthShareId = (id: string) => /^life:health:[\w.-]{1,100}$/.test(id);
@@ -54,7 +61,7 @@ export const appShareId = (appId: string) => `app:${appId}`;
 /** The premium app a stored app key belongs to ("pro-potty" → "potty"), or null for anything else. */
 export const appIdFromKey = (key: string): string | null => { const m = /^pro-([a-z0-9-]{1,60})$/.exec(key); return m ? m[1] : null; };
 
-export type ShareItem = { id: string; label: string; emoji?: string; icon?: string; color?: string; kind: "app" | "life"; editable: boolean };
+export type ShareItem = { id: string; label: string; emoji?: string; icon?: string; color?: string; kind: "app" | "life" | "together"; editable: boolean; blurb?: string };
 
 /** Everything that could be shared, apps first (Potty Training at the top, since families ask for it most). */
 export function shareCatalog(healthPeople: { id: string; name: string }[] = []): ShareItem[] {
@@ -64,7 +71,8 @@ export function shareCatalog(healthPeople: { id: string; name: string }[] = []):
     ...LIFE_SHARES.map((s): ShareItem => ({ id: s.id, label: s.label, emoji: s.emoji, kind: "life", editable: false })),
     ...healthPeople.map((p): ShareItem => ({ id: healthShareId(p.id), label: `Food & fitness · ${p.name}`, emoji: "🍎", kind: "life", editable: false })),
   ];
-  return [...apps, ...life];
+  const together: ShareItem = { id: ACCOUNTABILITY_SHARE, label: "Accountability", icon: "BadgeCheck", color: "#0d9488", kind: "together", editable: true, blurb: "Ask each other for things, with reminders and check-offs" };
+  return [together, ...apps, ...life];
 }
 
 const VALID_APP_IDS = () => new Set(liveProApps().map((a) => appShareId(a.id)));
@@ -78,6 +86,7 @@ export function cleanGrants(raw: unknown): Grants {
   for (const [id, v] of Object.entries(raw as Record<string, unknown>).slice(0, 300)) {
     if (v !== "view" && v !== "edit") continue;
     if (apps.has(id)) out[id] = v;
+    else if (id === ACCOUNTABILITY_SHARE) out[id] = "edit";
     else if (LIFE_IDS.has(id) || isHealthShareId(id)) out[id] = "view";
   }
   return out;
@@ -118,3 +127,13 @@ export function accessFor(links: readonly ProfileLink[], viewerId: number, share
 
 /** Does this access allow what's being asked? Edit allows view. */
 export const allows = (have: Access | null, need: Access) => have === "edit" || (have === "view" && need === "view");
+
+/** Everything, at the most each thing allows: every premium app to Edit, every LifeHub page to View. */
+export function fullGrants(healthPeople: { id: string }[] = []): Grants {
+  const out: Grants = {};
+  out[ACCOUNTABILITY_SHARE] = "edit";
+  for (const a of liveProApps()) out[appShareId(a.id)] = "edit";
+  for (const l of LIFE_SHARES) out[l.id] = "view";
+  for (const p of healthPeople) out[healthShareId(p.id)] = "view";
+  return out;
+}

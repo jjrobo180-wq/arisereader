@@ -5,6 +5,7 @@
 import { calendarEvents } from "./hubHidden";
 import { clock12, type Workspace } from "./teacherHub";
 import { HUB_MORNING_WINDOW_MINUTES, cleanHubNotify } from "./hubNotify";
+import { iepReminders } from "./hubIep";
 
 export type HubReminder = { key: string; title: string; body: string; url: string };
 
@@ -89,6 +90,10 @@ export function dueHubReminders(workspace: Workspace, nowMs: number, timeZone: s
         out.push({ key, title: "Today in your Arise WorkHub", body: `${bits.join(", ")}.${next}`, url: HUB_REMINDER_URL });
       }
     }
+  }
+  // IEP: progress checks coming up or missed, and IEP and reevaluation dates getting close (shared/hubIep.ts).
+  if (prefs.morning.on && minutes >= from) {
+    for (const r of iepReminders(workspace, date)) if (!sent[r.key]) out.push({ ...r, url: HUB_REMINDER_URL });
   }
   return out;
 }

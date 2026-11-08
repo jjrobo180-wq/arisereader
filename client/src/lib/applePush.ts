@@ -3,10 +3,10 @@
 // server knows about (a message, something shared with you, a test). The app hands the server its
 // Apple device token once notifications are allowed; tapping a notification opens its page.
 import { apiRequest } from "@/lib/queryClient";
-import { hasNativePlugin, isNativeApp, nativeCall, nativeFlavor, nativeListen } from "@/lib/nativeApp";
+import { hasNativePlugin, isNativeApp, nativeCall, nativeFlavor, nativeListen, notificationHash } from "@/lib/nativeApp";
 
 /** Which app the server sends to (Arise To Duo unless this is the Educator app). */
-const appKey = () => { const f = nativeFlavor(); return f === "educator" || f === "eyegaze" || f === "fit" || f === "trainer" || f === "notes" ? f : undefined; };
+const appKey = () => { const f = nativeFlavor(); return f === "educator" || f === "eyegaze" || f === "fit" || f === "trainer" || f === "notes" || f === "reader" ? f : undefined; };
 
 const PLUGIN = /^pushnotif/i;
 const NAME = "PushNotifications";
@@ -27,8 +27,8 @@ const open = (url: string) => {
   // Arise Notes links to its own page (/notes/#/usage); the Notes iPhone app is that page.
   const notes = /^\/notes\/#(.*)$/.exec(url);
   if (notes && nativeFlavor() === "notes") { window.location.hash = notes[1] || "/"; return; }
-  if (url.startsWith("#")) window.location.hash = url.slice(1);
-  else if (url.startsWith("/")) window.location.hash = url;
+  const hash = notificationHash(url);
+  if (hash !== null) window.location.hash = hash;
 };
 
 /** Signs this iPhone up with the server. Asks iOS first only when `ask` (a person turning notifications on). */

@@ -1,3 +1,4 @@
+import { OPEN_INBOX } from "@/lib/readerNative";
 import { useSavedChoice } from "@/lib/useSavedChoice";
 import { updateReaderWidget } from "@/lib/readerWidget";
 import { isReaderApp } from "@/lib/nativeApp";
@@ -179,7 +180,19 @@ export default function Library() {
   }, [user?.id, user?.displayName, liveTotalPoints, passedCount, userBand]); // eslint-disable-line react-hooks/exhaustive-deps
   const [sortBy, setSortBy] = useSavedChoice<"points" | "popular" | "recent" | "classics" | "new">("library-sort", "points", ["points", "popular", "recent", "classics", "new"]);
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const fetchMessagesRef = useRef<(() => Promise<void>) | null>(null);
   const [showInbox, setShowInbox] = useState(false);
+  // The iPhone app's Messages quick action, or a notification about a message: the inbox opens.
+  useEffect(() => {
+    const open = () => {
+      if (!/[?&]inbox=1\b/.test(window.location.hash)) return;
+      window.history.replaceState(null, "", window.location.hash.replace(/[?&]inbox=1\b/, "") || "#/library");
+      void fetchMessagesRef.current?.(); setShowInbox(true);
+    };
+    open();
+    window.addEventListener(OPEN_INBOX, open);
+    return () => window.removeEventListener(OPEN_INBOX, open);
+  }, []);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
@@ -1163,6 +1176,7 @@ export default function Library() {
       }
     } catch {}
   };
+  fetchMessagesRef.current = fetchMessages;
 
   const fetchUnreadCount = async () => {
     const authToken = token || getTokenFromCookie();

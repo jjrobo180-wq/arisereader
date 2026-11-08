@@ -2,6 +2,7 @@
 // template), import one, and find files again (recent, starred, trash). Files live in the person's
 // account (server/userDocs.ts), so they open on every device. Opening one shows its editor.
 import { Suspense, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import {
   FileText, LayoutGrid, List as ListIcon, MoreVertical, Plus, Presentation, Search, Star, Trash2, Upload, RotateCcw,
 } from "lucide-react";
@@ -43,8 +44,20 @@ export default function OfficeApp({ config, legacy, say }: { config: OfficeKind;
   const [openId, setOpenId] = useState<string | null>(() => { try { return sessionStorage.getItem(`arise-office-open:${config.kind}`); } catch { return null; } });
   const open = (id: string | null) => { setOpenId(id); try { if (id) sessionStorage.setItem(`arise-office-open:${config.kind}`, id); else sessionStorage.removeItem(`arise-office-open:${config.kind}`); } catch { /* fine */ } if (id) window.scrollTo({ top: 0 }); };
   const Editor = config.Editor;
-  if (openId) return <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-sm font-semibold text-slate-500">Opening {config.title}…</div>}><Editor key={openId} id={openId} onBack={() => open(null)} onOpen={(id) => open(id)} /></Suspense>;
+  if (openId) return <FullScreen><Suspense fallback={<div className="flex h-full items-center justify-center text-sm font-semibold text-slate-500">Opening {config.title}…</div>}><Editor key={openId} id={openId} onBack={() => open(null)} onOpen={(id) => open(id)} /></Suspense></FullScreen>;
   return <OfficeHome config={config} legacy={legacy} onOpen={open} say={say} />;
+}
+
+/** An open file takes the whole screen (above the hub's sidebar and tabs), on phones too, in Arise To Duo,
+ *  Arise Notes and Arise Office alike, inside the iPhone's safe areas. The page behind stops scrolling. */
+function FullScreen({ children }: { children: ReactNode }) {
+  useEffect(() => {
+    const b = document.body, prev = b.style.overflow; b.style.overflow = "hidden";
+    return () => { b.style.overflow = prev; };
+  }, []);
+  return createPortal(<div className="fixed inset-0 z-[700] flex flex-col bg-white pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]" data-testid="office-fullscreen">
+    <div className="min-h-0 flex-1">{children}</div>
+  </div>, document.body);
 }
 
 function OfficeHome({ config, legacy, onOpen, say: sayOut }: { config: OfficeKind; legacy?: LegacyFiles; onOpen: (id: string) => void; say?: (m: string) => void }) {

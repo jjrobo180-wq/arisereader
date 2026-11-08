@@ -20,14 +20,14 @@ test("general Arise To Duo accounts: no Arise learning apps, teacher apps groupe
   const v = emptyWorkspace().visibleTabs;
   for (const t of ["overview", "calendar", "tasks", "notes", "goals"] as const) assert.equal(isTabOn(t, v), true, t);
   for (const t of ["caseload", "iep", "minutes", "start"] as const) assert.equal(isTabOn(t, v), false, t);
-  // Para Team isn't pre-installed: it's in the App Gallery.
+  // Para Team isn't pre-installed: it's in the Plugin Gallery.
   assert.ok(work.some((p) => p.id === "work-para-team") && life.some((p) => p.id === "life-para-team"));
   const hub = read("client/src/pages/TeacherHub.tsx");
   assert.match(hub, /\(user\.role === "teacher" \|\| !!user\.isAdmin\) && LEARNING_APPS\.filter/);
   assert.match(hub, /isTabOn\("caseload", visible, !!user\.isAdmin\)\s*\? tile\("Students"/);
 });
 
-test("one app for one job in the App Gallery", () => {
+test("one app for one job in the Plugin Gallery", () => {
   for (const hub of ["life", "work"] as const) {
     const all = pluginsFor(hub, { teacher: true, arise: true });
     const names = new Set(all.map((p) => p.name));
@@ -35,8 +35,9 @@ test("one app for one job in the App Gallery", () => {
     assert.ok(!names.has("Apple Health") && !names.has("Getting started"));
   }
   const life = pluginsFor("life", { teacher: false });
-  assert.ok(life.some((p) => p.name === "Calorie counter" && /Apple Health/.test(p.tagline)));
-  assert.ok(life.some((p) => p.name === "Medications") && life.some((p) => p.name === "Mood tracker"));
+  // The health tools are pages inside one Health Lite plugin now (shared/appBundles.ts).
+  assert.ok(life.some((p) => p.name === "Health Lite"));
+  assert.ok(!life.some((p) => p.name === "Calorie counter" || p.name === "Medications" || p.name === "Mood tracker"));
   assert.match(read("client/src/components/family-hub/Members.tsx"), /health: \{ label: "Calorie counter"/);
 });
 

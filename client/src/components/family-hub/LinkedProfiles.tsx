@@ -3,20 +3,23 @@
 // For each thing: Off, View or Edit. Premium apps (Potty Training…) can be shared to edit; LifeHub
 // pages are view only. The rules and checks are in shared/profileLinks.ts and server/profileLinks.ts.
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Check, ChevronDown, Eye, Loader2, Mail, Pencil, Search, Trash2, UserPlus, Users } from "lucide-react";
+import { Check, ChevronDown, Copy, Eye, Link2, Loader2, Mail, Pencil, Search, Share2, Trash2, UserPlus, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
-import { linksApi, sharedAppHref, type LinksState, type MyLink, type SharedLink } from "@/lib/profileLinks";
+import { joinUrl, linksApi, sharedAppHref, type LinksState, type MyLink, type SharedLink } from "@/lib/profileLinks";
+import { sendLink } from "@/lib/todoShares";
 import { SharedViewBody } from "@/pages/TodoShare";
 import { healthPeople } from "@shared/familyHealth";
-import { shareCatalog, type Access, type Grants, type ShareItem } from "@shared/profileLinks";
-import { Empty, Modal, PageHead, Panel, danger, inputClass, plain, primary, type SectionProps } from "./ui";
+import { ACCOUNTABILITY_SHARE, fullGrants, isJoinLinkEmail, shareCatalog, type Access, type Grants, type ShareItem } from "@shared/profileLinks";
+import type { Family } from "@shared/familyHub";
+import { Empty, Modal, PageHead, Panel, danger, inputClass, plain, primary, stickyFoot, type SectionProps } from "./ui";
 
-const POPULAR = ["app:potty", "app:water", "app:sleep", "app:meds", "app:food", "app:appointments", "app:weight", "app:steps", "app:mood", "app:workouts"];
-const PRESETS: { label: string; blurb: string; grants: Grants }[] = [
-  { label: "Co-parent", blurb: "Logs potty trips, sees the family calendar and to-dos", grants: { "app:potty": "edit", "app:meds": "edit", "app:appointments": "edit", "life:calendar": "view", "life:tasks": "view", "life:chores": "view" } },
-  { label: "Grandparent", blurb: "Sees how potty training and the week are going", grants: { "app:potty": "view", "life:calendar": "view", "life:goals": "view" } },
-  { label: "Sitter or daycare", blurb: "Logs potty trips while the child is with them", grants: { "app:potty": "edit", "life:calendar": "view" } },
+const POPULAR = [ACCOUNTABILITY_SHARE, "app:potty", "app:water", "app:sleep", "app:meds", "app:food", "app:appointments", "app:weight", "app:steps", "app:mood", "app:workouts"];
+const PRESETS: { label: string; blurb: string; grants: (people: { id: string }[]) => Grants }[] = [
+  { label: "Partner or spouse", blurb: "Everything: Accountability together, every app and page", grants: (people) => fullGrants(people) },
+  { label: "Co-parent", blurb: "Logs potty trips, sees the family calendar and to-dos", grants: () => ({ [ACCOUNTABILITY_SHARE]: "edit", "app:potty": "edit", "app:meds": "edit", "app:appointments": "edit", "life:calendar": "view", "life:tasks": "view", "life:chores": "view" }) },
+  { label: "Grandparent", blurb: "Sees how potty training and the week are going", grants: () => ({ "app:potty": "view", "life:calendar": "view", "life:goals": "view" }) },
+  { label: "Sitter or daycare", blurb: "Logs potty trips while the child is with them", grants: () => ({ "app:potty": "edit", "life:calendar": "view" }) },
 ];
 const count = (g: Grants) => Object.keys(g).length;
 
@@ -67,14 +70,12 @@ export default function LinkedProfiles({ family, say }: SectionProps) {
       <Panel title={`I share with · ${state.mine.length}`}>
         {state.mine.length ? <ul className="space-y-3">{state.mine.map((l) => <MySharing key={l.id} link={l} catalog={catalog}
           onSave={async (patch) => { try { const next = await api.update(l.id, patch); setState((s) => s && { ...s, mine: s.mine.map((x) => (x.id === l.id ? { ...x, ...next } : x)) }); } catch (e: any) { say(e.message); } }}
-          onRemove={() => { if (window.confirm(`Stop sharing with ${l.nickname || l.viewerName || l.email}? They'll lose access right away.`)) void act(() => api.remove(l.id), "Sharing stopped"); }} />)}</ul>
+          onRemove={() => { if (window.confirm(`Stop sharing with ${l.nickname || l.viewerName || (isJoinLinkEmail(l.email) ? "this person" : l.email)}? They'll lose access right away.`)) void act(() => api.remove(l.id), "Sharing stopped"); }} />)}</ul>
           : <Empty icon={<UserPlus />} title="You're not sharing with anyone">Tap “Link someone” to share Potty Training, the calendar and more.</Empty>}
       </Panel>
     </>}
 
-    {inviting && <InviteModal catalog={catalog} onClose={() => setInviting(false)} onInvite={async (email, nickname, grants) => {
-      try { await api.invite(email, nickname, grants); setInviting(false); say(`Invite sent. When ${nickname || email} signs in to A.R.I.S.E., they'll see it to accept.`); await load(); } catch (e: any) { say(e.message); throw e; }
-    }} />}
+    {inviting && <LinkSomeoneModal family={family} say={say} onClose={() => setInviting(false)} onDone={() => void load()} />}
     {asking && <AskModal catalog={catalog} onClose={() => setAsking(false)} onAsk={async (email, nickname, grants) => {
       try { await api.ask(email, nickname, grants); setAsking(false); say(`Request sent. When ${nickname || email} opens A.R.I.S.E., they can tap Share.`); } catch (e: any) { say(e.message); throw e; }
     }} />}
@@ -104,6 +105,7 @@ function SharedWithMe({ link, catalog, onOpenLife, onLeave }: { link: SharedLink
     {items.length ? <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{items.map((item) => {
       const access = link.grants[item.id];
       const badge = <span className={`ml-auto inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${access === "edit" ? "bg-emerald-100 text-emerald-800" : "bg-sky-100 text-sky-800"}`}>{access === "edit" ? <><Pencil size={11} /> Edit</> : <><Eye size={11} /> View</>}</span>;
+      if (item.kind === "together") return <a key={item.id} href="#/lifehub?go=accountability" className="flex min-h-14 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 hover:bg-slate-50" data-testid={`shared-open-${item.id}`}><ItemIcon item={item} /><span className="min-w-0 truncate text-sm font-bold">{item.label}</span><span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-teal-100 px-2 py-0.5 text-[11px] font-bold text-teal-800"><Users size={11} /> Together</span></a>;
       return item.kind === "app"
         ? <a key={item.id} href={sharedAppHref(item.id.slice(4), link.ownerId)} className="flex min-h-14 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 hover:bg-slate-50" data-testid={`shared-open-${item.id}`}><ItemIcon item={item} /><span className="min-w-0 truncate text-sm font-bold">{item.label}</span>{badge}</a>
         : <button key={item.id} type="button" onClick={() => onOpenLife(item)} className="flex min-h-14 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 text-left hover:bg-slate-50"><ItemIcon item={item} /><span className="min-w-0 truncate text-sm font-bold">{item.label}</span>{badge}</button>;
@@ -116,7 +118,7 @@ function GrantPicker({ grants, setGrants, catalog }: { grants: Grants; setGrants
   const [query, setQuery] = useState("");
   const [all, setAll] = useState(false);
   const q = query.trim().toLowerCase();
-  const apps = catalog.filter((c) => c.kind === "app");
+  const apps = catalog.filter((c) => c.kind === "app" || c.kind === "together");
   const life = catalog.filter((c) => c.kind === "life");
   const shownApps = q ? apps.filter((a) => a.label.toLowerCase().includes(q)) : all ? apps : apps.filter((a) => POPULAR.includes(a.id) || grants[a.id]).sort((a, b) => POPULAR.indexOf(a.id) - POPULAR.indexOf(b.id));
   const set = (id: string, v: Access | null) => { const next = { ...grants }; if (v) next[id] = v; else delete next[id]; setGrants(next); };
@@ -126,8 +128,8 @@ function GrantPicker({ grants, setGrants, catalog }: { grants: Grants; setGrants
       className={`min-h-9 rounded-lg px-2.5 text-xs font-bold transition ${v === val ? (val === "edit" ? "bg-emerald-600 text-white" : val === "view" ? "bg-sky-600 text-white" : "bg-slate-700 text-white") : "text-slate-500 hover:bg-white"}`}>{label}</button>;
     return <li key={item.id} className="flex items-center gap-3 py-2" data-testid={`grant-${item.id}`}>
       <ItemIcon item={item} />
-      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-800">{item.label}</span>
-      <span className="flex shrink-0 gap-0.5 rounded-xl bg-slate-100 p-0.5">{opt(null, "Off")}{opt("view", "View")}{item.editable && opt("edit", "Edit")}</span>
+      <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-slate-800">{item.label}</span>{item.blurb && <span className="block truncate text-xs text-slate-500">{item.blurb}</span>}</span>
+      <span className="flex shrink-0 gap-0.5 rounded-xl bg-slate-100 p-0.5">{item.kind === "together" ? <>{opt(null, "Off")}{opt("edit", "Together")}</> : <>{opt(null, "Off")}{opt("view", "View")}{item.editable && opt("edit", "Edit")}</>}</span>
     </li>;
   };
   return <div className="space-y-4">
@@ -153,12 +155,12 @@ function MySharing({ link, catalog, onSave, onRemove }: { link: MyLink; catalog:
   useEffect(() => setGrantsState(link.grants), [link.grants]);
   // Each change saves by itself a moment later, so toggling several things is one save.
   const setGrants = (g: Grants) => { setGrantsState(g); window.clearTimeout(timer.current); setSaving(true); timer.current = window.setTimeout(() => { void onSave({ grants: g }).finally(() => setSaving(false)); }, 600); };
-  const who = link.nickname || link.viewerName || link.email;
+  const who = link.nickname || link.viewerName || (isJoinLinkEmail(link.email) ? "Shared link" : link.email);
   return <li className="rounded-2xl border border-slate-200" data-testid={`my-link-${link.id}`}>
     <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-center gap-3 p-4 text-left">
       <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 font-black text-slate-600">{who.charAt(0).toUpperCase()}</span>
       <span className="min-w-0 flex-1"><span className="block truncate font-black text-slate-900">{who}</span>
-        <span className="block truncate text-xs text-slate-500">{link.status === "pending" ? `Invite sent to ${link.email} · waiting for them to accept` : `${link.viewerName || link.email} · linked`} · {count(grants)} shared</span></span>
+        <span className="block truncate text-xs text-slate-500">{link.status === "pending" ? (isJoinLinkEmail(link.email) ? "Link not opened yet · waiting for them to join" : `Invite sent to ${link.email} · waiting for them to accept`) : `${link.viewerName || link.email} · linked`} · {count(grants)} shared</span></span>
       {saving ? <Loader2 size={16} className="animate-spin text-slate-400" /> : <ChevronDown size={18} className={`text-slate-400 transition ${open ? "rotate-180" : ""}`} />}
     </button>
     {open && <div className="border-t border-slate-100 p-4">
@@ -168,35 +170,68 @@ function MySharing({ link, catalog, onSave, onRemove }: { link: MyLink; catalog:
   </li>;
 }
 
-function InviteModal({ catalog, onClose, onInvite }: { catalog: ShareItem[]; onClose: () => void; onInvite: (email: string, nickname: string, grants: Grants) => Promise<void> }) {
+/** The one "Link someone" screen, used everywhere in Arise To Duo (Linked profiles, Accountability's Invite,
+ *  Family members' Share): send an invite to their email, or make a link to send them; pick what's shared. */
+export function LinkSomeoneModal({ family, onClose, onDone, say, initialGrants, initialName = "", initialHow = "email", title = "Link someone" }: { family: Family; onClose: () => void; onDone?: () => void; say: (m: string) => void; initialGrants?: Grants; initialName?: string; initialHow?: "email" | "link"; title?: string }) {
+  const { token, user } = useAuth();
+  const api = useMemo(() => linksApi(token), [token]);
+  const people = useMemo(() => healthPeople(family, user?.displayName?.split(" ")[0] || "Me").map((m) => ({ id: m.id, name: m.name })), [family, user?.displayName]);
+  const catalog = useMemo(() => shareCatalog(people), [people]);
+  const [how, setHow] = useState<"email" | "link">(initialHow);
   const [email, setEmail] = useState("");
-  const [nickname, setNickname] = useState("");
-  const [grants, setGrants] = useState<Grants>({ "app:potty": "edit" });
+  const [nickname, setNickname] = useState(initialName);
+  const [grants, setGrants] = useState<Grants>(initialGrants ?? { [ACCOUNTABILITY_SHARE]: "edit", "app:potty": "edit" });
   const [busy, setBusy] = useState(false);
+  const [url, setUrl] = useState("");
+  const [copied, setCopied] = useState(false);
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || busy) return;
+    if (busy || !count(grants)) return;
+    if (how === "email" && !email.trim()) return;
     setBusy(true);
-    try { await onInvite(email.trim(), nickname.trim(), grants); } catch { /* the message is shown */ } finally { setBusy(false); }
+    try {
+      if (how === "email") {
+        await api.invite(email.trim(), nickname.trim(), grants);
+        say(`Invite sent. ${nickname.trim() || email.trim()} sees it after signing in.`); onDone?.(); onClose();
+      } else {
+        const r = await api.makeLink(nickname.trim(), grants);
+        setUrl(joinUrl(r.token)); onDone?.();
+      }
+    } catch (err: any) { say(err?.message || "That didn't work. Try again."); } finally { setBusy(false); }
   };
-  return <Modal title="Link someone" eyebrow="Linked profiles" onClose={onClose} wide>
-    <form onSubmit={submit} className="space-y-5" data-testid="link-invite-form">
+  const send = async () => {
+    const r = await sendLink(url, "Join me on Arise To Duo");
+    if (r === "cancelled") return;
+    setCopied(true); window.setTimeout(() => setCopied(false), 2500);
+    say(r === "copied" ? "Link copied. Send it to them." : "Link ready.");
+  };
+  const tab = (v: "email" | "link", label: string, Icon: typeof Mail) => <button type="button" onClick={() => { setHow(v); setUrl(""); }} aria-pressed={how === v} className={`inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg text-sm font-bold ${how === v ? "bg-white text-violet-700 shadow-sm" : "text-slate-500"}`} data-testid={`link-how-${v}`}><Icon size={15} />{label}</button>;
+  return <Modal title={title} eyebrow="Linked profiles" onClose={onClose} wide>
+    {url ? <div className="space-y-4 text-center" data-testid="link-made">
+      <span className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-100 text-violet-700"><Link2 size={26} /></span>
+      <p className="text-sm text-slate-600">Send this to {nickname.trim() || "them"}. When they open it and sign in (or make an account), you're linked with what you picked. It works once.</p>
+      <p className="break-all rounded-xl bg-slate-50 px-3 py-2.5 font-mono text-xs text-slate-700">{url}</p>
+      <button type="button" onClick={() => void send()} className={primary + " min-h-12 w-full"} data-testid="link-made-send">{copied ? <><Check size={17} /> Sent</> : <><Share2 size={17} /> Send the link</>}</button>
+      <button type="button" onClick={() => { void navigator.clipboard?.writeText(url).then(() => say("Link copied")); }} className={plain + " w-full"}><Copy size={15} /> Copy</button>
+      <button type="button" onClick={onClose} className={plain + " w-full"}>Done</button>
+    </div> : <form onSubmit={submit} className="space-y-5" data-testid="link-invite-form">
+      <div className="flex gap-1 rounded-xl bg-slate-100 p-1">{tab("email", "Their email", Mail)}{tab("link", "Send a link", Link2)}</div>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <input autoFocus type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Their email" aria-label="Their email" className={inputClass} autoCapitalize="none" required />
-        <input value={nickname} onChange={(e) => setNickname(e.target.value)} maxLength={40} placeholder="Who is this? (Grandma, Mike…)" aria-label="Name" className={inputClass} />
+        {how === "email" && <input autoFocus type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Their email" aria-label="Their email" className={inputClass} autoCapitalize="none" required />}
+        <input value={nickname} onChange={(e) => setNickname(e.target.value)} maxLength={40} placeholder="Who is this? (Wife, Grandma, Mike…)" aria-label="Name" className={inputClass + (how === "link" ? " sm:col-span-2" : "")} />
       </div>
-      <p className="-mt-3 text-xs text-slate-500">They'll need an A.R.I.S.E. account with this email. They see your invite after they sign in, and nothing is shared until they accept.</p>
+      <p className="-mt-3 text-xs text-slate-500">{how === "email" ? "They'll need an A.R.I.S.E. account with this email. They see your invite after they sign in, and nothing is shared until they accept." : "You'll get a link to text or email them. They open it and sign in (or make an account) to link."}</p>
       <div>
         <p className="mb-2 text-xs font-bold text-slate-500">Quick start</p>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">{PRESETS.map((p) => <button key={p.label} type="button" onClick={() => setGrants(p.grants)} className="rounded-xl border border-slate-200 p-3 text-left hover:border-violet-300 hover:bg-violet-50/50">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{PRESETS.map((p) => <button key={p.label} type="button" onClick={() => setGrants(p.grants(people))} className="rounded-xl border border-slate-200 p-3 text-left hover:border-violet-300 hover:bg-violet-50/50" data-testid={`link-preset-${p.label.split(" ")[0].toLowerCase()}`}>
           <span className="block text-sm font-black text-slate-900">{p.label}</span><span className="mt-0.5 block text-xs text-slate-500">{p.blurb}</span></button>)}</div>
       </div>
       <GrantPicker grants={grants} setGrants={setGrants} catalog={catalog} />
-      <div className="sticky bottom-0 flex gap-2 border-t border-slate-100 bg-white pt-4">
-        <button type="submit" disabled={!email.trim() || busy} className={primary + " min-h-12 flex-1"} data-testid="link-invite-send">{busy ? <Loader2 size={17} className="animate-spin" /> : <UserPlus size={17} />} Send invite · {count(grants)} shared</button>
+      <div className={stickyFoot}>
+        <button type="submit" disabled={busy || !count(grants) || (how === "email" && !email.trim())} className={primary + " min-h-12 flex-1"} data-testid="link-invite-send">{busy ? <Loader2 size={17} className="animate-spin" /> : how === "email" ? <UserPlus size={17} /> : <Link2 size={17} />} {how === "email" ? "Send invite" : "Make the link"} · {count(grants)} shared</button>
         <button type="button" onClick={onClose} className={plain}>Cancel</button>
       </div>
-    </form>
+    </form>}
   </Modal>;
 }
 
@@ -220,7 +255,7 @@ function AskModal({ catalog, onClose, onAsk }: { catalog: ShareItem[]; onClose: 
         <input value={nickname} onChange={(e) => setNickname(e.target.value)} maxLength={40} placeholder="Your name for them (optional)" aria-label="Name" className={inputClass} />
       </div>
       <GrantPicker grants={grants} setGrants={setGrants} catalog={catalog} />
-      <div className="sticky bottom-0 flex gap-2 border-t border-slate-100 bg-white pt-4">
+      <div className={stickyFoot}>
         <button type="submit" disabled={!email.trim() || !count(grants) || busy} className={primary + " min-h-12 flex-1"} data-testid="link-ask-send">{busy ? <Loader2 size={17} className="animate-spin" /> : <Eye size={17} />} Send request</button>
         <button type="button" onClick={onClose} className={plain}>Cancel</button>
       </div>

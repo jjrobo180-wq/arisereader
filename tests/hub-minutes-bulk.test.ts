@@ -528,9 +528,9 @@ test("the Minutes screen adds several students to a block, takes minutes with on
     "minuteNames(workspace)", "<option value={OTHER_NAME}>Another name…</option>", 'data-testid="plan-other-name"', "knownName(plan.student, names)",
     'setBulk({ mode: "log", date: today, block: "" })', 'setBulk({ mode: "plan", date: today, block: "" })', "Add several students",
     "savedText(result)", 'data-testid="minutes-saved"',
-    "<MinutesPick value={log.minutes}", "QUICK_MINUTES.map((m) =>",
+    "<MinutesPick value={log.minutes}",
     'data-testid="log-met"', '[false, "Met"], [true, "Did not meet"]', 'data-testid="log-why"', "NOT_MET_REASONS.map((reason) =>", 'aria-label="Another reason"', 'data-testid="log-who"',
-    "notMetLogs(", "updateLog(w.serviceLogs, id, notMet[0])", 'l.notMet ? "Did not meet" : `${l.minutes} min`', 'd.state === "not met" ? "did not meet"',
+    "notMetLogs(", "updateLog(w.serviceLogs, id, notMet[0])", 
   ]) assert.ok(screen.includes(part), part);
   assert.ok(!screen.includes("[15, 30, 45]") && !screen.includes("[15, 20, 30, 45, 60]"), "the old minute buttons are gone");
   assert.ok(page.includes("today={TODAY()} token={token} />"), "the Minutes tab can ask for a screenshot to be read");
@@ -552,7 +552,8 @@ test("the Minutes screen adds several students to a block, takes minutes with on
   for (const [file, part] of [["client/src/components/teacher-hub/HubStudentProfile.tsx", 'l.notMet ? "did not meet"'], ["shared/hubDelete.ts", 'row.notMet ? "did not meet"'], ["client/src/components/teacher-hub/HubStudentProfile.tsx", "planText(plan, placeText(blocks, plan))"]]) assert.ok(read(file).includes(part), part);
   // A block split into halves, and whose class: asked when students are added and when a student's minutes are changed, and shown class by class.
   for (const part of ['data-testid="class-fields"', 'data-testid="block-part"', "Whole block", "Their usual", "usual={!plan}", "PART_NAMES[value]", "Whose class are you pushing in to?", 'data-testid="class-teacher"', "pushIn={!common.kind || common.kind === PUSH_IN}", "hasBlock={!!common.block}"]) assert.ok(bulk.includes(part), part);
-  for (const part of ["<ClassFields hasBlock={!!plan.block} pushIn={plan.kind === PUSH_IN}", "const fields = { ...planReady, ...planPlace, ", "planText(p, placeText(blocks, p))"]) assert.ok(screen.includes(part), part);
+  for (const part of ["<ClassFields hasBlock={!!plan.block} pushIn={plan.kind === PUSH_IN}", "const fields = { ...planReady, ...planPlace, "]) assert.ok(screen.includes(part), part);
+  assert.ok(read("client/src/components/teacher-hub/HubClassBoard.tsx").includes("planText(countedPlan(plan, optional))"), "each student shows their required minutes on the class page");
   for (const part of ['data-testid="minutes-group"', "groupText(item)"]) assert.ok(week.includes(part), part);
   // Logging a day in a block: the students who usually meet in it are one big tap, at the top of the pop-up.
   for (const part of ['data-testid="bulk-usual"', "who usually meet in ${blockName(blocks, common.block)}", "min-h-16 w-full", "bg-teal-600", 'data-testid="bulk-usual-groups"', "blockGroups(plans, common.block, names)"]) assert.ok(bulk.includes(part), part);

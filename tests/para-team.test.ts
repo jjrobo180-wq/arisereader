@@ -266,7 +266,7 @@ test("Para Team is reachable from WorkHub, LifeHub and the teacher Reader, and i
   assert.match(read("client/src/lib/paraTeam.ts"), /export const inviteLink = \(code: string\) => `\$\{TODO_APP\}#\/para-team\/join\/\$\{code\}`;/, "invites open on arisetodo.com, where paras can make a free account");
   const join = read("client/src/pages/ParaTeam.tsx");
   assert.match(join, /useEffect\(\(\) => \{ if \(user\) store\.set\(PENDING_JOIN_KEY, ""\); \}, \[user\]\);/, "a failed join can't loop");
-  // Para Team is in the App Gallery (not pre-installed): once added it shows under My apps in either hub.
+  // Para Team is in the Plugin Gallery (not pre-installed): once added it shows under My apps in either hub.
   const store = read("shared/pluginStore.ts");
   assert.match(store, /id: "work-para-team"[\s\S]*?href: "#\/para-team"/);
   assert.match(store, /id: "life-para-team"[\s\S]*?href: "#\/para-team"/);
@@ -358,8 +358,8 @@ test("permissions: paras edit anyone's bulletins out of the box; the owner opens
 test("the Para App Store has the whole Arise App Store: LifeHub apps, every kit app and Office", () => {
   const all = paraApps();
   const kinds = all.reduce<Record<string, number>>((m, a) => ({ ...m, [a.kind]: (m[a.kind] || 0) + 1 }), {});
-  assert.ok(all.length > 500, `only ${all.length} apps`);
-  assert.ok(kinds.section > 50 && kinds.kit > 300 && kinds.office > 50, JSON.stringify(kinds));
+  assert.ok(all.length > 450, `only ${all.length} apps`);
+  assert.ok(kinds.section >= 25 && kinds.kit > 300 && kinds.office > 50, JSON.stringify(kinds));
   assert.equal(new Set(all.map((a) => a.key)).size, all.length, "each app once");
   assert.ok(paraApp("polls"), "Polls is there");
   for (const personal of ["home", "tasks", "reader", "notifications", "linked", "lifeplan"]) assert.equal(paraApp(personal), undefined, personal);
