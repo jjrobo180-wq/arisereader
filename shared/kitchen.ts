@@ -15,7 +15,18 @@ export const WEEK = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 export type KDay = (typeof WEEK)[number];
 export const DAY_LABEL: Record<KDay, string> = { mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday", sun: "Sunday" };
 export const DAY_SHORT: Record<KDay, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
-export const cell = (day: KDay, slot: KSlot) => `${day}:${slot}`;
+export const MAX_WEEKS = 4;
+/** One meal of one day. The first week keeps the short key ("mon:dinner"); later weeks add the week number ("mon:dinner:1"),
+ *  so a plan saved before multi-week plans existed reads exactly as it did. */
+export const cell = (day: KDay, slot: KSlot, wk = 0) => (wk ? `${day}:${slot}:${wk}` : `${day}:${slot}`);
+export const parseCell = (key: string): { day: KDay; slot: KSlot; wk: number } => { const [day, slot, wk] = key.split(":"); return { day: day as KDay, slot: slot as KSlot, wk: Number(wk) || 0 }; };
+// Dates are plain "YYYY-MM-DD" text and the arithmetic is UTC at noon, so the same plan reads the same everywhere.
+const isoOf = (d: Date) => d.toISOString().slice(0, 10);
+export const addDays = (date: string, n: number) => { const d = new Date(`${date}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return isoOf(d); };
+export const mondayOf = (date: string) => addDays(date, -((new Date(`${date}T12:00:00Z`).getUTCDay() + 6) % 7));
+export const dateOf = (start: string, wk: number, day: KDay) => addDays(start, wk * 7 + WEEK.indexOf(day));
+/** How long a plan can be, and what it's called. A month is four weeks. */
+export const PLAN_LENGTHS: { weeks: number; label: string; this: string }[] = [{ weeks: 1, label: "1 week", this: "This week" }, { weeks: 2, label: "2 weeks", this: "These 2 weeks" }, { weeks: 4, label: "Month", this: "This month" }];
 /** A meal a person is skipping: it counts as planned, uses no ingredients and buys nothing. */
 export const SKIP = "skip";
 
@@ -45,10 +56,19 @@ export type Kitchen = {
   stock: Record<string, number>;
   /** Inventory: the least you like to keep on hand. The list tops you back up to it, meal or no meal. */
   keep: Record<string, number>;
+  /** How many weeks the plan covers: 1, 2 or 4 (a month). Meals in weeks past this are kept, just hidden. */
+  weeks: number;
+  /** The Monday the plan starts on (YYYY-MM-DD). Empty: the current week. */
+  start: string;
   store: { id: string; name: string; zip: string } | null;
 };
+export const nWeeks = (k: Kitchen) => (k.weeks === 2 || k.weeks === 4 ? k.weeks : 1);
+export const planStart = (k: Kitchen, today: string) => k.start || mondayOf(today);
+const activeKeys = (k: Kitchen) => Object.keys(k.week).filter((key) => parseCell(key).wk < nWeeks(k));
+/** Meals sitting in weeks the plan is currently too short to show. */
+export const hiddenMeals = (k: Kitchen) => Object.entries(k.week).reduce((a, [key, ms]) => a + (parseCell(key).wk >= nWeeks(k) ? ms.length : 0), 0);
 
-export const emptyKitchen = (): Kitchen => ({ setup: false, people: [], week: {}, choice: {}, prices: {}, products: [], own: [], edits: {}, servings: {}, have: {}, stock: {}, keep: {}, store: null });
+export const emptyKitchen = (): Kitchen => ({ setup: false, people: [], week: {}, choice: {}, prices: {}, products: [], own: [], edits: {}, servings: {}, have: {}, stock: {}, keep: {}, weeks: 1, start: "", store: null });
 
 // ── Reading a saved plan safely ────────────────────────────────────────────────────────────────────────────────
 const o = (v: unknown): Record<string, any> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, any>) : {});
@@ -75,8 +95,8 @@ export function cleanKitchen(raw: unknown): Kitchen {
   }).filter(Boolean) as KDish[];
   const dishIds = new Set([...K_DISHES.map((d) => d.id), ...own.map((d) => d.id), SKIP]);
   const week: Record<string, KMeal[]> = {};
-  for (const day of WEEK) for (const sl of K_SLOTS) {
-    const key = cell(day, sl.id);
+  for (let wk = 0; wk < MAX_WEEKS; wk++) for (const day of WEEK) for (const sl of K_SLOTS) {
+    const key = cell(day, sl.id, wk);
     const meals = (Array.isArray(o(r.week)[key]) ? o(r.week)[key] : []).slice(0, 8).map((m: unknown) => ({ id: s(o(m).id, 60), dish: s(o(m).dish, 80), people: [...new Set((Array.isArray(o(m).people) ? o(m).people : []).slice(0, 12).map((x: unknown) => s(x, 60)).filter(Boolean).map((x: string) => sameAs.get(x) ?? x))] as string[] })).filter((m: KMeal) => m.id && dishIds.has(m.dish));
     if (meals.length) week[key] = meals;
   }
@@ -93,7 +113,7 @@ export function cleanKitchen(raw: unknown): Kitchen {
   const amounts = (v: unknown) => Object.fromEntries(Object.entries(o(v)).filter(([g, x]) => GROUP_BY_ID.has(g) && typeof x === "number" && Number.isFinite(x) && x >= 0).slice(0, 400).map(([g, x]) => [g, Math.round(Math.min(100000, x as number) * 100) / 100])) as Record<string, number>;
   const stock = amounts(r.stock), keep = Object.fromEntries(Object.entries(amounts(r.keep)).filter(([, x]) => x > 0));
   const st = o(r.store);
-  return { setup: r.setup === true, people, week, choice, prices, products, own, edits, servings, have, stock, keep, store: s(st.id, 40) ? { id: s(st.id, 40), name: s(st.name, 80), zip: s(st.zip, 10) } : null };
+  return { setup: r.setup === true, people, week, choice, prices, products, own, edits, servings, have, stock, keep, weeks: [1, 2, 4].includes(Number(r.weeks)) ? Number(r.weeks) : 1, start: typeof r.start === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.start) && !Number.isNaN(Date.parse(`${r.start}T12:00:00Z`)) ? mondayOf(r.start) : "", store: s(st.id, 40) ? { id: s(st.id, 40), name: s(st.name, 80), zip: s(st.zip, 10) } : null };
 }
 
 // ── Looking things up ──────────────────────────────────────────────────────────────────────────────────────────
@@ -147,18 +167,18 @@ export const amountFor = (k: Kitchen, person: KPerson, dish: KDish, part: KPart)
 export const unitPrice = (p: KProduct) => (p.size > 0 ? p.price / p.size : Infinity);
 
 // ── The shopping math ──────────────────────────────────────────────────────────────────────────────────────────
-export type KUse = { key: string; day: KDay; slot: KSlot; dish: KDish; person: KPerson; amount: number };
+export type KUse = { key: string; day: KDay; slot: KSlot; wk: number; dish: KDish; person: KPerson; amount: number };
 /** need: what the week's meals use. onHand/keep: from the inventory. short: what's missing, so what gets bought. */
 export type KLine = { group: KGroup; product: KProduct; buy: KBuy[]; need: number; onHand: number; keep: number; short: number; tracked: boolean; packs: number; got: number; cost: number; left: number; uses: KUse[]; have: boolean };
 const r2 = (x: number) => Math.round(x * 100) / 100;
 
 export function uses(k: Kitchen): KUse[] {
   const out: KUse[] = [];
-  for (const day of WEEK) for (const sl of K_SLOTS) for (const m of k.week[cell(day, sl.id)] ?? []) {
+  for (let wk = 0; wk < nWeeks(k); wk++) for (const day of WEEK) for (const sl of K_SLOTS) for (const m of k.week[cell(day, sl.id, wk)] ?? []) {
     const dish = dishOf(k, m.dish); if (!dish || takeoutOf(k, dish.id)) continue;
     for (const person of peopleIn(k, m)) for (const part of partsOf(k, dish)) {
       const amount = amountFor(k, person, dish, part);
-      if (amount > 0) out.push({ key: part.group, day, slot: sl.id, dish, person, amount });
+      if (amount > 0) out.push({ key: part.group, day, slot: sl.id, wk, dish, person, amount });
     }
   }
   return out;
@@ -191,7 +211,7 @@ export function shoppingLines(k: Kitchen): KLine[] {
 export type KTakeout = { dish: KDish; place: string; perPerson: number; servings: number; cost: number };
 export function takeoutLines(k: Kitchen): KTakeout[] {
   const by = new Map<string, KTakeout>();
-  for (const key of Object.keys(k.week)) for (const m of k.week[key]) {
+  for (const key of activeKeys(k)) for (const m of k.week[key]) {
     const dish = dishOf(k, m.dish); const t = dish && takeoutOf(k, dish.id); if (!dish || !t) continue;
     const people = peopleIn(k, m).length;
     const cur = by.get(dish.id) ?? { dish, place: t.place, perPerson: t.perPerson, servings: 0, cost: 0 };
@@ -206,7 +226,7 @@ export function totals(k: Kitchen) {
   const groceries = r2(lines.reduce((a, l) => a + l.cost, 0)), takeout = r2(take.reduce((a, t) => a + t.cost, 0));
   const share: Record<string, number> = Object.fromEntries(k.people.map((p) => [p.id, 0]));
   for (const l of lines) { if (!l.need) continue; for (const u of l.uses) share[u.person.id] = (share[u.person.id] ?? 0) + (l.cost * u.amount) / l.need; }
-  for (const key of Object.keys(k.week)) for (const m of k.week[key]) { const t = takeoutOf(k, m.dish); if (t) for (const p of peopleIn(k, m)) share[p.id] = (share[p.id] ?? 0) + t.perPerson; }
+  for (const key of activeKeys(k)) for (const m of k.week[key]) { const t = takeoutOf(k, m.dish); if (t) for (const p of peopleIn(k, m)) share[p.id] = (share[p.id] ?? 0) + t.perPerson; }
   for (const id of Object.keys(share)) share[id] = r2(share[id]);
   return { groceries, takeout, total: r2(groceries + takeout), share, lines, take };
 }
@@ -275,8 +295,8 @@ export function tips(k: Kitchen): KTip[] {
 }
 
 // ── Changing the plan ──────────────────────────────────────────────────────────────────────────────────────────
-export function addMeal(k: Kitchen, day: KDay, slot: KSlot, dish: string, people: string[], id: string): Kitchen {
-  const key = cell(day, slot);
+export function addMeal(k: Kitchen, day: KDay, slot: KSlot, dish: string, people: string[], id: string, wk = 0): Kitchen {
+  const key = cell(day, slot, wk);
   return { ...k, week: { ...k.week, [key]: [...(k.week[key] ?? []), { id, dish, people }] } };
 }
 export function removeMeal(k: Kitchen, key: string, mealId: string): Kitchen {
@@ -293,12 +313,23 @@ export function deleteOwnDish(k: Kitchen, dishId: string): Kitchen {
 }
 // ── Fixing a plan in one go ────────────────────────────────────────────────────────────────────────────────────
 /** Which meals: some days and/or some meal types. Leave either out for all of them. */
-export type KScope = { days?: readonly KDay[]; slots?: readonly KSlot[] };
-const inScope = (key: string, sc: KScope) => { const [d, sl] = key.split(":") as [KDay, KSlot]; return (!sc.days || sc.days.includes(d)) && (!sc.slots || sc.slots.includes(sl)); };
-export const countMeals = (k: Kitchen, sc: KScope = {}) => Object.entries(k.week).reduce((a, [key, ms]) => a + (inScope(key, sc) ? ms.length : 0), 0);
-/** Bulk delete: take every meal in the scope off the plan (the whole week when the scope is empty). */
+export type KScope = { days?: readonly KDay[]; slots?: readonly KSlot[]; /** Which weeks (0 is the first). */ wks?: readonly number[] };
+/** Only weeks the plan covers (n) are ever in scope, so hidden weeks are left alone. */
+const inScope = (key: string, sc: KScope, n = MAX_WEEKS) => { const { day, slot, wk } = parseCell(key); return wk < n && (!sc.days || sc.days.includes(day)) && (!sc.slots || sc.slots.includes(slot)) && (!sc.wks || sc.wks.includes(wk)); };
+export const countMeals = (k: Kitchen, sc: KScope = {}) => Object.entries(k.week).reduce((a, [key, ms]) => a + (inScope(key, sc, nWeeks(k)) ? ms.length : 0), 0);
+/** Bulk delete: take every meal in the scope off the plan (the whole plan when the scope is empty). */
 export function clearMeals(k: Kitchen, sc: KScope = {}): Kitchen {
-  return { ...k, week: Object.fromEntries(Object.entries(k.week).filter(([key]) => !inScope(key, sc))) };
+  return { ...k, week: Object.fromEntries(Object.entries(k.week).filter(([key]) => !inScope(key, sc, nWeeks(k)))) };
+}
+/** Move a meal to another day (it stays the same meal of the day), or copy it. The same food already there for the same
+ *  people just merges, so a drop can't double anything. */
+export function moveMeal(k: Kitchen, fromKey: string, mealId: string, toKey: string, copy: boolean, newId: string): Kitchen {
+  const m = (k.week[fromKey] ?? []).find((x) => x.id === mealId);
+  if (!m || fromKey === toKey) return k;
+  const week = { ...k.week };
+  if (!copy) { const rest = (week[fromKey] ?? []).filter((x) => x.id !== mealId); if (rest.length) week[fromKey] = rest; else delete week[fromKey]; }
+  week[toKey] = planDish(week[toKey] ?? [], m.dish, m.people, k.people.map((p) => p.id), newId);
+  return { ...k, week };
 }
 const sameMeal = (a: KMeal, b: KMeal) => a.dish === b.dish && [...a.people].sort().join() === [...b.people].sort().join();
 /** The same dish for the same people twice in one meal (added more than once by mistake). */
@@ -348,24 +379,24 @@ export function planDish(list: KMeal[], dish: string, people: readonly string[],
   return addDish(out, dish, people, all, id);
 }
 /** Meals that are real food (skipped meals left out). */
-export const foodCount = (week: Record<string, KMeal[]>) => Object.values(week).reduce((a, ms) => a + ms.filter((m) => m.dish !== SKIP).length, 0);
+export const foodCount = (week: Record<string, KMeal[]>, weeks = MAX_WEEKS) => Object.entries(week).reduce((a, [key, ms]) => a + (parseCell(key).wk < weeks ? ms.filter((m) => m.dish !== SKIP).length : 0), 0);
 export type KProgress = { done: number; of: number; pct: number };
 const pctOf = (done: number, of: number) => (of ? Math.round((done / of) * 100) : 0);
 /** How much of the week is planned, for each person and for the whole family. */
-export function planProgress(people: readonly KPerson[], week: Record<string, KMeal[]>): { all: KProgress; by: Record<string, KProgress> } {
+export function planProgress(people: readonly KPerson[], week: Record<string, KMeal[]>, weeks = 1): { all: KProgress; by: Record<string, KProgress> } {
   const by: Record<string, KProgress> = {};
   let done = 0, of = 0;
   for (const p of people) {
     let d = 0;
-    for (const day of WEEK) for (const s of MAIN_SLOTS) if ((week[cell(day, s)] ?? []).some((m) => eats(m, p.id))) d++;
-    const o = WEEK.length * MAIN_SLOTS.length;
+    for (let wk = 0; wk < weeks; wk++) for (const day of WEEK) for (const s of MAIN_SLOTS) if ((week[cell(day, s, wk)] ?? []).some((m) => eats(m, p.id))) d++;
+    const o = weeks * WEEK.length * MAIN_SLOTS.length;
     by[p.id] = { done: d, of: o, pct: pctOf(d, o) }; done += d; of += o;
   }
   return { all: { done, of, pct: pctOf(done, of) }, by };
 }
 /** One day's breakfast, lunch and dinner: how many are set for one person (or, with null, for everyone at once). */
-export function dayProgress(people: readonly KPerson[], week: Record<string, KMeal[]>, day: KDay, who: string | null): { done: number; of: number } {
-  const set = (s: KSlot) => { const ms = week[cell(day, s)] ?? []; return who ? ms.some((m) => eats(m, who)) : people.length > 0 && people.every((p) => ms.some((m) => eats(m, p.id))); };
+export function dayProgress(people: readonly KPerson[], week: Record<string, KMeal[]>, day: KDay, who: string | null, wk = 0): { done: number; of: number } {
+  const set = (s: KSlot) => { const ms = week[cell(day, s, wk)] ?? []; return who ? ms.some((m) => eats(m, who)) : people.length > 0 && people.every((p) => ms.some((m) => eats(m, p.id))); };
   return { done: MAIN_SLOTS.filter(set).length, of: MAIN_SLOTS.length };
 }
 
@@ -391,7 +422,7 @@ export function stockUp(k: Kitchen, lines: KLine[] = shoppingLines(k)): Kitchen 
 /** After cooking: what those meals used comes out of the inventory (only for ingredients it counts). */
 export function useUp(k: Kitchen, sc: KScope = {}): Kitchen {
   const stock = { ...k.stock };
-  for (const u of uses(k)) if (inScope(cell(u.day, u.slot), sc) && typeof stock[u.key] === "number") stock[u.key] -= u.amount;
+  for (const u of uses(k)) if (inScope(cell(u.day, u.slot, u.wk), sc, nWeeks(k)) && typeof stock[u.key] === "number") stock[u.key] -= u.amount;
   return { ...k, stock: amountsOut(stock) };
 }
 

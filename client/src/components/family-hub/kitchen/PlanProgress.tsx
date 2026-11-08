@@ -1,5 +1,5 @@
 // How much of the week is planned: a bar for each person and one for the whole family. Counts breakfast, lunch and
-// dinner on all seven days. Shown on the Week page, and in the week planner, where tapping a name shows that person's menu.
+// dinner on every day of the plan. Shown on the Week page, and in the week planner, where tapping a name shows that person's menu.
 import { planProgress, type KMeal, type KPerson } from "@shared/kitchen";
 
 type Row = { id: string | null; name: string; done: number; of: number; pct: number };
@@ -14,10 +14,10 @@ function Bar({ r }: { r: Row }) {
   </>;
 }
 
-export default function PlanProgress({ people, week, who, onSelect }: {
-  people: KPerson[]; week: Record<string, KMeal[]>; who?: string | null; onSelect?: (who: string | null) => void;
+export default function PlanProgress({ people, week, weeks = 1, who, onSelect }: {
+  people: KPerson[]; week: Record<string, KMeal[]>; /** How many weeks the plan covers. */ weeks?: number; who?: string | null; onSelect?: (who: string | null) => void;
 }) {
-  const p = planProgress(people, week);
+  const p = planProgress(people, week, weeks);
   const rows: Row[] = people.length > 1
     ? [{ id: null, name: "Whole family", ...p.all }, ...people.map((x) => ({ id: x.id, name: x.name, ...p.by[x.id] }))]
     : [{ id: null, name: "Week planned", ...p.all }];

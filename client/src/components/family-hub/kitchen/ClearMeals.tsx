@@ -1,7 +1,7 @@
 // Bulk delete: take meals off the plan in one go. The whole week, some days, or one kind of meal (every dinner, say).
 // Meals added twice by mistake can be fixed on their own, keeping one of each. Everything here can be undone.
 import { useState } from "react";
-import { DAY_SHORT, K_SLOTS, WEEK, countMeals, duplicateCount, trackedIn, uses, type KDay, type KScope, type Kitchen, type KSlot } from "@shared/kitchen";
+import { DAY_SHORT, K_SLOTS, WEEK, countMeals, duplicateCount, nWeeks, trackedIn, uses, type KDay, type KScope, type Kitchen, type KSlot } from "@shared/kitchen";
 import { Modal } from "../ui";
 import { Check, chip, ghost, label } from "./kit";
 
@@ -10,13 +10,15 @@ export default function ClearMeals({ k, onClear, onDedupe, onClose }: {
 }) {
   const [days, setDays] = useState<KDay[]>([]);
   const [slots, setSlots] = useState<KSlot[]>([]);
+  const [wks, setWks] = useState<number[]>([]);
+  const weeks = nWeeks(k);
   const [cooked, setCooked] = useState(false);
-  const scope: KScope = { ...(days.length ? { days } : {}), ...(slots.length ? { slots } : {}) };
+  const scope: KScope = { ...(days.length ? { days } : {}), ...(slots.length ? { slots } : {}), ...(wks.length ? { wks } : {}) };
   const n = countMeals(k, scope);
   const dupes = duplicateCount(k);
   const counted = uses(k).some((u) => trackedIn(k, u.key));
   const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
-  const what = `${slots.length ? slots.map((s) => K_SLOTS.find((x) => x.id === s)!.label.toLowerCase()).join(", ") : "meals"} on ${days.length ? days.map((d) => DAY_SHORT[d]).join(", ") : "every day"}`;
+  const what = `${slots.length ? slots.map((s) => K_SLOTS.find((x) => x.id === s)!.label.toLowerCase()).join(", ") : "meals"} on ${days.length ? days.map((d) => DAY_SHORT[d]).join(", ") : "every day"}${weeks > 1 ? ` in ${wks.length ? wks.map((w) => `week ${w + 1}`).join(", ") : "every week"}` : ""}`;
 
   return <Modal title="Clear meals" eyebrow="Kitchen" onClose={onClose}>
     {dupes > 0 && <div className="mb-5 rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-200" data-testid="dupes-card">
@@ -25,6 +27,13 @@ export default function ClearMeals({ k, onClear, onDedupe, onClose }: {
       <button type="button" onClick={() => { onDedupe(); onClose(); }} className={`${ghost} mt-3`} data-testid="dedupe">Remove the {dupes} extra{dupes === 1 ? "" : "s"}</button>
     </div>}
 
+    {weeks > 1 && <>
+      <p className={label}>Weeks</p>
+      <div className="mb-5 mt-2 flex flex-wrap gap-1.5">
+        <button type="button" onClick={() => setWks([])} className={chip(!wks.length)}>Every week</button>
+        {Array.from({ length: weeks }, (_, w) => <button key={w} type="button" aria-pressed={wks.includes(w)} onClick={() => setWks((x) => toggle(x, w))} className={chip(wks.includes(w))}>Week {w + 1}</button>)}
+      </div>
+    </>}
     <p className={label}>Days</p>
     <div className="mt-2 flex flex-wrap gap-1.5">
       <button type="button" onClick={() => setDays([])} className={chip(!days.length)}>Every day</button>

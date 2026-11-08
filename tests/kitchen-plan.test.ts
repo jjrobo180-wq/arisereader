@@ -4,7 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { K_DISHES, K_SLOTS, PRODUCTS, WEEK, SKIP, addDish, addMeal, amountText, bestBuy, cleanKitchen, clearMeals, countMeals, deleteOwnDish, dayProgress, dropPerson, duplicateCount, emptyKitchen, foodCount, groupOf, normPeople, planDish, planProgress, removeDuplicates, setCells, setKeep, setStock, shoppingLines, stockUp, tips, totals, useUp, type Kitchen } from "../shared/kitchen";
+import { addDays, cell, dateOf, hiddenMeals, mondayOf, moveMeal, nWeeks, planStart, K_DISHES, K_SLOTS, PRODUCTS, WEEK, SKIP, addDish, addMeal, amountText, bestBuy, cleanKitchen, clearMeals, countMeals, deleteOwnDish, dayProgress, dropPerson, duplicateCount, emptyKitchen, foodCount, groupOf, normPeople, planDish, planProgress, removeDuplicates, setCells, setKeep, setStock, shoppingLines, stockUp, tips, totals, useUp, type Kitchen } from "../shared/kitchen";
 import { GROUPS, parseSize } from "../shared/kitchenProducts";
 import { mapKrogerLocation, mapKrogerProduct } from "../server/kroger";
 
@@ -115,7 +115,7 @@ test("the screens: setup asks who's eating, prices come from the store with your
   assert.match(read("client/src/lib/kitchenStore.ts"), /Authorization: `Bearer \$\{token\}`/);
   assert.match(read("server/routes.ts"), /registerKrogerRoutes\(app, authMiddleware\)/);
   assert.doesNotMatch(read("server/routes.ts"), /mealCost/);
-  for (const f of ["KitchenPlan.tsx", "kitchen/DishEditor.tsx", "kitchen/WeekPlanner.tsx", "kitchen/PlanProgress.tsx", "kitchen/ClearMeals.tsx", "kitchen/Inventory.tsx", "kitchen/ProductChooser.tsx", "kitchen/kit.tsx"]) assert.doesNotMatch(read(`client/src/components/family-hub/${f}`), /\p{Extended_Pictographic}/u, f);
+  for (const f of ["KitchenPlan.tsx", "kitchen/DishEditor.tsx", "kitchen/WeekPlanner.tsx", "kitchen/PlanProgress.tsx", "kitchen/ClearMeals.tsx", "kitchen/PlanCalendar.tsx", "kitchen/DaySheet.tsx", "kitchen/Inventory.tsx", "kitchen/ProductChooser.tsx", "kitchen/kit.tsx"]) assert.doesNotMatch(read(`client/src/components/family-hub/${f}`), /\p{Extended_Pictographic}/u, f);
 });
 
 test("the week planner sets each meal for each day in one popup, and saving twice never doubles", () => {
@@ -266,4 +266,44 @@ test("the grocery list shows an Edit button on every item, and the edit sheet le
   const sheet = read("client/src/components/family-hub/kitchen/ProductChooser.tsx");
   assert.match(sheet, /Edit amount/);
   assert.match(sheet, /How much you need/);
+});
+
+test("two-week and monthly plans: weeks count, clear by week, hidden weeks are kept but ignored", () => {
+  let k = { ...family(), weeks: 2 as const };
+  k = addMeal(k, "mon", "dinner", "cookies", [], "a", 0);
+  k = addMeal(k, "mon", "dinner", "cookies", [], "b", 1);
+  assert.equal(nWeeks(k), 2);
+  assert.equal(countMeals(k, {}), 2);
+  assert.equal(countMeals(k, { wks: [1] }), 1);
+  assert.equal(Object.keys(clearMeals(k, { wks: [1] }).week).join(), cell("mon", "dinner", 0));
+  const one = { ...k, weeks: 1 as const };
+  assert.equal(hiddenMeals(one), 1);
+  assert.equal(countMeals(one, {}), 1);
+  assert.equal(Object.keys(one.week).length, 2); // nothing lost
+  assert.equal(cleanKitchen(JSON.parse(JSON.stringify(k))).week[cell("mon", "dinner", 1)].length, 1);
+});
+
+test("calendar dates, moving and copying meals, and saved plan settings", () => {
+  assert.equal(addDays("2026-11-30", 1), "2026-12-01");
+  assert.equal(mondayOf("2026-11-08"), "2026-11-02");
+  assert.equal(dateOf("2026-11-02", 1, "mon"), "2026-11-09");
+  assert.equal(planStart({ ...emptyKitchen(), start: "" }, "2026-11-08"), "2026-11-02");
+  let k = addMeal(family(), "mon", "dinner", "cookies", [], "a");
+  const to = cell("wed", "dinner", 0);
+  const copied = moveMeal(k, cell("mon", "dinner"), "a", to, true, "n1");
+  assert.equal(countMeals(copied, {}), 2);
+  const moved = moveMeal(k, cell("mon", "dinner"), "a", to, false, "n2");
+  assert.equal(countMeals(moved, {}), 1);
+  assert.ok(moved.week[to] && !moved.week[cell("mon", "dinner")]);
+  assert.equal(countMeals(moveMeal(copied, cell("mon", "dinner"), "a", to, true, "n3"), {}), 2); // merges, never doubles
+  const c = cleanKitchen({ ...k, weeks: 4, start: "2026-11-02" });
+  assert.equal(c.weeks, 4); assert.equal(c.start, "2026-11-02");
+  assert.equal(cleanKitchen({ ...k, weeks: 3, start: "nope" }).start, "");
+});
+
+test("calendar and plan length controls exist", () => {
+  assert.match(read("client/src/components/family-hub/kitchen/PlanCalendar.tsx"), /draggable/);
+  assert.match(read("client/src/components/family-hub/kitchen/PlanCalendar.tsx"), /onDrop/);
+  const ui = read("client/src/components/family-hub/KitchenPlan.tsx");
+  assert.match(ui, /Calendar/); assert.match(ui, /PLAN_LENGTHS/); assert.match(ui, /meal-move/);
 });

@@ -1,32 +1,35 @@
 // Plan the week in one popup: all seven days on one screen, each with Breakfast, Lunch and Dinner (plus snacks and
-// desserts). With more than one person, every person can have their own menu: tap a name to see and plan
+// desserts). A 2-week or month plan has a tab for each week, and Copy this week to every week fills them all.. With more than one person, every person can have their own menu: tap a name to see and plan
 // just their meals, and pick who's eating when you add a dish (two people picking the same dish share one meal). The bars
 // show how much of each person's week is planned. Nothing changes until Save, and Save sets each meal rather than adding
 // on top, so a meal can never be doubled. "Copy to every day" puts the same meal on all seven days.
 import { useEffect, useMemo, useState } from "react";
-import { DAY_LABEL, K_SLOTS, MAIN_SLOTS, SKIP, WEEK, allDishes, cell, dayProgress, dishName, dropPerson, eats, foodCount, money, planDish, servingCost, setCells, takeoutOf, type KDay, type Kitchen, type KMeal, type KSlot } from "@shared/kitchen";
+import { DAY_LABEL, K_SLOTS, MAIN_SLOTS, MAX_WEEKS, SKIP, WEEK, allDishes, cell, dateOf, dayProgress, dishName, dropPerson, eats, foodCount, money, nWeeks, planDish, servingCost, setCells, takeoutOf, type KDay, type Kitchen, type KMeal, type KSlot } from "@shared/kitchen";
 import { Modal } from "../ui";
 import PlanProgress from "./PlanProgress";
-import { btn, chip, field, ghost, label, quiet } from "./kit";
+import { btn, chip, field, ghost, label, quiet, Segmented } from "./kit";
+import { fmtRange, fmtShort } from "./PlanCalendar";
 
 const SLOT_ONE: Record<KSlot, string> = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snack: "Snack", dessert: "Dessert" };
 type Draft = Record<string, KMeal[]>;
 
-export default function WeekPlanner({ k, setK, startDay, makeId, onClose, onSaved }: {
-  k: Kitchen; setK: (fn: (k: Kitchen) => Kitchen) => void; startDay: KDay; makeId: () => string; onClose: () => void; onSaved: (meals: number) => void;
+export default function WeekPlanner({ k, setK, startDay, startWk, start, makeId, onClose, onSaved }: {
+  k: Kitchen; setK: (fn: (k: Kitchen) => Kitchen) => void; startDay: KDay; /** Which week to open on (0 is the first). */ startWk: number; /** The Monday the plan starts on. */ start: string; makeId: () => string; onClose: () => void; onSaved: (meals: number) => void;
 }) {
   const ids = useMemo(() => k.people.map((p) => p.id), [k.people]);
   const several = k.people.length > 1;
+  const n = nWeeks(k);
+  const [wk, setWk] = useState(Math.min(startWk, n - 1));
   /** Whose menu is showing: one person, or null for the whole family. */
   const [who, setWho] = useState<string | null>(null);
   const person = k.people.find((p) => p.id === who);
-  const [draft, setDraft] = useState<Draft>(() => Object.fromEntries(WEEK.flatMap((d) => K_SLOTS.map((s) => [cell(d, s.id), [...(k.week[cell(d, s.id)] ?? [])]]))));
+  const [draft, setDraft] = useState<Draft>(() => Object.fromEntries(Array.from({ length: MAX_WEEKS }, (_, w) => w).flatMap((w) => WEEK.flatMap((d) => K_SLOTS.map((s) => [cell(d, s.id, w), [...(k.week[cell(d, s.id, w)] ?? [])]])))));
   const [choosing, setChoosing] = useState<string | null>(null);
   const slots: KSlot[] = K_SLOTS.map((s) => s.id);
   useEffect(() => { if (startDay !== "mon") document.getElementById(`plan-${startDay}`)?.scrollIntoView({ block: "start" }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const changed = useMemo(() => Object.keys(draft).some((key) => JSON.stringify(draft[key] ?? []) !== JSON.stringify(k.week[key] ?? [])), [draft, k.week]);
-  const total = foodCount(draft);
+  const total = foodCount(draft, n);
   const shownIn = (key: string) => (who ? (draft[key] ?? []).filter((m) => eats(m, who)) : draft[key] ?? []);
 
   const put = (key: string, dish: string, people: string[]) => setDraft((x) => ({ ...x, [key]: planDish(x[key] ?? [], dish, people, ids, makeId()) }));
@@ -35,13 +38,17 @@ export default function WeekPlanner({ k, setK, startDay, makeId, onClose, onSave
     const src = (x[from] ?? []).filter((m) => !who || eats(m, who));
     const next = { ...x };
     for (const d of WEEK) {
-      const to = cell(d, slot); if (to === from) continue;
+      const to = cell(d, slot, wk); if (to === from) continue;
       let list = who ? dropPerson(x[to] ?? [], who, ids) : [];
       for (const m of src) list = planDish(list, m.dish, who ? [who] : m.people, ids, makeId());
       next[to] = list;
     }
     return next;
   });
+  const copyWeek = () => {
+    if (!window.confirm(`Replace the other ${n === 2 ? "week" : "weeks"} with Week ${wk + 1}?`)) return;
+    setDraft((x) => { const next = { ...x }; for (let w = 0; w < n; w++) { if (w === wk) continue; for (const d of WEEK) for (const s of K_SLOTS) next[cell(d, s.id, w)] = (x[cell(d, s.id, wk)] ?? []).map((m) => ({ id: makeId(), dish: m.dish, people: [...m.people] })); } return next; });
+  };
   const save = () => {
     // Every meal is set, not added to, so Save can't double anything. Meals keep who they're for.
     setK((x) => setCells(x, draft));
@@ -57,18 +64,23 @@ export default function WeekPlanner({ k, setK, startDay, makeId, onClose, onSave
 
   return <Modal title="Plan your week" eyebrow="Kitchen" onClose={close} wide>
     {several ? <div className="mb-4">
-      <PlanProgress people={k.people} week={draft} who={who} onSelect={(id) => { setWho(id); setChoosing(null); }} />
-      <p className="mt-2 px-1 text-xs text-slate-500">{person ? <>Showing <b className="font-semibold text-slate-700">{person.name}</b>'s menu. Meals shared with someone else show on both menus.</> : "Tap a name to plan just their meals. Everyone can have a different menu."} The bars count breakfast, lunch and dinner on all 7 days (snacks and desserts are a bonus).</p>
-    </div> : <div className="mb-4"><PlanProgress people={k.people} week={draft} /></div>}
+      <PlanProgress people={k.people} week={draft} weeks={n} who={who} onSelect={(id) => { setWho(id); setChoosing(null); }} />
+      <p className="mt-2 px-1 text-xs text-slate-500">{person ? <>Showing <b className="font-semibold text-slate-700">{person.name}</b>'s menu. Meals shared with someone else show on both menus.</> : "Tap a name to plan just their meals. Everyone can have a different menu."} The bars count breakfast, lunch and dinner on every day of the plan (snacks and desserts are a bonus).</p>
+    </div> : <div className="mb-4"><PlanProgress people={k.people} week={draft} weeks={n} /></div>}
     <p className="mb-3 text-sm text-slate-500">Tap <b className="font-semibold text-slate-700">+ Add</b> next to a meal to pick it. Nothing is saved until you press Save.</p>
+      {n > 1 && <div className="mb-3 space-y-1.5" data-testid="planner-weeks">
+      <Segmented label="Week" value={String(wk)} onChange={(v) => { setWk(Number(v)); setChoosing(null); }} options={Array.from({ length: n }, (_, i) => ({ id: String(i), label: `Week ${i + 1}` }))} />
+      <div className="flex items-center justify-between gap-3 px-1"><p className="text-xs text-slate-500">{fmtRange(dateOf(start, wk, "mon"), 1)}</p>
+        <button type="button" onClick={copyWeek} data-testid="copy-week" className="text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-slate-900">Copy this week to every week</button></div>
+    </div>}
     <div className="space-y-3">
-      {WEEK.map((day) => { const dp = dayProgress(k.people, draft, day, who); return <section key={day} id={`plan-${day}`} className="rounded-2xl border border-slate-200 p-4" data-testid={`plan-day-${day}`}>
+      {WEEK.map((day) => { const dp = dayProgress(k.people, draft, day, who, wk); return <section key={day} id={`plan-${day}`} className="rounded-2xl border border-slate-200 p-4" data-testid={`plan-day-${day}`}>
         <div className="flex items-baseline justify-between gap-3">
-          <h3 className="text-base font-semibold text-slate-900">{DAY_LABEL[day]}</h3>
+          <h3 className="text-base font-semibold text-slate-900">{DAY_LABEL[day]} <span className="ml-1 text-sm font-normal text-slate-400">{fmtShort(dateOf(start, wk, day))}</span></h3>
           <span className={`text-xs tabular-nums ${dp.done === dp.of ? "font-semibold text-emerald-700" : "text-slate-400"}`}>{dp.done === dp.of ? "Planned" : `${dp.done} of ${dp.of} set`}</span>
         </div>
         <div className="mt-3 divide-y divide-slate-100">
-          {slots.map((slot) => { const key = cell(day, slot); const meals = shownIn(key); const open = choosing === key; return <div key={slot} className="py-2.5 first:pt-0 last:pb-0" data-testid={`plan-slot-${day}-${slot}`}>
+          {slots.map((slot) => { const key = cell(day, slot, wk); const meals = shownIn(key); const open = choosing === key; return <div key={slot} className="py-2.5 first:pt-0 last:pb-0" data-testid={`plan-slot-${day}-${slot}`}>
             <div className="flex items-start gap-3">
               <span className="w-20 shrink-0 pt-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">{SLOT_ONE[slot]}</span>
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
