@@ -16,7 +16,7 @@ const note = async (s) => { console.log(s); await appendFile("screens/fit-result
 
 for (const [label, engine, opts] of [["iphone-safari", webkit, devices["iPhone 14"]], ["phone-chrome", chromium, devices["Pixel 7"]]]) {
   const browser = await engine.launch();
-  const ctx = await browser.newContext(opts);
+  const ctx = await browser.newContext({ ...opts, serviceWorkers: "block" });
   let saved = structuredClone(start); const puts = []; const searches = [];
   await ctx.route("**/*", async (route) => {
     const req = route.request(), url = new URL(req.url());

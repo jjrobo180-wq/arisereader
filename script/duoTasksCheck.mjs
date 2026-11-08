@@ -15,7 +15,7 @@ const note = (s) => { out.push(s); console.log(s); };
 
 for (const [label, engine, opts] of [["iphone-safari", webkit, devices["iPhone 14"]], ["phone-chrome", chromium, devices["Pixel 7"]], ["desktop", chromium, { viewport: { width: 1366, height: 860 } }]]) {
   const browser = await engine.launch();
-  const ctx = await browser.newContext(opts);
+  const ctx = await browser.newContext({ ...opts, serviceWorkers: "block" });
   let saved = structuredClone(workspace0), updatedAt = "2026-11-08T16:23:15.371Z";
   const puts = [];
   await ctx.route("**/*", async (route) => {
