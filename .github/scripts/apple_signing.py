@@ -2,7 +2,9 @@
 provisioning profile that includes them, signed for the SAME distribution certificate as before.
 
 Usage: apple_signing.py <bundle id> <profile.mobileprovision> CAPABILITY [CAPABILITY ...]
-  CAPABILITY: APPLE_ID_AUTH (Sign in with Apple), HEALTHKIT or PUSH_NOTIFICATIONS.
+  CAPABILITY: APPLE_ID_AUTH (Sign in with Apple), HEALTHKIT, PUSH_NOTIFICATIONS or APP_GROUPS.
+When <profile> does not exist yet, set SEED_PROFILE to another profile signed by the same certificate
+(a widget extension has no profile of its own to start from).
 
 Uses the App Store Connect API key the release workflows already have. Never creates, revokes or
 replaces a certificate. If anything fails it leaves the profile file as it was and prints a warning,
@@ -21,7 +23,12 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-ENTITLEMENT = {"APPLE_ID_AUTH": "com.apple.developer.applesignin", "HEALTHKIT": "com.apple.developer.healthkit", "PUSH_NOTIFICATIONS": "aps-environment"}
+ENTITLEMENT = {"APPLE_ID_AUTH": "com.apple.developer.applesignin", "HEALTHKIT": "com.apple.developer.healthkit", "PUSH_NOTIFICATIONS": "aps-environment", "APP_GROUPS": "com.apple.security.application-groups"}
+# Capabilities Apple grants on request ("managed capabilities", like CarPlay). They're turned on for the App ID
+# in the developer website (Identifiers → the App ID → Additional Capabilities), not through this API; here we
+# only ask for a profile that includes them.
+ENTITLEMENT["CARPLAY_AUDIO"] = "com.apple.developer.carplay-audio"
+MANAGED = {"CARPLAY_AUDIO"}
 SETTINGS = {"APPLE_ID_AUTH": [{"key": "APPLE_ID_AUTH_APP_CONSENT", "options": [{"key": "PRIMARY_APP_CONSENT"}]}]}
 
 
@@ -61,9 +68,15 @@ def decode_profile(raw):
 
 def main():
     bundle, path, caps = sys.argv[1], pathlib.Path(sys.argv[2]), sys.argv[3:]
-    current = decode_profile(path.read_bytes())
+    seed = os.environ.get("SEED_PROFILE")
+    if not path.exists() and seed:
+        base = decode_profile(pathlib.Path(seed).read_bytes())
+        current = {"DeveloperCertificates": base["DeveloperCertificates"], "Entitlements": {}}
+    else:
+        current = decode_profile(path.read_bytes())
     want = [ENTITLEMENT[c] for c in caps]
-    if all(k in current.get("Entitlements", {}) for k in want):
+    kind = os.environ.get("PROFILE_TYPE", "IOS_APP_STORE")  # TVOS_APP_STORE for an Apple TV build
+    if path.exists() and kind == "IOS_APP_STORE" and all(k in current.get("Entitlements", {}) for k in want):
         print(f"::notice title=Signing::{bundle}: the profile already has {', '.join(caps)}")
         return
     fingerprints = {hashlib.sha256(c).digest() for c in current["DeveloperCertificates"]}
@@ -82,12 +95,16 @@ def main():
 
     ids = api("bundleIds?" + urllib.parse.urlencode({"filter[identifier]": bundle, "limit": 5}))["data"]
     ids = [x for x in ids if x["attributes"]["identifier"] == bundle]
+    if not ids and os.environ.get("CREATE_APP_ID"):
+        made_id = api("bundleIds", {"data": {"type": "bundleIds", "attributes": {"identifier": bundle, "name": os.environ["CREATE_APP_ID"], "platform": "IOS"}}})
+        ids = [made_id["data"]]
+        print(f"::notice title=Signing::Registered the App ID {bundle}")
     if len(ids) != 1:
         raise RuntimeError(f"No single App ID for {bundle}")
     bid = ids[0]["id"]
     have = {x["attributes"]["capabilityType"] for x in api(f"bundleIds/{bid}/bundleIdCapabilities")["data"]}
     for cap in caps:
-        if cap in have:
+        if cap in have or cap in MANAGED:
             continue
         attrs = {"capabilityType": cap}
         if cap in SETTINGS:
@@ -106,11 +123,12 @@ def main():
     # A profile made after the capabilities changed, for the same certificate.
     url = f"bundleIds/{bid}/profiles"
     chosen = None
+    made = None
     while url and not chosen:
         page = api(url)
         for prof in page["data"]:
             a = prof["attributes"]
-            if a.get("profileType") != "IOS_APP_STORE" or a.get("profileState") != "ACTIVE":
+            if a.get("profileType") != kind or a.get("profileState") != "ACTIVE":
                 continue
             raw = base64.b64decode(a["profileContent"])
             d = decode_profile(raw)
@@ -124,7 +142,7 @@ def main():
                  and hashlib.sha256(base64.b64decode(c["attributes"]["certificateContent"])).digest() in fingerprints]
         if not match:
             raise RuntimeError("The current distribution certificate isn't in the Apple account; nothing changed")
-        made = api("profiles", {"data": {"type": "profiles", "attributes": {"name": f"{bundle} App Store {int(time.time())}", "profileType": "IOS_APP_STORE"},
+        made = api("profiles", {"data": {"type": "profiles", "attributes": {"name": f"{bundle} App Store {int(time.time())}", "profileType": kind},
                                          "relationships": {"bundleId": {"data": {"type": "bundleIds", "id": bid}},
                                                            "certificates": {"data": [{"type": "certificates", "id": match[0]["id"]}]}}}})
         chosen = base64.b64decode(made["data"]["attributes"]["profileContent"])
@@ -132,7 +150,13 @@ def main():
     d = decode_profile(chosen)
     missing = [k for k in want if k not in d.get("Entitlements", {})]
     if missing:
-        raise RuntimeError(f"The new profile still lacks {', '.join(missing)}")
+        # Don't leave a profile behind that nobody can use (a managed capability not turned on for the App ID yet).
+        if not path.exists() or decode_profile(path.read_bytes()).get("UUID") != d.get("UUID"):
+            try:
+                if made: api(f"profiles/{made['data']['id']}", method="DELETE")
+            except Exception:
+                pass
+        raise RuntimeError(f"The new profile still lacks {', '.join(missing)}" + (" (turn CarPlay on for the App ID: developer.apple.com → Identifiers → the App ID → Additional Capabilities)" if "com.apple.developer.carplay-audio" in missing else ""))
     path.write_bytes(chosen)
     print(f"::notice title=Signing::{bundle}: using a profile with {', '.join(caps)}")
 

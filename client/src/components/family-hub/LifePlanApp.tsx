@@ -3,7 +3,7 @@
 // it, then run it: today's reminders with Done, Snooze and Skip, and phone reminders through LifeHub's
 // notifications. The plan and its logic live in shared/lifePlan.ts.
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Bell, BellOff, CalendarDays, Check, Clock, ExternalLink, Loader2, Plus, RefreshCw, SkipForward, Sparkles, Trash2, Wand2, X } from "lucide-react";
+import { Bell, BellOff, CalendarDays, Check, Clock, ExternalLink, Loader2, Moon, Plus, RefreshCw, SkipForward, Sparkles, Sunrise, Trash2, Wand2, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { addDays, eventsOn, isOn, type FamilySection } from "@shared/familyHub";
@@ -12,7 +12,7 @@ import {
   todayItems, toMinutes, weekScore, type LifePlan, type PlanArea, type PlanFocus, type PlanOpens, type PlanReminder, type PlanRequest,
 } from "@shared/lifePlan";
 import { SECTION_INFO } from "./Members";
-import { Empty, PageHead, Panel, danger, inputClass, plain, primary, soft, type SectionProps } from "./ui";
+import { Empty, FormGroup, FormRow, PageHead, Panel, PickField, danger, inputClass, plain, primary, soft, type SectionProps } from "./ui";
 
 const DAY_LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -81,15 +81,15 @@ function Builder({ family, today, say, start, onBuilt, onCancel }: Props & { sta
         </Panel>
         <Panel title="What matters most?">
           <div className="flex flex-wrap gap-2" data-testid="plan-focuses">{PLAN_FOCUSES.map((f) => { const on = focuses.includes(f.id); return <button key={f.id} type="button" onClick={() => setFocuses(toggle(focuses, f.id))} aria-pressed={on}
-            className={`inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3.5 text-sm font-bold transition ${on ? "border-violet-500 bg-violet-600 text-white" : "border-slate-200 bg-white text-slate-700 hover:border-violet-300"}`}><span aria-hidden>{f.emoji}</span>{f.label}</button>; })}</div>
+            className={`inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3.5 text-sm font-bold transition ${on ? "border-violet-500 bg-violet-600 text-white" : "border-slate-200 bg-white text-slate-700 hover:border-violet-300"}`}>{on && <Check size={15} strokeWidth={3} aria-hidden />}{f.label}</button>; })}</div>
         </Panel>
       </div>
       <div className="space-y-6">
         <Panel title="Your day">
-          <div className="grid grid-cols-2 gap-3">
-            <label className="text-xs font-bold text-slate-500">I wake up<input type="time" value={wake} onChange={(e) => setWake(e.target.value)} className={inputClass + " mt-1"} /></label>
-            <label className="text-xs font-bold text-slate-500">I go to bed<input type="time" value={bed} onChange={(e) => setBed(e.target.value)} className={inputClass + " mt-1"} /></label>
-          </div>
+          <FormGroup>
+            <FormRow label="I wake up" icon={<Sunrise size={15} />}><PickField type="time" label="I wake up" value={wake} onChange={setWake} /></FormRow>
+            <FormRow label="I go to bed" icon={<Moon size={15} />}><PickField type="time" label="I go to bed" value={bed} onChange={setBed} /></FormRow>
+          </FormGroup>
           <p className="mb-1.5 mt-4 text-xs font-bold text-slate-500">Work or school days</p>
           <div className="flex gap-1">{DAY_LETTERS.map((l, d) => { const on = workDays.includes(d); return <button key={d} type="button" onClick={() => setWorkDays(toggle(workDays, d).sort())} aria-pressed={on} aria-label={DAY_NAMES[d]}
             className={`h-10 flex-1 rounded-xl text-sm font-bold ${on ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500"}`}>{l}</button>; })}</div>
@@ -129,8 +129,8 @@ function BusyTimes({ busy, setBusy, fromCalendar }: { busy: BusyBlock[]; setBusy
         <button type="button" onClick={() => setBusy(busy.filter((_, j) => j !== i))} aria-label={`Remove ${b.label}`} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><X size={15} /></button>
       </div>
       <div className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-500">
-        <input type="time" value={b.from} onChange={(e) => e.target.value && edit(i, { from: e.target.value })} aria-label="From" className="h-9 rounded-lg border border-slate-200 px-1.5 text-sm" />–
-        <input type="time" value={b.to} onChange={(e) => e.target.value && edit(i, { to: e.target.value })} aria-label="To" className="h-9 rounded-lg border border-slate-200 px-1.5 text-sm" />
+        <PickField type="time" label="From" value={b.from} onChange={(v) => v && edit(i, { from: v })} />–
+        <PickField type="time" label="To" value={b.to} onChange={(v) => v && edit(i, { to: v })} />
       </div>
       <div className="mt-1.5 flex gap-1">{DAY_LETTERS.map((l, d) => { const on = b.days.includes(d); return <button key={d} type="button" aria-pressed={on} aria-label={DAY_NAMES[d]} onClick={() => { const next = on ? b.days.filter((x) => x !== d) : [...b.days, d].sort(); if (next.length) edit(i, { days: next }); }}
         className={`h-8 flex-1 rounded-lg text-xs font-bold ${on ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500"}`}>{l}</button>; })}</div>
@@ -307,7 +307,7 @@ function Running({ family, setFamily, today, say, go, openStore, plan, onRebuild
               </>}
             {it.opens && (opensOn
               ? <button type="button" onClick={() => go(it.opens!)} className={soft + " min-h-9 text-xs"}><ExternalLink size={13} /> Open {SECTION_INFO[it.opens]?.label ?? PLAN_OPENS[it.opens]}</button>
-              : <button type="button" onClick={openStore} className="min-h-9 rounded-xl px-2 text-xs font-semibold text-violet-700 hover:underline">Get {SECTION_INFO[it.opens]?.label ?? PLAN_OPENS[it.opens]} in the App Gallery</button>)}
+              : <button type="button" onClick={openStore} className="min-h-9 rounded-xl px-2 text-xs font-semibold text-violet-700 hover:underline">Get {SECTION_INFO[it.opens]?.label ?? PLAN_OPENS[it.opens]} in the Plugin Gallery</button>)}
           </div>
         </li>;
       })}</ul> : <Empty icon={<Sparkles />} title="Nothing on today">Enjoy the rest. Your next reminders are on the Schedule tab.</Empty>}

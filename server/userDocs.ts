@@ -21,7 +21,7 @@ import type { Express, RequestHandler } from "express";
 import { randomUUID } from "node:crypto";
 
 const BUCKET = "arise-user-docs";
-export const DOC_KINDS = ["sheet", "doc", "slides"] as const;
+export const DOC_KINDS = ["sheet", "doc", "slides", "design"] as const;
 export type DocKind = (typeof DOC_KINDS)[number];
 export const MAX_DOC_BYTES = 10_000_000;
 export const MAX_APP_BYTES = 2_000_000;
@@ -79,7 +79,7 @@ export function supabaseDocStore(getAdminSupabase: () => any): DocStore {
 }
 
 const isKind = (k: unknown): k is DocKind => (DOC_KINDS as readonly string[]).includes(String(k));
-const cleanName = (v: unknown, kind: DocKind) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, 120) || (kind === "sheet" ? "Untitled spreadsheet" : kind === "doc" ? "Untitled document" : "Untitled presentation");
+const cleanName = (v: unknown, kind: DocKind) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, 120) || (kind === "sheet" ? "Untitled spreadsheet" : kind === "doc" ? "Untitled document" : kind === "design" ? "Untitled design" : "Untitled presentation");
 const isId = (v: unknown): v is string => typeof v === "string" && /^[a-zA-Z0-9_-]{6,64}$/.test(v);
 const isAppId = (v: unknown): v is string => typeof v === "string" && /^[a-z0-9-]{2,60}$/.test(v);
 

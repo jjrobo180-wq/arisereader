@@ -3,21 +3,24 @@
 // Tapping a card opens a pop-up with everyone ticked; untick whoever did not show up, and one save logs
 // the rest and marks the unticked ones absent. The rules are in shared/hubClassMinutes.ts.
 import { useMemo, useState } from "react";
-import { Check, ChevronRight, NotebookPen, UserX, Users } from "lucide-react";
-import { schoolBlocks } from "@shared/hubBlocks";
+import { Check, ChevronRight, NotebookPen, Pencil, Trash2, UserPlus, UserX, Users } from "lucide-react";
+import { BLOCK_PARTS, PART_NAMES, cleanTeacher, schoolBlocks } from "@shared/hubBlocks";
+import { MINUTE_SUBJECTS, cleanSubject } from "@shared/hubSubjects";
+import { SERVICE_KINDS } from "@shared/hubProgress";
 import { friendlyDate } from "@shared/hubDates";
 import { countedPlan, optionalDays } from "@shared/hubProgress";
-import { ABSENT_REASON, classGroups, classLogs, startPicks, waiting, type ClassGroup, type ClassResult } from "@shared/hubClassMinutes";
+import { ABSENT_REASON, classCandidates, classGroups, classLogs, startPicks, waiting, type ClassGroup, type ClassResult } from "@shared/hubClassMinutes";
+import { cleanName, minuteNames } from "@shared/hubMinutesBulk";
 import { cleanPushInNotes, noteKey } from "@shared/pushIn";
 import type { Workspace } from "@shared/teacherHub";
-import { Empty, Field, GhostButton, Labeled, PrimaryButton } from "./ui";
+import { Empty, Field, GhostButton, Labeled, PrimaryButton, Select } from "./ui";
 import { HubModal } from "./HubModal";
 import { MinutesPick } from "./HubMinutesBulk";
 
 const people = (n: number) => `${n} ${n === 1 ? "student" : "students"}`;
 
 /** The classes the teacher sees today, as cards to tap. */
-export function ClassMinutesView({ workspace, today, onOpen, onNotes }: { workspace: Workspace; today: string; onOpen: (key: string) => void; /** Opens the class's notes (the "Class notes" look). */ onNotes?: (key: string) => void }) {
+export function ClassMinutesView({ workspace, today, onOpen, onNotes, onAdd, onDelete }: { workspace: Workspace; today: string; onOpen: (key: string) => void; /** Opens the class's notes (the "Class notes" look). */ onNotes?: (key: string) => void; onAdd?: (key: string) => void; onDelete?: (key: string) => void; onEdit?: (key: string) => void }) {
   const groups = useClassGroups(workspace, today);
   const blocks = useMemo(() => schoolBlocks(workspace), [workspace.minuteBlocks]);
   const noteCounts = useMemo(() => {
@@ -50,10 +53,59 @@ export function ClassMinutesView({ workspace, today, onOpen, onNotes }: { worksp
                 <NotebookPen className="h-4 w-4" aria-hidden /> Class notes{notes > 0 && <span className="rounded-full bg-slate-900/10 px-2 text-xs">{notes}</span>}
               </button>
             )}
+            {(onAdd || onDelete) && <div className={`grid grid-cols-2 border-t ${done ? "border-emerald-200" : "border-slate-100"}`}>
+              {onAdd && <button type="button" onClick={() => onAdd(g.key)} data-testid="class-add" aria-label={`Add students to ${[g.title, g.label].filter(Boolean).join(", ")}`} className="flex min-h-11 items-center gap-2 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"><UserPlus className="h-4 w-4" aria-hidden /> Add students</button>}
+              {onDelete && <button type="button" onClick={() => onDelete(g.key)} data-testid="class-delete" aria-label={`Delete ${[g.title, g.label].filter(Boolean).join(", ")}`} className="flex min-h-11 items-center gap-2 border-l border-inherit px-4 text-sm font-semibold text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4" aria-hidden /> Delete class</button>}
+            </div>}
           </div>
         );
       })}
     </div>
+  );
+}
+
+/** Adds students to a class already made. They get the same service, days and minutes as the class. */
+export function AddToClassModal({ workspace, today, groupKey, onSave, onClose }: { workspace: Workspace; today: string; groupKey: string; onSave: (group: ClassGroup, names: string[]) => void; onClose: () => void }) {
+  const groups = useClassGroups(workspace, today);
+  const group = groups.find((g) => g.key === groupKey);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [typed, setTyped] = useState<string[]>([]);
+  const [name, setName] = useState("");
+  if (!group) return <HubModal title="Class" size="sm" onClose={onClose}><p className="text-sm text-slate-600">This class isn't here any more.</p></HubModal>;
+  const model = group.students[0];
+  const list = classCandidates(minuteNames(workspace, typed), group, model.kind, groups);
+  const toggle = (n: string) => setPicked((p) => (p.includes(n) ? p.filter((x) => x !== n) : [...p, n]));
+  const addTyped = () => { const n = cleanName(name); if (!n) return; if (!group.students.some((s) => s.student.toLowerCase() === n.toLowerCase())) { setTyped((t) => [...t, n]); setPicked((p) => (p.includes(n) ? p : [...p, n])); } setName(""); };
+  const title = [group.title, group.label].filter(Boolean).join(" · ");
+  return (
+    <HubModal title={`Add students to ${title}`} size="sm" onClose={onClose}
+      footer={<div className="flex flex-wrap gap-2"><span data-testid="class-add-save"><PrimaryButton onClick={() => onSave(group, picked)} disabled={!picked.length}>{picked.length ? `Add ${people(picked.length)}` : "Add students"}</PrimaryButton></span><GhostButton onClick={onClose}>Cancel</GhostButton></div>}>
+      <div className="grid grid-cols-1 gap-3" data-testid="class-add-modal">
+        <p className="text-sm text-slate-600">They get the same service, days and minutes as {model.student}: {model.kind}{model.subject ? `, ${model.subject}` : ""}. You can change anyone's minutes later under By student.</p>
+        <div className="flex gap-2"><input className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm" aria-label="Student's name" placeholder="Type a name not listed" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTyped(); } }} /><GhostButton onClick={addTyped}>Add name</GhostButton></div>
+        {list.length ? <ul className="space-y-2" aria-label="Students to add">{list.map((c) => { const on = picked.includes(c.name); return <li key={c.name}><button type="button" role="checkbox" aria-checked={on} onClick={() => toggle(c.name)} data-testid="class-add-student" className={`flex min-h-12 w-full items-center gap-3 rounded-2xl border px-3 text-left text-sm ${on ? "border-slate-950 bg-white" : "border-slate-200 bg-slate-50"}`}>
+          <span className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border-2 ${on ? "border-slate-950 bg-slate-950 text-white" : "border-slate-300 bg-white"}`} aria-hidden>{on && <Check className="h-4 w-4" />}</span>
+          <span className="min-w-0 flex-1"><span className="block truncate font-semibold text-slate-950">{c.name}</span>{c.movesFrom && <span className="block truncate text-xs font-medium text-amber-700">Moves here from {c.movesFrom}</span>}</span>
+        </button></li>; })}</ul> : <p className="text-sm text-slate-500">Everyone on your list is already in this class. Type a name above to add someone new.</p>}
+      </div>
+    </HubModal>
+  );
+}
+
+/** Confirms deleting a class. Its students and logged minutes stay unless asked otherwise. */
+export function DeleteClassModal({ workspace, today, groupKey, onDelete, onClose }: { workspace: Workspace; today: string; groupKey: string; onDelete: (group: ClassGroup, removeMinutes: boolean) => void; onClose: () => void }) {
+  const group = useClassGroups(workspace, today).find((g) => g.key === groupKey);
+  const [removeMinutes, setRemoveMinutes] = useState(false);
+  if (!group) return <HubModal title="Class" size="sm" onClose={onClose}><p className="text-sm text-slate-600">This class isn't here any more.</p></HubModal>;
+  const title = [group.title, group.label].filter(Boolean).join(" · ");
+  return (
+    <HubModal title={`Delete ${title}?`} size="sm" onClose={onClose}
+      footer={<div className="flex flex-wrap gap-2"><button type="button" onClick={() => onDelete(group, removeMinutes)} data-testid="class-delete-confirm" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-red-700 px-4 text-sm font-semibold text-white hover:bg-red-800"><Trash2 className="h-4 w-4" aria-hidden /> Delete class</button><GhostButton onClick={onClose}>Cancel</GhostButton></div>}>
+      <div className="grid grid-cols-1 gap-3 text-sm text-slate-700" data-testid="class-delete-modal">
+        <p>The class comes off this page. Its students stay on your list, and minutes already logged are kept.</p>
+        <label className="flex min-h-11 items-center gap-3 font-medium"><input type="checkbox" className="h-5 w-5" checked={removeMinutes} onChange={(e) => setRemoveMinutes(e.target.checked)} data-testid="class-delete-minutes" />Also remove their required minutes for this class</label>
+      </div>
+    </HubModal>
   );
 }
 
@@ -139,6 +191,45 @@ export function ClassMinutesModal({ workspace, today, groupKey, onSave, onClose 
         </label>
         {result.missing.length > 0 && <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900" role="alert">{result.missing.join(", ")} {result.missing.length === 1 ? "has" : "have"} no usual minutes for this day. Pick the minutes above.</p>}
         <Labeled label="Date"><Field type="date" value={date} onChange={(e) => setDate(e.target.value || today)} aria-label="Date" /></Labeled>
+      </div>
+    </HubModal>
+  );
+}
+
+export type ClassForm = { block: string; part: string; teacher: string; subject: string; kind: string; perWeek: string; names: string[] };
+
+/** Makes a class (no groupKey) or changes one: the block, half, teacher and subject, and for a new class its students and weekly minutes. */
+export function ClassFormModal({ workspace, today, groupKey, onSave, onClose }: { workspace: Workspace; today: string; groupKey: string | null; onSave: (form: ClassForm, group: ClassGroup | null) => void; onClose: () => void }) {
+  const groups = useClassGroups(workspace, today);
+  const group = groupKey ? groups.find((g) => g.key === groupKey) ?? null : null;
+  const blocks = useMemo(() => schoolBlocks(workspace), [workspace.minuteBlocks]);
+  const [form, setForm] = useState<ClassForm>(() => ({ block: group?.block ?? blocks[0]?.id ?? "", part: group?.part ?? "", teacher: group?.teacher ?? "", subject: group?.students[0]?.subject ?? "", kind: group?.students[0]?.kind ?? SERVICE_KINDS[0], perWeek: "", names: [] }));
+  const [name, setName] = useState("");
+  if (groupKey && !group) return <HubModal title="Class" size="sm" onClose={onClose}><p className="text-sm text-slate-600">This class isn't here any more.</p></HubModal>;
+  const set = (patch: Partial<ClassForm>) => setForm((f) => ({ ...f, ...patch }));
+  const teachers = [...new Set([...workspace.services, ...workspace.serviceLogs].map((x) => cleanTeacher(x.teacher)).filter(Boolean))].sort();
+  const subjects = [...new Set([...MINUTE_SUBJECTS, ...workspace.services.map((p) => cleanSubject(p.subject)).filter(Boolean)])];
+  const known = minuteNames(workspace, form.names).filter((n) => !group?.students.some((s) => s.student.toLowerCase() === n.toLowerCase()));
+  const toggle = (n: string) => set({ names: form.names.includes(n) ? form.names.filter((x) => x !== n) : [...form.names, n] });
+  const addTyped = () => { const n = cleanName(name); if (n && !form.names.includes(n)) set({ names: [...form.names, n] }); setName(""); };
+  const ready = group ? true : form.names.length > 0 && Number(form.perWeek) > 0;
+  return (
+    <HubModal title={group ? "Change class" : "New class"} size="sm" onClose={onClose}
+      footer={<div className="flex flex-wrap gap-2"><span data-testid="class-form-save"><PrimaryButton onClick={() => onSave(form, group)} disabled={!ready}>{group ? "Save class" : "Add class"}</PrimaryButton></span><GhostButton onClick={onClose}>Cancel</GhostButton></div>}>
+      <div className="grid grid-cols-1 gap-3" data-testid="class-form">
+        {group && <p className="text-sm text-slate-600">Changes apply to all {people(group.students.length)} in this class.</p>}
+        <Labeled label="Block"><Select value={form.block} onChange={(e) => set({ block: e.target.value })} aria-label="Block"><option value="">No block</option>{blocks.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Select></Labeled>
+        {form.block && <Labeled label="Half of the block"><Select value={form.part} onChange={(e) => set({ part: e.target.value })} aria-label="Half of the block"><option value="">Whole block</option>{BLOCK_PARTS.map((x) => <option key={x} value={x}>{PART_NAMES[x]}</option>)}</Select></Labeled>}
+        <Labeled label="Teacher (whose class)"><Field list="class-teachers" value={form.teacher} maxLength={60} onChange={(e) => set({ teacher: e.target.value })} placeholder="Ms. Lee" aria-label="Teacher" /></Labeled>
+        <datalist id="class-teachers">{teachers.map((t) => <option key={t} value={t} />)}</datalist>
+        <Labeled label="Subject"><Field list="class-subjects" value={form.subject} maxLength={40} onChange={(e) => set({ subject: e.target.value })} placeholder="Reading, Science, anything" aria-label="Subject" /></Labeled>
+        <datalist id="class-subjects">{subjects.map((t) => <option key={t} value={t} />)}</datalist>
+        {!group && <>
+          <Labeled label="Kind"><Select value={form.kind} onChange={(e) => set({ kind: e.target.value })} aria-label="Kind">{SERVICE_KINDS.map((k) => <option key={k}>{k}</option>)}</Select></Labeled>
+          <Labeled label="Minutes each student needs per week"><Field type="number" inputMode="numeric" min={1} value={form.perWeek} onChange={(e) => set({ perWeek: e.target.value })} placeholder="60" aria-label="Minutes per week" /></Labeled>
+          <div className="flex gap-2"><input className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm" aria-label="Student's name" placeholder="Type a student's name" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTyped(); } }} /><GhostButton onClick={addTyped}>Add name</GhostButton></div>
+          <ul className="space-y-2" aria-label="Students">{known.map((n) => { const on = form.names.includes(n); return <li key={n}><button type="button" role="checkbox" aria-checked={on} onClick={() => toggle(n)} className={`flex min-h-12 w-full items-center gap-3 rounded-2xl border px-3 text-left text-sm ${on ? "border-slate-950 bg-white" : "border-slate-200 bg-slate-50"}`}><span className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border-2 ${on ? "border-slate-950 bg-slate-950 text-white" : "border-slate-300 bg-white"}`} aria-hidden>{on && <Check className="h-4 w-4" />}</span><span className="truncate font-semibold text-slate-950">{n}</span></button></li>; })}</ul>
+        </>}
       </div>
     </HubModal>
   );

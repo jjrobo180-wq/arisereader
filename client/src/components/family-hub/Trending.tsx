@@ -1,4 +1,4 @@
-// What's trending (a Plugin Store add-on): what people are searching for right now (Google Trends,
+// What's trending (a Plugin Gallery add-on): what people are searching for right now (Google Trends,
 // United States) and the most-read stories on Wikipedia.
 import { useState } from "react";
 import { ExternalLink, RefreshCw, TrendingUp } from "lucide-react";

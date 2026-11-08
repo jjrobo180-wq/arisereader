@@ -63,6 +63,10 @@ if os.path.exists(DELEGATE):
 # The background mode above allows it; without this session iOS still stops the web player's sound.
 if os.path.exists(DELEGATE):
     src = open(DELEGATE, encoding="utf-8").read()
+    if "AVAudioSession" in src and "setActive(true)" in src:
+        # An older build of this project: take the launch-time activation out.
+        src = src.replace("try AVAudioSession.sharedInstance().setActive(true)", "// (not activated at launch: that stops other apps' audio)")
+        open(DELEGATE, "w", encoding="utf-8").write(src)
     if "AVAudioSession" not in src:
         marker = "didFinishLaunchingWithOptions"
         at = src.find(marker)
@@ -70,8 +74,10 @@ if os.path.exists(DELEGATE):
         if at >= 0 and ret > 0:
             setup = """// Pod+: keep playing in the background (spoken audio, long form).
         do {
+            // Only choose the kind of audio here. Never activate the session at launch: that takes the
+            // speaker from whatever else is playing (music, a podcast in another app) before Pod+ has
+            // played a thing. iOS starts the session when Pod+ actually plays something.
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, policy: .longFormAudio)
-            try AVAudioSession.sharedInstance().setActive(true)
         } catch { print("Pod+ audio session: \\(error)") }
         """
             src = src[:ret] + setup + src[ret:]
@@ -81,3 +87,21 @@ if os.path.exists(DELEGATE):
             print("AppDelegate: audio session set to playback (background listening)")
         else:
             print("AppDelegate: could not set the audio session")
+
+# iPad (and iPhone Duo): Pod+ is one app for iPhone and iPad (TARGETED_DEVICE_FAMILY 1,2). On iPad it turns
+# every way, so it can sit next to another app (Split View, Slide Over) and its layout follows the window.
+PROJECT = os.path.join(os.path.dirname(os.path.dirname(PLIST)), "App.xcodeproj", "project.pbxproj")
+if os.path.exists(PROJECT):
+    import re as _re
+    proj = open(PROJECT, encoding="utf-8").read()
+    fixed = _re.sub(r'TARGETED_DEVICE_FAMILY = "?1"?;', 'TARGETED_DEVICE_FAMILY = "1,2";', proj)
+    if fixed != proj:
+        open(PROJECT, "w", encoding="utf-8").write(fixed)
+    print("Xcode project: iPhone and iPad")
+with open(PLIST, "rb") as f:
+    plist = plistlib.load(f)
+plist["UISupportedInterfaceOrientations~ipad"] = ["UIInterfaceOrientationPortrait", "UIInterfaceOrientationPortraitUpsideDown", "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight"]
+plist.pop("UIRequiresFullScreen", None)
+with open(PLIST, "wb") as f:
+    plistlib.dump(plist, f)
+print("Info.plist: iPad turns every way (Split View and Slide Over)")

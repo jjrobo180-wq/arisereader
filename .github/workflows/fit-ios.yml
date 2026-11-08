@@ -3,6 +3,11 @@ name: Arise Fit signed iOS release candidate
 # Uploads to TestFlight only for a pushed commit whose message has [approved-testflight].
 on:
   workflow_dispatch:
+    inputs:
+      upload:
+        description: Send this build to TestFlight (the owner's approval)
+        type: boolean
+        default: false
   push:
     branches: [feat/fit-testflight]
     paths:
@@ -10,11 +15,12 @@ on:
       - '.github/workflows/fit-ios.yml'
       - 'fit/ios-app/**'
       - 'client/src/**'
+      - 'native/**'
 jobs:
   signed-archive:
     # GitHub's Xcode 27 image (Apple Silicon): builds with the iOS 27.1 SDK, for iPhone Duo.
     runs-on: xcode-27
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - name: Use the newest Xcode 27 (the iOS 27.1 SDK makes the app fill the iPhone Duo's inner screen)
@@ -79,6 +85,7 @@ jobs:
         run: |
           python3 ../../.github/scripts/configure_fit_app.py ios/App/App/Info.plist
           python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist
+          python3 ../../.github/scripts/ipad_universal.py ios/App/App/Info.plist
       - name: Import Apple signing certificate and provisioning profile
         shell: bash
         env:
@@ -98,7 +105,7 @@ jobs:
             python3 podscroll/ios-app/find-existing-profile.py com.arisereader.fit "$RUNNER_TEMP/profile.mobileprovision" --create-missing-profile --register-bundle-id "--app-name=Arise Fit"
           fi
           # Its capabilities on the App ID, and a profile that includes them (same certificate).
-          python3 .github/scripts/apple_signing.py com.arisereader.fit "$RUNNER_TEMP/profile.mobileprovision" HEALTHKIT APPLE_ID_AUTH PUSH_NOTIFICATIONS
+          python3 .github/scripts/apple_signing.py com.arisereader.fit "$RUNNER_TEMP/profile.mobileprovision" HEALTHKIT APPLE_ID_AUTH PUSH_NOTIFICATIONS APP_GROUPS
           security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
@@ -109,6 +116,9 @@ jobs:
           fi
           security create-keychain -p "" "$RUNNER_TEMP/fit.keychain-db"
           security unlock-keychain -p "" "$RUNNER_TEMP/fit.keychain-db"
+          # Never lock by itself: the default locks it after 5 idle minutes, and a later signing step (the Apple TV
+          # app, after the iPhone upload) then waited for a password forever.
+          security set-keychain-settings -lut 21600 "$RUNNER_TEMP/fit.keychain-db"
           security import "$RUNNER_TEMP/signing.p12" -k "$RUNNER_TEMP/fit.keychain-db" -P "$IOS_DISTRIBUTION_CERT_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k "" "$RUNNER_TEMP/fit.keychain-db"
           security list-keychains -d user -s "$RUNNER_TEMP/fit.keychain-db" "$HOME/Library/Keychains/login.keychain-db"
@@ -145,8 +155,78 @@ jobs:
           else
             echo "::warning::The provisioning profile has no Push Notifications capability. Building without server notifications."
           fi
+          # Widgets: the app's profile needs the App Group and the widget extension needs a profile of its own.
+          # Without both, the app is built as before, without widgets.
+          if /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.security.application-groups' "$RUNNER_TEMP/profile.plist" >/dev/null 2>&1; then
+            SEED_PROFILE="$RUNNER_TEMP/profile.mobileprovision" python3 .github/scripts/apple_signing.py com.arisereader.fit.widgets "$RUNNER_TEMP/widget.mobileprovision" APP_GROUPS || true
+            if [[ -s "$RUNNER_TEMP/widget.mobileprovision" ]] && security cms -D -i "$RUNNER_TEMP/widget.mobileprovision" > "$RUNNER_TEMP/widget.plist" 2>/dev/null && /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.security.application-groups' "$RUNNER_TEMP/widget.plist" >/dev/null 2>&1; then
+              cp "$RUNNER_TEMP/widget.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/widget.plist").mobileprovision"
+              /usr/libexec/PlistBuddy -c 'Delete :com.apple.security.application-groups' "$ENT" 2>/dev/null || true
+              /usr/libexec/PlistBuddy -c 'Add :com.apple.security.application-groups array' "$ENT"
+              /usr/libexec/PlistBuddy -c 'Add :com.apple.security.application-groups:0 string group.com.arisereader.fit' "$ENT"
+              USE_ENT=1
+              echo "WIDGETS=1" >> "$GITHUB_ENV"
+              echo "WIDGET_PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/widget.plist")" >> "$GITHUB_ENV"
+              echo "Widgets: App Group and widget profile ready"
+            else
+              echo "::warning::No provisioning profile for the widget extension (com.arisereader.fit.widgets). Building without widgets."
+            fi
+          else
+            echo "::warning::The app's provisioning profile has no App Group. Building without widgets."
+          fi
           if [[ -n "$USE_ENT" ]]; then echo "HEALTH_ENTITLEMENTS=CODE_SIGN_ENTITLEMENTS=App/App.entitlements" >> "$GITHUB_ENV"; else echo "HEALTH_ENTITLEMENTS=" >> "$GITHUB_ENV"; fi
+      - name: Profiles for the Apple Watch and Apple TV apps
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -uo pipefail
+          # The watch app has an App ID of its own (registered the first time); a TV app is the same App ID
+          # as the iPhone app (one App Store listing) with a tvOS profile.
+          SEED_PROFILE="$RUNNER_TEMP/profile.mobileprovision" CREATE_APP_ID="Arise Fit Watch" python3 .github/scripts/apple_signing.py com.arisereader.fit.watchkitapp "$RUNNER_TEMP/watch.mobileprovision" HEALTHKIT
+          python3 .github/scripts/add_tvos_platform.py com.arisereader.fit
+          SEED_PROFILE="$RUNNER_TEMP/profile.mobileprovision" PROFILE_TYPE=TVOS_APP_STORE python3 .github/scripts/apple_signing.py com.arisereader.fit "$RUNNER_TEMP/tv.mobileprovision"
+          for kind in watch tv; do
+            f="$RUNNER_TEMP/$kind.mobileprovision"
+            [[ -s "$f" ]] || continue
+            if security cms -D -i "$f" > "$RUNNER_TEMP/$kind.plist" 2>/dev/null; then
+              cp "$f" "$HOME/Library/MobileDevice/Provisioning Profiles/$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/$kind.plist").mobileprovision"
+              echo "$(echo "$kind" | tr a-z A-Z)_PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/$kind.plist")" >> "$GITHUB_ENV"
+              echo "$kind: profile ready"
+            fi
+          done
+          [[ -s "$RUNNER_TEMP/watch.mobileprovision" ]] || echo "::warning title=Apple Watch::No App Store profile for the watch app. Building without it."
+      - name: Add the widget extension (signed)
+        if: env.WIDGETS == '1'
+        working-directory: fit/ios-app
+        env:
+          SIGN_TEAM: 6TYWWNKX6P
+          APP_ENTITLEMENTS: App/App.entitlements
+          BUILD_NUMBER: ${{ github.run_number }}.${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          ruby -rxcodeproj -e 'puts Xcodeproj::VERSION' || gem install xcodeproj --no-document --user-install
+          export GEM_PATH="$(ruby -e 'puts Gem.user_dir'):$(ruby -e 'puts Gem.default_dir')"
+          APP_PROFILE="$PROFILE_NAME" WIDGET_PROFILE="$WIDGET_PROFILE_NAME" ruby ../../.github/scripts/add_widget.rb ios/App/App.xcodeproj com.arisereader.fit "$(cat widgets.json)" ff5a1f
+          # The Apple Watch app goes inside the iPhone app; the Apple TV app is archived on its own below.
+          if [[ -n "${WATCH_PROFILE_NAME:-}" ]]; then
+            (cd ../.. && COMPANION_PROFILE="$WATCH_PROFILE_NAME" ruby .github/scripts/add_companion.rb "$OLDPWD/ios/App/App.xcodeproj" --kind watch --name FitWatch --display "Arise Fit" --host com.arisereader.fit --sources native/watch-kit/AriseWatchLink.swift,native/fit-watch/FitWatchApp.swift --resources native/fit-tv/sessions.json --icon client/public/app-icons/fit-1024.png --embed --healthkit)
+            echo "WATCH_ADDED=1" >> "$GITHUB_ENV"
+          fi
+          if [[ -n "${TV_PROFILE_NAME:-}" ]]; then
+            (cd ../.. && COMPANION_PROFILE="$TV_PROFILE_NAME" ruby .github/scripts/add_companion.rb "$OLDPWD/ios/App/App.xcodeproj" --kind tv --name FitTV --display "Arise Fit" --host com.arisereader.fit --sources native/fit-tv/FitTVApp.swift --resources native/fit-tv/sessions.json,native/fit-tv/timers.json --tv-assets native/fit-tv/Assets.xcassets)
+            echo "TV_ADDED=1" >> "$GITHUB_ENV"
+          fi
+      - name: Archive signed app with widgets
+        if: env.WIDGETS == '1'
+        working-directory: fit/ios-app
+        run: |
+          set -euo pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/AriseFit.xcarchive" archive
+          test -d "$RUNNER_TEMP/AriseFit.xcarchive/Products/Applications/App.app/PlugIns/AriseWidgets.appex"
       - name: Archive signed app for physical iPhone
+        if: env.WIDGETS != '1'
         working-directory: fit/ios-app
         env:
           TEAM_ID: 6TYWWNKX6P
@@ -182,6 +262,10 @@ jobs:
               "teamID": "6TYWWNKX6P",
               "provisioningProfiles": {"com.arisereader.fit": os.environ["PROFILE_NAME"]},
           }
+          if os.environ.get("WIDGET_PROFILE_NAME"):
+              options["provisioningProfiles"]["com.arisereader.fit.widgets"] = os.environ["WIDGET_PROFILE_NAME"]
+          if os.environ.get("WATCH_ADDED") and os.environ.get("WATCH_PROFILE_NAME"):
+              options["provisioningProfiles"]["com.arisereader.fit.watchkitapp"] = os.environ["WATCH_PROFILE_NAME"]
           with open(os.path.join(os.environ["RUNNER_TEMP"], "ExportOptions.plist"), "wb") as output:
               plistlib.dump(options, output)
           PY
@@ -202,7 +286,7 @@ jobs:
           retention-days: 3
       - name: Validate beta and perform explicitly approved TestFlight upload
         env:
-          APPROVED_UPLOAD: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[approved-testflight]') }}
+          APPROVED_UPLOAD: ${{ (github.event_name == 'push' && contains(github.event.head_commit.message, '[approved-testflight]')) || (github.event_name == 'workflow_dispatch' && inputs.upload) }}
           APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
@@ -222,6 +306,30 @@ jobs:
           xcrun altool --validate-app -f "${IPA[0]}" -t ios --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
           if [[ "$APPROVED_UPLOAD" == "true" ]]; then
             xcrun altool --upload-app -f "${IPA[0]}" -t ios --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+          fi
+      - name: Apple TV build (archive, validate, and upload with the same approval)
+        if: env.TV_ADDED == '1'
+        continue-on-error: true
+        working-directory: fit/ios-app
+        env:
+          APPROVED_UPLOAD: ${{ (github.event_name == 'push' && contains(github.event.head_commit.message, '[approved-testflight]')) || (github.event_name == 'workflow_dispatch' && inputs.upload) }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          security unlock-keychain -p "" "$RUNNER_TEMP/fit.keychain-db"
+          xcodebuild -project ios/App/App.xcodeproj -scheme FitTV -configuration Release -destination 'generic/platform=tvOS' -archivePath "$RUNNER_TEMP/FitTV.xcarchive" archive
+          python3 - <<'PY'
+          import os, plistlib
+          with open(os.path.join(os.environ["RUNNER_TEMP"], "TVExportOptions.plist"), "wb") as f:
+              plistlib.dump({"method": "app-store-connect", "destination": "export", "signingStyle": "manual", "teamID": "6TYWWNKX6P",
+                             "provisioningProfiles": {"com.arisereader.fit": os.environ["TV_PROFILE_NAME"]}}, f)
+          PY
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/FitTV.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/TVExportOptions.plist" -exportPath "$RUNNER_TEMP/tv-export"
+          IPA=("$RUNNER_TEMP"/tv-export/*.ipa)
+          xcrun altool --validate-app -f "${IPA[0]}" -t appletvos --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+          if [[ "$APPROVED_UPLOAD" == "true" ]]; then
+            xcrun altool --upload-app -f "${IPA[0]}" -t appletvos --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
           fi
       - name: Remove temporary signing keychain
         if: always()

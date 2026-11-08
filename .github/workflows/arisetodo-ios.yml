@@ -4,12 +4,16 @@ on:
   pull_request:
     paths:
       - 'arisetodo/ios-app/**'
+      - 'client/src/**'
+      - 'client/index.html'
       - '.github/workflows/arisetodo-ios.yml'
       - '.github/scripts/adopt_uiscene.py'
   push:
     branches: [master]
     paths:
       - 'arisetodo/ios-app/**'
+      - 'client/src/**'
+      - 'client/index.html'
       - '.github/workflows/arisetodo-ios.yml'
       - '.github/scripts/adopt_uiscene.py'
 jobs:
@@ -48,11 +52,16 @@ jobs:
           npx cap add ios
           npx cap sync ios
           python3 configure-ios.py ios/App/App/Info.plist
+          python3 add-sound.py ios/App/App.xcodeproj/project.pbxproj ios/App/App
           python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist
+          python3 ../../.github/scripts/ipad_universal.py ios/App/App/Info.plist
       - name: Compile iOS simulator app
         working-directory: arisetodo/ios-app
         run: |
           xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ./derived CODE_SIGNING_ALLOWED=NO build
+      - name: Reminder sound is inside the app
+        working-directory: arisetodo/ios-app
+        run: test -f derived/Build/Products/Debug-iphonesimulator/App.app/arise-chime.wav
       - name: Launch app in iPhone simulator
         working-directory: arisetodo/ios-app
         run: |

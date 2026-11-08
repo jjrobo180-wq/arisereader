@@ -35,65 +35,65 @@ export function ModesRow({ es, update, onOpen, onNew, onDrive, onNews, onNewsRad
         <button onClick={() => setArranging((v) => !v)} aria-pressed={arranging} aria-label={arranging ? "Done editing Pod Modes" : "Edit Pod Modes"} className={`inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-sm font-medium ${arranging ? "text-[#065fd4]" : "text-[#606060] hover:text-[#0f0f0f]"}`}>{arranging ? "Done" : <><Pencil size={15} strokeWidth={1.8} />Edit</>}</button>
       </div>
     </div>
-    <div className="-mx-1 mt-3 flex gap-5 overflow-x-auto px-1 pb-2 [scrollbar-width:none]">
+    <div className="-mx-1 mt-1 flex gap-4 overflow-x-auto px-1 pb-2 pt-3 [scrollbar-width:none]">
       {onDrive && !arranging && <button onClick={onDrive} aria-label="Fit my drive: say how long the drive is and get episodes that end as you arrive" className="group flex shrink-0 flex-col items-center gap-2.5 active:scale-[.97] transition-transform" data-testid="hub-fit-drive">
-        <span className="relative block h-[104px] w-[104px] sm:h-[120px] sm:w-[120px]">
-          <span className="grid h-full w-full place-items-center rounded-full text-white shadow-[0_12px_28px_-14px_rgba(0,0,0,.55)] transition-transform duration-500 group-hover:scale-[1.04]" style={{ background: "linear-gradient(135deg,#ff8a3d,#ff3b30)" }}><Car size={38} /></span>
+        <span className="relative block h-[76px] w-[76px] sm:h-[88px] sm:w-[88px]">
+          <span className="grid h-full w-full place-items-center rounded-full text-white shadow-[0_12px_28px_-14px_rgba(0,0,0,.55)] transition-transform duration-500 group-hover:scale-[1.04]" style={{ background: "linear-gradient(135deg,#ff8a3d,#ff3b30)" }}><Car size={28} /></span>
           <span className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-black/[.06]" />
         </span>
-        <span className="flex w-[112px] flex-col items-center gap-0.5 sm:w-[128px]">
-          <span className="line-clamp-2 text-center text-[15px] font-semibold leading-tight">Fit my drive</span>
+        <span className="flex w-[84px] flex-col items-center gap-0.5 sm:w-[96px]">
+          <span className="line-clamp-2 text-center text-[13px] font-semibold leading-tight">Fit my drive</span>
           <span className="text-center text-xs text-[#606060]">Ends as you arrive</span>
         </span>
       </button>}
       {onNewsRadio && !arranging && <button onClick={onNewsRadio} aria-label="Pod+ Live News Radio: nonstop news from the newsrooms' latest bulletins" className="group flex shrink-0 flex-col items-center gap-2.5 active:scale-[.97] transition-transform" data-testid="hub-news-radio">
-        <span className="relative block h-[104px] w-[104px] sm:h-[120px] sm:w-[120px]">
-          <span className="grid h-full w-full place-items-center rounded-full text-white shadow-[0_12px_28px_-14px_rgba(0,0,0,.55)] transition-transform duration-500 group-hover:scale-[1.04]" style={{ background: "linear-gradient(135deg,#ff3b30,#9a1b14)" }}><Radio size={38} /></span>
+        <span className="relative block h-[76px] w-[76px] sm:h-[88px] sm:w-[88px]">
+          <span className="grid h-full w-full place-items-center rounded-full text-white shadow-[0_12px_28px_-14px_rgba(0,0,0,.55)] transition-transform duration-500 group-hover:scale-[1.04]" style={{ background: "linear-gradient(135deg,#ff3b30,#9a1b14)" }}><Radio size={28} /></span>
           <span className="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full bg-[#ff3b30] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow">Live</span>
           <span className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-black/[.06]" />
         </span>
-        <span className="flex w-[112px] flex-col items-center gap-0.5 sm:w-[128px]">
-          <span className="line-clamp-2 text-center text-[15px] font-semibold leading-tight">Pod+ Live News Radio</span>
+        <span className="flex w-[84px] flex-col items-center gap-0.5 sm:w-[96px]">
+          <span className="line-clamp-2 text-center text-[13px] font-semibold leading-tight">Pod+ Live News Radio</span>
           <span className="text-center text-xs text-[#606060]">Nonstop news</span>
         </span>
       </button>}
       {onNewsStations && !arranging && <button onClick={onNewsStations} aria-label="Live news stations: radio stations that are news all day" className="group flex shrink-0 flex-col items-center gap-2.5 active:scale-[.97] transition-transform" data-testid="hub-news-stations">
-        <span className="relative block h-[104px] w-[104px] sm:h-[120px] sm:w-[120px]">
-          <span className="grid h-full w-full place-items-center rounded-full text-white shadow-[0_12px_28px_-14px_rgba(0,0,0,.55)] transition-transform duration-500 group-hover:scale-[1.04]" style={{ background: "linear-gradient(135deg,#334155,#0f172a)" }}><Radio size={38} /></span>
+        <span className="relative block h-[76px] w-[76px] sm:h-[88px] sm:w-[88px]">
+          <span className="grid h-full w-full place-items-center rounded-full text-white shadow-[0_12px_28px_-14px_rgba(0,0,0,.55)] transition-transform duration-500 group-hover:scale-[1.04]" style={{ background: "linear-gradient(135deg,#334155,#0f172a)" }}><Radio size={28} /></span>
           <span className="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full bg-[#ff3b30] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow">On air</span>
           <span className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-black/[.06]" />
         </span>
-        <span className="flex w-[112px] flex-col items-center gap-0.5 sm:w-[128px]">
-          <span className="line-clamp-2 text-center text-[15px] font-semibold leading-tight">Live news stations</span>
+        <span className="flex w-[84px] flex-col items-center gap-0.5 sm:w-[96px]">
+          <span className="line-clamp-2 text-center text-[13px] font-semibold leading-tight">Live news stations</span>
           <span className="text-center text-xs text-[#606060]">All-news radio</span>
         </span>
       </button>}
       {onNews && !arranging && <button onClick={onNews} aria-label="Up to the Minute News: only news from the last few hours" className="group flex shrink-0 flex-col items-center gap-2.5 active:scale-[.97] transition-transform" data-testid="hub-news-now">
-        <span className="relative block h-[104px] w-[104px] sm:h-[120px] sm:w-[120px]">
-          <span className="grid h-full w-full place-items-center rounded-full text-white shadow-[0_12px_28px_-14px_rgba(0,0,0,.55)] transition-transform duration-500 group-hover:scale-[1.04]" style={{ background: "linear-gradient(135deg,#1e3a8a,#0f172a)" }}><Zap size={38} className="text-[#ffb37a]" /></span>
+        <span className="relative block h-[76px] w-[76px] sm:h-[88px] sm:w-[88px]">
+          <span className="grid h-full w-full place-items-center rounded-full text-white shadow-[0_12px_28px_-14px_rgba(0,0,0,.55)] transition-transform duration-500 group-hover:scale-[1.04]" style={{ background: "linear-gradient(135deg,#1e3a8a,#0f172a)" }}><Zap size={28} className="text-[#ffb37a]" /></span>
           <span className="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full bg-[#ff3b30] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow">Live</span>
           <span className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-black/[.06]" />
         </span>
-        <span className="flex w-[112px] flex-col items-center gap-0.5 sm:w-[128px]">
-          <span className="line-clamp-2 text-center text-[15px] font-semibold leading-tight">Up to the Minute News</span>
+        <span className="flex w-[84px] flex-col items-center gap-0.5 sm:w-[96px]">
+          <span className="line-clamp-2 text-center text-[13px] font-semibold leading-tight">Up to the Minute News</span>
           <span className="text-center text-xs text-[#606060]">Last few hours only</span>
         </span>
       </button>}
       {es.modes.map((m, idx) => {
         const th = hubTheme(m); const font = HUB_FONTS[th.font];
         const cover = m.episodes[0]?.art;
-        const circle = <span className="relative block h-[104px] w-[104px] sm:h-[120px] sm:w-[120px]">
+        const circle = <span className="relative block h-[76px] w-[76px] sm:h-[88px] sm:w-[88px]">
           <span className="block h-full w-full overflow-hidden rounded-full shadow-[0_12px_28px_-14px_rgba(0,0,0,.55)]" style={{ background: th.bg }}>
             {cover
               ? <img src={hiRes(cover, 300)} alt="" {...artIn} className="pz-art h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.06]" />
-              : <span className="grid h-full w-full place-items-center" style={{ color: inkOn(th.bg) }}><ModeIcon m={m} size={34} /></span>}
+              : <span className="grid h-full w-full place-items-center" style={{ color: inkOn(th.bg) }}><ModeIcon m={m} size={26} /></span>}
           </span>
           <span className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-black/[.06]" />
-          {cover && <span className="absolute -bottom-0.5 -right-0.5 grid h-9 w-9 place-items-center rounded-full ring-[3px] ring-white" style={{ background: th.accent, color: inkOn(th.accent) }}><ModeIcon m={m} size={16} /></span>}
+          {cover && <span className="absolute -bottom-0.5 -right-0.5 grid h-7 w-7 place-items-center rounded-full ring-[3px] ring-white" style={{ background: th.accent, color: inkOn(th.accent) }}><ModeIcon m={m} size={13} /></span>}
           {m.fresh && <span className="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider shadow" style={{ background: th.accent, color: inkOn(th.accent) }}>Fresh</span>}
         </span>;
-        const label = <span className="flex w-[112px] flex-col items-center gap-0.5 sm:w-[128px]">
-          <span className="line-clamp-2 text-center text-[15px] leading-tight" style={{ fontFamily: font.stack, fontWeight: font.weight, letterSpacing: font.tracking }}>{m.name}</span>
+        const label = <span className="flex w-[84px] flex-col items-center gap-0.5 sm:w-[96px]">
+          <span className="line-clamp-2 text-center text-[13px] leading-tight" style={{ fontFamily: font.stack, fontWeight: font.weight, letterSpacing: font.tracking }}>{m.name}</span>
           <span className="text-xs text-[#606060]">{m.episodes.length ? `${m.episodes.length} episode${m.episodes.length === 1 ? "" : "s"}` : m.fresh ? "Filling today" : "Empty"}</span>
         </span>;
         if (!arranging) return <button key={m.id} onClick={() => onOpen(m)} className="group flex shrink-0 flex-col items-center gap-2.5 active:scale-[.97] transition-transform">{circle}{label}</button>;
@@ -107,7 +107,7 @@ export function ModesRow({ es, update, onOpen, onNew, onDrive, onNews, onNewsRad
         </div>;
       })}
       {!arranging && <button onClick={onNew} className="flex shrink-0 flex-col items-center gap-2.5">
-        <span className="grid h-[104px] w-[104px] place-items-center rounded-full border-2 border-dashed border-[#c4c4c4] text-[#606060] sm:h-[120px] sm:w-[120px]"><Plus size={28} /></span>
+        <span className="grid h-[76px] w-[76px] place-items-center rounded-full border-2 border-dashed border-[#c4c4c4] text-[#606060] sm:h-[88px] sm:w-[88px]"><Plus size={28} /></span>
         <span className="text-[15px] font-medium text-[#606060]">New mode</span>
       </button>}
     </div>

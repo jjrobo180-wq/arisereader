@@ -13,6 +13,7 @@ import {
   NAME_MAX, SUBJECT_LABEL, checkTypedName, exactTeacher, suggestTeachers,
   type ClassSubject, type ClassTeachers, type SchoolTeacher,
 } from "@shared/classTeachers";
+import { lockPageScroll } from "@/lib/scrollLock";
 
 type Status = { needed: boolean; schoolYear: string; school?: { id: number; name: string }; teachers?: SchoolTeacher[]; current?: ClassTeachers | null };
 type Field = { text: string; teacherId: number | null };
@@ -189,9 +190,7 @@ export default function ClassTeachersPopup() {
   const showing = !!status?.needed && !closed;
   useEffect(() => {
     if (!showing) return;
-    const before = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = before; };
+    return lockPageScroll();
   }, [showing]);
 
   if (!showing || !status) return null;

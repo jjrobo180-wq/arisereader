@@ -2,6 +2,8 @@
 // time to hear that moment, edit any line, rename speakers), and the tools (a parent-friendly email,
 // translation, flashcards and a quiz). Share and export are in the share sheet.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { LookNoteTitle, activeLook } from "./looks";
+import { NoteTypeIcon } from "./NoteIcon";
 import { CalendarPlus, Check, ChevronDown, Lock, MoreHorizontal, Pause, Pencil, Play, RefreshCw, Search, Share2, Sparkles, Star, Volume2, X } from "lucide-react";
 import { NOTES_PLANS, fmtClock, speakerName, templateOf, type NoteSummary, type NotesTemplateId, type Timed } from "@shared/ariseNotes";
 import { sayAI, stopAiVoice } from "@/lib/aiVoice";
@@ -60,6 +62,7 @@ export default function NoteScreen({ ctx, id, at }: { ctx: AppCtx; id: string; a
   const pending = note.pieces.filter((p) => p.state === "no_minutes" || p.state === "failed");
   const outOf = note.pieces.some((p) => p.state === "no_minutes");
   const t = templateOf(note.template);
+  const look = activeLook(me.settings);
 
   return <>
     <TopBar ctx={ctx} back={() => ctx.go({ name: "home" })} title={<button type="button" className="max-w-full truncate text-left" onClick={() => note.mine && setSheet("title")} aria-label={`Title: ${note.title}. Rename`}>{note.title || "Untitled note"}</button>}
@@ -68,10 +71,11 @@ export default function NoteScreen({ ctx, id, at }: { ctx: AppCtx; id: string; a
         {note.mine && <IconBtn label="Note settings" onClick={() => setSheet("more")}><MoreHorizontal className="h-5 w-5" /></IconBtn>}
       </>} />
     <main className={`mx-auto max-w-3xl space-y-4 px-4 pt-4 sm:px-5 ${player.ready ? "pb-36" : "pb-24"}`}>
+      {look && <LookNoteTitle look={look} title={note.title || "Untitled note"} meta={`${longDate(note.createdAt)}${note.durationSecs > 0 ? ` · ${fmtClock(note.durationSecs)}` : ""}`} />}
       <div className="flex flex-wrap items-center gap-2 text-[13px] text-[var(--an-muted)]">
         <span>{longDate(note.createdAt)}</span>
         {note.durationSecs > 0 && <span>· {fmtClock(note.durationSecs)}</span>}
-        <button type="button" className="an-chip" onClick={() => note.mine && setSheet("template")} disabled={!note.mine}><span aria-hidden>{note.source === "memo" ? "⚡" : t.emoji}</span>{note.source === "memo" ? "Voice memo" : t.label}{note.mine && <ChevronDown className="h-3.5 w-3.5" aria-hidden />}</button>
+        <button type="button" className="an-chip" onClick={() => note.mine && setSheet("template")} disabled={!note.mine}><NoteTypeIcon id={note.source === "memo" ? "memo" : t.id} className="h-3.5 w-3.5" />{note.source === "memo" ? "Voice memo" : t.label}{note.mine && <ChevronDown className="h-3.5 w-3.5" aria-hidden />}</button>
         {!note.mine && <span className="an-chip">Shared with your family</span>}
       </div>
       {note.status === "processing" && <Notice>Still writing this down… it updates by itself.</Notice>}
@@ -104,7 +108,7 @@ export default function NoteScreen({ ctx, id, at }: { ctx: AppCtx; id: string; a
     {sheet === "title" && <TitleSheet note={note} onClose={() => setSheet("")} onSave={async (title) => { await patch({ title }); setSheet(""); }} />}
     {sheet === "template" && <Sheet title="Summary style" onClose={() => setSheet("")}>
       <div className="grid grid-cols-2 gap-2">{me.templates.map((x) => <button key={x.id} type="button" onClick={() => { if (!x.allowed) { ctx.go({ name: "settings", tab: "plan" }); return; } setSheet(""); void summarize(x.id, true); }} className={`flex min-h-[72px] flex-col items-start gap-1 rounded-2xl border p-3 text-left ${note.template === x.id ? "border-[var(--an-violet)] bg-[var(--an-violet-soft)]" : "border-[var(--an-line)]"}`}>
-        <span className="text-[14px] font-bold"><span aria-hidden>{x.emoji}</span> {x.label}{!x.allowed && <Lock className="ml-1 inline h-3.5 w-3.5 text-[var(--an-amber)]" aria-label="Needs a paid plan" />}</span><span className="text-[12px] text-[var(--an-muted)]">{x.blurb}</span></button>)}</div>
+        <span className="text-[14px] font-bold"><NoteTypeIcon id={x.id} className="mr-1.5 inline h-[18px] w-[18px] align-[-3px] text-[var(--an-violet)]" />{x.label}{!x.allowed && <Lock className="ml-1 inline h-3.5 w-3.5 text-[var(--an-amber)]" aria-label="Needs a paid plan" />}</span><span className="text-[12px] text-[var(--an-muted)]">{x.blurb}</span></button>)}</div>
       <p className="mt-3 text-[13px] text-[var(--an-muted)]">Changing it writes the summary again in the new style. Your transcript stays the same.</p>
     </Sheet>}
     {sheet === "planner" && <PlannerSheet ctx={ctx} note={note} onClose={() => setSheet("")} onDone={(n) => setNote(n)} />}
@@ -161,14 +165,14 @@ function SummaryTab({ ctx, note, busy, summarize, jump, openPlanner, openIep, tr
   return <div className="space-y-4">
     {translated && <Notice action={<Btn kind="soft" onClick={clearTranslated}>Show the original</Btn>}>Showing the summary in {translated.language}.</Notice>}
     {note.stale && note.mine && !translated && <Notice action={<Btn kind="soft" busy={busy === "summary"} onClick={() => void summarize(undefined, true)}>Update summary</Btn>}>The transcript changed since this summary was written.</Notice>}
-    <Section title="Summary" icon={<Sparkles className="h-4 w-4" />} right={<IconBtn label={reading ? "Stop reading" : "Read aloud"} onClick={() => void read()}>{reading ? <X className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}</IconBtn>}>
+    <Section title="Summary" className="an-sec-summary" icon={<Sparkles className="h-4 w-4" />} right={<IconBtn label={reading ? "Stop reading" : "Read aloud"} onClick={() => void read()}>{reading ? <X className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}</IconBtn>}>
       <p className="an-read text-[16px] leading-relaxed">{s.summary}</p>
     </Section>
-    {s.highlights.length > 0 && <Section title="What you marked" icon={<Star className="h-4 w-4" />}><List items={s.highlights} jump={jump} icon={<Star className="h-3.5 w-3.5 fill-current text-[#e0a100]" />} /></Section>}
+    {s.highlights.length > 0 && <Section title="What you marked" className="an-sec-marked" icon={<Star className="h-4 w-4" />}><List items={s.highlights} jump={jump} icon={<Star className="h-3.5 w-3.5 fill-current text-[#e0a100]" />} /></Section>}
     {s.keyPoints.length > 0 && <Section title="Key points"><List items={s.keyPoints} jump={jump} /></Section>}
     {s.sections.map((sec) => <Section key={sec.heading} title={sec.heading} className="an-extra"><List items={sec.items} jump={jump} /></Section>)}
     {s.decisions.length > 0 && <Section title="Decisions"><List items={s.decisions} jump={jump} icon={<Check className="h-3.5 w-3.5" />} /></Section>}
-    {s.actions.length > 0 && <Section title="Action items" icon={<Check className="h-4 w-4" />} right={note.mine && open > 0 ? <Btn kind="primary" onClick={openPlanner} data-testid="notes-to-planner">{ctx.me.features.planner ? "" : <Lock className="h-4 w-4" />}Add to planner</Btn> : note.actions.length && !open ? <span className="text-[12px] font-semibold text-[var(--an-green)]">All in your planner</span> : null}>
+    {s.actions.length > 0 && <Section title="Action items" className="an-sec-actions" icon={<Check className="h-4 w-4" />} right={note.mine && open > 0 ? <Btn kind="primary" onClick={openPlanner} data-testid="notes-to-planner">{ctx.me.features.planner ? "" : <Lock className="h-4 w-4" />}Add to planner</Btn> : note.actions.length && !open ? <span className="text-[12px] font-semibold text-[var(--an-green)]">All in your planner</span> : null}>
       <ul className="an-read space-y-2">{s.actions.map((a, i) => {
         const sent = note.actions.find((x) => x.text === a.what)?.sentTo;
         return <li key={i} className="flex gap-3 rounded-xl px-1 py-1 text-[15px]">
@@ -238,7 +242,7 @@ function TranscriptTab({ note, focusT, jump, onChanged, patch, canPlay }: { note
       {speakers.length > 0 && note.mine && <Btn kind="plain" onClick={() => setNames(true)}>Rename speakers</Btn>}
     </div>
     {ql && <p className="text-[13px] text-[var(--an-muted)]" aria-live="polite">{shown.length} line{shown.length === 1 ? "" : "s"} found</p>}
-    <div ref={box} className="an-card an-read divide-y divide-[var(--an-line)]">
+    <div ref={box} className="an-card an-read an-sec-transcript divide-y divide-[var(--an-line)]">
       {shown.map(({ s, i }) => {
         const starred = note.highlights.some((h) => h >= s.start - 20 && h <= s.end + 5);
         const who = speakerName(s.speaker, note.speakers);

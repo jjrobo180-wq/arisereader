@@ -3,6 +3,7 @@ import { AlertTriangle, Camera, ChevronLeft, ChevronRight, Clock3, RotateCcw, Sh
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import "./noproctor-review.css";
+import { lockPageScroll } from "@/lib/scrollLock";
 
 type Flag = "clear" | "review" | "high";
 type Reason = { level: "review" | "high"; text: string };
@@ -226,8 +227,7 @@ function ReviewDialog({ id, headers, onClose, onChanged }: { id: string; headers
 
   useEffect(() => {
     closeRef.current?.focus();
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlock = lockPageScroll();
     const onKey = (e: KeyboardEvent) => {
       const z = zoomRef.current;
       if (e.key === "Escape") { if (z.zoom !== null) setZoom(null); else onClose(); }
@@ -242,7 +242,7 @@ function ReviewDialog({ id, headers, onClose, onChanged }: { id: string; headers
       }
     };
     document.addEventListener("keydown", onKey);
-    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prevOverflow; };
+    return () => { document.removeEventListener("keydown", onKey); unlock(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

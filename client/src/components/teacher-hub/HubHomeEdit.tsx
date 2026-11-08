@@ -30,7 +30,7 @@ const isControl = (el: EventTarget | null) => el instanceof HTMLElement && !!el.
 const GRID = "grid grid-cols-6 gap-3 sm:grid-cols-8 sm:gap-5 md:grid-cols-10 xl:grid-cols-12";
 const SPAN: Record<HomeSize, string> = { small: "col-span-2", medium: "col-span-full", large: "col-span-full" };
 /** The picture on each part's small tile. */
-const PART_ICON: Record<HomeSection, LucideIcon> = { day: Sun, widgets: AlarmClock, stats: LayoutGrid, picture: ImageIcon, agenda: ListChecks, add: WandSparkles, calendar: CalendarDays, meetings: Users, todo: CheckSquare, notifications: Bell, profile: School };
+const PART_ICON: Record<HomeSection, LucideIcon> = { day: Sun, widgets: AlarmClock, stats: LayoutGrid, picture: ImageIcon, agenda: ListChecks, add: WandSparkles, calendar: CalendarDays, meetings: Users, todo: CheckSquare, profile: School };
 /** One part of a hub's Home: its name and the picture on its small tile. */
 export type HomePart = { id: string; label: string; icon?: LucideIcon };
 /** WorkHub's parts of Home. */
@@ -119,7 +119,9 @@ type Drag = {
   last: string | null;
 };
 
-export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugins = [], onOpenStore, catalog = WORK_PARTS, accent = "bg-slate-950", homeLayout = "cards", leadTiles, appTiles, widgets }: {
+export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugins = [], onOpenStore, catalog = WORK_PARTS, accent = "bg-slate-950", homeLayout = "cards", leadTiles, appTiles, widgets, partLive }: {
+  /** In the Tiles look: what each part's tile shows live (facts it flips between, or pictures). */
+  partLive?: Record<string, { faces?: LiveFace[]; photos?: string[] }>;
   /** Each part's content. null is a part with nothing to show right now: it is left out of Home, and shown as its tile while editing. */
   parts: Record<string, ReactNode | null>; layout: L; onChange: (next: L) => void;
   /** The hub's parts of Home, for their names and tile pictures. */
@@ -180,7 +182,7 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
   const label = (id: string) => (isWidgetHomeId(id) ? kit.nameOf(widgetIdOf(id)) : catalog.find((p) => p.id === id)?.label ?? id);
   const gridClass = LAYOUT_GRID[homeLayout], spanOf = LAYOUT_SPAN[homeLayout], capOf = LAYOUT_CAP[homeLayout];
   const partOf = (id: string): HomePart => (isWidgetHomeId(id) ? { id, label: label(id), icon: AlarmClock } : catalog.find((p) => p.id === id) ?? { id, label: id });
-  const tileOf = (id: string) => <PartTile part={partOf(id)} accent={accent} layout={homeLayout} size={sizeHere(id)} />;
+  const tileOf = (id: string) => <PartTile part={partOf(id)} accent={accent} layout={homeLayout} size={sizeHere(id)} live={partLive?.[id]} />;
   // "tiles" (Windows-Phone-style) always shows every part as a tile that opens in a pop-up, not
   // just the "small"-sized ones cards mode reserves tiles for — that dense tap-grid is the look.
   const alwaysTile = TILE_LAYOUTS.includes(homeLayout);
@@ -359,7 +361,7 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
         {frame(<div className={gridClass} data-testid="home-grid">
           {leads.map((t) => tileBtn(t, t.size ?? "large"))}
           {shown.map((id) => (
-            <div key={id} {...holdProps} className={`${spanHere(id)} min-w-0${fill}`} data-home-part={id}>
+            <div key={id} {...holdProps} className={`${spanHere(id)} min-w-0${fill}`} data-home-part={id} data-home-widget={widgetOf(id) ? "" : undefined}>
               {alwaysTile || (sizeHere(id) === "small" && !widgetOf(id))
                 ? <button type="button" onClick={() => setOpened(id)} className={`w-full transition active:scale-95${fill}`} aria-label={`Open ${label(id)}`} data-testid={`home-tile-${id}`}>{tileOf(id)}</button>
                 : widgetOf(id) ? contentOf(id) : <div className={capOf[sizeOf(layout, id)]}>{contentOf(id)}</div>}
@@ -368,7 +370,7 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
           {arranged(shown.length).map((t, i) => tileBtn(t, t.size ?? startSize(shown.length + i)))}
           {!shown.length && !leads.length && !apps.length && <p className="col-span-full py-4 text-sm text-slate-500">Everything on Home is hidden.</p>}
         </div>)}
-        <div className="flex flex-wrap justify-center gap-2">
+        <div className="mt-5 flex flex-wrap justify-center gap-3 pb-2">
           {widgetsOn && kit.items.length > 0 && <button type="button" onClick={kit.openGallery} disabled={kit.full} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95 disabled:opacity-50" data-testid="widget-add"><Plus className="h-4 w-4" /> Widget</button>}
           <button type="button" onClick={() => setEditing(true)} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95" data-testid="home-edit">Edit Home</button>
         </div>
@@ -384,7 +386,7 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
     <div className={`space-y-5${isTiles ? " hub-start" : ""}`} data-testid="home-editing">
       {isTiles && <style>{START_CSS}</style>}
       <style>{`@keyframes hub-jiggle{0%{transform:rotate(-.4deg)}50%{transform:rotate(.4deg)}100%{transform:rotate(-.4deg)}}@media (prefers-reduced-motion:reduce){.hub-jiggle{animation:none!important}}`}</style>
-      <div className="sticky top-[72px] z-30 flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/95 px-4 py-2 shadow-lg backdrop-blur">
+      <div className="sticky top-[calc(72px+var(--sat,0px))] z-30 flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/95 px-4 py-2 shadow-lg backdrop-blur">
         <p className="min-w-0 text-sm text-slate-600">{isTiles ? "Hold a tile and drag it · tap an app to open it" : "Hold a part and drag it"} · <X className="inline h-3.5 w-3.5" /> removes · S M L resizes</p>
         <span className="flex shrink-0 items-center gap-2">
           <button type="button" onClick={() => setEditing(false)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white transition active:scale-95" data-testid="home-edit-done"><Check className="h-4 w-4" /> Done</button>
@@ -475,7 +477,7 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
  *  differently per Home layout (see HubHomeLayout) — "cards" is the original app-icon tile,
  *  "tiles" is a solid flat color block with the label pinned bottom-left (Windows-Phone live
  *  tile), "terminal" drops the picture tile entirely for a bracketed text line, CRT-menu style. */
-function PartTile({ part, accent, layout = "cards", size = "small" }: { part: HomePart; accent: string; layout?: HubHomeLayout; size?: HomeSize }) {
+function PartTile({ part, accent, layout = "cards", size = "small", live }: { part: HomePart; accent: string; layout?: HubHomeLayout; size?: HomeSize; live?: { faces?: LiveFace[]; photos?: string[] } }) {
   const Icon = part.icon ?? Puzzle;
   if (layout === "terminal") {
     return (
@@ -485,7 +487,7 @@ function PartTile({ part, accent, layout = "cards", size = "small" }: { part: Ho
       </span>
     );
   }
-  if (layout === "tiles") return <TileFace label={part.label} icon={<Icon strokeWidth={1.75} />} color={tileColorOf(part.id)} size={size} />;
+  if (layout === "tiles") return <TileFace label={part.label} icon={<Icon strokeWidth={1.75} />} color={tileColorOf(part.id)} size={size} faces={live?.faces} photos={live?.photos} />;
   return (
     <span className="flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-[1.6rem] border border-slate-200 bg-white p-2 text-center shadow-sm">
       <span className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-sm sm:h-14 sm:w-14 ${accent}`}><Icon className="h-6 w-6 sm:h-7 sm:w-7" /></span>

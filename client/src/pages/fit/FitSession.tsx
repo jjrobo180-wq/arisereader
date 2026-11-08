@@ -6,18 +6,34 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Gauge, Mountain, Pause, Play, Trophy, Volume2, VolumeX, X } from "lucide-react";
 import { sessionSecs, type Phase, type Session } from "@shared/fitSessions";
 import { preloadAiVoice, sayAI, stopAiVoice } from "@/lib/aiVoice";
-import { Btn, C, Card, display, fmtDur, font, Layer} from "./fitUi";
+import { Btn, C, Card, accentNow, display, fmtDur, font, Layer } from "./fitUi";
 
-const KIND_COLOR: Record<Phase["kind"], string> = { warm: "#ffb020", work: "#ff5a1f", rest: "#4d9fff", cool: "#8d939b", pose: "#ff5a1f", "breathe-in": "#4d9fff", hold: "#b9c0c8", "breathe-out": "#ff5a1f", still: "#b9c0c8" };
+const KIND_COLOR: Record<Phase["kind"], string> = { warm: "#ffb020", work: "accent", rest: "#4d9fff", cool: "#8d939b", pose: "accent", "breathe-in": "#4d9fff", hold: "#b9c0c8", "breathe-out": "accent", still: "#b9c0c8" };
 const BREATH = new Set<Phase["kind"]>(["breathe-in", "hold", "breathe-out"]);
 
+// Two coaches: the upbeat one for HIIT and running, and a soft, warm woman's voice for yoga, meditation
+// and mobility, like a studio instructor (a hype voice saying "In!" over a breathing exercise is the wrong energy).
 const COACH = "troy" as const;
-function say(text: string) { stopAiVoice(); void sayAI(text, { voice: COACH }).catch(() => { /* no voice reachable: the screen still shows everything */ }); }
+const CALM = "calm" as const;
+const CALM_KINDS = new Set(["yoga", "meditation", "mobility"]);
+const coachFor = (s: Session) => (CALM_KINDS.has(s.category) ? CALM : COACH);
+function say(text: string, s: Session) {
+  stopAiVoice();
+  const calm = CALM_KINDS.has(s.category);
+  void sayAI(text, { voice: coachFor(s), rate: 1 }).catch(() => { /* no voice reachable: the screen still shows everything */ });
+}
 let audio: AudioContext | null = null;
-function beep(high = false) {
+function beep(high = false, soft = false) {
   try {
     audio ??= new (window.AudioContext || (window as any).webkitAudioContext)();
     const o = audio.createOscillator(), g = audio.createGain();
+    const t = audio.currentTime;
+    if (soft) {
+      // A quiet bell for calm sessions: a sine that fades out instead of a buzzer.
+      o.type = "sine"; o.frequency.value = high ? 528 : 396;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.08, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
+      o.connect(g); g.connect(audio.destination); o.start(t); o.stop(t + 1.7); return;
+    }
     o.frequency.value = high ? 1320 : 880; o.type = "square"; g.gain.value = 0.06;
     o.connect(g); g.connect(audio.destination); o.start(); o.stop(audio.currentTime + (high ? 0.35 : 0.12));
   } catch { /* no sound */ }
@@ -25,9 +41,10 @@ function beep(high = false) {
 
 /** What's said when a phase starts. */
 function announce(p: Phase): string {
-  if (p.kind === "breathe-in") return "In";
-  if (p.kind === "breathe-out") return "Out";
-  if (p.kind === "hold") return "Hold";
+  // Breathing cues are said softly and in full, the way a teacher would, not barked as one word.
+  if (p.kind === "breathe-in") return "Breathe in... slowly.";
+  if (p.kind === "breathe-out") return "And let it go... all the way out.";
+  if (p.kind === "hold") return "Gently hold.";
   const parts = [p.name];
   if (p.speed) parts.push(`${p.speed} miles per hour`);
   if (p.incline) parts.push(`incline ${p.incline}`);
@@ -51,7 +68,7 @@ export function SessionPlayer({ session, onClose, onDone }: { session: Session; 
   const elapsed = session.phases.slice(0, i).reduce((t, x) => t + x.secs, 0) + (p.secs - leftMs / 1000);
 
   // Every line the coach will say, made ahead so each one plays the moment its phase starts.
-  useEffect(() => { for (const t of new Set(session.phases.map(announce)).values()) void preloadAiVoice(t, COACH).catch(() => {}); }, [session]);
+  useEffect(() => { for (const t of new Set(session.phases.map(announce)).values()) void preloadAiVoice(t, coachFor(session)).catch(() => {}); }, [session]);
   // Keep the screen on.
   useEffect(() => {
     let lock: any = null;
@@ -60,26 +77,27 @@ export function SessionPlayer({ session, onClose, onDone }: { session: Session; 
   }, []);
   useEffect(() => { if (finished) return; const t = window.setInterval(() => setNow(Date.now()), 200); return () => window.clearInterval(t); }, [finished]);
   // A new phase: speak it.
-  useEffect(() => { if (voice && !finished) say(announce(p)); navigator.vibrate?.(BREATH.has(p.kind) ? 20 : [120, 60, 120]); lastBeep.current = -1; }, [i]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (voice && !finished) say(announce(p), session); navigator.vibrate?.(BREATH.has(p.kind) ? 20 : [120, 60, 120]); lastBeep.current = -1; }, [i]); // eslint-disable-line react-hooks/exhaustive-deps
   // Countdown beeps, and moving on when the phase ends.
   useEffect(() => {
     if (pausedLeft !== null || finished) return;
-    if (!BREATH.has(p.kind) && p.secs >= 10 && left <= 3 && left >= 1 && lastBeep.current !== left) { lastBeep.current = left; beep(); }
+    if (!BREATH.has(p.kind) && p.secs >= 10 && left <= 3 && left >= 1 && lastBeep.current !== left) { lastBeep.current = left; if (!CALM_KINDS.has(session.category)) beep(); }
     if (leftMs <= 0) {
-      if (i + 1 >= session.phases.length) { setFinished(true); beep(true); if (voice) say("Session complete. Great work."); return; }
-      if (!BREATH.has(session.phases[i + 1].kind)) beep(true);
+      if (i + 1 >= session.phases.length) { setFinished(true); beep(true, CALM_KINDS.has(session.category)); if (voice) say(CALM_KINDS.has(session.category) ? "That's the end of your session. Take a moment before you move on." : "Session complete. Great work.", session); return; }
+      if (!BREATH.has(session.phases[i + 1].kind)) beep(true, CALM_KINDS.has(session.category));
       setI(i + 1); setEndAt(Date.now() + session.phases[i + 1].secs * 1000);
     }
   }, [now]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const go = (to: number) => { const n = Math.max(0, Math.min(session.phases.length - 1, to)); setI(n); if (pausedLeft !== null) setPausedLeft(session.phases[n].secs * 1000); else setEndAt(Date.now() + session.phases[n].secs * 1000); };
   const toggle = () => { if (pausedLeft !== null) { setEndAt(Date.now() + pausedLeft); setPausedLeft(null); } else { setPausedLeft(leftMs); stopAiVoice(); } };
-  const color = KIND_COLOR[p.kind];
+  // "accent" is the color theme's accent (a hex, since an alpha is added to it below).
+  const color = KIND_COLOR[p.kind] === "accent" ? accentNow() : KIND_COLOR[p.kind];
   const next = session.phases[i + 1];
   const breathScale = p.kind === "breathe-in" ? 1 : p.kind === "breathe-out" ? 0.45 : p.kind === "hold" ? (session.phases[i - 1]?.kind === "breathe-in" ? 1 : 0.45) : 0.7;
 
-  if (finished) return <Layer><div className="fixed inset-0 z-[90] flex flex-col items-center justify-center px-6 text-center" style={{ background: `radial-gradient(90% 60% at 50% 20%, #3a1a0a, ${C.bg})`, color: C.text, ...font }} data-testid="fit-session-done">
-    <div className="grid h-24 w-24 place-items-center rounded-full" style={{ background: C.lime }}><Trophy className="h-12 w-12" style={{ color: "#0b0b0c" }} /></div>
+  if (finished) return <Layer><div className="fixed inset-0 z-[120] flex flex-col items-center justify-center px-6 text-center" style={{ backgroundColor: C.bg, backgroundImage: `radial-gradient(90% 60% at 50% 20%, ${C.emberSoft}, transparent)`, color: C.text, ...font, isolation: "isolate" }} data-testid="fit-session-done">
+    <div className="grid h-24 w-24 place-items-center rounded-full" style={{ background: C.lime }}><Trophy className="h-12 w-12" style={{ color: "var(--fit-on-accent)" }} /></div>
     <h1 className="mt-6 text-[44px] leading-none" style={display}>Done.</h1>
     <p className="mt-2 text-[16px]" style={{ color: C.steel }}>{session.name}</p>
     <div className="mt-6 grid w-full max-w-sm grid-cols-2 gap-2">
@@ -90,8 +108,9 @@ export function SessionPlayer({ session, onClose, onDone }: { session: Session; 
     <button type="button" onClick={onClose} className="mt-3 h-11 text-[15px]" style={{ color: C.dim }}>Close without saving</button>
   </div></Layer>;
 
-  return <Layer><div className="fixed inset-0 z-[90] flex flex-col" style={{ background: `radial-gradient(110% 70% at 50% 30%, ${color}26, ${C.bg} 70%)`, color: C.text, ...font }} data-testid="fit-session">
-    <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
+  // A solid page color under everything (never see-through), the soft glow over it, and the words on a card.
+  return <Layer><div className="fixed inset-0 z-[120] flex flex-col" style={{ backgroundColor: C.bg, backgroundImage: `radial-gradient(110% 70% at 50% 30%, ${color}26, transparent 70%), linear-gradient(${C.bg}, ${C.bg})`, color: C.text, ...font, isolation: "isolate", height: "100dvh", opacity: 1 }} data-testid="fit-session">
+    <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,var(--sat,env(safe-area-inset-top,0px)))]">
       <button type="button" onClick={() => { if (window.confirm("End this session?")) onClose(); }} aria-label="End session" className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card }}><X className="h-5 w-5" /></button>
       <div className="min-w-0 flex-1 text-center"><p className="truncate text-[17px]" style={display}>{session.name}</p><p className="text-[12px] tabular-nums" style={{ color: C.dim }}>{fmtDur(elapsed)} / {fmtDur(total)}</p></div>
       <button type="button" onClick={() => { setVoice((v) => !v); stopAiVoice(); }} aria-label={voice ? "Mute voice" : "Turn voice on"} aria-pressed={voice} className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card }}>{voice ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}</button>
@@ -115,7 +134,7 @@ export function SessionPlayer({ session, onClose, onDone }: { session: Session; 
     </div>
     <div className="flex shrink-0 items-center justify-center gap-6 pb-[max(24px,env(safe-area-inset-bottom))] pt-2">
       <button type="button" onClick={() => go(i - 1)} disabled={i === 0} aria-label="Previous" className="grid h-14 w-14 place-items-center rounded-full disabled:opacity-30" style={{ background: C.card }}><ChevronLeft className="h-7 w-7" /></button>
-      <button type="button" onClick={toggle} aria-label={pausedLeft !== null ? "Resume" : "Pause"} className="grid h-20 w-20 place-items-center rounded-full shadow-[0_10px_30px_rgba(255,90,31,.4)]" style={{ background: C.lime, color: "#0b0b0c" }} data-testid="fit-session-pause">{pausedLeft !== null ? <Play className="ml-1 h-9 w-9" fill="currentColor" /> : <Pause className="h-9 w-9" fill="currentColor" />}</button>
+      <button type="button" onClick={toggle} aria-label={pausedLeft !== null ? "Resume" : "Pause"} className="grid h-20 w-20 place-items-center rounded-full shadow-[0_10px_30px_rgba(var(--fit-accent-rgb),.4)]" style={{ background: C.lime, color: "var(--fit-on-accent)" }} data-testid="fit-session-pause">{pausedLeft !== null ? <Play className="ml-1 h-9 w-9" fill="currentColor" /> : <Pause className="h-9 w-9" fill="currentColor" />}</button>
       <button type="button" onClick={() => (i + 1 < session.phases.length ? go(i + 1) : setFinished(true))} aria-label="Skip" className="grid h-14 w-14 place-items-center rounded-full" style={{ background: C.card }} data-testid="fit-session-skip"><ChevronRight className="h-7 w-7" /></button>
     </div>
   </div></Layer>;

@@ -1,4 +1,4 @@
-// Relationships (a Plugin Store add-on): a tip each day, tips by topic, conversation starters and
+// Relationships (a Plugin Gallery add-on): a tip each day, tips by topic, conversation starters and
 // date ideas, with where to turn for help when things are more than everyday trouble.
 import { useState } from "react";
 import { Heart, LifeBuoy, MessageCircleHeart, Shuffle, Sparkles } from "lucide-react";

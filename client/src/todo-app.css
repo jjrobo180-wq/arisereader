@@ -1,0 +1,15 @@
+/* Arise To Duo on the iPhone (html.todo-app, main.tsx) draws edge to edge: the page runs under the clock and
+   the Home bar. html.todo-edge is set only when the page really fills the screen (a newer build); an older
+   build that still keeps the page inside the safe area gets none of this, so nothing doubles. */
+/* --sat-device is this iPhone's own clock height (lib/deviceInsets.ts): 59-62px with a Dynamic Island, where 44px left the
+   island over the top row. The web view can report no safe area at all, so env() alone isn't enough. */
+/* Arise To Duo on the iPhone: a touch smaller (93.75%) through the type size, so the page stays at 100% and
+   text boxes (16px, index.css) never trigger iPhone's tap-to-zoom. */
+html.todo-edge.todo-compact { font-size: 93.75%; }
+html.todo-edge { --sat: max(env(safe-area-inset-top, 0px), var(--sat-device, 44px)); --sab: env(safe-area-inset-bottom, 0px); }
+/* The hub's own header grows up behind the clock: its color reaches the top of the screen, its buttons stay below it. */
+html.todo-edge header.sticky.top-0:not([role="dialog"] *):not(.fixed *):not(.an-root *) { box-sizing: content-box; padding-top: var(--sat); }
+/* A strip in the page's color sits behind the clock, so nothing scrolls under the time when the header slides away. */
+html.todo-edge body::after { content: ""; position: fixed; inset: 0 0 auto; height: var(--sat); background-color: inherit; z-index: 39; pointer-events: none; }
+/* A page with no such header (sign-in, plain pages) starts below the clock. */
+html.todo-edge body:not(:has(header.sticky.top-0)):not(:has(.los)):not(:has(.an-root)) #root { padding-top: var(--sat); }

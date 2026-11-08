@@ -7,7 +7,19 @@
 //   requestSpeech()               -> { speech }
 //   transcribe({ audio, ext, locale, hints }) -> { lines: [{ start, end, text }], duration }
 //   generate({ instructions, prompt })         -> { text }
+//   secretSave/secretLoad/secretRemove/secretHas({ key, value?, reason? })  Keychain, behind Face ID
+//     (the locked notes' key: client/src/components/arise-notes/pages/pagesLock.ts)
+//   widgetSave({ json })          the Home Screen widgets' list of notes (titles and short previews only),
+//     through the App Group group.<bundle id> (notes/ios-app/widgets/NotesWidgets.swift)
+//   setBackdrop({ color })        colors the areas behind the status bar and Home indicator
+//   readHandwriting({ image })    -> { text }  Apple Vision text recognition, on the iPhone, so
+//     handwritten notes can be searched
 import Foundation
+import LocalAuthentication
+import Security
+import Vision
+import UIKit
+import WidgetKit
 import AVFoundation
 import Capacitor
 import Speech
@@ -23,10 +35,19 @@ public class AriseOnDevicePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "status", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestSpeech", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "transcribe", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "generate", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "generate", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "secretSave", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "secretLoad", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "secretRemove", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "secretHas", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "readHandwriting", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "widgetSave", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setBackdrop", returnType: CAPPluginReturnPromise)
     ]
 
     /// Running recognitions, kept so they aren't released before they finish.
+    override public func load() { NotesZoomLock.install(on: bridge?.webView) }
+
     private var tasks: [String: SFSpeechRecognitionTask] = [:]
     private let lock = NSLock()
 
@@ -190,5 +211,111 @@ public class AriseOnDevicePlugin: CAPPlugin, CAPBridgedPlugin {
         }
         #endif
         call.reject("Strict mode summaries need iOS 26 and Apple Intelligence.", "AI_UNAVAILABLE")
+    }
+
+    // ─── Keychain behind Face ID ────────────────────────────────────────────
+    private let service = "com.arisereader.notes.locked"
+    private func baseQuery(_ key: String) -> [String: Any] {
+        return [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: key]
+    }
+
+    @objc func secretSave(_ call: CAPPluginCall) {
+        guard let key = call.getString("key"), let value = call.getString("value"), let data = value.data(using: .utf8) else { call.reject("Nothing to save."); return }
+        SecItemDelete(baseQuery(key) as CFDictionary)
+        var error: Unmanaged<CFError>?
+        guard let access = SecAccessControlCreateWithFlags(nil, kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly, .biometryCurrentSet, &error) else {
+            call.reject("Face ID can't be used on this iPhone.", "NO_BIOMETRY")
+            return
+        }
+        var q = baseQuery(key)
+        q[kSecValueData as String] = data
+        q[kSecAttrAccessControl as String] = access
+        let status = SecItemAdd(q as CFDictionary, nil)
+        if status == errSecSuccess { call.resolve(["ok": true]) } else { call.reject("Face ID couldn't be set up (\(status)). A passcode needs to be set on this iPhone.", "SAVE_FAILED") }
+    }
+
+    @objc func secretLoad(_ call: CAPPluginCall) {
+        guard let key = call.getString("key") else { call.reject("No key."); return }
+        let context = LAContext()
+        context.localizedReason = call.getString("reason") ?? "Unlock your locked notes"
+        var q = baseQuery(key)
+        q[kSecReturnData as String] = true
+        q[kSecMatchLimit as String] = kSecMatchLimitOne
+        q[kSecUseAuthenticationContext as String] = context
+        DispatchQueue.global(qos: .userInitiated).async {
+            var out: CFTypeRef?
+            let status = SecItemCopyMatching(q as CFDictionary, &out)
+            if status == errSecSuccess, let data = out as? Data, let value = String(data: data, encoding: .utf8) {
+                call.resolve(["value": value])
+            } else if status == errSecItemNotFound {
+                call.resolve([:])
+            } else {
+                call.reject("Face ID didn't unlock (\(status)).", status == errSecUserCanceled ? "CANCELED" : "FAILED")
+            }
+        }
+    }
+
+    @objc func secretRemove(_ call: CAPPluginCall) {
+        guard let key = call.getString("key") else { call.reject("No key."); return }
+        SecItemDelete(baseQuery(key) as CFDictionary)
+        call.resolve(["ok": true])
+    }
+
+    @objc func secretHas(_ call: CAPPluginCall) {
+        guard let key = call.getString("key") else { call.reject("No key."); return }
+        let context = LAContext()
+        context.interactionNotAllowed = true
+        var q = baseQuery(key)
+        q[kSecUseAuthenticationContext as String] = context
+        let status = SecItemCopyMatching(q as CFDictionary, nil)
+        // Not allowed to ask means it's there (behind Face ID).
+        call.resolve(["has": status == errSecSuccess || status == errSecInteractionNotAllowed])
+    }
+
+    // ─── Reading handwriting (Vision, on the iPhone) ────────────────────────
+    @objc func readHandwriting(_ call: CAPPluginCall) {
+        guard let raw = call.getString("image"), let data = Data(base64Encoded: raw.components(separatedBy: ",").last ?? raw),
+              let image = UIImage(data: data), let cg = image.cgImage else { call.reject("No picture to read."); return }
+        let request = VNRecognizeTextRequest { req, err in
+            if let err = err { call.reject("The handwriting couldn't be read (\(err.localizedDescription))."); return }
+            let lines = (req.results as? [VNRecognizedTextObservation] ?? []).compactMap { $0.topCandidates(1).first?.string }
+            call.resolve(["text": lines.joined(separator: "\n")])
+        }
+        request.recognitionLevel = .accurate
+        request.usesLanguageCorrection = true
+        if #available(iOS 16.0, *) { request.automaticallyDetectsLanguage = true }
+        DispatchQueue.global(qos: .utility).async {
+            do { try VNImageRequestHandler(cgImage: cg, options: [:]).perform([request]) }
+            catch { call.reject("The handwriting couldn't be read.") }
+        }
+    }
+
+    // ─── Widgets ────────────────────────────────────────────────────────────
+    /// Colors the areas around the page (behind the status bar and the Home indicator) to match the look.
+    @objc func setBackdrop(_ call: CAPPluginCall) {
+        let hex = (call.getString("color") ?? "").trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        guard hex.count == 6, let value = UInt32(hex, radix: 16) else { call.reject("Use a color like #2b2320."); return }
+        let color = UIColor(red: CGFloat((value >> 16) & 255) / 255, green: CGFloat((value >> 8) & 255) / 255, blue: CGFloat(value & 255) / 255, alpha: 1)
+        DispatchQueue.main.async { [weak self] in
+            guard let webView = self?.bridge?.webView else { call.reject("The app isn't ready."); return }
+            webView.isOpaque = false
+            webView.backgroundColor = color
+            webView.scrollView.backgroundColor = color
+            webView.scrollView.bounces = false
+            webView.scrollView.alwaysBounceVertical = false
+            webView.underPageBackgroundColor = color
+            webView.superview?.backgroundColor = color
+            self?.bridge?.viewController?.view.backgroundColor = color
+            call.resolve()
+        }
+    }
+
+    @objc func widgetSave(_ call: CAPPluginCall) {
+        guard let json = call.getString("json"), let data = json.data(using: .utf8), data.count < 200_000 else { call.reject("Nothing to show."); return }
+        let group = "group." + (Bundle.main.bundleIdentifier ?? "com.arisereader.notes")
+        guard let shared = UserDefaults(suiteName: group) else { call.reject("The widgets aren't set up in this build.", "NO_GROUP"); return }
+        shared.set(data, forKey: "notesWidget")
+        WidgetCenter.shared.reloadAllTimelines()
+        call.resolve(["ok": true])
     }
 }

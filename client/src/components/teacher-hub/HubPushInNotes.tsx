@@ -345,7 +345,7 @@ function StudentList({ notes, student, blocks, today, onOpen }: { notes: PushInN
 
 // ─── Writing a note ─────────────────────────────────────────────────────────
 
-function NoteEditor({ workspace, setWorkspace, makeId, today, token, groups, blocks, start, isNew, count, onClose }: {
+export function NoteEditor({ workspace, setWorkspace, makeId, today, token, groups, blocks, start, isNew, count, onClose }: {
   workspace: Workspace; setWorkspace: Setter; makeId: () => string; today: string; token: string | null; groups: ClassGroup[];
   blocks: ReturnType<typeof schoolBlocks>; start: PushInNote; isNew: boolean; count: number; onClose: () => void;
 }) {

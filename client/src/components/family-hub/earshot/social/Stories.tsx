@@ -90,7 +90,7 @@ export function StoryViewer({ tray, start, ctx, onClose, onSeen, onDeleted, onCr
           if (e.clientX - r.left < r.width * 0.33) prev(); else next();
         }} onPointerCancel={() => { down.current = null; setPaused(false); }} />
       {/* Progress and who */}
-      <div className="absolute inset-x-0 top-0 z-[2] bg-gradient-to-b from-black/60 to-transparent px-3 pb-6 pt-[max(.6rem,env(safe-area-inset-top))]">
+      <div className="absolute inset-x-0 top-0 z-[2] bg-gradient-to-b from-black/60 to-transparent px-3 pb-6 pt-[max(.6rem,var(--sat,env(safe-area-inset-top,0px)))]">
         <div className="flex gap-1">{group.stories.map((s, i) => <span key={s.id} className="h-[3px] flex-1 overflow-hidden rounded-full bg-white/35"><span className="block h-full bg-white" style={{ width: `${i < k ? 100 : i === k ? pct * 100 : 0}%` }} /></span>)}</div>
         <div className="mt-3 flex items-center gap-2.5">
           <button type="button" onClick={() => { onClose(); ctx.openProfile(group.author.handle); }} className="flex min-w-0 items-center gap-2.5"><Avatar p={group.author} size={34} /><b className="truncate text-[15px]">{group.me ? "Your story" : group.author.name}</b></button>
@@ -168,7 +168,7 @@ export function StoryMaker({ ctx, onClose, onPosted }: { ctx: SCtx; onClose: () 
   const ready = mode === "text" ? !!body.trim() : mode === "episode" ? !!episode : !!file?.media;
   return <Layer><div className="fade absolute inset-0 z-[95] flex items-center justify-center bg-black text-white" role="dialog" aria-label="New story">
     <div className="relative flex h-full w-full max-w-[460px] flex-col overflow-hidden sm:my-6 sm:h-[calc(100%-3rem)] sm:rounded-2xl" style={mode === "text" ? { background: `linear-gradient(160deg, ${bg}, color-mix(in srgb, ${bg} 55%, #000))` } : { background: "#0b0b0d" }}>
-      <div className="z-[2] flex items-center justify-between px-3 pt-[max(.7rem,env(safe-area-inset-top))]">
+      <div className="z-[2] flex items-center justify-between px-3 pt-[max(.7rem,var(--sat,env(safe-area-inset-top,0px)))]">
         <button type="button" onClick={onClose} aria-label="Close" className="grid h-10 w-10 place-items-center rounded-full bg-black/30"><X size={22} /></button>
         {mode !== "pick" && <button type="button" onClick={share} disabled={!ready || busy} className="inline-flex min-h-10 items-center gap-2 rounded-full bg-white px-5 text-[15px] font-bold text-black disabled:opacity-40">{busy && <Loader2 size={15} className="animate-spin" />}Share to story</button>}
       </div>

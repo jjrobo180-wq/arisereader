@@ -1,4 +1,4 @@
-// Savings jars (a Plugin Store add-on): save toward things (a vacation, a new couch, the
+// Savings jars (a Plugin Gallery add-on): save toward things (a vacation, a new couch, the
 // emergency fund) and watch each jar fill up.
 import { useState, type FormEvent } from "react";
 import { Minus, PiggyBank, Plus, Trash2 } from "lucide-react";

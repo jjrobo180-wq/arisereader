@@ -2,16 +2,24 @@ name: Pod+ signed iOS beta validation
 # Development beta validation only. Upload is a separate, explicitly approved release step.
 on:
   workflow_dispatch:
+    inputs:
+      upload:
+        description: Send this build to TestFlight (the owner's approval)
+        type: boolean
+        default: false
   push:
     branches: [feat/podplus-ios-app-store-starter]
     paths:
       - '.github/scripts/**'
       - '.github/workflows/podplus-testflight.yml'
+      - 'podscroll/**'
+      - 'native/**'
+      - 'client/src/hooks/useAutoHideHeader.ts'
 jobs:
   signed-archive:
     # GitHub's Xcode 27 image (Apple Silicon): builds with the iOS 27.1 SDK, for iPhone Duo.
     runs-on: xcode-27
-    timeout-minutes: 60
+    timeout-minutes: 120
     environment: app-store
     steps:
       - uses: actions/checkout@v4
@@ -64,13 +72,14 @@ jobs:
           npx cap sync ios
           python3 configure-ios.py ios/App/App/Info.plist
           python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist
+          python3 configure-carplay.py ios/App/App/Info.plist
       - name: Prepare beta icon and build number
         working-directory: podscroll/ios-app
         run: |
           set -euo pipefail
           ICON=ios/App/App/Assets.xcassets/AppIcon.appiconset
           mkdir -p "$ICON"
-          sips -s format jpeg -s formatOptions 100 ../public/icon-512.png --out "$RUNNER_TEMP/podplus-icon.jpg" >/dev/null
+          sips -s format jpeg -s formatOptions 100 ../../client/public/app-icons/podplus-1024.png --out "$RUNNER_TEMP/podplus-icon.jpg" >/dev/null
           sips -z 1024 1024 -s format png "$RUNNER_TEMP/podplus-icon.jpg" --out "$ICON/AppIcon-1024.png" >/dev/null
           printf '%s' '{"images":[{"filename":"AppIcon-1024.png","idiom":"universal","platform":"ios","size":"1024x1024"}],"info":{"author":"xcode","version":1}}' > "$ICON/Contents.json"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT" ios/App/App/Info.plist
@@ -93,7 +102,10 @@ jobs:
             security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
           fi
           # Sign in with Apple and push notifications on the App ID, and a profile that includes them (same certificate).
-          python3 .github/scripts/apple_signing.py com.arisereader.podplus "$RUNNER_TEMP/profile.mobileprovision" APPLE_ID_AUTH PUSH_NOTIFICATIONS
+          python3 .github/scripts/apple_signing.py com.arisereader.podplus "$RUNNER_TEMP/profile.mobileprovision" APPLE_ID_AUTH PUSH_NOTIFICATIONS APP_GROUPS
+          # CarPlay (granted by Apple Nov 2026, turned on for the App ID in the developer website): a profile with it too.
+          # If it isn't on for the App ID yet, this only warns and the profile above is kept.
+          python3 .github/scripts/apple_signing.py com.arisereader.podplus "$RUNNER_TEMP/profile.mobileprovision" APPLE_ID_AUTH PUSH_NOTIFICATIONS APP_GROUPS CARPLAY_AUDIO
           security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
           if /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.applesignin' "$RUNNER_TEMP/profile.plist" >/dev/null 2>&1; then
             ENT=podscroll/ios-app/ios/App/App/App.entitlements
@@ -115,6 +127,37 @@ jobs:
           else
             echo "::warning::The provisioning profile has no Push Notifications capability. Building without notifications."
           fi
+          # Widgets: the app's profile needs the App Group and the widget extension needs a profile of its own.
+          # Without both, the app is built as before, without widgets.
+          if /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.security.application-groups' "$RUNNER_TEMP/profile.plist" >/dev/null 2>&1; then
+            SEED_PROFILE="$RUNNER_TEMP/profile.mobileprovision" python3 .github/scripts/apple_signing.py com.arisereader.podplus.widgets "$RUNNER_TEMP/widget.mobileprovision" APP_GROUPS || true
+            if [[ -s "$RUNNER_TEMP/widget.mobileprovision" ]] && security cms -D -i "$RUNNER_TEMP/widget.mobileprovision" > "$RUNNER_TEMP/widget.plist" 2>/dev/null && /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.security.application-groups' "$RUNNER_TEMP/widget.plist" >/dev/null 2>&1; then
+              ENT=podscroll/ios-app/ios/App/App/App.entitlements
+              [[ -f "$ENT" ]] || printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict/></plist>\n' > "$ENT"
+              mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+              cp "$RUNNER_TEMP/widget.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/widget.plist").mobileprovision"
+              /usr/libexec/PlistBuddy -c 'Delete :com.apple.security.application-groups' "$ENT" 2>/dev/null || true
+              /usr/libexec/PlistBuddy -c 'Add :com.apple.security.application-groups array' "$ENT"
+              /usr/libexec/PlistBuddy -c 'Add :com.apple.security.application-groups:0 string group.com.arisereader.podplus' "$ENT"
+              echo "SIGN_ENTITLEMENTS=CODE_SIGN_ENTITLEMENTS=App/App.entitlements" >> "$GITHUB_ENV"
+              echo "WIDGETS=1" >> "$GITHUB_ENV"
+              echo "WIDGET_PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/widget.plist")" >> "$GITHUB_ENV"
+              echo "Widgets: App Group and widget profile ready"
+            else
+              echo "::warning::No provisioning profile for the widget extension (com.arisereader.podplus.widgets). Building without widgets."
+            fi
+          else
+            echo "::warning::The app's provisioning profile has no App Group. Building without widgets."
+          fi
+          # CarPlay: Apple grants the CarPlay audio entitlement to the account on request
+          # (developer.apple.com/contact/carplay). Once the profile has it, the car's screens are on.
+          if /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.carplay-audio' "$RUNNER_TEMP/profile.plist" >/dev/null 2>&1; then
+            python3 podscroll/ios-app/configure-carplay.py podscroll/ios-app/ios/App/App/Info.plist --entitlements podscroll/ios-app/ios/App/App/App.entitlements
+            echo "SIGN_ENTITLEMENTS=CODE_SIGN_ENTITLEMENTS=App/App.entitlements" >> "$GITHUB_ENV"
+            echo "CarPlay: entitlement enabled"
+          else
+            echo "::warning title=CarPlay::The provisioning profile has no CarPlay audio entitlement yet. Pod+ won't show in cars until Apple grants it (developer.apple.com/contact/carplay) and the profile is made again."
+          fi
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
           PROFILE_APP_ID=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/profile.plist")
@@ -124,13 +167,63 @@ jobs:
           fi
           security create-keychain -p "" "$RUNNER_TEMP/podplus.keychain-db"
           security unlock-keychain -p "" "$RUNNER_TEMP/podplus.keychain-db"
+          # Never lock by itself: the default locks it after 5 idle minutes, and a later signing step (the Apple TV
+          # app, after the iPhone upload) then waited for a password forever.
+          security set-keychain-settings -lut 21600 "$RUNNER_TEMP/podplus.keychain-db"
           security import "$RUNNER_TEMP/signing.p12" -k "$RUNNER_TEMP/podplus.keychain-db" -P "$IOS_DISTRIBUTION_CERT_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k "" "$RUNNER_TEMP/podplus.keychain-db"
           security list-keychains -d user -s "$RUNNER_TEMP/podplus.keychain-db" "$HOME/Library/Keychains/login.keychain-db"
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
           cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
           echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+      - name: Profiles for Pod+ on Apple Watch and Apple TV
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -uo pipefail
+          # The watch app has an App ID of its own (registered here the first time); the TV app is the
+          # same App ID as the iPhone app (one App Store listing) with a tvOS profile.
+          SEED_PROFILE="$RUNNER_TEMP/profile.mobileprovision" CREATE_APP_ID="PodPlus Watch" python3 .github/scripts/apple_signing.py com.arisereader.podplus.watchkitapp "$RUNNER_TEMP/watch.mobileprovision"
+          python3 .github/scripts/add_tvos_platform.py com.arisereader.podplus
+          SEED_PROFILE="$RUNNER_TEMP/profile.mobileprovision" PROFILE_TYPE=TVOS_APP_STORE python3 .github/scripts/apple_signing.py com.arisereader.podplus "$RUNNER_TEMP/tv.mobileprovision"
+          for kind in watch tv; do
+            f="$RUNNER_TEMP/$kind.mobileprovision"
+            if [[ -s "$f" ]] && security cms -D -i "$f" > "$RUNNER_TEMP/$kind.plist" 2>/dev/null; then
+              cp "$f" "$HOME/Library/MobileDevice/Provisioning Profiles/$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/$kind.plist").mobileprovision"
+              echo "$(echo "$kind" | tr a-z A-Z)_PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/$kind.plist")" >> "$GITHUB_ENV"
+              echo "$kind: profile ready"
+            else
+              echo "::warning title=$kind::No App Store profile for the $kind app. Building without it."
+            fi
+          done
+      - name: Add the widget extension (signed)
+        if: env.WIDGETS == '1'
+        working-directory: podscroll/ios-app
+        env:
+          SIGN_TEAM: 6TYWWNKX6P
+          APP_ENTITLEMENTS: App/App.entitlements
+          BUILD_NUMBER: ${{ github.run_number }}.${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          ruby -rxcodeproj -e 'puts Xcodeproj::VERSION' || gem install xcodeproj --no-document --user-install
+          export GEM_PATH="$(ruby -e 'puts Gem.user_dir'):$(ruby -e 'puts Gem.default_dir')"
+          APP_PROFILE="$PROFILE_NAME" WIDGET_PROFILE="$WIDGET_PROFILE_NAME" ruby ../../.github/scripts/add_widget.rb ios/App/App.xcodeproj com.arisereader.podplus "$(cat widgets.json)" ff6a1f
+          # Pod+ for Apple Watch (inside the iPhone app) and Apple TV (archived on its own below).
+          if [[ -n "${WATCH_PROFILE_NAME:-}${TV_PROFILE_NAME:-}" ]]; then
+            WATCH_PROFILE="${WATCH_PROFILE_NAME:-}" TV_PROFILE="${TV_PROFILE_NAME:-}" ruby add_watch_tv.rb ios/App/App.xcodeproj ${WATCH_PROFILE_NAME:+--embed-watch}
+            echo "WATCH_TV=1" >> "$GITHUB_ENV"
+          fi
+      - name: Archive signed app with widgets
+        if: env.WIDGETS == '1'
+        working-directory: podscroll/ios-app
+        run: |
+          set -euo pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/PodPlus.xcarchive" archive
+          test -d "$RUNNER_TEMP/PodPlus.xcarchive/Products/Applications/App.app/PlugIns/AriseWidgets.appex"
       - name: Archive signed app for physical iPhone
+        if: env.WIDGETS != '1'
         working-directory: podscroll/ios-app
         env:
           TEAM_ID: 6TYWWNKX6P
@@ -159,6 +252,10 @@ jobs:
               "teamID": "6TYWWNKX6P",
               "provisioningProfiles": {"com.arisereader.podplus": os.environ["PROFILE_NAME"]},
           }
+          if os.environ.get("WIDGET_PROFILE_NAME"):
+              options["provisioningProfiles"]["com.arisereader.podplus.widgets"] = os.environ["WIDGET_PROFILE_NAME"]
+          if os.environ.get("WATCH_TV") and os.environ.get("WATCH_PROFILE_NAME"):
+              options["provisioningProfiles"]["com.arisereader.podplus.watchkitapp"] = os.environ["WATCH_PROFILE_NAME"]
           with open(os.path.join(os.environ["RUNNER_TEMP"], "ExportOptions.plist"), "wb") as output:
               plistlib.dump(options, output)
           PY
@@ -179,7 +276,7 @@ jobs:
           retention-days: 3
       - name: Validate beta and perform explicitly approved TestFlight upload
         env:
-          APPROVED_UPLOAD: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[approved-testflight]') }}
+          APPROVED_UPLOAD: ${{ (github.event_name == 'push' && contains(github.event.head_commit.message, '[approved-testflight]')) || (github.event_name == 'workflow_dispatch' && inputs.upload) }}
           APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
@@ -199,6 +296,30 @@ jobs:
           xcrun altool --validate-app -f "${IPA[0]}" -t ios --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
           if [[ "$APPROVED_UPLOAD" == "true" ]]; then
             xcrun altool --upload-app -f "${IPA[0]}" -t ios --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+          fi
+      - name: Apple TV build (archive, validate, and upload with the same approval)
+        if: env.WATCH_TV == '1' && env.TV_PROFILE_NAME != ''
+        continue-on-error: true
+        working-directory: podscroll/ios-app
+        env:
+          APPROVED_UPLOAD: ${{ (github.event_name == 'push' && contains(github.event.head_commit.message, '[approved-testflight]')) || (github.event_name == 'workflow_dispatch' && inputs.upload) }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          security unlock-keychain -p "" "$RUNNER_TEMP/podplus.keychain-db"
+          xcodebuild -project ios/App/App.xcodeproj -scheme PodPlusTV -configuration Release -destination 'generic/platform=tvOS' -archivePath "$RUNNER_TEMP/PodPlusTV.xcarchive" archive
+          python3 - <<'PY'
+          import os, plistlib
+          with open(os.path.join(os.environ["RUNNER_TEMP"], "TVExportOptions.plist"), "wb") as f:
+              plistlib.dump({"method": "app-store-connect", "destination": "export", "signingStyle": "manual", "teamID": "6TYWWNKX6P",
+                             "provisioningProfiles": {"com.arisereader.podplus": os.environ["TV_PROFILE_NAME"]}}, f)
+          PY
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/PodPlusTV.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/TVExportOptions.plist" -exportPath "$RUNNER_TEMP/podplus-tv-export"
+          IPA=("$RUNNER_TEMP"/podplus-tv-export/*.ipa)
+          xcrun altool --validate-app -f "${IPA[0]}" -t appletvos --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+          if [[ "$APPROVED_UPLOAD" == "true" ]]; then
+            xcrun altool --upload-app -f "${IPA[0]}" -t appletvos --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
           fi
       - name: Remove temporary signing keychain
         if: always()

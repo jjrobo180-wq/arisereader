@@ -5,10 +5,12 @@ import { useEffect, useState, type ReactNode } from "react";
 import { HomeParts, type HomePart, type StartTile } from "@/components/teacher-hub/HubHomeEdit";
 import { HomeLinks } from "./LinkDirectory";
 import { LIFE_PARTS, cleanLifeLayout, type LifePart } from "@shared/lifeLayout";
+import { withSharedLook } from "@/lib/sharedLook";
 import { pinId } from "@shared/hubLayout";
 import { addDays, billDue, billState, choreDoneOn, choreDueOn, choreOwner, daysBetween, eventsOn, isOn, money, starBalance, tally, toggleChore, type FamilySection } from "@shared/familyHub";
 import { notesAppPlugin, type Plugin } from "@shared/pluginStore";
 import { hubThemeOf } from "@shared/appThemes";
+import { HubLookHero, useActiveLook } from "@/components/HubLook";
 import { liveFaces } from "@shared/liveTiles";
 import type { Forecast } from "@shared/lifePlugins";
 import { useLifeFeed } from "./useLifeFeed";
@@ -50,10 +52,16 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
 
   /** Installed Notes apps (LifeHub Notes/Work Notes cross-installed from the Store) this family can pin to Home. */
   const myNotesApps = (family.notesInstalled ?? []).map((id) => notesAppPlugin("life", id)).filter((p): p is Plugin => !!p);
-  const layout = cleanLifeLayout(family.layout, myNotesApps.map((p) => p.id));
+  // The look the whole hub is showing, which can come from the other hub (lib/sharedLook.ts). Home read only
+  // this hub's saved one, so after Tile was picked in WorkHub the hub hid its menu for Tile's start screen
+  // while Home still drew the ordinary page, without the app tiles: no way to get anywhere.
+  const layout = withSharedLook(cleanLifeLayout(family.layout, myNotesApps.map((p) => p.id)), "life");
   // Widened past Record<LifePart, ...> below so a pinned Notes app (see pinId) can add its own entry.
+  const look = useActiveLook();
   const part: Record<string, ReactNode | null> = {
-    greeting: <><header className="flex flex-wrap items-start justify-between gap-4">
+    greeting: look ? <HubLookHero look={look} date={shortDate(today, { weekday: "long", month: "long", day: "numeric" })} greeting={`${greeting}${name ? `, ${name}` : ""}.`}
+      primary={{ label: dueTasks.length ? `${dueTasks.length} task${dueTasks.length === 1 ? "" : "s"} due` : "See your tasks", onClick: () => go("tasks") }}
+      links={[on("calendar") && { label: "Calendar", onClick: () => go("calendar") }, on("chores") && { label: "Chores", onClick: () => go("chores") }, on("notes") && { label: "Notes", onClick: () => go("notes") }].filter((x): x is { label: string; onClick: () => void } => !!x)} /> : <><header className="flex flex-wrap items-start justify-between gap-4">
       <div><p className="mb-1.5 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7] sm:mb-2">{shortDate(today, { weekday: "long", month: "long", day: "numeric" })}</p><h1 className="text-2xl font-black tracking-tight text-[#232139] sm:text-4xl">{greeting}{name ? `, ${name}` : ""}<span className="text-[#7866e1]">.</span></h1><p className="mt-1.5 text-sm leading-6 text-slate-500 sm:mt-2">Here's what's happening with your family today.</p></div>
     </header></>,
     widgets: family.widgets.board ? <WidgetBoard items={family.widgetBoard} makeId={makeId} accent="bg-[#292446]"
@@ -186,11 +194,12 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
   });
   return <div className="space-y-4 sm:space-y-6">
     {!family.members.length && !tileMode && <section className="flex flex-col gap-4 rounded-[1.5rem] bg-[#292446] p-5 text-white sm:flex-row sm:items-center">
-      <span className="rounded-2xl bg-white/10 p-3 text-[#bcb2ff]"><UserPlus size={26} /></span>
+      <span className="self-start rounded-2xl bg-white/10 p-3 text-[#bcb2ff] sm:self-auto"><UserPlus size={26} /></span>
       <div className="min-w-0 flex-1"><p className="text-lg font-black">Set up your family</p><p className="mt-1 text-sm text-slate-300">Add each person once. Then you can assign tasks and chores, track stars, and let everyone vote.</p></div>
       <button onClick={() => go("family")} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#a38cfa] px-5 text-sm font-bold text-[#1d1838] hover:bg-[#b6a4ff]">Add your family <ChevronRight size={16} /></button>
     </section>}
     <HomeParts parts={part} layout={layout} onChange={(next) => setFamily((f) => ({ ...f, layout: next }))} widgets={{ items: family.widgetBoard, makeId, setItems: (update) => setFamily((f) => ({ ...f, widgetBoard: update(cleanWidgets(f.widgetBoard)) })) }} catalog={[...CATALOG, ...pinnedCatalog]} accent="bg-[#292446]" homeLayout={hubThemeOf(layout.theme).homeLayout}
-      leadTiles={tileMode ? startLeads : undefined} appTiles={tileMode ? liveApps : undefined} />
+      leadTiles={tileMode ? startLeads : undefined} appTiles={tileMode ? liveApps : undefined}
+      partLive={tileMode ? { greeting: { faces: [{ big: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), text: new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }) }] }, stats: { faces: faces.tasks }, agenda: { faces: faces.calendar }, chores: { faces: faces.chores }, bills: { faces: faces.money } } : undefined} />
   </div>;
 }

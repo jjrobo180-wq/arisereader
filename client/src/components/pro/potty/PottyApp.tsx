@@ -5,9 +5,11 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type
 import { BookOpen, CalendarDays, Clock, HeartHandshake, Lightbulb, ListChecks, MessageCircle, PlayCircle, Route, Settings, Star, Sun, Timer, Volume2, VolumeX, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useAppData } from "@/lib/cloudDocs";
-import { LIVE_TAG, clearPottyNotifications, showRunningTimer, syncPottySchedule, syncPottyTimer } from "@/lib/pottyPush";
+import { LIVE_TAG, clearPottyNotifications, showRunningTimer, syncPottySchedule, syncPottyTimer, turnOnPhone } from "@/lib/pottyPush";
+import { isNativeApp } from "@/lib/nativeApp";
+import { publishWidgets } from "@/lib/widgets";
 import { Modal, fmtDuration, uid, useTick } from "../kit";
-import { DEFAULT_DATA, tripInterval, METHOD_LIST, NEEDS, STAGES, ageMonths, ageText, blankChild, buildSchedule, cleanData, clockOf, dayOf, earnsSticker, hm, isAccident, isSuccess, minsOf, sitMinutes, stageById, type Child, type Comms, type Entry, type Kind, type NeedId } from "@shared/pro/potty";
+import { DEFAULT_DATA, isPeeEvent, isPoopEvent, tripInterval, METHOD_LIST, NEEDS, STAGES, ageMonths, ageText, blankChild, buildSchedule, cleanData, clockOf, dayOf, earnsSticker, hm, isAccident, isSuccess, minsOf, sitMinutes, stageById, type Child, type Comms, type Entry, type Kind, type NeedId } from "@shared/pro/potty";
 import { Ctx, type LogPrefill, type PottyCtx, type Tab } from "./ctx";
 import { Alert, Celebrate, SitTimer } from "./KidMode";
 import { LogSheet } from "./LogSheet";
@@ -84,6 +86,11 @@ export default function PottyApp() {
     if (!data.notify || !data.timer || data.timer.endAt <= Date.now()) { void clearPottyNotifications([LIVE_TAG]); return; }
     void showRunningTimer(timerKid?.name || "Your child", clockOf(data.timer.endAt));
   }, [data.notify, timerKey]);
+  // In the iPhone app, starting a timer or the day's reminders turns phone notifications on (asking iOS once), so they ring with the app closed.
+  useEffect(() => {
+    if (!isNativeApp() || data.notify || (!data.timer && !data.schedRun)) return;
+    void turnOnPhone(token).then((p) => { if (p === "on") set((d) => ({ ...d, notify: true })); }).catch(() => {});
+  }, [token, data.notify, !!data.timer, !!data.schedRun]); // eslint-disable-line react-hooks/exhaustive-deps
   // Looking at the app's own alert: the phone's notifications are not needed too.
   useEffect(() => { if (alertOn) void clearPottyNotifications(); }, [alertOn]);
   // In the iPhone app, today's sit and prompt times are also scheduled on the phone, so they ring with the app closed.
@@ -91,21 +98,40 @@ export default function PottyApp() {
   useEffect(() => {
     const run = data.notify ? data.schedRun : null;
     const k = run ? data.kids.find((x) => x.id === run.kid) : null;
-    if (!run || !k || run.day !== dayOf(Date.now())) { void syncPottySchedule("", null, ""); return; }
+    if (!run || !k) { void syncPottySchedule("", null, ""); return; }
     const items = (data.schedules[k.id]?.items?.length ? data.schedules[k.id].items : buildSchedule(k)).filter((i) => i.kind === "sit" || i.kind === "prompt");
-    void syncPottySchedule(k.name, items, run.day);
+    void syncPottySchedule(k.name, items, dayOf(Date.now())); // from today, whatever day it was started
   }, [schedKey]); // eslint-disable-line react-hooks/exhaustive-deps
   // Today's schedule as reminders: ring at each sit or prompt time.
   const rung = useRef<Set<string>>(new Set());
   useEffect(() => {
     const run = data.schedRun; if (!run || alertOn) return;
     const k = data.kids.find((x) => x.id === run.kid); if (!k) return;
-    if (run.day !== dayOf(Date.now())) { set((d) => ({ ...d, schedRun: null })); return; }
+    // A new day: with phone notifications on, the reminders carry on every day until stopped; otherwise they stop.
+    if (run.day !== dayOf(Date.now())) { set((d) => ({ ...d, schedRun: d.notify ? { kid: run.kid, day: dayOf(Date.now()) } : null })); return; }
     const items = data.schedules[k.id]?.items?.length ? data.schedules[k.id].items : buildSchedule(k);
     const nowM = minsOf(hm(Date.now()));
     const due = items.find((i) => (i.kind === "sit" || i.kind === "prompt") && nowM >= minsOf(i.time) && nowM - minsOf(i.time) < 2 && !rung.current.has(`${run.day}:${i.id}`));
     if (due) { rung.current.add(`${run.day}:${due.id}`); if (data.cur !== k.id) set((d) => ({ ...d, cur: k.id })); setAlertOn(true); }
   });
+
+  // Widgets (Home Screen and Lock Screen): the next sit, today's tally and the last pee.
+  const widgetKey = JSON.stringify([kid?.id, data.timer?.kid === kid?.id ? data.timer?.endAt : 0, data.logs.length, data.logs[data.logs.length - 1]?.at]);
+  useEffect(() => {
+    if (!kid) return;
+    const today = dayOf(Date.now());
+    const mine = data.logs.filter((x) => x.kid === kid.id);
+    const todays = mine.filter((x) => dayOf(x.at) === today);
+    const pees = todays.filter((x) => isPeeEvent(x.kind)), poops = todays.filter((x) => isPoopEvent(x.kind)), oops = todays.filter((x) => isAccident(x.kind));
+    const lastPee = mine.filter((x) => isPeeEvent(x.kind)).reduce((m, x) => Math.max(m, x.at), 0);
+    const t = data.timer && data.timer.kid === kid.id && data.timer.endAt > Date.now() ? data.timer : null;
+    publishWidgets([
+      // One potty widget (it used to be three): the live countdown to the next sit, or today's count, with the day's details.
+      { id: "duo.potty.next", title: `${kid.name}'s potty`, value: t ? clockOf(t.endAt) : `${pees.length} pee${pees.length === 1 ? "" : "s"}`,
+        detail: t ? "until the next sit" : `${poops.length} poop${poops.length === 1 ? "" : "s"} · ${oops.length} accident${oops.length === 1 ? "" : "s"} today`, tint: "#f5b400", until: t?.endAt,
+        lines: [`${pees.length} pees · ${poops.length} poops · ${oops.length} accidents`, lastPee ? `Last pee ${clockOf(lastPee)}` : "No pee yet today", ...todays.slice(-4).reverse().map((x) => `${clockOf(x.at)}  ${x.kind}`)] },
+    ]);
+  }, [widgetKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep the current tab visible in the scrolling menu on a phone.
   useEffect(() => { document.querySelector<HTMLElement>(`[data-potty-tab="${tab}"]`)?.scrollIntoView?.({ inline: "center", block: "nearest", behavior: "smooth" }); }, [tab]);
@@ -123,9 +149,9 @@ export default function PottyApp() {
       <div className="flex flex-wrap items-center gap-2 pb-3">
         {data.kids.map((k) => { const on = k.id === kid.id; return <button key={k.id} type="button" onClick={() => set((d) => ({ ...d, cur: k.id }))} aria-pressed={on} className="inline-flex min-h-11 items-center gap-2 rounded-full pl-1.5 pr-4 font-bold transition" style={on ? { background: C.ink, color: "#fff" } : { background: "#fff", color: C.inkSoft, boxShadow: `inset 0 0 0 1.5px ${C.line}` }}>
           <span className="flex h-8 w-8 items-center justify-center rounded-full text-xl" style={{ background: on ? "#ffffff1f" : C.ground }}>{k.avatar}</span><span className="ph">{k.name}</span>{on && <span className="hidden text-xs font-semibold opacity-70 sm:inline">{[ageText(ageMonths(k.birth)), stage.title].filter(Boolean).join(" · ")}</span>}</button>; })}
-        <Btn2 kind="ghost" onClick={() => setAdding(true)}>+ Add a child</Btn2>
+        <Btn2 kind="ghost" onClick={() => setAdding(true)}>+ Child</Btn2>
         <span className="flex-1" />
-        <span className="text-xs" style={{ color: C.muted }}>{state === "saved" ? "Saved" : state === "saving" ? "Saving…" : state === "offline" ? "Offline — saved on this device" : state === "error" ? "Couldn't save" : ""}</span>
+        <span className="text-xs" style={{ color: C.muted }}>{state === "saved" ? "" : state === "saving" ? "Saving…" : state === "offline" ? "Offline — saved on this device" : state === "error" ? "Couldn't save" : ""}</span>
         <button type="button" onClick={() => set((d) => ({ ...d, voice: !d.voice }))} className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white" style={{ boxShadow: `inset 0 0 0 1.5px ${C.line}`, color: C.inkSoft }} aria-label={data.voice ? "Turn the voice off" : "Turn the voice on"} title={data.voice ? "Voice on" : "Voice off"}>{data.voice ? <Volume2 size={17} /> : <VolumeX size={17} />}</button>
         <button type="button" onClick={() => setEditing(kid)} className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white" style={{ boxShadow: `inset 0 0 0 1.5px ${C.line}`, color: C.inkSoft }} aria-label={`${kid.name}'s profile and routine`} title="Profile and routine"><Settings size={17} /></button>
       </div>
@@ -133,7 +159,7 @@ export default function PottyApp() {
       <nav aria-label="Potty Training" className="potty-noprint sticky top-0 z-20 -mx-3 mb-5 overflow-x-auto px-3 py-2 [scrollbar-width:none] sm:-mx-5 sm:px-5 [&::-webkit-scrollbar]:hidden" style={{ background: `${C.ground}F2`, backdropFilter: "blur(8px)" }}>
         <div className="flex w-max gap-1.5">{TABS.map((t) => { const on = t.id === tab; return <button key={t.id} type="button" data-potty-tab={t.id} onClick={() => go(t.id)} aria-current={on ? "page" : undefined} className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[13.5px] font-bold transition" style={on ? { background: C.duck, color: C.ink } : { color: C.inkSoft }}><t.icon size={16} />{t.label}</button>; })}</div>
       </nav>
-      {data.timer && timerKid && <div className="potty-noprint mb-5 flex items-center gap-3 rounded-2xl px-4 py-3" style={{ background: C.duckSoft }}>
+      {data.timer && timerKid && tab !== "simple" && <div className="potty-noprint mb-5 flex items-center gap-3 rounded-2xl px-4 py-3" style={{ background: C.duckSoft }}>
         <span className="shrink-0 text-xl">⏰</span>
         {/* On a narrow phone the text keeps a readable width and Restart drops below it. */}
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2"><p className="min-w-0 flex-[1_1_10rem] text-sm font-bold leading-snug">Potty reminder for {timerKid.name} in <span className="whitespace-nowrap tabular-nums">{fmtDuration(Math.max(0, (data.timer.endAt - Date.now()) / 1000))}</span></p>

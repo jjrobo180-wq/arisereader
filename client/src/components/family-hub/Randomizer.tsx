@@ -1,4 +1,4 @@
-// Randomizer (a Plugin Store add-on): pick from a list, flip a coin, roll dice or pick a number.
+// Randomizer (a Plugin Gallery add-on): pick from a list, flip a coin, roll dice or pick a number.
 // Lists can be saved for next time ("Who does dishes", "Dinner ideas").
 import { useRef, useState } from "react";
 import { Coins, Dices, Hash, ListChecks, Save, Shuffle, Trash2 } from "lucide-react";

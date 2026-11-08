@@ -4,6 +4,7 @@
 // The tab you were on is remembered for the rest of the visit.
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { Check } from "lucide-react";
+import { lockPageScroll } from "@/lib/scrollLock";
 
 export type CustomizeTab = { id: string; label: string; icon: ReactNode; content: ReactNode };
 
@@ -36,13 +37,12 @@ export default function CustomizeSheet({ title = "Customize", eyebrow, tabs, ini
   useEffect(() => {
     const before = document.activeElement as HTMLElement | null;
     done.current?.focus({ preventScroll: true });
-    const { overflow } = document.body.style;
-    document.body.style.overflow = "hidden";
+    const unlock = lockPageScroll();
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); closeRef.current(); } };
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = overflow;
+      unlock();
       if (before && document.contains(before)) before.focus({ preventScroll: true });
     };
   }, []);

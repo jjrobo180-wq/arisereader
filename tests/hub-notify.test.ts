@@ -112,7 +112,7 @@ test("the Hub shows the full bell and settings, and the bell keeps this device's
   const hub = read("client/src/pages/TeacherHub.tsx");
   assert.match(hub, /<NotificationBell[\s\S]*?extraItems=\{hubReady \? workAlerts\(/, "the header bell lists today's work");
   assert.match(hub, /onSettings=\{\(\) => setNotifyOpen\(true\)\}/);
-  assert.match(hub, /<HubNotifySettings token=\{token\} workspace=\{workspace\} setWorkspace=\{setWorkspace\} \/>/, "Home's notifications card carries the choices");
+  assert.match(hub, /<HubNotifySettings token=\{token\} workspace=\{workspace\} setWorkspace=\{setWorkspace\} inModal \/>/, "Notification settings carries the choices");
   assert.ok(!hub.includes("<HubPollBell"), "the poll-only bell is gone");
   assert.match(hub, /usePollAnswers\(token, user\?\.id, hubReady\)/);
   const hookAt = hub.indexOf("usePollAnswers(token"), returnAt = hub.indexOf('if (!user) return <Redirect to="/signin" replace />;');

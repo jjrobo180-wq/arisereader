@@ -65,6 +65,8 @@ export default function ReaderFirstRun({ userId }: { userId: number | string }) 
     try {
       const [h, m] = time.split(":").map(Number);
       const on = student ? await scheduleReadingReminder(h || 18, m || 0) : await startApplePush(true);
+      // Students get their teacher's messages and class news as notifications too (iOS asked once above).
+      if (student && on) void startApplePush(false);
       if (on) setAsking(false);
       else setNote(`Notifications are off. You can turn them on any time in Settings → Notifications → ${nativeAppInfo().name}.`);
     } catch { setNote("That didn't work. Try again, or tap Not now."); }

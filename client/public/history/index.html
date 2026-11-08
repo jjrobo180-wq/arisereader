@@ -528,7 +528,9 @@ async function apiAt(fullPath, opts = {}){
 }
 const api = (path, opts) => apiAt('/api/history' + path, opts);
 /** Sends people to the main site to sign up or sign in, and back here afterwards. */
-function goSignIn(path){ try { sessionStorage.setItem('arise_return_to', '/history/'); } catch {} location.href = path; }
+/** The main site's sign-in and sign-up screens live behind its hash router ("/#/signin"), so "/" or
+ *  "/register" would open the A.R.I.S.E. Reader front page instead. It brings people back here after. */
+function goSignIn(path){ try { sessionStorage.setItem('arise_return_to', '/history/'); } catch {} const p = String(path || '/'); location.href = p.startsWith('/#') ? p : '/#' + (p === '/' ? '/signin' : p); }
 const store = { get(k){ try { return JSON.parse(sessionStorage.getItem(k)||'null'); } catch { return null; } }, set(k,v){ try { v==null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, JSON.stringify(v)); } catch {} } };
 const keep = { get(k, d){ try { return JSON.parse(localStorage.getItem(k)||'null') ?? d; } catch { return d; } }, set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
 

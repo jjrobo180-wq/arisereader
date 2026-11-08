@@ -324,3 +324,19 @@ test("students set their band and unlock avatar styles with points; bad stored d
   assert.equal(profileNow(emptyMathProfile(), Date.now()).week_points, 0);
   assert.ok(SKILLS.mult.name);
 });
+
+test("curriculum lessons: a teacher can read, try and assign one, and a student only gets the quiz", async () => {
+  const t = setup();
+  const id = "cur-g7-u4-l1";
+  assert.equal((await t.as(1)("GET /api/math/curriculum")).body.lessons[0].id, id);
+  assert.equal((await t.as(11)("GET /api/math/curriculum")).code, 403, "answers stay with teachers");
+  const tried = await t.as(1)("POST /api/math/quizzes", { body: { type: "curriculum", lesson: id, n: 5 } });
+  assert.equal(tried.code, 201); assert.equal(tried.body.session.n, 5);
+  assert.equal(tried.body.session.item.answer, null); assert.equal(tried.body.session.item.videos.length, 2); assert.equal(tried.body.session.item.topic, "Lots of Flags");
+  assert.equal((await t.as(1)("POST /api/math/quizzes", { body: { type: "skill", skill: "mult" } })).code, 403, "other quizzes stay for students");
+  assert.equal((await t.as(1)("POST /api/math/quizzes", { body: { type: "curriculum", lesson: "nope" } })).code, 404);
+  const made = await t.as(1)("POST /api/math/assignments", { body: { skill: id, n: 10, due: "2026-10-10" } });
+  assert.equal(made.code, 201); assert.match(made.body.assignment.title, /Grade 7, Unit 4, Lesson 1: Lots of Flags/);
+  const s = (await t.as(11)("POST /api/math/quizzes", { body: { type: "assign", assignmentId: made.body.assignment.id } })).body.session;
+  assert.equal(s.n, 10); assert.equal(s.item.videos.length, 2);
+});

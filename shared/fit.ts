@@ -8,14 +8,20 @@ export type Goal = "lose" | "maintain" | "gain";
 export type Meal = "breakfast" | "lunch" | "dinner" | "snack";
 export type FitSet = { reps: number; weight: number; done: boolean; warm?: boolean; rpe?: number };
 export type FitExercise = { exId: string; name: string; sets: FitSet[]; rest?: number; target?: string; note?: string };
-export type Workout = { id: string; date: string; name: string; programId?: string; dayId?: string; secs: number; exercises: FitExercise[]; note?: string };
+export type Workout = { id: string; date: string; name: string; programId?: string; dayId?: string; secs: number; exercises: FitExercise[]; note?: string;
+  /** The pre-workout check-in (shared/fitReadyMode.ts): readiness then, food, caffeine, warm-up, and whether Ready Mode adjusted it. */
+  check?: { ready: number; food: "meal" | "snack" | "fasted"; stim: "none" | "coffee" | "preworkout"; stretched: boolean; adapted: boolean } };
 export type Routine = { id: string; name: string; exercises: { exId: string; name: string; sets: number; reps: string; rest: number }[] };
-export type FoodEntry = { id: string; date: string; meal: Meal; name: string; kcal: number; p: number; c: number; f: number; servings: number; serving?: string };
+export type FoodEntry = { id: string; date: string; meal: Meal; name: string; kcal: number; p: number; c: number; f: number; servings: number; serving?: string; note?: string };
 /** A meal saved to add again in one tap (MyFitnessPal's "My Meals"). */
 export type SavedMeal = { id: string; name: string; items: Omit<FoodEntry, "id" | "date" | "meal">[] };
 export type Profile = { sex?: "m" | "f"; birthYear?: number; heightCm?: number; goal: Goal; activity: number; units: Units; kcalGoal?: number; macroSplit?: { p: number; c: number; f: number }; waterGoalMl: number; stepsGoal: number;
   /** A diet plan from fitNutrition.ts (it sets macroSplit) and whether food is counted in calories or Arise Points. */
-  dietPlan?: string; trackMode?: "calories" | "points" };
+  dietPlan?: string; trackMode?: "calories" | "points";
+  /** Goal weight in kg and how fast to get there in kg a week (set at sign-up; pace sets the calorie goal). */
+  goalKg?: number; pace?: number;
+  /** The gym they train at and the equipment it has (shared/fitGym.ts). */
+  gym?: MyGym };
 export type FitData = {
   v: 1;
   profile: Profile;
@@ -32,10 +38,39 @@ export type FitData = {
   /** Outdoor runs, walks and hikes tracked by GPS (shared/fitRun.ts). */
   runs?: Run[];
   savedMeals?: SavedMeal[];
+  /** Sleep nights and goal (shared/fitSleep.ts). */
+  sleep?: Sleep;
+  /** A trip being planned around (shared/fitVacation.ts). */
+  vacation?: Vacation;
+  /** The rest of a workout saved part-way through, to finish later (shared/fitVacation.ts). */
+  splitLeft?: SplitLeft;
+  /** The Arise Fit apps they've added and the ones on the tab bar (shared/fitApps.ts). */
+  apps?: FitApps;
+  /** Interval timers they've made (shared/fitTimers.ts). */
+  timers?: IntervalTimer[];
+  /** Medicines and vitamins, their doses and the log (shared/fitMeds.ts). */
+  meds?: Meds;
+  /** Period tracker: logged days (shared/fitCycle.ts). */
+  cycle?: FitCycle;
+  /** Foods starred to add again in one tap. */
+  favFoods?: Omit<FoodEntry, "id" | "date" | "meal">[];
+  /** A note for the day's eating, by date. */
+  foodNotes?: Record<string, string>;
+  /** Meal prep: the week planned ahead (shared/fitMealPrep.ts). Same shape as the diary. */
+  prep?: { start: string; foods: FoodEntry[] };
+  /** The grocery list (shared/fitMealPrep.ts). */
+  grocery?: { made: string; from: string; items: { id: string; name: string; qty: string; aisle: string; done: boolean }[] };
 };
 
 import { DIET_BY_ID, cleanFasting, type Fasting } from "./fitNutrition";
 import { cleanRuns, type Run } from "./fitRun";
+import { cleanGym, type MyGym } from "./fitGym";
+import { cleanSleep, type Sleep } from "./fitSleep";
+import { cleanSplit, cleanVacation, type SplitLeft, type Vacation } from "./fitVacation";
+import { cleanApps, type FitApps } from "./fitApps";
+import { cleanTimers, type IntervalTimer } from "./fitTimers";
+import { cleanMeds, type Meds } from "./fitMeds";
+import { cleanCycle, type FitCycle } from "./fitCycle";
 
 export const LIMITS = { workouts: 3000, foods: 20000, routines: 60, weights: 3000, recent: 60, bytes: 2_500_000 };
 
@@ -66,19 +101,27 @@ export function cleanFit(raw: any): FitData {
     stepsGoal: num(p.stepsGoal, 1000, 50000, 8000),
     ...(DIET_BY_ID.has(String(p.dietPlan)) ? { dietPlan: String(p.dietPlan) } : {}),
     ...(p.trackMode === "points" ? { trackMode: "points" as const } : {}),
+    ...(p.goalKg ? { goalKg: num(p.goalKg, 30, 350) } : {}),
+    ...(p.pace ? { pace: num(p.pace, 0.1, 1.5) } : {}),
+    ...(cleanGym(p.gym) ? { gym: cleanGym(p.gym) } : {}),
   };
   const set = (s: any): FitSet => ({ reps: num(s?.reps, 0, 1000), weight: num(s?.weight, 0, 2000), done: !!s?.done, ...(s?.warm ? { warm: true } : {}), ...(s?.rpe ? { rpe: num(s.rpe, 1, 10) } : {}) });
   const ex = (e: any): FitExercise => ({ exId: str(e?.exId, 80), name: str(e?.name, 80), sets: (Array.isArray(e?.sets) ? e.sets : []).slice(0, 30).map(set), ...(e?.rest ? { rest: num(e.rest, 0, 900) } : {}), ...(e?.target ? { target: str(e.target, 20) } : {}), ...(e?.note ? { note: str(e.note, 300) } : {}) });
   d.workouts = (Array.isArray(raw.workouts) ? raw.workouts : []).slice(-LIMITS.workouts).filter((w: any) => w && w.id && w.date).map((w: any): Workout => ({
     id: str(w.id, 40), date: str(w.date, 30), name: str(w.name, 80) || "Workout", ...(w.programId ? { programId: str(w.programId, 40) } : {}), ...(w.dayId ? { dayId: str(w.dayId, 40) } : {}),
     secs: num(w.secs, 0, 86400), exercises: (Array.isArray(w.exercises) ? w.exercises : []).slice(0, 40).map(ex), ...(w.note ? { note: str(w.note, 500) } : {}),
+    ...(w.check && typeof w.check === "object" ? { check: { ready: num(w.check.ready, 0, 100), food: (["meal", "snack", "fasted"].includes(w.check.food) ? w.check.food : "snack"), stim: (["none", "coffee", "preworkout"].includes(w.check.stim) ? w.check.stim : "none"), stretched: !!w.check.stretched, adapted: !!w.check.adapted } } : {}),
   }));
   d.routines = (Array.isArray(raw.routines) ? raw.routines : []).slice(0, LIMITS.routines).map((r: any): Routine => ({ id: str(r?.id, 40), name: str(r?.name, 60) || "Routine",
     exercises: (Array.isArray(r?.exercises) ? r.exercises : []).slice(0, 30).map((e: any) => ({ exId: str(e?.exId, 80), name: str(e?.name, 80), sets: num(e?.sets, 1, 20, 3), reps: str(e?.reps, 12) || "8-12", rest: num(e?.rest, 0, 900, 90) })) }));
   if (raw.program?.id) d.program = { id: str(raw.program.id, 40), started: str(raw.program.started, 30), done: (Array.isArray(raw.program.done) ? raw.program.done : []).slice(-500).map((x: unknown) => str(x, 60)) };
-  const food = (f: any) => ({ name: str(f?.name, 120) || "Food", kcal: num(f?.kcal, 0, 10000), p: num(f?.p, 0, 1000), c: num(f?.c, 0, 1500), f: num(f?.f, 0, 1000), servings: num(f?.servings, 0.05, 50, 1), ...(f?.serving ? { serving: str(f.serving, 60) } : {}) });
+  const food = (f: any) => ({ name: str(f?.name, 120) || "Food", kcal: num(f?.kcal, 0, 10000), p: num(f?.p, 0, 1000), c: num(f?.c, 0, 1500), f: num(f?.f, 0, 1000), servings: num(f?.servings, 0.05, 50, 1), ...(f?.serving ? { serving: str(f.serving, 60) } : {}), ...(f?.note ? { note: str(f.note, 300) } : {}) });
   d.foods = (Array.isArray(raw.foods) ? raw.foods : []).slice(-LIMITS.foods).filter((f: any) => f?.id && day(f?.date)).map((f: any) => ({ id: str(f.id, 40), date: day(f.date), meal: MEALS.includes(f.meal) ? f.meal : "snack", ...food(f) }));
   d.recentFoods = (Array.isArray(raw.recentFoods) ? raw.recentFoods : []).slice(0, LIMITS.recent).map(food);
+  if (Array.isArray(raw.favFoods) && raw.favFoods.length) d.favFoods = raw.favFoods.slice(0, 100).map(food);
+  if (raw.foodNotes && typeof raw.foodNotes === "object") { const n: Record<string, string> = {}; for (const [k, v] of Object.entries(raw.foodNotes).slice(-400)) if (day(k) && typeof v === "string" && v.trim()) n[k] = str(v, 600); if (Object.keys(n).length) d.foodNotes = n; }
+  if (raw.prep && typeof raw.prep === "object" && day(raw.prep.start)) d.prep = { start: day(raw.prep.start), foods: (Array.isArray(raw.prep.foods) ? raw.prep.foods : []).slice(0, 400).filter((f: any) => f?.id && day(f?.date)).map((f: any) => ({ id: str(f.id, 40), date: day(f.date), meal: MEALS.includes(f.meal) ? f.meal : "snack", ...food(f) })) };
+  if (raw.grocery && typeof raw.grocery === "object" && Array.isArray(raw.grocery.items)) d.grocery = { made: str(raw.grocery.made, 30), from: str(raw.grocery.from, 40), items: raw.grocery.items.slice(0, 200).filter((x: any) => x?.id && x?.name).map((x: any) => ({ id: str(x.id, 40), name: str(x.name, 80), qty: str(x.qty, 40), aisle: str(x.aisle, 30) || "Other", done: !!x.done })) };
   for (const [k, v] of Object.entries(raw.water && typeof raw.water === "object" ? raw.water : {})) if (day(k)) d.water[k] = num(v, 0, 20000);
   d.weights = (Array.isArray(raw.weights) ? raw.weights : []).slice(-LIMITS.weights).filter((w: any) => day(w?.date)).map((w: any) => ({ date: day(w.date), kg: num(w.kg, 20, 400) }));
   if (raw.onboarded) d.onboarded = true;
@@ -87,8 +130,22 @@ export function cleanFit(raw: any): FitData {
   const meals = (Array.isArray(raw.savedMeals) ? raw.savedMeals : []).slice(0, 60).filter((m: any) => m?.id && Array.isArray(m?.items) && m.items.length)
     .map((m: any): SavedMeal => ({ id: str(m.id, 40), name: str(m.name, 60) || "Meal", items: m.items.slice(0, 30).map(food) }));
   if (meals.length) d.savedMeals = meals;
+  const sleep = cleanSleep(raw.sleep);
+  if (sleep) d.sleep = sleep;
+  const vacation = cleanVacation(raw.vacation);
+  if (vacation) d.vacation = vacation;
+  const splitLeft = cleanSplit(raw.splitLeft);
+  if (splitLeft) d.splitLeft = splitLeft;
   const runs = cleanRuns(raw.runs);
   if (runs.length) d.runs = runs;
+  const apps = cleanApps(raw.apps);
+  if (apps) d.apps = apps;
+  const timers = cleanTimers(raw.timers);
+  if (timers.length) d.timers = timers;
+  const meds = cleanMeds(raw.meds);
+  if (meds) d.meds = meds;
+  const cycle = cleanCycle(raw.cycle);
+  if (cycle) d.cycle = cycle;
   return d;
 }
 
@@ -176,6 +233,15 @@ export function lastTime(workouts: Workout[], exId: string): FitExercise | undef
   return undefined;
 }
 
+/** The daily calories for a goal: a chosen pace (about 1,100 kcal a day per kg a week) sets the gap from maintenance, never under a safe floor; otherwise 20% under to lose, 10% over to gain. */
+export function paceKcal(p: Pick<Profile, "goal" | "pace" | "sex">, tdee: number): number {
+  if (p.goal === "maintain") return tdee;
+  if (!p.pace) return p.goal === "lose" ? tdee * 0.8 : tdee * 1.1;
+  const gap = p.pace * 1100;
+  if (p.goal === "lose") return Math.min(tdee, Math.max(p.sex === "f" ? 1200 : 1500, tdee - gap));
+  return tdee + Math.min(gap, 700);
+}
+
 /** Calories and macros for the day: Mifflin–St Jeor × activity, ±20% for losing or gaining. */
 export function goals(p: Profile, kg: number | undefined, today = new Date()): { kcal: number; p: number; c: number; f: number; tdee: number } {
   let tdee = 2200;
@@ -184,7 +250,7 @@ export function goals(p: Profile, kg: number | undefined, today = new Date()): {
     const bmr = 10 * kg + 6.25 * p.heightCm - 5 * age + (p.sex === "m" ? 5 : -161);
     tdee = bmr * p.activity;
   }
-  const kcal = Math.round(p.kcalGoal ?? (p.goal === "lose" ? tdee * 0.8 : p.goal === "gain" ? tdee * 1.1 : tdee));
+  const kcal = Math.round(p.kcalGoal ?? paceKcal(p, tdee));
   const split = p.macroSplit ?? (p.goal === "lose" ? { p: 35, c: 35, f: 30 } : p.goal === "gain" ? { p: 25, c: 50, f: 25 } : { p: 30, c: 40, f: 30 });
   return { kcal, tdee: Math.round(tdee), p: Math.round((kcal * split.p) / 100 / 4), c: Math.round((kcal * split.c) / 100 / 4), f: Math.round((kcal * split.f) / 100 / 9) };
 }

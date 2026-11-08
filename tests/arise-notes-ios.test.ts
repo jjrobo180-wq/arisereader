@@ -98,12 +98,12 @@ test("the TestFlight build signs and uploads Arise Notes like the other apps", (
 
 test("sign out, notifications, and Apple Reminders and Calendar in the Notes iPhone app", () => {
   const settings = read("client/src/components/arise-notes/SettingsScreen.tsx");
-  assert.match(settings, /\{ctx\.mode === "standalone" && <SignOut ctx=\{ctx\} \/>\}/, "the Notes app and /notes/ can sign out (To Duo has its own)");
+  assert.match(settings, /\{ctx\.mode === "standalone" && <Row icon=\{<LogOut \/>\} label="Sign out"/, "the Notes app and /notes/ can sign out (To Duo has its own)");
   assert.match(settings, /onClick=\{\(\) => \{ logout\(\); window\.location\.hash = "#\/"; \}\}/);
   assert.match(read("client/src/context/AuthContext.tsx"), /forgetThisDevice\(/, "signing out stops this phone's notifications");
 
   const push = read("client/src/lib/applePush.ts");
-  assert.match(push, /\|\| f === "notes" \? f : undefined/, "the server sends to the Notes app's bundle");
+  assert.match(push, /\|\| f === "notes"( \|\| f === "[a-z]+")* \? f : undefined/, "the server sends to the Notes app's bundle");
   assert.match(push, /nativeFlavor\(\) === "notes"\) \{ window\.location\.hash = notes\[1\]/, "a tapped /notes/# link opens inside the app");
   assert.match(read("server/applePush.ts"), /notes: "com\.arisereader\.notes"/);
   assert.match(read("client/src/components/arise-notes/NotesApp.tsx"), /if \(isNotesApp\(\) && user\) void startApplePush\(true\);/);

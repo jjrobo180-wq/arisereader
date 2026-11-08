@@ -6,13 +6,191 @@
 //   GET     /api/fit/trails    trails near a point, from OpenStreetMap through Overpass (?lat&lng&km)
 //   GET     /api/fit/trail     one trail's line (?type&id)
 //   GET     /api/fit/places    a town, park or zip code → a point, from Nominatim (?q)
+//   POST    /api/fit/identify  a photo of a machine, or of a home or apartment gym → the equipment in it
+//                              (shared/fitGym.ts names the only answers allowed). Photos aren't kept.
+//   GET     /api/fit/nearby    gyms or healthy food near a point, from OpenStreetMap (?kind=gyms|food&lat&lng),
+//                              with how busy people say each gym is right now (shared/fitNearby.ts)
+//   POST    /api/fit/busy      {place, level} "it's packed": shown to everyone for 90 minutes
+//   POST    /api/fit/recipe    {have, goal, left} the AI makes a recipe from what's in your kitchen
+//   POST    /api/fit/menu      {place, cuisine, goal, diet, mode, left, wants} the AI suggests what to order at a restaurant
+//   POST    /api/fit/ask       {question, history} the AI answers questions about their own past and future
+//                              workouts, food, sleep and body, from their saved data (shared/fitInsights.ts digestForAi)
+//   /api/fit/circle…           workout circles (server/fitCircle.ts)
+//   /api/fit/buddy…            workout buddies matched with a stranger (server/fitBuddy.ts)
+//   /api/fit/plus, /pass…      Arise Fit+ and guest passes (server/fitPass.ts)
+// Photo scanning, AI recipes, gyms near me and eat out (identify, recipe, nearby, busy) need Fit+.
 //   The phone can't call Overpass and Nominatim itself: they refuse requests that don't identify the
 //   app, and Overpass's main server is often too busy. The server asks with Arise Fit's name, tries
 //   the other public Overpass servers when one fails, and remembers answers for an hour.
+import { registerFitTvRoutes } from "./fitTv";
 import type { Express, RequestHandler } from "express";
 import { CATALOG, LIMITS, cleanFit, type CatalogExercise } from "../shared/fit";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { TRAIL_KM, trailCell, trailGeometryQuery, trailsQuery } from "../shared/fitRun";
+import { GEAR_PROMPT_LIST, cleanGearIds, gearFromText } from "../shared/fitGym";
+import { BACKUPS, findBackup } from "./aiProvider";
+import { NEARBY, REPORT_MS, crowdNow, foodQuery, gymsQuery, nearbyCell, type BusyLevel } from "../shared/fitNearby";
+import { digestForAi } from "../shared/fitInsights";
+import { cleanRecipe, type Recipe } from "../shared/fitRecipes";
+import { MENU_PROMPT, cleanMenuPicks, menuUserText, type MenuAsk, type MenuPick } from "../shared/fitMenuAi";
+import { registerCircleRoutes, type CircleDeps } from "./fitCircle";
+import { registerBuddyRoutes } from "./fitBuddy";
+import { createSupabaseKv, type FitKv } from "./fitKv";
+import { needsPlus, registerPassRoutes, type PassDeps } from "./fitPass";
+
+export type RecipeAsk = { have: string; goal: string; left: { kcal: number; p: number } };
+export const RECIPE_PROMPT = `You are a nutrition coach writing one healthy, simple recipe for a fitness app.
+Use mainly the ingredients the person has (pantry basics like oil, salt, spices are fine). Aim for a real meal that fits their goal and what's left of their day, with plenty of protein.
+Reply as JSON: {"name": "...", "mins": <total minutes>, "serves": <servings>, "kcal": <per serving>, "p": <protein g per serving>, "c": <carbs g>, "f": <fat g>, "tags": [any of "breakfast","lunch","dinner","snack","post-workout","high-protein","low-cal","quick","vegetarian","meal-prep"], "ingredients": ["amount + ingredient", ...], "steps": ["short step", ...]}.
+Make the numbers realistic for the amounts (USDA values). If the ingredients can't make a sensible meal, use the best of them and say what to add in an ingredient line starting "Add:".`;
+
+async function askAiForRecipe(ask: RecipeAsk): Promise<Recipe | null> {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "gpt-4.1-mini", temperature: 0.6, max_tokens: 900, response_format: { type: "json_object" },
+      messages: [{ role: "system", content: RECIPE_PROMPT }, { role: "user", content: `I have: ${ask.have}\nGoal: ${ask.goal}\nLeft today: about ${ask.left.kcal} calories and ${ask.left.p} g protein.` }] }),
+    signal: AbortSignal.timeout(40_000),
+  });
+  if (res.status === 429) throw new Error("busy");
+  if (!res.ok) throw new Error(`status ${res.status}`);
+  const body: any = await res.json();
+  try { return cleanRecipe(JSON.parse(body?.choices?.[0]?.message?.content || "{}")); } catch { return null; }
+}
+
+
+export type AskTurn = { role: "user" | "assistant"; text: string };
+export const ASK_PROMPT = `You are Ask Fit, the data assistant inside the Arise Fit app. You answer one person's questions about THEIR OWN training, food, water, sleep and body, using only the numbers given below. You are not a doctor and not a trainer.
+Rules: use only the data given; never invent workouts, weights or dates. If the data doesn't show it, say so and say what to log. For questions about the future, use the trends and forecast lines, call them estimates from the recent trend, and never promise a result. Use the person's units. Be warm, plain and short (under 120 words unless they ask for more); bullets only for lists. Give a concrete next step when it helps. For pain, injury, medical or eating-disorder worries, suggest a doctor or a qualified trainer. Never give a diet below 1,200 calories a day.`;
+async function askAiAboutData(digest: string, question: string, history: AskTurn[]): Promise<string> {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "gpt-4.1-mini", temperature: 0.3, max_tokens: 500,
+      messages: [{ role: "system", content: `${ASK_PROMPT}\n\nTHEIR DATA:\n${digest}` }, ...history.map((h) => ({ role: h.role, content: h.text })), { role: "user", content: question }] }),
+    signal: AbortSignal.timeout(40_000),
+  });
+  if (res.status === 429) throw new Error("busy");
+  if (!res.ok) throw new Error(`status ${res.status}`);
+  const body: any = await res.json();
+  return String(body?.choices?.[0]?.message?.content ?? "").trim().slice(0, 2000);
+}
+
+async function askAiForMenu(ask: MenuAsk): Promise<MenuPick[]> {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "gpt-4.1-mini", temperature: 0.4, max_tokens: 1400, response_format: { type: "json_object" },
+      messages: [{ role: "system", content: MENU_PROMPT }, { role: "user", content: menuUserText(ask) }] }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (res.status === 429) throw new Error("busy");
+  if (!res.ok) throw new Error(`status ${res.status}`);
+  const body: any = await res.json();
+  const text = String(body?.choices?.[0]?.message?.content || "");
+  try { return cleanMenuPicks(JSON.parse(text)); } catch { console.error("[fit] menu: unreadable AI answer", text.slice(0, 200)); return []; }
+}
+
+export type GearAnswer = { gear: string[]; name: string; note: string };
+/** What the AI sees: the photo, and the machines it may name. */
+export const IDENTIFY_PROMPT = (mode: "machine" | "gym") => `You identify gym equipment in photos for a workout app.
+${mode === "machine" ? "The photo shows ONE machine or piece of equipment someone wants to use. Name it." : "The photo shows part of a gym, home gym or apartment gym. List every piece of equipment you can see."}
+Use ids from this list:
+${GEAR_PROMPT_LIST}
+Any equipment is welcome. If what you see isn't on the list, still name it plainly in "name" and use the closest id if one fits; never say equipment is not allowed or not on a list.
+Reply as JSON: {"gear": ["<id>", ...], "name": "<what the equipment is called, in plain words, or \"\" if unsure>", "note": "<one short sentence, or \"\">"}.
+${mode === "machine" ? "Put the single best match first. If it isn't gym equipment or you can't tell, reply with an empty gear list and say why in note." : "List each id once. If you can't see any equipment, reply with an empty gear list."}`;
+
+/** Detect a model claiming it never received the attached photo. Never present that as a valid scan. */
+export function visionMissedImage(note: string): boolean {
+  return /(?:no|without|missing|didn['’]t receive|couldn['’]t access|cannot (?:see|view|access)|can['’]t (?:see|view|access)|wasn['’]t sent|was not sent)[^.!?]{0,90}(?:image|photo|picture)|(?:image|photo|picture)[^.!?]{0,65}(?:not (?:provided|attached|received|available|visible)|wasn['’]t (?:provided|attached|received)|was not (?:provided|attached|received))/i.test(note);
+}
+
+/** A photo has to go to a vision model, never to the site-wide text-only chat fallback.
+ * installGrok() can replace OPENAI_API_KEY with "routed-to-grok"; that placeholder
+ * is not a usable Responses API key. Choose a provider with real credentials. */
+type VisionTarget = { provider: "openai" | "xai" | "groq"; url: string; model: string; key: string; api: "responses" | "chat" };
+
+export function fitVisionTargets(env: Record<string, string | undefined> = process.env): VisionTarget[] {
+  const result: VisionTarget[] = [];
+  const realOpenAI = (env.OPENAI_API_KEY || "").trim();
+  if (env.USE_OPENAI === "1" && realOpenAI && realOpenAI !== "routed-to-grok")
+    result.push({ provider: "openai", url: "https://api.openai.com/v1/responses", model: env.FIT_VISION_OPENAI_MODEL || "gpt-4.1-mini", key: realOpenAI, api: "responses" });
+  const backup = findBackup(env);
+  const keyFor = (names: readonly string[], kind: "grok" | "groq") => names.map((name) => (env[name] || "").trim()).find(Boolean) || (backup?.kind === kind ? backup.key : "");
+  const xaiKey = keyFor(BACKUPS.grok.keys, "grok");
+  const groqKey = keyFor(BACKUPS.groq.keys, "groq");
+  if (xaiKey) result.push({ provider: "xai", url: "https://api.x.ai/v1/responses", model: env.FIT_VISION_XAI_MODEL || "grok-4.7", key: xaiKey, api: "responses" });
+  if (groqKey) result.push({ provider: "groq", url: "https://api.groq.com/openai/v1/chat/completions", model: env.FIT_VISION_GROQ_MODEL || "qwen/qwen3.8-27b", key: groqKey, api: "chat" });
+  // If there is no site-wide chat fallback, a real OpenAI key may be the only credential.
+  if (!result.length && realOpenAI && realOpenAI !== "routed-to-grok")
+    result.push({ provider: "openai", url: "https://api.openai.com/v1/responses", model: env.FIT_VISION_OPENAI_MODEL || "gpt-4.1-mini", key: realOpenAI, api: "responses" });
+  return result;
+}
+
+function cleanVisionAnswer(text: string): GearAnswer | null {
+  let parsed: any;
+  try { parsed = JSON.parse(text.trim().replace(/^```(?:json)?\s*|\s*```$/g, "")); } catch { return null; }
+  if (!parsed || typeof parsed !== "object" || (!Array.isArray(parsed.gear) && typeof parsed.name !== "string")) return null;
+  const name = String(parsed.name || "").slice(0, 80);
+  const gear = cleanGearIds(parsed.gear);
+  const recognized = gearFromText(name);
+  if (recognized && !gear.includes(recognized.id)) gear.unshift(recognized.id);
+  return { gear, name, note: String(parsed.note || "").slice(0, 200) };
+}
+
+function visionText(body: any, api: VisionTarget["api"]): string {
+  if (api === "chat") return String(body?.choices?.[0]?.message?.content || "");
+  if (typeof body?.output_text === "string") return body.output_text;
+  return (Array.isArray(body?.output) ? body.output.flatMap((item: any) => item.content || [])
+    .filter((part: any) => part.type === "output_text").map((part: any) => String(part.text || "")).join("\n") : "");
+}
+
+export async function askAiForGear(image: string, mode: "machine" | "gym", options?: { env?: Record<string, string | undefined>; fetcher?: typeof fetch }): Promise<GearAnswer> {
+  const instruction = IDENTIFY_PROMPT(mode);
+  const question = mode === "machine" ? "Identify the piece of gym equipment visibly pictured. Use the photo, not assumptions. Return its matching gear id."
+    : "List every visible piece of gym equipment in this photo by its matching gear id.";
+  const targets = fitVisionTargets(options?.env ?? process.env);
+  if (!targets.length) throw new Error("vision_not_configured");
+  const send = options?.fetcher ?? fetch;
+  let gotBusy = false, gotAuth = false;
+  for (const target of targets) {
+    const body = target.api === "chat" ? {
+      model: target.model, max_completion_tokens: 900, response_format: { type: "json_object" },
+      messages: [{ role: "system", content: instruction }, { role: "user", content: [
+        { type: "text", text: question }, { type: "image_url", image_url: { url: image, detail: "high" } },
+      ] }],
+    } : {
+      model: target.model, max_output_tokens: 650, store: false, instructions: instruction,
+      input: [{ role: "user", content: [
+        { type: "input_text", text: question }, { type: "input_image", image_url: image, detail: "high" },
+      ] }], text: { format: { type: "json_object" } },
+    };
+    try {
+      // Calls bypass the global OpenAI-chat rewrite: xAI/Groq get their own
+      // documented image-input formats, not a text-only chat model.
+      const res = await send(target.url, { method: "POST", headers: {
+        Authorization: "Bearer " + target.key, "Content-Type": "application/json",
+      }, body: JSON.stringify(body), signal: AbortSignal.timeout(35_000) });
+      if (!res.ok) {
+        gotBusy ||= res.status === 429;
+        gotAuth ||= res.status === 401 || res.status === 403;
+        console.warn("[fit][vision]", target.provider, "HTTP", res.status); // No images, tokens or response bodies logged.
+        continue;
+      }
+      const data: any = await res.json();
+      const parsed = cleanVisionAnswer(visionText(data, target.api));
+      if (!parsed || visionMissedImage(parsed.note)) {
+        console.warn("[fit][vision]", target.provider, "missing or invalid visual answer");
+        continue;
+      }
+      return parsed;
+    } catch (e: any) {
+      console.warn("[fit][vision]", target.provider, "request failed", e?.name === "TimeoutError" ? "timeout" : "network error");
+    }
+  }
+  throw new Error(gotBusy ? "busy" : gotAuth ? "vision_auth" : "vision_unavailable");
+}
 
 export type FitStore = { get(userId: number): Promise<unknown | null>; set(userId: number, data: unknown): Promise<void> };
 
@@ -87,14 +265,104 @@ export function mergeLibrary(wger: LibraryExercise[]): LibraryExercise[] {
   return out;
 }
 
-export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, opts: { store?: FitStore; fetchJson?: (url: string) => Promise<any>; overpass?: (query: string) => Promise<any> } = {}) {
+export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, opts: { store?: FitStore; fetchJson?: (url: string) => Promise<any>; overpass?: (query: string) => Promise<any>; identify?: (image: string, mode: "machine" | "gym") => Promise<GearAnswer>; recipe?: (ask: RecipeAsk) => Promise<Recipe | null>; menu?: (ask: MenuAsk) => Promise<MenuPick[]>; ask?: (digest: string, question: string, history: AskTurn[]) => Promise<string>; kv?: FitKv; nameOf?: CircleDeps["nameOf"]; notify?: CircleDeps["notify"]; ownPlus?: PassDeps["ownPlus"]; payment?: PassDeps["payment"] } = {}) {
   const store = opts.store ?? createSupabaseFitStore();
+  const kv = opts.kv ?? createSupabaseKv();
+  const circles = registerCircleRoutes(app, authMiddleware, { kv, getData: (id) => store.get(id), nameOf: opts.nameOf, notify: opts.notify });
+  const buddies = registerBuddyRoutes(app, authMiddleware, { kv, getData: (id) => store.get(id), notify: opts.notify });
+  // Without a plan check (a test that doesn't pass one), nobody has Fit+.
+  const passes = registerPassRoutes(app, authMiddleware, { kv, ownPlus: opts.ownPlus ?? (async () => ({ live: false })), payment: opts.payment, nameOf: opts.nameOf, notify: opts.notify });
+  const plus = (what: string) => needsPlus(passes.plusOf, what);
+  const recipe = opts.recipe ?? (process.env.OPENAI_API_KEY ? askAiForRecipe : null);
+  const cooks = createAttemptLimiter({ max: 20, windowMs: 60 * 60_000 });
+  app.post("/api/fit/recipe", authMiddleware, plus("Making a recipe from what you have"), async (req: any, res) => {
+    res.set?.("Cache-Control", "no-store");
+    if (!recipe) return res.status(503).json({ message: "Recipe ideas aren't set up on this site yet. Try one from the list." });
+    const have = String(req.body?.have ?? "").replace(/\s+/g, " ").trim().slice(0, 400);
+    if (have.length < 3) return res.status(400).json({ message: "List a few things you have, like \"chicken, rice, broccoli\"." });
+    const key = String(req.user?.id);
+    const wait = cooks.retryAfter(key);
+    if (wait) return res.status(429).json({ message: `That's a lot of recipes for one hour. Try again in ${waitWords(wait)}.` });
+    cooks.fail(key);
+    const n = (v: unknown, hi: number) => Math.max(0, Math.min(hi, Math.round(Number(v) || 0)));
+    const goal = ["lose", "maintain", "gain"].includes(req.body?.goal) ? ({ lose: "lose fat", maintain: "stay fit", gain: "build muscle" } as any)[req.body.goal] : "stay fit";
+    try {
+      const r = await recipe({ have, goal, left: { kcal: n(req.body?.left?.kcal, 5000), p: n(req.body?.left?.p, 400) } });
+      return r ? res.json({ recipe: r }) : res.status(422).json({ message: "Couldn't make a recipe from that. Try listing a protein, a carb and a vegetable." });
+    } catch (e: any) { return res.status(503).json({ message: e?.message === "busy" ? "The AI is busy. Try again in a minute." : "Couldn't make a recipe right now. Try again in a minute." }); }
+  });
+  const menu = opts.menu ?? (process.env.OPENAI_API_KEY ? askAiForMenu : null);
+  const orders = createAttemptLimiter({ max: 40, windowMs: 60 * 60_000 });
+  app.post("/api/fit/menu", authMiddleware, plus("Ordering help at restaurants"), async (req: any, res) => {
+    res.set?.("Cache-Control", "no-store");
+    if (!menu) return res.status(503).json({ message: "Ordering help isn't set up on this site yet. Try \"Match goals\" instead." });
+    const clean = (v: unknown, n: number) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, n);
+    const place = clean(req.body?.place, 80);
+    if (place.length < 2) return res.status(400).json({ message: "Type a restaurant's name." });
+    const key = String(req.user?.id);
+    const wait = orders.retryAfter(key);
+    if (wait) return res.status(429).json({ message: `That's a lot of lookups for one hour. Try again in ${waitWords(wait)}.` });
+    orders.fail(key);
+    const n = (v: unknown, hi: number) => Math.max(0, Math.min(hi, Math.round(Number(v) || 0)));
+    const goal = ({ lose: "lose fat", maintain: "stay fit", gain: "build muscle" } as any)[req.body?.goal] ?? "stay fit";
+    const left = req.body?.left ?? {};
+    try {
+      const askFor = { place, cuisine: clean(req.body?.cuisine, 40), goal, diet: clean(req.body?.diet, 40) || "balanced", mode: (req.body?.mode === "points" ? "points" : "calories") as "points" | "calories", wants: clean(req.body?.wants, 160),
+        left: { kcal: n(left.kcal, 6000), p: n(left.p, 400), c: n(left.c, 800), f: n(left.f, 400) } };
+      let picks = await menu(askFor);
+      // A small local place the AI doesn't know: ask again for the typical dishes of its kind of food.
+      if (!picks.length) picks = await menu({ ...askFor, place: `a typical ${askFor.cuisine || "American"} restaurant (the person is at "${place}")` });
+      return picks.length ? res.json({ picks }) : res.status(422).json({ message: "Couldn't come up with picks for that place. Try the chain's name or a cuisine." });
+    } catch (e: any) { return res.status(503).json({ message: e?.message === "busy" ? "The AI is busy. Try again in a minute." : "Couldn't look that up right now. Try again in a minute." }); }
+  });
+  const askData = opts.ask ?? (process.env.OPENAI_API_KEY ? askAiAboutData : null);
+  const asks = createAttemptLimiter({ max: 60, windowMs: 60 * 60_000 });
+  app.post("/api/fit/ask", authMiddleware, plus("Asking about your workouts"), async (req: any, res) => {
+    res.set?.("Cache-Control", "no-store");
+    if (!askData) return res.status(503).json({ message: "Ask Fit isn't set up on this site yet." });
+    const question = String(req.body?.question ?? "").replace(/\s+/g, " ").trim().slice(0, 400);
+    if (question.length < 2) return res.status(400).json({ message: "Type a question, like \"How was my month?\"" });
+    const key = String(req.user?.id);
+    const wait = asks.retryAfter(key);
+    if (wait) return res.status(429).json({ message: `That's a lot of questions for one hour. Try again in ${waitWords(wait)}.` });
+    asks.fail(key);
+    const history: AskTurn[] = (Array.isArray(req.body?.history) ? req.body.history : []).slice(-6)
+      .map((h: any) => ({ role: h?.role === "assistant" ? "assistant" : "user", text: String(h?.text ?? "").slice(0, 1200) } as AskTurn)).filter((h: AskTurn) => h.text);
+    try {
+      // Their numbers come from what's saved on the server, never from the request.
+      const data = cleanFit(await store.get(req.user.id));
+      const answer = await askData(digestForAi(data), question, history);
+      return answer ? res.json({ answer }) : res.status(422).json({ message: "I couldn't come up with an answer. Try asking it another way." });
+    } catch (e: any) { return res.status(503).json({ message: e?.message === "busy" ? "The AI is busy. Try again in a minute." : "Couldn't answer right now. Try again in a minute." }); }
+  });
+  const identify = opts.identify ?? (process.env.OPENAI_API_KEY ? askAiForGear : null);
+  const looks = createAttemptLimiter({ max: 40, windowMs: 60 * 60_000 });
+  app.post("/api/fit/identify", authMiddleware, plus("Photo scanning"), async (req: any, res) => {
+    res.set?.("Cache-Control", "no-store");
+    if (!identify) return res.status(503).json({ message: "Photo scanning isn't set up on this site yet. Pick the machine from the list instead." });
+    const mode = req.body?.mode === "gym" ? "gym" : "machine";
+    const image = typeof req.body?.image === "string" && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(req.body.image) && req.body.image.length < 3_000_000 ? req.body.image : null;
+    if (!image) return res.status(400).json({ message: "Take or choose a photo first." });
+    const key = String(req.user?.id);
+    const wait = looks.retryAfter(key);
+    if (wait > 0) return res.status(429).json({ message: `That's a lot of photos for one hour. Try again in ${waitWords(wait)}.` });
+    looks.fail(key);
+    try {
+      const result = await identify(image, mode);
+      if (visionMissedImage(result.note)) return res.status(502).json({ message: "The scanner could not read that photo. Retake it with the whole machine in view, or pick from the list." });
+      return res.json(result);
+    }
+    catch (error: any) { return res.status(503).json({ message: error?.message === "busy" ? "The scanner is busy. Try again shortly." : error?.message === "vision_not_configured" || error?.message === "vision_auth" ? "Machine photo scanning is temporarily unavailable on the server. Try again later or pick from the list." : "The scanner couldn't analyze this photo right now. Please try again." }); }
+  });
   const saves = createAttemptLimiter({ max: 600, windowMs: 10 * 60_000 });
   const fetchJson = opts.fetchJson ?? (async (url: string) => {
     const r = await fetch(url, { headers: { Accept: "application/json", "User-Agent": "AriseFit/1.0 (+https://arisetodo.com)", Referer: "https://arisetodo.com/" }, signal: AbortSignal.timeout(20_000) });
     if (!r.ok) throw new Error(`status ${r.status}`);
     return r.json();
   });
+
+  // Arise Fit for Apple TV (server/fitTv.ts).
+  registerFitTvRoutes(app, authMiddleware, store);
 
   app.get("/api/fit/data", authMiddleware, async (req: any, res) => {
     try { res.set("Cache-Control", "no-store"); res.json({ data: cleanFit(await store.get(Number(req.user.id))) }); }
@@ -107,7 +375,17 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
     saves.fail(String(req.user.id));
     const data = cleanFit(req.body?.data);
     if (JSON.stringify(data).length > LIMITS.bytes) return res.status(413).json({ message: "That's more than Arise Fit can keep. Delete some old workouts or foods first." });
-    try { await store.set(Number(req.user.id), data); res.json({ ok: true }); }
+    const me = Number(req.user.id);
+    try {
+      // Someone who just finished a workout: their circle hears about it (only when they're in one).
+      const group = await circles.groupOf(me).catch(() => null);
+      const buddy = await buddies.pairOf(me).catch(() => null);
+      const before = group || buddy ? cleanFit(await store.get(me).catch(() => null)) : null;
+      await store.set(me, data);
+      res.json({ ok: true });
+      if (group) void circles.tell(me, before, data).catch(() => {});
+      if (buddy) void buddies.tell(me, before, data).catch(() => {});
+    }
     catch { res.status(503).json({ message: "Arise Fit couldn't save. Your changes are kept on this phone and will save when you're back online." }); }
   });
 
@@ -132,9 +410,19 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
   const cache = new Map<string, { at: number; body: any }>();
   // Trails barely change: answers are kept a day, and two people asking at once share one fetch.
   const inflight = new Map<string, Promise<any>>();
+  // Stale-while-revalidate: an answer under a day old is served as is; an older one (up to two weeks) is
+  // served at once and refreshed in the background, so places, gyms and trails open instantly.
+  const FRESH_MS = 24 * 3600_000, STALE_MS = 14 * 24 * 3600_000;
   const cached = async (key: string, make: () => Promise<any>) => {
     const hit = cache.get(key);
-    if (hit && Date.now() - hit.at < 24 * 3600_000) return hit.body;
+    const age = hit ? Date.now() - hit.at : Infinity;
+    if (hit && age < FRESH_MS) return hit.body;
+    const run = () => {
+      let q = inflight.get(key);
+      if (!q) { q = make().then((b) => { cache.set(key, { at: Date.now(), body: b }); return b; }).finally(() => inflight.delete(key)); inflight.set(key, q); }
+      return q;
+    };
+    if (hit && age < STALE_MS) { void run().catch(() => { /* keep the older answer */ }); return hit.body; }
     let p = inflight.get(key);
     if (!p) { p = make().finally(() => inflight.delete(key)); inflight.set(key, p); }
     const body = await p;
@@ -154,7 +442,10 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
     // choice share it (the phone filters by distance).
     const [cLat, cLng] = trailCell(lat, lng);
     res.set("Cache-Control", "public, max-age=86400");
-    try { res.json(await cached(`t:${cLat},${cLng}`, () => overpassFetch(trailsQuery(cLat, cLng, TRAIL_KM)))); }
+    // A quick look (up to 20 km) is much cheaper for the map server than the full 50 km, so the first list
+    // shows in seconds; the wide one fills in behind it. Each is kept a day per cell.
+    const wide = km > 20;
+    try { res.json(await cached(`${wide ? "t" : "t20"}:${cLat},${cLng}`, () => overpassFetch(trailsQuery(cLat, cLng, wide ? TRAIL_KM : 20)))); }
     catch (e: any) { console.error("[fit] trails", e?.message); res.status(503).json({ message: "The trail map is busy right now. Try again in a minute." }); }
   });
   app.get("/api/fit/trail", authMiddleware, async (req: any, res) => {
@@ -175,6 +466,60 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
       const hit = Array.isArray(list) ? list[0] : null;
       res.json(hit ? { place: { lat: Number(hit.lat), lng: Number(hit.lon), label: String(hit.display_name || q).split(",").slice(0, 2).join(",").trim() } } : { place: null });
     } catch (e: any) { console.error("[fit] places", e?.message); res.status(503).json({ message: "Place search isn't reachable right now." }); }
+  });
+
+  // ——— Follow-along videos: embeddable YouTube results for a class (needs YOUTUBE_API_KEY) ———————
+  app.get("/api/fit/videos", authMiddleware, async (req: any, res) => {
+    const q = String(req.query.q ?? "").trim().slice(0, 100);
+    if (q.length < 3) return res.status(400).json({ message: "What class?" });
+    // The key comes from the server's environment, or from the settings table (key "fit:youtube-key"),
+    // so it can be added without touching the hosting dashboard.
+    const key = process.env.YOUTUBE_API_KEY || (await kv.get("fit:youtube-key").catch(() => null) as string | null) || "";
+    if (!key) return res.status(503).json({ code: "videos_off", message: "Videos are coming soon." });
+    try {
+      const data: any = await cached(`yt:${q.toLowerCase()}`, () => fetchJson(`https://www.googleapis.com/youtube/v3/search?${new URLSearchParams({ part: "snippet", type: "video", videoEmbeddable: "true", videoSyndicated: "true", safeSearch: "strict", maxResults: "8", q, key })}`));
+      const videos = (Array.isArray(data?.items) ? data.items : []).map((it: any) => ({ id: String(it?.id?.videoId || ""), title: String(it?.snippet?.title || "").slice(0, 120), channel: String(it?.snippet?.channelTitle || "").slice(0, 60), thumb: String(it?.snippet?.thumbnails?.medium?.url || "") })).filter((v: any) => /^[\w-]{11}$/.test(v.id));
+      res.json({ videos });
+    } catch (e: any) { console.error("[fit] videos", e?.message); res.status(503).json({ message: "Videos aren't reachable right now." }); }
+  });
+
+  // ——— Near me: gyms and healthy food —————————————————————————————————————————————————————————————
+  // Kept for a day per grid cell. How busy a gym is right now comes from people's own reports.
+  const reports = new Map<string, { level: BusyLevel; at: number; by: string }[]>();
+  const LEVELS: BusyLevel[] = ["quiet", "some", "busy", "packed"];
+  app.get("/api/fit/nearby", authMiddleware, plus("Finding places near you"), async (req: any, res) => {
+    const kind = req.query.kind === "food" ? "food" : req.query.kind === "gyms" ? "gyms" : null;
+    const lat = num(req.query.lat, -90, 90), lng = num(req.query.lng, -180, 180);
+    if (!kind || lat === null || lng === null) return res.status(400).json({ message: "That place couldn't be read." });
+    if (tooMany(req, res)) return;
+    const [cLat, cLng] = nearbyCell(kind, lat, lng);
+    // A quick look (food only): just the closest ~2.5 km, centred on the person, which the map server answers in a
+    // second or two. The app asks for it alongside the full search and shows it first.
+    const quick = kind === "food" && req.query.quick === "1";
+    try {
+      const json = quick
+        ? await cached(`nq:${Math.round(lat * 100) / 100},${Math.round(lng * 100) / 100}`, () => overpassFetch(foodQuery(Math.round(lat * 100) / 100, Math.round(lng * 100) / 100, 2.5)))
+        : await cached(`n:${kind}:${cLat},${cLng}`, () => overpassFetch(kind === "gyms" ? gymsQuery(cLat, cLng, NEARBY.gyms.km) : foodQuery(cLat, cLng, NEARBY.food.km)));
+      const now = Date.now();
+      const crowd: Record<string, ReturnType<typeof crowdNow>> = {};
+      if (kind === "gyms") for (const el of json?.elements ?? []) { const id = `${String(el?.type || "n")[0]}${el?.id}`; const c = crowdNow(reports.get(id) ?? [], now); if (c) crowd[id] = c; }
+      res.set("Cache-Control", "no-store");
+      res.json({ cell: [cLat, cLng], elements: json?.elements ?? [], crowd, ...(quick ? { quick: true } : {}) });
+    } catch (e: any) { console.error("[fit] nearby", e?.message); res.status(503).json({ message: "The map is busy right now. Try again in a minute." }); }
+  });
+  app.post("/api/fit/busy", authMiddleware, plus("Crowd reports"), async (req: any, res) => {
+    const place = String(req.body?.place ?? "");
+    const level = LEVELS.includes(req.body?.level) ? req.body.level as BusyLevel : null;
+    if (!/^[nwr]\d{1,14}$/.test(place) || !level) return res.status(400).json({ message: "That report couldn't be read." });
+    if (tooMany(req, res)) return;
+    const now = Date.now();
+    const by = String(req.user?.id);
+    // One report per person per gym counts; old ones fall off.
+    const list = (reports.get(place) ?? []).filter((r) => now - r.at < REPORT_MS && r.by !== by);
+    list.push({ level, at: now, by });
+    reports.set(place, list.slice(-20));
+    if (reports.size > 5000) for (const k of Array.from(reports.keys()).slice(0, 1000)) reports.delete(k);
+    res.json({ crowd: crowdNow(list, now) });
   });
 
   // The library: built once a day from wger (about 800 exercises in English), kept in memory.

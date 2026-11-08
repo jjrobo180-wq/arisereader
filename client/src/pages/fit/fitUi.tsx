@@ -1,12 +1,15 @@
 // Arise Fit's look: bold condensed headings (Barlow Condensed), one blaze-orange accent, and motion
-// on everything (screens slide in, rings and bars fill, the hero card shines). Two themes: Light, the
-// default (clean white cards on soft gray), and Dark (graphite); "Auto" follows the iPhone. Every
-// color is a CSS variable, so switching theme repaints the whole app at once. Shared by Arise Fit
-// and Arise Trainer.
-import { useEffect, useState, type ReactNode } from "react";
+// on everything (screens slide in, rings and bars fill, the hero card shines). Two modes: Light, the
+// default (clean white cards on soft gray), and Dark (graphite, or true black); "Auto" follows the
+// iPhone. Nine color themes (Ember, the original orange, and Volt, Ocean, Aqua, Berry, Violet, Gold,
+// Crimson, Mono) change the accent and the glow in both modes. Every color is a CSS variable, so a
+// change repaints the whole app at once. Shared by Arise Fit and Arise Trainer.
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Moon, Smartphone, Sun, X } from "lucide-react";
+import { Check, Moon, Smartphone, Sun, X } from "lucide-react";
 import { hasNativePlugin, isNativeApp, nativeCall } from "@/lib/nativeApp";
+import { LAYOUTS, LAYOUT_IDS, PALETTES, PALETTE_IDS, mix, paletteTokens, type LayoutId, type PaletteId } from "./fitThemes";
+export { LAYOUTS, LAYOUT_IDS, PALETTES, PALETTE_IDS, paletteTokens, type LayoutId, type PaletteId };
 
 const TOKENS = {
   light: {
@@ -30,15 +33,43 @@ const v = (k: keyof typeof TOKENS.light) => `var(--fit-${k})`;
 const vars = (t: Record<string, string>) => Object.entries(t).map(([k, x]) => `--fit-${k}:${x}`).join(";");
 // The colors are always defined (Light by default); the page's color scheme is only set while Arise Fit
 // is showing, so the rest of the site keeps its own once you leave.
-export const THEME_CSS = `:root{${vars(TOKENS.light)}}[data-fit-theme="light"]{color-scheme:light}[data-fit-theme="dark"]{${vars(TOKENS.dark)};color-scheme:dark}`;
+const BASE_CSS = `:root{${vars(TOKENS.light)}}[data-fit-theme="light"]{color-scheme:light}[data-fit-theme="dark"]{${vars(TOKENS.dark)};color-scheme:dark}`;
+
+// ——— Layouts: type, shape and surfaces (fitThemes.ts), set on the page while Arise Fit shows ————————————
+const RADII = [6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24];
+/** Tailwind's rounded-[Npx] corners, scaled by the layout (Athletic keeps them as they are). */
+const ROUND_CSS = RADII.map((n) => `[data-fit-layout] .rounded-\\[${n}px\\]{border-radius:calc(${n}px * var(--fit-rk))}`).join("");
+const glowFor = (bg: string, plain: boolean) => plain ? `linear-gradient(${bg}, ${bg})` : `radial-gradient(130% 42% at 50% -8%, color-mix(in srgb, var(--fit-accent) 16%, ${bg}) 0%, ${bg} 64%)`;
+const LAYOUT_CSS = `:root{--fit-display:${LAYOUTS.athletic.display};--fit-font:${LAYOUTS.athletic.body};--fit-display-w:800;--fit-display-case:uppercase;--fit-display-ls:.01em;--fit-rk:1;--fit-btn-font:var(--fit-display);--fit-btn-case:uppercase;--fit-btn-size:18px;--fit-num:var(--fit-display)}`
+  + LAYOUT_IDS.filter((id) => id !== "athletic").map((id) => { const L = LAYOUTS[id], plain = id === "zen" || id === "pro" || id === "proplus";
+    const head = `[data-fit-layout="${id}"]{--fit-display:${L.display};--fit-font:${L.body};--fit-display-w:${L.weight};--fit-display-case:${L.upper ? "uppercase" : "none"};--fit-display-ls:${L.tracking};--fit-rk:${L.round};--fit-btn-font:var(--fit-font);--fit-btn-case:none;--fit-btn-size:16px;--fit-num:${id === "pro" || id === "proplus" ? "'JetBrains Mono', ui-monospace, monospace" : "var(--fit-display)"}}`;
+    const mode = (m: "light" | "dark") => { const b = L[m]; return Object.keys(b).length ? `[data-fit-layout="${id}"][data-fit-theme="${m}"]{${vars(b as Record<string, string>)}${b.bg ? `;--fit-glow:${glowFor(b.bg, plain)}` : ""}}` : ""; };
+    return head + mode("light") + mode("dark"); }).join("")
+  + ROUND_CSS;
+
+// The color themes (accents per mode, worked-out glows) live in fitThemes.ts.
+/** Dark's true-black version (for OLED screens): black behind, near-black cards. */
+const BLACK = { bg: "#000000", card: "#0e0f11", "card-bg": "linear-gradient(180deg, #15161a, #0e0f11)", card2: "#1a1c20", gap: "#0e0f11", body: "#1c1e22", muscle: "#2e3238",
+  nav: "rgba(14,15,17,.94)", "card-shadow": "inset 0 1px 0 rgba(255,255,255,.06), 0 6px 18px rgba(0,0,0,.4)" };
+export const THEME_CSS = BASE_CSS + PALETTE_IDS.map((id) =>
+  `[data-fit-theme="light"][data-fit-palette="${id}"]{${vars(paletteTokens(id, "light"))}}` +
+  `[data-fit-theme="dark"][data-fit-palette="${id}"]{${vars(paletteTokens(id, "dark"))}}` +
+  `[data-fit-theme="dark"][data-fit-black="1"][data-fit-palette="${id}"]{${vars({ ...BLACK, ...paletteTokens(id, "dark", true) })}}`).join("")
+  // Before a theme is set (or on pages without one), Ember's extras are the defaults.
+  + `:root{${vars(paletteTokens("ember", "light"))}}[data-fit-theme="dark"]{${vars(paletteTokens("ember", "dark"))}}`
+  + LAYOUT_CSS;
 
 // "lime" is the accent's old name (it was lime green); every screen uses it, so it keeps the name.
-export const C = { bg: v("bg"), card: v("card"), card2: v("card2"), line: v("line"), text: v("text"), dim: v("dim"), lime: v("accent"), orange: v("amber"), blue: v("blue"), pink: v("pink"), red: v("red"), steel: v("steel"), green: v("green"), track: v("track"), emberSoft: v("ember-soft"), tint: v("tint"), body: v("body"), muscle: v("muscle"), gap: v("gap"), nav: v("nav"), navBorder: v("nav-border"), navShadow: v("nav-shadow"), ink: "#0b0b0c" };
+export const C = { bg: v("bg"), card: v("card"), card2: v("card2"), line: v("line"), text: v("text"), dim: v("dim"), lime: v("accent"), orange: v("amber"), blue: v("blue"), pink: v("pink"), red: v("red"), steel: v("steel"), green: v("green"), track: v("track"), emberSoft: v("ember-soft"), tint: v("tint"), body: v("body"), muscle: v("muscle"), gap: v("gap"), nav: v("nav"), navBorder: v("nav-border"), navShadow: v("nav-shadow"), ink: "var(--fit-on-accent)", deep: "var(--fit-accent-deep)", hi: "var(--fit-accent-hi)" };
+/** The accent, see-through: accentA(.2). */
+export const accentA = (a: number) => `rgba(var(--fit-accent-rgb),${a})`;
 /** The glow behind every screen (soft peach in Light, ember in Dark). */
 export const glowBg = v("glow");
-export const font = { fontFamily: "'Barlow', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif" };
+export const font = { fontFamily: "var(--fit-font)" };
 /** Headings: heavy, condensed, upper case. */
-export const display: React.CSSProperties = { fontFamily: "'Barlow Condensed', 'Oswald', 'Arial Narrow', 'Helvetica Neue', sans-serif", fontWeight: 800, textTransform: "uppercase", letterSpacing: ".01em" };
+export const display: React.CSSProperties = { fontFamily: "var(--fit-display)", fontWeight: "var(--fit-display-w)" as React.CSSProperties["fontWeight"], textTransform: "var(--fit-display-case)" as React.CSSProperties["textTransform"], letterSpacing: "var(--fit-display-ls)" };
+/** Big numbers: the heading face, or mono in Pro. */
+export const numFont: React.CSSProperties = { ...display, fontFamily: "var(--fit-num)" };
 
 // ——— Theme ——————————————————————————————————————————————————————————————————————————————————————
 export type ThemeChoice = "light" | "dark" | "auto";
@@ -58,10 +89,40 @@ export function applyTheme() {
   ensureStyles();
   const t = resolvedTheme();
   document.documentElement.setAttribute("data-fit-theme", t);
+  document.documentElement.setAttribute("data-fit-palette", paletteChoice());
+  document.documentElement.setAttribute("data-fit-black", trueBlack() ? "1" : "0");
+  if (layoutsOn) { const l = layoutChoice(); document.documentElement.setAttribute("data-fit-layout", l); loadFonts(LAYOUTS[l].fonts); }
   if (statusBarAdjustable()) void nativeCall(/statusbar/i, "StatusBar", "setStyle", { style: t === "light" ? "LIGHT" : "DARK" }).catch(() => {});
   try { window.dispatchEvent(new Event("fit-theme")); } catch { /* old browser */ }
 }
 export function setThemeChoice(c: ThemeChoice) { try { localStorage.setItem(THEME_KEY, c); } catch { /* private mode */ } applyTheme(); }
+const PALETTE_KEY = "arise-fit-palette", BLACK_KEY = "arise-fit-black";
+export const paletteChoice = (): PaletteId => { try { const x = localStorage.getItem(PALETTE_KEY) as PaletteId | null; return x && x in PALETTES ? x : "ember"; } catch { return "ember"; } };
+const LAYOUT_KEY = "arise-fit-layout";
+/** Layouts are Arise Fit's (Arise Trainer shares these styles but keeps its own look). */
+let layoutsOn = false;
+export const layoutChoice = (): LayoutId => { try { const x = localStorage.getItem(LAYOUT_KEY) as LayoutId | null; return x && x in LAYOUTS ? x : "athletic"; } catch { return "athletic"; } };
+/** A new layout also brings the color theme it was drawn with (the color can be changed after). */
+export function setLayout(l: LayoutId) { try { localStorage.setItem(LAYOUT_KEY, l); localStorage.setItem(PALETTE_KEY, LAYOUTS[l].palette); } catch { /* private mode */ } applyTheme(); }
+function loadFonts(href: string) {
+  if (typeof document === "undefined" || document.querySelector(`link[data-fit-fonts="${CSS.escape(href)}"]`)) return;
+  const l = document.createElement("link"); l.rel = "stylesheet"; l.href = href; l.setAttribute("data-fit-fonts", href); document.head.appendChild(l);
+}
+/** Arise Fit turns its layouts on while it's showing (and off when you leave). */
+export function useFitLayout(): LayoutId {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    layoutsOn = true; applyTheme();
+    const on = () => tick((n) => n + 1); window.addEventListener("fit-theme", on);
+    return () => { window.removeEventListener("fit-theme", on); layoutsOn = false; document.documentElement.removeAttribute("data-fit-layout"); };
+  }, []);
+  return layoutChoice();
+}
+export const trueBlack = (): boolean => { try { return localStorage.getItem(BLACK_KEY) === "1"; } catch { return false; } };
+export function setPalette(p: PaletteId) { try { localStorage.setItem(PALETTE_KEY, p); } catch { /* private mode */ } applyTheme(); }
+export function setTrueBlack(on: boolean) { try { localStorage.setItem(BLACK_KEY, on ? "1" : "0"); } catch { /* private mode */ } applyTheme(); }
+/** The accent showing now as #rrggbb, for things that can't take a CSS variable (map lines, canvas). */
+export const accentNow = () => PALETTES[paletteChoice()][resolvedTheme()][0];
 /** The theme chosen and the one showing, kept current when either changes. */
 export function useFitTheme(): [ThemeChoice, "light" | "dark", (c: ThemeChoice) => void] {
   const [, tick] = useState(0);
@@ -75,15 +136,32 @@ export function useFitTheme(): [ThemeChoice, "light" | "dark", (c: ThemeChoice) 
   }, []);
   return [themeChoice(), resolvedTheme(), setThemeChoice];
 }
-/** Light, Dark or Auto, as three small previews (Settings in Arise Fit, Business in Arise Trainer). */
+/** Appearance: Light, Dark or Auto; a color theme; and true black for Dark (Settings in Arise Fit,
+ * Business in Arise Trainer). Each choice previews in its own colors. */
 export function ThemePicker({ testId = "fit-theme" }: { testId?: string }) {
-  const [choice, , setChoice] = useFitTheme();
+  const [choice, shown, setChoice] = useFitTheme();
+  const pal = paletteChoice(), black = trueBlack();
   const opts: [ThemeChoice, string, typeof Sun][] = [["light", "Light", Sun], ["dark", "Dark", Moon], ["auto", "Auto", Smartphone]];
   return <>
-    <div className="grid grid-cols-3 gap-2" data-testid={testId}>{opts.map(([id, label, Icon]) => <button key={id} type="button" onClick={() => { setChoice(id); haptic("light"); }} aria-pressed={choice === id} className="overflow-hidden rounded-[14px] text-left transition-transform active:scale-[.97]" style={{ background: C.card, boxShadow: choice === id ? `inset 0 0 0 2px ${C.lime}, ${cardStyle.boxShadow}` : `inset 0 0 0 1px ${C.line}` }} data-testid={`${testId}-${id}`}>
-      <span className="block h-14" style={{ background: id === "light" ? "linear-gradient(180deg,#ffe2d3,#f2f2f4)" : id === "dark" ? "linear-gradient(180deg,#3b2415,#15171b)" : "linear-gradient(90deg,#f2f2f4 50%,#15171b 50%)" }}><span className="m-2 block h-3 w-10 rounded-full" style={{ background: "#ff5a1f" }} /></span>
-      <span className="flex items-center gap-1.5 px-2.5 py-2 text-[14px] font-semibold"><Icon className="h-4 w-4" />{label}</span></button>)}</div>
+    {/* Light / Dark / Auto: one segmented control. */}
+    <div className="flex rounded-[14px] p-1" style={{ background: C.card2 }} role="radiogroup" aria-label="Appearance" data-testid={testId}>
+      {opts.map(([id, label, Icon]) => <button key={id} type="button" role="radio" aria-checked={choice === id} onClick={() => { setChoice(id); haptic("light"); }}
+        className="flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[11px] text-[14px] font-semibold transition-colors"
+        style={choice === id ? { background: C.card, color: C.text, boxShadow: v("card-shadow") } : { color: C.dim }}><Icon className="h-4 w-4" />{label}</button>)}
+    </div>
     <p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>Auto follows your iPhone's light or dark setting.</p>
+    <p className="mb-2.5 mt-5 px-1 text-[13px] font-semibold" style={{ color: C.dim }}>Color</p>
+    {/* Colors: a round swatch over its name, three to a row, so every name fits. */}
+    <div className="grid grid-cols-3 gap-2.5" role="radiogroup" aria-label="Color theme" data-testid={`${testId}-colors`}>{PALETTE_IDS.map((id) => {
+      const [a, on] = PALETTES[id][shown]; const sel = id === pal;
+      return <button key={id} type="button" role="radio" aria-checked={sel} onClick={() => { setPalette(id); haptic("light"); }}
+        className="flex flex-col items-center gap-2 rounded-[16px] px-2 pb-3 pt-3.5 transition-transform active:scale-[.97]"
+        style={{ background: C.card, boxShadow: sel ? `inset 0 0 0 2px ${a}` : `inset 0 0 0 1px ${C.line}` }}>
+        <span aria-hidden className="grid h-11 w-11 place-items-center rounded-full" style={{ background: `linear-gradient(145deg, ${mix(a, "#ffffff", 0.22)}, ${a} 55%, ${mix(a, "#000000", 0.35)})`, color: on, boxShadow: `0 6px 14px -6px ${a}` }}>{sel && <Check className="h-5 w-5" strokeWidth={3} />}</span>
+        <span className="w-full truncate text-center text-[13px] font-semibold leading-none">{PALETTES[id].name}</span></button>; })}</div>
+    <button type="button" role="switch" aria-checked={black} onClick={() => { setTrueBlack(!black); haptic("light"); }} className="mt-3 flex w-full items-center gap-3 rounded-[14px] px-3.5 py-3 text-left" style={{ background: C.card, boxShadow: `inset 0 0 0 1px ${C.line}` }}>
+      <span className="min-w-0 flex-1"><span className="block text-[15px] font-semibold">True black in Dark</span><span className="block text-[12px] leading-snug" style={{ color: C.dim }}>Pure black behind everything. Easier on battery on iPhone OLED screens.</span></span>
+      <span aria-hidden className="relative h-[30px] w-[50px] shrink-0 rounded-full transition-colors duration-200" style={{ background: black ? C.lime : C.card2 }}><span className="absolute top-[3px] h-6 w-6 rounded-full bg-white shadow transition-all duration-200" style={{ left: black ? 23 : 3 }} /></span></button>
   </>;
 }
 
@@ -91,7 +169,7 @@ export function ThemePicker({ testId = "fit-theme" }: { testId?: string }) {
 export function StatusShade() {
   const [, shown] = useFitTheme();
   if (!isNativeApp() || statusBarAdjustable() || shown !== "light") return null;
-  return <Layer><div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-[300]" style={{ height: "env(safe-area-inset-top)", background: "#111318" }} /></Layer>;
+  return <Layer><div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-[300]" style={{ height: "var(--sat,env(safe-area-inset-top,0px))", background: "#111318" }} /></Layer>;
 }
 
 /** A light tap on iPhone (set checked, workout started, tab changed). Nothing elsewhere. */
@@ -124,9 +202,11 @@ export const FIT_CSS = `
 @keyframes fitScan{from{top:8%}to{top:88%}}
 .fit-up{animation:fitUp .35s cubic-bezier(.2,.9,.2,1) backwards}
 @keyframes fitUp{from{transform:translateY(110%)}to{transform:none}}
+.fit-wiggle{animation:fitWiggle .32s ease-in-out infinite alternate}
+@keyframes fitWiggle{from{transform:rotate(-1.6deg)}to{transform:rotate(1.6deg)}}
 .fit-route{stroke-dasharray:4000;stroke-dashoffset:4000;animation:fitRoute 1.8s ease-out .2s forwards}
 @keyframes fitRoute{to{stroke-dashoffset:0}}
-@media (prefers-reduced-motion: reduce){.fit-in,.fit-slide,.fit-sheet,.fit-pop,.fit-tick,.fit-bar,.fit-pulse,.fit-up,.fit-route{animation:none!important;stroke-dashoffset:0}.fit-shine::after,.fit-scan{animation:none!important}}
+@media (prefers-reduced-motion: reduce){.fit-in,.fit-slide,.fit-sheet,.fit-pop,.fit-tick,.fit-bar,.fit-pulse,.fit-up,.fit-route,.fit-wiggle{animation:none!important;stroke-dashoffset:0}.fit-shine::after,.fit-scan{animation:none!important}}
 `;
 /** A staggered entrance: item k starts a little after item k-1. */
 export const stagger = (k: number, step = 0.06, from = 0) => ({ animationDelay: `${(from + k * step).toFixed(2)}s` });
@@ -147,7 +227,7 @@ export function useFitFonts() {
       document.head.appendChild(l);
     }
     // Leaving Arise Fit on the website hands the page back to the site's own theme.
-    return () => { if (--themeUsers === 0) document.documentElement.removeAttribute("data-fit-theme"); };
+    return () => { if (--themeUsers === 0) { const r = document.documentElement; r.removeAttribute("data-fit-theme"); r.removeAttribute("data-fit-palette"); r.removeAttribute("data-fit-black"); } };
   }, []);
 }
 
@@ -166,8 +246,8 @@ export function Title({ children, right }: { children: ReactNode; right?: ReactN
 }
 
 export function Btn({ children, onClick, kind = "primary", className = "", disabled, testId, type = "button" }: { children: ReactNode; onClick?: () => void; kind?: "primary" | "ghost" | "soft" | "danger"; className?: string; disabled?: boolean; testId?: string; type?: "button" | "submit" }) {
-  const st = kind === "primary" ? { background: C.lime, color: "#0b0b0c" } : kind === "soft" ? { background: C.card2, color: C.text } : kind === "danger" ? { background: "rgba(255,77,77,.14)", color: C.red } : { background: "transparent", color: C.lime };
-  return <button type={type} onClick={onClick} disabled={disabled} data-testid={testId} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-[10px] px-5 text-[18px] uppercase tracking-[.04em] transition active:scale-[.97] disabled:opacity-40 ${className}`} style={{ ...st, fontFamily: display.fontFamily, fontWeight: 800 }}>{children}</button>;
+  const st = kind === "primary" ? { background: C.lime, color: "var(--fit-on-accent)" } : kind === "soft" ? { background: C.card2, color: C.text } : kind === "danger" ? { background: "rgba(255,77,77,.14)", color: C.red } : { background: "transparent", color: C.lime };
+  return <button type={type} onClick={onClick} disabled={disabled} data-testid={testId} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-[10px] px-5 tracking-[.04em] transition active:scale-[.97] disabled:opacity-40 ${className}`} style={{ ...st, fontFamily: "var(--fit-btn-font)", fontSize: "var(--fit-btn-size)", textTransform: "var(--fit-btn-case)" as React.CSSProperties["textTransform"], fontWeight: 800 }}>{children}</button>;
 }
 
 /** A ring that fills as a number approaches its goal. */
@@ -179,7 +259,7 @@ export function Ring({ value, goal, size = 128, stroke = 12, color = C.lime, glo
   return <div className="relative grid place-items-center" style={{ width: size, height: size }}>
     <svg width={size} height={size} className="-rotate-90" aria-hidden>
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} style={{ stroke: C.track }} />
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={shown ? c * (1 - f) : c} style={{ stroke: value > goal ? C.orange : color, transition: "stroke-dashoffset 1.4s cubic-bezier(.2,.9,.2,1)", ...(glow ? { filter: "drop-shadow(0 0 8px rgba(255,90,31,.45))" } : {}) }} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={shown ? c * (1 - f) : c} style={{ stroke: value > goal ? C.orange : color, transition: "stroke-dashoffset 1.4s cubic-bezier(.2,.9,.2,1)", ...(glow ? { filter: "drop-shadow(0 0 8px rgba(var(--fit-accent-rgb),.45))" } : {}) }} />
     </svg>
     <div className="absolute inset-0 grid place-items-center text-center">{children}</div>
   </div>;
@@ -238,7 +318,7 @@ export function Sheet({ title, onClose, children, testId, right, inline }: { tit
     {children}
   </div>;
   return <Layer><div className="fit-sheet fixed inset-0 z-[80] flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} role="dialog" aria-modal="true" aria-label={title} data-testid={testId}>
-    <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
+    <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,var(--sat,env(safe-area-inset-top,0px)))]">
       <button type="button" onClick={onClose} aria-label="Close" className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card, boxShadow: v("card-shadow") }}><X className="h-5 w-5" /></button>
       <h1 className="min-w-0 flex-1 truncate text-center text-[22px]" style={display}>{title}</h1>
       <div className="flex min-w-11 justify-end">{right}</div>
@@ -250,7 +330,7 @@ export function Sheet({ title, onClose, children, testId, right, inline }: { tit
 export function Chips<T extends string>({ items, value, onChange, label }: { items: { id: T; label: string }[]; value: T; onChange: (v: T) => void; label: string }) {
   return <div role="group" aria-label={label} className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
     {items.map((i) => <button key={i.id} type="button" onClick={() => onChange(i.id)} aria-pressed={value === i.id}
-      className="h-9 shrink-0 whitespace-nowrap rounded-[10px] px-3.5 text-[13px] font-semibold transition-colors duration-200" style={value === i.id ? { background: C.lime, color: "#0b0b0c" } : { background: C.card, color: C.text, boxShadow: `inset 0 0 0 1px ${C.line}` }}>{i.label}</button>)}
+      className="h-9 shrink-0 whitespace-nowrap rounded-[10px] px-3.5 text-[13px] font-semibold transition-colors duration-200" style={value === i.id ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card, color: C.text, boxShadow: `inset 0 0 0 1px ${C.line}` }}>{i.label}</button>)}
   </div>;
 }
 
@@ -263,3 +343,7 @@ export const inputStyle = { background: C.card2, color: C.text, "--tw-ring-color
 
 export const fmtNum = (n: number) => (Math.round(n) >= 10000 ? `${(n / 1000).toFixed(1)}k` : Math.round(n).toLocaleString());
 export const fmtDur = (s: number) => { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = Math.floor(s % 60); return h ? `${h}:${String(m).padStart(2, "0")}:${String(x).padStart(2, "0")}` : `${m}:${String(x).padStart(2, "0")}`; };
+
+/** Whether this person counts food in Arise Points (true) or calories (false); food lists read it to show the right number. */
+export const PointsModeCtx = createContext(false);
+export const usePointsMode = () => useContext(PointsModeCtx);

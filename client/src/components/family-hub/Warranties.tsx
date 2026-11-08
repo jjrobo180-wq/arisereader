@@ -1,4 +1,4 @@
-// Warranties (a Plugin Store add-on): what you bought, where, and when the warranty runs out.
+// Warranties (a Plugin Gallery add-on): what you bought, where, and when the warranty runs out.
 import { useState, type FormEvent } from "react";
 import { ShieldCheck, Trash2 } from "lucide-react";
 import { daysUntil } from "@shared/lifePlugins";

@@ -4,7 +4,7 @@
   "webDir": "www",
   "plugins": {
     "SplashScreen": {
-      "launchShowDuration": 1200,
+      "launchShowDuration": 800,
       "backgroundColor": "#FFFFFF",
       "showSpinner": false
     },
@@ -23,9 +23,19 @@
       "updateUrl": "https://arisetodo.com/api/ota/reader",
       "channelUrl": "https://arisetodo.com/api/ota/reader",
       "statsUrl": ""
+    },
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
     }
   },
   "ios": {
-    "contentInset": "automatic"
+    "contentInset": "never",
+    "backgroundColor": "#ffffff",
+    "scrollEnabled": true,
+    "allowsLinkPreview": false
   }
 }

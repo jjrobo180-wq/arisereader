@@ -2,13 +2,14 @@
 //
 // Every change saves by itself a moment after typing stops. A copy is also kept on this device the
 // whole time, so nothing is lost if the signal drops or the tab closes mid-save: it is sent the next
-// time the file opens. Two devices editing one file are told, instead of one quietly writing over
-// the other.
+// time the file opens. Two devices editing one file never write over each other and are never asked
+// which copy to keep: both devices' changes are merged by themselves (shared/mergeJson.ts).
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
+import { merge3 } from "@shared/mergeJson";
 
-export type DocKind = "sheet" | "doc" | "slides";
+export type DocKind = "sheet" | "doc" | "slides" | "design";
 export type DocEntry = { id: string; kind: DocKind; name: string; createdAt: string; updatedAt: string; size: number; trashedAt?: string; starred?: boolean };
 export type SaveState = "saved" | "saving" | "unsaved" | "offline" | "conflict" | "error";
 
@@ -54,6 +55,9 @@ export function useCloudDoc<C>(id: string | null, clean: (raw: unknown) => C) {
   const latest = useRef<{ content: C | null; name: string }>({ content: null, name: "" });
   const dirty = useRef(false);
   const saving = useRef<Promise<void> | null>(null);
+  /** The content the server last agreed with: what both devices started from, for merging. */
+  const baseContent = useRef<unknown>(undefined);
+  const merges = useRef(0);
 
   useEffect(() => {
     if (!id) return;
@@ -65,11 +69,12 @@ export function useCloudDoc<C>(id: string | null, clean: (raw: unknown) => C) {
       // A save that never reached the server (closed tab, no signal) comes back and goes out now.
       const diverged = !!pending && pending.base !== doc.updatedAt;
       base.current = doc.updatedAt;
-      // Never discard unsent edits just because another device saved first.
-      const c = clean(pending ? pending.content : doc.content);
+      baseContent.current = doc.content;
+      // Never discard unsent edits just because another device saved first: merge them with its copy.
+      const c = clean(pending ? (diverged ? merge3(undefined, pending.content, doc.content) : pending.content) : doc.content);
       latest.current = { content: c, name: pending ? pending.name : doc.name };
       setContentState(c); setNameState(latest.current.name);
-      if (diverged) { dirty.current = true; setState("conflict"); }
+      if (diverged) { dirty.current = true; schedule(50); }
       else if (pending) { dirty.current = true; schedule(50); }
       else { clearPending(id); setState("saved"); }
     }).catch((e) => {
@@ -90,8 +95,26 @@ export function useCloudDoc<C>(id: string | null, clean: (raw: unknown) => C) {
     const snap = latest.current;
     const run = api.save(id, { name: snap.name, content: snap.content, baseUpdatedAt: base.current, force }).then((doc) => {
       base.current = doc.updatedAt;
+      baseContent.current = snap.content;
+      merges.current = 0;
       if (!dirty.current) { clearPending(id); setState("saved"); }
-    }).catch((e: any) => {
+    }).catch(async (e: any) => {
+      if (e.status === 409 && merges.current < 5) {
+        // Another device saved first: take its copy, put this device's changes on top, save again.
+        merges.current += 1;
+        try {
+          const doc = await api.open<C>(id);
+          const merged = clean(merge3(baseContent.current as C | undefined, latest.current.content, doc.content));
+          base.current = doc.updatedAt; baseContent.current = doc.content;
+          latest.current = { ...latest.current, content: merged };
+          setContentState(merged);
+          dirty.current = true; setState("saving");
+          writePending(id, { content: merged, name: latest.current.name, base: base.current });
+          if (timer.current) window.clearTimeout(timer.current);
+          timer.current = window.setTimeout(() => void save(), 50);
+        } catch { dirty.current = true; setState("offline"); if (timer.current) window.clearTimeout(timer.current); timer.current = window.setTimeout(() => void save(), 5000); }
+        return;
+      }
       if (e.status === 409) { setState("conflict"); return; }
       dirty.current = true;
       setState(navigator.onLine === false ? "offline" : "error");
@@ -181,6 +204,8 @@ export function useAppData<T>(app: string, clean: (raw: unknown) => T) {
   const dirty = useRef(false);
   const sending = useRef(false);
   const refused = useRef(false);
+  /** The copy last agreed with the server, so two people or devices editing at once both keep their changes. */
+  const baseData = useRef<unknown>(undefined);
 
   useEffect(() => {
     // Account changes must not expose another person's previously cached content.
@@ -200,8 +225,16 @@ export function useAppData<T>(app: string, clean: (raw: unknown) => T) {
       let localAt = "";
       try { localAt = JSON.parse(localStorage.getItem(cacheKey) || "{}").at || ""; } catch { /* none */ }
       const unsent = (() => { try { return !!JSON.parse(localStorage.getItem(cacheKey) || "{}").unsent; } catch { return false; } })();
-      if (r.data !== null && !(unsent && localAt > (r.updatedAt || ""))) {
+      if (unsent && r.data !== null) {
+        // Changes on this device that never went up: merged with the server's copy, then saved.
+        let cachedBase: unknown; try { cachedBase = JSON.parse(localStorage.getItem(cacheKey) || "{}").base; } catch { cachedBase = undefined; }
+        baseData.current = r.data;
+        const m = clean(merge3(cachedBase, latest.current, r.data as T));
+        latest.current = m; setDataState(m);
+        dirty.current = true; void push();
+      } else if (r.data !== null && !(unsent && localAt > (r.updatedAt || ""))) {
         const c = clean(r.data);
+        baseData.current = r.data;
         latest.current = c; setDataState(c);
         try { localStorage.setItem(cacheKey, JSON.stringify({ data: r.data, at: r.updatedAt })); } catch { /* fine */ }
       } else if (unsent) { dirty.current = true; void push(); }
@@ -214,10 +247,22 @@ export function useAppData<T>(app: string, clean: (raw: unknown) => T) {
     if (!dirty.current || !token || sending.current || readOnly) return;
     sending.current = true;
     dirty.current = false;
-    const snapshot = latest.current;
+    let snapshot = latest.current;
     setState("saving");
     try {
+      // Someone else (another device, or a family member it's shared with) saved since: merge first.
+      try {
+        const now = await call<{ data: unknown }>(token, `/api/app-data/${app}${ownerQ}`);
+        if (now.data !== null && baseData.current !== undefined && JSON.stringify(now.data) !== JSON.stringify(baseData.current)) {
+          const old = baseData.current as T;
+          snapshot = clean(merge3(old, snapshot, now.data as T));
+          // Edits made while this was checking keep the other side's changes too.
+          const shown = latest.current === snapshot ? snapshot : clean(merge3(old, latest.current, now.data as T));
+          latest.current = shown; setDataState(shown);
+        }
+      } catch { /* can't check: the save below decides */ }
       const r = await call<{ updatedAt: string }>(token, `/api/app-data/${app}${ownerQ}`, { method: "PUT", body: JSON.stringify({ data: snapshot }) });
+      baseData.current = snapshot;
       // Only mark the specific sent snapshot as saved. Later edits stay pending.
       if (!dirty.current) {
         try { localStorage.setItem(cacheKey, JSON.stringify({ data: snapshot, at: r.updatedAt })); } catch { /* fine */ }
@@ -243,12 +288,29 @@ export function useAppData<T>(app: string, clean: (raw: unknown) => T) {
     const next = typeof update === "function" ? (update as (p: T) => T)(latest.current) : update;
     latest.current = next;
     setDataState(next);
-    try { localStorage.setItem(cacheKey, JSON.stringify({ data: next, at: new Date().toISOString(), unsent: true })); } catch { /* fine */ }
+    try { localStorage.setItem(cacheKey, JSON.stringify({ data: next, at: new Date().toISOString(), unsent: true, ...(baseData.current !== undefined ? { base: baseData.current } : {}) })); } catch { /* fine */ }
     dirty.current = true;
     setState("unsaved");
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => void push(), 800);
   }, [app, push, cacheKey, readOnly]);
+
+  // Picks up what another device or a family member saved (when nothing here is waiting to go up).
+  useEffect(() => {
+    if (!token) return;
+    const pull = () => {
+      if (dirty.current || sending.current || document.visibilityState !== "visible") return;
+      call<{ data: unknown; updatedAt: string | null }>(token, `/api/app-data/${app}${ownerQ}`).then((r) => {
+        if (dirty.current || sending.current || r.data === null || JSON.stringify(r.data) === JSON.stringify(baseData.current)) return;
+        const c = clean(r.data); baseData.current = r.data; latest.current = c; setDataState(c);
+        try { localStorage.setItem(cacheKey, JSON.stringify({ data: r.data, at: r.updatedAt })); } catch { /* fine */ }
+      }).catch(() => { /* offline */ });
+    };
+    const every = window.setInterval(pull, 30_000);
+    document.addEventListener("visibilitychange", pull);
+    return () => { window.clearInterval(every); document.removeEventListener("visibilitychange", pull); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [app, token, cacheKey, ownerQ]);
 
   useEffect(() => {
     const go = () => { if (dirty.current) void push(); };

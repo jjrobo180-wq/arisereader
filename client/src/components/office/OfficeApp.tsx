@@ -2,8 +2,9 @@
 // template), import one, and find files again (recent, starred, trash). Files live in the person's
 // account (server/userDocs.ts), so they open on every device. Opening one shows its editor.
 import { Suspense, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import {
-  FileText, LayoutGrid, List as ListIcon, MoreVertical, Plus, Presentation, Search, Star, Trash2, Upload, RotateCcw,
+  FileText, LayoutGrid, List as ListIcon, MoreVertical, Palette, Plus, Presentation, Search, Star, Trash2, Upload, RotateCcw,
 } from "lucide-react";
 import { Grid3x3 } from "./icons";
 import { useAuth } from "@/context/AuthContext";
@@ -11,7 +12,7 @@ import { docsApi, type DocEntry, type DocKind } from "@/lib/cloudDocs";
 import { useSavedChoice } from "@/lib/useSavedChoice";
 import { Floating, MenuList, downloadBlob, pickFile, safeName, type MenuItem } from "./officeUi";
 
-export type OfficeTemplate = { id: string; name: string; blurb: string; emoji: string; color: string; make: () => unknown };
+export type OfficeTemplate = { id: string; name: string; blurb: string; emoji: string; color: string; make: () => unknown; /** A picture of it (Design) instead of the emoji tile. */ preview?: () => ReactNode };
 export type OfficeKind = {
   kind: DocKind;
   title: string;
@@ -19,6 +20,8 @@ export type OfficeKind = {
   color: string;
   icon: ReactNode;
   blank: () => unknown;
+  /** Blank files in different sizes to start from (Design: Instagram post, story, flyer…). */
+  starts?: { id: string; label: string; sub: string; make: () => unknown }[];
   templates: OfficeTemplate[];
   importAccept: string;
   importFile: (f: File) => Promise<{ name: string; content: unknown }>;
@@ -43,8 +46,20 @@ export default function OfficeApp({ config, legacy, say }: { config: OfficeKind;
   const [openId, setOpenId] = useState<string | null>(() => { try { return sessionStorage.getItem(`arise-office-open:${config.kind}`); } catch { return null; } });
   const open = (id: string | null) => { setOpenId(id); try { if (id) sessionStorage.setItem(`arise-office-open:${config.kind}`, id); else sessionStorage.removeItem(`arise-office-open:${config.kind}`); } catch { /* fine */ } if (id) window.scrollTo({ top: 0 }); };
   const Editor = config.Editor;
-  if (openId) return <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-sm font-semibold text-slate-500">Opening {config.title}…</div>}><Editor key={openId} id={openId} onBack={() => open(null)} onOpen={(id) => open(id)} /></Suspense>;
+  if (openId) return <FullScreen><Suspense fallback={<div className="flex h-full items-center justify-center text-sm font-semibold text-slate-500">Opening {config.title}…</div>}><Editor key={openId} id={openId} onBack={() => open(null)} onOpen={(id) => open(id)} /></Suspense></FullScreen>;
   return <OfficeHome config={config} legacy={legacy} onOpen={open} say={say} />;
+}
+
+/** An open file takes the whole screen (above the hub's sidebar and tabs), on phones too, in Arise To Duo,
+ *  Arise Notes and Arise Office alike, inside the iPhone's safe areas. The page behind stops scrolling. */
+function FullScreen({ children }: { children: ReactNode }) {
+  useEffect(() => {
+    const b = document.body, prev = b.style.overflow; b.style.overflow = "hidden";
+    return () => { b.style.overflow = prev; };
+  }, []);
+  return createPortal(<div className="fixed inset-0 z-[700] flex flex-col bg-white pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]" data-testid="office-fullscreen">
+    <div className="min-h-0 flex-1">{children}</div>
+  </div>, document.body);
 }
 
 function OfficeHome({ config, legacy, onOpen, say: sayOut }: { config: OfficeKind; legacy?: LegacyFiles; onOpen: (id: string) => void; say?: (m: string) => void }) {
@@ -132,17 +147,20 @@ function OfficeHome({ config, legacy, onOpen, say: sayOut }: { config: OfficeKin
           {config.templates.length > 5 && <button type="button" onClick={() => setAllTemplates(!allTemplates)} className="text-sm font-bold text-sky-700">{allTemplates ? "Fewer" : "Template gallery"}</button>}
         </div>
       </div>
+      {config.starts && <div className="-mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]" data-testid="office-starts">{config.starts.map((st) => <button key={st.id} type="button" onClick={() => void create(`Untitled ${st.label}`, st.make())} disabled={!!busy}
+        className="shrink-0 rounded-xl bg-white px-3 py-2 text-left ring-1 ring-slate-200 hover:ring-2 hover:ring-violet-400" data-testid={`office-start-${st.id}`}><span className="block whitespace-nowrap text-sm font-bold">{st.label}</span><span className="block whitespace-nowrap text-[11px] text-slate-500">{st.sub}</span></button>)}</div>}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <button type="button" onClick={() => void create(`Untitled ${config.noun}`, config.blank())} disabled={!!busy} className="group text-left" data-testid="office-new-blank">
           <div className="flex aspect-[4/3] items-center justify-center rounded-xl bg-white ring-1 ring-slate-200 transition group-hover:ring-2 group-hover:ring-sky-400"><Plus size={40} style={{ color: config.color }} /></div>
           <p className="mt-1.5 text-sm font-bold">Blank {config.noun}</p>
         </button>
         {templates.map((t) => <button key={t.id} type="button" onClick={() => void create(t.name, t.make())} disabled={!!busy} className="group text-left" data-testid={`office-template-${t.id}`}>
-          <div className="flex aspect-[4/3] flex-col justify-between overflow-hidden rounded-xl bg-white p-3 ring-1 ring-slate-200 transition group-hover:ring-2 group-hover:ring-sky-400">
+          {t.preview ? <div className="grid aspect-[4/3] place-items-center overflow-hidden rounded-xl bg-slate-50 p-2 ring-1 ring-slate-200 transition group-hover:ring-2 group-hover:ring-sky-400">{t.preview()}</div>
+          : <div className="flex aspect-[4/3] flex-col justify-between overflow-hidden rounded-xl bg-white p-3 ring-1 ring-slate-200 transition group-hover:ring-2 group-hover:ring-sky-400">
             <span className="text-3xl">{t.emoji}</span>
             <span className="line-clamp-2 text-[11px] leading-snug text-slate-500">{t.blurb}</span>
             <span className="h-1.5 w-full rounded-full" style={{ background: t.color }} />
-          </div>
+          </div>}
           <p className="mt-1.5 truncate text-sm font-bold">{busy === t.name ? "Making…" : t.name}</p>
         </button>)}
       </div>
@@ -180,4 +198,4 @@ function OfficeHome({ config, legacy, onOpen, say: sayOut }: { config: OfficeKin
   </div>;
 }
 
-export const OfficeIcons = { sheet: <Grid3x3 size={18} />, doc: <FileText size={18} />, slides: <Presentation size={18} /> };
+export const OfficeIcons = { sheet: <Grid3x3 size={18} />, doc: <FileText size={18} />, slides: <Presentation size={18} />, design: <Palette size={18} /> };

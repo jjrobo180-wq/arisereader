@@ -212,6 +212,9 @@ export const PROVIDER_CENTS_PER_MIN: Record<string, number> = {
 /** AI writing (summaries, answers): about half a dollar a million tokens, at four characters a token. */
 export const aiCents = (chars: number) => Math.round((chars / 4) * 0.00005 * 10_000) / 10_000;
 
+export { NOTES_THEMES, SUITE_LOOKS, isThemeId, nightLook, themeOf, themeVars, type NotesTheme, type NotesThemeId } from "./notesThemes";
+import { isThemeId, type NotesThemeId } from "./notesThemes";
+
 // ─── Settings ─────────────────────────────────────────────────────────────────
 
 export type AudioKeep = "delete" | "30d" | "keep";
@@ -224,6 +227,12 @@ export type NotesSettings = {
   simple: boolean;
   contrast: boolean;
   large: boolean;
+  /** Night mode: the chosen look in its dark colors. */
+  night: boolean;
+  /** The look picked in Settings > Appearance. */
+  theme: NotesThemeId;
+  /** Which round of "everyone starts on the new default look" this account has seen (see THEME_REV). */
+  themeRev?: number;
   /** Ask "Let everyone know this meeting is being recorded" before each recording. */
   consent: boolean;
   template: NotesTemplateId;
@@ -232,7 +241,11 @@ export type NotesSettings = {
   /** Where action items go by default. */
   hub: "life" | "work";
 };
-export const DEFAULT_SETTINGS: NotesSettings = { audio: "delete", font: "standard", simple: false, contrast: false, large: false, consent: true, template: "general", voice: "hannah", hub: "life" };
+/** The look everyone starts on: Billboard (November 2026). */
+export const DEFAULT_THEME: NotesThemeId = "x-billboard";
+/** Raised when the default look changes for everyone: an account that has not seen this round yet moves to the default once, then keeps whatever it picks. */
+export const THEME_REV = 1;
+export const DEFAULT_SETTINGS: NotesSettings = { audio: "delete", font: "standard", simple: false, contrast: false, large: false, night: false, theme: DEFAULT_THEME, themeRev: THEME_REV, consent: true, template: "general", voice: "hannah", hub: "life" };
 const VOICES = ["hannah", "autumn", "diana", "austin", "daniel", "troy"];
 export function cleanSettings(raw: unknown): NotesSettings {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
@@ -241,7 +254,10 @@ export function cleanSettings(raw: unknown): NotesSettings {
     font: r.font === "dyslexic" ? "dyslexic" : "standard",
     simple: r.simple === true,
     contrast: r.contrast === true,
+    night: r.night === true,
     large: r.large === true,
+    theme: r.themeRev === THEME_REV && isThemeId(r.theme) ? r.theme : DEFAULT_THEME,
+    themeRev: THEME_REV,
     consent: r.consent !== false,
     template: isTemplateId(r.template) ? r.template : "general",
     voice: typeof r.voice === "string" && VOICES.includes(r.voice) ? r.voice : "hannah",
@@ -254,13 +270,13 @@ export function cleanSettings(raw: unknown): NotesSettings {
 export type NotesTemplateId = "general" | "iep" | "parent" | "staff" | "lecture" | "doctor" | "interview";
 export type NotesTemplate = { id: NotesTemplateId; label: string; emoji: string; blurb: string; sections: string[]; focus: string; needs?: NotesFeature };
 export const NOTES_TEMPLATES: NotesTemplate[] = [
-  { id: "general", label: "General", emoji: "📝", blurb: "Summary, key points, decisions and to-dos.", sections: [], focus: "A clear general summary." },
-  { id: "iep", label: "IEP meeting", emoji: "🧩", blurb: "A structured IEP draft for you to review.", sections: [], focus: "An IEP or special education meeting about one student.", needs: "iep" },
-  { id: "parent", label: "Parent conference", emoji: "👪", blurb: "Strengths, concerns, agreements, help at home.", sections: ["Strengths", "Concerns", "What we agreed", "How to help at home"], focus: "A parent-teacher conference about a child.", needs: "templates" },
-  { id: "staff", label: "Staff meeting", emoji: "🏫", blurb: "Announcements, decisions, who does what.", sections: ["Announcements", "Decisions", "Who is doing what"], focus: "A staff or team meeting.", needs: "templates" },
-  { id: "lecture", label: "Class lecture", emoji: "🎓", blurb: "Main ideas, key terms, examples, homework.", sections: ["Main ideas", "Key terms", "Examples", "Homework and due dates"], focus: "A class lecture or lesson, summarized for studying.", needs: "templates" },
-  { id: "doctor", label: "Doctor visit", emoji: "🩺", blurb: "Findings, medicines, instructions, follow-up.", sections: ["Why we went", "What the doctor found", "Medicines", "What to do at home", "Follow-up"], focus: "A doctor or therapy visit. Be careful and exact with medicines and doses; never add medical advice of your own.", needs: "templates" },
-  { id: "interview", label: "Interview", emoji: "🎙️", blurb: "About them, strengths, concerns, quotes.", sections: ["About them", "Strengths", "Concerns", "Notable quotes", "Next steps"], focus: "An interview (a job interview, a podcast or a conversation with one person).", needs: "templates" },
+  { id: "general", label: "General", emoji: "", blurb: "Summary, key points, decisions and to-dos.", sections: [], focus: "A clear general summary." },
+  { id: "iep", label: "IEP meeting", emoji: "", blurb: "A structured IEP draft for you to review.", sections: [], focus: "An IEP or special education meeting about one student.", needs: "iep" },
+  { id: "parent", label: "Parent conference", emoji: "", blurb: "Strengths, concerns, agreements, help at home.", sections: ["Strengths", "Concerns", "What we agreed", "How to help at home"], focus: "A parent-teacher conference about a child.", needs: "templates" },
+  { id: "staff", label: "Staff meeting", emoji: "", blurb: "Announcements, decisions, who does what.", sections: ["Announcements", "Decisions", "Who is doing what"], focus: "A staff or team meeting.", needs: "templates" },
+  { id: "lecture", label: "Class lecture", emoji: "", blurb: "Main ideas, key terms, examples, homework.", sections: ["Main ideas", "Key terms", "Examples", "Homework and due dates"], focus: "A class lecture or lesson, summarized for studying.", needs: "templates" },
+  { id: "doctor", label: "Doctor visit", emoji: "", blurb: "Findings, medicines, instructions, follow-up.", sections: ["Why we went", "What the doctor found", "Medicines", "What to do at home", "Follow-up"], focus: "A doctor or therapy visit. Be careful and exact with medicines and doses; never add medical advice of your own.", needs: "templates" },
+  { id: "interview", label: "Interview", emoji: "", blurb: "About them, strengths, concerns, quotes.", sections: ["About them", "Strengths", "Concerns", "Notable quotes", "Next steps"], focus: "An interview (a job interview, a podcast or a conversation with one person).", needs: "templates" },
 ];
 export const isTemplateId = (v: unknown): v is NotesTemplateId => typeof v === "string" && NOTES_TEMPLATES.some((t) => t.id === v);
 export const templateOf = (id: unknown): NotesTemplate => NOTES_TEMPLATES.find((t) => t.id === id) ?? NOTES_TEMPLATES[0];

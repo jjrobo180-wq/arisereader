@@ -72,7 +72,7 @@ function PhoneNotify() {
   };
   return <Panel>
     <p className="ph text-lg font-extrabold">🔔 Notify my phone</p>
-    <p className="mt-1 text-[13px] leading-snug" style={{ color: C.muted }}>When the timer is up, a notification comes to your phone, even if this app is closed or the screen is off. If you don't tap Peed or Pooped, it reminds you twice more.</p>
+    <p className="mt-1 text-[13px] leading-snug" style={{ color: C.muted }}>A notification when the timer is up, even with the app closed. It reminds you twice more if you don't tap Peed or Pooped.</p>
     {blocker[phase] ? <p className="mt-3 rounded-xl px-3 py-2 text-sm font-bold" style={{ background: C.duckSoft }}>{blocker[phase]}</p>
       : <div className="mt-3 flex flex-wrap items-center gap-2">
         {on ? <>
@@ -82,7 +82,6 @@ function PhoneNotify() {
         </> : <Btn2 kind="duck" onClick={turnOn}>{busy ? "Turning on…" : phase === "checking" ? "Checking…" : "Turn on notifications"}</Btn2>}
       </div>}
     {note && <p role="status" className="mt-2 text-[13px] font-bold" style={{ color: C.muted }}>{note}</p>}
-    {on && <p className="mt-2 text-[13px] leading-snug" style={{ color: C.muted }}>While the timer runs you'll also see a "timer running" notification with the time it rings. Phones can't show a live countdown in a notification, so open the app to watch the seconds.</p>}
   </Panel>;
 }
 
@@ -152,12 +151,12 @@ export default function Simple() {
     <Panel tone="night" className="text-center">
       <p className="text-sm text-white/60">{kid.name}'s next trip to the toilet</p>
       {timer ? <>
-        {dueNow && <p className="mt-2 rounded-xl bg-white/15 px-3 py-2 text-base font-extrabold" style={{ color: C.duck }}>🚽 Sit her on the toilet now. Next timer:</p>}
+        {dueNow && <p className="mt-2 rounded-xl bg-white/15 px-3 py-2 text-base font-extrabold" style={{ color: C.duck }}>🚽 Sit {kid.name} on the toilet now. Next timer:</p>}
         <p className="ph mt-2 text-6xl font-extrabold tabular-nums" style={{ color: C.duck }}>{fmtDuration(left)}</p>
         <p className="mt-1 text-lg font-bold">at {clockOf(timer.endAt)}</p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5"><span className="mr-1 text-[13px] text-white/60">Snooze</span>{SNOOZE.map((m) => <button key={m} type="button" onClick={() => startTimer(m)} className="rounded-full bg-white/15 px-3.5 py-2 text-sm font-bold text-white">{m} min</button>)}
           <button type="button" onClick={() => set((d) => ({ ...d, timer: null }))} className="rounded-full px-3.5 py-2 text-sm font-bold text-white/60">Stop</button></div>
-      </> : <p className="mt-3 text-lg font-bold leading-snug">Tap Peed or Pooped below when {kid.name} goes, or add what she ate or drank. I'll set the timer.</p>}
+      </> : <p className="mt-3 text-lg font-bold leading-snug">Tap Peed or Pooped when {kid.name} goes. I'll set the timer.</p>}
     </Panel>
 
     <div className="flex flex-wrap justify-center gap-1.5">{WHERE.map(([id, l]) => <Chip key={id} on={where === id} onClick={() => setWhere(id)}>{l}</Chip>)}</div>
@@ -174,8 +173,9 @@ export default function Simple() {
       <Btn2 kind="plain" onClick={undo}>Undo</Btn2>
     </div>}
 
-    <Panel>
-      <p className="ph text-lg font-extrabold">She ate or drank</p>
+    <details className="group">
+    <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between rounded-2xl bg-white px-4 text-base font-extrabold" style={{ boxShadow: `inset 0 0 0 1.5px ${C.line}` }}>She ate or drank<span className="text-xl transition group-open:rotate-45" aria-hidden>+</span></summary>
+    <Panel className="mt-2">
       <div className="mt-3 flex flex-wrap gap-1.5">{PICKS.map((p) => <Chip key={p.id} on={pick === p.id} onClick={() => { setPick(p.id); setMl(undefined); setFoods([]); setWhat(""); }}><span>{p.emoji}</span>{p.label}</Chip>)}</div>
       {isDrink
         ? <div className="mt-3 flex flex-wrap items-center gap-1.5"><span className="mr-1 text-[13px] font-bold" style={{ color: C.muted }}>How much?</span>{(units === "oz" ? OZ : ML).map((v) => { const m = units === "oz" ? ozToMl(v) : v; return <Chip key={v} on={ml === m} onClick={() => setMl(ml === m ? undefined : m)}>{v} {units}</Chip>; })}</div>
@@ -185,25 +185,28 @@ export default function Simple() {
       <div className="mt-3"><WhenRow when={addWhen} setWhen={setAddWhen} now={now} label="When?" /></div>
       <div className="mt-4"><Btn2 kind="duck" onClick={add} disabled={!addAt.ok}>Add it and set the timer</Btn2></div>
     </Panel>
+    </details>
 
-    {coming.length > 0 && <Panel>
-      <p className="ph text-lg font-extrabold">What to expect, in order</p>
-      <ol className="mt-2 space-y-2">{coming.slice(0, 4).map((t, i) => <li key={i} className="flex gap-2 text-sm leading-snug"><span>{i === 0 ? "🚽" : "➡️"}</span><span className={i === 0 ? "font-bold" : undefined}>{t}</span></li>)}</ol>
-    </Panel>}
+    {coming[0] && <p className="px-1 text-center text-sm font-bold" style={{ color: C.muted }}>{coming[0]}</p>}
 
     <p className="text-center text-sm" style={{ color: C.muted }}>
       {lastPeeAt ? `Last pee ${clockOf(lastPeeAt)}` : "No pee yet today"} · {lastPoopAt ? `last poop ${clockOf(lastPoopAt)}` : "no poop yet today"}
     </p>
 
+    <details className="group">
+    <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between rounded-2xl bg-white px-4 text-base font-extrabold" style={{ boxShadow: `inset 0 0 0 1.5px ${C.line}` }}>Reminder settings<span className="text-xl transition group-open:rotate-45" aria-hidden>+</span></summary>
+    <div className="mt-2 space-y-3">
     <Panel>
       <p className="text-[13px] font-bold" style={{ color: C.muted }}>Remind me every</p>
       <div className="mt-2 flex flex-wrap gap-1.5">
         <Chip on={!kid.interval} onClick={() => putKid({ ...kid, interval: 0 })}>Auto · {kid.interval ? "…" : `${interval} min`}</Chip>
         {EVERY.map((m) => <Chip key={m} on={kid.interval === m} onClick={() => putKid({ ...kid, interval: m })}>{m} min</Chip>)}
       </div>
-      <p className="mt-3 text-[13px] leading-snug" style={{ color: C.muted }}>Auto uses {kid.name}'s own usual gap once there are enough pees logged. When the timer rings, tap Snooze and it rings again until you mark a pee or poop. {data.notify ? "Phone notifications are on, so it can ring with the app closed." : "Keep this page open on your phone so it can ring, or turn on phone notifications below."}</p>
+      <p className="mt-3 text-[13px] leading-snug" style={{ color: C.muted }}>Auto uses {kid.name}'s own usual gap once there are enough pees logged. When the timer rings, tap Snooze and it rings again until you mark a pee or poop.</p>
     </Panel>
 
     <PhoneNotify />
+    </div>
+    </details>
   </div>;
 }

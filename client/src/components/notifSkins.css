@@ -1,0 +1,180 @@
+/* The notification panel, dressed for each hub theme (words in notifSkins.ts). Every part reads a
+   few variables; a theme sets them, and adds its own touch below (a title bar, a terminal, a
+   newspaper rule...). "plain" is the original dark panel, used outside the hubs. */
+
+.hub-notif {
+  --nf-bg: #151326; --nf-head: linear-gradient(90deg, rgba(139,92,246,.10), rgba(217,70,239,.06), rgba(34,211,238,.07));
+  --nf-ink: #f5f3ff; --nf-muted: #c4c0dc; --nf-line: rgba(255,255,255,.08); --nf-hover: rgba(255,255,255,.05);
+  --nf-accent: #fb923c; --nf-chip: rgba(139,92,246,.16); --nf-chip-ink: #c4b5fd; --nf-alert: rgba(239,68,68,.16); --nf-alert-ink: #fca5a5;
+  --nf-sec: rgba(21,19,38,.95); --nf-dot-needs: #e879f9; --nf-dot-upd: #22d3ee;
+  --nf-radius: 1rem; --nf-chip-radius: .75rem; --nf-font: inherit; --nf-title-font: inherit;
+  --nf-shadow: 0 28px 90px rgba(0,0,0,.55); --nf-border: 1px solid rgba(255,255,255,.1);
+  background: var(--nf-bg); color: var(--nf-ink); font-family: var(--nf-font);
+  border: var(--nf-border); border-radius: var(--nf-radius); box-shadow: var(--nf-shadow);
+}
+.hub-notif .nf-head { background: var(--nf-head); border-bottom: 1px solid var(--nf-line); }
+.hub-notif .nf-h { color: var(--nf-ink); font-family: var(--nf-title-font); }
+.hub-notif .nf-sub, .hub-notif .nf-time, .hub-notif .nf-body, .hub-notif .nf-label, .hub-notif .nf-count, .hub-notif .nf-hint { color: var(--nf-muted); }
+.hub-notif .nf-btn { color: var(--nf-muted); border-radius: calc(var(--nf-chip-radius) * .7); }
+.hub-notif .nf-btn:hover, .hub-notif .nf-x:hover { background: var(--nf-hover); color: var(--nf-ink); }
+.hub-notif .nf-row { border-bottom: 1px solid var(--nf-line); }
+.hub-notif .nf-row:last-child { border-bottom: 0; }
+.hub-notif .nf-main:hover, .hub-notif .nf-main:focus-visible { background: var(--nf-hover); }
+.hub-notif .nf-title { color: var(--nf-ink); font-family: var(--nf-title-font); }
+.hub-notif .nf-open { color: var(--nf-accent); }
+.hub-notif .nf-x { color: var(--nf-muted); }
+.hub-notif .nf-icon { border-radius: var(--nf-chip-radius); }
+.hub-notif:not([data-skin="plain"]) .nf-icon { background: var(--nf-chip); color: var(--nf-chip-ink); }
+.hub-notif:not([data-skin="plain"]) .nf-row:is([data-cat="report"], [data-cat="request"]) .nf-icon { background: var(--nf-alert); color: var(--nf-alert-ink); }
+.hub-notif .nf-sec { background: var(--nf-sec); border-bottom: 1px solid var(--nf-line); backdrop-filter: blur(8px); }
+.hub-notif .nf-dot { border-radius: 999px; }
+.hub-notif:not([data-skin="plain"]) .nf-dot[data-sec="needs"] { background: var(--nf-dot-needs); }
+.hub-notif:not([data-skin="plain"]) .nf-dot[data-sec="upd"] { background: var(--nf-dot-upd); }
+.hub-notif .nf-foot { border-top: 1px solid var(--nf-line); background: color-mix(in srgb, var(--nf-ink) 3%, transparent); }
+.hub-notif .nf-settings { color: var(--nf-ink); }
+.hub-notif .nf-settings:hover { background: var(--nf-hover); }
+
+/* ── The hub's own looks: Classic (day), night, Tile, Old Computer ── */
+.hub-notif[data-skin="classic"] {
+  --nf-bg: #ffffff; --nf-head: #292446; --nf-ink: #1d1a33; --nf-muted: #5f5b78; --nf-line: #ececf3; --nf-hover: #f6f5ff;
+  --nf-accent: #6e5ae0; --nf-chip: #f1eeff; --nf-chip-ink: #6e5ae0; --nf-alert: #fff1f0; --nf-alert-ink: #d93f2f;
+  --nf-sec: rgba(250,250,255,.96); --nf-dot-needs: #7968e5; --nf-dot-upd: #2bb3a3; --nf-shadow: 0 24px 70px rgba(41,36,70,.22); --nf-border: 1px solid #e4e6f0;
+}
+.hub-notif[data-skin="classic"] .nf-head .nf-h { color: #fff; } .hub-notif[data-skin="classic"] .nf-head .nf-sub, .hub-notif[data-skin="classic"] .nf-head .nf-btn { color: #cfc9f5; }
+.hub-notif[data-skin="classic"] .nf-head .nf-btn:hover { background: rgba(255,255,255,.1); color: #fff; }
+
+.hub-notif[data-skin="night"] {
+  --nf-bg: #1b1930; --nf-head: #232041; --nf-ink: #f1effa; --nf-muted: #b9b4d6; --nf-line: #2f2c4a; --nf-hover: #26233f;
+  --nf-accent: #a99cff; --nf-chip: #2b2750; --nf-chip-ink: #c7bdff; --nf-alert: #3a1f2b; --nf-alert-ink: #ff9fae; --nf-sec: rgba(27,25,48,.96);
+}
+
+/* Tile: flat Windows-Phone tiles — square, solid color blocks, lowercase light type. */
+.hub-notif[data-skin="tile"] {
+  --nf-bg: #0a0a0a; --nf-head: #0a0a0a; --nf-ink: #ffffff; --nf-muted: #a9c9df; --nf-line: #000; --nf-hover: #1a1a1a;
+  --nf-accent: #4cc3f5; --nf-chip: #0072ac; --nf-chip-ink: #fff; --nf-alert: #e51400; --nf-alert-ink: #fff; --nf-sec: #0a0a0a;
+  --nf-dot-needs: #f2600c; --nf-dot-upd: #00a2e8; --nf-radius: 0; --nf-chip-radius: 0; --nf-border: 0; --nf-shadow: 0 0 0 2px #00a2e8, 0 20px 60px rgba(0,0,0,.7);
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+.hub-notif[data-skin="tile"] .nf-h { font-size: 1.6rem; font-weight: 300; letter-spacing: -.02em; }
+.hub-notif[data-skin="tile"] .nf-label { text-transform: none; letter-spacing: 0; font-size: .95rem; font-weight: 300; color: #fff; }
+.hub-notif[data-skin="tile"] .nf-row { border-bottom: 4px solid #0a0a0a; background: #141414; }
+.hub-notif[data-skin="tile"] .nf-icon { height: 2.75rem; width: 2.75rem; }
+.hub-notif[data-skin="tile"] .nf-dot { border-radius: 0; width: .7rem; height: .7rem; }
+
+/* Old Computer: green phosphor on black, a terminal printout. */
+.hub-notif[data-skin="crt"] {
+  --nf-bg: #050a05; --nf-head: #0a120a; --nf-ink: #33ff33; --nf-muted: #22c022; --nf-line: #1f4d1f; --nf-hover: #0d1a0d;
+  --nf-accent: #33ff33; --nf-chip: #0a180a; --nf-chip-ink: #33ff33; --nf-alert: #1a0a0a; --nf-alert-ink: #ff5a5a; --nf-sec: #071007;
+  --nf-dot-needs: #ff5a5a; --nf-dot-upd: #33ff33; --nf-radius: 0; --nf-chip-radius: 0; --nf-border: 1px solid #33ff33;
+  --nf-shadow: 0 0 22px rgba(51,255,51,.25), 0 20px 60px rgba(0,0,0,.8); --nf-font: "Courier New", ui-monospace, monospace; --nf-title-font: "Courier New", ui-monospace, monospace;
+  text-shadow: 0 0 6px rgba(51,255,51,.45);
+}
+.hub-notif[data-skin="crt"] .nf-icon { border: 1px solid currentColor; }
+.hub-notif[data-skin="crt"] .nf-dot { border-radius: 0; }
+.hub-notif[data-skin="crt"] .nf-title::before { content: "> "; }
+.hub-notif[data-skin="crt"] .nf-open::before { content: "["; } .hub-notif[data-skin="crt"] .nf-open::after { content: "]"; }
+.hub-notif[data-skin="crt"]::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, transparent 1px 3px); }
+
+/* ── The Notes looks: every one takes its own colors, type and corners from the look... ── */
+/* :where keeps this as weak as a skin rule, so each look's own touches below win. */
+:where(html[data-hub-look]) .hub-notif:not([data-skin="plain"]) {
+  --nf-bg: var(--an-card); --nf-head: var(--an-bg); --nf-ink: var(--an-ink); --nf-muted: var(--an-muted); --nf-line: var(--an-line);
+  --nf-hover: color-mix(in srgb, var(--an-violet) 9%, transparent); --nf-accent: var(--an-violet-ink); --nf-chip: var(--an-violet-soft); --nf-chip-ink: var(--an-violet-ink);
+  --nf-alert: var(--an-coral-soft, var(--an-violet-soft)); --nf-alert-ink: var(--an-coral, var(--an-violet-ink));
+  --nf-sec: color-mix(in srgb, var(--an-card) 94%, transparent); --nf-dot-needs: var(--an-violet); --nf-dot-upd: var(--an-green, var(--an-violet-ink));
+  --nf-radius: max(var(--an-radius), 0px); --nf-chip-radius: calc(var(--an-radius) * .6); --nf-font: var(--an-font); --nf-title-font: var(--an-serif);
+  --nf-border: var(--an-border) solid var(--an-line); --nf-shadow: var(--an-shadow-lg, var(--an-shadow));
+}
+:where(html[data-hub-look]) .hub-notif:not([data-skin="plain"]) .nf-h { font-size: 1.05rem; }
+
+/* ...and each adds its own touch. */
+/* Terminals */
+.hub-notif[data-skin="console"] .nf-title::before { content: "$ "; color: var(--an-violet-ink); }
+.hub-notif[data-skin="console"] .nf-icon, .hub-notif[data-skin="console"] .nf-dot { border-radius: 0; }
+/* Old desktops: a real window title bar */
+.hub-notif[data-skin="retro"] { box-shadow: inset -2px -2px 0 #404040, inset 2px 2px 0 #fff, 4px 4px 0 rgba(0,0,0,.35); }
+.hub-notif[data-skin="retro"] .nf-head { background: linear-gradient(90deg, #000080, #1084d0); }
+.hub-notif[data-skin="retro"] .nf-head .nf-h, .hub-notif[data-skin="retro"] .nf-head .nf-sub, .hub-notif[data-skin="retro"] .nf-head .nf-btn { color: #fff; }
+.hub-notif[data-skin="retro"] .nf-btn { background: #c0c0c0; color: #000 !important; box-shadow: inset -1px -1px 0 #404040, inset 1px 1px 0 #fff; border-radius: 0; }
+.hub-notif[data-skin="millennium"] { border: 3px solid #0053ee; border-radius: 8px 8px 0 0; }
+.hub-notif[data-skin="millennium"] .nf-head { background: linear-gradient(180deg, #0997ff, #0053ee 10%, #0050ee 50%, #06f 85%, #003dd7); }
+.hub-notif[data-skin="millennium"] .nf-head .nf-h, .hub-notif[data-skin="millennium"] .nf-head .nf-sub, .hub-notif[data-skin="millennium"] .nf-head .nf-btn { color: #fff; text-shadow: 1px 1px 0 #0f1089; }
+.hub-notif[data-skin="desktop"] { --nf-bg: color-mix(in srgb, var(--an-card) 82%, transparent); backdrop-filter: blur(24px) saturate(1.6); border-radius: 18px; }
+.hub-notif[data-skin="desktop"] .nf-row { margin: .35rem .5rem; border: 0; border-radius: 14px; background: color-mix(in srgb, var(--an-card) 90%, transparent); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.hub-notif[data-skin="desktop"] .nf-head { background: transparent; }
+.hub-notif[data-skin="workstation"] { backdrop-filter: blur(30px); border-radius: 8px; }
+.hub-notif[data-skin="workstation"] .nf-row { margin: .3rem .5rem; border: 1px solid var(--an-line); border-radius: 6px; }
+/* Paper: newspapers, typewriters, e-ink, margins */
+.hub-notif[data-skin="gazette"] .nf-head { border-bottom: 3px double var(--an-ink); text-align: center; }
+.hub-notif[data-skin="gazette"] .nf-head .nf-h { font-size: 1.5rem; font-weight: 900; }
+.hub-notif[data-skin="gazette"] .nf-label { letter-spacing: .3em; }
+.hub-notif[data-skin="gazette"] .nf-title { font-size: 15px; }
+.hub-notif[data-skin="typewriter"] .nf-title::after { content: "▍"; color: var(--an-coral, #b22); margin-left: 2px; }
+.hub-notif[data-skin="typewriter"] .nf-row { border-bottom-style: dashed; }
+.hub-notif[data-skin="ink"] .nf-row, .hub-notif[data-skin="ink"] .nf-head { border-bottom-width: 2px; }
+.hub-notif[data-skin="ink"] .nf-icon { background: transparent; border: 1.5px solid var(--an-ink); color: var(--an-ink); }
+.hub-notif[data-skin="margin"] .nf-main { border-left: 2px solid var(--an-coral, #e06666); margin-left: 2.2rem; padding-left: .9rem; }
+.hub-notif[data-skin="margin"] .nf-icon { display: none; }
+.hub-notif[data-skin="atelier"] .nf-head .nf-h { font-size: 1.4rem; font-weight: 400; font-style: italic; }
+/* Loud and graphic */
+.hub-notif[data-skin="punch"] { border: 3px solid #000; box-shadow: 6px 6px 0 #000; }
+.hub-notif[data-skin="punch"] .nf-row { border-bottom: 3px solid #000; }
+.hub-notif[data-skin="punch"] .nf-icon { border: 2px solid #000; box-shadow: 2px 2px 0 #000; }
+.hub-notif[data-skin="punch"] .nf-head .nf-h { font-size: 1.4rem; text-transform: uppercase; }
+.hub-notif[data-skin="swiss"] .nf-head { border-bottom: 4px solid var(--an-ink); }
+.hub-notif[data-skin="swiss"] .nf-head .nf-h { font-size: 1.6rem; font-weight: 900; letter-spacing: -.03em; }
+.hub-notif[data-skin="swiss"] .nf-icon { border-radius: 0; background: var(--an-violet); color: var(--an-on-accent); }
+.hub-notif[data-skin="neon"] { box-shadow: 0 0 0 1px var(--an-violet), 0 0 30px color-mix(in srgb, var(--an-violet) 45%, transparent), 0 20px 60px rgba(0,0,0,.7); }
+.hub-notif[data-skin="neon"] .nf-h, .hub-notif[data-skin="neon"] .nf-label { text-transform: uppercase; letter-spacing: .18em; text-shadow: 0 0 10px var(--an-violet); }
+.hub-notif[data-skin="neon"] .nf-icon { box-shadow: 0 0 12px color-mix(in srgb, var(--an-violet) 60%, transparent); }
+.hub-notif[data-skin="arcade"] .nf-h, .hub-notif[data-skin="arcade"] .nf-label, .hub-notif[data-skin="arcade"] .nf-open { font-family: var(--an-serif); letter-spacing: .08em; }
+.hub-notif[data-skin="arcade"] .nf-icon, .hub-notif[data-skin="arcade"] .nf-dot { border-radius: 0; image-rendering: pixelated; box-shadow: 3px 3px 0 rgba(0,0,0,.5); }
+.hub-notif[data-skin="monolith"] .nf-h, .hub-notif[data-skin="monolith"] .nf-label { letter-spacing: .3em; font-weight: 500; }
+.hub-notif[data-skin="monolith"] .nf-head { border-bottom: 1px solid var(--an-violet); }
+.hub-notif[data-skin="monolith"] .nf-icon { background: transparent; border: 1px solid var(--an-violet); color: var(--an-violet); }
+.hub-notif[data-skin="blueprint"] { background-image: linear-gradient(var(--an-line) 1px, transparent 1px), linear-gradient(90deg, var(--an-line) 1px, transparent 1px); background-size: 22px 22px; }
+.hub-notif[data-skin="blueprint"] .nf-row { border-bottom-style: dashed; }
+.hub-notif[data-skin="blueprint"] .nf-icon { background: transparent; border: 1px solid currentColor; border-radius: 0; }
+.hub-notif[data-skin="cockpit"] .nf-row:is([data-cat="report"]) .nf-icon { animation: nf-blink 1.4s steps(2) infinite; }
+.hub-notif[data-skin="cockpit"] .nf-label { letter-spacing: .2em; }
+.hub-notif[data-skin="darkroom"] { --nf-hover: rgba(255,60,40,.08); }
+.hub-notif[data-skin="darkroom"] .nf-row { border-left: 3px solid transparent; } .hub-notif[data-skin="darkroom"] .nf-row:hover { border-left-color: var(--an-violet); }
+/* Calm */
+.hub-notif[data-skin="zen"] .nf-head .nf-h { font-weight: 400; font-size: 1.2rem; }
+.hub-notif[data-skin="zen"] .nf-icon { border-radius: 999px; }
+.hub-notif[data-skin="zen"] .nf-row, .hub-notif[data-skin="hush"] .nf-row { border-bottom-color: transparent; }
+.hub-notif[data-skin="hush"] .nf-h, .hub-notif[data-skin="hush"] .nf-label { text-transform: lowercase; letter-spacing: .02em; font-weight: 500; }
+.hub-notif[data-skin="hush"] .nf-icon { background: transparent; }
+.hub-notif[data-skin="grove"] .nf-head .nf-h, .hub-notif[data-skin="tide"] .nf-head .nf-h { font-size: 1.3rem; font-weight: 500; }
+.hub-notif[data-skin="frost"] .nf-icon, .hub-notif[data-skin="frost"] .nf-dot { border-radius: 999px; }
+.hub-notif[data-skin="glass"] { --nf-bg: color-mix(in srgb, var(--an-card) 70%, transparent); backdrop-filter: blur(26px) saturate(1.5); }
+.hub-notif[data-skin="glass"] .nf-row { background: color-mix(in srgb, var(--an-ink) 4%, transparent); margin: .3rem .5rem; border: 1px solid color-mix(in srgb, var(--an-ink) 10%, transparent); border-radius: 16px; }
+/* Bright and bouncy */
+.hub-notif[data-skin="bloom"] .nf-head, .hub-notif[data-skin="studio"] .nf-head, .hub-notif[data-skin="timeline"] .nf-head, .hub-notif[data-skin="cassette"] .nf-head { background: var(--an-violet); }
+.hub-notif:is([data-skin="bloom"], [data-skin="studio"], [data-skin="timeline"], [data-skin="cassette"]) .nf-head :is(.nf-h, .nf-sub, .nf-btn) { color: var(--an-on-accent); }
+.hub-notif[data-skin="chatline"] .nf-main { margin: .35rem .6rem; border-radius: 18px 18px 18px 4px; background: color-mix(in srgb, var(--an-violet) 8%, var(--an-card)); }
+.hub-notif[data-skin="chatline"] .nf-row { border-bottom: 0; }
+.hub-notif[data-skin="deck"] .nf-row { margin: .4rem .6rem; border: 1px solid var(--an-line); border-radius: 14px; box-shadow: 0 3px 0 var(--an-line); }
+.hub-notif[data-skin="pocket"] .nf-icon { border-radius: 12px; background: var(--an-violet); color: var(--an-on-accent); }
+.hub-notif[data-skin="orbit"] .nf-icon, .hub-notif[data-skin="orbit"] .nf-dot { border-radius: 999px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--an-violet) 30%, transparent); }
+.hub-notif[data-skin="aurora"] .nf-head { background: linear-gradient(120deg, color-mix(in srgb, var(--an-violet) 35%, transparent), transparent 70%); }
+.hub-notif[data-skin="vinyl"] .nf-icon { border-radius: 999px; background: radial-gradient(circle, var(--an-violet) 0 22%, #111 24% 100%); color: transparent; }
+.hub-notif[data-skin="cassette"] .nf-label { font-family: ui-monospace, monospace; }
+/* The interactive looks */
+.hub-notif:is([data-skin="bubbles"], [data-skin="jelly"], [data-skin="marbles"], [data-skin="spinner"], [data-skin="orrery"]) .nf-icon { border-radius: 999px; box-shadow: inset -3px -4px 8px rgba(0,0,0,.18), inset 3px 3px 6px rgba(255,255,255,.45); }
+.hub-notif[data-skin="jelly"] .nf-main:active, .hub-notif[data-skin="bubbles"] .nf-main:active { transform: scale(.98); }
+.hub-notif[data-skin="synth"] .nf-head { background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--an-violet) 30%, transparent)); }
+.hub-notif[data-skin="synth"] .nf-h, .hub-notif[data-skin="synth"] .nf-label, .hub-notif[data-skin="ferro"] .nf-h, .hub-notif[data-skin="ferro"] .nf-label { text-transform: uppercase; letter-spacing: .14em; }
+.hub-notif[data-skin="slots"] { border: 3px solid var(--an-violet); box-shadow: 0 0 0 3px #5a0d0d, 0 20px 60px rgba(0,0,0,.6); }
+.hub-notif[data-skin="slots"] .nf-head { background: linear-gradient(180deg, #b31b1b, #6d0b0b); }
+.hub-notif[data-skin="slots"] .nf-head :is(.nf-h, .nf-sub, .nf-btn) { color: #ffe9a8; }
+.hub-notif[data-skin="dial"] .nf-head { background: linear-gradient(180deg, #6b4423, #4a2e17); }
+.hub-notif[data-skin="dial"] .nf-head :is(.nf-h, .nf-sub, .nf-btn) { color: #f6e7c8; }
+.hub-notif[data-skin="lava"] .nf-icon { border-radius: 45% 55% 50% 50% / 60% 55% 45% 40%; }
+.hub-notif[data-skin="ferro"] .nf-icon { border-radius: 999px; background: radial-gradient(circle at 35% 30%, #555, #0a0a0a 70%); color: #fff; }
+
+@keyframes nf-blink { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .hub-notif * { animation: none !important; } }
+
+/* The bell's count in each look's own accent (it was the same pink everywhere). */
+html[data-hub-look] [data-testid="notification-bell"] > span { background: var(--an-violet); color: var(--an-on-accent); --tw-ring-color: var(--an-bg); border-radius: max(var(--an-radius), 4px); }

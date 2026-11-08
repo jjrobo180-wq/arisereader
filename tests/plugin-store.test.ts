@@ -1,4 +1,4 @@
-// The Arise Plugin Store: the catalog matches the hubs, and adding or removing a plugin only
+// The Arise Plugin Gallery: the catalog matches the hubs, and adding or removing a plugin only
 // switches what shows (never deletes anything).
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -9,7 +9,7 @@ import {
 import { HUB_TABS, emptyWorkspace } from "../shared/teacherHub";
 import { ALWAYS_SHOWN } from "../shared/hubTabGroups";
 import { WORK_BUILT_IN_TABS } from "../shared/teacherHub";
-import { TOGGLEABLE, emptyFamily } from "../shared/familyHub";
+import { RETIRED_SECTIONS, TOGGLEABLE, emptyFamily } from "../shared/familyHub";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -36,9 +36,9 @@ test("WorkHub: every App Store screen is in the store, and no built-in or always
   for (const t of tabs) assert.ok(!ALWAYS_SHOWN.includes(t), t);
 });
 
-test("LifeHub: every section a family can switch off is in the store, except the built-in Calendar and Notes", () => {
+test("LifeHub: every section a family can switch off is in the store, except the built-in Calendar and Notes and retired apps", () => {
   const sections = PLUGINS.flatMap((p) => (p.target.kind === "section" ? [p.target.section] : []));
-  assert.deepEqual([...sections].sort(), TOGGLEABLE.filter((s) => s !== "calendar" && s !== "notes").sort());
+  assert.deepEqual([...sections].sort(), TOGGLEABLE.filter((s) => s !== "calendar" && s !== "notes" && !RETIRED_SECTIONS.includes(s)).sort());
 });
 
 test("adding and removing a WorkHub tab only changes that tab", () => {
@@ -128,4 +128,15 @@ test("WorkHub's store lives in the main Hub screen, not the trial-ended screen",
   const at = hub.indexOf("<PluginStore");
   assert.ok(at > hub.indexOf("function TeacherHubPage()"), "inside TeacherHubPage");
   assert.ok(hub.slice(hub.indexOf("function ReaderOnly("), hub.indexOf("export default function TeacherHub()")).indexOf("PluginStore") === -1, "not in ReaderOnly");
+});
+
+test("search ranks by name and category and doesn't match mid-word", () => {
+  const life = pluginsFor("life", { teacher: false });
+  const fit = searchPlugins(life, "fitness");
+  const loose = life.filter((p) => [p.name, p.tagline, p.category, p.description, ...p.features].join(" ").toLowerCase().includes("fit"));
+  assert.ok(fit.length > 0 && fit.length <= loose.length);
+  assert.ok(fit.length < life.length / 3, `fitness should be tight, got ${fit.length} of ${life.length}`);
+  const first = fit[0]!;
+  assert.ok(/fit|health|workout|exercise|train/i.test([first.name, first.category, first.tagline].join(" ")), first.name);
+  assert.equal(searchPlugins(life, "").length, life.length);
 });

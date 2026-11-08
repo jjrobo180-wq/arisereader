@@ -195,6 +195,8 @@ app.use(/^\/api\/(podscroll|earshot)\/studio\/transcribe$/, express.raw({ type: 
 app.use(/^\/api\/notes\/[^/]+\/pieces$/, (req, res, next) => { authMiddleware(req, res, next).catch(next); }, express.raw({ type: "*/*", limit: "26mb" }));
 app.use("/api/notes/memo", (req, res, next) => { authMiddleware(req, res, next).catch(next); }, express.raw({ type: "*/*", limit: "9mb" }));
 // Arise Talk: a backup with photo buttons, a photo to read, and a short recording to hear.
+// Arise Notes → Notes: a note with pictures or handwritten pages (up to 6 MB, a little more as JSON).
+app.use(/^\/api\/pages\/[0-9a-fA-F-]{36}$/, express.json({ limit: "9mb" }));
 app.use("/api/talk/backup", express.json({ limit: "8mb" }));
 app.use("/api/talk/ai/photo", express.json({ limit: "4mb" }));
 app.use("/api/talk/listen", express.raw({ type: "audio/*", limit: "4mb" }));
@@ -204,6 +206,10 @@ app.use("/api/apps/ai", express.json({ limit: "200kb" }));
 app.use("/api/arise-todo/workspace", express.json({ limit: "6mb" }));
 // A meal photo for the food diary's calorie estimate (shrunk on the phone first).
 app.use("/api/arise-todo/food/estimate", express.json({ limit: "4mb" }));
+// Arise Fit: a photo of a machine or a gym (shrunk on the phone, but still far over the usual 100 KB),
+// and the whole Fit diary, which passes 100 KB after a few months of food, workouts and runs.
+app.use("/api/fit/identify", express.json({ limit: "8mb" }));
+app.use("/api/fit/data", express.json({ limit: "5mb" }));
 // Apple Health apps can send a couple of months of readings in one post.
 app.use("/api/arise-todo/apple-health/sync", express.json({ limit: "5mb" }));
 // An upload that big is only read for someone who is signed in: the sign-in is checked first, so a stranger can't make
@@ -211,6 +217,8 @@ app.use("/api/arise-todo/apple-health/sync", express.json({ limit: "5mb" }));
 app.use("/api/teacher-hub/import", (req, res, next) => { authMiddleware(req, res, next).catch(next); }, express.json({ limit: "24mb" }));
 // Arise Math "Snap a problem": a photo or screenshot of one math problem (shrunk on the device first).
 app.use("/api/math/photo-help", (req, res, next) => { authMiddleware(req, res, next).catch(next); }, express.json({ limit: "8mb" }));
+// Arise Math "Test Prep": up to 6 photos of practice sheets in one request (each shrunk on the device first).
+app.use(/^\/api\/math\/prep$/, (req, res, next) => { if (req.method !== "POST") return next(); authMiddleware(req, res, next).catch(next); }, express.json({ limit: "26mb" }));
 
 // No-proctor quizzes: camera snapshots arrive as raw JPEG, and the page sends
 // its last events with sendBeacon (plain text) while it is closing.

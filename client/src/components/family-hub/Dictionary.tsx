@@ -1,4 +1,4 @@
-// Dictionary (a Plugin Store add-on): look up any English word, hear it said, learn a word a day,
+// Dictionary (a Plugin Gallery add-on): look up any English word, hear it said, learn a word a day,
 // and keep a list of words you like.
 import { useState, type FormEvent } from "react";
 import { BookOpen, Bookmark, RefreshCw, Search, Trash2, Volume2 } from "lucide-react";

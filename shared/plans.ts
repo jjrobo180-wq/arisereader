@@ -83,6 +83,13 @@ export const PLANS = {
     monthlyCents: 1000,
   },
   /**
+   * Arise Fit+ (shared/fitPlus.ts): the paid tier of Arise Fit, $10 a month per account. Each paying
+   * account can share it free with one other account (the guest pass). Sold on the website only.
+   */
+  fitPlus: {
+    monthlyCents: 1000,
+  },
+  /**
    * Arise Drive storage tiers: extra cloud storage for the Drive app, on top of the free 500MB
    * (shared/driveApp.ts). Priced against real Supabase Storage cost (~$0.021/GB-month, plus a
    * conservative egress estimate for a personal photo drive) to keep a healthy margin at every
@@ -127,8 +134,8 @@ export function clampBlocks(blocks: unknown): number {
  * What a plan is for. "teacher" and "school" are A.R.I.S.E. Premium;
  * "hub_teacher" and "hub_school" are the Arise WorkHub add-on.
  */
-export type PlanKind = "teacher" | "school" | "hub_teacher" | "hub_school" | "social" | "bundle_family" | "bundle_teacher" | "todo_family" | "math_class" | "history_class" | "social_class" | "ai_pro" | "storage_20gb" | "storage_100gb" | "storage_500gb" | "todo_unlimited" | "todo_unlimited_year" | "notes_basic" | "notes_plus" | "notes_plus_year" | "notes_family";
-export const PLAN_KINDS: readonly PlanKind[] = ["school", "teacher", "hub_school", "hub_teacher", "social", "bundle_family", "bundle_teacher", "todo_family", "math_class", "history_class", "social_class", "ai_pro", "storage_20gb", "storage_100gb", "storage_500gb", "todo_unlimited", "todo_unlimited_year", "notes_basic", "notes_plus", "notes_plus_year", "notes_family"];
+export type PlanKind = "teacher" | "school" | "hub_teacher" | "hub_school" | "social" | "bundle_family" | "bundle_teacher" | "todo_family" | "math_class" | "history_class" | "social_class" | "ai_pro" | "storage_20gb" | "storage_100gb" | "storage_500gb" | "todo_unlimited" | "todo_unlimited_year" | "notes_basic" | "notes_plus" | "notes_plus_year" | "notes_family" | "fit_plus";
+export const PLAN_KINDS: readonly PlanKind[] = ["school", "teacher", "hub_school", "hub_teacher", "social", "bundle_family", "bundle_teacher", "todo_family", "math_class", "history_class", "social_class", "ai_pro", "storage_20gb", "storage_100gb", "storage_500gb", "todo_unlimited", "todo_unlimited_year", "notes_basic", "notes_plus", "notes_plus_year", "notes_family", "fit_plus"];
 /** Arise Notes plans (shared/ariseNotes.ts), one per person (Family: the owner's). */
 export const NOTES_PLAN_KINDS: readonly PlanKind[] = ["notes_basic", "notes_plus", "notes_plus_year", "notes_family"];
 export const isNotesKind = (kind: PlanKind): boolean => (NOTES_PLAN_KINDS as readonly string[]).includes(kind);
@@ -153,7 +160,7 @@ export const appOfClassKind = (kind: PlanKind): AppId | null => (kind === "math_
 export const isClassAppKind = (kind: PlanKind) => appOfClassKind(kind) !== null;
 export const classAppCents = (app: AppId) => (app === "math" ? PLANS.classApps.mathCents : app === "history" ? PLANS.classApps.historyCents : PLANS.classApps.socialCents);
 /** Plans bought for one person (or one family, or one teacher's class), not sized in blocks of students. */
-export const isAddonKind = (kind: PlanKind) => kind === "social" || kind === "bundle_family" || kind === "bundle_teacher" || kind === "todo_family" || kind === "todo_unlimited" || kind === "todo_unlimited_year" || kind === "ai_pro" || isStoragePlanKind(kind) || isClassAppKind(kind) || isNotesKind(kind);
+export const isAddonKind = (kind: PlanKind) => kind === "social" || kind === "fit_plus" || kind === "bundle_family" || kind === "bundle_teacher" || kind === "todo_family" || kind === "todo_unlimited" || kind === "todo_unlimited_year" || kind === "ai_pro" || isStoragePlanKind(kind) || isClassAppKind(kind) || isNotesKind(kind);
 export const isPlanKind = (v: unknown): v is PlanKind => typeof v === "string" && (PLAN_KINDS as readonly string[]).includes(v);
 export const isSchoolKind = (kind: PlanKind) => kind === "school" || kind === "hub_school";
 export const isHubKind = (kind: PlanKind) => kind === "hub_teacher" || kind === "hub_school";
@@ -169,6 +176,7 @@ export function priceOf(kind: PlanKind): { cents: number; interval: "month" | "y
   if (kind === "bundle_teacher") return { cents: PLANS.bundle.teacherMonthlyCents, interval: "month", seats: () => PLANS.bundle.teacherSeats };
   if (kind === "todo_family") return { cents: PLANS.todo.familyMonthlyCents, interval: "month", seats: () => 1 };
   if (kind === "ai_pro") return { cents: PLANS.aiPro.monthlyCents, interval: "month", seats: () => 1 };
+  if (kind === "fit_plus") return { cents: PLANS.fitPlus.monthlyCents, interval: "month", seats: () => 1 };
   if (kind === "todo_unlimited") return { cents: UNLIMITED_MONTHLY_CENTS, interval: "month", seats: () => 1 };
   if (kind === "todo_unlimited_year") return { cents: UNLIMITED_YEARLY_CENTS, interval: "year", seats: () => 1 };
   { const p = notesProductOf(kind); if (p) { const price = productPrice(p); return { cents: price.cents, interval: price.interval, seats: () => (p === "family" ? 4 : 1) }; } }
