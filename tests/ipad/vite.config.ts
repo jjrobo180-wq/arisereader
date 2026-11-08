@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 import path from "node:path";
 const root = path.resolve(__dirname, "../..");
 export default defineConfig({
-  root: __dirname, base: "./", mode: "development",
+  root: __dirname, base: "./", mode: "development", publicDir: path.resolve(root, "client/public"),
   plugins: [react()],
   css: { postcss: root },
   define: { "import.meta.env.DEV": "true" },

@@ -113,7 +113,7 @@ function Cell({ cell, day, row, shown, today, blocks, ...handlers }: { cell: Min
   );
 }
 
-export function MinutesWeekView({ workspace, today, onBlocks, ...handlers }: { workspace: Workspace; today: string; /** Open "Set up blocks". */ onBlocks: () => void } & Handlers) {
+export function MinutesWeekView({ workspace, today, onBlocks, readOnly = false, ...handlers }: { workspace: Workspace; today: string; /** Open "Set up blocks". */ onBlocks: () => void; /** Another case manager's minutes: looked at, never changed. */ readOnly?: boolean } & Handlers) {
   const [weekOf, setWeekOf] = useState(today);
   const blocks = useMemo(() => schoolBlocks(workspace), [workspace.minuteBlocks]);
   const optional = useMemo(() => optionalDays(workspace), [workspace.minuteOptionalDays]);
@@ -138,7 +138,7 @@ export function MinutesWeekView({ workspace, today, onBlocks, ...handlers }: { w
         </div>
         {!thisWeek && <button type="button" className="inline-flex min-h-11 items-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => { setWeekOf(today); setPicked(""); }}>Today</button>}
         <button type="button" className={navBtn} onClick={() => go(7)} aria-label="Week after"><ChevronRight className="h-5 w-5" /></button>
-        <button type="button" className={navBtn} onClick={onBlocks} aria-label="Set up blocks" data-testid="minutes-blocks-setup"><Settings2 className="h-5 w-5" /></button>
+        {!readOnly && <button type="button" className={navBtn} onClick={onBlocks} aria-label="Set up blocks" data-testid="minutes-blocks-setup"><Settings2 className="h-5 w-5" /></button>}
       </div>
 
       {/* On a phone one day shows at a time, picked from this strip. On a wide screen every day is a column. */}
@@ -157,7 +157,7 @@ export function MinutesWeekView({ workspace, today, onBlocks, ...handlers }: { w
       </div>
       {day.optional && <p className="mt-1.5 rounded-xl bg-sky-100 px-3 py-2 text-xs text-sky-800 lg:hidden" data-testid="minutes-optional-note">{DAY_NAMES[day.day]} is optional. Nothing is due. If you met with students, tap “Add if you met” in that block and the minutes count as extra.</p>}
 
-      <div className={`mt-2 grid grid-cols-1 gap-1.5 ${COLS[week.days.length] || COLS[5]}`} data-testid="minutes-grid">
+      <div className={`mt-2 grid grid-cols-1 gap-1.5 ${COLS[week.days.length] || COLS[5]} ${readOnly ? "pointer-events-none select-text" : ""}`} aria-disabled={readOnly || undefined} data-testid="minutes-grid">
         <div className="hidden lg:block" aria-hidden />
         {week.days.map((d) => (
           <div key={d.date} className="hidden min-w-0 px-1 lg:block" data-testid="minutes-day-head" data-date={d.date}>
@@ -177,7 +177,7 @@ export function MinutesWeekView({ workspace, today, onBlocks, ...handlers }: { w
       </div>
 
       {week.anyDay.length > 0 && (
-        <div className="mt-3 rounded-2xl border border-slate-200 p-2" data-testid="minutes-any-day">
+        <div className={`mt-3 rounded-2xl border border-slate-200 p-2 ${readOnly ? "pointer-events-none" : ""}`} data-testid="minutes-any-day">
           <h3 className="px-1 text-xs font-bold uppercase tracking-wide text-slate-600">Any day this week, no block</h3>
           <ul className="mt-1.5 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
             {week.anyDay.map((p) => (

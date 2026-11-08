@@ -1142,7 +1142,7 @@ function Workspace({ doc, id, onBack, onOpen }: { doc: DocHandle; id: string; on
   const activeW = am ? colX[am.c2 + 1] - colX[am.c1] : activeBox.w, activeH = am ? rowY[am.r2 + 1] - rowY[am.r1] : activeBox.h;
   const activeOnScreen = activeBox.x >= HEAD_W - 2 && activeBox.y >= HEAD_H - 2 && activeBox.x < vw && activeBox.y < vh;
 
-  return <div className="flex h-[calc(100dvh-8rem)] min-h-[520px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-sm" data-testid="sheets-editor">
+  return <div className="flex h-full min-h-0 flex-col overflow-hidden bg-white text-slate-900" data-testid="sheets-editor">
     {/* Title and menus */}
     <div className="flex items-start gap-2 px-2 pt-2 sm:px-3">
       <button type="button" onClick={async () => { if (edit) commitEdit("none"); await doc.flush(); onBack(); }} aria-label="Back to files" title="Back to files" className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"><ArrowLeft size={18} /></button>

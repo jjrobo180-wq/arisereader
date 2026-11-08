@@ -16,6 +16,7 @@ import {
 import { API_BASE } from "@/lib/queryClient";
 import DonationGoal from "@/components/DonationGoal";
 import { Arise2UpdateButton } from "@/components/Arise2Update";
+import { lockPageScroll } from "@/lib/scrollLock";
 
 type SampleType = "student" | "eye-gaze" | "parent";
 type FrontTab = "signin" | "create" | "explore";
@@ -67,9 +68,7 @@ export default function Login() {
   useEffect(()=>{fetch(`${API_BASE}/api/banners/login`).then(r=>r.ok?r.json():null).then(d=>{if(d?.text)setLoginBanner(d);}).catch(()=>{});},[]);
   useEffect(()=>{
     if(!selectedFeature)return;
-    const old=document.body.style.overflow;
-    document.body.style.overflow="hidden";
-    return()=>{document.body.style.overflow=old;};
+    return lockPageScroll();
   },[selectedFeature]);
 
   const featureKeys=useMemo(()=>Object.keys(FEATURES) as FeatureId[],[]);

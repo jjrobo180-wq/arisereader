@@ -1,6 +1,6 @@
 // The Plugin Kit's tools: one screen each for list, checklist, log, cards and calculator plugins,
 // drawn from the plugin's definition in shared/pluginKit.ts. Used by LifeHub sections and by
-// WorkHub's plugins (opened from the Plugin Store). Records are passed in and saved by the hub.
+// WorkHub's plugins (opened from the Plugin Gallery). Records are passed in and saved by the hub.
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Check, Copy, ExternalLink, Eye, Heart, Minus, Phone, Plus, RotateCcw, Shuffle, Trash2, X } from "lucide-react";
 import { addDaysTo, daysUntil, forDay, nextYearly } from "@shared/lifePlugins";

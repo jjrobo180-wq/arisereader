@@ -11,7 +11,7 @@ import { YOUTUBE_CHANNEL_OPTIONS, normalizeYoutubeChannels, youtubeChannelAllowe
 import { normalizeEyeGazeBackground } from "../shared/eyeGazeAppearance";
 import type { Express } from "express";
 import type { Server } from "node:http";
-import { storage } from "./storage";
+import { storage, setReaderMessageListener } from "./storage";
 // Cache-bust: force server restart to pick up new DB entries
 import { seedData } from "./storage";
 import { clearCache, AlreadySubmittedError } from "./storage";
@@ -65,15 +65,21 @@ import { createSupabasePagesStore } from "./arisePagesStore";
 import { registerAriseTodoRoutes } from "./ariseTodo";
 import { registerWhatsNewRoutes } from "./whatsNew";
 import { registerAdminHandoffRoutes } from "./adminHandoff";
+import { registerTvLinkRoutes } from "./tvLink";
+import { readWorkspace as readTodoWorkspace, updateWorkspace as updateTodoWorkspace } from "./ariseTodo";
+import { applyLifeTv, applyWorkTv } from "../shared/tvActions";
 import { registerClientErrorRoutes } from "./clientErrors";
 import { registerTodoShareRoutes } from "./todoShare";
 import { registerFoodLookupRoutes } from "./foodLookup";
+import { registerKrogerRoutes } from "./kroger";
 import { registerFitRoutes } from "./fit";
 import { registerCoachRoutes } from "./coach";
 import { registerTalkRoutes } from "./talk";
 import { registerBrowserRoutes } from "./browserCheck";
 import { registerLifePlanRoutes } from "./lifePlan";
-import { registerAccountabilityRoutes, startAccountabilityTicker } from "./accountability";
+import { ensureSharedSpace, registerAccountabilityRoutes, startAccountabilityTicker } from "./accountability";
+import { ACCOUNTABILITY_SHARE } from "../shared/profileLinks";
+import { ACCOUNTABILITY_BELL_TYPE } from "../shared/notifications";
 import { registerOtaRoutes } from "./ota";
 import { registerSleepFinderRoutes } from "./sleepFinder";
 import { podscrollAllowed, registerEarshotRoutes, registerPodscrollRoutes, supabaseEarshotStore } from "./earshot";
@@ -91,6 +97,7 @@ import { GENRES as PODCAST_GENRES } from "../shared/earshot";
 import { supabaseAdStore } from "./podcastAds";
 import { startCopyDiagnostics } from "./podcastCopies";
 import { createPlayer as createPodcastPlayer, startPlayDiagnostics } from "./podcastPlay";
+import { createCleaner as createPodcastCleaner, supabaseCleanStore } from "./podcastClean";
 import { createAdLibrary } from "./podcastAdLibrary";
 import { registerPassLockRoutes } from "./passLock";
 import { registerProfileLinkRoutes } from "./profileLinks";
@@ -111,6 +118,7 @@ import { registerMeetingPollRoutes } from "./meetingPoll";
 import { registerAriseSocialRoutes, type ConnectInvite, type SocialUser } from "./ariseSocial";
 import { registerAriseMathRoutes } from "./ariseMath";
 import { registerMathPhotoRoutes } from "./ariseMathPhoto";
+import { registerMathPrepRoutes } from "./ariseMathPrep";
 import { registerClassBehaviorRoutes } from "./classBehavior";
 import { registerClassGoalRoutes } from "./classGoals";
 import { registerAriseHistoryRoutes } from "./ariseHistory";
@@ -1506,6 +1514,33 @@ export async function registerRoutes(
     "todo_required", "Arise LifeHub is an add-on for parents ($10 a month) and comes with Arise WorkHub for teachers.",
   ));
   registerAdminHandoffRoutes(app, authMiddleware);
+  // Apple TV sign-in with a code, and the TV's summary of the family hub (server/tvLink.ts).
+  const tvId = () => `tv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  registerTvLinkRoutes(app, authMiddleware, {
+    createSession: (id) => storage.createSession(id), readWorkspace: readTodoWorkspace, readWorkWorkspace: (id) => createSupabaseWorkspaceStore().get(id),
+    // To-dos and chores checked off or added on the Apple TV, saved like the phone saves (only over the copy read).
+    changeLife: async (userId, a, day) => {
+      let failed: string | null = null;
+      const r = await updateTodoWorkspace(userId, (ws) => {
+        const out = applyLifeTv(ws, a, day, new Date().toISOString(), tvId);
+        if ("error" in out) { failed = out.error; return null; }
+        return { workspace: out.workspace, result: { created: out.created, message: out.message } };
+      });
+      if (failed) return { ok: false as const, message: failed };
+      return r ? { ok: true as const, ...r } : null;
+    },
+    changeWork: async (userId, a, day) => {
+      const store = createSupabaseWorkspaceStore();
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const row = await store.get(userId);
+        if (!row) return { ok: false as const, message: "Your WorkHub isn't set up yet." };
+        const out = applyWorkTv(JSON.parse(JSON.stringify(row.workspace)), a, day, new Date().toISOString(), tvId);
+        if ("error" in out) return { ok: false as const, message: out.error };
+        if (await store.save(userId, out.workspace, row.updatedAt)) return { ok: true as const, created: out.created, message: out.message };
+      }
+      return null;
+    },
+  });
   registerClientErrorRoutes(app);
   // Arise To Duo Free and the $5 upgrade (shared/todoPlan.ts). These run before the routes they
   // guard. Free has no AI, and up to 3 App Store apps across WorkHub and LifeHub: a save that would
@@ -1546,14 +1581,14 @@ export async function registerRoutes(
       const [before, otherSaved] = await Promise.all([savedHub(hub, Number(user.id)), savedHub(other, Number(user.id))]);
       const otherApps = appsIn(other, otherSaved);
       if (growsPastFree(appsIn(hub, before) + otherApps, mine + otherApps)) {
-        return res.status(402).json({ code: APPS_FULL, limit: FREE_APPS, message: `The free plan includes up to ${FREE_APPS} apps from the App Store. Remove one, or get Unlimited ($${UNLIMITED_MONTHLY_CENTS / 100} a month) for every app and AI.` });
+        return res.status(402).json({ code: APPS_FULL, limit: FREE_APPS, message: `The free plan includes up to ${FREE_APPS} plugins from the Plugin Gallery. Remove one, or get Unlimited ($${UNLIMITED_MONTHLY_CENTS / 100} a month) for every app and AI.` });
       }
       next();
     } catch (error: any) {
       // Never bypass subscription enforcement because Stripe or the database is slow:
       // the existing saved hub stays untouched and the person can retry safely.
       console.error("[todo-plan] Could not verify app allowance:", error?.message);
-      return res.status(503).json({ message: "Could not verify your App Store allowance. Please try again." });
+      return res.status(503).json({ message: "Could not verify your Plugin Gallery allowance. Please try again." });
     }
   });
   /** Free or Unlimited, apps added in each hub, and this month's AI, for the hubs' plan card and upgrade box. */
@@ -1599,6 +1634,7 @@ export async function registerRoutes(
     ownerName: async (id) => { const owner: any = await storage.getUser(id); return String(owner?.displayName || owner?.display_name || "").trim().split(/\s+/)[0] || ""; },
   });
   registerFoodLookupRoutes(app, authMiddleware);
+  registerKrogerRoutes(app, authMiddleware);
   registerFitRoutes(app, authMiddleware, {
     nameOf: async (id) => { const u: any = await storage.getUser(id).catch(() => null); return String(u?.displayName || u?.display_name || u?.username || "").trim().split(/\s+/)[0] || ""; },
     // Arise Fit+: the account's own plan (server/plans.ts); guest passes are worked out in server/fitPass.ts.
@@ -1625,8 +1661,24 @@ export async function registerRoutes(
   // Accountability (an Arise To Duo app): shared to-dos with nudges until done, proof, AI worksheets and quizzes.
   const acctDeps = {
     db: () => getAdminSupabase(),
-    push: (userId: number, message: { title: string; body: string; url?: string; tag?: string }) => notifyUser(userId, message, "todo"),
+    // Each one also goes in the notification bell (both hubs, every device), so it's there even on a phone or
+    // computer that never signed up for pushes: they only reached iPhones whose app had reminders on.
+    // The automatic nudges ("still to do") stay pushes only, so the bell isn't filled with them.
+    push: (userId: number, message: { title: string; body: string; url?: string; tag?: string }) => {
+      if (!String(message.tag || "").startsWith("acct-nudge-")) void (async () => {
+        const { error } = await supabase.from("notifications").insert({ user_id: userId, type: ACCOUNTABILITY_BELL_TYPE, title: message.title.slice(0, 200), message: message.body.slice(0, 500) });
+        if (error) console.error("[accountability] bell:", error.message);
+      })();
+      return notifyUser(userId, message, "todo");
+    },
     nameOf: async (id: number) => { const u: any = await storage.getUser(id); return String(u?.displayName || u?.display_name || "").trim().split(/\s+/)[0] || ""; },
+    // The same devices notifyUser(…, "todo") sends to: every iPhone app ("apns:…"), and browsers with LifeHub reminders on.
+    devices: async (id: number) => {
+      const { data, error } = await supabase.from("push_subscriptions").select("endpoint, todo").eq("user_id", id);
+      if (error) throw error;
+      const rows = (data || []) as { endpoint: string; todo: boolean | null }[];
+      return { apple: rows.filter((r) => String(r.endpoint).startsWith("apns:")).length, web: rows.filter((r) => !String(r.endpoint).startsWith("apns:") && r.todo === true).length };
+    },
   };
   registerAccountabilityRoutes(app, authMiddleware, acctDeps);
   if (process.env.NODE_ENV !== "test") startAccountabilityTicker(acctDeps);
@@ -1664,9 +1716,15 @@ export async function registerRoutes(
   startCopyDiagnostics(supabaseKV(getAdminSupabase));
   // Playback through the server (one for both apps): stitched-in ads found in each listener's own copy.
   const podcastPlayer = createPodcastPlayer({ library: createAdLibrary(supabaseKV(getAdminSupabase)) });
+  // Ad-free copies (server/podcastClean.ts): once a listener's copy is compared, its show audio with the
+  // stitched-in ads cut out is kept in storage, and everyone plays that file straight from there.
+  if (process.env.EARSHOT_CLEAN !== "0") createPodcastCleaner({ player: podcastPlayer, kv: supabaseKV(getAdminSupabase), store: supabaseCleanStore(getAdminSupabase),
+    // Copies are kept 7 days: the daily sweep looks at every one.
+    listAll: async () => { const { data } = await getAdminSupabase().from("podcast_cache").select("value").like("key", "clean:%").neq("key", "clean:blocked").limit(20000); return (data ?? []).map((r: any) => r.value); } });
   startPlayDiagnostics(supabaseKV(getAdminSupabase), podcastPlayer, podcasts);
   // New episodes of followed and top shows checked for ads before anyone plays them, with the AI allowance left over at night.
-  if (process.env.EARSHOT_PRECHECK === "1") startPodcastPrechecks({ kv: supabaseKV(getAdminSupabase), player: podcastPlayer, dir: podcasts,
+  // On by EARSHOT_PRECHECK=1, and by itself once the AI is on a paid plan (EARSHOT_PRECHECK=0 keeps it off).
+  if (process.env.EARSHOT_PRECHECK !== "0") startPodcastPrechecks({ kv: supabaseKV(getAdminSupabase), player: podcastPlayer, dir: podcasts, enabled: () => process.env.EARSHOT_PRECHECK === "1" || podcasts.paid(),
     topShows: async () => { const lists = await Promise.all(PODCAST_GENRES.slice(0, 12).map((g) => podcasts.loadGenreShows(g.id).catch(() => []))); const out: string[] = []; for (let i = 0; i < 4; i++) for (const l of lists) if (l[i]) out.push(l[i].id); return out; } });
   registerEarshotRoutes(app, authMiddleware, { store: supabaseEarshotStore(getAdminSupabase), directory: podcasts, adStore: podcastAds, player: podcastPlayer, socialDb: getAdminSupabase });
   registerPodscrollRoutes(app, supabaseEarshotStore(getAdminSupabase, "podscroll"), undefined, podcasts, podcastAds, podcastPlayer, getAdminSupabase, { sendEmail: (to, subject, html) => sendEmail(to, subject, html) });
@@ -1737,7 +1795,17 @@ export async function registerRoutes(
     },
   });
   // Arise WorkHub, the paid add-on: only teachers with a Arise WorkHub plan can open it.
-  registerTeacherHubRoutes(app, authMiddleware, { hubAccess: (user) => plans.hubAccess(user as any) });
+  registerTeacherHubRoutes(app, authMiddleware, {
+    hubAccess: (user) => plans.hubAccess(user as any),
+    // The other teachers at the same school, for seeing the minutes they chose to share.
+    colleagues: async (user) => {
+      const schoolId = Number((user as any)?.school_id ?? (user as any)?.schoolId ?? 0);
+      if (!schoolId) return [];
+      const { data, error } = await getAdminSupabase().from("users").select("id, username, display_name, role").eq("school_id", schoolId).eq("role", "teacher").is("archived_at", null).neq("id", Number(user.id)).limit(200);
+      if (error) throw new Error(error.message);
+      return (data || []).map((u: any) => ({ id: Number(u.id), name: String(u.display_name || u.username || "Case manager") }));
+    },
+  });
   // Adding to the Hub from AI, photos, files, pasted text and connected calendars.
   registerTeacherHubImportRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   // The Lesson Planner's AI helper: ideas, full plans, standards, worksheets, slides, units and reteaches.
@@ -1747,9 +1815,35 @@ export async function registerRoutes(
   const profileLinks = registerProfileLinkRoutes(app, authMiddleware, {
     getSetting: (key) => storage.getSetting(key), upsertSetting: (key, value) => storage.upsertSetting(key, value),
     getUser: (id) => storage.getUser(id), lifeHub: (ownerId) => savedHub("life", ownerId),
+    // Accountability turned on for a linked person: the two share an Accountability space (server/accountability.ts).
+    lifeWorkspace: {
+      read: async (ownerId) => {
+        const { data, error } = await getAdminSupabase().from("arise_todo_workspaces").select("workspace, updated_at").eq("user_id", ownerId).maybeSingle();
+        if (error) throw error;
+        return data ? { workspace: data.workspace, updatedAt: String(data.updated_at) } : null;
+      },
+      // The same rule as the owner's own saves (server/ariseTodo.ts): only if nobody saved since. Their devices merge it in.
+      write: async (ownerId, workspace, base) => {
+        const now = new Date(Math.max(Date.now(), Date.parse(base) + 1 || 0)).toISOString();
+        const { data, error } = await getAdminSupabase().from("arise_todo_workspaces").update({ workspace, updated_at: now }).eq("user_id", ownerId).eq("updated_at", base).select("updated_at").maybeSingle();
+        if (error) throw error;
+        return data ? String(data.updated_at) : null;
+      },
+    },
+    knows: async (a, b) => {
+      const { data } = await getAdminSupabase().from("acct_members").select("space_id, user_id").in("user_id", [a, b]);
+      const mine = new Set((data || []).filter((r: any) => r.user_id === a).map((r: any) => r.space_id));
+      return (data || []).some((r: any) => r.user_id === b && mine.has(r.space_id));
+    },
+    onActive: async (link) => { if (link.grants[ACCOUNTABILITY_SHARE] && link.viewerId) await ensureSharedSpace(acctDeps, link.ownerId, link.viewerId); },
   });
   registerUserDocRoutes(app, authMiddleware, userDocStore, undefined, profileLinks.canUseApp);
   // Health Nudges (a premium app) sends phone notifications from the settings it saved with the person's app data.
+  // A.R.I.S.E. Reader app: a message to a reader (from their teacher, being added to a class, a reward) is also a
+  // notification on their iPhone. Its link opens the inbox (Library.tsx reads ?inbox=1).
+  setReaderMessageListener((userId, senderType, text) => {
+    void notifyUser(userId, { title: senderType === "teacher" ? "A message from your teacher" : "A.R.I.S.E. Reader", body: text.replace(/\s+/g, " ").slice(0, 170), url: "/#/library?inbox=1", tag: "reader-message" }).catch(() => {});
+  });
   setNudgeSource(async (userId) => {
     const raw = await userDocStore.read(`${userId}/apps/pro-health-nudges.json`);
     if (!raw) return null;
@@ -2030,6 +2124,15 @@ export async function registerRoutes(
   });
   // Arise Math "Snap a problem": photo or typed problem → step-by-step help without the answer. See server/ariseMathPhoto.ts.
   registerMathPhotoRoutes(app, authMiddleware, { gradeOf: async (id) => (await studentGrades())[String(id)] || null });
+  // Arise Math "Test Prep": practice sheets or a lesson name → lessons and practice for an upcoming test. See server/ariseMathPrep.ts.
+  registerMathPrepRoutes(app, authMiddleware, {
+    kv: supabaseKV(getAdminSupabase),
+    gradeOf: async (id) => (await studentGrades())[String(id)] || null,
+    studentsOf: async (teacherId) => (await storage.getTeacherStudents(teacherId)).map((s: any) => ({ id: Number(s.id) })),
+    childrenOf: (parentId) => getParentStudentIds(parentId),
+    nameOf: async (id) => { const u: any = await storage.getUser(id); return String(u?.displayName || u?.display_name || u?.username || ""); },
+    notify: (id, message) => notifyUser(id, message),
+  });
   // Class behavior (WorkHub's Behavior tab): points, hall passes, and what parents see. See server/classBehavior.ts.
   registerClassBehaviorRoutes(app, authMiddleware, {
     directory: {
@@ -2410,7 +2513,9 @@ export async function registerRoutes(
   // Auth routes
   app.post("/api/register", async (req, res) => {
     try {
-      const { username, password, displayName, isEyeGazeUser, gradeLevel } = req.body;
+      const { password, displayName, isEyeGazeUser, gradeLevel } = req.body;
+      // A space typed after a username would make the account impossible to sign in to.
+      const username = typeof req.body.username === "string" ? req.body.username.trim() : req.body.username;
       let { teacherId, schoolId } = req.body;
       if (!username || !password || !displayName) {
         return res.status(400).json({ message: "All fields are required" });
@@ -2661,7 +2766,9 @@ export async function registerRoutes(
   // code emailed to it and is let in at once; the admin only steps in if that email can't be sent.
   app.post("/api/auth/register-teacher", async (req, res) => {
     try {
-      const { username, password, displayName, email, schoolId, gradeLevel, gradesTaught } = req.body;
+      const { password, displayName, email, schoolId, gradeLevel, gradesTaught } = req.body;
+      // A space typed after a username would make the account impossible to sign in to.
+      const username = typeof req.body.username === "string" ? req.body.username.trim() : req.body.username;
       if (!username || !password || !displayName) {
         return res.status(400).json({ message: "All fields are required" });
       }
@@ -9655,7 +9762,7 @@ Important:
   // Any spoken line in the apps (Daily brief, games, stories, poems, the Bookstore, the Sleep app,
   // Pod+): a real AI voice, made once and kept (voice-cache). Signed in or not (the Pod+ app and the
   // public pages have no Arise sign-in), so it is limited by address and by length instead.
-  const sayVoices = new Set(["hannah", "autumn", "diana", "austin", "daniel", "troy"]);
+  const sayVoices = new Set(["hannah", "autumn", "diana", "austin", "daniel", "troy", "calm"]);
   const sayLimit = createAttemptLimiter({ max: 240, windowMs: 10 * 60_000 });
   const sayMade = new Map<string, Promise<{ audio: Buffer; type: string }>>();
   app.options("/api/voice/say", (req, res) => {

@@ -1,4 +1,4 @@
-// Arise LifeHub Plugin Store add-ons that read from the web: Today in history and What's trending
+// Arise LifeHub Plugin Gallery add-ons that read from the web: Today in history and What's trending
 // (Wikipedia and Google Trends) and Bible passages (bible-api.com, King James Version). Each answer
 // is cached, so a busy morning costs one request per feed, and an old copy is served if a feed is down.
 import type { Express, RequestHandler } from "express";

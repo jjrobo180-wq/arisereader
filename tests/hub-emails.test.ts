@@ -78,6 +78,6 @@ test("a flagged email floats to the top, and the flag comes off again", () => {
 });
 
 test("the email screen has the flag and the to-do button, and the to-do says where it came from", () => {
-  const page = read("client/src/pages/TeacherHub.tsx");
+  const page = read("client/src/pages/TeacherHub.tsx") + read("client/src/components/teacher-hub/HubTasks.tsx");
   for (const part of ['data-testid="email-flag"', 'data-testid="email-to-todo"', 'data-testid="email-on-list"', 'data-testid="email-also-todo"', 'data-testid="email-also-flag"', 'data-testid="task-from-email"', "Add to my to-dos", "On your to-do list", "toggleEmailFlag(p, e.id)", 'onViewTasks={() => setTab("tasks")}']) assert.ok(page.includes(part), part);
 });

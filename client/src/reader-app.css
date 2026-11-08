@@ -5,10 +5,12 @@
    In an older build that still holds the page below the status bar, env(safe-area-inset-top) is 0
    and none of this moves anything. */
 html.reader-app {
-  --sat: env(safe-area-inset-top, 0px);
+  --sat: max(env(safe-area-inset-top, 0px), var(--sat-device, 0px));
   -webkit-text-size-adjust: 100%;
   background: hsl(var(--background));
 }
+/* A little smaller on a phone (main.tsx adds reader-compact in the Reader app). */
+html.reader-app.reader-compact { font-size: 90%; }
 html.reader-app body {
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;

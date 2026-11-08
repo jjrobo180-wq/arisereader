@@ -1,6 +1,6 @@
 // "Share link" for a part of the Family Hub: copies a private link family can open without an
 // account (a poll they can vote in, or a page they can look at). The list of links, with a way
-// to turn each one off, lives in Family & settings.
+// to turn each one off, is on the Sharing page (LinkedProfiles.tsx).
 import { useState } from "react";
 import { Check, Copy, Link2, Link2Off, Loader2 } from "lucide-react";
 import { makeShare, sendLink, stopShare, useTodoShares } from "@/lib/todoShares";
@@ -39,7 +39,7 @@ export function ShareButton({ target, title, say, label = "Share link", compact 
   </span>;
 }
 
-export function SharedLinks({ say }: { say: (message: string) => void }) {
+export function SharedLinks({ say, title = "Shared links" }: { say: (message: string) => void; title?: string }) {
   const { token, shares, error, loadedAt } = useTodoShares();
   const copy = async (url: string, title: string) => {
     const how = await sendLink(url, title);
@@ -49,7 +49,7 @@ export function SharedLinks({ say }: { say: (message: string) => void }) {
     if (!confirmed("Turn this link off? Anyone you sent it to won't be able to open it anymore.")) return;
     try { await stopShare(token, shareToken); say("Link turned off"); } catch (e: any) { say(e?.message || "Could not turn the link off."); }
   };
-  return <Panel eyebrow="Sharing" title="Shared links">
+  return <Panel eyebrow="No account needed" title={title}>
     <p className="text-sm leading-6 text-slate-500">Links you've sent to family. Anyone with a link can see that one part (or vote in that poll) without an account, as it is right now. Turn a link off and it stops working.</p>
     {!loadedAt ? <div className="mt-3 flex items-center gap-2 text-sm text-slate-500"><Loader2 size={15} className="animate-spin" /> Loading…</div>
       : error ? <p className="mt-3 text-sm font-semibold text-rose-600">{error}</p>

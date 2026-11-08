@@ -7,11 +7,14 @@
 // buttons keep their width when Add turns into Added, so tapping one never moves anything else.
 // Its colours come from one palette, in day or night, so the hub's night mode can't half-darken it.
 import { isNativeApp } from "@/lib/nativeApp";
+import { inAppBack } from "@/lib/inAppBack";
+import "./pluginStore.css";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { Rocket, Podcast as PodcastTile3, BadgeCheck as BadgeCheckTile4 } from "lucide-react";
 import { BookCopy as BookCopyTile, FileClock as FileClockTile, FileText as FileTextTile, Presentation as PresentationTile, QrCode as QrCodeTile, Table as TableTile, Contact as ContactTile } from "lucide-react";
 import {
-  Apple, ArrowUpRight, BellRing, BookOpenCheck, Briefcase, Calculator, CalendarDays, CalendarPlus, CalendarRange, Check, CheckSquare,
+  Apple, ArrowUpRight, BellRing, BookOpenCheck, Briefcase, Calculator, CalendarDays, CalendarPlus, CalendarRange, Check, CheckSquare, ChevronLeft,
   ClipboardCheck, Clock, Droplets, Forward, GraduationCap, Handshake, HeartPulse, History, Hourglass, Landmark, Mail, MessageCircle, Newspaper, NotebookPen, Pill, Plane,
   Plus, Puzzle, Quote, Search, ShoppingBag, ShoppingCart, Smile, SmilePlus, Sparkles, StickyNote, Sun, Target, Timer, TrendingUp, Users, Vote, Wallet, Wind, X, Shuffle, HeartHandshake, BookOpenText, Link2, Trophy, type LucideIcon,
 } from "lucide-react";
@@ -44,7 +47,7 @@ export const ICONS: Record<string, LucideIcon> = {
 };
 
 /** The store's name, as people see it everywhere. */
-export const STORE_NAME = "App Gallery";
+export const STORE_NAME = "Plugin Gallery";
 
 /**
  * Scrolls to a connection's setup box once the hub has drawn it (the tab or section opens first),
@@ -110,7 +113,7 @@ type AppAccess = Partial<Record<"history" | "math" | "social", boolean>>;
 
 export type PluginStoreProps = {
   hub: PluginHub;
-  /** Open straight on one app's page (search's "In the App Store" results). */
+  /** Open straight on one app's page (search's "In the Plugin Gallery" results). */
   initialOpen?: string;
   /** Teachers (and admins) have both hubs and see the teacher-only apps. */
   teacher: boolean;
@@ -208,10 +211,50 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
   }, [token]);
 
 
-  // Escape closes the detail first, then the store. The page behind is held still, iPhone included:
-  // fixing the body in place is the only thing Safari respects, so the hub can't slide under the store.
+  // Going back. The store takes one step in the browser's history while it's open, so the browser's or
+  // Android's Back closes it instead of leaving the hub. Back (that, Escape, the top-left button, or a swipe
+  // in from the left edge in the iPhone app) closes what's on top first: a running app, then a detail, then
+  // the store itself.
+  const step = useRef<string | null>(null);
+  const ownStepOnTop = () => !!step.current && (window.history.state as { ariseStore?: string } | null)?.ariseStore === step.current;
+  /** Closes the store; when its history step is on top, through Back, so the step goes too. */
+  const close = () => { if (ownStepOnTop()) inAppBack(); else onCloseRef.current(); };
+  const goBack = () => { if (runningRef.current) setRunning(null); else if (openIdRef.current) setOpenId(null); else if (openTemplateIdRef.current) setOpenTemplateId(null); else close(); };
+  const goBackRef = useRef(goBack);
+  goBackRef.current = goBack;
   useEffect(() => {
-    const key = (e: KeyboardEvent) => { if (e.key !== "Escape") return; e.stopPropagation(); if (runningRef.current) setRunning(null); else if (openIdRef.current) setOpenId(null); else if (openTemplateIdRef.current) setOpenTemplateId(null); else onCloseRef.current(); };
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    try { window.history.pushState({ ...(window.history.state ?? {}), ariseStore: id }, ""); step.current = id; } catch { /* Back leaves the hub, as before */ }
+    const onPop = (e: PopStateEvent) => {
+      const id = step.current;
+      if (!id || (e.state as { ariseStore?: string } | null)?.ariseStore === id) return; // a step taken after the store's went, not the store's
+      const layer = !!(runningRef.current || openIdRef.current || openTemplateIdRef.current);
+      if (runningRef.current) setRunning(null); else if (openIdRef.current) setOpenId(null); else if (openTemplateIdRef.current) setOpenTemplateId(null); else { step.current = null; onCloseRef.current(); }
+      // Only the top layer closed: the store keeps a step of its own for the next Back.
+      if (layer) { try { window.history.pushState({ ...(window.history.state ?? {}), ariseStore: id }, ""); } catch { step.current = null; } }
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+  // The iPhone app has no Back button: a swipe in from the left edge goes back, like every iPhone app.
+  useEffect(() => {
+    if (!isNativeApp()) return;
+    let start: { x: number; y: number } | null = null;
+    const down = (e: TouchEvent) => { const t = e.touches[0]; start = t && t.clientX < 28 ? { x: t.clientX, y: t.clientY } : null; };
+    const up = (e: TouchEvent) => {
+      const s = start; start = null;
+      const t = e.changedTouches[0];
+      if (s && t && t.clientX - s.x > 70 && Math.abs(t.clientY - s.y) < 60) goBackRef.current();
+    };
+    window.addEventListener("touchstart", down, { passive: true });
+    window.addEventListener("touchend", up, { passive: true });
+    return () => { window.removeEventListener("touchstart", down); window.removeEventListener("touchend", up); };
+  }, []);
+
+  // The page behind is held still, iPhone included: fixing the body in place is the only thing Safari
+  // respects, so the hub can't slide under the store.
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => { if (e.key !== "Escape") return; e.stopPropagation(); goBackRef.current(); };
     window.addEventListener("keydown", key, true);
     const body = document.body.style, y = window.scrollY;
     const was = { overflow: body.overflow, position: body.position, top: body.top, width: body.width };
@@ -225,7 +268,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
     };
   }, []);
 
-  useEffect(() => { if (!note) return; const t = setTimeout(() => setNote(""), 3500); return () => clearTimeout(t); }, [note]);
+  useEffect(() => { if (!note) return; const t = setTimeout(() => setNote(""), 2400); return () => clearTimeout(t); }, [note]);
   // Changing what's shown starts the list at the top.
   useEffect(() => { listRef.current?.scrollTo({ top: 0 }); }, [view, category]);
 
@@ -252,7 +295,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
   /** Adds (or removes) every plugin in a template at once, each exactly as toggle() would on its own. */
   const toggleTemplate = (t: HubTemplate, on: boolean) => {
     for (const p of templatePlugins(t)) onToggle(p, on);
-    setNote(on ? `${t.name}: every app in it was added to your ${HUB_NAME[hub]}.` : `${t.name} was removed. Nothing in it was deleted: add it back any time.`);
+    setNote(on ? `${t.name}: every plugin in it was added to your ${HUB_NAME[hub]}.` : `${t.name} was removed. Nothing in it was deleted: add it back any time.`);
   };
 
   const switchHub = () => {
@@ -274,7 +317,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
     const size = big ? "min-h-12 px-5 text-[15px]" : "h-8 w-[4.75rem] px-2 text-[13px]";
     const base = `inline-flex shrink-0 items-center justify-center gap-1 rounded-full font-bold transition-all active:scale-[.96] active:opacity-80 ${ring} ${size}`;
     const t = p.target;
-    // On a coloured card (the App of the day) every button is white with dark words, like the App Store's.
+    // On a coloured card (the Plugin of the day) every button is white with dark words, like the App Store's.
     const solid = onColor ? "bg-white text-[#111111] shadow-[0_6px_16px_-8px_rgba(0,0,0,.45)]" : solidBtn;
     const quiet = onColor ? "bg-white/20 text-white" : quietBtn;
     if (t.kind === "app") {
@@ -358,7 +401,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
   /** Rows fill the width evenly: one column on a phone, two on a tablet, three on a computer. */
   const rows = (list: Plugin[]) => <ul className="grid grid-cols-[minmax(0,1fr)] gap-x-8 sm:grid-cols-2 lg:grid-cols-3">{list.map(row)}</ul>;
 
-  /** The App of the day: a wide card in the app's own colour. The label, icon, words and button all
+  /** The Plugin of the day: a wide card in the app's own colour. The label, icon, words and button all
    *  share one left edge, and the card's height comes from its padding, so nothing is ever clipped. */
   const spotlightCard = (p: Plugin) => {
     const deep = mix(p.color, "#000000", 0.42);
@@ -367,7 +410,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
       style={{ background: `linear-gradient(145deg, ${mix(p.color, "#ffffff", 0.12)}, ${p.color} 45%, ${deep})` }}
       data-testid="plugin-spotlight">
       <span className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-2xl" aria-hidden />
-      <span className="relative text-[11px] font-bold uppercase tracking-[.14em] text-white/75">App of the day</span>
+      <span className="relative text-[11px] font-bold uppercase tracking-[.14em] text-white/75">Plugin of the day</span>
       <span className="relative mt-4 flex items-center gap-4">
         <span className="rounded-[1.5rem] bg-white/15 p-1 shadow-[0_10px_24px_-12px_rgba(0,0,0,.5)]"><Tile p={p} size="xl" /></span>
         <span className="min-w-0 flex-1">
@@ -399,28 +442,34 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
   const chip = (on: boolean) => `inline-flex h-8 shrink-0 items-center rounded-full px-3.5 text-[13px] font-semibold transition-colors ${ring} ${on ? "bg-[var(--s-chip-on)] text-[var(--s-chip-on-text)]" : "bg-[var(--s-raised)] text-[var(--s-text)]"}`;
   const heading = "text-[22px] font-bold leading-tight tracking-[-.01em] text-[var(--s-text)]";
 
-  return <div ref={dialogRef} tabIndex={-1} className="fixed inset-0 z-[80] flex flex-col bg-[var(--s-bg)] text-[var(--s-text)] outline-none" style={vars} role="dialog" aria-modal="true" aria-label={`Arise ${STORE_NAME} for ${HUB_NAME[hub]}`} data-testid="plugin-store">
+  // Rendered on the page itself, outside the hub, so the hub's theme (a dark look, night mode) can't
+  // repaint its own light and night colors (that left dark words on dark boxes).
+  return createPortal(<div ref={dialogRef} tabIndex={-1} className="fixed inset-0 z-[80] flex flex-col bg-[var(--s-bg)] text-[var(--s-text)] outline-none" style={vars} role="dialog" aria-modal="true" aria-label={`Arise ${STORE_NAME} for ${HUB_NAME[hub]}`} data-testid="plugin-store" data-plugin-store>
     {/* A plain header like the App Store's: a large title on the page colour, then search. */}
-    <header className="shrink-0 border-b border-[var(--s-line)] bg-[var(--s-bg)]/95 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
+    <header className="shrink-0 border-b border-[var(--s-line)] bg-[var(--s-bg)]/95 pt-[var(--sat,env(safe-area-inset-top,0px))] backdrop-blur-xl">
       <div className="mx-auto max-w-[1100px] px-5 sm:px-8">
+        {/* Back to the hub, top left like every iPhone screen, always below the clock (pt above uses --sat). */}
         <div className="flex h-14 items-center gap-2">
-          {teacher && <nav aria-label="Which hub" className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-[var(--s-raised)] p-0.5">
+          <button ref={closeRef} type="button" onClick={close} aria-label={`Back to ${HUB_NAME[hub]}`} title={`Back to ${HUB_NAME[hub]}`}
+            className={`-ml-2.5 inline-flex h-11 min-w-0 shrink items-center gap-0.5 rounded-full pl-1 pr-3 text-[17px] font-semibold text-[var(--s-accent-text)] transition-colors hover:bg-[var(--s-raised)] active:opacity-60 ${ring}`} data-testid="plugin-store-close">
+            <ChevronLeft className="h-7 w-7 shrink-0" strokeWidth={2.2} aria-hidden /><span className="truncate">{HUB_NAME[hub]}</span>
+          </button>
+          {teacher && <nav aria-label="Which hub" className="ml-auto inline-flex shrink-0 items-center gap-0.5 rounded-full bg-[var(--s-raised)] p-0.5">
             {(["work", "life"] as const).map((h) => <button key={h} type="button" onClick={h === hub ? undefined : switchHub} aria-current={h === hub ? "page" : undefined} aria-label={HUB_NAME[h]}
               className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold transition-colors ${ring} ${h === hub ? "bg-[var(--s-surface)] text-[var(--s-text)] shadow-sm" : "text-[var(--s-sub)]"}`}>
               <HubMark tone={h} className="h-4 w-4 shrink-0" />{HUB_NAME[h]}
             </button>)}
           </nav>}
-          <button ref={closeRef} type="button" onClick={onClose} aria-label={`Close the ${STORE_NAME}`} className={`ml-auto inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--s-raised)] text-[var(--s-sub)] transition-colors hover:text-[var(--s-text)] ${ring}`} data-testid="plugin-store-close"><X className="h-[18px] w-[18px]" strokeWidth={2.4} /></button>
         </div>
         <div className="flex items-end justify-between gap-3 pb-3">
           <h1 className="text-[32px] font-bold leading-none tracking-[-.02em] text-[var(--s-text)] sm:text-[36px]">{STORE_NAME}</h1>
-          <span className="pb-1 text-[13px] font-medium text-[var(--s-faint)]" data-testid="store-app-count">{appCount.toLocaleString()} apps</span>
+          <span className="pb-1 text-[13px] font-medium text-[var(--s-faint)]" data-testid="store-app-count">{appCount.toLocaleString()} plugins</span>
         </div>
         <label className="relative block pb-3">
           <span className="sr-only">Search apps</span>
           <Search className="pointer-events-none absolute left-3 top-[1.1rem] h-[18px] w-[18px] text-[var(--s-faint)]" />
           {/* 16px text, so an iPhone doesn't zoom the page when the box is tapped. */}
-          <input value={query} onChange={(e) => setQuery(e.target.value)} type="search" enterKeyHint="search" placeholder={`Search ${appCount.toLocaleString()} ${HUB_NAME[hub]} apps`}
+          <input value={query} onChange={(e) => setQuery(e.target.value)} type="search" enterKeyHint="search" placeholder={`Search ${appCount.toLocaleString()} ${HUB_NAME[hub]} plugins`}
             className={`h-11 w-full rounded-xl border-0 bg-[var(--s-raised)] pl-10 pr-3 text-base text-[var(--s-text)] outline-none placeholder:text-[var(--s-faint)] ${ring}`}
             data-testid="plugin-search" />
         </label>
@@ -438,7 +487,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
       <div className="mx-auto max-w-[1100px] px-5 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-5 sm:px-8">
         <div className="space-y-9">
           {browsing && spotlight && <section aria-labelledby="ps-spotlight">
-            <h2 id="ps-spotlight" className="sr-only">App of the day</h2>
+            <h2 id="ps-spotlight" className="sr-only">Plugin of the day</h2>
             {spotlightCard(spotlight)}
           </section>}
 
@@ -449,7 +498,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
 
           {view === "templates" && <section aria-live="polite">
             <h2 className={`mb-1 ${heading}`}>Build a new hub</h2>
-            <p className="mb-4 max-w-md text-sm text-[var(--s-sub)]">Each one adds a ready-made set of apps in a single tap. Add just the ones you want afterward, or remove any of them the same way you would on their own.</p>
+            <p className="mb-4 max-w-md text-sm text-[var(--s-sub)]">Each one adds a ready-made set of plugins in a single tap. Add just the ones you want afterward, or remove any of them the same way you would on their own.</p>
             <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">{templates.map((t) => <li key={t.id}>{templateCard(t)}</li>)}</ul>
           </section>}
 
@@ -473,7 +522,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
                   ? rows(shown)
                   : <div className="mt-3 rounded-[1.4rem] bg-[var(--s-surface)] p-10 text-center ring-1 ring-[var(--s-line)]">
                       <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--s-raised)] text-[var(--s-accent-text)]"><Search className="h-5 w-5" /></span>
-                      <p className="text-[15px] font-semibold text-[var(--s-text)]">{view === "installed" ? "Nothing added here yet." : "No apps match that."}</p>
+                      <p className="text-[15px] font-semibold text-[var(--s-text)]">{view === "installed" ? "Nothing added here yet." : "No plugins match that."}</p>
                       <p className="mt-1 text-sm text-[var(--s-sub)]">{view === "installed" ? "Tap All to add your first one." : "Try another word, or tap All."}</p>
                     </div>}
               </section>)}
@@ -482,8 +531,8 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
     </main>
 
     {running && ((kit && kitDef(running)) || (notesApp && runningNotesApp)) && <div className="fixed inset-0 z-[87] flex flex-col bg-[var(--s-bg)]" role="dialog" aria-modal="true" aria-label={kitDef(running)?.name || runningNotesApp?.name} data-testid="kit-running">
-      <div className="shrink-0 border-b border-[var(--s-line)] bg-[var(--s-surface)] pt-[env(safe-area-inset-top)]"><div className="mx-auto flex h-14 max-w-[1100px] items-center gap-2 px-3 sm:px-6">
-        <button type="button" onClick={() => setRunning(null)} className={`inline-flex h-11 items-center gap-1.5 rounded-full px-3 text-sm font-bold text-[var(--s-text)] ${ring}`} data-testid="kit-back">← {STORE_NAME}</button>
+      <div className="shrink-0 border-b border-[var(--s-line)] bg-[var(--s-surface)] pt-[var(--sat,env(safe-area-inset-top,0px))]"><div className="mx-auto flex h-14 max-w-[1100px] items-center gap-2 px-3 sm:px-6">
+        <button type="button" onClick={() => setRunning(null)} aria-label={`Back to the ${STORE_NAME}`} className={`-ml-1 inline-flex h-11 items-center gap-0.5 rounded-full pl-1 pr-3 text-[17px] font-semibold text-[var(--s-accent-text)] hover:bg-[var(--s-raised)] active:opacity-60 ${ring}`} data-testid="kit-back"><ChevronLeft className="h-7 w-7 shrink-0" strokeWidth={2.2} aria-hidden />{STORE_NAME}</button>
         <span className="ml-auto text-xs font-bold uppercase tracking-[.14em] text-[var(--s-faint)]">{HUB_NAME[hub]} app</span>
       </div></div>
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"><div className="mx-auto max-w-[1100px] px-4 py-6 sm:px-6">
@@ -491,7 +540,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
         {notesApp && runningNotesApp && <NotesKitApp key={running} name={runningNotesApp.name} blurb={runningNotesApp.description} notes={notesApp.notes[running] ?? []} setNotes={(update) => notesApp.setNotes(running, update)} makeId={notesApp.makeId} say={setNote} />}
       </div></div>
     </div>}
-    {note && <div role="status" className="pointer-events-none fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[90] flex justify-center px-4"><p className="max-w-md rounded-2xl px-4 py-3 text-sm font-semibold shadow-xl" style={{ background: night ? "#f8fafc" : "#15141d", color: night ? "#15141d" : "#ffffff" }}>{note}</p></div>}
+    {note && <div role="status" className="pointer-events-none fixed inset-x-0 top-[calc(var(--sat,env(safe-area-inset-top,0px))+.75rem)] z-[90] flex justify-center px-4"><p className="max-w-md rounded-2xl px-4 py-3 text-sm font-semibold shadow-xl" style={{ background: night ? "#f8fafc" : "#15141d", color: night ? "#15141d" : "#ffffff" }}>{note}</p></div>}
 
     {open && <div className="fixed inset-0 kb-sheet z-[85] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-6" onClick={() => setOpenId(null)}>
       <div role="dialog" aria-modal="true" aria-label={open.name} onClick={(e) => e.stopPropagation()}
@@ -553,7 +602,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
             <ul className="space-y-2 rounded-2xl bg-[var(--s-raised)] p-4">{plugins.map((p) => <li key={p.id} className="flex items-center gap-2.5 text-[15px] text-[var(--s-text)]">
               <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${isInstalled(p) ? soft : quiet}`}>{isInstalled(p) && <Check className="h-3.5 w-3.5" />}</span>{p.name}
             </li>)}</ul>
-            <p className="rounded-xl bg-[var(--s-raised)] p-3 text-xs text-[var(--s-sub)]">Adding it adds every app above at once. Removing it only hides them from your menu, and you can always add any one of them back on its own afterward.</p>
+            <p className="rounded-xl bg-[var(--s-raised)] p-3 text-xs text-[var(--s-sub)]">Adding it adds every plugin above at once. Removing it only hides them from your menu, and you can always add any one of them back on its own afterward.</p>
             <div className="flex flex-wrap gap-2 border-t border-[var(--s-line)] pt-5">
               {have === plugins.length
                 ? <button type="button" onClick={() => toggleTemplate(openTemplate, false)} className={`inline-flex min-h-12 items-center gap-1.5 rounded-full px-5 text-[15px] font-bold ${quiet} ${ring}`} data-testid="template-remove">Remove all</button>
@@ -563,5 +612,5 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
         </div>
       </div>;
     })()}
-  </div>;
+  </div>, document.body);
 }

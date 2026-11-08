@@ -87,3 +87,21 @@ if os.path.exists(DELEGATE):
             print("AppDelegate: audio session set to playback (background listening)")
         else:
             print("AppDelegate: could not set the audio session")
+
+# iPad (and iPhone Duo): Pod+ is one app for iPhone and iPad (TARGETED_DEVICE_FAMILY 1,2). On iPad it turns
+# every way, so it can sit next to another app (Split View, Slide Over) and its layout follows the window.
+PROJECT = os.path.join(os.path.dirname(os.path.dirname(PLIST)), "App.xcodeproj", "project.pbxproj")
+if os.path.exists(PROJECT):
+    import re as _re
+    proj = open(PROJECT, encoding="utf-8").read()
+    fixed = _re.sub(r'TARGETED_DEVICE_FAMILY = "?1"?;', 'TARGETED_DEVICE_FAMILY = "1,2";', proj)
+    if fixed != proj:
+        open(PROJECT, "w", encoding="utf-8").write(fixed)
+    print("Xcode project: iPhone and iPad")
+with open(PLIST, "rb") as f:
+    plist = plistlib.load(f)
+plist["UISupportedInterfaceOrientations~ipad"] = ["UIInterfaceOrientationPortrait", "UIInterfaceOrientationPortraitUpsideDown", "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight"]
+plist.pop("UIRequiresFullScreen", None)
+with open(PLIST, "wb") as f:
+    plistlib.dump(plist, f)
+print("Info.plist: iPad turns every way (Split View and Slide Over)")

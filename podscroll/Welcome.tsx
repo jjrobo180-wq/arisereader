@@ -50,7 +50,7 @@ export function Welcome({ api, signedIn, onSignedIn, onEmail, onPush, onDone }: 
     finally { setBusy(false); }
   };
 
-  const shell = "fixed inset-0 z-[95] flex flex-col bg-[#0f0b12] pb-[max(16px,env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] text-white";
+  const shell = "fixed inset-0 z-[95] flex flex-col bg-[#0f0b12] pb-[max(16px,env(safe-area-inset-bottom))] pt-[var(--sat,env(safe-area-inset-top,0px))] text-white";
   const font = { fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, system-ui, sans-serif" };
   const big = "flex h-[54px] w-full items-center justify-center gap-2 rounded-[16px] text-[17px] font-semibold transition active:opacity-85 disabled:opacity-60";
 

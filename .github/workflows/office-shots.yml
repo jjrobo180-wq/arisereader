@@ -1,0 +1,54 @@
+name: Office screenshots (Sheets, Docs, Slides on a phone)
+# Opens a sample file in each editor on an iPhone-sized and a laptop-sized screen and saves the pictures
+# to the office-shots branch, to check the open file fills the screen.
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - 'client/src/components/office/**'
+      - 'shared/office/design*.ts'
+      - 'client/src/components/family-hub/LinkedProfiles.tsx'
+      - 'client/src/components/family-hub/ui.tsx'
+      - 'client/src/components/family-hub/ShareLink.tsx'
+      - 'client/src/components/family-hub/Accountability.tsx'
+      - 'script/officePreview.tsx'
+      - 'script/officeShots.mjs'
+      - '.github/workflows/office-shots.yml'
+permissions:
+  contents: write
+jobs:
+  shots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      FORCE_COLOR: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build (for the app's stylesheet) and the preview page
+        run: |
+          npx vite build
+          mkdir -p dist/public/office-preview
+          npx esbuild script/officePreview.tsx --bundle --format=esm --jsx=automatic --loader:.css=css --define:process.env.NODE_ENV='"production"' --define:import.meta.env='{"VITE_NATIVE_APP":""}' --alias:@=./client/src --alias:@shared=./shared --outdir=dist/public/office-preview --entry-names=main
+          CSS=$(ls -S dist/public/assets/*.css | head -1 | sed 's#^dist/public##')
+          printf '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="stylesheet" href="%s"><link rel="stylesheet" href="./main.css"></head><body><div id="root"></div><script type="module" src="./main.js"></script></body></html>' "$CSS" > dist/public/office-preview/index.html
+      - name: Install a browser
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Take the screenshots
+        timeout-minutes: 8
+        run: node script/officeShots.mjs
+      - name: Save to the office-shots branch
+        if: always()
+        working-directory: screens
+        run: |
+          git init -q -b office-shots
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com add -A
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -qm "Office screenshots ${GITHUB_SHA::7}" || exit 0
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" office-shots

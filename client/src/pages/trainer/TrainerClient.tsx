@@ -1,7 +1,8 @@
 // One client in Arise Trainer. Overview comes straight from their Arise Fit (what they chose to share);
 // everything else is the trainer's plan for them, saved as it's changed.
 import { useMemo, useState } from "react";
-import { CalendarDays, Check, ChevronLeft, ChevronRight, ClipboardList, Copy, Dumbbell, Flag, Footprints, Lock, Pencil, Plus, Timer, Trash2, Trophy } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, ClipboardList, Copy, Dumbbell, Flag, Footprints, Lock, Pencil, Plus, Sparkles, Timer, Trash2, Trophy } from "lucide-react";
+import { AiBuilderSheet } from "./TrainerTemplates";
 import { MODES, MODE_LABEL, expandProgram, type Appointment, type Assigned, type Coaching, type Habit, type Library, type Mode } from "@shared/coach";
 import { fromKg, records } from "@shared/fit";
 import { Chat } from "../coach/CoachUi";
@@ -18,7 +19,7 @@ const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const addDays = (d: string, n: number) => { const x = new Date(`${d}T12:00:00`); x.setDate(x.getDate() + n); return dayKeyOf(x); };
 const weekStart = (d: string) => { const x = new Date(`${d}T12:00:00`); x.setDate(x.getDate() - x.getDay()); return dayKeyOf(x); };
 
-export function ClientSheet({ token, me, linkId, name, lib, saveLib, onClose, quick }: { token: string | null; me: number; linkId: string; name: string; lib: Library; saveLib: (l: Library) => void; onClose: () => void; quick: string[] }) {
+export function ClientSheet({ token, me, linkId, name, lib, saveLib, onClose, quick, say }: { token: string | null; me: number; linkId: string; name: string; lib: Library; saveLib: (l: Library) => void; onClose: () => void; quick: string[]; say: (m: string) => void }) {
   const { data, err, setData } = usePoll(() => coachApi<ClientDetail>(token, `/links/${linkId}/client`), [linkId, token], 30_000);
   const [tab, setTab] = useState<Tab>("overview");
   const [saving, setSaving] = useState("");
@@ -34,7 +35,7 @@ export function ClientSheet({ token, me, linkId, name, lib, saveLib, onClose, qu
     <Chips label="Section" value={tab} onChange={setTab} items={TABS} />
     <div key={tab} className="fit-in mt-4">
       {tab === "overview" && <Overview d={data} />}
-      {tab === "calendar" && <Calendar c={data.coaching} lib={lib} save={save} saveLib={saveLib} />}
+      {tab === "calendar" && <Calendar c={data.coaching} lib={lib} save={save} saveLib={saveLib} token={token} say={say} name={name} />}
       {tab === "chat" && <Chat token={token} linkId={linkId} me={me} other={name} quick={quick} disabled={data.status !== "active"} />}
       {tab === "habits" && <Habits c={data.coaching} save={save} side={data.clientSide} />}
       {tab === "nutrition" && <Nutrition d={data} save={save} />}
@@ -90,7 +91,8 @@ function Overview({ d }: { d: ClientDetail }) {
   </div>;
 }
 
-function Calendar({ c, lib, save, saveLib }: { c: Coaching; lib: Library; save: (c: Coaching) => void; saveLib: (l: Library) => void }) {
+function Calendar({ c, lib, save, saveLib, token, say, name }: { c: Coaching; lib: Library; save: (c: Coaching) => void; saveLib: (l: Library) => void; token: string | null; say: (m: string) => void; name: string }) {
+  const [aiFor, setAiFor] = useState<string | null>(null);
   const [start, setStart] = useState(weekStart(dayKeyOf()));
   const [adding, setAdding] = useState<string | null>(null);
   const [editing, setEditing] = useState<Assigned | null>(null);
@@ -104,15 +106,16 @@ function Calendar({ c, lib, save, saveLib }: { c: Coaching; lib: Library; save: 
       <p className="text-[18px]" style={display}>{shortDate(start)} – {shortDate(addDays(start, 6))}</p>
       <button type="button" aria-label="Next week" onClick={() => setStart(addDays(start, 7))} className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card }}><ChevronRight className="h-5 w-5" /></button></div>
     <div className="mt-3 space-y-2">{days.map((day, k) => { const list = c.assigned.filter((a) => a.date === day); const today = day === dayKeyOf();
-      return <Card key={day} className="!p-3" style={{ ...stagger(k, 0.04), ...(today ? { boxShadow: "inset 0 0 0 1px #ff5a1f" } : {}) }}>
+      return <Card key={day} className="!p-3" style={{ ...stagger(k, 0.04), ...(today ? { boxShadow: "inset 0 0 0 1px var(--fit-accent)" } : {}) }}>
         <div className="flex items-center gap-2"><span className="w-12 text-[14px] font-bold" style={{ color: today ? C.lime : C.dim }}>{DOW[new Date(`${day}T12:00:00`).getDay()]} {day.slice(8)}</span>
-          <div className="min-w-0 flex-1 space-y-1">{list.map((a) => <button key={a.id} type="button" onClick={() => setEditing(a)} className="flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-left" style={{ background: a.done ? "rgba(255,90,31,.16)" : C.card2 }}>
+          <div className="min-w-0 flex-1 space-y-1">{list.map((a) => <button key={a.id} type="button" onClick={() => setEditing(a)} className="flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-left" style={{ background: a.done ? "rgba(var(--fit-accent-rgb),.16)" : C.card2 }}>
             {a.done ? <Check className="h-4 w-4 shrink-0" style={{ color: C.lime }} strokeWidth={3} /> : <Dumbbell className="h-4 w-4 shrink-0" style={{ color: C.dim }} />}<span className="truncate text-[14px] font-semibold">{a.name}</span></button>)}
             {!list.length && <span className="text-[13px]" style={{ color: C.dim }}>Rest</span>}</div>
-          <button type="button" aria-label={`Add a workout on ${day}`} onClick={() => setAdding(day)} className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: C.lime, color: "#0b0b0c" }} data-testid={`tr-add-${day}`}><Plus className="h-5 w-5" /></button></div></Card>; })}</div>
+          <button type="button" aria-label={`Add a workout on ${day}`} onClick={() => setAdding(day)} className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: C.lime, color: "var(--fit-on-accent)" }} data-testid={`tr-add-${day}`}><Plus className="h-5 w-5" /></button></div></Card>; })}</div>
     <div className="mt-3 grid grid-cols-2 gap-2"><Btn kind="soft" className="!text-[15px]" onClick={copyWeek}><Copy className="h-4 w-4" />Copy to next week</Btn><Btn kind="soft" className="!text-[15px]" onClick={() => setProgram(true)} testId="tr-assign-program"><CalendarDays className="h-4 w-4" />Assign a program</Btn></div>
     {adding && <Sheet title={`Add to ${shortDate(adding)}`} onClose={() => setAdding(null)}>
-      <Btn className="w-full" onClick={() => { setBuilding(adding); setAdding(null); }} testId="tr-new-workout"><Plus className="h-5 w-5" />Build a new workout</Btn>
+      <div className="grid grid-cols-2 gap-2"><Btn kind="soft" className="!text-[15px]" onClick={() => { setBuilding(adding); setAdding(null); }} testId="tr-new-workout"><Plus className="h-5 w-5" />Build one</Btn>
+        <Btn className="!text-[15px]" onClick={() => { setAiFor(adding); setAdding(null); }} testId="tr-ai-workout"><Sparkles className="h-5 w-5" />With AI</Btn></div>
       <Title>From your library</Title>
       {lib.workouts.length ? <div className="space-y-2">{lib.workouts.map((w) => <Card key={w.id} onClick={() => { put1({ ...w, id: newId(), date: adding }); setAdding(null); }} className="!p-3"><p className="font-semibold">{w.name}</p><p className="truncate text-[12px]" style={{ color: C.dim }}>{w.items.map((i) => i.name).join(", ")}</p></Card>)}</div> : <p className="px-1 text-[14px]" style={{ color: C.dim }}>Workouts you save to your library show up here.</p>}
     </Sheet>}
@@ -123,6 +126,7 @@ function Calendar({ c, lib, save, saveLib }: { c: Coaching; lib: Library; save: 
         <input type="date" value={editing.date} onChange={(e) => e.target.value && setEditing({ ...editing, date: e.target.value })} className={inputCls} style={inputStyle} aria-label="Date" />
         <Btn kind="danger" onClick={() => { save({ ...c, assigned: c.assigned.filter((x) => x.id !== editing.id) }); setEditing(null); }}><Trash2 className="h-4 w-4" />Remove</Btn></div>}
       onSave={(w) => { put1({ ...editing, ...w, id: editing.id, date: editing.date }); setEditing(null); }} />}
+    {aiFor && <AiBuilderSheet token={token} lib={lib} saveLib={saveLib} say={say} only="workout" clientName={name} onClose={() => setAiFor(null)} onWorkout={(w) => put1({ ...w, id: newId(), date: aiFor })} />}
     {program && <AssignProgram lib={lib} onClose={() => setProgram(false)} onAssign={(list, phase) => { save({ ...c, phase, assigned: [...c.assigned, ...list] }); setProgram(false); }} />}
   </div>;
 }
@@ -146,13 +150,13 @@ function Habits({ c, save, side }: { c: Coaching; save: (c: Coaching) => void; s
     <Title>Daily habits</Title>
     <div className="space-y-2">{c.habits.map((h) => <Card key={h.id} className="!p-3"><div className="flex items-center gap-2"><p className="min-w-0 flex-1 truncate font-semibold">{h.name}</p><span className="text-[12px]" style={{ color: C.dim }}>{streakOf(h)} in a row</span>
       <button type="button" aria-label="Remove habit" onClick={() => save({ ...c, habits: c.habits.filter((x) => x.id !== h.id) })} className="grid h-9 w-9 place-items-center" style={{ color: C.dim }}><Trash2 className="h-4 w-4" /></button></div>
-      <div className="mt-2 grid grid-cols-7 gap-1">{DOW.map((d, i) => { const on = !h.days.length || h.days.includes(i); return <button key={d} type="button" onClick={() => { const days = (h.days.length ? h.days : [0, 1, 2, 3, 4, 5, 6]); const next = on ? days.filter((x) => x !== i) : [...days, i].sort(); save({ ...c, habits: c.habits.map((x) => (x.id === h.id ? { ...x, days: next.length === 7 ? [] : next } : x)) }); }} className="h-8 rounded-[6px] text-[11px] font-bold" style={on ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2, color: C.dim }}>{d[0]}</button>; })}</div></Card>)}</div>
+      <div className="mt-2 grid grid-cols-7 gap-1">{DOW.map((d, i) => { const on = !h.days.length || h.days.includes(i); return <button key={d} type="button" onClick={() => { const days = (h.days.length ? h.days : [0, 1, 2, 3, 4, 5, 6]); const next = on ? days.filter((x) => x !== i) : [...days, i].sort(); save({ ...c, habits: c.habits.map((x) => (x.id === h.id ? { ...x, days: next.length === 7 ? [] : next } : x)) }); }} className="h-8 rounded-[6px] text-[11px] font-bold" style={on ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card2, color: C.dim }}>{d[0]}</button>; })}</div></Card>)}</div>
     <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (name.trim()) { save({ ...c, habits: [...c.habits, { id: newId(), name: name.trim().slice(0, 80), days: [] }] }); setName(""); } }}>
       <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. 10,000 steps, 3 L water, 8 h sleep" className={inputCls} style={inputStyle} data-testid="tr-habit-name" /><Btn type="submit" disabled={!name.trim()}><Plus className="h-5 w-5" /></Btn></form>
     <div className="mt-2 flex flex-wrap gap-1.5">{["Hit protein goal", "10,000 steps", "Drink 3 L water", "Sleep 8 hours", "Log every meal", "Stretch 10 minutes"].filter((x) => !c.habits.some((h) => h.name === x)).map((x) => <button key={x} type="button" onClick={() => save({ ...c, habits: [...c.habits, { id: newId(), name: x, days: [] }] })} className="h-8 rounded-full px-3 text-[12px] font-semibold" style={{ background: C.card }}>+ {x}</button>)}</div>
     <Title>Goals</Title>
     <Card className="!p-2">{c.goals.map((g, k) => <div key={g.id} className="flex items-center gap-2 px-1 py-1.5" style={k ? { borderTop: `1px solid ${C.line}` } : undefined}>
-      <button type="button" aria-label={g.done ? "Not done" : "Done"} onClick={() => save({ ...c, goals: c.goals.map((x) => (x.id === g.id ? { ...x, done: !x.done } : x)) })} className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={g.done ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2 }}>{g.done ? <Check className="h-4 w-4" strokeWidth={3} /> : <Flag className="h-4 w-4" style={{ color: C.dim }} />}</button>
+      <button type="button" aria-label={g.done ? "Not done" : "Done"} onClick={() => save({ ...c, goals: c.goals.map((x) => (x.id === g.id ? { ...x, done: !x.done } : x)) })} className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={g.done ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card2 }}>{g.done ? <Check className="h-4 w-4" strokeWidth={3} /> : <Flag className="h-4 w-4" style={{ color: C.dim }} />}</button>
       <span className="min-w-0 flex-1 text-[15px]">{g.text}</span>{g.due && <span className="text-[12px]" style={{ color: C.dim }}>{shortDate(g.due)}</span>}
       <button type="button" aria-label="Remove goal" onClick={() => save({ ...c, goals: c.goals.filter((x) => x.id !== g.id) })} className="grid h-9 w-9 place-items-center" style={{ color: C.dim }}><Trash2 className="h-4 w-4" /></button></div>)}
       {!c.goals.length && <p className="p-2 text-[14px]" style={{ color: C.dim }}>No goals yet.</p>}</Card>
@@ -206,7 +210,7 @@ function Sessions({ c, save }: { c: Coaching; save: (c: Coaching) => void }) {
   const upcoming = c.appts.filter((a) => a.status === "booked" && Date.parse(a.at) > Date.now() - 3600e3);
   const past = c.appts.filter((a) => !upcoming.includes(a)).slice(-12).reverse();
   const local = (iso: string) => { const d = new Date(iso); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
-  const row = (a: Appointment) => <Card key={a.id} onClick={() => setEdit(a)} className="!p-3" style={a.requested && a.status === "booked" ? { boxShadow: "inset 0 0 0 1px #ff5a1f" } : undefined}>
+  const row = (a: Appointment) => <Card key={a.id} onClick={() => setEdit(a)} className="!p-3" style={a.requested && a.status === "booked" ? { boxShadow: "inset 0 0 0 1px var(--fit-accent)" } : undefined}>
     <p className="font-semibold">{when(a.at)}</p><p className="truncate text-[12px]" style={{ color: C.dim }}>{MODE_LABEL[a.mode]} · {a.mins} min{a.requested ? " · they asked for this" : ""}{a.status !== "booked" ? ` · ${a.status}` : ""}{a.place ? ` · ${a.place}` : ""}</p></Card>;
   return <div>
     <Btn className="w-full" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(9, 0, 0, 0); setEdit({ id: newId(), at: d.toISOString(), mins: 60, mode: "virtual", place: "", note: "", status: "booked" }); }} testId="tr-session-new"><CalendarDays className="h-5 w-5" />Book a session</Btn>
@@ -215,7 +219,7 @@ function Sessions({ c, save }: { c: Coaching; save: (c: Coaching) => void }) {
     {edit && <Sheet title="Session" onClose={() => setEdit(null)}>
       <div className="mt-2 space-y-3">
         <Field label="When"><input type="datetime-local" value={local(edit.at)} onChange={(e) => e.target.value && setEdit({ ...edit, at: new Date(e.target.value).toISOString() })} className={inputCls} style={inputStyle} /></Field>
-        <Field label="How"><div className="grid grid-cols-3 gap-2">{MODES.map((m: Mode) => <button key={m} type="button" onClick={() => setEdit({ ...edit, mode: m })} className="h-11 rounded-[10px] text-[13px] font-semibold" style={edit.mode === m ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2 }}>{MODE_LABEL[m]}</button>)}</div></Field>
+        <Field label="How"><div className="grid grid-cols-3 gap-2">{MODES.map((m: Mode) => <button key={m} type="button" onClick={() => setEdit({ ...edit, mode: m })} className="h-11 rounded-[10px] text-[13px] font-semibold" style={edit.mode === m ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card2 }}>{MODE_LABEL[m]}</button>)}</div></Field>
         <Field label="Minutes"><input inputMode="numeric" value={edit.mins} onChange={(e) => setEdit({ ...edit, mins: Number(e.target.value.replace(/\D/g, "")) || 60 })} className={inputCls} style={inputStyle} /></Field>
         <Field label={edit.mode === "inPerson" ? "Where" : "Video link (Zoom, FaceTime, Meet)"}><input value={edit.place} onChange={(e) => setEdit({ ...edit, place: e.target.value.slice(0, 200) })} placeholder={edit.mode === "inPerson" ? "Gym, address" : "https://"} className={inputCls} style={inputStyle} /></Field>
         <Field label="Note"><input value={edit.note} onChange={(e) => setEdit({ ...edit, note: e.target.value.slice(0, 400) })} className={inputCls} style={inputStyle} /></Field>

@@ -1,4 +1,4 @@
-// Meal planner (a Plugin Store add-on), kept simple: one list of the week's days. Tap + on a day to
+// Meal planner (a Plugin Gallery add-on), kept simple: one list of the week's days. Tap + on a day to
 // add a meal (type it, pick a recipe, or tap a cheap idea), or let the planner fill every open dinner
 // at once. Planned ideas put their groceries on the Grocery list with a price, so the week's cost
 // shows at the top. The budget tool (plan meals from what you're buying) sits folded away below.

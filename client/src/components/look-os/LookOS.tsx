@@ -1,0 +1,310 @@
+// Arise Duo's looks as their own operating systems: each has its own navigation, Home, calendar and
+// tasks screens, all on the same real data. Other apps open inside it with its dock (LookDock).
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
+import { themeVars, type NotesTheme } from "@shared/notesThemes";
+import { LookAgenda, LookTaskList, type AgendaDay, type LookTask } from "@/components/HubLook";
+import { ProtoHubHero, archClass, hasArch } from "@/components/arise-notes/protoLooks";
+import { ArchList, archBoard, archLabels, dayItems, noteItems, taskItems } from "@/components/arise-notes/protoHub";
+import { BACKDROP_REFRESH, sendBackdrop } from "@/lib/nativeBackdrop";
+import { LockedApp, useLock } from "@/components/lock/PrivacyLock";
+import { PREMIUM_LOOKS, PremiumCal, PremiumHome } from "./premium";
+import { DESKTOP_LOOKS, SYSTEM_LOOKS, SystemCal, SystemDock, SystemHome, SystemWindow } from "./systems";
+import { PLAY_LOOKS, PlayCal, PlayDock, PlayHome } from "./play";
+import { SUITE_OS_LOOKS, SuiteCal, SuiteHome } from "./suite";
+import "./lookOS.css";
+import { lockPageScroll } from "@/lib/scrollLock";
+
+export type OsScreen = "home" | "tasks" | "calendar" | "notes";
+export type OsMenuItem = { id: string; label: string; detail?: string; icon?: ReactNode; danger?: boolean; onClick: () => void };
+export type OsProps = {
+  look: NotesTheme; name: string; dateLabel: string; screen: OsScreen; go: (s: OsScreen) => void; openApps: () => void; add: (title?: string) => void;
+  /** Opens a new task right away (Home's "Add a task"); without it, add() opens the add menu. */ addTask?: () => void;
+  tasks: LookTask[]; toggle: (id: string) => void; openTask: (id: string) => void; days: AgendaDay[];
+  notes: { id: string; title: string; body: string; locked?: boolean; pinned?: boolean; when?: string; updatedAt?: string }[]; shortcuts: { id: string; label: string; onClick: () => void }[];
+  /** The full Calendar or Notes app, for adding and editing. */
+  content?: ReactNode; onYou: () => void;
+  /** The hub's name and its Work/Life switch, always at the top. */ hubName: string; hubSwitch: ReactNode;
+  /** The notification bell, in the top bar beside the switch (in the bar's own row, so it can never cover "Work"). */ bell?: ReactNode;
+  /** Shown at the bottom of Home: invitations and the hub's standing banner. */ banner?: ReactNode;
+  /** Main apps turned off in the Plugin Gallery, which leave the dock. */ off?: OsScreen[];
+  /** Apps behind the passcode, whose details stay off Home until it is entered. */ lockedApps?: string[];
+  /** Problems to show on any screen, such as a save that failed. */
+};
+
+const I = ({ d, size = 22 }: { d: string; size?: number }) => <svg aria-hidden width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg>;
+const ICON = { home: "M4 11.5 12 4l8 7.5V19a1 1 0 0 1-1 1h-4v-5H9v5H5a1 1 0 0 1-1-1z", tasks: "M4 5h16v14H4zM8 12l3 3 5-6", calendar: "M4 6h16v14H4zM4 10h16M8 3v4M16 3v4", notes: "M6 3h9l4 4v14H6zM9 12h7M9 16h7", apps: "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z", you: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c1-4 4-6 8-6s7 2 8 6", add: "M12 5v14M5 12h14" };
+type NavId = keyof typeof ICON;
+const NAV: NavId[] = ["home", "tasks", "add", "calendar", "notes", "apps", "you"];
+const WORDS: Partial<Record<string, Partial<Record<NavId, string>>>> = {
+  console: { home: "~", tasks: "tasks", add: "add", calendar: "cal", notes: "notes", apps: "apps", you: "me" },
+  gazette: { home: "Front", tasks: "To-do", add: "New", calendar: "Events", notes: "Notes", apps: "Sections", you: "You" },
+  swiss: { home: "01", tasks: "02", add: "+", calendar: "03", notes: "04", apps: "05", you: "06" },
+  cassette: { home: "PLAY", tasks: "TRK", add: "REC", calendar: "A/B", notes: "NOTE", apps: "MODE", you: "EJECT" },
+  punch: { home: "HOME", tasks: "TASKS", add: "ADD!", calendar: "DATES", notes: "NOTES", apps: "APPS", you: "ME" },
+  hush: { home: "home", tasks: "tasks", add: "+", calendar: "days", notes: "notes", apps: "more", you: "you" },
+  atelier: { home: "Edit", tasks: "List", add: "+", calendar: "Dates", notes: "Notes", apps: "All", you: "You" },
+  blueprint: { home: "A-01", tasks: "A-02", add: "+ADD", calendar: "A-03", notes: "A-04", apps: "A-05", you: "A-06" },
+  arcade: { home: "HOME", tasks: "QUEST", add: "+", calendar: "MAP", notes: "LOG", apps: "ITEMS", you: "ME" },
+  typewriter: { home: "H", tasks: "T", add: "+", calendar: "C", notes: "N", apps: "A", you: "Y" },
+  grove: { home: "Today", tasks: "Tasks", add: "Add", calendar: "Days", notes: "Notes", apps: "More", you: "You" },
+};
+/** Studio looks whose bar is words, like their Notes screens: Receipts prints them, Field Notes logs them. */
+const ARCH_WORDS: Partial<Record<string, Partial<Record<NavId, string>>>> = {
+  receipt: { home: "HOME", tasks: "TASKS", add: "+", calendar: "CAL", notes: "NOTES", apps: "APPS", you: "ME" },
+  cons: { home: "HOME", tasks: "TASK", add: "+NEW", calendar: "CAL", notes: "LOG", apps: "SYS", you: "ME" },
+};
+const LABEL: Record<NavId, string> = { home: "Home", tasks: "Tasks", add: "Add", calendar: "Calendar", notes: "Notes", apps: "Apps", you: "You" };
+
+/** Each system's way of getting around. Also used when another app is open. */
+export function LookDock({ look, screen, go, openApps, add, you, initial, off = [], inApp = false }: { look: NotesTheme; screen: OsScreen | null; go: (s: OsScreen) => void; openApps: () => void; add: (title?: string) => void; you: () => void; initial: string; off?: OsScreen[]; inApp?: boolean }) {
+  // The bar sits over a normal app here: stop the page's rubber-band bounce, which made it jump.
+  useEffect(() => {
+    if (!inApp) return;
+    const html = document.documentElement, body = document.body, was = [html.style.overscrollBehavior, body.style.overscrollBehavior];
+    html.style.overscrollBehavior = "none"; body.style.overscrollBehavior = "none";
+    return () => { html.style.overscrollBehavior = was[0]; body.style.overscrollBehavior = was[1]; };
+  }, [inApp]);
+  if (PLAY_LOOKS.has(look.id)) return <PlayDock look={look} screen={screen} go={go} openApps={openApps} add={add} you={you} initial={initial} off={off} inApp={inApp} />;
+  if (SYSTEM_LOOKS.has(look.id)) return <SystemDock look={look} screen={screen} go={go} openApps={openApps} add={add} you={you} initial={initial} off={off} inApp={inApp} />;
+  const words = WORDS[look.id] ?? (look.arch ? ARCH_WORDS[look.arch] : undefined);
+  const textNav = !!words;
+  const suite = SUITE_OS_LOOKS.has(look.id);
+  return <nav style={themeVars(look) as CSSProperties} className={`los-dock los-dock-${look.id}${hasArch(look) ? ` los-dock-studiox${archClass(look)}` : ""}${suite ? " los-dock-suite" : ""}${look.dark ? " los-dock-dark" : ""}${inApp ? " los-dock-inapp" : ""}`} aria-label="Arise Duo" data-testid="los-dock">
+    {NAV.filter((n) => !off.includes(n as OsScreen)).map((n) => {
+      const act = n === "add" ? () => add() : n === "apps" ? openApps : n === "you" ? you : () => go(n as OsScreen);
+      return <button key={n} type="button" data-nav={n} data-add-toggle={n === "add" || undefined} aria-label={LABEL[n]} aria-current={screen === n ? "page" : undefined} onClick={act}>
+        {n === "you" && !textNav ? <span className="los-avatar">{initial}</span> : textNav ? <span>{words![n]}</span> : <I d={ICON[n]} />}
+        {suite && <small>{LABEL[n]}</small>}
+      </button>;
+    })}
+  </nav>;
+}
+
+// ─── Calendar widgets: a different one for each system ───
+const items = (d: AgendaDay) => d.items;
+const Item = ({ x }: { x: AgendaDay["items"][number] }) => <span className="los-item"><em>{x.time}</em>{x.title}</span>;
+function CalendarWidget({ look, days, go, big }: { look: NotesTheme; days: AgendaDay[]; go: () => void; big?: boolean }) {
+  // The Studio looks: their own agenda (these had no calendar here, so the widget came up empty).
+  if (hasArch(look)) return <div className="los-cal los-cal-studio" data-testid="los-calendar"><LookAgenda look={look} days={big ? days : days.slice(0, 7)} onPick={go} /></div>;
+  if (PLAY_LOOKS.has(look.id)) return <button type="button" className={`los-cal los-cal-${look.id}`} onClick={go} data-testid="los-calendar"><PlayCal look={look} days={days} big={big} /></button>;
+  if (SYSTEM_LOOKS.has(look.id)) return <button type="button" className={`los-cal los-cal-${look.id}`} onClick={go} data-testid="los-calendar"><SystemCal look={look} days={days} big={big} /></button>;
+  if (PREMIUM_LOOKS.has(look.id)) return <button type="button" className={`los-cal los-cal-${look.id}`} onClick={go} data-testid="los-calendar"><PremiumCal look={look} days={days} big={big} /></button>;
+  if (SUITE_OS_LOOKS.has(look.id)) return <button type="button" className={`los-cal los-cal-${look.id}`} onClick={go} data-testid="los-calendar"><SuiteCal look={look} days={days} big={big} /></button>;
+  const today = days[0];
+  const busy = days.filter((d) => items(d).length);
+  const week = days.slice(0, 7);
+  const none = <p className="los-none">Nothing coming up.</p>;
+  const limit = big ? 8 : 3;
+  const body = (() => {
+    if (!today) return none;
+    switch (look.id) {
+      case "studio": return <div className="los-strip">{week.map((d, i) => <span key={d.date} data-on={i === 0 || undefined} data-busy={items(d).length > 0 || undefined}><small>{d.weekday}</small><b>{d.day}</b></span>)}</div>;
+      case "margin": return <table className="los-ledger"><tbody>{week.map((d) => <tr key={d.date}><th>{d.weekday} {d.day}</th><td>{items(d)[0]?.title ?? ""}{items(d).length > 1 ? ` +${items(d).length - 1}` : ""}</td></tr>)}</tbody></table>;
+      case "bloom": case "punch": { const first = new Date(`${today.date}T12:00:00`); const start = new Date(first.getFullYear(), first.getMonth(), 1); const blanks = start.getDay(); const total = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate(); const busyDays = new Set(days.filter((d) => items(d).length && d.month === today.month).map((d) => Number(d.day))); return <div className="los-month"><b>{first.toLocaleDateString(undefined, { month: "long" })}</b><div>{["S", "M", "T", "W", "T", "F", "S"].map((w, i) => <small key={i}>{w}</small>)}{Array.from({ length: blanks }, (_, i) => <i key={`b${i}`} />)}{Array.from({ length: total }, (_, i) => <span key={i} data-on={i + 1 === Number(today.day) || undefined} data-busy={busyDays.has(i + 1) || undefined}>{i + 1}</span>)}</div></div>; }
+      case "timeline": return busy.length ? <ol className="los-stream">{busy.slice(0, limit).flatMap((d) => items(d).map((x) => <li key={d.date + x.id}><small>{d.weekday} {d.day}{x.time ? ` · ${x.time}` : ""}</small>{x.title}</li>))}</ol> : none;
+      case "console": return <pre className="los-ascii">{`      ${today.month}\nSu Mo Tu We Th Fr Sa\n${asciiWeek(week)}\n\n${busy.slice(0, limit).map((d) => `${d.weekday} ${d.day.padStart(2)}  ${items(d)[0].title}`).join("\n") || "(no events)"}`}</pre>;
+      case "swiss": return <div className="los-giant"><b>{today.day}</b><span><small>{today.weekday} {today.month}</small>{items(today).slice(0, limit).map((x) => <Item key={x.id} x={x} />)}{!items(today).length && <span className="los-item">Clear.</span>}</span></div>;
+      case "cassette": return <div className="los-sides"><div><h4>Side A: Today</h4>{items(today).slice(0, limit).map((x) => <Item key={x.id} x={x} />)}{!items(today).length && <span className="los-item">Blank tape</span>}</div><div><h4>Side B: Next</h4>{busy.filter((d) => d !== today).slice(0, limit).map((d) => <span key={d.date} className="los-item"><em>{d.weekday}</em>{items(d)[0].title}</span>)}</div></div>;
+      case "frost": return <div className="los-orbs">{week.map((d, i) => <span key={d.date} data-on={i === 0 || undefined} data-busy={items(d).length > 0 || undefined}><small>{d.weekday[0]}</small><b>{d.day}</b></span>)}</div>;
+      case "grove": return <p className="los-prose">{items(today).length ? <>Today you have <b>{items(today).map((x) => x.title).slice(0, 3).join(", ")}</b>.</> : "Nothing is planned today."} {busy[1] && <>Then, on {busy[1].weekday}, <b>{items(busy[1])[0].title}</b>.</>}</p>;
+      case "gazette": return busy.length ? <div className="los-listings">{busy.slice(0, big ? 8 : 4).map((d) => <p key={d.date}><b>{d.weekday}, {d.month} {d.day}.</b> {items(d).map((x) => x.title).join("; ")}.</p>)}</div> : none;
+      case "chatline": return <div className="los-chatbubbles"><p>{busy.length ? `Next up: ${items(busy[0])[0].title}, ${busy[0].weekday} ${busy[0].day}.` : "Your calendar is clear."}</p>{busy[1] && <p>After that: {items(busy[1])[0].title}.</p>}</div>;
+      case "tide": { const first = new Date(`${today.date}T12:00:00`); const blanks = new Date(first.getFullYear(), first.getMonth(), 1).getDay(); const total = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate(); const count = new Map(days.filter((d) => d.month === today.month).map((d) => [Number(d.day), items(d).length])); return <div className="los-depth"><b>{first.toLocaleDateString(undefined, { month: "long" })}</b><div>{Array.from({ length: blanks }, (_, i) => <i key={`b${i}`} />)}{Array.from({ length: total }, (_, i) => { const n = count.get(i + 1) ?? 0; return <span key={i} data-on={i + 1 === Number(today.day) || undefined}><em style={{ height: `${Math.min(n, 4) * 25}%` }} /><small>{i + 1}</small></span>; })}</div></div>; }
+      case "deck": return <div className="los-datecard"><b>{today.day}</b><small>{today.weekday}, {today.month}</small>{items(today).slice(0, limit).map((x) => <Item key={x.id} x={x} />)}</div>;
+      default: return none;
+    }
+  })();
+  return <button type="button" className={`los-cal los-cal-${look.id}`} onClick={go} data-testid="los-calendar">{body}</button>;
+}
+function asciiWeek(week: AgendaDay[]) { const pad = new Date(`${week[0].date}T12:00:00`).getDay(); return ("   ".repeat(pad) + week.slice(0, 7 - pad).map((d, i) => (i === 0 ? `[${d.day}]` : d.day.padStart(2))).join(" ")); }
+
+// Tide: every day in a running list against a gauge, and a marker of how far ahead you've scrolled.
+const TICKS = ["#ffcf4a", "#ff8a6b", "#7ff0c8", "#bfeaf3"];
+const tickOf = (s: string) => TICKS[Array.from(s).reduce((n, c) => n + c.charCodeAt(0), 0) % TICKS.length];
+const aheadWords = (i: number) => { const w = Math.floor(i / 7); return w === 0 ? "This week" : w === 1 ? "Next week" : `In ${w} weeks`; };
+function TideAgenda({ days, go }: { days: AgendaDay[]; go: () => void }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [mark, setMark] = useState("");
+  useEffect(() => {
+    const scroller = box.current?.closest(".los-body");
+    if (!scroller) return;
+    let hide = 0;
+    const on = () => {
+      const middle = window.innerHeight / 2;
+      const rows = Array.from(box.current?.children ?? []) as HTMLElement[];
+      const at = rows.findIndex((r) => r.getBoundingClientRect().bottom >= middle);
+      if (at < 0 || rows[at].getBoundingClientRect().top > middle) return;
+      setMark(aheadWords(at));
+      window.clearTimeout(hide);
+      hide = window.setTimeout(() => setMark(""), 700);
+    };
+    scroller.addEventListener("scroll", on, { passive: true });
+    return () => { scroller.removeEventListener("scroll", on); window.clearTimeout(hide); };
+  }, []);
+  return <><div ref={box} className="los-tide-days">{days.map((d) => <button type="button" key={d.date} onClick={go} data-empty={!d.items.length || undefined}>
+    <span className="los-tide-list">{d.items.map((x) => <span key={x.id}><i style={{ background: tickOf(x.title) }} /><b>{x.title}</b>{x.time && <small>{x.time}</small>}</span>)}</span>
+    <span className="los-tide-gauge"><small>{d.day === "1" ? d.month : d.weekday}</small><b>{d.day}</b></span>
+  </button>)}</div>{mark && <div className="los-tide-mark" aria-hidden>{mark}</div>}</>;
+}
+
+function NotesWidget({ notes, go, count = 3 }: { notes: OsProps["notes"]; go: () => void; count?: number }) {
+  return <button type="button" className="los-noteswidget" onClick={go}>{notes.length ? notes.slice(0, count).map((n) => <span key={n.id}><b>{n.title || "Untitled"}</b><small>{n.locked ? "Locked" : n.body.split("\n")[0]}</small></span>) : <span><b>No notes yet</b><small>Tap to write one</small></span>}</button>;
+}
+const Shortcuts = ({ list }: { list: OsProps["shortcuts"] }) => <div className="los-shortcuts">{list.slice(0, 4).map((s) => <button key={s.id} type="button" onClick={s.onClick}>{s.label}</button>)}</div>;
+
+// ─── Each system's Home ───
+function Home(p: OsProps) {
+  const open = p.tasks.filter((t) => !t.done), first = p.name ? `, ${p.name}` : "";
+  const hour = new Date().getHours(), hi = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const next = open[0];
+  const cal = <CalendarWidget look={p.look} days={p.days} go={() => p.go("calendar")} />;
+  const notes = <NotesWidget notes={p.notes} go={() => p.go("notes")} />;
+  const list = <LookTaskList look={p.look} tasks={open.slice(0, 5)} onToggle={p.toggle} onOpen={p.openTask} />;
+  const count = `${open.length} open`;
+  // The Studio looks: Home drawn the look's own way (Stickies a wall of sticky notes, Receipts paper slips, …),
+  // as it draws Arise Notes. They all shared one plain Home before.
+  if (hasArch(p.look)) return <StudioHome p={p} greeting={`${hi}${first}`} open={open} />;
+  if (PLAY_LOOKS.has(p.look.id)) return <PlayHome look={p.look} name={p.name} dateLabel={p.dateLabel} hi={hi} days={p.days} tasks={p.tasks} open={open} notes={p.notes} toggle={p.toggle} openTask={p.openTask} go={p.go} openApps={p.openApps} add={p.add} onYou={p.onYou} cal={cal} list={list} />;
+  if (SYSTEM_LOOKS.has(p.look.id)) return <SystemHome look={p.look} name={p.name} dateLabel={p.dateLabel} hi={hi} days={p.days} tasks={p.tasks} open={open} notes={p.notes} toggle={p.toggle} openTask={p.openTask} go={p.go} openApps={p.openApps} add={p.add} onYou={p.onYou} cal={cal} list={list} />;
+  if (PREMIUM_LOOKS.has(p.look.id)) return <PremiumHome look={p.look} name={p.name} dateLabel={p.dateLabel} days={p.days} tasks={p.tasks} open={open} toggle={p.toggle} openTask={p.openTask} goTasks={() => p.go("tasks")} goCalendar={() => p.go("calendar")} hi={hi} cal={cal} list={list} notes={notes} />;
+  if (SUITE_OS_LOOKS.has(p.look.id)) return <SuiteHome look={p.look} name={p.name} dateLabel={p.dateLabel} days={p.days} tasks={p.tasks} open={open} hi={hi} goTasks={() => p.go("tasks")} goCalendar={() => p.go("calendar")} list={open.length ? list : null} cal={cal} notes={notes} hasShortcuts={p.shortcuts.length > 0} shortcuts={<Shortcuts list={p.shortcuts} />} />;
+  switch (p.look.id) {
+    case "studio": return <><header className="los-hero"><small>{p.dateLabel}</small><h1>{next ? next.title : "All clear"}</h1><p>{next ? "Next up" : hi + first}</p>{next && <button type="button" onClick={() => p.toggle(next.id)}>Mark done</button>}</header><div className="los-pad">{cal}<h2>Queue · {open.length}</h2><LookTaskList look={{ ...p.look, id: "margin" }} tasks={open.slice(1, 5)} onToggle={p.toggle} onOpen={p.openTask} />{notes}</div></>;
+    case "margin": return <div className="los-page"><small className="los-date">{p.dateLabel}</small><h1>{hi}{first}.</h1><h2>This week</h2>{cal}<h2>To do</h2>{list}<h2>Notes</h2>{notes}</div>;
+    case "bloom": return <><header className="los-hero"><h1>{hi}{first}!</h1></header><div className="los-bento"><button type="button" className="los-b1" onClick={() => p.go("tasks")}><b>{open.length}</b>tasks to do</button>{cal}<div className="los-b3">{notes}</div><Shortcuts list={p.shortcuts} /></div></>;
+    case "timeline": return <><header className="los-hero"><small>{p.dateLabel}</small><h1>Your day, in order</h1></header><div className="los-pad">{cal}<h2>Still to do</h2><LookTaskList look={p.look} tasks={open.slice(0, 5)} onToggle={p.toggle} onOpen={p.openTask} /></div></>;
+    case "console": return <div className="los-term"><p className="los-cmd">$ whoami</p><p>{p.name || "you"} · {p.dateLabel}</p><p className="los-cmd">$ cal</p>{cal}{list}<p className="los-cmd">$ ls notes/</p>{notes}<Terminal {...p} /></div>;
+    case "swiss": return <><header className="los-hero"><h1>{new Date().getDate()}</h1><small>{p.dateLabel}</small></header><div className="los-pad"><h2>{open.length} tasks</h2>{list}<h2>Calendar</h2>{cal}<h2>Notes</h2>{notes}</div></>;
+    case "cassette": return <><header className="los-tape"><div className="los-window"><span>{hi}{first}</span><strong>{String(open.length).padStart(2, "0")} TRACKS</strong></div><div aria-hidden className="los-reels"><i /><i /></div></header><div className="los-pad">{list}{cal}{notes}</div></>;
+    case "frost": { const done = p.tasks.length - open.length, pct = p.tasks.length ? Math.round((done / p.tasks.length) * 100) : 0; return <><header className="los-hero"><div className="los-ring" style={{ background: `conic-gradient(var(--an-violet) ${pct}%, var(--an-glass) 0)` }}><span><b>{open.length}</b><small>left today</small></span></div><p>{p.dateLabel}</p></header><div className="los-pad">{cal}<div className="los-glass">{notes}</div></div></>; }
+    case "grove": return <div className="los-journal"><small>{p.dateLabel}</small><h1>{hi}{first}.</h1>{cal}<p className="los-prose">{open.length ? `There ${open.length === 1 ? "is one thing" : `are ${open.length} things`} waiting for you. Start with one.` : "Nothing is waiting for you."}</p>{list}<h2>From your notes</h2>{notes}</div>;
+    case "gazette": return <div className="los-paper"><header><h1>The Daily Duo</h1><small>{p.dateLabel} · {count}</small></header>{next && <article className="los-lead"><h2>{next.title}</h2><p>{next.notes.split("\n")[0] || "Today’s top item needs your attention."}</p></article>}<div className="los-cols"><section><h3>Events</h3>{cal}</section><section><h3>Also today</h3><LookTaskList look={{ ...p.look, id: "margin" }} tasks={open.slice(1, 5)} onToggle={p.toggle} onOpen={p.openTask} /><h3>Notes</h3>{notes}</section></div></div>;
+    case "punch": return <div className="los-stickers"><h1>{hi.toUpperCase()}{first.toUpperCase()}!</h1><div className="los-bigbtns"><button type="button" onClick={() => p.go("tasks")}><b>{open.length}</b>TASKS</button><button type="button" onClick={() => p.go("calendar")}><b>{p.days[0]?.items.length ?? 0}</b>TODAY</button><button type="button" onClick={() => p.go("notes")}><b>{p.notes.length}</b>NOTES</button><button type="button" onClick={p.openApps}><b>+</b>APPS</button></div>{cal}{list}</div>;
+    case "chatline": return <Chat {...p} greeting={`${hi}${first}. You have ${open.length} task${open.length === 1 ? "" : "s"} open.`} />;
+    case "deck": return <Cards {...p} />;
+    case "tide": return <><header className="los-tide-hero"><b>{p.days[0]?.day ?? new Date().getDate()}</b><span>{p.dateLabel}<small>{open.length ? `${open.length} open` : "All clear"}</small></span></header><div className="los-pad">{open.length > 0 && <LookTaskList look={p.look} tasks={open.slice(0, 3)} onToggle={p.toggle} onOpen={p.openTask} />}<NotesWidget notes={p.notes} go={() => p.go("notes")} count={2} /></div><TideAgenda days={p.days} go={() => p.go("calendar")} /></>;
+    default: return null;
+  }
+}
+
+/** Home for a Studio look: its own top, then what's to do, what's coming up and the latest notes, each drawn
+ *  the look's way. On a computer the board looks run each part across the page; the others put the days and
+ *  notes in a column beside the list. */
+function StudioHome({ p, greeting, open }: { p: OsProps; greeting: string; open: LookTask[] }) {
+  const board = archBoard(p.look);
+  const L = archLabels(p.look, open.length);
+  const addTask = () => (p.addTask ? p.addTask() : p.add());
+  const busy = p.days.filter((d) => d.items.length).slice(0, board ? 6 : 4);
+  const notes = p.notes.slice(0, board ? 6 : 4).map((n) => ({ ...n, when: n.when ?? n.updatedAt }));
+  const head = (label: string, more: string, go: () => void) => <div className="sh-labelrow"><h2 className="sh-label">{label}</h2><button type="button" className="sh-more" onClick={go}>{more}</button></div>;
+  return <div className={`los-pad sh-home sh-home-${p.look.arch}${board ? " sh-isboard" : ""}`} data-testid="studio-home">
+    <section className="an-l-hero sh-hero">{archHubHeroOrBillboard(p, greeting, open.length, addTask)}</section>
+    <div className="sh-grid">
+      <section className="sh-sec sh-sec-todo" aria-label="To do">
+        {head(L.todo, "All tasks", () => p.go("tasks"))}
+        {open.length || board ? <ArchList look={p.look} kind="tasks" items={taskItems(open.slice(0, board ? 8 : 6), p.toggle, p.openTask)} total={open.length} add={board ? { label: "Add a task", onClick: addTask } : undefined} />
+          : <><p className="sh-none">Nothing open. Add a task to get going.</p><button type="button" className="sh-addrow" onClick={addTask}>+ Add a task</button></>}
+      </section>
+      <section className="sh-sec sh-sec-days" aria-label="Coming up">
+        {head(L.days, "Calendar", () => p.go("calendar"))}
+        {busy.length ? <ArchList look={p.look} kind="days" items={dayItems(busy, () => p.go("calendar"))} /> : <p className="sh-none">Nothing in the next two weeks.</p>}
+      </section>
+      <section className="sh-sec sh-sec-notes" aria-label="Notes">
+        {head(L.notes, "All notes", () => p.go("notes"))}
+        {notes.length || board ? <ArchList look={p.look} kind="notes" items={noteItems(notes, () => p.go("notes"))} total={p.notes.length} add={board ? { label: "New note", onClick: () => p.go("notes") } : undefined} />
+          : <><p className="sh-none">No notes yet.</p><button type="button" className="sh-addrow" onClick={() => p.go("notes")}>+ New note</button></>}
+      </section>
+    </div>
+  </div>;
+}
+function archHubHeroOrBillboard(p: OsProps, greeting: string, open: number, addTask: () => void) {
+  const today = p.days[0]?.items.length ?? 0;
+  return <ProtoHubHero look={p.look} date={p.dateLabel} greeting={greeting} primary={{ label: "Add a task", onClick: addTask }}
+    links={[{ label: "Calendar", onClick: () => p.go("calendar") }, { label: "Notes", onClick: () => p.go("notes") }]} open={open} today={today} hubName={p.hubName} />;
+}
+
+function Terminal(p: OsProps) {
+  const [v, setV] = useState(""); const [out, setOut] = useState("");
+  const run = (e: FormEvent) => { e.preventDefault(); const c = v.trim(); setV(""); const low = c.toLowerCase();
+    if (low === "tasks" || low === "cal" || low === "notes") p.go(low === "cal" ? "calendar" : low as OsScreen);
+    else if (low === "apps") p.openApps();
+    else if (low.startsWith("add ")) p.add(c.slice(4));
+    else if (c) setOut(`command not found: ${c}. Try tasks, cal, notes, apps or add <task>`); };
+  return <form className="los-prompt" onSubmit={run}>{out && <p>{out}</p>}<label><span>$</span><input value={v} onChange={(e) => setV(e.target.value)} aria-label="Type a command" placeholder="add buy milk" autoCapitalize="none" /></label></form>;
+}
+function Chat(p: OsProps & { greeting: string }) {
+  const [v, setV] = useState("");
+  const send = (e: FormEvent) => { e.preventDefault(); if (v.trim()) { p.add(v.trim()); setV(""); } };
+  return <div className="los-chat"><p className="los-them">{p.greeting}</p><CalendarWidget look={p.look} days={p.days} go={() => p.go("calendar")} /><div className="los-replies"><button type="button" onClick={() => p.go("tasks")}>Show my tasks</button><button type="button" onClick={() => p.go("calendar")}>What’s coming up?</button><button type="button" onClick={() => p.go("notes")}>Open notes</button></div>{p.notes[0] && <button type="button" className="los-them" onClick={() => p.go("notes")}>Latest note: {p.notes[0].title || "Untitled"}</button>}<form className="los-composer" onSubmit={send}><input value={v} onChange={(e) => setV(e.target.value)} aria-label="Add a task" placeholder="Type a task to add" /><button type="submit" aria-label="Add task"><I d="M5 12h14M13 6l6 6-6 6" /></button></form></div>;
+}
+function Cards(p: OsProps) {
+  const open = p.tasks.filter((t) => !t.done); const [at, setAt] = useState(0);
+  const cards: { key: string; bg: string; node: ReactNode }[] = [
+    { key: "tasks", bg: "#9de3d3", node: <button type="button" className="los-cardbtn" onClick={() => p.go("tasks")}><small>Tasks</small><b>{open[0]?.title ?? "All done"}</b><small>{open.length} open</small></button> },
+    { key: "calendar", bg: "#ffd95c", node: <CalendarWidget look={p.look} days={p.days} go={() => p.go("calendar")} /> },
+    { key: "notes", bg: "#d6c7ff", node: <button type="button" className="los-cardbtn" onClick={() => p.go("notes")}><small>Notes</small><b>{p.notes[0]?.title || "Write something"}</b><small>{p.notes.length} notes</small></button> },
+  ];
+  const c = cards[at % 3];
+  return <div className="los-stack"><small>{p.dateLabel}</small><div className="los-cards"><i style={{ background: cards[(at + 2) % 3].bg }} /><i style={{ background: cards[(at + 1) % 3].bg }} /><div style={{ background: c.bg }}>{c.node}</div></div><button type="button" className="los-nextcard" onClick={() => setAt(at + 1)}>Next card</button></div>;
+}
+
+// ─── The whole system ───
+/** While a look's own screens are up, the regular page underneath must not move: it was still
+ *  scrollable, so a scroll moved it (its rows peeked in under the clock) and the bounce made the dock
+ *  jump. The look's screens scroll inside themselves (.los-body). */
+function useStillPage() {
+  useEffect(() => lockPageScroll({ fixed: true }), []);
+}
+
+/** The phone's strips above and below the page take the look's own color, so the top and bottom bars
+ *  run to the edges of the screen (they showed the hub's gray in some looks). */
+function useLookBackdrop(bg: string) {
+  useEffect(() => {
+    const html = document.documentElement, body = document.body, was = [html.style.backgroundColor, body.style.backgroundColor];
+    html.style.backgroundColor = bg; body.style.backgroundColor = bg;
+    sendBackdrop(bg.toLowerCase());
+    return () => { html.style.backgroundColor = was[0]; body.style.backgroundColor = was[1]; window.dispatchEvent(new Event(BACKDROP_REFRESH)); };
+  }, [bg]);
+}
+
+export function LookOS(p0: OsProps) {
+  useStillPage();
+  useLookBackdrop(p0.look.bg);
+  const lock = useLock();
+  const locked = (id: string) => !!p0.lockedApps?.includes(id) && !!lock && !lock.unlocked;
+  // Nothing from a locked app shows on Home or in a widget.
+  const p: OsProps = { ...p0, tasks: locked("tasks") ? [] : p0.tasks, days: locked("calendar") ? [] : p0.days, notes: locked("notes") ? [] : p0.notes.map((n) => (n.locked && lock && !lock.unlocked ? { ...n, body: "" } : n)) };
+  const [filter, setFilter] = useState("Open");
+  const lists = Array.from(new Set(p.tasks.map((t) => t.listName).filter(Boolean)));
+  const chips = ["Open", "Today", "Done", ...(lists.length > 1 ? lists : [])];
+  const shown = p.tasks.filter((t) => filter === "Done" ? t.done : !t.done && (filter === "Open" || (filter === "Today" ? t.late || t.due === p.days[0]?.date : t.listName === filter)));
+  const taskScreen = <div className="los-pad"><header className="los-title"><h1>Tasks</h1></header><div className="los-filter" role="group" aria-label="Show">{chips.map((f) => <button key={f} type="button" aria-pressed={filter === f} onClick={() => setFilter(f)}>{f}</button>)}</div>{shown.length ? <LookTaskList look={p.look} tasks={shown} onToggle={p.toggle} onOpen={p.openTask} /> : <p className="los-none">Nothing here.</p>}</div>;
+  // The computer looks open each screen in a window on the desktop.
+  const win = (title: string, node: ReactNode) => DESKTOP_LOOKS.has(p.look.id) ? <div className="sys-desk"><SystemWindow look={p.look} title={title} onClose={() => p.go("home")}>{node}</SystemWindow></div> : node;
+  return <div data-backdrop-hold="" style={themeVars(p.look) as CSSProperties} className={`los los-${p.look.id}${archClass(p.look)}${SYSTEM_LOOKS.has(p.look.id) ? " los-sys" : ""}${PLAY_LOOKS.has(p.look.id) ? " los-play" : ""}${SUITE_OS_LOOKS.has(p.look.id) ? " los-suite" : ""}${p.look.dark ? " los-isdark" : ""}`} data-screen={p.screen} data-testid="look-os">
+    <header className="los-topbar"><b>{p.look.id === "console" ? `~/${p.hubName.toLowerCase()}` : p.hubName}</b><div className="los-topright">{p.bell}{p.hubSwitch}</div></header>
+    <div className="los-body">
+      {p.look.id === "gazette" && p.screen !== "home" && <div className="los-paper"><header><h1>The Daily Duo</h1><small>{p.dateLabel}</small></header></div>}
+      {p.screen === "home" && <><Home {...p} />{p.banner && <div className="los-banner">{p.banner}</div>}</>}
+      {p.screen === "tasks" && win("Tasks", <LockedApp locked={locked("tasks")} name="Tasks">{taskScreen}</LockedApp>)}
+      {p.screen === "calendar" && win("Calendar", <div className="los-pad"><header className="los-title"><h1>Calendar</h1></header><CalendarWidget look={p.look} days={p.days} go={() => {}} big />{p.look.id === "tide" && <TideAgenda days={p.days.slice(0, 14)} go={() => {}} />}<div className="los-app">{p.content}</div></div>)}
+      {p.screen === "notes" && win("Notes", <div className="los-pad"><div className="los-app">{p.content}</div></div>)}
+    </div>
+    <LookDock look={p.look} screen={p.screen} go={p.go} openApps={p.openApps} add={p.add} you={p.onYou} off={p.off} initial={(p.name || "Y").charAt(0).toUpperCase()} />
+  </div>;
+}
+export function LookYou({ look, items: list, top, onClose }: { look: NotesTheme; items: OsMenuItem[]; top?: ReactNode; onClose: () => void }) {
+  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [onClose]);
+  const main = list.filter((m) => !m.danger), out = list.filter((m) => m.danger);
+  const row = (m: OsMenuItem) => <button key={m.id} type="button" className="los-you-row" data-danger={m.danger || undefined} onClick={() => { onClose(); m.onClick(); }}>
+    <span><b>{m.label}</b>{m.detail && <small>{m.detail}</small>}</span><I d="M9 6l6 6-6 6" /></button>;
+  return <div style={themeVars(look) as CSSProperties} className="los-sheetback" onClick={onClose}>
+    <div role="dialog" aria-modal="true" aria-label="You" className="los-sheet" onClick={(e) => e.stopPropagation()}>
+      <div className="los-you-head"><b>Menu</b><button type="button" className="los-close" onClick={onClose} aria-label="Close"><I d="M6 6l12 12M18 6L6 18" /></button></div>
+      {top && <div className="los-sheettop">{top}</div>}
+      <div className="los-you-group">{main.map(row)}</div>
+      {out.length > 0 && <div className="los-you-group">{out.map(row)}</div>}
+    </div>
+  </div>;
+}
+

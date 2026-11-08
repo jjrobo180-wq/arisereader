@@ -2,11 +2,12 @@
 // and switchable layers for tasks, bills and trips. Teachers can also switch on their
 // Arise WorkHub calendar: its events are read live from the Hub and shown here, read-only.
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { CalendarDays, Check, ChevronLeft, ChevronRight, ExternalLink, GraduationCap, Link2, MapPin, Plane, Plus, Receipt, RefreshCw, Repeat2, Trash2, Users } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock, ExternalLink, GraduationCap, Link2, MapPin, Plane, Plus, Receipt, RefreshCw, Repeat, Repeat2, StickyNote, Trash2, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
+import { LookAgenda, useActiveLook } from "@/components/HubLook";
 import { MEMBER_COLORS, addDays, billDue, eventsOn, fromDay, toDay, type FamilyEvent, type EventRepeat } from "@shared/familyHub";
-import { Avatar, Label, MemberPicker, Modal, PageHead, Panel, Toggle, clock12, confirmed, danger, inputClass, memberOf, plain, primary, shortDate, type SectionProps } from "./ui";
+import { Avatar, FormGroup, FormRow, Label, MemberPicker, Modal, PageHead, Panel, PickField, Toggle, clock12, rowInput, rowSelect, confirmed, danger, inputClass, memberOf, plain, primary, shortDate, type SectionProps } from "./ui";
 import { ShareButton } from "./ShareLink";
 import { addToIphoneCalendar, inIphoneApp, readIphoneEvents, type PhoneEvent } from "@/lib/nativeCalendar";
 import { isNativeApp } from "@/lib/nativeApp";
@@ -75,7 +76,7 @@ function useHubEvents(on: boolean, from: string, to: string) {
 const blankEvent = (date: string, calendarId: string, id: string): FamilyEvent =>
   ({ id, title: "", date, time: "", endTime: "", calendarId, memberIds: [], location: "", notes: "", repeat: "none" });
 
-export default function FamilyCalendar({ family, setFamily, today, makeId, say, tasks, onOpenTasks }: SectionProps & { tasks: CalendarTask[]; onOpenTasks: () => void }) {
+export default function FamilyCalendar({ family, setFamily, today, makeId, say, tasks, onOpenTasks, heading }: SectionProps & { tasks: CalendarTask[]; onOpenTasks: () => void; /** A title and line of its own, for a hub that isn't about a family (WorkHub). */ heading?: { title: string; blurb: string } }) {
   const { user } = useAuth();
   /** Teachers (and the admin) have a Arise WorkHub calendar to show. */
   const teacher = !!user && (user.role === "teacher" || !!user.isAdmin);
@@ -204,26 +205,34 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
   const add = (date = picked) => setEditing(blankEvent(date, family.calendars[0]?.id || "", makeId()));
   const dayItems = itemsOn(picked);
 
+  const look = useActiveLook();
+  const agenda = look ? Array.from({ length: 14 }, (_, n) => {
+    const date = addDays(today, n), d = new Date(`${date}T12:00:00`);
+    return { date, weekday: d.toLocaleDateString(undefined, { weekday: "short" }), day: String(d.getDate()), month: d.toLocaleDateString(undefined, { month: "short" }),
+      items: [...eventsOn(family, date).map((e) => ({ id: e.id, time: e.time, title: e.title })), ...tasks.filter((t) => !t.done && t.due === date).map((t) => ({ id: t.id, time: t.time, title: t.title }))] };
+  }) : [];
   return <div className="space-y-6">
-    <PageHead eyebrow="Calendar" title="Family calendar" blurb="Everyone's practices, appointments and plans in one place. Switch calendars and people on or off to see just what you need."
-      action={<div className="flex flex-wrap items-center gap-2"><ShareButton target="calendar" title="Family calendar" say={say} /><button onClick={() => add()} className={primary + " min-h-11 px-5"}><Plus size={18} /> New event</button></div>} />
+    {look && <LookAgenda look={look} days={agenda} onPick={setPicked} />}
+    <PageHead eyebrow="Calendar" title={heading?.title ?? "Family calendar"} blurb={heading?.blurb ?? "Everyone's practices, appointments and plans in one place. Switch calendars and people on or off to see just what you need."}
+      action={<div className="flex flex-wrap items-center gap-2"><ShareButton target="calendar" title={heading?.title ?? "Family calendar"} say={say} /><button onClick={() => add()} className={primary + " min-h-11 px-5"}><Plus size={18} /> New event</button></div>} />
 
-    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[minmax(0,1fr)_340px]">
       <Panel className="self-start" title={first.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
         right={<><button onClick={() => shiftMonth(-1)} className={plain} aria-label="Previous month"><ChevronLeft size={17} /></button><button onClick={() => { setMonth(today.slice(0, 7)); setPicked(today); }} className={plain}>Today</button><button onClick={() => shiftMonth(1)} className={plain} aria-label="Next month"><ChevronRight size={17} /></button></>}>
-        <div className="grid grid-cols-7 gap-px overflow-hidden rounded-2xl border border-slate-100 bg-slate-100 text-xs">
+        <style>{`.fc-month{container-type:inline-size}.fc-chips{display:flex}.fc-dots{display:none}@container (max-width:520px){.fc-chips{display:none}.fc-dots{display:flex}}`}</style>
+        <div className="fc-month"><div className="grid grid-cols-7 gap-px overflow-hidden rounded-2xl border border-slate-100 bg-slate-100 text-xs">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => <div key={d} className="bg-slate-50 py-2 text-center text-[11px] font-black uppercase tracking-wider text-slate-400"><span className="sm:hidden">{d[0]}</span><span className="hidden sm:inline">{d}</span></div>)}
           {cells.map((d) => {
             const items = itemsOn(d);
             const inMonth = d.slice(0, 7) === month;
             return <button key={d} onClick={() => setPicked(d)} onDoubleClick={() => add(d)} aria-label={`${shortDate(d)}, ${items.length} item${items.length === 1 ? "" : "s"}`} aria-pressed={picked === d}
-              className={`flex min-h-[64px] flex-col gap-1 p-1.5 text-left transition sm:min-h-[96px] ${inMonth ? "bg-white" : "bg-slate-50/70 text-slate-400"} ${picked === d ? "ring-2 ring-inset ring-violet-500" : "hover:bg-violet-50/40"}`}>
+              className={`flex min-h-[64px] flex-col gap-1 p-1.5 text-left transition sm:min-h-[104px] ${inMonth ? "bg-white" : "bg-slate-50/70 text-slate-400"} ${picked === d ? "ring-2 ring-inset ring-violet-500" : "hover:bg-violet-50/40"}`}>
               <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${d === today ? "bg-violet-600 text-white" : ""}`}>{Number(d.slice(8))}</span>
-              <span className="hidden min-w-0 flex-col gap-0.5 sm:flex">{items.slice(0, 3).map((it) => <span key={it.key} className="cal-chip truncate rounded-md px-1.5 py-0.5 text-[10.5px] font-bold" style={{ background: it.color + "1f", color: it.color }}>{it.time && <span className="opacity-75">{clock12(it.time).replace(":00", "").replace(" ", "").toLowerCase()} </span>}{it.title}</span>)}{items.length > 3 && <span className="px-1 text-[10px] font-bold text-slate-400">+{items.length - 3} more</span>}</span>
-              <span className="flex flex-wrap gap-0.5 sm:hidden">{items.slice(0, 4).map((it) => <span key={it.key} className="h-1.5 w-1.5 rounded-full" style={{ background: it.color }} />)}</span>
+              <span className="fc-chips min-w-0 flex-col gap-0.5">{items.slice(0, 3).map((it) => <span key={it.key} title={`${it.time ? clock12(it.time) + " " : ""}${it.title}`} className="cal-chip rounded-md px-1.5 py-0.5 text-[11px] font-bold leading-tight" style={{ background: it.color + "1f", color: it.color, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>{it.title}</span>)}{items.length > 3 && <span className="px-1 text-[11px] font-bold text-slate-500">+{items.length - 3} more</span>}</span>
+              <span className="fc-dots flex-wrap items-center gap-0.5">{items.slice(0, 4).map((it) => <span key={it.key} className="h-2 w-2 rounded-full" style={{ background: it.color }} />)}{items.length > 4 && <span className="text-[10px] font-bold leading-none text-slate-500">+{items.length - 4}</span>}</span>
             </button>;
           })}
-        </div>
+        </div></div>
       </Panel>
 
       <div className="space-y-5">
@@ -308,20 +317,21 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
     </div>
 
     {editing && <Modal title={family.events.some((e) => e.id === editing.id) ? "Edit event" : "New event"} onClose={() => setEditing(null)}>
-      <form onSubmit={save} className="space-y-4">
-        <Label text="What"><input autoFocus required maxLength={120} value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} className={inputClass} placeholder="Soccer practice" /></Label>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Label text="Date"><input type="date" required value={editing.date} onChange={(e) => setEditing({ ...editing, date: e.target.value })} className={inputClass} /></Label>
-          <Label text="Starts"><input type="time" value={editing.time} onChange={(e) => setEditing({ ...editing, time: e.target.value })} className={inputClass} /></Label>
-          <Label text="Ends"><input type="time" disabled={!editing.time} value={editing.endTime} onChange={(e) => setEditing({ ...editing, endTime: e.target.value })} className={inputClass} /></Label>
-        </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Label text="Calendar"><select value={editing.calendarId} onChange={(e) => setEditing({ ...editing, calendarId: e.target.value })} className={inputClass}>{family.calendars.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Label>
-          <Label text="Repeats"><select value={editing.repeat} onChange={(e) => setEditing({ ...editing, repeat: e.target.value as EventRepeat })} className={inputClass}><option value="none">Does not repeat</option><option value="weekly">Every week</option><option value="monthly">Every month</option><option value="yearly">Every year (birthdays)</option></select></Label>
-        </div>
-        <div><p className="mb-1.5 text-xs font-bold text-slate-600">Who's going</p><MemberPicker members={family.members} value={editing.memberIds} onChange={(ids) => setEditing({ ...editing, memberIds: ids })} multi /></div>
-        <Label text="Where (optional)"><input maxLength={160} value={editing.location} onChange={(e) => setEditing({ ...editing, location: e.target.value })} className={inputClass} placeholder="Field 3, Central Park" /></Label>
-        <Label text="Notes (optional)"><textarea rows={2} maxLength={1000} value={editing.notes} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} className={inputClass + " py-3"} placeholder="Bring shin guards and water" /></Label>
+      <form onSubmit={save} className="min-w-0 space-y-5">
+        <input autoFocus required maxLength={120} value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} aria-label="What"
+          className="block w-full min-w-0 border-0 border-b-2 border-slate-200 bg-transparent px-1 pb-2 text-[22px] font-black text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-violet-500" placeholder="What's happening?" />
+        <FormGroup title="When">
+          <FormRow label="Date" icon={<CalendarDays size={15} />}><PickField type="date" required label="Date" value={editing.date} onChange={(v) => setEditing({ ...editing, date: v })} /></FormRow>
+          <FormRow label="Starts" icon={<Clock size={15} />}><PickField type="time" label="Starts" empty="All day" value={editing.time} onChange={(v) => setEditing({ ...editing, time: v })} /></FormRow>
+          <FormRow label="Ends" icon={<Clock size={15} />}><PickField type="time" label="Ends" empty={editing.time ? "Add" : "—"} disabled={!editing.time} value={editing.endTime} onChange={(v) => setEditing({ ...editing, endTime: v })} /></FormRow>
+          <FormRow label="Repeats" icon={<Repeat size={15} />}><select value={editing.repeat} onChange={(e) => setEditing({ ...editing, repeat: e.target.value as EventRepeat })} className={rowSelect}><option value="none">Never</option><option value="weekly">Every week</option><option value="monthly">Every month</option><option value="yearly">Every year (birthdays)</option></select></FormRow>
+        </FormGroup>
+        <FormGroup title="Details">
+          <FormRow label="Calendar" icon={<CalendarDays size={15} />}><select value={editing.calendarId} onChange={(e) => setEditing({ ...editing, calendarId: e.target.value })} className={rowSelect}>{family.calendars.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></FormRow>
+          <FormRow label="Where" icon={<MapPin size={15} />}><input maxLength={160} value={editing.location} onChange={(e) => setEditing({ ...editing, location: e.target.value })} className={rowInput} placeholder="Add a place" /></FormRow>
+          <FormRow label="Notes" icon={<StickyNote size={15} />} stack><textarea rows={2} maxLength={1000} value={editing.notes} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} className={rowInput.replace("text-right", "text-left") + " resize-none font-medium"} placeholder="Bring shin guards and water" /></FormRow>
+        </FormGroup>
+        <div className="min-w-0"><p className="mb-1.5 px-1 text-[11px] font-black uppercase tracking-[.12em] text-slate-500">Who's going</p><MemberPicker members={family.members} value={editing.memberIds} onChange={(ids) => setEditing({ ...editing, memberIds: ids })} multi /></div>
         <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
           <button type="submit" className={primary + " flex-1 px-5"}><Check size={17} /> Save event</button>
           <button type="button" onClick={() => setEditing(null)} className={plain}>Cancel</button>

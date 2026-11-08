@@ -1,6 +1,6 @@
 // Plugin Kit, WorkHub batch 2: 40 lists, 30 checklists, 12 daily logs and 5 calculators.
 // Drawn by the same tools as the first batch (see shared/pluginKit.ts). They open from the
-// Plugin Store and save in the teacher's workspace.
+// Plugin Gallery and save in the teacher's workspace.
 import type { KitDef, KitField } from "./pluginKit";
 
 const f = (key: string, label: string, type: KitField["type"] = "text", extra: Partial<KitField> = {}): KitField => ({ key, label, type, ...extra });

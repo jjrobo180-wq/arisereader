@@ -12,7 +12,7 @@ import { sayAI } from "@/lib/aiVoice";
 import { saveToHealth } from "./fitNative";
 import type { Update } from "./fitStore";
 import { latestKg } from "./FitFood";
-import { Btn, C, Card, Chips, Layer, Sheet, Title, display, fmtDur, font, inputCls, inputStyle, resolvedTheme } from "./fitUi";
+import { Btn, C, Card, Chips, Layer, Sheet, Title, display, fmtDur, font, inputCls, inputStyle, resolvedTheme, accentNow } from "./fitUi";
 
 // ——— Leaflet, loaded once from cdnjs ————————————————————————————————————————————————————————————
 let leaflet: Promise<any> | null = null;
@@ -48,9 +48,9 @@ function MapView({ path = [], lines = [], here, follow = false, className = "h-6
     const l = layers.current;
     l.trail?.remove(); l.trail = lines.length ? L.polyline(lines, { color: "#b9c0c8", weight: 5, opacity: 0.55, dashArray: "6 8" }).addTo(m) : undefined;
     // A finished route draws itself in (fit-route); a live one just grows as you move.
-    l.route?.remove(); l.route = path.length > 1 ? L.polyline(path, { color: "#ff5a1f", weight: 5, opacity: 0.95, ...(fit ? { className: "fit-route" } : {}) }).addTo(m) : undefined;
+    l.route?.remove(); l.route = path.length > 1 ? L.polyline(path, { color: accentNow(), weight: 5, opacity: 0.95, ...(fit ? { className: "fit-route" } : {}) }).addTo(m) : undefined;
     l.dot?.remove(); const at = here ?? path[path.length - 1];
-    l.dot = at ? L.circleMarker(at, { radius: 8, color: "#fff", weight: 3, fillColor: "#ff5a1f", fillOpacity: 1 }).addTo(m) : undefined;
+    l.dot = at ? L.circleMarker(at, { radius: 8, color: "#fff", weight: 3, fillColor: accentNow(), fillOpacity: 1 }).addTo(m) : undefined;
     if (fit && (l.trail || l.route)) { try { m.fitBounds((l.route ?? l.trail).getBounds(), { padding: [24, 24] }); } catch { /* empty */ } }
     else if (follow && at) m.setView(at, Math.max(m.getZoom(), 16), { animate: true });
   }, [path, lines, here, follow, fit]);
@@ -109,7 +109,7 @@ export function RunTracker({ data, update, onClose, say, trail }: { data: FitDat
   const path = points.map((p) => p.ll);
 
   return <Layer><div className="fit-sheet fixed inset-0 z-[85] flex flex-col" style={{ background: C.bg, color: C.text, ...font }} data-testid="fit-run">
-    <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,env(safe-area-inset-top))]">
+    <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,var(--sat,env(safe-area-inset-top,0px)))]">
       <button type="button" onClick={() => { if (state === "ready" || window.confirm("Stop tracking? This run won't be saved.")) onClose(); }} className="h-11 rounded-full px-4 text-[15px] font-semibold" style={{ background: C.card }}>{state === "ready" ? "Close" : "Discard"}</button>
       <p className="min-w-0 flex-1 truncate text-center text-[20px]" style={display}>{trail ? trail.name : `Outdoor ${KIND_LABEL[kind]}`}</p>
       <span className="flex h-11 items-center gap-1 rounded-full px-3 text-[12px] font-semibold" style={{ background: C.card, color: acc !== null && acc <= 20 ? C.green : acc !== null && acc <= 35 ? C.orange : C.dim }}><Crosshair className="h-4 w-4" />{acc !== null ? `±${acc}m` : "GPS"}</span>
@@ -134,9 +134,9 @@ export function RunTracker({ data, update, onClose, say, trail }: { data: FitDat
       <p className="mt-6 text-center text-[11px] leading-relaxed" style={{ color: C.dim }}>Keep Arise Fit open with the screen on while you track. Maps © OpenStreetMap contributors © CARTO.</p>
     </div>
     {state !== "done" && <div className="flex shrink-0 items-center justify-center gap-5 pb-[max(20px,env(safe-area-inset-bottom))] pt-2">
-      {state === "ready" && <button type="button" onClick={start} disabled={!here} className="fit-pop grid h-24 w-24 place-items-center rounded-full text-[26px] shadow-[0_12px_36px_rgba(255,90,31,.45)] active:scale-95 disabled:opacity-40" style={{ ...display, background: C.lime, color: "#0b0b0c" }} data-testid="fit-run-start">Go</button>}
+      {state === "ready" && <button type="button" onClick={start} disabled={!here} className="fit-pop grid h-24 w-24 place-items-center rounded-full text-[26px] shadow-[0_12px_36px_rgba(var(--fit-accent-rgb),.45)] active:scale-95 disabled:opacity-40" style={{ ...display, background: C.lime, color: "var(--fit-on-accent)" }} data-testid="fit-run-start">Go</button>}
       {state === "running" && <button type="button" onClick={pause} aria-label="Pause" className="grid h-20 w-20 place-items-center rounded-full" style={{ background: C.card2 }}><Pause className="h-9 w-9" fill="currentColor" /></button>}
-      {state === "paused" && <><button type="button" onClick={resume} aria-label="Resume" className="grid h-20 w-20 place-items-center rounded-full" style={{ background: C.lime, color: "#0b0b0c" }}><Play className="ml-1 h-9 w-9" fill="currentColor" /></button>
+      {state === "paused" && <><button type="button" onClick={resume} aria-label="Resume" className="grid h-20 w-20 place-items-center rounded-full" style={{ background: C.lime, color: "var(--fit-on-accent)" }}><Play className="ml-1 h-9 w-9" fill="currentColor" /></button>
         <button type="button" onClick={finish} aria-label="Finish" className="grid h-20 w-20 place-items-center rounded-full" style={{ background: C.red }} data-testid="fit-run-finish"><Square className="h-8 w-8" fill="currentColor" /></button></>}
     </div>}
   </div></Layer>;
@@ -271,7 +271,7 @@ export function TrailFinder({ data, onClose, onGo }: { data: FitData; onClose: (
     </form>
     <div className="mt-3 flex items-center justify-between gap-2">
       <p className="flex min-w-0 items-center gap-1.5 truncate text-[14px]" style={{ color: C.steel }}><MapPin className="h-4 w-4 shrink-0" style={{ color: C.lime }} />{locating && !from ? "Finding you…" : from?.label ?? "Tap the target to use your location"}{locating && from ? " · updating" : ""}</p>
-      <div className="flex shrink-0 gap-1">{RADII.map((r) => <button key={r} type="button" onClick={() => setRadius(r)} aria-pressed={radius === r} className="h-9 rounded-[8px] px-2.5 text-[13px] font-semibold" style={radius === r ? { background: C.lime, color: "#0b0b0c" } : { background: C.card }}>{r} {unit}</button>)}</div>
+      <div className="flex shrink-0 gap-1">{RADII.map((r) => <button key={r} type="button" onClick={() => setRadius(r)} aria-pressed={radius === r} className="h-9 rounded-[8px] px-2.5 text-[13px] font-semibold" style={radius === r ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card }}>{r} {unit}</button>)}</div>
     </div>
     <div className="mt-2"><Chips label="Difficulty" value={diff} onChange={setDiff} items={[{ id: "all", label: "All trails" }, { id: "Easy", label: "Easy" }, { id: "Moderate", label: "Moderate" }, { id: "Hard", label: "Hard" }]} /></div>
     {err && <p className="mt-3 rounded-[10px] px-3 py-2 text-[13px]" style={{ background: "rgba(255,59,48,.12)", color: C.red }}>{err}</p>}
@@ -301,7 +301,7 @@ export function OutdoorHub({ data, update, onClose, say, inline }: { data: FitDa
   const best = (m: number) => runs.filter((r) => r.meters >= m && r.kind === "run").map((r) => (r.secs / r.meters) * m).sort((a, b) => a - b)[0];
   return <Sheet title={inline ? "Outdoor run" : "Outdoor"} onClose={onClose} testId="fit-outdoor" inline={inline}>
     <div className="mt-1 grid grid-cols-2 gap-2">
-      <button type="button" onClick={() => setTracking({})} className="fit-in fit-shine flex min-h-[110px] flex-col justify-end rounded-[14px] p-4 text-left active:scale-[.98]" style={{ background: "linear-gradient(150deg, #ff5a1f, #b8360a)", color: "#0b0b0c" }} data-testid="fit-outdoor-start"><Route className="h-7 w-7" /><span className="mt-2 text-[26px] leading-none" style={display}>Start run</span><span className="text-[12px] font-semibold">GPS · live map</span></button>
+      <button type="button" onClick={() => setTracking({})} className="fit-in fit-shine flex min-h-[110px] flex-col justify-end rounded-[14px] p-4 text-left active:scale-[.98]" style={{ background: "linear-gradient(150deg, var(--fit-accent), var(--fit-accent-deep))", color: "var(--fit-on-accent)" }} data-testid="fit-outdoor-start"><Route className="h-7 w-7" /><span className="mt-2 text-[26px] leading-none" style={display}>Start run</span><span className="text-[12px] font-semibold">GPS · live map</span></button>
       <button type="button" onClick={() => setTrails(true)} className="fit-in flex min-h-[110px] flex-col justify-end rounded-[14px] p-4 text-left active:scale-[.98]" style={{ background: C.card2, animationDelay: ".08s" }} data-testid="fit-outdoor-trails"><Mountain className="h-7 w-7" style={{ color: C.lime }} /><span className="mt-2 text-[26px] leading-none" style={display}>Trails</span><span className="text-[12px]" style={{ color: C.dim }}>Every US trail near you</span></button>
     </div>
     <div className="mt-3 grid grid-cols-3 gap-2 text-center">

@@ -95,7 +95,7 @@ textarea.sl-input { line-height: 1.6; resize: vertical; }
 .sl-dock { position: fixed; left: 50%; bottom: max(1rem, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 480; width: min(40rem, calc(100% - 1.5rem)); }
 
 /* Full-screen sessions: reading, breathing, and Lights out. */
-.sl-stage { position: fixed; inset: 0; z-index: 520; display: flex; flex-direction: column; background: var(--sl-night); color: var(--sl-hush); padding: max(1rem, env(safe-area-inset-top)) 1.25rem max(1.25rem, env(safe-area-inset-bottom)); }
+.sl-stage { position: fixed; inset: 0; z-index: 520; display: flex; flex-direction: column; background: var(--sl-night); color: var(--sl-hush); padding: max(1rem, var(--sat, env(safe-area-inset-top, 0px))) 1.25rem max(1.25rem, env(safe-area-inset-bottom)); }
 .sl-lights-out { position: fixed; inset: 0; z-index: 600; background: #000; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .sl-ember { width: 14px; height: 14px; border-radius: 999px; background: #6b3a16; box-shadow: 0 0 18px 6px rgba(120, 60, 20, 0.35); animation: sl-breathe 10s ease-in-out infinite; }
 @keyframes sl-breathe { 0% { transform: scale(0.6); opacity: 0.25; } 40% { transform: scale(1); opacity: 0.6; } 100% { transform: scale(0.6); opacity: 0.25; } }

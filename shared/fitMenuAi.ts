@@ -10,21 +10,31 @@ export const MENU_PROMPT = `You are a nutrition coach helping someone order at a
 Given the restaurant (or cuisine), their goal, diet and what's left of their day, suggest the 4 best things to order there, best fit first.
 Use items that restaurant (or that kind of restaurant) really serves; if you don't know the exact menu, suggest the typical dishes of that cuisine and say so in "how".
 Each pick: how to order it (swaps like "grilled not fried", "dressing on the side", "no bun", "half the rice"), realistic calories and macros for the portion you describe (USDA-style values), and keep to their diet and wants.
-Reply as JSON: {"picks":[{"name":"...","how":"one short sentence on how to order it","kcal":<n>,"p":<protein g>,"c":<carbs g>,"f":<fat g>}]}. Numbers are estimates; no extra text.`;
+Reply as JSON: {"picks":[{"name":"...","how":"one short sentence on how to order it","kcal":<n>,"p":<protein g>,"c":<carbs g>,"f":<fat g>}]}. Numbers are plain numbers (no units) and are estimates; no extra text.
+Always return 4 picks. Never return an empty list: if you don't know the place, use the most likely cuisine from its name, or a typical American restaurant.`;
 
 export const menuUserText = (a: MenuAsk) =>
   `Restaurant: ${a.place}${a.cuisine ? ` (${a.cuisine})` : ""}\nGoal: ${a.goal}\nDiet: ${a.diet}\nTracking: ${a.mode === "points" ? "Arise Points" : "calories"}\nLeft today: about ${a.left.kcal} calories, ${a.left.p} g protein, ${a.left.c} g carbs, ${a.left.f} g fat.${a.wants ? `\nThey want: ${a.wants}` : ""}`;
 
-/** The AI's answer, made safe to show and log: up to 6 picks with sane numbers. */
+/** The AI's answer, made safe to show and log: up to 6 picks with sane numbers. Forgiving about shape:
+ *  numbers written as "450 kcal" or "30g", other key names (calories, protein…), a bare list or a list under
+ *  another key, and missing macros (filled from the calories with a typical split). */
 export function cleanMenuPicks(raw: any): MenuPick[] {
-  const list = Array.isArray(raw?.picks) ? raw.picks : [];
-  const n = (v: unknown, hi: number) => { const x = Math.round(Number(v)); return Number.isFinite(x) && x >= 0 && x <= hi ? x : null; };
+  const list: any[] = Array.isArray(raw) ? raw
+    : Array.isArray(raw?.picks) ? raw.picks
+    : (Object.values(raw ?? {}).find((v) => Array.isArray(v)) as any[] | undefined) ?? [];
+  const num = (v: unknown): number | null => { const m = /-?\d+(\.\d+)?/.exec(String(v ?? "").replace(/,/g, "")); return m ? Math.round(Number(m[0])) : null; };
+  const within = (x: number | null, hi: number) => (x !== null && x >= 0 && x <= hi ? x : null);
   const out: MenuPick[] = [];
   for (const r of list.slice(0, 6)) {
-    const name = String(r?.name ?? "").replace(/\s+/g, " ").trim().slice(0, 90);
-    const kcal = n(r?.kcal, 3000), p = n(r?.p, 300), c = n(r?.c, 400), f = n(r?.f, 200);
-    if (!name || kcal === null || kcal < 20 || p === null || c === null || f === null) continue;
-    out.push({ name, how: String(r?.how ?? "").replace(/\s+/g, " ").trim().slice(0, 200), kcal, p, c, f });
+    const name = String(r?.name ?? r?.item ?? r?.dish ?? r?.title ?? "").replace(/\s+/g, " ").trim().slice(0, 90);
+    const kcal = within(num(r?.kcal ?? r?.calories ?? r?.cal), 3000);
+    if (!name || kcal === null || kcal < 20) continue;
+    let p = within(num(r?.p ?? r?.protein), 300), c = within(num(r?.c ?? r?.carbs ?? r?.carbohydrates), 400), f = within(num(r?.f ?? r?.fat), 200);
+    if (p === null) p = Math.round((kcal * 0.25) / 4);
+    if (c === null) c = Math.round((kcal * 0.45) / 4);
+    if (f === null) f = Math.round((kcal * 0.3) / 9);
+    out.push({ name, how: String(r?.how ?? r?.order ?? r?.tip ?? "").replace(/\s+/g, " ").trim().slice(0, 200), kcal, p, c, f });
   }
   return out;
 }

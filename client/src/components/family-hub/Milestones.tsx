@@ -1,4 +1,4 @@
-// Milestones (a Plugin Store add-on): first steps, first words, first day of school. A timeline of
+// Milestones (a Plugin Gallery add-on): first steps, first words, first day of school. A timeline of
 // the moments you never want to forget.
 import { useState, type FormEvent } from "react";
 import { Star, Trash2 } from "lucide-react";

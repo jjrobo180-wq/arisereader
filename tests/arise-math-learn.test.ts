@@ -90,7 +90,7 @@ function photoSetup(reply: unknown = goodAI) {
   const app: any = { post: (path: string, ...h: Function[]) => { routes[`POST ${path}`] = h[h.length - 1]; } };
   let clock = Date.parse("2026-10-11T18:00:00Z");
   const asks: any[] = [];
-  registerMathPhotoRoutes(app, ((_q: any, _s: any, n: any) => n()) as any, {
+  registerMathPhotoRoutes(app, ((_q: any, _s: any, n: any) => n()) as any, { skipCheck: true,
     aiConfigured: () => true, now: () => clock, gradeOf: async () => "7",
     askAI: async (a) => { asks.push(a); return typeof reply === "string" ? reply : JSON.stringify(reply); },
   });

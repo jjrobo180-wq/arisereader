@@ -1,6 +1,6 @@
 // Podscroll (Pod+): real podcasts in a feed you swipe like short videos, as its own website.
-// Listening is free with no account. Signing in with an email code is the Pod+ Membership (smart
-// ad skip, earning as a creator); the session is kept here. What someone picks, follows, likes and saves is kept in this browser. Podcast data,
+// Listening is free with no account, and ad-free for everyone. Signing in with an email code is the Pod+
+// Membership (earning as a creator); the session is kept here. What someone picks, follows, likes and saves is kept in this browser. Podcast data,
 // likes, comments and share counts come from the Arise server's public /api/podscroll routes
 // (server/earshot.ts registerPodscrollRoutes), which read Apple Podcasts. Audio plays straight
 // from each podcast's own host.
@@ -9,7 +9,7 @@ import { setAccount } from "../client/src/lib/accountStorage";
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { applySignal, cleanEarshot, emptyEarshot, type Earshot, type PodEpisode, type Signal } from "@shared/earshot";
-import { Check, Loader2, Mail, X } from "lucide-react";
+import { ArrowDownToLine, Check, Info, Loader2, Mail, X } from "lucide-react";
 import { LIGHT_SHEETS_CSS, Player, Setup, useTheme, type NowPlaying, type PlayerControl } from "../client/src/components/family-hub/earshot/EarshotPlayer";
 import { LIGHT_CSS } from "../client/src/components/family-hub/earshot/EarshotSocial";
 import { Home } from "./Home";
@@ -17,11 +17,15 @@ import { AuthScreen } from "./Auth";
 import { Welcome, WELCOME_KEY } from "./Welcome";
 import { OPEN_EVENT, podPushAllowed, startPodPush, syncPodPush } from "./applePush";
 import { isNativeApp, markAppReadyWhenDrawn } from "../client/src/lib/nativeApp";
+import { applyDeviceTopInset } from "../client/src/lib/deviceInsets";
 import { publishWidgets } from "../client/src/lib/widgets";
 import { podWidgetSlots } from "../client/src/lib/podWidgets";
 import { subscribeWiki, wikiState } from "./wikiPlayer";
 import { downloads, installDownloads } from "./downloads";
+import { installCarPlay, installLibrarySync } from "./carplay";
 import "./styles.css";
+// Pod+ draws edge to edge: the top of every screen clears this iPhone's own clock space (lib/deviceInsets.ts).
+if (isNativeApp()) { document.documentElement.classList.add("pod-native"); applyDeviceTopInset(); }
 import { configureAiVoice } from "../client/src/lib/aiVoice";
 
 // The shared social screens read this to link to Pod+'s own policies and support (social/Rules.tsx).
@@ -55,16 +59,15 @@ function App() {
   const setSession = useCallback((token: string | null) => { setSessionState(token || ""); if (token) write("podscroll.session", token); else { try { localStorage.removeItem("podscroll.session"); } catch { /* private window */ } } }, []);
   const [editing, setEditing] = useState(false);
   const { day } = useTheme();
-  // Listening is free with no account. Signing in is the Pod+ Membership: smart ad skip, and earning
-  // as a creator. Without it ads simply play, and turning ad skip on asks you to sign in.
+  // Listening is free with no account, and with no ads for everyone: ad skip is always on, signed in or
+  // not. Signing in is for creators (earning from their show) and keeping your place on every device.
   const pro = !!session;
-  // The sign-in screen: "signin" from the Sign in button, "signup" from Become a member / ad skip.
+  // The sign-in screen: "signin" from the Sign in button, "signup" from Become a member.
   const [authMode, setAuthMode] = useState<"signin" | "signup" | null>(null);
-  const setJoinOpen = useCallback((on: boolean) => setAuthMode(on ? "signup" : null), []);
   const [email, setEmailState] = useState(() => read("podscroll.email") || "");
   // Signed in from before this update: use this account's own things on this device (reloads once).
   useEffect(() => { if (session && email) setAccount(email); }, [session, email]);
-  const shown = useMemo(() => (pro ? es : { ...es, settings: { ...es.settings, adMode: "off" as const } }), [es, pro]);
+  const shown = useMemo(() => ({ ...es, settings: { ...es.settings, adMode: "auto" as const } }), [es]);
   esRef.current = shown;
   const [toast, setToast] = useState("");
   const toastT = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -77,13 +80,9 @@ function App() {
   useEffect(() => { const t = setTimeout(() => write(KEY, JSON.stringify(es)), 200); return () => clearTimeout(t); }, [es]);
   useEffect(() => { if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/sw.js").catch(() => {}); }, []);
 
-  const update = useCallback((fn: (e: Earshot) => Earshot) => setEs((e) => {
-    if (pro) return fn(e);
-    const n = fn({ ...e, settings: { ...e.settings, adMode: "off" } });
-    if (n.settings.adMode !== "off") setTimeout(() => setJoinOpen(true), 0);
-    return { ...n, settings: { ...n.settings, adMode: e.settings.adMode } };
-  }), [pro]);
-  const say = useCallback((m: string) => { setToast(m); if (toastT.current) clearTimeout(toastT.current); toastT.current = setTimeout(() => setToast(""), 2600); }, []);
+  // Ads are always skipped on Pod+ (there's no switch for it).
+  const update = useCallback((fn: (e: Earshot) => Earshot) => setEs((e) => { const n = fn(e); return n.settings.adMode === "auto" ? n : { ...n, settings: { ...n.settings, adMode: "auto" } }; }), []);
+  const say = useCallback((m: string) => { setToast(m); if (toastT.current) clearTimeout(toastT.current); toastT.current = setTimeout(() => setToast(""), Math.min(5000, 2600 + Math.max(0, m.length - 40) * 40)); }, []);
   const setNickname = useCallback((n: string) => { setNicknameState(n); write("podscroll.name", n); }, []);
 
   const api = useCallback(async (path: string, init?: { method?: string; body?: unknown }) => {
@@ -124,6 +123,15 @@ function App() {
   }, [session, api, setSession]);
   // Audio comes through the server so smart ad skip can find the ads in this copy.
   const mediaUrl = useCallback((path: string) => API + path.replace(/^\/api\/earshot/, "/api/podscroll"), []);
+  // Pod+ in the car (CarPlay): the car gets the library and gives back where you got to (podscroll/carplay.ts).
+  const sessionRef = useRef(session); sessionRef.current = session;
+  const car = useRef<{ publish: () => void } | null>(null);
+  useEffect(() => { car.current = installCarPlay({ api: API, device: () => device, session: () => sessionRef.current, es: () => esRef.current }); }, [device]);
+  useEffect(() => { car.current?.publish(); }, [es, session]);
+  // Signed in: the library is saved to the account too, for the Apple TV app and other devices.
+  const libSync = useRef<{ changed: () => void } | null>(null);
+  if (!libSync.current) libSync.current = installLibrarySync({ api: (p, i) => apiRef.current(p, i), signedIn: () => !!sessionRef.current, es: () => esRef.current });
+  useEffect(() => { libSync.current?.changed(); }, [es, session]);
   // Downloads (Pod+ Membership): episodes and audiobooks kept on this device to play offline.
   const apiRef = useRef(api); apiRef.current = api;
   const proRef = useRef(pro); proRef.current = pro;
@@ -228,8 +236,24 @@ function App() {
     {body}
     {welcome && !authMode && <Welcome key={pro ? "in" : "out"} api={api} signedIn={pro} onSignedIn={(token, mail) => { setSession(token); setEmailState(mail); write("podscroll.email", mail); setAccount(mail); }}
       onEmail={() => setAuthMode("signin")} onPush={() => startPodPush(api, followIds, true)} onDone={finishWelcome} />}
-    {authMode && !pro && <AuthScreen api={api} dark={!day} start={authMode} onClose={() => setAuthMode(null)} onDone={(token, mail) => { setSession(token); setEmailState(mail); write("podscroll.email", mail); setAuthMode(null); say("You're signed in. Ads get skipped now."); setAccount(mail); }} />}
-    <div role="status" aria-live="polite" className={`pointer-events-none fixed bottom-[calc(24px+env(safe-area-inset-bottom,0px))] left-1/2 z-[80] max-w-[calc(100%-32px)] -translate-x-1/2 rounded-full bg-white px-4 py-2.5 text-center text-sm font-bold text-[#120e14] shadow-xl transition ${toast ? "opacity-100" : "translate-y-3 opacity-0"}`}>{toast}</div>
+    {authMode && !pro && <AuthScreen api={api} dark={!day} start={authMode} onClose={() => setAuthMode(null)} onDone={(token, mail) => { setSession(token); setEmailState(mail); write("podscroll.email", mail); setAuthMode(null); say("You're signed in."); setAccount(mail); }} />}
+    {/* Messages: a small card that sits above the tab bar (it used to be a big white oval on top of it).
+        The first sentence is the headline, anything after it a quieter second line. */}
+    <div role="status" aria-live="polite" className={`pointer-events-none fixed bottom-[calc(108px+env(safe-area-inset-bottom,0px))] left-1/2 z-[80] w-max max-w-[min(92vw,400px)] -translate-x-1/2 transition duration-300 ${toast ? "opacity-100" : "translate-y-2 opacity-0"}`}>
+      {toast && (() => {
+        const cut = toast.search(/[.!?]\s/);
+        const head = cut > 0 ? toast.slice(0, cut + 1) : toast;
+        const rest = cut > 0 ? toast.slice(cut + 2) : "";
+        const Icon = /^download/i.test(toast) ? ArrowDownToLine : /couldn|can't|failed|error|no /i.test(head) ? Info : Check;
+        return <div className={`flex items-center gap-3 rounded-2xl px-3.5 py-2.5 shadow-[0_12px_40px_rgba(0,0,0,.35)] backdrop-blur-xl ${day ? "border border-black/[.06] bg-white/95 text-[#0f0f0f]" : "border border-white/10 bg-[#1f1f22]/95 text-white"}`}>
+          <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${day ? "bg-[#f2f2f2] text-[#0f0f0f]" : "bg-white/10 text-white"}`}><Icon size={16} strokeWidth={2.4} /></span>
+          <span className="min-w-0 text-left leading-tight">
+            <span className="block text-[13.5px] font-semibold">{head}</span>
+            {rest && <span className={`mt-0.5 block text-xs ${day ? "text-[#606060]" : "text-white/65"}`}>{rest}</span>}
+          </span>
+        </div>;
+      })()}
+    </div>
   </>;
 }
 
@@ -243,12 +267,12 @@ function SignUpGate({ api, onDone, onClose }: { api: (path: string, init?: { met
   const ask = () => { setBusy(true); setErr(""); api("/api/earshot/account/code", { method: "POST", body: { email: email.trim() } }).then(() => setSent(true)).catch((e) => setErr(e.message)).finally(() => setBusy(false)); };
   const check = () => { setBusy(true); setErr(""); api("/api/earshot/account/verify", { method: "POST", body: { email: email.trim(), code } }).then((b) => onDone(b.token)).catch((e) => setErr(e.message)).finally(() => setBusy(false)); };
   const input = "min-h-12 w-full rounded-2xl border border-white/15 bg-white/[.07] px-4 text-base text-white outline-none placeholder:text-white/35 focus:border-[#ff8a3d]";
-  return <div role="dialog" aria-modal="true" aria-labelledby="gate-title" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} className="fixed inset-0 z-[90] flex items-end justify-center bg-black/70 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] backdrop-blur-md sm:items-center">
+  return <div role="dialog" aria-modal="true" aria-labelledby="gate-title" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} className="fixed inset-0 z-[90] flex items-end justify-center bg-black/70 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[var(--sat,env(safe-area-inset-top,0px))] backdrop-blur-md sm:items-center">
     <div className="relative w-full max-w-md rounded-[28px] bg-[#1d1720] p-6 text-white shadow-2xl ring-1 ring-white/10">
       <button type="button" onClick={onClose} aria-label="Close" className="absolute right-3 top-3 inline-flex h-10 w-10 items-center justify-center rounded-full text-white/60 hover:bg-white/10 hover:text-white"><X size={20} /></button>
       <p className="text-xs font-bold uppercase tracking-[.18em] text-[#ff8a3d]">Pod+ Membership</p>
-      <h2 id="gate-title" className="mt-2 pr-8 text-[26px] font-bold leading-tight tracking-tight">Skip the ads. Get paid for your show.</h2>
-      <p className="mt-2 text-[15px] leading-relaxed text-white/70">Listening stays free, no account needed. Members get smart ad skip, can earn from their own podcast, and keep their place on every device. Sign in with your email to start.</p>
+      <h2 id="gate-title" className="mt-2 pr-8 text-[26px] font-bold leading-tight tracking-tight">Get paid for your show.</h2>
+      <p className="mt-2 text-[15px] leading-relaxed text-white/70">Listening stays free and ad-free, no account needed. Members can earn from their own podcast and keep their place on every device. Sign in with your email to start.</p>
       {!sent ? <form onSubmit={(e) => { e.preventDefault(); if (email.includes("@") && !busy) ask(); }} className="mt-5">
         <label className="block"><span className="mb-1.5 block text-xs font-bold text-white/60">Email</span>
           <input type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className={input} /></label>

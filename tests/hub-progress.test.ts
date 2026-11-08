@@ -124,5 +124,7 @@ test("the week is shown day by day, and a session on another day is a bonus, nev
 
 test("the Minutes screen offers the block, the day guide and the day-by-day week", () => {
   const screen = readFileSync(new URL("../client/src/components/teacher-hub/HubProgress.tsx", import.meta.url), "utf8");
-  for (const part of ['aria-label="Block"', 'data-testid="plan-mode"', '"By the day"', '"By the week"', 'data-testid="minutes-days"', 'data-testid="minutes-today"', 'data-testid="minutes-other"', "never expected", "sessionLog({", "planFields({"]) assert.ok(screen.includes(part), part);
+  for (const part of ['aria-label="Block"', 'data-testid="plan-mode"', '"By the day"', '"By the week"', "never expected", "sessionLog({", "planFields({"]) assert.ok(screen.includes(part), part);
+  const board = readFileSync(new URL("../client/src/components/teacher-hub/HubClassBoard.tsx", import.meta.url), "utf8");
+  for (const part of ['data-testid="class-student-log"', 'data-testid="class-student-other"', 'data-testid="class-student-absent"', "min this week"]) assert.ok(board.includes(part), part);
 });

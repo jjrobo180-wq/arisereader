@@ -1,4 +1,4 @@
-// Birthdays (a Plugin Store add-on): birthdays and anniversaries that come round every year,
+// Birthdays (a Plugin Gallery add-on): birthdays and anniversaries that come round every year,
 // soonest first, with how old someone is turning.
 import { useState, type FormEvent } from "react";
 import { Cake, Trash2 } from "lucide-react";

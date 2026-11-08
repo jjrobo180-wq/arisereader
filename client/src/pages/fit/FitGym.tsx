@@ -25,8 +25,17 @@ const KIND_NAME: Record<GearKind, string> = { free: "Free weights", station: "Ra
 const KINDS: GearKind[] = ["free", "station", "machine", "cable", "cardio", "small"];
 const MUSCLE_NAME: Record<string, string> = { chest: "Chest", back: "Back", shoulders: "Shoulders", biceps: "Biceps", triceps: "Triceps", forearms: "Forearms", abs: "Core", quads: "Quads", hamstrings: "Hamstrings", glutes: "Glutes", calves: "Calves", "full body": "Full body", cardio: "Cardio" };
 
-async function identify(token: string | null, file: File, mode: "machine" | "gym"): Promise<GearAnswer> {
+async function identify(token: string | null, file: File, mode: "machine" | "gym", onPrepared?: (image: string) => void): Promise<GearAnswer> {
+  if (!file.size) throw new Error("That photo is empty. Please take it again.");
+  // Confirm iOS gave us actual JPEG pixels before asking the vision model.
   const image = await shrinkPhoto(file);
+  if (!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]{100,}$/.test(image)) {
+    throw new Error("The photo couldn't be converted. Try another photo or choose a picture from Photos.");
+  }
+  if (image.length >= 3_000_000) {
+    throw new Error("That photo is too large to scan. Try another one.");
+  }
+  onPrepared?.(image); // Ephemeral preview: never written to storage.
   return fitApi<GearAnswer>(token, "/identify", { method: "POST", body: JSON.stringify({ image, mode }) });
 }
 
@@ -88,7 +97,7 @@ export function GymSheet({ data, update, onClose }: { data: FitData; update: Upd
       {err && <p className="mt-2 text-[14px]" style={{ color: C.red }} role="alert">{err}</p>}
       <p className="mt-3 px-1 text-[13px]" style={{ color: C.dim }}>{kind?.scan ? "Tick what you have." : "Typical for this gym. Every location is different: switch off anything yours doesn't have."}</p>
       {KINDS.map((k) => <div key={k}><Title>{KIND_NAME[k]}</Title>
-        <div className="grid grid-cols-2 gap-2">{GEAR.filter((g) => g.kind === k).map((g) => { const on = gear.has(g.id); return <button key={g.id} type="button" onClick={() => toggle(g.id)} aria-pressed={on} className="flex min-h-12 items-center gap-2 rounded-[10px] px-2.5 text-left text-[14px] font-semibold" style={on ? { background: C.lime, color: "#0b0b0c" } : { background: C.card, color: C.text, boxShadow: `inset 0 0 0 1px ${C.line}` }} data-testid={`fit-gear-${g.id}`}>
+        <div className="grid grid-cols-2 gap-2">{GEAR.filter((g) => g.kind === k).map((g) => { const on = gear.has(g.id); return <button key={g.id} type="button" onClick={() => toggle(g.id)} aria-pressed={on} className="flex min-h-12 items-center gap-2 rounded-[10px] px-2.5 text-left text-[14px] font-semibold" style={on ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card, color: C.text, boxShadow: `inset 0 0 0 1px ${C.line}` }} data-testid={`fit-gear-${g.id}`}>
           <span aria-hidden>{on ? <Check className="h-4 w-4" /> : <GearIcon gear={g} className="h-4 w-4" />}</span><span className="leading-tight">{g.name}</span></button>; })}</div></div>)}
       <Btn className="mt-6 w-full" onClick={save} testId="fit-gym-save"><Check className="h-5 w-5" />Save my gym</Btn>
       {saved && <button type="button" onClick={() => { update((d) => { const { gym: _g, ...profile } = d.profile; return { ...d, profile }; }); onClose(); }} className="mt-3 h-11 w-full text-[14px] font-semibold" style={{ color: C.dim }}>Forget my gym</button>}
@@ -156,7 +165,7 @@ export function MachineGuide({ gear, data, update, onUse, useLabel = "Add to wor
       <div className="min-w-0"><p className="text-[26px] leading-none" style={display}>{gear.name}</p>
         <p className="mt-1 text-[13px]" style={{ color: C.steel }}>Works {gear.works.map((m) => MUSCLE_NAME[m] ?? m).join(", ").toLowerCase()}</p></div></div></Card>
     <Title>How to use it</Title>
-    <Card className="!p-4"><ol className="space-y-2">{gear.how.map((h, i) => <li key={i} className="flex gap-2.5 text-[15px] leading-snug"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[13px]" style={{ ...display, background: C.lime, color: "#0b0b0c" }}>{i + 1}</span>{h}</li>)}</ol></Card>
+    <Card className="!p-4"><ol className="space-y-2">{gear.how.map((h, i) => <li key={i} className="flex gap-2.5 text-[15px] leading-snug"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[13px]" style={{ ...display, background: C.lime, color: "var(--fit-on-accent)" }}>{i + 1}</span>{h}</li>)}</ol></Card>
     <Title>Avoid</Title>
     <Card className="!p-4"><ul className="space-y-1.5">{gear.avoid.map((a, i) => <li key={i} className="text-[15px] leading-snug">– {a}</li>)}</ul></Card>
     {exercises.length > 0 && <><Title>Exercises on it</Title>
@@ -174,6 +183,7 @@ export function ScanMachine({ data, update, onClose, onUse, useLabel }: { data: 
   const [gear, setGear] = useState<Gear | null>(null);
   const [also, setAlso] = useState<string[]>([]);
   const [note, setNote] = useState("");
+  const [preview, setPreview] = useState("");
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState("");
   const photo = useRef<HTMLInputElement>(null);
@@ -188,11 +198,14 @@ export function ScanMachine({ data, update, onClose, onUse, useLabel }: { data: 
     if (!file) return;
     setBusy(true); setNote("");
     try {
-      const r = await identify(token, file, "machine");
-      const g = r.gear[0] ? GEAR_BY_ID.get(r.gear[0]) : null;
-      if (g) { setGear(g); setAlso(r.gear.slice(1, 4)); haptic("success"); }
-      else setNote(r.note || "That didn't look like gym equipment. Try again with the whole machine in the photo, or pick it from the list.");
-    } catch (e: any) { if (isPlusError(e)) ask("photo-scan"); else setNote(e?.message || "The photo couldn't be read. Pick the machine from the list."); }
+      setPreview("");
+      const r = await identify(token, file, "machine", setPreview);
+      const ids = [...r.gear, ...(gearFromText(r.name) ? [gearFromText(r.name)!.id] : [])];
+      const g = ids.map((id) => GEAR_BY_ID.get(id)).find(Boolean) ?? null;
+      if (g) { setGear(g); setAlso(r.gear.filter((id) => id !== g.id).slice(0, 3)); haptic("success"); }
+      // Never pass on an AI note that calls equipment "not allowed": say what it is, or ask for a clearer photo.
+      else setNote(r.name ? `That looks like ${r.name.replace(/\.$/, "")}. It isn't in the machine guide yet, so pick the closest one from the list below.` : "Couldn't tell what that is. Retake the photo showing all of it, or pick it from the list.");
+    } catch (e: any) { if (isPlusError(e)) ask("photo-scan"); else setNote(e?.message || "The photo couldn't be read. Retake it or pick the machine from the list."); }
     finally { setBusy(false); if (photo.current) photo.current.value = ""; }
   };
   const list = useMemo(() => GEAR.filter((g) => !q.trim() || `${g.name} ${g.aka.join(" ")}`.toLowerCase().includes(q.trim().toLowerCase())), [q]);
@@ -207,10 +220,15 @@ export function ScanMachine({ data, update, onClose, onUse, useLabel }: { data: 
     {mode === "qr" && <QrScanner onText={fromQr} onError={(m) => { setMode("photo"); setNote(m); }} />}
     {mode === "qr" && <p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>Works with the QR codes many gyms put on their machines.</p>}
     {mode === "photo" && <>
-      <button type="button" onClick={() => need("photo-scan", () => photo.current?.click())} disabled={busy} className="mt-3 flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 rounded-[14px] text-center" style={{ background: C.card, boxShadow: `inset 0 0 0 2px ${C.line}` }} data-testid="fit-scan-photo">
-        {busy ? <Loader2 className="h-10 w-10 animate-spin" style={{ color: C.lime }} /> : <Camera className="h-10 w-10" style={{ color: C.lime }} />}
-        <span className="text-[22px]" style={display}>{busy ? "Looking at it…" : <>Take a photo of the machine<PlusTag /></>}</span>
-        <span className="px-6 text-[13px]" style={{ color: C.dim }}>Get the whole machine in the shot. The photo isn't kept.</span></button>
+      <button type="button" onClick={() => need("photo-scan", () => photo.current?.click())} disabled={busy} className="relative mt-3 flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-[14px] text-center" style={{ background: C.card, boxShadow: `inset 0 0 0 2px ${C.line}` }} data-testid="fit-scan-photo">
+        {preview ? <>
+          <img src={preview} alt="Photo of the gym machine selected for identification" className="absolute inset-0 h-full w-full object-contain" />
+          <span className="absolute inset-x-0 bottom-0 flex min-h-14 items-center justify-center gap-2 bg-black/80 px-3 py-2 text-[15px] font-semibold text-white">{busy ? <><Loader2 className="h-5 w-5 animate-spin" />Identifying this photo…</> : <><Camera className="h-5 w-5" />Retake photo</>}</span>
+        </> : <>
+          {busy ? <Loader2 className="h-10 w-10 animate-spin" style={{ color: C.lime }} /> : <Camera className="h-10 w-10" style={{ color: C.lime }} />}
+          <span className="text-[22px]" style={display}>{busy ? "Preparing photo…" : <>Take a photo of the machine<PlusTag /></>}</span>
+          <span className="px-6 text-[13px]" style={{ color: C.dim }}>Get the whole machine in the shot. The photo isn't kept.</span>
+        </>}</button>
       <input ref={photo} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => void fromPhoto(e.target.files?.[0])} />
     </>}
     {mode === "list" && <>

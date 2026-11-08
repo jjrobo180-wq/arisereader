@@ -1,4 +1,4 @@
-// Reading list, Watchlist, Bucket list and Gift ideas (Plugin Store add-ons): lists where each
+// Reading list, Watchlist, Bucket list and Gift ideas (Plugin Gallery add-ons): lists where each
 // item moves through a few stages (want to read → reading → read).
 import { useState, type FormEvent } from "react";
 import { BookOpen, ExternalLink, Gift, GraduationCap, Hammer, Handshake, Heart, Mountain, Star, Trash2, Tv, Utensils } from "lucide-react";

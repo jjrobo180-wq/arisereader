@@ -39,7 +39,13 @@ import {
   type ClientSide, type Coaching, type Consent, type Library, type LinkStatus, type Message, type PublicTrainer, type Review, type TrainerProfile,
 } from "../shared/coach";
 import { cleanFit, type FitData } from "../shared/fit";
+import { createHmac } from "node:crypto";
+import { cleanLead, cleanLeads, cleanSite, emptySite, idFromSlug, siteSlug, type Lead, type LeadStatus } from "../shared/coachSite";
+import { createSupabaseKv, type FitKv } from "./fitKv";
 import { createAttemptLimiter } from "./attemptLimiter";
+import { registerCoachGroupRoutes } from "./coachGroups";
+import { CATALOG } from "../shared/fit";
+import { cleanPlanWorkout as cleanWorkoutForAi } from "../shared/coach";
 
 export type TrainerRow = { userId: number; profile: TrainerProfile; paidUntil: string | null; stripeCustomer: string | null; stripeSub: string | null; createdAt: string };
 export type LinkRow = { id: string; trainerId: number; clientId: number; status: LinkStatus; consent: Consent; coaching: Coaching; clientSide: ClientSide; createdAt: string; updatedAt: string };
@@ -144,6 +150,12 @@ export type CoachDeps = {
   appUrl?: string;
   /** Lets the site owner list a trainer for free (the free listing ends on its own). */
   isAdmin?: (req: any) => boolean;
+  /** The AI that drafts workouts (OpenAI by default): takes the instructions and the request, returns JSON text. */
+  ai?: (system: string, user: string) => Promise<string>;
+  /** Signs invite links, so a code can't be guessed or changed to another trainer's. */
+  inviteSecret?: string;
+  /** Small JSON records (trainer websites and their leads). */
+  kv?: FitKv;
   now?: () => number;
 };
 
@@ -353,6 +365,161 @@ export function registerCoachRoutes(app: Express, auth: RequestHandler, deps: Co
   }));
   app.put("/api/coach/trainer/library", auth, wrap(async (req) => { const id = me(req); const lib = cleanLibrary(req.body?.library); await store.saveLibrary(id, lib); return { library: lib }; }));
 
+  const num = (v: unknown, lo: number, hi: number, fb: number) => { const x = Number(v); return Number.isFinite(x) ? Math.min(hi, Math.max(lo, x)) : fb; };
+  // ── Inviting a client directly (no directory listing needed, no client limit) ────────────────────────────
+  // A trainer shares a link; the client opens it in Arise Fit, picks what to share, and they're connected at once.
+  const secret = deps.inviteSecret ?? process.env.COACH_INVITE_SECRET ?? process.env.SESSION_SECRET ?? process.env.JWT_SECRET ?? "arise-coach-invites";
+  const sign = (trainerId: number) => createHmac("sha256", secret).update(`invite:${trainerId}`).digest("base64url").slice(0, 10);
+  const inviteCode = (trainerId: number) => `${trainerId.toString(36)}-${sign(trainerId)}`;
+  const trainerOfCode = (code: string): number | null => {
+    const m = /^([0-9a-z]{1,10})-([A-Za-z0-9_-]{10})$/.exec(String(code || ""));
+    if (!m) return null;
+    const id = parseInt(m[1], 36);
+    return Number.isSafeInteger(id) && id > 0 && sign(id) === m[2] ? id : null;
+  };
+  const joins = createAttemptLimiter({ max: 20, windowMs: 60 * 60_000 });
+  app.get("/api/coach/trainer/invite", auth, wrap(async (req) => { const id = me(req); const code = inviteCode(id); return { code, url: `${deps.appUrl ?? SITE}/#/fit?coach=${code}` }; }));
+  app.get("/api/coach/invite/:code", wrap(async (req) => {
+    const tid = trainerOfCode(req.params.code);
+    const t = tid ? await store.trainer(tid) : null;
+    if (!tid) throw new Refused("That invite link isn't right. Ask your trainer to send it again.", 404);
+    const name = t?.profile.name || (await first(tid));
+    return { trainer: { id: tid, name, photo: t?.profile.photo ?? "", headline: t?.profile.headline ?? "" } };
+  }));
+  app.post("/api/coach/invite/:code/join", auth, wrap(async (req) => {
+    const id = me(req);
+    const tid = trainerOfCode(req.params.code);
+    if (!tid) throw new Refused("That invite link isn't right. Ask your trainer to send it again.", 404);
+    if (tid === id) throw new Refused("That's your own invite link. Send it to a client.");
+    if (!allow(joins, `join:${id}`)) throw new Refused("Too many tries. Try again later.", 429);
+    const old = await store.linkBetween(tid, id);
+    const stamp = new Date(now()).toISOString();
+    if (old?.status === "active") return { id: old.id, status: "active" };
+    const link: LinkRow = { id: old?.id ?? uuid(), trainerId: tid, clientId: id, status: "active", consent: cleanConsent(req.body?.consent), coaching: old?.coaching ?? emptyCoaching(), clientSide: old?.clientSide ?? emptyClientSide(), createdAt: old?.createdAt ?? stamp, updatedAt: stamp };
+    await store.saveLink(link);
+    const t = await store.trainer(tid);
+    if (t?.profile.welcome) await store.addMessage(link.id, tid, t.profile.welcome);
+    void notify(tid, { title: "New client", body: `${await first(id)} joined from your invite link.`, url: "#/trainer", tag: `coach-${link.id}` });
+    return { id: link.id, status: "active" };
+  }));
+
+  // ── The AI workout and program builder ───────────────────────────────────────────────────────────────────
+  // It may only use Arise Fit's catalog, so every move it picks has a name and a demo video in the client's app.
+  const aiLimit = createAttemptLimiter({ max: 40, windowMs: 60 * 60_000 });
+  const callAi = deps.ai ?? (async (system: string, user: string) => {
+    const key = process.env.OPENAI_API_KEY;
+    if (!key) throw new Refused("The AI builder isn't set up on this server yet.", 503);
+    const r = await doFetch("https://api.openai.com/v1/chat/completions", { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "gpt-4.1-mini", temperature: 0.4, max_tokens: 4000, response_format: { type: "json_object" }, messages: [{ role: "system", content: system }, { role: "user", content: user }] }), signal: AbortSignal.timeout(60_000) });
+    if (!r.ok) throw new Refused("The AI builder is busy. Try again in a minute.", 503);
+    return String((await r.json())?.choices?.[0]?.message?.content ?? "{}");
+  });
+  const EQUIP: Record<string, string[]> = { gym: [], dumbbells: ["dumbbell", "bodyweight", "bench", "band", "kettlebell"], home: ["bodyweight", "band", "other"] };
+  const catalogFor = (equip: string) => CATALOG.filter((e) => !EQUIP[equip]?.length || EQUIP[equip].includes(e.equipment));
+  const brief = (b: any) => ({
+    goal: String(b?.goal ?? "general fitness").slice(0, 120), level: ["beginner", "intermediate", "advanced"].includes(b?.level) ? b.level : "intermediate",
+    equip: ["gym", "dumbbells", "home"].includes(b?.equip) ? b.equip : "gym", minutes: Math.round(num(b?.minutes, 10, 120, 45)), focus: String(b?.focus ?? "").slice(0, 120), notes: String(b?.notes ?? "").slice(0, 400),
+  });
+  const RULES = (list: typeof CATALOG) => `You are an expert, certified strength and conditioning coach writing plans for a personal trainer to give a client.
+Use ONLY these exercises, by their exact id:
+${list.map((e) => `${e.id}: ${e.name} (${e.muscle}, ${e.equipment})`).join("\n")}
+Each item: {"exId": an id above, "sets": 1-8, "reps": text like "8-10", "12", "30s" or "10 min", "rest": seconds 0-300, "note": a short coaching cue}.
+Order exercises sensibly (big compound lifts first). Respect injuries or limits in the notes. Reply with JSON only.`;
+  const toWorkout = (raw: any, fallbackName: string) => {
+    const known = new Map(CATALOG.map((e) => [e.id, e.name]));
+    const items = (Array.isArray(raw?.items) ? raw.items : []).filter((i: any) => known.has(String(i?.exId))).slice(0, 14)
+      .map((i: any) => ({ exId: String(i.exId), name: known.get(String(i.exId))!, sets: Math.round(num(i.sets, 1, 8, 3)), reps: String(i.reps ?? "10").slice(0, 16), rest: Math.round(num(i.rest, 0, 300, 90)), ...(i.note ? { note: String(i.note).slice(0, 200) } : {}) }));
+    return cleanWorkoutForAi({ id: uuid().slice(0, 12), name: String(raw?.name || fallbackName).slice(0, 80), note: raw?.note ? String(raw.note).slice(0, 600) : undefined, mins: raw?.mins, items });
+  };
+  app.post("/api/coach/trainer/ai/workout", auth, wrap(async (req) => {
+    const id = me(req);
+    if (!allow(aiLimit, `ai:${id}`)) throw new Refused("That's a lot of AI drafts for one hour. Try again later.", 429);
+    const b = brief(req.body);
+    const out = JSON.parse(await callAi(`${RULES(catalogFor(b.equip))}\nReturn {"name": a short workout name, "note": one or two sentences to the client, "mins": number, "items": [...]}.`,
+      `One workout. Goal: ${b.goal}. Level: ${b.level}. Equipment: ${b.equip}. About ${b.minutes} minutes.${b.focus ? ` Focus: ${b.focus}.` : ""}${b.notes ? ` Notes: ${b.notes}` : ""}`).catch(() => "{}"));
+    const workout = toWorkout(out, `${b.goal} workout`);
+    if (!workout || workout.items.length < 2) throw new Refused("The AI didn't come back with a usable workout. Try again or change the request.", 502);
+    return { workout };
+  }));
+  app.post("/api/coach/trainer/ai/program", auth, wrap(async (req) => {
+    const id = me(req);
+    if (!allow(aiLimit, `ai:${id}`)) throw new Refused("That's a lot of AI drafts for one hour. Try again later.", 429);
+    const b = brief(req.body);
+    const perWeek = Math.round(num(req.body?.perWeek, 1, 6, 3)), weeks = Math.round(num(req.body?.weeks, 1, 16, 6));
+    const out = JSON.parse(await callAi(`${RULES(catalogFor(b.equip))}\nReturn {"name": program name, "note": two sentences on how to run it and progress, "workouts": [{"name", "note", "mins", "items": [...]}], "week": [{"weekday": 0-6 (0 = Sunday), "workout": index into workouts}]}. Use ${perWeek} training days per week, spread out with rest days.`,
+      `A ${weeks}-week program, ${perWeek} days a week. Goal: ${b.goal}. Level: ${b.level}. Equipment: ${b.equip}. About ${b.minutes} minutes a session.${b.focus ? ` Focus: ${b.focus}.` : ""}${b.notes ? ` Notes: ${b.notes}` : ""}`).catch(() => "{}"));
+    const workouts = (Array.isArray(out?.workouts) ? out.workouts : []).slice(0, 7).map((w: any, i: number) => toWorkout(w, `Day ${i + 1}`)).filter((w: any) => w && w.items.length >= 2);
+    if (!workouts.length) throw new Refused("The AI didn't come back with a usable program. Try again or change the request.", 502);
+    const week: { weekday: number; workout: number }[] = (Array.isArray(out?.week) ? out.week : []).map((d: any) => ({ weekday: Math.round(num(d?.weekday, 0, 6, 1)), workout: Math.round(num(d?.workout, 0, workouts.length - 1, 0)) }))
+      .filter((d: { weekday: number }, i: number, all: { weekday: number }[]) => all.findIndex((x) => x.weekday === d.weekday) === i).slice(0, perWeek);
+    const pattern = week.length ? week : workouts.map((_: unknown, i: number) => ({ weekday: [1, 3, 5, 2, 4, 6, 0][i], workout: i })).slice(0, perWeek);
+    const days = Array.from({ length: weeks }, (_, k) => pattern.map((d) => ({ day: k * 7 + d.weekday, workoutId: workouts[d.workout].id }))).flat().sort((a, c) => a.day - c.day);
+    return { workouts, program: { id: uuid().slice(0, 12), name: String(out?.name || `${b.goal}: ${weeks} weeks`).slice(0, 80), weeks, ...(out?.note ? { note: String(out.note).slice(0, 600) } : {}), days } };
+  }));
+
+  // ── Trainer websites (shared/coachSite.ts) ──────────────────────────────────────────────────────────────
+  const kv = deps.kv ?? createSupabaseKv();
+  const siteKey = (id: number) => `coach-site:${id}`, leadsKey = (id: number) => `coach-leads:${id}`;
+  const siteUrl = (slug: string) => `${deps.appUrl ?? SITE}/#/t/${slug}`;
+  app.get("/api/coach/trainer/site", auth, wrap(async (req) => {
+    const id = me(req); const t = await store.trainer(id);
+    const site = cleanSite((await kv.get(siteKey(id))) ?? emptySite());
+    const slug = siteSlug(t?.profile.name || (await first(id)), id);
+    return { site, slug, url: siteUrl(slug) };
+  }));
+  app.put("/api/coach/trainer/site", auth, wrap(async (req) => {
+    const id = me(req); const site = cleanSite(req.body?.site);
+    const t = await store.trainer(id);
+    if (site.published && !(t?.profile.name)) throw new Refused("Add your name to your listing before you publish your site.");
+    await kv.set(siteKey(id), site);
+    return { site, url: siteUrl(siteSlug(t?.profile.name || "", id)) };
+  }));
+  app.get("/api/coach/site/:slug", wrap(async (req) => {
+    const id = idFromSlug(req.params.slug);
+    const t = id ? await store.trainer(id) : null;
+    const site = id ? cleanSite((await kv.get(siteKey(id))) ?? emptySite()) : null;
+    if (!id || !t || !site?.published) throw new Refused("This site isn't published.", 404);
+    const reviews = site.showReviews ? (await store.reviews(id)).map(({ clientId: _c, ...r }) => r).slice(0, 12) : []; // newest first
+    const p = t.profile;
+    return { site, slug: siteSlug(p.name, id), invite: inviteCode(id), reviews,
+      trainer: { id, name: p.name, headline: p.headline, bio: p.bio, photo: p.photo, specialties: p.specialties, certifications: p.certifications, years: p.years, languages: p.languages, city: p.city, state: p.state, modes: p.modes, prices: site.showPrices ? p.prices : [], instagram: p.instagram, bookingUrl: p.bookingUrl, accepting: p.accepting } };
+  }));
+  const leadLimit = createAttemptLimiter({ max: 5, windowMs: 60 * 60_000 });
+  app.post("/api/coach/site/:slug/lead", wrap(async (req) => {
+    const id = idFromSlug(req.params.slug);
+    const site = id ? cleanSite((await kv.get(siteKey(id))) ?? emptySite()) : null;
+    if (!id || !site?.published) throw new Refused("This site isn't published.", 404);
+    // A filled-in hidden field means a bot.
+    if (req.body?.website) return { ok: true };
+    const who = String(req.headers?.["x-forwarded-for"] ?? req.ip ?? "anon").split(",")[0].trim();
+    if (!allow(leadLimit, `lead:${id}:${who}`)) throw new Refused("Thanks! You've already sent a few messages. The coach will be in touch.", 429);
+    const lead = cleanLead(req.body, new Date(now()).toISOString());
+    if (!lead) throw new Refused("Add your name and an email or phone number so the coach can reach you.");
+    const leads = cleanLeads(await kv.get(leadsKey(id)));
+    await kv.set(leadsKey(id), [lead, ...leads].slice(0, 500));
+    void notify(id, { title: "New lead from your website", body: `${lead.name}${lead.goal ? ` · ${lead.goal}` : ""}${lead.message ? `: ${lead.message.slice(0, 100)}` : ""}`, url: "#/trainer", tag: `lead-${lead.id}` });
+    return { ok: true };
+  }));
+  app.get("/api/coach/trainer/leads", auth, wrap(async (req) => ({ leads: cleanLeads(await kv.get(leadsKey(me(req)))) })));
+  app.put("/api/coach/trainer/leads/:lid", auth, wrap(async (req) => {
+    const id = me(req); const leads = cleanLeads(await kv.get(leadsKey(id)));
+    const status = String(req.body?.status) as LeadStatus;
+    const next = req.body?.remove ? leads.filter((l: Lead) => l.id !== req.params.lid) : leads.map((l: Lead) => (l.id === req.params.lid && ["new", "contacted", "won", "lost"].includes(status) ? { ...l, status } : l));
+    await kv.set(leadsKey(id), next);
+    return { leads: next };
+  }));
+  app.post("/api/coach/trainer/site/ai", auth, wrap(async (req) => {
+    const id = me(req);
+    if (!allow(aiLimit, `ai:${id}`)) throw new Refused("That's a lot of AI drafts for one hour. Try again later.", 429);
+    const t = await store.trainer(id); const p = t?.profile;
+    if (!p?.name) throw new Refused("Fill in your listing first (at least your name and a few lines about you), then AI can write your site.");
+    const out = JSON.parse(await callAi(`You write warm, specific, professional website copy for an independent personal trainer. Never invent certifications, numbers, awards or client results. Plain English, no hype words like "ultimate" or "revolutionary". Reply with JSON: {"heroTitle": max 8 words, "heroSub": one sentence, "about": 2 short paragraphs in first person, "services": [{"title", "text": one or two sentences, "price": short text or ""}] (3-5), "faqs": [{"q","a"}] (4-6)}.`,
+      JSON.stringify({ name: p.name, headline: p.headline, bio: p.bio, specialties: p.specialties, certifications: p.certifications, years: p.years, city: p.city, state: p.state, modes: p.modes, prices: p.prices.map((x) => ({ label: x.label, mode: x.mode, dollars: x.cents / 100, per: x.per, sessions: x.sessions })), tone: String(req.body?.tone ?? "").slice(0, 60) })).catch(() => "{}"));
+    const draft = cleanSite({ ...emptySite(), ...out, services: (out?.services ?? []).map((x: any, i: number) => ({ ...x, id: `s${i}` })), faqs: (out?.faqs ?? []).map((x: any, i: number) => ({ ...x, id: `f${i}` })) });
+    if (!draft.heroTitle && !draft.about) throw new Refused("The AI didn't come back with usable copy. Try again.", 502);
+    return { draft: { heroTitle: draft.heroTitle, heroSub: draft.heroSub, about: draft.about, services: draft.services, faqs: draft.faqs } };
+  }));
+
   const decide = (status: "active" | "declined") => wrap(async (req) => {
     const { l } = await linkFor(req, "trainer");
     if (l.status !== "requested") return { ok: true, status: l.status };
@@ -464,4 +631,7 @@ export function registerCoachRoutes(app: Express, auth: RequestHandler, deps: Co
     cache = null;
     return { ok: true };
   }));
+
+  // Groups: pages, chat and challenges (server/coachGroups.ts).
+  registerCoachGroupRoutes(app, auth, { store, kv, now, me, wrap, first, notify, refuse: (m, status) => new Refused(m, status) });
 }

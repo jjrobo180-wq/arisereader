@@ -140,3 +140,118 @@ export function classSavedText(result: Pick<ClassResult, "given" | "absent">, ti
   const parts = [result.given ? `Logged ${people(result.given)}` : "", result.absent ? `${result.absent} marked absent` : ""].filter(Boolean);
   return parts.length ? `${title}: ${parts.join(" · ")}.` : "";
 }
+
+// ─── Changing a class ───
+
+const samePerson = (a: string, b: string) => fold(a) === fold(b);
+
+/** Who can join a class, and which other class each one would leave: a student has one plan for each kind of service. */
+export function classCandidates(names: string[], group: ClassGroup, kind: string, groups: ClassGroup[]): { name: string; movesFrom: string }[] {
+  const inClass = new Set(group.students.map((s) => fold(s.student)));
+  return names.filter((n) => !inClass.has(fold(n))).map((name) => {
+    const other = groups.find((g) => g.key !== group.key && g.students.some((s) => samePerson(s.student, name) && s.kind === kind));
+    return { name, movesFrom: other ? [other.title, other.label].filter(Boolean).join(" · ") : "" };
+  });
+}
+
+/**
+ * Adds students to a class, with the same service, days, minutes, subject and place as the class's first student.
+ * A student who already has that kind of service keeps its id and start date, and moves to this class.
+ */
+export function addToClass(services: ServicePlan[], group: ClassGroup, names: string[], makeId: () => string, since: string): ServicePlan[] {
+  const model = group.students.map((s) => services.find((p) => p.id === s.planId)).find(Boolean);
+  if (!model) return services;
+  const { id: _id, student: _student, since: _since, ...fields } = model;
+  let next = services;
+  for (const raw of names) {
+    const student = raw.trim();
+    if (!student || group.students.some((s) => samePerson(s.student, student))) continue;
+    const existing = next.find((p) => samePerson(p.student, student) && p.kind === model.kind);
+    next = existing
+      ? next.map((p) => (p === existing ? { ...fields, id: p.id, student: p.student, ...(p.since ? { since: p.since } : {}) } : p))
+      : [...next, { ...fields, id: makeId(), student, since }];
+  }
+  return next;
+}
+
+/**
+ * Deletes a class. Its students stay, with their required minutes, and are no longer in any class. With
+ * `removeMinutes`, their required minutes for this class go too. Minutes already logged are never touched.
+ */
+export function deleteClass(services: ServicePlan[], group: ClassGroup, removeMinutes: boolean): ServicePlan[] {
+  const ids = new Set(group.students.map((s) => s.planId));
+  if (removeMinutes) return services.filter((p) => !ids.has(p.id));
+  return services.map((p) => {
+    if (!ids.has(p.id)) return p;
+    const { block: _block, part: _part, teacher: _teacher, ...rest } = p;
+    return rest;
+  });
+}
+
+/** Puts back the plans a change altered or removed, leaving every other plan as it is now. */
+export function restorePlans(services: ServicePlan[], before: ServicePlan[]): ServicePlan[] {
+  const back = new Map(before.map((p) => [p.id, p]));
+  const here = new Set(services.map((p) => p.id));
+  return [...services.map((p) => back.get(p.id) ?? p), ...before.filter((p) => !here.has(p.id))];
+}
+
+// ─── One student at a time (the class page) ───
+
+/** Where a class session is kept: the class's block, half and teacher, and the service's subject. */
+const placeOf = (group: Pick<ClassGroup, "block">, s: Pick<ClassStudent, "part" | "teacher" | "subject">) =>
+  ({ ...(group.block ? { block: group.block } : {}), ...(s.part ? { part: s.part } : {}), ...(s.teacher ? { teacher: s.teacher } : {}), ...(s.subject ? { subject: s.subject } : {}) });
+
+/** A session for one student of a class: the minutes given, or their usual minutes when none are given. Null when there are none. */
+export function studentLog(group: Pick<ClassGroup, "block">, s: ClassStudent, date: string, minutes?: number): Omit<ServiceLog, "id"> | null {
+  const session = sessionLog({ student: s.student, kind: s.kind, date, minutes: String(minutes ?? (s.minutes || "")) });
+  return session && session.minutes > 0 ? { ...session, ...placeOf(group, s) } : null;
+}
+
+/** "Student absent" for one student of a class on a day. */
+export const absentLog = (group: Pick<ClassGroup, "block">, s: ClassStudent, date: string): Omit<ServiceLog, "id"> =>
+  ({ student: s.student, date, kind: s.kind, minutes: 0, note: ABSENT_REASON, notMet: true, ...placeOf(group, s) });
+
+/** The sessions a student has on a day for one service (to change or take back from the class page). */
+export const dayLogs = (logs: ServiceLog[], s: Pick<ClassStudent, "student" | "kind">, date: string): ServiceLog[] =>
+  logs.filter((l) => fold(l.student) === fold(s.student) && l.kind === s.kind && l.date === date);
+
+/** Takes one student out of a class. They keep their required minutes, and minutes already logged are kept. */
+export function leaveClass(services: ServicePlan[], planId: string): ServicePlan[] {
+  return services.map((p) => {
+    if (p.id !== planId) return p;
+    const { block: _block, part: _part, teacher: _teacher, ...rest } = p;
+    return rest;
+  });
+}
+
+/** What a class's students share: where it is, whose it is, and what it is for. */
+export type ClassChange = { block?: string; part?: string; teacher?: string; subject?: string };
+
+/** Changes a class's block, half, teacher and subject for every student in it. Anything left empty is cleared. */
+export function editClass(services: ServicePlan[], group: ClassGroup, change: ClassChange): ServicePlan[] {
+  const ids = new Set(group.students.map((s) => s.planId));
+  const block = change.block || "", part = block ? cleanPart(change.part) : undefined;
+  const teacher = cleanTeacher(change.teacher), subject = cleanSubject(change.subject);
+  return services.map((p) => {
+    if (!ids.has(p.id)) return p;
+    const { block: _b, part: _p, teacher: _t, subject: _s, ...rest } = p;
+    return { ...rest, ...(block ? { block } : {}), ...(part ? { part } : {}), ...(teacher ? { teacher } : {}), ...(subject ? { subject } : {}) };
+  });
+}
+
+/** A new class: each name gets the service with the same place, teacher, subject and weekly minutes. A name that already has that kind of service moves into it. */
+export function createClass(services: ServicePlan[], names: string[], fields: ClassChange & { kind: string; minutesPerWeek: number }, makeId: () => string, since: string): ServicePlan[] {
+  const block = fields.block || "", part = block ? cleanPart(fields.part) : undefined;
+  const teacher = cleanTeacher(fields.teacher), subject = cleanSubject(fields.subject);
+  const place = { ...(block ? { block } : {}), ...(part ? { part } : {}), ...(teacher ? { teacher } : {}), ...(subject ? { subject } : {}) };
+  let next = services;
+  for (const raw of names) {
+    const student = raw.trim();
+    if (!student) continue;
+    const existing = next.find((p) => samePerson(p.student, student) && p.kind === fields.kind);
+    next = existing
+      ? next.map((p) => { if (p !== existing) return p; const { block: _b, part: _p, teacher: _t, subject: _s, ...rest } = p; return { ...rest, ...place }; })
+      : [...next, { id: makeId(), student, kind: fields.kind, minutesPerWeek: fields.minutesPerWeek, ...place, since }];
+  }
+  return next;
+}

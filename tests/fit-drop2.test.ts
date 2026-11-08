@@ -85,3 +85,32 @@ test("form check: push-ups catch sagging hips; every lift has setup and faults",
   assert.equal(c.reps.length, 1); assert.match(c.reps[0].faults.join(" "), /Hips/);
   for (const k of Object.keys(LIFTS)) { const l = (LIFTS as any)[k]; assert.ok(l.setup.length > 10 && typeof l.faults === "function", k); }
 });
+
+test("form check accuracy: 3D angles, smoothing, framing and tempo", async () => {
+  const { angle3, PoseSmoother, framing } = await import("../shared/fitForm");
+  // 3D: a right angle seen at a slant is still 90°.
+  assert.equal(Math.round(angle3({ x: 1, y: 0, z: 1 }, { x: 0, y: 0, z: 0 }, { x: -1, y: 0, z: 1 })), 90);
+  // Smoothing: a still point with jitter barely moves.
+  const sm = new PoseSmoother();
+  let last = 0; for (let n = 0; n < 60; n++) last = sm.push([{ x: 0.5 + (n % 2 ? 0.02 : -0.02), y: 0.5 }], n * 33)[0].x;
+  assert.ok(Math.abs(last - 0.5) < 0.012, String(last));
+  // Framing: nobody → not ready; a standing person side-on, full body → ready.
+  assert.equal(framing(undefined, "squat").ok, false);
+  const P = (x: number, y: number) => ({ x, y, visibility: 0.95 });
+  const lm = Array.from({ length: 33 }, () => P(0.5, 0.5));
+  lm[11] = P(0.5, 0.2); lm[12] = P(0.52, 0.2); lm[23] = P(0.5, 0.5); lm[24] = P(0.52, 0.5); lm[25] = P(0.5, 0.7); lm[26] = P(0.52, 0.7); lm[27] = P(0.5, 0.9); lm[28] = P(0.52, 0.9);
+  const ok = framing(lm, "squat", 120);
+  assert.equal(ok.ok, true, JSON.stringify(ok));
+  assert.equal(framing(lm, "squat", 20).ok, false, "too dark");
+  // Tempo: a timed rep reports seconds down; a too-fast "rep" (points jumping) isn't counted.
+  const c = new RepCounter("squat");
+  [[170, 0], [140, 500], [110, 1000], [85, 1500], [120, 2200], [170, 2800]].forEach(([k, t]) => c.push(frame({ knee: k }), t));
+  assert.equal(c.reps.length, 1);
+  assert.ok((c.reps[0].downS ?? 0) >= 1, JSON.stringify(c.reps[0]));
+  [[170, 3000], [85, 3100], [170, 3200]].forEach(([k, t]) => c.push(frame({ knee: k }), t));
+  assert.equal(c.reps.length, 1, "a 0.2 s jump isn't a rep");
+  // Knees caving in (front view) is caught.
+  const d = new RepCounter("squat");
+  for (const k of [170, 120, 85, 120, 170]) d.push(frame({ knee: k, kneeCave: k === 85 ? 0.6 : 1 }));
+  assert.match(d.reps[0].faults.join(" "), /knees out/);
+});

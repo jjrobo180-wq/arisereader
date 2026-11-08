@@ -2,6 +2,8 @@
 // One sanitizer (cleanFamily) is shared by the page and the server, so whatever is stored
 // always has the same safe shape, and old workspaces without family data simply get an empty hub.
 
+import { cleanKitchen, emptyKitchen, type Kitchen } from "./kitchen";
+import { cleanMoney, cleanParts, emptyMoney, type MoneyPlan } from "./moneyPlan";
 import { cleanLifeLayout, type LifeLayout } from "./lifeLayout";
 import { cleanLifePlan, type LifePlan } from "./lifePlan";
 import { cleanSpreadsheets, type Spreadsheet } from "./sheetsApp";
@@ -9,6 +11,7 @@ import { cleanDriveFiles, type DriveFile } from "./driveApp";
 import { cleanNotify, defaultNotify, type NotifyPrefs } from "./todoNotify";
 import { cleanWidgets, type WidgetItem } from "./widgets";
 import { KIT_LIFE_IDS, cleanKit, type KitRecord } from "./pluginKit";
+import { BUNDLE_BY_SECTION, bundleMembers } from "./appBundles";
 import { BROWSER_LIMITS, hostOf, type BrowserMark } from "./browserApp";
 import { cleanNoteHtml } from "./richNote";
 import { cleanLock, type PrivacyLock } from "./privacyLock";
@@ -16,18 +19,18 @@ import { cleanSleepApp, emptySleepApp, type SleepApp } from "./sleepApp";
 import { cleanSleepFinder, emptySleepFinder, type SleepFinder } from "./sleepFinder";
 import { cleanEarshot, emptyEarshot, type Earshot } from "./earshot";
 
-export const FAMILY_SECTIONS = ["home", "tasks", "start", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", "accountability", ...KIT_LIFE_IDS, "linked", "notifications", "reader", "family"] as const;
+export const FAMILY_SECTIONS = ["home", "tasks", "start", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", "accountability", "healthlite", "inspire", "kitchen", "moneyhub", "homehub", "datehub", "dailyhub", "listhub", "focushub", ...KIT_LIFE_IDS, "linked", "notifications", "reader", "family"] as const;
 export type FamilySection = typeof FAMILY_SECTIONS[number];
 /** Sections that can be switched off. Home, Tasks, Notifications and Family members always show. */
-export const TOGGLEABLE: readonly FamilySection[] = ["start", "goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", "accountability", ...KIT_LIFE_IDS];
-/** Sections added from the Plugin Store: off until the family adds them (the others start on).
+export const TOGGLEABLE: readonly FamilySection[] = ["start", "goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", "accountability", "healthlite", "inspire", "kitchen", "moneyhub", "homehub", "datehub", "dailyhub", "listhub", "focushub", ...KIT_LIFE_IDS];
+/** Sections added from the Plugin Gallery: off until the family adds them (the others start on).
  *  LifeHub comes with Tasks, Notes, Calendar, Home, Notifications and Settings; everything else,
  *  Goals, Chores and the rest included, is added from the App Store and counts towards the free
  *  plan's apps (shared/todoPlan.ts). Nothing is deleted by not having one: adding it back brings
  *  everything in it back. */
 export const ADD_ON_SECTIONS: readonly FamilySection[] = [
   "goals", "chores", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "news",
-  "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", "accountability", ...KIT_LIFE_IDS];
+  "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", "accountability", "healthlite", "inspire", "kitchen", "moneyhub", "homehub", "datehub", "dailyhub", "listhub", "focushub", ...KIT_LIFE_IDS];
 
 /** LifeHub screens that were standard before Oct 12, 2026, and how to tell one is in use. */
 const some = (v: unknown) => Array.isArray(v) && v.length > 0;
@@ -54,7 +57,10 @@ export function cleanSectionOrder(v: unknown): FamilySection[] {
 
 /** The toggleable sections in the family's chosen order, each paired with its fixed spot in the
  *  menu (the section right before it). Rendering splices this block in after that anchor. */
-export const orderedToggleable = (f: Pick<Family, "sectionOrder">): FamilySection[] => cleanSectionOrder(f.sectionOrder);
+/** Apps taken out of Arise To Duo: never shown or opened, nowhere to add them. What was saved in them
+ *  stays in the family's data. Earshot lives on as its own app, Pod+. */
+export const RETIRED_SECTIONS: readonly FamilySection[] = ["earshot"];
+export const orderedToggleable = (f: Pick<Family, "sectionOrder">): FamilySection[] => cleanSectionOrder(f.sectionOrder).filter((s) => !RETIRED_SECTIONS.includes(s));
 
 export type Member = { id: string; name: string; emoji: string; color: string; kind: "adult" | "kid" };
 export type Chore = { id: string; title: string; memberId: string; rotation: string[]; days: number[]; points: number };
@@ -81,7 +87,8 @@ export type Poll = {
   id: string; question: string; kind: PollKind; options: { id: string; label: string }[];
   votes: Record<string, string>; closed: boolean; createdAt: string; closesOn: string;
 };
-export type Bill = { id: string; name: string; amount: number; dueDay: number; category: string; autopay: boolean; paid: string[] };
+export type Bill = { id: string; name: string; amount: number; dueDay: number; category: string; autopay: boolean; paid: string[];
+  /** Paid in parts (half the rent on the 1st, half on the 15th): see shared/moneyPlan.ts. */ parts?: { day: number; amount: number }[] };
 export type BudgetCategory = { id: string; name: string; limit: number };
 export type Expense = { id: string; categoryId: string; amount: number; date: string; note: string };
 export type Note = { id: string; title: string; body: string; color: string; pinned: boolean; updatedAt: string; /** Formatted version from the full-screen editor (shared/richNote.ts); body stays the plain text. */ html?: string; /** Needs the hub passcode to open (shared/privacyLock.ts). */ locked?: boolean };
@@ -132,7 +139,7 @@ export type Goal = {
   kind: "steps" | "number"; target: number; current: number; unit: string;
   milestones: { id: string; title: string; done: boolean }[]; done: boolean; createdAt: string; doneAt: string;
 };
-/* Plugin Store add-ons */
+/* Plugin Gallery add-ons */
 export type JournalEntry = { id: string; date: string; title: string; body: string; mood: string; createdAt: string };
 export type Countdown = { id: string; title: string; date: string; emoji: string; color: string };
 export type GroceryItem = { id: string; name: string; qty: string; aisle: string; checked: boolean; /** Estimated cost in dollars, 0 when unknown. */ price?: number };
@@ -177,8 +184,8 @@ export type GiftCard = { id: string; store: string; balance: number; expires: st
 export type Warranty = { id: string; item: string; store: string; bought: string; until: string; note: string };
 export type MileageTrip = { id: string; date: string; miles: number; purpose: string; route: string };
 export type MedicalCard = { id: string; person: string; bloodType: string; allergies: string; conditions: string; medications: string; doctor: string; insurance: string; notes: string };
-/** Plugin Store add-ons that live on another screen rather than in the menu. */
-/** Extras added from the Plugin Store: sticky notes on Home, and the AI assistant's chat button. */
+/** Plugin Gallery add-ons that live on another screen rather than in the menu. */
+/** Extras added from the Plugin Gallery: sticky notes on Home, and the AI assistant's chat button. */
 export type Widgets = { stickies: boolean; chat?: boolean; board?: boolean };
 /* News */
 export type NewsPrefs = { topics: string[]; place: string };
@@ -206,6 +213,8 @@ export type Family = {
   budget: BudgetCategory[];
   expenses: Expense[];
   income: number;
+  /** The Budget app's plan: how you get paid, income, bill payments and goals (shared/moneyPlan.ts). */
+  money: MoneyPlan;
   notes: Note[];
   health: Health;
   cycleLogs: CycleLog[];
@@ -297,6 +306,10 @@ export type Family = {
   /** The Daily Brief is OFF only when this is true: it ships on, so replacing its old header button
    *  with an App Store app took it away from nobody. */
   briefOff?: boolean;
+  /** Bundled plugins (shared/appBundles.ts) whose "Pick your tools" box has been answered. */
+  bundleSet?: Record<string, boolean>;
+  /** Kitchen > Plan: who eats what this week, product picks and prices (shared/kitchen.ts). */
+  kitchen?: Kitchen;
 };
 
 export const MEMBER_COLORS = ["#7566e8", "#f59e72", "#36b6a5", "#619ee6", "#db77ac", "#e5b04f", "#5fb35b", "#e0645a"];
@@ -326,14 +339,14 @@ export const emptyFamily = (): Family => ({
   members: [], sections: { health: true }, sectionOrder: [...TOGGLEABLE], layers: { tasks: true, bills: true, trips: true, chores: false, hub: false }, chorePointsCount: true,
   chores: [], choreDone: [], behavior: [], rewards: DEFAULT_REWARDS.map((r) => ({ ...r })), redemptions: [],
   calendars: DEFAULT_CALENDARS.map((c) => ({ ...c })), events: [], trips: [], polls: [],
-  bills: [], budget: DEFAULT_BUDGET.map((b) => ({ ...b })), expenses: [], income: 0, notes: [], health: emptyHealth(), cycleLogs: [], pills: [], pillDoses: [], moods: [], goals: [], news: { topics: ["top", "local", "NATION"], place: "" },
+  bills: [], budget: DEFAULT_BUDGET.map((b) => ({ ...b })), expenses: [], income: 0, money: emptyMoney(), notes: [], health: emptyHealth(), cycleLogs: [], pills: [], pillDoses: [], moods: [], goals: [], news: { topics: ["top", "local", "NATION"], place: "" },
   notify: defaultNotify(),
   journal: [], countdowns: [], groceries: [], savedVerses: [], meditations: [], savedQuotes: [],
   widgets: { stickies: false }, stickies: [], randomLists: [], savedWords: [], browserMarks: [], linkPage: { title: "", bio: "", links: [] },
   habits: [], gratitude: [], focusLog: [], recipes: [], meals: [], care: [], birthdays: [], contacts: [], subscriptions: [], jars: [], collections: [], weather: { place: "", unit: "F" },
   sleep: [], sleepApp: emptySleepApp(), sleepFinder: emptySleepFinder(), earshot: emptyEarshot(), workouts: [], routines: [], milestones: [], ious: [], allowance: [], giftCards: [], warranties: [], mileage: [], mileageRate: 0.7, clocks: [], medical: [], kit: [], kitInstalled: [],
   notesInstalled: [], notesApps: {}, lock: null,
-  sheetsInstalled: [], sheets: {}, driveInstalled: false, drive: [], dropInstalled: false, briefOff: false,
+  sheetsInstalled: [], sheets: {}, driveInstalled: false, drive: [], dropInstalled: false, briefOff: false, bundleSet: {}, kitchen: emptyKitchen(),
 });
 
 /* ---------------- sanitizing ---------------- */
@@ -487,7 +500,8 @@ export function cleanFamily(input: unknown): Family {
     bills: rows(raw.bills, LIMITS.bills, (r) => {
       const name = str(r.name, 80).trim();
       const paid = Array.isArray(r.paid) ? [...new Set(r.paid.filter((m: unknown) => typeof m === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(m)))].slice(-120) as string[] : [];
-      return name ? { id: id(r.id), name, amount: num(r.amount, 0, 10_000_000), dueDay: int(r.dueDay, 1, 31, 1), category: str(r.category, 40), autopay: bool(r.autopay), paid } : null;
+      const parts = cleanParts(r.parts);
+      return name ? { id: id(r.id), name, amount: num(r.amount, 0, 10_000_000), dueDay: int(r.dueDay, 1, 31, 1), category: str(r.category, 40), autopay: bool(r.autopay), paid, ...(parts ? { parts } : {}) } : null;
     }),
     budget,
     expenses: rows(raw.expenses, LIMITS.expenses, (r) => {
@@ -495,6 +509,7 @@ export function cleanFamily(input: unknown): Family {
       return date ? { id: id(r.id), categoryId: id(r.categoryId), amount: num(r.amount, 0, 10_000_000), date, note: str(r.note, 120) } : null;
     }, true),
     income: num(raw.income, 0, 100_000_000),
+    money: cleanMoney(raw.money),
     notes: rows(raw.notes, LIMITS.notes, (r) => {
       const title = str(r.title, 120);
       const body = str(r.body, 5000);
@@ -705,6 +720,8 @@ export function cleanFamily(input: unknown): Family {
     driveInstalled: bool(raw.driveInstalled, false),
     dropInstalled: bool(raw.dropInstalled, false),
     briefOff: bool(raw.briefOff, false),
+    kitchen: cleanKitchen(raw.kitchen),
+    bundleSet: Object.fromEntries(Object.entries(obj(raw.bundleSet) || {}).filter(([k, v]) => BUNDLE_BY_SECTION.has(k) && v === true)),
     drive: cleanDriveFiles(raw.drive),
   };
 }
@@ -773,9 +790,20 @@ export const addDays = (s: string, n: number) => { const d = fromDay(s); d.setDa
 export const weekStart = (s: string) => addDays(s, -fromDay(s).getDay());
 export const monthKey = (s: string) => s.slice(0, 7);
 export const daysBetween = (a: string, b: string) => Math.round((fromDay(b).getTime() - fromDay(a).getTime()) / 86_400_000);
-/** Whether a section shows: the usual ones unless switched off, Plugin Store add-ons only once added. */
-export const isOn = (section: FamilySection, f: Pick<Family, "sections">) =>
-  !TOGGLEABLE.includes(section) || (ADD_ON_SECTIONS.includes(section) ? f.sections[section] === true : f.sections[section] !== false);
+/** Whether a section shows: the usual ones unless switched off, Plugin Gallery add-ons only once added. */
+export const isOn = (section: FamilySection, f: Pick<Family, "sections">): boolean => {
+  if (RETIRED_SECTIONS.includes(section)) return false;
+  const bundle = BUNDLE_BY_SECTION.get(section);
+  if (bundle) {
+    // A bundled plugin (shared/appBundles.ts) is on once added, and for anyone who already had one of the old
+    // plugins inside it: they keep it, now inside the bundle. Removing the bundle saves false, which wins.
+    const v = f.sections[section];
+    return v === true || (v !== false && bundleMembers(bundle).some((m) => m !== "health" && f.sections[m] === true));
+  }
+  // The pages every Kitchen has (Shop, Plan, Recipes) are on whenever Kitchen is.
+  if ((section === "grocery" || section === "meals" || section === "recipes") && f.sections.kitchen === true) return true;
+  return !TOGGLEABLE.includes(section) || (ADD_ON_SECTIONS.includes(section) ? f.sections[section] === true : f.sections[section] !== false);
+};
 
 /** Whether an event (or one of its repeats) falls on a day. */
 export function occursOn(e: FamilyEvent, date: string): boolean {

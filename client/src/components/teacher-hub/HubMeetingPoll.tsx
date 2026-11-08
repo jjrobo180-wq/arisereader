@@ -19,6 +19,7 @@ import { AnswerEditor, InvitedPolls, MyAvailability, WeeklyEditor, api } from ".
 import { localDay } from "./HubImport";
 import { FIT_WORDS, cleanWeekly, fitOption, type Fit, type FreeWindow } from "@shared/availability";
 import { Card, Empty, Field, GhostButton, PrimaryButton, TextArea } from "./ui";
+import { lockPageScroll } from "@/lib/scrollLock";
 
 type PollView = {
   id: string; title: string; location: string; message: string; hubMeetingId: string; senderName: string; sendVia: "site" | "mailbox" | "self"; sendText: boolean; status: "open" | "booked"; chosenOption: string | null; best: string | null;
@@ -191,9 +192,8 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
     if (embedded) return;
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", key);
-    const before = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { window.removeEventListener("keydown", key); document.body.style.overflow = before; };
+    const unlock = lockPageScroll();
+    return () => { window.removeEventListener("keydown", key); unlock(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const draftKey = initial.meetingId || "new";
   const saved = DRAFTS.get(draftKey);
