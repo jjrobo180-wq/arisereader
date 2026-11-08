@@ -11,6 +11,7 @@ import "./reader-app.css";
 import "./todo-app.css";
 import { watchKeyboard } from "./lib/keyboardInset";
 import { applyDeviceTopInset } from "./lib/deviceInsets";
+import { startReaderNative } from "./lib/readerNative";
 import { installDuoPaneBridge } from "./lib/duoPaneBridge";
 import { installMediaUnlock, voiceElement } from "./lib/mediaUnlock";
 import { configureAiVoice } from "@/lib/aiVoice";
@@ -25,6 +26,9 @@ if (isFitApp() || isReaderApp() || isNotesApp()) {
   if (vp && !/viewport-fit/.test(vp.getAttribute("content") || "")) vp.setAttribute("content", `${vp.getAttribute("content")}, viewport-fit=cover`);
 }
 if (isReaderApp()) document.documentElement.classList.add("reader-app");
+// The A.R.I.S.E. Reader iPhone app: everything a little smaller (reader-app.css, html.reader-compact: 90%), so a
+// phone shows more of a page, like the App Store's own apps. Done with the type size, never the viewport (see todo-compact).
+if (isNativeApp() && nativeFlavor() === "reader") document.documentElement.classList.add("reader-compact");
 // Arise Notes on the iPhone: a slightly smaller base size (index.css html.notes-app), so it feels like Apple's own
 // apps instead of zoomed in. The viewport itself is left alone (changing it caused stuck zoom while typing).
 if (isNotesApp()) document.documentElement.classList.add("notes-app");
@@ -49,7 +53,7 @@ if (isNativeApp() && nativeFlavor() === "todo") applyDeviceTopInset();
 if (isNotesApp()) applyDeviceTopInset();
 // Arise Reader draws edge to edge too (reader/ios-app/capacitor.config.json), so it gets its phone's own clock space.
 // The Educator, Trainer, Talk and Eye Gazer apps let iOS inset the page ("automatic"), so the system already does this.
-if (isNativeApp() && nativeFlavor() === "reader") applyDeviceTopInset();
+if (isNativeApp() && nativeFlavor() === "reader") { applyDeviceTopInset(); startReaderNative(); }
 
 // Keep Notes at the physical iPhone viewport width. A custom initial-scale=0.9
 // made focus/keyboard geometry inconsistent with WKWebView's visual viewport.

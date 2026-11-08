@@ -11,7 +11,7 @@ import { YOUTUBE_CHANNEL_OPTIONS, normalizeYoutubeChannels, youtubeChannelAllowe
 import { normalizeEyeGazeBackground } from "../shared/eyeGazeAppearance";
 import type { Express } from "express";
 import type { Server } from "node:http";
-import { storage } from "./storage";
+import { storage, setReaderMessageListener } from "./storage";
 // Cache-bust: force server restart to pick up new DB entries
 import { seedData } from "./storage";
 import { clearCache, AlreadySubmittedError } from "./storage";
@@ -1794,6 +1794,11 @@ export async function registerRoutes(
   });
   registerUserDocRoutes(app, authMiddleware, userDocStore, undefined, profileLinks.canUseApp);
   // Health Nudges (a premium app) sends phone notifications from the settings it saved with the person's app data.
+  // A.R.I.S.E. Reader app: a message to a reader (from their teacher, being added to a class, a reward) is also a
+  // notification on their iPhone. Its link opens the inbox (Library.tsx reads ?inbox=1).
+  setReaderMessageListener((userId, senderType, text) => {
+    void notifyUser(userId, { title: senderType === "teacher" ? "A message from your teacher" : "A.R.I.S.E. Reader", body: text.replace(/\s+/g, " ").slice(0, 170), url: "/#/library?inbox=1", tag: "reader-message" }).catch(() => {});
+  });
   setNudgeSource(async (userId) => {
     const raw = await userDocStore.read(`${userId}/apps/pro-health-nudges.json`);
     if (!raw) return null;

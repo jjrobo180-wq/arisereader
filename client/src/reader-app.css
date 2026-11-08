@@ -9,6 +9,8 @@ html.reader-app {
   -webkit-text-size-adjust: 100%;
   background: hsl(var(--background));
 }
+/* A little smaller on a phone (main.tsx adds reader-compact in the Reader app). */
+html.reader-app.reader-compact { font-size: 90%; }
 html.reader-app body {
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
