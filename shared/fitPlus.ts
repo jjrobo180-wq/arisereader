@@ -45,6 +45,8 @@ export type PlusStatus = {
   /** The site can take payments. */
   payment: boolean;
   price: string;
+  /** Fit+ comes with this account's Arise All Access (it's managed there). */
+  allAccess?: boolean;
   canGivePass: boolean;
   pass: PassView;
 };

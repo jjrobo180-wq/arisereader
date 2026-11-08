@@ -23,6 +23,7 @@ const FEATURES: Record<NotesPlanId, string[]> = {
   basic: ["600 minutes a month", "Up to 2 hours per recording", "Every template, highlights and exports", "Ask your notes, voice memos", "To-dos straight into your planner", "Parent emails, translation, study tools"],
   plus: ["1,500 minutes a month", "Everything in Basic", "Speaker labels", "IEP meeting mode", "Unused minutes roll over"],
   family: ["2,000 minutes shared by up to 4 people", "Plus features for everyone", "Share notes with the family"],
+  access: ["20 hours a month (shared with new ad-free Pod+ episodes)", "Up to 2 hours per recording", "Every tool, IEP meeting mode", "Speaker labels for 2 hours a month", "Plus Arise To Duo, Arise Fit+ and ad-free Pod+", "1,000 AI requests a month across all four"],
 };
 
 const TITLES: Record<Tab, string> = { plan: "Plan & minutes", look: "Appearance", family: "Family", privacy: "Privacy & data", access: "Accessibility" };
@@ -138,7 +139,7 @@ function PlanTab({ ctx }: { ctx: AppCtx }) {
   const u = ctx.me.usage;
   const [bill, setBill] = useState<Billing | null>(null);
   const [busy, setBusy] = useState("");
-  const [yearly, setYearly] = useState(true);
+  const { token } = useAuth();
   const [admin, setAdmin] = useState<{ name: string; minutes: number; costCents: number; jobs: number }[] | null>(null);
   // Plans aren't sold inside the iPhone app (App Review Guideline 3.1.1): it shows the minutes and
   // what's on the account, with no prices, buy buttons or billing links.
@@ -154,6 +155,14 @@ function PlanTab({ ctx }: { ctx: AppCtx }) {
     finally { setBusy(""); }
   };
   const manage = async () => { setBusy("portal"); try { const r = await notesApi.portal(returnPath); window.location.assign(r.url); } catch (e: any) { say(e.message); } finally { setBusy(""); } };
+  const site = async (path: string): Promise<string> => {
+    const r = await fetch(`${API_BASE}${path}`, { method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ returnPath }) });
+    const d = await r.json().catch(() => null);
+    if (!r.ok || typeof d?.url !== "string") throw new Error(d?.message || "That didn't work. Try again.");
+    return d.url;
+  };
+  const getAll = async () => { setBusy("access"); try { window.location.assign(await site("/api/all-access/checkout")); } catch (e: any) { say(e.message); } finally { setBusy(""); } };
+  const manageAll = async () => { setBusy("portal"); try { window.location.assign(await site("/api/all-access/portal")); } catch (e: any) { say(e.message); } finally { setBusy(""); } };
   const pct = Math.min(100, u.pct);
   return <div className="space-y-4">
     <Section title="This month" icon={<Crown className="h-4 w-4" />}>
@@ -168,21 +177,21 @@ function PlanTab({ ctx }: { ctx: AppCtx }) {
     {native ? <Notice>{NATIVE_NO_PURCHASE}</Notice> : !bill ? <Spinner /> : <>
       {bill.canBuy && !bill.payment && <Notice tone="warn">Paid plans aren't open on this site yet.</Notice>}
       {bill.given && <Notice>Your plan was set up for you{bill.endsAt ? ` until ${new Date(bill.endsAt).toLocaleDateString()}` : ""}.</Notice>}
-      <div className="flex items-center justify-center gap-2 text-[14px]"><span>Plus billed</span><button type="button" className="an-chip" aria-pressed={!yearly} onClick={() => setYearly(false)}>Monthly</button><button type="button" className="an-chip" aria-pressed={yearly} onClick={() => setYearly(true)}>Yearly · save 17%</button></div>
+      {/* Sold now: Arise All Access ($10 a month for Notes, Duo, Fit and Pod+). Anyone on an older Notes plan keeps it. */}
       <div className="grid gap-3 sm:grid-cols-2">
-        {(["free", "basic", "plus", "family"] as NotesPlanId[]).map((id) => {
+        {(Array.from(new Set<NotesPlanId>([...(["basic", "plus", "family"].includes(ctx.me.plan) && !u.pooled ? [ctx.me.plan] : []), "free", "access"]))).map((id) => {
           const p = NOTES_PLANS[id];
           const current = ctx.me.plan === id && !(id === "family" && u.pooled);
-          const product: NotesProduct | null = id === "free" ? null : id === "plus" ? (yearly ? "plus_year" : "plus") : id;
-          const price = id === "plus" && yearly ? `${money(p.yearlyCents!)}/yr` : id === "free" ? "$0" : `${money(p.monthlyCents)}/mo`;
-          return <section key={id} className={`an-card flex flex-col p-5 ${current ? "ring-2 ring-[var(--an-violet)]" : ""} ${id === "plus" ? "border-[var(--an-violet)]" : ""}`}>
-            <div className="flex items-center gap-2"><h3 className="text-[18px] font-bold">{p.name}</h3>{id === "plus" && <span className="rounded-full bg-[var(--an-violet)] px-2 py-0.5 text-[11px] font-bold text-white">Best value</span>}{current && <span className="ml-auto rounded-full bg-[var(--an-green-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--an-green)]">Your plan</span>}</div>
-            <div className="mt-1 text-[24px] font-extrabold">{price}{id === "plus" && yearly && <span className="ml-1 text-[13px] font-semibold text-[var(--an-muted)]">≈ {money(Math.round(p.yearlyCents! / 12))}/mo</span>}</div>
+          const price = id === "free" ? "$0" : id === "access" ? `${money(p.monthlyCents)}/mo` : bill.product === "plus_year" && id === "plus" ? `${money(p.yearlyCents!)}/yr` : `${money(p.monthlyCents)}/mo`;
+          return <section key={id} className={`an-card flex flex-col p-5 ${current ? "ring-2 ring-[var(--an-violet)]" : ""} ${id === "access" ? "border-[var(--an-violet)]" : ""}`}>
+            <div className="flex items-center gap-2"><h3 className="text-[18px] font-bold">{id === "access" ? "Arise All Access" : p.name}</h3>{current && <span className="rounded-full bg-[var(--an-violet-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--an-violet-ink)]">Your plan</span>}</div>
+            <div className="mt-1 text-[24px] font-extrabold">{price}</div>
             <ul className="mt-3 flex-1 space-y-1.5">{FEATURES[id].map((f) => <li key={f} className="flex gap-2 text-[14px]"><Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--an-green)]" aria-hidden />{f}</li>)}</ul>
-            {product && bill.canBuy && bill.payment && !(current && (bill.product === product || id !== "plus")) && <Btn kind={id === "plus" ? "primary" : "soft"} className="mt-4" busy={busy === product} onClick={() => void choose(product)} data-testid={`notes-buy-${product}`}>{bill.paidOnline ? `Switch to ${p.name}${id === "plus" ? (yearly ? " yearly" : " monthly") : ""}` : `Get ${p.name}`}</Btn>}
+            {id === "access" && !current && bill.payment && <Btn kind="primary" className="mt-4" busy={busy === "access"} onClick={() => void getAll()}>Get Arise All Access</Btn>}
           </section>;
         })}
       </div>
+      {ctx.me.plan === "access" && <Btn kind="plain" className="w-full" busy={busy === "portal"} onClick={() => void manageAll()}>Manage billing, receipts or cancel</Btn>}
       {bill.canManage && <Btn kind="plain" className="w-full" busy={busy === "portal"} onClick={() => void manage()}>Manage billing, receipts or cancel</Btn>}
       <p className="text-center text-[12px] text-[var(--an-faint)]">Payments by Stripe. Changing plans takes effect right away; the difference is charged or credited.</p>
     </>}
@@ -214,7 +223,7 @@ function FamilyTab({ ctx }: { ctx: AppCtx }) {
         <input className="an-input font-mono uppercase tracking-widest" value={code} onChange={(e) => setCode(e.target.value.toUpperCase().slice(0, 8))} placeholder="Invite code" aria-label="Family invite code" />
         <Btn kind="primary" type="submit" busy={busy === "join"} disabled={code.length < 8}>Join</Btn>
       </form>}
-      {!owner && !f && <p className="mt-3 text-[13px] text-[var(--an-muted)]">Want to start one? Choose Family on the Plan & minutes tab.</p>}
+      {!owner && !f && <p className="mt-3 text-[13px] text-[var(--an-muted)]">Family plans aren't sold anymore. If someone in your family has one, ask them for its invite code.</p>}
     </Section>
   </div>;
 }

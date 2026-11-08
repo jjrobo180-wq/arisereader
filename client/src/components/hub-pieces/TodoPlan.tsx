@@ -1,4 +1,6 @@
-// Arise To Duo's Free plan and $5 Unlimited upgrade in the hubs (rules in shared/todoPlan.ts):
+// Arise To Duo's Free plan and the upgrade in the hubs (rules in shared/todoPlan.ts). The upgrade sold now is
+// Arise All Access ($10 a month for Duo, Fit, Notes and Pod+, shared/allAccess.ts); anyone on the older $5
+// Unlimited keeps it and manages it here.
 //  - useTodoPlan: Free or Unlimited, apps added in each hub, and this month's AI, from the server.
 //  - openUpgrade(...): opens the "Get Unlimited" box from anywhere (a 4th app, AI tapped on Free).
 //  - appsBlocked(...): would a change add an app past Free's 3? (The hubs ask before saving.)
@@ -11,6 +13,7 @@ import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { NATIVE_NO_PURCHASE, isNativeApp } from "@/lib/nativeApp";
 import { AI_LIMIT, APPS_FULL, FREE_APPS, growsPastFree } from "@shared/todoPlan";
+import { ALL_ACCESS_AI_PER_MONTH, ALL_ACCESS_MONTHLY_CENTS, ALL_ACCESS_NAME } from "@shared/allAccess";
 
 export type TodoPlan = {
   unlimited: boolean; via: string | null; endsAt: string | null; apps: { work: number; life: number; limit: number | null };
@@ -109,12 +112,12 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
     confirmed.current = true;
     const url = new URL(window.location.href); url.searchParams.delete("paid"); window.history.replaceState(null, "", url.toString());
     fetch(`${API_BASE}/api/billing/confirm`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ sessionId: id }) })
-      .then((r) => { setNote(r.ok ? "Payment received. You're on Unlimited." : "We couldn't confirm the payment yet. If your card was charged, Unlimited switches on within a few minutes."); })
-      .catch(() => setNote("We couldn't confirm the payment yet. If your card was charged, Unlimited switches on within a few minutes."))
+      .then((r) => { setNote(r.ok ? `Payment received. You're on ${ALL_ACCESS_NAME}.` : "We couldn't confirm the payment yet. If your card was charged, your plan switches on within a few minutes."); })
+      .catch(() => setNote("We couldn't confirm the payment yet. If your card was charged, your plan switches on within a few minutes."))
       .finally(() => { refreshTodoPlan(); setReason("plan"); });
   }, [token, hub]);
 
-  const go = async (path: string, product: "unlimited" | "unlimited_year" = "unlimited") => {
+  const go = async (path: string, product: "unlimited" | "unlimited_year" | "all_access" = "all_access") => {
     if (!token) return;
     setBusy(true); setNote("");
     try {
@@ -127,17 +130,16 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
   };
 
   if (!reason) return null;
-  const price = usd(plan?.priceCents ?? 500);
-  const yearly = plan?.yearlyCents ?? null;
-  const saves = yearly && plan ? Math.round((1 - yearly / (plan.priceCents * 12)) * 100) : 0;
-  const title = plan?.unlimited ? "You're on Unlimited"
+  const price = usd(ALL_ACCESS_MONTHLY_CENTS);
+  const onAll = plan?.via === "all-access";
+  const title = onAll ? `You're on ${ALL_ACCESS_NAME}` : plan?.unlimited ? "You're on Unlimited"
     : reason === "apps" ? `You're using your ${FREE_APPS} free plugins`
-    : reason === "ai" ? "AI is part of Unlimited"
-    : "Get Arise To Duo Unlimited";
-  const lead = plan?.unlimited ? "Every plugin in the Plugin Gallery, and AI for everyday use, in WorkHub and LifeHub."
-    : reason === "apps" ? `The free plan includes up to ${FREE_APPS} plugins from the Plugin Gallery. Remove one to make room, or go Unlimited for all 450+.`
-    : reason === "ai" ? `Add with AI, the AI assistant and meal estimates come with Unlimited, along with every plugin in the Plugin Gallery, for ${price} a month.`
-    : "Every plugin in the Plugin Gallery (450+), and AI, across WorkHub and LifeHub.";
+    : reason === "ai" ? `AI is part of ${ALL_ACCESS_NAME}`
+    : `Get ${ALL_ACCESS_NAME}`;
+  const lead = onAll ? `Every plugin in both hubs, plus Arise Fit+, Arise Notes and ad-free Pod+. ${plan?.ai.left ?? 0} of ${ALL_ACCESS_AI_PER_MONTH.toLocaleString("en-US")} AI requests left this month.`
+    : plan?.unlimited ? "Every plugin in the Plugin Gallery, and AI for everyday use, in WorkHub and LifeHub."
+    : reason === "apps" ? `The free plan includes up to ${FREE_APPS} plugins from the Plugin Gallery. Remove one to make room, or get ${ALL_ACCESS_NAME} for all of them.`
+    : `One plan, ${price} a month: every plugin and AI in Arise To Duo, plus Arise Fit+, Arise Notes and ad-free Pod+.`;
 
   return (
     <div className="fixed inset-0 kb-sheet z-[320] flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="upgrade-title" data-testid="todo-upgrade" onClick={(e) => { if (e.target === e.currentTarget) setReason(null); }}>
@@ -159,12 +161,12 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
               </ul>
             </div>
             <div className="rounded-2xl border-2 border-violet-500 bg-violet-50 p-3">
-              <p className="font-bold text-violet-900">Unlimited</p>
-              <p className="text-xs text-violet-700">{price} a month{yearly ? ` or ${usd(yearly)} a year` : ""}</p>
+              <p className="font-bold text-violet-900">All Access</p>
+              <p className="text-xs text-violet-700">{price} a month</p>
               <ul className="mt-2 space-y-1 text-violet-900">
                 <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />All 575+ plugins</li>
-                <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />AI every day</li>
-                <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />Both hubs</li>
+                <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />{ALL_ACCESS_AI_PER_MONTH.toLocaleString("en-US")} AI requests a month</li>
+                <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />Fit+, Notes and ad-free Pod+</li>
               </ul>
             </div>
           </div>
@@ -178,18 +180,15 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
                 </div>
               : !plan
               ? <button type="button" onClick={refreshTodoPlan} className="flex min-h-12 w-full items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-700" data-testid="todo-upgrade-check-plan">Checking your plan… Tap to retry</button>
+              : onAll
+              ? <button type="button" disabled={busy} onClick={() => go("/api/all-access/portal")} className="flex min-h-12 w-full items-center justify-center rounded-2xl border border-slate-200 text-sm font-bold text-slate-700" data-testid="todo-all-access-manage">{busy ? "Opening…" : "Manage billing"}</button>
               : plan.unlimited
               ? (plan.paidByYou
                 ? <button type="button" disabled={busy} onClick={() => go("/api/billing/addon-portal", plan.paidProduct ?? "unlimited")} className="flex min-h-12 w-full items-center justify-center rounded-2xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50" data-testid="todo-upgrade-manage">{busy ? "Opening…" : "Manage billing"}</button>
                 : <button type="button" onClick={() => setReason(null)} className="flex min-h-12 w-full items-center justify-center rounded-2xl bg-slate-900 text-sm font-bold text-white">Done</button>)
               : <div className="space-y-2">
-                  {yearly && plan?.payment !== false && <button type="button" disabled={busy} onClick={() => go("/api/billing/addon-checkout", "unlimited_year")} className="relative flex min-h-14 w-full flex-col items-center justify-center rounded-2xl bg-violet-600 px-3 py-2 text-sm font-bold text-white shadow-sm hover:bg-violet-700 disabled:opacity-60" data-testid="todo-upgrade-buy-year">
-                    <span className="absolute -top-2 right-3 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-950">Limited time</span>
-                    <span className="flex items-center gap-2"><Sparkles className="h-4 w-4" />{busy ? "Opening checkout…" : `${usd(yearly)} a year`}</span>
-                    {!busy && <span className="text-[11px] font-semibold text-white/85">Save {saves}% vs. monthly</span>}
-                  </button>}
-                  <button type="button" disabled={busy || plan?.payment === false} onClick={() => go("/api/billing/addon-checkout", "unlimited")} className={`flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl text-sm font-bold disabled:opacity-60 ${yearly ? "border border-violet-300 bg-white text-violet-800 hover:bg-violet-50" : "bg-violet-600 text-white shadow-sm hover:bg-violet-700"}`} data-testid="todo-upgrade-buy">
-                    {!yearly && <Sparkles className="h-4 w-4" />}{busy ? "Opening checkout…" : plan?.payment === false ? "Payments aren't set up yet" : `${price} a month`}
+                  <button type="button" disabled={busy || plan?.payment === false} onClick={() => go("/api/all-access/checkout")} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 text-sm font-bold text-white shadow-sm hover:bg-violet-700 disabled:opacity-60" data-testid="todo-upgrade-buy">
+                    <Sparkles className="h-4 w-4" />{busy ? "Opening checkout…" : plan?.payment === false ? "Payments aren't set up yet" : `Get ${ALL_ACCESS_NAME} · ${price} a month`}
                   </button>
                 </div>}
           </div>
@@ -209,7 +208,7 @@ export function PlanCard({ hub, hubApps }: { hub: "work" | "life"; hubApps: numb
   if (!plan) return null;
   if (plan.unlimited) {
     return <button type="button" onClick={() => openUpgrade("plan")} className="mb-3 flex w-full items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 p-3 text-left text-sm text-violet-900" data-testid="todo-plan-card">
-      <InfinityIcon className="h-5 w-5 shrink-0" /><span className="min-w-0 flex-1"><span className="block font-bold">Unlimited</span><span className="block text-xs text-violet-700">Every plugin in the Plugin Gallery · {plan.ai.left} AI uses left this month</span></span>
+      <InfinityIcon className="h-5 w-5 shrink-0" /><span className="min-w-0 flex-1"><span className="block font-bold">{plan.via === "all-access" ? ALL_ACCESS_NAME : "Unlimited"}</span><span className="block text-xs text-violet-700">Every plugin in the Plugin Gallery · {plan.ai.left} AI uses left this month</span></span>
     </button>;
   }
   const used = hubApps + (hub === "work" ? plan.apps.life : plan.apps.work);

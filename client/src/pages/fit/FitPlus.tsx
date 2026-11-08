@@ -70,8 +70,19 @@ export function PlusSheet({ status, feature, passCode, reload, say, onClose }: {
     try { return await fitApi<T>(token, path, { method: "POST", body: JSON.stringify(body) }); }
     catch (e: any) { setErr(e.message); return null; } finally { setBusy(""); }
   };
-  const subscribe = async () => { const r = await call<{ url: string }>("/billing/checkout", { returnPath: "/fit" }); if (r?.url) window.location.assign(r.url); };
-  const manage = async () => { const r = await call<{ url: string }>("/billing/portal"); if (r?.url) window.location.assign(r.url); };
+  // Fit+ is sold as part of Arise All Access now ($10 a month for Fit, Duo, Notes and Pod+); anyone on the older
+  // Fit+ plan keeps it and manages it here.
+  const site = async <T,>(path: string, body: unknown = {}): Promise<T | null> => {
+    setBusy(path); setErr("");
+    try {
+      const r = await fetch(`${API_BASE}${path}`, { method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
+      const d = await r.json().catch(() => null);
+      if (!r.ok) throw new Error(d?.message || "That didn't work. Try again.");
+      return d as T;
+    } catch (e: any) { setErr(e.message); return null; } finally { setBusy(""); }
+  };
+  const subscribe = async () => { const r = await site<{ url: string }>("/api/all-access/checkout", { returnPath: "/fit" }); if (r?.url) window.location.assign(r.url); };
+  const manage = async () => { const r = status.allAccess ? await site<{ url: string }>("/api/all-access/portal", { returnPath: "/fit" }) : await call<{ url: string }>("/billing/portal"); if (r?.url) window.location.assign(r.url); };
   const redeem = async () => {
     const c = cleanCode(code);
     if (!c) { setErr(`Guest pass codes are ${CODE_LEN} letters and numbers.`); return; }
@@ -97,6 +108,7 @@ export function PlusSheet({ status, feature, passCode, reload, say, onClose }: {
     </Card> : <>
       {feature && <p className="px-1 text-[15px]" style={{ color: C.steel }}><b style={{ color: C.text }}>{PLUS_NAME[feature]}</b> is part of Arise Fit+.</p>}
       <p className="mt-1 px-1 text-[40px] leading-none" style={display}>{status.price}</p>
+      <p className="mt-2 px-1 text-[13px] leading-snug" style={{ color: C.steel }}>Fit+ comes with <b style={{ color: C.text }}>Arise All Access</b>: one plan for Arise Fit, Arise To Duo, Arise Notes and ad-free Pod+, with 1,000 AI requests a month across them.</p>
     </>}
 
     <Title>{status.plus ? "Included" : "What you get"}</Title>
@@ -108,7 +120,7 @@ export function PlusSheet({ status, feature, passCode, reload, say, onClose }: {
     {!status.plus && (native
       ? <p className="mt-3 px-1 text-[13px]" style={{ color: C.dim }}>{NATIVE_NO_PURCHASE}</p>
       : status.payment
-        ? <Btn className="mt-4 w-full" onClick={() => void subscribe()} disabled={!!busy} testId="fit-plus-buy">{busy === "/billing/checkout" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Crown className="h-5 w-5" />}Get Fit+ · {status.price}</Btn>
+        ? <Btn className="mt-4 w-full" onClick={() => void subscribe()} disabled={!!busy} testId="fit-plus-buy">{busy === "/api/all-access/checkout" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Crown className="h-5 w-5" />}Get Arise All Access · {status.price}</Btn>
         : <p className="mt-3 px-1 text-[13px]" style={{ color: C.dim }}>Payments aren't switched on for this site yet.</p>)}
 
     <Title>Guest pass</Title>

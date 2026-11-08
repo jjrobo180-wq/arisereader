@@ -876,7 +876,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     if (saved) return saved;
     const c = cleanKnown.get(ep.id)?.copy;
     if (c && c.sid === sid) return c.url;
-    return mediaUrl!(`${playTok.current!.audio}${sid}?e=${ep.id}&s=${ep.showId}&k=${encodeURIComponent(playTok.current!.token)}&u=${encodeURIComponent(ep.audio || "")}`);
+    // d: its length, so a new episode counts for that much of All Access's 20 hours (server/podcastPlay.ts).
+    return mediaUrl!(`${playTok.current!.audio}${sid}?e=${ep.id}&s=${ep.showId}&k=${encodeURIComponent(playTok.current!.token)}&u=${encodeURIComponent(ep.audio || "")}${ep.secs > 0 ? `&d=${Math.round(ep.secs)}` : ""}`);
   };
   const skipping = useRef(false);
   const skipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);

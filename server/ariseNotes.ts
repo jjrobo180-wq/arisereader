@@ -131,7 +131,9 @@ export function registerAriseNotesRoutes(app: Express, auth: RequestHandler, dep
     if (allows(ctx.plan, f)) return true;
     const p = planFor(f);
     const plural = f === "templates" || f === "share" || f === "parent" || f === "study" || f === "speakers";
-    res.status(402).json({ message: `${FEATURE_NAME[f]} ${plural ? "are" : "is"} part of Arise Notes ${NOTES_PLANS[p].name}.`, code: "upgrade", plan: p });
+    // Sold now as part of Arise All Access ($10 a month for Notes, Duo, Fit and Pod+); older plans still have what they had.
+    void p;
+    res.status(402).json({ message: `${FEATURE_NAME[f]} ${plural ? "are" : "is"} part of Arise All Access ($10 a month for Arise Notes, Arise To Duo, Arise Fit and Pod+).`, code: "upgrade", plan: "access" });
     return false;
   };
 

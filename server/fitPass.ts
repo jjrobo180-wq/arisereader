@@ -71,6 +71,7 @@ export function createPasses(deps: PassDeps) {
       const s = freeStatus(deps.payment ? await deps.payment().catch(() => false) : false);
       s.plus = p.plus; s.via = p.via; s.endsAt = p.endsAt; s.price = FIT_PLUS_PRICE;
       s.canManage = !!(p.mine.grant?.stripeCustomerId && (!p.mine.grant.buyerId || p.mine.grant.buyerId === me));
+      s.allAccess = p.mine.grant?.kind === "all_access";
       s.canGivePass = p.mine.live;
       if (p.mine.live) {
         const pass = await passOf(me);

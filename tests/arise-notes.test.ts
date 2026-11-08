@@ -28,7 +28,7 @@ const DAY = 86_400_000;
 test("the plans have the spec's minutes", () => {
   assert.deepEqual(
     Object.values(NOTES_PLANS).map((p) => [p.id, p.minutes, p.rollover, p.speakers]),
-    [["free", 60, false, false], ["basic", 600, false, false], ["plus", 1500, true, true], ["family", 2000, true, true]],
+    [["free", 60, false, false], ["basic", 600, false, false], ["plus", 1500, true, true], ["family", 2000, true, true], ["access", 1200, false, true]],
   );
   assert.equal(NOTES_HARD_CAP, 3000);
   assert.equal(allows("free", "export"), false, "Free is summaries only");

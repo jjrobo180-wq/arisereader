@@ -485,7 +485,7 @@ public final class PodAPI {
         }
         guard let t = token else { return nil }
         var c = URLComponents(string: base + t.audio + sid)
-        c?.queryItems = [URLQueryItem(name: "e", value: ep.id), URLQueryItem(name: "s", value: ep.showId), URLQueryItem(name: "k", value: t.token), URLQueryItem(name: "u", value: ep.audio)]
+        c?.queryItems = [URLQueryItem(name: "e", value: ep.id), URLQueryItem(name: "s", value: ep.showId), URLQueryItem(name: "k", value: t.token), URLQueryItem(name: "u", value: ep.audio)] + (ep.secs > 0 ? [URLQueryItem(name: "d", value: String(Int(ep.secs)))] : [])
         return c?.url
     }
     /** The ads found so far in a session's copy, and whether that's final. */

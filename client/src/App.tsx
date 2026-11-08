@@ -210,6 +210,7 @@ const Pricing = lazyPage(() => import("./pages/Pricing"));
 const Billing = lazyPage(() => import("./pages/Billing"));
 const ReaderSubscribe = lazyPage(() => import("./pages/ReaderSubscribe"));
 const ReaderScholarship = lazyPage(() => import("./pages/ReaderScholarship"));
+const AllAccess = lazyPage(() => import("./pages/AllAccess"));
 
 // Gate that shows profile setup overlay after student registration
 function StudentSetupGate({ children }: { children: React.ReactNode }) {
@@ -433,6 +434,9 @@ function AfterSignIn({ onReaderDomain, onTodoDomain }: { onReaderDomain: boolean
   // Signed in from a Para Team invite link: straight back to join that team.
   const paraJoin = pendingParaJoin();
   if (paraJoin && isHubAccount(user)) return <Redirect to={`/para-team/join/${paraJoin}`} replace />;
+  // Signed in to get Arise All Access (pages/AllAccess.tsx): straight back to it.
+  const backToAll = (() => { try { const v = sessionStorage.getItem("after_signin"); sessionStorage.removeItem("after_signin"); return v === "/all-access"; } catch { return false; } })();
+  if (backToAll) return <Redirect to="/all-access" replace />;
   // Signed in to finish signing in an Apple TV (pages/TvLink.tsx): straight back to type the code.
   const tvCode = (() => { try { const c = sessionStorage.getItem("tv_link_code"); sessionStorage.removeItem("tv_link_code"); return c; } catch { return null; } })();
   if (tvCode !== null) return <Redirect to={`/tv${tvCode ? `?code=${encodeURIComponent(tvCode)}` : ""}`} replace />;
@@ -727,6 +731,10 @@ function AppRoutes() {
         {user ? <ReaderSubscribe /> : <Redirect to="/" replace />}
       </Route>
       {/* A teacher's plan: what they have, and paying for Premium. */}
+      {/* Arise All Access: the one plan sold (Duo, Fit, Notes and Pod+, $10 a month). Public: it says what's in it. */}
+      <Route path="/all-access">
+        <AllAccess />
+      </Route>
       <Route path="/billing">
         {/* Billing is the teacher's plan page. A parent (back from Stripe, say, after picking Arise Math)
             goes to LifeHub's Reader page, where their add-ons are, never the sign-in screen; a payment's

@@ -694,6 +694,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     <style>{MENU_CSS}</style>
     {dark && <style>{DARK_CSS}</style>}
     {header}
+    <AdFreeBanner api={api} signedIn={pro} email={email} onSignIn={onSignIn} />
     {drawer && <div className="fixed inset-0 z-[65]" role="dialog" aria-modal="true" aria-label="Menu">
       <div className="ps-fade absolute inset-0 touch-none bg-black/45" onClick={() => setDrawer(false)} />
       <nav aria-label="Menu" className="ps-slide absolute inset-y-0 left-0 flex w-[290px] max-w-[85vw] touch-pan-y flex-col gap-0.5 overflow-y-auto overflow-x-hidden overscroll-contain bg-white px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-0 shadow-2xl">
@@ -1062,4 +1063,27 @@ function ContinueListening({ nowPod, visible, onToggle, onOpenNow, onResume }: {
       </div>)}
     </div>
   </section>;
+}
+
+
+/** Ad-free listening is part of Arise All Access ($10 a month for Pod+, Arise To Duo, Arise Fit and Arise Notes).
+ *  Without it, episodes play as the show made them (ads and all); this says so once, gently, and how to change it. */
+function AdFreeBanner({ api, signedIn, email, onSignIn }: { api: Api; signedIn: boolean; email: string; onSignIn: () => void }) {
+  const [s, setS] = useState<{ enforced: boolean; plan: boolean; minutesLeft?: number } | null>(null);
+  const [hidden, setHidden] = useState(() => { try { return localStorage.getItem("podplus.adfree.hide") === new Date().toISOString().slice(0, 10); } catch { return false; } });
+  useEffect(() => { let stop = false; api("/api/earshot/all-access").then((b: any) => { if (!stop && b) setS(b); }).catch(() => {}); return () => { stop = true; }; }, [api, signedIn, email]);
+  if (!s || !s.enforced || hidden) return null;
+  if (s.plan && (s.minutesLeft ?? 1) > 0) return null;
+  const hide = () => { setHidden(true); try { localStorage.setItem("podplus.adfree.hide", new Date().toISOString().slice(0, 10)); } catch { /* fine */ } };
+  const out = s.plan;
+  return <div className="mx-3 mt-2 flex items-center gap-3 rounded-2xl border border-[#ffd8c2] bg-[#fff6f0] px-3.5 py-3 text-[14px] text-[#3a2a20]" role="status">
+    <span className="min-w-0 flex-1 leading-snug">{out
+      ? "You've used this month's 20 hours of new ad-free episodes. Episodes already ad-free still are; the rest have their ads until the 1st."
+      : signedIn ? <>Ads play right now. <b>Go ad-free with Arise All Access</b>: $10 a month for Pod+, Arise To Duo, Arise Fit and Arise Notes. Use the same email you signed in with here.</>
+        : <>Ads play right now. <b>Ad-free is part of Arise All Access</b> ($10 a month). Have it? Sign in with the same email.</>}</span>
+    {!out && (signedIn
+      ? <a href="https://arisetodo.com/app#/all-access" target="_blank" rel="noreferrer" className="shrink-0 rounded-full bg-[#ff6a1f] px-3.5 py-2 text-[13px] font-bold text-white">Go ad-free</a>
+      : <button type="button" onClick={onSignIn} className="shrink-0 rounded-full bg-[#ff6a1f] px-3.5 py-2 text-[13px] font-bold text-white">Sign in</button>)}
+    <button type="button" onClick={hide} aria-label="Hide for today" className="shrink-0 rounded-full px-2 py-1 text-[#9a7a66]">✕</button>
+  </div>;
 }
