@@ -291,7 +291,7 @@ function Studio({ doc, onBack }: { doc: Handle; onBack: () => void }) {
 
   const shownPage: DPage = live.current ? { ...page, elements: page.elements.map((e) => live.current!.get(e.id) || e) } : page;
   const shownSel = shownPage.elements.filter((e) => sel.includes(e.id));
-  const hs = (isTouch() ? 22 : 12) / scale;
+  const hs = (isTouch() ? 18 : 12) / scale;
 
   return <div className="flex h-full min-h-0 flex-col bg-[#f1f2f6] text-slate-900" data-testid="design-editor">
     {/* Top bar */}
@@ -351,7 +351,9 @@ function Studio({ doc, onBack }: { doc: Handle; onBack: () => void }) {
                 {guides.h.map((y, i) => <div key={`h${i}`} className="pointer-events-none absolute left-0 bg-pink-500" style={{ top: y - 0.5 / scale, height: 1 / scale, width: design.w }} />)}
                 {!editing && shownSel.map((e) => <div key={e.id} className="pointer-events-none absolute" style={{ left: e.x, top: e.y, width: e.w, height: e.h, transform: e.rot ? `rotate(${e.rot}deg)` : undefined, outline: `${2 / scale}px solid ${e.locked ? "#94a3b8" : "#8b5cf6"}` }}>
                   {sel.length === 1 && !e.locked && <>
-                    {(e.type === "line" ? ["w", "e"] : e.type === "text" ? ["nw", "ne", "sw", "se", "w", "e"] : ["nw", "n", "ne", "e", "se", "s", "sw", "w"]).map((h) => <span key={h} onPointerDown={(ev) => onHandleDown(ev, h)} className="pointer-events-auto absolute rounded-full border-violet-500 bg-white shadow"
+                    {(e.type === "line" ? ["w", "e"] : (e.type === "text" ? ["nw", "ne", "sw", "se", "w", "e"] : ["nw", "n", "ne", "e", "se", "s", "sw", "w"])
+                      // Too short or narrow for side handles between the corners: corners only (they'd overlap on a phone).
+                      .filter((h) => h.length === 2 || ("ew".includes(h) ? e.h > hs * 4 : e.w > hs * 4))).map((h) => <span key={h} onPointerDown={(ev) => onHandleDown(ev, h)} className="pointer-events-auto absolute rounded-full border-violet-500 bg-white shadow"
                       style={{ width: h.length === 1 && "ns".includes(h) ? hs * 1.8 : h.length === 1 ? hs * 0.7 : hs, height: h.length === 1 && "ew".includes(h) ? hs * 1.8 : h.length === 1 ? hs * 0.7 : hs, borderWidth: 1.5 / scale,
                         left: h.includes("w") ? -hs / 2 : h.includes("e") ? e.w - hs / 2 : e.w / 2 - (h === "n" || h === "s" ? hs * 0.9 : hs / 2), top: h.includes("n") ? -hs / 2 : h.includes("s") ? e.h - hs / 2 : e.h / 2 - (h === "e" || h === "w" ? hs * 0.9 : hs / 2),
                         cursor: `${h}-resize`, ...(h.length === 1 && "ew".includes(h) ? { left: (h === "w" ? -hs * 0.35 : e.w - hs * 0.35) } : {}), ...(h.length === 1 && "ns".includes(h) ? { top: (h === "n" ? -hs * 0.35 : e.h - hs * 0.35) } : {}) }} data-testid={`design-handle-${h}`} />)}
