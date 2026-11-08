@@ -35,7 +35,8 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
   const [pane, setPaneState] = useState<"folders" | "list">(() => { try { return localStorage.getItem(PKEY) === "list" ? "list" : "folders"; } catch { return "folders"; } });
   const setPane = (p: "folders" | "list") => { setPaneState(p); try { localStorage.setItem(PKEY, p); } catch { /* not kept */ } };
   const pick = (f: Filter) => { setFilter(f); setPane("list"); };
-  const [sheet, setSheet] = useState<"" | "new" | "folder" | "settings" | "vault">("");
+  // The dock's "New note" (NotesDock.tsx) opens the list with the new-note sheet up.
+  const [sheet, setSheet] = useState<"" | "new" | "folder" | "settings" | "vault">(() => { try { if (sessionStorage.getItem("arise-notes-new") === "1") { sessionStorage.removeItem("arise-notes-new"); return "new"; } } catch { /* opens closed */ } return ""; });
   const [editFolder, setEditFolder] = useState<Folder | null>(null);
   const [wide, setWide] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1000);
   useEffect(() => { const f = () => setWide(window.innerWidth >= 1000); window.addEventListener("resize", f); return () => window.removeEventListener("resize", f); }, []);

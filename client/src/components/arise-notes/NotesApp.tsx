@@ -3,6 +3,7 @@
 // your notes, Voice memo, and Settings (plan and minutes, family, privacy, accessibility).
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { NoteTypeIcon } from "./NoteIcon";
+import { NotesDock } from "./NotesDock";
 import { ArrowRight, AudioLines, ChevronLeft, Columns2, Folder, LayoutGrid, Loader2, Lock, Mic, MessageCircle, Pencil, Search, Settings, Sparkles, Upload, Users, Zap } from "lucide-react";
 import { hasAppearance, setAppearance, useAppearance } from "./appearance";
 import { useAuth } from "@/context/AuthContext";
@@ -16,7 +17,7 @@ import { newPageId, pagesSyncFor } from "./pages/pagesSync";
 import { DEFAULT_LOOK } from "@shared/arisePages";
 import { publishWatch, watchActions } from "@/lib/watch";
 import { Btn, IconBtn, Notice, Spinner, ToastHost, plural, shortDate, useToast } from "./ui";
-import { LookHomeHero, LookNoteList, LookTabBar, activeLook } from "./looks";
+import { LookHomeHero, LookNoteList, activeLook } from "./looks";
 import { archClass } from "./protoLooks";
 import { useContrastGuard } from "@/lib/contrastGuard";
 import "./notes.css";
@@ -316,19 +317,13 @@ export function openSplit(mode: "standalone" | "embedded", right: "tasks" | "cal
 const TAB_KEY = "arise-notes-tab";
 const lastTab = () => { try { return localStorage.getItem(TAB_KEY) === "pages" ? "pages" : "ai"; } catch { return "ai"; } };
 const rememberTab = (t: "ai" | "pages") => { try { localStorage.setItem(TAB_KEY, t); } catch { /* not kept */ } };
-export function TabBar({ ctx, on }: { ctx: AppCtx; on: "ai" | "pages" }) {
-  if (activeLook(ctx.me.settings)) return <LookTabBar look={activeLook(ctx.me.settings)} on={on} initial={(ctx.me.user.name || "A").trim().charAt(0).toUpperCase()} home={() => ctx.go({ name: "home" })} notes={() => ctx.go({ name: "pages" })} record={() => ctx.go({ name: "record" })} settings={() => ctx.go({ name: "settings" })} />;
-  const Tab = ({ id, icon, label }: { id: "ai" | "pages"; icon: ReactNode; label: string }) =>
-    <button type="button" role="tab" aria-selected={on === id} onClick={() => ctx.go(id === "ai" ? { name: "home" } : { name: "pages" })} data-testid={`notes-tab-${id}`}
-      className={`an-tabpill flex flex-1 items-center justify-center gap-2 rounded-full py-2.5 text-[13.5px] font-bold ${on === id ? "bg-[var(--an-ink)] text-white shadow-[0_8px_18px_-8px_rgba(20,19,31,.7)]" : "text-[var(--an-muted)] hover:text-[var(--an-ink)]"}`}>
-      {icon}{label}</button>;
-  return <nav role="tablist" aria-label="Arise Notes" className="an-noprint an-tabbar fixed inset-x-0 bottom-0 z-40 px-5 pb-[max(.6rem,env(safe-area-inset-bottom))] pt-2.5" data-testid="notes-tabs">
-    <div className="mx-auto flex max-w-sm gap-1 rounded-full bg-black/[.045] p-1">
-      <Tab id="ai" icon={<AudioLines className="h-[17px] w-[17px]" />} label="AI Notes" />
-      <Tab id="pages" icon={<Pencil className="h-[17px] w-[17px]" />} label="Notes" />
-      <button type="button" onClick={() => ctx.go({ name: "settings" })} aria-label="Menu" data-testid="notes-tab-menu" className="an-tabpill flex items-center justify-center gap-2 rounded-full px-3.5 py-2.5 text-[13.5px] font-bold text-[var(--an-muted)] hover:text-[var(--an-ink)]"><LayoutGrid className="h-[17px] w-[17px]" />Menu</button>
-    </div>
-  </nav>;
+export function TabBar({ ctx, on }: { ctx: AppCtx; on: "ai" | "pages" | "ask" | "menu" }) {
+  // One bar in every look: Arise To Duo's floating pill (NotesDock.tsx). The look still colors the + button.
+  return <NotesDock on={on} initial={(ctx.me.user.name || "A").trim().charAt(0).toUpperCase()} go={{
+    home: () => ctx.go({ name: "home" }), notes: () => ctx.go({ name: "pages" }), record: () => ctx.go({ name: "record" }), upload: () => ctx.go({ name: "upload" }),
+    memo: () => ctx.go({ name: "memo" }), ask: () => ctx.go({ name: "ask" }), menu: () => ctx.go({ name: "settings" }),
+    newNote: () => { try { sessionStorage.setItem("arise-notes-new", "1"); } catch { /* the list opens without the sheet */ } ctx.go({ name: "pages" }); },
+  }} />;
 }
 
 // ─── Home ────────────────────────────────────────────────────────────────────
