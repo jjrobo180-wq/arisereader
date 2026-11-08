@@ -458,6 +458,12 @@ public final class PodAPI {
 
     // Playing without ads (server/podcastClean.ts, server/podcastPlay.ts)
 
+    /** A line in the server's log when the native player has trouble (episode ids and the error only: no names). */
+    public func report(_ text: String) {
+        guard let req = request("/api/client-error", method: "POST", body: ["host": "podplus-ios", "name": "PodEngine", "message": String(text.prefix(280)), "where": "native player"]) else { return }
+        http.dataTask(with: req).resume()
+    }
+
     /** The episode's ad-free copy, when it has one: its address, its session id and the ads still in it. */
     public func clean(_ ep: PodEp) async -> (url: URL, sid: String, ads: [PodAd])? {
         guard let b = try? await json("/api/podscroll/clean/\(ep.id)?s=\(ep.showId)"), (b["ready"] as? Bool) == true,
