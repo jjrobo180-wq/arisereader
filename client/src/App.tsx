@@ -209,6 +209,7 @@ const ParentArise2 = lazyPage(() => import("./pages/ParentArise2"));
 const Pricing = lazyPage(() => import("./pages/Pricing"));
 const Billing = lazyPage(() => import("./pages/Billing"));
 const ReaderSubscribe = lazyPage(() => import("./pages/ReaderSubscribe"));
+const ReaderScholarship = lazyPage(() => import("./pages/ReaderScholarship"));
 
 // Gate that shows profile setup overlay after student registration
 function StudentSetupGate({ children }: { children: React.ReactNode }) {
@@ -305,7 +306,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
   if (!user) return <Redirect to="/" replace />;
-  if (onReader && readerLocked(plan) && !["/subscribe", "/billing"].includes(location.split("?")[0])) return <Redirect to="/subscribe" replace />;
+  if (onReader && readerLocked(plan) && !["/subscribe", "/billing", "/scholarship"].includes(location.split("?")[0])) return <Redirect to="/subscribe" replace />;
   if (isPlanTeacher && teacherLocked(plan) && location.split("?")[0] !== "/billing") return <Redirect to="/billing" replace />;
   // A linked parent can also open their child's talker and family tools.
   if (user.role === 'parent' && !user.isAdmin && !(isEyeGazerApp() && (location.startsWith('/eye-gaze') || location === '/my-world' || location === '/arise-city' || location === '/reading-level-up')) && !['/parent-dashboard', '/eye-gaze-parent', '/eye-gaze-parent-controls', '/eye-gaze-talker', '/my-world', '/eye-gaze-flashcards', '/eye-gaze-life-skills', '/eye-gaze-potty'].includes(location)) {
@@ -718,6 +719,10 @@ function AppRoutes() {
         {isNativeApp() ? <NativePlans /> : <Pricing />}
       </Route>
       {/* A.R.I.S.E. Reader needs a plan: what it costs and how to get it. */}
+      {/* Public: ask for A.R.I.S.E. Reader free (a scholarship or a grant). */}
+      <Route path="/scholarship">
+        <ReaderScholarship />
+      </Route>
       <Route path="/subscribe">
         {user ? <ReaderSubscribe /> : <Redirect to="/" replace />}
       </Route>

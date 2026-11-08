@@ -99,6 +99,7 @@ export default function ReaderSubscribe() {
             </button>
           ))}
           {error && <p className="mt-3 text-sm text-rose-300" role="alert">{error}</p>}
+          <button type="button" onClick={() => navigate("/scholarship")} className="mt-3 w-full text-center text-sm font-semibold text-violet-300 underline-offset-4 hover:underline" data-testid="reader-subscribe-scholarship">Can't afford it? Apply for a free account</button>
           {native && role !== "student" && <p className="mt-3 text-xs leading-5 text-slate-400">Plans are bought on the website. Once it's paid, sign in here and everything opens.</p>}
         </section>
         <div className="mt-4 grid grid-cols-3 gap-2">

@@ -115,7 +115,7 @@ export const PLANS = {
   grandfatherUntil: "2027-07-01T06:00:00.000Z",
   /**
    * A.R.I.S.E. Reader stops being free for accounts made from this moment (midnight on
-   * November 9, 2026, Mountain time). Every account made before it keeps Reader free for good.
+   * November 9, 2026, Mountain time). Every account made before it keeps Reader free through the 2026-27 school year.
    */
   readerPaidFrom: "2026-11-09T07:00:00.000Z",
   /** A paid plan stays on this long past its end date, so a late renewal notice never locks a class out. */
@@ -373,7 +373,9 @@ export type ReaderVia = "admin" | "sample" | "existing" | "teacher-plan" | "scho
 export type ReaderAccess = { access: boolean; via: ReaderVia | null };
 
 /** Made before Reader stopped being free? An account with no sign-up date on record is an old one. */
-export function readerExistingAccount(createdAt: unknown): boolean {
+export function readerExistingAccount(createdAt: unknown, now = Date.now()): boolean {
+  // Free through the 2026-27 school year (until July 1, 2027), then a plan like everyone else.
+  if (now >= Date.parse(PLANS.grandfatherUntil)) return false;
   const t = signedUpAt(createdAt);
   return !Number.isFinite(t) || t < Date.parse(PLANS.readerPaidFrom);
 }
@@ -392,7 +394,7 @@ export type ReaderFacts = {
 /**
  * Can this person use A.R.I.S.E. Reader? From November 9, 2026 Reader is paid: $7 a month for a
  * family (the parent and up to 3 linked children), $20 a month per 99 students for a teacher, or
- * $100 a month for a whole school. Everyone who had an account before then keeps it free, and so do
+ * $100 a month for a whole school. Everyone who had an account before then keeps it free through the school year, and so do
  * the students of a teacher who has it. Unlike Premium this does not wait for plan rules to be on.
  */
 export function readerAccessFor(person: (PlanPerson & { username?: string | null }) | null | undefined, facts: ReaderFacts): ReaderAccess {
@@ -403,7 +405,7 @@ export function readerAccessFor(person: (PlanPerson & { username?: string | null
   if (isDemoAccount(name) || name.startsWith("sample")) return { access: true, via: "sample" };
   const role = person.role || "student";
   if (role !== "student" && role !== "teacher" && role !== "parent") return { access: true, via: "not-reader" };
-  if (readerExistingAccount(person.createdAt)) return { access: true, via: "existing" };
+  if (readerExistingAccount(person.createdAt, now)) return { access: true, via: "existing" };
   if (role === "teacher") {
     if (grantLive(facts.teacherGrant, now)) return { access: true, via: "teacher-plan" };
     if (grantLive(facts.schoolGrant, now)) return { access: true, via: "school-plan" };

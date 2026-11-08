@@ -38,7 +38,7 @@ export default function Pricing() {
       <section className="mx-auto max-w-4xl px-5 pb-8 pt-10 text-center">
         <p className="text-xs font-black uppercase tracking-[.22em] text-violet-700">Simple, straightforward pricing</p>
         <h1 className="mt-4 text-4xl font-black leading-tight tracking-tight sm:text-5xl">One plan. Every book.<br/><span className="text-violet-700">Every quiz. Every reward.</span></h1>
-        <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-slate-600">Pick the plan for your family, your class or your whole school. Already have an account? Yours stays free.</p>
+        <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-slate-600">Pick the plan for your family, your class or your whole school. Already have an account? Yours stays free this school year.</p>
       </section>
       <section className="mx-auto grid grid-cols-1 max-w-6xl gap-5 px-5 pb-12 lg:grid-cols-3" aria-label="Plans">
         <article className="rounded-[1.75rem] border-2 border-violet-600 bg-white p-6 shadow-xl shadow-violet-100" data-testid="pricing-family">
@@ -54,7 +54,7 @@ export default function Pricing() {
           <h2 className="mt-3 text-2xl font-black">Class</h2>
           <p className="mt-3 text-5xl font-black">{perBlock} <span className="text-sm font-semibold text-slate-500">/ month</span></p>
           <p className="mt-2 text-xs font-bold text-emerald-700">Discounted classroom price for educators, about 20¢ per student.</p>
-          <p className="mt-3 text-sm leading-6 text-slate-600">A.R.I.S.E. Reader for up to {block} students. Need more? Each extra {block} students is {perBlock} a month.</p>
+          <p className="mt-3 text-sm leading-6 text-slate-600">A.R.I.S.E. Reader for up to {block} students.</p>
           <ul className="mt-6 space-y-3 text-sm font-semibold"><li>✓ Every student covered by your plan</li><li>✓ Classroom dashboard &amp; reports</li><li>✓ Live class games &amp; class goals</li><li>✓ Custom quizzes for your books</li><li>✓ Parents of your students follow along</li></ul>
           <button onClick={teacherPlan} className="mt-7 w-full rounded-xl bg-emerald-700 px-5 py-3 font-bold text-white" data-testid="pricing-get-premium">Get the class plan</button>
         </article>
@@ -68,7 +68,20 @@ export default function Pricing() {
           <button onClick={teacherPlan} className="mt-7 w-full rounded-xl bg-sky-700 px-5 py-3 font-bold text-white" data-testid="pricing-get-school">Get the school plan</button>
         </article>
       </section>
-      <p className="mx-auto -mt-6 mb-10 max-w-3xl px-5 text-center text-sm text-slate-500" data-testid="pricing-existing">Everyone who signed up before November 9, 2026 keeps A.R.I.S.E. Reader free. Cancel anytime.</p>
+      <section className="mx-auto mb-16 max-w-4xl px-5" aria-labelledby="why-paid" data-testid="pricing-why">
+        <div className="rounded-[1.75rem] border border-violet-100 bg-white p-6 shadow-sm sm:p-9">
+          <p className="text-xs font-black uppercase tracking-widest text-violet-600">A note from Mr. J</p>
+          <h2 id="why-paid" className="mt-2 text-2xl font-black">Why A.R.I.S.E. Reader isn't free anymore</h2>
+          <p className="mt-4 text-[15px] leading-7 text-slate-600">A.R.I.S.E. Reader started out completely free, built by one teacher for his daughter and for every kid who needed a reason to keep reading. As the site has grown, the cost of running it (servers, the reading library, quizzes and AI) has grown far past what I can cover on my own. To keep A.R.I.S.E. running, getting better and free of ads, we now have to charge a small monthly price.</p>
+          <p className="mt-4 text-[15px] font-bold leading-7 text-slate-800">Everyone who signed up before November 9, 2026 stays free for the entire 2026-27 school year.</p>
+          <div className="mt-6 rounded-2xl bg-violet-50 p-5">
+            <h3 className="text-lg font-black text-violet-900">Can't afford it? Apply for a free account.</h3>
+            <p className="mt-2 text-sm leading-6 text-violet-900/80">Our values haven't changed: no child should miss out on reading because of money. Families, teachers and schools can apply for a scholarship, or tell us about a grant or program that covers them, and get A.R.I.S.E. Reader free.</p>
+            <button onClick={() => navigate("/scholarship")} className="mt-4 rounded-xl bg-violet-700 px-5 py-3 text-sm font-bold text-white" data-testid="pricing-scholarship">Apply for a free account</button>
+          </div>
+          <p className="mt-5 text-xs text-slate-500">Cancel anytime. No ads, and your family's information is never sold.</p>
+        </div>
+      </section>
       <footer className="px-5 pb-8 text-center text-xs text-slate-500">A.R.I.S.E. — Advocating, Resilience, Inclusion, Support, Empowerment.</footer>
     </main>
   );

@@ -16,7 +16,8 @@ test("the new prices", () => {
   assert.equal(priceOf("teacher").seats(1), 99);
 });
 
-test("every account made before November 9 keeps Reader free", () => {
+test("every account made before November 9 keeps Reader free for the school year", () => {
+  assert.equal(readerAccessFor({ id: 1, role: "student", createdAt: OLD }, { now: Date.parse("2027-07-02T00:00:00Z") }).access, false, "then a plan like everyone else");
   for (const role of ["student", "teacher", "parent"]) assert.deepEqual(readerAccessFor({ id: 1, role, createdAt: OLD }, { now: NOW }), { access: true, via: "existing" });
   assert.equal(readerAccessFor({ id: 1, role: "student" }, { now: NOW }).access, true, "no sign-up date on record: an old account");
 });
@@ -53,4 +54,12 @@ test("the server refuses the Reader's own data to a new account without a plan, 
   for (const p of ["/api/books", "/api/student", "/api/custom-quizzes", "/api/parent", "/api/teacher"]) assert.ok(src.includes(`"${p}"`), p);
   assert.ok(!/READER_LOCKED = \[[^\]]*"\/api\/(plan|billing|login|me|arise-todo|lifehub|teacher-hub|eye-gaze)"/.test(src), "plans, payment, sign-in, the hubs and Eye Gazer stay open");
   assert.match(src, /user\.is_eye_gaze_user \|\| user\.isEyeGazeUser\) return next\(\)/);
+});
+
+test("a scholarship form on the pricing page, read in Admin", () => {
+  const pricing = readFileSync("client/src/pages/Pricing.tsx", "utf8");
+  assert.match(pricing, /navigate\("\/scholarship"\)/);
+  assert.ok(!pricing.includes("Each extra"), "no per-extra-block line");
+  assert.match(readFileSync("server/plans.ts", "utf8"), /app\.post\("\/api\/reader-scholarship"/);
+  assert.match(readFileSync("client/src/pages/Admin.tsx", "utf8"), /<AdminScholarships \/>/);
 });

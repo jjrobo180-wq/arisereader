@@ -1443,6 +1443,46 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     } catch (e) { fail(res, e, "admin programs"); }
   });
 
+  // ── Reader scholarships: a family, teacher or school asks for a free plan ──
+  const SCHOLARSHIP_KEY = "reader_scholarships";
+  const lastAsk = new Map<string, number>();
+  const clip = (v: unknown, n: number) => String(v ?? "").replace(/[\u0000-\u001f]+/g, " ").trim().slice(0, n);
+  app.post("/api/reader-scholarship", async (req: any, res: any) => {
+    try {
+      const b = req.body || {};
+      const who = ["family", "teacher", "school"].includes(b.who) ? b.who : "";
+      const name = clip(b.name, 120), email = clip(b.email, 200), reason = clip(b.reason, 3000);
+      if (!who || !name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || reason.length < 20) throw new Refused("Please fill in who it's for, your name, a real email and a few sentences about why.", 400);
+      const ip = String(req.ip || req.headers?.["x-forwarded-for"] || "");
+      if (now() - (lastAsk.get(ip) ?? -Infinity) < 60_000) throw new Refused("Your application was just sent. Please wait a minute before sending another.", 429);
+      lastAsk.set(ip, now());
+      const entry = { id: `${now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, at: iso(now()), who, name, email, reason,
+        school: clip(b.school, 200), students: clip(b.students, 20), username: clip(b.username, 60), program: clip(b.program, 200), status: "new" };
+      await serial(async () => {
+        const list = parse<any[]>(await read(SCHOLARSHIP_KEY), []);
+        list.unshift(entry);
+        await write(SCHOLARSHIP_KEY, JSON.stringify(list.slice(0, 500)));
+      });
+      res.json({ ok: true });
+    } catch (e) { fail(res, e, "scholarship"); }
+  });
+  app.get("/api/admin/reader-scholarships", auth, admin, async (_req: any, res: any) => {
+    try { res.set("Cache-Control", "no-store"); res.json({ applications: parse<any[]>(await read(SCHOLARSHIP_KEY), []) }); } catch (e) { fail(res, e, "scholarships"); }
+  });
+  app.post("/api/admin/reader-scholarships/:id", auth, admin, async (req: any, res: any) => {
+    try {
+      const status = ["new", "approved", "declined"].includes(req.body?.status) ? req.body.status : "new";
+      await serial(async () => {
+        const list = parse<any[]>(await read(SCHOLARSHIP_KEY), []);
+        const hit = list.find((x) => x.id === String(req.params.id));
+        if (!hit) throw new Refused("That application isn't there any more.", 404);
+        hit.status = status;
+        await write(SCHOLARSHIP_KEY, JSON.stringify(list));
+      });
+      res.json({ ok: true });
+    } catch (e) { fail(res, e, "scholarship update"); }
+  });
+
   app.get("/api/admin/plans", auth, admin, async (_req: any, res: any) => {
     try {
       const index = await readIndex();
