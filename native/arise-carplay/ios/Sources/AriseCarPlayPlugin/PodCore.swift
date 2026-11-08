@@ -195,6 +195,12 @@ public final class PodStore {
         NotificationCenter.default.post(name: .podLibraryChanged, object: nil)
     }
 
+    /** The signed-in account's email (TV and watch sign-in). */
+    public var email: String? {
+        get { defaults.string(forKey: "pod.email") }
+        set { if let v = newValue { defaults.set(v, forKey: "pod.email") } else { defaults.removeObject(forKey: "pod.email") } }
+    }
+
     /** Spots saved on this side, not yet handed to the web app. */
     public var ownSpots: [String: PodSpot] {
         guard let data = defaults.data(forKey: "pod.spots"), let s = try? JSONDecoder().decode([String: PodSpot].self, from: data) else { return [:] }
@@ -234,6 +240,14 @@ public final class PodStore {
     private func ownSpotsUnlocked() -> [String: PodSpot] {
         guard let data = defaults.data(forKey: "pod.spots"), let s = try? JSONDecoder().decode([String: PodSpot].self, from: data) else { return [:] }
         return s
+    }
+
+    /** Spots from another device (the watch): kept with this side's, the newer one winning. */
+    public func addSpots(_ spots: [String: PodSpot]) {
+        lock.lock(); defer { lock.unlock() }
+        var all = ownSpotsUnlocked()
+        for (k, v) in spots where (all[k]?.at ?? 0) < v.at { all[k] = v }
+        if let data = try? JSONEncoder().encode(all) { defaults.set(data, forKey: "pod.spots") }
     }
 
     /** Hands the spots saved here to the web app and forgets them (it keeps them from now on). A spot of
@@ -368,6 +382,50 @@ public final class PodAPI {
             return (ep, at, PodJSON.num(s["secs"]) ?? ep.secs)
         }
         return PodStation(slots: slots, now: PodJSON.num(b["now"]) ?? Date().timeIntervalSince1970 * 1000)
+    }
+
+    /** Podcasts and episodes matching some words. */
+    public func search(_ q: String) async throws -> (shows: [PodShowRef], episodes: [PodEp]) {
+        let b = try await json("/api/podscroll/search?q=\(q.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? q)")
+        return (PodJSON.list(b["shows"]).compactMap { PodShowRef(json: $0) }, PodJSON.list(b["episodes"]).compactMap { PodEp(json: $0) })
+    }
+
+    // Signing in (Pod+ account: an email and a 6-digit code) and the account's library
+
+    public func sendCode(email: String) async throws {
+        _ = try await json("/api/podscroll/account/code", method: "POST", body: ["email": email])
+    }
+    /** Checks the code; on success this device is signed in (the session is kept in the library). */
+    public func verify(email: String, code: String) async throws {
+        let b = try await json("/api/podscroll/account/verify", method: "POST", body: ["email": email, "code": code])
+        guard let token = PodJSON.str(b["token"]), !token.isEmpty else { throw PodError.server("That didn't work. Try again.") }
+        var lib = PodStore.shared.library
+        lib.session = token
+        PodStore.shared.setLibrary(lib)
+        PodStore.shared.email = PodJSON.str(b["email"]) ?? email
+        _ = try? await syncLibrary()
+    }
+    public func signOut() {
+        Task { _ = try? await json("/api/podscroll/account/signout", method: "POST") }
+        var lib = PodLibrary(api: PodStore.shared.library.api, device: PodStore.shared.library.device)
+        lib.session = nil
+        PodStore.shared.setLibrary(lib)
+        PodStore.shared.email = nil
+    }
+    /** The library the account's phone last saved on the server (shows followed, saved, Pod Modes,
+     *  resume spots), kept here with this device's own sign-in. */
+    @discardableResult
+    public func syncLibrary() async throws -> Bool {
+        guard PodStore.shared.library.session != nil else { return false }
+        let b = try await json("/api/podscroll/account/library")
+        guard var raw = b["library"] as? [String: Any] else { return false }
+        let mine = PodStore.shared.library
+        raw["device"] = mine.device
+        raw["session"] = mine.session ?? ""
+        raw["api"] = mine.api
+        guard let lib = PodLibrary(json: raw) else { return false }
+        PodStore.shared.setLibrary(lib)
+        return true
     }
 
     // Playing without ads (server/podcastClean.ts, server/podcastPlay.ts)

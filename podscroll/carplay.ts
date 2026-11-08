@@ -100,3 +100,25 @@ export function installCarPlay(o: { api: string; device: () => string; session: 
   publish();
   return { publish };
 }
+
+/** Signed in: the library is saved to the account too (a little while after it changes), so the Apple
+ *  TV app and other devices signed in to the same Pod+ account show the same shows and spots. */
+export function installLibrarySync(o: { api: (path: string, init?: { method?: string; body?: unknown }) => Promise<any>; signedIn: () => boolean; es: () => Earshot }): { changed: () => void } {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let last = "";
+  const save = () => {
+    timer = null;
+    if (!o.signedIn()) return;
+    const { device: _d, session: _s, api: _a, ...library } = carPlayLibrary(o.es(), { api: "", device: "", session: "", spots: readSpots() });
+    const key = JSON.stringify({ ...library, at: 0 });
+    if (key === last) return;
+    last = key;
+    void o.api("/api/earshot/account/library", { method: "POST", body: { library } }).catch(() => { last = ""; });
+  };
+  const changed = () => { if (timer) clearTimeout(timer); timer = setTimeout(save, 20_000); };
+  if (typeof window !== "undefined") {
+    window.addEventListener(SPOTS_EVENT, changed);
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden" && timer) { clearTimeout(timer); save(); } });
+  }
+  return { changed };
+}

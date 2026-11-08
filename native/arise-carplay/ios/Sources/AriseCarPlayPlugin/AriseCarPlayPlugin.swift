@@ -1,4 +1,4 @@
-// The Pod+ web app's way in to CarPlay (podscroll/carplay.ts calls this).
+// The Pod+ web app's way in to CarPlay and the Apple Watch app (podscroll/carplay.ts calls this).
 //   setLibrary({ library })  what to show in the car: follows, saved, liked, Pod Modes, resume spots
 //   takeSpots()              -> { spots: { [episodeId]: spot } } saved in the car since last asked (then forgotten here)
 //   stop()                   the phone started playing something: the car's player stops
@@ -23,6 +23,9 @@ public class AriseCarPlayPlugin: CAPPlugin, CAPBridgedPlugin {
         // Keeps the car's scene in the app (iOS looks it up by name when a car connects).
         _ = PodCarPlaySceneDelegate.self
         #endif
+        #if canImport(WatchConnectivity)
+        PodLink.shared.start()
+        #endif
         DispatchQueue.main.async { [weak self] in
             MainActor.assumeIsolated {
                 PodEngine.shared.onStart = { [weak self] in
@@ -36,6 +39,9 @@ public class AriseCarPlayPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func setLibrary(_ call: CAPPluginCall) {
         guard let raw = call.getObject("library"), let lib = PodLibrary(json: raw) else { call.reject("library must have a device id"); return }
         PodStore.shared.setLibrary(lib)
+        #if canImport(WatchConnectivity)
+        PodLink.shared.sendLibrary(raw)  // and to the Apple Watch app
+        #endif
         call.resolve()
     }
 

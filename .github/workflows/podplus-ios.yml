@@ -9,6 +9,8 @@ on:
       - '.github/workflows/podplus-ios.yml'
       - '.github/scripts/adopt_uiscene.py'
       - 'native/arise-carplay/**'
+      - 'native/watch-app/**'
+      - 'native/tv-app/**'
   push:
     branches: [master]
     paths:
@@ -18,6 +20,8 @@ on:
       - '.github/workflows/podplus-ios.yml'
       - '.github/scripts/adopt_uiscene.py'
       - 'native/arise-carplay/**'
+      - 'native/watch-app/**'
+      - 'native/tv-app/**'
 jobs:
   ios:
     # Xcode 27 (iOS 27 SDK), like the TestFlight builds, so this catches what only fails there
@@ -79,6 +83,28 @@ jobs:
           echo "::notice title=Launch::Opened and still running on $(xcrun simctl list devices | grep "$DEVICE" | head -1 | xargs)"
           # An iPhone Duo simulator has two screens: the picture is a nice-to-have, not the check.
           xcrun simctl io "$DEVICE" screenshot "$RUNNER_TEMP/podplus-launch.png" || xcrun simctl io "$DEVICE" screenshot --display=internal "$RUNNER_TEMP/podplus-launch.png" || echo "::warning title=Screenshot::No launch screenshot from this simulator"
+      - name: Launch on an iPad simulator and capture it
+        working-directory: podscroll/ios-app
+        run: |
+          set -euo pipefail
+          IPAD=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); g=sorted(d["devices"].items(), key=lambda kv: [int(n) for n in kv[0].rsplit("iOS-",1)[-1].split("-") if n.isdigit()] if "iOS-" in kv[0] else [0]); print(next((x["udid"] for _, group in reversed(g) for x in group if x["name"].startswith("iPad")), ""))')
+          if [[ -z "$IPAD" ]]; then echo "::warning title=iPad::No iPad simulator on this runner"; exit 0; fi
+          xcrun simctl boot "$IPAD"
+          xcrun simctl bootstatus "$IPAD" -b
+          xcrun simctl install "$IPAD" derived/Build/Products/Debug-iphonesimulator/App.app
+          xcrun simctl launch "$IPAD" com.arisereader.podplus
+          sleep 15
+          if ! xcrun simctl spawn "$IPAD" launchctl list | grep -q "UIKitApplication:com.arisereader.podplus"; then
+            echo "::error title=iPad::The app quit right after it opened on the iPad simulator"; exit 1
+          fi
+          echo "::notice title=iPad::Opened and still running on $(xcrun simctl list devices | grep "$IPAD" | head -1 | xargs)"
+          xcrun simctl io "$IPAD" screenshot "$RUNNER_TEMP/podplus-ipad.png" || true
+      - name: Save iPad screenshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: podplus-ipad-launch
+          path: ${{ runner.temp }}/podplus-ipad.png
+          if-no-files-found: warn
       - name: Save beta launch screenshot
         uses: actions/upload-artifact@v4
         with:
@@ -92,3 +118,16 @@ jobs:
           path: podscroll/ios-app/derived/Build/Products/Debug-iphonesimulator/App.app
           if-no-files-found: error
           retention-days: 7
+      - name: Add Pod+ for Apple Watch and Apple TV
+        working-directory: podscroll/ios-app
+        run: |
+          ruby -rxcodeproj -e 'puts Xcodeproj::VERSION' 2>/dev/null || gem install xcodeproj --no-document --user-install
+          ruby add_watch_tv.rb ios/App/App.xcodeproj
+      - name: Compile Apple Watch app (simulator)
+        working-directory: podscroll/ios-app
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -target PodPlusWatch -configuration Debug -sdk watchsimulator CODE_SIGNING_ALLOWED=NO build
+      - name: Compile Apple TV app (simulator)
+        working-directory: podscroll/ios-app
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -target PodPlusTV -configuration Debug -sdk appletvsimulator CODE_SIGNING_ALLOWED=NO build

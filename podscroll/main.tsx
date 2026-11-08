@@ -22,7 +22,7 @@ import { publishWidgets } from "../client/src/lib/widgets";
 import { podWidgetSlots } from "../client/src/lib/podWidgets";
 import { subscribeWiki, wikiState } from "./wikiPlayer";
 import { downloads, installDownloads } from "./downloads";
-import { installCarPlay } from "./carplay";
+import { installCarPlay, installLibrarySync } from "./carplay";
 import "./styles.css";
 // Pod+ draws edge to edge: the top of every screen clears this iPhone's own clock space (lib/deviceInsets.ts).
 if (isNativeApp()) { document.documentElement.classList.add("pod-native"); applyDeviceTopInset(); }
@@ -128,6 +128,10 @@ function App() {
   const car = useRef<{ publish: () => void } | null>(null);
   useEffect(() => { car.current = installCarPlay({ api: API, device: () => device, session: () => sessionRef.current, es: () => esRef.current }); }, [device]);
   useEffect(() => { car.current?.publish(); }, [es, session]);
+  // Signed in: the library is saved to the account too, for the Apple TV app and other devices.
+  const libSync = useRef<{ changed: () => void } | null>(null);
+  if (!libSync.current) libSync.current = installLibrarySync({ api: (p, i) => apiRef.current(p, i), signedIn: () => !!sessionRef.current, es: () => esRef.current });
+  useEffect(() => { libSync.current?.changed(); }, [es, session]);
   // Downloads (Pod+ Membership): episodes and audiobooks kept on this device to play offline.
   const apiRef = useRef(api); apiRef.current = api;
   const proRef = useRef(pro); proRef.current = pro;

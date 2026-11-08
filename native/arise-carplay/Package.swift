@@ -18,7 +18,7 @@ let package = Package(
                 .product(name: "Cordova", package: "capacitor-swift-pm")
             ],
             path: "ios/Sources/AriseCarPlayPlugin",
-            linkerSettings: [.linkedFramework("CarPlay"), .linkedFramework("MediaPlayer"), .linkedFramework("AVFoundation")]
+            linkerSettings: [.linkedFramework("CarPlay"), .linkedFramework("MediaPlayer"), .linkedFramework("AVFoundation"), .linkedFramework("WatchConnectivity")]
         )
     ]
 )
