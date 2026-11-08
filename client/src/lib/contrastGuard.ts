@@ -69,13 +69,24 @@ export function backdropOf(el: Element, cache = new Map<Element, RGBA[] | null>(
 
 export type Finding = { el: HTMLElement; text: string; fg: string; bg: string; ratio: number };
 
+let onScreenOnly = false;
 const visible = (el: HTMLElement) => {
   const r = el.getBoundingClientRect();
   if (r.width < 1 || r.height < 1) return false;
+  // While the page is live, only what's on screen (and a screen either side) is checked: the rest is checked
+  // when it scrolls in. Checking every element of a long hub with its styles stalled the phone.
+  if (onScreenOnly && (r.bottom < -window.innerHeight || r.top > window.innerHeight * 2)) return false;
   const s = getComputedStyle(el);
   return s.visibility !== "hidden" && s.display !== "none" && parseFloat(s.opacity) > 0.05;
 };
-const blended = (el: Element) => { for (let n: Element | null = el; n; n = n.parentElement) if (getComputedStyle(n).mixBlendMode !== "normal") return true; return false; };
+const blendCache = new WeakMap<Element, boolean>();
+const blended = (el: Element): boolean => {
+  if (blendCache.has(el)) return blendCache.get(el)!;
+  const own = getComputedStyle(el).mixBlendMode !== "normal";
+  const out = own || (el.parentElement ? blended(el.parentElement) : false);
+  blendCache.set(el, out);
+  return out;
+};
 /** Elements that show words or an icon on their own. */
 function targets(root: Element): HTMLElement[] {
   const out = new Set<HTMLElement>();
@@ -130,25 +141,44 @@ export function clearRepairs(root: Element = document.body) {
   root.querySelectorAll<HTMLElement>("[data-cg]").forEach((el) => { el.style.removeProperty("color"); el.removeAttribute("data-cg"); });
 }
 
-/** Keeps the page readable while it is on screen: checks after every change, a moment later. */
+/** Keeps the page readable while it is on screen: checks after changes, but never while the page is scrolling,
+ *  at most every couple of seconds, in the phone's idle time, and only what's on screen. (It used to check the
+ *  whole page 180ms after any change, including the header hiding as you scroll, so scrolling froze.) */
 export function useContrastGuard(enabled: boolean, key: string, inks: string[] = []) {
   useEffect(() => {
     if (!enabled || typeof document === "undefined" || typeof MutationObserver === "undefined") return;
-    let timer = 0, busy = false;
+    let timer = 0, busy = false, lastRun = 0, lastScroll = 0, idle = 0;
+    const ric = (window as any).requestIdleCallback as ((f: () => void, o?: { timeout: number }) => number) | undefined;
     const run = () => {
-      timer = 0; busy = true;
-      try { repair(document.body, inks); } catch { /* never break the page over a color */ }
-      // Our own style changes would wake the observer again; let them pass first.
-      setTimeout(() => { busy = false; }, 0);
+      timer = 0;
+      const now = Date.now();
+      // Still scrolling, or ran a moment ago: come back later.
+      if (now - lastScroll < 450 || now - lastRun < 2000) { timer = window.setTimeout(run, Math.max(450 - (now - lastScroll), 2000 - (now - lastRun), 100)); return; }
+      const go = () => {
+        idle = 0; busy = true; lastRun = Date.now();
+        onScreenOnly = true;
+        try { repair(document.body, inks); } catch { /* never break the page over a color */ }
+        onScreenOnly = false;
+        // Our own style changes would wake the observer again; let them pass first.
+        setTimeout(() => { busy = false; }, 0);
+      };
+      if (ric) idle = ric(go, { timeout: 1500 }); else go();
     };
-    const soon = () => { if (!busy && !timer) timer = window.setTimeout(run, 180); };
+    const soon = () => { if (!busy && !timer) timer = window.setTimeout(run, 400); };
+    const scrolled = () => { lastScroll = Date.now(); soon(); };
     clearRepairs();
     const mo = new MutationObserver(soon);
     mo.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["class", "aria-pressed", "aria-current", "aria-selected", "data-on", "open"] });
+    window.addEventListener("scroll", scrolled, { passive: true, capture: true });
     soon();
     // Fonts and pictures can arrive late; one more look after things settle.
-    const late = window.setTimeout(soon, 1200);
-    return () => { mo.disconnect(); if (timer) clearTimeout(timer); clearTimeout(late); clearRepairs(); };
+    const late = window.setTimeout(soon, 2500);
+    return () => {
+      mo.disconnect(); window.removeEventListener("scroll", scrolled, { capture: true } as EventListenerOptions);
+      if (timer) clearTimeout(timer); clearTimeout(late);
+      if (idle && (window as any).cancelIdleCallback) (window as any).cancelIdleCallback(idle);
+      clearRepairs();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, key]);
 }
