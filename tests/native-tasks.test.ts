@@ -36,5 +36,6 @@ test("the hub opens the native screen only when the plugin is there, and falls b
   assert.match(hub, /shown !== "tasks" \|\| nativeTasksOpen\.current \|\| !nativeTasksAvailable\(\)/);
   assert.match(hub, /if \(!ok\) \{ nativeTasksOpen\.current = false; return; \}/);
   assert.match(hub, /a\.type === "closed"\) \{[^}]*goSection\("home"\)/);
-  assert.match(read("client/src/lib/nativeTasks.ts"), /nativeFlavor\(\) === "todo" && hasNativePlugin\(PLUGIN\)/);
+  assert.match(read("client/src/lib/nativeTasks.ts"), /NATIVE_TASKS_ON && nativeFlavor\(\) === "todo" && hasNativePlugin\(PLUGIN\)/);
+  assert.match(read("client/src/lib/nativeTasks.ts"), /export const NATIVE_TASKS_ON = false;/);
 });
