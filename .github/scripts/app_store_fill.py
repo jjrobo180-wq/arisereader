@@ -69,9 +69,15 @@ FOR EVERY KIND OF READER
 - Eye Gazer for readers who talk with their eyes
 - Big, clear buttons, read-aloud and calm colors
 
-Built by a teacher. Free for students and families. Notifications let students know when their teacher sends a message, and a daily reminder keeps the reading streak going."""
+PLANS
+- Families: $7 a month for a parent and up to 3 children
+- Teachers: $20 a month for up to 99 students
+- Schools: $100 a month for every teacher and student
+Every plan includes A.R.I.S.E. Math, History and Connect. Plans are bought on arisereader.com.
+
+Built by a teacher. Notifications let students know when their teacher sends a message, and a daily reminder keeps the reading streak going."""
 KEYWORDS = "reading,books,quiz,kids,students,teacher,classroom,literacy,AR,rewards,library,read aloud"
-PROMO = "Read, quiz, earn rewards. Free reading quizzes, badges and games for kids and classrooms."
+PROMO = "Read, quiz, earn rewards. Reading quizzes, badges and games for kids, families and classrooms."
 SUBTITLE = "Reading quizzes and rewards"
 
 demo_user, demo_pass = os.environ.get("DEMO_USER", ""), os.environ.get("DEMO_PASS", "")
@@ -155,16 +161,31 @@ def availability():
         terr += [t["id"] for t in r["data"]]
         url = r.get("links", {}).get("next")
     refs = [f"${{t{i}}}" for i in range(len(terr))]
+    # United States only: the app links to the website to buy a plan, which the US App Store allows.
     try:
-        q(f"apps/{APP}/appAvailabilityV2")
-        print("     already set: available in every country")
-        return
+        av = q(f"apps/{APP}/appAvailabilityV2")["data"]
     except RuntimeError:
-        pass
-    api("https://api.appstoreconnect.apple.com/v2/appAvailabilities", {"data": {"type": "appAvailabilities", "attributes": {"availableInNewTerritories": True}, "relationships": {
+        av = None
+    if av:
+        url = f"https://api.appstoreconnect.apple.com/v2/appAvailabilities/{av['id']}/territoryAvailabilities?limit=200&include=territory"
+        changed = 0
+        while url:
+            r = api(url)
+            for ta in r["data"]:
+                t = ta["relationships"]["territory"]["data"]["id"]
+                want = t == "USA"
+                if ta["attributes"].get("available") != want:
+                    api(f"territoryAvailabilities/{ta['id']}", {"data": {"type": "territoryAvailabilities", "id": ta["id"], "attributes": {"available": want}}}, method="PATCH")
+                    changed += 1
+            url = r.get("links", {}).get("next")
+        print(f"     United States only ({changed} countries changed)")
+        return
+    terr = ["USA"]
+    refs = ["${t0}"]
+    api("https://api.appstoreconnect.apple.com/v2/appAvailabilities", {"data": {"type": "appAvailabilities", "attributes": {"availableInNewTerritories": False}, "relationships": {
         "app": {"data": {"type": "apps", "id": APP}}, "territoryAvailabilities": {"data": [{"type": "territoryAvailabilities", "id": r} for r in refs]}}},
         "included": [{"type": "territoryAvailabilities", "id": r, "attributes": {"available": True}, "relationships": {"territory": {"data": {"type": "territories", "id": t}}}} for r, t in zip(refs, terr)]})
-step("available in every country", availability)
+step("available in the United States only", availability)
 
 # Third-party content: public-domain books (Project Gutenberg, Standard Ebooks), openly licensed lessons
 # (CC BY) and Open Library covers, all with the rights to use them.
@@ -209,7 +230,7 @@ if not os.environ.get("CONTACT_PHONE"):
 # App Review: the sample account, and the contact when given.
 def review():
     attrs = {"demoAccountRequired": True, "demoAccountName": demo_user, "demoAccountPassword": demo_pass,
-             "notes": "Sign in with the student account above (on the sign-in screen, choose Student). It's a sample account: it never appears on leaderboards. Notifications appear when a teacher sends the student a message; the daily reading reminder can be set on first sign-in."}
+             "notes": "Sign in with the student account above (on the sign-in screen, choose Student). It's a sample account with full access, and it never appears on leaderboards. Notifications appear when a teacher sends the student a message; the daily reading reminder can be set on first sign-in. Plans (families $7/month, teachers $20/month, schools $100/month) are not sold in the app: an account without a plan sees a screen with a button that opens arisereader.com in Safari, which is why the app is offered on the United States App Store only."}
     for k, env in (("contactFirstName", "CONTACT_FIRST"), ("contactLastName", "CONTACT_LAST"), ("contactPhone", "CONTACT_PHONE"), ("contactEmail", "CONTACT_EMAIL")):
         if os.environ.get(env):
             attrs[k] = os.environ[env]
