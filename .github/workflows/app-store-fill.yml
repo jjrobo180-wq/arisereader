@@ -35,6 +35,10 @@ jobs:
           login=$(curl -sS -o login.json -w "%{http_code}" -X POST https://arisetodo.com/api/login -H "Content-Type: application/json" -d "$(jq -nc --arg u "$DEMO_USER" --arg p "$DEMO_PASS" '{username:$u,password:$p}')")
           echo "sign in: $login $(jq -c '{message, role: .user.role}' login.json 2>/dev/null)"
           [[ "$login" == "200" ]] || { echo "::error::The sample account can't sign in"; exit 1; }
+          # Its favorite topics, so the first-run "Pick Your Favorites" box doesn't cover the screenshots.
+          tok=$(jq -r '.token' login.json); echo "::add-mask::$tok"
+          curl -sS -o /dev/null -w "favorites: %{http_code}\n" -X POST https://arisetodo.com/api/student/favorites -H "Authorization: Bearer $tok" -H "Content-Type: application/json" -d '{"topics":["Animals","Space","Adventure"]}'
+          rm -f login.json reg.json
       - name: Screenshots on the real site
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.56.1
