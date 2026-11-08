@@ -103,3 +103,76 @@ test("the Duo TV app reads the new summary fields as optional, so an older serve
   // The QR code opens the sign-in page with the TV's code filled in.
   assert.match(tv, /DuoQR\.image\("https:\/\/arisetodo\.com\/tv\?code=\\\(code\)"\)/);
 });
+
+// ——— November 2026, round two: Arise Fit's TV app gets the phone's features and a coach's voice; Arise
+// Duo's gets the Work/Life switch and the LifeHub apps.
+import { tvWorkSummary } from "../server/tvLink";
+import { fitTvSummary, strengthSession } from "../server/fitTv";
+import { TIMER_PRESETS, timerSession } from "../shared/fitTimers";
+import { PROGRAMS } from "../shared/fit";
+
+test("the TV's Work side is the teacher's WorkHub: to-dos, the calendar with repeats, meetings, today's schedule and what's due", () => {
+  const w = tvWorkSummary({
+    profile: { school: "Lincoln MS" },
+    students: [{ id: "s1", name: "Ava Smith", iepDate: "2026-11-20", reevalDate: "2027-05-01" }, { id: "s2", name: "Leo Park", iepDate: "2026-11-01", reevalDate: "" }],
+    tasks: [{ id: "t1", title: "Grade quizzes", dueDate: "2026-11-07", done: false, priority: "high" }, { id: "t2", title: "Done", dueDate: "2026-11-07", done: true }],
+    events: [{ id: "e1", title: "Staff meeting", date: "2026-11-02", start: "15:30", end: "16:30", location: "Library", repeat: "Weekly" }],
+    meetings: [{ id: "m1", student: "s1", type: "Annual IEP", date: "2026-11-10", time: "08:00", done: false }],
+    schedules: [{ id: "x", student: "s1", day: "Saturday", start: "09:00", end: "09:30", label: "Reading" }],
+    notes: [{ id: "n", student: "s1", body: "private note", date: "2026-11-07" }],
+  }, "2026-11-07", "Jeremy");
+  assert.deepEqual(w.tasks.map((t) => [t.title, t.priority]), [["Grade quizzes", "high"]]);
+  assert.deepEqual(w.events.map((e) => `${e.date} ${e.title}`), ["2026-11-09 Staff meeting", "2026-11-10 Annual IEP: Ava Smith"]);
+  assert.deepEqual(w.meetings.map((m) => m.student), ["Ava Smith"]);
+  assert.deepEqual(w.schedule.map((x) => x.student), ["Ava Smith"]); // Nov 7, 2026 is a Saturday
+  assert.deepEqual(w.dueSoon.map((d) => [d.student, d.days]), [["Leo Park", -6], ["Ava Smith", 13]]);
+  assert.equal(JSON.stringify(w).includes("private note"), false, "notes never go to the TV");
+});
+
+test("the TV's LifeHub apps: grocery, meals, countdowns, birthdays, habits and routines, each only when it's on", () => {
+  const family = { sections: { grocery: true, countdowns: true, birthdays: true }, groceries: [{ id: "g", name: "Milk", qty: "1", aisle: "Dairy", checked: false }, { id: "h", name: "Got it", qty: "", aisle: "", checked: true }],
+    countdowns: [{ id: "c", title: "Trip", date: "2026-11-19", emoji: "🏜️", color: "#ea580c" }], birthdays: [{ id: "b", name: "Grandma", month: 11, day: 12, year: 1948, kind: "birthday" }] };
+  const s = tvSummary({ family }, "2026-11-07");
+  assert.deepEqual(s.apps.grocery, [{ name: "Milk", qty: "1", aisle: "Dairy" }]);
+  assert.deepEqual(s.apps.countdowns?.map((c) => c.days), [12]);
+  assert.deepEqual(s.apps.birthdays?.map((b) => [b.name, b.days, b.turns]), [["Grandma", 5, 78]]);
+  assert.equal(s.apps.habits, null, "Habits is off, so the TV has no page for it");
+});
+
+test("Arise Fit on the TV: today's numbers, the program day played set by set, routines, timers and history", () => {
+  const prog = PROGRAMS[0];
+  const s = fitTvSummary({ v: 1, profile: { units: "lb", goal: "lose", activity: 1.4, waterGoalMl: 2400, stepsGoal: 8000 }, workouts: [{ id: "w", date: "2026-11-06T10:00:00Z", name: "Push day", secs: 2400, exercises: [] }],
+    routines: [{ id: "r", name: "Leg day", exercises: [{ exId: "squat", name: "Squat", sets: 3, reps: "8", rest: 90 }] }], program: { id: prog.id, started: "2026-11-01", done: [] },
+    foods: [], recentFoods: [], water: { "2026-11-07": 750 }, weights: [] }, "2026-11-07", "Jeremy", Date.parse("2026-11-07T20:00:00"));
+  assert.deepEqual(s.slots.map((x) => x.id), ["fit.calories", "fit.water", "fit.workouts", "fit.protein", "fit.streak", "fit.weight"]);
+  assert.equal(s.program?.dayName, prog.days[0].name);
+  assert.ok(s.program!.session.phases.some((p) => p.kind === "rest" && p.cue?.startsWith("Next:")), "rest between sets says what's next");
+  assert.equal(s.routines[0].name, "Leg day");
+  assert.equal(s.timers.length, TIMER_PRESETS.length);
+  assert.deepEqual(s.history.map((h) => [h.name, h.mins]), [["Push day", 40]]);
+  assert.equal(s.week.at(-2)?.mins, 40);
+  // A set of "8" reps is timed, a "45s" plank is 45 seconds.
+  const one = strengthSession("x", "x", "", [{ exId: "plank", name: "Plank", sets: 1, reps: "45s", rest: 30 }]);
+  assert.equal(one.phases.find((p) => p.name === "Plank")?.secs, 45);
+});
+
+test("the Fit TV app has the built-in timers before anyone signs in, a coach's voice, and a counter you can read", () => {
+  assert.deepEqual(JSON.parse(read("native/fit-tv/timers.json")), JSON.parse(JSON.stringify(TIMER_PRESETS.map(timerSession))));
+  for (const wf of [".github/workflows/fit-ios.yml", ".github/workflows/companions-sim.yml"]) assert.match(read(wf), /--name FitTV [^\n]*native\/fit-tv\/timers\.json/, wf);
+  const tv = read("native/fit-tv/FitTVApp.swift");
+  assert.match(tv, /final class FitVoice/);
+  assert.match(tv, /AVSpeechSynthesizer\(\)/);
+  assert.match(tv, /FitVoice\.shared\.say\("\\\(left\)", interrupt: true\)/, "counts down the last three seconds out loud");
+  assert.match(tv, /Text\(clock\(left\)\)\.font\(\.system\(size: 210, weight: \.heavy/);
+  assert.match(tv, /JSONSerialization\.data\(withJSONObject: \["app": "fit"\]\)/, "signs in with a TV code");
+  assert.match(tv, /"\/api\/fit\/tv\/workout"/);
+});
+
+test("Arise Duo on the TV switches between Life and Work, and has the Apps tab", () => {
+  const tv = read("native/duo-tv/DuoTVApp.swift");
+  assert.match(tv, /hubButton\(\.life, "Life", "heart\.fill"\)/);
+  assert.match(tv, /hubButton\(\.work, "Work", "briefcase\.fill"\)/);
+  assert.match(tv, /duoAPI\.appending\(path: "\/api\/tv\/work"\)/);
+  assert.match(tv, /case weather, grocery, meals, countdowns, birthdays, habits, routines, bills, goals, stars, polls, notes/);
+  assert.match(read("server/routes.ts"), /readWorkWorkspace: \(id\) => createSupabaseWorkspaceStore\(\)\.get\(id\)/);
+});

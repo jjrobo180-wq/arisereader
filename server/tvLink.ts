@@ -14,6 +14,7 @@
  */
 import { randomBytes, randomInt } from "node:crypto";
 import type { Express, Response } from "express";
+import { repeatDates } from "../shared/hubRepeat";
 import { billDue, billState, choreDoneOn, choreDueOn, choreOwner, cleanFamily, daysBetween, eventsOn, isOn, money, starBalance, tally, type Family, type Goal, type Poll } from "../shared/familyHub";
 
 type Auth = (req: any, res: Response, next: any) => unknown;
@@ -25,6 +26,8 @@ const LETTERS = "BCDFGHJKLMNPQRSTVWXZ23456789";
 export function registerTvLinkRoutes(app: Express, auth: Auth, deps: {
   createSession: (userId: number) => Promise<{ token: string }>;
   readWorkspace: (userId: number) => Promise<{ workspace: any } | null>;
+  /** The teacher's Arise WorkHub (teacher_hub_workspaces), for the TV's Work side. */
+  readWorkWorkspace?: (userId: number) => Promise<{ workspace: any } | null>;
   now?: () => number;
 }): void {
   const now = deps.now ?? Date.now;
@@ -69,6 +72,22 @@ export function registerTvLinkRoutes(app: Express, auth: Auth, deps: {
     if (!p.token) return res.json({ status: "waiting" });
     byPoll.delete(p.poll);
     res.json({ status: "done", token: p.token, name: p.name });
+  });
+
+  // The Work side (Arise WorkHub). Teachers only; anyone else (or a teacher with no WorkHub yet) gets
+  // { available: false } and the TV shows LifeHub alone.
+  app.get("/api/tv/work", auth, async (req: any, res) => {
+    noCache(res);
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query?.day)) ? String(req.query.day) : new Date().toISOString().slice(0, 10);
+    const user = req.user;
+    if (!deps.readWorkWorkspace || !(user?.role === "teacher" || user?.isAdmin)) return res.json({ available: false });
+    try {
+      const row = await deps.readWorkWorkspace(Number(user.id));
+      if (!row) return res.json({ available: false });
+      res.json({ available: true, ...tvWorkSummary(row.workspace, day, String(user.displayName || "")) });
+    } catch {
+      res.status(503).json({ message: "Your WorkHub isn't reachable right now." });
+    }
   });
 
   app.get("/api/arise-todo/tv", auth, async (req: any, res) => {
@@ -137,7 +156,83 @@ export function tvSummary(workspace: any, day: string, name = "") {
     }) : [],
     trip: trip ? { name: trip.name.slice(0, 80), start: trip.start, daysToGo: Math.max(0, daysBetween(day, trip.start)), packed: trip.packing.filter((p) => p.packed).length, packing: trip.packing.length } : null,
     goals: on("goals") ? family.goals.filter((g) => !g.done).slice(0, 4).map((g) => ({ title: g.title.slice(0, 80), progress: Math.round(goalProgress(g) * 100) / 100 })) : [],
+    // The LifeHub apps the TV has pages for (its Apps tab), each only when it's switched on.
+    apps: lifeApps(family, day, on),
+    weather: on("weather") && family.weather.place ? { place: family.weather.place, unit: family.weather.unit } : null,
     // Notes behind the hub's passcode never go to the TV.
     notes: on("notes") ? family.notes.filter((n) => n.pinned && !n.locked).slice(0, 4).map((n) => ({ title: n.title.slice(0, 80), body: n.body.slice(0, 240), color: n.color || "#fef3c7" })) : [],
+  };
+}
+
+/** Grocery list, this week's meals, countdowns, birthdays, habits and routines, for the TV's Apps tab. */
+function lifeApps(family: Family, day: string, on: (s: Parameters<typeof isOn>[0]) => boolean) {
+  const week = Array.from({ length: 7 }, (_, i) => addDays(day, i));
+  const nextOf = (month: number, dd: number) => {
+    const y = Number(day.slice(0, 4));
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const thisYear = `${y}-${pad(month)}-${pad(dd)}`;
+    return thisYear >= day ? thisYear : `${y + 1}-${pad(month)}-${pad(dd)}`;
+  };
+  const kitchen = on("kitchen");
+  return {
+    grocery: on("grocery") || kitchen ? family.groceries.filter((g) => !g.checked).slice(0, 60).map((g) => ({ name: g.name.slice(0, 60), qty: g.qty.slice(0, 20), aisle: g.aisle.slice(0, 30) })) : null,
+    meals: on("meals") || kitchen ? week.map((d) => ({ date: d, meals: family.meals.filter((m) => m.date === d).sort((a, b) => ["breakfast", "lunch", "dinner"].indexOf(a.slot) - ["breakfast", "lunch", "dinner"].indexOf(b.slot))
+      .map((m) => ({ slot: m.slot, text: (m.text || family.recipes.find((r) => r.id === m.recipeId)?.title || "").slice(0, 80) })).filter((m) => m.text) })) : null,
+    countdowns: on("countdowns") ? family.countdowns.filter((c) => c.date >= day).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 12)
+      .map((c) => ({ title: c.title.slice(0, 60), date: c.date, days: daysBetween(day, c.date), emoji: c.emoji, color: c.color })) : null,
+    birthdays: on("birthdays") ? family.birthdays.map((b) => { const next = nextOf(b.month, b.day); return { name: b.name.slice(0, 60), date: next, days: daysBetween(day, next), kind: b.kind, turns: b.year ? Number(next.slice(0, 4)) - b.year : 0 }; })
+      .filter((b) => b.days <= 60).sort((a, b) => a.days - b.days).slice(0, 12) : null,
+    habits: on("habits") ? family.habits.slice(0, 12).map((h) => ({ name: h.name.slice(0, 50), emoji: h.emoji, color: h.color,
+      week: Array.from({ length: 7 }, (_, i) => h.days.includes(addDays(day, i - 6))), today: h.days.includes(day) })) : null,
+    routines: on("routines") ? family.routines.slice(0, 8).map((r) => ({ name: r.name.slice(0, 50), emoji: r.emoji, steps: r.steps.slice(0, 15).map((x) => ({ text: x.text.slice(0, 80), done: r.doneDate === day && r.doneSteps.includes(x.id) })) })) : null,
+  };
+}
+
+/** The Work side of the TV: Arise WorkHub's Home, to-dos, calendar, meetings, today's schedule and what's
+ *  coming up for the caseload (IEPs and reevaluations). Pure, so it's tested. Notes are never sent. */
+export function tvWorkSummary(workspace: any, day: string, name = "") {
+  const ws = workspace && typeof workspace === "object" ? workspace : {};
+  const arr = (x: unknown) => (Array.isArray(x) ? x : []);
+  const students = arr(ws.students).filter((s: any) => s && s.id);
+  const studentName = (id: unknown) => { const s = students.find((x: any) => x.id === id || x.name === id); return String(s?.name ?? id ?? "").slice(0, 60); };
+  const lists = arr(ws.taskLists).filter((l: any) => l && l.id).map((l: any) => ({ id: String(l.id), name: String(l.name || "").slice(0, 60), color: String(l.color || "") }));
+  const listName = new Map(lists.map((l: { id: string; name: string }) => [l.id, l.name]));
+  const week = addDays(day, 7), until = addDays(day, 6);
+  const tasks = arr(ws.tasks).filter((t: any) => t && typeof t.title === "string" && !t.done && !t.archived)
+    .sort((a: any, b: any) => (a.dueDate || "9999").localeCompare(b.dueDate || "9999") || String(a.dueTime || "99").localeCompare(String(b.dueTime || "99")))
+    .slice(0, 80).map((t: any) => ({ id: String(t.id), title: t.title.slice(0, 120), due: String(t.dueDate || ""), time: String(t.dueTime || ""), list: listName.get(String(t.listId)) || "",
+      who: "", listId: String(t.listId ?? ""), priority: t.priority === "high" ? "high" : "normal" }));
+  const hidden = new Set(arr(ws.hiddenCalendars).map(String));
+  const events = arr(ws.events).filter((e: any) => e && typeof e.title === "string" && !(e.calendarId && hidden.has(String(e.calendarId))))
+    .flatMap((e: any) => {
+      const days: string[] = e.repeat ? repeatDates(e, day, until) : (e.date >= day && e.date <= until ? [e.date] : []);
+      return days.map((d) => ({ date: d, title: e.title.slice(0, 120), time: String(e.start || ""), endTime: String(e.end || ""), location: String(e.location || "").slice(0, 80),
+        who: arr(e.students).map(studentName).filter(Boolean).slice(0, 4), color: "#0d9488", people: [] as never[] }));
+    });
+  const meetings = arr(ws.meetings).filter((m: any) => m && !m.done && typeof m.date === "string" && m.date >= day && m.date <= addDays(day, 14))
+    .sort((a: any, b: any) => (a.date + (a.time || "")).localeCompare(b.date + (b.time || ""))).slice(0, 20)
+    .map((m: any) => ({ student: studentName(m.student), type: String(m.type || "Meeting").slice(0, 60), date: m.date, time: String(m.time || ""), room: String(m.room || "").slice(0, 40) }));
+  // A booked meeting is on the calendar too.
+  for (const m of meetings) if (m.date <= until && !events.some((e) => e.date === m.date && e.title.includes(m.student))) {
+    events.push({ date: m.date, title: `${m.type}: ${m.student}`, time: m.time, endTime: "", location: m.room, who: [m.student], color: "#7c3aed", people: [] });
+  }
+  events.sort((a, b) => (a.date + (a.time || "99")).localeCompare(b.date + (b.time || "99")));
+  const weekday = new Date(`${day}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" });
+  const schedule = arr(ws.schedules).filter((x: any) => x && String(x.day) === weekday)
+    .sort((a: any, b: any) => String(a.start).localeCompare(String(b.start))).slice(0, 30)
+    .map((x: any) => ({ student: studentName(x.student), start: String(x.start || ""), end: String(x.end || ""), label: String(x.label || "").slice(0, 60) }));
+  const dueSoon = students.flatMap((s: any) => [["Annual IEP due", s.iepDate], ["Reevaluation due", s.reevalDate]]
+    .filter(([, d]) => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) && d <= addDays(day, 45))
+    .map(([what, d]) => ({ what, student: String(s.name || "").slice(0, 60), date: d as string, days: daysBetween(day, d as string) })))
+    .sort((a: any, b: any) => a.date.localeCompare(b.date)).slice(0, 20);
+  const lessons = arr(ws.lessons).filter((l: any) => l && typeof l.date === "string" && l.date >= day && l.date <= until)
+    .sort((a: any, b: any) => a.date.localeCompare(b.date)).slice(0, 20)
+    .map((l: any) => ({ title: String(l.title || "").slice(0, 80), subject: String(l.subject || "").slice(0, 40), group: String(l.group || "").slice(0, 40), date: l.date }));
+  return {
+    name, day, school: String(ws.profile?.school || "").slice(0, 80),
+    tasks, lists, events: events.slice(0, 60), meetings, schedule, dueSoon, lessons,
+    students: students.length,
+    dueToday: tasks.filter((t: { due: string }) => t.due && t.due <= day).length,
+    week,
   };
 }

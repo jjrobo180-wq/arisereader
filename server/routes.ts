@@ -1513,7 +1513,7 @@ export async function registerRoutes(
   ));
   registerAdminHandoffRoutes(app, authMiddleware);
   // Apple TV sign-in with a code, and the TV's summary of the family hub (server/tvLink.ts).
-  registerTvLinkRoutes(app, authMiddleware, { createSession: (id) => storage.createSession(id), readWorkspace: readTodoWorkspace });
+  registerTvLinkRoutes(app, authMiddleware, { createSession: (id) => storage.createSession(id), readWorkspace: readTodoWorkspace, readWorkWorkspace: (id) => createSupabaseWorkspaceStore().get(id) });
   registerClientErrorRoutes(app);
   // Arise To Duo Free and the $5 upgrade (shared/todoPlan.ts). These run before the routes they
   // guard. Free has no AI, and up to 3 App Store apps across WorkHub and LifeHub: a save that would

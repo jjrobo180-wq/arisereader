@@ -215,7 +215,7 @@ jobs:
             echo "WATCH_ADDED=1" >> "$GITHUB_ENV"
           fi
           if [[ -n "${TV_PROFILE_NAME:-}" ]]; then
-            (cd ../.. && COMPANION_PROFILE="$TV_PROFILE_NAME" ruby .github/scripts/add_companion.rb "$OLDPWD/ios/App/App.xcodeproj" --kind tv --name FitTV --display "Arise Fit" --host com.arisereader.fit --sources native/fit-tv/FitTVApp.swift --resources native/fit-tv/sessions.json --tv-assets native/fit-tv/Assets.xcassets)
+            (cd ../.. && COMPANION_PROFILE="$TV_PROFILE_NAME" ruby .github/scripts/add_companion.rb "$OLDPWD/ios/App/App.xcodeproj" --kind tv --name FitTV --display "Arise Fit" --host com.arisereader.fit --sources native/fit-tv/FitTVApp.swift --resources native/fit-tv/sessions.json,native/fit-tv/timers.json --tv-assets native/fit-tv/Assets.xcassets)
             echo "TV_ADDED=1" >> "$GITHUB_ENV"
           fi
       - name: Archive signed app with widgets

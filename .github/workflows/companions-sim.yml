@@ -15,6 +15,8 @@ on:
       - 'native/notes-watch/**'
       - 'native/duo-tv/**'
       - 'native/fit-tv/**'
+      - 'server/fitTv.ts'
+      - 'server/tvLink.ts'
       - '.github/scripts/add_companion.rb'
       - '.github/workflows/companions-sim.yml'
 jobs:
@@ -42,7 +44,7 @@ jobs:
           ruby "$S" App.xcodeproj --kind watch --name FitWatch --display "Arise Fit" --host com.arisereader.fit --sources "$K,native/fit-watch/FitWatchApp.swift" --resources native/fit-tv/sessions.json --icon client/public/app-icons/fit-1024.png --healthkit
           ruby "$S" App.xcodeproj --kind watch --name NotesWatch --display "Arise Notes" --host com.arisereader.notes --sources "$K,native/notes-watch/NotesWatchApp.swift" --icon client/public/app-icons/notes-1024.png
           ruby "$S" App.xcodeproj --kind tv --name DuoTV --display "Arise Duo" --host com.arisereader.arisetodo --sources native/duo-tv/DuoTVApp.swift --tv-assets native/duo-tv/Assets.xcassets
-          ruby "$S" App.xcodeproj --kind tv --name FitTV --display "Arise Fit" --host com.arisereader.fit --sources native/fit-tv/FitTVApp.swift --resources native/fit-tv/sessions.json --tv-assets native/fit-tv/Assets.xcassets
+          ruby "$S" App.xcodeproj --kind tv --name FitTV --display "Arise Fit" --host com.arisereader.fit --sources native/fit-tv/FitTVApp.swift --resources native/fit-tv/sessions.json,native/fit-tv/timers.json --tv-assets native/fit-tv/Assets.xcassets
       - name: Compile each one
         working-directory: ${{ runner.temp }}/c
         run: |
@@ -74,8 +76,19 @@ jobs:
             duo 3-calendar -duoSample YES -duoTab calendar
             duo 4-you -duoSample YES -duoTab you
             duo 5-sign-in -duoSample NO
+            duo 6-work-home -duoSample YES -duoHubShot work
+            duo 7-work-caseload -duoSample YES -duoHubShot work -duoTab apps
+            duo 8-apps -duoSample YES -duoHubShot life -duoTab apps
+            duo 9-weather -duoSample YES -duoHubShot life -duoTab apps -duoApp weather
+            duo 10-meals -duoSample YES -duoHubShot life -duoTab apps -duoApp meals
             xcrun simctl install "$TV" $P/Debug-appletvsimulator/FitTV.app
-            xcrun simctl launch "$TV" com.arisereader.fit; sleep 14; xcrun simctl io "$TV" screenshot out/fit-tv-1-home.png
+            fit() { xcrun simctl terminate "$TV" com.arisereader.fit 2>/dev/null; xcrun simctl launch "$TV" com.arisereader.fit "${@:2}"; sleep 14; xcrun simctl io "$TV" screenshot "out/fit-tv-$1.png"; }
+            fit 1-today -fitSample YES
+            fit 2-workouts -fitSample YES -fitTab workouts
+            fit 3-program -fitSample YES -fitTab program
+            fit 4-timers -fitSample YES -fitTab timers
+            fit 5-player -fitSample YES -fitPlay "$(python3 -c "import json;print(json.load(open('$GITHUB_WORKSPACE/native/fit-tv/sessions.json'))[0]['id'])")"
+            fit 6-signed-out -fitSample NO
             xcrun simctl shutdown "$TV" || true
           fi
           if [[ -n "$W" ]]; then

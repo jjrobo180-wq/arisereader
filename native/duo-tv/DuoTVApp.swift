@@ -41,6 +41,8 @@ enum Duo {
     static let rose = Color(hex: "#e11d48")
     static let green = Color(hex: "#10b981")
     static let amber = Color(hex: "#f59e0b")
+    /** Arise WorkHub's teal. */
+    static let teal = Color(hex: "#0d9488")
 }
 
 extension Color {
@@ -93,6 +95,27 @@ struct DuoTVSummary: Decodable {
     let trip: Trip?
     let goals: [Goal]?
     let notes: [Note]?
+    // The LifeHub apps the TV has pages for (Apps tab), and where the weather is for.
+    var apps: Apps? = nil
+    var weather: WeatherPlace? = nil
+
+    struct WeatherPlace: Decodable { let place: String; let unit: String }
+    struct Apps: Decodable {
+        struct Grocery: Decodable, Identifiable { var id: String { name + qty + aisle }; let name: String; let qty: String; let aisle: String }
+        struct MealDay: Decodable, Identifiable { var id: String { date }; let date: String; let meals: [Meal] }
+        struct Meal: Decodable, Identifiable { var id: String { slot + text }; let slot: String; let text: String }
+        struct Countdown: Decodable, Identifiable { var id: String { title + date }; let title: String; let date: String; let days: Int; let emoji: String; let color: String }
+        struct Birthday: Decodable, Identifiable { var id: String { name + date }; let name: String; let date: String; let days: Int; let kind: String; let turns: Int }
+        struct Habit: Decodable, Identifiable { var id: String { name }; let name: String; let emoji: String; let color: String; let week: [Bool]; let today: Bool }
+        struct Routine: Decodable, Identifiable { var id: String { name }; let name: String; let emoji: String; let steps: [Step] }
+        struct Step: Decodable, Identifiable { var id: String { text }; let text: String; let done: Bool }
+        let grocery: [Grocery]?
+        let meals: [MealDay]?
+        let countdowns: [Countdown]?
+        let birthdays: [Birthday]?
+        let habits: [Habit]?
+        let routines: [Routine]?
+    }
 
     var dueTasks: [Task] { tasks.filter { !$0.due.isEmpty && $0.due <= day } }
     var todayEvents: [Event] { events.filter { $0.date == day } }
@@ -107,7 +130,17 @@ final class DuoTVModel: ObservableObject {
     @Published var error: String?
     @Published var code: String?
     @Published var updated: Date?
+    /** Arise WorkHub's side, for teachers (GET /api/tv/work). */
+    @Published var work: DuoWorkSummary?
+    @Published var hub: DuoHub = DuoHub(rawValue: UserDefaults.standard.string(forKey: "duoHub") ?? "") ?? .life {
+        didSet { UserDefaults.standard.set(hub.rawValue, forKey: "duoHub") }
+    }
+    @Published var weather: DuoWeather?
     private var poll: String?
+
+    /** What the screens show: the family's LifeHub, or the teacher's WorkHub laid out the same way. */
+    var shown: DuoTVSummary? { hub == .work ? work?.asSummary : summary }
+    var workAvailable: Bool { work != nil }
 
     static func today() -> String { let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: Date()) }
 
@@ -116,7 +149,14 @@ final class DuoTVModel: ObservableObject {
 
     func load() async {
         guard let token else { return }
-        if Self.sample { summary = try? JSONDecoder().decode(DuoTVSummary.self, from: Data(duoSampleJSON(Self.today()).utf8)); updated = Date(); return }
+        if Self.sample {
+            summary = try? JSONDecoder().decode(DuoTVSummary.self, from: Data(duoSampleJSON(Self.today()).utf8))
+            work = try? JSONDecoder().decode(DuoWorkSummary.self, from: Data(duoWorkSampleJSON(Self.today()).utf8))
+            weather = try? JSONDecoder().decode(DuoWeather.self, from: Data(duoWeatherSampleJSON(Self.today()).utf8))
+            if let h = UserDefaults.standard.string(forKey: "duoHubShot"), let v = DuoHub(rawValue: h) { hub = v }
+            updated = Date(); return
+        }
+        async let workPart: Void = loadWork(token)
         var req = URLRequest(url: duoAPI.appending(path: "/api/arise-todo/tv").appending(queryItems: [URLQueryItem(name: "day", value: Self.today())]))
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         req.cachePolicy = .reloadIgnoringLocalCacheData
@@ -131,9 +171,27 @@ final class DuoTVModel: ObservableObject {
             }
             summary = try JSONDecoder().decode(DuoTVSummary.self, from: data)
             updated = Date(); error = nil
+            if let w = summary?.weather { await loadWeather(token, w) }
         } catch {
             self.error = "Can't reach Arise Duo. Check the TV's internet connection."
         }
+        _ = await workPart
+    }
+
+    /** The teacher's WorkHub; nothing (and no Work switch) for anyone else. */
+    private func loadWork(_ token: String) async {
+        var req = URLRequest(url: duoAPI.appending(path: "/api/tv/work").appending(queryItems: [URLQueryItem(name: "day", value: Self.today())]))
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.cachePolicy = .reloadIgnoringLocalCacheData
+        guard let (data, res) = try? await URLSession.shared.data(for: req), (res as? HTTPURLResponse)?.statusCode == 200 else { return }
+        if let w = try? JSONDecoder().decode(DuoWorkSummary.self, from: data), w.available { work = w } else { work = nil; if hub == .work { hub = .life } }
+    }
+
+    private func loadWeather(_ token: String, _ w: DuoTVSummary.WeatherPlace) async {
+        var req = URLRequest(url: duoAPI.appending(path: "/api/lifehub/weather").appending(queryItems: [URLQueryItem(name: "place", value: w.place), URLQueryItem(name: "unit", value: w.unit)]))
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        guard let (data, res) = try? await URLSession.shared.data(for: req), (res as? HTTPURLResponse)?.statusCode == 200 else { return }
+        weather = try? JSONDecoder().decode(DuoWeather.self, from: data)
     }
 
     /** Gets a code to show, then waits for it to be typed in on a phone or computer. */
@@ -280,7 +338,8 @@ struct DuoEmpty: View {
 
 // MARK: - The tab bar along the bottom (components/family-hub/PhoneTabBar.tsx)
 
-enum DuoTab: String, CaseIterable { case home, tasks, calendar, you }
+enum DuoTab: String, CaseIterable { case home, tasks, calendar, apps, you }
+enum DuoHub: String { case life, work }
 
 struct DuoTVRoot: View {
     @EnvironmentObject var model: DuoTVModel
@@ -292,14 +351,16 @@ struct DuoTVRoot: View {
             Duo.page.ignoresSafeArea()
             Group {
                 switch tab {
-                case .home: DuoTVHome(go: { tab = $0 })
+                case .home: if model.hub == .work { DuoTVWorkHome(go: { tab = $0 }) } else { DuoTVHome(go: { tab = $0 }) }
                 case .tasks: DuoTVTasks()
                 case .calendar: DuoTVWeek()
+                case .apps: if model.hub == .work { DuoTVCaseload() } else { DuoTVApps() }
                 case .you: DuoTVYou()
                 }
             }
             .focusSection()
-            DuoTabBar(tab: $tab, initial: String((model.summary?.name ?? "").prefix(1)).uppercased())
+            .id(model.hub)
+            DuoTabBar(tab: $tab, hub: $model.hub, workAvailable: model.workAvailable, initial: String((model.summary?.name ?? "").prefix(1)).uppercased())
                 .focusSection()
                 .padding(.bottom, 30)
         }
@@ -310,12 +371,25 @@ struct DuoTVRoot: View {
 
 struct DuoTabBar: View {
     @Binding var tab: DuoTab
+    @Binding var hub: DuoHub
+    let workAvailable: Bool
     let initial: String
+    private var accent: Color { hub == .work ? Duo.teal : Duo.barButton }
     var body: some View {
         HStack(spacing: 8) {
+            // Life and Work, like the hub switch on the phone (only for someone with Arise WorkHub).
+            if workAvailable {
+                HStack(spacing: 4) {
+                    hubButton(.life, "Life", "heart.fill")
+                    hubButton(.work, "Work", "briefcase.fill")
+                }
+                .padding(4).background(.white.opacity(0.08), in: Capsule())
+                .padding(.trailing, 10)
+            }
             item(.home, "Home", "house")
             item(.tasks, "Tasks", "checkmark.square")
             item(.calendar, "Calendar", "calendar")
+            if hub == .work { item(.apps, "Caseload", "person.2") } else { item(.apps, "Apps", "square.grid.2x2") }
             Button { tab = .you } label: {
                 VStack(spacing: 6) {
                     Text(initial.isEmpty ? "Y" : initial).font(.system(size: 20, weight: .black)).foregroundStyle(Duo.bar)
@@ -323,12 +397,21 @@ struct DuoTabBar: View {
                     Text("You").font(.system(size: 20, weight: .semibold))
                 }
             }
-            .buttonStyle(DuoTabStyle(active: tab == .you))
+            .buttonStyle(DuoTabStyle(active: tab == .you, accent: accent))
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
         .background(Duo.bar, in: Capsule())
         .overlay(Capsule().stroke(.white.opacity(0.1), lineWidth: 1))
         .shadow(color: Color(hex: "#16152a").opacity(0.35), radius: 30, y: 14)
+    }
+    private func hubButton(_ h: DuoHub, _ label: String, _ symbol: String) -> some View {
+        Button { hub = h } label: {
+            VStack(spacing: 6) {
+                Image(systemName: symbol).font(.system(size: 28, weight: .semibold)).frame(height: 38)
+                Text(label).font(.system(size: 20, weight: .bold))
+            }
+        }
+        .buttonStyle(DuoTabStyle(active: hub == h, accent: h == .work ? Duo.teal : Duo.barButton, width: 120))
     }
     private func item(_ t: DuoTab, _ label: String, _ symbol: String) -> some View {
         Button { tab = t } label: {
@@ -337,22 +420,26 @@ struct DuoTabBar: View {
                 Text(label).font(.system(size: 20, weight: .semibold))
             }
         }
-        .buttonStyle(DuoTabStyle(active: tab == t))
+        .buttonStyle(DuoTabStyle(active: tab == t, accent: accent))
     }
 }
 
 struct DuoTabStyle: ButtonStyle {
     let active: Bool
-    func makeBody(configuration: Configuration) -> some View { Look(configuration: configuration, active: active) }
+    var accent: Color = Duo.barButton
+    var width: CGFloat = 150
+    func makeBody(configuration: Configuration) -> some View { Look(configuration: configuration, active: active, accent: accent, width: width) }
     private struct Look: View {
         let configuration: Configuration
         let active: Bool
+        let accent: Color
+        let width: CGFloat
         @Environment(\.isFocused) private var focused
         var body: some View {
             configuration.label
                 .foregroundStyle(focused ? Duo.bar : active ? .white : .white.opacity(0.6))
-                .frame(width: 150, height: 96)
-                .background(focused ? Color.white : active ? Duo.barButton : .clear, in: Capsule())
+                .frame(width: width, height: 96)
+                .background(focused ? Color.white : active ? accent : .clear, in: Capsule())
                 .scaleEffect(configuration.isPressed ? 0.94 : 1)
                 .animation(.easeOut(duration: 0.12), value: focused)
         }
@@ -490,6 +577,39 @@ struct DuoTVHome: View {
 
     private func moreCards(_ s: DuoTVSummary) -> [AnyView] {
         var out: [AnyView] = []
+        if let w = model.weather {
+            let now = DuoWeather.look(w.current.code)
+            out.append(AnyView(DuoPanel(eyebrow: "Weather", title: w.place.components(separatedBy: ",").first ?? w.place) {
+                HStack(spacing: 24) {
+                    Image(systemName: now.0).symbolRenderingMode(.multicolor).font(.system(size: 80))
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(Int(w.current.temp.rounded()))°").font(.system(size: 72, weight: .black)).foregroundStyle(Duo.ink)
+                        Text(now.1).font(.system(size: 22, weight: .semibold)).foregroundStyle(Duo.muted)
+                        if let t = w.days.first { Text("H \(Int(t.high.rounded()))°  L \(Int(t.low.rounded()))°").font(.system(size: 20)).foregroundStyle(Duo.faint) }
+                    }
+                }
+            }))
+        }
+        if let today = s.apps?.meals?.first, !today.meals.isEmpty {
+            out.append(AnyView(DuoPanel(eyebrow: "Meal plan", title: "Today's meals", symbol: "fork.knife", symbolTint: Color(hex: "#ea580c")) {
+                VStack(alignment: .leading, spacing: 14) {
+                    ForEach(today.meals) { m in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(m.slot.uppercased()).font(.system(size: 16, weight: .heavy)).foregroundStyle(Color(hex: "#ea580c"))
+                            Text(m.text).font(.system(size: 26, weight: .bold)).foregroundStyle(Duo.ink).lineLimit(2)
+                        }
+                    }
+                }
+            }))
+        }
+        if let c = s.apps?.countdowns?.first {
+            out.append(AnyView(DuoPanel(eyebrow: "Countdown", title: c.title) {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Text("\(c.days)").font(.system(size: 96, weight: .black)).foregroundStyle(Color(hex: c.color.isEmpty ? "#7c3aed" : c.color))
+                    Text(c.days == 1 ? "day to go" : "days to go").font(.system(size: 26, weight: .bold)).foregroundStyle(Duo.muted)
+                }
+            }))
+        }
         if let t = s.trip {
             out.append(AnyView(
                 VStack(alignment: .leading, spacing: 10) {
@@ -662,7 +782,7 @@ struct DuoTVTasks: View {
                     Text("TO-DO").font(.system(size: 22, weight: .heavy)).tracking(4.4).foregroundStyle(Duo.eyebrow)
                     (Text("Tasks").foregroundStyle(Duo.ink) + Text(".").foregroundStyle(Duo.violet)).font(.system(size: 76, weight: .black))
                 }
-                if let s = model.summary {
+                if let s = model.shown {
                     chips(s)
                     let shown = s.tasks.filter { list == nil || $0.listId == list }
                     let overdue = shown.filter { !$0.due.isEmpty && $0.due < s.day }
@@ -755,7 +875,7 @@ struct DuoTVWeek: View {
                     Text("THE NEXT 7 DAYS").font(.system(size: 22, weight: .heavy)).tracking(4.4).foregroundStyle(Duo.eyebrow)
                     (Text("Calendar").foregroundStyle(Duo.ink) + Text(".").foregroundStyle(Duo.violet)).font(.system(size: 76, weight: .black))
                 }
-                if let s = model.summary {
+                if let s = model.shown {
                     HStack(alignment: .top, spacing: 18) {
                         ForEach(0..<7, id: \.self) { i in day(addDays(s.day, i), s) }
                     }
@@ -809,7 +929,7 @@ struct DuoTVYou: View {
     @State private var confirm = false
     var body: some View {
         VStack(spacing: 34) {
-            let name = model.summary?.name ?? ""
+            let name = model.summary?.name ?? model.work?.name ?? ""
             Text(String(name.prefix(1)).uppercased().isEmpty ? "Y" : String(name.prefix(1)).uppercased())
                 .font(.system(size: 64, weight: .black)).foregroundStyle(.white)
                 .frame(width: 140, height: 140).background(Color(hex: "#292446"), in: Circle())
@@ -946,6 +1066,607 @@ func duoSampleJSON(_ day: String) -> String {
      "polls":[{"question":"What's for dinner Friday?","leading":"Pizza night","waiting":1}],
      "trip":{"name":"Grand Canyon","start":"\(d(12))","daysToGo":12,"packed":9,"packing":20},
      "goals":[{"title":"Read 20 books this year","progress":0.65},{"title":"Save for a new bike","progress":0.4}],
-     "notes":[{"title":"Wi-Fi","body":"Network: SmithHouse · ask Dad for the password","color":"#fef3c7"}]}
+     "notes":[{"title":"Wi-Fi","body":"Network: SmithHouse · ask Dad for the password","color":"#fef3c7"}],
+     "weather":{"place":"Denver, CO","unit":"F"},
+     "apps":{"grocery":[{"name":"Milk","qty":"1 gal","aisle":"Dairy"},{"name":"Eggs","qty":"18","aisle":"Dairy"},{"name":"Apples","qty":"6","aisle":"Produce"},{"name":"Spinach","qty":"","aisle":"Produce"},{"name":"Pasta","qty":"2 boxes","aisle":"Pantry"},{"name":"Tortillas","qty":"","aisle":"Pantry"}],
+      "meals":[{"date":"\(day)","meals":[{"slot":"dinner","text":"Chicken tacos"}]},{"date":"\(d(1))","meals":[{"slot":"breakfast","text":"Pancakes"},{"slot":"dinner","text":"Spaghetti and meatballs"}]},{"date":"\(d(2))","meals":[{"slot":"dinner","text":"Sheet-pan salmon"}]},{"date":"\(d(3))","meals":[]},{"date":"\(d(4))","meals":[{"slot":"dinner","text":"Pizza night"}]},{"date":"\(d(5))","meals":[]},{"date":"\(d(6))","meals":[{"slot":"lunch","text":"Grilled cheese and soup"}]}],
+      "countdowns":[{"title":"Grand Canyon trip","date":"\(d(12))","days":12,"emoji":"🏜️","color":"#ea580c"},{"title":"Winter break","date":"\(d(40))","days":40,"emoji":"❄️","color":"#0284c7"}],
+      "birthdays":[{"name":"Grandma Rose","date":"\(d(5))","days":5,"kind":"birthday","turns":78},{"name":"Mom & Dad","date":"\(d(21))","days":21,"kind":"anniversary","turns":15}],
+      "habits":[{"name":"Read 20 minutes","emoji":"📚","color":"#7c3aed","week":[true,true,false,true,true,true,false],"today":false},{"name":"Drink water","emoji":"💧","color":"#0284c7","week":[true,true,true,true,false,true,true],"today":true}],
+      "routines":[{"name":"Bedtime","emoji":"🌙","steps":[{"text":"Brush teeth","done":true},{"text":"Pajamas","done":true},{"text":"Pick out clothes","done":false},{"text":"Read a story","done":false}]}]}}
     """
+}
+
+// MARK: - Arise WorkHub on the TV (GET /api/tv/work, server/tvLink.ts tvWorkSummary)
+
+struct DuoWorkSummary: Decodable {
+    struct Meeting: Decodable, Identifiable { var id: String { date + time + student + type }; let student: String; let type: String; let date: String; let time: String; let room: String }
+    struct Slot: Decodable, Identifiable { var id: String { start + student + label }; let student: String; let start: String; let end: String; let label: String }
+    struct Due: Decodable, Identifiable { var id: String { what + student + date }; let what: String; let student: String; let date: String; let days: Int }
+    struct Lesson: Decodable, Identifiable { var id: String { date + title + group }; let title: String; let subject: String; let group: String; let date: String }
+    struct ListRef: Decodable { let id: String; let name: String; let color: String }
+    let available: Bool
+    let name: String?
+    let day: String?
+    let school: String?
+    let tasks: [DuoTVSummary.Task]?
+    let lists: [ListRef]?
+    let events: [DuoTVSummary.Event]?
+    let meetings: [Meeting]?
+    let schedule: [Slot]?
+    let dueSoon: [Due]?
+    let lessons: [Lesson]?
+    let students: Int?
+    let dueToday: Int?
+
+    /** The same shape as LifeHub's, so Tasks and Calendar show work the same way. */
+    var asSummary: DuoTVSummary {
+        DuoTVSummary(name: name ?? "", day: day ?? DuoTVModel.today(), tasks: tasks ?? [], events: events ?? [], chores: [],
+                     members: nil, lists: (lists ?? []).map { DuoTVSummary.List(id: $0.id, name: $0.name) },
+                     sections: DuoTVSummary.Sections(calendar: true, chores: false, money: false, polls: false, trips: false, goals: false, stars: false, notes: false),
+                     bills: nil, billsPaid: nil, stars: nil, polls: nil, trip: nil, goals: nil, notes: nil)
+    }
+}
+
+struct DuoTVWorkHome: View {
+    @EnvironmentObject var model: DuoTVModel
+    let go: (DuoTab) -> Void
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 36) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(((model.work?.school ?? "").isEmpty ? "ARISE WORKHUB" : (model.work?.school ?? "").uppercased()) + " · " + prettyDay(DuoTVModel.today()).uppercased())
+                        .font(.system(size: 22, weight: .heavy)).tracking(4.4).foregroundStyle(Duo.teal)
+                    (Text(greeting).foregroundStyle(Duo.ink) + Text(".").foregroundStyle(Duo.teal)).font(.system(size: 76, weight: .black))
+                    Text("Here's your school day.").font(.system(size: 28)).foregroundStyle(Duo.muted)
+                }
+                if let w = model.work {
+                    HStack(spacing: 26) {
+                        stat("To-dos due", w.dueToday ?? 0, "checklist", "#0d9488", "#f0fdfa") { go(.tasks) }
+                        stat("Meetings, 2 weeks", w.meetings?.count ?? 0, "person.2.wave.2", "#7c3aed", "#f5f3ff") { go(.calendar) }
+                        stat("Events today", (w.events ?? []).filter { $0.date == w.day }.count, "calendar", "#0284c7", "#f0f9ff") { go(.calendar) }
+                        stat("IEPs and re-evals due", w.dueSoon?.count ?? 0, "exclamationmark.circle", "#e11d48", "#fff1f2") { go(.apps) }
+                    }
+                    HStack(alignment: .top, spacing: 30) {
+                        Button { go(.apps) } label: {
+                            DuoPanel(eyebrow: "Today", title: "Schedule", symbol: "clock", symbolTint: Duo.teal) {
+                                let rows = w.schedule ?? []
+                                if rows.isEmpty { DuoEmpty(text: "No students scheduled today.") }
+                                VStack(spacing: 12) {
+                                    ForEach(rows.prefix(8)) { r in
+                                        HStack(spacing: 16) {
+                                            Text(prettyTime(r.start)).font(.system(size: 20, weight: .black)).foregroundStyle(Duo.teal).frame(width: 120, alignment: .leading)
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(r.student).font(.system(size: 24, weight: .bold)).foregroundStyle(Duo.ink).lineLimit(1)
+                                                if !r.label.isEmpty { Text(r.label).font(.system(size: 18)).foregroundStyle(Duo.muted).lineLimit(1) }
+                                            }
+                                            Spacer()
+                                            if !r.end.isEmpty { Text("until " + prettyTime(r.end)).font(.system(size: 18)).foregroundStyle(Duo.faint) }
+                                        }
+                                        .padding(14).background(Color(hex: "#f8fafc"), in: RoundedRectangle(cornerRadius: 16))
+                                    }
+                                }
+                            }
+                        }.buttonStyle(DuoLift()).frame(maxWidth: .infinity)
+                        Button { go(.calendar) } label: {
+                            DuoPanel(eyebrow: "Next two weeks", title: "Meetings", symbol: "person.2.wave.2", symbolTint: Color(hex: "#7c3aed")) {
+                                let rows = w.meetings ?? []
+                                if rows.isEmpty { DuoEmpty(text: "No meetings booked.") }
+                                VStack(spacing: 12) {
+                                    ForEach(rows.prefix(6)) { m in
+                                        HStack(spacing: 16) {
+                                            VStack(alignment: .leading, spacing: 0) {
+                                                Text(m.date == w.day ? "Today" : prettyDay(m.date, .dateTime.weekday(.abbreviated).month(.abbreviated).day())).font(.system(size: 18, weight: .black)).foregroundStyle(Color(hex: "#7c3aed"))
+                                                if !m.time.isEmpty { Text(prettyTime(m.time)).font(.system(size: 18)).foregroundStyle(Duo.muted) }
+                                            }
+                                            .frame(width: 150, alignment: .leading)
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(m.student).font(.system(size: 24, weight: .bold)).foregroundStyle(Duo.ink).lineLimit(1)
+                                                Text([m.type, m.room].filter { !$0.isEmpty }.joined(separator: " · ")).font(.system(size: 18)).foregroundStyle(Duo.muted).lineLimit(1)
+                                            }
+                                            Spacer(minLength: 0)
+                                        }
+                                        .padding(14).background(Color(hex: "#f8fafc"), in: RoundedRectangle(cornerRadius: 16))
+                                    }
+                                }
+                            }
+                        }.buttonStyle(DuoLift()).frame(maxWidth: .infinity)
+                    }
+                    HStack(alignment: .top, spacing: 30) {
+                        Button { go(.tasks) } label: {
+                            DuoPanel(eyebrow: "To-do", title: "Due now", symbol: "checklist", symbolTint: Duo.teal) {
+                                let due = w.asSummary.dueTasks
+                                if due.isEmpty { DuoEmpty(text: "Nothing due. Nice.") }
+                                VStack(spacing: 12) { ForEach(due.prefix(6)) { t in DuoTaskRow(t: t, today: w.day ?? "", showList: true) } }
+                            }
+                        }.buttonStyle(DuoLift()).frame(maxWidth: .infinity)
+                        Button { go(.apps) } label: {
+                            DuoPanel(eyebrow: "Caseload", title: "Coming up", symbol: "exclamationmark.circle", symbolTint: Duo.rose) {
+                                let rows = w.dueSoon ?? []
+                                if rows.isEmpty { DuoEmpty(text: "No IEPs or reevaluations due in the next 45 days.") }
+                                VStack(spacing: 12) { ForEach(rows.prefix(6)) { d in DuoDueRow(d: d) } }
+                            }
+                        }.buttonStyle(DuoLift()).frame(maxWidth: .infinity)
+                    }
+                    if let lessons = w.lessons, !lessons.isEmpty {
+                        Button { } label: {
+                            DuoPanel(eyebrow: "This week", title: "Lessons", symbol: "book", symbolTint: Color(hex: "#0284c7")) {
+                                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 14), count: 3), spacing: 14) {
+                                    ForEach(lessons.prefix(9)) { l in
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(prettyDay(l.date, .dateTime.weekday(.wide)).uppercased()).font(.system(size: 16, weight: .heavy)).foregroundStyle(Color(hex: "#0284c7"))
+                                            Text(l.title).font(.system(size: 22, weight: .bold)).foregroundStyle(Duo.ink).lineLimit(2)
+                                            Text([l.subject, l.group].filter { !$0.isEmpty }.joined(separator: " · ")).font(.system(size: 18)).foregroundStyle(Duo.muted).lineLimit(1)
+                                        }
+                                        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+                                        .background(Color(hex: "#f0f9ff"), in: RoundedRectangle(cornerRadius: 16))
+                                    }
+                                }
+                            }
+                        }.buttonStyle(DuoLift())
+                    }
+                } else { ProgressView().frame(maxWidth: .infinity).padding(80) }
+            }
+            .padding(.horizontal, 90).padding(.top, 50).padding(.bottom, 200)
+        }
+        .scrollClipDisabled()
+    }
+    private var greeting: String {
+        let h = Calendar.current.component(.hour, from: Date())
+        let first = (model.work?.name ?? "").split(separator: " ").first.map(String.init) ?? ""
+        let part = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"
+        return first.isEmpty ? part : "\(part), \(first)"
+    }
+    private func stat(_ label: String, _ value: Int, _ symbol: String, _ tint: String, _ chip: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 18) {
+                HStack {
+                    Text(label).font(.system(size: 22, weight: .bold)).foregroundStyle(Duo.muted).lineLimit(1).minimumScaleFactor(0.8)
+                    Spacer()
+                    Image(systemName: symbol).font(.system(size: 24, weight: .semibold)).foregroundStyle(Color(hex: tint))
+                        .frame(width: 52, height: 52).background(Color(hex: chip), in: RoundedRectangle(cornerRadius: 14))
+                }
+                Text("\(value)").font(.system(size: 56, weight: .black)).foregroundStyle(Color(hex: "#242238"))
+            }
+            .padding(30).frame(maxWidth: .infinity, alignment: .leading)
+            .background(.white, in: RoundedRectangle(cornerRadius: 26))
+            .overlay(RoundedRectangle(cornerRadius: 26).stroke(Duo.line, lineWidth: 2))
+        }
+        .buttonStyle(DuoLift(radius: 26))
+    }
+}
+
+struct DuoDueRow: View {
+    let d: DuoWorkSummary.Due
+    var body: some View {
+        HStack(spacing: 16) {
+            Image(systemName: "exclamationmark").font(.system(size: 20, weight: .black)).foregroundStyle(d.days < 0 ? Duo.rose : Duo.amber)
+                .frame(width: 44, height: 44).background((d.days < 0 ? Duo.rose : Duo.amber).opacity(0.12), in: Circle())
+            VStack(alignment: .leading, spacing: 2) {
+                Text(d.what).font(.system(size: 22, weight: .bold)).foregroundStyle(Duo.ink)
+                Text(d.student + " · " + shortDay(d.date)).font(.system(size: 18)).foregroundStyle(Duo.muted).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            Text(d.days < 0 ? "\(-d.days) days ago" : d.days == 0 ? "Today" : "in \(d.days) days").font(.system(size: 18, weight: .bold)).foregroundStyle(d.days < 0 ? Duo.rose : Duo.muted)
+        }
+        .padding(14).background(Color(hex: "#f8fafc"), in: RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+/** Work's fourth tab: today's schedule, what's due for the caseload, and lessons. */
+struct DuoTVCaseload: View {
+    @EnvironmentObject var model: DuoTVModel
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 30) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("\(model.work?.students ?? 0) STUDENTS").font(.system(size: 22, weight: .heavy)).tracking(4.4).foregroundStyle(Duo.teal)
+                    (Text("Caseload").foregroundStyle(Duo.ink) + Text(".").foregroundStyle(Duo.teal)).font(.system(size: 76, weight: .black))
+                }
+                if let w = model.work {
+                    HStack(alignment: .top, spacing: 30) {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("Coming up").font(.system(size: 30, weight: .bold)).foregroundStyle(Duo.rose)
+                            if (w.dueSoon ?? []).isEmpty { DuoEmpty(text: "Nothing due in the next 45 days.") }
+                            ForEach(w.dueSoon ?? []) { d in Button { } label: { DuoDueRow(d: d) }.buttonStyle(DuoLift(radius: 16)) }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("Today's schedule").font(.system(size: 30, weight: .bold)).foregroundStyle(Duo.teal)
+                            if (w.schedule ?? []).isEmpty { DuoEmpty(text: "No students scheduled today.") }
+                            ForEach(w.schedule ?? []) { r in
+                                Button { } label: {
+                                    HStack(spacing: 16) {
+                                        Text(prettyTime(r.start) + (r.end.isEmpty ? "" : "–" + prettyTime(r.end))).font(.system(size: 20, weight: .black)).foregroundStyle(Duo.teal).frame(width: 230, alignment: .leading)
+                                        Text(r.student).font(.system(size: 24, weight: .bold)).foregroundStyle(Duo.ink).lineLimit(1)
+                                        Spacer()
+                                        Text(r.label).font(.system(size: 18)).foregroundStyle(Duo.muted).lineLimit(1)
+                                    }
+                                    .padding(16).background(.white, in: RoundedRectangle(cornerRadius: 16))
+                                }
+                                .buttonStyle(DuoLift(radius: 16))
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                    }
+                }
+            }
+            .padding(.horizontal, 90).padding(.top, 50).padding(.bottom, 200)
+        }
+        .scrollClipDisabled()
+    }
+}
+
+// MARK: - Weather (GET /api/lifehub/weather, the phone's Weather app)
+
+struct DuoWeather: Decodable {
+    struct Now: Decodable { let temp: Double; let feels: Double; let code: Int; let wind: Double; let humidity: Double }
+    struct Day: Decodable, Identifiable { var id: String { date }; let date: String; let code: Int; let high: Double; let low: Double; let rain: Double }
+    let place: String
+    let unit: String
+    let current: Now
+    let days: [Day]
+    /** Open-Meteo's weather codes as SF Symbols and words. */
+    static func look(_ code: Int) -> (String, String) {
+        switch code {
+        case 0: return ("sun.max.fill", "Clear")
+        case 1, 2: return ("cloud.sun.fill", "Partly cloudy")
+        case 3: return ("cloud.fill", "Cloudy")
+        case 45, 48: return ("cloud.fog.fill", "Fog")
+        case 51...57: return ("cloud.drizzle.fill", "Drizzle")
+        case 61...67, 80...82: return ("cloud.rain.fill", "Rain")
+        case 71...77, 85, 86: return ("cloud.snow.fill", "Snow")
+        case 95...99: return ("cloud.bolt.rain.fill", "Thunderstorms")
+        default: return ("cloud.fill", "")
+        }
+    }
+}
+
+// MARK: - Apps (the phone's Plugins): a tile for each app, opening its own page
+
+enum DuoApp: String, CaseIterable, Identifiable {
+    case weather, grocery, meals, countdowns, birthdays, habits, routines, bills, goals, stars, polls, notes
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .weather: return "Weather"; case .grocery: return "Grocery list"; case .meals: return "Meal plan"; case .countdowns: return "Countdowns"
+        case .birthdays: return "Birthdays"; case .habits: return "Habits"; case .routines: return "Routines"; case .bills: return "Bills"
+        case .goals: return "Goals"; case .stars: return "Stars"; case .polls: return "Polls"; case .notes: return "Notes"
+        }
+    }
+    var symbol: String {
+        switch self {
+        case .weather: return "cloud.sun.fill"; case .grocery: return "cart.fill"; case .meals: return "fork.knife"; case .countdowns: return "hourglass"
+        case .birthdays: return "gift.fill"; case .habits: return "flame.fill"; case .routines: return "list.bullet.rectangle.fill"; case .bills: return "doc.text.fill"
+        case .goals: return "target"; case .stars: return "star.fill"; case .polls: return "checklist"; case .notes: return "note.text"
+        }
+    }
+    var color: String {
+        switch self {
+        case .weather: return "#0e8a8a"; case .grocery: return "#16a34a"; case .meals: return "#ea580c"; case .countdowns: return "#7c3aed"
+        case .birthdays: return "#db2777"; case .habits: return "#f59e0b"; case .routines: return "#0284c7"; case .bills: return "#e11d48"
+        case .goals: return "#4f46e5"; case .stars: return "#d97706"; case .polls: return "#7866e1"; case .notes: return "#ca8a04"
+        }
+    }
+}
+
+struct DuoTVApps: View {
+    @EnvironmentObject var model: DuoTVModel
+    @State private var open: DuoApp?
+    private func available(_ s: DuoTVSummary) -> [DuoApp] {
+        DuoApp.allCases.filter { a in
+            switch a {
+            case .weather: return model.weather != nil
+            case .grocery: return s.apps?.grocery != nil
+            case .meals: return s.apps?.meals != nil
+            case .countdowns: return s.apps?.countdowns != nil
+            case .birthdays: return s.apps?.birthdays != nil
+            case .habits: return s.apps?.habits != nil
+            case .routines: return s.apps?.routines != nil
+            case .bills: return s.on(\.money, else: false)
+            case .goals: return !(s.goals ?? []).isEmpty
+            case .stars: return !(s.stars ?? []).isEmpty
+            case .polls: return !(s.polls ?? []).isEmpty
+            case .notes: return !(s.notes ?? []).isEmpty
+            }
+        }
+    }
+    var body: some View {
+        if let a = open, let s = model.summary {
+            DuoAppPage(app: a, s: s, weather: model.weather) { open = nil }
+        } else {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 30) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("YOUR LIFEHUB APPS").font(.system(size: 22, weight: .heavy)).tracking(4.4).foregroundStyle(Duo.eyebrow)
+                        (Text("Apps").foregroundStyle(Duo.ink) + Text(".").foregroundStyle(Duo.violet)).font(.system(size: 76, weight: .black))
+                    }
+                    if let s = model.summary {
+                        let apps = available(s)
+                        if apps.isEmpty { DuoEmpty(text: "Add apps like Grocery, Meal Planner, Countdowns, Birthdays and Weather from the Plugin Gallery on your phone, and they show up here.") }
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 30), count: 4), spacing: 30) {
+                            ForEach(apps) { a in
+                                Button { open = a } label: {
+                                    VStack(alignment: .leading, spacing: 18) {
+                                        Image(systemName: a.symbol).font(.system(size: 40, weight: .semibold)).foregroundStyle(.white)
+                                            .frame(width: 88, height: 88).background(Color(hex: a.color), in: RoundedRectangle(cornerRadius: 24))
+                                        Text(a.title).font(.system(size: 30, weight: .bold)).foregroundStyle(Duo.ink)
+                                        Text(DuoAppPage.subtitle(a, s, model.weather)).font(.system(size: 20)).foregroundStyle(Duo.muted).lineLimit(2)
+                                    }
+                                    .padding(30).frame(maxWidth: .infinity, minHeight: 280, alignment: .topLeading)
+                                    .background(.white, in: RoundedRectangle(cornerRadius: 30))
+                                    .overlay(RoundedRectangle(cornerRadius: 30).stroke(Duo.line, lineWidth: 2))
+                                }
+                                .buttonStyle(DuoLift())
+                            }
+                        }
+                    } else { ProgressView().frame(maxWidth: .infinity).padding(80) }
+                }
+                .padding(.horizontal, 90).padding(.top, 50).padding(.bottom, 200)
+            }
+            .scrollClipDisabled()
+            .onAppear { if let a = UserDefaults.standard.string(forKey: "duoApp").flatMap(DuoApp.init(rawValue:)) { open = a; UserDefaults.standard.removeObject(forKey: "duoApp") } }
+        }
+    }
+}
+
+/** One app's page. The remote's Menu button (or Back) goes back to the tiles. */
+struct DuoAppPage: View {
+    let app: DuoApp
+    let s: DuoTVSummary
+    let weather: DuoWeather?
+    let close: () -> Void
+
+    static func subtitle(_ a: DuoApp, _ s: DuoTVSummary, _ w: DuoWeather?) -> String {
+        switch a {
+        case .weather: return w.map { "\(Int($0.current.temp.rounded()))° · \(DuoWeather.look($0.current.code).1) in \($0.place)" } ?? ""
+        case .grocery: let n = s.apps?.grocery?.count ?? 0; return n == 0 ? "All bought" : "\(n) to buy"
+        case .meals: let today = s.apps?.meals?.first?.meals ?? []; return today.isEmpty ? "Nothing planned today" : "Today: " + today.map(\.text).joined(separator: ", ")
+        case .countdowns: return s.apps?.countdowns?.first.map { "\($0.title) in \($0.days) days" } ?? "None coming up"
+        case .birthdays: return s.apps?.birthdays?.first.map { "\($0.name) · \($0.days == 0 ? "today" : "in \($0.days) days")" } ?? "None in the next 2 months"
+        case .habits: let h = s.apps?.habits ?? []; return "\(h.filter(\.today).count) of \(h.count) done today"
+        case .routines: return "\(s.apps?.routines?.count ?? 0) routines"
+        case .bills: return (s.bills ?? []).isEmpty ? "Nothing due this week" : "\((s.bills ?? []).count) due soon"
+        case .goals: return "\((s.goals ?? []).count) in progress"
+        case .stars: return (s.stars ?? []).map { "\($0.name) \($0.stars)⭐" }.joined(separator: " · ")
+        case .polls: return "\((s.polls ?? []).count) open"
+        case .notes: return "\((s.notes ?? []).count) pinned"
+        }
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 30) {
+                HStack(spacing: 24) {
+                    Button(action: close) { Label("Apps", systemImage: "chevron.left").font(.system(size: 24, weight: .bold)).foregroundStyle(Duo.ink).padding(.horizontal, 26).padding(.vertical, 14).background(.white, in: Capsule()) }
+                        .buttonStyle(DuoLift(radius: 40))
+                    Image(systemName: app.symbol).font(.system(size: 34, weight: .semibold)).foregroundStyle(.white)
+                        .frame(width: 70, height: 70).background(Color(hex: app.color), in: RoundedRectangle(cornerRadius: 20))
+                    Text(app.title).font(.system(size: 64, weight: .black)).foregroundStyle(Duo.ink)
+                }
+                content
+            }
+            .padding(.horizontal, 90).padding(.top, 50).padding(.bottom, 200)
+        }
+        .scrollClipDisabled()
+        .onExitCommand(perform: close)
+    }
+
+    private func card<V: View>(_ v: V) -> some View {
+        Button { } label: { v.padding(26).frame(maxWidth: .infinity, alignment: .leading).background(.white, in: RoundedRectangle(cornerRadius: 24)).overlay(RoundedRectangle(cornerRadius: 24).stroke(Duo.line, lineWidth: 2)) }
+            .buttonStyle(DuoLift(radius: 24))
+    }
+    private let three = Array(repeating: GridItem(.flexible(), spacing: 24, alignment: .top), count: 3)
+
+    @ViewBuilder private var content: some View {
+        switch app {
+        case .weather:
+            if let w = weather {
+                let now = DuoWeather.look(w.current.code)
+                card(HStack(spacing: 40) {
+                    Image(systemName: now.0).symbolRenderingMode(.multicolor).font(.system(size: 140))
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("\(Int(w.current.temp.rounded()))°\(w.unit)").font(.system(size: 110, weight: .black)).foregroundStyle(Duo.ink)
+                        Text("\(now.1) · feels like \(Int(w.current.feels.rounded()))°").font(.system(size: 30, weight: .semibold)).foregroundStyle(Duo.muted)
+                        Text("\(w.place) · wind \(Int(w.current.wind.rounded())) \(w.unit == "F" ? "mph" : "km/h") · humidity \(Int(w.current.humidity.rounded()))%").font(.system(size: 22)).foregroundStyle(Duo.faint)
+                    }
+                })
+                HStack(spacing: 18) {
+                    ForEach(w.days.prefix(7)) { d in
+                        let l = DuoWeather.look(d.code)
+                        card(VStack(spacing: 12) {
+                            Text(d.date == s.day ? "Today" : prettyDay(d.date, .dateTime.weekday(.abbreviated))).font(.system(size: 22, weight: .heavy)).foregroundStyle(Duo.violet)
+                            Image(systemName: l.0).symbolRenderingMode(.multicolor).font(.system(size: 50)).frame(height: 60)
+                            Text("\(Int(d.high.rounded()))°").font(.system(size: 34, weight: .black)).foregroundStyle(Duo.ink)
+                            Text("\(Int(d.low.rounded()))°").font(.system(size: 24)).foregroundStyle(Duo.muted)
+                            if d.rain >= 20 { Label("\(Int(d.rain))%", systemImage: "drop.fill").font(.system(size: 18, weight: .bold)).foregroundStyle(Color(hex: "#0284c7")) }
+                        }.frame(maxWidth: .infinity))
+                    }
+                }
+            } else { DuoEmpty(text: "Set your town in Weather on your phone.") }
+        case .grocery:
+            let items = s.apps?.grocery ?? []
+            if items.isEmpty { DuoEmpty(text: "Everything's bought. 🎉") }
+            let aisles = Array(Set(items.map { $0.aisle.isEmpty ? "Other" : $0.aisle })).sorted()
+            LazyVGrid(columns: three, alignment: .leading, spacing: 24) {
+                ForEach(aisles, id: \.self) { a in
+                    card(VStack(alignment: .leading, spacing: 14) {
+                        Text(a.uppercased()).font(.system(size: 18, weight: .heavy)).tracking(2).foregroundStyle(Color(hex: "#16a34a"))
+                        ForEach(items.filter { ($0.aisle.isEmpty ? "Other" : $0.aisle) == a }) { g in
+                            HStack(spacing: 14) {
+                                DuoCheck()
+                                Text(g.name).font(.system(size: 24, weight: .semibold)).foregroundStyle(Duo.ink).lineLimit(1)
+                                Spacer(minLength: 4)
+                                if !g.qty.isEmpty { Text(g.qty).font(.system(size: 20)).foregroundStyle(Duo.muted) }
+                            }
+                        }
+                    })
+                }
+            }
+        case .meals:
+            HStack(alignment: .top, spacing: 16) {
+                ForEach(s.apps?.meals ?? []) { d in
+                    card(VStack(alignment: .leading, spacing: 12) {
+                        Text(d.date == s.day ? "TODAY" : prettyDay(d.date, .dateTime.weekday(.abbreviated)).uppercased()).font(.system(size: 18, weight: .heavy)).foregroundStyle(Color(hex: "#ea580c"))
+                        Text(prettyDay(d.date, .dateTime.day())).font(.system(size: 40, weight: .black)).foregroundStyle(Duo.ink)
+                        if d.meals.isEmpty { Text("Not planned").font(.system(size: 18)).foregroundStyle(Duo.faint) }
+                        ForEach(d.meals) { m in
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(m.slot.capitalized).font(.system(size: 15, weight: .heavy)).foregroundStyle(Duo.muted)
+                                Text(m.text).font(.system(size: 20, weight: .semibold)).foregroundStyle(Duo.ink).lineLimit(3)
+                            }
+                        }
+                    }.frame(minHeight: 420, alignment: .topLeading))
+                }
+            }
+        case .countdowns:
+            LazyVGrid(columns: three, spacing: 24) {
+                ForEach(s.apps?.countdowns ?? []) { c in
+                    card(VStack(alignment: .leading, spacing: 10) {
+                        Text(c.emoji.isEmpty ? "⏳" : c.emoji).font(.system(size: 56))
+                        Text("\(c.days)").font(.system(size: 90, weight: .black)).foregroundStyle(Color(hex: c.color.isEmpty ? "#7c3aed" : c.color))
+                        Text(c.days == 1 ? "day to go" : "days to go").font(.system(size: 22, weight: .bold)).foregroundStyle(Duo.muted)
+                        Text(c.title).font(.system(size: 28, weight: .bold)).foregroundStyle(Duo.ink).lineLimit(2)
+                        Text(prettyDay(c.date)).font(.system(size: 20)).foregroundStyle(Duo.faint)
+                    })
+                }
+            }
+        case .birthdays:
+            LazyVGrid(columns: three, spacing: 24) {
+                ForEach(s.apps?.birthdays ?? []) { b in
+                    card(HStack(spacing: 20) {
+                        Text(b.kind == "anniversary" ? "💍" : b.kind == "birthday" ? "🎂" : "🎉").font(.system(size: 56))
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(b.name).font(.system(size: 28, weight: .bold)).foregroundStyle(Duo.ink).lineLimit(1)
+                            Text(b.days == 0 ? "Today!" : b.days == 1 ? "Tomorrow" : "In \(b.days) days · \(shortDay(b.date))").font(.system(size: 22, weight: .semibold)).foregroundStyle(b.days <= 7 ? Color(hex: "#db2777") : Duo.muted)
+                            if b.turns > 0 { Text(b.kind == "anniversary" ? "\(b.turns) years" : "Turns \(b.turns)").font(.system(size: 20)).foregroundStyle(Duo.faint) }
+                        }
+                    })
+                }
+            }
+        case .habits:
+            VStack(spacing: 18) {
+                ForEach(s.apps?.habits ?? []) { h in
+                    card(HStack(spacing: 20) {
+                        Text(h.emoji.isEmpty ? "✨" : h.emoji).font(.system(size: 44))
+                        Text(h.name).font(.system(size: 28, weight: .bold)).foregroundStyle(Duo.ink).frame(width: 520, alignment: .leading).lineLimit(1)
+                        HStack(spacing: 14) {
+                            ForEach(Array(h.week.enumerated()), id: \.offset) { pair in
+                                let i = pair.offset, done = pair.element
+                                VStack(spacing: 6) {
+                                    Circle().fill(done ? Color(hex: h.color.isEmpty ? "#f59e0b" : h.color) : Color(hex: "#e2e8f0")).frame(width: 46, height: 46)
+                                        .overlay(Image(systemName: "checkmark").font(.system(size: 20, weight: .black)).foregroundStyle(done ? .white : .clear))
+                                    Text(prettyDay(addDays(s.day, i - 6), .dateTime.weekday(.narrow))).font(.system(size: 16, weight: .bold)).foregroundStyle(Duo.muted)
+                                }
+                            }
+                        }
+                        Spacer()
+                        Text("\(h.week.filter { $0 }.count)/7").font(.system(size: 28, weight: .black)).foregroundStyle(Duo.ink)
+                    })
+                }
+            }
+        case .routines:
+            LazyVGrid(columns: three, alignment: .leading, spacing: 24) {
+                ForEach(s.apps?.routines ?? []) { r in
+                    card(VStack(alignment: .leading, spacing: 14) {
+                        Text("\(r.emoji) \(r.name)").font(.system(size: 30, weight: .bold)).foregroundStyle(Duo.ink)
+                        ForEach(r.steps) { st in
+                            HStack(spacing: 12) { DuoCheck(done: st.done); Text(st.text).font(.system(size: 22)).foregroundStyle(Duo.ink).strikethrough(st.done).lineLimit(2) }
+                        }
+                    })
+                }
+            }
+        case .bills:
+            VStack(spacing: 16) {
+                if (s.bills ?? []).isEmpty { DuoEmpty(text: "No bills due in the next week.") }
+                ForEach(s.bills ?? []) { b in
+                    card(HStack(spacing: 18) {
+                        Circle().fill(b.late ? Duo.rose : Duo.amber).frame(width: 16, height: 16)
+                        Text(b.name).font(.system(size: 30, weight: .bold)).foregroundStyle(Duo.ink)
+                        Spacer()
+                        Text(b.late ? "Past due" : b.due == s.day ? "Today" : prettyDay(b.due)).font(.system(size: 24, weight: .semibold)).foregroundStyle(b.late ? Duo.rose : Duo.muted)
+                        Text(b.amount).font(.system(size: 32, weight: .black)).foregroundStyle(Duo.ink).frame(minWidth: 160, alignment: .trailing)
+                    })
+                }
+            }
+        case .goals:
+            LazyVGrid(columns: three, spacing: 24) {
+                ForEach(s.goals ?? []) { g in
+                    card(VStack(alignment: .leading, spacing: 16) {
+                        Text(g.title).font(.system(size: 28, weight: .bold)).foregroundStyle(Duo.ink).lineLimit(2)
+                        Text("\(Int((g.progress * 100).rounded()))%").font(.system(size: 64, weight: .black)).foregroundStyle(Color(hex: "#4f46e5"))
+                        ProgressView(value: g.progress).tint(Color(hex: "#4f46e5"))
+                    })
+                }
+            }
+        case .stars:
+            LazyVGrid(columns: three, spacing: 24) {
+                ForEach(s.stars ?? []) { k in
+                    card(VStack(spacing: 14) {
+                        DuoAvatar(person: DuoPerson(name: k.name, emoji: k.emoji, color: k.color), size: 110)
+                        Text(k.name).font(.system(size: 32, weight: .bold)).foregroundStyle(Duo.ink)
+                        Label("\(k.stars)", systemImage: "star.fill").font(.system(size: 54, weight: .black)).foregroundStyle(Color(hex: "#d97706"))
+                    }.frame(maxWidth: .infinity))
+                }
+            }
+        case .polls:
+            VStack(spacing: 16) {
+                ForEach(s.polls ?? []) { p in
+                    card(VStack(alignment: .leading, spacing: 8) {
+                        Text(p.question).font(.system(size: 32, weight: .bold)).foregroundStyle(Duo.ink)
+                        Text(p.leading.isEmpty ? "No votes yet" : "Leading: \(p.leading)").font(.system(size: 26, weight: .semibold)).foregroundStyle(Duo.violet)
+                        Text(p.waiting > 0 ? "\(p.waiting) still to vote" : "Everyone voted").font(.system(size: 22)).foregroundStyle(Duo.muted)
+                    })
+                }
+            }
+        case .notes:
+            LazyVGrid(columns: three, spacing: 24) {
+                ForEach(s.notes ?? []) { n in
+                    Button { } label: {
+                        VStack(alignment: .leading, spacing: 10) {
+                            if !n.title.isEmpty { Text(n.title).font(.system(size: 30, weight: .black)).foregroundStyle(Duo.ink) }
+                            Text(n.body).font(.system(size: 24)).foregroundStyle(Color(hex: "#334155")).lineLimit(10)
+                        }
+                        .padding(30).frame(maxWidth: .infinity, minHeight: 300, alignment: .topLeading)
+                        .background(Color(hex: n.color), in: RoundedRectangle(cornerRadius: 24))
+                    }
+                    .buttonStyle(DuoLift(radius: 24))
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Made-up Work, weather and apps for the simulator screenshots
+
+func duoWorkSampleJSON(_ day: String) -> String {
+    let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+    let base = f.date(from: day) ?? Date()
+    func d(_ n: Int) -> String { f.string(from: Calendar.current.date(byAdding: .day, value: n, to: base) ?? base) }
+    return """
+    {"available":true,"name":"Jeremy Smith","day":"\(day)","school":"Lincoln Middle School","students":14,"dueToday":3,
+     "lists":[{"id":"l1","name":"Paperwork","color":"#0d9488"},{"id":"l2","name":"Classroom","color":"#7c3aed"}],
+     "tasks":[{"id":"w1","title":"Finish progress reports","due":"\(d(-1))","time":"","list":"Paperwork","who":"","listId":"l1","priority":"high"},
+              {"id":"w2","title":"Email Ava's mom about the meeting","due":"\(day)","time":"15:00","list":"Paperwork","who":"","listId":"l1","priority":"normal"},
+              {"id":"w3","title":"Copy reading packets","due":"\(day)","time":"","list":"Classroom","who":"","listId":"l2","priority":"normal"},
+              {"id":"w4","title":"Update accommodations sheet","due":"\(d(2))","time":"","list":"Paperwork","who":"","listId":"l1","priority":"normal"}],
+     "events":[{"date":"\(day)","title":"Staff meeting","time":"15:30","endTime":"16:30","location":"Library","who":[],"color":"#0d9488","people":[]},
+               {"date":"\(d(2))","title":"Annual IEP: Ava Smith","time":"08:00","endTime":"","location":"Room 12","who":["Ava Smith"],"color":"#7c3aed","people":[]},
+               {"date":"\(d(4))","title":"Reevaluation: Leo Park","time":"10:30","endTime":"","location":"Office","who":["Leo Park"],"color":"#7c3aed","people":[]}],
+     "meetings":[{"student":"Ava Smith","type":"Annual IEP","date":"\(d(2))","time":"08:00","room":"Room 12"},{"student":"Leo Park","type":"Reevaluation","date":"\(d(4))","time":"10:30","room":"Office"}],
+     "schedule":[{"student":"Ava Smith","start":"09:00","end":"09:30","label":"Reading pull-out"},{"student":"Leo Park","start":"10:15","end":"10:45","label":"Math push-in"},{"student":"Maya Chen","start":"13:00","end":"13:30","label":"Writing"}],
+     "dueSoon":[{"what":"Annual IEP due","student":"Nolan Framel","date":"\(d(-3))","days":-3},{"what":"Annual IEP due","student":"Ava Smith","date":"\(d(5))","days":5},{"what":"Reevaluation due","student":"Leo Park","date":"\(d(12))","days":12}],
+     "lessons":[{"title":"Main idea and details","subject":"Reading","group":"Group A","date":"\(day)"},{"title":"Fractions on a number line","subject":"Math","group":"Group B","date":"\(d(1))"}]}
+    """
+}
+
+func duoWeatherSampleJSON(_ day: String) -> String {
+    let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+    let base = f.date(from: day) ?? Date()
+    let codes = [0, 2, 3, 61, 2, 0, 71]
+    let days = (0..<7).map { i -> String in
+        let d = f.string(from: Calendar.current.date(byAdding: .day, value: i, to: base) ?? base)
+        return "{\"date\":\"\(d)\",\"code\":\(codes[i]),\"high\":\(58 - i),\"low\":\(34 + i),\"rain\":\(codes[i] == 61 ? 70 : 5)}"
+    }.joined(separator: ",")
+    return "{\"place\":\"Denver, Colorado, US\",\"unit\":\"F\",\"current\":{\"temp\":52,\"feels\":49,\"code\":1,\"wind\":8,\"humidity\":31},\"days\":[\(days)]}"
 }
