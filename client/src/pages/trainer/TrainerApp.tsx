@@ -18,6 +18,7 @@ import { AiBuilderSheet, InviteSheet, TemplatesSheet } from "./TrainerTemplates"
 import { WebsiteCard } from "./TrainerWebsite";
 import { TrainerGroups } from "../coach/Groups";
 import { CopilotCard } from "./TrainerCopilot";
+import { MoveCard } from "./TrainerMove";
 
 type Tab = "clients" | "inbox" | "schedule" | "library" | "business";
 
@@ -217,6 +218,7 @@ function Business({ data, token, reload, say }: { data: TrainerHome; token: stri
         {isNativeApp() ? <p className="mt-3 rounded-[10px] p-3 text-[13px]" style={{ background: C.card2, color: C.steel }}>Start your listing plan at arisetodo.com/#/trainer in a web browser. It shows up here right away.</p>
           : <Btn className="mt-3 w-full" disabled={busy || data.problems.length > 0 || !data.payments} onClick={() => go("/trainer/listing/checkout")} testId="tr-start-plan">{data.payments ? `Start ${data.price.trialDays}-day free trial` : "Payments open soon"}</Btn>}</>}
     </Card>
+    <MoveCard token={token} say={say} />
     <Title>Reviews{data.reviews.length ? ` · ${(data.reviews.reduce((t, r) => t + r.stars, 0) / data.reviews.length).toFixed(1)}` : ""}</Title>
     {data.reviews.length ? <div className="space-y-2">{data.reviews.map((r) => <Card key={r.id} className="!p-3.5"><div className="flex items-center gap-2"><Stars value={r.stars} /><span className="text-[13px] font-semibold">{r.name}</span><span className="ml-auto text-[11px]" style={{ color: C.dim }}>{shortDate(r.date)}</span></div>
       {r.text && <p className="mt-1.5 text-[14px]">{r.text}</p>}

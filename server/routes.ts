@@ -1647,6 +1647,7 @@ export async function registerRoutes(
     stripeKey: () => plans.adminTodo.stripeKey(),
     appUrl: APP_URL,
     isAdmin: (req) => !!req.user?.isAdmin && !req.adminPreview,
+    sendEmail: (to, subject, html, options) => (emailConfigured() ? sendEmail(to, subject, html, options) : Promise.resolve({ sent: false, error: "Email isn't set up" })),
   });
   // Arise Talk (server/talk.ts): backups, Premium and the AI helpers for the talking app.
   registerTalkRoutes(app, authMiddleware, {
