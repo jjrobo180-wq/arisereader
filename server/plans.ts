@@ -35,6 +35,10 @@ import { NOTES_PLANS, isNotesProduct, planOfProduct, productName, productPrice, 
 import { TODO_PLAN_KINDS, infoFromGrant, stripeKeyMode, type PlanInfo } from "../shared/todoAdmin";
 import { AI_LIMIT, FAIR_USE, UNLIMITED_AI_PER_MONTH, UNLIMITED_MONTHLY_CENTS, UNLIMITED_NAME, UNLIMITED_YEARLY_OFFER, aiMonth } from "../shared/todoPlan";
 
+/** The Reader's own data, locked for a new account without a Reader plan (see readerGate). */
+export const READER_LOCKED = ["/api/books", "/api/student", "/api/custom-quizzes", "/api/reading-assessment", "/api/quiz-review", "/api/quiz-requests", "/api/instant-quiz", "/api/iarise-course", "/api/fyp", "/api/reading-profile", "/api/avatar-world", "/api/news/books", "/api/reads/books", "/api/leaderboard", "/api/parent", "/api/teacher"];
+export const READER_PLAN_REQUIRED = "reader_plan_required";
+
 type AnyUser = {
   id: number; username?: string; displayName?: string; role?: string; isAdmin?: boolean; email?: string | null;
   createdAt?: unknown; teacherId?: number | null; school_id?: number | null; schoolId?: number | null;
@@ -560,6 +564,29 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     }
   };
   app.use("/api", teacherGate);
+
+  /**
+   * A.R.I.S.E. Reader is paid for accounts made from November 9, 2026. A new student, parent or
+   * teacher without a plan is refused the Reader's own data (books, quizzes, points, dashboards);
+   * everything else (signing in, their plan and paying, To Duo, LifeHub, WorkHub, Eye Gazer) stays
+   * open. If the check itself fails the request goes through, so a hiccup never locks out a payer.
+   */
+  const readerGate: RequestHandler = async (req: any, res: any, next: any) => {
+    try {
+      const path = pathOf(req);
+      if (!READER_LOCKED.some((p) => path === p || path.startsWith(p + "/"))) return next();
+      const token = String(req.headers?.authorization || "").replace("Bearer ", "");
+      if (!token) return next();
+      const user: any = await deps.userForToken(token);
+      if (!user || user.isAdmin || user.is_eye_gaze_user || user.isEyeGazeUser) return next();
+      if ((await readerAccess(user)).access) return next();
+      return res.status(402).json({ message: "This account needs an A.R.I.S.E. Reader plan. A family plan is $7 a month at arisereader.com.", code: READER_PLAN_REQUIRED });
+    } catch (e: any) {
+      console.error("[plans] Reader check failed:", e?.message);
+      return next();
+    }
+  };
+  app.use("/api", readerGate);
 
   /** For a student-only extra (AI study sets, lessons from topics). Sends the refusal and returns true when blocked. */
   const blockFreeStudent = async (req: any, res: any): Promise<boolean> => {

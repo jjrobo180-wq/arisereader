@@ -46,3 +46,11 @@ test("the Reader is locked only on arisereader.com and in the Reader apps, with 
   assert.match(page, /Subscribe on arisereader\.com/, "the iPhone app sends buyers to the website");
   assert.match(page, /product: "bundle"/);
 });
+
+test("the server refuses the Reader's own data to a new account without a plan, and nothing else", () => {
+  const src = readFileSync("server/plans.ts", "utf8");
+  assert.match(src, /app\.use\("\/api", readerGate\)/);
+  for (const p of ["/api/books", "/api/student", "/api/custom-quizzes", "/api/parent", "/api/teacher"]) assert.ok(src.includes(`"${p}"`), p);
+  assert.ok(!/READER_LOCKED = \[[^\]]*"\/api\/(plan|billing|login|me|arise-todo|lifehub|teacher-hub|eye-gaze)"/.test(src), "plans, payment, sign-in, the hubs and Eye Gazer stay open");
+  assert.match(src, /user\.is_eye_gaze_user \|\| user\.isEyeGazeUser\) return next\(\)/);
+});
