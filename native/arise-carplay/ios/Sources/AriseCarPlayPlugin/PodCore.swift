@@ -383,7 +383,7 @@ public final class PodAPI {
                     if ep.showId.isEmpty { ep.showId = show.id }
                     return ep
                 }
-                return PodPool(show: show, rank: Int(PodJSON.num(p["rank"]) ?? 0), episodes: eps)
+                return PodPool(show: show, rank: Int(min(1_000_000, max(0, (PodJSON.num(p["rank"]) ?? 0).isFinite ? PodJSON.num(p["rank"]) ?? 0 : 0))), episodes: eps)
             }
         }
         return out

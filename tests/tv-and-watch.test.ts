@@ -179,3 +179,12 @@ test("Arise Duo on the TV switches between Life and Work, and has the Apps tab",
   assert.match(tv, /case weather, grocery, meals, countdowns, birthdays, habits, routines, bills, goals, stars, polls, notes/);
   assert.match(read("server/routes.ts"), /readWorkWorkspace: \(id\) => createSupabaseWorkspaceStore\(\)\.get\(id\)/);
 });
+
+test("no number in the watch apps overflows a 32-bit Apple Watch (Series 8 and older)", () => {
+  const files = ["native/arise-carplay/ios/Sources/AriseCarPlayPlugin/PodEngine.swift", "native/arise-carplay/ios/Sources/AriseCarPlayPlugin/PodCore.swift", "native/watch-app/PodWatchApp.swift",
+    "native/duo-watch/DuoWatchApp.swift", "native/fit-watch/FitWatchApp.swift", "native/notes-watch/NotesWatchApp.swift", "native/watch-kit/AriseWatchLink.swift"];
+  for (const f of files) {
+    // Nanoseconds made from plain Ints (the multiply happens before UInt64 sees it): crashes on a 32-bit watch.
+    assert.doesNotMatch(read(f), /UInt64\(\([^)]*\)\s*\*\s*1_000_000_000\)/, f);
+  }
+});

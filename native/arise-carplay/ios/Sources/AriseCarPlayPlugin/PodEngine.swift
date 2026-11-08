@@ -206,7 +206,9 @@ public final class PodEngine: ObservableObject {
         adsTask = Task { [weak self] in
             var waits = 0
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: UInt64((clean ? 45 : (waits < 30 ? 4 : 30)) * 1_000_000_000))
+                // UInt64 before multiplying: on an Apple Watch Series 8 and older (32-bit numbers) 4 x 1,000,000,000
+                // doesn't fit in an Int, and the app stopped the moment an episode started playing.
+                try? await Task.sleep(nanoseconds: UInt64(clean ? 45 : (waits < 30 ? 4 : 30)) * 1_000_000_000)
                 guard let self = self, self.run == me, !Task.isCancelled else { return }
                 if let r = await self.api.sessionAds(sid: sid, ep: ep) {
                     guard self.run == me else { return }
