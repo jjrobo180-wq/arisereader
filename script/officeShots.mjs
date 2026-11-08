@@ -14,38 +14,43 @@ await new Promise((ok) => createServer(async (req, res) => {
 await mkdir("screens", { recursive: true });
 const browser = await chromium.launch();
 const results = [];
+const note = (line) => { note(line); console.log(line); };
+/** Stops one screenshot after `ms`, so a page that hangs is reported by name instead of stalling the run. */
+const limit = (p, ms, what) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error(`${what}: no answer after ${ms / 1000}s`)), ms))]);
 const sizes = { phone: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, laptop: { viewport: { width: 1366, height: 860 }, deviceScaleFactor: 1 } };
 for (const [size, opts] of Object.entries(sizes)) for (const kind of ["doc", "sheet", "slides"]) for (const open of ["1", "0"]) {
   if (open === "0" && size === "laptop") continue;
   const name = `${size}-${kind}${open === "1" ? "-open" : "-home"}`;
-  const ctx = await browser.newContext(opts); const page = await ctx.newPage(); const errors = [];
+  const ctx = await browser.newContext(opts); const page = await ctx.newPage(); page.setDefaultTimeout(15000); const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text().slice(0, 160)); });
   page.on("pageerror", (e) => errors.push(String(e?.message || e)));
   try {
-    await page.goto(`http://localhost:4180/office-preview/?kind=${kind}&open=${open}`); await page.waitForTimeout(3500);
+    await limit(page.goto(`http://localhost:4180/office-preview/?kind=${kind}&open=${open}`, { waitUntil: "domcontentloaded" }), 30000, "open"); await page.waitForTimeout(3500);
     const box = open === "1" ? await page.getByTestId("office-fullscreen").boundingBox() : null;
     const ed = open === "1" ? await page.locator('[data-testid$="-editor"]').first().boundingBox() : null;
-    await page.screenshot({ path: `screens/${name}.png` });
-    results.push(`ok   ${name}${box ? `  frame ${Math.round(box.width)}x${Math.round(box.height)} editor ${ed ? `${Math.round(ed.width)}x${Math.round(ed.height)}` : "MISSING"}` : ""}${errors.length ? `  errors: ${errors.slice(0, 2).join(" | ")}` : ""}`);
-  } catch (e) { results.push(`FAIL ${name}: ${e?.message || e}`); }
-  await ctx.close();
+    await limit(page.screenshot({ path: `screens/${name}.png`, timeout: 20000 }), 30000, "screenshot");
+    note(`ok   ${name}${box ? `  frame ${Math.round(box.width)}x${Math.round(box.height)} editor ${ed ? `${Math.round(ed.width)}x${Math.round(ed.height)}` : "MISSING"}` : ""}${errors.length ? `  errors: ${errors.slice(0, 2).join(" | ")}` : ""}`);
+  } catch (e) { note(`FAIL ${name}: ${e?.message || e}`); }
+  await limit(ctx.close(), 10000, "close").catch(() => {});
 }
 // Arise To Duo's "Link someone": top, and scrolled to the very bottom (the Send bar must cover the list's end).
 for (const [name, after] of [["phone-link-top", null], ["phone-link-bottom", "bottom"], ["phone-link-all-apps", "all"]]) {
-  const ctx = await browser.newContext(sizes.phone); const page = await ctx.newPage(); const errors = [];
+  const ctx = await browser.newContext(sizes.phone); const page = await ctx.newPage(); page.setDefaultTimeout(15000); const errors = [];
   page.on("pageerror", (e) => errors.push(String(e?.message || e)));
   try {
-    await page.goto("http://localhost:4180/office-preview/?screen=link"); await page.waitForTimeout(2500);
+    await limit(page.goto("http://localhost:4180/office-preview/?screen=link", { waitUntil: "domcontentloaded" }), 30000, "open"); await page.waitForTimeout(2500);
     if (after === "all") { await page.getByTestId("grant-show-all").click(); await page.waitForTimeout(400); }
     if (after) { await page.locator('[role="dialog"]').evaluate((d) => { d.scrollTop = d.scrollHeight; }); await page.waitForTimeout(500); }
     const bar = await page.getByTestId("link-invite-send").boundingBox();
     const dlg = await page.locator('[role="dialog"]').boundingBox();
     const gap = bar && dlg ? Math.round(dlg.y + dlg.height - (bar.y + bar.height)) : -1;
     const first = await page.locator('[data-testid^="grant-"]').first().innerText().catch(() => "");
-    await page.screenshot({ path: `screens/${name}.png` });
-    results.push(`ok   ${name}  space under the Send button ${gap}px  first app: ${first.split("\n")[0]}${errors.length ? `  errors: ${errors.slice(0, 2).join(" | ")}` : ""}`);
-  } catch (e) { results.push(`FAIL ${name}: ${e?.message || e}`); }
-  await ctx.close();
+    await limit(page.screenshot({ path: `screens/${name}.png`, timeout: 20000 }), 30000, "screenshot");
+    note(`ok   ${name}  space under the Send button ${gap}px  first app: ${first.split("\n")[0]}${errors.length ? `  errors: ${errors.slice(0, 2).join(" | ")}` : ""}`);
+  } catch (e) { note(`FAIL ${name}: ${e?.message || e}`); }
+  await limit(ctx.close(), 10000, "close").catch(() => {});
 }
-await browser.close();
+await limit(browser.close(), 10000, "browser close").catch(() => {});
 await writeFile("screens/results.txt", results.join("\n") + "\n");
 console.log(results.join("\n"));
+process.exit(0);
