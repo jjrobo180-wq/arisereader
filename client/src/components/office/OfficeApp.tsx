@@ -4,7 +4,7 @@
 import { Suspense, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
-  FileText, LayoutGrid, List as ListIcon, MoreVertical, Plus, Presentation, Search, Star, Trash2, Upload, RotateCcw,
+  FileText, LayoutGrid, List as ListIcon, MoreVertical, Palette, Plus, Presentation, Search, Star, Trash2, Upload, RotateCcw,
 } from "lucide-react";
 import { Grid3x3 } from "./icons";
 import { useAuth } from "@/context/AuthContext";
@@ -12,7 +12,7 @@ import { docsApi, type DocEntry, type DocKind } from "@/lib/cloudDocs";
 import { useSavedChoice } from "@/lib/useSavedChoice";
 import { Floating, MenuList, downloadBlob, pickFile, safeName, type MenuItem } from "./officeUi";
 
-export type OfficeTemplate = { id: string; name: string; blurb: string; emoji: string; color: string; make: () => unknown };
+export type OfficeTemplate = { id: string; name: string; blurb: string; emoji: string; color: string; make: () => unknown; /** A picture of it (Design) instead of the emoji tile. */ preview?: () => ReactNode };
 export type OfficeKind = {
   kind: DocKind;
   title: string;
@@ -20,6 +20,8 @@ export type OfficeKind = {
   color: string;
   icon: ReactNode;
   blank: () => unknown;
+  /** Blank files in different sizes to start from (Design: Instagram post, story, flyer…). */
+  starts?: { id: string; label: string; sub: string; make: () => unknown }[];
   templates: OfficeTemplate[];
   importAccept: string;
   importFile: (f: File) => Promise<{ name: string; content: unknown }>;
@@ -145,17 +147,20 @@ function OfficeHome({ config, legacy, onOpen, say: sayOut }: { config: OfficeKin
           {config.templates.length > 5 && <button type="button" onClick={() => setAllTemplates(!allTemplates)} className="text-sm font-bold text-sky-700">{allTemplates ? "Fewer" : "Template gallery"}</button>}
         </div>
       </div>
+      {config.starts && <div className="-mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]" data-testid="office-starts">{config.starts.map((st) => <button key={st.id} type="button" onClick={() => void create(`Untitled ${st.label}`, st.make())} disabled={!!busy}
+        className="shrink-0 rounded-xl bg-white px-3 py-2 text-left ring-1 ring-slate-200 hover:ring-2 hover:ring-violet-400" data-testid={`office-start-${st.id}`}><span className="block whitespace-nowrap text-sm font-bold">{st.label}</span><span className="block whitespace-nowrap text-[11px] text-slate-500">{st.sub}</span></button>)}</div>}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <button type="button" onClick={() => void create(`Untitled ${config.noun}`, config.blank())} disabled={!!busy} className="group text-left" data-testid="office-new-blank">
           <div className="flex aspect-[4/3] items-center justify-center rounded-xl bg-white ring-1 ring-slate-200 transition group-hover:ring-2 group-hover:ring-sky-400"><Plus size={40} style={{ color: config.color }} /></div>
           <p className="mt-1.5 text-sm font-bold">Blank {config.noun}</p>
         </button>
         {templates.map((t) => <button key={t.id} type="button" onClick={() => void create(t.name, t.make())} disabled={!!busy} className="group text-left" data-testid={`office-template-${t.id}`}>
-          <div className="flex aspect-[4/3] flex-col justify-between overflow-hidden rounded-xl bg-white p-3 ring-1 ring-slate-200 transition group-hover:ring-2 group-hover:ring-sky-400">
+          {t.preview ? <div className="grid aspect-[4/3] place-items-center overflow-hidden rounded-xl bg-slate-50 p-2 ring-1 ring-slate-200 transition group-hover:ring-2 group-hover:ring-sky-400">{t.preview()}</div>
+          : <div className="flex aspect-[4/3] flex-col justify-between overflow-hidden rounded-xl bg-white p-3 ring-1 ring-slate-200 transition group-hover:ring-2 group-hover:ring-sky-400">
             <span className="text-3xl">{t.emoji}</span>
             <span className="line-clamp-2 text-[11px] leading-snug text-slate-500">{t.blurb}</span>
             <span className="h-1.5 w-full rounded-full" style={{ background: t.color }} />
-          </div>
+          </div>}
           <p className="mt-1.5 truncate text-sm font-bold">{busy === t.name ? "Making…" : t.name}</p>
         </button>)}
       </div>
@@ -193,4 +198,4 @@ function OfficeHome({ config, legacy, onOpen, say: sayOut }: { config: OfficeKin
   </div>;
 }
 
-export const OfficeIcons = { sheet: <Grid3x3 size={18} />, doc: <FileText size={18} />, slides: <Presentation size={18} /> };
+export const OfficeIcons = { sheet: <Grid3x3 size={18} />, doc: <FileText size={18} />, slides: <Presentation size={18} />, design: <Palette size={18} /> };

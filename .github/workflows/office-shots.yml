@@ -7,6 +7,7 @@ on:
     branches: [master]
     paths:
       - 'client/src/components/office/**'
+      - 'shared/office/design*.ts'
       - 'client/src/components/family-hub/LinkedProfiles.tsx'
       - 'client/src/components/family-hub/ui.tsx'
       - 'client/src/components/family-hub/ShareLink.tsx'

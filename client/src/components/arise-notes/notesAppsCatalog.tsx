@@ -2,11 +2,11 @@
 // you've added (saved to the account, so they follow you to every device) and the row of them on Home.
 // Kept small and separate from the apps themselves so Home doesn't load them.
 import type { ReactNode } from "react";
-import { ChevronRight, FileText, Layers, LayoutGrid, ListChecks, PenLine, Presentation, StickyNote, Table2, Timer } from "lucide-react";
+import { ChevronRight, FileText, Layers, LayoutGrid, ListChecks, Palette, PenLine, Presentation, StickyNote, Table2, Timer } from "lucide-react";
 import { useAppData } from "@/lib/cloudDocs";
 import type { AppCtx } from "./NotesApp";
 
-export type NotesAppId = "stickies" | "lists" | "whiteboard" | "sheets" | "slides" | "docs" | "flashcards" | "focus";
+export type NotesAppId = "stickies" | "lists" | "whiteboard" | "sheets" | "slides" | "docs" | "design" | "flashcards" | "focus";
 export type NotesAppInfo = { id: NotesAppId; name: string; short: string; tagline: string; about: string; color: string; icon: ReactNode; group: "Write & plan" | "Office" | "Study" };
 
 export const NOTES_APPS: NotesAppInfo[] = [
@@ -22,6 +22,8 @@ export const NOTES_APPS: NotesAppInfo[] = [
     about: "Make a presentation from scratch or a template, then present it full screen. Turn a meeting's notes into slides for the next one." },
   { id: "docs", name: "A.R.I.S.E. Docs", short: "Docs", tagline: "Write and format documents", group: "Office", color: "#2563eb", icon: <FileText />,
     about: "Longer writing with headings, lists and formatting: reports, letters and plans. Download as Word or PDF." },
+  { id: "design", name: "Arise Design", short: "Design", tagline: "Posters, flyers, posts and invitations", group: "Office", color: "#7c3aed", icon: <Palette />,
+    about: "Make anything look great, like Canva: 80+ templates in every size (Instagram, stories, flyers, posters, invitations, business cards, certificates), text styles, shapes, stickers, photo frames, your own pictures, Magic Design from one sentence, and PNG, JPG or PDF downloads." },
   { id: "flashcards", name: "Flashcards", short: "Flashcards", tagline: "Study cards, or make them from a note", group: "Study", color: "#7c3aed", icon: <Layers />,
     about: "Turn a recorded class or meeting into study cards in one tap, or make your own decks. Flip, shuffle and keep track of the ones you know." },
   { id: "focus", name: "Focus Timer", short: "Focus", tagline: "25 minutes on, 5 minutes off", group: "Study", color: "#db2777", icon: <Timer />,

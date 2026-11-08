@@ -18,7 +18,7 @@ const note = (line) => { results.push(line); console.log(line); };
 /** Stops one screenshot after `ms`, so a page that hangs is reported by name instead of stalling the run. */
 const limit = (p, ms, what) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error(`${what}: no answer after ${ms / 1000}s`)), ms))]);
 const sizes = { phone: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, laptop: { viewport: { width: 1366, height: 860 }, deviceScaleFactor: 1 } };
-for (const [size, opts] of Object.entries(sizes)) for (const kind of ["doc", "sheet", "slides"]) for (const open of ["1", "0"]) {
+for (const [size, opts] of Object.entries(sizes)) for (const kind of ["doc", "sheet", "slides", "design"]) for (const open of ["1", "0"]) {
   if (open === "0" && size === "laptop") continue;
   const name = `${size}-${kind}${open === "1" ? "-open" : "-home"}`;
   const ctx = await browser.newContext(opts); const page = await ctx.newPage(); page.setDefaultTimeout(15000); const errors = [];
@@ -30,6 +30,28 @@ for (const [size, opts] of Object.entries(sizes)) for (const kind of ["doc", "sh
     const ed = open === "1" ? await page.locator('[data-testid$="-editor"]').first().boundingBox() : null;
     await limit(page.screenshot({ path: `screens/${name}.png`, timeout: 20000 }), 30000, "screenshot");
     note(`ok   ${name}${box ? `  frame ${Math.round(box.width)}x${Math.round(box.height)} editor ${ed ? `${Math.round(ed.width)}x${Math.round(ed.height)}` : "MISSING"}` : ""}${errors.length ? `  errors: ${errors.slice(0, 2).join(" | ")}` : ""}`);
+  } catch (e) { note(`FAIL ${name}: ${e?.message || e}`); }
+  await limit(ctx.close(), 10000, "close").catch(() => {});
+}
+// Arise Design: the panels and a selected text box, on a phone and a laptop.
+for (const [name, opts, steps] of [
+  ["phone-design-templates", sizes.phone, ["tab:templates"]], ["phone-design-elements", sizes.phone, ["tab:elements"]], ["phone-design-text-selected", sizes.phone, ["text"]],
+  ["phone-design-magic", sizes.phone, ["tab:magic", "magic"]], ["laptop-design-text-selected", sizes.laptop, ["text"]], ["laptop-design-download", sizes.laptop, ["download"]],
+]) {
+  const ctx = await browser.newContext(opts); const page = await ctx.newPage(); page.setDefaultTimeout(15000); const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e?.message || e)));
+  try {
+    await limit(page.goto("http://localhost:4180/office-preview/?kind=design&open=1", { waitUntil: "domcontentloaded" }), 30000, "open"); await page.waitForTimeout(3500);
+    for (const st of steps) {
+      if (st.startsWith("tab:")) { const id = st.slice(4); const tab = page.getByTestId(`design-tab-${id}`); if (await tab.isVisible().catch(() => false)) await tab.click(); else await page.getByTestId(`design-rail-${id}`).click(); }
+      if (st === "text") { const box = await page.locator('[data-testid="design-page"] [data-el]').filter({ has: page.locator("[data-design-text]") }).first().boundingBox(); if (box) await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2); }
+      if (st === "magic") { await page.getByTestId("design-magic-prompt").fill("Bake sale this Friday at 3 in the school gym"); await page.getByTestId("design-magic-go").click(); }
+      if (st === "download") await page.getByTestId("design-download").click();
+      await page.waitForTimeout(1200);
+    }
+    const ctxBar = await page.getByTestId("design-context").isVisible().catch(() => false);
+    await limit(page.screenshot({ path: `screens/${name}.png`, timeout: 20000 }), 30000, "screenshot");
+    note(`ok   ${name}${ctxBar ? "  (selection toolbar showing)" : ""}${errors.length ? `  errors: ${errors.slice(0, 2).join(" | ")}` : ""}`);
   } catch (e) { note(`FAIL ${name}: ${e?.message || e}`); }
   await limit(ctx.close(), 10000, "close").catch(() => {});
 }
