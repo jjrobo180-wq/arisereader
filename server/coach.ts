@@ -47,6 +47,7 @@ import { registerCoachGroupRoutes } from "./coachGroups";
 import { clientFacts, draftFor, flags as copilotFlags, progress as progressPlan, reflow as reflowPlan, score as copilotScore } from "../shared/coachCopilot";
 import { checkinDue } from "../shared/coach";
 import { clientsCsv, importClients, importWorkouts } from "../shared/coachImport";
+import { FORM_LIMITS, VIDEO_TYPES, VOICE_TYPES, cleanFeedback, filePathOk, type FormCheck } from "../shared/coachFormCheck";
 import { CATALOG } from "../shared/fit";
 import { cleanPlanWorkout as cleanWorkoutForAi } from "../shared/coach";
 
@@ -141,6 +142,18 @@ export function createSupabaseCoachStore(): CoachStore {
   };
 }
 
+export type CoachFiles = { uploadUrl(path: string): Promise<string>; viewUrls(paths: string[]): Promise<Record<string, string>>; remove(paths: string[]): Promise<void> };
+const FORM_BUCKET = "coach-form-checks";
+let formBucket: Promise<void> | null = null;
+export function createSupabaseCoachFiles(): CoachFiles {
+  const db = async () => { const c = (await import("./supabase")).getAdminSupabase(); formBucket ??= Promise.resolve(c.storage.createBucket(FORM_BUCKET, { public: false, fileSizeLimit: "100MB" })).then(() => {}).catch(() => {}); await formBucket; return c; };
+  return {
+    async uploadUrl(path) { const { data, error } = await (await db()).storage.from(FORM_BUCKET).createSignedUploadUrl(path); if (error || !data) throw error ?? new Error("no upload link"); return data.signedUrl; },
+    async viewUrls(paths) { if (!paths.length) return {}; const { data } = await (await db()).storage.from(FORM_BUCKET).createSignedUrls(paths, 3 * 3600); return Object.fromEntries((data ?? []).filter((x: any) => x.signedUrl && x.path).map((x: any) => [x.path, x.signedUrl])); },
+    async remove(paths) { if (paths.length) await (await db()).storage.from(FORM_BUCKET).remove(paths); },
+  };
+}
+
 export type CoachDeps = {
   store?: CoachStore;
   /** A person's Arise Fit data (fit_data), for what their trainer may see. */
@@ -149,6 +162,8 @@ export type CoachDeps = {
   nameOf?: (userId: number) => Promise<string>;
   notify?: (userId: number, m: { title: string; body: string; url: string; tag?: string }) => Promise<unknown>;
   stripeKey?: () => Promise<string>;
+  /** Private file storage for form-check videos and voice notes (Supabase Storage by default). */
+  files?: CoachFiles;
   /** Sends an email (Resend, server/routes.ts). Left out, emailed invites are off and the app offers the link to copy. */
   sendEmail?: (to: string, subject: string, html: string, options: { replyTo?: string; fromName?: string }) => Promise<{ sent: boolean; error?: string }>;
   fetch?: typeof fetch;
@@ -745,6 +760,64 @@ Order exercises sensibly (big compound lifts first). Respect injuries or limits 
     const next = leads.map((l) => (done.has(l.id) && l.status === "new" ? { ...l, status: "contacted" as LeadStatus } : l));
     await kv.set(leadsKey(id), next);
     return { sent, skipped: wanted.size - sent, leads: next };
+  }));
+
+  // ── Video form checks (shared/coachFormCheck.ts): the client films a set, the trainer draws on it and replies ──
+  const files = deps.files ?? createSupabaseCoachFiles();
+  const fcKey = (linkId: string) => `coach-fc:${linkId}`;
+  const fcList = async (linkId: string): Promise<FormCheck[]> => { const v = await kv.get(fcKey(linkId)); return Array.isArray(v) ? v : []; };
+  const uploads = createAttemptLimiter({ max: 40, windowMs: 24 * 60 * 60_000 });
+  app.post("/api/coach/links/:id/form-checks/upload", auth, wrap(async (req) => {
+    const { l, id, role } = await linkFor(req, "either");
+    if (l.status !== "active") throw new Refused("This coaching has ended.", 403);
+    const kind = role === "client" ? "video" : "voice";
+    const type = String(req.body?.type ?? "").split(";")[0].toLowerCase();
+    const ext = (kind === "video" ? VIDEO_TYPES : VOICE_TYPES)[type];
+    if (!ext) throw new Refused(kind === "video" ? "Videos can be MP4, MOV or WebM." : "That voice note format isn't supported.");
+    const size = Number(req.body?.size) || 0; const max = (kind === "video" ? FORM_LIMITS.videoMb : FORM_LIMITS.voiceMb) * 1024 * 1024;
+    if (size <= 0 || size > max) throw new Refused(kind === "video" ? "Videos can be up to 100 MB. Trim it to just the set." : "That voice note is too long.");
+    if (!allow(uploads, `fc:${id}`)) throw new Refused("That's a lot of uploads today. Try again tomorrow.", 429);
+    const path = `${l.id}/${kind}-${now().toString(36)}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    return { url: await files.uploadUrl(path), path };
+  }));
+  app.post("/api/coach/links/:id/form-checks", auth, wrap(async (req) => {
+    const { l } = await linkFor(req, "client");
+    if (l.status !== "active") throw new Refused("This coaching has ended.", 403);
+    const video = req.body?.video;
+    if (!filePathOk(video, l.id) || !video.includes("/video-")) throw new Refused("Upload the video first.");
+    const list = await fcList(l.id);
+    const fc: FormCheck = { id: Math.random().toString(36).slice(2, 12), at: new Date(now()).toISOString(), exName: String(req.body?.exName ?? "").trim().slice(0, 80) || "A set", note: String(req.body?.note ?? "").trim().slice(0, 600), video, secs: Math.round(Math.min(FORM_LIMITS.videoSecs * 4, Math.max(0, Number(req.body?.secs) || 0)) * 10) / 10, status: "new", feedback: null };
+    const kept = [fc, ...list];
+    const gone = kept.slice(FORM_LIMITS.checks);
+    await kv.set(fcKey(l.id), kept.slice(0, FORM_LIMITS.checks));
+    if (gone.length) void files.remove(gone.flatMap((g) => [g.video, g.feedback?.voice ?? ""]).filter(Boolean)).catch(() => {});
+    void notify(l.trainerId, { title: "Form check", body: `${await first(l.clientId)} sent a video: ${fc.exName}${fc.note ? ` · ${fc.note.slice(0, 80)}` : ""}`, url: "#/trainer", tag: `fc-${fc.id}` });
+    return { check: fc };
+  }));
+  app.get("/api/coach/links/:id/form-checks", auth, wrap(async (req) => {
+    const { l } = await linkFor(req, "either");
+    const list = await fcList(l.id);
+    const urls = await files.viewUrls(list.flatMap((c) => [c.video, c.feedback?.voice ?? ""]).filter(Boolean)).catch(() => ({} as Record<string, string>));
+    return { checks: list.map((c) => ({ ...c, videoUrl: urls[c.video] ?? "", voiceUrl: c.feedback?.voice ? urls[c.feedback.voice] ?? "" : "" })) };
+  }));
+  app.post("/api/coach/links/:id/form-checks/:fid/feedback", auth, wrap(async (req) => {
+    const { l } = await linkFor(req, "trainer");
+    const list = await fcList(l.id); const fc = list.find((c) => c.id === req.params.fid);
+    if (!fc) throw new Refused("That video was removed.", 404);
+    const fb = cleanFeedback(req.body?.feedback, l.id, new Date(now()).toISOString(), fc.secs || 3600);
+    if (!fb.text && !fb.marks.length && !fb.voice) throw new Refused("Add a drawing, a note or a voice note first.");
+    if (fc.feedback?.voice && fc.feedback.voice !== fb.voice) void files.remove([fc.feedback.voice]).catch(() => {});
+    const next = { ...fc, status: "reviewed" as const, feedback: fb };
+    await kv.set(fcKey(l.id), list.map((c) => (c.id === fc.id ? next : c)));
+    void notify(l.clientId, { title: "Your trainer reviewed your form", body: `${fc.exName}: ${fb.text.slice(0, 100) || `${fb.marks.length} notes on your video`}`, url: "#/fit", tag: `fc-${fc.id}` });
+    return { check: next };
+  }));
+  app.put("/api/coach/links/:id/form-checks/:fid", auth, wrap(async (req) => {
+    const { l } = await linkFor(req, "either");
+    const list = await fcList(l.id); const fc = list.find((c) => c.id === req.params.fid);
+    if (!fc) throw new Refused("That video was removed.", 404);
+    if (req.body?.remove) { await kv.set(fcKey(l.id), list.filter((c) => c.id !== fc.id)); void files.remove([fc.video, fc.feedback?.voice ?? ""].filter(Boolean)).catch(() => {}); return { ok: true }; }
+    return { check: fc };
   }));
 
   // Groups: pages, chat and challenges (server/coachGroups.ts).
