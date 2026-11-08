@@ -122,7 +122,7 @@ test("with plan rules on, a teacher account needs Premium", async (t) => {
   const plan = await call(50, "GET", "/api/plan");
   assert.equal(plan.status, 200);
   assert.deepEqual([plan.body.premium, plan.body.via, plan.body.students, plan.body.school.name], [false, null, 30, "Lincoln Middle"]);
-  assert.equal(plan.body.prices.teacherMonthlyCents, 1000);
+  assert.equal(plan.body.prices.teacherMonthlyCents, 2000);
 
   // signed up before October 1: free this school year
   assert.equal((await call(51, "GET", "/api/teacher/students")).status, 200);
@@ -160,11 +160,11 @@ test("a parent profile follows the current Free children limit", async (t) => {
 });
 
 test("a paid teacher plan covers a set number of students", async (t) => {
-  const { plans, hook } = await setup(t, { students: 60 });
-  await hook(event("customer.subscription.created", subscription()));           // 2 blocks = 60 students
+  const { plans, hook } = await setup(t, { students: 198 });
+  await hook(event("customer.subscription.created", subscription()));           // 2 blocks = 198 students
   const full = await plans.seatCheck(USERS[50]);
   assert.equal(full.ok, false);
-  assert.match(full.message!, /covers 60 students/);
+  assert.match(full.message!, /covers 198 students/);
   assert.equal((await plans.seatCheck(USERS[51])).ok, true, "a grandfathered teacher has no seat limit");
   assert.equal((await plans.seatCheck(USERS[1])).ok, true);
 });
@@ -180,7 +180,7 @@ test("the webhook only accepts messages signed by Stripe", async (t) => {
 
   assert.equal((await hook(sub)).status, 200);
   const plan = (await call(50, "GET", "/api/plan")).body;
-  assert.deepEqual([plan.premium, plan.via, plan.seats, plan.teacherPlan.paidOnline], [true, "teacher-plan", 60, true]);
+  assert.deepEqual([plan.premium, plan.via, plan.seats, plan.teacherPlan.paidOnline], [true, "teacher-plan", 198, true]);
   assert.equal((await call(50, "GET", "/api/teacher/students")).status, 200);
 });
 
@@ -258,7 +258,7 @@ test("checkout builds the right Stripe order", async (t) => {
   assert.equal(f.auth, "Bearer sk_test_abcdefghijklmnop");
   assert.equal(f.form.get("mode"), "subscription");
   assert.equal(f.form.get("line_items[0][quantity]"), "3");
-  assert.equal(f.form.get("line_items[0][price_data][unit_amount]"), "1000");
+  assert.equal(f.form.get("line_items[0][price_data][unit_amount]"), "2000");
   assert.equal(f.form.get("line_items[0][price_data][currency]"), "usd");
   assert.equal(f.form.get("line_items[0][price_data][recurring][interval]"), "month");
   assert.equal(f.form.get("metadata[kind]"), "teacher");
@@ -274,8 +274,8 @@ test("checkout builds the right Stripe order", async (t) => {
   await call(50, "POST", "/api/billing/checkout", { kind: "school", blocks: 40 });
   f = calls.at(-1)!;
   assert.equal(f.form.get("line_items[0][quantity]"), "1");
-  assert.equal(f.form.get("line_items[0][price_data][unit_amount]"), "70000");
-  assert.equal(f.form.get("line_items[0][price_data][recurring][interval]"), "year");
+  assert.equal(f.form.get("line_items[0][price_data][unit_amount]"), "10000");
+  assert.equal(f.form.get("line_items[0][price_data][recurring][interval]"), "month");
   assert.equal(f.form.get("metadata[kind]"), "school");
   assert.equal(f.form.get("metadata[ownerId]"), "3", "the buyer's own school, never one named in the request");
 

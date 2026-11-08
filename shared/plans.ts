@@ -6,8 +6,8 @@
 // prices as Premium, and is unconditionally free for every teacher and parent
 // (see hubAccessFor) — not a trial, just free. It is not part of the free year
 // or a free school.
-// The teacher Class plan (PLANS.teacher) is a single combined price: $10/month
-// per 30 students includes A.R.I.S.E. Reader, Math, History AND Connect — there
+// The teacher Class plan (PLANS.teacher) is a single combined price: $20/month
+// per 99 students includes A.R.I.S.E. Reader, Math, History AND Connect — there
 // is no longer a separate per-app class add-on for teachers (classApps/
 // classAppCents is kept only for the parent family bundle's pricing and old
 // records; appAccessFor grants every app to a teacher with Premium).
@@ -21,16 +21,16 @@ import { productPrice, type NotesProduct } from "./ariseNotes";
 
 export const PLANS = {
   teacher: {
-    /** $10 a month covers one block of students. */
-    monthlyCents: 1000,
-    studentsPerBlock: 30,
+    /** $20 a month covers one block of up to 99 students (A.R.I.S.E. Reader, Math, History and Connect). */
+    monthlyCents: 2000,
+    studentsPerBlock: 99,
     /** The most blocks one teacher can buy online (5,000 students). */
     maxBlocks: 50,
   },
   school: {
-    /** $700 for a full 12 months, summer included. */
-    yearlyCents: 70000,
-    studentCap: 1000,
+    /** $100 a month for an entire school: every teacher and student there. */
+    monthlyCents: 10000,
+    studentCap: 5000,
   },
   /** Arise WorkHub, the add-on: the same prices as Premium, counted against the students in the teacher's Hub caseload. */
   hub: {
@@ -50,12 +50,13 @@ export const PLANS = {
   },
   /**
    * The Learning Bundle: Arise History, Arise Math and Arise Social together, for a family:
-   * $10 a month covers the parent and every linked child.
+   * $7 a month covers the parent and every linked child (up to 3), and since November 2026 it is
+   * also the family's A.R.I.S.E. Reader plan (see readerAccessFor).
    * (teacherMonthlyCents is the old all-three class plan, kept so plans bought before
    * the apps were sold one by one keep working. It is no longer sold.)
    */
   bundle: {
-    familyMonthlyCents: 1000,
+    familyMonthlyCents: 700,
     teacherMonthlyCents: 5000,
     teacherSeats: 100,
   },
@@ -112,6 +113,11 @@ export const PLANS = {
   grandfatherBefore: "2026-10-01T06:00:00.000Z",
   /** The end of the 2026-27 school year: midnight on July 1, 2027, Mountain time. */
   grandfatherUntil: "2027-07-01T06:00:00.000Z",
+  /**
+   * A.R.I.S.E. Reader stops being free for accounts made from this moment (midnight on
+   * November 9, 2026, Mountain time). Every account made before it keeps Reader free for good.
+   */
+  readerPaidFrom: "2026-11-09T07:00:00.000Z",
   /** A paid plan stays on this long past its end date, so a late renewal notice never locks a class out. */
   graceDays: 3,
 } as const;
@@ -169,7 +175,7 @@ export const schoolKindOf = (kind: PlanKind): PlanKind => (isHubKind(kind) ? "hu
 export const teacherKindOf = (kind: PlanKind): PlanKind => (isHubKind(kind) ? "hub_teacher" : "teacher");
 /** Price and size of a plan, by kind. */
 export function priceOf(kind: PlanKind): { cents: number; interval: "month" | "year"; seats: (blocks: number) => number } {
-  if (kind === "school") return { cents: PLANS.school.yearlyCents, interval: "year", seats: () => PLANS.school.studentCap };
+  if (kind === "school") return { cents: PLANS.school.monthlyCents, interval: "month", seats: () => PLANS.school.studentCap };
   if (kind === "hub_school") return { cents: PLANS.hub.schoolYearlyCents, interval: "year", seats: () => PLANS.hub.schoolStudentCap };
   if (kind === "social") return { cents: PLANS.social.monthlyCents, interval: "month", seats: () => 1 };
   if (kind === "bundle_family") return { cents: PLANS.bundle.familyMonthlyCents, interval: "month", seats: () => 1 };
@@ -359,6 +365,53 @@ export function entitlementFor(person: PlanPerson | null | undefined, facts: Pla
   const atSchool = !!(person.teacherId || person.schoolId);
   if (atSchool && grandfathered(person.createdAt, now)) return yes("grandfathered", null, PLANS.grandfatherUntil);
   return NONE;
+}
+
+// ─── A.R.I.S.E. Reader ─────────────────────────────────────────────────────────
+
+export type ReaderVia = "admin" | "sample" | "existing" | "teacher-plan" | "school-plan" | "class" | "family-plan" | "not-reader";
+export type ReaderAccess = { access: boolean; via: ReaderVia | null };
+
+/** Made before Reader stopped being free? An account with no sign-up date on record is an old one. */
+export function readerExistingAccount(createdAt: unknown): boolean {
+  const t = signedUpAt(createdAt);
+  return !Number.isFinite(t) || t < Date.parse(PLANS.readerPaidFrom);
+}
+
+export type ReaderFacts = {
+  now?: number;
+  /** A teacher's own plan, and their school's (a free school's plan counts). */
+  teacherGrant?: PlanGrant | null;
+  schoolGrant?: PlanGrant | null;
+  /** A parent's own family plan, or the family plans of a student's linked parents. */
+  familyGrants?: (PlanGrant | null | undefined)[];
+  /** A student: the teacher who approved them into a class, and whether that teacher has Reader. */
+  classTeacherAccess?: boolean;
+};
+
+/**
+ * Can this person use A.R.I.S.E. Reader? From November 9, 2026 Reader is paid: $7 a month for a
+ * family (the parent and up to 3 linked children), $20 a month per 99 students for a teacher, or
+ * $100 a month for a whole school. Everyone who had an account before then keeps it free, and so do
+ * the students of a teacher who has it. Unlike Premium this does not wait for plan rules to be on.
+ */
+export function readerAccessFor(person: (PlanPerson & { username?: string | null }) | null | undefined, facts: ReaderFacts): ReaderAccess {
+  if (!person) return { access: false, via: null };
+  const now = facts.now ?? Date.now();
+  if (person.isAdmin || person.role === "admin") return { access: true, via: "admin" };
+  const name = String(person.username || "").toLowerCase();
+  if (isDemoAccount(name) || name.startsWith("sample")) return { access: true, via: "sample" };
+  const role = person.role || "student";
+  if (role !== "student" && role !== "teacher" && role !== "parent") return { access: true, via: "not-reader" };
+  if (readerExistingAccount(person.createdAt)) return { access: true, via: "existing" };
+  if (role === "teacher") {
+    if (grantLive(facts.teacherGrant, now)) return { access: true, via: "teacher-plan" };
+    if (grantLive(facts.schoolGrant, now)) return { access: true, via: "school-plan" };
+    return { access: false, via: null };
+  }
+  if ((facts.familyGrants || []).some((g) => grantLive(g, now))) return { access: true, via: "family-plan" };
+  if (role === "student" && facts.classTeacherAccess && person.approvedByTeacher !== false) return { access: true, via: "class" };
+  return { access: false, via: null };
 }
 
 /** Can a parent with this many children already linked add one more? */

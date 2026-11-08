@@ -29,6 +29,7 @@ import {
   type Entitlement, type HubAccess, type PlanFacts, type PlanGrant, type PlanKind, type PlanPerson,
   todoUnlimitedFor, stripeMode, cleanVipEmail, cleanVipList, onVipList, VIP_MAX, type VipEntry,
   NOTES_PLAN_KINDS, isNotesKind, notesKindOf, notesProductOf,
+  readerAccessFor, type ReaderAccess, type ReaderFacts,
 } from "../shared/plans";
 import { NOTES_PLANS, isNotesProduct, planOfProduct, productName, productPrice, type NotesPlanId, type NotesProduct } from "../shared/ariseNotes";
 import { TODO_PLAN_KINDS, infoFromGrant, stripeKeyMode, type PlanInfo } from "../shared/todoAdmin";
@@ -246,7 +247,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   const hubCache = new Map<string, { at: number; value: HubAccess }>();
   const addonCache = new Map<string, { at: number; value: AddonAccess }>();
   const CACHE_MS = 30_000;
-  const forget = () => { cache.clear(); hubCache.clear(); addonCache.clear(); };
+  const readerCache = new Map<string, { at: number; value: ReaderAccess }>();
+  const forget = () => { cache.clear(); hubCache.clear(); addonCache.clear(); readerCache.clear(); };
 
   // One change at a time. A plan is read, compared and written in one step, so two
   // Stripe messages arriving together can't overwrite each other.
@@ -497,6 +499,42 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     return value;
   };
 
+  /** Can this person use A.R.I.S.E. Reader (paid since November 9, 2026), and why? */
+  const readerAccess = async (user: AnyUser | null | undefined): Promise<ReaderAccess> => {
+    if (!user || !posInt(user.id)) return { access: false, via: null };
+    const key = `${user.id}|${user.role || ""}|${user.isAdmin ? 1 : 0}`;
+    const hit = readerCache.get(key);
+    if (hit && now() - hit.at < CACHE_MS) return hit.value;
+    try {
+      const p = { ...person(user), username: user.username };
+      const facts: ReaderFacts = { now: now() };
+      // Most people are existing accounts: no plan lookups for them.
+      const quick = readerAccessFor(p, facts);
+      let value = quick;
+      if (!quick.access) {
+        if (user.role === "teacher") {
+          facts.teacherGrant = await current("teacher", user.id);
+          facts.schoolGrant = await current("school", schoolOf(user));
+        } else if (user.role === "parent") {
+          facts.familyGrants = [await current("bundle_family", user.id)];
+        } else {
+          const parents = deps.studentParentIds ? await deps.studentParentIds(user.id) : [];
+          facts.familyGrants = await Promise.all(parents.map((id) => current("bundle_family", id)));
+          if (posInt(user.teacherId)) {
+            const teacher = await deps.getUser(Number(user.teacherId));
+            if (teacher?.role === "teacher" && teacher.accountApproved !== false && teacher.id !== user.id) facts.classTeacherAccess = (await readerAccess(teacher)).access;
+          }
+        }
+        value = readerAccessFor(p, facts);
+      }
+      readerCache.set(key, { at: now(), value });
+      return value;
+    } catch (e: any) {
+      console.error("[plans] Reader check failed:", e?.message);
+      return { access: true, via: null };
+    }
+  };
+
   // ─── Locks used by the rest of the server ──────────────────────────────────
   const pathOf = (req: any) => String(req.originalUrl || req.url || "").split("?")[0];
 
@@ -600,7 +638,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
             await applyStripeGrant({
               kind: m.kind, ownerId: m.ownerId, source: "stripe", status: "active",
               seats: priceOf(m.kind).seats(clampBlocks(obj?.metadata?.blocks)),
-              endsAt: iso(at + (isSchoolKind(m.kind) || priceOf(m.kind).interval === "year" ? 366 : 32) * DAY), updatedAt: iso(at), buyerId: m.buyerId || undefined,
+              endsAt: iso(at + (priceOf(m.kind).interval === "year" ? 366 : 32) * DAY), updatedAt: iso(at), buyerId: m.buyerId || undefined,
               stripeCustomerId: typeof obj.customer === "string" ? obj.customer : undefined, stripeSubscriptionId: obj.subscription,
             });
           }
@@ -638,7 +676,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const body: any = {
         enforced: await enforced(), premium: e.premium, via: e.via, seats: e.seats, endsAt: e.endsAt,
         payment: !!(await stripeKey()),
-        prices: { teacherMonthlyCents: PLANS.teacher.monthlyCents, studentsPerBlock: PLANS.teacher.studentsPerBlock, maxBlocks: PLANS.teacher.maxBlocks, schoolYearlyCents: PLANS.school.yearlyCents, schoolStudentCap: PLANS.school.studentCap },
+        reader: await readerAccess(user),
+        prices: { teacherMonthlyCents: PLANS.teacher.monthlyCents, studentsPerBlock: PLANS.teacher.studentsPerBlock, maxBlocks: PLANS.teacher.maxBlocks, schoolMonthlyCents: PLANS.school.monthlyCents, schoolStudentCap: PLANS.school.studentCap, familyMonthlyCents: PLANS.bundle.familyMonthlyCents },
       };
       if (user.role === "teacher" && !user.isAdmin) {
         const schoolId = schoolOf(user);
@@ -702,8 +741,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const mine = (await readGrant("teacher", teacher.id)) ?? (await readGrant("hub_teacher", teacher.id));
       const customer = mine?.buyerId === teacher.id ? mine.stripeCustomerId : undefined;
       const price = priceOf(kind);
-      const productName = kind === "school" ? `A.R.I.S.E. Premium for a school (up to ${PLANS.school.studentCap.toLocaleString("en-US")} students)`
-        : kind === "teacher" ? `A.R.I.S.E. Premium for a teacher (per ${PLANS.teacher.studentsPerBlock} students)`
+      const productName = kind === "school" ? `A.R.I.S.E. Reader for a whole school (up to ${PLANS.school.studentCap.toLocaleString("en-US")} students)`
+        : kind === "teacher" ? `A.R.I.S.E. Reader for a teacher (per ${PLANS.teacher.studentsPerBlock} students)`
         : kind === "hub_school" ? `Arise WorkHub for a school (up to ${PLANS.hub.schoolStudentCap.toLocaleString("en-US")} students)`
         : `Arise WorkHub for a teacher (per ${PLANS.hub.studentsPerBlock} students)`;
       const session = await stripe("POST", "/checkout/sessions", {
@@ -809,7 +848,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   // A teacher's class plan replaces a family's plan once it covers every child in the
   // family: the family plan is cancelled and the unused days refunded to the card.
 
-  const ADDON_PAGES: Record<string, string> = { "/social/": "/social/", "/math/": "/math/", "/history/": "/history/", "/to-do": "/#/to-do", "/billing": "/#/billing", "/workhub": "/#/workhub", "/lifehub": "/#/lifehub", "/notes/": "/notes/", "/arise-notes": "/#/arise-notes", "/fit": "/#/fit" };
+  const ADDON_PAGES: Record<string, string> = { "/social/": "/social/", "/math/": "/math/", "/history/": "/history/", "/to-do": "/#/to-do", "/billing": "/#/billing", "/subscribe": "/#/subscribe", "/workhub": "/#/workhub", "/lifehub": "/#/lifehub", "/notes/": "/notes/", "/arise-notes": "/#/arise-notes", "/fit": "/#/fit" };
   const addonReturn = (req: any) => {
     const origin = new URL(siteOf(req)).origin;
     const asked = String(req.body?.returnPath || "/billing");
@@ -1076,7 +1115,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const name = app ? `${APP_NAMES[app]} for a class (up to ${PLANS.classApps.seats} students)`
         : kind === "todo_unlimited" ? UNLIMITED_NAME
         : kind === "todo_unlimited_year" ? `${UNLIMITED_NAME}, yearly`
-        : kind === "bundle_family" ? "A.R.I.S.E. Learning Bundle for a family (History, Math, Social)"
+        : kind === "bundle_family" ? "A.R.I.S.E. Reader for a family (Reader, Math, History and Connect, up to 3 children)"
         : "Arise LifeHub for a family";
       const back = addonReturn(req);
       const session = await stripe("POST", "/checkout/sessions", {
@@ -1703,7 +1742,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     return { cents: charge.cents - charge.refundedCents, at: charge.at };
   };
 
-  return { notesPlan: notesPlanOf, fitPlusOwn, entitlement, hubAccess, adminTodo: { planInfos: todoPlanInfos, customerOwners, payments: stripePayments, personPayments, personCustomer, giveTrial, endTrial, cancelPaid, keepPlan, refundLast, readVip, vipSet, stripeKey }, socialAccess, appStatus, appAccess, todoStatus, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget, todoUnlimited, aiUsage, aiMeter, stripeReady: async () => !!(await stripeKey()), unlimitedPaidBy: async (userId: number) => { for (const k of ["todo_unlimited", "todo_unlimited_year"] as const) { const g = await readGrant(k, userId); if (g && g.buyerId === userId && g.stripeCustomerId && grantLive(g, now())) return k === "todo_unlimited_year" ? "unlimited_year" : "unlimited"; } return null; } };
+  return { notesPlan: notesPlanOf, fitPlusOwn, entitlement, hubAccess, readerAccess, adminTodo: { planInfos: todoPlanInfos, customerOwners, payments: stripePayments, personPayments, personCustomer, giveTrial, endTrial, cancelPaid, keepPlan, refundLast, readVip, vipSet, stripeKey }, socialAccess, appStatus, appAccess, todoStatus, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget, todoUnlimited, aiUsage, aiMeter, stripeReady: async () => !!(await stripeKey()), unlimitedPaidBy: async (userId: number) => { for (const k of ["todo_unlimited", "todo_unlimited_year"] as const) { const g = await readGrant(k, userId); if (g && g.buyerId === userId && g.stripeCustomerId && grantLive(g, now())) return k === "todo_unlimited_year" ? "unlimited_year" : "unlimited"; } return null; } };
 }
 
 export type Plans = ReturnType<typeof registerPlanRoutes>;

@@ -19,24 +19,24 @@ const grant = (over: Partial<PlanGrant> = {}): PlanGrant => ({
 const on = { enforced: true, now: NOW };
 
 test("the prices are the ones on the pricing page", () => {
-  assert.equal(usd(PLANS.teacher.monthlyCents), "$10");
-  assert.equal(PLANS.teacher.studentsPerBlock, 30);
-  assert.equal(usd(PLANS.school.yearlyCents), "$700");
-  assert.equal(PLANS.school.studentCap, 1000);
+  assert.equal(usd(PLANS.teacher.monthlyCents), "$20");
+  assert.equal(PLANS.teacher.studentsPerBlock, 99);
+  assert.equal(usd(PLANS.school.monthlyCents), "$100");
+  assert.equal(PLANS.school.studentCap, 5000);
   assert.equal(PLANS.parentMaxChildren, 3);
   assert.equal(usd(1250), "$12.50");
 });
 
-test("a teacher pays for one block of 30 students, then one more per extra 30", () => {
+test("a teacher pays for one block of 99 students, then one more per extra 99", () => {
   assert.equal(blocksFor(0), 1);
   assert.equal(blocksFor(1), 1);
-  assert.equal(blocksFor(30), 1);
-  assert.equal(blocksFor(31), 2);
-  assert.equal(blocksFor(75), 3);
+  assert.equal(blocksFor(99), 1);
+  assert.equal(blocksFor(100), 2);
+  assert.equal(blocksFor(250), 3);
   assert.equal(blocksFor(-5), 1);
   assert.equal(blocksFor(1e9), PLANS.teacher.maxBlocks);
-  assert.equal(seatsFor(3), 90);
-  assert.equal(teacherMonthlyCents(3), 3000);
+  assert.equal(seatsFor(3), 297);
+  assert.equal(teacherMonthlyCents(3), 6000);
   assert.equal(clampBlocks("2"), 2);
   assert.equal(clampBlocks("abc"), 1);
   assert.equal(clampBlocks(0), 1);

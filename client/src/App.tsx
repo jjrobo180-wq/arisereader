@@ -22,7 +22,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "./context/AuthContext";
-import { lastKnownLocked, teacherLocked, usePlan } from "@/lib/plan";
+import { lastKnownLocked, readerLocked, teacherLocked, usePlan } from "@/lib/plan";
 import { useState, useEffect, lazy, Suspense, type ComponentType } from "react";
 const FitApp = lazy(() => import("@/pages/fit/FitApp"));
 const TrainerApp = lazy(() => import("@/pages/trainer/TrainerApp"));
@@ -150,9 +150,9 @@ const AriseReader = lazyPage(() => import("./pages/AriseReader"));
 import TodoGate from "@/components/TodoGate";
 import { HubWaiting } from "@/lib/hubBackdrop";
 import { ReaderAdminToTodoRedirect, ReaderToHubHandoff, TodoAdminHandoff } from "@/components/AdminDomainHandoff";
-import { READER_APP, goToReader, goToSignIn, hubPathFor, isHubAccount, isReaderPage } from "@/lib/hubs";
+import { READER_APP, goToReader, goToSignIn, hubPathFor, isHubAccount, isReaderHost, isReaderPage } from "@/lib/hubs";
 import NativePlans from "@/components/NativePlans";
-import { isEyeGazerApp, isFitApp, isNativeApp, isNotesApp, isReaderApp, isTalkApp, isTrainerApp } from "@/lib/nativeApp";
+import { isEyeGazerApp, isFitApp, isNativeApp, isNotesApp, isReaderApp, isTalkApp, isTrainerApp, nativeFlavor } from "@/lib/nativeApp";
 const TeacherScenes = lazyPage(() => import("./pages/TeacherScenes"));
 const StudentSceneLive = lazyPage(() => import("./pages/StudentSceneLive"));
 const Library = lazyPage(() => import("./pages/Library"));
@@ -207,6 +207,7 @@ const TeacherArise2 = lazyPage(() => import("./pages/TeacherArise2"));
 const ParentArise2 = lazyPage(() => import("./pages/ParentArise2"));
 const Pricing = lazyPage(() => import("./pages/Pricing"));
 const Billing = lazyPage(() => import("./pages/Billing"));
+const ReaderSubscribe = lazyPage(() => import("./pages/ReaderSubscribe"));
 
 // Gate that shows profile setup overlay after student registration
 function StudentSetupGate({ children }: { children: React.ReactNode }) {
@@ -289,7 +290,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   // A teacher account is part of Premium. Once the admin turns plan rules on, a
   // teacher without it is sent to the plan page, the one place they can still use.
   const isPlanTeacher = !!user && user.role === "teacher" && !user.isAdmin;
-  const { plan, loading: planLoading } = usePlan(isPlanTeacher ? token : null);
+  // A.R.I.S.E. Reader is paid for accounts made from November 9, 2026 (older ones keep it free).
+  // Only the Reader (arisereader.com and the Reader and Educator apps) is locked, never To Duo or Eye Gazer.
+  const onReader = !!user && !user.isAdmin && isReaderHost() && nativeFlavor() !== "eyegaze";
+  const { plan, loading: planLoading } = usePlan(isPlanTeacher || onReader ? token : null);
   // The page shows straight away and the plan arrives behind it. Only a teacher who
   // was locked last time waits, so they don't see a dashboard flash before the plan page.
   if (isLoading || (isPlanTeacher && planLoading && lastKnownLocked())) {
@@ -300,6 +304,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
   if (!user) return <Redirect to="/" replace />;
+  if (onReader && readerLocked(plan) && !["/subscribe", "/billing"].includes(location.split("?")[0])) return <Redirect to="/subscribe" replace />;
   if (isPlanTeacher && teacherLocked(plan) && location.split("?")[0] !== "/billing") return <Redirect to="/billing" replace />;
   // A linked parent can also open their child's talker and family tools.
   if (user.role === 'parent' && !user.isAdmin && !(isEyeGazerApp() && (location.startsWith('/eye-gaze') || location === '/my-world' || location === '/arise-city' || location === '/reading-level-up')) && !['/parent-dashboard', '/eye-gaze-parent', '/eye-gaze-parent-controls', '/eye-gaze-talker', '/my-world', '/eye-gaze-flashcards', '/eye-gaze-life-skills', '/eye-gaze-potty'].includes(location)) {
@@ -708,6 +713,10 @@ function AppRoutes() {
       {/* Public: plans and pricing. */}
       <Route path="/pricing">
         {isNativeApp() ? <NativePlans /> : <Pricing />}
+      </Route>
+      {/* A.R.I.S.E. Reader needs a plan: what it costs and how to get it. */}
+      <Route path="/subscribe">
+        {user ? <ReaderSubscribe /> : <Redirect to="/" replace />}
       </Route>
       {/* A teacher's plan: what they have, and paying for Premium. */}
       <Route path="/billing">
