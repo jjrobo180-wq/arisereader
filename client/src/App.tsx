@@ -208,6 +208,7 @@ const TeacherArise2 = lazyPage(() => import("./pages/TeacherArise2"));
 const ParentArise2 = lazyPage(() => import("./pages/ParentArise2"));
 const Pricing = lazyPage(() => import("./pages/Pricing"));
 const Billing = lazyPage(() => import("./pages/Billing"));
+const AllAccess = lazyPage(() => import("./pages/AllAccess"));
 const ReaderSubscribe = lazyPage(() => import("./pages/ReaderSubscribe"));
 const ReaderScholarship = lazyPage(() => import("./pages/ReaderScholarship"));
 
@@ -561,6 +562,10 @@ function AppRoutes() {
     <Switch key={routePath}>
       <Route path="/fit">
         <ProtectedRoute><FitApp /></ProtectedRoute>
+      </Route>
+      {/* Arise All Access: one $10 plan for To Duo, Notes, Fit and Pod+ (pages/AllAccess.tsx). */}
+      <Route path="/all-access">
+        <ProtectedRoute><AllAccess /></ProtectedRoute>
       </Route>
       {/* Arise Coaching: the public trainer directory, and Arise Trainer for coaches. */}
       <Route path="/trainers"><TrainersPage /></Route>

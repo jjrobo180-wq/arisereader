@@ -1,7 +1,7 @@
 import { isSampleAccount } from "../shared/sampleAccounts";
 import { registerGoalQuizRoutes } from "./goalQuiz";
 import { dedupeBooks } from "./bookDedupe";
-import { aiProAccessFor, storageTierGb, isStoragePlanKind, grantLive, STORAGE_PLAN_KINDS } from "../shared/plans";
+import { PLANS, aiProAccessFor, storageTierGb, isStoragePlanKind, grantLive, STORAGE_PLAN_KINDS } from "../shared/plans";
 import { FREE_STORAGE_BYTES } from "../shared/driveApp";
 import { registerDriveAppRoutes } from "./driveApp";
 import { registerParaTeamRoutes, supabaseParaDb } from "./paraTeam";
@@ -16,7 +16,7 @@ import { storage, setReaderMessageListener } from "./storage";
 import { seedData } from "./storage";
 import { clearCache, AlreadySubmittedError } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
-import { APPS_FULL, FAIR_USE, FREE_APPS, UNLIMITED_MONTHLY_CENTS, UNLIMITED_YEARLY_CENTS, UNLIMITED_YEARLY_OFFER, appsIn, growsPastFree } from "../shared/todoPlan";
+import { APPS_FULL, FAIR_USE, FREE_APPS, appsIn, growsPastFree } from "../shared/todoPlan";
 import { registerTimedCompetitionRoutes } from "./timedCompetition";
 import { registerHubInboxRoutes } from "./hubInbox";
 import { withBannerLink } from "../shared/banners";
@@ -1583,7 +1583,7 @@ export async function registerRoutes(
       const [before, otherSaved] = await Promise.all([savedHub(hub, Number(user.id)), savedHub(other, Number(user.id))]);
       const otherApps = appsIn(other, otherSaved);
       if (growsPastFree(appsIn(hub, before) + otherApps, mine + otherApps)) {
-        return res.status(402).json({ code: APPS_FULL, limit: FREE_APPS, message: `The free plan includes up to ${FREE_APPS} plugins from the Plugin Gallery. Remove one, or get Unlimited ($${UNLIMITED_MONTHLY_CENTS / 100} a month) for every app and AI.` });
+        return res.status(402).json({ code: APPS_FULL, limit: FREE_APPS, message: `The free plan includes up to ${FREE_APPS} plugins from the Plugin Gallery. Remove one, or get Arise All Access ($${PLANS.allAccess.monthlyCents / 100} a month) for every app and AI.` });
       }
       next();
     } catch (error: any) {
@@ -1607,7 +1607,8 @@ export async function registerRoutes(
         unlimited: plan.unlimited, via: plan.via, endsAt: plan.endsAt,
         apps: { work, life, limit: plan.unlimited ? null : FREE_APPS },
         ai: { limit: ai.limit, used: ai.used, left: ai.left },
-        priceCents: UNLIMITED_MONTHLY_CENTS, yearlyCents: UNLIMITED_YEARLY_OFFER ? UNLIMITED_YEARLY_CENTS : null,
+        // Unlimited is now sold as Arise All Access ($10: To Duo Unlimited, Notes Plus, Fit+, ad-free Pod+).
+        priceCents: PLANS.allAccess.monthlyCents, yearlyCents: null, allAccess: true,
         payment, paidByYou: !!paidProduct, paidProduct, fairUse: FAIR_USE,
       });
     } catch (error: any) {
@@ -1735,8 +1736,29 @@ export async function registerRoutes(
   // On by EARSHOT_PRECHECK=1, and by itself once the AI is on a paid plan (EARSHOT_PRECHECK=0 keeps it off).
   if (process.env.EARSHOT_PRECHECK !== "0") startPodcastPrechecks({ kv: supabaseKV(getAdminSupabase), player: podcastPlayer, dir: podcasts, enabled: () => process.env.EARSHOT_PRECHECK === "1" || podcasts.paid(),
     topShows: async () => { const lists = await Promise.all(PODCAST_GENRES.slice(0, 12).map((g) => podcasts.loadGenreShows(g.id).catch(() => []))); const out: string[] = []; for (let i = 0; i < 4; i++) for (const l of lists) if (l[i]) out.push(l[i].id); return out; } });
-  registerEarshotRoutes(app, authMiddleware, { store: supabaseEarshotStore(getAdminSupabase), directory: podcasts, adStore: podcastAds, player: podcastPlayer, socialDb: getAdminSupabase });
-  registerPodscrollRoutes(app, supabaseEarshotStore(getAdminSupabase, "podscroll"), undefined, podcasts, podcastAds, podcastPlayer, getAdminSupabase, { sendEmail: (to, subject, html) => sendEmail(to, subject, html) });
+  // Ad-free Pod+ is part of Arise All Access. In To Duo the listener is the Arise account; in the Pod+
+  // app it's the Arise account with the same email as the person's Pod+ sign-in.
+  const adFreeSeen = new Map<string, { ok: boolean; at: number }>();
+  const allAccessListener = async (req: any): Promise<boolean> => {
+    const email = typeof req.creator?.email === "string" ? req.creator.email.trim().toLowerCase() : "";
+    const key = email ? `e:${email}` : `u:${req.user?.id ?? ""}`;
+    const seen = adFreeSeen.get(key);
+    if (seen && Date.now() - seen.at < 60_000) return seen.ok;
+    let ok = false;
+    if (email) {
+      const { data } = await getAdminSupabase().from("users").select("id, is_admin").ilike("email", email.replace(/[\\%_]/g, "\\$&")).limit(1);
+      const u = data?.[0];
+      ok = !!u && (await plans.allAccess(Number(u.id), { id: Number(u.id), isAdmin: !!u.is_admin } as any)).live;
+    } else {
+      const id = Number(req.user?.id);
+      ok = Number.isSafeInteger(id) && id > 0 && (await plans.allAccess(id, req.user)).live;
+    }
+    if (adFreeSeen.size > 5000) adFreeSeen.clear();
+    adFreeSeen.set(key, { ok, at: Date.now() });
+    return ok;
+  };
+  registerEarshotRoutes(app, authMiddleware, { store: supabaseEarshotStore(getAdminSupabase), directory: podcasts, adStore: podcastAds, player: podcastPlayer, socialDb: getAdminSupabase, adFree: allAccessListener });
+  registerPodscrollRoutes(app, supabaseEarshotStore(getAdminSupabase, "podscroll"), undefined, podcasts, podcastAds, podcastPlayer, getAdminSupabase, { sendEmail: (to, subject, html) => sendEmail(to, subject, html), adFree: allAccessListener });
   // Contact us (server/supportContact.ts): Arise To Duo's and Pod+'s Support pages and apps.
   registerSupportRoutes(app, {
     deliver: async (m) => {

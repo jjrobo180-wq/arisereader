@@ -883,7 +883,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   // A teacher's class plan replaces a family's plan once it covers every child in the
   // family: the family plan is cancelled and the unused days refunded to the card.
 
-  const ADDON_PAGES: Record<string, string> = { "/social/": "/social/", "/math/": "/math/", "/history/": "/history/", "/to-do": "/#/to-do", "/billing": "/#/billing", "/subscribe": "/#/subscribe", "/workhub": "/#/workhub", "/lifehub": "/#/lifehub", "/notes/": "/notes/", "/arise-notes": "/#/arise-notes", "/fit": "/#/fit" };
+  const ADDON_PAGES: Record<string, string> = { "/social/": "/social/", "/math/": "/math/", "/history/": "/history/", "/to-do": "/#/to-do", "/billing": "/#/billing", "/subscribe": "/#/subscribe", "/workhub": "/#/workhub", "/lifehub": "/#/lifehub", "/notes/": "/notes/", "/arise-notes": "/#/arise-notes", "/fit": "/#/fit", "/all-access": "/#/all-access" };
   const addonReturn = (req: any) => {
     const origin = new URL(siteOf(req)).origin;
     const asked = String(req.body?.returnPath || "/billing");
@@ -1024,6 +1024,18 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   };
   /** Runs after a plan is saved. A teacher's new class add-on may take over some families' plans. */
   const afterGrant = async (grant: PlanGrant) => {
+    if (grant.kind === "all_access" && grantLive(grant, now()) && grant.source === "stripe") {
+      // All Access includes them: they end at the end of what's already paid (no double billing).
+      for (const k of ["todo_unlimited", "todo_unlimited_year", "notes_basic", "notes_plus", "notes_plus_year", "fit_plus"] as PlanKind[]) {
+        try {
+          const g = await readGrant(k, grant.ownerId, true);
+          if (!g || !grantLive(g, now()) || g.source !== "stripe" || !g.stripeSubscriptionId || g.cancelAtPeriodEnd || g.buyerId !== grant.ownerId) continue;
+          await stripe("POST", subscriptionPath(g.stripeSubscriptionId), { cancel_at_period_end: "true" });
+          await syncSubscription(g.stripeSubscriptionId);
+        } catch (e: any) { console.error("[plans] ending an older plan after All Access failed:", k, e?.message); }
+      }
+      return;
+    }
     if (!(grant.kind === "bundle_teacher" || isClassAppKind(grant.kind)) || !grantLive(grant, now()) || !deps.teacherStudentIds || !deps.studentParentIds) return;
     try {
       forget();
@@ -1034,6 +1046,77 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       console.error("[plans] family refunds after a class plan failed:", e?.message);
     }
   };
+
+  // ─── Arise All Access: $10 a month, one person, every app's paid tier ──────────────────────────
+  // To Duo Unlimited, Notes Plus, Fit+ (with its guest pass) and ad-free Pod+ in one plan. It is now
+  // the only thing those apps sell; anyone already paying for one of the older plans keeps it.
+  /** This account's All Access (paid, or given by the admin). The admin always has it. */
+  const allAccessOwn = async (userId: number, user?: AnyUser | null): Promise<{ live: boolean; admin: boolean; grant: PlanGrant | null }> => {
+    if (user?.isAdmin) return { live: true, admin: true, grant: null };
+    const grant = await current("all_access", userId);
+    return { live: grantLive(grant, now()), admin: false, grant };
+  };
+  const ALL_ACCESS_NAME = "Arise All Access";
+  const ALL_ACCESS_ABOUT = "Every Arise app's paid tier for one person: To Duo Unlimited, Arise Notes Plus (1,500 minutes a month), Arise Fit+ with a guest pass, and ad-free Pod+.";
+  /** Opens Stripe's payment page for All Access. `returnPath` (in the body) says which app to come back to. */
+  const allAccessCheckout = async (req: any): Promise<string> => {
+    const buyer: AnyUser = req.user;
+    if (req.adminPreview || !buyer) throw new Refused("Sign in to your own account to subscribe.", 403);
+    if (buyer.isAdmin) throw new Refused("The admin account already has All Access.", 409);
+    if (buyer.role === "student" || !buyer.role) throw new Refused("Ask a parent or teacher about All Access.", 403);
+    if (buyer.accountApproved === false) throw new Refused("Your account is still waiting for approval.", 403);
+    const kind: PlanKind = "all_access";
+    if ((await allAccessOwn(buyer.id, buyer)).live) throw new Refused("You already have All Access. Use Manage billing to change it.", 409, "has_plan");
+    const pending = await readPending(kind, buyer.id);
+    if (pending && now() - Date.parse(pending.at) < 2 * 60_000) throw new Refused("A payment page for this was just opened. Finish it there, or try again in two minutes.", 409);
+    const metadata: Record<string, string> = { kind, ownerId: String(buyer.id), buyerId: String(buyer.id) };
+    const email = typeof buyer.email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyer.email) ? buyer.email : undefined;
+    let customer: string | undefined;
+    for (const k of PLAN_KINDS) { const g = await readGrant(k, buyer.id); if (g?.buyerId === buyer.id && g.stripeCustomerId) { customer = g.stripeCustomerId; break; } }
+    const back = addonReturn(req);
+    const session = await stripe("POST", "/checkout/sessions", {
+      mode: "subscription",
+      client_reference_id: `${kind}:${buyer.id}`,
+      ...(customer ? { customer } : email ? { customer_email: email } : {}),
+      line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: priceOf(kind).cents, recurring: { interval: "month" }, product_data: { name: ALL_ACCESS_NAME, description: ALL_ACCESS_ABOUT } } }],
+      metadata,
+      subscription_data: { metadata },
+      success_url: back.done,
+      cancel_url: back.back,
+    });
+    if (typeof session?.url !== "string" || !session.url.startsWith("https://")) throw new Refused("The payment page could not be opened. Nothing was charged.", 502);
+    if (typeof session.id === "string" && /^cs_[A-Za-z0-9_]{8,200}$/.test(session.id)) {
+      await write(KEY.pending(kind, buyer.id), JSON.stringify({ sessionId: session.id, buyerId: buyer.id, at: iso(now()) }));
+    }
+    return session.url;
+  };
+  app.get("/api/all-access", auth, async (req: any, res: any) => {
+    try {
+      const user: AnyUser = req.user;
+      const own = await allAccessOwn(user.id, user);
+      const g = own.grant;
+      res.set("Cache-Control", "no-store");
+      res.json({
+        live: own.live, admin: own.admin, priceCents: PLANS.allAccess.monthlyCents, payment: !!(await stripeKey()),
+        endsAt: g?.endsAt ?? null, cancelAtPeriodEnd: !!g?.cancelAtPeriodEnd, canManage: !!g?.stripeCustomerId && g.buyerId === user.id,
+        canBuy: !user.isAdmin && user.role !== "student" && !!user.role, about: ALL_ACCESS_ABOUT,
+      });
+    } catch (e) { fail(res, e, "all access"); }
+  });
+  app.post("/api/all-access/checkout", auth, async (req: any, res: any) => {
+    try { res.json({ url: await allAccessCheckout(req) }); } catch (e) { fail(res, e, "all access checkout"); }
+  });
+  app.post("/api/all-access/portal", auth, async (req: any, res: any) => {
+    try {
+      const user: AnyUser = req.user;
+      const grant = await current("all_access", user.id);
+      if (!grant?.stripeCustomerId) throw new Refused("There is no online payment to manage for All Access.", 409);
+      if (grant.buyerId && grant.buyerId !== user.id) throw new Refused("Only the person who pays for this plan can manage its billing.", 403);
+      const session = await stripe("POST", "/billing_portal/sessions", { customer: grant.stripeCustomerId, return_url: addonReturn(req).back });
+      if (typeof session?.url !== "string" || !session.url.startsWith("https://")) throw new Refused("The billing page could not be opened.", 502);
+      res.json({ url: session.url });
+    } catch (e) { fail(res, e, "all access portal"); }
+  });
 
   const productKind = (user: AnyUser, product: unknown): PlanKind => {
     if (isAppId(product)) {
@@ -1046,6 +1129,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       if (user.role !== "parent") throw new Refused("LifeHub plans are for parent accounts.", 403);
       return "todo_family";
     }
+    if (product === "all_access") return "all_access";
     if (product === "unlimited" || product === "unlimited_year") {
       if (user.role === "student" || (!user.role && !user.isAdmin)) throw new Refused("Arise To Duo Unlimited is for adult accounts.", 403);
       return product === "unlimited_year" ? "todo_unlimited_year" : "todo_unlimited";
@@ -1127,6 +1211,11 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       if (req.adminPreview || !buyer || buyer.isAdmin) throw new Refused("The admin account already has every add-on.", 409);
       if (buyer.accountApproved === false) throw new Refused("Your account is still waiting for approval.", 403);
       if (req.body?.product === "todo") throw new Refused("Arise To Duo is free. No checkout is needed.", 409);
+      // To Duo Unlimited is sold as All Access now (it includes Unlimited and every other app's paid tier).
+      if (req.body?.product === "unlimited" || req.body?.product === "unlimited_year" || req.body?.product === "all_access") {
+        if ((await todoUnlimited(buyer)).unlimited) throw new Refused("You're already on Unlimited. Use Manage billing to change it.", 409);
+        return void res.json({ url: await allAccessCheckout(req) });
+      }
       const kind = productKind(buyer, req.body?.product);
       if (grantLive(await current(kind, buyer.id), now())) throw new Refused("You already have this add-on. Use Manage billing to change it.", 409);
       if (kind === "todo_unlimited" || kind === "todo_unlimited_year") {
@@ -1200,6 +1289,11 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   const notesPlanOf = async (userId: number, user?: AnyUser | null): Promise<{ plan: NotesPlanId; product: NotesProduct | null; grant: PlanGrant | null }> => {
     if (user?.isAdmin) return { plan: "plus", product: null, grant: null };
     const live = await notesLive(userId);
+    // All Access includes Notes Plus (a Family plan someone already pays for stays Family).
+    if (!live.length || (live[0].kind !== "notes_family" && live[0].kind !== "notes_plus" && live[0].kind !== "notes_plus_year")) {
+      const all = await allAccessOwn(userId, user);
+      if (all.live) return { plan: "plus", product: null, grant: all.grant };
+    }
     if (!live.length) return { plan: "free", product: null, grant: null };
     const product = notesProductOf(live[0].kind)!;
     return { plan: planOfProduct(product), product, grant: live[0].grant };
@@ -1232,6 +1326,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const buyer = notesBuyer(req);
       const product = req.body?.product;
       if (!isNotesProduct(product)) throw new Refused("Choose a plan.", 400);
+      // New Notes plans are sold as All Access (Notes Plus is part of it).
+      if ((await notesLive(buyer.id)).length === 0) return void res.json({ url: await allAccessCheckout(req) });
       if ((await notesLive(buyer.id)).length) throw new Refused("You already have an Arise Notes plan. Change it from the plans page instead.", 409, "has_plan");
       const kind = notesKindOf(product);
       const pending = await readPending(kind, buyer.id);
@@ -1315,7 +1411,10 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   const fitPlusOwn = async (userId: number, user?: AnyUser | null): Promise<{ live: boolean; admin: boolean; grant: PlanGrant | null }> => {
     if (user?.isAdmin) return { live: true, admin: true, grant: null };
     const grant = await current("fit_plus", userId);
-    return { live: grantLive(grant, now()), admin: false, grant };
+    if (grantLive(grant, now())) return { live: true, admin: false, grant };
+    // All Access includes Fit+.
+    const all = await allAccessOwn(userId, user);
+    return all.live ? { live: true, admin: false, grant: all.grant } : { live: false, admin: false, grant };
   };
   app.post("/api/fit/billing/checkout", auth, async (req: any, res: any) => {
     try {
@@ -1325,29 +1424,9 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       if (buyer.accountApproved === false) throw new Refused("Your account is still waiting for approval.", 403);
       const kind: PlanKind = "fit_plus";
       if (grantLive(await current(kind, buyer.id), now())) throw new Refused("You already have Arise Fit+. Use Manage billing to change it.", 409, "has_plan");
-      const pending = await readPending(kind, buyer.id);
-      if (pending && now() - Date.parse(pending.at) < 2 * 60_000) throw new Refused("A payment page for this was just opened. Finish it there, or try again in two minutes.", 409);
-      const metadata: Record<string, string> = { kind, ownerId: String(buyer.id), buyerId: String(buyer.id) };
-      const email = typeof buyer.email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyer.email) ? buyer.email : undefined;
-      let customer: string | undefined;
-      for (const k of PLAN_KINDS) { const g = await readGrant(k, buyer.id); if (g?.buyerId === buyer.id && g.stripeCustomerId) { customer = g.stripeCustomerId; break; } }
+      // Fit+ is sold as All Access now (Fit+ and its guest pass are part of it).
       req.body = { ...(req.body || {}), returnPath: "/fit" };
-      const back = addonReturn(req);
-      const session = await stripe("POST", "/checkout/sessions", {
-        mode: "subscription",
-        client_reference_id: `${kind}:${buyer.id}`,
-        ...(customer ? { customer } : email ? { customer_email: email } : {}),
-        line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: priceOf(kind).cents, recurring: { interval: "month" }, product_data: { name: "Arise Fit+", description: "Everything in Arise Fit, plus AI machine and gym scanning, camera rep counting, after-workout reports, gyms and healthy food near you, AI recipes, and a guest pass to share it with one person." } } }],
-        metadata,
-        subscription_data: { metadata },
-        success_url: back.done,
-        cancel_url: back.back,
-      });
-      if (typeof session?.url !== "string" || !session.url.startsWith("https://")) throw new Refused("The payment page could not be opened. Nothing was charged.", 502);
-      if (typeof session.id === "string" && /^cs_[A-Za-z0-9_]{8,200}$/.test(session.id)) {
-        await write(KEY.pending(kind, buyer.id), JSON.stringify({ sessionId: session.id, buyerId: buyer.id, at: iso(now()) }));
-      }
-      res.json({ url: session.url });
+      return void res.json({ url: await allAccessCheckout(req) });
     } catch (e) { fail(res, e, "fit checkout"); }
   });
   app.post("/api/fit/billing/portal", auth, async (req: any, res: any) => {
@@ -1386,8 +1465,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     // the webhook never delivered — late, lost, or a webhook that was never set up — left someone
     // who had paid being told to pay again, with nothing in the app ever going back to ask Stripe.
     // Every other plan goes through `current`; To-Do Unlimited was the one that didn't.
-    const [unlimited, yearly, oldLifeHub, vip] = await Promise.all([current("todo_unlimited", user.id), current("todo_unlimited_year", user.id), current("todo_family", user.id), onVip(user)]);
-    return todoUnlimitedFor(user as PlanPerson, { unlimited, yearly, oldLifeHub, vip }, now());
+    const [unlimited, yearly, oldLifeHub, vip, allAccess] = await Promise.all([current("todo_unlimited", user.id), current("todo_unlimited_year", user.id), current("todo_family", user.id), onVip(user), current("all_access", user.id)]);
+    return todoUnlimitedFor(user as PlanPerson, { unlimited, yearly, oldLifeHub, vip, allAccess }, now());
   };
   const AI_KEY = (id: number) => `todo_ai_usage_u${id}`;
   /** This month's AI uses for this person: the allowance, how many are used, and how many are left. */
@@ -1615,7 +1694,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       } else if (kind === "bundle_family" || kind === "todo_family") {
         const p = await deps.getUser(ownerId);
         if (!p || p.role !== "parent") throw new Refused("That account is not a parent.");
-      } else if (isNotesKind(kind) || kind === "fit_plus") {
+      } else if (isNotesKind(kind) || kind === "fit_plus" || kind === "all_access") {
         const u = await deps.getUser(ownerId);
         if (!u) throw new Refused("That account could not be found.");
       } else if (!isSchoolKind(kind)) {
@@ -1817,7 +1896,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     return { cents: charge.cents - charge.refundedCents, at: charge.at };
   };
 
-  return { notesPlan: notesPlanOf, fitPlusOwn, entitlement, hubAccess, readerAccess, adminTodo: { planInfos: todoPlanInfos, customerOwners, payments: stripePayments, personPayments, personCustomer, giveTrial, endTrial, cancelPaid, keepPlan, refundLast, readVip, vipSet, stripeKey }, socialAccess, appStatus, appAccess, todoStatus, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget, todoUnlimited, aiUsage, aiMeter, stripeReady: async () => !!(await stripeKey()), unlimitedPaidBy: async (userId: number) => { for (const k of ["todo_unlimited", "todo_unlimited_year"] as const) { const g = await readGrant(k, userId); if (g && g.buyerId === userId && g.stripeCustomerId && grantLive(g, now())) return k === "todo_unlimited_year" ? "unlimited_year" : "unlimited"; } return null; } };
+  return { notesPlan: notesPlanOf, fitPlusOwn, allAccess: allAccessOwn, entitlement, hubAccess, readerAccess, adminTodo: { planInfos: todoPlanInfos, customerOwners, payments: stripePayments, personPayments, personCustomer, giveTrial, endTrial, cancelPaid, keepPlan, refundLast, readVip, vipSet, stripeKey }, socialAccess, appStatus, appAccess, todoStatus, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget, todoUnlimited, aiUsage, aiMeter, stripeReady: async () => !!(await stripeKey()), unlimitedPaidBy: async (userId: number) => { { const g = await readGrant("all_access", userId); if (g && g.buyerId === userId && g.stripeCustomerId && grantLive(g, now())) return "all_access" as const; } for (const k of ["todo_unlimited", "todo_unlimited_year"] as const) { const g = await readGrant(k, userId); if (g && g.buyerId === userId && g.stripeCustomerId && grantLive(g, now())) return k === "todo_unlimited_year" ? "unlimited_year" : "unlimited"; } return null; } };
 }
 
 export type Plans = ReturnType<typeof registerPlanRoutes>;

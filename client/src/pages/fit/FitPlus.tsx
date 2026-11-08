@@ -97,6 +97,7 @@ export function PlusSheet({ status, feature, passCode, reload, say, onClose }: {
     </Card> : <>
       {feature && <p className="px-1 text-[15px]" style={{ color: C.steel }}><b style={{ color: C.text }}>{PLUS_NAME[feature]}</b> is part of Arise Fit+.</p>}
       <p className="mt-1 px-1 text-[40px] leading-none" style={display}>{status.price}</p>
+      <p className="mt-1 px-1 text-[13px]" style={{ color: C.dim }}>Fit+ comes with Arise All Access: one plan that also unlocks To Duo Unlimited, Arise Notes Plus and ad-free Pod+.</p>
     </>}
 
     <Title>{status.plus ? "Included" : "What you get"}</Title>
@@ -108,7 +109,7 @@ export function PlusSheet({ status, feature, passCode, reload, say, onClose }: {
     {!status.plus && (native
       ? <p className="mt-3 px-1 text-[13px]" style={{ color: C.dim }}>{NATIVE_NO_PURCHASE}</p>
       : status.payment
-        ? <Btn className="mt-4 w-full" onClick={() => void subscribe()} disabled={!!busy} testId="fit-plus-buy">{busy === "/billing/checkout" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Crown className="h-5 w-5" />}Get Fit+ · {status.price}</Btn>
+        ? <Btn className="mt-4 w-full" onClick={() => void subscribe()} disabled={!!busy} testId="fit-plus-buy">{busy === "/billing/checkout" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Crown className="h-5 w-5" />}Get All Access · {status.price}</Btn>
         : <p className="mt-3 px-1 text-[13px]" style={{ color: C.dim }}>Payments aren't switched on for this site yet.</p>)}
 
     <Title>Guest pass</Title>
