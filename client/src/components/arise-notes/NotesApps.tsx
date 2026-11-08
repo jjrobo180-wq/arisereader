@@ -25,37 +25,24 @@ export function AppsScreen({ ctx }: { ctx: AppCtx }) {
   const { installed, toggle } = useNotesApps();
   const say = useToast();
   const flip = (a: NotesAppInfo) => { const on = installed.includes(a.id); toggle(a.id); say(on ? `${a.name} was removed. Nothing in it was deleted: add it back any time.` : `${a.name} was added to Home.`); };
-  const mine = NOTES_APPS.filter((a) => installed.includes(a.id));
   return <>
-    <TopBar ctx={ctx} title="App Gallery" back={() => ctx.go({ name: "home" })} />
-    <main className="mx-auto max-w-3xl space-y-6 px-4 pb-28 pt-4 sm:px-5" data-testid="notes-apps">
-      <section className="na-hero overflow-hidden p-5 sm:p-6">
-        <p className="text-[12px] font-bold uppercase tracking-[.14em] opacity-80">Arise Notes</p>
-        <h1 className="mt-1 text-[26px] font-extrabold leading-tight tracking-[-.02em] sm:text-[30px]">Apps for your notes</h1>
-        <p className="mt-1.5 max-w-lg text-[14.5px] leading-relaxed opacity-90">Add the ones you want. They show on Home and in the Menu, and everything in them is saved to your account, so it's on all your devices.</p>
-        <div className="mt-4 flex -space-x-2">{NOTES_APPS.map((a) => <AppIcon key={a.id} app={a} size={40} />)}</div>
-      </section>
-      {mine.length > 0 && <section aria-labelledby="na-mine">
-        <h2 id="na-mine" className="na-h2">Your apps</h2>
-        <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-8">{mine.map((a) => <button key={a.id} type="button" onClick={() => ctx.go({ name: "app", id: a.id })} data-testid={`notes-apps-open-${a.id}`}
-          className="an-card flex flex-col items-center gap-1.5 px-1 py-3 text-[12.5px] font-semibold"><AppIcon app={a} size={44} /><span className="w-full truncate text-center">{a.short}</span></button>)}</div>
-      </section>}
+    <TopBar ctx={ctx} title="Apps" back={() => ctx.go({ name: "home" })} />
+    <main className="mx-auto max-w-2xl space-y-7 px-4 pb-32 pt-5 sm:px-5" data-testid="notes-apps">
+      <p className="text-[13.5px] leading-relaxed text-[var(--an-muted)]">Add the ones you want. They show on Home, and what's in them is saved to your account.</p>
       {GROUPS.map((g) => <section key={g} aria-labelledby={`na-${g}`}>
-        <h2 id={`na-${g}`} className="na-h2">{g}</h2>
-        <ul className="an-card divide-y divide-[var(--an-line)] overflow-hidden p-0">{NOTES_APPS.filter((a) => a.group === g).map((a) => {
+        <h2 id={`na-${g}`} className="mb-1 text-[11px] font-semibold uppercase tracking-[.16em] text-[var(--an-muted)]">{g}</h2>
+        <ul className="border-t border-[var(--an-line)]">{NOTES_APPS.filter((a) => a.group === g).map((a) => {
           const on = installed.includes(a.id);
-          return <li key={a.id} className="flex items-start gap-3.5 px-4 py-4" data-testid={`notes-apps-row-${a.id}`}>
-            <AppIcon app={a} size={52} />
-            <div className="min-w-0 flex-1">
-              <p className="text-[16px] font-bold leading-tight">{a.name}</p>
-              <p className="mt-0.5 text-[13.5px] font-semibold text-[var(--an-muted)]">{a.tagline}</p>
-              <p className="mt-1.5 text-[13.5px] leading-snug text-[var(--an-muted)]">{a.about}</p>
-            </div>
-            <div className="flex shrink-0 flex-col items-end gap-1.5">
-              {on ? <><Btn kind="primary" className="min-h-9 px-4 text-[13.5px]" onClick={() => ctx.go({ name: "app", id: a.id })}>Open</Btn>
-                <button type="button" onClick={() => flip(a)} className="px-1 py-1 text-[12.5px] font-semibold text-[var(--an-muted)] underline underline-offset-2">Remove</button></>
-                : <Btn kind="soft" className="min-h-9 px-4 text-[13.5px]" onClick={() => flip(a)} data-testid={`notes-apps-add-${a.id}`}><Plus className="h-4 w-4" />Add</Btn>}
-            </div>
+          return <li key={a.id} className="flex min-h-[3.75rem] items-center gap-3 border-b border-[var(--an-line)] py-2.5" data-testid={`notes-apps-row-${a.id}`}>
+            <AppIcon app={a} size={26} />
+            <button type="button" onClick={() => (on ? ctx.go({ name: "app", id: a.id }) : flip(a))} className="min-w-0 flex-1 text-left">
+              <span className="block truncate text-[15px] font-semibold leading-tight text-[var(--an-ink)]">{a.name.replace(/^A\.R\.I\.S\.E\. /, "")}</span>
+              <span className="mt-0.5 block truncate text-[12.5px] text-[var(--an-muted)]">{a.tagline}</span>
+            </button>
+            {on ? <span className="flex shrink-0 items-center gap-3">
+                <button type="button" onClick={() => flip(a)} className="text-[12px] font-medium text-[var(--an-muted)]">Remove</button>
+                <button type="button" onClick={() => ctx.go({ name: "app", id: a.id })} className="text-[13.5px] font-semibold text-[var(--an-violet)]">Open</button></span>
+              : <button type="button" onClick={() => flip(a)} data-testid={`notes-apps-add-${a.id}`} className="shrink-0 rounded-full border border-[var(--an-line)] px-3.5 py-1.5 text-[13px] font-semibold text-[var(--an-ink)]">Add</button>}
           </li>;
         })}</ul>
       </section>)}
