@@ -265,7 +265,9 @@ export function mergeLibrary(wger: LibraryExercise[]): LibraryExercise[] {
   return out;
 }
 
-export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, opts: { store?: FitStore; fetchJson?: (url: string) => Promise<any>; overpass?: (query: string) => Promise<any>; identify?: (image: string, mode: "machine" | "gym") => Promise<GearAnswer>; recipe?: (ask: RecipeAsk) => Promise<Recipe | null>; menu?: (ask: MenuAsk) => Promise<MenuPick[]>; ask?: (digest: string, question: string, history: AskTurn[]) => Promise<string>; kv?: FitKv; nameOf?: CircleDeps["nameOf"]; notify?: CircleDeps["notify"]; ownPlus?: PassDeps["ownPlus"]; payment?: PassDeps["payment"] } = {}) {
+export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, opts: { store?: FitStore; fetchJson?: (url: string) => Promise<any>; overpass?: (query: string) => Promise<any>; identify?: (image: string, mode: "machine" | "gym") => Promise<GearAnswer>; recipe?: (ask: RecipeAsk) => Promise<Recipe | null>; menu?: (ask: MenuAsk) => Promise<MenuPick[]>; ask?: (digest: string, question: string, history: AskTurn[]) => Promise<string>; kv?: FitKv; nameOf?: CircleDeps["nameOf"]; notify?: CircleDeps["notify"]; ownPlus?: PassDeps["ownPlus"]; payment?: PassDeps["payment"];
+  /** Adds items to the person's Arise To Duo family grocery list. null: they have no Arise To Duo yet. */
+  addToDuoGroceries?: (userId: number, items: { name: string; qty?: string; aisle?: string }[]) => Promise<{ added: number; updated: number } | null> } = {}) {
   const store = opts.store ?? createSupabaseFitStore();
   const kv = opts.kv ?? createSupabaseKv();
   const circles = registerCircleRoutes(app, authMiddleware, { kv, getData: (id) => store.get(id), nameOf: opts.nameOf, notify: opts.notify });
@@ -337,6 +339,19 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
   });
   const identify = opts.identify ?? (process.env.OPENAI_API_KEY ? askAiForGear : null);
   const looks = createAttemptLimiter({ max: 40, windowMs: 60 * 60_000 });
+  // Send Arise Fit's grocery list (or foods from a meal photo) to the family grocery list in Arise To Duo.
+  app.post("/api/fit/to-duo-groceries", authMiddleware, async (req: any, res) => {
+    const id = Number(req.user?.id);
+    if (!Number.isSafeInteger(id) || id <= 0 || req.adminPreview) return res.status(403).json({ message: "Sign in to your own account." });
+    const items = (Array.isArray(req.body?.items) ? req.body.items : []).slice(0, 200).map((x: any) => ({ name: String(x?.name ?? "").slice(0, 80), qty: String(x?.qty ?? "").slice(0, 30), aisle: String(x?.aisle ?? "").slice(0, 30) })).filter((x: any) => x.name.trim());
+    if (!items.length) return res.status(400).json({ message: "There's nothing to send." });
+    if (!opts.addToDuoGroceries) return res.status(503).json({ message: "Arise To Duo isn't reachable right now." });
+    try {
+      const r = await opts.addToDuoGroceries(id, items);
+      if (!r) return res.status(404).json({ message: "Open Arise To Duo once with this account, then send the list again." });
+      res.json(r);
+    } catch { res.status(503).json({ message: "Arise To Duo isn't reachable right now. Nothing was sent." }); }
+  });
   app.post("/api/fit/identify", authMiddleware, plus("Photo scanning"), async (req: any, res) => {
     res.set?.("Cache-Control", "no-store");
     if (!identify) return res.status(503).json({ message: "Photo scanning isn't set up on this site yet. Pick the machine from the list instead." });

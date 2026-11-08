@@ -73,6 +73,8 @@ import { registerTodoShareRoutes } from "./todoShare";
 import { registerFoodLookupRoutes } from "./foodLookup";
 import { registerKrogerRoutes } from "./kroger";
 import { registerFitRoutes } from "./fit";
+import { mergeIntoFamilyList } from "../shared/fitMealPrep";
+import { cleanFamily } from "../shared/familyHub";
 import { registerCoachRoutes } from "./coach";
 import { registerTalkRoutes } from "./talk";
 import { registerBrowserRoutes } from "./browserCheck";
@@ -1640,6 +1642,12 @@ export async function registerRoutes(
     // Arise Fit+: the account's own plan (server/plans.ts); guest passes are worked out in server/fitPass.ts.
     ownPlus: async (id) => plans.fitPlusOwn(id, (await storage.getUser(id).catch(() => null)) as any),
     payment: () => plans.stripeReady(),
+    addToDuoGroceries: (userId, items) => updateTodoWorkspace(userId, (ws) => {
+      if (ws.version !== 2) return null;
+      const family = cleanFamily(ws.family ?? {});
+      const r = mergeIntoFamilyList(family.groceries, items, () => randomUUID());
+      return { workspace: { ...ws, family: { ...family, groceries: r.list } }, result: { added: r.added, updated: r.updated } };
+    }),
   });
   // Arise Coaching (server/coach.ts): the trainer directory, client–trainer connections and the Arise Trainer app.
   registerCoachRoutes(app, authMiddleware, {

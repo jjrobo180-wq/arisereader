@@ -98,3 +98,19 @@ export const groceryText = (items: GroceryItem[]) => {
   for (const i of items) { if (i.aisle !== aisle) { aisle = i.aisle; out.push(`\n${aisle}`); } out.push(`${i.done ? "☑" : "☐"} ${i.name}${i.qty ? ` (${i.qty})` : ""}`); }
   return `Grocery list${out.join("\n")}`.trim();
 };
+
+/** Adds Fit items to the family grocery list in Arise To Duo (shared/familyHub.ts GroceryItem): same name means
+ *  the same item (unchecked again, quantity updated); new ones go on the end. Returns the list and how many were new. */
+export function mergeIntoFamilyList<T extends { id: string; name: string; qty: string; aisle: string; checked: boolean }>(list: T[], items: { name: string; qty?: string; aisle?: string }[], newId: () => string, max = 300): { list: T[]; added: number; updated: number } {
+  const out = [...list]; let added = 0, updated = 0;
+  const key = (x: string) => x.trim().toLowerCase().replace(/\s+/g, " ");
+  for (const it of items.slice(0, 200)) {
+    const name = String(it.name ?? "").trim().slice(0, 80); if (!name) continue;
+    const qty = String(it.qty ?? "").trim().slice(0, 30); const aisle = String(it.aisle ?? "").trim().slice(0, 30) || "Other";
+    const i = out.findIndex((x) => key(x.name) === key(name));
+    if (i >= 0) { const was = out[i]; if (was.checked || (qty && was.qty !== qty)) { out[i] = { ...was, checked: false, qty: qty || was.qty }; updated++; } continue; }
+    if (out.length >= max) break;
+    out.push({ id: newId(), name, qty, aisle, checked: false } as T); added++;
+  }
+  return { list: out, added, updated };
+}
