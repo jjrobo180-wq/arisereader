@@ -8,6 +8,7 @@ on:
       - '.github/scripts/**'
       - '.github/workflows/podplus-testflight.yml'
       - 'podscroll/**'
+      - 'native/**'
       - 'client/src/hooks/useAutoHideHeader.ts'
 jobs:
   signed-archive:
@@ -164,6 +165,27 @@ jobs:
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
           cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
           echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+      - name: Profiles for Pod+ on Apple Watch and Apple TV
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -uo pipefail
+          # The watch app has an App ID of its own (registered here the first time); the TV app is the
+          # same App ID as the iPhone app (one App Store listing) with a tvOS profile.
+          SEED_PROFILE="$RUNNER_TEMP/profile.mobileprovision" CREATE_APP_ID="Pod+ Watch" python3 .github/scripts/apple_signing.py com.arisereader.podplus.watchkitapp "$RUNNER_TEMP/watch.mobileprovision"
+          SEED_PROFILE="$RUNNER_TEMP/profile.mobileprovision" PROFILE_TYPE=TVOS_APP_STORE python3 .github/scripts/apple_signing.py com.arisereader.podplus "$RUNNER_TEMP/tv.mobileprovision"
+          for kind in watch tv; do
+            f="$RUNNER_TEMP/$kind.mobileprovision"
+            if [[ -s "$f" ]] && security cms -D -i "$f" > "$RUNNER_TEMP/$kind.plist" 2>/dev/null; then
+              cp "$f" "$HOME/Library/MobileDevice/Provisioning Profiles/$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/$kind.plist").mobileprovision"
+              echo "$(echo "$kind" | tr a-z A-Z)_PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/$kind.plist")" >> "$GITHUB_ENV"
+              echo "$kind: profile ready"
+            else
+              echo "::warning title=$kind::No App Store profile for the $kind app. Building without it."
+            fi
+          done
       - name: Add the widget extension (signed)
         if: env.WIDGETS == '1'
         working-directory: podscroll/ios-app
@@ -176,6 +198,11 @@ jobs:
           ruby -rxcodeproj -e 'puts Xcodeproj::VERSION' || gem install xcodeproj --no-document --user-install
           export GEM_PATH="$(ruby -e 'puts Gem.user_dir'):$(ruby -e 'puts Gem.default_dir')"
           APP_PROFILE="$PROFILE_NAME" WIDGET_PROFILE="$WIDGET_PROFILE_NAME" ruby ../../.github/scripts/add_widget.rb ios/App/App.xcodeproj com.arisereader.podplus "$(cat widgets.json)" ff6a1f
+          # Pod+ for Apple Watch (inside the iPhone app) and Apple TV (archived on its own below).
+          if [[ -n "${WATCH_PROFILE_NAME:-}${TV_PROFILE_NAME:-}" ]]; then
+            WATCH_PROFILE="${WATCH_PROFILE_NAME:-}" TV_PROFILE="${TV_PROFILE_NAME:-}" ruby add_watch_tv.rb ios/App/App.xcodeproj ${WATCH_PROFILE_NAME:+--embed-watch}
+            echo "WATCH_TV=1" >> "$GITHUB_ENV"
+          fi
       - name: Archive signed app with widgets
         if: env.WIDGETS == '1'
         working-directory: podscroll/ios-app
@@ -215,6 +242,8 @@ jobs:
           }
           if os.environ.get("WIDGET_PROFILE_NAME"):
               options["provisioningProfiles"]["com.arisereader.podplus.widgets"] = os.environ["WIDGET_PROFILE_NAME"]
+          if os.environ.get("WATCH_TV") and os.environ.get("WATCH_PROFILE_NAME"):
+              options["provisioningProfiles"]["com.arisereader.podplus.watchkitapp"] = os.environ["WATCH_PROFILE_NAME"]
           with open(os.path.join(os.environ["RUNNER_TEMP"], "ExportOptions.plist"), "wb") as output:
               plistlib.dump(options, output)
           PY
@@ -255,6 +284,29 @@ jobs:
           xcrun altool --validate-app -f "${IPA[0]}" -t ios --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
           if [[ "$APPROVED_UPLOAD" == "true" ]]; then
             xcrun altool --upload-app -f "${IPA[0]}" -t ios --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+          fi
+      - name: Apple TV build (archive, validate, and upload with the same approval)
+        if: env.WATCH_TV == '1' && env.TV_PROFILE_NAME != ''
+        continue-on-error: true
+        working-directory: podscroll/ios-app
+        env:
+          APPROVED_UPLOAD: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[approved-testflight]') }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme PodPlusTV -configuration Release -destination 'generic/platform=tvOS' -archivePath "$RUNNER_TEMP/PodPlusTV.xcarchive" archive
+          python3 - <<'PY'
+          import os, plistlib
+          with open(os.path.join(os.environ["RUNNER_TEMP"], "TVExportOptions.plist"), "wb") as f:
+              plistlib.dump({"method": "app-store-connect", "destination": "export", "signingStyle": "manual", "teamID": "6TYWWNKX6P",
+                             "provisioningProfiles": {"com.arisereader.podplus": os.environ["TV_PROFILE_NAME"]}}, f)
+          PY
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/PodPlusTV.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/TVExportOptions.plist" -exportPath "$RUNNER_TEMP/podplus-tv-export"
+          IPA=("$RUNNER_TEMP"/podplus-tv-export/*.ipa)
+          xcrun altool --validate-app -f "${IPA[0]}" -t appletvos --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+          if [[ "$APPROVED_UPLOAD" == "true" ]]; then
+            xcrun altool --upload-app -f "${IPA[0]}" -t appletvos --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
           fi
       - name: Remove temporary signing keychain
         if: always()

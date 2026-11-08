@@ -61,16 +61,19 @@ add = lambda do |name, platform, deployment, sources, info, settings|
   FileUtils.mkdir_p(dir)
   files = sources.map { |src| FileUtils.cp(src, dir); File.basename(src) }
   plist(File.join(dir, "Info.plist"), info)
-  icon_set(dir, platform == :watchos ? "watchos" : "tvos", icon) if platform == :watchos
+  if platform == :watchos
+    icon_set(dir, "watchos", icon)
+  else
+    FileUtils.rm_rf(File.join(dir, "Assets.xcassets"))
+    FileUtils.cp_r(File.join(root, "native/tv-app/Assets.xcassets"), dir)
+  end
   target = proj.new_target(:application, name, platform, deployment)
   group = proj.main_group.new_group(name, name)
   refs = files.map { |f| group.new_file(f) }
   group.new_file("Info.plist")
   target.add_file_references(refs)
-  if platform == :watchos
-    assets = group.new_file("Assets.xcassets")
-    target.resources_build_phase.add_file_reference(assets)
-  end
+  assets = group.new_file("Assets.xcassets")
+  target.resources_build_phase.add_file_reference(assets)
   target.build_configurations.each do |c|
     s = c.build_settings
     s["PRODUCT_NAME"] = "$(TARGET_NAME)"
@@ -133,6 +136,7 @@ tv = add.call("PodPlusTV", :tvos, "16.0",
     "SDKROOT" => "appletvos",
     "TARGETED_DEVICE_FAMILY" => "3",
     "TVOS_DEPLOYMENT_TARGET" => "16.0",
+    "ASSETCATALOG_COMPILER_APPICON_NAME" => "App Icon & Top Shelf Image",
   })
 # UILaunchScreen is a dictionary (an empty one: the system's plain launch screen).
 tv_plist = File.join(ios_dir, "PodPlusTV", "Info.plist")
@@ -161,4 +165,11 @@ if ENV["SIGN_TEAM"]
 end
 
 proj.save
+
+# Shared schemes, so the TV app can be archived on its own (and the watch app built on its own).
+[tv, watch].each do |t|
+  scheme = Xcodeproj::XCScheme.new
+  scheme.configure_with_targets(t, nil)
+  scheme.save_as(project_path, t.name, true)
+end
 puts "Added PodPlusWatch (#{host}.watchkitapp#{embed_watch ? ', inside the iPhone app' : ''}) and PodPlusTV (#{host}, tvOS)"
