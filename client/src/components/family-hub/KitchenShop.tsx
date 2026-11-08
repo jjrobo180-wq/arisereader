@@ -42,6 +42,9 @@ export default function KitchenShop({ family, setFamily, makeId, say }: SectionP
       <span>{done.length} in the cart</span>
       <button type="button" onClick={() => { set((l) => l.filter((x) => !x.checked)); say("Cleared."); }} className="font-bold text-violet-600">Clear</button>
     </div>}
-    {open.length > 0 && <button type="button" onClick={copy} className="mx-auto flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-slate-600"><Copy size={13} />Copy list</button>}
+    {open.length > 0 && <div className="flex items-center justify-center gap-5">
+      <button type="button" onClick={copy} className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-slate-600"><Copy size={13} />Copy list</button>
+      <button type="button" onClick={() => { if (window.confirm(`Clear all ${items.length} item${items.length === 1 ? "" : "s"} from your list?`)) { set(() => []); say("List cleared."); } }} className="text-xs font-bold text-slate-400 hover:text-rose-600" data-testid="shop-clear-all">Clear whole list</button>
+    </div>}
   </div>;
 }

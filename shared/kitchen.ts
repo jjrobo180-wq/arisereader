@@ -38,10 +38,15 @@ export type Kitchen = {
   servings: Record<string, Record<string, number>>;
   /** Ingredients already at home (true, left off the list) or to buy even though they are staples (false). */
   have: Record<string, boolean>;
+  /** Inventory: how much of an ingredient is in the kitchen now, in its unit (oz, fl oz or pieces). Optional:
+   *  an ingredient with a number here is counted exactly, and the list only buys what's missing. */
+  stock: Record<string, number>;
+  /** Inventory: the least you like to keep on hand. The list tops you back up to it, meal or no meal. */
+  keep: Record<string, number>;
   store: { id: string; name: string; zip: string } | null;
 };
 
-export const emptyKitchen = (): Kitchen => ({ setup: false, people: [], week: {}, choice: {}, prices: {}, products: [], own: [], edits: {}, servings: {}, have: {}, store: null });
+export const emptyKitchen = (): Kitchen => ({ setup: false, people: [], week: {}, choice: {}, prices: {}, products: [], own: [], edits: {}, servings: {}, have: {}, stock: {}, keep: {}, store: null });
 
 // ── Reading a saved plan safely ────────────────────────────────────────────────────────────────────────────────
 const o = (v: unknown): Record<string, any> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, any>) : {});
@@ -83,8 +88,10 @@ export function cleanKitchen(raw: unknown): Kitchen {
   }).filter(([, e]) => Object.keys(e as object).length)) as Record<string, KDishEdit>;
   const servings = Object.fromEntries(Object.entries(o(r.servings)).slice(0, 12).map(([pid, m]) => [s(pid, 60), Object.fromEntries(Object.entries(o(m)).slice(0, 300).map(([k, v]) => [s(k, 140), n(v, 0, 1000)]).filter(([, v]) => (v as number) >= 0))]));
   const have = Object.fromEntries(Object.entries(o(r.have)).filter(([g, v]) => GROUP_BY_ID.has(g) && typeof v === "boolean")) as Record<string, boolean>;
+  const amounts = (v: unknown) => Object.fromEntries(Object.entries(o(v)).filter(([g, x]) => GROUP_BY_ID.has(g) && typeof x === "number" && Number.isFinite(x) && x >= 0).slice(0, 400).map(([g, x]) => [g, Math.round(Math.min(100000, x as number) * 100) / 100])) as Record<string, number>;
+  const stock = amounts(r.stock), keep = Object.fromEntries(Object.entries(amounts(r.keep)).filter(([, x]) => x > 0));
   const st = o(r.store);
-  return { setup: r.setup === true, people, week, choice, prices, products, own, edits, servings, have, store: s(st.id, 40) ? { id: s(st.id, 40), name: s(st.name, 80), zip: s(st.zip, 10) } : null };
+  return { setup: r.setup === true, people, week, choice, prices, products, own, edits, servings, have, stock, keep, store: s(st.id, 40) ? { id: s(st.id, 40), name: s(st.name, 80), zip: s(st.zip, 10) } : null };
 }
 
 // ── Looking things up ──────────────────────────────────────────────────────────────────────────────────────────
@@ -126,6 +133,8 @@ export const chosen = (k: Kitchen, group: string, need = 0): KProduct | undefine
 export const pickedByYou = (k: Kitchen, group: string) => !!k.choice[group] && !!productById(k, k.choice[group]);
 /** Already at home: what you said, or for staples like oil and spices, yes until you say you need it. */
 export const atHome = (k: Kitchen, group: string) => k.have[group] ?? !!groupOf(group)?.staple;
+/** An ingredient the inventory counts (an amount on hand, or a "keep at least"). */
+export const trackedIn = (k: Kitchen, group: string) => typeof k.stock?.[group] === "number" || (k.keep?.[group] ?? 0) > 0;
 export const peopleIn = (k: Kitchen, m: KMeal) => (m.people.length ? k.people.filter((p) => m.people.includes(p.id)) : k.people);
 /** How much of an ingredient one person eats in one serving of a dish. */
 export const amountFor = (k: Kitchen, person: KPerson, dish: KDish, part: KPart) => {
@@ -136,7 +145,8 @@ export const unitPrice = (p: KProduct) => (p.size > 0 ? p.price / p.size : Infin
 
 // ── The shopping math ──────────────────────────────────────────────────────────────────────────────────────────
 export type KUse = { key: string; day: KDay; slot: KSlot; dish: KDish; person: KPerson; amount: number };
-export type KLine = { group: KGroup; product: KProduct; buy: KBuy[]; need: number; packs: number; got: number; cost: number; left: number; uses: KUse[]; have: boolean };
+/** need: what the week's meals use. onHand/keep: from the inventory. short: what's missing, so what gets bought. */
+export type KLine = { group: KGroup; product: KProduct; buy: KBuy[]; need: number; onHand: number; keep: number; short: number; tracked: boolean; packs: number; got: number; cost: number; left: number; uses: KUse[]; have: boolean };
 const r2 = (x: number) => Math.round(x * 100) / 100;
 
 export function uses(k: Kitchen): KUse[] {
@@ -155,14 +165,21 @@ export function shoppingLines(k: Kitchen): KLine[] {
   const by = new Map<string, KUse[]>();
   for (const u of uses(k)) by.set(u.key, [...(by.get(u.key) ?? []), u]);
   const lines: KLine[] = [];
-  for (const [g, us] of by) {
+  // Ingredients the meals use, plus anything the inventory says to keep on hand.
+  const all = new Set([...by.keys(), ...Object.keys(k.keep ?? {}).filter((g) => (k.keep[g] ?? 0) > 0)]);
+  for (const g of all) {
     const group = groupOf(g); if (!group) continue;
+    const us = by.get(g) ?? [];
     const need = us.reduce((a, u) => a + u.amount, 0);
-    const have = atHome(k, g);
-    const buy = have ? [] : bestBuy(k, g, need);
+    const t = trackedIn(k, g), onHand = k.stock?.[g] ?? 0, keep = k.keep?.[g] ?? 0;
+    // Counted in the inventory: buy only what's missing (and enough to stay at "keep at least"). Not counted: the
+    // old way, all of it unless it's marked as at home.
+    const short = t ? Math.max(0, need + keep - onHand) : need;
+    const have = t ? short <= 1e-9 : atHome(k, g);
+    const buy = have ? [] : bestBuy(k, g, short);
     const product = buy[0]?.product ?? chosen(k, g); if (!product) continue;
     const got = buy.reduce((a, b) => a + b.packs * b.product.size, 0);
-    lines.push({ group, product, buy, need, packs: buy.reduce((a, b) => a + b.packs, 0), got, cost: r2(buy.reduce((a, b) => a + b.packs * b.product.price, 0)), left: have ? 0 : Math.max(0, got - need), uses: us, have });
+    lines.push({ group, product, buy, need, onHand, keep, short: have ? 0 : short, tracked: t, packs: buy.reduce((a, b) => a + b.packs, 0), got, cost: r2(buy.reduce((a, b) => a + b.packs * b.product.price, 0)), left: have ? 0 : Math.max(0, got - short), uses: us, have });
   }
   const aisle = ["Produce", "Meat & seafood", "Deli", "Dairy & eggs", "Bread & bakery", "Pantry", "Snacks", "Frozen"];
   return lines.sort((a, b) => aisle.indexOf(a.group.aisle) - aisle.indexOf(b.group.aisle) || a.group.name.localeCompare(b.group.name));
@@ -215,19 +232,19 @@ export function tips(k: Kitchen): KTip[] {
   const out: KTip[] = [];
   const lines = shoppingLines(k);
   for (const l of lines) {
-    if (l.have || !l.need) continue;
+    if (l.have || !l.short) continue;
     // Cheaper packages for the same need: offered when you picked the product yourself,
     // and noted when the planner already chose the bulk pack for you.
     if (pickedByYou(k, l.group.id)) {
-      const auto = bestBuy({ ...k, choice: { ...k.choice, [l.group.id]: "" } }, l.group.id, l.need);
+      const auto = bestBuy({ ...k, choice: { ...k.choice, [l.group.id]: "" } }, l.group.id, l.short);
       const c = r2(auto.reduce((x, y) => x + y.packs * y.product.price, 0));
       if (auto.length && c < l.cost - 0.24) out.push({ kind: "bulk", id: `bulk-${l.group.id}`, group: l.group.id, product: null, save: r2(l.cost - c),
-        text: `${l.group.name}: ${buyText(auto)} covers the ${amountText(l.need, l.group)} you need for ${money(c)}. Your pick, ${buyText(l.buy)}, is ${money(l.cost)}.`,
+        text: `${l.group.name}: ${buyText(auto)} covers the ${amountText(l.short, l.group)} you need for ${money(c)}. Your pick, ${buyText(l.buy)}, is ${money(l.cost)}.`,
         button: `Switch and save ${money(l.cost - c)}` });
     } else {
       const biggest = Math.max(...l.buy.map((b) => b.product.size));
       const small = productsFor(k, l.group.id).filter((p) => p.size < biggest).sort((x, y) => x.size - y.size)[0];
-      if (small) { const c = r2(packsFor(l.need, small.size) * small.price); if (c > l.cost + 0.24) out.push({ kind: "saved", id: `saved-${l.group.id}`, save: r2(c - l.cost), text: `Bulk buy on ${l.group.name.toLowerCase()}: ${buyText(l.buy)} for ${money(l.cost)} saves ${money(c - l.cost)} over ${packsFor(l.need, small.size)} × ${productText(small)}.` }); }
+      if (small) { const c = r2(packsFor(l.short, small.size) * small.price); if (c > l.cost + 0.24) out.push({ kind: "saved", id: `saved-${l.group.id}`, save: r2(c - l.cost), text: `Bulk buy on ${l.group.name.toLowerCase()}: ${buyText(l.buy)} for ${money(l.cost)} saves ${money(c - l.cost)} over ${packsFor(l.short, small.size)} × ${productText(small)}.` }); }
     }
     // One package shared between people eating different dishes.
     const eaters = [...new Set(l.uses.map((u) => u.person.name))], dishes = [...new Set(l.uses.map((u) => u.dish.name))];
@@ -243,7 +260,7 @@ export function tips(k: Kitchen): KTip[] {
       const free = WEEK.find((d) => !(k.week[cell(d, slot)] ?? []).some((m) => !m.people.length || m.people.some((id) => forWho.some((p) => p.id === id))));
       const extra = Math.floor(l.left / one);
       const userNames = names([...new Set(l.uses.map((u) => u.person.name))]);
-      const text = `${userNames}'s ${names([...new Set(l.uses.map((u) => u.dish.name))])} use ${amountText(l.need, l.group)} of the ${amountText(l.got, l.group)} of ${l.group.name.toLowerCase()} you buy. ${amountText(l.left, l.group)} would be left, enough for about ${extra} more serving${extra === 1 ? "" : "s"}.`;
+      const text = `${userNames}'s ${names([...new Set(l.uses.map((u) => u.dish.name))])} use ${amountText(l.short, l.group)} of the ${amountText(l.got, l.group)} of ${l.group.name.toLowerCase()} you buy. ${amountText(l.left, l.group)} would be left, enough for about ${extra} more serving${extra === 1 ? "" : "s"}.`;
       if (free) out.push({ kind: "leftover", id: `left-${l.group.id}`, text, day: free, slot, dish: sameDish.id, people: others.length ? others.map((p) => p.id) : [], button: others.length ? `Share it: ${sameDish.name} for ${names(others.map((p) => p.name))} on ${DAY_LABEL[free]}` : `Use it: ${sameDish.name} again on ${DAY_LABEL[free]}` });
     }
   }
@@ -271,6 +288,54 @@ export function deleteOwnDish(k: Kitchen, dishId: string): Kitchen {
   const edits = { ...k.edits }; delete edits[dishId];
   return { ...k, own: k.own.filter((d) => d.id !== dishId), week, edits };
 }
+// ── Fixing a plan in one go ────────────────────────────────────────────────────────────────────────────────────
+/** Which meals: some days and/or some meal types. Leave either out for all of them. */
+export type KScope = { days?: readonly KDay[]; slots?: readonly KSlot[] };
+const inScope = (key: string, sc: KScope) => { const [d, sl] = key.split(":") as [KDay, KSlot]; return (!sc.days || sc.days.includes(d)) && (!sc.slots || sc.slots.includes(sl)); };
+export const countMeals = (k: Kitchen, sc: KScope = {}) => Object.entries(k.week).reduce((a, [key, ms]) => a + (inScope(key, sc) ? ms.length : 0), 0);
+/** Bulk delete: take every meal in the scope off the plan (the whole week when the scope is empty). */
+export function clearMeals(k: Kitchen, sc: KScope = {}): Kitchen {
+  return { ...k, week: Object.fromEntries(Object.entries(k.week).filter(([key]) => !inScope(key, sc))) };
+}
+const sameMeal = (a: KMeal, b: KMeal) => a.dish === b.dish && [...a.people].sort().join() === [...b.people].sort().join();
+/** The same dish for the same people twice in one meal (added more than once by mistake). */
+export const duplicateCount = (k: Kitchen) => Object.values(k.week).reduce((a, ms) => a + ms.filter((m, i) => ms.findIndex((x) => sameMeal(x, m)) !== i).length, 0);
+export function removeDuplicates(k: Kitchen): Kitchen {
+  return { ...k, week: Object.fromEntries(Object.entries(k.week).map(([key, ms]) => [key, ms.filter((m, i) => ms.findIndex((x) => sameMeal(x, m)) === i)])) };
+}
+/** Sets whole meals at once (the week planner's Save). Each listed cell is replaced, so saving twice never doubles. */
+export function setCells(k: Kitchen, cells: Record<string, KMeal[]>): Kitchen {
+  const week = { ...k.week };
+  for (const [key, ms] of Object.entries(cells)) { const clean = ms.filter((m, i) => ms.findIndex((x) => sameMeal(x, m)) === i).slice(0, 8); if (clean.length) week[key] = clean; else delete week[key]; }
+  return { ...k, week };
+}
+
+// ── Inventory ──────────────────────────────────────────────────────────────────────────────────────────────────
+const amountsOut = (m: Record<string, number>) => Object.fromEntries(Object.entries(m).map(([g, x]) => [g, r2(Math.max(0, x))]));
+/** Set how much of an ingredient is on hand. null stops counting it. */
+export function setStock(k: Kitchen, group: string, amount: number | null): Kitchen {
+  const stock = { ...k.stock }; if (amount === null) delete stock[group]; else stock[group] = r2(Math.max(0, amount));
+  const keep = { ...k.keep }; if (amount === null) delete keep[group];
+  return { ...k, stock, keep };
+}
+export function setKeep(k: Kitchen, group: string, amount: number): Kitchen {
+  const keep = { ...k.keep }; if (amount > 0) keep[group] = r2(amount); else delete keep[group];
+  const stock = { ...k.stock }; if (amount > 0 && typeof stock[group] !== "number") stock[group] = 0;
+  return { ...k, keep, stock };
+}
+/** After shopping: what was bought goes into the inventory. */
+export function stockUp(k: Kitchen, lines: KLine[] = shoppingLines(k)): Kitchen {
+  const stock = { ...k.stock };
+  for (const l of lines) if (!l.have && l.got > 0) stock[l.group.id] = (stock[l.group.id] ?? 0) + l.got;
+  return { ...k, stock: amountsOut(stock) };
+}
+/** After cooking: what those meals used comes out of the inventory (only for ingredients it counts). */
+export function useUp(k: Kitchen, sc: KScope = {}): Kitchen {
+  const stock = { ...k.stock };
+  for (const u of uses(k)) if (inScope(cell(u.day, u.slot), sc) && typeof stock[u.key] === "number") stock[u.key] -= u.amount;
+  return { ...k, stock: amountsOut(stock) };
+}
+
 export const PORTIONS: { label: string; value: number }[] = [{ label: "Small child", value: 0.5 }, { label: "Child", value: 0.75 }, { label: "Adult", value: 1 }, { label: "Big eater", value: 1.5 }];
 
 /** About what one regular serving of a dish costs, at the best-value product for each ingredient (staples at home left out). */

@@ -4,7 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { K_DISHES, K_SLOTS, PRODUCTS, addMeal, amountText, bestBuy, cleanKitchen, deleteOwnDish, emptyKitchen, groupOf, shoppingLines, tips, totals, type Kitchen } from "../shared/kitchen";
+import { K_DISHES, K_SLOTS, PRODUCTS, WEEK, addMeal, amountText, bestBuy, cleanKitchen, clearMeals, countMeals, deleteOwnDish, duplicateCount, emptyKitchen, groupOf, removeDuplicates, setCells, setKeep, setStock, shoppingLines, stockUp, tips, totals, useUp, type Kitchen } from "../shared/kitchen";
 import { GROUPS, parseSize } from "../shared/kitchenProducts";
 import { mapKrogerLocation, mapKrogerProduct } from "../server/kroger";
 
@@ -115,14 +115,78 @@ test("the screens: setup asks who's eating, prices come from the store with your
   assert.match(read("client/src/lib/kitchenStore.ts"), /Authorization: `Bearer \$\{token\}`/);
   assert.match(read("server/routes.ts"), /registerKrogerRoutes\(app, authMiddleware\)/);
   assert.doesNotMatch(read("server/routes.ts"), /mealCost/);
-  for (const f of ["KitchenPlan.tsx", "kitchen/DishEditor.tsx", "kitchen/DishPicker.tsx", "kitchen/ProductChooser.tsx", "kitchen/kit.tsx"]) assert.doesNotMatch(read(`client/src/components/family-hub/${f}`), /\p{Extended_Pictographic}/u, f);
+  for (const f of ["KitchenPlan.tsx", "kitchen/DishEditor.tsx", "kitchen/WeekPlanner.tsx", "kitchen/ClearMeals.tsx", "kitchen/Inventory.tsx", "kitchen/ProductChooser.tsx", "kitchen/kit.tsx"]) assert.doesNotMatch(read(`client/src/components/family-hub/${f}`), /\p{Extended_Pictographic}/u, f);
 });
 
-test("Add meals takes several dishes at once, each on every picked day", () => {
-  const ui = read("client/src/components/family-hub/kitchen/DishPicker.tsx");
-  assert.match(ui, /const \[picked, setPicked\] = useState<string\[\]>\(\[\]\)/);
-  assert.match(ui, /for \(const id of picked\)[\s\S]{0,200}for \(const d of days\)/);
-  assert.doesNotMatch(ui, /setDish\(/);
+test("the week planner sets each meal for each day in one popup, and saving twice never doubles", () => {
+  const ui = read("client/src/components/family-hub/kitchen/WeekPlanner.tsx");
+  assert.match(ui, /setK\(\(x\) => setCells\(x, draft\)\)/);
+  assert.match(ui, /Copy to every day/);
+  assert.doesNotMatch(ui, /for \(const id of picked\)[\s\S]{0,200}for \(const d of days\)/, "no dish x day cross product");
+  let k = family();
+  const draft = { "mon:breakfast": [{ id: "1", dish: "pancakes", people: [] }], "mon:dinner": [{ id: "2", dish: "tacos", people: [] }], "tue:dinner": [{ id: "3", dish: "spaghetti", people: [] }] };
+  k = setCells(k, draft);
+  k = setCells(k, draft);
+  assert.equal(countMeals(k), 3);
+  k = setCells(k, { "mon:dinner": [{ id: "4", dish: "tacos", people: [] }, { id: "5", dish: "tacos", people: [] }] });
+  assert.equal(k.week["mon:dinner"].length, 1, "the same dish twice in one meal is kept once");
+  k = setCells(k, { "tue:dinner": [] });
+  assert.equal(k.week["tue:dinner"], undefined);
+});
+
+test("bulk delete: the whole week, some days, or one kind of meal; extras added by mistake are found and removed", () => {
+  let k = family();
+  for (const d of WEEK) for (const dish of ["tacos", "spaghetti"]) k = addMeal(k, d, "dinner", dish, [], `${d}-${dish}`);
+  k = addMeal(k, "mon", "breakfast", "pancakes", [], "p");
+  assert.equal(countMeals(k), 15);
+  assert.equal(countMeals(clearMeals(k, { days: ["mon"] })), 12);
+  assert.equal(countMeals(clearMeals(k, { slots: ["dinner"] })), 1);
+  assert.equal(countMeals(clearMeals(k, { days: ["mon", "tue"], slots: ["dinner"] })), 11);
+  assert.deepEqual(clearMeals(k).week, {});
+  // The old picker's mistake: four dishes on four days, so every day got all four.
+  let oops = family();
+  for (let i = 0; i < 4; i++) for (const d of ["mon", "tue", "wed", "thu"] as const) oops = addMeal(oops, d, "dinner", "tacos", [], `${d}-${i}`);
+  assert.equal(duplicateCount(oops), 12);
+  oops = removeDuplicates(oops);
+  assert.equal(duplicateCount(oops), 0);
+  assert.equal(countMeals(oops), 4);
+  const own = addMeal(addMeal(family(), "mon", "dinner", "tacos", ["j"], "a"), "mon", "dinner", "tacos", ["d"], "b");
+  assert.equal(duplicateCount(own), 0, "the same dish for different people is not a duplicate");
+});
+
+test("inventory: the list buys only what's missing, tops up 'keep at least', and fills from shopping", () => {
+  let k = family();
+  k = addMeal(k, "mon", "dinner", "tacos", [], "a");
+  const need = shoppingLines(k).find((l) => l.group.id === "ground-beef")!.need;
+  assert.equal(line(k, "ground-beef").tracked, false);
+  k = setStock(k, "ground-beef", need);
+  assert.equal(line(k, "ground-beef").have, true, "enough on hand, nothing to buy");
+  assert.equal(line(k, "ground-beef").cost, 0);
+  k = setStock(k, "ground-beef", need - 4);
+  assert.equal(line(k, "ground-beef").short, 4);
+  assert.equal(line(k, "ground-beef").have, false);
+  // Keep at least a gallon of milk, no meal needed.
+  k = setStock(setKeep(k, "milk", 128), "milk", 32);
+  assert.equal(line(k, "milk").short, 96);
+  assert.equal(line(k, "milk").uses.length, 0);
+  // Bought it all: the inventory has it, the list is clear.
+  const after = stockUp(k);
+  assert.ok(shoppingLines(after).every((l) => l.have || !l.tracked));
+  assert.ok(after.stock.milk >= 128);
+  // Cooked Monday: what it used comes out of the counted items.
+  const cooked = useUp(after, { days: ["mon"] });
+  assert.equal(Math.round((after.stock["ground-beef"] - cooked.stock["ground-beef"]) * 100) / 100, Math.round(need * 100) / 100);
+  // Stop counting: back to the usual list.
+  assert.equal(line(setStock(k, "ground-beef", null), "ground-beef").tracked, false);
+  // Saved safely with the family.
+  assert.deepEqual(cleanKitchen(JSON.parse(JSON.stringify(k))), k);
+  assert.deepEqual(cleanKitchen({ stock: { milk: -3, "not-a-thing": 4, eggs: "x" }, keep: { eggs: 0 } }).stock, {});
+});
+
+test("the plan screen: plan the week, clear meals with undo, inventory tab", () => {
+  const ui = read("client/src/components/family-hub/KitchenPlan.tsx");
+  for (const t of ["Plan the week", "Clear meals", "Undo", "Inventory", "Remove extras"]) assert.match(ui, new RegExp(t), t);
+  assert.doesNotMatch(ui, /DishPicker/);
 });
 
 test("the same person twice is merged, and their meals go with them", () => {

@@ -2,17 +2,21 @@
 // real products and package sizes, how much is left over, ways to share and save. Saved with the family, so
 // everyone in the family sees the same plan. The math lives in shared/kitchen.ts.
 import { useEffect, useMemo, useState } from "react";
-import { DAY_LABEL, K_SLOTS, PORTIONS, WEEK, amountText, buyText, cell, dishOf, emptyKitchen, money, peopleIn, removeMeal, takeoutOf, tips, totals, type KDay, type Kitchen, type KMeal, type KSlot } from "@shared/kitchen";
+import { DAY_LABEL, K_SLOTS, PORTIONS, WEEK, amountText, buyText, cell, clearMeals, countMeals, dishOf, duplicateCount, emptyKitchen, money, peopleIn, removeDuplicates, removeMeal, setStock, stockUp, takeoutOf, tips, totals, useUp, type KDay, type Kitchen, type KMeal, type KSlot } from "@shared/kitchen";
 import { useAuth } from "@/context/AuthContext";
 import { findStores, storePrices, storeStatus, type StoreLocation } from "@/lib/kitchenStore";
 import { guessAisle } from "@shared/lifePlugins";
 import { Modal, type SectionProps } from "./ui";
 import DishEditor from "./kitchen/DishEditor";
-import DishPicker from "./kitchen/DishPicker";
+import ClearMeals from "./kitchen/ClearMeals";
+import Inventory from "./kitchen/Inventory";
+import WeekPlanner from "./kitchen/WeekPlanner";
 import ProductChooser from "./kitchen/ProductChooser";
 import { Card, Segmented, btn, chip, field, ghost, label, link } from "./kitchen/kit";
 
-type View = "week" | "groceries" | "people";
+type View = "week" | "groceries" | "inventory" | "people";
+/** What one bulk change replaced, so it can be put back. */
+type Undo = { text: string; week: Kitchen["week"]; stock: Kitchen["stock"] };
 const PLAN_TAG = "kp-";
 const SLOT_ONE: Record<KSlot, string> = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snack: "Snack", dessert: "Dessert" };
 
@@ -21,7 +25,9 @@ export default function KitchenPlan({ family, setFamily, makeId, say }: SectionP
   const k: Kitchen = family.kitchen ?? emptyKitchen();
   const setK = (fn: (k: Kitchen) => Kitchen) => setFamily((f) => ({ ...f, kitchen: fn(f.kitchen ?? emptyKitchen()) }));
   const [view, setView] = useState<View>("week");
-  const [picker, setPicker] = useState<{ day: KDay; slot: KSlot } | null>(null);
+  const [planner, setPlanner] = useState<KDay | null>(null);
+  const [clearing, setClearing] = useState(false);
+  const [undo, setUndo] = useState<Undo | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [product, setProduct] = useState<string | null>(null);
   const [meal, setMeal] = useState<{ key: string; meal: KMeal } | null>(null);
@@ -32,6 +38,11 @@ export default function KitchenPlan({ family, setFamily, makeId, say }: SectionP
   const t = useMemo(() => totals(k), [k]);
   const ideas = useMemo(() => tips(k), [k]);
   const lineNeed = (group: string) => t.lines.find((l) => l.group.id === group)?.need ?? 0;
+
+  // A bulk change: save what it replaces, make it, and offer Undo.
+  const change = (text: string, fn: (k: Kitchen) => Kitchen) => { setUndo({ text, week: k.week, stock: k.stock }); setK(fn); };
+  const undoIt = () => { if (!undo) return; const u = undo; setK((x) => ({ ...x, week: u.week, stock: u.stock })); setUndo(null); say("Put back."); };
+  const dupes = duplicateCount(k);
 
   if (!k.setup) return <Setup k={k} setK={setK} family={family} connected={connected} token={token} makeId={makeId} />;
 
@@ -45,7 +56,11 @@ export default function KitchenPlan({ family, setFamily, makeId, say }: SectionP
       </div>
       {k.people.length > 1 && <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">{k.people.map((p) => <span key={p.id} className="text-slate-500">{p.name} <span className="font-semibold tabular-nums text-slate-900">{money(t.share[p.id] ?? 0)}</span></span>)}</div>}
     </div>
-    <Segmented label="Kitchen plan" value={view} onChange={setView} options={[{ id: "week", label: "Week" }, { id: "groceries", label: `Groceries${t.lines.filter((l) => !l.have).length ? ` (${t.lines.filter((l) => !l.have).length})` : ""}` }, { id: "people", label: "People & store" }]} />
+    {undo && <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-900 px-4 py-3 text-sm text-white" role="status" data-testid="undo-bar">
+      <span className="min-w-0">{undo.text}</span>
+      <span className="flex shrink-0 items-center gap-3"><button type="button" onClick={undoIt} className="font-semibold underline underline-offset-4" data-testid="undo">Undo</button><button type="button" onClick={() => setUndo(null)} aria-label="Dismiss" className="text-white/60 hover:text-white">&times;</button></span>
+    </div>}
+    <Segmented label="Kitchen plan" value={view} onChange={setView} options={[{ id: "week", label: "Week" }, { id: "groceries", label: `Groceries${t.lines.filter((l) => !l.have).length ? ` (${t.lines.filter((l) => !l.have).length})` : ""}` }, { id: "inventory", label: "Inventory" }, { id: "people", label: "People" }]} />
 
     {view === "week" && <>
       {ideas.length > 0 && <section className="space-y-2" aria-label="Ways to save">
@@ -57,10 +72,20 @@ export default function KitchenPlan({ family, setFamily, makeId, say }: SectionP
         </Card>)}
         {ideas.length > 2 && <button type="button" onClick={() => setAllTips((v) => !v)} className={link}>{allTips ? "Show fewer" : `${ideas.length - 2} more way${ideas.length - 2 === 1 ? "" : "s"} to save`}</button>}
       </section>}
-      {planned === 0 && <Card className="p-6 text-center"><p className="text-sm text-slate-500">Nothing planned yet. Pick a day below and add a meal.</p></Card>}
+      <div className="flex gap-2">
+        <button type="button" onClick={() => setPlanner("mon")} className={`${btn} flex-1`} data-testid="plan-week">{planned ? "Edit the week" : "Plan the week"}</button>
+        {planned > 0 && <button type="button" onClick={() => setClearing(true)} className={ghost} data-testid="clear-meals">Clear meals</button>}
+      </div>
+      {dupes > 0 && <Card className="flex flex-wrap items-center justify-between gap-3 border-amber-200 bg-amber-50 p-4" data-testid="dupes-banner">
+        <p className="min-w-0 flex-1 text-sm text-amber-950"><span className="font-semibold">{dupes} meal{dupes === 1 ? " was" : "s were"} added twice.</span> The same dish in the same meal more than once.</p>
+        <button type="button" onClick={() => { change(`Removed ${dupes} extra meal${dupes === 1 ? "" : "s"}.`, removeDuplicates); }} className={ghost}>Remove extras</button>
+      </Card>}
+      {planned === 0 && <Card className="p-6 text-center"><p className="text-sm text-slate-500">Nothing planned yet. Tap Plan the week to set breakfast, lunch and dinner for every day in one place.</p></Card>}
       <div className="space-y-3">
         {WEEK.map((day) => { const meals = K_SLOTS.flatMap((s) => (k.week[cell(day, s.id)] ?? []).map((m) => ({ slot: s, m }))); return <Card key={day} className="p-4">
-          <div className="flex items-center justify-between"><h3 className="text-base font-semibold text-slate-900">{DAY_LABEL[day]}</h3><button type="button" onClick={() => setPicker({ day, slot: "dinner" })} className={link}>Add meal</button></div>
+          <div className="flex items-center justify-between gap-3"><h3 className="text-base font-semibold text-slate-900">{DAY_LABEL[day]}</h3>
+            <span className="flex items-center gap-4">{meals.length > 1 && <button type="button" onClick={() => change(`Cleared ${DAY_LABEL[day]}.`, (x) => clearMeals(x, { days: [day] }))} className="text-xs font-medium text-slate-400 hover:text-rose-600">Clear day</button>}
+              <button type="button" onClick={() => setPlanner(day)} className={link}>{meals.length ? "Edit" : "Add meals"}</button></span></div>
           {meals.length > 0 && <ul className="mt-2 divide-y divide-slate-100">{meals.map(({ slot, m }) => { const d = dishOf(k, m.dish); const who = peopleIn(k, m); const out = takeoutOf(k, m.dish); return <li key={m.id}>
             <button type="button" onClick={() => setMeal({ key: cell(day, slot.id), meal: m })} className="flex w-full items-center gap-3 py-2.5 text-left">
               <span className="w-20 shrink-0 text-xs font-semibold uppercase tracking-wider text-slate-400">{SLOT_ONE[slot.id]}</span>
@@ -74,15 +99,21 @@ export default function KitchenPlan({ family, setFamily, makeId, say }: SectionP
       {planned > 0 && <button type="button" onClick={() => setView("groceries")} className={`${btn} w-full`}>See the grocery list &middot; {money(t.total)}</button>}
     </>}
 
-    {view === "groceries" && <Groceries k={k} setK={setK} t={t} token={token} connected={connected} onProduct={setProduct} say={say} send={() => {
+    {view === "groceries" && <Groceries k={k} setK={setK} t={t} token={token} connected={connected} onProduct={setProduct} say={say}
+      onBought={() => { change("Added what you bought to your inventory.", (x) => stockUp(x)); say("Your inventory has it now, so the list is clear."); }} send={() => {
       const lines = t.lines.filter((l) => !l.have && l.packs > 0);
       setFamily((f) => ({ ...f, groceries: [...f.groceries.filter((g) => !g.id.startsWith(PLAN_TAG) || g.checked), ...lines.map((l) => ({ id: `${PLAN_TAG}${makeId()}`, name: `${l.group.name}: ${buyText(l.buy)}`.slice(0, 80), qty: `${l.packs} pk`.slice(0, 20), aisle: guessAisle(l.group.name), checked: false, price: l.cost }))] }));
       say(`${lines.length} items on your shopping list. Total ${money(t.groceries)}.`);
     }} />}
 
-    {view === "people" && <People k={k} setK={setK} connected={connected} token={token} makeId={makeId} />}
+    {view === "inventory" && <Inventory k={k} setK={setK} onShop={() => setView("groceries")} />}
 
-    {picker && <DishPicker k={k} setK={setK} day={picker.day} slot={picker.slot} makeId={makeId} onClose={() => setPicker(null)} onEdit={setEditing} />}
+    {view === "people" && <People k={k} setK={setK} connected={connected} token={token} makeId={makeId} onClear={() => setClearing(true)} />}
+
+    {planner && <WeekPlanner k={k} setK={setK} startDay={planner} makeId={makeId} onClose={() => setPlanner(null)} onSaved={(n) => say(`Saved. ${n} meal${n === 1 ? "" : "s"} this week.`)} />}
+    {clearing && <ClearMeals k={k} onClose={() => setClearing(false)}
+      onDedupe={() => change(`Removed ${dupes} extra meal${dupes === 1 ? "" : "s"}.`, removeDuplicates)}
+      onClear={(scope, cooked) => { const n = countMeals(k, scope); change(`Cleared ${n} meal${n === 1 ? "" : "s"}.`, (x) => clearMeals(cooked ? useUp(x, scope) : x, scope)); }} />}
     {meal && <MealSheet k={k} setK={setK} at={meal.key} meal={meal.meal} onClose={() => setMeal(null)} onEdit={(id) => setEditing(id)} />}
     {editing && <DishEditor k={k} setK={setK} dishId={editing} onClose={() => setEditing(null)} onProduct={setProduct} />}
     {product && <ProductChooser k={k} setK={setK} group={product} need={lineNeed(product)} token={token} connected={connected} makeId={makeId} onClose={() => setProduct(null)} />}
@@ -109,7 +140,7 @@ function MealSheet({ k, setK, at, meal, onClose, onEdit }: { k: Kitchen; setK: (
   </Modal>;
 }
 
-function Groceries({ k, setK, t, token, connected, onProduct, send, say }: { k: Kitchen; setK: (fn: (k: Kitchen) => Kitchen) => void; t: ReturnType<typeof totals>; token: string | null; connected: boolean; onProduct: (g: string) => void; send: () => void; say: (m: string) => void }) {
+function Groceries({ k, setK, t, token, connected, onProduct, send, onBought, say }: { k: Kitchen; setK: (fn: (k: Kitchen) => Kitchen) => void; t: ReturnType<typeof totals>; token: string | null; connected: boolean; onProduct: (g: string) => void; send: () => void; onBought: () => void; say: (m: string) => void }) {
   const [busy, setBusy] = useState(false);
   const buy = t.lines.filter((l) => !l.have), home = t.lines.filter((l) => l.have);
   const storeIds = [...new Set(t.lines.flatMap((l) => l.buy.map((b) => b.product.storeId)).filter(Boolean) as string[])];
@@ -133,10 +164,10 @@ function Groceries({ k, setK, t, token, connected, onProduct, send, say }: { k: 
         <button type="button" onClick={() => onProduct(l.group.id)} className="min-w-0 flex-1 text-left">
           <span className="block text-[15px] font-semibold text-slate-900">{l.group.name}</span>
           <span className="block text-sm text-slate-600">{buyText(l.buy) === l.group.name ? `${l.packs} from produce` : buyText(l.buy)}</span>
-          <span className="block text-xs text-slate-400">Need {amountText(l.need, l.group)}{l.left > 0.009 ? ` · ${amountText(l.left, l.group)} left over` : ""} &middot; {[...new Set(l.uses.map((u) => u.dish.name))].slice(0, 3).join(", ")}</span>
+          <span className="block text-xs text-slate-400">{l.uses.length ? `Need ${amountText(l.need, l.group)}` : `Keep at least ${amountText(l.keep, l.group)}`}{l.tracked ? ` · have ${amountText(l.onHand, l.group)}, buying ${amountText(l.short, l.group)}` : ""}{l.left > 0.009 ? ` · ${amountText(l.left, l.group)} left over` : ""}{l.uses.length ? ` · ${[...new Set(l.uses.map((u) => u.dish.name))].slice(0, 3).join(", ")}` : " · running low"}</span>
         </button>
         <div className="shrink-0 text-right"><span className="block text-[15px] font-semibold tabular-nums text-slate-900">{money(l.cost)}</span>
-          <button type="button" onClick={() => setK((x) => ({ ...x, have: { ...x.have, [l.group.id]: true } }))} className="text-[11px] text-slate-400 underline underline-offset-2 hover:text-slate-900">Have it</button></div>
+          <button type="button" onClick={() => setK((x) => (l.tracked ? setStock(x, l.group.id, l.need + l.keep) : { ...x, have: { ...x.have, [l.group.id]: true } }))} className="text-[11px] text-slate-400 underline underline-offset-2 hover:text-slate-900">Have it</button></div>
       </li>)}</ul>
     </section>)}
     {t.take.length > 0 && <section><p className={`${label} mb-1`}>Takeout</p>
@@ -148,6 +179,7 @@ function Groceries({ k, setK, t, token, connected, onProduct, send, say }: { k: 
     {buy.length > 0 && <div className="sticky bottom-3 rounded-2xl bg-slate-900 p-4 text-white shadow-lg">
       <div className="flex items-center justify-between gap-3"><span><span className="block text-xs text-white/60">Groceries</span><span className="text-2xl font-semibold tabular-nums">{money(t.groceries)}</span></span>
         <button type="button" onClick={send} className="rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-900">Send to shopping list</button></div>
+      <button type="button" onClick={onBought} className="mt-3 text-xs font-medium text-white/70 underline underline-offset-2 hover:text-white" data-testid="bought-all">Bought it all? Put it in your inventory</button>
     </div>}
   </div>;
 }
@@ -180,11 +212,11 @@ function StorePicker({ k, setK, connected, token }: { k: Kitchen; setK: (fn: (k:
   </div>;
 }
 
-function People({ k, setK, connected, token, makeId }: { k: Kitchen; setK: (fn: (k: Kitchen) => Kitchen) => void; connected: boolean; token: string | null; makeId: () => string }) {
+function People({ k, setK, connected, token, makeId, onClear }: { k: Kitchen; setK: (fn: (k: Kitchen) => Kitchen) => void; connected: boolean; token: string | null; makeId: () => string; onClear: () => void }) {
   return <div className="space-y-8">
     <section><p className={label}>Who's eating</p><p className="mb-3 mt-1 text-sm text-slate-500">Each person's portion sets how much of every dish they eat. Give someone their own amount of one thing (4 cookies, say) in that dish's ingredients.</p><PeopleRows k={k} setK={setK} makeId={makeId} /></section>
     <section><p className={label}>Your store</p><div className="mt-2"><StorePicker k={k} setK={setK} connected={connected} token={token} /></div></section>
-    <section className="border-t border-slate-100 pt-4"><button type="button" onClick={() => setK((x) => ({ ...x, week: {} }))} className="text-sm font-semibold text-rose-600">Clear this week's meals</button></section>
+    <section className="border-t border-slate-100 pt-4"><button type="button" onClick={onClear} className="text-sm font-semibold text-rose-600">Clear meals</button></section>
   </div>;
 }
 
