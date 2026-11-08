@@ -44,3 +44,8 @@ test("iPad notes: a New note button is always visible, the dock + works while No
   assert.match(rd("client/src/components/arise-notes/NotesApp.tsx"), /dispatchEvent\(new Event\("arise-notes-new"\)\)/);
   assert.match(rd("client/src/components/arise-notes/pages/SwipeItem.tsx"), /display: x === 0 && !anim \? "none"/);
 });
+
+test("New note is a labelled button in the list header, well above the bottom bar", () => {
+  const view = readFileSync(new URL("../client/src/components/arise-notes/pages/PagesView.tsx", import.meta.url), "utf8");
+  assert.match(view, /data-testid="pages-new-quick"><SquarePen[^>]*\/>New note<\/button>/);
+});

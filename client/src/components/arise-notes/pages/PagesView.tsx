@@ -156,6 +156,7 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
         <input className="an-input an-bare an-search-input" style={{ height: "3rem", borderRadius: 999, paddingLeft: "2.9rem" }} placeholder="Search notes and handwriting" value={q} onChange={(e) => setQ(e.target.value)} data-testid="pages-search" />
       </label>
       {filter.kind !== "trash" && <div className="an-scroll -mx-4 flex gap-2 overflow-x-auto px-4">
+        <button type="button" className="pp-quick" onClick={() => create(PAGE_TEMPLATES[0])} data-testid="pages-new-quick"><SquarePen className="h-4 w-4" />New note</button>
         <button type="button" className="pp-quick" onClick={() => create(PAGE_TEMPLATES.find((t) => t.id === "ink-lined")!)} data-testid="pages-new-ink"><PenLine className="h-4 w-4" />Handwrite</button>
         <button type="button" className="pp-quick" onClick={() => setSheet("new")} data-testid="pages-templates"><LayoutTemplate className="h-4 w-4" />Templates</button>
       </div>}
