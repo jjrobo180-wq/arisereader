@@ -35,7 +35,7 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
     if (!isEyeGazer || !token) return;
     let active = true;
     void fetchFamilySettings(token).then(result => {
-      if (active) setParentControls(result.settings);
+      if (active && result?.settings) setParentControls(result.settings);
     }).catch(() => {});
     const handler = (event: Event) => {
       const detail = (event as CustomEvent<ParentControls>).detail;
