@@ -1,0 +1,63 @@
+name: App Store listing (A.R.I.S.E. Reader)
+# Fills in A.R.I.S.E. Reader's App Store listing: makes the App Review sample account, takes the
+# screenshots on the real site, and sends the text, category, age rating, price and screenshots to
+# App Store Connect (.github/scripts/app_store_fill.py). Doesn't submit: app-store-submit.yml does that.
+on:
+  workflow_dispatch:
+    inputs:
+      demo_pass:
+        description: Password for the App Review sample account
+        required: true
+      contact_first: { description: App Review contact first name, required: false, default: "" }
+      contact_last: { description: App Review contact last name, required: false, default: "" }
+      contact_phone: { description: App Review contact phone, required: false, default: "" }
+      contact_email: { description: App Review contact email, required: false, default: "" }
+jobs:
+  fill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: app-store
+    permissions:
+      contents: write
+    env:
+      DEMO_USER: sample-appreview
+      DEMO_PASS: ${{ github.event.inputs.demo_pass }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: The App Review sample account (made once; signing in proves the password)
+        run: |
+          echo "::add-mask::$DEMO_PASS"
+          body=$(jq -nc --arg u "$DEMO_USER" --arg p "$DEMO_PASS" '{username:$u,password:$p,displayName:"Sample Reader",independent:true,gradeLevel:"3"}')
+          code=$(curl -sS -o reg.json -w "%{http_code}" -X POST https://arisetodo.com/api/register -H "Content-Type: application/json" -d "$body")
+          echo "register: $code $(jq -c '{message}' reg.json 2>/dev/null)"
+          login=$(curl -sS -o login.json -w "%{http_code}" -X POST https://arisetodo.com/api/login -H "Content-Type: application/json" -d "$(jq -nc --arg u "$DEMO_USER" --arg p "$DEMO_PASS" '{username:$u,password:$p}')")
+          echo "sign in: $login $(jq -c '{message, role: .user.role}' login.json 2>/dev/null)"
+          [[ "$login" == "200" ]] || { echo "::error::The sample account can't sign in"; exit 1; }
+      - name: Screenshots on the real site
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.56.1
+          npx playwright install --with-deps chromium
+          node script/readerStoreShots.mjs
+          ls -la store-shots
+      - uses: actions/upload-artifact@v4
+        with: { name: store-shots, path: store-shots }
+      - name: Screenshots to the store-shots branch (to look at)
+        if: always()
+        working-directory: store-shots
+        run: |
+          git init -q -b store-shots
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com add -A
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -qm "Reader App Store screenshots" || exit 0
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" store-shots
+      - name: App Store Connect
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          CONTACT_FIRST: ${{ github.event.inputs.contact_first }}
+          CONTACT_LAST: ${{ github.event.inputs.contact_last }}
+          CONTACT_PHONE: ${{ github.event.inputs.contact_phone }}
+          CONTACT_EMAIL: ${{ github.event.inputs.contact_email }}
+        run: python3 .github/scripts/app_store_fill.py
