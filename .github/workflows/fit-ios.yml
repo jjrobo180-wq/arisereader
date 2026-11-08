@@ -208,7 +208,7 @@ jobs:
           APP_PROFILE="$PROFILE_NAME" WIDGET_PROFILE="$WIDGET_PROFILE_NAME" ruby ../../.github/scripts/add_widget.rb ios/App/App.xcodeproj com.arisereader.fit "$(cat widgets.json)" ff5a1f
           # The Apple Watch app goes inside the iPhone app; the Apple TV app is archived on its own below.
           if [[ -n "${WATCH_PROFILE_NAME:-}" ]]; then
-            (cd ../.. && COMPANION_PROFILE="$WATCH_PROFILE_NAME" ruby .github/scripts/add_companion.rb "$OLDPWD/ios/App/App.xcodeproj" --kind watch --name FitWatch --display "Arise Fit" --host com.arisereader.fit --sources native/watch-kit/AriseWatchLink.swift,native/fit-watch/FitWatchApp.swift --icon client/public/app-icons/fit-1024.png --embed --healthkit)
+            (cd ../.. && COMPANION_PROFILE="$WATCH_PROFILE_NAME" ruby .github/scripts/add_companion.rb "$OLDPWD/ios/App/App.xcodeproj" --kind watch --name FitWatch --display "Arise Fit" --host com.arisereader.fit --sources native/watch-kit/AriseWatchLink.swift,native/fit-watch/FitWatchApp.swift --resources native/fit-tv/sessions.json --icon client/public/app-icons/fit-1024.png --embed --healthkit)
             echo "WATCH_ADDED=1" >> "$GITHUB_ENV"
           fi
           if [[ -n "${TV_PROFILE_NAME:-}" ]]; then

@@ -4,10 +4,11 @@ import { useState, type FormEvent } from "react";
 import { Tv, Check } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
+import { tvCodeFromAddress } from "@/lib/tvCode";
 
 export default function TvLink() {
   const { user, token } = useAuth();
-  const [code, setCode] = useState(() => new URLSearchParams(window.location.search).get("code")?.toUpperCase().slice(0, 6) ?? "");
+  const [code, setCode] = useState(() => tvCodeFromAddress(window.location));
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
@@ -33,7 +34,7 @@ export default function TvLink() {
         {!user ? (
           <>
             <p className="mt-2 text-slate-600">Sign in to Arise Duo here first, then type the code your TV is showing.</p>
-            <a className="mt-6 inline-flex rounded-xl bg-slate-900 px-5 py-3 font-semibold text-white" href="/signin" onClick={() => { try { sessionStorage.setItem("tv_link_code", code); } catch { /* comes back without the code */ } }}>Sign in</a>
+            <a className="mt-6 inline-flex rounded-xl bg-slate-900 px-5 py-3 font-semibold text-white" href="#/signin" onClick={() => { try { sessionStorage.setItem("tv_link_code", code); } catch { /* comes back without the code */ } }}>Sign in</a>
           </>
         ) : done ? (
           <div className="mt-4 flex items-start gap-3 rounded-2xl bg-emerald-50 p-4 text-emerald-900">

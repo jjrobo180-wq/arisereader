@@ -1,0 +1,105 @@
+// The Apple TV and Apple Watch apps (November 2026).
+// - arisetodo.com/tv, the sign-in page the Arise Duo TV app sends you to, opened the home page instead: the
+//   app's pages live after the "#", and nothing sent the bare address there.
+// - Arise Fit on Apple TV showed its title over an empty screen: native/fit-tv/sessions.json, the workouts it
+//   plays, had been committed empty.
+// - Arise Duo on Apple TV now has the phone's layout, so the TV's summary carries everything the phone's Home shows.
+// Run with: npx tsx --test tests/tv-and-watch.test.ts
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { tvSummary } from "../server/tvLink";
+import { tvCodeFromAddress } from "../client/src/lib/tvCode";
+import { SESSIONS } from "../shared/fitSessions";
+
+const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+
+test("arisetodo.com/tv opens the page for typing the TV's code, keeping a code in the address", () => {
+  const main = read("client/src/main.tsx");
+  assert.match(main, /\} else if \(path === "\/tv"\) \{/);
+  assert.match(main, /const appPath = \/\^\(www\\\.\)\?arisetodo\\\.com\$\/i\.test\(window\.location\.hostname\) \? "\/app" : "\/";/);
+  assert.match(main, /window\.history\.replaceState\(null, "", `\$\{appPath\}#\/tv\$\{code \? `\?code=\$\{encodeURIComponent\(code\)\}` : ""\}`\);/);
+  // Signing in first goes to the app's sign-in page (after the "#"), not the bare /signin address.
+  assert.match(read("client/src/pages/TvLink.tsx"), /href="#\/signin"/);
+});
+
+test("the code is read from after the # (where the QR code and signing in land) or before it", () => {
+  assert.equal(tvCodeFromAddress({ search: "", hash: "#/tv?code=k7qx2m" }), "K7QX2M");
+  assert.equal(tvCodeFromAddress({ search: "?code=B9C-DFG", hash: "#/tv" }), "B9CDFG");
+  assert.equal(tvCodeFromAddress({ search: "", hash: "#/tv" }), "");
+  assert.equal(tvCodeFromAddress({ search: "", hash: "#/tv?code=ABCDEFGH" }), "ABCDEF");
+});
+
+const workspace = {
+  lists: [{ id: "l1", name: "Home" }],
+  tasks: [
+    { id: "t1", title: "Take out trash", due: "2026-11-07", listId: "l1", done: false, priority: "high" },
+    { id: "t2", title: "Done already", due: "2026-11-07", done: true },
+    { id: "t3", title: "Way later", due: "2026-12-30", done: false },
+  ],
+  family: {
+    members: [{ id: "m1", name: "Ava", emoji: "🦄", color: "#f472b6", kind: "kid" }],
+    chores: [{ id: "c1", title: "Feed dog", memberId: "m1", rotation: [], days: [0, 1, 2, 3, 4, 5, 6], points: 2 }],
+    events: [{ id: "e1", title: "Soccer", date: "2026-11-07", time: "17:00", calendarId: "family", memberIds: ["m1"], repeat: "none" }],
+    bills: [{ id: "b1", name: "Rent", amount: 1200, dueDay: 10, paid: [] }],
+    notes: [{ id: "n1", title: "Wifi", body: "SmithHouse", pinned: true }, { id: "n2", title: "Locker code", body: "1234", pinned: true, locked: true }],
+  },
+};
+
+test("the TV gets what the phone's Home shows, and never a note behind the passcode", () => {
+  const s = tvSummary(workspace, "2026-11-07", "Jeremy");
+  // What the first TV app read is still there, the same shape.
+  assert.equal(s.name, "Jeremy");
+  assert.deepEqual(s.tasks.map((t) => t.id), ["t1"]);
+  assert.equal(s.tasks[0].list, "Home");
+  assert.equal(s.tasks[0].priority, "high");
+  assert.equal(s.events[0].title, "Soccer");
+  assert.deepEqual(s.events[0].people, [{ name: "Ava", emoji: "🦄", color: "#f472b6" }]);
+  assert.deepEqual(s.chores.map((c) => [c.title, c.who, c.done]), [["Feed dog", "Ava", false]]);
+  // And the rest of Home.
+  assert.deepEqual(s.lists, [{ id: "l1", name: "Home" }]);
+  assert.equal(s.sections.calendar, true);
+  assert.deepEqual(s.bills.map((b) => [b.name, b.due, b.late]), [["Rent", "2026-11-10", false]]);
+  assert.deepEqual(s.billsPaid, { paid: 0, total: 1 });
+  assert.deepEqual(s.notes.map((n) => n.title), ["Wifi"]);
+  assert.equal(JSON.stringify(s).includes("1234"), false);
+});
+
+test("a part switched off on the phone stays off on the TV", () => {
+  const off = { ...workspace, family: { ...workspace.family, sections: { calendar: false, chores: false, money: false, notes: false } } };
+  const s = tvSummary(off, "2026-11-07");
+  assert.deepEqual([s.events.length, s.chores.length, s.bills.length, s.notes.length], [0, 0, 0, 0]);
+  assert.equal(s.billsPaid, null);
+});
+
+test("Arise Fit's TV and watch apps have every guided session to play", () => {
+  const file = JSON.parse(read("native/fit-tv/sessions.json"));
+  assert.ok(file.length > 0, "sessions.json isn't empty");
+  assert.deepEqual(file, JSON.parse(JSON.stringify(SESSIONS)), "sessions.json matches shared/fitSessions.ts (npx tsx script/exportFitSessions.ts)");
+  // Bundled into the TV app and the watch app, in the signed builds and the simulator check.
+  for (const wf of [".github/workflows/fit-ios.yml", ".github/workflows/companions-sim.yml"]) {
+    const y = read(wf);
+    assert.match(y, /--name FitTV [^\n]*--resources native\/fit-tv\/sessions\.json/, `${wf}: TV`);
+    assert.match(y, /--name FitWatch [^\n]*--resources native\/fit-tv\/sessions\.json/, `${wf}: watch`);
+  }
+  // A session the app can't read is skipped, never the whole list.
+  assert.match(read("native/fit-tv/FitTVApp.swift"), /decode\(\[FitLenient\]\.self/);
+  assert.match(read("native/fit-watch/FitWatchApp.swift"), /decode\(\[GuidedLenient\]\.self/);
+});
+
+test("the Duo watch gets today's events and chores, and a chore checked off there is saved", () => {
+  const app = read("client/src/pages/AriseTodo.tsx");
+  assert.match(app, /publishWatch\(\{ today: currentDay, name: [^\n]*, events, chores \}\);/);
+  assert.match(app, /else if \(a\.type === "chore" && typeof a\.id === "string"\) \{/);
+  assert.match(app, /return c && choreDueOn\(c, day\) \? toggleChore\(f, c, day, makeId\) : f;/);
+  assert.match(read("native/duo-watch/DuoWatchApp.swift"), /link\.send\(\["type": "chore", "id": c\.id\]\)/);
+});
+
+test("the Duo TV app reads the new summary fields as optional, so an older server still works", () => {
+  const tv = read("native/duo-tv/DuoTVApp.swift");
+  for (const f of ["members", "lists", "sections", "bills", "billsPaid", "stars", "polls", "trip", "goals", "notes"]) {
+    assert.match(tv, new RegExp(`let ${f}: [^\\n]*\\?\\n`), f);
+  }
+  // The QR code opens the sign-in page with the TV's code filled in.
+  assert.match(tv, /DuoQR\.image\("https:\/\/arisetodo\.com\/tv\?code=\\\(code\)"\)/);
+});

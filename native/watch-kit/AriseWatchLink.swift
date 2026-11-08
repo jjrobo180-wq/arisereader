@@ -51,6 +51,9 @@ final class AriseWatchLink: NSObject, ObservableObject, WCSessionDelegate {
         }
     }
 
+    /** Shows `obj` without the phone: only for the simulator screenshots (launched with -watchSample YES). */
+    func preview(_ obj: [String: Any]) { payload = obj; updated = Date() }
+
     // Reading the payload
     func list(_ name: String) -> [[String: Any]] { payload[name] as? [[String: Any]] ?? [] }
     func text(_ name: String) -> String { payload[name] as? String ?? "" }

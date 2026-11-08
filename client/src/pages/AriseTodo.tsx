@@ -90,7 +90,7 @@ import { LEARNING_APPS, LearningIcon, openLearning, useLearningAccess } from "@/
 import { PlanCard, UpgradeHost, appsBlocked, appsFull, openUpgrade, useTodoPlan } from "@/components/hub-pieces/TodoPlan";
 import { parentOf } from "@shared/appBundles";
 import { appsIn, countsAsApp, FREE_APPS } from "@shared/todoPlan";
-import { addDays, eventsOn, cleanFamily, cleanSectionOrder, emptyFamily, FAMILY_SECTIONS, isCurrentFamily, isOn, orderedToggleable, TOGGLEABLE, ADD_ON_SECTIONS, type Family, type FamilySection } from "@shared/familyHub";
+import { addDays, eventsOn, choreDoneOn, choreDueOn, choreOwner, toggleChore, cleanFamily, cleanSectionOrder, emptyFamily, FAMILY_SECTIONS, isCurrentFamily, isOn, orderedToggleable, TOGGLEABLE, ADD_ON_SECTIONS, type Family, type FamilySection } from "@shared/familyHub";
 import FamilyHome from "@/components/family-hub/FamilyHome";
 import Chores from "@/components/family-hub/Chores";
 import Behavior from "@/components/family-hub/Behavior";
@@ -1004,8 +1004,12 @@ export default function AriseTodo() {
     const open = data.tasks.filter(t => !t.archived);
     const soon = open.filter(t => !t.done).sort((a, b) => (a.due || "9999").localeCompare(b.due || "9999")).slice(0, 60);
     const doneToday = open.filter(t => t.done).slice(-15);
-    publishWatch({ today: currentDay, tasks: [...soon, ...doneToday].map(t => ({ id: t.id, title: t.title.slice(0, 120), due: t.due || "", time: t.time || "", done: !!t.done, list: listName(t.listId) })) });
-  }, [data.tasks, data.lists, currentDay]);
+    // Today's events and chores too (the watch shows them under the tasks and checks chores off).
+    const member = new Map(family.members.map((m) => [m.id, m]));
+    const events = isOn("calendar", family) ? [0, 1, 2].flatMap((n) => { const day = addDays(currentDay, n); return eventsOn(family, day, true).map((e) => ({ date: day, title: e.title.slice(0, 80), time: e.time || "", location: (e.location || "").slice(0, 60) })); }).slice(0, 20) : [];
+    const chores = isOn("chores", family) ? family.chores.filter((c) => choreDueOn(c, currentDay)).slice(0, 30).map((c) => { const who = member.get(choreOwner(c, currentDay)); return { id: c.id, title: c.title.slice(0, 80), who: who?.name || "", emoji: who?.emoji || "", points: c.points, done: !!choreDoneOn(family, c.id, currentDay) }; }) : [];
+    publishWatch({ today: currentDay, name: (user?.displayName || "").split(" ")[0], tasks: [...soon, ...doneToday].map(t => ({ id: t.id, title: t.title.slice(0, 120), due: t.due || "", time: t.time || "", done: !!t.done, list: listName(t.listId) })), events, chores });
+  }, [data.tasks, data.lists, currentDay, family, user?.displayName]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!user) return;
     return watchActions((actions) => {
@@ -1014,6 +1018,10 @@ export default function AriseTodo() {
         else if (a.type === "add" && typeof a.title === "string" && a.title.trim()) {
           const title = a.title.trim().slice(0, 300), due = typeof a.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(a.due) ? a.due : "";
           setData((p) => ({ ...p, tasks: [...p.tasks, { id: makeId(), title, notes: "", listId: p.lists[0]?.id || "", assignee: "", due, time: "", priority: "normal", repeat: "none", done: false, createdAt: new Date().toISOString() } as Task] }));
+        }
+        else if (a.type === "chore" && typeof a.id === "string") {
+          // A chore checked off (or un-checked) on the watch, for today.
+          setFamily((f) => { const c = f.chores.find((x) => x.id === a.id); const day = today(); return c && choreDueOn(c, day) ? toggleChore(f, c, day, makeId) : f; });
         }
       }
     });

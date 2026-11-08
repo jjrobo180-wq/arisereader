@@ -14,7 +14,7 @@
  */
 import { randomBytes, randomInt } from "node:crypto";
 import type { Express, Response } from "express";
-import { choreDoneOn, choreDueOn, choreOwner, cleanFamily, eventsOn, type Family } from "../shared/familyHub";
+import { billDue, billState, choreDoneOn, choreDueOn, choreOwner, cleanFamily, daysBetween, eventsOn, isOn, money, starBalance, tally, type Family, type Goal, type Poll } from "../shared/familyHub";
 
 type Auth = (req: any, res: Response, next: any) => unknown;
 type Pending = { code: string; poll: string; app: string; expiresAt: number; userId?: number; token?: string; name?: string };
@@ -85,26 +85,59 @@ export function registerTvLinkRoutes(app: Express, auth: Auth, deps: {
 
 const addDays = (day: string, n: number) => { const d = new Date(`${day}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 
-/** What the TV shows. Pure, so it's tested. */
+// The same rules as the phone's Home (client/src/components/family-hub/Polls.tsx and Goals.tsx).
+const pollOpen = (p: Poll, today: string) => !p.closed && (!p.closesOn || p.closesOn >= today);
+const goalProgress = (g: Goal) => g.done ? 1 : g.kind === "steps" ? (g.milestones.length ? g.milestones.filter((m) => m.done).length / g.milestones.length : 0) : g.target > 0 ? Math.max(0, Math.min(1, g.current / g.target)) : 0;
+
+/** What the TV shows: the phone's Home (greeting, the four counts, Agenda, Chores, then Bills, Stars, Polls,
+ *  the next trip, Goals and pinned Notes), its Tasks screen and the week. Pure, so it's tested.
+ *  The first fields are what the first TV app read; everything after `chores` was added for the phone's layout. */
 export function tvSummary(workspace: any, day: string, name = "") {
   const ws = workspace && typeof workspace === "object" ? workspace : {};
   const family: Family = cleanFamily(ws.family ?? {});
+  const on = (s: Parameters<typeof isOn>[0]) => isOn(s, family);
   const member = new Map(family.members.map((m) => [m.id, m]));
-  const listName = new Map((Array.isArray(ws.lists) ? ws.lists : []).map((l: any) => [String(l?.id), String(l?.name || "")]));
+  const person = (id: string) => { const m = member.get(id); return m ? { name: m.name, emoji: m.emoji, color: m.color } : null; };
+  const calColor = new Map(family.calendars.map((c) => [c.id, c.color]));
+  const lists = (Array.isArray(ws.lists) ? ws.lists : []).filter((l: any) => l && l.id != null).map((l: any) => ({ id: String(l.id), name: String(l.name || "").slice(0, 60) }));
+  const listName = new Map(lists.map((l: { id: string; name: string }) => [l.id, l.name]));
   const week = addDays(day, 7);
-  const tasks = (Array.isArray(ws.tasks) ? ws.tasks : []).filter((t: any) => t && !t.archived && !t.done && typeof t.title === "string")
-    .filter((t: any) => !t.due || t.due <= week)
-    .sort((a: any, b: any) => (a.due || "9999").localeCompare(b.due || "9999") || String(a.time || "99").localeCompare(String(b.time || "99")))
-    .slice(0, 40)
+  const open = (Array.isArray(ws.tasks) ? ws.tasks : []).filter((t: any) => t && !t.archived && !t.done && typeof t.title === "string")
+    .sort((a: any, b: any) => (a.due || "9999").localeCompare(b.due || "9999") || String(a.time || "99").localeCompare(String(b.time || "99")));
+  const tasks = open.filter((t: any) => !t.due || t.due <= week).slice(0, 80)
     .map((t: any) => ({ id: String(t.id), title: t.title.slice(0, 120), due: String(t.due || ""), time: String(t.time || ""), list: listName.get(String(t.listId)) || "",
-      who: member.get(String(t.assignee))?.name || "" }));
-  const events = Array.from({ length: 7 }, (_, i) => addDays(day, i)).flatMap((d) => eventsOn(family, d).map((e) => ({
+      who: member.get(String(t.assignee))?.name || "", listId: String(t.listId ?? ""), priority: String(t.priority || "normal") }));
+  const events = Array.from({ length: 7 }, (_, i) => addDays(day, i)).flatMap((d) => (on("calendar") ? eventsOn(family, d, true) : []).map((e) => ({
     date: d, title: e.title.slice(0, 120), time: e.time || "", endTime: e.endTime || "", location: (e.location || "").slice(0, 80),
     who: e.memberIds.map((id) => member.get(id)?.name).filter(Boolean),
+    color: calColor.get(e.calendarId) || "#94a3b8", people: e.memberIds.map(person).filter(Boolean).slice(0, 4),
   }))).slice(0, 60);
-  const chores = family.chores.filter((c) => choreDueOn(c, day)).map((c) => {
+  const chores = (on("chores") ? family.chores.filter((c) => choreDueOn(c, day)) : []).map((c) => {
     const who = member.get(choreOwner(c, day));
     return { id: c.id, title: c.title.slice(0, 80), who: who?.name || "", emoji: who?.emoji || "", color: who?.color || "", points: c.points, done: !!choreDoneOn(family, c.id, day) };
   });
-  return { name, day, members: family.members.map((m) => ({ id: m.id, name: m.name, emoji: m.emoji, color: m.color })), tasks, events, chores };
+  const month = day.slice(0, 7);
+  const nextMonth = addDays(`${month}-28`, 7).slice(0, 7);
+  const bills = on("money") ? family.bills.flatMap((b) => [month, nextMonth].map((m) => ({ b, due: billDue(b, m), state: billState(b, m, day) })))
+    .filter((x) => x.state !== "paid" && daysBetween(day, x.due) <= 7).sort((a, b) => a.due.localeCompare(b.due)).slice(0, 6)
+    .map(({ b, due, state }) => ({ name: b.name.slice(0, 60), amount: money(b.amount), due, late: state === "late" })) : [];
+  const trip = on("trips") ? [...family.trips].filter((t) => t.start && (t.end || t.start) >= day).sort((a, b) => a.start.localeCompare(b.start))[0] : undefined;
+  return {
+    name, day,
+    members: family.members.map((m) => ({ id: m.id, name: m.name, emoji: m.emoji, color: m.color })),
+    tasks, events, chores,
+    lists,
+    sections: { calendar: on("calendar"), chores: on("chores"), money: on("money"), polls: on("polls"), trips: on("trips"), goals: on("goals"), stars: on("behavior"), notes: on("notes") },
+    bills,
+    billsPaid: on("money") && family.bills.length ? { paid: family.bills.filter((b) => b.paid.includes(month)).length, total: family.bills.length } : null,
+    stars: on("behavior") ? family.members.filter((m) => m.kind === "kid").map((k) => ({ name: k.name, emoji: k.emoji, color: k.color, stars: starBalance(family, k.id).balance })) : [],
+    polls: on("polls") ? family.polls.filter((p) => pollOpen(p, day)).slice(0, 3).map((p) => {
+      const t = tally(p);
+      return { question: p.question.slice(0, 120), leading: t.leaders[0]?.label || "", waiting: family.members.filter((m) => !p.votes[m.id]).length };
+    }) : [],
+    trip: trip ? { name: trip.name.slice(0, 80), start: trip.start, daysToGo: Math.max(0, daysBetween(day, trip.start)), packed: trip.packing.filter((p) => p.packed).length, packing: trip.packing.length } : null,
+    goals: on("goals") ? family.goals.filter((g) => !g.done).slice(0, 4).map((g) => ({ title: g.title.slice(0, 80), progress: Math.round(goalProgress(g) * 100) / 100 })) : [],
+    // Notes behind the hub's passcode never go to the TV.
+    notes: on("notes") ? family.notes.filter((n) => n.pinned && !n.locked).slice(0, 4).map((n) => ({ title: n.title.slice(0, 80), body: n.body.slice(0, 240), color: n.color || "#fef3c7" })) : [],
+  };
 }

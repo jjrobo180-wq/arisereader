@@ -110,6 +110,13 @@ if (/^(www\.)?arisetodo\.com$/i.test(window.location.hostname) &&
     window.history.replaceState(null, "", "/" + window.location.search + "#/workhub");
   } else if (path === "/to-do" || path === "/todo" || path === "/arise-todo" || path === "/lifehub") {
     window.history.replaceState(null, "", "/" + window.location.search + "#/lifehub");
+  } else if (path === "/tv") {
+    // arisetodo.com/tv, the address the Apple TV apps show for signing in. The app's pages live after the "#",
+    // so the bare address opened the home page (or the hub) and never the page for typing the TV's code.
+    // On arisetodo.com the app itself is at /app ("/" there is the home page).
+    const code = new URLSearchParams(window.location.search).get("code");
+    const appPath = /^(www\.)?arisetodo\.com$/i.test(window.location.hostname) ? "/app" : "/";
+    window.history.replaceState(null, "", `${appPath}#/tv${code ? `?code=${encodeURIComponent(code)}` : ""}`);
   }
 }
 
