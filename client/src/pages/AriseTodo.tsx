@@ -405,6 +405,7 @@ export default function AriseTodo() {
       const m = /[?&]plan=([\w-]{1,40})/.exec(window.location.hash);
       if (!m) return;
       try { sessionStorage.setItem(PLAN_FOCUS_KEY, m[1]); } catch { /* it still opens AI Reminders */ }
+      dismissOverlays();
       setSection("lifeplan");
       window.dispatchEvent(new Event("arise-lifeplan-focus"));
       try { window.history.replaceState(null, "", window.location.hash.replace(/([?&])plan=[\w-]{1,40}&?/, "$1").replace(/[?&]$/, "")); } catch { /* fine */ }
@@ -429,7 +430,7 @@ export default function AriseTodo() {
       const go = params.get("go");
       if (!go) return;
       if ((FAMILY_SECTIONS as readonly string[]).includes(go)) {
-        closeApps();
+        dismissOverlays();
         // An Accountability invite or nudge: the app is turned on for them if it wasn't yet.
         if (go === "accountability" || go === "linked") setFamily((f) => (f.sections[go] ? f : { ...f, sections: { ...f.sections, [go]: true } }));
         setSection(go as FamilySection);
@@ -954,6 +955,13 @@ export default function AriseTodo() {
    *  one more app can never leave a stale one showing — which is what made tapping Home while Drop
    *  was open look like a frozen screen. */
   const closeApps = () => { setNotesAppOpenState(null); setSheetsAppOpenState(null); setDriveOpenState(false); setDropOpenState(false); setKitOpenState(null); };
+  /** A tapped notification must land on its screen, not behind whatever was open: full-page apps, the task editor (it's
+   *  kept for 12 hours and reopens by itself when the app starts), the Plugin Gallery, search, Customize and the menus. */
+  const dismissOverlays = () => {
+    closeApps();
+    reopened.current = true; setOpenTaskId(null); setEditing(null);
+    setStore(false); setCustomizing(false); setSearching(false); setAddMenu(false); setYouOpen(false); setLockSettings(false);
+  };
   // Tile theme: anything open on top of the start screen (a section, an app, the store) is "away" from Start.
   // The Start button, the phone's back button and the edge swipe all return to Home.
   const awayFromStart = tileMode && (shown !== "home" || !!notesAppOpen || !!sheetsAppOpen || driveOpen || dropOpen || !!kitOpen || store);

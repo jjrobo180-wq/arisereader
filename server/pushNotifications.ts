@@ -9,7 +9,7 @@ import { generateVapidKeys, isPushServiceUrl, sendWebPush, type PushMessage, typ
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { dueHubReminders, HUB_REMINDER_URL } from "../shared/hubReminders";
 import { normalizeWorkspace } from "../shared/teacherHub";
-import { dueTodoReminders, TODO_REMINDER_URL, type TodoReminder } from "../shared/todoReminders";
+import { dueTodoReminders, goUrl, TODO_REMINDER_URL, type TodoReminder } from "../shared/todoReminders";
 import { NEWS_TOPICS } from "../shared/todoNews";
 import { fetchHeadlines } from "./todoNews";
 import { dueNudges } from "../shared/healthNudges";
@@ -409,7 +409,7 @@ export function registerPushRoutes(app: Express, authMiddleware: RequestHandler,
     const counts = { apple: 0 };
     const delivered = await notifyUser(Number(req.user.id), which === "hub"
       ? { title: "Notifications are on", body: "You'll get reminders from your Arise WorkHub here.", url: HUB_REMINDER_URL, tag: "test" }
-      : { title: "Notifications are on", body: "You'll get reminders from Arise LifeHub here.", url: TODO_REMINDER_URL, tag: "todo-test" }, which, counts);
+      : { title: "Test reminder 💊", body: "Tap to open Pills, where you mark a dose taken.", url: goUrl("pills"), tag: "todo-test" }, which, counts);
     if (!delivered) return res.status(409).json({ message: "No phone is signed up yet. Turn notifications on first." });
     res.json({ ok: true, delivered, apple: counts.apple });
   };
