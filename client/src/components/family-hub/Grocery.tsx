@@ -1,5 +1,6 @@
 // Grocery list (a Plugin Gallery add-on): a shopping list that sorts itself by aisle.
 import { useState, type FormEvent } from "react";
+import DidYouMean from "@/components/family-hub/DidYouMean";
 import { Check, Copy, ShoppingCart, Trash2, X } from "lucide-react";
 import { AISLES, aisleOf, guessAisle } from "@shared/lifePlugins";
 import type { GroceryItem } from "@shared/familyHub";
@@ -41,6 +42,7 @@ export default function Grocery({ family, setFamily, makeId, say }: SectionProps
         <input value={qty} onChange={(e) => setQty(e.target.value)} maxLength={20} placeholder="How many" className={inputClass} aria-label="How many" />
         <button type="submit" className={primary} disabled={!name.trim()}>Add</button>
       </form>
+      <DidYouMean text={name} onPick={setName} className="mt-2" />
     </Panel>
     {open.length ? <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">{aisles.map((a) => <Panel key={a} title={a} eyebrow={`${open.filter((i) => aisleOf(i) === a).length} to get`}>
       <ul className="divide-y divide-slate-100">{open.filter((i) => aisleOf(i) === a).map((i) => <li key={i.id} className="flex items-center gap-3 py-2">

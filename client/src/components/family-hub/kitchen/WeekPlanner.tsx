@@ -4,6 +4,7 @@
 // show how much of each person's week is planned. Nothing changes until Save, and Save sets each meal rather than adding
 // on top, so a meal can never be doubled. "Copy to every day" puts the same meal on all seven days.
 import { useEffect, useMemo, useState } from "react";
+import DidYouMean from "@/components/family-hub/DidYouMean";
 import { GROUPS_SORTED, SERVING_UNITS, chosen, groupForName, groupOf, plural, productText, servingIn, servingsPer, typicalServing, DAY_LABEL, K_SLOTS, MAIN_SLOTS, MAX_WEEKS, SKIP, WEEK, allDishes, cell, dateOf, dayProgress, dishName, dropPerson, eats, foodCount, money, nWeeks, planDish, servingCost, setCells, takeoutOf, type KDay, type Kitchen, type KMeal, type KSlot } from "@shared/kitchen";
 import { Modal } from "../ui";
 import PlanProgress from "./PlanProgress";
@@ -165,6 +166,7 @@ function Chooser({ k, setK, slot, canSkip, makeId, taken, initial, onPick }: { k
         {k.people.map((p) => <button key={p.id} type="button" aria-pressed={people.includes(p.id)} onClick={() => toggle(p.id)} className={chip(people.includes(p.id))}>{p.name}</button>)}</div></div>}
     {canSkip && <button type="button" onClick={() => onPick(SKIP, people)} data-testid="skip-meal" className="mb-2 flex w-full items-center justify-between gap-2 rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-left hover:border-slate-900"><span className="text-sm font-medium text-slate-900">Skipping this meal</span><span className="text-[11px] text-slate-500">counts as planned, buys nothing</span></button>}
     <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (list[0] && q.trim()) onPick(list[0].id, people); else make(); } }} placeholder="Search, or type your own" aria-label={`Search ${SLOT_ONE[slot].toLowerCase()} dishes`} className={`${field} w-full`} />
+    <DidYouMean text={q} onPick={setQ} extra={allDishes(k).map((d) => d.name)} className="mt-1.5" />
     <ul className="mt-2 grid max-h-64 grid-cols-1 gap-1 overflow-y-auto sm:grid-cols-2">
       {shown.map((d) => { const t = takeoutOf(k, d.id); return <li key={d.id}><button type="button" onClick={() => onPick(d.id, people)} data-testid={`choose-${d.id}`} className="flex w-full items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 text-left ring-1 ring-slate-200 hover:ring-slate-900">
         <span className="min-w-0"><span className="block truncate text-sm font-medium text-slate-900">{d.name}</span><span className="block truncate text-[11px] text-slate-500">{t ? `Takeout · ${money(t.perPerson)} a person` : d.own ? "Your dish" : `${d.minutes} min · ${d.kcal} cal`}</span></span>

@@ -1,6 +1,7 @@
 // One dish: what goes in it and how much each person eats. Add or take away ingredients, pick the brand for each,
 // give someone their own amount ("Mia has 4 cookies"), switch it to takeout, or delete a dish you made.
 import { useState } from "react";
+import DidYouMean from "@/components/family-hub/DidYouMean";
 import { GROUPS_SORTED, K_SLOTS, TAKEOUT_PLACES, amountFor, atHome, defaultPer, deleteOwnDish, dishOf, groupOf, money, partsOf, productText, servingCost, shoppingLines, takeoutOf, unitWord, chosen, type Kitchen, type KPart, type KSlot } from "@shared/kitchen";
 import { Modal } from "../ui";
 import { Segmented, btn, field, label, quiet } from "./kit";
@@ -40,6 +41,7 @@ export default function DishEditor({ k, setK, dishId, onClose, onProduct }: {
   return <Modal title={dish.name} eyebrow={dish.own ? "Your dish" : "Dish"} onClose={onClose}>
     {dish.own && <div className="mb-5 space-y-3">
       <input value={dish.name} onChange={(e) => rename(e.target.value)} aria-label="Dish name" className={`${field} w-full text-base font-semibold`} />
+      <DidYouMean text={dish.name} onPick={rename} />
       <Segmented label="Meal" value={dish.slot} onChange={setSlot} options={K_SLOTS.map((s) => ({ id: s.id, label: s.label }))} />
     </div>}
     <Segmented label="How you get it" value={takeout ? "out" : "home"} onChange={(v) => setTakeout(v === "out" ? { place: "", perPerson: 12 } : undefined)} options={[{ id: "home", label: "Cook at home" }, { id: "out", label: "Takeout" }]} />
@@ -75,6 +77,7 @@ export default function DishEditor({ k, setK, dishId, onClose, onProduct }: {
       </ul>
       <div className="mt-3">
         <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Add an ingredient (cheese, rice, cookie dough)" aria-label="Add an ingredient" className={`${field} w-full`} />
+        <DidYouMean text={search} onPick={setSearch} className="mt-1.5" />
         {matches.length > 0 && <ul className="mt-1 divide-y divide-slate-100 rounded-xl border border-slate-200">{matches.map((g) => <li key={g.id}><button type="button" onClick={() => { setParts([...parts, { group: g.id, per: defaultPer(g) }]); setSearch(""); }} className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm hover:bg-slate-50"><span className="font-medium text-slate-900">{g.name}</span><span className="text-xs text-slate-400">{g.aisle}</span></button></li>)}</ul>}
         {search.trim().length > 1 && matches.length === 0 && <p className="mt-2 text-xs text-slate-400">No match on the shelf. Try a simpler word.</p>}
       </div>

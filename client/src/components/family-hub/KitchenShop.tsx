@@ -1,5 +1,6 @@
 // Kitchen's Shop page: one box, one clean checklist. Same saved list as before (family.groceries).
 import { useState, type FormEvent } from "react";
+import DidYouMean from "@/components/family-hub/DidYouMean";
 import { Check, Copy, X } from "lucide-react";
 import { AISLES, aisleOf, guessAisle } from "@shared/lifePlugins";
 import type { GroceryItem } from "@shared/familyHub";
@@ -28,6 +29,7 @@ export default function KitchenShop({ family, setFamily, makeId, say }: SectionP
       <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Add to your list (milk, eggs, bread)" className={`${inputClass} flex-1`} aria-label="Add to your list" />
       <button type="submit" disabled={!text.trim()} className="shrink-0 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white disabled:opacity-30">Add</button>
     </form>
+    <DidYouMean text={text} onPick={setText} className="-mt-3 px-1" />
     {total > 0 && <p className="px-1 text-sm font-bold text-slate-500">Estimated total <span className="text-slate-900">${total.toFixed(2)}</span></p>}
     {open.length === 0 && <p className="py-10 text-center text-sm text-slate-400">{done.length ? "All done. Enjoy!" : "Nothing on your list. Use Plan to pick meals and build it for you."}</p>}
     {aisles.map((a) => <section key={a}>
