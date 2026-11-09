@@ -58,6 +58,9 @@ export type Kitchen = {
   keep: Record<string, number>;
   /** How many weeks the plan covers: 1, 2 or 4 (a month). Meals in weeks past this are kept, just hidden. */
   weeks: number;
+  /** The last day whose meals have been taken out of the inventory ("YYYY-MM-DD"). Days pass, food gets eaten:
+   *  without this, what "Bought it all" put in the inventory would count as still at home forever. */
+  usedThrough?: string;
   /** The Monday the plan starts on (YYYY-MM-DD). Empty: the current week. */
   start: string;
   store: { id: string; name: string; zip: string } | null;
@@ -113,7 +116,7 @@ export function cleanKitchen(raw: unknown): Kitchen {
   const amounts = (v: unknown) => Object.fromEntries(Object.entries(o(v)).filter(([g, x]) => GROUP_BY_ID.has(g) && typeof x === "number" && Number.isFinite(x) && x >= 0).slice(0, 400).map(([g, x]) => [g, Math.round(Math.min(100000, x as number) * 100) / 100])) as Record<string, number>;
   const stock = amounts(r.stock), keep = Object.fromEntries(Object.entries(amounts(r.keep)).filter(([, x]) => x > 0));
   const st = o(r.store);
-  return { setup: r.setup === true, people, week, choice, prices, products, own, edits, servings, have, stock, keep, weeks: [1, 2, 4].includes(Number(r.weeks)) ? Number(r.weeks) : 1, start: typeof r.start === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.start) && !Number.isNaN(Date.parse(`${r.start}T12:00:00Z`)) ? mondayOf(r.start) : "", store: s(st.id, 40) ? { id: s(st.id, 40), name: s(st.name, 80), zip: s(st.zip, 10) } : null };
+  return { setup: r.setup === true, people, week, choice, prices, products, own, edits, servings, have, stock, keep, weeks: [1, 2, 4].includes(Number(r.weeks)) ? Number(r.weeks) : 1, ...(typeof r.usedThrough === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.usedThrough) ? { usedThrough: r.usedThrough } : {}), start: typeof r.start === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.start) && !Number.isNaN(Date.parse(`${r.start}T12:00:00Z`)) ? mondayOf(r.start) : "", store: s(st.id, 40) ? { id: s(st.id, 40), name: s(st.name, 80), zip: s(st.zip, 10) } : null };
 }
 
 // ── Looking things up ──────────────────────────────────────────────────────────────────────────────────────────
@@ -413,11 +416,36 @@ export function setKeep(k: Kitchen, group: string, amount: number): Kitchen {
   const stock = { ...k.stock }; if (amount > 0 && typeof stock[group] !== "number") stock[group] = 0;
   return { ...k, keep, stock };
 }
-/** After shopping: what was bought goes into the inventory. */
-export function stockUp(k: Kitchen, lines: KLine[] = shoppingLines(k)): Kitchen {
+/** After shopping: what was bought goes into the inventory. With today, the meals from today on use it up. */
+export function stockUp(k: Kitchen, lines: KLine[] = shoppingLines(k), today?: string): Kitchen {
   const stock = { ...k.stock };
   for (const l of lines) if (!l.have && l.got > 0) stock[l.group.id] = (stock[l.group.id] ?? 0) + l.got;
-  return { ...k, stock: amountsOut(stock) };
+  return { ...k, stock: amountsOut(stock), ...(today && /^\d{4}-\d{2}-\d{2}$/.test(today) ? { usedThrough: addDays(today, -1) } : {}) };
+}
+const dayNum = (d: string) => Math.round(Date.parse(`${d}T12:00:00Z`) / 86400_000);
+/** The plan's cell for a date. The plan repeats: a one-week plan is every week, a 2- or 4-week plan cycles. */
+export function cellOn(k: Kitchen, date: string, today: string): { day: KDay; wk: number } {
+  const off = dayNum(date) - dayNum(planStart(k, today)), n = nWeeks(k);
+  return { day: WEEK[((off % 7) + 7) % 7], wk: (((Math.floor(off / 7)) % n) + n) % n };
+}
+/** Days that have gone by: their meals come out of the inventory (only ingredients it counts), so food that was
+ *  eaten goes back on the list. A plan saved before this was tracked counts back one plan length at most. */
+export function useUpPast(k: Kitchen, today: string): Kitchen {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(today)) return k;
+  const yesterday = addDays(today, -1);
+  if (k.usedThrough && k.usedThrough >= yesterday) return k;
+  const counted = Object.keys(k.stock ?? {}).length > 0;
+  if (!counted) return k.usedThrough === yesterday ? k : { ...k, usedThrough: yesterday };
+  const fromDay = Math.max(k.usedThrough ? dayNum(k.usedThrough) + 1 : dayNum(today) - 7 * nWeeks(k), dayNum(today) - 60);
+  const byCell = new Map<string, KUse[]>();
+  for (const u of uses(k)) byCell.set(`${u.day}:${u.wk}`, [...(byCell.get(`${u.day}:${u.wk}`) ?? []), u]);
+  const stock = { ...k.stock };
+  for (let d = fromDay; d < dayNum(today); d++) {
+    const date = new Date(d * 86400_000).toISOString().slice(0, 10);
+    const { day, wk } = cellOn(k, date, today);
+    for (const u of byCell.get(`${day}:${wk}`) ?? []) if (typeof stock[u.key] === "number") stock[u.key] -= u.amount;
+  }
+  return { ...k, stock: amountsOut(stock), usedThrough: yesterday };
 }
 /** After cooking: what those meals used comes out of the inventory (only for ingredients it counts). */
 export function useUp(k: Kitchen, sc: KScope = {}): Kitchen {

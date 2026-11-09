@@ -4,7 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { addDays, cell, dateOf, hiddenMeals, mondayOf, moveMeal, nWeeks, planStart, K_DISHES, K_SLOTS, PRODUCTS, WEEK, SKIP, addDish, addMeal, amountText, bestBuy, cleanKitchen, clearMeals, countMeals, deleteOwnDish, dayProgress, dropPerson, duplicateCount, emptyKitchen, foodCount, groupOf, normPeople, planDish, planProgress, removeDuplicates, setCells, setKeep, setStock, shoppingLines, stockUp, tips, totals, useUp, type Kitchen } from "../shared/kitchen";
+import { addDays, cell, dateOf, hiddenMeals, mondayOf, moveMeal, nWeeks, planStart, K_DISHES, K_SLOTS, PRODUCTS, WEEK, SKIP, addDish, addMeal, amountText, bestBuy, cleanKitchen, clearMeals, countMeals, deleteOwnDish, dayProgress, dropPerson, duplicateCount, emptyKitchen, foodCount, groupOf, normPeople, planDish, planProgress, removeDuplicates, setCells, setKeep, setStock, shoppingLines, stockUp, tips, totals, useUp, useUpPast, type Kitchen } from "../shared/kitchen";
 import { GROUPS, parseSize } from "../shared/kitchenProducts";
 import { mapKrogerLocation, mapKrogerProduct } from "../server/kroger";
 
@@ -306,4 +306,21 @@ test("calendar and plan length controls exist", () => {
   assert.match(read("client/src/components/family-hub/kitchen/PlanCalendar.tsx"), /onDrop/);
   const ui = read("client/src/components/family-hub/KitchenPlan.tsx");
   assert.match(ui, /Calendar/); assert.match(ui, /PLAN_LENGTHS/); assert.match(ui, /meal-move/);
+});
+
+test("food bought with 'Bought it all' gets used up as days pass, so it goes back on the list", () => {
+  const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]; const week: Record<string, unknown[]> = {};
+  ["bagel", "coffee", "oatmeal", "eggs-toast"].forEach((dish, i) => { for (const d of days) (week[`${d}:breakfast`] ??= []).push({ id: `${dish}-${d}-${i}`, dish, people: [] }); });
+  const k = cleanKitchen({ setup: true, people: [{ id: "a", name: "A", portion: 1 }], week });
+  const sent = (x: Kitchen, today: string) => shoppingLines(useUpPast(x, today)).filter((l) => !l.have && l.packs > 0).map((l) => l.group.id);
+  const mon = "2026-11-09";
+  assert.ok(sent(k, mon).includes("bagels") && sent(k, mon).includes("coffee"), "bagels and coffee are on the list");
+  const bought = stockUp(k, undefined, mon);
+  assert.deepEqual(sent(bought, mon), [], "just bought: nothing to buy");
+  const nextWeek = sent(bought, addDays(mon, 7));
+  assert.ok(nextWeek.includes("bagels"), "a week of bagels was eaten, so bagels are back");
+  // A kitchen saved before this was tracked (stuck with everything "at home") fixes itself.
+  const stuck = cleanKitchen({ ...stockUp(k), usedThrough: undefined });
+  assert.ok(sent(stuck, mon).includes("bagels"));
+  assert.equal(cleanKitchen(JSON.parse(JSON.stringify(bought))).usedThrough, "2026-11-08");
 });
