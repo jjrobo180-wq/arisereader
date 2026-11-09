@@ -72,7 +72,7 @@ test("bad data is dropped, not trusted", () => {
   assert.equal(n.part, undefined);
   // A subject typed in (not on the list) is kept since classes can have their own subjects.
   assert.equal(n.subject, "Basket weaving");
-  assert.equal(n.title, "A lesson");
+  assert.equal(n.title, "A lesson ", "a trailing space just typed stays so the next word can be typed");
   assert.equal(n.taught, "5");
   assert.deepEqual(n.materials, []);
   assert.deepEqual(n.students, []);

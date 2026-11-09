@@ -159,3 +159,12 @@ test("worksheets print real maths and pictures, with the answers only on the key
   assert.equal(compileExpr("2x+1")!(3), 7);
   assert.equal(compileExpr("alert(1)"), null);
 });
+
+test("typing a space works: names cleaned on every keystroke keep the space just typed", () => {
+  // The planner shows the cleaned copy of what's typed, so a trimmed end would swallow every space.
+  const l = cleanLessons([{ id: "a", title: "Main ", date: "2026-11-10" }])[0];
+  assert.equal(l.title, "Main ");
+  assert.equal(cleanLessons([{ id: "a", title: "Main idea", date: "2026-11-10" }])[0].title, "Main idea");
+  assert.equal(cleanLessons([{ id: "a", title: "  Main   idea  ", date: "2026-11-10" }])[0].title, "Main idea", "the rest is still tidied");
+  assert.equal(cleanClasses([{ id: "c", name: "Period ", color: "teal" }])[0].name, "Period ");
+});

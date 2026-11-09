@@ -167,7 +167,7 @@ export const GRADES = ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "
 // ─── Cleaning what was saved ────────────────────────────────────────────────
 
 const str = (v: unknown, max: number): string => (typeof v === "string" ? v.replace(/\u0000/g, "").slice(0, max) : typeof v === "number" ? String(v).slice(0, max) : "");
-const line = (v: unknown, max: number): string => str(v, max).replace(/\s+/g, " ").trim();
+const line = (v: unknown, max: number): string => str(v, max).replace(/\s+$/, (m) => (/^ $/.test(m) ? " " : "")).replace(/(\S)\s+(?=\S)/g, "$1 ").replace(/^\s+/, "");
 const day = (v: unknown): string => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : "");
 const oneOf = <T extends string>(v: unknown, options: readonly T[], fallback: T): T => (options.includes(v as T) ? (v as T) : fallback);
 const strings = (v: unknown, max: number, each: number): string[] => {

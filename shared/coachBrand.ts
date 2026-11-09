@@ -7,7 +7,7 @@ export const emptyBrand = (): Brand => ({ on: false, appName: "", color: "#ff5a1
 export const BRAND_COLORS = ["#ff5a1f", "#e11d48", "#db2777", "#7c3aed", "#2563eb", "#0891b2", "#0d9488", "#16a34a", "#ca8a04", "#111827"];
 
 const HEX = /^#[0-9a-f]{6}$/i;
-const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+const str = (v: unknown, max: number) => (typeof v === "string" ? v.trimStart().replace(/ {2,}$/, "").slice(0, max) : "");
 export function cleanBrand(raw: unknown): Brand {
   const r = raw && typeof raw === "object" ? (raw as Record<string, any>) : {};
   const logo = typeof r.logo === "string" && /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(r.logo) && r.logo.length <= 200_000 ? r.logo : "";

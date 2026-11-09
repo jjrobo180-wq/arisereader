@@ -321,7 +321,7 @@ export type NoteSummary = {
   iep: IepDraft | null;
 };
 
-const str = (v: unknown, max: number) => (typeof v === "string" ? v : typeof v === "number" ? String(v) : "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").replace(/\s+/g, " ").trim().slice(0, max);
+const str = (v: unknown, max: number) => (typeof v === "string" ? v : typeof v === "number" ? String(v) : "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").replace(/\s+$/, (m) => (/^ $/.test(m) ? " " : "")).replace(/(\S)\s+(?=\S)/g, "$1 ").replace(/^\s+/, "").slice(0, max);
 const arr = (v: unknown, max: number): unknown[] => (Array.isArray(v) ? v.slice(0, max) : []);
 export const isDay = (v: unknown): v is string => {
   if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;

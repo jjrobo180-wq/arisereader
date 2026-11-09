@@ -62,7 +62,7 @@ export type PushInNote = {
 // ─── Cleaning what was saved ────────────────────────────────────────────────
 
 const str = (v: unknown, max: number): string => (typeof v === "string" ? v.replace(/\u0000/g, "").slice(0, max) : typeof v === "number" ? String(v).slice(0, max) : "");
-const line = (v: unknown, max: number): string => str(v, max).replace(/\s+/g, " ").trim();
+const line = (v: unknown, max: number): string => str(v, max).replace(/\s+$/, (m) => (/^ $/.test(m) ? " " : "")).replace(/(\S)\s+(?=\S)/g, "$1 ").replace(/^\s+/, "");
 const day = (v: unknown): string => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : "");
 export const fold = (s: unknown): string => String(s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 
