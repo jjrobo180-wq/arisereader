@@ -20,6 +20,7 @@ import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { JOIN_LINK_EMAIL, LINK_LIMITS, LIFE_SHARES, fullGrants, accessFor, allows, appIdFromKey, appShareId, cleanGrants, cleanLinks, isHealthShareId, normalEmail, type Access, type ProfileLink } from "../shared/profileLinks";
 import { parseTarget, sharedView } from "../shared/todoShare";
 import { applyParts, pickParts, sharedAppFor } from "../shared/sharedApps";
+import { merge3 } from "../shared/mergeJson";
 import { cleanFamily, emptyFamily } from "../shared/familyHub";
 
 export type ProfileLinkDeps = {
@@ -446,12 +447,17 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
     if (!allows(a.access, "edit")) return res.status(403).json({ message: "You can look at this, but not change it." });
     const slice = req.body?.slice;
     if (!slice || typeof slice !== "object" || Array.isArray(slice)) return res.status(400).json({ message: "Nothing to save." });
-    if (Buffer.byteLength(JSON.stringify(slice), "utf8") > 2_000_000) return res.status(413).json({ message: "That's too much to save at once." });
+    if (Buffer.byteLength(JSON.stringify(req.body), "utf8") > 4_000_000) return res.status(413).json({ message: "That's too much to save at once." });
     try {
       for (let tries = 0; tries < 4; tries++) {
         const row = await deps.lifeWorkspace!.read(a.ownerId);
         if (!row?.workspace) return res.status(404).json({ message: "Their LifeHub isn't set up yet." });
-        const family = cleanFamily(applyParts(cleanFamily(row.workspace.family ?? emptyFamily()), a.shared.parts, slice));
+        const current = cleanFamily(row.workspace.family ?? emptyFamily());
+        // With the copy they started from (base), only what they changed is put in: whatever the owner (or anyone
+        // else) added meanwhile stays. Without it (an older app), their copy replaces this app's data as before.
+        const base = req.body?.base && typeof req.body.base === "object" && !Array.isArray(req.body.base) ? req.body.base : null;
+        const incoming = base ? merge3(base, slice, pickParts(current, a.shared.parts)) : slice;
+        const family = cleanFamily(applyParts(current, a.shared.parts, incoming as Record<string, unknown>));
         const saved = await deps.lifeWorkspace!.write(a.ownerId, { ...row.workspace, family }, row.updatedAt);
         if (saved) return res.json({ ok: true, updatedAt: saved, slice: pickParts(family, a.shared.parts) });
       }

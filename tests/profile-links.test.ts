@@ -325,6 +325,12 @@ test("a partner opens the owner's app, and with Edit saves only that app back in
   assert.equal(put.status, 200);
   assert.deepEqual(saved.workspace.family.bills.map((b: any) => b.name), ["Rent", "Internet"]);
   assert.equal(saved.workspace.family.journal.length, 1, "parts outside the app can't be touched, even if sent");
+  // The owner adds a bill meanwhile; the partner, still on the old copy, adds another: both are kept.
+  saved = { ...saved, workspace: { ...saved.workspace, family: { ...saved.workspace.family, bills: [...saved.workspace.family.bills, { id: "b3", name: "Water", amount: 40, due: 3, category: "Home", paid: [] }] } } };
+  const base = put.body.slice;
+  const put2 = await call("PUT", "/api/profile-links/from/:owner/app/:section", 2, { base, slice: { ...base, bills: [...base.bills, { id: "b4", name: "Phone", amount: 50, due: 9, category: "Home", paid: [] }] } }, P);
+  assert.equal(put2.status, 200);
+  assert.deepEqual(saved.workspace.family.bills.map((b: any) => b.name).sort(), ["Internet", "Phone", "Rent", "Water"], "a stale copy no longer wipes out the owner's new items");
   assert.equal((await call("GET", "/api/profile-links/from/:owner/app/:section", 3, {}, P)).status, 403, "strangers can't");
   assert.ok(sharedAppFor("money"));
 });
