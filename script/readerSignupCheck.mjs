@@ -131,9 +131,11 @@ try {
   // What a blank frame is made of (which loading screen), for screens/frames.txt.
   const blanks = [];
   const watchBlank = setInterval(() => { page.evaluate(() => document.body.innerText.trim() ? null : location.hash + " | " + document.body.innerHTML.replace(/<svg[\s\S]*?<\/svg>/g, "").slice(0, 400)).then((b) => { if (b) blanks.push(b); }).catch(() => {}); }, 40);
+  await page.evaluate(() => { (window).__samePage = 1; });
   await page.getByRole("button", { name: /Create my account/i }).click();
   await page.waitForTimeout(5000);
   clearInterval(watch); clearInterval(watchBlank);
+  check(await page.evaluate(() => (window).__samePage === 1).catch(() => false), "signing up doesn't reload the page");
   await writeFile("screens/blank-frames.txt", blanks.join("\n\n"));
   const leftForm = seen.findIndex((t) => /Start your A\.R\.I\.S\.E\. Reader plan/.test(t));
   check(!seen.some((t) => /account is ready/i.test(t)), "no 'your account is ready' box in between");

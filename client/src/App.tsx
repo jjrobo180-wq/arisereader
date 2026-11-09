@@ -555,6 +555,8 @@ function AppRoutes() {
   const readerLockOn = !!user && !user.isAdmin && onReaderDomain && !eyeGazerApp;
   const { plan: readerPlan } = usePlan(readerLockOn ? token : null);
   const readerPlanLocked = readerLockOn && readerLocked(readerPlan);
+  // The plan page is the first page a new family sees: have it ready so it opens with no loading spinner.
+  useEffect(() => { if (onReaderDomain) ReaderSubscribe.preload(); }, [onReaderDomain]);
   const hubAdult = isHubAccount(user);
   const hubUserId = hubAdult ? user?.id : undefined;
   useEffect(() => {

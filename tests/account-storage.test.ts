@@ -22,15 +22,15 @@ test("each account keeps its own things on the device; the sign-in itself is sha
   const { installAccountStorage, setAccount } = await import("../client/src/lib/accountStorage");
   installAccountStorage({ accountKey: "arise-account", deviceWide: (k) => k === "arise_session_backup" });
 
-  setAccount(7); // the first account after the update keeps what was there
-  assert.equal(reloads, 1);
+  setAccount(7); // the first account after the update keeps what was there; signed out until now, so no reload
+  assert.equal(reloads, 0);
   assert.equal(store.getItem("arise-night"), "1");
   assert.equal(store.getItem("arise_session_backup"), "SIGNIN");
   store.setItem("podplus.studio", "seven's pods");
 
   setAccount(null); // sign out
   setAccount(9); // another account: none of 7's things
-  assert.equal(reloads, 2);
+  assert.equal(reloads, 1);
   assert.equal(store.getItem("arise-night"), null);
   assert.equal(store.getItem("podplus.studio"), null);
   assert.equal(store.getItem("arise_session_backup"), "SIGNIN");
@@ -40,7 +40,7 @@ test("each account keeps its own things on the device; the sign-in itself is sha
   assert.equal(store.getItem("podplus.studio"), "seven's pods");
   assert.equal(store.getItem("arise-night"), "1");
   setAccount(7); // same account again: no reload
-  assert.equal(reloads, 3);
+  assert.equal(reloads, 2);
 });
 
 test("signing out forgets this iPhone's Apple push token for that account", () => {
