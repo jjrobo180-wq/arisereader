@@ -189,6 +189,9 @@ export function MaterialSlots({ token, files, onChange, makeId, drive, lessonTit
   const [busy, setBusy] = useState<string>("");
   const [error, setError] = useState("");
   const [linkFor, setLinkFor] = useState<MaterialKind | null>(null);
+  /** Writing one in words (no file, no link): directions, a passage, a list. */
+  const [writeFor, setWriteFor] = useState<MaterialKind | null>(null);
+  const [written, setWritten] = useState({ name: "", text: "" });
   const [link, setLink] = useState({ name: "", url: "" });
   const [preview, setPreview] = useState<{ id: string; answers: boolean } | null>(null);
   const [present, setPresent] = useState<GenSlide[] | null>(null);
@@ -285,6 +288,7 @@ export function MaterialSlots({ token, files, onChange, makeId, drive, lessonTit
               <div className="flex flex-wrap gap-1.5">
                 <label className={smallBtn + " cursor-pointer"}><Upload className="h-3.5 w-3.5" /> Upload<input type="file" multiple hidden onChange={(e) => { void upload(kind, e.target.files); e.target.value = ""; }} accept={kind === "slides" ? ".ppt,.pptx,.pdf,.key,image/*" : undefined} /></label>
                 <button type="button" className={smallBtn} onClick={() => { setLinkFor(linkFor === kind ? null : kind); setLink({ name: "", url: "" }); }}><Link2 className="h-3.5 w-3.5" /> Link</button>
+                <button type="button" className={smallBtn} onClick={() => { setWriteFor(writeFor === kind ? null : kind); setWritten({ name: "", text: "" }); }} data-testid={`write-${kind}`}><Pencil className="h-3.5 w-3.5" /> Write it</button>
                 {kind !== "other" && <button type="button" className={smallBtn + " border-violet-200 text-violet-800 hover:bg-violet-50"} onClick={() => setMaking(making === kind ? null : kind)}><Sparkles className="h-3.5 w-3.5" /> Make with AI</button>}
               </div>
             </div>
@@ -300,6 +304,19 @@ export function MaterialSlots({ token, files, onChange, makeId, drive, lessonTit
                 <input value={link.name} onChange={(e) => setLink({ ...link, name: e.target.value })} placeholder="Name (optional)" className="min-h-10 rounded-xl border border-slate-200 px-3 text-sm" />
                 <input value={link.url} onChange={(e) => setLink({ ...link, url: e.target.value })} placeholder="https://docs.google.com/…" className="min-h-10 rounded-xl border border-slate-200 px-3 text-sm" autoFocus />
                 <button type="submit" className={smallBtn + " min-h-10 px-3"}>Save link</button>
+              </form>
+            )}
+
+            {writeFor === kind && (
+              <form className="mt-2 grid grid-cols-1 gap-2" onSubmit={(e) => {
+                e.preventDefault();
+                const text = written.text.trim(); if (!text) return;
+                onChange([...files, { id: makeId(), kind, name: written.name.trim() || text.split("\n")[0].slice(0, 60), text, addedAt: new Date().toISOString() }]);
+                setWriteFor(null);
+              }} data-testid="write-form">
+                <input value={written.name} onChange={(e) => setWritten({ ...written, name: e.target.value })} placeholder="Name (optional)" className="min-h-10 rounded-xl border border-slate-200 px-3 text-sm" />
+                <textarea value={written.text} onChange={(e) => setWritten({ ...written, text: e.target.value })} rows={5} placeholder="Type it here: directions, questions, a reading passage, what students do…" className="rounded-xl border border-slate-200 px-3 py-2 text-sm leading-6" autoFocus />
+                <div className="flex justify-end gap-2"><button type="button" className={smallBtn + " min-h-10 px-3"} onClick={() => setWriteFor(null)}>Cancel</button><button type="submit" className={smallBtn + " min-h-10 px-3"} disabled={!written.text.trim()}>Save</button></div>
               </form>
             )}
 
@@ -329,6 +346,7 @@ export function MaterialSlots({ token, files, onChange, makeId, drive, lessonTit
               <ul className="mt-2 divide-y divide-slate-100">
                 {mine.map((m) => (
                   <li key={m.id} className="flex flex-wrap items-center gap-2 py-2">
+                    {m.text && <textarea value={m.text} onChange={(e) => onChange(files.map((f) => (f.id === m.id ? { ...f, text: e.target.value } : f)))} rows={Math.min(8, Math.max(2, m.text.split("\n").length))} aria-label={m.name} className="order-last w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2 text-sm leading-6 text-slate-800" />}
                     <button type="button" onClick={() => void open(m)} className="flex min-h-9 min-w-0 flex-1 items-center gap-2 text-left text-sm font-medium text-slate-800 hover:text-teal-800">
                       <span className="shrink-0 rounded-lg bg-slate-100 p-1.5 text-slate-600">{fileIcon(m)}</span>
                       <span className="min-w-0 truncate">{m.name}</span>

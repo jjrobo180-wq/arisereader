@@ -79,6 +79,8 @@ export type LessonMaterial = {
   contentType?: string;
   /** A link (Google Slides, Canva, a website). */
   url?: string;
+  /** Written right in the lesson: words only, no file or link (directions, a reading passage, a list). */
+  text?: string;
   /** Made with AI. */
   worksheet?: GenWorksheet;
   slides?: GenSlide[];
@@ -271,12 +273,14 @@ export function cleanMaterial(raw: any): LessonMaterial | null {
   const url = /^https?:\/\//i.test(String(raw.url || "")) ? line(raw.url, 1000) : "";
   const worksheet = cleanWorksheet(raw.worksheet);
   const slides = cleanSlides(raw.slides);
-  if (!path && !url && !worksheet && !slides) return null;
+  const text = str(raw.text, LIMITS.text).trim();
+  if (!path && !url && !worksheet && !slides && !text) return null;
   const size = Number(raw.size);
   return {
     id, kind, name: line(raw.name, 160) || MATERIAL_LABEL[kind],
     ...(path ? { path, size: Number.isFinite(size) && size > 0 ? Math.floor(size) : 0, contentType: line(raw.contentType, 100) || "application/octet-stream" } : {}),
     ...(url ? { url } : {}),
+    ...(text ? { text } : {}),
     ...(worksheet ? { worksheet } : {}),
     ...(slides ? { slides } : {}),
     ...(line(raw.addedAt, 40) ? { addedAt: line(raw.addedAt, 40) } : {}),

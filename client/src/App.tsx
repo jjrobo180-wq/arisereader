@@ -108,6 +108,7 @@ function lazyPage(loader: () => Promise<{ default: ComponentType<any> }>) {
 const AvatarWorld = lazyPage(() => import("./pages/AvatarWorld"));
 const Games = lazyPage(() => import("./pages/Games"));
 const MeetingPoll = lazyPage(() => import("./pages/MeetingPoll"));
+const LessonPlansPublic = lazyPage(() => import("./pages/LessonPlansPublic"));
 const TodoShare = lazyPage(() => import("./pages/TodoShare"));
 const JoinFamily = lazyPage(() => import("./pages/JoinFamily"));
 const DropReceive = lazyPage(() => import("./pages/DropReceive"));
@@ -663,6 +664,9 @@ function AppRoutes() {
       </Route>
       <Route path="/meet/:token">
         <MeetingPoll />
+      </Route>
+      <Route path="/plans/:token">
+        <LessonPlansPublic />
       </Route>
       <Route path="/join/:token">
         <JoinFamily />

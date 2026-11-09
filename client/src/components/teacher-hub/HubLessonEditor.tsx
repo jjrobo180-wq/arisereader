@@ -227,11 +227,9 @@ export default function HubLessonEditor({
               )}
             </div>
 
-            {lesson.summary && (
-              <label className="block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Overview</span>
-                <textarea value={lesson.summary} onChange={(e) => set({ summary: e.target.value })} rows={2} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
-              </label>
-            )}
+            <label className="block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Plan in your own words</span>
+              <textarea value={lesson.summary || ""} onChange={(e) => set({ summary: e.target.value })} rows={4} placeholder="Write the lesson the way you'd tell it: what you'll do, what students do, what you need. The parts below are optional." className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100" data-testid="lesson-plan-words" />
+            </label>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {PLAN_FIELDS.filter((k) => k !== "title").map((k) => {
                 const wide = k === "objective" || k === "iDo" || k === "weDo" || k === "youDo";

@@ -4,6 +4,7 @@ import { dedupeBooks } from "./bookDedupe";
 import { PLANS, aiProAccessFor, storageTierGb, isStoragePlanKind, grantLive, STORAGE_PLAN_KINDS } from "../shared/plans";
 import { FREE_STORAGE_BYTES } from "../shared/driveApp";
 import { registerDriveAppRoutes } from "./driveApp";
+import { registerLessonShareRoutes } from "./lessonShare";
 import { registerParaTeamRoutes, supabaseParaDb } from "./paraTeam";
 import { nameKey, registerAccountMergeRoutes, supabaseMergeDb, type Candidate } from "./accountMerge";
 import { registerDropAppRoutes } from "./dropApp";
@@ -1814,6 +1815,13 @@ export async function registerRoutes(
   registerGoalQuizRoutes(app, authMiddleware);
   // Para Team (server/paraTeam.ts): a teacher's shared space with their paras and 1:1s.
   registerParaTeamRoutes(app, { auth: authMiddleware, raw: raw as any, db: supabaseParaDb(getAdminSupabase) });
+  // The no-login lesson plan link a teacher gives their school.
+  registerLessonShareRoutes(app, authMiddleware, {
+    getSetting: (k) => storage.getSetting(k), upsertSetting: (k, v) => storage.upsertSetting(k, v),
+    workHub: (id) => savedHub("work", id),
+    nameOf: async (id) => { const u: any = await storage.getUser(id).catch(() => null); return String(u?.displayName || u?.display_name || u?.username || "Teacher"); },
+    fileUrl: async (path, name) => { const { data } = await getAdminSupabase().storage.from("life-drive-photos").createSignedUrl(path, 3600); void name; return data?.signedUrl ?? null; },
+  });
   registerDriveAppRoutes(app, authMiddleware, raw, {
     getAdminSupabase,
     storageLimitFor: async (userId) => {

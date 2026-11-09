@@ -7,8 +7,9 @@
 import { Fragment, useMemo, useState } from "react";
 import {
   AlertTriangle, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, CloudSnow, FileStack, LayoutGrid, List, Plus, RotateCcw, Search,
-  Settings2, Sparkles, Trash2, Users, X, BookCheck, CalendarClock,
+  Settings2, Sparkles, Trash2, Users, X, BookCheck, CalendarClock, Link2,
 } from "lucide-react";
+import { LessonSharePanel } from "./LessonShare";
 import type { Workspace } from "@shared/teacherHub";
 import { cleanDriveFiles } from "@shared/driveApp";
 import { blockName, schoolBlocks } from "@shared/hubBlocks";
@@ -98,6 +99,7 @@ export default function HubLessons({ workspace, setWorkspace, token, makeId, say
   }
 
   const opened = lessons.find((l) => l.id === openId);
+  const [shareOpen, setShareOpen] = useState(false);
 
   // ─── The header ───
   const step = view === "month" ? (n: number) => setCursor(addMonths(cursor, n)) : view === "year" ? (n: number) => setCursor(addMonths(cursor, n * 3)) : view === "day" ? (n: number) => {
@@ -123,12 +125,15 @@ export default function HubLessons({ workspace, setWorkspace, token, makeId, say
         <button type="button" onClick={() => setMakerOpen(true)} className={smallBtn + " min-h-11 px-3 text-sm"}><FileStack className="h-4 w-4" /> Worksheet maker</button>
         <button type="button" onClick={() => setClassesOpen(true)} className={smallBtn + " min-h-11 px-3 text-sm"}><Settings2 className="h-4 w-4" /> Classes & periods</button>
         <button type="button" onClick={() => setShiftOpen(true)} className={smallBtn + " min-h-11 px-3 text-sm"} title="Snow day, assembly, ran long — push lessons back"><CloudSnow className="h-4 w-4" /> Shift lessons</button>
+        <button type="button" onClick={() => setShareOpen((o) => !o)} className={smallBtn + " min-h-11 px-3 text-sm"} data-testid="lesson-share-open"><Link2 className="h-4 w-4" /> Share with school</button>
         <div className="ml-auto flex flex-wrap gap-2 text-xs">
           <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600">{upcoming.length} this week</span>
           {notReady.length > 0 && <span className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-800">{notReady.length} not ready yet</span>}
           {openReteaches > 0 && <button type="button" onClick={() => setView("students")} className="rounded-full bg-rose-100 px-2.5 py-1 font-semibold text-rose-800 hover:bg-rose-200">{openReteaches} student{openReteaches === 1 ? "" : "s"} need a reteach</button>}
         </div>
       </div>
+
+      {shareOpen && <LessonSharePanel token={token} onClose={() => setShareOpen(false)} />}
 
       {!classes.length && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-teal-300 bg-teal-50/60 p-4">
