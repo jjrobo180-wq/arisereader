@@ -346,11 +346,13 @@ test("never again: every ingredient a plan needs lands on the shopping list, sho
   assert.equal(aisleOf({ aisle: "Bread & bakery" }), "Other");
 });
 
-test("your own dishes with no ingredients (Bagel, Coffee) go on the shopping list as themselves", async () => {
+test("your own dishes made by name only are priced like the rest, and anything unknown still goes on the list", async () => {
   const { planToListAll, plainLines } = await import("../shared/kitchen");
-  const k = cleanKitchen({ setup: true, people: [{ id: "a", name: "A", portion: 1 }], own: [{ id: "own-b", slot: "breakfast", name: "Bagel", parts: [] }, { id: "own-c", slot: "breakfast", name: "Coffee", parts: [] }],
-    week: { "mon:breakfast": [{ id: "1", dish: "own-b", people: [] }, { id: "2", dish: "own-c", people: [] }], "tue:breakfast": [{ id: "3", dish: "own-c", people: [] }] } });
-  assert.deepEqual(plainLines(k).map((p) => `${p.dish.name}:${p.servings}`), ["Bagel:1", "Coffee:2"]);
-  let n = 0; const list = planToListAll([], k, shoppingLines(k).filter((l) => !l.have && l.packs > 0), () => String(n++));
-  assert.ok(list.some((g) => g.name === "Bagel") && list.some((g) => g.name === "Coffee"));
+  const own = [["own-b", "Cinnamon raisin bagel"], ["own-c", "Coffee"], ["own-g", "Gold fish"], ["own-x", "Grandma's casserole"]].map(([id, name]) => ({ id, slot: "breakfast", name, parts: [] }));
+  const k = cleanKitchen({ setup: true, people: [{ id: "a", name: "A", portion: 1 }], own, week: { "mon:breakfast": own.map((d, i) => ({ id: String(i), dish: d.id, people: [] })) } });
+  const lines = shoppingLines(k).filter((l) => !l.have && l.packs > 0);
+  for (const g of ["bagels", "coffee", "goldfish"]) { const l = lines.find((x) => x.group.id === g); assert.ok(l && l.cost > 0, `${g} is listed with a price`); }
+  assert.deepEqual(plainLines(k).map((p) => p.dish.name), ["Grandma's casserole"]);
+  let n = 0; const list = planToListAll([], k, lines, () => String(n++));
+  assert.ok(list.some((g) => g.name === "Grandma's casserole") && list.some((g) => g.name.startsWith("Bagels")));
 });

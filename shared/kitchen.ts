@@ -124,7 +124,32 @@ export function cleanKitchen(raw: unknown): Kitchen {
 export const allDishes = (k: Kitchen) => [...K_DISHES, ...k.own];
 export const dishOf = (k: Kitchen, id: string) => K_DISHES.find((d) => d.id === id) ?? k.own.find((d) => d.id === id);
 export const dishName = (k: Kitchen, id: string) => (id === SKIP ? "Skipping" : dishOf(k, id)?.name ?? "Removed dish");
-export const partsOf = (k: Kitchen, d: KDish): KPart[] => k.edits[d.id]?.parts ?? d.parts;
+export const partsOf = (k: Kitchen, d: KDish): KPart[] => {
+  const p = k.edits[d.id]?.parts ?? d.parts;
+  if (p.length || !d.own) return p;
+  // Your own dish made by name only ("Bagel", "Coffee"): it is that one store item, priced and listed like the rest.
+  const g = groupForName(d.name);
+  return g ? [{ group: g.id, per: defaultPer(g) }] : p;
+};
+const sing = (w: string) => (w.endsWith("ies") ? `${w.slice(0, -3)}y` : w.endsWith("oes") ? w.slice(0, -2) : w.endsWith("ches") || w.endsWith("shes") ? w.slice(0, -2) : w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w);
+const wordsOf = (t: string) => t.toLowerCase().replace(/[^a-z\s-]/g, " ").split(/[\s-]+/).filter(Boolean).map(sing);
+const headOf = (g: KGroup) => wordsOf(g.name).at(-1) ?? "";
+let heads: Map<string, number> | null = null;
+/** The store item a dish name means ("Cinnamon raisin bagel" → Bagels, "Coffee" → Ground coffee), or none when unsure. */
+const ALIASES: Record<string, string> = { toast: "bread", "no yolk noodle": "egg-noodles", "no yolks noodle": "egg-noodles", "gold fish": "goldfish", goldfish: "goldfish", "nutrigrain bar": "cereal-bars", "nutri grain bar": "cereal-bars", "granola bar": "cereal-bars", spaghettio: "spaghettios" };
+export function groupForName(name: string): KGroup | undefined {
+  const d = wordsOf(name); if (!d.length) return undefined;
+  const alias = ALIASES[d.join(" ")]; if (alias && GROUP_BY_ID.has(alias)) return GROUP_BY_ID.get(alias);
+  const all = [...GROUP_BY_ID.values()];
+  heads ??= all.reduce((m, g) => m.set(headOf(g), (m.get(headOf(g)) ?? 0) + 1), new Map<string, number>());
+  const exact = all.find((g) => wordsOf(g.name).join(" ") === d.join(" ") || wordsOf(g.id).join(" ") === d.join(" "));
+  if (exact) return exact;
+  const head = d.at(-1)!;
+  const sameHead = all.filter((g) => headOf(g) === head || wordsOf(g.id).at(-1) === head);
+  const covered = sameHead.find((g) => d.every((w) => wordsOf(`${g.name} ${g.id}`).includes(w)));
+  if (covered) return covered;
+  return sameHead.length === 1 && (d.length === 1 || wordsOf(sameHead[0].name).length === 1) ? sameHead[0] : undefined;
+}
 export const takeoutOf = (k: Kitchen, id: string) => k.edits[id]?.takeout;
 const priced = (k: Kitchen, p: KProduct): KProduct => { const x = k.prices[p.id]; return x ? { ...p, price: x.price, source: x.source, at: x.at } : p; };
 export const productsFor = (k: Kitchen, group: string): KProduct[] => [...PRODUCTS, ...k.products].filter((p) => p.group === group).map((p) => priced(k, p));
