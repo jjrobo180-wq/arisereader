@@ -3,6 +3,7 @@
 // Run with: npx tsx --test tests/lesson-planner.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   bumpLessons, cleanClasses, cleanLesson, cleanLessons, cleanWorksheet, copyLesson, meetsOn, mondayOf, monthWeeks, needsReteach,
   nextMeetings, planFullness, schoolWeek, studentRecords, type LessonClass, type LessonPlan,
@@ -185,4 +186,11 @@ test("rename a student: the class roster and every lesson of that class follow, 
   assert.ok(r.lessons[2].marks?.Dexter);
   const x = removeStudent(r.classes, r.lessons, "l1", "Arris");
   assert.deepEqual(x.classes[0].students, ["Dexter Moore"]);
+});
+
+test("the month calendar names each lesson's class, in the class's real color (not recolored by the hub's look)", () => {
+  const parts = readFileSync(new URL("../client/src/components/teacher-hub/HubLessonParts.tsx", import.meta.url), "utf8");
+  assert.match(parts, /teal: \{ dot: "bg-\[#14b8a6\]", chip: "bg-\[#f0fdfa\] text-\[#115e59\] border-\[#99f6e4\]"/);
+  const page = readFileSync(new URL("../client/src/components/teacher-hub/HubLessons.tsx", import.meta.url), "utf8");
+  assert.match(page, /data-testid="month-lesson">\n\s*\{c\?\.name && <span/);
 });

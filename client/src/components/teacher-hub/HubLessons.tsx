@@ -399,7 +399,10 @@ function MonthView({ cursor, today, classes, lessons, onOpen, onNew, onDay }: { 
                 {here.slice(0, 4).map((l) => {
                   const c = classOf(l, classes);
                   const color = c ? COLOR[c.color] : NO_CLASS;
-                  return <button key={l.id} type="button" onClick={() => onOpen(l.id)} title={`${c?.name ? `${c.name}: ` : ""}${l.title}`} className={`block w-full truncate rounded-md border px-1.5 py-0.5 text-left text-[11px] font-medium ${color.chip}`}>{l.title}</button>;
+                  return <button key={l.id} type="button" onClick={() => onOpen(l.id)} title={`${c?.name ? `${c.name}: ` : ""}${l.title}`} className={`block w-full rounded-md border px-1.5 py-1 text-left leading-tight ${color.chip}`} data-testid="month-lesson">
+                    {c?.name && <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide opacity-80"><span className={`h-1.5 w-1.5 shrink-0 rounded-full ${color.dot}`} aria-hidden /><span className="truncate">{c.name}</span></span>}
+                    <span className="block truncate text-[11px] font-medium">{l.title}</span>
+                  </button>;
                 })}
                 {here.length > 4 && <button type="button" onClick={() => onDay(d)} className="text-[11px] font-semibold text-slate-500 hover:text-slate-800">+{here.length - 4} more</button>}
               </div>

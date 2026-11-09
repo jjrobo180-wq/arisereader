@@ -19,16 +19,18 @@ import { WorksheetStudio } from "./HubWorksheet";
 // ─── Colours ────────────────────────────────────────────────────────────────
 
 /** Tailwind needs whole class names written out, so each colour's set is spelled in full. */
+// Class colors are exact colors, not Tailwind's named ones: the hub's looks recolor named ones (teal becomes the
+// look's accent, pale boxes become cards), which made every class look the same color as the theme.
 export const COLOR: Record<ClassColor, { dot: string; chip: string; bar: string; soft: string; ring: string; text: string }> = {
-  teal: { dot: "bg-teal-500", chip: "bg-teal-50 text-teal-800 border-teal-200", bar: "border-l-teal-500", soft: "bg-teal-50", ring: "ring-teal-300", text: "text-teal-800" },
-  sky: { dot: "bg-sky-500", chip: "bg-sky-50 text-sky-800 border-sky-200", bar: "border-l-sky-500", soft: "bg-sky-50", ring: "ring-sky-300", text: "text-sky-800" },
-  violet: { dot: "bg-violet-500", chip: "bg-violet-50 text-violet-800 border-violet-200", bar: "border-l-violet-500", soft: "bg-violet-50", ring: "ring-violet-300", text: "text-violet-800" },
-  rose: { dot: "bg-rose-500", chip: "bg-rose-50 text-rose-800 border-rose-200", bar: "border-l-rose-500", soft: "bg-rose-50", ring: "ring-rose-300", text: "text-rose-800" },
-  amber: { dot: "bg-amber-500", chip: "bg-amber-50 text-amber-900 border-amber-200", bar: "border-l-amber-500", soft: "bg-amber-50", ring: "ring-amber-300", text: "text-amber-900" },
-  emerald: { dot: "bg-emerald-500", chip: "bg-emerald-50 text-emerald-800 border-emerald-200", bar: "border-l-emerald-500", soft: "bg-emerald-50", ring: "ring-emerald-300", text: "text-emerald-800" },
-  indigo: { dot: "bg-indigo-500", chip: "bg-indigo-50 text-indigo-800 border-indigo-200", bar: "border-l-indigo-500", soft: "bg-indigo-50", ring: "ring-indigo-300", text: "text-indigo-800" },
-  orange: { dot: "bg-orange-500", chip: "bg-orange-50 text-orange-900 border-orange-200", bar: "border-l-orange-500", soft: "bg-orange-50", ring: "ring-orange-300", text: "text-orange-900" },
-  slate: { dot: "bg-slate-500", chip: "bg-slate-100 text-slate-700 border-slate-200", bar: "border-l-slate-400", soft: "bg-slate-50", ring: "ring-slate-300", text: "text-slate-700" },
+  teal: { dot: "bg-[#14b8a6]", chip: "bg-[#f0fdfa] text-[#115e59] border-[#99f6e4]", bar: "border-l-[#14b8a6]", soft: "bg-[#f0fdfa]", ring: "ring-[#5eead4]", text: "text-[#115e59]" },
+  sky: { dot: "bg-[#0ea5e9]", chip: "bg-[#f0f9ff] text-[#075985] border-[#bae6fd]", bar: "border-l-[#0ea5e9]", soft: "bg-[#f0f9ff]", ring: "ring-[#7dd3fc]", text: "text-[#075985]" },
+  violet: { dot: "bg-[#8b5cf6]", chip: "bg-[#f5f3ff] text-[#5b21b6] border-[#ddd6fe]", bar: "border-l-[#8b5cf6]", soft: "bg-[#f5f3ff]", ring: "ring-[#c4b5fd]", text: "text-[#5b21b6]" },
+  rose: { dot: "bg-[#f43f5e]", chip: "bg-[#fff1f2] text-[#9f1239] border-[#fecdd3]", bar: "border-l-[#f43f5e]", soft: "bg-[#fff1f2]", ring: "ring-[#fda4af]", text: "text-[#9f1239]" },
+  amber: { dot: "bg-[#f59e0b]", chip: "bg-[#fffbeb] text-[#78350f] border-[#fde68a]", bar: "border-l-[#f59e0b]", soft: "bg-[#fffbeb]", ring: "ring-[#fcd34d]", text: "text-[#78350f]" },
+  emerald: { dot: "bg-[#10b981]", chip: "bg-[#ecfdf5] text-[#065f46] border-[#a7f3d0]", bar: "border-l-[#10b981]", soft: "bg-[#ecfdf5]", ring: "ring-[#6ee7b7]", text: "text-[#065f46]" },
+  indigo: { dot: "bg-[#6366f1]", chip: "bg-[#eef2ff] text-[#3730a3] border-[#c7d2fe]", bar: "border-l-[#6366f1]", soft: "bg-[#eef2ff]", ring: "ring-[#a5b4fc]", text: "text-[#3730a3]" },
+  orange: { dot: "bg-[#f97316]", chip: "bg-[#fff7ed] text-[#7c2d12] border-[#fed7aa]", bar: "border-l-[#f97316]", soft: "bg-[#fff7ed]", ring: "ring-[#fdba74]", text: "text-[#7c2d12]" },
+  slate: { dot: "bg-[#64748b]", chip: "bg-[#f1f5f9] text-[#334155] border-[#e2e8f0]", bar: "border-l-[#94a3b8]", soft: "bg-[#f8fafc]", ring: "ring-[#cbd5e1]", text: "text-[#334155]" },
 };
 export const NO_CLASS = COLOR.slate;
 
