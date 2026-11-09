@@ -291,7 +291,7 @@ test("admins have the admin console in the Reader's menu, one item per section",
 
 test("sign-up asks for the advisory at schools with advisories, and the admin's not-placed list shows and sets advisories", () => {
   const reg = read("client/src/pages/Register.tsx");
-  assert.match(reg, /<Label htmlFor="teacher">\{byAdvisory \? "Advisory" : "Teacher"\}<\/Label>/);
+  assert.match(reg, /<Label htmlFor="teacher"[^>]*>\{byAdvisory \? "Advisory" : "Teacher"\}<\/Label>/);
   assert.match(reg, /"Choose your advisory…"/);
   assert.match(reg, /My advisory isn't listed/);
   assert.match(reg, /advisoryId: advisoryPicked \? selectedTeacherId\.slice\("advisory:"\.length\) : undefined/);
