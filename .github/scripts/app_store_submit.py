@@ -1,6 +1,7 @@
 """Checks an app's App Store listing and (MODE=submit) sends its newest processed build to App Review.
 
-Env: BUNDLE (com.arisereader.reader), MODE (check | submit), VERSION (optional). Uses the App Store Connect
+Env: BUNDLE (com.arisereader.reader), MODE (check | submit), VERSION (optional), ATTACH_DIR (optional: every
+file in it is attached to the App Review notes, e.g. the screen recording App Review asked for). Uses the App Store Connect
 API key the other workflows use (apple_signing.token). Prints a plain list of what's ready and what's missing.
 """
 import json
@@ -17,6 +18,8 @@ AUTH = token()
 BUNDLE = os.environ.get("BUNDLE", "com.arisereader.reader")
 MODE = os.environ.get("MODE", "check")
 WANT_VERSION = os.environ.get("VERSION", "").strip()
+ATTACH_DIR = os.environ.get("ATTACH_DIR", "").strip()
+review_detail_id = None
 problems, notes = [], []
 
 
@@ -130,12 +133,15 @@ else:
     try:
         rd = q(f"appStoreVersions/{vid}/appStoreReviewDetail")["data"]
         ra = rd["attributes"] if rd else {}
+        review_detail_id = rd["id"] if rd else None
         print(f"  review contact: {ra.get('contactFirstName')} {ra.get('contactLastName')} {ra.get('contactEmail')} {ra.get('contactPhone')}, sign-in needed: {ra.get('demoAccountRequired')}")
         if not (ra.get("contactEmail") and ra.get("contactPhone")):
             problems.append("No App Review contact (name, phone, email).")
     except RuntimeError:
         problems.append("No App Review contact (name, phone, email), and no demo account for the reviewer.")
     cur = q(f"appStoreVersions/{vid}/build")["data"]
+    if cur:
+        build = cur  # keep the build App Review already has
     print(f"  build on the version: {cur['attributes']['version'] if cur else 'none'}")
 
 print()
@@ -151,10 +157,42 @@ if MODE != "submit":
 if problems:
     sys.exit("Not submitted: fix the items above first.")
 
+# Files for App Review (a screen recording): reserve, upload each part, then commit with its checksum.
+if ATTACH_DIR and os.path.isdir(ATTACH_DIR):
+    import hashlib
+    if not review_detail_id:
+        sys.exit("Not submitted: no App Review details to attach the files to.")
+    have = {a["attributes"].get("fileName") for a in q(f"appStoreReviewDetails/{review_detail_id}/appStoreReviewAttachments")["data"]}
+    for name in sorted(os.listdir(ATTACH_DIR)):
+        path = os.path.join(ATTACH_DIR, name)
+        if not os.path.isfile(path) or name in have:
+            continue
+        blob = open(path, "rb").read()
+        att = api("appStoreReviewAttachments", {"data": {"type": "appStoreReviewAttachments",
+                  "attributes": {"fileName": name, "fileSize": len(blob)},
+                  "relationships": {"appStoreReviewDetail": {"data": {"type": "appStoreReviewDetails", "id": review_detail_id}}}}})["data"]
+        for op in att["attributes"]["uploadOperations"]:
+            part = blob[op["offset"]:op["offset"] + op["length"]]
+            req = urllib.request.Request(op["url"], data=part, method=op["method"],
+                                         headers={h["name"]: h["value"] for h in op.get("requestHeaders", [])})
+            urllib.request.urlopen(req, timeout=300).read()
+        api(f"appStoreReviewAttachments/{att['id']}", {"data": {"type": "appStoreReviewAttachments", "id": att["id"],
+            "attributes": {"uploaded": True, "sourceFileChecksum": hashlib.md5(blob).hexdigest()}}}, method="PATCH")
+        print(f"Attached {name} ({len(blob) // 1024} KB) to the App Review notes.")
+
 # Attach the build, answer export compliance, and submit.
 if build["attributes"].get("usesNonExemptEncryption") is None:
     api(f"builds/{build['id']}", {"data": {"type": "builds", "id": build["id"], "attributes": {"usesNonExemptEncryption": False}}}, method="PATCH")
-api(f"appStoreVersions/{version['id']}/relationships/build", {"data": {"type": "builds", "id": build["id"]}}, method="PATCH")
+if not cur:
+    api(f"appStoreVersions/{version['id']}/relationships/build", {"data": {"type": "builds", "id": build["id"]}}, method="PATCH")
+# After a rejection Apple keeps the old submission open (Unresolved issues): answer it by resubmitting that one.
+open_subs = [x for x in q("reviewSubmissions", **{"filter[app]": app["id"], "filter[platform]": "IOS"})["data"]
+             if x["attributes"].get("state") in ("UNRESOLVED_ISSUES", "READY_FOR_REVIEW")]
+if open_subs:
+    sub = open_subs[0]
+    api(f"reviewSubmissions/{sub['id']}", {"data": {"type": "reviewSubmissions", "id": sub["id"], "attributes": {"submitted": True}}}, method="PATCH")
+    print(f"Resubmitted {app['attributes']['name']} {version['attributes']['versionString']} (build {build['attributes']['version']}) for App Review.")
+    sys.exit(0)
 sub = api("reviewSubmissions", {"data": {"type": "reviewSubmissions", "attributes": {"platform": "IOS"},
                                          "relationships": {"app": {"data": {"type": "apps", "id": app["id"]}}}}})["data"]
 api("reviewSubmissionItems", {"data": {"type": "reviewSubmissionItems",
