@@ -20,7 +20,7 @@ import { AddToClassModal, ClassFormModal, DeleteClassModal, type ClassForm } fro
 import { ClassBoard } from "./HubClassBoard";
 import { MinutesStats, NotesAfterLog } from "./HubMinutesDay";
 import { completion, withNotes, type Colleague } from "@shared/hubMinutesDay";
-import { minutesWeek } from "@shared/hubMinutesWeek";
+import { minutesWeek, startFresh, undoFresh } from "@shared/hubMinutesWeek";
 import { API_BASE } from "@/lib/queryClient";
 import { ChevronDown, Eye } from "lucide-react";
 
@@ -58,6 +58,24 @@ function Spark({ goal }: { goal: Goal }) {
 }
 
 type GoalDraft = { id: string | null; student: string; area: string; text: string; baseline: string; target: string; unit: string; direction: "up" | "down"; startDate: string; targetDate: string };
+
+/** "Start fresh": the percentages and missed days count only from a day you pick (today, or the first real day). */
+function FreshStart({ today, onStart, undo, onUndo }: { today: string; onStart: (from: string) => void; undo: null | (() => void); onUndo: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [from, setFrom] = useState(today);
+  if (undo) return <div className="flex items-center justify-between gap-2 rounded-2xl bg-white px-3 py-2.5 text-sm text-slate-600 ring-1 ring-slate-200/70" data-testid="minutes-fresh-done"><span>Counting starts fresh.</span><button type="button" onClick={onUndo} className="min-h-9 rounded-lg px-2 font-semibold text-slate-900 hover:bg-slate-100">Undo</button></div>;
+  if (!open) return <div className="flex justify-end"><button type="button" onClick={() => setOpen(true)} className="min-h-9 rounded-lg px-2 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800" data-testid="minutes-fresh">Start counting fresh…</button></div>;
+  return <div className="rounded-2xl bg-white p-3 ring-1 ring-slate-200/70" data-testid="minutes-fresh-panel">
+    <p className="text-sm font-semibold text-slate-900">Start counting fresh</p>
+    <p className="mt-0.5 text-xs leading-5 text-slate-500">Testing, a late start, a new caseload: pick the day your minutes really begin. Days before it stop counting as missed and drop out of the percentages. Sessions you logged are kept.</p>
+    <div className="mt-2.5 flex flex-wrap items-center gap-2">
+      <label className="text-xs text-slate-500">Count from <input type="date" value={from} max={today} onChange={(e) => e.target.value && setFrom(e.target.value)} className="ml-1 min-h-9 rounded-lg border border-slate-200 px-2 text-sm text-slate-900" aria-label="Count from" /></label>
+      <span className="flex-1" />
+      <button type="button" onClick={() => setOpen(false)} className="min-h-9 rounded-lg px-3 text-sm font-medium text-slate-600 hover:bg-slate-100">Cancel</button>
+      <button type="button" onClick={() => { setOpen(false); onStart(from); }} className="min-h-9 rounded-lg bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800" data-testid="minutes-fresh-go">Start fresh</button>
+    </div>
+  </div>;
+}
 
 export function GoalsTab({ workspace, setWorkspace, remove, makeId, today }: Props) {
   // A link to a goal (shared/hubLinks.ts) opens Goals on that student's goals.
@@ -223,6 +241,7 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
   const [bulk, setBulk] = useState<BulkStart | null>(null);
   /** What the last save for several students did, shown for a few seconds. */
   const [saved, setSaved] = useState("");
+  const [freshUndo, setFreshUndo] = useState<null | (() => void)>(null);
   /** The plans a deleted class had, so the delete can be taken back while the message shows. */
   const [undoPlans, setUndoPlans] = useState<ServicePlan[] | null>(null);
   const [classAdd, setClassAdd] = useState<string | null>(null);
@@ -380,6 +399,12 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
         </div>
 
         {look === "quick" && <MinutesStats {...stats} />}
+        {look === "quick" && !readOnly && plans.length > 0 && <FreshStart today={today} onStart={(from) => {
+          let before: Record<string, string | undefined> = {};
+          setWorkspace((w) => { const r = startFresh(w.services, from); before = r.before; return { ...w, services: r.plans }; });
+          setFreshUndo(() => () => setWorkspace((w) => ({ ...w, services: undoFresh(w.services, before) })));
+          setSaved(`Counting from ${from === today ? "today" : from}. Earlier days no longer count as missed.`);
+        }} undo={freshUndo} onUndo={() => { freshUndo?.(); setFreshUndo(null); setSaved("Back to how it was."); }} />}
 
         {editing && !readOnly && (
           <div className="grid grid-cols-[minmax(0,1fr)] gap-2 rounded-2xl bg-white p-3 ring-1 ring-slate-200/70" data-testid="minutes-edit-panel">

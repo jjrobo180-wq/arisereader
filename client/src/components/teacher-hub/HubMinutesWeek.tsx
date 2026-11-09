@@ -21,23 +21,21 @@ export type LogStart = {
   others?: { block: MinutesItem[]; day: MinutesItem[] };
 };
 
+// Quiet rows like the main tab: no colored boxes, just a small dot and a word for where each session stands.
 const ITEM_LOOK: Record<BlockState, string> = {
-  logged: "border-emerald-200 bg-emerald-50 text-emerald-900",
-  extra: "border-sky-200 bg-sky-100 text-sky-800",
-  today: "border-teal-300 bg-white text-slate-900",
-  planned: "border-slate-200 bg-white text-slate-600",
-  missed: "border-amber-200 bg-amber-50 text-amber-900",
-  "made up": "border-slate-200 bg-slate-50 text-slate-600",
-  "any day": "border-slate-200 bg-white text-slate-700",
-  "not met": "border-slate-200 bg-slate-100 text-slate-600",
+  logged: "text-slate-900", extra: "text-slate-900", today: "text-slate-900", planned: "text-slate-500",
+  missed: "text-slate-900", "made up": "text-slate-400", "any day": "text-slate-700", "not met": "text-slate-400",
+};
+const ITEM_DOT: Record<BlockState, string> = {
+  logged: "bg-emerald-500", extra: "bg-sky-500", today: "bg-teal-500", planned: "bg-slate-300", missed: "bg-amber-500", "made up": "bg-slate-300", "any day": "bg-slate-400", "not met": "bg-slate-300",
 };
 const ITEM_WORD: Record<BlockState, string> = { logged: "Done", extra: "Extra", today: "Due today", planned: "Planned", missed: "Missed", "made up": "Made up", "any day": "Any day this week", "not met": "Did not meet" };
 const DOT: Record<MinutesDay["state"], string> = { done: "bg-emerald-600", short: "bg-amber-500", today: "bg-teal-600", ahead: "bg-slate-300", "not met": "bg-slate-400", empty: "bg-transparent" };
 const DAY_WORD: Record<MinutesDay["state"], string> = { done: "all given", short: "minutes missed", today: "due today", ahead: "planned", "not met": "did not meet", empty: "nothing planned" };
 // A narrow first column for the block names, then one column for each day.
 const COLS: Record<number, string> = { 5: "lg:grid-cols-[6.5rem_repeat(5,minmax(0,1fr))]", 6: "lg:grid-cols-[6.5rem_repeat(6,minmax(0,1fr))]", 7: "lg:grid-cols-[6.5rem_repeat(7,minmax(0,1fr))]" };
-const navBtn = "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50";
-const smallBtn = "inline-flex min-h-9 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 hover:bg-slate-50";
+const navBtn = "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-slate-600 ring-1 ring-slate-200/70 hover:bg-slate-50";
+const smallBtn = "inline-flex min-h-9 items-center justify-center gap-1 rounded-lg px-2 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900";
 
 type Handlers = {
   /** Log these items as given, with one tap. */
@@ -58,11 +56,11 @@ function Item({ item, today, blocks, others, onLog, onEdit, onAdd, onMove, onPla
   const body = (
     <>
       <span className="block break-words text-sm font-semibold leading-snug">{item.student}</span>
-      <span className="block text-xs">{notMet ? item.kind : `${item.state === "any day" ? `${item.minutes} min left` : `${item.minutes} min`} · ${item.kind}`}</span>
-      <span className="mt-0.5 block text-xs font-semibold">{given && !notMet && <Check className="mr-0.5 inline h-3.5 w-3.5" aria-hidden />}{ITEM_WORD[item.state]}{item.note ? <span className="font-normal"> · {item.note}</span> : null}</span>
+      <span className="block text-xs text-slate-500">{notMet ? item.kind : `${item.state === "any day" ? `${item.minutes} min left` : `${item.minutes} min`} · ${item.kind}`}</span>
+      <span className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-slate-500"><span className={`h-1.5 w-1.5 shrink-0 rounded-full ${ITEM_DOT[item.state]}`} aria-hidden />{given && !notMet && <Check className="h-3 w-3 text-emerald-600" aria-hidden />}{ITEM_WORD[item.state]}{item.note ? <span className="truncate font-normal"> · {item.note}</span> : null}</span>
     </>
   );
-  const box = `rounded-xl border px-2.5 py-2 text-left ${ITEM_LOOK[item.state]}`;
+  const box = `rounded-xl px-2.5 py-2.5 text-left transition ${ITEM_LOOK[item.state]}`;
   // Someone with a plan who is in no block yet can be put in one right here.
   const move = !item.block && item.planId ? (
     <select aria-label={`Put ${item.student} in a block`} value="" onChange={(e) => { if (e.target.value) onMove(item.planId!, e.target.value); }} className="mt-1.5 min-h-9 w-full rounded-lg border border-slate-200 bg-white px-1.5 text-xs font-semibold text-slate-700" data-testid="minutes-move">
@@ -72,7 +70,7 @@ function Item({ item, today, blocks, others, onLog, onEdit, onAdd, onMove, onPla
   ) : null;
   /** Their days and minutes can be changed right here, or the student taken out of the block. */
   const change = item.planId ? <button type="button" onClick={() => onPlan(item.planId!)} aria-label={`Change days and minutes for ${item.student}`} className="-mr-1.5 -mt-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700" data-testid="minutes-change"><Pencil className="h-3.5 w-3.5" /></button> : null;
-  if (given) return <li data-testid="minutes-item" data-state={item.state}><button type="button" className={`${box} block w-full hover:brightness-95`} onClick={() => onEdit(item.logId!)} aria-label={notMet ? `${item.student}, did not meet${item.note ? `, ${item.note}` : ""}. Change` : `${item.student}, ${item.minutes} minutes, ${ITEM_WORD[item.state].toLowerCase()}. Change`}>{body}</button>{move}</li>;
+  if (given) return <li data-testid="minutes-item" data-state={item.state}><button type="button" className={`${box} block w-full hover:bg-slate-50`} onClick={() => onEdit(item.logId!)} aria-label={notMet ? `${item.student}, did not meet${item.note ? `, ${item.note}` : ""}. Change` : `${item.student}, ${item.minutes} minutes, ${ITEM_WORD[item.state].toLowerCase()}. Change`}>{body}</button>{move}</li>;
   const oneTap = item.state === "today" || item.state === "missed";
   const start: LogStart = { student: item.student, kind: item.kind, date: item.date, block: item.block };
   /** "Did not meet", with a reason: for this student, or for everyone still waiting in the block or on the day. */
@@ -80,8 +78,10 @@ function Item({ item, today, blocks, others, onLog, onEdit, onAdd, onMove, onPla
   return (
     <li className={box} data-testid="minutes-item" data-state={item.state}>
       <div className="flex items-start gap-1"><div className="min-w-0 flex-1">{body}</div>{change}</div>
-      {oneTap && <button type="button" className="mt-1.5 inline-flex min-h-9 w-full items-center justify-center rounded-lg bg-slate-950 px-2 text-xs font-semibold text-white hover:bg-slate-800" onClick={() => onLog([item])} aria-label={`Log ${item.minutes} minutes for ${item.student}`}>Log {item.minutes} min</button>}
-      {oneTap && <div className="mt-1 grid grid-cols-2 gap-1"><button type="button" className={smallBtn} onClick={() => onAdd(start)} aria-label={`Other minutes for ${item.student}`} data-testid="minutes-other-amount">Other</button>{skip}</div>}
+      {oneTap && <div className="mt-2 flex flex-wrap items-center gap-1">
+        <button type="button" className="inline-flex min-h-9 items-center gap-1 rounded-full bg-teal-600 px-3 text-xs font-semibold text-white shadow-sm hover:bg-teal-700" onClick={() => onLog([item])} aria-label={`Log ${item.minutes} minutes for ${item.student}`}><Check className="h-3.5 w-3.5" aria-hidden />Log {item.minutes} min</button>
+        <button type="button" className={smallBtn} onClick={() => onAdd(start)} aria-label={`Other minutes for ${item.student}`} data-testid="minutes-other-amount">Other</button>{skip}
+      </div>}
       {item.state === "any day" && item.date <= today && <div className="mt-1.5 grid grid-cols-2 gap-1"><button type="button" className={smallBtn} onClick={() => onAdd(start)} aria-label={`Log minutes for ${item.student}`}>Log</button>{skip}</div>}
       {move}
     </li>
@@ -92,23 +92,23 @@ function Cell({ cell, day, row, shown, today, blocks, ...handlers }: { cell: Min
   const where = `${row.name}, ${DAY_NAMES[day.day]}, ${monthDay(day.date)}`;
   const others = { block: cell.items.filter((x) => canSkip(x.state)), day: day.cells.flatMap((c) => c.items).filter((x) => canSkip(x.state)) };
   return (
-    <div className={`min-w-0 rounded-xl border p-1.5 ${day.date === today ? "border-teal-200 bg-teal-50/60" : "border-slate-200 bg-slate-50"} ${shown ? "" : "hidden lg:block"}`} role="group" aria-label={where} data-testid="minutes-cell" data-date={day.date} data-block={row.id}>
-      {cell.todo > 1 && <button type="button" className={`${smallBtn} mb-1.5 w-full`} onClick={() => handlers.onLog(cell.items)} data-testid="minutes-log-all">Log all {cell.todo}</button>}
+    <div className={`min-w-0 rounded-2xl bg-white p-1 ring-1 ${day.date === today ? "ring-teal-300/80 shadow-sm" : "ring-slate-200/70"} ${shown ? "" : "hidden lg:block"}`} role="group" aria-label={where} data-testid="minutes-cell" data-date={day.date} data-block={row.id}>
+      {cell.todo > 1 && <button type="button" className="mb-1 inline-flex min-h-9 w-full items-center justify-center gap-1 rounded-xl bg-slate-50 text-xs font-semibold text-slate-700 hover:bg-slate-100" onClick={() => handlers.onLog(cell.items)} data-testid="minutes-log-all"><Check className="h-3.5 w-3.5" aria-hidden />Log all {cell.todo}</button>}
       {cell.items.length > 0 && (
-        <ul className="space-y-1.5">
+        <ul className="divide-y divide-slate-100">
           {cell.items.map((item, i) => {
             // A block that is split is shown class by class: a heading wherever the half of the block or the teacher changes.
             const group = groupText(item);
             return (
               <Fragment key={item.key}>
-                {group && group !== (i ? groupText(cell.items[i - 1]) : "") && <li className={`px-1 text-[11px] font-bold uppercase tracking-wide text-slate-600 ${i ? "pt-1.5" : ""}`} data-testid="minutes-group">{group}</li>}
+                {group && group !== (i ? groupText(cell.items[i - 1]) : "") && <li className={`px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[.08em] text-slate-400 ${i ? "pt-3" : "pt-2"}`} data-testid="minutes-group">{group}</li>}
                 <Item item={item} today={today} blocks={blocks} others={others} {...handlers} />
               </Fragment>
             );
           })}
         </ul>
       )}
-      <button type="button" className={`inline-flex min-h-9 w-full items-center justify-center gap-1 rounded-lg text-xs font-semibold text-slate-500 hover:bg-slate-100 ${cell.items.length ? "mt-1" : ""}`} onClick={() => handlers.onAdd({ date: day.date, block: row.id })} aria-label={day.optional ? `Add minutes you gave in ${where}` : `Add students in ${where}`} data-testid="minutes-add"><Plus className="h-3.5 w-3.5" /> {day.optional ? "Add if you met" : "Add"}</button>
+      <button type="button" className={`inline-flex min-h-9 w-full items-center justify-center gap-1 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-50 hover:text-slate-700 ${cell.items.length ? "mt-0.5" : ""}`} onClick={() => handlers.onAdd({ date: day.date, block: row.id })} aria-label={day.optional ? `Add minutes you gave in ${where}` : `Add students in ${where}`} data-testid="minutes-add"><Plus className="h-3.5 w-3.5" /> {day.optional ? "Add if you met" : "Add"}</button>
     </div>
   );
 }
@@ -129,11 +129,11 @@ export function MinutesWeekView({ workspace, today, onBlocks, readOnly = false, 
   const dayTotal = (d: MinutesDay) => (d.optional ? (d.done ? `Optional · ${d.done} min extra` : "Optional · extra only") : d.planned ? `${d.done} of ${d.planned} min` : d.done ? `${d.done} min` : "Nothing planned");
 
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4" aria-label="Minutes by block" data-testid="minutes-week">
+    <section className="rounded-3xl bg-slate-50/70 p-3 ring-1 ring-slate-200/70 sm:p-5" aria-label="Minutes by block" data-testid="minutes-week">
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" className={navBtn} onClick={() => go(-7)} aria-label="Week before"><ChevronLeft className="h-5 w-5" /></button>
         <div className="min-w-0 flex-1">
-          <h2 className="font-semibold text-slate-900" data-testid="minutes-week-title">Week of {monthDay(week.start)}</h2>
+          <h2 className="text-[17px] font-semibold tracking-tight text-slate-900" data-testid="minutes-week-title">Week of {monthDay(week.start)}</h2>
           <p className="text-xs text-slate-500" data-testid="minutes-week-total">{week.planned ? `${week.done} of ${week.planned} min` : `${week.done} min`}{thisWeek ? " this week" : ""}</p>
         </div>
         {!thisWeek && <button type="button" className="inline-flex min-h-11 items-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => { setWeekOf(today); setPicked(""); }}>Today</button>}
@@ -161,14 +161,14 @@ export function MinutesWeekView({ workspace, today, onBlocks, readOnly = false, 
         <div className="hidden lg:block" aria-hidden />
         {week.days.map((d) => (
           <div key={d.date} className="hidden min-w-0 px-1 lg:block" data-testid="minutes-day-head" data-date={d.date}>
-            <h3 className="text-sm font-bold text-slate-900">{d.day} {monthDay(d.date)}{d.date === today && " "}{d.date === today && <span className="rounded-full bg-teal-600 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">Today</span>}</h3>
+            <h3 className="text-sm font-semibold text-slate-900">{d.day} {monthDay(d.date)}{d.date === today && " "}{d.date === today && <span className="ml-1 rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-teal-700 ring-1 ring-teal-200">Today</span>}</h3>
             <p className="text-xs text-slate-500">{dayTotal(d)}</p>
           </div>
         ))}
         {week.rows.map((row, r) => (
           <div key={row.id || "none"} className="contents" data-testid="minutes-row" data-block={row.id}>
             <div className="mt-2 flex items-baseline justify-between gap-2 px-1 lg:mt-0 lg:block lg:pt-2" data-testid="minutes-row-head">
-              <h4 className="text-sm font-bold text-slate-900">{row.name}</h4>
+              <h4 className="text-xs font-semibold uppercase tracking-[.08em] text-slate-500">{row.name}</h4>
               <p className="text-xs text-slate-500">{row.id ? "" : "Not in a block yet"}<span className="lg:hidden">{day.cells[r].done ? `${row.id ? "" : " · "}${day.cells[r].done} min` : ""}</span></p>
             </div>
             {week.days.map((d) => <Cell key={d.date} cell={d.cells[r]} day={d} row={row} shown={d.date === selected} today={today} blocks={blocks} {...handlers} />)}
