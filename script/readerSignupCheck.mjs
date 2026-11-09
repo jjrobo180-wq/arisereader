@@ -207,36 +207,40 @@ try {
   check(false, "All Access link check ran", String(e?.message || e).split("\n")[0]);
 }
 
-// ── Signed in to To Duo in the app → "Get it on arisetodo.com" → Safari's All Access page, already signed in ──
+// ── To Duo in the app: no All Access on sign-up; after the walkthrough, the All Access pop-up once ──
 try {
   users.set("duo", { password: "duopass123", user: { id: 9500, username: "duo", displayName: "Duo Person", role: "todo", email: "duo@example.com" } });
   const b4 = await webkit.launch();
   const c4 = await b4.newContext({ ...devices["iPhone 14"], serviceWorkers: "block", locale: "en-US" });
-  await c4.route("**/*", (route) => serve(route, new URL(route.request().url()).hostname === "arisetodo.com" ? "dist-web" : "dist-todo"));
+  await c4.route("**/*", (route) => serve(route, "dist-todo"));
   const p4 = await c4.newPage();
   await p4.goto("https://app.local/index.html#/signin", { waitUntil: "domcontentloaded" });
   await p4.waitForTimeout(4000);
-  await p4.getByRole("button", { name: /Sign in with email/i }).first().click();
+  const welcome = await p4.evaluate(() => document.body.innerText);
+  check(!/All Access|\$10/.test(welcome), "To Duo's first screen shows no All Access price or link");
+  await p4.getByRole("button", { name: /Create a free account/i }).first().click();
+  await p4.waitForTimeout(1200);
+  check(!/All Access|\$10/.test(await p4.evaluate(() => document.body.innerText)), "To Duo's sign-up shows no All Access price or link");
+  await p4.getByRole("button", { name: /Sign in/i }).last().click().catch(() => {});
+  await p4.waitForTimeout(800);
   await p4.getByTestId("native-username").fill("duo");
   await p4.getByTestId("native-password").fill("duopass123");
   await p4.getByRole("button", { name: /^Sign in$/ }).click();
-  await p4.waitForTimeout(4000);
-  await p4.evaluate(() => { window.location.hash = "#/all-access"; });
-  await p4.waitForTimeout(3000);
-  await p4.screenshot({ path: "screens/9-app-all-access.png" });
-  const before = calls.filter((c) => c === "POST /api/login").length;
-  const went = p4.waitForURL(/arisetodo\.com\/app/, { timeout: 15000 }).then(() => true).catch(() => false);
-  await p4.getByTestId("all-access-offer-link").click();
-  check(await went, "To Duo's All Access link opens arisetodo.com", p4.url().slice(0, 90));
-  await p4.waitForTimeout(5000);
-  await p4.screenshot({ path: "screens/10-safari-all-access.png" });
-  const t4 = await p4.evaluate(() => document.body.innerText);
-  check(calls.includes("POST /api/auth/web-handoff/start") && calls.includes("POST /api/auth/web-handoff/consume"), "the link carried a one-use sign-in code");
-  check(/Get All Access/.test(t4) && !/Sign in or create a free account|Username or email/i.test(t4), "Safari shows All Access already signed in, with the buy button", t4.slice(0, 80).replace(/\s+/g, " "));
-  check(calls.filter((c) => c === "POST /api/login").length === before, "no second password sign-in");
+  await p4.waitForTimeout(6000);
+  await p4.screenshot({ path: "screens/9-todo-walkthrough.png" });
+  const early = await p4.getByTestId("all-access-popup").isVisible().catch(() => false);
+  check(!early, "no All Access pop-up during the walkthrough");
+  await p4.evaluate(() => { localStorage.setItem("arise-walkthrough-v1:9500", "1"); });
+  const shown = await p4.getByTestId("all-access-popup").waitFor({ timeout: 15000 }).then(() => true).catch(() => false);
+  await p4.screenshot({ path: "screens/10-all-access-popup.png" });
+  check(shown, "after the walkthrough the All Access pop-up shows");
+  await p4.getByTestId("all-access-popup-later").click().catch(() => {});
+  await p4.reload({ waitUntil: "domcontentloaded" });
+  await p4.waitForTimeout(8000);
+  check(!(await p4.getByTestId("all-access-popup").isVisible().catch(() => false)), "it shows only once");
   await b4.close();
 } catch (e) {
-  check(false, "To Duo All Access link check ran", String(e?.message || e).split("\n")[0]);
+  check(false, "To Duo All Access pop-up check ran", String(e?.message || e).split("\n")[0]);
 }
 
 if (errors.length) console.log("Page errors:\n  " + [...new Set(errors)].slice(0, 8).join("\n  "));

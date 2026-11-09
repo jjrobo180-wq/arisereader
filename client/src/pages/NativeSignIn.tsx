@@ -11,7 +11,6 @@ import ForgotSignIn from "@/components/auth/ForgotSignIn";
 import { useAuth } from "@/context/AuthContext";
 import { APPLE_LOGO_PATH, appleSignInAvailable, askApple } from "@/lib/appleSignIn";
 import { LEGAL, nativeAppInfo, nativeFlavor, type NativeFlavor } from "@/lib/nativeApp";
-import AllAccessOffer from "@/components/AllAccessOffer";
 import { API_BASE } from "@/lib/queryClient";
 import { TEACHER_CONFIRM_KEY } from "@shared/schoolEmail";
 
@@ -161,7 +160,6 @@ export default function NativeSignIn() {
 
   const apple = copy.apple && appleSignInAvailable();
   /** The apps whose paid tier is part of Arise All Access show the plan on sign-up. */
-  const bundle = flavor === "todo" || flavor === "fit" || flavor === "notes";
   /** Making an account: To Duo has its own screen; the Reader apps use the website's sign-up pages. */
   const create = () => (flavor === "reader" ? navigate("/parent-signup") :  flavor === "educator" ? setPicking(true) : go("signup"));
   const [picking, setPicking] = useState(false);
@@ -174,7 +172,6 @@ export default function NativeSignIn() {
       <ul className="mt-9 w-full max-w-[20rem] space-y-5 text-left">
         {copy.features.map((f) => <Feature key={f.title} {...f} />)}
       </ul>
-      {bundle && <AllAccessOffer className="mt-7 w-full max-w-[20rem]" />}
     </div>
     <div className="shrink-0 space-y-3 px-6 pb-2">
       {apple && <button type="button" onClick={withApple} disabled={!!busy} data-testid="native-apple"
@@ -236,7 +233,6 @@ export default function NativeSignIn() {
       {!signingUp && <button type="button" onClick={() => go("forgot")} className="mt-3 self-start px-1 py-2 text-[15px] font-semibold text-[#5b4fe0]">Forgot username or password?</button>}
       {signingUp && eyeGazer && <button type="button" onClick={() => navigate("/parent-signup")} className="mt-3 self-start px-1 py-2 text-[14px] font-semibold text-[#5b4fe0]">A parent who wants family controls? Make a parent account</button>}
       {signingUp && !eyeGazer && <p className="mt-3 px-1 text-[13px] leading-snug text-[#8e8b9c]">You sign in with your email. We'll send it a 6-digit code to confirm.</p>}
-      {signingUp && bundle && <AllAccessOffer className="mt-4" />}
       <Message error={error} notice={notice} />
       <div className="mt-auto space-y-3 pb-2 pt-8">
         <Primary busy={busy === "form"} disabled={!password || (signingUp ? (!name.trim() || (eyeGazer ? !username.trim() : !email.trim())) : !username.trim())}>{signingUp ? "Create account" : "Sign in"}</Primary>
