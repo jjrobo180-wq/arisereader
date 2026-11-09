@@ -24,7 +24,9 @@ export default function Pricing() {
     else window.location.assign("https://www.arisereader.com/#/teacher-signup");
   };
   const familyPlan = () => {
-    window.location.assign(user?.role === "parent" ? "https://www.arisereader.com/#/subscribe" : "https://www.arisereader.com/#/parent-signup");
+    // Signed out, this opens a sign-in first (an account made in the app), then the plan. Brand-new
+    // families still find "Create an account" on that sign-in page.
+    window.location.assign("https://www.arisereader.com/#/subscribe");
   };
   const kids = PLANS.parentMaxChildren;
   const block = PLANS.teacher.studentsPerBlock;

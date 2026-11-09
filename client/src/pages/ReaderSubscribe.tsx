@@ -12,7 +12,8 @@ import { isNativeApp } from "@/lib/nativeApp";
 import { usePlan } from "@/lib/plan";
 import { PLANS, usd } from "@shared/plans";
 
-const SITE = "https://arisereader.com/#/pricing";
+// Safari opens the website's plan page: sign in with this same account there, then pay.
+const SITE = "https://www.arisereader.com/#/subscribe";
 
 export default function ReaderSubscribe() {
   const { user, token, logout } = useAuth();
@@ -38,6 +39,13 @@ export default function ReaderSubscribe() {
       .catch(() => setError("We couldn't confirm the payment yet. If your card was charged, it switches on within a few minutes."))
       .finally(() => setBusy(false));
   }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Back in the app after paying in Safari: check the plan again so the Reader opens by itself.
+  useEffect(() => {
+    const again = () => { if (document.visibilityState === "visible") void refresh(); };
+    document.addEventListener("visibilitychange", again);
+    window.addEventListener("focus", again);
+    return () => { document.removeEventListener("visibilitychange", again); window.removeEventListener("focus", again); };
+  }, [refresh]);
   // Already paid (or covered by a teacher): nothing to do here.
   useEffect(() => { if (plan?.reader?.access) navigate(role === "student" ? "/library" : "/reader"); }, [plan?.reader?.access]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -123,7 +131,7 @@ export default function ReaderSubscribe() {
             </button>
           ))}
         </div>
-        {native && <p className="mt-3 text-center text-xs leading-5 text-slate-400">Tap a plan to see it on arisereader.com in Safari. Nothing is sold in the app.</p>}
+        {native && <p className="mt-3 text-center text-xs leading-5 text-slate-400">Tap a plan to open arisereader.com in Safari. Sign in there with this same account to pay. Nothing is sold in the app.</p>}
         <button type="button" onClick={() => setAccount(true)} className="mx-auto mt-6 flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-slate-400 hover:bg-white/10 hover:text-rose-300" data-testid="reader-subscribe-account">
           <Trash2 className="h-4 w-4" />Account &amp; privacy · Delete my account
         </button>

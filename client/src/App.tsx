@@ -288,6 +288,19 @@ function StudentSetupGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** The parent and teacher Reader (/reader) sits outside ProtectedRoute, so it checks the Reader plan
+ *  itself: a new account with no plan goes to the plan page before it sees anything. */
+function ReaderPlanGate({ children }: { children: React.ReactNode }) {
+  const { user, token } = useAuth();
+  const onReader = !!user && !user.isAdmin && isReaderHost() && nativeFlavor() !== "eyegaze";
+  const { plan, loading } = usePlan(onReader ? token : null);
+  if (onReader && loading && !plan) {
+    return <div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
+  }
+  if (onReader && readerLocked(plan)) return <Redirect to="/subscribe" replace />;
+  return <>{children}</>;
+}
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading, token } = useAuth();
   const [location] = useLocation();
@@ -660,7 +673,7 @@ function AppRoutes() {
       {/* A.R.I.S.E. Reader's teacher and parent tools, on their own page rather than inside a hub.
           Signing in still happens in the hub, so a signed-out visitor goes to the sign-in screen. */}
       <Route path="/reader">
-        {!user ? <Redirect to="/signin" replace /> : <AriseReader />}
+        {!user ? <Redirect to="/signin" replace /> : <ReaderPlanGate><AriseReader /></ReaderPlanGate>}
       </Route>
       {/* Office, the AI tools and the premium apps open from the hubs' App Store, so they let in
           whoever the hubs do: teachers, parents, personal accounts and admins. They don't use
@@ -732,7 +745,12 @@ function AppRoutes() {
         <ReaderScholarship />
       </Route>
       <Route path="/subscribe">
-        {user ? <ReaderSubscribe /> : <Redirect to="/" replace />}
+        {/* Signed out (a parent who tapped a plan in the app lands here in Safari): sign in first, then the
+            same page opens to pay. Never a new account. */}
+        {user ? <ReaderSubscribe /> : <div>
+          <p className="bg-violet-700 px-4 py-3 text-center text-sm font-bold text-white" data-testid="subscribe-signin-first">Sign in with the account you already made. Your plan opens right after.</p>
+          {isNativeApp() ? <NativeSignIn /> : <SignIn />}
+        </div>}
       </Route>
       {/* A teacher's plan: what they have, and paying for Premium. */}
       <Route path="/billing">
