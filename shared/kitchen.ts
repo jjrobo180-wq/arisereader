@@ -483,3 +483,21 @@ export function planToList<G extends { id: string; checked: boolean }>(groceries
   const id = () => { let x = `${PLAN_TAG}${makeId()}`; while (used.has(x)) x = `${PLAN_TAG}${makeId()}${used.size}`; used.add(x); return x; };
   return [...groceries.filter((g) => !g.id.startsWith(PLAN_TAG) || g.checked), ...lines.map((l) => ({ id: id(), name: `${l.group.name}: ${buyText(l.buy)}`.slice(0, 80), qty: `${l.packs} pk`.slice(0, 20), aisle: guessAisle(l.group.name), checked: false, price: l.cost }))];
 }
+
+/** Your own dishes made by name only (Bagel, Coffee, Gold fish): no ingredients to add up, so the dish itself
+ *  goes on the list, with how many servings the plan has of it. */
+export type KPlain = { dish: KDish; servings: number };
+export function plainLines(k: Kitchen): KPlain[] {
+  const by = new Map<string, KPlain>();
+  for (const key of activeKeys(k)) for (const m of k.week[key] ?? []) {
+    const dish = dishOf(k, m.dish); if (!dish || takeoutOf(k, dish.id) || partsOf(k, dish).length) continue;
+    const cur = by.get(dish.id) ?? { dish, servings: 0 }; cur.servings += peopleIn(k, m).length || 1; by.set(dish.id, cur);
+  }
+  return [...by.values()].sort((a, b) => a.dish.name.localeCompare(b.dish.name));
+}
+export function planToListAll<G extends { id: string; checked: boolean }>(groceries: G[], k: Kitchen, lines: KLine[], makeId: () => string) {
+  const list = planToList(groceries, lines, makeId);
+  const taken = new Set(list.map((g) => g.id));
+  const plain = plainLines(k).map((p, i) => { let id = `${PLAN_TAG}${makeId()}`; while (taken.has(id)) id = `${PLAN_TAG}${makeId()}${i}`; taken.add(id); return { id, name: p.dish.name.slice(0, 80), qty: `${p.servings}×`, aisle: guessAisle(p.dish.name), checked: false, price: 0 }; });
+  return [...list, ...plain];
+}

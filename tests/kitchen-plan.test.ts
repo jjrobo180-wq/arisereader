@@ -345,3 +345,12 @@ test("never again: every ingredient a plan needs lands on the shopping list, sho
   for (const g of saved) assert.ok(AISLES.includes(aisleOf(g)), `${g.name} shows on screen`);
   assert.equal(aisleOf({ aisle: "Bread & bakery" }), "Other");
 });
+
+test("your own dishes with no ingredients (Bagel, Coffee) go on the shopping list as themselves", async () => {
+  const { planToListAll, plainLines } = await import("../shared/kitchen");
+  const k = cleanKitchen({ setup: true, people: [{ id: "a", name: "A", portion: 1 }], own: [{ id: "own-b", slot: "breakfast", name: "Bagel", parts: [] }, { id: "own-c", slot: "breakfast", name: "Coffee", parts: [] }],
+    week: { "mon:breakfast": [{ id: "1", dish: "own-b", people: [] }, { id: "2", dish: "own-c", people: [] }], "tue:breakfast": [{ id: "3", dish: "own-c", people: [] }] } });
+  assert.deepEqual(plainLines(k).map((p) => `${p.dish.name}:${p.servings}`), ["Bagel:1", "Coffee:2"]);
+  let n = 0; const list = planToListAll([], k, shoppingLines(k).filter((l) => !l.have && l.packs > 0), () => String(n++));
+  assert.ok(list.some((g) => g.name === "Bagel") && list.some((g) => g.name === "Coffee"));
+});
