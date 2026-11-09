@@ -603,7 +603,12 @@ function AppRoutes() {
       </Route>
       {/* Arise All Access: one $10 plan for To Duo, Notes, Fit and Pod+ (pages/AllAccess.tsx). */}
       <Route path="/all-access">
-        <ProtectedRoute><AllAccess /></ProtectedRoute>
+        {/* Signed out (from an app's "Get it on arisetodo.com" link): sign in or make a free account right here,
+            then this same page shows the plan. Never the homepage. */}
+        {user ? <AllAccess /> : <div>
+          <p className="bg-violet-700 px-4 py-3 text-center text-sm font-bold text-white" data-testid="all-access-signin-first">Arise All Access is $10 a month. Sign in, or create a free account, and it opens right here.</p>
+          <SignIn />
+        </div>}
       </Route>
       {/* Arise Coaching: the public trainer directory, and Arise Trainer for coaches. */}
       <Route path="/trainers"><TrainersPage /></Route>

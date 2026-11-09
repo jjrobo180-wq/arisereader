@@ -12,6 +12,8 @@ on:
       - 'client/src/pages/ReaderSubscribe.tsx'
       - 'client/src/pages/SignIn.tsx'
       - 'client/src/App.tsx'
+      - 'client/src/pages/AllAccess.tsx'
+      - 'client/src/components/AllAccessOffer.tsx'
       - 'client/src/context/AuthContext.tsx'
       - 'script/readerSignupCheck.mjs'
       - '.github/workflows/reader-signup-check.yml'

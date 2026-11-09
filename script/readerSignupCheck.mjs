@@ -189,6 +189,23 @@ try {
   check(false, "To Duo sign-up ran to the end", String(e?.message || e).split("\n")[0]);
 }
 
+// ── An app's "Get it on arisetodo.com" link, signed out in Safari: the All Access page, never the homepage ──
+try {
+  const b3 = await webkit.launch();
+  const c3 = await b3.newContext({ ...devices["iPhone 14"], serviceWorkers: "block" });
+  await c3.route("**/*", (route) => serve(route, "dist-web"));
+  const p3 = await c3.newPage();
+  await p3.goto("https://arisetodo.com/app#/all-access", { waitUntil: "domcontentloaded" });
+  await p3.waitForTimeout(4000);
+  await p3.screenshot({ path: "screens/8-all-access-link.png" });
+  const t3 = await p3.evaluate(() => document.body.innerText);
+  check(p3.url().includes("#/all-access") && /All Access is \$10 a month/.test(t3), "All Access link (signed out) opens the All Access sign-in, not the homepage", p3.url());
+  await p3.locator("#personal-email, input[type=email]").first().isVisible().catch(() => false);
+  await b3.close();
+} catch (e) {
+  check(false, "All Access link check ran", String(e?.message || e).split("\n")[0]);
+}
+
 if (errors.length) console.log("Page errors:\n  " + [...new Set(errors)].slice(0, 8).join("\n  "));
 const failed = results.filter((r) => !r.ok);
 await writeFile("screens/results.txt", results.map((r) => `${r.ok ? "PASS" : "FAIL"}  ${r.what}`).join("\n") + "\n" + (errors.length ? "\nPage errors:\n" + [...new Set(errors)].join("\n") : ""));
