@@ -1846,6 +1846,13 @@ export async function registerRoutes(
   const profileLinks = registerProfileLinkRoutes(app, authMiddleware, {
     getSetting: (key) => storage.getSetting(key), upsertSetting: (key, value) => storage.upsertSetting(key, value),
     getUser: (id) => storage.getUser(id), lifeHub: (ownerId) => savedHub("life", ownerId),
+    notify: (userId, m) => notifyUser(userId, { title: m.title, body: m.body, url: m.url, tag: "sharing" }),
+    inviteEmail: async (email, ownerName) => {
+      const { data } = await getAdminSupabase().from("users").select("id").ilike("email", email).limit(1).maybeSingle();
+      if (data?.id) { await notifyUser(Number(data.id), { title: `${ownerName} shared Kitchen with you`, body: "Tap to open it and accept.", url: "/#/pro?hub=life", tag: "sharing" }); return; }
+      const site = APP_URL.replace(/\/$/, "");
+      await sendEmail(email, `${ownerName} shared an app with you on Arise To Duo`, `<p><b>${ownerName.replace(/[<>&]/g, "")}</b> shared an app with you on Arise To Duo.</p><p>Download Arise To Duo, make an account with this email address, and the invite will be waiting for you to accept.</p><p><a href="${site}">Get Arise To Duo</a></p>`);
+    },
     // Accountability turned on for a linked person: the two share an Accountability space (server/accountability.ts).
     lifeWorkspace: {
       read: async (ownerId) => {

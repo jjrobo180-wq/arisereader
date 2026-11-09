@@ -40,6 +40,11 @@ export type ProfileLinkDeps = {
     /** Saves if nobody else saved since `base`; null when someone did (then it's read again and retried). */
     write: (ownerId: number, workspace: any, base: string) => Promise<string | null>;
   };
+  /** Tells someone with an account about sharing: a notification on their devices. Never blocks the answer. */
+  notify?: (userId: number, msg: { title: string; body: string; url: string }) => Promise<unknown>;
+  /** An invite to an email address: a notification when that email has an account, otherwise an email that
+   *  asks them to download the app and sign up with it. Never blocks the answer. */
+  inviteEmail?: (email: string, ownerName: string) => Promise<unknown>;
   now?: () => number;
 };
 
@@ -80,6 +85,9 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
   const editIds = (key: string, fn: (ids: number[]) => number[]) => withLock(key, async () => { await deps.upsertSetting(key, JSON.stringify(fn(await readIds(key)))); });
   const me = (req: any): { id: number; email: string } | null => { const u = req.adminPreview && req.realUser ? req.realUser : req.user; return u?.id ? { id: Number(u.id), email: normalEmail(u.email) } : null; };
   const nameOf = async (id: number) => { const u = await deps.getUser(id).catch(() => null); return String(u?.displayName || "").trim() || "Someone"; };
+
+  const tell = (userId: number, title: string, body: string) => { void Promise.resolve(deps.notify?.(userId, { title, body, url: "/#/pro?hub=life" })).catch((e: any) => console.error("[profile-links] notify:", e?.message)); };
+  const tellOwnerAccepted = async (link: ProfileLink | null | undefined, who: { id: number }) => { if (link) tell(link.ownerId, "Sharing accepted", `${await nameOf(who.id)} accepted your invite. They can open what you shared now.`); };
 
   const readAsks = async (email: string): Promise<Ask[]> => {
     const v = await readJson(askKey(email));
@@ -147,6 +155,7 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
       });
       invites.fail(`u${u.id}`);
       await editIds(emailKey(email), (ids) => [...ids, u.id]);
+      void nameOf(u.id).then((n) => deps.inviteEmail?.(email, n)).catch((e: any) => console.error("[profile-links] invite notice:", e?.message));
       res.json({ link: { id: link.id, email: link.email, nickname: link.nickname, status: link.status, grants: link.grants, viewerName: "", createdAt: link.createdAt } });
     } catch (error: any) {
       res.status(error?.status || 500).json({ message: error?.status ? error.message : "The invite couldn't be sent. Try again." });
@@ -223,6 +232,7 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
       await deps.upsertSetting(joinKey(token), "");
       await editIds(viewerKey(u.id), (ids) => [...ids, found.ownerId]);
       await activated(ok);
+      void tellOwnerAccepted(ok, u);
       res.json({ ok: true, ownerId: found.ownerId, ownerName: await nameOf(found.ownerId) });
     } catch {
       res.status(500).json({ message: "Couldn't join. Try again." });
@@ -397,7 +407,7 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
         return true;
       });
       if (!ok) return res.status(404).json({ message: "That invite isn't there any more." });
-      if (how === "accept") { await editIds(viewerKey(u.id), (ids) => [...ids, ownerId]); if (ok !== true) await activated(ok); }
+      if (how === "accept") { await editIds(viewerKey(u.id), (ids) => [...ids, ownerId]); if (ok !== true) { await activated(ok); void tellOwnerAccepted(ok, u); } }
       else {
         await editIds(viewerKey(u.id), (ids) => ids.filter((x) => x !== ownerId)).catch(() => {});
         if (u.email) await editIds(emailKey(u.email), (ids) => ids.filter((x) => x !== ownerId)).catch(() => {});

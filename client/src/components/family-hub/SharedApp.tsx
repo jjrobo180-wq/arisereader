@@ -67,7 +67,7 @@ export function useSharedApp(section: string, common: SectionProps): { props: Se
       setError("");
     } catch (e: any) { setError(e.message || "Their copy couldn't be opened."); }
   }, [api, app, owner?.ownerId, section]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { setHost(null); if (!owner) return; void load(); const t = window.setInterval(() => { if (document.visibilityState === "visible" && pending.current === null) void load(); }, 30_000); return () => window.clearInterval(t); }, [owner?.ownerId, section]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setHost(null); if (!owner) return; void load(); const t = window.setInterval(() => { if (document.visibilityState === "visible" && pending.current === null) void load(); }, 8_000); const vis = () => { if (document.visibilityState === "visible" && pending.current === null) void load(); }; document.addEventListener("visibilitychange", vis); return () => { window.clearInterval(t); document.removeEventListener("visibilitychange", vis); }; }, [owner?.ownerId, section]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!app) return { props: null, bar: null };
   const ownerName = owner?.ownerName || offers[0]?.ownerName || "They";
@@ -78,7 +78,7 @@ export function useSharedApp(section: string, common: SectionProps): { props: Se
     pending.current = window.setTimeout(() => {
       pending.current = null;
       api.appPut(owner.ownerId, section, pickParts(next, app.parts)).then((r) => setHost((h) => (h ? { ...h, slice: r.slice } : h))).catch((e: any) => common.say(e.message || "Couldn't save to their copy.")).finally(() => setSaving(false));
-    }, 700);
+    }, 150);
   };
   const props: SectionProps | null = owner && host ? {
     ...common, family: host.family,
