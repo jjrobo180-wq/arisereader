@@ -132,6 +132,7 @@ try {
   check(!seen.some((t) => /account is ready/i.test(t)), "no 'your account is ready' box in between");
   check(leftForm < 0 || !seen.slice(leftForm).some((t) => /Parent Sign Up/.test(t)), "the sign-up form never flashes back");
   check(!seen.some((t) => t.trim() === ""), "no blank or spinner-only screen in between", `${seen.length} frames`);
+  await writeFile("screens/frames.txt", seen.map((t, i) => `${i}: ${JSON.stringify(t.slice(0, 70))}`).join("\n"));
   await shot("3-after-signup");
   const after = await text();
   check(page.url().includes("#/subscribe"), "after sign-up the parent lands on the plan page", page.url());
@@ -220,6 +221,7 @@ try {
 
 // ── To Duo in the app: no All Access on sign-up; after the walkthrough, the All Access pop-up once ──
 try {
+  const note4 = [];
   users.set("duo", { password: "duopass123", user: { id: 9500, username: "duo", displayName: "Duo Person", role: "todo", email: "duo@example.com" } });
   const b4 = await webkit.launch();
   const c4 = await b4.newContext({ ...devices["iPhone 14"], serviceWorkers: "block", locale: "en-US" });
@@ -250,10 +252,12 @@ try {
   const shown = await p4.getByTestId("all-access-popup").waitFor({ timeout: 15000 }).then(() => true).catch(() => false);
   await p4.screenshot({ path: "screens/10-all-access-popup.png" });
   check(shown, "after the walkthrough the All Access pop-up shows");
-  await p4.getByTestId("all-access-popup-later").click().catch(() => {});
+  await p4.getByTestId("all-access-popup-later").click().catch((e) => note4.push(`Not now click: ${String(e?.message || e).split("\n")[0]}`));
+  await p4.waitForTimeout(800);
+  note4.push(`after Not now: popup visible=${await p4.getByTestId("all-access-popup").isVisible().catch(() => false)}, seen key=${await p4.evaluate(() => localStorage.getItem("arise-all-access-intro-v1:9500"))}`);
   await p4.reload({ waitUntil: "domcontentloaded" });
   await p4.waitForTimeout(8000);
-  check(!(await p4.getByTestId("all-access-popup").isVisible().catch(() => false)), "it shows only once");
+  check(!(await p4.getByTestId("all-access-popup").isVisible().catch(() => false)), "it shows only once", note4.join(" | "));
   await b4.close();
 } catch (e) {
   check(false, "To Duo All Access pop-up check ran", String(e?.message || e).split("\n")[0]);
