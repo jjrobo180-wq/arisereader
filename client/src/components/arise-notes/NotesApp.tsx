@@ -1,6 +1,7 @@
 // Arise Notes: the app. The same screens run on their own at /notes/ (client/src/notes/main.tsx) and
 // inside Arise To Duo (pages/AriseNotesPage.tsx): Home with the notes, Record, Upload, a note, Ask
 // your notes, Voice memo, and Settings (plan and minutes, family, privacy, accessibility).
+import AllAccessPopup from "@/components/AllAccessPopup";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { NoteTypeIcon } from "./NoteIcon";
 import { NotesDock } from "./NotesDock";

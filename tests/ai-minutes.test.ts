@@ -80,3 +80,10 @@ test("each Pod+ AI tool checks and spends the shared minutes", () => {
   assert.match(readFileSync("podscroll/wikiPlayer.ts", "utf8"), /setWikiMeter/);
   assert.match(readFileSync("server/routes.ts", "utf8"), /configureAiMinutes\(\{/);
 });
+
+test("every app that shows the All Access pop-up imports it", () => {
+  for (const f of ["client/src/components/arise-notes/NotesApp.tsx", "client/src/pages/fit/FitApp.tsx", "client/src/pages/AriseTodo.tsx", "podscroll/main.tsx"]) {
+    const src = readFileSync(f, "utf8");
+    assert.match(src, /import AllAccessPopup from "@\/components\/AllAccessPopup"/, f);
+  }
+});
