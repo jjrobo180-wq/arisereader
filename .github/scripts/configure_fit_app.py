@@ -35,7 +35,8 @@ DROP = [] if FLAVOR == "notes" else ["UIUserInterfaceStyle"]
 KEYS = {
     "fit": {
         "CFBundleDisplayName": "Arise Fit",
-        "NSCameraUsageDescription": "Arise Fit uses the camera to scan a food's barcode, to take a photo of your meal so it can estimate the calories, to check your exercise form, and to take progress photos you choose to send your trainer. Form check video stays on your iPhone.",
+        "NSCameraUsageDescription": "Arise Fit uses the camera to scan a food's barcode, to take a photo of your meal so it can estimate the calories, to check your exercise form, to take progress photos, and to film a set you choose to send your trainer for a form check.",
+        "NSMicrophoneUsageDescription": "Arise Fit uses the microphone for the sound of a video you film to send your trainer for a form check.",
         "NSLocationWhenInUseUsageDescription": "Arise Fit uses your location to map and measure your outdoor runs, walks and hikes, and to find trails, gyms and healthy places to eat near you.",
         "NSHealthShareUsageDescription": "Arise Fit reads your steps, sleep, heart rate, weight, workouts and active calories from Apple Health to show your progress, sleep score and readiness, and to share them with your trainer only if you choose to.",
         "NSHealthUpdateUsageDescription": "Arise Fit saves your workouts, runs, weight, nutrition and mindful minutes to Apple Health.",
@@ -50,7 +51,8 @@ KEYS = {
     "trainer": {
         "CFBundleDisplayName": "Arise Trainer",
         "NSCameraUsageDescription": "Arise Trainer uses the camera to take your profile photo for the trainer directory and photos you send your clients in messages.",
-        "NSPhotoLibraryUsageDescription": "Arise Trainer lets you choose your profile photo and photos to send your clients in messages.",
+        "NSPhotoLibraryUsageDescription": "Arise Trainer lets you choose your profile photo, photos for your website and groups, and photos to send your clients in messages.",
+        "NSMicrophoneUsageDescription": "Arise Trainer uses the microphone only when you record a voice note on a client's form check video.",
     },
     "notes": {
         "CFBundleDisplayName": "Arise Notes",

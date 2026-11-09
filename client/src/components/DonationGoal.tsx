@@ -18,6 +18,7 @@ interface DonationData {
 }
 
 export default function DonationGoal() {
+  return null; // Donations are switched off across the site (November 2026).
   const [data, setData] = useState<DonationData | null>(null);
 
   useEffect(() => {

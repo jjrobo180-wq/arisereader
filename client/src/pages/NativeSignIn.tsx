@@ -11,6 +11,7 @@ import ForgotSignIn from "@/components/auth/ForgotSignIn";
 import { useAuth } from "@/context/AuthContext";
 import { APPLE_LOGO_PATH, appleSignInAvailable, askApple } from "@/lib/appleSignIn";
 import { LEGAL, nativeAppInfo, nativeFlavor, type NativeFlavor } from "@/lib/nativeApp";
+import AllAccessOffer from "@/components/AllAccessOffer";
 import { API_BASE } from "@/lib/queryClient";
 import { TEACHER_CONFIRM_KEY } from "@shared/schoolEmail";
 
@@ -159,18 +160,21 @@ export default function NativeSignIn() {
   });
 
   const apple = copy.apple && appleSignInAvailable();
+  /** The apps whose paid tier is part of Arise All Access show the plan on sign-up. */
+  const bundle = flavor === "todo" || flavor === "fit" || flavor === "notes";
   /** Making an account: To Duo has its own screen; the Reader apps use the website's sign-up pages. */
   const create = () => (flavor === "reader" ? navigate("/register-independent") :  flavor === "educator" ? setPicking(true) : go("signup"));
   const [picking, setPicking] = useState(false);
 
   if (screen === "welcome") return <Shell>
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-8 text-center">
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-8 py-6 text-center">
       <img src={copy.icon} alt="" width={88} height={88} className="h-[88px] w-[88px] rounded-[22px] shadow-[0_18px_40px_-16px_rgba(76,58,190,.55)] ring-1 ring-black/5" />
       <h1 className="mt-6 text-[34px] font-bold leading-[1.1] tracking-[-.02em] text-[#111018] [text-wrap:balance]">{appName}</h1>
       <p className="mt-2 max-w-[18rem] text-[17px] leading-snug text-[#6b6879] [text-wrap:balance]">{copy.tagline}</p>
       <ul className="mt-9 w-full max-w-[20rem] space-y-5 text-left">
         {copy.features.map((f) => <Feature key={f.title} {...f} />)}
       </ul>
+      {bundle && <AllAccessOffer className="mt-7 w-full max-w-[20rem]" />}
     </div>
     <div className="shrink-0 space-y-3 px-6 pb-2">
       {apple && <button type="button" onClick={withApple} disabled={!!busy} data-testid="native-apple"
@@ -232,6 +236,7 @@ export default function NativeSignIn() {
       {!signingUp && <button type="button" onClick={() => go("forgot")} className="mt-3 self-start px-1 py-2 text-[15px] font-semibold text-[#5b4fe0]">Forgot username or password?</button>}
       {signingUp && eyeGazer && <button type="button" onClick={() => navigate("/parent-signup")} className="mt-3 self-start px-1 py-2 text-[14px] font-semibold text-[#5b4fe0]">A parent who wants family controls? Make a parent account</button>}
       {signingUp && !eyeGazer && <p className="mt-3 px-1 text-[13px] leading-snug text-[#8e8b9c]">We'll email a 6-digit code to confirm it. Your email is also how you reset your password.</p>}
+      {signingUp && bundle && <AllAccessOffer className="mt-4" />}
       <Message error={error} notice={notice} />
       <div className="mt-auto space-y-3 pb-2 pt-8">
         <Primary busy={busy === "form"} disabled={!username.trim() || !password || (signingUp && (!name.trim() || (!eyeGazer && !email.trim())))}>{signingUp ? "Create account" : "Sign in"}</Primary>

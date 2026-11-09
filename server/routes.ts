@@ -1,7 +1,7 @@
 import { isSampleAccount } from "../shared/sampleAccounts";
 import { registerGoalQuizRoutes } from "./goalQuiz";
 import { dedupeBooks } from "./bookDedupe";
-import { aiProAccessFor, storageTierGb, isStoragePlanKind, grantLive, STORAGE_PLAN_KINDS } from "../shared/plans";
+import { PLANS, aiProAccessFor, storageTierGb, isStoragePlanKind, grantLive, STORAGE_PLAN_KINDS } from "../shared/plans";
 import { FREE_STORAGE_BYTES } from "../shared/driveApp";
 import { registerDriveAppRoutes } from "./driveApp";
 import { registerParaTeamRoutes, supabaseParaDb } from "./paraTeam";
@@ -16,7 +16,7 @@ import { storage, setReaderMessageListener } from "./storage";
 import { seedData } from "./storage";
 import { clearCache, AlreadySubmittedError } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
-import { APPS_FULL, FAIR_USE, FREE_APPS, UNLIMITED_MONTHLY_CENTS, UNLIMITED_YEARLY_CENTS, UNLIMITED_YEARLY_OFFER, appsIn, growsPastFree } from "../shared/todoPlan";
+import { APPS_FULL, FAIR_USE, FREE_APPS, appsIn, growsPastFree } from "../shared/todoPlan";
 import { registerTimedCompetitionRoutes } from "./timedCompetition";
 import { registerHubInboxRoutes } from "./hubInbox";
 import { withBannerLink } from "../shared/banners";
@@ -73,6 +73,8 @@ import { registerTodoShareRoutes } from "./todoShare";
 import { registerFoodLookupRoutes } from "./foodLookup";
 import { registerKrogerRoutes } from "./kroger";
 import { registerFitRoutes } from "./fit";
+import { mergeIntoFamilyList } from "../shared/fitMealPrep";
+import { cleanFamily } from "../shared/familyHub";
 import { registerCoachRoutes } from "./coach";
 import { registerTalkRoutes } from "./talk";
 import { registerBrowserRoutes } from "./browserCheck";
@@ -1581,7 +1583,7 @@ export async function registerRoutes(
       const [before, otherSaved] = await Promise.all([savedHub(hub, Number(user.id)), savedHub(other, Number(user.id))]);
       const otherApps = appsIn(other, otherSaved);
       if (growsPastFree(appsIn(hub, before) + otherApps, mine + otherApps)) {
-        return res.status(402).json({ code: APPS_FULL, limit: FREE_APPS, message: `The free plan includes up to ${FREE_APPS} plugins from the Plugin Gallery. Remove one, or get Unlimited ($${UNLIMITED_MONTHLY_CENTS / 100} a month) for every app and AI.` });
+        return res.status(402).json({ code: APPS_FULL, limit: FREE_APPS, message: `The free plan includes up to ${FREE_APPS} plugins from the Plugin Gallery. Remove one, or get Arise All Access ($${PLANS.allAccess.monthlyCents / 100} a month) for every app and AI.` });
       }
       next();
     } catch (error: any) {
@@ -1605,7 +1607,8 @@ export async function registerRoutes(
         unlimited: plan.unlimited, via: plan.via, endsAt: plan.endsAt,
         apps: { work, life, limit: plan.unlimited ? null : FREE_APPS },
         ai: { limit: ai.limit, used: ai.used, left: ai.left },
-        priceCents: UNLIMITED_MONTHLY_CENTS, yearlyCents: UNLIMITED_YEARLY_OFFER ? UNLIMITED_YEARLY_CENTS : null,
+        // Unlimited is now sold as Arise All Access ($10: To Duo Unlimited, Notes Plus, Fit+, ad-free Pod+).
+        priceCents: PLANS.allAccess.monthlyCents, yearlyCents: null, allAccess: true,
         payment, paidByYou: !!paidProduct, paidProduct, fairUse: FAIR_USE,
       });
     } catch (error: any) {
@@ -1640,6 +1643,12 @@ export async function registerRoutes(
     // Arise Fit+: the account's own plan (server/plans.ts); guest passes are worked out in server/fitPass.ts.
     ownPlus: async (id) => plans.fitPlusOwn(id, (await storage.getUser(id).catch(() => null)) as any),
     payment: () => plans.stripeReady(),
+    addToDuoGroceries: (userId, items) => updateTodoWorkspace(userId, (ws) => {
+      if (ws.version !== 2) return null;
+      const family = cleanFamily(ws.family ?? {});
+      const r = mergeIntoFamilyList(family.groceries, items, () => randomUUID());
+      return { workspace: { ...ws, family: { ...family, groceries: r.list } }, result: { added: r.added, updated: r.updated } };
+    }),
   });
   // Arise Coaching (server/coach.ts): the trainer directory, client–trainer connections and the Arise Trainer app.
   registerCoachRoutes(app, authMiddleware, {
@@ -1647,6 +1656,7 @@ export async function registerRoutes(
     stripeKey: () => plans.adminTodo.stripeKey(),
     appUrl: APP_URL,
     isAdmin: (req) => !!req.user?.isAdmin && !req.adminPreview,
+    sendEmail: (to, subject, html, options) => (emailConfigured() ? sendEmail(to, subject, html, options) : Promise.resolve({ sent: false, error: "Email isn't set up" })),
   });
   // Arise Talk (server/talk.ts): backups, Premium and the AI helpers for the talking app.
   registerTalkRoutes(app, authMiddleware, {
@@ -1726,8 +1736,29 @@ export async function registerRoutes(
   // On by EARSHOT_PRECHECK=1, and by itself once the AI is on a paid plan (EARSHOT_PRECHECK=0 keeps it off).
   if (process.env.EARSHOT_PRECHECK !== "0") startPodcastPrechecks({ kv: supabaseKV(getAdminSupabase), player: podcastPlayer, dir: podcasts, enabled: () => process.env.EARSHOT_PRECHECK === "1" || podcasts.paid(),
     topShows: async () => { const lists = await Promise.all(PODCAST_GENRES.slice(0, 12).map((g) => podcasts.loadGenreShows(g.id).catch(() => []))); const out: string[] = []; for (let i = 0; i < 4; i++) for (const l of lists) if (l[i]) out.push(l[i].id); return out; } });
-  registerEarshotRoutes(app, authMiddleware, { store: supabaseEarshotStore(getAdminSupabase), directory: podcasts, adStore: podcastAds, player: podcastPlayer, socialDb: getAdminSupabase });
-  registerPodscrollRoutes(app, supabaseEarshotStore(getAdminSupabase, "podscroll"), undefined, podcasts, podcastAds, podcastPlayer, getAdminSupabase, { sendEmail: (to, subject, html) => sendEmail(to, subject, html) });
+  // Ad-free Pod+ is part of Arise All Access. In To Duo the listener is the Arise account; in the Pod+
+  // app it's the Arise account with the same email as the person's Pod+ sign-in.
+  const adFreeSeen = new Map<string, { ok: boolean; at: number }>();
+  const allAccessListener = async (req: any): Promise<boolean> => {
+    const email = typeof req.creator?.email === "string" ? req.creator.email.trim().toLowerCase() : "";
+    const key = email ? `e:${email}` : `u:${req.user?.id ?? ""}`;
+    const seen = adFreeSeen.get(key);
+    if (seen && Date.now() - seen.at < 60_000) return seen.ok;
+    let ok = false;
+    if (email) {
+      const { data } = await getAdminSupabase().from("users").select("id, is_admin").ilike("email", email.replace(/[\\%_]/g, "\\$&")).limit(1);
+      const u = data?.[0];
+      ok = !!u && (await plans.allAccess(Number(u.id), { id: Number(u.id), isAdmin: !!u.is_admin } as any)).live;
+    } else {
+      const id = Number(req.user?.id);
+      ok = Number.isSafeInteger(id) && id > 0 && (await plans.allAccess(id, req.user)).live;
+    }
+    if (adFreeSeen.size > 5000) adFreeSeen.clear();
+    adFreeSeen.set(key, { ok, at: Date.now() });
+    return ok;
+  };
+  registerEarshotRoutes(app, authMiddleware, { store: supabaseEarshotStore(getAdminSupabase), directory: podcasts, adStore: podcastAds, player: podcastPlayer, socialDb: getAdminSupabase, adFree: allAccessListener });
+  registerPodscrollRoutes(app, supabaseEarshotStore(getAdminSupabase, "podscroll"), undefined, podcasts, podcastAds, podcastPlayer, getAdminSupabase, { sendEmail: (to, subject, html) => sendEmail(to, subject, html), adFree: allAccessListener });
   // Contact us (server/supportContact.ts): Arise To Duo's and Pod+'s Support pages and apps.
   registerSupportRoutes(app, {
     deliver: async (m) => {
@@ -9465,6 +9496,64 @@ Important:
       res.json({ grownupToken, expiresInSeconds: 1800 });
     } catch {
       res.status(503).json({ message: 'Could not verify the grown-up check.' });
+    }
+  });
+
+  // ---- Wren, the AI-voice talker inside Eye Gazer: saved to the child's Eye Gazer profile ----
+  const WREN_DOC_NAME = /^[A-Za-z0-9_-]{1,64}$/;
+  const WREN_DOC_MAX = 260_000;
+  const WREN_DOC_LIMIT = 600;
+  app.get('/api/eye-gaze/wren/:name', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      const name = String(req.params.name || '');
+      if (!WREN_DOC_NAME.test(name)) return res.status(400).json({ message: 'Unknown Wren document.' });
+      const { data, error } = await getAdminSupabase().from('eye_gaze_wren_docs')
+        .select('data').eq('student_id', child.id).eq('name', name).maybeSingle();
+      if (error) throw error;
+      res.set('Cache-Control', 'no-store').json(data ? { exists: true, data: data.data } : { exists: false });
+    } catch (error: any) {
+      console.error('[eye-gaze-wren] load:', error?.message);
+      res.status(503).json({ message: 'Could not load Wren right now.' });
+    }
+  });
+  app.put('/api/eye-gaze/wren/:name', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      const name = String(req.params.name || '');
+      const body = req.body?.data;
+      if (!WREN_DOC_NAME.test(name)) return res.status(400).json({ message: 'Unknown Wren document.' });
+      if (!body || typeof body !== 'object' || Array.isArray(body)) return res.status(400).json({ message: 'Nothing to save.' });
+      if (JSON.stringify(body).length > WREN_DOC_MAX) return res.status(413).json({ message: 'That is too large to save.' });
+      const admin = getAdminSupabase();
+      const { count } = await admin.from('eye_gaze_wren_docs').select('name', { count: 'exact', head: true }).eq('student_id', child.id);
+      if ((count || 0) >= WREN_DOC_LIMIT) {
+        const { data: existing } = await admin.from('eye_gaze_wren_docs').select('name').eq('student_id', child.id).eq('name', name).maybeSingle();
+        if (!existing) return res.status(413).json({ message: 'Wren is full. Remove some pictures first.' });
+      }
+      const { error } = await admin.from('eye_gaze_wren_docs')
+        .upsert({ student_id: child.id, name, data: body, updated_at: new Date().toISOString() }, { onConflict: 'student_id,name' });
+      if (error) throw error;
+      res.set('Cache-Control', 'no-store').json({ ok: true });
+    } catch (error: any) {
+      console.error('[eye-gaze-wren] save:', error?.message);
+      res.status(503).json({ message: 'Could not save Wren right now.' });
+    }
+  });
+  app.delete('/api/eye-gaze/wren/:name', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      const name = String(req.params.name || '');
+      if (!WREN_DOC_NAME.test(name)) return res.status(400).json({ message: 'Unknown Wren document.' });
+      const { error } = await getAdminSupabase().from('eye_gaze_wren_docs').delete().eq('student_id', child.id).eq('name', name);
+      if (error) throw error;
+      res.json({ ok: true });
+    } catch (error: any) {
+      console.error('[eye-gaze-wren] delete:', error?.message);
+      res.status(503).json({ message: 'Could not remove that from Wren right now.' });
     }
   });
 

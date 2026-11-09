@@ -80,3 +80,22 @@ test("it's an Office kind the server saves, and an app in Arise Notes", () => {
   assert.match(read("client/src/components/arise-notes/notesAppsCatalog.tsx"), /id: "design", name: "Arise Design"/);
   assert.match(read("shared/pro/aiTasks.ts"), /"design-copy":/);
 });
+
+test("Arise Design's own home: sizes drawn to shape, your designs as pictures, templates by category, the look's colors", () => {
+  const home = readFileSync(new URL("../client/src/components/office/DesignHome.tsx", import.meta.url), "utf8");
+  assert.match(home, /What will you design today\?/);
+  assert.match(home, /--dz-card": "var\(--an-card/);
+  assert.doesNotMatch(home, /className="[^"]*\bbg-white(?![\/\w-])/, "no bg-white: the Notes looks repaint those");
+  assert.match(readFileSync(new URL("../client/src/components/office/OfficeApp.tsx", import.meta.url), "utf8"), /if \(config\.kind === "design"\) return <DesignHome/);
+  assert.match(readFileSync(new URL("../client/src/components/arise-notes/NotesApps.tsx", import.meta.url), "utf8"), /office && app\.id !== "design"/);
+});
+
+test("the event template's picture never sits on its words, at any size", async () => {
+  const { TEMPLATES } = await import("../shared/office/designTemplates");
+  for (const t of TEMPLATES.filter((x) => ["bake-sale", "story-event", "flyer-event", "poster-movie", "invite-grad", "halloween"].includes(x.id))) {
+    const d = t.make(); const els = d.pages[0].elements;
+    const st = els.find((e) => e.type === "sticker")!;
+    const words = els.filter((e) => e.type === "text" && e.y > st.y);
+    for (const w of words) assert.ok(st.y + st.h <= w.y + 1, `${t.id}: picture ends at ${st.y + st.h}, words start at ${w.y}`);
+  }
+});

@@ -213,9 +213,6 @@ test("the donation banner can't be closed and shows in the Reader; Arise To Duo'
   // November 2026: the owner asked for Support (and its heart) to come off Arise To Duo's desktop.
   for (const hub of ["client/src/pages/TeacherHub.tsx", "client/src/pages/AriseTodo.tsx"]) assert.doesNotMatch(read(hub), /SupportBanner|SupportMenuItem|SupportButton/, hub);
   const reader = read("client/src/pages/TeacherReader.tsx");
-  assert.match(reader, /<SupportBanner dark \/>/);
-  assert.match(reader, /testId="reader-support"/);
-  assert.match(reader, /testId="reader-rail-support"/);
   for (const href of ["/history/", "/math/", "/social/"]) assert.ok(reader.includes(`href: "${href}"`), href);
   assert.match(reader, /Also on your account:/);
 });

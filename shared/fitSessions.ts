@@ -3,7 +3,7 @@
 // yoga flows, mobility and stretching routines, breathing and guided meditation. Written for Arise Fit.
 
 export type PhaseKind = "warm" | "work" | "rest" | "cool" | "pose" | "breathe-in" | "hold" | "breathe-out" | "still";
-export type Phase = { name: string; secs: number; kind: PhaseKind; cue?: string; speed?: number; incline?: number };
+export type Phase = { name: string; secs: number; kind: PhaseKind; cue?: string; speed?: number; incline?: number; /** The exercise's how-to video (shared/fitVideos.ts), for the TV. */ video?: { id: string; title: string } };
 export type SessionCategory = "hiit" | "c25k" | "yoga" | "meditation" | "mobility";
 export type Session = { id: string; name: string; category: SessionCategory; blurb: string; level: "Beginner" | "Intermediate" | "Advanced"; equipment: string; phases: Phase[]; week?: number; day?: number };
 

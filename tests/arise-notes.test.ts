@@ -315,7 +315,7 @@ test("Stripe's messages turn each Notes plan on and off", async (t) => {
   assert.equal((await plans.notesPlan(1, BUYERS[1])).plan, "plus", "the admin always has Plus");
 });
 
-test("Notes checkout asks Stripe for the right price, and only for an account that may buy", async (t) => {
+test("Notes checkout sells Arise All Access ($10 a month), and only to an account that may buy", async (t) => {
   const { call, calls } = await billingServer(t, "sk_test_notes");
   const out = await call(81, "POST", "/api/notes/billing/checkout", { product: "plus_year" });
   assert.equal(out.status, 200);
@@ -323,9 +323,9 @@ test("Notes checkout asks Stripe for the right price, and only for an account th
   const made = calls.find((c) => c.method === "POST" && c.url.includes("/checkout/sessions"));
   assert.ok(made, "a checkout page was made");
   assert.equal(made!.form.get("mode"), "subscription");
-  assert.equal(made!.form.get("line_items[0][price_data][unit_amount]"), "7999");
-  assert.equal(made!.form.get("line_items[0][price_data][recurring][interval]"), "year");
-  assert.equal(made!.form.get("metadata[kind]"), "notes_plus_year");
+  assert.equal(made!.form.get("line_items[0][price_data][unit_amount]"), "1000");
+  assert.equal(made!.form.get("line_items[0][price_data][recurring][interval]"), "month");
+  assert.equal(made!.form.get("metadata[kind]"), "all_access");
   assert.equal(made!.form.get("subscription_data[metadata][ownerId]"), "81");
 
   assert.equal((await call(81, "POST", "/api/notes/billing/checkout", { product: "gold" })).status, 400);

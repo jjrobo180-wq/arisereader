@@ -67,7 +67,9 @@ export function AppScreen({ ctx, id }: { ctx: AppCtx; id: string }) {
       {app.id === "whiteboard" && <Whiteboard />}
       {app.id === "flashcards" && <Flashcards ctx={ctx} />}
       {app.id === "focus" && <Focus />}
-      {office && <div className="na-office rounded-2xl bg-white p-3 text-slate-900 shadow-sm ring-1 ring-slate-200 sm:p-5">
+      {/* Design brings its own home in the look's colors; the others sit on a white sheet. */}
+      {app.id === "design" && <Suspense fallback={<Spinner />}><OfficeApp config={OFFICE_KINDS.design} /></Suspense>}
+      {office && app.id !== "design" && <div className="na-office rounded-2xl bg-white p-3 text-slate-900 shadow-sm ring-1 ring-slate-200 sm:p-5">
         <Suspense fallback={<Spinner />}><OfficeApp config={OFFICE_KINDS[app.id === "sheets" ? "sheet" : app.id === "slides" ? "slides" : app.id === "design" ? "design" : "doc"]} /></Suspense>
       </div>}
     </main>

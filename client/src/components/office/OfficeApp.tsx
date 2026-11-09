@@ -11,6 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 import { docsApi, type DocEntry, type DocKind } from "@/lib/cloudDocs";
 import { useSavedChoice } from "@/lib/useSavedChoice";
 import { Floating, MenuList, downloadBlob, pickFile, safeName, type MenuItem } from "./officeUi";
+import DesignHome from "./DesignHome";
 
 export type OfficeTemplate = { id: string; name: string; blurb: string; emoji: string; color: string; make: () => unknown; /** A picture of it (Design) instead of the emoji tile. */ preview?: () => ReactNode };
 export type OfficeKind = {
@@ -47,6 +48,8 @@ export default function OfficeApp({ config, legacy, say }: { config: OfficeKind;
   const open = (id: string | null) => { setOpenId(id); try { if (id) sessionStorage.setItem(`arise-office-open:${config.kind}`, id); else sessionStorage.removeItem(`arise-office-open:${config.kind}`); } catch { /* fine */ } if (id) window.scrollTo({ top: 0 }); };
   const Editor = config.Editor;
   if (openId) return <FullScreen><Suspense fallback={<div className="flex h-full items-center justify-center text-sm font-semibold text-slate-500">Opening {config.title}…</div>}><Editor key={openId} id={openId} onBack={() => open(null)} onOpen={(id) => open(id)} /></Suspense></FullScreen>;
+  // Arise Design has its own home, made for pictures rather than a file list.
+  if (config.kind === "design") return <DesignHome config={config} onOpen={open} say={say} />;
   return <OfficeHome config={config} legacy={legacy} onOpen={open} say={say} />;
 }
 

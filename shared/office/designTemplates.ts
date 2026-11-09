@@ -110,7 +110,8 @@ const R: Record<string, Recipe> = {
       box({ x: 0, y: 0, w: W, h: H * 0.06, fill: p.accent }),
       text(date, { x: x0, y: H * 0.12, w: tw, size: Math.round(u * 5), font: "Bebas Neue", color: p.accent, letter: Math.round(u * 0.8) }),
       text(f.headline, { x: x0, y: H * 0.2, w: tw, size: Math.round(u * 13), font: "Bebas Neue", color: p.ink, lineH: 0.95 }),
-      sticker(f.emoji || "🎉", { x: centerX(W, u * 22), y: H * 0.47, w: u * 22, h: u * 22 }),
+      // The picture stays between the headline and the words under it at every size (on a square it used to sit on the words).
+      sticker(f.emoji || "🎉", (() => { const s = Math.min(u * 22, H * 0.15); return { x: centerX(W, s), y: Math.min(H * 0.47, H * 0.62 - s), w: s, h: s }; })()),
       text(f.sub || "", { x: x0, y: H * 0.64, w: tw, size: Math.round(u * 4.4), font: "Poppins", color: p.ink, lineH: 1.4 }),
       box({ shape: "round", x: x0, y: H * 0.8, w: tw, h: H * 0.1, fill: p.soft, radius: u * 3 }),
       text(`${time}  ·  ${place}`, { x: x0, y: H * 0.8 + H * 0.05 - u * 2.6, w: tw, size: Math.round(u * 4.2), font: "Poppins", weight: 700, color: p.ink }),

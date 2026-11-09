@@ -4,6 +4,7 @@
 // fitStore.ts → server/fit.ts. The look and motion follow the Arise Fit prototype (fitUi.tsx).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Check, Crown, ChevronRight, Utensils, Plus, Droplets, Footprints, HeartPulse, Flame, Home, LayoutGrid, LogOut, Mic, Moon, Play, Scale, Settings, ShieldCheck, Timer, Trophy } from "lucide-react";
+import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import AccountPrivacy from "@/components/AccountPrivacy";
 import { goToSignIn } from "@/lib/hubs";
@@ -37,7 +38,7 @@ import { FoodTab, latestKg, totals } from "./FitFood";
 import { FeatureTour, Onboarding } from "./FitOnboard";
 import { CoverCard, VideoPlayer } from "./FitVideo";
 import { FastingSheet, endFast, startFast } from "./FitFasting";
-import { CoachCard, CoachScreen } from "./FitCoach";
+import { CoachCard, CoachScreen, InviteJoinSheet } from "./FitCoach";
 import { OutdoorHub } from "./FitRun";
 import { HealthSheet, RemindersSheet, useHealth } from "./FitHealth";
 import { saveToHealth } from "./fitNative";
@@ -338,6 +339,16 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
   const [tour, setTour] = useState(false);
   const [settings, setSettings] = useState(false);
   const [coach, setCoach] = useState(false);
+  // Back from paying a trainer by card (#/fit?paid=cs_…): record it and say so.
+  useEffect(() => {
+    const m = /[?&]paid=(cs_[A-Za-z0-9_]+)/.exec(window.location.href); if (!m || !token) return;
+    try { history.replaceState(null, "", `${window.location.pathname}${window.location.search}${window.location.hash.replace(/[?&]paid=[^&]*/, "").replace(/\?$/, "")}`); } catch { /* keep the address */ }
+    void fetch(`${API_BASE}/api/coach/pay/confirm`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ session: m[1] }) })
+      .then(async (r) => { const b = await r.json().catch(() => null); say(r.ok ? "Payment sent. Thank you!" : b?.message || "We couldn't confirm that payment yet."); }).catch(() => {});
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A trainer's invite link (#/fit?coach=CODE): the join sheet opens once, and the address is cleaned so a reload doesn't repeat it.
+  const [invite, setInvite] = useState<string | null>(() => { const m = /[?&]coach=([0-9a-z]{1,10}-[A-Za-z0-9_-]{10})/.exec(window.location.href); return m ? m[1] : null; });
+  useEffect(() => { if (!invite) return; try { history.replaceState(null, "", `${window.location.pathname}${window.location.search}${window.location.hash.replace(/[?&]coach=[^&]*/, "").replace(/\?$/, "")}`); } catch { /* keep the address */ } }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [form, setForm] = useState(false);
   const [body, setBody] = useState(false);
   const [openEx, setOpenEx] = useState<ReturnType<typeof libraryFallback>[number] | null>(null);
@@ -478,6 +489,7 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
     {active && <LiveWorkout active={active} setActive={setActive} data={data} update={update} list={list} say={say} />}
     {setup && <Onboarding data={data} update={update} edit={!!data.onboarded} onDone={() => setSetup(false)} />}
     {tour && <Layer><FeatureTour onClose={() => setTour(false)} /></Layer>}
+    {invite && token && <InviteJoinSheet token={token} code={invite} onClose={() => setInvite(null)} onJoined={() => { setInvite(null); setCoach(true); }} />}
     {coach && <CoachScreen token={token} me={Number(user?.id) || 0} data={data} update={update} list={list} onStart={startNow} onClose={() => setCoach(false)} />}
     {form && <FormCheck onClose={() => setForm(false)} />}
     {body && <BodyMap data={data} list={list} onClose={() => setBody(false)} onOpen={setOpenEx} onStart={(name, items) => { setBody(false); setApp(null); setActive(startWorkout({ name, exercises: planned(data, items, list) })); }} />}
