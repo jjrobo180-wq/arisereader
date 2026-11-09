@@ -29,7 +29,7 @@ const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { ti
       { tint: "#0f766e", icon: <Briefcase className="h-[22px] w-[22px]" />, title: "WorkHub", text: "Projects, meetings and to-dos for work." },
       { tint: "#e0465f", icon: <Bell className="h-[22px] w-[22px]" />, title: "Reminders", text: "A heads-up before what matters, on your iPhone." },
     ] },
-  reader: { icon: "/app-icons/reader-1024.png", tagline: "Read, play and grow, one book at a time.", apple: false, signInHint: "Use the username and password from your teacher or parent.", create: "I'm learning on my own",
+  reader: { icon: "/app-icons/reader-1024.png", tagline: "Read, play and grow, one book at a time.", apple: false, signInHint: "Use the username and password from your teacher or parent.", create: "New here? A parent creates the account",
     features: [
       { tint: "#6a3cf0", icon: <BookOpen className="h-[22px] w-[22px]" />, title: "Books at your level", text: "Stories picked for how you read." },
       { tint: "#e08a1a", icon: <Trophy className="h-[22px] w-[22px]" />, title: "Quizzes and rewards", text: "Earn points for every book you finish." },
@@ -127,14 +127,14 @@ export default function NativeSignIn() {
     e.preventDefault();
     if (flavor === "eyegaze") { void signUpEyeGazer(); return; }
     void run("form", async () => {
-      const clean = username.trim().toLowerCase();
       if (name.trim().length < 2) throw new Error("Enter your name.");
-      if (!/^[a-z0-9_-]{3,30}$/.test(clean)) throw new Error("Usernames are 3–30 letters, numbers, dashes or underscores.");
-      if (!/^[^\s@]+@[^\s@.]+\.[^\s@]{2,}$/.test(email.trim())) throw new Error("Enter an email address we can send a code to.");
+      if (!/^[^\s@]+@[^\s@.]+\.[^\s@]{2,}$/.test(email.trim())) throw new Error("Enter your email address.");
       if (password.length < 8) throw new Error("Use a password with at least 8 characters.");
-      const res = await fetch(`${API_BASE}/api/arise-todo/register`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: clean, displayName: name.trim(), password, email: email.trim() }) });
+      // Just name, email and password: the server makes the username from the email.
+      const res = await fetch(`${API_BASE}/api/arise-todo/register`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ displayName: name.trim(), password, email: email.trim() }) });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.message || "Couldn't create your account.");
+      const clean = String(data?.username || email.trim().toLowerCase());
       // The account stays off until the emailed code is typed back (unless no code could be sent).
       if (data?.confirmEmail) { setCodeFor(clean); setNotice(data?.message || ""); setScreen("code"); return; }
       await login(clean, password); showHubMenus();
@@ -159,12 +159,13 @@ export default function NativeSignIn() {
   });
 
   const apple = copy.apple && appleSignInAvailable();
+  /** The apps whose paid tier is part of Arise All Access show the plan on sign-up. */
   /** Making an account: To Duo has its own screen; the Reader apps use the website's sign-up pages. */
-  const create = () => (flavor === "reader" ? navigate("/register-independent") :  flavor === "educator" ? setPicking(true) : go("signup"));
+  const create = () => (flavor === "reader" ? navigate("/parent-signup") :  flavor === "educator" ? setPicking(true) : go("signup"));
   const [picking, setPicking] = useState(false);
 
   if (screen === "welcome") return <Shell>
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-8 text-center">
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-8 py-6 text-center">
       <img src={copy.icon} alt="" width={88} height={88} className="h-[88px] w-[88px] rounded-[22px] shadow-[0_18px_40px_-16px_rgba(76,58,190,.55)] ring-1 ring-black/5" />
       <h1 className="mt-6 text-[34px] font-bold leading-[1.1] tracking-[-.02em] text-[#111018] [text-wrap:balance]">{appName}</h1>
       <p className="mt-2 max-w-[18rem] text-[17px] leading-snug text-[#6b6879] [text-wrap:balance]">{copy.tagline}</p>
@@ -224,17 +225,17 @@ export default function NativeSignIn() {
       <Heading title={signingUp ? (eyeGazer ? "Create an Eye Gazer account" : "Create your account") : "Sign in"} text={signingUp ? (eyeGazer ? "No school or teacher needed. Just a name, a username and a password, and every Eye Gazer game, lesson and the talker are ready." : flavor === "fit" || flavor === "trainer" ? "Free, for anyone. The same account works in Arise Fit and Arise To Duo." : flavor === "notes" ? "Free, for anyone, with 60 minutes a month. The same account works in Arise To Duo." : "Free, for anyone. You get LifeHub and WorkHub.") : copy.signInHint} />
       <Group>
         {signingUp && <Field label="Name" value={name} onChange={setName} autoComplete="name" placeholder="Your name" testId="native-name" />}
-        <Field label="Username" value={username} onChange={setUsername} autoComplete="username" placeholder={signingUp ? "Choose a username" : "Username or email"} testId="native-username" plain />
-        {signingUp && !eyeGazer && <Field label="Email" value={email} onChange={setEmail} type="email" autoComplete="email" placeholder="you@example.com" testId="native-signup-email" plain />}
+        {(!signingUp || eyeGazer) && <Field label="Username" value={username} onChange={setUsername} autoComplete="username" placeholder={signingUp ? "Choose a username" : "Username or email"} testId="native-username" plain />}
+        {signingUp && !eyeGazer && <Field label="Email" value={email} onChange={setEmail} type="email" autoComplete="username" placeholder="you@example.com" testId="native-signup-email" plain />}
         <Field label="Password" value={password} onChange={setPassword} type={show ? "text" : "password"} autoComplete={signingUp ? "new-password" : "current-password"} placeholder={signingUp ? (eyeGazer ? "6 or more characters" : "8 or more characters") : "Required"} testId="native-password" plain
           trailing={<button type="button" onClick={() => setShow((v) => !v)} aria-label={show ? "Hide password" : "Show password"} className="-mr-2 grid h-11 w-11 place-items-center text-[#8e8b9c]">{show ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}</button>} />
       </Group>
       {!signingUp && <button type="button" onClick={() => go("forgot")} className="mt-3 self-start px-1 py-2 text-[15px] font-semibold text-[#5b4fe0]">Forgot username or password?</button>}
       {signingUp && eyeGazer && <button type="button" onClick={() => navigate("/parent-signup")} className="mt-3 self-start px-1 py-2 text-[14px] font-semibold text-[#5b4fe0]">A parent who wants family controls? Make a parent account</button>}
-      {signingUp && !eyeGazer && <p className="mt-3 px-1 text-[13px] leading-snug text-[#8e8b9c]">We'll email a 6-digit code to confirm it. Your email is also how you reset your password.</p>}
+      {signingUp && !eyeGazer && <p className="mt-3 px-1 text-[13px] leading-snug text-[#8e8b9c]">You sign in with your email. We'll send it a 6-digit code to confirm.</p>}
       <Message error={error} notice={notice} />
       <div className="mt-auto space-y-3 pb-2 pt-8">
-        <Primary busy={busy === "form"} disabled={!username.trim() || !password || (signingUp && (!name.trim() || (!eyeGazer && !email.trim())))}>{signingUp ? "Create account" : "Sign in"}</Primary>
+        <Primary busy={busy === "form"} disabled={!password || (signingUp ? (!name.trim() || (eyeGazer ? !username.trim() : !email.trim())) : !username.trim())}>{signingUp ? "Create account" : "Sign in"}</Primary>
         {apple && <button type="button" onClick={withApple} disabled={!!busy}
           className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-black text-[17px] font-semibold text-white active:opacity-80 disabled:opacity-60">
           {busy === "apple" ? <Loader2 className="h-5 w-5 animate-spin" /> : <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={APPLE_LOGO_PATH} /></svg>}

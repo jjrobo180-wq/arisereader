@@ -37,4 +37,6 @@ jobs:
           BUNDLE: ${{ github.event.inputs.bundle || 'com.arisereader.reader' }}
           MODE: ${{ github.event.inputs.mode || 'check' }}
           VERSION: ${{ github.event.inputs.version || '' }}
+          # A branch can carry App Review files (the screen recording) in app-review/; they're attached before submitting.
+          ATTACH_DIR: app-review
         run: python3 .github/scripts/app_store_submit.py

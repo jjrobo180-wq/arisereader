@@ -37,6 +37,9 @@ cfg.setdefault("plugins", {})["CapacitorUpdater"] = {
     "autoDeleteFailed": True,
     "autoDeletePrevious": True,
     "resetWhenUpdate": True,
+    # Newer app builds also switch to new web code as soon as it arrives, and look for it every 10 minutes.
+    "directUpdate": "always",
+    "periodCheckDelay": 600,
 }
 json.dump(cfg, open(path, "w"), indent=2)
 print(f"Live updates: {APP} {version} from {url}")

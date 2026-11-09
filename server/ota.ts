@@ -58,15 +58,17 @@ export function registerOtaRoutes(app: Express, o: { fetchJson?: (url: string) =
     lastBody = await r.json();
     return lastBody;
   });
-  // One look at GitHub every 5 minutes for every app and phone (well inside its hourly allowance).
+  // One look at GitHub a minute with a token (5,000 an hour allowed; repeats that didn't change don't count),
+  // every 5 minutes without one (60 an hour), shared by every app and phone.
+  const every = process.env.GITHUB_TOKEN ? 60_000 : 5 * 60_000;
   let cache: { at: number; list: OtaRelease[] } | null = null;
   let loading: Promise<OtaRelease[]> | null = null;
   const releases = async (): Promise<OtaRelease[]> => {
-    if (cache && now() - cache.at < 5 * 60_000) return cache.list;
+    if (cache && now() - cache.at < every) return cache.list;
     loading ??= fetchJson(`https://api.github.com/repos/${repo}/releases?per_page=100`)
       .then((list) => { const l = releasesFrom(list); cache = { at: now(), list: l }; return l; })
       // A failed look keeps the last list but tries again in a minute, not five.
-      .catch((e) => { console.warn("[ota] couldn't read the releases:", e?.message || e); if (cache) cache = { at: now() - 4 * 60_000, list: cache.list }; return cache?.list ?? []; })
+      .catch((e) => { console.warn("[ota] couldn't read the releases:", e?.message || e); if (cache) cache = { at: now() - Math.max(0, every - 60_000), list: cache.list }; return cache?.list ?? []; })
       .finally(() => { loading = null; });
     return loading;
   };

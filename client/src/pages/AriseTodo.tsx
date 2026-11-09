@@ -1,4 +1,6 @@
-import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
+import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode, type PointerEvent as RPointerEvent, type MouseEvent as RMouseEvent } from "react";
+import AllAccessPopup from "@/components/AllAccessPopup";
+import ShareNews from "@/components/family-hub/ShareNews";
 import { Redirect, useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { useTodoCloud } from "@/lib/useTodoCloud";
@@ -387,6 +389,9 @@ export default function AriseTodo() {
     try { const saved = localStorage.getItem(SECTION_KEY) as FamilySection | null; return saved && (FAMILY_SECTIONS as readonly string[]).includes(saved) ? saved : first; } catch { return first; }
   });
   const [draggingSection, setDraggingSection] = useState<FamilySection | null>(null);
+  // Holding an app in the menu on a touch screen asks to remove it (removeFromMenu).
+  const holdTimer = useRef<number | null>(null);
+  const held = useRef(false);
   // The Arise App Store. It opens straight away when the person switched here from WorkHub's store.
   const [store, setStore] = useState(() => { try { const on = sessionStorage.getItem(OPEN_STORE_KEY) === "1"; sessionStorage.removeItem(OPEN_STORE_KEY); return on; } catch { return false; } });
   // Going back to the old parent dashboard address while LifeHub is open lands on the Reader tab.
@@ -1120,6 +1125,23 @@ export default function AriseTodo() {
       })}
     </div>
   </div>;
+  /** Removes an app from the menu right where it is (no trip to the Plugin Gallery). Its saved data stays; adding it
+   *  back from the Plugin Gallery brings everything back. */
+  const removeFromMenu = (id: FamilySection) => {
+    const label = SECTION_INFO[id].label;
+    if (!window.confirm(`Remove ${label} from your menu?\n\nEverything saved in it stays. Add it back any time from the Plugin Gallery.`)) return;
+    setFamily((f) => ({ ...f, sections: { ...f.sections, [id]: false } }));
+    if (shown === id) goSection("home");
+    setMessage(`${label} removed. Add it back any time from the Plugin Gallery.`);
+  };
+  /** Holding an app in the menu (touch screens have no hover): asks to remove it. */
+  const holdToRemove = (id: FamilySection) => ({
+    onPointerDown: (e: RPointerEvent) => { if (e.pointerType === "mouse") return; held.current = false; holdTimer.current = window.setTimeout(() => { held.current = true; removeFromMenu(id); }, 650); },
+    onPointerUp: () => { if (holdTimer.current) window.clearTimeout(holdTimer.current); },
+    onPointerLeave: () => { if (holdTimer.current) window.clearTimeout(holdTimer.current); },
+    onPointerCancel: () => { if (holdTimer.current) window.clearTimeout(holdTimer.current); },
+    onContextMenu: (e: RMouseEvent) => { e.preventDefault(); if (!held.current) removeFromMenu(id); },
+  });
   /** One sidebar renderer for built-in navigation and installed App Store sections.
    *  Store apps stay out of the built-in list, even if a saved folder previously mixed them. */
   const renderSectionItems = (ids: FamilySection[], useFolders: boolean) => <>
@@ -1148,13 +1170,20 @@ export default function AriseTodo() {
                 className={`group/navitem flex shrink-0 items-stretch gap-0.5 rounded-xl transition ${dsk === "top" ? "" : "lg:w-full"} ${nested && dsk !== "top" && dsk !== "compact" ? "lg:pl-4" : ""} ${draggingSection === id ? "opacity-40" : ""}`}
               >
                 <button
-                  onClick={() => { closeApps(); goSection(id); }}
+                  onClick={() => { if (held.current) { held.current = false; return; } closeApps(); goSection(id); }}
+                  {...(movable ? holdToRemove(id) : {})}
                   aria-current={leadOf(shown, sections) === id ? "page" : undefined}
                   data-testid={`life-section-${id}`}
                   className={`flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm ${dsk === "top" ? "" : "lg:w-full"} ${dsk === "compact" ? "lg:justify-center lg:px-0" : ""} ${movable ? "cursor-grab active:cursor-grabbing" : ""} ${shown === id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}
                 >
                   <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className={`whitespace-nowrap ${dsk === "compact" ? "lg:sr-only" : ""}`}>{groupLabel(id, sections, SECTION_INFO[id].label)}</span>{badge(id) > 0 && <span className={`ml-auto rounded-lg px-1.5 text-xs font-semibold ${shown === id ? "text-white/70" : "opacity-65"}`}>{badge(id)}</span>}
                 </button>
+                {movable && dsk !== "compact" && (
+                  <button type="button" onClick={() => removeFromMenu(id)} aria-label={`Remove ${SECTION_INFO[id].label} from the menu`} title="Remove from the menu"
+                    className="hidden shrink-0 items-center justify-center self-center rounded-lg px-1.5 py-1 text-slate-400 opacity-0 transition hover:bg-rose-50 hover:text-rose-600 group-hover/navitem:opacity-100 focus:opacity-100 lg:flex" data-testid={`life-remove-${id}`}>
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
                 {movable && (
                   <span className={`hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 ${dsk === "left" || dsk === "right" ? "lg:flex" : ""}`}>
                     <button type="button" onClick={() => moveSectionBy(id, -1)} disabled={posInToggleable <= 0} aria-label={`Move ${SECTION_INFO[id].label} up`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronUp className="h-3 w-3" /></button>
@@ -1206,6 +1235,8 @@ export default function AriseTodo() {
     {!setupOpen && <AppWalkthrough userId={user.id} hub="life" arise={user.role === "teacher" || user.role === "parent"}
       onGallery={() => setStore(true)} onCustomize={(t) => { setCustomizeTab(t); setCustomizing(true); }} onNotificationSettings={() => { closeApps(); goSection("notifications"); }}
       onConnectCalendar={async () => { const list = await readIphoneEvents(); setFamily((f) => withPhoneEvents(f, list, makeId)); return Math.min(list.length, 1000); }} />}
+    {/* After the first-run walkthrough: the All Access pop-up, once (iPhone app only). */}
+    <AllAccessPopup userId={user.id} token={token} doneKey={`arise-walkthrough-v1:${user.id}`} intro="To Duo is free with 3 plugins from the Plugin Gallery. Arise All Access unlocks every plugin and the AI, plus the extras in Notes, Fit and Pod+." />
     {store && <PluginStore
       hub="life"
       initialOpen={storeOpenApp ?? undefined}
@@ -1570,5 +1601,6 @@ export default function AriseTodo() {
         </form>
       </div>
     </div>}
+  <ShareNews token={token} />
   </div></PrivacyLockProvider>;
 }

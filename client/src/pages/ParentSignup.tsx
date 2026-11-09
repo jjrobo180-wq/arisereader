@@ -1,14 +1,19 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, CheckCircle2, Info, UserPlus, Link2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, UserPlus, Link2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
+import { SignupShell, lightStyles } from "@/components/SignupShell";
+import { isReaderHost } from "@/lib/hubs";
 
 export default function ParentSignup() {
   const [, navigate] = useLocation();
-  const { login } = useAuth();
+  const { login, user } = useAuth();
+  // Opens the next page only once the new sign-in has reached every screen, so the plan page never
+  // shows a "sign in" banner for a moment before it knows who is signed in.
+  const [goNext, setGoNext] = useState(false);
+  useEffect(() => { if (goNext && user) navigate(isReaderHost() ? "/subscribe" : "/signin", { replace: true }); }, [goNext, user]); // eslint-disable-line react-hooks/exhaustive-deps
   const [displayName, setDisplayName] = useState("");
-  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
   const [parentCode, setParentCode] = useState("");
@@ -17,6 +22,8 @@ export default function ParentSignup() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // The plan page comes right after sign-up: have its code ready so it opens without a loading screen.
+  useEffect(() => { void import("./ReaderSubscribe").catch(() => {}); }, []);
   useEffect(() => {
     try {
       const query = window.location.hash.includes("?") ? window.location.hash.split("?")[1] : "";
@@ -29,13 +36,13 @@ export default function ParentSignup() {
     event.preventDefault();
     setError("");
     setLoading(true);
+    let going = false;
 
     try {
       const response = await fetch(`${API_BASE}/api/auth/register-parent`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          username,
           password,
           displayName,
           email,
@@ -44,21 +51,23 @@ export default function ParentSignup() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.message || "Unable to submit your request.");
-      setSubmitted(true);
-      // Straight into LifeHub: sign in with the new account (the sign-in screen opens the hub).
-      try { await login(username.trim(), password); navigate("/signin"); return; } catch { /* they can sign in from the button below */ }
+      // One calm step: the button keeps saying "Creating your account…" while it signs in, then the plan
+      // page (A.R.I.S.E. Reader) opens in place. No success box, spinner pages or hops in between.
+      try {
+        await login(String(data.username || email.trim()), password);
+        setGoNext(true);
+        going = true;
+        return;
+      } catch { setSubmitted(true); /* they can sign in from the button below */ }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit your request.");
     } finally {
-      setLoading(false);
+      if (!going) setLoading(false); // still "Creating your account…" until the plan page opens
     }
   };
 
   return (
-    <main style={styles.page}>
-      <section style={styles.panel} aria-labelledby="parent-signup-title">
-        <div style={styles.brand}>A.R.I.S.E. READER</div>
-        <h1 id="parent-signup-title" style={styles.title}>Parent Sign Up</h1>
+    <SignupShell eyebrow="Parents & families" title={<>Parent <span className="text-violet-700">Sign Up</span></>} titleId="parent-signup-title" intro="Make your account in a few seconds. You add your child after.">
 
         {submitted ? (
           <div style={styles.success} role="status" data-testid="status-parent-signup-success">
@@ -67,27 +76,19 @@ export default function ParentSignup() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={styles.form}>
-            <div style={styles.infoBox}>
-              <Info size={22} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} />
-              <span>You can create a parent account without a code. Then set up a new independent reader for your child. Have a school code already? You can link that account instead.</span>
-            </div>
-            <Field id="parent-display-name" label="Your Name" value={displayName} onChange={setDisplayName} autoComplete="name" />
-            <Field id="parent-username" label="Username" value={username} onChange={setUsername} autoComplete="username" />
-            <Field id="parent-email" label="Email (for activation notification)" value={email} onChange={setEmail} type="email" autoComplete="email" />
-            <Field id="parent-password" label="Password" value={password} onChange={setPassword} type="password" autoComplete="new-password" />
-            <fieldset style={styles.codeChoice} data-testid="parent-link-choice">
-              <legend style={styles.label}>How would you like to start?</legend>
-              <label style={styles.choice}><input type="radio" name="family-mode" checked={!linkNow} onChange={() => setLinkNow(false)} /><span><strong>Set up my child myself</strong><small style={styles.hint}>No code needed. Create an independent reader after signup.</small></span></label>
-              <label style={styles.choice}><input type="radio" name="family-mode" checked={linkNow} onChange={() => setLinkNow(true)} /><span><strong>Connect an existing student</strong><small style={styles.hint}>Use a parent code from your child's school or A.R.I.S.E. account.</small></span></label>
-              {linkNow && <div style={{ marginTop: 14 }}>
-                <label htmlFor="parent-code" style={styles.label}><Link2 size={14} style={{ display: "inline", marginRight: 4 }} /> Parent connection code</label>
-                <input id="parent-code" type="text" value={parentCode} onChange={(e) => setParentCode(e.target.value.toUpperCase())} required placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" style={styles.input} data-testid="input-parent-code" />
-                <p style={styles.hint}>No code? Choose “Set up my child myself.” You can connect an existing student later too.</p>
-              </div>}
-            </fieldset>
+            <Field id="parent-display-name" label="Your name" value={displayName} onChange={setDisplayName} autoComplete="name" />
+            <Field id="parent-email" label="Email (you sign in with this)" value={email} onChange={setEmail} type="email" autoComplete="username" />
+            <Field id="parent-password" label="Password (6 or more characters)" value={password} onChange={setPassword} type="password" autoComplete="new-password" />
+            {!linkNow
+              ? <button type="button" onClick={() => setLinkNow(true)} style={{ ...styles.backButton, marginTop: 0, justifyContent: "flex-start" }} data-testid="parent-link-choice">Have a parent code from your child's school? Add it</button>
+              : <div data-testid="parent-link-choice">
+                  <label htmlFor="parent-code" style={styles.label}><Link2 size={14} style={{ display: "inline", marginRight: 4 }} /> Parent code (optional)</label>
+                  <input id="parent-code" type="text" value={parentCode} onChange={(e) => setParentCode(e.target.value.toUpperCase())} placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" style={styles.input} data-testid="input-parent-code" />
+                  <p style={styles.hint}>Connects you to your child's school account. You can also add your child after signing up.</p>
+                </div>}
             {error && <div style={styles.error} role="alert" data-testid="text-parent-signup-error">{error}</div>}
             <button type="submit" disabled={loading} style={{ ...styles.primaryButton, opacity: loading ? 0.7 : 1 }} data-testid="button-request-parent-account">
-              <UserPlus size={20} aria-hidden="true" /> {loading ? "Creating Account..." : "Create Parent Account"}
+              <UserPlus size={20} aria-hidden="true" /> {loading ? "Creating your account…" : "Create my account"}
             </button>
           </form>
         )}
@@ -95,8 +96,7 @@ export default function ParentSignup() {
         <button type="button" onClick={() => navigate("/signin")} style={styles.backButton} data-testid="link-back-to-login">
           <ArrowLeft size={18} aria-hidden="true" /> Back to Login
         </button>
-      </section>
-    </main>
+    </SignupShell>
   );
 }
 
@@ -105,90 +105,8 @@ function Field({ id, label, value, onChange, type = "text", autoComplete }: { id
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  page: {
-    minHeight: "100vh",
-    display: "grid",
-    placeItems: "center",
-    background: "radial-gradient(circle at 10% 0%, rgba(124,58,237,.24), transparent 28%), radial-gradient(circle at 90% 8%, rgba(6,182,212,.16), transparent 26%), radial-gradient(circle at 52% 45%, rgba(217,70,239,.08), transparent 35%), #0b0a16",
-    color: "#f8fafc",
-    padding: "24px",
-    fontFamily: "'Barlow', system-ui, sans-serif",
-  },
-  panel: {
-    width: "100%",
-    maxWidth: 560,
-    background: "linear-gradient(145deg, rgba(24,19,43,.98), rgba(15,18,35,.98))",
-    border: "1px solid rgba(255,255,255,.10)",
-    borderRadius: 28,
-    padding: "clamp(24px, 5vw, 42px)",
-    boxShadow: "0 28px 80px rgba(0,0,0,.32), 0 0 0 1px rgba(124,58,237,.05)",
-  },
-  brand: {
-    background: "linear-gradient(90deg,#8b5cf6,#d946ef,#22d3ee)",
-    WebkitBackgroundClip: "text",
-    backgroundClip: "text",
-    color: "transparent",
-    letterSpacing: "0.16em",
-    fontSize: 13,
-    fontWeight: 900,
-    textAlign: "center",
-  },
-  title: {
-    background: "linear-gradient(90deg,#ffffff 0%,#ddd6fe 45%,#a5f3fc 100%)",
-    WebkitBackgroundClip: "text",
-    backgroundClip: "text",
-    color: "transparent",
-    fontSize: "clamp(30px, 5vw, 40px)",
-    lineHeight: 1.08,
-    margin: "12px 0 30px",
-    textAlign: "center",
-    fontWeight: 900,
-    letterSpacing: "-0.035em",
-  },
-  form: { display: "grid", gap: 18 },
-  codeChoice: { border: "1px solid rgba(167,139,250,.26)", borderRadius: 16, padding: 15, margin: 0 },
-  choice: { display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 3px", color: "#f1f5f9", cursor: "pointer" },
-  hint: { display: "block", color: "#adb4c8", fontSize: 13, marginTop: 5, lineHeight: 1.5 },
-  label: { display: "grid", gap: 8, color: "#e2e8f0", fontWeight: 750, fontSize: 15 },
-  input: {
-    width: "100%",
-    boxSizing: "border-box",
-    background: "#0f0d1d",
-    border: "1px solid rgba(255,255,255,.12)",
-    borderRadius: 14,
-    color: "white",
-    fontSize: 16,
-    minHeight: 50,
-    padding: "11px 13px",
-    outlineColor: "#8b5cf6",
-  },
-  infoBox: {
-    display: "flex",
-    gap: 12,
-    background: "linear-gradient(90deg, rgba(124,58,237,.14), rgba(217,70,239,.10), rgba(6,182,212,.10))",
-    border: "1px solid rgba(167,139,250,.26)",
-    borderRadius: 16,
-    color: "#dbeafe",
-    fontSize: 15,
-    lineHeight: 1.5,
-    padding: 16,
-  },
-  primaryButton: {
-    display: "inline-flex",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 9,
-    minHeight: 52,
-    border: 0,
-    borderRadius: 14,
-    background: "linear-gradient(90deg,#7c3aed 0%,#c026d3 52%,#06b6d4 100%)",
-    color: "white",
-    cursor: "pointer",
-    fontSize: 16,
-    fontWeight: 900,
-    boxShadow: "0 14px 32px rgba(124,58,237,.22)",
-  },
-  error: { borderRadius: 12, padding: 12, background: "rgba(239,68,68,.12)", border: "1px solid rgba(248,113,113,.35)", color: "#fecaca" },
-  success: { display: "flex", alignItems: "flex-start", gap: 12, background: "rgba(6,182,212,.10)", border: "1px solid rgba(34,211,238,.30)", borderRadius: 14, color: "#cffafe", fontSize: 16, lineHeight: 1.5, padding: 18, marginBottom: 24 },
-  backButton: { display: "inline-flex", alignItems: "center", gap: 8, color: "#c4b5fd", background: "transparent", border: 0, cursor: "pointer", fontSize: 15, fontWeight: 750, marginTop: 26, padding: 0 },
+  ...lightStyles,
+  codeChoice: { border: "1px solid #e5e8f4", borderRadius: 16, padding: 15, margin: 0, background: "#fafaff" },
+  choice: { display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 3px", color: "#191b35", cursor: "pointer" },
+  success: { ...lightStyles.success, marginBottom: 8 },
 };

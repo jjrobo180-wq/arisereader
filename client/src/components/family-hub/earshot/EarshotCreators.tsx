@@ -297,10 +297,10 @@ export function Studio({ api, say, onClose, onCreate, email, onSignOut }: { api:
         <section className="relative mt-3 overflow-hidden rounded-3xl p-5 text-[#fff]" style={{ background: "linear-gradient(120deg,#13b2ac,#5576e5 55%,#835adf)" }}>
           <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full border border-[#fff]/25" />
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div><p className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[.16em] opacity-85"><Crown size={14} />Pod+ Membership</p>
+            <div><p className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[.16em] opacity-85"><Crown size={14} />Arise All Access</p>
               <h3 className="mt-1 text-[24px] font-extrabold leading-tight tracking-tight">Earn from your first episode</h3>
-              <p className="mt-1 max-w-md text-[14px] leading-relaxed opacity-90">Creators earn with a Pod+ Membership, the same $5 a month plan listeners get. No follower, play or time minimums.</p></div>
-            <div className="grid h-20 w-20 flex-none place-items-center rounded-full" style={{ background: "rgba(255,255,255,.18)" }}><span className="text-center leading-none"><b className="block text-[22px] font-extrabold">$5</b><span className="text-[11px] font-bold opacity-85">a month</span></span></div>
+              <p className="mt-1 max-w-md text-[14px] leading-relaxed opacity-90">Creators earn with Arise All Access, the same $10 a month plan listeners get for ad-free Pod+. No follower, play or time minimums.</p></div>
+            <div className="grid h-20 w-20 flex-none place-items-center rounded-full" style={{ background: "rgba(255,255,255,.18)" }}><span className="text-center leading-none"><b className="block text-[22px] font-extrabold">$10</b><span className="text-[11px] font-bold opacity-85">a month</span></span></div>
           </div>
           <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">{RISE_PERKS.map((p) => <div key={p.id} className="rounded-2xl p-3" style={{ background: "rgba(0,0,0,.12)" }}>
             <p className="flex items-center justify-between gap-2 text-[13.5px] font-bold">{p.title}<span className="rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider" style={{ background: "rgba(255,255,255,.2)" }}>Opening soon</span></p>

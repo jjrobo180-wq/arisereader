@@ -24,7 +24,7 @@ export const SORT_LABEL: Record<PersonSort, string> = { newest: "Newest first", 
 /** What the plan records say about one person's To-Do plan. */
 export type PlanInfo = {
   kind: PlanKind;
-  source: "stripe" | "admin";
+  source: "stripe" | "admin" | "apple";
   status: "active" | "past_due" | "canceled";
   live: boolean;
   endsAt: string | null;

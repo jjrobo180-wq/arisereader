@@ -124,7 +124,15 @@ export function registerAriseTodoRoutes(app: Express, authMiddleware: RequestHan
       return res.status(429).json({ message: "Too many sign-up attempts. " + waitWords(wait) + " remaining." });
     }
     signupLimits.fail(address);
-    const username = typeof req.body?.username === "string" ? req.body.username.trim().toLowerCase() : "";
+    let username = typeof req.body?.username === "string" ? req.body.username.trim().toLowerCase() : "";
+    // No username typed (the apps' sign-up asks only for name, email and password): one is made from the
+    // email. People sign in with their email.
+    const typedEmail = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
+    if (!username && validEmail(typedEmail)) {
+      const base = (typedEmail.split("@")[0].replace(/[^a-z0-9_-]/g, "") || "arise").slice(0, 20).padEnd(3, "0");
+      username = base;
+      for (let i = 0; i < 20 && (await storage.getUserByUsername(username)); i++) username = `${base}${Math.floor(100 + Math.random() * 9900)}`;
+    }
     const password = typeof req.body?.password === "string" ? req.body.password : "";
     const displayName = typeof req.body?.displayName === "string" ? req.body.displayName.trim() : "";
     if (!/^[a-z0-9_-]{3,30}$/.test(username)) {
@@ -154,7 +162,7 @@ export function registerAriseTodoRoutes(app: Express, authMiddleware: RequestHan
         // behind a code they never received. The address stays on the account, unconfirmed.
         if (issued.ok) await signup.codes.forget(userId).catch(() => {});
         await signup.turnOn(userId).catch(() => {});
-        return res.status(201).json({ success: true, confirmEmail: false, message: "Your account is ready. We couldn't email a code just now, so we've let you straight in." });
+        return res.status(201).json({ success: true, confirmEmail: false, username, message: "Your account is ready. We couldn't email a code just now, so we've let you straight in." });
       }
       return res.status(201).json({ success: true, confirmEmail: true, username, message: `We sent a 6-digit code to ${email}. Enter it to finish.` });
     } catch (error: any) {

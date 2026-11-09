@@ -1,6 +1,6 @@
 import "./lib/accountStorageBoot";
 import "./lib/sampleBoot";
-import { isFitApp, isNativeApp, isNotesApp, isReaderApp, markAppReadyWhenDrawn, nativeAppInfo, nativeFlavor } from "./lib/nativeApp";
+import { isFitApp, isNativeApp, isNotesApp, isReaderApp, keepLiveUpdated, markAppReadyWhenDrawn, nativeAppInfo, nativeFlavor } from "./lib/nativeApp";
 import { allowPopups } from "./lib/popupSupport";
 import { createRoot } from "react-dom/client";
 import App from "./App";
@@ -243,3 +243,4 @@ void import("./lib/readPhotos").then((m) => m.installReadPhotos()).catch(() => {
 // Live updates: this copy of the app started and drew its first screen (otherwise the iPhone app goes
 // back to the copy that worked; client/src/lib/nativeApp.ts).
 markAppReadyWhenDrawn();
+keepLiveUpdated();
