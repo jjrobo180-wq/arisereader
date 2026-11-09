@@ -4,7 +4,7 @@
 // show how much of each person's week is planned. Nothing changes until Save, and Save sets each meal rather than adding
 // on top, so a meal can never be doubled. "Copy to every day" puts the same meal on all seven days.
 import { useEffect, useMemo, useState } from "react";
-import { DAY_LABEL, K_SLOTS, MAIN_SLOTS, MAX_WEEKS, SKIP, WEEK, allDishes, cell, dateOf, dayProgress, dishName, dropPerson, eats, foodCount, money, nWeeks, planDish, servingCost, setCells, takeoutOf, type KDay, type Kitchen, type KMeal, type KSlot } from "@shared/kitchen";
+import { GROUPS_SORTED, SERVING_UNITS, chosen, groupForName, groupOf, plural, productText, servingIn, servingsPer, typicalServing, DAY_LABEL, K_SLOTS, MAIN_SLOTS, MAX_WEEKS, SKIP, WEEK, allDishes, cell, dateOf, dayProgress, dishName, dropPerson, eats, foodCount, money, nWeeks, planDish, servingCost, setCells, takeoutOf, type KDay, type Kitchen, type KMeal, type KSlot } from "@shared/kitchen";
 import { Modal } from "../ui";
 import PlanProgress from "./PlanProgress";
 import { btn, chip, field, ghost, label, quiet, Segmented } from "./kit";
@@ -120,12 +120,45 @@ function Chooser({ k, setK, slot, canSkip, makeId, taken, initial, onPick }: { k
       .sort((a, b) => Number(!!b.own) - Number(!!a.own) || b.pop - a.pop || a.name.localeCompare(b.name));
   }, [k, slot, q, taken]);
   const shown = all || q.trim() ? list : list.slice(0, 8);
+  // A new dish of your own: first, what one serving is, so the list buys the right number of bags and boxes.
+  const [sizing, setSizing] = useState<{ name: string; group: string; amount: string; unit: string } | null>(null);
   const make = () => {
     const name = q.trim(); if (!name) return;
+    const g = groupForName(name);
+    setSizing({ name: name.slice(0, 80), group: g?.id ?? "", amount: g ? String(typicalServing(g)) : "1", unit: g ? (SERVING_UNITS[g.unit]?.[0]?.id ?? "ct") : "ct" });
+  };
+  const finish = () => {
+    if (!sizing) return;
+    const g = sizing.group ? groupOf(sizing.group) : undefined;
+    const per = g ? servingIn(g, Number(sizing.amount) || 0, sizing.unit) : 0;
     const id = `own-${makeId()}`;
-    setK((x) => ({ ...x, own: [...x.own, { id, slot, name: name.slice(0, 80), kcal: 0, minutes: 0, tags: [], pop: 0, parts: [], own: true }] }));
+    setK((x) => ({ ...x, own: [...x.own, { id, slot, name: sizing.name, kcal: 0, minutes: 0, tags: [], pop: 0, parts: g && per > 0 ? [{ group: g.id, per }] : [], own: true }] }));
+    setSizing(null); setQ("");
     onPick(id, people);
   };
+  if (sizing) {
+    const g = sizing.group ? groupOf(sizing.group) : undefined;
+    const per = g ? servingIn(g, Number(sizing.amount) || 0, sizing.unit) : 0;
+    const pack = g ? chosen(k, g.id, per) : undefined;
+    const matches = GROUPS_SORTED.filter((x) => x.name.toLowerCase().includes(sizing.name.toLowerCase().split(" ").pop() || "")).slice(0, 6);
+    return <div className="mt-3 space-y-3 rounded-xl bg-slate-50 p-3" data-testid="serving-size">
+      <p className="text-sm font-semibold text-slate-900">How much is one serving of {sizing.name}?</p>
+      <label className="block text-xs text-slate-500">What you buy
+        <select value={sizing.group} onChange={(e) => { const ng = groupOf(e.target.value); setSizing({ ...sizing, group: e.target.value, amount: ng ? String(typicalServing(ng)) : sizing.amount, unit: ng ? SERVING_UNITS[ng.unit][0].id : sizing.unit }); }} className={`${field} mt-1 w-full`} aria-label="What you buy">
+          <option value="">Not in the list</option>
+          {[...new Map([...(g ? [g] : []), ...matches, ...GROUPS_SORTED].map((x) => [x.id, x])).values()].map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+        </select></label>
+      {g && <div className="flex gap-2">
+        <input value={sizing.amount} onChange={(e) => setSizing({ ...sizing, amount: e.target.value.replace(/[^\d.]/g, "") })} inputMode="decimal" aria-label="Serving amount" className={`${field} w-24`} data-testid="serving-amount" />
+        <select value={sizing.unit} onChange={(e) => setSizing({ ...sizing, unit: e.target.value })} aria-label="Serving unit" className={`${field} flex-1`}>
+          {SERVING_UNITS[g.unit].map((u) => <option key={u.id} value={u.id}>{g.unit === "ct" ? plural(g.each ?? "piece") : u.label}</option>)}
+        </select></div>}
+      {g && pack && per > 0 && <p className="text-xs text-slate-600" data-testid="servings-per">{productText(pack)} is about <b>{servingsPer(pack, per)} servings</b>. The list buys only as many as your plan eats.</p>}
+      {g && <p className="text-[11px] text-slate-400">Check the nutrition label: "Serving size" is one serving.</p>}
+      {!g && <p className="text-xs text-slate-500">Not in the list: it goes on your shopping list by name, one per serving planned.</p>}
+      <div className="flex gap-2"><button type="button" onClick={() => setSizing(null)} className={`${ghost} flex-1`}>Back</button><button type="button" onClick={finish} disabled={!!g && per <= 0} className={`${btn} flex-1`} data-testid="serving-save">Add {sizing.name}</button></div>
+    </div>;
+  }
   return <div className="mt-3 rounded-xl bg-slate-50 p-2.5">
     {k.people.length > 1 && <div className="mb-3"><p className={label}>Who's eating</p>
       <div className="mt-1.5 flex flex-wrap gap-1.5"><button type="button" aria-pressed={!people.length} onClick={() => setPeople([])} className={chip(!people.length)}>Everyone</button>

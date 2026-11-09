@@ -129,7 +129,7 @@ export const partsOf = (k: Kitchen, d: KDish): KPart[] => {
   if (p.length || !d.own) return p;
   // Your own dish made by name only ("Bagel", "Coffee"): it is that one store item, priced and listed like the rest.
   const g = groupForName(d.name);
-  return g ? [{ group: g.id, per: defaultPer(g) }] : p;
+  return g ? [{ group: g.id, per: typicalServing(g) }] : p;
 };
 const sing = (w: string) => (w.endsWith("ies") ? `${w.slice(0, -3)}y` : w.endsWith("oes") ? w.slice(0, -2) : w.endsWith("ches") || w.endsWith("shes") ? w.slice(0, -2) : w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w);
 const wordsOf = (t: string) => t.toLowerCase().replace(/[^a-z\s-]/g, " ").split(/[\s-]+/).filter(Boolean).map(sing);
@@ -262,7 +262,7 @@ export function totals(k: Kitchen) {
 
 // ── Amounts in words ───────────────────────────────────────────────────────────────────────────────────────────
 const trim = (x: number) => (Math.round(x * 10) / 10).toString();
-const plural = (w: string) => (/(s|x|ch|sh|o)$/.test(w) ? `${w}es` : /[^aeiou]y$/.test(w) ? `${w.slice(0, -1)}ies` : `${w}s`);
+export const plural = (w: string) => (/(s|x|ch|sh|o)$/.test(w) ? `${w}es` : /[^aeiou]y$/.test(w) ? `${w.slice(0, -1)}ies` : `${w}s`);
 export function amountText(x: number, g: KGroup): string {
   if (g.unit === "ct") { const v = Math.round(x * 100) / 100; const each = g.each ?? "piece"; const word = Math.abs(v - 1) < 0.01 ? each : plural(each); return `${trim(v)} ${word}`; }
   if (g.unit === "oz") return x >= 16 ? `${trim(x / 16)} lb` : `${trim(x)} oz`;
@@ -526,3 +526,18 @@ export function planToListAll<G extends { id: string; checked: boolean }>(grocer
   const plain = plainLines(k).map((p, i) => { let id = `${PLAN_TAG}${makeId()}`; while (taken.has(id)) id = `${PLAN_TAG}${makeId()}${i}`; taken.add(id); return { id, name: p.dish.name.slice(0, 80), qty: `${p.servings}×`, aisle: guessAisle(p.dish.name), checked: false, price: 0 }; });
   return [...list, ...plain];
 }
+
+// ── Serving sizes ──────────────────────────────────────────────────────────────────────────────────────────
+/** One usual serving, in the ingredient's unit, as the package's nutrition label counts it (chips 1 oz, about 15). */
+const TYPICAL: Record<string, number> = { "tortilla-chips": 1, chips: 1, goldfish: 1, crackers: 1, pretzels: 1, popcorn: 1, "trail-mix": 1, cereal: 1.5, granola: 1, oats: 1.4, rice: 1.6, pasta: 2, spaghetti: 2, "egg-noodles": 2, ramen: 3, coffee: 0.35, "coffee-creamer": 1, milk: 8, juice: 8, "teriyaki-sauce": 1, "beef-tips": 4, "frozen-fruit": 5, "sweet-corn": 3, broccoli: 3, potatoes: 6 };
+export const typicalServing = (g: KGroup) => TYPICAL[g.id] ?? (g.unit === "ct" ? 1 : g.unit === "floz" ? 8 : 1);
+/** Units a person can type a serving in, for an ingredient counted in oz, fl oz or pieces. */
+export const SERVING_UNITS: Record<KUnit, { id: string; label: string; to: number }[]> = {
+  oz: [{ id: "oz", label: "oz", to: 1 }, { id: "g", label: "grams", to: 1 / 28.35 }, { id: "lb", label: "lb", to: 16 }, { id: "cup", label: "cups", to: 8 }],
+  floz: [{ id: "floz", label: "fl oz", to: 1 }, { id: "cup", label: "cups", to: 8 }, { id: "tbsp", label: "tbsp", to: 0.5 }, { id: "tsp", label: "tsp", to: 1 / 6 }, { id: "ml", label: "ml", to: 1 / 29.57 }],
+  ct: [{ id: "ct", label: "pieces", to: 1 }],
+} as Record<KUnit, { id: string; label: string; to: number }[]>;
+/** A serving typed as an amount and a unit, in the ingredient's own unit (2 tbsp of sauce → 1 fl oz). */
+export const servingIn = (g: KGroup, amount: number, unit: string) => r2(Math.max(0, amount) * ((SERVING_UNITS[g.unit] ?? []).find((u) => u.id === unit)?.to ?? 1));
+/** How many servings one package holds ("a 13 oz bag is 13 servings"). */
+export const servingsPer = (p: KProduct, per: number) => (per > 0 ? Math.floor((p.size / per) * 10 + 1e-9) / 10 : 0);

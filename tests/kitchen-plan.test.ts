@@ -356,3 +356,18 @@ test("your own dishes made by name only are priced like the rest, and anything u
   let n = 0; const list = planToListAll([], k, lines, () => String(n++));
   assert.ok(list.some((g) => g.name === "Grandma's casserole") && list.some((g) => g.name.startsWith("Bagels")));
 });
+
+test("a serving size decides how many bags: 1 oz of chips a day for a week is one 13 oz bag, not one bag a serving", async () => {
+  const { groupOf, servingIn, servingsPer, chosen } = await import("../shared/kitchen");
+  const g = groupOf("tortilla-chips")!;
+  assert.equal(servingIn(g, 28.35, "g"), 1);
+  assert.equal(servingIn(groupOf("teriyaki-sauce")!, 2, "tbsp"), 1);
+  const per = servingIn(g, 1, "oz");
+  const k = cleanKitchen({ setup: true, people: [{ id: "a", name: "A", portion: 1 }], own: [{ id: "own-c", slot: "snack", name: "Tortilla chips", parts: [{ group: "tortilla-chips", per }] }],
+    week: Object.fromEntries(WEEK.map((d, i) => [`${d}:snack`, [{ id: String(i), dish: "own-c", people: [] }]])) });
+  const l = shoppingLines(k).find((x) => x.group.id === "tortilla-chips")!;
+  assert.equal(l.need, 7); assert.equal(l.packs, 1);
+  assert.ok(servingsPer(chosen(k, "tortilla-chips")!, per) >= 7);
+  const src = read("client/src/components/family-hub/kitchen/WeekPlanner.tsx");
+  assert.match(src, /How much is one serving of/);
+});
