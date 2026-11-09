@@ -229,3 +229,12 @@ test("every place minutes are marked has an Undo: each Done row, a whole block, 
   const board = r("client/src/components/teacher-hub/HubClassBoard.tsx");
   assert.match(board, /data-testid="class-student-unlog"/); assert.match(board, /data-testid="class-undo-batch-go"/);
 });
+
+test("every app in the WorkHub menu can be moved: up and down skip hidden apps, and My plugins extras have their own order", () => {
+  const hub = readFileSync(new URL("../client/src/pages/TeacherHub.tsx", import.meta.url), "utf8");
+  assert.match(hub, /const section = sectionOf\(id\);/);
+  assert.match(hub, /current\.splice\(dir < 0 \? n : n \+ 1, 0, id\)/);
+  assert.match(hub, /myAppsOrder: keys/);
+  for (const k of ["office:", "kit:", "notes:", "sheets:"]) assert.ok(hub.includes(`key: \`${k}`), k);
+  assert.match(hub, /label: "Move up", onPick: \(\) => moveGroupBy\(item\.id, -1\)/, "phones move apps from the ⋯ / press-and-hold menu");
+});
