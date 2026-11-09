@@ -2966,11 +2966,19 @@ export async function registerRoutes(
   // account. A valid invitation is required only when linking an existing child.
   app.post("/api/auth/register-parent", async (req, res) => {
     try {
-      const { username, password, displayName, email, parentCode } = req.body || {};
+      const { password, displayName, email, parentCode } = req.body || {};
+      let { username } = req.body || {};
+      // No username typed (the sign-up asks only for name, email and password): make one from the email.
+      // People sign in with their email; the username is shown on their account page.
+      if ((typeof username !== "string" || !username.trim()) && typeof email === "string" && looksLikeEmail(email.trim())) {
+        const base = (email.trim().split("@")[0].toLowerCase().replace(/[^a-z0-9_-]/g, "") || "parent").slice(0, 20).padEnd(3, "0");
+        username = base;
+        for (let i = 0; i < 20 && (await storage.getUserByUsername(username)); i++) username = `${base}${Math.floor(100 + Math.random() * 9900)}`;
+      }
       if (typeof username !== "string" || !/^[a-z0-9_-]{3,30}$/.test(username.trim().toLowerCase()) ||
           typeof password !== "string" || password.length < 6 ||
           typeof displayName !== "string" || displayName.trim().length < 2 || displayName.trim().length > 100) {
-        return res.status(400).json({ message: "Enter your name, a username (3–30 letters/numbers), and a password with at least 6 characters." });
+        return res.status(400).json({ message: "Enter your name, your email and a password with at least 6 characters." });
       }
       const normalizedCode = typeof parentCode === "string" ? parentCode.replace(/[-\s]/g, "").toUpperCase() : "";
       let student: any = null;
@@ -3021,6 +3029,7 @@ export async function registerRoutes(
       });
       res.status(201).json({
         success: true,
+        username: user.username,
         linked: !!student,
         message: student ? "Your parent account is ready and linked to your child." : "Your parent account is ready. You can set up your child's independent reader account or link a school account from A.R.I.S.E. Reader.",
       });

@@ -141,10 +141,6 @@ export default function SignIn() {
     setError("");
     setSubmitting(true);
     try {
-      const cleanUsername = username.trim().toLowerCase();
-      if (!/^[a-z0-9_-]{3,30}$/.test(cleanUsername)) {
-        throw new Error("Username must have 3–30 letters, numbers, dashes, or underscores.");
-      }
       if (displayName.trim().length < 2) {
         throw new Error("Please enter your name.");
       }
@@ -157,10 +153,12 @@ export default function SignIn() {
       const response = await fetch(`${API_BASE}/api/arise-todo/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: cleanUsername, displayName: displayName.trim(), password, email: email.trim() }),
+        body: JSON.stringify({ displayName: displayName.trim(), password, email: email.trim() }),
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error(data?.message || "Couldn't create your account.");
+      // Just name, email and password: the server makes the username from the email.
+      const cleanUsername = String(data?.username || email.trim().toLowerCase());
       // The account is made switched off until the emailed code is typed back. If no code could be
       // sent, the server lets the person straight in rather than stranding them.
       if (data?.confirmEmail) { setCodeFor(cleanUsername); setNotice(data?.message || ""); return; }
@@ -288,13 +286,9 @@ export default function SignIn() {
                     <input id="personal-display-name" required autoComplete="name" maxLength={80} value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Your name" className="h-12 w-full rounded-xl border border-[#dfe3f1] bg-[#fbfbff] px-4 text-base text-[#17213b] outline-none focus:border-[#665ae6]"/>
                   </div>
                   <div>
-                    <label htmlFor="personal-username" className="mb-2 block text-sm font-bold text-[#2e3653]">Username</label>
-                    <input id="personal-username" required autoComplete="username" autoCapitalize="none" spellCheck={false} minLength={3} maxLength={30} value={username} onChange={e => setUsername(e.target.value)} placeholder="Choose a username" className="h-12 w-full rounded-xl border border-[#dfe3f1] bg-[#fbfbff] px-4 text-base text-[#17213b] outline-none focus:border-[#665ae6]"/>
-                  </div>
-                  <div>
                     <label htmlFor="personal-email" className="mb-2 block text-sm font-bold text-[#2e3653]">Email</label>
                     <input id="personal-email" required type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} maxLength={160} value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" className="h-12 w-full rounded-xl border border-[#dfe3f1] bg-[#fbfbff] px-4 text-base text-[#17213b] outline-none focus:border-[#665ae6]" data-testid="personal-email"/>
-                    <p className="mt-1.5 text-xs leading-5 text-[#7d839d]">We'll send a 6-digit code to confirm it. This is how you reset your password later.</p>
+                    <p className="mt-1.5 text-xs leading-5 text-[#7d839d]">You sign in with your email. We'll send it a 6-digit code to confirm.</p>
                   </div>
                   <div>
                     <label htmlFor="personal-password" className="mb-2 block text-sm font-bold text-[#2e3653]">Password</label>

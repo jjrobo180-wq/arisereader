@@ -41,3 +41,18 @@ test("the plan lock runs before every page, including the Reader's own page", ()
   assert.ok(lock > 0 && lock < routes.indexOf("if (isReaderPage())"), "checked before /reader is drawn");
   assert.match(routes, /readerLockOn = !!user && !user\.isAdmin && onReaderDomain && !eyeGazerApp/);
 });
+
+test("sign-up asks only for name, email and password; Safari opens signed in from the plan button", () => {
+  const parent = read("client/src/pages/ParentSignup.tsx");
+  assert.doesNotMatch(parent, /parent-username|How would you like to start/);
+  assert.match(read("server/routes.ts"), /make one from the email/);
+  assert.match(read("server/ariseTodo.ts"), /one is made from the\s*\n?\s*\/\/ email|one is made from the/);
+  const nat = read("client/src/pages/NativeSignIn.tsx");
+  assert.match(nat, /\(!signingUp \|\| eyeGazer\) && <Field label="Username"/);
+  const sub = read("client/src/pages/ReaderSubscribe.tsx");
+  assert.match(sub, /\/api\/auth\/web-handoff\/start/);
+  assert.match(sub, /\?signin=\$\{d\.code\}/);
+  const hand = read("server/adminHandoff.ts");
+  assert.match(hand, /web-handoff\/consume[\s\S]{0,200}readerHosts\.has\(host\(req\)\)/, "redeemed on arisereader.com only");
+  assert.match(hand, /payTickets\.delete\(code\)/, "one use");
+});

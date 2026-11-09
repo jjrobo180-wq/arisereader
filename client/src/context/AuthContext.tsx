@@ -47,6 +47,8 @@ interface AuthContextType {
   signInWithApple: (apple: { identityToken: string; authorizationCode?: string; givenName?: string; familyName?: string }) => Promise<boolean>;
   /** Redeems a one-use code from arisereader.com (teachers, parents, LifeHub accounts, the administrator). */
   completeAdminHandoff: (code: string) => Promise<AuthUser>;
+  /** The Reader iPhone app's plan button opens Safari signed in with this one-use code. */
+  completeWebHandoff: (code: string) => Promise<AuthUser>;
   register: (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null, gradeLevel?: string, unlisted?: { schoolName?: string; teacherName?: string; directoryTeacherId?: string; independent?: boolean; directorySchool?: string; advisoryId?: string }) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
@@ -386,6 +388,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data.user as AuthUser;
   }, [persistSession]);
 
+  const completeWebHandoff = useCallback(async (code: string) => {
+    if (!/^[a-f0-9]{64}$/.test(code)) throw new Error("The sign-in link is invalid.");
+    const res = await fetch(`${API_BASE}/api/auth/web-handoff/consume`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }), cache: "no-store" });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || typeof data?.token !== "string") throw new Error(data?.message || "Please sign in.");
+    sessionStorage.removeItem(SAMPLE_SESSION_KEY);
+    persistSession(data.user, data.token);
+    return data.user as AuthUser;
+  }, [persistSession]);
+
   const register = useCallback(async (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null, gradeLevel?: string, unlisted?: { schoolName?: string; teacherName?: string; directoryTeacherId?: string; independent?: boolean; directorySchool?: string; advisoryId?: string }) => {
     sessionStorage.removeItem(SAMPLE_SESSION_KEY);
     const res = await fetch(`${API_BASE}/api/register`, {
@@ -494,6 +506,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       signInWithApple,
       completeAdminHandoff,
+      completeWebHandoff,
       register,
       logout,
       isLoading,

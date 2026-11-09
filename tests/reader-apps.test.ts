@@ -32,7 +32,7 @@ test("each Reader app has its own id, icon, workflow and first run", () => {
   assert.match(read("educator/ios-app/package.json"), /@capacitor\/push-notifications/);
   assert.match(read("reader/ios-app/package.json"), /@capacitor\/local-notifications/);
   assert.match(read(".github/workflows/educator-ios.yml"), /APPLE_ID_AUTH PUSH_NOTIFICATIONS/);
-  assert.match(read("client/src/App.tsx"), /isReaderApp\(\) && user && !isAdminPreview && <ReaderFirstRun/);
+  assert.match(read("client/src/App.tsx"), /isReaderApp\(\) && user && !isAdminPreview && !\(nativeFlavor\(\) === "reader" && !isStudent\) && !readerLocked\(readerPlan\) && <ReaderFirstRun/);
 });
 
 test("the Reader apps stay inside the app and never link to purchases", () => {

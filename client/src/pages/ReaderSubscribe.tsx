@@ -46,14 +46,31 @@ export default function ReaderSubscribe() {
     window.addEventListener("focus", again);
     return () => { document.removeEventListener("visibilitychange", again); window.removeEventListener("focus", again); };
   }, [refresh]);
+  // Opened from the app's plan button: a parent goes straight to the payment page, once.
+  const autoPay = useRef(false);
+  useEffect(() => {
+    if (native || autoPay.current || role !== "parent" || !plan || plan.reader?.access || plan.payment === false) return;
+    if (new URLSearchParams(window.location.search).get("pay") !== "family") return;
+    autoPay.current = true;
+    try { const u = new URL(window.location.href); u.searchParams.delete("pay"); window.history.replaceState(null, "", u.toString()); } catch { /* keep the address */ }
+    void payFamily();
+  }, [plan]); // eslint-disable-line react-hooks/exhaustive-deps
   // Already paid (or covered by a teacher): nothing to do here.
   useEffect(() => { if (plan?.reader?.access) navigate(role === "student" ? "/library" : "/reader"); }, [plan?.reader?.access]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // In the app: Safari (the app never sells anything). On the website: the pricing page.
-  const openSite = () => {
+  // In the app, Safari opens already signed in (a one-use code, never the password or token) and goes
+  // straight to the family payment for a parent. If the code can't be made, Safari asks them to sign in.
+  const openSite = async () => {
     if (!native) { navigate("/pricing"); return; }
-    try { if (window.open(SITE, "_blank")) return; } catch { /* below */ }
-    window.location.href = SITE;
+    let url = SITE;
+    try {
+      const r = await fetch(`${API_BASE}/api/auth/web-handoff/start`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && typeof d.code === "string" && /^[a-f0-9]{64}$/.test(d.code)) url = `https://www.arisereader.com/?signin=${d.code}${role === "parent" ? "&pay=family" : ""}#/subscribe`;
+    } catch { /* plain link below */ }
+    try { if (window.open(url, "_blank")) return; } catch { /* below */ }
+    window.location.href = url;
   };
   const payFamily = async () => {
     setBusy(true); setError("");
@@ -131,7 +148,7 @@ export default function ReaderSubscribe() {
             </button>
           ))}
         </div>
-        {native && <p className="mt-3 text-center text-xs leading-5 text-slate-400">Tap a plan to open arisereader.com in Safari. Sign in there with this same account to pay. Nothing is sold in the app.</p>}
+        {native && <p className="mt-3 text-center text-xs leading-5 text-slate-400">Tap a plan to finish on arisereader.com in Safari. You stay signed in. Nothing is sold in the app.</p>}
         <button type="button" onClick={() => setAccount(true)} className="mx-auto mt-6 flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-slate-400 hover:bg-white/10 hover:text-rose-300" data-testid="reader-subscribe-account">
           <Trash2 className="h-4 w-4" />Account &amp; privacy · Delete my account
         </button>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, CheckCircle2, Info, UserPlus, Link2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, UserPlus, Link2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
@@ -9,7 +9,6 @@ export default function ParentSignup() {
   const [, navigate] = useLocation();
   const { login } = useAuth();
   const [displayName, setDisplayName] = useState("");
-  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
   const [parentCode, setParentCode] = useState("");
@@ -36,7 +35,6 @@ export default function ParentSignup() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          username,
           password,
           displayName,
           email,
@@ -46,8 +44,8 @@ export default function ParentSignup() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.message || "Unable to submit your request.");
       setSubmitted(true);
-      // Straight into LifeHub: sign in with the new account (the sign-in screen opens the hub).
-      try { await login(username.trim(), password); navigate("/signin"); return; } catch { /* they can sign in from the button below */ }
+      // Signed in straight away (the plan page comes next in A.R.I.S.E. Reader).
+      try { await login(String(data.username || email.trim()), password); navigate("/signin"); return; } catch { /* they can sign in from the button below */ }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit your request.");
     } finally {
@@ -56,7 +54,7 @@ export default function ParentSignup() {
   };
 
   return (
-    <SignupShell eyebrow="Parents & families" title={<>Parent <span className="text-violet-700">Sign Up</span></>} titleId="parent-signup-title" intro="Create your family account, then set up your child or connect the account they already have.">
+    <SignupShell eyebrow="Parents & families" title={<>Parent <span className="text-violet-700">Sign Up</span></>} titleId="parent-signup-title" intro="Make your account in a few seconds. You add your child after.">
 
         {submitted ? (
           <div style={styles.success} role="status" data-testid="status-parent-signup-success">
@@ -65,27 +63,19 @@ export default function ParentSignup() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={styles.form}>
-            <div style={styles.infoBox}>
-              <Info size={22} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} />
-              <span>You can create a parent account without a code. Then set up a new independent reader for your child. Have a school code already? You can link that account instead.</span>
-            </div>
-            <Field id="parent-display-name" label="Your Name" value={displayName} onChange={setDisplayName} autoComplete="name" />
-            <Field id="parent-username" label="Username" value={username} onChange={setUsername} autoComplete="username" />
-            <Field id="parent-email" label="Email (for activation notification)" value={email} onChange={setEmail} type="email" autoComplete="email" />
-            <Field id="parent-password" label="Password" value={password} onChange={setPassword} type="password" autoComplete="new-password" />
-            <fieldset style={styles.codeChoice} data-testid="parent-link-choice">
-              <legend style={styles.label}>How would you like to start?</legend>
-              <label style={styles.choice}><input type="radio" name="family-mode" checked={!linkNow} onChange={() => setLinkNow(false)} /><span><strong>Set up my child myself</strong><small style={styles.hint}>No code needed. Create an independent reader after signup.</small></span></label>
-              <label style={styles.choice}><input type="radio" name="family-mode" checked={linkNow} onChange={() => setLinkNow(true)} /><span><strong>Connect an existing student</strong><small style={styles.hint}>Use a parent code from your child's school or A.R.I.S.E. account.</small></span></label>
-              {linkNow && <div style={{ marginTop: 14 }}>
-                <label htmlFor="parent-code" style={styles.label}><Link2 size={14} style={{ display: "inline", marginRight: 4 }} /> Parent connection code</label>
-                <input id="parent-code" type="text" value={parentCode} onChange={(e) => setParentCode(e.target.value.toUpperCase())} required placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" style={styles.input} data-testid="input-parent-code" />
-                <p style={styles.hint}>No code? Choose “Set up my child myself.” You can connect an existing student later too.</p>
-              </div>}
-            </fieldset>
+            <Field id="parent-display-name" label="Your name" value={displayName} onChange={setDisplayName} autoComplete="name" />
+            <Field id="parent-email" label="Email (you sign in with this)" value={email} onChange={setEmail} type="email" autoComplete="username" />
+            <Field id="parent-password" label="Password (6 or more characters)" value={password} onChange={setPassword} type="password" autoComplete="new-password" />
+            {!linkNow
+              ? <button type="button" onClick={() => setLinkNow(true)} style={{ ...styles.backButton, marginTop: 0, justifyContent: "flex-start" }} data-testid="parent-link-choice">Have a parent code from your child's school? Add it</button>
+              : <div data-testid="parent-link-choice">
+                  <label htmlFor="parent-code" style={styles.label}><Link2 size={14} style={{ display: "inline", marginRight: 4 }} /> Parent code (optional)</label>
+                  <input id="parent-code" type="text" value={parentCode} onChange={(e) => setParentCode(e.target.value.toUpperCase())} placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" style={styles.input} data-testid="input-parent-code" />
+                  <p style={styles.hint}>Connects you to your child's school account. You can also add your child after signing up.</p>
+                </div>}
             {error && <div style={styles.error} role="alert" data-testid="text-parent-signup-error">{error}</div>}
             <button type="submit" disabled={loading} style={{ ...styles.primaryButton, opacity: loading ? 0.7 : 1 }} data-testid="button-request-parent-account">
-              <UserPlus size={20} aria-hidden="true" /> {loading ? "Creating Account..." : "Create Parent Account"}
+              <UserPlus size={20} aria-hidden="true" /> {loading ? "Creating your account…" : "Create my account"}
             </button>
           </form>
         )}

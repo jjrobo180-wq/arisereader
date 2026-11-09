@@ -1,5 +1,4 @@
 import EyeGazeCelebrations from "@/components/EyeGazeCelebrations";
-import InstallAppPrompt from "@/components/InstallAppPrompt";
 import WorkHubTour from "@/components/WorkHubTour";
 import ReaderFirstRun from "@/components/ReaderFirstRun";
 import NativeBack from "@/components/NativeBack";
@@ -64,7 +63,6 @@ import EyeGazeAccessGate from "./components/EyeGazeAccessGate";
 import AssessmentPopup from "./components/AssessmentPopup";
 import ClassTeachersPopup from "./components/ClassTeachersPopup";
 import FypAnnouncementPopup from "./components/FypAnnouncementPopup";
-import WelcomeGuide from "./components/WelcomeGuide";
 import PointsSideTab from "./components/PointsSideTab";
 import AvatarWorldSideTab from "./components/AvatarWorldSideTab";
 import AdvisoryChallengePopup from "./components/AdvisoryChallenge";
@@ -286,6 +284,20 @@ function StudentSetupGate({ children }: { children: React.ReactNode }) {
   }
 
   return <>{children}</>;
+}
+
+/** "?signin=<code>" from the Reader iPhone app's plan button: one-use, so the person lands in Safari signed in. */
+const readHandoffCode = () => { try { const c = new URLSearchParams(window.location.search).get("signin") || ""; return /^[a-f0-9]{64}$/.test(c) ? c : ""; } catch { return ""; } };
+function WebHandoff() {
+  const { completeWebHandoff } = useAuth();
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    const code = readHandoffCode();
+    try { const u = new URL(window.location.href); u.searchParams.delete("signin"); window.history.replaceState(null, "", u.toString()); } catch { /* keep the address */ }
+    completeWebHandoff(code).catch(() => setFailed(true));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  if (failed) return <div><p className="bg-violet-700 px-4 py-3 text-center text-sm font-bold text-white">Sign in with the account you already made. Your plan opens right after.</p><SignIn /></div>;
+  return <div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 }
 
 /** The parent and teacher Reader (/reader) sits outside ProtectedRoute, so it checks the Reader plan
@@ -757,7 +769,7 @@ function AppRoutes() {
       <Route path="/subscribe">
         {/* Signed out (a parent who tapped a plan in the app lands here in Safari): sign in first, then the
             same page opens to pay. Never a new account. */}
-        {user ? <ReaderSubscribe /> : <div>
+        {user ? <ReaderSubscribe /> : readHandoffCode() ? <WebHandoff /> : <div>
           <p className="bg-violet-700 px-4 py-3 text-center text-sm font-bold text-white" data-testid="subscribe-signin-first">Sign in with the account you already made. Your plan opens right after.</p>
           {isNativeApp() ? <NativeSignIn /> : <SignIn />}
         </div>}
@@ -1090,8 +1102,10 @@ function fitBootBg() {
 }
 
 function AppInner() {
-  const { user, realUser, adminPreviewMode } = useAuth();
+  const { user, realUser, adminPreviewMode, token } = useAuth();
   const inGame = useFullscreenGameRoute();
+  // The Reader first-run tour waits until the account has its plan (the plan page comes first).
+  const { plan: readerPlan } = usePlan(isReaderApp() && user && !user.isAdmin ? token : null);
   const isStudent = user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent' && user.role !== 'todo';
   const isEyeGazeStudent = !!isStudent && !!user?.is_eye_gaze_user;
   const isDemoStudent = !!isStudent && (
@@ -1122,11 +1136,10 @@ function AppInner() {
       {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <AdvisoryChallengePopup onNavigate={(path) => { window.location.hash = path; }} />}
       {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <ClassTeachersPopup />}
-      {overlays && !isAdminPreview && !isDemoStudent && !isEyeGazeStudent && <WelcomeGuide />}
-      {overlays && !isAdminPreview && <InstallAppPrompt />}
+      {/* The "add to Home Screen" shortcut pop-ups (WelcomeGuide, InstallAppPrompt) are switched off. */}
       {overlays && !isAdminPreview && !isReaderApp() && (user?.role === "teacher" || user?.role === "parent" || user?.role === "todo" || user?.isAdmin) && <WorkHubTour />}
       {/* The Reader iPhone apps' first run: notifications (or a daily reading reminder) and a tour. */}
-      {isReaderApp() && user && !isAdminPreview && <ReaderFirstRun userId={user.id} />}
+      {isReaderApp() && user && !isAdminPreview && !(nativeFlavor() === "reader" && !isStudent) && !readerLocked(readerPlan) && <ReaderFirstRun userId={user.id} />}
       <ParaJoinResume />
       <Router hook={useHashPathLocation}>
         <AuthenticatedNavigationTracker />
