@@ -174,7 +174,7 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
           <div className="mt-4">
             {isNativeApp()
               ? <div className="space-y-2">
-                  <div data-testid="todo-plan-native"><AllAccessOffer note={NATIVE_NO_PURCHASE} /></div>
+                  <div data-testid="todo-plan-native"><AllAccessOffer note={NATIVE_NO_PURCHASE} authToken={token} onBought={refreshTodoPlan} /></div>
                   <button type="button" onClick={() => setReason(null)} className="flex min-h-12 w-full items-center justify-center rounded-2xl bg-slate-900 text-sm font-bold text-white">OK</button>
                 </div>
               : !plan

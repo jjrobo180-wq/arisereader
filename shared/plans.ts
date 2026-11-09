@@ -207,8 +207,8 @@ export type PlanGrant = {
   kind: PlanKind;
   /** The teacher's user id, or the school's id. */
   ownerId: number;
-  /** Paid online, or switched on by the site admin. */
-  source: "stripe" | "admin";
+  /** Paid online (Stripe on the website, or Apple in an iPhone app), or switched on by the site admin. */
+  source: "stripe" | "admin" | "apple";
   status: "active" | "past_due" | "canceled";
   /** How many students it covers. */
   seats: number;
@@ -221,6 +221,9 @@ export type PlanGrant = {
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
   stripeItemId?: string;
+  /** Bought in an iPhone app: Apple's id for the subscription (the same through every renewal). */
+  appleOriginalTransactionId?: string;
+  appleProductId?: string;
   note?: string;
   /** A school that is always Premium at no charge: no student limit, no end date, nothing to pay. */
   free?: boolean;
@@ -236,7 +239,8 @@ export function grantLive(grant: PlanGrant | null | undefined, now = Date.now())
   if (!grant.endsAt) return true;
   const end = Date.parse(grant.endsAt);
   if (!Number.isFinite(end)) return false;
-  if (grant.trial) return now < end;
+  // A free trial, and Apple subscriptions (Apple runs its own billing grace and tells us), end on time.
+  if (grant.trial || grant.source === "apple") return now < end;
   return now < end + PLANS.graceDays * 86_400_000;
 }
 
