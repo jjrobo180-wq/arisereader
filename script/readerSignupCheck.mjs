@@ -106,7 +106,7 @@ const text = () => page.evaluate(() => document.body.innerText).catch(() => "");
 
 try {
   // 1. The app's first screen → a parent makes the account.
-  await page.goto("http://app.local/index.html#/", { waitUntil: "domcontentloaded" });
+  await page.goto("https://app.local/index.html#/", { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(4000);
   await shot("1-welcome");
   await page.getByText(/New here\? A parent creates the account/i).click();
@@ -147,7 +147,7 @@ try {
 
   // 4. Paid: back in the app the Reader opens by itself.
   paid.add(users.get("testparent").user.id);
-  await page.goto("http://app.local/index.html#/subscribe", { waitUntil: "domcontentloaded" });
+  await page.goto("https://app.local/index.html#/subscribe", { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(5000);
   await shot("5-after-paying");
   check(!page.url().includes("#/subscribe"), "after paying the Reader opens", page.url());
@@ -169,7 +169,7 @@ try {
   const c2 = await b2.newContext({ ...devices["iPhone 14"], serviceWorkers: "block" });
   await c2.route("**/*", (route) => serve(route, "dist-todo"));
   const p2 = await c2.newPage();
-  await p2.goto("http://app.local/index.html#/signin", { waitUntil: "domcontentloaded" });
+  await p2.goto("https://app.local/index.html#/signin", { waitUntil: "domcontentloaded" });
   await p2.waitForTimeout(4000);
   const create = p2.getByRole("button", { name: /Create a free account/i }).first();
   await create.click();
