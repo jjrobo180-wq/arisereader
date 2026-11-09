@@ -15,6 +15,7 @@ const results = [];
 const check = (ok, what, extra = "") => { results.push({ ok: !!ok, what }); console.log(`${ok ? "PASS" : "FAIL"}  ${what}${extra ? `  (${extra})` : ""}`); };
 
 // ── The fake server ──
+const duoWorkspace = JSON.parse(await readFile("script/fixtures/duo-workspace.json", "utf8"));
 const users = new Map(); // username -> { user, password }
 const tokens = new Map(); // token -> username
 const codes = new Map(); // one-use sign-in code -> token
@@ -72,6 +73,8 @@ async function serve(route, root) {
       if (!token) return json({ message: "This sign-in link expired. Please sign in." }, 401);
       return json({ user: users.get(tokens.get(token)).user, token });
     }
+    if (p === "/api/arise-todo/workspace") return req.method() === "GET" ? json({ workspace: duoWorkspace, updatedAt: "2026-11-08T16:23:15.371Z" }) : json({ ok: true, updatedAt: new Date().toISOString() });
+    if (p === "/api/todo-plan") return json({ unlimited: false, apps: { work: 0, life: 0, limit: 3 }, ai: { limit: 10, used: 0, left: 10 } });
     if (p === "/api/all-access") return json({ live: false, admin: false, source: null, priceCents: 1000, payment: true, endsAt: null, cancelAtPeriodEnd: false, canManage: false, canBuy: true });
     if (p === "/api/billing/addon-checkout") {
       if (!who || who.role !== "parent" || body.product !== "bundle") return json({ message: "no" }, 403);
