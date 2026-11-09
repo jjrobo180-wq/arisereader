@@ -219,3 +219,13 @@ test("Start fresh: days before the new start never count as missed, the percenta
   assert.equal(completion(after, thu, fresh, [], thu).month.planned, 0, "no old weeks count");
   assert.deepEqual(undoFresh(fresh, old).map((p) => p.since), plans.map((p) => p.since));
 });
+
+test("every place minutes are marked has an Undo: each Done row, a whole block, everything just logged, and the class page", () => {
+  const r = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+  const week = r("client/src/components/teacher-hub/HubMinutesWeek.tsx");
+  assert.match(week, /data-testid="minutes-unlog"/); assert.match(week, /data-testid="minutes-unlog-all"/);
+  const prog = r("client/src/components/teacher-hub/HubProgress.tsx");
+  assert.match(prog, /data-testid="minutes-undo-logged"/); assert.match(prog, /onUndo=\{unlog\}/);
+  const board = r("client/src/components/teacher-hub/HubClassBoard.tsx");
+  assert.match(board, /data-testid="class-student-unlog"/); assert.match(board, /data-testid="class-undo-batch-go"/);
+});

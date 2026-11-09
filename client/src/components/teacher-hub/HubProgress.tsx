@@ -303,15 +303,24 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
     setWorkspace((w) => ({ ...w, serviceLogs: [...w.serviceLogs, ...sessions] }));
     setJustLogged(sessions.map((x) => x.id));
   }
+  /** Take back sessions marked by mistake (one, a block, or everything just logged). */
+  function unlog(ids: string[]) {
+    if (!ids.length || readOnly) return;
+    setWorkspace((w) => ({ ...w, serviceLogs: w.serviceLogs.filter((l) => !ids.includes(l.id)) }));
+    setJustLogged((j) => j.filter((x) => !ids.includes(x)));
+    setSaved(ids.length === 1 ? "Undone." : `${ids.length} marks undone.`);
+  }
   /** From the block grid: the log pop-up for the student that was tapped, to type other minutes or to say they did not meet. */
   function logFrom(from: LogStart) {
     setLog({ ...newLog(), date: from.date, block: from.block || "", student: from.student || "", kind: from.kind || "Push-in", minutes: from.minutes ? String(from.minutes) : "", notMet: !!from.notMet, others: from.others });
   }
   /** From the pop-up for several students: a session for each one ticked, or each one's required minutes. */
   function saveBulk(result: BulkResult) {
+    const made = result.logs.map((session) => ({ id: makeId(), ...session }));
+    if (made.length) setJustLogged(made.map((x) => x.id));
     setWorkspace((w) => ({
       ...w,
-      serviceLogs: result.logs.length ? [...w.serviceLogs, ...result.logs.map((session) => ({ id: makeId(), ...session }))] : w.serviceLogs,
+      serviceLogs: made.length ? [...w.serviceLogs, ...made] : w.serviceLogs,
       services: result.plans.length ? withPlans(w.services, result.plans, makeId, today, optional) : w.services,
     }));
     setUndoPlans(null);
@@ -425,6 +434,7 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
         {justLogged.length > 0 && !readOnly && (
           <div className="flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-sm text-white" role="status" data-testid="minutes-just-logged">
             <span className="min-w-0 flex-1">Logged {justLogged.length === 1 ? (own.serviceLogs.find((l) => l.id === justLogged[0])?.student ?? "1") : `${justLogged.length} students`}</span>
+            <button type="button" onClick={() => unlog(justLogged)} className="min-h-9 rounded-full bg-white/15 px-3 font-semibold hover:bg-white/25" data-testid="minutes-undo-logged">Undo</button>
             <button type="button" onClick={() => setNoting(true)} className="min-h-9 rounded-full bg-white/15 px-3 font-semibold hover:bg-white/25" data-testid="minutes-add-note">Add a note</button>
             <button type="button" onClick={() => setJustLogged([])} aria-label="Dismiss" className="min-h-9 px-1 text-white/70">✕</button>
           </div>
@@ -438,7 +448,7 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
       {classForm !== null && <ClassFormModal workspace={workspace} today={today} groupKey={classForm || null} onSave={saveClassForm} onClose={() => setClassForm(null)} />}
       {classAdd && <AddToClassModal workspace={workspace} today={today} groupKey={classAdd} onSave={addStudentsToClass} onClose={() => setClassAdd(null)} />}
       {classDelete && <DeleteClassModal workspace={workspace} today={today} groupKey={classDelete} onDelete={removeClass} onClose={() => setClassDelete(null)} />}
-      {look === "quick" && <MinutesWeekView workspace={workspace} today={today} readOnly={readOnly} onLog={logItems} onEdit={editLog} onAdd={addFrom} onPlan={(planId) => { const p = plans.find((x) => x.id === planId); if (p) editPlan(p); }} onBlocks={() => setSettingBlocks(true)} onMove={(planId, block) => setWorkspace((w) => ({ ...w, services: setPlanBlock(w.services, planId, block) }))} />}
+      {look === "quick" && <MinutesWeekView workspace={workspace} today={today} readOnly={readOnly} onLog={logItems} onEdit={editLog} onUndo={unlog} onAdd={addFrom} onPlan={(planId) => { const p = plans.find((x) => x.id === planId); if (p) editPlan(p); }} onBlocks={() => setSettingBlocks(true)} onMove={(planId, block) => setWorkspace((w) => ({ ...w, services: setPlanBlock(w.services, planId, block) }))} />}
       {look === "quick" && !plans.length && <Empty>No required minutes set yet. Tap Edit, then “Set required minutes” to add a student's push-in or pull-out time and block, or “Add several students” to set a whole block at once (you can tick them from a screenshot). They show up in that block on the days they are due.</Empty>}
       {bulk && <BulkMinutesModal workspace={workspace} today={today} token={token} start={bulk} onSave={saveBulk} onClose={() => setBulk(null)} />}
       {settingBlocks && <BlocksModal blocks={blocks} optional={optional} makeId={makeId} onClose={() => setSettingBlocks(false)} onSave={(next, days) => { setWorkspace((w) => ({ ...w, minuteBlocks: next, minuteOptionalDays: days })); setSettingBlocks(false); }} />}

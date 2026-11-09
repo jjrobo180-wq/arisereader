@@ -3,7 +3,7 @@
 // It opens on today, and any earlier day can be opened to add or fix what was forgotten.
 // The rules are in shared/hubMinutesWeek.ts and shared/hubBlocks.ts.
 import { Fragment, useMemo, useState, type FormEvent } from "react";
-import { Check, ChevronLeft, ChevronRight, Pencil, Plus, Settings2, Trash2 } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Pencil, Plus, Settings2, Trash2, Undo2 } from "lucide-react";
 import { addDays } from "@shared/hubDates";
 import { BLOCKS_MAX, BLOCK_NAME_MAX, cleanBlocks, groupText, schoolBlocks, type SchoolBlock } from "@shared/hubBlocks";
 import { DAY_NAMES, SCHOOL_DAYS, optionalDays, type WeekDay } from "@shared/hubProgress";
@@ -42,6 +42,8 @@ type Handlers = {
   onLog: (items: MinutesItem[]) => void;
   /** Open a logged session to change it. */
   onEdit: (logId: string) => void;
+  /** Take back sessions marked by mistake. */
+  onUndo: (logIds: string[]) => void;
   /** With a student it opens the log pop-up for that student (other minutes, or did not meet); without, the pop-up that adds several students to that block. */
   onAdd: (start: LogStart) => void;
   /** Put a student's plan in a block. */
@@ -50,7 +52,7 @@ type Handlers = {
   onPlan: (planId: string) => void;
 };
 
-function Item({ item, today, blocks, others, onLog, onEdit, onAdd, onMove, onPlan }: { item: MinutesItem; today: string; blocks: SchoolBlock[]; /** Who else is still waiting in this block and on this day. */ others: NonNullable<LogStart["others"]> } & Handlers) {
+function Item({ item, today, blocks, others, onLog, onEdit, onUndo, onAdd, onMove, onPlan }: { item: MinutesItem; today: string; blocks: SchoolBlock[]; /** Who else is still waiting in this block and on this day. */ others: NonNullable<LogStart["others"]> } & Handlers) {
   const given = !!item.logId;
   const notMet = item.state === "not met";
   const body = (
@@ -70,7 +72,8 @@ function Item({ item, today, blocks, others, onLog, onEdit, onAdd, onMove, onPla
   ) : null;
   /** Their days and minutes can be changed right here, or the student taken out of the block. */
   const change = item.planId ? <button type="button" onClick={() => onPlan(item.planId!)} aria-label={`Change days and minutes for ${item.student}`} className="-mr-1.5 -mt-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700" data-testid="minutes-change"><Pencil className="h-3.5 w-3.5" /></button> : null;
-  if (given) return <li data-testid="minutes-item" data-state={item.state}><button type="button" className={`${box} block w-full hover:bg-slate-50`} onClick={() => onEdit(item.logId!)} aria-label={notMet ? `${item.student}, did not meet${item.note ? `, ${item.note}` : ""}. Change` : `${item.student}, ${item.minutes} minutes, ${ITEM_WORD[item.state].toLowerCase()}. Change`}>{body}</button>{move}</li>;
+  if (given) return <li data-testid="minutes-item" data-state={item.state} className="relative"><button type="button" onClick={() => onUndo([item.logId!])} aria-label={`Undo ${notMet ? "did not meet" : `${item.minutes} minutes`} for ${item.student}`} title="Undo" data-testid="minutes-unlog"
+    className="absolute right-1.5 top-1.5 z-10 inline-flex h-8 items-center gap-1 rounded-full px-2 text-[11px] font-semibold text-slate-400 hover:bg-slate-100 hover:text-slate-800"><Undo2 className="h-3.5 w-3.5" />Undo</button><button type="button" className={`${box} block w-full pr-16 hover:bg-slate-50`} onClick={() => onEdit(item.logId!)} aria-label={notMet ? `${item.student}, did not meet${item.note ? `, ${item.note}` : ""}. Change` : `${item.student}, ${item.minutes} minutes, ${ITEM_WORD[item.state].toLowerCase()}. Change`}>{body}</button>{move}</li>;
   const oneTap = item.state === "today" || item.state === "missed";
   const start: LogStart = { student: item.student, kind: item.kind, date: item.date, block: item.block };
   /** "Did not meet", with a reason: for this student, or for everyone still waiting in the block or on the day. */
@@ -108,6 +111,7 @@ function Cell({ cell, day, row, shown, today, blocks, ...handlers }: { cell: Min
           })}
         </ul>
       )}
+      {cell.items.filter((x) => x.logId).length > 1 && <button type="button" className="mt-0.5 inline-flex min-h-9 w-full items-center justify-center gap-1 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-50 hover:text-slate-800" onClick={() => handlers.onUndo(cell.items.filter((x) => x.logId).map((x) => x.logId!))} data-testid="minutes-unlog-all"><Undo2 className="h-3.5 w-3.5" aria-hidden />Undo all {cell.items.filter((x) => x.logId).length}</button>}
       <button type="button" className={`inline-flex min-h-9 w-full items-center justify-center gap-1 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-50 hover:text-slate-700 ${cell.items.length ? "mt-0.5" : ""}`} onClick={() => handlers.onAdd({ date: day.date, block: row.id })} aria-label={day.optional ? `Add minutes you gave in ${where}` : `Add students in ${where}`} data-testid="minutes-add"><Plus className="h-3.5 w-3.5" /> {day.optional ? "Add if you met" : "Add"}</button>
     </div>
   );
