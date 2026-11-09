@@ -6,7 +6,9 @@ import { useLocation } from "wouter";
 import { isReaderApp, nativeFlavor } from "@/lib/nativeApp";
 
 /** Screens that are a home of their own (or sign-in): no back button there. */
-const HOMES = ["/", "/library", "/reader", "/eye-gaze-home", "/eye-gaze-parent", "/signin", "/register", "/teacher-signup", "/parent-signup", "/reset-password"];
+// "/subscribe" (an account that needs a plan) is a home too: every other Reader screen sends it back there,
+// so a Back button on it went nowhere.
+const HOMES = ["/", "/library", "/reader", "/eye-gaze-home", "/eye-gaze-parent", "/signin", "/register", "/teacher-signup", "/parent-signup", "/reset-password", "/subscribe"];
 export const isHomeScreen = (path: string) => HOMES.includes(path.split("?")[0].replace(/\/+$/, "") || "/");
 
 export default function NativeBack() {

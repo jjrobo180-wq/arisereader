@@ -4,7 +4,8 @@
 // sold: the button opens arisereader.com in Safari (allowed on the US App Store).
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { BookOpen, Check, LogOut } from "lucide-react";
+import { BookOpen, Check, ExternalLink, LogOut, Trash2 } from "lucide-react";
+import AccountPrivacy from "@/components/AccountPrivacy";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { isNativeApp } from "@/lib/nativeApp";
@@ -19,6 +20,7 @@ export default function ReaderSubscribe() {
   const [, navigate] = useLocation();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [account, setAccount] = useState(false);
   const role = user?.role === "teacher" ? "teacher" : user?.role === "parent" ? "parent" : "student";
   const native = isNativeApp();
 
@@ -39,7 +41,12 @@ export default function ReaderSubscribe() {
   // Already paid (or covered by a teacher): nothing to do here.
   useEffect(() => { if (plan?.reader?.access) navigate(role === "student" ? "/library" : "/reader"); }, [plan?.reader?.access]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const openSite = () => { try { window.open(SITE, "_blank"); } catch { window.location.href = SITE; } };
+  // In the app: Safari (the app never sells anything). On the website: the pricing page.
+  const openSite = () => {
+    if (!native) { navigate("/pricing"); return; }
+    try { if (window.open(SITE, "_blank")) return; } catch { /* below */ }
+    window.location.href = SITE;
+  };
   const payFamily = async () => {
     setBusy(true); setError("");
     try {
@@ -85,6 +92,11 @@ export default function ReaderSubscribe() {
               <li key={t} className="flex gap-2"><Check className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />{t}</li>
             ))}
           </ul>
+          {role === "student" && (
+            <button type="button" onClick={openSite} className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-4 text-base font-bold hover:bg-violet-500" data-testid="reader-subscribe-student-site">
+              {native ? <>See the plans on arisereader.com <ExternalLink className="h-4 w-4" /></> : "See the plans"}
+            </button>
+          )}
           {role !== "student" && (native ? (
             <button type="button" onClick={openSite} className="mt-6 flex min-h-12 w-full items-center justify-center rounded-2xl bg-violet-600 px-4 text-base font-bold hover:bg-violet-500" data-testid="reader-subscribe-site">
               Subscribe on arisereader.com
@@ -104,14 +116,19 @@ export default function ReaderSubscribe() {
         </section>
         <div className="mt-4 grid grid-cols-3 gap-2">
           {plans.map((p) => (
-            <div key={p.who} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+            <button type="button" key={p.who} onClick={openSite} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left transition hover:bg-white/[0.08] active:scale-[.98]" data-testid={`reader-subscribe-plan-${p.who.toLowerCase()}`}>
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{p.who}</p>
               <p className="mt-1 text-xl font-black">{p.price}<span className="text-xs font-semibold text-slate-400">{(p as any).per || "/mo"}</span></p>
               <p className="mt-1 text-xs leading-4 text-slate-400">{p.what}</p>
-            </div>
+            </button>
           ))}
         </div>
+        {native && <p className="mt-3 text-center text-xs leading-5 text-slate-400">Tap a plan to see it on arisereader.com in Safari. Nothing is sold in the app.</p>}
+        <button type="button" onClick={() => setAccount(true)} className="mx-auto mt-6 flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-slate-400 hover:bg-white/10 hover:text-rose-300" data-testid="reader-subscribe-account">
+          <Trash2 className="h-4 w-4" />Account &amp; privacy · Delete my account
+        </button>
       </div>
+      {account && <div className="fixed inset-0 z-[90] text-slate-900"><AccountPrivacy onClose={() => setAccount(false)} /></div>}
     </main>
   );
 }
