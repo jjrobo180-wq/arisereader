@@ -233,7 +233,8 @@ try {
   await p4.screenshot({ path: "screens/9-todo-walkthrough.png" });
   const early = await p4.getByTestId("all-access-popup").isVisible().catch(() => false);
   check(!early, "no All Access pop-up during the walkthrough");
-  await p4.evaluate(() => { localStorage.setItem("arise-walkthrough-v1:9500", "1"); });
+  // Finish the walkthrough the way a person would (Skip ends it).
+  for (let i = 0; i < 4; i++) { const skip = p4.getByRole("button", { name: /^Skip$/ }).first(); if (await skip.isVisible().catch(() => false)) { await skip.click().catch(() => {}); await p4.waitForTimeout(800); } }
   const shown = await p4.getByTestId("all-access-popup").waitFor({ timeout: 15000 }).then(() => true).catch(() => false);
   await p4.screenshot({ path: "screens/10-all-access-popup.png" });
   check(shown, "after the walkthrough the All Access pop-up shows");
