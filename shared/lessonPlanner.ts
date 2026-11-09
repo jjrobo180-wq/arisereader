@@ -12,6 +12,9 @@
 import type { Lesson } from "./teacherHub";
 import { cleanVisual, type WsVisual } from "./worksheetVisuals";
 
+/** Cleaned as you type: the start is trimmed but a space (or new line) just typed at the end stays, or the next word could never be typed. */
+const typedEnd = (s: string) => s.replace(/^\s+/, "").replace(/ {2,}$/, "");
+
 // ─── Kinds ──────────────────────────────────────────────────────────────────
 
 export const LESSON_STATUSES = ["idea", "draft", "ready", "taught"] as const;
@@ -224,7 +227,7 @@ export function cleanWorksheet(raw: any): GenWorksheet | undefined {
     const items: WorksheetItem[] = [];
     for (const it of Array.isArray(s.items) ? s.items : []) {
       if (!it || typeof it !== "object") continue;
-      const prompt = str(it.prompt, 1500).trim();
+      const prompt = typedEnd(str(it.prompt, 1500));
       const visual = cleanVisual(it.visual);
       if (!prompt && !visual) continue;
       const choices = strings(it.choices, 6, 300);
@@ -233,11 +236,11 @@ export function cleanWorksheet(raw: any): GenWorksheet | undefined {
       const keyVisual = cleanVisual(it.keyVisual);
       const matches = strings(it.matches, 12, 200);
       const space = ["small", "medium", "large"].includes(it.space) ? it.space : undefined;
-      items.push({ prompt, answer: str(it.answer, 1500).trim(), ...(kind ? { kind } : {}), ...(choices.length >= 2 ? { choices } : {}), ...(lines ? { lines } : {}), ...(space ? { space } : {}), ...(visual ? { visual } : {}), ...(keyVisual ? { keyVisual } : {}), ...(matches.length ? { matches } : {}) });
+      items.push({ prompt, answer: typedEnd(str(it.answer, 1500)), ...(kind ? { kind } : {}), ...(choices.length >= 2 ? { choices } : {}), ...(lines ? { lines } : {}), ...(space ? { space } : {}), ...(visual ? { visual } : {}), ...(keyVisual ? { keyVisual } : {}), ...(matches.length ? { matches } : {}) });
       if (items.length >= LIMITS.worksheetItems) break;
     }
     if (!items.length) continue;
-    const passage = str(s.passage, 6000).trim();
+    const passage = typedEnd(str(s.passage, 6000));
     const wordBank = strings(s.wordBank, 30, 60);
     const columns = Math.max(1, Math.min(4, Math.round(Number(s.columns) || 1)));
     sections.push({ heading: line(s.heading, 160) || `Part ${sections.length + 1}`, ...(line(s.directions, 600) ? { directions: line(s.directions, 600) } : {}), items,
@@ -245,7 +248,7 @@ export function cleanWorksheet(raw: any): GenWorksheet | undefined {
     if (sections.length >= LIMITS.worksheetSections) break;
   }
   if (!sections.length) return undefined;
-  return { title: line(raw.title, 160) || "Worksheet", instructions: str(raw.instructions, 800).trim(), sections,
+  return { title: line(raw.title, 160) || "Worksheet", instructions: typedEnd(str(raw.instructions, 800)), sections,
     ...(raw.large ? { large: true } : {}), ...(raw.score === false ? { score: false } : {}), ...(line(raw.grade, 20) ? { grade: line(raw.grade, 20) } : {}), ...(line(raw.subject, 60) ? { subject: line(raw.subject, 60) } : {}) };
 }
 
@@ -257,7 +260,7 @@ export function cleanSlides(raw: unknown): GenSlide[] | undefined {
     const title = line((s as any).title, 160);
     const bullets = strings((s as any).bullets, 8, 300);
     if (!title && !bullets.length) continue;
-    const notes = str((s as any).notes, 1500).trim();
+    const notes = typedEnd(str((s as any).notes, 1500));
     out.push({ title: title || `Slide ${out.length + 1}`, bullets, ...(notes ? { notes } : {}) });
     if (out.length >= LIMITS.slides) break;
   }
@@ -273,7 +276,7 @@ export function cleanMaterial(raw: any): LessonMaterial | null {
   const url = /^https?:\/\//i.test(String(raw.url || "")) ? line(raw.url, 1000) : "";
   const worksheet = cleanWorksheet(raw.worksheet);
   const slides = cleanSlides(raw.slides);
-  const text = str(raw.text, LIMITS.text).trim();
+  const text = typedEnd(str(raw.text, LIMITS.text));
   if (!path && !url && !worksheet && !slides && !text) return null;
   const size = Number(raw.size);
   return {
@@ -298,7 +301,7 @@ function cleanMarks(raw: unknown): Record<string, StudentMark> {
     const mark: StudentMark = {};
     if ((CHECKS as readonly string[]).includes(m.status)) mark.status = m.status;
     if (line(m.score, 20)) mark.score = line(m.score, 20);
-    if (str(m.note, 500).trim()) mark.note = str(m.note, 500).trim();
+    if (typedEnd(str(m.note, 500))) mark.note = typedEnd(str(m.note, 500));
     if (!mark.status && !mark.score && !mark.note) continue;
     out[who] = mark;
     if (++n >= LIMITS.rosterPerClass * 2) break;
@@ -559,7 +562,7 @@ export function cleanPlanFields(raw: any): PlanFields {
   if (!raw || typeof raw !== "object") return out;
   for (const k of PLAN_FIELDS) {
     const v = raw[k];
-    const text = Array.isArray(v) ? v.map((x) => `• ${line(x, 600)}`).filter((x) => x.length > 2).join("\n") : str(v, LIMITS.text).trim();
+    const text = Array.isArray(v) ? v.map((x) => `• ${line(x, 600)}`).filter((x) => x.length > 2).join("\n") : typedEnd(str(v, LIMITS.text));
     if (text) out[k] = k === "title" ? line(text, 160) : text;
   }
   const standards = strings(raw.standards, LIMITS.standardsPerLesson, 400);
@@ -571,7 +574,7 @@ export function cleanPlanFields(raw: any): PlanFields {
 
 export function cleanIdeas(raw: any): LessonIdea[] {
   const list = Array.isArray(raw?.ideas) ? raw.ideas : [];
-  return list.map((i: any) => ({ title: line(i?.title, 160), summary: str(i?.summary, 800).trim(), activity: str(i?.activity, 800).trim() }))
+  return list.map((i: any) => ({ title: line(i?.title, 160), summary: typedEnd(str(i?.summary, 800)), activity: typedEnd(str(i?.activity, 800)) }))
     .filter((i: LessonIdea) => i.title).slice(0, 8);
 }
 
@@ -591,7 +594,7 @@ export function cleanFoundStandards(raw: any): FoundStandard[] {
 
 export function cleanUnit(raw: any): { unit: string; lessons: UnitLesson[] } {
   const lessons = (Array.isArray(raw?.lessons) ? raw.lessons : []).map((l: any) => ({
-    title: line(l?.title, 160), objective: str(l?.objective, 1000).trim(), standards: strings(l?.standards, 6, 400), summary: str(l?.summary, 1500).trim(),
+    title: line(l?.title, 160), objective: typedEnd(str(l?.objective, 1000)), standards: strings(l?.standards, 6, 400), summary: typedEnd(str(l?.summary, 1500)),
   })).filter((l: UnitLesson) => l.title).slice(0, 40);
   return { unit: line(raw?.unit, 120), lessons };
 }

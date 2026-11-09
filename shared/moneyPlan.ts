@@ -6,6 +6,9 @@
 // in family.bills, family.expenses and family.budget (so the calendar, alerts and widgets keep working).
 import type { Bill, Expense, BudgetCategory } from "./familyHub";
 
+/** Cleaned as you type: the start is trimmed but a space (or new line) just typed at the end stays, or the next word could never be typed. */
+const typedEnd = (s: string) => s.replace(/^\s+/, "").replace(/ {2,}$/, "");
+
 export type PayFrequency = "weekly" | "biweekly" | "semimonthly" | "monthly" | "irregular";
 export type IncomeKind = "paycheck" | "tips" | "gig" | "other";
 export type IncomeSource = {
@@ -72,14 +75,14 @@ export function cleanMoney(raw: unknown): MoneyPlan {
     style: oneOf(r.style, ["paycheck", "monthly"] as const, "monthly"),
     cushion: num(r.cushion, 0, 10_000_000),
     sources: rows(r.sources, MONEY_LIMITS.sources, (s) => {
-      const name = str(s.name, 60).trim();
+      const name = typedEnd(str(s.name, 60));
       if (!name) return null;
       const frequency = oneOf(s.frequency, FREQ, "monthly");
       const days = Array.isArray(s.days) ? [...new Set(s.days.map((d: unknown) => Math.round(num(d, 1, 31, 0))).filter((d: number) => d >= 1))].sort((a, b) => a - b).slice(0, 2) as number[] : [];
       return { id: str(s.id, 100), name, kind: oneOf(s.kind, ["paycheck", "tips", "gig", "other"] as const, "paycheck"), frequency, amount: num(s.amount, 0, 10_000_000), days, anchor: isDay(s.anchor) ? s.anchor : "" };
     }),
     onHand: rows(r.onHand, MONEY_LIMITS.onHand, (o) => {
-      const name = str(o.name, 60).trim();
+      const name = typedEnd(str(o.name, 60));
       return name && num(o.amount, 0, 100_000_000) > 0 ? { id: str(o.id, 100), name, amount: cents(num(o.amount, 0, 100_000_000)) } : null;
     }),
     incomeLog: rows(r.incomeLog, MONEY_LIMITS.incomeLog, (e) => isDay(e.date) && num(e.amount, 0, 10_000_000) > 0
@@ -87,7 +90,7 @@ export function cleanMoney(raw: unknown): MoneyPlan {
     payments: rows(r.payments, MONEY_LIMITS.payments, (p) => isMonth(p.month) && isDay(p.date) && num(p.amount, 0, 10_000_000) > 0
       ? { id: str(p.id, 100), billId: str(p.billId, 100), month: p.month, amount: cents(num(p.amount, 0, 10_000_000)), date: p.date } : null),
     goals: rows(r.goals, MONEY_LIMITS.goals, (g) => {
-      const name = str(g.name, 60).trim();
+      const name = typedEnd(str(g.name, 60));
       return name ? { id: str(g.id, 100), name, kind: oneOf(g.kind, ["save", "debt"] as const, "save"), target: num(g.target, 0, 100_000_000), start: num(g.start, 0, 100_000_000), due: isDay(g.due) ? g.due : "", monthly: num(g.monthly, 0, 10_000_000), color: /^#[0-9a-f]{6}$/i.test(String(g.color)) ? String(g.color) : "#6e5ae0" } : null;
     }),
     goalMoves: rows(r.goalMoves, MONEY_LIMITS.goalMoves, (m) => isDay(m.date) && Number.isFinite(Number(m.amount)) && Number(m.amount) !== 0

@@ -194,3 +194,10 @@ test("the month calendar names each lesson's class, in the class's real color (n
   const page = readFileSync(new URL("../client/src/components/teacher-hub/HubLessons.tsx", import.meta.url), "utf8");
   assert.match(page, /data-testid="month-lesson">\n\s*\{c\?\.name && <span/);
 });
+
+test("a student's note, a written material and every other lesson box keep a typed space", () => {
+  const l = cleanLessons([{ id: "a", title: "T", date: "2026-11-10", marks: { Dexter: { note: "Did " } }, files: [{ id: "f", kind: "other", name: "D", text: "Read the " }] }])[0];
+  assert.equal(l.marks?.Dexter?.note, "Did ");
+  assert.equal(l.files?.[0].text, "Read the ");
+  assert.equal(cleanLessons([{ id: "a", title: "T", date: "2026-11-10", marks: { Dexter: { note: "   " } } }])[0].marks?.Dexter, undefined, "only spaces is still nothing");
+});

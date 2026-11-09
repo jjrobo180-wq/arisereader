@@ -1,3 +1,6 @@
+
+/** Cleaned as you type: the start is trimmed but a space (or new line) just typed at the end stays, or the next word could never be typed. */
+const typedEnd = (s: string) => s.replace(/^\s+/, "").replace(/ {2,}$/, "");
 // Trainer websites (November 2026): every Arise Trainer coach can publish their own site at arisetodo.com/#/t/<slug>,
 // built from their listing (photo, bio, prices, specialties, reviews) plus what they add here: a look, a headline,
 // services, photos and FAQs. The contact form sends leads straight to the trainer's app. Server: server/coach.ts.
@@ -48,7 +51,7 @@ const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[a-z]{2,24}$/i;
 /** A message from the site's contact form. Needs a name and a way to reach them. */
 export function cleanLead(raw: unknown, at: string, source: Lead["source"] = "site"): Lead | null {
   const r = raw && typeof raw === "object" ? (raw as Record<string, any>) : {};
-  const name = str(r.name, 80).trim(), email = str(r.email, 254).trim(), phone = str(r.phone, 30).replace(/[^\d+()\-.\s]/g, "").trim();
+  const name = typedEnd(str(r.name, 80)), email = typedEnd(str(r.email, 254)), phone = str(r.phone, 30).replace(/[^\d+()\-.\s]/g, "").trim();
   if (!name || (!EMAIL.test(email) && phone.replace(/\D/g, "").length < 7)) return null;
   return { id: id(undefined), at, name, email: EMAIL.test(email) ? email : "", phone, goal: str(r.goal, 120), message: str(r.message, 2000), source, status: "new" };
 }
