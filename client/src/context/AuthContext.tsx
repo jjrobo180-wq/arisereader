@@ -346,7 +346,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (SAMPLE_USERNAMES.has(data.user?.username)) sessionStorage.setItem(SAMPLE_SESSION_KEY, "true");
     else sessionStorage.removeItem(SAMPLE_SESSION_KEY);
     resetAuthenticatedNavigation(data.user);
-    persistSession(data.user, data.token);
+    persistSession(data.user, data.token); setSessionValidated(true); // fresh from the server: no second check (and no loading flash) right after
     returnIfAsked();
   }, [persistSession]);
 
@@ -360,7 +360,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!res.ok || typeof data?.token !== "string") throw new Error(data?.message || "Sign in with Apple didn't work. Try again.");
     sessionStorage.removeItem(SAMPLE_SESSION_KEY);
     resetAuthenticatedNavigation(data.user);
-    persistSession(data.user, data.token);
+    persistSession(data.user, data.token); setSessionValidated(true); // fresh from the server: no second check (and no loading flash) right after
     returnIfAsked();
     return !!data.made;
   }, [persistSession]);
@@ -384,7 +384,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAdminPreviewMode(null);
     sessionStorage.removeItem(SAMPLE_SESSION_KEY);
     resetAuthenticatedNavigation(data.user);
-    persistSession(data.user, data.token);
+    persistSession(data.user, data.token); setSessionValidated(true); // fresh from the server: no second check (and no loading flash) right after
     return data.user as AuthUser;
   }, [persistSession]);
 
@@ -394,7 +394,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await res.json().catch(() => null);
     if (!res.ok || typeof data?.token !== "string") throw new Error(data?.message || "Please sign in.");
     sessionStorage.removeItem(SAMPLE_SESSION_KEY);
-    persistSession(data.user, data.token);
+    persistSession(data.user, data.token); setSessionValidated(true); // fresh from the server: no second check (and no loading flash) right after
     return data.user as AuthUser;
   }, [persistSession]);
 
@@ -411,7 +411,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const data = await res.json();
     resetAuthenticatedNavigation(data.user);
-    persistSession(data.user, data.token);
+    persistSession(data.user, data.token); setSessionValidated(true); // fresh from the server: no second check (and no loading flash) right after
     returnIfAsked();
   }, [persistSession]);
 

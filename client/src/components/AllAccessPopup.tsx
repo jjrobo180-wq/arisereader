@@ -42,7 +42,7 @@ export default function AllAccessPopup({ userId, token, ready, doneKey, dark = f
   }, [go, token, userId, apiBase]);
   if (!open) return null;
   const close = () => { try { localStorage.setItem(SEEN(userId), "1"); } catch { /* shows once this visit */ } setOpen(false); };
-  return <div className="kb-sheet fixed inset-0 z-[120] flex items-end justify-center bg-black/45 p-3 sm:items-center" role="dialog" aria-modal="true" aria-label="Arise All Access" data-testid="all-access-popup">
+  return <div className="kb-sheet fixed inset-0 z-[700] flex items-end justify-center bg-black/45 p-3 sm:items-center" role="dialog" aria-modal="true" aria-label="Arise All Access" data-testid="all-access-popup">
     <div className={`max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-[22px] p-5 shadow-2xl ${dark ? "bg-[#17161d] text-white" : "bg-[#f5f4fb] text-[#111018]"}`}>
       <div className="flex items-start justify-between gap-3">
         <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white"><Crown className="h-6 w-6" /></span>
