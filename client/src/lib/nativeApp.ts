@@ -118,6 +118,44 @@ export function markAppReadyWhenDrawn(): void {
   window.setTimeout(tick, 800);
 }
 
+/** Live updates while the app is open, like the website: the newest web code is fetched in the background and
+ *  switched to right away (the updater reloads the page; unsaved typing is kept by the hub's draft copy), so
+ *  nobody has to close the app twice. Checked shortly after it opens, whenever it comes back to the screen,
+ *  and every few minutes while it's on screen. */
+const updater = () => {
+  const cap = typeof window !== "undefined" ? (window as any).Capacitor : null;
+  const p = cap?.Plugins?.CapacitorUpdater;
+  if (p?.getLatest && p?.download && p?.set) return p;
+  try { const reg = cap?.registerPlugin?.("CapacitorUpdater"); if (reg?.getLatest) return reg; } catch { /* not available */ }
+  return null;
+};
+let checking = false, lastCheck = 0;
+export async function liveUpdateNow(force = false): Promise<"none" | "applied" | "failed"> {
+  if (!isNativeApp() || checking || (!force && Date.now() - lastCheck < 60_000)) return "none";
+  const u = updater(); if (!u) return "none";
+  checking = true; lastCheck = Date.now();
+  try {
+    const latest: any = await u.getLatest();
+    const version = String(latest?.version || ""), url = String(latest?.url || "");
+    if (!version || !url || latest?.error) return "none";
+    const cur: any = await u.current().catch(() => null);
+    if (String(cur?.bundle?.version || "") === version) return "none";
+    const tries = Number(sessionStorage.getItem(`arise-live-${version}`) || 0);
+    if (tries >= 2) return "none"; // this copy didn't take twice: leave it to the next open
+    sessionStorage.setItem(`arise-live-${version}`, String(tries + 1));
+    const bundle: any = await u.download({ url, version, ...(latest.checksum ? { checksum: latest.checksum } : {}) });
+    if (!bundle?.id) return "failed";
+    await u.set({ id: bundle.id }); // reloads into the new copy
+    return "applied";
+  } catch { return "failed"; } finally { checking = false; }
+}
+export function keepLiveUpdated(): void {
+  if (!isNativeApp() || typeof document === "undefined") return;
+  window.setTimeout(() => void liveUpdateNow(true), 6000);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") void liveUpdateNow(); });
+  window.setInterval(() => { if (document.visibilityState === "visible") void liveUpdateNow(true); }, 5 * 60_000);
+}
+
 /** The hash to open for a notification's link. Links are written "/#/lifehub?go=tasks", and this page
  *  already lives at "/", so only what's after the "#" belongs in the hash. */
 export const notificationHash = (url: string): string | null => {
