@@ -324,3 +324,24 @@ test("food bought with 'Bought it all' gets used up as days pass, so it goes bac
   assert.ok(sent(stuck, mon).includes("bagels"));
   assert.equal(cleanKitchen(JSON.parse(JSON.stringify(bought))).usedThrough, "2026-11-08");
 });
+
+test("never again: every ingredient a plan needs lands on the shopping list, shows on screen, and survives the save", async () => {
+  const { planToList } = await import("../shared/kitchen");
+  const { cleanFamily, emptyFamily } = await import("../shared/familyHub");
+  const { AISLES, aisleOf } = await import("../shared/lifePlugins");
+  // Every built-in dish, all in one plan.
+  const week: Record<string, unknown[]> = {};
+  K_DISHES.forEach((d, i) => { (week[`${WEEK[i % 7]}:${d.slot}`] ??= []).push({ id: `m${i}`, dish: d.id, people: [] }); });
+  const k = cleanKitchen({ setup: true, people: [{ id: "a", name: "A", portion: 1 }], week: Object.fromEntries(Object.entries(week).map(([c, ms]) => [c, ms.slice(0, 8)])) });
+  const lines = shoppingLines(k).filter((l) => !l.have && l.packs > 0);
+  const needed = new Set(Object.values(k.week).flat().flatMap((m) => K_DISHES.find((d) => d.id === m.dish)!.parts.map((p) => p.group)).filter((g) => !groupOf(g)!.staple));
+  for (const g of needed) assert.ok(lines.some((l) => l.group.id === g), `${g} is on the list`);
+  let n = 0;
+  const list = planToList([{ id: "mine", name: "Paper towels", qty: "", aisle: "Bread & bakery", checked: false }], lines, () => String(n++ % 3)); // ids that repeat
+  // Through the same cleaning the save does: nothing dropped, every item has a unique id and a visible aisle.
+  const saved = cleanFamily({ ...emptyFamily(), groceries: list }).groceries;
+  assert.equal(saved.length, lines.length + 1, "the save keeps every item");
+  assert.equal(new Set(saved.map((g) => g.id)).size, saved.length);
+  for (const g of saved) assert.ok(AISLES.includes(aisleOf(g)), `${g.name} shows on screen`);
+  assert.equal(aisleOf({ aisle: "Bread & bakery" }), "Other");
+});

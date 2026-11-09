@@ -7,6 +7,7 @@
 // The plan is saved with the family (family.kitchen), so everyone in the family sees the same week.
 import { GROUP_BY_ID, PRODUCTS, groupOf, parseSize, type KGroup, type KProduct, type KUnit } from "./kitchenProducts";
 import { K_DISHES, K_SLOTS, type KDish, type KPart, type KSlot } from "./kitchenDishes";
+import { guessAisle } from "./lifePlugins";
 
 export { K_DISHES, K_SLOTS, PRODUCTS, groupOf };
 export type { KDish, KPart, KSlot, KProduct, KGroup, KUnit };
@@ -473,3 +474,12 @@ export const GROUPS_SORTED = [...GROUP_BY_ID.values()].sort((a, b) => a.name.loc
 /** A store's size text in this ingredient's unit ("24 ct" → 24 cookies, "2 lb" → 32 oz), or null when it can't be read. */
 export const parseSizeFor = (text: string, g: KGroup) => parseSize(text, g.unit);
 export const TAKEOUT_PLACES = ["Chipotle", "Chick-fil-A", "McDonald's", "Subway", "Panda Express", "Taco Bell", "Domino's", "Wendy's", "Olive Garden", "A local place"];
+
+/** The list items "Send to shopping list" makes: one per ingredient to buy, replacing the last plan's unchecked
+ *  items and keeping everything typed by hand or already in the cart. Every line becomes exactly one item. */
+export const PLAN_TAG = "kp-";
+export function planToList<G extends { id: string; checked: boolean }>(groceries: G[], lines: KLine[], makeId: () => string) {
+  const used = new Set<string>();
+  const id = () => { let x = `${PLAN_TAG}${makeId()}`; while (used.has(x)) x = `${PLAN_TAG}${makeId()}${used.size}`; used.add(x); return x; };
+  return [...groceries.filter((g) => !g.id.startsWith(PLAN_TAG) || g.checked), ...lines.map((l) => ({ id: id(), name: `${l.group.name}: ${buyText(l.buy)}`.slice(0, 80), qty: `${l.packs} pk`.slice(0, 20), aisle: guessAisle(l.group.name), checked: false, price: l.cost }))];
+}

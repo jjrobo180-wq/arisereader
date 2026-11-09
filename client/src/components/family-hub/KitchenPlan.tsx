@@ -2,7 +2,7 @@
 // real products and package sizes, how much is left over, ways to share and save. Saved with the family, so
 // everyone in the family sees the same plan. The math lives in shared/kitchen.ts.
 import { useEffect, useMemo, useState } from "react";
-import { useUpPast, DAY_LABEL, K_SLOTS, PLAN_LENGTHS, PORTIONS, WEEK, addDays, amountText, buyText, cell, clearMeals, countMeals, dateOf, dishName, dishOf, duplicateCount, emptyKitchen, foodCount, hiddenMeals, mondayOf, money, moveMeal, nWeeks, parseCell, peopleIn, planStart, removeDuplicates, removeMeal, SKIP, setStock, stockUp, takeoutOf, tips, totals, useUp, type KDay, type Kitchen, type KMeal, type KSlot } from "@shared/kitchen";
+import { useUpPast, planToList, DAY_LABEL, K_SLOTS, PLAN_LENGTHS, PORTIONS, WEEK, addDays, amountText, buyText, cell, clearMeals, countMeals, dateOf, dishName, dishOf, duplicateCount, emptyKitchen, foodCount, hiddenMeals, mondayOf, money, moveMeal, nWeeks, parseCell, peopleIn, planStart, removeDuplicates, removeMeal, SKIP, setStock, stockUp, takeoutOf, tips, totals, useUp, type KDay, type Kitchen, type KMeal, type KSlot } from "@shared/kitchen";
 import { useAuth } from "@/context/AuthContext";
 import { findStores, storePrices, storeStatus, type StoreLocation } from "@/lib/kitchenStore";
 import { guessAisle } from "@shared/lifePlugins";
@@ -20,7 +20,6 @@ import { Card, Segmented, btn, chip, field, ghost, label, link } from "./kitchen
 type View = "week" | "groceries" | "inventory" | "people";
 /** What one bulk change replaced, so it can be put back. */
 type Undo = { text: string; week: Kitchen["week"]; stock: Kitchen["stock"] };
-const PLAN_TAG = "kp-";
 const LAYOUT_KEY = "arise-kitchen-layout";
 /** A small, clearly tappable button on a list row. */
 const rowBtn = "inline-flex min-h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900";
@@ -143,7 +142,7 @@ export default function KitchenPlan({ family, setFamily, makeId, say, today }: S
     {view === "groceries" && <Groceries k={k} setK={setK} t={t} token={token} connected={connected} onProduct={setProduct} say={say} range={fmtRange(start, n)} weeks={n}
       onBought={() => { change("Added what you bought to your inventory.", (x) => stockUp(useUpPast(x, today), undefined, today)); say("Your inventory has it now, so the list is clear."); }} send={() => {
       const lines = t.lines.filter((l) => !l.have && l.packs > 0);
-      setFamily((f) => ({ ...f, groceries: [...f.groceries.filter((g) => !g.id.startsWith(PLAN_TAG) || g.checked), ...lines.map((l) => ({ id: `${PLAN_TAG}${makeId()}`, name: `${l.group.name}: ${buyText(l.buy)}`.slice(0, 80), qty: `${l.packs} pk`.slice(0, 20), aisle: guessAisle(l.group.name), checked: false, price: l.cost }))] }));
+      setFamily((f) => ({ ...f, groceries: planToList(f.groceries, lines, makeId) }));
       say(`${lines.length} items on your shopping list. Total ${money(t.groceries)}.`);
     }} />}
 

@@ -1,7 +1,7 @@
 // Kitchen's Shop page: one box, one clean checklist. Same saved list as before (family.groceries).
 import { useState, type FormEvent } from "react";
 import { Check, Copy, X } from "lucide-react";
-import { AISLES, guessAisle } from "@shared/lifePlugins";
+import { AISLES, aisleOf, guessAisle } from "@shared/lifePlugins";
 import type { GroceryItem } from "@shared/familyHub";
 import { inputClass, type SectionProps } from "./ui";
 
@@ -17,9 +17,9 @@ export default function KitchenShop({ family, setFamily, makeId, say }: SectionP
     setText("");
   };
   const open = items.filter((i) => !i.checked), done = items.filter((i) => i.checked);
-  const aisles = AISLES.filter((a) => open.some((i) => (i.aisle || "Other") === a));
+  const aisles = AISLES.filter((a) => open.some((i) => aisleOf(i) === a));
   const copy = async () => {
-    const t = aisles.map((a) => `${a}\n${open.filter((i) => (i.aisle || "Other") === a).map((i) => `- ${i.qty ? `${i.qty} ` : ""}${i.name}`).join("\n")}`).join("\n\n");
+    const t = aisles.map((a) => `${a}\n${open.filter((i) => aisleOf(i) === a).map((i) => `- ${i.qty ? `${i.qty} ` : ""}${i.name}`).join("\n")}`).join("\n\n");
     try { await navigator.clipboard.writeText(t); say("List copied."); } catch { say("Couldn't copy on this device."); }
   };
   const total = Math.round(open.reduce((a, i) => a + (i.price || 0), 0) * 100) / 100;
@@ -32,7 +32,7 @@ export default function KitchenShop({ family, setFamily, makeId, say }: SectionP
     {open.length === 0 && <p className="py-10 text-center text-sm text-slate-400">{done.length ? "All done. Enjoy!" : "Nothing on your list. Use Plan to pick meals and build it for you."}</p>}
     {aisles.map((a) => <section key={a}>
       <h3 className="mb-1 px-1 text-[11px] font-black uppercase tracking-[.14em] text-slate-400">{a}</h3>
-      <ul className="divide-y divide-slate-100 rounded-2xl bg-white ring-1 ring-slate-200/70">{open.filter((i) => (i.aisle || "Other") === a).map((i) => <li key={i.id} className="flex items-center gap-3 px-3 py-2.5">
+      <ul className="divide-y divide-slate-100 rounded-2xl bg-white ring-1 ring-slate-200/70">{open.filter((i) => aisleOf(i) === a).map((i) => <li key={i.id} className="flex items-center gap-3 px-3 py-2.5">
         <button type="button" onClick={() => set((l) => l.map((x) => (x.id === i.id ? { ...x, checked: true } : x)))} aria-label={`Got ${i.name}`} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-slate-300 text-transparent hover:border-violet-500"><Check size={13} /></button>
         <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-800">{i.qty && <span className="text-violet-700">{i.qty} </span>}{i.name}</span>
         <button type="button" onClick={() => set((l) => l.filter((x) => x.id !== i.id))} aria-label={`Remove ${i.name}`} className="p-1 text-slate-300 hover:text-rose-500"><X size={15} /></button>

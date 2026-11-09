@@ -1,7 +1,7 @@
 // Grocery list (a Plugin Gallery add-on): a shopping list that sorts itself by aisle.
 import { useState, type FormEvent } from "react";
 import { Check, Copy, ShoppingCart, Trash2, X } from "lucide-react";
-import { AISLES, guessAisle } from "@shared/lifePlugins";
+import { AISLES, aisleOf, guessAisle } from "@shared/lifePlugins";
 import type { GroceryItem } from "@shared/familyHub";
 import { Empty, PageHead, Panel, inputClass, plain, primary, type SectionProps } from "./ui";
 
@@ -24,13 +24,13 @@ export default function Grocery({ family, setFamily, makeId, say }: SectionProps
   const move = (id: string, aisle: string) => set((list) => list.map((i) => (i.id === id ? { ...i, aisle } : i)));
   const clearChecked = () => { const n = items.filter((i) => i.checked).length; set((list) => list.filter((i) => !i.checked)); say(`${n} item${n === 1 ? "" : "s"} cleared.`); };
   const copy = async () => {
-    const text = AISLES.map((a) => { const rows = items.filter((i) => !i.checked && (i.aisle || "Other") === a); return rows.length ? `${a}\n${rows.map((i) => `- ${i.qty ? `${i.qty} ` : ""}${i.name}`).join("\n")}` : ""; }).filter(Boolean).join("\n\n");
+    const text = AISLES.map((a) => { const rows = items.filter((i) => !i.checked && aisleOf(i) === a); return rows.length ? `${a}\n${rows.map((i) => `- ${i.qty ? `${i.qty} ` : ""}${i.name}`).join("\n")}` : ""; }).filter(Boolean).join("\n\n");
     try { await navigator.clipboard.writeText(text); say("Grocery list copied. Paste it into a text or email."); } catch { say("Couldn't copy on this device."); }
   };
 
   const open = items.filter((i) => !i.checked), done = items.filter((i) => i.checked);
   const total = Math.round(open.reduce((a, i) => a + (i.price || 0), 0) * 100) / 100;
-  const aisles = AISLES.filter((a) => open.some((i) => (i.aisle || "Other") === a));
+  const aisles = AISLES.filter((a) => open.some((i) => aisleOf(i) === a));
 
   return <div className="space-y-6">
     <PageHead eyebrow="Grocery list" title="Shopping, sorted" blurb={`Add what you need and it sorts itself by aisle. Check things off as they go in the cart.${total ? ` Estimated total: $${total.toFixed(2)}.` : ""}`}
@@ -42,8 +42,8 @@ export default function Grocery({ family, setFamily, makeId, say }: SectionProps
         <button type="submit" className={primary} disabled={!name.trim()}>Add</button>
       </form>
     </Panel>
-    {open.length ? <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">{aisles.map((a) => <Panel key={a} title={a} eyebrow={`${open.filter((i) => (i.aisle || "Other") === a).length} to get`}>
-      <ul className="divide-y divide-slate-100">{open.filter((i) => (i.aisle || "Other") === a).map((i) => <li key={i.id} className="flex items-center gap-3 py-2">
+    {open.length ? <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">{aisles.map((a) => <Panel key={a} title={a} eyebrow={`${open.filter((i) => aisleOf(i) === a).length} to get`}>
+      <ul className="divide-y divide-slate-100">{open.filter((i) => aisleOf(i) === a).map((i) => <li key={i.id} className="flex items-center gap-3 py-2">
         <button type="button" onClick={() => toggle(i.id)} aria-label={`Got ${i.name}`} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border-2 border-slate-300 text-transparent hover:border-violet-500"><Check size={15} /></button>
         <span className="min-w-0 flex-1 truncate text-sm font-semibold">{i.qty && <span className="text-violet-700">{i.qty} </span>}{i.name}</span>
         {!!i.price && <span className="shrink-0 text-xs font-bold text-emerald-700">${i.price.toFixed(2)}</span>}
