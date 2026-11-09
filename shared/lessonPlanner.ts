@@ -421,6 +421,39 @@ export function classOf(lesson: Pick<LessonPlan, "classId" | "group">, classes: 
 export const rosterOf = (lesson: LessonPlan, classes: LessonClass[]): string[] =>
   lesson.forStudents?.length ? lesson.forStudents : classOf(lesson, classes)?.students ?? Object.keys(lesson.marks || {});
 
+/** Rename a student: in the class roster and on every lesson of that class (their marks and reteach groups go
+ *  with them), or, for a lesson with its own list, on that lesson. A name already taken merges into it. */
+export function renameStudent(classes: LessonClass[], lessons: LessonPlan[], lessonId: string, from: string, to: string): { classes: LessonClass[]; lessons: LessonPlan[] } {
+  const name = to.replace(/\s+/g, " ").trim().slice(0, 80);
+  if (!name || name === from) return { classes, lessons };
+  const lesson = lessons.find((l) => l.id === lessonId);
+  const cls = lesson && !lesson.forStudents?.length ? classOf(lesson, classes) : undefined;
+  const swap = (list?: string[]) => (list ? [...new Set(list.map((n) => (n === from ? name : n)))] : list);
+  const touch = (l: LessonPlan) => (l.id === lessonId || (cls && classOf(l, classes)?.id === cls.id));
+  return {
+    classes: cls ? classes.map((c) => (c.id === cls.id ? { ...c, students: swap(c.students)! } : c)) : classes,
+    lessons: lessons.map((l) => {
+      if (!touch(l) && !l.forStudents?.includes(from)) return l;
+      const marks = l.marks?.[from] ? Object.fromEntries(Object.entries(l.marks).map(([k, v]) => [k === from ? name : k, k === from && l.marks?.[name] ? { ...v, ...l.marks[name] } : v])) : l.marks;
+      return { ...l, ...(marks ? { marks } : {}), ...(l.forStudents ? { forStudents: swap(l.forStudents) } : {}) };
+    }),
+  };
+}
+/** Take a student off: off the class (and its lessons' marks) or, for a lesson with its own list, off that lesson. */
+export function removeStudent(classes: LessonClass[], lessons: LessonPlan[], lessonId: string, name: string): { classes: LessonClass[]; lessons: LessonPlan[] } {
+  const lesson = lessons.find((l) => l.id === lessonId);
+  const own = !!lesson?.forStudents?.length;
+  const cls = lesson && !own ? classOf(lesson, classes) : undefined;
+  const drop = (l: LessonPlan): LessonPlan => {
+    const marks = l.marks && name in l.marks ? Object.fromEntries(Object.entries(l.marks).filter(([k]) => k !== name)) : l.marks;
+    return { ...l, ...(marks ? { marks } : {}), ...(l.forStudents ? { forStudents: l.forStudents.filter((n) => n !== name) } : {}) };
+  };
+  return {
+    classes: cls ? classes.map((c) => (c.id === cls.id ? { ...c, students: c.students.filter((n) => n !== name) } : c)) : classes,
+    lessons: lessons.map((l) => (l.id === lessonId || (cls && classOf(l, classes)?.id === cls.id && !l.forStudents?.length) ? drop(l) : l)),
+  };
+}
+
 /** How many parts of the plan are filled in, out of how many — shown as a little progress ring. */
 export function planFullness(l: LessonPlan): { done: number; of: number } {
   const parts = [l.objective, l.hook, l.iDo, l.weDo, l.youDo, l.closure, l.assessment, l.differentiation, l.materials || (l.files?.length ? "x" : ""), l.standards?.length ? "x" : ""];

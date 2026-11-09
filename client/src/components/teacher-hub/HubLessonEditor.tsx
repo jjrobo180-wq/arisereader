@@ -2,7 +2,7 @@
 // (worksheets, PowerPoints, answer keys), how each student did, and the teacher's reflection.
 // Every change is kept as it's typed (the Hub saves a moment later), so nothing is lost by closing.
 import { useMemo, useState } from "react";
-import { BookCheck, CalendarPlus, Check, ClipboardList, Copy, FileStack, Lightbulb, NotebookPen, Printer, RotateCcw, Sparkles, Trash2, UserPlus, Users, Wand2 } from "lucide-react";
+import { BookCheck, CalendarPlus, Check, ClipboardList, Copy, FileStack, Lightbulb, NotebookPen, Pencil, Printer, RotateCcw, Sparkles, Trash2, UserPlus, Users, Wand2 } from "lucide-react";
 import type { DriveFile } from "@shared/driveApp";
 import { schoolBlocks, blockName, type SchoolBlock } from "@shared/hubBlocks";
 import {
@@ -44,7 +44,7 @@ export function lessonPlanHtml(l: LessonPlan, cls: LessonClass | undefined, bloc
 }
 
 export default function HubLessonEditor({
-  lesson, lessons, classes, caseload, state, onState, token, makeId, drive, blocks, onChange, onDelete, onDuplicate, onPlanReteach, onClose, say,
+  lesson, lessons, classes, caseload, state, onState, token, makeId, drive, blocks, onChange, onDelete, onDuplicate, onPlanReteach, onStudents, onClose, say,
 }: {
   lesson: LessonPlan;
   lessons: LessonPlan[];
@@ -61,6 +61,8 @@ export default function HubLessonEditor({
   onDelete: () => void;
   onDuplicate: (date: string, classId: string) => void;
   onPlanReteach: (students: string[]) => void;
+  /** Rename a student or take them off (the class roster and its lessons, or this lesson's own list). */
+  onStudents: (op: { rename: [string, string] } | { remove: string }) => void;
   onClose: () => void;
   say: (text: string) => void;
 }) {
@@ -69,6 +71,8 @@ export default function HubLessonEditor({
   const [dup, setDup] = useState<{ date: string; classId: string } | null>(null);
   const [extra, setExtra] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [renaming, setRenaming] = useState<{ from: string; to: string } | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
 
   const cls = classOf(lesson, classes);
   const color = cls ? COLOR[cls.color] : NO_CLASS;
@@ -263,21 +267,42 @@ export default function HubLessonEditor({
                 <button type="button" className={smallBtn} onClick={() => { const next = { ...marks }; for (const n of roster) if (!next[n]?.status) next[n] = { ...(next[n] || {}), status: "good" }; set({ marks: next, status: "taught" }); }}>Mark the rest “Did good”</button>
               </div>
             )}
-            <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200">
+            <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200/80" data-testid="lesson-roster">
               {roster.map((name) => {
                 const m = marks[name] || {};
+                const editingThis = renaming?.from === name;
                 return (
-                  <li key={name} className="grid grid-cols-1 gap-2 p-3 lg:grid-cols-[minmax(0,10rem)_auto_1fr] lg:items-center">
-                    <div className="truncate font-medium text-slate-900">{name}</div>
-                    <div className="flex flex-wrap gap-1">
-                      {CHECKS.map((c) => (
-                        <button key={c} type="button" aria-pressed={m.status === c} onClick={() => mark(name, { status: m.status === c ? undefined : c })} className={`min-h-9 rounded-lg border px-2.5 text-xs font-semibold transition ${m.status === c ? CHECK_STYLE[c].on : CHECK_STYLE[c].off}`}>{CHECK_LABEL[c]}</button>
-                      ))}
+                  <li key={name} className="px-3 py-2.5" data-testid="lesson-student">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                      {editingThis ? (
+                        <form className="flex min-w-0 flex-1 basis-48 items-center gap-1.5" onSubmit={(e) => { e.preventDefault(); if (renaming.to.trim() && renaming.to.trim() !== name) onStudents({ rename: [name, renaming.to] }); setRenaming(null); }}>
+                          <input autoFocus value={renaming.to} onChange={(e) => setRenaming({ from: name, to: e.target.value })} onKeyDown={(e) => { if (e.key === "Escape") setRenaming(null); }} aria-label={`New name for ${name}`} className="min-h-9 min-w-0 flex-1 rounded-lg border border-slate-300 px-2.5 text-sm font-medium" data-testid="student-rename-input" />
+                          <button type="submit" className="min-h-9 rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white">Save</button>
+                          <button type="button" onClick={() => setRenaming(null)} className="min-h-9 rounded-lg px-2 text-xs font-medium text-slate-500 hover:bg-slate-100">Cancel</button>
+                        </form>
+                      ) : (
+                        <div className="flex min-w-0 flex-1 basis-40 items-center gap-1">
+                          <span className="truncate text-[15px] font-medium text-slate-900">{name}</span>
+                          <button type="button" onClick={() => setRenaming({ from: name, to: name })} aria-label={`Rename ${name}`} title="Rename" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700" data-testid="student-rename"><Pencil className="h-3.5 w-3.5" /></button>
+                          <button type="button" onClick={() => setRemoving(name)} aria-label={`Remove ${name}`} title="Remove" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-700" data-testid="student-remove"><Trash2 className="h-3.5 w-3.5" /></button>
+                        </div>
+                      )}
+                      <div className="inline-flex shrink-0 overflow-hidden rounded-lg ring-1 ring-slate-200" role="group" aria-label={`${name}: how it went`}>
+                        {CHECKS.map((c, ci) => (
+                          <button key={c} type="button" aria-pressed={m.status === c} onClick={() => mark(name, { status: m.status === c ? undefined : c })}
+                            className={`min-h-9 px-2.5 text-xs font-semibold transition ${ci ? "border-l border-slate-200" : ""} ${m.status === c ? CHECK_STYLE[c].on : "bg-white text-slate-600 hover:bg-slate-50"}`}>{c === "reteach" ? "Reteach" : CHECK_LABEL[c]}</button>
+                        ))}
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <input value={m.score || ""} onChange={(e) => mark(name, { score: e.target.value })} placeholder="Score" aria-label={`${name} score`} className="min-h-9 w-20 rounded-lg border border-slate-200 px-2 text-sm" />
-                      <input value={m.note || ""} onChange={(e) => mark(name, { note: e.target.value })} placeholder="Note (what they missed, what helped)" aria-label={`${name} note`} className="min-h-9 min-w-0 flex-1 rounded-lg border border-slate-200 px-2 text-sm" />
+                    <div className="mt-2 flex gap-2">
+                      <input value={m.score || ""} onChange={(e) => mark(name, { score: e.target.value })} placeholder="Score" aria-label={`${name} score`} className="min-h-9 w-20 rounded-lg border border-slate-200 bg-slate-50/60 px-2 text-sm focus:bg-white" />
+                      <input value={m.note || ""} onChange={(e) => mark(name, { note: e.target.value })} placeholder="Note" aria-label={`${name} note`} className="min-h-9 min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50/60 px-2 text-sm focus:bg-white" />
                     </div>
+                    {removing === name && <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-900 ring-1 ring-rose-200" role="alert" data-testid="student-remove-confirm">
+                      <span className="min-w-0 flex-1">{lesson.forStudents?.length ? `Take ${name} off this lesson?` : `Remove ${name} from ${cls?.name ?? "this class"}? Their marks on its lessons go too.`}</span>
+                      <button type="button" onClick={() => setRemoving(null)} className="min-h-9 rounded-lg px-2 font-medium hover:bg-rose-100">Cancel</button>
+                      <button type="button" onClick={() => { onStudents({ remove: name }); setRemoving(null); }} className="min-h-9 rounded-lg bg-rose-700 px-3 font-semibold text-white hover:bg-rose-800" data-testid="student-remove-go">Remove</button>
+                    </div>}
                   </li>
                 );
               })}

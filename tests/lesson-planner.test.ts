@@ -168,3 +168,21 @@ test("typing a space works: names cleaned on every keystroke keep the space just
   assert.equal(cleanLessons([{ id: "a", title: "  Main   idea  ", date: "2026-11-10" }])[0].title, "Main idea", "the rest is still tidied");
   assert.equal(cleanClasses([{ id: "c", name: "Period ", color: "teal" }])[0].name, "Period ");
 });
+
+test("rename a student: the class roster and every lesson of that class follow, marks included; remove takes them off", async () => {
+  const { renameStudent, removeStudent } = await import("../shared/lessonPlanner");
+  const classes = cleanClasses([{ id: "c", name: "Mathlab-A", color: "teal", students: ["Dexter", "Arris"] }, { id: "d", name: "Other", color: "sky", students: ["Dexter"] }]);
+  const lessons = cleanLessons([
+    { id: "l1", title: "Folders", date: "2026-11-09", classId: "c", marks: { Dexter: { status: "reteach", note: "fractions" } } },
+    { id: "l2", title: "Integers", date: "2026-11-10", classId: "c", marks: { Dexter: { status: "good" } } },
+    { id: "l3", title: "Elsewhere", date: "2026-11-10", classId: "d", marks: { Dexter: { status: "good" } } },
+  ]);
+  const r = renameStudent(classes, lessons, "l1", "Dexter", "  Dexter  Moore ");
+  assert.deepEqual(r.classes[0].students, ["Dexter Moore", "Arris"]);
+  assert.deepEqual(r.classes[1].students, ["Dexter"], "another class's Dexter is left alone");
+  assert.equal(r.lessons[0].marks?.["Dexter Moore"]?.note, "fractions");
+  assert.equal(r.lessons[1].marks?.["Dexter Moore"]?.status, "good");
+  assert.ok(r.lessons[2].marks?.Dexter);
+  const x = removeStudent(r.classes, r.lessons, "l1", "Arris");
+  assert.deepEqual(x.classes[0].students, ["Dexter Moore"]);
+});

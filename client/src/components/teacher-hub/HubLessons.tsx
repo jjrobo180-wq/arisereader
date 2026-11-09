@@ -15,7 +15,7 @@ import { cleanDriveFiles } from "@shared/driveApp";
 import { blockName, schoolBlocks } from "@shared/hubBlocks";
 import {
   CHECK_LABEL, CLASS_COLORS, US_STATES, weekdayOf, GRADES, LESSON_STATUSES, LESSON_SUBJECTS, STATUS_LABEL, WEEKDAYS, addDays, addMonths, bumpLessons, classOf, cleanClasses,
-  cleanLessons, copyLesson, meetsOn, monthWeeks, needsReteach, nextMeetings, planFullness, schoolWeek, standardCode, studentRecords,
+  cleanLessons, copyLesson, meetsOn, monthWeeks, needsReteach, nextMeetings, planFullness, removeStudent, renameStudent, schoolWeek, standardCode, studentRecords,
   type LessonClass, type LessonPlan, type LessonStatus, type UnitLesson,
 } from "@shared/lessonPlanner";
 import { useSavedChoice } from "@/lib/useSavedChoice";
@@ -194,6 +194,12 @@ export default function HubLessons({ workspace, setWorkspace, token, makeId, say
           onDelete={() => { setLessons((all) => all.filter((x) => x.id !== opened.id)); setOpenId(null); say("Lesson deleted."); }}
           onDuplicate={(date, classId) => { const c = classes.find((x) => x.id === classId); const copy = copyLesson(opened, makeId(), { date, classId: classId || undefined, group: c?.name || "" }); setLessons((all) => [copy, ...all]); say(`Copied to ${c?.name || "no class"}${date ? `, ${nice(date)}` : ""}.`); }}
           onPlanReteach={(students) => planReteach(opened, students)}
+          onStudents={(op) => setWorkspace((p) => {
+            const all = cleanLessons(p.lessons), cl = cleanClasses((p as any).lessonClasses);
+            const r = "rename" in op ? renameStudent(cl, all, opened.id, op.rename[0], op.rename[1]) : removeStudent(cl, all, opened.id, op.remove);
+            say("rename" in op ? `Renamed to ${op.rename[1].trim()}.` : `${op.remove} removed.`);
+            return { ...p, lessons: r.lessons as any, lessonClasses: r.classes } as any;
+          })}
           onClose={closeEditor}
           say={say}
         />
