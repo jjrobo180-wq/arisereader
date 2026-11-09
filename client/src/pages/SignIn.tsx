@@ -22,7 +22,7 @@ type SampleType = "student" | "eye-gaze" | "parent";
 
 const studentAccounts = [
   { label: "School student", description: "Read and play with your school", path: "/register", icon: Users },
-  { label: "Independent student", description: "Build your own reading adventure", path: "/register-independent", icon: UserRound },
+  { label: "Reading at home", description: "A parent makes the account first, then adds you", path: "/parent-signup", icon: UserRound },
 ] as const;
 
 export default function SignIn() {

@@ -30,7 +30,7 @@ const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { ti
       { tint: "#0f766e", icon: <Briefcase className="h-[22px] w-[22px]" />, title: "WorkHub", text: "Projects, meetings and to-dos for work." },
       { tint: "#e0465f", icon: <Bell className="h-[22px] w-[22px]" />, title: "Reminders", text: "A heads-up before what matters, on your iPhone." },
     ] },
-  reader: { icon: "/app-icons/reader-1024.png", tagline: "Read, play and grow, one book at a time.", apple: false, signInHint: "Use the username and password from your teacher or parent.", create: "I'm learning on my own",
+  reader: { icon: "/app-icons/reader-1024.png", tagline: "Read, play and grow, one book at a time.", apple: false, signInHint: "Use the username and password from your teacher or parent.", create: "New here? A parent creates the account",
     features: [
       { tint: "#6a3cf0", icon: <BookOpen className="h-[22px] w-[22px]" />, title: "Books at your level", text: "Stories picked for how you read." },
       { tint: "#e08a1a", icon: <Trophy className="h-[22px] w-[22px]" />, title: "Quizzes and rewards", text: "Earn points for every book you finish." },
@@ -163,7 +163,7 @@ export default function NativeSignIn() {
   /** The apps whose paid tier is part of Arise All Access show the plan on sign-up. */
   const bundle = flavor === "todo" || flavor === "fit" || flavor === "notes";
   /** Making an account: To Duo has its own screen; the Reader apps use the website's sign-up pages. */
-  const create = () => (flavor === "reader" ? navigate("/register-independent") :  flavor === "educator" ? setPicking(true) : go("signup"));
+  const create = () => (flavor === "reader" ? navigate("/parent-signup") :  flavor === "educator" ? setPicking(true) : go("signup"));
   const [picking, setPicking] = useState(false);
 
   if (screen === "welcome") return <Shell>

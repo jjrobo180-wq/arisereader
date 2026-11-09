@@ -617,7 +617,7 @@ function AppRoutes() {
         {user ? (eyeGazerApp ? <Redirect to={user.role === "parent" ? "/eye-gaze-parent" : "/eye-gaze-home"} replace /> : isHubAccount(user) ? <Redirect to={hubPathFor(user)} replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register />}
       </Route>
       <Route path="/register-independent">
-        {user ? (eyeGazerApp ? <Redirect to={user.role === "parent" ? "/eye-gaze-parent" : "/eye-gaze-home"} replace /> : isHubAccount(user) ? <Redirect to={hubPathFor(user)} replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register independent />}
+        {user ? (eyeGazerApp ? <Redirect to={user.role === "parent" ? "/eye-gaze-parent" : "/eye-gaze-home"} replace /> : isHubAccount(user) ? <Redirect to={hubPathFor(user)} replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Redirect to="/parent-signup" replace />}
       </Route>
       <Route path="/meet/:token">
         <MeetingPoll />
