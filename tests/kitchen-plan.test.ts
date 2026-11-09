@@ -388,3 +388,22 @@ test("every own item shows like the rest: matched, or 'Is it …?' and a price b
   assert.ok(shoppingLines(matched).some((l) => l.group.id === groupGuesses("chicken nuggets")[0].id && l.cost > 0));
   assert.equal(plainLines(matched).length, 1);
 });
+
+test("copy Vanessa's dinners to Jermaine: he shares her dish, his old dinner is replaced, other meals untouched", async () => {
+  const { copyMeals } = await import("../shared/kitchen");
+  const all = ["v", "j"]; let n = 0; const id = () => `n${n++}`;
+  const week = {
+    "mon:dinner": [{ id: "1", dish: "tacos", people: ["v"] }, { id: "2", dish: "pizza", people: ["j"] }],
+    "tue:dinner": [{ id: "3", dish: "spaghetti", people: ["v"] }],
+    "wed:dinner": [{ id: "4", dish: "burgers", people: ["j"] }],
+    "mon:lunch": [{ id: "5", dish: "salad", people: ["v"] }],
+  };
+  const out = copyMeals(week, "v", "j", ["dinner"], [0], all, id);
+  const eat = (key: string, p: string) => (out[key] ?? []).filter((m) => !m.people.length || m.people.includes(p)).map((m) => m.dish);
+  assert.deepEqual(eat("mon:dinner", "j"), ["tacos"]);
+  assert.deepEqual(eat("mon:dinner", "v"), ["tacos"]);
+  assert.equal(out["mon:dinner"].length, 1, "one shared tacos, pizza gone");
+  assert.deepEqual(eat("tue:dinner", "j"), ["spaghetti"]);
+  assert.deepEqual(eat("wed:dinner", "j"), ["burgers"], "a night she has nothing keeps his");
+  assert.deepEqual(eat("mon:lunch", "j"), ["salad"].filter(() => false), "lunch wasn't copied");
+});

@@ -5,7 +5,7 @@
 // on top, so a meal can never be doubled. "Copy to every day" puts the same meal on all seven days.
 import { useEffect, useMemo, useState } from "react";
 import DidYouMean from "@/components/family-hub/DidYouMean";
-import { GROUPS_SORTED, SERVING_UNITS, chosen, groupForName, groupOf, plural, productText, servingIn, servingsPer, typicalServing, DAY_LABEL, K_SLOTS, MAIN_SLOTS, MAX_WEEKS, SKIP, WEEK, allDishes, cell, dateOf, dayProgress, dishName, dropPerson, eats, foodCount, money, nWeeks, planDish, servingCost, setCells, takeoutOf, type KDay, type Kitchen, type KMeal, type KSlot } from "@shared/kitchen";
+import { copyMeals, GROUPS_SORTED, SERVING_UNITS, chosen, groupForName, groupOf, plural, productText, servingIn, servingsPer, typicalServing, DAY_LABEL, K_SLOTS, MAIN_SLOTS, MAX_WEEKS, SKIP, WEEK, allDishes, cell, dateOf, dayProgress, dishName, dropPerson, eats, foodCount, money, nWeeks, planDish, servingCost, setCells, takeoutOf, type KDay, type Kitchen, type KMeal, type KSlot } from "@shared/kitchen";
 import { Modal } from "../ui";
 import PlanProgress from "./PlanProgress";
 import { btn, chip, field, ghost, label, quiet, Segmented } from "./kit";
@@ -50,6 +50,14 @@ export default function WeekPlanner({ k, setK, startDay, startWk, start, makeId,
     if (!window.confirm(`Replace the other ${n === 2 ? "week" : "weeks"} with Week ${wk + 1}?`)) return;
     setDraft((x) => { const next = { ...x }; for (let w = 0; w < n; w++) { if (w === wk) continue; for (const d of WEEK) for (const s of K_SLOTS) next[cell(d, s.id, w)] = (x[cell(d, s.id, wk)] ?? []).map((m) => ({ id: makeId(), dish: m.dish, people: [...m.people] })); } return next; });
   };
+  // "Copy Vanessa's dinners to Jermaine": right here, without planning the same meals twice.
+  const [copy, setCopy] = useState<{ from: string; to: string; slots: string; weeks: "this" | "all" } | null>(null);
+  const runCopy = () => {
+    if (!copy) return;
+    const sl: KSlot[] = copy.slots === "all" ? slots : [copy.slots as KSlot];
+    setDraft((x) => copyMeals(x, copy.from, copy.to, sl, copy.weeks === "all" ? Array.from({ length: n }, (_, i) => i) : [wk], ids, makeId));
+    setCopy(null);
+  };
   const save = () => {
     // Every meal is set, not added to, so Save can't double anything. Meals keep who they're for.
     setK((x) => setCells(x, draft));
@@ -68,6 +76,17 @@ export default function WeekPlanner({ k, setK, startDay, startWk, start, makeId,
       <PlanProgress people={k.people} week={draft} weeks={n} who={who} onSelect={(id) => { setWho(id); setChoosing(null); }} />
       <p className="mt-2 px-1 text-xs text-slate-500">{person ? <>Showing <b className="font-semibold text-slate-700">{person.name}</b>'s menu. Meals shared with someone else show on both menus.</> : "Tap a name to plan just their meals. Everyone can have a different menu."} The bars count breakfast, lunch and dinner on every day of the plan (snacks and desserts are a bonus).</p>
     </div> : <div className="mb-4"><PlanProgress people={k.people} week={draft} weeks={n} /></div>}
+    {several && (copy ? <div className="mb-4 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200/70" data-testid="copy-meals">
+      <p className="text-sm font-semibold text-slate-900">Copy meals from one person to another</p>
+      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <label className="text-xs text-slate-500">From<select value={copy.from} onChange={(e) => { const from = e.target.value; setCopy({ ...copy, from, to: copy.to === from ? (k.people.find((p) => p.id !== from)?.id ?? "") : copy.to }); }} className={`${field} mt-1 w-full`} aria-label="Copy from">{k.people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+        <label className="text-xs text-slate-500">To<select value={copy.to} onChange={(e) => setCopy({ ...copy, to: e.target.value })} className={`${field} mt-1 w-full`} aria-label="Copy to">{k.people.filter((p) => p.id !== copy.from).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+        <label className="text-xs text-slate-500">Meals<select value={copy.slots} onChange={(e) => setCopy({ ...copy, slots: e.target.value })} className={`${field} mt-1 w-full`} aria-label="Which meals"><option value="all">Every meal</option>{K_SLOTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></label>
+        {n > 1 ? <label className="text-xs text-slate-500">Weeks<select value={copy.weeks} onChange={(e) => setCopy({ ...copy, weeks: e.target.value as "this" | "all" })} className={`${field} mt-1 w-full`} aria-label="Which weeks"><option value="this">Week {wk + 1}</option><option value="all">Every week</option></select></label> : <span />}
+      </div>
+      <p className="mt-2 text-xs text-slate-500">{k.people.find((p) => p.id === copy.to)?.name ?? "They"} will eat the same {copy.slots === "all" ? "meals" : `${K_SLOTS.find((s) => s.id === copy.slots)?.label.toLowerCase() ?? "meals"}`} as {k.people.find((p) => p.id === copy.from)?.name}, shared, so the list buys it once for both. What they had there is replaced. Nothing is saved until Save.</p>
+      <div className="mt-2.5 flex justify-end gap-2"><button type="button" onClick={() => setCopy(null)} className={ghost}>Cancel</button><button type="button" onClick={runCopy} disabled={!copy.to || copy.to === copy.from} className={btn} data-testid="copy-meals-go">Copy</button></div>
+    </div> : <div className="-mt-2 mb-3 flex justify-end"><button type="button" onClick={() => { const from = who && k.people.some((p) => p.id !== who) ? (k.people.find((p) => p.id !== who)!.id) : k.people[0].id; const to = who && who !== from ? who : (k.people.find((p) => p.id !== from)?.id ?? ""); setCopy({ from, to, slots: "dinner", weeks: "this" }); }} className="text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-slate-900" data-testid="copy-meals-open">Copy someone's meals…</button></div>)}
     <p className="mb-3 text-sm text-slate-500">Tap <b className="font-semibold text-slate-700">+ Add</b> next to a meal to pick it. Nothing is saved until you press Save.</p>
       {n > 1 && <div className="mb-3 space-y-1.5" data-testid="planner-weeks">
       <Segmented label="Week" value={String(wk)} onChange={(v) => { setWk(Number(v)); setChoosing(null); }} options={Array.from({ length: n }, (_, i) => ({ id: String(i), label: `Week ${i + 1}` }))} />

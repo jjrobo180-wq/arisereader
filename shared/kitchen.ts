@@ -412,6 +412,22 @@ export function planDish(list: KMeal[], dish: string, people: readonly string[],
   for (const p of people.length ? all.filter((x) => people.includes(x)) : all) out = dropFrom(out, p, all, (m) => (dish === SKIP ? m.dish !== SKIP : m.dish === SKIP));
   return addDish(out, dish, people, all, id);
 }
+/** Copy one person's meals to another ("Vanessa's dinners → Jermaine"): on each meal picked, the other person now eats
+ *  just what the first one eats, sharing the same dish, and what they had there before is taken off. */
+export function copyMeals(week: Record<string, KMeal[]>, from: string, to: string, slots: readonly KSlot[], weeks: readonly number[], all: readonly string[], makeId: () => string): Record<string, KMeal[]> {
+  if (!from || !to || from === to) return week;
+  const next = { ...week };
+  for (const wk of weeks) for (const day of WEEK) for (const slot of slots) {
+    const key = cell(day, slot, wk);
+    const src = (week[key] ?? []).filter((m) => eats(m, from));
+    if (!src.length) continue; // nothing of theirs here: leave the other person's meal as it is
+    let list = dropPerson(week[key] ?? [], to, all);
+    for (const m of src) list = planDish(list, m.dish, [to], all, makeId());
+    next[key] = list;
+  }
+  return next;
+}
+
 /** Meals that are real food (skipped meals left out). */
 export const foodCount = (week: Record<string, KMeal[]>, weeks = MAX_WEEKS) => Object.entries(week).reduce((a, [key, ms]) => a + (parseCell(key).wk < weeks ? ms.filter((m) => m.dish !== SKIP).length : 0), 0);
 export type KProgress = { done: number; of: number; pct: number };
