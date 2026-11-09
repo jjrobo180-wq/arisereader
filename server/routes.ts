@@ -13224,6 +13224,63 @@ Important:
     }
   });
 
+  // Admin: delete many accounts at once, by kind (students, Eye Gazers, teachers, parents, Arise To Duo and
+  // Pod+ accounts). Never an admin, never the person asking, never a sample (App Review) account. The admin
+  // first gets the exact count, then must send "DELETE <count>" back; it runs in the background, one account
+  // at a time through deleteUserAccount (everything that belongs to each goes too), and can be watched.
+  const BULK_KINDS = ["student", "eyegazer", "teacher", "parent", "todo"] as const;
+  type BulkKind = (typeof BULK_KINDS)[number];
+  const kindOf = (u: any): BulkKind | null => u.is_eye_gaze_user ? "eyegazer" : u.role === "teacher" ? "teacher" : u.role === "parent" ? "parent" : u.role === "student" || !u.role ? "student" : u.role === "todo" ? "todo" : null;
+  const bulkTargets = async (kinds: BulkKind[], me: number) => {
+    const out: { id: number; name: string; kind: BulkKind }[] = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await getAdminSupabase().from("users").select("id, username, display_name, role, is_admin, is_eye_gaze_user").order("id").range(from, from + 999);
+      if (error) throw error;
+      for (const u of data || []) {
+        const k = kindOf(u);
+        if (!k || !kinds.includes(k) || u.is_admin || Number(u.id) === me || /^sample/i.test(String(u.username || ""))) continue;
+        out.push({ id: Number(u.id), name: String(u.display_name || u.username || u.id), kind: k });
+      }
+      if (!data || data.length < 1000) break;
+    }
+    return out;
+  };
+  const bulkKinds = (raw: unknown): BulkKind[] => (Array.isArray(raw) ? raw : []).filter((k): k is BulkKind => (BULK_KINDS as readonly string[]).includes(String(k)));
+  let bulkJob: { by: number; total: number; done: number; deleted: number; blocked: string[]; failed: string[]; running: boolean; startedAt: string } | null = null;
+  app.post("/api/admin/accounts/bulk-preview", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const kinds = bulkKinds(req.body?.kinds);
+      const list = kinds.length ? await bulkTargets(kinds, req.user.id) : [];
+      const byKind = Object.fromEntries(BULK_KINDS.map((k) => [k, list.filter((x) => x.kind === k).length]));
+      res.json({ count: list.length, byKind, sample: list.slice(0, 8).map((x) => x.name) });
+    } catch (e: any) { res.status(500).json({ message: e?.message || "Couldn't count the accounts." }); }
+  });
+  app.post("/api/admin/accounts/bulk-delete", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Admin deletion is not configured on the server." });
+      if (bulkJob?.running) return res.status(409).json({ message: "A delete is already running." });
+      const kinds = bulkKinds(req.body?.kinds);
+      const list = kinds.length ? await bulkTargets(kinds, req.user.id) : [];
+      if (!list.length) return res.status(400).json({ message: "No accounts match." });
+      if (String(req.body?.confirm || "").trim() !== `DELETE ${list.length}`) return res.status(400).json({ message: `Type DELETE ${list.length} to confirm. The number changed, so check it again.` });
+      const job = bulkJob = { by: req.user.id, total: list.length, done: 0, deleted: 0, blocked: [] as string[], failed: [] as string[], running: true, startedAt: new Date().toISOString() };
+      console.warn(`[admin-bulk-delete] admin ${req.user.id} deleting ${list.length} accounts: ${kinds.join(", ")}`);
+      res.json({ started: true, total: list.length });
+      void (async () => {
+        for (const u of list) {
+          try { const { blockedBy } = await deleteUserAccount(u.id); if (blockedBy) job.blocked.push(u.name); else job.deleted++; }
+          catch (e: any) { job.failed.push(u.name); console.error("[admin-bulk-delete]", u.id, e?.message); }
+          job.done++;
+        }
+        job.running = false;
+        console.warn(`[admin-bulk-delete] finished: ${job.deleted} deleted, ${job.blocked.length} blocked, ${job.failed.length} failed`);
+      })();
+    } catch (e: any) { res.status(500).json({ message: e?.message || "Couldn't start the delete." }); }
+  });
+  app.get("/api/admin/accounts/bulk-delete", authMiddleware, adminMiddleware, (_req: any, res) => {
+    res.json(bulkJob ? { ...bulkJob, blocked: bulkJob.blocked.slice(0, 50), failed: bulkJob.failed.slice(0, 50) } : { running: false, total: 0, done: 0 });
+  });
+
   // Admin: archive a profile (signed out and hidden from lists, rosters and
   // leaderboards, nothing deleted) or restore it.
   const setArchived = (archive: boolean) => async (req: any, res: any) => {

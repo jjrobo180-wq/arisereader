@@ -31,16 +31,9 @@ type View = ReaderTab | "leaderboard" | "whatsnew" | "prizes" | "children" | "ch
 
 /** The admin console, as its own part of the menu (admins only). Its Overview is broken into one
  *  item per part, and the buttons that used to sit in the console's own header are items too. */
-const ADMIN_MENU: Array<{ id: View; label: string; icon: LucideIcon }> = [
-  { id: "admin:overview", label: "Overview", icon: ADMIN_SECTIONS[0].icon },
-  { id: "adminpart:attention", label: "Needs attention", icon: AlertTriangle },
-  { id: "adminpart:actions", label: "Quick actions", icon: Zap },
-  { id: "adminpart:leaderboard", label: "Student leaderboard", icon: Trophy },
-  ...ADMIN_SECTIONS.filter((a) => a.id !== "overview").map((a) => ({ id: `admin:${a.id}` as View, label: a.label, icon: a.icon })),
-  { id: "adminlink:alerts", label: "Notification settings", icon: BellRing },
-  { id: "adminlink:progress", label: "Student progress", icon: LineChart },
-  { id: "adminlink:polls", label: "Polls", icon: Vote },
-];
+const ADMIN_MENU: Array<{ id: View; label: string; icon: LucideIcon }> = (["overview", "people", "schools", "library", "inbox", "stats", "todo", "settings"] as AdminSection[])
+  .map((id) => ADMIN_SECTIONS.find((a) => a.id === id)!).filter(Boolean)
+  .map((a) => ({ id: `admin:${a.id}` as View, label: a.id === "todo" ? "Arise To Duo" : a.id === "schools" ? "Schools & plans" : a.label, icon: a.icon }));
 const ADMIN_PART_LABEL: Record<OverviewPart, string> = { home: "Overview", attention: "Needs attention", actions: "Quick actions", leaderboard: "Student leaderboard" };
 const EnglishStaff = lazy(() => import("@/components/english/EnglishStaff"));
 const AdminConsole = lazy(() => import("@/components/teacher-hub/HubReader").then((m) => ({ default: m.AdminTab })));
@@ -284,7 +277,8 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
       {/* Phone: the menu is a rail down the left with a Hide button (computers get the sidebar below). */}
       {rail ? (
         <nav id="reader-phone-rail" aria-label="Reader menu" className="fixed bottom-0 left-0 top-[64px] z-40 flex w-[76px] flex-col gap-1 overflow-y-auto border-r px-1.5 py-2 lg:hidden" style={{ background: "#151326", borderColor: dim }} data-testid="reader-phone-rail">
-          {[...(isParent ? PARENT_MENU : MENU), ...(user.isAdmin ? ADMIN_MENU : [])].map((m) => {
+          {[...(isParent ? PARENT_MENU : MENU), ...(user.isAdmin ? [null, ...ADMIN_MENU] : [])].map((m) => {
+            if (!m) return <p key="admin-label" className="mt-2 border-t px-1 pb-0.5 pt-2 text-center text-[9px] font-extrabold uppercase tracking-wider" style={{ borderColor: dim, color: "#a29fb8" }}>Admin</p>;
             const on = view === m.id;
             const n = badge(m.id);
             const Icon = m.icon;
@@ -323,7 +317,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
             );
           })}
           {user.isAdmin && <>
-            <p className="px-3 pb-1 pt-3 text-xs font-extrabold" style={{ color: "#a29fb8" }}>Admin console</p>
+            <p className="mt-2 border-t px-3 pb-1 pt-3 text-[11px] font-extrabold uppercase tracking-wider" style={{ borderColor: dim, color: "#a29fb8" }}>Admin</p>
             {ADMIN_MENU.map((m) => {
               const on = view === m.id;
               const Icon = m.icon;

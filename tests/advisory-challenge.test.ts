@@ -283,10 +283,11 @@ test("a parent's Overview has the teacher format: greeting, four counts, a list 
 
 test("admins have the admin console in the Reader's menu, one item per section", () => {
   const reader = read("client/src/pages/TeacherReader.tsx");
-  assert.match(reader, /\.\.\.ADMIN_SECTIONS\.filter\(\(a\) => a\.id !== "overview"\)\.map/);
-  assert.match(reader, /\{user\.isAdmin && <>\n\s*<p [^>]*>Admin console<\/p>/);
+  // One short admin list: the teacher's menu, then just the console's sections, nothing twice.
+  assert.match(reader, /\(\["overview", "people", "schools", "library", "inbox", "stats", "todo", "settings"\] as AdminSection\[\]\)/);
+  assert.match(reader, /\{user\.isAdmin && <>\n\s*<p [^>]*>Admin<\/p>/);
   assert.match(reader, /<AdminConsole night bare section=\{adminSection\}/);
-  assert.match(reader, /\.\.\.\(user\.isAdmin \? ADMIN_MENU : \[\]\)/, "on a phone too");
+  assert.match(reader, /\.\.\.\(user\.isAdmin \? \[null, \.\.\.ADMIN_MENU\] : \[\]\)/, "on a phone too");
 });
 
 test("sign-up asks for the advisory at schools with advisories, and the admin's not-placed list shows and sets advisories", () => {
@@ -328,9 +329,9 @@ test("the admin console is only in the Reader: WorkHub's menu has none, and old 
 });
 
 
-test("the admin Overview is split into its own menu items, and the console shows without its own header", () => {
+test("the admin menu has no copies of the Overview's parts or of other menus, and the console shows without its own header", () => {
   const page = read("client/src/pages/TeacherReader.tsx");
-  for (const label of ["Needs attention", "Quick actions", "Student leaderboard", "Notification settings", "Student progress", "Polls"]) assert.ok(page.includes(`label: "${label}"`), label);
+  for (const label of ["Needs attention", "Quick actions", "Student leaderboard", "Notification settings", "Student progress", "Polls"]) assert.ok(!page.includes(`label: "${label}"`), label);
   assert.match(page, /<AdminConsole night bare section=\{adminSection\} overviewPart=\{adminPart \?\? undefined\}/);
   const admin = read("client/src/pages/Admin.tsx");
   for (const part of ["home", "attention", "actions", "leaderboard"]) assert.ok(admin.includes(`showPart("${part}")`), part);
@@ -352,4 +353,12 @@ test("\"Let the games begin!\" introduces the challenge once per account for stu
   assert.match(popup, /export function GamesBeginStaffPopup/);
   const reader = read("client/src/pages/TeacherReader.tsx");
   assert.match(reader, /<GamesBeginStaffPopup enabled=\{hubIntroDone\}/, "teachers and admin see it after the new-hub note, never stacked");
+});
+
+test("admins can delete accounts in bulk, but never admins, themselves or sample accounts, and only after typing DELETE and the count", () => {
+  const routes = read("server/routes.ts");
+  assert.match(routes, /app\.post\("\/api\/admin\/accounts\/bulk-delete", authMiddleware, adminMiddleware/);
+  assert.match(routes, /u\.is_admin \|\| Number\(u\.id\) === me \|\| \/\^sample\/i\.test/);
+  assert.match(routes, /String\(req\.body\?\.confirm \|\| ""\)\.trim\(\) !== `DELETE \$\{list\.length\}`/);
+  assert.match(read("client/src/pages/Admin.tsx"), /<AdminDeleteAccounts \/>/);
 });
