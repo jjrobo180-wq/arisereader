@@ -538,6 +538,11 @@ function AppRoutes() {
   // code, and the other hub's saved copy, as soon as the page has loaded, so switching between
   // Arise WorkHub and Arise LifeHub is instant — no white screen and no loading circle, even the
   // first time. (The copy waits a moment more, so the hub being opened gets the connection first.)
+  // A.R.I.S.E. Reader's plan lock, for every page (the Reader's own page at /reader skips the routes
+  // below, so the lock can't live only in them): a new account with no plan sees only the plan page.
+  const readerLockOn = !!user && !user.isAdmin && onReaderDomain && !eyeGazerApp;
+  const { plan: readerPlan } = usePlan(readerLockOn ? token : null);
+  const readerPlanLocked = readerLockOn && readerLocked(readerPlan);
   const hubAdult = isHubAccount(user);
   const hubUserId = hubAdult ? user?.id : undefined;
   useEffect(() => {
@@ -561,6 +566,11 @@ function AppRoutes() {
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
+  }
+  if (readerPlanLocked && !["/subscribe", "/billing", "/scholarship"].includes(routePath.split("?")[0])) {
+    if (isReaderPage() && !isReaderApp()) { window.location.replace("/#/subscribe"); return null; }
+    if (isReaderPage()) { window.location.hash = "#/subscribe"; return null; }
+    return <Redirect to="/subscribe" replace />;
   }
   // A.R.I.S.E. Reader has its own address (/reader), so it is answered here, before the hash
   // router — a page of its own rather than a screen inside the To-Do app. Signing in is still the

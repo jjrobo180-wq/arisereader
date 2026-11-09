@@ -34,3 +34,10 @@ test("new home readers start with a parent account", () => {
   assert.match(app, /<Route path="\/register-independent">[\s\S]{0,600}<Redirect to="\/parent-signup" replace \/>/);
   for (const f of ["client/src/pages/SignIn.tsx", "client/src/pages/Login.tsx", "client/src/pages/Register.tsx"]) assert.doesNotMatch(read(f), /navigate\("\/register-independent"\)|path: "\/register-independent"/, f);
 });
+
+test("the plan lock runs before every page, including the Reader's own page", () => {
+  const routes = app.slice(app.indexOf("function AppRoutes"));
+  const lock = routes.indexOf("if (readerPlanLocked");
+  assert.ok(lock > 0 && lock < routes.indexOf("if (isReaderPage())"), "checked before /reader is drawn");
+  assert.match(routes, /readerLockOn = !!user && !user\.isAdmin && onReaderDomain && !eyeGazerApp/);
+});
