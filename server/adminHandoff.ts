@@ -80,7 +80,8 @@ export function registerAdminHandoffRoutes(
   });
   app.post("/api/auth/web-handoff/consume", async (req: Request, res: Response) => {
     noCache(res);
-    if (!readerHosts.has(host(req))) return res.status(403).json({ message: "Open arisereader.com to continue." });
+    // Redeemed on our own websites only: arisereader.com (the Reader plan) and arisetodo.com (All Access).
+    if (!readerHosts.has(host(req)) && !todoHosts.has(host(req))) return res.status(403).json({ message: "Open arisereader.com or arisetodo.com to continue." });
     const code: unknown = req.body?.code;
     if (typeof code !== "string" || !/^[a-f0-9]{64}$/.test(code)) return res.status(400).json({ message: "Invalid sign-in link." });
     const ticket = payTickets.get(code);

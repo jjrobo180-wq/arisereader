@@ -72,6 +72,7 @@ async function serve(route, root) {
       if (!token) return json({ message: "This sign-in link expired. Please sign in." }, 401);
       return json({ user: users.get(tokens.get(token)).user, token });
     }
+    if (p === "/api/all-access") return json({ live: false, admin: false, source: null, priceCents: 1000, payment: true, endsAt: null, cancelAtPeriodEnd: false, canManage: false, canBuy: true });
     if (p === "/api/billing/addon-checkout") {
       if (!who || who.role !== "parent" || body.product !== "bundle") return json({ message: "no" }, 403);
       return json({ url: "https://checkout.stripe.com/c/pay/test_family" });
@@ -204,6 +205,38 @@ try {
   await b3.close();
 } catch (e) {
   check(false, "All Access link check ran", String(e?.message || e).split("\n")[0]);
+}
+
+// ── Signed in to To Duo in the app → "Get it on arisetodo.com" → Safari's All Access page, already signed in ──
+try {
+  users.set("duo", { password: "duopass123", user: { id: 9500, username: "duo", displayName: "Duo Person", role: "todo", email: "duo@example.com" } });
+  const b4 = await webkit.launch();
+  const c4 = await b4.newContext({ ...devices["iPhone 14"], serviceWorkers: "block", locale: "en-US" });
+  await c4.route("**/*", (route) => serve(route, new URL(route.request().url()).hostname === "arisetodo.com" ? "dist-web" : "dist-todo"));
+  const p4 = await c4.newPage();
+  await p4.goto("https://app.local/index.html#/signin", { waitUntil: "domcontentloaded" });
+  await p4.waitForTimeout(4000);
+  await p4.getByRole("button", { name: /Sign in with email/i }).first().click();
+  await p4.getByTestId("native-username").fill("duo");
+  await p4.getByTestId("native-password").fill("duopass123");
+  await p4.getByRole("button", { name: /^Sign in$/ }).click();
+  await p4.waitForTimeout(4000);
+  await p4.evaluate(() => { window.location.hash = "#/all-access"; });
+  await p4.waitForTimeout(3000);
+  await p4.screenshot({ path: "screens/9-app-all-access.png" });
+  const before = calls.filter((c) => c === "POST /api/login").length;
+  const went = p4.waitForURL(/arisetodo\.com\/app/, { timeout: 15000 }).then(() => true).catch(() => false);
+  await p4.getByTestId("all-access-offer-link").click();
+  check(await went, "To Duo's All Access link opens arisetodo.com", p4.url().slice(0, 90));
+  await p4.waitForTimeout(5000);
+  await p4.screenshot({ path: "screens/10-safari-all-access.png" });
+  const t4 = await p4.evaluate(() => document.body.innerText);
+  check(calls.includes("POST /api/auth/web-handoff/start") && calls.includes("POST /api/auth/web-handoff/consume"), "the link carried a one-use sign-in code");
+  check(/Get All Access/.test(t4) && !/Sign in or create a free account|Username or email/i.test(t4), "Safari shows All Access already signed in, with the buy button", t4.slice(0, 80).replace(/\s+/g, " "));
+  check(calls.filter((c) => c === "POST /api/login").length === before, "no second password sign-in");
+  await b4.close();
+} catch (e) {
+  check(false, "To Duo All Access link check ran", String(e?.message || e).split("\n")[0]);
 }
 
 if (errors.length) console.log("Page errors:\n  " + [...new Set(errors)].slice(0, 8).join("\n  "));
