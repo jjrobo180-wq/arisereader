@@ -61,7 +61,6 @@ import ParentSignup from "./pages/ParentSignup";
 import QuizPermission from "./pages/QuizPermission";
 import ResetPassword from "./pages/ResetPassword";
 import EyeGazeAccessGate from "./components/EyeGazeAccessGate";
-import ParentConnectionBanner from "./components/ParentConnectionBanner";
 import AssessmentPopup from "./components/AssessmentPopup";
 import ClassTeachersPopup from "./components/ClassTeachersPopup";
 import FypAnnouncementPopup from "./components/FypAnnouncementPopup";
@@ -1095,7 +1094,6 @@ function AppInner() {
       {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <AdvisoryChallengePopup onNavigate={(path) => { window.location.hash = path; }} />}
       {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <ClassTeachersPopup />}
-      {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <ParentConnectionBanner />}
       {overlays && !isAdminPreview && !isDemoStudent && !isEyeGazeStudent && <WelcomeGuide />}
       {overlays && !isAdminPreview && <InstallAppPrompt />}
       {overlays && !isAdminPreview && !isReaderApp() && (user?.role === "teacher" || user?.role === "parent" || user?.role === "todo" || user?.isAdmin) && <WorkHubTour />}
