@@ -371,3 +371,20 @@ test("a serving size decides how many bags: 1 oz of chips a day for a week is on
   const src = read("client/src/components/family-hub/kitchen/WeekPlanner.tsx");
   assert.match(src, /How much is one serving of/);
 });
+
+test("every own item shows like the rest: matched, or 'Is it …?' and a price box; same names merge", async () => {
+  const { plainLines, matchPlain, setPlainPrice, groupGuesses, groupForName } = await import("../shared/kitchen");
+  assert.equal(groupForName("cream cheese topping")?.id, "cream-cheese");
+  assert.equal(groupForName("protein shake")?.id, "protein-shake");
+  const own = [["a", "Grandma casserole"], ["b", "grandma casserole"], ["c", "chicken nuggets"]].map(([id, name]) => ({ id, slot: "dinner", name, parts: [] }));
+  const k = cleanKitchen({ setup: true, people: [{ id: "p", name: "P", portion: 1 }], own, week: { "mon:dinner": own.map((d, i) => ({ id: String(i), dish: d.id, people: [] })) } });
+  const plain = plainLines(k);
+  assert.deepEqual(plain.map((p) => `${p.key}:${p.servings}`), ["chicken nuggets:1", "grandma casserole:2"], "two dishes with one name are one row");
+  assert.ok(groupGuesses("chicken nuggets").length > 0);
+  const priced = cleanKitchen(JSON.parse(JSON.stringify(setPlainPrice(k, "grandma casserole", 12.5))));
+  assert.equal(plainLines(priced).find((p) => p.key === "grandma casserole")!.price, 12.5);
+  assert.ok(totals(priced).groceries >= 12.5, "a typed price counts in the total");
+  const matched = matchPlain(priced, plainLines(priced).find((p) => p.key === "chicken nuggets")!.ids, groupGuesses("chicken nuggets")[0].id);
+  assert.ok(shoppingLines(matched).some((l) => l.group.id === groupGuesses("chicken nuggets")[0].id && l.cost > 0));
+  assert.equal(plainLines(matched).length, 1);
+});

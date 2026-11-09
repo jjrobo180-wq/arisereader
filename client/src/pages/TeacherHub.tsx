@@ -200,6 +200,7 @@ import AccountPrivacy from "@/components/AccountPrivacy";
 import { isNativeApp } from "@/lib/nativeApp";
 import { REMINDERS_CHANGED, installReminderTaps, scheduleNativeReminders } from "@/lib/nativeReminders";
 import { lockPageScroll } from "@/lib/scrollLock";
+import AppItemMenu from "@/components/hub-pieces/AppItemMenu";
 
 // Today where the teacher is (not in London: an evening in Denver is already tomorrow there).
 const TODAY = () => localDay();
@@ -436,6 +437,17 @@ function TeacherHubPage() {
   const [store, setStore] = useState(() => { try { const on = sessionStorage.getItem(OPEN_STORE_KEY) === "1"; sessionStorage.removeItem(OPEN_STORE_KEY); return on; } catch { return false; } });
   /** An app to open the App Store on (search's "In the Plugin Gallery" results). */
   const [storeOpenApp, setStoreOpenApp] = useState<string | null>(null);
+  // The "⋯" menu on one app in the side menu (or press and hold it on a phone): which one is open.
+  const [itemMenu, setItemMenu] = useState<string | null>(null);
+  const holdTimer = useRef<number | null>(null), held = useRef(false);
+  const holdFor = (id: string) => ({
+    onContextMenu: (e: { preventDefault: () => void }) => { e.preventDefault(); setItemMenu(id); },
+    onTouchStart: () => { held.current = false; if (holdTimer.current) window.clearTimeout(holdTimer.current); holdTimer.current = window.setTimeout(() => { held.current = true; setItemMenu(id); }, 500); },
+    onTouchEnd: () => { if (holdTimer.current) window.clearTimeout(holdTimer.current); holdTimer.current = null; },
+    onTouchMove: () => { if (holdTimer.current) window.clearTimeout(holdTimer.current); holdTimer.current = null; },
+  });
+  /** A tap that ended a press-and-hold opened the menu; it doesn't also open the app. */
+  const wasHeld = () => { const h = held.current; held.current = false; return h; };
   // On a phone the header keeps the essentials, and the rest sits under "More".
   const [more, setMore] = useState(false);
   const [privacy, setPrivacy] = useState(false);
@@ -880,6 +892,20 @@ function TeacherHubPage() {
   const isStoreGroup = (entry: (typeof menu)[number]) => entry.tabs.some((t) => WORK_ADD_ON_TABS.includes(t));
   const coreMenu = menu.filter((entry) => !isStoreGroup(entry));
   const installedMenu = menu.filter(isStoreGroup);
+  /** Hide (a built-in app) or remove (an app from the Plugin Gallery) one app of the menu, with Undo. */
+  const dropGroup = (item: (typeof menu)[number], removing: boolean) => {
+    const before = Object.fromEntries(item.tabs.map((t) => [t, workspace.visibleTabs[t]]));
+    setWorkspace((prev) => ({ ...prev, visibleTabs: { ...prev.visibleTabs, ...Object.fromEntries(item.tabs.map((t) => [t, false])) } }));
+    if (group.id === item.id) setTab("overview");
+    const name = groupLabel(item.id, visible);
+    toasts.show(removing ? `${name} removed. Add it back any time from the Plugin Gallery.` : `${name} hidden. Show it again in Customize.`,
+      [{ label: "Undo", run: () => setWorkspace((prev) => ({ ...prev, visibleTabs: { ...prev.visibleTabs, ...before } })) }]);
+  };
+  const hiddenLearning: string[] = Array.isArray((workspace as any).hiddenLearning) ? (workspace as any).hiddenLearning : [];
+  const setLearningHidden = (id: string, hide: boolean) => setWorkspace((prev) => {
+    const cur: string[] = Array.isArray((prev as any).hiddenLearning) ? (prev as any).hiddenLearning : [];
+    return { ...prev, hiddenLearning: hide ? [...new Set([...cur, id])] : cur.filter((x) => x !== id) } as typeof prev;
+  });
   // Search everything in the Hub (header button, Ctrl/⌘ K or "/") and the Daily Brief app.
   const goTab = (t: HubTab) => { setTab(t); closeApps(); window.scrollTo({ top: 0 }); };
   // Opening a linked thing (components/teacher-hub/HubLinks.tsx): each kind goes where it lives.
@@ -1277,7 +1303,8 @@ function TeacherHubPage() {
                 >
                   <button
                     type="button"
-                    onClick={() => { goGroup(item.id); afterPick(); }}
+                    onClick={() => { if (wasHeld()) return; goGroup(item.id); afterPick(); }}
+                    {...(movable ? holdFor(`g:${item.id}`) : {})}
                     aria-current={group.id === item.id && !kitOpen ? "page" : undefined}
                     data-testid={`hub-menu-${item.id}`}
                     data-hub-nav
@@ -1286,6 +1313,13 @@ function TeacherHubPage() {
                     {GROUP_ICON[item.id]}
                     <span className={`${MENU_LABEL} ${deskCompact ? "md:sr-only" : ""}`}>{groupLabel(item.id, visible)}</span>
                   </button>
+                  {movable && <AppItemMenu name={groupLabel(item.id, visible)} open={itemMenu === `g:${item.id}`} setOpen={(o) => setItemMenu(o ? `g:${item.id}` : null)}
+                    className={deskTop || deskCompact ? "md:hidden" : ""}
+                    actions={[
+                      { label: "Open", onPick: () => { goGroup(item.id); afterPick(); } },
+                      isStoreGroup(item) ? { label: "Remove app", danger: true, onPick: () => dropGroup(item, true) } : { label: "Hide from menu", onPick: () => dropGroup(item, false) },
+                      { label: "Customize menu", onPick: () => setCustomize(true) },
+                    ]} />}
                   {movable && (
                     <span className={`hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 ${deskTop || deskCompact || nested ? "" : "md:flex"}`}>
                       <button type="button" onClick={() => moveGroupBy(item.id, -1)} disabled={i <= 1} aria-label={`Move ${groupLabel(item.id, visible)} up`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronUp className="h-3 w-3" /></button>
@@ -1354,11 +1388,11 @@ function TeacherHubPage() {
                   <span className="h-px flex-1 bg-gradient-to-r from-sky-300 via-amber-300 to-pink-300" aria-hidden />
                 </div>
                 {readerBlock}
-                {LEARNING_APPS.map((a) => {
+                {LEARNING_APPS.filter((a) => !hiddenLearning.includes(a.id)).map((a) => {
                   const has = learningAccess[a.id];
                   return (
-                    <div key={`learn-${a.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
-                      <button type="button" onClick={() => { afterPick(); openLearning(a.id, has); }} data-testid={`hub-learning-${a.id}`} data-hub-nav
+                    <div key={`learn-${a.id}`} className={`group/navitem flex items-center ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
+                      <button type="button" onClick={() => { if (wasHeld()) return; afterPick(); openLearning(a.id, has); }} {...holdFor(`l:${a.id}`)} data-testid={`hub-learning-${a.id}`} data-hub-nav
                         title={has ? `Open ${a.label}` : `${a.label}: add it from your plan page`}
                         className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold text-slate-700 transition hover:text-slate-950 md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2.5 md:px-3 md:py-1.5 md:text-left md:text-sm md:hover:bg-slate-100`}>
                         <LearningIcon id={a.id} />
@@ -1366,6 +1400,8 @@ function TeacherHubPage() {
                         <span className={`hidden truncate md:inline ${deskCompact ? "md:sr-only" : ""}`}>{a.label}</span>
                         {!has && <span className={`hidden shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold md:ml-auto ${deskCompact || deskTop ? "" : "md:inline"}`} style={{ background: a.soft, color: a.color }}>Add-on</span>}
                       </button>
+                      <AppItemMenu name={a.label} open={itemMenu === `l:${a.id}`} setOpen={(o) => setItemMenu(o ? `l:${a.id}` : null)} className={deskTop || deskCompact ? "md:hidden" : ""}
+                        actions={[{ label: "Open", onPick: () => { afterPick(); openLearning(a.id, has); } }, { label: "Hide from menu", onPick: () => { setLearningHidden(a.id, true); toasts.show(`${a.label} hidden. Show it again in Customize.`, [{ label: "Undo", run: () => setLearningHidden(a.id, false) }]); } }]} />
                     </div>
                   );
                 })}
