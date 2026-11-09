@@ -1,4 +1,5 @@
 import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode, type PointerEvent as RPointerEvent, type MouseEvent as RMouseEvent } from "react";
+import ShareNews from "@/components/family-hub/ShareNews";
 import { Redirect, useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { useTodoCloud } from "@/lib/useTodoCloud";
@@ -1589,5 +1590,6 @@ export default function AriseTodo() {
         </form>
       </div>
     </div>}
+  <ShareNews token={token} />
   </div></PrivacyLockProvider>;
 }
