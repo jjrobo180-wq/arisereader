@@ -162,8 +162,16 @@ if ATTACH_DIR and os.path.isdir(ATTACH_DIR):
     import hashlib
     if not review_detail_id:
         sys.exit("Not submitted: no App Review details to attach the files to.")
-    have = {a["attributes"].get("fileName") for a in q(f"appStoreReviewDetails/{review_detail_id}/appStoreReviewAttachments")["data"]}
-    for name in sorted(os.listdir(ATTACH_DIR)):
+    # App Review takes one attachment: a different file there is replaced.
+    names = sorted(n for n in os.listdir(ATTACH_DIR) if os.path.isfile(os.path.join(ATTACH_DIR, n)))
+    have = set()
+    for a in q(f"appStoreReviewDetails/{review_detail_id}/appStoreReviewAttachments")["data"]:
+        if a["attributes"].get("fileName") in names[:1]:
+            have.add(a["attributes"]["fileName"])
+        else:
+            api(f"appStoreReviewAttachments/{a['id']}", method="DELETE")
+            print(f"Removed the old attachment {a['attributes'].get('fileName')}.")
+    for name in names[:1]:
         path = os.path.join(ATTACH_DIR, name)
         if not os.path.isfile(path) or name in have:
             continue
