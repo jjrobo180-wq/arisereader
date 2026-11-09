@@ -122,10 +122,11 @@ export const PLANS = {
   /** The end of the 2026-27 school year: midnight on July 1, 2027, Mountain time. */
   grandfatherUntil: "2027-07-01T06:00:00.000Z",
   /**
-   * A.R.I.S.E. Reader stops being free for accounts made from this moment (midnight on
-   * November 9, 2026, Mountain time). Every account made before it keeps Reader free through the 2026-27 school year.
+   * A.R.I.S.E. Reader stops being free for accounts made from this moment (7 PM on November 8, 2026,
+   * Mountain time: moved up from midnight so tonight's new accounts need a plan too). Every account
+   * made before it keeps Reader free through the 2026-27 school year.
    */
-  readerPaidFrom: "2026-11-09T07:00:00.000Z",
+  readerPaidFrom: "2026-11-09T02:00:00.000Z",
   /** A paid plan stays on this long past its end date, so a late renewal notice never locks a class out. */
   graceDays: 3,
 } as const;
