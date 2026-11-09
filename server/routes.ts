@@ -57,6 +57,7 @@ import { registerComprehensionRoutes } from "./comprehension";
 import { recordLogin, registerStudentActivityRoutes } from "./studentActivity";
 import { countHubStudents, createHubGate, createSupabaseWorkspaceStore, registerTeacherHubRoutes } from "./teacherHub";
 import { registerAriseNotesRoutes, startNotesTicker } from "./ariseNotes";
+import { configureAiMinutes } from "./aiMinutes";
 import { createSupabaseNotesStore } from "./ariseNotesStore";
 import { askSiteAi, createHearer, siteAiReady } from "./ariseNotesAi";
 import { createSupabaseLifeStore } from "./ariseNotesHubs";
@@ -1695,7 +1696,7 @@ export async function registerRoutes(
   // Arise Notes, the AI note taker (server/ariseNotes.ts): its own app at /notes/ and an app inside
   // Arise To Duo. Record or upload, a transcript with times, AI summaries, minutes per plan.
   const notesStore = createSupabaseNotesStore(() => getAdminSupabase() as any);
-  registerAriseNotesRoutes(app, authMiddleware, {
+  const notesMinutes = registerAriseNotesRoutes(app, authMiddleware, {
     store: notesStore,
     hear: createHearer(),
     ask: askSiteAi,
@@ -1736,6 +1737,21 @@ export async function registerRoutes(
   // On by EARSHOT_PRECHECK=1, and by itself once the AI is on a paid plan (EARSHOT_PRECHECK=0 keeps it off).
   if (process.env.EARSHOT_PRECHECK !== "0") startPodcastPrechecks({ kv: supabaseKV(getAdminSupabase), player: podcastPlayer, dir: podcasts, enabled: () => process.env.EARSHOT_PRECHECK === "1" || podcasts.paid(),
     topShows: async () => { const lists = await Promise.all(PODCAST_GENRES.slice(0, 12).map((g) => podcasts.loadGenreShows(g.id).catch(() => []))); const out: string[] = []; for (let i = 0; i < 4; i++) for (const l of lists) if (l[i]) out.push(l[i].id); return out; } });
+  // Pod+'s AI tools spend the same monthly AI minutes as Arise Notes (server/aiMinutes.ts). The account is
+  // the signed-in Arise user, or (in the Pod+ app) the Arise account with the Pod+ sign-in's email.
+  configureAiMinutes({
+    accountOf: async (req: any) => {
+      const email = typeof req.creator?.email === "string" ? req.creator.email.trim().toLowerCase() : "";
+      if (email) {
+        const { data } = await getAdminSupabase().from("users").select("id").ilike("email", email.replace(/[\\%_]/g, "\\$&")).limit(1);
+        return data?.[0] ? Number(data[0].id) : null;
+      }
+      const id = Number(req.user?.id);
+      return Number.isSafeInteger(id) && id > 0 ? id : null;
+    },
+    left: (id) => notesMinutes.left(id),
+    spend: (id, m, kind) => notesMinutes.spend(id, m, kind),
+  });
   // Ad-free Pod+ is part of Arise All Access. In To Duo the listener is the Arise account; in the Pod+
   // app it's the Arise account with the same email as the person's Pod+ sign-in.
   const adFreeSeen = new Map<string, { ok: boolean; at: number }>();

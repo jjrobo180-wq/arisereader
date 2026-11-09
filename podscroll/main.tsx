@@ -21,7 +21,7 @@ import { isNativeApp, markAppReadyWhenDrawn } from "../client/src/lib/nativeApp"
 import { applyDeviceTopInset } from "../client/src/lib/deviceInsets";
 import { publishWidgets } from "../client/src/lib/widgets";
 import { podWidgetSlots } from "../client/src/lib/podWidgets";
-import { subscribeWiki, wikiState } from "./wikiPlayer";
+import { setWikiMeter, subscribeWiki, wikiState } from "./wikiPlayer";
 import { downloads, installDownloads } from "./downloads";
 import { installCarPlay, installLibrarySync } from "./carplay";
 import "./styles.css";
@@ -109,6 +109,14 @@ function App() {
     if (!res.ok) throw Object.assign(new Error(body?.message || "Something went wrong. Try again."), { status: res.status, needSignIn: !!body?.needSignIn, needProfile: !!body?.needProfile });
     return body;
   }, [device, session]);
+  // The wiki reader spends AI minutes (shared with Arise Notes): sign in first, and stop when they're used up.
+  useEffect(() => {
+    setWikiMeter(async (title, sec, chars) => {
+      try { await api("/api/earshot/wiki/section", { method: "POST", body: { title, sec, chars } }); return null; }
+      catch (e: any) { if (e?.needSignIn) setAuthMode("signin"); return e?.message || "The AI reader isn't available right now."; }
+    });
+    return () => setWikiMeter(null);
+  }, [api]);
   const signOut = useCallback(() => {
     void api("/api/earshot/account/signout", { method: "POST" }).catch(() => {});
     setSession(null); setEmailState(""); try { localStorage.removeItem("podscroll.email"); } catch { /* private window */ }
