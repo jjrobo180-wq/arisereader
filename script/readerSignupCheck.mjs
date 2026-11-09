@@ -122,8 +122,16 @@ try {
   await page.locator("#parent-display-name").fill("Test Parent");
   await page.locator("#parent-email").fill("test.parent@example.com");
   await page.locator("#parent-password").fill("secret123");
+  // Watch every frame of the change: no "account is ready" box, no spinner page, no sign-up form again.
+  const seen = [];
+  const watch = setInterval(() => { page.evaluate(() => document.body.innerText.slice(0, 200)).then((t) => seen.push(t)).catch(() => {}); }, 80);
   await page.getByRole("button", { name: /Create my account/i }).click();
   await page.waitForTimeout(5000);
+  clearInterval(watch);
+  const leftForm = seen.findIndex((t) => /Start your A\.R\.I\.S\.E\. Reader plan/.test(t));
+  check(!seen.some((t) => /account is ready/i.test(t)), "no 'your account is ready' box in between");
+  check(leftForm < 0 || !seen.slice(leftForm).some((t) => /Parent Sign Up/.test(t)), "the sign-up form never flashes back");
+  check(!seen.some((t) => t.trim() === ""), "no blank or spinner-only screen in between", `${seen.length} frames`);
   await shot("3-after-signup");
   const after = await text();
   check(page.url().includes("#/subscribe"), "after sign-up the parent lands on the plan page", page.url());
@@ -234,7 +242,11 @@ try {
   const early = await p4.getByTestId("all-access-popup").isVisible().catch(() => false);
   check(!early, "no All Access pop-up during the walkthrough");
   // Finish the walkthrough the way a person would (Skip ends it).
-  for (let i = 0; i < 4; i++) { const skip = p4.getByRole("button", { name: /^Skip$/ }).first(); if (await skip.isVisible().catch(() => false)) { await skip.click().catch(() => {}); await p4.waitForTimeout(800); } }
+  for (let i = 0; i < 10; i++) {
+    if (await p4.getByTestId("all-access-popup").isVisible().catch(() => false)) break;
+    const b = p4.getByRole("button", { name: /^(Skip|Not now|Done|Start using|Get started|Finish)$/ }).first();
+    if (await b.isVisible().catch(() => false)) { await b.click().catch(() => {}); await p4.waitForTimeout(900); } else await p4.waitForTimeout(900);
+  }
   const shown = await p4.getByTestId("all-access-popup").waitFor({ timeout: 15000 }).then(() => true).catch(() => false);
   await p4.screenshot({ path: "screens/10-all-access-popup.png" });
   check(shown, "after the walkthrough the All Access pop-up shows");

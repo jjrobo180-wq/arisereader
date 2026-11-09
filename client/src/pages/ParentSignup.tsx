@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { SignupShell, lightStyles } from "@/components/SignupShell";
+import { isReaderHost } from "@/lib/hubs";
 
 export default function ParentSignup() {
   const [, navigate] = useLocation();
@@ -17,6 +18,8 @@ export default function ParentSignup() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // The plan page comes right after sign-up: have its code ready so it opens without a loading screen.
+  useEffect(() => { void import("./ReaderSubscribe").catch(() => {}); }, []);
   useEffect(() => {
     try {
       const query = window.location.hash.includes("?") ? window.location.hash.split("?")[1] : "";
@@ -43,9 +46,13 @@ export default function ParentSignup() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.message || "Unable to submit your request.");
-      setSubmitted(true);
-      // Signed in straight away (the plan page comes next in A.R.I.S.E. Reader).
-      try { await login(String(data.username || email.trim()), password); navigate("/signin"); return; } catch { /* they can sign in from the button below */ }
+      // One calm step: the button keeps saying "Creating your account…" while it signs in, then the plan
+      // page (A.R.I.S.E. Reader) opens in place. No success box, spinner pages or hops in between.
+      try {
+        await login(String(data.username || email.trim()), password);
+        navigate(isReaderHost() ? "/subscribe" : "/signin", { replace: true });
+        return;
+      } catch { setSubmitted(true); /* they can sign in from the button below */ }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit your request.");
     } finally {
