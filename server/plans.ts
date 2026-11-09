@@ -21,7 +21,8 @@
 // and the whole thing runs in tests. Stripe is called over plain HTTPS, so no
 // new package is needed.
 import type { Express, RequestHandler } from "express";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { AppleVerifyError, allAccessState, isAllAccessProduct, verifyAppleJws, type AppleTransaction, type VerifyOptions } from "./appleStore";
 import {
   APP_IDS, APP_NAMES, PLANS, PLAN_KINDS, PREMIUM_REQUIRED, appAccessFor, appOfClassKind, classAppCents, classGrantCovers, classKindOf, clampBlocks, isAppId, isClassAppKind, entitlementFor, grantLive, hubAccessFor, isAddonKind, isDemoAccount, isFreeSchoolName, isHubKind, isPlanKind, todoAccessFor,
   type AddonAccess, type AppId,
@@ -48,6 +49,8 @@ type AnyUser = {
 };
 
 export type PlanDeps = {
+  /** Tests only: check Apple-signed purchases against a test root certificate. */
+  appleVerify?: VerifyOptions;
   getSetting(key: string): Promise<string>;
   upsertSetting(key: string, value: string): Promise<void>;
   /**
@@ -1097,7 +1100,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const g = own.grant;
       res.set("Cache-Control", "no-store");
       res.json({
-        live: own.live, admin: own.admin, priceCents: PLANS.allAccess.monthlyCents, payment: !!(await stripeKey()),
+        live: own.live, admin: own.admin, source: own.grant?.source ?? null, priceCents: PLANS.allAccess.monthlyCents, payment: !!(await stripeKey()),
         endsAt: g?.endsAt ?? null, cancelAtPeriodEnd: !!g?.cancelAtPeriodEnd, canManage: !!g?.stripeCustomerId && g.buyerId === user.id,
         canBuy: !user.isAdmin && user.role !== "student" && !!user.role, about: ALL_ACCESS_ABOUT,
       });
@@ -1116,6 +1119,95 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       if (typeof session?.url !== "string" || !session.url.startsWith("https://")) throw new Refused("The billing page could not be opened.", 502);
       res.json({ url: session.url });
     } catch (e) { fail(res, e, "all access portal"); }
+  });
+
+  // ─── All Access bought in an iPhone app (Apple in-app purchase; server/appleStore.ts) ───────────
+  // The app asks for this account's purchase token first and hands it to Apple with the purchase, so
+  // the signed purchase (and every renewal Apple reports later) names the account it belongs to.
+  const APPLE = { tokenKey: "apple_token_key", token: (t: string) => `apple_token_${t}`, tx: (id: string) => `apple_tx_${id}` };
+  const appleTokenOf = async (userId: number) => {
+    let key = await read(APPLE.tokenKey);
+    if (!/^[0-9a-f]{64}$/.test(key)) { key = randomBytes(32).toString("hex"); await write(APPLE.tokenKey, key); }
+    const h = createHmac("sha256", Buffer.from(key, "hex")).update(`all_access:${userId}`).digest("hex");
+    const token = `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-${((parseInt(h[16], 16) & 3) | 8).toString(16)}${h.slice(17, 20)}-${h.slice(20, 32)}`;
+    if ((await read(APPLE.token(token))) !== String(userId)) await write(APPLE.token(token), String(userId));
+    return token;
+  };
+  /** Saves what an Apple-signed All Access purchase says, for `userId`. A live plan from the website or
+   *  the admin is never replaced by an Apple one that has ended. */
+  const applyAppleTransaction = (userId: number, t: AppleTransaction) => serial(async () => {
+    const state = allAccessState(t, now());
+    const held = await readGrant("all_access", userId, true);
+    if (held && held.source !== "apple" && grantLive(held, now()) && !state.active) return held;
+    if (held && held.source === "apple" && held.appleOriginalTransactionId === t.originalTransactionId && Date.parse(held.updatedAt) > (t.signedDate ?? 0) && held.endsAt && state.endsAt && Date.parse(held.endsAt) > Date.parse(state.endsAt)) return held;
+    if (held && held.source === "stripe" && grantLive(held, now())) return held;
+    const grant: PlanGrant = {
+      kind: "all_access", ownerId: userId, buyerId: userId, source: "apple", status: state.active ? "active" : "canceled", seats: 1,
+      endsAt: state.endsAt, updatedAt: iso(t.signedDate ?? now()), appleOriginalTransactionId: String(t.originalTransactionId), appleProductId: t.productId,
+      note: t.environment && t.environment !== "Production" ? `Apple ${t.environment}` : undefined,
+    };
+    await saveGrant(grant);
+    await write(APPLE.tx(String(t.originalTransactionId)), String(userId));
+    return grant;
+  });
+  /** Whose purchase this is: the account named by its token, or the one it was first saved for. */
+  const appleOwner = async (t: AppleTransaction): Promise<number | null> => {
+    const byTx = Number(await read(APPLE.tx(String(t.originalTransactionId))));
+    if (posInt(byTx)) return byTx;
+    const byToken = t.appAccountToken ? Number(await read(APPLE.token(String(t.appAccountToken).toLowerCase()))) : NaN;
+    return posInt(byToken) ? byToken : null;
+  };
+  const appleTransaction = (jws: unknown): AppleTransaction => {
+    const t = verifyAppleJws<AppleTransaction>(jws, { now: now(), ...(deps.appleVerify ?? {}) });
+    if (!isAllAccessProduct(t.bundleId, t.productId)) throw new Refused("That purchase isn't Arise All Access.", 400);
+    if (!t.originalTransactionId) throw new Refused("That purchase is incomplete.", 400);
+    return t;
+  };
+
+  app.get("/api/all-access/apple-token", auth, async (req: any, res: any) => {
+    try {
+      const user: AnyUser = req.user;
+      if (req.adminPreview || !user || user.role === "student" || !user.role) throw new Refused("Ask a parent or teacher about All Access.", 403);
+      res.set("Cache-Control", "no-store");
+      res.json({ token: await appleTokenOf(user.id) });
+    } catch (e) { fail(res, e, "apple token"); }
+  });
+  /** The app sends Apple's signed purchase (after buying, and on each open to pick up renewals). */
+  app.post("/api/all-access/apple", auth, async (req: any, res: any) => {
+    try {
+      const user: AnyUser = req.user;
+      if (req.adminPreview || !user) throw new Refused("Sign in to your own account.", 403);
+      const list: unknown[] = Array.isArray(req.body?.transactions) ? req.body.transactions.slice(0, 10) : [req.body?.transaction];
+      let saved: PlanGrant | null = null;
+      for (const jws of list) {
+        let t: AppleTransaction;
+        try { t = appleTransaction(jws); } catch (e) { if (e instanceof AppleVerifyError) throw new Refused("That purchase couldn't be checked with Apple.", 400); throw e; }
+        const mine = await appleTokenOf(user.id);
+        const owner = await appleOwner(t);
+        if (t.appAccountToken && t.appAccountToken.toLowerCase() !== mine) throw new Refused("That purchase belongs to a different Arise account. Sign in with that account to use it.", 403);
+        if (owner && owner !== user.id) throw new Refused("That purchase belongs to a different Arise account. Sign in with that account to use it.", 403);
+        saved = await applyAppleTransaction(user.id, t);
+      }
+      const own = await allAccessOwn(user.id, user);
+      res.json({ ok: true, live: own.live, endsAt: saved?.endsAt ?? own.grant?.endsAt ?? null });
+    } catch (e) { fail(res, e, "apple purchase"); }
+  });
+  /** App Store Server Notifications (version 2): renewals, cancellations, refunds. Set this address
+   *  as the "Production" and "Sandbox" server URL for each app in App Store Connect. */
+  app.post("/api/apple/notifications", async (req: any, res: any) => {
+    try {
+      const n = verifyAppleJws<any>(req.body?.signedPayload, { now: now(), ...(deps.appleVerify ?? {}) });
+      const signed = n?.data?.signedTransactionInfo;
+      if (!signed) return void res.json({ ok: true });
+      const t = appleTransaction(signed);
+      const owner = await appleOwner(t);
+      if (!owner) { console.warn("[plans] Apple notification for an unknown purchase:", n?.notificationType, t.originalTransactionId); return void res.json({ ok: true }); }
+      await applyAppleTransaction(owner, t);
+      res.json({ ok: true });
+    } catch (e: any) {
+      if (e instanceof AppleVerifyError) return void res.status(400).json({ message: "Not from Apple." });
+      fail(res, e, "apple notification");
+    }
   });
 
   const productKind = (user: AnyUser, product: unknown): PlanKind => {

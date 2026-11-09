@@ -54,6 +54,7 @@ function getTokenFromCookie(): string | null {
 }
 import SignIn from "./pages/SignIn";
 import NativeSignIn from "./pages/NativeSignIn";
+import { startAppleSync } from "./lib/appleStore";
 import Register from "./pages/Register";
 import TeacherSignup from "./pages/TeacherSignup";
 import ParentSignup from "./pages/ParentSignup";
@@ -507,6 +508,8 @@ function PageFallback({ path }: { path: string }) {
 
 function AppRoutes() {
   const { user, isLoading, token } = useAuth();
+  // In the iPhone apps: hand Apple's running All Access subscriptions (renewals) to the server.
+  useEffect(() => { if (user && token) startAppleSync(token); }, [user, token]);
   // The routes below remount when the page changes. A page that redirects lands on another page that
   // often redirects too (a game → "/" → the hub); without a fresh mount React reused the first Redirect,
   // the next hop never ran, and the screen stayed blank.
