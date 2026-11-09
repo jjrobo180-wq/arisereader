@@ -29,7 +29,7 @@
   (function () {
     try {
       if (window.self !== window.top) return;
-      var toApp = function () { if (/^#\//.test(location.hash)) { location.replace("/app" + location.hash); return true; } return false; };
+      var toApp = function () { if (/^#\//.test(location.hash)) { location.replace("/app" + location.search + location.hash); return true; } return false; };
       if (toApp()) return;
       if (window.localStorage.getItem("arise_session_backup")) { location.replace("/app#/"); return; }
       // On this page a link to /#/signin only changes the hash (no reload), so send those on too,

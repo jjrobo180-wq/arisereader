@@ -95,6 +95,9 @@ app.get("/", (req, res, next) => {
   if (host !== "arisereader.com" && host !== "www.arisereader.com") return next();
   res.setHeader("Vary", "Cookie");
   if (/(?:^|;\s*)arise_session=/.test(String(req.headers.cookie || ""))) return next();
+  // A sign-in code from the iPhone app (?signin=…, opened in Safari by a plan button) goes straight to the
+  // app, which signs the person in. The landing page would flash first and then lose the code.
+  if (typeof req.query.signin === "string" && req.query.signin) return next();
   const page = process.env.NODE_ENV === "production"
     ? path.resolve(__dirname, "public", "reader-landing.html")
     : path.resolve(process.cwd(), "client", "public", "reader-landing.html");

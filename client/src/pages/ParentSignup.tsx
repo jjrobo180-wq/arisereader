@@ -8,7 +8,11 @@ import { isReaderHost } from "@/lib/hubs";
 
 export default function ParentSignup() {
   const [, navigate] = useLocation();
-  const { login } = useAuth();
+  const { login, user } = useAuth();
+  // Opens the next page only once the new sign-in has reached every screen, so the plan page never
+  // shows a "sign in" banner for a moment before it knows who is signed in.
+  const [goNext, setGoNext] = useState(false);
+  useEffect(() => { if (goNext && user) navigate(isReaderHost() ? "/subscribe" : "/signin", { replace: true }); }, [goNext, user]); // eslint-disable-line react-hooks/exhaustive-deps
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
@@ -32,6 +36,7 @@ export default function ParentSignup() {
     event.preventDefault();
     setError("");
     setLoading(true);
+    let going = false;
 
     try {
       const response = await fetch(`${API_BASE}/api/auth/register-parent`, {
@@ -50,13 +55,14 @@ export default function ParentSignup() {
       // page (A.R.I.S.E. Reader) opens in place. No success box, spinner pages or hops in between.
       try {
         await login(String(data.username || email.trim()), password);
-        navigate(isReaderHost() ? "/subscribe" : "/signin", { replace: true });
+        setGoNext(true);
+        going = true;
         return;
       } catch { setSubmitted(true); /* they can sign in from the button below */ }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit your request.");
     } finally {
-      setLoading(false);
+      if (!going) setLoading(false); // still "Creating your account…" until the plan page opens
     }
   };
 

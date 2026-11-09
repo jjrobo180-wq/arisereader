@@ -56,3 +56,10 @@ test("sign-up asks only for name, email and password; Safari opens signed in fro
   assert.match(hand, /web-handoff\/consume[\s\S]{0,200}readerHosts\.has\(host\(req\)\)/, "redeemed on arisereader.com only");
   assert.match(hand, /payTickets\.delete\(code\)/, "one use");
 });
+
+test("a sign-in code from the app skips the landing page and is never dropped", () => {
+  const idx = readFileSync("server/index.ts", "utf8");
+  assert.match(idx, /req\.query\.signin === "string" && req\.query\.signin\) return next\(\)/);
+  const landing = readFileSync("client/public/reader-landing.html", "utf8");
+  assert.match(landing, /location\.replace\("\/app" \+ location\.search \+ location\.hash\)/);
+});

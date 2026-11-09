@@ -86,6 +86,9 @@ async function serve(route, root) {
   }
   if (url.hostname === "checkout.stripe.com") return route.fulfill({ status: 200, contentType: "text/html", body: "<h1 id=stripe>Stripe checkout: A.R.I.S.E. Reader family $7.00</h1>" });
   let p = normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, "");
+  // Like the real server (server/index.ts): arisereader.com/ without a sign-in cookie is the landing page,
+  // unless the address carries a sign-in code from the app.
+  if (p === "/" && /^(www\.)?arisereader\.com$/.test(url.hostname) && !url.searchParams.get("signin")) p = "/reader-landing.html";
   if (p === "/" || p === "/app" || p === "/app/") p = "/index.html";
   for (const f of [join(root, p), join(root, "index.html")]) {
     try { if ((await stat(f)).isFile()) return route.fulfill({ status: 200, contentType: TYPES[extname(f)] || "application/octet-stream", body: await readFile(f) }); } catch { /* next */ }
@@ -124,10 +127,14 @@ try {
   await page.locator("#parent-password").fill("secret123");
   // Watch every frame of the change: no "account is ready" box, no spinner page, no sign-up form again.
   const seen = [];
-  const watch = setInterval(() => { page.evaluate(() => document.body.innerText.slice(0, 200)).then((t) => seen.push(t)).catch(() => {}); }, 80);
+  const watch = setInterval(() => { page.evaluate(() => { const t = document.body.innerText.slice(0, 200); return t.trim() ? t : ""; }).then((t) => seen.push(t)).catch(() => {}); }, 80);
+  // What a blank frame is made of (which loading screen), for screens/frames.txt.
+  const blanks = [];
+  const watchBlank = setInterval(() => { page.evaluate(() => document.body.innerText.trim() ? null : location.hash + " | " + document.body.innerHTML.replace(/<svg[\s\S]*?<\/svg>/g, "").slice(0, 400)).then((b) => { if (b) blanks.push(b); }).catch(() => {}); }, 40);
   await page.getByRole("button", { name: /Create my account/i }).click();
   await page.waitForTimeout(5000);
-  clearInterval(watch);
+  clearInterval(watch); clearInterval(watchBlank);
+  await writeFile("screens/blank-frames.txt", blanks.join("\n\n"));
   const leftForm = seen.findIndex((t) => /Start your A\.R\.I\.S\.E\. Reader plan/.test(t));
   check(!seen.some((t) => /account is ready/i.test(t)), "no 'your account is ready' box in between");
   check(leftForm < 0 || !seen.slice(leftForm).some((t) => /Parent Sign Up/.test(t)), "the sign-up form never flashes back");
@@ -148,13 +155,18 @@ try {
 
   // 3. Tap a plan → Safari's page opens signed in → payment page.
   const opened = page.waitForURL(/www\.arisereader\.com/, { timeout: 15000 }).then(() => true).catch(() => false);
+  const safariSeen = [];
+  const watchSafari = setInterval(() => { page.evaluate(() => location.host + " | " + document.body.innerText.slice(0, 120)).then((t) => safariSeen.push(t)).catch(() => {}); }, 80);
   await page.getByTestId("reader-subscribe-plan-families").click();
   const wentToSite = await opened;
   check(wentToSite, "tapping a plan opens arisereader.com", page.url().slice(0, 80));
   check(/[?&]signin=[a-f0-9]{64}/.test(page.url()) || calls.includes("POST /api/auth/web-handoff/consume"), "it carries a one-use sign-in code (no password)");
   await page.waitForURL(/checkout\.stripe\.com/, { timeout: 20000 }).catch(() => {});
   await shot("4-safari");
+  clearInterval(watchSafari);
+  await writeFile("screens/safari-frames.txt", safariSeen.map((t, i) => `${i}: ${JSON.stringify(t.slice(0, 90))}`).join("\n"));
   check(page.url().includes("checkout.stripe.com"), "lands straight on the $7 payment page, without signing in again", page.url().slice(0, 80));
+  check(!safariSeen.some((t) => /Every story starts|Sign in with the account you already made/i.test(t)), "Safari never flashes the homepage or a sign-in form on the way to payment");
   check(calls.includes("POST /api/auth/web-handoff/consume") && calls.includes("POST /api/billing/addon-checkout"), "signed in by the code, then checkout opened");
   check(!calls.includes("POST /api/login") || calls.filter((c) => c === "POST /api/login").length === 1, "no second password sign-in");
 
