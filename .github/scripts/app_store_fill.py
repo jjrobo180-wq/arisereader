@@ -1,4 +1,4 @@
-"""Fills in A.R.I.S.E. Reader's App Store listing through the App Store Connect API: category, privacy and
+"""Fills in Arise Reader's App Store listing through the App Store Connect API: category, privacy and
 support links, the App Store text, the age rating answers, free in every country, the App Review sign-in
 (the sample account) and the screenshots in store-shots/. Run by app-store-fill.yml. Leaves alone anything
 that only the App Store Connect website can set (app privacy answers, agreements).
@@ -45,7 +45,7 @@ def step(what, fn):
         print(f"FAIL {what}: {e}")
 
 
-DESCRIPTION = """A.R.I.S.E. Reader makes reading the best part of a child's day. Read a book, take a short quiz about it, and earn points, badges and streaks for every book finished.
+DESCRIPTION = """Arise Reader makes reading the best part of a child's day. Read a book, take a short quiz about it, and earn points, badges and streaks for every book finished.
 
 READ AND QUIZ
 - Quizzes for the books kids are already reading, at their level
@@ -136,7 +136,7 @@ version = next((v for v in q(f"apps/{APP}/appStoreVersions", **{"filter[platform
 if not version:
     sys.exit("No version waiting to be submitted.")
 VID = version["id"]
-step("copyright", lambda: api(f"appStoreVersions/{VID}", {"data": {"type": "appStoreVersions", "id": VID, "attributes": {"copyright": "2026 A.R.I.S.E. Reader"}}}, method="PATCH"))
+step("copyright", lambda: api(f"appStoreVersions/{VID}", {"data": {"type": "appStoreVersions", "id": VID, "attributes": {"copyright": "2026 Arise Reader"}}}, method="PATCH"))
 vlocs = q(f"appStoreVersions/{VID}/appStoreVersionLocalizations")["data"]
 for loc in vlocs:
     step(f"description, keywords, support link ({loc['attributes']['locale']})", lambda loc=loc: api(f"appStoreVersionLocalizations/{loc['id']}", {"data": {"type": "appStoreVersionLocalizations", "id": loc["id"], "attributes": {

@@ -74,7 +74,7 @@ app.use((req, res, next) => {
 });
 
 // The Arise To Duo custom domain gets the educator marketing page at its root.
-// Keep the existing A.R.I.S.E. Reader homepage unchanged on its own hostname.
+// Keep the existing Arise Reader homepage unchanged on its own hostname.
 // The HTML is a self-contained public page; static assets and API routes are unaffected.
 app.get("/", (req, res, next) => {
   const host = (req.headers.host || "").split(":")[0].toLowerCase();
@@ -85,7 +85,7 @@ app.get("/", (req, res, next) => {
   res.type("html").sendFile(page);
 });
 
-// The A.R.I.S.E. Reader homepage. Visitors who aren't signed in (and search engines) get the real
+// The Arise Reader homepage. Visitors who aren't signed in (and search engines) get the real
 // landing page as the page itself — before, "/" was the app shell with the landing page inside a
 // frame, so search engines saw an almost empty homepage. Anyone with a sign-in cookie still gets
 // the app at "/" exactly as before; the landing page itself sends app links (/#/signin and the

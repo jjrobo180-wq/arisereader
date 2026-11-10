@@ -1,4 +1,4 @@
-// Arise WorkHub's A.R.I.S.E. Reader group: links to every A.R.I.S.E. program and, for admins, the
+// Arise WorkHub's Arise Reader group: links to every A.R.I.S.E. program and, for admins, the
 // admin console (loaded only when opened). The teacher's Reader tabs are in HubReaderTools.
 import { Suspense, lazy } from "react";
 import { BookOpen, Calculator, CheckCheck, Landmark, Users } from "lucide-react";
@@ -8,7 +8,7 @@ import type { AdminSection, SettingsSection } from "@/lib/adminSections";
 const Admin = lazy(() => import("@/pages/Admin"));
 
 const PROGRAMS = [
-  { href: "/#/library", label: "A.R.I.S.E. Reader", detail: "Library, quizzes and reading", icon: BookOpen, tint: "bg-violet-50 text-violet-700" },
+  { href: "/#/library", label: "Arise Reader", detail: "Library, quizzes and reading", icon: BookOpen, tint: "bg-violet-50 text-violet-700" },
   { href: "/math/", label: "Arise Math", detail: "Included with your Class plan", icon: Calculator, tint: "bg-sky-50 text-sky-700" },
   { href: "/history/", label: "Arise History", detail: "Included with your Class plan", icon: Landmark, tint: "bg-amber-50 text-amber-700" },
   { href: "/social/", label: "A.R.I.S.E. Connect", detail: "Included with your Class plan", icon: Users, tint: "bg-pink-50 text-pink-700" },

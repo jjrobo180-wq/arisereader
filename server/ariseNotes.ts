@@ -618,23 +618,23 @@ export function registerAriseNotesRoutes(app: Express, auth: RequestHandler, dep
     } catch (e) { fail(res, e, "study"); }
   });
 
-  /** A teacher sends the quiz to A.R.I.S.E. Reader, where their students take it as a custom quiz. */
+  /** A teacher sends the quiz to Arise Reader, where their students take it as a custom quiz. */
   app.post("/api/notes/:id/study/reader", auth, async (req: any, res) => {
     try {
       const user = await who(req, res);
       if (!user) return;
-      if (user.role !== "teacher" && !user.isAdmin) return res.status(403).json({ message: "Sending a quiz to A.R.I.S.E. Reader is for teacher accounts." });
+      if (user.role !== "teacher" && !user.isAdmin) return res.status(403).json({ message: "Sending a quiz to Arise Reader is for teacher accounts." });
       const note = await noteFor(user, req.params.id, res);
       if (!note) return;
       const quiz = note.extras?.study?.quiz;
       if (!Array.isArray(quiz) || !quiz.length) return res.status(409).json({ message: "Make the flashcards and quiz first." });
-      if (!deps.makeQuiz) return res.status(503).json({ message: "A.R.I.S.E. Reader quizzes aren't available here." });
+      if (!deps.makeQuiz) return res.status(503).json({ message: "Arise Reader quizzes aren't available here." });
       const letters = ["A", "B", "C", "D"];
       const made = await deps.makeQuiz(user, {
         title: cut(`${note.title} (quiz)`, 120), description: "Made from class notes with Arise Notes.",
         questions: quiz.slice(0, 10).map((q: any) => ({ prompt: cut(q.q, 300), question_image: null, option_a_text: cut(q.choices?.[0], 160), option_a_image: null, option_b_text: cut(q.choices?.[1], 160), option_b_image: null, option_c_text: cut(q.choices?.[2], 160), option_c_image: null, option_d_text: cut(q.choices?.[3], 160), option_d_image: null, correct_answer: letters[Math.max(0, Math.min(3, Number(q.answer) || 0))] })),
       });
-      if (!made) return res.status(502).json({ message: "The quiz couldn't be saved to A.R.I.S.E. Reader." });
+      if (!made) return res.status(502).json({ message: "The quiz couldn't be saved to Arise Reader." });
       await store.updateNote(note.id, { extras: { ...note.extras, readerQuiz: made.id } });
       res.json({ ok: true, quizId: made.id });
     } catch (e) { fail(res, e, "quiz to reader"); }

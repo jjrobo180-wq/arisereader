@@ -1,4 +1,4 @@
-// The screen an A.R.I.S.E. Reader account sees when it needs a plan (Reader is paid for accounts
+// The screen an Arise Reader account sees when it needs a plan (Reader is paid for accounts
 // made from November 9, 2026; every older account keeps it free). On the website a parent pays
 // here on Stripe's page and a teacher is sent to their plan page. In the iPhone app nothing is
 // sold: the button opens arisereader.com in Safari (allowed on the US App Store).
@@ -97,13 +97,13 @@ export default function ReaderSubscribe() {
     <main className="min-h-[100dvh] bg-[#0f1020] px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-white" data-testid="reader-subscribe">
       <div className="mx-auto max-w-md">
         <div className="flex items-center justify-between">
-          <span className="text-lg font-black tracking-tight">A.R.I.S.E. <span className="text-violet-400">Reader</span></span>
+          <span className="text-lg font-black tracking-tight">Arise <span className="text-violet-400">Reader</span></span>
           <button type="button" onClick={() => { logout(); navigate("/"); }} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-slate-300 hover:bg-white/10"><LogOut className="h-4 w-4" />Sign out</button>
         </div>
         <section className="mt-6 rounded-3xl border border-white/10 bg-white/[0.06] p-6">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-500/20"><BookOpen className="h-6 w-6 text-violet-300" /></div>
           <h1 className="mt-4 text-2xl font-black leading-tight">
-            {role === "student" ? "Your account needs a reading plan" : "Start your A.R.I.S.E. Reader plan"}
+            {role === "student" ? "Your account needs a reading plan" : "Start your Arise Reader plan"}
           </h1>
           <p className="mt-2 text-[15px] leading-6 text-slate-300">
             {role === "student"

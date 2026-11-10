@@ -37,7 +37,7 @@ export default function WhatsNew({ embedded = false }: { embedded?: boolean }) {
   const readerTheme = !todo;
   const accent = todo ? "#5576ed" : "#6e57d9";
   const wash = todo ? "linear-gradient(125deg,#e3faf5 0%,#edf0ff 56%,#f5ecff 100%)" : "linear-gradient(125deg,#eeeaff 0%,#f6f0ff 60%,#fff2ea 100%)";
-  const title = todo ? "Arise To Duo" : "A.R.I.S.E. Reader";
+  const title = todo ? "Arise To Duo" : "Arise Reader";
   const [posts, setPosts] = useState<Post[]>([]);
   const [allPosts, setAllPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -148,7 +148,7 @@ export default function WhatsNew({ embedded = false }: { embedded?: boolean }) {
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-white shadow-md" style={{ background: todo ? "linear-gradient(135deg,#16bcb0,#6880ec,#9464df)" : "linear-gradient(135deg,#6455da,#9275f5)" }}>
             {todo ? <CheckCircle2 size={21} /> : <BookOpen size={21} />}
           </span>
-          <span className="truncate text-sm sm:text-lg">A.R.I.S.E. <span style={{ color: accent }}>{todo ? "To-Do" : "Reader"}</span></span>
+          <span className="truncate text-sm sm:text-lg">{todo ? "A.R.I.S.E." : "Arise"} <span style={{ color: accent }}>{todo ? "To-Do" : "Reader"}</span></span>
         </a>
         <div className="flex items-center gap-2">
           {!user && <a href={signIn} className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-xs font-extrabold text-indigo-700 sm:text-sm">Admin sign in</a>}
@@ -164,12 +164,12 @@ export default function WhatsNew({ embedded = false }: { embedded?: boolean }) {
         <div className="mx-auto max-w-6xl px-5 py-14 sm:px-7 sm:py-20">
           <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/90 bg-white/75 px-4 py-2 text-[11px] font-extrabold uppercase tracking-[.17em] text-slate-600 shadow-sm"><Sparkles size={14} style={{ color: accent }} /> The A.R.I.S.E. journal</div>
           <h1 className="max-w-3xl text-4xl font-black leading-[1.12] tracking-[-.055em] text-slate-950 sm:text-6xl">What's new <span style={{ color: accent }}>&amp; upcoming.</span></h1>
-          <p className="mt-5 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">The latest releases, ideas in progress, and stories shaping A.R.I.S.E. Reader and Arise To Duo. One place to see what we're building next.</p>
+          <p className="mt-5 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">The latest releases, ideas in progress, and stories shaping Arise Reader and Arise To Duo. One place to see what we're building next.</p>
           <div className="mt-7 flex flex-wrap items-center gap-3 text-xs font-bold text-slate-600"><span className="rounded-full bg-white/80 px-3 py-2">News &amp; announcements</span><span className="rounded-full bg-white/80 px-3 py-2">Product improvements</span><span className="rounded-full bg-white/80 px-3 py-2">Coming soon</span></div>
         </div>
       </section>}
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-7 sm:py-14">
-        {embedded && <div className="mb-7"><h1 className="text-2xl font-black tracking-tight sm:text-3xl">News &amp; updates</h1><p className="mt-2 text-sm text-slate-600">Write once, publish to A.R.I.S.E. Reader and Arise To Duo together.</p></div>}
+        {embedded && <div className="mb-7"><h1 className="text-2xl font-black tracking-tight sm:text-3xl">News &amp; updates</h1><p className="mt-2 text-sm text-slate-600">Write once, publish to Arise Reader and Arise To Duo together.</p></div>}
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-2xl font-black tracking-tight sm:text-3xl">{adminView && canEdit ? "Editorial dashboard" : "The latest from A.R.I.S.E."}</h2>
@@ -227,7 +227,7 @@ export default function WhatsNew({ embedded = false }: { embedded?: boolean }) {
       </article> : <div className="rounded-xl bg-white p-10 text-center"><h2 className="font-black text-xl">This article isn't available.</h2><p className="mt-2 text-sm text-slate-500">It may have been unpublished or removed.</p></div>}
     </div>}
 
-    {!embedded && <footer className="border-t border-slate-200 bg-white px-5 py-9 text-center text-xs font-semibold text-slate-500"><p>A.R.I.S.E. Reader + Arise To Duo · Made to help people grow.</p><div className="mt-3 flex flex-wrap justify-center gap-5"><a href="https://www.arisereader.com/" className="hover:underline">Explore Reader</a><a href="https://arisetodo.com/" className="hover:underline">Explore To-Do</a></div></footer>}
+    {!embedded && <footer className="border-t border-slate-200 bg-white px-5 py-9 text-center text-xs font-semibold text-slate-500"><p>Arise Reader + Arise To Duo · Made to help people grow.</p><div className="mt-3 flex flex-wrap justify-center gap-5"><a href="https://www.arisereader.com/" className="hover:underline">Explore Reader</a><a href="https://arisetodo.com/" className="hover:underline">Explore To-Do</a></div></footer>}
 
     {editor && canEdit && <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-950/70 p-3 backdrop-blur-sm sm:p-6" role="dialog" aria-modal="true" aria-label={editingId ? "Edit announcement" : "New announcement"}>
       <div className="mx-auto my-3 max-w-3xl overflow-hidden rounded-[24px] bg-white shadow-2xl sm:my-10">

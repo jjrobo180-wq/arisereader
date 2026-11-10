@@ -1,6 +1,6 @@
 """Live updates (no App Store build): sets up the updater in an iPhone app's capacitor.config.json.
 
-Each app (Arise To Duo, Pod+, A.R.I.S.E. Reader, Reader Educator, Arise Fit) asks
+Each app (Arise To Duo, Pod+, Arise Reader, Reader Educator, Arise Fit) asks
 https://arisetodo.com/api/ota/<app> each time it opens whether a newer copy of its web code exists
 (server/ota.ts). A new copy downloads in the background and is used the next time the app opens; if
 it fails to start (no "ready" within 15 seconds, see client/src/lib/nativeApp.ts markAppReady), the

@@ -24,7 +24,7 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   mood: { label: "Mood tracker", detail: "Daily mood check-in and patterns", icon: <SmilePlus size={17} /> },
   news: { label: "News", detail: "Today's headlines and local news", icon: <Newspaper size={17} /> },
   notifications: { label: "Notifications", detail: "Choose your reminders and how many", icon: null },
-  reader: { label: "A.R.I.S.E. Reader", detail: "Your children's reading, controls and add-ons", icon: null },
+  reader: { label: "Arise Reader", detail: "Your children's reading, controls and add-ons", icon: null },
   health: { label: "Calorie counter", detail: "Calories, food, water, exercise and Apple Health steps", icon: <Apple size={17} /> },
   polls: { label: "Polls", detail: "Dinner ideas, weekend plans and votes", icon: <Vote size={17} /> },
   trips: { label: "Trips", detail: "Trip planner and packing lists", icon: <Plane size={17} /> },

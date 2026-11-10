@@ -76,7 +76,7 @@ const parts = { siteUrl: SITE, stopUrl: `${SITE}/api/family-emails/stop?t=5.abc`
 test("the weekly update: the week's numbers, books, leaderboard place, a note to read to the child, and prizes", () => {
   const good = weeklyProgressEmail(child(), parts);
   assert.equal(good.subject, "📚 Dennis's reading week: 2 quizzes passed, 30 points!");
-  for (const part of ["Dennis had a reading week to be proud of.", ">2</div>", "quizzes passed this week", ">30</div>", ">210</div>", "points in all", "Books Dennis finished this week:</strong> Holes, Wonder.", "📊 On the leaderboard", "Dennis is #3 in the 6-8 grade band this month with 60 points. Just 11 more points to move up to #2!", "Read this to Dennis!", "🏆 Prizes and competitions", "Reader of the Year: AirPods.", '<a href="https://www.arisereader.com/#/fall-break"', "Open A.R.I.S.E. Reader", 'href="https://www.arisereader.com/api/family-emails/stop?t=5.abc"', "Stop these emails", "icon-192.png"]) assert.ok(good.html.includes(part), part);
+  for (const part of ["Dennis had a reading week to be proud of.", ">2</div>", "quizzes passed this week", ">30</div>", ">210</div>", "points in all", "Books Dennis finished this week:</strong> Holes, Wonder.", "📊 On the leaderboard", "Dennis is #3 in the 6-8 grade band this month with 60 points. Just 11 more points to move up to #2!", "Read this to Dennis!", "🏆 Prizes and competitions", "Reader of the Year: AirPods.", '<a href="https://www.arisereader.com/#/fall-break"', "Open Arise Reader", 'href="https://www.arisereader.com/api/family-emails/stop?t=5.abc"', "Stop these emails", "icon-192.png"]) assert.ok(good.html.includes(part), part);
   const one = weeklyProgressEmail(child({ weekPassed: 1, weekPoints: 12.5, weekBooks: ["A", "B", "C", "D", "E"] }), parts);
   assert.equal(one.subject, "📚 Dennis's reading week: 1 quiz passed, 12.5 points!");
   assert.ok(one.html.includes("A, B, C and 2 more."));
@@ -94,7 +94,7 @@ test("the nudge: friendly, with how close the child is to moving up", () => {
   for (const part of ["It's been 5 days since Dennis's last passed quiz", "Dennis is #3 in the 6-8 grade band", "Read this to Dennis!", "Ten minutes of reading tonight counts!", "Stop these emails"]) assert.ok(close.html.includes(part), part);
   const never = readingNudgeEmail(child({ lastPassedAt: null, monthRank: null, pointsToNext: null }), { ...parts, nowMs: SUNDAY_5PM });
   assert.ok(["📖 Dennis's next book is waiting!", "🚀 Time to read, Dennis!", "🎯 A quick quiz for Dennis?"].includes(never.subject), never.subject);
-  assert.ok(never.html.includes("Dennis hasn't taken a quiz on A.R.I.S.E. Reader yet."));
+  assert.ok(never.html.includes("Dennis hasn't taken a quiz on Arise Reader yet."));
   assert.ok(!/undefined|null|NaN/.test(close.html + never.html));
 });
 

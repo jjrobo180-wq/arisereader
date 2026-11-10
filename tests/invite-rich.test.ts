@@ -14,7 +14,7 @@ test("the logo and three pictures go on top", () => {
   assert.deepEqual(INVITE_PICTURES.map((p) => p.label), ["Read a book", "Pass the quiz", "Earn points"]);
   const light = inviteBrandHtml(SITE), dark = inviteBrandHtml(SITE, "dark");
   for (const top of [light, dark]) {
-    assert.ok(top.includes('<img src="https://www.arisereader.com/icon-192.png" width="48" height="48" alt="A.R.I.S.E. Reader logo"'));
+    assert.ok(top.includes('<img src="https://www.arisereader.com/icon-192.png" width="48" height="48" alt="Arise Reader logo"'));
     for (const p of INVITE_PICTURES) assert.ok(top.includes(p.picture) && top.includes(`${p.label}</div>`), p.label);
     assert.equal(top.split('<td width="33%"').length - 1, 3);
   }

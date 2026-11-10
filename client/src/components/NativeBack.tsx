@@ -1,4 +1,4 @@
-// Going back in the two A.R.I.S.E. Reader iPhone apps. An app has no browser back button, so every
+// Going back in the two Arise Reader iPhone apps. An app has no browser back button, so every
 // screen past the home screen gets one (top left, under the status bar), and a swipe in from the left
 // edge goes back too, the way iPhone apps do. With nothing to go back to, it opens the home screen.
 import { useEffect, useRef, useState } from "react";

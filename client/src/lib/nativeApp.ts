@@ -12,13 +12,13 @@ const bridge = (): Bridge | null => (typeof window !== "undefined" ? ((window as
 export const isNativeApp = (): boolean => typeof window !== "undefined" && window.location.protocol === "capacitor:";
 
 /** Which iPhone app this build is (set at build time with VITE_NATIVE_APP): Arise To Duo ("todo"),
- *  A.R.I.S.E. Reader for students ("reader"), or A.R.I.S.E. Reader Educator for teachers and parents. */
+ *  Arise Reader for students ("reader"), or Arise Reader Educator for teachers and parents. */
 export type NativeFlavor = "todo" | "reader" | "educator" | "fit" | "eyegaze" | "trainer" | "notes" | "talk";
 export const nativeFlavor = (): NativeFlavor => {
   const f = String((import.meta as any).env?.VITE_NATIVE_APP || "");
   return f === "reader" || f === "educator" || f === "fit" || f === "eyegaze" || f === "trainer" || f === "notes" || f === "talk" ? f : "todo";
 };
-/** Inside one of the two A.R.I.S.E. Reader apps (student or Educator). */
+/** Inside one of the two Arise Reader apps (student or Educator). */
 export const isReaderApp = (): boolean => isNativeApp() && (nativeFlavor() === "reader" || nativeFlavor() === "educator" || nativeFlavor() === "eyegaze");
 /** Inside the Arise Eye Gazer app (the A.R.I.S.E. eye-gaze games and lessons, on iPad and iPhone). */
 export const isEyeGazerApp = (): boolean => isNativeApp() && nativeFlavor() === "eyegaze";
@@ -34,8 +34,8 @@ export const isTalkApp = (): boolean => isNativeApp() && nativeFlavor() === "tal
  *  server, through arisetodo.com, the address the Arise To Duo app is already allowed to call. */
 export const NATIVE_APPS: Record<NativeFlavor, { name: string; bundle: string; api: string }> = {
   todo: { name: "Arise To Duo", bundle: "com.arisereader.arisetodo", api: "https://arisetodo.com" },
-  reader: { name: "A.R.I.S.E. Reader", bundle: "com.arisereader.reader", api: "https://arisetodo.com" },
-  educator: { name: "A.R.I.S.E. Reader Educator", bundle: "com.arisereader.educator", api: "https://arisetodo.com" },
+  reader: { name: "Arise Reader", bundle: "com.arisereader.reader", api: "https://arisetodo.com" },
+  educator: { name: "Arise Reader Educator", bundle: "com.arisereader.educator", api: "https://arisetodo.com" },
   fit: { name: "Arise Fit", bundle: "com.arisereader.fit", api: "https://arisetodo.com" },
   eyegaze: { name: "Arise Eye Gazer", bundle: "com.arisereader.eyegazer", api: "https://arisetodo.com" },
   trainer: { name: "Arise Trainer", bundle: "com.arisereader.trainer", api: "https://arisetodo.com" },

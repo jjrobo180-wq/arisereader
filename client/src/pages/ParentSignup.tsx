@@ -52,7 +52,7 @@ export default function ParentSignup() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.message || "Unable to submit your request.");
       // One calm step: the button keeps saying "Creating your account…" while it signs in, then the plan
-      // page (A.R.I.S.E. Reader) opens in place. No success box, spinner pages or hops in between.
+      // page (Arise Reader) opens in place. No success box, spinner pages or hops in between.
       try {
         await login(String(data.username || email.trim()), password);
         setGoNext(true);
@@ -72,7 +72,7 @@ export default function ParentSignup() {
         {submitted ? (
           <div style={styles.success} role="status" data-testid="status-parent-signup-success">
             <CheckCircle2 size={28} aria-hidden="true" />
-            <p style={{ margin: 0 }}>{linkNow ? "Your account is ready and connected to your child." : "Your parent account is ready! Open A.R.I.S.E. Reader from LifeHub to create your child’s independent reader account or connect an existing student."}</p>
+            <p style={{ margin: 0 }}>{linkNow ? "Your account is ready and connected to your child." : "Your parent account is ready! Open Arise Reader from LifeHub to create your child’s independent reader account or connect an existing student."}</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={styles.form}>

@@ -281,7 +281,7 @@ export type Workspace = {
   lessonState?: string;
   /** Passcode lock for screens and notes (shared/privacyLock.ts). */
   lock?: import("./privacyLock").PrivacyLock | null;
-  /** Quizzes made from students' goals, taken on A.R.I.S.E. Reader (shared/hubLinks.ts). */
+  /** Quizzes made from students' goals, taken on Arise Reader (shared/hubLinks.ts). */
   goalQuizzes?: import("./hubLinks").GoalQuiz[];
   /** IEPs being written in the IEP Writer, one per student meeting (shared/iepWriter). */
   iepDrafts?: import("./iepWriter").IepDraft[];

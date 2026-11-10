@@ -319,8 +319,8 @@ function HubPaywall({ isAdmin, embedded = false }: { isAdmin: boolean; embedded?
   );
 }
 
-/** WorkHub once the free month is over: the A.R.I.S.E. Reader tools stay, everything else is locked. */
-/** Which A.R.I.S.E. Reader tab an old teacher-dashboard link means ("comprehension", "parents"...). */
+/** WorkHub once the free month is over: the Arise Reader tools stay, everything else is locked. */
+/** Which Arise Reader tab an old teacher-dashboard link means ("comprehension", "parents"...). */
 function readerTabFor(old: string | null): ReaderTab {
   try { sessionStorage.removeItem("teacher_dashboard_tab"); } catch { /* fine */ }
   const map: Record<string, ReaderTab> = {
@@ -331,7 +331,7 @@ function readerTabFor(old: string | null): ReaderTab {
   return (old && map[old]) || "reader";
 }
 
-/** WorkHub once the free month is over: the A.R.I.S.E. Reader tabs stay, everything else is locked. */
+/** WorkHub once the free month is over: the Arise Reader tabs stay, everything else is locked. */
 function ReaderOnly({ signOut, isAdmin }: { signOut: () => void; isAdmin: boolean }) {
   const [plans, setPlans] = useState(false);
   const [tab, setTab] = useState<ReaderTab>(() => { try { return readerTabFor(sessionStorage.getItem("teacher_dashboard_tab")); } catch { return "reader"; } });
@@ -351,7 +351,7 @@ function ReaderOnly({ signOut, isAdmin }: { signOut: () => void; isAdmin: boolea
           <button type="button" onClick={() => setPlans((v) => !v)} aria-expanded={plans} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-5 text-sm font-semibold text-slate-700 hover:bg-slate-50">{plans ? "Hide plans" : "See plans"}</button>
         </HubEndedNote>
         {plans && <div className="-mx-3 sm:mx-0"><HubPaywall isAdmin={isAdmin} embedded /></div>}
-        <div className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="A.R.I.S.E. Reader">
+        <div className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Arise Reader">
           {READER_TABS.map((t) => (
             <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
               className={`flex min-h-11 flex-1 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 text-sm font-semibold transition ${tab === t ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"}`}>
@@ -383,7 +383,7 @@ export default function TeacherHub() {
 function TeacherHubPage() {
   const { user, token, logout } = useAuth();
   // Coming back from connecting a mailbox lands on the meetings tab, where the polls are.
-  // The old teacher dashboard address opens the A.R.I.S.E. Reader tab (see OpenHubTab in App.tsx).
+  // The old teacher dashboard address opens the Arise Reader tab (see OpenHubTab in App.tsx).
   // Which tab is showing is remembered per account (sessionStorage key below), so a
   // browser refresh lands back where the teacher/parent actually was instead of
   // always resetting to Overview.
@@ -696,7 +696,7 @@ function TeacherHubPage() {
   const deskAside = deskDrawer ? "md:hidden" : deskTop ? "md:top-[65px] md:h-auto md:self-auto" : `md:top-[65px] md:h-[calc(100vh-65px)] md:self-start ${desk === "right" ? "md:order-2" : ""}`;
   const deskList = deskTop ? "md:h-auto md:flex-row md:items-center md:gap-1 md:overflow-x-auto md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-1.5 md:shadow-sm" : `md:h-full md:flex-col md:gap-0.5 md:overflow-y-auto md:rounded-none md:border-0 md:bg-white md:px-3 md:pb-3 md:pt-6 ${desk === "right" ? "md:border-l" : "md:border-r"} md:border-[#e4e6f0]`;
   const [openFolders, setOpenFolders] = useState<string[]>([]);
-  /** Whether "A.R.I.S.E. Reader" is expanded in the sidebar to show its tabs (Live quiz, Scenes, Students...) nested underneath, folder-style. */
+  /** Whether "Arise Reader" is expanded in the sidebar to show its tabs (Live quiz, Scenes, Students...) nested underneath, folder-style. */
   const learningAccess = useLearningAccess(token);
   const { plan: readerPlan } = usePlan(token);
   // Reader classroom tools are part of the Class/School Premium plan. The free
@@ -866,7 +866,7 @@ function TeacherHubPage() {
 
   if (!loaded) return <HubWaiting label="Opening your Arise WorkHub…" fallbackBg="#f1f5f9" />;
 
-  // After the free month: only the A.R.I.S.E. Reader tools stay (the rest of WorkHub is kept, but locked).
+  // After the free month: only the Arise Reader tools stay (the rest of WorkHub is kept, but locked).
   if (needsPlan) return <ReaderOnly signOut={signOut} isAdmin={!!user.isAdmin} />;
 
   if (loadError) {
@@ -953,7 +953,7 @@ function TeacherHubPage() {
     // A screen they haven't added yet: its page in the App Store, ready to add.
     else { setStoreOpenApp(`work-${t}`); setStore(true); }
   };
-  /** Everything the header's ⚡ shortcut can open (components/HeaderShortcut.tsx): each menu tab, A.R.I.S.E. Reader, and installed apps. */
+  /** Everything the header's ⚡ shortcut can open (components/HeaderShortcut.tsx): each menu tab, Arise Reader, and installed apps. */
   const shortcutChoices = (): ShortcutChoice[] => [
     ...menu.flatMap((g): ShortcutChoice[] => g.id === "arise"
       ? [{ id: "group:arise", label: g.label, icon: GROUP_ICON[g.id], onClick: () => goGroup(g.id) }]
@@ -961,10 +961,10 @@ function TeacherHubPage() {
     ...myKits.map((d): ShortcutChoice => { const Icon = kitIcon(d.icon); return { id: `kit:${d.id}`, label: d.name, icon: <Icon />, onClick: () => { closeApps(); openKit(d.id); } }; }),
     ...myNotesApps.map((p): ShortcutChoice => ({ id: `notes:${p.id}`, label: p.name, icon: <StickyNote />, onClick: () => { closeApps(); openNotesApp(p.id); } })),
   ];
-  /** Opening a menu item. A.R.I.S.E. Reader is a page of its own now (/reader), so that one item
+  /** Opening a menu item. Arise Reader is a page of its own now (/reader), so that one item
    *  leaves the hub rather than switching tab; everything else behaves as it always did. */
   const goGroup = (id: HubGroupId) => {
-    // A.R.I.S.E. Reader is its own address, not a route inside this app, so this leaves for it.
+    // Arise Reader is its own address, not a route inside this app, so this leaves for it.
     if (id === "arise") { openReaderOrPlan(); return; }
     setTab(openGroup(id, visible, lastInGroup, !!user.isAdmin));
     closeApps();
@@ -1338,7 +1338,7 @@ function TeacherHubPage() {
                 </div>
               );
               };
-              /** A.R.I.S.E. Reader's own row: one sub-item, folder-style, for each of its tabs. */
+              /** Arise Reader's own row: one sub-item, folder-style, for each of its tabs. */
               const subItem = (t: HubTab, nested: boolean) => (
                 <div key={t} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"} ${nested && !deskTop && !deskCompact ? "md:pl-4" : ""}`}>
                   <button type="button" onClick={() => { setTab(t); closeApps(); afterPick(); }} aria-current={tab === t && !kitOpen ? "page" : undefined} data-testid={`hub-menu-${t}`} data-hub-nav
@@ -1358,7 +1358,7 @@ function TeacherHubPage() {
                   </button>
                 </div>
               );
-              /** A.R.I.S.E. Reader, at the top of Arise Learning. It is a page of its own now
+              /** Arise Reader, at the top of Arise Learning. It is a page of its own now
                *  (/reader), so this leaves the hub rather than opening tabs inside it — there is
                *  nothing left to expand underneath, which is why the chevron is gone. */
               const readerBlock = (() => {
@@ -1367,18 +1367,18 @@ function TeacherHubPage() {
                       {/* Same style as the other Arise Learning programs (a colored icon tile). Pressing it
                           jumps straight to the Reader Overview, so a teacher always lands somewhere. */}
                       <button type="button" onClick={() => { afterPick(); openReaderOrPlan(); }} data-testid="hub-menu-arise" data-hub-nav
-                        title={readerNeedsPremium ? "A.R.I.S.E. Reader: add it from the Class plan" : "Open A.R.I.S.E. Reader"}
+                        title={readerNeedsPremium ? "Arise Reader: add it from the Class plan" : "Open Arise Reader"}
                         className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2.5 md:px-3 md:py-1.5 md:text-left md:text-sm text-slate-700 hover:text-slate-950 md:hover:bg-slate-100`}>
                         <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white shadow-sm" style={{ background: "linear-gradient(135deg, #6d28d9, #6d28d9cc)" }}>{GROUP_ICON.arise}</span>
                         <span className={`${MENU_LABEL} md:hidden`}>Reader</span>
                         {readerNeedsPremium && <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold text-violet-800 md:hidden">Add-on</span>}
-                        <span className={`hidden truncate md:inline ${deskCompact ? "md:sr-only" : ""}`}>A.R.I.S.E. Reader</span>
+                        <span className={`hidden truncate md:inline ${deskCompact ? "md:sr-only" : ""}`}>Arise Reader</span>
                         {readerNeedsPremium && <span className={`hidden shrink-0 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-800 md:ml-auto ${deskCompact || deskTop ? "" : "md:inline"}`} data-testid="hub-reader-addon">Add-on</span>}
                       </button>
                     </div>
                   </Fragment>;
               })();
-              // The admin console lives in A.R.I.S.E. Reader now (its menu, for admins), not in WorkHub.
+              // The admin console lives in Arise Reader now (its menu, for admins), not in WorkHub.
               const adminBlock = null;
               // Para Team (pages/ParaTeam.tsx): the teacher's shared space with their paras and 1:1s.
               // Everyone gets it: teachers make a team, paras (often free To-Do accounts) join one.
@@ -1418,7 +1418,7 @@ function TeacherHubPage() {
               const renderSidebarGroups = (groups: typeof menu, keepFolders: boolean) => foldMenu(groups, keepFolders ? layout.folders : [])
                 .filter((entry) => entry.kind === "item" || entry.items.length > 0 || entry.folder.items.length === 0)
                 .map((entry) => {
-                // A.R.I.S.E. Reader lives in the Arise Learning section, right below Home.
+                // Arise Reader lives in the Arise Learning section, right below Home.
                 if (entry.kind === "item" && entry.item.id === "arise") return null;
                 // Drawn right below Arise Learning instead, not wherever the saved order put it.
                 if (entry.kind === "item" && entry.item.id === "admin") return null;
@@ -1667,7 +1667,7 @@ function TeacherHubPage() {
             ]} />}
 
           {subTabs.length > 1 && group.id !== "iep" && (
-            // On desktop the sidebar lists every A.R.I.S.E. Reader sub-tab, and under Admin console
+            // On desktop the sidebar lists every Arise Reader sub-tab, and under Admin console
             // its sections and Settings' parts, so this dropdown would only repeat them there. It
             // earns its keep on phones, and on desktop only in the drawer layout, which has no
             // sidebar showing.

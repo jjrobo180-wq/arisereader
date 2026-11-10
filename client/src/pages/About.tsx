@@ -94,7 +94,7 @@ export default function About() {
               <div className="absolute -inset-2 rounded-[1.75rem] bg-gradient-to-br from-violet-500/35 via-fuchsia-500/25 to-cyan-400/25 blur-xl" />
               <img
                 src="/about/mr-j-portrait.webp?v=20261001"
-                alt="Mr. J, creator of A.R.I.S.E. Reader"
+                alt="Mr. J, creator of Arise Reader"
                 loading="eager"
                 decoding="async"
                 fetchPriority="high"
@@ -172,7 +172,7 @@ export default function About() {
             {/* The vision */}
             <div className="rounded-xl bg-gradient-to-br from-primary/10 to-transparent border border-primary/20 p-6 mt-2">
               <p className="text-sm sm:text-base font-medium text-foreground leading-relaxed">
-                A.R.I.S.E. Reader was born from that summer. The name itself is a tribute — A.R.I. for Ariana, the four-year-old girl who proved that every child can rise when given the right push. Mr. J built this platform because he refuses to let another generation of students miss the feeling of finishing a book they love — the feeling that made him who he is. From the #1 reader in his elementary school to a father watching his daughter light up, A.R.I.S.E. is the bridge between those two moments.
+                Arise Reader was born from that summer. The name itself is a tribute — A.R.I. for Ariana, the four-year-old girl who proved that every child can rise when given the right push. Mr. J built this platform because he refuses to let another generation of students miss the feeling of finishing a book they love — the feeling that made him who he is. From the #1 reader in his elementary school to a father watching his daughter light up, A.R.I.S.E. is the bridge between those two moments.
               </p>
               <p className="text-sm text-primary font-semibold mt-4">
                 Every child deserves to know what it feels like to win. To finish. To rise.
@@ -276,7 +276,7 @@ export default function About() {
       {/* Closing statement */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-20">
         <div className="rounded-2xl bg-gradient-to-br from-violet-500/14 via-fuchsia-500/[.07] to-cyan-400/10 border border-violet-400/20 p-8 sm:p-12 text-center shadow-[0_20px_60px_rgba(0,0,0,.18)]">
-          <h2 className="text-xl sm:text-2xl font-bold mb-4">A.R.I.S.E. Reader</h2>
+          <h2 className="text-xl sm:text-2xl font-bold mb-4">Arise Reader</h2>
           <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-2xl mx-auto">
             We aren't just trying to get students to read more books. We're trying to help them believe in themselves.
           </p>

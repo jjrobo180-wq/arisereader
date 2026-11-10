@@ -1,4 +1,4 @@
-// Arise History (/history/): K–12 history built like A.R.I.S.E. Reader. Students read a short true story
+// Arise History (/history/): K–12 history built like Arise Reader. Students read a short true story
 // (a History Read), take a 5-question quiz on it, and earn points on a class leaderboard, with achievements,
 // certificates and a game room. Shared by the server (which keeps the answer key and grades every quiz, so
 // points can't be faked) and the tests. Tables: migrations/arise_history.sql.

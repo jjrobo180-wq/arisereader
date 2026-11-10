@@ -1,4 +1,4 @@
--- English Explorer: the English-language-learner program inside A.R.I.S.E. Reader (server/ariseEnglish.ts,
+-- English Explorer: the English-language-learner program inside Arise Reader (server/ariseEnglish.ts,
 -- shared/ariseEnglish.ts). A teacher or the administrator turns it on for a student; points earned here are
 -- written to manual_point_awards, so they count on the regular A.R.I.S.E. leaderboards.
 -- Accounts are the regular A.R.I.S.E. accounts. Safe to run more than once.

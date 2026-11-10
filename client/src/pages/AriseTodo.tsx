@@ -159,7 +159,7 @@ import HubMark from "@/components/HubMark";
 import { HubTrialNote } from "@/components/HubTrialNote";
 import { useLifeHubTrial } from "@/components/TodoGate";
 
-// The parents' A.R.I.S.E. Reader tab, built from LifeHub parts (loaded when opened).
+// The parents' Arise Reader tab, built from LifeHub parts (loaded when opened).
 const Reader = lazy(() => import("@/components/family-hub/Reader"));
 const LifeTasksScreen = lazy(() => import("@/components/family-hub/LifeTasksScreen"));
 import "./todoNight.css";
@@ -734,7 +734,7 @@ export default function AriseTodo() {
   const family = data.family;
   const members = family.members;
   const memberByName = (name: string) => members.find(m => m.name.toLowerCase() === name.trim().toLowerCase());
-  // The A.R.I.S.E. Reader tab is the parent portal, so only parents have it.
+  // The Arise Reader tab is the parent portal, so only parents have it.
   // Getting started was replaced by the first-run walkthrough (components/AppWalkthrough.tsx).
   const sections = sectionOrderFor(family).filter(id => id !== "start" && !parentOf(id) && isOn(id, family) && (id !== "reader" || user?.role === "parent"));
   const installedSections = sections.filter((id) => ADD_ON_SECTIONS.includes(id));
@@ -999,13 +999,13 @@ export default function AriseTodo() {
   } : undefined;
   /** Arise Learning (Reader, Math, History, Connect) sits in LifeHub for parents. Teachers and admins have it in WorkHub. */
   const learningHere = user?.role === "parent" && !user?.isAdmin;
-  /** A.R.I.S.E. Reader: a parent's own Reader page here; for a teacher or admin, their Reader in WorkHub. */
+  /** Arise Reader: a parent's own Reader page here; for a teacher or admin, their Reader in WorkHub. */
   const readerHere = sections.includes("reader");
-  // A.R.I.S.E. Reader is its own page now (/reader), the same one for a parent and a teacher, so
+  // Arise Reader is its own page now (/reader), the same one for a parent and a teacher, so
   // this no longer forks between a section here and a tab over in WorkHub.
   const openReader = () => { closeApps(); goToReader(); };
   const phoneItems: PhoneMenuItem[] = [
-    // Right below Home: A.R.I.S.E. Reader, then Arise Learning (Math, History, Connect), for everyone.
+    // Right below Home: Arise Reader, then Arise Learning (Math, History, Connect), for everyone.
     ...collapseGroups([...builtInSections, ...installedSections], sections).filter((id) => id !== "reader").flatMap((id): PhoneMenuItem[] => { const Icon = SECTION_ICONS[id]; const item: PhoneMenuItem = { id, label: groupLabel(id, sections, SECTION_INFO[id].label), icon: <Icon />, active: !notesAppOpen && leadOf(shown, sections) === id, badge: badge(id), onClick: () => { closeApps(); goSection(id); } };
       return id !== "home" || !learningHere ? [item] : [item,
         { id: "reader", label: "Reader", icon: <BookOpen className="text-violet-700" />, active: !notesAppOpen && shown === "reader", color: "#6d28d9", onClick: openReader },
@@ -1102,17 +1102,17 @@ export default function AriseTodo() {
   </div>;
   const saveStatus = sync.view.kind === "saved" ? "Saved to account" : sync.view.kind === "waiting" ? "Saving soon…" : sync.view.kind === "saving" ? "Saving to cloud…" : sync.view.kind === "retrying" ? "Waiting for connection…" : "Needs your attention";
 
-  /** Arise Learning, right below Home: A.R.I.S.E. Reader, then Math, History and Connect, each in its own color. */
+  /** Arise Learning, right below Home: Arise Reader, then Math, History and Connect, each in its own color. */
   const lifeLearning = <div className={dsk === "top" ? "flex shrink-0 items-center gap-1" : "pb-1 pt-2"} data-testid="life-learning">
     {dsk !== "top" && dsk !== "compact" && <div className="flex items-center gap-2 px-1 pb-1.5 pt-1">
       <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Arise Learning</span>
       <span className="h-px flex-1 bg-gradient-to-r from-sky-300 via-amber-300 to-pink-300" aria-hidden />
     </div>}
     <div className={dsk === "top" ? "flex items-center gap-1" : "space-y-0.5"}>
-      <button type="button" onClick={openReader} aria-current={shown === "reader" ? "page" : undefined} data-testid="life-section-reader" title="A.R.I.S.E. Reader"
+      <button type="button" onClick={openReader} aria-current={shown === "reader" ? "page" : undefined} data-testid="life-section-reader" title="Arise Reader"
         className={`flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-3 text-left text-sm font-bold transition ${dsk === "top" ? "" : "w-full"} ${dsk === "compact" ? "justify-center" : ""} ${shown === "reader" ? "bg-violet-50 text-violet-900" : "text-slate-700 hover:bg-slate-50 hover:text-slate-950"}`}>
         <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white shadow-sm" style={{ background: "linear-gradient(135deg, #6d28d9, #6d28d9cc)" }}><BookOpen className="h-4 w-4" /></span>
-        <span className={`min-w-0 flex-1 truncate ${dsk === "compact" ? "sr-only" : ""}`}>A.R.I.S.E. Reader</span>
+        <span className={`min-w-0 flex-1 truncate ${dsk === "compact" ? "sr-only" : ""}`}>Arise Reader</span>
       </button>
       {LEARNING_APPS.map((a) => {
         const has = learningAccess[a.id];
@@ -1192,7 +1192,7 @@ export default function AriseTodo() {
                 )}
               </div>
             );
-            // Right below Home: A.R.I.S.E. Reader and the Arise Learning programs.
+            // Right below Home: Arise Reader and the Arise Learning programs.
             // Parents get Arise Learning here; teachers and admins have it in WorkHub instead.
             return id === "home" && learningHere ? <Fragment key="home-and-learning">{el}{lifeLearning}</Fragment> : el;
           })}
@@ -1486,7 +1486,7 @@ export default function AriseTodo() {
             <p className="text-sm font-extrabold text-[#2d2555]">A calmer day starts here.</p>
             <p className="mt-1 text-xs leading-5 text-slate-500">Tasks, chores, calendars, plans and bills for the whole family in one simple space.</p>
           </div>
-          <button onClick={goToSiteHome} className="mt-4 flex min-h-10 items-center gap-2 text-xs font-bold text-slate-500 hover:text-violet-700"><ArrowLeft size={15} /> {onTodoSite ? "Back to Arise To Duo" : "Back to A.R.I.S.E. Reader"}</button>
+          <button onClick={goToSiteHome} className="mt-4 flex min-h-10 items-center gap-2 text-xs font-bold text-slate-500 hover:text-violet-700"><ArrowLeft size={15} /> {onTodoSite ? "Back to Arise To Duo" : "Back to Arise Reader"}</button>
         </div>
       </aside>
 

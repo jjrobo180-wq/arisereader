@@ -36,7 +36,7 @@ export async function printParentInvites(studentId?: number, options: { teacherI
     const invites: Invite[] = data.invites || [];
     if (!invites.length) throw new Error(options.teacherIds?.length ? 'The teachers you picked have no students yet.' : 'No students found on this roster.');
     page.document.open();
-    page.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>A.R.I.S.E. Reader Parent Letters</title>
+    page.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Arise Reader Parent Letters</title>
       <style>${LETTER_PAGE_CSS}</style></head><body><div class="toolbar"><p>${escapeHtml(batchSummary(invites))}</p><button id="print-button">Print or Save as PDF</button></div>${invites.map(letterHtml).join('')}</body></html>`);
     page.document.close();
     page.document.getElementById('print-button')?.addEventListener('click', () => page.print());
@@ -65,9 +65,9 @@ export async function printMyParentInvite(): Promise<void> {
     const invite = data.invite as { studentName: string; code: string } | undefined;
     if (!invite) throw new Error('Could not prepare your parent letter.');
     page.document.open();
-    page.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>A.R.I.S.E. Reader Parent Letter</title>
+    page.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Arise Reader Parent Letter</title>
       <style>body{font-family:Arial,sans-serif;color:#222;margin:0;background:#eee}.toolbar{padding:16px;text-align:center}.toolbar button{background:#ef5b16;color:white;border:0;padding:12px 24px;border-radius:8px;font-size:16px}.letter{box-sizing:border-box;background:white;width:8.5in;min-height:11in;margin:20px auto;padding:.85in}.brand{color:#ef5b16;font-weight:800;letter-spacing:.12em}.letter h1{font-size:28px;margin:35px 0}.letter p,.letter li{font-size:17px;line-height:1.6}.code-label{margin-top:38px;font-weight:bold}.code{font-size:29px;letter-spacing:.12em;font-weight:800;padding:18px;border:2px solid #ef5b16;border-radius:8px;text-align:center;margin:12px 0 30px}.note{border-top:1px solid #ccc;padding-top:20px;margin-top:40px;font-size:14px!important}@media print{body{background:white}.toolbar{display:none}.letter{margin:0}@page{size:letter;margin:0}}</style></head><body><div class="toolbar"><button id="print-button">Print or Save as PDF</button></div><section class="letter">
-      <div class="brand">A.R.I.S.E. READER</div>
+      <div class="brand">ARISE READER</div>
       <h1>Your family is invited to read with us!</h1>
       <p>Dear parent or caregiver of <strong>${escapeHtml(invite.studentName)}</strong>,</p>
       <p>Create a free parent account to follow your child's reading progress, see certificates, and connect with their teacher.</p>
