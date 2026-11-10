@@ -1,5 +1,5 @@
-// The sign-in and sign-up screens of the iPhone apps: Arise To Duo, A.R.I.S.E. Reader (students) and
-// A.R.I.S.E. Reader Educator (teachers and parents). Only inside an app; the website
+// The sign-in and sign-up screens of the iPhone apps: Arise To Duo, Arise Reader (students) and
+// Arise Reader Educator (teachers and parents). Only inside an app; the website
 // keeps pages/SignIn.tsx). Built like an iPhone app's first screen: a welcome page with Sign in with
 // Apple first, then email sign-in and a free account on their own screens, with grouped fields,
 // a back button, and nothing that reads like a web page (no header, no marketing columns, no
@@ -23,7 +23,7 @@ const showHubMenus = () => { try { localStorage.setItem("arise-hub-rail", "open"
  *  student app has no Sign in with Apple and no "free account" (an independent learner signs up on the
  *  same page the website uses). */
 const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { tint: string; icon: ReactNode; title: string; text: string }[]; apple: boolean; signInHint: string; create: string }> = {
-  todo: { icon: "/icon-512.png", tagline: "Your life and your work, side by side.", apple: true, signInHint: "Use your Arise To Duo or A.R.I.S.E. Reader account.", create: "Create a free account",
+  todo: { icon: "/icon-512.png", tagline: "Your life and your work, side by side.", apple: true, signInHint: "Use your Arise To Duo or Arise Reader account.", create: "Create a free account",
     features: [
       { tint: "#6a55dc", icon: <HeartHandshake className="h-[22px] w-[22px]" />, title: "LifeHub", text: "Home, family, calendar, health and money." },
       { tint: "#0f766e", icon: <Briefcase className="h-[22px] w-[22px]" />, title: "WorkHub", text: "Projects, meetings and to-dos for work." },

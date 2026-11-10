@@ -1,4 +1,4 @@
-// A.R.I.S.E. Reader, a new family from start to payment, in a real iPhone-sized browser:
+// Arise Reader, a new family from start to payment, in a real iPhone-sized browser:
 //   the Reader iPhone app's pages (dist-app, built as inside the app) → "New here? A parent creates the account"
 //   → name, email, password → the plan page (no tour, no shortcut pop-up) → tap a plan → Safari's page
 //   (the website build, dist-web, on www.arisereader.com) opens already signed in → straight to the payment page.
@@ -80,11 +80,11 @@ async function serve(route, root) {
       if (!who || who.role !== "parent" || body.product !== "bundle") return json({ message: "no" }, 403);
       return json({ url: "https://checkout.stripe.com/c/pay/test_family" });
     }
-    if (/^\/api\/(parent|books|student|leaderboard|teacher)/.test(p) && who && !paid.has(who.id)) return json({ message: "This account needs an A.R.I.S.E. Reader plan.", code: "reader_plan_required" }, 402);
+    if (/^\/api\/(parent|books|student|leaderboard|teacher)/.test(p) && who && !paid.has(who.id)) return json({ message: "This account needs an Arise Reader plan.", code: "reader_plan_required" }, 402);
     if (req.method() !== "GET") return json({ ok: true });
     return json(p.includes("notifications") || p.includes("students") ? [] : {});
   }
-  if (url.hostname === "checkout.stripe.com") return route.fulfill({ status: 200, contentType: "text/html", body: "<h1 id=stripe>Stripe checkout: A.R.I.S.E. Reader family $7.00</h1>" });
+  if (url.hostname === "checkout.stripe.com") return route.fulfill({ status: 200, contentType: "text/html", body: "<h1 id=stripe>Stripe checkout: Arise Reader family $7.00</h1>" });
   let p = normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, "");
   // Like the real server (server/index.ts): arisereader.com/ without a sign-in cookie is the landing page,
   // unless the address carries a sign-in code from the app.

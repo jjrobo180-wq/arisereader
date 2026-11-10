@@ -1,4 +1,4 @@
-// A.R.I.S.E. Reader is paid from November 9, 2026: $7 a family, $20 per 99 students, $600 a school year.
+// Arise Reader is paid from November 9, 2026: $7 a family, $20 per 99 students, $600 a school year.
 // Every account made before then keeps it free.
 import test from "node:test";
 import assert from "node:assert/strict";

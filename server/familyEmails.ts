@@ -215,7 +215,7 @@ export async function previewFamilyEmail(deps: FamilyEmailDeps, sender: Sender &
 
 const page = (title: string, body: string) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title></head>
 <body style="margin:0;padding:24px 16px;background:#0b0a16;color:#f8fafc;font-family:Arial,Helvetica,sans-serif;"><div style="max-width:520px;margin:40px auto;background:#151326;border-radius:20px;padding:28px;">
-<h1 style="margin:0 0 12px;font-size:22px;color:#c4b5fd;">A.R.I.S.E. Reader</h1>${body}</div></body></html>`;
+<h1 style="margin:0 0 12px;font-size:22px;color:#c4b5fd;">Arise Reader</h1>${body}</div></body></html>`;
 const button = (token: string, action: "stop" | "resume", label: string) => `<form method="post" action="/api/family-emails/${action}"><input type="hidden" name="t" value="${token.replace(/[^\w.-]/g, "")}"><button type="submit" style="margin-top:8px;min-height:44px;padding:10px 18px;border:0;border-radius:12px;background:#7c3aed;color:#fff;font-size:16px;font-weight:bold;cursor:pointer;">${label}</button></form>`;
 
 export async function setStopped(deps: FamilyEmailDeps, token: unknown, stop: boolean): Promise<{ status: number; html: string }> {
@@ -246,7 +246,7 @@ export function registerFamilyEmailRoutes(app: Express, auth: any, deps: FamilyE
   app.get("/api/family-emails/stop", (req: any, res: any) => {
     const t = String(req.query?.t || "");
     if (!readStopToken(deps.signKey, t)) return res.status(400).type("html").send(page("Link not recognized", `<p style="line-height:1.6;color:#cbd5e1;">This link isn't recognized. Please use the link from your most recent email.</p>`));
-    res.type("html").send(page("Stop these emails?", `<p style="line-height:1.6;color:#cbd5e1;">Stop the weekly progress updates and reading reminders from A.R.I.S.E. Reader?</p>${button(t, "stop", "Stop these emails")}`));
+    res.type("html").send(page("Stop these emails?", `<p style="line-height:1.6;color:#cbd5e1;">Stop the weekly progress updates and reading reminders from Arise Reader?</p>${button(t, "stop", "Stop these emails")}`));
   });
   const formToken = (req: any) => String(req.body?.t || req.query?.t || "");
   app.post("/api/family-emails/stop", async (req: any, res: any) => {

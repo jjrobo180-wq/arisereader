@@ -35,7 +35,7 @@ export function WelcomeScene({ beat }: SceneProps) {
       <div className="w-full">
         <div className="sw-in mx-auto grid h-[72px] w-[72px] place-items-center rounded-3xl bg-gradient-to-br from-violet-600 via-fuchsia-500 to-cyan-400 shadow-2xl"><BookOpen className="h-9 w-9 text-white" /></div>
         <h1 className="sw-in mt-4 text-[56px] font-black leading-none tracking-[-.04em]">
-          A.R.I.S.E. <span className="arise-gradient-text">Reader</span>
+          Arise <span className="arise-gradient-text">Reader</span>
           <span className="ml-2 rounded-full border border-violet-400/25 bg-gradient-to-r from-violet-500/15 via-fuchsia-500/10 to-cyan-400/15 px-2.5 py-0.5 align-middle text-[15px] font-black tracking-wider text-violet-200">2.0</span>
         </h1>
         <p className="mt-2 text-[11px] font-bold uppercase tracking-[.2em] text-slate-400">Read · Learn · Earn · Play · Grow</p>

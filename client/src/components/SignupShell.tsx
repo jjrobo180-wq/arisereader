@@ -21,7 +21,7 @@ export function SignupShell({ eyebrow, title, titleId, intro, children, below }:
       <div className="pr-glow pr-glow-a" aria-hidden="true" />
       <div className="pr-glow pr-glow-b" aria-hidden="true" />
       <header className="relative mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-6">
-        <button type="button" className="text-xl font-black tracking-tight" onClick={() => navigate("/")}>A.R.I.S.E. <span className="text-violet-700">Reader</span></button>
+        <button type="button" className="text-xl font-black tracking-tight" onClick={() => navigate("/")}>Arise <span className="text-violet-700">Reader</span></button>
         <div className="flex items-center gap-2">
           <button type="button" onClick={() => navigate("/pricing")} className="rounded-full px-3 py-2 text-sm font-bold text-slate-700 hover:text-violet-700">Pricing</button>
           <button type="button" onClick={() => navigate("/signin")} className="rounded-full bg-violet-700 px-5 py-3 text-sm font-bold text-white hover:bg-violet-800">Sign in</button>

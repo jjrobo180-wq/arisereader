@@ -2,7 +2,7 @@ import { isReaderApp } from "./nativeApp";
 // Where adults live: teachers, parents, LifeHub-only accounts and the administrator all sign in
 // with the same screen on either site, and their hub always opens on arisetodo.com
 // (their own free Work and Life spaces on Arise To Duo).
-// Students keep A.R.I.S.E. Reader. Signing out of a hub always goes back to the sign-in screen.
+// Students keep Arise Reader. Signing out of a hub always goes back to the sign-in screen.
 
 type HubUser = { isAdmin?: boolean; role?: string | null } | null | undefined;
 
@@ -10,7 +10,7 @@ export const TODO_APP = "https://arisetodo.com/app";
 export const READER_APP = "https://www.arisereader.com/";
 
 export const isTodoHost = () => typeof window !== "undefined" && /^(www\.)?arisetodo\.com$/i.test(window.location.hostname);
-/** arisereader.com, or one of the two A.R.I.S.E. Reader iPhone apps (they act as that site). */
+/** arisereader.com, or one of the two Arise Reader iPhone apps (they act as that site). */
 export const isReaderHost = () => typeof window !== "undefined" && (isReaderApp() || /^(www\.)?arisereader\.com$/i.test(window.location.hostname));
 
 /** Teachers, parents, LifeHub-only accounts and the administrator. */
@@ -19,7 +19,7 @@ export function isHubAccount(user: HubUser): boolean {
 }
 
 /** The hub an adult opens after signing in. A teacher lands straight in WorkHub, where their
- *  class and all of A.R.I.S.E. Reader's teacher tools (overview, live quiz, scenes, students,
+ *  class and all of Arise Reader's teacher tools (overview, live quiz, scenes, students,
  *  approvals, parents, quizzes & grading, game time, prizes) actually live — that's what a
  *  teacher signed up for, not the family to-do list. Every other adult (parent, LifeHub-only,
  *  the administrator) still lands on the to-do list (LifeHub) first; WorkHub is one click away
@@ -28,7 +28,7 @@ export function hubPathFor(user: HubUser): "/workhub" | "/lifehub" {
   return user?.role === "teacher" ? "/workhub" : "/lifehub";
 }
 
-/** A.R.I.S.E. Reader for teachers and parents: its own address, not a hash route inside the app.
+/** Arise Reader for teachers and parents: its own address, not a hash route inside the app.
  *  That is the point of it — opening the Reader must leave the To-Do app behind, shell and all,
  *  the way /math/ is its own page rather than a screen inside something else. Any unknown path
  *  serves the app's index.html (server/static.ts), so this address works on both sites. */

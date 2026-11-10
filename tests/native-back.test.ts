@@ -1,4 +1,4 @@
-// The A.R.I.S.E. Reader iPhone apps have no browser Back: every screen past home gets one
+// The Arise Reader iPhone apps have no browser Back: every screen past home gets one
 // (components/NativeBack.tsx), unless the screen shows its own, and a left-edge swipe goes back.
 import test from "node:test";
 import assert from "node:assert/strict";

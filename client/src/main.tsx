@@ -21,7 +21,7 @@ import { API_BASE } from "@/lib/queryClient";
 // Arise Fit draws edge to edge (contentInset "never" in fit/ios-app/capacitor.config.json). Without
 // viewport-fit=cover the page stops short of the home indicator and env(safe-area-inset-*) reads 0, so titles
 // sit under the Dynamic Island and the tab bar floats above a gray strip.
-// The A.R.I.S.E. Reader app draws edge to edge too (reader-app.css keeps headers below the clock), and so does Arise Notes.
+// The Arise Reader app draws edge to edge too (reader-app.css keeps headers below the clock), and so does Arise Notes.
 // In the iPhone and iPad apps the page already fills the screen, and asking WebKit for full screen on top
 // (the games, slides, the stand-by clock) crashed the app on iPad: WebKit moves the page to its own window,
 // which the app's view controllers don't allow (Arise Eye Gazer, a crash report from an iPad, November 2026).
@@ -32,7 +32,7 @@ if (isFitApp() || isReaderApp() || isNotesApp()) {
   if (vp && !/viewport-fit/.test(vp.getAttribute("content") || "")) vp.setAttribute("content", `${vp.getAttribute("content")}, viewport-fit=cover`);
 }
 if (isReaderApp()) document.documentElement.classList.add("reader-app");
-// The A.R.I.S.E. Reader iPhone app: everything a little smaller (reader-app.css, html.reader-compact: 90%), so a
+// The Arise Reader iPhone app: everything a little smaller (reader-app.css, html.reader-compact: 90%), so a
 // phone shows more of a page, like the App Store's own apps. Done with the type size, never the viewport (see todo-compact).
 if (isNativeApp() && nativeFlavor() === "reader") document.documentElement.classList.add("reader-compact");
 // Arise Notes on the iPhone: a slightly smaller base size (index.css html.notes-app), so it feels like Apple's own

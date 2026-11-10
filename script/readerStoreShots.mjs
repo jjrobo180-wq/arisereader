@@ -1,4 +1,4 @@
-// App Store screenshots of A.R.I.S.E. Reader: the real site (arisereader.com) signed in as the App Review
+// App Store screenshots of Arise Reader: the real site (arisereader.com) signed in as the App Review
 // sample account, at the sizes Apple asks for (6.9" iPhone 1320×2868, 13" iPad 2064×2752).
 // Usage: DEMO_USER=... DEMO_PASS=... node script/readerStoreShots.mjs   -> store-shots/raw/{iphone,ipad}-N.png
 // These are the plain screens; script/readerStoreFrames.mjs sets them in a frame under a headline for the store.

@@ -1,5 +1,5 @@
 -- Arise Social (/social/): a career-discovery network for students, their parents and their teachers.
--- Accounts are the regular A.R.I.S.E. Reader accounts; these tables hold only Arise Social's own data.
+-- Accounts are the regular Arise Reader accounts; these tables hold only Arise Social's own data.
 -- Safe to run more than once.
 
 -- Each student's progress: XP, streak, careers collected and saved, quest steps, roadmap checks.

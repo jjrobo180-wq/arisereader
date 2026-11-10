@@ -60,7 +60,7 @@ export default function QuizPermission() {
         {info && (info.status === "pending" || info.status === "none") && (
           <>
             <h1>{name} is asking to take quizzes with the camera</h1>
-            <p className="np-lead">On A.R.I.S.E. Reader, students can take book quizzes on their own instead of with a proctor. Here's how those quizzes work:</p>
+            <p className="np-lead">On Arise Reader, students can take book quizzes on their own instead of with a proctor. Here's how those quizzes work:</p>
             <ul className="np-rules">
               <li><Camera /><span>The camera stays on and takes pictures at random times, and whenever {name} leaves the quiz.</span></li>
               <li><ShieldCheck /><span>Leaving the quiz once gets a warning. Leaving again turns the quiz in.</span></li>

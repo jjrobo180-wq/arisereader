@@ -36,7 +36,7 @@ export function getMascotName(): string {
   return currentTheme.mascotName;
 }
 
-// Brand text: "A.R.I.S.E Reader" or "A.R.I.S.E Hornets!" etc.
+// Brand text: "Arise Reader" or "A.R.I.S.E Hornets!" etc.
 export function getBrandSuffix(): string {
   const mascot = currentTheme.mascotName;
   if (mascot === "Reader") return "Reader";

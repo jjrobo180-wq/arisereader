@@ -30,8 +30,8 @@ export function inviteBrandHtml(siteUrl: string, look: Look = "light"): string {
   const c = LOOKS[look];
   const tiles = INVITE_PICTURES.map((t) => `<td width="33%" align="center" valign="top" style="padding:0 4px;"><div style="background-color:${c.tile};border-radius:12px;padding:12px 6px;"><div style="font-size:28px;line-height:1.2;">${t.picture}</div><div style="margin-top:4px;font-size:13px;font-weight:bold;color:${c.tileText};">${escapeHtml(t.label)}</div></div></td>`).join("");
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr>
-<td valign="middle" style="padding:0 12px 0 0;"><img src="${escapeHtml(logoUrl(siteUrl))}" width="48" height="48" alt="A.R.I.S.E. Reader logo" style="display:block;width:48px;height:48px;border-radius:12px;border:0;"></td>
-<td valign="middle"><div style="font-size:24px;font-weight:bold;line-height:1.2;color:${c.name};">A.R.I.S.E. Reader</div><div style="font-size:14px;color:${c.tagline};">Read a book. Take a quiz. Earn points.</div></td>
+<td valign="middle" style="padding:0 12px 0 0;"><img src="${escapeHtml(logoUrl(siteUrl))}" width="48" height="48" alt="Arise Reader logo" style="display:block;width:48px;height:48px;border-radius:12px;border:0;"></td>
+<td valign="middle"><div style="font-size:24px;font-weight:bold;line-height:1.2;color:${c.name};">Arise Reader</div><div style="font-size:14px;color:${c.tagline};">Read a book. Take a quiz. Earn points.</div></td>
 </tr></table>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:18px 0 6px;"><tr>${tiles}</tr></table>`;
 }
