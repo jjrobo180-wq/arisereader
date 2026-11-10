@@ -17,6 +17,8 @@ import { nativeRemindersAvailable, nativeRemindersOn, turnOnNativeReminders } fr
 import { lockPageScroll } from "@/lib/scrollLock";
 
 const DONE_KEY = (id: number | string) => `arise-walkthrough-v1:${id}`;
+/** True once this person has finished (or skipped) the first-run walkthrough on this phone. */
+export const walkthroughDone = (id: number | string): boolean => { try { return localStorage.getItem(DONE_KEY(id)) === "1"; } catch { return true; } };
 type Step = { id: string; icon: ReactNode; tint: string; title: string; body: ReactNode; action?: { label: string; run: () => void | Promise<void> } };
 
 export default function AppWalkthrough({ userId, hub, arise, onGallery, onCustomize, onNotificationSettings, onConnectCalendar }: {

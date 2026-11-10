@@ -16,7 +16,8 @@ export default function AllAccessOffer({ dark = false, className = "", note, aut
 }) {
   const apple = appleStoreReady();
   const [applePrice, setApplePrice] = useState<string | null>(null);
-  const [us, setUs] = useState(() => usRegion());
+  // With the store plugin, only the App Store country decides; the phone's region is the guess for builds without it.
+  const [us, setUs] = useState(() => (apple ? false : usRegion()));
   const [busy, setBusy] = useState<"" | "buy" | "restore">("");
   const [msg, setMsg] = useState("");
   useEffect(() => {

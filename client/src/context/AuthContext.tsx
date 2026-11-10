@@ -319,6 +319,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { cancelled = true; };
   }, [persistSession, sessionValidated, retryTick]);
 
+  // main.tsx says so when requests carrying the sign-in keep getting 401: check it with the server again
+  // (the check above signs the person out if the server says it is no good).
+  useEffect(() => {
+    const recheck = () => { if (sessionRef.current.token) { setSessionValidated(false); setRetryTick((t) => t + 1); } };
+    window.addEventListener("arise:session-check", recheck);
+    return () => window.removeEventListener("arise:session-check", recheck);
+  }, []);
+
   useEffect(() => {
     if (user && user.schoolId) {
       fetch(`${API_BASE}/api/schools`)

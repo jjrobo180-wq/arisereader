@@ -905,3 +905,10 @@ export function templateInstalledCount(t: HubTemplate, family: Pick<Family, "sec
 export function setLifeTemplate<F extends Pick<Family, "sections" | "layers"> & Partial<Pick<Family, "widgets" | "layout">>>(family: F, t: HubTemplate, on: boolean): F {
   return templatePlugins(t).reduce((f, p) => setLifePlugin(f, p, on), family);
 }
+
+/** "450+": how many plugins the Plugin Gallery has, rounded down to the nearest 50 so it stays true.
+ *  The one place that says it; the upgrade sheet, the setup screen and the pop-ups all use this. */
+export const PLUGIN_COUNT_LABEL = `${Math.floor(Math.max(
+  pluginsFor("life", { teacher: true, arise: true }).length,
+  pluginsFor("work", { teacher: true, arise: true }).length,
+) / 50) * 50}+`;

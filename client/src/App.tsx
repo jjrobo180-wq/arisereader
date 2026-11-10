@@ -20,6 +20,7 @@ import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import AiConsentSheet from "@/components/AiConsentSheet";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { lastKnownLocked, readerLocked, teacherLocked, usePlan } from "@/lib/plan";
 import { useState, useEffect, lazy, Suspense, type ComponentType } from "react";
@@ -1171,6 +1172,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
+        <AiConsentSheet />
         <AuthProvider>
           <ErrorBoundary>
             <AppInner />

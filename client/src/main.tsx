@@ -17,6 +17,7 @@ import { installDuoPaneBridge } from "./lib/duoPaneBridge";
 import { installMediaUnlock, voiceElement } from "./lib/mediaUnlock";
 import { configureAiVoice } from "@/lib/aiVoice";
 import { API_BASE } from "@/lib/queryClient";
+import { AI_OFF_MESSAGE, askAiConsent, isAiRequest } from "@/lib/aiConsent";
 
 // Arise Fit draws edge to edge (contentInset "never" in fit/ios-app/capacitor.config.json). Without
 // viewport-fit=cover the page stops short of the home indicator and env(safe-area-inset-*) reads 0, so titles
@@ -201,17 +202,29 @@ if (isAriseTodoNative) {
 // restarting during a deploy) is tried again. Only reads (GET) are retried, so a sign-in, a save or a
 // submitted form is never sent twice; a wrong password is answered at once and counts once.
 const originalFetch = window.fetch;
+// A sign-in that has stopped working (signed out elsewhere, expired) is noticed while the app stays open:
+// two 401s in a row on requests that carried a sign-in ask the sign-in check to run again (AuthContext).
+let authed401s = 0, lastSessionCheck = 0;
 window.fetch = async function(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const method = String(init?.method || (input instanceof Request ? input.method : "GET")).toUpperCase();
   const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
   const target = resolveNativeApiUrl(url);
   const requestInput = target === url ? input : target;
   const headers = new Headers(init?.headers || (input instanceof Request ? input.headers : undefined));
+  // The iPhone apps ask before the first AI request sends anything to an outside AI company.
+  if (isNativeApp() && isAiRequest(method, url) && !(await askAiConsent())) {
+    return new Response(JSON.stringify({ code: "ai_consent", message: AI_OFF_MESSAGE }), { status: 403, headers: { "Content-Type": "application/json" } });
+  }
   const readsApi = method === "GET" && /\/api\//.test(url) && !/\/api\/(login|logout|auth\/)/.test(url);
   const retries = readsApi ? 2 : 0;
   for (let attempt = 0; ; attempt++) {
     try {
       const res = await originalFetch(requestInput, isAriseTodoNative && target !== url ? { ...init, credentials: "include" } : init);
+      if (headers.has("Authorization") && /\/api\//.test(url) && !/\/api\/(login|logout|me|auth\/)/.test(url)) {
+        if (res.status === 401) {
+          if (++authed401s >= 2 && Date.now() - lastSessionCheck > 30_000) { lastSessionCheck = Date.now(); authed401s = 0; window.dispatchEvent(new Event("arise:session-check")); }
+        } else authed401s = 0;
+      }
       const transient = res.status === 503 || (res.status === 401 && headers.has("Authorization") && attempt < 1);
       if (transient && attempt < retries) {
         await new Promise(r => setTimeout(r, 700));

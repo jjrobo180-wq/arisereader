@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
+import { isNativeApp, nativeFlavor } from "@/lib/nativeApp";
 
 type WrenDoc = { get(): Promise<{ exists: boolean; data(): any }>; set(body: unknown): Promise<void>; delete(): Promise<void> };
 
@@ -62,7 +63,9 @@ export default function EyeGazeWren() {
         </button>
         <span className="eg-title text-lg font-extrabold tracking-tight text-[#191b35]">Wren <span className="text-violet-700">Talker</span></span>
       </div>
-      {ready
+      {isNativeApp() && nativeFlavor() === "todo"
+        ? <p className="p-6 text-center text-slate-600" data-testid="wren-not-here">Wren Talker is in the Arise Eye Gazer app. Open Arise Eye Gazer to use it.</p>
+        : ready
         ? <iframe src="/eyegaze/wren/" title="Wren talker" allow="autoplay; camera" className="w-full flex-1 border-0 bg-white" data-testid="frame-wren" />
         : <p className="p-6 text-center text-slate-600">Sign in to your Eye Gazer account to use Wren.</p>}
     </div>

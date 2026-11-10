@@ -1515,7 +1515,7 @@ export async function registerRoutes(
       path === "/api/arise-todo/resend-code" ||
       path === "/api/arise-todo/apple-health/sync"),
     async (user) => (user?.role === "parent" || user?.role === "teacher" ? (await plans.todoStatus(user)).access : true),
-    "todo_required", "Arise LifeHub is an add-on for parents ($10 a month) and comes with Arise WorkHub for teachers.",
+    "todo_required", "Arise LifeHub needs Arise All Access.",
   ));
   registerAdminHandoffRoutes(app, authMiddleware);
   // Apple TV sign-in with a code, and the TV's summary of the family hub (server/tvLink.ts).
