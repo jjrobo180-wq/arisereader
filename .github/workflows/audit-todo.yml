@@ -1,0 +1,36 @@
+name: Audit To Duo (type check and bundle sizes)
+on:
+  push:
+    branches: ['audit/**']
+permissions:
+  contents: write
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Type check
+        run: |
+          mkdir -p out
+          npx tsc --noEmit -p . > out/tsc.txt 2>&1 || true
+          wc -l out/tsc.txt
+      - name: React safety lint
+        run: node script/lint-react-safety.mjs > out/lint.txt 2>&1 || true
+      - name: To Duo bundle
+        run: |
+          VITE_NATIVE_APP=todo npx vite build > out/build.txt 2>&1 || true
+          (cd dist/public && find . -type f -printf '%s %p\n' | sort -nr | head -80) > out/sizes.txt || true
+          du -sk dist/public > out/total.txt || true
+          cp dist/public/index.html out/index.html || true
+      - name: Save
+        if: always()
+        working-directory: out
+        run: |
+          git init -q && git checkout -q -b audit-results
+          git config user.name audit && git config user.email audit@users.noreply.github.com
+          git add -A && git commit -qm "audit ${{ github.sha }}"
+          git push -f -q "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" audit-results
