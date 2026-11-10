@@ -55,6 +55,15 @@ function validateWorkspace(input: unknown): input is Record<string, any> {
   return true;
 }
 
+/** Only when the saved copy last changed. A few bytes, where reading the copy itself can be hundreds of
+ *  kilobytes: the "anything newer?" check every open phone makes, and every save, need nothing more. */
+export async function readUpdatedAt(userId: number): Promise<string | null> {
+  const { data, error } = await getAdminSupabase().from(TABLE).select("updated_at")
+    .eq("user_id", userId).maybeSingle();
+  if (error) throw error;
+  return data ? String(data.updated_at) : null;
+}
+
 export async function readWorkspace(userId: number) {
   const { data, error } = await getAdminSupabase().from(TABLE).select("workspace, updated_at")
     .eq("user_id", userId).maybeSingle();
@@ -228,11 +237,15 @@ export function registerAriseTodoRoutes(app: Express, authMiddleware: RequestHan
   app.get("/api/arise-todo/workspace", authMiddleware, async (req: any, res) => {
     if (rejectPreview(req, res)) return;
     try {
-      const row = await readWorkspace(Number(req.user.id));
+      const userId = Number(req.user.id);
       res.set("Cache-Control", "no-store");
-      if (row && typeof req.query?.since === "string" && row.updatedAt === req.query.since) {
-        return res.json({ unchanged: true, updatedAt: row.updatedAt });
+      // "Anything newer than the copy I have?" is answered from the date alone; the copy itself is
+      // read only when it really is newer.
+      if (typeof req.query?.since === "string" && req.query.since) {
+        const updatedAt = await readUpdatedAt(userId);
+        if (updatedAt && updatedAt === req.query.since) return res.json({ unchanged: true, updatedAt });
       }
+      const row = await readWorkspace(userId);
       return res.json(row || { workspace: null, updatedAt: null });
     } catch (error: any) {
       console.error("[arise-todo] read:", error?.message);
@@ -255,7 +268,9 @@ export function registerAriseTodoRoutes(app: Express, authMiddleware: RequestHan
     if (overwrite !== undefined && overwrite !== true && overwrite !== false) return res.status(400).json({ message: "Invalid overwrite option." });
     const userId = Number(req.user.id);
     try {
-      const previous = await readWorkspace(userId);
+      // Only the date of the saved copy is needed to check this save against it.
+      const previousAt = await readUpdatedAt(userId);
+      const previous = previousAt ? { updatedAt: previousAt } : null;
       const conflict = () => res.status(409).json({
         code: HUB_CONFLICT,
         message: "Your to-dos changed on another device. Choose which copy to keep.",

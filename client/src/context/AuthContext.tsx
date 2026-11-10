@@ -146,8 +146,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const sessionRef = useRef<{ user: AuthUser | null; token: string | null }>(loadSessionCookie());
   const [user, setUser] = useState<AuthUser | null>(sessionRef.current.user);
   const [token, setToken] = useState<string | null>(sessionRef.current.token);
-  const [isLoading, setIsLoading] = useState(!!sessionRef.current.token && !isSampleMode());
+  // An adult's hub (To Duo: LifeHub, WorkHub) opens straight away with the sign-in kept on this device,
+  // and the server check below runs behind it: no spinner on every launch. Everyone else waits for the check.
+  const [isLoading, setIsLoading] = useState(!!sessionRef.current.token && !isSampleMode() && !isHubAccount(sessionRef.current.user));
   const [sessionValidated, setSessionValidated] = useState(() => isSampleMode());
+  const firstCheckDone = useRef(false);
   const [retryTick, setRetryTick] = useState(0);
   const [adminPreviewMode, setAdminPreviewMode] = useState<AdminPreviewMode>(() => {
     if (typeof window === "undefined") return null;
@@ -259,7 +262,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!sessionRef.current.token || sessionValidated) return;
     let cancelled = false;
-    setIsLoading(true);
+    // Only the first check may hold the screen. A hub already showing, or a later try after a
+    // failed one, checks quietly: the spinner used to replace the whole app every 15 seconds
+    // while the connection was bad.
+    if (!firstCheckDone.current && !isHubAccount(sessionRef.current.user)) setIsLoading(true);
+    firstCheckDone.current = true;
     fetch(`${API_BASE}/api/me`, {
       headers: { Authorization: `Bearer ${sessionRef.current.token}` },
       signal: AbortSignal.timeout(8000),
