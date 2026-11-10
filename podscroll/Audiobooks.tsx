@@ -595,7 +595,7 @@ function useNarrator(api: Api, bookId: string, onJoin: () => void): Narrator {
     setNarr((n) => ({ bookId, voice, playing: true, from: n?.from ?? 0, to: n?.to ?? 0, loading: true, sec: secAt }));
     try {
       const [{ parts }, { pass }] = await Promise.all([
-        api(`/api/earshot/books/${encodeURIComponent(bookId)}/narration?sec=${secAt}`),
+        api(`/api/earshot/books/${encodeURIComponent(bookId)}/narration?sec=${secAt}&play=1`),
         api("/api/earshot/books/relay-pass"),
       ]);
       const playPart = (p: number) => {

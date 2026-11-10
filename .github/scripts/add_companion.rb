@@ -111,7 +111,8 @@ if watch
   end
   if opts[:mic]
     info["NSMicrophoneUsageDescription"] = "#{opts[:display]} records your meetings so your iPhone can write them down and summarize them."
-    info["WKBackgroundModes"] = ((info["WKBackgroundModes"] || []) + ["audio"]).uniq
+    # Recording with the screen off: UIBackgroundModes "audio" (App Store Connect rejects "audio" in WKBackgroundModes).
+    info["UIBackgroundModes"] = ["audio"]
   end
 else
   info["UILaunchScreen"] = {}

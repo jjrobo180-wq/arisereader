@@ -1,6 +1,6 @@
 import "./lib/accountStorageBoot";
 import "./lib/sampleBoot";
-import { isFitApp, isNativeApp, isNotesApp, isReaderApp, markAppReadyWhenDrawn, nativeAppInfo, nativeFlavor } from "./lib/nativeApp";
+import { isFitApp, isNativeApp, isNotesApp, isReaderApp, keepLiveUpdated, markAppReadyWhenDrawn, nativeAppInfo, nativeFlavor } from "./lib/nativeApp";
 import { allowPopups } from "./lib/popupSupport";
 import { createRoot } from "react-dom/client";
 import App from "./App";
@@ -12,6 +12,7 @@ import "./todo-app.css";
 import { watchKeyboard } from "./lib/keyboardInset";
 import { applyDeviceTopInset } from "./lib/deviceInsets";
 import { startReaderNative } from "./lib/readerNative";
+import { installNoFullscreen } from "./lib/noFullscreen";
 import { installDuoPaneBridge } from "./lib/duoPaneBridge";
 import { installMediaUnlock, voiceElement } from "./lib/mediaUnlock";
 import { configureAiVoice } from "@/lib/aiVoice";
@@ -21,6 +22,11 @@ import { API_BASE } from "@/lib/queryClient";
 // viewport-fit=cover the page stops short of the home indicator and env(safe-area-inset-*) reads 0, so titles
 // sit under the Dynamic Island and the tab bar floats above a gray strip.
 // The A.R.I.S.E. Reader app draws edge to edge too (reader-app.css keeps headers below the clock), and so does Arise Notes.
+// In the iPhone and iPad apps the page already fills the screen, and asking WebKit for full screen on top
+// (the games, slides, the stand-by clock) crashed the app on iPad: WebKit moves the page to its own window,
+// which the app's view controllers don't allow (Arise Eye Gazer, a crash report from an iPad, November 2026).
+// So in the apps, full screen does nothing and says it worked.
+if (isNativeApp()) installNoFullscreen();
 if (isFitApp() || isReaderApp() || isNotesApp()) {
   const vp = document.querySelector('meta[name="viewport"]');
   if (vp && !/viewport-fit/.test(vp.getAttribute("content") || "")) vp.setAttribute("content", `${vp.getAttribute("content")}, viewport-fit=cover`);
@@ -140,7 +146,8 @@ if (window.location.protocol === "capacitor:") {
     if ((!h || h === "#/" || h === "#/signin") && /^#\/[\w\-\/?=&.%]*$/.test(saved) && !/^#\/(signin|join|admin-handoff)/.test(saved) && Date.now() - at < 12 * 3600_000) window.location.hash = saved;
   } catch { /* nothing kept */ }
   window.addEventListener("hashchange", () => {
-    try { const h = window.location.hash; if (h && h !== "#/") { localStorage.setItem(LAST, h); localStorage.setItem(LAST_AT, String(Date.now())); } } catch { /* fine */ }
+    // A tapped reminder's "?go=pills" is a one-time instruction; remembering it would re-open that screen on a later start.
+    try { const h = window.location.hash.split(/[?&](?:go|plan)=/)[0]; if (h && h !== "#/") { localStorage.setItem(LAST, h); localStorage.setItem(LAST_AT, String(Date.now())); } } catch { /* fine */ }
   });
 }
 
@@ -236,3 +243,4 @@ void import("./lib/readPhotos").then((m) => m.installReadPhotos()).catch(() => {
 // Live updates: this copy of the app started and drew its first screen (otherwise the iPhone app goes
 // back to the copy that worked; client/src/lib/nativeApp.ts).
 markAppReadyWhenDrawn();
+keepLiveUpdated();

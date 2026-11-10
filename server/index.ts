@@ -95,6 +95,9 @@ app.get("/", (req, res, next) => {
   if (host !== "arisereader.com" && host !== "www.arisereader.com") return next();
   res.setHeader("Vary", "Cookie");
   if (/(?:^|;\s*)arise_session=/.test(String(req.headers.cookie || ""))) return next();
+  // A sign-in code from the iPhone app (?signin=…, opened in Safari by a plan button) goes straight to the
+  // app, which signs the person in. The landing page would flash first and then lose the code.
+  if (typeof req.query.signin === "string" && req.query.signin) return next();
   const page = process.env.NODE_ENV === "production"
     ? path.resolve(__dirname, "public", "reader-landing.html")
     : path.resolve(process.cwd(), "client", "public", "reader-landing.html");
@@ -152,6 +155,8 @@ declare module "http" {
 }
 
 app.use("/api/eye-gaze/talker-state", express.json({ limit: "2mb" }));
+// Wren documents: boards and settings, or one added picture (each under 260 KB).
+app.use("/api/eye-gaze/wren", express.json({ limit: "400kb" }));
 // Build Zone worlds can be a few hundred kilobytes once they're full of builds.
 app.use("/api/city/build", express.json({ limit: "600kb" }));
 
@@ -210,6 +215,12 @@ app.use("/api/arise-todo/food/estimate", express.json({ limit: "4mb" }));
 // and the whole Fit diary, which passes 100 KB after a few months of food, workouts and runs.
 app.use("/api/fit/identify", express.json({ limit: "8mb" }));
 app.use("/api/fit/data", express.json({ limit: "5mb" }));
+// Trainer websites carry up to 8 photos (each under 400 KB, shared/coachSite.ts).
+app.use("/api/coach/trainer/site", express.json({ limit: "4mb" }));
+// Group posts can carry a photo (under 300 KB, shared/coachGroups.ts).
+app.use("/api/coach/groups", express.json({ limit: "1mb" }));
+// Importing a client list or workout spreadsheet (CSV, shared/coachImport.ts).
+app.use("/api/coach/trainer/import", express.json({ limit: "3mb" }));
 // Apple Health apps can send a couple of months of readings in one post.
 app.use("/api/arise-todo/apple-health/sync", express.json({ limit: "5mb" }));
 // An upload that big is only read for someone who is signed in: the sign-in is checked first, so a stranger can't make

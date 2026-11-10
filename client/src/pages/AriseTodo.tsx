@@ -1,4 +1,6 @@
-import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
+import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode, type PointerEvent as RPointerEvent, type MouseEvent as RMouseEvent } from "react";
+import AllAccessPopup from "@/components/AllAccessPopup";
+import ShareNews from "@/components/family-hub/ShareNews";
 import { Redirect, useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { useTodoCloud } from "@/lib/useTodoCloud";
@@ -35,6 +37,7 @@ import { JOIN_PENDING_KEY, linksApi } from "@/lib/profileLinks";
 import StickyBoard, { ADD_STICKY_EVENT } from "@/components/family-hub/StickyBoard";
 import KitPlugin from "@/components/plugin-kit/KitPlugin";
 import { LIFE_VIEWS } from "@/components/family-hub/lifeApps";
+import { useSharedApp } from "@/components/family-hub/SharedApp";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
 import { KIT_DEFS, isKitLifeId, kitDef, type KitLifeId } from "@shared/pluginKit";
 import Allowance from "@/components/family-hub/Allowance";
@@ -169,7 +172,7 @@ import { inDuoPane, useAriseDuo, type DuoChoice } from "@/lib/useAriseDuo";
 import "@/components/teacher-hub/darkPalette.css";
 import AccountPrivacy from "@/components/AccountPrivacy";
 import { isNativeApp } from "@/lib/nativeApp";
-import { nativeTasksAvailable, openNativeTasks, takeNativeTaskActions, tasksPayload, updateNativeTasks } from "@/lib/nativeTasks";
+import { closeNativeTasks, nativeTasksAvailable, nativeTasksPluginThere, openNativeTasks, takeNativeTaskActions, tasksPayload, updateNativeTasks } from "@/lib/nativeTasks";
 import { isSampleMode } from "@/lib/sampleMode";
 import { REMINDERS_CHANGED, installReminderTaps, scheduleNativeReminders } from "@/lib/nativeReminders";
 
@@ -386,6 +389,9 @@ export default function AriseTodo() {
     try { const saved = localStorage.getItem(SECTION_KEY) as FamilySection | null; return saved && (FAMILY_SECTIONS as readonly string[]).includes(saved) ? saved : first; } catch { return first; }
   });
   const [draggingSection, setDraggingSection] = useState<FamilySection | null>(null);
+  // Holding an app in the menu on a touch screen asks to remove it (removeFromMenu).
+  const holdTimer = useRef<number | null>(null);
+  const held = useRef(false);
   // The Arise App Store. It opens straight away when the person switched here from WorkHub's store.
   const [store, setStore] = useState(() => { try { const on = sessionStorage.getItem(OPEN_STORE_KEY) === "1"; sessionStorage.removeItem(OPEN_STORE_KEY); return on; } catch { return false; } });
   // Going back to the old parent dashboard address while LifeHub is open lands on the Reader tab.
@@ -404,6 +410,7 @@ export default function AriseTodo() {
       const m = /[?&]plan=([\w-]{1,40})/.exec(window.location.hash);
       if (!m) return;
       try { sessionStorage.setItem(PLAN_FOCUS_KEY, m[1]); } catch { /* it still opens AI Reminders */ }
+      dismissOverlays();
       setSection("lifeplan");
       window.dispatchEvent(new Event("arise-lifeplan-focus"));
       try { window.history.replaceState(null, "", window.location.hash.replace(/([?&])plan=[\w-]{1,40}&?/, "$1").replace(/[?&]$/, "")); } catch { /* fine */ }
@@ -428,7 +435,7 @@ export default function AriseTodo() {
       const go = params.get("go");
       if (!go) return;
       if ((FAMILY_SECTIONS as readonly string[]).includes(go)) {
-        closeApps();
+        dismissOverlays();
         // An Accountability invite or nudge: the app is turned on for them if it wasn't yet.
         if (go === "accountability" || go === "linked") setFamily((f) => (f.sections[go] ? f : { ...f, sections: { ...f.sections, [go]: true } }));
         setSection(go as FamilySection);
@@ -731,7 +738,8 @@ export default function AriseTodo() {
   // Getting started was replaced by the first-run walkthrough (components/AppWalkthrough.tsx).
   const sections = sectionOrderFor(family).filter(id => id !== "start" && !parentOf(id) && isOn(id, family) && (id !== "reader" || user?.role === "parent"));
   const installedSections = sections.filter((id) => ADD_ON_SECTIONS.includes(id));
-  const builtInSections = sections.filter((id) => !ADD_ON_SECTIONS.includes(id));
+  // Sharing ("linked") opens from Settings (the You sheet and Family & settings), not from the app list.
+  const builtInSections = sections.filter((id) => !ADD_ON_SECTIONS.includes(id) && id !== "linked");
   // Dragging (or, on a phone, the arrows) a menu item reorders it right where it sits.
   // Home, Reader, Tasks, Notifications and Family & settings stay put.
   const moveSectionBy = (id: FamilySection, dir: -1 | 1) => setFamily((f) => {
@@ -855,6 +863,30 @@ export default function AriseTodo() {
     return () => { if (timer) clearInterval(timer); };
   }, [shown]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (nativeTasksOpen.current) updateNativeTasks(tasksPayload(data)); }, [data.tasks, data.lists]);
+  // With the native screen off: one opened by older web code stays over the app after a live update reloads the web
+  // code, and nothing reads its taps any more (ticks and new to-dos went nowhere). Whatever was done there is applied
+  // here, then it's closed, when the hub opens and each time the app comes back to the front.
+  useEffect(() => {
+    if (!user || !sync.loaded || sync.recovery || nativeTasksAvailable() || !nativeTasksPluginThere()) return;
+    let busy = false;
+    const sweep = async () => {
+      if (busy || nativeTasksOpen.current) return;
+      busy = true;
+      try {
+        const actions = await takeNativeTaskActions();
+        for (const a of actions) {
+          if (a.type === "toggle") { const t = latest.current.data.tasks.find((x) => x.id === a.id); if (t) latest.current.toggleDone(t); }
+          else if (a.type === "delete") setData((p) => ({ ...p, tasks: p.tasks.filter((x) => x.id !== a.id) }));
+          else if (a.type === "add") setData((p) => ({ ...p, tasks: [...p.tasks, { id: makeId(), title: a.title, notes: "", listId: a.listId || p.lists[0]?.id || "", assignee: "", due: a.due, time: "", priority: "normal", repeat: "none", done: false, createdAt: new Date().toISOString() } as Task] }));
+        }
+        await closeNativeTasks();
+      } finally { busy = false; }
+    };
+    void sweep();
+    const back = () => { if (document.visibilityState === "visible") void sweep(); };
+    document.addEventListener("visibilitychange", back);
+    return () => document.removeEventListener("visibilitychange", back);
+  }, [user, sync.loaded, sync.recovery]); // eslint-disable-line react-hooks/exhaustive-deps
   // Built when search opens (it uses the menu, defined further down), so it never runs before that exists.
   const buildSearchEntries = (): HubSearchEntry[] => {
     if (!searching) return [];
@@ -928,6 +960,13 @@ export default function AriseTodo() {
    *  one more app can never leave a stale one showing — which is what made tapping Home while Drop
    *  was open look like a frozen screen. */
   const closeApps = () => { setNotesAppOpenState(null); setSheetsAppOpenState(null); setDriveOpenState(false); setDropOpenState(false); setKitOpenState(null); };
+  /** A tapped notification must land on its screen, not behind whatever was open: full-page apps, the task editor (it's
+   *  kept for 12 hours and reopens by itself when the app starts), the Plugin Gallery, search, Customize and the menus. */
+  const dismissOverlays = () => {
+    closeApps();
+    reopened.current = true; setOpenTaskId(null); setEditing(null);
+    setStore(false); setCustomizing(false); setSearching(false); setAddMenu(false); setYouOpen(false); setLockSettings(false);
+  };
   // Tile theme: anything open on top of the start screen (a section, an app, the store) is "away" from Start.
   // The Start button, the phone's back button and the edge swipe all return to Home.
   const awayFromStart = tileMode && (shown !== "home" || !!notesAppOpen || !!sheetsAppOpen || driveOpen || dropOpen || !!kitOpen || store);
@@ -989,6 +1028,10 @@ export default function AriseTodo() {
   const makeId = uid;
   const calendarTasks = data.tasks.map(task => ({ id: task.id, title: task.title, due: task.due, time: task.time, assignee: task.assignee, done: task.done }));
   const common = { family, setFamily, today: currentDay, makeId, say: setMessage };
+  // Shared apps (components/family-hub/SharedApp.tsx): a Share button on each app, and when someone shares
+  // this app with you, their copy (to use together, or look at) in place of yours if you choose it.
+  const sharedApp = useSharedApp(shown, common);
+  const appProps = sharedApp.props ?? common;
   // Widgets (Home Screen and Lock Screen): agenda, to-dos, bills, goals, notes, countdowns, email and weather.
   const weatherFeed = useLifeFeed<Forecast>(family.weather.place ? `/api/lifehub/weather?place=${encodeURIComponent(family.weather.place)}&unit=${family.weather.unit}` : null, 0);
   // Worked out once typing or tapping pauses (not on every keystroke), so the page never waits on it.
@@ -1043,11 +1086,11 @@ export default function AriseTodo() {
   const familyContent: ReactNode = shown === "home" ? <FamilyHome {...common} tasks={calendarTasks} go={setSection} name={(user?.displayName || "").split(" ")[0]} onToggleTask={id => { const task = data.tasks.find(row => row.id === id); if (task) toggleDone(task); }} openNotesApp={setNotesAppOpen} appTiles={phoneItems.filter((i) => i.id !== "home").map((i) => ({ id: `app-${i.id}`, label: i.label, icon: i.icon, color: i.color, badge: i.badge, onClick: i.onClick }))} />
     : false && shown === "start" ? <GettingStarted hub="life" startRole={startingRole(user, "life")} canOpen={guideCanOpen} onOpen={guideOpen}
         onRemove={() => { setFamily((f) => ({ ...f, sections: { ...f.sections, start: false } })); setSection("home"); setMessage("Getting started removed. Add it back any time from the Plugin Gallery."); }} />
-    : shown === "calendar" ? <FamilyCalendar {...common} tasks={calendarTasks} onOpenTasks={() => { setSection("tasks"); setView("today"); }} />
+    : shown === "calendar" ? <FamilyCalendar {...appProps} tasks={calendarTasks} onOpenTasks={() => { setSection("tasks"); setView("today"); }} />
     : shown === "reader" ? <Suspense fallback={<div className="grid grid-cols-1 min-h-[40vh] place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}><Reader say={setMessage} night={night} /></Suspense>
     : shown === "lifeplan" ? <LifePlanApp {...common} go={setSection} openStore={() => setStore(true)} />
     : shown === "browser" ? <Browser {...common} onAddTask={(title, url) => setEditing({ ...emptyTask(data.lists[0].id), title: title.slice(0, 200), notes: url })} />
-    : LIFE_VIEWS[shown] ? LIFE_VIEWS[shown]!(common)
+    : LIFE_VIEWS[shown] ? LIFE_VIEWS[shown]!(appProps)
     : isKitLifeId(shown) && kitDef(shown) ? <KitPlugin key={shown} def={kitDef(shown)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
     : null;
 
@@ -1082,6 +1125,23 @@ export default function AriseTodo() {
       })}
     </div>
   </div>;
+  /** Removes an app from the menu right where it is (no trip to the Plugin Gallery). Its saved data stays; adding it
+   *  back from the Plugin Gallery brings everything back. */
+  const removeFromMenu = (id: FamilySection) => {
+    const label = SECTION_INFO[id].label;
+    if (!window.confirm(`Remove ${label} from your menu?\n\nEverything saved in it stays. Add it back any time from the Plugin Gallery.`)) return;
+    setFamily((f) => ({ ...f, sections: { ...f.sections, [id]: false } }));
+    if (shown === id) goSection("home");
+    setMessage(`${label} removed. Add it back any time from the Plugin Gallery.`);
+  };
+  /** Holding an app in the menu (touch screens have no hover): asks to remove it. */
+  const holdToRemove = (id: FamilySection) => ({
+    onPointerDown: (e: RPointerEvent) => { if (e.pointerType === "mouse") return; held.current = false; holdTimer.current = window.setTimeout(() => { held.current = true; removeFromMenu(id); }, 650); },
+    onPointerUp: () => { if (holdTimer.current) window.clearTimeout(holdTimer.current); },
+    onPointerLeave: () => { if (holdTimer.current) window.clearTimeout(holdTimer.current); },
+    onPointerCancel: () => { if (holdTimer.current) window.clearTimeout(holdTimer.current); },
+    onContextMenu: (e: RMouseEvent) => { e.preventDefault(); if (!held.current) removeFromMenu(id); },
+  });
   /** One sidebar renderer for built-in navigation and installed App Store sections.
    *  Store apps stay out of the built-in list, even if a saved folder previously mixed them. */
   const renderSectionItems = (ids: FamilySection[], useFolders: boolean) => <>
@@ -1110,13 +1170,20 @@ export default function AriseTodo() {
                 className={`group/navitem flex shrink-0 items-stretch gap-0.5 rounded-xl transition ${dsk === "top" ? "" : "lg:w-full"} ${nested && dsk !== "top" && dsk !== "compact" ? "lg:pl-4" : ""} ${draggingSection === id ? "opacity-40" : ""}`}
               >
                 <button
-                  onClick={() => { closeApps(); goSection(id); }}
+                  onClick={() => { if (held.current) { held.current = false; return; } closeApps(); goSection(id); }}
+                  {...(movable ? holdToRemove(id) : {})}
                   aria-current={leadOf(shown, sections) === id ? "page" : undefined}
                   data-testid={`life-section-${id}`}
                   className={`flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm ${dsk === "top" ? "" : "lg:w-full"} ${dsk === "compact" ? "lg:justify-center lg:px-0" : ""} ${movable ? "cursor-grab active:cursor-grabbing" : ""} ${shown === id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}
                 >
                   <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className={`whitespace-nowrap ${dsk === "compact" ? "lg:sr-only" : ""}`}>{groupLabel(id, sections, SECTION_INFO[id].label)}</span>{badge(id) > 0 && <span className={`ml-auto rounded-lg px-1.5 text-xs font-semibold ${shown === id ? "text-white/70" : "opacity-65"}`}>{badge(id)}</span>}
                 </button>
+                {movable && dsk !== "compact" && (
+                  <button type="button" onClick={() => removeFromMenu(id)} aria-label={`Remove ${SECTION_INFO[id].label} from the menu`} title="Remove from the menu"
+                    className="hidden shrink-0 items-center justify-center self-center rounded-lg px-1.5 py-1 text-slate-400 opacity-0 transition hover:bg-rose-50 hover:text-rose-600 group-hover/navitem:opacity-100 focus:opacity-100 lg:flex" data-testid={`life-remove-${id}`}>
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
                 {movable && (
                   <span className={`hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 ${dsk === "left" || dsk === "right" ? "lg:flex" : ""}`}>
                     <button type="button" onClick={() => moveSectionBy(id, -1)} disabled={posInToggleable <= 0} aria-label={`Move ${SECTION_INFO[id].label} up`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronUp className="h-3 w-3" /></button>
@@ -1136,7 +1203,10 @@ export default function AriseTodo() {
     notificationSettings: () => { closeApps(); goSection("notifications"); },
     customize: () => setCustomizing(true), night, toggleNight, lock: () => setLockSettings(true),
     gallery: () => setStore(true), privacy: () => setPrivacy(true), signOut: () => void signOut(),
-    extra: [{ id: "family", label: "Family & settings", detail: "People, linked children and sections", icon: <Users />, onClick: () => { closeApps(); goSection("family"); } }],
+    extra: [
+      { id: "sharing", label: "Sharing", detail: "Everyone you share with, and what", icon: <Users />, onClick: () => { closeApps(); goSection("linked"); } },
+      { id: "family", label: "Family & settings", detail: "People, linked children and sections", icon: <Users />, onClick: () => { closeApps(); goSection("family"); } },
+    ],
   });
   const inOtherApp = !!notesAppOpen || !!sheetsAppOpen || driveOpen || dropOpen || !!kitOpen;
   const osCore = osOn && !inOtherApp && (["home", "tasks", "calendar", "notes"] as FamilySection[]).includes(shown);
@@ -1165,6 +1235,8 @@ export default function AriseTodo() {
     {!setupOpen && <AppWalkthrough userId={user.id} hub="life" arise={user.role === "teacher" || user.role === "parent"}
       onGallery={() => setStore(true)} onCustomize={(t) => { setCustomizeTab(t); setCustomizing(true); }} onNotificationSettings={() => { closeApps(); goSection("notifications"); }}
       onConnectCalendar={async () => { const list = await readIphoneEvents(); setFamily((f) => withPhoneEvents(f, list, makeId)); return Math.min(list.length, 1000); }} />}
+    {/* After the first-run walkthrough: the All Access pop-up, once (iPhone app only). */}
+    <AllAccessPopup userId={user.id} token={token} doneKey={`arise-walkthrough-v1:${user.id}`} intro="To Duo is free with 3 plugins from the Plugin Gallery. Arise All Access unlocks every plugin and the AI, plus the extras in Notes, Fit and Pod+." />
     {store && <PluginStore
       hub="life"
       initialOpen={storeOpenApp ?? undefined}
@@ -1481,7 +1553,7 @@ export default function AriseTodo() {
             </div>
             <KitPlugin key={kitOpen} def={kitDef(kitOpen)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
           </div>}
-          {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{appGroupStrip}{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
+          {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{appGroupStrip}{shown !== "home" && shown !== "linked" && shown !== "family" && sharedApp.bar}{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
           {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown === "tasks" && <>
             <Suspense fallback={<div className="grid min-h-[40vh] grid-cols-1 place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}>
               <LifeTasksScreen data={data} setData={setData} makeId={makeId} say={setMessage} view={view} setView={setView} list={selectedList} setList={setSelectedList} />
@@ -1529,5 +1601,6 @@ export default function AriseTodo() {
         </form>
       </div>
     </div>}
+  <ShareNews token={token} />
   </div></PrivacyLockProvider>;
 }

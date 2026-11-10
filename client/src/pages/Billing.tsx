@@ -202,7 +202,7 @@ export default function Billing() {
         {freeYear && plan && (
           <div className="bl-card">
             <h2>When your free year ends</h2>
-            <p>After {day(plan.endsAt)}, Premium is {usd(PLANS.teacher.monthlyCents)} a month for each {PLANS.teacher.studentsPerBlock} students, or {usd(PLANS.school.yearlyCents)} a year for a whole school of up to {count(PLANS.school.studentCap)} students. You'll be able to pay on this page when the time comes.</p>
+            <p>After {day(plan.endsAt)}, Premium is {usd(PLANS.teacher.monthlyCents)} a month for each {PLANS.teacher.studentsPerBlock} students, or {usd(PLANS.school.yearlyCents)} a school year for a whole school of up to {count(PLANS.school.studentCap)} students. You'll be able to pay on this page when the time comes.</p>
           </div>
         )}
 
@@ -233,7 +233,7 @@ export default function Billing() {
               </div>
               <div className="bl-card">
                 <h3>Whole school</h3>
-                <p className="bl-price"><b>{usd(PLANS.school.yearlyCents)}</b> a year</p>
+                <p className="bl-price"><b>{usd(PLANS.school.yearlyCents)}</b> a school year</p>
                 {plan.school
                   ? <p>Covers {plan.school.name}: up to {count(PLANS.school.studentCap)} students, with a separate account for every teacher. The school has {count(plan.school.students)} students on A.R.I.S.E. now.</p>
                   : <p>Your account isn't connected to a school yet, so a school plan can't be bought from it. Ask the site admin to connect you to your school.</p>}
@@ -244,7 +244,7 @@ export default function Billing() {
                   <li><span className="bl-check"><Check /></span>One yearly bill instead of 12</li>
                 </ul>
                 <button type="button" className="pr-pill pr-pill-ghost pr-wide" disabled={!!busy || !plan.payment || !plan.school} onClick={() => go("school", "/api/billing/checkout", { kind: "school", returnTo: siteAddress() })} data-testid="billing-buy-school">
-                  {busy === "school" ? "Opening the payment page…" : `Pay ${usd(PLANS.school.yearlyCents)} a year`}
+                  {busy === "school" ? "Opening the payment page…" : `Pay ${usd(PLANS.school.yearlyCents)} for the school year`}
                 </button>
                 <small>Runs a full 12 months, so summer reading clubs and competitions are covered.</small>
               </div>

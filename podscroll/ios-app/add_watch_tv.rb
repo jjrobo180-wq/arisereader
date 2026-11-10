@@ -112,8 +112,7 @@ watch = add.call("PodPlusWatch", :watchos, "10.0",
   common.call("Pod+").merge(
     "WKApplication" => true,
     "WKCompanionAppBundleIdentifier" => host,
-    # watchOS reads WKBackgroundModes: without "audio" a podcast stops when the wrist drops.
-    "WKBackgroundModes" => ["audio"],
+    # Background audio on watchOS is UIBackgroundModes "audio" (App Store Connect rejects "audio" in WKBackgroundModes).
     "UIBackgroundModes" => ["audio"],
   ),
   {

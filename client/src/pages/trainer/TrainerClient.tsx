@@ -1,24 +1,27 @@
 // One client in Arise Trainer. Overview comes straight from their Arise Fit (what they chose to share);
 // everything else is the trainer's plan for them, saved as it's changed.
 import { useMemo, useState } from "react";
-import { CalendarDays, Check, ChevronLeft, ChevronRight, ClipboardList, Copy, Dumbbell, Flag, Footprints, Lock, Pencil, Plus, Timer, Trash2, Trophy } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, ClipboardList, Copy, Dumbbell, Flag, Footprints, Lock, Pencil, Plus, Sparkles, Timer, Trash2, Trophy } from "lucide-react";
+import { AiBuilderSheet } from "./TrainerTemplates";
 import { MODES, MODE_LABEL, expandProgram, type Appointment, type Assigned, type Coaching, type Habit, type Library, type Mode } from "@shared/coach";
 import { fromKg, records } from "@shared/fit";
 import { Chat } from "../coach/CoachUi";
 import { coachApi, dayKeyOf, post, put, shortDate, usePoll, when, type ClientDetail } from "../coach/coachApi";
 import { Btn, C, Card, Chips, Columns, Field, Ring, Sheet, Spark, Title, display, fmtDur, fmtNum, inputCls, inputStyle, stagger } from "../fit/fitUi";
 import { DEFAULT_FORM, FormBuilder, WorkoutBuilder, newId } from "./TrainerBuilder";
+import { PlanTools } from "./TrainerCopilot";
+import { TrainerFormChecks } from "../coach/FormCheck";
 
-type Tab = "overview" | "calendar" | "habits" | "nutrition" | "checkins" | "chat" | "sessions" | "photos" | "notes";
+type Tab = "overview" | "calendar" | "habits" | "nutrition" | "checkins" | "chat" | "form" | "sessions" | "photos" | "notes";
 const TABS: { id: Tab; label: string }[] = [
-  { id: "overview", label: "Overview" }, { id: "calendar", label: "Calendar" }, { id: "chat", label: "Chat" }, { id: "habits", label: "Habits & goals" }, { id: "nutrition", label: "Nutrition" },
+  { id: "overview", label: "Overview" }, { id: "calendar", label: "Calendar" }, { id: "chat", label: "Chat" }, { id: "form", label: "Form" }, { id: "habits", label: "Habits & goals" }, { id: "nutrition", label: "Nutrition" },
   { id: "checkins", label: "Check-ins" }, { id: "sessions", label: "Sessions" }, { id: "photos", label: "Photos" }, { id: "notes", label: "Notes" },
 ];
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const addDays = (d: string, n: number) => { const x = new Date(`${d}T12:00:00`); x.setDate(x.getDate() + n); return dayKeyOf(x); };
 const weekStart = (d: string) => { const x = new Date(`${d}T12:00:00`); x.setDate(x.getDate() - x.getDay()); return dayKeyOf(x); };
 
-export function ClientSheet({ token, me, linkId, name, lib, saveLib, onClose, quick }: { token: string | null; me: number; linkId: string; name: string; lib: Library; saveLib: (l: Library) => void; onClose: () => void; quick: string[] }) {
+export function ClientSheet({ token, me, linkId, name, lib, saveLib, onClose, quick, say }: { token: string | null; me: number; linkId: string; name: string; lib: Library; saveLib: (l: Library) => void; onClose: () => void; quick: string[]; say: (m: string) => void }) {
   const { data, err, setData } = usePoll(() => coachApi<ClientDetail>(token, `/links/${linkId}/client`), [linkId, token], 30_000);
   const [tab, setTab] = useState<Tab>("overview");
   const [saving, setSaving] = useState("");
@@ -34,8 +37,10 @@ export function ClientSheet({ token, me, linkId, name, lib, saveLib, onClose, qu
     <Chips label="Section" value={tab} onChange={setTab} items={TABS} />
     <div key={tab} className="fit-in mt-4">
       {tab === "overview" && <Overview d={data} />}
-      {tab === "calendar" && <Calendar c={data.coaching} lib={lib} save={save} saveLib={saveLib} />}
+      {tab === "calendar" && data.status === "active" && <PlanTools token={token} linkId={linkId} name={name} say={say} onApplied={(assigned) => setData((d) => (d ? { ...d, coaching: { ...d.coaching, assigned } } : d))} />}
+      {tab === "calendar" && <Calendar c={data.coaching} lib={lib} save={save} saveLib={saveLib} token={token} say={say} name={name} />}
       {tab === "chat" && <Chat token={token} linkId={linkId} me={me} other={name} quick={quick} disabled={data.status !== "active"} />}
+      {tab === "form" && <TrainerFormChecks token={token} linkId={linkId} name={name} say={say} />}
       {tab === "habits" && <Habits c={data.coaching} save={save} side={data.clientSide} />}
       {tab === "nutrition" && <Nutrition d={data} save={save} />}
       {tab === "checkins" && <Checkins d={data} lib={lib} save={save} saveLib={saveLib} />}
@@ -90,7 +95,8 @@ function Overview({ d }: { d: ClientDetail }) {
   </div>;
 }
 
-function Calendar({ c, lib, save, saveLib }: { c: Coaching; lib: Library; save: (c: Coaching) => void; saveLib: (l: Library) => void }) {
+function Calendar({ c, lib, save, saveLib, token, say, name }: { c: Coaching; lib: Library; save: (c: Coaching) => void; saveLib: (l: Library) => void; token: string | null; say: (m: string) => void; name: string }) {
+  const [aiFor, setAiFor] = useState<string | null>(null);
   const [start, setStart] = useState(weekStart(dayKeyOf()));
   const [adding, setAdding] = useState<string | null>(null);
   const [editing, setEditing] = useState<Assigned | null>(null);
@@ -112,7 +118,8 @@ function Calendar({ c, lib, save, saveLib }: { c: Coaching; lib: Library; save: 
           <button type="button" aria-label={`Add a workout on ${day}`} onClick={() => setAdding(day)} className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: C.lime, color: "var(--fit-on-accent)" }} data-testid={`tr-add-${day}`}><Plus className="h-5 w-5" /></button></div></Card>; })}</div>
     <div className="mt-3 grid grid-cols-2 gap-2"><Btn kind="soft" className="!text-[15px]" onClick={copyWeek}><Copy className="h-4 w-4" />Copy to next week</Btn><Btn kind="soft" className="!text-[15px]" onClick={() => setProgram(true)} testId="tr-assign-program"><CalendarDays className="h-4 w-4" />Assign a program</Btn></div>
     {adding && <Sheet title={`Add to ${shortDate(adding)}`} onClose={() => setAdding(null)}>
-      <Btn className="w-full" onClick={() => { setBuilding(adding); setAdding(null); }} testId="tr-new-workout"><Plus className="h-5 w-5" />Build a new workout</Btn>
+      <div className="grid grid-cols-2 gap-2"><Btn kind="soft" className="!text-[15px]" onClick={() => { setBuilding(adding); setAdding(null); }} testId="tr-new-workout"><Plus className="h-5 w-5" />Build one</Btn>
+        <Btn className="!text-[15px]" onClick={() => { setAiFor(adding); setAdding(null); }} testId="tr-ai-workout"><Sparkles className="h-5 w-5" />With AI</Btn></div>
       <Title>From your library</Title>
       {lib.workouts.length ? <div className="space-y-2">{lib.workouts.map((w) => <Card key={w.id} onClick={() => { put1({ ...w, id: newId(), date: adding }); setAdding(null); }} className="!p-3"><p className="font-semibold">{w.name}</p><p className="truncate text-[12px]" style={{ color: C.dim }}>{w.items.map((i) => i.name).join(", ")}</p></Card>)}</div> : <p className="px-1 text-[14px]" style={{ color: C.dim }}>Workouts you save to your library show up here.</p>}
     </Sheet>}
@@ -123,6 +130,7 @@ function Calendar({ c, lib, save, saveLib }: { c: Coaching; lib: Library; save: 
         <input type="date" value={editing.date} onChange={(e) => e.target.value && setEditing({ ...editing, date: e.target.value })} className={inputCls} style={inputStyle} aria-label="Date" />
         <Btn kind="danger" onClick={() => { save({ ...c, assigned: c.assigned.filter((x) => x.id !== editing.id) }); setEditing(null); }}><Trash2 className="h-4 w-4" />Remove</Btn></div>}
       onSave={(w) => { put1({ ...editing, ...w, id: editing.id, date: editing.date }); setEditing(null); }} />}
+    {aiFor && <AiBuilderSheet token={token} lib={lib} saveLib={saveLib} say={say} only="workout" clientName={name} onClose={() => setAiFor(null)} onWorkout={(w) => put1({ ...w, id: newId(), date: aiFor })} />}
     {program && <AssignProgram lib={lib} onClose={() => setProgram(false)} onAssign={(list, phase) => { save({ ...c, phase, assigned: [...c.assigned, ...list] }); setProgram(false); }} />}
   </div>;
 }

@@ -7,8 +7,11 @@ on:
     branches: [master]
     paths:
       - 'client/src/components/office/**'
+      - 'shared/office/design*.ts'
       - 'client/src/components/family-hub/LinkedProfiles.tsx'
       - 'client/src/components/family-hub/ui.tsx'
+      - 'client/src/components/family-hub/ShareLink.tsx'
+      - 'client/src/components/family-hub/Accountability.tsx'
       - 'script/officePreview.tsx'
       - 'script/officeShots.mjs'
       - '.github/workflows/office-shots.yml'
@@ -18,6 +21,8 @@ jobs:
   shots:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      FORCE_COLOR: "0"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -37,6 +42,7 @@ jobs:
           npm install --no-save --no-audit --no-fund playwright@1.56.1
           npx playwright install --with-deps chromium
       - name: Take the screenshots
+        timeout-minutes: 8
         run: node script/officeShots.mjs
       - name: Save to the office-shots branch
         if: always()

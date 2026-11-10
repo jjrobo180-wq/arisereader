@@ -64,6 +64,11 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         BELOW_HOOK
+        // No element full screen in the app's web page: WebKit would move the page into a window of its own,
+        // which the app's view controllers refuse (NSException, the app closes). The page fills the screen anyway.
+        for delay in [0.0, 0.4, 1.5, 4.0] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in NoElementFullscreen.apply(in: self?.window) }
+        }
         // Opened from a link while closed: hand it on once the app is up.
         if let url = connectionOptions.urlContexts.first?.url {
             DispatchQueue.main.async { _ = ApplicationDelegateProxy.shared.application(UIApplication.shared, open: url, options: [:]) }
@@ -72,6 +77,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             DispatchQueue.main.async { _ = ApplicationDelegateProxy.shared.application(UIApplication.shared, continue: activity, restorationHandler: { _ in }) }
         }
     }
+
+    func sceneDidBecomeActive(_ scene: UIScene) { NoElementFullscreen.apply(in: window) }
 
     func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
         for context in URLContexts {
@@ -84,6 +91,24 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 }
 """
+    src += """
+
+/// Turns off WebKit's element full screen on the app's web page (games and videos asking for full screen
+/// crashed the app: WKFullScreenWindowController moves the page into its own window).
+enum NoElementFullscreen {
+    static func apply(in window: UIWindow?) {
+        guard let root = window?.rootViewController?.view, let web = find(root) else { return }
+        if #available(iOS 15.4, *) { web.configuration.preferences.isElementFullscreenEnabled = false }
+    }
+    private static func find(_ v: UIView) -> WKWebView? {
+        if let w = v as? WKWebView { return w }
+        for s in v.subviews { if let w = find(s) { return w } }
+        return nil
+    }
+}
+"""
+    if "import WebKit" not in src:
+        src = src.replace("import UIKit\n", "import UIKit\nimport WebKit\n", 1) if "import UIKit\n" in src else "import WebKit\n" + src
     if BELOW:
         src = src.replace("        BELOW_HOOK\n", """        // The page starts below the status bar (its sticky headers stay in view).
         DispatchQueue.main.async { [weak self] in

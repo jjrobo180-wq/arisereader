@@ -21,7 +21,8 @@
     "@capacitor/push-notifications": "^8.0.0",
     "@ebarooni/capacitor-calendar": "^8.2.0",
     "arise-on-device": "file:./plugins/arise-on-device",
-    "arise-watch": "file:../../native/arise-watch"
+    "arise-watch": "file:../../native/arise-watch",
+    "arise-store": "file:../../native/arise-store"
   },
   "devDependencies": {
     "@capacitor/cli": "8.0.0"

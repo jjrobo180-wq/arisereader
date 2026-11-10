@@ -26,6 +26,8 @@ import NoProctorReview from "@/components/NoProctorReview";
 import ComprehensionReview from "@/components/ComprehensionReview";
 import ArchivedProfilesCard from "@/components/ArchivedProfilesCard";
 import AdminPlans from "@/components/AdminPlans";
+import AdminDeleteAccounts from "@/components/AdminDeleteAccounts";
+import AdminScholarships from "@/components/AdminScholarships";
 import PlayTimeManager from "@/components/PlayTimeManager";
 import StudentActivity from "@/components/StudentActivity";
 import AdminInbox from "@/components/admin/AdminInbox";
@@ -3481,6 +3483,7 @@ Generate exactly 10 questions.`;
       {peopleTab === "archived" && (
         <ArchivedProfilesCard refreshKey={archiveRefresh} onRestored={() => { void fetchStudents(); void fetchTeachers(); void fetchAllParents(); }} />
       )}
+      <AdminDeleteAccounts />
     </div>
   );
 
@@ -3824,6 +3827,7 @@ Generate exactly 10 questions.`;
         )}
       </AdminSection>
       <AdminPlans />
+      <AdminScholarships />
     </div>
   );
 

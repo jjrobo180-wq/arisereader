@@ -6,11 +6,11 @@ import { createRoot } from "react-dom/client";
 import { AuthProvider } from "@/context/AuthContext";
 import OfficeApp from "@/components/office/OfficeApp";
 import { OFFICE_KINDS } from "@/components/office/officeKinds";
-import { LinkSomeoneModal } from "@/components/family-hub/LinkedProfiles";
+import LinkedProfiles, { LinkSomeoneModal } from "@/components/family-hub/LinkedProfiles";
 import { emptyFamily } from "@shared/familyHub";
 
 const q = new URLSearchParams(location.search);
-const kind = (q.get("kind") === "sheet" || q.get("kind") === "slides" ? q.get("kind") : "doc") as keyof typeof OFFICE_KINDS;
+const kind = (["sheet", "slides", "design"].includes(q.get("kind") || "") ? q.get("kind") : "doc") as keyof typeof OFFICE_KINDS;
 const config = OFFICE_KINDS[kind];
 const tpl = config.templates[0];
 const now = new Date().toISOString();
@@ -24,13 +24,27 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   const method = (init?.method || "GET").toUpperCase();
   if (/\/api\/docs\/sample-1$/.test(url)) return method === "GET" ? json({ ...entry, content }) : json({ doc: { ...entry, updatedAt: new Date().toISOString() } });
   if (/\/api\/docs(\?|$)/.test(url)) return json({ docs: [entry] });
+  // The Sharing page (?screen=sharing): someone already in an Accountability space, an invite waiting, a link.
+  if (/\/api\/profile-links(\?|$)/.test(url)) return json({ mine: [{ id: "l1aaaaaa", email: "grandma@example.com", nickname: "Grandma", status: "pending", grants: { "app:potty": "view", "life:calendar": "view" }, viewerName: "", viewerId: null }], withMe: [], myEmail: "me@example.com", requests: [] });
+  if (/\/api\/accountability(\?|$)/.test(url)) return json({ me: 1, spaces: [{ id: "s1", name: "Our family", code: "ABC123", createdBy: 1, members: [{ userId: 1, name: "Jermaine", role: "owner", tz: "" }, { userId: 2, name: "Vanessa", role: "member", tz: "" }] }], tasks: [], checkins: [] });
+  if (/\/api\/arise-todo\/shares/.test(url)) return json({ shares: [{ token: "t1", target: "calendar", label: "Family calendar", url: "https://example.com/s/t1", createdAt: "2026-10-24T12:00:00Z" }], guestVotes: {} });
   return json({});
 };
 try { if (q.get("open") === "1") sessionStorage.setItem(`arise-office-open:${config.kind}`, "sample-1"); else sessionStorage.removeItem(`arise-office-open:${config.kind}`); } catch { /* fine */ }
 
-// ?screen=link: Arise To Duo's "Link someone" screen instead (the same one Accountability's Invite opens).
-if (q.get("screen") === "link") {
+// ?screen=link: Arise To Duo's "Add someone" screen instead; ?screen=sharing: the Sharing page itself.
+if (q.get("screen") === "sharing") {
+  createRoot(document.getElementById("root")!).render(<AuthProvider><div className="min-h-screen bg-slate-50 p-4"><LinkedProfiles family={emptyFamily()} say={() => {}} {...({} as any)} /></div></AuthProvider>);
+} else if (q.get("screen") === "link") {
   createRoot(document.getElementById("root")!).render(<AuthProvider><div className="min-h-screen bg-slate-100" /><LinkSomeoneModal family={emptyFamily()} say={() => {}} onClose={() => {}} title={q.get("title") || "Link someone"} /></AuthProvider>);
+} else if (kind === "design" && q.get("open") !== "1") {
+  // Arise Design's home as Arise Notes shows it (no white sheet), in a light or a dark look (?look=dark).
+  const dark = q.get("look") === "dark";
+  const vars = (dark ? { "--an-bg": "#14121f", "--an-card": "#1d1b2b", "--an-ink": "#f4f3fb", "--an-muted": "#a19fb8", "--an-line": "#2e2b42" } : { "--an-bg": "#f7f6fb", "--an-card": "#ffffff", "--an-ink": "#1c1a2e", "--an-muted": "#6b6880", "--an-line": "#e7e5f0" }) as any;
+  createRoot(document.getElementById("root")!).render(<AuthProvider><div className="min-h-screen" style={{ ...vars, background: "var(--an-bg)", color: "var(--an-ink)" }}>
+    <div className="flex h-14 items-center gap-3 px-4 font-bold" style={{ background: "var(--an-card)", borderBottom: "1px solid var(--an-line)" }}>‹ Arise Design</div>
+    <main className="mx-auto max-w-6xl px-4 pb-28 pt-4"><OfficeApp config={config} /></main>
+  </div></AuthProvider>);
 } else createRoot(document.getElementById("root")!).render(<AuthProvider>
   <div className="flex min-h-screen bg-slate-100">
     <aside className="hidden w-60 shrink-0 bg-[#1e1b4b] p-4 text-sm font-bold text-white/80 md:block">Arise To Duo<br /><br />Tasks<br />Calendar<br />{config.title}</aside>

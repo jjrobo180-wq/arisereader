@@ -103,6 +103,9 @@ jobs:
           fi
           # Sign in with Apple and push notifications on the App ID, and a profile that includes them (same certificate).
           python3 .github/scripts/apple_signing.py com.arisereader.podplus "$RUNNER_TEMP/profile.mobileprovision" APPLE_ID_AUTH PUSH_NOTIFICATIONS APP_GROUPS
+          # CarPlay (granted by Apple Nov 2026, turned on for the App ID in the developer website): a profile with it too.
+          # If it isn't on for the App ID yet, this only warns and the profile above is kept.
+          python3 .github/scripts/apple_signing.py com.arisereader.podplus "$RUNNER_TEMP/profile.mobileprovision" APPLE_ID_AUTH PUSH_NOTIFICATIONS APP_GROUPS CARPLAY_AUDIO
           security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
           if /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.applesignin' "$RUNNER_TEMP/profile.plist" >/dev/null 2>&1; then
             ENT=podscroll/ios-app/ios/App/App/App.entitlements

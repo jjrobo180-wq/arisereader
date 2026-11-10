@@ -4,7 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { addDays, cell, dateOf, hiddenMeals, mondayOf, moveMeal, nWeeks, planStart, K_DISHES, K_SLOTS, PRODUCTS, WEEK, SKIP, addDish, addMeal, amountText, bestBuy, cleanKitchen, clearMeals, countMeals, deleteOwnDish, dayProgress, dropPerson, duplicateCount, emptyKitchen, foodCount, groupOf, normPeople, planDish, planProgress, removeDuplicates, setCells, setKeep, setStock, shoppingLines, stockUp, tips, totals, useUp, type Kitchen } from "../shared/kitchen";
+import { addDays, cell, dateOf, hiddenMeals, mondayOf, moveMeal, nWeeks, planStart, K_DISHES, K_SLOTS, PRODUCTS, WEEK, SKIP, addDish, addMeal, amountText, bestBuy, cleanKitchen, clearMeals, countMeals, deleteOwnDish, dayProgress, dropPerson, duplicateCount, emptyKitchen, foodCount, groupOf, normPeople, planDish, planProgress, removeDuplicates, setCells, setKeep, setStock, shoppingLines, stockUp, tips, totals, useUp, useUpPast, type Kitchen } from "../shared/kitchen";
 import { GROUPS, parseSize } from "../shared/kitchenProducts";
 import { mapKrogerLocation, mapKrogerProduct } from "../server/kroger";
 
@@ -306,4 +306,104 @@ test("calendar and plan length controls exist", () => {
   assert.match(read("client/src/components/family-hub/kitchen/PlanCalendar.tsx"), /onDrop/);
   const ui = read("client/src/components/family-hub/KitchenPlan.tsx");
   assert.match(ui, /Calendar/); assert.match(ui, /PLAN_LENGTHS/); assert.match(ui, /meal-move/);
+});
+
+test("food bought with 'Bought it all' gets used up as days pass, so it goes back on the list", () => {
+  const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]; const week: Record<string, unknown[]> = {};
+  ["bagel", "coffee", "oatmeal", "eggs-toast"].forEach((dish, i) => { for (const d of days) (week[`${d}:breakfast`] ??= []).push({ id: `${dish}-${d}-${i}`, dish, people: [] }); });
+  const k = cleanKitchen({ setup: true, people: [{ id: "a", name: "A", portion: 1 }], week });
+  const sent = (x: Kitchen, today: string) => shoppingLines(useUpPast(x, today)).filter((l) => !l.have && l.packs > 0).map((l) => l.group.id);
+  const mon = "2026-11-09";
+  assert.ok(sent(k, mon).includes("bagels") && sent(k, mon).includes("coffee"), "bagels and coffee are on the list");
+  const bought = stockUp(k, undefined, mon);
+  assert.deepEqual(sent(bought, mon), [], "just bought: nothing to buy");
+  const nextWeek = sent(bought, addDays(mon, 7));
+  assert.ok(nextWeek.includes("bagels"), "a week of bagels was eaten, so bagels are back");
+  // A kitchen saved before this was tracked (stuck with everything "at home") fixes itself.
+  const stuck = cleanKitchen({ ...stockUp(k), usedThrough: undefined });
+  assert.ok(sent(stuck, mon).includes("bagels"));
+  assert.equal(cleanKitchen(JSON.parse(JSON.stringify(bought))).usedThrough, "2026-11-08");
+});
+
+test("never again: every ingredient a plan needs lands on the shopping list, shows on screen, and survives the save", async () => {
+  const { planToList } = await import("../shared/kitchen");
+  const { cleanFamily, emptyFamily } = await import("../shared/familyHub");
+  const { AISLES, aisleOf } = await import("../shared/lifePlugins");
+  // Every built-in dish, all in one plan.
+  const week: Record<string, unknown[]> = {};
+  K_DISHES.forEach((d, i) => { (week[`${WEEK[i % 7]}:${d.slot}`] ??= []).push({ id: `m${i}`, dish: d.id, people: [] }); });
+  const k = cleanKitchen({ setup: true, people: [{ id: "a", name: "A", portion: 1 }], week: Object.fromEntries(Object.entries(week).map(([c, ms]) => [c, ms.slice(0, 8)])) });
+  const lines = shoppingLines(k).filter((l) => !l.have && l.packs > 0);
+  const needed = new Set(Object.values(k.week).flat().flatMap((m) => K_DISHES.find((d) => d.id === m.dish)!.parts.map((p) => p.group)).filter((g) => !groupOf(g)!.staple));
+  for (const g of needed) assert.ok(lines.some((l) => l.group.id === g), `${g} is on the list`);
+  let n = 0;
+  const list = planToList([{ id: "mine", name: "Paper towels", qty: "", aisle: "Bread & bakery", checked: false }], lines, () => String(n++ % 3)); // ids that repeat
+  // Through the same cleaning the save does: nothing dropped, every item has a unique id and a visible aisle.
+  const saved = cleanFamily({ ...emptyFamily(), groceries: list }).groceries;
+  assert.equal(saved.length, lines.length + 1, "the save keeps every item");
+  assert.equal(new Set(saved.map((g) => g.id)).size, saved.length);
+  for (const g of saved) assert.ok(AISLES.includes(aisleOf(g)), `${g.name} shows on screen`);
+  assert.equal(aisleOf({ aisle: "Bread & bakery" }), "Other");
+});
+
+test("your own dishes made by name only are priced like the rest, and anything unknown still goes on the list", async () => {
+  const { planToListAll, plainLines } = await import("../shared/kitchen");
+  const own = [["own-b", "Cinnamon raisin bagel"], ["own-c", "Coffee"], ["own-g", "Gold fish"], ["own-x", "Grandma's casserole"]].map(([id, name]) => ({ id, slot: "breakfast", name, parts: [] }));
+  const k = cleanKitchen({ setup: true, people: [{ id: "a", name: "A", portion: 1 }], own, week: { "mon:breakfast": own.map((d, i) => ({ id: String(i), dish: d.id, people: [] })) } });
+  const lines = shoppingLines(k).filter((l) => !l.have && l.packs > 0);
+  for (const g of ["bagels", "coffee", "goldfish"]) { const l = lines.find((x) => x.group.id === g); assert.ok(l && l.cost > 0, `${g} is listed with a price`); }
+  assert.deepEqual(plainLines(k).map((p) => p.dish.name), ["Grandma's casserole"]);
+  let n = 0; const list = planToListAll([], k, lines, () => String(n++));
+  assert.ok(list.some((g) => g.name === "Grandma's casserole") && list.some((g) => g.name.startsWith("Bagels")));
+});
+
+test("a serving size decides how many bags: 1 oz of chips a day for a week is one 13 oz bag, not one bag a serving", async () => {
+  const { groupOf, servingIn, servingsPer, chosen } = await import("../shared/kitchen");
+  const g = groupOf("tortilla-chips")!;
+  assert.equal(servingIn(g, 28.35, "g"), 1);
+  assert.equal(servingIn(groupOf("teriyaki-sauce")!, 2, "tbsp"), 1);
+  const per = servingIn(g, 1, "oz");
+  const k = cleanKitchen({ setup: true, people: [{ id: "a", name: "A", portion: 1 }], own: [{ id: "own-c", slot: "snack", name: "Tortilla chips", parts: [{ group: "tortilla-chips", per }] }],
+    week: Object.fromEntries(WEEK.map((d, i) => [`${d}:snack`, [{ id: String(i), dish: "own-c", people: [] }]])) });
+  const l = shoppingLines(k).find((x) => x.group.id === "tortilla-chips")!;
+  assert.equal(l.need, 7); assert.equal(l.packs, 1);
+  assert.ok(servingsPer(chosen(k, "tortilla-chips")!, per) >= 7);
+  const src = read("client/src/components/family-hub/kitchen/WeekPlanner.tsx");
+  assert.match(src, /How much is one serving of/);
+});
+
+test("every own item shows like the rest: matched, or 'Is it …?' and a price box; same names merge", async () => {
+  const { plainLines, matchPlain, setPlainPrice, groupGuesses, groupForName } = await import("../shared/kitchen");
+  assert.equal(groupForName("cream cheese topping")?.id, "cream-cheese");
+  assert.equal(groupForName("protein shake")?.id, "protein-shake");
+  const own = [["a", "Grandma casserole"], ["b", "grandma casserole"], ["c", "chicken nuggets"]].map(([id, name]) => ({ id, slot: "dinner", name, parts: [] }));
+  const k = cleanKitchen({ setup: true, people: [{ id: "p", name: "P", portion: 1 }], own, week: { "mon:dinner": own.map((d, i) => ({ id: String(i), dish: d.id, people: [] })) } });
+  const plain = plainLines(k);
+  assert.deepEqual(plain.map((p) => `${p.key}:${p.servings}`), ["chicken nuggets:1", "grandma casserole:2"], "two dishes with one name are one row");
+  assert.ok(groupGuesses("chicken nuggets").length > 0);
+  const priced = cleanKitchen(JSON.parse(JSON.stringify(setPlainPrice(k, "grandma casserole", 12.5))));
+  assert.equal(plainLines(priced).find((p) => p.key === "grandma casserole")!.price, 12.5);
+  assert.ok(totals(priced).groceries >= 12.5, "a typed price counts in the total");
+  const matched = matchPlain(priced, plainLines(priced).find((p) => p.key === "chicken nuggets")!.ids, groupGuesses("chicken nuggets")[0].id);
+  assert.ok(shoppingLines(matched).some((l) => l.group.id === groupGuesses("chicken nuggets")[0].id && l.cost > 0));
+  assert.equal(plainLines(matched).length, 1);
+});
+
+test("copy Vanessa's dinners to Jermaine: he shares her dish, his old dinner is replaced, other meals untouched", async () => {
+  const { copyMeals } = await import("../shared/kitchen");
+  const all = ["v", "j"]; let n = 0; const id = () => `n${n++}`;
+  const week = {
+    "mon:dinner": [{ id: "1", dish: "tacos", people: ["v"] }, { id: "2", dish: "pizza", people: ["j"] }],
+    "tue:dinner": [{ id: "3", dish: "spaghetti", people: ["v"] }],
+    "wed:dinner": [{ id: "4", dish: "burgers", people: ["j"] }],
+    "mon:lunch": [{ id: "5", dish: "salad", people: ["v"] }],
+  };
+  const out = copyMeals(week, "v", "j", ["dinner"], [0], all, id);
+  const eat = (key: string, p: string) => (out[key] ?? []).filter((m) => !m.people.length || m.people.includes(p)).map((m) => m.dish);
+  assert.deepEqual(eat("mon:dinner", "j"), ["tacos"]);
+  assert.deepEqual(eat("mon:dinner", "v"), ["tacos"]);
+  assert.equal(out["mon:dinner"].length, 1, "one shared tacos, pizza gone");
+  assert.deepEqual(eat("tue:dinner", "j"), ["spaghetti"]);
+  assert.deepEqual(eat("wed:dinner", "j"), ["burgers"], "a night she has nothing keeps his");
+  assert.deepEqual(eat("mon:lunch", "j"), ["salad"].filter(() => false), "lunch wasn't copied");
 });

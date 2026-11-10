@@ -106,7 +106,7 @@ export const DEFAULT_SETTINGS: PageSettings = { folders: [], vault: null, prefs:
 
 // ─── Cleaning ────────────────────────────────────────────────────────────────
 const str = (v: unknown, max: number) => (typeof v === "string" ? v : "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").slice(0, max);
-const line = (v: unknown, max: number) => str(v, max * 2).replace(/\s+/g, " ").trim().slice(0, max);
+const line = (v: unknown, max: number) => str(v, max * 2).replace(/\s+$/, (m) => (/^ $/.test(m) ? " " : "")).replace(/(\S)\s+(?=\S)/g, "$1 ").replace(/^\s+/, "").slice(0, max);
 const num = (v: unknown, lo: number, hi: number, d: number) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
 const hex = (v: unknown, d = "") => (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : d);
 const b64 = (v: unknown, max: number) => (typeof v === "string" && v.length <= max && /^[A-Za-z0-9+/]+={0,2}$/.test(v) ? v : "");

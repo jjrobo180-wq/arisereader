@@ -37,7 +37,7 @@ export const DEFAULT_PLACES: PassPlace[] = [
 ];
 export const defaultSettings = (): BehaviorSettings => ({ behaviors: DEFAULT_BEHAVIORS.map((b) => ({ ...b })), places: DEFAULT_PLACES.map((p) => ({ ...p })), maxOut: 2, studentAsk: true, shareDefault: true });
 
-const text = (v: unknown, max: number) => String(v ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+const text = (v: unknown, max: number) => String(v ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+$/, (m) => (/^ $/.test(m) ? " " : "")).replace(/(\S)\s+(?=\S)/g, "$1 ").replace(/^\s+/, "").slice(0, max);
 const int = (v: unknown, min: number, max: number, d: number) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : d; };
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "item";
 

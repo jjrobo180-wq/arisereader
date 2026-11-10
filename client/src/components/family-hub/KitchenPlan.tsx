@@ -2,7 +2,7 @@
 // real products and package sizes, how much is left over, ways to share and save. Saved with the family, so
 // everyone in the family sees the same plan. The math lives in shared/kitchen.ts.
 import { useEffect, useMemo, useState } from "react";
-import { DAY_LABEL, K_SLOTS, PLAN_LENGTHS, PORTIONS, WEEK, addDays, amountText, buyText, cell, clearMeals, countMeals, dateOf, dishName, dishOf, duplicateCount, emptyKitchen, foodCount, hiddenMeals, mondayOf, money, moveMeal, nWeeks, parseCell, peopleIn, planStart, removeDuplicates, removeMeal, SKIP, setStock, stockUp, takeoutOf, tips, totals, useUp, type KDay, type Kitchen, type KMeal, type KSlot } from "@shared/kitchen";
+import { useUpPast, planToList, planToListAll, plainLines, groupGuesses, matchPlain, setPlainPrice, DAY_LABEL, K_SLOTS, PLAN_LENGTHS, PORTIONS, WEEK, addDays, amountText, buyText, cell, clearMeals, countMeals, dateOf, dishName, dishOf, duplicateCount, emptyKitchen, foodCount, hiddenMeals, mondayOf, money, moveMeal, nWeeks, parseCell, peopleIn, planStart, removeDuplicates, removeMeal, SKIP, setStock, stockUp, takeoutOf, tips, totals, useUp, type KDay, type Kitchen, type KMeal, type KSlot } from "@shared/kitchen";
 import { useAuth } from "@/context/AuthContext";
 import { findStores, storePrices, storeStatus, type StoreLocation } from "@/lib/kitchenStore";
 import { guessAisle } from "@shared/lifePlugins";
@@ -20,7 +20,6 @@ import { Card, Segmented, btn, chip, field, ghost, label, link } from "./kitchen
 type View = "week" | "groceries" | "inventory" | "people";
 /** What one bulk change replaced, so it can be put back. */
 type Undo = { text: string; week: Kitchen["week"]; stock: Kitchen["stock"] };
-const PLAN_TAG = "kp-";
 const LAYOUT_KEY = "arise-kitchen-layout";
 /** A small, clearly tappable button on a list row. */
 const rowBtn = "inline-flex min-h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900";
@@ -45,7 +44,9 @@ export default function KitchenPlan({ family, setFamily, makeId, say, today }: S
   const [allTips, setAllTips] = useState(false);
   useEffect(() => { void storeStatus(token).then(setConnected); }, [token]);
 
-  const t = useMemo(() => totals(k), [k]);
+  // Days that went by used up their meals' food, so the list and inventory never think eaten food is still at home.
+  useEffect(() => { const next = useUpPast(k, today); if (next !== k && (next.usedThrough !== k.usedThrough || JSON.stringify(next.stock) !== JSON.stringify(k.stock))) setK(() => next); }, [today, k.usedThrough, k.start, k.weeks]); // eslint-disable-line react-hooks/exhaustive-deps
+  const t = useMemo(() => totals(useUpPast(k, today)), [k, today]);
   const ideas = useMemo(() => tips(k), [k]);
   const lineNeed = (group: string) => t.lines.find((l) => l.group.id === group)?.need ?? 0;
 
@@ -139,10 +140,11 @@ export default function KitchenPlan({ family, setFamily, makeId, say, today }: S
     </>}
 
     {view === "groceries" && <Groceries k={k} setK={setK} t={t} token={token} connected={connected} onProduct={setProduct} say={say} range={fmtRange(start, n)} weeks={n}
-      onBought={() => { change("Added what you bought to your inventory.", (x) => stockUp(x)); say("Your inventory has it now, so the list is clear."); }} send={() => {
+      onBought={() => { change("Added what you bought to your inventory.", (x) => stockUp(useUpPast(x, today), undefined, today)); say("Your inventory has it now, so the list is clear."); }} send={() => {
       const lines = t.lines.filter((l) => !l.have && l.packs > 0);
-      setFamily((f) => ({ ...f, groceries: [...f.groceries.filter((g) => !g.id.startsWith(PLAN_TAG) || g.checked), ...lines.map((l) => ({ id: `${PLAN_TAG}${makeId()}`, name: `${l.group.name}: ${buyText(l.buy)}`.slice(0, 80), qty: `${l.packs} pk`.slice(0, 20), aisle: guessAisle(l.group.name), checked: false, price: l.cost }))] }));
-      say(`${lines.length} items on your shopping list. Total ${money(t.groceries)}.`);
+      const plain = plainLines(k);
+      setFamily((f) => ({ ...f, groceries: planToListAll(f.groceries, k, lines, makeId) }));
+      say(`${lines.length + plain.length} items on your shopping list. Total ${money(t.groceries)}.`);
     }} />}
 
     {view === "inventory" && <Inventory k={k} setK={setK} onShop={() => setView("groceries")} />}
@@ -191,6 +193,33 @@ function MealSheet({ k, setK, at, meal, start, today, onClose, onEdit, onMove }:
   </Modal>;
 }
 
+/** One of your own items no store item matched yet: the same row as the rest, with "Is it …?" store items to pick
+ *  (then it's priced and sized like everything else) or a box to type what it costs. */
+function PlainRow({ p, k, setK }: { p: ReturnType<typeof plainLines>[number]; k: Kitchen; setK: (fn: (k: Kitchen) => Kitchen) => void }) {
+  const guesses = groupGuesses(p.dish.name);
+  const [price, setPrice] = useState(p.price ? p.price.toFixed(2) : "");
+  useEffect(() => { setPrice(p.price ? p.price.toFixed(2) : ""); }, [p.price]);
+  const save = () => setK((x) => setPlainPrice(x, p.key, Number(price) || 0));
+  return <li className="py-3" data-testid={`grocery-plain-${p.key}`}>
+    <div className="flex items-start gap-3">
+      <div className="min-w-0 flex-1">
+        <span className="block text-[15px] font-semibold capitalize text-slate-900">{p.dish.name}</span>
+        <span className="block text-sm text-slate-600">{p.servings} serving{p.servings === 1 ? "" : "s"} planned</span>
+        <span className="block text-xs text-slate-400">{guesses.length ? "Pick the store item it is, so it's priced and sized for you" : "Not in the store list yet: type what it costs"}</span>
+      </div>
+      <label className="flex shrink-0 items-center rounded-lg border border-slate-200 bg-white px-2 text-[15px] font-semibold tabular-nums text-slate-900">
+        <span className="text-slate-400">$</span>
+        <input value={price} onChange={(e) => setPrice(e.target.value.replace(/[^\d.]/g, "").slice(0, 8))} onBlur={save} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+          inputMode="decimal" placeholder="0.00" aria-label={`What ${p.dish.name} costs`} className="h-10 w-16 bg-transparent text-right outline-none" data-testid="plain-price" />
+      </label>
+    </div>
+    {guesses.length > 0 && <div className="mt-2 flex flex-wrap gap-2">
+      <span className="self-center text-xs text-slate-500">Is it</span>
+      {guesses.map((g) => <button key={g.id} type="button" onClick={() => setK((x) => matchPlain(x, p.ids, g.id))} className="min-h-9 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 hover:bg-slate-50" data-testid={`plain-match-${g.id}`}>{g.name}</button>)}
+    </div>}
+  </li>;
+}
+
 function Groceries({ k, setK, t, token, connected, onProduct, send, onBought, say, range, weeks }: { range: string; weeks: number; k: Kitchen; setK: (fn: (k: Kitchen) => Kitchen) => void; t: ReturnType<typeof totals>; token: string | null; connected: boolean; onProduct: (g: string) => void; send: () => void; onBought: () => void; say: (m: string) => void }) {
   const [busy, setBusy] = useState(false);
   const buy = t.lines.filter((l) => !l.have), home = t.lines.filter((l) => l.have);
@@ -232,8 +261,10 @@ function Groceries({ k, setK, t, token, connected, onProduct, send, onBought, sa
     {home.length > 0 && <section><p className={`${label} mb-1`}>Already at home</p>
       <ul className="flex flex-wrap gap-1.5">{home.map((l) => <li key={l.group.id}><button type="button" onClick={() => setK((x) => ({ ...x, have: { ...x.have, [l.group.id]: false } }))} className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-900" title="Tap if you need to buy it">{l.group.name} &middot; buy it</button></li>)}</ul>
       <p className="mt-2 text-xs text-slate-400">Basics like oil, butter and spices start here. Tap one to add it to the list.</p></section>}
-    {buy.length === 0 && t.take.length === 0 && <p className="py-8 text-center text-sm text-slate-400">Plan a few meals and the list builds itself.</p>}
-    {buy.length > 0 && <div className="sticky bottom-3 rounded-2xl bg-slate-900 p-4 text-white shadow-lg">
+    {plainLines(k).length > 0 && <section data-testid="grocery-plain"><p className={`${label} mb-1`}>Your own items</p>
+      <ul className="divide-y divide-slate-100 border-y border-slate-100">{plainLines(k).map((p) => <PlainRow key={p.key} p={p} k={k} setK={setK} />)}</ul></section>}
+    {buy.length === 0 && t.take.length === 0 && plainLines(k).length === 0 && <p className="py-8 text-center text-sm text-slate-400">Plan a few meals and the list builds itself.</p>}
+    {(buy.length > 0 || plainLines(k).length > 0) && <div className="sticky bottom-3 rounded-2xl bg-slate-900 p-4 text-white shadow-lg">
       <div className="flex items-center justify-between gap-3"><span><span className="block text-xs text-white/60">Groceries</span><span className="text-2xl font-semibold tabular-nums">{money(t.groceries)}</span></span>
         <button type="button" onClick={send} className="rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-900">Send to shopping list</button></div>
       <button type="button" onClick={onBought} className="mt-3 text-xs font-medium text-white/70 underline underline-offset-2 hover:text-white" data-testid="bought-all">Bought it all? Put it in your inventory</button>

@@ -120,7 +120,7 @@ export type Message = { id: number; from: number; body: string; img?: string; at
 
 // ——— Cleaning (everything that comes from a phone goes through these) ———————————————————————————————
 
-const str = (v: unknown, max: number) => String(v ?? "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trim().slice(0, max);
+const str = (v: unknown, max: number) => String(v ?? "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trimStart().replace(/ {2,}$/, "").slice(0, max);
 const num = (v: unknown, lo: number, hi: number, d = 0) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
 const arr = <T>(v: unknown, max: number, f: (x: any) => T | null): T[] => (Array.isArray(v) ? v : []).slice(0, max).map(f).filter((x): x is T => x !== null);
 const id = (v: unknown) => { const s = str(v, 40).replace(/[^A-Za-z0-9_-]/g, ""); return s || Math.random().toString(36).slice(2, 12); };

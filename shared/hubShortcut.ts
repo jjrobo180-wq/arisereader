@@ -8,7 +8,7 @@ export type HubShortcut =
   /** A web address of their own. */
   | { kind: "url"; url: string; label: string };
 
-const text = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/[\u0000-\u001f]/g, " ").trim().slice(0, max) : "");
+const text = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/[\u0000-\u001f]/g, " ").trimStart().replace(/ {2,}$/, "").slice(0, max) : "");
 
 /** Adds https:// to a bare address ("example.com"); anything that isn't http(s) is refused. */
 export function shortcutUrl(raw: unknown): string {

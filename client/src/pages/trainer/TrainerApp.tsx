@@ -2,7 +2,7 @@
 // and #/trainer on the website). Tabs: Clients, Inbox, Schedule, Library, Business. Clients come from
 // Arise Fit, with their training, food and health data shared automatically (server/coach.ts).
 import { useEffect, useMemo, useState } from "react";
-import { BadgeCheck, Briefcase, CalendarDays, CheckSquare, ChevronRight, Dumbbell, Inbox, BookOpen, LogOut, Megaphone, MessageCircle, Plus, Search, ShieldCheck, Square, Star, Trash2, Users } from "lucide-react";
+import { BadgeCheck, Briefcase, CalendarDays, CheckSquare, ChevronRight, Dumbbell, Inbox, BookOpen, LayoutTemplate, LogOut, Megaphone, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Square, Star, Trash2, UserPlus, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import AccountPrivacy from "@/components/AccountPrivacy";
 import { goToSignIn } from "@/lib/hubs";
@@ -14,6 +14,14 @@ import { ago, coachApi, post, put, shortDate, shrinkImage, usePoll, when, type C
 import { Btn, C, Card, Chips, Field, Ring, Sheet, Title, display, font, glowBg, inputCls, inputStyle, stagger, useFitFonts, Layer, StatusShade, ThemePicker } from "../fit/fitUi";
 import { ClientSheet } from "./TrainerClient";
 import { FormBuilder, OwnExerciseSheet, ProgramBuilder, WorkoutBuilder, newId } from "./TrainerBuilder";
+import { AiBuilderSheet, InviteSheet, TemplatesSheet } from "./TrainerTemplates";
+import { WebsiteCard } from "./TrainerWebsite";
+import { TrainerGroups } from "../coach/Groups";
+import { CopilotCard } from "./TrainerCopilot";
+import { MoveCard } from "./TrainerMove";
+import { MarketCard } from "../coach/Market";
+import { PayoutsCard } from "../coach/Pay";
+import { BrandCard } from "../coach/Brand";
 
 type Tab = "clients" | "inbox" | "schedule" | "library" | "business";
 
@@ -49,7 +57,7 @@ export default function TrainerApp() {
         {tab === "clients" && <Clients data={data} token={token} onOpen={setOpen} say={say} goBusiness={() => setTab("business")} />}
         {tab === "inbox" && <InboxTab data={data} onOpen={setOpen} />}
         {tab === "schedule" && <Schedule token={token} data={data} onOpen={setOpen} />}
-        {tab === "library" && <LibraryTab lib={data.library} saveLib={saveLib} />}
+        {tab === "library" && <LibraryTab lib={data.library} saveLib={saveLib} token={token} say={say} />}
         {tab === "business" && <Business data={data} token={token} reload={reload} say={say} />}
       </div>}
     </main>
@@ -59,7 +67,7 @@ export default function TrainerApp() {
         className="relative flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 rounded-[10px] text-[11px] uppercase tracking-[.06em] transition-colors" style={{ fontFamily: display.fontFamily, fontWeight: 800, color: tab === id ? C.lime : C.dim }}>
         <Icon className="h-[22px] w-[22px]" />{label}{badge > 0 && <span className="fit-pop absolute right-[18%] top-1 grid h-5 min-w-5 place-items-center rounded-full px-1 text-[11px]" style={{ background: C.lime, color: "var(--fit-on-accent)" }}>{badge}</span>}</button>)}
     </nav>
-    {open && data && <ClientSheet token={token} me={me} linkId={open.id} name={open.name} lib={data.library} saveLib={saveLib} quick={quick} onClose={() => { setOpen(null); reload(); }} />}
+    {open && data && <ClientSheet token={token} me={me} linkId={open.id} name={open.name} lib={data.library} saveLib={saveLib} quick={quick} say={say} onClose={() => { setOpen(null); reload(); }} />}
     <div role="status" aria-live="polite" className={`pointer-events-none fixed left-1/2 z-[95] -translate-x-1/2 rounded-full px-4 py-2.5 text-[14px] font-semibold shadow-xl transition ${toast ? "opacity-100" : "opacity-0"}`} style={{ top: "max(16px, env(safe-area-inset-top))", background: C.text, color: C.bg }}>{toast}</div>
   </div>;
 }
@@ -86,7 +94,7 @@ function ClientRowCard({ c, onOpen, k, pick }: { c: ClientRow; onOpen: () => voi
 
 function Clients({ data, token, onOpen, say, goBusiness }: { data: TrainerHome; token: string | null; onOpen: (c: ClientRow) => void; say: (m: string) => void; goBusiness: () => void }) {
   const [q, setQ] = useState(""); const [tag, setTag] = useState(""); const [sort, setSort] = useState<"attention" | "name" | "recent">("attention");
-  const [picking, setPicking] = useState(false); const [picked, setPicked] = useState<string[]>([]); const [cast, setCast] = useState(false);
+  const [picking, setPicking] = useState(false); const [picked, setPicked] = useState<string[]>([]); const [cast, setCast] = useState(false); const [inviting, setInviting] = useState(false); const [seed, setSeed] = useState<number[] | null>(null);
   const tags = [...new Set(data.clients.flatMap((c) => c.tags))];
   const reqs = data.clients.filter((c) => c.status === "requested");
   const active = data.clients.filter((c) => c.status === "active" && (!q || c.name.toLowerCase().includes(q.toLowerCase())) && (!tag || c.tags.includes(tag)))
@@ -96,15 +104,21 @@ function Clients({ data, token, onOpen, say, goBusiness }: { data: TrainerHome; 
     <Header kicker={`${hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"}, ${data.profile.name.split(" ")[0] || "coach"}`} title="Clients" right={active.length > 1 ? <button type="button" onClick={() => { setPicking(!picking); setPicked([]); }} className="h-10 rounded-full px-3 text-[13px] font-semibold" style={{ background: picking ? C.lime : C.card, color: picking ? "var(--fit-on-accent)" : C.text }}>{picking ? "Done" : "Select"}</button> : undefined} />
     {!data.listed && <Card onClick={goBusiness} className="fit-shine mb-3 !p-4" style={{ background: "linear-gradient(150deg, var(--fit-accent), var(--fit-accent-deep))", color: "var(--fit-on-accent)" }} testId="tr-get-listed">
       <p className="text-[24px] leading-none" style={display}>Get listed in Arise Fit</p><p className="mt-1 text-[13px] font-semibold">{data.problems.length ? `Finish your profile: ${data.problems[0].toLowerCase()}.` : `Go live in the trainer directory. ${data.price.trialDays} days free, then ${money(data.price.cents)}/month.`}</p></Card>}
+    <CopilotCard token={token} clients={data.clients.filter((c) => c.status === "active").length} say={say} onOpenClient={(id) => { const c = data.clients.find((x) => x.id === id); if (c) onOpen(c); }} />
+    <MarketCard token={token} say={say} />
+    <Btn className="mb-3 w-full" onClick={() => setInviting(true)} testId="tr-invite"><UserPlus className="h-5 w-5" />Invite a client</Btn>
     <div className="grid grid-cols-3 gap-2 text-center">{([[data.clients.filter((c) => c.status === "active").length, "clients"], [reqs.length, "requests"], [data.reviews.length ? data.reviews.reduce((t, r) => t + r.stars, 0) / data.reviews.length : 0, "rating"]] as const).map(([v, l], k) => <Card key={l} className="!px-1 !py-3" style={stagger(k, 0.06)}><p className="text-[28px] leading-none" style={display}>{l === "rating" ? (v ? v.toFixed(1) : "—") : v}</p><p className="mt-1 text-[11px] uppercase" style={{ color: C.dim }}>{l}</p></Card>)}</div>
+    <TrainerGroups token={token} clients={data.clients} say={say} seed={seed} onSeeded={() => setSeed(null)} />
     {reqs.length > 0 && <><Title>New requests</Title><div className="space-y-2">{reqs.map((c, k) => <ClientRowCard key={c.id} c={c} k={k} onOpen={() => onOpen(c)} />)}</div></>}
     <Title right={<select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} aria-label="Sort clients" className="h-8 rounded-[8px] px-2 text-[13px] outline-none" style={inputStyle}><option value="attention">Needs attention</option><option value="recent">Trained recently</option><option value="name">Name</option></select>}>Active</Title>
     {data.clients.some((c) => c.status === "active") && <div className="relative mb-2"><Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2" style={{ color: C.dim }} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search clients" className={`${inputCls} pl-10`} style={inputStyle} /></div>}
     {tags.length > 0 && <div className="mb-2"><Chips label="Tag" value={tag} onChange={setTag} items={[{ id: "", label: "All" }, ...tags.map((t) => ({ id: t, label: t }))]} /></div>}
     {active.length ? <div className="space-y-2">{active.map((c, k) => <ClientRowCard key={c.id} c={c} k={k} onOpen={() => onOpen(c)} pick={picking ? { on: picked.includes(c.id), toggle: () => setPicked((p) => (p.includes(c.id) ? p.filter((x) => x !== c.id) : [...p, c.id])) } : undefined} />)}</div>
-      : <Card className="text-center"><Users className="mx-auto h-8 w-8" style={{ color: C.dim }} /><p className="mt-2 text-[20px]" style={display}>No clients yet</p><p className="mt-1 text-[14px]" style={{ color: C.dim }}>When someone in Arise Fit asks you to coach them, they show up here. Their workouts, food and health data come with them.</p></Card>}
+      : <Card className="text-center"><Users className="mx-auto h-8 w-8" style={{ color: C.dim }} /><p className="mt-2 text-[20px]" style={display}>No clients yet</p><p className="mt-1 text-[14px]" style={{ color: C.dim }}>Invite clients with your link, or get found in Arise Fit. Their workouts, food and health data come with them. No client limit.</p></Card>}
     {picking && picked.length > 0 && <Layer><div className="fit-up fixed inset-x-3 z-[45] flex gap-2 rounded-[14px] p-2" style={{ bottom: "calc(max(12px, env(safe-area-inset-bottom)) + 76px)", background: C.card2, boxShadow: "0 -10px 40px rgba(0,0,0,.6)" }}>
-      <Btn className="flex-1 !text-[15px]" onClick={() => setCast(true)} testId="tr-broadcast"><Megaphone className="h-4 w-4" />Message {picked.length}</Btn></div></Layer>}
+      <Btn className="flex-1 !text-[15px]" onClick={() => setCast(true)} testId="tr-broadcast"><Megaphone className="h-4 w-4" />Message {picked.length}</Btn>
+      <Btn kind="soft" className="flex-1 !text-[15px]" onClick={() => { setSeed(data.clients.filter((c) => picked.includes(c.id)).map((c) => c.clientId)); setPicking(false); setPicked([]); }} testId="tr-make-group"><Users className="h-4 w-4" />Make a group</Btn></div></Layer>}
+    {inviting && <InviteSheet token={token} onClose={() => setInviting(false)} />}
     {cast && <Broadcast token={token} ids={picked} onClose={() => setCast(false)} onSent={(n) => { setCast(false); setPicking(false); setPicked([]); say(`Sent to ${n} ${n === 1 ? "client" : "clients"}.`); }} />}
   </div>;
 }
@@ -150,7 +164,8 @@ function Schedule({ token, data, onOpen }: { token: string | null; data: Trainer
   </div>;
 }
 
-function LibraryTab({ lib, saveLib }: { lib: Library; saveLib: (l: Library) => void }) {
+function LibraryTab({ lib, saveLib, token, say }: { lib: Library; saveLib: (l: Library) => void; token: string | null; say: (m: string) => void }) {
+  const [tpl, setTpl] = useState(false); const [ai, setAi] = useState(false);
   const [sec, setSec] = useState<"workouts" | "programs" | "exercises" | "forms" | "replies">("workouts");
   const [w, setW] = useState<Library["workouts"][number] | null | "new">(null);
   const [p, setP] = useState<Library["programs"][number] | null | "new">(null);
@@ -163,9 +178,10 @@ function LibraryTab({ lib, saveLib }: { lib: Library; saveLib: (l: Library) => v
     <button type="button" aria-label={`Delete ${title}`} onClick={() => window.confirm(`Delete ${title}?`) && onDelete()} className="grid h-9 w-9 place-items-center" style={{ color: C.dim }}><Trash2 className="h-4 w-4" /></button></div></Card>;
   return <div>
     <Header title="Library" right={sec !== "replies" ? <Btn className="!min-h-10 !px-3 !text-[15px]" onClick={() => (sec === "workouts" ? setW("new") : sec === "programs" ? setP("new") : sec === "exercises" ? setE("new") : setF("new"))} testId="tr-lib-new"><Plus className="h-4 w-4" />New</Btn> : undefined} />
+    <div className="mb-3 grid grid-cols-2 gap-2"><Btn kind="soft" className="!text-[15px]" onClick={() => setTpl(true)} testId="tr-lib-templates"><LayoutTemplate className="h-4 w-4" />Templates</Btn><Btn className="!text-[15px]" onClick={() => setAi(true)} testId="tr-lib-ai"><Sparkles className="h-4 w-4" />Build with AI</Btn></div>
     <Chips label="Library" value={sec} onChange={setSec} items={[{ id: "workouts", label: `Workouts · ${lib.workouts.length}` }, { id: "programs", label: `Programs · ${lib.programs.length}` }, { id: "exercises", label: `My exercises · ${lib.exercises.length}` }, { id: "forms", label: "Check-in forms" }, { id: "replies", label: "Quick replies" }]} />
     <div className="mt-3 space-y-2">
-      {sec === "workouts" && (lib.workouts.length ? lib.workouts.map((x, k) => item(x.name, `${x.items.length} exercises · ${x.items.map((i) => i.name).join(", ")}`, () => setW(x), () => saveLib({ ...lib, workouts: lib.workouts.filter((y) => y.id !== x.id) }), k)) : <Empty icon={Dumbbell} text="Build workouts once, then drop them on any client's calendar." />)}
+      {sec === "workouts" && (lib.workouts.length ? lib.workouts.map((x, k) => item(x.name, `${x.items.length} exercises · ${x.items.map((i) => i.name).join(", ")}`, () => setW(x), () => saveLib({ ...lib, workouts: lib.workouts.filter((y) => y.id !== x.id) }), k)) : <Empty icon={Dumbbell} text="Build workouts once, then drop them on any client's calendar. Start from a template or let AI draft one." />)}
       {sec === "programs" && (lib.programs.length ? lib.programs.map((x, k) => item(x.name, `${x.weeks} weeks · ${x.days.length} workouts`, () => setP(x), () => saveLib({ ...lib, programs: lib.programs.filter((y) => y.id !== x.id) }), k)) : <Empty icon={CalendarDays} text="Programs lay your workouts out over weeks. Assign one and the whole plan lands on the client's calendar." />)}
       {sec === "exercises" && (lib.exercises.length ? lib.exercises.map((x, k) => item(x.name, `${x.muscle || "exercise"}${x.video ? " · has video" : ""}`, () => setE(x), () => saveLib({ ...lib, exercises: lib.exercises.filter((y) => y.id !== x.id) }), k)) : <Empty icon={Dumbbell} text="Arise Fit's catalog is already here. Add your own moves with your demo video link." />)}
       {sec === "forms" && (lib.forms.length ? lib.forms.map((x, k) => item(x.title, `${x.questions.length} questions`, () => setF(x), () => saveLib({ ...lib, forms: lib.forms.filter((y) => y.id !== x.id) }), k)) : <Empty icon={CheckSquare} text="Check-in forms your clients answer each week." />)}
@@ -176,6 +192,8 @@ function LibraryTab({ lib, saveLib }: { lib: Library; saveLib: (l: Library) => v
     {w && <WorkoutBuilder lib={lib} initial={w === "new" ? undefined : w} onClose={() => setW(null)} onSave={(x) => { saveLib({ ...lib, workouts: upsert(lib.workouts, x) }); setW(null); }} />}
     {p && <ProgramBuilder lib={lib} initial={p === "new" ? undefined : p} onClose={() => setP(null)} onSave={(x) => { saveLib({ ...lib, programs: upsert(lib.programs, x) }); setP(null); }} />}
     {e && <OwnExerciseSheet initial={e === "new" ? undefined : e} onClose={() => setE(null)} onSave={(x) => { saveLib({ ...lib, exercises: upsert(lib.exercises, x) }); setE(null); }} onDelete={e === "new" ? undefined : () => { saveLib({ ...lib, exercises: lib.exercises.filter((y) => y.id !== e.id) }); setE(null); }} />}
+    {tpl && <TemplatesSheet lib={lib} saveLib={saveLib} say={say} onClose={() => setTpl(false)} />}
+    {ai && <AiBuilderSheet token={token} lib={lib} saveLib={saveLib} say={say} onClose={() => setAi(false)} />}
     {f && <FormBuilder initial={f === "new" ? undefined : f} onClose={() => setF(null)} onSave={(x) => { saveLib({ ...lib, forms: upsert(lib.forms, x) }); setF(null); }} />}
   </div>;
 }
@@ -192,17 +210,21 @@ function Business({ data, token, reload, say }: { data: TrainerHome; token: stri
     <Card className="!p-4"><div className="flex items-center gap-3"><Avatar t={data.profile} size={64} />
       <div className="min-w-0 flex-1"><p className="truncate text-[24px] leading-none" style={display}>{data.profile.name || "Your name"}</p><p className="truncate text-[13px]" style={{ color: C.dim }}>{data.profile.headline || "Add a headline"}</p></div></div>
       <div className="mt-3 grid grid-cols-2 gap-2"><Btn kind="soft" className="!text-[15px]" onClick={() => setEdit(true)} testId="tr-edit-listing">Edit listing</Btn><Btn kind="soft" className="!text-[15px]" onClick={() => setPreview(true)}>Preview</Btn></div></Card>
+    <WebsiteCard token={token} profile={data.profile} reviews={data.reviews} say={say} />
+    <BrandCard token={token} name={data.profile.name} say={say} />
     <Title>Directory listing</Title>
     <Card className="!p-4" testId="tr-plan">
       {data.listed ? <><p className="flex items-center gap-2 text-[22px] leading-none" style={display}><BadgeCheck className="h-6 w-6" style={{ color: C.lime }} />Live in Arise Fit</p>
         <p className="mt-1 text-[13px]" style={{ color: C.dim }}>Clients can find you, see your prices and ask you to coach them. {data.paidUntil ? `Paid through ${shortDate(data.paidUntil)}.` : ""}</p>
         {data.subscribed && !isNativeApp() && <Btn kind="soft" className="mt-3 w-full !text-[15px]" disabled={busy} onClick={() => go("/trainer/listing/manage")}>Card and billing</Btn>}</>
       : <><p className="text-[22px] leading-none" style={display}>Not listed yet</p>
-        <p className="mt-1 text-[14px]" style={{ color: C.steel }}>{money(data.price.cents)} a month to be in the Arise trainer directory and coach clients here. First {data.price.trialDays} days free, cancel any time. You keep 100% of what clients pay you.</p>
+        <p className="mt-1 text-[14px]" style={{ color: C.steel }}>{money(data.price.cents)} a month to be in the Arise trainer directory and coach clients here. First {data.price.trialDays} days free, cancel any time. Clients who pay you by card in the app: Arise keeps 1%. Your own payment links: you keep everything.</p>
         {data.problems.length > 0 && <ul className="mt-3 space-y-1">{data.problems.map((p) => <li key={p} className="text-[13px]" style={{ color: C.orange }}>• {p}</li>)}</ul>}
         {isNativeApp() ? <p className="mt-3 rounded-[10px] p-3 text-[13px]" style={{ background: C.card2, color: C.steel }}>Start your listing plan at arisetodo.com/#/trainer in a web browser. It shows up here right away.</p>
           : <Btn className="mt-3 w-full" disabled={busy || data.problems.length > 0 || !data.payments} onClick={() => go("/trainer/listing/checkout")} testId="tr-start-plan">{data.payments ? `Start ${data.price.trialDays}-day free trial` : "Payments open soon"}</Btn>}</>}
     </Card>
+    <PayoutsCard token={token} say={say} />
+    <MoveCard token={token} say={say} />
     <Title>Reviews{data.reviews.length ? ` · ${(data.reviews.reduce((t, r) => t + r.stars, 0) / data.reviews.length).toFixed(1)}` : ""}</Title>
     {data.reviews.length ? <div className="space-y-2">{data.reviews.map((r) => <Card key={r.id} className="!p-3.5"><div className="flex items-center gap-2"><Stars value={r.stars} /><span className="text-[13px] font-semibold">{r.name}</span><span className="ml-auto text-[11px]" style={{ color: C.dim }}>{shortDate(r.date)}</span></div>
       {r.text && <p className="mt-1.5 text-[14px]">{r.text}</p>}
@@ -213,7 +235,7 @@ function Business({ data, token, reload, say }: { data: TrainerHome; token: stri
     <Title>Account</Title>
     <Card onClick={() => setAccount(true)} className="!p-4"><div className="flex items-center gap-3"><ShieldCheck className="h-5 w-5" style={{ color: C.dim }} /><span className="flex-1 font-semibold">Account & privacy</span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
     <Btn kind="danger" className="mt-2 w-full" onClick={() => { logout(); goToSignIn(); }}><LogOut className="h-5 w-5" />Sign out</Btn>
-    <p className="mt-6 text-center text-[11px] leading-relaxed" style={{ color: C.dim }}>Clients pay you directly through your own links. Client data comes from Arise Fit only with the client's permission and stops when they stop sharing. Keep it private.</p>
+    <p className="mt-6 text-center text-[11px] leading-relaxed" style={{ color: C.dim }}>Clients pay you by card in the app or through your own links. Client data comes from Arise Fit only with the client's permission and stops when they stop sharing. Keep it private.</p>
     {edit && <ListingEditor token={token} initial={data.profile} onClose={() => setEdit(false)} onSaved={() => { setEdit(false); reload(); say("Listing saved."); }} />}
     {preview && <TrainerPage id={pub.id} preview={{ trainer: pub, reviews: data.reviews }} onClose={() => setPreview(false)} />}
     {account && <Layer><div className="fixed inset-0 z-[90]"><AccountPrivacy onClose={() => setAccount(false)} /></div></Layer>}

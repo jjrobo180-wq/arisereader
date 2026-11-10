@@ -28,7 +28,7 @@ export const MED_COLORS = ["#60a5fa", "#f472b6", "#34d399", "#fbbf24", "#a78bfa"
 export const MED_LIMITS = { meds: 20, times: 4, days: 400 };
 export const emptyMeds = (): Meds => ({ list: [], log: {} });
 
-const str = (v: unknown, n: number) => (typeof v === "string" ? v.trim().slice(0, n) : "");
+const str = (v: unknown, n: number) => (typeof v === "string" ? v.trimStart().replace(/ {2,}$/, "").slice(0, n) : "");
 const isDay = (k: string) => /^\d{4}-\d{2}-\d{2}$/.test(k);
 const clock = (t: unknown) => (typeof t === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(t) ? t : "");
 

@@ -47,6 +47,10 @@ export function closeWiki() {
 }
 
 /** Plays from a section and piece, then carries on to the end (the credit comes after the last section). */
+/** Each section checks the account's AI minutes first (set by main.tsx); returns a message when it can't play. */
+let meter: ((title: string, sec: number, chars: number) => Promise<string | null>) | null = null;
+export function setWikiMeter(fn: typeof meter) { meter = fn; }
+
 export function playWiki(from = state.sec, fromPiece = state.piece) {
   const s0 = state;
   if (!s0.art) return;
@@ -59,6 +63,18 @@ export function playWiki(from = state.sec, fromPiece = state.piece) {
     if (i > wikiSections(s).length) { set({ playing: false, sec: -1, piece: 0, loading: false }); return; }
     const pieces = sayPieces(textOf(s, i), { pieceMax: 900, fastStart: true });
     set({ sec: i, loading: true });
+    if (meter && s.title && i >= 0 && i < wikiSections(s).length) {
+      const m = meter;
+      void m(s.title, i, textOf(s, i).length).then((problem) => {
+        if (id !== run) return;
+        if (problem) { set({ err: problem, playing: false, loading: false }); return; }
+        speak(i, p, s, pieces);
+      });
+      return;
+    }
+    speak(i, p, s, pieces);
+  };
+  const speak = (i: number, p: number, s: WikiState, pieces: string[]) => {
     // The next sections' first words are fetched while this one plays, so nothing has to be fetched
     // in the gap between them (the phone may not let the app fetch anything while it's locked).
     for (const k of [1, 2]) if (i + k <= wikiSections(s).length) { const nx = sayPieces(textOf(s, i + k), { pieceMax: 900, fastStart: true }); for (const piece of nx.slice(0, k === 1 ? 2 : 1)) void preloadAiVoice(piece, s.voice).catch(() => {}); }

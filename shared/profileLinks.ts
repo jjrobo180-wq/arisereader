@@ -13,6 +13,7 @@
 // The server (server/profileLinks.ts) keeps the links and checks every read and write with
 // accessFor() below. Nothing here trusts what the browser says about access.
 
+import { SHARED_APPS, sharedAppById } from "./sharedApps";
 import { liveProApps } from "./pro/apps";
 
 export type Access = "view" | "edit";
@@ -67,8 +68,10 @@ export type ShareItem = { id: string; label: string; emoji?: string; icon?: stri
 export function shareCatalog(healthPeople: { id: string; name: string }[] = []): ShareItem[] {
   const apps = liveProApps().map((a): ShareItem => ({ id: appShareId(a.id), label: a.name, icon: a.icon, color: a.color, kind: "app", editable: true }));
   apps.sort((a, b) => Number(b.id === "app:potty") - Number(a.id === "app:potty"));
+  // Every LifeHub app (shared/sharedApps.ts) can be shared to look at or to change together; to-do lists to look at.
   const life: ShareItem[] = [
-    ...LIFE_SHARES.map((s): ShareItem => ({ id: s.id, label: s.label, emoji: s.emoji, kind: "life", editable: false })),
+    ...LIFE_SHARES.filter((s) => !sharedAppById(s.id)).map((s): ShareItem => ({ id: s.id, label: s.label, emoji: s.emoji, kind: "life", editable: false })),
+    ...SHARED_APPS.map((a): ShareItem => ({ id: a.id, label: a.label, emoji: a.emoji, kind: "life", editable: true })),
     ...healthPeople.map((p): ShareItem => ({ id: healthShareId(p.id), label: `Food & fitness · ${p.name}`, emoji: "🍎", kind: "life", editable: false })),
   ];
   const together: ShareItem = { id: ACCOUNTABILITY_SHARE, label: "Accountability", icon: "BadgeCheck", color: "#0d9488", kind: "together", editable: true, blurb: "Ask each other for things, with reminders and check-offs" };
@@ -87,6 +90,7 @@ export function cleanGrants(raw: unknown): Grants {
     if (v !== "view" && v !== "edit") continue;
     if (apps.has(id)) out[id] = v;
     else if (id === ACCOUNTABILITY_SHARE) out[id] = "edit";
+    else if (sharedAppById(id)) out[id] = v;
     else if (LIFE_IDS.has(id) || isHealthShareId(id)) out[id] = "view";
   }
   return out;
@@ -129,11 +133,20 @@ export function accessFor(links: readonly ProfileLink[], viewerId: number, share
 export const allows = (have: Access | null, need: Access) => have === "edit" || (have === "view" && need === "view");
 
 /** Everything, at the most each thing allows: every premium app to Edit, every LifeHub page to View. */
+/** A partner or spouse: Accountability together, and every app and family page to use and change together
+ *  (personal ones like the journal stay off). */
+export function partnerGrants(healthPeople: { id: string }[] = []): Grants {
+  const out = fullGrants(healthPeople);
+  for (const a of SHARED_APPS) if (!a.personal) out[a.id] = "edit";
+  return out;
+}
+
 export function fullGrants(healthPeople: { id: string }[] = []): Grants {
   const out: Grants = {};
   out[ACCOUNTABILITY_SHARE] = "edit";
   for (const a of liveProApps()) out[appShareId(a.id)] = "edit";
   for (const l of LIFE_SHARES) out[l.id] = "view";
+  for (const a of SHARED_APPS) if (!a.personal && !out[a.id]) out[a.id] = "view";
   for (const p of healthPeople) out[healthShareId(p.id)] = "view";
   return out;
 }

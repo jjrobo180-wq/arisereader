@@ -10,11 +10,12 @@ import { Check, Infinity as InfinityIcon, Sparkles, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { NATIVE_NO_PURCHASE, isNativeApp } from "@/lib/nativeApp";
+import AllAccessOffer from "@/components/AllAccessOffer";
 import { AI_LIMIT, APPS_FULL, FREE_APPS, growsPastFree } from "@shared/todoPlan";
 
 export type TodoPlan = {
   unlimited: boolean; via: string | null; endsAt: string | null; apps: { work: number; life: number; limit: number | null };
-  ai: { limit: number; used: number; left: number }; priceCents: number; yearlyCents: number | null; payment: boolean; paidByYou: boolean; paidProduct: "unlimited" | "unlimited_year" | null; fairUse: string;
+  ai: { limit: number; used: number; left: number }; priceCents: number; yearlyCents: number | null; payment: boolean; paidByYou: boolean; paidProduct: "unlimited" | "unlimited_year" | "all_access" | null; allAccess?: boolean; fairUse: string;
 };
 type Reason = "apps" | "ai" | "plan";
 
@@ -109,12 +110,12 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
     confirmed.current = true;
     const url = new URL(window.location.href); url.searchParams.delete("paid"); window.history.replaceState(null, "", url.toString());
     fetch(`${API_BASE}/api/billing/confirm`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ sessionId: id }) })
-      .then((r) => { setNote(r.ok ? "Payment received. You're on Unlimited." : "We couldn't confirm the payment yet. If your card was charged, Unlimited switches on within a few minutes."); })
+      .then((r) => { setNote(r.ok ? "Payment received. You're on All Access." : "We couldn't confirm the payment yet. If your card was charged, Unlimited switches on within a few minutes."); })
       .catch(() => setNote("We couldn't confirm the payment yet. If your card was charged, Unlimited switches on within a few minutes."))
       .finally(() => { refreshTodoPlan(); setReason("plan"); });
   }, [token, hub]);
 
-  const go = async (path: string, product: "unlimited" | "unlimited_year" = "unlimited") => {
+  const go = async (path: string, product: "unlimited" | "unlimited_year" | "all_access" = "unlimited") => {
     if (!token) return;
     setBusy(true); setNote("");
     try {
@@ -130,14 +131,14 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
   const price = usd(plan?.priceCents ?? 500);
   const yearly = plan?.yearlyCents ?? null;
   const saves = yearly && plan ? Math.round((1 - yearly / (plan.priceCents * 12)) * 100) : 0;
-  const title = plan?.unlimited ? "You're on Unlimited"
+  const title = plan?.unlimited ? (plan.via === "all-access" ? "You're on All Access" : "You're on Unlimited")
     : reason === "apps" ? `You're using your ${FREE_APPS} free plugins`
-    : reason === "ai" ? "AI is part of Unlimited"
-    : "Get Arise To Duo Unlimited";
+    : reason === "ai" ? "AI is part of All Access"
+    : "Get Arise All Access";
   const lead = plan?.unlimited ? "Every plugin in the Plugin Gallery, and AI for everyday use, in WorkHub and LifeHub."
-    : reason === "apps" ? `The free plan includes up to ${FREE_APPS} plugins from the Plugin Gallery. Remove one to make room, or go Unlimited for all 450+.`
-    : reason === "ai" ? `Add with AI, the AI assistant and meal estimates come with Unlimited, along with every plugin in the Plugin Gallery, for ${price} a month.`
-    : "Every plugin in the Plugin Gallery (450+), and AI, across WorkHub and LifeHub.";
+    : reason === "apps" ? `The free plan includes up to ${FREE_APPS} plugins from the Plugin Gallery. Remove one to make room, or get All Access for all 450+.`
+    : reason === "ai" ? `Add with AI, the AI assistant and meal estimates come with Arise All Access, along with every plugin in the Plugin Gallery, for ${price} a month.`
+    : "Every plugin in the Plugin Gallery (450+) and AI in To Duo, plus Arise Notes Plus, Arise Fit+ and ad-free Pod+, for one price.";
 
   return (
     <div className="fixed inset-0 kb-sheet z-[320] flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="upgrade-title" data-testid="todo-upgrade" onClick={(e) => { if (e.target === e.currentTarget) setReason(null); }}>
@@ -159,21 +160,21 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
               </ul>
             </div>
             <div className="rounded-2xl border-2 border-violet-500 bg-violet-50 p-3">
-              <p className="font-bold text-violet-900">Unlimited</p>
+              <p className="font-bold text-violet-900">All Access</p>
               <p className="text-xs text-violet-700">{price} a month{yearly ? ` or ${usd(yearly)} a year` : ""}</p>
               <ul className="mt-2 space-y-1 text-violet-900">
                 <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />All 575+ plugins</li>
                 <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />AI every day</li>
-                <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />Both hubs</li>
+                <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />Notes Plus, Fit+, ad-free Pod+</li>
               </ul>
             </div>
           </div>
-          <p className="mt-3 text-xs text-slate-500">Built-in sections like Calendar, Tasks and Notes are always free. Your {FREE_APPS} apps are shared by WorkHub and LifeHub, and nothing is ever deleted, even if you go back to Free. Already on a $10 Arise Reader plan? Unlimited is the same price on top.</p>
+          <p className="mt-3 text-xs text-slate-500">Built-in sections like Calendar, Tasks and Notes are always free. Your {FREE_APPS} apps are shared by WorkHub and LifeHub, and nothing is ever deleted, even if you go back to Free. All Access is one plan for To Duo, Arise Notes, Arise Fit and Pod+.</p>
           {note && <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700" role="status">{note}</p>}
           <div className="mt-4">
             {isNativeApp()
               ? <div className="space-y-2">
-                  <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700" data-testid="todo-plan-native">{NATIVE_NO_PURCHASE}</p>
+                  <div data-testid="todo-plan-native"><AllAccessOffer note={NATIVE_NO_PURCHASE} authToken={token} onBought={refreshTodoPlan} /></div>
                   <button type="button" onClick={() => setReason(null)} className="flex min-h-12 w-full items-center justify-center rounded-2xl bg-slate-900 text-sm font-bold text-white">OK</button>
                 </div>
               : !plan
@@ -218,7 +219,7 @@ export function PlanCard({ hub, hubApps }: { hub: "work" | "life"; hubApps: numb
   return <div className="mb-3 rounded-xl border border-slate-200 p-3 text-sm" data-testid="todo-plan-card">
     <div className="flex items-center justify-between gap-3">
       <span className="font-bold text-slate-900">Free plan</span>
-      <button type="button" onClick={() => openUpgrade("plan")} className="min-h-10 rounded-xl bg-violet-600 px-3 text-xs font-bold text-white hover:bg-violet-700" data-testid="todo-plan-upgrade">Get Unlimited</button>
+      <button type="button" onClick={() => openUpgrade("plan")} className="min-h-10 rounded-xl bg-violet-600 px-3 text-xs font-bold text-white hover:bg-violet-700" data-testid="todo-plan-upgrade">Get All Access</button>
     </div>
     <div className="mt-2 flex items-center gap-2">
       <div className="flex flex-1 gap-1" aria-hidden>{Array.from({ length: limit }, (_, i) => <span key={i} className={`h-2 flex-1 rounded-full ${i < used ? (full ? "bg-amber-500" : "bg-violet-500") : "bg-slate-100"}`} />)}</div>
