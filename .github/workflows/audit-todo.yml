@@ -1,7 +1,7 @@
 name: Audit To Duo (type check and bundle sizes)
 on:
   push:
-    branches: ['audit/**']
+    branches: ['todoaudit/**']
 permissions:
   contents: write
 jobs:
