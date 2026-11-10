@@ -1,10 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffb05c"/><stop offset="1" stop-color="#ff5a36"/></linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="116" fill="#120e14"/>
-  <rect x="96" y="56" width="320" height="400" rx="64" fill="url(#g)"/>
-  <rect x="136" y="88" width="240" height="10" rx="5" fill="#120e14" opacity=".28"/>
-  <rect x="136" y="414" width="240" height="10" rx="5" fill="#120e14" opacity=".28"/>
-  <path d="M218 186v140a10 10 0 0 0 15.3 8.5l112-70a10 10 0 0 0 0-17L233.3 177.5A10 10 0 0 0 218 186z" fill="#120e14"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#8b65ff"/><stop offset="1" stop-color="#ffffff"/></linearGradient></defs><rect width="1024" height="1024" fill="#15131f"/><path d="M180 512 Q190 511 196 509 Q201 507 206 504 Q211 501 216 497 Q222 494 227 493 Q232 491 237 493 Q242 496 247 503 Q253 510 258 521 Q263 533 268 546 Q273 560 279 572 Q284 584 289 591 Q294 597 299 595 Q304 593 310 581 Q315 568 320 546 Q325 524 330 496 Q336 467 341 439 Q346 410 351 388 Q356 366 362 357 Q367 347 372 354 Q377 361 382 385 Q388 409 393 446 Q398 483 403 527 Q408 571 413 613 Q419 655 424 685 Q429 715 434 727 Q439 739 445 728 Q450 717 455 686 Q460 654 465 607 Q470 559 476 506 Q481 452 486 403 Q491 355 496 321 Q502 286 507 274 Q512 262 517 274 Q522 286 528 321 Q533 355 538 403 Q543 452 548 506 Q554 559 559 607 Q564 654 569 686 Q574 717 579 728 Q585 739 590 727 Q595 715 600 685 Q605 655 611 613 Q616 571 621 527 Q626 483 631 446 Q636 409 642 385 Q647 361 652 354 Q657 347 662 357 Q668 366 673 388 Q678 410 683 439 Q688 467 694 496 Q699 524 704 546 Q709 568 714 581 Q720 593 725 595 Q730 597 735 591 Q740 584 745 572 Q751 560 756 546 Q761 533 766 521 Q771 510 777 503 Q782 496 787 493 Q792 491 797 493 Q802 494 808 497 Q813 501 818 504 Q823 507 828 509 Q834 511 839 512 L844 512" fill="none" stroke="url(#g)" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/></svg>
