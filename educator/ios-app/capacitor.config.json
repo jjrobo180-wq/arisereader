@@ -1,6 +1,6 @@
 {
   "appId": "com.arisereader.educator",
-  "appName": "A.R.I.S.E. Reader Educator",
+  "appName": "Arise Reader Educator",
   "webDir": "www",
   "plugins": {
     "SplashScreen": {

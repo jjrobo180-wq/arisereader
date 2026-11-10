@@ -1,7 +1,7 @@
 /**
  * Single-use, short-lived sign-in bridge from arisereader.com to arisetodo.com
  * (two independent cookie origins). Teachers, parents, LifeHub-only accounts and
- * administrators who sign in on A.R.I.S.E. Reader are carried into their hub on
+ * administrators who sign in on Arise Reader are carried into their hub on
  * arisetodo.com without typing their password again. Students never use it.
  * Never place the actual bearer token or password in the redirect URL.
  *
@@ -52,7 +52,7 @@ export function registerAdminHandoffRoutes(
   // A signed-in Reader account with a hub requests a random one-use code using their existing bearer token.
   app.post("/api/auth/admin-handoff/start", requireAuth, (req: any, res: Response) => {
     noCache(res);
-    if (!readerHosts.has(host(req))) return res.status(403).json({ message: "Open A.R.I.S.E. Reader to continue." });
+    if (!readerHosts.has(host(req))) return res.status(403).json({ message: "Open Arise Reader to continue." });
     if (!isHubAccount(req.realUser) || !req.sessionToken) {
       return res.status(403).json({ message: "Only teacher, parent and LifeHub accounts open a hub." });
     }
@@ -64,7 +64,7 @@ export function registerAdminHandoffRoutes(
     res.json({ code, expiresInSeconds: TTL_MS / 1000 });
   });
 
-  // From the A.R.I.S.E. Reader iPhone app to its plan page in Safari: a one-use code so the person lands
+  // From the Arise Reader iPhone app to its plan page in Safari: a one-use code so the person lands
   // signed in (no typing their password again). Any account can ask for one for itself; it's redeemed on
   // arisereader.com only, once, within two minutes. The code is never the session token.
   const payTickets = new Map<string, Ticket>();

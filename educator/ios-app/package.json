@@ -2,7 +2,7 @@
   "name": "educator-ios",
   "private": true,
   "version": "1.0.0",
-  "description": "A.R.I.S.E. Reader Educator iPhone app (built from the shared frontend with VITE_NATIVE_APP=educator)",
+  "description": "Arise Reader Educator iPhone app (built from the shared frontend with VITE_NATIVE_APP=educator)",
   "scripts": {
     "ios:add": "cap add ios",
     "ios:sync": "cap sync ios",

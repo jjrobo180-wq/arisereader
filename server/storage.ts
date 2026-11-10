@@ -9,7 +9,7 @@ import { cleanPages, pointsForBook } from "../shared/bookPoints";
 import { EYE_GAZE_LESSONS, lessonRows } from "../shared/eyegaze/lessons";
 import { lessonsToHide, planQuestions, rowDiffers } from "./eyeGazeLessonSync";
 
-/** Set by the routes: tells a reader's phone about a new message (A.R.I.S.E. Reader app notifications). */
+/** Set by the routes: tells a reader's phone about a new message (Arise Reader app notifications). */
 let onReaderMessage: ((userId: number, senderType: string, text: string) => void) | null = null;
 export function setReaderMessageListener(f: typeof onReaderMessage) { onReaderMessage = f; }
 

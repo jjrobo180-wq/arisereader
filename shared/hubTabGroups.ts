@@ -9,10 +9,10 @@ export type HubGroupId =
 
 export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonly HubTab[] }[] = [
   { id: "home", label: "Home", tabs: ["overview"] },
-  // A.R.I.S.E. Reader has its own page now (/reader, client/src/pages/AriseReader.tsx), so this is
+  // Arise Reader has its own page now (/reader, client/src/pages/AriseReader.tsx), so this is
   // a way out of the hub rather than a group of tabs: tapping it leaves for that page. One tab is
   // kept so the item still shows, and can be hidden in Customize like any other.
-  { id: "arise", label: "A.R.I.S.E. Reader", tabs: ["reader"] },
+  { id: "arise", label: "Arise Reader", tabs: ["reader"] },
   // Reading records is a WorkHub screen (the class's reading at a glance), not one of the Reader's
   // own, so it stayed behind when the Reader left — and needed its own item rather than vanishing.
   { id: "records", label: "Reading records", tabs: ["arise"] },

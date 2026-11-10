@@ -11,7 +11,7 @@ export const APPLE_KEYS_URL = "https://appleid.apple.com/auth/keys";
 /** The apps a token may be for (their bundle IDs). */
 export const ARISE_APP = "com.arisereader.arisetodo";
 export const PODPLUS_APP = "com.arisereader.podplus";
-/** A.R.I.S.E. Reader Educator, the teacher and parent Reader app. */
+/** Arise Reader Educator, the teacher and parent Reader app. */
 export const EDUCATOR_APP = "com.arisereader.educator";
 /** Arise Fit, training and nutrition (personal accounts, like Arise To Duo). */
 export const FIT_APP = "com.arisereader.fit";

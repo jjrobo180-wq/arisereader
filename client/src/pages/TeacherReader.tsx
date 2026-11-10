@@ -1,4 +1,4 @@
-// A.R.I.S.E. Reader for teachers, parents and the administrator: what they see after signing in
+// Arise Reader for teachers, parents and the administrator: what they see after signing in
 // on arisereader.com. Parents get the same look with their children's Reader, and a banner that
 // opens Arise LifeHub instead of WorkHub.
 // The look (dark, with a menu down the left, a greeting, four counts, "Needs you today" and the
@@ -232,7 +232,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
     <div className="teacher-reader hub-paper hub-night min-h-screen w-full max-w-[100vw] overflow-x-clip" data-testid="arise-reader-page"
       style={{ background: "#0d0b1a", color: "#ece9f7", fontFamily: "'Figtree', system-ui, sans-serif" }}>
 
-      <header className="sticky top-0 z-50 flex h-16 items-center justify-between gap-2 border-b px-3 sm:gap-3 sm:px-6" style={{ borderColor: "rgba(255,255,255,0.1)", background: "#0f0d1f" }}>
+      <header className="sticky top-0 z-50 flex h-[calc(4rem+var(--sat,0px))] items-center pt-[var(--sat,0px)] justify-between gap-2 border-b px-3 sm:gap-3 sm:px-6" style={{ borderColor: "rgba(255,255,255,0.1)", background: "#0f0d1f" }}>
         <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
           {/* Phones: the menu's Hide / Menu button, up top where it is easy to find. */}
           <button type="button" onClick={() => setRail(!rail)} aria-expanded={rail} aria-controls="reader-phone-rail" data-testid="reader-rail-toggle"
@@ -240,7 +240,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
             {rail ? <PanelLeftClose className="h-4 w-4" /> : <MenuIcon className="h-4 w-4" />}{rail ? "Hide" : "Menu"}
           </button>
           <span className="hidden h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] sm:flex" style={{ background: "#7c3aed" }}><BookOpen className="h-[18px] w-[18px] text-white" /></span>
-          <span className="whitespace-nowrap text-[16px] font-black tracking-[-0.02em] sm:text-[19px]">A.R.I.S.E. <span style={{ color: "#c4b5fd" }}>Reader</span></span>
+          <span className="whitespace-nowrap text-[16px] font-black tracking-[-0.02em] sm:text-[19px]">Arise <span style={{ color: "#c4b5fd" }}>Reader</span></span>
           <span className="hidden shrink-0 rounded-full px-2.5 py-0.5 text-xs font-extrabold min-[430px]:inline" style={{ background: "#c4b5fd", color: "#0d0b1a" }}>{user.isAdmin ? "Admin" : isParent ? "Parent" : "Teacher"}</span>
         </div>
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
@@ -276,7 +276,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
 
       {/* Phone: the menu is a rail down the left with a Hide button (computers get the sidebar below). */}
       {rail ? (
-        <nav id="reader-phone-rail" aria-label="Reader menu" className="fixed bottom-0 left-0 top-[64px] z-40 flex w-[76px] flex-col gap-1 overflow-y-auto border-r px-1.5 py-2 lg:hidden" style={{ background: "#151326", borderColor: dim }} data-testid="reader-phone-rail">
+        <nav id="reader-phone-rail" aria-label="Reader menu" className="fixed bottom-0 left-0 top-[calc(64px+var(--sat,0px))] z-40 flex w-[76px] flex-col gap-1 overflow-y-auto border-r px-1.5 py-2 lg:hidden" style={{ background: "#151326", borderColor: dim }} data-testid="reader-phone-rail">
           {[...(isParent ? PARENT_MENU : MENU), ...(user.isAdmin ? [null, ...ADMIN_MENU] : [])].map((m) => {
             if (!m) return <p key="admin-label" className="mt-2 border-t px-1 pb-0.5 pt-2 text-center text-[9px] font-extrabold uppercase tracking-wider" style={{ borderColor: dim, color: "#a29fb8" }}>Admin</p>;
             const on = view === m.id;

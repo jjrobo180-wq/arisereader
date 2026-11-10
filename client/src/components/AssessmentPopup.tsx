@@ -106,7 +106,7 @@ export default function AssessmentPopup({ onNavigate }: { onNavigate: (path: str
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary/10 mb-3">
             <span className="text-2xl">📚</span>
           </div>
-          <h2 className="text-xl font-bold mb-1">Welcome to A.R.I.S.E Reader!</h2>
+          <h2 className="text-xl font-bold mb-1">Welcome to Arise Reader!</h2>
           <p className="text-sm text-muted-foreground">
             To find your reading level and get personalized book recommendations, let's start with a quick reading assessment. Or, if you have an i-Ready score from school, you can enter that instead.
           </p>

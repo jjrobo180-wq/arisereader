@@ -1,4 +1,4 @@
-// Animated scenes for the iPhone apps' first-run tours (Arise To Duo, A.R.I.S.E. Reader, Reader
+// Animated scenes for the iPhone apps' first-run tours (Arise To Duo, Arise Reader, Reader
 // Educator and Pod+): a small phone showing the app's real screens (the same tab bar, switch, cards
 // and labels), with a finger doing the step, on a loop. They replace the old single-icon pictures.
 // Inline styles only (no Tailwind classes), so Pod+'s separate build draws them the same way.
@@ -263,7 +263,7 @@ function TodoArise() {
     <div style={abs({ top: 26, left: 12 })}><Txt s={17} w={800}>Plugins</Txt></div>
     <div style={abs({ top: 54, left: 10, right: 10, ...card, padding: 4 })}>
       {row("🏠", "Home", "#ede9fe")}
-      <div className="ts-a" style={{ ...A("ts-slideup"), animationIterationCount: 1, animationDuration: ".8s" }}>{row("📖", "A.R.I.S.E. Reader", "#e0e7ff")}{row("➗", "Arise Math", "#dcfce7")}{row("🏛️", "Arise History", "#ffedd5")}{row("🔗", "Arise Connect", "#e0f2fe")}</div>
+      <div className="ts-a" style={{ ...A("ts-slideup"), animationIterationCount: 1, animationDuration: ".8s" }}>{row("📖", "Arise Reader", "#e0e7ff")}{row("➗", "Arise Math", "#dcfce7")}{row("🏛️", "Arise History", "#ffedd5")}{row("🔗", "Arise Connect", "#e0f2fe")}</div>
     </div>
     <TabBar />
   </Phone>;
@@ -297,7 +297,7 @@ export function TodoScene({ id }: { id: string }) {
   }
 }
 
-// ——— A.R.I.S.E. Reader (students) and Reader Educator —————————————————————————————————————————
+// ——— Arise Reader (students) and Reader Educator —————————————————————————————————————————
 
 const READ = "#5b4fe0";
 const cover = (c1: string, c2: string, t: string): CSSProperties => ({ background: `linear-gradient(160deg,${c1},${c2})`, borderRadius: 8, color: "#fff", fontSize: 8, fontWeight: 800, padding: 6, display: "flex", alignItems: "flex-end", boxShadow: "0 6px 12px -6px rgba(0,0,0,.5)", ...(t ? {} : {}) });
@@ -381,7 +381,7 @@ function EducatorFamily() {
   </Phone>;
 }
 
-/** A.R.I.S.E. Reader and Reader Educator tour scenes, by page id (components/ReaderFirstRun.tsx). */
+/** Arise Reader and Reader Educator tour scenes, by page id (components/ReaderFirstRun.tsx). */
 export function ReaderScene({ id }: { id: string }) {
   switch (id) {
     case "library": return <ReaderLibrary />;

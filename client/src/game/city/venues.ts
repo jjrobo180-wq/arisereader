@@ -109,7 +109,7 @@ export function buildVenues(scene: THREE.Scene, keep: <T extends { dispose: () =
     merged(roofs, keep(std(0x4a3a2c)));
     // billboards on a few tall towers
     const boards = [
-      { text: "READ MORE. RISE HIGHER.", sub: "A.R.I.S.E. READER", bg: "#111827", c: "#facc15" },
+      { text: "READ MORE. RISE HIGHER.", sub: "ARISE READER", bg: "#111827", c: "#facc15" },
       { text: "NOODLE HOUSE", sub: "ON THE PLAZA · OPEN LATE", bg: "#14532d", c: "#bbf7d0" },
       { text: "HAVEN FAIR", sub: "RIDES · GAMES · TREATS", bg: "#7c2d12", c: "#fed7aa" },
       { text: "ARISE NEWS", sub: "WORLD NEWS YOU CAN READ", bg: "#1e1b4b", c: "#c7d2fe" },

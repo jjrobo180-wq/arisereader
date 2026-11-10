@@ -178,7 +178,7 @@ export default function Register({ independent = false }: { independent?: boolea
                 : selectedSchoolId && selectedGrade && <button type="button" onClick={() => setSelectedTeacherId(NOT_LISTED)} className={`w-full rounded-xl border p-3 text-sm font-bold transition ${teachers.length === 0 ? "border-violet-300 bg-violet-50 text-violet-800 hover:bg-violet-100" : "border-[#dfe2ee] bg-white text-slate-700 hover:border-violet-400 hover:text-violet-700"}`}>
                     {teachers.length === 0 ? "No teachers listed yet — tap here: Teacher not listed" : "Teacher not listed?"}
                   </button>}
-              {directoryTeacher && <p className="rounded-xl border border-violet-200 bg-violet-50 p-3 text-xs font-semibold leading-5 text-slate-700">This teacher is listed for your school but does not have a linked A.R.I.S.E. Reader account yet. You can sign up and read right away. An administrator can link you to their class when the teacher joins.</p>}
+              {directoryTeacher && <p className="rounded-xl border border-violet-200 bg-violet-50 p-3 text-xs font-semibold leading-5 text-slate-700">This teacher is listed for your school but does not have a linked Arise Reader account yet. You can sign up and read right away. An administrator can link you to their class when the teacher joins.</p>}
               {teacherNotListed && <p className="rounded-xl border border-violet-200 bg-violet-50 p-3 text-xs font-semibold leading-5 text-slate-700">{schoolNewToSite ? "No teachers from this school are on A.R.I.S.E. yet. " : "No problem. "}You'll get full access right away. We'll connect you to your {schoolNotListed ? "school and teacher" : "teacher"} for you.</p>}
               </>}
             </div>}

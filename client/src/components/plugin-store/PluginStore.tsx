@@ -119,7 +119,7 @@ export type PluginStoreProps = {
   teacher: boolean;
   /** Teacher-only apps and teacher wording (defaults to `teacher`). False for someone who didn't sign up as a teacher. */
   teacherApps?: boolean;
-  /** The Arise learning apps: only for teachers and parents who came from A.R.I.S.E. Reader. */
+  /** The Arise learning apps: only for teachers and parents who came from Arise Reader. */
   arise?: boolean;
   isInstalled: (p: Plugin) => boolean;
   /** Adds or removes a tab or section app. The hub saves it. */

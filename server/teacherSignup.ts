@@ -211,7 +211,7 @@ const esc = (text: unknown) => String(text ?? "").replace(/[&<>"']/g, (c) => ESC
 const frame = (inner: string) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
       <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">A.R.I.S.E Reader</h1>
+        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">Arise Reader</h1>
         <p style="color: #999; margin: 5px 0 0 0;">Read a book. Take a quiz. Earn points.</p>
       </div>${inner}
     </div>
@@ -237,7 +237,7 @@ export function teacherEmailCodeEmail(displayName: string, code: string): string
   return frame(`
       <h2 style="color: #FF5900; font-size: 22px;">Confirm your school email</h2>
       <p ${P}>Hi ${esc(displayName)},</p>
-      <p ${P}>Type this code on the teacher sign-up page to turn on your A.R.I.S.E Reader teacher account:</p>
+      <p ${P}>Type this code on the teacher sign-up page to turn on your Arise Reader teacher account:</p>
       <div style="background: #2a2a2a; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
         <p style="color: #FF5900; font-size: 34px; letter-spacing: 8px; margin: 0; font-weight: bold;">${esc(code)}</p>
       </div>
@@ -250,7 +250,7 @@ export function teacherWelcomeEmail(displayName: string, username: string, appUr
   return frame(`
       <h2 style="color: #FF5900; font-size: 22px;">Your Teacher Account is Ready!</h2>
       <p ${P}>Hi ${esc(displayName)},</p>
-      <p ${P}>Your school email is confirmed and your teacher account on A.R.I.S.E Reader is on. You can log in and start setting up your class right now.</p>
+      <p ${P}>Your school email is confirmed and your teacher account on Arise Reader is on. You can log in and start setting up your class right now.</p>
       <div style="background: #2a2a2a; border-radius: 8px; padding: 20px; margin: 20px 0;">
         <p style="color: #999; margin: 0 0 5px 0; font-size: 14px;">Your username:</p>
         <p style="color: #FF5900; font-size: 18px; margin: 0; font-weight: bold;">${esc(username)}</p>

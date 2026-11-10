@@ -1,4 +1,4 @@
-name: A.R.I.S.E. Reader signed iOS release candidate
+name: Arise Reader signed iOS release candidate
 # Built from the shared frontend with VITE_NATIVE_APP=reader (client/src/lib/nativeApp.ts).
 # Uploads to TestFlight only for a pushed commit whose message has [approved-testflight].
 on:
@@ -109,7 +109,7 @@ jobs:
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
           PROFILE_APP_ID=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/profile.plist")
           if [[ "$PROFILE_APP_ID" != '6TYWWNKX6P.com.arisereader.reader' ]]; then
-            echo "::error::Provisioning profile does not match the A.R.I.S.E. Reader bundle ID"
+            echo "::error::Provisioning profile does not match the Arise Reader bundle ID"
             exit 1
           fi
           security create-keychain -p "" "$RUNNER_TEMP/reader.keychain-db"
@@ -158,7 +158,7 @@ jobs:
           if [[ -n "$USE_ENT" ]]; then echo "HEALTH_ENTITLEMENTS=CODE_SIGN_ENTITLEMENTS=App/App.entitlements" >> "$GITHUB_ENV"; else echo "HEALTH_ENTITLEMENTS=" >> "$GITHUB_ENV"; fi
           # The Home Screen widgets' own App ID and profile (registered the first time). If Apple won't
           # give one, the app is built without widgets rather than not at all.
-          if python3 podscroll/ios-app/find-existing-profile.py com.arisereader.reader.widgets "$RUNNER_TEMP/widgets.mobileprovision" --create-missing-profile --register-bundle-id "--app-name=ARISE Reader Widgets"; then
+          if python3 podscroll/ios-app/find-existing-profile.py com.arisereader.reader.widgets "$RUNNER_TEMP/widgets.mobileprovision" --create-missing-profile --register-bundle-id "--app-name=Arise Reader Widgets"; then
             security cms -D -i "$RUNNER_TEMP/widgets.mobileprovision" > "$RUNNER_TEMP/widgets.plist"
             W_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/widgets.plist")
             W_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/widgets.plist")

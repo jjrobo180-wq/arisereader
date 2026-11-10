@@ -510,7 +510,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     return value;
   };
 
-  /** Can this person use A.R.I.S.E. Reader (paid since November 9, 2026), and why? */
+  /** Can this person use Arise Reader (paid since November 9, 2026), and why? */
   const readerAccess = async (user: AnyUser | null | undefined): Promise<ReaderAccess> => {
     if (!user || !posInt(user.id)) return { access: false, via: null };
     const key = `${user.id}|${user.role || ""}|${user.isAdmin ? 1 : 0}`;
@@ -577,7 +577,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   app.use("/api", teacherGate);
 
   /**
-   * A.R.I.S.E. Reader is paid for accounts made from November 9, 2026. A new student, parent or
+   * Arise Reader is paid for accounts made from November 9, 2026. A new student, parent or
    * teacher without a plan is refused the Reader's own data (books, quizzes, points, dashboards);
    * everything else (signing in, their plan and paying, To Duo, LifeHub, WorkHub, Eye Gazer) stays
    * open. If the check itself fails the request goes through, so a hiccup never locks out a payer.
@@ -591,7 +591,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const user: any = await deps.userForToken(token);
       if (!user || user.isAdmin || user.is_eye_gaze_user || user.isEyeGazeUser) return next();
       if ((await readerAccess(user)).access) return next();
-      return res.status(402).json({ message: "This account needs an A.R.I.S.E. Reader plan. A family plan is $7 a month at arisereader.com.", code: READER_PLAN_REQUIRED });
+      return res.status(402).json({ message: "This account needs an Arise Reader plan. A family plan is $7 a month at arisereader.com.", code: READER_PLAN_REQUIRED });
     } catch (e: any) {
       console.error("[plans] Reader check failed:", e?.message);
       return next();
@@ -779,8 +779,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const mine = (await readGrant("teacher", teacher.id)) ?? (await readGrant("hub_teacher", teacher.id));
       const customer = mine?.buyerId === teacher.id ? mine.stripeCustomerId : undefined;
       const price = priceOf(kind);
-      const productName = kind === "school" ? `A.R.I.S.E. Reader for a whole school (up to ${PLANS.school.studentCap.toLocaleString("en-US")} students)`
-        : kind === "teacher" ? `A.R.I.S.E. Reader for a teacher (per ${PLANS.teacher.studentsPerBlock} students)`
+      const productName = kind === "school" ? `Arise Reader for a whole school (up to ${PLANS.school.studentCap.toLocaleString("en-US")} students)`
+        : kind === "teacher" ? `Arise Reader for a teacher (per ${PLANS.teacher.studentsPerBlock} students)`
         : kind === "hub_school" ? `Arise WorkHub for a school (up to ${PLANS.hub.schoolStudentCap.toLocaleString("en-US")} students)`
         : `Arise WorkHub for a teacher (per ${PLANS.hub.studentsPerBlock} students)`;
       const session = await stripe("POST", "/checkout/sessions", {
@@ -1331,7 +1331,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const name = app ? `${APP_NAMES[app]} for a class (up to ${PLANS.classApps.seats} students)`
         : kind === "todo_unlimited" ? UNLIMITED_NAME
         : kind === "todo_unlimited_year" ? `${UNLIMITED_NAME}, yearly`
-        : kind === "bundle_family" ? "A.R.I.S.E. Reader for a family (Reader, Math, History and Connect, up to 3 children)"
+        : kind === "bundle_family" ? "Arise Reader for a family (Reader, Math, History and Connect, up to 3 children)"
         : "Arise LifeHub for a family";
       const back = addonReturn(req);
       const session = await stripe("POST", "/checkout/sessions", {
@@ -1614,7 +1614,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         entitlement(user), hubAccess(user), todoStatus(user), ...APP_IDS.map((app) => appStatus(user, app)),
       ]);
       res.json({ programs: [
-        { id: "reader", name: "A.R.I.S.E. Reader and Class tools", access: reader.premium },
+        { id: "reader", name: "Arise Reader and Class tools", access: reader.premium },
         { id: "hub", name: "Arise WorkHub", access: hub.access },
         { id: "todo", name: "Arise LifeHub", access: todo.access },
         ...APP_IDS.map((app, i) => ({ id: app, name: APP_NAMES[app], access: apps[i].access })),

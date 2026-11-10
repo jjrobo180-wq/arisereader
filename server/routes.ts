@@ -198,7 +198,7 @@ function quizPointsForScore(bookPoints: number, score: number, total: number): n
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
 const PROXY_URL = process.env.CUSTOM_CRED_API_RESEND_COM_URL || "";
 const PROXY_TOKEN = process.env.CUSTOM_CRED_API_RESEND_COM_TOKEN || "";
-const EMAIL_FROM = process.env.EMAIL_FROM || "A.R.I.S.E Reader <noreply@arisereader.com>";
+const EMAIL_FROM = process.env.EMAIL_FROM || "Arise Reader <noreply@arisereader.com>";
 const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || "jjrobo180@gmail.com";
 const APP_URL = process.env.APP_URL || DEFAULT_SITE_URL;
 
@@ -936,7 +936,7 @@ async function sendEmail(to: string | string[], subject: string, html: string, o
   // A teacher's name can go in front of the site's own address, but mail can't truly come "from" their address: their email provider would mark it as fake.
   const fromAddress = /<([^>]+)>/.exec(EMAIL_FROM)?.[1] || EMAIL_FROM;
   const fromName = String(options.fromName || "").replace(/["<>@\r\n]/g, "").trim().slice(0, 60);
-  const from = fromName ? `"${fromName} via A.R.I.S.E. Reader" <${fromAddress}>` : EMAIL_FROM;
+  const from = fromName ? `"${fromName} via Arise Reader" <${fromAddress}>` : EMAIL_FROM;
   const body = JSON.stringify({ from, to: recipients, subject, html: emailDocument(subject, html, APP_URL), ...(options.replyTo ? { reply_to: options.replyTo } : {}) });
   let lastError = "";
   for (let attempt = 1; attempt <= 3; attempt++) {
@@ -1001,12 +1001,12 @@ function parentApprovedEmail(displayName: string, username: string): string {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
       <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">A.R.I.S.E Reader</h1>
+        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">Arise Reader</h1>
         <p style="color: #999; margin: 5px 0 0 0;">Read a book. Take a quiz. Earn points.</p>
       </div>
       <h2 style="color: #FF5900; font-size: 22px;">Your Parent Account is Approved!</h2>
       <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Hi ${displayName},</p>
-      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Your parent account on A.R.I.S.E Reader has been approved. You can now log in and view your student's progress, print certificates, and message their teacher.</p>
+      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Your parent account on Arise Reader has been approved. You can now log in and view your student's progress, print certificates, and message their teacher.</p>
       <div style="background: #2a2a2a; border-radius: 8px; padding: 20px; margin: 20px 0;">
         <p style="color: #999; margin: 0 0 5px 0; font-size: 14px;">Your username:</p>
         <p style="color: #FF5900; font-size: 18px; margin: 0; font-weight: bold;">${username}</p>
@@ -1021,12 +1021,12 @@ function teacherApprovedEmail(displayName: string, username: string): string {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
       <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">A.R.I.S.E Reader</h1>
+        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">Arise Reader</h1>
         <p style="color: #999; margin: 5px 0 0 0;">Read a book. Take a quiz. Earn points.</p>
       </div>
       <h2 style="color: #FF5900; font-size: 22px;">Your Teacher Account is Approved!</h2>
       <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Hi ${displayName},</p>
-      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Your teacher account on A.R.I.S.E Reader has been approved. You can now log in and start managing your students.</p>
+      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Your teacher account on Arise Reader has been approved. You can now log in and start managing your students.</p>
       <div style="background: #2a2a2a; border-radius: 8px; padding: 20px; margin: 20px 0;">
         <p style="color: #999; margin: 0 0 5px 0; font-size: 14px;">Your username:</p>
         <p style="color: #FF5900; font-size: 18px; margin: 0; font-weight: bold;">${username}</p>
@@ -1041,7 +1041,7 @@ function teacherSignupNotifyEmail(displayName: string, username: string, email: 
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
       <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">A.R.I.S.E Reader</h1>
+        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">Arise Reader</h1>
       </div>
       <h2 style="color: #FF5900; font-size: 22px;">New Teacher Signup</h2>
       <p style="color: #ccc; font-size: 16px; line-height: 1.6;">A new teacher has requested an account:</p>
@@ -1059,12 +1059,12 @@ function teacherCreatedEmail(displayName: string, username: string): string {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
       <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">A.R.I.S.E Reader</h1>
+        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">Arise Reader</h1>
         <p style="color: #999; margin: 5px 0 0 0;">Read a book. Take a quiz. Earn points.</p>
       </div>
       <h2 style="color: #FF5900; font-size: 22px;">Your Teacher Account is Ready</h2>
       <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Hi ${displayName},</p>
-      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">An administrator has created a teacher account for you on A.R.I.S.E Reader. Your account is approved and ready to use.</p>
+      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">An administrator has created a teacher account for you on Arise Reader. Your account is approved and ready to use.</p>
       <div style="background: #2a2a2a; border-radius: 8px; padding: 20px; margin: 20px 0;">
         <p style="color: #999; margin: 0 0 5px 0; font-size: 14px;">Your username:</p>
         <p style="color: #FF5900; font-size: 18px; margin: 0; font-weight: bold;">${username}</p>
@@ -1080,7 +1080,7 @@ function clubSignupNotifyAdminEmail(studentName: string, grade: string, parentNa
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
       <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">A.R.I.S.E Reader</h1>
+        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">Arise Reader</h1>
         <p style="color: #999; margin: 5px 0 0 0;">Read a book. Take a quiz. Earn points.</p>
       </div>
       <h2 style="color: #FF5900; font-size: 22px;">New Reading Club Sign-Up</h2>
@@ -1103,7 +1103,7 @@ function clubApprovedEmail(studentName: string): string {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
       <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">A.R.I.S.E Reader</h1>
+        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">Arise Reader</h1>
         <p style="color: #999; margin: 5px 0 0 0;">Read a book. Take a quiz. Earn points.</p>
       </div>
       <h2 style="color: #4ade80; font-size: 22px;">You're Approved for Reading Club!</h2>
@@ -1116,7 +1116,7 @@ function clubApprovedEmail(studentName: string): string {
         <p style="color: #ccc; font-size: 15px; margin: 4px 0;">🏆 Earn 100 points each week</p>
         <p style="color: #ccc; font-size: 15px; margin: 4px 0;">📖 Bring a book or find one in the library</p>
       </div>
-      <a href="${APP_URL}" style="display: inline-block; background: #FF5900; color: #fff; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; font-weight: bold; margin: 10px 0;">Go to A.R.I.S.E Reader</a>
+      <a href="${APP_URL}" style="display: inline-block; background: #FF5900; color: #fff; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; font-weight: bold; margin: 10px 0;">Go to Arise Reader</a>
     </div>
   `;
 }
@@ -1125,14 +1125,14 @@ function clubDeniedEmail(studentName: string): string {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
       <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">A.R.I.S.E Reader</h1>
+        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">Arise Reader</h1>
         <p style="color: #999; margin: 5px 0 0 0;">Read a book. Take a quiz. Earn points.</p>
       </div>
       <h2 style="color: #f87171; font-size: 22px;">Reading Club Sign-Up Update</h2>
       <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Hi ${studentName},</p>
       <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Thank you for your interest in the A.R.I.S.E Reading Club. Unfortunately, your sign-up could not be approved at this time. Please contact your teacher or school administrator for more information.</p>
       <p style="color: #999; font-size: 14px; margin-top: 20px;">You can always try signing up again in the future.</p>
-      <a href="${APP_URL}" style="display: inline-block; background: #FF5900; color: #fff; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; font-weight: bold; margin: 10px 0;">Go to A.R.I.S.E Reader</a>
+      <a href="${APP_URL}" style="display: inline-block; background: #FF5900; color: #fff; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; font-weight: bold; margin: 10px 0;">Go to Arise Reader</a>
     </div>
   `;
 }
@@ -1372,7 +1372,7 @@ export async function registerRoutes(
   });
   const sendTeacherCode = async (account: TeacherAccount, code: string): Promise<boolean> => {
     if (!account.email) return false;
-    const result = await sendEmail(account.email, `${code} is your A.R.I.S.E Reader code`, teacherEmailCodeEmail(account.displayName || account.username, code));
+    const result = await sendEmail(account.email, `${code} is your Arise Reader code`, teacherEmailCodeEmail(account.displayName || account.username, code));
     if (!result.sent) console.error("[teacher-signup] could not email a code:", result.error);
     return result.sent;
   };
@@ -1384,7 +1384,7 @@ export async function registerRoutes(
     // The admin no longer approves these teachers, so they are told about each one instead.
     joined: async (account) => {
       const name = account.displayName || account.username;
-      if (account.email) sendEmail(account.email, "Your A.R.I.S.E Reader teacher account is ready", teacherWelcomeEmail(name, account.username, APP_URL)).catch(() => {});
+      if (account.email) sendEmail(account.email, "Your Arise Reader teacher account is ready", teacherWelcomeEmail(name, account.username, APP_URL)).catch(() => {});
       let school = "";
       try {
         const teacher = await storage.getUser(account.id);
@@ -1901,10 +1901,10 @@ export async function registerRoutes(
   });
   registerUserDocRoutes(app, authMiddleware, userDocStore, undefined, profileLinks.canUseApp);
   // Health Nudges (a premium app) sends phone notifications from the settings it saved with the person's app data.
-  // A.R.I.S.E. Reader app: a message to a reader (from their teacher, being added to a class, a reward) is also a
+  // Arise Reader app: a message to a reader (from their teacher, being added to a class, a reward) is also a
   // notification on their iPhone. Its link opens the inbox (Library.tsx reads ?inbox=1).
   setReaderMessageListener((userId, senderType, text) => {
-    void notifyUser(userId, { title: senderType === "teacher" ? "A message from your teacher" : "A.R.I.S.E. Reader", body: text.replace(/\s+/g, " ").slice(0, 170), url: "/#/library?inbox=1", tag: "reader-message" }).catch(() => {});
+    void notifyUser(userId, { title: senderType === "teacher" ? "A message from your teacher" : "Arise Reader", body: text.replace(/\s+/g, " ").slice(0, 170), url: "/#/library?inbox=1", tag: "reader-message" }).catch(() => {});
   });
   setNudgeSource(async (userId) => {
     const raw = await userDocStore.read(`${userId}/apps/pro-health-nudges.json`);
@@ -3055,7 +3055,7 @@ export async function registerRoutes(
         success: true,
         username: user.username,
         linked: !!student,
-        message: student ? "Your parent account is ready and linked to your child." : "Your parent account is ready. You can set up your child's independent reader account or link a school account from A.R.I.S.E. Reader.",
+        message: student ? "Your parent account is ready and linked to your child." : "Your parent account is ready. You can set up your child's independent reader account or link a school account from Arise Reader.",
       });
     } catch (err: any) {
       console.error("[parent-signup] failed:", err?.message);
@@ -9239,7 +9239,7 @@ Important:
     const settled = await Promise.allSettled(TRUSTED_YOUTUBE_RSS_CHANNELS.map(async channel => {
       const response = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${channel.id}`, {
         signal: AbortSignal.timeout(6000),
-        headers: { 'User-Agent': 'A.R.I.S.E Reader/1.0' },
+        headers: { 'User-Agent': 'Arise Reader/1.0' },
       });
       if (!response.ok) return [];
       const xml = await response.text();
@@ -11626,7 +11626,7 @@ Important:
       const safe = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
       const result = await sendEmail(
         email,
-        `${req.user.displayName || "Your student"} invited you to A.R.I.S.E. Reader`,
+        `${req.user.displayName || "Your student"} invited you to Arise Reader`,
         parentInviteEmail(safe(String(req.user.displayName || "your student")), safe(signupUrl), safe(String(invite.formattedCode))),
       );
       if (!result.sent) return res.status(503).json({ message: result.error || "Could not send the email right now." });
@@ -12184,7 +12184,9 @@ Important:
       // eye-gaze and custom quizzes, plus manual awards). The account row alone has no quiz count.
       const stats = new Map<number, any>();
       try { for (const row of await storage.getLeaderboard()) stats.set(Number(row.id), row); } catch {}
-      res.json(students.map((s: any) => {
+      res.json(students.map((full: any) => {
+        // The stored password never leaves the server.
+        const { password: _password, ...s } = full;
         const row = stats.get(Number(s.id));
         return row ? { ...s, totalPoints: row.totalPoints, quizzesTaken: row.quizzesTaken, quizzesPassed: row.quizzesPassed, quizzesMastered: row.quizzesPassed } : s;
       }));
@@ -12199,7 +12201,7 @@ Important:
       const students = teacherId
         ? await storage.getPendingStudents(teacherId)
         : await storage.getAllUsers().then((all: any[]) => all.filter(u => !u.approvedByTeacher));
-      res.json(students);
+      res.json(students.map(({ password: _password, ...s }: any) => s));
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -12593,7 +12595,7 @@ Important:
           try {
             sendEmail(
               teacher.email,
-              "Your A.R.I.S.E Reader teacher account is approved!",
+              "Your Arise Reader teacher account is approved!",
               teacherApprovedEmail(teacher.display_name || teacher.username, teacher.username)
             ).catch(() => {});
           } catch {}
@@ -12681,7 +12683,7 @@ Important:
         if (hasEmail) {
           sendEmail(
             parent.email,
-            "Your A.R.I.S.E Reader parent account is approved!",
+            "Your Arise Reader parent account is approved!",
             parentApprovedEmail(parent.display_name || parent.username, parent.username)
           ).catch(() => {});
         }
@@ -13010,13 +13012,13 @@ Important:
           if (status === 'confirmed') {
             sendEmail(
               emailAddr,
-              "You're approved for Reading Club - A.R.I.S.E Reader",
+              "You're approved for Reading Club - Arise Reader",
               clubApprovedEmail(studentName)
             ).catch(() => {});
           } else {
             sendEmail(
               emailAddr,
-              "Reading Club sign-up update - A.R.I.S.E Reader",
+              "Reading Club sign-up update - Arise Reader",
               clubDeniedEmail(studentName)
             ).catch(() => {});
           }
@@ -13066,7 +13068,7 @@ Important:
         if (user.email) {
           sendEmail(
             user.email,
-            "Your A.R.I.S.E Reader teacher account is ready",
+            "Your Arise Reader teacher account is ready",
             teacherCreatedEmail(displayName, user.username)
           ).catch(() => {});
         }
@@ -14176,11 +14178,11 @@ Important:
           try {
             sendEmail(
               teacher.email,
-              `Book Request from ${studentName} - A.R.I.S.E Reader`,
+              `Book Request from ${studentName} - Arise Reader`,
               `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
                 <div style="text-align: center; margin-bottom: 30px;">
-                  <h1 style="color: #FF5900; font-size: 28px; margin: 0;">A.R.I.S.E Reader</h1>
+                  <h1 style="color: #FF5900; font-size: 28px; margin: 0;">Arise Reader</h1>
                   <p style="color: #999; margin: 5px 0 0 0;">Read a book. Take a quiz. Earn points.</p>
                 </div>
                 <h2 style="color: #FF5900; font-size: 22px;">Book Request from Your Student</h2>
@@ -14191,8 +14193,8 @@ Important:
                   <p style="color: #999; margin: 0; font-size: 14px;">by ${bookAuthor}</p>
                 </div>
                 <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Please help ${studentName} find this book so they can continue their reading journey!</p>
-                <a href="${APP_URL}" style="display: inline-block; background: #FF5900; color: #fff; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; font-weight: bold; margin: 20px 0;">Go to A.R.I.S.E Reader</a>
-                <p style="color: #666; font-size: 14px; margin-top: 30px;">This is an automated message from A.R.I.S.E Reader.</p>
+                <a href="${APP_URL}" style="display: inline-block; background: #FF5900; color: #fff; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; font-weight: bold; margin: 20px 0;">Go to Arise Reader</a>
+                <p style="color: #666; font-size: 14px; margin-top: 30px;">This is an automated message from Arise Reader.</p>
               </div>
               `
             ).catch(() => {});

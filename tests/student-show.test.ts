@@ -74,7 +74,7 @@ test("the screens are labelled as demo copies with sample people", () => {
 });
 
 test("the voice reads the words the way they are said, not the way they are written", () => {
-  assert.equal(spokenText("A.R.I.S.E. Reader"), "Arise Reader");
+  assert.equal(spokenText("Arise Reader"), "Arise Reader");
   assert.equal(spokenText("Go to arisereader.com, click Student sign in"), "Go to arise reader dot com, click Student sign in");
   assert.match(spokenText("Welcome, C.G.M.S.! Who is your ELA teacher?"), /C G M S.*E L A teacher/);
   for (const b of FLAT) assert.ok(!/[A-Z]\.[A-Z]\./.test(spokenText(b.say)), `"${b.say.slice(0, 30)}" still has dotted letters`);

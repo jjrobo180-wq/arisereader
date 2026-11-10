@@ -1,5 +1,5 @@
-name: App Store listing (A.R.I.S.E. Reader)
-# Fills in A.R.I.S.E. Reader's App Store listing: makes the App Review sample account, takes the
+name: App Store listing (Arise Reader)
+# Fills in Arise Reader's App Store listing: makes the App Review sample account, takes the
 # screenshots on the real site, and sends the text, category, age rating, price and screenshots to
 # App Store Connect (.github/scripts/app_store_fill.py). Doesn't submit: app-store-submit.yml does that.
 on:

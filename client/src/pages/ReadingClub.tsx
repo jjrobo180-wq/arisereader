@@ -182,7 +182,7 @@ export default function ReadingClub() {
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-primary font-bold">2.</span>
-                Use the time to read, explore books online, or take quizzes on A.R.I.S.E Reader.
+                Use the time to read, explore books online, or take quizzes on Arise Reader.
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-primary font-bold">3.</span>
