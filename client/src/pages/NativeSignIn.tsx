@@ -23,7 +23,7 @@ const showHubMenus = () => { try { localStorage.setItem("arise-hub-rail", "open"
  *  student app has no Sign in with Apple and no "free account" (an independent learner signs up on the
  *  same page the website uses). */
 const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { tint: string; icon: ReactNode; title: string; text: string }[]; apple: boolean; signInHint: string; create: string }> = {
-  todo: { icon: "/icon-512.png", tagline: "Your life and your work, side by side.", apple: true, signInHint: "Use your Arise To Duo or Arise Reader account.", create: "Create a free account",
+  todo: { icon: "/app-icons/todo-1024.png", tagline: "Your life and your work, side by side.", apple: true, signInHint: "Use your Arise To Duo or Arise Reader account.", create: "Create a free account",
     features: [
       { tint: "#6a55dc", icon: <HeartHandshake className="h-[22px] w-[22px]" />, title: "LifeHub", text: "Home, family, calendar, health and money." },
       { tint: "#0f766e", icon: <Briefcase className="h-[22px] w-[22px]" />, title: "WorkHub", text: "Projects, meetings and to-dos for work." },
