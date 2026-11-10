@@ -45,6 +45,10 @@ def step(what, fn):
         print(f"FAIL {what}: {e}")
 
 
+NAME = "Arise Reader"
+WHATS_NEW = """A new name and a new look: A.R.I.S.E. Reader is now Arise Reader, with a new icon.
+Also in this update: the teacher and parent screens fit iPhones with a Dynamic Island, long class lists open quickly, and plenty of small fixes."""
+
 DESCRIPTION = """Arise Reader makes reading the best part of a child's day. Read a book, take a short quiz about it, and earn points, badges and streaks for every book finished.
 
 READ AND QUIZ
@@ -83,6 +87,23 @@ SUBTITLE = "Reading quizzes and rewards"
 demo_user, demo_pass = os.environ.get("DEMO_USER", ""), os.environ.get("DEMO_PASS", "")
 app = q("apps", **{"filter[bundleId]": BUNDLE})["data"][0]
 APP = app["id"]
+
+# An update: once a version is on the App Store its listing is closed, so the next version is opened
+# first (APP_VERSION, the same number the iPhone build carries). Its name, screenshots and text are
+# filled in below.
+IN_PROGRESS = ("PREPARE_FOR_SUBMISSION", "DEVELOPER_REJECTED", "REJECTED", "METADATA_REJECTED", "WAITING_FOR_REVIEW", "IN_REVIEW", "PENDING_DEVELOPER_RELEASE", "INVALID_BINARY")
+NEW_VERSION = os.environ.get("APP_VERSION", "").strip()
+def open_version():
+    states = [v["attributes"]["appStoreState"] for v in q(f"apps/{APP}/appStoreVersions", **{"filter[platform]": "IOS"})["data"]]
+    if any(st in IN_PROGRESS for st in states):
+        return
+    if not NEW_VERSION:
+        raise RuntimeError("no version is open and APP_VERSION is not set")
+    api("appStoreVersions", {"data": {"type": "appStoreVersions", "attributes": {"platform": "IOS", "versionString": NEW_VERSION},
+                                      "relationships": {"app": {"data": {"type": "apps", "id": APP}}}}})
+    print(f"     opened version {NEW_VERSION}")
+step("a version open for changes", open_version)
+
 infos = q(f"apps/{APP}/appInfos")["data"]
 info = next((i for i in infos if i["attributes"].get("appStoreState") != "READY_FOR_SALE"), infos[0])
 
@@ -94,6 +115,8 @@ step("category: Education, then Books", lambda: api(f"appInfos/{info['id']}", {"
 for loc in q(f"appInfos/{info['id']}/appInfoLocalizations")["data"]:
     step(f"subtitle and privacy link ({loc['attributes']['locale']})", lambda loc=loc: api(f"appInfoLocalizations/{loc['id']}", {"data": {"type": "appInfoLocalizations", "id": loc["id"], "attributes": {
         "subtitle": SUBTITLE, "privacyPolicyUrl": "https://arisetodo.com/privacy/"}}}, method="PATCH"))
+    # The name under the icon in the store, without the dots (on its own, so a name Apple won't take doesn't hold up the rest).
+    step(f"name: {NAME} ({loc['attributes']['locale']})", lambda loc=loc: api(f"appInfoLocalizations/{loc['id']}", {"data": {"type": "appInfoLocalizations", "id": loc["id"], "attributes": {"name": NAME}}}, method="PATCH"))
 
 # Age rating: a reading app for all ages. Students and their teachers can message each other in a class.
 def age():
@@ -141,6 +164,8 @@ vlocs = q(f"appStoreVersions/{VID}/appStoreVersionLocalizations")["data"]
 for loc in vlocs:
     step(f"description, keywords, support link ({loc['attributes']['locale']})", lambda loc=loc: api(f"appStoreVersionLocalizations/{loc['id']}", {"data": {"type": "appStoreVersionLocalizations", "id": loc["id"], "attributes": {
         "description": DESCRIPTION, "keywords": KEYWORDS, "promotionalText": PROMO, "supportUrl": "https://arisetodo.com/support/", "marketingUrl": "https://arisereader.com/"}}}, method="PATCH"))
+    # "What's New" (Apple asks for it on every update; the first version of an app has none, and refuses it).
+    step(f"what's new ({loc['attributes']['locale']})", lambda loc=loc: api(f"appStoreVersionLocalizations/{loc['id']}", {"data": {"type": "appStoreVersionLocalizations", "id": loc["id"], "attributes": {"whatsNew": WHATS_NEW}}}, method="PATCH"))
 
 # Free, in every country.
 def price():
