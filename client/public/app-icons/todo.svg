@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <rect width="1024" height="1024" fill="#6d3df5"/>
-  <!-- the D of Duo, in the same heavy letter style as the Reader's R -->
-  <path fill-rule="evenodd" d="M270.8 776.5V230.2H476C636 230.2 712 340 712 503.4C712 666.7 636 776.5 476 776.5ZM418.9 657.7H474C531 657.7 560 612 560 503.4C560 394.7 531 349 474 349H418.9Z" fill="#ffffff"/>
+  <!-- the T of To Duo, in the same heavy letter style as the Reader's R -->
+  <path d="M299 230.2H725V349H586V776.5H438V349H299Z" fill="#ffffff"/>
   <!-- a task checkbox, where the Reader has its bookmark -->
   <rect x="745" y="66" width="148" height="148" rx="38" fill="#15131f"/>
   <path d="M783 142L810 169L859 112" fill="none" stroke="#ffffff" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
