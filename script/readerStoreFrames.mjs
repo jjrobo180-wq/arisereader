@@ -10,12 +10,12 @@ import path from "node:path";
 const IN = process.env.IN || "store-shots/raw";
 const OUT = process.env.OUT || "store-shots";
 
-// One headline per screenshot, in the order readerStoreShots.mjs takes them.
+// One headline per screenshot, by its number in readerStoreShots.mjs: the library, a short read, its quiz, the games.
 const SLIDES = [
   { title: "Read. Quiz.<br>Earn points.", sub: "1,200+ books, each with a quick quiz", ground: "purple" },
   { title: "5-minute reads<br>kids finish", sub: "Short stories on animals, space and more", ground: "ink" },
-  { title: "Reading unlocks<br>game time", sub: "Pass a quiz, then play", ground: "purple" },
-  { title: "Stay close to<br>your teacher", sub: "Messages, points and progress together", ground: "ink" },
+  { title: "A quick quiz<br>after every book", sub: "Answer a few questions to earn the points", ground: "purple" },
+  { title: "Reading unlocks<br>game time", sub: "Pass a quiz, then play", ground: "ink" },
 ];
 
 // The page is laid out in points and drawn at the device's scale, so the picture comes out at Apple's size.
