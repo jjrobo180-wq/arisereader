@@ -1,12 +1,13 @@
 // App Store screenshots of A.R.I.S.E. Reader: the real site (arisereader.com) signed in as the App Review
 // sample account, at the sizes Apple asks for (6.9" iPhone 1320×2868, 13" iPad 2064×2752).
-// Usage: DEMO_USER=... DEMO_PASS=... node script/readerStoreShots.mjs   -> store-shots/{iphone,ipad}-N.png
+// Usage: DEMO_USER=... DEMO_PASS=... node script/readerStoreShots.mjs   -> store-shots/raw/{iphone,ipad}-N.png
+// These are the plain screens; script/readerStoreFrames.mjs sets them in a frame under a headline for the store.
 import { chromium } from "playwright";
 import { mkdir } from "node:fs/promises";
 
 const user = process.env.DEMO_USER, pass = process.env.DEMO_PASS;
 if (!user || !pass) throw new Error("DEMO_USER and DEMO_PASS are needed");
-await mkdir("store-shots", { recursive: true });
+await mkdir("store-shots/raw", { recursive: true });
 const SITE = "https://arisereader.com";
 const devices = {
   iphone: { viewport: { width: 440, height: 956 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true, userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1" },
@@ -66,7 +67,7 @@ for (const [kind, opts] of Object.entries(devices)) {
       await favorites();
       if (name === "library") await animals();
       n++;
-      await page.screenshot({ path: `store-shots/${kind}-${n}.png` });
+      await page.screenshot({ path: `store-shots/raw/${kind}-${n}.png` });
       console.log(`ok ${kind}-${n} ${name} ${page.url()}`);
     } catch (e) { console.log(`FAIL ${kind} ${name}: ${e?.message || e}`); }
   }
