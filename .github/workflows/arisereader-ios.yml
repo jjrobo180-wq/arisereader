@@ -10,6 +10,9 @@ on:
       - '.github/workflows/arisereader-ios.yml'
       - 'reader/ios-app/**'
       - 'client/src/**'
+env:
+  # The App Store version of this build (see "Prepare beta icon and build number").
+  APP_VERSION: "1.1"
 jobs:
   signed-archive:
     # GitHub's Xcode 27 image (Apple Silicon): builds with the iOS 27.1 SDK, for iPhone Duo.
@@ -74,6 +77,10 @@ jobs:
           sips -z 1024 1024 -s format png "$RUNNER_TEMP/todo-icon.jpg" --out "$ICON/AppIcon-1024.png" >/dev/null
           printf '%s' '{"images":[{"filename":"AppIcon-1024.png","idiom":"universal","platform":"ios","size":"1024x1024"}],"info":{"author":"xcode","version":1}}' > "$ICON/Contents.json"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT" ios/App/App/Info.plist
+          # The version people see. 1.0 is on the App Store, and Apple takes no more builds for an approved
+          # version: raise APP_VERSION for each new release sent for review. (The widgets read it from the project.)
+          sed -i '' -E "s/MARKETING_VERSION = [0-9.]+;/MARKETING_VERSION = $APP_VERSION;/g" ios/App/App.xcodeproj/project.pbxproj
+          grep -q "MARKETING_VERSION = $APP_VERSION;" ios/App/App.xcodeproj/project.pbxproj || { echo "::error::Could not set the app version to $APP_VERSION"; exit 1; }
       - name: Permission text, name and export compliance (Info.plist)
         working-directory: reader/ios-app
         run: |
