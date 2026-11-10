@@ -1,0 +1,12 @@
+client/src/components/DonationGoal.tsx:22  useState() is called below an early return — React needs the same hooks every render
+client/src/components/DonationGoal.tsx:24  useEffect() is called below an early return — React needs the same hooks every render
+client/src/components/SupportArise.tsx:71  useDonateInfo() is called below an early return — React needs the same hooks every render
+client/src/components/SupportArise.tsx:72  useState() is called below an early return — React needs the same hooks every render
+client/src/components/SupportArise.tsx:90  useDonateInfo() is called below an early return — React needs the same hooks every render
+client/src/components/SupportArise.tsx:91  useState() is called below an early return — React needs the same hooks every render
+client/src/components/SupportArise.tsx:109  useDonateInfo() is called below an early return — React needs the same hooks every render
+client/src/components/SupportArise.tsx:110  useState() is called below an early return — React needs the same hooks every render
+client/src/pages/eye-gaze/MatchPairsGame.tsx:37  "cols" is read here but declared further down — that throws at runtime
+client/src/pages/eye-gaze/MatchPairsGame.tsx:37  "cols" is read here but declared further down — that throws at runtime
+
+10 problems found.
