@@ -65,6 +65,12 @@ const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { ti
       { tint: "#7b5cf0", icon: <Sparkles className="h-[22px] w-[22px]" />, title: "Transcript and summary", text: "Every word with times, then the key points." },
       { tint: "#ef4e5b", icon: <ListChecks className="h-[22px] w-[22px]" />, title: "Straight to your planner", text: "To-dos and dates go into Arise To Duo." },
     ] },
+  talk: { icon: "/app-icons/talk-1024.png", tagline: "Say it with a tap.", apple: true, signInHint: "Use your Arise account.", create: "Create a free account",
+    features: [
+      { tint: "#6a55dc", icon: <Mic className="h-[22px] w-[22px]" />, title: "Talking boards", text: "Tap a picture or a word and it is spoken for you." },
+      { tint: "#7b5cf0", icon: <Sparkles className="h-[22px] w-[22px]" />, title: "Made for you", text: "Make boards with the words you use every day." },
+      { tint: "#0f766e", icon: <HeartHandshake className="h-[22px] w-[22px]" />, title: "Share with family", text: "Keep the same boards on every device." },
+    ] },
 };
 
 const font = { fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif" };

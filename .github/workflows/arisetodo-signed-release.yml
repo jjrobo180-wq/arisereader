@@ -60,6 +60,7 @@ jobs:
         run: |
           npm ci
           npx vite build
+          bash .github/scripts/prune_todo_bundle.sh dist/public
           rm -rf arisetodo/ios-app/www
           mkdir -p arisetodo/ios-app/www
           cp -R dist/public/. arisetodo/ios-app/www/
@@ -213,6 +214,13 @@ jobs:
             (cd ../.. && COMPANION_PROFILE="$TV_PROFILE_NAME" ruby .github/scripts/add_companion.rb "$OLDPWD/ios/App/App.xcodeproj" --kind tv --name DuoTV --display "Arise Duo" --host com.arisereader.arisetodo --sources native/duo-tv/DuoTVApp.swift --tv-assets native/duo-tv/Assets.xcassets)
             echo "TV_ADDED=1" >> "$GITHUB_ENV"
           fi
+      - name: Add the privacy manifest to the app and its extensions
+        working-directory: arisetodo/ios-app
+        run: |
+          set -euo pipefail
+          ruby -rxcodeproj -e 'puts Xcodeproj::VERSION' || gem install xcodeproj --no-document --user-install
+          export GEM_PATH="$(ruby -e 'puts Gem.user_dir'):$(ruby -e 'puts Gem.default_dir')"
+          ruby ../../.github/scripts/add_privacy_manifest.rb ios/App/App.xcodeproj PrivacyInfo.xcprivacy
       - name: Archive signed app with widgets
         if: env.WIDGETS == '1'
         working-directory: arisetodo/ios-app

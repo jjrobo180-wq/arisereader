@@ -130,7 +130,9 @@ const updater = () => {
   return null;
 };
 let checking = false, lastCheck = 0;
-export async function liveUpdateNow(force = false): Promise<"none" | "applied" | "failed"> {
+/** `applyNow` switches to the new copy at once (only the first check after launch, before anything is on screen);
+ *  otherwise it waits for the next time the app is opened, so a screen never reloads while someone is using it. */
+export async function liveUpdateNow(force = false, applyNow = false): Promise<"none" | "applied" | "failed"> {
   if (!isNativeApp() || checking || (!force && Date.now() - lastCheck < 60_000)) return "none";
   const u = updater(); if (!u) return "none";
   checking = true; lastCheck = Date.now();
@@ -145,13 +147,14 @@ export async function liveUpdateNow(force = false): Promise<"none" | "applied" |
     sessionStorage.setItem(`arise-live-${version}`, String(tries + 1));
     const bundle: any = await u.download({ url, version, ...(latest.checksum ? { checksum: latest.checksum } : {}) });
     if (!bundle?.id) return "failed";
-    await u.set({ id: bundle.id }); // reloads into the new copy
+    if (applyNow || typeof u.next !== "function") await u.set({ id: bundle.id }); // reloads into the new copy
+    else await u.next({ id: bundle.id }); // used the next time the app opens
     return "applied";
   } catch { return "failed"; } finally { checking = false; }
 }
 export function keepLiveUpdated(): void {
   if (!isNativeApp() || typeof document === "undefined") return;
-  window.setTimeout(() => void liveUpdateNow(true), 6000);
+  window.setTimeout(() => void liveUpdateNow(true, true), 6000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") void liveUpdateNow(); });
   window.setInterval(() => { if (document.visibilityState === "visible") void liveUpdateNow(true); }, 5 * 60_000);
 }

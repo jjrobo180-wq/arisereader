@@ -103,7 +103,6 @@ import { useNativeBackdrop } from "@/lib/nativeBackdrop";
 import { useHubLook } from "@/components/HubLook";
 import { HubWaiting } from "@/lib/hubBackdrop";
 import { LookDock, LookOS, LookYou, type OsScreen } from "@/components/look-os/LookOS";
-import { addDays } from "@shared/familyHub";
 import { calendarEvents } from "@shared/hubHidden";
 import { toggleTask } from "@shared/hubTasks";
 import "@/components/teacher-hub/hubPaper.css";
@@ -147,7 +146,8 @@ import { inDuoPane, useAriseDuo } from "@/lib/useAriseDuo";
 import { OPEN_APPS_EVENT, PhoneTabBar } from "@/components/family-hub/PhoneTabBar";
 import { HubMoreMenu, hubMoreGroups, openNotificationBell } from "@/components/HubMoreMenu";
 import SameBothHubs from "@/components/SameBothHubs";
-import AppWalkthrough from "@/components/AppWalkthrough";
+import AppWalkthrough, { walkthroughDone } from "@/components/AppWalkthrough";
+import AllAccessPopup from "@/components/AllAccessPopup";
 import HubCoach from "@/components/HubCoach";
 import { SHARED_LOOK_EVENT, readNight, stampLook, withNight, withSharedLook, writeNight } from "@/lib/sharedLook";
 import { boardGoals } from "@shared/hubGoalBoard";
@@ -723,7 +723,7 @@ function TeacherHubPage() {
   const [notifyOpen, setNotifyOpen] = useState(false);
   const hubReady = canUseHub && loaded && !loadError && !needsPlan;
   const pollAnswers = usePollAnswers(token, user?.id, hubReady);
-  const [briefOpen, setBriefOpen] = useMorningBrief("work", TODAY(), loaded && !loadError && !needsPlan && !(workspace as any).briefOff);
+  const [briefOpen, setBriefOpen] = useMorningBrief("work", TODAY(), loaded && !loadError && !needsPlan && !(workspace as any).briefOff && !!user && walkthroughDone(user.id));
   const listPhone = across ? "snap-x gap-1 overflow-x-auto" : "h-full touch-pan-y flex-col gap-1 overflow-y-auto overscroll-contain px-1 py-1.5";
   /** A reminder added from the pop-up lands on another screen, so say where it went. */
   const reminderAdded = (items: QuickItems) => { toasts.show(quickAddedMessage(items), tab === "tasks" ? [] : [{ label: "View", run: () => setTab("tasks") }]); };
@@ -1098,6 +1098,8 @@ function TeacherHubPage() {
           setWorkspace((prev) => { const had = prev.calendars.find((c) => isIphoneCalendar(c.url)); return replaceCalendarEvents(prev, { id: had?.id || id(), name: "iPhone Calendar", url: IPHONE_CALENDAR_URL, syncedAt: new Date().toISOString() }, events, id); });
           return events.length;
         }} />}
+      {/* After the first-run walkthrough: the All Access pop-up, once (iPhone app only). The same one LifeHub shows. */}
+      {canUseHub && loaded && !loadError && !needsPlan && <AllAccessPopup userId={user.id} token={token} doneKey={`arise-walkthrough-v1:${user.id}`} intro="To Duo is free with 3 plugins from the Plugin Gallery. Arise All Access unlocks every plugin and the AI, plus the extras in Notes, Fit and Pod+." />}
       {store && canUseHub && loaded && !loadError && !needsPlan && <PluginStore
         hub="work"
         initialOpen={storeOpenApp ?? undefined}

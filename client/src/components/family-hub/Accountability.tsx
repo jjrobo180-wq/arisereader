@@ -274,7 +274,7 @@ function NotifySheet({ space, me, prefs, api, say, onClose, onSaved }: { space: 
   const [testing, setTesting] = useState(false);
   const [results, setResults] = useState<{ userId: number; name: string; delivered: number }[] | null>(null);
   const loadPeople = useCallback(() => api<{ people: NotifyPerson[] }>(`/spaces/${space.id}/notify-status`).then((b) => setPeople(b.people)).catch(() => setPeople([])), [api, space.id]);
-  useEffect(() => { void loadPeople(); const t = setInterval(() => void loadPeople(), 8000); return () => clearInterval(t); }, [loadPeople]);
+  useEffect(() => { void loadPeople(); const t = setInterval(() => { if (document.visibilityState === "visible") void loadPeople(); }, 20000); return () => clearInterval(t); }, [loadPeople]);
   // The row for "You" updates the moment this iPhone connects (NativeRemindersPanel says when).
   useEffect(() => { const f = () => void loadPeople(); window.addEventListener("arise:push-linked", f); return () => window.removeEventListener("arise:push-linked", f); }, [loadPeople]);
   const [connecting, setConnecting] = useState(false);

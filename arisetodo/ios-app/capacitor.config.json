@@ -5,7 +5,7 @@
   "plugins": {
     "SplashScreen": {
       "launchShowDuration": 500,
-      "backgroundColor": "#FFFFFF",
+      "backgroundColor": "#f6f7fc",
       "showSpinner": false
     },
     "Keyboard": {

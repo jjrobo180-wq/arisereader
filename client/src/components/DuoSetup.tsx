@@ -8,7 +8,7 @@ import { createPortal } from "react-dom";
 import { Apple, ArrowLeft, Check, Dumbbell, Loader2, Moon, NotebookPen, Sparkles, UtensilsCrossed, Wallet, type LucideIcon } from "lucide-react";
 import { HUB_THEMES } from "@shared/appThemes";
 import { setTheme, type AnyLayout } from "@shared/hubLayout";
-import { setLifePlugin, type Plugin } from "@shared/pluginStore";
+import { PLUGIN_COUNT_LABEL, setLifePlugin, type Plugin } from "@shared/pluginStore";
 import { PLAN_FOCUSES, builtinPlan, cleanLifePlan, cleanPlanRequest, type LifePlan, type PlanFocus, type PlanRequest } from "@shared/lifePlan";
 import type { Family } from "@shared/familyHub";
 import { API_BASE } from "@/lib/queryClient";
@@ -228,7 +228,7 @@ export default function DuoSetup({ userId, layout, setLayout, plugins, setFamily
         </>}
 
         {step === "apps" && <>
-          {head("Choose your first plugins", <>Here are favorites to start with. There are <b className="font-semibold text-[#111018]">500+ plugins</b> in the Plugin Gallery whenever you want more.</>)}
+          {head("Choose your first plugins", <>Here are favorites to start with. There are <b className="font-semibold text-[#111018]">{PLUGIN_COUNT_LABEL} plugins</b> in the Plugin Gallery whenever you want more.</>)}
           {!unlimited && <p className="mt-3 rounded-xl bg-[#f4f2ff] px-3 py-2 text-center text-[12.5px] text-[#3f35c9]" data-testid="setup-free-note">{canPick > 0 ? `Free includes 3 plugins. Pick up to ${canPick} now.` : "Your 3 free plugins are in use."} Unlimited unlocks all of them.</p>}
           <div className="mt-3 grid grid-cols-2 gap-2" data-testid="setup-apps">
             {starters.map(({ id, icon: Icon, p }) => { const on = picked.includes(id); const full = !on && picked.length >= canPick; return <button key={id} type="button" aria-pressed={on} disabled={full} onClick={() => setPicked(toggle(picked, id))} data-testid={`setup-app-${id}`}

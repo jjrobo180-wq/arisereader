@@ -11,6 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { NATIVE_NO_PURCHASE, isNativeApp } from "@/lib/nativeApp";
 import AllAccessOffer from "@/components/AllAccessOffer";
+import { PLUGIN_COUNT_LABEL } from "@shared/pluginStore";
 import { AI_LIMIT, APPS_FULL, FREE_APPS, growsPastFree } from "@shared/todoPlan";
 
 export type TodoPlan = {
@@ -110,8 +111,8 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
     confirmed.current = true;
     const url = new URL(window.location.href); url.searchParams.delete("paid"); window.history.replaceState(null, "", url.toString());
     fetch(`${API_BASE}/api/billing/confirm`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ sessionId: id }) })
-      .then((r) => { setNote(r.ok ? "Payment received. You're on All Access." : "We couldn't confirm the payment yet. If your card was charged, Unlimited switches on within a few minutes."); })
-      .catch(() => setNote("We couldn't confirm the payment yet. If your card was charged, Unlimited switches on within a few minutes."))
+      .then((r) => { setNote(r.ok ? "Payment received. You're on All Access." : "We couldn't confirm the payment yet. If your card was charged, All Access switches on within a few minutes."); })
+      .catch(() => setNote("We couldn't confirm the payment yet. If your card was charged, All Access switches on within a few minutes."))
       .finally(() => { refreshTodoPlan(); setReason("plan"); });
   }, [token, hub]);
 
@@ -128,7 +129,7 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
   };
 
   if (!reason) return null;
-  const price = usd(plan?.priceCents ?? 500);
+  const price = usd(plan?.priceCents ?? 1000);
   const yearly = plan?.yearlyCents ?? null;
   const saves = yearly && plan ? Math.round((1 - yearly / (plan.priceCents * 12)) * 100) : 0;
   const title = plan?.unlimited ? (plan.via === "all-access" ? "You're on All Access" : "You're on Unlimited")
@@ -136,9 +137,9 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
     : reason === "ai" ? "AI is part of All Access"
     : "Get Arise All Access";
   const lead = plan?.unlimited ? "Every plugin in the Plugin Gallery, and AI for everyday use, in WorkHub and LifeHub."
-    : reason === "apps" ? `The free plan includes up to ${FREE_APPS} plugins from the Plugin Gallery. Remove one to make room, or get All Access for all 450+.`
-    : reason === "ai" ? `Add with AI, the AI assistant and meal estimates come with Arise All Access, along with every plugin in the Plugin Gallery, for ${price} a month.`
-    : "Every plugin in the Plugin Gallery (450+) and AI in To Duo, plus Arise Notes Plus, Arise Fit+ and ad-free Pod+, for one price.";
+    : reason === "apps" ? `The free plan includes up to ${FREE_APPS} plugins from the Plugin Gallery. Remove one to make room, or get All Access for all ${PLUGIN_COUNT_LABEL}.`
+    : reason === "ai" ? `Add with AI, the AI assistant and meal estimates come with Arise All Access, along with every plugin in the Plugin Gallery${isNativeApp() ? "." : `, for ${price} a month.`}`
+    : `Every plugin in the Plugin Gallery (${PLUGIN_COUNT_LABEL}) and AI in To Duo, plus Arise Notes Plus, Arise Fit+ and ad-free Pod+, for one price.`;
 
   return (
     <div className="fixed inset-0 kb-sheet z-[320] flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="upgrade-title" data-testid="todo-upgrade" onClick={(e) => { if (e.target === e.currentTarget) setReason(null); }}>
@@ -155,21 +156,21 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
               <p className="font-bold text-slate-900">Free</p>
               <p className="text-xs text-slate-500">$0</p>
               <ul className="mt-2 space-y-1 text-slate-600">
-                <li>Up to {FREE_APPS} apps</li>
+                <li>Up to {FREE_APPS} plugins</li>
                 <li>No AI</li>
               </ul>
             </div>
             <div className="rounded-2xl border-2 border-violet-500 bg-violet-50 p-3">
               <p className="font-bold text-violet-900">All Access</p>
-              <p className="text-xs text-violet-700">{price} a month{yearly ? ` or ${usd(yearly)} a year` : ""}</p>
+              {!isNativeApp() && <p className="text-xs text-violet-700">{price} a month{yearly ? ` or ${usd(yearly)} a year` : ""}</p>}
               <ul className="mt-2 space-y-1 text-violet-900">
-                <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />All 575+ plugins</li>
+                <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />All {PLUGIN_COUNT_LABEL} plugins</li>
                 <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />AI every day</li>
                 <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />Notes Plus, Fit+, ad-free Pod+</li>
               </ul>
             </div>
           </div>
-          <p className="mt-3 text-xs text-slate-500">Built-in sections like Calendar, Tasks and Notes are always free. Your {FREE_APPS} apps are shared by WorkHub and LifeHub, and nothing is ever deleted, even if you go back to Free. All Access is one plan for To Duo, Arise Notes, Arise Fit and Pod+.</p>
+          <p className="mt-3 text-xs text-slate-500">Built-in sections like Calendar, Tasks and Notes are always free. Your {FREE_APPS} plugins are shared by WorkHub and LifeHub, and nothing is ever deleted, even if you go back to Free. All Access is one plan for To Duo, Arise Notes, Arise Fit and Pod+.</p>
           {note && <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700" role="status">{note}</p>}
           <div className="mt-4">
             {isNativeApp()
@@ -210,7 +211,7 @@ export function PlanCard({ hub, hubApps }: { hub: "work" | "life"; hubApps: numb
   if (!plan) return null;
   if (plan.unlimited) {
     return <button type="button" onClick={() => openUpgrade("plan")} className="mb-3 flex w-full items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 p-3 text-left text-sm text-violet-900" data-testid="todo-plan-card">
-      <InfinityIcon className="h-5 w-5 shrink-0" /><span className="min-w-0 flex-1"><span className="block font-bold">Unlimited</span><span className="block text-xs text-violet-700">Every plugin in the Plugin Gallery · {plan.ai.left} AI uses left this month</span></span>
+      <InfinityIcon className="h-5 w-5 shrink-0" /><span className="min-w-0 flex-1"><span className="block font-bold">All Access</span><span className="block text-xs text-violet-700">Every plugin in the Plugin Gallery · {plan.ai.left} AI uses left this month</span></span>
     </button>;
   }
   const used = hubApps + (hub === "work" ? plan.apps.life : plan.apps.work);
@@ -223,8 +224,8 @@ export function PlanCard({ hub, hubApps }: { hub: "work" | "life"; hubApps: numb
     </div>
     <div className="mt-2 flex items-center gap-2">
       <div className="flex flex-1 gap-1" aria-hidden>{Array.from({ length: limit }, (_, i) => <span key={i} className={`h-2 flex-1 rounded-full ${i < used ? (full ? "bg-amber-500" : "bg-violet-500") : "bg-slate-100"}`} />)}</div>
-      <span className={`shrink-0 text-xs font-semibold ${full ? "text-amber-700" : "text-slate-600"}`}>{Math.min(used, 99)} of {limit} apps</span>
+      <span className={`shrink-0 text-xs font-semibold ${full ? "text-amber-700" : "text-slate-600"}`}>{Math.min(used, 99)} of {limit} plugins</span>
     </div>
-    <p className="mt-1.5 text-xs text-slate-500">{used > limit ? "You can keep every plugin you have. To add another, remove one or go Unlimited." : "Plugins from the Plugin Gallery, shared by WorkHub and LifeHub. Built-in sections are always free."} · No AI on Free</p>
+    <p className="mt-1.5 text-xs text-slate-500">{used > limit ? "You can keep every plugin you have. To add another, remove one or get All Access." : "Plugins from the Plugin Gallery, shared by WorkHub and LifeHub. Built-in sections are always free."} · No AI on Free</p>
   </div>;
 }
