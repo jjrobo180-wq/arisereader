@@ -14,7 +14,7 @@ export default function AiConsentSheet() {
   if (!open) return null;
   const answer = (yes: boolean) => { setOpen(false); answerAiConsent(yes); };
   return (
-    <div className="fixed inset-0 z-[400] flex items-end justify-center bg-slate-950/60 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="ai-consent-title" data-testid="ai-consent">
+    <div className="fixed inset-0 kb-sheet z-[400] flex items-end justify-center bg-slate-950/60 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="ai-consent-title" data-testid="ai-consent">
       <div className="w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl sm:rounded-3xl">
         <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-100 text-violet-700"><Sparkles className="h-6 w-6" aria-hidden="true" /></span>
         <h2 id="ai-consent-title" className="mt-3 text-xl font-extrabold text-slate-900">Send what you type to AI?</h2>
