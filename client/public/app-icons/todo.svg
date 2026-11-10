@@ -1,8 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <rect width="1024" height="1024" fill="#6d3df5"/>
-  <!-- the T of To Duo, in the same heavy letter style as the Reader's R -->
-  <path d="M299 230.2H725V349H586V776.5H438V349H299Z" fill="#ffffff"/>
-  <!-- a task checkbox, where the Reader has its bookmark -->
-  <rect x="745" y="66" width="148" height="148" rx="38" fill="#15131f"/>
-  <path d="M783 142L810 169L859 112" fill="none" stroke="#ffffff" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="#6d3df5"/><g transform="translate(512 512) scale(1.15) translate(-512 -512)"><path d="M302 212H512V752H302A110 110 0 0 1 192 642V322A110 110 0 0 1 302 212Z" fill="#fff"/><path d="M512 262H722A110 110 0 0 1 832 372V692A110 110 0 0 1 722 802H512V262Z" fill="#15131f"/><circle cx="352" cy="390.20000000000005" r="80" fill="#6d3df5"/><path d="M317.8 391.72 L344.4 417.56000000000006 L390 362.84000000000003" fill="none" stroke="#fff" stroke-width="29.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="281.6" y="527.8" width="179.20000000000002" height="38" rx="19" fill="#d9cffd" fill-opacity="1"/><rect x="281.6" y="603.4" width="121.6" height="38" rx="19" fill="#d9cffd" fill-opacity="1"/><circle cx="672" cy="440.20000000000005" r="80" fill="#fff"/><path d="M637.8 441.72 L664.4 467.56000000000006 L710 412.84000000000003" fill="none" stroke="#6d3df5" stroke-width="29.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="601.6" y="577.8" width="179.20000000000002" height="38" rx="19" fill="#fff" fill-opacity="0.35"/><rect x="601.6" y="653.4" width="121.6" height="38" rx="19" fill="#fff" fill-opacity="0.35"/></g></svg>
