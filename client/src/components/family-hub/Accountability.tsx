@@ -11,7 +11,7 @@ import {
 } from "@shared/accountability";
 import { publishWidgets } from "@/lib/widgets";
 import { isNativeApp } from "@/lib/nativeApp";
-import { startApplePush } from "@/lib/applePush";
+import { applePushAvailable, applePushProblem, ensureApplePush, startApplePush } from "@/lib/applePush";
 import TodoNotifications from "./TodoNotifications";
 import type { SectionProps } from "./ui";
 
@@ -275,6 +275,15 @@ function NotifySheet({ space, me, prefs, api, say, onClose, onSaved }: { space: 
   const [results, setResults] = useState<{ userId: number; name: string; delivered: number }[] | null>(null);
   const loadPeople = useCallback(() => api<{ people: NotifyPerson[] }>(`/spaces/${space.id}/notify-status`).then((b) => setPeople(b.people)).catch(() => setPeople([])), [api, space.id]);
   useEffect(() => { void loadPeople(); const t = setInterval(() => void loadPeople(), 8000); return () => clearInterval(t); }, [loadPeople]);
+  // The row for "You" updates the moment this iPhone connects (NativeRemindersPanel says when).
+  useEffect(() => { const f = () => void loadPeople(); window.addEventListener("arise:push-linked", f); return () => window.removeEventListener("arise:push-linked", f); }, [loadPeople]);
+  const [connecting, setConnecting] = useState(false);
+  const connectMe = async () => {
+    setConnecting(true);
+    try { const ok = await ensureApplePush(); await loadPeople(); say(ok ? "This iPhone is connected. Alerts will reach you here." : applePushProblem() || "This iPhone couldn't connect. Check your connection and try again."); }
+    finally { setConnecting(false); }
+  };
+  const canConnect = isNativeApp() && applePushAvailable();
   const toggle = async (kind: NotifyKind) => {
     const next = { ...mine, [kind]: !mine[kind] }; setMine(next);
     try { await api(`/spaces/${space.id}/notify`, { method: "PUT", body: { notify: next } }); onSaved(); }
@@ -302,10 +311,11 @@ function NotifySheet({ space, me, prefs, api, say, onClose, onSaved }: { space: 
               <Avatar name={p.name} color={colorOf(space, p.userId)} size={36} />
               <span className="min-w-0 flex-1">
                 <span className="block font-black text-slate-900">{label(p.userId, p.name)}</span>
-                <span className={`block text-xs font-semibold ${on ? "text-emerald-700" : "text-rose-600"}`}>{on ? `On · ${deviceWords(p)}` : p.userId === me ? "Not on yet. Turn it on above." : "Not set up. They won't get alerts until they open Accountability › 🔔 on their phone and turn them on."}</span>
+                <span className={`block text-xs font-semibold ${on ? "text-emerald-700" : "text-rose-600"}`}>{on ? `On · ${deviceWords(p)}` : p.userId === me ? (canConnect ? "This iPhone isn't connected for alerts yet." : "Not on yet. Turn it on above.") : "Not set up. They won't get alerts until they open Accountability › 🔔 on their phone and turn them on."}</span>
                 {p.off.length > 0 && <span className="block text-[11px] text-slate-400">Turned off: {p.off.map((k) => NOTIFY_KINDS.find((x) => x.kind === k)?.label.toLowerCase()).join(", ")}</span>}
               </span>
-              {r && <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black ${r.delivered ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`} data-testid="acct-test-result">{r.delivered ? `Sent ✓ ${r.delivered}` : "No device"}</span>}
+              {!on && p.userId === me && canConnect && <button type="button" onClick={() => void connectMe()} disabled={connecting} className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-[#0d9488] px-3.5 text-xs font-black text-white disabled:opacity-60" data-testid="acct-connect-me">{connecting ? <Loader2 size={14} className="animate-spin" /> : <Bell size={14} />}Connect</button>}
+              {r && (on || !(p.userId === me && canConnect)) && <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black ${r.delivered ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`} data-testid="acct-test-result">{r.delivered ? `Sent ✓ ${r.delivered}` : "No device"}</span>}
             </div>; })}
         <button type="button" onClick={() => void test()} disabled={testing} className={`${tealBtn} w-full`} data-testid="acct-test">{testing ? <Loader2 size={17} className="animate-spin" /> : <Bell size={17} />}Send a test to everyone</button>
         {results && <p className="text-center text-xs text-slate-500">{results.every((r) => r.delivered) ? "Sent to every phone. Check that it showed up on each one." : "Anyone marked “No device” needs to turn notifications on first (they can also see it in their notification bell in the app)."}</p>}

@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
 import { forgetStay } from "@/lib/useStayOnRefresh";
-import { API_BASE } from "@/lib/queryClient";
+import { API_BASE, setApiAuthToken } from "@/lib/queryClient";
+import { isNativeApp } from "@/lib/nativeApp";
 import { setSchoolTheme, setTeacherBand } from "@/lib/schoolTheme";
 import { clearAuthenticatedNavigation, resetAuthenticatedNavigation } from "@/lib/navigation";
 import { forgetThisDevice } from "@/lib/pushDevice";
@@ -235,6 +236,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Already signed in when the app opens: use this account's own things on this device.
   useEffect(() => { if (user?.id && token && !isSampleMode()) setAccount(user.id); }, [user?.id, token]);
 
+  // apiRequest's sign-in, and this iPhone's notifications for whoever is signed in.
+  useEffect(() => {
+    setApiAuthToken(isSampleMode() ? null : token);
+    if (token && user && isNativeApp() && !isSampleMode()) void import("@/lib/applePush").then((m) => m.syncApplePush()).catch(() => {});
+  }, [token, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const persistSession = useCallback((u: AuthUser | null, t: string | null) => {
     sessionRef.current = { user: u, token: t };
     saveSessionCookie(u, t);
