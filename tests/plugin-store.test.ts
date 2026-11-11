@@ -9,7 +9,7 @@ import {
 import { HUB_TABS, emptyWorkspace } from "../shared/teacherHub";
 import { ALWAYS_SHOWN } from "../shared/hubTabGroups";
 import { WORK_BUILT_IN_TABS } from "../shared/teacherHub";
-import { TOGGLEABLE, emptyFamily } from "../shared/familyHub";
+import { RETIRED_SECTIONS, TOGGLEABLE, emptyFamily } from "../shared/familyHub";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -36,9 +36,9 @@ test("WorkHub: every App Store screen is in the store, and no built-in or always
   for (const t of tabs) assert.ok(!ALWAYS_SHOWN.includes(t), t);
 });
 
-test("LifeHub: every section a family can switch off is in the store, except the built-in Calendar and Notes", () => {
+test("LifeHub: every section a family can switch off is in the store, except the built-in Calendar and Notes and retired apps", () => {
   const sections = PLUGINS.flatMap((p) => (p.target.kind === "section" ? [p.target.section] : []));
-  assert.deepEqual([...sections].sort(), TOGGLEABLE.filter((s) => s !== "calendar" && s !== "notes").sort());
+  assert.deepEqual([...sections].sort(), TOGGLEABLE.filter((s) => s !== "calendar" && s !== "notes" && !RETIRED_SECTIONS.includes(s)).sort());
 });
 
 test("adding and removing a WorkHub tab only changes that tab", () => {

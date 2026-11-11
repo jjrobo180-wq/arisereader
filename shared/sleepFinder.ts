@@ -1,3 +1,6 @@
+
+/** Cleaned as you type: the start is trimmed but a space (or new line) just typed at the end stays, or the next word could never be typed. */
+const typedEnd = (s: string) => s.replace(/^\s+/, "").replace(/ {2,}$/, "");
 // Arise LifeHub · Sleep Finder: helps someone find something to fall asleep to. It asks what they're
 // into (rain or piano, history talks or no voices at all, YouTube or Spotify), recommends real,
 // well-known sleep sounds, music, stories and podcasts with links, and keeps the playlists they build.
@@ -388,17 +391,17 @@ export function picksFromAi(raw: string): AiPick[] {
   const list = Array.isArray(data?.picks) ? data.picks : [];
   const out: AiPick[] = [];
   for (const r of list.slice(0, 10)) {
-    const title = str(r?.title, FINDER_LIMITS.title).trim();
-    const query = str(r?.query, FINDER_LIMITS.query).trim().replace(/https?:\/\/\S+/gi, "").trim();
+    const title = typedEnd(str(r?.title, FINDER_LIMITS.title));
+    const query = typedEnd(str(r?.query, FINDER_LIMITS.query)).replace(/https?:\/\/\S+/gi, "").trim();
     if (!title || !query) continue;
-    out.push({ title, by: str(r?.by, FINDER_LIMITS.by).trim(), kind: oneOf(r?.kind, KINDS, "music"), query, why: str(r?.why, 240).trim() });
+    out.push({ title, by: typedEnd(str(r?.by, FINDER_LIMITS.by)), kind: oneOf(r?.kind, KINDS, "music"), query, why: typedEnd(str(r?.why, 240)) });
   }
   return out;
 }
 
 export function cleanAskRequest(body: unknown): { text: string; prefs: SleepPrefs | null } {
   const b = obj(body) || {};
-  return { text: str(b.text, 300).trim(), prefs: b.prefs ? cleanPrefs(b.prefs) : null };
+  return { text: typedEnd(str(b.text, 300)), prefs: b.prefs ? cleanPrefs(b.prefs) : null };
 }
 
 // ── Sanitizing saved data ────────────────────────────────────────────────────
@@ -423,10 +426,10 @@ export function cleanPrefs(v: unknown): SleepPrefs | null {
 function cleanItem(v: unknown): PlaylistItem | null {
   const r = obj(v);
   if (!r) return null;
-  const id = cleanId(r.id), title = str(r.title, FINDER_LIMITS.title).trim(), url = cleanUrl(r.url), query = str(r.query, FINDER_LIMITS.query).trim();
+  const id = cleanId(r.id), title = typedEnd(str(r.title, FINDER_LIMITS.title)), url = cleanUrl(r.url), query = typedEnd(str(r.query, FINDER_LIMITS.query));
   if (!id || !title || (!url && !query)) return null;
   const mins = Math.round(Number(r.mins));
-  return { id, ref: cleanId(r.ref), title, by: str(r.by, FINDER_LIMITS.by).trim(), kind: oneOf(r.kind, KINDS, "music"), query, url, mins: Number.isFinite(mins) ? Math.min(Math.max(mins, 0), 1440) : 0 };
+  return { id, ref: cleanId(r.ref), title, by: typedEnd(str(r.by, FINDER_LIMITS.by)), kind: oneOf(r.kind, KINDS, "music"), query, url, mins: Number.isFinite(mins) ? Math.min(Math.max(mins, 0), 1440) : 0 };
 }
 
 export function cleanSleepFinder(v: unknown): SleepFinder {
@@ -434,7 +437,7 @@ export function cleanSleepFinder(v: unknown): SleepFinder {
   if (!r) return emptySleepFinder();
   const playlists: SleepPlaylist[] = [];
   for (const p of Array.isArray(r.playlists) ? r.playlists : []) {
-    const q = obj(p), id = cleanId(q?.id), name = str(q?.name, FINDER_LIMITS.name).trim();
+    const q = obj(p), id = cleanId(q?.id), name = typedEnd(str(q?.name, FINDER_LIMITS.name));
     if (!q || !id || !name || playlists.some((x) => x.id === id)) continue;
     const items: PlaylistItem[] = [];
     for (const it of Array.isArray(q.items) ? q.items : []) { const c = cleanItem(it); if (c && !items.some((x) => x.id === c.id)) items.push(c); if (items.length >= FINDER_LIMITS.items) break; }

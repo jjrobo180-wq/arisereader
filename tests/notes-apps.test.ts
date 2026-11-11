@@ -19,8 +19,8 @@ test("the App Gallery offers sticky notes, Sheets, Slides, Docs and more", () =>
 test("every app in the gallery opens to something", () => {
   const a = apps();
   for (const id of ["stickies", "lists", "whiteboard", "flashcards", "focus"]) assert.match(a, new RegExp(`app\\.id === "${id}" && <`), `${id} has a screen`);
-  // Sheets, Slides and Docs are A.R.I.S.E. Office, whose files live in the account.
-  assert.match(a, /<OfficeApp config=\{OFFICE_KINDS\[app\.id === "sheets" \? "sheet" : app\.id === "slides" \? "slides" : "doc"\]\} \/>/);
+  // Sheets, Slides, Docs and Design are A.R.I.S.E. Office, whose files live in the account.
+  assert.match(a, /<OfficeApp config=\{OFFICE_KINDS\[app\.id === "sheets" \? "sheet" : app\.id === "slides" \? "slides" : app\.id === "design" \? "design" : "doc"\]\} \/>/);
 });
 
 test("what's in the apps, and which apps you added, is saved to the account under ids the server accepts", () => {

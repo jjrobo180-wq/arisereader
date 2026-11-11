@@ -187,7 +187,7 @@ const optionList = (options: PollOption[]) =>
 
 export function pollInviteEmail(p: { guest: string; teacher: string; title: string; location: string; message: string; options: PollOption[]; link: string; reminder?: boolean }): string {
   return `<div style="${CARD}">
-  <h1 style="margin:0 0 8px;color:#c4b5fd;font-size:22px;">A.R.I.S.E. Reader</h1>
+  <h1 style="margin:0 0 8px;color:#c4b5fd;font-size:22px;">Arise Reader</h1>
   <h2 style="margin:20px 0 8px;color:#f8fafc;font-size:21px;">${p.reminder ? "Reminder: " : ""}Which times work for ${esc(p.title)}?</h2>
   <p style="line-height:1.6;color:#cbd5e1;font-size:16px;">Hi ${esc(p.guest)}, ${esc(p.teacher)} is trying to find a time that works for everyone${p.location ? ` (${esc(p.location)})` : ""}. These times are possible:</p>
   ${optionList(p.options)}
@@ -199,7 +199,7 @@ export function pollInviteEmail(p: { guest: string; teacher: string; title: stri
 
 export function pollBookedEmail(p: { guest: string; teacher: string; title: string; location: string; when: string }): string {
   return `<div style="${CARD}">
-  <h1 style="margin:0 0 8px;color:#c4b5fd;font-size:22px;">A.R.I.S.E. Reader</h1>
+  <h1 style="margin:0 0 8px;color:#c4b5fd;font-size:22px;">Arise Reader</h1>
   <h2 style="margin:20px 0 8px;color:#f8fafc;font-size:21px;">The time is set: ${esc(p.title)}</h2>
   <p style="line-height:1.6;color:#cbd5e1;font-size:16px;">Hi ${esc(p.guest)}, thank you for answering. ${esc(p.teacher)} chose:</p>
   <p style="margin:16px 0;padding:14px 16px;background:#1e1b3a;border-radius:12px;color:#ffffff;font-size:18px;font-weight:700;">${esc(p.when)}${p.location ? `<br><span style="font-weight:400;font-size:15px;color:#cbd5e1;">${esc(p.location)}</span>` : ""}</p>
@@ -214,7 +214,7 @@ const ANSWER_COLORS: Record<PollAnswer, string> = { yes: "#6ee7b7", maybe: "#fcd
 export function pollResponseEmail(p: { teacher: string; guest: string; title: string; rows: { label: string; answer?: PollAnswer }[]; comment: string; answered: number; total: number; best: string; link: string }): string {
   const done = p.answered >= p.total && p.total > 0;
   return `<div style="${CARD}">
-  <h1 style="margin:0 0 8px;color:#c4b5fd;font-size:22px;">A.R.I.S.E. Reader</h1>
+  <h1 style="margin:0 0 8px;color:#c4b5fd;font-size:22px;">Arise Reader</h1>
   <h2 style="margin:20px 0 8px;color:#f8fafc;font-size:21px;">${esc(p.guest)} answered your poll</h2>
   <p style="line-height:1.6;color:#cbd5e1;font-size:16px;">Hi ${esc(p.teacher)}, ${esc(p.guest)} replied about <b>${esc(p.title)}</b>. ${p.answered} of ${p.total} ${p.total === 1 ? "person has" : "people have"} answered${done ? ", so everyone is in" : ""}.</p>
   <ul style="margin:12px 0;padding-left:20px;color:#e2e8f0;font-size:15px;line-height:1.8;">${p.rows.map((r) => `<li>${esc(r.label)}: <b style="color:${r.answer ? ANSWER_COLORS[r.answer] : "#94a3b8"}">${r.answer ? ANSWER_WORDS[r.answer] : "No answer"}</b></li>`).join("")}</ul>
@@ -365,7 +365,7 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
     if (!made.ok) return res.status(400).json({ message: made.error });
     if (made.poll.sendVia === "mailbox") {
       const box = deps.mailbox ? await deps.mailbox.status(Number(req.user.id)).catch(() => null) : null;
-      if (!box || box.needsReconnect) return res.status(400).json({ message: box ? "Your mailbox needs to be connected again before it can send." : "Connect your Gmail or Outlook first, or choose to send from A.R.I.S.E. Reader." });
+      if (!box || box.needsReconnect) return res.status(400).json({ message: box ? "Your mailbox needs to be connected again before it can send." : "Connect your Gmail or Outlook first, or choose to send from Arise Reader." });
     }
     if (made.poll.sendText && !deps.text) return res.status(400).json({ message: "Texting isn't set up on the site yet. Uncheck the text option, or send the links yourself." });
     const wait = Math.max(pollsMade.retryAfter(teacher), made.poll.sendVia === "self" ? 0 : emailsSent.retryAfter(teacher), made.poll.sendText ? textsSent.retryAfter(teacher) : 0);

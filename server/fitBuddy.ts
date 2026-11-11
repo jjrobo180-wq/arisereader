@@ -1,4 +1,4 @@
-// Arise Fit workout buddies (shared/fitBuddy.ts explains what they are). Small JSON records in the
+// Cooked workout buddies (shared/fitBuddy.ts explains what they are). Small JSON records in the
 // settings table (server/fitKv.ts):
 //   fit_buddy_profile_<id>   { tag, avatar, focus, level, perWeek, mode, tz, at }
 //   fit_buddy_queue          [{ id, at }]            people waiting for a buddy (profiles are read from above)

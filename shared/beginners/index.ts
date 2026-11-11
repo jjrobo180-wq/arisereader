@@ -1,4 +1,4 @@
-// A.R.I.S.E. Beginners, inside A.R.I.S.E. Reader: the whole program as data that the page and the server share.
+// A.R.I.S.E. Beginners, inside Arise Reader: the whole program as data that the page and the server share.
 //
 // Beginners is Reader for younger readers (about K–3): the same account, the same leaderboard, the same points and
 // the same prizes. It mixes three kinds of practice:

@@ -55,7 +55,16 @@ function validateWorkspace(input: unknown): input is Record<string, any> {
   return true;
 }
 
-async function readWorkspace(userId: number) {
+/** Only when the saved copy last changed. A few bytes, where reading the copy itself can be hundreds of
+ *  kilobytes: the "anything newer?" check every open phone makes, and every save, need nothing more. */
+export async function readUpdatedAt(userId: number): Promise<string | null> {
+  const { data, error } = await getAdminSupabase().from(TABLE).select("updated_at")
+    .eq("user_id", userId).maybeSingle();
+  if (error) throw error;
+  return data ? String(data.updated_at) : null;
+}
+
+export async function readWorkspace(userId: number) {
   const { data, error } = await getAdminSupabase().from(TABLE).select("workspace, updated_at")
     .eq("user_id", userId).maybeSingle();
   if (error) throw error;
@@ -73,6 +82,29 @@ function rejectPreview(req: any, res: any): boolean {
 
 /** What the sign-up needs to confirm an email, handed in from routes.ts so the rules here can be
  *  tested on their own. The 6-digit code machinery is the teacher sign-up's, reused as it is. */
+/**
+ * Changes the saved LifeHub workspace from the server (the Apple TV checking off a task): read, change, and save
+ * only over that same copy, tried again if a phone saved in between. Phones see it on their next refresh.
+ * Returns what `change` returned, or null if there's no workspace or it couldn't be saved.
+ */
+export async function updateWorkspace<T>(userId: number, change: (ws: Record<string, any>) => { workspace: Record<string, any>; result: T } | null): Promise<T | null> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const row = await readWorkspace(userId);
+    if (!row || !validateWorkspace(row.workspace)) return null;
+    const out = change(JSON.parse(JSON.stringify(row.workspace)));
+    if (!out) return null;
+    if (!validateWorkspace(out.workspace)) return null;
+    if (out.workspace.version === 2) out.workspace.family = cleanFamily(out.workspace.family);
+    if (Buffer.byteLength(JSON.stringify(out.workspace), "utf8") > MAX_BYTES) return null;
+    const now = new Date(Math.max(Date.now(), Date.parse(row.updatedAt) + 1 || 0)).toISOString();
+    const { data, error } = await getAdminSupabase().from(TABLE).update({ workspace: out.workspace, updated_at: now })
+      .eq("user_id", userId).eq("updated_at", row.updatedAt).select("updated_at").maybeSingle();
+    if (error) throw error;
+    if (data) return out.result;
+  }
+  return null;
+}
+
 export type TodoSignupDeps = {
   codes: { issue(userId: number): Promise<{ ok: true; code: string } | { ok: false; why: "wait"; waitSeconds: number } | { ok: false; why: "limit" }>;
     check(userId: number, typed: unknown): Promise<"ok" | "wrong" | "expired" | "locked" | "none">;
@@ -101,7 +133,15 @@ export function registerAriseTodoRoutes(app: Express, authMiddleware: RequestHan
       return res.status(429).json({ message: "Too many sign-up attempts. " + waitWords(wait) + " remaining." });
     }
     signupLimits.fail(address);
-    const username = typeof req.body?.username === "string" ? req.body.username.trim().toLowerCase() : "";
+    let username = typeof req.body?.username === "string" ? req.body.username.trim().toLowerCase() : "";
+    // No username typed (the apps' sign-up asks only for name, email and password): one is made from the
+    // email. People sign in with their email.
+    const typedEmail = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
+    if (!username && validEmail(typedEmail)) {
+      const base = (typedEmail.split("@")[0].replace(/[^a-z0-9_-]/g, "") || "arise").slice(0, 20).padEnd(3, "0");
+      username = base;
+      for (let i = 0; i < 20 && (await storage.getUserByUsername(username)); i++) username = `${base}${Math.floor(100 + Math.random() * 9900)}`;
+    }
     const password = typeof req.body?.password === "string" ? req.body.password : "";
     const displayName = typeof req.body?.displayName === "string" ? req.body.displayName.trim() : "";
     if (!/^[a-z0-9_-]{3,30}$/.test(username)) {
@@ -131,7 +171,7 @@ export function registerAriseTodoRoutes(app: Express, authMiddleware: RequestHan
         // behind a code they never received. The address stays on the account, unconfirmed.
         if (issued.ok) await signup.codes.forget(userId).catch(() => {});
         await signup.turnOn(userId).catch(() => {});
-        return res.status(201).json({ success: true, confirmEmail: false, message: "Your account is ready. We couldn't email a code just now, so we've let you straight in." });
+        return res.status(201).json({ success: true, confirmEmail: false, username, message: "Your account is ready. We couldn't email a code just now, so we've let you straight in." });
       }
       return res.status(201).json({ success: true, confirmEmail: true, username, message: `We sent a 6-digit code to ${email}. Enter it to finish.` });
     } catch (error: any) {
@@ -197,11 +237,15 @@ export function registerAriseTodoRoutes(app: Express, authMiddleware: RequestHan
   app.get("/api/arise-todo/workspace", authMiddleware, async (req: any, res) => {
     if (rejectPreview(req, res)) return;
     try {
-      const row = await readWorkspace(Number(req.user.id));
+      const userId = Number(req.user.id);
       res.set("Cache-Control", "no-store");
-      if (row && typeof req.query?.since === "string" && row.updatedAt === req.query.since) {
-        return res.json({ unchanged: true, updatedAt: row.updatedAt });
+      // "Anything newer than the copy I have?" is answered from the date alone; the copy itself is
+      // read only when it really is newer.
+      if (typeof req.query?.since === "string" && req.query.since) {
+        const updatedAt = await readUpdatedAt(userId);
+        if (updatedAt && updatedAt === req.query.since) return res.json({ unchanged: true, updatedAt });
       }
+      const row = await readWorkspace(userId);
       return res.json(row || { workspace: null, updatedAt: null });
     } catch (error: any) {
       console.error("[arise-todo] read:", error?.message);
@@ -224,7 +268,9 @@ export function registerAriseTodoRoutes(app: Express, authMiddleware: RequestHan
     if (overwrite !== undefined && overwrite !== true && overwrite !== false) return res.status(400).json({ message: "Invalid overwrite option." });
     const userId = Number(req.user.id);
     try {
-      const previous = await readWorkspace(userId);
+      // Only the date of the saved copy is needed to check this save against it.
+      const previousAt = await readUpdatedAt(userId);
+      const previous = previousAt ? { updatedAt: previousAt } : null;
       const conflict = () => res.status(409).json({
         code: HUB_CONFLICT,
         message: "Your to-dos changed on another device. Choose which copy to keep.",

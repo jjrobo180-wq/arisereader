@@ -15,12 +15,12 @@ import { blockName, cleanPart, cleanTeacher, placeText, schoolBlocks } from "@sh
 import { BulkMinutesModal, ClassFields, MinutesPick, knownTeachers, type BulkStart } from "./HubMinutesBulk";
 import { PUSH_IN, knownName, minuteNames, savedText, schoolDay, withPlans, type BulkResult } from "@shared/hubMinutesBulk";
 import { MINUTE_SUBJECTS, cleanSubject } from "@shared/hubSubjects";
-import { addToClass, deleteClass, restorePlans, type ClassGroup } from "@shared/hubClassMinutes";
-import { AddToClassModal, DeleteClassModal } from "./HubClassMinutes";
+import { addToClass, createClass, deleteClass, editClass, restorePlans, type ClassGroup } from "@shared/hubClassMinutes";
+import { AddToClassModal, ClassFormModal, DeleteClassModal, type ClassForm } from "./HubClassMinutes";
 import { ClassBoard } from "./HubClassBoard";
 import { MinutesStats, NotesAfterLog } from "./HubMinutesDay";
 import { completion, withNotes, type Colleague } from "@shared/hubMinutesDay";
-import { minutesWeek } from "@shared/hubMinutesWeek";
+import { minutesWeek, startFresh, undoFresh } from "@shared/hubMinutesWeek";
 import { API_BASE } from "@/lib/queryClient";
 import { ChevronDown, Eye } from "lucide-react";
 
@@ -58,6 +58,24 @@ function Spark({ goal }: { goal: Goal }) {
 }
 
 type GoalDraft = { id: string | null; student: string; area: string; text: string; baseline: string; target: string; unit: string; direction: "up" | "down"; startDate: string; targetDate: string };
+
+/** "Start fresh": the percentages and missed days count only from a day you pick (today, or the first real day). */
+function FreshStart({ today, onStart, undo, onUndo }: { today: string; onStart: (from: string) => void; undo: null | (() => void); onUndo: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [from, setFrom] = useState(today);
+  if (undo) return <div className="flex items-center justify-between gap-2 rounded-2xl bg-white px-3 py-2.5 text-sm text-slate-600 ring-1 ring-slate-200/70" data-testid="minutes-fresh-done"><span>Counting starts fresh.</span><button type="button" onClick={onUndo} className="min-h-9 rounded-lg px-2 font-semibold text-slate-900 hover:bg-slate-100">Undo</button></div>;
+  if (!open) return <div className="flex justify-end"><button type="button" onClick={() => setOpen(true)} className="min-h-9 rounded-lg px-2 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800" data-testid="minutes-fresh">Start counting fresh…</button></div>;
+  return <div className="rounded-2xl bg-white p-3 ring-1 ring-slate-200/70" data-testid="minutes-fresh-panel">
+    <p className="text-sm font-semibold text-slate-900">Start counting fresh</p>
+    <p className="mt-0.5 text-xs leading-5 text-slate-500">Testing, a late start, a new caseload: pick the day your minutes really begin. Days before it stop counting as missed and drop out of the percentages. Sessions you logged are kept.</p>
+    <div className="mt-2.5 flex flex-wrap items-center gap-2">
+      <label className="text-xs text-slate-500">Count from <input type="date" value={from} max={today} onChange={(e) => e.target.value && setFrom(e.target.value)} className="ml-1 min-h-9 rounded-lg border border-slate-200 px-2 text-sm text-slate-900" aria-label="Count from" /></label>
+      <span className="flex-1" />
+      <button type="button" onClick={() => setOpen(false)} className="min-h-9 rounded-lg px-3 text-sm font-medium text-slate-600 hover:bg-slate-100">Cancel</button>
+      <button type="button" onClick={() => { setOpen(false); onStart(from); }} className="min-h-9 rounded-lg bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800" data-testid="minutes-fresh-go">Start fresh</button>
+    </div>
+  </div>;
+}
 
 export function GoalsTab({ workspace, setWorkspace, remove, makeId, today }: Props) {
   // A link to a goal (shared/hubLinks.ts) opens Goals on that student's goals.
@@ -223,10 +241,24 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
   const [bulk, setBulk] = useState<BulkStart | null>(null);
   /** What the last save for several students did, shown for a few seconds. */
   const [saved, setSaved] = useState("");
+  const [freshUndo, setFreshUndo] = useState<null | (() => void)>(null);
   /** The plans a deleted class had, so the delete can be taken back while the message shows. */
   const [undoPlans, setUndoPlans] = useState<ServicePlan[] | null>(null);
   const [classAdd, setClassAdd] = useState<string | null>(null);
   const [classDelete, setClassDelete] = useState<string | null>(null);
+  /** The class form: "" for a new class, a key to change that class, null when closed. */
+  const [classForm, setClassForm] = useState<string | null>(null);
+  function saveClassForm(form: ClassForm, group: ClassGroup | null) {
+    if (group) {
+      setWorkspace((w) => ({ ...w, services: editClass(w.services, group, form) }));
+      setSaved("Class changed.");
+    } else {
+      setWorkspace((w) => ({ ...w, services: createClass(w.services, form.names, { ...form, minutesPerWeek: Number(form.perWeek) || 0 }, makeId, weekStart(today)) }));
+      setSaved(`Class added with ${form.names.length} ${form.names.length === 1 ? "student" : "students"}.`);
+    }
+    setUndoPlans(null);
+    setClassForm(null);
+  }
   useEffect(() => { if (!saved) return; const timer = setTimeout(() => { setSaved(""); setUndoPlans(null); }, undoPlans ? 15000 : 7000); return () => clearTimeout(timer); }, [saved, undoPlans]);
   const [plan, setPlan] = useState<PlanDraft | null>(null);
   const [lookChosen, setLookState] = useState<MinutesLook>(readLook);
@@ -271,15 +303,24 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
     setWorkspace((w) => ({ ...w, serviceLogs: [...w.serviceLogs, ...sessions] }));
     setJustLogged(sessions.map((x) => x.id));
   }
+  /** Take back sessions marked by mistake (one, a block, or everything just logged). */
+  function unlog(ids: string[]) {
+    if (!ids.length || readOnly) return;
+    setWorkspace((w) => ({ ...w, serviceLogs: w.serviceLogs.filter((l) => !ids.includes(l.id)) }));
+    setJustLogged((j) => j.filter((x) => !ids.includes(x)));
+    setSaved(ids.length === 1 ? "Undone." : `${ids.length} marks undone.`);
+  }
   /** From the block grid: the log pop-up for the student that was tapped, to type other minutes or to say they did not meet. */
   function logFrom(from: LogStart) {
     setLog({ ...newLog(), date: from.date, block: from.block || "", student: from.student || "", kind: from.kind || "Push-in", minutes: from.minutes ? String(from.minutes) : "", notMet: !!from.notMet, others: from.others });
   }
   /** From the pop-up for several students: a session for each one ticked, or each one's required minutes. */
   function saveBulk(result: BulkResult) {
+    const made = result.logs.map((session) => ({ id: makeId(), ...session }));
+    if (made.length) setJustLogged(made.map((x) => x.id));
     setWorkspace((w) => ({
       ...w,
-      serviceLogs: result.logs.length ? [...w.serviceLogs, ...result.logs.map((session) => ({ id: makeId(), ...session }))] : w.serviceLogs,
+      serviceLogs: made.length ? [...w.serviceLogs, ...made] : w.serviceLogs,
       services: result.plans.length ? withPlans(w.services, result.plans, makeId, today, optional) : w.services,
     }));
     setUndoPlans(null);
@@ -338,7 +379,7 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
 
   return (
     <>
-      <section className="grid gap-3" data-testid="minutes-page">
+      <section className="grid grid-cols-[minmax(0,1fr)] gap-3" data-testid="minutes-page">
         <div className="flex items-center gap-2">
           <h2 className="min-w-0 flex-1 truncate text-[26px] font-semibold tracking-tight text-slate-950">Minutes</h2>
           <div className="relative">
@@ -367,9 +408,15 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
         </div>
 
         {look === "quick" && <MinutesStats {...stats} />}
+        {look === "quick" && !readOnly && plans.length > 0 && <FreshStart today={today} onStart={(from) => {
+          let before: Record<string, string | undefined> = {};
+          setWorkspace((w) => { const r = startFresh(w.services, from); before = r.before; return { ...w, services: r.plans }; });
+          setFreshUndo(() => () => setWorkspace((w) => ({ ...w, services: undoFresh(w.services, before) })));
+          setSaved(`Counting from ${from === today ? "today" : from}. Earlier days no longer count as missed.`);
+        }} undo={freshUndo} onUndo={() => { freshUndo?.(); setFreshUndo(null); setSaved("Back to how it was."); }} />}
 
         {editing && !readOnly && (
-          <div className="grid gap-2 rounded-2xl bg-white p-3 ring-1 ring-slate-200/70" data-testid="minutes-edit-panel">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-2 rounded-2xl bg-white p-3 ring-1 ring-slate-200/70" data-testid="minutes-edit-panel">
             <div className="flex flex-wrap gap-2">
               <GhostButton onClick={() => setPlan(newPlan())}><Plus className="h-4 w-4" /> Set required minutes</GhostButton>
               <span data-testid="minutes-several"><GhostButton onClick={() => setBulk({ mode: "plan", date: today, block: "" })}><Users className="h-4 w-4" /> Add several students</GhostButton></span>
@@ -387,6 +434,7 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
         {justLogged.length > 0 && !readOnly && (
           <div className="flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-sm text-white" role="status" data-testid="minutes-just-logged">
             <span className="min-w-0 flex-1">Logged {justLogged.length === 1 ? (own.serviceLogs.find((l) => l.id === justLogged[0])?.student ?? "1") : `${justLogged.length} students`}</span>
+            <button type="button" onClick={() => unlog(justLogged)} className="min-h-9 rounded-full bg-white/15 px-3 font-semibold hover:bg-white/25" data-testid="minutes-undo-logged">Undo</button>
             <button type="button" onClick={() => setNoting(true)} className="min-h-9 rounded-full bg-white/15 px-3 font-semibold hover:bg-white/25" data-testid="minutes-add-note">Add a note</button>
             <button type="button" onClick={() => setJustLogged([])} aria-label="Dismiss" className="min-h-9 px-1 text-white/70">✕</button>
           </div>
@@ -394,12 +442,13 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
       </section>
 
       {look === "main" && <ClassBoard workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} today={today} token={token} say={setSaved}
-        onOther={logFrom} onEditLog={editLog} onAddStudents={setClassAdd} onDeleteClass={setClassDelete} onSetup={() => setEditing(true)}
+        onOther={logFrom} onEditLog={editLog} onAddStudents={setClassAdd} onDeleteClass={setClassDelete} onEditClass={(k) => setClassForm(k ?? "")} onSetup={() => setEditing(true)}
         onEditPlan={(planId) => { const p = plans.find((x) => x.id === planId); if (p) editPlan(p); }} />}
       {noting && <NotesAfterLog logs={own.serviceLogs.filter((l) => justLogged.includes(l.id))} onClose={() => { setNoting(false); setJustLogged([]); }} onSave={(notes, shared) => { setOwn((w) => ({ ...w, serviceLogs: withNotes(w.serviceLogs, notes, shared) })); setNoting(false); setJustLogged([]); setSaved("Notes saved."); }} />}
+      {classForm !== null && <ClassFormModal workspace={workspace} today={today} groupKey={classForm || null} onSave={saveClassForm} onClose={() => setClassForm(null)} />}
       {classAdd && <AddToClassModal workspace={workspace} today={today} groupKey={classAdd} onSave={addStudentsToClass} onClose={() => setClassAdd(null)} />}
       {classDelete && <DeleteClassModal workspace={workspace} today={today} groupKey={classDelete} onDelete={removeClass} onClose={() => setClassDelete(null)} />}
-      {look === "quick" && <MinutesWeekView workspace={workspace} today={today} readOnly={readOnly} onLog={logItems} onEdit={editLog} onAdd={addFrom} onPlan={(planId) => { const p = plans.find((x) => x.id === planId); if (p) editPlan(p); }} onBlocks={() => setSettingBlocks(true)} onMove={(planId, block) => setWorkspace((w) => ({ ...w, services: setPlanBlock(w.services, planId, block) }))} />}
+      {look === "quick" && <MinutesWeekView workspace={workspace} today={today} readOnly={readOnly} onLog={logItems} onEdit={editLog} onUndo={unlog} onAdd={addFrom} onPlan={(planId) => { const p = plans.find((x) => x.id === planId); if (p) editPlan(p); }} onBlocks={() => setSettingBlocks(true)} onMove={(planId, block) => setWorkspace((w) => ({ ...w, services: setPlanBlock(w.services, planId, block) }))} />}
       {look === "quick" && !plans.length && <Empty>No required minutes set yet. Tap Edit, then “Set required minutes” to add a student's push-in or pull-out time and block, or “Add several students” to set a whole block at once (you can tick them from a screenshot). They show up in that block on the days they are due.</Empty>}
       {bulk && <BulkMinutesModal workspace={workspace} today={today} token={token} start={bulk} onSave={saveBulk} onClose={() => setBulk(null)} />}
       {settingBlocks && <BlocksModal blocks={blocks} optional={optional} makeId={makeId} onClose={() => setSettingBlocks(false)} onSave={(next, days) => { setWorkspace((w) => ({ ...w, minuteBlocks: next, minuteOptionalDays: days })); setSettingBlocks(false); }} />}
@@ -455,7 +504,7 @@ export function MinutesTab({ workspace: own, setWorkspace: setOwn, remove: remov
             <Labeled label="Student"><Select value={plan.other ? OTHER_NAME : plan.student} onChange={(e) => setPlan(e.target.value === OTHER_NAME ? { ...plan, other: true, student: "" } : { ...plan, other: false, student: e.target.value })} required aria-label="Student"><option value="">Choose student</option>{[...new Set([...names, plan.other ? "" : plan.student].filter(Boolean))].map((n) => <option key={n}>{n}</option>)}<option value={OTHER_NAME}>Another name…</option></Select></Labeled>
             {plan.other && <Labeled label="Student's name"><Field value={plan.student} onChange={(e) => setPlan({ ...plan, student: e.target.value })} maxLength={80} autoCapitalize="words" placeholder="Type the name" aria-label="Student's name" data-testid="plan-other-name" /></Labeled>}
             <Labeled label="Kind"><Select value={plan.kind} onChange={(e) => setPlan({ ...plan, kind: e.target.value })} aria-label="Kind">{SERVICE_KINDS.map((k) => <option key={k}>{k}</option>)}</Select></Labeled>
-            <Labeled label="Subject"><Select value={plan.subject} onChange={(e) => setPlan({ ...plan, subject: e.target.value })} aria-label="Subject" data-testid="plan-subject"><option value="">No subject</option>{MINUTE_SUBJECTS.map((x) => <option key={x}>{x}</option>)}</Select></Labeled>
+            <Labeled label="Subject"><Field list="plan-subjects" value={plan.subject} maxLength={40} onChange={(e) => setPlan({ ...plan, subject: e.target.value })} placeholder="Reading, Science, anything" aria-label="Subject" data-testid="plan-subject" /><datalist id="plan-subjects">{MINUTE_SUBJECTS.map((x) => <option key={x} value={x} />)}</datalist></Labeled>
             <Labeled label="Block"><Select value={plan.block} onChange={(e) => setPlan({ ...plan, block: e.target.value })} aria-label="Block"><option value="">No block</option>{blocks.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Select></Labeled>
             <ClassFields hasBlock={!!plan.block} pushIn={plan.kind === PUSH_IN} part={plan.part} teacher={plan.teacher} known={knownTeachers(workspace)} onChange={(changes) => setPlan({ ...plan, ...changes })} />
             <div role="tablist" aria-label="How the minutes are counted" className="flex gap-1 rounded-2xl bg-slate-100 p-1" data-testid="plan-mode">

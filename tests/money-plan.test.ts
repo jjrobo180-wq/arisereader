@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { billStatus, cleanMoney, cleanParts, emptyMoney, expectedIncome, goalProgress, monthPicture, payBill, payPeriods, paydays, safeToSpend, tipWeeks, unpayBill, type MoneyPlan, type PlanBill } from "../shared/moneyPlan";
+import { onHandTotal, billStatus, cleanMoney, cleanParts, emptyMoney, expectedIncome, goalProgress, monthPicture, payBill, payPeriods, paydays, safeToSpend, tipWeeks, unpayBill, type MoneyPlan, type PlanBill } from "../shared/moneyPlan";
 import { cleanFamily, emptyFamily } from "../shared/familyHub";
 
 const plan = (over: Partial<MoneyPlan> = {}): MoneyPlan => ({ ...emptyMoney(), setUp: true, ...over });
@@ -108,4 +108,17 @@ test("paydays that have come and aren't logged ask to be confirmed", async () =>
   const logged = { ...p, incomeLog: [{ id: "x", sourceId: "job", date: "2026-11-01", amount: 1400, kind: "pay" as const, note: "" }] };
   assert.deepEqual(paydaysToConfirm(logged, "2026-11", "2026-11-16").map((x) => x.date), ["2026-11-15"]);
   assert.deepEqual(paydaysToConfirm(logged, "2026-11", "2026-11-10").length, 0);
+});
+
+test("money in: what you already have is cleaned, totaled, and counts toward what's left", () => {
+  const base = monthPicture(plan({ sources: [] }), [], [], [], "2026-11", "2026-11-08");
+  const p = plan({ onHand: [{ id: "a", name: "Cash", amount: 200 }, { id: "b", name: "Checking", amount: 450.5 }] });
+  const withHand = monthPicture(p, [], [], [], "2026-11", "2026-11-08");
+  assert.equal(onHandTotal(p), 650.5);
+  assert.equal(withHand.onHand, 650.5);
+  assert.equal(withHand.leftover - base.leftover, 650.5);
+  const c = cleanMoney(JSON.parse(JSON.stringify({ ...p, onHand: [...p.onHand, { id: "x", name: "", amount: 5 }, { id: "y", name: "Zero", amount: 0 }] })));
+  assert.equal(c.onHand.length, 2);
+  assert.deepEqual(cleanMoney(null).onHand, []);
+  assert.deepEqual(cleanMoney({ setUp: true }).onHand, []);
 });

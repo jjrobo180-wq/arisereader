@@ -10,7 +10,7 @@ export type FeatureTourStep = {
 export const FEATURE_TOURS: Record<TutorialRole, FeatureTourStep[]> = {
   student: [
     {
-      title: "Welcome to A.R.I.S.E. Reader",
+      title: "Welcome to Arise Reader",
       subtitle: "Read, practice, earn, and play",
       emoji: "📚",
       details: [

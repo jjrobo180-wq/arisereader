@@ -358,8 +358,9 @@ test("permissions: paras edit anyone's bulletins out of the box; the owner opens
 test("the Para App Store has the whole Arise App Store: LifeHub apps, every kit app and Office", () => {
   const all = paraApps();
   const kinds = all.reduce<Record<string, number>>((m, a) => ({ ...m, [a.kind]: (m[a.kind] || 0) + 1 }), {});
-  assert.ok(all.length > 500, `only ${all.length} apps`);
-  assert.ok(kinds.section > 50 && kinds.kit > 300 && kinds.office > 50, JSON.stringify(kinds));
+  assert.ok(all.length > 450, `only ${all.length} apps`);
+  // 24 LifeHub apps since Earshot left Arise To Duo (it is Pod+ now).
+  assert.ok(kinds.section >= 24 && kinds.kit > 300 && kinds.office > 50, JSON.stringify(kinds));
   assert.equal(new Set(all.map((a) => a.key)).size, all.length, "each app once");
   assert.ok(paraApp("polls"), "Polls is there");
   for (const personal of ["home", "tasks", "reader", "notifications", "linked", "lifeplan"]) assert.equal(paraApp(personal), undefined, personal);

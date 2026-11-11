@@ -5,7 +5,7 @@
 // 24 hours. They're worked out again whenever the hub changes, so a checked-off task or a logged
 // meal stops its reminder.
 import { dueHubReminders, type HubReminder } from "@shared/hubReminders";
-import { dueTodoReminders } from "@shared/todoReminders";
+import { dueTodoReminders, goUrl } from "@shared/todoReminders";
 import type { Workspace } from "@shared/teacherHub";
 import { hasNativePlugin, isNativeApp, nativeCall, nativeListen, notificationHash } from "@/lib/nativeApp";
 import { startApplePush, stopApplePush } from "@/lib/applePush";
@@ -153,7 +153,11 @@ export function installReminderTaps(): void {
   } catch { /* no listener here */ }
 }
 
+/** What was last put on the phone for each kind (in this page's life), so an unchanged plan is left alone. */
+const lastPlan = new Map<ReminderKind, string>();
+
 async function cancelScheduled(kind: ReminderKind) {
+  lastPlan.delete(kind);
   let ids: number[] = [];
   try { ids = JSON.parse(store.get(idsKey(kind)) || "[]"); } catch { ids = []; }
   if (ids.length) await call("cancel", { notifications: ids.map((id) => ({ id })) }).catch(() => {});
@@ -165,21 +169,30 @@ export async function scheduleNativeReminders(kind: ReminderKind, workspace: unk
   if (!nativeRemindersOn(kind) || !nativeRemindersAvailable()) return 0;
   const now = Date.now();
   const plan = planReminders(kind, workspace, now + 60_000, zone()).slice(0, MOST_PER_KIND);
+  const notifications = plan.length ? nativeNotifications(kind, plan) : [];
+  // Same reminders as the ones already waiting on the phone (most edits don't touch them): nothing to
+  // redo. Cancelling and re-adding them all after every change made the app hitch a few seconds later.
+  const sig = JSON.stringify(notifications);
+  if (lastPlan.get(kind) === sig) return notifications.length;
   await cancelScheduled(kind);
-  if (!plan.length) return 0;
-  const notifications = nativeNotifications(kind, plan);
+  lastPlan.set(kind, "");
+  if (!notifications.length) { lastPlan.set(kind, sig); return 0; }
   await call("schedule", { notifications });
   store.set(idsKey(kind), JSON.stringify(notifications.map((n) => n.id)));
+  lastPlan.set(kind, sig);
   return notifications.length;
 }
 
-/** A test notification a few seconds from now. */
+/** A test notification a few seconds from now. It looks like a pill reminder and, like the real ones, opens the
+ *  screen it's about when tapped (here Pills), so the test also proves tapping works. */
+export const TEST_REMINDER = { title: "Test reminder 💊", body: "Tap to open Pills, where you mark a dose taken.", url: goUrl("pills") };
 export async function sendNativeTest(): Promise<void> {
-  await call("schedule", { notifications: [{ id: reminderId(`test:${Date.now()}`), title: "Arise To Duo", body: "Reminders are working on this iPhone.", schedule: { at: new Date(Date.now() + 5000) }, ...soundField() }] });
+  await call("schedule", { notifications: [{ id: reminderId(`test:${Date.now()}`), title: TEST_REMINDER.title, body: TEST_REMINDER.body, extra: { url: TEST_REMINDER.url }, schedule: { at: new Date(Date.now() + 5000) }, ...soundField() }] });
 }
 
 /** Signing out: every reminder scheduled on this iPhone is taken away, so the next account never sees the last one's. */
 export async function cancelAllNativeReminders(): Promise<void> {
+  lastPlan.clear();
   if (!nativeRemindersAvailable()) return;
   try {
     const pending = await nativeCall(PLUGIN, NAME, "getPending");

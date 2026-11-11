@@ -1,4 +1,4 @@
-// Arise Fit: near you, and what to eat.
+// Cooked: near you, and what to eat.
 // - Gyms near me: every gym around you (OpenStreetMap), what each chain usually costs, when gyms are
 //   usually busy, and what people there say right now ("it's packed"). Set one as My gym.
 // - Eat out: fast food and restaurants nearby with the healthier things to order at each chain, logged

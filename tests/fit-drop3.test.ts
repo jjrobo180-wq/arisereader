@@ -1,4 +1,4 @@
-// Arise Fit drop 3: Apple Health and reminders on the iPhone.
+// Cooked drop 3: Apple Health and reminders on the iPhone.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -10,14 +10,14 @@ test("the Fit iPhone build has Apple Health and notifications, with the permissi
   assert.equal(pkg.dependencies["@capacitor/local-notifications"], "8.0.0");
   assert.match(readFileSync(".github/workflows/fit-ios.yml", "utf8"), /apple_signing\.py com\.arisereader\.fit "\$RUNNER_TEMP\/profile\.mobileprovision" HEALTHKIT APPLE_ID_AUTH/);
   const plist = readFileSync(".github/scripts/configure_fit_app.py", "utf8");
-  for (const k of ["NSHealthShareUsageDescription", "NSHealthUpdateUsageDescription", "NSLocationWhenInUseUsageDescription", "NSCameraUsageDescription"]) assert.match(plist, new RegExp(`"${k}": "Arise Fit`), k);
+  for (const k of ["NSHealthShareUsageDescription", "NSHealthUpdateUsageDescription", "NSLocationWhenInUseUsageDescription", "NSCameraUsageDescription"]) assert.match(plist, new RegExp(`"${k}": "Cooked`), k);
 });
 
 test("Health and reminders go through Capacitor's bridge and fail with a clear message", () => {
   const n = readFileSync("client/src/pages/fit/fitNative.ts", "utf8");
   assert.match(n, /nativeCall\(\/\^Health\$\|CapacitorHealth\/i, "Health"/);
   assert.match(n, /nativeCall\(\/LocalNotifications\/i, "LocalNotifications"/);
-  assert.match(n, /needs the newest Arise Fit from TestFlight/);
+  assert.match(n, /needs the newest Cooked from TestFlight/);
   for (const f of ["FitApp.tsx", "FitTrain.tsx", "FitRun.tsx"]) assert.match(readFileSync(`client/src/pages/fit/${f}`, "utf8"), /saveToHealth\(/, `${f} saves to Health`);
   assert.match(readFileSync("client/src/pages/fit/FitFasting.tsx", "utf8"), /scheduleFastEnd\(/);
 });

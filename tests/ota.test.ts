@@ -76,3 +76,13 @@ test("every update offered carries the zip's checksum (the phone's updater refus
   assert.equal(list[0].checksum, SUM);
   assert.match(readFileSync("server/ota.ts", "utf8"), /checksum: next\.checksum/);
 });
+
+test("the iPhone apps update while open, like the website: on open, on coming back, and every few minutes", () => {
+  const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+  const native = read("client/src/lib/nativeApp.ts");
+  assert.match(native, /export async function liveUpdateNow/);
+  assert.match(native, /await u\.set\(\{ id: bundle\.id \}\)/);
+  assert.match(native, /visibilitychange/);
+  assert.match(read("client/src/main.tsx"), /keepLiveUpdated\(\);/);
+  assert.match(read(".github/scripts/ota_setup.py"), /"directUpdate": "always"/);
+});

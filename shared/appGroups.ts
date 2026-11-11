@@ -1,4 +1,5 @@
-/** LifeHub apps that belong together share one tile in the menu and a tab strip inside.
+/** (Health, Kitchen, journal and quote pages are bundled plugins now: shared/appBundles.ts.)
+ *  LifeHub apps that belong together share one tile in the menu and a tab strip inside.
  *  A group's tile opens its first app the person has turned on; the strip switches between the rest. */
 import type { FamilySection } from "./familyHub";
 
@@ -6,14 +7,12 @@ export type AppGroup = { id: string; label: string; detail: string; members: Fam
 
 export const APP_GROUPS: AppGroup[] = [
   { id: "money", label: "Money", detail: "Budget, subscriptions, loans, IOUs, allowance", members: ["money", "subscriptions", "loans", "mortgage", "ious", "allowance", "jars", "tips", "giftcards"] },
-  { id: "health", label: "Health", detail: "Calories, medications, mood, cycle, workouts, checkups", members: ["health", "pills", "medical", "checkups", "workouts", "mood", "cycle", "sleep", "sleepfinder"] },
-  { id: "kitchen", label: "Kitchen", detail: "Recipes, meal plan and groceries", members: ["grocery", "recipes", "meals"] },
   { id: "homecar", label: "Home & car", detail: "Upkeep, cleaning, plants, car, mileage, warranties", members: ["upkeep", "cleaning", "plants", "car", "mileage", "warranties"] },
   { id: "gifts", label: "Gifts & dates", detail: "Birthdays, gift ideas, wishlist, countdowns", members: ["birthdays", "gifts", "wishlist", "countdowns"] },
-  { id: "habits", label: "Habits & journal", detail: "Habits, routines, journal, gratitude, milestones", members: ["habits", "routines", "journal", "gratitude", "milestones"] },
-  { id: "calm", label: "Focus & calm", detail: "Focus, meditation, timers, clocks", members: ["focus", "meditate", "timers", "clocks"] },
-  { id: "reads", label: "Daily reads", detail: "News, Bible, quotes, history, trending, dictionary", members: ["news", "bible", "quotes", "history", "trending", "dictionary"] },
-  { id: "lists", label: "Lists", detail: "Reading, watchlist, restaurants, bucket list, learning", members: ["reading", "watchlist", "restaurants", "bucket", "learning"] },
+  { id: "habits", label: "Routines & milestones", detail: "Family routines and milestones", members: ["routines", "milestones"] },
+  { id: "calm", label: "Focus & clocks", detail: "Focus timer and world clock", members: ["focus", "clocks"] },
+  { id: "reads", label: "Daily reads", detail: "News, history, trending, dictionary", members: ["news", "history", "trending", "dictionary"] },
+  { id: "lists", label: "Lists", detail: "Reading, watchlist, bucket list, learning", members: ["reading", "watchlist", "bucket", "learning"] },
 ];
 
 export const groupOf = (id: string): AppGroup | undefined => APP_GROUPS.find((g) => (g.members as string[]).includes(id));

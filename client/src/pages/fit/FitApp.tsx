@@ -1,9 +1,11 @@
-// Arise Fit: training and nutrition in one app (the iPhone app built with VITE_NATIVE_APP=fit, and
+// Cooked: training and nutrition in one app (the iPhone app built with VITE_NATIVE_APP=fit, and
 // #/fit on the website). Tabs: Today, up to three apps you pin (Train, Food and Run to start) and Apps,
 // where you add and arrange the rest (FitApps.tsx, shared/fitApps.ts). Data:
-// fitStore.ts → server/fit.ts. The look and motion follow the Arise Fit prototype (fitUi.tsx).
+// fitStore.ts → server/fit.ts. The look and motion follow the Cooked prototype (fitUi.tsx).
+import AllAccessPopup from "@/components/AllAccessPopup";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Bell, Check, Crown, ChevronRight, Droplets, Footprints, HeartPulse, Flame, Home, LayoutGrid, LogOut, Mic, Moon, Play, Scale, Settings, ShieldCheck, Timer, Trophy } from "lucide-react";
+import { Bell, Check, Crown, ChevronRight, Utensils, Plus, Droplets, Footprints, HeartPulse, Flame, Home, LayoutGrid, LogOut, Mic, Moon, Play, Scale, Settings, ShieldCheck, Timer, Trophy } from "lucide-react";
+import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import AccountPrivacy from "@/components/AccountPrivacy";
 import { goToSignIn } from "@/lib/hubs";
@@ -31,12 +33,13 @@ import { addNight, emptySleep } from "@shared/fitSleep";
 import { SplitCard, VacationCard, VacationSheet } from "./FitVacation";
 import { dayGoals } from "@shared/fitVacation";
 import { publishWidgets, watchWidgetActions } from "@/lib/widgets";
-import { applyFitTaps, fitWidgetSlots } from "@/lib/fitWidgets";
+import { publishWatch, watchActions } from "@/lib/watch";
+import { applyFitTaps, applyWatchActions, fitWidgetSlots } from "@/lib/fitWidgets";
 import { FoodTab, latestKg, totals } from "./FitFood";
 import { FeatureTour, Onboarding } from "./FitOnboard";
 import { CoverCard, VideoPlayer } from "./FitVideo";
 import { FastingSheet, endFast, startFast } from "./FitFasting";
-import { CoachCard, CoachScreen } from "./FitCoach";
+import { CoachCard, CoachScreen, InviteJoinSheet } from "./FitCoach";
 import { OutdoorHub } from "./FitRun";
 import { HealthSheet, RemindersSheet, useHealth } from "./FitHealth";
 import { saveToHealth } from "./fitNative";
@@ -165,6 +168,13 @@ function TodayTab({ layout, data, update, onApp, onAllApps, onStartProgram, onSe
   const tipCard = tip && <><Title right={<button type="button" onClick={() => setWatch(true)} className="text-[14px] font-semibold" style={{ color: C.lime }}>Cues</button>}>Form tip of the day</Title>
     <TipCard exId={tip.id} testId="fit-today-tip" /></>;
   const week = <WeekStrip data={data} streak={s} />;
+  // Logging a meal is one tap from the top of Today, in every layout, whether or not Food is on the tab bar.
+  const logFood = <button type="button" onClick={() => onApp("food")} className="mt-3 flex min-h-[64px] w-full items-center gap-3 rounded-[16px] px-4 text-left transition-transform active:scale-[.98]" style={{ background: "linear-gradient(150deg, var(--fit-accent), var(--fit-accent-deep))", color: "var(--fit-on-accent)" }} data-testid="fit-today-log-food">
+    <Utensils className="h-6 w-6 shrink-0" />
+    <span className="min-w-0 flex-1"><span className="block text-[19px] leading-tight" style={display}>Log food</span>
+      <span className="block truncate text-[12.5px] opacity-90">{points ? `${Math.max(0, budget - used)} points left today` : `${fmtNum(Math.max(0, g.kcal - t.kcal))} cal left today`} · search, scan, photo or quick add</span></span>
+    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full" style={{ background: "rgba(255,255,255,.22)" }}><Plus className="h-5 w-5" /></span>
+  </button>;
   const checkin = sleepGuess && <SleepCheckIn guess={sleepGuess} data={data} update={update} say={say} onSkip={onSkipSleep} />;
   const footer = <>
     <WeightCard data={data} update={update} />
@@ -174,12 +184,12 @@ function TodayTab({ layout, data, update, onApp, onAllApps, onStartProgram, onSe
     {analysis && insights && <ProPlusAnalysis i={insights} data={data} onClose={() => setAnalysis(false)} onAsk={() => { setAnalysis(false); setAsking(true); }} />}
   </>;
   // Each layout arranges the same pieces its own way.
-  const body = layout === "studio" ? <>{checkin}<StudioTrio v={v} open={open} />{heroTabs}{heroCard}{week}<div className="mt-3 grid grid-cols-2 gap-2.5">{sleepGlance}{fastGlance}</div>{extras}{tipCard}</>
-    : layout === "bloom" ? <>{checkin}<BloomFlower v={v} open={open} /><BloomRitual v={v} open={open} />{heroTabs}{heroCard}{week}{extras}{tipCard}</>
-    : layout === "proplus" && insights ? <>{checkin}<ProTiles v={v} open={open} /><ProPlusBoard i={insights} open={open} onAnalysis={() => setAnalysis(true)} onAsk={() => setAsking(true)} />{heroTabs}{heroCard}{week}{calories}{extras}{tipCard}</>
-    : layout === "pro" ? <>{checkin}<ProTiles v={v} open={open} />{heroTabs}{heroCard}{week}{calories}{extras}{tipCard}</>
-    : layout === "zen" ? <>{checkin}{heroTabs}{heroCard}<ZenRows v={v} open={open} />{week}{extras}{tipCard}</>
-    : <>{week}{checkin}{heroTabs}{heroCard}{glanceAll}{calories}{extras}{tipCard}</>;
+  const body = layout === "studio" ? <>{checkin}{logFood}<StudioTrio v={v} open={open} />{heroTabs}{heroCard}{week}<div className="mt-3 grid grid-cols-2 gap-2.5">{sleepGlance}{fastGlance}</div>{extras}{tipCard}</>
+    : layout === "bloom" ? <>{checkin}{logFood}<BloomFlower v={v} open={open} /><BloomRitual v={v} open={open} />{heroTabs}{heroCard}{week}{extras}{tipCard}</>
+    : layout === "proplus" && insights ? <>{checkin}{logFood}<ProTiles v={v} open={open} /><ProPlusBoard i={insights} open={open} onAnalysis={() => setAnalysis(true)} onAsk={() => setAsking(true)} />{heroTabs}{heroCard}{week}{calories}{extras}{tipCard}</>
+    : layout === "pro" ? <>{checkin}{logFood}<ProTiles v={v} open={open} />{heroTabs}{heroCard}{week}{calories}{extras}{tipCard}</>
+    : layout === "zen" ? <>{checkin}{logFood}{heroTabs}{heroCard}<ZenRows v={v} open={open} />{week}{extras}{tipCard}</>
+    : <>{week}{checkin}{logFood}{heroTabs}{heroCard}{glanceAll}{calories}{extras}{tipCard}</>;
   return <div data-layout={layout}>{header}{body}{footer}</div>;
 }
 
@@ -285,8 +295,8 @@ function SettingsSheet({ data, update, say, onClose, onGoals, onTour, onAccount,
     <Card onClick={onGoals} className="!p-4"><div className="flex items-center justify-between"><div><p className="font-semibold">Body and goal</p><p className="text-[13px]" style={{ color: C.dim }}>{g.kcal} calories · P {g.p}g · C {g.c}g · F {g.f}g (maintenance about {g.tdee})</p></div><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
     <Card className="mt-2 !p-4"><Field label="Set my own calorie goal (blank = automatic)"><div className="flex gap-2"><input inputMode="numeric" value={kcal} onChange={(e) => setKcal(e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder={String(g.kcal)} className={inputCls} style={inputStyle} />
       <Btn kind="soft" onClick={() => { const n = Number(kcal); update((d) => ({ ...d, profile: { ...d.profile, kcalGoal: n >= 900 ? n : undefined } })); say(n >= 900 ? `Calorie goal set to ${fmtNum(n)}.` : kcal ? "Goals under 900 calories aren't safe without a doctor. Using the automatic goal." : "Using the automatic calorie goal."); if (kcal && n < 900) setKcal(""); }}>Save</Btn></div></Field></Card>
-    <Card onClick={onTour} className="mt-2 !p-4" testId="fit-open-tour"><div className="flex items-center gap-3"><Play className="h-5 w-5" style={{ color: C.lime }} /><span className="flex-1"><span className="block font-semibold">How Arise Fit works</span><span className="block text-[13px]" style={{ color: C.dim }}>A quick animated tour of every feature</span></span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
-    <Title>Arise Fit+</Title>
+    <Card onClick={onTour} className="mt-2 !p-4" testId="fit-open-tour"><div className="flex items-center gap-3"><Play className="h-5 w-5" style={{ color: C.lime }} /><span className="flex-1"><span className="block font-semibold">How Cooked works</span><span className="block text-[13px]" style={{ color: C.dim }}>A quick animated tour of every feature</span></span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
+    <Title>Cooked+</Title>
     <PlusRow />
     <Title>iPhone</Title>
     <Card onClick={() => setSheet("health")} className="!p-4" testId="fit-open-health"><div className="flex items-center gap-3"><HeartPulse className="h-5 w-5" style={{ color: "#ff375f" }} /><span className="flex-1 font-semibold">Apple Health</span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
@@ -301,7 +311,7 @@ function SettingsSheet({ data, update, say, onClose, onGoals, onTour, onAccount,
     <Title>Account</Title>
     <Card onClick={onAccount} className="!p-4"><div className="flex items-center gap-3"><ShieldCheck className="h-5 w-5" style={{ color: C.dim }} /><span className="flex-1 font-semibold">Account & privacy</span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
     <Btn kind="danger" className="mt-2 w-full" onClick={() => { logout(); goToSignIn(); }} testId="fit-signout"><LogOut className="h-5 w-5" />Sign out</Btn>
-    <p className="mt-8 text-center text-[11px] leading-relaxed" style={{ color: C.dim }}>How-to videos play from YouTube and belong to their creators. Exercise photos from wger.de (Creative Commons, credited on each exercise). Food data from USDA FoodData Central and Open Food Facts. Arise Fit isn't medical advice; check with a doctor before starting a new diet or training plan.</p>
+    <p className="mt-8 text-center text-[11px] leading-relaxed" style={{ color: C.dim }}>How-to videos play from YouTube and belong to their creators. Exercise photos from wger.de (Creative Commons, credited on each exercise). Food data from USDA FoodData Central and Open Food Facts. Cooked isn't medical advice; check with a doctor before starting a new diet or training plan.</p>
   </Sheet>;
 }
 
@@ -315,7 +325,7 @@ function LayoutsSetting() {
 /** Today's header: the Fit+ crown (filled when you have it). */
 function PlusButton() {
   const { plus, ask } = usePlus();
-  return <button type="button" onClick={() => ask()} aria-label={plus ? "Arise Fit+" : "Get Arise Fit+"} className="grid h-11 w-11 place-items-center rounded-full" style={plus ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card, boxShadow: cardStyle.boxShadow }} data-testid="fit-open-plus"><Crown className="h-5 w-5" /></button>;
+  return <button type="button" onClick={() => ask()} aria-label={plus ? "Cooked+" : "Get Cooked+"} className="grid h-11 w-11 place-items-center rounded-full" style={plus ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card, boxShadow: cardStyle.boxShadow }} data-testid="fit-open-plus"><Crown className="h-5 w-5" /></button>;
 }
 function PlusRow() {
   const { plus, status, ask } = usePlus();
@@ -324,7 +334,7 @@ function PlusRow() {
     <ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>;
 }
 
-/** Arise Fit with Fit+ around it: the toast and a guest pass link live out here so the Fit+ sheet can use them. */
+/** Cooked with Fit+ around it: the toast and a guest pass link live out here so the Fit+ sheet can use them. */
 export default function FitApp() {
   const [toast, setToast] = useState("");
   const say = useCallback((m: string) => { setToast(m); window.setTimeout(() => setToast((t) => (t === m ? "" : t)), 2600); }, []);
@@ -352,6 +362,16 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
   const [tour, setTour] = useState(false);
   const [settings, setSettings] = useState(false);
   const [coach, setCoach] = useState(false);
+  // Back from paying a trainer by card (#/fit?paid=cs_…): record it and say so.
+  useEffect(() => {
+    const m = /[?&]paid=(cs_[A-Za-z0-9_]+)/.exec(window.location.href); if (!m || !token) return;
+    try { history.replaceState(null, "", `${window.location.pathname}${window.location.search}${window.location.hash.replace(/[?&]paid=[^&]*/, "").replace(/\?$/, "")}`); } catch { /* keep the address */ }
+    void fetch(`${API_BASE}/api/coach/pay/confirm`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ session: m[1] }) })
+      .then(async (r) => { const b = await r.json().catch(() => null); say(r.ok ? "Payment sent. Thank you!" : b?.message || "We couldn't confirm that payment yet."); }).catch(() => {});
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A trainer's invite link (#/fit?coach=CODE): the join sheet opens once, and the address is cleaned so a reload doesn't repeat it.
+  const [invite, setInvite] = useState<string | null>(() => { const m = /[?&]coach=([0-9a-z]{1,10}-[A-Za-z0-9_-]{10})/.exec(window.location.href); return m ? m[1] : null; });
+  useEffect(() => { if (!invite) return; try { history.replaceState(null, "", `${window.location.pathname}${window.location.search}${window.location.hash.replace(/[?&]coach=[^&]*/, "").replace(/\?$/, "")}`); } catch { /* keep the address */ } }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [form, setForm] = useState(false);
   const [body, setBody] = useState(false);
   const [openEx, setOpenEx] = useState<ReturnType<typeof libraryFallback>[number] | null>(null);
@@ -377,6 +397,9 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
   // Widgets (Home Screen and Lock Screen): what they show, and taps on their buttons (a glass of water).
   useEffect(() => { if (loaded) publishWidgets(fitWidgetSlots(data, latestKg(data))); }, [loaded, data]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!loaded) return; return watchWidgetActions((taps) => update((d) => applyFitTaps(d, taps))); }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Apple Watch (native/fit-watch): today's numbers, water in a tap, and workouts tracked on the watch.
+  useEffect(() => { if (loaded) publishWatch({ slots: fitWidgetSlots(data, latestKg(data)).filter((s) => ["fit.calories", "fit.water", "fit.workouts", "fit.next", "fit.streak", "fit.protein"].includes(s.id)) }); }, [loaded, data]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!loaded) return; return watchActions((actions) => update((d) => applyWatchActions(d, actions))); }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { const was = document.documentElement.style.background; document.documentElement.style.background = C.bg; return () => { document.documentElement.style.background = was; }; }, []);
   const startProgram = () => {
     const prog = data.program ? PROGRAM_BY_ID.get(data.program.id) : undefined; if (!prog || !data.program) return;
@@ -489,6 +512,9 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
     {active && <LiveWorkout active={active} setActive={setActive} data={data} update={update} list={list} say={say} />}
     {setup && <Onboarding data={data} update={update} edit={!!data.onboarded} onDone={() => setSetup(false)} />}
     {tour && <Layer><FeatureTour onClose={() => setTour(false)} /></Layer>}
+    {/* After setup (the first-run goals): the All Access pop-up, once. */}
+    <AllAccessPopup userId={user?.id} token={token} ready={loaded && !!data.onboarded && !setup && !tour} dark intro="Cooked is free to use. Arise All Access adds Fit+ with a guest pass for a friend, plus the extras in To Duo, Notes and Pod+." />
+    {invite && token && <InviteJoinSheet token={token} code={invite} onClose={() => setInvite(null)} onJoined={() => { setInvite(null); setCoach(true); }} />}
     {coach && <CoachScreen token={token} me={Number(user?.id) || 0} data={data} update={update} list={list} onStart={startNow} onClose={() => setCoach(false)} />}
     {form && <FormCheck onClose={() => setForm(false)} />}
     {body && <BodyMap data={data} list={list} onClose={() => setBody(false)} onOpen={setOpenEx} onStart={(name, items) => { setBody(false); setApp(null); setActive(startWorkout({ name, exercises: planned(data, items, list) })); }} />}

@@ -40,6 +40,7 @@ jobs:
       - name: Bundle A.R.I.S.E. application locally
         run: |
           npx vite build
+          bash .github/scripts/prune_todo_bundle.sh dist/public
           rm -rf arisetodo/ios-app/www
           mkdir -p arisetodo/ios-app/www
           cp -R dist/public/. arisetodo/ios-app/www/
@@ -54,6 +55,7 @@ jobs:
           python3 configure-ios.py ios/App/App/Info.plist
           python3 add-sound.py ios/App/App.xcodeproj/project.pbxproj ios/App/App
           python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist
+          python3 ../../.github/scripts/ipad_universal.py ios/App/App/Info.plist
       - name: Compile iOS simulator app
         working-directory: arisetodo/ios-app
         run: |

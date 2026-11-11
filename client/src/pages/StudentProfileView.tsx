@@ -115,7 +115,7 @@ export default function StudentProfileView({ studentId: givenId, onClose }: { st
     );
   }
 
-  if (!data) return <div className={`flex ${onClose ? "min-h-[50vh]" : "min-h-screen"} flex-col items-center justify-center gap-4 p-6 text-center`}><p>Student profile is unavailable.</p><Button variant="outline" onClick={backToReader}>Back to A.R.I.S.E. Reader</Button></div>;
+  if (!data) return <div className={`flex ${onClose ? "min-h-[50vh]" : "min-h-screen"} flex-col items-center justify-center gap-4 p-6 text-center`}><p>Student profile is unavailable.</p><Button variant="outline" onClick={backToReader}>Back to Arise Reader</Button></div>;
 
   return (
     <div className={`${onClose ? "min-h-[50vh]" : "min-h-screen"} bg-background`}>

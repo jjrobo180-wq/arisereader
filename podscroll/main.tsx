@@ -4,6 +4,7 @@
 // likes, comments and share counts come from the Arise server's public /api/podscroll routes
 // (server/earshot.ts registerPodscrollRoutes), which read Apple Podcasts. Audio plays straight
 // from each podcast's own host.
+import AllAccessPopup from "@/components/AllAccessPopup";
 import "./accountBoot";
 import { setAccount } from "../client/src/lib/accountStorage";
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -20,8 +21,9 @@ import { isNativeApp, markAppReadyWhenDrawn } from "../client/src/lib/nativeApp"
 import { applyDeviceTopInset } from "../client/src/lib/deviceInsets";
 import { publishWidgets } from "../client/src/lib/widgets";
 import { podWidgetSlots } from "../client/src/lib/podWidgets";
-import { subscribeWiki, wikiState } from "./wikiPlayer";
+import { setWikiMeter, subscribeWiki, wikiState } from "./wikiPlayer";
 import { downloads, installDownloads } from "./downloads";
+import { installCarPlay, installLibrarySync } from "./carplay";
 import "./styles.css";
 // Pod+ draws edge to edge: the top of every screen clears this iPhone's own clock space (lib/deviceInsets.ts).
 if (isNativeApp()) { document.documentElement.classList.add("pod-native"); applyDeviceTopInset(); }
@@ -107,6 +109,14 @@ function App() {
     if (!res.ok) throw Object.assign(new Error(body?.message || "Something went wrong. Try again."), { status: res.status, needSignIn: !!body?.needSignIn, needProfile: !!body?.needProfile });
     return body;
   }, [device, session]);
+  // The wiki reader spends AI minutes (shared with Arise Notes): sign in first, and stop when they're used up.
+  useEffect(() => {
+    setWikiMeter(async (title, sec, chars) => {
+      try { await api("/api/earshot/wiki/section", { method: "POST", body: { title, sec, chars } }); return null; }
+      catch (e: any) { if (e?.needSignIn) setAuthMode("signin"); return e?.message || "The AI reader isn't available right now."; }
+    });
+    return () => setWikiMeter(null);
+  }, [api]);
   const signOut = useCallback(() => {
     void api("/api/earshot/account/signout", { method: "POST" }).catch(() => {});
     setSession(null); setEmailState(""); try { localStorage.removeItem("podscroll.email"); } catch { /* private window */ }
@@ -122,6 +132,15 @@ function App() {
   }, [session, api, setSession]);
   // Audio comes through the server so smart ad skip can find the ads in this copy.
   const mediaUrl = useCallback((path: string) => API + path.replace(/^\/api\/earshot/, "/api/podscroll"), []);
+  // Pod+ in the car (CarPlay): the car gets the library and gives back where you got to (podscroll/carplay.ts).
+  const sessionRef = useRef(session); sessionRef.current = session;
+  const car = useRef<{ publish: () => void } | null>(null);
+  useEffect(() => { car.current = installCarPlay({ api: API, device: () => device, session: () => sessionRef.current, es: () => esRef.current }); }, [device]);
+  useEffect(() => { car.current?.publish(); }, [es, session]);
+  // Signed in: the library is saved to the account too, for the Apple TV app and other devices.
+  const libSync = useRef<{ changed: () => void } | null>(null);
+  if (!libSync.current) libSync.current = installLibrarySync({ api: (p, i) => apiRef.current(p, i), signedIn: () => !!sessionRef.current, es: () => esRef.current });
+  useEffect(() => { libSync.current?.changed(); }, [es, session]);
   // Downloads (Pod+ Membership): episodes and audiobooks kept on this device to play offline.
   const apiRef = useRef(api); apiRef.current = api;
   const proRef = useRef(pro); proRef.current = pro;
@@ -226,6 +245,8 @@ function App() {
     {body}
     {welcome && !authMode && <Welcome key={pro ? "in" : "out"} api={api} signedIn={pro} onSignedIn={(token, mail) => { setSession(token); setEmailState(mail); write("podscroll.email", mail); setAccount(mail); }}
       onEmail={() => setAuthMode("signin")} onPush={() => startPodPush(api, followIds, true)} onDone={finishWelcome} />}
+    {/* Signed in and past the welcome: the All Access pop-up, once (ad-free listening and the rest). */}
+    <AllAccessPopup userId={email || null} token={session || null} ready={pro && !welcome && !authMode} dark={!day} apiBase={API} intro="Pod+ is free to listen, with ads. Arise All Access skips the ads for you, lets you earn from your show, and adds the extras in To Duo, Notes and Fit." />
     {authMode && !pro && <AuthScreen api={api} dark={!day} start={authMode} onClose={() => setAuthMode(null)} onDone={(token, mail) => { setSession(token); setEmailState(mail); write("podscroll.email", mail); setAuthMode(null); say("You're signed in."); setAccount(mail); }} />}
     {/* Messages: a small card that sits above the tab bar (it used to be a big white oval on top of it).
         The first sentence is the headline, anything after it a quieter second line. */}

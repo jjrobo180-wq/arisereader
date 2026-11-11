@@ -47,26 +47,26 @@ function status(plan: PlanInfo): { title: string; lines: string[]; tone: "good" 
       return { tone: "good", title: "You have Premium", lines: [
         `Your Class plan covers up to ${count(plan.seats ?? 0)} students. You have ${count(plan.students ?? 0)}.`,
         plan.teacherPlan?.paidOnline ? `It renews on ${day(plan.endsAt)}.` : plan.endsAt ? `It runs until ${day(plan.endsAt)}.` : "It has no end date.",
-        "A.R.I.S.E. Reader, Arise Math, Arise History and A.R.I.S.E. Connect are all included — nothing extra to buy.",
+        "Arise Reader, Arise Math, Arise History and A.R.I.S.E. Connect are all included — nothing extra to buy.",
       ] };
     case "school-plan":
       if (plan.school?.plan?.free) {
         return { tone: "good", title: `Premium is free at ${school}`, lines: [
           `Every teacher at ${school} has Premium at no charge, each with their own account.`,
           "There is nothing to pay, and it has no end date.",
-          "A.R.I.S.E. Reader, Arise Math, Arise History and A.R.I.S.E. Connect are all included — nothing extra to buy.",
+          "Arise Reader, Arise Math, Arise History and A.R.I.S.E. Connect are all included — nothing extra to buy.",
         ] };
       }
       return { tone: "good", title: "You have Premium through your school", lines: [
         `${school}'s plan covers up to ${count(plan.seats ?? PLANS.school.studentCap)} students, and every teacher there has their own account.`,
         plan.endsAt ? `It runs until ${day(plan.endsAt)}.` : "It has no end date.",
-        "A.R.I.S.E. Reader, Arise Math, Arise History and A.R.I.S.E. Connect are all included — nothing extra to buy.",
+        "Arise Reader, Arise Math, Arise History and A.R.I.S.E. Connect are all included — nothing extra to buy.",
       ] };
     case "grandfathered":
       return { tone: "good", title: "Premium is free for you this school year", lines: [
         "You signed up before October 1, 2026, so you keep everything at no cost.",
         `Your free year runs until ${day(plan.endsAt)}. There is nothing to pay before then.`,
-        "Arise To Duo is free for everyone. A.R.I.S.E. Reader, Arise Math, Arise History and A.R.I.S.E. Connect are all included in your Class plan.",
+        "Arise To Duo is free for everyone. Arise Reader, Arise Math, Arise History and A.R.I.S.E. Connect are all included in your Class plan.",
       ] };
     case "rules-off":
       return { tone: "plain", title: "Plans haven't started yet", lines: ["Every teacher tool is open to you for now. You don't need to do anything."] };
@@ -75,7 +75,7 @@ function status(plan: PlanInfo): { title: string; lines: string[]; tone: "good" 
       return { tone: "plain", title: "This account always has Premium", lines: ["Nothing to pay."] };
     default:
       return { tone: "need", title: "Your teacher account needs Premium", lines: [
-        "The Class plan includes A.R.I.S.E. Reader, your teacher dashboard, book quizzes, live class games, game controls, Arise Math, Arise History and A.R.I.S.E. Connect — all in one price.",
+        "The Class plan includes Arise Reader, your teacher dashboard, book quizzes, live class games, game controls, Arise Math, Arise History and A.R.I.S.E. Connect — all in one price.",
         "Your students keep reading, taking quizzes and playing for free either way.",
         "Arise To Duo (Work & Life hubs) is free either way too — no plan needed.",
       ] };
@@ -148,7 +148,7 @@ export default function Billing() {
     <main className="pr bl">
       <span className="pr-glow pr-glow-a" aria-hidden="true" />
       <header className="pr-top">
-        <button type="button" className="pr-mark" onClick={() => navigate("/pricing")}>A.R.I.S.E. <span>Reader</span></button>
+        <button type="button" className="pr-mark" onClick={() => navigate("/pricing")}>Arise <span>Reader</span></button>
         <nav aria-label="Account">
           {!locked && <button type="button" className="pr-link" onClick={() => navigate("/")}>Back to my dashboard</button>}
           <button type="button" className="pr-link" onClick={() => { logout(); goToSignIn(); }}>Log out</button>
@@ -202,7 +202,7 @@ export default function Billing() {
         {freeYear && plan && (
           <div className="bl-card">
             <h2>When your free year ends</h2>
-            <p>After {day(plan.endsAt)}, Premium is {usd(PLANS.teacher.monthlyCents)} a month for each {PLANS.teacher.studentsPerBlock} students, or {usd(PLANS.school.yearlyCents)} a year for a whole school of up to {count(PLANS.school.studentCap)} students. You'll be able to pay on this page when the time comes.</p>
+            <p>After {day(plan.endsAt)}, Premium is {usd(PLANS.teacher.monthlyCents)} a month for each {PLANS.teacher.studentsPerBlock} students, or {usd(PLANS.school.yearlyCents)} a school year for a whole school of up to {count(PLANS.school.studentCap)} students. You'll be able to pay on this page when the time comes.</p>
           </div>
         )}
 
@@ -217,7 +217,7 @@ export default function Billing() {
                 <p className="bl-price"><b>{usd(price)}</b> a month</p>
                 <p>Covers your class of up to {count(seatsFor(blocks))} students. You have {count(students)}.</p>
                 <ul className="bl-features">
-                  <li><span className="bl-check"><Check /></span>A.R.I.S.E. Reader included — books, quizzes and reading tools</li>
+                  <li><span className="bl-check"><Check /></span>Arise Reader included — books, quizzes and reading tools</li>
                   <li><span className="bl-check"><Check /></span>Your own teacher dashboard</li>
                   <li><span className="bl-check"><Check /></span>Live class games &amp; game controls</li>
                   <li><span className="bl-check"><Check /></span>Arise Math included</li>
@@ -233,18 +233,18 @@ export default function Billing() {
               </div>
               <div className="bl-card">
                 <h3>Whole school</h3>
-                <p className="bl-price"><b>{usd(PLANS.school.yearlyCents)}</b> a year</p>
+                <p className="bl-price"><b>{usd(PLANS.school.yearlyCents)}</b> a school year</p>
                 {plan.school
                   ? <p>Covers {plan.school.name}: up to {count(PLANS.school.studentCap)} students, with a separate account for every teacher. The school has {count(plan.school.students)} students on A.R.I.S.E. now.</p>
                   : <p>Your account isn't connected to a school yet, so a school plan can't be bought from it. Ask the site admin to connect you to your school.</p>}
                 <ul className="bl-features">
                   <li><span className="bl-check"><Check /></span>Everything in the teacher plan</li>
                   <li><span className="bl-check"><Check /></span>A separate account for every teacher</li>
-                  <li><span className="bl-check"><Check /></span>A.R.I.S.E. Reader, Math, History &amp; Connect, school-wide</li>
+                  <li><span className="bl-check"><Check /></span>Arise Reader, Math, History &amp; Connect, school-wide</li>
                   <li><span className="bl-check"><Check /></span>One yearly bill instead of 12</li>
                 </ul>
                 <button type="button" className="pr-pill pr-pill-ghost pr-wide" disabled={!!busy || !plan.payment || !plan.school} onClick={() => go("school", "/api/billing/checkout", { kind: "school", returnTo: siteAddress() })} data-testid="billing-buy-school">
-                  {busy === "school" ? "Opening the payment page…" : `Pay ${usd(PLANS.school.yearlyCents)} a year`}
+                  {busy === "school" ? "Opening the payment page…" : `Pay ${usd(PLANS.school.yearlyCents)} for the school year`}
                 </button>
                 <small>Runs a full 12 months, so summer reading clubs and competitions are covered.</small>
               </div>

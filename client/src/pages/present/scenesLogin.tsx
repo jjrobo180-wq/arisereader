@@ -51,7 +51,7 @@ function HomePage({ spot, tap }: { spot: boolean; tap: boolean }) {
   useEffect(() => { const id = window.setTimeout(measure, 1800); return () => window.clearTimeout(id); }, []);
   return (
     <>
-      <iframe ref={frame} src="/reader-landing.html?present=1" title="The A.R.I.S.E. Reader home page" tabIndex={-1} scrolling="no" onLoad={() => { measure(); window.setTimeout(measure, 900); }}
+      <iframe ref={frame} src="/reader-landing.html?present=1" title="The Arise Reader home page" tabIndex={-1} scrolling="no" onLoad={() => { measure(); window.setTimeout(measure, 900); }}
         style={{ width: 1280, height: 680, border: 0, pointerEvents: "none", background: "#fff", display: "block" }} />
       {spot && <RectSpot rect={rect} tap={tap} />}
     </>
@@ -104,7 +104,7 @@ function SignInPage({ user, pass, pressed, spotUser, spotPass, spotButton }: { u
                     <span className="absolute inset-y-0 right-0 grid w-12 grid-cols-1 place-items-center text-[#788098]"><Eye size={20} /></span></div></div>
               </Spot>
               <Spot on={spotButton} radius={14}>
-                <div className={`flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#5b53df] px-5 text-sm font-black text-white shadow-md shadow-violet-200 ${pressed ? "sw-press" : ""}`}>{pressed ? "Signing you in…" : "Sign in to A.R.I.S.E. Reader"} <ArrowRight size={18} /></div>
+                <div className={`flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#5b53df] px-5 text-sm font-black text-white shadow-md shadow-violet-200 ${pressed ? "sw-press" : ""}`}>{pressed ? "Signing you in…" : "Sign in to Arise Reader"} <ArrowRight size={18} /></div>
               </Spot>
             </div>
             <div className="my-6 flex items-center gap-3 text-xs text-[#8b91a5]"><span className="h-px flex-1 bg-[#e5e7f4]" /><span>New to A.R.I.S.E.?</span><span className="h-px flex-1 bg-[#e5e7f4]" /></div>

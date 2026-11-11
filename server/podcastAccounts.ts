@@ -224,6 +224,37 @@ export function registerPodscrollAccountRoutes(app: Express, gate: RequestHandle
     }
   });
 
+  /** The account's library (shows followed, saved, liked, Pod Modes, where you are in each episode),
+   *  saved by the phone so the Apple TV app (and any other device signed in) can show it. Only the
+   *  listening library: no device id or session is kept. Deleted with the account. */
+  const libraryWrites = createAttemptLimiter({ max: 120, windowMs: 60 * 60_000 });
+  app.get(`${P}/library`, gate, async (req: any, res) => {
+    res.set("Cache-Control", "no-store");
+    if (!req.creator?.id) return res.status(401).json({ message: "Sign in to bring your library.", needSignIn: true });
+    try {
+      const { data, error } = await db().from("podcast_account_library").select("data,updated_at").eq("account_id", req.creator.id).maybeSingle();
+      if (error) throw error;
+      res.json({ library: data?.data ?? null, at: data?.updated_at ?? null });
+    } catch (e: any) {
+      console.error("[podscroll] library read:", e?.message || e);
+      res.status(500).json({ message: "Your library didn't load. Try again." });
+    }
+  });
+  app.post(`${P}/library`, gate, async (req: any, res) => {
+    if (!req.creator?.id) return res.status(401).json({ message: "Sign in to save your library.", needSignIn: true });
+    if (tooMany(libraryWrites, `lib:${req.creator.id}`, res)) return;
+    const library = cleanAccountLibrary(req.body?.library);
+    if (!library) return res.status(400).json({ message: "That isn't a library." });
+    try {
+      const { error } = await db().from("podcast_account_library").upsert({ account_id: req.creator.id, data: library, updated_at: new Date().toISOString() }, { onConflict: "account_id" });
+      if (error) throw error;
+      res.json({ ok: true });
+    } catch (e: any) {
+      console.error("[podscroll] library save:", e?.message || e);
+      res.status(500).json({ message: "Your library didn't save. Try again." });
+    }
+  });
+
   app.post(`${P}/signout`, gate, async (req: any, res) => {
     const token = String(req.headers["x-podscroll-session"] || "");
     if (SESSION.test(token)) {
@@ -262,4 +293,24 @@ export async function deletePodData(db: any, voters: string[]): Promise<void> {
       }
     } catch { /* files without a database row are unreachable once the profile is gone */ }
   }
+}
+
+/** A listening library as the phone sends it (podscroll/carplay.ts carPlayLibrary), kept small and
+ *  without anything that identifies the device: no device id, session or server address. */
+export function cleanAccountLibrary(v: unknown): Record<string, unknown> | null {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  const x = v as Record<string, any>;
+  const arr = (a: unknown, n: number) => (Array.isArray(a) ? a.filter((i) => i && typeof i === "object").slice(0, n) : []);
+  const out: Record<string, unknown> = {
+    speed: Number.isFinite(Number(x.speed)) ? Math.min(3, Math.max(0.5, Number(x.speed))) : 1,
+    skipIntro: x.skipIntro !== false,
+    genres: Array.isArray(x.genres) ? x.genres.filter((g: unknown) => typeof g === "string").slice(0, 20) : [],
+    follows: arr(x.follows, 300),
+    later: arr(x.later, 100),
+    liked: arr(x.liked, 100),
+    modes: arr(x.modes, 24).map((m: any) => ({ id: String(m.id ?? "").slice(0, 60), name: String(m.name ?? "").slice(0, 60), episodes: arr(m.episodes, 60) })),
+    spots: x.spots && typeof x.spots === "object" && !Array.isArray(x.spots) ? Object.fromEntries(Object.entries(x.spots).slice(0, 60)) : {},
+    at: Number.isFinite(Number(x.at)) ? Number(x.at) : Date.now(),
+  };
+  return JSON.stringify(out).length <= 400_000 ? out : null;
 }

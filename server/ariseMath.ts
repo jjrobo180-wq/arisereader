@@ -1,9 +1,9 @@
-// Arise Math (/math/): K–12 math practice built like A.R.I.S.E. Reader. Students take quizzes and
+// Arise Math (/math/): K–12 math practice built like Arise Reader. Students take quizzes and
 // earn points on a class leaderboard; teachers see their class, assign practice, send certificates and
 // run live review games; parents follow each linked child.
 //
 // Rules kept here, on the server:
-// - Accounts are the regular A.R.I.S.E. Reader accounts. Students show as "First L." to classmates.
+// - Accounts are the regular Arise Reader accounts. Students show as "First L." to classmates.
 // - The server makes and grades every question. Answers and solution steps reach the page only once
 //   earned (after a hint, or when the question is finished), so points can't be faked.
 // - A class is a teacher and their approved students. Students see only their own class's leaderboard,

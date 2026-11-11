@@ -39,7 +39,8 @@ const textPage = (html: string, title = "Plan", extra: Partial<Page> = {}) => ({
 
 test("a note is cleaned: safe HTML, its look, a preview and hashtags; handwriting keeps only valid strokes", () => {
   const p = cleanPage({ id: ID(1), kind: "text", content: { title: "  Week   plan ", html: '<h2>Monday</h2><p onclick="x()">Read <b>ch. 4</b> #reading <script>alert(1)</script></p><img src="javascript:alert(1)">', look: { theme: "midnight", font: "nope", size: 99 } } }, "2026-11-15T18:00:00.000Z");
-  assert.equal(p.content.title, "Week plan");
+  // Cleaned as it is typed: a single space just typed at the end stays, so the next word can follow it.
+  assert.equal(p.content.title, "Week plan ");
   assert.doesNotMatch(p.content.html, /script|onclick|javascript/);
   assert.match(p.content.html, /<h2>Monday<\/h2>/);
   assert.deepEqual([p.content.look.theme, p.content.look.font, p.content.look.size], ["midnight", "system", 28]);

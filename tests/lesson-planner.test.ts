@@ -3,6 +3,7 @@
 // Run with: npx tsx --test tests/lesson-planner.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   bumpLessons, cleanClasses, cleanLesson, cleanLessons, cleanWorksheet, copyLesson, meetsOn, mondayOf, monthWeeks, needsReteach,
   nextMeetings, planFullness, schoolWeek, studentRecords, type LessonClass, type LessonPlan,
@@ -158,4 +159,45 @@ test("worksheets print real maths and pictures, with the answers only on the key
   assert.ok(renderVisual(cleanVisual({ type: "number-line", min: 0, max: 1, denominator: 4 })!).includes("<svg"));
   assert.equal(compileExpr("2x+1")!(3), 7);
   assert.equal(compileExpr("alert(1)"), null);
+});
+
+test("typing a space works: names cleaned on every keystroke keep the space just typed", () => {
+  // The planner shows the cleaned copy of what's typed, so a trimmed end would swallow every space.
+  const l = cleanLessons([{ id: "a", title: "Main ", date: "2026-11-10" }])[0];
+  assert.equal(l.title, "Main ");
+  assert.equal(cleanLessons([{ id: "a", title: "Main idea", date: "2026-11-10" }])[0].title, "Main idea");
+  assert.equal(cleanLessons([{ id: "a", title: "  Main   idea  ", date: "2026-11-10" }])[0].title, "Main idea", "the rest is still tidied");
+  assert.equal(cleanClasses([{ id: "c", name: "Period ", color: "teal" }])[0].name, "Period ");
+});
+
+test("rename a student: the class roster and every lesson of that class follow, marks included; remove takes them off", async () => {
+  const { renameStudent, removeStudent } = await import("../shared/lessonPlanner");
+  const classes = cleanClasses([{ id: "c", name: "Mathlab-A", color: "teal", students: ["Dexter", "Arris"] }, { id: "d", name: "Other", color: "sky", students: ["Dexter"] }]);
+  const lessons = cleanLessons([
+    { id: "l1", title: "Folders", date: "2026-11-09", classId: "c", marks: { Dexter: { status: "reteach", note: "fractions" } } },
+    { id: "l2", title: "Integers", date: "2026-11-10", classId: "c", marks: { Dexter: { status: "good" } } },
+    { id: "l3", title: "Elsewhere", date: "2026-11-10", classId: "d", marks: { Dexter: { status: "good" } } },
+  ]);
+  const r = renameStudent(classes, lessons, "l1", "Dexter", "  Dexter  Moore ");
+  assert.deepEqual(r.classes[0].students, ["Dexter Moore", "Arris"]);
+  assert.deepEqual(r.classes[1].students, ["Dexter"], "another class's Dexter is left alone");
+  assert.equal(r.lessons[0].marks?.["Dexter Moore"]?.note, "fractions");
+  assert.equal(r.lessons[1].marks?.["Dexter Moore"]?.status, "good");
+  assert.ok(r.lessons[2].marks?.Dexter);
+  const x = removeStudent(r.classes, r.lessons, "l1", "Arris");
+  assert.deepEqual(x.classes[0].students, ["Dexter Moore"]);
+});
+
+test("the month calendar names each lesson's class, in the class's real color (not recolored by the hub's look)", () => {
+  const parts = readFileSync(new URL("../client/src/components/teacher-hub/HubLessonParts.tsx", import.meta.url), "utf8");
+  assert.match(parts, /teal: \{ dot: "bg-\[#14b8a6\]", chip: "bg-\[#f0fdfa\] text-\[#115e59\] border-\[#99f6e4\]"/);
+  const page = readFileSync(new URL("../client/src/components/teacher-hub/HubLessons.tsx", import.meta.url), "utf8");
+  assert.match(page, /data-testid="month-lesson">\n\s*\{c\?\.name && <span/);
+});
+
+test("a student's note, a written material and every other lesson box keep a typed space", () => {
+  const l = cleanLessons([{ id: "a", title: "T", date: "2026-11-10", marks: { Dexter: { note: "Did " } }, files: [{ id: "f", kind: "other", name: "D", text: "Read the " }] }])[0];
+  assert.equal(l.marks?.Dexter?.note, "Did ");
+  assert.equal(l.files?.[0].text, "Read the ");
+  assert.equal(cleanLessons([{ id: "a", title: "T", date: "2026-11-10", marks: { Dexter: { note: "   " } } }])[0].marks?.Dexter, undefined, "only spaces is still nothing");
 });

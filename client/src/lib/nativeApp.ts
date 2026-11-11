@@ -12,17 +12,17 @@ const bridge = (): Bridge | null => (typeof window !== "undefined" ? ((window as
 export const isNativeApp = (): boolean => typeof window !== "undefined" && window.location.protocol === "capacitor:";
 
 /** Which iPhone app this build is (set at build time with VITE_NATIVE_APP): Arise To Duo ("todo"),
- *  A.R.I.S.E. Reader for students ("reader"), or A.R.I.S.E. Reader Educator for teachers and parents. */
+ *  Arise Reader for students ("reader"), or Arise Reader Educator for teachers and parents. */
 export type NativeFlavor = "todo" | "reader" | "educator" | "fit" | "eyegaze" | "trainer" | "notes" | "talk";
 export const nativeFlavor = (): NativeFlavor => {
   const f = String((import.meta as any).env?.VITE_NATIVE_APP || "");
   return f === "reader" || f === "educator" || f === "fit" || f === "eyegaze" || f === "trainer" || f === "notes" || f === "talk" ? f : "todo";
 };
-/** Inside one of the two A.R.I.S.E. Reader apps (student or Educator). */
+/** Inside one of the two Arise Reader apps (student or Educator). */
 export const isReaderApp = (): boolean => isNativeApp() && (nativeFlavor() === "reader" || nativeFlavor() === "educator" || nativeFlavor() === "eyegaze");
 /** Inside the Arise Eye Gazer app (the A.R.I.S.E. eye-gaze games and lessons, on iPad and iPhone). */
 export const isEyeGazerApp = (): boolean => isNativeApp() && nativeFlavor() === "eyegaze";
-/** Inside the Arise Fit iPhone app. */
+/** Inside the Cooked iPhone app. */
 export const isFitApp = (): boolean => isNativeApp() && nativeFlavor() === "fit";
 /** Inside the Arise Trainer iPhone app (coaches; pages/trainer/TrainerApp.tsx). */
 export const isTrainerApp = (): boolean => isNativeApp() && nativeFlavor() === "trainer";
@@ -34,9 +34,9 @@ export const isTalkApp = (): boolean => isNativeApp() && nativeFlavor() === "tal
  *  server, through arisetodo.com, the address the Arise To Duo app is already allowed to call. */
 export const NATIVE_APPS: Record<NativeFlavor, { name: string; bundle: string; api: string }> = {
   todo: { name: "Arise To Duo", bundle: "com.arisereader.arisetodo", api: "https://arisetodo.com" },
-  reader: { name: "A.R.I.S.E. Reader", bundle: "com.arisereader.reader", api: "https://arisetodo.com" },
-  educator: { name: "A.R.I.S.E. Reader Educator", bundle: "com.arisereader.educator", api: "https://arisetodo.com" },
-  fit: { name: "Arise Fit", bundle: "com.arisereader.fit", api: "https://arisetodo.com" },
+  reader: { name: "Arise Reader", bundle: "com.arisereader.reader", api: "https://arisetodo.com" },
+  educator: { name: "Arise Reader Educator", bundle: "com.arisereader.educator", api: "https://arisetodo.com" },
+  fit: { name: "Cooked", bundle: "com.arisereader.fit", api: "https://arisetodo.com" },
   eyegaze: { name: "Arise Eye Gazer", bundle: "com.arisereader.eyegazer", api: "https://arisetodo.com" },
   trainer: { name: "Arise Trainer", bundle: "com.arisereader.trainer", api: "https://arisetodo.com" },
   notes: { name: "Arise Notes", bundle: "com.arisereader.notes", api: "https://arisetodo.com" },
@@ -116,6 +116,47 @@ export function markAppReadyWhenDrawn(): void {
     else if (n < 12) window.setTimeout(tick, 1000);
   };
   window.setTimeout(tick, 800);
+}
+
+/** Live updates while the app is open, like the website: the newest web code is fetched in the background and
+ *  switched to right away (the updater reloads the page; unsaved typing is kept by the hub's draft copy), so
+ *  nobody has to close the app twice. Checked shortly after it opens, whenever it comes back to the screen,
+ *  and every few minutes while it's on screen. */
+const updater = () => {
+  const cap = typeof window !== "undefined" ? (window as any).Capacitor : null;
+  const p = cap?.Plugins?.CapacitorUpdater;
+  if (p?.getLatest && p?.download && p?.set) return p;
+  try { const reg = cap?.registerPlugin?.("CapacitorUpdater"); if (reg?.getLatest) return reg; } catch { /* not available */ }
+  return null;
+};
+let checking = false, lastCheck = 0;
+/** `applyNow` switches to the new copy at once (only the first check after launch, before anything is on screen);
+ *  otherwise it waits for the next time the app is opened, so a screen never reloads while someone is using it. */
+export async function liveUpdateNow(force = false, applyNow = false): Promise<"none" | "applied" | "failed"> {
+  if (!isNativeApp() || checking || (!force && Date.now() - lastCheck < 60_000)) return "none";
+  const u = updater(); if (!u) return "none";
+  checking = true; lastCheck = Date.now();
+  try {
+    const latest: any = await u.getLatest();
+    const version = String(latest?.version || ""), url = String(latest?.url || "");
+    if (!version || !url || latest?.error) return "none";
+    const cur: any = await u.current().catch(() => null);
+    if (String(cur?.bundle?.version || "") === version) return "none";
+    const tries = Number(sessionStorage.getItem(`arise-live-${version}`) || 0);
+    if (tries >= 2) return "none"; // this copy didn't take twice: leave it to the next open
+    sessionStorage.setItem(`arise-live-${version}`, String(tries + 1));
+    const bundle: any = await u.download({ url, version, ...(latest.checksum ? { checksum: latest.checksum } : {}) });
+    if (!bundle?.id) return "failed";
+    if (applyNow || typeof u.next !== "function") await u.set({ id: bundle.id }); // reloads into the new copy
+    else await u.next({ id: bundle.id }); // used the next time the app opens
+    return "applied";
+  } catch { return "failed"; } finally { checking = false; }
+}
+export function keepLiveUpdated(): void {
+  if (!isNativeApp() || typeof document === "undefined") return;
+  window.setTimeout(() => void liveUpdateNow(true, true), 6000);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") void liveUpdateNow(); });
+  window.setInterval(() => { if (document.visibilityState === "visible") void liveUpdateNow(true); }, 5 * 60_000);
 }
 
 /** The hash to open for a notification's link. Links are written "/#/lifehub?go=tasks", and this page

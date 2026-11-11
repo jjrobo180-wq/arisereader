@@ -16,13 +16,13 @@ final class NotesZoomLock: NSObject {
             scroll.showsHorizontalScrollIndicator = false
             scroll.pinchGestureRecognizer?.isEnabled = false
             watch = scroll.observe(\.zoomScale, options: [.new]) { view, _ in
-                guard view.zoomScale > 1.001 else { return }
+                // Any zoom above the page's own scale is put back (a zoom up to exactly 1 from a smaller page scale too).
+                let own = view.minimumZoomScale > 0.5 && view.minimumZoomScale <= 1 ? view.minimumZoomScale : 1
+                guard view.zoomScale > own + 0.001 else { return }
                 DispatchQueue.main.async {
-                    view.maximumZoomScale = 1
+                    view.maximumZoomScale = max(own, view.minimumZoomScale)
                     view.pinchGestureRecognizer?.isEnabled = false
-                    // Back to the page's own scale (1 on a normal page).
-                    let own = view.minimumZoomScale
-                    view.setZoomScale(own > 0.8 && own <= 1 ? own : 1, animated: false)
+                    view.setZoomScale(own, animated: false)
                 }
             }
         }

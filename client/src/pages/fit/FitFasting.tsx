@@ -1,4 +1,4 @@
-// Arise Fit intermittent fasting: pick a protocol, start and end fasts, a live ring with the stage the
+// Cooked intermittent fasting: pick a protocol, start and end fasts, a live ring with the stage the
 // body is in, and a history with your streak. Kept in FitData.fasting (shared/fitNutrition.ts).
 import { useEffect, useState } from "react";
 import { Flame, Square, Timer } from "lucide-react";

@@ -136,7 +136,7 @@ test("before plan rules are enforced, everyone passes through — including a te
   }
 });
 
-test("parents: $10 a month covers all three apps for the whole family; Arise To Duo is free, no checkout", async () => {
+test("parents: $7 a month covers all three apps for the whole family; Arise To Duo is free, no checkout", async () => {
   const t = setup({ clock: AFTER, enforced: true });
   // Jo Park (100) is Robin's (95) parent, and Robin's teacher (Mx. New, 52) isn't grandfathered
   // and has no Class plan — a genuinely uncovered family, so buying the bundle actually goes
@@ -144,7 +144,7 @@ test("parents: $10 a month covers all three apps for the whole family; Arise To 
   const r = await t.call("POST", "/api/billing/addon-checkout", 100, { product: "bundle", returnPath: "/math/" });
   assert.equal(r.status, 200, JSON.stringify(r.body));
   const f = t.calls.at(-1)!.form;
-  assert.equal(f.get("line_items[0][price_data][unit_amount]"), "1000");
+  assert.equal(f.get("line_items[0][price_data][unit_amount]"), "700");
   assert.equal(f.get("metadata[kind]"), "bundle_family");
   assert.equal(f.get("success_url"), "https://www.arisereader.com/math/?paid={CHECKOUT_SESSION_ID}");
   assert.equal((await t.pay("bundle_family", 100)).status, 200);

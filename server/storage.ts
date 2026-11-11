@@ -9,6 +9,10 @@ import { cleanPages, pointsForBook } from "../shared/bookPoints";
 import { EYE_GAZE_LESSONS, lessonRows } from "../shared/eyegaze/lessons";
 import { lessonsToHide, planQuestions, rowDiffers } from "./eyeGazeLessonSync";
 
+/** Set by the routes: tells a reader's phone about a new message (Arise Reader app notifications). */
+let onReaderMessage: ((userId: number, senderType: string, text: string) => void) | null = null;
+export function setReaderMessageListener(f: typeof onReaderMessage) { onReaderMessage = f; }
+
 let bookQuizzes: any[] = [];
 
 // Retry wrapper for Supabase queries - handles intermittent connectivity failures
@@ -711,6 +715,8 @@ export class DatabaseStorage implements IStorage {
       }).select().maybeSingle()
     );
     if (!data) throw new Error("Failed to create message");
+    // A message to a reader (from their teacher, or the app): a notification on their phone too.
+    if (senderType !== "student") { try { onReaderMessage?.(userId, senderType, text); } catch { /* the message is saved either way */ } }
     return mapMessage(data);
   }
 

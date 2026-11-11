@@ -1,4 +1,4 @@
-// Arise Fit food tracking: saved meals are kept and cleaned; the food tab leads with the AI photo.
+// Cooked food tracking: saved meals are kept and cleaned; the food tab leads with the AI photo.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";

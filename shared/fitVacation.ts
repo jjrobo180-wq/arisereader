@@ -1,4 +1,4 @@
-// Arise Fit: vacation mode. Plan a trip and the app plans around it: what to do about workouts while
+// Cooked: vacation mode. Plan a trip and the app plans around it: what to do about workouts while
 // you're away (keep them short, use the hotel gym, or rest) and how to make up what you miss with
 // slightly longer workouts before you leave and after you're back; and the food side: eat a little less
 // in the days before so the trip doesn't set you back, then ease back after if you went over.

@@ -1,4 +1,4 @@
-// Arise Math (/math/): K–12 math practice built like A.R.I.S.E. Reader, with points, a class
+// Arise Math (/math/): K–12 math practice built like Arise Reader, with points, a class
 // leaderboard, certificates and a game room. Shared by the server (which makes and grades every
 // question, so points can't be faked) and the tests. Tables: migrations/arise_math.sql.
 

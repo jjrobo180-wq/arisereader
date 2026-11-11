@@ -1,0 +1,56 @@
+name: Sign-up check (a new family, start to payment, in a browser)
+# The Reader iPhone app's pages and the website, in an iPhone-sized Safari (WebKit), with a fake server:
+# a parent signs up, lands on the plan page, taps a plan, and Safari opens signed in on the payment page.
+# Also To Duo's sign-up. Screenshots and results go to the signup-check branch. See script/readerSignupCheck.mjs.
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - 'client/src/pages/NativeSignIn.tsx'
+      - 'client/src/pages/ParentSignup.tsx'
+      - 'client/src/pages/ReaderSubscribe.tsx'
+      - 'client/src/pages/SignIn.tsx'
+      - 'client/src/App.tsx'
+      - 'client/src/pages/AllAccess.tsx'
+      - 'client/src/components/AllAccessOffer.tsx'
+      - 'client/src/components/AllAccessPopup.tsx'
+      - 'client/src/context/AuthContext.tsx'
+      - 'script/readerSignupCheck.mjs'
+      - '.github/workflows/reader-signup-check.yml'
+permissions:
+  contents: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build the website (what Safari shows)
+        run: npx vite build && mv dist/public dist-web
+      - name: Build the app's pages (as inside the iPhone apps)
+        run: |
+          grep -rl 'window.location.protocol === "capacitor:"' client/src | xargs sed -i 's/window.location.protocol === "capacitor:"/true/g'
+          VITE_NATIVE_APP=reader npx vite build && mv dist/public dist-app
+          VITE_NATIVE_APP=todo npx vite build && mv dist/public dist-todo
+          git checkout -- client/src
+      - name: Install a browser
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.56.1
+          npx playwright install --with-deps webkit
+      - name: Sign up, plan, pay
+        timeout-minutes: 10
+        run: node script/readerSignupCheck.mjs
+      - name: Save to the signup-check branch
+        if: always()
+        working-directory: screens
+        run: |
+          git init -q && git checkout -q -b signup-check
+          git config user.name "signup-check" && git config user.email "signup-check@users.noreply.github.com"
+          git add -A && git commit -qm "Sign-up check ${{ github.sha }}" || true
+          git push -f -q "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" signup-check

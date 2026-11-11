@@ -86,7 +86,7 @@ export const AMOUNTS = [1, 2, 5, 10] as const;
 export const isId = (v: unknown): v is string => typeof v === "string" && /^[A-Za-z0-9_-]{4,48}$/.test(v);
 /** Category ids are short ("c1", "c2") for the starter ones, so they may be shorter than other ids. */
 export const isCategoryId = (v: unknown): v is string => typeof v === "string" && /^[A-Za-z0-9_-]{1,48}$/.test(v);
-const text = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "");
+const text = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/\s+$/, (m) => (/^ $/.test(m) ? " " : "")).replace(/(\S)\s+(?=\S)/g, "$1 ").replace(/^\s+/, "").slice(0, max) : "");
 const wholeNumber = (v: unknown, min: number, max: number, fallback: number) => {
   const n = typeof v === "number" ? v : Number(v);
   return Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : fallback;

@@ -69,7 +69,10 @@ const isTime = (v: unknown): v is string => typeof v === "string" && /^([01]\d|2
 const langOf = (v: unknown) => { const s = cut(v, 40).replace(/[^\p{L} ()-]/gu, ""); return s || "English"; };
 const langKey = (l: string) => l.toLowerCase().replace(/[^a-z]+/g, "-").slice(0, 30) || "english";
 
-export function registerAriseNotesRoutes(app: Express, auth: RequestHandler, deps: NotesDeps) {
+/** Minutes left and spending them, for AI outside Notes (the shared monthly pool). */
+export type NotesMinutes = { left(userId: number): Promise<number>; spend(userId: number, minutes: number, kind: string): Promise<void> };
+
+export function registerAriseNotesRoutes(app: Express, auth: RequestHandler, deps: NotesDeps): NotesMinutes {
   const store = deps.store;
   const now = deps.now ?? Date.now;
   const ais = createAttemptLimiter({ max: 60, windowMs: 3600_000, now });
@@ -307,7 +310,7 @@ export function registerAriseNotesRoutes(app: Express, auth: RequestHandler, dep
       const expected = Math.max(0, Number(req.body?.expectedSecs) || 0);
       if (expected > ctx.usage.maxSecs + 30) {
         const max = Math.round(ctx.usage.maxSecs / 60);
-        return res.status(413).json({ code: "too_long", message: `This file is ${Math.round(expected / 60)} minutes long. On ${NOTES_PLANS[ctx.plan].name}, one recording can be up to ${max >= 120 ? "2 hours" : `${max} minutes`}.${ctx.plan === "free" ? " Basic and up take up to 2 hours." : " Trim it or split it into two files."}`, plan: ctx.plan === "free" ? "basic" : null });
+        return res.status(413).json({ code: "too_long", message: `This file is ${Math.round(expected / 60)} minutes long. On ${NOTES_PLANS[ctx.plan].name}, one recording can be up to ${max >= 120 ? "2 hours" : `${max} minutes`}. Trim it or split it into two files.`, plan: null });
       }
       if (ctx.usage.left <= 0 && req.body?.saveOnly !== true) {
         const check = transcribeCheck(ctx.usage, 60, now());
@@ -615,23 +618,23 @@ export function registerAriseNotesRoutes(app: Express, auth: RequestHandler, dep
     } catch (e) { fail(res, e, "study"); }
   });
 
-  /** A teacher sends the quiz to A.R.I.S.E. Reader, where their students take it as a custom quiz. */
+  /** A teacher sends the quiz to Arise Reader, where their students take it as a custom quiz. */
   app.post("/api/notes/:id/study/reader", auth, async (req: any, res) => {
     try {
       const user = await who(req, res);
       if (!user) return;
-      if (user.role !== "teacher" && !user.isAdmin) return res.status(403).json({ message: "Sending a quiz to A.R.I.S.E. Reader is for teacher accounts." });
+      if (user.role !== "teacher" && !user.isAdmin) return res.status(403).json({ message: "Sending a quiz to Arise Reader is for teacher accounts." });
       const note = await noteFor(user, req.params.id, res);
       if (!note) return;
       const quiz = note.extras?.study?.quiz;
       if (!Array.isArray(quiz) || !quiz.length) return res.status(409).json({ message: "Make the flashcards and quiz first." });
-      if (!deps.makeQuiz) return res.status(503).json({ message: "A.R.I.S.E. Reader quizzes aren't available here." });
+      if (!deps.makeQuiz) return res.status(503).json({ message: "Arise Reader quizzes aren't available here." });
       const letters = ["A", "B", "C", "D"];
       const made = await deps.makeQuiz(user, {
         title: cut(`${note.title} (quiz)`, 120), description: "Made from class notes with Arise Notes.",
         questions: quiz.slice(0, 10).map((q: any) => ({ prompt: cut(q.q, 300), question_image: null, option_a_text: cut(q.choices?.[0], 160), option_a_image: null, option_b_text: cut(q.choices?.[1], 160), option_b_image: null, option_c_text: cut(q.choices?.[2], 160), option_c_image: null, option_d_text: cut(q.choices?.[3], 160), option_d_image: null, correct_answer: letters[Math.max(0, Math.min(3, Number(q.answer) || 0))] })),
       });
-      if (!made) return res.status(502).json({ message: "The quiz couldn't be saved to A.R.I.S.E. Reader." });
+      if (!made) return res.status(502).json({ message: "The quiz couldn't be saved to Arise Reader." });
       await store.updateNote(note.id, { extras: { ...note.extras, readerQuiz: made.id } });
       res.json({ ok: true, quizId: made.id });
     } catch (e) { fail(res, e, "quiz to reader"); }
@@ -903,6 +906,27 @@ export function registerAriseNotesRoutes(app: Express, auth: RequestHandler, dep
       res.json({ since, people });
     } catch (e) { fail(res, e, "admin usage"); }
   });
+
+  // The same monthly AI minutes, for other apps' AI (Pod+: audiobook transcripts, the podcast maker, the wiki
+  // reader). One pool per account: Free 60 a month, All Access (Notes Plus) 1,500. See server/aiMinutes.ts.
+  const minutes: NotesMinutes = {
+    async left(userId) {
+      const user = await deps.getUser(userId);
+      if (!user) return 0;
+      return (await ctxOf({ ...user, id: Number(userId) } as User)).usage.left;
+    },
+    async spend(userId, mins, kind) {
+      const user = await deps.getUser(userId);
+      if (!user || !(mins > 0)) return;
+      const ctx = await ctxOf({ ...user, id: Number(userId) } as User);
+      const add = Math.ceil(mins);
+      const me = { ...ctx.me, used: ctx.poolId === ctx.user.id ? ctx.me.used + add : ctx.me.used, own: ctx.me.own + add };
+      await store.saveAccount(me);
+      if (ctx.poolId !== ctx.user.id) await store.saveAccount({ ...ctx.pool, used: ctx.pool.used + add });
+      await store.logUsage({ userId: ctx.user.id, poolId: ctx.poolId, noteId: null, kind, minutes: add, secs: Math.round(mins * 60), provider: "pod+", costCents: 0 }).catch(() => {});
+    },
+  };
+  return minutes;
 }
 
 /** Audio kept for 30 days is deleted once the 30 days are up. */

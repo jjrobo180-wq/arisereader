@@ -43,14 +43,11 @@ test("closing the Home banner hides it for a month, then it comes back", () => {
   assert.equal(supportBannerVisible(closed, Date.parse(closed) + SUPPORT_BANNER_SNOOZE_DAYS * day), true);
 });
 
-test("parents see the button and banner in the Reader (not in Arise To Duo's hubs); the home page has the strip, section and pop-up", () => {
-  // November 2026: the owner asked for Support (and its heart) to come off Arise To Duo's desktop.
-  const life = readFileSync(new URL("../client/src/pages/AriseTodo.tsx", import.meta.url), "utf8");
-  assert.doesNotMatch(life, /SupportButton|SupportBanner|SupportMenuItem/);
-  const reader = readFileSync(new URL("../client/src/pages/TeacherReader.tsx", import.meta.url), "utf8");
-  assert.match(reader, /<SupportButton/);
+test("donations are off across the site (November 2026)", () => {
+  const support = readFileSync(new URL("../client/src/components/SupportArise.tsx", import.meta.url), "utf8");
+  for (const fn of ["SupportButton", "SupportBanner", "SupportMenuItem"]) assert.match(support.slice(support.indexOf(`export function ${fn}`)), /^[^\n]*\n  return null;/, fn);
+  assert.match(readFileSync(new URL("../client/src/components/DonationGoal.tsx", import.meta.url), "utf8"), /export default function DonationGoal\(\)[^{]*\{\n  return null;/);
   const landing = readFileSync(new URL("../client/public/reader-landing.html", import.meta.url), "utf8");
-  for (const piece of ['class="topbar support-strip"', 'id="support"', 'id="supportOverlay"', "fetch('/api/donate-link')", 'class="nav-support" data-support']) assert.ok(landing.includes(piece), piece);
-  const routes = readFileSync(new URL("../server/routes.ts", import.meta.url), "utf8");
-  assert.match(routes, /app\.get\("\/api\/donate-link"/);
+  for (const piece of ['class="topbar support-strip"', 'id="support"', 'id="supportOverlay"', "fetch('/api/donate-link')", "data-support", "buy.stripe.com"]) assert.ok(!landing.includes(piece), piece);
+  assert.doesNotMatch(readFileSync(new URL("../client/src/pages/Login.tsx", import.meta.url), "utf8"), /DonationGoal|Support Our Readers/);
 });

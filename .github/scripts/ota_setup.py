@@ -1,6 +1,6 @@
 """Live updates (no App Store build): sets up the updater in an iPhone app's capacitor.config.json.
 
-Each app (Arise To Duo, Pod+, A.R.I.S.E. Reader, Reader Educator, Arise Fit) asks
+Each app (Arise To Duo, Pod+, Arise Reader, Reader Educator, Cooked) asks
 https://arisetodo.com/api/ota/<app> each time it opens whether a newer copy of its web code exists
 (server/ota.ts). A new copy downloads in the background and is used the next time the app opens; if
 it fails to start (no "ready" within 15 seconds, see client/src/lib/nativeApp.ts markAppReady), the
@@ -37,6 +37,9 @@ cfg.setdefault("plugins", {})["CapacitorUpdater"] = {
     "autoDeleteFailed": True,
     "autoDeletePrevious": True,
     "resetWhenUpdate": True,
+    # Newer app builds also switch to new web code as soon as it arrives, and look for it every 10 minutes.
+    "directUpdate": "always",
+    "periodCheckDelay": 600,
 }
 json.dump(cfg, open(path, "w"), indent=2)
 print(f"Live updates: {APP} {version} from {url}")

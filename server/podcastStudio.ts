@@ -10,6 +10,7 @@
 // posted or shared: the notes come in, the result goes back to the one person who asked, and the
 // app keeps it on their device. Made audio is kept under a hash of its words (voice-cache bucket and
 // a small memory cache), so playing the same pod again doesn't make it again.
+import { haveAiMinutes, spendAi } from "./aiMinutes";
 import express, { type Express, type RequestHandler } from "express";
 import { IMAGE_DATA, canSeePhotos, looksReadable, pdfText, readPhoto } from "./studioReading";
 import { createHash } from "node:crypto";
@@ -242,12 +243,16 @@ export function registerStudioRoutes(app: Express, gate: RequestHandler, o: { as
     const audio: Buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
     if (audio.length < 1000) return res.json({ text: "" });
     if (!o.transcribe) return res.status(503).json({ message: "Recording isn't set up on this site yet." });
+    if (!(await haveAiMinutes(req, res))) return;
     if (limited(hears, String(req.user?.id || ""), res)) return;
     const type = String(req.headers["content-type"] || "audio/mp4").split(";")[0];
     const ext = /webm/.test(type) ? "webm" : /ogg/.test(type) ? "ogg" : /wav/.test(type) ? "wav" : /mpeg|mp3/.test(type) ? "mp3" : "m4a";
     for (let attempt = 0; ; attempt++) {
       try {
         const out = await o.transcribe(new Blob([audio], { type }), `recording.${ext}`);
+        // Minutes of audio heard (the last line's end time; about a minute per 1 MB if unknown).
+        const secs = Math.max(0, ...out.segments.map((x: any) => Number(x.end) || 0)) || audio.length / 16_000;
+        void spendAi(req, secs / 60, "pod-maker-recording");
         return res.json({ text: out.segments.map((x) => x.text.trim()).filter(Boolean).join(" ").replace(/\s+/g, " ").trim() });
       } catch (e: any) {
         // Busy: wait and try again (the recording is never lost: the app keeps it until this answers).
@@ -296,7 +301,10 @@ export function registerStudioRoutes(app: Express, gate: RequestHandler, o: { as
     }
     if (await haveWhole(key)) return res.json({ id: key, whole: true, done: true, parts: 0, made: [], secs: [] });
     if (!o.speak) return res.status(503).json({ message: "Voices aren't set up on this site yet.", noVoice: true, busy: false });
+    if (!(await haveAiMinutes(req, res))) return;
     if (!job && limited(voices, String(req.user?.id || ""), res)) return;
+    // A new episode spends its length in AI minutes (about 15 letters a second of speech).
+    void spendAi(req, lines.reduce((n, l) => n + l.text.length, 0) / 15 / 60, "pod-maker-episode");
     const fresh: Job = { lines, parts: lines.map(() => null), secs: lines.map((l) => l.text.length / 15), failed: false, at: Date.now() };
     jobs.set(key, fresh);
     for (const [k, j] of jobs) if (Date.now() - j.at > 60 * 60_000) jobs.delete(k);

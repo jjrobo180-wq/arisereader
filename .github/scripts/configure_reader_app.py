@@ -1,4 +1,4 @@
-"""A.R.I.S.E. Reader iPhone apps (students: "reader", teachers and parents: "educator"): the Info.plist
+"""Arise Reader iPhone apps (students: "reader", teachers and parents: "educator"): the Info.plist
 settings App Review checks, and the AppDelegate hook push notifications need.
 
 Usage: configure_reader_app.py <path to Info.plist> reader|educator
@@ -7,14 +7,14 @@ Run after `npx cap add ios && npx cap sync ios`.
   - Camera: taking a quiz without a proctor (the camera watches during the quiz) and the Beginners
     mirror for practising sounds. Microphone: Beginners (K-3) reading-aloud practice. Every permission
     needs a sentence saying why, or iOS stops the app when it's asked for.
-  - Educator: hands the push notification device token to the push plugin.
+  - Every flavor (students too): hands the push notification device token to the push plugin.
 """
 import os
 import plistlib
 import sys
 
 PLIST, FLAVOR = sys.argv[1], sys.argv[2]
-NAME = {"reader": "A.R.I.S.E. Reader", "educator": "A.R.I.S.E. Reader Educator", "eyegaze": "Arise Eye Gazer"}[FLAVOR]
+NAME = {"reader": "Arise Reader", "educator": "Arise Reader Educator", "eyegaze": "Arise Eye Gazer"}[FLAVOR]
 SHORT = {"reader": "A.R.I.S.E.", "educator": "Educator", "eyegaze": "Eye Gazer"}[FLAVOR]
 KEYS = {
     "CFBundleDisplayName": SHORT if len(NAME) > 18 else NAME,
@@ -49,7 +49,7 @@ if os.path.exists(DELEGATE):
         open(DELEGATE, "w", encoding="utf-8").write(src)
         print("AppDelegate: audio mixes with other apps")
 
-if FLAVOR in ("educator", "eyegaze") and os.path.exists(DELEGATE):
+if FLAVOR in ("reader", "educator", "eyegaze") and os.path.exists(DELEGATE):
     src = open(DELEGATE, encoding="utf-8").read()
     if "didRegisterForRemoteNotificationsWithDeviceToken" not in src:
         end = src.rfind("}")

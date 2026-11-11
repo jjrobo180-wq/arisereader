@@ -1,3 +1,4 @@
+import { isNativeApp } from "@/lib/nativeApp";
 // The shared frame for the eye-gazer stage games: full-screen 3D host, top bar, speech bubble and settings.
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { ArrowLeft, Settings, Volume2, VolumeX, X } from "lucide-react";
@@ -31,7 +32,9 @@ export default function StageShell({ title, badge, accent = "#38bdf8", hostRef, 
 }) {
   const [open, setOpen] = useState(false); const D = settings.dwell;
   const fsRef = useRef(false);
-  useEffect(() => { try { const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> }; if (!document.fullscreenElement && (el.requestFullscreen || el.webkitRequestFullscreen)) { void (el.requestFullscreen || el.webkitRequestFullscreen)!.call(el)?.catch?.(() => {}); fsRef.current = true; } } catch { /* optional */ } }, []);
+  // Full screen on the website only: in the iPhone and iPad apps the game already fills the screen (and asking
+  // WebKit for it crashed Arise Eye Gazer).
+  useEffect(() => { if (isNativeApp()) return; try { const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> }; if (!document.fullscreenElement && (el.requestFullscreen || el.webkitRequestFullscreen)) { void (el.requestFullscreen || el.webkitRequestFullscreen)!.call(el)?.catch?.(() => {}); fsRef.current = true; } } catch { /* optional */ } }, []);
   const back = () => { try { if (fsRef.current && document.fullscreenElement) void document.exitFullscreen().catch(() => {}); } catch { /* optional */ } onBack(); };
   const opt = <T,>(label: string, value: T, set: (v: T) => void, opts: [T, string][]) => (
     <div className="mt-3"><p className="mb-1.5 text-xs font-black uppercase tracking-widest text-slate-500">{label}</p>
