@@ -5,7 +5,7 @@
 // paper…), in the look you chose for new notes.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SwipeItem } from "./SwipeItem";
-import { ChevronLeft, ChevronRight, FileText, Folder as FolderIcon, FolderPlus, Grid2X2, Hash, LayoutTemplate, List as ListIcon, Lock, LockOpen, MoreHorizontal, PenLine, Pin, Plus, RotateCcw, Search, Settings2, ShieldCheck, SquarePen, Trash2 } from "lucide-react";
+import { AudioLines, ChevronLeft, ChevronRight, FileText, LayoutGrid, Mic, Folder as FolderIcon, FolderPlus, Grid2X2, Hash, LayoutTemplate, List as ListIcon, Lock, LockOpen, MoreHorizontal, PenLine, Pin, Plus, RotateCcw, Search, Settings2, ShieldCheck, SquarePen, Trash2 } from "lucide-react";
 import { DEFAULT_LOOK, PAGE_TEMPLATES, PAPER_THEMES, TRASH_DAYS, blankInkPage, cleanLook, pageTitle, type Folder, type Page, type PageMeta, type PageTemplate } from "@shared/arisePages";
 import { api } from "../api";
 import { Btn, IconBtn, Notice, Sheet, Spinner, Toggle, shortDate, useToast } from "../ui";
@@ -117,7 +117,17 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
 
   const count = (f: (m: PageMeta) => boolean) => live.filter(f).length;
   const on = (f: Filter) => JSON.stringify(f) === JSON.stringify(filter) && (wide || pane === "list");
+  // Record a meeting straight into a new note (PageScreen records; typing @ariserecord does too).
+  const recordMeeting = () => { try { sessionStorage.setItem("arise-pages-record", "1"); } catch { /* opens without recording */ } void create(PAGE_TEMPLATES[0]); };
   const nav = <nav className="pp-nav" aria-label="Folders" data-testid="pages-folders">
+    <button type="button" onClick={recordMeeting} data-testid="pages-record" className="mb-3 flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left text-white shadow-sm transition active:scale-[.98]" style={{ background: "var(--an-violet, #6d3df5)", color: "var(--an-on-accent, #fff)" }}>
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/20"><Mic className="h-5 w-5" aria-hidden /></span>
+      <span className="min-w-0 flex-1"><span className="block text-[16px] font-bold">Record a meeting</span><span className="block truncate text-[13px] opacity-85">Into a new note. Or type @ariserecord in any note.</span></span>
+    </button>
+    <ul className="pp-group">
+      <FolderRow on={false} icon={<AudioLines />} label="Recordings and AI notes" onClick={() => ctx.go({ name: "home" })} testId="pages-recordings" />
+      <FolderRow on={false} icon={<LayoutGrid />} label="Apps" onClick={() => ctx.go({ name: "apps" })} testId="pages-apps" />
+    </ul>
     <ul className="pp-group">
       <FolderRow on={on({ kind: "all" })} icon={<FileText />} label="All notes" count={live.length} onClick={() => pick({ kind: "all" })} testId="pages-folder-all" />
       <FolderRow on={on({ kind: "pinned" })} icon={<Pin />} label="Pinned" count={count((m) => m.pinned)} onClick={() => pick({ kind: "pinned" })} />
@@ -153,6 +163,7 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
         {wide && filter.kind !== "trash" && <button type="button" className="an-round-btn" aria-label="New note" onClick={() => create(PAGE_TEMPLATES[0])} data-testid="pages-new"><SquarePen className="h-[18px] w-[18px]" /></button>}
         {settings.vault && key && <button type="button" className="an-round-btn" aria-label="Lock locked notes now" onClick={() => { lockNow(); say("Locked notes are locked."); }}><LockOpen className="h-[18px] w-[18px]" /></button>}
         {!wide && <button type="button" className="an-round-btn" aria-label={grid ? "Show as a list" : "Show as cards"} onClick={() => sync.saveSettings({ ...settings, prefs: { ...settings.prefs, view: grid ? "list" : "grid" } })}>{grid ? <ListIcon className="h-[18px] w-[18px]" /> : <Grid2X2 className="h-[18px] w-[18px]" />}</button>}
+        {filter.kind !== "trash" && <button type="button" className="an-round-btn" aria-label="Record a meeting into a new note" onClick={recordMeeting} data-testid="pages-record-list"><Mic className="h-[18px] w-[18px]" /></button>}
         <button type="button" className="an-round-btn" aria-label="Notes settings" onClick={() => setSheet("settings")}><Settings2 className="h-[18px] w-[18px]" /></button>
       </div>
       <label className="an-search block"><span className="sr-only">Search notes</span>
@@ -222,11 +233,11 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
 }
 
 /** One folder in the folder list: an icon, its name, how many notes, and (for your folders) Edit. */
-function FolderRow({ on, icon, tint, label, count, onClick, onEdit, testId }: { on: boolean; icon: React.ReactNode; tint?: string; label: string; count: number; onClick: () => void; onEdit?: () => void; testId?: string }) {
+function FolderRow({ on, icon, tint, label, count, onClick, onEdit, testId }: { on: boolean; icon: React.ReactNode; tint?: string; label: string; count?: number; onClick: () => void; onEdit?: () => void; testId?: string }) {
   return <li className="pp-folder" data-on={on || undefined}>
     <button type="button" onClick={onClick} aria-pressed={on} className="pp-folder-main" data-testid={testId}>
       <span aria-hidden className="pp-folder-icon" style={tint ? { color: tint } : undefined}>{icon}</span>
-      <span className="pp-folder-name">{label}</span><span className="pp-count">{count}</span><ChevronRight aria-hidden className="pp-chev" />
+      <span className="pp-folder-name">{label}</span>{count !== undefined && <span className="pp-count">{count}</span>}<ChevronRight aria-hidden className="pp-chev" />
     </button>
     {onEdit && <button type="button" className="pp-folder-edit" onClick={onEdit} aria-label={`Rename or delete ${label}`} data-testid="pages-folder-edit"><MoreHorizontal className="h-[18px] w-[18px]" /></button>}
   </li>;

@@ -11,7 +11,7 @@ import { StrictMode, useCallback, useEffect, useMemo, useRef, useState } from "r
 import { createRoot } from "react-dom/client";
 import { applySignal, cleanEarshot, emptyEarshot, type Earshot, type PodEpisode, type Signal } from "@shared/earshot";
 import { ArrowDownToLine, Check, Info, Loader2, Mail, X } from "lucide-react";
-import { LIGHT_SHEETS_CSS, Player, Setup, useTheme, type NowPlaying, type PlayerControl } from "../client/src/components/family-hub/earshot/EarshotPlayer";
+import { LIGHT_SHEETS_CSS, Player, Setup, setCleanEnabled, useTheme, type NowPlaying, type PlayerControl } from "../client/src/components/family-hub/earshot/EarshotPlayer";
 import { LIGHT_CSS } from "../client/src/components/family-hub/earshot/EarshotSocial";
 import { Home } from "./Home";
 import { AuthScreen } from "./Auth";
@@ -50,6 +50,7 @@ function deviceId(): string {
   return id;
 }
 
+setCleanEnabled(false); // free until we know the account has All Access
 function App() {
   const device = useMemo(deviceId, []);
   const [es, setEs] = useState<Earshot>(() => { try { return cleanEarshot(JSON.parse(read(KEY) || "null")); } catch { return emptyEarshot(); } });
@@ -60,15 +61,25 @@ function App() {
   const setSession = useCallback((token: string | null) => { setSessionState(token || ""); if (token) write("podscroll.session", token); else { try { localStorage.removeItem("podscroll.session"); } catch { /* private window */ } } }, []);
   const [editing, setEditing] = useState(false);
   const { day } = useTheme();
-  // Listening is free with no account, and with no ads for everyone: ad skip is always on, signed in or
-  // not. Signing in is for creators (earning from their show) and keeping your place on every device.
+  // Listening is free with no account, with ads. Ad skip is for All Access members only. Signing in is for creators (earning from their show) and keeping your place on every device.
   const pro = !!session;
   // The sign-in screen: "signin" from the Sign in button, "signup" from Become a member.
   const [authMode, setAuthMode] = useState<"signin" | "signup" | null>(null);
   const [email, setEmailState] = useState(() => read("podscroll.email") || "");
   // Signed in from before this update: use this account's own things on this device (reloads once).
   useEffect(() => { if (session && email) setAccount(email); }, [session, email]);
-  const shown = useMemo(() => ({ ...es, settings: { ...es.settings, adMode: "auto" as const } }), [es]);
+  // Skipping ads is only for people who pay (Arise All Access). Everyone else hears the ads. Signed out is free.
+  const [paid, setPaid] = useState(false);
+  useEffect(() => {
+    if (!session) { setPaid(false); return; }
+    let alive = true;
+    fetch(`${API}/api/all-access`, { headers: { Authorization: `Bearer ${session}` }, cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null)).then((j) => { if (alive) setPaid(!!(j?.live || j?.admin)); }).catch(() => {});
+    return () => { alive = false; };
+  }, [session]);
+  const adMode = paid ? ("auto" as const) : ("off" as const);
+  useEffect(() => { setCleanEnabled(paid); }, [paid]);
+  const shown = useMemo(() => ({ ...es, settings: { ...es.settings, adMode } }), [es, adMode]);
   esRef.current = shown;
   const [toast, setToast] = useState("");
   const toastT = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -81,8 +92,8 @@ function App() {
   useEffect(() => { const t = setTimeout(() => write(KEY, JSON.stringify(es)), 200); return () => clearTimeout(t); }, [es]);
   useEffect(() => { if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/sw.js").catch(() => {}); }, []);
 
-  // Ads are always skipped on Podster (there's no switch for it).
-  const update = useCallback((fn: (e: Earshot) => Earshot) => setEs((e) => { const n = fn(e); return n.settings.adMode === "auto" ? n : { ...n, settings: { ...n.settings, adMode: "auto" } }; }), []);
+  // Ads are skipped for All Access members and heard by everyone else (there's no switch for it).
+  const update = useCallback((fn: (e: Earshot) => Earshot) => setEs((e) => { const n = fn(e); return n.settings.adMode === adMode ? n : { ...n, settings: { ...n.settings, adMode } }; }), [adMode]);
   const say = useCallback((m: string) => { setToast(m); if (toastT.current) clearTimeout(toastT.current); toastT.current = setTimeout(() => setToast(""), Math.min(5000, 2600 + Math.max(0, m.length - 40) * 40)); }, []);
   const setNickname = useCallback((n: string) => { setNicknameState(n); write("podscroll.name", n); }, []);
 
@@ -283,7 +294,7 @@ function SignUpGate({ api, onDone, onClose }: { api: (path: string, init?: { met
       <button type="button" onClick={onClose} aria-label="Close" className="absolute right-3 top-3 inline-flex h-10 w-10 items-center justify-center rounded-full text-white/60 hover:bg-white/10 hover:text-white"><X size={20} /></button>
       <p className="text-xs font-bold uppercase tracking-[.18em] text-[#ff8a3d]">Podster Membership</p>
       <h2 id="gate-title" className="mt-2 pr-8 text-[26px] font-bold leading-tight tracking-tight">Get paid for your show.</h2>
-      <p className="mt-2 text-[15px] leading-relaxed text-white/70">Listening stays free and ad-free, no account needed. Members can earn from their own podcast and keep their place on every device. Sign in with your email to start.</p>
+      <p className="mt-2 text-[15px] leading-relaxed text-white/70">Listening stays free, with ads, and needs no account. Members can earn from their own podcast and keep their place on every device. Sign in with your email to start.</p>
       {!sent ? <form onSubmit={(e) => { e.preventDefault(); if (email.includes("@") && !busy) ask(); }} className="mt-5">
         <label className="block"><span className="mb-1.5 block text-xs font-bold text-white/60">Email</span>
           <input type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className={input} /></label>

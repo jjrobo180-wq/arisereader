@@ -1,0 +1,116 @@
+name: Arise To Duo Mac app (Mac App Store)
+
+# The native Mac app (mac/: SwiftUI + WebKit, Mac menus and shortcuts) on the same App Store listing
+# as the iPhone app. Signing needs nothing made by hand: .github/scripts/mac_signing.py makes the
+# Mac certificates and profile for this build with the API key, and removes them at the end.
+# Uploads to App Store Connect (TestFlight for Mac) when run by hand with "upload", or on a push
+# whose commit message has [approved-testflight].
+on:
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: Send this build to App Store Connect (TestFlight for Mac)
+        type: boolean
+        default: true
+  push:
+    branches: [master]
+    paths: ["mac/**", ".github/workflows/arisetodo-mac.yml", ".github/scripts/mac_signing.py"]
+
+concurrency:
+  group: arisetodo-mac
+  cancel-in-progress: false
+
+jobs:
+  mac:
+    runs-on: xcode-27
+    timeout-minutes: 60
+    env:
+      APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use the newest Xcode
+        shell: bash
+        run: |
+          set -euo pipefail
+          X=$(ls -d /Applications/Xcode_*.app 2>/dev/null | grep -viE 'beta|release_candidate|_rc' | sort -V | tail -1 || true)
+          if [[ -z "$X" ]]; then X=$(xcode-select -p | sed 's#/Contents/Developer$##'); fi
+          echo "DEVELOPER_DIR=$X/Contents/Developer" >> "$GITHUB_ENV"
+          echo "::notice title=Xcode::$(basename "$X") with the macOS $(DEVELOPER_DIR="$X/Contents/Developer" xcrun --sdk macosx --show-sdk-version) SDK"
+      - name: Make the Xcode project (XcodeGen)
+        working-directory: mac
+        run: |
+          set -euo pipefail
+          command -v xcodegen >/dev/null || brew install xcodegen
+          sed -i '' "s/CURRENT_PROJECT_VERSION: \"1\"/CURRENT_PROJECT_VERSION: \"${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}\"/" project.yml
+          xcodegen generate
+      - name: Keychain, Mac certificates and profile
+        shell: bash
+        env:
+          IOS_DISTRIBUTION_CERT_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}
+          IOS_DISTRIBUTION_CERT_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          export KEYCHAIN="$RUNNER_TEMP/mac.keychain-db"
+          echo "KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+          security create-keychain -p "" "$KEYCHAIN"
+          security unlock-keychain -p "" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" "$HOME/Library/Keychains/login.keychain-db"
+          printf '%s' "$IOS_DISTRIBUTION_CERT_BASE64" | base64 -D > "$RUNNER_TEMP/signing.p12"
+          python3 .github/scripts/mac_signing.py prepare com.arisereader.arisetodo "$RUNNER_TEMP/signing.p12" "$IOS_DISTRIBUTION_CERT_PASSWORD" "$RUNNER_TEMP/macsign"
+          security cms -D -i "$RUNNER_TEMP/macsign/mac.provisionprofile" > "$RUNNER_TEMP/macprofile.plist"
+          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/macprofile.plist")
+          NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/macprofile.plist")
+          for d in "$HOME/Library/MobileDevice/Provisioning Profiles" "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"; do
+            mkdir -p "$d"; cp "$RUNNER_TEMP/macsign/mac.provisionprofile" "$d/$UUID.provisionprofile"
+          done
+          echo "PROFILE_NAME=$NAME" >> "$GITHUB_ENV"
+          APP_ID=$(security find-identity -v -p codesigning "$KEYCHAIN" | grep -oE '"(Apple Distribution|3rd Party Mac Developer Application)[^"]*"' | head -1 | tr -d '"')
+          INSTALLER=$(security find-identity -v "$KEYCHAIN" | grep -oE '"(3rd Party Mac Developer Installer|Mac Installer Distribution)[^"]*"' | head -1 | tr -d '"')
+          echo "Identities: app=$APP_ID installer=$INSTALLER"
+          test -n "$APP_ID" && test -n "$INSTALLER"
+          echo "APP_IDENTITY=$APP_ID" >> "$GITHUB_ENV"
+          echo "INSTALLER_IDENTITY=$INSTALLER" >> "$GITHUB_ENV"
+      - name: Archive
+        working-directory: mac
+        run: |
+          set -euo pipefail
+          xcodebuild -project AriseToDuoMac.xcodeproj -scheme AriseToDuo -configuration Release -destination 'generic/platform=macOS' \
+            -archivePath "$RUNNER_TEMP/AriseToDuo.xcarchive" archive \
+            CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=6TYWWNKX6P CODE_SIGN_IDENTITY="$APP_IDENTITY" \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN"
+      - name: Export the signed .pkg
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, plistlib
+          opts = {"method": "app-store-connect", "teamID": "6TYWWNKX6P", "signingStyle": "manual",
+                  "signingCertificate": os.environ["APP_IDENTITY"], "installerSigningCertificate": os.environ["INSTALLER_IDENTITY"],
+                  "provisioningProfiles": {"com.arisereader.arisetodo": os.environ["PROFILE_NAME"]}, "uploadSymbols": True}
+          with open(os.path.join(os.environ["RUNNER_TEMP"], "MacExport.plist"), "wb") as f:
+              plistlib.dump(opts, f)
+          PY
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/AriseToDuo.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/MacExport.plist" -exportPath "$RUNNER_TEMP/mac-export"
+          ls -la "$RUNNER_TEMP/mac-export"
+      - name: Check and upload to App Store Connect
+        shell: bash
+        env:
+          WANT_UPLOAD: ${{ github.event_name == 'workflow_dispatch' && inputs.upload || contains(github.event.head_commit.message, '[approved-testflight]') }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          K="$APP_STORE_CONNECT_API_KEY"; if [[ "$K" != *"BEGIN PRIVATE KEY"* ]]; then K=$(printf '%s' "$K" | base64 -D); fi
+          printf '%s' "$K" > "$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          PKG=$(ls "$RUNNER_TEMP"/mac-export/*.pkg | head -1)
+          xcrun altool --validate-app -f "$PKG" -t macos --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+          if [[ "$WANT_UPLOAD" == "true" ]]; then
+            xcrun altool --upload-app -f "$PKG" -t macos --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+            echo "::notice title=Mac::Uploaded build ${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT} to App Store Connect (TestFlight for Mac)"
+          else
+            echo "::notice title=Mac::Built and checked; not uploaded (run by hand with upload, or push with [approved-testflight])"
+          fi
+      - name: Remove this build's Mac certificates and profile
+        if: always()
+        run: python3 .github/scripts/mac_signing.py revoke "$RUNNER_TEMP/macsign" || true

@@ -1,8 +1,8 @@
 // Arise Notes' bottom bar (November 2026): the same floating dark pill as Arise To Duo's (family-hub/PhoneTabBar.tsx).
-// Home, Notes, a round + in the middle (Record, Upload, Voice memo, a new note, Ask AI), Ask, and You (the menu).
+// Notes (the main page), Recordings, a round + in the middle (Record, Upload, Voice memo, a new note, Ask AI), Ask, and You (the menu).
 // Every look uses it, so the app feels like one family with To Duo. The + takes the look's own accent color.
 import { useEffect, useRef, useState } from "react";
-import { AudioLines, Home, Mic, Pencil, Plus, Sparkles, Upload } from "lucide-react";
+import { AudioLines, Mic, Pencil, Plus, Sparkles, Upload } from "lucide-react";
 
 export type DockGo = { home: () => void; notes: () => void; record: () => void; upload: () => void; memo: () => void; newNote: () => void; ask: () => void; menu: () => void };
 
@@ -33,8 +33,8 @@ export function NotesDock({ on, initial, go }: { on: "ai" | "pages" | "ask" | "m
     <nav aria-label="Arise Notes" data-testid="notes-tabs"
       className="fixed inset-x-3 z-[45] mx-auto flex max-w-md items-center gap-1 rounded-full bg-[#1d1a33] px-2 py-1.5 shadow-[0_12px_32px_#16152a55] ring-1 ring-white/10"
       style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
-      <button type="button" onClick={pick(go.home)} aria-current={on === "ai" ? "page" : undefined} className={tab(on === "ai")} data-testid="notes-tab-ai"><Home className="h-[21px] w-[21px]" />Home</button>
       <button type="button" onClick={pick(go.notes)} aria-current={on === "pages" ? "page" : undefined} className={tab(on === "pages")} data-testid="notes-tab-pages"><Pencil className="h-[21px] w-[21px]" />Notes</button>
+      <button type="button" onClick={pick(go.home)} aria-current={on === "ai" ? "page" : undefined} className={tab(on === "ai")} data-testid="notes-tab-ai"><AudioLines className="h-[21px] w-[21px]" />Recordings</button>
       <button type="button" onClick={() => setOpen((v) => !v)} aria-label="Add" aria-haspopup="menu" aria-expanded={open} data-testid="notes-tab-record"
         className="mx-1 inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white shadow-md transition active:scale-90" style={{ background: "var(--an-violet, #7968e5)", color: "var(--an-on-accent, #fff)" }}>
         <Plus className={`h-6 w-6 transition-transform ${open ? "rotate-45" : ""}`} />
