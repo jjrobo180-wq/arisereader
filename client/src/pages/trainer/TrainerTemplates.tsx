@@ -68,7 +68,7 @@ export function WorkoutLines({ w }: { w: PlanWorkout }) {
 const GOALS = ["Build muscle", "Lose fat", "Get stronger", "Get started", "Endurance", "Athletic performance", "Mobility and recovery", "Glutes and legs", "Seniors: strength and balance"];
 type AiResult = { kind: "workout"; workout: PlanWorkout } | { kind: "program"; workouts: PlanWorkout[]; program: CoachProgram };
 
-/** The AI builder: describe the client and what you want; it drafts from Arise Fit's catalog, you review, then save or edit. */
+/** The AI builder: describe the client and what you want; it drafts from Cooked's catalog, you review, then save or edit. */
 export function AiBuilderSheet({ token, lib, saveLib, onClose, say, only, onWorkout, clientName }: {
   token: string | null; lib: Library; saveLib: (l: Library) => void; onClose: () => void; say: (m: string) => void;
   /** Just a workout (from a client's calendar), handed back instead of only saved. */ only?: "workout"; onWorkout?: (w: PlanWorkout) => void; clientName?: string;
@@ -109,7 +109,7 @@ export function AiBuilderSheet({ token, lib, saveLib, onClose, say, only, onWork
       <Field label="Injuries, limits, preferences (optional)"><textarea value={notes} onChange={(e) => setNotes(e.target.value.slice(0, 400))} rows={3} placeholder="Bad left knee, no overhead pressing, loves kettlebells…" className="w-full rounded-[12px] p-3 text-[17px] outline-none" style={inputStyle} /></Field>
       {err && <p className="text-[14px]" style={{ color: C.red }}>{err}</p>}
       <Btn className="w-full" disabled={busy} onClick={go} testId="tr-ai-go"><Sparkles className="h-5 w-5" />{busy ? "Building…" : kind === "program" ? "Build the program" : "Build the workout"}</Btn>
-      <p className="px-1 text-[12px]" style={{ color: C.dim }}>It only uses exercises from Arise Fit's catalog, so each one has a demo for your client. Always review before you send it.</p>
+      <p className="px-1 text-[12px]" style={{ color: C.dim }}>It only uses exercises from Cooked's catalog, so each one has a demo for your client. Always review before you send it.</p>
     </div> : <div>
       {result.kind === "workout" ? <><p className="text-[24px] leading-none" style={display}>{result.workout.name}</p>{result.workout.note && <p className="mt-1.5 text-[14px]" style={{ color: C.steel }}>{result.workout.note}</p>}<div className="mt-3"><WorkoutLines w={result.workout} /></div></>
         : <><p className="text-[24px] leading-none" style={display}>{result.program.name}</p>{result.program.note && <p className="mt-1.5 text-[14px]" style={{ color: C.steel }}>{result.program.note}</p>}
@@ -121,18 +121,18 @@ export function AiBuilderSheet({ token, lib, saveLib, onClose, say, only, onWork
   </Sheet>;
 }
 
-/** The trainer's invite link: share it and a client is connected the moment they open it in Arise Fit. */
+/** The trainer's invite link: share it and a client is connected the moment they open it in Cooked. */
 export function InviteSheet({ token, onClose }: { token: string | null; onClose: () => void }) {
   const [inv, setInv] = useState<{ url: string } | null>(null); const [err, setErr] = useState(""); const [copied, setCopied] = useState(false);
   useEffect(() => { void coachApi<{ url: string; code: string }>(token, "/trainer/invite").then(setInv).catch((e) => setErr(e.message)); }, [token]);
   const share = async () => {
     if (!inv) return;
-    const text = `Train with me on Arise Fit. Open this link to connect: ${inv.url}`;
+    const text = `Train with me on Cooked. Open this link to connect: ${inv.url}`;
     try { if (navigator.share) { await navigator.share({ title: "Train with me", text, url: inv.url }); return; } } catch { /* fall back to copying */ }
     try { await navigator.clipboard.writeText(inv.url); setCopied(true); } catch { setErr("Couldn't copy on this device. Press and hold the link to copy it."); }
   };
   return <Sheet title="Invite a client" onClose={onClose} testId="tr-invite-sheet">
-    <p className="text-[14px]" style={{ color: C.steel }}>Send this link by text, email or Instagram. When your client opens it in Arise Fit, they choose what to share and you're connected right away. No client limit.</p>
+    <p className="text-[14px]" style={{ color: C.steel }}>Send this link by text, email or Instagram. When your client opens it in Cooked, they choose what to share and you're connected right away. No client limit.</p>
     <Card className="mt-4 !p-3.5"><div className="flex items-center gap-2"><Link2 className="h-5 w-5 shrink-0" style={{ color: C.lime }} /><p className="min-w-0 flex-1 select-all break-all text-[13px] font-semibold" data-testid="tr-invite-url">{inv?.url ?? (err || "Making your link…")}</p></div></Card>
     <div className="mt-3 grid grid-cols-2 gap-2">
       <Btn kind="soft" disabled={!inv} onClick={async () => { if (!inv) return; try { await navigator.clipboard.writeText(inv.url); setCopied(true); } catch { setErr("Couldn't copy on this device."); } }}>{copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}{copied ? "Copied" : "Copy"}</Btn>

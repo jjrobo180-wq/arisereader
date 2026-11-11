@@ -43,7 +43,7 @@ test("reflow moves missed workouts to the next free days, one a day, in order", 
   // Only on the client's training days (Mon/Wed/Fri).
   const r2 = reflow(c, [], NOW, { days: [1, 3, 5] });
   for (const m of r2.moves) assert.ok([1, 3, 5].includes(new Date(`${m.to}T12:00:00`).getDay()));
-  // A workout logged in Arise Fit for that plan day counts as done.
+  // A workout logged in Cooked for that plan day counts as done.
   const logged = reflow(c, [{ ...lift(d(-6), "bench-press", "Bench press", 60, [8]), programId: "coach", dayId: "a" }], NOW);
   assert.deepEqual(logged.moves.map((m) => m.id), ["c"]);
 });

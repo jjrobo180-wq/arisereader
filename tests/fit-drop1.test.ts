@@ -1,4 +1,4 @@
-// Arise Fit: nutrition plans, Arise Points, fasting, guided sessions and the body map.
+// Cooked: nutrition plans, Arise Points, fasting, guided sessions and the body map.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";

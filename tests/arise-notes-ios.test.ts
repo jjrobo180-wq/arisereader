@@ -72,7 +72,7 @@ test("the iOS project: light, the microphone with a reason, live updates from ou
   execFileSync("python3", [".github/scripts/configure_fit_app.py", fit, "fit"]);
   assert.doesNotMatch(read(fit), /UIUserInterfaceStyle/);
   // Fit asks for the microphone only for the sound of a form-check video (shared/coachFormCheck.ts).
-  assert.match(read(fit), /<key>NSMicrophoneUsageDescription<\/key>\s*<string>Arise Fit uses the microphone for the sound of a video you film to send your trainer for a form check\.<\/string>/);
+  assert.match(read(fit), /<key>NSMicrophoneUsageDescription<\/key>\s*<string>Cooked uses the microphone for the sound of a video you film to send your trainer for a form check\.<\/string>/);
 
   // The icon is a 1024×1024 PNG with no transparency (color type 2), as App Store Connect requires.
   const png = readFileSync("client/public/app-icons/notes-1024.png");

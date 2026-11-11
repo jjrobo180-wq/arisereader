@@ -1,15 +1,15 @@
 // Arise Coaching: real, human personal trainers (no AI) and the people they train.
 //
-//  • Trainers list themselves in the directory ("Find a trainer" in Arise Fit, and /#/trainers on the
+//  • Trainers list themselves in the directory ("Find a trainer" in Cooked, and /#/trainers on the
 //    website) with their own prices for in-person, live-video or online coaching, their website,
 //    certifications and reviews. A listing shows while the trainer's monthly listing plan is paid.
-//  • A person asks a trainer to coach them from Arise Fit and chooses what Arise Fit shares (their
+//  • A person asks a trainer to coach them from Cooked and chooses what Cooked shares (their
 //    profile, body weight, workouts, food, steps and fasting, runs, progress photos). Once the trainer
 //    accepts, that data goes to them automatically, with nothing to type again, until the person stops
 //    sharing or ends the coaching.
 //  • In the Arise Trainer app, the trainer builds workouts and programs, puts them on the client's
 //    calendar, sets habits, nutrition targets, goals and check-in forms, books sessions, keeps private
-//    notes and messages the client. In Arise Fit the client sees it all and does it.
+//    notes and messages the client. In Cooked the client sees it all and does it.
 //
 // Everything here is pure (cleaning, filtering, sorting, the shared snapshot), so the server, both apps
 // and the tests use the same rules. Server: server/coach.ts.
@@ -67,7 +67,7 @@ export type PublicTrainer = TrainerProfile & { id: number; rating: number; revie
 
 export type Review = { id: string; trainerId: number; name: string; stars: number; text: string; date: string; reply?: string };
 
-/** What a client lets Arise Fit share with their trainer. */
+/** What a client lets Cooked share with their trainer. */
 export type Consent = { profile: boolean; body: boolean; workouts: boolean; food: boolean; health: boolean; runs: boolean; photos: boolean };
 export const CONSENT_LABEL: Record<keyof Consent, [string, string]> = {
   profile: ["Profile and goal", "Age, height, sex, goal, activity level, calorie and macro goals"],
@@ -317,7 +317,7 @@ export function sortTrainers(list: PublicTrainer[], sort: Sort, f: Filter = {}):
   return [...list].sort((a, b) => by[sort](a, b) || a.name.localeCompare(b.name));
 }
 
-// ——— What the trainer sees of a client (built on the server from Arise Fit, by consent) ——————————————
+// ——— What the trainer sees of a client (built on the server from Cooked, by consent) ——————————————
 
 export type Snapshot = {
   name: string; since: string;

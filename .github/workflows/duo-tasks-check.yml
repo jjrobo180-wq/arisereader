@@ -42,7 +42,7 @@ jobs:
         env:
           PLAN: ${{ github.event.inputs.plan || 'unlimited' }}
         run: node script/duoTasksCheck.mjs
-      - name: Arise Fit, log food
+      - name: Cooked, log food
         timeout-minutes: 10
         run: node script/fitFoodCheck.mjs
       - name: Save to the duo-tasks-check branch

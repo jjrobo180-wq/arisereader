@@ -1,5 +1,5 @@
 // Arise Trainer, phase 1 (November 2026): invite clients by link (no listing, no client limit), ready-made templates,
-// and the AI builder that may only use Arise Fit's exercise catalog.
+// and the AI builder that may only use Cooked's exercise catalog.
 // Run with: npx tsx --test tests/trainer-phase1.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";

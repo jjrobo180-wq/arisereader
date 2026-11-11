@@ -1,5 +1,5 @@
 // Arise All Access: one $10-a-month plan for every Arise app (shared/plans.ts "all_access", sold in
-// server/plans.ts). To Duo Unlimited, Arise Notes Plus, Arise Fit+ (with its guest pass) and ad-free
+// server/plans.ts). To Duo Unlimited, Arise Notes Plus, Cooked+ (with its guest pass) and ad-free
 // Pod+. Sold on the website only; the iPhone apps show what's on the account, never a price.
 import { useEffect, useRef, useState } from "react";
 import { Check, Crown, Loader2 } from "lucide-react";
@@ -14,7 +14,7 @@ type Status = { live: boolean; admin: boolean; source?: "stripe" | "admin" | "ap
 const PERKS: [string, string][] = [
   ["Arise To Duo Unlimited", "Every plugin in the Plugin Gallery and AI, in WorkHub and LifeHub."],
   ["Arise Notes Plus", "1,500 minutes a month, speaker labels, IEP mode and rollover."],
-  ["Arise Fit+", "Every Fit+ feature, plus a free guest pass for one friend."],
+  ["Cooked+", "Every Fit+ feature, plus a free guest pass for one friend."],
   ["Ad-free Pod+", "Ads are found and skipped in the episodes you play."],
 ];
 

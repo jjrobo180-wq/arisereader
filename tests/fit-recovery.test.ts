@@ -1,4 +1,4 @@
-// Arise Fit, the Fitbod-style rebuild: muscle recovery from the sets you log, today's workout built
+// Cooked, the Fitbod-style rebuild: muscle recovery from the sets you log, today's workout built
 // for you from your freshest muscles, the body map, designed cover art and the Light/Dark themes.
 import test from "node:test";
 import assert from "node:assert/strict";

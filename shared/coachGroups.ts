@@ -3,7 +3,7 @@
 const typedEnd = (s: string) => s.replace(/^\s+/, "").replace(/ {2,}$/, "");
 // Arise Trainer groups (November 2026): a trainer puts clients in a group with a page (posts, photos, comments,
 // likes, pinned posts), a group chat, and challenges like a 21-day sugar reset with daily check-offs and a
-// leaderboard. Members see their groups in Arise Fit (My trainer → Groups). Server: server/coachGroups.ts.
+// leaderboard. Members see their groups in Cooked (My trainer → Groups). Server: server/coachGroups.ts.
 
 export type GroupPostComment = { id: string; by: number; name: string; at: string; text: string };
 export type GroupPost = { id: string; by: number; name: string; coach: boolean; at: string; text: string; photo: string; likes: number[]; comments: GroupPostComment[]; pinned: boolean };

@@ -1,4 +1,4 @@
-// Branded coaching. Arise Trainer: set your app's name, logo and color. Arise Fit: your trainer's brand replaces
+// Branded coaching. Arise Trainer: set your app's name, logo and color. Cooked: your trainer's brand replaces
 // Arise's accent and shows on your coach card. The web app (#/c/<slug>): your trainer's own home-screen app.
 // Shapes: shared/coachBrand.ts. Server: server/coach.ts.
 import { useEffect, useState } from "react";
@@ -15,7 +15,7 @@ export const rememberBrand = (tid: number) => { try { localStorage.setItem(STORE
 export const forgetBrand = () => { try { localStorage.removeItem(STORE); } catch { /* fine */ } };
 const remembered = () => { try { return Number(localStorage.getItem(STORE)) || 0; } catch { return 0; } };
 
-/** Applies a trainer's brand color to Arise Fit while mounted, and returns it (null when they have none). */
+/** Applies a trainer's brand color to Cooked while mounted, and returns it (null when they have none). */
 export function useTrainerBrand(trainerId: number | null | undefined): Public | null {
   const id = trainerId || remembered();
   const [b, setB] = useState<Public | null>(null);
@@ -66,7 +66,7 @@ export function BrandCard({ token, name, say }: { token: string | null; name: st
     <Card className="!p-4" testId="tr-brand">
       <div className="flex items-center gap-3">{b.on ? <BrandMark b={b} size={48} /> : <span className="grid h-12 w-12 place-items-center rounded-[12px]" style={{ background: C.card2 }}><Palette className="h-5 w-5" style={{ color: C.dim }} /></span>}
         <div className="min-w-0 flex-1"><p className="truncate text-[22px] leading-none" style={display}>{b.on ? b.appName : "Your own coaching app"}</p>
-          <p className="mt-1 text-[13px]" style={{ color: C.dim }}>{b.on ? "Clients see your name, logo and color in Arise Fit." : "Your logo, color and app name for your clients, plus a home-screen web app of your own."}</p></div></div>
+          <p className="mt-1 text-[13px]" style={{ color: C.dim }}>{b.on ? "Clients see your name, logo and color in Cooked." : "Your logo, color and app name for your clients, plus a home-screen web app of your own."}</p></div></div>
       <div className={`mt-3 grid gap-2 ${b.on ? "grid-cols-2" : ""}`}><Btn kind={b.on ? "soft" : "primary"} className="!text-[15px]" onClick={() => setEdit(true)} testId="tr-brand-edit">{b.on ? "Edit" : "Set up my brand"}</Btn>
         {b.on && <Btn kind="soft" className="!text-[15px]" onClick={share}><Share2 className="h-4 w-4" />Share app</Btn>}</div>
     </Card>

@@ -1,0 +1,27 @@
+name: App Store name
+# Changes an app's name on the App Store (.github/scripts/app_store_name.py). Apple takes it while the
+# app hasn't been released yet, or while an update is being prepared; it shows once that version is out.
+on:
+  workflow_dispatch:
+    inputs:
+      bundle:
+        description: The app's bundle id
+        default: com.arisereader.fit
+      name:
+        description: The App Store name (up to 30 characters)
+        required: true
+jobs:
+  name:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: app-store
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set the App Store name
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          BUNDLE: ${{ github.event.inputs.bundle }}
+          NAME: ${{ github.event.inputs.name }}
+        run: python3 .github/scripts/app_store_name.py

@@ -1,5 +1,5 @@
-// Arise Fit's trainers: "Find a trainer" (real people, never AI) and "My trainer" once one coaches you.
-// Asking a trainer, you choose what Arise Fit shares with them; from then on they see it as it happens,
+// Cooked's trainers: "Find a trainer" (real people, never AI) and "My trainer" once one coaches you.
+// Asking a trainer, you choose what Cooked shares with them; from then on they see it as it happens,
 // with nothing to type twice. Their plan for you (workouts on your calendar, habits, nutrition targets,
 // goals, check-ins, sessions) shows here, and their workouts start in the live workout logger.
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -23,12 +23,12 @@ import { Btn, C, Card, Chips, Field, Sheet, Title, display, inputCls, inputStyle
 
 type StartFn = (a: ReturnType<typeof startWorkout>) => void;
 
-/** This person's trainers, checked every 20 seconds while Arise Fit is open. */
+/** This person's trainers, checked every 20 seconds while Cooked is open. */
 export function useCoach(token: string | null) {
   return usePoll(() => coachApi<{ links: MyLink[] }>(token, "/me").then((r) => r.links), [token], 20_000);
 }
 
-/** Marks a trainer's workout done once the matching workout is saved in Arise Fit. */
+/** Marks a trainer's workout done once the matching workout is saved in Cooked. */
 function useMarkDone(token: string | null, links: MyLink[] | null, data: FitData, reload: () => void) {
   const sent = useRef(new Set<string>());
   useEffect(() => {
@@ -78,7 +78,7 @@ export function CoachCard({ token, data, list, onStart, onOpen }: { token: strin
   </Card>;
 }
 
-/** Choosing what Arise Fit shares, then asking the trainer. */
+/** Choosing what Cooked shares, then asking the trainer. */
 function RequestSheet({ token, t, onClose, onSent, initialMsg = "" }: { token: string | null; t: PublicTrainer; onClose: () => void; onSent: () => void; initialMsg?: string }) {
   const [consent, setConsent] = useState<Consent>(ALL_CONSENT);
   const [msg, setMsg] = useState(initialMsg);
@@ -86,7 +86,7 @@ function RequestSheet({ token, t, onClose, onSent, initialMsg = "" }: { token: s
   const [err, setErr] = useState("");
   return <Sheet title={`Ask ${t.name.split(" ")[0]}`} onClose={onClose} testId="fit-coach-request">
     <Card className="mt-1 flex items-center gap-3 !p-3"><Avatar t={t} size={52} /><div className="min-w-0"><p className="truncate text-[20px] leading-none" style={display}>{t.name}</p><p className="truncate text-[13px]" style={{ color: C.dim }}>{t.headline}</p></div></Card>
-    <Title><ShieldCheck className="h-4 w-4" />What Arise Fit shares</Title>
+    <Title><ShieldCheck className="h-4 w-4" />What Cooked shares</Title>
     <p className="-mt-1 mb-2 px-1 text-[13px]" style={{ color: C.dim }}>Once {t.name.split(" ")[0]} accepts, these go to them automatically, so you never type anything twice. Change it or stop sharing any time.</p>
     <div className="space-y-2">{(Object.keys(CONSENT_LABEL) as (keyof Consent)[]).map((k) => <label key={k} className="flex items-center gap-3 rounded-[12px] p-3" style={{ background: C.card }}>
       <span className="min-w-0 flex-1"><span className="block font-semibold">{CONSENT_LABEL[k][0]}</span><span className="block text-[12px]" style={{ color: C.dim }}>{CONSENT_LABEL[k][1]}</span></span>
@@ -108,7 +108,7 @@ export function InviteJoinSheet({ token, code, onClose, onJoined }: { token: str
   return <Sheet title={t ? `Train with ${first}` : "Trainer invite"} onClose={onClose} testId="fit-coach-invite">
     {!t ? <p className="mt-8 text-center text-[15px]" style={{ color: err ? C.red : C.dim }}>{err || "Opening your invite…"}</p> : <>
       <Card className="mt-1 flex items-center gap-3 !p-3"><Avatar t={{ name: t.name, photo: t.photo } as PublicTrainer} size={52} /><div className="min-w-0"><p className="truncate text-[20px] leading-none" style={display}>{t.name}</p>{t.headline && <p className="truncate text-[13px]" style={{ color: C.dim }}>{t.headline}</p>}</div></Card>
-      <Title><ShieldCheck className="h-4 w-4" />What Arise Fit shares with {first}</Title>
+      <Title><ShieldCheck className="h-4 w-4" />What Cooked shares with {first}</Title>
       <p className="-mt-1 mb-2 px-1 text-[13px]" style={{ color: C.dim }}>So you never type anything twice. Change it or stop sharing any time.</p>
       <div className="space-y-2">{(Object.keys(CONSENT_LABEL) as (keyof Consent)[]).map((k) => <label key={k} className="flex items-center gap-3 rounded-[12px] p-3" style={{ background: C.card }}>
         <span className="min-w-0 flex-1"><span className="block font-semibold">{CONSENT_LABEL[k][0]}</span><span className="block text-[12px]" style={{ color: C.dim }}>{CONSENT_LABEL[k][1]}</span></span>
@@ -119,7 +119,7 @@ export function InviteJoinSheet({ token, code, onClose, onJoined }: { token: str
   </Sheet>;
 }
 
-/** "Trainer" in Arise Fit: your trainer's hub, or the directory. */
+/** "Trainer" in Cooked: your trainer's hub, or the directory. */
 export function CoachScreen({ token, me, data, update, list, onStart, onClose }: { token: string | null; me: number; data: FitData; update: Update; list: LibraryExercise[]; onStart: StartFn; onClose: () => void }) {
   const { data: links, reload } = useCoach(token);
   useMarkDone(token, links, data, reload);
@@ -308,7 +308,7 @@ function Sharing({ token, link, reload }: { token: string | null; link: MyLink; 
   const [stars, setStars] = useState(0); const [text, setText] = useState(""); const [sent, setSent] = useState(false); const [err, setErr] = useState("");
   const change = async (next: Consent) => { setConsent(next); await put(token, `/links/${link.id}/consent`, { consent: next }).catch(() => {}); reload(); };
   return <div>
-    <p className="px-1 text-[13px]" style={{ color: C.dim }}>What {t.name.split(" ")[0]} can see from Arise Fit. Turning something off stops it right away.</p>
+    <p className="px-1 text-[13px]" style={{ color: C.dim }}>What {t.name.split(" ")[0]} can see from Cooked. Turning something off stops it right away.</p>
     <div className="mt-2 space-y-2">{(Object.keys(CONSENT_LABEL) as (keyof Consent)[]).map((k) => <label key={k} className="flex items-center gap-3 rounded-[12px] p-3" style={{ background: C.card }}>
       <span className="min-w-0 flex-1"><span className="block font-semibold">{CONSENT_LABEL[k][0]}</span><span className="block text-[12px]" style={{ color: C.dim }}>{CONSENT_LABEL[k][1]}</span></span>
       <input type="checkbox" checked={consent[k]} onChange={(e) => void change({ ...consent, [k]: e.target.checked })} className="h-6 w-6 shrink-0 accent-[var(--fit-accent)]" /></label>)}</div>
@@ -318,7 +318,7 @@ function Sharing({ token, link, reload }: { token: string | null; link: MyLink; 
       <textarea value={text} onChange={(e) => setText(e.target.value.slice(0, 1200))} rows={3} placeholder="What's it like training with them?" className="mt-2 w-full rounded-[12px] p-3 text-[17px] outline-none" style={inputStyle} />
       {err && <p className="mt-1 text-[13px]" style={{ color: C.red }}>{err}</p>}
       <Btn className="mt-2 w-full" disabled={!stars} onClick={async () => { try { await post(token, `/trainers/${t.id}/review`, { stars, text }); setSent(true); } catch (e: any) { setErr(e.message); } }} testId="fit-review-send">Post review</Btn></>}</Card>
-    <button type="button" onClick={async () => { if (window.confirm(`End coaching with ${t.name}? They'll stop seeing your Arise Fit data right away.`)) { await post(token, `/links/${link.id}/end`); reload(); } }} className="mt-6 h-12 w-full text-[15px] font-semibold" style={{ color: C.red }} data-testid="fit-coach-end">End coaching</button>
+    <button type="button" onClick={async () => { if (window.confirm(`End coaching with ${t.name}? They'll stop seeing your Cooked data right away.`)) { await post(token, `/links/${link.id}/end`); reload(); } }} className="mt-6 h-12 w-full text-[15px] font-semibold" style={{ color: C.red }} data-testid="fit-coach-end">End coaching</button>
   </div>;
 }
 

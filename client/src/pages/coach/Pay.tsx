@@ -1,4 +1,4 @@
-// Paying your trainer inside Arise (Stripe Connect). Arise Fit: pay with a card from My trainer. Arise Trainer:
+// Paying your trainer inside Arise (Stripe Connect). Cooked: pay with a card from My trainer. Arise Trainer:
 // set up payouts once, then see what came in. Rules and the fee: shared/coachPay.ts. Server: server/coach.ts.
 import { useState } from "react";
 import { BadgeDollarSign, Check, CreditCard, ExternalLink } from "lucide-react";
@@ -9,7 +9,7 @@ import { Btn, C, Card, Title, display } from "../fit/fitUi";
 
 const returnTo = () => window.location.origin + window.location.pathname;
 
-/** Arise Fit, My trainer → Plan: pay your trainer by card. Shows nothing when they don't take in-app payments. */
+/** Cooked, My trainer → Plan: pay your trainer by card. Shows nothing when they don't take in-app payments. */
 export function PayTrainer({ token, linkId, trainer, say }: { token: string | null; linkId: string; trainer: string; say: (m: string) => void }) {
   const { data } = usePoll(() => coachApi<{ ready: boolean; prices: Price[]; payUrl: string; payments: Payment[] }>(token, `/links/${linkId}/pay`), [token, linkId], 0);
   const [busy, setBusy] = useState("");
@@ -47,7 +47,7 @@ export function PayoutsCard({ token, say }: { token: string | null; say: (m: str
         <Btn kind="soft" className="mt-3 w-full !text-[15px]" disabled={busy} onClick={() => go("/trainer/payouts/dashboard")}>Payouts and bank account</Btn>
       </> : <>
         <p className="text-[22px] leading-none" style={display}>{data.started ? "Finish setting up payouts" : "Let clients pay you by card"}</p>
-        <p className="mt-1 text-[14px]" style={{ color: C.steel }}>Clients tap Pay in Arise Fit, using the prices on your listing. Money goes straight to your bank. Arise keeps {PLATFORM_FEE_PCT}%, plus Stripe's card fee (2.9% + 30¢). On a $150 payment you get about {money(trainerGets(15000))}.</p>
+        <p className="mt-1 text-[14px]" style={{ color: C.steel }}>Clients tap Pay in Cooked, using the prices on your listing. Money goes straight to your bank. Arise keeps {PLATFORM_FEE_PCT}%, plus Stripe's card fee (2.9% + 30¢). On a $150 payment you get about {money(trainerGets(15000))}.</p>
         {data.configured ? <Btn className="mt-3 w-full" disabled={busy} onClick={() => go("/trainer/payouts/setup")} testId="tr-payouts-setup">{busy ? "Opening Stripe…" : data.started ? "Continue setup" : "Set up payouts (about 5 minutes)"}</Btn>
           : <p className="mt-3 rounded-[10px] p-3 text-[13px]" style={{ background: C.card2, color: C.steel }}>Card payments open soon. Until then, add your own payment link in Edit listing.</p>}
       </>}

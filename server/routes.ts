@@ -1642,7 +1642,7 @@ export async function registerRoutes(
   registerKrogerRoutes(app, authMiddleware);
   registerFitRoutes(app, authMiddleware, {
     nameOf: async (id) => { const u: any = await storage.getUser(id).catch(() => null); return String(u?.displayName || u?.display_name || u?.username || "").trim().split(/\s+/)[0] || ""; },
-    // Arise Fit+: the account's own plan (server/plans.ts); guest passes are worked out in server/fitPass.ts.
+    // Cooked+: the account's own plan (server/plans.ts); guest passes are worked out in server/fitPass.ts.
     ownPlus: async (id) => plans.fitPlusOwn(id, (await storage.getUser(id).catch(() => null)) as any),
     payment: () => plans.stripeReady(),
     addToDuoGroceries: (userId, items) => updateTodoWorkspace(userId, (ws) => {

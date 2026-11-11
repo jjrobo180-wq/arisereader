@@ -1,4 +1,4 @@
-// Arise Fit AI form check: the camera watches you lift, an on-device pose model (Google MediaPipe Pose
+// Cooked AI form check: the camera watches you lift, an on-device pose model (Google MediaPipe Pose
 // Landmarker "full", loaded from jsDelivr) finds 33 body points in 2D and in 3D, and shared/fitForm.ts
 // smooths them, checks the phone is set up right, counts reps and grades each one. A ding for a clean rep,
 // a buzz for one to fix, and the coach says what to fix. Video never leaves the phone.
@@ -204,7 +204,7 @@ export function FormCheck({ onClose, lift: startLift, onLog, logLabel }: { onClo
         raf = requestAnimationFrame(loop);
       } catch (e: any) {
         setFailed(true);
-        setStatus(e?.name === "NotAllowedError" ? "Camera access is off. Turn it on in Settings → Arise Fit → Camera, then tap Try again."
+        setStatus(e?.name === "NotAllowedError" ? "Camera access is off. Turn it on in Settings → Cooked → Camera, then tap Try again."
           : e?.name === "NotFoundError" || e?.name === "OverconstrainedError" ? "That camera isn't available. Switch cameras and try again."
           : "The AI coach couldn't load. Check your internet (it downloads once, then it's quick) and tap Try again.");
       }

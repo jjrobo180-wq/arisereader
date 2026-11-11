@@ -209,7 +209,7 @@ function AllAccessCard({ ctx, bill, returnPath }: { ctx: AppCtx; bill: Billing; 
     catch (e: any) { say(e.message); setBusy(false); }
   };
   const price = money(all?.priceCents ?? 1000);
-  const perks = ["Arise Notes Plus: 1,500 minutes a month, every AI feature", "Arise To Duo Unlimited: every plugin and AI", "Arise Fit+, with a free guest pass for a friend", "Ad-free listening in Pod+"];
+  const perks = ["Arise Notes Plus: 1,500 minutes a month, every AI feature", "Arise To Duo Unlimited: every plugin and AI", "Cooked+, with a free guest pass for a friend", "Ad-free listening in Pod+"];
   return <section className="an-card border-[var(--an-violet)] p-5" data-testid="notes-all-access">
     <div className="flex items-center gap-2"><h3 className="text-[18px] font-bold">Arise All Access</h3>{all?.live && <span className="ml-auto rounded-full bg-[var(--an-green-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--an-green)]">Your plan</span>}</div>
     <div className="mt-1 text-[24px] font-extrabold">{price}/mo</div>

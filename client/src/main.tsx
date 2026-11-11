@@ -19,7 +19,7 @@ import { configureAiVoice } from "@/lib/aiVoice";
 import { API_BASE } from "@/lib/queryClient";
 import { AI_OFF_MESSAGE, askAiConsent, isAiRequest } from "@/lib/aiConsent";
 
-// Arise Fit draws edge to edge (contentInset "never" in fit/ios-app/capacitor.config.json). Without
+// Cooked draws edge to edge (contentInset "never" in fit/ios-app/capacitor.config.json). Without
 // viewport-fit=cover the page stops short of the home indicator and env(safe-area-inset-*) reads 0, so titles
 // sit under the Dynamic Island and the tab bar floats above a gray strip.
 // The Arise Reader app draws edge to edge too (reader-app.css keeps headers below the clock), and so does Arise Notes.
@@ -64,7 +64,7 @@ if (isNativeApp() && nativeFlavor() === "reader") { applyDeviceTopInset(); start
 
 // Keep Notes at the physical iPhone viewport width. A custom initial-scale=0.9
 // made focus/keyboard geometry inconsistent with WKWebView's visual viewport.
-// Arise Fit retains its independent intentional compact layout.
+// Cooked retains its independent intentional compact layout.
 if (isFitApp()) {
   const shortSide = Math.min(window.screen.width, window.screen.height);
   if (shortSide > 0 && shortSide < 700) {
@@ -78,7 +78,7 @@ if (isFitApp()) {
 
 // iPhone apps: the page is exactly as wide as the screen. If iPhone ever lays the page out wider than the
 // screen, the bars and cards run off the edge and the page drags sideways, so the viewport is pinned to the
-// screen's own width in pixels. Arise Fit and Arise To Duo are left out: their page is meant to be wider than
+// screen's own width in pixels. Cooked and Arise To Duo are left out: their page is meant to be wider than
 // the screen (laid out at 90% / 93%), and pinning it is exactly what made To Duo jump to 100% while typing.
 if (window.location.protocol === "capacitor:" && !isFitApp()) {
   const meta = () => document.querySelector<HTMLMetaElement>('meta[name="viewport"]');

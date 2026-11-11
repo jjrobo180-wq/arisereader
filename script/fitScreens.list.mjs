@@ -1,4 +1,4 @@
-// The newer Arise Fit screens for script/fitScreens.mjs.
+// The newer Cooked screens for script/fitScreens.mjs.
 export default ({ tap, seq }) => [
   ["apps", tap("fit-tab-apps"), { scrolls: 3 }],
   ["apps-dark", tap("fit-tab-apps"), { dark: true, scrolls: 1 }],

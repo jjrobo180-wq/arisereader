@@ -1,10 +1,10 @@
-"""Arise Fit and Arise Trainer iPhone apps: the Info.plist settings App Review checks, and the AppDelegate
+"""Cooked and Arise Trainer iPhone apps: the Info.plist settings App Review checks, and the AppDelegate
 hook push notifications need.
 
 Usage: configure_fit_app.py <path to Info.plist> [fit|trainer|notes|talk]   (after `npx cap add ios && npx cap sync ios`)
   - The name under the icon, the status bar following the app's theme, and that it only uses the
     encryption built into iOS (HTTPS).
-  - Arise Fit. Camera: barcodes, meal photos, form check and progress photos for a trainer. Photos:
+  - Cooked. Camera: barcodes, meal photos, form check and progress photos for a trainer. Photos:
     choosing a meal or progress photo. Location: mapping outdoor runs and finding trails. Health:
     reading and saving to Apple Health. Links: arisefit:// (Siri shortcuts and buddy invites).
   - Arise Trainer. Camera and Photos: a profile photo for the trainer directory, and photos in messages.
@@ -34,13 +34,13 @@ COMMON = {
 DROP = [] if FLAVOR == "notes" else ["UIUserInterfaceStyle"]
 KEYS = {
     "fit": {
-        "CFBundleDisplayName": "Arise Fit",
-        "NSCameraUsageDescription": "Arise Fit uses the camera to scan a food's barcode, to take a photo of your meal so it can estimate the calories, to check your exercise form, to take progress photos, and to film a set you choose to send your trainer for a form check.",
-        "NSMicrophoneUsageDescription": "Arise Fit uses the microphone for the sound of a video you film to send your trainer for a form check.",
-        "NSLocationWhenInUseUsageDescription": "Arise Fit uses your location to map and measure your outdoor runs, walks and hikes, and to find trails, gyms and healthy places to eat near you.",
-        "NSHealthShareUsageDescription": "Arise Fit reads your steps, sleep, heart rate, weight, workouts and active calories from Apple Health to show your progress, sleep score and readiness, and to share them with your trainer only if you choose to.",
-        "NSHealthUpdateUsageDescription": "Arise Fit saves your workouts, runs, weight, nutrition and mindful minutes to Apple Health.",
-        "NSPhotoLibraryUsageDescription": "Arise Fit lets you choose a photo of your meal so it can estimate the calories, or a progress photo or picture to send your trainer.",
+        "CFBundleDisplayName": "Cooked",
+        "NSCameraUsageDescription": "Cooked uses the camera to scan a food's barcode, to take a photo of your meal so it can estimate the calories, to check your exercise form, to take progress photos, and to film a set you choose to send your trainer for a form check.",
+        "NSMicrophoneUsageDescription": "Cooked uses the microphone for the sound of a video you film to send your trainer for a form check.",
+        "NSLocationWhenInUseUsageDescription": "Cooked uses your location to map and measure your outdoor runs, walks and hikes, and to find trails, gyms and healthy places to eat near you.",
+        "NSHealthShareUsageDescription": "Cooked reads your steps, sleep, heart rate, weight, workouts and active calories from Apple Health to show your progress, sleep score and readiness, and to share them with your trainer only if you choose to.",
+        "NSHealthUpdateUsageDescription": "Cooked saves your workouts, runs, weight, nutrition and mindful minutes to Apple Health.",
+        "NSPhotoLibraryUsageDescription": "Cooked lets you choose a photo of your meal so it can estimate the calories, or a progress photo or picture to send your trainer.",
     },
     "talk": {
         "CFBundleDisplayName": "Arise Talk",
@@ -75,7 +75,7 @@ with open(PLIST, "rb") as f:
     plist = plistlib.load(f)
 plist.update(COMMON)
 plist.update(KEYS)
-# Arise Fit opens arisefit:// links: Siri shortcuts ("Hey Siri, start my workout" opens arisefit://do/workout)
+# Cooked opens arisefit:// links: Siri shortcuts ("Hey Siri, start my workout" opens arisefit://do/workout)
 # and buddy invites (arisefit://buddy/CODE). client/src/pages/fit/FitSiri.tsx reads them.
 if FLAVOR == "fit":
     types = [t for t in plist.get("CFBundleURLTypes", []) if "arisefit" not in t.get("CFBundleURLSchemes", [])]

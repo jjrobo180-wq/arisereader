@@ -83,7 +83,7 @@ test("form checks are in both apps, with permission text for camera and micropho
   const ui = read("client/src/pages/coach/FormCheck.tsx");
   for (const t of ["fc-record", "fc-send", "fc-draw", "fc-keep", "fc-voice-rec", "fc-send-feedback", 'capture="environment"']) assert.ok(ui.includes(t), t);
   const plist = read(".github/scripts/configure_fit_app.py");
-  assert.match(plist, /Arise Fit uses the microphone for the sound of a video/);
+  assert.match(plist, /Cooked uses the microphone for the sound of a video/);
   assert.match(plist, /Arise Trainer uses the microphone only when you record a voice note/);
   assert.doesNotMatch(plist, /Form check video stays on your iPhone/);
 });

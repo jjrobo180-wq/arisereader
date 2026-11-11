@@ -1092,7 +1092,7 @@ function AppRoutes() {
 }
 
 // Full-screen games need the whole screen: site tabs, banners and popups would cover their controls.
-// Arise Fit, Arise Trainer, the trainer directory and Arise Talk are whole apps of their own on the
+// Cooked, Arise Trainer, the trainer directory and Arise Talk are whole apps of their own on the
 // website too, so the site's side tabs (points, Avatar World) and pop-ups stay off them.
 const FULLSCREEN_GAME_ROUTES = ["/to-do", "/lifehub", "/games", "/study", "/paintball-arena", "/aurora-rally", "/skybound-sprint", "/twinlight-run", "/chime-of-aoren", "/present", "/tutorial/present", "/fit", "/trainer", "/trainers", "/talk"];
 function useFullscreenGameRoute() {
@@ -1108,7 +1108,7 @@ function useFullscreenGameRoute() {
 }
 
 
-/** Arise Fit and Arise Trainer open on their theme's background (Light unless Dark was chosen), so there's no dark flash. */
+/** Cooked and Arise Trainer open on their theme's background (Light unless Dark was chosen), so there's no dark flash. */
 function fitBootBg() {
   try { const t = localStorage.getItem("arise-fit-theme"); return t === "dark" || (t === "auto" && matchMedia("(prefers-color-scheme: dark)").matches) ? "#15171b" : "#f2f2f4"; } catch { return "#f2f2f4"; }
 }
@@ -1128,7 +1128,7 @@ function AppInner() {
   // A student a teacher just bulk-added signs in with a default password (their
   // student number) and must replace it before doing anything else in the app.
   if (user?.mustChangePassword) return <ForcePasswordChange />;
-  // The Arise Fit iPhone app is its own app: sign in, then Arise Fit (pages/fit/FitApp.tsx).
+  // The Cooked iPhone app is its own app: sign in, then Cooked (pages/fit/FitApp.tsx).
   // The Arise Notes iPhone app: sign in, then Arise Notes (components/arise-notes/NotesApp.tsx).
   if (isNotesApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: "#f5f4fb" }} />}>{user ? <NotesApp mode="standalone" /> : <NativeSignIn />}</Suspense></Router>;
   if (isFitApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: fitBootBg() }} />}>{user ? <FitApp /> : <NativeSignIn />}</Suspense></Router>;

@@ -44,7 +44,7 @@ test("answers are cleaned and turn into a first message", () => {
   assert.equal(introMessage({ ...n, modes: ["inPerson"], perWeek: 2 }, "Maya"), "Hi Maya! I'm looking for help with fat loss. I'm pretty new to training. I'd like in person, about 2 times a week. Bad knee");
 });
 
-test("matching is in Arise Fit's Find a trainer, and the server route exists", () => {
+test("matching is in Cooked's Find a trainer, and the server route exists", () => {
   const fit = read("client/src/pages/fit/FitCoach.tsx");
   assert.match(fit, /<MatchCard onOpen=\{\(\) => setMatching\(true\)\}/);
   assert.match(fit, /initialMsg=\{askMsg\}/);

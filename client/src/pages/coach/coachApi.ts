@@ -1,4 +1,4 @@
-// Arise Coaching on the phone: calls to server/coach.ts and the hooks both apps use (Arise Fit's
+// Arise Coaching on the phone: calls to server/coach.ts and the hooks both apps use (Cooked's
 // "Find a trainer" and "My trainer", and the Arise Trainer app).
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API_BASE } from "@/lib/queryClient";

@@ -1,4 +1,4 @@
-// Phone-size screenshots of Arise Fit with a made-up sample account, for checking every screen's layout,
+// Phone-size screenshots of Cooked with a made-up sample account, for checking every screen's layout,
 // colors and wording (.github/workflows/fit-screens.yml). Serves the built site, signs in a pretend
 // person by cookie and answers the app's server calls with sample data, so no real account is used.
 import { createServer } from "node:http";

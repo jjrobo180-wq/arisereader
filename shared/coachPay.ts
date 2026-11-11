@@ -1,4 +1,4 @@
-// Getting paid in Arise (November 2026): clients pay their trainer by card inside Arise Fit, through Stripe Connect.
+// Getting paid in Arise (November 2026): clients pay their trainer by card inside Cooked, through Stripe Connect.
 // The trainer gets the money in their own bank account; Arise keeps a small fee per payment. Trainers who'd rather
 // use their own link (Venmo, PayPal, their own Stripe) still can, and Arise takes nothing on those.
 import type { Price } from "./coach";
