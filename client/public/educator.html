@@ -12,7 +12,9 @@
   (function () {
     var standalone = false;
     try { standalone = window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches || window.matchMedia("(display-mode: fullscreen)").matches; } catch (e) {}
-    if (!standalone || window.self !== window.top) return;
+    /* "Back to home" from the sign-in screen opens "/?home" — a visitor who asked for this page stays on it. A browser window that is
+       merely full screen also reports display-mode fullscreen, so that alone must not bounce a visitor away. */
+    if (!standalone || window.self !== window.top || /[?&]home(?:=|&|$)/.test(location.search)) return;
     var signedIn = /(?:^|;\s*)arise_session=/.test(document.cookie);
     try { signedIn = signedIn || !!window.localStorage.getItem("arise_session_backup"); } catch (e) {}
     location.replace(signedIn ? "/app#/" : "/app#/signin");

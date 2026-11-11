@@ -6,7 +6,7 @@
 // sample accounts). Signing in here is the same account as the website's.
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useLocation } from "wouter";
-import { Apple as AppleIcon, Bell, BookOpen, Briefcase, Dumbbell, LineChart, ChevronLeft, Eye, EyeOff, GraduationCap, HeartHandshake, ListChecks, Loader2, Mail, Mic, Sparkles, Trophy, Users } from "lucide-react";
+import { Apple as AppleIcon, Bell, BookOpen, Briefcase, Dumbbell, LineChart, ChevronLeft, Eye, EyeOff, FileText, GraduationCap, HeartHandshake, ListChecks, Loader2, Mail, MessageCircle, Mic, Sparkles, Trophy, Users } from "lucide-react";
 import ForgotSignIn from "@/components/auth/ForgotSignIn";
 import { useAuth } from "@/context/AuthContext";
 import { APPLE_LOGO_PATH, appleSignInAvailable, askApple } from "@/lib/appleSignIn";
@@ -71,6 +71,12 @@ const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { ti
       { tint: "#6a55dc", icon: <Mic className="h-[22px] w-[22px]" />, title: "Talking boards", text: "Tap a picture or a word and it is spoken for you." },
       { tint: "#7b5cf0", icon: <Sparkles className="h-[22px] w-[22px]" />, title: "Made for you", text: "Make boards with the words you use every day." },
       { tint: "#0f766e", icon: <HeartHandshake className="h-[22px] w-[22px]" />, title: "Share with family", text: "Keep the same boards on every device." },
+    ] },
+  undercover: { icon: "/app-icons/undercover-1024.png", tagline: "Ask AI in the meeting. It looks like texting.", apple: true, signInHint: "Use your Arise account.", create: "Create a free account",
+    features: [
+      { tint: "#2563eb", icon: <MessageCircle className="h-[22px] w-[22px]" />, title: "Looks like texting", text: "Answers come back as texts or a group chat." },
+      { tint: "#0f766e", icon: <FileText className="h-[22px] w-[22px]" />, title: "Or a document", text: "Answers write into notes or doc comments." },
+      { tint: "#6a55dc", icon: <EyeOff className="h-[22px] w-[22px]" />, title: "Quick hide", text: "One tap swaps to a decoy chat or hides answers." },
     ] },
 };
 

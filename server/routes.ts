@@ -58,6 +58,7 @@ import { registerComprehensionRoutes } from "./comprehension";
 import { recordLogin, registerStudentActivityRoutes } from "./studentActivity";
 import { countHubStudents, createHubGate, createSupabaseWorkspaceStore, registerTeacherHubRoutes } from "./teacherHub";
 import { registerAriseNotesRoutes, startNotesTicker } from "./ariseNotes";
+import { registerUndercoverRoutes } from "./undercover";
 import { configureAiMinutes } from "./aiMinutes";
 import { createSupabaseNotesStore } from "./ariseNotesStore";
 import { askSiteAi, createHearer, siteAiReady } from "./ariseNotesAi";
@@ -1694,6 +1695,8 @@ export async function registerRoutes(
   };
   registerAccountabilityRoutes(app, authMiddleware, acctDeps);
   if (process.env.NODE_ENV !== "test") startAccountabilityTicker(acctDeps);
+  // Arise Undercover (server/undercover.ts): an AI chat that looks like texting or a document, at /undercover/.
+  registerUndercoverRoutes(app, authMiddleware);
   // Arise Notes, the AI note taker (server/ariseNotes.ts): its own app at /notes/ and an app inside
   // Arise To Duo. Record or upload, a transcript with times, AI summaries, minutes per plan.
   const notesStore = createSupabaseNotesStore(() => getAdminSupabase() as any);

@@ -47,7 +47,7 @@ test("the iPhone app draws edge to edge, so the header stays put and covers the 
 });
 test("the iPhone app's page reaches the screen edges, so headers sit below the clock", () => {
   const main = readFileSync(new URL("../client/src/main.tsx", import.meta.url), "utf8");
-  assert.match(main, /isNotesApp\(\)\) \{\s*const vp/);
+  assert.match(main, /isNotesApp\(\)( \|\| isUndercoverApp\(\))?\) \{\s*const vp/);
 });
 
 test("every look has a readable night mode", () => {
