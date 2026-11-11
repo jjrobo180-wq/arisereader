@@ -71,5 +71,13 @@ for (const [name, title, sub, go] of SHOTS) {
   }
   console.log(`ok ${name}`);
 }
+// A dual-screen phone turned sideways: each screen is 720x540 points. Two shots, one per hub.
+for (const [name, hash] of [["duo-life", "/lifehub?pane=home"], ["duo-work", "/hub"]]) {
+  const ctx = await browser.newContext({ viewport: { width: 720, height: 540 }, deviceScaleFactor: 2, hasTouch: true });
+  const page = await ctx.newPage(); page.setDefaultTimeout(30000);
+  try { await Promise.race([open(page, hash), new Promise((_, no) => setTimeout(() => no(new Error("timed out")), 90000))]); } catch (e) { console.log(`FAIL ${name}: ${e?.message || e}`); }
+  await page.screenshot({ path: `listing/raw/${name}.png` });
+  await ctx.close(); console.log(`ok ${name}`);
+}
 await browser.close();
 process.exit(0);
