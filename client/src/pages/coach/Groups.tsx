@@ -1,4 +1,4 @@
-// Groups in Cooked Trainer and Cooked: a group page (posts, photos, comments, likes, pins), a group chat and
+// Groups in Cooked PT and Cooked: a group page (posts, photos, comments, likes, pins), a group chat and
 // challenges with a leaderboard. The same screen serves the coach and the members. Server: server/coachGroups.ts.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Camera, Check, Crown, Flame, Heart, MessageCircle, Pin, Plus, Send, Settings, Trash2, Trophy, Users, X } from "lucide-react";
@@ -17,7 +17,7 @@ const isPhoto = (c: string) => c.startsWith("data:");
 const coverStyle = (c: string): React.CSSProperties => (isPhoto(c) ? { backgroundImage: `url(${c})`, backgroundSize: "cover", backgroundPosition: "center" } : { background: `linear-gradient(140deg, ${c}, color-mix(in srgb, ${c} 55%, #000))` });
 const liveName = (g: GroupSummary) => (typeof g.live === "string" ? g.live : g.live?.name ?? "");
 
-/** A row of group cards (Cooked Trainer's Clients tab, Cooked's Groups tab). */
+/** A row of group cards (Cooked PT's Clients tab, Cooked's Groups tab). */
 export function GroupCards({ groups, onOpen, onNew }: { groups: GroupSummary[]; onOpen: (g: GroupSummary) => void; onNew?: () => void }) {
   return <div className="-mx-4 flex snap-x gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" data-testid="groups-row">
     {groups.map((g) => <button key={g.id} type="button" onClick={() => onOpen(g)} className="relative h-[124px] w-[200px] shrink-0 snap-start overflow-hidden rounded-[16px] p-3 text-left text-white" style={coverStyle(g.cover)}>
@@ -32,7 +32,7 @@ export function GroupCards({ groups, onOpen, onNew }: { groups: GroupSummary[]; 
   </div>;
 }
 
-/** Cooked Trainer: the groups strip on the Clients tab. */
+/** Cooked PT: the groups strip on the Clients tab. */
 export function TrainerGroups({ token, clients, say, seed, onSeeded }: { token: string | null; clients: { clientId: number; name: string; status: string }[]; say: (m: string) => void; seed?: number[] | null; onSeeded?: () => void }) {
   const { data, reload } = usePoll(() => coachApi<{ groups: GroupSummary[] }>(token, `/trainer/groups?today=${today()}`), [token], 60_000);
   const [open, setOpen] = useState<string | null>(null);

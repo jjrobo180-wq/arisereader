@@ -615,9 +615,9 @@ function AppRoutes() {
           <SignIn />
         </div>}
       </Route>
-      {/* Arise Coaching: the public trainer directory, and Cooked Trainer for coaches. */}
+      {/* Arise Coaching: the public trainer directory, and Cooked PT for coaches. */}
       <Route path="/trainers"><TrainersPage /></Route>
-      {/* A trainer's own website, built in Cooked Trainer (shared/coachSite.ts). No sign-in. */}
+      {/* A trainer's own website, built in Cooked PT (shared/coachSite.ts). No sign-in. */}
       <Route path="/t/:slug"><TrainerSitePage /></Route>
       {/* A trainer's own branded web app (shared/coachBrand.ts). No sign-in to see it. */}
       <Route path="/c/:slug"><BrandAppPage /></Route>
@@ -1093,7 +1093,7 @@ function AppRoutes() {
 }
 
 // Full-screen games need the whole screen: site tabs, banners and popups would cover their controls.
-// Cooked, Cooked Trainer, the trainer directory and Arise Talk are whole apps of their own on the
+// Cooked, Cooked PT, the trainer directory and Arise Talk are whole apps of their own on the
 // website too, so the site's side tabs (points, Avatar World) and pop-ups stay off them.
 const FULLSCREEN_GAME_ROUTES = ["/to-do", "/lifehub", "/games", "/study", "/paintball-arena", "/aurora-rally", "/skybound-sprint", "/twinlight-run", "/chime-of-aoren", "/present", "/tutorial/present", "/fit", "/trainer", "/trainers", "/talk"];
 function useFullscreenGameRoute() {
@@ -1109,7 +1109,7 @@ function useFullscreenGameRoute() {
 }
 
 
-/** Cooked and Cooked Trainer open on their theme's background (Light unless Dark was chosen), so there's no dark flash. */
+/** Cooked and Cooked PT open on their theme's background (Light unless Dark was chosen), so there's no dark flash. */
 function fitBootBg() {
   try { const t = localStorage.getItem("arise-fit-theme"); return t === "dark" || (t === "auto" && matchMedia("(prefers-color-scheme: dark)").matches) ? "#15171b" : "#f2f2f4"; } catch { return "#f2f2f4"; }
 }
@@ -1137,7 +1137,7 @@ function AppInner() {
   if (isUndercoverApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: "#fff" }} />}>{user ? <UndercoverApp /> : <NativeSignIn />}</Suspense></Router>;
   // The Arise Talk iPhone app opens straight to the boards: an account is optional (More → Backup).
   if (isTalkApp()) return <Suspense fallback={<div className="fixed inset-0" style={{ background: "#f5f4f1" }} />}><TalkApp /></Suspense>;
-  // The Cooked Trainer iPhone app: sign in, then Cooked Trainer (pages/trainer/TrainerApp.tsx).
+  // The Cooked PT iPhone app: sign in, then Cooked PT (pages/trainer/TrainerApp.tsx).
   if (isTrainerApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: fitBootBg() }} />}>{user ? <TrainerApp /> : <NativeSignIn />}</Suspense></Router>;
 
   const overlays = !inGame;
