@@ -1,4 +1,4 @@
-// Arise Fit's cover art: a bold gradient, a fine sport texture and one big white glyph, a color family
+// Cooked's cover art: a bold gradient, a fine sport texture and one big white glyph, a color family
 // per kind of training (like Apple Fitness's tiles). It replaces YouTube stills on cards: those came with
 // their own shouting thumbnails ("HUGE CHEST"), and every card looked like a different app. Videos
 // still play from YouTube inside the app; only the covers are ours.

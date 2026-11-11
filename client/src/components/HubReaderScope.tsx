@@ -1,4 +1,4 @@
-// Gives the A.R.I.S.E. Reader screens the look of the hub they are shown in (see hubReader.css).
+// Gives the Arise Reader screens the look of the hub they are shown in (see hubReader.css).
 // In WorkHub's night mode they keep their own dark look, which already matches it.
 import { useEffect, type ReactNode } from "react";
 import "./hubReader.css";

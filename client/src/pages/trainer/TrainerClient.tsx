@@ -1,4 +1,4 @@
-// One client in Arise Trainer. Overview comes straight from their Arise Fit (what they chose to share);
+// One client in Arise Trainer. Overview comes straight from their Cooked (what they chose to share);
 // everything else is the trainer's plan for them, saved as it's changed.
 import { useMemo, useState } from "react";
 import { CalendarDays, Check, ChevronLeft, ChevronRight, ClipboardList, Copy, Dumbbell, Flag, Footprints, Lock, Pencil, Plus, Sparkles, Timer, Trash2, Trophy } from "lucide-react";
@@ -55,7 +55,7 @@ function Request({ token, linkId, name, data, onDone }: { token: string | null; 
   const shared = Object.entries(data.consent).filter(([, v]) => v).map(([k]) => k);
   return <div className="mt-2">
     <Card><p className="text-[26px] leading-none" style={display}>{name} wants you to coach them</p>
-      <p className="mt-2 text-[14px]" style={{ color: C.steel }}>When you accept, their Arise Fit {shared.length ? shared.join(", ") : "profile"} come to you automatically. Your welcome message goes to them.</p></Card>
+      <p className="mt-2 text-[14px]" style={{ color: C.steel }}>When you accept, their Cooked {shared.length ? shared.join(", ") : "profile"} come to you automatically. Your welcome message goes to them.</p></Card>
     <div className="mt-4 grid grid-cols-2 gap-2"><Btn kind="soft" onClick={async () => { await post(token, `/links/${linkId}/decline`); onDone(); }} testId="tr-decline">Decline</Btn><Btn onClick={async () => { await post(token, `/links/${linkId}/accept`); onDone(); }} testId="tr-accept">Accept</Btn></div>
   </div>;
 }
@@ -89,7 +89,7 @@ function Overview({ d }: { d: ClientDetail }) {
     <Title>Food · 7-day average</Title>
     {s.food ? <Card><div className="grid grid-cols-4 gap-2 text-center">{([["kcal", "cal"], ["p", "protein"], ["c", "carbs"], ["f", "fat"]] as const).map(([k, l]) => <div key={k}><p className="text-[22px] leading-none" style={display}>{fmtNum(avg(k))}</p><p className="mt-1 text-[11px] uppercase" style={{ color: C.dim }}>{l}</p></div>)}</div>
       <div className="mt-3"><Columns items={food7.map((x) => ({ label: x.date.slice(8), value: x.kcal }))} color={C.orange} /></div></Card> : <Locked what="food" />}
-    <Title>Steps</Title>{d.consent.health ? (steps.length ? <Card><Columns items={steps.map(([k, v]) => ({ label: k.slice(8), value: v }))} /><p className="mt-2 flex items-center gap-1 text-[12px]" style={{ color: C.dim }}><Footprints className="h-3.5 w-3.5" />From Apple Health, when they open Arise Fit</p></Card> : <p className="px-1 text-[14px]" style={{ color: C.dim }}>No steps yet (they come from Apple Health on their iPhone).</p>) : <Locked what="steps" />}
+    <Title>Steps</Title>{d.consent.health ? (steps.length ? <Card><Columns items={steps.map(([k, v]) => ({ label: k.slice(8), value: v }))} /><p className="mt-2 flex items-center gap-1 text-[12px]" style={{ color: C.dim }}><Footprints className="h-3.5 w-3.5" />From Apple Health, when they open Cooked</p></Card> : <p className="px-1 text-[14px]" style={{ color: C.dim }}>No steps yet (they come from Apple Health on their iPhone).</p>) : <Locked what="steps" />}
     {s.fasting && <><Title>Fasting</Title><Card className="flex items-center gap-3 !p-3"><Timer className="h-5 w-5" style={{ color: C.lime }} /><p className="text-[14px]">{s.fasting.active ? `Fasting now · started ${when(s.fasting.active)}` : "Not fasting"} · {s.fasting.protocol} · {s.fasting.log.length} fasts logged</p></Card></>}
     {s.runs && s.runs.length > 0 && <><Title>Runs</Title><Card className="!p-2">{s.runs.slice(-6).reverse().map((r, k) => <div key={r.date} className="flex justify-between px-2 py-2 text-[14px]" style={k ? { borderTop: `1px solid ${C.line}` } : undefined}><span className="capitalize">{r.trail ?? r.kind} · {shortDate(r.date)}</span><span style={{ color: C.dim }}>{(r.meters / 1609.344).toFixed(2)} mi · {fmtDur(r.secs)}</span></div>)}</Card></>}
   </div>;
@@ -178,7 +178,7 @@ function Nutrition({ d, save }: { d: ClientDetail; save: (c: Coaching) => void }
   return <div>
     <Title>Targets</Title>
     <Card><div className="grid grid-cols-2 gap-2">{([["kcal", "Calories"], ["p", "Protein (g)"], ["c", "Carbs (g)"], ["f", "Fat (g)"], ["waterL", "Water (L)"]] as const).map(([k, l]) => <Field key={k} label={l}><input inputMode="decimal" value={v[k]} onChange={(e) => setV({ ...v, [k]: e.target.value.replace(/[^\d.]/g, "").slice(0, 5) })} className={inputCls} style={inputStyle} data-testid={`tr-nut-${k}`} /></Field>)}</div>
-      {kcalFromMacros > 0 && <p className="mt-2 text-[12px]" style={{ color: C.dim }}>Macros add up to {fmtNum(kcalFromMacros)} calories.{d.snapshot.profile ? ` Arise Fit's estimate for them: ${fmtNum(d.snapshot.profile.kcal)}.` : ""}</p>}
+      {kcalFromMacros > 0 && <p className="mt-2 text-[12px]" style={{ color: C.dim }}>Macros add up to {fmtNum(kcalFromMacros)} calories.{d.snapshot.profile ? ` Cooked's estimate for them: ${fmtNum(d.snapshot.profile.kcal)}.` : ""}</p>}
       <Field label="Meal plan or notes"><textarea value={v.note} onChange={(e) => setV({ ...v, note: e.target.value.slice(0, 800) })} rows={5} placeholder="Breakfast: 4 eggs, oats… or any guidance" className="mt-2 w-full rounded-[12px] p-3 text-[17px] outline-none" style={inputStyle} /></Field>
       <Btn className="mt-3 w-full" onClick={() => save({ ...c, nutrition: { kcal: Number(v.kcal) || undefined, p: Number(v.p) || undefined, c: Number(v.c) || undefined, f: Number(v.f) || undefined, waterL: Number(v.waterL) || undefined, note: v.note || undefined } })} testId="tr-nut-save">Save targets</Btn></Card>
     <Title>What they ate</Title>
@@ -254,6 +254,6 @@ function Notes({ c, save, token, linkId, name, onEnded }: { c: Coaching; save: (
     <div className="mt-3"><Field label="Tags (only you see these, for sorting clients)"><input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="online, beginner, wedding" className={inputCls} style={inputStyle} /></Field></div>
     <div className="mt-3"><Field label="Private notes (never shown to your client)"><textarea value={notes} onChange={(e) => setNotes(e.target.value.slice(0, 8000))} rows={10} placeholder="Injuries, preferences, what's working…" className="w-full rounded-[12px] p-3 text-[17px] outline-none" style={inputStyle} data-testid="tr-notes" /></Field></div>
     <Btn className="mt-3 w-full" onClick={() => save({ ...c, notes, phase: phase || undefined, tags: tags.split(",").map((t) => t.trim()).filter(Boolean).slice(0, 10) }, false)} testId="tr-notes-save">Save</Btn>
-    <button type="button" onClick={async () => { if (window.confirm(`Stop coaching ${name}? Their Arise Fit data stops coming to you.`)) { await post(token, `/links/${linkId}/end`); onEnded(); } }} className="mt-8 h-12 w-full text-[15px] font-semibold" style={{ color: C.red }}>Stop coaching {name}</button>
+    <button type="button" onClick={async () => { if (window.confirm(`Stop coaching ${name}? Their Cooked data stops coming to you.`)) { await post(token, `/links/${linkId}/end`); onEnded(); } }} className="mt-8 h-12 w-full text-[15px] font-semibold" style={{ color: C.red }}>Stop coaching {name}</button>
   </div>;
 }

@@ -1,6 +1,9 @@
+
+/** Cleaned as you type: the start is trimmed but a space (or new line) just typed at the end stays, or the next word could never be typed. */
+const typedEnd = (s: string) => s.replace(/^\s+/, "").replace(/ {2,}$/, "");
 // Arise Trainer groups (November 2026): a trainer puts clients in a group with a page (posts, photos, comments,
 // likes, pinned posts), a group chat, and challenges like a 21-day sugar reset with daily check-offs and a
-// leaderboard. Members see their groups in Arise Fit (My trainer → Groups). Server: server/coachGroups.ts.
+// leaderboard. Members see their groups in Cooked (My trainer → Groups). Server: server/coachGroups.ts.
 
 export type GroupPostComment = { id: string; by: number; name: string; at: string; text: string };
 export type GroupPost = { id: string; by: number; name: string; coach: boolean; at: string; text: string; photo: string; likes: number[]; comments: GroupPostComment[]; pinned: boolean };
@@ -27,7 +30,7 @@ export const trainerOfGroup = (gid: string): number | null => { const m = /^g([0
 
 export function cleanGroup(raw: unknown, trainerId: number, keep?: Group): Group | null {
   const r = raw && typeof raw === "object" ? (raw as Record<string, any>) : {};
-  const name = str(r.name, 60).trim();
+  const name = typedEnd(str(r.name, 60));
   if (!name) return null;
   const members = Array.isArray(r.members) ? [...new Set(r.members.map(Number).filter((n: number) => Number.isSafeInteger(n) && n > 0 && n !== trainerId))].slice(0, GROUP_LIMITS.members) as number[] : keep?.members ?? [];
   return { id: keep?.id ?? newGroupId(trainerId), trainerId, name, about: str(r.about, 600), cover: cover(r.cover), members, memberPosts: r.memberPosts !== false, chatOn: r.chatOn !== false, createdAt: keep?.createdAt ?? new Date().toISOString() };
@@ -35,8 +38,8 @@ export function cleanGroup(raw: unknown, trainerId: number, keep?: Group): Group
 
 export function cleanChallenge(raw: unknown, keep?: Challenge): Challenge | null {
   const r = raw && typeof raw === "object" ? (raw as Record<string, any>) : {};
-  const name = str(r.name, 60).trim();
-  const tasks = (Array.isArray(r.tasks) ? r.tasks : []).slice(0, 8).map((t: any) => ({ id: rid(t?.id), label: str(t?.label, 80).trim(), points: Math.max(1, Math.min(10, Math.round(Number(t?.points) || 1))) })).filter((t: ChallengeTask) => t.label);
+  const name = typedEnd(str(r.name, 60));
+  const tasks = (Array.isArray(r.tasks) ? r.tasks : []).slice(0, 8).map((t: any) => ({ id: rid(t?.id), label: typedEnd(str(t?.label, 80)), points: Math.max(1, Math.min(10, Math.round(Number(t?.points) || 1))) })).filter((t: ChallengeTask) => t.label);
   if (!name || !tasks.length || !DAY.test(String(r.start))) return null;
   return { id: keep?.id ?? rid(undefined), name, about: str(r.about, 800), start: r.start, days: Math.max(1, Math.min(90, Math.round(Number(r.days) || 21))), tasks, prize: str(r.prize, 120), log: keep?.log ?? {} };
 }

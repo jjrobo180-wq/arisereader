@@ -50,7 +50,7 @@ export const NAG_CHOICES = [0, 30, 60, 120, 240] as const;
 /** Nudges stay inside waking hours, and stop after this many in a day. */
 export const QUIET = { from: 7 * 60, until: 21 * 60 + 30, maxPerDay: 10 };
 
-const str = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trim().slice(0, max) : "");
+const str = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trimStart().replace(/ {2,}$/, "").slice(0, max) : "");
 const id = (v: unknown) => { const s = str(v, 40); return /^[A-Za-z0-9_-]{1,40}$/.test(s) ? s : ""; };
 export const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;

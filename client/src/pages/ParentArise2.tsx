@@ -90,7 +90,7 @@ export default function ParentArise2() {
               <ArrowLeft className="h-4 w-4" /> Back
             </button>
           ) : (
-            <span className="text-sm font-black tracking-wide">A.R.I.S.E. <span className="text-cyan-300">Reader</span></span>
+            <span className="text-sm font-black tracking-wide">Arise <span className="text-cyan-300">Reader</span></span>
           )}
           {isStaff || isParent ? (
             <button onClick={copyShareLink} className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-4 text-sm font-black hover:bg-white/10">

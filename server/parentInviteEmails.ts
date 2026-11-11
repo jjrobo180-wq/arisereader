@@ -85,7 +85,7 @@ export async function sendParentInvite(deps: ParentInviteDeps, sender: InviteSen
   const replyTo = cleanParentEmail(sender.email) || undefined;
   const result = await deps.sendEmail(
     email,
-    `${senderName} invited you to follow ${studentName}'s reading on A.R.I.S.E. Reader`,
+    `${senderName} invited you to follow ${studentName}'s reading on Arise Reader`,
     parentProgramEmail({ studentName, senderName, signupUrl, code: formattedCode, siteUrl: deps.siteUrl, maxChildren: PLANS.parentMaxChildren, prizes: await prizesNow(deps, origin.replace(/\/+$/, "")), note: cleanInviteNote(input?.note) }),
     { fromName: senderName, ...(replyTo ? { replyTo } : {}) },
   );
@@ -147,7 +147,7 @@ export async function sendFamilyInvite(deps: ParentInviteDeps, sender: InviteSen
   const replyTo = cleanParentEmail(sender.email) || undefined;
   const result = await deps.sendEmail(
     email,
-    `${senderName} invited your family to A.R.I.S.E. Reader`,
+    `${senderName} invited your family to Arise Reader`,
     familyInviteEmail({
       senderName, childName: child, registerUrl: `${site}/#/register`, independentUrl: `${site}/#/register-independent`, parentSignupUrl: `${site}/#/parent-signup`,
       ...(teacher ? { teacherName: senderName } : {}), ...(schoolName ? { schoolName } : {}), maxChildren: PLANS.parentMaxChildren, siteUrl: deps.siteUrl, prizes: await prizesNow(deps, site), note: cleanInviteNote(input?.note),

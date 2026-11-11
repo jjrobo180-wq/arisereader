@@ -119,7 +119,7 @@ export type PluginStoreProps = {
   teacher: boolean;
   /** Teacher-only apps and teacher wording (defaults to `teacher`). False for someone who didn't sign up as a teacher. */
   teacherApps?: boolean;
-  /** The Arise learning apps: only for teachers and parents who came from A.R.I.S.E. Reader. */
+  /** The Arise learning apps: only for teachers and parents who came from Arise Reader. */
   arise?: boolean;
   isInstalled: (p: Plugin) => boolean;
   /** Adds or removes a tab or section app. The hub saves it. */
@@ -287,15 +287,21 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
     .sort((a, b) => a.on - b.on || a.i - b.i).slice(0, 9).map((x) => x.p));
   const [spotlight, ...rail] = featured;
 
+  // The hub can refuse an add (the free plan's plugins are used up: it opens the upgrade box instead),
+  // so "added" is only said once the plugin really is in the hub.
+  const installedNow = useRef(isInstalled); installedNow.current = isInstalled;
   const toggle = (p: Plugin, on: boolean) => {
     onToggle(p, on);
-    setNote(on ? `${p.name} was added to your ${HUB_NAME[hub]}.` : `${p.name} was removed. Nothing in it was deleted: add it back any time.`);
+    if (!on) { setNote(`${p.name} was removed. Nothing in it was deleted: add it back any time.`); return; }
+    setTimeout(() => { if (installedNow.current(p)) setNote(`${p.name} was added to your ${HUB_NAME[hub]}.`); }, 60);
   };
 
   /** Adds (or removes) every plugin in a template at once, each exactly as toggle() would on its own. */
   const toggleTemplate = (t: HubTemplate, on: boolean) => {
-    for (const p of templatePlugins(t)) onToggle(p, on);
-    setNote(on ? `${t.name}: every plugin in it was added to your ${HUB_NAME[hub]}.` : `${t.name} was removed. Nothing in it was deleted: add it back any time.`);
+    const list = templatePlugins(t);
+    for (const p of list) onToggle(p, on);
+    if (!on) { setNote(`${t.name} was removed. Nothing in it was deleted: add it back any time.`); return; }
+    setTimeout(() => { const n = list.filter((p) => installedNow.current(p)).length; if (n) setNote(n === list.length ? `${t.name}: every plugin in it was added to your ${HUB_NAME[hub]}.` : `${t.name}: ${n} of ${list.length} plugins were added to your ${HUB_NAME[hub]}.`); }, 60);
   };
 
   const switchHub = () => {

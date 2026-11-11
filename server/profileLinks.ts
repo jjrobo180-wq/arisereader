@@ -19,7 +19,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { JOIN_LINK_EMAIL, LINK_LIMITS, LIFE_SHARES, fullGrants, accessFor, allows, appIdFromKey, appShareId, cleanGrants, cleanLinks, isHealthShareId, normalEmail, type Access, type ProfileLink } from "../shared/profileLinks";
 import { parseTarget, sharedView } from "../shared/todoShare";
-import { applyParts, pickParts, sharedAppFor } from "../shared/sharedApps";
+import { applyParts, pickParts, sharedAppById, sharedAppFor, sharedAppLabel } from "../shared/sharedApps";
+import { merge3 } from "../shared/mergeJson";
 import { cleanFamily, emptyFamily } from "../shared/familyHub";
 
 export type ProfileLinkDeps = {
@@ -40,6 +41,11 @@ export type ProfileLinkDeps = {
     /** Saves if nobody else saved since `base`; null when someone did (then it's read again and retried). */
     write: (ownerId: number, workspace: any, base: string) => Promise<string | null>;
   };
+  /** Tells someone with an account about sharing: a notification on their devices. Never blocks the answer. */
+  notify?: (userId: number, msg: { title: string; body: string; url: string }) => Promise<unknown>;
+  /** An invite to an email address: a notification when that email has an account, otherwise an email that
+   *  asks them to download the app and sign up with it. Never blocks the answer. */
+  inviteEmail?: (email: string, ownerName: string) => Promise<unknown>;
   now?: () => number;
 };
 
@@ -80,6 +86,23 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
   const editIds = (key: string, fn: (ids: number[]) => number[]) => withLock(key, async () => { await deps.upsertSetting(key, JSON.stringify(fn(await readIds(key)))); });
   const me = (req: any): { id: number; email: string } | null => { const u = req.adminPreview && req.realUser ? req.realUser : req.user; return u?.id ? { id: Number(u.id), email: normalEmail(u.email) } : null; };
   const nameOf = async (id: number) => { const u = await deps.getUser(id).catch(() => null); return String(u?.displayName || "").trim() || "Someone"; };
+
+  const tell = (userId: number, title: string, body: string) => { void Promise.resolve(deps.notify?.(userId, { title, body, url: "/#/pro?hub=life" })).catch((e: any) => console.error("[profile-links] notify:", e?.message)); };
+  const tellOwnerAccepted = async (link: ProfileLink | null | undefined, who: { id: number }) => { if (link) tell(link.ownerId, "Sharing accepted", `${await nameOf(who.id)} accepted your invite. They can open what you shared now.`); };
+
+  /** What a change of access newly opens to them ("Kitchen", "Kitchen and Calendar"), or "" when nothing new. */
+  const newlyShared = (before: Record<string, string> | undefined, after: Record<string, string>) => {
+    const names = Object.keys(after).filter((id) => !before?.[id] || (before[id] === "view" && after[id] === "edit"))
+      .map((id) => sharedAppLabel(id)).filter((x): x is string => !!x);
+    const uniq = [...new Set(names)];
+    return uniq.length <= 2 ? uniq.join(" and ") : `${uniq.slice(0, 2).join(", ")} and ${uniq.length - 2} more`;
+  };
+  const tellShared = async (ownerId: number, link: ProfileLink, what: string) => {
+    if (!what) return;
+    const owner = await nameOf(ownerId);
+    if (link.viewerId) tell(link.viewerId, `${owner} shared ${what} with you`, "Tap to open it.");
+    else if (link.email && !link.email.endsWith(".invalid")) void Promise.resolve(deps.inviteEmail?.(link.email, owner)).catch(() => {});
+  };
 
   const readAsks = async (email: string): Promise<Ask[]> => {
     const v = await readJson(askKey(email));
@@ -147,6 +170,7 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
       });
       invites.fail(`u${u.id}`);
       await editIds(emailKey(email), (ids) => [...ids, u.id]);
+      void nameOf(u.id).then((n) => deps.inviteEmail?.(email, n)).catch((e: any) => console.error("[profile-links] invite notice:", e?.message));
       res.json({ link: { id: link.id, email: link.email, nickname: link.nickname, status: link.status, grants: link.grants, viewerName: "", createdAt: link.createdAt } });
     } catch (error: any) {
       res.status(error?.status || 500).json({ message: error?.status ? error.message : "The invite couldn't be sent. Try again." });
@@ -223,6 +247,7 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
       await deps.upsertSetting(joinKey(token), "");
       await editIds(viewerKey(u.id), (ids) => [...ids, found.ownerId]);
       await activated(ok);
+      void tellOwnerAccepted(ok, u);
       res.json({ ok: true, ownerId: found.ownerId, ownerName: await nameOf(found.ownerId) });
     } catch {
       res.status(500).json({ message: "Couldn't join. Try again." });
@@ -240,18 +265,21 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
   app.put("/api/profile-links/:id", authMiddleware, async (req: any, res) => {
     const u = me(req);
     if (!u) return res.status(401).json({ message: "Sign in first." });
+    let before: Record<string, string> | undefined;
     try {
       const updated = await withLock(ownerKey(u.id), async () => {
         const links = await ownerLinks(u.id);
         const at = links.findIndex((l) => l.id === req.params.id);
         if (at < 0) return null;
         const l = links[at];
+        before = l.grants as Record<string, string>;
         links[at] = { ...l, ...(req.body?.grants !== undefined ? { grants: cleanGrants(req.body.grants) } : {}), ...(typeof req.body?.nickname === "string" ? { nickname: req.body.nickname.trim().slice(0, LINK_LIMITS.nickname) } : {}), updatedAt: iso() };
         await saveOwnerLinks(u.id, links);
         return links[at];
       });
       if (!updated) return res.status(404).json({ message: "That link isn't there any more." });
       await activated(updated);
+      void tellShared(u.id, updated, newlyShared(before, updated.grants as Record<string, string>)).catch(() => {});
       res.json({ link: { id: updated.id, email: updated.email, nickname: updated.nickname, status: updated.status, grants: updated.grants } });
     } catch {
       res.status(500).json({ message: "Couldn't save. Try again." });
@@ -270,9 +298,11 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
       const them = await deps.getUser(other).catch(() => null);
       if (!them) return res.status(404).json({ message: "That account isn't there any more." });
       const grants = cleanGrants(req.body?.grants);
+      let personBefore: Record<string, string> | undefined;
       const link = await withLock(ownerKey(u.id), async () => {
         const links = await ownerLinks(u.id);
         const at = links.findIndex((l) => l.viewerId === other);
+        personBefore = at >= 0 ? (links[at].grants as Record<string, string>) : undefined;
         const nickname = typeof req.body?.nickname === "string" ? req.body.nickname.trim().slice(0, LINK_LIMITS.nickname) : "";
         if (at >= 0) links[at] = { ...links[at], grants, status: "active", ...(nickname ? { nickname } : {}), updatedAt: iso() };
         else if (links.length >= LINK_LIMITS.perOwner) throw Object.assign(new Error(`You can link up to ${LINK_LIMITS.perOwner} people. Remove one first.`), { status: 409 });
@@ -282,6 +312,7 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
       });
       await editIds(viewerKey(other), (ids) => [...ids, u.id]);
       await activated(link);
+      void tellShared(u.id, link, newlyShared(personBefore, link.grants as Record<string, string>)).catch(() => {});
       res.json({ link: { id: link.id, email: link.email, nickname: link.nickname, status: link.status, grants: link.grants, viewerName: String(them.displayName || "").trim().split(/\s+/)[0] || "", createdAt: link.createdAt } });
     } catch (error: any) {
       res.status(error?.status || 500).json({ message: error?.status ? error.message : "Couldn't save. Try again." });
@@ -397,7 +428,7 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
         return true;
       });
       if (!ok) return res.status(404).json({ message: "That invite isn't there any more." });
-      if (how === "accept") { await editIds(viewerKey(u.id), (ids) => [...ids, ownerId]); if (ok !== true) await activated(ok); }
+      if (how === "accept") { await editIds(viewerKey(u.id), (ids) => [...ids, ownerId]); if (ok !== true) { await activated(ok); void tellOwnerAccepted(ok, u); } }
       else {
         await editIds(viewerKey(u.id), (ids) => ids.filter((x) => x !== ownerId)).catch(() => {});
         if (u.email) await editIds(emailKey(u.email), (ids) => ids.filter((x) => x !== ownerId)).catch(() => {});
@@ -436,12 +467,17 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
     if (!allows(a.access, "edit")) return res.status(403).json({ message: "You can look at this, but not change it." });
     const slice = req.body?.slice;
     if (!slice || typeof slice !== "object" || Array.isArray(slice)) return res.status(400).json({ message: "Nothing to save." });
-    if (Buffer.byteLength(JSON.stringify(slice), "utf8") > 2_000_000) return res.status(413).json({ message: "That's too much to save at once." });
+    if (Buffer.byteLength(JSON.stringify(req.body), "utf8") > 4_000_000) return res.status(413).json({ message: "That's too much to save at once." });
     try {
       for (let tries = 0; tries < 4; tries++) {
         const row = await deps.lifeWorkspace!.read(a.ownerId);
         if (!row?.workspace) return res.status(404).json({ message: "Their LifeHub isn't set up yet." });
-        const family = cleanFamily(applyParts(cleanFamily(row.workspace.family ?? emptyFamily()), a.shared.parts, slice));
+        const current = cleanFamily(row.workspace.family ?? emptyFamily());
+        // With the copy they started from (base), only what they changed is put in: whatever the owner (or anyone
+        // else) added meanwhile stays. Without it (an older app), their copy replaces this app's data as before.
+        const base = req.body?.base && typeof req.body.base === "object" && !Array.isArray(req.body.base) ? req.body.base : null;
+        const incoming = base ? merge3(base, slice, pickParts(current, a.shared.parts)) : slice;
+        const family = cleanFamily(applyParts(current, a.shared.parts, incoming as Record<string, unknown>));
         const saved = await deps.lifeWorkspace!.write(a.ownerId, { ...row.workspace, family }, row.updatedAt);
         if (saved) return res.json({ ok: true, updatedAt: saved, slice: pickParts(family, a.shared.parts) });
       }

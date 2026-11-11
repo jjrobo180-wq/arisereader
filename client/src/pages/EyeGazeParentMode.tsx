@@ -214,7 +214,7 @@ export default function EyeGazeParentMode() {
         <header className="py-4 sm:py-5">
           <div className="flex flex-wrap items-center gap-3">
             <button onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/eye-gaze-talker")} className="min-h-16 rounded-3xl bg-[#ffd766] border-4 border-[#193d57] px-5 text-lg sm:text-xl font-black shadow-sm">⬅ BACK</button>
-            <div className="mr-auto"><p className="text-xs font-black tracking-widest text-teal-700">A.R.I.S.E. READER</p><h1 className="text-3xl sm:text-4xl font-black">My Talker</h1><p className="font-bold text-slate-600 mt-1">Grown-up tools for {state.student.name}</p></div>
+            <div className="mr-auto"><p className="text-xs font-black tracking-widest text-teal-700">ARISE READER</p><h1 className="text-3xl sm:text-4xl font-black">My Talker</h1><p className="font-bold text-slate-600 mt-1">Grown-up tools for {state.student.name}</p></div>
             <button onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/eye-gaze-account")} className="min-h-12 rounded-2xl bg-white border-2 border-slate-200 px-4 font-black">Profile</button>
           </div>
           <div className="mt-3 rounded-3xl bg-white border-2 border-teal-100 p-2 grid grid-cols-3 gap-2" role="tablist" aria-label="My Talker">

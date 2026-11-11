@@ -1,6 +1,6 @@
-// Arise Fit for Apple Watch: today's numbers from the iPhone app (calories left, water, workouts, the next
+// Cooked for Apple Watch: today's numbers from the iPhone app (calories left, water, workouts, the next
 // program day), a glass of water in one tap, workouts tracked right on the watch — time, heart rate and
-// active calories — saved to Apple Health and to your Arise Fit log on the phone, and every guided session
+// active calories — saved to Apple Health and to your Cooked log on the phone, and every guided session
 // from the app (treadmill HIIT, Couch to 5K, yoga, mobility, breathing: native/fit-tv/sessions.json, the
 // same list the Apple TV app plays) led step by step on the wrist, with a tap at each change.
 //   payload: { slots: [WidgetSlot] }   (the same as the Fit widgets: client/src/lib/fitWidgets.ts)
@@ -72,9 +72,9 @@ struct FitWatchHome: View {
                 }
                 NavigationLink { FitGuidedList() } label: { Label("Guided workouts", systemImage: "figure.mind.and.body").foregroundStyle(.orange) }
                 ForEach(slots) { s in FitSlotRow(slot: s) }
-                Section { AriseUpdatedNote(empty: "Open Arise Fit on your iPhone once, and today's numbers show up here.") }
+                Section { AriseUpdatedNote(empty: "Open Cooked on your iPhone once, and today's numbers show up here.") }
             }
-            .navigationTitle("Arise Fit")
+            .navigationTitle("Cooked")
         }
         .tint(.orange)
     }
@@ -291,7 +291,7 @@ let guidedCategories: [GuidedCategory] = [
 struct FitGuidedList: View {
     var body: some View {
         List {
-            if GuidedSession.all.isEmpty { Text("Update Arise Fit on your iPhone to get the guided workouts.").font(.footnote).foregroundStyle(.secondary) }
+            if GuidedSession.all.isEmpty { Text("Update Cooked on your iPhone to get the guided workouts.").font(.footnote).foregroundStyle(.secondary) }
             ForEach(guidedCategories) { c in
                 let items = GuidedSession.all.filter { $0.category == c.id }
                 if !items.isEmpty {

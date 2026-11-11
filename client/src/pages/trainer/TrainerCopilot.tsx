@@ -46,7 +46,7 @@ function CopilotSheet({ token, initial, onClose, onOpenClient, say }: { token: s
   const groups = (["urgent", "watch", "win"] as const).map((lv) => ({ lv, items: (cp?.items ?? []).filter((x) => x.flags[0]?.level === lv) }));
   const fine = (cp?.items ?? []).filter((x) => !x.flags.length);
   return <Sheet title="Your week" onClose={onClose} testId="tr-copilot-sheet" right={<Btn kind="soft" className="!min-h-10 !px-3 !text-[14px]" disabled={busy} onClick={ai} testId="tr-cp-ai"><Sparkles className="h-4 w-4" />{busy ? "…" : cp?.ai ? "Rewrite" : "AI drafts"}</Btn>}>
-    <p className="mb-3 text-[14px]" style={{ color: C.steel }}>Every active client, read from their plan and what they share in Arise Fit. Each one has a message ready: edit it or send it as is.</p>
+    <p className="mb-3 text-[14px]" style={{ color: C.steel }}>Every active client, read from their plan and what they share in Cooked. Each one has a message ready: edit it or send it as is.</p>
     {!cp ? <p className="py-10 text-center" style={{ color: C.dim }}>Reading your clients…</p> : <>
       {groups.map(({ lv, items }) => items.length > 0 && <div key={lv} className="mb-5">
         <p className="mb-2 flex items-center gap-1.5 text-[13px] font-bold uppercase tracking-wide" style={{ color: LEVEL[lv].color }}>{lv === "urgent" ? <AlertTriangle className="h-4 w-4" /> : lv === "win" ? <Trophy className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />}{LEVEL[lv].label} · {items.length}</p>

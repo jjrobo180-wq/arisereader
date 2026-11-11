@@ -1,6 +1,6 @@
-// Arise Fit "Period tracker" plugin: log flow and symptoms by day, see the cycle day, the next period and
+// Cooked "Period tracker" plugin: log flow and symptoms by day, see the cycle day, the next period and
 // the fertile window. Predictions reuse LifeHub's calendar method (shared/familyCycle.ts); they are
-// estimates for planning, not birth control or medical advice. Kept with a person's Arise Fit data.
+// estimates for planning, not birth control or medical advice. Kept with a person's Cooked data.
 import { cycleSummary, SYMPTOMS, type CycleSummary } from "./familyCycle";
 import { FLOWS, type CycleLog, type Flow } from "./familyHub";
 

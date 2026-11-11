@@ -1,4 +1,4 @@
-// Arise Fit nutrition: the day's food by meal, with search (USDA + Open Food Facts), barcode scanning,
+// Cooked nutrition: the day's food by meal, with search (USDA + Open Food Facts), barcode scanning,
 // a photo or description estimated by AI, recent foods and quick add. Uses the same food lookup as the
 // Calorie counter in Arise To Duo (server/foodLookup.ts).
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -130,6 +130,7 @@ export function AddFood({ token, meal, date, data, update, onClose, say, start, 
       <div className="space-y-2">{ai.foods.map((f, k) => <div key={`${k}-${f.name}`} className="fit-slide" style={stagger(k, 0.12)}>{row(fromFound(f), k)}</div>)}</div>
       {ai.foods.length > 1 && <Btn className="w-full" onClick={() => { const items = ai.foods.map((f) => ({ ...fromFound(f), servings: 1 })); put(items.map((i) => ({ id: uid(), date, meal, name: i.name, kcal: i.kcal, p: i.p, c: i.c, f: i.f, servings: 1, ...(i.serving ? { serving: i.serving } : {}) }))); say(`Added ${items.length} foods.`); onClose(); }} testId="fit-ai-add-each">Add each food ({ai.foods.length})</Btn>}
       {ai.foods.length > 1 && <Btn kind="soft" className="w-full" onClick={() => { const t = ai.foods.reduce((a, f) => ({ kcal: a.kcal + f.calories, p: a.p + f.protein, c: a.c + f.carbs, f: a.f + f.fat }), { kcal: 0, p: 0, c: 0, f: 0 }); add({ name: ai.text.trim().slice(0, 60) || "Meal", ...t }, 1); }}>Add all as one meal</Btn>}
+      {ai.foods.length > 0 && <button type="button" onClick={() => { const names = ai.foods.map((f) => f.name.replace(/\s*\(.*?\)\s*/g, " ").trim()).filter(Boolean); update((d) => { const cur = d.grocery ?? { made: new Date().toISOString(), from: "Meal photos", items: [] }; const have = new Set(cur.items.map((i) => i.name.toLowerCase())); return { ...d, grocery: { ...cur, items: [...cur.items, ...names.filter((n) => !have.has(n.toLowerCase())).map((n) => ({ id: uid(), name: n.slice(0, 80), qty: "", aisle: "From meal photos", done: false }))] } }; }); say(`Added to your grocery list. Food → Grocery list sends it to Arise To Duo.`); }} className="w-full py-2 text-center text-[14px] font-semibold" style={{ color: C.lime }} data-testid="fit-ai-grocery"><ListChecks className="mr-1.5 inline h-4 w-4" />Put these on my grocery list</button>}
       <p className="text-[12px]" style={{ color: C.dim }}>AI estimates can be off. Check the numbers before you add them.</p>
     </div>}
     {tab === "quick" && <form className="mt-3 space-y-3" onSubmit={(e) => { e.preventDefault(); const k = Number(quick.kcal); if (k > 0) add({ name: quick.name.trim() || "Quick add", kcal: k, p: Number(quick.p) || 0, c: Number(quick.c) || 0, f: Number(quick.f) || 0 }, 1); }}>
@@ -301,7 +302,7 @@ export function FoodTab({ token, data, update, say, snap, onRecipes, onEatOut }:
     {adding && <AddFood token={token} meal={adding.meal} start={adding.start} date={date} data={data} update={update} onClose={() => setAdding(null)} say={say} />}
     {report && <WeekReport data={data} onClose={() => setReport(false)} />}
     {prepping && <MealPrep token={token} data={data} update={update} say={say} onClose={() => setPrepping(false)} onGrocery={() => { setPrepping(false); setShopping(true); }} />}
-    {shopping && <GroceryList data={data} update={update} say={say} onClose={() => setShopping(false)} />}
+    {shopping && <GroceryList token={token} data={data} update={update} say={say} onClose={() => setShopping(false)} />}
     {plan && <PlanSheet data={data} update={update} onClose={() => setPlan(false)} />}
     {fasting && <FastingSheet data={data} update={update} onClose={() => setFasting(false)} />}
   </div>;

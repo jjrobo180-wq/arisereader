@@ -1,4 +1,4 @@
-// Arise Fit's how-to videos (shared/fitVideos.ts, client/public/fit-video.html, client/src/pages/fit/FitVideo.tsx).
+// Cooked's how-to videos (shared/fitVideos.ts, client/public/fit-video.html, client/src/pages/fit/FitVideo.tsx).
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
@@ -63,7 +63,7 @@ test("short clips: real exercises, valid ids, no repeats, and they come first wi
   assert.match(quickClipsUrl("Leg press"), /^https:\/\/www\.youtube\.com\/results\?search_query=Leg%20press%20form%20%23shorts/);
 });
 
-test("Arise Fit draws edge to edge: viewport-fit=cover is set in the Fit app so safe areas work", async () => {
+test("Cooked draws edge to edge: viewport-fit=cover is set in the Fit app so safe areas work", async () => {
   const { readFileSync } = await import("node:fs");
   const main = readFileSync(new URL("../client/src/main.tsx", import.meta.url), "utf8");
   assert.match(main, /isFitApp\(\)[\s\S]*viewport-fit=cover/);

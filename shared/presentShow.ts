@@ -1,4 +1,4 @@
-// The student welcome show: a 5-minute presentation of A.R.I.S.E. Reader for the students of C.G.M.S. (Conservatory Green Middle School).
+// The student welcome show: a 5-minute presentation of Arise Reader for the students of C.G.M.S. (Conservatory Green Middle School).
 // This file is the script. What is said is also what is shown at the bottom of the screen, so a student who
 // cannot hear (a big room, a noisy gym) can follow along. Each "beat" is one thing the screen does while the
 // caption is up. Every claim here matches what the site really does at C.G.M.S.: accounts are made for the students, the username and starting password are the student number,
@@ -32,7 +32,7 @@ export const SCENES: Scene[] = [
     tip: "Ask the room: who has read a book this month? Hands up, then start.",
     beats: [
       { say: "Welcome, C.G.M.S.! In the next few minutes you will see how to sign in, find a book, take a quiz, and win prizes." },
-      { say: "A.R.I.S.E. Reader is our reading program. You read, take a quiz on what you read, and every quiz you pass earns points." },
+      { say: "Arise Reader is our reading program. You read, take a quiz on what you read, and every quiz you pass earns points." },
       { say: "A.R.I.S.E. stands for Advocating, Resilience, Inclusion, Support, and Empowerment." },
     ],
   },

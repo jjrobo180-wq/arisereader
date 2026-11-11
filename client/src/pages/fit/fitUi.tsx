@@ -1,9 +1,9 @@
-// Arise Fit's look: bold condensed headings (Barlow Condensed), one blaze-orange accent, and motion
+// Cooked's look: bold condensed headings (Barlow Condensed), one blaze-orange accent, and motion
 // on everything (screens slide in, rings and bars fill, the hero card shines). Two modes: Light, the
 // default (clean white cards on soft gray), and Dark (graphite, or true black); "Auto" follows the
 // iPhone. Nine color themes (Ember, the original orange, and Volt, Ocean, Aqua, Berry, Violet, Gold,
 // Crimson, Mono) change the accent and the glow in both modes. Every color is a CSS variable, so a
-// change repaints the whole app at once. Shared by Arise Fit and Arise Trainer.
+// change repaints the whole app at once. Shared by Cooked and Arise Trainer.
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Check, Moon, Smartphone, Sun, X } from "lucide-react";
@@ -31,11 +31,11 @@ const TOKENS = {
 } as const;
 const v = (k: keyof typeof TOKENS.light) => `var(--fit-${k})`;
 const vars = (t: Record<string, string>) => Object.entries(t).map(([k, x]) => `--fit-${k}:${x}`).join(";");
-// The colors are always defined (Light by default); the page's color scheme is only set while Arise Fit
+// The colors are always defined (Light by default); the page's color scheme is only set while Cooked
 // is showing, so the rest of the site keeps its own once you leave.
 const BASE_CSS = `:root{${vars(TOKENS.light)}}[data-fit-theme="light"]{color-scheme:light}[data-fit-theme="dark"]{${vars(TOKENS.dark)};color-scheme:dark}`;
 
-// ——— Layouts: type, shape and surfaces (fitThemes.ts), set on the page while Arise Fit shows ————————————
+// ——— Layouts: type, shape and surfaces (fitThemes.ts), set on the page while Cooked shows ————————————
 const RADII = [6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24];
 /** Tailwind's rounded-[Npx] corners, scaled by the layout (Athletic keeps them as they are). */
 const ROUND_CSS = RADII.map((n) => `[data-fit-layout] .rounded-\\[${n}px\\]{border-radius:calc(${n}px * var(--fit-rk))}`).join("");
@@ -99,7 +99,7 @@ export function setThemeChoice(c: ThemeChoice) { try { localStorage.setItem(THEM
 const PALETTE_KEY = "arise-fit-palette", BLACK_KEY = "arise-fit-black";
 export const paletteChoice = (): PaletteId => { try { const x = localStorage.getItem(PALETTE_KEY) as PaletteId | null; return x && x in PALETTES ? x : "ember"; } catch { return "ember"; } };
 const LAYOUT_KEY = "arise-fit-layout";
-/** Layouts are Arise Fit's (Arise Trainer shares these styles but keeps its own look). */
+/** Layouts are Cooked's (Arise Trainer shares these styles but keeps its own look). */
 let layoutsOn = false;
 export const layoutChoice = (): LayoutId => { try { const x = localStorage.getItem(LAYOUT_KEY) as LayoutId | null; return x && x in LAYOUTS ? x : "athletic"; } catch { return "athletic"; } };
 /** A new layout also brings the color theme it was drawn with (the color can be changed after). */
@@ -108,7 +108,7 @@ function loadFonts(href: string) {
   if (typeof document === "undefined" || document.querySelector(`link[data-fit-fonts="${CSS.escape(href)}"]`)) return;
   const l = document.createElement("link"); l.rel = "stylesheet"; l.href = href; l.setAttribute("data-fit-fonts", href); document.head.appendChild(l);
 }
-/** Arise Fit turns its layouts on while it's showing (and off when you leave). */
+/** Cooked turns its layouts on while it's showing (and off when you leave). */
 export function useFitLayout(): LayoutId {
   const [, tick] = useState(0);
   useEffect(() => {
@@ -136,7 +136,7 @@ export function useFitTheme(): [ThemeChoice, "light" | "dark", (c: ThemeChoice) 
   }, []);
   return [themeChoice(), resolvedTheme(), setThemeChoice];
 }
-/** Appearance: Light, Dark or Auto; a color theme; and true black for Dark (Settings in Arise Fit,
+/** Appearance: Light, Dark or Auto; a color theme; and true black for Dark (Settings in Cooked,
  * Business in Arise Trainer). Each choice previews in its own colors. */
 export function ThemePicker({ testId = "fit-theme" }: { testId?: string }) {
   const [choice, shown, setChoice] = useFitTheme();
@@ -226,7 +226,7 @@ export function useFitFonts() {
       l.href = "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Barlow:wght@400;500;600;700&display=swap";
       document.head.appendChild(l);
     }
-    // Leaving Arise Fit on the website hands the page back to the site's own theme.
+    // Leaving Cooked on the website hands the page back to the site's own theme.
     return () => { if (--themeUsers === 0) { const r = document.documentElement; r.removeAttribute("data-fit-theme"); r.removeAttribute("data-fit-palette"); r.removeAttribute("data-fit-black"); } };
   }, []);
 }

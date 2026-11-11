@@ -1,0 +1,26 @@
+name: All Access in-app subscription (App Store Connect)
+# Sets up Arise All Access ($9.99 a month) as an in-app subscription for To Duo, Fit and Notes.
+# Safe to run again. See .github/scripts/all_access_iap.py for what it can't do (the website steps).
+on:
+  workflow_dispatch:
+    inputs:
+      apps:
+        description: Bundle ids, separated by spaces
+        default: com.arisereader.arisetodo com.arisereader.fit com.arisereader.notes
+      us_price:
+        description: US price
+        default: "9.99"
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: App Store Connect
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APPS: ${{ github.event.inputs.apps }}
+          US_PRICE: ${{ github.event.inputs.us_price }}
+        run: python3 .github/scripts/all_access_iap.py

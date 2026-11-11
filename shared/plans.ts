@@ -6,8 +6,8 @@
 // prices as Premium, and is unconditionally free for every teacher and parent
 // (see hubAccessFor) — not a trial, just free. It is not part of the free year
 // or a free school.
-// The teacher Class plan (PLANS.teacher) is a single combined price: $10/month
-// per 30 students includes A.R.I.S.E. Reader, Math, History AND Connect — there
+// The teacher Class plan (PLANS.teacher) is a single combined price: $20/month
+// per 99 students includes Arise Reader, Math, History AND Connect — there
 // is no longer a separate per-app class add-on for teachers (classApps/
 // classAppCents is kept only for the parent family bundle's pricing and old
 // records; appAccessFor grants every app to a teacher with Premium).
@@ -21,16 +21,16 @@ import { productPrice, type NotesProduct } from "./ariseNotes";
 
 export const PLANS = {
   teacher: {
-    /** $10 a month covers one block of students. */
-    monthlyCents: 1000,
-    studentsPerBlock: 30,
+    /** $20 a month covers one block of up to 99 students (Arise Reader, Math, History and Connect). */
+    monthlyCents: 2000,
+    studentsPerBlock: 99,
     /** The most blocks one teacher can buy online (5,000 students). */
     maxBlocks: 50,
   },
   school: {
-    /** $700 for a full 12 months, summer included. */
-    yearlyCents: 70000,
-    studentCap: 1000,
+    /** $600 for a full school year: every teacher and student there. */
+    yearlyCents: 60000,
+    studentCap: 5000,
   },
   /** Arise WorkHub, the add-on: the same prices as Premium, counted against the students in the teacher's Hub caseload. */
   hub: {
@@ -50,12 +50,13 @@ export const PLANS = {
   },
   /**
    * The Learning Bundle: Arise History, Arise Math and Arise Social together, for a family:
-   * $10 a month covers the parent and every linked child.
+   * $7 a month covers the parent and every linked child (up to 3), and since November 2026 it is
+   * also the family's Arise Reader plan (see readerAccessFor).
    * (teacherMonthlyCents is the old all-three class plan, kept so plans bought before
    * the apps were sold one by one keep working. It is no longer sold.)
    */
   bundle: {
-    familyMonthlyCents: 1000,
+    familyMonthlyCents: 700,
     teacherMonthlyCents: 5000,
     teacherSeats: 100,
   },
@@ -83,10 +84,18 @@ export const PLANS = {
     monthlyCents: 1000,
   },
   /**
-   * Arise Fit+ (shared/fitPlus.ts): the paid tier of Arise Fit, $10 a month per account. Each paying
+   * Cooked+ (shared/fitPlus.ts): the paid tier of Cooked, $10 a month per account. Each paying
    * account can share it free with one other account (the guest pass). Sold on the website only.
    */
   fitPlus: {
+    monthlyCents: 1000,
+  },
+  /**
+   * Arise All Access: one $10-a-month plan for one person that unlocks the paid tier of every app:
+   * Arise To Duo Unlimited, Arise Notes Plus, Cooked+ (with its guest pass) and ad-free Pod+.
+   * It replaces selling those separately; people who already pay for one of them keep it.
+   */
+  allAccess: {
     monthlyCents: 1000,
   },
   /**
@@ -112,6 +121,12 @@ export const PLANS = {
   grandfatherBefore: "2026-10-01T06:00:00.000Z",
   /** The end of the 2026-27 school year: midnight on July 1, 2027, Mountain time. */
   grandfatherUntil: "2027-07-01T06:00:00.000Z",
+  /**
+   * Arise Reader stops being free for accounts made from this moment (7 PM on November 8, 2026,
+   * Mountain time: moved up from midnight so tonight's new accounts need a plan too). Every account
+   * made before it keeps Reader free through the 2026-27 school year.
+   */
+  readerPaidFrom: "2026-11-09T02:00:00.000Z",
   /** A paid plan stays on this long past its end date, so a late renewal notice never locks a class out. */
   graceDays: 3,
 } as const;
@@ -134,8 +149,8 @@ export function clampBlocks(blocks: unknown): number {
  * What a plan is for. "teacher" and "school" are A.R.I.S.E. Premium;
  * "hub_teacher" and "hub_school" are the Arise WorkHub add-on.
  */
-export type PlanKind = "teacher" | "school" | "hub_teacher" | "hub_school" | "social" | "bundle_family" | "bundle_teacher" | "todo_family" | "math_class" | "history_class" | "social_class" | "ai_pro" | "storage_20gb" | "storage_100gb" | "storage_500gb" | "todo_unlimited" | "todo_unlimited_year" | "notes_basic" | "notes_plus" | "notes_plus_year" | "notes_family" | "fit_plus";
-export const PLAN_KINDS: readonly PlanKind[] = ["school", "teacher", "hub_school", "hub_teacher", "social", "bundle_family", "bundle_teacher", "todo_family", "math_class", "history_class", "social_class", "ai_pro", "storage_20gb", "storage_100gb", "storage_500gb", "todo_unlimited", "todo_unlimited_year", "notes_basic", "notes_plus", "notes_plus_year", "notes_family", "fit_plus"];
+export type PlanKind = "teacher" | "school" | "hub_teacher" | "hub_school" | "social" | "bundle_family" | "bundle_teacher" | "todo_family" | "math_class" | "history_class" | "social_class" | "ai_pro" | "storage_20gb" | "storage_100gb" | "storage_500gb" | "todo_unlimited" | "todo_unlimited_year" | "notes_basic" | "notes_plus" | "notes_plus_year" | "notes_family" | "fit_plus" | "all_access";
+export const PLAN_KINDS: readonly PlanKind[] = ["school", "teacher", "hub_school", "hub_teacher", "social", "bundle_family", "bundle_teacher", "todo_family", "math_class", "history_class", "social_class", "ai_pro", "storage_20gb", "storage_100gb", "storage_500gb", "todo_unlimited", "todo_unlimited_year", "notes_basic", "notes_plus", "notes_plus_year", "notes_family", "fit_plus", "all_access"];
 /** Arise Notes plans (shared/ariseNotes.ts), one per person (Family: the owner's). */
 export const NOTES_PLAN_KINDS: readonly PlanKind[] = ["notes_basic", "notes_plus", "notes_plus_year", "notes_family"];
 export const isNotesKind = (kind: PlanKind): boolean => (NOTES_PLAN_KINDS as readonly string[]).includes(kind);
@@ -160,7 +175,7 @@ export const appOfClassKind = (kind: PlanKind): AppId | null => (kind === "math_
 export const isClassAppKind = (kind: PlanKind) => appOfClassKind(kind) !== null;
 export const classAppCents = (app: AppId) => (app === "math" ? PLANS.classApps.mathCents : app === "history" ? PLANS.classApps.historyCents : PLANS.classApps.socialCents);
 /** Plans bought for one person (or one family, or one teacher's class), not sized in blocks of students. */
-export const isAddonKind = (kind: PlanKind) => kind === "social" || kind === "fit_plus" || kind === "bundle_family" || kind === "bundle_teacher" || kind === "todo_family" || kind === "todo_unlimited" || kind === "todo_unlimited_year" || kind === "ai_pro" || isStoragePlanKind(kind) || isClassAppKind(kind) || isNotesKind(kind);
+export const isAddonKind = (kind: PlanKind) => kind === "social" || kind === "fit_plus" || kind === "all_access" || kind === "bundle_family" || kind === "bundle_teacher" || kind === "todo_family" || kind === "todo_unlimited" || kind === "todo_unlimited_year" || kind === "ai_pro" || isStoragePlanKind(kind) || isClassAppKind(kind) || isNotesKind(kind);
 export const isPlanKind = (v: unknown): v is PlanKind => typeof v === "string" && (PLAN_KINDS as readonly string[]).includes(v);
 export const isSchoolKind = (kind: PlanKind) => kind === "school" || kind === "hub_school";
 export const isHubKind = (kind: PlanKind) => kind === "hub_teacher" || kind === "hub_school";
@@ -177,6 +192,7 @@ export function priceOf(kind: PlanKind): { cents: number; interval: "month" | "y
   if (kind === "todo_family") return { cents: PLANS.todo.familyMonthlyCents, interval: "month", seats: () => 1 };
   if (kind === "ai_pro") return { cents: PLANS.aiPro.monthlyCents, interval: "month", seats: () => 1 };
   if (kind === "fit_plus") return { cents: PLANS.fitPlus.monthlyCents, interval: "month", seats: () => 1 };
+  if (kind === "all_access") return { cents: PLANS.allAccess.monthlyCents, interval: "month", seats: () => 1 };
   if (kind === "todo_unlimited") return { cents: UNLIMITED_MONTHLY_CENTS, interval: "month", seats: () => 1 };
   if (kind === "todo_unlimited_year") return { cents: UNLIMITED_YEARLY_CENTS, interval: "year", seats: () => 1 };
   { const p = notesProductOf(kind); if (p) { const price = productPrice(p); return { cents: price.cents, interval: price.interval, seats: () => (p === "family" ? 4 : 1) }; } }
@@ -192,8 +208,8 @@ export type PlanGrant = {
   kind: PlanKind;
   /** The teacher's user id, or the school's id. */
   ownerId: number;
-  /** Paid online, or switched on by the site admin. */
-  source: "stripe" | "admin";
+  /** Paid online (Stripe on the website, or Apple in an iPhone app), or switched on by the site admin. */
+  source: "stripe" | "admin" | "apple";
   status: "active" | "past_due" | "canceled";
   /** How many students it covers. */
   seats: number;
@@ -206,6 +222,9 @@ export type PlanGrant = {
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
   stripeItemId?: string;
+  /** Bought in an iPhone app: Apple's id for the subscription (the same through every renewal). */
+  appleOriginalTransactionId?: string;
+  appleProductId?: string;
   note?: string;
   /** A school that is always Premium at no charge: no student limit, no end date, nothing to pay. */
   free?: boolean;
@@ -221,7 +240,8 @@ export function grantLive(grant: PlanGrant | null | undefined, now = Date.now())
   if (!grant.endsAt) return true;
   const end = Date.parse(grant.endsAt);
   if (!Number.isFinite(end)) return false;
-  if (grant.trial) return now < end;
+  // A free trial, and Apple subscriptions (Apple runs its own billing grace and tells us), end on time.
+  if (grant.trial || grant.source === "apple") return now < end;
   return now < end + PLANS.graceDays * 86_400_000;
 }
 
@@ -361,6 +381,55 @@ export function entitlementFor(person: PlanPerson | null | undefined, facts: Pla
   return NONE;
 }
 
+// ─── Arise Reader ─────────────────────────────────────────────────────────
+
+export type ReaderVia = "admin" | "sample" | "existing" | "teacher-plan" | "school-plan" | "class" | "family-plan" | "not-reader";
+export type ReaderAccess = { access: boolean; via: ReaderVia | null };
+
+/** Made before Reader stopped being free? An account with no sign-up date on record is an old one. */
+export function readerExistingAccount(createdAt: unknown, now = Date.now()): boolean {
+  // Free through the 2026-27 school year (until July 1, 2027), then a plan like everyone else.
+  if (now >= Date.parse(PLANS.grandfatherUntil)) return false;
+  const t = signedUpAt(createdAt);
+  return !Number.isFinite(t) || t < Date.parse(PLANS.readerPaidFrom);
+}
+
+export type ReaderFacts = {
+  now?: number;
+  /** A teacher's own plan, and their school's (a free school's plan counts). */
+  teacherGrant?: PlanGrant | null;
+  schoolGrant?: PlanGrant | null;
+  /** A parent's own family plan, or the family plans of a student's linked parents. */
+  familyGrants?: (PlanGrant | null | undefined)[];
+  /** A student: the teacher who approved them into a class, and whether that teacher has Reader. */
+  classTeacherAccess?: boolean;
+};
+
+/**
+ * Can this person use Arise Reader? From November 9, 2026 Reader is paid: $7 a month for a
+ * family (the parent and up to 3 linked children), $20 a month per 99 students for a teacher, or
+ * $600 a school year for a whole school. Everyone who had an account before then keeps it free through the school year, and so do
+ * the students of a teacher who has it. Unlike Premium this does not wait for plan rules to be on.
+ */
+export function readerAccessFor(person: (PlanPerson & { username?: string | null }) | null | undefined, facts: ReaderFacts): ReaderAccess {
+  if (!person) return { access: false, via: null };
+  const now = facts.now ?? Date.now();
+  if (person.isAdmin || person.role === "admin") return { access: true, via: "admin" };
+  const name = String(person.username || "").toLowerCase();
+  if (isDemoAccount(name) || name.startsWith("sample")) return { access: true, via: "sample" };
+  const role = person.role || "student";
+  if (role !== "student" && role !== "teacher" && role !== "parent") return { access: true, via: "not-reader" };
+  if (readerExistingAccount(person.createdAt, now)) return { access: true, via: "existing" };
+  if (role === "teacher") {
+    if (grantLive(facts.teacherGrant, now)) return { access: true, via: "teacher-plan" };
+    if (grantLive(facts.schoolGrant, now)) return { access: true, via: "school-plan" };
+    return { access: false, via: null };
+  }
+  if ((facts.familyGrants || []).some((g) => grantLive(g, now))) return { access: true, via: "family-plan" };
+  if (role === "student" && facts.classTeacherAccess && person.approvedByTeacher !== false) return { access: true, via: "class" };
+  return { access: false, via: null };
+}
+
 /** Can a parent with this many children already linked add one more? */
 export function parentCanLink(linkedCount: number, opts: { enforced: boolean; premiumFamily?: boolean }): boolean {
   // The free family limit is a safety and plan limit, independent of rollout flags.
@@ -487,7 +556,7 @@ export function todoAccessFor(person: PlanPerson | null | undefined, _facts: { n
  * Admins and sample accounts always are; anyone else needs a live Unlimited plan, or a LifeHub
  * plan bought before Unlimited existed.
  */
-export function todoUnlimitedFor(person: PlanPerson | null | undefined, grants: { unlimited?: PlanGrant | null; yearly?: PlanGrant | null; oldLifeHub?: PlanGrant | null; vip?: boolean }, now = Date.now()): { unlimited: boolean; via: "admin" | "demo" | "vip" | "plan" | "old-plan" | null; endsAt: string | null } {
+export function todoUnlimitedFor(person: PlanPerson | null | undefined, grants: { unlimited?: PlanGrant | null; yearly?: PlanGrant | null; oldLifeHub?: PlanGrant | null; vip?: boolean; allAccess?: PlanGrant | null }, now = Date.now()): { unlimited: boolean; via: "admin" | "demo" | "vip" | "plan" | "old-plan" | "all-access" | null; endsAt: string | null } {
   if (!person) return { unlimited: false, via: null, endsAt: null };
   if (person.isAdmin || person.role === "admin") return { unlimited: true, via: "admin", endsAt: null };
   if (isDemoAccount(person.username)) return { unlimited: true, via: "demo", endsAt: null };
@@ -498,6 +567,8 @@ export function todoUnlimitedFor(person: PlanPerson | null | undefined, grants: 
   if (y && y.kind === "todo_unlimited_year" && grantLive(y, now)) return { unlimited: true, via: "plan", endsAt: y.endsAt ?? null };
   const old = grants.oldLifeHub;
   if (old && old.kind === "todo_family" && grantLive(old, now)) return { unlimited: true, via: "old-plan", endsAt: old.endsAt ?? null };
+  const all = grants.allAccess;
+  if (all && all.kind === "all_access" && grantLive(all, now)) return { unlimited: true, via: "all-access", endsAt: all.endsAt ?? null };
   return { unlimited: false, via: null, endsAt: null };
 }
 

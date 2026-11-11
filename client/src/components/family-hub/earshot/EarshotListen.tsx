@@ -225,16 +225,16 @@ function CouldSaveCard({ light, onHide, onJoin }: { light?: boolean; onHide?: ()
   const ink = light ? "text-[#0f0f0f]" : "text-white", soft = light ? "text-[#606060]" : "text-white/55";
   const title = wkAds >= 60 ? `${hoursWords(wkAds)} of ads you could've skipped this week`
     : allAds >= 60 ? `${hoursWords(allAds)} of ads you could've skipped`
-    : "Time you could save with Pod+";
+    : "Time you could save with All Access";
   const line = wkAds >= 60 || allAds >= 60
-    ? `Pod+ Membership skips ads for you automatically.${wkMine >= 60 ? ` You saved ${hoursWords(wkMine)} this week with a faster speed.` : ""}`
-    : "Pod+ Membership skips ads for you. The time it would give back adds up here as you listen.";
+    ? `Arise All Access skips ads for you automatically.${wkMine >= 60 ? ` You saved ${hoursWords(wkMine)} this week with a faster speed.` : ""}`
+    : "Arise All Access skips ads for you. The time it would give back adds up here as you listen.";
   return <section aria-label="Time you could save" data-testid="could-save-card" className={`relative flex items-center gap-3.5 rounded-2xl p-3.5 pr-10 ${light ? "bg-[#fff4ec] ring-1 ring-[#ffd9bf]" : "bg-white/[.05] ring-1 ring-white/[.08]"}`}>
     <span className="grid h-11 w-11 flex-none place-items-center rounded-full text-white" style={{ background: ACCENT }}><Clock3 size={21} /></span>
     <div className="min-w-0">
       <p className={`text-[15px] font-semibold ${ink}`}>{title}</p>
       <p className={`text-xs leading-snug ${soft}`}>{line}</p>
-      {onJoin && <button type="button" onClick={onJoin} className="mt-2 h-8 rounded-full px-3.5 text-xs font-semibold text-white" style={{ background: ACCENT }}>Get it back with Pod+</button>}
+      {onJoin && <button type="button" onClick={onJoin} className="mt-2 h-8 rounded-full px-3.5 text-xs font-semibold text-white" style={{ background: ACCENT }}>Get it back with All Access</button>}
     </div>
     {onHide && <button type="button" onClick={onHide} aria-label="Hide this counter" title="Hide (turn it back on in Settings)" className={`absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full ${light ? "text-[#606060] hover:bg-black/5" : "text-white/50 hover:bg-white/10"}`}><X size={15} /></button>}
   </section>;

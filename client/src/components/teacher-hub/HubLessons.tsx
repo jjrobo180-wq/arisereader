@@ -7,14 +7,15 @@
 import { Fragment, useMemo, useState } from "react";
 import {
   AlertTriangle, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, CloudSnow, FileStack, LayoutGrid, List, Plus, RotateCcw, Search,
-  Settings2, Sparkles, Trash2, Users, X, BookCheck, CalendarClock,
+  Settings2, Sparkles, Trash2, Users, X, BookCheck, CalendarClock, Link2,
 } from "lucide-react";
+import { LessonSharePanel } from "./LessonShare";
 import type { Workspace } from "@shared/teacherHub";
 import { cleanDriveFiles } from "@shared/driveApp";
 import { blockName, schoolBlocks } from "@shared/hubBlocks";
 import {
   CHECK_LABEL, CLASS_COLORS, US_STATES, weekdayOf, GRADES, LESSON_STATUSES, LESSON_SUBJECTS, STATUS_LABEL, WEEKDAYS, addDays, addMonths, bumpLessons, classOf, cleanClasses,
-  cleanLessons, copyLesson, meetsOn, monthWeeks, needsReteach, nextMeetings, planFullness, schoolWeek, standardCode, studentRecords,
+  cleanLessons, copyLesson, meetsOn, monthWeeks, needsReteach, nextMeetings, planFullness, removeStudent, renameStudent, schoolWeek, standardCode, studentRecords,
   type LessonClass, type LessonPlan, type LessonStatus, type UnitLesson,
 } from "@shared/lessonPlanner";
 import { useSavedChoice } from "@/lib/useSavedChoice";
@@ -98,6 +99,7 @@ export default function HubLessons({ workspace, setWorkspace, token, makeId, say
   }
 
   const opened = lessons.find((l) => l.id === openId);
+  const [shareOpen, setShareOpen] = useState(false);
 
   // ─── The header ───
   const step = view === "month" ? (n: number) => setCursor(addMonths(cursor, n)) : view === "year" ? (n: number) => setCursor(addMonths(cursor, n * 3)) : view === "day" ? (n: number) => {
@@ -123,12 +125,15 @@ export default function HubLessons({ workspace, setWorkspace, token, makeId, say
         <button type="button" onClick={() => setMakerOpen(true)} className={smallBtn + " min-h-11 px-3 text-sm"}><FileStack className="h-4 w-4" /> Worksheet maker</button>
         <button type="button" onClick={() => setClassesOpen(true)} className={smallBtn + " min-h-11 px-3 text-sm"}><Settings2 className="h-4 w-4" /> Classes & periods</button>
         <button type="button" onClick={() => setShiftOpen(true)} className={smallBtn + " min-h-11 px-3 text-sm"} title="Snow day, assembly, ran long — push lessons back"><CloudSnow className="h-4 w-4" /> Shift lessons</button>
+        <button type="button" onClick={() => setShareOpen((o) => !o)} className={smallBtn + " min-h-11 px-3 text-sm"} data-testid="lesson-share-open"><Link2 className="h-4 w-4" /> Share with school</button>
         <div className="ml-auto flex flex-wrap gap-2 text-xs">
           <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600">{upcoming.length} this week</span>
           {notReady.length > 0 && <span className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-800">{notReady.length} not ready yet</span>}
           {openReteaches > 0 && <button type="button" onClick={() => setView("students")} className="rounded-full bg-rose-100 px-2.5 py-1 font-semibold text-rose-800 hover:bg-rose-200">{openReteaches} student{openReteaches === 1 ? "" : "s"} need a reteach</button>}
         </div>
       </div>
+
+      {shareOpen && <LessonSharePanel token={token} onClose={() => setShareOpen(false)} />}
 
       {!classes.length && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-teal-300 bg-teal-50/60 p-4">
@@ -189,6 +194,12 @@ export default function HubLessons({ workspace, setWorkspace, token, makeId, say
           onDelete={() => { setLessons((all) => all.filter((x) => x.id !== opened.id)); setOpenId(null); say("Lesson deleted."); }}
           onDuplicate={(date, classId) => { const c = classes.find((x) => x.id === classId); const copy = copyLesson(opened, makeId(), { date, classId: classId || undefined, group: c?.name || "" }); setLessons((all) => [copy, ...all]); say(`Copied to ${c?.name || "no class"}${date ? `, ${nice(date)}` : ""}.`); }}
           onPlanReteach={(students) => planReteach(opened, students)}
+          onStudents={(op) => setWorkspace((p) => {
+            const all = cleanLessons(p.lessons), cl = cleanClasses((p as any).lessonClasses);
+            const r = "rename" in op ? renameStudent(cl, all, opened.id, op.rename[0], op.rename[1]) : removeStudent(cl, all, opened.id, op.remove);
+            say("rename" in op ? `Renamed to ${op.rename[1].trim()}.` : `${op.remove} removed.`);
+            return { ...p, lessons: r.lessons as any, lessonClasses: r.classes } as any;
+          })}
           onClose={closeEditor}
           say={say}
         />
@@ -388,7 +399,10 @@ function MonthView({ cursor, today, classes, lessons, onOpen, onNew, onDay }: { 
                 {here.slice(0, 4).map((l) => {
                   const c = classOf(l, classes);
                   const color = c ? COLOR[c.color] : NO_CLASS;
-                  return <button key={l.id} type="button" onClick={() => onOpen(l.id)} title={`${c?.name ? `${c.name}: ` : ""}${l.title}`} className={`block w-full truncate rounded-md border px-1.5 py-0.5 text-left text-[11px] font-medium ${color.chip}`}>{l.title}</button>;
+                  return <button key={l.id} type="button" onClick={() => onOpen(l.id)} title={`${c?.name ? `${c.name}: ` : ""}${l.title}`} className={`block w-full rounded-md border px-1.5 py-1 text-left leading-tight ${color.chip}`} data-testid="month-lesson">
+                    {c?.name && <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide opacity-80"><span className={`h-1.5 w-1.5 shrink-0 rounded-full ${color.dot}`} aria-hidden /><span className="truncate">{c.name}</span></span>}
+                    <span className="block truncate text-[11px] font-medium">{l.title}</span>
+                  </button>;
                 })}
                 {here.length > 4 && <button type="button" onClick={() => onDay(d)} className="text-[11px] font-semibold text-slate-500 hover:text-slate-800">+{here.length - 4} more</button>}
               </div>

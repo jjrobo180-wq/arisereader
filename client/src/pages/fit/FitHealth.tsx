@@ -1,4 +1,4 @@
-// Arise Fit settings for Apple Health (connect, sync steps, active calories and weigh-ins, save
+// Cooked settings for Apple Health (connect, sync steps, active calories and weigh-ins, save
 // workouts back) and reminders (workout days and time, water, weigh-in, fast complete). See fitNative.ts.
 import { useEffect, useState } from "react";
 import { Bell, Footprints, HeartPulse, RefreshCw } from "lucide-react";
@@ -54,7 +54,7 @@ export function HealthSheet({ data, update, onClose }: { data: FitData; update: 
       <p className="mt-1 text-[14px] leading-snug" style={{ color: C.steel }}>Reads your steps, active calories, sleep (with deep and REM from an Apple Watch), heart rate and weigh-ins. Saves your workouts' calories, run distances, mindful minutes and weight back to Health.</p>
     </div>
     {!on ? <Btn className="mt-4 w-full" onClick={connect} disabled={busy} testId="fit-health-connect">{busy ? "Connecting…" : "Connect"}</Btn>
-      : <div className="mt-4 grid grid-cols-2 gap-2"><Btn onClick={sync} disabled={busy}><RefreshCw className="h-4 w-4" />{busy ? "Syncing…" : "Sync now"}</Btn><Btn kind="soft" onClick={() => { disconnectHealth(); setOn(false); setMsg("Disconnected. To remove access fully: Settings → Health → Data Access & Devices → Arise Fit."); }}>Disconnect</Btn></div>}
+      : <div className="mt-4 grid grid-cols-2 gap-2"><Btn onClick={sync} disabled={busy}><RefreshCw className="h-4 w-4" />{busy ? "Syncing…" : "Sync now"}</Btn><Btn kind="soft" onClick={() => { disconnectHealth(); setOn(false); setMsg("Disconnected. To remove access fully: Settings → Health → Data Access & Devices → Cooked."); }}>Disconnect</Btn></div>}
     {msg && <p className="mt-3 rounded-[10px] px-3 py-2 text-[13px]" style={{ background: C.card, color: C.steel }}>{msg}</p>}
     {snap && <><Title>From Health</Title><div className="grid grid-cols-3 gap-2 text-center">
       {([[fmtNum(snap.steps[dayKey()] ?? 0), "steps today"], [fmtNum(snap.active[dayKey()] ?? 0), "active kcal"], [String(snap.weights.length), "weigh-ins"]] as const).map(([v, l]) => <Card key={l} className="!px-1 !py-3"><p className="text-[24px] leading-none" style={display}>{v}</p><p className="mt-1 text-[11px] uppercase tracking-[.08em]" style={{ color: C.dim }}>{l}</p></Card>)}

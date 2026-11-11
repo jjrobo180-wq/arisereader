@@ -12,8 +12,8 @@ import {
 } from "lucide-react";
 import { fromDay, money, toDay, type Expense } from "@shared/familyHub";
 import {
-  billStatus, byCategory, cents, expectedFrom, expectedIncome, FREQ_LABEL, goalProgress, monthCsv, onHandTotal, monthPicture, monthsBack, payBill, payPeriods,
-  paydays, paydaysToConfirm, receivedIn, safeToSpend, shiftMonth, tipWeeks, unpayBill, type Goal, type IncomeEntry, type IncomeSource, type OnHand, type PayFrequency, type PlanBill, type PlanStyle,
+  billStatus, byCategory, cents, editMonth, payBillInMonth, unpayBillInMonth, viewMonth, expectedFrom, expectedIncome, FREQ_LABEL, goalProgress, monthCsv, onHandTotal, monthPicture, monthsBack, payPeriods,
+  paydays, paydaysToConfirm, receivedIn, safeToSpend, shiftMonth, tipWeeks, type Goal, type IncomeEntry, type IncomeSource, type OnHand, type PayFrequency, type PlanBill, type PlanStyle,
 } from "@shared/moneyPlan";
 import { Bar, Empty, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, inputClass, plain, primary, shortDate, soft, type SectionProps } from "./ui";
 import { ShareButton } from "./ShareLink";
@@ -39,10 +39,16 @@ const tabClass = (on: boolean) => `inline-flex min-h-9 shrink-0 items-center jus
 
 export default function Money({ family, setFamily, today, makeId, say }: SectionProps) {
   // Before setup, the monthly income typed into the old Budget page still counts (it showed $0 coming in).
-  const plan = useMemo(() => family.money.sources.length || !(family.income > 0) ? family.money
-    : { ...family.money, sources: [{ id: "legacy-income", name: "Monthly income", kind: "other" as const, frequency: "irregular" as const, amount: family.income, days: [], anchor: "" }] }, [family.money, family.income]);
-  const bills = family.bills as PlanBill[];
   const [month, setMonth] = useState(() => today.slice(0, 7));
+  // Each month has its own bills, income and spending limits once it has been changed (shared/moneyPlan.ts viewMonth),
+  // so editing one month never touches another.
+  const view = useMemo(() => viewMonth(family.money, family.bills as PlanBill[], family.budget, month), [family.money, family.bills, family.budget, month]);
+  const plan = useMemo(() => view.plan.sources.length || !(family.income > 0) ? view.plan
+    : { ...view.plan, sources: [{ id: "legacy-income", name: "Monthly income", kind: "other" as const, frequency: "irregular" as const, amount: family.income, days: [], anchor: "" }] }, [view.plan, family.income]);
+  const bills = view.bills;
+  const budget = view.budget;
+  /** Changes this month's bills, income or limits only. */
+  const editThisMonth = (edit: Parameters<typeof editMonth>[2], setUp?: boolean) => setFamily((f) => ({ ...f, ...editMonth({ money: f.money, bills: f.bills as PlanBill[], budget: f.budget }, month, edit, setUp) }));
   const [tab, setTab] = useState<Tab>(() => { try { return (sessionStorage.getItem("budget-tab") as Tab) || "overview"; } catch { return "overview"; } });
   const go = (t: Tab) => { setTab(t); try { sessionStorage.setItem("budget-tab", t); } catch { /* not kept */ } };
   const [setup, setSetup] = useState(false);
@@ -64,10 +70,10 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
   const label = fromDay(`${month}-01`).toLocaleDateString(undefined, { month: "long", year: "numeric" });
   const isNow = month === today.slice(0, 7);
   const ref = isNow ? today : month < today.slice(0, 7) ? `${month}-31` : `${month}-01`;
-  const pic = useMemo(() => monthPicture(plan, bills, family.expenses, family.budget, month, ref), [plan, bills, family.expenses, family.budget, month, ref]);
+  const pic = useMemo(() => monthPicture(plan, bills, family.expenses, budget, month, ref), [plan, bills, family.expenses, budget, month, ref]);
   const safe = useMemo(() => (isNow && plan.style === "paycheck" ? safeToSpend(plan, bills, family.expenses, month, today) : null), [isNow, plan, bills, family.expenses, month, today]);
   const periods = useMemo(() => payPeriods(plan, bills, month, ref), [plan, bills, month, ref]);
-  const cats = useMemo(() => byCategory(family.expenses, family.budget, month), [family.expenses, family.budget, month]);
+  const cats = useMemo(() => byCategory(family.expenses, budget, month), [family.expenses, budget, month]);
   const billRows = useMemo(() => bills.map((b) => ({ b, st: billStatus(plan, b, month, ref) })).sort((a, z) => (a.st.state === "paid" ? 1 : 0) - (z.st.state === "paid" ? 1 : 0) || (a.st.nextDue || "9").localeCompare(z.st.nextDue || "9")), [bills, plan, month, ref]);
   const over = cats.filter((c) => c.limit > 0 && c.spent > c.limit);
   const daysLeft = isNow ? Math.max(1, Number(`${month}-${new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0).getDate()}`.slice(8)) - Number(today.slice(8)) + 1) : 0;
@@ -75,13 +81,13 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
   const shift = (n: number) => setMonth(shiftMonth(month, n));
   const setMoney = (f: (m: typeof plan) => typeof plan) => setFamily((fam) => ({ ...fam, money: f(fam.money) }));
   const pay = (b: PlanBill, amount: number, date = today) => {
-    setFamily((f) => { const r = payBill(f.money, f.bills as PlanBill[], b.id, month, amount, date, makeId()); return { ...f, money: r.plan, bills: r.bills }; });
+    setFamily((f) => ({ ...f, ...payBillInMonth({ money: f.money, bills: f.bills as PlanBill[], budget: f.budget }, month, b.id, amount, date, makeId()) }));
     say(`${money(amount)} paid toward ${b.name}`);
   };
-  const unpay = (b: PlanBill) => { setFamily((f) => { const r = unpayBill(f.money, f.bills as PlanBill[], b.id, month); return { ...f, money: r.plan, bills: r.bills }; }); say(`${b.name} marked unpaid for ${label}`); };
+  const unpay = (b: PlanBill) => { setFamily((f) => ({ ...f, ...unpayBillInMonth({ money: f.money, bills: f.bills as PlanBill[], budget: f.budget }, month, b.id) })); say(`${b.name} marked unpaid for ${label}`); };
   const doneSetup = (r: SetupResult) => {
     setUndo({ money: family.money, bills: family.bills, budget: family.budget, income: family.income });
-    setFamily((f) => ({ ...f, money: r.money, bills: r.bills, budget: r.budget, income: r.income })); setSetup(false); go("overview"); say("Your budget is ready");
+    setFamily((f) => ({ ...f, money: { ...r.money, months: undefined }, bills: r.bills, budget: r.budget, income: r.income })); setSetup(false); go("overview"); say("Your budget is ready");
   };
   const addExpense = (e: FormEvent) => {
     e.preventDefault();
@@ -93,7 +99,7 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
     say(`${money(row.amount)} added`);
   };
   const exportCsv = () => {
-    const blob = new Blob([monthCsv(plan, bills, family.expenses, family.budget, month)], { type: "text/csv" });
+    const blob = new Blob([monthCsv(plan, bills, family.expenses, budget, month)], { type: "text/csv" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `budget-${month}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   };
 
@@ -188,7 +194,7 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
   // otherwise two to a row, so the category and note never squeeze down to nothing.
   const spendFormEl = (wide: boolean) => <form onSubmit={addExpense} className={`grid grid-cols-2 gap-2 ${wide ? "sm:grid-cols-[110px_minmax(0,1fr)_minmax(0,1.2fr)_150px_auto] xl:grid-cols-2" : ""}`}>
     <input type="number" inputMode="decimal" min={0} step="0.01" value={expense.amount} onChange={(e) => setExpense({ ...expense, amount: e.target.value })} placeholder="$ 0.00" aria-label="Amount" className={inputClass} />
-    <select value={expense.categoryId} onChange={(e) => setExpense({ ...expense, categoryId: e.target.value })} aria-label="Category" className={inputClass}>{family.budget.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}<option value="">Other</option></select>
+    <select value={expense.categoryId} onChange={(e) => setExpense({ ...expense, categoryId: e.target.value })} aria-label="Category" className={inputClass}>{budget.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}<option value="">Other</option></select>
     <input value={expense.note} maxLength={120} onChange={(e) => setExpense({ ...expense, note: e.target.value })} placeholder="What for?" aria-label="Note" className={inputClass + ` col-span-2 ${wide ? "sm:col-span-1 xl:col-span-2" : ""}`} />
     <input type="date" value={expense.date} onChange={(e) => setExpense({ ...expense, date: e.target.value })} aria-label="Date" className={inputClass} />
     <button type="submit" className={primary}><Plus size={17} /> Add</button>
@@ -196,19 +202,19 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
   const monthExpenses = family.expenses.filter((x) => x.date.startsWith(month)).sort((a, z) => z.date.localeCompare(a.date));
   const spending = <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
     <Panel title="Limits" right={<span className="text-sm font-semibold tabular-nums">{money(pic.spent)}<span className="font-semibold text-slate-500"> / {money(pic.budgeted)}</span></span>}>
-      <ul className="space-y-4">{family.budget.map((c) => {
+      <ul className="space-y-4">{budget.map((c) => {
         const spent = cats.find((x) => x.id === c.id)?.spent || 0;
         return <li key={c.id}>
-          <div className="mb-1.5 flex items-center gap-2 text-sm"><input value={c.name} maxLength={40} onChange={(e) => setFamily((f) => ({ ...f, budget: f.budget.map((x) => (x.id === c.id ? { ...x, name: e.target.value } : x)) }))} onBlur={(e) => { if (!e.target.value.trim()) setFamily((f) => ({ ...f, budget: f.budget.map((x) => (x.id === c.id ? { ...x, name: "Untitled" } : x)) })); }} aria-label={`Rename ${c.name}`} className="min-w-0 flex-1 truncate rounded-lg bg-transparent px-1 py-1 font-bold outline-none hover:bg-slate-50 focus:bg-white focus:ring-2 focus:ring-violet-200" />
+          <div className="mb-1.5 flex items-center gap-2 text-sm"><input value={c.name} maxLength={40} onChange={(e) => editThisMonth((v) => ({ ...v, budget: v.budget.map((x) => (x.id === c.id ? { ...x, name: e.target.value } : x)) }))} onBlur={(e) => { if (!e.target.value.trim()) editThisMonth((v) => ({ ...v, budget: v.budget.map((x) => (x.id === c.id ? { ...x, name: "Untitled" } : x)) })); }} aria-label={`Rename ${c.name}`} className="min-w-0 flex-1 truncate rounded-lg bg-transparent px-1 py-1 font-bold outline-none hover:bg-slate-50 focus:bg-white focus:ring-2 focus:ring-violet-200" />
             <span className={`text-xs font-bold tabular-nums ${c.limit && spent > c.limit ? "text-rose-600" : "text-slate-600"}`}>{money(spent)} of</span>
             <span className="relative w-24"><span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">$</span>
-              <input type="number" min={0} value={c.limit || ""} placeholder="limit" onChange={(e) => setFamily((f) => ({ ...f, budget: f.budget.map((x) => (x.id === c.id ? { ...x, limit: Math.max(0, Number(e.target.value) || 0) } : x)) }))} aria-label={`${c.name} monthly limit`} className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-5 pr-2 text-right text-xs font-bold text-slate-700 focus:border-violet-400 focus:outline-none" /></span>
-            {!family.expenses.some((x) => x.categoryId === c.id) && <button type="button" onClick={() => setFamily((f) => ({ ...f, budget: f.budget.filter((x) => x.id !== c.id) }))} className="text-slate-400 hover:text-rose-500" aria-label={`Remove ${c.name}`}><Trash2 size={14} /></button>}
+              <input type="number" min={0} value={c.limit || ""} placeholder="limit" onChange={(e) => editThisMonth((v) => ({ ...v, budget: v.budget.map((x) => (x.id === c.id ? { ...x, limit: Math.max(0, Number(e.target.value) || 0) } : x)) }))} aria-label={`${c.name} monthly limit`} className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-5 pr-2 text-right text-xs font-bold text-slate-700 focus:border-violet-400 focus:outline-none" /></span>
+            {!family.expenses.some((x) => x.categoryId === c.id) && <button type="button" onClick={() => editThisMonth((v) => ({ ...v, budget: v.budget.filter((x) => x.id !== c.id) }))} className="text-slate-400 hover:text-rose-500" aria-label={`Remove ${c.name}`}><Trash2 size={14} /></button>}
           </div>
           <Bar value={spent} max={c.limit || Math.max(spent, 1)} warn={!!c.limit && spent > c.limit} color={c.limit ? "#6e5ae0" : "#cbd5e1"} />
         </li>;
       })}</ul>
-      <form onSubmit={(e) => { e.preventDefault(); const name = newCat.name.trim(); if (!name) return; setFamily((f) => ({ ...f, budget: [...f.budget, { id: makeId(), name: name.slice(0, 40), limit: Math.max(0, Number(newCat.limit) || 0) }] })); setNewCat({ name: "", limit: "" }); }} className="mt-5 flex gap-2 border-t border-slate-100 pt-4">
+      <form onSubmit={(e) => { e.preventDefault(); const name = newCat.name.trim(); if (!name) return; editThisMonth((v) => ({ ...v, budget: [...v.budget, { id: makeId(), name: name.slice(0, 40), limit: Math.max(0, Number(newCat.limit) || 0) }] })); setNewCat({ name: "", limit: "" }); }} className="mt-5 flex gap-2 border-t border-slate-100 pt-4">
         <input value={newCat.name} maxLength={40} onChange={(e) => setNewCat({ ...newCat, name: e.target.value })} placeholder="New category" aria-label="New category" className={inputClass + " min-w-0"} />
         <input type="number" min={0} value={newCat.limit} onChange={(e) => setNewCat({ ...newCat, limit: e.target.value })} placeholder="$ / mo" aria-label="Monthly limit" className={inputClass + " w-24"} />
         <button type="submit" className={primary} aria-label="Add category"><Plus size={17} /></button>
@@ -219,7 +225,7 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
       {monthExpenses.length ? <ul className="mt-4 divide-y divide-slate-100">{monthExpenses.slice(0, 80).map((x) => <li key={x.id} className="flex items-center gap-3 py-2.5 text-sm">
         <button type="button" onClick={() => setEditExpense({ ...x })} aria-label={`Edit ${x.note || "spending"}`} className="flex min-w-0 flex-1 items-center gap-3 text-left">
         <span className="w-14 shrink-0 text-xs font-bold text-slate-500">{day(x.date)}</span>
-        <span className="min-w-0 flex-1 truncate"><span className="font-semibold">{x.note || family.budget.find((c) => c.id === x.categoryId)?.name || "Other"}</span>{x.note && <span className="text-xs text-slate-500"> · {family.budget.find((c) => c.id === x.categoryId)?.name || "Other"}</span>}</span>
+        <span className="min-w-0 flex-1 truncate"><span className="font-semibold">{x.note || budget.find((c) => c.id === x.categoryId)?.name || "Other"}</span>{x.note && <span className="text-xs text-slate-500"> · {family.budget.find((c) => c.id === x.categoryId)?.name || "Other"}</span>}</span>
         <span className="font-semibold tabular-nums">{money(x.amount)}</span></button>
         <button type="button" onClick={() => setFamily((f) => ({ ...f, expenses: f.expenses.filter((e) => e.id !== x.id) }))} className="rounded-lg p-1.5 text-slate-400 hover:text-rose-500" aria-label="Remove"><Trash2 size={14} /></button>
       </li>)}</ul> : <p className="mt-4 text-sm text-slate-500">Nothing logged for {label} yet.</p>}
@@ -317,12 +323,12 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
         <button type="button" onClick={() => setIncome({ kind: "tips", date: today })} className={soft + " mt-4 w-full"}><Plus size={16} /> Log tonight's tips</button>
       </Panel>}
       <Panel title="Income sources" right={<button type="button" onClick={() => setSource({ id: makeId(), name: "", kind: "paycheck", frequency: "biweekly", amount: 0, days: [], anchor: today })} className={soft} data-testid="budget-source-add"><Plus size={15} /> Add</button>}>
-        {family.money.sources.length ? <ul className="divide-y divide-slate-100">{family.money.sources.map((s) => <li key={s.id} className="flex items-center gap-3 py-3 text-sm" data-testid="budget-source">
+        {view.plan.sources.length ? <ul className="divide-y divide-slate-100">{view.plan.sources.map((s) => <li key={s.id} className="flex items-center gap-3 py-3 text-sm" data-testid="budget-source">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-violet-50 text-violet-700">{s.kind === "tips" ? <HandCoins size={16} /> : s.kind === "paycheck" ? <Wallet size={16} /> : <CircleDollarSign size={16} />}</span>
           <button type="button" onClick={() => setSource({ ...s })} className="min-w-0 flex-1 text-left"><span className="block truncate font-semibold text-slate-900">{s.name}</span><span className="block text-xs text-slate-500">{sourceLine(s, month)}</span></button>
           <span className="font-semibold tabular-nums">{money(expectedFrom(s, month))}</span>
           <button type="button" onClick={() => setSource({ ...s })} aria-label={`Edit ${s.name}`} className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-violet-50 hover:text-violet-700"><Pencil size={15} /></button>
-          <button type="button" onClick={() => { if (confirmed(`Remove "${s.name}" from your income? Money already logged from it stays.`)) { setMoney((m) => ({ ...m, sources: m.sources.filter((x) => x.id !== s.id) })); say(`${s.name} removed`); } }} aria-label={`Remove ${s.name}`} className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600" data-testid="budget-source-delete"><Trash2 size={15} /></button>
+          <button type="button" onClick={() => { if (confirmed(`Remove "${s.name}" from your income? Money already logged from it stays.`)) { editThisMonth((v) => ({ ...v, sources: v.sources.filter((x) => x.id !== s.id) })); say(`${s.name} removed`); } }} aria-label={`Remove ${s.name}`} className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600" data-testid="budget-source-delete"><Trash2 size={15} /></button>
         </li>)}</ul> : <p className="text-sm text-slate-500">{family.income > 0 ? `Using ${money(family.income)} a month from before. Add how you get paid for a real plan.` : "Add how you get paid: a paycheck, tips, gig money or anything else."}</p>}
         <div className="mt-5 border-t border-slate-100 pt-4" data-testid="money-in">
           <div className="flex items-center justify-between gap-3">
@@ -363,7 +369,7 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
   </div>;
 
   // Insights
-  const hist = monthsBack(plan, bills, family.expenses, month);
+  const hist = monthsBack(family.money, family.bills as PlanBill[], family.expenses, month);
   const top = Math.max(1, ...hist.flatMap((h) => [h.income, h.spent + h.bills]));
   const catsTotal = cats.reduce((t, c) => t + c.spent, 0) || 1;
   const PALETTE = ["#6e5ae0", "#0ea5e9", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#14b8a6", "#f97316"];
@@ -432,11 +438,11 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
 
     {setup && <BudgetSetup family={family} today={today} makeId={makeId} onDone={doneSetup} onClose={() => setSetup(false)} />}
     {editBill && <BillEditor bill={editBill} isNew={!bills.some((b) => b.id === editBill.id)} onClose={() => setEditBill(null)}
-      onSave={(b) => { setFamily((f) => ({ ...f, bills: f.bills.some((x) => x.id === b.id) ? f.bills.map((x) => (x.id === b.id ? b : x)) : [...f.bills, b] })); setEditBill(null); say("Bill saved"); }}
-      onDelete={(b) => { if (confirmed(`Delete the bill "${b.name}"?`)) { setFamily((f) => ({ ...f, bills: f.bills.filter((x) => x.id !== b.id), money: { ...f.money, payments: f.money.payments.filter((p) => p.billId !== b.id) } })); setEditBill(null); } }} />}
+      onSave={(b) => { editThisMonth((v) => ({ ...v, bills: v.bills.some((x) => x.id === b.id) ? v.bills.map((x) => (x.id === b.id ? b : x)) : [...v.bills, b] })); setEditBill(null); say(`Bill saved for ${label}`); }}
+      onDelete={(b) => { if (confirmed(`Remove the bill "${b.name}" from ${label}? Other months keep it.`)) { editThisMonth((v) => ({ ...v, bills: v.bills.filter((x) => x.id !== b.id) })); setEditBill(null); say(`Bill removed from ${label}`); } }} />}
     {paying && <PayDialog bill={paying.bill} status={billStatus(plan, paying.bill, month, ref)} month={label} today={today} onClose={() => setPaying(null)}
       onPay={(amount, date) => { pay(paying.bill, amount, date); setPaying(null); }} onUndo={() => { unpay(paying.bill); setPaying(null); }} />}
-    {income && <IncomeDialog start={income} sources={family.money.sources} goals={plan.goals} today={today} onClose={() => setIncome(null)}
+    {income && <IncomeDialog start={income} sources={view.plan.sources} goals={plan.goals} today={today} onClose={() => setIncome(null)}
       onDelete={income.id ? () => { setMoney((m) => ({ ...m, incomeLog: m.incomeLog.filter((x) => x.id !== income.id) })); setIncome(null); say("Removed"); } : undefined}
       onSave={(e, toGoal) => {
         const row = { id: income.id || makeId(), sourceId: e.sourceId || "", date: e.date, amount: cents(e.amount), kind: e.kind, note: e.note };
@@ -446,10 +452,10 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
       }} />}
     {held && <OnHandDialog start={held} onClose={() => setHeld(null)}
       onSave={(o) => { setMoney((m) => ({ ...m, onHand: (m.onHand.some((x) => x.id === o.id) ? m.onHand.map((x) => (x.id === o.id ? o : x)) : [...m.onHand, o]).slice(0, 12) })); setHeld(null); say(`${o.name} saved`); }} />}
-    {source && <SourceEditor start={source} isNew={!family.money.sources.some((x) => x.id === source.id)} month={month} onClose={() => setSource(null)}
-      onSave={(s2) => { setMoney((m) => ({ ...m, setUp: true, sources: m.sources.some((x) => x.id === s2.id) ? m.sources.map((x) => (x.id === s2.id ? s2 : x)) : [...m.sources, s2] })); setSource(null); say(`${s2.name} saved`); }}
-      onDelete={(s2) => { if (confirmed(`Remove "${s2.name}" from your income? Money already logged from it stays.`)) { setMoney((m) => ({ ...m, sources: m.sources.filter((x) => x.id !== s2.id) })); setSource(null); } }} />}
-    {editExpense && <ExpenseEditor start={editExpense} categories={family.budget} onClose={() => setEditExpense(null)}
+    {source && <SourceEditor start={source} isNew={!view.plan.sources.some((x) => x.id === source.id)} month={month} onClose={() => setSource(null)}
+      onSave={(s2) => { editThisMonth((v) => ({ ...v, sources: v.sources.some((x) => x.id === s2.id) ? v.sources.map((x) => (x.id === s2.id ? s2 : x)) : [...v.sources, s2] }), true); setSource(null); say(`${s2.name} saved`); }}
+      onDelete={(s2) => { if (confirmed(`Remove "${s2.name}" from your income? Money already logged from it stays.`)) { editThisMonth((v) => ({ ...v, sources: v.sources.filter((x) => x.id !== s2.id) })); setSource(null); } }} />}
+    {editExpense && <ExpenseEditor start={editExpense} categories={budget} onClose={() => setEditExpense(null)}
       onSave={(x) => { setFamily((f) => ({ ...f, expenses: f.expenses.map((e) => (e.id === x.id ? x : e)) })); setEditExpense(null); say("Saved"); }}
       onDelete={(x) => { setFamily((f) => ({ ...f, expenses: f.expenses.filter((e) => e.id !== x.id) })); setEditExpense(null); say("Removed"); }} />}
     {settings && <SettingsDialog style={plan.style} cushion={plan.cushion} onClose={() => setSettings(false)} onRedo={() => { setSettings(false); setSetup(true); }}

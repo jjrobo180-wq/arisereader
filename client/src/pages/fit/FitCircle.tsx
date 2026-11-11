@@ -1,4 +1,4 @@
-// Arise Fit: your workout circle (shared/fitCircle.ts, server/fitCircle.ts). Friends, each on their own
+// Cooked: your workout circle (shared/fitCircle.ts, server/fitCircle.ts). Friends, each on their own
 // account, who see each other's training as it happens, get a notification when someone in the circle
 // finishes a workout, and send cheers and nudges. Anyone in the circle can invite more people.
 import { useCallback, useEffect, useState } from "react";
@@ -56,7 +56,7 @@ export function CircleSheet({ onClose, say, joinCode }: { onClose: () => void; s
   };
   const share = async (c: string) => {
     const link = circleLink(TODO_APP, c);
-    const text = `Join my workout circle on Arise Fit! We'll see each other's workouts and keep each other going. Open ${link} or enter code ${c} in Arise Fit › Workout circle.`;
+    const text = `Join my workout circle on Cooked! We'll see each other's workouts and keep each other going. Open ${link} or enter code ${c} in Cooked › Workout circle.`;
     try { if (navigator.share) { await navigator.share({ title: "Join my workout circle", text }); return; } } catch (e: any) { if (e?.name === "AbortError") return; }
     try { await navigator.clipboard.writeText(text); say("Invite copied. Paste it in a text."); } catch { say(`The code is ${c}`); }
   };
@@ -69,7 +69,7 @@ export function CircleSheet({ onClose, say, joinCode }: { onClose: () => void; s
     {!view && !err && <div className="grid h-40 place-items-center"><Loader2 className="h-7 w-7 animate-spin" style={{ color: C.dim }} /></div>}
     {err && !view && <p className="px-1 text-[14px]" style={{ color: C.red }} role="alert">{err}</p>}
     {view && <>
-      {!view.inCircle && <p className="px-1 text-[15px]" style={{ color: C.steel }}>Start a circle with up to {view.max - 1} friends, each on their own Arise Fit account. You'll see each other's workouts, streaks and new records, get a notification when someone trains, and cheer each other on. Food, weight and photos stay private.</p>}
+      {!view.inCircle && <p className="px-1 text-[15px]" style={{ color: C.steel }}>Start a circle with up to {view.max - 1} friends, each on their own Cooked account. You'll see each other's workouts, streaks and new records, get a notification when someone trains, and cheer each other on. Food, weight and photos stay private.</p>}
 
       {view.inCircle && <><Title>This week</Title>
         <div className="space-y-2">{[...members].sort((a, b) => (b.stats?.week ?? 0) - (a.stats?.week ?? 0)).map((m, i) => <MemberRow key={m.id} m={m} rank={i} onCheer={(k) => void cheer(m, k)} busy={busy === "/circle/cheer"}

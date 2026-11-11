@@ -1,7 +1,7 @@
 // Account & privacy: the Privacy Policy, Terms of Use, Support, and deleting your own account
 // (App Store Guidelines 5.1.1(i) and 5.1.1(v)). Opened from the More menu in Arise LifeHub and
 // Arise WorkHub, on the website and in the Arise To Duo iPhone app, and from the account button in
-// the two A.R.I.S.E. Reader iPhone apps. An account made with Sign in with Apple confirms with Apple.
+// the two Arise Reader iPhone apps. An account made with Sign in with Apple confirms with Apple.
 import { useState } from "react";
 import { FileText, LifeBuoy, Loader2, ShieldCheck, Trash2, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -66,7 +66,7 @@ export default function AccountPrivacy({ onClose }: { onClose: () => void }) {
         <p className="mt-1 text-sm leading-snug text-rose-900/80">{nativeFlavor() === "talk"
           ? "This removes your Arise account and its backup of your Arise Talk words, phrases and settings (they stay on this phone). Cancel Premium first if you have it. It can't be undone."
           : nativeFlavor() === "trainer"
-          ? "This removes your Arise account and everything in it: your trainer listing, reviews, client plans, workouts you built and messages, plus Arise Fit with the same account. Cancel your listing plan first. It can't be undone."
+          ? "This removes your Arise account and everything in it: your trainer listing, reviews, client plans, workouts you built and messages, plus Cooked with the same account. Cancel your listing plan first. It can't be undone."
           : nativeFlavor() === "fit"
           ? "This removes your Arise account and everything in it: your workouts, programs, food diary and weight, plus anything in Arise To Duo with the same account. It can't be undone."
           : nativeFlavor() === "todo"

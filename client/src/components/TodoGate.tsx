@@ -53,7 +53,7 @@ export default function TodoGate({ children }: { children: ReactNode }) {
             </Suspense>
           </> : <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h1 className="text-xl font-black">LifeHub comes with Arise WorkHub</h1>
-            <p className="mt-1 text-sm leading-6 text-slate-600">LifeHub needs a WorkHub plan. Everything you saved is kept. Your A.R.I.S.E. Reader tools are still in WorkHub.</p>
+            <p className="mt-1 text-sm leading-6 text-slate-600">LifeHub needs a WorkHub plan. Everything you saved is kept. Your Arise Reader tools are still in WorkHub.</p>
             <a href="#/workhub" className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white">Open WorkHub</a>
           </section>}
           {!parent && <section className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-5"><p className="text-[11px] font-extrabold uppercase tracking-[.15em] text-violet-600">Add-ons</p><h2 className="mb-4 mt-0.5 text-lg font-black text-[#232139]">Plans and add-ons</h2><HubAddons which="life" returnPath="/lifehub" /></section>}

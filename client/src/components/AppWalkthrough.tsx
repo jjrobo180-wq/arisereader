@@ -17,11 +17,13 @@ import { nativeRemindersAvailable, nativeRemindersOn, turnOnNativeReminders } fr
 import { lockPageScroll } from "@/lib/scrollLock";
 
 const DONE_KEY = (id: number | string) => `arise-walkthrough-v1:${id}`;
+/** True once this person has finished (or skipped) the first-run walkthrough on this phone. */
+export const walkthroughDone = (id: number | string): boolean => { try { return localStorage.getItem(DONE_KEY(id)) === "1"; } catch { return true; } };
 type Step = { id: string; icon: ReactNode; tint: string; title: string; body: ReactNode; action?: { label: string; run: () => void | Promise<void> } };
 
 export default function AppWalkthrough({ userId, hub, arise, onGallery, onCustomize, onNotificationSettings, onConnectCalendar }: {
   userId: number | string; hub: "life" | "work";
-  /** A teacher or parent from A.R.I.S.E. Reader (gets a card about Reader and Arise Learning). */ arise: boolean;
+  /** A teacher or parent from Arise Reader (gets a card about Reader and Arise Learning). */ arise: boolean;
   onGallery: () => void; onCustomize: (tab?: string) => void; onNotificationSettings: () => void;
   /** Reads the iPhone's calendars into this hub's calendar (the app's setup page). Resolves with how many events. */
   onConnectCalendar?: () => Promise<number>;
@@ -78,7 +80,7 @@ export default function AppWalkthrough({ userId, hub, arise, onGallery, onCustom
     { id: "split", icon: <Columns2 />, tint: "#292446", title: isDuo ? "Your iPhone Duo: two at once" : "Split screen: two at once",
       body: isDuo ? <>Open it flat for two pages, or use split screen for both hubs.</> : <>See both hubs together with split screen, on any phone.</>,
       action: { label: "Try the split screen", run: () => { close(); navigate("/duo"); } } },
-    ...(arise ? [{ id: "arise", icon: <Sparkles />, tint: "#6d28d9", title: "A.R.I.S.E. Reader and Arise Learning",
+    ...(arise ? [{ id: "arise", icon: <Sparkles />, tint: "#6d28d9", title: "Arise Reader and Arise Learning",
       body: <>Reader, Math, History and Connect are in your menu, below Home.</> }] : []),
     { id: "done", icon: <Search />, tint: "#16a34a", title: "You're all set",
       body: <>See this again any time: <b>⋯ → How to use Arise To Duo</b>.</> },

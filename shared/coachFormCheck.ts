@@ -1,4 +1,4 @@
-// Video form checks (November 2026): a client films a set in Arise Fit and sends it to their trainer. The trainer
+// Video form checks (November 2026): a client films a set in Cooked and sends it to their trainer. The trainer
 // pauses on the frames that matter, draws on them (lines, circles, arrows), writes a note on each, and can add a
 // voice note. The client plays it back with the drawings showing at those moments. Server: server/coach.ts.
 
@@ -13,7 +13,7 @@ export const VIDEO_TYPES: Record<string, string> = { "video/mp4": "mp4", "video/
 export const VOICE_TYPES: Record<string, string> = { "audio/mp4": "m4a", "audio/x-m4a": "m4a", "audio/webm": "webm", "audio/mpeg": "mp3", "audio/aac": "aac", "audio/ogg": "ogg" };
 export const MARK_COLORS = ["#ff3b30", "#ffcc00", "#34c759", "#0a84ff", "#ffffff"];
 
-const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+const str = (v: unknown, max: number) => (typeof v === "string" ? v.trimStart().replace(/ {2,}$/, "").slice(0, max) : "");
 const rid = (v: unknown) => (typeof v === "string" && /^[\w-]{1,40}$/.test(v) ? v : Math.random().toString(36).slice(2, 12));
 /** A stored file's path: "<linkId>/<kind>-<stamp>.<ext>" (only ever made by the server). */
 export const filePathOk = (p: unknown, linkId: string): p is string => typeof p === "string" && p.length < 200 && p.startsWith(`${linkId}/`) && /^[\w-]+\/(video|voice)-[a-z0-9-]+\.(mp4|mov|webm|m4a|mp3|aac|ogg)$/.test(p);

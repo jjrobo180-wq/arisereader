@@ -1,5 +1,5 @@
 // The note's tools: a parent-friendly email (plain words, any home language), the summary translated,
-// and study tools from class notes (flashcards and a quiz, which a teacher can send to A.R.I.S.E. Reader).
+// and study tools from class notes (flashcards and a quiz, which a teacher can send to Arise Reader).
 import { useState } from "react";
 import { BookOpen, Columns2, Copy, GraduationCap, Languages, Lock, Mail, Send, Volume2, X } from "lucide-react";
 import type { NoteSummary, StudyTools } from "@shared/ariseNotes";
@@ -60,8 +60,8 @@ export default function ToolsTab({ ctx, note, onNote, onTranslated }: { ctx: App
       <p className="mb-3 text-[14px] text-[var(--an-muted)]">Turn class notes into study cards and a short quiz.</p>
       {!f.study ? lock() : !study ? <Btn kind="primary" busy={busy === "study"} onClick={() => void run("study", async () => { const r = await notesApi.study(note.id); setStudy(r.study); onNote({ ...note, extras: { ...note.extras, study: r.study } }); })} data-testid="notes-study"><BookOpen className="h-4 w-4" />Make them</Btn>
         : <StudyView study={study} />}
-      {study && ctx.me.user.teacher && study.quiz.length > 0 && <div className="mt-4">{note.extras.readerQuiz ? <Notice tone="good">Sent to A.R.I.S.E. Reader. Your students find it in their custom quizzes.</Notice>
-        : <Btn kind="soft" busy={busy === "reader"} onClick={() => void run("reader", async () => { const r = await notesApi.studyToReader(note.id); onNote({ ...note, extras: { ...note.extras, readerQuiz: r.quizId } }); say("Sent to A.R.I.S.E. Reader."); })}><Send className="h-4 w-4" />Send the quiz to A.R.I.S.E. Reader</Btn>}</div>}
+      {study && ctx.me.user.teacher && study.quiz.length > 0 && <div className="mt-4">{note.extras.readerQuiz ? <Notice tone="good">Sent to Arise Reader. Your students find it in their custom quizzes.</Notice>
+        : <Btn kind="soft" busy={busy === "reader"} onClick={() => void run("reader", async () => { const r = await notesApi.studyToReader(note.id); onNote({ ...note, extras: { ...note.extras, readerQuiz: r.quizId } }); say("Sent to Arise Reader."); })}><Send className="h-4 w-4" />Send the quiz to Arise Reader</Btn>}</div>}
     </Section>
 
     <Section title="Notes beside your to-dos" icon={<Columns2 className="h-4 w-4" />} className="an-extra">

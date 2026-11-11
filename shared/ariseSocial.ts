@@ -83,14 +83,14 @@ export const QUESTS: Record<BandId, Quest[]> = {
     {id:'k2a', c:'build', title:'Pipe Detective', xp:20, steps:['Find 3 places water comes out at home','Ask a grown-up where the water goes after','Draw one pipe you found']},
     {id:'k2b', c:'help',  title:'Helper Hero Drawing', xp:15, steps:['Pick a helper in your town','Draw them at work','Tell a grown-up what they do']},
     {id:'k2c', c:'fly',   title:'Tallest Tower', xp:20, steps:['Gather 20 cups or blocks','Build as tall as you can','Try again with a wider bottom']},
-    {id:'k2d', c:'teach', title:'Read & Earn', xp:25, steps:['Open A.R.I.S.E. Reader','Read a book about a job','Pass the quiz'], reader:true},
+    {id:'k2d', c:'teach', title:'Read & Earn', xp:25, steps:['Open Arise Reader','Read a book about a job','Pass the quiz'], reader:true},
     {id:'k2w', c:'perform', title:'Watch the Stars', xp:15, steps:['Watch a star video with a grown-up','Tell them one thing the star does at work','Try the “Try this” idea under the video']}
   ],
   g35:[
     {id:'g35a', c:'build', title:'Tool Safari', xp:25, steps:['Open a toolbox with an adult','Name 5 tools','Say what each one does']},
     {id:'g35b', c:'help',  title:'Interview a Grown-Up', xp:30, steps:['Pick an adult you know','Ask: What do you do all day?','Ask: How did you learn your job?','Share one surprise with your class']},
     {id:'g35c', c:'build', title:'Car Check (with an adult)', xp:25, steps:['Find the tire pressure sticker in the door','Check one tire with a gauge','Write the number down']},
-    {id:'g35d', c:'teach', title:'Read & Earn', xp:30, steps:['Open A.R.I.S.E. Reader','Read a career book','Pass the quiz'], reader:true},
+    {id:'g35d', c:'teach', title:'Read & Earn', xp:30, steps:['Open Arise Reader','Read a career book','Pass the quiz'], reader:true},
     {id:'g35w', c:'perform', title:'Watch the Stars', xp:20, steps:['Watch two star videos in Watch','Write one thing each star said about their job','Do one “Try this” idea and share how it went']}
   ],
   g68:[

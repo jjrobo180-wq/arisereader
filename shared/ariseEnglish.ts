@@ -1,4 +1,4 @@
-// English Explorer: an English-language-learner program inside A.R.I.S.E. Reader, from a child's very
+// English Explorer: an English-language-learner program inside Arise Reader, from a child's very
 // first English words up to academic words and idioms. A teacher or the administrator turns it on for
 // the students who need it (server/ariseEnglish.ts); points go on the regular A.R.I.S.E. leaderboard.
 //

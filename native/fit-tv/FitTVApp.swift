@@ -1,4 +1,4 @@
-// Arise Fit for Apple TV: the phone app on the big screen, in its dark Ember look.
+// Cooked for Apple TV: the phone app on the big screen, in its dark Ember look.
 //   Today     your numbers (calories left, water, workouts this week, streak, protein, weight, the same as the
 //             Fit widgets), your week, the program's next day, today's pick, and water added from the couch
 //   Workouts  every guided session (treadmill HIIT, Couch to 5K, yoga, mobility, breathing) and your routines
@@ -13,7 +13,7 @@
 // every line of a session is fetched before it's needed. A strength set shows its how-to video (the same
 // YouTube tutorial as the phone, shared/fitVideos.ts): Apple TV can't play YouTube inside another app (tvOS
 // has no web view), so pressing it opens the YouTube app at that video and pauses the session until you're back.
-// A finished session goes into your Arise Fit workout log when you're signed in.
+// A finished session goes into your Cooked workout log when you're signed in.
 // Signing in takes a code, like Arise Duo: arisetodo.com/tv on your phone (server/tvLink.ts, server/fitTv.ts).
 // Sessions and the built-in timers come with the app (sessions.json, timers.json: script/exportFitSessions.ts).
 import SwiftUI
@@ -78,7 +78,7 @@ struct FitLenient: Decodable {
     init(from decoder: Decoder) throws { session = try? FitSession(from: decoder) }
 }
 
-/** Arise Fit's own colors (the phone app's dark Ember look). */
+/** Cooked's own colors (the phone app's dark Ember look). */
 enum FitColor {
     static let bg = Color(red: 0x15 / 255, green: 0x17 / 255, blue: 0x1b / 255)
     static let deep = Color(red: 0x0b / 255, green: 0x0c / 255, blue: 0x0f / 255)
@@ -102,7 +102,7 @@ let fitCategories: [FitCategory] = [
     FitCategory(id: "meditation", name: "Breathe & meditate", symbol: "wind", tint: .blue),
 ]
 
-// MARK: - Your Arise Fit (GET /api/fit/tv)
+// MARK: - Your Cooked (GET /api/fit/tv)
 
 struct FitTVSummary: Decodable {
     struct Slot: Decodable, Identifiable { let id: String; let title: String; let value: String; let detail: String; let tint: String; let progress: Double?; let lines: [String] }
@@ -148,9 +148,9 @@ final class FitTVModel: ObservableObject {
             let (data, res) = try await URLSession.shared.data(for: req)
             let status = (res as? HTTPURLResponse)?.statusCode ?? 0
             if status == 401 { signOut(); return }
-            guard status == 200 else { error = "Arise Fit isn't reachable right now."; return }
+            guard status == 200 else { error = "Cooked isn't reachable right now."; return }
             me = try JSONDecoder().decode(FitTVSummary.self, from: data); error = nil
-        } catch { self.error = "Can't reach Arise Fit. Check the TV's internet connection." }
+        } catch { self.error = "Can't reach Cooked. Check the TV's internet connection." }
     }
 
     private func post(_ path: String, _ body: [String: Any]) async -> Bool {
@@ -186,7 +186,7 @@ final class FitTVModel: ObservableObject {
         guard let (data, _) = try? await URLSession.shared.data(for: req),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let c = obj["code"] as? String, let p = obj["poll"] as? String else {
-            error = "Can't reach Arise Fit. Check the TV's internet connection."; return
+            error = "Can't reach Cooked. Check the TV's internet connection."; return
         }
         code = c; poll = p
         while token == nil, poll == p, signingIn {
@@ -375,7 +375,7 @@ struct FitSignInCard: View {
                 HStack(spacing: 30) {
                     Image(systemName: "person.crop.circle.badge.plus").font(.system(size: 70)).foregroundStyle(FitColor.ember)
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Sign in to Arise Fit").font(.system(size: 40, weight: .black)).foregroundStyle(.white)
+                        Text("Sign in to Cooked").font(.system(size: 40, weight: .black)).foregroundStyle(.white)
                         Text(why).font(.system(size: 24)).foregroundStyle(FitColor.dim)
                     }
                     Spacer()
@@ -404,7 +404,7 @@ struct FitTVToday: View {
     var body: some View {
         FitPage {
             FitHeader(eyebrow: Date().formatted(.dateTime.weekday(.wide).month(.wide).day()), title: greeting, sub: model.me == nil ? "Follow-along workouts. Pick one and press play." : nil)
-            if FitSession.all.isEmpty { Text("The workouts didn't load. Update Arise Fit from the App Store on this Apple TV.").font(.system(size: 28, weight: .bold)).foregroundStyle(FitColor.ember) }
+            if FitSession.all.isEmpty { Text("The workouts didn't load. Update Cooked from the App Store on this Apple TV.").font(.system(size: 28, weight: .bold)).foregroundStyle(FitColor.ember) }
             if let me = model.me {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 26), count: 3), spacing: 26) {
                     ForEach(me.slots) { s in
@@ -602,7 +602,7 @@ struct FitTVWorkouts: View {
     let play: (FitSession) -> Void
     var body: some View {
         FitPage {
-            FitHeader(eyebrow: "Arise Fit", title: "Follow-along workouts", sub: "Pick one and press play. Play/Pause pauses; swipe to skip a step; Menu ends it.")
+            FitHeader(eyebrow: "Cooked", title: "Follow-along workouts", sub: "Pick one and press play. Play/Pause pauses; swipe to skip a step; Menu ends it.")
             if let r = model.me?.routines, !r.isEmpty { FitRow(title: "Your routines", symbol: "dumbbell.fill", tint: FitColor.ember, items: r, play: play) }
             ForEach(fitCategories) { cat in
                 FitRow(title: cat.name, symbol: cat.symbol, tint: cat.tint, items: FitSession.all.filter { $0.category == cat.id }, play: play)
@@ -653,7 +653,7 @@ struct FitTVProgram: View {
                 }
                 Text(noYouTube ? "Get the YouTube app from the App Store to watch the how-to videos here." : "Each set is timed for you, with your program's rest between sets. Press an exercise to watch how it's done (it opens in YouTube). Log the weights on your phone afterwards.").font(.system(size: 22)).foregroundStyle(noYouTube ? .yellow : FitColor.faint)
             } else if model.me != nil {
-                FitHeader(eyebrow: "Program", title: "No program yet", sub: "Pick a strength program in Arise Fit on your phone (Train → Programs), and its next day is here, ready to play.")
+                FitHeader(eyebrow: "Program", title: "No program yet", sub: "Pick a strength program in Cooked on your phone (Train → Programs), and its next day is here, ready to play.")
                 Button { go(.workouts) } label: { Label("Browse workouts", systemImage: "play.rectangle.fill").font(.system(size: 28, weight: .bold)).padding(.horizontal, 34).padding(.vertical, 18).background(FitColor.card, in: Capsule()) }.buttonStyle(FitLift(radius: 40))
             } else {
                 FitHeader(eyebrow: "Program", title: "Your strength program")
@@ -668,7 +668,7 @@ struct FitTVTimers: View {
     let play: (FitSession) -> Void
     var body: some View {
         FitPage {
-            FitHeader(eyebrow: "Interval timers", title: "Timers", sub: "Work, rest and rounds, called out for you. Make your own in Arise Fit on your phone.")
+            FitHeader(eyebrow: "Interval timers", title: "Timers", sub: "Work, rest and rounds, called out for you. Make your own in Cooked on your phone.")
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 30), count: 3), spacing: 30) {
                 ForEach(model.timers) { t in
                     Button { play(t) } label: {
@@ -886,7 +886,7 @@ struct FitTVPlayer: View {
             Image(systemName: "checkmark.seal.fill").font(.system(size: 150)).foregroundStyle(.green)
             Text("Workout done!").font(.system(size: 80, weight: .black)).foregroundStyle(.white)
             Text("\(session.name) · \(clock(active))").font(.system(size: 34)).foregroundStyle(.white.opacity(0.75))
-            if let saved { Text(saved ? "Saved to your Arise Fit workout log." : "Couldn't save it to your log just now.").font(.system(size: 28, weight: .semibold)).foregroundStyle(saved ? .green : .orange) }
+            if let saved { Text(saved ? "Saved to your Cooked workout log." : "Couldn't save it to your log just now.").font(.system(size: 28, weight: .semibold)).foregroundStyle(saved ? .green : .orange) }
             else if model.token == nil { Text("Sign in on the Today screen to save workouts to your log.").font(.system(size: 26)).foregroundStyle(.white.opacity(0.6)) }
             Button("Back to workouts") { dismiss() }.font(.system(size: 30, weight: .bold))
         }

@@ -1,4 +1,4 @@
-// Arise LifeHub's A.R.I.S.E. Reader tab for parents, built the LifeHub way (page head, child chips,
+// Arise LifeHub's Arise Reader tab for parents, built the LifeHub way (page head, child chips,
 // a Progress / Controls / Prizes switch, LifeHub panels, stats, toggles and pop-ups).
 // Everything the old parent portal did is here: linking children, each child's points, quizzes,
 // certificates, camera quizzes and growth check, the family proctor code, game controls (regular
@@ -110,7 +110,7 @@ export default function Reader({ say, night = false }: { say: (message: string) 
 
   return <div className="space-y-6" data-testid="lifehub-reader">
     <ParentBehaviorCard />
-    <PageHead eyebrow="A.R.I.S.E. Reader" title={child ? `${child.displayName}'s reading` : "Your readers"}
+    <PageHead eyebrow="Arise Reader" title={child ? `${child.displayName}'s reading` : "Your readers"}
       blurb="Your children's reading, quizzes and certificates, the family proctor code, game time and prizes."
       action={<div className="flex flex-wrap gap-2">
         <a href="/social/" className={plain + " min-h-11"}><Users size={16} /> A.R.I.S.E. Connect</a>
@@ -300,14 +300,14 @@ function AddChild({ get, onClose, onAdded }: { get: (path: string, init?: Reques
       setBusy(false);
     }
   };
-  return <Modal eyebrow="A.R.I.S.E. Reader" title="Add a child" onClose={onClose}>
+  return <Modal eyebrow="Arise Reader" title="Add a child" onClose={onClose}>
     <div className="mb-5 grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1" role="group" aria-label="Choose how to add your child">
       <button type="button" onClick={() => { setMode("create"); setError(""); }} aria-pressed={mode === "create"} className={"min-h-11 rounded-lg px-2 text-sm font-bold " + (mode === "create" ? "bg-white text-violet-800 shadow-sm" : "text-slate-600")}>Create new reader</button>
       <button type="button" onClick={() => { setMode("link"); setError(""); }} aria-pressed={mode === "link"} className={"min-h-11 rounded-lg px-2 text-sm font-bold " + (mode === "link" ? "bg-white text-violet-800 shadow-sm" : "text-slate-600")}>Link school account</button>
     </div>
     <form className="space-y-4" onSubmit={submit}>
       {mode === "create" ? <>
-        <p className="text-sm leading-6 text-slate-600">Set up your child's own independent A.R.I.S.E. Reader account. No teacher, school, or parent code needed. It will connect to your family automatically.</p>
+        <p className="text-sm leading-6 text-slate-600">Set up your child's own independent Arise Reader account. No teacher, school, or parent code needed. It will connect to your family automatically.</p>
         <Label text="Child's name"><input autoFocus required minLength={2} maxLength={100} className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="First and last name" /></Label>
         <Label text="Child's username"><input required minLength={3} maxLength={30} autoCapitalize="none" autoComplete="off" spellCheck={false} className={inputClass} value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Choose a username" /></Label>
         <Label text="Child's password"><input required minLength={6} type="password" autoComplete="new-password" className={inputClass} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 6 characters" /></Label>

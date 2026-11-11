@@ -1,4 +1,4 @@
-// What the Arise Fit widgets show (client/src/lib/widgets.ts sends it to the iPhone): a simple and a detailed
+// What the Cooked widgets show (client/src/lib/widgets.ts sends it to the iPhone): a simple and a detailed
 // widget for each slot below. Pure, so it's tested.
 import { CATALOG_BY_ID, PROGRAM_BY_ID, fromKg, goals, nextProgramDay, streak, type FitData } from "@shared/fit";
 import { fastingStatus } from "@shared/fitNutrition";

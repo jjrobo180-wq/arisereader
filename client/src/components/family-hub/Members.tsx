@@ -24,7 +24,7 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   mood: { label: "Mood tracker", detail: "Daily mood check-in and patterns", icon: <SmilePlus size={17} /> },
   news: { label: "News", detail: "Today's headlines and local news", icon: <Newspaper size={17} /> },
   notifications: { label: "Notifications", detail: "Choose your reminders and how many", icon: null },
-  reader: { label: "A.R.I.S.E. Reader", detail: "Your children's reading, controls and add-ons", icon: null },
+  reader: { label: "Arise Reader", detail: "Your children's reading, controls and add-ons", icon: null },
   health: { label: "Calorie counter", detail: "Calories, food, water, exercise and Apple Health steps", icon: <Apple size={17} /> },
   polls: { label: "Polls", detail: "Dinner ideas, weekend plans and votes", icon: <Vote size={17} /> },
   trips: { label: "Trips", detail: "Trip planner and packing lists", icon: <Plane size={17} /> },
@@ -147,18 +147,8 @@ export default function Members({ family, setFamily, makeId, say }: SectionProps
         </li>)}</ul> : <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center"><p className="font-bold">Who's in your family?</p><p className="mt-1 text-sm text-slate-500">Add each parent and kid. Kids get a behavior card and a star chart.</p><button onClick={() => setEditing(blank(makeId(), 0))} className={primary + " mt-4"}><Plus size={16} /> Add the first person</button></div>}
       </Panel>
 
-      <Panel eyebrow="Switches" title="Turn features on or off">
-        <p className="mb-3 text-sm text-slate-500">Hiding a feature keeps everything saved in it. Turn it back on any time. To reorder the menu, drag an item in it (or use its arrows on hover).</p>
-        <ul className="divide-y divide-slate-100">{orderedToggleable(family).map((s) => {
-          const info = SECTION_INFO[s];
-          const on = isOn(s, family);
-          return <li key={s} className="flex items-center gap-3 py-3">
-            <span className={`rounded-xl p-2 ${on ? "bg-violet-50 text-violet-600" : "bg-slate-100 text-slate-400"}`}>{info.icon}</span>
-            <span className="min-w-0 flex-1"><span className="block text-sm font-bold">{info.label}</span><span className="text-xs text-slate-500">{info.detail}</span></span>
-            <Toggle on={on} label={`Show ${info.label}`} onChange={(v) => setFamily((f) => ({ ...f, sections: { ...f.sections, [s]: v } }))} />
-          </li>;
-        })}</ul>
-        <div className="mt-2 flex items-center gap-3 border-t border-slate-100 pt-4">
+      <Panel eyebrow="Rewards" title="Stars">
+        <div className="flex items-center gap-3">
           <span className="min-w-0 flex-1"><span className="block text-sm font-bold">Chore stars count toward rewards</span><span className="text-xs text-slate-500">Kids can spend stars from chores and behavior together</span></span>
           <Toggle on={family.chorePointsCount} label="Chore stars count toward rewards" onChange={(v) => setFamily((f) => ({ ...f, chorePointsCount: v }))} />
         </div>

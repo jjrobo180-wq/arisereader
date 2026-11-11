@@ -64,7 +64,7 @@ export default function DropApp({ say, token }: Props) {
   useEffect(() => {
     loadMine();
     if (!token) return;
-    const t = setInterval(loadMine, 10_000);
+    const t = setInterval(() => { if (document.visibilityState === "visible") loadMine(); }, 10_000);
     const wake = () => { if (document.visibilityState === "visible") loadMine(); };
     document.addEventListener("visibilitychange", wake);
     return () => { clearInterval(t); document.removeEventListener("visibilitychange", wake); };

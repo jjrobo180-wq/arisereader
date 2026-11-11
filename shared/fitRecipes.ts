@@ -1,4 +1,4 @@
-// Arise Fit: healthy recipes that fit your goal and what's left of today's calories and protein.
+// Cooked: healthy recipes that fit your goal and what's left of today's calories and protein.
 // Each has its numbers per serving (worked out from USDA values for the ingredients, rounded) so
 // "Log it" adds it to Food in one tap. The AI can also make one from what's in your kitchen
 // (POST /api/fit/recipe in server/fit.ts), shaped the same way.

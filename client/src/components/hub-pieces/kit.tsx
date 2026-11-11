@@ -1,5 +1,5 @@
 // The look of Arise WorkHub (slate and teal) and Arise LifeHub (violet), as class names, so the
-// A.R.I.S.E. Reader pieces shown inside a hub are built from that hub's own parts.
+// Arise Reader pieces shown inside a hub are built from that hub's own parts.
 import type { ReactNode } from "react";
 import { HubModal } from "@/components/teacher-hub/HubModal";
 import { Modal } from "@/components/family-hub/ui";
@@ -93,7 +93,7 @@ export function Meter({ which, value, max, warn }: { which: Which; value: number
 export function KitModal({ which, title, onClose, wide, children }: { which: Which; title: string; onClose: () => void; wide?: boolean; children: ReactNode }) {
   return which === "work"
     ? <HubModal title={title} onClose={onClose} size={wide ? "lg" : "md"} closeOnBackdrop>{children}</HubModal>
-    : <Modal eyebrow="A.R.I.S.E. Reader" title={title} onClose={onClose} wide={wide}>{children}</Modal>;
+    : <Modal eyebrow="Arise Reader" title={title} onClose={onClose} wide={wide}>{children}</Modal>;
 }
 
 export const fmtWhen = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "");

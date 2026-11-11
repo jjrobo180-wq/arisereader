@@ -1,4 +1,4 @@
-// Opens the A.R.I.S.E. Reader app build (VITE_NATIVE_APP=reader or educator, with its "inside the iPhone
+// Opens the Arise Reader app build (VITE_NATIVE_APP=reader or educator, with its "inside the iPhone
 // app" checks switched on) in Chromium at iPhone size, against the live server, and signs in with a
 // public sample account. Prints every page error and whether the "Something went wrong" screen shows,
 // and saves screenshots. Usage: node reader-app-smoke.mjs <dist dir> <flavor> <username> <password>

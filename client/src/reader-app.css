@@ -1,4 +1,4 @@
-/* The A.R.I.S.E. Reader iPhone app (html.reader-app, set in main.tsx): a full-screen app, not a web
+/* The Arise Reader iPhone app (html.reader-app, set in main.tsx): a full-screen app, not a web
    page in a frame. The page draws behind the status bar (contentInset "never" in
    reader/ios-app/capacitor.config.json); whatever sits at the top grows down past the clock, so the
    top of the screen is the app's own color instead of a white strip.

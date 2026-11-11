@@ -52,11 +52,11 @@ const EVERYWHERE: GuideTopic = {
 
 export const GUIDES: Guide[] = [
   {
-    role: "parent", label: "Parent", who: "Families using LifeHub and A.R.I.S.E. Reader",
-    intro: "LifeHub runs your family's day: to-dos, calendar, notes and any extra plugins you add. Your children's reading lives on the A.R.I.S.E. Reader page right inside it. Your parent account is free.",
+    role: "parent", label: "Parent", who: "Families using LifeHub and Arise Reader",
+    intro: "LifeHub runs your family's day: to-dos, calendar, notes and any extra plugins you add. Your children's reading lives on the Arise Reader page right inside it. Your parent account is free.",
     steps: [
       { id: "family", title: "Add your family", body: "In Family & settings, add each adult and kid with a name, emoji and colour. Then you can assign to-dos, chores and events to people.", open: "family" },
-      { id: "child", title: "Link your child's reading", body: "Open A.R.I.S.E. Reader and add your child. You'll see their books, quizzes, points and reading score.", open: "reader" },
+      { id: "child", title: "Link your child's reading", body: "Open Arise Reader and add your child. You'll see their books, quizzes, points and reading score.", open: "reader" },
       { id: "todo", title: "Add your first to-do", body: "Type it in Tasks and press Enter. Tap More for a due date, time, notes, a repeat or who it's for.", open: "tasks" },
       { id: "calendar", title: "Put this week on the calendar", body: "Add events, give each family calendar its own colour, and set events to repeat.", open: "calendar" },
       { id: "apps", title: "Add one plugin you'll use", body: "Chores, Grocery list, Meal planner, Budget & bills… pick one from the Plugin Gallery.", open: "store" },
@@ -66,7 +66,7 @@ export const GUIDES: Guide[] = [
       { id: "tasks", title: "Tasks & reminders", summary: "Lists for everything.", open: "tasks", points: ["Make lists (Home, School, Groceries…) and give each a colour.", "Due dates, times, repeats, high priority and notes.", "Assign a task to anyone in the family.", "Views for Today, Upcoming, Completed and Archived. Share a list with a link."] },
       { id: "calendar", title: "Calendar", summary: "Shared family calendars.", open: "calendar", points: ["Several calendars, each with a colour, shown or hidden with one tap.", "Events can repeat weekly, monthly or yearly and be assigned to family members."] },
       { id: "notes", title: "Notes", summary: "Full-screen notes with formatting.", open: "notes", points: ["Notes open full screen with fonts, sizes, colours, checklists and lists.", "They save as you type. Pin the important ones to Home.", "Start from a template, and lock private notes with your passcode."] },
-      { id: "reader", title: "A.R.I.S.E. Reader for your kids", summary: "Their reading, your controls.", open: "reader", points: ["See each child's quizzes, points, reading score and quiz history.", "Your proctor code lets your child start a quiz while you watch. Camera quizzes are an option too.", "Set game time: games a day, minutes a day and games earned per passed quiz.", "Add family prizes they can earn with points.", "Add Arise Math, History and Connect for the whole family as one optional bundle."] },
+      { id: "reader", title: "Arise Reader for your kids", summary: "Their reading, your controls.", open: "reader", points: ["See each child's quizzes, points, reading score and quiz history.", "Your proctor code lets your child start a quiz while you watch. Camera quizzes are an option too.", "Set game time: games a day, minutes a day and games earned per passed quiz.", "Add family prizes they can earn with points.", "Add Arise Math, History and Connect for the whole family as one optional bundle."] },
       { id: "family-apps", title: "Family apps", summary: "Add only what helps.", open: "store", points: ["Chores with rotations and stars, Behavior with rewards, Allowance.", "Grocery list, Meal planner and Recipe box.", "Budget & bills, Savings jars, Subscriptions.", "Pills, Food & fitness, Medical info, Pet care, Birthdays, Trips and many more."] },
       { id: "ai", title: "AI Reminders", summary: "Reminders built around your life.", open: "lifeplan", points: ["Tell it the life you want; it builds reminders around your busy times and your real calendar."] },
       { id: "linked", title: "Share with others", summary: "Co-parents, sitters and grandparents.", open: "linked", points: ["Settings → Sharing is the one place: add your partner, a co-parent or a sitter, and pick what each can see and change.", "Accountability together, and links anyone can open without an account, are there too."] },
@@ -81,10 +81,10 @@ export const GUIDES: Guide[] = [
     ],
   },
   {
-    role: "teacher", label: "Teacher", who: "Teachers using WorkHub and A.R.I.S.E. Reader",
-    intro: "WorkHub is your teaching workspace: calendar, tasks, notes and goals come with it, and you add the tools you need. A.R.I.S.E. Reader has your class's reading, quizzes, live quizzes and prizes.",
+    role: "teacher", label: "Teacher", who: "Teachers using WorkHub and Arise Reader",
+    intro: "WorkHub is your teaching workspace: calendar, tasks, notes and goals come with it, and you add the tools you need. Arise Reader has your class's reading, quizzes, live quizzes and prizes.",
     steps: [
-      { id: "class", title: "Add your students", body: "In A.R.I.S.E. Reader → Students, add your class, or approve students who signed up and chose you as their teacher.", open: "reader" },
+      { id: "class", title: "Add your students", body: "In Arise Reader → Students, add your class, or approve students who signed up and chose you as their teacher.", open: "reader" },
       { id: "calendar", title: "Connect your calendar", body: "Bring in Google, Outlook or Apple Calendar so meetings and events show in one place.", open: "calendar" },
       { id: "todo", title: "Add a to-do", body: "Type it on Home and press Enter. Tap More for a due date, time, notes or a repeat.", open: "tasks" },
       { id: "apps", title: "Add the tools you use", body: "Caseload, Minutes, Gradebook, Attendance, Behavior, Lessons… add them from the Plugin Gallery.", open: "store" },
@@ -96,7 +96,7 @@ export const GUIDES: Guide[] = [
       { id: "tasks", title: "Tasks & notes", summary: "To-dos and notes that save themselves.", open: "tasks", points: ["Lists with colours, due dates, times, repeats and importance.", "Notes about a student or a meeting, full screen, with formatting. They save as you type.", "Lock private notes with your passcode."] },
       { id: "students", title: "Students & IEPs", summary: "Caseload, goals, minutes and meetings.", open: "caseload", points: ["Caseload with each student's profile in one place.", "IEP goals from baseline to target, with a progress chart.", "Service minutes owed and given, by block.", "IEP & meetings with a step-by-step plan."] },
       { id: "classroom", title: "Classroom tools", summary: "Add what your class needs.", open: "store", points: ["Gradebook, Attendance, Behavior, Lessons and Schedules.", "Parents: contact logs, and Email forwarding into WorkHub."] },
-      { id: "reader", title: "A.R.I.S.E. Reader", summary: "Reading quizzes and points.", open: "reader", points: ["Students read, take a quiz and earn the book's points when they score 70% or better. Each book counts once.", "Approve students, see quizzes & grading, and review any quiz.", "Run a Live quiz with the whole class, or class Scenes.", "Set game time and prizes students earn with points.", "Arise Math, History and Connect can be added for your class."] },
+      { id: "reader", title: "Arise Reader", summary: "Reading quizzes and points.", open: "reader", points: ["Students read, take a quiz and earn the book's points when they score 70% or better. Each book counts once.", "Approve students, see quizzes & grading, and review any quiz.", "Run a Live quiz with the whole class, or class Scenes.", "Set game time and prizes students earn with points.", "Arise Math, History and Connect can be added for your class."] },
       EVERYWHERE,
     ],
     customize: CUSTOMIZE_HUB,
@@ -108,7 +108,7 @@ export const GUIDES: Guide[] = [
     ],
   },
   {
-    role: "student", label: "Student", who: "Students reading on A.R.I.S.E. Reader",
+    role: "student", label: "Student", who: "Students reading on Arise Reader",
     intro: "Read books, take short quizzes, earn points and use them for games and prizes. Here's how it works.",
     steps: [
       { id: "book", title: "Pick a book", body: "Open the Library and find a book you've read or are reading. Search by title or author." },

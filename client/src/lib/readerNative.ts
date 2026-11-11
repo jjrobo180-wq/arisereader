@@ -1,4 +1,4 @@
-// The A.R.I.S.E. Reader iPhone app's native side, so it works like an iPhone app and not a web page:
+// The Arise Reader iPhone app's native side, so it works like an iPhone app and not a web page:
 //   - Notifications from the server (a message from your teacher, being added to a class, a reward), on top
 //     of the daily reading reminder the phone schedules itself (ReaderFirstRun.tsx).
 //   - Home Screen quick actions (press and hold the icon: Library, Messages, Games, My profile),

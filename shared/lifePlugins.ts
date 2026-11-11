@@ -174,6 +174,10 @@ const AISLE_WORDS: [string, string[]][] = [
   ["Personal care", ["shampoo", "conditioner", "toothpaste", "toothbrush", "deodorant", "lotion", "razor", "floss", "tissue", "diaper", "wipe", "sunscreen", "vitamin", "medicine"]],
 ];
 
+/** The aisle a list item is shown under. One the list doesn't have ("Bread & bakery", a typo) shows under Other,
+ *  so no item can ever be on the list and not on screen. */
+export const aisleOf = (i: { aisle?: string | null }): string => (i.aisle && AISLES.includes(i.aisle) ? i.aisle : "Other");
+
 /** The aisle a grocery item most likely sits in. */
 export function guessAisle(name: string): string {
   const n = ` ${name.toLowerCase()} `;

@@ -1,4 +1,4 @@
-// Going back in the two A.R.I.S.E. Reader iPhone apps. An app has no browser back button, so every
+// Going back in the two Arise Reader iPhone apps. An app has no browser back button, so every
 // screen past the home screen gets one (top left, under the status bar), and a swipe in from the left
 // edge goes back too, the way iPhone apps do. With nothing to go back to, it opens the home screen.
 import { useEffect, useRef, useState } from "react";
@@ -6,7 +6,9 @@ import { useLocation } from "wouter";
 import { isReaderApp, nativeFlavor } from "@/lib/nativeApp";
 
 /** Screens that are a home of their own (or sign-in): no back button there. */
-const HOMES = ["/", "/library", "/reader", "/eye-gaze-home", "/eye-gaze-parent", "/signin", "/register", "/teacher-signup", "/parent-signup", "/reset-password"];
+// "/subscribe" (an account that needs a plan) is a home too: every other Reader screen sends it back there,
+// so a Back button on it went nowhere.
+const HOMES = ["/", "/library", "/reader", "/eye-gaze-home", "/eye-gaze-parent", "/signin", "/register", "/teacher-signup", "/parent-signup", "/reset-password", "/subscribe"];
 export const isHomeScreen = (path: string) => HOMES.includes(path.split("?")[0].replace(/\/+$/, "") || "/");
 
 export default function NativeBack() {
