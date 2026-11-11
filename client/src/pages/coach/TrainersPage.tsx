@@ -1,6 +1,6 @@
 // The trainer directory on the website (#/trainers): anyone can browse listed trainers, their prices and
 // reviews without signing in. Connecting with one happens in Cooked; trainers list themselves in
-// Arise Trainer (#/trainer).
+// Cooked PT (#/trainer).
 import { useEffect, useState } from "react";
 import { ArrowRight, UserRound } from "lucide-react";
 import { LISTING, money } from "@shared/coach";
@@ -20,7 +20,7 @@ export default function TrainersPage() {
       <Card className="mt-8 !p-5" style={{ background: `linear-gradient(150deg, ${C.emberSoft}, ${C.card})` }}>
         <div className="flex items-start gap-3"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-[12px]" style={{ background: C.lime, color: "var(--fit-on-accent)" }}><UserRound className="h-6 w-6" /></span>
           <div><p className="text-[26px] leading-none" style={display}>Are you a trainer?</p>
-            <p className="mt-1 text-[14px]" style={{ color: C.steel }}>List your prices, get reviews and coach clients in Arise Trainer. Their Cooked workouts, food and health data come to you automatically. {money(LISTING.cents)} a month after a {LISTING.trialDays}-day free trial.</p>
+            <p className="mt-1 text-[14px]" style={{ color: C.steel }}>List your prices, get reviews and coach clients in Cooked PT. Their Cooked workouts, food and health data come to you automatically. {money(LISTING.cents)} a month after a {LISTING.trialDays}-day free trial.</p>
             <a href="#/trainer" className="mt-3 inline-flex min-h-12 items-center gap-2 rounded-[10px] px-5 text-[18px]" style={{ ...display, background: C.lime, color: "var(--fit-on-accent)" }}>List yourself<ArrowRight className="h-5 w-5" /></a></div></div>
       </Card>
     </div>

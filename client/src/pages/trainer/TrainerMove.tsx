@@ -1,4 +1,4 @@
-// Moving to Arise Trainer, in the Business tab: import clients and workouts from Trainerize, TrueCoach or any
+// Moving to Cooked PT, in the Business tab: import clients and workouts from Trainerize, TrueCoach or any
 // spreadsheet (CSV), email everyone your invite link, and export everything any time. Server: server/coach.ts.
 import { useState } from "react";
 import { ArrowDownToLine, Check, Copy, Download, FileUp, Mail, Users } from "lucide-react";

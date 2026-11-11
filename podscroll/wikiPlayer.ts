@@ -1,5 +1,5 @@
 // The Wiki podcast player's engine. It lives outside the screen, so the reading carries on when you
-// leave the Wiki page, switch to another part of Pod+, leave the app or lock the phone. The screen
+// leave the Wiki page, switch to another part of Podster, leave the app or lock the phone. The screen
 // (Wiki.tsx) only shows its state and sends it taps; the lock screen and headphones control it too.
 import { preloadAiVoice, sayAI, sayPieces, stopAiVoice, type AiVoiceName } from "../client/src/lib/aiVoice";
 import { parseArticle, wikiArticleUrl, wikiIntro, wikiOutro, type WikiArticle } from "@shared/podWiki";
@@ -104,7 +104,7 @@ function syncSession() {
     if (!state.art) { ms.metadata = null; ms.playbackState = "none"; return; }
     const sections = wikiSections();
     const part = state.sec >= 0 && state.sec < sections.length ? sections[state.sec].title : "Wikipedia";
-    ms.metadata = new MediaMetadata({ title: state.art.title, artist: `Wiki podcast · ${part}`, album: "Pod+", artwork: state.art.image ? [{ src: state.art.image, sizes: "512x512" }] : [] });
+    ms.metadata = new MediaMetadata({ title: state.art.title, artist: `Wiki podcast · ${part}`, album: "Podster", artwork: state.art.image ? [{ src: state.art.image, sizes: "512x512" }] : [] });
     ms.playbackState = state.playing ? "playing" : "paused";
     if (!handlersOn) {
       handlersOn = true;

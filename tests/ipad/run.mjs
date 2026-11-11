@@ -1,4 +1,4 @@
-// The Eye Gazer games in Safari's engine (WebKit) as an iPad, played with finger taps. Saves a
+// The Arise AAC games in Safari's engine (WebKit) as an iPad, played with finger taps. Saves a
 // screenshot of each game before and after tapping, and every error, to tests/ipad/out.
 import { webkit, devices } from "playwright";
 import { createServer } from "node:http";

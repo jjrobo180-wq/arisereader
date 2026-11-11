@@ -1,4 +1,4 @@
-// Arise Trainer groups (November 2026): group pages, group chat and challenges (like a 21-day sugar reset)
+// Cooked PT groups (November 2026): group pages, group chat and challenges (like a 21-day sugar reset)
 // with a leaderboard. Run with: npx tsx --test tests/trainer-groups.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -153,7 +153,7 @@ test("a sugar reset challenge: members check off goals, the leaderboard ranks th
   assert.equal((await call("GET", "/api/coach/groups", 101)).body.groups[0].live, "21-day sugar reset");
 });
 
-test("groups are wired into Arise Trainer and Cooked", () => {
+test("groups are wired into Cooked PT and Cooked", () => {
   assert.match(read("server/coach.ts"), /registerCoachGroupRoutes\(app, auth,/);
   assert.match(read("server/index.ts"), /"\/api\/coach\/groups", express\.json\(\{ limit: "1mb" \}\)/);
   const tr = read("client/src/pages/trainer/TrainerApp.tsx");

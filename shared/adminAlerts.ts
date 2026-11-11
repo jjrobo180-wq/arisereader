@@ -35,7 +35,7 @@ export const ALERT_EVENTS: readonly AlertEventInfo[] = [
   { key: "teacher_signup", group: "Sign-ups", label: "A teacher joins", hint: "When a teacher confirms their school email, or needs you to turn their account on.", defaults: { email: true, inApp: true } },
   { key: "parent_signup", group: "Sign-ups", label: "A parent signs up", hint: "And which student they connected to.", defaults: { email: true, inApp: true } },
   { key: "quiz_completed", group: "Quizzes", label: "A book quiz is taken", hint: "Score, points earned and who proctored it.", defaults: { email: true, inApp: true } },
-  { key: "eye_gaze_quiz_completed", group: "Quizzes", label: "An Eye Gazer quiz is taken", hint: "Built-in and custom Eye Gazer quizzes.", defaults: { email: true, inApp: true } },
+  { key: "eye_gaze_quiz_completed", group: "Quizzes", label: "An Arise AAC quiz is taken", hint: "Built-in and custom Arise AAC quizzes.", defaults: { email: true, inApp: true } },
   { key: "assessment_completed", group: "Quizzes", label: "A reading assessment or Growth Check is finished", hint: "Score and the reading level it points to.", defaults: { email: true, inApp: true } },
   { key: "ai_quiz_review", group: "Requests", label: "An AI quiz needs your review", hint: "A student made a quiz with AI and it's waiting for approval.", defaults: { email: true, inApp: true } },
   { key: "quiz_request", group: "Requests", label: "A student asks for a book or quiz", hint: "Quiz requests, book requests and Learning Ally / Clever requests.", defaults: { email: true, inApp: true } },

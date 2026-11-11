@@ -7,7 +7,7 @@
 //    profile, body weight, workouts, food, steps and fasting, runs, progress photos). Once the trainer
 //    accepts, that data goes to them automatically, with nothing to type again, until the person stops
 //    sharing or ends the coaching.
-//  • In the Arise Trainer app, the trainer builds workouts and programs, puts them on the client's
+//  • In the Cooked PT app, the trainer builds workouts and programs, puts them on the client's
 //    calendar, sets habits, nutrition targets, goals and check-in forms, books sessions, keeps private
 //    notes and messages the client. In Cooked the client sees it all and does it.
 //
@@ -390,4 +390,4 @@ export function expandProgram(p: CoachProgram, lib: Library, start: string): Ass
 export const checkinDue = (c: Coaching, side: ClientSide, now = new Date()) => !!c.checkin && now.getDay() === c.checkin.weekday && !side.checkins.some((x) => x.formId === c.checkin!.id && x.date >= daysAgo(4, now));
 
 /** Listing plan: what a trainer pays Arise to be in the directory. */
-export const LISTING = { cents: 2900, trialDays: 14, name: "Arise Trainer listing" };
+export const LISTING = { cents: 2900, trialDays: 14, name: "Cooked PT listing" };

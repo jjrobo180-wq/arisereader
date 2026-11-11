@@ -173,7 +173,7 @@ export default function StudentProfileView({ studentId: givenId, onClose }: { st
 
         {data.student.isEyeGazeUser && (
           <div className="p-3 rounded-lg bg-purple-500/20 border border-purple-500/20 text-sm text-purple-400">
-            Eye Gazer / Non-Verbal student
+            Arise AAC / Non-Verbal student
           </div>
         )}
 

@@ -1,11 +1,11 @@
-// Community rules, report reasons and the policy links for Pod+ Social and Earshot Social (LifeHub).
+// Community rules, report reasons and the policy links for Podster Social and Earshot Social (LifeHub).
 // App Review Guideline 1.2 asks apps with posts from people to have terms people agree to (with
 // zero tolerance for objectionable content and abusive users), a way to report content and people,
 // a way to block people, and published contact details. Those last links live here too.
 import { Flag } from "lucide-react";
 import { ActionSheet, type Api } from "./kit";
 
-/** True on the Pod+ website or in the Pod+ iPhone app (its pages run from capacitor://localhost). */
+/** True on the Podster website or in the Podster iPhone app (its pages run from capacitor://localhost). */
 const onPod = () => typeof window !== "undefined" && (/podscroll|podplus/i.test(location.hostname) || (window as any).__PODPLUS__ === true);
 const podBase = "https://podscroll.onrender.com";
 const ariseBase = "https://arisetodo.com";

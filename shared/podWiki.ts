@@ -1,4 +1,4 @@
-// Pod+ Wiki podcasts: any Wikipedia article read aloud by an AI voice. Wikipedia's text is licensed
+// Podster Wiki podcasts: any Wikipedia article read aloud by an AI voice. Wikipedia's text is licensed
 // CC BY-SA 4.0, which allows reuse and adaptation (a spoken reading included) as long as the article
 // and its authors are credited with a link and the reading is shared under the same license. Every
 // episode says so at the start and end and shows the credit on screen.

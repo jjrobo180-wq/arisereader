@@ -13,6 +13,7 @@ const AI_PATHS = [
   /\/api\/sleep-finder\/ask$/,
   /\/api\/comprehension\/review\/[^/]+\/suggest$/,
   /\/api\/apps\/ai$/,
+  /\/api\/undercover\/chat$/,
 ];
 
 const KEY = "arise-ai-consent-v1";

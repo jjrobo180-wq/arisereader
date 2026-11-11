@@ -6,7 +6,7 @@
 // sample accounts). Signing in here is the same account as the website's.
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useLocation } from "wouter";
-import { Apple as AppleIcon, Bell, BookOpen, Briefcase, Dumbbell, LineChart, ChevronLeft, Eye, EyeOff, GraduationCap, HeartHandshake, ListChecks, Loader2, Mail, Mic, Sparkles, Trophy, Users } from "lucide-react";
+import { Apple as AppleIcon, Bell, BookOpen, Briefcase, Dumbbell, LineChart, ChevronLeft, Eye, EyeOff, FileText, GraduationCap, HeartHandshake, ListChecks, Loader2, Mail, MessageCircle, Mic, Sparkles, Trophy, Users } from "lucide-react";
 import ForgotSignIn from "@/components/auth/ForgotSignIn";
 import { useAuth } from "@/context/AuthContext";
 import { APPLE_LOGO_PATH, appleSignInAvailable, askApple } from "@/lib/appleSignIn";
@@ -42,7 +42,7 @@ const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { ti
       { tint: "#0f766e", icon: <Users className="h-[22px] w-[22px]" />, title: "For parents", text: "Follow your child's reading and celebrate wins." },
       { tint: "#e0465f", icon: <Bell className="h-[22px] w-[22px]" />, title: "Notifications", text: "Messages and updates as they happen." },
     ] },
-  eyegaze: { icon: "/app-icons/eyegazer-1024.png", tagline: "Learn, play and talk with your eyes.", apple: true, signInHint: "Use your Eye Gazer account, or any A.R.I.S.E. account.", create: "Create an Eye Gazer account",
+  eyegaze: { icon: "/app-icons/eyegazer-1024.png", tagline: "Learn, play and talk with your eyes.", apple: true, signInHint: "Use your Arise AAC account, or any A.R.I.S.E. account.", create: "Create an Arise AAC account",
     features: [
       { tint: "#0891b2", icon: <Eye className="h-[22px] w-[22px]" />, title: "Made for eye gaze", text: "Games, lessons and a talker that work with a look, a tap or a switch." },
       { tint: "#7c3aed", icon: <BookOpen className="h-[22px] w-[22px]" />, title: "Lessons and books", text: "Letters, words, life skills and stories at their level." },
@@ -71,6 +71,12 @@ const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { ti
       { tint: "#6a55dc", icon: <Mic className="h-[22px] w-[22px]" />, title: "Talking boards", text: "Tap a picture or a word and it is spoken for you." },
       { tint: "#7b5cf0", icon: <Sparkles className="h-[22px] w-[22px]" />, title: "Made for you", text: "Make boards with the words you use every day." },
       { tint: "#0f766e", icon: <HeartHandshake className="h-[22px] w-[22px]" />, title: "Share with family", text: "Keep the same boards on every device." },
+    ] },
+  undercover: { icon: "/app-icons/undercover-1024.png", tagline: "Ask AI in the meeting. It looks like texting.", apple: true, signInHint: "Use your Arise account.", create: "Create a free account",
+    features: [
+      { tint: "#2563eb", icon: <MessageCircle className="h-[22px] w-[22px]" />, title: "Looks like texting", text: "Answers come back as texts or a group chat." },
+      { tint: "#0f766e", icon: <FileText className="h-[22px] w-[22px]" />, title: "Or a document", text: "Answers write into notes or doc comments." },
+      { tint: "#6a55dc", icon: <EyeOff className="h-[22px] w-[22px]" />, title: "Quick hide", text: "One tap swaps to a decoy chat or hides answers." },
     ] },
 };
 
@@ -115,7 +121,7 @@ export default function NativeSignIn() {
 
   const signIn = (e: FormEvent) => { e.preventDefault(); void run("form", async () => { await login(username.trim(), password); showHubMenus(); }); };
 
-  /** Eye Gazer: a plain account of its own. Just a name, a username and a password: no school,
+  /** Arise AAC: a plain account of its own. Just a name, a username and a password: no school,
    *  no teacher, no email code. It opens straight into the eye-gaze home with every feature. */
   const signUpEyeGazer = () => run("form", async () => {
     const clean = username.trim().toLowerCase();
@@ -229,7 +235,7 @@ export default function NativeSignIn() {
   return <Shell>
     <NavBar title="" onBack={() => go("welcome")} />
     <form onSubmit={signingUp ? signUp : signIn} className="flex min-h-0 flex-1 flex-col overflow-y-auto [&>*]:shrink-0 px-5">
-      <Heading title={signingUp ? (eyeGazer ? "Create an Eye Gazer account" : "Create your account") : "Sign in"} text={signingUp ? (eyeGazer ? "No school or teacher needed. Just a name, a username and a password, and every Eye Gazer game, lesson and the talker are ready." : flavor === "fit" || flavor === "trainer" ? "Free, for anyone. The same account works in Cooked and Arise To Duo." : flavor === "notes" ? "Free, for anyone, with 60 minutes a month. The same account works in Arise To Duo." : "Free, for anyone. You get LifeHub and WorkHub.") : copy.signInHint} />
+      <Heading title={signingUp ? (eyeGazer ? "Create an Arise AAC account" : "Create your account") : "Sign in"} text={signingUp ? (eyeGazer ? "No school or teacher needed. Just a name, a username and a password, and every Arise AAC game, lesson and the talker are ready." : flavor === "fit" || flavor === "trainer" ? "Free, for anyone. The same account works in Cooked and Arise To Duo." : flavor === "notes" ? "Free, for anyone, with 60 minutes a month. The same account works in Arise To Duo." : "Free, for anyone. You get LifeHub and WorkHub.") : copy.signInHint} />
       <Group>
         {signingUp && <Field label="Name" value={name} onChange={setName} autoComplete="name" placeholder="Your name" testId="native-name" />}
         {(!signingUp || eyeGazer) && <Field label="Username" value={username} onChange={setUsername} autoComplete="username" placeholder={signingUp ? "Choose a username" : "Username or email"} testId="native-username" plain />}

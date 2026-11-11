@@ -1,4 +1,4 @@
-// Pod+ smart downloads (Pod+ Membership): when shows you follow put out new episodes, Pod+ asks once
+// Podster smart downloads (Podster Membership): when shows you follow put out new episodes, Podster asks once
 // whether to save them on this device, and takes each one off again 24 hours after you've listened to
 // it. Only episodes that smart downloads saved are ever removed this way; anything you downloaded
 // yourself stays until you remove it.

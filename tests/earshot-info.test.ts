@@ -1,4 +1,4 @@
-// Pod+ "About this podcast": the feed's channel read right, and chart ranks matched by name across platforms.
+// Podster "About this podcast": the feed's channel read right, and chart ranks matched by name across platforms.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { findRank, nameKey, parseChannel, parseSpotifyChart } from "../server/podcastInfo";

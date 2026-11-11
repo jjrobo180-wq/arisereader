@@ -1,4 +1,4 @@
-// Pod+ ad skip: new episodes checked for ads before anyone presses play. Every 20 minutes, in the
+// Podster ad skip: new episodes checked for ads before anyone presses play. Every 20 minutes, in the
 // hours when the free AI allowance is left over (US night time, and the last hours before it resets
 // at midnight UTC), the newest episode of a show people follow or play here (then the top shows) is
 // fetched the way a listener's phone would, compared with other copies for stitched-in ads, and its

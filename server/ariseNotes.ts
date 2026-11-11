@@ -907,7 +907,7 @@ export function registerAriseNotesRoutes(app: Express, auth: RequestHandler, dep
     } catch (e) { fail(res, e, "admin usage"); }
   });
 
-  // The same monthly AI minutes, for other apps' AI (Pod+: audiobook transcripts, the podcast maker, the wiki
+  // The same monthly AI minutes, for other apps' AI (Podster: audiobook transcripts, the podcast maker, the wiki
   // reader). One pool per account: Free 60 a month, All Access (Notes Plus) 1,500. See server/aiMinutes.ts.
   const minutes: NotesMinutes = {
     async left(userId) {

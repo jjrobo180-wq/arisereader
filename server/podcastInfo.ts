@@ -65,7 +65,7 @@ export function findRank(list: { name: string; publisher?: string; author?: stri
   return best.i + 1;
 }
 
-/** Spotify's chart ids for Pod+ genres (genre charts exist for the US). */
+/** Spotify's chart ids for Podster genres (genre charts exist for the US). */
 const SPOTIFY_GENRE: Record<string, string> = {
   comedy: "comedy", truecrime: "true-crime", news: "news", politics: "news", science: "science", tech: "technology", business: "business", money: "business",
   history: "history", sports: "sports", health: "health-fitness", mental: "health-fitness", culture: "society-culture", arts: "arts", books: "arts",

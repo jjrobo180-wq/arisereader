@@ -1,6 +1,6 @@
 """Makes an Apple TV app's icon and Top Shelf images from the app's 1024px icon. tvOS icons are layered
 (the parallax tilt): an opaque back in the icon's own background colour and the app's mark in front.
-    python3 native/tv-app/make_tv_assets.py                      (Pod+: native/tv-app/Assets.xcassets)
+    python3 native/tv-app/make_tv_assets.py                      (Podster: native/tv-app/Assets.xcassets)
     python3 native/tv-app/make_tv_assets.py <icon.png> <out.xcassets>"""
 import json, pathlib, sys
 from PIL import Image
@@ -12,7 +12,7 @@ CREAM = ICON.getpixel((512, 40))
 INFO = {"author": "xcode", "version": 1}
 
 def mark(h):
-    """The Pod+ mark, h pixels tall, with rounded corners."""
+    """The Podster mark, h pixels tall, with rounded corners."""
     m = ICON.resize((h, h), Image.LANCZOS).convert("RGBA")
     mask = Image.new("L", (h, h), 0)
     from PIL import ImageDraw

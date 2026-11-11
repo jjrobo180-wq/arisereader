@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
-# Adds Pod+ for Apple Watch (native/watch-app) and Pod+ for Apple TV (native/tv-app) to the generated
+# Adds Podster for Apple Watch (native/watch-app) and Podster for Apple TV (native/tv-app) to the generated
 # Capacitor project, both built from the same native core as CarPlay (native/arise-carplay: PodCore,
 # PodEngine, PodLink).
 #
@@ -25,7 +25,7 @@ icon = File.join(root, "client/public/app-icons/podplus-1024.png")
 
 proj = Xcodeproj::Project.open(project_path)
 app = proj.targets.find { |t| t.name == "App" } or abort "no App target"
-abort "Pod+ Watch and TV are already in the project" if proj.targets.any? { |t| t.name == "PodPlusWatch" || t.name == "PodPlusTV" }
+abort "Podster Watch and TV are already in the project" if proj.targets.any? { |t| t.name == "PodPlusWatch" || t.name == "PodPlusTV" }
 app_cfg = app.build_configurations.first.build_settings
 version = app_cfg["MARKETING_VERSION"] || "1.0"
 build = ENV["BUILD_NUMBER"] || app_cfg["CURRENT_PROJECT_VERSION"] || "1"
@@ -109,7 +109,7 @@ core_files = %w[PodCore.swift PodEngine.swift PodLink.swift].map { |f| File.join
 # --- Apple Watch ---
 watch = add.call("PodPlusWatch", :watchos, "10.0",
   core_files + [File.join(root, "native/watch-app/PodWatchApp.swift")],
-  common.call("Pod+").merge(
+  common.call("Podster").merge(
     "WKApplication" => true,
     "WKCompanionAppBundleIdentifier" => host,
     # Background audio on watchOS is UIBackgroundModes "audio" (App Store Connect rejects "audio" in WKBackgroundModes).
@@ -127,7 +127,7 @@ watch = add.call("PodPlusWatch", :watchos, "10.0",
 # --- Apple TV ---
 tv = add.call("PodPlusTV", :tvos, "17.0",
   core_files.reject { |f| f.end_with?("PodLink.swift") } + [File.join(root, "native/tv-app/PodTVApp.swift")],
-  common.call("Pod+").merge(
+  common.call("Podster").merge(
     "UIBackgroundModes" => ["audio"],
     "UILaunchScreen" => "",
     "UIRequiredDeviceCapabilities" => ["arm64"],

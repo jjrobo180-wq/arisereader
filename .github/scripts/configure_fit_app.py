@@ -1,13 +1,13 @@
-"""Cooked and Arise Trainer iPhone apps: the Info.plist settings App Review checks, and the AppDelegate
+"""Cooked and Cooked PT iPhone apps: the Info.plist settings App Review checks, and the AppDelegate
 hook push notifications need.
 
-Usage: configure_fit_app.py <path to Info.plist> [fit|trainer|notes|talk]   (after `npx cap add ios && npx cap sync ios`)
+Usage: configure_fit_app.py <path to Info.plist> [fit|trainer|notes|talk|undercover]   (after `npx cap add ios && npx cap sync ios`)
   - The name under the icon, the status bar following the app's theme, and that it only uses the
     encryption built into iOS (HTTPS).
   - Cooked. Camera: barcodes, meal photos, form check and progress photos for a trainer. Photos:
     choosing a meal or progress photo. Location: mapping outdoor runs and finding trails. Health:
     reading and saving to Apple Health. Links: arisefit:// (Siri shortcuts and buddy invites).
-  - Arise Trainer. Camera and Photos: a profile photo for the trainer directory, and photos in messages.
+  - Cooked PT. Camera and Photos: a profile photo for the trainer directory, and photos in messages.
     Every permission needs a sentence saying why, or iOS stops the app when it's asked for.
   - Arise Notes. Microphone: recording meetings and voice memos. Camera and Photos: a video to
     upload (only its sound is used). Reminders and Calendars: adding the to-dos and events a person
@@ -22,7 +22,7 @@ import sys
 
 PLIST = sys.argv[1]
 FLAVOR = sys.argv[2] if len(sys.argv) > 2 else "fit"
-assert FLAVOR in ("fit", "trainer", "notes", "talk"), FLAVOR
+assert FLAVOR in ("fit", "trainer", "notes", "talk", "undercover"), FLAVOR
 # The app picks its own look (Light, Dark or Auto in Settings), so iOS follows the phone and the status
 # bar plugin (@capacitor/status-bar) sets the clock's color to match: dark on Light, light on Dark.
 COMMON = {
@@ -48,11 +48,15 @@ KEYS = {
         "NSCameraUsageDescription": "Arise Talk uses the camera when you take a photo for a button or for Snap to talk, which suggests words about what's in the photo.",
         "NSPhotoLibraryUsageDescription": "Arise Talk lets you choose a photo to put on a button or to get words about it.",
     },
+    "undercover": {
+        "CFBundleDisplayName": "Undercover",
+        "NSLocationWhenInUseUsageDescription": "Undercover uses your location only when you ask about the weather and haven't set a city.",
+    },
     "trainer": {
-        "CFBundleDisplayName": "Arise Trainer",
-        "NSCameraUsageDescription": "Arise Trainer uses the camera to take your profile photo for the trainer directory and photos you send your clients in messages.",
-        "NSPhotoLibraryUsageDescription": "Arise Trainer lets you choose your profile photo, photos for your website and groups, and photos to send your clients in messages.",
-        "NSMicrophoneUsageDescription": "Arise Trainer uses the microphone only when you record a voice note on a client's form check video.",
+        "CFBundleDisplayName": "Cooked PT",
+        "NSCameraUsageDescription": "Cooked PT uses the camera to take your profile photo for the trainer directory and photos you send your clients in messages.",
+        "NSPhotoLibraryUsageDescription": "Cooked PT lets you choose your profile photo, photos for your website and groups, and photos to send your clients in messages.",
+        "NSMicrophoneUsageDescription": "Cooked PT uses the microphone only when you record a voice note on a client's form check video.",
     },
     "notes": {
         "CFBundleDisplayName": "Arise Notes",
@@ -60,6 +64,7 @@ KEYS = {
         "NSCameraUsageDescription": "Arise Notes uses the camera only when you choose to record a video to upload. Only its sound is written down.",
         "NSPhotoLibraryUsageDescription": "Arise Notes lets you choose a recording or video from your library to upload. Only its sound is written down.",
         "NSFaceIDUsageDescription": "Arise Notes uses Face ID to unlock your locked notes.",
+        "NSLocationWhenInUseUsageDescription": "Arise Notes uses your location only when you ask Undercover about the weather and haven't set a city.",
         "NSSpeechRecognitionUsageDescription": "In Private and Strict modes, Arise Notes writes down your recordings on this iPhone, so the audio never leaves it.",
         "NSRemindersFullAccessUsageDescription": "Arise Notes adds the to-dos you choose from your meetings to the Reminders app.",
         "NSRemindersUsageDescription": "Arise Notes adds the to-dos you choose from your meetings to the Reminders app.",
@@ -88,7 +93,7 @@ with open(PLIST, "wb") as f:
 print(f"Info.plist ready for {KEYS['CFBundleDisplayName']}: {', '.join(sorted({**COMMON, **KEYS}))}")
 
 DELEGATE = os.path.join(os.path.dirname(PLIST), "AppDelegate.swift")
-if FLAVOR != "talk" and os.path.exists(DELEGATE):  # Arise Talk sends no notifications
+if FLAVOR not in ("talk", "undercover") and os.path.exists(DELEGATE):  # Arise Talk and Undercover send no notifications
     src = open(DELEGATE, encoding="utf-8").read()
     if "didRegisterForRemoteNotificationsWithDeviceToken" not in src:
         end = src.rfind("}")

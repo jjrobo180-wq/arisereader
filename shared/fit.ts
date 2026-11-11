@@ -58,6 +58,8 @@ export type FitData = {
   foodNotes?: Record<string, string>;
   /** Meal prep: the week planned ahead (shared/fitMealPrep.ts). Same shape as the diary. */
   prep?: { start: string; foods: FoodEntry[] };
+  /** Items on the "Finish your day" checklist ticked by hand, by date (shared/fitChecklist.ts). */
+  checks?: Record<string, string[]>;
   /** The grocery list (shared/fitMealPrep.ts). */
   grocery?: { made: string; from: string; items: { id: string; name: string; qty: string; aisle: string; done: boolean }[] };
 };
@@ -71,6 +73,7 @@ import { cleanApps, type FitApps } from "./fitApps";
 import { cleanTimers, type IntervalTimer } from "./fitTimers";
 import { cleanMeds, type Meds } from "./fitMeds";
 import { cleanCycle, type FitCycle } from "./fitCycle";
+import { cleanChecks } from "./fitChecklist";
 
 export const LIMITS = { workouts: 3000, foods: 20000, routines: 60, weights: 3000, recent: 60, bytes: 2_500_000 };
 
@@ -146,6 +149,8 @@ export function cleanFit(raw: any): FitData {
   if (meds) d.meds = meds;
   const cycle = cleanCycle(raw.cycle);
   if (cycle) d.cycle = cycle;
+  const checks = cleanChecks(raw.checks);
+  if (checks) d.checks = checks;
   return d;
 }
 

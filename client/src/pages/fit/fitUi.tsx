@@ -3,7 +3,7 @@
 // default (clean white cards on soft gray), and Dark (graphite, or true black); "Auto" follows the
 // iPhone. Nine color themes (Ember, the original orange, and Volt, Ocean, Aqua, Berry, Violet, Gold,
 // Crimson, Mono) change the accent and the glow in both modes. Every color is a CSS variable, so a
-// change repaints the whole app at once. Shared by Cooked and Arise Trainer.
+// change repaints the whole app at once. Shared by Cooked and Cooked PT.
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Check, Moon, Smartphone, Sun, X } from "lucide-react";
@@ -99,7 +99,7 @@ export function setThemeChoice(c: ThemeChoice) { try { localStorage.setItem(THEM
 const PALETTE_KEY = "arise-fit-palette", BLACK_KEY = "arise-fit-black";
 export const paletteChoice = (): PaletteId => { try { const x = localStorage.getItem(PALETTE_KEY) as PaletteId | null; return x && x in PALETTES ? x : "ember"; } catch { return "ember"; } };
 const LAYOUT_KEY = "arise-fit-layout";
-/** Layouts are Cooked's (Arise Trainer shares these styles but keeps its own look). */
+/** Layouts are Cooked's (Cooked PT shares these styles but keeps its own look). */
 let layoutsOn = false;
 export const layoutChoice = (): LayoutId => { try { const x = localStorage.getItem(LAYOUT_KEY) as LayoutId | null; return x && x in LAYOUTS ? x : "athletic"; } catch { return "athletic"; } };
 /** A new layout also brings the color theme it was drawn with (the color can be changed after). */
@@ -137,7 +137,7 @@ export function useFitTheme(): [ThemeChoice, "light" | "dark", (c: ThemeChoice) 
   return [themeChoice(), resolvedTheme(), setThemeChoice];
 }
 /** Appearance: Light, Dark or Auto; a color theme; and true black for Dark (Settings in Cooked,
- * Business in Arise Trainer). Each choice previews in its own colors. */
+ * Business in Cooked PT). Each choice previews in its own colors. */
 export function ThemePicker({ testId = "fit-theme" }: { testId?: string }) {
   const [choice, shown, setChoice] = useFitTheme();
   const pal = paletteChoice(), black = trueBlack();

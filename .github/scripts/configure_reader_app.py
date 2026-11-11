@@ -14,8 +14,8 @@ import plistlib
 import sys
 
 PLIST, FLAVOR = sys.argv[1], sys.argv[2]
-NAME = {"reader": "Arise Reader", "educator": "Arise Reader Educator", "eyegaze": "Arise Eye Gazer"}[FLAVOR]
-SHORT = {"reader": "A.R.I.S.E.", "educator": "Educator", "eyegaze": "Eye Gazer"}[FLAVOR]
+NAME = {"reader": "Arise Reader", "educator": "Arise Reader Educator", "eyegaze": "Arise AAC"}[FLAVOR]
+SHORT = {"reader": "A.R.I.S.E.", "educator": "Educator", "eyegaze": "Arise AAC"}[FLAVOR]
 KEYS = {
     "CFBundleDisplayName": SHORT if len(NAME) > 18 else NAME,
     "ITSAppUsesNonExemptEncryption": False,

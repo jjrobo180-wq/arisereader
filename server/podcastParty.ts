@@ -1,4 +1,4 @@
-// Listen together (Pod+): a group listens to the same episode at the same moment, chats, and up to
+// Listen together (Podster): a group listens to the same episode at the same moment, chats, and up to
 // six people can hop on the mic. Anyone in the group can play, pause, skip or pick the episode.
 // This server only keeps the group's shared state (which episode, where, playing or not), carries
 // the chat, and introduces mic users to the others (WebRTC); the podcast audio itself plays in each
@@ -103,7 +103,7 @@ function mayCreate(ip: string, now: number) {
   list.push(now); made.set(ip, list); return true;
 }
 
-/** allowed: which sites may open groups (the Pod+ site and local development). */
+/** allowed: which sites may open groups (the Podster site and local development). */
 export function attachListenParties(httpServer: Server, allowed: (origin: string) => boolean) {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
 

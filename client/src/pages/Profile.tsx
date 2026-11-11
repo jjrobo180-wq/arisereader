@@ -795,7 +795,7 @@ export default function Profile() {
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">{cm.displayName}</p>
                         {cm.isEyeGazeUser && (
-                          <span className="text-[10px] text-purple-400 font-medium">Eye Gazer</span>
+                          <span className="text-[10px] text-purple-400 font-medium">Arise AAC</span>
                         )}
                       </div>
                       <div className="text-right flex-shrink-0">
@@ -1105,13 +1105,13 @@ export default function Profile() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
               </svg>
-              Eye Gazer &amp; Non-Verbal
+              Arise AAC &amp; Non-Verbal
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-sm font-medium">Eye Gazer &amp; Non-Verbal Testing</p>
+                <p className="text-sm font-medium">Arise AAC &amp; Non-Verbal Testing</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {eyeGazeEnabled
                     ? "Accessible quizzes with large buttons and visual choices are shown in your Library."
