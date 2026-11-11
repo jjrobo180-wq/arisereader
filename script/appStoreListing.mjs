@@ -122,5 +122,18 @@ for (const [name, inner] of Object.entries(WATCH)) {
   await p.screenshot({ path: `listing/watch/${String(w).padStart(2, "0")}-${name}.png` });
   await c.close(); console.log(`ok watch ${name}`);
 }
+
+// iPhone Duo: the app across both screens (2034x1398, landscape).
+await mkdir("listing/duo", { recursive: true });
+const DUO = [["split", (p) => open(p, "/duo")], ["life", (p) => open(p, "/lifehub?pane=home")], ["work", (p) => open(p, "/hub")], ["tasks", (p) => open(p, "/lifehub?pane=tasks")]];
+let q = 0;
+for (const [name, go] of DUO) {
+  q++;
+  const ctx = await browser.newContext({ viewport: { width: 1017, height: 699 }, deviceScaleFactor: 2, hasTouch: true });
+  const page = await ctx.newPage(); page.setDefaultTimeout(30000);
+  try { await Promise.race([go(page), new Promise((_, no) => setTimeout(() => no(new Error("timed out")), 90000))]); } catch (e) { console.log(`FAIL duo ${name}: ${e?.message || e}`); }
+  await page.screenshot({ path: `listing/duo/${String(q).padStart(2, "0")}-${name}.png` });
+  await ctx.close(); console.log(`ok duo ${name}`);
+}
 await browser.close();
 process.exit(0);
