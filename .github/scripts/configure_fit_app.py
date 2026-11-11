@@ -50,6 +50,7 @@ KEYS = {
     },
     "undercover": {
         "CFBundleDisplayName": "Undercover",
+        "NSLocationWhenInUseUsageDescription": "Undercover uses your location only when you ask about the weather and haven't set a city.",
     },
     "trainer": {
         "CFBundleDisplayName": "Cooked Trainer",

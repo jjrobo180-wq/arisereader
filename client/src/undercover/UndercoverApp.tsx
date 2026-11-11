@@ -5,22 +5,33 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { API_BASE, apiAuthToken } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
-import { UNDERCOVER_THEMES, answerLines, type UndercoverMsg, type UndercoverTheme } from "@shared/undercover";
+import { UNDERCOVER_THEMES, answerLines, wantsWeather, weatherPlaceFrom, type UndercoverMsg, type UndercoverTheme } from "@shared/undercover";
 
-type Saved = { theme: UndercoverTheme; contact: string; chats: Partial<Record<UndercoverTheme, UndercoverMsg[]>> };
+type Saved = { theme: UndercoverTheme; contact: string; city: string; unit: "F" | "C"; chats: Partial<Record<UndercoverTheme, UndercoverMsg[]>> };
 const KEY = "arise-undercover-v1";
 const load = (): Saved => {
-  try { const s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s && typeof s === "object") return { theme: s.theme || "text", contact: s.contact || "Sam", chats: s.chats || {} }; } catch { /* first time */ }
-  return { theme: "text", contact: "Sam", chats: {} };
+  try { const s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s && typeof s === "object") return { theme: s.theme || "text", contact: s.contact || "Sam", city: s.city || "", unit: s.unit === "C" ? "C" : "F", chats: s.chats || {} }; } catch { /* first time */ }
+  const metric = (() => { try { return !/^en-US|^en-LR|^my/.test(navigator.language || "en-US"); } catch { return false; } })();
+  return { theme: "text", contact: "Sam", city: "", unit: metric ? "C" : "F", chats: {} };
 };
 const store = (s: Saved) => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* storage full */ } };
 
-async function askAi(theme: UndercoverTheme, messages: UndercoverMsg[]): Promise<string> {
+/** The phone's location, only for a weather question with no city named or saved (4 seconds at most). */
+const here = (): Promise<{ lat: number; lon: number } | null> => new Promise((done) => {
+  if (!navigator.geolocation) return done(null);
+  const t = setTimeout(() => done(null), 4000);
+  navigator.geolocation.getCurrentPosition((p) => { clearTimeout(t); done({ lat: p.coords.latitude, lon: p.coords.longitude }); }, () => { clearTimeout(t); done(null); }, { maximumAge: 30 * 60_000, timeout: 4000 });
+});
+
+async function askAi(theme: UndercoverTheme, messages: UndercoverMsg[], prefs: { city: string; unit: "F" | "C" }): Promise<string> {
   const token = apiAuthToken();
+  const q = messages[messages.length - 1]?.content || "";
+  const coords = wantsWeather(q) && !prefs.city && !weatherPlaceFrom(q) ? await here() : null;
+  const tz = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return "UTC"; } })();
   const res = await fetch(`${API_BASE}/api/undercover/chat`, {
     method: "POST", cache: "no-store",
     headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: JSON.stringify({ theme, messages }),
+    body: JSON.stringify({ theme, messages, tz, place: prefs.city, unit: prefs.unit, ...(coords || {}) }),
   }).catch(() => null);
   if (!res) throw new Error("You seem to be offline.");
   const d = await res.json().catch(() => null);
@@ -51,7 +62,7 @@ function useChat(theme: UndercoverTheme, saved: Saved, save: (s: Saved) => void)
     save({ ...latest.current, chats: { ...latest.current.chats, [theme]: next } });
     setBusy(true); setError("");
     try {
-      const reply = await askAi(theme, next.slice(-16));
+      const reply = await askAi(theme, next.slice(-16), { city: latest.current.city, unit: latest.current.unit });
       save({ ...latest.current, chats: { ...latest.current.chats, [theme]: [...next, { role: "assistant", content: reply }] } });
     } catch (e: any) { setError(e?.message || "Couldn't get an answer."); }
     finally { setBusy(false); }
@@ -268,7 +279,8 @@ function DocPhoneLook({ chat, onMenu }: { chat: ReturnType<typeof useChat>; onMe
 function Settings({ saved, save, onClose }: { saved: Saved; save: (s: Saved) => void; onClose: () => void }) {
   const { logout } = useAuth();
   const [contact, setContact] = useState(saved.contact);
-  const pick = (theme: UndercoverTheme) => { save({ ...saved, theme, contact: contact.trim() || "Sam" }); onClose(); };
+  const [city, setCity] = useState(saved.city);
+  const pick = (theme: UndercoverTheme) => { save({ ...saved, theme, contact: contact.trim() || "Sam", city: city.trim() }); onClose(); };
   return <div role="dialog" aria-modal="true" aria-label="Settings" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.45)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 50, fontFamily: FONT }} onClick={onClose}>
     <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 520, maxHeight: "88dvh", overflowY: "auto", background: "#fff", color: "#0f172a", borderRadius: "20px 20px 0 0", padding: `20px 20px ${BOTTOM}`, display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -285,6 +297,14 @@ function Settings({ saved, save, onClose }: { saved: Saved; save: (s: Saved) => 
       <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 14, fontWeight: 500 }}>Contact or group name
         <input value={contact} maxLength={30} onChange={(e) => setContact(e.target.value)} onBlur={() => save({ ...saved, contact: contact.trim() || "Sam" })} style={{ height: 44, border: "1px solid #cbd5e1", borderRadius: 10, padding: "0 12px", fontSize: 16, fontFamily: FONT }} />
       </label>
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+        <label style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6, fontSize: 14, fontWeight: 500 }}>Your city, for the weather
+          <input value={city} maxLength={60} placeholder="Uses your location if empty" onChange={(e) => setCity(e.target.value)} onBlur={() => save({ ...saved, city: city.trim() })} style={{ height: 44, border: "1px solid #cbd5e1", borderRadius: 10, padding: "0 12px", fontSize: 16, fontFamily: FONT }} />
+        </label>
+        <div role="group" aria-label="Temperature unit" style={{ display: "flex", border: "1px solid #cbd5e1", borderRadius: 10, overflow: "hidden" }}>
+          {(["F", "C"] as const).map((x) => <button key={x} aria-pressed={saved.unit === x} onClick={() => save({ ...saved, city: city.trim(), unit: x })} style={{ width: 48, height: 44, border: 0, background: saved.unit === x ? "#6d3df5" : "#fff", color: saved.unit === x ? "#fff" : "#0f172a", fontFamily: FONT, fontWeight: 600 }}>°{x}</button>)}
+        </div>
+      </div>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <button onClick={() => { save({ ...saved, chats: { ...saved.chats, [saved.theme]: [] } }); onClose(); }} style={{ flex: 1, height: 44, borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", fontFamily: FONT, fontWeight: 500, color: "#0f172a" }}>Clear this chat</button>
         <button onClick={logout} style={{ flex: 1, height: 44, borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", fontFamily: FONT, fontWeight: 500, color: "#b91c1c" }}>Sign out</button>
