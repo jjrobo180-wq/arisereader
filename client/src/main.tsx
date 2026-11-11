@@ -25,7 +25,7 @@ import { AI_OFF_MESSAGE, askAiConsent, isAiRequest } from "@/lib/aiConsent";
 // The Arise Reader app draws edge to edge too (reader-app.css keeps headers below the clock), and so does Arise Notes.
 // In the iPhone and iPad apps the page already fills the screen, and asking WebKit for full screen on top
 // (the games, slides, the stand-by clock) crashed the app on iPad: WebKit moves the page to its own window,
-// which the app's view controllers don't allow (Arise Eye Gazer, a crash report from an iPad, November 2026).
+// which the app's view controllers don't allow (Arise AAC, a crash report from an iPad, November 2026).
 // So in the apps, full screen does nothing and says it worked.
 if (isNativeApp()) installNoFullscreen();
 if (isFitApp() || isReaderApp() || isNotesApp() || isUndercoverApp()) {

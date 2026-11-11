@@ -64,7 +64,7 @@ export default function EyeGazeWren() {
         <span className="eg-title text-lg font-extrabold tracking-tight text-[#191b35]">Wren <span className="text-violet-700">Talker</span></span>
       </div>
       {isNativeApp() && nativeFlavor() === "todo"
-        ? <p className="p-6 text-center text-slate-600" data-testid="wren-not-here">Wren Talker is in the Arise Eye Gazer app. Open Arise Eye Gazer to use it.</p>
+        ? <p className="p-6 text-center text-slate-600" data-testid="wren-not-here">Wren Talker is in the Arise AAC app. Open Arise AAC to use it.</p>
         : ready
         ? <iframe src="/eyegaze/wren/" title="Wren talker" allow="autoplay; camera" className="w-full flex-1 border-0 bg-white" data-testid="frame-wren" />
         : <p className="p-6 text-center text-slate-600">Sign in to your Eye Gazer account to use Wren.</p>}

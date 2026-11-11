@@ -5,7 +5,7 @@ set -euo pipefail
 OUT="${1:?usage: prune_todo_bundle.sh <build folder>}"
 test -f "$OUT/index.html" || { echo "::error::$OUT has no index.html"; exit 1; }
 
-# The eye-gaze talker engine (Wren). It belongs to the Arise Eye Gazer app, not Arise To Duo.
+# The eye-gaze talker engine (Wren). It belongs to the Arise AAC app, not Arise To Duo.
 rm -rf "$OUT/eyegaze/wren"
 
 echo "To Duo bundle: $(du -sm "$OUT" | cut -f1) MB after pruning"
