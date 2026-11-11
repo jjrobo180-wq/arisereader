@@ -77,9 +77,9 @@ export const addNap = (s: Sleep | undefined, start: number, end: number): Sleep 
 };
 
 /** The last `days` days (oldest first) with hours slept, or null for a night with no record. */
-export function lastDays(s: Sleep | undefined, days = 7): { date: string; h: number | null }[] {
+export function lastDays(s: Sleep | undefined, days = 7, now = new Date()): { date: string; h: number | null }[] {
   const by = new Map((s?.nights ?? []).map((n) => [n.date, nightHours(n)]));
-  const t = new Date(); t.setHours(12, 0, 0, 0);
+  const t = new Date(now); t.setHours(12, 0, 0, 0);
   const out: { date: string; h: number | null }[] = [];
   for (let i = days - 1; i >= 0; i--) { const d = new Date(t); d.setDate(t.getDate() - i); const k = dayKey(d); out.push({ date: k, h: by.get(k) ?? null }); }
   return out;
@@ -92,8 +92,8 @@ const spread = (xs: number[]) => { if (xs.length < 2) return 0; const m = xs.red
 /** A clock time from minutes after midnight ("10:42 PM"). */
 export const clockOf = (min: number) => { const m = ((Math.round(min) % 1440) + 1440) % 1440; const h = Math.floor(m / 60); return `${h % 12 || 12}:${String(m % 60).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`; };
 
-export function sleepStats(s: Sleep | undefined, days = 7) {
-  const got = lastDays(s, days).filter((d) => d.h != null) as { date: string; h: number }[];
+export function sleepStats(s: Sleep | undefined, days = 7, now = new Date()) {
+  const got = lastDays(s, days, now).filter((d) => d.h != null) as { date: string; h: number }[];
   const goal = s?.goalH ?? 8;
   const avg = got.length ? got.reduce((a, d) => a + d.h, 0) / got.length : 0;
   const debt = got.reduce((a, d) => a + Math.max(0, goal - d.h), 0);

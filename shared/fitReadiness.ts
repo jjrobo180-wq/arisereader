@@ -10,7 +10,7 @@ const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padSt
 
 export function readiness(data: FitData, now = new Date()): Readiness {
   const night = data.sleep?.nights.find((n) => n.date === dayKey(now));
-  const st = sleepStats(data.sleep, 7);
+  const st = sleepStats(data.sleep, 7, now);
   // Sleep: last night's score (45), or the week's average when last night wasn't tracked.
   const sleepPart = night ? Math.round((sleepScore(night, data.sleep).score / 100) * 45) : st.n ? Math.round(45 * Math.min(1, st.avg / st.goal) * 0.9) : 30;
   const debtPart = Math.round(15 * Math.max(0, 1 - st.debt / 7));
