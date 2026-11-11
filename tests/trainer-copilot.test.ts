@@ -114,7 +114,7 @@ test("the copilot route ranks clients, respects what they share, and plan tools 
   assert.equal((await call("POST", `/api/coach/links/${lj}/progress`, 7, {})).body.changes.length, 0, "no shared workouts, no targets");
 });
 
-test("Copilot and plan tools are in Arise Trainer", () => {
+test("Copilot and plan tools are in Cooked Trainer", () => {
   const ui = read("client/src/pages/trainer/TrainerCopilot.tsx");
   for (const t of ["tr-copilot", "tr-cp-send", "tr-reflow", "tr-progress"]) assert.ok(ui.includes(t), t);
   assert.match(read("client/src/pages/trainer/TrainerApp.tsx"), /<CopilotCard /);

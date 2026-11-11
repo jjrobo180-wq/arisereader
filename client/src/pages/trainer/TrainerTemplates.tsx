@@ -1,4 +1,4 @@
-// Arise Trainer: ready-made templates (shared/coachTemplates.ts), the AI workout and program builder (server/coach.ts,
+// Cooked Trainer: ready-made templates (shared/coachTemplates.ts), the AI workout and program builder (server/coach.ts,
 // /trainer/ai/*), and the client invite link. Anything added goes into the trainer's own library as a copy they can change.
 import { useEffect, useState } from "react";
 import { Check, Copy, Dumbbell, Link2, Share2, Sparkles, Wand2 } from "lucide-react";

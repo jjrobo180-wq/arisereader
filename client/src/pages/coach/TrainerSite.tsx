@@ -1,4 +1,4 @@
-// A trainer's own website (#/t/<slug>): built by Arise Trainer from their listing and site settings (shared/coachSite.ts).
+// A trainer's own website (#/t/<slug>): built by Cooked Trainer from their listing and site settings (shared/coachSite.ts).
 // Four looks. The contact form sends a lead to the trainer's app; "Start training" opens their Cooked invite.
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import { useParams } from "wouter";
@@ -39,7 +39,7 @@ export default function TrainerSitePage() {
   return <TrainerSiteView data={data} />;
 }
 
-/** The site itself, also used for the live preview in Arise Trainer (`preview` turns the form off). */
+/** The site itself, also used for the live preview in Cooked Trainer (`preview` turns the form off). */
 export function TrainerSiteView({ data, preview }: { data: SiteData; preview?: boolean }) {
   const { site, trainer: t, reviews } = data;
   useSiteFonts();
@@ -140,7 +140,7 @@ export function TrainerSiteView({ data, preview }: { data: SiteData; preview?: b
     <footer className="border-t" style={{ borderColor: L.line }}><div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-5 py-8 text-[14px] sm:px-8" style={{ color: L.muted }}>
       <span className="font-semibold" style={{ color: L.ink }}>{t.name}</span>{where && <span>{where}</span>}
       {t.instagram && <a href={`https://instagram.com/${t.instagram.replace(/^@/, "")}`} target="_blank" rel="noreferrer" className="underline underline-offset-4">Instagram {t.instagram.startsWith("@") ? t.instagram : `@${t.instagram}`}</a>}
-      <span className="ml-auto text-[12px]">Built with Arise Trainer</span>
+      <span className="ml-auto text-[12px]">Built with Cooked Trainer</span>
     </div></footer>
   </div>;
 }
@@ -176,7 +176,7 @@ function Contact({ data, look: L, preview }: { data: SiteData; look: Look; previ
           <textarea value={f.message} onChange={(e) => setF({ ...f, message: e.target.value })} rows={4} placeholder="Anything else? Schedule, injuries, what you've tried…" aria-label="Message" className={cls} style={field} />
           <input tabIndex={-1} autoComplete="off" value={f.website} onChange={(e) => setF({ ...f, website: e.target.value })} className="hidden" aria-hidden />
           {err && <p className="rounded-lg bg-white/90 px-3 py-2 text-[14px] text-rose-700">{err}</p>}
-          <button type="submit" disabled={state === "sending" || preview} className="w-full bg-white px-6 py-4 text-[16px] font-bold disabled:opacity-60" style={{ color: site.accent, borderRadius: Math.min(L.radius, 14) }}>{preview ? "Sends to your Arise Trainer app" : state === "sending" ? "Sending…" : "Send"}</button>
+          <button type="submit" disabled={state === "sending" || preview} className="w-full bg-white px-6 py-4 text-[16px] font-bold disabled:opacity-60" style={{ color: site.accent, borderRadius: Math.min(L.radius, 14) }}>{preview ? "Sends to your Cooked Trainer app" : state === "sending" ? "Sending…" : "Send"}</button>
         </form>}
     </div>
   </section>;

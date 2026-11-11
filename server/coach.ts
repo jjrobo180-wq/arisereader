@@ -16,7 +16,7 @@
 //     GET  /api/coach/links/:id/messages       the conversation (?after=<id> for new ones)
 //     POST /api/coach/links/:id/messages       send one (the other side gets a notification)
 //     POST /api/coach/links/:id/end            stop coaching (sharing stops at once)
-//   A trainer (Arise Trainer)
+//   A trainer (Cooked Trainer)
 //     GET  /api/coach/trainer                  my listing, plan status, library and clients
 //     PUT  /api/coach/trainer/profile          my listing
 //     PUT  /api/coach/trainer/library          workout templates, own exercises, programs, forms
@@ -618,7 +618,7 @@ Order exercises sensibly (big compound lifts first). Respect injuries or limits 
     const session = await stripe("POST", "/checkout/sessions", {
       mode: "subscription", client_reference_id: String(id), success_url: `${base}#/trainer?listing={CHECKOUT_SESSION_ID}`, cancel_url: `${base}#/trainer`,
       ...(t.stripeCustomer ? { customer: t.stripeCustomer } : { customer_email: req.user?.email || undefined }),
-      line_items: { 0: { quantity: 1, price_data: { currency: "usd", unit_amount: LISTING.cents, recurring: { interval: "month" }, product_data: { name: LISTING.name, description: "Your profile, prices and reviews in the Arise trainer directory, and the Arise Trainer coaching app." } } } },
+      line_items: { 0: { quantity: 1, price_data: { currency: "usd", unit_amount: LISTING.cents, recurring: { interval: "month" }, product_data: { name: LISTING.name, description: "Your profile, prices and reviews in the Arise trainer directory, and the Cooked Trainer coaching app." } } } },
       subscription_data: { ...(t.stripeSub ? {} : { trial_period_days: LISTING.trialDays }), metadata: { arise_trainer: String(id) } },
       metadata: { arise_trainer: String(id) },
     });
@@ -831,7 +831,7 @@ Order exercises sensibly (big compound lifts first). Respect injuries or limits 
       plan: { assigned: l.coaching.assigned, habits: l.coaching.habits, goals: l.coaching.goals, nutrition: l.coaching.nutrition ?? null, checkin: l.coaching.checkin ?? null, appointments: l.coaching.appts },
       checkins: l.clientSide.checkins, compliance: compliance(l.coaching, l.clientSide, undefined, new Date(now())) })));
     const leads = cleanLeads(await kv.get(leadsKey(id)));
-    return { app: "Arise Trainer", exportedAt: new Date(now()).toISOString(), profile: t?.profile ?? null, library: (await store.library(id)) ?? emptyLibrary(), site: cleanSite((await kv.get(siteKey(id))) ?? emptySite()), leads, clients,
+    return { app: "Cooked Trainer", exportedAt: new Date(now()).toISOString(), profile: t?.profile ?? null, library: (await store.library(id)) ?? emptyLibrary(), site: cleanSite((await kv.get(siteKey(id))) ?? emptySite()), leads, clients,
       clientsCsv: clientsCsv(clients.map((c) => ({ ...c, workoutsPct: c.compliance.pct }))) };
   }));
   app.post("/api/coach/trainer/import/clients", auth, wrap(async (req) => {
@@ -980,7 +980,7 @@ Order exercises sensibly (big compound lifts first). Respect injuries or limits 
     const r: MarketRequest = { id: Math.random().toString(36).slice(2, 12), clientId: id, name: await first(id), at: new Date(now()).toISOString(), need, status: "open", hired: null, replies: [] };
     await saveMarket([r, ...all]);
     const tell = whoToTell(await listedPublic(), r);
-    for (const t of tell) void notify(t, { title: "New client request", body: `${r.name.split(" ")[0]} is looking for: ${requestTitle(need)}. Reply in Arise Trainer.`, url: "#/trainer", tag: `mk-${r.id}` });
+    for (const t of tell) void notify(t, { title: "New client request", body: `${r.name.split(" ")[0]} is looking for: ${requestTitle(need)}. Reply in Cooked Trainer.`, url: "#/trainer", tag: `mk-${r.id}` });
     return { request: r, told: tell.length };
   }));
   app.get("/api/coach/market/mine", auth, wrap(async (req) => {
