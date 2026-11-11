@@ -1,6 +1,6 @@
 import "./lib/accountStorageBoot";
 import "./lib/sampleBoot";
-import { isFitApp, isNativeApp, isNotesApp, isReaderApp, keepLiveUpdated, markAppReadyWhenDrawn, nativeAppInfo, nativeFlavor } from "./lib/nativeApp";
+import { isFitApp, isNativeApp, isNotesApp, isReaderApp, isUndercoverApp, keepLiveUpdated, markAppReadyWhenDrawn, nativeAppInfo, nativeFlavor } from "./lib/nativeApp";
 import { allowPopups } from "./lib/popupSupport";
 import { createRoot } from "react-dom/client";
 import App from "./App";
@@ -28,7 +28,7 @@ import { AI_OFF_MESSAGE, askAiConsent, isAiRequest } from "@/lib/aiConsent";
 // which the app's view controllers don't allow (Arise Eye Gazer, a crash report from an iPad, November 2026).
 // So in the apps, full screen does nothing and says it worked.
 if (isNativeApp()) installNoFullscreen();
-if (isFitApp() || isReaderApp() || isNotesApp()) {
+if (isFitApp() || isReaderApp() || isNotesApp() || isUndercoverApp()) {
   const vp = document.querySelector('meta[name="viewport"]');
   if (vp && !/viewport-fit/.test(vp.getAttribute("content") || "")) vp.setAttribute("content", `${vp.getAttribute("content")}, viewport-fit=cover`);
 }

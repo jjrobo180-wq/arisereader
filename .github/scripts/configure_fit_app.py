@@ -1,7 +1,7 @@
 """Cooked and Cooked Trainer iPhone apps: the Info.plist settings App Review checks, and the AppDelegate
 hook push notifications need.
 
-Usage: configure_fit_app.py <path to Info.plist> [fit|trainer|notes|talk]   (after `npx cap add ios && npx cap sync ios`)
+Usage: configure_fit_app.py <path to Info.plist> [fit|trainer|notes|talk|undercover]   (after `npx cap add ios && npx cap sync ios`)
   - The name under the icon, the status bar following the app's theme, and that it only uses the
     encryption built into iOS (HTTPS).
   - Cooked. Camera: barcodes, meal photos, form check and progress photos for a trainer. Photos:
@@ -22,7 +22,7 @@ import sys
 
 PLIST = sys.argv[1]
 FLAVOR = sys.argv[2] if len(sys.argv) > 2 else "fit"
-assert FLAVOR in ("fit", "trainer", "notes", "talk"), FLAVOR
+assert FLAVOR in ("fit", "trainer", "notes", "talk", "undercover"), FLAVOR
 # The app picks its own look (Light, Dark or Auto in Settings), so iOS follows the phone and the status
 # bar plugin (@capacitor/status-bar) sets the clock's color to match: dark on Light, light on Dark.
 COMMON = {
@@ -47,6 +47,9 @@ KEYS = {
         "NSMicrophoneUsageDescription": "Arise Talk uses the microphone only when you tap Listen, to hear what someone says to you and suggest replies you can tap. The recording isn't kept.",
         "NSCameraUsageDescription": "Arise Talk uses the camera when you take a photo for a button or for Snap to talk, which suggests words about what's in the photo.",
         "NSPhotoLibraryUsageDescription": "Arise Talk lets you choose a photo to put on a button or to get words about it.",
+    },
+    "undercover": {
+        "CFBundleDisplayName": "Undercover",
     },
     "trainer": {
         "CFBundleDisplayName": "Cooked Trainer",
@@ -88,7 +91,7 @@ with open(PLIST, "wb") as f:
 print(f"Info.plist ready for {KEYS['CFBundleDisplayName']}: {', '.join(sorted({**COMMON, **KEYS}))}")
 
 DELEGATE = os.path.join(os.path.dirname(PLIST), "AppDelegate.swift")
-if FLAVOR != "talk" and os.path.exists(DELEGATE):  # Arise Talk sends no notifications
+if FLAVOR not in ("talk", "undercover") and os.path.exists(DELEGATE):  # Arise Talk and Undercover send no notifications
     src = open(DELEGATE, encoding="utf-8").read()
     if "didRegisterForRemoteNotificationsWithDeviceToken" not in src:
         end = src.rfind("}")
