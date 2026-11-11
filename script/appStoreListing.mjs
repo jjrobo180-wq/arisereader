@@ -33,7 +33,7 @@ const SHOTS = [
   ["home", "Your whole day, one calm place", "Plan, track and remember without the clutter.", (p) => open(p, "/lifehub?pane=home")],
   ["tasks", "Tasks that stay simple", "Lists, due dates and reminders that actually remind you.", (p) => open(p, "/lifehub?pane=tasks")],
   ["apps", "Every tool in one place", "Money, health, kitchen, home and more, neatly grouped.", async (p) => { await open(p, "/lifehub?pane=tasks"); await p.frameLocator("#f").getByTestId("life-tab-apps").click(); await wait(p, 900); }],
-  ["budget", "A budget built around payday", "Paychecks, bills and what is safe to spend.", (p) => open(p, "/lifehub?go=money")],
+  ["you", "Make it yours", "Themes, night mode, passcode lock and more.", async (p) => { await open(p, "/lifehub?pane=home"); await p.frameLocator("#f").getByTestId("life-tab-you").click(); await wait(p, 900); }],
   ["calendar", "Plan it together", "Shared family calendars and countdowns.", (p) => open(p, "/lifehub?go=calendar")],
   ["workhub", "WorkHub for the busy week", "Switch from life to work in one tap.", (p) => open(p, "/hub")],
 ];
@@ -44,9 +44,9 @@ background:radial-gradient(120% 70% at 50% 0%,#7c5cff 0%,#4b2fd0 45%,#241a6b 100
 .t h1{font-size:${w * 0.078}px;line-height:1.08;font-weight:800;letter-spacing:-.02em}
 .t p{margin-top:${h * 0.012}px;font-size:${w * 0.035}px;line-height:1.3;opacity:.82;font-weight:500}
 .ph{position:absolute;left:50%;top:${h * 0.235}px;width:${w * 0.82}px;transform:translateX(-50%);background:#0b0b10;border-radius:${w * 0.1}px ${w * 0.1}px 0 0;padding:${w * 0.02}px ${w * 0.02}px 0;box-shadow:0 ${w * 0.04}px ${w * 0.1}px rgba(0,0,0,.45),inset 0 0 0 ${w * 0.004}px #3a3a46}
-.ph img{display:block;width:100%;border-radius:${w * 0.08}px ${w * 0.08}px 0 0}
+.ph .bar{height:${w * 0.085}px;background:#0b0b10}.ph img{display:block;width:100%;border-radius:0}
 .ph:after{content:"";position:absolute;top:${w * 0.045}px;left:50%;width:${w * 0.2}px;height:${w * 0.055}px;margin-left:-${w * 0.1}px;background:#000;border-radius:99px}
-</style><div class=t><h1>${title}</h1><p>${sub}</p></div><div class=ph><img src="${img}"></div>`;
+</style><div class=t><h1>${title}</h1><p>${sub}</p></div><div class=ph><div class=bar></div><img src="${img}"></div>`;
 
 let n = 0;
 for (const [name, title, sub, go] of SHOTS) {
