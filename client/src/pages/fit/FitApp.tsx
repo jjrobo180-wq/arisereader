@@ -36,6 +36,7 @@ import { publishWidgets, watchWidgetActions } from "@/lib/widgets";
 import { publishWatch, watchActions } from "@/lib/watch";
 import { applyFitTaps, applyWatchActions, fitWidgetSlots } from "@/lib/fitWidgets";
 import { FoodTab, latestKg, totals } from "./FitFood";
+import FitChecklist from "./FitChecklist";
 import { FeatureTour, Onboarding } from "./FitOnboard";
 import { CoverCard, VideoPlayer } from "./FitVideo";
 import { FastingSheet, endFast, startFast } from "./FitFasting";
@@ -175,6 +176,7 @@ function TodayTab({ layout, data, update, onApp, onAllApps, onStartProgram, onSe
       <span className="block truncate text-[12.5px] opacity-90">{points ? `${Math.max(0, budget - used)} points left today` : `${fmtNum(Math.max(0, g.kcal - t.kcal))} cal left today`} · search, scan, photo or quick add</span></span>
     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full" style={{ background: "rgba(255,255,255,.22)" }}><Plus className="h-5 w-5" /></span>
   </button>;
+  const dayCard = <FitChecklist data={data} update={update} steps={health ? health.steps[today] ?? 0 : null} onApp={onApp} />;
   const checkin = sleepGuess && <SleepCheckIn guess={sleepGuess} data={data} update={update} say={say} onSkip={onSkipSleep} />;
   const footer = <>
     <WeightCard data={data} update={update} />
@@ -184,12 +186,12 @@ function TodayTab({ layout, data, update, onApp, onAllApps, onStartProgram, onSe
     {analysis && insights && <ProPlusAnalysis i={insights} data={data} onClose={() => setAnalysis(false)} onAsk={() => { setAnalysis(false); setAsking(true); }} />}
   </>;
   // Each layout arranges the same pieces its own way.
-  const body = layout === "studio" ? <>{checkin}{logFood}<StudioTrio v={v} open={open} />{heroTabs}{heroCard}{week}<div className="mt-3 grid grid-cols-2 gap-2.5">{sleepGlance}{fastGlance}</div>{extras}{tipCard}</>
-    : layout === "bloom" ? <>{checkin}{logFood}<BloomFlower v={v} open={open} /><BloomRitual v={v} open={open} />{heroTabs}{heroCard}{week}{extras}{tipCard}</>
-    : layout === "proplus" && insights ? <>{checkin}{logFood}<ProTiles v={v} open={open} /><ProPlusBoard i={insights} open={open} onAnalysis={() => setAnalysis(true)} onAsk={() => setAsking(true)} />{heroTabs}{heroCard}{week}{calories}{extras}{tipCard}</>
-    : layout === "pro" ? <>{checkin}{logFood}<ProTiles v={v} open={open} />{heroTabs}{heroCard}{week}{calories}{extras}{tipCard}</>
-    : layout === "zen" ? <>{checkin}{logFood}{heroTabs}{heroCard}<ZenRows v={v} open={open} />{week}{extras}{tipCard}</>
-    : <>{week}{checkin}{logFood}{heroTabs}{heroCard}{glanceAll}{calories}{extras}{tipCard}</>;
+  const body = layout === "studio" ? <>{checkin}{logFood}{dayCard}<StudioTrio v={v} open={open} />{heroTabs}{heroCard}{week}<div className="mt-3 grid grid-cols-2 gap-2.5">{sleepGlance}{fastGlance}</div>{extras}{tipCard}</>
+    : layout === "bloom" ? <>{checkin}{logFood}{dayCard}<BloomFlower v={v} open={open} /><BloomRitual v={v} open={open} />{heroTabs}{heroCard}{week}{extras}{tipCard}</>
+    : layout === "proplus" && insights ? <>{checkin}{logFood}{dayCard}<ProTiles v={v} open={open} /><ProPlusBoard i={insights} open={open} onAnalysis={() => setAnalysis(true)} onAsk={() => setAsking(true)} />{heroTabs}{heroCard}{week}{calories}{extras}{tipCard}</>
+    : layout === "pro" ? <>{checkin}{logFood}{dayCard}<ProTiles v={v} open={open} />{heroTabs}{heroCard}{week}{calories}{extras}{tipCard}</>
+    : layout === "zen" ? <>{checkin}{logFood}{dayCard}{heroTabs}{heroCard}<ZenRows v={v} open={open} />{week}{extras}{tipCard}</>
+    : <>{week}{checkin}{logFood}{dayCard}{heroTabs}{heroCard}{glanceAll}{calories}{extras}{tipCard}</>;
   return <div data-layout={layout}>{header}{body}{footer}</div>;
 }
 
