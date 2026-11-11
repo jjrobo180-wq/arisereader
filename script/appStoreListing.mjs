@@ -79,5 +79,48 @@ for (const [name, hash] of [["duo-life", "/lifehub?pane=home"], ["duo-work", "/h
   await page.screenshot({ path: `listing/raw/${name}.png` });
   await ctx.close(); console.log(`ok ${name}`);
 }
+
+// iPad: the app in a real 13" iPad viewport (1032x1376 points at 2x = 2064x2752), no frame.
+await mkdir("listing/ipad", { recursive: true });
+const IPAD = [
+  ["home", (p) => open(p, "/lifehub?pane=home")],
+  ["tasks", (p) => open(p, "/lifehub?pane=tasks")],
+  ["apps", async (p) => { await open(p, "/lifehub?pane=tasks"); await p.frameLocator("#f").getByTestId("life-tab-apps").click(); await wait(p, 900); }],
+  ["split", (p) => open(p, "/duo")],
+  ["workhub", (p) => open(p, "/hub")],
+];
+let k = 0;
+for (const [name, go] of IPAD) {
+  k++;
+  const ctx = await browser.newContext({ viewport: { width: 1032, height: 1376 }, deviceScaleFactor: 2, hasTouch: true });
+  const page = await ctx.newPage(); page.setDefaultTimeout(30000);
+  try { await Promise.race([go(page), new Promise((_, no) => setTimeout(() => no(new Error("timed out")), 90000))]); } catch (e) { console.log(`FAIL ipad ${name}: ${e?.message || e}`); }
+  await page.screenshot({ path: `listing/ipad/${String(k).padStart(2, "0")}-${name}.png` });
+  await ctx.close(); console.log(`ok ipad ${name}`);
+}
+// Apple Watch (Series 12 class, 416x496): the Tasks and Today screens of the watch app.
+await mkdir("listing/watch", { recursive: true });
+const WATCH = {
+  tasks: `<div class=h><b>Tasks</b><span>10:09</span></div>
+    <div class=r><i></i>Pay electric bill</div><div class=r><i></i>Pick up groceries</div><div class=r><i></i>Call the dentist</div><div class=r><i></i>Plan Friday dinner</div>`,
+  today: `<div class=h><b>Today</b><span>10:09</span></div>
+    <div class=ring><svg viewBox="0 0 100 100"><circle cx=50 cy=50 r=40 fill=none stroke=#2a2540 stroke-width=11 /><circle cx=50 cy=50 r=40 fill=none stroke=#8b6cff stroke-width=11 stroke-linecap=round stroke-dasharray="150 252" transform="rotate(-90 50 50)"/></svg><div><em>3</em><small>of 5 done</small></div></div>
+    <div class=r><i></i>Next: Call the dentist</div>`,
+};
+const watchHtml = (inner) => `<!doctype html><meta charset=utf-8><style>*{box-sizing:border-box;margin:0}body{width:416px;height:496px;background:#000;color:#fff;font-family:-apple-system,"SF Pro Rounded",Inter,Helvetica,Arial,sans-serif;padding:34px 22px 0;overflow:hidden}
+.h{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.h b{font-size:30px;font-weight:700;color:#a78bff}.h span{font-size:26px;font-weight:600}
+.r{display:flex;align-items:center;gap:14px;background:#1c1a2b;border-radius:22px;padding:16px 18px;margin-bottom:10px;font-size:24px;font-weight:600}
+.r i{width:26px;height:26px;border-radius:50%;border:3px solid #8b6cff;flex:none}
+.ring{position:relative;width:210px;height:210px;margin:6px auto 18px}.ring svg{width:100%;height:100%}.ring div{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring em{font-style:normal;font-size:64px;font-weight:800}.ring small{font-size:20px;opacity:.7}</style>${inner}`;
+let w = 0;
+for (const [name, inner] of Object.entries(WATCH)) {
+  w++;
+  const c = await browser.newContext({ viewport: { width: 416, height: 496 }, deviceScaleFactor: 1 });
+  const p = await c.newPage();
+  await p.setContent(watchHtml(inner), { waitUntil: "domcontentloaded" }); await wait(p, 300);
+  await p.screenshot({ path: `listing/watch/${String(w).padStart(2, "0")}-${name}.png` });
+  await c.close(); console.log(`ok watch ${name}`);
+}
 await browser.close();
 process.exit(0);
