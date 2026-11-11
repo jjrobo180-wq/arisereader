@@ -71,3 +71,4 @@ for (const [name, title, sub, go] of SHOTS) {
   console.log(`ok ${name}`);
 }
 await browser.close();
+process.exit(0);
