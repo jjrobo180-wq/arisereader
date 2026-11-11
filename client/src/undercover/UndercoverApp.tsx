@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type Keyboard
 import { useAuth } from "@/context/AuthContext";
 import { UNDERCOVER_THEMES, answerLines, type UndercoverMsg, type UndercoverTheme } from "@shared/undercover";
 import { askAi } from "./askUndercover";
+import { BACKDROP_REFRESH, sendBackdrop } from "@/lib/nativeBackdrop";
 
 type Saved = { theme: UndercoverTheme; contact: string; city: string; unit: "F" | "C"; chats: Partial<Record<UndercoverTheme, UndercoverMsg[]>> };
 const KEY = "arise-undercover-v1";
@@ -310,6 +311,15 @@ export default function UndercoverApp({ onExit }: { onExit?: () => void } = {}) 
       document.head.appendChild(l);
     }
   }, []);
+  // The strip behind the phone's clock takes each look's top color (it was the host app's cream).
+  useEffect(() => {
+    const top: Record<UndercoverTheme, string> = { text: "#ffffff", group: "#0b0b0f", inbox: "#f8fafc", docNotes: "#ffffff", docComments: "#ffffff", docPhone: "#ffffff" };
+    const c = top[saved.theme] || "#ffffff";
+    const was = document.body.style.backgroundColor;
+    document.body.style.backgroundColor = c;
+    sendBackdrop(c);
+    return () => { document.body.style.backgroundColor = was; window.dispatchEvent(new Event(BACKDROP_REFRESH)); };
+  }, [saved.theme]);
   const look = (() => {
     switch (saved.theme) {
       case "group": return <GroupLook chat={chat} contact={saved.contact === "Sam" ? "Weekend plans" : saved.contact} onMenu={onMenu} />;

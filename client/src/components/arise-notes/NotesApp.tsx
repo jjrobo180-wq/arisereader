@@ -5,7 +5,7 @@ import AllAccessPopup from "@/components/AllAccessPopup";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { NoteTypeIcon } from "./NoteIcon";
 import { NotesDock } from "./NotesDock";
-import { ArrowRight, AudioLines, ChevronLeft, Columns2, EyeOff, Folder, LayoutGrid, Loader2, Lock, Mic, MessageCircle, Pencil, Search, Settings, Sparkles, Upload, Users, Zap } from "lucide-react";
+import { ArrowRight, AudioLines, ChevronLeft, Columns2, Folder, LayoutGrid, Loader2, Lock, Mic, MessageCircle, Pencil, Search, Settings, Sparkles, Upload, Users, Zap } from "lucide-react";
 import { hasAppearance, setAppearance, useAppearance } from "./appearance";
 import { useAuth } from "@/context/AuthContext";
 import { startApplePush } from "@/lib/applePush";
@@ -29,7 +29,6 @@ const RecordScreen = lazy(() => import("./RecordScreen"));
 const UploadScreen = lazy(() => import("./UploadScreen"));
 const NoteScreen = lazy(() => import("./NoteScreen"));
 const AskScreen = lazy(() => import("./AskScreen"));
-const UndercoverApp = lazy(() => import("@/undercover/UndercoverApp"));
 const MemoScreen = lazy(() => import("./MemoScreen"));
 import { AppsStrip } from "./notesAppsCatalog";
 const SettingsScreen = lazy(() => import("./SettingsScreen"));
@@ -68,7 +67,8 @@ function parseHash(h: string): Route {
   switch (p[0]) {
     case "record": return { name: "record" };
     case "upload": return { name: "upload" };
-    case "note": return p[1] ? { name: "note", id: p[1], t: p[2] ? Number(p[2]) : undefined } : { name: "home" };
+    case "home": case "recordings": return { name: "home" };
+    case "note": return p[1] ? { name: "note", id: p[1], t: p[2] ? Number(p[2]) : undefined } : { name: "pages" };
     case "ask": return { name: "ask" };
     case "undercover": return { name: "undercover" };
     case "memo": return { name: "memo" };
@@ -76,15 +76,16 @@ function parseHash(h: string): Route {
     case "usage": case "plans": return { name: "settings", tab: "plan" };
     case "family": return { name: "settings", tab: "family" };
     case "privacy": return { name: "privacy" };
-    case "local": return p[1] ? { name: "local", id: p[1] } : { name: "home" };
+    case "local": return p[1] ? { name: "local", id: p[1] } : { name: "pages" };
     case "pages": return { name: "pages" };
     case "page": return p[1] ? { name: "page", id: p[1] } : { name: "pages" };
     case "apps": return { name: "apps" };
     case "app": return p[1] ? { name: "app", id: p[1] } : { name: "apps" };
-    default: return { name: "home" };
+    // The Notes tab is the main page (November 2026); the recorded meetings list is "Recordings" (#/home).
+    default: return { name: "pages" };
   }
 }
-const hashOf = (r: Route) => r.name === "home" ? "#/" : r.name === "local" ? `#/local/${r.id}` : r.name === "page" ? `#/page/${r.id}` : r.name === "app" ? `#/app/${r.id}` : r.name === "note" ? `#/note/${r.id}${r.t !== undefined ? `/${Math.round(r.t)}` : ""}` : r.name === "settings" ? `#/settings${r.tab ? `/${r.tab}` : ""}` : `#/${r.name}`;
+const hashOf = (r: Route) => r.name === "home" ? "#/home" : r.name === "local" ? `#/local/${r.id}` : r.name === "page" ? `#/page/${r.id}` : r.name === "app" ? `#/app/${r.id}` : r.name === "note" ? `#/note/${r.id}${r.t !== undefined ? `/${Math.round(r.t)}` : ""}` : r.name === "settings" ? `#/settings${r.tab ? `/${r.tab}` : ""}` : `#/${r.name}`;
 
 let lexendLoaded = false;
 const loadLexend = () => {
@@ -127,10 +128,10 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   const [error, setError] = useState("");
   const [notes, setNotes] = useState<ListNote[] | null>(null);
   const [route, setRoute] = useState<Route>(() => {
-    if (mode !== "standalone") return startNote ? { name: "note", id: startNote } : lastTab() === "pages" ? { name: "pages" } : { name: "home" };
+    if (mode !== "standalone") return startNote ? { name: "note", id: startNote } : { name: "pages" };
     // Opening the app with no address goes back to the tab you were on.
     const bare = !window.location.hash || window.location.hash === "#/" || window.location.hash === "#/signin";
-    return bare && lastTab() === "pages" ? { name: "pages" } : parseHash(window.location.hash);
+    return bare ? { name: "pages" } : parseHash(window.location.hash);
   });
   useEffect(() => { if (route.name === "pages" || route.name === "page") rememberTab("pages"); else if (route.name === "home") rememberTab("ai"); }, [route.name]);
   const guard = useRef<(() => boolean) | null>(null);
@@ -279,7 +280,7 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
       case "upload": return <UploadScreen ctx={ctx} />;
       case "note": return <NoteScreen key={route.id} ctx={ctx} id={route.id} at={route.t} />;
       case "ask": return <AskScreen ctx={ctx} />;
-      case "undercover": return <UndercoverApp onExit={() => go({ name: "home" })} />;
+      case "undercover": return <AppScreen key="undercover" ctx={ctx} id="undercover" />;
       case "memo": return <MemoScreen ctx={ctx} />;
       case "settings": return <SettingsScreen ctx={ctx} tab={route.tab} />;
       case "privacy": return <PrivacyPage onBack={() => go({ name: "settings", tab: "privacy" })} />;
@@ -343,7 +344,6 @@ export function openSplit(mode: "standalone" | "embedded", right: "tasks" | "cal
 
 // ─── The two tabs: AI Notes (recordings) and Notes (typed and handwritten) ───
 const TAB_KEY = "arise-notes-tab";
-const lastTab = () => { try { return localStorage.getItem(TAB_KEY) === "pages" ? "pages" : "ai"; } catch { return "ai"; } };
 const rememberTab = (t: "ai" | "pages") => { try { localStorage.setItem(TAB_KEY, t); } catch { /* not kept */ } };
 export function TabBar({ ctx, on }: { ctx: AppCtx; on: "ai" | "pages" | "ask" | "menu" }) {
   // One bar in every look: Arise To Duo's floating pill (NotesDock.tsx). The look still colors the + button.
@@ -390,7 +390,6 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
         <LookHomeHero look={look} a={{ first, minutes: <MinutesPill ctx={ctx} />, record: () => ctx.go({ name: "record" }), upload: () => ctx.go({ name: "upload" }), memo: () => ctx.go({ name: "memo" }), ask: () => ctx.go({ name: "ask" }), memoLocked: !ctx.me.features.memo, count: all.length, settings: () => ctx.go({ name: "settings" }), pages: () => ctx.go({ name: "pages" }) }} />
       <MinutesBanner ctx={ctx} />
       {!ctx.me.services.speech && <Notice tone="warn">Speech to text isn't switched on for this site yet, so recordings are saved but can't be written down.</Notice>}
-      <UndercoverBar ctx={ctx} />
       <AppsStrip ctx={ctx} />
       </> : <>
       <div className="flex flex-wrap items-end gap-3">
@@ -413,7 +412,6 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
         <span className="min-w-0 flex-1 truncate text-[15px] text-[var(--an-muted)]">Ask your notes: “What did I promise Maya's mom last month?”</span>
         <ArrowRight className="h-4 w-4 text-[var(--an-faint)]" aria-hidden />
       </button>
-      <UndercoverBar ctx={ctx} />
       <AppsStrip ctx={ctx} />
       </>}
 
@@ -452,15 +450,6 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
       {ctx.mode === "standalone" && <p className="an-extra pt-4 text-center text-[13px] text-[var(--an-faint)]">Part of the A.R.I.S.E. family · <a className="font-semibold text-[var(--an-violet)] underline-offset-2 hover:underline" href={/^(www\.)?arisetodo\.com$/i.test(window.location.hostname) ? "/app#/lifehub" : "/#/lifehub"}>Open Arise To Duo</a> · <button type="button" className="font-semibold text-[var(--an-violet)] underline-offset-2 hover:underline" onClick={() => ctx.go({ name: "privacy" })}>Privacy</button></p>}
     </main>
   </>;
-}
-
-/** Opens Undercover: ask AI during a meeting in a screen that looks like texting or a document. */
-function UndercoverBar({ ctx }: { ctx: AppCtx }) {
-  return <button type="button" onClick={() => ctx.go({ name: "undercover" })} className="an-card flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:border-[var(--an-violet)]" data-testid="notes-undercover">
-    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[12px] bg-[var(--an-violet)] text-white"><EyeOff className="h-[18px] w-[18px]" aria-hidden /></span>
-    <span className="min-w-0 flex-1"><span className="block text-[15px] font-semibold">Undercover</span><span className="block truncate text-[13px] text-[var(--an-muted)]">Ask AI in a meeting. It looks like texting or a doc.</span></span>
-    <ArrowRight className="h-4 w-4 text-[var(--an-faint)]" aria-hidden />
-  </button>;
 }
 
 function BigAction({ tone, icon, title, text, onClick, locked, testId }: { tone: "record" | "violet" | "amber"; icon: ReactNode; title: string; text: string; onClick: () => void; locked?: boolean; testId: string }) {
