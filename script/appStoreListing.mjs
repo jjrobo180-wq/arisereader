@@ -23,7 +23,7 @@ for (const d of ["raw", "6.9", "6.5"]) await mkdir(`listing/${d}`, { recursive: 
 const browser = await chromium.launch();
 
 const open = async (page, hash) => {
-  await page.goto(`${A}/duo-preview.html?sample=1`);
+  await page.goto(`${A}/duo-preview.html?sample=1`, { waitUntil: "domcontentloaded", timeout: 45000 });
   await page.evaluate((src) => { document.body.innerHTML = `<iframe id="f" src="${src}" style="position:fixed;inset:0;width:100%;height:100%;border:0"></iframe>`; document.body.style.margin = "0"; }, `/#${hash}`);
   await wait(page, 7000);
   const brief = page.frameLocator("#f").getByRole("button", { name: "Close the brief" });
@@ -53,7 +53,9 @@ for (const [name, title, sub, go] of SHOTS) {
   n++;
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
   const page = await ctx.newPage();
-  try { await go(page); } catch (e) { console.log(`FAIL ${name}: ${e?.message || e}`); }
+  page.setDefaultTimeout(30000);
+  console.log(`start ${name}`);
+  try { await Promise.race([go(page), new Promise((_, no) => setTimeout(() => no(new Error("timed out after 90s")), 90000))]); } catch (e) { console.log(`FAIL ${name}: ${e?.message || e}`); }
   const file = `listing/raw/${String(n).padStart(2, "0")}-${name}.png`;
   await page.screenshot({ path: file });
   await ctx.close();
@@ -61,7 +63,8 @@ for (const [name, title, sub, go] of SHOTS) {
   for (const [dir, w, h] of [["6.9", 1320, 2868], ["6.5", 1284, 2778]]) {
     const c = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1 });
     const p = await c.newPage();
-    await p.setContent(frame(data, title, sub, w, h));
+    p.setDefaultTimeout(30000);
+    await p.setContent(frame(data, title, sub, w, h), { waitUntil: "domcontentloaded" }); await wait(p, 400);
     await p.screenshot({ path: `listing/${dir}/${String(n).padStart(2, "0")}-${name}.png` });
     await c.close();
   }
