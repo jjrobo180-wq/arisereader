@@ -1,4 +1,4 @@
-// Pod+ Live News Radio as one station for everyone (server/newsStation.ts).
+// Podster Live News Radio as one station for everyone (server/newsStation.ts).
 import test from "node:test";
 import assert from "node:assert/strict";
 import { newsStation, planStation, stationView } from "../server/newsStation";

@@ -1,5 +1,5 @@
 // Arise All Access, as people see it: one $10-a-month plan for every Arise app (sold in server/plans.ts,
-// kind "all_access"). Shared by the website, the iPhone apps and Pod+.
+// kind "all_access"). Shared by the website, the iPhone apps and Podster.
 export const ALL_ACCESS = {
   name: "Arise All Access",
   price: "$10",
@@ -10,7 +10,7 @@ export const ALL_ACCESS = {
     "To Duo Unlimited: every plugin and AI",
     "Arise Notes Plus: 1,500 minutes a month",
     "Cooked+, with a guest pass for a friend",
-    "Ad-free listening in Pod+",
+    "Ad-free listening in Podster",
   ],
 } as const;
 

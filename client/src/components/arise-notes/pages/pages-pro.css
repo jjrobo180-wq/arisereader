@@ -151,3 +151,10 @@
 
 /* Nothing sits behind a note until it is swiped, so no color can show around its edges. */
 .pp-swipe-under[aria-hidden="true"] { display: none; }
+
+/* @arise replies: the prompt and Arise's answer sit together in a soft purple quote block. */
+[data-testid="pages-rich-body"] blockquote[data-arise] {
+  margin: .6rem 0; padding: .55rem .85rem; border-left: 3px solid var(--an-violet, #7c3aed);
+  background: color-mix(in srgb, var(--an-violet, #7c3aed) 9%, transparent); border-radius: 0 12px 12px 0;
+}
+[data-testid="pages-rich-body"] blockquote[data-arise] > p:first-child { opacity: .75; font-size: .92em; margin-top: 0; }

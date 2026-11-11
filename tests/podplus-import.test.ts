@@ -49,7 +49,7 @@ test("finding: by Apple id, by feed address before the name, and not found", asy
   assert.equal(await findShow({ title: "Nothing Like This" }, d), null);
 });
 
-test("Pod+ has a Bring your shows page in its menus", async () => {
+test("Podster has a Bring your shows page in its menus", async () => {
   const { readFileSync } = await import("node:fs");
   const home = readFileSync("podscroll/Home.tsx", "utf8");
   assert.match(home, /navItem\("Bring your shows"/);

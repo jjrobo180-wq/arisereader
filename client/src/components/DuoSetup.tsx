@@ -15,6 +15,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { BACKDROP_REFRESH, sendBackdrop } from "@/lib/nativeBackdrop";
 import { lockPageScroll } from "@/lib/scrollLock";
+import { markSeen } from "@/lib/seenOnce";
 
 /** Day mode, whatever the hub looks like: the page body can carry a theme's classes (so pop-ups match the
  *  hub), and their rules read these variables, so setting them here keeps every page of setup light. */
@@ -31,6 +32,8 @@ const SETUP_STYLE = {
 // including people who finished the first one.
 const DONE_KEY = (id: number | string) => `arise-duo-setup-v2:${id}`;
 export const duoSetupDone = (id: number | string) => { try { return localStorage.getItem(DONE_KEY(id)) === "1"; } catch { return true; } };
+/** This device learns the account already did setup elsewhere (lib/seenOnce.ts). */
+export const rememberDuoSetupDone = (id: number | string) => { try { localStorage.setItem(DONE_KEY(id), "1"); } catch { /* asked again next time */ } };
 
 /** Twelve looks to start from; the rest are in Customize. */
 const STARTER_THEMES = ["classic", "studio", "bloom", "frost", "aurora", "zen", "tide", "grove", "glass", "cassette", "vinyl", "console"];
@@ -105,7 +108,7 @@ export default function DuoSetup({ userId, layout, setLayout, plugins, setFamily
   const canPick = unlimited ? Infinity : Math.max(0, room - routineSlot);
   const routineBlocked = !unlimited && !lifeplanOn && room <= 0;
 
-  const finish = () => { try { localStorage.setItem(DONE_KEY(userId), "1"); } catch { /* shown again next time */ } onClose(); };
+  const finish = () => { try { localStorage.setItem(DONE_KEY(userId), "1"); } catch { /* shown again next time */ } markSeen("setup"); onClose(); };
   const toggle = <T,>(list: T[], x: T) => (list.includes(x) ? list.filter((y) => y !== x) : [...list, x]);
   const back = () => setI((x) => Math.max(0, x - 1));
   const next = () => {

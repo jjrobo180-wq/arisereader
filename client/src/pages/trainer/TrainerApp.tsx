@@ -1,4 +1,4 @@
-// Arise Trainer: the coaching app for personal trainers (the iPhone app built with VITE_NATIVE_APP=trainer,
+// Cooked PT: the coaching app for personal trainers (the iPhone app built with VITE_NATIVE_APP=trainer,
 // and #/trainer on the website). Tabs: Clients, Inbox, Schedule, Library, Business. Clients come from
 // Cooked, with their training, food and health data shared automatically (server/coach.ts).
 import { useEffect, useMemo, useState } from "react";
@@ -61,7 +61,7 @@ export default function TrainerApp() {
         {tab === "business" && <Business data={data} token={token} reload={reload} say={say} />}
       </div>}
     </main>
-    <nav aria-label="Arise Trainer" className="fixed inset-x-3 z-[40] mx-auto flex max-w-md items-center rounded-[14px] p-1.5" style={{ bottom: "max(12px, env(safe-area-inset-bottom))", background: C.nav, backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", boxShadow: `${C.navShadow}, inset 0 0 0 1px ${C.navBorder}` }}>
+    <nav aria-label="Cooked PT" className="fixed inset-x-3 z-[40] mx-auto flex max-w-md items-center rounded-[14px] p-1.5" style={{ bottom: "max(12px, env(safe-area-inset-bottom))", background: C.nav, backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", boxShadow: `${C.navShadow}, inset 0 0 0 1px ${C.navBorder}` }}>
       <span aria-hidden className="absolute bottom-1.5 top-1.5 rounded-[10px]" style={{ width: `calc((100% - 12px) / ${tabs.length})`, left: `calc(6px + ${at} * (100% - 12px) / ${tabs.length})`, background: "linear-gradient(180deg, rgba(var(--fit-accent-rgb),.24), rgba(var(--fit-accent-rgb),.08))", boxShadow: "inset 0 -2px 0 var(--fit-accent)", transition: "left .35s cubic-bezier(.2,.9,.2,1)" }} />
       {tabs.map(([id, label, Icon, badge]) => <button key={id} type="button" onClick={() => setTab(id)} aria-current={tab === id ? "page" : undefined} data-testid={`tr-tab-${id}`}
         className="relative flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 rounded-[10px] text-[11px] uppercase tracking-[.06em] transition-colors" style={{ fontFamily: display.fontFamily, fontWeight: 800, color: tab === id ? C.lime : C.dim }}>

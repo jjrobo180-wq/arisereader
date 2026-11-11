@@ -139,7 +139,7 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
   const lead = plan?.unlimited ? "Every plugin in the Plugin Gallery, and AI for everyday use, in WorkHub and LifeHub."
     : reason === "apps" ? `The free plan includes up to ${FREE_APPS} plugins from the Plugin Gallery. Remove one to make room, or get All Access for all ${PLUGIN_COUNT_LABEL}.`
     : reason === "ai" ? `Add with AI, the AI assistant and meal estimates come with Arise All Access, along with every plugin in the Plugin Gallery${isNativeApp() ? "." : `, for ${price} a month.`}`
-    : `Every plugin in the Plugin Gallery (${PLUGIN_COUNT_LABEL}) and AI in To Duo, plus Arise Notes Plus, Cooked+ and ad-free Pod+, for one price.`;
+    : `Every plugin in the Plugin Gallery (${PLUGIN_COUNT_LABEL}) and AI in To Duo, plus Arise Notes Plus, Cooked+ and ad-free Podster, for one price.`;
 
   return (
     <div className="fixed inset-0 kb-sheet z-[320] flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="upgrade-title" data-testid="todo-upgrade" onClick={(e) => { if (e.target === e.currentTarget) setReason(null); }}>
@@ -166,11 +166,11 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
               <ul className="mt-2 space-y-1 text-violet-900">
                 <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />All {PLUGIN_COUNT_LABEL} plugins</li>
                 <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />AI every day</li>
-                <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />Notes Plus, Fit+, ad-free Pod+</li>
+                <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />Notes Plus, Fit+, ad-free Podster</li>
               </ul>
             </div>
           </div>
-          <p className="mt-3 text-xs text-slate-500">Built-in sections like Calendar, Tasks and Notes are always free. Your {FREE_APPS} plugins are shared by WorkHub and LifeHub, and nothing is ever deleted, even if you go back to Free. All Access is one plan for To Duo, Arise Notes, Cooked and Pod+.</p>
+          <p className="mt-3 text-xs text-slate-500">Built-in sections like Calendar, Tasks and Notes are always free. Your {FREE_APPS} plugins are shared by WorkHub and LifeHub, and nothing is ever deleted, even if you go back to Free. All Access is one plan for To Duo, Arise Notes, Cooked and Podster.</p>
           {note && <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700" role="status">{note}</p>}
           <div className="mt-4">
             {isNativeApp()

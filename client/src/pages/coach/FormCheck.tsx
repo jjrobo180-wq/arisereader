@@ -102,7 +102,7 @@ export function ClientFormChecks({ token, linkId, trainer, say }: { token: strin
   </div>;
 }
 
-/** Arise Trainer: a client's form checks, to review. */
+/** Cooked PT: a client's form checks, to review. */
 export function TrainerFormChecks({ token, linkId, name, say }: { token: string | null; linkId: string; name: string; say: (m: string) => void }) {
   const { data, reload } = usePoll(() => coachApi<{ checks: Check2[] }>(token, `/links/${linkId}/form-checks`), [token, linkId], 60_000);
   const [open, setOpen] = useState<Check2 | null>(null);
@@ -144,7 +144,7 @@ function Reviewer({ token, linkId, c, first, say, onClose, onDone }: { token: st
         try { const p = await uploadTo(token, linkId, blob, kind); setVoice(p); setVoiceUrl(URL.createObjectURL(blob)); } catch (e: any) { say(e.message); } finally { setBusy(""); }
       };
       r.start(); setRec(r);
-    } catch { say("Arise Trainer needs the microphone for voice notes. Allow it in Settings."); }
+    } catch { say("Cooked PT needs the microphone for voice notes. Allow it in Settings."); }
   };
   const save = async () => {
     setBusy("Sending…");

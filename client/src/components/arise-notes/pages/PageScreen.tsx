@@ -2,7 +2,7 @@
 // handwritten (pages you write on with the Apple Pencil). It saves itself as you go, syncs, and can be
 // locked with the notes password. Menu: appearance, pin, colour, folder, lock, AI, versions, export.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Maximize2, Minimize2, Clock, Copy, Download, FileText, Image as ImageIcon, Lock, LockOpen, MoreHorizontal, Palette, PenLine, Pin, PinOff, Sparkles, Table2, Trash2, Wand2 } from "lucide-react";
+import { ChevronLeft, Maximize2, MessageCircle, Minimize2, Send, Clock, Copy, Download, FileText, Image as ImageIcon, Lock, LockOpen, MoreHorizontal, Palette, PenLine, Pin, PinOff, Sparkles, Table2, Trash2, Wand2 } from "lucide-react";
 import { DEFAULT_LOOK, blankInkPage, pageTitle, textOfHtml, type InkPage, type Page, type PageContent, type PageLook, type PageMeta } from "@shared/arisePages";
 import { noteHtml as aiNoteHtml } from "@shared/ariseNotes";
 import { wordCount } from "@shared/office/docModel";
@@ -21,6 +21,9 @@ import { lockContent, unlockContent } from "./pagesLock";
 import { AppearanceSheet, ColorDots, ForgotSheet, SYNC_WORDS, UnlockSheet, VaultSheet, loadPageFont, lookStyle, usePages, useUnlocked } from "./pagesUi";
 import { drafts } from "./drafts";
 import { useAppearance } from "../appearance";
+import { askAi, undercoverPrefs } from "@/undercover/askUndercover";
+import { answerLines } from "@shared/undercover";
+import { WAIT, answerHtml, deleteReply, failReply, finishReply, clearStale, mergeReply, newReplyId, parseAtArise, waitingBlock } from "@shared/ariseReply";
 
 type Panel = "" | "more" | "look" | "folder" | "ai" | "versions" | "export" | "unlock" | "vault" | "forgot" | "sketch" | "ainote" | "info";
 
@@ -34,6 +37,12 @@ export default function PageScreen({ ctx, id, onBack, expanded, onExpand }: { ct
   const [content, setContent] = useState<(PageContent & { inkText?: string }) | null>(null);
   const [resetKey, setResetKey] = useState(0);
   const [panel, setPanel] = useState<Panel>("");
+  // Ask AI in the note (Undercover's AI): a bar under the note; each answer is written into the note
+  // like your own lines, so on screen it just looks like note taking. On or off is remembered.
+  const [askOn, setAskOn] = useState(() => { try { return localStorage.getItem("arise-notes-ask-in-note") === "1"; } catch { return false; } });
+  const [askQ, setAskQ] = useState("");
+  const [askBusy, setAskBusy] = useState(false);
+  const toggleAsk = () => setAskOn((v) => { try { localStorage.setItem("arise-notes-ask-in-note", v ? "0" : "1"); } catch { /* not kept */ } return !v; });
   const [lockAfter, setLockAfter] = useState(false); // locking this note once the password is ready
   const pageRef = useRef<Page | null>(null);
   const contentRef = useRef<(PageContent & { inkText?: string }) | null>(null);
@@ -100,6 +109,81 @@ export default function PageScreen({ ctx, id, onBack, expanded, onExpand }: { ct
     onBack();
   };
 
+  // ─── @arise: type "@arise <what you want>" on a line and press Enter. Arise answers right under it in a block
+  // you can merge (keep just the answer, no prompt) or delete. The Ask bar below answers the same way. ───
+  const working = useRef(new Set<string>());
+  const [reply, setReply] = useState<{ id: string; waiting: boolean } | null>(null);
+  const sel = (id: string) => `[data-arise="${id}"]`;
+  /** Changes one reply block in place (keeps your cursor); when the page isn't showing it, changes the saved text. */
+  const patchReply = (id: string, fn: (html: string) => string) => {
+    const ed = noteEl(), el = ed?.querySelector(sel(id));
+    if (ed && el) { el.outerHTML = fn(el.outerHTML); ed.dispatchEvent(new Event("input", { bubbles: true })); return; }
+    edit({ html: fn(contentRef.current?.html ?? "") }); setResetKey((k) => k + 1);
+  };
+  const runArise = async (id: string, ask: string, context: string) => {
+    working.current.add(id);
+    try {
+      const text = await askAi("docNotes", [{ role: "user", content: ask }], { ...undercoverPrefs(), context });
+      const lines = answerLines(text);
+      patchReply(WAIT + id, (h) => finishReply(h, id, answerHtml(lines.length ? lines : [text])));
+      setReply({ id, waiting: false });
+    } catch (x: any) {
+      patchReply(WAIT + id, (h) => failReply(h, id)); setReply(null);
+      say(x?.message || "Couldn't get an answer.");
+    } finally { working.current.delete(id); }
+  };
+  /** A typed "@arise …" line becomes the prompt of a reply block, with a fresh line after it to keep writing on. */
+  const startAt = (blk: HTMLElement, ask: string) => {
+    const ed = noteEl(); if (!ed) return;
+    const id = newReplyId();
+    blk.outerHTML = `${waitingBlock(id, ask)}<p><br></p>`;
+    const mine = ed.querySelector(sel(WAIT + id));
+    const copy = ed.cloneNode(true) as HTMLElement; copy.querySelector(sel(WAIT + id))?.remove();
+    const next = mine?.nextElementSibling;
+    if (next) { const r = document.createRange(); r.setStart(next, 0); r.collapse(true); const sn = window.getSelection(); sn?.removeAllRanges(); sn?.addRange(r); }
+    ed.dispatchEvent(new Event("input", { bubbles: true }));
+    setReply({ id: WAIT + id, waiting: true });
+    void runArise(id, ask, textOfHtml(copy.innerHTML));
+  };
+  const startRef = useRef(startAt); startRef.current = startAt;
+  const canArise = useRef(false); canArise.current = !!content && page?.kind === "text" && !(sync.meta(page.id)?.deletedAt ?? page.deletedAt);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Enter" || e.shiftKey || e.isComposing || e.metaKey || e.ctrlKey || e.altKey || !canArise.current) return;
+      const ed = noteEl(), sn = window.getSelection();
+      if (!ed || !sn?.isCollapsed || !sn.anchorNode || !ed.contains(sn.anchorNode)) return;
+      let blk = (sn.anchorNode.nodeType === 1 ? sn.anchorNode : sn.anchorNode.parentElement) as HTMLElement | null;
+      while (blk && blk.parentElement !== ed) blk = blk.parentElement;
+      if (!blk || !/^(P|DIV|H[1-4])$/.test(blk.tagName)) return;
+      const ask = parseAtArise(blk.textContent || "");
+      if (!ask) return;
+      e.preventDefault(); e.stopPropagation();
+      startRef.current(blk, ask);
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, []);
+  // Which reply the cursor is in: the Merge and Delete bar is for that one.
+  useEffect(() => {
+    const on = () => {
+      const ed = noteEl(), sn = window.getSelection();
+      if (!ed || !sn?.anchorNode || !ed.contains(sn.anchorNode)) return;
+      const el = (sn.anchorNode.nodeType === 1 ? sn.anchorNode : sn.anchorNode.parentElement) as HTMLElement | null;
+      const v = el?.closest("blockquote[data-arise]")?.getAttribute("data-arise");
+      setReply(v ? { id: v, waiting: v.startsWith(WAIT) } : null);
+    };
+    document.addEventListener("selectionchange", on);
+    return () => document.removeEventListener("selectionchange", on);
+  }, []);
+  // An answer that was still being written when the page was closed goes back to being the line that was typed.
+  useEffect(() => {
+    const c = contentRef.current; if (!c) return;
+    const clean = clearStale(c.html, working.current);
+    if (clean !== c.html) { edit({ html: clean }); setResetKey((k) => k + 1); }
+  }, [!!content, id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const mergeIt = () => { if (!reply) return; patchReply(reply.id, (h) => mergeReply(h, reply.id)); setReply(null); say("Merged into your note."); };
+  const deleteIt = () => { if (!reply) return; patchReply(reply.id, (h) => deleteReply(h, reply.id)); setReply(null); say("Arise's reply deleted."); };
+
   // Handwriting becomes searchable: the iPhone reads it (on the device) a little after you stop writing.
   const readTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const readInk = (ink: InkPage[]) => {
@@ -155,6 +239,7 @@ export default function PageScreen({ ctx, id, onBack, expanded, onExpand }: { ct
       <span className="min-w-0 flex-1 truncate text-[13px] text-[var(--an-muted)]">{page.locked && !content ? "Locked" : SYNC_WORDS[state]}</span>
       {onExpand && <IconBtn label={expanded ? "Shrink back to the list" : "Fill the whole page"} onClick={onExpand}>{expanded ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}</IconBtn>}
       {content && <IconBtn label="Appearance" onClick={() => setPanel("look")}><Palette className="h-5 w-5" /></IconBtn>}
+      {content && page.kind === "text" && <IconBtn label={askOn ? "Hide Ask AI" : "Ask AI in this note"} onClick={toggleAsk} className={askOn ? "!text-[var(--an-violet)]" : ""}><MessageCircle className="h-5 w-5" /></IconBtn>}
       {content && page.kind === "text" && <IconBtn label="AI tools" onClick={() => setPanel("ai")}><Sparkles className="h-5 w-5" /></IconBtn>}
       <IconBtn label="More" onClick={() => setPanel("more")}><MoreHorizontal className="h-5 w-5" /></IconBtn>
     </header>
@@ -165,6 +250,30 @@ export default function PageScreen({ ctx, id, onBack, expanded, onExpand }: { ct
       : content && page.kind === "text" ? <TextBody key={`${page.id}-${resetKey}`} content={content} look={look} edit={edit} onSketch={() => setPanel("sketch")} onAiNote={() => setPanel("ainote")} />
         : content ? <InkBody content={content} pencilOnly={settings.prefs.pencilOnly} edit={(p) => { edit(p); if (p.ink) readInk(p.ink); }} onPencilOnly={(v) => sync.saveSettings({ ...settings, prefs: { ...settings.prefs, pencilOnly: v } })} title={title} />
           : <Spinner />}
+
+    {reply && !reply.waiting && content && page.kind === "text" && !trashed && <div className={`an-noprint sticky z-20 mx-3 mb-2 flex items-center gap-2 rounded-2xl bg-white px-3 py-2 shadow-lg ring-1 ring-[var(--an-line)] ${askOn ? "bottom-[4.5rem]" : "bottom-[max(.75rem,env(safe-area-inset-bottom))]"}`} role="group" aria-label="Arise's reply" data-testid="pages-reply-bar">
+      <Sparkles className="h-4 w-4 shrink-0 text-[var(--an-violet)]" aria-hidden />
+      <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">Arise's reply</span>
+      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={mergeIt} className="min-h-11 rounded-xl bg-[var(--an-violet)] px-3 text-[14px] font-bold text-white" data-testid="pages-reply-merge">Merge into note</button>
+      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={deleteIt} className="min-h-11 rounded-xl px-3 text-[14px] font-bold text-[var(--an-muted)] ring-1 ring-[var(--an-line)]" data-testid="pages-reply-delete">Delete</button>
+    </div>}
+    {askOn && content && page.kind === "text" && !trashed && <form className="an-noprint sticky bottom-0 z-20 flex gap-2 px-3 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-2" style={{ background: "linear-gradient(to top, color-mix(in srgb, var(--an-bg, #fff) 92%, transparent) 70%, transparent)" }}
+      onSubmit={async (e) => {
+        e.preventDefault();
+        const q = askQ.trim();
+        if (!q || askBusy) return;
+        setAskBusy(true);
+        try {
+          const id = newReplyId(), before = contentRef.current?.html ?? content.html;
+          edit({ html: `${before}${waitingBlock(id, q)}` }); setResetKey((k) => k + 1); setAskQ("");
+          await runArise(id, q, textOfHtml(before));
+        } catch (x: any) { say(x?.message || "Couldn't get an answer."); }
+        finally { setAskBusy(false); }
+      }} data-testid="pages-ask-bar">
+      <label className="sr-only" htmlFor="pages-ask-input">Ask AI. The answer is added to this note.</label>
+      <input id="pages-ask-input" className="an-input flex-1" value={askQ} onChange={(e) => setAskQ(e.target.value)} placeholder={askBusy ? "Writing…" : "Ask anything, or type @arise in your note"} maxLength={500} autoComplete="off" enterKeyHint="send" />
+      <Btn kind="primary" type="submit" busy={askBusy} disabled={!askQ.trim()} aria-label="Ask"><Send className="h-4 w-4" /></Btn>
+    </form>}
 
     {/* Sheets */}
     {panel === "look" && content && <AppearanceSheet look={savedLook} onChange={(l) => edit({ look: l })} onClose={() => setPanel("")} onDefault={() => { sync.saveSettings({ ...settings, prefs: { ...settings.prefs, look } }); say("New notes will look like this."); }} />}

@@ -31,6 +31,7 @@ const TrainerSitePage = lazy(() => import("@/pages/coach/TrainerSite"));
 const BrandAppPage = lazy(() => import("@/pages/coach/Brand"));
 const NotesApp = lazy(() => import("@/components/arise-notes/NotesApp"));
 const TalkApp = lazy(() => import("@/pages/talk/TalkApp"));
+const UndercoverApp = lazy(() => import("@/undercover/UndercoverApp"));
 const GoalQuizPage = lazy(() => import("@/pages/GoalQuizPage"));
 import { API_BASE } from "./lib/queryClient";
 import ProfileSetupOverlay from "./components/ProfileSetupOverlay";
@@ -153,7 +154,7 @@ import { HubWaiting } from "@/lib/hubBackdrop";
 import { ReaderAdminToTodoRedirect, ReaderToHubHandoff, TodoAdminHandoff } from "@/components/AdminDomainHandoff";
 import { READER_APP, goToReader, goToSignIn, hubPathFor, isHubAccount, isReaderHost, isReaderPage } from "@/lib/hubs";
 import NativePlans from "@/components/NativePlans";
-import { isEyeGazerApp, isFitApp, isNativeApp, isNotesApp, isReaderApp, isTalkApp, isTrainerApp, nativeFlavor } from "@/lib/nativeApp";
+import { isEyeGazerApp, isFitApp, isNativeApp, isNotesApp, isReaderApp, isTalkApp, isTrainerApp, isUndercoverApp, nativeFlavor } from "@/lib/nativeApp";
 const TeacherScenes = lazyPage(() => import("./pages/TeacherScenes"));
 const StudentSceneLive = lazyPage(() => import("./pages/StudentSceneLive"));
 const Library = lazyPage(() => import("./pages/Library"));
@@ -322,7 +323,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   // teacher without it is sent to the plan page, the one place they can still use.
   const isPlanTeacher = !!user && user.role === "teacher" && !user.isAdmin;
   // Arise Reader is paid for accounts made from November 9, 2026 (older ones keep it free).
-  // Only the Reader (arisereader.com and the Reader and Educator apps) is locked, never To Duo or Eye Gazer.
+  // Only the Reader (arisereader.com and the Reader and Educator apps) is locked, never To Duo or Arise AAC.
   const onReader = !!user && !user.isAdmin && isReaderHost() && nativeFlavor() !== "eyegaze";
   const { plan, loading: planLoading } = usePlan(isPlanTeacher || onReader ? token : null);
   // The page shows straight away and the plan arrives behind it. Only a teacher who
@@ -390,14 +391,14 @@ function AdminPreviewBar() {
           onClick={() => switchMode("regular")}
           className={`rounded-xl px-3 py-2 text-xs font-black transition ${adminPreviewMode === "regular" ? "bg-white text-slate-950" : "text-slate-300 hover:bg-white/10"}`}
         >
-          Non-Eye Gazer
+          Non-Arise AAC
         </button>
         <button
           type="button"
           onClick={() => switchMode("eye-gaze")}
           className={`rounded-xl px-3 py-2 text-xs font-black transition ${adminPreviewMode === "eye-gaze" ? "bg-cyan-400 text-slate-950" : "text-slate-300 hover:bg-white/10"}`}
         >
-          Eye Gazer
+          Arise AAC
         </button>
         <button
           type="button"
@@ -456,7 +457,7 @@ function StudentOnTodo() {
 function AfterSignIn({ onReaderDomain, onTodoDomain }: { onReaderDomain: boolean; onTodoDomain: boolean }) {
   const { user } = useAuth();
   if (!user) return null;
-  // The Eye Gazer app is its own place: whoever signs in (an Eye Gazer account, a LifeHub or
+  // The Arise AAC app is its own place: whoever signs in (an Arise AAC account, a LifeHub or
   // teacher account, the administrator) opens the eye-gaze home, never a hub on arisetodo.com.
   if (isEyeGazerApp()) return <Redirect to={user.role === "parent" ? "/eye-gaze-parent" : "/eye-gaze-home"} replace />;
   // Signed in from a Para Team invite link: straight back to join that team.
@@ -592,7 +593,7 @@ function AppRoutes() {
   // router — a page of its own rather than a screen inside the To-Do app. Signing in is still the
   // hub's, so a signed-out visitor is sent to that screen.
   if (isReaderPage()) {
-    // The Eye Gazer app never shows Arise Reader: an old "#/reader" address opens Eye Gazer.
+    // The Arise AAC app never shows Arise Reader: an old "#/reader" address opens Arise AAC.
     if (isEyeGazerApp()) { window.location.hash = user ? (user.role === "parent" ? "#/eye-gaze-parent" : "#/eye-gaze-home") : "#/signin"; return null; }
     if (!user) { goToSignIn(); return null; }
     // Its code may still be loading: show the spinner meanwhile (without a loading boundary here,
@@ -605,7 +606,7 @@ function AppRoutes() {
       <Route path="/fit">
         <ProtectedRoute><FitApp /></ProtectedRoute>
       </Route>
-      {/* Arise All Access: one $10 plan for To Duo, Notes, Fit and Pod+ (pages/AllAccess.tsx). */}
+      {/* Arise All Access: one $10 plan for To Duo, Notes, Fit and Podster (pages/AllAccess.tsx). */}
       <Route path="/all-access">
         {/* Signed out (from an app's "Get it on arisetodo.com" link): sign in or make a free account right here,
             then this same page shows the plan. Never the homepage. */}
@@ -614,9 +615,9 @@ function AppRoutes() {
           <SignIn />
         </div>}
       </Route>
-      {/* Arise Coaching: the public trainer directory, and Arise Trainer for coaches. */}
+      {/* Arise Coaching: the public trainer directory, and Cooked PT for coaches. */}
       <Route path="/trainers"><TrainersPage /></Route>
-      {/* A trainer's own website, built in Arise Trainer (shared/coachSite.ts). No sign-in. */}
+      {/* A trainer's own website, built in Cooked PT (shared/coachSite.ts). No sign-in. */}
       <Route path="/t/:slug"><TrainerSitePage /></Route>
       {/* A trainer's own branded web app (shared/coachBrand.ts). No sign-in to see it. */}
       <Route path="/c/:slug"><BrandAppPage /></Route>
@@ -996,7 +997,7 @@ function AppRoutes() {
       <Route path="/eye-gaze-home">
         <ProtectedRoute><EyeGazeHome /></ProtectedRoute>
       </Route>
-      {/* Wren, the AI-voice talker, inside the Eye Gazer app (same grown-up permission as My Talker). */}
+      {/* Wren, the AI-voice talker, inside the Arise AAC app (same grown-up permission as My Talker). */}
       <Route path="/eye-gaze-wren">
         {isEyeGazeStudent || user?.role === 'parent' ? <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-talker"><EyeGazeWren /></EyeGazeAccessGate></ProtectedRoute> : <Redirect to="/" replace />}
       </Route>
@@ -1092,7 +1093,7 @@ function AppRoutes() {
 }
 
 // Full-screen games need the whole screen: site tabs, banners and popups would cover their controls.
-// Cooked, Arise Trainer, the trainer directory and Arise Talk are whole apps of their own on the
+// Cooked, Cooked PT, the trainer directory and Arise Talk are whole apps of their own on the
 // website too, so the site's side tabs (points, Avatar World) and pop-ups stay off them.
 const FULLSCREEN_GAME_ROUTES = ["/to-do", "/lifehub", "/games", "/study", "/paintball-arena", "/aurora-rally", "/skybound-sprint", "/twinlight-run", "/chime-of-aoren", "/present", "/tutorial/present", "/fit", "/trainer", "/trainers", "/talk"];
 function useFullscreenGameRoute() {
@@ -1108,7 +1109,7 @@ function useFullscreenGameRoute() {
 }
 
 
-/** Cooked and Arise Trainer open on their theme's background (Light unless Dark was chosen), so there's no dark flash. */
+/** Cooked and Cooked PT open on their theme's background (Light unless Dark was chosen), so there's no dark flash. */
 function fitBootBg() {
   try { const t = localStorage.getItem("arise-fit-theme"); return t === "dark" || (t === "auto" && matchMedia("(prefers-color-scheme: dark)").matches) ? "#15171b" : "#f2f2f4"; } catch { return "#f2f2f4"; }
 }
@@ -1132,9 +1133,11 @@ function AppInner() {
   // The Arise Notes iPhone app: sign in, then Arise Notes (components/arise-notes/NotesApp.tsx).
   if (isNotesApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: "#f5f4fb" }} />}>{user ? <NotesApp mode="standalone" /> : <NativeSignIn />}</Suspense></Router>;
   if (isFitApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: fitBootBg() }} />}>{user ? <FitApp /> : <NativeSignIn />}</Suspense></Router>;
+  // The Arise Undercover iPhone app: sign in, then the chat in the look they picked (undercover/UndercoverApp.tsx).
+  if (isUndercoverApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: "#fff" }} />}>{user ? <UndercoverApp /> : <NativeSignIn />}</Suspense></Router>;
   // The Arise Talk iPhone app opens straight to the boards: an account is optional (More → Backup).
   if (isTalkApp()) return <Suspense fallback={<div className="fixed inset-0" style={{ background: "#f5f4f1" }} />}><TalkApp /></Suspense>;
-  // The Arise Trainer iPhone app: sign in, then Arise Trainer (pages/trainer/TrainerApp.tsx).
+  // The Cooked PT iPhone app: sign in, then Cooked PT (pages/trainer/TrainerApp.tsx).
   if (isTrainerApp()) return <Router hook={useHashPathLocation}><Suspense fallback={<div className="fixed inset-0" style={{ background: fitBootBg() }} />}>{user ? <TrainerApp /> : <NativeSignIn />}</Suspense></Router>;
 
   const overlays = !inGame;

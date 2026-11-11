@@ -1,6 +1,6 @@
 {
   "appId": "com.arisereader.eyegazer",
-  "appName": "Arise Eye Gazer",
+  "appName": "Arise AAC",
   "webDir": "www",
   "plugins": {
     "SplashScreen": {

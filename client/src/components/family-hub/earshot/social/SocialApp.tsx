@@ -1,4 +1,4 @@
-// Pod+ Social: the app. Home (stories, For You / Following / Clips), Search & Explore, Create,
+// Podster Social: the app. Home (stories, For You / Following / Clips), Search & Explore, Create,
 // Messages and your Profile, each tab with its own stack of screens (profiles, posts, hashtags,
 // followers, chats, notifications). Server: server/podcastSocial.ts + server/podcastSocialPlus.ts.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -17,7 +17,7 @@ import { ChatScreen, InboxScreen, PeoplePicker } from "./Messages";
 type Tab = "home" | "search" | "messages" | "me";
 type Screen = { k: "profile"; handle: string } | { k: "post"; post: Post | string } | { k: "tag"; tag: string } | { k: "people"; handle: string; which: "followers" | "following" }
   | { k: "chat"; thread: Thread } | { k: "requests" } | { k: "activity" };
-/** True on the Pod+ site and app (podscroll/main.tsx sets it). */
+/** True on the Podster site and app (podscroll/main.tsx sets it). */
 const onPodPlus = () => typeof window !== "undefined" && (window as any).__PODPLUS__ === true;
 type Feed = "foryou" | "following" | "clips";
 
@@ -123,7 +123,7 @@ export function SocialApp({ api: rawApi, say, night, theme, onThemeChange, onPla
           {me ? <Avatar p={me} size={34} /> : <span className="elev grid h-8 w-8 place-items-center rounded-full"><User size={16} /></span>}
         </button>
         <div className="sx-feed-heading">
-          <span className="sx-mobile-brand">Pod<span className="accent">+</span><small>SOCIAL</small></span>
+          <span className="sx-mobile-brand">Podster<small>SOCIAL</small></span>
           <h1 className="sx-desktop-heading">Home</h1>
           <p className="sx-desktop-subheading">Conversations worth being part of.</p>
         </div>
@@ -132,7 +132,7 @@ export function SocialApp({ api: rawApi, say, night, theme, onThemeChange, onPla
         </button>
       </div>
       <div className="sx-feed-tabs" role="tablist">
-        {/* Pod+ has no Clips tab (taken out October 2026); LifeHub keeps it. */}
+        {/* Podster has no Clips tab (taken out October 2026); LifeHub keeps it. */}
         {([["foryou", "For you"], ["following", "Following"], ...(onPodPlus() ? [] : [["clips", "Clips"]])] as [Feed, string][]).map(([v, l]) =>
           <button key={v} type="button" role="tab" aria-selected={feed === v} onClick={() => (feed === v ? list.reset() : setFeed(v))} className={feed === v ? "sx-feed-tab sx-feed-tab-active" : "sx-feed-tab"}>{l}</button>
         )}
@@ -148,7 +148,7 @@ export function SocialApp({ api: rawApi, say, night, theme, onThemeChange, onPla
         <p className="sx-join-eyebrow">YOUR COMMUNITY STARTS HERE</p>
         <p className="text-[19px] font-semibold">Your voice belongs in the conversation.</p>
         <p className="muted mt-2 text-[14px] leading-relaxed">Create a profile to share posts, follow creators and connect with people who listen like you do.</p>
-        <PillButton kind="accent" className="mt-4" onClick={() => setEdit(true)}>Join Pod+ Social</PillButton>
+        <PillButton kind="accent" className="mt-4" onClick={() => setEdit(true)}>Join Podster Social</PillButton>
       </div>}
       {!list.items && <><PostSkeleton /><PostSkeleton /><PostSkeleton /></>}
       {list.items?.map((p) => <PostCard key={p.id} post={p} ctx={ctx} onChange={(np) => list.patch(p.id, () => np)} onGone={() => list.patch(p.id, () => null)} />)}
@@ -169,7 +169,7 @@ export function SocialApp({ api: rawApi, say, night, theme, onThemeChange, onPla
     <style>{SX_CSS}</style>
     <div className="sx-workspace">
       <aside className="sx-left-sidebar" aria-label="Social navigation">
-        <div className="sx-brand" aria-label="Pod Plus Social">
+        <div className="sx-brand" aria-label="Podster Social">
           <span className="sx-brand-word">pod<span>+</span></span>
           <span className="sx-brand-tag">SOCIAL</span>
         </div>
@@ -198,7 +198,7 @@ export function SocialApp({ api: rawApi, say, night, theme, onThemeChange, onPla
           </button>
         </div>
       </aside>
-      <main className="sx-main-column" aria-label="Pod+ social feed">
+      <main className="sx-main-column" aria-label="Podster social feed">
         <div className="sx-screens">
           {(["home", "search", "messages", "me"] as Tab[]).filter((t) => seenTabs.has(t)).map((t) => {
             const layers = [{ key: `${t}:root`, node: roots[t] }, ...stacks[t].map((s, i) => ({ key: `${t}:${i}:${s.k}`, node: screen(s) }))];
@@ -212,13 +212,13 @@ export function SocialApp({ api: rawApi, say, night, theme, onThemeChange, onPla
           })}
         </div>
       </main>
-      <aside className="sx-right-sidebar" aria-label="Discover on Pod+">
-        <button type="button" className="sx-discovery-search" onClick={() => goTab("search")}><Search size={18} /><span>Search Pod+ Social</span></button>
+      <aside className="sx-right-sidebar" aria-label="Discover on Podster">
+        <button type="button" className="sx-discovery-search" onClick={() => goTab("search")}><Search size={18} /><span>Search Podster Social</span></button>
         <section className="sx-discovery-card">
           <div className="sx-panel-heading"><TrendingUp size={18} /><h2>What's happening</h2></div>
           {discover === null ? <p className="sx-discovery-muted">Loading conversations...</p> : discover.tags.length ? discover.tags.slice(0, 5).map((t, i) =>
             <button key={t.tag} type="button" className="sx-trend" onClick={() => push({ k: "tag", tag: t.tag }, "home")}>
-              <span className="sx-trend-kicker">Trending in Pod+ · {i + 1}</span>
+              <span className="sx-trend-kicker">Trending in Podster · {i + 1}</span>
               <strong>#{t.tag}</strong>
               <span className="sx-trend-meta">{t.posts.toLocaleString()} posts</span>
             </button>
@@ -233,14 +233,14 @@ export function SocialApp({ api: rawApi, say, night, theme, onThemeChange, onPla
               <button type="button" className="sx-follow-info" onClick={() => push({ k: "profile", handle: p.handle }, "home")}>
                 <strong>{p.name}{p.verified ? <span className="sx-official-mark" aria-label="Verified official account">✓</span> : null}</strong>
                 <small>@{p.handle}</small>
-                {p.handle === "jjrobo180" && <span className="sx-official-hint">Official Pod+ account</span>}
+                {p.handle === "jjrobo180" && <span className="sx-official-hint">Official Podster account</span>}
               </button>
               <button type="button" className={p.followed ? "sx-follow-action sx-followed" : "sx-follow-action"} aria-label={p.followed ? `Unfollow @${p.handle}` : `Follow @${p.handle}`} onClick={() => toggleFollow(p)}>{p.followed ? "Following" : "Follow"}</button>
             </div>
           ) : <p className="sx-discovery-muted">Creators and listeners will appear here.</p>}
           <button type="button" className="sx-see-more" onClick={() => goTab("search")}>Discover more people <span aria-hidden="true">→</span></button>
         </section>
-        <p className="sx-right-footer">Pod+ Social · Your community, your conversations.</p>
+        <p className="sx-right-footer">Podster Social · Your community, your conversations.</p>
       </aside>
     </div>
 
@@ -272,7 +272,7 @@ export function SocialApp({ api: rawApi, say, night, theme, onThemeChange, onPla
     {sharing && <ActionSheet onClose={() => setSharing(null)} items={[
       { label: "Send in a message", icon: <Send size={20} />, onClick: () => (needProfile() ? null : setSendTo(sharing)) },
       { label: "Copy link", icon: <Link2 size={20} />, onClick: () => { void navigator.clipboard?.writeText(linkTo(`post/${sharing.id}`)).then(() => say("Link copied."), () => say(linkTo(`post/${sharing.id}`))); } },
-      { label: "Share via…", icon: <Send size={20} />, onClick: () => void shareOrCopy(linkTo(`post/${sharing.id}`), "Pod+", say) },
+      { label: "Share via…", icon: <Send size={20} />, onClick: () => void shareOrCopy(linkTo(`post/${sharing.id}`), "Podster", say) },
     ]} />}
     {sendTo && <PeoplePicker ctx={ctx} title="Send to" onClose={() => setSendTo(null)} onPick={(p) => {
       const post = sendTo; setSendTo(null);

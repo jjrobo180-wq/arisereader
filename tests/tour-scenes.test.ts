@@ -15,12 +15,12 @@ test("every tour page has an animated scene", () => {
   assert.doesNotMatch(walk, /<TodoScene/);
   for (const id of ids(read("client/src/components/ReaderFirstRun.tsx"))) assert.match(scenes, new RegExp(`case "${id}": return <(Reader|Educator)`), `Reader: ${id}`);
   const pod = read("podscroll/Welcome.tsx");
-  for (const id of ids(pod)) assert.match(scenes, new RegExp(`case "${id}": return <Pod`), `Pod+: ${id}`);
+  for (const id of ids(pod)) assert.match(scenes, new RegExp(`case "${id}": return <Pod`), `Podster: ${id}`);
   assert.match(read("client/src/components/ReaderFirstRun.tsx"), /<ReaderScene id=\{step\.id\} \/>/);
   assert.match(pod, /<PodScene id=\{step\.id\} \/>/);
 });
 
-test("the Pod+ tour shows Social, making a podcast, going live and earning", () => {
+test("the Podster tour shows Social, making a podcast, going live and earning", () => {
   const pod = read("podscroll/Welcome.tsx");
   for (const id of ["make", "social", "live", "earn"]) assert.match(pod, new RegExp(`id: "${id}"`));
   assert.match(pod, /Payouts are opening soon/, "honest about payouts");
@@ -29,5 +29,5 @@ test("the Pod+ tour shows Social, making a podcast, going live and earning", () 
 test("scenes respect Reduce Motion and fit short screens", () => {
   assert.match(scenes, /prefers-reduced-motion:reduce/);
   assert.match(scenes, /export function SceneFit/);
-  assert.doesNotMatch(scenes, /className="(?!ts-a")[^"]+"/, "inline styles only, so Pod+'s own build draws them too");
+  assert.doesNotMatch(scenes, /className="(?!ts-a")[^"]+"/, "inline styles only, so Podster's own build draws them too");
 });

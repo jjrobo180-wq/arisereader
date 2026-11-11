@@ -1,8 +1,8 @@
-// The Pod+ native player, shared by CarPlay, the Apple Watch app and the Apple TV app.
+// The Podster native player, shared by CarPlay, the Apple Watch app and the Apple TV app.
 //
 // Like the web player (client/src/components/family-hub/earshot/EarshotPlayer.tsx), every podcast plays
 // without ads: its ad-free copy from storage when the server has made one, otherwise a copy through
-// the server whose ads are found as it plays and jumped over. Episodes people made on Pod+ and radio
+// the server whose ads are found as it plays and jumped over. Episodes people made on Podster and radio
 // stations play straight from where they are. Where each episode got to is saved for the phone, the
 // lock screen and the car show what's playing, and their buttons (and the car's) work.
 import Foundation
@@ -161,7 +161,7 @@ public final class PodEngine: ObservableObject {
             guard run == me else { return }
             guard let url = url else { message = "This episode can't play right now."; loading = false; playing = false; wantPlaying = false; PodAPI.shared.report("no address for \(ep.id) (show \(ep.showId.isEmpty ? "none" : "yes"), audio \(ep.audio.isEmpty ? "none" : "yes"))"); return }
             // On the watch, sound only plays once watchOS has given the app headphones (it asks which ones):
-            // playing before that answer came back is what crashed Pod+ on a real Apple Watch.
+            // playing before that answer came back is what crashed Podster on a real Apple Watch.
             guard await sessionReady() else {
                 guard run == me else { return }
                 message = "Connect Bluetooth headphones to your watch, then tap play."; loading = false; playing = false; return
@@ -475,7 +475,7 @@ public final class PodEngine: ObservableObject {
         var info: [String: Any] = [
             MPMediaItemPropertyTitle: ep.title,
             MPMediaItemPropertyArtist: onStation ? "Live News Radio · \(ep.show)" : ep.show,
-            MPMediaItemPropertyAlbumTitle: "Pod+",
+            MPMediaItemPropertyAlbumTitle: "Podster",
             MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
             MPNowPlayingInfoPropertyIsLiveStream: live && !onStation,
             MPNowPlayingInfoPropertyPlaybackRate: playing ? Double(live && !onStation ? 1 : rate) : 0,

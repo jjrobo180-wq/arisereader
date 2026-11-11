@@ -98,4 +98,4 @@ The `swsyalnajzizfwazqwpd` project already has these. The SQL is in `migrations/
 - **Testing locally:**
   - Run tests with `/opt/npm-tools/node_modules/.bin/esbuild <test> --bundle --platform=node --format=esm --alias:@shared=./shared --alias:@=./client/src --packages=external`, then `node --test`.
   - npm installs are blocked in that sandbox, and `express`, `@supabase` and React types are missing locally. CI (`.github/workflows/all-tests.yml`) runs everything.
-- **The Eye Gazer separate-login work was dropped** on the owner's instruction.
+- **The Arise AAC separate-login work was dropped** on the owner's instruction.

@@ -1,4 +1,4 @@
--- Pod+ Social v3: a full social app. Profile photos and covers, photo/video posts, polls, hashtags,
+-- Podster Social v3: a full social app. Profile photos and covers, photo/video posts, polls, hashtags,
 -- saved posts, blocks, direct messages (with message requests) and 24-hour stories.
 -- Service role only, like the rest of podcast social (the server is the only one that touches these).
 

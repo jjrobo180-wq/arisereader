@@ -1,4 +1,4 @@
-// Pod+: an episode that "ends" the moment it starts (a jump landed at its end) plays from the top
+// Podster: an episode that "ends" the moment it starts (a jump landed at its end) plays from the top
 // instead of stopping on "That episode is over", and Play on a finished episode always plays.
 import test from "node:test";
 import assert from "node:assert/strict";

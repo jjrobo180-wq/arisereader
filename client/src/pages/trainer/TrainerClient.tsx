@@ -1,4 +1,4 @@
-// One client in Arise Trainer. Overview comes straight from their Cooked (what they chose to share);
+// One client in Cooked PT. Overview comes straight from their Cooked (what they chose to share);
 // everything else is the trainer's plan for them, saved as it's changed.
 import { useMemo, useState } from "react";
 import { CalendarDays, Check, ChevronLeft, ChevronRight, ClipboardList, Copy, Dumbbell, Flag, Footprints, Lock, Pencil, Plus, Sparkles, Timer, Trash2, Trophy } from "lucide-react";

@@ -2699,7 +2699,7 @@ Generate exactly 10 questions.`;
           <Button variant="outline" className="h-auto justify-start gap-2 whitespace-normal py-3 text-left leading-snug" onClick={() => goTo("inbox")}><MessageSquarePlus className="h-4 w-4" />Send a message</Button>
           <Button variant="outline" className="h-auto justify-start gap-2 whitespace-normal py-3 text-left leading-snug" onClick={() => { setShowTeacherForm(true); goTo("people", "teacher-form", { people: "teachers" }); }}><UserPlus className="h-4 w-4" />Add a teacher</Button>
           <Button variant="outline" className="h-auto justify-start gap-2 whitespace-normal py-3 text-left leading-snug" onClick={() => { startAdminPreview("regular"); navigate("/profile"); }}><Users className="h-4 w-4" />View as a student</Button>
-          <Button variant="outline" className="h-auto justify-start gap-2 whitespace-normal py-3 text-left leading-snug" onClick={() => { startAdminPreview("eye-gaze"); navigate("/eye-gaze-home"); }}><Eye className="h-4 w-4" />View as an Eye Gazer</Button>
+          <Button variant="outline" className="h-auto justify-start gap-2 whitespace-normal py-3 text-left leading-snug" onClick={() => { startAdminPreview("eye-gaze"); navigate("/eye-gaze-home"); }}><Eye className="h-4 w-4" />View as an Arise AAC</Button>
           <Button variant="outline" className="h-auto justify-start gap-2 whitespace-normal py-3 text-left leading-snug" onClick={() => setShowViewAsTeacher(true)}><UserCheck className="h-4 w-4" />View as a teacher</Button>
         </div>
         <p className="mt-3 text-xs text-muted-foreground">Previews show A.R.I.S.E. exactly like a student. Quiz results in a preview don't count on leaderboards or competitions. "View as a teacher" opens a real teacher's account, view only.</p>
@@ -4377,7 +4377,7 @@ Generate exactly 10 questions.`;
                 <DropdownMenuItem className="gap-2 py-2" onSelect={() => navigate("/polls")}><BarChart3 className="h-4 w-4" />Polls</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="gap-2 py-2" onSelect={() => { startAdminPreview("regular"); navigate("/profile"); }}><Users className="h-4 w-4" />Preview as a student</DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 py-2" onSelect={() => { startAdminPreview("eye-gaze"); navigate("/eye-gaze-home"); }}><Eye className="h-4 w-4" />Preview as an Eye Gazer</DropdownMenuItem>
+                <DropdownMenuItem className="gap-2 py-2" onSelect={() => { startAdminPreview("eye-gaze"); navigate("/eye-gaze-home"); }}><Eye className="h-4 w-4" />Preview as an Arise AAC</DropdownMenuItem>
                 <DropdownMenuItem className="gap-2 py-2" onSelect={() => setShowViewAsTeacher(true)}><UserCheck className="h-4 w-4" />View as a teacher</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="gap-2 py-2" onSelect={() => { setTab("settings"); setSettingsSection("alerts"); }}><BellRing className="h-4 w-4" />Notification settings</DropdownMenuItem>

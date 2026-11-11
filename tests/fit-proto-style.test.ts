@@ -97,7 +97,7 @@ test("five whole layouts: type, corners, surfaces, Today and the tab bar change,
   for (const id of ["studio", "bloom", "pro", "zen"]) { assert.match(lay, new RegExp(`layout === "${id}"`), `${id} tab bar`); assert.match(app, new RegExp(`layout === "${id}" \\?`), `${id} Today`); }
   for (const part of ["StudioTrio", "BloomFlower", "BloomRitual", "ProTiles", "ZenRows", "LayoutPicker"]) assert.match(lay, new RegExp(`export function ${part}\\(`), part);
   assert.match(app, /<LayoutsSetting \/>/);
-  // Layouts only apply in Cooked (Arise Trainer shares these styles).
+  // Layouts only apply in Cooked (Cooked PT shares these styles).
   assert.match(ui, /if \(layoutsOn\)/);
 });
 

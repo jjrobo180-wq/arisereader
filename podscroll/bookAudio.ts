@@ -1,11 +1,11 @@
-// The sound shaping for Pod+ Audiobooks, in the listener's browser (Web Audio):
+// The sound shaping for Podster Audiobooks, in the listener's browser (Web Audio):
 //  - Voice boost: clearer voices (less rumble, a little more presence) and steadier volume.
 //  - Even volume: quiet readers and loud readers come out at about the same level.
 //  - Clean up background noise: rumble and hum cut below the voice, hiss cut above it, and the
 //    quiet stretches between words (where only the noise is) turned down.
 //  - Skip silences: a level meter, so long pauses can be sped through.
 //  - A fader for the sleep timer, which works even where a page can't set the volume (iPhone).
-// A page may only shape sound a site lets it read, so a shaped chapter comes through the Pod+
+// A page may only shape sound a site lets it read, so a shaped chapter comes through the Podster
 // server (the audio relay in server/audiobooks.ts) and the player is set to crossOrigin="anonymous".
 // Once a player is routed here it stays routed (browsers allow it once per player).
 

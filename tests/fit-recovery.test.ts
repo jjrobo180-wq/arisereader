@@ -98,7 +98,7 @@ test("designed cover art instead of video stills, words under the art, never on 
   assert.doesNotMatch(train, /videoThumb\(/, "no YouTube stills as covers");
 });
 
-test("themes: Light, Dark and Auto in Settings (and in Arise Trainer); the iPhone clock follows", () => {
+test("themes: Light, Dark and Auto in Settings (and in Cooked PT); the iPhone clock follows", () => {
   const ui = read("client/src/pages/fit/fitUi.tsx");
   assert.match(ui, /export function ThemePicker/);
   assert.match(read("client/src/pages/fit/FitApp.tsx"), /<ThemePicker \/>/);

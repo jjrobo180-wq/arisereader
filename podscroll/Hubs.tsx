@@ -1,4 +1,4 @@
-// Pod Modes (hubs) on the Pod+ home page: a row of them, a page for each with its own look
+// Pod Modes (hubs) on the Podster home page: a row of them, a page for each with its own look
 // (page color, accent and typeface, set by the listener), and the "Add to" menu that opens from an
 // episode card's ⋮ button or a press-and-hold. Modes are the same saved lists the swipe feed uses.
 import { useMemo, useRef, useState } from "react";
@@ -19,7 +19,7 @@ const newModeId = (name: string) => `${name.toLowerCase().replace(/[^a-z0-9]+/g,
 
 /** The row of Pod Modes on the home page. */
 export function ModesRow({ es, update, onOpen, onNew, onDrive, onNews, onNewsRadio, onNewsStations }: { es: Earshot; update: Update; onOpen: (m: PodMode) => void; onNew: () => void; /** Opens Fit my drive (a built-in hub, always first). */ onDrive?: () => void; /** Opens Up to the Minute News (a built-in hub). */ onNews?: () => void;
-  /** Starts Pod+ Live News Radio. */ onNewsRadio?: () => void; /** Opens Live news stations (radio). */ onNewsStations?: () => void }) {
+  /** Starts Podster Live News Radio. */ onNewsRadio?: () => void; /** Opens Live news stations (radio). */ onNewsStations?: () => void }) {
   const [arranging, setArranging] = useState(false);
   const move = (id: string, d: number) => update((e) => {
     const list = e.modes.slice(); const i = list.findIndex((m) => m.id === id); const j = i + d;
@@ -46,14 +46,14 @@ export function ModesRow({ es, update, onOpen, onNew, onDrive, onNews, onNewsRad
           <span className="text-center text-xs text-[#606060]">Ends as you arrive</span>
         </span>
       </button>}
-      {onNewsRadio && !arranging && <button onClick={onNewsRadio} aria-label="Pod+ Live News Radio: nonstop news from the newsrooms' latest bulletins" className="group flex shrink-0 flex-col items-center gap-2.5 active:scale-[.97] transition-transform" data-testid="hub-news-radio">
+      {onNewsRadio && !arranging && <button onClick={onNewsRadio} aria-label="Podster Live News Radio: nonstop news from the newsrooms' latest bulletins" className="group flex shrink-0 flex-col items-center gap-2.5 active:scale-[.97] transition-transform" data-testid="hub-news-radio">
         <span className="relative block h-[76px] w-[76px] sm:h-[88px] sm:w-[88px]">
           <span className="grid h-full w-full place-items-center rounded-full text-white shadow-[0_12px_28px_-14px_rgba(0,0,0,.55)] transition-transform duration-500 group-hover:scale-[1.04]" style={{ background: "linear-gradient(135deg,#ff3b30,#9a1b14)" }}><Radio size={28} /></span>
           <span className="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full bg-[#ff3b30] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow">Live</span>
           <span className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-black/[.06]" />
         </span>
         <span className="flex w-[84px] flex-col items-center gap-0.5 sm:w-[96px]">
-          <span className="line-clamp-2 text-center text-[13px] font-semibold leading-tight">Pod+ Live News Radio</span>
+          <span className="line-clamp-2 text-center text-[13px] font-semibold leading-tight">Podster Live News Radio</span>
           <span className="text-center text-xs text-[#606060]">Nonstop news</span>
         </span>
       </button>}

@@ -51,7 +51,7 @@ test("a trainer turns on their brand; clients' apps and the home-screen app get 
   assert.equal((await call("GET", "/api/coach/brand/7/icon", null)).status, 404);
 });
 
-test("the brand is wired into Arise Trainer, Cooked and the public web app", () => {
+test("the brand is wired into Cooked PT, Cooked and the public web app", () => {
   assert.match(read("client/src/pages/trainer/TrainerApp.tsx"), /<BrandCard token=\{token\}/);
   const fit = read("client/src/pages/fit/FitCoach.tsx");
   assert.match(fit, /useTrainerBrand\(/); assert.match(fit, /<BrandMark b=\{brand\.brand\}/);

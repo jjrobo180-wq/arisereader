@@ -1,4 +1,4 @@
-// Pod+ Clips: one shared list of TikTok videos that everyone reads and only the owner changes.
+// Podster Clips: one shared list of TikTok videos that everyone reads and only the owner changes.
 import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
@@ -32,7 +32,7 @@ test("clips: the owner list", () => {
 
 test("clips: everyone reads the list; only the owner changes it", async () => {
   const app = express(); app.use(express.json());
-  // The gate stands in for Pod+'s: an "x-email" header plays a signed-in account.
+  // The gate stands in for Podster's: an "x-email" header plays a signed-in account.
   const gate: any = (req: any, _res: any, next: any) => { const e = req.headers["x-email"]; if (e) req.creator = { email: e, id: 1 }; next(); };
   registerClipsRoutes(app, gate, { kv: memoryKV(), owners: ["owner@site.com"] });
   const server = app.listen(0);

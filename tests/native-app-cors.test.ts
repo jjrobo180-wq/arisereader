@@ -39,7 +39,7 @@ test("other websites get no CORS access", () => withServer(async (base) => {
   assert.equal(res.headers.get("access-control-allow-origin"), null);
 }));
 
-test("Pod+ routes keep their own CORS handling", () => withServer(async (base) => {
+test("Podster routes keep their own CORS handling", () => withServer(async (base) => {
   const res = await fetch(`${base}/api/podscroll/feed`, { method: "OPTIONS", headers: { Origin: "capacitor://localhost" } });
   assert.equal(res.status, 299);
 }));

@@ -1,4 +1,4 @@
--- Eye Gazer lessons, redone (October 2026).
+-- Arise AAC lessons, redone (October 2026).
 -- The lessons are written in shared/eyegaze/lessons.ts. When the server starts it saves them into
 -- these tables (storage.syncEyeGazeLessons), matched by lesson_key, and hides the first set of
 -- built-in quizzes (the rows with no lesson_key). Nothing is deleted: finished quizzes, scores and
