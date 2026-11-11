@@ -1,5 +1,5 @@
-// Pod+ on iPad and iPhone Duo: the built app (podscroll/dist) in Safari's engine at each screen's size,
-// with real podcasts from the Pod+ server. Saves a screenshot of the home page, the player and the
+// Podster on iPad and iPhone Duo: the built app (podscroll/dist) in Safari's engine at each screen's size,
+// with real podcasts from the Podster server. Saves a screenshot of the home page, the player and the
 // Library at every size, and any page errors, to tests/podplus-devices/out (the workflow pushes them to
 // the podplus-device-shots branch).
 import { webkit } from "playwright";
@@ -31,7 +31,7 @@ const SCREENS = [
   { name: "ipad-13-portrait", width: 1032, height: 1376 },
 ];
 const only = (process.env.SCREENS || "").split(",").filter(Boolean);
-const report = ["# Pod+ on iPad and iPhone Duo", ""];
+const report = ["# Podster on iPad and iPhone Duo", ""];
 const browser = await webkit.launch();
 for (const s of SCREENS.filter((x) => !only.length || only.includes(x.name))) {
   const ctx = await browser.newContext({ viewport: { width: s.width, height: s.height }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,

@@ -191,7 +191,7 @@ app.use(/^\/api\/para-teams\/[^/]+\/apps\/data$/, express.json({ limit: "3mb" })
 app.use("/api/teacher-hub/workspace", express.json({ limit: "6mb" }));
 // Arise Office files and premium-app data: big workbooks and documents are saved here whole.
 app.use("/api/docs", express.json({ limit: "11mb" }));
-// Pod+ Studio: notes from a PDF or a photo (JSON with the file inside), and recorded lectures and
+// Podster Studio: notes from a PDF or a photo (JSON with the file inside), and recorded lectures and
 // meetings (raw audio, a few minutes at a time). Before the global JSON parser, for their size.
 app.use(/^\/api\/(podscroll|earshot)\/studio\/read$/, express.json({ limit: "14mb" }));
 app.use(/^\/api\/(podscroll|earshot)\/studio\/transcribe$/, express.raw({ type: "*/*", limit: "26mb" }));

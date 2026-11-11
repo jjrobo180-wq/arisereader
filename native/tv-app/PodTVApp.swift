@@ -1,12 +1,12 @@
-// Pod+ for Apple TV, made to look and work like Pod+ itself (podscroll/): the same white-and-orange home
-// with the Pod+ mark, Pod Modes as circles with their LIVE / ON AIR / FRESH badges, big cover-art rows for
+// Podster for Apple TV, made to look and work like Podster itself (podscroll/): the same white-and-orange home
+// with the Podster mark, Pod Modes as circles with their LIVE / ON AIR / FRESH badges, big cover-art rows for
 // each topic, and the swipe feed — a full-screen card per show, the cover art blurred behind everything,
 // the art itself drifting while it plays, the title, the show, a progress bar with the ads marked and the
 // player controls. On the remote: swipe up or down for the next or last show, left or right to go back
 // 15 or ahead 30 seconds, click or Play/Pause to pause, click and hold for Like, Save, Follow, the show's
 // episodes, speed and the sleep timer, Menu to go back.
 // Playback is the same native player as CarPlay (native/arise-carplay: PodEngine — ad-free, picks up where
-// you left off). Night or day follows the Apple TV's own appearance setting, like Pod+'s Auto.
+// you left off). Night or day follows the Apple TV's own appearance setting, like Podster's Auto.
 import SwiftUI
 import UIKit
 
@@ -62,7 +62,7 @@ extension ISO8601DateFormatter {
     static let pod: ISO8601DateFormatter = { let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]; return f }()
 }
 
-/** The Pod+ mark: the orange tile with the sound bars, and the name. */
+/** The Podster mark: the orange tile with the sound bars, and the name. */
 struct PodLogo: View {
     var size: CGFloat = 52
     var body: some View {
@@ -75,12 +75,12 @@ struct PodLogo: View {
                         ForEach([0.3, 0.6, 0.85, 0.55, 0.3], id: \.self) { h in Capsule().fill(.white).frame(width: size * 0.08, height: size * h) }
                     }
                 }
-            Text("Pod+").font(.system(size: size * 0.95, weight: .heavy)).foregroundStyle(Pod.ink)
+            Text("Podster").font(.system(size: size * 0.95, weight: .heavy)).foregroundStyle(Pod.ink)
         }
     }
 }
 
-/** Lifts what's in focus, like Pod+'s hover, without the system's white platter. */
+/** Lifts what's in focus, like Podster's hover, without the system's white platter. */
 struct PodLift: ButtonStyle {
     var scale: CGFloat = 1.07
     func makeBody(configuration: Configuration) -> some View { PodLiftBody(configuration: configuration, scale: scale) }
@@ -96,7 +96,7 @@ private struct PodLiftBody: View {
             .animation(.spring(response: 0.3, dampingFraction: 0.75), value: focused)
     }
 }
-/** A capsule button in Pod+'s style: black (or orange) filled, or outlined. */
+/** A capsule button in Podster's style: black (or orange) filled, or outlined. */
 struct PodPill: ButtonStyle {
     var filled: Color? = nil
     func makeBody(configuration: Configuration) -> some View { PodPillBody(configuration: configuration, filled: filled) }
@@ -198,12 +198,12 @@ final class PodTVModel: ObservableObject {
             }
             error = rows.isEmpty ? "Podcasts aren't loading right now. Try again in a minute." : nil
         } catch {
-            self.error = "Can't reach Pod+. Check the Apple TV's internet connection."
+            self.error = "Can't reach Podster. Check the Apple TV's internet connection."
         }
         loading = false
     }
 
-    /** For You: one newest episode from each show, taking turns between your topics, like Pod+'s feed. */
+    /** For You: one newest episode from each show, taking turns between your topics, like Podster's feed. */
     func forYou() -> [PodEp] {
         var lists = genres.map { g in (pools[g] ?? []).sorted { $0.rank < $1.rank } }
         var out: [PodEp] = [], seen = Set<String>()
@@ -352,7 +352,7 @@ struct PodTVHome: View {
     }
 }
 
-/** The black strip under the header: what Pod+ is about. */
+/** The black strip under the header: what Podster is about. */
 struct PodTicker: View {
     var body: some View {
         HStack(spacing: 28) {
@@ -412,8 +412,8 @@ struct PodTVModes: View {
             Text("Pod Modes").font(.system(size: 40, weight: .bold)).foregroundStyle(Pod.ink)
             ScrollView(.horizontal) {
                 LazyHStack(alignment: .top, spacing: 40) {
-                    Button { PodEngine.shared.playStation(); model.open("Pod+ Live News Radio", [], at: 0) } label: {
-                        PodModeCircle(name: "Pod+ Live News Radio", sub: "Nonstop news", badge: "LIVE", colors: [Color(hex: 0xef4444), Color(hex: 0xb91c1c)], symbol: "dot.radiowaves.left.and.right")
+                    Button { PodEngine.shared.playStation(); model.open("Podster Live News Radio", [], at: 0) } label: {
+                        PodModeCircle(name: "Podster Live News Radio", sub: "Nonstop news", badge: "LIVE", colors: [Color(hex: 0xef4444), Color(hex: 0xb91c1c)], symbol: "dot.radiowaves.left.and.right")
                     }.buttonStyle(PodLift())
                     Button { Task { if let eps = try? await PodAPI.shared.news(), !eps.isEmpty { model.open("Up to the Minute News", eps) } } } label: {
                         PodModeCircle(name: "Up to the Minute News", sub: "Last few hours only", badge: "LIVE", colors: [Color(hex: 0x1e3a8a), Color(hex: 0x0f1d4a)], symbol: "bolt.fill", symbolColor: Pod.accent)
@@ -438,7 +438,7 @@ struct PodTVModes: View {
     }
 }
 
-/** A row of episode cards, Pod+'s home grid: big art with the length on it, then the show's mark, the
+/** A row of episode cards, Podster's home grid: big art with the length on it, then the show's mark, the
  *  title, the show and how long ago. */
 struct PodTVEpisodeRow: View {
     @EnvironmentObject var model: PodTVModel
@@ -755,7 +755,7 @@ struct PodTVSwipe: View {
 
 struct PodBare: ButtonStyle { func makeBody(configuration: Configuration) -> some View { configuration.label } }
 
-/** One card of the feed: Pod+'s player page, laid out for a TV. */
+/** One card of the feed: Podster's player page, laid out for a TV. */
 struct PodTVCard: View {
     let ep: PodEp
     @ObservedObject var engine: PodEngine
@@ -903,7 +903,7 @@ struct PodHint: View {
     }
 }
 
-/** Pod+ Live News Radio: on air for everyone, no progress bar. */
+/** Podster Live News Radio: on air for everyone, no progress bar. */
 struct PodTVStationCard: View {
     @ObservedObject var engine: PodEngine
     var body: some View {
@@ -912,7 +912,7 @@ struct PodTVStationCard: View {
             VStack(spacing: 30) {
                 Text("LIVE").font(.system(size: 30, weight: .heavy)).padding(.horizontal, 26).padding(.vertical, 10).background(Capsule().fill(Color(hex: 0xe5322d)))
                 Image(systemName: "dot.radiowaves.left.and.right").font(.system(size: 160))
-                Text("Pod+ Live News Radio").font(.system(size: 70, weight: .heavy))
+                Text("Podster Live News Radio").font(.system(size: 70, weight: .heavy))
                 if let ep = engine.current { Text(ep.title).font(.system(size: 34)).foregroundStyle(.white.opacity(0.7)).lineLimit(2).multilineTextAlignment(.center).frame(maxWidth: 1300) }
                 Image(systemName: engine.playing ? "pause.fill" : "play.fill").font(.system(size: 80)).padding(.top, 20)
             }
@@ -932,8 +932,8 @@ struct PodTVRadio: View {
             VStack(alignment: .leading, spacing: 56) {
                 PodLogo()
                 HStack(spacing: 40) {
-                    Button { PodEngine.shared.playStation(); model.open("Pod+ Live News Radio", [], at: 0) } label: {
-                        PodRadioHero(title: "Pod+ Live News Radio", sub: "Nonstop news, the same moment for everyone", badge: "LIVE", colors: [Color(hex: 0xef4444), Color(hex: 0x7f1d1d)], symbol: "dot.radiowaves.left.and.right")
+                    Button { PodEngine.shared.playStation(); model.open("Podster Live News Radio", [], at: 0) } label: {
+                        PodRadioHero(title: "Podster Live News Radio", sub: "Nonstop news, the same moment for everyone", badge: "LIVE", colors: [Color(hex: 0xef4444), Color(hex: 0x7f1d1d)], symbol: "dot.radiowaves.left.and.right")
                     }.buttonStyle(PodLift(scale: 1.04))
                     Button { Task { if let eps = try? await PodAPI.shared.news(), !eps.isEmpty { model.open("Up to the Minute News", eps) } } } label: {
                         PodRadioHero(title: "Up to the Minute News", sub: "Only the last few hours of news", badge: "LIVE", colors: [Color(hex: 0x1e3a8a), Color(hex: 0x0b1220)], symbol: "bolt.fill")
@@ -1050,7 +1050,7 @@ struct PodTVLibrary: View {
     }
 }
 
-/** Sign in with the email you use in Pod+ (a code by email), like the black membership card on Pod+. */
+/** Sign in with the email you use in Podster (a code by email), like the black membership card on Podster. */
 struct PodTVAccount: View {
     @EnvironmentObject var model: PodTVModel
     @State private var email = ""
@@ -1060,12 +1060,12 @@ struct PodTVAccount: View {
     @State private var note: String?
     var body: some View {
         VStack(alignment: .leading, spacing: 26) {
-            Text(model.signedIn ? "YOUR POD+ ACCOUNT" : "POD+ ON EVERY SCREEN").font(.system(size: 22, weight: .heavy)).tracking(5).foregroundStyle(Pod.accent)
+            Text(model.signedIn ? "YOUR PODSTER ACCOUNT" : "PODSTER ON EVERY SCREEN").font(.system(size: 22, weight: .heavy)).tracking(5).foregroundStyle(Pod.accent)
             if model.signedIn {
                 Text(PodStore.shared.email ?? "Signed in").font(.system(size: 52, weight: .heavy))
-                Text("Your shows, Pod Modes, likes and where you left off come from Pod+ on your phone.").font(.system(size: 26)).opacity(0.75)
+                Text("Your shows, Pod Modes, likes and where you left off come from Podster on your phone.").font(.system(size: 26)).opacity(0.75)
                 HStack(spacing: 24) {
-                    Button(busy ? "Updating…" : "Bring my shows now") { Task { busy = true; note = (try? await PodAPI.shared.syncLibrary()) == true ? "Up to date." : "Open Pod+ on your phone while signed in, then try again."; busy = false } }.buttonStyle(PodPill(filled: .white.opacity(0.12)))
+                    Button(busy ? "Updating…" : "Bring my shows now") { Task { busy = true; note = (try? await PodAPI.shared.syncLibrary()) == true ? "Up to date." : "Open Podster on your phone while signed in, then try again."; busy = false } }.buttonStyle(PodPill(filled: .white.opacity(0.12)))
                     Button("Sign out") { PodAPI.shared.signOut() }.buttonStyle(PodPill(filled: .white.opacity(0.12)))
                 }
             } else {
@@ -1077,7 +1077,7 @@ struct PodTVAccount: View {
                 .font(.system(size: 26)).opacity(0.85)
                 if !sent {
                     HStack(spacing: 24) {
-                        TextField("The email you use in Pod+", text: $email).textContentType(.emailAddress).keyboardType(.emailAddress).frame(maxWidth: 760)
+                        TextField("The email you use in Podster", text: $email).textContentType(.emailAddress).keyboardType(.emailAddress).frame(maxWidth: 760)
                         Button(busy ? "Sending…" : "Email me a code") { Task { await ask() } }.buttonStyle(PodPill(filled: .white.opacity(0.12))).disabled(busy || !email.contains("@"))
                     }
                 } else {

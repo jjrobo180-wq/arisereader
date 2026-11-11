@@ -1,4 +1,4 @@
-// Pod+ Stand-up: a listener's favorite comedians, and only their stand-up. Interviews, podcast chats,
+// Podster Stand-up: a listener's favorite comedians, and only their stand-up. Interviews, podcast chats,
 // reviews and news about a comedian are left out: episodes are found on Apple Podcasts (the
 // comedian's name with "stand-up", "comedy special" and so on), then an AI reads each one's title,
 // show and description and keeps only recordings of actual stand-up or comedy performance (a set,

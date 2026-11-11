@@ -1,4 +1,4 @@
--- Pod+ iPhone notifications (server/podPush.ts): one row per phone, with the shows it follows.
+-- Podster iPhone notifications (server/podPush.ts): one row per phone, with the shows it follows.
 -- Applied to the live database on Oct 30, 2026. Only the server (service role) reads or writes it.
 create table if not exists public.podplus_push (
   token text primary key,

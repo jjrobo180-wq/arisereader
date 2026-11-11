@@ -1051,7 +1051,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   };
 
   // ─── Arise All Access: $10 a month, one person, every app's paid tier ──────────────────────────
-  // To Duo Unlimited, Notes Plus, Fit+ (with its guest pass) and ad-free Pod+ in one plan. It is now
+  // To Duo Unlimited, Notes Plus, Fit+ (with its guest pass) and ad-free Podster in one plan. It is now
   // the only thing those apps sell; anyone already paying for one of the older plans keeps it.
   /** This account's All Access (paid, or given by the admin). The admin always has it. */
   const allAccessOwn = async (userId: number, user?: AnyUser | null): Promise<{ live: boolean; admin: boolean; grant: PlanGrant | null }> => {
@@ -1060,7 +1060,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     return { live: grantLive(grant, now()), admin: false, grant };
   };
   const ALL_ACCESS_NAME = "Arise All Access";
-  const ALL_ACCESS_ABOUT = "Every Arise app's paid tier for one person: To Duo Unlimited, Arise Notes Plus (1,500 minutes a month), Cooked+ with a guest pass, and ad-free Pod+.";
+  const ALL_ACCESS_ABOUT = "Every Arise app's paid tier for one person: To Duo Unlimited, Arise Notes Plus (1,500 minutes a month), Cooked+ with a guest pass, and ad-free Podster.";
   /** Opens Stripe's payment page for All Access. `returnPath` (in the body) says which app to come back to. */
   const allAccessCheckout = async (req: any): Promise<string> => {
     const buyer: AnyUser = req.user;

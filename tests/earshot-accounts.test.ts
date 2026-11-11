@@ -1,4 +1,4 @@
-// Pod+ account passwords: hashed with a salt, checked in constant time, never stored as typed.
+// Podster account passwords: hashed with a salt, checked in constant time, never stored as typed.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { checkPassword, hashPassword } from "../server/podcastAccounts";

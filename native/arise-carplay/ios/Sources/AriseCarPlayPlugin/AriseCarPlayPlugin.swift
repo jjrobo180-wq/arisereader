@@ -1,4 +1,4 @@
-// The Pod+ web app's way in to CarPlay and the Apple Watch app (podscroll/carplay.ts calls this).
+// The Podster web app's way in to CarPlay and the Apple Watch app (podscroll/carplay.ts calls this).
 //   setLibrary({ library })  what to show in the car: follows, saved, liked, Pod Modes, resume spots
 //   takeSpots()              -> { spots: { [episodeId]: spot } } saved in the car since last asked (then forgotten here)
 //   stop()                   the phone started playing something: the car's player stops

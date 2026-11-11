@@ -1,4 +1,4 @@
-// Pod+'s service worker: makes the site installable and opens it offline to its pages.
+// Podster's service worker: makes the site installable and opens it offline to its pages.
 // Podcasts, art and audio always come from the network; only the site's own files are cached.
 // Pages are kept under their own address, so the homepage (/) and the player (/app/) never swap.
 const CACHE = "podscroll-v2";

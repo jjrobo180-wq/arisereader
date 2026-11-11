@@ -1,4 +1,4 @@
-// Pod+ Audiobooks: free public domain audiobooks from LibriVox (read by volunteers, kept at the
+// Podster Audiobooks: free public domain audiobooks from LibriVox (read by volunteers, kept at the
 // Internet Archive). The server lists them, their chapters, other readings, the book's text and
 // AI transcripts (server/audiobooks.ts); the audio plays straight from the Archive (or through the
 // server when Voice boost shapes it). Like the radio, a book keeps playing in the bar at the bottom
@@ -149,7 +149,7 @@ function Toggle({ on, onClick, title, line, members }: { on: boolean; onClick: (
   </div>;
 }
 
-/** A small "Members" tag on what's part of Pod+ Membership. */
+/** A small "Members" tag on what's part of Podster Membership. */
 function MembersTag() {
   return <span className="ps-keep rounded-full px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-white" style={{ background: ACCENT }}>Members</span>;
 }
@@ -181,7 +181,7 @@ function Sheet({ title, onClose, children, wide }: { title: string; onClose: () 
 
 // ---------------- the shelf ----------------
 
-export function AudiobooksView({ api, pro, onJoin, current, onOpen }: { api: Api; /** A Pod+ member: Ask AI is theirs. */ pro: boolean; onJoin: () => void; current: Reading | null; onOpen: (id: string) => void }) {
+export function AudiobooksView({ api, pro, onJoin, current, onOpen }: { api: Api; /** A Podster member: Ask AI is theirs. */ pro: boolean; onJoin: () => void; current: Reading | null; onOpen: (id: string) => void }) {
   const [shelf, setShelf] = useState(() => ls.get("podscroll.bookShelf") || "all");
   const [sort, setSort] = useState(() => ls.get("podscroll.bookSort") || "popular");
   const [shelves, setShelves] = useState<{ id: string; label: string }[]>([{ id: "all", label: "All" }]);
@@ -298,7 +298,7 @@ export function AudiobooksView({ api, pro, onJoin, current, onOpen }: { api: Api
 
 // ---------------- one book ----------------
 
-/** Download a whole book to listen offline (Pod+ Membership), with progress, or remove it. */
+/** Download a whole book to listen offline (Podster Membership), with progress, or remove it. */
 function BookDownload({ book }: { book: BookDetail }) {
   useOfflineAudio();
   const d = downloads;
@@ -767,7 +767,7 @@ function ReadAlong({ api, pro, onJoin, reading, time, onSeek, onClose, onPauseMa
       ) : (
         !pro ? <div className="mx-auto max-w-[420px] py-10 text-center">
           <Sparkles className="mx-auto" size={26} style={{ color: ACCENT }} />
-          <p className="mt-3 text-base font-semibold">AI transcripts are for Pod+ members</p>
+          <p className="mt-3 text-base font-semibold">AI transcripts are for Podster members</p>
           <p className="mt-1 text-sm text-[#606060]">Follow every word as it's read, and tap any line to jump there. The book's own text is free in the Book text tab.</p>
           <button onClick={onJoin} className="mt-4 h-10 rounded-full px-5 text-sm font-semibold text-white" style={{ background: ACCENT }}>Become a member</button>
         </div>
@@ -827,7 +827,7 @@ function AskSheet({ api, pro, onJoin, book, ch, t, onClose }: { api: Api; pro: b
   return <Sheet title="Catch me up · Ask the book" onClose={onClose}>
     {!pro ? <div className="px-6 py-10 text-center">
       <Sparkles className="mx-auto" size={26} style={{ color: ACCENT }} />
-      <p className="mt-3 text-base font-semibold">For Pod+ members</p>
+      <p className="mt-3 text-base font-semibold">For Podster members</p>
       <p className="mt-1 text-sm text-[#606060]">Lost the thread? Get a quick recap of the story so far, or ask about anyone or anything in the book, with no spoilers past where you are.</p>
       <button onClick={onJoin} className="mt-4 h-10 rounded-full px-5 text-sm font-semibold text-white" style={{ background: ACCENT }}>Become a member</button>
     </div> : <div className="flex min-h-[50dvh] flex-col">
@@ -881,7 +881,7 @@ function MarkSheet({ book, ch, t, onClose, onSaved }: { book: BookDetail; ch: nu
 const SLEEPS: [string, number | "end" | null][] = [["Off", null], ["15 min", 15], ["30 min", 30], ["45 min", 45], ["1 hour", 60], ["End of chapter", "end"]];
 
 /** The bar at the bottom while a book plays: plays chapter after chapter, and remembers the spot. */
-export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop, onOpen, onPlaying, say }: { api: Api; /** A Pod+ member: AI transcripts and Voice boost are theirs. */ pro: boolean; onJoin: () => void; reading: Reading; /** Goes up each time the book page's Play/Pause is tapped. */ tap: number; onChange: (r: Reading) => void; onStop: () => void; onOpen: () => void; onPlaying: (on: boolean) => void; say: (m: string) => void }) {
+export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop, onOpen, onPlaying, say }: { api: Api; /** A Podster member: AI transcripts and Voice boost are theirs. */ pro: boolean; onJoin: () => void; reading: Reading; /** Goes up each time the book page's Play/Pause is tapped. */ tap: number; onChange: (r: Reading) => void; onStop: () => void; onOpen: () => void; onPlaying: (on: boolean) => void; say: (m: string) => void }) {
   const audio = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -988,8 +988,8 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
   // Sound settings on: this chapter comes through the server from where it is, and is shaped.
   const setSound = async (patch: Partial<Listen>) => {
     const wantsShape = patch.boost || patch.even || patch.silence || patch.clean;
-    if (patch.notice && !pro) { setSheet(null); say("Skipping the LibriVox notice is part of Pod+ Membership."); onJoin(); return; }
-    if (wantsShape && !pro) { setSheet(null); say("Sound settings are part of Pod+ Membership."); onJoin(); return; }
+    if (patch.notice && !pro) { setSheet(null); say("Skipping the LibriVox notice is part of Podster Membership."); onJoin(); return; }
+    if (wantsShape && !pro) { setSheet(null); say("Sound settings are part of Podster Membership."); onJoin(); return; }
     const next = { ...listen, ...patch };
     setListen(next); ls.set("podscroll.bookListen", JSON.stringify(next));
     const a = audio.current;

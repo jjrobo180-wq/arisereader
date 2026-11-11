@@ -1,5 +1,5 @@
-// Creators on Pod+ and Earshot: Open Mic (where episodes people make get found, new and small
-// creators first), play counting for those episodes, Studio (a creator's numbers), the Pod+ Rise
+// Creators on Podster and Earshot: Open Mic (where episodes people make get found, new and small
+// creators first), play counting for those episodes, Studio (a creator's numbers), the Podster Rise
 // waitlist, and starting or joining a LivePod (server/podcastLive.ts runs the rooms).
 import type { Express, RequestHandler } from "express";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
@@ -16,7 +16,7 @@ const dayKey = (t: number) => new Date(t).toISOString().slice(0, 10);
 export function registerCreatorRoutes(app: Express, auth: RequestHandler, o: {
   prefix: string; getDb: () => any; voterOf: (req: any) => string; allowed?: (req: any) => boolean;
   isCreator: (req: any) => boolean;
-  /** Pod+ signs creators in with email; on Arise everyone is already signed in. */
+  /** Podster signs creators in with email; on Arise everyone is already signed in. */
   signIn: boolean;
 }) {
   const P = `${o.prefix}/creators`;
@@ -210,7 +210,7 @@ export function registerCreatorRoutes(app: Express, auth: RequestHandler, o: {
     } catch (e) { fail(res, e, "studio"); }
   });
 
-  /** Joins the Pod+ Rise waitlist: first in line when supporter memberships and payouts open. */
+  /** Joins the Podster Rise waitlist: first in line when supporter memberships and payouts open. */
   app.post(`${P}/rise`, auth, gate, async (req: any, res) => {
     if (needCreator(req, res)) return;
     try {

@@ -31,9 +31,9 @@ type Comment = { id: string; author: string; body: string; at: string; mine: boo
 type Item = { key: string; show: PodShow; why: string; ep: PodEpisode | null; state: "loading" | "ready" | "none"; want?: string;
   /** A show coming back around once the feed has been through every show it has: play an episode this feed hasn't. */
   again?: boolean;
-  /** An Open Mic episode (made by someone on Pod+), woven into For You. */
+  /** An Open Mic episode (made by someone on Podster), woven into For You. */
   mic?: { post: string; handle: string; name: string; newVoice: boolean; followed: boolean };
-  /** Pod+ Live News Radio: when this bulletin is on air for everyone (server clock, ms) and how long. */
+  /** Podster Live News Radio: when this bulletin is on air for everyone (server clock, ms) and how long. */
   live?: { startsAt: number; secs: number } };
 type Tab = "foryou" | "following" | "openmic" | "social" | "explore" | "library";
 
@@ -118,11 +118,11 @@ export function Setup({ initial, student, onDone, onCancel, brand = "Earshot" }:
 // ===========================================================================
 // The player: feed, explore, library
 // ===========================================================================
-/** What's playing in the swipe player, for a mini bar on other pages (Pod+ keeps the player running). */
-export type NowPlaying = { title: string; show: string; art: string; playing: boolean; /** Pod+ Live News Radio is on. */ live?: boolean };
+/** What's playing in the swipe player, for a mini bar on other pages (Podster keeps the player running). */
+export type NowPlaying = { title: string; show: string; art: string; playing: boolean; /** Podster Live News Radio is on. */ live?: boolean };
 export type PlayerControl = { toggle: () => void; pause: () => void };
 export type PlayerProps = {
-  /** Shown on screen right now (Pod+ keeps it running, hidden, on other pages so the sound goes on). */
+  /** Shown on screen right now (Podster keeps it running, hidden, on other pages so the sound goes on). */
   visible?: boolean;
   onNowPlaying?: (n: NowPlaying | null) => void;
   control?: { current: PlayerControl | null };
@@ -142,18 +142,18 @@ export type PlayerProps = {
   mediaUrl?: (path: string) => string;
   /** Where LivePod connects (wss://…), when the server is on another address (Podscroll). */
   liveBase?: string;
-  /** Pod+ creators sign in with an email code; the app keeps the session and sends it with requests. */
+  /** Podster creators sign in with an email code; the app keeps the session and sends it with requests. */
   onSession?: (token: string | null, email?: string) => void;
-  /** Nothing plays while this is on (Pod+: the free minute is up and there's no account yet). */
+  /** Nothing plays while this is on (Podster: the free minute is up and there's no account yet). */
   locked?: boolean;
-  /** Pod+: the site has its own home page. The scroll shows only For You and Following; Open Mic,
+  /** Podster: the site has its own home page. The scroll shows only For You and Following; Open Mic,
    *  Social, Library and Explore open on their own from that home page (initialTab), and a back
    *  button returns to it. */
   onHome?: () => void;
   initialTab?: Tab;
   /** Goes up each time the site opens a page (Social, Open Mic…) in the running player. */
   tabNonce?: number;
-  /** Pod+: play a Pod Mode back to back from this episode (opened from the home page). */
+  /** Podster: play a Pod Mode back to back from this episode (opened from the home page). */
   playMode?: { id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" } | null;
 };
 
@@ -342,7 +342,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const players = useRef<HTMLAudioElement[]>([]);
   const cur = useRef<HTMLAudioElement | null>(null);
   const keepSpotRef = useRef<() => void>(() => {});
-  /** Pod+ Live News Radio while it is on (see startNewsRadio). */
+  /** Podster Live News Radio while it is on (see startNewsRadio). */
   const radio = useRef<{ offset: number; finished: string } | null>(null);
   const feedRef = useRef<HTMLDivElement | null>(null);
   const listened = useRef(0);
@@ -384,7 +384,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const a = setInterval(pull, 30_000), b = setInterval(pullMic, 5 * 60_000);
     return () => { clearInterval(a); clearInterval(b); };
   }, [api, student]);
-  /** Creating needs a profile, and on Pod+ an email sign-in first. */
+  /** Creating needs a profile, and on Podster an email sign-in first. */
   const create = (what: "create" | "golive" | "upload" | "studio") => {
     if (creator && !creator.creator && creator.signIn) { afterSignIn.current = what; setMaker("signin"); return; }
     if (what !== "create" && !creator?.profile) { afterSignIn.current = what; setMaker("profile"); return; }
@@ -582,7 +582,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
   // Fill the feed once there's something to pick from, and keep it filled: an episode opened first
-  // (a shared link, or a pick from the Pod+ home page) can land before For You has loaded, and the
+  // (a shared link, or a pick from the Podster home page) can land before For You has loaded, and the
   // feed still has to carry on after it.
   useEffect(() => { if (itemsRef.current.length - activeRef.current < 3 && (tab === "foryou" || tab === "following")) extend(6); }, [poolTick, extend, tab, items.length]);
 
@@ -670,14 +670,14 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     set("seekto", live ? null : (d: any) => { if (typeof d?.seekTime === "number") seekTo(d.seekTime, true); });
     if (live) {
       const ep = itemsRef.current[activeRef.current]?.ep;
-      try { navigator.mediaSession.metadata = new MediaMetadata({ title: `LIVE · ${NEWS_RADIO_NAME}`, artist: ep ? `${ep.show} · ${ep.title}` : "News", album: "Pod+", artwork: ep?.art ? [{ src: ep.art, sizes: "600x600" }] : [] }); } catch { /* not supported */ }
+      try { navigator.mediaSession.metadata = new MediaMetadata({ title: `LIVE · ${NEWS_RADIO_NAME}`, artist: ep ? `${ep.show} · ${ep.title}` : "News", album: "Podster", artwork: ep?.art ? [{ src: ep.art, sizes: "600x600" }] : [] }); } catch { /* not supported */ }
     }
   };
   const claimLockScreen = (a: HTMLAudioElement) => {
     if (!("mediaSession" in navigator)) return;
     try {
       const it = itemsRef.current[activeRef.current]; const ep = it?.ep;
-      if (ep) navigator.mediaSession.metadata = new MediaMetadata({ title: ep.title, artist: ep.show, album: standalone ? "Pod+" : "Earshot", artwork: ep.art ? [{ src: ep.art, sizes: "600x600" }] : [] });
+      if (ep) navigator.mediaSession.metadata = new MediaMetadata({ title: ep.title, artist: ep.show, album: standalone ? "Podster" : "Earshot", artwork: ep.art ? [{ src: ep.art, sizes: "600x600" }] : [] });
       navigator.mediaSession.setActionHandler("play", () => { cur.current?.play().catch(() => {}); });
       navigator.mediaSession.setActionHandler("pause", () => cur.current?.pause());
       skipButtons();
@@ -715,7 +715,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     return a;
   };
   const pointAt = (a: HTMLAudioElement, ep: PodEpisode, via: string | null): HTMLAudioElement => {
-    // Downloaded (Pod+): play the copy on this device. It's this page's own, so Voice boost still works.
+    // Downloaded (Podster): play the copy on this device. It's this page's own, so Voice boost still works.
     const saved = offlineAudio()?.url(episodeKey(ep.id));
     if (saved) {
       a.removeAttribute("crossorigin");
@@ -953,7 +953,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
   useEffect(() => () => { plays.current.forEach((p) => { if (p.timer) clearTimeout(p.timer); }); }, []);
 
-  /** Pod+ skips every ad found in this very copy by itself, sure or not (Undo brings any one back).
+  /** Podster skips every ad found in this very copy by itself, sure or not (Undo brings any one back).
    *  Left as an offer: a spot listeners merely skip past, and a seam with weak signs on one side
    *  (often the show's own edit, not an ad). */
   const ownAds = (list: PlayAd[]): PlayAd[] => (standalone ? list.map((x) => (!x.sure && x.kind !== "crowd" && x.kind !== "splice" ? { ...x, sure: true } : x)) : list);
@@ -1237,7 +1237,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     itemsRef.current.slice(i + 1, i + 4).forEach((x) => { const img = new Image(); img.src = x.ep?.art || x.show.art; });
     if ("mediaSession" in navigator) {
       try {
-        navigator.mediaSession.metadata = new MediaMetadata({ title: ep.title, artist: ep.show, album: standalone ? "Pod+" : "Earshot", artwork: ep.art ? [{ src: ep.art, sizes: "600x600" }] : [] });
+        navigator.mediaSession.metadata = new MediaMetadata({ title: ep.title, artist: ep.show, album: standalone ? "Podster" : "Earshot", artwork: ep.art ? [{ src: ep.art, sizes: "600x600" }] : [] });
         skipButtons();
       } catch { /* not supported */ }
     }
@@ -1355,7 +1355,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
 
   // ---------------- read along and ad skip ----------------
   const activeEp = items[active]?.ep ?? null;
-  /** Pod+ Live News Radio is on: it plays like a live station (LiveNews), no skipping or swiping. */
+  /** Podster Live News Radio is on: it plays like a live station (LiveNews), no skipping or swiping. */
   const onAir = !!items[active]?.key.startsWith("nr-");
   // ---------------- timestamped comments, popping up as their moment plays ----------------
   const timed = useTimedComments(api, activeEp?.id, commentsOn && es.settings.liveComments && !student);
@@ -1472,8 +1472,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     }
     const mode = esRef.current.settings.adMode;
     if (ep && (listened.current > 1.5 || sheetRef.current?.kind === "read") && (mode !== "off" || sheetRef.current?.kind === "read")) wantTx(ep, t);
-    // Not skipping ads (no Pod+ Membership, or ad skip turned off): a found ad that plays is time a
-    // member would have had back. Shown as "With Pod+ you'd have saved…" (HoursBackCard).
+    // Not skipping ads (no Podster Membership, or ad skip turned off): a found ad that plays is time a
+    // member would have had back. Shown as "With Podster you'd have saved…" (HoursBackCard).
     if (ep && it && mode !== "auto" && delta > 0 && delta < 2 && !esRef.current.adFree.includes(it.show.id)) {
       const ad = playAdAt(adsRef.current, t);
       if (ad && ad.sure && ad.kind !== "intro") countCouldSave(delta);
@@ -1791,7 +1791,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
   const openRead = () => { const ep = items[active]?.ep; if (!ep) return; setSheet({ kind: "read" }); wantTx(ep, cur.current?.dataset.ep === ep.id ? cur.current.currentTime : 0); };
 
-  // Pod+ Live News Radio: one station for everyone (server/newsStation.ts). The server says which
+  // Podster Live News Radio: one station for everyone (server/newsStation.ts). The server says which
   // bulletin is on air and since when; this plays that one from the point it has reached, so every
   // phone hears the same moment. Stop and Listen live again rejoins wherever the station is now.
   const radioItem = (ep: PodEpisode, why: string, live: { startsAt: number; secs: number }): Item => {
@@ -1856,7 +1856,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // A Pod Mode opened from the Pod+ home page plays back to back.
+  // A Pod Mode opened from the Podster home page plays back to back.
   const modeStarted = useRef(false);
   useEffect(() => {
     if (!playMode || modeStarted.current) return;
@@ -1904,7 +1904,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     }).catch(() => {});
   }, [start, loadEpisodes]);
 
-  // Pod+ fills the whole screen, top to bottom edge, like its home page (fixed to all four sides:
+  // Podster fills the whole screen, top to bottom edge, like its home page (fixed to all four sides:
   // 100dvh came out 62 px short on the iPhone home screen, leaving a gap under the bottom bars).
   // Podscroll used to fill exactly the visible screen (100dvh). It used to size itself to the whole screen on
   // the iPhone home screen, which ran past what iOS shows and hid the bottom of every tab there.
@@ -1934,9 +1934,9 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       if (a !== cur.current && a.getAttribute("src") && a.readyState < 3) { try { a.pause(); a.removeAttribute("src"); a.load(); delete a.dataset.ep; delete a.dataset.sid; delete a.dataset.clean; } catch { /* fine */ } }
     });
   }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Another Pod+ player started (an audiobook, the radio): this one pauses.
+  // Another Podster player started (an audiobook, the radio): this one pauses.
   useEffect(() => onOtherSound("pod", () => cur.current?.pause()), []);
-  // What's playing, for the mini bar on Pod+'s other pages, and a way to pause it from there.
+  // What's playing, for the mini bar on Podster's other pages, and a way to pause it from there.
   const nowEp = items[active]?.ep, nowShow = items[active]?.show;
   useEffect(() => {
     const started = playing || (!!cur.current && cur.current.dataset.ep === nowEp?.id && cur.current.currentTime > 0);
@@ -2001,7 +2001,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", c);
   });
   const miniPad = mini ? (standalone ? "pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))]" : "pb-14") : "";
-  // Pod+: Open Mic, Social and Library opened from the site's home page wear the site's look
+  // Podster: Open Mic, Social and Library opened from the site's home page wear the site's look
   // (its top bar, type and white or near-black page) instead of the player's own.
   const site = !!onHome && page;
   const siteFont = site ? { fontFamily: "Roboto, Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" } : undefined;
@@ -2134,7 +2134,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       onSeek={(t) => { unlock(); seekTo(t); if (cur.current?.paused) toggle(); }} onToggle={toggle} onBack={() => seekBy(-15)} onFwd={() => seekBy(30)} onClose={() => setSheet(null)}
       onMore={() => { const x = txFor(activeEp); if (x) loadTx(activeEp, Math.max(-1, ...Array.from(x.chunks as Set<number>)) + 1); }} />}
 
-    {/* Creating: sign in (Pod+), a profile, the Create menu, a new episode, going live, Studio, a LivePod */}
+    {/* Creating: sign in (Podster), a profile, the Create menu, a new episode, going live, Studio, a LivePod */}
     {socialAsk && <SignInSheet api={api} say={say} why="Sign in with your email to post photos and videos." onClose={() => { socialAsk(false); setSocialAsk(null); }}
       onDone={(token, email) => { onSession?.(token, email); say(`Signed in as ${email}.`); const done = socialAsk; setSocialAsk(null); setTimeout(() => { reloadCreator(); done(true); }, 400); }} />}
     {maker === "signin" && <SignInSheet api={api} say={say} why="Sign in with your email to publish episodes, go live and see your Studio." onClose={() => { afterSignIn.current = null; setMaker(null); }}
@@ -2207,7 +2207,7 @@ function Cover({ art, alt, eager, playing, children }: { art: string; alt: strin
     {children}
   </div>;
 }
-/** On a For You card: this episode comes from Open Mic (made by someone on Pod+). */
+/** On a For You card: this episode comes from Open Mic (made by someone on Podster). */
 const MicTag = ({ newVoice }: { newVoice: boolean }) => <p className="mb-1.5 flex items-center gap-1.5">
   <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-extrabold uppercase tracking-wider text-[#111013]" style={{ background: "#ff8a3d" }}><Mic size={11} strokeWidth={2.5} />Open Mic</span>
   {newVoice && <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10.5px] font-extrabold uppercase tracking-wider">New voice</span>}
@@ -2779,7 +2779,7 @@ function SleepSheet({ sleepAt, onPick, onClose }: { sleepAt: number | "end" | nu
 }
 
 function SettingsSheet({ es, student, update, onClose, sleepAt, setSleep, apple, theme, account }: { es: EarshotData; student: boolean; update: PlayerProps["update"]; onClose: () => void; sleepAt: number | "end" | null; setSleep: (v: number | "end" | null) => void; apple?: boolean; theme: Theme;
-  /** Pod+: who is signed in, with sign in / sign out. */
+  /** Podster: who is signed in, with sign in / sign out. */
   account?: { email: string | null; onSignIn: () => void; onSignOut: () => void } }) {
   const set = (patch: Partial<EarshotData["settings"]>) => update((e) => ({ ...e, settings: { ...e.settings, ...patch } }));
   const Row = ({ title, sub, children }: { title: string; sub?: string; children: ReactNode }) => <div className="flex items-center justify-between gap-3 border-b border-white/10 py-3.5 last:border-0"><div><b className="block text-sm">{title}</b>{sub && <span className="block text-xs text-white/55">{sub}</span>}</div>{children}</div>;
@@ -2908,7 +2908,7 @@ function Library({ es, update, onEditInterests, onOpen, onMode, onPlayDownloads,
   </div>;
 }
 
-// ---- Pod+ Live News Radio, on air: looks and plays like a live news stream. One button (listen or
+// ---- Podster Live News Radio, on air: looks and plays like a live news stream. One button (listen or
 // stop), no seek bar, no skipping, no swiping; the next bulletin comes on by itself. ----
 function PodMark({ size = 30 }: { size?: number }) {
   return <svg width={size} height={size * 0.7} viewBox="0 0 30 21" aria-hidden="true"><rect width="30" height="21" rx="6" fill="#ff6a1f" /><rect x="8" y="7.5" width="2.4" height="6" rx="1.2" fill="#fff" /><rect x="12.2" y="4.5" width="2.4" height="12" rx="1.2" fill="#fff" /><rect x="16.4" y="6.5" width="2.4" height="8" rx="1.2" fill="#fff" /><rect x="20.6" y="8.5" width="2.4" height="4" rx="1.2" fill="#fff" /></svg>;
@@ -2920,14 +2920,14 @@ function LiveNews({ ep, next, playing, unlocked, onToggle, onMinimize, onLeave }
   const ago = (() => { const m = Math.round((Date.now() - (Date.parse(ep.date) || Date.now())) / 60000); return m < 2 ? "just now" : m < 60 ? `${m} min ago` : `${Math.round(m / 60)} hr ago`; })();
   const ticker = [ep, ...next].slice(0, 8).map((e) => `${e.show}: ${e.title}`);
   const stop = (e: { stopPropagation: () => void }) => { e.stopPropagation(); };
-  return <section role="region" aria-label="Pod+ Live News Radio, live" data-testid="pod-live-news"
+  return <section role="region" aria-label="Podster Live News Radio, live" data-testid="pod-live-news"
     onWheel={stop}
     className="absolute inset-0 z-[30] flex touch-none select-none flex-col overflow-hidden bg-[#08080c] text-white" style={{ overscrollBehavior: "none" }}>
     <style>{"@keyframes ln-pulse{0%,100%{opacity:1}50%{opacity:.35}}@keyframes ln-bar{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}@keyframes ln-tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}"}</style>
     {ep.art && <img src={ep.art} alt="" aria-hidden referrerPolicy="no-referrer" className="pointer-events-none absolute inset-0 h-full w-full scale-125 object-cover opacity-25 blur-3xl" />}
     <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/80" />
     <header className="relative z-[1] flex items-center justify-between gap-3 px-4 pt-[max(var(--sat,env(safe-area-inset-top,0px)),14px)]">
-      <span className="flex min-w-0 items-center gap-2"><PodMark /><span className="truncate text-[17px] font-bold tracking-[-0.03em]">Pod+ <span className="font-semibold text-white/70">Live News</span></span></span>
+      <span className="flex min-w-0 items-center gap-2"><PodMark /><span className="truncate text-[17px] font-bold tracking-[-0.03em]">Podster <span className="font-semibold text-white/70">Live News</span></span></span>
       <span className="flex flex-none items-center gap-2">
         <span className="flex items-center gap-1.5 rounded-md bg-[#e5172f] px-2 py-1 text-[12px] font-extrabold tracking-[.12em]" data-testid="pod-live-badge"><span className="h-2 w-2 rounded-full bg-white" style={{ animation: "ln-pulse 1.4s ease-in-out infinite" }} />LIVE</span>
         <button type="button" onClick={onMinimize} aria-label="Keep listening and go back" data-testid="pod-live-minimize" className="grid h-9 w-9 place-items-center rounded-full bg-white/10 backdrop-blur"><ChevronDown size={20} /></button>
@@ -2950,7 +2950,7 @@ function LiveNews({ ep, next, playing, unlocked, onToggle, onMinimize, onLeave }
         {playing ? <><Pause size={22} fill="currentColor" strokeWidth={0} />Stop</> : <><Play size={22} fill="currentColor" strokeWidth={0} />{unlocked ? "Listen live" : "Tap to listen live"}</>}
       </button>
       {next[0] && <p className="mt-5 max-w-sm truncate text-[13px] text-white/50">Up next: <span className="text-white/75">{next[0].show}</span></p>}
-      <p className="mt-2 text-[12px] text-white/40">Everyone on Pod+ hears the same news, live.</p>
+      <p className="mt-2 text-[12px] text-white/40">Everyone on Podster hears the same news, live.</p>
       <button type="button" onClick={onLeave} data-testid="pod-live-off" className="mt-3 rounded-full px-3 py-1.5 text-[12px] font-semibold text-white/55 underline-offset-2 hover:underline">Turn off Live News</button>
     </div>
 

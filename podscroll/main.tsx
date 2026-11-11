@@ -1,5 +1,5 @@
-// Podscroll (Pod+): real podcasts in a feed you swipe like short videos, as its own website.
-// Listening is free with no account, and ad-free for everyone. Signing in with an email code is the Pod+
+// Podscroll (Podster): real podcasts in a feed you swipe like short videos, as its own website.
+// Listening is free with no account, and ad-free for everyone. Signing in with an email code is the Podster
 // Membership (earning as a creator); the session is kept here. What someone picks, follows, likes and saves is kept in this browser. Podcast data,
 // likes, comments and share counts come from the Arise server's public /api/podscroll routes
 // (server/earshot.ts registerPodscrollRoutes), which read Apple Podcasts. Audio plays straight
@@ -25,11 +25,11 @@ import { setWikiMeter, subscribeWiki, wikiState } from "./wikiPlayer";
 import { downloads, installDownloads } from "./downloads";
 import { installCarPlay, installLibrarySync } from "./carplay";
 import "./styles.css";
-// Pod+ draws edge to edge: the top of every screen clears this iPhone's own clock space (lib/deviceInsets.ts).
+// Podster draws edge to edge: the top of every screen clears this iPhone's own clock space (lib/deviceInsets.ts).
 if (isNativeApp()) { document.documentElement.classList.add("pod-native"); applyDeviceTopInset(); }
 import { configureAiVoice } from "../client/src/lib/aiVoice";
 
-// The shared social screens read this to link to Pod+'s own policies and support (social/Rules.tsx).
+// The shared social screens read this to link to Podster's own policies and support (social/Rules.tsx).
 (window as any).__PODPLUS__ = true;
 const API = String(import.meta.env.VITE_PODSCROLL_API || "https://arisereader.onrender.com").replace(/\/$/, "");
 // Spoken lines (recaps, Read along) use the AI voices on the Arise server, never the phone's robot voice.
@@ -81,7 +81,7 @@ function App() {
   useEffect(() => { const t = setTimeout(() => write(KEY, JSON.stringify(es)), 200); return () => clearTimeout(t); }, [es]);
   useEffect(() => { if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/sw.js").catch(() => {}); }, []);
 
-  // Ads are always skipped on Pod+ (there's no switch for it).
+  // Ads are always skipped on Podster (there's no switch for it).
   const update = useCallback((fn: (e: Earshot) => Earshot) => setEs((e) => { const n = fn(e); return n.settings.adMode === "auto" ? n : { ...n, settings: { ...n.settings, adMode: "auto" } }; }), []);
   const say = useCallback((m: string) => { setToast(m); if (toastT.current) clearTimeout(toastT.current); toastT.current = setTimeout(() => setToast(""), Math.min(5000, 2600 + Math.max(0, m.length - 40) * 40)); }, []);
   const setNickname = useCallback((n: string) => { setNicknameState(n); write("podscroll.name", n); }, []);
@@ -100,7 +100,7 @@ function App() {
           headers: { "X-Podscroll-Device": device, ...(session ? { "X-Podscroll-Session": session } : {}), ...(init?.body instanceof Blob ? { "Content-Type": init.body.type || "application/octet-stream" } : init?.body !== undefined ? { "Content-Type": "application/json" } : {}) },
           body: init?.body instanceof Blob ? init.body : init?.body !== undefined ? JSON.stringify(init.body) : undefined,
         });
-      } catch { throw new Error("Can't reach Pod+ right now. Check your connection and try again."); }
+      } catch { throw new Error("Can't reach Podster right now. Check your connection and try again."); }
       body = await res.json().catch(() => ({}));
       const busy = res.status === 429 || (res.status === 503 && body?.busy !== false);
       if (!busy || attempt >= 3 || (init?.method && init.method !== "GET")) break;
@@ -132,7 +132,7 @@ function App() {
   }, [session, api, setSession]);
   // Audio comes through the server so smart ad skip can find the ads in this copy.
   const mediaUrl = useCallback((path: string) => API + path.replace(/^\/api\/earshot/, "/api/podscroll"), []);
-  // Pod+ in the car (CarPlay): the car gets the library and gives back where you got to (podscroll/carplay.ts).
+  // Podster in the car (CarPlay): the car gets the library and gives back where you got to (podscroll/carplay.ts).
   const sessionRef = useRef(session); sessionRef.current = session;
   const car = useRef<{ publish: () => void } | null>(null);
   useEffect(() => { car.current = installCarPlay({ api: API, device: () => device, session: () => sessionRef.current, es: () => esRef.current }); }, [device]);
@@ -141,7 +141,7 @@ function App() {
   const libSync = useRef<{ changed: () => void } | null>(null);
   if (!libSync.current) libSync.current = installLibrarySync({ api: (p, i) => apiRef.current(p, i), signedIn: () => !!sessionRef.current, es: () => esRef.current });
   useEffect(() => { libSync.current?.changed(); }, [es, session]);
-  // Downloads (Pod+ Membership): episodes and audiobooks kept on this device to play offline.
+  // Downloads (Podster Membership): episodes and audiobooks kept on this device to play offline.
   const apiRef = useRef(api); apiRef.current = api;
   const proRef = useRef(pro); proRef.current = pro;
   useEffect(() => {
@@ -220,7 +220,7 @@ function App() {
 
   const body = editing || (mode === "feed" && !es.setupDone)
     ? <div className={`min-h-full overflow-y-auto px-3 py-6 sm:py-10 ${day ? "ps-light" : ""}`}>{day && <style>{LIGHT_CSS + LIGHT_SHEETS_CSS}</style>}
-      <Setup brand="Pod+" initial={es} student={false} onCancel={() => { setEditing(false); if (!es.setupDone) setMode("home"); }} onDone={(genres, pace) => {
+      <Setup brand="Podster" initial={es} student={false} onCancel={() => { setEditing(false); if (!es.setupDone) setMode("home"); }} onDone={(genres, pace) => {
         setEs((e) => {
           const taste = { ...e.taste };
           for (const g of genres) taste[g] = Math.max(taste[g] ?? 0, 3);
@@ -246,7 +246,7 @@ function App() {
     {welcome && !authMode && <Welcome key={pro ? "in" : "out"} api={api} signedIn={pro} onSignedIn={(token, mail) => { setSession(token); setEmailState(mail); write("podscroll.email", mail); setAccount(mail); }}
       onEmail={() => setAuthMode("signin")} onPush={() => startPodPush(api, followIds, true)} onDone={finishWelcome} />}
     {/* Signed in and past the welcome: the All Access pop-up, once (ad-free listening and the rest). */}
-    <AllAccessPopup userId={email || null} token={session || null} ready={pro && !welcome && !authMode} dark={!day} apiBase={API} intro="Pod+ is free to listen, with ads. Arise All Access skips the ads for you, lets you earn from your show, and adds the extras in To Duo, Notes and Fit." />
+    <AllAccessPopup userId={email || null} token={session || null} ready={pro && !welcome && !authMode} dark={!day} apiBase={API} intro="Podster is free to listen, with ads. Arise All Access skips the ads for you, lets you earn from your show, and adds the extras in To Duo, Notes and Fit." />
     {authMode && !pro && <AuthScreen api={api} dark={!day} start={authMode} onClose={() => setAuthMode(null)} onDone={(token, mail) => { setSession(token); setEmailState(mail); write("podscroll.email", mail); setAuthMode(null); say("You're signed in."); setAccount(mail); }} />}
     {/* Messages: a small card that sits above the tab bar (it used to be a big white oval on top of it).
         The first sentence is the headline, anything after it a quieter second line. */}
@@ -268,7 +268,7 @@ function App() {
   </>;
 }
 
-/** Pod+ Membership: sign up (or back in) with an email code. Optional; listening never needs it. */
+/** Podster Membership: sign up (or back in) with an email code. Optional; listening never needs it. */
 function SignUpGate({ api, onDone, onClose }: { api: (path: string, init?: { method?: string; body?: unknown }) => Promise<any>; onDone: (token: string) => void; onClose: () => void }) {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -281,7 +281,7 @@ function SignUpGate({ api, onDone, onClose }: { api: (path: string, init?: { met
   return <div role="dialog" aria-modal="true" aria-labelledby="gate-title" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} className="fixed inset-0 z-[90] flex items-end justify-center bg-black/70 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[var(--sat,env(safe-area-inset-top,0px))] backdrop-blur-md sm:items-center">
     <div className="relative w-full max-w-md rounded-[28px] bg-[#1d1720] p-6 text-white shadow-2xl ring-1 ring-white/10">
       <button type="button" onClick={onClose} aria-label="Close" className="absolute right-3 top-3 inline-flex h-10 w-10 items-center justify-center rounded-full text-white/60 hover:bg-white/10 hover:text-white"><X size={20} /></button>
-      <p className="text-xs font-bold uppercase tracking-[.18em] text-[#ff8a3d]">Pod+ Membership</p>
+      <p className="text-xs font-bold uppercase tracking-[.18em] text-[#ff8a3d]">Podster Membership</p>
       <h2 id="gate-title" className="mt-2 pr-8 text-[26px] font-bold leading-tight tracking-tight">Get paid for your show.</h2>
       <p className="mt-2 text-[15px] leading-relaxed text-white/70">Listening stays free and ad-free, no account needed. Members can earn from their own podcast and keep their place on every device. Sign in with your email to start.</p>
       {!sent ? <form onSubmit={(e) => { e.preventDefault(); if (email.includes("@") && !busy) ask(); }} className="mt-5">

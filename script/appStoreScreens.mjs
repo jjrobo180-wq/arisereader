@@ -1,7 +1,7 @@
-// Phone-size screenshots of Arise To Duo and Pod+ for checking layouts before an App Store release
+// Phone-size screenshots of Arise To Duo and Podster for checking layouts before an App Store release
 // (.github/workflows/app-store-screens.yml). Serves the two built sites locally and opens them in an
 // iPhone-sized Chromium. Arise's hubs use the built-in sample profile (lib/sampleMode.ts), so no
-// account is needed; Pod+ reads the live Pod+ server for podcasts.
+// account is needed; Podster reads the live Podster server for podcasts.
 import { createServer } from "node:http";
 import { readFile, stat, mkdir, writeFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
@@ -45,7 +45,7 @@ const sample = async (page, hash) => {
   const brief = page.frameLocator("#f").getByRole("button", { name: "Close the brief" });
   if (await brief.count()) { await brief.first().click(); await wait(page, 800); }
 };
-/** Pod+ asks for interests the first time: skip it like a person would. */
+/** Podster asks for interests the first time: skip it like a person would. */
 const pod = async (page) => {
   await page.goto(`${P}/app/`); await wait(page, 7000);
   const skip = page.getByRole("button", { name: "Skip for now" });

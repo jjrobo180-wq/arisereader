@@ -1,5 +1,5 @@
-name: Pod+ Apple TV and Apple Watch screenshots
-# Builds Pod+ for Apple TV and Apple Watch for their simulators, opens them on real podcasts and saves
+name: Podster Apple TV and Apple Watch screenshots
+# Builds Podster for Apple TV and Apple Watch for their simulators, opens them on real podcasts and saves
 # screenshots (home, swipe feed, the other tabs; light and dark on the TV) to the podplus-tvwatch-shots branch.
 on:
   workflow_dispatch:
@@ -24,7 +24,7 @@ jobs:
           X=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | grep -viE 'beta|release_candidate|_rc' | sort -V | tail -1 || true)
           if [[ -z "$X" ]]; then X=$(xcode-select -p | sed 's#/Contents/Developer$##'); fi
           echo "DEVELOPER_DIR=$X/Contents/Developer" >> "$GITHUB_ENV"
-      - name: A stand-in project with Pod+ for Apple TV and Apple Watch
+      - name: A stand-in project with Podster for Apple TV and Apple Watch
         run: |
           set -euo pipefail
           ruby -rxcodeproj -e 'puts Xcodeproj::VERSION' 2>/dev/null || gem install xcodeproj --no-document --user-install
@@ -66,7 +66,7 @@ jobs:
               xcrun simctl terminate "$W" com.arisereader.podplus.watchkitapp; xcrun simctl launch "$W" com.arisereader.podplus.watchkitapp -pwSwipe YES; sleep 22; xcrun simctl io "$W" screenshot out/watch-2-swipe.png
               # Still running after it started playing? (A crash shows up here and fails the check.)
               sleep 20
-              if xcrun simctl spawn "$W" launchctl list | grep -q podplus.watchkitapp; then echo "::notice title=Pod+ Watch::still playing after 40 s"; else echo "::error title=Pod+ Watch::stopped while playing"; echo CRASHED > out/watch-crashed.txt; fi
+              if xcrun simctl spawn "$W" launchctl list | grep -q podplus.watchkitapp; then echo "::notice title=Podster Watch::still playing after 40 s"; else echo "::error title=Podster Watch::stopped while playing"; echo CRASHED > out/watch-crashed.txt; fi
               xcrun simctl io "$W" screenshot out/watch-3-playing.png
             }
             find ~/Library/Logs/DiagnosticReports -iname "*PodPlus*" -newer d -exec sh -c 'echo "== $1"; head -80 "$1"' _ {} \; 2>/dev/null | tee out/watch-crashes.txt | head -120
@@ -79,5 +79,5 @@ jobs:
         run: |
           git init -q && git checkout -q -b podplus-tvwatch-shots
           git config user.name "github-actions" && git config user.email "actions@github.com"
-          git add -A && git commit -qm "Pod+ TV and Watch screenshots ${GITHUB_SHA::7}" || exit 0
+          git add -A && git commit -qm "Podster TV and Watch screenshots ${GITHUB_SHA::7}" || exit 0
           git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" podplus-tvwatch-shots

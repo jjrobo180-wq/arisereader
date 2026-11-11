@@ -22,6 +22,6 @@ export default defineConfig({
       ],
     },
   },
-  // Pages: the A.R.I.S.E Pod+ homepage at /, Pod+ for Creators at /creators/, and the player itself at /app/.
+  // Pages: the Podster homepage at /, Podster for Creators at /creators/, and the player itself at /app/.
   build: { outDir: "dist", emptyOutDir: true, assetsDir: "assets", rollupOptions: { input: { home: resolve(repo, "podscroll/index.html"), app: resolve(repo, "podscroll/app/index.html"), creators: resolve(repo, "podscroll/creators/index.html") } } },
 });

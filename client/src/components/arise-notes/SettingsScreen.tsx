@@ -196,7 +196,7 @@ function PlanTab({ ctx }: { ctx: AppCtx }) {
 }
 
 // New Notes plans are sold as Arise All Access ($10 a month: Notes Plus, To Duo Unlimited, Fit+ and
-// ad-free Pod+). People already paying for a Notes plan keep theirs and change it above.
+// ad-free Podster). People already paying for a Notes plan keep theirs and change it above.
 type AllAccess = { live: boolean; admin: boolean; priceCents: number; payment: boolean; endsAt: string | null; cancelAtPeriodEnd: boolean; canManage: boolean; canBuy: boolean };
 function AllAccessCard({ ctx, bill, returnPath }: { ctx: AppCtx; bill: Billing; returnPath: string }) {
   const say = useToast();
@@ -209,7 +209,7 @@ function AllAccessCard({ ctx, bill, returnPath }: { ctx: AppCtx; bill: Billing; 
     catch (e: any) { say(e.message); setBusy(false); }
   };
   const price = money(all?.priceCents ?? 1000);
-  const perks = ["Arise Notes Plus: 1,500 minutes a month, every AI feature", "Arise To Duo Unlimited: every plugin and AI", "Cooked+, with a free guest pass for a friend", "Ad-free listening in Pod+"];
+  const perks = ["Arise Notes Plus: 1,500 minutes a month, every AI feature", "Arise To Duo Unlimited: every plugin and AI", "Cooked+, with a free guest pass for a friend", "Ad-free listening in Podster"];
   return <section className="an-card border-[var(--an-violet)] p-5" data-testid="notes-all-access">
     <div className="flex items-center gap-2"><h3 className="text-[18px] font-bold">Arise All Access</h3>{all?.live && <span className="ml-auto rounded-full bg-[var(--an-green-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--an-green)]">Your plan</span>}</div>
     <div className="mt-1 text-[24px] font-extrabold">{price}/mo</div>

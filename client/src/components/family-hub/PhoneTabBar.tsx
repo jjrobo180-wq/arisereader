@@ -1,5 +1,5 @@
 // Arise To Duo on a phone: a floating tab bar along the bottom (Home, Tasks, Add, Apps, You), the same
-// shape as the one in Pod+. Apps opens the full app drawer (PhoneMenu); You opens a sheet with the
+// shape as the one in Podster. Apps opens the full app drawer (PhoneMenu); You opens a sheet with the
 // account and every setting. On a computer (lg and up) the sidebar is used instead, so this hides.
 import { useEffect, type ReactNode } from "react";
 import { CheckSquare, Home, LayoutGrid, Plus, X } from "lucide-react";

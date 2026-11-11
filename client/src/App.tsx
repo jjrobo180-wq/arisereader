@@ -606,7 +606,7 @@ function AppRoutes() {
       <Route path="/fit">
         <ProtectedRoute><FitApp /></ProtectedRoute>
       </Route>
-      {/* Arise All Access: one $10 plan for To Duo, Notes, Fit and Pod+ (pages/AllAccess.tsx). */}
+      {/* Arise All Access: one $10 plan for To Duo, Notes, Fit and Podster (pages/AllAccess.tsx). */}
       <Route path="/all-access">
         {/* Signed out (from an app's "Get it on arisetodo.com" link): sign in or make a free account right here,
             then this same page shows the plan. Never the homepage. */}

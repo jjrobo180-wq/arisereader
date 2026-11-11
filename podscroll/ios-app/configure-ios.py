@@ -1,9 +1,9 @@
-"""Pod+ iPhone app: the Info.plist settings App Review checks.
+"""Podster iPhone app: the Info.plist settings App Review checks.
 
 Run after `npx cap add ios && npx cap sync ios` (both GitHub Actions workflows do).
   - Background audio: podcasts, audiobooks and radio keep playing with the screen locked or in
     another app (UIBackgroundModes: audio). Without it iOS pauses playback when the phone locks.
-  - Camera, photos and microphone: posting photos and videos on Pod+ Social, recording an episode,
+  - Camera, photos and microphone: posting photos and videos on Podster Social, recording an episode,
     Go Live and listening parties. Every permission needs a sentence saying why, or iOS stops the app.
   - It only uses the encryption built into iOS (HTTPS), so App Store Connect doesn't ask about export
     compliance on every upload.
@@ -12,11 +12,11 @@ import plistlib
 import sys
 
 PLIST = sys.argv[1] if len(sys.argv) > 1 else "ios/App/App/Info.plist"
-NAME = "Pod+"
+NAME = "Podster"
 KEYS = {
     "CFBundleDisplayName": NAME,
-    "NSCameraUsageDescription": f"{NAME} uses the camera when you take a photo or video to post on Pod+ Social, or a photo of your notes for Study Pod+ and Meeting Pod.",
-    "NSPhotoLibraryUsageDescription": f"{NAME} lets you pick photos and videos to post on Pod+ Social or use for your profile and episodes.",
+    "NSCameraUsageDescription": f"{NAME} uses the camera when you take a photo or video to post on Podster Social, or a photo of your notes for Study Podster and Meeting Pod.",
+    "NSPhotoLibraryUsageDescription": f"{NAME} lets you pick photos and videos to post on Podster Social or use for your profile and episodes.",
     "NSPhotoLibraryAddUsageDescription": f"{NAME} saves clips and pictures you choose to your photo library.",
     "NSMicrophoneUsageDescription": f"{NAME} uses the microphone when you record an episode, a class or a meeting, go live or talk in a listening party.",
     "ITSAppUsesNonExemptEncryption": False,
@@ -59,7 +59,7 @@ if os.path.exists(DELEGATE):
             print("AppDelegate: could not add the push token hook")
 
 # Background audio, part two: the app's sound session is "playback" (spoken audio, long form), so a
-# podcast keeps playing when you leave Pod+ or lock the phone, and isn't silenced by the side switch.
+# podcast keeps playing when you leave Podster or lock the phone, and isn't silenced by the side switch.
 # The background mode above allows it; without this session iOS still stops the web player's sound.
 if os.path.exists(DELEGATE):
     src = open(DELEGATE, encoding="utf-8").read()
@@ -72,13 +72,13 @@ if os.path.exists(DELEGATE):
         at = src.find(marker)
         ret = src.find("return true", at) if at >= 0 else -1
         if at >= 0 and ret > 0:
-            setup = """// Pod+: keep playing in the background (spoken audio, long form).
+            setup = """// Podster: keep playing in the background (spoken audio, long form).
         do {
             // Only choose the kind of audio here. Never activate the session at launch: that takes the
-            // speaker from whatever else is playing (music, a podcast in another app) before Pod+ has
-            // played a thing. iOS starts the session when Pod+ actually plays something.
+            // speaker from whatever else is playing (music, a podcast in another app) before Podster has
+            // played a thing. iOS starts the session when Podster actually plays something.
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, policy: .longFormAudio)
-        } catch { print("Pod+ audio session: \\(error)") }
+        } catch { print("Podster audio session: \\(error)") }
         """
             src = src[:ret] + setup + src[ret:]
             if "import AVFoundation" not in src:
@@ -88,7 +88,7 @@ if os.path.exists(DELEGATE):
         else:
             print("AppDelegate: could not set the audio session")
 
-# iPad (and iPhone Duo): Pod+ is one app for iPhone and iPad (TARGETED_DEVICE_FAMILY 1,2). On iPad it turns
+# iPad (and iPhone Duo): Podster is one app for iPhone and iPad (TARGETED_DEVICE_FAMILY 1,2). On iPad it turns
 # every way, so it can sit next to another app (Split View, Slide Over) and its layout follows the window.
 PROJECT = os.path.join(os.path.dirname(os.path.dirname(PLIST)), "App.xcodeproj", "project.pbxproj")
 if os.path.exists(PROJECT):

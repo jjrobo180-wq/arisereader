@@ -61,7 +61,7 @@ export function cleanSectionOrder(v: unknown): FamilySection[] {
 /** The toggleable sections in the family's chosen order, each paired with its fixed spot in the
  *  menu (the section right before it). Rendering splices this block in after that anchor. */
 /** Apps taken out of Arise To Duo: never shown or opened, nowhere to add them. What was saved in them
- *  stays in the family's data. Earshot lives on as its own app, Pod+. */
+ *  stays in the family's data. Earshot lives on as its own app, Podster. */
 export const RETIRED_SECTIONS: readonly FamilySection[] = ["earshot"];
 export const orderedToggleable = (f: Pick<Family, "sectionOrder">): FamilySection[] => cleanSectionOrder(f.sectionOrder).filter((s) => !RETIRED_SECTIONS.includes(s));
 
