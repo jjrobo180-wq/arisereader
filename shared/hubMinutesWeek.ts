@@ -109,11 +109,13 @@ export function minutesWeek(saved: ServicePlan[], logs: ServiceLog[], blocks: Sc
       if (!guided(p)) {
         // Counted by the week: it sits in its block every school day until the week's minutes are given.
         const left = weeklyMinutes(p) - given;
-        if (block && i < 5 && !optional.includes(day) && left > 0 && !dayLogs.some((l) => mine(l, p))) items.push({ key: `plan:${p.id}:${date}`, student: p.student, kind: p.kind, date, block, minutes: left, state: "any day", planId: p.id, ...group(undefined, p) });
+        if (block && i < 5 && !optional.includes(day) && !(p.since && date < p.since) && left > 0 && !dayLogs.some((l) => mine(l, p))) items.push({ key: `plan:${p.id}:${date}`, student: p.student, kind: p.kind, date, block, minutes: left, state: "any day", planId: p.id, ...group(undefined, p) });
         continue;
       }
       const ask = guides.get(p.id)![day] || 0;
       if (!ask) continue;
+      // Counting started after this day (a new plan, or "Start fresh"): nothing was due, so nothing is missed.
+      if (p.since && date < p.since) continue;
       planned += ask;
       const left = ask - total(dayLogs.filter((l) => mine(l, p)));
       // The teacher said this one did not happen: it is answered, and not asked for again.
@@ -197,4 +199,14 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 export function monthDay(date: string): string {
   const m = /^\d{4}-(\d{2})-(\d{2})$/.exec(date);
   return m && MONTHS[Number(m[1]) - 1] ? `${MONTHS[Number(m[1]) - 1]} ${Number(m[2])}` : "";
+}
+
+/** "Start fresh": every student's minutes count from this day. Days before it are never "missed" and the
+ *  percentages leave them out. Logged sessions are kept. Gives back the old start days for Undo. */
+export function startFresh<P extends { id: string; since?: string }>(plans: P[], from: string): { plans: P[]; before: Record<string, string | undefined> } {
+  const before = Object.fromEntries(plans.map((p) => [p.id, p.since]));
+  return { plans: plans.map((p) => ({ ...p, since: from })), before };
+}
+export function undoFresh<P extends { id: string; since?: string }>(plans: P[], before: Record<string, string | undefined>): P[] {
+  return plans.map((p) => { if (!(p.id in before)) return p; const { since: _drop, ...rest } = p; return (before[p.id] ? { ...rest, since: before[p.id] } : rest) as P; });
 }

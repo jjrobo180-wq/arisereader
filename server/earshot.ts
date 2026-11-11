@@ -6,6 +6,7 @@
 // - Likes, comments and share counts are shared between everyone (migrations/earshot.sql). Student
 //   accounts only get clean podcasts and don't see or post comments (shared/earshot.ts canComment).
 // Nothing about what someone listens to is stored here; that lives in their own LifeHub data.
+import { haveAiMinutes, spendAi } from "./aiMinutes";
 import type { Express, RequestHandler } from "express";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import {
@@ -752,6 +753,25 @@ export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetch
   app.post("/api/podscroll/screen", gate, (req: any, res) => {
     try { const s = JSON.stringify(req.body ?? {}); if (s.length < 4000) console.log("[podscroll] screen", s); } catch { /* unreadable */ }
     res.status(204).end();
+  });
+  // The wiki reader (podscroll/wikiPlayer.ts): each section an account starts spends its minutes of reading
+  // (about 900 letters a minute) from the AI minutes shared with Arise Notes (server/aiMinutes.ts). Once per
+  // section per account in an hour, so pausing and playing again doesn't count twice.
+  const wikiSeen = new Map<string, number>();
+  app.post("/api/podscroll/wiki/section", gate, async (req: any, res) => {
+    res.set("Cache-Control", "no-store");
+    const title = String(req.body?.title || "").slice(0, 200), sec = Math.floor(Number(req.body?.sec));
+    const chars = Math.min(20_000, Math.max(0, Math.floor(Number(req.body?.chars) || 0)));
+    if (!title || !(sec >= -1)) return res.status(400).json({ message: "Which article?" });
+    if (!(await haveAiMinutes(req, res))) return;
+    const key = `${req.aiAccount}|${title}|${sec}`;
+    const at = wikiSeen.get(key);
+    if (!at || Date.now() - at > 3_600_000) {
+      wikiSeen.set(key, Date.now());
+      if (wikiSeen.size > 20_000) wikiSeen.clear();
+      await spendAi(req, Math.max(1, Math.ceil(chars / 900)), "pod-wiki");
+    }
+    res.json({ ok: true });
   });
   // Audiobooks (server/audiobooks.ts): LibriVox's public domain audiobooks.
   registerAudiobookRoutes(app, gate, { ask: perplexityJson(perplexityKey, openAiJson), transcribe: openAiTranscribe, ...(socialDb ? { kv: supabaseKV(socialDb), blobs: supabaseBlobs(socialDb) } : {}) });

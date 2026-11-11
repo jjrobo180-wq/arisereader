@@ -1,5 +1,5 @@
 -- Arise Math (/math/): K–12 math practice with points, a class leaderboard, assignments and live review.
--- Accounts are the regular A.R.I.S.E. Reader accounts; these tables hold only Arise Math's own data.
+-- Accounts are the regular Arise Reader accounts; these tables hold only Arise Math's own data.
 -- Math points live here and are separate from reading points. Safe to run more than once.
 
 -- Each student's progress: points, week and day counts, streak, skill mastery, certificates, history, settings.

@@ -1,0 +1,23 @@
+{
+  "appId": "com.arisereader.undercover",
+  "appName": "Arise Undercover",
+  "webDir": "www",
+  "backgroundColor": "#ffffff",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 600,
+      "backgroundColor": "#ffffff",
+      "showSpinner": false
+    },
+    "Keyboard": {
+      "resize": "native"
+    },
+    "StatusBar": {
+      "style": "LIGHT"
+    }
+  },
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#ffffff"
+  }
+}

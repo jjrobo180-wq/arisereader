@@ -1,10 +1,11 @@
 // Arise Notes: the app. The same screens run on their own at /notes/ (client/src/notes/main.tsx) and
 // inside Arise To Duo (pages/AriseNotesPage.tsx): Home with the notes, Record, Upload, a note, Ask
 // your notes, Voice memo, and Settings (plan and minutes, family, privacy, accessibility).
+import AllAccessPopup from "@/components/AllAccessPopup";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { NoteTypeIcon } from "./NoteIcon";
 import { NotesDock } from "./NotesDock";
-import { ArrowRight, AudioLines, ChevronLeft, Columns2, Folder, LayoutGrid, Loader2, Lock, Mic, MessageCircle, Pencil, Search, Settings, Sparkles, Upload, Users, Zap } from "lucide-react";
+import { ArrowRight, AudioLines, ChevronLeft, Columns2, EyeOff, Folder, LayoutGrid, Loader2, Lock, Mic, MessageCircle, Pencil, Search, Settings, Sparkles, Upload, Users, Zap } from "lucide-react";
 import { hasAppearance, setAppearance, useAppearance } from "./appearance";
 import { useAuth } from "@/context/AuthContext";
 import { startApplePush } from "@/lib/applePush";
@@ -28,6 +29,7 @@ const RecordScreen = lazy(() => import("./RecordScreen"));
 const UploadScreen = lazy(() => import("./UploadScreen"));
 const NoteScreen = lazy(() => import("./NoteScreen"));
 const AskScreen = lazy(() => import("./AskScreen"));
+const UndercoverApp = lazy(() => import("@/undercover/UndercoverApp"));
 const MemoScreen = lazy(() => import("./MemoScreen"));
 import { AppsStrip } from "./notesAppsCatalog";
 const SettingsScreen = lazy(() => import("./SettingsScreen"));
@@ -40,6 +42,8 @@ const AppScreen = lazy(() => import("./NotesApps").then((m) => ({ default: m.App
 
 export type Route =
   | { name: "home" } | { name: "record" } | { name: "upload" } | { name: "note"; id: string; t?: number } | { name: "ask" } | { name: "memo" }
+  /** Undercover: AI chat that looks like texting or a document (client/src/undercover/UndercoverApp.tsx). */
+  | { name: "undercover" }
   | { name: "settings"; tab?: "plan" | "look" | "family" | "privacy" | "access" } | { name: "privacy" }
   /** A Strict-mode note, kept only on this iPhone (localNotes.ts). */
   | { name: "local"; id: string }
@@ -66,6 +70,7 @@ function parseHash(h: string): Route {
     case "upload": return { name: "upload" };
     case "note": return p[1] ? { name: "note", id: p[1], t: p[2] ? Number(p[2]) : undefined } : { name: "home" };
     case "ask": return { name: "ask" };
+    case "undercover": return { name: "undercover" };
     case "memo": return { name: "memo" };
     case "settings": return { name: "settings", tab: (["plan", "look", "family", "privacy", "access"] as const).find((t) => t === p[1]) };
     case "usage": case "plans": return { name: "settings", tab: "plan" };
@@ -108,6 +113,9 @@ export default function NotesApp(props: { mode: "standalone" | "embedded"; hub?:
 
 function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" | "embedded"; hub?: "life" | "work"; onExit?: () => void; startNote?: string }) {
   const { token, user } = useAuth();
+  // The All Access pop-up waits until Notes has been open a little while (Notes has no tutorial).
+  const [notesSettled, setNotesSettled] = useState(false);
+  useEffect(() => { const t = window.setTimeout(() => setNotesSettled(true), 20000); return () => window.clearTimeout(t); }, []);
   const say = useToast();
   const tokenRef = useRef(token);
   tokenRef.current = token;
@@ -271,6 +279,7 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
       case "upload": return <UploadScreen ctx={ctx} />;
       case "note": return <NoteScreen key={route.id} ctx={ctx} id={route.id} at={route.t} />;
       case "ask": return <AskScreen ctx={ctx} />;
+      case "undercover": return <UndercoverApp onExit={() => go({ name: "home" })} />;
       case "memo": return <MemoScreen ctx={ctx} />;
       case "settings": return <SettingsScreen ctx={ctx} tab={route.tab} />;
       case "privacy": return <PrivacyPage onBack={() => go({ name: "settings", tab: "privacy" })} />;
@@ -284,6 +293,8 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   })();
   return <div className={rootClass} style={rootStyle} data-testid="arise-notes">
     <Suspense fallback={<div className="pt-32"><Spinner /></div>}>{screen}</Suspense>
+    {/* Notes has no tutorial: the All Access pop-up comes once, a little after the first open (iPhone app only). */}
+    {mode === "standalone" && <AllAccessPopup userId={user?.id} token={token} ready={notesSettled} intro="Arise Notes is free, with 60 minutes of AI a month. Arise All Access gives you 1,500 minutes, plus the extras in To Duo, Fit and Pod+." />}
   </div>;
 }
 
@@ -379,6 +390,7 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
         <LookHomeHero look={look} a={{ first, minutes: <MinutesPill ctx={ctx} />, record: () => ctx.go({ name: "record" }), upload: () => ctx.go({ name: "upload" }), memo: () => ctx.go({ name: "memo" }), ask: () => ctx.go({ name: "ask" }), memoLocked: !ctx.me.features.memo, count: all.length, settings: () => ctx.go({ name: "settings" }), pages: () => ctx.go({ name: "pages" }) }} />
       <MinutesBanner ctx={ctx} />
       {!ctx.me.services.speech && <Notice tone="warn">Speech to text isn't switched on for this site yet, so recordings are saved but can't be written down.</Notice>}
+      <UndercoverBar ctx={ctx} />
       <AppsStrip ctx={ctx} />
       </> : <>
       <div className="flex flex-wrap items-end gap-3">
@@ -401,6 +413,7 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
         <span className="min-w-0 flex-1 truncate text-[15px] text-[var(--an-muted)]">Ask your notes: “What did I promise Maya's mom last month?”</span>
         <ArrowRight className="h-4 w-4 text-[var(--an-faint)]" aria-hidden />
       </button>
+      <UndercoverBar ctx={ctx} />
       <AppsStrip ctx={ctx} />
       </>}
 
@@ -439,6 +452,15 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
       {ctx.mode === "standalone" && <p className="an-extra pt-4 text-center text-[13px] text-[var(--an-faint)]">Part of the A.R.I.S.E. family · <a className="font-semibold text-[var(--an-violet)] underline-offset-2 hover:underline" href={/^(www\.)?arisetodo\.com$/i.test(window.location.hostname) ? "/app#/lifehub" : "/#/lifehub"}>Open Arise To Duo</a> · <button type="button" className="font-semibold text-[var(--an-violet)] underline-offset-2 hover:underline" onClick={() => ctx.go({ name: "privacy" })}>Privacy</button></p>}
     </main>
   </>;
+}
+
+/** Opens Undercover: ask AI during a meeting in a screen that looks like texting or a document. */
+function UndercoverBar({ ctx }: { ctx: AppCtx }) {
+  return <button type="button" onClick={() => ctx.go({ name: "undercover" })} className="an-card flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:border-[var(--an-violet)]" data-testid="notes-undercover">
+    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[12px] bg-[var(--an-violet)] text-white"><EyeOff className="h-[18px] w-[18px]" aria-hidden /></span>
+    <span className="min-w-0 flex-1"><span className="block text-[15px] font-semibold">Undercover</span><span className="block truncate text-[13px] text-[var(--an-muted)]">Ask AI in a meeting. It looks like texting or a doc.</span></span>
+    <ArrowRight className="h-4 w-4 text-[var(--an-faint)]" aria-hidden />
+  </button>;
 }
 
 function BigAction({ tone, icon, title, text, onClick, locked, testId }: { tone: "record" | "violet" | "amber"; icon: ReactNode; title: string; text: string; onClick: () => void; locked?: boolean; testId: string }) {

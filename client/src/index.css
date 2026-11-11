@@ -8,7 +8,7 @@
 .scrollbar-thin::-webkit-scrollbar-thumb { background: hsl(var(--border, 214 32% 30%)); border-radius: 3px; }
 .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: hsl(var(--primary, 24 95% 53%)); }
 
-/* A.R.I.S.E. READER 2.0 THEME */
+/* ARISE READER 2.0 THEME */
 /* Deep plum/navy surfaces with violet → fuchsia → cyan accents. */
 
 /* Default theme */
@@ -1083,5 +1083,5 @@ html.notes-app { font-size: 14.5px; }
    taken as zero (the newer full-screen builds can report no safe area), so every header and Back button that
    steps clear of the clock through --sat stays below the time. */
 html.notes-app { --sat: max(env(safe-area-inset-top, 0px), var(--sat-device, 44px)); }
-/* Arise Fit draws edge to edge too: its phone's own clock space (lib/deviceInsets.ts), already divided by its 0.9 page zoom. */
+/* Cooked draws edge to edge too: its phone's own clock space (lib/deviceInsets.ts), already divided by its 0.9 page zoom. */
 html.fit-app { --sat: max(env(safe-area-inset-top, 0px), var(--sat-device, 0px)); }

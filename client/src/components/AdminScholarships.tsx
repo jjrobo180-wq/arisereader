@@ -1,4 +1,4 @@
-// Admin: the A.R.I.S.E. Reader scholarship and grant applications (from /scholarship).
+// Admin: the Arise Reader scholarship and grant applications (from /scholarship).
 // Approving one marks it; the free plan itself is given above with "Give a plan by hand".
 import { useEffect, useState } from "react";
 import { GraduationCap } from "lucide-react";

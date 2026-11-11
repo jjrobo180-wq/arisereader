@@ -1,4 +1,4 @@
-// Video form checks: the client films a set in Arise Fit; the trainer pauses, draws on the frame, writes a note
+// Video form checks: the client films a set in Cooked; the trainer pauses, draws on the frame, writes a note
 // for each moment and can add a voice note; the client plays it back with the drawings at those moments.
 // Shapes: shared/coachFormCheck.ts. Server: server/coach.ts.
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -58,7 +58,7 @@ function FeedbackView({ c }: { c: Check2 }) {
   </div>;
 }
 
-/** Arise Fit: the client's form checks with this trainer. */
+/** Cooked: the client's form checks with this trainer. */
 export function ClientFormChecks({ token, linkId, trainer, say }: { token: string | null; linkId: string; trainer: string; say: (m: string) => void }) {
   const { data, reload } = usePoll(() => coachApi<{ checks: Check2[] }>(token, `/links/${linkId}/form-checks`), [token, linkId], 60_000);
   const [file, setFile] = useState<File | null>(null);
@@ -102,7 +102,7 @@ export function ClientFormChecks({ token, linkId, trainer, say }: { token: strin
   </div>;
 }
 
-/** Arise Trainer: a client's form checks, to review. */
+/** Cooked PT: a client's form checks, to review. */
 export function TrainerFormChecks({ token, linkId, name, say }: { token: string | null; linkId: string; name: string; say: (m: string) => void }) {
   const { data, reload } = usePoll(() => coachApi<{ checks: Check2[] }>(token, `/links/${linkId}/form-checks`), [token, linkId], 60_000);
   const [open, setOpen] = useState<Check2 | null>(null);
@@ -112,7 +112,7 @@ export function TrainerFormChecks({ token, linkId, name, say }: { token: string 
     {list.length ? <div className="space-y-2">{list.map((c) => <Card key={c.id} onClick={() => setOpen(c)} className="!p-3.5"><div className="flex items-center gap-3">
       <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px]" style={{ background: c.status === "new" ? C.lime : C.card2, color: c.status === "new" ? "var(--fit-on-accent)" : C.dim }}><Video className="h-5 w-5" /></span>
       <span className="min-w-0 flex-1"><b className="block truncate">{c.exName}</b><span className="text-[13px]" style={{ color: C.dim }}>{c.status === "new" ? "Needs your review" : "Reviewed"} · {ago(c.at)}{c.note ? ` · "${c.note.slice(0, 40)}"` : ""}</span></span></div></Card>)}</div>
-      : <Card className="text-center"><Video className="mx-auto h-7 w-7" style={{ color: C.dim }} /><p className="mt-2 text-[14px]" style={{ color: C.dim }}>{data ? `When ${first} films a set in Arise Fit (My trainer → Form), it shows up here for you to draw on and reply.` : "Loading…"}</p></Card>}
+      : <Card className="text-center"><Video className="mx-auto h-7 w-7" style={{ color: C.dim }} /><p className="mt-2 text-[14px]" style={{ color: C.dim }}>{data ? `When ${first} films a set in Cooked (My trainer → Form), it shows up here for you to draw on and reply.` : "Loading…"}</p></Card>}
     {open && <Reviewer token={token} linkId={linkId} c={open} first={first} say={say} onClose={() => setOpen(null)} onDone={() => { setOpen(null); reload(); }} />}
   </div>;
 }
@@ -144,7 +144,7 @@ function Reviewer({ token, linkId, c, first, say, onClose, onDone }: { token: st
         try { const p = await uploadTo(token, linkId, blob, kind); setVoice(p); setVoiceUrl(URL.createObjectURL(blob)); } catch (e: any) { say(e.message); } finally { setBusy(""); }
       };
       r.start(); setRec(r);
-    } catch { say("Arise Trainer needs the microphone for voice notes. Allow it in Settings."); }
+    } catch { say("Cooked PT needs the microphone for voice notes. Allow it in Settings."); }
   };
   const save = async () => {
     setBusy("Sending…");

@@ -1,4 +1,4 @@
-// The student welcome show: a 5-minute presentation of A.R.I.S.E. Reader for a room of students.
+// The student welcome show: a 5-minute presentation of Arise Reader for a room of students.
 // It plays by itself (captions, and an optional voice, move it along), or a teacher steps through it with a clicker.
 // Open it at /#/present. No login is needed and nothing is saved. The script is shared/presentShow.ts; the screens are scenes*.tsx.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType } from "react";
@@ -194,7 +194,7 @@ export default function StudentShow() {
       <div className="sw-root overflow-auto arise-page-bg" ref={rootRef}>
         <div className="mx-auto flex min-h-full max-w-3xl flex-col items-center justify-center px-6 py-10 text-center">
           <div className="mb-6 grid h-20 w-20 place-items-center rounded-[1.5rem] arise-icon-tile"><Presentation className="h-10 w-10 text-white" /></div>
-          <p className="text-xs font-black uppercase tracking-[.18em] text-violet-300">A.R.I.S.E. Reader · about {Math.round(TARGET_SECONDS / 60)} minutes</p>
+          <p className="text-xs font-black uppercase tracking-[.18em] text-violet-300">Arise Reader · about {Math.round(TARGET_SECONDS / 60)} minutes</p>
           <h1 className="mt-2 text-4xl font-black tracking-[-.035em] sm:text-5xl">Student welcome show</h1>
           <p className="mt-3 max-w-xl text-lg text-slate-300">How to log in, find a book, take a quiz, climb the leaderboard, read short reads, and win. Made to put on the board in front of the whole class.</p>
 
@@ -233,7 +233,7 @@ export default function StudentShow() {
         <div className="sw-stage" style={{ transform: `scale(${scale})` }}>
           <div className="sw-screen"><div className="sw-scene" key={cur.id}><View beat={cur.beat} /></div></div>
           <div className="sw-captionbar"><p className="sw-caption" aria-live="polite" data-testid="show-caption">{cur.say}</p></div>
-          <div className="sw-footer"><span><b>C.G.M.S.</b> · A.R.I.S.E. Reader</span><span>Demo screens · sample books and readers</span></div>
+          <div className="sw-footer"><span><b>C.G.M.S.</b> · Arise Reader</span><span>Demo screens · sample books and readers</span></div>
         </div>
       </div>
 

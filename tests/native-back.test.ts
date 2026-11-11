@@ -1,4 +1,4 @@
-// The A.R.I.S.E. Reader iPhone apps have no browser Back: every screen past home gets one
+// The Arise Reader iPhone apps have no browser Back: every screen past home gets one
 // (components/NativeBack.tsx), unless the screen shows its own, and a left-edge swipe goes back.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -22,7 +22,7 @@ test("Back is in both Reader apps, steps back inside the app, and swipes", () =>
   assert.match(c, /touchstart/, "edge swipe");
   assert.match(c, /navigate\(home, \{ replace: true \}\)/, "nothing behind: the home screen, never out of the app");
   assert.doesNotMatch(c, /history\.back\(\)/, "never the browser's history (the screens' own Home buttons add to it, which made a loop)");
-  assert.match(c, /const floating = flavor !== "eyegaze"/, "Eye Gazer screens have their own Home, so no floating button over it");
+  assert.match(c, /const floating = flavor !== "eyegaze"/, "Arise AAC screens have their own Home, so no floating button over it");
   assert.match(c, /home\\b\)/, "a screen's own Home at the top counts as its Back");
   assert.match(read("client/src/App.tsx"), /\{isReaderApp\(\) && user && <NativeBack \/>\}/);
 });

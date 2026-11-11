@@ -24,6 +24,7 @@ export const K_DISHES: KDish[] = [
   K("breakfast", "smoothie", "Fruit smoothie", 240, 5, "healthy lowcal quick veg", 7, "frozen-fruit 5, bananas 0.5, greek-yogurt 3, milk 4"),
   K("breakfast", "french-toast", "French toast", 420, 20, "popular veg", 8, "bread 2, eggs 1, milk 2, syrup 2, cinnamon 0.05, butter 0.25"),
   K("breakfast", "bagel", "Bagel & cream cheese", 360, 5, "quick veg", 7, "bagels 1, cream-cheese 1"),
+  K("breakfast", "coffee", "Coffee with creamer", 60, 5, "quick lowcal veg", 8, "coffee 0.5, coffee-creamer 1"),
   K("breakfast", "egg-muffin", "Egg & cheese English muffins", 390, 10, "quick popular", 8, "english-muffins 1, eggs 1, cheese-slices 1, butter 0.1"),
   K("breakfast", "hashbrowns", "Hash browns & eggs", 410, 20, "popular veg", 7, "hash-browns 4, eggs 2, oil 0.5"),
   K("breakfast", "waffles", "Waffles & berries", 400, 10, "quick popular veg", 8, "frozen-waffles 2, syrup 2, strawberries 2"),

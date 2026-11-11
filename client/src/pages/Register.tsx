@@ -28,7 +28,7 @@ export default function Register({ independent = false }: { independent?: boolea
   const [usernameEdited, setUsernameEdited] = useState(false);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  // Arriving from the Eye Gazer home page (/eyegaze/) the box starts ticked: #/register?eye=1
+  // Arriving from the Arise AAC home page (/eyegaze/) the box starts ticked: #/register?eye=1
   const [isEyeGaze, setIsEyeGaze] = useState(() => typeof window !== "undefined" && /[?&]eye=1(?:&|$)/.test(window.location.hash));
   const [school, setSchool] = useState<SchoolChoice | null>(null);
   const [teachers, setTeachers] = useState<any[]>([]);
@@ -106,18 +106,18 @@ export default function Register({ independent = false }: { independent?: boolea
   };
 
   const band = BANDS.find(item => item.id === gradeBand);
-  // Arrived from the Eye Gazer home page: say so at the top.
+  // Arrived from the Arise AAC home page: say so at the top.
   const [eyeEntry] = useState(() => typeof window !== "undefined" && /[?&]eye=1(?:&|$)/.test(window.location.hash));
-  const eyebrow = eyeEntry ? "Eye Gazer account" : independentStudent ? "Independent reader" : "School-connected student";
-  const title = eyeEntry ? <>Eye Gazer <span className="text-violet-700">Signup</span></> : independentStudent ? <>Independent Student <span className="text-violet-700">Signup</span></> : <>Student <span className="text-violet-700">Signup</span></>;
+  const eyebrow = eyeEntry ? "Arise AAC account" : independentStudent ? "Independent reader" : "School-connected student";
+  const title = eyeEntry ? <>Arise AAC <span className="text-violet-700">Signup</span></> : independentStudent ? <>Independent Student <span className="text-violet-700">Signup</span></> : <>Student <span className="text-violet-700">Signup</span></>;
   const intro = eyeEntry
-    ? "An accessible account with large visual choices, My Talker, Eye Gazer games and Life Skills."
+    ? "An accessible account with large visual choices, My Talker, Arise AAC games and Life Skills."
     : independentStudent ? "This account is not attached to a school or teacher. You can read, quiz, earn rewards, and connect a parent or guardian after signup." : "Connect your account to your school and teacher so your reading progress, quizzes, and rewards show in the right class.";
 
   return (
     <SignupShell eyebrow={eyebrow} title={title} intro={intro} below={
       <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {independentStudent ? <button type="button" onClick={() => navigate("/register")} className="rounded-[1.25rem] border border-slate-200 bg-white p-4 text-left shadow-sm hover:border-violet-300"><School className="h-5 w-5 text-violet-700" /><p className="mt-2 font-black">Joining through a school?</p><p className="text-xs text-slate-500">Open the school-connected signup.</p></button> : <button type="button" onClick={() => navigate("/register-independent")} className="rounded-[1.25rem] border border-slate-200 bg-white p-4 text-left shadow-sm hover:border-violet-300"><UserRound className="h-5 w-5 text-violet-700" /><p className="mt-2 font-black">Not joining through a school?</p><p className="text-xs text-slate-500">Use Independent Student Signup instead.</p></button>}
+        {independentStudent ? <button type="button" onClick={() => navigate("/register")} className="rounded-[1.25rem] border border-slate-200 bg-white p-4 text-left shadow-sm hover:border-violet-300"><School className="h-5 w-5 text-violet-700" /><p className="mt-2 font-black">Joining through a school?</p><p className="text-xs text-slate-500">Open the school-connected signup.</p></button> : <button type="button" onClick={() => navigate("/parent-signup")} className="rounded-[1.25rem] border border-slate-200 bg-white p-4 text-left shadow-sm hover:border-violet-300"><UserRound className="h-5 w-5 text-violet-700" /><p className="mt-2 font-black">Not joining through a school?</p><p className="text-xs text-slate-500">A parent creates the account first, then adds you.</p></button>}
         <button type="button" onClick={() => navigate("/teacher-signup")} className="rounded-[1.25rem] border border-slate-200 bg-white p-4 text-left shadow-sm hover:border-violet-300"><GraduationCap className="h-5 w-5 text-emerald-700" /><p className="mt-2 font-black">Are you a teacher?</p><p className="text-xs text-slate-500">Open teacher signup.</p></button>
       </div>
     }>
@@ -178,14 +178,14 @@ export default function Register({ independent = false }: { independent?: boolea
                 : selectedSchoolId && selectedGrade && <button type="button" onClick={() => setSelectedTeacherId(NOT_LISTED)} className={`w-full rounded-xl border p-3 text-sm font-bold transition ${teachers.length === 0 ? "border-violet-300 bg-violet-50 text-violet-800 hover:bg-violet-100" : "border-[#dfe2ee] bg-white text-slate-700 hover:border-violet-400 hover:text-violet-700"}`}>
                     {teachers.length === 0 ? "No teachers listed yet — tap here: Teacher not listed" : "Teacher not listed?"}
                   </button>}
-              {directoryTeacher && <p className="rounded-xl border border-violet-200 bg-violet-50 p-3 text-xs font-semibold leading-5 text-slate-700">This teacher is listed for your school but does not have a linked A.R.I.S.E. Reader account yet. You can sign up and read right away. An administrator can link you to their class when the teacher joins.</p>}
+              {directoryTeacher && <p className="rounded-xl border border-violet-200 bg-violet-50 p-3 text-xs font-semibold leading-5 text-slate-700">This teacher is listed for your school but does not have a linked Arise Reader account yet. You can sign up and read right away. An administrator can link you to their class when the teacher joins.</p>}
               {teacherNotListed && <p className="rounded-xl border border-violet-200 bg-violet-50 p-3 text-xs font-semibold leading-5 text-slate-700">{schoolNewToSite ? "No teachers from this school are on A.R.I.S.E. yet. " : "No problem. "}You'll get full access right away. We'll connect you to your {schoolNotListed ? "school and teacher" : "teacher"} for you.</p>}
               </>}
             </div>}
 
             <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-violet-200 bg-violet-50 p-4">
               <input type="checkbox" checked={isEyeGaze} onChange={e => setIsEyeGaze(e.target.checked)} className="mt-1 h-5 w-5 accent-violet-700" />
-              <span><strong className="flex items-center gap-1.5 text-sm"><Eye className="h-4 w-4 text-violet-700" aria-hidden="true" /> Eye Gazer / non-verbal account</strong><span className="mt-1 block text-xs leading-5 text-slate-600">Use the dedicated accessible experience with large visual choices, My Talker, Eye Gazer games, Life Skills, and family personalization.</span></span>
+              <span><strong className="flex items-center gap-1.5 text-sm"><Eye className="h-4 w-4 text-violet-700" aria-hidden="true" /> Arise AAC / non-verbal account</strong><span className="mt-1 block text-xs leading-5 text-slate-600">Use the dedicated accessible experience with large visual choices, My Talker, Arise AAC games, Life Skills, and family personalization.</span></span>
             </label>
 
             {error && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div>}

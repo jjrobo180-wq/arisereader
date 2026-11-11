@@ -1,7 +1,8 @@
-// Arise Fit: training and nutrition in one app (the iPhone app built with VITE_NATIVE_APP=fit, and
+// Cooked: training and nutrition in one app (the iPhone app built with VITE_NATIVE_APP=fit, and
 // #/fit on the website). Tabs: Today, up to three apps you pin (Train, Food and Run to start) and Apps,
 // where you add and arrange the rest (FitApps.tsx, shared/fitApps.ts). Data:
-// fitStore.ts → server/fit.ts. The look and motion follow the Arise Fit prototype (fitUi.tsx).
+// fitStore.ts → server/fit.ts. The look and motion follow the Cooked prototype (fitUi.tsx).
+import AllAccessPopup from "@/components/AllAccessPopup";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Check, Crown, ChevronRight, Utensils, Plus, Droplets, Footprints, HeartPulse, Flame, Home, LayoutGrid, LogOut, Mic, Moon, Play, Scale, Settings, ShieldCheck, Timer, Trophy } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
@@ -272,8 +273,8 @@ function SettingsSheet({ data, update, say, onClose, onGoals, onTour, onAccount,
     <Card onClick={onGoals} className="!p-4"><div className="flex items-center justify-between"><div><p className="font-semibold">Body and goal</p><p className="text-[13px]" style={{ color: C.dim }}>{g.kcal} calories · P {g.p}g · C {g.c}g · F {g.f}g (maintenance about {g.tdee})</p></div><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
     <Card className="mt-2 !p-4"><Field label="Set my own calorie goal (blank = automatic)"><div className="flex gap-2"><input inputMode="numeric" value={kcal} onChange={(e) => setKcal(e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder={String(g.kcal)} className={inputCls} style={inputStyle} />
       <Btn kind="soft" onClick={() => { const n = Number(kcal); update((d) => ({ ...d, profile: { ...d.profile, kcalGoal: n >= 900 ? n : undefined } })); say(n >= 900 ? `Calorie goal set to ${fmtNum(n)}.` : kcal ? "Goals under 900 calories aren't safe without a doctor. Using the automatic goal." : "Using the automatic calorie goal."); if (kcal && n < 900) setKcal(""); }}>Save</Btn></div></Field></Card>
-    <Card onClick={onTour} className="mt-2 !p-4" testId="fit-open-tour"><div className="flex items-center gap-3"><Play className="h-5 w-5" style={{ color: C.lime }} /><span className="flex-1"><span className="block font-semibold">How Arise Fit works</span><span className="block text-[13px]" style={{ color: C.dim }}>A quick animated tour of every feature</span></span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
-    <Title>Arise Fit+</Title>
+    <Card onClick={onTour} className="mt-2 !p-4" testId="fit-open-tour"><div className="flex items-center gap-3"><Play className="h-5 w-5" style={{ color: C.lime }} /><span className="flex-1"><span className="block font-semibold">How Cooked works</span><span className="block text-[13px]" style={{ color: C.dim }}>A quick animated tour of every feature</span></span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
+    <Title>Cooked+</Title>
     <PlusRow />
     <Title>iPhone</Title>
     <Card onClick={() => setSheet("health")} className="!p-4" testId="fit-open-health"><div className="flex items-center gap-3"><HeartPulse className="h-5 w-5" style={{ color: "#ff375f" }} /><span className="flex-1 font-semibold">Apple Health</span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
@@ -288,7 +289,7 @@ function SettingsSheet({ data, update, say, onClose, onGoals, onTour, onAccount,
     <Title>Account</Title>
     <Card onClick={onAccount} className="!p-4"><div className="flex items-center gap-3"><ShieldCheck className="h-5 w-5" style={{ color: C.dim }} /><span className="flex-1 font-semibold">Account & privacy</span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
     <Btn kind="danger" className="mt-2 w-full" onClick={() => { logout(); goToSignIn(); }} testId="fit-signout"><LogOut className="h-5 w-5" />Sign out</Btn>
-    <p className="mt-8 text-center text-[11px] leading-relaxed" style={{ color: C.dim }}>How-to videos play from YouTube and belong to their creators. Exercise photos from wger.de (Creative Commons, credited on each exercise). Food data from USDA FoodData Central and Open Food Facts. Arise Fit isn't medical advice; check with a doctor before starting a new diet or training plan.</p>
+    <p className="mt-8 text-center text-[11px] leading-relaxed" style={{ color: C.dim }}>How-to videos play from YouTube and belong to their creators. Exercise photos from wger.de (Creative Commons, credited on each exercise). Food data from USDA FoodData Central and Open Food Facts. Cooked isn't medical advice; check with a doctor before starting a new diet or training plan.</p>
   </Sheet>;
 }
 
@@ -302,7 +303,7 @@ function LayoutsSetting() {
 /** Today's header: the Fit+ crown (filled when you have it). */
 function PlusButton() {
   const { plus, ask } = usePlus();
-  return <button type="button" onClick={() => ask()} aria-label={plus ? "Arise Fit+" : "Get Arise Fit+"} className="grid h-11 w-11 place-items-center rounded-full" style={plus ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card, boxShadow: cardStyle.boxShadow }} data-testid="fit-open-plus"><Crown className="h-5 w-5" /></button>;
+  return <button type="button" onClick={() => ask()} aria-label={plus ? "Cooked+" : "Get Cooked+"} className="grid h-11 w-11 place-items-center rounded-full" style={plus ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card, boxShadow: cardStyle.boxShadow }} data-testid="fit-open-plus"><Crown className="h-5 w-5" /></button>;
 }
 function PlusRow() {
   const { plus, status, ask } = usePlus();
@@ -311,7 +312,7 @@ function PlusRow() {
     <ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>;
 }
 
-/** Arise Fit with Fit+ around it: the toast and a guest pass link live out here so the Fit+ sheet can use them. */
+/** Cooked with Fit+ around it: the toast and a guest pass link live out here so the Fit+ sheet can use them. */
 export default function FitApp() {
   const [toast, setToast] = useState("");
   const say = useCallback((m: string) => { setToast(m); window.setTimeout(() => setToast((t) => (t === m ? "" : t)), 2600); }, []);
@@ -489,6 +490,8 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
     {active && <LiveWorkout active={active} setActive={setActive} data={data} update={update} list={list} say={say} />}
     {setup && <Onboarding data={data} update={update} edit={!!data.onboarded} onDone={() => setSetup(false)} />}
     {tour && <Layer><FeatureTour onClose={() => setTour(false)} /></Layer>}
+    {/* After setup (the first-run goals): the All Access pop-up, once. */}
+    <AllAccessPopup userId={user?.id} token={token} ready={loaded && !!data.onboarded && !setup && !tour} dark intro="Cooked is free to use. Arise All Access adds Fit+ with a guest pass for a friend, plus the extras in To Duo, Notes and Pod+." />
     {invite && token && <InviteJoinSheet token={token} code={invite} onClose={() => setInvite(null)} onJoined={() => { setInvite(null); setCoach(true); }} />}
     {coach && <CoachScreen token={token} me={Number(user?.id) || 0} data={data} update={update} list={list} onStart={startNow} onClose={() => setCoach(false)} />}
     {form && <FormCheck onClose={() => setForm(false)} />}

@@ -144,6 +144,7 @@ function PlanTab({ ctx }: { ctx: AppCtx }) {
   // Plans aren't sold inside the iPhone app (App Review Guideline 3.1.1): it shows the minutes and
   // what's on the account, with no prices, buy buttons or billing links.
   const native = isNativeApp();
+  const { token: authToken } = useAuth();
   useEffect(() => { if (!native) notesApi.billing().then(setBill).catch((e) => say(e.message)); if (ctx.me.user.admin) notesApi.adminUsage().then((r) => setAdmin(r.people)).catch(() => {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const returnPath = ctx.mode === "embedded" ? "/arise-notes" : "/notes/";
   const choose = async (p: NotesProduct) => {
@@ -166,7 +167,7 @@ function PlanTab({ ctx }: { ctx: AppCtx }) {
       <div className="mt-4 h-3 overflow-hidden rounded-full bg-[var(--an-violet-soft)]" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Minutes used"><div className={`h-full rounded-full ${u.warn === 100 ? "bg-[var(--an-coral)]" : u.warn === 80 ? "bg-[#f5a524]" : "bg-[var(--an-violet)]"}`} style={{ width: `${pct}%` }} /></div>
       <p className="mt-3 text-[13px] leading-relaxed text-[var(--an-muted)]">You're on <b>{ctx.me.planName}</b>{u.pooled ? " (your family's shared minutes)" : ""}. Every minute of audio counts, recorded or uploaded, rounded up per recording. One recording can be up to {u.maxSecs >= 7200 ? "2 hours" : `${Math.round(u.maxSecs / 60)} minutes`}.{u.warn ? " You'll get a heads-up at 80% and at 100%." : ""}</p>
     </Section>
-    {native ? <AllAccessOffer note={NATIVE_NO_PURCHASE} /> : !bill ? <Spinner /> : <>
+    {native ? <AllAccessOffer note={NATIVE_NO_PURCHASE} authToken={authToken} onBought={() => void ctx.refreshMe()} /> : !bill ? <Spinner /> : <>
       {bill.canBuy && !bill.payment && <Notice tone="warn">Paid plans aren't open on this site yet.</Notice>}
       {bill.given && <Notice>Your plan was set up for you{bill.endsAt ? ` until ${new Date(bill.endsAt).toLocaleDateString()}` : ""}.</Notice>}
       {!bill.paidOnline && <AllAccessCard ctx={ctx} bill={bill} returnPath={returnPath} />}
@@ -208,7 +209,7 @@ function AllAccessCard({ ctx, bill, returnPath }: { ctx: AppCtx; bill: Billing; 
     catch (e: any) { say(e.message); setBusy(false); }
   };
   const price = money(all?.priceCents ?? 1000);
-  const perks = ["Arise Notes Plus: 1,500 minutes a month, every AI feature", "Arise To Duo Unlimited: every plugin and AI", "Arise Fit+, with a free guest pass for a friend", "Ad-free listening in Pod+"];
+  const perks = ["Arise Notes Plus: 1,500 minutes a month, every AI feature", "Arise To Duo Unlimited: every plugin and AI", "Cooked+, with a free guest pass for a friend", "Ad-free listening in Pod+"];
   return <section className="an-card border-[var(--an-violet)] p-5" data-testid="notes-all-access">
     <div className="flex items-center gap-2"><h3 className="text-[18px] font-bold">Arise All Access</h3>{all?.live && <span className="ml-auto rounded-full bg-[var(--an-green-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--an-green)]">Your plan</span>}</div>
     <div className="mt-1 text-[24px] font-extrabold">{price}/mo</div>

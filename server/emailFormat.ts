@@ -40,7 +40,7 @@ export function emailDocument(subject: string, content: string, siteUrl: string 
 <body style="margin:0;padding:24px 12px;background-color:#f3f4f6;">
 ${content.trim()}
 <div style="max-width:600px;margin:16px auto 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;color:#4b5563;text-align:center;">
-A.R.I.S.E Reader is a reading site for students, teachers and families.<br>
+Arise Reader is a reading site for students, teachers and families.<br>
 You got this email because of an account or a request on <a href="${escapeHtml(url)}" style="color:#4b5563;text-decoration:underline;">${escapeHtml(siteHost(url))}</a>.
 </div>
 </body>
@@ -53,9 +53,9 @@ export const PARENT_INVITES_PER_DAY = 3;
 /** To a parent or guardian: their student's invitation to connect. Every value must already be safe to put in HTML. */
 export function parentInviteEmail(studentName: string, signupUrl: string, code: string): string {
   return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;background-color:#0b0a16;color:#f8fafc;padding:32px;border-radius:20px;">
-  <h1 style="margin:0 0 8px;color:#c4b5fd;font-size:26px;">A.R.I.S.E. Reader</h1>
+  <h1 style="margin:0 0 8px;color:#c4b5fd;font-size:26px;">Arise Reader</h1>
   <h2 style="margin:24px 0 8px;color:#f8fafc;font-size:22px;">Connect with ${studentName}</h2>
-  <p style="line-height:1.6;color:#cbd5e1;font-size:16px;">${studentName} uses A.R.I.S.E. Reader to read books and take reading quizzes, and asked us to send you this invitation.</p>
+  <p style="line-height:1.6;color:#cbd5e1;font-size:16px;">${studentName} uses Arise Reader to read books and take reading quizzes, and asked us to send you this invitation.</p>
   <p style="line-height:1.6;color:#cbd5e1;font-size:16px;">Create a free Parent account to connect to ${studentName}, view reading progress, and receive your private Parent Proctor Code for quizzes.</p>
   <p style="margin:24px 0;"><a href="${signupUrl}" style="display:inline-block;background-color:#7c3aed;background-image:linear-gradient(90deg,#7c3aed,#c026d3,#06b6d4);color:#ffffff;text-decoration:none;font-weight:800;padding:13px 20px;border-radius:12px;">Create / Connect Parent Account</a></p>
   <p style="color:#94a3b8;font-size:14px;">Student link code: <strong style="color:#ffffff;letter-spacing:.08em;">${code}</strong></p>
@@ -98,7 +98,7 @@ const prizesText = (prizes: string[] | undefined): string[] => { const lines = (
 
 /**
  * The email a teacher (or the admin) sends to a student's parent or guardian who has no account yet:
- * what A.R.I.S.E. Reader is, what a parent account does, and how to sign up with the student's code.
+ * what Arise Reader is, what a parent account does, and how to sign up with the student's code.
  * Every value is escaped here, so plain text is what to pass in.
  */
 export function parentProgramEmail(info: { studentName: string; senderName: string; signupUrl: string; code: string; siteUrl?: string; maxChildren?: number } & InviteExtras): string {
@@ -114,7 +114,7 @@ export function parentProgramEmail(info: { studentName: string; senderName: stri
   return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;background-color:#0b0a16;color:#f8fafc;padding:32px;border-radius:20px;">
   ${inviteBrandHtml(info.siteUrl || DEFAULT_SITE_URL, "dark")}
   <h2 style="margin:24px 0 10px;color:#f8fafc;font-size:22px;">You're invited to follow ${student}'s reading</h2>
-  <p style="${p}">${sender} uses A.R.I.S.E. Reader with ${student} and asked us to send you this. ${first} already has a student account. To follow along you will need a free parent account, and this email explains how to make one.</p>
+  <p style="${p}">${sender} uses Arise Reader with ${student} and asked us to send you this. ${first} already has a student account. To follow along you will need a free parent account, and this email explains how to make one.</p>
 ${noteHtml(info.note, sender)}
   <h2 style="${h2}">What it is</h2>
   <ul style="margin:0;padding-left:22px;">
@@ -143,12 +143,12 @@ ${prizesHtml(info.prizes, h2, li)}
   <p style="margin:0 0 8px;color:#94a3b8;font-size:14px;">Already have a parent account? Log in and enter the code on your dashboard to add ${first}.</p>
   <h2 style="${h2}">Logging in after that</h2>
   <p style="${p}">Go to ${site}/#/signin and log in with the username and password you chose. You won't need the code again.</p>
-  <p style="color:#94a3b8;font-size:13px;margin-top:24px;">${sender} sent this through A.R.I.S.E. Reader. If you don't know ${student}, you can ignore this email.</p>
+  <p style="color:#94a3b8;font-size:13px;margin-top:24px;">${sender} sent this through Arise Reader. If you don't know ${student}, you can ignore this email.</p>
 </div>`;
 }
 
 /**
- * The email for a family whose child has no account yet: what A.R.I.S.E. Reader is, what the family
+ * The email for a family whose child has no account yet: what Arise Reader is, what the family
  * gets, and how to sign up (the child first, then the parent with the child's code).
  * Every value is escaped here, so plain text is what to pass in.
  */
@@ -183,7 +183,7 @@ export function familyInviteEmail(info: {
   return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;background-color:#0b0a16;color:#f8fafc;padding:32px;border-radius:20px;">
   ${inviteBrandHtml(info.siteUrl || DEFAULT_SITE_URL, "dark")}
   <h2 style="margin:24px 0 10px;color:#f8fafc;font-size:22px;">Your family is invited to read with us</h2>
-  <p style="${p}">${sender} invited you and ${full} to join A.R.I.S.E. Reader, a reading site for students and their families. It is free. ${Child} will need a student account, and you will need a parent account. Each takes a few minutes, and the steps are below.</p>
+  <p style="${p}">${sender} invited you and ${full} to join Arise Reader, a reading site for students and their families. It is free. ${Child} will need a student account, and you will need a parent account. Each takes a few minutes, and the steps are below.</p>
 ${noteHtml(info.note, sender)}
   <h2 style="${h2}">What it is</h2>
   <ul style="margin:0;padding-left:22px;">
@@ -209,7 +209,7 @@ ${prizesHtml(info.prizes, h2, li)}
   <p style="margin:22px 0 10px;"><a href="${esc(info.registerUrl)}" style="display:inline-block;background-color:#7c3aed;background-image:linear-gradient(90deg,#7c3aed,#c026d3,#06b6d4);color:#ffffff;text-decoration:none;font-weight:800;padding:13px 20px;border-radius:12px;">Step 1: Create the student account</a></p>
   <p style="margin:0 0 8px;color:#94a3b8;font-size:14px;">Step 3, once you have the code: <a href="${esc(info.parentSignupUrl)}" style="${link}">create your parent account</a>.</p>
   <p style="margin:0;color:#94a3b8;font-size:14px;">Not with a school on the site? ${Child} can sign up as an <a href="${esc(info.independentUrl)}" style="${link}">independent reader</a> and skip choosing a school.</p>
-  <p style="color:#94a3b8;font-size:13px;margin-top:24px;">${sender} sent this through A.R.I.S.E. Reader. If you don't know ${sender}, you can ignore this email.</p>
+  <p style="color:#94a3b8;font-size:13px;margin-top:24px;">${sender} sent this through Arise Reader. If you don't know ${sender}, you can ignore this email.</p>
 </div>`;
 }
 
@@ -229,7 +229,7 @@ export function parentProgramText(info: { studentName: string; senderName: strin
   const text = [
     "Hello,",
     "",
-    `I use A.R.I.S.E. Reader with ${student}, and I'd like to invite you to follow along. It is a reading site for students and their families. ${first} already has a student account. You will need a free parent account, which takes about two minutes to make.`,
+    `I use Arise Reader with ${student}, and I'd like to invite you to follow along. It is a reading site for students and their families. ${first} already has a student account. You will need a free parent account, which takes about two minutes to make.`,
     "",
     ...noteText(info.note),
     PICTURE_LINE,
@@ -262,7 +262,7 @@ export function parentProgramText(info: { studentName: string; senderName: strin
     "Thank you,",
     oneLine(info.senderName) || "Your child's teacher",
   ].join("\n");
-  return { subject: `Follow ${student}'s reading on A.R.I.S.E. Reader`, text };
+  return { subject: `Follow ${student}'s reading on Arise Reader`, text };
 }
 
 /** The invitation for a family whose child has no account yet, as text. */
@@ -283,7 +283,7 @@ export function familyInviteText(info: {
   const text = [
     "Hello,",
     "",
-    `I'd like to invite you and ${full} to join A.R.I.S.E. Reader, a reading site for students and their families. It is free. ${Child} will need a student account, and you will need a parent account. Each takes a few minutes, and the steps are below.`,
+    `I'd like to invite you and ${full} to join Arise Reader, a reading site for students and their families. It is free. ${Child} will need a student account, and you will need a parent account. Each takes a few minutes, and the steps are below.`,
     "",
     ...noteText(info.note),
     PICTURE_LINE,
@@ -313,5 +313,5 @@ export function familyInviteText(info: {
     "Thank you,",
     oneLine(info.senderName) || "A teacher",
   ].join("\n");
-  return { subject: "Your family is invited to A.R.I.S.E. Reader", text };
+  return { subject: "Your family is invited to Arise Reader", text };
 }

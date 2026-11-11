@@ -1,4 +1,4 @@
--- Wren (the AI-voice talker inside Eye Gazer): each child's boards, settings, learned words and
+-- Wren (the AI-voice talker inside Arise AAC): each child's boards, settings, learned words and
 -- added pictures, saved as a few named documents per child. Only the server's service role may
 -- read or write it, like eye_gaze_talker_state.
 create table if not exists public.eye_gaze_wren_docs (

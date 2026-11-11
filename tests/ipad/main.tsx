@@ -1,4 +1,4 @@
-// Each Eye Gazer game on its own, for the iPad (WebKit, touch) check: ?g=match|pop|sentence|fidget|farm|runner|ninja|splash
+// Each Arise AAC game on its own, for the iPad (WebKit, touch) check: ?g=match|pop|sentence|fidget|farm|runner|ninja|splash
 import "../../client/src/index.css";
 import { createRoot } from "react-dom/client";
 import MatchPairsGame from "@/pages/eye-gaze/MatchPairsGame";
@@ -21,7 +21,7 @@ import { queryClient } from "@/lib/queryClient";
 const G: Record<string, any> = { match: MatchPairsGame, pop: WordPopGame, sentence: SentenceTrainGame, fidget: FidgetLabGame, farm: FarmWorldGame, runner: ReadingRunnerPro, ninja: ReadingNinja, splash: AnimalSplashGame, talker: EyeGazeTalker, flashcards: EyeGazeFlashcards, lessons: EyeGazeLessons, home: EyeGazeHome };
 const id = new URLSearchParams(location.search).get("g") || "match";
 const C = G[id];
-// ?g=app: the Eye Gazer app as a child sees it (its frame, tabs and Home).
+// ?g=app: the Arise AAC app as a child sees it (its frame, tabs and Home).
 if (id === "app") { if (!location.hash) location.hash = "#/eye-gaze-home"; }
 createRoot(document.getElementById("root")!).render(<QueryClientProvider client={queryClient}>{id === "app"
   ? <Router hook={useHashLocation}><EyeGazeSiteShell><EyeGazeHome /></EyeGazeSiteShell></Router>

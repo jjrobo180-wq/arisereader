@@ -1,5 +1,5 @@
-// A trainer's own website (#/t/<slug>): built by Arise Trainer from their listing and site settings (shared/coachSite.ts).
-// Four looks. The contact form sends a lead to the trainer's app; "Start training" opens their Arise Fit invite.
+// A trainer's own website (#/t/<slug>): built by Cooked PT from their listing and site settings (shared/coachSite.ts).
+// Four looks. The contact form sends a lead to the trainer's app; "Start training" opens their Cooked invite.
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import { useParams } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
@@ -39,7 +39,7 @@ export default function TrainerSitePage() {
   return <TrainerSiteView data={data} />;
 }
 
-/** The site itself, also used for the live preview in Arise Trainer (`preview` turns the form off). */
+/** The site itself, also used for the live preview in Cooked PT (`preview` turns the form off). */
 export function TrainerSiteView({ data, preview }: { data: SiteData; preview?: boolean }) {
   const { site, trainer: t, reviews } = data;
   useSiteFonts();
@@ -114,7 +114,7 @@ export function TrainerSiteView({ data, preview }: { data: SiteData; preview?: b
     {/* How it works */}
     <section className={section}>
       {h2("How it works")}
-      <ol className="grid gap-4 sm:grid-cols-3">{[["Talk", "A free consult about your goals, your schedule and anything holding you back."], ["Get your plan", "Workouts, nutrition targets and habits made for you, in the Arise Fit app."], ["Train and track", `${t.name.split(" ")[0]} sees your progress and adjusts every week. You're never guessing.`]].map(([h, p], i) => <li key={h} className="p-6" style={{ background: L.card, borderRadius: L.radius, border: `1px solid ${L.line}` }}>
+      <ol className="grid gap-4 sm:grid-cols-3">{[["Talk", "A free consult about your goals, your schedule and anything holding you back."], ["Get your plan", "Workouts, nutrition targets and habits made for you, in the Cooked app."], ["Train and track", `${t.name.split(" ")[0]} sees your progress and adjusts every week. You're never guessing.`]].map(([h, p], i) => <li key={h} className="p-6" style={{ background: L.card, borderRadius: L.radius, border: `1px solid ${L.line}` }}>
         <span className="grid h-10 w-10 place-items-center text-[18px] font-bold text-white" style={{ background: a, borderRadius: 999 }}>{i + 1}</span>
         <h3 className="mt-4 text-[22px]" style={L.head}>{H(h)}</h3><p className="mt-1.5 text-[15px] leading-relaxed" style={{ color: L.muted }}>{p}</p></li>)}</ol>
     </section>
@@ -140,7 +140,7 @@ export function TrainerSiteView({ data, preview }: { data: SiteData; preview?: b
     <footer className="border-t" style={{ borderColor: L.line }}><div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-5 py-8 text-[14px] sm:px-8" style={{ color: L.muted }}>
       <span className="font-semibold" style={{ color: L.ink }}>{t.name}</span>{where && <span>{where}</span>}
       {t.instagram && <a href={`https://instagram.com/${t.instagram.replace(/^@/, "")}`} target="_blank" rel="noreferrer" className="underline underline-offset-4">Instagram {t.instagram.startsWith("@") ? t.instagram : `@${t.instagram}`}</a>}
-      <span className="ml-auto text-[12px]">Built with Arise Trainer</span>
+      <span className="ml-auto text-[12px]">Built with Cooked PT</span>
     </div></footer>
   </div>;
 }
@@ -176,7 +176,7 @@ function Contact({ data, look: L, preview }: { data: SiteData; look: Look; previ
           <textarea value={f.message} onChange={(e) => setF({ ...f, message: e.target.value })} rows={4} placeholder="Anything else? Schedule, injuries, what you've tried…" aria-label="Message" className={cls} style={field} />
           <input tabIndex={-1} autoComplete="off" value={f.website} onChange={(e) => setF({ ...f, website: e.target.value })} className="hidden" aria-hidden />
           {err && <p className="rounded-lg bg-white/90 px-3 py-2 text-[14px] text-rose-700">{err}</p>}
-          <button type="submit" disabled={state === "sending" || preview} className="w-full bg-white px-6 py-4 text-[16px] font-bold disabled:opacity-60" style={{ color: site.accent, borderRadius: Math.min(L.radius, 14) }}>{preview ? "Sends to your Arise Trainer app" : state === "sending" ? "Sending…" : "Send"}</button>
+          <button type="submit" disabled={state === "sending" || preview} className="w-full bg-white px-6 py-4 text-[16px] font-bold disabled:opacity-60" style={{ color: site.accent, borderRadius: Math.min(L.radius, 14) }}>{preview ? "Sends to your Cooked PT app" : state === "sending" ? "Sending…" : "Send"}</button>
         </form>}
     </div>
   </section>;

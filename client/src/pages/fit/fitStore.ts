@@ -1,4 +1,4 @@
-// Arise Fit's data on this phone and on the server (server/fit.ts). The app opens from the copy on the
+// Cooked's data on this phone and on the server (server/fit.ts). The app opens from the copy on the
 // phone at once, then the server's copy; every change is saved a moment later, and kept on the phone
 // if the server can't be reached (it goes up next time). Two phones never overwrite each other: before
 // each save the server's copy is checked, and if another device changed it, both sets of changes are
@@ -23,7 +23,7 @@ export async function fitApi<T>(token: string | null, path: string, init?: Reque
     headers: { ...(init?.headers || {}), ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(init?.body ? { "Content-Type": "application/json" } : {}) },
   });
   const body = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(body?.message || "Arise Fit can't reach the server right now.");
+  if (!res.ok) throw new Error(body?.message || "Cooked can't reach the server right now.");
   return body as T;
 }
 

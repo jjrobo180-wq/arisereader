@@ -1,4 +1,4 @@
-// An Eye Gazer lesson (#/eye-gaze-quiz/:id). Students get the lesson player: learn the words,
+// An Arise AAC lesson (#/eye-gaze-quiz/:id). Students get the lesson player: learn the words,
 // then the quiz. Teachers and the admin see the whole lesson with its answers and can try it.
 import { useEffect, useState } from "react";
 import { useLocation, useParams } from "wouter";

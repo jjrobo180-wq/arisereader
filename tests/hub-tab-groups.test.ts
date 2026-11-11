@@ -1,5 +1,5 @@
 // WorkHub menu: since Oct 12–13, 2026 each screen has its own place in the menu, and the Reader
-// tools live on their own page (A.R.I.S.E. Reader) rather than in the hub menu.
+// tools live on their own page (Arise Reader) rather than in the hub menu.
 // Run: npx tsx --test tests/hub-tab-groups.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";

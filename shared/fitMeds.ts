@@ -1,6 +1,6 @@
-// Arise Fit "Medicine tracker" plugin: medicines and vitamins with their dose times and days, today's
+// Cooked "Medicine tracker" plugin: medicines and vitamins with their dose times and days, today's
 // doses to tick off (or skip), the last week at a glance and a supply count that warns before it runs out.
-// Kept with the rest of a person's Arise Fit data (shared/fit.ts). The screen is client/src/pages/fit/FitMeds.tsx.
+// Kept with the rest of a person's Cooked data (shared/fit.ts). The screen is client/src/pages/fit/FitMeds.tsx.
 
 export type FitMed = {
   id: string; name: string; dose: string;
@@ -28,7 +28,7 @@ export const MED_COLORS = ["#60a5fa", "#f472b6", "#34d399", "#fbbf24", "#a78bfa"
 export const MED_LIMITS = { meds: 20, times: 4, days: 400 };
 export const emptyMeds = (): Meds => ({ list: [], log: {} });
 
-const str = (v: unknown, n: number) => (typeof v === "string" ? v.trim().slice(0, n) : "");
+const str = (v: unknown, n: number) => (typeof v === "string" ? v.trimStart().replace(/ {2,}$/, "").slice(0, n) : "");
 const isDay = (k: string) => /^\d{4}-\d{2}-\d{2}$/.test(k);
 const clock = (t: unknown) => (typeof t === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(t) ? t : "");
 

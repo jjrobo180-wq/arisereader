@@ -1,4 +1,4 @@
-// Arise Fit on the iPhone: Apple Health (@capgo/capacitor-health, plugin "Health") and reminders
+// Cooked on the iPhone: Apple Health (@capgo/capacitor-health, plugin "Health") and reminders
 // (@capacitor/local-notifications). Called through Capacitor's bridge directly, so the website build
 // never needs those packages; on the website, or in an app build without the plugins, every call
 // says so instead of failing silently.
@@ -8,8 +8,8 @@ const health = (method: string, options?: unknown) => nativeCall(/^Health$|Capac
 const notes = (method: string, options?: unknown) => nativeCall(/LocalNotifications/i, "LocalNotifications", method, options);
 const friendly = (e: any, what: string) => {
   const m = String(e?.message || e || "");
-  if (/not implemented|unimplemented|plugin|not available/i.test(m)) return new Error(`${what} needs the newest Arise Fit from TestFlight.`);
-  if (/entitlement|healthkit/i.test(m)) return new Error("Apple Health isn't switched on for this build yet. Update Arise Fit from TestFlight.");
+  if (/not implemented|unimplemented|plugin|not available/i.test(m)) return new Error(`${what} needs the newest Cooked from TestFlight.`);
+  if (/entitlement|healthkit/i.test(m)) return new Error("Apple Health isn't switched on for this build yet. Update Cooked from TestFlight.");
   return new Error(m || `${what} didn't answer. Try again.`);
 };
 
@@ -28,7 +28,7 @@ const WRITE = ["weight", "calories", "distance", "mindfulness"];
 const ASKED = "arise-fit-health-asked-v2";
 
 export async function connectHealth(): Promise<void> {
-  if (!isNativeApp()) throw new Error("Apple Health works in the Arise Fit iPhone app.");
+  if (!isNativeApp()) throw new Error("Apple Health works in the Cooked iPhone app.");
   const ok = await health("isAvailable").catch(() => null);
   if (ok && ok.available === false) throw new Error(ok.reason || "Apple Health isn't available on this device.");
   try { await health("requestAuthorization", { read: READ, write: WRITE }); } catch (e) { throw friendly(e, "Apple Health"); }
@@ -106,17 +106,17 @@ export function readReminders(): Reminders {
 }
 
 // Fixed ids so each reminder replaces itself: 100–106 workout days, 200–206 water, 300 weigh-in, 400 fast.
-const WORKOUT_LINES = ["Time to train. Your workout's ready in Arise Fit.", "Don't break the streak. Get your session in.", "The bar won't lift itself. Let's go.", "Ten minutes beats zero. Start a workout."];
+const WORKOUT_LINES = ["Time to train. Your workout's ready in Cooked.", "Don't break the streak. Get your session in.", "The bar won't lift itself. Let's go.", "Ten minutes beats zero. Start a workout."];
 export async function applyReminders(r: Reminders): Promise<void> {
   write(LS.reminders, JSON.stringify(r));
   if (!isNativeApp()) return;
   try {
     const perm = await notes("requestPermissions");
-    if (perm?.display && perm.display !== "granted") throw new Error("Notifications are off for Arise Fit. Turn them on in Settings → Notifications → Arise Fit.");
+    if (perm?.display && perm.display !== "granted") throw new Error("Notifications are off for Cooked. Turn them on in Settings → Notifications → Cooked.");
     await notes("cancel", { notifications: [...[0, 1, 2, 3, 4, 5, 6].flatMap((d) => [{ id: 100 + d }, { id: 200 + d }]), { id: 300 }] });
     const list: any[] = [];
     // iOS weekday: 1 = Sunday … 7 = Saturday; ours: 0 = Sunday.
-    if (r.workout.on) for (const d of r.workout.days) list.push({ id: 100 + d, title: "Arise Fit", body: WORKOUT_LINES[d % WORKOUT_LINES.length], schedule: { on: { weekday: d + 1, hour: r.workout.hour, minute: r.workout.minute }, allowWhileIdle: true } });
+    if (r.workout.on) for (const d of r.workout.days) list.push({ id: 100 + d, title: "Cooked", body: WORKOUT_LINES[d % WORKOUT_LINES.length], schedule: { on: { weekday: d + 1, hour: r.workout.hour, minute: r.workout.minute }, allowWhileIdle: true } });
     if (r.water) [10, 13, 16, 19].forEach((h, i) => list.push({ id: 200 + i, title: "Hydrate", body: "Drink a glass of water and log it.", schedule: { on: { hour: h, minute: 0 }, allowWhileIdle: true } }));
     if (r.weighIn) list.push({ id: 300, title: "Weigh-in", body: "Step on the scale before breakfast and log it.", schedule: { on: { hour: 7, minute: 15 }, allowWhileIdle: true } });
     if (list.length) await notes("schedule", { notifications: list });
@@ -131,7 +131,7 @@ export async function applySleepReminders(sc: { bed: string; wake: string } | un
     await notes("cancel", { notifications: [{ id: 600 }, { id: 601 }] });
     if (!sc || (!on.windDown && !on.morning)) return;
     const perm = await notes("requestPermissions");
-    if (perm?.display && perm.display !== "granted") throw new Error("Notifications are off for Arise Fit. Turn them on in Settings → Notifications → Arise Fit.");
+    if (perm?.display && perm.display !== "granted") throw new Error("Notifications are off for Cooked. Turn them on in Settings → Notifications → Cooked.");
     const shift = (t: string, mins: number) => { const [h, m] = t.split(":").map(Number); const x = (((h * 60 + m + mins) % 1440) + 1440) % 1440; return { hour: Math.floor(x / 60), minute: x % 60 }; };
     const list: any[] = [];
     if (on.windDown) list.push({ id: 600, title: "Time to wind down", body: "Bedtime in 30 minutes. Dim the lights, put the phone down, or try a breathing session.", schedule: { on: shift(sc.bed, -30), allowWhileIdle: true }, extra: { url: "arisefit://do/sleep-start" } });

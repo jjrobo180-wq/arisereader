@@ -1,4 +1,4 @@
-// Arise WorkHub's A.R.I.S.E. Reader group, built the WorkHub way: each part of the teacher's Reader
+// Arise WorkHub's Arise Reader group, built the WorkHub way: each part of the teacher's Reader
 // account is its own WorkHub tab (Overview, Students, Approvals, Parents, Quizzes, Game time, Prizes),
 // made of WorkHub cards, buttons, lists and pop-ups. Everything the old teacher dashboard did is here.
 // The Reader pieces inside (camera-quiz review, comprehension grading, prizes, play time, email
@@ -82,7 +82,7 @@ function Embedded({ children }: { children: ReactNode }) {
   </div>;
 }
 
-/** The WorkHub tabs that make up the teacher's A.R.I.S.E. Reader account. */
+/** The WorkHub tabs that make up the teacher's Arise Reader account. */
 export const READER_TABS = ["reader", "readerLive", "readerScenes", "readerStudents", "readerAdvisory", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes", "readerCatalog"] as const satisfies readonly HubTab[];
 export type ReaderTab = (typeof READER_TABS)[number];
 export const isReaderTab = (tab: HubTab): tab is ReaderTab => (READER_TABS as readonly HubTab[]).includes(tab);
@@ -357,7 +357,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
   }, [tab, school, apPicked]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!approved) {
-    return <Card title="A.R.I.S.E. Reader"><div className="flex items-start gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" /> Your teacher account is waiting for the administrator to approve it. Your Reader tools open here as soon as it is.</div></Card>;
+    return <Card title="Arise Reader"><div className="flex items-start gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" /> Your teacher account is waiting for the administrator to approve it. Your Reader tools open here as soon as it is.</div></Card>;
   }
 
   const status = flash && <div role={flash.good ? "status" : "alert"} className={`flex items-start justify-between gap-3 rounded-2xl border p-3 text-sm ${flash.good ? "border-teal-200 bg-teal-50 text-teal-950" : "border-red-200 bg-red-50 text-red-800"}`}>
@@ -369,7 +369,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
   // "premium_required" without one, so this makes that visible instead of a silently empty dashboard.
   const lockedNote = premiumLocked && <div role="alert" className="flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950" data-testid="reader-premium-locked">
     <Lock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-    <span className="min-w-0 flex-1">A.R.I.S.E. Reader needs the Class plan. The numbers and lists below are empty because nothing can load without it — get the Class plan to see your real students, approvals and grading.</span>
+    <span className="min-w-0 flex-1">Arise Reader needs the Class plan. The numbers and lists below are empty because nothing can load without it — get the Class plan to see your real students, approvals and grading.</span>
     <a href="#/billing" className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-xl bg-amber-500 px-3 text-sm font-bold text-slate-950 hover:bg-amber-400">Get the Class plan</a>
   </div>;
 
@@ -379,7 +379,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
 
     {tab === "reader" && <>
       <section className="rounded-3xl bg-slate-950 p-5 text-white sm:p-6 md:p-8" data-testid="reader-overview-banner">
-        <p className="text-sm font-semibold text-slate-400">A.R.I.S.E. Reader</p>
+        <p className="text-sm font-semibold text-slate-400">Arise Reader</p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Your reading classroom</h1>
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {([["My Students", students.length, "readerStudents"], ["To approve", approvals, "readerApprovals"], ["To grade", toGrade, "readerQuizzes"], ["Book catalog", "", "readerCatalog"]] as const).map(([label, value, to]) =>
@@ -634,7 +634,12 @@ function StudentsTab({ isAdmin = false, students, loading, loadError, school, sc
   const [q, setQ] = useState("");
   const [teacher, setTeacher] = useState("");
   const [adding, setAdding] = useState(false);
+  // A whole school is hundreds of rows, each with its own buttons; drawing them all at once (and again
+  // on every letter typed in the search) froze a phone. They are drawn a screenful at a time instead.
+  const STEP = 60;
+  const [shown, setShown] = useState(STEP);
   const needle = q.trim().toLowerCase();
+  useEffect(() => { setShown(STEP); }, [needle, teacher, which]);
   const mine = useMemo(() => students.filter((s) => !needle || nameOf(s).toLowerCase().includes(needle) || s.username.toLowerCase().includes(needle)), [students, needle]);
   // Students are grouped by advisory (the advisors together), not by single teacher.
   const advisories = useMemo(() => [...new Set((school?.students || []).map((s) => s.advisory).filter((a): a is string => !!a))].sort((a, b) => a.localeCompare(b)), [school]);
@@ -654,7 +659,7 @@ function StudentsTab({ isAdmin = false, students, loading, loadError, school, sc
       {which === "school" && <Select value={teacher} onChange={(e) => setTeacher(e.target.value)} aria-label="Advisory" className="sm:w-56" data-testid="school-advisory-filter"><option value="">Every advisory</option>{advisories.map((a) => <option key={a} value={a}>{a}</option>)}<option value="none">No advisory yet</option></Select>}
     </div>
     {which === "mine" ? (loading ? <Empty>Loading your students…</Empty> : loadError ? <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700" role="alert">{loadError}</div>
-      : mine.length ? <ul className="space-y-2">{mine.map((s) => <li key={s.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:p-4" data-testid={`card-student-${s.id}`}>
+      : mine.length ? <ul className="space-y-2">{mine.slice(0, shown).map((s) => <li key={s.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:p-4" data-testid={`card-student-${s.id}`}>
         <div className="min-w-0 flex-1"><div className="font-semibold text-slate-900">{nameOf(s)}</div><div className="text-sm text-slate-500">@{s.username} · {pointsOf(s).toLocaleString()} points · {quizzesOf(s)} quizzes</div></div>
         <div className="-m-1 flex flex-wrap items-center">
           <button type="button" className={iconBtn} onClick={() => onView(s.id)}><UserRound className="h-4 w-4" /> Profile</button>
@@ -663,7 +668,7 @@ function StudentsTab({ isAdmin = false, students, loading, loadError, school, sc
           <button type="button" className={iconBtn} onClick={() => onAction({ id: s.id, name: nameOf(s), username: s.username }, "password")}><KeyRound className="h-4 w-4" /> Password</button>
         </div>
       </li>)}</ul> : <Empty>{students.length ? "No one matches that search." : "No students have joined your class yet. They join with your class code."}</Empty>)
-      : schoolBusy && !school ? <Empty>Loading the school…</Empty> : all.length ? <ul className="space-y-2">{all.map((s) => <li key={s.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:p-4">
+      : schoolBusy && !school ? <Empty>Loading the school…</Empty> : all.length ? <ul className="space-y-2">{all.slice(0, shown).map((s) => <li key={s.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:p-4">
         <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2 font-semibold text-slate-900">{s.displayName || s.username}{!s.approvedByTeacher && <Pill tone="amber">Waiting</Pill>}</div>
           <div className="text-sm text-slate-500">@{s.username} · {s.advisory ? `Advisory: ${s.advisory}` : "No advisory yet"} · {s.totalPoints || 0} points · {s.quizzesTaken || 0} quizzes · {s.quizzesMastered || 0} mastered</div></div>
         <div className="-m-1 flex flex-wrap items-center">
@@ -673,6 +678,14 @@ function StudentsTab({ isAdmin = false, students, loading, loadError, school, sc
           <button type="button" className={iconBtn} onClick={() => onAction({ id: s.id, name: s.displayName || s.username, username: s.username, teacherId: s.teacherId, teacherName: s.teacherName, advisory: s.advisory, schoolId: s.schoolId }, "reassign")}><Users className="h-4 w-4" /> Advisory</button>
         </div>
       </li>)}</ul> : <Empty>No students found.</Empty>}
+    {(() => {
+      const total = which === "mine" ? (loading || loadError ? 0 : mine.length) : all.length;
+      const left = total - shown;
+      return left > 0 ? <div className="mt-3 flex flex-col items-center gap-1">
+        <GhostButton onClick={() => setShown((n) => n + STEP)}>Show {Math.min(STEP, left)} more</GhostButton>
+        <p className="text-xs text-slate-500">Showing {shown} of {total}. Search to find someone quickly.</p>
+      </div> : null;
+    })()}
   </Card>;
 }
 

@@ -14,6 +14,9 @@
 // Also here: chapters written into the file's own ID3 tag (CHAP frames), which some hosts title "Ad".
 import type { Join } from "./earshotAudio";
 
+/** Cleaned as you type: the start is trimmed but a space (or new line) just typed at the end stays, or the next word could never be typed. */
+const typedEnd = (s: string) => s.replace(/^\s+/, "").replace(/ {2,}$/, "");
+
 export type ScanLike = { count: number; time: number; flags: Uint8Array; joins: Join[]; timeOf(i: number): number };
 export type SpliceAd = { s: number; e: number; sure: boolean; why: "shape" | "seam" };
 type Point = { t: number; w: "strong" | "seam" | "blip" };
@@ -206,7 +209,7 @@ export function id3Chapters(b: Uint8Array): FileChapter[] {
     if (z < 0 || z + 17 > body.length) continue;
     const s = u32(body, z + 1) / 1000, e = u32(body, z + 5) / 1000;
     let title = "";
-    for (const [sid, sb] of frames(body, z + 17, body.length, v)) if (sid === "TIT2") { title = text(sb).trim(); break; }
+    for (const [sid, sb] of frames(body, z + 17, body.length, v)) if (sid === "TIT2") { title = typedEnd(text(sb)); break; }
     if (e > s && s >= 0 && e < 24 * 3600) out.push({ s, e, title });
   }
   return out.sort((a, b2) => a.s - b2.s);

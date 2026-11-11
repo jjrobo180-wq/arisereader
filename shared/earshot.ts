@@ -1,3 +1,6 @@
+
+/** Cleaned as you type: the start is trimmed but a space (or new line) just typed at the end stays, or the next word could never be typed. */
+const typedEnd = (s: string) => s.replace(/^\s+/, "").replace(/ {2,}$/, "");
 // Earshot (a LifeHub App Store app): a swipe-to-discover podcast feed of real podcasts.
 //
 // Shows and episodes come live from Apple's podcast directory (the iTunes Search API), fetched and
@@ -190,7 +193,7 @@ export const cleanPodId = (v: unknown) => (typeof v === "string" || typeof v ===
 
 /** An http(s) address, or "". Podcast audio is sometimes only on http; it's upgraded where the host allows. */
 export function cleanUrl(v: unknown): string {
-  const s = str(v, 1500).trim();
+  const s = typedEnd(str(v, 1500));
   if (!/^https?:\/\//i.test(s)) return "";
   try { const u = new URL(s); return u.protocol === "http:" || u.protocol === "https:" ? u.toString() : ""; } catch { return ""; }
 }
@@ -213,13 +216,13 @@ export function parseShow(raw: unknown, genre = ""): PodShow | null {
   const r = obj(raw);
   if (!r) return null;
   const id = cleanPodId(r.collectionId ?? r.trackId);
-  const name = str(r.collectionName ?? r.trackName, 200).trim();
+  const name = typedEnd(str(r.collectionName ?? r.trackName, 200));
   const art = cleanUrl(r.artworkUrl600) || (cleanUrl(r.artworkUrl100) ? bigArt(cleanUrl(r.artworkUrl100)) : "");
   if (!id || !name || !art) return null;
   if (r.kind && r.kind !== "podcast") return null;
   const appleGenre = str(r.primaryGenreName, 60);
   return {
-    id, name, author: str(r.artistName, 160).trim(), art, appleGenre,
+    id, name, author: typedEnd(str(r.artistName, 160)), art, appleGenre,
     genre: genre || APPLE_TO_GENRE[appleGenre] || "culture",
     link: cleanUrl(r.collectionViewUrl ?? r.trackViewUrl),
     episodes: Math.max(0, Math.floor(num(r.trackCount))),
@@ -235,12 +238,12 @@ export function parseEpisode(raw: unknown, show?: Pick<PodShow, "id" | "name" | 
   if (!r || (r.wrapperType && r.wrapperType !== "podcastEpisode") || (r.kind && r.kind !== "podcast-episode")) return null;
   const id = cleanPodId(r.trackId);
   const audio = cleanUrl(r.episodeUrl);
-  const title = str(r.trackName, 300).trim();
+  const title = typedEnd(str(r.trackName, 300));
   if (!id || !audio || !title) return null;
   const art = cleanUrl(r.artworkUrl600) || (cleanUrl(r.artworkUrl160) ? bigArt(cleanUrl(r.artworkUrl160)) : "") || show?.art || "";
   return {
-    id, showId: cleanPodId(r.collectionId) || show?.id || "", show: str(r.collectionName, 200).trim() || show?.name || "",
-    author: str(r.artistName, 160).trim() || show?.author || "", title,
+    id, showId: cleanPodId(r.collectionId) || show?.id || "", show: typedEnd(str(r.collectionName, 200)) || show?.name || "",
+    author: typedEnd(str(r.artistName, 160)) || show?.author || "", title,
     about: plainText(r.description ?? r.shortDescription),
     audio, date: str(r.releaseDate, 40), secs: Math.round(num(r.trackTimeMillis) / 1000), art,
     link: cleanUrl(r.trackViewUrl) || cleanUrl(r.collectionViewUrl), explicit: r.trackExplicitness === "explicit" || !!show?.explicit,
@@ -442,11 +445,11 @@ export const canComment = (role: unknown) => role !== "student";
 // ---------------------------------------------------------------------------
 
 function cleanSavedShow(v: unknown): SavedShow | null {
-  const r = obj(v); const id = cleanPodId(r?.id); const name = str(r?.name, 200).trim(); const art = cleanUrl(r?.art);
+  const r = obj(v); const id = cleanPodId(r?.id); const name = typedEnd(str(r?.name, 200)); const art = cleanUrl(r?.art);
   return r && id && name && art ? { id, name, author: str(r.author, 160), art, genre: GENRE[str(r.genre, 20)] ? str(r.genre, 20) : "culture", at: str(r.at, 40) } : null;
 }
 function cleanSavedEpisode(v: unknown): SavedEpisode | null {
-  const r = obj(v); const id = cleanPodId(r?.id); const title = str(r?.title, 300).trim();
+  const r = obj(v); const id = cleanPodId(r?.id); const title = typedEnd(str(r?.title, 300));
   if (!(r && id && title)) return null;
   const out: SavedEpisode = { id, showId: cleanPodId(r.showId), title, show: str(r.show, 200), art: cleanUrl(r.art), secs: Math.max(0, Math.min(86_400, Math.floor(num(r.secs)))), at: str(r.at, 40) };
   const audio = cleanUrl(r.audio); if (audio) out.audio = audio;

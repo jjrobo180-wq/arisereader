@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { PLANS, usd } from "@shared/plans";
 import "./pricing.css";
 
-/** One public pricing page for both A.R.I.S.E. Reader and Arise To Duo. */
+/** One public pricing page for both Arise Reader and Arise To Duo. */
 export default function Pricing() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -24,7 +24,9 @@ export default function Pricing() {
     else window.location.assign("https://www.arisereader.com/#/teacher-signup");
   };
   const familyPlan = () => {
-    window.location.assign(user?.role === "parent" ? "https://www.arisereader.com/#/subscribe" : "https://www.arisereader.com/#/parent-signup");
+    // Signed out, this opens a sign-in first (an account made in the app), then the plan. Brand-new
+    // families still find "Create an account" on that sign-in page.
+    window.location.assign("https://www.arisereader.com/#/subscribe");
   };
   const kids = PLANS.parentMaxChildren;
   const block = PLANS.teacher.studentsPerBlock;
@@ -32,7 +34,7 @@ export default function Pricing() {
   return (
     <main className="pr min-h-screen bg-[#f7f8ff] text-[#191b35]">
       <header className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-6">
-        <button className="text-xl font-black tracking-tight" onClick={home}>A.R.I.S.E. <span className="text-violet-700">Reader</span></button>
+        <button className="text-xl font-black tracking-tight" onClick={home}>Arise <span className="text-violet-700">Reader</span></button>
         <div className="flex items-center gap-3"><button onClick={home} className="rounded-full px-3 py-2 text-sm font-bold">Back to home</button><button onClick={startReading} className="rounded-full bg-violet-700 px-5 py-3 text-sm font-bold text-white">Sign in</button></div>
       </header>
       <section className="mx-auto max-w-4xl px-5 pb-8 pt-10 text-center">
@@ -54,7 +56,7 @@ export default function Pricing() {
           <h2 className="mt-3 text-2xl font-black">Class</h2>
           <p className="mt-3 text-5xl font-black">{perBlock} <span className="text-sm font-semibold text-slate-500">/ month</span></p>
           <p className="mt-2 text-xs font-bold text-emerald-700">Discounted classroom price for educators, about 20¢ per student.</p>
-          <p className="mt-3 text-sm leading-6 text-slate-600">A.R.I.S.E. Reader for up to {block} students.</p>
+          <p className="mt-3 text-sm leading-6 text-slate-600">Arise Reader for up to {block} students.</p>
           <ul className="mt-6 space-y-3 text-sm font-semibold"><li>✓ Every student covered by your plan</li><li>✓ Classroom dashboard &amp; reports</li><li>✓ Live class games &amp; class goals</li><li>✓ Custom quizzes for your books</li><li>✓ Parents of your students follow along</li></ul>
           <button onClick={teacherPlan} className="mt-7 w-full rounded-xl bg-emerald-700 px-5 py-3 font-bold text-white" data-testid="pricing-get-premium">Get the class plan</button>
         </article>
@@ -69,7 +71,7 @@ export default function Pricing() {
         </article>
       </section>
       <section className="mx-auto mb-12 max-w-2xl px-5 text-center text-xs leading-5 text-slate-500" data-testid="pricing-why">
-        <p>A.R.I.S.E. Reader started free. As it has grown, running costs have outgrown what one teacher can cover, so we now charge a small price. Everyone who signed up before November 9, 2026 stays free for the 2026-27 school year.</p>
+        <p>Arise Reader started free. As it has grown, running costs have outgrown what one teacher can cover, so we now charge a small price. Everyone who signed up before November 9, 2026 stays free for the 2026-27 school year.</p>
         <p className="mt-1">Can't afford it? <button onClick={() => navigate("/scholarship")} className="font-semibold text-violet-700 underline underline-offset-2" data-testid="pricing-scholarship">Apply for a free account</button>.</p>
       </section>
       <footer className="px-5 pb-8 text-center text-xs text-slate-500">A.R.I.S.E. — Advocating, Resilience, Inclusion, Support, Empowerment.</footer>

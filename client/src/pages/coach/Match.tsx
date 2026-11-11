@@ -1,4 +1,4 @@
-// Smart matching in Arise Fit: six quick answers, then the three best trainers with the reasons and the price that
+// Smart matching in Cooked: six quick answers, then the three best trainers with the reasons and the price that
 // fits. Scoring: shared/coachMatch.ts. Server: server/coach.ts (/api/coach/match).
 import { useEffect, useRef, useState } from "react";
 import { Check, Sparkles } from "lucide-react";

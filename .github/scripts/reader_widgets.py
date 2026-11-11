@@ -1,4 +1,4 @@
-"""A.R.I.S.E. Reader iPhone app: the bridge its Home Screen widgets read from.
+"""Arise Reader iPhone app: the bridge its Home Screen widgets read from.
 
 Adds to AppDelegate.swift (after adopt_uiscene.py made the SceneDelegate):
   - ReaderWidgetPlugin, a Capacitor plugin ("ReaderWidget") with save({ data }): it keeps the

@@ -1,4 +1,4 @@
-// Arise Fit nutrition: the day's food by meal, with search (USDA + Open Food Facts), barcode scanning,
+// Cooked nutrition: the day's food by meal, with search (USDA + Open Food Facts), barcode scanning,
 // a photo or description estimated by AI, recent foods and quick add. Uses the same food lookup as the
 // Calorie counter in Arise To Duo (server/foodLookup.ts).
 import { useEffect, useMemo, useRef, useState } from "react";

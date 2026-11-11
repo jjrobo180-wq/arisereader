@@ -1,4 +1,4 @@
-name: Arise Trainer signed iOS release candidate
+name: Cooked PT signed iOS release candidate
 # Built from the shared frontend with VITE_NATIVE_APP=trainer (client/src/lib/nativeApp.ts).
 # Uploads to TestFlight only for a pushed commit whose message has [approved-testflight].
 on:
@@ -95,7 +95,7 @@ jobs:
           # This app's own App Store profile (made from the same certificate when it doesn't exist yet).
           security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
           if [[ "$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/profile.plist")" != '6TYWWNKX6P.com.arisereader.trainer' ]]; then
-            python3 podscroll/ios-app/find-existing-profile.py com.arisereader.trainer "$RUNNER_TEMP/profile.mobileprovision" --create-missing-profile --register-bundle-id "--app-name=Arise Trainer"
+            python3 podscroll/ios-app/find-existing-profile.py com.arisereader.trainer "$RUNNER_TEMP/profile.mobileprovision" --create-missing-profile --register-bundle-id "--app-name=Cooked PT"
           fi
           # Its capabilities on the App ID, and a profile that includes them (same certificate).
           python3 .github/scripts/apple_signing.py com.arisereader.trainer "$RUNNER_TEMP/profile.mobileprovision" APPLE_ID_AUTH PUSH_NOTIFICATIONS
@@ -104,7 +104,7 @@ jobs:
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
           PROFILE_APP_ID=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/profile.plist")
           if [[ "$PROFILE_APP_ID" != '6TYWWNKX6P.com.arisereader.trainer' ]]; then
-            echo "::error::Provisioning profile does not match the Arise Trainer bundle ID"
+            echo "::error::Provisioning profile does not match the Cooked PT bundle ID"
             exit 1
           fi
           security create-keychain -p "" "$RUNNER_TEMP/trainer.keychain-db"

@@ -93,6 +93,8 @@ function bundleApps(): Omit<SharedApp, "id">[] {
 export const SHARED_APPS: SharedApp[] = [...BASE, ...bundleApps()].map((a) => ({ ...a, id: a.section === "kitchen" ? "life:meals" : LEGACY_IDS[a.section] || `life:${a.section}` }));
 export const sharedAppFor = (section: string) => SHARED_APPS.find((a) => a.section === section);
 export const sharedAppById = (id: string) => SHARED_APPS.find((a) => a.id === id);
+/** The name to show for a shared app: Kitchen took over the meal plan's id, so its name wins. */
+export const sharedAppLabel = (id: string) => [...SHARED_APPS].reverse().find((a) => a.id === id)?.label;
 
 /** What an app keeps, out of a family. */
 export function pickParts(family: Partial<Family>, parts: AppPart[]): Record<string, unknown> {

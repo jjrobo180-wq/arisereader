@@ -1,4 +1,4 @@
-// The Eye Gazer lesson player: a lesson's "learn" cards (big picture, word, sentence read aloud),
+// The Arise AAC lesson player: a lesson's "learn" cards (big picture, word, sentence read aloud),
 // then its quiz. Every button can be pressed by looking at it (the yellow bar fills) or by a tap.
 //
 // It is built so a quiz can't get stuck: the answer buttons never wait for the voice (if the AI

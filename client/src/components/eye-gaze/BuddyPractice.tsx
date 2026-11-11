@@ -1,4 +1,4 @@
-// "Practice with my buddy" on the Eye Gazer profile: quick look-and-find questions taken from the
+// "Practice with my buddy" on the Arise AAC profile: quick look-and-find questions taken from the
 // Look & Find lessons (shared/eyegaze/lessons.ts). Look at a picture until the yellow bar fills,
 // or tap it. Just practice, so no points; the Lessons page has the quizzes that earn points.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";

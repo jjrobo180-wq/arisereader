@@ -11,7 +11,7 @@ const TIME = /^([01]?\d|2[0-3]):[0-5]\d$/;
 const pad = (n: number) => String(n).padStart(2, "0");
 const mins = (hm: string) => Number(hm.split(":")[0]) * 60 + Number(hm.split(":")[1]);
 const clock = (m: number) => `${pad(Math.floor(m / 60) % 24)}:${pad(m % 60)}`;
-const line = (value: unknown, max: number) => String(value ?? "").replace(/[\u0000-\u001f<>]+/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+const line = (value: unknown, max: number) => String(value ?? "").replace(/[\u0000-\u001f<>]+/g, " ").replace(/\s+$/, (m) => (/^ $/.test(m) ? " " : "")).replace(/(\S)\s+(?=\S)/g, "$1 ").replace(/^\s+/, "").slice(0, max);
 export const COVERAGE_MAX = 12;
 
 /** "Tuesday, Oct 13" */

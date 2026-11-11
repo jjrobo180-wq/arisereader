@@ -1,4 +1,4 @@
-// Arise Trainer groups (November 2026): group pages, group chat and challenges (like a 21-day sugar reset)
+// Cooked PT groups (November 2026): group pages, group chat and challenges (like a 21-day sugar reset)
 // with a leaderboard. Run with: npx tsx --test tests/trainer-groups.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -66,7 +66,7 @@ test("a trainer makes a group of their own clients; members post, like, comment 
   assert.ok(sent.some(([u, t]) => u === 101 && t === "You're in Morning crew"));
   assert.equal((await call("POST", "/api/coach/trainer/groups", 7, { group: { name: "" } })).status, 400);
 
-  // Members find it in Arise Fit; a client who isn't in it doesn't, and can't open it.
+  // Members find it in Cooked; a client who isn't in it doesn't, and can't open it.
   assert.deepEqual((await call("GET", "/api/coach/groups", 101)).body.groups.map((x: any) => x.name), ["Morning crew"]);
   assert.equal((await call("GET", "/api/coach/groups", 103)).body.groups.length, 0);
   assert.equal((await call("GET", `/api/coach/groups/${g.id}`, 103)).status, 403);
@@ -153,7 +153,7 @@ test("a sugar reset challenge: members check off goals, the leaderboard ranks th
   assert.equal((await call("GET", "/api/coach/groups", 101)).body.groups[0].live, "21-day sugar reset");
 });
 
-test("groups are wired into Arise Trainer and Arise Fit", () => {
+test("groups are wired into Cooked PT and Cooked", () => {
   assert.match(read("server/coach.ts"), /registerCoachGroupRoutes\(app, auth,/);
   assert.match(read("server/index.ts"), /"\/api\/coach\/groups", express\.json\(\{ limit: "1mb" \}\)/);
   const tr = read("client/src/pages/trainer/TrainerApp.tsx");

@@ -21,7 +21,8 @@
 // and the whole thing runs in tests. Stripe is called over plain HTTPS, so no
 // new package is needed.
 import type { Express, RequestHandler } from "express";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { AppleVerifyError, allAccessState, isAllAccessProduct, verifyAppleJws, type AppleTransaction, type VerifyOptions } from "./appleStore";
 import {
   APP_IDS, APP_NAMES, PLANS, PLAN_KINDS, PREMIUM_REQUIRED, appAccessFor, appOfClassKind, classAppCents, classGrantCovers, classKindOf, clampBlocks, isAppId, isClassAppKind, entitlementFor, grantLive, hubAccessFor, isAddonKind, isDemoAccount, isFreeSchoolName, isHubKind, isPlanKind, todoAccessFor,
   type AddonAccess, type AppId,
@@ -48,6 +49,8 @@ type AnyUser = {
 };
 
 export type PlanDeps = {
+  /** Tests only: check Apple-signed purchases against a test root certificate. */
+  appleVerify?: VerifyOptions;
   getSetting(key: string): Promise<string>;
   upsertSetting(key: string, value: string): Promise<void>;
   /**
@@ -481,7 +484,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   };
   const entitlement = async (user: AnyUser | null | undefined): Promise<Entitlement> => {
     if (!user || !posInt(user.id)) return { premium: false, via: null, seats: null, endsAt: null };
-    // A.R.I.S.E. Eye Gazer is 100% free: an Eye Gazer has every extra.
+    // Arise AAC is 100% free: an Arise AAC has every extra.
     if (isEyeGazer(user)) return { premium: true, via: "demo", seats: null, endsAt: null };
     const key = `${user.id}|${user.role || ""}|${user.isAdmin ? 1 : 0}`;
     const hit = cache.get(key);
@@ -507,7 +510,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     return value;
   };
 
-  /** Can this person use A.R.I.S.E. Reader (paid since November 9, 2026), and why? */
+  /** Can this person use Arise Reader (paid since November 9, 2026), and why? */
   const readerAccess = async (user: AnyUser | null | undefined): Promise<ReaderAccess> => {
     if (!user || !posInt(user.id)) return { access: false, via: null };
     const key = `${user.id}|${user.role || ""}|${user.isAdmin ? 1 : 0}`;
@@ -519,7 +522,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       // Most people are existing accounts: no plan lookups for them.
       const quick = isEyeGazer(user) ? { access: true, via: "sample" as const } : readerAccessFor(p, facts);
       let value = quick;
-      // A parent of an Eye Gazer child: Eye Gazer is free, so its parent tools are too.
+      // A parent of an Arise AAC child: Arise AAC is free, so its parent tools are too.
       if (!quick.access && user.role === "parent") {
         for (const id of await linkedChildren(user)) { if (isEyeGazer(await deps.getUser(id))) { value = { access: true, via: "sample" }; break; } }
       }
@@ -574,9 +577,9 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   app.use("/api", teacherGate);
 
   /**
-   * A.R.I.S.E. Reader is paid for accounts made from November 9, 2026. A new student, parent or
+   * Arise Reader is paid for accounts made from November 9, 2026. A new student, parent or
    * teacher without a plan is refused the Reader's own data (books, quizzes, points, dashboards);
-   * everything else (signing in, their plan and paying, To Duo, LifeHub, WorkHub, Eye Gazer) stays
+   * everything else (signing in, their plan and paying, To Duo, LifeHub, WorkHub, Arise AAC) stays
    * open. If the check itself fails the request goes through, so a hiccup never locks out a payer.
    */
   const readerGate: RequestHandler = async (req: any, res: any, next: any) => {
@@ -588,7 +591,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const user: any = await deps.userForToken(token);
       if (!user || user.isAdmin || user.is_eye_gaze_user || user.isEyeGazeUser) return next();
       if ((await readerAccess(user)).access) return next();
-      return res.status(402).json({ message: "This account needs an A.R.I.S.E. Reader plan. A family plan is $7 a month at arisereader.com.", code: READER_PLAN_REQUIRED });
+      return res.status(402).json({ message: "This account needs an Arise Reader plan. A family plan is $7 a month at arisereader.com.", code: READER_PLAN_REQUIRED });
     } catch (e: any) {
       console.error("[plans] Reader check failed:", e?.message);
       return next();
@@ -776,8 +779,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const mine = (await readGrant("teacher", teacher.id)) ?? (await readGrant("hub_teacher", teacher.id));
       const customer = mine?.buyerId === teacher.id ? mine.stripeCustomerId : undefined;
       const price = priceOf(kind);
-      const productName = kind === "school" ? `A.R.I.S.E. Reader for a whole school (up to ${PLANS.school.studentCap.toLocaleString("en-US")} students)`
-        : kind === "teacher" ? `A.R.I.S.E. Reader for a teacher (per ${PLANS.teacher.studentsPerBlock} students)`
+      const productName = kind === "school" ? `Arise Reader for a whole school (up to ${PLANS.school.studentCap.toLocaleString("en-US")} students)`
+        : kind === "teacher" ? `Arise Reader for a teacher (per ${PLANS.teacher.studentsPerBlock} students)`
         : kind === "hub_school" ? `Arise WorkHub for a school (up to ${PLANS.hub.schoolStudentCap.toLocaleString("en-US")} students)`
         : `Arise WorkHub for a teacher (per ${PLANS.hub.studentsPerBlock} students)`;
       const session = await stripe("POST", "/checkout/sessions", {
@@ -1057,7 +1060,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     return { live: grantLive(grant, now()), admin: false, grant };
   };
   const ALL_ACCESS_NAME = "Arise All Access";
-  const ALL_ACCESS_ABOUT = "Every Arise app's paid tier for one person: To Duo Unlimited, Arise Notes Plus (1,500 minutes a month), Arise Fit+ with a guest pass, and ad-free Pod+.";
+  const ALL_ACCESS_ABOUT = "Every Arise app's paid tier for one person: To Duo Unlimited, Arise Notes Plus (1,500 minutes a month), Cooked+ with a guest pass, and ad-free Pod+.";
   /** Opens Stripe's payment page for All Access. `returnPath` (in the body) says which app to come back to. */
   const allAccessCheckout = async (req: any): Promise<string> => {
     const buyer: AnyUser = req.user;
@@ -1097,7 +1100,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const g = own.grant;
       res.set("Cache-Control", "no-store");
       res.json({
-        live: own.live, admin: own.admin, priceCents: PLANS.allAccess.monthlyCents, payment: !!(await stripeKey()),
+        live: own.live, admin: own.admin, source: own.grant?.source ?? null, priceCents: PLANS.allAccess.monthlyCents, payment: !!(await stripeKey()),
         endsAt: g?.endsAt ?? null, cancelAtPeriodEnd: !!g?.cancelAtPeriodEnd, canManage: !!g?.stripeCustomerId && g.buyerId === user.id,
         canBuy: !user.isAdmin && user.role !== "student" && !!user.role, about: ALL_ACCESS_ABOUT,
       });
@@ -1116,6 +1119,95 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       if (typeof session?.url !== "string" || !session.url.startsWith("https://")) throw new Refused("The billing page could not be opened.", 502);
       res.json({ url: session.url });
     } catch (e) { fail(res, e, "all access portal"); }
+  });
+
+  // ─── All Access bought in an iPhone app (Apple in-app purchase; server/appleStore.ts) ───────────
+  // The app asks for this account's purchase token first and hands it to Apple with the purchase, so
+  // the signed purchase (and every renewal Apple reports later) names the account it belongs to.
+  const APPLE = { tokenKey: "apple_token_key", token: (t: string) => `apple_token_${t}`, tx: (id: string) => `apple_tx_${id}` };
+  const appleTokenOf = async (userId: number) => {
+    let key = await read(APPLE.tokenKey);
+    if (!/^[0-9a-f]{64}$/.test(key)) { key = randomBytes(32).toString("hex"); await write(APPLE.tokenKey, key); }
+    const h = createHmac("sha256", Buffer.from(key, "hex")).update(`all_access:${userId}`).digest("hex");
+    const token = `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-${((parseInt(h[16], 16) & 3) | 8).toString(16)}${h.slice(17, 20)}-${h.slice(20, 32)}`;
+    if ((await read(APPLE.token(token))) !== String(userId)) await write(APPLE.token(token), String(userId));
+    return token;
+  };
+  /** Saves what an Apple-signed All Access purchase says, for `userId`. A live plan from the website or
+   *  the admin is never replaced by an Apple one that has ended. */
+  const applyAppleTransaction = (userId: number, t: AppleTransaction) => serial(async () => {
+    const state = allAccessState(t, now());
+    const held = await readGrant("all_access", userId, true);
+    if (held && held.source !== "apple" && grantLive(held, now()) && !state.active) return held;
+    if (held && held.source === "apple" && held.appleOriginalTransactionId === t.originalTransactionId && Date.parse(held.updatedAt) > (t.signedDate ?? 0) && held.endsAt && state.endsAt && Date.parse(held.endsAt) > Date.parse(state.endsAt)) return held;
+    if (held && held.source === "stripe" && grantLive(held, now())) return held;
+    const grant: PlanGrant = {
+      kind: "all_access", ownerId: userId, buyerId: userId, source: "apple", status: state.active ? "active" : "canceled", seats: 1,
+      endsAt: state.endsAt, updatedAt: iso(t.signedDate ?? now()), appleOriginalTransactionId: String(t.originalTransactionId), appleProductId: t.productId,
+      note: t.environment && t.environment !== "Production" ? `Apple ${t.environment}` : undefined,
+    };
+    await saveGrant(grant);
+    await write(APPLE.tx(String(t.originalTransactionId)), String(userId));
+    return grant;
+  });
+  /** Whose purchase this is: the account named by its token, or the one it was first saved for. */
+  const appleOwner = async (t: AppleTransaction): Promise<number | null> => {
+    const byTx = Number(await read(APPLE.tx(String(t.originalTransactionId))));
+    if (posInt(byTx)) return byTx;
+    const byToken = t.appAccountToken ? Number(await read(APPLE.token(String(t.appAccountToken).toLowerCase()))) : NaN;
+    return posInt(byToken) ? byToken : null;
+  };
+  const appleTransaction = (jws: unknown): AppleTransaction => {
+    const t = verifyAppleJws<AppleTransaction>(jws, { now: now(), ...(deps.appleVerify ?? {}) });
+    if (!isAllAccessProduct(t.bundleId, t.productId)) throw new Refused("That purchase isn't Arise All Access.", 400);
+    if (!t.originalTransactionId) throw new Refused("That purchase is incomplete.", 400);
+    return t;
+  };
+
+  app.get("/api/all-access/apple-token", auth, async (req: any, res: any) => {
+    try {
+      const user: AnyUser = req.user;
+      if (req.adminPreview || !user || user.role === "student" || !user.role) throw new Refused("Ask a parent or teacher about All Access.", 403);
+      res.set("Cache-Control", "no-store");
+      res.json({ token: await appleTokenOf(user.id) });
+    } catch (e) { fail(res, e, "apple token"); }
+  });
+  /** The app sends Apple's signed purchase (after buying, and on each open to pick up renewals). */
+  app.post("/api/all-access/apple", auth, async (req: any, res: any) => {
+    try {
+      const user: AnyUser = req.user;
+      if (req.adminPreview || !user) throw new Refused("Sign in to your own account.", 403);
+      const list: unknown[] = Array.isArray(req.body?.transactions) ? req.body.transactions.slice(0, 10) : [req.body?.transaction];
+      let saved: PlanGrant | null = null;
+      for (const jws of list) {
+        let t: AppleTransaction;
+        try { t = appleTransaction(jws); } catch (e) { if (e instanceof AppleVerifyError) throw new Refused("That purchase couldn't be checked with Apple.", 400); throw e; }
+        const mine = await appleTokenOf(user.id);
+        const owner = await appleOwner(t);
+        if (t.appAccountToken && t.appAccountToken.toLowerCase() !== mine) throw new Refused("That purchase belongs to a different Arise account. Sign in with that account to use it.", 403);
+        if (owner && owner !== user.id) throw new Refused("That purchase belongs to a different Arise account. Sign in with that account to use it.", 403);
+        saved = await applyAppleTransaction(user.id, t);
+      }
+      const own = await allAccessOwn(user.id, user);
+      res.json({ ok: true, live: own.live, endsAt: saved?.endsAt ?? own.grant?.endsAt ?? null });
+    } catch (e) { fail(res, e, "apple purchase"); }
+  });
+  /** App Store Server Notifications (version 2): renewals, cancellations, refunds. Set this address
+   *  as the "Production" and "Sandbox" server URL for each app in App Store Connect. */
+  app.post("/api/apple/notifications", async (req: any, res: any) => {
+    try {
+      const n = verifyAppleJws<any>(req.body?.signedPayload, { now: now(), ...(deps.appleVerify ?? {}) });
+      const signed = n?.data?.signedTransactionInfo;
+      if (!signed) return void res.json({ ok: true });
+      const t = appleTransaction(signed);
+      const owner = await appleOwner(t);
+      if (!owner) { console.warn("[plans] Apple notification for an unknown purchase:", n?.notificationType, t.originalTransactionId); return void res.json({ ok: true }); }
+      await applyAppleTransaction(owner, t);
+      res.json({ ok: true });
+    } catch (e: any) {
+      if (e instanceof AppleVerifyError) return void res.status(400).json({ message: "Not from Apple." });
+      fail(res, e, "apple notification");
+    }
   });
 
   const productKind = (user: AnyUser, product: unknown): PlanKind => {
@@ -1239,7 +1331,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const name = app ? `${APP_NAMES[app]} for a class (up to ${PLANS.classApps.seats} students)`
         : kind === "todo_unlimited" ? UNLIMITED_NAME
         : kind === "todo_unlimited_year" ? `${UNLIMITED_NAME}, yearly`
-        : kind === "bundle_family" ? "A.R.I.S.E. Reader for a family (Reader, Math, History and Connect, up to 3 children)"
+        : kind === "bundle_family" ? "Arise Reader for a family (up to 3 children)"
         : "Arise LifeHub for a family";
       const back = addonReturn(req);
       const session = await stripe("POST", "/checkout/sessions", {
@@ -1404,7 +1496,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     } catch (e) { fail(res, e, "notes portal"); }
   });
 
-  // ─── Arise Fit+ (shared/fitPlus.ts): $10 a month, one per account ────────────────────────────
+  // ─── Cooked+ (shared/fitPlus.ts): $10 a month, one per account ────────────────────────────
   // Sold on the website only (never inside the iPhone app). Sharing it with one guest is
   // server/fitPass.ts's job; this part is the paid plan itself.
   /** This account's own Fit+ (paid for, or given by the admin). The admin always has it. */
@@ -1420,10 +1512,10 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     try {
       const buyer: AnyUser = req.user;
       if (req.adminPreview || !buyer) throw new Refused("Sign in to your own account to subscribe.", 403);
-      if (buyer.isAdmin) throw new Refused("The admin account already has Arise Fit+.", 409);
+      if (buyer.isAdmin) throw new Refused("The admin account already has Cooked+.", 409);
       if (buyer.accountApproved === false) throw new Refused("Your account is still waiting for approval.", 403);
       const kind: PlanKind = "fit_plus";
-      if (grantLive(await current(kind, buyer.id), now())) throw new Refused("You already have Arise Fit+. Use Manage billing to change it.", 409, "has_plan");
+      if (grantLive(await current(kind, buyer.id), now())) throw new Refused("You already have Cooked+. Use Manage billing to change it.", 409, "has_plan");
       // Fit+ is sold as All Access now (Fit+ and its guest pass are part of it).
       req.body = { ...(req.body || {}), returnPath: "/fit" };
       return void res.json({ url: await allAccessCheckout(req) });
@@ -1433,7 +1525,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     try {
       const user: AnyUser = req.user;
       const grant = await current("fit_plus", user.id);
-      if (!grant?.stripeCustomerId) throw new Refused("There is no online payment to manage for Arise Fit+.", 409);
+      if (!grant?.stripeCustomerId) throw new Refused("There is no online payment to manage for Cooked+.", 409);
       if (grant.buyerId && grant.buyerId !== user.id) throw new Refused("Only the person who pays for this plan can manage its billing.", 403);
       const session = await stripe("POST", "/billing_portal/sessions", { customer: grant.stripeCustomerId, return_url: (req.body = { ...(req.body || {}), returnPath: "/fit" }, addonReturn(req)).back });
       if (typeof session?.url !== "string" || !session.url.startsWith("https://")) throw new Refused("The billing page could not be opened.", 502);
@@ -1522,7 +1614,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         entitlement(user), hubAccess(user), todoStatus(user), ...APP_IDS.map((app) => appStatus(user, app)),
       ]);
       res.json({ programs: [
-        { id: "reader", name: "A.R.I.S.E. Reader and Class tools", access: reader.premium },
+        { id: "reader", name: "Arise Reader and Class tools", access: reader.premium },
         { id: "hub", name: "Arise WorkHub", access: hub.access },
         { id: "todo", name: "Arise LifeHub", access: todo.access },
         ...APP_IDS.map((app, i) => ({ id: app, name: APP_NAMES[app], access: apps[i].access })),

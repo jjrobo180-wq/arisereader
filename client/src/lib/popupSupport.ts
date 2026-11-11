@@ -1,4 +1,4 @@
-// The Reader and Arise Fit iPhone apps run inside a web view, and a web view quietly drops window.open() and
+// The Reader and Cooked iPhone apps run inside a web view, and a web view quietly drops window.open() and
 // target="_blank" links, so "Read this book", "Open the PDF" and similar buttons did nothing. This
 // makes them work: a page inside the app opens in the app, and any other address opens in Safari.
 import { isFitApp, isReaderApp } from "./nativeApp";

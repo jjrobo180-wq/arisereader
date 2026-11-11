@@ -29,7 +29,7 @@ export function Card({ title, children, right, collapseKey }: { title?: string; 
   return (
     <section className="min-w-0" data-collapsed={folds && closed ? "true" : undefined}>
       {(title || right) && (
-        <div className={`flex items-center justify-between gap-3 ${folds && closed ? "" : "border-b border-slate-200 pb-2"}`}>
+        <div className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-2 ${folds && closed ? "" : "border-b border-slate-200 pb-2"}`}>
           {folds ? (
             <h2 className="min-w-0 flex-1">
               <button type="button" onClick={toggle} aria-expanded={!closed} title={closed ? "Show" : "Hide"} data-testid={`hub-fold-${collapseKey}`}

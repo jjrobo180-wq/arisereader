@@ -1,4 +1,4 @@
-// Arise WorkHub (was Teacher Hub) and Arise LifeHub (was To-Do): names, the A.R.I.S.E. Reader tabs,
+// Arise WorkHub (was Teacher Hub) and Arise LifeHub (was To-Do): names, the Arise Reader tabs,
 // and what stays once a trial ends.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -9,11 +9,11 @@ import { FAMILY_SECTIONS, TOGGLEABLE } from "../shared/familyHub";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("WorkHub: A.R.I.S.E. Reader is a way out to its own page; the admin console stands alone", () => {
+test("WorkHub: Arise Reader is a way out to its own page; the admin console stands alone", () => {
   // The Reader's teacher tools moved to /reader (client/src/pages/AriseReader.tsx), so this menu
   // item leaves the hub instead of opening tabs inside it. One tab is kept so the item still shows.
   assert.equal(HUB_GROUPS[1].id, "arise");
-  assert.equal(HUB_GROUPS[1].label, "A.R.I.S.E. Reader");
+  assert.equal(HUB_GROUPS[1].label, "Arise Reader");
   assert.deepEqual(HUB_GROUPS[1].tabs, ["reader"], "the Reader group is a link now, not nine tabs");
   const visible = emptyWorkspace().visibleTabs;
   assert.ok(visibleGroups({ ...visible, arise: false }).some((g) => g.id === "arise"), "it can't be hidden away");
@@ -55,7 +55,7 @@ test("new names across the site, with the old addresses still working", () => {
   // after signing in, a teacher opens WorkHub's Home and a parent LifeHub's Home
   assert.match(app, /if \(user\.role === "teacher"\) return <OpenHubTab to="\/workhub" storageKey="workhub_tab" value="overview" \/>;/);
   assert.match(app, /if \(user\.role === "parent"\) return <OpenHubTab to="\/lifehub" storageKey="lifehub_tab" value="home" \/>;/);
-  // the old dashboards now go to the A.R.I.S.E. Reader page (since Oct 12)
+  // the old dashboards now go to the Arise Reader page (since Oct 12)
   assert.match(app, /<Route path="\/teacher-dashboard">\s*<Redirect to="\/reader" replace \/>/);
   const files = ["client/src/pages/TeacherHub.tsx", "client/src/pages/AriseTodo.tsx", "client/src/components/HubSwitch.tsx", "client/src/components/AddonsCard.tsx", "client/src/pages/Pricing.tsx", "client/src/pages/Billing.tsx"];
   for (const f of files) {
@@ -65,7 +65,7 @@ test("new names across the site, with the old addresses still working", () => {
   }
 });
 
-test("after a trial: WorkHub and LifeHub keep only the A.R.I.S.E. Reader tools, and every tab notes a trial", () => {
+test("after a trial: WorkHub and LifeHub keep only the Arise Reader tools, and every tab notes a trial", () => {
   const hub = read("client/src/pages/TeacherHub.tsx");
   assert.match(hub, /if \(needsPlan\) return <ReaderOnly/);
   assert.match(hub, /<HubTrialNote trial=\{trial\} which="work"/);
@@ -123,7 +123,7 @@ test("there's no way back to the old screens: old addresses and admins land in t
   assert.match(app, /<Route path="\/parent-dashboard">\s*<Redirect to="\/reader" replace \/>/);
   assert.match(app, /<Route path="\/teacher-dashboard">\s*<Redirect to="\/reader" replace \/>/);
   // Signing in lands admins and teachers in WorkHub on Home. No tab is asked for: setting one
-  // here opened the Hub on the admin console, which sits inside the A.R.I.S.E. Reader menu item.
+  // here opened the Hub on the admin console, which sits inside the Arise Reader menu item.
   // (One AfterSignIn decides this for every sign-in route since Oct 12.)
   assert.match(app, /\{user \? <AfterSignIn onReaderDomain=\{onReaderDomain\} onTodoDomain=\{onTodoDomain\} \/> : isNativeApp\(\) \? <NativeSignIn \/> : <SignIn \/>\}/);
   assert.ok(!/path="\/(register|register-independent)?"[\s\S]{0,40}OpenHubTab to="\/workhub"/.test(app), "the sign-in routes ask for no tab");

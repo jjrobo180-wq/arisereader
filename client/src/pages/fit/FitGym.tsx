@@ -1,4 +1,4 @@
-// Arise Fit: your gym and its machines.
+// Cooked: your gym and its machines.
 // - My gym: pick your gym (Planet Fitness, LA Fitness, a home or apartment gym…) and the equipment it
 //   has; take photos of a home or apartment gym and the AI finds the equipment. Built-for-you workouts
 //   then use only what you have (shared/fitGym.ts, shared/fitRecovery.ts).
@@ -279,7 +279,7 @@ export function Debrief({ w, data }: { w: Workout; data: FitData }) {
         <p className="mt-1.5 text-[15px]"><b>{d.protein.lo}–{d.protein.hi} g protein</b>{d.carbs ? <> and <b>{d.carbs.lo}–{d.carbs.hi} g carbs</b></> : null}.</p>
         <p className="mt-1 text-[13px]" style={{ color: C.dim }}>Like a protein shake and a banana, chicken and rice, or Greek yogurt with fruit. Within a couple of hours is plenty.</p></div></div>
       <Btn kind="soft" className="mt-3 w-full" onClick={() => void remind()} disabled={reminded === "set"} testId="fit-refuel-remind"><Bell className="h-5 w-5" />{reminded === "set" ? "Reminder set for 1 hour" : "Remind me in 1 hour"}</Btn>
-      {reminded === "web" && <p className="mt-2 text-[13px]" style={{ color: C.dim }}>Reminders work in the Arise Fit iPhone app with notifications on.</p>}</Card>
+      {reminded === "web" && <p className="mt-2 text-[13px]" style={{ color: C.dim }}>Reminders work in the Cooked iPhone app with notifications on.</p>}</Card>
     <Card className="mt-2 flex items-center gap-3 !p-4"><Droplets className="h-6 w-6 shrink-0" style={{ color: C.blue }} /><p className="text-[15px]">Drink about <b>{d.waterMl >= 1000 ? `${(d.waterMl / 1000).toFixed(1)} L` : `${d.waterMl} ml`}</b> ({Math.round(d.waterMl / 29.6)} oz) over the next hour.</p></Card>
     <Title>Recovery</Title>
     <Card className="!p-4"><ul className="space-y-2">{d.tips.map((t, i) => <li key={i} className="text-[15px] leading-snug">• {t}</li>)}</ul></Card>

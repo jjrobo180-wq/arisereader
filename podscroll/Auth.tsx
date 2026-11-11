@@ -4,7 +4,6 @@
 import { useState } from "react";
 import { Check, Eye, EyeOff, Loader2, X } from "lucide-react";
 import { APPLE_LOGO_PATH, appleSignInAvailable, askApple } from "../client/src/lib/appleSignIn";
-import AllAccessOffer from "@/components/AllAccessOffer";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
 type Mode = "signin" | "signup" | "forgot" | "code";
@@ -75,9 +74,8 @@ export function AuthScreen({ api, onDone, onClose, dark, start = "signin" }: { a
       </div>}
 
       {mode === "signup" && !sent && <ul className={`mt-4 grid gap-1.5 text-sm ${C.sub}`}>
-        {["Listening stays free, no account needed", "Members can get paid for their show", "Your Pod Modes, likes and place on every device"].map((t) => <li key={t} className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff6a1f]" />{t}</li>)}
+        {["Listening stays free, no account needed", "Your Pod Modes, likes and place on every device"].map((t) => <li key={t} className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff6a1f]" />{t}</li>)}
       </ul>}
-      {mode === "signup" && !sent && <AllAccessOffer dark={dark} className="mt-4" note="Ad-free listening comes with Arise All Access. Already have it? Use the same email here." />}
 
       <form className="mt-5" onSubmit={(e) => {
         e.preventDefault(); if (busy) return;

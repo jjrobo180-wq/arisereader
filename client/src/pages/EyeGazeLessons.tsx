@@ -1,4 +1,4 @@
-// Eye Gazer "Lessons & Books" (#/eye-gaze-lessons, also inside Games). Lessons come in four steps,
+// Arise AAC "Lessons & Books" (#/eye-gaze-lessons, also inside Games). Lessons come in four steps,
 // easiest first; each lesson teaches a few words with pictures, then asks 5 questions.
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";

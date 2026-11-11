@@ -1,5 +1,5 @@
 // Arise All Access: one $10-a-month plan for every Arise app (shared/plans.ts "all_access", sold in
-// server/plans.ts). To Duo Unlimited, Arise Notes Plus, Arise Fit+ (with its guest pass) and ad-free
+// server/plans.ts). To Duo Unlimited, Arise Notes Plus, Cooked+ (with its guest pass) and ad-free
 // Pod+. Sold on the website only; the iPhone apps show what's on the account, never a price.
 import { useEffect, useRef, useState } from "react";
 import { Check, Crown, Loader2 } from "lucide-react";
@@ -7,13 +7,14 @@ import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { NATIVE_NO_PURCHASE, isNativeApp } from "@/lib/nativeApp";
 import AllAccessOffer from "@/components/AllAccessOffer";
+import { appleStoreReady, manageAppleSubscription } from "@/lib/appleStore";
 
-type Status = { live: boolean; admin: boolean; priceCents: number; payment: boolean; endsAt: string | null; cancelAtPeriodEnd: boolean; canManage: boolean; canBuy: boolean; about?: string };
+type Status = { live: boolean; admin: boolean; source?: "stripe" | "admin" | "apple" | null; priceCents: number; payment: boolean; endsAt: string | null; cancelAtPeriodEnd: boolean; canManage: boolean; canBuy: boolean; about?: string };
 
 const PERKS: [string, string][] = [
   ["Arise To Duo Unlimited", "Every plugin in the Plugin Gallery and AI, in WorkHub and LifeHub."],
   ["Arise Notes Plus", "1,500 minutes a month, speaker labels, IEP mode and rollover."],
-  ["Arise Fit+", "Every Fit+ feature, plus a free guest pass for one friend."],
+  ["Cooked+", "Every Fit+ feature, plus a free guest pass for one friend."],
   ["Ad-free Pod+", "Ads are found and skipped in the episodes you play."],
 ];
 
@@ -65,9 +66,12 @@ export default function AllAccessPage() {
             {!s ? <div className="flex justify-center py-3"><Loader2 className="h-6 w-6 animate-spin text-violet-600" /></div>
               : s.live ? <>
                   <p className="text-sm text-slate-600">{s.admin ? "The admin account always has All Access." : s.endsAt ? `${s.cancelAtPeriodEnd ? "Ends" : "Renews"} ${date(s.endsAt)}.` : "On your account."}</p>
+                  {s.source === "apple" && (native && appleStoreReady()
+                    ? <button type="button" onClick={() => void manageAppleSubscription()} className="mt-3 flex min-h-12 w-full items-center justify-center rounded-2xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50">Manage subscription</button>
+                    : <p className="mt-2 text-sm text-slate-600">Bought in the iPhone app. Change or cancel it in Settings › Apple ID › Subscriptions.</p>)}
                   {s.canManage && !native && <button type="button" disabled={busy} onClick={() => void go("/api/all-access/portal")} className="mt-3 flex min-h-12 w-full items-center justify-center rounded-2xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50">{busy ? "Opening…" : "Manage billing"}</button>}
                 </>
-              : native ? <AllAccessOffer note={NATIVE_NO_PURCHASE} />
+              : native ? <AllAccessOffer note={NATIVE_NO_PURCHASE} authToken={token} onBought={() => void load()} />
               : !s.canBuy ? <p className="text-sm text-slate-600">All Access is for adult accounts. Ask a parent or teacher about it.</p>
               : !s.payment ? <p className="text-sm text-slate-600">Payments aren't switched on for this site yet.</p>
               : <button type="button" disabled={busy} onClick={() => void go("/api/all-access/checkout")} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 text-sm font-bold text-white shadow-sm hover:bg-violet-700 disabled:opacity-60" data-testid="all-access-buy">{busy ? "Opening checkout…" : `Get All Access · ${price} a month`}</button>}
