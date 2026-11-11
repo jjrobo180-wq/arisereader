@@ -28,7 +28,7 @@ export default function GetReaderApp({ tone = "light", who = "you", className = 
         : { background: "linear-gradient(135deg,#eef0ff 0%,#f7f3ff 60%,#fff 100%)" }}>
       <span aria-hidden className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full opacity-40 blur-2xl" style={{ background: dark ? "#7c6cff" : "#a5b4fc" }} />
       <div className="relative flex flex-wrap items-center gap-x-4 gap-y-3">
-        <img src="/icon-192.png?v=seam1" alt="" className="h-14 w-14 shrink-0 rounded-[14px] shadow-lg" style={{ boxShadow: dark ? "0 6px 18px #0008" : "0 6px 16px #4338ca33" }} />
+        <img src="/reader-app-icon.png" alt="" className="h-14 w-14 shrink-0 rounded-[14px] shadow-lg" style={{ boxShadow: dark ? "0 6px 18px #0008" : "0 6px 16px #4338ca33" }} />
         <div className="min-w-0 flex-[1_1_200px]">
           <p className="text-[11px] font-extrabold uppercase tracking-[.14em]" style={{ color: dark ? "#b6b0ff" : "#4f46e5" }}>New · Free on the App Store</p>
           <h2 className={`mt-0.5 text-[19px] font-black leading-tight ${dark ? "text-white" : "text-slate-900"}`}>Arise Reader is now an app</h2>
