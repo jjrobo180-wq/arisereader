@@ -24,7 +24,7 @@ test("Notes tab is the main page, with Record a meeting and Recordings", () => {
   assert.match(app, /return bare \? \{ name: "pages" \}/);
   const view = read("client/src/components/arise-notes/pages/PagesView.tsx");
   assert.match(view, /data-testid="pages-record"/);
-  assert.match(view, /data-testid="pages-recordings"/);
+  assert.match(view, /testId="pages-recordings"/);
   const page = read("client/src/components/arise-notes/pages/PageScreen.tsx");
   assert.match(page, /takeCommands\(patch\.html\)/);
   assert.match(page, /data-testid="pages-rec-bar"/);
