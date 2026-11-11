@@ -126,7 +126,7 @@ app.get("/app", (req, res, next) => {
   res.type("html").sendFile(appIndex);
 });
 
-// The Eye Gazer home page lives at /eyegaze/. Its first address, /eye-gaze/, and /eyegaze without
+// The Arise AAC home page lives at /eyegaze/. Its first address, /eye-gaze/, and /eyegaze without
 // the slash land there too, so links already shared keep working. (Only these exact pages: the
 // app's /api/eye-gaze/... data routes are untouched.)
 // Matched on the exact address: Express treats "/eyegaze" and "/eyegaze/" as the same route,

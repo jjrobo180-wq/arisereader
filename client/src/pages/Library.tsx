@@ -1713,7 +1713,7 @@ export default function Library() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                 </svg>
               </div>
-              <h2 className="text-xl font-bold">Eye Gazer &amp; Non-Verbal</h2>
+              <h2 className="text-xl font-bold">Arise AAC &amp; Non-Verbal</h2>
               <button
                 onClick={() => navigate("/eye-gaze-home")}
                 className="ml-auto mr-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border-2 border-green-500/40 bg-green-500/10 text-green-400 text-sm font-black hover:bg-green-500/20 transition-colors"

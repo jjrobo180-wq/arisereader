@@ -484,7 +484,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   };
   const entitlement = async (user: AnyUser | null | undefined): Promise<Entitlement> => {
     if (!user || !posInt(user.id)) return { premium: false, via: null, seats: null, endsAt: null };
-    // A.R.I.S.E. Eye Gazer is 100% free: an Eye Gazer has every extra.
+    // Arise AAC is 100% free: an Arise AAC has every extra.
     if (isEyeGazer(user)) return { premium: true, via: "demo", seats: null, endsAt: null };
     const key = `${user.id}|${user.role || ""}|${user.isAdmin ? 1 : 0}`;
     const hit = cache.get(key);
@@ -522,7 +522,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       // Most people are existing accounts: no plan lookups for them.
       const quick = isEyeGazer(user) ? { access: true, via: "sample" as const } : readerAccessFor(p, facts);
       let value = quick;
-      // A parent of an Eye Gazer child: Eye Gazer is free, so its parent tools are too.
+      // A parent of an Arise AAC child: Arise AAC is free, so its parent tools are too.
       if (!quick.access && user.role === "parent") {
         for (const id of await linkedChildren(user)) { if (isEyeGazer(await deps.getUser(id))) { value = { access: true, via: "sample" }; break; } }
       }
@@ -579,7 +579,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   /**
    * Arise Reader is paid for accounts made from November 9, 2026. A new student, parent or
    * teacher without a plan is refused the Reader's own data (books, quizzes, points, dashboards);
-   * everything else (signing in, their plan and paying, To Duo, LifeHub, WorkHub, Eye Gazer) stays
+   * everything else (signing in, their plan and paying, To Duo, LifeHub, WorkHub, Arise AAC) stays
    * open. If the check itself fails the request goes through, so a hiccup never locks out a payer.
    */
   const readerGate: RequestHandler = async (req: any, res: any, next: any) => {
