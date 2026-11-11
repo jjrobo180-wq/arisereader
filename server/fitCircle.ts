@@ -1,4 +1,4 @@
-// Arise Fit workout circles (shared/fitCircle.ts explains what they are). Kept as small JSON records
+// Cooked workout circles (shared/fitCircle.ts explains what they are). Kept as small JSON records
 // in the settings table (server/fitKv.ts), so no new table is needed:
 //   fit_circle_<ownerId>        { code, members: [ids] }   a circle, under the person who started it
 //   fit_circle_member_<id>      { owner }                  someone who joined a circle

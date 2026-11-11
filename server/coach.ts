@@ -4,9 +4,9 @@
 //   Public
 //     GET  /api/coach/trainers                 listed trainers (directory)
 //     GET  /api/coach/trainers/:id             one listing with its reviews
-//   A client (Arise Fit)
+//   A client (Cooked)
 //     GET  /api/coach/me                       my trainers: their plan for me, my side, unread counts
-//     POST /api/coach/request                  ask a trainer to coach me, choosing what Arise Fit shares
+//     POST /api/coach/request                  ask a trainer to coach me, choosing what Cooked shares
 //     PUT  /api/coach/links/:id/consent        change what's shared
 //     PUT  /api/coach/links/:id/client         my habit checks, check-in answers, photos, steps
 //     POST /api/coach/links/:id/done/:aid      I did an assigned workout
@@ -21,7 +21,7 @@
 //     PUT  /api/coach/trainer/profile          my listing
 //     PUT  /api/coach/trainer/library          workout templates, own exercises, programs, forms
 //     POST /api/coach/links/:id/accept|decline a request
-//     GET  /api/coach/links/:id/client         a client: their Arise Fit data (by consent), my plan, their side
+//     GET  /api/coach/links/:id/client         a client: their Cooked data (by consent), my plan, their side
 //     PUT  /api/coach/links/:id/coaching       my plan for a client
 //     POST /api/coach/trainer/broadcast        one message to several clients (a group)
 //     POST /api/coach/reviews/:id/reply        answer a review
@@ -30,7 +30,7 @@
 //     POST /api/coach/trainer/listing/manage   Stripe's billing page (card, cancel)
 //
 // Data lives in public.coach_trainers, coach_links, coach_messages, coach_reviews, coach_library
-// (migrations/coach.sql). Arise Fit data is read live from fit_data, so the trainer always sees what's
+// (migrations/coach.sql). Cooked data is read live from fit_data, so the trainer always sees what's
 // current, limited to what the client chose to share.
 import type { Express, RequestHandler } from "express";
 import {
@@ -160,7 +160,7 @@ export function createSupabaseCoachFiles(): CoachFiles {
 
 export type CoachDeps = {
   store?: CoachStore;
-  /** A person's Arise Fit data (fit_data), for what their trainer may see. */
+  /** A person's Cooked data (fit_data), for what their trainer may see. */
   fitData?: (userId: number) => Promise<FitData | null>;
   /** A person's first name for the other side to see. */
   nameOf?: (userId: number) => Promise<string>;
@@ -391,7 +391,7 @@ export function registerCoachRoutes(app: Express, auth: RequestHandler, deps: Co
 
   const num = (v: unknown, lo: number, hi: number, fb: number) => { const x = Number(v); return Number.isFinite(x) ? Math.min(hi, Math.max(lo, x)) : fb; };
   // ── Inviting a client directly (no directory listing needed, no client limit) ────────────────────────────
-  // A trainer shares a link; the client opens it in Arise Fit, picks what to share, and they're connected at once.
+  // A trainer shares a link; the client opens it in Cooked, picks what to share, and they're connected at once.
   const secret = deps.inviteSecret ?? process.env.COACH_INVITE_SECRET ?? process.env.SESSION_SECRET ?? process.env.JWT_SECRET ?? "arise-coach-invites";
   const sign = (trainerId: number) => createHmac("sha256", secret).update(`invite:${trainerId}`).digest("base64url").slice(0, 10);
   const inviteCode = (trainerId: number) => `${trainerId.toString(36)}-${sign(trainerId)}`;
@@ -428,7 +428,7 @@ export function registerCoachRoutes(app: Express, auth: RequestHandler, deps: Co
   }));
 
   // ── The AI workout and program builder ───────────────────────────────────────────────────────────────────
-  // It may only use Arise Fit's catalog, so every move it picks has a name and a demo video in the client's app.
+  // It may only use Cooked's catalog, so every move it picks has a name and a demo video in the client's app.
   const aiLimit = createAttemptLimiter({ max: 40, windowMs: 60 * 60_000 });
   const callAi = deps.ai ?? (async (system: string, user: string) => {
     const key = process.env.OPENAI_API_KEY;
@@ -551,7 +551,7 @@ Order exercises sensibly (big compound lifts first). Respect injuries or limits 
     const t = await store.trainer(l.trainerId);
     if (status === "active") {
       if (t?.profile.welcome) await store.addMessage(l.id, l.trainerId, t.profile.welcome);
-      void notify(l.clientId, { title: "You have a trainer", body: `${t?.profile.name || "Your trainer"} accepted. Say hi and check your plan in Arise Fit.`, url: "#/fit", tag: `coach-${l.id}` });
+      void notify(l.clientId, { title: "You have a trainer", body: `${t?.profile.name || "Your trainer"} accepted. Say hi and check your plan in Cooked.`, url: "#/fit", tag: `coach-${l.id}` });
     }
     return { ok: true, status };
   });
@@ -773,7 +773,7 @@ Order exercises sensibly (big compound lifts first). Respect injuries or limits 
   }));
 
   // ── Coach Copilot (shared/coachCopilot.ts): who needs you this week, with a drafted message each ─────────────
-  /** Arise Fit data trimmed to what this client agreed to share. */
+  /** Cooked data trimmed to what this client agreed to share. */
   const sharedFit = (fit: FitData | null, c: Consent): FitData | null => (fit ? { ...fit, workouts: c.workouts ? fit.workouts : [], weights: c.body ? fit.weights : [], foods: c.food ? fit.foods : [] } : null);
   const copilotAi = createAttemptLimiter({ max: 12, windowMs: 24 * 60 * 60_000 });
   app.get("/api/coach/trainer/copilot", auth, wrap(async (req) => {
@@ -873,8 +873,8 @@ Order exercises sensibly (big compound lifts first). Respect injuries or limits 
     let sent = 0; const done = new Set<string>();
     for (const l of to) {
       if (!allow(mailLimit, `mail:${id}`)) break;
-      const html = `<p>Hi ${esc(l.name.split(" ")[0])},</p><p>${note ? esc(note).replace(/\n/g, "<br>") : `I'm moving my coaching to Arise. Your workouts, nutrition and our chat will live in the Arise Fit app from now on.`}</p><p><a href="${link}" style="display:inline-block;background:#ff5a1f;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:600">Join me in Arise Fit</a></p><p>See you there,<br>${esc(coach)}</p>`;
-      const r = await deps.sendEmail(l.email, `${coach} invited you to train in Arise Fit`, html, { fromName: coach, replyTo: t?.profile.email || undefined }).catch(() => ({ sent: false }));
+      const html = `<p>Hi ${esc(l.name.split(" ")[0])},</p><p>${note ? esc(note).replace(/\n/g, "<br>") : `I'm moving my coaching to Arise. Your workouts, nutrition and our chat will live in the Cooked app from now on.`}</p><p><a href="${link}" style="display:inline-block;background:#ff5a1f;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:600">Join me in Cooked</a></p><p>See you there,<br>${esc(coach)}</p>`;
+      const r = await deps.sendEmail(l.email, `${coach} invited you to train in Cooked`, html, { fromName: coach, replyTo: t?.profile.email || undefined }).catch(() => ({ sent: false }));
       if (r.sent) { sent++; done.add(l.id); }
     }
     const next = leads.map((l) => (done.has(l.id) && l.status === "new" ? { ...l, status: "contacted" as LeadStatus } : l));
@@ -996,14 +996,14 @@ Order exercises sensibly (big compound lifts first). Respect injuries or limits 
   }));
   app.get("/api/coach/trainer/market", auth, wrap(async (req) => {
     const id = me(req); const t = await store.trainer(id);
-    if (!t || !listedNow(t) || listingProblems(t.profile).length) return { requests: [], problem: "Get listed in Arise Fit to see and answer client requests." };
+    if (!t || !listedNow(t) || listingProblems(t.profile).length) return { requests: [], problem: "Get listed in Cooked to see and answer client requests." };
     const pub = (await listedPublic()).find((x) => x.id === id);
     const list = (await market()).filter((r) => r.clientId !== id && ((isOpen(r, now()) && pub && trainerFits(pub, r)) || r.replies.some((x) => x.trainerId === id)));
     return { requests: list.map((r) => forTrainer(r, id)), problem: "" };
   }));
   app.post("/api/coach/trainer/market/:rid/reply", auth, wrap(async (req) => {
     const id = me(req); const t = await store.trainer(id);
-    if (!t || !listedNow(t)) throw new Refused("Get listed in Arise Fit to answer requests.", 403);
+    if (!t || !listedNow(t)) throw new Refused("Get listed in Cooked to answer requests.", 403);
     const all = await market(); const r = all.find((x) => x.id === req.params.rid);
     const pub = (await listedPublic()).find((x) => x.id === id);
     if (!r || !isOpen(r, now()) || !pub || !trainerFits(pub, r)) throw new Refused("That request is closed.", 404);
@@ -1031,7 +1031,7 @@ Order exercises sensibly (big compound lifts first). Respect injuries or limits 
     return { linkId: link.id, status: link.status };
   }));
 
-  // ── Branded coaching (shared/coachBrand.ts): the trainer's name, logo and color in Arise Fit, and their own web app ──
+  // ── Branded coaching (shared/coachBrand.ts): the trainer's name, logo and color in Cooked, and their own web app ──
   const brandKey = (t: number) => `coach-brand:${t}`;
   const brandOf = async (t: number) => cleanBrand((await kv.get(brandKey(t))) ?? emptyBrand());
   app.get("/api/coach/trainer/brand", auth, wrap(async (req) => {

@@ -1,4 +1,4 @@
-// The parts of Arise Fit that each layout (fitThemes.ts LAYOUTS) draws its own way: the tab bar, and
+// The parts of Cooked that each layout (fitThemes.ts LAYOUTS) draws its own way: the tab bar, and
 // the pieces of Today that only some layouts have (Studio's three rings, Bloom's flower and checklist,
 // Pro's dashboard tiles, Zen's quiet rows). Type, corners and surfaces come from the layout's CSS.
 import type { ComponentType } from "react";
@@ -27,7 +27,7 @@ export function FitNav({ layout, tabs, tab, go }: { layout: LayoutId; tabs: NavT
   if (layout === "studio" || layout === "bloom") {
     // A floating pill. Studio: icons with a small dot under the one you're on. Bloom: the one you're on
     // grows into a bubble with its name.
-    return <nav aria-label="Arise Fit" className="fixed inset-x-4 z-[40] mx-auto flex max-w-md items-center justify-between rounded-full p-1.5" style={{ ...base, bottom: "max(14px, env(safe-area-inset-bottom))", boxShadow: `${C.navShadow}, inset 0 0 0 1px ${C.navBorder}` }} data-testid="fit-nav" data-layout={layout}>
+    return <nav aria-label="Cooked" className="fixed inset-x-4 z-[40] mx-auto flex max-w-md items-center justify-between rounded-full p-1.5" style={{ ...base, bottom: "max(14px, env(safe-area-inset-bottom))", boxShadow: `${C.navShadow}, inset 0 0 0 1px ${C.navBorder}` }} data-testid="fit-nav" data-layout={layout}>
       {tabs.map(([id, label, Ic]) => { const on = id === tab;
         return <button key={id} type="button" onClick={press(id)} aria-current={on ? "page" : undefined} aria-label={label} data-testid={`fit-tab-${id}`}
           className={`relative flex min-h-[50px] items-center justify-center gap-1.5 rounded-full transition-all duration-300 ${layout === "bloom" && on ? "flex-[2.2] px-3" : "flex-1"}`}
@@ -40,7 +40,7 @@ export function FitNav({ layout, tabs, tab, go }: { layout: LayoutId; tabs: NavT
   }
   if (layout === "pro" || layout === "proplus" || layout === "zen") {
     // Docked along the bottom edge. Pro: a line over the tab you're on. Zen: words only, underlined.
-    return <nav aria-label="Arise Fit" className="fixed inset-x-0 bottom-0 z-[40] flex items-stretch px-1 pb-[max(4px,env(safe-area-inset-bottom))] pt-0.5" style={{ ...base, boxShadow: C.navShadow }} data-testid="fit-nav" data-layout={layout}>
+    return <nav aria-label="Cooked" className="fixed inset-x-0 bottom-0 z-[40] flex items-stretch px-1 pb-[max(4px,env(safe-area-inset-bottom))] pt-0.5" style={{ ...base, boxShadow: C.navShadow }} data-testid="fit-nav" data-layout={layout}>
       {layout !== "zen" && <span aria-hidden className="absolute top-0 h-[2px]" style={{ width: `calc((100% - 8px) / ${n})`, left: `calc(4px + ${at} * (100% - 8px) / ${n})`, background: C.lime, transition: "left .3s cubic-bezier(.2,.9,.2,1)" }} />}
       {tabs.map(([id, label, Ic]) => { const on = id === tab;
         return <button key={id} type="button" onClick={press(id)} aria-current={on ? "page" : undefined} data-testid={`fit-tab-${id}`}
@@ -51,7 +51,7 @@ export function FitNav({ layout, tabs, tab, go }: { layout: LayoutId; tabs: NavT
     </nav>;
   }
   // Athletic: the floating bar with a highlight that slides under the tab you pick.
-  return <nav aria-label="Arise Fit" className="fixed inset-x-3 z-[40] mx-auto flex max-w-md items-center rounded-[16px] p-1.5" style={{ ...base, bottom: "max(12px, env(safe-area-inset-bottom))", boxShadow: `${C.navShadow}, inset 0 0 0 1px ${C.navBorder}` }} data-testid="fit-nav" data-layout={layout}>
+  return <nav aria-label="Cooked" className="fixed inset-x-3 z-[40] mx-auto flex max-w-md items-center rounded-[16px] p-1.5" style={{ ...base, bottom: "max(12px, env(safe-area-inset-bottom))", boxShadow: `${C.navShadow}, inset 0 0 0 1px ${C.navBorder}` }} data-testid="fit-nav" data-layout={layout}>
     <span aria-hidden className="absolute bottom-1.5 top-1.5 rounded-[11px]" style={{ width: `calc((100% - 12px) / ${n})`, left: `calc(6px + ${at} * (100% - 12px) / ${n})`, background: "linear-gradient(180deg, rgba(var(--fit-accent-rgb),.24), rgba(var(--fit-accent-rgb),.08))", boxShadow: "inset 0 -2px 0 var(--fit-accent)", transition: "left .35s cubic-bezier(.2,.9,.2,1), width .35s cubic-bezier(.2,.9,.2,1)" }} />
     {tabs.map(([id, label, Ic]) => <button key={id} type="button" onClick={press(id)} aria-current={tab === id ? "page" : undefined} data-testid={`fit-tab-${id}`}
       className="relative flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-[10px] text-[11.5px] uppercase tracking-[.06em] transition-colors duration-200" style={{ fontFamily: "var(--fit-display)", fontWeight: 800, color: tab === id ? C.lime : C.dim }}>

@@ -1,4 +1,4 @@
-// Arise Fit: sleep. One record per night (the morning you woke up): when you went to bed and woke, how
+// Cooked: sleep. One record per night (the morning you woke up): when you went to bed and woke, how
 // it was tracked, the time spent in each sleep stage when Apple Health has it, and an optional 1-5
 // rating. Nights come from Apple Health (an Apple Watch, the iPhone's Sleep schedule or any sleep app
 // that writes to Health), from your bedtime schedule (confirmed in the morning), from a guess based on

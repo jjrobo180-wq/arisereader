@@ -1,7 +1,7 @@
-// Writes every guided Arise Fit session (shared/fitSessions.ts) to native/fit-tv/sessions.json, the list the
+// Writes every guided Cooked session (shared/fitSessions.ts) to native/fit-tv/sessions.json, the list the
 // Apple TV and Apple Watch apps play from. Run after changing a session: npx tsx script/exportFitSessions.ts
 // (tests/tv-and-watch.test.ts fails while the file and the sessions differ). The file was once committed
-// empty, and Arise Fit on Apple TV showed its title over an empty screen.
+// empty, and Cooked on Apple TV showed its title over an empty screen.
 import { writeFileSync } from "node:fs";
 import { SESSIONS } from "../shared/fitSessions";
 import { TIMER_PRESETS, timerSession } from "../shared/fitTimers";

@@ -1,4 +1,4 @@
-// Arise Fit readiness: how ready you are to train today, 0-100, from last night's sleep, the week's sleep
+// Cooked readiness: how ready you are to train today, 0-100, from last night's sleep, the week's sleep
 // debt, how recovered your muscles are (shared/fitRecovery.ts) and how hard the last few days were.
 // Not a medical measure; a nudge for whether to push or go easy.
 import type { FitData } from "./fit";

@@ -139,7 +139,7 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
   const lead = plan?.unlimited ? "Every plugin in the Plugin Gallery, and AI for everyday use, in WorkHub and LifeHub."
     : reason === "apps" ? `The free plan includes up to ${FREE_APPS} plugins from the Plugin Gallery. Remove one to make room, or get All Access for all ${PLUGIN_COUNT_LABEL}.`
     : reason === "ai" ? `Add with AI, the AI assistant and meal estimates come with Arise All Access, along with every plugin in the Plugin Gallery${isNativeApp() ? "." : `, for ${price} a month.`}`
-    : `Every plugin in the Plugin Gallery (${PLUGIN_COUNT_LABEL}) and AI in To Duo, plus Arise Notes Plus, Arise Fit+ and ad-free Pod+, for one price.`;
+    : `Every plugin in the Plugin Gallery (${PLUGIN_COUNT_LABEL}) and AI in To Duo, plus Arise Notes Plus, Cooked+ and ad-free Pod+, for one price.`;
 
   return (
     <div className="fixed inset-0 kb-sheet z-[320] flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="upgrade-title" data-testid="todo-upgrade" onClick={(e) => { if (e.target === e.currentTarget) setReason(null); }}>
@@ -170,7 +170,7 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
               </ul>
             </div>
           </div>
-          <p className="mt-3 text-xs text-slate-500">Built-in sections like Calendar, Tasks and Notes are always free. Your {FREE_APPS} plugins are shared by WorkHub and LifeHub, and nothing is ever deleted, even if you go back to Free. All Access is one plan for To Duo, Arise Notes, Arise Fit and Pod+.</p>
+          <p className="mt-3 text-xs text-slate-500">Built-in sections like Calendar, Tasks and Notes are always free. Your {FREE_APPS} plugins are shared by WorkHub and LifeHub, and nothing is ever deleted, even if you go back to Free. All Access is one plan for To Duo, Arise Notes, Cooked and Pod+.</p>
           {note && <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700" role="status">{note}</p>}
           <div className="mt-4">
             {isNativeApp()

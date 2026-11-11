@@ -1,4 +1,4 @@
-// Arise Fit outdoors (shared/fitRun.ts) and AI form check (shared/fitForm.ts).
+// Cooked outdoors (shared/fitRun.ts) and AI form check (shared/fitForm.ts).
 import test from "node:test";
 import assert from "node:assert/strict";
 import { cleanFit } from "../shared/fit";

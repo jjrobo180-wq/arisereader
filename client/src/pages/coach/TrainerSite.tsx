@@ -1,5 +1,5 @@
 // A trainer's own website (#/t/<slug>): built by Arise Trainer from their listing and site settings (shared/coachSite.ts).
-// Four looks. The contact form sends a lead to the trainer's app; "Start training" opens their Arise Fit invite.
+// Four looks. The contact form sends a lead to the trainer's app; "Start training" opens their Cooked invite.
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import { useParams } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
@@ -114,7 +114,7 @@ export function TrainerSiteView({ data, preview }: { data: SiteData; preview?: b
     {/* How it works */}
     <section className={section}>
       {h2("How it works")}
-      <ol className="grid gap-4 sm:grid-cols-3">{[["Talk", "A free consult about your goals, your schedule and anything holding you back."], ["Get your plan", "Workouts, nutrition targets and habits made for you, in the Arise Fit app."], ["Train and track", `${t.name.split(" ")[0]} sees your progress and adjusts every week. You're never guessing.`]].map(([h, p], i) => <li key={h} className="p-6" style={{ background: L.card, borderRadius: L.radius, border: `1px solid ${L.line}` }}>
+      <ol className="grid gap-4 sm:grid-cols-3">{[["Talk", "A free consult about your goals, your schedule and anything holding you back."], ["Get your plan", "Workouts, nutrition targets and habits made for you, in the Cooked app."], ["Train and track", `${t.name.split(" ")[0]} sees your progress and adjusts every week. You're never guessing.`]].map(([h, p], i) => <li key={h} className="p-6" style={{ background: L.card, borderRadius: L.radius, border: `1px solid ${L.line}` }}>
         <span className="grid h-10 w-10 place-items-center text-[18px] font-bold text-white" style={{ background: a, borderRadius: 999 }}>{i + 1}</span>
         <h3 className="mt-4 text-[22px]" style={L.head}>{H(h)}</h3><p className="mt-1.5 text-[15px] leading-relaxed" style={{ color: L.muted }}>{p}</p></li>)}</ol>
     </section>

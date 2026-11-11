@@ -13,7 +13,7 @@ export const ARISE_APP = "com.arisereader.arisetodo";
 export const PODPLUS_APP = "com.arisereader.podplus";
 /** Arise Reader Educator, the teacher and parent Reader app. */
 export const EDUCATOR_APP = "com.arisereader.educator";
-/** Arise Fit, training and nutrition (personal accounts, like Arise To Duo). */
+/** Cooked, training and nutrition (personal accounts, like Arise To Duo). */
 export const FIT_APP = "com.arisereader.fit";
 export const EYEGAZER_APP = "com.arisereader.eyegazer";
 export const TRAINER_APP = "com.arisereader.trainer";

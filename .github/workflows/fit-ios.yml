@@ -1,4 +1,4 @@
-name: Arise Fit signed iOS release candidate
+name: Cooked signed iOS release candidate
 # Built from the shared frontend with VITE_NATIVE_APP=fit (client/src/lib/nativeApp.ts).
 # Uploads to TestFlight only for a pushed commit whose message has [approved-testflight].
 on:
@@ -102,7 +102,7 @@ jobs:
           # This app's own App Store profile (made from the same certificate when it doesn't exist yet).
           security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
           if [[ "$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/profile.plist")" != '6TYWWNKX6P.com.arisereader.fit' ]]; then
-            python3 podscroll/ios-app/find-existing-profile.py com.arisereader.fit "$RUNNER_TEMP/profile.mobileprovision" --create-missing-profile --register-bundle-id "--app-name=Arise Fit"
+            python3 podscroll/ios-app/find-existing-profile.py com.arisereader.fit "$RUNNER_TEMP/profile.mobileprovision" --create-missing-profile --register-bundle-id "--app-name=Cooked"
           fi
           # Its capabilities on the App ID, and a profile that includes them (same certificate).
           python3 .github/scripts/apple_signing.py com.arisereader.fit "$RUNNER_TEMP/profile.mobileprovision" HEALTHKIT APPLE_ID_AUTH PUSH_NOTIFICATIONS APP_GROUPS
@@ -111,7 +111,7 @@ jobs:
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
           PROFILE_APP_ID=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/profile.plist")
           if [[ "$PROFILE_APP_ID" != '6TYWWNKX6P.com.arisereader.fit' ]]; then
-            echo "::error::Provisioning profile does not match the Arise Fit bundle ID"
+            echo "::error::Provisioning profile does not match the Cooked bundle ID"
             exit 1
           fi
           security create-keychain -p "" "$RUNNER_TEMP/fit.keychain-db"
@@ -184,7 +184,7 @@ jobs:
           set -uo pipefail
           # The watch app has an App ID of its own (registered the first time); a TV app is the same App ID
           # as the iPhone app (one App Store listing) with a tvOS profile.
-          SEED_PROFILE="$RUNNER_TEMP/profile.mobileprovision" CREATE_APP_ID="Arise Fit Watch" python3 .github/scripts/apple_signing.py com.arisereader.fit.watchkitapp "$RUNNER_TEMP/watch.mobileprovision" HEALTHKIT
+          SEED_PROFILE="$RUNNER_TEMP/profile.mobileprovision" CREATE_APP_ID="Cooked Watch" python3 .github/scripts/apple_signing.py com.arisereader.fit.watchkitapp "$RUNNER_TEMP/watch.mobileprovision" HEALTHKIT
           python3 .github/scripts/add_tvos_platform.py com.arisereader.fit
           SEED_PROFILE="$RUNNER_TEMP/profile.mobileprovision" PROFILE_TYPE=TVOS_APP_STORE python3 .github/scripts/apple_signing.py com.arisereader.fit "$RUNNER_TEMP/tv.mobileprovision"
           for kind in watch tv; do
@@ -211,11 +211,11 @@ jobs:
           APP_PROFILE="$PROFILE_NAME" WIDGET_PROFILE="$WIDGET_PROFILE_NAME" ruby ../../.github/scripts/add_widget.rb ios/App/App.xcodeproj com.arisereader.fit "$(cat widgets.json)" ff5a1f
           # The Apple Watch app goes inside the iPhone app; the Apple TV app is archived on its own below.
           if [[ -n "${WATCH_PROFILE_NAME:-}" ]]; then
-            (cd ../.. && COMPANION_PROFILE="$WATCH_PROFILE_NAME" ruby .github/scripts/add_companion.rb "$OLDPWD/ios/App/App.xcodeproj" --kind watch --name FitWatch --display "Arise Fit" --host com.arisereader.fit --sources native/watch-kit/AriseWatchLink.swift,native/fit-watch/FitWatchApp.swift --resources native/fit-tv/sessions.json --icon client/public/app-icons/fit-1024.png --embed --healthkit)
+            (cd ../.. && COMPANION_PROFILE="$WATCH_PROFILE_NAME" ruby .github/scripts/add_companion.rb "$OLDPWD/ios/App/App.xcodeproj" --kind watch --name FitWatch --display "Cooked" --host com.arisereader.fit --sources native/watch-kit/AriseWatchLink.swift,native/fit-watch/FitWatchApp.swift --resources native/fit-tv/sessions.json --icon client/public/app-icons/fit-1024.png --embed --healthkit)
             echo "WATCH_ADDED=1" >> "$GITHUB_ENV"
           fi
           if [[ -n "${TV_PROFILE_NAME:-}" ]]; then
-            (cd ../.. && COMPANION_PROFILE="$TV_PROFILE_NAME" ruby .github/scripts/add_companion.rb "$OLDPWD/ios/App/App.xcodeproj" --kind tv --name FitTV --display "Arise Fit" --host com.arisereader.fit --sources native/fit-tv/FitTVApp.swift --resources native/fit-tv/sessions.json,native/fit-tv/timers.json --tv-assets native/fit-tv/Assets.xcassets)
+            (cd ../.. && COMPANION_PROFILE="$TV_PROFILE_NAME" ruby .github/scripts/add_companion.rb "$OLDPWD/ios/App/App.xcodeproj" --kind tv --name FitTV --display "Cooked" --host com.arisereader.fit --sources native/fit-tv/FitTVApp.swift --resources native/fit-tv/sessions.json,native/fit-tv/timers.json --tv-assets native/fit-tv/Assets.xcassets)
             echo "TV_ADDED=1" >> "$GITHUB_ENV"
           fi
       - name: Archive signed app with widgets

@@ -1,4 +1,4 @@
-// Arise Fit gets a Medicine tracker and a Period tracker plugin (November 2026).
+// Cooked gets a Medicine tracker and a Period tracker plugin (November 2026).
 // Run with: npx tsx --test tests/fit-trackers.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -69,7 +69,7 @@ test("period: an empty day is removed, and saved data is cleaned", () => {
   assert.equal(cleanCycle(undefined), undefined);
 });
 
-test("the screens are wired into Arise Fit", async () => {
+test("the screens are wired into Cooked", async () => {
   const { readFileSync } = await import("node:fs");
   const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
   const app = read("client/src/pages/fit/FitApp.tsx");
@@ -78,7 +78,7 @@ test("the screens are wired into Arise Fit", async () => {
   assert.match(read("client/src/pages/fit/FitApps.tsx"), /CalendarHeart, Pill,/);
 });
 
-test("Arise Fit and Arise Reader use their phone's own clock space; the apps iOS already insets are left alone", async () => {
+test("Cooked and Arise Reader use their phone's own clock space; the apps iOS already insets are left alone", async () => {
   const { readFileSync } = await import("node:fs");
   const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
   const main = read("client/src/main.tsx");

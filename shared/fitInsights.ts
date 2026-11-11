@@ -1,4 +1,4 @@
-// Arise Fit's numbers: every stat the Pro+ layout shows and the AI is given, worked out from a person's
+// Cooked's numbers: every stat the Pro+ layout shows and the AI is given, worked out from a person's
 // own data (shared/fit.ts). Pure functions, so the phone, the server and tests all get the same answers.
 // Weights stay in the person's own units (lb or kg); distances are in km (the app shows miles when asked).
 import { CATALOG_BY_ID, PROGRAM_BY_ID, dayKey, e1rm, fromKg, goals, type FitData, type Workout } from "./fit";

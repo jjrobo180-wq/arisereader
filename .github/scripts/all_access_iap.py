@@ -23,7 +23,7 @@ US_PRICE = os.environ.get("US_PRICE", "9.99")
 NAME = "Arise All Access"
 DESCRIPTION = "To Duo Unlimited, Notes Plus, Fit+ and ad-free Pod+."  # 55 characters max
 REVIEW_NOTE = ("Arise All Access is one monthly subscription that unlocks the paid tier of every Arise app on the same "
-               "account: To Duo Unlimited, Arise Notes Plus, Arise Fit+ and ad-free listening in Pod+. Sign in with the "
+               "account: To Duo Unlimited, Arise Notes Plus, Cooked+ and ad-free listening in Pod+. Sign in with the "
                "review account, open the plan screen and tap Subscribe.")
 
 

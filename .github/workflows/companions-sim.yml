@@ -1,6 +1,6 @@
 name: Apple Watch and Apple TV apps (simulator build)
-# Compiles the Arise companions on their simulators, without Apple signing: Arise Duo, Arise Fit and
-# Arise Notes for Apple Watch, and Arise Duo and Arise Fit for Apple TV. Each is added to a small
+# Compiles the Arise companions on their simulators, without Apple signing: Arise Duo, Cooked and
+# Arise Notes for Apple Watch, and Arise Duo and Cooked for Apple TV. Each is added to a small
 # stand-in project with the same script the signed builds use (.github/scripts/add_companion.rb).
 permissions:
   contents: write
@@ -41,10 +41,10 @@ jobs:
           S="$GITHUB_WORKSPACE/.github/scripts/add_companion.rb"
           K=native/watch-kit/AriseWatchLink.swift
           ruby "$S" App.xcodeproj --kind watch --name DuoWatch --display "Arise Duo" --host com.arisereader.arisetodo --sources "$K,native/duo-watch/DuoWatchApp.swift" --icon client/public/app-icons/todo-1024.png
-          ruby "$S" App.xcodeproj --kind watch --name FitWatch --display "Arise Fit" --host com.arisereader.fit --sources "$K,native/fit-watch/FitWatchApp.swift" --resources native/fit-tv/sessions.json --icon client/public/app-icons/fit-1024.png --healthkit
+          ruby "$S" App.xcodeproj --kind watch --name FitWatch --display "Cooked" --host com.arisereader.fit --sources "$K,native/fit-watch/FitWatchApp.swift" --resources native/fit-tv/sessions.json --icon client/public/app-icons/fit-1024.png --healthkit
           ruby "$S" App.xcodeproj --kind watch --name NotesWatch --display "Arise Notes" --host com.arisereader.notes --sources "$K,native/notes-watch/NotesWatchApp.swift" --icon client/public/app-icons/notes-1024.png --mic
           ruby "$S" App.xcodeproj --kind tv --name DuoTV --display "Arise Duo" --host com.arisereader.arisetodo --sources native/duo-tv/DuoTVApp.swift --tv-assets native/duo-tv/Assets.xcassets
-          ruby "$S" App.xcodeproj --kind tv --name FitTV --display "Arise Fit" --host com.arisereader.fit --sources native/fit-tv/FitTVApp.swift --resources native/fit-tv/sessions.json,native/fit-tv/timers.json --tv-assets native/fit-tv/Assets.xcassets
+          ruby "$S" App.xcodeproj --kind tv --name FitTV --display "Cooked" --host com.arisereader.fit --sources native/fit-tv/FitTVApp.swift --resources native/fit-tv/sessions.json,native/fit-tv/timers.json --tv-assets native/fit-tv/Assets.xcassets
       - name: Compile each one
         working-directory: ${{ runner.temp }}/c
         run: |

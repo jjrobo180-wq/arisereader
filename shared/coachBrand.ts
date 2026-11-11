@@ -1,4 +1,4 @@
-// Branded coaching (November 2026): a trainer's own name, logo and color inside Arise Fit for their clients, and a
+// Branded coaching (November 2026): a trainer's own name, logo and color inside Cooked for their clients, and a
 // web app of their own at arisetodo.com/#/c/<their-name> that clients add to their home screen with the trainer's
 // icon and name. Server: server/coach.ts. Fit applies it: client/src/pages/coach/Brand.tsx.
 
@@ -20,7 +20,7 @@ export const mix = (a: string, b: string, t: number) => { const x = rgb(a), y = 
 const lum = (hex: string) => { const [r, g, b] = rgb(hex).map((v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
 /** White or near-black text on the color, whichever reads better. */
 export const onColor = (hex: string) => ((lum(hex) + 0.05) / 0.05 > 1.05 / (lum(hex) + 0.05) ? "#111111" : "#ffffff");
-/** The CSS that turns Arise Fit's accent into the trainer's color (wins over the chosen palette). */
+/** The CSS that turns Cooked's accent into the trainer's color (wins over the chosen palette). */
 export function brandCss(color: string): string {
   const c = HEX.test(color) ? color.toLowerCase() : emptyBrand().color;
   const [r, g, b] = rgb(c);

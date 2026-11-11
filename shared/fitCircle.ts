@@ -1,9 +1,9 @@
-// Arise Fit: workout circles (server/fitCircle.ts, client/src/pages/fit/FitCircle.tsx).
-// A circle is a group of friends, each on their own Arise Fit account, who keep each other on track.
+// Cooked: workout circles (server/fitCircle.ts, client/src/pages/fit/FitCircle.tsx).
+// A circle is a group of friends, each on their own Cooked account, who keep each other on track.
 // Anyone in a circle can invite more people with the circle's code or link. Everyone sees everyone's
 // training (workouts, streak, new records) as it happens, gets a notification when someone finishes
 // a workout, and can send a cheer or a nudge. Only training is shared: never food, weight or photos.
-// (Sharing Arise Fit+ with someone is a different thing: the guest pass, shared/fitPlus.ts.)
+// (Sharing Cooked+ with someone is a different thing: the guest pass, shared/fitPlus.ts.)
 import { CATALOG_BY_ID, records, streak, type FitData } from "./fit";
 
 /** Most people in one circle, the person who started it included. */

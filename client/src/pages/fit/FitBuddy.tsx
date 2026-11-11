@@ -1,4 +1,4 @@
-// Arise Fit: workout buddies (shared/fitBuddy.ts, server/fitBuddy.ts). Matched with someone you don't
+// Cooked: workout buddies (shared/fitBuddy.ts, server/fitBuddy.ts). Matched with someone you don't
 // know: an emoji and a gamertag, a shared weekly goal, and ready-made messages. Nothing can be typed.
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Search, Swords, UserX, Users } from "lucide-react";
