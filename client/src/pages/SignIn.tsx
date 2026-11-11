@@ -54,7 +54,7 @@ export default function SignIn() {
   }, []);
 
   const pick = (next: Who) => { setWho(next); setError(""); setShowAccounts(false); setShowSamples(false); };
-  const goHome = () => { if (onTodo) window.location.assign("/"); else navigate("/"); };
+  const goHome = () => { if (onTodo) window.location.assign("/?home"); else navigate("/"); };
   const showHubMenuOnLogin = () => {
     if (!onTodo) return; // Reader-domain sign-in uses the secure To-Do handoff.
     try {
