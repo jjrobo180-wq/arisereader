@@ -1,4 +1,4 @@
-// Paying your trainer inside Arise (Stripe Connect). Cooked: pay with a card from My trainer. Arise Trainer:
+// Paying your trainer inside Arise (Stripe Connect). Cooked: pay with a card from My trainer. Cooked Trainer:
 // set up payouts once, then see what came in. Rules and the fee: shared/coachPay.ts. Server: server/coach.ts.
 import { useState } from "react";
 import { BadgeDollarSign, Check, CreditCard, ExternalLink } from "lucide-react";
@@ -29,7 +29,7 @@ export function PayTrainer({ token, linkId, trainer, say }: { token: string | nu
 }
 
 type Payouts = { configured: boolean; started: boolean; ready: boolean; feePct: number; month: { cents: number; fee: number; count: number; net: number }; all: { cents: number; count: number; net: number }; recent: (Payment & { client: string })[] };
-/** Arise Trainer, Business: take card payments in the app. */
+/** Cooked Trainer, Business: take card payments in the app. */
 export function PayoutsCard({ token, say }: { token: string | null; say: (m: string) => void }) {
   const { data } = usePoll(() => coachApi<Payouts>(token, "/trainer/payouts"), [token], 0);
   const [busy, setBusy] = useState(false);

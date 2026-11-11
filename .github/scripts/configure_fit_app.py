@@ -1,4 +1,4 @@
-"""Cooked and Arise Trainer iPhone apps: the Info.plist settings App Review checks, and the AppDelegate
+"""Cooked and Cooked Trainer iPhone apps: the Info.plist settings App Review checks, and the AppDelegate
 hook push notifications need.
 
 Usage: configure_fit_app.py <path to Info.plist> [fit|trainer|notes|talk]   (after `npx cap add ios && npx cap sync ios`)
@@ -7,7 +7,7 @@ Usage: configure_fit_app.py <path to Info.plist> [fit|trainer|notes|talk]   (aft
   - Cooked. Camera: barcodes, meal photos, form check and progress photos for a trainer. Photos:
     choosing a meal or progress photo. Location: mapping outdoor runs and finding trails. Health:
     reading and saving to Apple Health. Links: arisefit:// (Siri shortcuts and buddy invites).
-  - Arise Trainer. Camera and Photos: a profile photo for the trainer directory, and photos in messages.
+  - Cooked Trainer. Camera and Photos: a profile photo for the trainer directory, and photos in messages.
     Every permission needs a sentence saying why, or iOS stops the app when it's asked for.
   - Arise Notes. Microphone: recording meetings and voice memos. Camera and Photos: a video to
     upload (only its sound is used). Reminders and Calendars: adding the to-dos and events a person
@@ -49,10 +49,10 @@ KEYS = {
         "NSPhotoLibraryUsageDescription": "Arise Talk lets you choose a photo to put on a button or to get words about it.",
     },
     "trainer": {
-        "CFBundleDisplayName": "Arise Trainer",
-        "NSCameraUsageDescription": "Arise Trainer uses the camera to take your profile photo for the trainer directory and photos you send your clients in messages.",
-        "NSPhotoLibraryUsageDescription": "Arise Trainer lets you choose your profile photo, photos for your website and groups, and photos to send your clients in messages.",
-        "NSMicrophoneUsageDescription": "Arise Trainer uses the microphone only when you record a voice note on a client's form check video.",
+        "CFBundleDisplayName": "Cooked Trainer",
+        "NSCameraUsageDescription": "Cooked Trainer uses the camera to take your profile photo for the trainer directory and photos you send your clients in messages.",
+        "NSPhotoLibraryUsageDescription": "Cooked Trainer lets you choose your profile photo, photos for your website and groups, and photos to send your clients in messages.",
+        "NSMicrophoneUsageDescription": "Cooked Trainer uses the microphone only when you record a voice note on a client's form check video.",
     },
     "notes": {
         "CFBundleDisplayName": "Arise Notes",

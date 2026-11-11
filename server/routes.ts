@@ -1652,7 +1652,7 @@ export async function registerRoutes(
       return { workspace: { ...ws, family: { ...family, groceries: r.list } }, result: { added: r.added, updated: r.updated } };
     }),
   });
-  // Arise Coaching (server/coach.ts): the trainer directory, client–trainer connections and the Arise Trainer app.
+  // Arise Coaching (server/coach.ts): the trainer directory, client–trainer connections and the Cooked Trainer app.
   registerCoachRoutes(app, authMiddleware, {
     nameOf: async (id) => { const u: any = await storage.getUser(id).catch(() => null); return String(u?.displayName || u?.display_name || u?.username || "").trim().split(/\s+/)[0] || ""; },
     stripeKey: () => plans.adminTodo.stripeKey(),

@@ -1,4 +1,4 @@
-// The Arise marketplace: clients post what they need in Cooked, trainers who fit reply in Arise Trainer with a
+// The Arise marketplace: clients post what they need in Cooked, trainers who fit reply in Cooked Trainer with a
 // short pitch and a price, and the client hires one in a tap. Rules: shared/coachMarket.ts. Server: server/coach.ts.
 import { useState } from "react";
 import { Check, ChevronRight, Inbox, Megaphone, Send } from "lucide-react";
@@ -75,7 +75,7 @@ function HireSheet({ token, rid, t, onClose, onDone }: { token: string | null; r
   </Sheet>;
 }
 
-// ── Arise Trainer ─────────────────────────────────────────────────────────────────────────────────────────────
+// ── Cooked Trainer ─────────────────────────────────────────────────────────────────────────────────────────────
 type ForMe = { id: string; name: string; at: string; title: string; need: Need; replies: number; mine: MarketReply | null; status: string; hiredMe: boolean };
 export function MarketCard({ token, say }: { token: string | null; say: (m: string) => void }) {
   const { data, reload } = usePoll(() => coachApi<{ requests: ForMe[]; problem: string }>(token, "/trainer/market"), [token], 120_000);
