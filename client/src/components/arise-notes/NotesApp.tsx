@@ -1,6 +1,7 @@
 // Arise Notes: the app. The same screens run on their own at /notes/ (client/src/notes/main.tsx) and
 // inside Arise To Duo (pages/AriseNotesPage.tsx): Home with the notes, Record, Upload, a note, Ask
 // your notes, Voice memo, and Settings (plan and minutes, family, privacy, accessibility).
+import AllAccessPopup from "@/components/AllAccessPopup";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { NoteTypeIcon } from "./NoteIcon";
 import { NotesDock } from "./NotesDock";
@@ -108,6 +109,9 @@ export default function NotesApp(props: { mode: "standalone" | "embedded"; hub?:
 
 function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" | "embedded"; hub?: "life" | "work"; onExit?: () => void; startNote?: string }) {
   const { token, user } = useAuth();
+  // The All Access pop-up waits until Notes has been open a little while (Notes has no tutorial).
+  const [notesSettled, setNotesSettled] = useState(false);
+  useEffect(() => { const t = window.setTimeout(() => setNotesSettled(true), 20000); return () => window.clearTimeout(t); }, []);
   const say = useToast();
   const tokenRef = useRef(token);
   tokenRef.current = token;
@@ -284,6 +288,8 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   })();
   return <div className={rootClass} style={rootStyle} data-testid="arise-notes">
     <Suspense fallback={<div className="pt-32"><Spinner /></div>}>{screen}</Suspense>
+    {/* Notes has no tutorial: the All Access pop-up comes once, a little after the first open (iPhone app only). */}
+    {mode === "standalone" && <AllAccessPopup userId={user?.id} token={token} ready={notesSettled} intro="Arise Notes is free, with 60 minutes of AI a month. Arise All Access gives you 1,500 minutes, plus the extras in To Duo, Fit and Pod+." />}
   </div>;
 }
 

@@ -1,4 +1,4 @@
-// Arise Fit's first-open setup and the animated tour of its features. The setup is a short wizard (goal, body,
+// Cooked's first-open setup and the animated tour of its features. The setup is a short wizard (goal, body,
 // goal weight and pace, activity, diet, gym, calories or Arise Points, then the permissions the app likes to have),
 // ending in a plan and the tour. From Settings it opens again as "Your goals" without the tour or permissions.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -136,12 +136,12 @@ export function Onboarding({ data, update, onDone, edit = false }: { data: FitDa
   };
   const back = () => { if (i > 0) setI((n) => n - 1); };
 
-  const title: Record<StepId, string> = { welcome: "", goal: "What's your goal?", features: "What do you want from Arise Fit?", body: "About you", target: "Your target", activity: "How active are you?", diet: "How do you eat?", gym: "Where do you train?", track: "How do you want to track food?", plan: "Your plan", access: "Connect your phone", tour: "" };
+  const title: Record<StepId, string> = { welcome: "", goal: "What's your goal?", features: "What do you want from Cooked?", body: "About you", target: "Your target", activity: "How active are you?", diet: "How do you eat?", gym: "Where do you train?", track: "How do you want to track food?", plan: "Your plan", access: "Connect your phone", tour: "" };
 
   if (step === "tour") return <Layer><style>{ONB_CSS}</style><FeatureTour onClose={finish} /></Layer>;
 
   return <Layer><style>{ONB_CSS}</style>
-    <div className="fixed inset-0 z-[80] flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} role="dialog" aria-modal="true" aria-label="Set up Arise Fit" data-testid="fit-setup">
+    <div className="fixed inset-0 z-[80] flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} role="dialog" aria-modal="true" aria-label="Set up Cooked" data-testid="fit-setup">
       <div className="shrink-0 px-4 pt-[max(12px,var(--sat,env(safe-area-inset-top,0px)))]">
         <div className="flex items-center gap-2">
           <button type="button" onClick={back} aria-label="Back" disabled={i === 0} className="grid h-10 w-10 place-items-center rounded-full transition-opacity" style={{ background: C.card, opacity: i === 0 ? 0 : 1 }}><ChevronLeft className="h-5 w-5" /></button>
@@ -236,7 +236,7 @@ function Welcome() {
       <span className="ob-pulse absolute inset-0 rounded-full" style={{ background: C.lime, opacity: 0.25, animationDelay: "1.2s" }} />
       <span className="ob-pop relative"><span className="ob-float grid h-28 w-28 place-items-center rounded-[32px]" style={{ background: `linear-gradient(145deg, ${C.lime}, var(--fit-accent-hi))`, boxShadow: "0 24px 50px -16px rgba(var(--fit-accent-rgb),.8)" }}><Dumbbell className="h-14 w-14" style={{ color: "var(--fit-on-accent)" }} /></span></span>
     </div>
-    <h1 className="mt-8 text-[54px] leading-[.9]" style={display}>Welcome to<br /><span style={{ color: C.lime }}>Arise Fit</span></h1>
+    <h1 className="mt-8 text-[54px] leading-[.9]" style={display}>Welcome to<br /><span style={{ color: C.lime }}>Cooked</span></h1>
   </div>;
 }
 
@@ -284,7 +284,7 @@ function Access({ update }: { update: Update }) {
     <button type="button" onClick={go} disabled={!native || st === "busy" || st === "ok"} className="h-10 shrink-0 rounded-full px-4 text-[14px] font-bold disabled:opacity-60" style={st === "ok" ? { background: C.green, color: "#fff" } : { background: C.lime, color: "var(--fit-on-accent)" }} data-testid={`fit-allow-${id}`}>{st === "ok" ? "On" : st === "busy" ? "…" : st === "err" ? "Retry" : "Allow"}</button>
   </div>;
   return <div className="mt-4 space-y-2.5">
-    <p className="text-[14px]" style={{ color: C.dim }}>{native ? "Optional, and you can change any of these in iPhone Settings." : "These work in the Arise Fit iPhone app. You can skip them here."}</p>
+    <p className="text-[14px]" style={{ color: C.dim }}>{native ? "Optional, and you can change any of these in iPhone Settings." : "These work in the Cooked iPhone app. You can skip them here."}</p>
     {row(<HeartPulse className="h-5 w-5" style={{ color: "#ff375f" }} />, "Apple Health", "Steps, active calories and weigh-ins in; your workouts and weight back out.", health, askHealth, "health")}
     {row(<Bell className="h-5 w-5" />, "Reminders", "A nudge for workouts. Fasting alerts too. Change them in Settings.", notes, askNotes, "notes")}
     {row(<MapPin className="h-5 w-5" />, "Location", "For food and gyms near you, and for tracking runs.", loc, askLoc, "location")}
@@ -318,9 +318,9 @@ const SLIDES: Slide[] = [
     art: <div className="flex h-full flex-col justify-center gap-3 px-4">{[["How's my week?", "self-end bg-white text-[#111]"], ["3 workouts, protein on target. Add a walk tomorrow.", "self-start bg-white/25 text-white"], ["On it 💪", "self-end bg-white text-[#111]"]].map(([t, c], k) => <span key={k} className={`ob-bubble max-w-[78%] rounded-[16px] px-3 py-2 text-[14px] font-semibold ${c}`} style={{ animationDelay: `${k * 0.9}s` }}>{t}</span>)}</div> },
   { title: "Make it yours", line: "Add app plugins like Yoga, Breathe, Mobility, Intervals and Water, and pin your favorites to the tab bar.", tip: "Plugins tab → Get more app plugins.", tint: "#a855f7",
     art: <div className="grid h-full grid-cols-3 place-content-center gap-3 px-5">{["#c084fc", "#5eead4", "#86efac", "#fb7185", "#60a5fa", "#818cf8"].map((c, k) => <span key={k} className="ob-pop grid h-16 place-items-center rounded-[18px]" style={{ background: `linear-gradient(145deg, ${c}, rgba(0,0,0,.25))`, boxShadow: "inset 0 1px 0 rgba(255,255,255,.4)", animationDelay: `${k * 0.12}s` }}>{[Sparkles, Activity, Users, Flame, Route, Check].map((I, j) => j === k ? <I key={j} className="h-7 w-7 text-white" /> : null)}</span>)}</div> },
-  { title: "Widgets, Siri and shortcuts", line: "Add Arise Fit widgets to your Home and Lock Screen, or say \"Hey Siri, log water\".", tip: "Long-press your Home Screen → +.", tint: "#0ea5e9",
+  { title: "Widgets, Siri and shortcuts", line: "Add Cooked widgets to your Home and Lock Screen, or say \"Hey Siri, log water\".", tip: "Long-press your Home Screen → +.", tint: "#0ea5e9",
     art: <div className="grid h-full grid-cols-2 place-content-center gap-3 px-6">{[Flame, Activity, Users, Route].map((I, k) => <span key={k} className="ob-pop grid h-20 place-items-center rounded-[20px] bg-white/25" style={{ animationDelay: `${k * 0.15}s` }}><I className="h-8 w-8 text-white" /></span>)}</div> },
-  { title: "You're all set", line: "That's the tour. Tap the gear any time for your goals, app plugins, units, reminders and more.", tip: "Settings → How Arise Fit works replays this.", tint: "#ff5a1f",
+  { title: "You're all set", line: "That's the tour. Tap the gear any time for your goals, app plugins, units, reminders and more.", tip: "Settings → How Cooked works replays this.", tint: "#ff5a1f",
     art: <div className="grid h-full place-items-center"><span className="ob-pop grid h-28 w-28 place-items-center rounded-full bg-white"><Check className="h-16 w-16" style={{ color: "#ff5a1f" }} strokeWidth={3.5} /></span></div> },
 ];
 const SLIDE_MS = 6000;
@@ -338,14 +338,14 @@ export function FeatureTour({ onClose }: { onClose: () => void }) {
     return () => { if (timer.current) window.clearTimeout(timer.current); };
   }, [k, hold, end]);
   const go = (d: number) => { haptic("light"); setK((n) => Math.max(0, Math.min(SLIDES.length - 1, n + d))); };
-  return <div className="fixed inset-0 z-[90] flex flex-col text-white" style={{ background: `linear-gradient(165deg, ${s.tint} 0%, #14110f 88%)`, transition: "background .6s", ...font }} role="dialog" aria-modal="true" aria-label="How Arise Fit works" data-testid="fit-tour">
+  return <div className="fixed inset-0 z-[90] flex flex-col text-white" style={{ background: `linear-gradient(165deg, ${s.tint} 0%, #14110f 88%)`, transition: "background .6s", ...font }} role="dialog" aria-modal="true" aria-label="How Cooked works" data-testid="fit-tour">
     <style>{ONB_CSS}</style>
     {orb("rgba(255,255,255,.5)", "220px", "-60px", "8%")}{orb("rgba(255,255,255,.35)", "260px", "60%", "58%", "1.5s")}
     <div className="relative z-[2] flex gap-1.5 px-4 pt-[max(14px,var(--sat,env(safe-area-inset-top,0px)))]" aria-hidden>
       {SLIDES.map((_, n) => <span key={n} className="h-[3px] flex-1 overflow-hidden rounded-full bg-white/25">{n < k ? <span className="block h-full w-full bg-white" /> : n === k ? <span key={`${k}-${hold}`} className="ob-bar block h-full bg-white" style={{ animationDuration: `${SLIDE_MS}ms`, animationPlayState: hold ? "paused" : "running"}} /> : null}</span>)}
     </div>
     <div className="relative z-[2] flex items-center justify-between px-4 pt-3">
-      <span className="text-[13px] font-bold tracking-[.14em]" style={display}>How Arise Fit works</span>
+      <span className="text-[13px] font-bold tracking-[.14em]" style={display}>How Cooked works</span>
       <button type="button" onClick={onClose} aria-label="Close tour" className="grid h-10 w-10 place-items-center rounded-full bg-black/25"><X className="h-5 w-5" /></button>
     </div>
     <div className="relative z-[1] min-h-0 flex-1" onPointerDown={() => setHold(true)} onPointerUp={() => setHold(false)} onPointerLeave={() => setHold(false)} onPointerCancel={() => setHold(false)}>

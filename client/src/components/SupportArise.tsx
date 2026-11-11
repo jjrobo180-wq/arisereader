@@ -67,6 +67,7 @@ export function SupportSheet({ info, onClose }: { info: DonateInfo | null; onClo
 
 /** The header button. Quiet but always there: a rose heart, with the word "Support" on wider screens. */
 export function SupportButton({ isAdmin = false, className = "" }: { isAdmin?: boolean; className?: string }) {
+  return null; // Donations are switched off across the site (November 2026).
   const info = useDonateInfo();
   const [open, setOpen] = useState(false);
   // Until a link is saved, only the admin sees it (with a reminder of where to add one).
@@ -85,6 +86,7 @@ export function SupportButton({ isAdmin = false, className = "" }: { isAdmin?: b
 /** The donation banner. It always shows (there is no close button) wherever it's placed: Home in
  *  both hubs and every screen of the Reader. `dark` is the Reader's dark purple version. */
 export function SupportBanner({ dark = false }: { dark?: boolean }) {
+  return null; // Donations are switched off across the site (November 2026).
   const info = useDonateInfo();
   const [open, setOpen] = useState(false);
   if (!info || isNativeApp()) return null;
@@ -103,6 +105,7 @@ export function SupportBanner({ dark = false }: { dark?: boolean }) {
 /** A menu item that opens the donation sheet: the hubs' and the Reader's sidebars use it, each
  *  passing its own button look. Shows once a donation link is saved (or always for the admin). */
 export function SupportMenuItem({ isAdmin = false, className, children, testId = "support-menu-item" }: { isAdmin?: boolean; className: string; children: ReactNode; testId?: string }) {
+  return null; // Donations are switched off across the site (November 2026).
   const info = useDonateInfo();
   const [open, setOpen] = useState(false);
   if ((!info && !isAdmin) || isNativeApp()) return null;

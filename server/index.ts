@@ -74,7 +74,7 @@ app.use((req, res, next) => {
 });
 
 // The Arise To Duo custom domain gets the educator marketing page at its root.
-// Keep the existing A.R.I.S.E. Reader homepage unchanged on its own hostname.
+// Keep the existing Arise Reader homepage unchanged on its own hostname.
 // The HTML is a self-contained public page; static assets and API routes are unaffected.
 app.get("/", (req, res, next) => {
   const host = (req.headers.host || "").split(":")[0].toLowerCase();
@@ -85,7 +85,7 @@ app.get("/", (req, res, next) => {
   res.type("html").sendFile(page);
 });
 
-// The A.R.I.S.E. Reader homepage. Visitors who aren't signed in (and search engines) get the real
+// The Arise Reader homepage. Visitors who aren't signed in (and search engines) get the real
 // landing page as the page itself — before, "/" was the app shell with the landing page inside a
 // frame, so search engines saw an almost empty homepage. Anyone with a sign-in cookie still gets
 // the app at "/" exactly as before; the landing page itself sends app links (/#/signin and the
@@ -95,6 +95,9 @@ app.get("/", (req, res, next) => {
   if (host !== "arisereader.com" && host !== "www.arisereader.com") return next();
   res.setHeader("Vary", "Cookie");
   if (/(?:^|;\s*)arise_session=/.test(String(req.headers.cookie || ""))) return next();
+  // A sign-in code from the iPhone app (?signin=…, opened in Safari by a plan button) goes straight to the
+  // app, which signs the person in. The landing page would flash first and then lose the code.
+  if (typeof req.query.signin === "string" && req.query.signin) return next();
   const page = process.env.NODE_ENV === "production"
     ? path.resolve(__dirname, "public", "reader-landing.html")
     : path.resolve(process.cwd(), "client", "public", "reader-landing.html");
@@ -152,6 +155,8 @@ declare module "http" {
 }
 
 app.use("/api/eye-gaze/talker-state", express.json({ limit: "2mb" }));
+// Wren documents: boards and settings, or one added picture (each under 260 KB).
+app.use("/api/eye-gaze/wren", express.json({ limit: "400kb" }));
 // Build Zone worlds can be a few hundred kilobytes once they're full of builds.
 app.use("/api/city/build", express.json({ limit: "600kb" }));
 
@@ -206,7 +211,7 @@ app.use("/api/apps/ai", express.json({ limit: "200kb" }));
 app.use("/api/arise-todo/workspace", express.json({ limit: "6mb" }));
 // A meal photo for the food diary's calorie estimate (shrunk on the phone first).
 app.use("/api/arise-todo/food/estimate", express.json({ limit: "4mb" }));
-// Arise Fit: a photo of a machine or a gym (shrunk on the phone, but still far over the usual 100 KB),
+// Cooked: a photo of a machine or a gym (shrunk on the phone, but still far over the usual 100 KB),
 // and the whole Fit diary, which passes 100 KB after a few months of food, workouts and runs.
 app.use("/api/fit/identify", express.json({ limit: "8mb" }));
 app.use("/api/fit/data", express.json({ limit: "5mb" }));

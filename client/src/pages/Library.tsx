@@ -2,6 +2,7 @@ import { OPEN_INBOX } from "@/lib/readerNative";
 import { useSavedChoice } from "@/lib/useSavedChoice";
 import { updateReaderWidget } from "@/lib/readerWidget";
 import { isReaderApp } from "@/lib/nativeApp";
+import GetReaderApp from "@/components/GetReaderApp";
 import { BookTitleSuggest, DidYouMeanList, type PickedBook } from "@/components/BookTitleSuggest";
 import type { BookCandidate } from "@shared/bookMatch";
 import { shelvesByPoints } from "@shared/libraryShelves";
@@ -1499,6 +1500,8 @@ export default function Library() {
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
+        {/* The iPhone app's download link for students (hidden inside the app itself). */}
+        {user?.role === 'student' && !user.is_eye_gaze_user && <GetReaderApp tone="light" who="you" className="mb-4" />}
         {/* Quizzes this student asked for that a teacher approved: shown first, until taken. */}
         {user?.role === 'student' && <QuizReadyBanner />}
         {/* The Advisory Challenge: this student's advisory's place. Tapping it opens the leaderboard. */}

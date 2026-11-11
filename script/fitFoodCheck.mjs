@@ -1,4 +1,4 @@
-// Arise Fit's Food, end to end in a real browser (iPhone Safari's engine and Chrome): the built app, signed in,
+// Cooked's Food, end to end in a real browser (iPhone Safari's engine and Chrome): the built app, signed in,
 // with apps set up like a real account (Food added, not on the tab bar). It opens Food, adds a food by search and
 // one by Quick add, and checks each reaches the server (a PUT of the Fit data). Run by duo-tasks-check.yml.
 import { readFile, stat, mkdir, appendFile } from "node:fs/promises";

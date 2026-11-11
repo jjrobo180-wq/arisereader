@@ -30,7 +30,8 @@ function getTokenFromCookie(): string | null {
 }
 
 const BACKGROUNDS = [
-  { name: "Mint", value: DEFAULT_EYE_GAZE_BACKGROUND, emoji: "🌿" },
+  { name: "A.R.I.S.E.", value: DEFAULT_EYE_GAZE_BACKGROUND, emoji: "✨" },
+  { name: "Mint", value: "#e4f3ec", emoji: "🌿" },
   { name: "Sunshine", value: "#fff4d6", emoji: "☀️" },
   { name: "Sky", value: "#e4efff", emoji: "☁️" },
   { name: "Lavender", value: "#f6e6f3", emoji: "💜" },

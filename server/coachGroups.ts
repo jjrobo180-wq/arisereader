@@ -1,4 +1,4 @@
-// Arise Trainer groups: group pages (posts, photos, comments, likes, pins), group chat, and challenges with a
+// Cooked Trainer groups: group pages (posts, photos, comments, likes, pins), group chat, and challenges with a
 // leaderboard. A trainer owns each group; members are their active clients. Shapes: shared/coachGroups.ts.
 // Registered from registerCoachRoutes (server/coach.ts), which passes its store, key-value store and helpers.
 import type { Express, RequestHandler } from "express";
@@ -82,7 +82,7 @@ export function registerCoachGroupRoutes(app: Express, auth: RequestHandler, c: 
     const g = cleanGroup({ ...req.body?.group, members: (req.body?.group?.members ?? []).filter((m: number) => ok.has(Number(m))) }, id);
     if (!g) throw refuse("Give the group a name.");
     await kv.set(K.groups(id), [...all, g]);
-    tell(g.members, { title: `You're in ${g.name}`, body: `${await coachName(id)} added you to a group. Say hi in Arise Fit.`, tag: `group-${g.id}` });
+    tell(g.members, { title: `You're in ${g.name}`, body: `${await coachName(id)} added you to a group. Say hi in Cooked.`, tag: `group-${g.id}` });
     return { group: g };
   }));
   app.put("/api/coach/trainer/groups/:gid", auth, wrap(async (req) => {
@@ -99,7 +99,7 @@ export function registerCoachGroupRoutes(app: Express, auth: RequestHandler, c: 
     if (!next) throw refuse("Give the group a name.");
     await kv.set(K.groups(g.trainerId), all.map((x) => (x.id === g.id ? next : x)));
     const added = next.members.filter((m) => !g.members.includes(m));
-    if (added.length) tell(added, { title: `You're in ${next.name}`, body: `${await coachName(g.trainerId)} added you to a group. Say hi in Arise Fit.`, tag: `group-${g.id}` });
+    if (added.length) tell(added, { title: `You're in ${next.name}`, body: `${await coachName(g.trainerId)} added you to a group. Say hi in Cooked.`, tag: `group-${g.id}` });
     return { group: next };
   }));
 

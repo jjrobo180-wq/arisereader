@@ -73,7 +73,7 @@ export default function MeetingPoll() {
   return (
     <div className="min-h-screen bg-slate-100 px-4 py-8 text-slate-900" data-testid="meeting-poll">
       <div className="mx-auto max-w-xl">
-        <div className="mb-4 text-center text-sm font-semibold tracking-wide text-slate-500">A.R.I.S.E. Reader</div>
+        <div className="mb-4 text-center text-sm font-semibold tracking-wide text-slate-500">Arise Reader</div>
         {!poll && !error && <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-slate-400" /></div>}
         {!poll && error && <div role="alert" className="rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-sm">{error}</div>}
 

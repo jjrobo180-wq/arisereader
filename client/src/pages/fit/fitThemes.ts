@@ -1,4 +1,4 @@
-// Arise Fit's color themes (no imports, so tests can load it). fitUi.tsx turns these into the app's CSS.
+// Cooked's color themes (no imports, so tests can load it). fitUi.tsx turns these into the app's CSS.
 // ——— Color themes ——————————————————————————————————————————————————————————————————————————————
 // Each theme has an accent for Light and one for Dark (Light's is deeper so it reads on white), and the
 // text color that sits on it. The glow, the soft tint, the deep end of gradients and the see-through

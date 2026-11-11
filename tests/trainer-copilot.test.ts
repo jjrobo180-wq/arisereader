@@ -43,7 +43,7 @@ test("reflow moves missed workouts to the next free days, one a day, in order", 
   // Only on the client's training days (Mon/Wed/Fri).
   const r2 = reflow(c, [], NOW, { days: [1, 3, 5] });
   for (const m of r2.moves) assert.ok([1, 3, 5].includes(new Date(`${m.to}T12:00:00`).getDay()));
-  // A workout logged in Arise Fit for that plan day counts as done.
+  // A workout logged in Cooked for that plan day counts as done.
   const logged = reflow(c, [{ ...lift(d(-6), "bench-press", "Bench press", 60, [8]), programId: "coach", dayId: "a" }], NOW);
   assert.deepEqual(logged.moves.map((m) => m.id), ["c"]);
 });
@@ -99,7 +99,7 @@ test("the copilot route ranks clients, respects what they share, and plan tools 
   assert.equal(cp.ai, false);
   const withAi = (await call("GET", "/api/coach/trainer/copilot?ai=1", 7)).body;
   assert.equal(withAi.ai, true); assert.equal(withAi.items[0].summary, "Quiet for two weeks.");
-  assert.doesNotMatch(aiPrompt, /101|102/, "no user ids sent to the AI");
+  assert.doesNotMatch(aiPrompt, /\b10[12]\b/, "no user ids sent to the AI"); // whole numbers only: a random id like "…b101-…" is not a user id
   assert.equal((await call("GET", "/api/coach/trainer/copilot", 101)).body.items.length, 0, "a client sees no one");
 
   // Plan tools: preview changes nothing, apply saves and tells the client.
@@ -114,7 +114,7 @@ test("the copilot route ranks clients, respects what they share, and plan tools 
   assert.equal((await call("POST", `/api/coach/links/${lj}/progress`, 7, {})).body.changes.length, 0, "no shared workouts, no targets");
 });
 
-test("Copilot and plan tools are in Arise Trainer", () => {
+test("Copilot and plan tools are in Cooked Trainer", () => {
   const ui = read("client/src/pages/trainer/TrainerCopilot.tsx");
   for (const t of ["tr-copilot", "tr-cp-send", "tr-reflow", "tr-progress"]) assert.ok(ui.includes(t), t);
   assert.match(read("client/src/pages/trainer/TrainerApp.tsx"), /<CopilotCard /);

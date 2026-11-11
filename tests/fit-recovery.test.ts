@@ -1,4 +1,4 @@
-// Arise Fit, the Fitbod-style rebuild: muscle recovery from the sets you log, today's workout built
+// Cooked, the Fitbod-style rebuild: muscle recovery from the sets you log, today's workout built
 // for you from your freshest muscles, the body map, designed cover art and the Light/Dark themes.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -98,7 +98,7 @@ test("designed cover art instead of video stills, words under the art, never on 
   assert.doesNotMatch(train, /videoThumb\(/, "no YouTube stills as covers");
 });
 
-test("themes: Light, Dark and Auto in Settings (and in Arise Trainer); the iPhone clock follows", () => {
+test("themes: Light, Dark and Auto in Settings (and in Cooked Trainer); the iPhone clock follows", () => {
   const ui = read("client/src/pages/fit/fitUi.tsx");
   assert.match(ui, /export function ThemePicker/);
   assert.match(read("client/src/pages/fit/FitApp.tsx"), /<ThemePicker \/>/);

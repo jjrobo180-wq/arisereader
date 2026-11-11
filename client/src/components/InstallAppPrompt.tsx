@@ -82,7 +82,7 @@ export default function InstallAppPrompt() {
     className="fixed bottom-5 right-5 z-[640] w-[360px] max-w-[calc(100vw-2.5rem)] rounded-3xl border border-slate-200 bg-white p-5 text-slate-900 shadow-2xl">
     <button type="button" onClick={later} aria-label="Not now" className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100"><X className="h-4 w-4" /></button>
     <div className="flex items-center gap-3 pr-8">
-      <img src="/icon-192.png?v=seam1" alt="" className="h-12 w-12 rounded-2xl shadow" />
+      <img src="/icon-192.png?v=reader2" alt="" className="h-12 w-12 rounded-2xl shadow" />
       <div><p className="font-black leading-tight">Get the A.R.I.S.E. app</p><p className="text-sm text-slate-500">One click from your desktop, in its own window.</p></div>
     </div>
     <ol className="mt-4 space-y-3">

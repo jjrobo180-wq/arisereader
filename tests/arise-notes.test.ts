@@ -28,12 +28,13 @@ const DAY = 86_400_000;
 test("the plans have the spec's minutes", () => {
   assert.deepEqual(
     Object.values(NOTES_PLANS).map((p) => [p.id, p.minutes, p.rollover, p.speakers]),
-    [["free", 60, false, false], ["basic", 600, false, false], ["plus", 1500, true, true], ["family", 2000, true, true]],
+    [["free", 60, false, true], ["basic", 600, false, false], ["plus", 1500, true, true], ["family", 2000, true, true]],
   );
   assert.equal(NOTES_HARD_CAP, 3000);
-  assert.equal(allows("free", "export"), false, "Free is summaries only");
+  assert.equal(allows("free", "export"), true, "Free has every Notes tool");
+  assert.equal(allows("free", "speakers"), true);
+  assert.equal(allows("free", "rollover"), false, "rollover stays with Plus and Family");
   assert.equal(allows("basic", "export"), true);
-  assert.equal(allows("basic", "speakers"), false, "speaker labels are Plus");
   assert.equal(allows("family", "iep"), true);
 });
 
@@ -315,7 +316,7 @@ test("Stripe's messages turn each Notes plan on and off", async (t) => {
   assert.equal((await plans.notesPlan(1, BUYERS[1])).plan, "plus", "the admin always has Plus");
 });
 
-test("Notes checkout asks Stripe for the right price, and only for an account that may buy", async (t) => {
+test("Notes checkout sells Arise All Access ($10 a month), and only to an account that may buy", async (t) => {
   const { call, calls } = await billingServer(t, "sk_test_notes");
   const out = await call(81, "POST", "/api/notes/billing/checkout", { product: "plus_year" });
   assert.equal(out.status, 200);
@@ -323,9 +324,9 @@ test("Notes checkout asks Stripe for the right price, and only for an account th
   const made = calls.find((c) => c.method === "POST" && c.url.includes("/checkout/sessions"));
   assert.ok(made, "a checkout page was made");
   assert.equal(made!.form.get("mode"), "subscription");
-  assert.equal(made!.form.get("line_items[0][price_data][unit_amount]"), "7999");
-  assert.equal(made!.form.get("line_items[0][price_data][recurring][interval]"), "year");
-  assert.equal(made!.form.get("metadata[kind]"), "notes_plus_year");
+  assert.equal(made!.form.get("line_items[0][price_data][unit_amount]"), "1000");
+  assert.equal(made!.form.get("line_items[0][price_data][recurring][interval]"), "month");
+  assert.equal(made!.form.get("metadata[kind]"), "all_access");
   assert.equal(made!.form.get("subscription_data[metadata][ownerId]"), "81");
 
   assert.equal((await call(81, "POST", "/api/notes/billing/checkout", { product: "gold" })).status, 400);

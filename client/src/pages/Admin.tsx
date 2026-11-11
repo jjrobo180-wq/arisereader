@@ -26,6 +26,8 @@ import NoProctorReview from "@/components/NoProctorReview";
 import ComprehensionReview from "@/components/ComprehensionReview";
 import ArchivedProfilesCard from "@/components/ArchivedProfilesCard";
 import AdminPlans from "@/components/AdminPlans";
+import AdminDeleteAccounts from "@/components/AdminDeleteAccounts";
+import AdminScholarships from "@/components/AdminScholarships";
 import PlayTimeManager from "@/components/PlayTimeManager";
 import StudentActivity from "@/components/StudentActivity";
 import AdminInbox from "@/components/admin/AdminInbox";
@@ -167,7 +169,7 @@ let adminCache: { students: Student[]; books: BookItem[] } = {
   books: [],
 };
 
-/** The admin console. `embedded`: shown inside Arise WorkHub's A.R.I.S.E. Reader group (no sticky page header). */
+/** The admin console. `embedded`: shown inside Arise WorkHub's Arise Reader group (no sticky page header). */
 /** The parts of Overview, which the Reader shows as separate menu items. */
 export type OverviewPart = "home" | "attention" | "actions" | "leaderboard";
 
@@ -269,7 +271,7 @@ export default function Admin({ embedded = false, section, onSection, hideNav = 
   const [teacherBanner, setTeacherBanner] = useState<SiteBanner>({ text: "", bgColor: "#3b82f6", textColor: "#ffffff", active: true, link: "" });
   const [loginBanner, setLoginBanner] = useState<SiteBanner>({ text: "", bgColor: "#f59e0b", textColor: "#1a1a1a", active: true, link: "" });
   const [bannerMsg, setBannerMsg] = useState("");
-  const [donationSettings, setDonationSettings] = useState({ goalAmount: 1000, currentAmount: 0, title: "Support Our Readers", description: "Help us keep A.R.I.S.E Reader free for students", donateUrl: "", milestonesText: "", active: false });
+  const [donationSettings, setDonationSettings] = useState({ goalAmount: 1000, currentAmount: 0, title: "Support Our Readers", description: "Help us keep Arise Reader free for students", donateUrl: "", milestonesText: "", active: false });
   const [donationMsg, setDonationMsg] = useState("");
   const [aiApiKey, setAiApiKey] = useState("");
   const [aiKeyPreview, setAiKeyPreview] = useState("");
@@ -1550,7 +1552,7 @@ export default function Admin({ embedded = false, section, onSection, hideNav = 
       return `<article class="champ-card place-${rank}">
         <div class="place-badge"><span>${placeIcons[idx]}</span> ${placeWords[idx]}</div>
         <div class="champ-name">${escapeHtml(entry.displayName || "Reader")}</div>
-        <div class="champ-meta">${detail || "A.R.I.S.E. Reader"}</div>
+        <div class="champ-meta">${detail || "Arise Reader"}</div>
         <div class="score-row"><div><b>${Number(entry.totalPoints || 0).toLocaleString()}</b><span>POINTS</span></div><div><b>${Number(entry.quizzesTaken || 0)}</b><span>QUIZZES</span></div></div>
         ${reward ? `<div class="reward"><span>REWARD</span><strong>${escapeHtml(reward)}</strong></div>` : ""}
       </article>`;
@@ -1562,7 +1564,7 @@ export default function Admin({ embedded = false, section, onSection, hideNav = 
       const reward = (adminLbRewards[String(entry.id ?? rank)] || "").trim();
       return `<div class="standing-row">
         <div class="rank-bubble">#${rank}</div>
-        <div class="standing-reader"><strong>${escapeHtml(entry.displayName || "Reader")}</strong><small>${studentDetail || "A.R.I.S.E. Reader"}</small></div>
+        <div class="standing-reader"><strong>${escapeHtml(entry.displayName || "Reader")}</strong><small>${studentDetail || "Arise Reader"}</small></div>
         <div class="standing-stat"><b>${Number(entry.quizzesTaken || 0)}</b><span>QUIZZES</span></div>
         <div class="standing-stat points"><b>${Number(entry.totalPoints || 0).toLocaleString()}</b><span>POINTS</span></div>
         <div class="standing-reward"><span>REWARD</span><strong>${reward ? escapeHtml(reward) : "—"}</strong></div>
@@ -1570,7 +1572,7 @@ export default function Admin({ embedded = false, section, onSection, hideNav = 
     }).join("");
 
     const html = `<!doctype html>
-<html><head><meta charset="utf-8"><title>A.R.I.S.E. Reader Hallway Leaderboard</title>
+<html><head><meta charset="utf-8"><title>Arise Reader Hallway Leaderboard</title>
 <style>
   @page { size: Letter portrait; margin: 0.28in; }
   * { box-sizing: border-box; }
@@ -1639,7 +1641,7 @@ export default function Admin({ embedded = false, section, onSection, hideNav = 
   <div class="top-stripe"></div>
   <section class="hero">
     <div class="confetti"><i></i><i></i><i></i><i></i><i></i><i></i></div>
-    <div class="brand">A.R.I.S.E. READER</div>
+    <div class="brand">ARISE READER</div>
     <h1>${escapeHtml(adminLbPosterTitle || "READING CHAMPIONS")}</h1>
     <div class="message">${escapeHtml(adminLbPosterMessage || "Celebrating the readers who rose to the top!")}</div>
     <div class="hero-meta"><span class="pill">${escapeHtml(listLabel)}</span><span class="pill">${escapeHtml(bandLabel)}</span><span class="pill">${escapeHtml(printedOn)}</span></div>
@@ -1647,7 +1649,7 @@ export default function Admin({ embedded = false, section, onSection, hideNav = 
   <div class="champions-label">TOP READERS</div>
   <section class="podium">${topThree}</section>
   ${remainingRows ? `<section class="standings"><div class="standings-title"><h2>Reader Standings</h2><span>CURRENT RESULTS</span></div>${remainingRows}</section>` : ""}
-  <footer class="footer"><strong>A.R.I.S.E. READER</strong><span class="rise">READ • LEARN • EARN • PLAY • GROW</span><span>Keep reading. Keep rising.</span></footer>
+  <footer class="footer"><strong>ARISE READER</strong><span class="rise">READ • LEARN • EARN • PLAY • GROW</span><span>Keep reading. Keep rising.</span></footer>
 </main></body></html>`;
 
     printWindow.document.open();
@@ -2634,7 +2636,7 @@ Generate exactly 10 questions.`;
       {showPart("home") && <>
       <div>
         <h1 className="text-xl font-black sm:text-2xl">Welcome back{user?.displayName ? `, ${user.displayName}` : ""}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Here's what's happening on A.R.I.S.E. Reader.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Here's what's happening on Arise Reader.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
@@ -3481,6 +3483,7 @@ Generate exactly 10 questions.`;
       {peopleTab === "archived" && (
         <ArchivedProfilesCard refreshKey={archiveRefresh} onRestored={() => { void fetchStudents(); void fetchTeachers(); void fetchAllParents(); }} />
       )}
+      <AdminDeleteAccounts />
     </div>
   );
 
@@ -3824,6 +3827,7 @@ Generate exactly 10 questions.`;
         )}
       </AdminSection>
       <AdminPlans />
+      <AdminScholarships />
     </div>
   );
 
@@ -4185,7 +4189,7 @@ Generate exactly 10 questions.`;
                 <Input
                   value={donationSettings.description}
                   onChange={(e) => setDonationSettings({ ...donationSettings, description: e.target.value })}
-                  placeholder="Help us keep A.R.I.S.E Reader free for students"
+                  placeholder="Help us keep Arise Reader free for students"
                   className="bg-muted/30 border-border text-foreground"
                 />
               </div>
@@ -4342,7 +4346,7 @@ Generate exactly 10 questions.`;
             <span className="arise-icon-tile grid grid-cols-1 h-9 w-9 shrink-0 place-items-center rounded-xl"><ShieldCheck className="h-[18px] w-[18px]" /></span>
             <span className="min-w-0 text-left leading-tight">
               <span className="block truncate text-[15px] font-black">Admin</span>
-              <span className="hidden truncate text-[11px] text-muted-foreground sm:block">A.R.I.S.E. Reader</span>
+              <span className="hidden truncate text-[11px] text-muted-foreground sm:block">Arise Reader</span>
             </span>
           </button>
           <div className="ml-auto flex items-center gap-0.5 sm:gap-1">

@@ -30,7 +30,7 @@ function HandoffScreen({ title, message, error, manualUrl, manualText }: {
 
 const hubName = (user: { isAdmin?: boolean; role?: string } | null) => hubPathFor(user) === "/workhub" ? "Arise WorkHub" : "Arise LifeHub";
 
-/** A teacher, parent, LifeHub account or administrator signed in on A.R.I.S.E. Reader: carry the
+/** A teacher, parent, LifeHub account or administrator signed in on Arise Reader: carry the
  *  sign-in over to arisetodo.com with a one-use code and open their hub there. */
 export function ReaderToHubHandoff() {
   const { user, token } = useAuth();

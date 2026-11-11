@@ -15,7 +15,7 @@ test("feedback is cleaned: points kept in the frame, junk paths refused, marks i
     { t: 2.345, strokes: [{ color: "#ff3b30", pts: [[0.1, 0.2], [1.7, -3], ["x", 0.5]] }, { color: "purple", pts: [[0.5, 0.5]] }] },
     { t: 4, strokes: [], text: "" },
   ] }, "link-1", "2026-11-08T00:00:00Z", 10);
-  assert.equal(fb.text, "Knees out"); assert.equal(fb.rating, "fix"); assert.equal(fb.voice, "");
+  assert.equal(fb.text, "Knees out ", "a space just typed stays (it can be the space before the next word)"); assert.equal(fb.rating, "fix"); assert.equal(fb.voice, "");
   assert.deepEqual(fb.marks.map((m) => m.t), [2.35, 9], "the empty mark is dropped, the rest sorted");
   assert.deepEqual(fb.marks[0].strokes, [{ color: "#ff3b30", pts: [[0.1, 0.2], [1, 0], [0, 0.5]] }]);
   assert.ok(filePathOk("link-1/voice-abc-12.m4a", "link-1"));
@@ -83,7 +83,7 @@ test("form checks are in both apps, with permission text for camera and micropho
   const ui = read("client/src/pages/coach/FormCheck.tsx");
   for (const t of ["fc-record", "fc-send", "fc-draw", "fc-keep", "fc-voice-rec", "fc-send-feedback", 'capture="environment"']) assert.ok(ui.includes(t), t);
   const plist = read(".github/scripts/configure_fit_app.py");
-  assert.match(plist, /Arise Fit uses the microphone for the sound of a video/);
-  assert.match(plist, /Arise Trainer uses the microphone only when you record a voice note/);
+  assert.match(plist, /Cooked uses the microphone for the sound of a video/);
+  assert.match(plist, /Cooked Trainer uses the microphone only when you record a voice note/);
   assert.doesNotMatch(plist, /Form check video stays on your iPhone/);
 });

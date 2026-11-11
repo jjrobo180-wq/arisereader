@@ -18,7 +18,7 @@ export default function NotFound() {
           </div>
           <Button asChild className="gap-2 rounded-full px-6">
             <a href="#/" data-testid="not-found-home">
-              <Home className="h-4 w-4" /> Go to A.R.I.S.E. Reader
+              <Home className="h-4 w-4" /> Go to Arise Reader
             </a>
           </Button>
         </CardContent>

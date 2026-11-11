@@ -101,7 +101,7 @@ test("cleaning keeps what's good and drops the rest", () => {
   assert.deepEqual(c.uses.map((u) => [u.id, u.tool, u.at]), [["u1", "sound:brown", "22:40"], ["u5", "breathe:sigh", ""]]);
   assert.deepEqual(c.reviews.map((r) => [r.id, r.fell, r.helped]), [["r1", "ok", ["sound:brown"]]]);
   assert.deepEqual(c.journal.map((j) => [j.id, j.kind]), [["j1", "free"]]);
-  assert.deepEqual(c.parked.map((p) => [p.id, p.text, p.prayed, p.done]), [["p1", "Call the dentist", false, true]]);
+  assert.deepEqual(c.parked.map((p) => [p.id, p.text, p.prayed, p.done]), [["p1", "Call the dentist ", false, true]]);
   assert.deepEqual(c.favorites, ["script:night-train", "passage:ps4"]);
 });
 

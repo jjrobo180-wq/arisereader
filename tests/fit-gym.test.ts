@@ -1,4 +1,4 @@
-// Arise Fit: My gym (workouts only from your equipment), reading machine QR codes, the photo endpoint,
+// Cooked: My gym (workouts only from your equipment), reading machine QR codes, the photo endpoint,
 // swapping, camera reps and the after-workout debrief.
 import test from "node:test";
 import assert from "node:assert/strict";

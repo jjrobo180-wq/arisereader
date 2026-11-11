@@ -1,15 +1,15 @@
 // Arise Coaching: real, human personal trainers (no AI) and the people they train.
 //
-//  • Trainers list themselves in the directory ("Find a trainer" in Arise Fit, and /#/trainers on the
+//  • Trainers list themselves in the directory ("Find a trainer" in Cooked, and /#/trainers on the
 //    website) with their own prices for in-person, live-video or online coaching, their website,
 //    certifications and reviews. A listing shows while the trainer's monthly listing plan is paid.
-//  • A person asks a trainer to coach them from Arise Fit and chooses what Arise Fit shares (their
+//  • A person asks a trainer to coach them from Cooked and chooses what Cooked shares (their
 //    profile, body weight, workouts, food, steps and fasting, runs, progress photos). Once the trainer
 //    accepts, that data goes to them automatically, with nothing to type again, until the person stops
 //    sharing or ends the coaching.
-//  • In the Arise Trainer app, the trainer builds workouts and programs, puts them on the client's
+//  • In the Cooked Trainer app, the trainer builds workouts and programs, puts them on the client's
 //    calendar, sets habits, nutrition targets, goals and check-in forms, books sessions, keeps private
-//    notes and messages the client. In Arise Fit the client sees it all and does it.
+//    notes and messages the client. In Cooked the client sees it all and does it.
 //
 // Everything here is pure (cleaning, filtering, sorting, the shared snapshot), so the server, both apps
 // and the tests use the same rules. Server: server/coach.ts.
@@ -67,7 +67,7 @@ export type PublicTrainer = TrainerProfile & { id: number; rating: number; revie
 
 export type Review = { id: string; trainerId: number; name: string; stars: number; text: string; date: string; reply?: string };
 
-/** What a client lets Arise Fit share with their trainer. */
+/** What a client lets Cooked share with their trainer. */
 export type Consent = { profile: boolean; body: boolean; workouts: boolean; food: boolean; health: boolean; runs: boolean; photos: boolean };
 export const CONSENT_LABEL: Record<keyof Consent, [string, string]> = {
   profile: ["Profile and goal", "Age, height, sex, goal, activity level, calorie and macro goals"],
@@ -120,7 +120,7 @@ export type Message = { id: number; from: number; body: string; img?: string; at
 
 // ——— Cleaning (everything that comes from a phone goes through these) ———————————————————————————————
 
-const str = (v: unknown, max: number) => String(v ?? "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trim().slice(0, max);
+const str = (v: unknown, max: number) => String(v ?? "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trimStart().replace(/ {2,}$/, "").slice(0, max);
 const num = (v: unknown, lo: number, hi: number, d = 0) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
 const arr = <T>(v: unknown, max: number, f: (x: any) => T | null): T[] => (Array.isArray(v) ? v : []).slice(0, max).map(f).filter((x): x is T => x !== null);
 const id = (v: unknown) => { const s = str(v, 40).replace(/[^A-Za-z0-9_-]/g, ""); return s || Math.random().toString(36).slice(2, 12); };
@@ -317,7 +317,7 @@ export function sortTrainers(list: PublicTrainer[], sort: Sort, f: Filter = {}):
   return [...list].sort((a, b) => by[sort](a, b) || a.name.localeCompare(b.name));
 }
 
-// ——— What the trainer sees of a client (built on the server from Arise Fit, by consent) ——————————————
+// ——— What the trainer sees of a client (built on the server from Cooked, by consent) ——————————————
 
 export type Snapshot = {
   name: string; since: string;
@@ -390,4 +390,4 @@ export function expandProgram(p: CoachProgram, lib: Library, start: string): Ass
 export const checkinDue = (c: Coaching, side: ClientSide, now = new Date()) => !!c.checkin && now.getDay() === c.checkin.weekday && !side.checkins.some((x) => x.formId === c.checkin!.id && x.date >= daysAgo(4, now));
 
 /** Listing plan: what a trainer pays Arise to be in the directory. */
-export const LISTING = { cents: 2900, trialDays: 14, name: "Arise Trainer listing" };
+export const LISTING = { cents: 2900, trialDays: 14, name: "Cooked Trainer listing" };

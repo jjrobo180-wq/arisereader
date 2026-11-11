@@ -1,6 +1,6 @@
-// Arise Fit: training and nutrition in one app (client/src/pages/fit/). Everything here is shared by
+// Cooked: training and nutrition in one app (client/src/pages/fit/). Everything here is shared by
 // the app and the server: the data saved for each person, the built-in exercise catalog and
-// programs (written for Arise Fit), and the math (estimated one-rep max, plates, progression,
+// programs (written for Cooked), and the math (estimated one-rep max, plates, progression,
 // calorie and macro goals). Exercise photos come from wger's open library (server/fit.ts).
 
 export type Units = "lb" | "kg";
@@ -44,7 +44,7 @@ export type FitData = {
   vacation?: Vacation;
   /** The rest of a workout saved part-way through, to finish later (shared/fitVacation.ts). */
   splitLeft?: SplitLeft;
-  /** The Arise Fit apps they've added and the ones on the tab bar (shared/fitApps.ts). */
+  /** The Cooked apps they've added and the ones on the tab bar (shared/fitApps.ts). */
   apps?: FitApps;
   /** Interval timers they've made (shared/fitTimers.ts). */
   timers?: IntervalTimer[];
@@ -283,7 +283,7 @@ export function weeklySets(workouts: Workout[], muscleOf: (exId: string) => stri
   return out;
 }
 
-// ——— The built-in exercise catalog (written for Arise Fit) ———————————————————————————————————————
+// ——— The built-in exercise catalog (written for Cooked) ———————————————————————————————————————
 
 export type Muscle = "chest" | "back" | "shoulders" | "biceps" | "triceps" | "forearms" | "abs" | "quads" | "hamstrings" | "glutes" | "calves" | "full body" | "cardio";
 export type Equipment = "barbell" | "dumbbell" | "machine" | "cable" | "bodyweight" | "kettlebell" | "band" | "bench" | "pull-up bar" | "cardio machine" | "other";
@@ -411,7 +411,7 @@ export const CATALOG: CatalogExercise[] = [
 ];
 export const CATALOG_BY_ID = new Map(CATALOG.map((e) => [e.id, e]));
 
-// ——— Programs (written for Arise Fit; standard training structures) ————————————————————————
+// ——— Programs (written for Cooked; standard training structures) ————————————————————————
 
 export type ProgramDay = { id: string; name: string; items: { exId: string; sets: number; reps: string; rest: number }[] };
 export type Program = { id: string; name: string; blurb: string; level: "Beginner" | "Intermediate" | "Advanced"; goal: string; daysPerWeek: number; weeks: number; equipment: string; premium?: boolean; days: ProgramDay[] };

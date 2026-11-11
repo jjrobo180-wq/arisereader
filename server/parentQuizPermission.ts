@@ -26,7 +26,7 @@ const hashCode = (studentId: number, code: string) => createHash("sha256").updat
 const originOf = (req: any) => `${String(req.get("x-forwarded-proto") || req.protocol || "https").split(",")[0].trim()}://${req.get("host")}`;
 
 const shell = (title: string, body: string) => `<div style="font-family:Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;background-color:#0b0a16;color:#f8fafc;padding:32px;border-radius:20px;">
-  <h1 style="margin:0 0 8px;color:#c4b5fd;font-size:26px;">A.R.I.S.E. Reader</h1>
+  <h1 style="margin:0 0 8px;color:#c4b5fd;font-size:26px;">Arise Reader</h1>
   <h2 style="margin:24px 0 8px;color:#f8fafc;font-size:22px;">${title}</h2>
   ${body}
 </div>`;
@@ -36,7 +36,7 @@ const button = (href: string, label: string, color = "#7c3aed") =>
 
 export function cameraPermissionEmail(student: string, approveUrl: string, signupUrl: string): string {
   return shell(`${student} is asking to take quizzes with the camera`, [
-    p(`${student} wants to take A.R.I.S.E. Reader book quizzes on their own, without a proctor. On these quizzes the camera stays on and takes pictures at random times, and whenever ${student} leaves the quiz screen. ${student}'s teacher, their parent and the site admin can see the pictures. Once you've looked at the pictures, you (with a parent account) or the teacher can delete them right away. Any that aren't are deleted automatically after 30 days.`),
+    p(`${student} wants to take Arise Reader book quizzes on their own, without a proctor. On these quizzes the camera stays on and takes pictures at random times, and whenever ${student} leaves the quiz screen. ${student}'s teacher, their parent and the site admin can see the pictures. Once you've looked at the pictures, you (with a parent account) or the teacher can delete them right away. Any that aren't are deleted automatically after 30 days.`),
     p(`${student} can't take camera quizzes until you say yes.`),
     p(`<strong>Rather not use the camera?</strong> You can say no. ${student} can still take quizzes with you as the proctor: you sit with ${student} and type a proctor password. ${student} can email you a one-time password from the quiz screen, or you can create a free parent account below to get your own Parent Proctor Code that works every time.`),
     `<p style="margin:24px 0;">${button(approveUrl, "Review and approve")}</p>`,
@@ -48,7 +48,7 @@ export function cameraPermissionEmail(student: string, approveUrl: string, signu
 
 export function oneTimeCodeEmail(student: string, code: string, signupUrl: string): string {
   return shell(`Your one-time proctor code for ${student}`, [
-    p(`${student} wants to take an A.R.I.S.E. Reader book quiz with you as the proctor. Sit with ${student}, and when the quiz asks for the proctor code, type this:`),
+    p(`${student} wants to take an Arise Reader book quiz with you as the proctor. Sit with ${student}, and when the quiz asks for the proctor code, type this:`),
     `<p style="margin:20px 0;font-size:34px;font-weight:800;letter-spacing:.14em;color:#ffffff;background:#1e1b4b;border-radius:14px;padding:16px 20px;text-align:center;">${code}</p>`,
     p(`This code works <strong>once</strong>, for one quiz, and stops working after ${ONE_TIME_CODE_DAYS} days. Please don't give it to ${student}.`),
     p(`For the next quizzes, create a free parent account. You'll get your own Parent Proctor Code that works every time, and you can follow ${student}'s reading.`),
@@ -99,7 +99,7 @@ export function registerParentQuizPermissionRoutes(app: Express, authMiddleware:
       if (rec.camera.status === "approved") return res.json({ success: true, camera: "approved" });
       const token = randomBytes(24).toString("hex");
       const origin = originOf(req);
-      const result = await deps.sendEmail(email, `${name(req.user)} is asking to take A.R.I.S.E. Reader quizzes with the camera`,
+      const result = await deps.sendEmail(email, `${name(req.user)} is asking to take Arise Reader quizzes with the camera`,
         cameraPermissionEmail(esc(name(req.user)), esc(`${origin}/#/quiz-permission?token=${token}`), esc(await deps.parentSignupUrl(req.user.id, origin))));
       if (!result.sent) return res.status(503).json({ message: result.error || "Could not send the email right now. Try again in a few minutes." });
       cameraSends.fail(key);

@@ -1,4 +1,4 @@
-// Arise Trainer's builders: workouts (from Arise Fit's exercise catalog plus the trainer's own exercises
+// Cooked Trainer's builders: workouts (from Cooked's exercise catalog plus the trainer's own exercises
 // with their video links), multi-week programs made of those workouts, and check-in forms.
 import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, PlayCircle, Plus, Search, Trash2 } from "lucide-react";

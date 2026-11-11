@@ -1,4 +1,4 @@
-// Moving to Arise Trainer (November 2026): bring clients and workouts over from Trainerize, TrueCoach or a
+// Moving to Cooked Trainer (November 2026): bring clients and workouts over from Trainerize, TrueCoach or a
 // spreadsheet (CSV), and take everything out again whenever you like. Server: server/coach.ts.
 import type { OwnExercise, PlanWorkout } from "./coach";
 import { CATALOG } from "./fit";

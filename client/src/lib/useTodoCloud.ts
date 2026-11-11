@@ -66,8 +66,12 @@ export function useTodoCloud<W extends object>({
     const dirty = d.dirty || (d.user === userRef.current && !!saver.current?.hasUnsaved());
     d.dirty = null;
     // The copy last saved to the account goes with it, so changes made offline merge cleanly later.
-    const base = saver.current && d.user === userRef.current ? saver.current.saved : undefined;
-    try { localStorage.setItem(backupKey(d.user), JSON.stringify({ workspace: d.current, dirty, ...(dirty && base ? { base } : {}) })); } catch {}
+    const mine = saver.current && d.user === userRef.current ? saver.current : null;
+    const base = mine ? mine.saved : undefined;
+    // ...and when the account's copy was saved, so the next opening can show this copy at once and
+    // only ask the server "anything newer than this?".
+    const updatedAt = mine ? mine.baseUpdatedAt : null;
+    try { localStorage.setItem(backupKey(d.user), JSON.stringify({ workspace: d.current, dirty, ...(dirty && base ? { base } : {}), ...(typeof updatedAt === "string" ? { updatedAt } : {}) })); } catch {}
   }, []);
   const saveDraft = useCallback((current: W, dirty: boolean, now = false) => {
     if (!userRef.current) return;
@@ -96,7 +100,20 @@ export function useTodoCloud<W extends object>({
     // once, and catch up with the server in the background — no loading screen. (A copy fetched
     // ahead of time is checked like one from the server.)
     const remembered = recallHub<W>("todo", userId);
-    const memo = remembered && isValid(remembered.workspace) && isValid(remembered.saved) ? remembered : null;
+    // Opening the app fresh: the copy kept on this device shows at once, the same way, instead of a
+    // loading screen while the whole hub downloads. It names the account copy it came from, so the
+    // server is only asked for anything newer, and changes that never reached the account (no signal,
+    // app closed) go out as a normal save and merge with whatever another device saved meanwhile.
+    const onDevice = (): { workspace: W; saved: W; updatedAt: string | null; pending?: Promise<void> } | null => {
+      try {
+        const raw = localStorage.getItem(backupKey(userId));
+        const kept = raw ? JSON.parse(raw) : null;
+        if (!kept || typeof kept.updatedAt !== "string" || !isValid(kept.workspace)) return null;
+        if (kept.dirty !== true) return { workspace: kept.workspace, saved: kept.workspace, updatedAt: kept.updatedAt };
+        return isValid(kept.base) ? { workspace: kept.workspace, saved: kept.base, updatedAt: kept.updatedAt } : null;
+      } catch { return null; }
+    };
+    const memo = remembered && isValid(remembered.workspace) && isValid(remembered.saved) ? remembered : onDevice();
     setError("");
     setRecovery(null);
     if (memo) {
@@ -151,6 +168,9 @@ export function useTodoCloud<W extends object>({
           instance.change(memo.pending ? workspaceRef.current : memo.workspace);
           // Then ask the server for anything newer, once the page has caught up with `loaded`.
           window.setTimeout(() => { if (!cancelled) { lastCheck.current = 0; void checkRef.current(); } }, 60);
+          // A slow first draw (a phone opening the app) can still be going at that moment: ask once
+          // more shortly after. If the first one already went out, this one does nothing.
+          window.setTimeout(() => { if (!cancelled) void checkRef.current(); }, 1500);
           return;
         }
         const response = await fetch(api, { headers: auth(token), cache: "no-store" });

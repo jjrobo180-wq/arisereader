@@ -325,6 +325,40 @@ test("a partner opens the owner's app, and with Edit saves only that app back in
   assert.equal(put.status, 200);
   assert.deepEqual(saved.workspace.family.bills.map((b: any) => b.name), ["Rent", "Internet"]);
   assert.equal(saved.workspace.family.journal.length, 1, "parts outside the app can't be touched, even if sent");
+  // The owner adds a bill meanwhile; the partner, still on the old copy, adds another: both are kept.
+  saved = { ...saved, workspace: { ...saved.workspace, family: { ...saved.workspace.family, bills: [...saved.workspace.family.bills, { id: "b3", name: "Water", amount: 40, due: 3, category: "Home", paid: [] }] } } };
+  const base = put.body.slice;
+  const put2 = await call("PUT", "/api/profile-links/from/:owner/app/:section", 2, { base, slice: { ...base, bills: [...base.bills, { id: "b4", name: "Phone", amount: 50, due: 9, category: "Home", paid: [] }] } }, P);
+  assert.equal(put2.status, 200);
+  assert.deepEqual(saved.workspace.family.bills.map((b: any) => b.name).sort(), ["Internet", "Phone", "Rent", "Water"], "a stale copy no longer wipes out the owner's new items");
   assert.equal((await call("GET", "/api/profile-links/from/:owner/app/:section", 3, {}, P)).status, 403, "strangers can't");
   assert.ok(sharedAppFor("money"));
+});
+
+test("sharing Kitchen with someone you already know (your wife) sends her a notification, and so does adding an app later", async () => {
+  const settings = new Map<string, string>(); const routes: Record<string, Function> = {};
+  const add = (m: string) => (path: string, ...h: Function[]) => { routes[`${m} ${path}`] = h[h.length - 1]; };
+  const app: any = { get: add("GET"), post: add("POST"), put: add("PUT"), delete: add("DELETE") };
+  const sent: { to: number; title: string }[] = [];
+  registerProfileLinkRoutes(app, ((_q: any, _s: any, n: any) => n()) as any, {
+    getSetting: async (k) => settings.get(k) ?? "", upsertSetting: async (k, v) => { settings.set(k, v); },
+    getUser: async (id) => USERS[id] ?? null, lifeHub: async () => null, knows: async () => true,
+    notify: async (to, m) => { sent.push({ to, title: m.title }); },
+  });
+  const call = async (m: string, path: string, who: number, body: any = {}, params: any = {}) => {
+    let status = 200, out: any = null;
+    const res: any = { status(c: number) { status = c; return res; }, json(b: any) { out = b; return res; }, set() { return res; } };
+    await routes[`${m} ${path}`]({ user: USERS[who], body, params, query: {} }, res);
+    return { status, body: out };
+  };
+  const r = await call("POST", "/api/profile-links/person", 1, { userId: 2, grants: { "life:meals": "edit" } });
+  assert.equal(r.status, 200);
+  await new Promise((d) => setTimeout(d, 20));
+  assert.equal(sent.length, 1); assert.equal(sent[0].to, 2); assert.match(sent[0].title, /shared Kitchen with you/);
+  await call("PUT", "/api/profile-links/:id", 1, { grants: { "life:meals": "edit", "life:calendar": "edit" } }, { id: r.body.link.id });
+  await new Promise((d) => setTimeout(d, 20));
+  assert.equal(sent.length, 2); assert.match(sent[1].title, /Calendar/);
+  await call("PUT", "/api/profile-links/:id", 1, { grants: { "life:meals": "edit", "life:calendar": "edit" } }, { id: r.body.link.id });
+  await new Promise((d) => setTimeout(d, 20));
+  assert.equal(sent.length, 2, "saving the same access again doesn't notify twice");
 });

@@ -1,0 +1,24 @@
+/* Light versions of the shared school field and form controls, only on the sign-up pages. */
+.signup-light .sp {
+  --sp-field: #fff;
+  --sp-line: #dfe2ee;
+  --sp-soft: #64748b;
+  --sp-accent: #6d28d9;
+  color: #191b35;
+}
+.signup-light .sp input[type="search"], .signup-light .sp input[type="text"], .signup-light .sp select { color: #191b35; color-scheme: light; }
+.signup-light .sp-note { border-color: #ddd6fe; background: #f5f3ff; color: #3b3f5c; }
+.signup-light .sp-error { border-color: #fecaca; background: #fef2f2; color: #b91c1c; }
+.signup-light .sp-results { background: #fafaff; }
+.signup-light .sp-item { background: #fff; border-color: #eceef6; color: #191b35; }
+.signup-light .sp-item:hover { border-color: #c4b5fd; background: #f5f3ff; }
+.signup-light .sp-chosen { border-color: #a7f3d0; background: #ecfdf5; }
+.signup-light .sp-check { color: #059669; }
+.signup-light .sp-chosen-text span { color: #475569; }
+.signup-light .sp-typing { background: #fafaff; }
+.signup-light .sp-btn { background: #fff; color: #191b35; }
+.signup-light .sp-btn:hover { background: #f5f3ff; }
+.signup-light .sp-btn-main { background: #6d28d9; border-color: #6d28d9; color: #fff; }
+.signup-light .sp-btn-main:hover { background: #5b21b6; }
+.signup-light select option { color: #191b35; background: #fff; }
+.signup-light input[type="radio"], .signup-light input[type="checkbox"] { accent-color: #6d28d9; }

@@ -1,4 +1,4 @@
-"""Fills in A.R.I.S.E. Reader's App Store listing through the App Store Connect API: category, privacy and
+"""Fills in Arise Reader's App Store listing through the App Store Connect API: category, privacy and
 support links, the App Store text, the age rating answers, free in every country, the App Review sign-in
 (the sample account) and the screenshots in store-shots/. Run by app-store-fill.yml. Leaves alone anything
 that only the App Store Connect website can set (app privacy answers, agreements).
@@ -45,7 +45,11 @@ def step(what, fn):
         print(f"FAIL {what}: {e}")
 
 
-DESCRIPTION = """A.R.I.S.E. Reader makes reading the best part of a child's day. Read a book, take a short quiz about it, and earn points, badges and streaks for every book finished.
+NAME = "Arise Reader"
+WHATS_NEW = """A new name and a new look: A.R.I.S.E. Reader is now Arise Reader, with a new icon.
+Also in this update: the teacher and parent screens fit iPhones with a Dynamic Island, long class lists open quickly, and plenty of small fixes."""
+
+DESCRIPTION = """Arise Reader makes reading the best part of a child's day. Read a book, take a short quiz about it, and earn points, badges and streaks for every book finished.
 
 READ AND QUIZ
 - Quizzes for the books kids are already reading, at their level
@@ -69,14 +73,37 @@ FOR EVERY KIND OF READER
 - Eye Gazer for readers who talk with their eyes
 - Big, clear buttons, read-aloud and calm colors
 
-Built by a teacher. Free for students and families. Notifications let students know when their teacher sends a message, and a daily reminder keeps the reading streak going."""
+PLANS
+- Families: $7 a month for a parent and up to 3 children
+- Teachers: $20 a month for up to 99 students
+- Schools: $600 a school year for every teacher and student
+Plans are bought on arisereader.com.
+
+Built by a teacher. Notifications let students know when their teacher sends a message, and a daily reminder keeps the reading streak going."""
 KEYWORDS = "reading,books,quiz,kids,students,teacher,classroom,literacy,AR,rewards,library,read aloud"
-PROMO = "Read, quiz, earn rewards. Free reading quizzes, badges and games for kids and classrooms."
+PROMO = "Read, quiz, earn rewards. Reading quizzes, badges and games for kids, families and classrooms."
 SUBTITLE = "Reading quizzes and rewards"
 
 demo_user, demo_pass = os.environ.get("DEMO_USER", ""), os.environ.get("DEMO_PASS", "")
 app = q("apps", **{"filter[bundleId]": BUNDLE})["data"][0]
 APP = app["id"]
+
+# An update: once a version is on the App Store its listing is closed, so the next version is opened
+# first (APP_VERSION, the same number the iPhone build carries). Its name, screenshots and text are
+# filled in below.
+IN_PROGRESS = ("PREPARE_FOR_SUBMISSION", "DEVELOPER_REJECTED", "REJECTED", "METADATA_REJECTED", "WAITING_FOR_REVIEW", "IN_REVIEW", "PENDING_DEVELOPER_RELEASE", "INVALID_BINARY")
+NEW_VERSION = os.environ.get("APP_VERSION", "").strip()
+def open_version():
+    states = [v["attributes"]["appStoreState"] for v in q(f"apps/{APP}/appStoreVersions", **{"filter[platform]": "IOS"})["data"]]
+    if any(st in IN_PROGRESS for st in states):
+        return
+    if not NEW_VERSION:
+        raise RuntimeError("no version is open and APP_VERSION is not set")
+    api("appStoreVersions", {"data": {"type": "appStoreVersions", "attributes": {"platform": "IOS", "versionString": NEW_VERSION},
+                                      "relationships": {"app": {"data": {"type": "apps", "id": APP}}}}})
+    print(f"     opened version {NEW_VERSION}")
+step("a version open for changes", open_version)
+
 infos = q(f"apps/{APP}/appInfos")["data"]
 info = next((i for i in infos if i["attributes"].get("appStoreState") != "READY_FOR_SALE"), infos[0])
 
@@ -88,6 +115,8 @@ step("category: Education, then Books", lambda: api(f"appInfos/{info['id']}", {"
 for loc in q(f"appInfos/{info['id']}/appInfoLocalizations")["data"]:
     step(f"subtitle and privacy link ({loc['attributes']['locale']})", lambda loc=loc: api(f"appInfoLocalizations/{loc['id']}", {"data": {"type": "appInfoLocalizations", "id": loc["id"], "attributes": {
         "subtitle": SUBTITLE, "privacyPolicyUrl": "https://arisetodo.com/privacy/"}}}, method="PATCH"))
+    # The name under the icon in the store, without the dots (on its own, so a name Apple won't take doesn't hold up the rest).
+    step(f"name: {NAME} ({loc['attributes']['locale']})", lambda loc=loc: api(f"appInfoLocalizations/{loc['id']}", {"data": {"type": "appInfoLocalizations", "id": loc["id"], "attributes": {"name": NAME}}}, method="PATCH"))
 
 # Age rating: a reading app for all ages. Students and their teachers can message each other in a class.
 def age():
@@ -130,11 +159,13 @@ version = next((v for v in q(f"apps/{APP}/appStoreVersions", **{"filter[platform
 if not version:
     sys.exit("No version waiting to be submitted.")
 VID = version["id"]
-step("copyright", lambda: api(f"appStoreVersions/{VID}", {"data": {"type": "appStoreVersions", "id": VID, "attributes": {"copyright": "2026 A.R.I.S.E. Reader"}}}, method="PATCH"))
+step("copyright", lambda: api(f"appStoreVersions/{VID}", {"data": {"type": "appStoreVersions", "id": VID, "attributes": {"copyright": "2026 Arise Reader"}}}, method="PATCH"))
 vlocs = q(f"appStoreVersions/{VID}/appStoreVersionLocalizations")["data"]
 for loc in vlocs:
     step(f"description, keywords, support link ({loc['attributes']['locale']})", lambda loc=loc: api(f"appStoreVersionLocalizations/{loc['id']}", {"data": {"type": "appStoreVersionLocalizations", "id": loc["id"], "attributes": {
         "description": DESCRIPTION, "keywords": KEYWORDS, "promotionalText": PROMO, "supportUrl": "https://arisetodo.com/support/", "marketingUrl": "https://arisereader.com/"}}}, method="PATCH"))
+    # "What's New" (Apple asks for it on every update; the first version of an app has none, and refuses it).
+    step(f"what's new ({loc['attributes']['locale']})", lambda loc=loc: api(f"appStoreVersionLocalizations/{loc['id']}", {"data": {"type": "appStoreVersionLocalizations", "id": loc["id"], "attributes": {"whatsNew": WHATS_NEW}}}, method="PATCH"))
 
 # Free, in every country.
 def price():
@@ -155,16 +186,31 @@ def availability():
         terr += [t["id"] for t in r["data"]]
         url = r.get("links", {}).get("next")
     refs = [f"${{t{i}}}" for i in range(len(terr))]
+    # United States only: the app links to the website to buy a plan, which the US App Store allows.
     try:
-        q(f"apps/{APP}/appAvailabilityV2")
-        print("     already set: available in every country")
-        return
+        av = q(f"apps/{APP}/appAvailabilityV2")["data"]
     except RuntimeError:
-        pass
-    api("https://api.appstoreconnect.apple.com/v2/appAvailabilities", {"data": {"type": "appAvailabilities", "attributes": {"availableInNewTerritories": True}, "relationships": {
+        av = None
+    if av:
+        url = f"https://api.appstoreconnect.apple.com/v2/appAvailabilities/{av['id']}/territoryAvailabilities?limit=200&include=territory"
+        changed = 0
+        while url:
+            r = api(url)
+            for ta in r["data"]:
+                t = ta["relationships"]["territory"]["data"]["id"]
+                want = t == "USA"
+                if ta["attributes"].get("available") != want:
+                    api(f"territoryAvailabilities/{ta['id']}", {"data": {"type": "territoryAvailabilities", "id": ta["id"], "attributes": {"available": want}}}, method="PATCH")
+                    changed += 1
+            url = r.get("links", {}).get("next")
+        print(f"     United States only ({changed} countries changed)")
+        return
+    terr = ["USA"]
+    refs = ["${t0}"]
+    api("https://api.appstoreconnect.apple.com/v2/appAvailabilities", {"data": {"type": "appAvailabilities", "attributes": {"availableInNewTerritories": False}, "relationships": {
         "app": {"data": {"type": "apps", "id": APP}}, "territoryAvailabilities": {"data": [{"type": "territoryAvailabilities", "id": r} for r in refs]}}},
         "included": [{"type": "territoryAvailabilities", "id": r, "attributes": {"available": True}, "relationships": {"territory": {"data": {"type": "territories", "id": t}}}} for r, t in zip(refs, terr)]})
-step("available in every country", availability)
+step("available in the United States only", availability)
 
 # Third-party content: public-domain books (Project Gutenberg, Standard Ebooks), openly licensed lessons
 # (CC BY) and Open Library covers, all with the rights to use them.
@@ -185,6 +231,19 @@ def borrowed_contact():
                 print(f"     contact found on {other['attributes']['name']}")
                 return a
     return {}
+# The contact's name: the App Store Connect team member with that email, when it isn't given.
+if os.environ.get("CONTACT_EMAIL") and not os.environ.get("CONTACT_FIRST"):
+    try:
+        for u in q("users", limit=200)["data"]:
+            a = u["attributes"]
+            if (a.get("username") or "").lower() == os.environ["CONTACT_EMAIL"].lower() or (a.get("email") or "").lower() == os.environ["CONTACT_EMAIL"].lower():
+                os.environ["CONTACT_FIRST"], os.environ["CONTACT_LAST"] = a.get("firstName") or "", a.get("lastName") or ""
+                print(f"     contact name from the App Store Connect team: {a.get('firstName')} {a.get('lastName')}")
+                break
+        else:
+            print("     no App Store Connect team member with that email")
+    except RuntimeError as e:
+        print(f"     team members can't be read: {str(e)[:200]}")
 if not os.environ.get("CONTACT_PHONE"):
     found = borrowed_contact()
     for k, env in (("contactFirstName", "CONTACT_FIRST"), ("contactLastName", "CONTACT_LAST"), ("contactPhone", "CONTACT_PHONE"), ("contactEmail", "CONTACT_EMAIL")):
@@ -196,7 +255,7 @@ if not os.environ.get("CONTACT_PHONE"):
 # App Review: the sample account, and the contact when given.
 def review():
     attrs = {"demoAccountRequired": True, "demoAccountName": demo_user, "demoAccountPassword": demo_pass,
-             "notes": "Sign in with the student account above (on the sign-in screen, choose Student). It's a sample account: it never appears on leaderboards. Notifications appear when a teacher sends the student a message; the daily reading reminder can be set on first sign-in."}
+             "notes": "Sign in with the student account above (on the sign-in screen, choose Student). It's a sample account with full access, and it never appears on leaderboards. Notifications appear when a teacher sends the student a message; the daily reading reminder can be set on first sign-in. Plans (families $7/month, teachers $20/month, schools $600/school year) are not sold in the app: an account without a plan sees a screen with a button that opens arisereader.com in Safari, which is why the app is offered on the United States App Store only."}
     for k, env in (("contactFirstName", "CONTACT_FIRST"), ("contactLastName", "CONTACT_LAST"), ("contactPhone", "CONTACT_PHONE"), ("contactEmail", "CONTACT_EMAIL")):
         if os.environ.get(env):
             attrs[k] = os.environ[env]

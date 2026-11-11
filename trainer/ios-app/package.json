@@ -2,7 +2,7 @@
   "name": "trainer-ios",
   "private": true,
   "version": "1.0.0",
-  "description": "Arise Trainer iPhone app for coaches (built from the shared frontend with VITE_NATIVE_APP=trainer)",
+  "description": "Cooked Trainer iPhone app for coaches (built from the shared frontend with VITE_NATIVE_APP=trainer)",
   "scripts": {
     "ios:add": "cap add ios",
     "ios:sync": "cap sync ios",

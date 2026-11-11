@@ -51,6 +51,7 @@ jobs:
               echo "OUT=podscroll/dist" >> "$GITHUB_ENV" ;;
             todo)
               npx vite build
+              bash .github/scripts/prune_todo_bundle.sh dist/public
               echo "OUT=dist/public" >> "$GITHUB_ENV" ;;
             *)
               VITE_NATIVE_APP=${{ matrix.app }} npx vite build
@@ -68,6 +69,11 @@ jobs:
           TAG="ota-${{ matrix.app }}-$V"
           ZIP="$RUNNER_TEMP/$TAG.zip"
           (cd "$OUT" && zip -qr -X "$ZIP" .)
+          # Arise To Duo: fail if the update balloons again (the eye-gaze engine alone was 145 MB). Lower this once
+          # the books, avatars and audio load from the website instead of riding inside the app.
+          if [ "${{ matrix.app }}" = "todo" ] && [ "$(stat -c %s "$ZIP")" -gt $(( 200 * 1024 * 1024 )) ]; then
+            echo "::error::The To Duo live update is over 200 MB"; exit 1
+          fi
           echo "::notice title=${{ matrix.app }}::$TAG ($(du -h "$ZIP" | cut -f1))"
           # The tag goes on the built commit when GitHub allows it. Once master has moved on with a change to a
           # workflow file, GitHub refuses (403) to let this run's token put a tag on the older commit, so the
