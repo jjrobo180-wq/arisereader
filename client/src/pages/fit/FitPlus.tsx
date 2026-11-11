@@ -98,7 +98,7 @@ export function PlusSheet({ status, feature, passCode, reload, say, onClose }: {
     </Card> : <>
       {feature && <p className="px-1 text-[15px]" style={{ color: C.steel }}><b style={{ color: C.text }}>{PLUS_NAME[feature]}</b> is part of Cooked+.</p>}
       <p className="mt-1 px-1 text-[40px] leading-none" style={display}>{status.price}</p>
-      <p className="mt-1 px-1 text-[13px]" style={{ color: C.dim }}>Fit+ comes with Arise All Access: one plan that also unlocks To Duo Unlimited, Arise Notes Plus and ad-free Pod+.</p>
+      <p className="mt-1 px-1 text-[13px]" style={{ color: C.dim }}>Fit+ comes with Arise All Access: one plan that also unlocks To Duo Unlimited, Arise Notes Plus and ad-free Podster.</p>
     </>}
 
     <Title>{status.plus ? "Included" : "What you get"}</Title>

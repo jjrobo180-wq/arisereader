@@ -1,4 +1,4 @@
-// Pod+ Music (server/music.ts): real covers, artist names, sorting.
+// Podster Music (server/music.ts): real covers, artist names, sorting.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { artistName, imageOf, musicSearchUrl, portraitFromSummary, albumsFromSearch } from "../server/music";

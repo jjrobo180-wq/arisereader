@@ -1,5 +1,5 @@
 // Each account keeps its own things on this device. Almost everything the apps remember on the phone
-// (settings, layouts, Pod+ progress, Study Pods, reminders switches, drafts) is kept in the browser's
+// (settings, layouts, Podster progress, Study Pods, reminders switches, drafts) is kept in the browser's
 // storage (localStorage). Without this, signing into a second account on the same phone showed the
 // first account's things. Now every key is kept under the signed-in account ("u:<account>:<key>"),
 // except the few that belong to the device itself (the saved sign-in, which account is signed in).

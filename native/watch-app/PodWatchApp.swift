@@ -1,4 +1,4 @@
-// Pod+ for Apple Watch, in Pod+'s own look: the orange Pod+ mark, Pod Modes as circles with their LIVE
+// Podster for Apple Watch, in Podster's own look: the orange Podster mark, Pod Modes as circles with their LIVE
 // badges, cover-art cards, and the swipe feed — one show per page, the art blurred behind it, turned with
 // the Digital Crown or a swipe, playing as it lands. Plays on the watch (Bluetooth headphones) with the
 // same native player as CarPlay (native/arise-carplay: PodEngine — ad-free, picking up where you left
@@ -51,14 +51,14 @@ enum PW {
     static let defaultGenres = ["news", "comedy", "truecrime", "history", "science", "tech"]
 }
 
-/** The Pod+ mark, small. */
+/** The Podster mark, small. */
 struct PWLogo: View {
     var body: some View {
         HStack(spacing: 5) {
             RoundedRectangle(cornerRadius: 5).fill(LinearGradient(colors: [PW.accent, PW.orange], startPoint: .top, endPoint: .bottom))
                 .frame(width: 22, height: 20)
                 .overlay { HStack(spacing: 1.8) { ForEach([0.3, 0.6, 0.85, 0.55, 0.3], id: \.self) { h in Capsule().fill(.white).frame(width: 1.8, height: 20 * h) } } }
-            Text("Pod+").font(.system(size: 17, weight: .heavy))
+            Text("Podster").font(.system(size: 17, weight: .heavy))
         }
     }
 }
@@ -93,7 +93,7 @@ final class PodWatchModel: ObservableObject {
             PodEp(id: pair.0, showId: pair.1.showId, title: pair.1.title, show: pair.1.show, art: pair.1.art, audio: pair.1.audio ?? "", secs: pair.1.secs)
         }
     }
-    /** For You: a new show each swipe, taking turns between your topics (as Pod+ does). */
+    /** For You: a new show each swipe, taking turns between your topics (as Podster does). */
     func loadForYou() async {
         guard forYou.isEmpty, !loading else { return }
         loading = true
@@ -159,7 +159,7 @@ struct PodWatchHome: View {
                         .buttonStyle(.plain)
                     }
 
-                    // The swipe feed, like the big "Swipe" button in Pod+.
+                    // The swipe feed, like the big "Swipe" button in Podster.
                     Button {
                         Task { await model.loadForYou(); if !model.forYou.isEmpty { feed = PWFeed(title: "For You", list: model.forYou, start: 0) } }
                     } label: {
@@ -179,7 +179,7 @@ struct PodWatchHome: View {
                     Text("Pod Modes").font(.system(size: 15, weight: .bold)).padding(.leading, 4).padding(.top, 4)
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(alignment: .top, spacing: 10) {
-                            Button { engine.playStation(); feed = PWFeed(title: "Pod+ Live News Radio", list: [], start: 0) } label: {
+                            Button { engine.playStation(); feed = PWFeed(title: "Podster Live News Radio", list: [], start: 0) } label: {
                                 PWModeCircle(name: "Live News Radio", badge: "LIVE", colors: [Color(red: 0.94, green: 0.27, blue: 0.27), Color(red: 0.73, green: 0.11, blue: 0.11)], symbol: "dot.radiowaves.left.and.right")
                             }.buttonStyle(.plain)
                             Button { Task { if let eps = try? await PodAPI.shared.news(), !eps.isEmpty { feed = PWFeed(title: "Up to the Minute", list: eps, start: 0) } } } label: {
@@ -210,7 +210,7 @@ struct PodWatchHome: View {
                         }
                     }
                     if model.lib.follows.isEmpty && model.lib.later.isEmpty && cont.isEmpty {
-                        Text("Follow shows in Pod+ on your iPhone and they'll be here too.").font(.system(size: 12)).foregroundStyle(.secondary).padding(.horizontal, 4)
+                        Text("Follow shows in Podster on your iPhone and they'll be here too.").font(.system(size: 12)).foregroundStyle(.secondary).padding(.horizontal, 4)
                     }
                     NavigationLink { NowPlayingView().navigationTitle("iPhone") } label: {
                         Label("Control your iPhone's audio", systemImage: "iphone").font(.system(size: 13, weight: .semibold))
@@ -365,7 +365,7 @@ struct PWSwipe: View {
     }
 }
 
-/** One show, one page: Pod+'s player card made for the wrist. */
+/** One show, one page: Podster's player card made for the wrist. */
 struct PWCard: View {
     let ep: PodEp
     @ObservedObject var engine: PodEngine
@@ -430,7 +430,7 @@ struct PWCard: View {
     }
 }
 
-/** Pod+ Live News Radio. */
+/** Podster Live News Radio. */
 struct PWStation: View {
     @ObservedObject var engine: PodEngine
     var body: some View {
@@ -439,7 +439,7 @@ struct PWStation: View {
             VStack(spacing: 8) {
                 Text("LIVE").font(.system(size: 11, weight: .heavy)).padding(.horizontal, 8).padding(.vertical, 3).background(Capsule().fill(PW.red))
                 Image(systemName: "dot.radiowaves.left.and.right").font(.system(size: 34))
-                Text("Pod+ Live News Radio").font(.system(size: 15, weight: .heavy)).multilineTextAlignment(.center)
+                Text("Podster Live News Radio").font(.system(size: 15, weight: .heavy)).multilineTextAlignment(.center)
                 if let ep = engine.current { Text(ep.title).font(.system(size: 11)).foregroundStyle(.white.opacity(0.7)).lineLimit(2).multilineTextAlignment(.center) }
                 Button { engine.toggle() } label: {
                     Image(systemName: engine.playing ? "pause.fill" : "play.fill").font(.system(size: 22)).frame(width: 48, height: 48).background(Circle().fill(.white.opacity(0.2)))

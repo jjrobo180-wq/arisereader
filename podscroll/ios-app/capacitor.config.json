@@ -1,6 +1,6 @@
 {
   "appId": "com.arisereader.podplus",
-  "appName": "Pod+",
+  "appName": "Podster",
   "webDir": "../dist",
   "bundledWebRuntime": false,
   "plugins": {

@@ -48,7 +48,10 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
     return () => window.removeEventListener("arise-notes-new", f);
   }, []);
   // The folder column on a tablet always starts at its top (no half-hidden first row).
-  const [full, setFull] = useState(false);
+  // An open note fills the whole screen by default (no folders and list beside it); the
+  // expand / shrink button switches, and the choice is remembered.
+  const [full, setFullState] = useState(() => { try { return localStorage.getItem("arise-pages-full") !== "0"; } catch { return true; } });
+  const setFull = (f: boolean | ((v: boolean) => boolean)) => setFullState((v) => { const n = typeof f === "function" ? f(v) : f; try { localStorage.setItem("arise-pages-full", n ? "1" : "0"); } catch { /* not kept */ } return n; });
   const sideRef = useRef<HTMLElement>(null);
   useEffect(() => { if (sideRef.current) sideRef.current.scrollTop = 0; }, [wide, filter.kind]);
 
@@ -191,7 +194,7 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
     <button type="button" className="pp-compose" onClick={() => create(PAGE_TEMPLATES[0])} data-testid="pages-new" aria-label="New note"><SquarePen className="h-6 w-6" /></button>
   </div>;
 
-  const editor = openId ? <PageScreen key={openId} ctx={ctx} id={openId} onBack={() => { setFull(false); ctx.go({ name: "pages" }); }} expanded={wide && full} onExpand={wide ? () => setFull((v) => !v) : undefined} /> : null;
+  const editor = openId ? <PageScreen key={openId} ctx={ctx} id={openId} onBack={() => ctx.go({ name: "pages" })} expanded={wide && full} onExpand={wide ? () => setFull((v) => !v) : undefined} /> : null;
 
   return <div className="flex h-[100dvh] min-h-0 flex-col" data-testid="pages-view">
     {(!openId || wide) && !(wide && full && openId) && tabs}

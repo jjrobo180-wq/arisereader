@@ -8,7 +8,7 @@ import { isNativeApp, nativeFlavor } from "@/lib/nativeApp";
 type WrenDoc = { get(): Promise<{ exists: boolean; data(): any }>; set(body: unknown): Promise<void>; delete(): Promise<void> };
 
 /**
- * The account Wren saves to when it runs inside Eye Gazer: the signed-in child's Eye Gazer profile.
+ * The account Wren saves to when it runs inside Arise AAC: the signed-in child's Arise AAC profile.
  * Wren (at /eyegaze/wren/) looks for window.parent.__ariseWren and uses it the same way it uses its
  * account storage elsewhere, so there is no separate Wren sign-in or setup.
  */
@@ -34,7 +34,7 @@ function makeHost(token: string, user: { id: number; displayName?: string; usern
   return {
     accountKey: `u${user.id}`,
     skipSetup: true,
-    accountLabel: `${name.split(" ")[0] || "this"}'s Eye Gazer profile`,
+    accountLabel: `${name.split(" ")[0] || "this"}'s Arise AAC profile`,
     use(capability: string) {
       if (capability === "db") return Promise.resolve(db);
       if (capability === "user") return Promise.resolve({ me: async () => me });
@@ -43,7 +43,7 @@ function makeHost(token: string, user: { id: number; displayName?: string; usern
   };
 }
 
-/** Wren, the AI-voice talker, opened full screen inside the Eye Gazer app. */
+/** Wren, the AI-voice talker, opened full screen inside the Arise AAC app. */
 export default function EyeGazeWren() {
   const [, navigate] = useLocation();
   const { user, token } = useAuth();
@@ -64,10 +64,10 @@ export default function EyeGazeWren() {
         <span className="eg-title text-lg font-extrabold tracking-tight text-[#191b35]">Wren <span className="text-violet-700">Talker</span></span>
       </div>
       {isNativeApp() && nativeFlavor() === "todo"
-        ? <p className="p-6 text-center text-slate-600" data-testid="wren-not-here">Wren Talker is in the Arise Eye Gazer app. Open Arise Eye Gazer to use it.</p>
+        ? <p className="p-6 text-center text-slate-600" data-testid="wren-not-here">Wren Talker is in the Arise AAC app. Open Arise AAC to use it.</p>
         : ready
         ? <iframe src="/eyegaze/wren/" title="Wren talker" allow="autoplay; camera" className="w-full flex-1 border-0 bg-white" data-testid="frame-wren" />
-        : <p className="p-6 text-center text-slate-600">Sign in to your Eye Gazer account to use Wren.</p>}
+        : <p className="p-6 text-center text-slate-600">Sign in to your Arise AAC account to use Wren.</p>}
     </div>
   );
 }

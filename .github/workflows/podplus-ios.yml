@@ -1,4 +1,4 @@
-name: Pod+ iOS native build
+name: Podster iOS native build
 on:
   workflow_dispatch:
   pull_request:
@@ -41,9 +41,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Install Pod+ dependencies
+      - name: Install Podster dependencies
         run: npm ci
-      - name: Build actual Pod+ iOS web bundle
+      - name: Build actual Podster iOS web bundle
         env:
           PODPLUS_IOS: '1'
         run: |
@@ -64,7 +64,7 @@ jobs:
         working-directory: podscroll/ios-app
         run: |
           xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ./derived CODE_SIGNING_ALLOWED=NO build
-      - name: Add Pod+ for Apple Watch and Apple TV
+      - name: Add Podster for Apple Watch and Apple TV
         working-directory: podscroll/ios-app
         run: |
           ruby -rxcodeproj -e 'puts Xcodeproj::VERSION' 2>/dev/null || gem install xcodeproj --no-document --user-install

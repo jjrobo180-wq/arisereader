@@ -1,4 +1,4 @@
-// The voice of the Eye Gazer lessons: AI voices only (the Learning Buddy voice, then the general AI
+// The voice of the Arise AAC lessons: AI voices only (the Learning Buddy voice, then the general AI
 // voice; never the device's robot voice), then a real animal sound if the line has one. Nothing here can hold a lesson up:
 // every line always finishes (or is skipped), and the answer buttons never wait for the voice.
 import { preloadCharacterAI, speakCharacterAI, stopSpeaking } from "@/lib/tts";

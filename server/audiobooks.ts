@@ -1,4 +1,4 @@
-// Pod+ Audiobooks: free public domain audiobooks from LibriVox, read by volunteers. Every LibriVox
+// Podster Audiobooks: free public domain audiobooks from LibriVox, read by volunteers. Every LibriVox
 // recording is kept at the Internet Archive (collection "librivoxaudio"), which lists them (by
 // listens, by date, by rating) and keeps each book's chapters as MP3 files. The server asks the
 // Archive and keeps the answers a while, so the page never depends on another site letting it in.
@@ -441,10 +441,10 @@ export const groqSpeak: Speaker = async (text, voice) => {
   return Buffer.from(await r.arrayBuffer());
 };
 
-/** Pod+ Membership: AI transcripts, Ask AI and Voice boost are for members (signed in with their
+/** Podster Membership: AI transcripts, Ask AI and Voice boost are for members (signed in with their
  *  email; the gate marks req.creator). Everything else in Audiobooks is free. */
 const isMember = (req: any) => !!req.creator;
-const membersOnly = (res: any, what: string) => res.status(402).json({ message: `${what} is part of Pod+ Membership.`, needSignIn: true, members: true });
+const membersOnly = (res: any, what: string) => res.status(402).json({ message: `${what} is part of Podster Membership.`, needSignIn: true, members: true });
 
 /** Voice boost's audio relay can't be sent a session (an audio player sends no headers), so a member
  *  gets a signed pass for it, good for 12 hours. */

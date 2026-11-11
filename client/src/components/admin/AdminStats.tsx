@@ -200,7 +200,7 @@ export default function AdminStats({ token, onOpenStudent }: { token: string; on
   const growthConfig: ChartConfig = { totalStudents: { label: "Students", color: COLORS.violet }, totalTeachers: { label: "Teachers", color: COLORS.cyan }, totalParents: { label: "Parents", color: COLORS.amber } };
   const newConfig: ChartConfig = { newStudents: { label: "Students", color: COLORS.violet }, newTeachers: { label: "Teachers", color: COLORS.cyan }, newParents: { label: "Parents", color: COLORS.amber } };
   const activityConfig: ChartConfig = { activeStudents: { label: "Active students", color: COLORS.emerald }, studentLogins: { label: "Student sign-ins", color: COLORS.blue }, staffLogins: { label: "Teacher & parent sign-ins", color: COLORS.slate } };
-  const quizConfig: ChartConfig = { bookQuizzes: { label: "Book quizzes", color: COLORS.violet }, eyeGazeQuizzes: { label: "Eye Gazer quizzes", color: COLORS.fuchsia }, assessments: { label: "Reading checks", color: COLORS.cyan }, passed: { label: "Passed", color: COLORS.emerald } };
+  const quizConfig: ChartConfig = { bookQuizzes: { label: "Book quizzes", color: COLORS.violet }, eyeGazeQuizzes: { label: "Arise AAC quizzes", color: COLORS.fuchsia }, assessments: { label: "Reading checks", color: COLORS.cyan }, passed: { label: "Passed", color: COLORS.emerald } };
   const pointsConfig: ChartConfig = { points: { label: "Points", color: COLORS.amber } };
   const hourConfig: ChartConfig = { count: { label: "Students", color: COLORS.blue } };
   const dayConfig: ChartConfig = { count: { label: "Student visits", color: COLORS.emerald } };

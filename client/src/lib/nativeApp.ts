@@ -20,11 +20,11 @@ export const nativeFlavor = (): NativeFlavor => {
 };
 /** Inside one of the two Arise Reader apps (student or Educator). */
 export const isReaderApp = (): boolean => isNativeApp() && (nativeFlavor() === "reader" || nativeFlavor() === "educator" || nativeFlavor() === "eyegaze");
-/** Inside the Arise Eye Gazer app (the A.R.I.S.E. eye-gaze games and lessons, on iPad and iPhone). */
+/** Inside the Arise AAC app (the A.R.I.S.E. eye-gaze games and lessons, on iPad and iPhone). */
 export const isEyeGazerApp = (): boolean => isNativeApp() && nativeFlavor() === "eyegaze";
 /** Inside the Cooked iPhone app. */
 export const isFitApp = (): boolean => isNativeApp() && nativeFlavor() === "fit";
-/** Inside the Cooked Trainer iPhone app (coaches; pages/trainer/TrainerApp.tsx). */
+/** Inside the Cooked PT iPhone app (coaches; pages/trainer/TrainerApp.tsx). */
 export const isTrainerApp = (): boolean => isNativeApp() && nativeFlavor() === "trainer";
 /** Inside the Arise Notes iPhone app (the AI note taker; components/arise-notes/NotesApp.tsx). */
 export const isNotesApp = (): boolean => isNativeApp() && nativeFlavor() === "notes";
@@ -39,8 +39,8 @@ export const NATIVE_APPS: Record<NativeFlavor, { name: string; bundle: string; a
   reader: { name: "Arise Reader", bundle: "com.arisereader.reader", api: "https://arisetodo.com" },
   educator: { name: "Arise Reader Educator", bundle: "com.arisereader.educator", api: "https://arisetodo.com" },
   fit: { name: "Cooked", bundle: "com.arisereader.fit", api: "https://arisetodo.com" },
-  eyegaze: { name: "Arise Eye Gazer", bundle: "com.arisereader.eyegazer", api: "https://arisetodo.com" },
-  trainer: { name: "Cooked Trainer", bundle: "com.arisereader.trainer", api: "https://arisetodo.com" },
+  eyegaze: { name: "Arise AAC", bundle: "com.arisereader.eyegazer", api: "https://arisetodo.com" },
+  trainer: { name: "Cooked PT", bundle: "com.arisereader.trainer", api: "https://arisetodo.com" },
   notes: { name: "Arise Notes", bundle: "com.arisereader.notes", api: "https://arisetodo.com" },
   talk: { name: "Arise Talk", bundle: "com.arisereader.talk", api: "https://arisetodo.com" },
   undercover: { name: "Arise Undercover", bundle: "com.arisereader.undercover", api: "https://arisetodo.com" },

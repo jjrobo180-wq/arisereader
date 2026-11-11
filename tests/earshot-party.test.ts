@@ -1,4 +1,4 @@
-// Pod+ Listen together: the group's shared playback, the six-mic limit, and which episodes get through.
+// Podster Listen together: the group's shared playback, the six-mic limit, and which episodes get through.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { PARTY_LIMITS, cleanEp, control, newParty, posNow, setMic } from "../server/podcastParty";

@@ -1,4 +1,4 @@
-// Pod+ "Top shows": Apple's chart feed read correctly, sub-genres filtered, and topics ranked by real
+// Podster "Top shows": Apple's chart feed read correctly, sub-genres filtered, and topics ranked by real
 // size and chart position, so a one-episode show named after the topic never comes first.
 import test from "node:test";
 import assert from "node:assert/strict";

@@ -118,6 +118,9 @@ export function registerUndercoverRoutes(app: Express, auth: RequestHandler, dep
         facts.push(f ? weatherFacts(f, (c) => weatherCode(c).text) : `The weather for ${named || home || "that place"} couldn't be found. Say so in one short line.`);
       }
     }
+    // Asked from inside a note (Arise Notes): the note so far, so "summarize this" or "what's missing" works.
+    const note = typeof req.body?.context === "string" ? req.body.context.trim().slice(0, 8000) : "";
+    if (note) facts.push(`The person's note so far, use it when the question is about it: """${note}"""`);
     try {
       const reply = await ask(`${undercoverSystemPrompt(theme)}\n\nFacts to use: ${facts.join(" ")}`, messages);
       res.json({ reply: reply.slice(0, 2000) });

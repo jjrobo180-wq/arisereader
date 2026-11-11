@@ -1289,7 +1289,7 @@ export async function registerRoutes(
   /** Fire and forget: an alert never slows down or breaks the request that caused it. */
   const alertAdmin = (event: Parameters<typeof adminAlerts.notify>[0], alert: Alert) => { void adminAlerts.notify(event, alert); };
   const personName = (user: any) => String(user?.displayName || user?.display_name || user?.username || "Someone");
-  // Pod+ and Earshot Social reports (server/socialModeration.ts) reach the admin at once, so
+  // Podster and Earshot Social reports (server/socialModeration.ts) reach the admin at once, so
   // reported posts, people and messages are looked at within 24 hours (App Review Guideline 1.2).
   onSocialReport((r) => alertAdmin("problem_report", {
     title: `${r.app}: a ${r.what} was reported`,
@@ -1333,7 +1333,7 @@ export async function registerRoutes(
       const pct = quiz.total > 0 ? Math.round((quiz.score / quiz.total) * 100) : 0;
       const points = Math.round(Number(quiz.points || 0) * 10) / 10;
       await adminAlerts.notify(event, {
-        title: `${event === "eye_gaze_quiz_completed" ? "Eye Gazer quiz" : "Quiz taken"}: ${name} scored ${quiz.score}/${quiz.total} on “${quiz.title}”`,
+        title: `${event === "eye_gaze_quiz_completed" ? "Arise AAC quiz" : "Quiz taken"}: ${name} scored ${quiz.score}/${quiz.total} on “${quiz.title}”`,
         summary: [quiz.passed ? `Passed · ${points} point${points === 1 ? "" : "s"}` : "Not passed", quiz.proctor, facts.teacher && `Teacher: ${facts.teacher}`].filter(Boolean).join(" · "),
         lines: [
           ["Student", `${name} (@${user?.username || "?"})`],
@@ -1610,7 +1610,7 @@ export async function registerRoutes(
         unlimited: plan.unlimited, via: plan.via, endsAt: plan.endsAt,
         apps: { work, life, limit: plan.unlimited ? null : FREE_APPS },
         ai: { limit: ai.limit, used: ai.used, left: ai.left },
-        // Unlimited is now sold as Arise All Access ($10: To Duo Unlimited, Notes Plus, Fit+, ad-free Pod+).
+        // Unlimited is now sold as Arise All Access ($10: To Duo Unlimited, Notes Plus, Fit+, ad-free Podster).
         priceCents: PLANS.allAccess.monthlyCents, yearlyCents: null, allAccess: true,
         payment, paidByYou: !!paidProduct, paidProduct, fairUse: FAIR_USE,
       });
@@ -1653,7 +1653,7 @@ export async function registerRoutes(
       return { workspace: { ...ws, family: { ...family, groceries: r.list } }, result: { added: r.added, updated: r.updated } };
     }),
   });
-  // Arise Coaching (server/coach.ts): the trainer directory, client–trainer connections and the Cooked Trainer app.
+  // Arise Coaching (server/coach.ts): the trainer directory, client–trainer connections and the Cooked PT app.
   registerCoachRoutes(app, authMiddleware, {
     nameOf: async (id) => { const u: any = await storage.getUser(id).catch(() => null); return String(u?.displayName || u?.display_name || u?.username || "").trim().split(/\s+/)[0] || ""; },
     stripeKey: () => plans.adminTodo.stripeKey(),
@@ -1741,8 +1741,8 @@ export async function registerRoutes(
   // On by EARSHOT_PRECHECK=1, and by itself once the AI is on a paid plan (EARSHOT_PRECHECK=0 keeps it off).
   if (process.env.EARSHOT_PRECHECK !== "0") startPodcastPrechecks({ kv: supabaseKV(getAdminSupabase), player: podcastPlayer, dir: podcasts, enabled: () => process.env.EARSHOT_PRECHECK === "1" || podcasts.paid(),
     topShows: async () => { const lists = await Promise.all(PODCAST_GENRES.slice(0, 12).map((g) => podcasts.loadGenreShows(g.id).catch(() => []))); const out: string[] = []; for (let i = 0; i < 4; i++) for (const l of lists) if (l[i]) out.push(l[i].id); return out; } });
-  // Pod+'s AI tools spend the same monthly AI minutes as Arise Notes (server/aiMinutes.ts). The account is
-  // the signed-in Arise user, or (in the Pod+ app) the Arise account with the Pod+ sign-in's email.
+  // Podster's AI tools spend the same monthly AI minutes as Arise Notes (server/aiMinutes.ts). The account is
+  // the signed-in Arise user, or (in the Podster app) the Arise account with the Podster sign-in's email.
   configureAiMinutes({
     accountOf: async (req: any) => {
       const email = typeof req.creator?.email === "string" ? req.creator.email.trim().toLowerCase() : "";
@@ -1756,8 +1756,8 @@ export async function registerRoutes(
     left: (id) => notesMinutes.left(id),
     spend: (id, m, kind) => notesMinutes.spend(id, m, kind),
   });
-  // Ad-free Pod+ is part of Arise All Access. In To Duo the listener is the Arise account; in the Pod+
-  // app it's the Arise account with the same email as the person's Pod+ sign-in.
+  // Ad-free Podster is part of Arise All Access. In To Duo the listener is the Arise account; in the Podster
+  // app it's the Arise account with the same email as the person's Podster sign-in.
   const adFreeSeen = new Map<string, { ok: boolean; at: number }>();
   const allAccessListener = async (req: any): Promise<boolean> => {
     const email = typeof req.creator?.email === "string" ? req.creator.email.trim().toLowerCase() : "";
@@ -1779,7 +1779,7 @@ export async function registerRoutes(
   };
   registerEarshotRoutes(app, authMiddleware, { store: supabaseEarshotStore(getAdminSupabase), directory: podcasts, adStore: podcastAds, player: podcastPlayer, socialDb: getAdminSupabase, adFree: allAccessListener });
   registerPodscrollRoutes(app, supabaseEarshotStore(getAdminSupabase, "podscroll"), undefined, podcasts, podcastAds, podcastPlayer, getAdminSupabase, { sendEmail: (to, subject, html) => sendEmail(to, subject, html), adFree: allAccessListener });
-  // Contact us (server/supportContact.ts): Arise To Duo's and Pod+'s Support pages and apps.
+  // Contact us (server/supportContact.ts): Arise To Duo's and Podster's Support pages and apps.
   registerSupportRoutes(app, {
     deliver: async (m) => {
       const esc = (v: string) => v.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
@@ -2278,7 +2278,7 @@ export async function registerRoutes(
   const isStaffViewer = (req: any) => !req.adminPreview && !isDemoStudent(req.user) && (req.user?.isAdmin === true || req.user?.role === "teacher");
   /** Quiz questions without the answer key, for anyone taking the quiz. */
   const withoutAnswers = (questions: any[] | undefined) => (questions || []).map(({ correct_answer: _answer, ...rest }: any) => rest);
-  /** Checks one answer of an Eye Gazer or custom quiz, so the quiz can cheer right away without sending the answer key.
+  /** Checks one answer of an Arise AAC or custom quiz, so the quiz can cheer right away without sending the answer key.
    *  Once an answer is kept, the built-in lessons also say which one was right, so the lesson can show it.
    *  A negative attempt id is a try that is never saved: a preview, or practice of a quiz the student already finished. */
   const checkOneAnswer = async (
@@ -2486,7 +2486,7 @@ export async function registerRoutes(
   });
   // Seed data on startup
   await seedData();
-  // The built-in Eye Gazer lessons live in shared/eyegaze/lessons.ts; save any changes to them (in the background).
+  // The built-in Arise AAC lessons live in shared/eyegaze/lessons.ts; save any changes to them (in the background).
   void storage.syncEyeGazeLessons()
     .then((r) => { if (r.added || r.changed || r.retired) console.log(`[eye-gaze-lessons] saved: ${r.added} added, ${r.changed} changed, ${r.retired} old quizzes hidden`); })
     .catch((e: any) => console.error("[eye-gaze-lessons] could not save the lessons:", e?.message));
@@ -2719,7 +2719,7 @@ export async function registerRoutes(
             ["Grade", gradeLevel || facts.grade],
             ["School", schoolText],
             ["Teacher", teacherText],
-            ["Account", isEyeGazeUser ? "Eye Gazer" : "Reader"],
+            ["Account", isEyeGazeUser ? "Arise AAC" : "Reader"],
           ],
           note: unlistedSchoolName || (unlistedTeacherName && !requestedDirectory) ? "Their school or teacher wasn't in the list. Connect them under Admin → People → Students." : undefined,
           ref: `u${user.id}`,
@@ -8332,7 +8332,7 @@ export async function registerRoutes(
 
   // ─── EYE GAZE TESTING ────────────────────────────────────────────────
 
-  // Legacy Eye Gazer proctor endpoint is intentionally disabled.
+  // Legacy Arise AAC proctor endpoint is intentionally disabled.
   // All quizzes now use /api/verify-proctor so parent linkage and audit identity are enforced.
   app.post("/api/eye-gaze/verify-proctor", authMiddleware, async (_req, res) => {
     res.status(410).json({ message: "Use the current A.R.I.S.E. proctor verification screen." });
@@ -8469,7 +8469,7 @@ export async function registerRoutes(
       void (async () => {
         const { data: quiz } = await supabase.from("eye_gaze_quizzes").select("title").eq("id", Number(result.quiz_id)).maybeSingle();
         await alertQuizTaken("eye_gaze_quiz_completed", req.user, {
-          title: quiz?.title || "an Eye Gazer quiz",
+          title: quiz?.title || "an Arise AAC quiz",
           score: Number(result.score || 0),
           total: Number(result.total || 0),
           passed: !!result.passed,
@@ -8579,7 +8579,7 @@ export async function registerRoutes(
   app.get('/api/eye-gaze/my-world/grownup-challenge', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child || req.user.role !== 'student') return res.status(403).json({ message: 'Open this from the child Eye Gazer account.' });
+      if (!child || req.user.role !== 'student') return res.status(403).json({ message: 'Open this from the child Arise AAC account.' });
       const a = 2 + Math.floor(Math.random() * 8);
       const b = 2 + Math.floor(Math.random() * 8);
       const challengeId = randomBytes(18).toString('hex');
@@ -8594,7 +8594,7 @@ export async function registerRoutes(
   app.post('/api/eye-gaze/my-world/grownup-challenge', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child || req.user.role !== 'student') return res.status(403).json({ message: 'Open this from the child Eye Gazer account.' });
+      if (!child || req.user.role !== 'student') return res.status(403).json({ message: 'Open this from the child Arise AAC account.' });
       const challengeId = String(req.body?.challengeId || '');
       const challenge = myWorldChallenges.get(challengeId);
       myWorldChallenges.delete(challengeId);
@@ -8691,7 +8691,7 @@ export async function registerRoutes(
   app.get('/api/eye-gaze/my-world', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const { data, error } = await getAdminSupabase().from('eye_gaze_my_world')
         .select('setup_complete,worlds,progress').eq('student_id', child.id).maybeSingle();
       if (error) throw error;
@@ -8714,7 +8714,7 @@ export async function registerRoutes(
   app.post('/api/eye-gaze/my-world/ai-tag', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'An Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'An Arise AAC account is required.' });
       if (!validMyWorldGrownupPass(req, child.id)) return res.status(403).json({ message: 'Answer the grown-up math question to use AI tagging.' });
 
       const backgroundPath = String(req.body?.backgroundPath || '');
@@ -8830,7 +8830,7 @@ Important:
   app.post('/api/eye-gaze/my-world/config', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       if (!validMyWorldGrownupPass(req, child.id)) return res.status(403).json({ message: 'Answer the grown-up math question to edit My World.' });
       const worlds = normalizeMyWorlds(req.body?.worlds, child.id);
       const setupComplete = !!req.body?.setupComplete && worlds.some((world: any) => world.items.length > 0);
@@ -8856,7 +8856,7 @@ Important:
   }), async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       if (!validMyWorldGrownupPass(req, child.id)) return res.status(403).json({ message: 'Answer the grown-up math question to add family media.' });
 
       const contentType = String(req.headers['content-type'] || '').split(';')[0].toLowerCase();
@@ -8907,7 +8907,7 @@ Important:
   app.post('/api/eye-gaze/my-world/practice', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const word = String(req.body?.word || '').trim().slice(0, 40);
       const outcome = String(req.body?.outcome || '');
       if (!word || !['correct', 'retry', 'explored'].includes(outcome)) return res.status(400).json({ message: 'Choose a My World learning result.' });
@@ -9056,7 +9056,7 @@ Important:
   app.get('/api/eye-gaze/family-settings', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const raw = await storage.getSetting(`eye_gaze_family_settings_${child.id}`);
       let parsed: any = null;
       if (raw) { try { parsed = JSON.parse(raw); } catch {} }
@@ -9072,7 +9072,7 @@ Important:
   app.post('/api/eye-gaze/family-settings', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       if (!validTalkerGrownupPass(req, child.id)) return res.status(403).json({ message: 'Answer the grown-up math question to change child profile controls.' });
       const settings = normalizeEyeGazeFamilySettings(req.body);
       await storage.upsertSetting(`eye_gaze_family_settings_${child.id}`, JSON.stringify(settings));
@@ -9105,7 +9105,7 @@ Important:
   app.get('/api/eye-gaze/flashcards', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const raw = await storage.getSetting('eye_gaze_flashcards_' + child.id);
       let parsed: any = null;
       if (raw) { try { parsed = JSON.parse(raw); } catch {} }
@@ -9120,7 +9120,7 @@ Important:
   app.post('/api/eye-gaze/flashcards', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const state = normalizeEyeGazeFlashcards(req.body);
       await storage.upsertSetting('eye_gaze_flashcards_' + child.id, JSON.stringify(state));
       res.set('Cache-Control', 'no-store');
@@ -9159,7 +9159,7 @@ Important:
   app.get('/api/eye-gaze/potty', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const raw = await storage.getSetting('eye_gaze_potty_' + child.id);
       let parsed: any = null;
       if (raw) { try { parsed = JSON.parse(raw); } catch {} }
@@ -9175,7 +9175,7 @@ Important:
   app.post('/api/eye-gaze/potty', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const state = normalizePottyState(req.body);
       await storage.upsertSetting('eye_gaze_potty_' + child.id, JSON.stringify(state));
       res.set('Cache-Control', 'no-store');
@@ -9310,7 +9310,7 @@ Important:
   app.get('/api/eye-gaze/youtube-shorts', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
 
       const raw = await storage.getSetting(`eye_gaze_family_settings_${child.id}`);
       let parsed: any = null;
@@ -9445,7 +9445,7 @@ Important:
   app.get('/api/eye-gaze/game-usage', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const day = new Date().toISOString().slice(0, 10);
       const raw = await storage.getSetting(`eye_gaze_game_usage_${child.id}_${day}`);
       const seconds = Math.max(0, Number(raw || 0) || 0);
@@ -9477,7 +9477,7 @@ Important:
   app.get('/api/eye-gaze/tv-usage', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const day = new Date().toISOString().slice(0, 10);
       const raw = await storage.getSetting(`eye_gaze_tv_usage_${child.id}_${day}`);
       const seconds = Math.max(0, Number(raw || 0) || 0);
@@ -9542,14 +9542,14 @@ Important:
     }
   });
 
-  // ---- Wren, the AI-voice talker inside Eye Gazer: saved to the child's Eye Gazer profile ----
+  // ---- Wren, the AI-voice talker inside Arise AAC: saved to the child's Arise AAC profile ----
   const WREN_DOC_NAME = /^[A-Za-z0-9_-]{1,64}$/;
   const WREN_DOC_MAX = 260_000;
   const WREN_DOC_LIMIT = 600;
   app.get('/api/eye-gaze/wren/:name', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const name = String(req.params.name || '');
       if (!WREN_DOC_NAME.test(name)) return res.status(400).json({ message: 'Unknown Wren document.' });
       const { data, error } = await getAdminSupabase().from('eye_gaze_wren_docs')
@@ -9564,7 +9564,7 @@ Important:
   app.put('/api/eye-gaze/wren/:name', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const name = String(req.params.name || '');
       const body = req.body?.data;
       if (!WREN_DOC_NAME.test(name)) return res.status(400).json({ message: 'Unknown Wren document.' });
@@ -9588,7 +9588,7 @@ Important:
   app.delete('/api/eye-gaze/wren/:name', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const name = String(req.params.name || '');
       if (!WREN_DOC_NAME.test(name)) return res.status(400).json({ message: 'Unknown Wren document.' });
       const { error } = await getAdminSupabase().from('eye_gaze_wren_docs').delete().eq('student_id', child.id).eq('name', name);
@@ -9603,7 +9603,7 @@ Important:
   app.get('/api/eye-gaze/talker-state', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const { data, error } = await getAdminSupabase().from('eye_gaze_talker_state')
         .select('config,progress').eq('student_id', child.id).maybeSingle();
       if (error) throw error;
@@ -9618,7 +9618,7 @@ Important:
   app.post('/api/eye-gaze/talker-state/config', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       if (!validTalkerGrownupPass(req, child.id)) return res.status(403).json({ message: 'Answer the grown-up math question to edit Talker words.' });
       const submitted = req.body || {};
       const { data: existingTalker } = await getAdminSupabase().from('eye_gaze_talker_state')
@@ -9707,7 +9707,7 @@ Important:
   app.post('/api/eye-gaze/talker-state/practice', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const word = String(req.body?.word || '').trim().slice(0, 40);
       const outcome = String(req.body?.outcome || '');
       if (!word || !/^[^\x00-\x1F<>]{1,40}$/.test(word) || !['known', 'learning', 'practiced', 'correct', 'retry'].includes(outcome)) {
@@ -9892,7 +9892,7 @@ Important:
   });
 
   // Any spoken line in the apps (Daily brief, games, stories, poems, the Bookstore, the Sleep app,
-  // Pod+): a real AI voice, made once and kept (voice-cache). Signed in or not (the Pod+ app and the
+  // Podster): a real AI voice, made once and kept (voice-cache). Signed in or not (the Podster app and the
   // public pages have no Arise sign-in), so it is limited by address and by length instead.
   const sayVoices = new Set(["hannah", "autumn", "diana", "austin", "daniel", "troy", "calm"]);
   const sayLimit = createAttemptLimiter({ max: 240, windowMs: 10 * 60_000 });
@@ -9939,7 +9939,7 @@ Important:
   // The recording is forwarded to the transcription service and is never persisted here.
   app.post("/api/eye-gaze/listen", authMiddleware, raw({ type: ["audio/webm", "audio/ogg", "audio/mp4"], limit: "2mb" }), async (req: any, res) => {
     res.setHeader("Cache-Control", "no-store");
-    if (!req.user?.is_eye_gaze_user) return res.status(403).json({ message: "Eye Gazer account required." });
+    if (!req.user?.is_eye_gaze_user) return res.status(403).json({ message: "Arise AAC account required." });
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return res.status(503).json({ message: "Listening is unavailable right now." });
     const mime = String(req.headers["content-type"] || "").split(";")[0].toLowerCase();
@@ -12845,7 +12845,7 @@ Important:
       }
       const student = await storage.getUser(studentId);
       if (!student || student.role !== "student" || student.is_eye_gaze_user) {
-        return res.status(400).json({ message: "Use Eye Gazer family controls for this student." });
+        return res.status(400).json({ message: "Use Arise AAC family controls for this student." });
       }
       const locked = !!req.body?.locked;
       const rawLimit = req.body?.dailyGameLimit;
@@ -13229,8 +13229,8 @@ Important:
     }
   });
 
-  // Admin: delete many accounts at once, by kind (students, Eye Gazers, teachers, parents, Arise To Duo and
-  // Pod+ accounts). Never an admin, never the person asking, never a sample (App Review) account. The admin
+  // Admin: delete many accounts at once, by kind (students, Arise AAC users, teachers, parents, Arise To Duo and
+  // Podster accounts). Never an admin, never the person asking, never a sample (App Review) account. The admin
   // first gets the exact count, then must send "DELETE <count>" back; it runs in the background, one account
   // at a time through deleteUserAccount (everything that belongs to each goes too), and can be watched.
   const BULK_KINDS = ["student", "eyegazer", "teacher", "parent", "todo"] as const;
@@ -13760,7 +13760,7 @@ Important:
       void (async () => {
         const { data: quiz } = await supabase.from("custom_eye_gaze_quizzes").select("title").eq("id", Number(result.quiz_id)).maybeSingle();
         await alertQuizTaken("eye_gaze_quiz_completed", req.user, {
-          title: quiz?.title || "a custom Eye Gazer quiz",
+          title: quiz?.title || "a custom Arise AAC quiz",
           score: Number(result.score || 0),
           total: Number(result.total || 0),
           passed: !!result.passed,

@@ -25,7 +25,7 @@ import { AI_OFF_MESSAGE, askAiConsent, isAiRequest } from "@/lib/aiConsent";
 // The Arise Reader app draws edge to edge too (reader-app.css keeps headers below the clock), and so does Arise Notes.
 // In the iPhone and iPad apps the page already fills the screen, and asking WebKit for full screen on top
 // (the games, slides, the stand-by clock) crashed the app on iPad: WebKit moves the page to its own window,
-// which the app's view controllers don't allow (Arise Eye Gazer, a crash report from an iPad, November 2026).
+// which the app's view controllers don't allow (Arise AAC, a crash report from an iPad, November 2026).
 // So in the apps, full screen does nothing and says it worked.
 if (isNativeApp()) installNoFullscreen();
 if (isFitApp() || isReaderApp() || isNotesApp() || isUndercoverApp()) {
@@ -59,7 +59,7 @@ if (todoCompact) document.documentElement.classList.add("todo-compact");
 if (isNativeApp() && nativeFlavor() === "todo") applyDeviceTopInset();
 if (isNotesApp()) applyDeviceTopInset();
 // Arise Reader draws edge to edge too (reader/ios-app/capacitor.config.json), so it gets its phone's own clock space.
-// The Educator, Trainer, Talk and Eye Gazer apps let iOS inset the page ("automatic"), so the system already does this.
+// The Educator, Trainer, Talk and Arise AAC apps let iOS inset the page ("automatic"), so the system already does this.
 if (isNativeApp() && nativeFlavor() === "reader") { applyDeviceTopInset(); startReaderNative(); }
 
 // Keep Notes at the physical iPhone viewport width. A custom initial-scale=0.9

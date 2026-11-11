@@ -1,4 +1,4 @@
-Pictures for the Eye Gazer lessons.
+Pictures for the Arise AAC lessons.
 
 All pictures except the five shape_*.svg files come from Microsoft's Fluent Emoji
 (https://github.com/microsoft/fluentui-emoji), "Color" style, with their numbers rounded

@@ -526,7 +526,7 @@ export default function ReadingAssessment() {
                 <div className="mt-4 bg-card border border-border rounded-xl p-4">
                   <h3 className="font-bold text-sm mb-3 flex items-center gap-2">
                     <Clock className="w-4 h-4" />
-                    Eye Gazer &amp; Non-Verbal Quiz History
+                    Arise AAC &amp; Non-Verbal Quiz History
                   </h3>
                   <div className="space-y-2">
                     {eyeGazeHistory.slice(0, 5).map((h: any) => (
