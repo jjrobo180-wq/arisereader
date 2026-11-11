@@ -56,10 +56,9 @@ test("saved text is read safely", () => {
   assert.equal(parseWelcome('{"seen":true,"barAt":-4}').barAt, 0, "a nonsense time is dropped, so the bar can't linger");
 });
 
-test("the welcome is mounted for signed-in people and stays out of the way of the older prompt", () => {
+test("the 'add to Home Screen' shortcut pop-ups are switched off", () => {
   const app = read("client/src/App.tsx");
-  assert.match(app, /<WelcomeGuide \/>/);
-  assert.match(app, /overlays && !isAdminPreview && !isDemoStudent && !isEyeGazeStudent && <WelcomeGuide \/>/, "not in games, admin previews, samples or eye-gaze accounts");
+  assert.doesNotMatch(app, /<WelcomeGuide \/>|<InstallAppPrompt \/>/);
   const guide = read("client/src/components/WelcomeGuide.tsx");
   assert.match(guide, /arise-install-prompt/, "holds the desktop install pop-up back");
   assert.match(guide, /keyFor\(userId\)|arise-welcome:/, "remembered per account");

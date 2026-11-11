@@ -40,6 +40,7 @@ jobs:
       - name: Bundle A.R.I.S.E. application locally
         run: |
           npx vite build
+          bash .github/scripts/prune_todo_bundle.sh dist/public
           rm -rf arisetodo/ios-app/www
           mkdir -p arisetodo/ios-app/www
           cp -R dist/public/. arisetodo/ios-app/www/

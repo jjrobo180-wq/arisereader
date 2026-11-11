@@ -34,3 +34,27 @@ test("Notes' apps are minimal: thin line icons in the look's color, hairline row
   assert.doesNotMatch(gallery, /Apps for your notes|na-hero/);
   assert.match(gallery, /border-b border-\[var\(--an-line\)\]/);
 });
+
+test("iPad notes: a New note button is always visible, the dock + works while Notes is open, swipe layer hidden at rest", () => {
+  const rd = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+  const view = rd("client/src/components/arise-notes/pages/PagesView.tsx");
+  assert.match(view, /wide && filter\.kind !== "trash" && <button[^>]*aria-label="New note"/);
+  assert.match(view, /addEventListener\("arise-notes-new"/);
+  assert.match(view, /pages-new-empty/);
+  assert.match(rd("client/src/components/arise-notes/NotesApp.tsx"), /dispatchEvent\(new Event\("arise-notes-new"\)\)/);
+  assert.match(rd("client/src/components/arise-notes/pages/SwipeItem.tsx"), /display: x === 0 && !anim \? "none"/);
+});
+
+test("New note is a labelled button in the list header, well above the bottom bar", () => {
+  const view = readFileSync(new URL("../client/src/components/arise-notes/pages/PagesView.tsx", import.meta.url), "utf8");
+  assert.match(view, /data-testid="pages-new-quick"><SquarePen[^>]*\/>New note<\/button>/);
+});
+
+test("an open note can fill the whole page on a tablet and shrink back", () => {
+  const rd = (p: string) => readFileSync(new URL(`../client/src/components/arise-notes/pages/${p}`, import.meta.url), "utf8");
+  assert.match(rd("PageScreen.tsx"), /Fill the whole page/);
+  assert.match(rd("PageScreen.tsx"), /Shrink back to the list/);
+  const v = rd("PagesView.tsx");
+  assert.match(v, /!\(full && openId\) && <aside/);
+  assert.match(v, /!\(full && openId\) && <section/);
+});

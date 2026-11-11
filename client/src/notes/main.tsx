@@ -58,11 +58,12 @@ function Welcome() {
   const run = (fn: () => Promise<void>) => async (e: FormEvent) => { e.preventDefault(); setBusy(true); setError(""); try { await fn(); } catch (x: any) { setError(x?.message || "That didn't work."); } finally { setBusy(false); } };
   const signIn = run(async () => { await login(username.trim(), password); });
   const signUp = run(async () => {
-    const clean = username.trim().toLowerCase();
     if (name.trim().length < 2) throw new Error("Enter your name.");
-    if (!/^[a-z0-9_-]{3,30}$/.test(clean)) throw new Error("Usernames are 3–30 letters, numbers, dashes or underscores.");
     if (password.length < 8) throw new Error("Use a password with at least 8 characters.");
-    const d = await post("/api/arise-todo/register", { username: clean, displayName: name.trim(), password, email: email.trim() });
+    // Just name, email and password: the server makes the username from the email.
+    const d = await post("/api/arise-todo/register", { displayName: name.trim(), password, email: email.trim() });
+    const clean = String(d?.username || email.trim().toLowerCase());
+    setUsername(clean);
     if (d?.confirmEmail) { setNotice(d.message || `We sent a 6-digit code to ${email.trim()}.`); setMode("code"); return; }
     await login(clean, password);
   });
@@ -91,12 +92,12 @@ function Welcome() {
         <h2 className="text-[20px] font-bold">{mode === "in" ? "Sign in" : "Create a free account"}</h2>
         <p className="text-[14px] text-[var(--an-muted)]">{mode === "in" ? "Use your Arise To Duo or A.R.I.S.E. account." : "One account for Arise Notes, Arise To Duo and A.R.I.S.E."}</p>
         {mode === "up" && <input className={field} placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" aria-label="Your name" />}
-        <input className={field} placeholder={mode === "in" ? "Username or email" : "Choose a username"} value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" autoCapitalize="none" spellCheck={false} aria-label="Username" />
-        {mode === "up" && <input className={field} type="email" placeholder="Email (for a confirmation code)" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" aria-label="Email" />}
+        {mode === "in" && <input className={field} placeholder="Username or email" value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" autoCapitalize="none" spellCheck={false} aria-label="Username" />}
+        {mode === "up" && <input className={field} type="email" placeholder="Email (you sign in with this)" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" aria-label="Email" />}
         <div className="relative"><input className={`${field} pr-12`} type={show ? "text" : "password"} placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "in" ? "current-password" : "new-password"} aria-label="Password" />
           <button type="button" onClick={() => setShow(!show)} aria-label={show ? "Hide password" : "Show password"} className="absolute right-1 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center text-[var(--an-faint)]">{show ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}</button></div>
         {error && <p role="alert" className="text-[14px] text-[#b4182f]">{error}</p>}
-        <button className="an-btn an-primary w-full" disabled={busy || !username.trim() || !password}>{busy && <Loader2 className="h-4 w-4 animate-spin" />}{mode === "in" ? "Sign in" : "Create account"}</button>
+        <button className="an-btn an-primary w-full" disabled={busy || !password || (mode === "in" ? !username.trim() : !email.trim() || !name.trim())}>{busy && <Loader2 className="h-4 w-4 animate-spin" />}{mode === "in" ? "Sign in" : "Create account"}</button>
         <button type="button" className="an-btn an-ghost w-full" onClick={() => { setMode(mode === "in" ? "up" : "in"); setError(""); }}>{mode === "in" ? "New here? Create a free account" : "Have an account? Sign in"}</button>
         {mode === "in" && <button type="button" className="w-full text-center text-[13px] font-semibold text-[var(--an-violet)]" onClick={other}>Forgot your password, or signed up with Apple or a school? Sign in another way</button>}
         <p className="flex items-center justify-center gap-1.5 pt-1 text-[12px] text-[var(--an-faint)]"><CheckCircle2 className="h-3.5 w-3.5" />Students sign in with the account their teacher or parent made.</p>

@@ -19,7 +19,7 @@ jobs:
   signed-archive:
     # GitHub's Xcode 27 image (Apple Silicon): builds with the iOS 27.1 SDK, for iPhone Duo.
     runs-on: xcode-27
-    timeout-minutes: 60
+    timeout-minutes: 120
     environment: app-store
     steps:
       - uses: actions/checkout@v4
@@ -103,6 +103,9 @@ jobs:
           fi
           # Sign in with Apple and push notifications on the App ID, and a profile that includes them (same certificate).
           python3 .github/scripts/apple_signing.py com.arisereader.podplus "$RUNNER_TEMP/profile.mobileprovision" APPLE_ID_AUTH PUSH_NOTIFICATIONS APP_GROUPS
+          # CarPlay (granted by Apple Nov 2026, turned on for the App ID in the developer website): a profile with it too.
+          # If it isn't on for the App ID yet, this only warns and the profile above is kept.
+          python3 .github/scripts/apple_signing.py com.arisereader.podplus "$RUNNER_TEMP/profile.mobileprovision" APPLE_ID_AUTH PUSH_NOTIFICATIONS APP_GROUPS CARPLAY_AUDIO
           security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
           if /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.applesignin' "$RUNNER_TEMP/profile.plist" >/dev/null 2>&1; then
             ENT=podscroll/ios-app/ios/App/App/App.entitlements
@@ -164,6 +167,9 @@ jobs:
           fi
           security create-keychain -p "" "$RUNNER_TEMP/podplus.keychain-db"
           security unlock-keychain -p "" "$RUNNER_TEMP/podplus.keychain-db"
+          # Never lock by itself: the default locks it after 5 idle minutes, and a later signing step (the Apple TV
+          # app, after the iPhone upload) then waited for a password forever.
+          security set-keychain-settings -lut 21600 "$RUNNER_TEMP/podplus.keychain-db"
           security import "$RUNNER_TEMP/signing.p12" -k "$RUNNER_TEMP/podplus.keychain-db" -P "$IOS_DISTRIBUTION_CERT_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k "" "$RUNNER_TEMP/podplus.keychain-db"
           security list-keychains -d user -s "$RUNNER_TEMP/podplus.keychain-db" "$HOME/Library/Keychains/login.keychain-db"
@@ -301,6 +307,7 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
           set -euo pipefail
+          security unlock-keychain -p "" "$RUNNER_TEMP/podplus.keychain-db"
           xcodebuild -project ios/App/App.xcodeproj -scheme PodPlusTV -configuration Release -destination 'generic/platform=tvOS' -archivePath "$RUNNER_TEMP/PodPlusTV.xcarchive" archive
           python3 - <<'PY'
           import os, plistlib

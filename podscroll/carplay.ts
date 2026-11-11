@@ -94,7 +94,11 @@ export function installCarPlay(o: { api: string; device: () => string; session: 
 
   // One sound at a time: the car started (the phone's players pause), or the phone did (the car's stops).
   let fromCar = false;
-  void nativeListen(NAME, "nativePlay", () => { fromCar = true; soundStarted("carplay"); fromCar = false; });
+  void nativeListen(NAME, "nativePlay", () => {
+    fromCar = true; soundStarted("carplay"); fromCar = false;
+    // The car's player owns Now Playing now: the paused web player stops showing (and answering) there.
+    try { if ("mediaSession" in navigator) { navigator.mediaSession.metadata = null; navigator.mediaSession.playbackState = "none"; } } catch { /* not supported */ }
+  });
   onOtherSound("carplay", () => { if (!fromCar) void nativeCall(PLUGIN, NAME, "stop").catch(() => {}); });
 
   publish();

@@ -33,6 +33,10 @@ public final class PodEngine: ObservableObject {
 
     /** Called when this player starts something (the iPhone app pauses its own web player). */
     public var onStart: (() -> Void)?
+    /** An episode saved on this device (the watch's downloads): played from the file, with its ads, no network. */
+    public var localCopy: ((PodEp) -> (url: URL, clean: Bool, ads: [PodAd])?)?
+    /** Whether what's playing now comes from a downloaded file. */
+    @Published public private(set) var fromDownload = false
 
     public static let rates: [Float] = [1, 1.25, 1.5, 2]
 
@@ -54,6 +58,13 @@ public final class PodEngine: ObservableObject {
     private var run = UUID()
     private var art: (url: String, image: MPMediaItemArtwork?)?
     private var commandsReady = false
+    /** The listener wants sound now (they pressed play and haven't paused): if it stops by itself, it's started again. */
+    private var wantPlaying = false
+    /** When this player last started or resumed: an interruption right after it is the phone's own web player
+     *  letting go of the sound (not a phone call), so the sound comes straight back. */
+    private var startedAt = Date.distantPast
+    /** A car is connected (CarPlay): its Play button starts something even when nothing is loaded yet. */
+    public var carConnected = false
 
     init() {
         player.automaticallyWaitsToMinimizeStalling = true
@@ -74,8 +85,12 @@ public final class PodEngine: ObservableObject {
             let opts = (n.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt).map(AVAudioSession.InterruptionOptions.init(rawValue:)) ?? []
             MainActor.assumeIsolated {
                 guard let self = self else { return }
-                if type == .began { self.saveSpot() }
-                else if type == .ended, opts.contains(.shouldResume), self.current != nil { self.resume() }
+                let justStarted = Date().timeIntervalSince(self.startedAt) < 6
+                if type == .began {
+                    self.saveSpot()
+                    // Knocked off right after starting: the phone's own player pausing took the sound with it. Back on.
+                    if self.wantPlaying && justStarted { self.kick("interrupted right after starting", after: 0.6) }
+                } else if type == .ended, self.current != nil, self.wantPlaying, opts.contains(.shouldResume) || justStarted { self.resume() }
             }
         }
         #endif
@@ -90,9 +105,23 @@ public final class PodEngine: ObservableObject {
         start(list, at: i, from: nil)
     }
 
+    /** Play with nothing loaded (the car's Play button): the episode last listened to, from where it was, or
+     *  else Live News Radio. */
+    public func playLatest() {
+        if let last = store.recentSpots(10).first(where: { $0.1.t > 0 && !$0.1.showId.isEmpty }) {
+            let s = last.1
+            play([PodEp(id: last.0, showId: s.showId, title: s.title, show: s.show, art: s.art, audio: s.audio ?? "", secs: s.secs)], at: 0)
+        } else if let ep = store.library.later.first ?? store.library.liked.first {
+            play([ep], at: 0)
+        } else {
+            playStation()
+        }
+    }
+
     /** Live News Radio: what's on air right now, from the right moment, then the next bulletin. */
     public func playStation() {
         onStation = true
+        wantPlaying = true; startedAt = Date()
         let me = UUID(); run = me
         loading = true; message = nil
         Task {
@@ -120,6 +149,7 @@ public final class PodEngine: ObservableObject {
         queue = list; index = i; current = ep
         position = from ?? 0; duration = ep.secs; message = nil; loading = true
         ads = []; skipped = []; clean = false; adsTask?.cancel()
+        wantPlaying = true; startedAt = Date()
         setUpCommands()
         activateSession()
         onStart?()
@@ -129,13 +159,20 @@ public final class PodEngine: ObservableObject {
         Task {
             let (url, startAt) = await resolve(ep, station: station, from: from)
             guard run == me else { return }
-            guard let url = url else { message = "This episode can't play right now."; loading = false; playing = false; return }
+            guard let url = url else { message = "This episode can't play right now."; loading = false; playing = false; wantPlaying = false; PodAPI.shared.report("no address for \(ep.id) (show \(ep.showId.isEmpty ? "none" : "yes"), audio \(ep.audio.isEmpty ? "none" : "yes"))"); return }
+            // On the watch, sound only plays once watchOS has given the app headphones (it asks which ones):
+            // playing before that answer came back is what crashed Pod+ on a real Apple Watch.
+            guard await sessionReady() else {
+                guard run == me else { return }
+                message = "Connect Bluetooth headphones to your watch, then tap play."; loading = false; playing = false; return
+            }
+            guard run == me else { return }
             let item = AVPlayerItem(asset: AVURLAsset(url: url))
             item.preferredForwardBufferDuration = 30
             watch(item, me: me)
             player.replaceCurrentItem(with: item)
-            statusWatch = item.publisher(for: \.status).receive(on: DispatchQueue.main).sink { [weak self] status in
-                guard let self = self, self.run == me else { return }
+            statusWatch = item.publisher(for: \.status).receive(on: DispatchQueue.main).sink { [weak self, weak item] status in
+                guard let self = self, let item = item, self.run == me else { return }
                 if status == .readyToPlay {
                     self.statusWatch = nil
                     let d = item.duration.seconds
@@ -143,11 +180,60 @@ public final class PodEngine: ObservableObject {
                     if (startAt > 1 && !ep.isLive) || station { self.player.seek(to: CMTime(seconds: startAt, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: CMTime(seconds: 1, preferredTimescale: 600)) }
                     self.player.playImmediately(atRate: ep.isLive && !station ? 1 : self.rate)
                     self.updateInfo(force: true)
+                    // Sound that stopped by itself in the first seconds is started again (and noted for the server log).
+                    self.kick("silent 2 s after starting", after: 2, only: me)
+                    self.kick("silent 5 s after starting", after: 5, only: me)
                 } else if status == .failed {
                     self.statusWatch = nil
+                    let why = item.error?.localizedDescription ?? "unknown"
+                    PodAPI.shared.report("item failed \(ep.id) from \(url.host ?? "?"): \(why)")
+                    // The ad-free copy or the server's copy wouldn't open: straight from the podcast instead.
+                    if url.absoluteString != ep.audio, !ep.audio.isEmpty, let direct = URL(string: ep.audio), !ep.isLive {
+                        self.playDirect(direct, ep: ep, me: me, startAt: startAt)
+                        return
+                    }
                     self.message = "This episode can't play right now."
-                    self.loading = false; self.playing = false
+                    self.loading = false; self.playing = false; self.wantPlaying = false
                 }
+            }
+        }
+    }
+
+    /** Plays the podcast's own file (ads and all): when the server's copies won't open. */
+    private func playDirect(_ url: URL, ep: PodEp, me: UUID, startAt: Double) {
+        guard run == me else { return }
+        clean = false; ads = []
+        let item = AVPlayerItem(asset: AVURLAsset(url: url))
+        item.preferredForwardBufferDuration = 30
+        watch(item, me: me)
+        player.replaceCurrentItem(with: item)
+        statusWatch = item.publisher(for: \.status).receive(on: DispatchQueue.main).sink { [weak self, weak item] status in
+            guard let self = self, let item = item, self.run == me else { return }
+            if status == .readyToPlay {
+                self.statusWatch = nil
+                if startAt > 1 { self.player.seek(to: CMTime(seconds: startAt, preferredTimescale: 600)) }
+                self.player.playImmediately(atRate: self.rate)
+                self.updateInfo(force: true)
+                self.kick("silent 2 s after starting (direct)", after: 2, only: me)
+            } else if status == .failed {
+                self.statusWatch = nil
+                PodAPI.shared.report("direct failed \(ep.id): \(item.error?.localizedDescription ?? "unknown")")
+                self.message = "This episode can't play right now."
+                self.loading = false; self.playing = false; self.wantPlaying = false
+            }
+        }
+    }
+
+    /** If the listener wants sound but the player has stopped (something else took the sound), it's asked to play again. */
+    private func kick(_ why: String, after secs: Double, only: UUID? = nil) {
+        let me = only ?? run
+        DispatchQueue.main.asyncAfter(deadline: .now() + secs) { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self = self, self.run == me, self.wantPlaying, self.current != nil else { return }
+                guard self.player.timeControlStatus == .paused, self.player.currentItem?.status == .readyToPlay else { return }
+                PodAPI.shared.report("restarted: \(why)")
+                self.activateSession()
+                self.player.playImmediately(atRate: self.current?.isLive == true && !self.onStation ? 1 : self.rate)
             }
         }
     }
@@ -155,6 +241,13 @@ public final class PodEngine: ObservableObject {
     /** Where to play the episode from, and where in it to start. */
     private func resolve(_ ep: PodEp, station: Bool, from: Double?) async -> (URL?, Double) {
         let spot = store.spot(ep.id)
+        fromDownload = false
+        if !ep.isLive, !station, let local = localCopy?(ep) {
+            fromDownload = true
+            clean = local.clean
+            ads = local.ads
+            return (local.url, from ?? spot.map { $0.start(clean: local.clean) } ?? 0)
+        }
         if ep.isLive && !station { return (URL(string: ep.audio), 0) }
         if ep.isOwn || ep.showId.isEmpty { return (URL(string: ep.audio), from ?? spot.map { $0.start(clean: false) } ?? 0) }
         if !station, let c = await api.clean(ep) {
@@ -188,7 +281,9 @@ public final class PodEngine: ObservableObject {
         adsTask = Task { [weak self] in
             var waits = 0
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: UInt64((clean ? 45 : (waits < 30 ? 4 : 30)) * 1_000_000_000))
+                // UInt64 before multiplying: on an Apple Watch Series 8 and older (32-bit numbers) 4 x 1,000,000,000
+                // doesn't fit in an Int, and the app stopped the moment an episode started playing.
+                try? await Task.sleep(nanoseconds: UInt64(clean ? 45 : (waits < 30 ? 4 : 30)) * 1_000_000_000)
                 guard let self = self, self.run == me, !Task.isCancelled else { return }
                 if let r = await self.api.sessionAds(sid: sid, ep: ep) {
                     guard self.run == me else { return }
@@ -239,24 +334,34 @@ public final class PodEngine: ObservableObject {
         if !ep.isLive { store.saveSpot(ep, t: duration, length: duration, clean: clean) }
         if onStation { playStation(); return }
         if index + 1 < queue.count { start(queue, at: index + 1, from: nil) }
-        else { player.pause(); playing = false; position = 0; updateInfo(force: true) }
+        else { wantPlaying = false; player.pause(); playing = false; position = 0; updateInfo(force: true) }
     }
 
     // MARK: Controls
 
-    public func pause() { player.pause(); saveSpot(); updateInfo(force: true) }
+    public func pause() { wantPlaying = false; player.pause(); saveSpot(); updateInfo(force: true) }
     public func resume() {
-        guard current != nil else { return }
+        guard current != nil else { if carConnected { playLatest() }; return }
+        wantPlaying = true; startedAt = Date()
         if player.currentItem == nil || message != nil, let ep = current {
             // After a lost connection: start again from the saved spot.
             if onStation { playStation() } else { start(queue.isEmpty ? [ep] : queue, at: index, from: position > 0 ? position : nil) }
             return
         }
-        activateSession(); onStart?()
-        player.playImmediately(atRate: current?.isLive == true && !onStation ? 1 : rate)
+        let me = run
+        Task {
+            guard await sessionReady() else { message = "Connect Bluetooth headphones to your watch, then tap play."; return }
+            guard run == me else { return }
+            onStart?()
+            player.playImmediately(atRate: current?.isLive == true && !onStation ? 1 : rate)
+            kick("silent after resuming", after: 2, only: me)
+        }
     }
     public func toggle() { playing ? pause() : resume() }
     public func stop() { pause(); player.replaceCurrentItem(with: nil); run = UUID(); playing = false }
+
+    /** The car connected: its buttons (and the lock screen's) control this player from the start. */
+    public func takeRemoteCommands() { setUpCommands() }
     public func next() { if onStation { playStation() } else if index + 1 < queue.count { start(queue, at: index + 1, from: nil) } }
     public func previous() {
         if position > 5 || index == 0 { seek(to: 0) } else { start(queue, at: index - 1, from: nil) }
@@ -269,7 +374,7 @@ public final class PodEngine: ObservableObject {
         skipped = skipped.filter { key in ads.first(where: { $0.key == key }).map { $0.s < to } ?? true }
         position = to
         player.seek(to: CMTime(seconds: to, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
-            MainActor.assumeIsolated { self?.saveSpot(); self?.updateInfo(force: true) }
+            Self.onMain { self?.saveSpot(); self?.updateInfo(force: true) }
         }
     }
     public func setRate(_ r: Float) {
@@ -288,40 +393,70 @@ public final class PodEngine: ObservableObject {
     // MARK: Sound, the lock screen and the car's buttons
 
     private func activateSession() {
-        #if os(watchOS)
-        // The watch plays through Bluetooth headphones; iOS asks which ones the first time.
-        let s = AVAudioSession.sharedInstance()
-        try? s.setCategory(.playback, mode: .spokenAudio, policy: .longFormAudio)
-        s.activate(options: []) { _, _ in }
-        #else
+        #if !os(watchOS)
         let s = AVAudioSession.sharedInstance()
         try? s.setCategory(.playback, mode: .spokenAudio, policy: .longFormAudio)
         try? s.setActive(true)
         #endif
     }
 
+    #if os(watchOS)
+    private var sessionActive = false
+    #endif
+
+    /** Whether sound can play now. On the watch this waits for watchOS to hand over Bluetooth headphones
+     *  (it shows its own picker the first time); its answer arrives on another thread, so it's handed back
+     *  here without touching anything of the player's from there. */
+    private func sessionReady() async -> Bool {
+        #if os(watchOS)
+        if sessionActive { return true }
+        let ok = await Self.activateWatchSession()
+        sessionActive = ok
+        return ok
+        #else
+        activateSession()
+        return true
+        #endif
+    }
+
+    #if os(watchOS)
+    nonisolated private static func activateWatchSession() async -> Bool {
+        let s = AVAudioSession.sharedInstance()
+        do { try s.setCategory(.playback, mode: .spokenAudio, policy: .longFormAudio) } catch { return false }
+        return await withCheckedContinuation { (done: CheckedContinuation<Bool, Never>) in
+            s.activate(options: []) { ok, _ in done.resume(returning: ok) }
+        }
+    }
+    #endif
+
+    /** Runs `work` on the main thread: the lock screen's, car's and watch's buttons don't always call from it,
+     *  and MainActor.assumeIsolated stops the app when they don't. */
+    nonisolated private static func onMain(_ work: @escaping @MainActor () -> Void) {
+        if Thread.isMainThread { MainActor.assumeIsolated { work() } } else { DispatchQueue.main.async { work() } }
+    }
+
     private func setUpCommands() {
         guard !commandsReady else { return }
         commandsReady = true
         let c = MPRemoteCommandCenter.shared()
-        c.playCommand.addTarget { [weak self] _ in MainActor.assumeIsolated { self?.resume() }; return .success }
-        c.pauseCommand.addTarget { [weak self] _ in MainActor.assumeIsolated { self?.pause() }; return .success }
-        c.togglePlayPauseCommand.addTarget { [weak self] _ in MainActor.assumeIsolated { self?.toggle() }; return .success }
+        c.playCommand.addTarget { [weak self] _ in Self.onMain { self?.resume() }; return .success }
+        c.pauseCommand.addTarget { [weak self] _ in Self.onMain { self?.pause() }; return .success }
+        c.togglePlayPauseCommand.addTarget { [weak self] _ in Self.onMain { self?.toggle() }; return .success }
         c.skipForwardCommand.preferredIntervals = [30]
-        c.skipForwardCommand.addTarget { [weak self] _ in MainActor.assumeIsolated { self?.skip(30) }; return .success }
+        c.skipForwardCommand.addTarget { [weak self] _ in Self.onMain { self?.skip(30) }; return .success }
         c.skipBackwardCommand.preferredIntervals = [15]
-        c.skipBackwardCommand.addTarget { [weak self] _ in MainActor.assumeIsolated { self?.skip(-15) }; return .success }
-        c.nextTrackCommand.addTarget { [weak self] _ in MainActor.assumeIsolated { self?.next() }; return .success }
-        c.previousTrackCommand.addTarget { [weak self] _ in MainActor.assumeIsolated { self?.previous() }; return .success }
+        c.skipBackwardCommand.addTarget { [weak self] _ in Self.onMain { self?.skip(-15) }; return .success }
+        c.nextTrackCommand.addTarget { [weak self] _ in Self.onMain { self?.next() }; return .success }
+        c.previousTrackCommand.addTarget { [weak self] _ in Self.onMain { self?.previous() }; return .success }
         c.changePlaybackPositionCommand.addTarget { [weak self] e in
             guard let e = e as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
-            MainActor.assumeIsolated { self?.seek(to: e.positionTime) }
+            let t = e.positionTime; Self.onMain { self?.seek(to: t) }
             return .success
         }
         c.changePlaybackRateCommand.supportedPlaybackRates = Self.rates.map { NSNumber(value: $0) }
         c.changePlaybackRateCommand.addTarget { [weak self] e in
             guard let e = e as? MPChangePlaybackRateCommandEvent else { return .commandFailed }
-            MainActor.assumeIsolated { self?.setRate(e.playbackRate) }
+            let r = e.playbackRate; Self.onMain { self?.setRate(r) }
             return .success
         }
     }
@@ -363,8 +498,7 @@ public final class PodEngine: ObservableObject {
         Task {
             guard let (data, _) = try? await URLSession.shared.data(from: url) else { return }
             #if canImport(UIKit)
-            guard let image = UIImage(data: data) else { return }
-            let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+            guard let artwork = Self.artwork(data) else { return }
             guard art?.url == urlString else { return }
             art = (urlString, artwork)
             updateInfo(force: true)
@@ -372,6 +506,16 @@ public final class PodEngine: ObservableObject {
         }
     }
 }
+
+#if canImport(UIKit)
+extension PodEngine {
+    /** Made outside the main actor: the system asks for the picture from its own thread. */
+    nonisolated static func artwork(_ data: Data) -> MPMediaItemArtwork? {
+        guard let image = UIImage(data: data) else { return nil }
+        return MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+    }
+}
+#endif
 
 /// Cover art at a sensible size (Apple's art addresses can be asked for any size).
 public enum PodArt {

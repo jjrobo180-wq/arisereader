@@ -9,7 +9,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { merge3 } from "@shared/mergeJson";
 
-export type DocKind = "sheet" | "doc" | "slides";
+export type DocKind = "sheet" | "doc" | "slides" | "design";
 export type DocEntry = { id: string; kind: DocKind; name: string; createdAt: string; updatedAt: string; size: number; trashedAt?: string; starred?: boolean };
 export type SaveState = "saved" | "saving" | "unsaved" | "offline" | "conflict" | "error";
 

@@ -1,7 +1,7 @@
-// The first run of the two A.R.I.S.E. Reader iPhone apps, right after the first sign-in on a phone:
-//  - A.R.I.S.E. Reader (students): a daily "time to read" reminder at a time they pick, scheduled on
+// The first run of the two Arise Reader iPhone apps, right after the first sign-in on a phone:
+//  - Arise Reader (students): a daily "time to read" reminder at a time they pick, scheduled on
 //    the phone itself (no server, no account details leave it), then a short tour.
-//  - A.R.I.S.E. Reader Educator (teachers and parents): Apple push for messages and updates from the
+//  - Arise Reader Educator (teachers and parents): Apple push for messages and updates from the
 //    server (lib/applePush.ts), then a short tour.
 // Full-screen pages like a native app's onboarding; shown once per person on each phone.
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -65,6 +65,8 @@ export default function ReaderFirstRun({ userId }: { userId: number | string }) 
     try {
       const [h, m] = time.split(":").map(Number);
       const on = student ? await scheduleReadingReminder(h || 18, m || 0) : await startApplePush(true);
+      // Students get their teacher's messages and class news as notifications too (iOS asked once above).
+      if (student && on) void startApplePush(false);
       if (on) setAsking(false);
       else setNote(`Notifications are off. You can turn them on any time in Settings → Notifications → ${nativeAppInfo().name}.`);
     } catch { setNote("That didn't work. Try again, or tap Not now."); }

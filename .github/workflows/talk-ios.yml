@@ -110,6 +110,9 @@ jobs:
           fi
           security create-keychain -p "" "$RUNNER_TEMP/talk.keychain-db"
           security unlock-keychain -p "" "$RUNNER_TEMP/talk.keychain-db"
+          # Never lock by itself: the default locks it after 5 idle minutes, and a later signing step (the Apple TV
+          # app, after the iPhone upload) then waited for a password forever.
+          security set-keychain-settings -lut 21600 "$RUNNER_TEMP/talk.keychain-db"
           security import "$RUNNER_TEMP/signing.p12" -k "$RUNNER_TEMP/talk.keychain-db" -P "$IOS_DISTRIBUTION_CERT_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k "" "$RUNNER_TEMP/talk.keychain-db"
           security list-keychains -d user -s "$RUNNER_TEMP/talk.keychain-db" "$HOME/Library/Keychains/login.keychain-db"

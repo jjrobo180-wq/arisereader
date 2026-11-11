@@ -12,16 +12,16 @@ import { createAttemptLimiter } from "../server/attemptLimiter";
 const read = (path: string) => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 
 test("an email goes out as a complete page with the site's footer", () => {
-  const page = emailDocument("123456 is your A.R.I.S.E Reader code", teacherEmailCodeEmail("Ms. Rivera", "123456"), "https://www.arisereader.com/");
+  const page = emailDocument("123456 is your Arise Reader code", teacherEmailCodeEmail("Ms. Rivera", "123456"), "https://www.arisereader.com/");
   assert.ok(page.startsWith("<!doctype html>\n<html lang=\"en\">"));
   assert.ok(page.trimEnd().endsWith("</html>"));
   assert.equal((page.match(/<html/g) || []).length, 1);
   assert.equal((page.match(/<body/g) || []).length, 1);
   assert.ok(page.includes('<meta charset="utf-8">'));
-  assert.ok(page.includes("<title>123456 is your A.R.I.S.E Reader code</title>"));
+  assert.ok(page.includes("<title>123456 is your Arise Reader code</title>"));
   assert.ok(page.includes("123456") && page.includes("Ms. Rivera"), "the email's own content is kept");
   // the footer says who sent it and why, and links to the site itself
-  assert.ok(page.includes("A.R.I.S.E Reader is a reading site for students, teachers and families."));
+  assert.ok(page.includes("Arise Reader is a reading site for students, teachers and families."));
   assert.ok(page.includes('You got this email because of an account or a request on <a href="https://www.arisereader.com"'));
   assert.ok(page.includes(">www.arisereader.com</a>"));
   assert.ok(page.indexOf("Ms. Rivera") < page.indexOf("You got this email"), "the footer comes after the content");
@@ -65,7 +65,7 @@ test("no email hides text or leaves a heading invisible", () => {
     assert.equal(/display:\s*none|visibility:\s*hidden/i.test(html), false);
   }
   // the invitation says who asked for it, has a button that shows without gradients, and offers a way out
-  assert.ok(invite.includes("Sam R. uses A.R.I.S.E. Reader") && invite.includes("asked us to send you this invitation"));
+  assert.ok(invite.includes("Sam R. uses Arise Reader") && invite.includes("asked us to send you this invitation"));
   assert.ok(invite.includes("background-color:#7c3aed;"), "the button has a plain color under its gradient");
   assert.ok(invite.includes('href="https://www.arisereader.com/#/parent-signup?code=AB12-CD34"'));
   assert.ok(invite.includes("AB12-CD34</strong>"));

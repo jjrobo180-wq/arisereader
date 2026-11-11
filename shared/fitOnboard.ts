@@ -1,4 +1,4 @@
-// The numbers behind Arise Fit's first-open setup: feet and inches, how fast to reach a goal weight, and
+// The numbers behind Cooked's first-open setup: feet and inches, how fast to reach a goal weight, and
 // what that means in calories. Pure, so it's tested.
 import { goals, type Profile } from "./fit";
 import { pointsBudget } from "./fitNutrition";
@@ -47,7 +47,7 @@ export function planFor(p: Profile, kg: number | undefined, today = new Date()) 
   return { ...g, points: pointsBudget(g) };
 }
 
-// ─── "What do you want from Arise Fit?" ──────────────────────────────────────────────────────────
+// ─── "What do you want from Cooked?" ──────────────────────────────────────────────────────────
 // A multi-select in first-open setup. Each pick adds its apps (shared/fitApps.ts) and the best of them go
 // on the tab bar, so the app is set up the way the person said they'd use it.
 import { FIT_APP_BY_ID, TAB_MAX, defaultApps, type FitAppId, type FitApps } from "./fitApps";

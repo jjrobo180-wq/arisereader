@@ -1,3 +1,4 @@
+import { readerQuizFeel, readerTick } from "@/lib/readerNative";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
@@ -268,6 +269,7 @@ export default function Quiz() {
 
   const handleAnswer = (questionId: number, answer: string) => {
     const key = String(questionId);
+    readerTick();
     if (camera) {
       const timing = answerTimesRef.current[key];
       if (!timing) answerTimesRef.current[key] = { first: Math.max(0, Date.now() - clockStartRef.current), changes: 0 };
@@ -405,6 +407,7 @@ export default function Quiz() {
     }
     if (pending.auto) setTurnedInAuto(true);
     setResult(data);
+    readerQuizFeel(data.passed !== undefined ? !!data.passed : data.score >= Math.ceil(data.total * 0.7));
   };
 
   /**
@@ -556,6 +559,7 @@ export default function Quiz() {
         return;
       }
       setResult(data);
+      readerQuizFeel(data.passed !== undefined ? !!data.passed : data.score >= Math.ceil(data.total * 0.7));
     } catch (err) {
       setError("Failed to submit quiz");
     } finally {

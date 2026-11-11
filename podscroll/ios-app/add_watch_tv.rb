@@ -112,6 +112,7 @@ watch = add.call("PodPlusWatch", :watchos, "10.0",
   common.call("Pod+").merge(
     "WKApplication" => true,
     "WKCompanionAppBundleIdentifier" => host,
+    # Background audio on watchOS is UIBackgroundModes "audio" (App Store Connect rejects "audio" in WKBackgroundModes).
     "UIBackgroundModes" => ["audio"],
   ),
   {

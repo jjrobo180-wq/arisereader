@@ -1,4 +1,4 @@
-// Arise Fit: your gym. The equipment a gym really has (gear), what every exercise needs, typical
+// Cooked: your gym. The equipment a gym really has (gear), what every exercise needs, typical
 // equipment for the big gym chains, and a short guide to each machine (what it works, how to set it up,
 // common mistakes). Used by "My gym" (workouts built only from what you have), "Scan a machine" (a
 // machine's QR code or a photo of it) and swapping exercises during a workout.
@@ -163,7 +163,7 @@ const norm = (s: string) => s.toLowerCase().replace(/%20|[-_+./=?&#:]+/g, " ").r
 /**
  * Which machine a QR code (or any text: a label, a URL) is about. Gym chains put QR codes on their
  * machines that open their own app; the code's text usually names the machine, so it's matched against
- * every machine's names. Arise Fit's own tags read "arisefit:gear:<id>". null when nothing matches.
+ * every machine's names. Cooked's own tags read "arisefit:gear:<id>". null when nothing matches.
  */
 export function gearFromText(text: string): Gear | null {
   const own = /arisefit:gear:([a-z0-9-]+)/i.exec(text);

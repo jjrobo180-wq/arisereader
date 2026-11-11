@@ -99,7 +99,7 @@ export function ReportProblemButton({ variant = "ghost", size = "sm" }: ReportPr
               <CheckCircle2 className="w-12 h-12 text-green-500" />
               <p className="text-lg font-semibold">Report Sent!</p>
               <p className="text-sm text-muted-foreground text-center">
-                Your report has been sent to the admin. Thank you for helping improve A.R.I.S.E Reader.
+                Your report has been sent to the admin. Thank you for helping improve Arise Reader.
               </p>
             </div>
           ) : (

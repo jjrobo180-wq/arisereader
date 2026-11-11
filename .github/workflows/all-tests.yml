@@ -35,5 +35,16 @@ jobs:
             echo "::error title=Failing tests::${failed}"
           fi
           exit $status
+      - name: Missing imports and duplicate names
+        # Catches a name that is used but never imported (this reached phones twice in November). It looks only
+        # at "cannot find name", "used before declared" and "duplicate identifier"; the rest of the type check
+        # still has too much unrelated noise to switch on.
+        shell: bash
+        run: |
+          npx tsc --noEmit -p . > tsc-output.txt 2>&1 || true
+          if grep -E "error TS(2304|2552|2448|2454|2300):" tsc-output.txt; then
+            echo "::error title=Missing or duplicate names::see the lines above"
+            exit 1
+          fi
       - name: Production build
         run: npm run build

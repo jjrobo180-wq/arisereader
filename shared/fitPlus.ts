@@ -1,5 +1,5 @@
-// Arise Fit+: the paid tier of Arise Fit ($10 a month, shared/plans.ts's "fit_plus" kind), sold on
-// the website only. Everything people already had in Arise Fit stays free; Fit+ adds the features
+// Cooked+: the paid tier of Cooked ($10 a month, shared/plans.ts's "fit_plus" kind), sold on
+// the website only. Everything people already had in Cooked stays free; Fit+ adds the features
 // below. Each paying account gets one guest pass: it shares Fit+ free with one other person, on their
 // own account, for as long as the payer keeps paying. A guest can't give a pass of their own (they
 // aren't paying), and a payer can switch who has their pass once every 30 days.

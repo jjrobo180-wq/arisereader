@@ -1,7 +1,8 @@
-// Arise WorkHub: bring reminders from the Apple Reminders app into the to-do list, one way. An iPhone Shortcut
-// sends them to a private link; the Hub takes them in when it is open (and every minute while it is).
+// Apple Reminders in the to-do list. The Arise To Duo iPhone app reads them straight from the phone
+// (lib/nativeAppleReminders.ts); the website says to connect there. Reminders a Shortcut set up before
+// still sends to the private link are taken in when the Hub is open (and every minute while it is).
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
-import { Check, Copy, Loader2, RefreshCw } from "lucide-react";
+import { Loader2, Smartphone } from "lucide-react";
 import { appleSummary, mergeReminders, type AppleReminder } from "@shared/appleReminders";
 import type { Workspace } from "@shared/teacherHub";
 import { api } from "./HubAvailability";
@@ -40,15 +41,6 @@ export function useAppleInbox(enabled: boolean, token: string | null, today: () 
   return () => pull.current();
 }
 
-const STEPS: { title: string; body: string }[] = [
-  { title: "Make a Shortcut", body: "On your iPhone open the Shortcuts app, tap + and name it “Send Reminders to Hub”." },
-  { title: "Find your reminders", body: "Add the action Find Reminders. Add a filter: Is Completed is No. To bring in only one list, add: List is (your list)." },
-  { title: "Write one line for each", body: "Add Repeat with Each (it repeats over the Reminders). Inside it add a Text action and type: the Repeat Item, then  |  then its Due Date. Tap the Due Date and set its date format to ISO 8601. Example line: Call Ms. Lee | 2026-10-12" },
-  { title: "Join the lines", body: "After the repeat ends, add Combine Text on the Repeat Results, and set it to New Lines." },
-  { title: "Send them to your Hub", body: "Add Get Contents of URL. Paste your private link below, tap Show More, set Method to POST, Request Body to File, and choose the Combined Text." },
-  { title: "Run it", body: "Tap the Shortcut to run it. In Shortcuts, Automation can run it for you every morning. Your to-dos show up here within a minute." },
-];
-
 /** In the iPhone app Reminders are read straight from the phone: one button, no Shortcut or link. */
 function NativeRemindersCard() {
   const [on, setOn] = useState(appleRemindersOn());
@@ -76,55 +68,14 @@ export default function AppleRemindersCard({ token, check }: { token: string | n
   return <ShortcutRemindersCard token={token} check={check} />;
 }
 
-/** On the website (Apple doesn't let a website read Reminders): an iPhone Shortcut sends them. */
-function ShortcutRemindersCard({ token, check }: { token: string | null; check: () => Promise<number> }) {
-  const [url, setUrl] = useState("");
-  const [waiting, setWaiting] = useState(0);
-  const [note, setNote] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => { api(token, "GET", "/api/teacher-hub/apple-reminders").then((d) => { setUrl(d.url); setWaiting(d.waiting || 0); }).catch(() => setNote("Could not load your link right now.")); }, [token]);
-
-  async function copy() {
-    try { await navigator.clipboard.writeText(url); setCopied(true); window.setTimeout(() => setCopied(false), 2000); }
-    catch { setNote("Press and hold the link to copy it."); }
-  }
-  async function renew() {
-    if (!window.confirm("Make a new link? The old one stops working, so update your Shortcut with the new one.")) return;
-    setBusy(true);
-    try { const d = await api(token, "POST", "/api/teacher-hub/apple-reminders/reset"); setUrl(d.url); setNote("Done. Paste the new link into your Shortcut."); }
-    catch (e: any) { setNote(e?.message || "Could not make a new link."); } finally { setBusy(false); }
-  }
-  async function now() {
-    setBusy(true); setNote("");
-    const n = await check();
-    setNote(n ? `Brought in ${n} ${n === 1 ? "reminder" : "reminders"}.` : "Nothing new waiting. Run your Shortcut on your iPhone first.");
-    setWaiting(0); setBusy(false);
-  }
-
+/** On the website (Apple doesn't let a website read Reminders): it connects in the Arise To Duo iPhone app.
+ *  A Shortcut someone already set up keeps working (useAppleInbox still takes in what it sends). */
+function ShortcutRemindersCard(_props: { token: string | null; check: () => Promise<number> }) {
   return (
-    <Card title="Apple Reminders to this to-do list" right={<span className="shrink-0 text-xs font-medium text-slate-500">One way</span>}>
-      <p className="text-sm text-slate-600">Reminders you make in the Apple Reminders app show up here as to-dos. Apple doesn't let a website read your Reminders directly, so an iPhone Shortcut sends them. It only goes this way: nothing here is written back to Apple Reminders.</p>
-      <details className="mt-3 rounded-2xl bg-slate-50 p-4 text-sm text-slate-700" data-testid="apple-steps">
-        <summary className="min-h-11 cursor-pointer py-2 font-semibold text-slate-900">Set it up (about 3 minutes)</summary>
-        <ol className="mt-2 space-y-3">
-          {STEPS.map((s, i) => (
-            <li key={s.title} className="flex gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-950 text-xs font-bold text-white">{i + 1}</span><div><div className="font-semibold text-slate-900">{s.title}</div><div className="leading-6">{s.body}</div></div></li>
-          ))}
-        </ol>
-        <p className="mt-3 text-xs text-slate-500">Want finished reminders checked off here too? Make each line {" "}<b>Item | Due Date | Is Completed</b> and take the “Is Completed is No” filter off, but only for a short list.</p>
-      </details>
-      <div className="mt-4 space-y-2">
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Your private link</div>
-        <div className="break-all rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-xs text-slate-700" data-testid="apple-link">{url || "Loading…"}</div>
-        <p className="text-xs text-slate-500">Keep it private. Anyone with it can send you to-dos (they can't read anything).</p>
-        <div className="flex flex-wrap gap-2">
-          <GhostButton onClick={copy}>{copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} {copied ? "Copied" : "Copy link"}</GhostButton>
-          <GhostButton onClick={now}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Check now{waiting ? ` (${waiting} waiting)` : ""}</GhostButton>
-          <GhostButton onClick={renew}>Make a new link</GhostButton>
-        </div>
-        {note && <p role="status" className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">{note}</p>}
+    <Card title="Apple Reminders">
+      <div className="flex items-start gap-3 rounded-2xl bg-slate-50 p-4" data-testid="apple-steps">
+        <Smartphone className="mt-0.5 h-5 w-5 shrink-0 text-indigo-600" />
+        <p className="text-sm leading-6 text-slate-700">Apple Reminders connects in the <b>Arise To Duo iPhone app</b>. Open it on your iPhone, go to Tasks in WorkHub and tap <b>Connect Apple Reminders</b> at the bottom. Your reminders then come in as to-dos, and checking one off in either place checks it off in both.</p>
       </div>
     </Card>
   );

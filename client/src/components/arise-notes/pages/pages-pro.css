@@ -141,10 +141,13 @@
 .pp-swipe-under svg { width: 1.2rem; height: 1.2rem; }
 .pp-swipe-pin { width: 76px; background: #f59e0b; }
 .pp-swipe-pin-left { width: 96px; background: #f59e0b; transition: opacity .15s; }
-.pp-swipe-del { background: #ef4444; transition: width .12s; }
+.pp-swipe-del { background: #52525b; transition: width .12s; }
 
 /* Undo after a swipe-delete */
 .pp-undo { position: fixed; left: 1rem; right: 1rem; bottom: calc(env(safe-area-inset-bottom) + 5.7rem); z-index: 40; display: flex; align-items: center; gap: .75rem; max-width: 28rem; margin: 0 auto; padding: .8rem 1rem; border-radius: 14px; background: #1c1c1e; color: #f2f2f7; font-size: .92rem; box-shadow: 0 14px 30px -12px rgba(0,0,0,.5); }
 .pp-undo button { font-weight: 700; color: #7aaaf9; }
 /* Smooth scrolling list: swipeable rows don't get their own layer until they're being swiped. */
 .pp-swipe-top { will-change: auto; }
+
+/* Nothing sits behind a note until it is swiped, so no color can show around its edges. */
+.pp-swipe-under[aria-hidden="true"] { display: none; }

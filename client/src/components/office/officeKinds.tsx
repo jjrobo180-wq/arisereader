@@ -9,6 +9,9 @@ import { blankDoc, cleanDoc, docPrintHtml, writeDocx } from "@shared/office/docM
 import { DOC_TEMPLATES } from "@shared/office/docTemplates";
 import { blankDeck, cleanDeck, readPptx, writePptx } from "@shared/office/slidesModel";
 import { SLIDE_TEMPLATES } from "@shared/office/slideTemplates";
+import { SIZES, blankDesign, cleanDesign } from "@shared/office/designModel";
+import { TEMPLATES as DESIGN_TEMPLATES } from "@shared/office/designTemplates";
+import { DesignThumb } from "./designDom";
 import { OfficeIcons, type LegacyFiles, type OfficeKind } from "./OfficeApp";
 import { downloadBlob } from "./officeUi";
 
@@ -66,4 +69,25 @@ export const SLIDES: OfficeKind = {
   Editor: lazy(() => import("./SlidesEditor")),
 };
 
-export const OFFICE_KINDS = { sheet: SHEETS, doc: DOCS, slides: SLIDES } as const;
+/** Arise Design, the Canva-style app (DesignEditor.tsx): start from a size or one of the templates, each shown as a picture. */
+export const DESIGN: OfficeKind = {
+  kind: "design", title: "Design", noun: "design", color: "#7c3aed", icon: OfficeIcons.design,
+  blank: () => blankDesign("ig-post"),
+  starts: SIZES.map((s) => ({ id: s.id, label: s.name, sub: s.unit || `${s.w} × ${s.h}`, make: () => blankDesign(s.id) })),
+  templates: DESIGN_TEMPLATES.map((t) => ({ id: t.id, name: t.name, blurb: t.category, emoji: "🎨", color: "#7c3aed", make: t.make,
+    preview: () => { const d = t.make(); const r = d.w / d.h; return <DesignThumb design={d} width={r >= 1.33 ? 150 : 112 * r} />; } })),
+  importAccept: "image/*",
+  importFile: async (f) => {
+    const { shrinkImage } = await import("./designRender");
+    const img = await shrinkImage(f, 2000);
+    const d = blankDesign("custom" as any);
+    return { name: f.name.replace(/\.[^.]+$/, "").slice(0, 120), content: cleanDesign({ ...d, size: "custom", w: img.w, h: img.h, pages: [{ bg: "#ffffff", elements: [{ type: "image", src: img.src, x: 0, y: 0, w: img.w, h: img.h }] }], uploads: [img.src] }) };
+  },
+  downloads: [
+    { label: "as PNG (first page)", run: async (c, name) => { const { exportImage } = await import("./designRender"); downloadBlob(`${name}.png`, await exportImage(cleanDesign(c), 0, "png"), "image/png"); } },
+    { label: "as PDF", run: async (c, name) => { const { exportPdf } = await import("./designRender"); downloadBlob(`${name}.pdf`, await exportPdf(cleanDesign(c)), "application/pdf"); } },
+  ],
+  Editor: lazy(() => import("./DesignEditor")),
+};
+
+export const OFFICE_KINDS = { sheet: SHEETS, doc: DOCS, slides: SLIDES, design: DESIGN } as const;

@@ -96,12 +96,12 @@ const NOUNS: Record<AlertEventKey, [string, string]> = {
 };
 
 export function alertEmailSubject(batch: { event: AlertEventKey; alert: Alert }[]): string {
-  if (batch.length === 1) return `${clip(batch[0].alert.title, 140)} · A.R.I.S.E Reader`;
+  if (batch.length === 1) return `${clip(batch[0].alert.title, 140)} · Arise Reader`;
   const counts = new Map<AlertEventKey, number>();
   for (const { event } of batch) counts.set(event, (counts.get(event) || 0) + 1);
   const parts = Array.from(counts, ([event, n]) => `${n} ${NOUNS[event][n === 1 ? 0 : 1]}`);
   const shown = parts.slice(0, 3).join(", ") + (parts.length > 3 ? ", and more" : "");
-  return `${batch.length} new alerts: ${shown} · A.R.I.S.E Reader`;
+  return `${batch.length} new alerts: ${shown} · Arise Reader`;
 }
 
 function alertBlock(alert: Alert, heading: "h2" | "h3"): string {
@@ -330,7 +330,7 @@ export function createAdminAlerts(deps: AdminAlertDeps) {
     rollDay();
     let result: SendResult;
     try {
-      result = await deps.sendEmail(settings.recipients, "Test alert · A.R.I.S.E Reader", testEmailHtml(deps.appUrl));
+      result = await deps.sendEmail(settings.recipients, "Test alert · Arise Reader", testEmailHtml(deps.appUrl));
     } catch (e: any) {
       result = { sent: false, error: e?.message || "The email could not be sent." };
     }

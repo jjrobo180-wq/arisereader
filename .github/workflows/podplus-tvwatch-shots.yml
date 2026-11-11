@@ -64,9 +64,15 @@ jobs:
             xcrun simctl install "$W" d/Build/Products/Debug-watchsimulator/PodPlusWatch.app && {
               xcrun simctl launch "$W" com.arisereader.podplus.watchkitapp; sleep 15; xcrun simctl io "$W" screenshot out/watch-1-home.png
               xcrun simctl terminate "$W" com.arisereader.podplus.watchkitapp; xcrun simctl launch "$W" com.arisereader.podplus.watchkitapp -pwSwipe YES; sleep 22; xcrun simctl io "$W" screenshot out/watch-2-swipe.png
+              # Still running after it started playing? (A crash shows up here and fails the check.)
+              sleep 20
+              if xcrun simctl spawn "$W" launchctl list | grep -q podplus.watchkitapp; then echo "::notice title=Pod+ Watch::still playing after 40 s"; else echo "::error title=Pod+ Watch::stopped while playing"; echo CRASHED > out/watch-crashed.txt; fi
+              xcrun simctl io "$W" screenshot out/watch-3-playing.png
             }
+            find ~/Library/Logs/DiagnosticReports -iname "*PodPlus*" -newer d -exec sh -c 'echo "== $1"; head -80 "$1"' _ {} \; 2>/dev/null | tee out/watch-crashes.txt | head -120
           fi
           ls -la out
+          if [[ -f out/watch-crashed.txt ]]; then exit 1; fi
       - name: Save to the podplus-tvwatch-shots branch
         if: always()
         working-directory: ${{ runner.temp }}/p/out

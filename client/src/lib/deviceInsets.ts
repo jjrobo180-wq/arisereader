@@ -30,7 +30,7 @@ export function deviceTopInset(screenW: number, screenH: number): number | null 
 }
 
 /** Sets --sat-device on the page for the iPhone apps' clock space (todo-app.css, index.css, reader-app.css). `scale` is the page's zoom
- *  when it isn't 1 (Arise Fit lays its page out at 0.9, so a CSS pixel is bigger than a point). */
+ *  when it isn't 1 (Cooked lays its page out at 0.9, so a CSS pixel is bigger than a point). */
 export function applyDeviceTopInset(scale = 1): void {
   if (typeof window === "undefined") return;
   const top = deviceTopInset(window.screen.width, window.screen.height);

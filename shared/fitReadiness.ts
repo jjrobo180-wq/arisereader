@@ -1,4 +1,4 @@
-// Arise Fit readiness: how ready you are to train today, 0-100, from last night's sleep, the week's sleep
+// Cooked readiness: how ready you are to train today, 0-100, from last night's sleep, the week's sleep
 // debt, how recovered your muscles are (shared/fitRecovery.ts) and how hard the last few days were.
 // Not a medical measure; a nudge for whether to push or go easy.
 import type { FitData } from "./fit";
@@ -10,7 +10,7 @@ const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padSt
 
 export function readiness(data: FitData, now = new Date()): Readiness {
   const night = data.sleep?.nights.find((n) => n.date === dayKey(now));
-  const st = sleepStats(data.sleep, 7);
+  const st = sleepStats(data.sleep, 7, now);
   // Sleep: last night's score (45), or the week's average when last night wasn't tracked.
   const sleepPart = night ? Math.round((sleepScore(night, data.sleep).score / 100) * 45) : st.n ? Math.round(45 * Math.min(1, st.avg / st.goal) * 0.9) : 30;
   const debtPart = Math.round(15 * Math.max(0, 1 - st.debt / 7));

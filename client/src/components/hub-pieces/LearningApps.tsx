@@ -1,5 +1,5 @@
 // The A.R.I.S.E. learning programs (Arise Math, Arise History and A.R.I.S.E. Connect) as their own
-// "Arise Learning" section in WorkHub's and LifeHub's menus, right under A.R.I.S.E. Reader, so
+// "Arise Learning" section in WorkHub's and LifeHub's menus, right under Arise Reader, so
 // teachers and parents always see them. Each has its own color. Someone who doesn't have a program
 // yet sees an "Add-on" tag on it, and tapping it takes them to their plan page to get it.
 import { useEffect, useState } from "react";

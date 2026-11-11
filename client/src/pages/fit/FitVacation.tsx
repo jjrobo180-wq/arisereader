@@ -1,4 +1,4 @@
-// Arise Fit: vacation mode (shared/fitVacation.ts). Plan a trip: where you'll train, how much you'll commit
+// Cooked: vacation mode (shared/fitVacation.ts). Plan a trip: where you'll train, how much you'll commit
 // to, and what to do before and after to make up for it, for workouts and for food. Also the card that
 // finishes a workout that was split across the day.
 import { useState } from "react";
@@ -48,7 +48,7 @@ export function VacationSheet({ data, update, list, onStart, onClose, say }: { d
 
   return <Sheet title="Vacation mode" onClose={onClose} testId="fit-vacation">
     {editing ? <>
-      <p className="px-1 text-[15px]" style={{ color: C.steel }}>Tell Arise Fit about the trip. It will plan your workouts and your food around it.</p>
+      <p className="px-1 text-[15px]" style={{ color: C.steel }}>Tell Cooked about the trip. It will plan your workouts and your food around it.</p>
       <Title>The trip</Title>
       <Card className="!p-4"><Field label="Where to (optional)"><input value={v.place ?? ""} onChange={(e) => set({ place: e.target.value.slice(0, 60) })} placeholder="Cabo, Grandma's, Disney..." className={inputCls} style={inputStyle} /></Field>
         <div className="mt-3 grid grid-cols-2 gap-3">

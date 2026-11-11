@@ -1,4 +1,4 @@
-// Arise Fit: workout buddies. Two people who don't know each other are matched on what they're after, set
+// Cooked: workout buddies. Two people who don't know each other are matched on what they're after, set
 // a weekly goal together, and keep each other going: they see each other's weekly count, and can only
 // send preset messages. No names, no photos, no typing to each other: an emoji avatar, a made-up gamertag
 // and a handful of ready-made messages, so there's nothing to be rude with, nothing to share by accident.
@@ -59,7 +59,7 @@ export function cleanPrefs(raw: any): Omit<BuddyProfile, "tag" | "at"> {
   };
 }
 
-/** Adults only, going by the birth year in their Arise Fit profile. */
+/** Adults only, going by the birth year in their Cooked profile. */
 export function adultCheck(profile: { birthYear?: number } | undefined, now = new Date()): { ok: boolean; why: string } {
   const y = Number(profile?.birthYear);
   if (!Number.isFinite(y) || y < 1900) return { ok: false, why: "Add your birth year in Settings first. Workout buddies are for people 18 and over." };

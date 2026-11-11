@@ -27,6 +27,11 @@ export async function openNativeTasks(payload: ReturnType<typeof tasksPayload>):
 }
 export function updateNativeTasks(payload: ReturnType<typeof tasksPayload>): void { void nativeCall(PLUGIN, "AriseNative", "updateTasks", payload).catch(() => {}); }
 
+/** The native screen's plugin is in this app (even with the screen off): a screen opened by older web code can still
+ *  be over the app after a live update reloads it, with nothing reading its taps. See closeLeftoverNativeTasks. */
+export const nativeTasksPluginThere = (): boolean => nativeFlavor() === "todo" && hasNativePlugin(PLUGIN);
+export async function closeNativeTasks(): Promise<void> { try { await nativeCall(PLUGIN, "AriseNative", "closeTasks"); } catch { /* not open */ } }
+
 export async function takeNativeTaskActions(): Promise<NativeTaskAction[]> {
   try {
     const r = await nativeCall(PLUGIN, "AriseNative", "takeActions");

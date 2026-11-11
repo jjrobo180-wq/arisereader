@@ -383,7 +383,7 @@ public final class PodAPI {
                     if ep.showId.isEmpty { ep.showId = show.id }
                     return ep
                 }
-                return PodPool(show: show, rank: Int(PodJSON.num(p["rank"]) ?? 0), episodes: eps)
+                return PodPool(show: show, rank: Int(min(1_000_000, max(0, (PodJSON.num(p["rank"]) ?? 0).isFinite ? PodJSON.num(p["rank"]) ?? 0 : 0))), episodes: eps)
             }
         }
         return out
@@ -457,6 +457,12 @@ public final class PodAPI {
     }
 
     // Playing without ads (server/podcastClean.ts, server/podcastPlay.ts)
+
+    /** A line in the server's log when the native player has trouble (episode ids and the error only: no names). */
+    public func report(_ text: String) {
+        guard let req = request("/api/client-error", method: "POST", body: ["host": "podplus-ios", "name": "PodEngine", "message": String(text.prefix(280)), "where": "native player"]) else { return }
+        http.dataTask(with: req).resume()
+    }
 
     /** The episode's ad-free copy, when it has one: its address, its session id and the ads still in it. */
     public func clean(_ ep: PodEp) async -> (url: URL, sid: String, ads: [PodAd])? {

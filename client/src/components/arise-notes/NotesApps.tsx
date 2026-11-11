@@ -57,7 +57,7 @@ export function AppScreen({ ctx, id }: { ctx: AppCtx; id: string }) {
   // Opening an app from a link adds it, so it's on Home next time.
   useEffect(() => { if (app && loaded && !installed.includes(app.id)) toggle(app.id); }, [app, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!app) return <><TopBar ctx={ctx} title="App Gallery" back={() => ctx.go({ name: "apps" })} /><main className="mx-auto max-w-3xl px-4 pt-8"><p className="an-card p-6 text-center text-[15px] text-[var(--an-muted)]">That app isn't in the App Gallery.</p></main></>;
-  const office = app.id === "sheets" || app.id === "slides" || app.id === "docs";
+  const office = app.id === "sheets" || app.id === "slides" || app.id === "docs" || app.id === "design";
   return <>
     <TopBar ctx={ctx} title={<span className="flex min-w-0 items-center gap-2"><AppIcon app={app} size={26} /><span className="truncate">{app.name}</span></span>} back={() => ctx.go({ name: "home" })}
       right={<IconBtn label="App Gallery" onClick={() => ctx.go({ name: "apps" })}><Layers className="h-5 w-5" /></IconBtn>} />
@@ -67,8 +67,10 @@ export function AppScreen({ ctx, id }: { ctx: AppCtx; id: string }) {
       {app.id === "whiteboard" && <Whiteboard />}
       {app.id === "flashcards" && <Flashcards ctx={ctx} />}
       {app.id === "focus" && <Focus />}
-      {office && <div className="na-office rounded-2xl bg-white p-3 text-slate-900 shadow-sm ring-1 ring-slate-200 sm:p-5">
-        <Suspense fallback={<Spinner />}><OfficeApp config={OFFICE_KINDS[app.id === "sheets" ? "sheet" : app.id === "slides" ? "slides" : "doc"]} /></Suspense>
+      {/* Design brings its own home in the look's colors; the others sit on a white sheet. */}
+      {app.id === "design" && <Suspense fallback={<Spinner />}><OfficeApp config={OFFICE_KINDS.design} /></Suspense>}
+      {office && app.id !== "design" && <div className="na-office rounded-2xl bg-white p-3 text-slate-900 shadow-sm ring-1 ring-slate-200 sm:p-5">
+        <Suspense fallback={<Spinner />}><OfficeApp config={OFFICE_KINDS[app.id === "sheets" ? "sheet" : app.id === "slides" ? "slides" : app.id === "design" ? "design" : "doc"]} /></Suspense>
       </div>}
     </main>
   </>;

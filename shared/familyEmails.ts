@@ -176,7 +176,7 @@ function shell(siteUrl: string, heading: string, body: string, stopUrl: string, 
   ${inviteBrandHtml(site, "dark")}
   <h2 style="margin:24px 0 10px;color:#f8fafc;font-size:22px;">${heading}</h2>
 ${body}
-  <p style="margin:24px 0 0;"><a href="${escapeHtml(site)}/" style="display:inline-block;background-color:#7c3aed;background-image:linear-gradient(90deg,#7c3aed,#c026d3,#06b6d4);color:#ffffff;text-decoration:none;font-weight:800;padding:13px 20px;border-radius:12px;">Open A.R.I.S.E. Reader</a></p>
+  <p style="margin:24px 0 0;"><a href="${escapeHtml(site)}/" style="display:inline-block;background-color:#7c3aed;background-image:linear-gradient(90deg,#7c3aed,#c026d3,#06b6d4);color:#ffffff;text-decoration:none;font-weight:800;padding:13px 20px;border-radius:12px;">Open Arise Reader</a></p>
   <p style="color:#94a3b8;font-size:13px;margin-top:24px;line-height:1.6;">You get this because your parent account is connected to ${escapeHtml(childFirst)}. <a href="${escapeHtml(stopUrl)}" style="color:#94a3b8;">Stop these emails</a>.</p>
 </div>`;
 }
@@ -232,7 +232,7 @@ export function readingNudgeEmail(c: ChildProgress, parts: EmailParts & { nowMs:
     ? `⭐ ${first} is ${plural(c.pointsToNext!, "point", "points")} from moving up!`
     : pick([`📖 ${first}'s next book is waiting!`, `🚀 Time to read, ${first}!`, `🎯 A quick quiz for ${first}?`], seed);
   const opener = days === null
-    ? `${f} hasn't taken a quiz on A.R.I.S.E. Reader yet. Tonight is a great night to start: read a book, then take its quiz to earn its points.`
+    ? `${f} hasn't taken a quiz on Arise Reader yet. Tonight is a great night to start: read a book, then take its quiz to earn its points.`
     : `It's been ${plural(days, "day", "days")} since ${f}'s last passed quiz, and the leaderboard keeps moving! A book and a quiz this week would get ${f} back in it.`;
   const body = `  <p style="${P}">${opener}</p>
   <p style="${P}">${escapeHtml(standingText(c))}</p>

@@ -1,4 +1,4 @@
-// Arise Fit's guided-session player (shared/fitSessions.ts): one phase at a time with a big countdown,
+// Cooked's guided-session player (shared/fitSessions.ts): one phase at a time with a big countdown,
 // a spoken cue at each change, three beeps before it, treadmill speed and incline for intervals, and an
 // expanding circle for breathing. The coach speaks in the app's AI voice (lib/aiVoice, "troy"), never
 // the phone's built-in voice. The screen stays awake while it runs.

@@ -1,6 +1,8 @@
+import { OPEN_INBOX } from "@/lib/readerNative";
 import { useSavedChoice } from "@/lib/useSavedChoice";
 import { updateReaderWidget } from "@/lib/readerWidget";
 import { isReaderApp } from "@/lib/nativeApp";
+import GetReaderApp from "@/components/GetReaderApp";
 import { BookTitleSuggest, DidYouMeanList, type PickedBook } from "@/components/BookTitleSuggest";
 import type { BookCandidate } from "@shared/bookMatch";
 import { shelvesByPoints } from "@shared/libraryShelves";
@@ -179,7 +181,19 @@ export default function Library() {
   }, [user?.id, user?.displayName, liveTotalPoints, passedCount, userBand]); // eslint-disable-line react-hooks/exhaustive-deps
   const [sortBy, setSortBy] = useSavedChoice<"points" | "popular" | "recent" | "classics" | "new">("library-sort", "points", ["points", "popular", "recent", "classics", "new"]);
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const fetchMessagesRef = useRef<(() => Promise<void>) | null>(null);
   const [showInbox, setShowInbox] = useState(false);
+  // The iPhone app's Messages quick action, or a notification about a message: the inbox opens.
+  useEffect(() => {
+    const open = () => {
+      if (!/[?&]inbox=1\b/.test(window.location.hash)) return;
+      window.history.replaceState(null, "", window.location.hash.replace(/[?&]inbox=1\b/, "") || "#/library");
+      void fetchMessagesRef.current?.(); setShowInbox(true);
+    };
+    open();
+    window.addEventListener(OPEN_INBOX, open);
+    return () => window.removeEventListener(OPEN_INBOX, open);
+  }, []);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
@@ -1163,6 +1177,7 @@ export default function Library() {
       }
     } catch {}
   };
+  fetchMessagesRef.current = fetchMessages;
 
   const fetchUnreadCount = async () => {
     const authToken = token || getTokenFromCookie();
@@ -1485,6 +1500,8 @@ export default function Library() {
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
+        {/* The iPhone app's download link for students (hidden inside the app itself). */}
+        {user?.role === 'student' && !user.is_eye_gaze_user && <GetReaderApp tone="light" who="you" className="mb-4" />}
         {/* Quizzes this student asked for that a teacher approved: shown first, until taken. */}
         {user?.role === 'student' && <QuizReadyBanner />}
         {/* The Advisory Challenge: this student's advisory's place. Tapping it opens the leaderboard. */}

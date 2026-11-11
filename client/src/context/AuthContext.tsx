@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
 import { forgetStay } from "@/lib/useStayOnRefresh";
-import { API_BASE } from "@/lib/queryClient";
+import { API_BASE, setApiAuthToken } from "@/lib/queryClient";
+import { isNativeApp } from "@/lib/nativeApp";
 import { setSchoolTheme, setTeacherBand } from "@/lib/schoolTheme";
 import { clearAuthenticatedNavigation, resetAuthenticatedNavigation } from "@/lib/navigation";
 import { forgetThisDevice } from "@/lib/pushDevice";
@@ -47,6 +48,8 @@ interface AuthContextType {
   signInWithApple: (apple: { identityToken: string; authorizationCode?: string; givenName?: string; familyName?: string }) => Promise<boolean>;
   /** Redeems a one-use code from arisereader.com (teachers, parents, LifeHub accounts, the administrator). */
   completeAdminHandoff: (code: string) => Promise<AuthUser>;
+  /** The Reader iPhone app's plan button opens Safari signed in with this one-use code. */
+  completeWebHandoff: (code: string) => Promise<AuthUser>;
   register: (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null, gradeLevel?: string, unlisted?: { schoolName?: string; teacherName?: string; directoryTeacherId?: string; independent?: boolean; directorySchool?: string; advisoryId?: string }) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
@@ -144,8 +147,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const sessionRef = useRef<{ user: AuthUser | null; token: string | null }>(loadSessionCookie());
   const [user, setUser] = useState<AuthUser | null>(sessionRef.current.user);
   const [token, setToken] = useState<string | null>(sessionRef.current.token);
-  const [isLoading, setIsLoading] = useState(!!sessionRef.current.token && !isSampleMode());
+  // An adult's hub (To Duo: LifeHub, WorkHub) opens straight away with the sign-in kept on this device,
+  // and the server check below runs behind it: no spinner on every launch. Everyone else waits for the check.
+  const [isLoading, setIsLoading] = useState(!!sessionRef.current.token && !isSampleMode() && !isHubAccount(sessionRef.current.user));
   const [sessionValidated, setSessionValidated] = useState(() => isSampleMode());
+  const firstCheckDone = useRef(false);
   const [retryTick, setRetryTick] = useState(0);
   const [adminPreviewMode, setAdminPreviewMode] = useState<AdminPreviewMode>(() => {
     if (typeof window === "undefined") return null;
@@ -230,6 +236,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Already signed in when the app opens: use this account's own things on this device.
   useEffect(() => { if (user?.id && token && !isSampleMode()) setAccount(user.id); }, [user?.id, token]);
 
+  // apiRequest's sign-in, and this iPhone's notifications for whoever is signed in.
+  useEffect(() => {
+    setApiAuthToken(isSampleMode() ? null : token);
+    if (token && user && isNativeApp() && !isSampleMode()) void import("@/lib/applePush").then((m) => m.syncApplePush()).catch(() => {});
+  }, [token, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const persistSession = useCallback((u: AuthUser | null, t: string | null) => {
     sessionRef.current = { user: u, token: t };
     saveSessionCookie(u, t);
@@ -257,7 +268,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!sessionRef.current.token || sessionValidated) return;
     let cancelled = false;
-    setIsLoading(true);
+    // Only the first check may hold the screen. A hub already showing, or a later try after a
+    // failed one, checks quietly: the spinner used to replace the whole app every 15 seconds
+    // while the connection was bad.
+    if (!firstCheckDone.current && !isHubAccount(sessionRef.current.user)) setIsLoading(true);
+    firstCheckDone.current = true;
     fetch(`${API_BASE}/api/me`, {
       headers: { Authorization: `Bearer ${sessionRef.current.token}` },
       signal: AbortSignal.timeout(8000),
@@ -304,6 +319,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { cancelled = true; };
   }, [persistSession, sessionValidated, retryTick]);
 
+  // main.tsx says so when requests carrying the sign-in keep getting 401: check it with the server again
+  // (the check above signs the person out if the server says it is no good).
+  useEffect(() => {
+    const recheck = () => { if (sessionRef.current.token) { setSessionValidated(false); setRetryTick((t) => t + 1); } };
+    window.addEventListener("arise:session-check", recheck);
+    return () => window.removeEventListener("arise:session-check", recheck);
+  }, []);
+
   useEffect(() => {
     if (user && user.schoolId) {
       fetch(`${API_BASE}/api/schools`)
@@ -344,7 +367,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (SAMPLE_USERNAMES.has(data.user?.username)) sessionStorage.setItem(SAMPLE_SESSION_KEY, "true");
     else sessionStorage.removeItem(SAMPLE_SESSION_KEY);
     resetAuthenticatedNavigation(data.user);
-    persistSession(data.user, data.token);
+    persistSession(data.user, data.token); setSessionValidated(true); // fresh from the server: no second check (and no loading flash) right after
     returnIfAsked();
   }, [persistSession]);
 
@@ -358,7 +381,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!res.ok || typeof data?.token !== "string") throw new Error(data?.message || "Sign in with Apple didn't work. Try again.");
     sessionStorage.removeItem(SAMPLE_SESSION_KEY);
     resetAuthenticatedNavigation(data.user);
-    persistSession(data.user, data.token);
+    persistSession(data.user, data.token); setSessionValidated(true); // fresh from the server: no second check (and no loading flash) right after
     returnIfAsked();
     return !!data.made;
   }, [persistSession]);
@@ -382,7 +405,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAdminPreviewMode(null);
     sessionStorage.removeItem(SAMPLE_SESSION_KEY);
     resetAuthenticatedNavigation(data.user);
-    persistSession(data.user, data.token);
+    persistSession(data.user, data.token); setSessionValidated(true); // fresh from the server: no second check (and no loading flash) right after
+    return data.user as AuthUser;
+  }, [persistSession]);
+
+  const completeWebHandoff = useCallback(async (code: string) => {
+    if (!/^[a-f0-9]{64}$/.test(code)) throw new Error("The sign-in link is invalid.");
+    const res = await fetch(`${API_BASE}/api/auth/web-handoff/consume`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }), cache: "no-store" });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || typeof data?.token !== "string") throw new Error(data?.message || "Please sign in.");
+    sessionStorage.removeItem(SAMPLE_SESSION_KEY);
+    persistSession(data.user, data.token); setSessionValidated(true); // fresh from the server: no second check (and no loading flash) right after
     return data.user as AuthUser;
   }, [persistSession]);
 
@@ -399,7 +432,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const data = await res.json();
     resetAuthenticatedNavigation(data.user);
-    persistSession(data.user, data.token);
+    persistSession(data.user, data.token); setSessionValidated(true); // fresh from the server: no second check (and no loading flash) right after
     returnIfAsked();
   }, [persistSession]);
 
@@ -494,6 +527,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       signInWithApple,
       completeAdminHandoff,
+      completeWebHandoff,
       register,
       logout,
       isLoading,

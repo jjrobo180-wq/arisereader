@@ -1,4 +1,4 @@
-// A.R.I.S.E. Reader Home Screen and Lock Screen widgets. The app writes a small snapshot (first
+// Arise Reader Home Screen and Lock Screen widgets. The app writes a small snapshot (first
 // name, points, quizzes passed, grade band) to a keychain item both share
 // (client/src/lib/readerWidget.ts → ReaderWidgetPlugin in AppDelegate.swift); this reads it.
 // Tapping a widget opens the app.
@@ -164,7 +164,7 @@ struct ReaderWidgetView: View {
 
     private var rectangular: some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text("A.R.I.S.E. Reader").font(.system(size: 12, weight: .heavy))
+            Text("Arise Reader").font(.system(size: 12, weight: .heavy))
             if s == nil {
                 Text("Open the app to sign in").font(.system(size: 13))
             } else {
@@ -175,7 +175,7 @@ struct ReaderWidgetView: View {
     }
 
     private var inline: some View {
-        Text(s == nil ? "A.R.I.S.E. Reader" : "★ \(points) pts · \(quizzes) quizzes")
+        Text(s == nil ? "Arise Reader" : "★ \(points) pts · \(quizzes) quizzes")
     }
 }
 

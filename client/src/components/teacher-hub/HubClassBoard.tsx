@@ -2,6 +2,7 @@
 // mark each student's minutes (usual minutes, other minutes, absent), how each did and a note for each, a note for
 // the class itself (the lesson, what was taught, follow up, with files and scaffolds one tap away), and add or take
 // out students. The class notes are the push-in notes (shared/pushIn.ts); the minutes are the service logs.
+import { Undo2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { Check, ChevronLeft, ChevronRight, Clock, MoreHorizontal, NotebookPen, Paperclip, Pencil, Plus, Trash2, UserMinus, UserPlus, UserX, Users } from "lucide-react";
 import { schoolBlocks } from "@shared/hubBlocks";
@@ -24,6 +25,7 @@ export type BoardProps = {
   onEditPlan: (planId: string) => void;
   onAddStudents: (key: string) => void;
   onDeleteClass: (key: string) => void;
+  onEditClass: (key: string | null) => void;
   /** Opens Edit, to set the first required minutes. */
   onSetup: () => void;
   say: (msg: string) => void;
@@ -109,13 +111,14 @@ export function ClassBoard(props: BoardProps) {
         {day !== today && <button type="button" onClick={() => setDay(today)} className="mt-3 rounded-full bg-white px-3.5 py-1.5 text-sm font-bold text-slate-950" data-testid="board-today">Back to today</button>}
       </section>
       <WeekStrip day={day} today={today} notes={notes} onDay={setDay} />
+      <button type="button" onClick={() => props.onEditClass(null)} className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-slate-950 px-4 text-sm font-bold text-white" data-testid="class-new"><Plus className="h-4 w-4" /> New class</button>
 
       {!groups.length ? (
         <div className="rounded-3xl border border-dashed border-slate-300 bg-white px-5 py-10 text-center">
           <Users className="mx-auto h-8 w-8 text-slate-400" aria-hidden />
           <p className="mt-2 text-base font-bold text-slate-900">No classes yet</p>
           <p className="mx-auto mt-1 max-w-sm text-sm text-slate-600">Add students to a block (and whose class you push in to). Each class then shows up here to mark minutes and keep notes.</p>
-          <button type="button" onClick={props.onSetup} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-2xl bg-slate-950 px-4 text-sm font-bold text-white"><Plus className="h-4 w-4" /> Set up classes</button>
+          <button type="button" onClick={() => props.onEditClass(null)} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-2xl bg-slate-950 px-4 text-sm font-bold text-white"><Plus className="h-4 w-4" /> Set up classes</button>
         </div>
       ) : (
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2" data-testid="board-classes">
@@ -162,7 +165,7 @@ export function ClassBoard(props: BoardProps) {
 }
 
 /** One class on one day. */
-function ClassPage({ workspace, setWorkspace, makeId, today, group, day, onDay, notes, blocks, onBack, onOpenNote, onOther, onEditLog, onEditPlan, onAddStudents, onDeleteClass, say }: BoardProps & {
+function ClassPage({ workspace, setWorkspace, makeId, today, group, day, onDay, notes, blocks, onBack, onOpenNote, onOther, onEditLog, onEditPlan, onAddStudents, onDeleteClass, onEditClass, say }: BoardProps & {
   group: ClassGroup; day: string; onDay: (d: string) => void; notes: PushInNote[]; blocks: ReturnType<typeof schoolBlocks>;
   onBack: () => void; onOpenNote: (note: PushInNote, isNew: boolean) => void;
 }) {
@@ -191,8 +194,15 @@ function ClassPage({ workspace, setWorkspace, makeId, today, group, day, onDay, 
   const setEntry = (name: string, change: Parameters<typeof withEntry>[2]) => setDraft((d) => withEntry(d, name, change, stamp()));
   const openFull = () => { flush(); onOpenNote(latest.current, !kept.current); };
 
-  const add = (logs: Omit<ServiceLog, "id">[]) =>
-    setWorkspace((w) => ({ ...w, serviceLogs: [...w.serviceLogs, ...logs.map((l) => ({ id: makeId(), ...l }))] }));
+  // What was just marked, so a mistake (everyone marked by accident) is one tap to take back.
+  const [lastBatch, setLastBatch] = useState<string[]>([]);
+  const add = (logs: Omit<ServiceLog, "id">[]) => {
+    const made = logs.map((l) => ({ id: makeId(), ...l }));
+    setWorkspace((w) => ({ ...w, serviceLogs: [...w.serviceLogs, ...made] }));
+    setLastBatch(made.map((l) => l.id));
+    return made;
+  };
+  const unlog = (ids: string[]) => { if (!ids.length) return; setWorkspace((w) => ({ ...w, serviceLogs: w.serviceLogs.filter((l) => !ids.includes(l.id)) })); setLastBatch((b) => b.filter((x) => !ids.includes(x))); };
   const logOne = (s: ClassStudent, minutes?: number) => {
     const l = studentLog(group, s, day, minutes);
     if (!l) { onOther({ student: s.student, kind: s.kind, date: day, block: group.block }); return; }
@@ -208,6 +218,11 @@ function ClassPage({ workspace, setWorkspace, makeId, today, group, day, onDay, 
 
   return (
     <div className="space-y-4" data-testid="class-page">
+      {lastBatch.length > 1 && <div className="sticky top-2 z-20 flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-sm text-white shadow-lg" role="status" data-testid="class-undo-batch">
+        <span className="min-w-0 flex-1">Marked {lastBatch.length} students</span>
+        <button type="button" onClick={() => unlog(lastBatch)} className="inline-flex min-h-9 items-center gap-1 rounded-full bg-white/15 px-3 font-semibold hover:bg-white/25" data-testid="class-undo-batch-go"><Undo2 className="h-4 w-4" />Undo all</button>
+        <button type="button" onClick={() => setLastBatch([])} aria-label="Dismiss" className="min-h-9 px-1 text-white/70">✕</button>
+      </div>}
       {/* Top: back, the class, and its menu */}
       <div className="flex items-center gap-2">
         <button type="button" onClick={() => { flush(); onBack(); }} className="inline-flex min-h-11 items-center gap-1 rounded-full bg-slate-100 pl-2 pr-3.5 text-sm font-bold text-slate-800 hover:bg-slate-200" data-testid="class-back"><ChevronLeft className="h-4 w-4" /> Classes</button>
@@ -215,6 +230,7 @@ function ClassPage({ workspace, setWorkspace, makeId, today, group, day, onDay, 
           <button type="button" onClick={() => setMenu((m) => !m)} aria-expanded={menu} aria-label="Class options" className="grid h-11 w-11 place-items-center rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200" data-testid="class-menu"><MoreHorizontal className="h-5 w-5" /></button>
           {menu && <div className="absolute right-0 z-30 mt-1 w-56 overflow-hidden rounded-2xl bg-white py-1 shadow-xl ring-1 ring-slate-200" role="menu">
             <button type="button" role="menuitem" onClick={() => { setMenu(false); onAddStudents(group.key); }} className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold text-slate-800 hover:bg-slate-50"><UserPlus className="h-4 w-4" /> Add students</button>
+            <button type="button" role="menuitem" onClick={() => { setMenu(false); onEditClass(group.key); }} className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold text-slate-800 hover:bg-slate-50" data-testid="class-edit"><Pencil className="h-4 w-4" /> Edit class (teacher, subject, block)</button>
             <button type="button" role="menuitem" onClick={() => { setMenu(false); onDeleteClass(group.key); }} className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4" /> Delete class</button>
           </div>}
         </div>
@@ -289,9 +305,11 @@ function ClassPage({ workspace, setWorkspace, makeId, today, group, day, onDay, 
 
                 {/* Minutes */}
                 <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label={`Minutes for ${s.student}`}>
-                  {logs.map((l) => <button key={l.id} type="button" onClick={() => onEditLog(l.id)} data-testid="class-student-logged"
-                    className={`inline-flex min-h-10 items-center gap-1.5 rounded-full px-3.5 text-sm font-bold ${l.notMet ? "bg-slate-200 text-slate-700" : "bg-emerald-100 text-emerald-900"}`}>
-                    {l.notMet ? <UserX className="h-4 w-4" /> : <Check className="h-4 w-4" />}{l.notMet ? (l.note || "Did not meet") : `${l.minutes} min`}<Pencil className="h-3 w-3 opacity-50" /></button>)}
+                  {logs.map((l) => <span key={l.id} className={`inline-flex min-h-10 items-center rounded-full text-sm font-bold ${l.notMet ? "bg-slate-200 text-slate-700" : "bg-emerald-100 text-emerald-900"}`}>
+                    <button type="button" onClick={() => onEditLog(l.id)} data-testid="class-student-logged" className="inline-flex min-h-10 items-center gap-1.5 rounded-l-full pl-3.5 pr-2">
+                      {l.notMet ? <UserX className="h-4 w-4" /> : <Check className="h-4 w-4" />}{l.notMet ? (l.note || "Did not meet") : `${l.minutes} min`}<Pencil className="h-3 w-3 opacity-50" /></button>
+                    <button type="button" onClick={() => unlog([l.id])} aria-label={`Undo ${l.notMet ? "did not meet" : `${l.minutes} minutes`} for ${s.student}`} title="Undo" data-testid="class-student-unlog" className="inline-flex min-h-10 items-center rounded-r-full border-l border-black/10 px-2.5 text-xs font-semibold opacity-70 hover:opacity-100"><Undo2 className="h-4 w-4" /></button>
+                  </span>)}
                   {waiting(s) ? <>
                     <button type="button" onClick={() => logOne(s)} className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-teal-600 px-4 text-sm font-extrabold text-white hover:bg-teal-700" data-testid="class-student-log">
                       <Clock className="h-4 w-4" />{s.minutes ? `Log ${s.minutes} min` : "Log minutes"}</button>

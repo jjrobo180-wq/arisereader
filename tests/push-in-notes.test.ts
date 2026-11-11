@@ -70,7 +70,8 @@ test("bad data is dropped, not trusted", () => {
   assert.equal(notes.length, 1);
   const n = notes[0];
   assert.equal(n.part, undefined);
-  assert.equal(n.subject, "");
+  // A subject typed in (not on the list) is kept since classes can have their own subjects.
+  assert.equal(n.subject, "Basket weaving");
   assert.equal(n.title, "A lesson");
   assert.equal(n.taught, "5");
   assert.deepEqual(n.materials, []);

@@ -118,6 +118,9 @@ jobs:
           fi
           security create-keychain -p "" "$RUNNER_TEMP/notes.keychain-db"
           security unlock-keychain -p "" "$RUNNER_TEMP/notes.keychain-db"
+          # Never lock by itself: the default locks it after 5 idle minutes, and a later signing step (the Apple TV
+          # app, after the iPhone upload) then waited for a password forever.
+          security set-keychain-settings -lut 21600 "$RUNNER_TEMP/notes.keychain-db"
           security import "$RUNNER_TEMP/signing.p12" -k "$RUNNER_TEMP/notes.keychain-db" -P "$IOS_DISTRIBUTION_CERT_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k "" "$RUNNER_TEMP/notes.keychain-db"
           security list-keychains -d user -s "$RUNNER_TEMP/notes.keychain-db" "$HOME/Library/Keychains/login.keychain-db"
@@ -200,7 +203,7 @@ jobs:
           APP_PROFILE="$PROFILE_NAME" WIDGET_PROFILE="$WIDGET_PROFILE_NAME" ruby ../../.github/scripts/add_widget.rb ios/App/App.xcodeproj com.arisereader.notes "$(cat widgets.json)" 6a55dc
           # The Apple Watch app goes inside the iPhone app.
           if [[ -n "${WATCH_PROFILE_NAME:-}" ]]; then
-            (cd ../.. && COMPANION_PROFILE="$WATCH_PROFILE_NAME" ruby .github/scripts/add_companion.rb "$OLDPWD/ios/App/App.xcodeproj" --kind watch --name NotesWatch --display "Arise Notes" --host com.arisereader.notes --sources native/watch-kit/AriseWatchLink.swift,native/notes-watch/NotesWatchApp.swift --icon client/public/app-icons/notes-1024.png --embed)
+            (cd ../.. && COMPANION_PROFILE="$WATCH_PROFILE_NAME" ruby .github/scripts/add_companion.rb "$OLDPWD/ios/App/App.xcodeproj" --kind watch --name NotesWatch --display "Arise Notes" --host com.arisereader.notes --sources native/watch-kit/AriseWatchLink.swift,native/notes-watch/NotesWatchApp.swift --icon client/public/app-icons/notes-1024.png --mic --embed)
             echo "WATCH_ADDED=1" >> "$GITHUB_ENV"
           fi
       - name: Archive signed app with widgets

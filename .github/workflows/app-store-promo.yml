@@ -1,0 +1,27 @@
+name: App Store promotional text
+# Changes the short paragraph above an app's App Store description. Goes live right away: Apple
+# doesn't review promotional text and it needs no new version (.github/scripts/app_store_promo.py).
+on:
+  workflow_dispatch:
+    inputs:
+      bundle:
+        description: The app's bundle id
+        default: com.arisereader.reader
+      promo:
+        description: Promotional text (up to 170 characters)
+        required: true
+jobs:
+  promo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: app-store
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set the promotional text
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          BUNDLE: ${{ github.event.inputs.bundle }}
+          PROMO: ${{ github.event.inputs.promo }}
+        run: python3 .github/scripts/app_store_promo.py
