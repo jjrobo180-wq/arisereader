@@ -96,6 +96,9 @@ test("wired into the site, the app and the iPhone build", () => {
   assert.match(read("server/routes.ts"), /registerUndercoverRoutes\(app, authMiddleware\)/);
   assert.match(read("vite.config.ts"), /client", "undercover", "index.html"/);
   assert.match(read("client/src/App.tsx"), /isUndercoverApp\(\)/);
+  const notes = read("client/src/components/arise-notes/NotesApp.tsx");
+  assert.match(notes, /case "undercover": return <UndercoverApp onExit=/);
+  assert.match(notes, /<UndercoverBar ctx=\{ctx\} \/>/);
   assert.match(read("client/src/lib/aiConsent.ts"), /undercover\\\/chat/);
   assert.equal(JSON.parse(read("undercover/ios-app/capacitor.config.json")).appId, "com.arisereader.undercover");
   assert.match(read(".github/workflows/undercover-ios.yml"), /VITE_NATIVE_APP=undercover/);
