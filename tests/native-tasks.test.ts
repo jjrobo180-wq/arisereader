@@ -39,3 +39,13 @@ test("the hub opens the native screen only when the plugin is there, and falls b
   assert.match(read("client/src/lib/nativeTasks.ts"), /NATIVE_TASKS_ON && nativeFlavor\(\) === "todo" && hasNativePlugin\(PLUGIN\)/);
   assert.match(read("client/src/lib/nativeTasks.ts"), /export const NATIVE_TASKS_ON = false;/);
 });
+
+test("a native Tasks screen left open by older web code is closed, and what was done there is applied", () => {
+  const src = read("client/src/pages/AriseTodo.tsx");
+  const lib = read("client/src/lib/nativeTasks.ts");
+  assert.match(lib, /export const nativeTasksPluginThere/);
+  assert.match(lib, /"closeTasks"/);
+  assert.match(src, /nativeTasksPluginThere\(\)/);
+  assert.match(src, /await closeNativeTasks\(\)/);
+  assert.match(src, /visibilitychange", back\);\n    return \(\) => document\.removeEventListener\("visibilitychange", back\);\n  \}, \[user, sync\.loaded, sync\.recovery\]\)/);
+});

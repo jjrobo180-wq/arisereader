@@ -1,4 +1,4 @@
-// Arise Fit's body map, the way Fitbod shows it: a front and back figure with every muscle drawn
+// Cooked's body map, the way Fitbod shows it: a front and back figure with every muscle drawn
 // (bodyShapes.ts), colored by how recovered it is from your last week of workouts (green fresh, amber
 // recovering, red sore; shared/fitRecovery.ts). Tap a muscle, or a row in the list, to see what trains
 // it (with how-to videos) and start a quick workout for it.

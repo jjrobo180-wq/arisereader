@@ -290,7 +290,7 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
       </div>
     </section>}
 
-    <footer className="max-w-7xl mx-auto px-5 py-8 text-center text-white/40 text-xs font-bold">A.R.I.S.E. Avatar World is built into A.R.I.S.E. Reader. No outside avatar account, no weapons, no fighting, and no real-money purchases.</footer>
+    <footer className="max-w-7xl mx-auto px-5 py-8 text-center text-white/40 text-xs font-bold">A.R.I.S.E. Avatar World is built into Arise Reader. No outside avatar account, no weapons, no fighting, and no real-money purchases.</footer>
     {previewProduct&&<div className="fixed inset-0 z-[90] grid grid-cols-1 place-items-center bg-black/80 p-4" role="dialog" aria-modal="true" aria-labelledby="model-preview-title">
       <div className="w-[min(560px,100%)] rounded-3xl border border-cyan-300/30 bg-slate-950 p-4 shadow-2xl">
         <div className="flex items-center justify-between"><h2 id="model-preview-title" className="text-xl font-black">{previewProduct.name}</h2><button type="button" onClick={()=>setPreviewProduct(null)} className="min-h-11 min-w-11 rounded-xl bg-white/10" aria-label="Close preview"><X className="mx-auto"/></button></div>

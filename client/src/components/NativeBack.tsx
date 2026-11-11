@@ -1,4 +1,4 @@
-// Going back in the two A.R.I.S.E. Reader iPhone apps. An app has no browser back button, so every
+// Going back in the two Arise Reader iPhone apps. An app has no browser back button, so every
 // screen past the home screen gets one (top left, under the status bar), and a swipe in from the left
 // edge goes back too, the way iPhone apps do. With nothing to go back to, it opens the home screen.
 import { useEffect, useRef, useState } from "react";
@@ -6,15 +6,21 @@ import { useLocation } from "wouter";
 import { isReaderApp, nativeFlavor } from "@/lib/nativeApp";
 
 /** Screens that are a home of their own (or sign-in): no back button there. */
-const HOMES = ["/", "/library", "/reader", "/eye-gaze-home", "/signin", "/register", "/teacher-signup", "/parent-signup", "/reset-password"];
+// "/subscribe" (an account that needs a plan) is a home too: every other Reader screen sends it back there,
+// so a Back button on it went nowhere.
+const HOMES = ["/", "/library", "/reader", "/eye-gaze-home", "/eye-gaze-parent", "/signin", "/register", "/teacher-signup", "/parent-signup", "/reset-password", "/subscribe"];
 export const isHomeScreen = (path: string) => HOMES.includes(path.split("?")[0].replace(/\/+$/, "") || "/");
 
 export default function NativeBack() {
   const [path, navigate] = useLocation();
   const trail = useRef<string[]>([]);
   const start = useRef<{ x: number; y: number } | null>(null);
-  const home = nativeFlavor() === "educator" ? "/reader" : "/library";
+  const flavor = nativeFlavor();
+  const home = flavor === "educator" ? "/reader" : flavor === "eyegaze" ? "/eye-gaze-home" : "/library";
   const [ownBack, setOwnBack] = useState(false);
+  // Arise Eye Gazer: every screen has its own big Home or Back, chosen by looking at it, so no floating
+  // button goes over it (it used to sit on top of the screen's own one).
+  const floating = flavor !== "eyegaze";
   const show = isReaderApp() && !isHomeScreen(path);
 
   // Many screens already have their own Back at the top (the book, the quiz): then this one stays
@@ -28,14 +34,21 @@ export default function NativeBack() {
   }, [show, path]);
 
   // The screens visited since the last home screen, so Back goes to the one before and never leaves
-  // the app (with nothing behind it, it opens the home screen).
+  // the app (with nothing behind it, it opens the home screen). Coming back to a screen already on the
+  // trail cuts the trail there, so going round in a circle never makes Back go round it again.
   useEffect(() => {
-    const t = trail.current;
-    if (isHomeScreen(path)) trail.current = [path];
-    else if (t.length > 1 && t[t.length - 2] === path) t.pop();
-    else if (t[t.length - 1] !== path) t.push(path);
+    if (isHomeScreen(path)) { trail.current = [path]; return; }
+    const t = trail.current, at = t.indexOf(path);
+    if (at >= 0) trail.current = t.slice(0, at + 1);
+    else t.push(path);
   }, [path]);
-  const back = () => { if (trail.current.length > 1) window.history.back(); else navigate(home); };
+  // Back goes to the screen before by name (replacing this one), never the browser's history, which
+  // the screens' own Home buttons add to: that's what sent people back and forth in a loop.
+  const back = () => {
+    const t = trail.current;
+    if (t.length > 1) { t.pop(); navigate(t[t.length - 1], { replace: true }); }
+    else { trail.current = [home]; navigate(home, { replace: true }); }
+  };
 
   // Swipe in from the left edge.
   useEffect(() => {
@@ -51,7 +64,7 @@ export default function NativeBack() {
     return () => { window.removeEventListener("touchstart", down); window.removeEventListener("touchend", up); };
   }); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!show || ownBack) return null;
+  if (!show || ownBack || !floating) return null;
   return <button type="button" onClick={back} aria-label="Back" data-testid="native-back"
     className="fixed left-2 z-[600] inline-flex h-10 items-center gap-0.5 rounded-full bg-white/95 pl-2 pr-3.5 text-[15px] font-semibold text-[#5b4fe0] shadow-[0_4px_14px_rgba(20,15,60,.18)] ring-1 ring-black/[.06] backdrop-blur active:scale-95"
     style={{ top: "calc(env(safe-area-inset-top, 0px) + 6px)" }}>
@@ -66,7 +79,8 @@ function hasOwnBack(): boolean {
   for (const el of Array.from(els)) {
     if (el.dataset.testid === "native-back") continue;
     const label = `${el.getAttribute("aria-label") || ""} ${el.textContent || ""}`.trim();
-    if (!/^(back|go back|← ?back|back to\b)/i.test(label) && !/\bback\b/i.test(el.getAttribute("aria-label") || "")) continue;
+    // "Back", "Back to games", or a screen's own "Home" at the top (where this button would go).
+    if (!/^(back|go back|← ?back|back to\b|home\b)/i.test(label) && !/\b(back|home)\b/i.test(el.getAttribute("aria-label") || "")) continue;
     const r = el.getBoundingClientRect();
     if (r.width > 0 && r.height > 0 && r.top < 140 && r.bottom > 0 && getComputedStyle(el).visibility !== "hidden") return true;
   }

@@ -1,6 +1,7 @@
 // Arise Notes: the app. The same screens run on their own at /notes/ (client/src/notes/main.tsx) and
 // inside Arise To Duo (pages/AriseNotesPage.tsx): Home with the notes, Record, Upload, a note, Ask
 // your notes, Voice memo, and Settings (plan and minutes, family, privacy, accessibility).
+import AllAccessPopup from "@/components/AllAccessPopup";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { NoteTypeIcon } from "./NoteIcon";
 import { NotesDock } from "./NotesDock";
@@ -15,7 +16,8 @@ import { listLocalNotes, type LocalNote } from "./localNotes";
 import { listenForLinks, widgetAi, widgetPages } from "./widgetLinks";
 import { newPageId, pagesSyncFor } from "./pages/pagesSync";
 import { DEFAULT_LOOK } from "@shared/arisePages";
-import { publishWatch, watchActions } from "@/lib/watch";
+import { publishWatch, removeWatchFile, watchActions, watchFile } from "@/lib/watch";
+import { queueWatchRecording } from "./watchRecordings";
 import { Btn, IconBtn, Notice, Spinner, ToastHost, plural, shortDate, useToast } from "./ui";
 import { LookHomeHero, LookNoteList, activeLook } from "./looks";
 import { archClass } from "./protoLooks";
@@ -107,6 +109,9 @@ export default function NotesApp(props: { mode: "standalone" | "embedded"; hub?:
 
 function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" | "embedded"; hub?: "life" | "work"; onExit?: () => void; startNote?: string }) {
   const { token, user } = useAuth();
+  // The All Access pop-up waits until Notes has been open a little while (Notes has no tutorial).
+  const [notesSettled, setNotesSettled] = useState(false);
+  useEffect(() => { const t = window.setTimeout(() => setNotesSettled(true), 20000); return () => window.clearTimeout(t); }, []);
   const say = useToast();
   const tokenRef = useRef(token);
   tokenRef.current = token;
@@ -182,6 +187,22 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
     if (!isNotesApp() || !user?.id) return;
     return watchActions((actions) => {
       const sync = pagesSyncFor(Number(user.id));
+      // Meetings recorded on the watch: written down like an uploaded recording (UploadScreen picks them up).
+      const recs = actions.filter((a) => a.type === "recording" && typeof a.path === "string");
+      if (recs.length) {
+        void (async () => {
+          let got = 0;
+          for (const a of recs) {
+            const blob = await watchFile(a.path as string);
+            if (!blob) continue;
+            const at = new Date(Number(a.at) || Date.now());
+            const title = typeof a.title === "string" && a.title.trim() ? a.title.trim().slice(0, 140) : `Meeting ${at.toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${at.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+            queueWatchRecording({ file: new File([blob], `${title.replace(/[^\w .-]+/g, " ").trim() || "Watch recording"}.m4a`, { type: blob.type || "audio/mp4" }), title, path: a.path as string });
+            got++;
+          }
+          if (got) go({ name: "upload" });
+        })();
+      }
       for (const a of actions) {
         if (a.type !== "add" || typeof a.text !== "string" || !a.text.trim()) continue;
         const text = a.text.trim().slice(0, 5000), now = new Date(a.at || Date.now()).toISOString();
@@ -267,6 +288,8 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   })();
   return <div className={rootClass} style={rootStyle} data-testid="arise-notes">
     <Suspense fallback={<div className="pt-32"><Spinner /></div>}>{screen}</Suspense>
+    {/* Notes has no tutorial: the All Access pop-up comes once, a little after the first open (iPhone app only). */}
+    {mode === "standalone" && <AllAccessPopup userId={user?.id} token={token} ready={notesSettled} intro="Arise Notes is free, with 60 minutes of AI a month. Arise All Access gives you 1,500 minutes, plus the extras in To Duo, Fit and Pod+." />}
   </div>;
 }
 
@@ -322,7 +345,7 @@ export function TabBar({ ctx, on }: { ctx: AppCtx; on: "ai" | "pages" | "ask" | 
   return <NotesDock on={on} initial={(ctx.me.user.name || "A").trim().charAt(0).toUpperCase()} go={{
     home: () => ctx.go({ name: "home" }), notes: () => ctx.go({ name: "pages" }), record: () => ctx.go({ name: "record" }), upload: () => ctx.go({ name: "upload" }),
     memo: () => ctx.go({ name: "memo" }), ask: () => ctx.go({ name: "ask" }), menu: () => ctx.go({ name: "settings" }),
-    newNote: () => { try { sessionStorage.setItem("arise-notes-new", "1"); } catch { /* the list opens without the sheet */ } ctx.go({ name: "pages" }); },
+    newNote: () => { try { sessionStorage.setItem("arise-notes-new", "1"); } catch { /* the list opens without the sheet */ } ctx.go({ name: "pages" }); window.dispatchEvent(new Event("arise-notes-new")); },
   }} />;
 }
 

@@ -1,4 +1,4 @@
-name: A.R.I.S.E. Reader signed iOS release candidate
+name: Arise Reader signed iOS release candidate
 # Built from the shared frontend with VITE_NATIVE_APP=reader (client/src/lib/nativeApp.ts).
 # Uploads to TestFlight only for a pushed commit whose message has [approved-testflight].
 on:
@@ -10,6 +10,9 @@ on:
       - '.github/workflows/arisereader-ios.yml'
       - 'reader/ios-app/**'
       - 'client/src/**'
+env:
+  # The App Store version of this build (see "Prepare beta icon and build number").
+  APP_VERSION: "1.1"
 jobs:
   signed-archive:
     # GitHub's Xcode 27 image (Apple Silicon): builds with the iOS 27.1 SDK, for iPhone Duo.
@@ -74,6 +77,10 @@ jobs:
           sips -z 1024 1024 -s format png "$RUNNER_TEMP/todo-icon.jpg" --out "$ICON/AppIcon-1024.png" >/dev/null
           printf '%s' '{"images":[{"filename":"AppIcon-1024.png","idiom":"universal","platform":"ios","size":"1024x1024"}],"info":{"author":"xcode","version":1}}' > "$ICON/Contents.json"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT" ios/App/App/Info.plist
+          # The version people see. 1.0 is on the App Store, and Apple takes no more builds for an approved
+          # version: raise APP_VERSION for each new release sent for review. (The widgets read it from the project.)
+          sed -i '' -E "s/MARKETING_VERSION = [0-9.]+;/MARKETING_VERSION = $APP_VERSION;/g" ios/App/App.xcodeproj/project.pbxproj
+          grep -q "MARKETING_VERSION = $APP_VERSION;" ios/App/App.xcodeproj/project.pbxproj || { echo "::error::Could not set the app version to $APP_VERSION"; exit 1; }
       - name: Permission text, name and export compliance (Info.plist)
         working-directory: reader/ios-app
         run: |
@@ -82,6 +89,8 @@ jobs:
           python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist
           # Home Screen widgets: the app's data bridge and the widget's files (added to the project after signing is set up).
           python3 ../../.github/scripts/reader_widgets.py ios/App/App/AppDelegate.swift
+          # Quick actions on the Home Screen icon and arisereader:// links (an iPhone app, not a web page).
+          python3 ../../.github/scripts/reader_native.py ios/App/App/Info.plist
       - name: Import Apple signing certificate and provisioning profile
         shell: bash
         env:
@@ -100,16 +109,21 @@ jobs:
           if [[ "$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/profile.plist")" != '6TYWWNKX6P.com.arisereader.reader' ]]; then
             python3 podscroll/ios-app/find-existing-profile.py com.arisereader.reader "$RUNNER_TEMP/profile.mobileprovision" --create-missing-profile
           fi
+          # Its capabilities on the App ID (notifications from teachers, Sign in with Apple), and a profile with them.
+          python3 .github/scripts/apple_signing.py com.arisereader.reader "$RUNNER_TEMP/profile.mobileprovision" APPLE_ID_AUTH PUSH_NOTIFICATIONS || echo "::warning::Couldn't add notifications to the App ID; building with the profile as it is."
           security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
           PROFILE_APP_ID=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/profile.plist")
           if [[ "$PROFILE_APP_ID" != '6TYWWNKX6P.com.arisereader.reader' ]]; then
-            echo "::error::Provisioning profile does not match the A.R.I.S.E. Reader bundle ID"
+            echo "::error::Provisioning profile does not match the Arise Reader bundle ID"
             exit 1
           fi
           security create-keychain -p "" "$RUNNER_TEMP/reader.keychain-db"
           security unlock-keychain -p "" "$RUNNER_TEMP/reader.keychain-db"
+          # Never lock by itself: the default locks it after 5 idle minutes, and a later signing step (the Apple TV
+          # app, after the iPhone upload) then waited for a password forever.
+          security set-keychain-settings -lut 21600 "$RUNNER_TEMP/reader.keychain-db"
           security import "$RUNNER_TEMP/signing.p12" -k "$RUNNER_TEMP/reader.keychain-db" -P "$IOS_DISTRIBUTION_CERT_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k "" "$RUNNER_TEMP/reader.keychain-db"
           security list-keychains -d user -s "$RUNNER_TEMP/reader.keychain-db" "$HOME/Library/Keychains/login.keychain-db"
@@ -151,7 +165,7 @@ jobs:
           if [[ -n "$USE_ENT" ]]; then echo "HEALTH_ENTITLEMENTS=CODE_SIGN_ENTITLEMENTS=App/App.entitlements" >> "$GITHUB_ENV"; else echo "HEALTH_ENTITLEMENTS=" >> "$GITHUB_ENV"; fi
           # The Home Screen widgets' own App ID and profile (registered the first time). If Apple won't
           # give one, the app is built without widgets rather than not at all.
-          if python3 podscroll/ios-app/find-existing-profile.py com.arisereader.reader.widgets "$RUNNER_TEMP/widgets.mobileprovision" --create-missing-profile --register-bundle-id "--app-name=ARISE Reader Widgets"; then
+          if python3 podscroll/ios-app/find-existing-profile.py com.arisereader.reader.widgets "$RUNNER_TEMP/widgets.mobileprovision" --create-missing-profile --register-bundle-id "--app-name=Arise Reader Widgets"; then
             security cms -D -i "$RUNNER_TEMP/widgets.mobileprovision" > "$RUNNER_TEMP/widgets.plist"
             W_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/widgets.plist")
             W_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/widgets.plist")

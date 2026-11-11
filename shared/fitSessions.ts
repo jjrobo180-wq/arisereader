@@ -1,9 +1,9 @@
-// Arise Fit guided sessions: timed workouts the app talks you through, phase by phase. HIIT on the
+// Cooked guided sessions: timed workouts the app talks you through, phase by phase. HIIT on the
 // treadmill (speed and incline for each interval), Couch to 5K (the standard 9-week run/walk plan),
-// yoga flows, mobility and stretching routines, breathing and guided meditation. Written for Arise Fit.
+// yoga flows, mobility and stretching routines, breathing and guided meditation. Written for Cooked.
 
 export type PhaseKind = "warm" | "work" | "rest" | "cool" | "pose" | "breathe-in" | "hold" | "breathe-out" | "still";
-export type Phase = { name: string; secs: number; kind: PhaseKind; cue?: string; speed?: number; incline?: number };
+export type Phase = { name: string; secs: number; kind: PhaseKind; cue?: string; speed?: number; incline?: number; /** The exercise's how-to video (shared/fitVideos.ts), for the TV. */ video?: { id: string; title: string } };
 export type SessionCategory = "hiit" | "c25k" | "yoga" | "meditation" | "mobility";
 export type Session = { id: string; name: string; category: SessionCategory; blurb: string; level: "Beginner" | "Intermediate" | "Advanced"; equipment: string; phases: Phase[]; week?: number; day?: number };
 

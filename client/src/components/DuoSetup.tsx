@@ -5,10 +5,10 @@
 // routine's AI Reminders counts as one, and building with AI is offered only on Unlimited.
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Apple, ArrowLeft, Check, Droplets, Dumbbell, Loader2, Moon, NotebookPen, Repeat2, ShoppingCart, UtensilsCrossed, Wallet, Wind, type LucideIcon } from "lucide-react";
+import { Apple, ArrowLeft, Check, Dumbbell, Loader2, Moon, NotebookPen, Sparkles, UtensilsCrossed, Wallet, type LucideIcon } from "lucide-react";
 import { HUB_THEMES } from "@shared/appThemes";
 import { setTheme, type AnyLayout } from "@shared/hubLayout";
-import { setLifePlugin, type Plugin } from "@shared/pluginStore";
+import { PLUGIN_COUNT_LABEL, setLifePlugin, type Plugin } from "@shared/pluginStore";
 import { PLAN_FOCUSES, builtinPlan, cleanLifePlan, cleanPlanRequest, type LifePlan, type PlanFocus, type PlanRequest } from "@shared/lifePlan";
 import type { Family } from "@shared/familyHub";
 import { API_BASE } from "@/lib/queryClient";
@@ -36,12 +36,13 @@ export const duoSetupDone = (id: number | string) => { try { return localStorage
 const STARTER_THEMES = ["classic", "studio", "bloom", "frost", "aurora", "zen", "tide", "grove", "glass", "cassette", "vinyl", "console"];
 /** Everyday apps most people want first, in this order. */
 const STARTER_APPS: { id: string; icon: LucideIcon }[] = [
-  { id: "life-health", icon: Apple }, { id: "life-habits", icon: Repeat2 },
-  { id: "life-money", icon: Wallet }, { id: "life-grocery", icon: ShoppingCart },
-  { id: "life-meals", icon: UtensilsCrossed }, { id: "life-journal", icon: NotebookPen },
-  { id: "life-workouts", icon: Dumbbell }, { id: "life-sleep", icon: Moon },
-  { id: "life-meditate", icon: Wind }, { id: "life-kit-water-log", icon: Droplets },
+  { id: "life-healthlite", icon: Apple }, { id: "life-moneyhub", icon: Wallet },
+  { id: "life-ai-meal-plan", icon: UtensilsCrossed }, { id: "life-inspire", icon: NotebookPen },
+  { id: "life-ai-workout-plan", icon: Dumbbell }, { id: "life-sleep-studio", icon: Moon },
 ];
+/** How many favorites the step shows: the list above, topped up with the Plugin Gallery's featured ones
+ *  (so the step is never empty if a plugin above is renamed or retired). */
+const STARTER_COUNT = 8;
 /** Quick starts: each one is a handful of the planner's focuses. */
 const PRESETS: { id: string; name: string; blurb: string; focuses: PlanFocus[] }[] = [
   { id: "life", name: "A better life", blurb: "Sleep, food, movement and calm", focuses: ["sleep", "eat", "move", "calm", "water", "family"] },
@@ -91,7 +92,14 @@ export default function DuoSetup({ userId, layout, setLayout, plugins, setFamily
   useEffect(() => { sendBackdrop("#ffffff"); return () => { window.dispatchEvent(new Event(BACKDROP_REFRESH)); }; }, []);
 
   const byId = useMemo(() => new Map(plugins.map((p) => [p.id, p])), [plugins]);
-  const starters = STARTER_APPS.map((a) => ({ ...a, p: byId.get(a.id) })).filter((a): a is { id: string; icon: LucideIcon; p: Plugin } => !!a.p);
+  const starters = useMemo(() => {
+    const out = STARTER_APPS.map((a) => ({ ...a, p: byId.get(a.id) })).filter((a): a is { id: string; icon: LucideIcon; p: Plugin } => !!a.p);
+    for (const p of plugins) {
+      if (out.length >= STARTER_COUNT) break;
+      if (p.featured && p.category !== "Arise apps" && !out.some((a) => a.id === p.id)) out.push({ id: p.id, icon: Sparkles, p });
+    }
+    return out;
+  }, [byId, plugins]);
   const themes = STARTER_THEMES.map((id) => HUB_THEMES.find((t) => t.id === id)).filter((t): t is (typeof HUB_THEMES)[number] => !!t);
   const routineSlot = made && !lifeplanOn ? 1 : 0;
   const canPick = unlimited ? Infinity : Math.max(0, room - routineSlot);
@@ -220,7 +228,7 @@ export default function DuoSetup({ userId, layout, setLayout, plugins, setFamily
         </>}
 
         {step === "apps" && <>
-          {head("Choose your first plugins", <>Here are favorites to start with. There are <b className="font-semibold text-[#111018]">500+ plugins</b> in the Plugin Gallery whenever you want more.</>)}
+          {head("Choose your first plugins", <>Here are favorites to start with. There are <b className="font-semibold text-[#111018]">{PLUGIN_COUNT_LABEL} plugins</b> in the Plugin Gallery whenever you want more.</>)}
           {!unlimited && <p className="mt-3 rounded-xl bg-[#f4f2ff] px-3 py-2 text-center text-[12.5px] text-[#3f35c9]" data-testid="setup-free-note">{canPick > 0 ? `Free includes 3 plugins. Pick up to ${canPick} now.` : "Your 3 free plugins are in use."} Unlimited unlocks all of them.</p>}
           <div className="mt-3 grid grid-cols-2 gap-2" data-testid="setup-apps">
             {starters.map(({ id, icon: Icon, p }) => { const on = picked.includes(id); const full = !on && picked.length >= canPick; return <button key={id} type="button" aria-pressed={on} disabled={full} onClick={() => setPicked(toggle(picked, id))} data-testid={`setup-app-${id}`}

@@ -74,7 +74,7 @@ export function AuthScreen({ api, onDone, onClose, dark, start = "signin" }: { a
       </div>}
 
       {mode === "signup" && !sent && <ul className={`mt-4 grid gap-1.5 text-sm ${C.sub}`}>
-        {["Listening stays free and ad-free, no account needed", "Members can get paid for their show", "Your Pod Modes, likes and place on every device"].map((t) => <li key={t} className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff6a1f]" />{t}</li>)}
+        {["Listening stays free, no account needed", "Your Pod Modes, likes and place on every device"].map((t) => <li key={t} className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff6a1f]" />{t}</li>)}
       </ul>}
 
       <form className="mt-5" onSubmit={(e) => {

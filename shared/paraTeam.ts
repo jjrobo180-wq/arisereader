@@ -90,7 +90,7 @@ export type ParaTeamView = {
 
 // ─── cleaning ─────────────────────────────────────────────────────────────────────────────────
 
-const str = (v: unknown, max: number): string => (typeof v === "string" ? v.replace(/\r\n/g, "\n").slice(0, max).trim() : "");
+const str = (v: unknown, max: number): string => (typeof v === "string" ? v.replace(/\r\n/g, "\n").slice(0, max).trimStart().replace(/ {2,}$/, "") : "");
 const line = (v: unknown, max: number): string => str(v, max).replace(/\s+/g, " ");
 const int = (v: unknown, min = 0, max = 2_147_483_647): number => {
   const n = Math.floor(Number(v));

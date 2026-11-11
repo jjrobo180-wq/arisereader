@@ -1,7 +1,7 @@
-// Arise Fit links: what Siri shortcuts and buddy invites open (client/src/pages/fit/FitSiri.tsx).
+// Cooked links: what Siri shortcuts and buddy invites open (client/src/pages/fit/FitSiri.tsx).
 //   arisefit://do/<action>   and   …/#/fit?do=<action>     do something (start a workout, log water…)
 //   arisefit://circle/<CODE> and   …/#/fit?circle=<CODE>   join a friend's workout circle
-//   arisefit://pass/<CODE>   and   …/#/fit?pass=<CODE>     use someone's Arise Fit+ guest pass
+//   arisefit://pass/<CODE>   and   …/#/fit?pass=<CODE>     use someone's Cooked+ guest pass
 export type SiriAction = "workout" | "water" | "fast-start" | "fast-end" | "run" | "meal" | "scan" | "gyms" | "recipes" | "circle" | "sleep-start" | "sleep-end" | "sleep" | "yoga" | "breathe" | "meds" | "period";
 export const SIRI_ACTIONS: { id: SiriAction; phrase: string; does: string }[] = [
   { id: "workout", phrase: "Start my workout", does: "Starts your next program day, or today's workout built for you" },

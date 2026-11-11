@@ -81,7 +81,7 @@ export type LifePlan = {
 export const PLAN_LIMITS = { vision: 600, summary: 1800, pillars: 6, reminders: 40, title: 80, why: 320, log: 1200, busy: 20 } as const;
 export const SNOOZE_CHOICES = [{ minutes: 10, label: "10 min" }, { minutes: 30, label: "30 min" }, { minutes: 60, label: "1 hour" }, { minutes: 180, label: "3 hours" }] as const;
 
-const str = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trim().slice(0, max) : "");
+const str = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trimStart().replace(/ {2,}$/, "").slice(0, max) : "");
 const isDay = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 export const toMinutes = (hm: string): number | null => { const m = /^(\d{1,2}):(\d{2})$/.exec(hm || ""); if (!m) return null; const h = Number(m[1]), mm = Number(m[2]); return h < 24 && mm < 60 ? h * 60 + mm : null; };
 export const fromMinutes = (n: number): string => { const v = ((Math.round(n) % 1440) + 1440) % 1440; return `${String(Math.floor(v / 60)).padStart(2, "0")}:${String(v % 60).padStart(2, "0")}`; };

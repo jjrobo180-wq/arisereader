@@ -1,0 +1,53 @@
+name: TestFlight crash reports
+# Read-only: prints the crash reports testers sent from TestFlight (the iPhone, iPad and Apple Watch apps),
+# newest first, with their crash logs, so a crash can be fixed from what really happened on the device.
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths: ['.github/workflows/testflight-crashes.yml']
+jobs:
+  crashes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: app-store
+    steps:
+      - uses: actions/checkout@v4
+      - name: Crash reports
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          python3 - <<'PY'
+          import json, sys, urllib.request, urllib.error, urllib.parse
+          sys.path.insert(0, ".github/scripts")
+          from apple_signing import token
+          auth = token()
+          def api(p):
+              url = p if p.startswith("https://") else "https://api.appstoreconnect.apple.com/v1/" + p
+              req = urllib.request.Request(url, headers={"Authorization": "Bearer " + auth})
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as r: return json.load(r)
+              except urllib.error.HTTPError as e:
+                  print("  API", e.code, p.split("?")[0], e.read().decode(errors="replace")[:300]); return None
+          apps = (api("apps?limit=50") or {}).get("data", [])
+          for a in apps:
+              bid = a["attributes"]["bundleId"]
+              print(f"=== {a['attributes']['name']} ({bid})")
+              subs = api(f"apps/{a['id']}/betaFeedbackCrashSubmissions?limit=8&sort=-createdDate")
+              for s in (subs or {}).get("data", []):
+                  at = s["attributes"]
+                  print(f"--- {at.get('createdDate')} {at.get('deviceModel')} {at.get('osVersion')} build? comment: {at.get('comment')!r}")
+                  log = api(f"betaFeedbackCrashSubmissions/{s['id']}/crashLog")
+                  text = ((log or {}).get("data") or {}).get("attributes", {}).get("logText") or ""
+                  lines = text.splitlines()
+                  # The useful part: the exception and the crashed thread.
+                  keep, on = [], False
+                  for ln in lines:
+                      if any(k in ln for k in ("Exception Type", "Exception Reason", "Termination Reason", "Crashed Thread", "Application Specific", "Triggered by Thread", "Exception Codes", "Hardware Model", "Version:", "Process:")): keep.append(ln)
+                      if "Crashed:" in ln or "Triggered by Thread" in ln: on = True
+                      if on: keep.append(ln)
+                      if on and ln.strip() == "" and len(keep) > 12: on = False
+                  print("\n".join(keep[:90]) if keep else text[:3000])
+          PY

@@ -12,7 +12,7 @@ interface TourStep {
 const TOUR_STEPS: TourStep[] = [
   {
     selector: '[data-tour="welcome"]',
-    title: "Welcome to A.R.I.S.E. Reader 2.0!",
+    title: "Welcome to Arise Reader 2.0!",
     desc: "This is your reading home. The original library is still here, but now reading also connects to live quiz games, rewards, avatars, pets, worlds, Club A.R.I.S.E., and more.",
     position: "bottom",
   },

@@ -6,7 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { hasNativePlugin, isNativeApp, nativeCall, nativeFlavor, nativeListen, notificationHash } from "@/lib/nativeApp";
 
 /** Which app the server sends to (Arise To Duo unless this is the Educator app). */
-const appKey = () => { const f = nativeFlavor(); return f === "educator" || f === "eyegaze" || f === "fit" || f === "trainer" || f === "notes" ? f : undefined; };
+const appKey = () => { const f = nativeFlavor(); return f === "educator" || f === "eyegaze" || f === "fit" || f === "trainer" || f === "notes" || f === "reader" ? f : undefined; };
 
 const PLUGIN = /^pushnotif/i;
 const NAME = "PushNotifications";
@@ -59,6 +59,13 @@ export async function startApplePush(ask = false): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** Someone just signed in (or the app opened signed in): hand the server this iPhone's token for that
+ *  account, if notifications are already allowed. Asks nothing. */
+export async function syncApplePush(): Promise<void> {
+  if (lastToken || !isNativeApp() || !applePushAvailable()) return;
+  await startApplePush(false);
 }
 
 /** True once this iPhone has handed the server its Apple device token in this launch. */

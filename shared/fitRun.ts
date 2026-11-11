@@ -1,4 +1,4 @@
-// Arise Fit outdoor runs and trails: GPS distance and pace, splits, keeping a route small enough to
+// Cooked outdoor runs and trails: GPS distance and pace, splits, keeping a route small enough to
 // save, and finding trails from OpenStreetMap (every mapped trail in the US and beyond) through the
 // Overpass API, with place search through Nominatim. Shared by the app and the tests.
 

@@ -1,4 +1,4 @@
-// Arise Fit's how-to videos: one real YouTube tutorial for every exercise in the catalog (shared/fit.ts),
+// Cooked's how-to videos: one real YouTube tutorial for every exercise in the catalog (shared/fit.ts),
 // picked by hand from public "how to" form videos. The app plays them inside itself through
 // /fit-video.html (client/public), which hosts YouTube's player on arisetodo.com: inside the iPhone app
 // the page has no web address of its own, and YouTube's player refuses to start without one.
@@ -187,7 +187,7 @@ export const videoThumb = (id: string, size: "mq" | "hq" | "maxres" = "mq") =>
 /** The video on YouTube itself. */
 export const videoWatchUrl = (id: string) => `https://www.youtube.com/watch?v=${id}`;
 
-/** Arise Fit's player page for a video. `origin` is where the page is served: arisetodo.com in the iPhone app. */
+/** Cooked's player page for a video. `origin` is where the page is served: arisetodo.com in the iPhone app. */
 export const videoPlayerUrl = (id: string, origin: string, autoplay = true) =>
   YT_ID.test(id) ? `${origin.replace(/\/$/, "")}/fit-video.html?v=${id}${autoplay ? "&autoplay=1" : ""}` : "";
 

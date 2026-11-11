@@ -1,4 +1,4 @@
-// Arise Fit apps (shared/fitApps.ts), the new sleep tracking (shared/fitSleep.ts), readiness, interval
+// Cooked apps (shared/fitApps.ts), the new sleep tracking (shared/fitSleep.ts), readiness, interval
 // timers and the new guided sessions.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -45,7 +45,7 @@ test("apps: start with Train, Food and Run on the tab bar; add, remove, pin, swa
   assert.ok(toggleTab({ added: [], tabs: [] }, "sleep").added.includes("sleep"), "pinning adds it");
 });
 
-test("apps: saved with Arise Fit data, cleaned (unknown apps, repeats, too many tabs, tabs not added)", () => {
+test("apps: saved with Cooked data, cleaned (unknown apps, repeats, too many tabs, tabs not added)", () => {
   const c = cleanApps({ added: ["yoga", "yoga", "bogus", "sleep", "gyms"], tabs: ["yoga", "sleep", "gyms", "water", "yoga"] })!;
   assert.deepEqual(c.added, ["yoga", "sleep", "gyms"]);
   assert.deepEqual(c.tabs, ["yoga", "sleep"]);
@@ -166,7 +166,7 @@ test("Siri and reminders: going to sleep, I'm awake, sleep, yoga and breathe", (
   assert.match(read("client/src/pages/fit/FitSiri.tsx"), /localNotificationActionPerformed/);
 });
 
-test("the website keeps the site's side tabs and pop-ups off Arise Fit", () => {
+test("the website keeps the site's side tabs and pop-ups off Cooked", () => {
   const fs = /const FULLSCREEN_GAME_ROUTES = \[([^\]]+)\]/.exec(read("client/src/App.tsx"))![1];
   for (const r of ["/fit", "/trainer", "/talk"]) assert.ok(fs.includes(`"${r}"`), r);
 });

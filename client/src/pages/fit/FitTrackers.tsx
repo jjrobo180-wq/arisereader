@@ -1,5 +1,5 @@
-// Two Arise Fit health plugins: the Medicine tracker (shared/fitMeds.ts) and the Period tracker
-// (shared/fitCycle.ts). Both keep their records with the rest of a person's Arise Fit data.
+// Two Cooked health plugins: the Medicine tracker (shared/fitMeds.ts) and the Period tracker
+// (shared/fitCycle.ts). Both keep their records with the rest of a person's Cooked data.
 import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, Pencil, Pill, Plus, SkipForward, Trash2, TriangleAlert, Undo2, X } from "lucide-react";
 import { dayKey, uid, type FitData } from "@shared/fit";
@@ -123,6 +123,6 @@ export function PeriodApp({ data, update, say, inline, onClose }: { data: FitDat
       <Field label="How you feel"><div className="mt-1 flex flex-wrap gap-1.5">{SYMPTOMS.map((x) => { const on = entry.symptoms.includes(x); return <button key={x} type="button" onClick={() => save({ symptoms: on ? entry.symptoms.filter((y) => y !== x) : [...entry.symptoms, x] })} aria-pressed={on} className="min-h-10 rounded-full px-3 text-[14px] font-semibold" style={chip(on, C.orange)}>{x}</button>; })}</div></Field>
       <Field label="Note"><input value={note} onChange={(e) => setNote(e.target.value)} onBlur={() => note !== entry.note && save({ note })} placeholder="Anything to remember" maxLength={300} className={inputCls} style={inputStyle} /></Field>
     </Card>
-    <p className="mt-4 px-1 text-[12px]" style={{ color: C.dim }}>Predictions are estimates from your own history, for planning. They are not birth control or medical advice. Your records stay in your Arise Fit account.</p>
+    <p className="mt-4 px-1 text-[12px]" style={{ color: C.dim }}>Predictions are estimates from your own history, for planning. They are not birth control or medical advice. Your records stay in your Cooked account.</p>
   </Sheet>;
 }

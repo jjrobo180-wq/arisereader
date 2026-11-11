@@ -2,7 +2,7 @@
 // their class; parents follow along and set limits; teachers approve every student post and host events.
 //
 // Safety rules kept here, on the server:
-// - Accounts are the regular A.R.I.S.E. Reader accounts. Students show as "First L." to everyone.
+// - Accounts are the regular Arise Reader accounts. Students show as "First L." to everyone.
 // - A student's post is seen by nobody but its author until their own teacher approves it.
 // - Students who are not yet approved by a teacher, or have no teacher, can explore but not post.
 // - Posts are seen only by the author's class (or school, if a parent allows it). There are no messages.
@@ -79,7 +79,7 @@ export type SocialDirectory = {
   notify?(userId: number, message: { title: string; body: string; url?: string }): Promise<unknown>;
   /** Every active student account, for the admin's "Add students" list; optional. */
   allStudents?(): Promise<(SocialUser & { username?: string; teacherName?: string | null })[]>;
-  /** Puts a notification in the person's A.R.I.S.E. Reader bell; optional. type "connect_invite" opens Connect. */
+  /** Puts a notification in the person's Arise Reader bell; optional. type "connect_invite" opens Connect. */
   bell?(userId: number, n: { type: string; title: string; message: string }): Promise<unknown>;
 };
 
@@ -479,7 +479,7 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     res.json(base);
   }));
 
-  /* ---------- admin: add students to Connect, pick their career path, tell them in A.R.I.S.E. Reader */
+  /* ---------- admin: add students to Connect, pick their career path, tell them in Arise Reader */
   const realAdmin = (req: any) => !req.adminPreview && roleOf(req.user) === "admin";
   const pathOk = (id: unknown) => (id == null || id === "" ? null : LEARNING_PATHS.find((p) => p.id === String(id))?.id ?? undefined);
 

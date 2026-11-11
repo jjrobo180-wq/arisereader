@@ -116,7 +116,9 @@ function Studio({ doc, id, onBack, onOpen }: { doc: DocHandle; id: string; onBac
   const area = useRef<HTMLDivElement>(null);
   const [areaSize, setAreaSize] = useState({ w: 800, h: 450 });
   useLayoutEffect(() => { const el = area.current; if (!el) return; const ro = new ResizeObserver(() => setAreaSize({ w: el.clientWidth, h: el.clientHeight })); ro.observe(el); setAreaSize({ w: el.clientWidth, h: el.clientHeight }); return () => ro.disconnect(); }, []);
-  const scale = Math.max(0.2, Math.min((areaSize.w - 32) / CW, (areaSize.h - 32) / CH));
+  // As big as the space allows: a phone keeps only a thin edge, so the slide runs edge to edge.
+  const pad = areaSize.w < 700 ? 8 : 32;
+  const scale = Math.max(0.2, Math.min((areaSize.w - pad) / CW, (areaSize.h - pad) / CH));
 
   // ─── Text editing ───
   const finishEdit = useCallback(() => {
@@ -331,7 +333,7 @@ function Studio({ doc, id, onBack, onOpen }: { doc: DocHandle; id: string; onBac
   const isText = !!one && one.type !== "image";
   const H = (h: string, cx: number, cy: number, cursor: string) => <span key={h} data-handle={h} onPointerDown={(e) => onHandleDown(e, h)} className="absolute z-10 h-3 w-3 rounded-sm border-2 border-white bg-sky-600 shadow" style={{ left: cx - 6, top: cy - 6, cursor, touchAction: "none" }} />;
 
-  return <div className="flex h-[calc(100dvh-8rem)] min-h-[560px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-sm" data-testid="slides-editor">
+  return <div className="flex h-full min-h-0 flex-col overflow-hidden bg-white text-slate-900" data-testid="slides-editor">
     <div className="flex items-start gap-2 px-2 pt-2 sm:px-3">
       <button type="button" onClick={async () => { finishEdit(); await doc.flush(); onBack(); }} aria-label="Back to files" title="Back to files" className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"><ArrowLeft size={18} /></button>
       <span className="mt-1 hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-white sm:inline-flex"><Presentation size={18} /></span>

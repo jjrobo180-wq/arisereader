@@ -1,7 +1,9 @@
 name: Apple Watch and Apple TV apps (simulator build)
-# Compiles the Arise companions on their simulators, without Apple signing: Arise Duo, Arise Fit and
-# Arise Notes for Apple Watch, and Arise Duo and Arise Fit for Apple TV. Each is added to a small
+# Compiles the Arise companions on their simulators, without Apple signing: Arise Duo, Cooked and
+# Arise Notes for Apple Watch, and Arise Duo and Cooked for Apple TV. Each is added to a small
 # stand-in project with the same script the signed builds use (.github/scripts/add_companion.rb).
+permissions:
+  contents: write
 on:
   workflow_dispatch:
   push:
@@ -13,6 +15,8 @@ on:
       - 'native/notes-watch/**'
       - 'native/duo-tv/**'
       - 'native/fit-tv/**'
+      - 'server/fitTv.ts'
+      - 'server/tvLink.ts'
       - '.github/scripts/add_companion.rb'
       - '.github/workflows/companions-sim.yml'
 jobs:
@@ -37,19 +41,79 @@ jobs:
           S="$GITHUB_WORKSPACE/.github/scripts/add_companion.rb"
           K=native/watch-kit/AriseWatchLink.swift
           ruby "$S" App.xcodeproj --kind watch --name DuoWatch --display "Arise Duo" --host com.arisereader.arisetodo --sources "$K,native/duo-watch/DuoWatchApp.swift" --icon client/public/app-icons/todo-1024.png
-          ruby "$S" App.xcodeproj --kind watch --name FitWatch --display "Arise Fit" --host com.arisereader.fit --sources "$K,native/fit-watch/FitWatchApp.swift" --icon client/public/app-icons/fit-1024.png --healthkit
-          ruby "$S" App.xcodeproj --kind watch --name NotesWatch --display "Arise Notes" --host com.arisereader.notes --sources "$K,native/notes-watch/NotesWatchApp.swift" --icon client/public/app-icons/notes-1024.png
+          ruby "$S" App.xcodeproj --kind watch --name FitWatch --display "Cooked" --host com.arisereader.fit --sources "$K,native/fit-watch/FitWatchApp.swift" --resources native/fit-tv/sessions.json --icon client/public/app-icons/fit-1024.png --healthkit
+          ruby "$S" App.xcodeproj --kind watch --name NotesWatch --display "Arise Notes" --host com.arisereader.notes --sources "$K,native/notes-watch/NotesWatchApp.swift" --icon client/public/app-icons/notes-1024.png --mic
           ruby "$S" App.xcodeproj --kind tv --name DuoTV --display "Arise Duo" --host com.arisereader.arisetodo --sources native/duo-tv/DuoTVApp.swift --tv-assets native/duo-tv/Assets.xcassets
-          ruby "$S" App.xcodeproj --kind tv --name FitTV --display "Arise Fit" --host com.arisereader.fit --sources native/fit-tv/FitTVApp.swift --resources native/fit-tv/sessions.json --tv-assets native/fit-tv/Assets.xcassets
+          ruby "$S" App.xcodeproj --kind tv --name FitTV --display "Cooked" --host com.arisereader.fit --sources native/fit-tv/FitTVApp.swift --resources native/fit-tv/sessions.json,native/fit-tv/timers.json --tv-assets native/fit-tv/Assets.xcassets
       - name: Compile each one
         working-directory: ${{ runner.temp }}/c
         run: |
           set -uo pipefail
           failed=""
           for t in DuoWatch FitWatch NotesWatch; do
-            if xcodebuild -project App.xcodeproj -scheme "$t" -configuration Debug -sdk watchsimulator -destination 'generic/platform=watchOS Simulator' CODE_SIGNING_ALLOWED=NO build > "$t.log" 2>&1; then echo "::notice title=$t::compiled"; else failed="$failed $t"; grep -E "error:" "$t.log" | head -20; fi
+            if xcodebuild -project App.xcodeproj -scheme "$t" -configuration Debug -sdk watchsimulator -destination 'generic/platform=watchOS Simulator' -derivedDataPath d CODE_SIGNING_ALLOWED=NO build > "$t.log" 2>&1; then echo "::notice title=$t::compiled"; else failed="$failed $t"; grep -E "error:" "$t.log" | head -20; fi
           done
           for t in DuoTV FitTV; do
-            if xcodebuild -project App.xcodeproj -scheme "$t" -configuration Debug -sdk appletvsimulator -destination 'generic/platform=tvOS Simulator' CODE_SIGNING_ALLOWED=NO build > "$t.log" 2>&1; then echo "::notice title=$t::compiled"; else failed="$failed $t"; grep -E "error:" "$t.log" | head -20; fi
+            if xcodebuild -project App.xcodeproj -scheme "$t" -configuration Debug -sdk appletvsimulator -destination 'generic/platform=tvOS Simulator' -derivedDataPath d CODE_SIGNING_ALLOWED=NO build > "$t.log" 2>&1; then echo "::notice title=$t::compiled"; else failed="$failed $t"; grep -E "error:" "$t.log" | head -20; fi
           done
           if [[ -n "$failed" ]]; then echo "::error::Didn't compile:$failed"; exit 1; fi
+      # Each app opened on its simulator with a made-up family (-duoSample, -watchSample: no account, no
+      # phone), saved to the companions-shots branch, so the screens can be looked at without an Apple TV.
+      - name: Screenshots
+        working-directory: ${{ runner.temp }}/c
+        run: |
+          set +e
+          mkdir -p out
+          pick() { xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin); print(next((x['udid'] for k,g in sorted(d['devices'].items(), reverse=True) if '$1' in k for x in g), ''))"; }
+          TV=$(pick tvOS); W=$(pick watchOS)
+          P=d/Build/Products
+          if [[ -n "$TV" ]]; then
+            xcrun simctl boot "$TV"; xcrun simctl bootstatus "$TV" -b
+            xcrun simctl install "$TV" $P/Debug-appletvsimulator/DuoTV.app
+            duo() { xcrun simctl terminate "$TV" com.arisereader.arisetodo 2>/dev/null; xcrun simctl launch "$TV" com.arisereader.arisetodo "${@:2}"; sleep 14; xcrun simctl io "$TV" screenshot "out/duo-tv-$1.png"; }
+            duo 1-home -duoSample YES
+            duo 2-tasks -duoSample YES -duoTab tasks
+            duo 3-calendar -duoSample YES -duoTab calendar
+            duo 4-you -duoSample YES -duoTab you
+            duo 5-sign-in -duoSample NO
+            duo 6-work-home -duoSample YES -duoHubShot work
+            duo 7-work-caseload -duoSample YES -duoHubShot work -duoTab apps
+            duo 8-apps -duoSample YES -duoHubShot life -duoTab apps
+            duo 9-weather -duoSample YES -duoHubShot life -duoTab apps -duoApp weather
+            duo 10-meals -duoSample YES -duoHubShot life -duoTab apps -duoApp meals
+            xcrun simctl install "$TV" $P/Debug-appletvsimulator/FitTV.app
+            fit() { xcrun simctl terminate "$TV" com.arisereader.fit 2>/dev/null; xcrun simctl launch "$TV" com.arisereader.fit "${@:2}"; sleep 14; xcrun simctl io "$TV" screenshot "out/fit-tv-$1.png"; }
+            fit 1-today -fitSample YES
+            fit 2-workouts -fitSample YES -fitTab workouts
+            fit 3-program -fitSample YES -fitTab program
+            fit 4-timers -fitSample YES -fitTab timers
+            fit 5-player -fitSample YES -fitPlay "$(python3 -c "import json;print(json.load(open('$GITHUB_WORKSPACE/native/fit-tv/sessions.json'))[0]['id'])")"
+            fit 6-signed-out -fitSample NO
+            xcrun simctl shutdown "$TV" || true
+          fi
+          if [[ -n "$W" ]]; then
+            xcrun simctl boot "$W"; xcrun simctl bootstatus "$W" -b
+            xcrun simctl install "$W" $P/Debug-watchsimulator/DuoWatch.app && {
+              xcrun simctl launch "$W" com.arisereader.arisetodo.watchkitapp -watchSample YES -duoHub life; sleep 12; xcrun simctl io "$W" screenshot out/duo-watch-1-life.png
+              xcrun simctl terminate "$W" com.arisereader.arisetodo.watchkitapp; xcrun simctl launch "$W" com.arisereader.arisetodo.watchkitapp -watchSample YES -duoHub work; sleep 10; xcrun simctl io "$W" screenshot out/duo-watch-2-work.png
+              xcrun simctl spawn "$W" launchctl list | grep -q arisetodo.watchkitapp || { echo "::error title=Duo Watch::closed by itself"; echo DuoWatch >> out/crashed.txt; }
+            }
+            xcrun simctl install "$W" $P/Debug-watchsimulator/NotesWatch.app && {
+              xcrun simctl launch "$W" com.arisereader.notes.watchkitapp; sleep 10; xcrun simctl io "$W" screenshot out/notes-watch-1-home.png
+              xcrun simctl spawn "$W" launchctl list | grep -q notes.watchkitapp || { echo "::error title=Notes Watch::closed by itself"; echo NotesWatch >> out/crashed.txt; }
+            }
+            xcrun simctl install "$W" $P/Debug-watchsimulator/FitWatch.app && {
+              xcrun simctl launch "$W" com.arisereader.fit.watchkitapp -fitScreen guided; sleep 12; xcrun simctl io "$W" screenshot out/fit-watch-1-guided-list.png
+              xcrun simctl terminate "$W" com.arisereader.fit.watchkitapp; xcrun simctl launch "$W" com.arisereader.fit.watchkitapp -fitGuided "$(python3 -c "import json;print(json.load(open('$GITHUB_WORKSPACE/native/fit-tv/sessions.json'))[0]['id'])")"; sleep 12; xcrun simctl io "$W" screenshot out/fit-watch-2-guided.png
+            }
+          fi
+          ls -la out
+          if [[ -f out/crashed.txt ]]; then cat out/crashed.txt; exit 1; fi
+      - name: Save to the companions-shots branch
+        if: always()
+        working-directory: ${{ runner.temp }}/c/out
+        run: |
+          git init -q && git checkout -q -b companions-shots
+          git config user.name "github-actions" && git config user.email "actions@github.com"
+          git add -A && git commit -qm "Watch and TV screenshots ${GITHUB_SHA::7}" || exit 0
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" companions-shots

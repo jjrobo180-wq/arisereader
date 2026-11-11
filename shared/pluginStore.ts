@@ -223,10 +223,10 @@ export const PLUGINS: readonly Plugin[] = [
   { id: "work-lifehub-notes", hub: "work", name: "LifeHub Notes", tagline: "Quick pinnable notes, the LifeHub way", category: "Planning", icon: "StickyNote", color: "#e5b04f", target: { kind: "notesApp", id: "work-lifehub-notes", label: "LifeHub Notes" },
     description: "The same simple, colorful note cards LifeHub users keep for codes, lists and ideas — now in WorkHub too. A separate set of notes from Work Notes, just for the quick stuff you'd normally jot on a sticky note.",
     features: ["Color-coded note cards", "Pin your most-used notes to the top", "Search across every note", "Its own notes, separate from Work Notes"] },
-  // Reading records stayed in WorkHub when A.R.I.S.E. Reader moved to its own page. It is an
+  // Reading records stayed in WorkHub when Arise Reader moved to its own page. It is an
   // App Store screen now like the rest, so it needs to be here or there would be no way to add it.
   { id: "work-arise-records", hub: "work", name: "Reading records", tagline: "What your class has read, at a glance", category: "Students & IEPs", icon: "BookOpen", color: "#6d28d9", target: tab("arise"),
-    description: "Your class's A.R.I.S.E. Reader activity kept in WorkHub: what each student has read, their quizzes and how they're doing over time.",
+    description: "Your class's Arise Reader activity kept in WorkHub: what each student has read, their quizzes and how they're doing over time.",
     features: ["Each student's reading in one place", "Quizzes and scores", "Progress over the year"] },
   { id: "work-lessons", hub: "work", name: "Lessons", tagline: "Plan lessons by subject and group", category: "Planning", icon: "BookOpenCheck", color: "#2563eb", target: tab("lessons"),
     description: "Plan lessons with their objective, materials and the group they're for.",
@@ -272,8 +272,8 @@ export const PLUGINS: readonly Plugin[] = [
     features: ["Every calendar on your iPhone", "Or any calendar by its link", "Colleagues' calendars, busy times only"] },
   { id: "work-apple-reminders", hub: "work", name: "Apple Reminders", tagline: "Reminders become WorkHub to-dos", category: "Connections", icon: "BellRing", color: "#475569", target: { kind: "connection", needs: { tab: "tasks" } },
     anchor: '[data-testid="apple-steps"]',
-    steps: ["Open Tasks in WorkHub and find Apple Reminders at the bottom.", "Tap “Set it up (about 3 minutes)” and copy your private link.", "On your iPhone, make the Shortcut the setup shows you, using that link.", "Run it, or set it to run on its own: your reminders come in as to-dos."],
-    needsNote: "Needs an iPhone. Reminders come into WorkHub only; nothing is sent back to Apple.",
+    steps: ["Open the Arise To Duo app on your iPhone.", "Go to Tasks in WorkHub and tap Connect Apple Reminders at the bottom, then allow access.", "Your reminders come in as to-dos, and check-offs stay in step both ways."],
+    needsNote: "Connects in the Arise To Duo iPhone app.",
     appSteps: ["Open Tasks in WorkHub and find Apple Reminders at the bottom (or ⋯ → iPhone connections).", "Tap Connect Apple Reminders and allow access.", "Your reminders come into LifeHub → Tasks each time you open the app, and check-offs stay in step both ways."],
     appNote: "Reads the Reminders app on this iPhone. Nothing to copy or set up.",
     description: "Send reminders from your iPhone straight into your WorkHub to-do list.",
@@ -360,9 +360,6 @@ export const PLUGINS: readonly Plugin[] = [
   { id: "life-quotes", hub: "life", name: "Daily quote", tagline: "A motivational quote every day", category: "Inspiration", icon: "Quote", color: "#6366f1", target: section("quotes"),
     description: "Start each day with a quote worth thinking about. Shuffle for another, and save the ones that stick.",
     features: ["A new quote every day", "Shuffle for more", "Save your favorites"] },
-  { id: "life-earshot", hub: "life", name: "Earshot", tagline: "Swipe through real podcasts picked for you", category: "Discover", icon: "Podcast", color: "#e8590c", featured: true, target: section("earshot"),
-    description: "A feed of real podcasts you scroll like short videos. Pick the genres you love, from comedy and true crime to history, sports, faith and kids' shows, and every episode plays right in the feed. Like, comment, share and follow shows, and the feed learns what you're into with every swipe. Search all of Apple Podcasts any time.",
-    features: ["Real podcasts from Apple Podcasts, playing right in the feed", "Over 30 genres to pick from", "A feed that learns from your likes and skips", "Likes, comments, shares and follows", "Clean podcasts only on student accounts"] },
   { id: "life-history", hub: "life", name: "Today in history", tagline: "What happened on this day", category: "Discover", icon: "History", color: "#a16207", target: section("history"),
     description: "What happened on this day over the years, who was born, and the day's observances. Pick any day to look back. From Wikipedia.",
     features: ["Highlights and events", "Born on this day", "Pick any day", "Links to read more"] },
@@ -528,8 +525,8 @@ export const PLUGINS: readonly Plugin[] = [
     features: ["Read live from WorkHub", "Nothing is copied", "Turn it off any time"] },
   { id: "life-apple-health", hub: "life", name: "Apple Health", tagline: "Steps, workouts and weight from your iPhone", category: "Connections", icon: "HeartPulse", color: "#e11d48", target: { kind: "connection", needs: { section: "health" } },
     anchor: '[data-plugin-anchor="apple-health"]',
-    steps: ["Open Food & fitness in LifeHub and pick the person to connect.", "Tap “Connect Apple Health”. You'll get a private link and an iPhone Shortcut.", "On your iPhone, add the Shortcut and let it read your Health data.", "Steps, active calories and weight come in every day on their own."],
-    needsNote: "Needs an iPhone (or Apple Watch). Connect each adult separately.",
+    steps: ["Open the Arise To Duo app on your iPhone.", "Go to Food & fitness in LifeHub and pick the person to connect.", "Tap Connect Apple Health and allow access.", "Steps, active calories and weight come in every day on their own, on every device."],
+    needsNote: "Connects in the Arise To Duo iPhone app. Connect each adult separately.",
     appSteps: ["Open Food & fitness in LifeHub and pick the person to connect.", "Tap Connect Apple Health and allow access.", "Steps, active calories and weight come in every day on their own."],
     appNote: "Reads Apple Health on this iPhone. Nothing to copy or set up.",
     description: "Bring steps, workouts and weight in from Apple Health, so Food & fitness fills itself in.",
@@ -634,7 +631,7 @@ const TEACHER_CHECKLIST = /\b(IEP|504|teach|teacher|student|class|classroom|scho
 
 /** Every plugin this hub can add: the ones built for it, then the ones built for the other hub that
  *  work here all the same (marked `recommendedFor`). The Arise learning apps are only for teachers and
- *  parents who came from A.R.I.S.E. Reader (`arise`). */
+ *  parents who came from Arise Reader (`arise`). */
 export function pluginsFor(hub: PluginHub, opts: { teacher: boolean; arise?: boolean }): Plugin[] {
   const arise = opts.arise ?? opts.teacher;
   const mine = (p: Plugin) => p.hub === hub && (!p.teacherOnly || opts.teacher) && !DROPPED.has(p.name) && !(hub === "life" && p.target.kind === "section" && BUNDLE_PARENT.has(p.target.section)) && (p.category !== "Arise apps" || arise);
@@ -908,3 +905,10 @@ export function templateInstalledCount(t: HubTemplate, family: Pick<Family, "sec
 export function setLifeTemplate<F extends Pick<Family, "sections" | "layers"> & Partial<Pick<Family, "widgets" | "layout">>>(family: F, t: HubTemplate, on: boolean): F {
   return templatePlugins(t).reduce((f, p) => setLifePlugin(f, p, on), family);
 }
+
+/** "450+": how many plugins the Plugin Gallery has, rounded down to the nearest 50 so it stays true.
+ *  The one place that says it; the upgrade sheet, the setup screen and the pop-ups all use this. */
+export const PLUGIN_COUNT_LABEL = `${Math.floor(Math.max(
+  pluginsFor("life", { teacher: true, arise: true }).length,
+  pluginsFor("work", { teacher: true, arise: true }).length,
+) / 50) * 50}+`;

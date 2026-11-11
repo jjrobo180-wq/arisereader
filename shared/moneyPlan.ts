@@ -6,6 +6,9 @@
 // in family.bills, family.expenses and family.budget (so the calendar, alerts and widgets keep working).
 import type { Bill, Expense, BudgetCategory } from "./familyHub";
 
+/** Cleaned as you type: the start is trimmed but a space (or new line) just typed at the end stays, or the next word could never be typed. */
+const typedEnd = (s: string) => s.replace(/^\s+/, "").replace(/ {2,}$/, "");
+
 export type PayFrequency = "weekly" | "biweekly" | "semimonthly" | "monthly" | "irregular";
 export type IncomeKind = "paycheck" | "tips" | "gig" | "other";
 export type IncomeSource = {
@@ -18,6 +21,8 @@ export type IncomeSource = {
   anchor: string;
 };
 export type IncomeEntry = { id: string; sourceId: string; date: string; amount: number; kind: "pay" | "tips" | "bonus" | "other"; note: string };
+/** Money you already have on hand (cash, checking, a jar): counted in what's left to spend. */
+export type OnHand = { id: string; name: string; amount: number };
 export type BillPayment = { id: string; billId: string; month: string; amount: number; date: string };
 export type GoalKind = "save" | "debt";
 export type Goal = { id: string; name: string; kind: GoalKind; target: number; start: number; due: string; monthly: number; color: string };
@@ -25,16 +30,22 @@ export type GoalMove = { id: string; goalId: string; amount: number; date: strin
 export type PlanStyle = "paycheck" | "monthly";
 export type MoneyPlan = {
   setUp: boolean; who: "me" | "two" | "family"; style: PlanStyle;
-  sources: IncomeSource[]; incomeLog: IncomeEntry[]; payments: BillPayment[]; goals: Goal[]; goalMoves: GoalMove[];
+  sources: IncomeSource[]; onHand: OnHand[]; incomeLog: IncomeEntry[]; payments: BillPayment[]; goals: Goal[]; goalMoves: GoalMove[];
   /** Kept aside each month before anything else, so a slow month doesn't break the plan. */
   cushion: number;
+  /** A month that has been changed has its own copy of the bills, income and spending limits, so editing one month
+   *  never touches another. A month with no copy shows the plan as it was set up. See viewMonth / editMonth. */
+  months?: Record<string, MonthLayer>;
 };
+/** One month's own bills (their `paid` lists stay with the plan's bills), income sources and spending limits. */
+export type MonthLayer = { bills: PlanBill[]; sources: IncomeSource[]; budget: BudgetCategory[] };
 /** A bill can be paid in parts: each part a day of the month and an amount (they add up to the bill). */
 export type BillPart = { day: number; amount: number };
 export type PlanBill = Bill & { parts?: BillPart[] };
 
-export const MONEY_LIMITS = { sources: 12, incomeLog: 4000, payments: 6000, goals: 30, goalMoves: 4000 };
-export const emptyMoney = (): MoneyPlan => ({ setUp: false, who: "me", style: "monthly", sources: [], incomeLog: [], payments: [], goals: [], goalMoves: [], cushion: 0 });
+export const MONTH_LAYERS_KEPT = 36;
+export const MONEY_LIMITS = { sources: 12, onHand: 12, incomeLog: 4000, payments: 6000, goals: 30, goalMoves: 4000 };
+export const emptyMoney = (): MoneyPlan => ({ setUp: false, who: "me", style: "monthly", sources: [], onHand: [], incomeLog: [], payments: [], goals: [], goalMoves: [], cushion: 0 });
 
 // ─── small helpers (own copies, so familyHub.ts can import this file) ───
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -59,29 +70,56 @@ function rows<T>(v: unknown, max: number, clean: (r: Record<string, any>) => T |
   return out;
 }
 
+const FREQ = ["weekly", "biweekly", "semimonthly", "monthly", "irregular"] as const;
+function cleanSource(s: Record<string, any>): IncomeSource | null {
+      const name = typedEnd(str(s.name, 60));
+      if (!name) return null;
+      const frequency = oneOf(s.frequency, FREQ, "monthly");
+      const days = Array.isArray(s.days) ? [...new Set(s.days.map((d: unknown) => Math.round(num(d, 1, 31, 0))).filter((d: number) => d >= 1))].sort((a, b) => a - b).slice(0, 2) as number[] : [];
+      return { id: str(s.id, 100), name, kind: oneOf(s.kind, ["paycheck", "tips", "gig", "other"] as const, "paycheck"), frequency, amount: num(s.amount, 0, 10_000_000), days, anchor: isDay(s.anchor) ? s.anchor : "" };
+    }
+function cleanLayerBill(b: Record<string, any>): PlanBill | null {
+  const name = typedEnd(str(b.name, 80));
+  const parts = cleanParts(b.parts);
+  return name ? { id: str(b.id, 100), name, amount: num(b.amount, 0, 10_000_000), dueDay: Math.round(num(b.dueDay, 1, 31, 1)), category: str(b.category, 40), autopay: b.autopay === true, paid: Array.isArray(b.paid) ? ([...new Set(b.paid.filter(isMonth))].slice(-120) as string[]) : [], ...(parts ? { parts } : {}) } : null;
+}
+function cleanMonths(v: unknown): Record<string, MonthLayer> | undefined {
+  const m = obj(v);
+  if (!m) return undefined;
+  const out: Record<string, MonthLayer> = {};
+  for (const key of Object.keys(m).filter(isMonth).sort().slice(-MONTH_LAYERS_KEPT)) {
+    const l = obj(m[key]);
+    if (!l) continue;
+    out[key] = {
+      bills: rows(l.bills, 200, cleanLayerBill),
+      sources: rows(l.sources, MONEY_LIMITS.sources, cleanSource),
+      budget: rows(l.budget, 60, (c) => { const name = typedEnd(str(c.name, 40)); return name ? { id: str(c.id, 100), name, limit: num(c.limit, 0, 10_000_000) } : null; }),
+    };
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 /** Cleans a saved plan (anything missing or wrong is filled in or dropped). */
 export function cleanMoney(raw: unknown): MoneyPlan {
   const r = obj(raw);
   if (!r) return emptyMoney();
-  const FREQ = ["weekly", "biweekly", "semimonthly", "monthly", "irregular"] as const;
   return {
     setUp: r.setUp === true,
     who: oneOf(r.who, ["me", "two", "family"] as const, "me"),
     style: oneOf(r.style, ["paycheck", "monthly"] as const, "monthly"),
     cushion: num(r.cushion, 0, 10_000_000),
-    sources: rows(r.sources, MONEY_LIMITS.sources, (s) => {
-      const name = str(s.name, 60).trim();
-      if (!name) return null;
-      const frequency = oneOf(s.frequency, FREQ, "monthly");
-      const days = Array.isArray(s.days) ? [...new Set(s.days.map((d: unknown) => Math.round(num(d, 1, 31, 0))).filter((d: number) => d >= 1))].sort((a, b) => a - b).slice(0, 2) as number[] : [];
-      return { id: str(s.id, 100), name, kind: oneOf(s.kind, ["paycheck", "tips", "gig", "other"] as const, "paycheck"), frequency, amount: num(s.amount, 0, 10_000_000), days, anchor: isDay(s.anchor) ? s.anchor : "" };
+    ...(cleanMonths(r.months) ? { months: cleanMonths(r.months) } : {}),
+    sources: rows(r.sources, MONEY_LIMITS.sources, cleanSource),
+    onHand: rows(r.onHand, MONEY_LIMITS.onHand, (o) => {
+      const name = typedEnd(str(o.name, 60));
+      return name && num(o.amount, 0, 100_000_000) > 0 ? { id: str(o.id, 100), name, amount: cents(num(o.amount, 0, 100_000_000)) } : null;
     }),
     incomeLog: rows(r.incomeLog, MONEY_LIMITS.incomeLog, (e) => isDay(e.date) && num(e.amount, 0, 10_000_000) > 0
       ? { id: str(e.id, 100), sourceId: str(e.sourceId, 100), date: e.date, amount: cents(num(e.amount, 0, 10_000_000)), kind: oneOf(e.kind, ["pay", "tips", "bonus", "other"] as const, "pay"), note: str(e.note, 120) } : null),
     payments: rows(r.payments, MONEY_LIMITS.payments, (p) => isMonth(p.month) && isDay(p.date) && num(p.amount, 0, 10_000_000) > 0
       ? { id: str(p.id, 100), billId: str(p.billId, 100), month: p.month, amount: cents(num(p.amount, 0, 10_000_000)), date: p.date } : null),
     goals: rows(r.goals, MONEY_LIMITS.goals, (g) => {
-      const name = str(g.name, 60).trim();
+      const name = typedEnd(str(g.name, 60));
       return name ? { id: str(g.id, 100), name, kind: oneOf(g.kind, ["save", "debt"] as const, "save"), target: num(g.target, 0, 100_000_000), start: num(g.start, 0, 100_000_000), due: isDay(g.due) ? g.due : "", monthly: num(g.monthly, 0, 10_000_000), color: /^#[0-9a-f]{6}$/i.test(String(g.color)) ? String(g.color) : "#6e5ae0" } : null;
     }),
     goalMoves: rows(r.goalMoves, MONEY_LIMITS.goalMoves, (m) => isDay(m.date) && Number.isFinite(Number(m.amount)) && Number(m.amount) !== 0
@@ -93,6 +131,52 @@ export function cleanParts(v: unknown): BillPart[] | undefined {
   if (!Array.isArray(v)) return undefined;
   const parts = v.map(obj).filter(Boolean).map((p) => ({ day: Math.round(num(p!.day, 1, 31, 1)), amount: cents(num(p!.amount, 0, 10_000_000)) })).filter((p) => p.amount > 0).slice(0, 4);
   return parts.length > 1 ? parts.sort((a, b) => a.day - b.day) : undefined;
+}
+
+// ─── One month at a time ───
+type Editable = { sources: IncomeSource[]; bills: PlanBill[]; budget: BudgetCategory[] };
+
+/** What a month shows: its own bills, income and spending limits if it has been changed, otherwise the plan as set up.
+ *  The `paid` lists always come from the plan's bills (the calendar, alerts and widgets read them there). */
+export function viewMonth(plan: MoneyPlan, bills: PlanBill[], budget: BudgetCategory[], month: string): { plan: MoneyPlan; bills: PlanBill[]; budget: BudgetCategory[] } {
+  const layer = plan.months?.[month];
+  if (!layer) return { plan, bills, budget };
+  const paidOf = new Map(bills.map((b) => [b.id, b.paid]));
+  return {
+    plan: { ...plan, sources: layer.sources },
+    bills: layer.bills.map((b) => (paidOf.has(b.id) ? { ...b, paid: paidOf.get(b.id)! } : b)),
+    budget: layer.budget,
+  };
+}
+
+/** Changes one month only. The first change in a month gives it its own copy of the bills, income and limits;
+ *  every other month stays exactly as it was. */
+export function editMonth(f: { money: MoneyPlan; bills: PlanBill[]; budget: BudgetCategory[] }, month: string, edit: (v: Editable) => Editable, setUp = f.money.setUp): { money: MoneyPlan } {
+  const v = viewMonth(f.money, f.bills, f.budget, month);
+  const next = edit({ sources: v.plan.sources, bills: v.bills, budget: v.budget });
+  const months = { ...(f.money.months ?? {}), [month]: { bills: next.bills, sources: next.sources, budget: next.budget } };
+  const keep = Object.keys(months).sort().slice(-MONTH_LAYERS_KEPT);
+  return { money: { ...f.money, setUp, months: Object.fromEntries(keep.map((k) => [k, months[k]])) } };
+}
+
+/** Writes a result computed on a month's view (payBill / unpayBill) back: `paid` goes to the plan's bills, and to the
+ *  month's copy for a bill that only exists there. */
+function applyPaid(f: { money: MoneyPlan; bills: PlanBill[] }, month: string, plan: MoneyPlan, viewBills: PlanBill[]): { money: MoneyPlan; bills: PlanBill[] } {
+  const inPlan = new Set(f.bills.map((b) => b.id));
+  const bills = f.bills.map((b) => { const v = viewBills.find((x) => x.id === b.id); return v ? { ...b, paid: v.paid } : b; });
+  const layer = f.money.months?.[month];
+  const months = layer ? { ...f.money.months, [month]: { ...layer, bills: layer.bills.map((b) => (inPlan.has(b.id) ? b : viewBills.find((x) => x.id === b.id) ?? b)) } } : f.money.months;
+  return { money: { ...plan, sources: f.money.sources, ...(months ? { months } : {}) }, bills };
+}
+export function payBillInMonth(f: { money: MoneyPlan; bills: PlanBill[]; budget: BudgetCategory[] }, month: string, billId: string, amount: number, date: string, id: string) {
+  const v = viewMonth(f.money, f.bills, f.budget, month);
+  const r = payBill(v.plan, v.bills, billId, month, amount, date, id);
+  return applyPaid(f, month, r.plan, r.bills);
+}
+export function unpayBillInMonth(f: { money: MoneyPlan; bills: PlanBill[]; budget: BudgetCategory[] }, month: string, billId: string) {
+  const v = viewMonth(f.money, f.bills, f.budget, month);
+  const r = unpayBill(v.plan, v.bills, billId, month);
+  return applyPaid(f, month, r.plan, r.bills);
 }
 
 // ─── Income ───
@@ -120,6 +204,7 @@ export function expectedFrom(s: IncomeSource, month: string): number {
   return cents(paydays(s, month).length * s.amount);
 }
 export const expectedIncome = (plan: MoneyPlan, month: string) => cents(plan.sources.reduce((t, s) => t + expectedFrom(s, month), 0));
+export const onHandTotal = (plan: MoneyPlan) => cents(plan.onHand.reduce((t, o) => t + o.amount, 0));
 export const receivedIn = (plan: MoneyPlan, month: string) => cents(plan.incomeLog.filter((e) => e.date.startsWith(month)).reduce((t, e) => t + e.amount, 0));
 /** A source's paycheck on a day, if it was logged (so it shows as received). */
 export const loggedPay = (plan: MoneyPlan, sourceId: string, date: string) => plan.incomeLog.find((e) => e.sourceId === sourceId && e.date === date && e.kind === "pay");
@@ -234,12 +319,13 @@ export function monthPicture(plan: MoneyPlan, bills: PlanBill[], expenses: Expen
   // Income to plan with: what's expected, or what's come in if that's more (a big tip week, a bonus).
   const income = Math.max(expected, received);
   const planned = cents(billsOwed + budgeted + goals + plan.cushion);
+  const onHand = onHandTotal(plan);
   return {
-    expected, received, income, billsOwed, billsPaid, billsLeft, spent, budgeted, goals, planned,
+    expected, received, income, onHand, billsOwed, billsPaid, billsLeft, spent, budgeted, goals, planned,
     /** Not given a job yet: income minus bills, spending budgets, goals and the cushion. Negative means over-planned. */
-    unplanned: cents(income - planned),
+    unplanned: cents(income + onHand - planned),
     /** What's actually left this month after bills and spending so far. */
-    leftover: cents(income - billsOwed - spent - goals),
+    leftover: cents(income + onHand - billsOwed - spent - goals),
     late: statuses.filter((s) => s.state === "late").length,
   };
 }
@@ -252,7 +338,7 @@ export function safeToSpend(plan: MoneyPlan, bills: PlanBill[], expenses: Expens
   // Tips, gig pay, bonuses and other money logged since this check came in add to what's safe to spend.
   const extra = cents(plan.incomeLog.filter((e) => e.kind !== "pay" && e.date >= now.start && e.date <= today).reduce((t, e) => t + e.amount, 0));
   const nextDay = addDaysTo(now.end, 1);
-  return { amount: cents(now.amount + extra - now.billTotal - now.goalTotal - spent), spent, extra, until: nextDay, days: Math.max(1, daysApart(today, nextDay)), period: now };
+  return { amount: cents(now.amount + extra + onHandTotal(plan) - now.billTotal - now.goalTotal - spent), spent, extra, until: nextDay, days: Math.max(1, daysApart(today, nextDay)), period: now };
 }
 
 // ─── Goals ───
@@ -271,12 +357,15 @@ export function goalProgress(plan: MoneyPlan, g: Goal, today: string) {
 
 // ─── Insights ───
 export function monthsBack(plan: MoneyPlan, bills: PlanBill[], expenses: Expense[], month: string, count = 6) {
-  return Array.from({ length: count }, (_, i) => shiftMonth(month, i - count + 1)).map((m) => ({
-    month: m,
-    income: Math.max(receivedIn(plan, m), 0),
-    spent: spentInMonth(expenses, m),
-    bills: cents(plan.payments.filter((p) => p.month === m).reduce((t, p) => t + p.amount, 0) + bills.filter((b) => b.paid.includes(m) && !plan.payments.some((p) => p.billId === b.id && p.month === m)).reduce((t, b) => t + b.amount, 0)),
-  }));
+  return Array.from({ length: count }, (_, i) => shiftMonth(month, i - count + 1)).map((m) => {
+    const mb = viewMonth(plan, bills, [], m).bills; // each month's own bills
+    return {
+      month: m,
+      income: Math.max(receivedIn(plan, m), 0),
+      spent: spentInMonth(expenses, m),
+      bills: cents(plan.payments.filter((p) => p.month === m).reduce((t, p) => t + p.amount, 0) + mb.filter((b) => b.paid.includes(m) && !plan.payments.some((p) => p.billId === b.id && p.month === m)).reduce((t, b) => t + b.amount, 0)),
+    };
+  });
 }
 export function byCategory(expenses: Expense[], budget: BudgetCategory[], month: string) {
   const rowsOut = budget.map((c) => ({ id: c.id, name: c.name, limit: c.limit, spent: cents(expenses.filter((e) => e.categoryId === c.id && e.date.startsWith(month)).reduce((t, e) => t + e.amount, 0)) }));

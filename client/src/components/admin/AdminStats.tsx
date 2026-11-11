@@ -212,7 +212,7 @@ export default function AdminStats({ token, onOpenStudent }: { token: string; on
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-xl font-black sm:text-2xl">Stats</h1>
-          <p className="mt-1 text-sm text-muted-foreground">How A.R.I.S.E Reader is growing and how students are using it.</p>
+          <p className="mt-1 text-sm text-muted-foreground">How Arise Reader is growing and how students are using it.</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => void load(true)} disabled={loading} className="gap-2" data-testid="stats-refresh">
           <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />

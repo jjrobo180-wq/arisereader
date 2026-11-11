@@ -69,7 +69,7 @@ export const escapeHtml = (value: string): string =>
 /** One letter, ready to print. The class line is only there when the teacher is known. */
 export function letterHtml(invite: Invite): string {
   return `<section class="letter">
-      <div class="brand">A.R.I.S.E. READER</div>
+      <div class="brand">ARISE READER</div>
       <h1>Your family is invited to read with us!</h1>
       <p>Dear parent or caregiver of <strong>${escapeHtml(invite.studentName)}</strong>,</p>${invite.teacherName ? `\n      <p class="class-line">Teacher: <strong>${escapeHtml(invite.teacherName)}</strong></p>` : ""}
       <p>Create a free parent account to follow your child's reading progress, see certificates, and connect with their teacher.</p>
