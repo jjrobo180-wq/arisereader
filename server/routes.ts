@@ -1,5 +1,6 @@
 import { isSampleAccount } from "../shared/sampleAccounts";
 import { registerGoalQuizRoutes } from "./goalQuiz";
+import { registerIepAiRoutes } from "./iepAi";
 import { dedupeBooks } from "./bookDedupe";
 import { PLANS, aiProAccessFor, storageTierGb, isStoragePlanKind, grantLive, STORAGE_PLAN_KINDS } from "../shared/plans";
 import { FREE_STORAGE_BYTES } from "../shared/driveApp";
@@ -1816,6 +1817,7 @@ export async function registerRoutes(
   setInterval(runBookDedupe, 6 * 60 * 60 * 1000).unref?.();
   // WorkHub goal quizzes (server/goalQuiz.ts): AI writes a quiz from a student's goals, for the teacher.
   registerGoalQuizRoutes(app, authMiddleware);
+  registerIepAiRoutes(app, authMiddleware);
   // Para Team (server/paraTeam.ts): a teacher's shared space with their paras and 1:1s.
   registerParaTeamRoutes(app, { auth: authMiddleware, raw: raw as any, db: supabaseParaDb(getAdminSupabase) });
   // The no-login lesson plan link a teacher gives their school.
