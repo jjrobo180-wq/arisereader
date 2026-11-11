@@ -175,8 +175,11 @@ type PrepApi = (path: string, init?: { method?: string; body?: unknown }) => Pro
 let prepApi: PrepApi | null = null;
 const prepAsked = new Set<string>();
 export function setPrepareApi(api: PrepApi | null) { prepApi = api; }
+/** Ad-free copies are for people with ad skipping (Arise All Access); for everyone else none are made or used. */
+let cleanOn = true;
+export function setCleanEnabled(on: boolean) { cleanOn = on; }
 export function prepareClean(eps: (PodEpisode | null | undefined)[], api: PrepApi | null = prepApi) {
-  if (!api) return;
+  if (!api || !cleanOn) return;
   const list = eps.filter((e): e is PodEpisode => !!e?.id && !!e.audio && !prepAsked.has(e.id) && throughServer(e.audio) && !OWN_EPISODE.test(e.id) && !cleanKnown.get(e.id)?.copy).slice(0, 8);
   if (!list.length) return;
   for (const e of list) prepAsked.add(e.id);
@@ -857,7 +860,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
   /** A session for this episode (its id): its ad-free copy when it has one, otherwise a copy through the
    *  server when its audio can come that way. Live News Radio keeps to the station's own copy. */
-  const viaServer = (ep: PodEpisode, allowClean = true): string | null => {
+  const viaServer = (ep: PodEpisode, allowClean = esRef.current.settings.adMode === "auto"): string | null => {
     // Downloaded: plays from this device (a downloaded ad-free copy still gets its ads and read along).
     if (offlineAudio()?.url(episodeKey(ep.id))) return offlineAudio()?.isClean?.(episodeKey(ep.id)) && cleanSidFor(ep.id) ? cleanSession(ep, cleanSidFor(ep.id)) : null;
     const c = allowClean && !liveOf(ep.id) ? cleanReady(ep.id) : null;
@@ -2795,7 +2798,9 @@ function SettingsSheet({ es, student, update, onClose, sleepAt, setSleep, apple,
       <Row title="Appearance" sub={theme === "system" ? "Follows your phone or computer" : theme === "light" ? "Day: light pages" : "Night: dark pages"}>
         <div className="flex flex-none rounded-full bg-white/10 p-0.5">{([["light", "Day"], ["dark", "Night"], ["system", "Auto"]] as [Theme, string][]).map(([v, l]) => <button key={v} type="button" aria-pressed={theme === v} onClick={() => setTheme(v)} className={`rounded-full px-2.5 py-1.5 text-xs font-semibold ${theme === v ? "bg-white text-[#120e14]" : "text-white/70"}`}>{l}</button>)}</div>
       </Row>
-      {apple
+      {apple && es.settings.adMode !== "auto"
+        ? <Row title="Skip ads" sub="Podster is free to listen, with ads. Arise All Access skips them for you."><span className="flex-none rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80">All Access</span></Row>
+        : apple
         ? <Row title="No ads" sub={`Always on. Ads stitched into an episode are cut out, and the rest are skipped the moment they start. Undo any skip${savedWords(adSavedSecs()) ? ` · ${savedWords(adSavedSecs())} of ads skipped so far` : ""}`}>
           <span className="flex-none rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80">On</span>
         </Row>
