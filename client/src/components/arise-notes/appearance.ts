@@ -28,7 +28,18 @@ export function useAppearance(): { mode: Appearance; dark: boolean; set: (v: App
     const mq = window.matchMedia?.("(prefers-color-scheme: dark)");
     const onSys = () => setSys(systemDark());
     mq?.addEventListener?.("change", onSys);
-    return () => { window.removeEventListener(EVENT, on); window.removeEventListener("storage", on); mq?.removeEventListener?.("change", onSys); };
+    // A phone that switches to Light at sunrise often doesn't tell an app that was asleep all night, so Auto
+    // stayed dark in the morning. Look again whenever the app comes back, and once a minute while it is open.
+    const onBack = () => { if (document.visibilityState !== "hidden") onSys(); };
+    document.addEventListener("visibilitychange", onBack);
+    window.addEventListener("focus", onBack);
+    window.addEventListener("pageshow", onBack);
+    const tick = window.setInterval(onBack, 60_000);
+    onSys();
+    return () => {
+      window.removeEventListener(EVENT, on); window.removeEventListener("storage", on); mq?.removeEventListener?.("change", onSys);
+      document.removeEventListener("visibilitychange", onBack); window.removeEventListener("focus", onBack); window.removeEventListener("pageshow", onBack); window.clearInterval(tick);
+    };
   }, []);
   return { mode, dark: mode === "dark" || (mode === "auto" && sys), set: setAppearance };
 }
