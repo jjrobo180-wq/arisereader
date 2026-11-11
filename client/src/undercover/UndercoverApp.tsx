@@ -3,9 +3,9 @@
 // The settings sheet opens from each look's own back / close / file button, so nothing on screen
 // says "AI". In the inbox and phone doc looks, tapping the name or title hides the AI chat.
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
-import { API_BASE, apiAuthToken } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
-import { UNDERCOVER_THEMES, answerLines, wantsWeather, weatherPlaceFrom, type UndercoverMsg, type UndercoverTheme } from "@shared/undercover";
+import { UNDERCOVER_THEMES, answerLines, type UndercoverMsg, type UndercoverTheme } from "@shared/undercover";
+import { askAi } from "./askUndercover";
 
 type Saved = { theme: UndercoverTheme; contact: string; city: string; unit: "F" | "C"; chats: Partial<Record<UndercoverTheme, UndercoverMsg[]>> };
 const KEY = "arise-undercover-v1";
@@ -15,29 +15,6 @@ const load = (): Saved => {
   return { theme: "text", contact: "Sam", city: "", unit: metric ? "C" : "F", chats: {} };
 };
 const store = (s: Saved) => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* storage full */ } };
-
-/** The phone's location, only for a weather question with no city named or saved (4 seconds at most). */
-const here = (): Promise<{ lat: number; lon: number } | null> => new Promise((done) => {
-  if (!navigator.geolocation) return done(null);
-  const t = setTimeout(() => done(null), 4000);
-  navigator.geolocation.getCurrentPosition((p) => { clearTimeout(t); done({ lat: p.coords.latitude, lon: p.coords.longitude }); }, () => { clearTimeout(t); done(null); }, { maximumAge: 30 * 60_000, timeout: 4000 });
-});
-
-async function askAi(theme: UndercoverTheme, messages: UndercoverMsg[], prefs: { city: string; unit: "F" | "C" }): Promise<string> {
-  const token = apiAuthToken();
-  const q = messages[messages.length - 1]?.content || "";
-  const coords = wantsWeather(q) && !prefs.city && !weatherPlaceFrom(q) ? await here() : null;
-  const tz = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return "UTC"; } })();
-  const res = await fetch(`${API_BASE}/api/undercover/chat`, {
-    method: "POST", cache: "no-store",
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: JSON.stringify({ theme, messages, tz, place: prefs.city, unit: prefs.unit, ...(coords || {}) }),
-  }).catch(() => null);
-  if (!res) throw new Error("You seem to be offline.");
-  const d = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(d?.message || "Couldn't get an answer. Try again.");
-  return String(d?.reply || "");
-}
 
 const FONT = "Inter, system-ui, -apple-system, sans-serif";
 const SERIF = "'Source Serif 4', Georgia, serif";

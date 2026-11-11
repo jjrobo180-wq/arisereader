@@ -99,6 +99,12 @@ test("wired into the site, the app and the iPhone build", () => {
   const notes = read("client/src/components/arise-notes/NotesApp.tsx");
   assert.match(notes, /case "undercover": return <UndercoverApp onExit=/);
   assert.match(notes, /<UndercoverBar ctx=\{ctx\} \/>/);
+  const ask = read("client/src/components/arise-notes/AskScreen.tsx");
+  assert.match(ask, /\["notes", "My notes"/); assert.match(ask, /\["anything", "Anything"/);
+  assert.match(ask, /\["chat", "Chat"/); assert.match(ask, /\["doc", "Notes"/); assert.match(ask, /\["text", "Text"/);
+  assert.match(read("client/src/components/arise-notes/pages/PageScreen.tsx"), /pages-ask-bar/);
+  assert.match(read("client/src/components/arise-notes/pages/PagesView.tsx"), /arise-pages-full/);
+  assert.match(read("server/undercover.ts"), /note so far/);
   assert.match(read("client/src/lib/aiConsent.ts"), /undercover\\\/chat/);
   assert.equal(JSON.parse(read("undercover/ios-app/capacitor.config.json")).appId, "com.arisereader.undercover");
   assert.match(read(".github/workflows/undercover-ios.yml"), /VITE_NATIVE_APP=undercover/);

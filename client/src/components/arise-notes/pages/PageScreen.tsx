@@ -2,7 +2,7 @@
 // handwritten (pages you write on with the Apple Pencil). It saves itself as you go, syncs, and can be
 // locked with the notes password. Menu: appearance, pin, colour, folder, lock, AI, versions, export.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Maximize2, Minimize2, Clock, Copy, Download, FileText, Image as ImageIcon, Lock, LockOpen, MoreHorizontal, Palette, PenLine, Pin, PinOff, Sparkles, Table2, Trash2, Wand2 } from "lucide-react";
+import { ChevronLeft, Maximize2, MessageCircle, Minimize2, Send, Clock, Copy, Download, FileText, Image as ImageIcon, Lock, LockOpen, MoreHorizontal, Palette, PenLine, Pin, PinOff, Sparkles, Table2, Trash2, Wand2 } from "lucide-react";
 import { DEFAULT_LOOK, blankInkPage, pageTitle, textOfHtml, type InkPage, type Page, type PageContent, type PageLook, type PageMeta } from "@shared/arisePages";
 import { noteHtml as aiNoteHtml } from "@shared/ariseNotes";
 import { wordCount } from "@shared/office/docModel";
@@ -21,6 +21,8 @@ import { lockContent, unlockContent } from "./pagesLock";
 import { AppearanceSheet, ColorDots, ForgotSheet, SYNC_WORDS, UnlockSheet, VaultSheet, loadPageFont, lookStyle, usePages, useUnlocked } from "./pagesUi";
 import { drafts } from "./drafts";
 import { useAppearance } from "../appearance";
+import { askAi, undercoverPrefs } from "@/undercover/askUndercover";
+import { answerLines } from "@shared/undercover";
 
 type Panel = "" | "more" | "look" | "folder" | "ai" | "versions" | "export" | "unlock" | "vault" | "forgot" | "sketch" | "ainote" | "info";
 
@@ -34,6 +36,12 @@ export default function PageScreen({ ctx, id, onBack, expanded, onExpand }: { ct
   const [content, setContent] = useState<(PageContent & { inkText?: string }) | null>(null);
   const [resetKey, setResetKey] = useState(0);
   const [panel, setPanel] = useState<Panel>("");
+  // Ask AI in the note (Undercover's AI): a bar under the note; each answer is written into the note
+  // like your own lines, so on screen it just looks like note taking. On or off is remembered.
+  const [askOn, setAskOn] = useState(() => { try { return localStorage.getItem("arise-notes-ask-in-note") === "1"; } catch { return false; } });
+  const [askQ, setAskQ] = useState("");
+  const [askBusy, setAskBusy] = useState(false);
+  const toggleAsk = () => setAskOn((v) => { try { localStorage.setItem("arise-notes-ask-in-note", v ? "0" : "1"); } catch { /* not kept */ } return !v; });
   const [lockAfter, setLockAfter] = useState(false); // locking this note once the password is ready
   const pageRef = useRef<Page | null>(null);
   const contentRef = useRef<(PageContent & { inkText?: string }) | null>(null);
@@ -155,6 +163,7 @@ export default function PageScreen({ ctx, id, onBack, expanded, onExpand }: { ct
       <span className="min-w-0 flex-1 truncate text-[13px] text-[var(--an-muted)]">{page.locked && !content ? "Locked" : SYNC_WORDS[state]}</span>
       {onExpand && <IconBtn label={expanded ? "Shrink back to the list" : "Fill the whole page"} onClick={onExpand}>{expanded ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}</IconBtn>}
       {content && <IconBtn label="Appearance" onClick={() => setPanel("look")}><Palette className="h-5 w-5" /></IconBtn>}
+      {content && page.kind === "text" && <IconBtn label={askOn ? "Hide Ask AI" : "Ask AI in this note"} onClick={toggleAsk} className={askOn ? "!text-[var(--an-violet)]" : ""}><MessageCircle className="h-5 w-5" /></IconBtn>}
       {content && page.kind === "text" && <IconBtn label="AI tools" onClick={() => setPanel("ai")}><Sparkles className="h-5 w-5" /></IconBtn>}
       <IconBtn label="More" onClick={() => setPanel("more")}><MoreHorizontal className="h-5 w-5" /></IconBtn>
     </header>
@@ -165,6 +174,28 @@ export default function PageScreen({ ctx, id, onBack, expanded, onExpand }: { ct
       : content && page.kind === "text" ? <TextBody key={`${page.id}-${resetKey}`} content={content} look={look} edit={edit} onSketch={() => setPanel("sketch")} onAiNote={() => setPanel("ainote")} />
         : content ? <InkBody content={content} pencilOnly={settings.prefs.pencilOnly} edit={(p) => { edit(p); if (p.ink) readInk(p.ink); }} onPencilOnly={(v) => sync.saveSettings({ ...settings, prefs: { ...settings.prefs, pencilOnly: v } })} title={title} />
           : <Spinner />}
+
+    {askOn && content && page.kind === "text" && !trashed && <form className="an-noprint sticky bottom-0 z-20 flex gap-2 px-3 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-2" style={{ background: "linear-gradient(to top, color-mix(in srgb, var(--an-bg, #fff) 92%, transparent) 70%, transparent)" }}
+      onSubmit={async (e) => {
+        e.preventDefault();
+        const q = askQ.trim();
+        if (!q || askBusy) return;
+        setAskBusy(true);
+        try {
+          const reply = await askAi("docNotes", [{ role: "user", content: q }], { ...undercoverPrefs(), context: textOfHtml(content.html) });
+          const lines = answerLines(reply);
+          const html = `<p><b>${esc(q)}</b></p>${lines.length > 1 ? `<ul>${lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>` : `<p>${esc(lines[0] || reply)}</p>`}`;
+          const now = contentRef.current?.html ?? content.html;
+          edit({ html: `${now}${html}` });
+          setResetKey((k) => k + 1);
+          setAskQ("");
+        } catch (x: any) { say(x?.message || "Couldn't get an answer."); }
+        finally { setAskBusy(false); }
+      }} data-testid="pages-ask-bar">
+      <label className="sr-only" htmlFor="pages-ask-input">Ask AI. The answer is added to this note.</label>
+      <input id="pages-ask-input" className="an-input flex-1" value={askQ} onChange={(e) => setAskQ(e.target.value)} placeholder={askBusy ? "Writing…" : "Ask anything, the answer goes in the note"} maxLength={500} autoComplete="off" enterKeyHint="send" />
+      <Btn kind="primary" type="submit" busy={askBusy} disabled={!askQ.trim()} aria-label="Ask"><Send className="h-4 w-4" /></Btn>
+    </form>}
 
     {/* Sheets */}
     {panel === "look" && content && <AppearanceSheet look={savedLook} onChange={(l) => edit({ look: l })} onClose={() => setPanel("")} onDefault={() => { sync.saveSettings({ ...settings, prefs: { ...settings.prefs, look } }); say("New notes will look like this."); }} />}
