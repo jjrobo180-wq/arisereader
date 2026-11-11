@@ -35,6 +35,7 @@ const SHOTS = [
   ["apps", "Every tool in one place", "Money, health, kitchen, home and more, neatly grouped.", async (p) => { await open(p, "/lifehub?pane=tasks"); await p.frameLocator("#f").getByTestId("life-tab-apps").click(); await wait(p, 900); }],
   ["you", "Make it yours", "Themes, night mode, passcode lock and more.", async (p) => { await open(p, "/lifehub?pane=home"); await p.frameLocator("#f").getByTestId("life-tab-you").click(); await wait(p, 900); }],
   ["calendar", "Plan it together", "Shared family calendars and countdowns.", (p) => open(p, "/lifehub?go=calendar")],
+  ["split", "Two apps, one screen", "Split screen for phones without a Duo.", (p) => open(p, "/duo")],
   ["workhub", "WorkHub for the busy week", "Switch from life to work in one tap.", (p) => open(p, "/hub")],
 ];
 const frame = (img, title, sub, w, h) => `<!doctype html><meta charset=utf-8><style>
