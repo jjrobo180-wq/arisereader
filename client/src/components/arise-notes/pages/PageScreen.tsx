@@ -23,6 +23,7 @@ import { drafts } from "./drafts";
 import { useAppearance } from "../appearance";
 import { askAi, undercoverPrefs } from "@/undercover/askUndercover";
 import { answerLines } from "@shared/undercover";
+import { WAIT, answerHtml, deleteReply, failReply, finishReply, clearStale, mergeReply, newReplyId, parseAtArise, waitingBlock } from "@shared/ariseReply";
 
 type Panel = "" | "more" | "look" | "folder" | "ai" | "versions" | "export" | "unlock" | "vault" | "forgot" | "sketch" | "ainote" | "info";
 
@@ -108,6 +109,81 @@ export default function PageScreen({ ctx, id, onBack, expanded, onExpand }: { ct
     onBack();
   };
 
+  // ─── @arise: type "@arise <what you want>" on a line and press Enter. Arise answers right under it in a block
+  // you can merge (keep just the answer, no prompt) or delete. The Ask bar below answers the same way. ───
+  const working = useRef(new Set<string>());
+  const [reply, setReply] = useState<{ id: string; waiting: boolean } | null>(null);
+  const sel = (id: string) => `[data-arise="${id}"]`;
+  /** Changes one reply block in place (keeps your cursor); when the page isn't showing it, changes the saved text. */
+  const patchReply = (id: string, fn: (html: string) => string) => {
+    const ed = noteEl(), el = ed?.querySelector(sel(id));
+    if (ed && el) { el.outerHTML = fn(el.outerHTML); ed.dispatchEvent(new Event("input", { bubbles: true })); return; }
+    edit({ html: fn(contentRef.current?.html ?? "") }); setResetKey((k) => k + 1);
+  };
+  const runArise = async (id: string, ask: string, context: string) => {
+    working.current.add(id);
+    try {
+      const text = await askAi("docNotes", [{ role: "user", content: ask }], { ...undercoverPrefs(), context });
+      const lines = answerLines(text);
+      patchReply(WAIT + id, (h) => finishReply(h, id, answerHtml(lines.length ? lines : [text])));
+      setReply({ id, waiting: false });
+    } catch (x: any) {
+      patchReply(WAIT + id, (h) => failReply(h, id)); setReply(null);
+      say(x?.message || "Couldn't get an answer.");
+    } finally { working.current.delete(id); }
+  };
+  /** A typed "@arise …" line becomes the prompt of a reply block, with a fresh line after it to keep writing on. */
+  const startAt = (blk: HTMLElement, ask: string) => {
+    const ed = noteEl(); if (!ed) return;
+    const id = newReplyId();
+    blk.outerHTML = `${waitingBlock(id, ask)}<p><br></p>`;
+    const mine = ed.querySelector(sel(WAIT + id));
+    const copy = ed.cloneNode(true) as HTMLElement; copy.querySelector(sel(WAIT + id))?.remove();
+    const next = mine?.nextElementSibling;
+    if (next) { const r = document.createRange(); r.setStart(next, 0); r.collapse(true); const sn = window.getSelection(); sn?.removeAllRanges(); sn?.addRange(r); }
+    ed.dispatchEvent(new Event("input", { bubbles: true }));
+    setReply({ id: WAIT + id, waiting: true });
+    void runArise(id, ask, textOfHtml(copy.innerHTML));
+  };
+  const startRef = useRef(startAt); startRef.current = startAt;
+  const canArise = useRef(false); canArise.current = !!content && page?.kind === "text" && !(sync.meta(page.id)?.deletedAt ?? page.deletedAt);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Enter" || e.shiftKey || e.isComposing || e.metaKey || e.ctrlKey || e.altKey || !canArise.current) return;
+      const ed = noteEl(), sn = window.getSelection();
+      if (!ed || !sn?.isCollapsed || !sn.anchorNode || !ed.contains(sn.anchorNode)) return;
+      let blk = (sn.anchorNode.nodeType === 1 ? sn.anchorNode : sn.anchorNode.parentElement) as HTMLElement | null;
+      while (blk && blk.parentElement !== ed) blk = blk.parentElement;
+      if (!blk || !/^(P|DIV|H[1-4])$/.test(blk.tagName)) return;
+      const ask = parseAtArise(blk.textContent || "");
+      if (!ask) return;
+      e.preventDefault(); e.stopPropagation();
+      startRef.current(blk, ask);
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, []);
+  // Which reply the cursor is in: the Merge and Delete bar is for that one.
+  useEffect(() => {
+    const on = () => {
+      const ed = noteEl(), sn = window.getSelection();
+      if (!ed || !sn?.anchorNode || !ed.contains(sn.anchorNode)) return;
+      const el = (sn.anchorNode.nodeType === 1 ? sn.anchorNode : sn.anchorNode.parentElement) as HTMLElement | null;
+      const v = el?.closest("blockquote[data-arise]")?.getAttribute("data-arise");
+      setReply(v ? { id: v, waiting: v.startsWith(WAIT) } : null);
+    };
+    document.addEventListener("selectionchange", on);
+    return () => document.removeEventListener("selectionchange", on);
+  }, []);
+  // An answer that was still being written when the page was closed goes back to being the line that was typed.
+  useEffect(() => {
+    const c = contentRef.current; if (!c) return;
+    const clean = clearStale(c.html, working.current);
+    if (clean !== c.html) { edit({ html: clean }); setResetKey((k) => k + 1); }
+  }, [!!content, id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const mergeIt = () => { if (!reply) return; patchReply(reply.id, (h) => mergeReply(h, reply.id)); setReply(null); say("Merged into your note."); };
+  const deleteIt = () => { if (!reply) return; patchReply(reply.id, (h) => deleteReply(h, reply.id)); setReply(null); say("Arise's reply deleted."); };
+
   // Handwriting becomes searchable: the iPhone reads it (on the device) a little after you stop writing.
   const readTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const readInk = (ink: InkPage[]) => {
@@ -175,6 +251,12 @@ export default function PageScreen({ ctx, id, onBack, expanded, onExpand }: { ct
         : content ? <InkBody content={content} pencilOnly={settings.prefs.pencilOnly} edit={(p) => { edit(p); if (p.ink) readInk(p.ink); }} onPencilOnly={(v) => sync.saveSettings({ ...settings, prefs: { ...settings.prefs, pencilOnly: v } })} title={title} />
           : <Spinner />}
 
+    {reply && !reply.waiting && content && page.kind === "text" && !trashed && <div className={`an-noprint sticky z-20 mx-3 mb-2 flex items-center gap-2 rounded-2xl bg-white px-3 py-2 shadow-lg ring-1 ring-[var(--an-line)] ${askOn ? "bottom-[4.5rem]" : "bottom-[max(.75rem,env(safe-area-inset-bottom))]"}`} role="group" aria-label="Arise's reply" data-testid="pages-reply-bar">
+      <Sparkles className="h-4 w-4 shrink-0 text-[var(--an-violet)]" aria-hidden />
+      <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">Arise's reply</span>
+      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={mergeIt} className="min-h-11 rounded-xl bg-[var(--an-violet)] px-3 text-[14px] font-bold text-white" data-testid="pages-reply-merge">Merge into note</button>
+      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={deleteIt} className="min-h-11 rounded-xl px-3 text-[14px] font-bold text-[var(--an-muted)] ring-1 ring-[var(--an-line)]" data-testid="pages-reply-delete">Delete</button>
+    </div>}
     {askOn && content && page.kind === "text" && !trashed && <form className="an-noprint sticky bottom-0 z-20 flex gap-2 px-3 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-2" style={{ background: "linear-gradient(to top, color-mix(in srgb, var(--an-bg, #fff) 92%, transparent) 70%, transparent)" }}
       onSubmit={async (e) => {
         e.preventDefault();
@@ -182,18 +264,14 @@ export default function PageScreen({ ctx, id, onBack, expanded, onExpand }: { ct
         if (!q || askBusy) return;
         setAskBusy(true);
         try {
-          const reply = await askAi("docNotes", [{ role: "user", content: q }], { ...undercoverPrefs(), context: textOfHtml(content.html) });
-          const lines = answerLines(reply);
-          const html = `<p><b>${esc(q)}</b></p>${lines.length > 1 ? `<ul>${lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>` : `<p>${esc(lines[0] || reply)}</p>`}`;
-          const now = contentRef.current?.html ?? content.html;
-          edit({ html: `${now}${html}` });
-          setResetKey((k) => k + 1);
-          setAskQ("");
+          const id = newReplyId(), before = contentRef.current?.html ?? content.html;
+          edit({ html: `${before}${waitingBlock(id, q)}` }); setResetKey((k) => k + 1); setAskQ("");
+          await runArise(id, q, textOfHtml(before));
         } catch (x: any) { say(x?.message || "Couldn't get an answer."); }
         finally { setAskBusy(false); }
       }} data-testid="pages-ask-bar">
       <label className="sr-only" htmlFor="pages-ask-input">Ask AI. The answer is added to this note.</label>
-      <input id="pages-ask-input" className="an-input flex-1" value={askQ} onChange={(e) => setAskQ(e.target.value)} placeholder={askBusy ? "Writing…" : "Ask anything, the answer goes in the note"} maxLength={500} autoComplete="off" enterKeyHint="send" />
+      <input id="pages-ask-input" className="an-input flex-1" value={askQ} onChange={(e) => setAskQ(e.target.value)} placeholder={askBusy ? "Writing…" : "Ask anything, or type @arise in your note"} maxLength={500} autoComplete="off" enterKeyHint="send" />
       <Btn kind="primary" type="submit" busy={askBusy} disabled={!askQ.trim()} aria-label="Ask"><Send className="h-4 w-4" /></Btn>
     </form>}
 
