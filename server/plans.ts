@@ -1331,7 +1331,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const name = app ? `${APP_NAMES[app]} for a class (up to ${PLANS.classApps.seats} students)`
         : kind === "todo_unlimited" ? UNLIMITED_NAME
         : kind === "todo_unlimited_year" ? `${UNLIMITED_NAME}, yearly`
-        : kind === "bundle_family" ? "Arise Reader for a family (Reader, Math, History and Connect, up to 3 children)"
+        : kind === "bundle_family" ? "Arise Reader for a family (up to 3 children)"
         : "Arise LifeHub for a family";
       const back = addonReturn(req);
       const session = await stripe("POST", "/checkout/sessions", {

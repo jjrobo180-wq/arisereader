@@ -12,6 +12,7 @@ import { useAuth } from "@/context/AuthContext";
 import { APPLE_LOGO_PATH, appleSignInAvailable, askApple } from "@/lib/appleSignIn";
 import { LEGAL, nativeAppInfo, nativeFlavor, type NativeFlavor } from "@/lib/nativeApp";
 import { API_BASE } from "@/lib/queryClient";
+import { BACKDROP_REFRESH, sendBackdrop } from "@/lib/nativeBackdrop";
 import { TEACHER_CONFIRM_KEY } from "@shared/schoolEmail";
 
 type Screen = "welcome" | "signin" | "signup" | "code" | "forgot";
@@ -257,7 +258,12 @@ export default function NativeSignIn() {
 
 /** The whole screen: the iPhone's safe areas, a soft page colour, no page scroll behind it. */
 function Shell({ children }: { children: ReactNode }) {
-  useEffect(() => { const was = document.documentElement.style.background; document.documentElement.style.background = "#f6f5fb"; return () => { document.documentElement.style.background = was; }; }, []);
+  useEffect(() => {
+    const was = document.documentElement.style.background; document.documentElement.style.background = "#f6f5fb";
+    // The app paints the strip behind the clock itself; without this it stays the dark hub colour (a black bar).
+    document.body.style.backgroundColor = "#f6f5fb"; sendBackdrop("#f6f5fb");
+    return () => { document.documentElement.style.background = was; window.dispatchEvent(new Event(BACKDROP_REFRESH)); };
+  }, []);
   return <main className="fixed inset-0 flex flex-col overflow-hidden bg-[#f6f5fb] pb-[max(12px,env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] text-[#111018]" style={font} data-testid="native-signin">
     <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[45%] bg-[radial-gradient(80%_70%_at_50%_0%,rgba(122,104,235,.16),transparent_70%)]" />
     <div className="relative mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col">{children}</div>
