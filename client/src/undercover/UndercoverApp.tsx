@@ -276,7 +276,7 @@ function DocPhoneLook({ chat, onMenu }: { chat: ReturnType<typeof useChat>; onMe
 }
 
 // ─── Settings ───────────────────────────────────────────────────────────────
-function Settings({ saved, save, onClose }: { saved: Saved; save: (s: Saved) => void; onClose: () => void }) {
+function Settings({ saved, save, onClose, onExit }: { saved: Saved; save: (s: Saved) => void; onClose: () => void; onExit?: () => void }) {
   const { logout } = useAuth();
   const [contact, setContact] = useState(saved.contact);
   const [city, setCity] = useState(saved.city);
@@ -307,14 +307,16 @@ function Settings({ saved, save, onClose }: { saved: Saved; save: (s: Saved) => 
       </div>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <button onClick={() => { save({ ...saved, chats: { ...saved.chats, [saved.theme]: [] } }); onClose(); }} style={{ flex: 1, height: 44, borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", fontFamily: FONT, fontWeight: 500, color: "#0f172a" }}>Clear this chat</button>
-        <button onClick={logout} style={{ flex: 1, height: 44, borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", fontFamily: FONT, fontWeight: 500, color: "#b91c1c" }}>Sign out</button>
+        {onExit
+          ? <button onClick={onExit} style={{ flex: 1, height: 44, borderRadius: 10, border: 0, background: "#6d3df5", fontFamily: FONT, fontWeight: 600, color: "#fff" }}>Back to Arise Notes</button>
+          : <button onClick={logout} style={{ flex: 1, height: 44, borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", fontFamily: FONT, fontWeight: 500, color: "#b91c1c" }}>Sign out</button>}
       </div>
       <p style={{ margin: 0, fontSize: 12, color: "#475569" }}>Open this screen from the back, close or file button in any look. Chats stay on this device.</p>
     </div>
   </div>;
 }
 
-export default function UndercoverApp() {
+export default function UndercoverApp({ onExit }: { onExit?: () => void } = {}) {
   const [saved, setSaved] = useState<Saved>(load);
   // First time: open the look picker so people see the choices and where settings live.
   const [menu, setMenu] = useState(() => { try { return !localStorage.getItem(KEY); } catch { return false; } });
@@ -341,5 +343,5 @@ export default function UndercoverApp() {
       default: return <TextLook chat={chat} contact={saved.contact} onMenu={onMenu} />;
     }
   })();
-  return <>{look}{menu && <Settings saved={saved} save={save} onClose={() => setMenu(false)} />}</>;
+  return <>{look}{menu && <Settings saved={saved} save={save} onClose={() => setMenu(false)} onExit={onExit} />}</>;
 }

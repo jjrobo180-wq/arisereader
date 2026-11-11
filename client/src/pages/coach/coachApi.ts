@@ -1,5 +1,5 @@
 // Arise Coaching on the phone: calls to server/coach.ts and the hooks both apps use (Cooked's
-// "Find a trainer" and "My trainer", and the Cooked Trainer app).
+// "Find a trainer" and "My trainer", and the Cooked PT app).
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API_BASE } from "@/lib/queryClient";
 import type { ClientSide, Coaching, Consent, Library, LinkStatus, Message, PublicTrainer, Review, Snapshot, TrainerProfile } from "@shared/coach";

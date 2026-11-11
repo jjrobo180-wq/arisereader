@@ -1,4 +1,4 @@
-"""Cooked and Cooked Trainer iPhone apps: the Info.plist settings App Review checks, and the AppDelegate
+"""Cooked and Cooked PT iPhone apps: the Info.plist settings App Review checks, and the AppDelegate
 hook push notifications need.
 
 Usage: configure_fit_app.py <path to Info.plist> [fit|trainer|notes|talk|undercover]   (after `npx cap add ios && npx cap sync ios`)
@@ -7,7 +7,7 @@ Usage: configure_fit_app.py <path to Info.plist> [fit|trainer|notes|talk|underco
   - Cooked. Camera: barcodes, meal photos, form check and progress photos for a trainer. Photos:
     choosing a meal or progress photo. Location: mapping outdoor runs and finding trails. Health:
     reading and saving to Apple Health. Links: arisefit:// (Siri shortcuts and buddy invites).
-  - Cooked Trainer. Camera and Photos: a profile photo for the trainer directory, and photos in messages.
+  - Cooked PT. Camera and Photos: a profile photo for the trainer directory, and photos in messages.
     Every permission needs a sentence saying why, or iOS stops the app when it's asked for.
   - Arise Notes. Microphone: recording meetings and voice memos. Camera and Photos: a video to
     upload (only its sound is used). Reminders and Calendars: adding the to-dos and events a person
@@ -53,10 +53,10 @@ KEYS = {
         "NSLocationWhenInUseUsageDescription": "Undercover uses your location only when you ask about the weather and haven't set a city.",
     },
     "trainer": {
-        "CFBundleDisplayName": "Cooked Trainer",
-        "NSCameraUsageDescription": "Cooked Trainer uses the camera to take your profile photo for the trainer directory and photos you send your clients in messages.",
-        "NSPhotoLibraryUsageDescription": "Cooked Trainer lets you choose your profile photo, photos for your website and groups, and photos to send your clients in messages.",
-        "NSMicrophoneUsageDescription": "Cooked Trainer uses the microphone only when you record a voice note on a client's form check video.",
+        "CFBundleDisplayName": "Cooked PT",
+        "NSCameraUsageDescription": "Cooked PT uses the camera to take your profile photo for the trainer directory and photos you send your clients in messages.",
+        "NSPhotoLibraryUsageDescription": "Cooked PT lets you choose your profile photo, photos for your website and groups, and photos to send your clients in messages.",
+        "NSMicrophoneUsageDescription": "Cooked PT uses the microphone only when you record a voice note on a client's form check video.",
     },
     "notes": {
         "CFBundleDisplayName": "Arise Notes",
@@ -64,6 +64,7 @@ KEYS = {
         "NSCameraUsageDescription": "Arise Notes uses the camera only when you choose to record a video to upload. Only its sound is written down.",
         "NSPhotoLibraryUsageDescription": "Arise Notes lets you choose a recording or video from your library to upload. Only its sound is written down.",
         "NSFaceIDUsageDescription": "Arise Notes uses Face ID to unlock your locked notes.",
+        "NSLocationWhenInUseUsageDescription": "Arise Notes uses your location only when you ask Undercover about the weather and haven't set a city.",
         "NSSpeechRecognitionUsageDescription": "In Private and Strict modes, Arise Notes writes down your recordings on this iPhone, so the audio never leaves it.",
         "NSRemindersFullAccessUsageDescription": "Arise Notes adds the to-dos you choose from your meetings to the Reminders app.",
         "NSRemindersUsageDescription": "Arise Notes adds the to-dos you choose from your meetings to the Reminders app.",

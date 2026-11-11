@@ -1,4 +1,4 @@
-// Coach Copilot in Cooked Trainer: who needs you this week, with a message drafted for each (shared/coachCopilot.ts),
+// Coach Copilot in Cooked PT: who needs you this week, with a message drafted for each (shared/coachCopilot.ts),
 // and the plan tools on a client's calendar: move missed workouts forward, and set next targets from their lifts.
 import { useEffect, useState } from "react";
 import { AlertTriangle, ArrowRight, CalendarClock, Check, ChevronRight, Send, Sparkles, TrendingUp, Trophy } from "lucide-react";

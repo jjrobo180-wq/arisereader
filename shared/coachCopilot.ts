@@ -1,4 +1,4 @@
-// Coach Copilot (November 2026): each week Cooked Trainer reads every client's plan and Cooked data (by consent)
+// Coach Copilot (November 2026): each week Cooked PT reads every client's plan and Cooked data (by consent)
 // and says who needs you, who's slipping and who deserves a shout-out, with a reply drafted for each. Plus two
 // plan tools: move missed workouts forward ("reflow"), and next targets from what they actually lifted ("progress").
 // Everything here is plain math, so it works without AI; server/coachCopilot.ts can add AI wording on top.

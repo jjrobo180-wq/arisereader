@@ -24,7 +24,7 @@ export const isReaderApp = (): boolean => isNativeApp() && (nativeFlavor() === "
 export const isEyeGazerApp = (): boolean => isNativeApp() && nativeFlavor() === "eyegaze";
 /** Inside the Cooked iPhone app. */
 export const isFitApp = (): boolean => isNativeApp() && nativeFlavor() === "fit";
-/** Inside the Cooked Trainer iPhone app (coaches; pages/trainer/TrainerApp.tsx). */
+/** Inside the Cooked PT iPhone app (coaches; pages/trainer/TrainerApp.tsx). */
 export const isTrainerApp = (): boolean => isNativeApp() && nativeFlavor() === "trainer";
 /** Inside the Arise Notes iPhone app (the AI note taker; components/arise-notes/NotesApp.tsx). */
 export const isNotesApp = (): boolean => isNativeApp() && nativeFlavor() === "notes";
@@ -40,7 +40,7 @@ export const NATIVE_APPS: Record<NativeFlavor, { name: string; bundle: string; a
   educator: { name: "Arise Reader Educator", bundle: "com.arisereader.educator", api: "https://arisetodo.com" },
   fit: { name: "Cooked", bundle: "com.arisereader.fit", api: "https://arisetodo.com" },
   eyegaze: { name: "Arise Eye Gazer", bundle: "com.arisereader.eyegazer", api: "https://arisetodo.com" },
-  trainer: { name: "Cooked Trainer", bundle: "com.arisereader.trainer", api: "https://arisetodo.com" },
+  trainer: { name: "Cooked PT", bundle: "com.arisereader.trainer", api: "https://arisetodo.com" },
   notes: { name: "Arise Notes", bundle: "com.arisereader.notes", api: "https://arisetodo.com" },
   talk: { name: "Arise Talk", bundle: "com.arisereader.talk", api: "https://arisetodo.com" },
   undercover: { name: "Arise Undercover", bundle: "com.arisereader.undercover", api: "https://arisetodo.com" },

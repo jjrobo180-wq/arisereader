@@ -1,4 +1,4 @@
-// Moving to Cooked Trainer: import clients and workouts from a CSV, email invites, export everything.
+// Moving to Cooked PT: import clients and workouts from a CSV, email invites, export everything.
 // Run with: npx tsx --test tests/trainer-import.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -80,11 +80,11 @@ test("import, email invites and export through the routes", async () => {
   assert.equal(ap2.library.exercises.length, 1, "the coach's own exercise is reused, not added twice");
   // Export.
   const ex = (await call("GET", "/api/coach/trainer/export", 7)).body;
-  assert.equal(ex.app, "Cooked Trainer"); assert.equal(ex.library.workouts.length, 2); assert.equal(ex.leads.length, 2);
+  assert.equal(ex.app, "Cooked PT"); assert.equal(ex.library.workouts.length, 2); assert.equal(ex.leads.length, 2);
   assert.match(ex.clientsCsv, /^Name,Status,Client since/);
 });
 
-test("import and export are in Cooked Trainer", () => {
+test("import and export are in Cooked PT", () => {
   const ui = read("client/src/pages/trainer/TrainerMove.tsx");
   for (const t of ["tr-import-clients", "tr-import-workouts", "tr-export", "tr-invite-all"]) assert.ok(ui.includes(t), t);
   assert.match(read("client/src/pages/trainer/TrainerApp.tsx"), /<MoveCard /);
