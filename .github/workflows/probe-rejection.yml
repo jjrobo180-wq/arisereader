@@ -1,5 +1,7 @@
 name: Probe rejection
 on:
+  push:
+    branches: [probe-rejection]
   workflow_dispatch:
 jobs:
   probe:
