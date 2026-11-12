@@ -26,7 +26,7 @@ test("the homepage sends app links, signed-in visitors and the installed app on 
 test("the homepage matches the other Arise homepages and shows every part of Notes", () => {
   assert.match(page, /<title>Arise Notes: Notes Super App/);
   for (const cls of ["site-header", "hero-grid", "features-grid", "pricing-section", "faq-section", "bottom-cta", "site-footer"]) assert.ok(page.includes(`class="${cls}`) || page.includes(` ${cls}"`), cls);
-  for (const id of ["features", "record", "ask", "undercover", "apps", "devices", "pricing", "faq"]) assert.match(page, new RegExp(`id="${id}"`), id);
+  for (const id of ["features", "record", "ask", "undercover", "apps", "devices", "tutorial", "pricing", "faq", "whats-new"]) assert.match(page, new RegExp(`id="${id}"`), id);
   for (const cmd of ["@ariserecord", "@arisepause", "@ariseresume", "@arisemark", "@arisestop"]) assert.ok(page.includes(cmd), cmd);
   for (const href of page.match(/href="#[a-z-]+"/g) ?? []) {
     const id = href.slice(7, -1);
