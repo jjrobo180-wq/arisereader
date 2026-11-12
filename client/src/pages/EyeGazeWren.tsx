@@ -63,7 +63,8 @@ export default function EyeGazeWren() {
         </button>
         <span className="eg-title text-lg font-extrabold tracking-tight text-[#191b35]">Wren <span className="text-violet-700">Talker</span></span>
       </div>
-      {isNativeApp() && nativeFlavor() === "todo"
+      {/* Wren's engine (145 MB) ships only in the Arise AAC and Arise Reader apps (.github/scripts/prune_*.sh). */}
+      {isNativeApp() && nativeFlavor() !== "eyegaze" && nativeFlavor() !== "reader"
         ? <p className="p-6 text-center text-slate-600" data-testid="wren-not-here">Wren Talker is in the Arise AAC app. Open Arise AAC to use it.</p>
         : ready
         ? <iframe src="/eyegaze/wren/" title="Wren talker" allow="autoplay; camera" className="w-full flex-1 border-0 bg-white" data-testid="frame-wren" />

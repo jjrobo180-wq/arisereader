@@ -6,11 +6,12 @@ export const ALL_ACCESS = {
   per: "a month",
   /** Where it's bought (the website; the iPhone apps link here only where Apple allows it). */
   url: "https://arisetodo.com/app#/all-access",
+  /** Each app's name, then what All Access adds in it (shown smaller). */
   perks: [
-    "To Duo Unlimited: every plugin and AI",
-    "Arise Notes Plus: 1,500 minutes a month",
-    "Cooked+, with a guest pass for a friend",
-    "Ad-free listening in Podster",
+    { app: "Arise To Duo", detail: "Unlimited: every plugin and AI" },
+    { app: "Arise Notes", detail: "Plus: 1,500 minutes a month" },
+    { app: "Cooked Fitness by Arise", detail: "Premium All in one Health & Fitness App, with a guest pass for a friend" },
+    { app: "Podster", detail: "Ad-free listening" },
   ],
 } as const;
 

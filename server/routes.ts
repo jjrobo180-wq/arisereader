@@ -1,5 +1,6 @@
 import { isSampleAccount } from "../shared/sampleAccounts";
 import { registerGoalQuizRoutes } from "./goalQuiz";
+import { registerIepAiRoutes } from "./iepAi";
 import { dedupeBooks } from "./bookDedupe";
 import { PLANS, aiProAccessFor, storageTierGb, isStoragePlanKind, grantLive, STORAGE_PLAN_KINDS } from "../shared/plans";
 import { FREE_STORAGE_BYTES } from "../shared/driveApp";
@@ -1816,6 +1817,7 @@ export async function registerRoutes(
   setInterval(runBookDedupe, 6 * 60 * 60 * 1000).unref?.();
   // WorkHub goal quizzes (server/goalQuiz.ts): AI writes a quiz from a student's goals, for the teacher.
   registerGoalQuizRoutes(app, authMiddleware);
+  registerIepAiRoutes(app, authMiddleware);
   // Para Team (server/paraTeam.ts): a teacher's shared space with their paras and 1:1s.
   registerParaTeamRoutes(app, { auth: authMiddleware, raw: raw as any, db: supabaseParaDb(getAdminSupabase) });
   // The no-login lesson plan link a teacher gives their school.
@@ -5055,6 +5057,10 @@ export async function registerRoutes(
       if (r === "admin") throw new Error("Admin accounts can't be switched off.");
     },
     confirm: (userId) => storage.approveTeacherAccount(userId),
+    deleteAccount: async (userId) => {
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error("Deleting accounts is not set up on this server.");
+      return deleteUserAccount(userId);
+    },
   });
   app.post("/api/admin/students/:id/manual-points", authMiddleware, adminMiddleware, async (req: any, res) => {
     const studentId = Number(req.params.id);
@@ -13191,13 +13197,26 @@ Important:
         } catch {}
       }
 
-      const { error } = await adminDb.from("users").delete().eq("id", userId);
+      // The database refuses while any other table still points at the person. Each time it names the one in
+      // the way: clear what points at them there (or, where that is not allowed, let go of them), then try again.
+      let error: any = null;
+      for (let attempt = 0; attempt < 40; attempt++) {
+        ({ error } = await adminDb.from("users").delete().eq("id", userId));
+        if (!error) break;
+        const m = /foreign key constraint "([^"]+)" on table "([^"]+)"/i.exec(error.message || "");
+        if (!m) break;
+        const [, constraint, table] = m;
+        const column = constraint.startsWith(`${table}_`) && constraint.endsWith("_fkey") ? constraint.slice(table.length + 1, -5) : "";
+        if (!column) { console.error("[admin-delete] Blocked by", table, constraint); return { blockedBy: table }; }
+        const gone = await adminDb.from(table).delete().eq(column, userId);
+        if (gone.error) {
+          const kept = await adminDb.from(table).update({ [column]: null }).eq(column, userId);
+          if (kept.error) { console.error("[admin-delete] Could not clear", table, column, gone.error.message, kept.error.message); return { blockedBy: table }; }
+        }
+      }
       if (error) {
         const blocked = /foreign key constraint .*on table "([^"]+)"/i.exec(error.message || "");
-        if (blocked) {
-          console.error("[admin-delete] Blocked by", blocked[1]);
-          return { blockedBy: blocked[1] };
-        }
+        if (blocked) { console.error("[admin-delete] Blocked by", blocked[1]); return { blockedBy: blocked[1] }; }
         throw new Error(error.message);
       }
 

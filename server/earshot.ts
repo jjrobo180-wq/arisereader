@@ -545,7 +545,7 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
   // Voters are "u<id>" on Arise (LifeHub) and "d<device>" on Podscroll, so both apps share one pool.
   const adStore = options.adStore ?? (sharedAdStore ??= memoryAdStore());
   const player = options.player;
-  registerAdRoutes(app, authMiddleware, { prefix: P, dir, store: adStore, voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, toContent: player ? (sid, ep, x, side) => player.toContent(sid, ep, x, side) : undefined });
+  registerAdRoutes(app, adFreeAuth, { prefix: P, dir, store: adStore, voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, toContent: player ? (sid, ep, x, side) => player.toContent(sid, ep, x, side) : undefined });
   // Publishing, Studio and LivePod need a creator: anyone signed in to Arise, or on Podster someone
   // signed in with their email (server/podcastAccounts.ts; the gate below marks req.creator).
   const isCreator = (req: any) => (P === "/api/podscroll" ? !!req.creator : !isStudent(req));
@@ -680,7 +680,7 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
 // ---------------------------------------------------------------------------
 
 const DEVICE = /^[A-Za-z0-9_-]{16,40}$/;
-const PODSCROLL_ORIGINS = ["https://podscroll.onrender.com", "https://podscroll.app", "https://www.podscroll.app"];
+const PODSCROLL_ORIGINS = ["https://arisetodo.com", "https://www.arisetodo.com", "https://podscroll.onrender.com", "https://podscroll.app", "https://www.podscroll.app"];
 /** Sites allowed to call /api/podscroll from a browser: the Podscroll site, its Render previews,
  *  anything listed in PODSCROLL_ORIGINS (comma-separated), and localhost while working on it. */
 export function podscrollAllowed(origin: string, extra: string[] = []): boolean {
@@ -781,6 +781,14 @@ export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetch
   registerClipsRoutes(app, gate, socialDb ? { kv: supabaseKV(socialDb) } : {});
   // Study Podster and Meeting Pod (server/podcastStudio.ts): the person's own notes, turned into a podcast or a meeting summary.
   registerStudioRoutes(app, gate, { ask: openAiJson, speak: (text, voice) => aiSpeech(text, voice), transcribe: openAiTranscribe, ...(socialDb ? { blobs: supabaseBlobs(socialDb) } : {}) });
+  // Does this listener have ad skipping (Arise All Access)? The app asks so it can show the right switch; the
+  // routes that make ad-free copies and ad data check the same thing themselves (adFreeAuth), so asking is only for show.
+  app.get("/api/podscroll/ad-free", gate, async (req: any, res: any) => {
+    res.set("Cache-Control", "no-store");
+    let ok = false;
+    try { ok = !!more.adFree && !!req.creator?.email && (await more.adFree(req)); } catch { ok = false; }
+    res.json({ adFree: ok });
+  });
   registerEarshotRoutes(app, gate, { store, fetcher, directory, adStore, player, socialDb, prefix: "/api/podscroll", adFree: more.adFree });
   // New-episode notifications for the Podster iPhone app (server/podPush.ts).
   if (socialDb) {

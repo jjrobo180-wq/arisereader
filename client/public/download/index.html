@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Download Arise To Duo for Windows, Mac and Linux</title>
+<meta name="description" content="Get Arise To Duo on your computer: a Windows installer, the Mac App Store, Linux, or straight in your browser.">
+<link rel="canonical" href="https://arisetodo.com/download/">
+<link rel="icon" href="/app-icons/todo-1024.png">
+<style>
+  :root{--ink:#15131f;--muted:#4b5563;--violet:#6d3df5;--line:#e5e7eb;--bg:#f6f5fb}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color:var(--ink);background:var(--bg)}
+  a{color:var(--violet)}
+  header{max-width:1040px;margin:0 auto;padding:20px;display:flex;align-items:center;gap:10px}
+  header img{width:36px;height:36px;border-radius:9px}
+  header b{font-size:18px}
+  header a.back{margin-left:auto;font-weight:600;text-decoration:none;padding:10px 4px}
+  main{max-width:1040px;margin:0 auto;padding:24px 20px 64px}
+  h1{font-size:clamp(32px,5vw,48px);line-height:1.08;margin:0 0 10px;letter-spacing:-.02em}
+  .lead{font-size:18px;color:var(--muted);margin:0 0 32px;max-width:640px;line-height:1.55}
+  .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+  .card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px;display:flex;flex-direction:column;gap:10px}
+  .card.mine{border:2px solid var(--violet);box-shadow:0 8px 30px rgba(109,61,245,.12)}
+  .tag{font-size:12px;font-weight:700;color:var(--violet);text-transform:uppercase;letter-spacing:.06em;min-height:15px}
+  h2{margin:0;font-size:22px}
+  .card p{margin:0;color:var(--muted);line-height:1.5;font-size:15px;flex:1}
+  .btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 20px;border-radius:999px;background:var(--violet);color:#fff;font-weight:600;text-decoration:none}
+  .btn.ghost{background:#fff;color:var(--ink);border:1px solid #cbd5e1}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .note{margin-top:32px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px 22px}
+  .note h3{margin:0 0 8px;font-size:17px}
+  .note p,.note li{color:var(--muted);line-height:1.55;font-size:15px}
+  .note ol{margin:6px 0 0;padding-left:20px}
+</style>
+</head>
+<body>
+<header>
+  <img src="/app-icons/todo-1024.png" alt="">
+  <b>Arise To Duo</b>
+  <a class="back" href="/app">Open in browser</a>
+</header>
+<main>
+  <h1>Arise To Duo on your computer</h1>
+  <p class="lead">Your Life and Work hubs in their own window. Same account, same lists, kept in sync with your phone.</p>
+  <div class="grid">
+    <section class="card" data-os="windows">
+      <div class="tag"></div>
+      <h2>Windows</h2>
+      <p>Windows 10 and 11, on regular PCs and ARM laptops. Installs in seconds and updates itself.</p>
+      <a class="btn" href="https://github.com/jjrobo180-wq/arisereader/releases/download/desktop/Arise-To-Duo-Setup.exe">Download for Windows</a>
+    </section>
+    <section class="card" data-os="mac">
+      <div class="tag"></div>
+      <h2>Mac</h2>
+      <p>On the Mac App Store for Macs with Apple chips (M1 and newer).</p>
+      <a class="btn" href="https://apps.apple.com/app/id6828284417">Get it on the Mac App Store</a>
+    </section>
+    <section class="card" data-os="linux">
+      <div class="tag"></div>
+      <h2>Linux</h2>
+      <p>AppImage runs on most distributions. The .deb is for Ubuntu, Debian and Mint.</p>
+      <div class="row">
+        <a class="btn" href="https://github.com/jjrobo180-wq/arisereader/releases/download/desktop/Arise-To-Duo-linux.AppImage">AppImage</a>
+        <a class="btn ghost" href="https://github.com/jjrobo180-wq/arisereader/releases/download/desktop/Arise-To-Duo-linux.deb">.deb</a>
+      </div>
+    </section>
+    <section class="card" data-os="chromeos">
+      <div class="tag"></div>
+      <h2>Chromebook or any browser</h2>
+      <p>Open the app, then use your browser's Install button (in the address bar) to add it like an app.</p>
+      <a class="btn" href="/app">Open Arise To Duo</a>
+    </section>
+  </div>
+  <div class="note">
+    <h3>Windows says "Windows protected your PC"?</h3>
+    <p>That shows for new apps Windows hasn't seen many times yet. It's safe to continue:</p>
+    <ol><li>Click <b>More info</b>.</li><li>Click <b>Run anyway</b>.</li></ol>
+  </div>
+</main>
+<script>
+  // Point people at the download for the computer they're on.
+  (function () {
+    var ua = navigator.userAgent || "", os = /CrOS/.test(ua) ? "chromeos" : /Windows/.test(ua) ? "windows" : /Mac OS X|Macintosh/.test(ua) && !/iPhone|iPad/.test(ua) ? "mac" : /Linux/.test(ua) && !/Android/.test(ua) ? "linux" : "";
+    var card = os && document.querySelector('[data-os="' + os + '"]');
+    if (card) { card.classList.add("mine"); card.querySelector(".tag").textContent = "Your computer"; card.parentNode.insertBefore(card, card.parentNode.firstChild); }
+  })();
+</script>
+</body>
+</html>

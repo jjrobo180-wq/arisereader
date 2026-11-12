@@ -253,6 +253,51 @@ export function registerAriseTodoRoutes(app: Express, authMiddleware: RequestHan
     }
   });
 
+  // Setup and the walkthrough show once per ACCOUNT, not once per device (signing in on a new phone,
+  // the Mac or after signing out used to show them again). Kept in the settings table, one row per
+  // account: "seen:<id>" = {"setup":true,"walkthrough":true}. Accounts from before this change that
+  // already have a saved workspace count as having seen both.
+  const SEEN_SINCE = Date.parse("2026-11-11T22:30:00Z");
+  const SEEN_WHAT = ["setup", "walkthrough"] as const;
+  const readSeen = async (userId: number): Promise<Record<string, boolean>> => {
+    try { const v = JSON.parse((await storage.getSetting(`seen:${userId}`)) || "{}"); return v && typeof v === "object" ? v : {}; } catch { return {}; }
+  };
+  app.get("/api/arise-todo/seen", authMiddleware, async (req: any, res) => {
+    res.set("Cache-Control", "no-store");
+    const userId = Number(req.user?.id);
+    if (!Number.isSafeInteger(userId)) return res.status(401).json({ message: "Sign in first." });
+    try {
+      let seen = await readSeen(userId);
+      if (!SEEN_WHAT.every((k) => seen[k])) {
+        const user: any = await storage.getUser(userId).catch(() => null);
+        const made = Date.parse(String(user?.createdAt || ""));
+        if (Number.isFinite(made) && made < SEEN_SINCE && (await readUpdatedAt(userId).catch(() => null))) {
+          seen = { ...seen, setup: true, walkthrough: true };
+          await storage.upsertSetting(`seen:${userId}`, JSON.stringify(seen)).catch(() => {});
+        }
+      }
+      return res.json({ setup: !!seen.setup, walkthrough: !!seen.walkthrough });
+    } catch (e: any) {
+      console.error("[arise-todo] seen read:", e?.message);
+      return res.status(503).json({ message: "Couldn't check right now." });
+    }
+  });
+  app.post("/api/arise-todo/seen", authMiddleware, async (req: any, res) => {
+    const userId = Number(req.user?.id);
+    if (!Number.isSafeInteger(userId)) return res.status(401).json({ message: "Sign in first." });
+    const what = SEEN_WHAT.filter((k) => req.body?.[k] === true);
+    if (!what.length) return res.status(400).json({ message: "Nothing to save." });
+    try {
+      const seen = await readSeen(userId);
+      for (const k of what) seen[k] = true;
+      await storage.upsertSetting(`seen:${userId}`, JSON.stringify({ setup: !!seen.setup, walkthrough: !!seen.walkthrough }));
+      return res.json({ success: true });
+    } catch (e: any) {
+      console.error("[arise-todo] seen save:", e?.message);
+      return res.status(503).json({ message: "Couldn't save right now." });
+    }
+  });
+
   app.put("/api/arise-todo/workspace", authMiddleware, async (req: any, res) => {
     if (rejectPreview(req, res)) return;
     res.set("Cache-Control", "no-store");

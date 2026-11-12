@@ -21,7 +21,7 @@ const EXAMPLES: Record<From, string[]> = {
 };
 const KEY = "arise-notes-ask-view";
 const loadView = (): { from: From; look: Look } => {
-  try { const v = JSON.parse(localStorage.getItem(KEY) || "null"); return { from: v?.from === "anything" ? "anything" : "notes", look: v?.look === "doc" || v?.look === "text" ? v.look : "chat" }; } catch { return { from: "notes", look: "chat" }; }
+  try { const v = JSON.parse(localStorage.getItem(KEY) || "null"); return { from: v?.from === "notes" ? "notes" : "anything", look: v?.look === "doc" || v?.look === "text" ? v.look : "chat" }; } catch { return { from: "anything", look: "chat" }; }
 };
 
 function Toggle<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: [T, string, ReactNode][]; onChange: (v: T) => void }) {
@@ -116,7 +116,7 @@ export default function AskScreen({ ctx }: { ctx: AppCtx }) {
     <TopBar ctx={ctx} title="Ask" back={() => ctx.go({ name: "home" })} />
     <main className="mx-auto flex max-w-3xl flex-col px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-4 sm:px-5">
       <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
-        <Toggle label="Answer from" value={from} onChange={(v) => setView({ from: v })} options={[["notes", "My notes", <FileText key="n" className="h-4 w-4" aria-hidden />], ["anything", "Anything", <Sparkles key="a" className="h-4 w-4" aria-hidden />]]} />
+        <Toggle label="Answer from" value={from} onChange={(v) => setView({ from: v })} options={[["anything", "Notes + web", <Sparkles key="a" className="h-4 w-4" aria-hidden />], ["notes", "Only my notes", <FileText key="n" className="h-4 w-4" aria-hidden />]]} />
         <Toggle label="Look" value={look} onChange={(v) => setView({ look: v })} options={[["chat", "Chat", <MessagesSquare key="c" className="h-4 w-4" aria-hidden />], ["doc", "Notes", <FileText key="d" className="h-4 w-4" aria-hidden />], ["text", "Text", <MessageCircle key="t" className="h-4 w-4" aria-hidden />]]} />
       </div>
       {from === "notes" && notesLocked ? <Notice tone="warn" action={<Btn kind="primary" onClick={() => ctx.go({ name: "settings", tab: "plan" })}>See plans</Btn>}>Asking your own notes comes with Arise Notes Basic. "Anything" works on every plan.</Notice> : <>
