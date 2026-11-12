@@ -25,3 +25,10 @@ test("a given membership is named after its program, and a paid record wins", ()
   assert.match(planView(info({ source: "admin", trial: true, kind: "todo_unlimited" }), false, now).detail, /^Unlimited until /);
   assert.equal(bestOf([info({ source: "admin" }), info({ source: "stripe" })])?.source, "stripe");
 });
+
+test("VIP people count as To Duo members, so the card matches the list", () => {
+  const prog = programOf("todo")!;
+  const vip = planView(null, true, now);
+  const st = programStats(prog, [{ info: null, plan: vip }, { info: info({ kind: "todo_unlimited" }), plan: planView(info({ kind: "todo_unlimited" }), false, now) }, { info: null, plan: planView(null, false, now) }]);
+  assert.deepEqual([st.members, st.paying, st.given], [2, 1, 1]);
+});

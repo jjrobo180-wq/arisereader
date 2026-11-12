@@ -13197,13 +13197,26 @@ Important:
         } catch {}
       }
 
-      const { error } = await adminDb.from("users").delete().eq("id", userId);
+      // The database refuses while any other table still points at the person. Each time it names the one in
+      // the way: clear what points at them there (or, where that is not allowed, let go of them), then try again.
+      let error: any = null;
+      for (let attempt = 0; attempt < 40; attempt++) {
+        ({ error } = await adminDb.from("users").delete().eq("id", userId));
+        if (!error) break;
+        const m = /foreign key constraint "([^"]+)" on table "([^"]+)"/i.exec(error.message || "");
+        if (!m) break;
+        const [, constraint, table] = m;
+        const column = constraint.startsWith(`${table}_`) && constraint.endsWith("_fkey") ? constraint.slice(table.length + 1, -5) : "";
+        if (!column) { console.error("[admin-delete] Blocked by", table, constraint); return { blockedBy: table }; }
+        const gone = await adminDb.from(table).delete().eq(column, userId);
+        if (gone.error) {
+          const kept = await adminDb.from(table).update({ [column]: null }).eq(column, userId);
+          if (kept.error) { console.error("[admin-delete] Could not clear", table, column, gone.error.message, kept.error.message); return { blockedBy: table }; }
+        }
+      }
       if (error) {
         const blocked = /foreign key constraint .*on table "([^"]+)"/i.exec(error.message || "");
-        if (blocked) {
-          console.error("[admin-delete] Blocked by", blocked[1]);
-          return { blockedBy: blocked[1] };
-        }
+        if (blocked) { console.error("[admin-delete] Blocked by", blocked[1]); return { blockedBy: blocked[1] }; }
         throw new Error(error.message);
       }
 

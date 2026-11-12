@@ -226,13 +226,17 @@ export function registerTodoAdminRoutes(
       const [l, book] = await Promise.all([load(), planBook()]);
       const m = await money(book);
       const { people } = peopleFrom(l, book, m);
-      const inRole = people.filter((p) => matchesRole(p, role));
       const mem = await allMemberships();
       const prog = programOf(req.query?.program);
-      const rows = sortPeople(inRole.filter((p) => matchesPlan(p, plan) && matchesQuery(p, q) && (!prog || !!mem.get(p.id)?.some((x) => x.id === prog.id))), sort);
+      const freePlan = planView(null, false, now());
+      // With a program chosen, the list, the plan filter and its counts are all about that program.
+      const inRole = people
+        .filter((p) => matchesRole(p, role) && (!prog || !!mem.get(p.id)?.some((x) => x.id === prog.id))) 
+        .map((p) => (prog ? { ...p, plan: mem.get(p.id)?.find((x) => x.id === prog.id)?.plan ?? freePlan } : p));
+      const rows = sortPeople(inRole.filter((p) => matchesPlan(p, plan) && matchesQuery(p, q)), sort);
       const counts = Object.fromEntries(PLAN_FILTERS.map((f) => [f, inRole.filter((p) => matchesPlan(p, f)).length]));
       const page = pageOf(rows, Number(req.query?.page), Number(req.query?.size));
-      res.json({ ...page, rows: page.rows.map((r) => ({ ...r, memberships: mem.get(r.id) ?? [] })), counts, moneyAvailable: m.available });
+      res.json({ ...page, rows: page.rows.map((r) => ({ ...r, memberships: (mem.get(r.id) ?? []).map(({ plan: _p, ...m }) => m) })), counts, moneyAvailable: m.available });
     } catch (e) { fail(res, e, "people"); }
   });
 
@@ -268,21 +272,23 @@ export function registerTodoAdminRoutes(
   });
 
   // ─── Programs: each app's memberships on their own ────────────────────────
+  const vipOf = (u: Raw, vip: Awaited<ReturnType<typeof T.readVip>>) => onVipList(vip, { id: u.id, email: u.email, role: u.role, accountApproved: u.confirmed });
+  /** Everyone's standing in one program. To Duo's includes the VIP list, so the numbers match the people list. */
   const programViews = async (prog: Program) => {
-    const [l, infos] = await Promise.all([load(), T.programInfos(prog.kinds)]);
-    return l.users.map((u) => { const info = bestOf(infos.get(u.id) || []); return { u, info, plan: planView(info, false, now(), prog.id === "todo" ? undefined : prog.membership), last: l.lastActive.get(u.id) }; });
+    const [l, infos, vipList] = await Promise.all([load(), T.programInfos(prog.kinds), prog.id === "todo" ? T.readVip() : Promise.resolve(null)]);
+    return l.users.map((u) => {
+      const info = bestOf(infos.get(u.id) || []);
+      const vip = !!vipList && vipOf(u, vipList);
+      return { u, info, plan: planView(info, vip, now(), prog.id === "todo" ? undefined : prog.membership), last: l.lastActive.get(u.id) };
+    });
   };
   /** Every live membership anyone has, in every program, by person. */
   const allMemberships = async (): Promise<Map<number, ProgramMembership[]>> => {
     const out = new Map<number, ProgramMembership[]>();
     for (const prog of PROGRAMS) {
-      const infos = await T.programInfos(prog.kinds);
-      for (const [uid, list] of infos) {
-        const info = bestOf(list);
-        if (!info) continue;
-        const plan = planView(info, false, now(), prog.id === "todo" ? undefined : prog.membership);
-        if (plan.tier === "free" || plan.tier === "ended") continue;
-        (out.get(uid) ?? out.set(uid, []).get(uid)!).push({ id: prog.id, name: prog.name, label: plan.label, tier: plan.tier });
+      for (const v of await programViews(prog)) {
+        if (v.plan.tier === "free" || v.plan.tier === "ended") continue;
+        (out.get(v.u.id) ?? out.set(v.u.id, []).get(v.u.id)!).push({ id: prog.id, name: prog.name, label: v.plan.label, tier: v.plan.tier, plan: v.plan });
       }
     }
     return out;
@@ -292,8 +298,13 @@ export function registerTodoAdminRoutes(
     try {
       res.set("Cache-Control", "no-store");
       const out = [];
-      for (const prog of PROGRAMS) out.push(programStats(prog, await programViews(prog)));
-      res.json({ programs: out, accounts: (await load()).users.length });
+      const users = (await load()).users;
+      for (const prog of PROGRAMS) {
+        const st = programStats(prog, await programViews(prog));
+        st.accounts = prog.id === "todo" ? users.filter((u) => u.role === "todo").length : prog.id === "reader" ? users.filter((u) => u.role !== "todo").length : null;
+        out.push(st);
+      }
+      res.json({ programs: out, accounts: users.length });
     } catch (e) { fail(res, e, "programs"); }
   });
   /** One program's people: its members by default, or anyone found by name, username or email. */

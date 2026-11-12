@@ -360,9 +360,8 @@ function PersonRow({ p, showMoney, onOpen, onToggle, busy, picked, onPick }: { p
       <div className="hidden text-sm font-semibold text-slate-700 md:block">{p.role === "todo" ? "To-Do" : p.role[0].toUpperCase() + p.role.slice(1)}</div>
       <div className="mt-2 min-w-0 md:mt-0">
         <div className="flex flex-wrap gap-1">
-          {p.plan.tier === "vip" && <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${TIER_STYLE.vip}`}>VIP</span>}
-          {p.memberships.map((m) => <span key={m.id} title={m.label} className={`rounded-full px-2.5 py-1 text-xs font-bold ${TIER_STYLE[m.tier]}`}>{m.name.replace("Arise ", "")}: {m.tier === "paid" ? "Paid" : m.tier === "trial" ? "Trial" : m.tier === "gift" ? "Free" : "Payment failed"}</span>)}
-          {!p.memberships.length && p.plan.tier !== "vip" && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">No membership</span>}
+          {p.memberships.map((m) => <span key={m.id} title={m.label} className={`rounded-full px-2.5 py-1 text-xs font-bold ${TIER_STYLE[m.tier]}`}>{m.name.replace("Arise ", "")}: {m.tier === "paid" ? "Paid" : m.tier === "trial" ? "Trial" : m.tier === "gift" ? "Free" : m.tier === "vip" ? "VIP (free forever)" : "Payment failed"}</span>)}
+          {!p.memberships.length && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">No membership</span>}
         </div>
       </div>
       <div className="mt-2 text-sm md:mt-0 md:text-right">
@@ -472,11 +471,12 @@ export default function TodoAdmin() {
         <Section title="Programs" hint="Each program's numbers. Tap one to list only its members below.">
           <div className="grid grid-cols-2 gap-2 lg:grid-cols-5" data-testid="program-cards">
             {(programs ?? []).map((g) => (
-              <button key={g.id} type="button" onClick={() => { setProgram(program === g.id ? "any" : g.id); setPage(1); setPicked(new Set()); }} aria-pressed={program === g.id}
+              <button key={g.id} type="button" onClick={() => { setProgram(program === g.id ? "any" : g.id); setRole("all"); setPlan("all"); setPage(1); setPicked(new Set()); }} aria-pressed={program === g.id}
                 className={`min-w-0 rounded-2xl border-2 bg-white p-3 text-left ${program === g.id ? "border-violet-600" : "border-slate-200 hover:border-slate-300"}`}>
                 <div className="truncate text-sm font-black text-slate-900">{g.name}</div>
                 <div className="mt-1 text-2xl font-black text-slate-900">{n(g.members)}</div>
-                <div className="text-xs text-slate-500">{n(g.paying)} paying · {n(g.given)} free{g.pastDue ? ` · ${n(g.pastDue)} failed` : ""}</div>
+                <div className="text-xs text-slate-500">members · {n(g.paying)} paying · {n(g.given)} free{g.pastDue ? ` · ${n(g.pastDue)} failed` : ""}</div>
+                {g.accounts !== null && <div className="text-xs text-slate-400">of {n(g.accounts)} {g.id === "todo" ? "To Duo" : "Reader"} accounts</div>}
               </button>
             ))}
           </div>
@@ -485,10 +485,10 @@ export default function TodoAdmin() {
         <>
         <OverviewPanel data={overview} error={overviewError} onRetry={() => void loadOverview()} />
 
-        <Section title={program === "any" ? "Everyone" : `${(programs ?? []).find((g) => g.id === program)?.name ?? ""} members`} hint="Tick people to delete several at once. Tap a person for their memberships, payments and a delete button. The switch turns their account on or off.">
+        <Section title={program === "any" ? (role === "all" ? "Everyone" : ROLE_LABEL[role]) : `${(programs ?? []).find((g) => g.id === program)?.name ?? ""} members`} hint="Tick people to delete several at once. Tap a person for their memberships, payments and a delete button. The switch turns their account on or off.">
           <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:px-0" role="tablist" aria-label="Kind of account">
             {ROLE_FILTERS.map((r) => (
-              <button key={r} type="button" role="tab" aria-selected={role === r} onClick={() => { setRole(r); setPage(1); setPicked(new Set()); }}
+              <button key={r} type="button" role="tab" aria-selected={role === r} onClick={() => { setRole(r); setProgram("any"); setPlan("all"); setPage(1); setPicked(new Set()); }}
                 className={`min-h-11 shrink-0 rounded-full border-2 px-4 text-sm font-bold ${role === r ? "border-violet-600 bg-violet-600 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>
                 {ROLE_LABEL[r]}{overview ? ` (${n(r === "all" ? overview.accounts.total : overview.accounts.byRole[r])})` : ""}
               </button>

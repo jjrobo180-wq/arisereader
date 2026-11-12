@@ -13,7 +13,7 @@ export function stripeKeyMode(key: unknown): "live" | "test" | "unset" {
 export type PersonRole = "student" | "teacher" | "parent" | "todo";
 export const ROLE_FILTERS = ["todo", "teacher", "parent", "student", "all"] as const;
 export type RoleFilter = (typeof ROLE_FILTERS)[number];
-export const ROLE_LABEL: Record<RoleFilter, string> = { todo: "Arise To Duo", teacher: "Teachers", parent: "Parents", student: "Students", all: "Everyone" };
+export const ROLE_LABEL: Record<RoleFilter, string> = { todo: "To Duo accounts", teacher: "Teachers", parent: "Parents", student: "Students", all: "Everyone" };
 export const PLAN_FILTERS = ["all", "paid", "trial", "vip", "free", "problem", "off"] as const;
 export type PlanFilter = (typeof PLAN_FILTERS)[number];
 export const PLAN_FILTER_LABEL: Record<PlanFilter, string> = { all: "All plans", paid: "Paying", trial: "Free trial or gift", vip: "Free forever (VIP)", free: "Free plan", problem: "Needs a look", off: "Switched off" };
@@ -194,19 +194,19 @@ export function bestOf(list: PlanInfo[]): PlanInfo | null {
   const rank = (i: PlanInfo) => (i.live ? 0 : 10) + (i.source === "admin" ? 2 : 0);
   return [...list].sort((a, b) => rank(a) - rank(b))[0] ?? null;
 }
-export type ProgramMembership = { id: ProgramId; name: string; label: string; tier: PlanTier };
+export type ProgramMembership = { id: ProgramId; name: string; label: string; tier: PlanTier; plan?: PlanView };
 export type ProgramRow = { id: ProgramId; name: string; canGive: boolean; plan: PlanView; given: boolean };
-export type ProgramStats = { id: ProgramId; name: string; about: string; canGive: boolean; members: number; paying: number; given: number; pastDue: number; canceling: number; ended: number };
+export type ProgramStats = { id: ProgramId; name: string; about: string; canGive: boolean; /** How many accounts the program has in all (To Duo, Reader), for "of N accounts". */ accounts: number | null; members: number; paying: number; given: number; pastDue: number; canceling: number; ended: number };
 export type ProgramPerson = Pick<Person, "id" | "name" | "username" | "email" | "role" | "createdAt" | "enabled" | "lastActiveAt"> & { plan: PlanView; given: boolean };
 export function programStats(prog: Program, views: { plan: PlanView; info: PlanInfo | null }[]): ProgramStats {
-  const st: ProgramStats = { id: prog.id, name: prog.name, about: prog.about, canGive: !!prog.give, members: 0, paying: 0, given: 0, pastDue: 0, canceling: 0, ended: 0 };
+  const st: ProgramStats = { id: prog.id, name: prog.name, about: prog.about, canGive: !!prog.give, accounts: null, members: 0, paying: 0, given: 0, pastDue: 0, canceling: 0, ended: 0 };
   for (const { plan, info } of views) {
-    if (!info) continue;
+    if (!info && plan.tier !== "vip") continue;
     if (plan.tier === "ended") { st.ended++; continue; }
     if (plan.tier === "free") continue;
     st.members++;
     if (plan.tier === "paid" || plan.tier === "past_due") st.paying++;
-    if (plan.tier === "trial" || plan.tier === "gift") st.given++;
+    if (plan.tier === "trial" || plan.tier === "gift" || plan.tier === "vip") st.given++;
     if (plan.tier === "past_due") st.pastDue++;
     if (plan.canceling) st.canceling++;
   }
