@@ -2362,6 +2362,22 @@ export async function registerRoutes(
     return [label, grade ? `Grade ${grade} level` : ""].filter(Boolean).join(" · ");
   };
 
+  /** The account a parent code opens. Codes are printed on handouts, so one made for an account that
+   *  was later merged into another (a roster account and the one the student made themselves) follows
+   *  the merge to the account that stayed, instead of linking the parent to an archived account. */
+  const studentForParentCode = async (studentId: number): Promise<number> => {
+    let id = Number(studentId);
+    for (let hop = 0; hop < 5; hop++) {
+      const u: any = await storage.getUser(id);
+      if (u && !u.archivedAt) return id;
+      const { data } = await getAdminSupabase().from("account_merges").select("keep_id")
+        .eq("dup_id", id).order("at", { ascending: false }).limit(1).maybeSingle();
+      if (!data?.keep_id) return id;
+      id = Number(data.keep_id);
+    }
+    return id;
+  };
+
   const getOrCreateParentInvite = async (studentId: number) => {
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error("Parent codes are not configured.");
     const adminDb = getAdminSupabase();
@@ -3028,8 +3044,8 @@ export async function registerRoutes(
           .select("student_id").eq("code", normalizedCode).maybeSingle();
         if (error) return res.status(503).json({ message: "Parent codes are unavailable right now." });
         if (!invite) return res.status(400).json({ message: "That parent code was not found. Check it or leave it blank and connect your child later." });
-        student = await storage.getUser(invite.student_id);
-        if (!student || student.role !== "student") {
+        student = await storage.getUser(await studentForParentCode(invite.student_id));
+        if (!student || student.role !== "student" || student.archivedAt) {
           return res.status(400).json({ message: "That parent code was not found. Check it or connect your child later." });
         }
       }
@@ -11683,13 +11699,14 @@ Important:
       const { data: invite, error } = await getAdminSupabase().from('parent_invite_codes').select('student_id').eq('code', code).maybeSingle();
       if (error) return res.status(503).json({ message: 'Parent codes are unavailable.' });
       if (!invite) return res.status(400).json({ message: 'That parent code was not found.' });
+      const childId = await studentForParentCode(Number(invite.student_id));
       const links = await readParentStudentLinks();
       const ids = normalizeLinkedIds(links[String(req.user.id)]);
-      if (!ids.includes(Number(invite.student_id))) {
+      if (!ids.includes(childId)) {
         // One parent profile follows up to PLANS.parentMaxChildren (three) children.
-        const room = await plans.parentLinkAllowed(ids, Number(invite.student_id));
+        const room = await plans.parentLinkAllowed(ids, childId);
         if (!room.ok) return res.status(409).json({ message: room.message });
-        ids.push(Number(invite.student_id));
+        ids.push(childId);
       }
       links[String(req.user.id)] = ids;
       await storage.upsertSetting('parent_student_links', JSON.stringify(links));

@@ -535,6 +535,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         } else {
           const parents = deps.studentParentIds ? await deps.studentParentIds(user.id) : [];
           facts.familyGrants = await Promise.all(parents.map((id) => current("bundle_family", id)));
+          // The student's school: a school plan, or an always-free school, covers its students.
+          facts.schoolGrant = await current("school", schoolOf(user));
           if (posInt(user.teacherId)) {
             const teacher = await deps.getUser(Number(user.teacherId));
             if (teacher?.role === "teacher" && teacher.accountApproved !== false && teacher.id !== user.id) facts.classTeacherAccess = (await readerAccess(teacher)).access;

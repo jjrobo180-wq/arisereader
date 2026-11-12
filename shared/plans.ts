@@ -396,7 +396,7 @@ export function readerExistingAccount(createdAt: unknown, now = Date.now()): boo
 
 export type ReaderFacts = {
   now?: number;
-  /** A teacher's own plan, and their school's (a free school's plan counts). */
+  /** A teacher's own plan, and their school's (a free school's plan counts). The school's counts for its students too. */
   teacherGrant?: PlanGrant | null;
   schoolGrant?: PlanGrant | null;
   /** A parent's own family plan, or the family plans of a student's linked parents. */
@@ -427,6 +427,9 @@ export function readerAccessFor(person: (PlanPerson & { username?: string | null
   }
   if ((facts.familyGrants || []).some((g) => grantLive(g, now))) return { access: true, via: "family-plan" };
   if (role === "student" && facts.classTeacherAccess && person.approvedByTeacher !== false) return { access: true, via: "class" };
+  // A student at a school with a school plan, or at an always-free school, reads free: most students
+  // join by advisory name, with no teacher account on file, so the class check alone left them locked.
+  if (role === "student" && grantLive(facts.schoolGrant, now) && person.approvedByTeacher !== false) return { access: true, via: "school-plan" };
   return { access: false, via: null };
 }
 
