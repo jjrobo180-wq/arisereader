@@ -12,10 +12,10 @@ import { appleStoreReady, manageAppleSubscription } from "@/lib/appleStore";
 type Status = { live: boolean; admin: boolean; source?: "stripe" | "admin" | "apple" | null; priceCents: number; payment: boolean; endsAt: string | null; cancelAtPeriodEnd: boolean; canManage: boolean; canBuy: boolean; about?: string };
 
 const PERKS: [string, string][] = [
-  ["Arise To Duo Unlimited", "Every plugin in the Plugin Gallery and AI, in WorkHub and LifeHub."],
-  ["Arise Notes Plus", "1,500 minutes a month, speaker labels, IEP mode and rollover."],
-  ["Cooked Fitness by Arise: Premium All in one Health & Fitness App", "Every premium feature, plus a free guest pass for one friend."],
-  ["Ad-free Podster", "Ads are found and skipped in the episodes you play."],
+  ["Arise To Duo", "Unlimited: every plugin in the Plugin Gallery and AI, in WorkHub and LifeHub."],
+  ["Arise Notes", "Plus: 1,500 minutes a month, speaker labels, IEP mode and rollover."],
+  ["Cooked Fitness by Arise", "Premium All in one Health & Fitness App, plus a free guest pass for one friend."],
+  ["Podster", "Ad-free: ads are found and skipped in the episodes you play."],
 ];
 
 export default function AllAccessPage() {
