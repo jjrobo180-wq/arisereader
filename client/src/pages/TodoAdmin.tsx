@@ -9,16 +9,16 @@ import { API_BASE } from "@/lib/queryClient";
 import { usd } from "@shared/plans";
 import {
   PAGE_SIZES, PLAN_FILTERS, PLAN_FILTER_LABEL, ROLE_FILTERS, ROLE_LABEL, SORTS, SORT_LABEL, TRIAL_CHOICES,
-  type Overview, type Person, type PersonSort, type PlanFilter, type RoleFilter, type ProgramId, type ProgramPerson, type ProgramStats,
+  type Overview, type Person, type PersonSort, type PlanFilter, type RoleFilter, type ProgramId, type ProgramMembership, type ProgramRow, type ProgramStats,
 } from "@shared/todoAdmin";
 import { lockPageScroll } from "@/lib/scrollLock";
 
-type ListData = { rows: Person[]; page: number; pages: number; total: number; counts: Record<PlanFilter, number>; moneyAvailable: boolean };
+type ListData = { rows: (Person & { memberships: ProgramMembership[] })[]; page: number; pages: number; total: number; counts: Record<PlanFilter, number>; moneyAvailable: boolean };
 type Payment = { id: string; at: string; cents: number; refundedCents: number; description: string };
 type Detail = {
   person: Person; payments: Payment[]; paymentsNote: string; hasCustomer: boolean; mode: "live" | "test" | "unset";
   plan: { kind: string; source: "stripe" | "admin"; status: string; live: boolean; endsAt: string | null; trial: boolean; cancelAtPeriodEnd: boolean; note: string; paidOnline: boolean; canCancel: boolean } | null;
-  usedOn: { days: number; last: string[] }; vip: boolean;
+  programs: ProgramRow[]; usedOn: { days: number; last: string[] }; vip: boolean;
 };
 
 function cookieToken(): string | null {
@@ -232,9 +232,30 @@ function PersonSheet({ id, onClose, onChanged }: { id: number; onClose: () => vo
               {!p.confirmed && <button type="button" disabled={!!busy} className={`${btnLine} mt-2 w-full`} onClick={() => void act("confirm", "/confirm", {}, `${name}'s account is turned on.`, `Turn on ${name}'s account without their email code?`)}><Mail className="h-4 w-4" /> Turn on without the email code</button>}
             </section>
 
+            <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4" aria-label="Memberships" data-testid="sheet-memberships">
+              <h3 className="font-black text-slate-900">Memberships in every program</h3>
+              <ul className="divide-y divide-slate-100">
+                {detail.programs.map((g) => (
+                  <li key={g.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+                    <div className="min-w-0"><div className="text-sm font-bold text-slate-900">{g.name}</div><div className="text-xs text-slate-500">{g.plan.tier === "free" || g.plan.tier === "ended" ? g.plan.detail || "No membership" : g.plan.detail}</div></div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${TIER_STYLE[g.plan.tier] || "bg-slate-100 text-slate-700"}`}>{g.plan.label}</span>
+                      {g.id !== "todo" && g.canGive && p.role !== "student" && (g.given
+                        ? <button type="button" className={btnLine} disabled={!!busy} onClick={() => void act(`end-${g.id}`, "/program/end", { program: g.id }, `${firstName}'s free ${g.name} membership ended.`, `End ${firstName}'s free ${g.name} membership now?`)}>End free</button>
+                        : (g.plan.tier === "free" || g.plan.tier === "ended") && <button type="button" className={btnMain} disabled={!!busy} onClick={() => void act(`give-${g.id}`, "/program", { program: g.id, days }, `${firstName} has a free ${g.name} membership.`)}><Gift className="h-4 w-4" /> Give</button>)}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <label className="block text-xs font-semibold text-slate-600">How long a free membership lasts
+                <select className={`${field} mt-1`} value={days} onChange={(e) => setDays(Number(e.target.value))}>{TRIAL_CHOICES.map((c) => <option key={c.days} value={c.days}>{c.label}</option>)}</select>
+              </label>
+              <p className="text-xs text-slate-500">Arise To Duo has its own trial, cancel and refund buttons just below. Arise Reader teacher plans are given in the Reader admin.</p>
+            </section>
+
             <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4" aria-label="Plan">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="font-black text-slate-900">Plan</h3>
+                <h3 className="font-black text-slate-900">Arise To Duo plan</h3>
                 <span className={`rounded-full px-3 py-1 text-xs font-bold ${TIER_STYLE[p.plan.tier]}`}>{p.plan.label}</span>
               </div>
               {p.plan.detail && <p className="text-sm text-slate-600">{p.plan.detail}</p>}
@@ -296,6 +317,16 @@ function PersonSheet({ id, onClose, onChanged }: { id: number; onClose: () => vo
               )}
               {refundable && <button type="button" className={`${btnDanger} w-full`} disabled={!!busy} onClick={() => void act("refund", "/refund", {}, "The last payment was refunded.", `Refund ${name}'s last payment?\n\nThe money goes back to their card. This does not cancel their plan.`)}>Refund last payment</button>}
             </section>
+            <section className="space-y-2 rounded-2xl border border-rose-200 bg-white p-4" aria-label="Delete account">
+              <h3 className="font-black text-rose-800">Delete this account</h3>
+              <p className="text-sm text-slate-600">Removes {firstName} from every Arise program and deletes what they made. This can't be undone. To only stop them signing in, use the switch at the top.</p>
+              <button type="button" className={`${btnDanger} w-full`} disabled={!!busy} data-testid="sheet-delete" onClick={() => {
+                const t = window.prompt(`Delete ${name} for good?\n\nType their username (${p.username}) to delete.`);
+                if (t === null) return;
+                setBusy("delete"); setMsg(null);
+                api(`/api/todo-admin/people/${id}/delete`, { method: "POST", body: { confirm: t } }).then(() => { onChanged(); onClose(); }).catch((e: any) => setMsg({ ok: false, text: e.message })).finally(() => setBusy(""));
+              }}>Delete account</button>
+            </section>
           </>}
         </div>
       </div>
@@ -303,104 +334,16 @@ function PersonSheet({ id, onClose, onChanged }: { id: number; onClose: () => vo
   );
 }
 
-// ─── Programs: each app's memberships, on their own ──────────────────────
-
-type ProgramList = { rows: ProgramPerson[]; page: number; pages: number; total: number; searching: boolean };
-
-/** One program: its numbers, its members, and the buttons to give or end a free membership, or delete an account. */
-function ProgramPanel({ stats, onChanged }: { stats: ProgramStats; onChanged: () => void }) {
-  const api = useApi();
-  const [list, setList] = useState<ProgramList | null>(null);
-  const [typed, setTyped] = useState("");
-  const [q, setQ] = useState("");
-  const [page, setPage] = useState(1);
-  const [days, setDays] = useState(30);
-  const [busy, setBusy] = useState<number | null>(null);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  useEffect(() => { const t = window.setTimeout(() => { setQ(typed.trim()); setPage(1); }, 300); return () => window.clearTimeout(t); }, [typed]);
-  const load = useCallback(async () => {
-    try { setList(await api<ProgramList>(`/api/todo-admin/programs/${stats.id}/people?${new URLSearchParams({ q, page: String(page) })}`)); }
-    catch (e: any) { setMsg({ ok: false, text: e.message }); }
-  }, [api, stats.id, q, page]);
-  useEffect(() => { void load(); }, [load]);
-  const run = async (p: ProgramPerson, job: () => Promise<unknown>, done: string) => {
-    if (busy) return;
-    setBusy(p.id); setMsg(null);
-    try { await job(); setMsg({ ok: true, text: done }); await load(); onChanged(); }
-    catch (e: any) { setMsg({ ok: false, text: e.message }); }
-    finally { setBusy(null); }
-  };
-  const who = (p: ProgramPerson) => p.name || p.username;
-  const give = (p: ProgramPerson) => run(p, () => api(`/api/todo-admin/people/${p.id}/program`, { method: "POST", body: { program: stats.id, days } }), `${who(p)} now has a free ${stats.name} membership.`);
-  const end = (p: ProgramPerson) => { if (window.confirm(`End ${who(p)}'s free ${stats.name} membership now?`)) void run(p, () => api(`/api/todo-admin/people/${p.id}/program/end`, { method: "POST", body: { program: stats.id } }), `${who(p)}'s free membership has ended.`); };
-  const remove = (p: ProgramPerson) => {
-    const typedName = window.prompt(`Delete ${who(p)}'s whole Arise account for good?\n\nThis removes them from every Arise program, not only ${stats.name}, and it can't be undone.\n\nType their username (${p.username}) to delete.`);
-    if (typedName === null) return;
-    void run(p, () => api(`/api/todo-admin/people/${p.id}/delete`, { method: "POST", body: { confirm: typedName } }), `${who(p)}'s account was deleted.`);
-  };
-  return (
-    <div className="space-y-4" data-testid={`program-${stats.id}`}>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-        <Stat label="Members" value={n(stats.members)} sub={stats.about} tone="good" />
-        <Stat label="Paying" value={n(stats.paying)} />
-        <Stat label="Free from you" value={n(stats.given)} sub="Trials and gifts" />
-        <Stat label="Payment failed" value={n(stats.pastDue)} tone={stats.pastDue ? "warn" : undefined} />
-        <Stat label="Cancelling" value={n(stats.canceling)} />
-        <Stat label="Ended" value={n(stats.ended)} />
-      </div>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_12rem]">
-        <label className="relative block">
-          <span className="sr-only">Search everyone by name, username or email</span>
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input className={`${field} pl-9`} value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Search anyone to give a membership" type="search" autoComplete="off" />
-        </label>
-        {stats.canGive && <select className={field} value={days} onChange={(e) => setDays(Number(e.target.value))} aria-label="How long a free membership lasts">{TRIAL_CHOICES.map((c) => <option key={c.days} value={c.days}>Give: {c.label}</option>)}</select>}
-      </div>
-      {!stats.canGive && <p className="rounded-xl bg-slate-100 p-3 text-sm text-slate-700">{stats.name} plans are switched on and off in the Reader admin, under Schools &amp; plans. Here you can see who has one and delete accounts.</p>}
-      {msg && <p role="status" className={`rounded-xl p-3 text-sm font-semibold ${msg.ok ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-800"}`}>{msg.text}</p>}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        {!list && <div className="flex items-center gap-2 p-6 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>}
-        {list && list.rows.length === 0 && <div className="p-8 text-center text-sm text-slate-500">{list.searching ? "No one matches that search." : `No one has a ${stats.name} membership yet. Search for a person to give one.`}</div>}
-        {list && list.rows.length > 0 && <ul className="divide-y divide-slate-100">
-          {list.rows.map((p) => (
-            <li key={p.id} className={`flex flex-wrap items-center gap-3 px-4 py-3 ${busy === p.id ? "opacity-60" : ""}`}>
-              <div className="min-w-0 flex-1 basis-56">
-                <div className="truncate font-bold text-slate-900">{who(p)} {!p.enabled && <span className="ml-1 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-600">Off</span>}</div>
-                <div className="truncate text-xs text-slate-500">@{p.username}{p.email ? ` · ${p.email}` : ""} · {p.role === "todo" ? "To Duo account" : p.role}</div>
-              </div>
-              <div className="min-w-0 basis-44">
-                <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-bold ${TIER_STYLE[p.plan.tier] || "bg-slate-100 text-slate-700"}`}>{p.plan.label}</span>
-                {p.plan.detail && <div className="mt-0.5 truncate text-xs text-slate-500">{p.plan.detail}</div>}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {stats.canGive && (p.given
-                  ? <button type="button" className={btnLine} disabled={!!busy} onClick={() => end(p)}>End free membership</button>
-                  : (p.plan.tier === "free" || p.plan.tier === "ended") && <button type="button" className={btnMain} disabled={!!busy} onClick={() => void give(p)}><Gift className="h-4 w-4" /> Give membership</button>)}
-                <button type="button" className={btnDanger} disabled={!!busy} onClick={() => remove(p)}>Delete account</button>
-              </div>
-            </li>
-          ))}
-        </ul>}
-      </div>
-      {list && list.pages > 1 && <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-slate-600">{n(list.total)} people · page {list.page} of {list.pages}</p>
-        <div className="flex gap-2">
-          <button type="button" className={btnLine} disabled={list.page <= 1} onClick={() => setPage(list.page - 1)} aria-label="Previous page"><ChevronLeft className="h-4 w-4" /></button>
-          <button type="button" className={btnLine} disabled={list.page >= list.pages} onClick={() => setPage(list.page + 1)} aria-label="Next page"><ChevronRight className="h-4 w-4" /></button>
-        </div>
-      </div>}
-    </div>
-  );
-}
-
 // ─── The list ────────────────────────────────────────────────────────────
 
-function PersonRow({ p, showMoney, onOpen, onToggle, busy }: { p: Person; showMoney: boolean; onOpen: () => void; onToggle: (next: boolean) => void; busy: boolean }) {
+function PersonRow({ p, showMoney, onOpen, onToggle, busy, picked, onPick }: { p: Person & { memberships: ProgramMembership[] }; showMoney: boolean; onOpen: () => void; onToggle: (next: boolean) => void; busy: boolean; picked: boolean; onPick: (on: boolean) => void }) {
   const first = p.name || p.username;
   return (
     <li className={`${p.enabled ? "bg-white" : "bg-slate-50"} cursor-pointer px-3 py-3 hover:bg-violet-50/40 sm:px-4 md:grid md:grid-cols-[minmax(0,2.3fr)_minmax(0,1.4fr)_7rem_minmax(0,1.7fr)_5.5rem_3.5rem] md:items-center md:gap-4`}
       onClick={onOpen} data-testid={`person-${p.id}`}>
       <div className="flex min-w-0 items-start justify-between gap-3 md:block">
+       <div className="flex min-w-0 items-start gap-3">
+        <input type="checkbox" checked={picked} onChange={(e) => onPick(e.target.checked)} onClick={(e) => e.stopPropagation()} aria-label={`Select ${first}`} className="mt-1 h-5 w-5 shrink-0 accent-violet-600" data-testid={`pick-${p.id}`} />
         <button type="button" onClick={(e) => { e.stopPropagation(); onOpen(); }} className="min-w-0 text-left" aria-label={`Open ${first}`}>
           <span className={`block break-words text-base font-bold ${p.enabled ? "text-slate-900" : "text-slate-500"}`}>{first}
             {!p.enabled && <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 align-middle text-[11px] font-bold text-slate-700">Off</span>}
@@ -408,6 +351,7 @@ function PersonRow({ p, showMoney, onOpen, onToggle, busy }: { p: Person; showMo
           </span>
           <span className="block break-all text-xs text-slate-500">@{p.username}{p.email ? ` · ${p.email}` : ""}</span>
         </button>
+       </div>
         <span className="md:hidden"><Switch on={p.enabled} disabled={busy} label={`Account on for ${first}`} onChange={onToggle} /></span>
       </div>
       <div className="mt-2 text-xs text-slate-600 md:mt-0 md:text-sm">
@@ -415,8 +359,11 @@ function PersonRow({ p, showMoney, onOpen, onToggle, busy }: { p: Person; showMo
       </div>
       <div className="hidden text-sm font-semibold text-slate-700 md:block">{p.role === "todo" ? "To-Do" : p.role[0].toUpperCase() + p.role.slice(1)}</div>
       <div className="mt-2 min-w-0 md:mt-0">
-        <span className={`inline-block max-w-full break-words rounded-full px-3 py-1 text-xs font-bold ${TIER_STYLE[p.plan.tier]}`}>{p.plan.label}</span>
-        {p.plan.detail && <span className="mt-0.5 block break-words text-xs text-slate-500">{p.plan.detail}</span>}
+        <div className="flex flex-wrap gap-1">
+          {p.plan.tier === "vip" && <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${TIER_STYLE.vip}`}>VIP</span>}
+          {p.memberships.map((m) => <span key={m.id} title={m.label} className={`rounded-full px-2.5 py-1 text-xs font-bold ${TIER_STYLE[m.tier]}`}>{m.name.replace("Arise ", "")}: {m.tier === "paid" ? "Paid" : m.tier === "trial" ? "Trial" : m.tier === "gift" ? "Free" : "Payment failed"}</span>)}
+          {!p.memberships.length && p.plan.tier !== "vip" && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">No membership</span>}
+        </div>
       </div>
       <div className="mt-2 text-sm md:mt-0 md:text-right">
         <span className="text-xs text-slate-500 md:hidden">Paid </span>
@@ -435,7 +382,7 @@ export default function TodoAdmin() {
   const [list, setList] = useState<ListData | null>(null);
   const [listError, setListError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [role, setRole] = useState<RoleFilter>("todo");
+  const [role, setRole] = useState<RoleFilter>("all");
   const [plan, setPlan] = useState<PlanFilter>("all");
   const [sort, setSort] = useState<PersonSort>("newest");
   const [typed, setTyped] = useState("");
@@ -447,7 +394,8 @@ export default function TodoAdmin() {
   const [flash, setFlash] = useState<{ ok: boolean; text: string } | null>(null);
   const ticket = useRef(0);
   const [programs, setPrograms] = useState<ProgramStats[] | null>(null);
-  const [program, setProgram] = useState<ProgramId | "people">("people");
+  const [program, setProgram] = useState<ProgramId | "any">("any");
+  const [picked, setPicked] = useState<Set<number>>(new Set());
   const loadPrograms = useCallback(async () => { try { setPrograms((await api<{ programs: ProgramStats[] }>("/api/todo-admin/programs")).programs); } catch { /* the tabs show without numbers */ } }, [api]);
   useEffect(() => { void loadPrograms(); }, [loadPrograms]);
 
@@ -461,14 +409,14 @@ export default function TodoAdmin() {
     const mine = ++ticket.current;
     setLoading(true);
     try {
-      const qs = new URLSearchParams({ role, plan, sort, q, page: String(page), size: String(size) });
+      const qs = new URLSearchParams({ role, plan, sort, q, page: String(page), size: String(size), ...(program !== "any" ? { program } : {}) });
       const data = await api<ListData>(`/api/todo-admin/people?${qs}`);
       if (mine !== ticket.current) return; // a newer search has gone out
       setList(data); setListError("");
       if (data.page !== page) setPage(data.page);
     } catch (e: any) { if (mine === ticket.current) setListError(e.message); }
     finally { if (mine === ticket.current) setLoading(false); }
-  }, [api, role, plan, sort, q, page, size]);
+  }, [api, role, plan, sort, q, page, size, program]);
   useEffect(() => { void loadOverview(); }, [loadOverview]);
   useEffect(() => { void loadList(); }, [loadList]);
   const refresh = () => { void loadOverview(); void loadList(); void loadPrograms(); };
@@ -480,6 +428,22 @@ export default function TodoAdmin() {
     try {
       await api(`/api/todo-admin/people/${p.id}/active`, { method: "POST", body: { active: next } });
       setFlash({ ok: true, text: `${p.name || p.username} is ${next ? "on" : "off"}.` });
+      refresh();
+    } catch (e: any) { setFlash({ ok: false, text: e.message }); }
+    finally { setToggling(null); }
+  }
+
+  const pickedHere = list ? list.rows.filter((r) => picked.has(r.id)).length : 0;
+  const allHere = !!list && list.rows.length > 0 && pickedHere === list.rows.length;
+  async function deleteSelected() {
+    if (!picked.size || toggling) return;
+    const typedWord = window.prompt(`Delete ${picked.size} account${picked.size === 1 ? "" : "s"} for good?\n\nThis removes them from every Arise program and can't be undone.\n\nType DELETE to continue.`);
+    if (typedWord === null) return;
+    setToggling(-1); setFlash(null);
+    try {
+      const r = await api<{ deleted: number; skipped: { name: string; why: string }[] }>("/api/todo-admin/people/delete-many", { method: "POST", body: { ids: [...picked], confirm: typedWord } });
+      setPicked(new Set());
+      setFlash({ ok: r.skipped.length === 0, text: `${r.deleted} deleted.${r.skipped.length ? ` Not deleted: ${r.skipped.map((s) => `${s.name || "someone"} (${s.why})`).join("; ")}.` : ""}` });
       refresh();
     } catch (e: any) { setFlash({ ok: false, text: e.message }); }
     finally { setToggling(null); }
@@ -505,24 +469,26 @@ export default function TodoAdmin() {
       </header>
 
       <div className="mx-auto max-w-6xl space-y-8 px-3 py-5 sm:px-5 sm:py-8">
-        <Section title="Programs" hint="Each program on its own: its members and numbers, free memberships, and deleting accounts.">
-          <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:px-0" role="tablist" aria-label="Program" data-testid="program-tabs">
-            <button type="button" role="tab" aria-selected={program === "people"} onClick={() => setProgram("people")} className={`min-h-11 shrink-0 rounded-full border-2 px-4 text-sm font-bold ${program === "people" ? "border-violet-600 bg-violet-600 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>Everyone and payments</button>
-            {(programs ?? []).map((p) => (
-              <button key={p.id} type="button" role="tab" aria-selected={program === p.id} onClick={() => setProgram(p.id)}
-                className={`min-h-11 shrink-0 rounded-full border-2 px-4 text-sm font-bold ${program === p.id ? "border-violet-600 bg-violet-600 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>{p.name} ({n(p.members)})</button>
+        <Section title="Programs" hint="Each program's numbers. Tap one to list only its members below.">
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-5" data-testid="program-cards">
+            {(programs ?? []).map((g) => (
+              <button key={g.id} type="button" onClick={() => { setProgram(program === g.id ? "any" : g.id); setPage(1); setPicked(new Set()); }} aria-pressed={program === g.id}
+                className={`min-w-0 rounded-2xl border-2 bg-white p-3 text-left ${program === g.id ? "border-violet-600" : "border-slate-200 hover:border-slate-300"}`}>
+                <div className="truncate text-sm font-black text-slate-900">{g.name}</div>
+                <div className="mt-1 text-2xl font-black text-slate-900">{n(g.members)}</div>
+                <div className="text-xs text-slate-500">{n(g.paying)} paying · {n(g.given)} free{g.pastDue ? ` · ${n(g.pastDue)} failed` : ""}</div>
+              </button>
             ))}
           </div>
-          {program !== "people" && programs?.find((p) => p.id === program) && <ProgramPanel key={program} stats={programs.find((p) => p.id === program)!} onChanged={refresh} />}
         </Section>
 
-        {program === "people" && <>
+        <>
         <OverviewPanel data={overview} error={overviewError} onRetry={() => void loadOverview()} />
 
-        <Section title="People" hint="Tap a person for their details, plan and payments. The switch turns their account on or off.">
+        <Section title={program === "any" ? "Everyone" : `${(programs ?? []).find((g) => g.id === program)?.name ?? ""} members`} hint="Tick people to delete several at once. Tap a person for their memberships, payments and a delete button. The switch turns their account on or off.">
           <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:px-0" role="tablist" aria-label="Kind of account">
             {ROLE_FILTERS.map((r) => (
-              <button key={r} type="button" role="tab" aria-selected={role === r} onClick={() => { setRole(r); setPage(1); }}
+              <button key={r} type="button" role="tab" aria-selected={role === r} onClick={() => { setRole(r); setPage(1); setPicked(new Set()); }}
                 className={`min-h-11 shrink-0 rounded-full border-2 px-4 text-sm font-bold ${role === r ? "border-violet-600 bg-violet-600 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>
                 {ROLE_LABEL[r]}{overview ? ` (${n(r === "all" ? overview.accounts.total : overview.accounts.byRole[r])})` : ""}
               </button>
@@ -539,18 +505,24 @@ export default function TodoAdmin() {
             <select className={field} value={sort} onChange={(e) => { setSort(e.target.value as PersonSort); setPage(1); }} aria-label="Sort by">{SORTS.map((s) => <option key={s} value={s}>{SORT_LABEL[s]}</option>)}</select>
           </div>
 
+          {list && list.rows.length > 0 && <div className="flex flex-wrap items-center gap-3 rounded-xl bg-white px-3 py-2 ring-1 ring-slate-200" data-testid="bulk-bar">
+            <label className="flex min-h-11 items-center gap-2 text-sm font-semibold text-slate-700"><input type="checkbox" className="h-5 w-5 accent-violet-600" checked={allHere} onChange={(e) => setPicked((c) => { const x = new Set(c); for (const r of list.rows) { if (e.target.checked) x.add(r.id); else x.delete(r.id); } return x; })} />Select everyone on this page</label>
+            {picked.size > 0 && <><span className="text-sm text-slate-600">{picked.size} selected</span>
+              <button type="button" className={btnDanger} onClick={() => void deleteSelected()} disabled={!!toggling} data-testid="bulk-delete">Delete selected</button>
+              <button type="button" className={btnLine} onClick={() => setPicked(new Set())}>Clear</button></>}
+          </div>}
           {flash && <p role="status" className={`rounded-xl p-3 text-sm font-semibold ${flash.ok ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-800"}`}>{flash.text}</p>}
           {listError && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800" role="alert">{listError} <button type="button" onClick={() => void loadList()} className="font-bold underline">Try again</button></p>}
 
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
             <div className="hidden grid-cols-[minmax(0,2.3fr)_minmax(0,1.4fr)_7rem_minmax(0,1.7fr)_5.5rem_3.5rem] gap-4 border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-500 md:grid">
-              <span>Person</span><span>Joined / seen</span><span>Account</span><span>Plan</span><span className="text-right">Paid</span><span className="text-right">On</span>
+              <span>Person</span><span>Joined / seen</span><span>Account</span><span>Memberships</span><span className="text-right">Paid</span><span className="text-right">On</span>
             </div>
             {!list && !listError && <div className="flex items-center gap-2 p-6 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" /> Loading people…</div>}
             {list && list.rows.length === 0 && <div className="p-8 text-center text-sm text-slate-500" data-testid="people-empty">{q || plan !== "all" ? "No one matches that. Try a different search or filter." : "No one here yet."}</div>}
             {list && list.rows.length > 0 && (
               <ul className={`divide-y divide-slate-100 ${loading ? "opacity-60" : ""}`} data-testid="people-list">
-                {list.rows.map((p) => <PersonRow key={p.id} p={p} showMoney={list.moneyAvailable} busy={toggling === p.id} onOpen={() => setOpen(p.id)} onToggle={(next) => void toggle(p, next)} />)}
+                {list.rows.map((p) => <PersonRow key={p.id} p={p} showMoney={list.moneyAvailable} busy={toggling === p.id} onOpen={() => setOpen(p.id)} onToggle={(next) => void toggle(p, next)} picked={picked.has(p.id)} onPick={(on) => setPicked((c) => { const x = new Set(c); if (on) x.add(p.id); else x.delete(p.id); return x; })} />)}
               </ul>
             )}
           </div>
@@ -566,7 +538,7 @@ export default function TodoAdmin() {
             </div>
           )}
         </Section>
-        </>}
+        </>
         <p className="flex items-center gap-2 text-xs text-slate-500"><Users className="h-3.5 w-3.5" /> Only you can see this page.</p>
       </div>
 

@@ -194,6 +194,8 @@ export function bestOf(list: PlanInfo[]): PlanInfo | null {
   const rank = (i: PlanInfo) => (i.live ? 0 : 10) + (i.source === "admin" ? 2 : 0);
   return [...list].sort((a, b) => rank(a) - rank(b))[0] ?? null;
 }
+export type ProgramMembership = { id: ProgramId; name: string; label: string; tier: PlanTier };
+export type ProgramRow = { id: ProgramId; name: string; canGive: boolean; plan: PlanView; given: boolean };
 export type ProgramStats = { id: ProgramId; name: string; about: string; canGive: boolean; members: number; paying: number; given: number; pastDue: number; canceling: number; ended: number };
 export type ProgramPerson = Pick<Person, "id" | "name" | "username" | "email" | "role" | "createdAt" | "enabled" | "lastActiveAt"> & { plan: PlanView; given: boolean };
 export function programStats(prog: Program, views: { plan: PlanView; info: PlanInfo | null }[]): ProgramStats {
