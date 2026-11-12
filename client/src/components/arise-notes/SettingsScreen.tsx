@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import { NOTES_PLANS, NOTES_THEMES, SUITE_LOOKS, dayWords, type NotesPlanId, type NotesProduct, type NotesSettings } from "@shared/ariseNotes";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
-import { NATIVE_NO_PURCHASE, isNativeApp } from "@/lib/nativeApp";
+import { NATIVE_NO_PURCHASE, checkForUpdateNow, isNativeApp } from "@/lib/nativeApp";
 import { api, notesApi, type Billing } from "./api";
 import { removeAllLocalNotes } from "./localNotes";
 import { PrivacyPicker, defaultPrivacy, rememberPrivacy, useOnDevice } from "./privacyMode";
@@ -46,7 +46,7 @@ export default function SettingsScreen({ ctx, tab }: { ctx: AppCtx; tab?: Tab })
 
 function Row({ label, detail, onClick, danger, testId }: { icon?: ReactNode; label: string; detail?: string; onClick: () => void; danger?: boolean; testId?: string }) {
   return <button type="button" onClick={onClick} data-testid={testId} className="flex min-h-[3.25rem] w-full items-center gap-3 px-4 py-2.5 text-left transition active:bg-[color-mix(in_srgb,var(--an-ink)_5%,transparent)]">
-    <span className="min-w-0 flex-1"><span className="block text-[16px] leading-tight" style={{ color: danger ? "var(--an-coral)" : "var(--an-ink)" }}>{label}</span>{detail && <span className="mt-0.5 block truncate text-[13px]" style={{ color: "var(--an-muted)" }}>{detail}</span>}</span>
+    <span className="min-w-0 flex-1"><span className="block text-[16px] leading-tight" style={{ color: danger ? "var(--an-coral)" : "var(--an-ink)" }}>{label}</span>{detail && <span className="mt-0.5 block break-words text-[13px]" style={{ color: "var(--an-muted)" }}>{detail}</span>}</span>
     <ChevronRight className="h-4 w-4 shrink-0 opacity-40" style={{ color: "var(--an-muted)" }} aria-hidden />
   </button>;
 }
@@ -70,6 +70,7 @@ function MenuHome({ ctx }: { ctx: AppCtx }) {
   const name = ctx.me.user.name || "You";
   const pct = Math.min(100, u.pct);
   const look = NOTES_THEMES.find((t) => t.id === s.theme);
+  const [updateMsg, setUpdateMsg] = useState("");
   return <>
     <header className="an-noprint pt-[var(--sat,env(safe-area-inset-top,0px))]"><h1 className="mx-auto max-w-2xl px-4 pb-1 pt-5 text-[30px] font-bold tracking-tight sm:px-5" style={{ color: "var(--an-ink)" }}>Settings</h1></header>
     <main className="mx-auto max-w-2xl space-y-6 pb-32 pt-3" data-testid="notes-menu">
@@ -91,6 +92,7 @@ function MenuHome({ ctx }: { ctx: AppCtx }) {
       </Group>
       <AppsGroup ctx={ctx} />
       <Group title="More">
+        <Row label="Check for updates" detail={updateMsg || "Get the newest version now"} onClick={() => { setUpdateMsg("Checking…"); void checkForUpdateNow().then(setUpdateMsg); }} testId="notes-check-update" />
         <Row icon={<LayoutGrid />} label="Open Arise To Duo" detail="Notes beside your to-dos" onClick={() => openSplit(ctx.mode)} />
         {ctx.mode === "standalone" && <Row icon={<LogOut />} label="Sign out" danger onClick={() => { logout(); window.location.hash = "#/"; }} testId="notes-sign-out" />}
       </Group>

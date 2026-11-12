@@ -158,6 +158,27 @@ export async function liveUpdateNow(force = false, applyNow = false): Promise<"n
     return "applied";
   } catch { return "failed"; } finally { checking = false; }
 }
+/** Settings → "Check for updates": does the whole check now and says in plain words what happened,
+ *  so a phone that isn't updating shows why. Switches to the new copy right away when there is one. */
+export async function checkForUpdateNow(): Promise<string> {
+  if (!isNativeApp()) return "This is the website: it always has the newest version. Reload the page to get it.";
+  const u = updater();
+  if (!u) return "This app can't update itself (the updater isn't in this build). It needs a new TestFlight build.";
+  let cur: any = null;
+  try { cur = await u.current(); } catch { /* unknown */ }
+  const running = String(cur?.bundle?.version || "builtin"), shipped = String(cur?.native || "");
+  let latest: any;
+  try { latest = await u.getLatest(); } catch (e: any) { return `Couldn't reach the update server (${e?.message || e}). Running ${running}.`; }
+  const version = String(latest?.version || ""), url = String(latest?.url || "");
+  if (!version || !url || latest?.error) return `Up to date: no newer version for this app (running ${running}${shipped ? `, app ${shipped}` : ""}; server said: ${latest?.message || latest?.error || "nothing new"}).`;
+  if (running === version) return `Up to date (${version}).`;
+  try {
+    const bundle: any = await u.download({ url, version, ...(latest.checksum ? { checksum: latest.checksum } : {}) });
+    if (!bundle?.id) return `Downloaded ${version} but it couldn't be opened.`;
+    await u.set({ id: bundle.id }); // reloads into the new copy
+    return `Updating to ${version}…`;
+  } catch (e: any) { return `Found ${version} but the download failed: ${e?.message || e}`; }
+}
 export function keepLiveUpdated(): void {
   if (!isNativeApp() || typeof document === "undefined") return;
   window.setTimeout(() => void liveUpdateNow(true, true), 6000);
