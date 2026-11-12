@@ -70,13 +70,6 @@ function App() {
   useEffect(() => { if (session && email) setAccount(email); }, [session, email]);
   // Skipping ads is only for people who pay (Arise All Access). Everyone else hears the ads. Signed out is free.
   const [paid, setPaid] = useState(false);
-  useEffect(() => {
-    if (!session) { setPaid(false); return; }
-    let alive = true;
-    fetch(`${API}/api/all-access`, { headers: { Authorization: `Bearer ${session}` }, cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null)).then((j) => { if (alive) setPaid(!!(j?.live || j?.admin)); }).catch(() => {});
-    return () => { alive = false; };
-  }, [session]);
   const adMode = paid ? ("auto" as const) : ("off" as const);
   useEffect(() => { setCleanEnabled(paid); }, [paid]);
   const shown = useMemo(() => ({ ...es, settings: { ...es.settings, adMode } }), [es, adMode]);
@@ -142,6 +135,12 @@ function App() {
     api("/api/earshot/account").then((b) => { if (b && b.signedIn === false) setSession(null); }).catch(() => {});
   }, [session, api, setSession]);
   // Audio comes through the server so smart ad skip can find the ads in this copy.
+  useEffect(() => {
+    if (!session) { setPaid(false); return; }
+    let alive = true;
+    api("/api/earshot/ad-free").then((j) => { if (alive) setPaid(!!j?.adFree); }).catch(() => {});
+    return () => { alive = false; };
+  }, [session, api]);
   const mediaUrl = useCallback((path: string) => API + path.replace(/^\/api\/earshot/, "/api/podscroll"), []);
   // Podster in the car (CarPlay): the car gets the library and gives back where you got to (podscroll/carplay.ts).
   const sessionRef = useRef(session); sessionRef.current = session;
